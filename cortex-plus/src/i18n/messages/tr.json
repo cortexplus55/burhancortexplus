@@ -1,0 +1,10 @@
+{
+  "common": {
+    "appName": "Cortex Plus",
+    "continue": "Devam et"
+  },
+  "nav": {
+    "features": "Özellikler",
+    "pricing": "Fiyatlandırma"
+  }
+}

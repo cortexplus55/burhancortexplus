@@ -1,0 +1,5 @@
+{"id":"prem-checkout-plus","role":"button","label":"Plus'a yükselt","page":"/paketler","state":"premium","action":"click","result":"iframe","target":"/api/payments/paytr/create-token","premium_gate":false}
+{"id":"prem-checkout-sigma","role":"button","label":"Sigma'ya yükselt","page":"/paketler","state":"premium","action":"click","result":"iframe","target":"/api/payments/paytr/create-token","premium_gate":false}
+{"id":"prem-advanced-chat","role":"quick_action","label":"Gelişmiş analiz","page":"/ogretmen","state":"premium","action":"click","result":"stream","target":"/api/ai/chat","premium_gate":false,"actionCode":"AI_CHAT_ADVANCED"}
+{"id":"prem-veli-plus","role":"tab","label":"Plus","page":"/veli/plus","state":"premium","action":"navigate","result":"page","target":"/veli/plus","premium_gate":false}
+{"id":"prem-yillik-toggle","role":"button","label":"Yıllık","page":"/paketler","state":"premium","action":"toggle","result":"ui","target":null,"premium_gate":false}

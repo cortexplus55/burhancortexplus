@@ -1,0 +1,24 @@
+{
+  "url": "https://app.astra-ai.co/tr-TR/lab",
+  "title": "Öğrenme uygulamaları",
+  "categories": {
+    "mini_games": 11,
+    "simulations": 33,
+    "tools": 7,
+    "total_labeled": 51
+  },
+  "filters": ["Tümü", "Matematik", "Fizik", "Kimya", "Biyoloji", "Genel"],
+  "cortex_route": "/uygulamalar",
+  "cortex_lab_catalog": 28,
+  "cortex_interactive_sims": 18,
+  "parity_note": "Cortex MVP katalog 18 interaktif sim; Astra tam grid 51 — genişletme backlog",
+  "captured": "2025-08-26",
+  "sample_apps": [
+    "Atom Oluştur",
+    "Grafik Çizimi",
+    "Güneş Sistemi",
+    "Özyineleme Gezgini",
+    "CPU Simülatörü",
+    "Denklemi Tahmin Et"
+  ]
+}

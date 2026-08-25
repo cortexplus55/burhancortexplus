@@ -1,0 +1,76 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import OpenAI from "openai";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { env } from "@/lib/env";
+
+const schema = z.object({
+  topic: z.string().min(3).max(500),
+});
+
+export async function POST(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const { topic } = schema.parse(await request.json());
+  const service = createServiceClient();
+  const idempotencyKey = `quiz_${user.id}_${Date.now()}`;
+
+  const { data: resId, error: reserveError } = await service.rpc("credit_reserve", {
+    p_user_id: user.id,
+    p_action_code: "QUIZ_GENERATE",
+    p_idempotency_key: idempotencyKey,
+  });
+  if (reserveError) {
+    return NextResponse.json({ error: "insufficient_credits" }, { status: 402 });
+  }
+
+  try {
+    if (!env.OPENAI_API_KEY) throw new Error("no_openai");
+    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+    const completion = await openai.chat.completions.create({
+      model: env.OPENAI_STANDARD_MODEL,
+      messages: [
+        {
+          role: "system",
+          content:
+            "JSON döndür: { title, questions: [{ question, options: string[4], correct }] }",
+        },
+        { role: "user", content: `Konu: ${topic}. 5 soruluk quiz üret.` },
+      ],
+      response_format: { type: "json_object" },
+    });
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw) as {
+      title?: string;
+      questions?: { question: string; options: string[]; correct: string }[];
+    };
+
+    const { data: quiz } = await service
+      .from("quizzes")
+      .insert({ user_id: user.id, title: parsed.title ?? topic })
+      .select("id")
+      .single();
+
+    if (quiz && parsed.questions) {
+      await service.from("quiz_questions").insert(
+        parsed.questions.map((q, i) => ({
+          quiz_id: quiz.id,
+          question_text: q.question,
+          options: q.options,
+          correct_answer: q.correct,
+          sort_order: i,
+        })),
+      );
+    }
+
+    await service.rpc("credit_commit", { p_reservation_id: resId });
+    return NextResponse.json({ quizId: quiz?.id });
+  } catch {
+    await service.rpc("credit_refund", { p_reservation_id: resId });
+    return NextResponse.json({ error: "generate_failed" }, { status: 500 });
+  }
+}

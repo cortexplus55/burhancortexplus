@@ -1,0 +1,114 @@
+{
+  "slug": "mobil-uygulama",
+  "url": "https://astra-ai.co/tr/mobil-uygulama/",
+  "title": "🐴 Astra AI Uygulamasını İndirin – iPhone (iOS) ve Android",
+  "metrics": {
+    "h": 3707,
+    "links": 45,
+    "buttons": 27,
+    "forms": 0
+  },
+  "cta_count": 32,
+  "ctas": [
+    {
+      "role": "link",
+      "label": "Logo"
+    },
+    {
+      "role": "link",
+      "label": "Sınav Hazırlığı"
+    },
+    {
+      "role": "link",
+      "label": "Yaratıcı Programı"
+    },
+    {
+      "role": "button",
+      "label": "tr TR"
+    },
+    {
+      "role": "link",
+      "label": "icon GİRİŞ YAP"
+    },
+    {
+      "role": "link",
+      "label": "Astra AI Plus'ı Satın Al static icon"
+    },
+    {
+      "role": "button",
+      "label": "icon GİRİŞ YAP"
+    },
+    {
+      "role": "button",
+      "label": "Astra AI Plus'ı Satın Al static icon"
+    },
+    {
+      "role": "link",
+      "label": "ASTRA AI UYGULAMASINI İOS'A İNDİRİN Arrow Right Icon"
+    },
+    {
+      "role": "link",
+      "label": "ASTRA AI UYGULAMASINI ANDROİD'E İNDİRİN Arrow Right Icon"
+    },
+    {
+      "role": "button",
+      "label": "ASTRA AI UYGULAMASINI İOS'A İNDİRİN Arrow Right Icon"
+    },
+    {
+      "role": "button",
+      "label": "ASTRA AI UYGULAMASINI ANDROİD'E İNDİRİN Arrow Right Icon"
+    },
+    {
+      "role": "button",
+      "label": "Astra AI Uygulaması ne için kullanılır?"
+    },
+    {
+      "role": "button",
+      "label": "Astra AI hangi dersleri destekler?"
+    },
+    {
+      "role": "button",
+      "label": "Uygulamada sınav hazırlığı nasıl çalışır?"
+    },
+    {
+      "role": "button",
+      "label": "Astra, sınav tarihim için kişiselleştirilmiş bir çalışma yolu oluşturabilir mi?"
+    },
+    {
+      "role": "button",
+      "label": "Astra AI iOS ve Android'de çalışır mı?"
+    },
+    {
+      "role": "button",
+      "label": "İndirdikten sonra nasıl başlarım?"
+    },
+    {
+      "role": "button",
+      "label": "Cookie preferences"
+    },
+    {
+      "role": "link",
+      "label": "ASTRA AI PLUS"
+    },
+    {
+      "role": "link",
+      "label": "Instagram"
+    },
+    {
+      "role": "link",
+      "label": "TikTok"
+    },
+    {
+      "role": "link",
+      "label": "LinkedIn"
+    },
+    {
+      "role": "link",
+      "label": "X"
+    },
+    {
+      "role": "link",
+      "label": "Bize Ulaşın"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "folders": [
+    {
+      "name": "cortex-plus (app)",
+      "path": "cortex-plus"
+    },
+    {
+      "name": "docs (audit & delivery)",
+      "path": "docs"
+    }
+  ],
+  "settings": {
+    "terminal.integrated.cwd": "${workspaceFolder:cortex-plus (app)}"
+  }
+}

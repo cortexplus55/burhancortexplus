@@ -1,0 +1,31 @@
+{
+  "info": {
+    "url": "https://app.astra-ai.co/tr-TR",
+    "title": "🐴 Astra AI - Tüm Dersler İçin 7/24 Yapay Zeka Öğretmenin",
+    "w": 1536,
+    "h": 639,
+    "sx": 0,
+    "sy": 0,
+    "pw": 1536,
+    "ph": 639
+  },
+  "data": {
+    "len": 0,
+    "hasLogin": false,
+    "hasChat": false,
+    "hasPaywall": false,
+    "headings": [],
+    "buttons": [
+      "Başla",
+      "KonuşAstra AI ile konuş",
+      "Menü",
+      "Satın al"
+    ],
+    "links": [
+      "Sor",
+      "Sınavlar",
+      "Uygulamalar"
+    ],
+    "sample": ""
+  }
+}

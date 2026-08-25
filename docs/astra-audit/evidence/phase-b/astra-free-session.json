@@ -1,0 +1,28 @@
+{
+  "session": "astra-free-verified",
+  "captured": "2025-08-26",
+  "signals": {
+    "streak": "0",
+    "header_cta": "Satın al",
+    "plus_banner": "Astra AI Plus'a Yükselt",
+    "bottom_nav": ["Sor", "Sınavlar", "Öğretmenler için"],
+    "note": "Plus hesapta 3. tab 'Uygulamalar'; free'de 'Öğretmenler için' — lab menüden"
+  },
+  "exam_preps": {
+    "url": "/exam-preps",
+    "elements": ["Yeni test oluştur", "Okul ekle", "Okulum / Astra'dan"]
+  },
+  "menu_drawer": [
+    "Öğrenme uygulamaları",
+    "Sınıflar",
+    "Aktivitelerim",
+    "Takvimim",
+    "Geçmiş konuşmalar"
+  ],
+  "lab_entry": "/lab?back=/exam-preps",
+  "cortex_mapping": {
+    "lab_menu": "/uygulamalar",
+    "exam_preps": "/deneme-sinavlari",
+    "pay_cta": "/paketler (Satın al — kullanıcı tıklamadı, audit observe only)"
+  }
+}

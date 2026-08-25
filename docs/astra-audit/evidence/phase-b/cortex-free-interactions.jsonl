@@ -1,0 +1,10 @@
+{"id":"free-nav-sor","role":"tab","label":"Sor","page":"/ogretmen","state":"free","action":"navigate","result":"page","target":"/ogretmen","premium_gate":false,"cortex":true}
+{"id":"free-chat-send","role":"button","label":"Konuş","page":"/ogretmen","state":"free","action":"submit","result":"stream","target":"/api/ai/chat","premium_gate":false,"produces":"assistant_message_delta"}
+{"id":"free-chat-attach","role":"button","label":"Dosya ekle","page":"/ogretmen","state":"free","action":"upload","result":"api","target":"/api/documents/upload","premium_gate":false}
+{"id":"free-chat-camera","role":"button","label":"Kamera","page":"/ogretmen","state":"free","action":"upload","result":"vision_chat","target":"/api/ai/chat","premium_gate":false}
+{"id":"free-paywall-402","role":"sheet","label":"Upgrade","page":"/ogretmen","state":"free","action":"open","result":"modal","target":"UpgradeSheet","premium_gate":true}
+{"id":"free-lab-grid","role":"link","label":"Uygulama kartı","page":"/uygulamalar","state":"free","action":"navigate","result":"page","target":"/uygulamalar/lab/{id}","premium_gate":false}
+{"id":"free-packages","role":"link","label":"Plus'a yükselt","page":"/ogretmen","state":"free","action":"navigate","result":"page","target":"/paketler","premium_gate":true}
+{"id":"free-parent-pay-ask","role":"button","label":"Ebeveynden ödeme iste","page":"/paketler","state":"free","action":"click","result":"db","target":"parent_payment_requests","premium_gate":false}
+{"id":"free-profile-parent-approve","role":"button","label":"Veli isteği onayla","page":"/profil","state":"free","action":"click","result":"db","target":"parent_student_links","premium_gate":false}
+{"id":"free-streak","role":"badge","label":"Seri","page":"/ogretmen","state":"free","action":"observe","result":"api","target":"/api/streak","premium_gate":false}

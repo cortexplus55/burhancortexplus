@@ -1,0 +1,50 @@
+﻿import Link from "next/link";
+import { AppShell } from "@/components/layout/app-shell";
+import { EmptyState } from "@/components/ui-kit/empty-state";
+import { requireUser } from "@/lib/auth/session";
+import { formatDate } from "@/lib/format";
+
+export const metadata = { title: "Sohbetler" };
+
+export default async function SohbetlerPage() {
+  const { supabase, user } = await requireUser();
+
+  const { data: conversations } = await supabase
+    .from("conversations")
+    .select("id, title, updated_at")
+    .eq("user_id", user.id)
+    .is("deleted_at", null)
+    .order("updated_at", { ascending: false })
+    .limit(50);
+
+  return (
+    <AppShell title="Sohbetler">
+      {conversations?.length ? (
+        <ul className="divide-y rounded-lg border">
+          {conversations.map((conversation) => (
+            <li key={conversation.id}>
+              <Link
+                href={`/ogretmen?sohbet=${conversation.id}`}
+                className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-accent"
+              >
+                <span className="truncate text-sm font-medium">
+                  {conversation.title ?? "Başlıksız sohbet"}
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {formatDate(conversation.updated_at)}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          title="Henüz sohbetin yok"
+          description="AI öğretmenle ilk sorunu sorduğunda burada listelenir."
+          actionHref="/ogretmen"
+          actionLabel="Sohbet başlat"
+        />
+      )}
+    </AppShell>
+  );
+}

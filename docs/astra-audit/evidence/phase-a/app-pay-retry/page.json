@@ -1,0 +1,20 @@
+{
+  "url": "https://app.astra-ai.co/tr-TR/pay",
+  "title": "🐴 Astra AI - Tüm Dersler İçin 7/24 Yapay Zeka Öğretmenin",
+  "body": {
+    "len": 0,
+    "ready": "complete",
+    "href": "https://app.astra-ai.co/tr-TR/pay",
+    "sample": ""
+  },
+  "items": [
+    {
+      "role": "RootWebArea",
+      "label": "🐴 Astra AI - Tüm Dersler İçin 7/24 Yapay Zeka Öğretmenin"
+    },
+    {
+      "role": "region",
+      "label": "Notifications alt+T"
+    }
+  ]
+}

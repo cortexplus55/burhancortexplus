@@ -1,0 +1,34 @@
+{
+  "info": {
+    "url": "https://app.astra-ai.co/tr-TR/exam-preps",
+    "title": "🐴 Astra AI - Tüm Dersler İçin 7/24 Yapay Zeka Öğretmenin",
+    "w": 1536,
+    "h": 639,
+    "sx": 0,
+    "sy": 0,
+    "pw": 1536,
+    "ph": 639
+  },
+  "snap": {
+    "href": "https://app.astra-ai.co/tr-TR/exam-preps",
+    "title": "🐴 Astra AI - Tüm Dersler İçin 7/24 Yapay Zeka Öğretmenin",
+    "len": 0,
+    "html": 152470,
+    "h1": [],
+    "buttons": [
+      "Okulum",
+      "Astra'dan",
+      "",
+      "",
+      "❔Hangi okula gidiyorsun?Sana uygun sınav",
+      "Satın al",
+      "Nasıl çalışır"
+    ],
+    "inputs": [
+      "radio ",
+      "radio "
+    ]
+  },
+  "ui_count": 0,
+  "ui": []
+}

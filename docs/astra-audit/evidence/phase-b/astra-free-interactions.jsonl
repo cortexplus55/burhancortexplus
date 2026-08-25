@@ -1,0 +1,15 @@
+{"id":"astra-free-chat-home","state":"free","page":"/tr-TR","element":"tab Sor","action":"observe","result":"selected","premium_gate":false,"notes":"Bottom nav matches Cortex /ogretmen"}
+{"id":"astra-free-tab-sinavlar","state":"free","page":"/tr-TR","element":"tab Sınavlar","action":"click","result":"navigate","target":"/tr-TR/exam-preps","premium_gate":false,"cortex":"/deneme-sinavlari"}
+{"id":"astra-free-exam-preps","state":"free","page":"/tr-TR/exam-preps","element":"Yeni test oluştur","action":"link","result":"present","premium_gate":false}
+{"id":"astra-free-exam-school","state":"free","page":"/tr-TR/exam-preps","element":"Okul ekle","action":"button","result":"modal","premium_gate":false,"cortex":"schools search parity"}
+{"id":"astra-free-pay","state":"free","page":"/tr-TR/pay","element":"Plus'a yükselt","action":"button","result":"paywall_ui","premium_gate":true,"cortex":"/paketler"}
+{"id":"astra-free-parent-pay","state":"free","page":"/tr-TR/pay","element":"Ebeveynden ödeme iste","action":"button","result":"click","premium_gate":false,"cortex":"AskParentPaymentButton matched"}
+{"id":"astra-free-composer","state":"free","page":"/tr-TR","element":"Konuş","action":"button","result":"send","premium_gate":false,"cortex":"ChatPanel Konuş"}
+{"id":"astra-free-lab","state":"free","page":"/tr-TR/lab","element":"Öğrenme uygulamaları","action":"navigate","result":"page","premium_gate":false,"cortex":"/uygulamalar"}
+{"id":"astra-free-lab-grid","state":"free","page":"/tr-TR/lab","element":"category chips","action":"observe","result":"Mini oyunlar 11 | Simülasyonlar 33 | Araçlar 7","premium_gate":false,"cortex":"18 sim MVP","evidence":"phase-b/astra-lab-grid.json"}
+{"id":"astra-free-tab-uygulamalar","state":"free","page":"/tr-TR/lab","element":"tab Uygulamalar","action":"click","result":"selected","premium_gate":false,"cortex":"/uygulamalar"}
+{"id":"astra-free-menu","state":"free","page":"/tr-TR?dialog=menu","element":"Menü drawer","action":"click","result":"open","items":["Sınıflar","Aktivitelerim","Takvimim","Geçmiş konuşmalar"],"premium_gate":false,"cortex":"AppShell nav partial"}
+{"id":"astra-free-session-verified","state":"free","page":"/","element":"header","action":"observe","result":"streak 0 | Satın al | Plus banner","premium_gate":true,"cortex":"/paketler","evidence":"phase-b/astra-free-session.json"}
+{"id":"astra-free-nav-tabs","state":"free","page":"/","element":"bottom nav","action":"observe","result":"Sor | Sınavlar | Öğretmenler için (no Uygulamalar tab)","premium_gate":false,"cortex":"/uygulamalar via shell+menu"}
+{"id":"astra-free-exam-preps-v2","state":"free","page":"/exam-preps","element":"Okul ekle","action":"observe","result":"school gate modal copy","premium_gate":false,"cortex":"schools API parity"}
+{"id":"astra-free-menu-lab","state":"free","page":"/exam-preps?dialog=menu","element":"Öğrenme uygulamaları","action":"click","result":"navigate","target":"/lab","premium_gate":false,"cortex":"/uygulamalar"}

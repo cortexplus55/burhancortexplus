@@ -1,0 +1,32 @@
+{
+  "info": {
+    "url": "https://app.astra-ai.co/tr-TR/pay",
+    "title": "🐴 Astra AI - Tüm Dersler İçin 7/24 Yapay Zeka Öğretmenin",
+    "w": 1536,
+    "h": 639,
+    "sx": 0,
+    "sy": 0,
+    "pw": 1536,
+    "ph": 639
+  },
+  "snap": {
+    "href": "https://app.astra-ai.co/tr-TR/pay",
+    "title": "🐴 Astra AI - Tüm Dersler İçin 7/24 Yapay Zeka Öğretmenin",
+    "len": 0,
+    "html": 110418,
+    "h1": [
+      "Daha iyi notlar al ve 2 kat hızlı öğren"
+    ],
+    "buttons": [
+      "Yıllık",
+      "Aylık",
+      "Plus'a yükselt",
+      "Ebeveynden ödeme iste",
+      "Tüm avantajları gör",
+      "Astra AI neden ücretsiz değil?"
+    ],
+    "inputs": []
+  },
+  "ui_count": 0,
+  "ui": []
+}

@@ -1,0 +1,114 @@
+{
+  "slug": "yardim",
+  "url": "https://astra-ai.co/tr/yardim/",
+  "title": "Astra AI – Your Personal AI Math Tutor",
+  "metrics": {
+    "h": 2607,
+    "links": 39,
+    "buttons": 26,
+    "forms": 0
+  },
+  "cta_count": 33,
+  "ctas": [
+    {
+      "role": "link",
+      "label": "Logo"
+    },
+    {
+      "role": "link",
+      "label": "Sınav Hazırlığı"
+    },
+    {
+      "role": "link",
+      "label": "Yaratıcı Programı"
+    },
+    {
+      "role": "button",
+      "label": "tr TR"
+    },
+    {
+      "role": "link",
+      "label": "icon GİRİŞ YAP"
+    },
+    {
+      "role": "link",
+      "label": "Astra AI Plus'ı Satın Al static icon"
+    },
+    {
+      "role": "button",
+      "label": "icon GİRİŞ YAP"
+    },
+    {
+      "role": "button",
+      "label": "Astra AI Plus'ı Satın Al static icon"
+    },
+    {
+      "role": "link",
+      "label": "KULLANICI DESTEĞİYLE İLETİŞİME GEÇİN"
+    },
+    {
+      "role": "button",
+      "label": "Abonelik yenileme nasıl çalışır?"
+    },
+    {
+      "role": "button",
+      "label": "Aboneliğimi nasıl duraklatabilir veya iptal edebilirim?"
+    },
+    {
+      "role": "button",
+      "label": "Aboneliğimin başarıyla iptal edilip edilmediğini nasıl kontrol edebilirim?"
+    },
+    {
+      "role": "button",
+      "label": "Faturaları ve ödeme onaylarını nerede bulabilirim?"
+    },
+    {
+      "role": "button",
+      "label": "Aboneliğim yenilendi ve fark etmedim. Ne yapabilirim?"
+    },
+    {
+      "role": "button",
+      "label": "Hangi ödeme yöntemlerini destekliyorsunuz?"
+    },
+    {
+      "role": "button",
+      "label": "Altı haneli erişim kodunu almıyorum. Ne yapmalıyım?"
+    },
+    {
+      "role": "button",
+      "label": "Ödeme gerçekleşti ancak hâlâ sınırsız erişimim yok. Ne yapmalıyım?"
+    },
+    {
+      "role": "button",
+      "label": "Astra AI yüklenmiyorsa ne yapmalıyım?"
+    },
+    {
+      "role": "button",
+      "label": "KULLANICI DESTEĞİYLE İLETİŞİME GEÇİN"
+    },
+    {
+      "role": "button",
+      "label": "Cookie preferences"
+    },
+    {
+      "role": "link",
+      "label": "ASTRA AI PLUS"
+    },
+    {
+      "role": "link",
+      "label": "Instagram"
+    },
+    {
+      "role": "link",
+      "label": "TikTok"
+    },
+    {
+      "role": "link",
+      "label": "LinkedIn"
+    },
+    {
+      "role": "link",
+      "label": "X"
+    }
+  ]
+}

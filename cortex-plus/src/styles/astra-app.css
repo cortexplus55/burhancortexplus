@@ -1,0 +1,45 @@
+/* Astra-style mobile app shell (dark) */
+.astra-app {
+  --astra-bg: #0a0a0a;
+  --astra-surface: #1a1a1a;
+  --astra-surface-elevated: #242424;
+  --astra-primary: #4a6cf7;
+  --astra-primary-hover: #3d5ce6;
+  --astra-text: #ffffff;
+  --astra-muted: #a3a3a3;
+  --astra-border: #2e2e2e;
+  --astra-pill: #1e1e1e;
+  color: var(--astra-text);
+  background: var(--astra-bg);
+  min-height: 100dvh;
+}
+
+.astra-app .astra-composer {
+  background: var(--astra-surface);
+  border: 1px solid var(--astra-border);
+  border-radius: 1.25rem;
+}
+
+.astra-app .astra-nav-bar {
+  background: var(--astra-pill);
+  border: 1px solid var(--astra-border);
+}
+
+.astra-app .astra-nav-active {
+  background: var(--astra-surface-elevated);
+}
+
+.astra-app .astra-btn-primary {
+  background: var(--astra-primary);
+  color: white;
+}
+
+.astra-app .astra-btn-primary:hover {
+  background: var(--astra-primary-hover);
+}
+
+.astra-app .astra-pay-card {
+  background: var(--astra-surface);
+  border: 1px solid var(--astra-border);
+  border-radius: 1.25rem;
+}

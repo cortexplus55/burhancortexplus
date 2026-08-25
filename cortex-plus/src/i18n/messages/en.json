@@ -1,0 +1,10 @@
+{
+  "common": {
+    "appName": "Cortex Plus",
+    "continue": "Continue"
+  },
+  "nav": {
+    "features": "Features",
+    "pricing": "Pricing"
+  }
+}

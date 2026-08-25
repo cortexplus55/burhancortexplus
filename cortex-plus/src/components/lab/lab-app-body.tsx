@@ -1,0 +1,66 @@
+"use client";
+
+import Link from "next/link";
+import { GrafikCiziciLab } from "@/components/lab/grafik-cizici";
+import { PeriyodikTabloLab } from "@/components/lab/periyodik-tablo";
+import { KuvvetHareketLab } from "@/components/lab/kuvvet-hareket";
+import {
+  AsitBazLab,
+  DalgaLab,
+  DenklemLab,
+  DevreLab,
+  EkosistemLab,
+  FotosentezLab,
+  GeometriLab,
+  GunesLab,
+  HucreLab,
+  IntegralLab,
+  MolekulLab,
+  MomentumLab,
+  OlasilikLab,
+  RenkLab,
+  TepkimeLab,
+  TrigonometriLab,
+} from "@/components/lab/lab-simulations";
+
+const LAB_COMPONENTS: Record<string, () => React.ReactNode> = {
+  grafik: GrafikCiziciLab,
+  periyodik: PeriyodikTabloLab,
+  kuvvet: KuvvetHareketLab,
+  denklem: DenklemLab,
+  geometri: GeometriLab,
+  integral: IntegralLab,
+  trigonometri: TrigonometriLab,
+  olasilik: OlasilikLab,
+  renk: RenkLab,
+  devre: DevreLab,
+  gunes: GunesLab,
+  dalga: DalgaLab,
+  momentum: MomentumLab,
+  molekul: MolekulLab,
+  tepkime: TepkimeLab,
+  asit: AsitBazLab,
+  hucre: HucreLab,
+  ekosistem: EkosistemLab,
+  fotosentez: FotosentezLab,
+};
+
+export function LabAppBody({ id }: { id: string }) {
+  const Component = LAB_COMPONENTS[id];
+  if (!Component) {
+    return (
+      <>
+        <p className="text-sm text-[var(--astra-muted)]">
+          Bu uygulama henüz hazırlanıyor.
+        </p>
+        <Link
+          href="/uygulamalar"
+          className="astra-btn-primary mt-4 inline-block rounded-full px-4 py-2 text-sm"
+        >
+          Kataloğa dön
+        </Link>
+      </>
+    );
+  }
+  return <Component />;
+}

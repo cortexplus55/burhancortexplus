@@ -1,0 +1,58 @@
+{
+  "href": "https://app.astra-ai.co/tr-TR/pay",
+  "len": 0,
+  "h1": [
+    "Daha iyi notlar al ve 2 kat hızlı öğren"
+  ],
+  "btns": [
+    {
+      "tag": "A",
+      "text": "Kapat"
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Yıllık"
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Aylık"
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Plus'a yükselt"
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Ebeveynden ödeme iste"
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Tüm avantajları gör"
+    },
+    {
+      "tag": "A",
+      "text": "Kullanım Koşulları"
+    },
+    {
+      "tag": "A",
+      "text": "Gizlilik politikası"
+    },
+    {
+      "tag": "A",
+      "text": "\"AI Tutoring Outperforms Active Learning\""
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Astra AI neden ücretsiz değil?"
+    },
+    {
+      "tag": "A",
+      "text": "Kullanım Koşulları"
+    },
+    {
+      "tag": "A",
+      "text": "Gizlilik politikası"
+    }
+  ],
+  "sample": ""
+}

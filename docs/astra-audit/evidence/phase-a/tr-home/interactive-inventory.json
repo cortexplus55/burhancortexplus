@@ -1,0 +1,308 @@
+{
+  "url": "https://astra-ai.co/tr/",
+  "title": "Çalışma ve Sınav Hazırlığı | Tüm Dersler için AI Öğretmen",
+  "metrics": {
+    "title": "Çalışma ve Sınav Hazırlığı | Tüm Dersler için AI Öğretmen",
+    "h": 11855,
+    "sections": 12,
+    "links": 47,
+    "buttons": 26
+  },
+  "items": [
+    {
+      "role": "link",
+      "label": "Logo",
+      "bid": 2278
+    },
+    {
+      "role": "link",
+      "label": "Sınav Hazırlığı",
+      "bid": 2282
+    },
+    {
+      "role": "link",
+      "label": "Yaratıcı Programı",
+      "bid": 2284
+    },
+    {
+      "role": "button",
+      "label": "tr TR",
+      "bid": 2293
+    },
+    {
+      "role": "link",
+      "label": "icon GİRİŞ YAP",
+      "bid": 2297
+    },
+    {
+      "role": "link",
+      "label": "Astra AI Plus'ı Satın Al static icon",
+      "bid": 2300
+    },
+    {
+      "role": "button",
+      "label": "icon GİRİŞ YAP",
+      "bid": 2298
+    },
+    {
+      "role": "button",
+      "label": "Astra AI Plus'ı Satın Al static icon",
+      "bid": 2302
+    },
+    {
+      "role": "link",
+      "label": "ÜCRETSİZ DENE",
+      "bid": 2379
+    },
+    {
+      "role": "link",
+      "label": "ASTRA AI PLUS'I SATIN AL Arrow Right Icon",
+      "bid": 2381
+    },
+    {
+      "role": "link",
+      "label": "oral-exam-pfp Sözlü sınav Soruları sesli yanıtla, ek soruları yönet ve sonunda bir not al. Sözlü sınavları gerçek koşullarda pratik et.",
+      "bid": 2568
+    },
+    {
+      "role": "link",
+      "label": "15 left Deneme sınavı Süre dolmadan önce yazılı olarak yanıtla. Astra sonucu notlandırır ve zayıf noktalarını gösterir.",
+      "bid": 2597
+    },
+    {
+      "role": "link",
+      "label": "Math Icon Math Icon Matematik Herhangi bir matematik sorusunun fotoğrafını çek, yapay zekamız onu anlaşılır adımlara bölerek açıklasın.",
+      "bid": 2668
+    },
+    {
+      "role": "link",
+      "label": "Chemistry Icon Chemistry Icon Kimya Molekül yapılarından kimyasal tepkimelere kadar her kimya konusu için açıklama al.",
+      "bid": 2679
+    },
+    {
+      "role": "link",
+      "label": "Physics Icon Physics Icon Fizik Kuvvet, enerji ve hareketi etkileşimli problem çözümüyle kavra.",
+      "bid": 2690
+    },
+    {
+      "role": "link",
+      "label": "English Icon English Icon İngilizce Kişisel bir İngilizce öğretmeniyle dilbilgisi kurallarına ve kelime dağarcığına hâkim ol.",
+      "bid": 2701
+    },
+    {
+      "role": "link",
+      "label": "German Icon German Icon Almanca Kişisel bir Almanca öğretmeniyle dilbilgisi kurallarına ve kelime dağarcığına hâkim ol.",
+      "bid": 2712
+    },
+    {
+      "role": "link",
+      "label": "Biology icon Biology icon Biyoloji Hücreden ekosisteme kadar – süreçlerin, görsellerin ve gerçek dünya örneklerinin net açıklamaları.",
+      "bid": 2723
+    },
+    {
+      "role": "link",
+      "label": "Spanish Icon Spanish Icon İspanyolca Dilbilgisi, kelimeler ve ifadeler – akıcı konuşma için açıklamalar, örnekler ve alıştırmalar.",
+      "bid": 2734
+    },
+    {
+      "role": "link",
+      "label": "Geography icon Geography icon Coğrafya Haritalardan iklime kadar – açıklamalarla coğrafi yapıyı, nüfusu ve ekonomiyi anla.",
+      "bid": 2745
+    },
+    {
+      "role": "link",
+      "label": "History Icon History Icon Tarih Nedenler ve sonuçlar – zaman çizelgeleri, önemli isimler ve fikirler açık ve anlaşılır biçimde anlatılıyor.",
+      "bid": 2756
+    },
+    {
+      "role": "link",
+      "label": "Economics icon Economics icon Ekonomi Arz ve talep, piyasalar ve finans – pratik örneklerle adım adım açıklanıyor.",
+      "bid": 2767
+    },
+    {
+      "role": "link",
+      "label": "computer science icon computer science icon Bilgisayar bilimi Algoritmalar ve veriler – alıştırmalar ve somut örneklerle adım adım açıklamalar.",
+      "bid": 2778
+    },
+    {
+      "role": "link",
+      "label": "philosophy icon philosophy icon Felsefe Sokrates'ten modern etiğe kadar – kavramlar, argümanlar ve mantık günlük örneklerle açıklanıyor.",
+      "bid": 2789
+    },
+    {
+      "role": "link",
+      "label": "psychology icon psychology icon Psikoloji Davranış ve zihinsel süreçler – teoriler, deneyler ve temel kavramlar sade ve anlaşılır biçimde açıklanıyor.",
+      "bid": 2800
+    },
+    {
+      "role": "link",
+      "label": "french icon french icon Fransızca Akıcı konuşma için dilbilgisi ve kelime açıklamalarını örnekler ve pratik cümlelerle al.",
+      "bid": 2811
+    },
+    {
+      "role": "link",
+      "label": "cant find subject svg cant find subject svg Aradığın ders yok mu? Astra AI ile istediğin dersi kendin oluşturabilirsin. Oluşturmak için tıkla.",
+      "bid": 2822
+    },
+    {
+      "role": "button",
+      "label": "ÜCRETSİZ DENE",
+      "bid": 2380
+    },
+    {
+      "role": "button",
+      "label": "ASTRA AI PLUS'I SATIN AL Arrow Right Icon",
+      "bid": 2382
+    },
+    {
+      "role": "button",
+      "label": "Astra AI nedir ve çocuğuma nasıl yardımcı olabilir?",
+      "bid": 2959
+    },
+    {
+      "role": "button",
+      "label": "Tek bir abonelik Astra AI'daki tüm derslere erişim sağlar mı?",
+      "bid": 2965
+    },
+    {
+      "role": "button",
+      "label": "Astra AI kimler için uygundur?",
+      "bid": 2971
+    },
+    {
+      "role": "button",
+      "label": "Astra AI tüm yaş grupları için uygun mudur?",
+      "bid": 2977
+    },
+    {
+      "role": "button",
+      "label": "Astra AI yalnızca çözüm mü sunar, yoksa kavram anlayışını gerçekten geliştirir mi?",
+      "bid": 2983
+    },
+    {
+      "role": "button",
+      "label": "Astra AI çocuğumun öğrenme hızına uyum sağlayabilir mi?",
+      "bid": 2989
+    },
+    {
+      "role": "button",
+      "label": "Astra AI, ChatGPT'den nasıl farklıdır?",
+      "bid": 2995
+    },
+    {
+      "role": "button",
+      "label": "Astra AI, Photomath'ten nasıl farklıdır?",
+      "bid": 3001
+    },
+    {
+      "role": "button",
+      "label": "Astra AI çocuğumun verilerinin güvenliğini ve gizliliğini nasıl sağlar?",
+      "bid": 3007
+    },
+    {
+      "role": "button",
+      "label": "Astra AI bir öğretmenin veya özel hocanın yerini alabilir mi?",
+      "bid": 3013
+    },
+    {
+      "role": "link",
+      "label": "HEMEN DENE",
+      "bid": 3028
+    },
+    {
+      "role": "button",
+      "label": "Cookie preferences",
+      "bid": 3123
+    },
+    {
+      "role": "link",
+      "label": "SINAV HAZIRLIĞI HAKKINDA DAHA FAZLA BİLGİ",
+      "bid": 2553
+    },
+    {
+      "role": "link",
+      "label": "BAŞLA",
+      "bid": 2937
+    },
+    {
+      "role": "button",
+      "label": "HEMEN DENE",
+      "bid": 3029
+    },
+    {
+      "role": "link",
+      "label": "ASTRA AI PLUS",
+      "bid": 3075
+    },
+    {
+      "role": "link",
+      "label": "Instagram",
+      "bid": 3082
+    },
+    {
+      "role": "link",
+      "label": "TikTok",
+      "bid": 3084
+    },
+    {
+      "role": "link",
+      "label": "LinkedIn",
+      "bid": 3086
+    },
+    {
+      "role": "link",
+      "label": "X",
+      "bid": 3088
+    },
+    {
+      "role": "link",
+      "label": "Bize Ulaşın",
+      "bid": 3094
+    },
+    {
+      "role": "link",
+      "label": "Şartlar ve Koşullar",
+      "bid": 3096
+    },
+    {
+      "role": "link",
+      "label": "Gizlilik Politikası",
+      "bid": 3098
+    },
+    {
+      "role": "link",
+      "label": "Künye",
+      "bid": 3100
+    },
+    {
+      "role": "link",
+      "label": "İndir",
+      "bid": 3105
+    },
+    {
+      "role": "link",
+      "label": "iOS (Apple",
+      "bid": 3107
+    },
+    {
+      "role": "link",
+      "label": "Android",
+      "bid": 3109
+    },
+    {
+      "role": "link",
+      "label": "Yardım ve Destek",
+      "bid": 3117
+    },
+    {
+      "role": "button",
+      "label": "SINAV HAZIRLIĞI HAKKINDA DAHA FAZLA BİLGİ",
+      "bid": 2554
+    },
+    {
+      "role": "button",
+      "label": "BAŞLA",
+      "bid": 2938
+    }
+  ]
+}

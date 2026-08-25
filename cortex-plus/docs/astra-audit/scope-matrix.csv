@@ -1,0 +1,20 @@
+user_state,page,url,component,action,result,premium_gate,mobile,status,cortex_mapping,impl_status
+guest,Ana sayfa,https://astra-ai.co/tr/,Hero CTA,observe,Marketing SSR loaded,n/a,not-tested,observed,/,matched
+guest,Sınav hazırlığı,https://astra-ai.co/tr/sinav-hazirligi,Nav link,observe,Page loaded,n/a,not-tested,observed,/sinav-hazirligi,matched
+guest,Mobil uygulama,https://astra-ai.co/tr/mobil-uygulama,Footer/nav,observe,Store CTAs visible,n/a,not-tested,observed,/mobil-uygulama,matched
+guest,Öğretmenler,https://astra-ai.co/tr/ogretmenler-ve-profesorler-icin,Nav,observe,Edu program pitch,n/a,not-tested,observed,/ogretmenler-ve-profesorler-icin,matched
+guest,Yardım,https://astra-ai.co/tr/yardim,Footer,observe,Help content,n/a,not-tested,observed,/yardim,matched
+guest,İletişim,https://astra-ai.co/tr/bize-ulasin,Footer,observe,Contact UI,n/a,not-tested,observed,/iletisim,matched
+guest,Künye,https://astra-ai.co/tr/kunye,Footer,observe,Imprint,n/a,not-tested,observed,/hakkimizda,matched
+guest,Fiyatlandırma,app.astra-ai.co/tr-TR/pay,CTA from marketing,observe,Plus/Sigma cards,n/a,not-tested,observed,/fiyatlandirma + /paketler,matched
+guest,Gizlilik,app.astra-ai.co/privacy-policy,Footer link,observe URL only,Legal doc on app,n/a,not-tested,observed,/gizlilik,matched
+guest,Koşullar,app.astra-ai.co/terms-conditions,Footer link,observe URL only,Legal on app,n/a,not-tested,observed,/kullanim-kosullari,matched
+guest,Giriş,app.astra-ai.co,Header CTA,observe,Login form,n/a,not-tested,observed,/giris,matched
+guest,Kayıt,marketing CTA,ÜCRETSİZ DENE,click,/kayit,n/a,not-tested,observed,/kayit,matched
+free,Onboarding,app.astra-ai.co/tr-TR/onboarding,Post-login,blocked,Astra handoff,yes,not-tested,cortex_mapped,/kayit + role onboarding,matched
+free,AI öğretmen,app,(authenticated),cortex_doc,Stream chat,partial,not-tested,cortex_mapped,/ogretmen,matched
+free,Paywall modal,app,(feature gate),cortex_doc,UpgradeSheet,yes,not-tested,cortex_mapped,402 + /paketler,matched
+free,Lab sim,app,/lab,observe,Cortex 18+ mini/sim,n/a,not-tested,cortex_mapped,/uygulamalar/lab/*,matched
+premium,AI gelişmiş,app,(authenticated),cortex_doc,Advanced model,no,not-tested,cortex_mapped,model-router + premium,matched
+premium,PDF yükleme,app,(upload),cortex_doc,Upload + RAG,yes,not-tested,cortex_mapped,/dokumanlar,matched
+premium,Veli Plus pay,app,pay tab,cortex_doc,Subscription cards,no,not-tested,cortex_mapped,/veli/plus,matched

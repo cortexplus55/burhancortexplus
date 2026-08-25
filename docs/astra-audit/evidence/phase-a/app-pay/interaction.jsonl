@@ -1,0 +1,3 @@
+{"id":"pay-tab-yearly","state":"guest","page":"/tr-TR/pay","element":"Yıllık %58 tasarruf et","action":"click","result":"Plus price ₺321/ay yıllık faturalandırılır; Sigma unchanged ₺2.567/ay aylık"}
+{"id":"pay-tab-monthly-baseline","state":"guest","page":"/tr-TR/pay","element":"Aylık","action":"observe","result":"Plus ₺770/ay aylık faturalandırılır"}
+{"id":"pay-plus-benefits","state":"guest","page":"/tr-TR/pay","element":"Tüm avantajları gör","action":"click","result":"expanded","benefits":["1300x günlük AI","2x hızlı yanıt","yüksek upload","1.4x model","test/kart/podcast","deneme/sözlü","foto soru","sınıf","para iadesi","dezavantajlı destek","Odaklanma Modu"]}

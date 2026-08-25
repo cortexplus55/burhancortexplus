@@ -1,0 +1,137 @@
+export type SignupRole = "student" | "parent" | "teacher";
+
+export type ParentLinkMode = "code" | "email" | "later";
+
+export type SignupPayload = {
+  role: SignupRole;
+  fullName: string;
+  gradeLevel?: string;
+  schoolName?: string;
+  focusSubject?: string;
+  learningGoal?: string;
+  avatarEmoji?: string;
+  parentLinkMode?: ParentLinkMode;
+  parentInviteCode?: string;
+  parentInviteEmail?: string;
+  teacherInstitution?: string;
+  teacherBranch?: string;
+  teacherClassName?: string;
+};
+
+export const SIGNUP_STORAGE_KEY = "cortex-signup-payload";
+
+export const ROLE_OPTIONS: {
+  id: SignupRole;
+  title: string;
+  body: string;
+  emoji: string;
+}[] = [
+  {
+    id: "student",
+    title: "Öğrenciyim",
+    body: "AI öğretmenle çalış, deneme çöz, eksiklerini gör.",
+    emoji: "🎓",
+  },
+  {
+    id: "parent",
+    title: "Veliyim",
+    body: "Çocuğunun ilerlemesini takip et, Plus'ı yönet.",
+    emoji: "👨‍👩‍👧",
+  },
+  {
+    id: "teacher",
+    title: "Okul öğretmeniyim",
+    body: "Sınıflarını yönet, ödev ve quiz paylaş.",
+    emoji: "🏫",
+  },
+];
+
+export const GRADE_OPTIONS = [
+  "5. sınıf",
+  "6. sınıf",
+  "7. sınıf",
+  "8. sınıf",
+  "9. sınıf",
+  "10. sınıf",
+  "11. sınıf",
+  "12. sınıf",
+  "Mezun",
+];
+
+export const SUBJECT_OPTIONS = [
+  { label: "Matematik", emoji: "📐" },
+  { label: "Fizik", emoji: "⚡" },
+  { label: "Kimya", emoji: "⚗️" },
+  { label: "Biyoloji", emoji: "🧬" },
+  { label: "Türkçe", emoji: "📚" },
+  { label: "İngilizce", emoji: "🇬🇧" },
+  { label: "Tarih", emoji: "📜" },
+  { label: "Coğrafya", emoji: "🌍" },
+];
+
+export const GOAL_OPTIONS = [
+  { label: "YKS hazırlık", body: "TYT / AYT odaklı çalışma" },
+  { label: "LGS hazırlık", body: "Liseye geçiş sınavı" },
+  { label: "Okul sınavları", body: "Yazılılar ve sözlüler" },
+  { label: "Konu pekiştirme", body: "Eksiklerimi kapatmak" },
+];
+
+export const AVATAR_OPTIONS = [
+  "🦊",
+  "🐼",
+  "🦉",
+  "🐙",
+  "🦁",
+  "🐧",
+  "🚀",
+  "⭐",
+  "🌙",
+  "🔥",
+  "🎯",
+  "🧠",
+];
+
+/** Sunucu yokken yedek liste; tercihen `/api/schools/search` kullanılır. */
+export const SCHOOL_SUGGESTIONS = [
+  "Atatürk Anadolu Lisesi",
+  "Cumhuriyet Anadolu Lisesi",
+  "Fen Lisesi",
+  "Gazi Anadolu Lisesi",
+  "İstiklal Ortaokulu",
+  "Mehmet Akif Ersoy Lisesi",
+  "Mimar Sinan Anadolu Lisesi",
+  "Şehit Öğretmen Ortaokulu",
+  "TED Koleji",
+  "Ted Rönesans Koleji",
+  "Vefa Lisesi",
+  "Yunus Emre Ortaokulu",
+];
+
+export function searchSchools(query: string): string[] {
+  const q = query.trim().toLocaleLowerCase("tr");
+  if (!q) return SCHOOL_SUGGESTIONS.slice(0, 6);
+  return SCHOOL_SUGGESTIONS.filter((s) =>
+    s.toLocaleLowerCase("tr").includes(q),
+  ).slice(0, 6);
+}
+
+export function homePathForRole(role: string | null | undefined): string {
+  switch (role) {
+    case "parent":
+      return "/veli";
+    case "teacher":
+    case "verified_teacher":
+      return "/ogretmen-paneli";
+    case "admin":
+      return "/admin";
+    default:
+      return "/ogretmen";
+  }
+}
+
+export function stepIdsForRole(role: SignupRole): string[] {
+  if (role === "parent") return ["role", "parent-intro", "parent-link", "account"];
+  if (role === "teacher")
+    return ["role", "teacher-school", "teacher-class", "account"];
+  return ["role", "grade", "school", "subject", "goal", "avatar", "account"];
+}

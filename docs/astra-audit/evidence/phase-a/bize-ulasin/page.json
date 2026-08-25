@@ -1,0 +1,106 @@
+{
+  "slug": "bize-ulasin",
+  "url": "https://astra-ai.co/tr/bize-ulasin/",
+  "title": "🐴 Astra AI – Your Personal AI Math Tutor",
+  "metrics": {
+    "h": 1146,
+    "links": 38,
+    "buttons": 9,
+    "forms": 0
+  },
+  "cta_count": 23,
+  "ctas": [
+    {
+      "role": "link",
+      "label": "Logo"
+    },
+    {
+      "role": "link",
+      "label": "Sınav Hazırlığı"
+    },
+    {
+      "role": "link",
+      "label": "Yaratıcı Programı"
+    },
+    {
+      "role": "button",
+      "label": "tr TR"
+    },
+    {
+      "role": "link",
+      "label": "icon GİRİŞ YAP"
+    },
+    {
+      "role": "link",
+      "label": "Astra AI Plus'ı Satın Al static icon"
+    },
+    {
+      "role": "button",
+      "label": "icon GİRİŞ YAP"
+    },
+    {
+      "role": "button",
+      "label": "Astra AI Plus'ı Satın Al static icon"
+    },
+    {
+      "role": "link",
+      "label": "support@astra-ai.co"
+    },
+    {
+      "role": "button",
+      "label": "Cookie preferences"
+    },
+    {
+      "role": "link",
+      "label": "ASTRA AI PLUS"
+    },
+    {
+      "role": "link",
+      "label": "Instagram"
+    },
+    {
+      "role": "link",
+      "label": "TikTok"
+    },
+    {
+      "role": "link",
+      "label": "LinkedIn"
+    },
+    {
+      "role": "link",
+      "label": "X"
+    },
+    {
+      "role": "link",
+      "label": "Bize Ulaşın"
+    },
+    {
+      "role": "link",
+      "label": "Şartlar ve Koşullar"
+    },
+    {
+      "role": "link",
+      "label": "Gizlilik Politikası"
+    },
+    {
+      "role": "link",
+      "label": "Künye"
+    },
+    {
+      "role": "link",
+      "label": "İndir"
+    },
+    {
+      "role": "link",
+      "label": "iOS (Apple"
+    },
+    {
+      "role": "link",
+      "label": "Android"
+    },
+    {
+      "role": "link",
+      "label": "Yardım ve Destek"
+    }
+  ]
+}
