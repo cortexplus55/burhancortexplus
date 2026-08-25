@@ -2,6 +2,17 @@
 
 Tek GitHub kaynağı → Supabase + Vercel aynı repoya bağlanır.
 
+## Ana repo (tek kaynak)
+
+| | |
+|--|--|
+| **GitHub** | [**cortexplus55/burhancortexplus**](https://github.com/cortexplus55/burhancortexplus) |
+| **Yerel kök** | `Cortex-Plus-Dev` (masaüstü) |
+| **Vercel Root Directory** | `cortex-plus` |
+| **Supabase ref** | `dgjfyewgrukglsehyntc` |
+
+Detay: `docs/delivery/GREENFIELD-CONNECT.md`
+
 ## Repo
 
 **GitHub (tek kaynak):** [`cortexplus55/burhancortexplus`](https://github.com/cortexplus55/burhancortexplus)  

@@ -1,6 +1,7 @@
 # Cortex Plus — prod deploy kontrol listesi
 
-Takım: **cortexplus55** · Supabase ref `gwqonggqzvavljguiryx` · Vercel proje `cortex-plus`
+**GitHub (tek kaynak):** https://github.com/cortexplus55/burhancortexplus · Vercel **Root Directory:** `cortex-plus`  
+**Takım:** **cortexplus55** · Supabase ref **`dgjfyewgrukglsehyntc`** · Vercel proje **`burhancortexplus`**
 
 ## 1. Ortam değişkenleri (Vercel)
 
@@ -8,6 +9,8 @@ Production + Preview için `.env.example` içindeki tüm anahtarları doldurun. 
 
 | Değişken | Zorunlu prod |
 |----------|----------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://dgjfyewgrukglsehyntc.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase Dashboard → API |
 | `NEXT_PUBLIC_APP_URL` | Evet — canlı domain |
 | `SUPABASE_SECRET_KEY` | Evet |
 | `OPENAI_API_KEY` | Evet |
@@ -25,12 +28,12 @@ npx vercel env pull .env.vercel.local
 
 ## 2. Supabase Auth URL’leri
 
-Site URL: `https://cortexplus.app` (veya geçici preview domain)
+Site URL: Vercel production URL (veya `https://cortexplus.app`)
 
 Redirect:
 
-- `https://cortexplus.app/auth/callback`
-- `https://cortexplus.app/auth/confirm`
+- `https://<domain>/auth/callback`
+- `https://<domain>/auth/confirm`
 - `http://localhost:3000/auth/callback`
 - `http://localhost:3000/auth/confirm`
 
@@ -40,9 +43,7 @@ Kayıt akışı: `/kayit/tamamla` — e-posta doğrulama linkinde `next=/kayit/t
 
 Uzak projede sırayla uygulanmış olmalı:
 
-- `20250825120000_init.sql` … `20250825120300_harden_functions.sql`
-- `20250826090000_roles_and_parents.sql`
-- `20250826120000_schools_streaks_payment_requests.sql`
+- `20250825120000_init.sql` … `20250826130000_schools_expand.sql`
 
 ```bash
 supabase db push --linked
@@ -54,7 +55,7 @@ supabase db push --linked
 
 ## 5. Git ↔ Vercel
 
-GitHub deposu ile Vercel projesi aynı hesapta bağlı olmalı; değilse `npx vercel deploy --prod`.
+**Tek repo:** `cortexplus55/burhancortexplus` — Root Directory `cortex-plus`. GitHub App (Vercel) bu repoya erişmeli.
 
 ## 6. Smoke (prod)
 

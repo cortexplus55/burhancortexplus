@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 $ErrorActionPreference = "Stop"
-$ProjectRef = "gwqonggqzvavljguiryx"
+$ProjectRef = "dgjfyewgrukglsehyntc"
 $AppRoot = Join-Path $PSScriptRoot "..\cortex-plus" | Resolve-Path
 
 Write-Host "Cortex Plus Supabase setup" -ForegroundColor Cyan
