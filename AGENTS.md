@@ -1,6 +1,6 @@
 # Cortex Plus Platform
 
-- **GitHub:** https://github.com/burhan55600-pixel/cortexplus-platform
+- **GitHub (tek kaynak):** https://github.com/cortexplus55/burhancortexplus
 - **App path:** `cortex-plus/` (Vercel Root Directory)
 - **Greenfield:** yeni Supabase + yeni Vercel; eski `cortex-plus` repo ve `gwqonggqzvavljguiryx` kullanılmaz
 - **Bağlantı rehberi:** `docs/delivery/GREENFIELD-CONNECT.md`

@@ -11,22 +11,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION public.is_admin(uid uuid)
-RETURNS boolean AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_roles ur
-    WHERE ur.user_id = uid AND ur.role = 'admin' AND ur.revoked_at IS NULL
-  );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION public.has_role(uid uuid, r text)
-RETURNS boolean AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_roles ur
-    WHERE ur.user_id = uid AND ur.role = r AND ur.revoked_at IS NULL
-  );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
-
 -- M1 Core
 CREATE TABLE public.profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -50,6 +34,22 @@ CREATE TABLE public.user_roles (
   revoked_at timestamptz,
   UNIQUE (user_id, role)
 );
+
+CREATE OR REPLACE FUNCTION public.is_admin(uid uuid)
+RETURNS boolean AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id = uid AND ur.role = 'admin' AND ur.revoked_at IS NULL
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.has_role(uid uuid, r text)
+RETURNS boolean AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id = uid AND ur.role = r AND ur.revoked_at IS NULL
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 CREATE TABLE public.consent_records (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

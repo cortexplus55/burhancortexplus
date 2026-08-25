@@ -1,5 +1,4 @@
-# Yeni Supabase projesi `supabase link` sonrası doldurulur
-project_id = ""
+project_id = "dgjfyewgrukglsehyntc"
 
 [api]
 enabled = true
