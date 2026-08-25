@@ -1,8 +1,8 @@
-# Cortex Plus Dev — agent / IDE
+# Cortex Plus Platform
 
-- **Supabase proje ref:** `gwqonggqzvavljguiryx` (cortex-plus-app, eu-central-1)
-- **CLI:** `scripts/setup-supabase.ps1` — Dashboard ile aynı Supabase hesabı
-- **MCP:** kök `.cursor/mcp.json` → `https://mcp.supabase.com/mcp?project_ref=gwqonggqzvavljguiryx`
-- Uygulama kökü: `cortex-plus/` (`npm run dev`, migrations `supabase/migrations/`)
+- **GitHub:** https://github.com/burhan55600-pixel/cortexplus-platform
+- **App path:** `cortex-plus/` (Vercel Root Directory)
+- **Greenfield:** yeni Supabase + yeni Vercel; eski `cortex-plus` repo ve `gwqonggqzvavljguiryx` kullanılmaz
+- **Bağlantı rehberi:** `docs/delivery/GREENFIELD-CONNECT.md`
 
-Uzaktan şema değişikliği: önce `supabase migration new`, sonra `db push` (link sonrası) veya MCP `apply_migration`.
+Kullanıcı **github hazır** dedikten sonra: Supabase proje oluştur, migration push, Vercel env, MCP `project_ref` güncelle.
