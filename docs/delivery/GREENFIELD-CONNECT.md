@@ -15,9 +15,9 @@
 
 | Bileşen | Durum |
 |---------|--------|
-| GitHub `burhancortexplus` | Repoya kod push (yerel `Cortex-Plus-Dev` → `main`) |
+| GitHub `burhancortexplus` | Yerel **2 commit** hazır; remote **boş** (`size: 0`). Push: `gh auth login` → **cortexplus55** → `.\scripts\push-burhancortexplus.ps1` |
 | Supabase `dgjfyewgrukglsehyntc` | Şema + seed uygulandı |
-| Vercel | Import **`cortexplus55/burhancortexplus`**, root `cortex-plus` |
+| Vercel proje **`burhancortexplus`** | Önce GitHub push + [Vercel GitHub App](https://github.com/apps/vercel) → **burhancortexplus**; sonra agent `create_git_project` veya [vercel.com/new](https://vercel.com/new) |
 
 ## Vercel + GitHub (`cortexplus55`)
 
