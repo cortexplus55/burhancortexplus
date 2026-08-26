@@ -1,0 +1,265 @@
+@import "./origin-tokens.css";
+
+:is(.origin-marketing, .astra-marketing) {
+  --mk-bg: var(--color-obsidian);
+  --mk-surface: var(--color-graphite);
+  --mk-border: rgba(255, 255, 255, 0.12);
+  --mk-primary: var(--color-iris-gleam);
+  --mk-text: var(--color-cloud);
+  --mk-muted: var(--color-ash);
+
+  background: var(--mk-bg);
+  color: var(--mk-text);
+  font-family: var(--font-ui);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-hero-gradient {
+  background: var(--gradient-sky-atmosphere);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-hero-atmosphere {
+  background:
+    var(--gradient-sky-atmosphere),
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(132, 125, 255, 0.12), transparent 60%);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-display {
+  font-family: var(--font-display);
+  font-weight: 300;
+  letter-spacing: 0;
+  color: var(--color-cloud);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-mono-eyebrow {
+  font-family: var(--font-mono-label);
+  font-size: var(--text-mono-label);
+  font-weight: 500;
+  line-height: var(--leading-mono-label);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-pure);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--color-pure);
+  color: var(--color-void);
+  border-radius: var(--radius-buttons);
+  padding: 12px 18px;
+  font-size: 1rem;
+  font-weight: 400;
+  transition: background-color var(--motion-quick), opacity var(--motion-quick);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-btn-primary:hover {
+  background: var(--color-cloud);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--color-pure);
+  color: var(--color-pure);
+  background: transparent;
+  border-radius: var(--radius-buttons);
+  padding: 12px 18px;
+  font-size: 1rem;
+  font-weight: 400;
+  transition: background-color var(--motion-quick);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-btn-outline:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-btn-ghost-nav {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: var(--color-pure);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-buttons);
+  padding: 9px 12px;
+  font-size: 0.875rem;
+  transition: background-color var(--motion-quick);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-btn-ghost-nav:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-card {
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border);
+  border-radius: var(--radius-cards);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-feature-tile {
+  border: none;
+  border-radius: var(--radius-featurecards);
+  padding: var(--card-padding);
+  color: var(--color-pure);
+  transition: opacity var(--motion-quick);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-feature-tile:hover {
+  opacity: 0.92;
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-feature-tile :is(h2, h3) {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: var(--text-heading-lg);
+  line-height: var(--leading-heading-lg);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-stat-inverted {
+  background: var(--color-silver);
+  color: var(--color-void);
+  border-radius: var(--radius-featurecards);
+  padding: var(--card-padding);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-ai-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 36rem;
+  margin-left: auto;
+  margin-right: auto;
+  background: var(--color-void);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-buttons);
+  padding: 8px 8px 8px 22px;
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-ai-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fafafa;
+  font-size: var(--text-body);
+  font-family: var(--font-ui);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-ai-input::placeholder {
+  color: var(--color-ash);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-ai-submit {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--color-pure);
+  transition: background-color var(--motion-quick);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-ai-submit:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+:is(.origin-marketing, .astra-marketing) header.origin-marketing-header {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(15, 16, 17, 0.72);
+  backdrop-filter: blur(24px);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-label {
+  font-family: var(--font-ui);
+  font-weight: 400;
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-input-field,
+:is(.origin-marketing, .astra-marketing) .mk-select-trigger {
+  width: 100%;
+  background: var(--color-void);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-buttons);
+  padding: 8px 12px;
+  color: #fafafa;
+  font-size: var(--text-body);
+  font-family: var(--font-ui);
+  transition: border-color var(--motion-quick);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-input-field:focus,
+:is(.origin-marketing, .astra-marketing) .mk-select-trigger:focus-visible {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-input-field::placeholder {
+  color: var(--color-ash);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-hint {
+  color: var(--color-ash);
+  line-height: var(--leading-body-sm);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-prose {
+  color: var(--color-ash);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-body-sm);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-prose-heading {
+  color: var(--color-cloud);
+  font-weight: 400;
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-details {
+  border-radius: var(--radius-cards);
+  border: 1px solid var(--mk-border);
+  background: var(--mk-surface);
+  padding: 1rem;
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-details summary {
+  cursor: pointer;
+  color: var(--color-cloud);
+  font-size: var(--text-body-sm);
+  font-weight: 400;
+  list-style: none;
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-details summary::-webkit-details-marker {
+  display: none;
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-link-accent {
+  color: var(--color-cloud);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-select-trigger svg {
+  color: var(--color-ash);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-select-trigger[data-placeholder] {
+  color: var(--color-ash);
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-consent-row label a {
+  color: var(--color-cloud);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+:is(.origin-marketing, .astra-marketing) .mk-notice {
+  border-radius: var(--radius-cards);
+  border: 1px solid var(--mk-border);
+  background: var(--mk-surface);
+  padding: 1rem;
+  font-size: var(--text-body-sm);
+  color: var(--color-ash);
+}

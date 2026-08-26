@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { MarketingPage } from "@/components/layout/marketing-page";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  MarketingPage,
+  OriginButton,
+  OriginInput,
+  OriginLabel,
+} from "@/components/layout/marketing-page";
 import { createClient } from "@/lib/supabase/client";
 
 export default function EmailDogrulaPage() {
@@ -36,15 +38,15 @@ export default function EmailDogrulaPage() {
       description="Kayıt sırasında gönderdiğimiz bağlantıya tıklayarak hesabını etkinleştir."
     >
       <div className="max-w-md space-y-6">
-        <p className="rounded-lg border p-4 text-sm text-muted-foreground">
+        <div className="mk-notice">
           Bağlantı e-postan gelmediyse spam klasörünü kontrol et veya aşağıdan
           yeniden gönder.
-        </p>
+        </div>
 
         <form onSubmit={resend} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">E-posta</Label>
-            <Input
+            <OriginLabel htmlFor="email">E-posta</OriginLabel>
+            <OriginInput
               id="email"
               type="email"
               autoComplete="email"
@@ -53,9 +55,9 @@ export default function EmailDogrulaPage() {
               onChange={(event) => setEmail(event.target.value)}
             />
           </div>
-          <Button type="submit" disabled={loading} className="w-full">
+          <OriginButton type="submit" disabled={loading}>
             {loading ? "Gönderiliyor…" : "Doğrulama e-postasını yeniden gönder"}
-          </Button>
+          </OriginButton>
         </form>
       </div>
     </MarketingPage>

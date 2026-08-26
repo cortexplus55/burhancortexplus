@@ -1,6 +1,6 @@
 ﻿import { Suspense } from "react";
 import Link from "next/link";
-import { AstraMarketingPage } from "@/components/parity/astra-marketing";
+import { OriginMarketingPage } from "@/components/marketing/origin-marketing";
 import { AstraSubscriptionCards } from "@/components/parity/astra-subscription-cards";
 import { createClient } from "@/lib/supabase/server";
 
@@ -32,7 +32,7 @@ export default async function FiyatlandirmaPage() {
   }
 
   return (
-    <AstraMarketingPage>
+    <OriginMarketingPage>
       <Suspense fallback={null}>
         <AstraSubscriptionCards plans={plans} guestMode />
       </Suspense>
@@ -42,6 +42,6 @@ export default async function FiyatlandirmaPage() {
           Giriş yap
         </Link>
       </p>
-    </AstraMarketingPage>
+    </OriginMarketingPage>
   );
 }

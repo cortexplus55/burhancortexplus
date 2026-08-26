@@ -1,15 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { AstraMarketingPage } from "@/components/parity/astra-marketing";
-import { createClient } from "@/lib/supabase/client";
-import { homePathForRole } from "@/lib/parity/signup";
 import { toast } from "sonner";
 import { useState } from "react";
-import "@/styles/astra-marketing.css";
+import { OriginMarketingPage } from "@/components/marketing/origin-marketing";
+import {
+  OriginButton,
+  OriginInput,
+  OriginLabel,
+} from "@/components/marketing/origin-form";
+import { createClient } from "@/lib/supabase/client";
+import { homePathForRole } from "@/lib/parity/signup";
+import "@/styles/origin-marketing.css";
 
 export default function OgretmenOnboardingPage() {
   const router = useRouter();
@@ -45,7 +47,7 @@ export default function OgretmenOnboardingPage() {
   }
 
   return (
-    <AstraMarketingPage title="İlk sınıfın">
+    <OriginMarketingPage title="İlk sınıfın">
       <div className="mx-auto max-w-md space-y-6 pb-16">
         <p className="text-[var(--mk-muted)]">
           Kayıt sırasında sınıf oluşturmadıysan burada ilk sınıfını
@@ -53,32 +55,26 @@ export default function OgretmenOnboardingPage() {
         </p>
         <div className="mk-card space-y-4 p-6">
           <div className="space-y-2">
-            <Label htmlFor="class">Sınıf adı</Label>
-            <Input
+            <OriginLabel htmlFor="class">Sınıf adı</OriginLabel>
+            <OriginInput
               id="class"
               value={className}
               onChange={(e) => setClassName(e.target.value)}
               placeholder="Örn. 11-A Matematik"
-              className="border-[var(--mk-border)] bg-[#0c0c0c]"
             />
           </div>
-          <Button
-            type="button"
-            className="mk-btn-primary w-full rounded-full py-3"
-            onClick={() => finish(false)}
-          >
+          <OriginButton type="button" onClick={() => finish(false)}>
             Sınıfı oluştur ve devam et
-          </Button>
-          <Button
+          </OriginButton>
+          <button
             type="button"
-            variant="ghost"
-            className="w-full text-[var(--mk-muted)]"
+            className="w-full py-2 text-sm text-[var(--mk-muted)] hover:text-[var(--color-cloud)]"
             onClick={() => finish(true)}
           >
             Sonra oluşturacağım
-          </Button>
+          </button>
         </div>
       </div>
-    </AstraMarketingPage>
+    </OriginMarketingPage>
   );
 }

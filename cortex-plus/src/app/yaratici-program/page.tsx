@@ -13,13 +13,13 @@ export default function YaraticiProgramPage() {
     >
       <div className="grid gap-4 md:grid-cols-2">
         <article className="mk-card p-6">
-          <h2 className="font-semibold">Okul lisansı</h2>
+          <h2 className="mk-prose-heading text-lg">Okul lisansı</h2>
           <p className="mt-2 text-sm text-[var(--mk-muted)]">
             Sınıf bazlı Plus, öğretmen paneli ve ilerleme raporları.
           </p>
         </article>
         <article className="mk-card p-6">
-          <h2 className="font-semibold">İçerik ortaklığı</h2>
+          <h2 className="mk-prose-heading text-lg">İçerik ortaklığı</h2>
           <p className="mt-2 text-sm text-[var(--mk-muted)]">
             Lab uygulamaları ve deneme paketlerini birlikte üretelim.
           </p>
@@ -27,7 +27,7 @@ export default function YaraticiProgramPage() {
       </div>
       <p className="mt-6 text-sm text-[var(--mk-muted)]">
         Başvuru için{" "}
-        <a href="/iletisim" className="underline">
+        <a href="/iletisim" className="mk-link-accent">
           iletişim
         </a>{" "}
         formunu kullanın.

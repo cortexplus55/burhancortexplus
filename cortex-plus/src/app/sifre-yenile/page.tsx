@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { MarketingPage } from "@/components/layout/marketing-page";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  MarketingPage,
+  OriginButton,
+  OriginFormHint,
+  OriginInput,
+  OriginLabel,
+} from "@/components/layout/marketing-page";
 import { createClient } from "@/lib/supabase/client";
 import { passwordIssues } from "@/lib/auth/password";
 
@@ -50,8 +53,8 @@ export default function SifreYenilePage() {
     >
       <form onSubmit={onSubmit} className="max-w-md space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="password">Yeni şifre</Label>
-          <Input
+          <OriginLabel htmlFor="password">Yeni şifre</OriginLabel>
+          <OriginInput
             id="password"
             type="password"
             autoComplete="new-password"
@@ -60,14 +63,14 @@ export default function SifreYenilePage() {
             onChange={(event) => setPassword(event.target.value)}
             aria-describedby="password-rules"
           />
-          <ul id="password-rules" className="text-xs text-muted-foreground">
-            <li>En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam.</li>
-          </ul>
+          <OriginFormHint id="password-rules">
+            En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam.
+          </OriginFormHint>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="confirm">Yeni şifre tekrar</Label>
-          <Input
+          <OriginLabel htmlFor="confirm">Yeni şifre tekrar</OriginLabel>
+          <OriginInput
             id="confirm"
             type="password"
             autoComplete="new-password"
@@ -77,9 +80,9 @@ export default function SifreYenilePage() {
           />
         </div>
 
-        <Button type="submit" disabled={loading} className="w-full">
+        <OriginButton type="submit" disabled={loading}>
           {loading ? "Kaydediliyor…" : "Şifreyi güncelle"}
-        </Button>
+        </OriginButton>
       </form>
     </MarketingPage>
   );

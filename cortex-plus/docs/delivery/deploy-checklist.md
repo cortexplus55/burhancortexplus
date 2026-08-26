@@ -17,7 +17,7 @@ Production + Preview için `.env.example` içindeki tüm anahtarları doldurun. 
 | `RESEND_API_KEY` + `EMAIL_FROM` | Veli daveti için |
 | `PAYTR_*` | Ödeme açıksa |
 | `UPSTASH_*` | Rate limit |
-| `GOOGLE_CLIENT_*` | Supabase Google OAuth ile aynı client |
+| `GOOGLE_CLIENT_*` | Opsiyonel — Google OAuth Supabase provider üzerinden; bkz. `docs/delivery/google-workspace-cortexplus.app.md` |
 
 CLI (doğru Vercel hesabıyla):
 

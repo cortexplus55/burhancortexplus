@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { OriginMarketingPage } from "@/components/marketing/origin-marketing";
+import { OriginButton } from "@/components/marketing/origin-form";
+import "@/styles/origin-marketing.css";
 
 export default function GlobalError({
   error,
@@ -17,15 +21,24 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
-      <h1 className="text-xl font-semibold">Bir şeyler ters gitti</h1>
-      <p className="text-sm text-muted-foreground">
-        İşlem tamamlanamadı. Tekrar denemek istersen aşağıdaki düğmeyi kullan.
-        Sorun sürerse destek ekibimize yazabilirsin.
-      </p>
-      <Button type="button" onClick={reset}>
-        Tekrar dene
-      </Button>
-    </div>
+    <OriginMarketingPage title="Bir şeyler ters gitti">
+      <div className="mx-auto max-w-md px-4 pb-16 text-center">
+        <p className="mk-prose">
+          İşlem tamamlanamadı. Tekrar denemek istersen aşağıdaki düğmeyi kullan.
+          Sorun sürerse{" "}
+          <Link href="/iletisim" className="mk-link-accent">
+            destek
+          </Link>{" "}
+          ekibimize yazabilirsin.
+        </p>
+        <OriginButton type="button" onClick={reset} className="mt-8 max-w-xs mx-auto">
+          Tekrar dene
+        </OriginButton>
+        <Link href="/" className="mk-btn-outline mt-3 inline-flex px-8 py-3 text-sm">
+          Ana sayfa
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </OriginMarketingPage>
   );
 }

@@ -1,10 +1,13 @@
 ﻿"use client";
 
 import { useState } from "react";
-import { MarketingPage } from "@/components/layout/marketing-page";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  MarketingPage,
+  OriginButton,
+  OriginFormHint,
+  OriginInput,
+  OriginLabel,
+} from "@/components/layout/marketing-page";
 import { createClient } from "@/lib/supabase/client";
 
 export default function SifremiUnuttumPage() {
@@ -21,7 +24,6 @@ export default function SifremiUnuttumPage() {
         redirectTo: `${window.location.origin}/auth/confirm?next=/sifre-yenile`,
       });
     } finally {
-      // Account existence is never revealed, regardless of the result.
       setSent(true);
       setLoading(false);
     }
@@ -33,15 +35,15 @@ export default function SifremiUnuttumPage() {
       description="E-posta adresini gir; hesabın varsa sıfırlama bağlantısı gönderilir."
     >
       {sent ? (
-        <p className="max-w-md rounded-lg border p-4 text-sm">
+        <div className="mk-notice max-w-md">
           Girdiğin adrese ait bir hesap varsa şifre sıfırlama bağlantısını
           gönderdik. Gelen kutunu ve spam klasörünü kontrol et.
-        </p>
+        </div>
       ) : (
         <form onSubmit={onSubmit} className="max-w-md space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">E-posta</Label>
-            <Input
+            <OriginLabel htmlFor="email">E-posta</OriginLabel>
+            <OriginInput
               id="email"
               type="email"
               autoComplete="email"
@@ -50,9 +52,12 @@ export default function SifremiUnuttumPage() {
               onChange={(event) => setEmail(event.target.value)}
             />
           </div>
-          <Button type="submit" disabled={loading} className="w-full">
+          <OriginButton type="submit" disabled={loading}>
             {loading ? "Gönderiliyor…" : "Sıfırlama bağlantısı gönder"}
-          </Button>
+          </OriginButton>
+          <OriginFormHint>
+            Güvenlik nedeniyle hesap olup olmadığına dair bilgi verilmez.
+          </OriginFormHint>
         </form>
       )}
     </MarketingPage>

@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  OriginButton,
+  OriginButtonOutline,
+  OriginInput,
+  OriginLabel,
+} from "@/components/marketing/origin-form";
+import { OriginConsentRow } from "@/components/marketing/origin-form-controls";
 import { createClient } from "@/lib/supabase/client";
 import { passwordIssues } from "@/lib/auth/password";
 import { cn } from "@/lib/utils";
@@ -24,7 +27,7 @@ import {
   type SignupRole,
 } from "@/lib/parity/signup";
 import { completeSignup } from "./actions";
-import "@/styles/astra-marketing.css";
+import "@/styles/origin-marketing.css";
 
 export function SignupWizard() {
   const router = useRouter();
@@ -169,10 +172,10 @@ export function SignupWizard() {
   }
 
   return (
-    <div className="astra-marketing flex min-h-dvh flex-col">
+    <div className="origin-marketing flex min-h-dvh flex-col">
       <div className="h-1 w-full bg-[var(--mk-surface)]">
         <div
-          className="h-1 bg-[var(--mk-primary)] transition-all duration-300"
+          className="h-1 bg-[var(--color-pure)] transition-all duration-300"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -209,7 +212,7 @@ export function SignupWizard() {
                   key={option.id}
                   type="button"
                   onClick={() => pickRole(option.id)}
-                  className="mk-card flex w-full items-center gap-4 p-4 text-left transition-colors hover:border-[var(--mk-primary)]"
+                  className="mk-card flex w-full items-center gap-4 p-4 text-left transition-colors hover:border-white/25"
                 >
                   <span className="text-2xl" aria-hidden>
                     {option.emoji}
@@ -266,7 +269,7 @@ export function SignupWizard() {
                     "mk-card flex items-center gap-3 p-4 text-left transition-colors",
                     draft.focusSubject === s.label
                       ? "border-[var(--mk-primary)]"
-                      : "hover:border-[var(--mk-primary)]",
+                      : "hover:border-white/25",
                   )}
                 >
                   <span className="text-xl" aria-hidden>
@@ -295,7 +298,7 @@ export function SignupWizard() {
                     "mk-card w-full p-4 text-left transition-colors",
                     draft.learningGoal === g.label
                       ? "border-[var(--mk-primary)]"
-                      : "hover:border-[var(--mk-primary)]",
+                      : "hover:border-white/25",
                   )}
                 >
                   <span className="block font-semibold">{g.label}</span>
@@ -324,7 +327,7 @@ export function SignupWizard() {
                     "mk-card flex aspect-square items-center justify-center text-2xl transition-colors",
                     draft.avatarEmoji === a
                       ? "border-[var(--mk-primary)]"
-                      : "hover:border-[var(--mk-primary)]",
+                      : "hover:border-white/25",
                   )}
                   aria-label={`Avatar ${a}`}
                 >
@@ -372,7 +375,7 @@ export function SignupWizard() {
                 selected={draft.parentLinkMode === "code"}
                 onSelect={() => setDraft((d) => ({ ...d, parentLinkMode: "code" }))}
               >
-                <Input
+                <OriginInput
                   value={draft.parentInviteCode ?? ""}
                   onChange={(e) =>
                     setDraft((d) => ({
@@ -394,7 +397,7 @@ export function SignupWizard() {
                 selected={draft.parentLinkMode === "email"}
                 onSelect={() => setDraft((d) => ({ ...d, parentLinkMode: "email" }))}
               >
-                <Input
+                <OriginInput
                   type="email"
                   value={draft.parentInviteEmail ?? ""}
                   onChange={(e) =>
@@ -406,7 +409,6 @@ export function SignupWizard() {
                   }
                   placeholder="ogrenci@ornek.com"
                   aria-label="Öğrenci e-postası"
-                  className="border-[var(--mk-border)] bg-[#0c0c0c]"
                 />
               </LinkModeCard>
 
@@ -431,27 +433,25 @@ export function SignupWizard() {
           >
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="institution">Okul / kurum</Label>
-                <Input
+                <OriginLabel htmlFor="institution">Okul / kurum</OriginLabel>
+                <OriginInput
                   id="institution"
                   value={draft.teacherInstitution ?? ""}
                   onChange={(e) =>
                     setDraft((d) => ({ ...d, teacherInstitution: e.target.value }))
                   }
                   placeholder="Örn. Atatürk Anadolu Lisesi"
-                  className="border-[var(--mk-border)] bg-[#0c0c0c]"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="branch">Branş</Label>
-                <Input
+                <OriginLabel htmlFor="branch">Branş</OriginLabel>
+                <OriginInput
                   id="branch"
                   value={draft.teacherBranch ?? ""}
                   onChange={(e) =>
                     setDraft((d) => ({ ...d, teacherBranch: e.target.value }))
                   }
                   placeholder="Örn. Matematik"
-                  className="border-[var(--mk-border)] bg-[#0c0c0c]"
                 />
               </div>
               <p className="text-xs text-[var(--mk-muted)]">
@@ -471,8 +471,8 @@ export function SignupWizard() {
             subtitle="Öğrencilerin bu sınıfa katılım koduyla girecek."
           >
             <div className="space-y-2">
-              <Label htmlFor="teacher-class">Sınıf adı</Label>
-              <Input
+              <OriginLabel htmlFor="teacher-class">Sınıf adı</OriginLabel>
+              <OriginInput
                 id="teacher-class"
                 value={draft.teacherClassName ?? ""}
                 onChange={(e) =>
@@ -501,89 +501,73 @@ export function SignupWizard() {
           >
             <form onSubmit={submitAccount} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Ad soyad</Label>
-                <Input
+                <OriginLabel htmlFor="name">Ad soyad</OriginLabel>
+                <OriginInput
                   id="name"
                   autoComplete="name"
                   required
                   minLength={2}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="border-[var(--mk-border)] bg-[#0c0c0c]"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">E-posta</Label>
-                <Input
+                <OriginLabel htmlFor="email">E-posta</OriginLabel>
+                <OriginInput
                   id="email"
                   type="email"
                   autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="border-[var(--mk-border)] bg-[#0c0c0c]"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Şifre</Label>
-                <Input
+                <OriginLabel htmlFor="password">Şifre</OriginLabel>
+                <OriginInput
                   id="password"
                   type="password"
                   autoComplete="new-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="border-[var(--mk-border)] bg-[#0c0c0c]"
                 />
                 <p className="text-xs text-[var(--mk-muted)]">
                   En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam.
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password2">Şifre tekrar</Label>
-                <Input
+                <OriginLabel htmlFor="password2">Şifre tekrar</OriginLabel>
+                <OriginInput
                   id="password2"
                   type="password"
                   autoComplete="new-password"
                   required
                   value={password2}
                   onChange={(e) => setPassword2(e.target.value)}
-                  className="border-[var(--mk-border)] bg-[#0c0c0c]"
                 />
               </div>
 
-              <label className="flex items-start gap-2 text-sm">
-                <Checkbox
-                  checked={consent}
-                  onCheckedChange={(value) => setConsent(value === true)}
-                />
-                <span className="text-[var(--mk-muted)]">
-                  <Link href="/kvkk" className="underline">
-                    KVKK aydınlatma metnini
-                  </Link>{" "}
-                  ve{" "}
-                  <Link href="/kullanim-kosullari" className="underline">
-                    kullanım koşullarını
-                  </Link>{" "}
-                  okudum, kabul ediyorum.
-                </span>
-              </label>
+              <OriginConsentRow
+                checked={consent}
+                onCheckedChange={(value) => setConsent(value === true)}
+              >
+                <Link href="/kvkk" className="mk-link-accent">
+                  KVKK aydınlatma metnini
+                </Link>{" "}
+                ve{" "}
+                <Link href="/kullanim-kosullari" className="mk-link-accent">
+                  kullanım koşullarını
+                </Link>{" "}
+                okudum, kabul ediyorum.
+              </OriginConsentRow>
 
-              <Button
-                type="submit"
-                disabled={loading}
-                className="mk-btn-primary w-full py-3"
-              >
+              <OriginButton type="submit" disabled={loading}>
                 {loading ? "Oluşturuluyor…" : "Hesabı oluştur"}
-              </Button>
-              <Button
-                type="button"
-                onClick={googleSignup}
-                className="mk-btn-outline w-full py-3"
-                variant="ghost"
-              >
+              </OriginButton>
+              <OriginButtonOutline type="button" onClick={googleSignup}>
                 Google ile devam et
-              </Button>
+              </OriginButtonOutline>
             </form>
           </StepShell>
         ) : null}
@@ -603,7 +587,7 @@ function StepShell({
 }) {
   return (
     <div className="flex flex-1 flex-col pt-6">
-      <h1 className="text-2xl font-bold leading-snug">{title}</h1>
+      <h1 className="mk-display text-2xl leading-snug">{title}</h1>
       {subtitle ? (
         <p className="mt-2 text-sm text-[var(--mk-muted)]">{subtitle}</p>
       ) : null}
@@ -627,7 +611,7 @@ function ChoiceChip({
       onClick={onClick}
       className={cn(
         "mk-card px-3 py-3 text-sm font-medium transition-colors",
-        selected ? "border-[var(--mk-primary)]" : "hover:border-[var(--mk-primary)]",
+        selected ? "border-white/40" : "hover:border-white/25",
       )}
     >
       {label}
@@ -652,7 +636,7 @@ function LinkModeCard({
     <div
       className={cn(
         "mk-card p-4 transition-colors",
-        selected ? "border-[var(--mk-primary)]" : "",
+        selected ? "border-white/40" : "",
       )}
     >
       <button type="button" onClick={onSelect} className="w-full text-left">
@@ -677,23 +661,17 @@ function ContinueButton({
 }) {
   return (
     <div className="mt-8 space-y-2">
-      <Button
-        type="button"
-        onClick={onClick}
-        disabled={disabled}
-        className="mk-btn-primary w-full py-3 disabled:opacity-50"
-      >
+      <OriginButton type="button" onClick={onClick} disabled={disabled}>
         Devam
-      </Button>
+      </OriginButton>
       {secondaryLabel && onSecondary ? (
-        <Button
+        <button
           type="button"
-          variant="ghost"
           onClick={onSecondary}
-          className="w-full text-[var(--mk-muted)]"
+          className="w-full py-2 text-sm text-[var(--mk-muted)] hover:text-[var(--color-cloud)]"
         >
           {secondaryLabel}
-        </Button>
+        </button>
       ) : null}
     </div>
   );

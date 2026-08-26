@@ -22,8 +22,15 @@
 
 ### Supabase Auth (Dashboard → Authentication → URL Configuration)
 
-- **Site URL:** `https://cortexplus-prod.vercel.app` (veya güncel production deployment URL)
-- **Redirect URLs:** aynı URL, `http://localhost:3000/**`, `https://*.vercel.app/**`
+- **Site URL:** `https://cortexplus.app`
+- **Redirect URLs:** `https://cortexplus.app/**`, `http://localhost:3000/**`, `https://*.vercel.app/**`
+
+Google OAuth + Workspace: [google-workspace-cortexplus.app.md](./google-workspace-cortexplus.app.md)  
+Canlıya çıkış adımları: [GO-LIVE-cortexplus.app.md](./GO-LIVE-cortexplus.app.md)
+
+## Vercel domain notu
+
+`cortexplus.app` başka bir Vercel team/hesapta kayıtlı olabilir. Production için **domain’in bağlı olduğu team** (`cortexplus55`) üzerinde `burhancortexplus` projesini import edin; DNS → `76.76.21.21` / `cname.vercel-dns.com`.
 
 ## Vercel + GitHub (`cortexplus55`)
 

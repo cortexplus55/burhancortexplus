@@ -1,14 +1,16 @@
-/* Astra-style mobile app shell (dark) */
+@import "./origin-tokens.css";
+
+/* Mobile / in-app dark shell — Origin surface steps, shared with paywall */
 .astra-app {
-  --astra-bg: #0a0a0a;
-  --astra-surface: #1a1a1a;
-  --astra-surface-elevated: #242424;
-  --astra-primary: #4a6cf7;
-  --astra-primary-hover: #3d5ce6;
-  --astra-text: #ffffff;
-  --astra-muted: #a3a3a3;
-  --astra-border: #2e2e2e;
-  --astra-pill: #1e1e1e;
+  --astra-bg: var(--color-obsidian);
+  --astra-surface: var(--color-graphite);
+  --astra-surface-elevated: var(--color-steel);
+  --astra-primary: var(--color-iris-gleam);
+  --astra-primary-hover: var(--color-deep-iris);
+  --astra-text: var(--color-cloud);
+  --astra-muted: var(--color-ash);
+  --astra-border: rgba(255, 255, 255, 0.12);
+  --astra-pill: var(--color-graphite);
   color: var(--astra-text);
   background: var(--astra-bg);
   min-height: 100dvh;
@@ -17,7 +19,7 @@
 .astra-app .astra-composer {
   background: var(--astra-surface);
   border: 1px solid var(--astra-border);
-  border-radius: 1.25rem;
+  border-radius: var(--radius-cards);
 }
 
 .astra-app .astra-nav-bar {
@@ -30,16 +32,18 @@
 }
 
 .astra-app .astra-btn-primary {
-  background: var(--astra-primary);
-  color: white;
+  background: var(--color-pure);
+  color: var(--color-void);
+  border-radius: var(--radius-buttons);
+  font-weight: 400;
 }
 
 .astra-app .astra-btn-primary:hover {
-  background: var(--astra-primary-hover);
+  background: var(--color-cloud);
 }
 
 .astra-app .astra-pay-card {
   background: var(--astra-surface);
   border: 1px solid var(--astra-border);
-  border-radius: 1.25rem;
+  border-radius: var(--radius-cards);
 }

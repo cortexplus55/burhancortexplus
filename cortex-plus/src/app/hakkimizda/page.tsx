@@ -11,7 +11,7 @@ export default function HakkimizdaPage() {
       title="Hakkımızda"
       description="Cortex Plus, öğrencinin kendi hızında ilerlemesini kolaylaştırmak için kuruldu."
     >
-      <div className="max-w-2xl space-y-4 text-sm leading-relaxed text-muted-foreground">
+      <div className="max-w-2xl space-y-4 mk-prose">
         <p>
           Amacımız, yapay zekâyı öğrencinin yerine düşünen değil, düşünmeyi
           öğreten bir araç haline getirmek. Bu yüzden yanıtlarımız hazır sonuç

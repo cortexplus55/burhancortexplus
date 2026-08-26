@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { AstraMarketingPage } from "@/components/parity/astra-marketing";
+import { OriginMarketingPage } from "@/components/marketing/origin-marketing";
+import { OriginButton } from "@/components/marketing/origin-form";
 import { createClient } from "@/lib/supabase/client";
 import { homePathForRole } from "@/lib/parity/signup";
 import { toast } from "sonner";
-import "@/styles/astra-marketing.css";
+import "@/styles/origin-marketing.css";
 
 export default function VeliOnboardingPage() {
   const router = useRouter();
@@ -30,22 +30,18 @@ export default function VeliOnboardingPage() {
   }
 
   return (
-    <AstraMarketingPage title="Veli hesabın">
+    <OriginMarketingPage title="Veli hesabın">
       <div className="mx-auto max-w-md space-y-6 pb-16">
         <p className="text-[var(--mk-muted)]">
           Çocuğunu davet kodu veya e-posta ile bağlayabilirsin. Bağlantı
           olmadan da Plus aboneliğini yönetebilirsin.
         </p>
         <div className="mk-card space-y-4 p-6">
-          <Button
-            type="button"
-            className="mk-btn-primary w-full rounded-full py-3"
-            onClick={finish}
-          >
+          <OriginButton type="button" onClick={finish}>
             Veli paneline git
-          </Button>
+          </OriginButton>
         </div>
       </div>
-    </AstraMarketingPage>
+    </OriginMarketingPage>
   );
 }

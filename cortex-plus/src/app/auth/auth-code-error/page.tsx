@@ -1,5 +1,4 @@
-import { MarketingPage } from "@/components/layout/marketing-page";
-import Link from "next/link";
+import { MarketingPage, OriginMarketingLink } from "@/components/layout/marketing-page";
 
 export default function AuthCodeErrorPage() {
   return (
@@ -7,9 +6,7 @@ export default function AuthCodeErrorPage() {
       title="Doğrulama hatası"
       description="Bağlantının süresi dolmuş veya geçersiz olabilir."
     >
-      <Link href="/giris" className="text-primary underline">
-        Giriş sayfasına dön
-      </Link>
+      <OriginMarketingLink href="/giris">Giriş sayfasına dön</OriginMarketingLink>
     </MarketingPage>
   );
 }
