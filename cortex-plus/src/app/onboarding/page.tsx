@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/client";
 import { homePathForRole } from "@/lib/parity/signup";
 import { toast } from "sonner";
 import "@/styles/astra-marketing.css";
+import "@/styles/signup-wizard.css";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -58,7 +59,7 @@ export default function OnboardingPage() {
 
   return (
     <AstraMarketingPage variant="auth" title="Hoş geldin">
-      <div className="mx-auto max-w-md space-y-6 pb-16">
+      <div className="signup-wizard mx-auto max-w-md space-y-6 pb-16">
         <p className="text-[var(--mk-muted)]">
           Birkaç soruyla deneyimini kişiselleştirelim.
         </p>

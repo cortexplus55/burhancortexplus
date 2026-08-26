@@ -13,6 +13,8 @@
 
 ## Durum
 
+Yol haritası (PayTR hariç sıra): [LAUNCH-SEQUENCE.md](./LAUNCH-SEQUENCE.md) · Auth: [AUTH-SETUP.md](./AUTH-SETUP.md)
+
 | Bileşen | Durum |
 |---------|--------|
 | GitHub `burhancortexplus` | **`main` push edildi** (`cortexplus55`); güncellemeler için `gh auth setup-git` + `git push origin main` |

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Check } from "lucide-react";
@@ -32,6 +32,8 @@ import "@/styles/signup-wizard.css";
 
 export function SignupWizard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [entryPrompt, setEntryPrompt] = useState<string | null>(null);
   const [role, setRole] = useState<SignupRole | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [draft, setDraft] = useState<Partial<SignupPayload>>({});
@@ -97,6 +99,20 @@ export function SignupWizard() {
     if (configIssue) toast.error(configIssue, { duration: 8000 });
   }, [configIssue]);
 
+  useEffect(() => {
+    const prompt = searchParams.get("prompt")?.trim();
+    if (prompt) setEntryPrompt(prompt);
+
+    const ders = searchParams.get("ders")?.trim();
+    if (!ders) return;
+    const match = SUBJECT_OPTIONS.find(
+      (s) => s.label.toLocaleLowerCase("tr") === ders.toLocaleLowerCase("tr"),
+    );
+    if (match) {
+      setDraft((d) => ({ ...d, focusSubject: match.label }));
+    }
+  }, [searchParams]);
+
   async function submitAccount(event: React.FormEvent) {
     event.preventDefault();
     if (configIssue) {
@@ -124,6 +140,13 @@ export function SignupWizard() {
     const payload = buildPayload();
     setLoading(true);
     stashPayload(payload);
+    if (entryPrompt) {
+      try {
+        sessionStorage.setItem("cortex-entry-prompt", entryPrompt);
+      } catch {
+        /* ignore */
+      }
+    }
 
     const supabase = createClient();
     const { data, error } = await supabase.auth.signUp({
@@ -511,6 +534,12 @@ export function SignupWizard() {
             title="Hesabını oluştur"
             subtitle="Son adım — bilgilerin güvenle saklanır."
           >
+            {entryPrompt ? (
+              <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
+                Kayıt sonrası AI öğretmene iletilecek soru:{" "}
+                <span className="font-medium text-amber-50">&ldquo;{entryPrompt}&rdquo;</span>
+              </p>
+            ) : null}
             <form onSubmit={submitAccount} className="signup-account-panel space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Ad soyad</Label>

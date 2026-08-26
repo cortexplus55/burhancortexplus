@@ -51,15 +51,21 @@ export function CinematicSocialProof() {
   return (
     <section className="border-t border-[var(--mk-border)] bg-[#080808] py-16 md:py-20">
       <div className="mx-auto max-w-6xl px-4">
-        <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-amber-400/80">
+        <p className="text-center text-xs font-medium uppercase tracking-widest text-amber-400/70">
+          Örnek topluluk hikâyeleri
+        </p>
+        <p className="text-center text-xs text-[var(--mk-muted)]">
+          Aşağıdaki istatistik ve yorumlar tanıtım amaçlıdır; bireysel sonuçlar değişir.
+        </p>
+        <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-amber-400/80 mt-6">
           Bizi seçenler
         </p>
         <h2 className="mk-display mt-3 text-center text-2xl md:text-4xl">
-          Gerçek sınav yolculuğunda birlikte ilerliyoruz
+          Sınav yolculuğunda ilham veren örnekler
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-[var(--mk-muted)] md:text-base">
-          Öğrenci, veli ve öğretmenlerden gelen geri bildirimler — Cortex Plus
-          ile hedeflerine ulaşan topluluğumuzdan örnekler.
+          Tanıtım amaçlı örnek geri bildirimler — gerçek kullanıcı deneyimlerini yansıtma
+          amacı taşımaz.
         </p>
 
         <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">

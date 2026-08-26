@@ -1,4 +1,5 @@
 import { SignupWizard } from "./signup-wizard";
+import { Suspense } from "react";
 
 export const metadata = {
   title: "Hesap oluştur",
@@ -6,5 +7,9 @@ export const metadata = {
 };
 
 export default function KayitPage() {
-  return <SignupWizard />;
+  return (
+    <Suspense fallback={null}>
+      <SignupWizard />
+    </Suspense>
+  );
 }

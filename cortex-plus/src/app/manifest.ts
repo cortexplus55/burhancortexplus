@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "AI destekli öğrenme platformu",
     start_url: "/",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#7c3aed",
+    background_color: "#0a0a0a",
+    theme_color: "#e8a838",
     lang: "tr",
     icons: [
       {

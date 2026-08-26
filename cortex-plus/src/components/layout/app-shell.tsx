@@ -9,6 +9,7 @@ import {
   AstraAppChrome,
   astraUserInitial,
 } from "@/components/parity/astra-app-chrome";
+import "@/styles/admin-shell.css";
 
 const baseLinks = [
   { href: "/dashboard", label: "Panel" },
@@ -105,7 +106,7 @@ export async function AppShell({
   }
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
+    <div className="admin-shell flex min-h-screen flex-col md:flex-row">
       <aside className="space-y-4 border-b p-4 md:w-56 md:border-b-0 md:border-r">
         <Link href="/ogretmen" className="block font-semibold text-primary">
           Cortex Plus

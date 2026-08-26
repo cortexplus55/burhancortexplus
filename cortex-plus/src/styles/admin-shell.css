@@ -1,0 +1,37 @@
+/* Admin panel — astra-app altın teması ile uyumlu */
+.admin-shell {
+  --admin-accent: #e8a838;
+  background: #0a0a0a;
+  color: #fff;
+  min-height: 100dvh;
+}
+
+.admin-shell aside {
+  border-color: #2e2e2e;
+  background: #0f0f0f;
+}
+
+.admin-shell a.font-semibold,
+.admin-shell nav a:hover {
+  color: var(--admin-accent);
+}
+
+.admin-shell header {
+  border-color: #2e2e2e;
+  background: #0a0a0a;
+}
+
+.admin-shell header h1 {
+  font-family: "DM Serif Display", Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.admin-shell .text-primary {
+  color: var(--admin-accent) !important;
+}
+
+.admin-shell [data-slot="button"].bg-primary {
+  background: linear-gradient(135deg, #f0b84d 0%, #c9851f 100%) !important;
+  color: #0c0a06 !important;
+}

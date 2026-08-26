@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -74,6 +74,19 @@ export function ChatPanel({
   const [subject, setSubject] = useState("Matematik");
   const [subjectOpen, setSubjectOpen] = useState(false);
   const [listening, setListening] = useState(false);
+
+  useEffect(() => {
+    if (initialMessages.length > 0) return;
+    try {
+      const pending = sessionStorage.getItem("cortex-entry-prompt");
+      if (pending?.trim()) {
+        setInput(pending.trim());
+        sessionStorage.removeItem("cortex-entry-prompt");
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [initialMessages.length]);
 
   async function uploadAttachment(file: File): Promise<string | null> {
     const form = new FormData();
