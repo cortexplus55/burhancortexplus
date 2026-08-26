@@ -4,6 +4,8 @@
 
 ## Squarespace’te yapılacak
 
+**Operasyon hesabı:** `cortexplus@cortexplus.app` (Squarespace / Google oturumu). DNS kaydı eklemeden önce üst bannertaki **e-posta doğrulama** kodunu bu kutudan girin.
+
 1. [Squarespace Domains](https://account.squarespace.com/domains) → **cortexplus.app** → DNS.
 2. **Custom records** → **Add record**:
    - **Host:** `www`
