@@ -22,6 +22,13 @@ export const metadata: Metadata = {
     "Sınav hazırlığı, AI öğretmen, quiz ve kişisel çalışma planı — cortexplus.app",
   metadataBase: new URL("https://cortexplus.app"),
   manifest: "/manifest.webmanifest",
+  ...(process.env.GOOGLE_SITE_VERIFICATION
+    ? {
+        verification: {
+          google: process.env.GOOGLE_SITE_VERIFICATION,
+        },
+      }
+    : {}),
 };
 
 export const viewport: Viewport = {
