@@ -23,7 +23,7 @@ const payloadSchema = z.object({
   parentInviteEmail: z.string().email().max(160).optional(),
   teacherInstitution: z.string().max(160).optional(),
   teacherBranch: z.string().max(80).optional(),
-  teacherClassName: z.string().min(2).max(80).optional(),
+  teacherClassName: z.string().max(80).optional(),
 });
 
 export type CompleteSignupResult =

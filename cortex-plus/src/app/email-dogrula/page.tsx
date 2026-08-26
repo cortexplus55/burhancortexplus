@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
+import { authCallbackUrl } from "@/lib/auth/messages";
 
 export default function EmailDogrulaPage() {
   const [email, setEmail] = useState("");
@@ -21,7 +22,7 @@ export default function EmailDogrulaPage() {
         type: "signup",
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/kayit/tamamla`,
+          emailRedirectTo: authCallbackUrl("/kayit/tamamla"),
         },
       });
     } finally {

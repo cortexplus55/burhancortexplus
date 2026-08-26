@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,8 +24,10 @@ import {
   type SignupRole,
 } from "@/lib/parity/signup";
 import { completeSignup } from "./actions";
+import { authCallbackUrl, authErrorMessage } from "@/lib/auth/messages";
 import "@/styles/astra-marketing.css";
 import "@/styles/cinematic-home.css";
+import "@/styles/signup-wizard.css";
 
 export function SignupWizard() {
   const router = useRouter();
@@ -117,7 +119,7 @@ export function SignupWizard() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/confirm?next=/kayit/tamamla`,
+        emailRedirectTo: authCallbackUrl("/kayit/tamamla"),
         data: {
           full_name: payload.fullName,
           primary_role: payload.role,
@@ -132,7 +134,13 @@ export function SignupWizard() {
 
     if (error) {
       setLoading(false);
-      toast.error("Kayıt tamamlanamadı. Bilgilerini kontrol et.");
+      toast.error(authErrorMessage(error));
+      return;
+    }
+
+    if (data.user && data.user.identities?.length === 0) {
+      setLoading(false);
+      toast.error("Bu e-posta zaten kayıtlı. Giriş yap veya şifreni sıfırla.");
       return;
     }
 
@@ -164,16 +172,16 @@ export function SignupWizard() {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/kayit/tamamla`,
+        redirectTo: authCallbackUrl("/kayit/tamamla"),
       },
     });
   }
 
   return (
-    <div className="astra-marketing cinematic-marketing cinematic-auth flex min-h-dvh flex-col">
-      <div className="h-1 w-full bg-[var(--mk-surface)]">
+    <div className="signup-wizard astra-marketing cinematic-marketing cinematic-auth flex min-h-dvh flex-col">
+      <div className="signup-progress-track w-full">
         <div
-          className="h-1 bg-[var(--mk-primary)] transition-all duration-300"
+          className="signup-progress-fill"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -210,16 +218,20 @@ export function SignupWizard() {
                   key={option.id}
                   type="button"
                   onClick={() => pickRole(option.id)}
-                  className="mk-card flex w-full items-center gap-4 p-4 text-left transition-colors hover:border-[var(--mk-primary)]"
+                  className="signup-choice flex w-full items-center gap-4 p-4 text-left"
+                  data-selected={role === option.id}
                 >
                   <span className="text-2xl" aria-hidden>
                     {option.emoji}
                   </span>
-                  <span>
+                  <span className="min-w-0 flex-1">
                     <span className="block font-semibold">{option.title}</span>
                     <span className="block text-sm text-[var(--mk-muted)]">
                       {option.body}
                     </span>
+                  </span>
+                  <span className="signup-choice-check" aria-hidden>
+                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
                   </span>
                 </button>
               ))}
@@ -259,22 +271,17 @@ export function SignupWizard() {
           >
             <div className="grid grid-cols-2 gap-3">
               {SUBJECT_OPTIONS.map((s) => (
-                <button
+                <SignupChoice
                   key={s.label}
-                  type="button"
+                  selected={draft.focusSubject === s.label}
                   onClick={() => setDraft((d) => ({ ...d, focusSubject: s.label }))}
-                  className={cn(
-                    "mk-card flex items-center gap-3 p-4 text-left transition-colors",
-                    draft.focusSubject === s.label
-                      ? "border-[var(--mk-primary)]"
-                      : "hover:border-[var(--mk-primary)]",
-                  )}
+                  className="flex items-center gap-3 p-4 text-left"
                 >
                   <span className="text-xl" aria-hidden>
                     {s.emoji}
                   </span>
                   <span className="text-sm font-medium">{s.label}</span>
-                </button>
+                </SignupChoice>
               ))}
             </div>
             <ContinueButton disabled={!draft.focusSubject} onClick={next} />
@@ -288,22 +295,17 @@ export function SignupWizard() {
           >
             <div className="space-y-3">
               {GOAL_OPTIONS.map((g) => (
-                <button
+                <SignupChoice
                   key={g.label}
-                  type="button"
+                  selected={draft.learningGoal === g.label}
                   onClick={() => setDraft((d) => ({ ...d, learningGoal: g.label }))}
-                  className={cn(
-                    "mk-card w-full p-4 text-left transition-colors",
-                    draft.learningGoal === g.label
-                      ? "border-[var(--mk-primary)]"
-                      : "hover:border-[var(--mk-primary)]",
-                  )}
+                  className="w-full p-4 text-left"
                 >
                   <span className="block font-semibold">{g.label}</span>
                   <span className="block text-sm text-[var(--mk-muted)]">
                     {g.body}
                   </span>
-                </button>
+                </SignupChoice>
               ))}
             </div>
             <ContinueButton disabled={!draft.learningGoal} onClick={next} />
@@ -317,20 +319,16 @@ export function SignupWizard() {
           >
             <div className="grid grid-cols-4 gap-3">
               {AVATAR_OPTIONS.map((a) => (
-                <button
+                <SignupChoice
                   key={a}
-                  type="button"
+                  selected={draft.avatarEmoji === a}
                   onClick={() => setDraft((d) => ({ ...d, avatarEmoji: a }))}
-                  className={cn(
-                    "mk-card flex aspect-square items-center justify-center text-2xl transition-colors",
-                    draft.avatarEmoji === a
-                      ? "border-[var(--mk-primary)]"
-                      : "hover:border-[var(--mk-primary)]",
-                  )}
-                  aria-label={`Avatar ${a}`}
+                  className="flex aspect-square items-center justify-center text-2xl"
+                  ariaLabel={`Avatar ${a}`}
+                  showCheck={false}
                 >
                   {a}
-                </button>
+                </SignupChoice>
               ))}
             </div>
             <ContinueButton onClick={next} secondaryLabel="Atla" onSecondary={next} />
@@ -500,7 +498,7 @@ export function SignupWizard() {
             title="Hesabını oluştur"
             subtitle="Son adım — bilgilerin güvenle saklanır."
           >
-            <form onSubmit={submitAccount} className="space-y-4">
+            <form onSubmit={submitAccount} className="signup-account-panel space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Ad soyad</Label>
                 <Input
@@ -570,21 +568,20 @@ export function SignupWizard() {
                 </span>
               </label>
 
-              <Button
+              <button
                 type="submit"
                 disabled={loading}
-                className="mk-btn-primary w-full py-3"
+                className="signup-continue w-full"
               >
                 {loading ? "Oluşturuluyor…" : "Hesabı oluştur"}
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
                 onClick={googleSignup}
-                className="mk-btn-outline w-full py-3"
-                variant="ghost"
+                className="mk-btn-outline w-full py-3 text-sm font-medium"
               >
                 Google ile devam et
-              </Button>
+              </button>
             </form>
           </StepShell>
         ) : null}
@@ -604,12 +601,46 @@ function StepShell({
 }) {
   return (
     <div className="flex flex-1 flex-col pt-6">
-      <h1 className="text-2xl font-bold leading-snug">{title}</h1>
+      <h1 className="signup-step-title">{title}</h1>
       {subtitle ? (
         <p className="mt-2 text-sm text-[var(--mk-muted)]">{subtitle}</p>
       ) : null}
       <div className="mt-8 flex-1">{children}</div>
     </div>
+  );
+}
+
+function SignupChoice({
+  selected,
+  onClick,
+  children,
+  className,
+  ariaLabel,
+  showCheck = true,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  className?: string;
+  ariaLabel?: string;
+  showCheck?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      aria-pressed={selected}
+      data-selected={selected}
+      className={cn("signup-choice relative", className)}
+    >
+      {children}
+      {showCheck ? (
+        <span className="signup-choice-check absolute right-3 top-3" aria-hidden>
+          <Check className="h-3.5 w-3.5" strokeWidth={3} />
+        </span>
+      ) : null}
+    </button>
   );
 }
 
@@ -623,16 +654,15 @@ function ChoiceChip({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
+    <SignupChoice
+      selected={selected}
       onClick={onClick}
-      className={cn(
-        "mk-card px-3 py-3 text-sm font-medium transition-colors",
-        selected ? "border-[var(--mk-primary)]" : "hover:border-[var(--mk-primary)]",
-      )}
+      className="px-3 py-3 text-center text-sm font-medium"
+      ariaLabel={label}
+      showCheck={false}
     >
       {label}
-    </button>
+    </SignupChoice>
   );
 }
 
@@ -650,18 +680,15 @@ function LinkModeCard({
   children?: React.ReactNode;
 }) {
   return (
-    <div
-      className={cn(
-        "mk-card p-4 transition-colors",
-        selected ? "border-[var(--mk-primary)]" : "",
-      )}
+    <SignupChoice
+      selected={selected}
+      onClick={onSelect}
+      className="block w-full p-4 text-left"
     >
-      <button type="button" onClick={onSelect} className="w-full text-left">
-        <span className="block font-semibold">{title}</span>
-        <span className="block text-sm text-[var(--mk-muted)]">{body}</span>
-      </button>
-      {selected && children ? <div className="mt-3">{children}</div> : null}
-    </div>
+      <span className="block font-semibold">{title}</span>
+      <span className="block text-sm text-[var(--mk-muted)]">{body}</span>
+      {selected && children ? <div className="mt-3 pr-8">{children}</div> : null}
+    </SignupChoice>
   );
 }
 
@@ -678,14 +705,14 @@ function ContinueButton({
 }) {
   return (
     <div className="mt-8 space-y-2">
-      <Button
+      <button
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className="mk-btn-primary w-full py-3 disabled:opacity-50"
+        className="signup-continue"
       >
         Devam
-      </Button>
+      </button>
       {secondaryLabel && onSecondary ? (
         <Button
           type="button"
