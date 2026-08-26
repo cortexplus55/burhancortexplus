@@ -25,6 +25,7 @@ import {
 } from "@/lib/parity/signup";
 import { completeSignup } from "./actions";
 import "@/styles/astra-marketing.css";
+import "@/styles/cinematic-home.css";
 
 export function SignupWizard() {
   const router = useRouter();
@@ -169,7 +170,7 @@ export function SignupWizard() {
   }
 
   return (
-    <div className="astra-marketing flex min-h-dvh flex-col">
+    <div className="astra-marketing cinematic-marketing cinematic-auth flex min-h-dvh flex-col">
       <div className="h-1 w-full bg-[var(--mk-surface)]">
         <div
           className="h-1 bg-[var(--mk-primary)] transition-all duration-300"

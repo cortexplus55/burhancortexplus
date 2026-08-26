@@ -30,7 +30,7 @@ export default function VeliOnboardingPage() {
   }
 
   return (
-    <AstraMarketingPage title="Veli hesabın">
+    <AstraMarketingPage variant="auth" title="Veli hesabın">
       <div className="mx-auto max-w-md space-y-6 pb-16">
         <p className="text-[var(--mk-muted)]">
           Çocuğunu davet kodu veya e-posta ile bağlayabilirsin. Bağlantı

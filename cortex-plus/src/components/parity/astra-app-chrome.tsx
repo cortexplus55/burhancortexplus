@@ -179,7 +179,7 @@ export function AstraAppChrome({
           </Link>
         )}
         {pageTitle ? (
-          <p className="truncate px-2 text-sm font-medium text-[var(--astra-muted)]">
+          <p className="astra-page-title truncate px-2 text-sm">
             {pageTitle}
           </p>
         ) : (

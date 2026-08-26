@@ -29,16 +29,17 @@ export default function SifremiUnuttumPage() {
 
   return (
     <MarketingPage
+      variant="auth"
       title="Şifremi unuttum"
       description="E-posta adresini gir; hesabın varsa sıfırlama bağlantısı gönderilir."
     >
       {sent ? (
-        <p className="max-w-md rounded-lg border p-4 text-sm">
+        <p className="mk-card p-4 text-sm">
           Girdiğin adrese ait bir hesap varsa şifre sıfırlama bağlantısını
           gönderdik. Gelen kutunu ve spam klasörünü kontrol et.
         </p>
       ) : (
-        <form onSubmit={onSubmit} className="max-w-md space-y-4">
+        <form onSubmit={onSubmit} className="mk-card space-y-4 p-6">
           <div className="space-y-2">
             <Label htmlFor="email">E-posta</Label>
             <Input

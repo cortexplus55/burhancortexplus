@@ -1,5 +1,5 @@
-﻿import Link from "next/link";
-import { AstraMarketingPage } from "@/components/parity/astra-marketing";
+﻿import { AstraMarketingPage } from "@/components/parity/astra-marketing";
+import { CinematicPrimaryCta } from "@/components/marketing/cinematic-cta";
 
 export const metadata = {
   title: "Özellikler",
@@ -44,12 +44,11 @@ const features = [
 
 export default function OzelliklerPage() {
   return (
-    <AstraMarketingPage title="Özellikler">
-      <div className="mx-auto max-w-6xl px-4 pb-16">
-        <p className="mb-8 max-w-2xl text-[var(--mk-muted)]">
-          Cortex Plus, çalışmanı tek bir akışta toplayan yapay zekâ destekli öğrenme
-          platformudur.
-        </p>
+    <AstraMarketingPage
+      title="Özellikler"
+      description="Cortex Plus, çalışmanı tek bir akışta toplayan yapay zekâ destekli öğrenme platformudur."
+    >
+      <div className="mx-auto max-w-6xl px-4 pb-16" data-cinematic-reveal>
         <div className="grid gap-4 md:grid-cols-2">
           {features.map((feature) => (
             <article key={feature.title} className="mk-card p-5">
@@ -59,9 +58,7 @@ export default function OzelliklerPage() {
           ))}
         </div>
         <div className="mt-10">
-          <Link href="/kayit" className="mk-btn-primary inline-flex px-8 py-3 text-sm">
-            ÜCRETSİZ DENE
-          </Link>
+          <CinematicPrimaryCta label="Başla" />
         </div>
       </div>
     </AstraMarketingPage>

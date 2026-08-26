@@ -45,10 +45,11 @@ export default function SifreYenilePage() {
 
   return (
     <MarketingPage
+      variant="auth"
       title="Şifre yenile"
       description="Yeni şifreni belirle ve hesabına dön."
     >
-      <form onSubmit={onSubmit} className="max-w-md space-y-4">
+      <form onSubmit={onSubmit} className="mk-card space-y-4 p-6">
         <div className="space-y-2">
           <Label htmlFor="password">Yeni şifre</Label>
           <Input

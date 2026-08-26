@@ -1,5 +1,6 @@
-﻿import Link from "next/link";
-import { AstraMarketingPage } from "@/components/parity/astra-marketing";
+﻿import { AstraMarketingPage } from "@/components/parity/astra-marketing";
+import { CinematicPageHero } from "@/components/marketing/cinematic-page-hero";
+import { CinematicCtaRow } from "@/components/marketing/cinematic-cta";
 
 export const metadata = {
   title: "Sınav hazırlığı",
@@ -36,29 +37,14 @@ const faq = [
 export default function SinavHazirligiPage() {
   return (
     <AstraMarketingPage>
-      <section className="mk-hero-gradient px-4 py-16 md:py-20">
-        <div className="mx-auto max-w-3xl text-center">
-          <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
-            Sınav hazırlığı — kişisel öğrenme yolun
-          </h1>
-          <p className="mt-4 text-lg text-[var(--mk-muted)]">
-            Dağınık kaynak yerine tek akış: ölç, analiz et, planla, tekrar et.
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href="/kayit" className="mk-btn-primary px-8 py-3 text-sm">
-              ÜCRETSİZ DENE
-            </Link>
-            <Link
-              href="/fiyatlandirma"
-              className="mk-btn-outline px-8 py-3 text-sm font-medium"
-            >
-              Plus satın al
-            </Link>
-          </div>
-        </div>
-      </section>
+      <CinematicPageHero
+        title="Sınav hazırlığı — kişisel öğrenme yolun"
+        description="Dağınık kaynak yerine tek akış: ölç, analiz et, planla, tekrar et."
+      >
+        <CinematicCtaRow />
+      </CinematicPageHero>
 
-      <section className="mx-auto max-w-6xl px-4 py-16">
+      <section className="mx-auto max-w-6xl px-4 py-16" data-cinematic-reveal>
         <ol className="grid gap-4 md:grid-cols-2">
           {steps.map((step, i) => (
             <li key={step.title} className="mk-card p-6">
@@ -72,9 +58,9 @@ export default function SinavHazirligiPage() {
         </ol>
       </section>
 
-      <section className="border-t border-[var(--mk-border)] py-16">
+      <section className="border-t border-[var(--mk-border)] py-16" data-cinematic-reveal>
         <div className="mx-auto max-w-2xl px-4">
-          <h2 className="text-center text-2xl font-bold">SSS</h2>
+          <h2 className="mk-display text-center text-2xl md:text-3xl">SSS</h2>
           <div className="mt-8 space-y-2">
             {faq.map((q) => (
               <details key={q} className="mk-card p-4">

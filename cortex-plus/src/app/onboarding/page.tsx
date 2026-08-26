@@ -57,7 +57,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <AstraMarketingPage title="Hoş geldin">
+    <AstraMarketingPage variant="auth" title="Hoş geldin">
       <div className="mx-auto max-w-md space-y-6 pb-16">
         <p className="text-[var(--mk-muted)]">
           Birkaç soruyla deneyimini kişiselleştirelim.

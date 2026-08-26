@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import "@/styles/astra-marketing.css";
+import "@/styles/cinematic-home.css";
 import { ArrowRight, Sparkles } from "lucide-react";
+import { CinematicPrimaryCta } from "@/components/marketing/cinematic-cta";
 import { MARKETING_SUBJECTS } from "@/lib/parity/marketing-subjects";
+import { CinematicPageHero } from "@/components/marketing/cinematic-page-hero";
+import { CinematicScrollReveal } from "@/components/marketing/cinematic-scroll-reveal";
 
 const nav = [
   { href: "/sinav-hazirligi", label: "Sınav Hazırlığı" },
@@ -129,7 +133,7 @@ export function AstraMarketingHero() {
 
 export function AstraSubjectGrid() {
   return (
-    <section className="border-t border-[var(--mk-border)] py-16">
+    <section className="border-t border-[var(--mk-border)] py-16" data-cinematic-reveal>
       <div className="mx-auto max-w-6xl px-4">
         <h2 className="text-center text-2xl font-bold md:text-3xl">
           Her ders için AI desteği
@@ -185,7 +189,7 @@ export function AstraFeatureStrip() {
     },
   ];
   return (
-    <section className="py-16">
+    <section className="py-16" data-cinematic-reveal>
       <div className="mx-auto grid max-w-6xl gap-6 px-4 md:grid-cols-3">
         {items.map((item) => (
           <Link key={item.title} href={item.href} className="mk-card block p-6">
@@ -200,7 +204,7 @@ export function AstraFeatureStrip() {
 
 export function AstraFaqSection() {
   return (
-    <section className="border-t border-[var(--mk-border)] py-16">
+    <section className="border-t border-[var(--mk-border)] py-16" data-cinematic-reveal>
       <div className="mx-auto max-w-2xl px-4">
         <h2 className="text-center text-2xl font-bold">Sık sorulanlar</h2>
         <div className="mt-8 space-y-3">
@@ -213,10 +217,8 @@ export function AstraFaqSection() {
             </details>
           ))}
         </div>
-        <div className="mt-10 text-center">
-          <Link href="/kayit" className={cn("mk-btn-primary inline-flex px-8 py-3 text-sm")}>
-            ÜCRETSİZ DENE
-          </Link>
+        <div className="mt-10 flex justify-center">
+          <CinematicPrimaryCta label="Başla" />
         </div>
       </div>
     </section>
@@ -226,23 +228,60 @@ export function AstraFaqSection() {
 export function AstraMarketingPage({
   children,
   title,
+  description,
   className,
+  variant = "marketing",
 }: {
   children?: React.ReactNode;
   title?: string;
+  description?: string;
   className?: string;
+  variant?: "marketing" | "auth" | "legal" | "home";
 }) {
+  const shellClass = cn(
+    "astra-marketing cinematic-marketing flex min-h-screen flex-col",
+    variant === "home" && "cinematic-home",
+    variant === "auth" && "cinematic-auth",
+    className,
+  );
+
   return (
-    <div className={cn("astra-marketing flex min-h-screen flex-col", className)}>
+    <div className={shellClass}>
       <AstraSiteHeader />
-      <main className="flex-1">
-        {title ? (
-          <div className="mx-auto max-w-6xl px-4 py-10">
-            <h1 className="text-3xl font-bold">{title}</h1>
-          </div>
-        ) : null}
-        {children}
-      </main>
+      <CinematicScrollReveal>
+        <main className="flex-1">
+          {title && variant === "marketing" ? (
+            <CinematicPageHero title={title} description={description} />
+          ) : null}
+          {variant === "auth" ? (
+            <div className="mk-auth-stack">
+              {title ? (
+                <div className="mb-6 text-center" data-cinematic-reveal>
+                  <h1 className="mk-display text-3xl">{title}</h1>
+                  {description ? (
+                    <p className="mt-2 text-sm text-[var(--mk-muted)]">
+                      {description}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              {children}
+            </div>
+          ) : variant === "legal" ? (
+            <div className="mx-auto max-w-6xl px-4 pb-16 pt-10" data-cinematic-reveal>
+              <h1 className="mk-display text-3xl md:text-4xl">{title}</h1>
+              {description ? (
+                <p className="mt-3 max-w-2xl text-[var(--mk-muted)]">
+                  {description}
+                </p>
+              ) : null}
+              <div className="mt-8">{children}</div>
+            </div>
+          ) : (
+            children
+          )}
+        </main>
+      </CinematicScrollReveal>
       <AstraSiteFooter />
     </div>
   );

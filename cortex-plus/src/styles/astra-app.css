@@ -1,10 +1,12 @@
-/* Astra-style mobile app shell (dark) */
+@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap");
+
+/* Astra-style mobile app shell (dark) — sinematik altın vurgu */
 .astra-app {
   --astra-bg: #0a0a0a;
   --astra-surface: #1a1a1a;
   --astra-surface-elevated: #242424;
-  --astra-primary: #4a6cf7;
-  --astra-primary-hover: #3d5ce6;
+  --astra-primary: #e8a838;
+  --astra-primary-hover: #f0b84d;
   --astra-text: #ffffff;
   --astra-muted: #a3a3a3;
   --astra-border: #2e2e2e;
@@ -12,6 +14,13 @@
   color: var(--astra-text);
   background: var(--astra-bg);
   min-height: 100dvh;
+}
+
+.astra-app .astra-page-title {
+  font-family: "DM Serif Display", Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--astra-text);
 }
 
 .astra-app .astra-composer {
@@ -27,19 +36,29 @@
 
 .astra-app .astra-nav-active {
   background: var(--astra-surface-elevated);
+  box-shadow: 0 0 24px rgba(232, 168, 56, 0.12);
 }
 
 .astra-app .astra-btn-primary {
-  background: var(--astra-primary);
-  color: white;
+  background: linear-gradient(135deg, #f0b84d 0%, #d4922a 100%);
+  color: #0c0a06;
 }
 
 .astra-app .astra-btn-primary:hover {
-  background: var(--astra-primary-hover);
+  background: linear-gradient(135deg, #ffc857 0%, #e8a838 100%);
 }
 
 .astra-app .astra-pay-card {
   background: var(--astra-surface);
   border: 1px solid var(--astra-border);
   border-radius: 1.25rem;
+  transition:
+    transform 0.35s ease,
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.astra-app .astra-pay-card:hover {
+  border-color: rgba(232, 168, 56, 0.35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
 }

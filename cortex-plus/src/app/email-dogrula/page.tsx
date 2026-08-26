@@ -32,11 +32,12 @@ export default function EmailDogrulaPage() {
 
   return (
     <MarketingPage
+      variant="auth"
       title="E-posta doğrulama"
       description="Kayıt sırasında gönderdiğimiz bağlantıya tıklayarak hesabını etkinleştir."
     >
-      <div className="max-w-md space-y-6">
-        <p className="rounded-lg border p-4 text-sm text-muted-foreground">
+      <div className="mk-card space-y-6 p-6">
+        <p className="text-sm text-[var(--mk-muted)]">
           Bağlantı e-postan gelmediyse spam klasörünü kontrol et veya aşağıdan
           yeniden gönder.
         </p>

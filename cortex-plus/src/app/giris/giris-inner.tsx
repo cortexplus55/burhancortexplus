@@ -44,7 +44,7 @@ export default function GirisPage() {
   }
 
   return (
-    <AstraMarketingPage title="Giriş yap">
+    <AstraMarketingPage variant="auth" title="Giriş yap">
       <form onSubmit={onSubmit} className="mk-card mx-auto max-w-md space-y-4 p-6">
         <div className="space-y-2">
           <Label htmlFor="email">E-posta</Label>

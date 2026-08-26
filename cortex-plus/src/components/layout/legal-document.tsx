@@ -10,19 +10,19 @@ export function LegalDocument({
   sections: { heading: string; body: string[] }[];
 }) {
   return (
-    <MarketingPage title={title} description={description}>
-      <div className="max-w-2xl space-y-8">
+    <MarketingPage title={title} description={description} variant="legal">
+      <div className="max-w-2xl space-y-8 text-[var(--mk-text)]">
         {sections.map((section) => (
           <section key={section.heading}>
             <h2 className="font-medium">{section.heading}</h2>
-            <ul className="mt-2 space-y-2 text-sm leading-relaxed text-muted-foreground">
+            <ul className="mt-2 space-y-2 text-sm leading-relaxed text-[var(--mk-muted)]">
               {section.body.map((paragraph) => (
                 <li key={paragraph}>{paragraph}</li>
               ))}
             </ul>
           </section>
         ))}
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-[var(--mk-muted)]">
           Bu metin bilgilendirme amaçlıdır ve hukuki danışmanlık yerine geçmez.
           Yayına almadan önce hukuk danışmanınla gözden geçirmeni öneririz.
         </p>

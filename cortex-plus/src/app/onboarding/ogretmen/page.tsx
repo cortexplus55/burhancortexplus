@@ -45,7 +45,7 @@ export default function OgretmenOnboardingPage() {
   }
 
   return (
-    <AstraMarketingPage title="İlk sınıfın">
+    <AstraMarketingPage variant="auth" title="İlk sınıfın">
       <div className="mx-auto max-w-md space-y-6 pb-16">
         <p className="text-[var(--mk-muted)]">
           Kayıt sırasında sınıf oluşturmadıysan burada ilk sınıfını

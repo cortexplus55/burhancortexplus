@@ -1,5 +1,5 @@
-﻿import { Suspense } from "react";
-import Link from "next/link";
+﻿import Link from "next/link";
+import { Suspense } from "react";
 import { AstraMarketingPage } from "@/components/parity/astra-marketing";
 import { AstraSubscriptionCards } from "@/components/parity/astra-subscription-cards";
 import { createClient } from "@/lib/supabase/server";
@@ -32,10 +32,15 @@ export default async function FiyatlandirmaPage() {
   }
 
   return (
-    <AstraMarketingPage>
-      <Suspense fallback={null}>
-        <AstraSubscriptionCards plans={plans} guestMode />
-      </Suspense>
+    <AstraMarketingPage
+      title="Fiyatlandırma"
+      description="Plus ve Sigma paketleri — şeffaf kredi, sınav odaklı AI."
+    >
+      <div data-cinematic-reveal>
+        <Suspense fallback={null}>
+          <AstraSubscriptionCards plans={plans} guestMode />
+        </Suspense>
+      </div>
       <p className="pb-8 text-center text-sm text-[var(--mk-muted)]">
         Zaten hesabın var mı?{" "}
         <Link href="/giris" className="text-[var(--mk-primary)] underline">

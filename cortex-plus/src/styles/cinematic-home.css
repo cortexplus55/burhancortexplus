@@ -1,18 +1,18 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap");
 
 /* Ana sayfa sinematik katman — Astra marketing üzerine */
-.cinematic-home {
+:is(.cinematic-home, .cinematic-marketing) {
   --mk-primary: #e8a838;
   --mk-primary-soft: rgba(232, 168, 56, 0.22);
   --mk-glow: rgba(255, 196, 87, 0.45);
   --font-display: "DM Serif Display", Georgia, serif;
 }
 
-.cinematic-home .mk-hero-gradient {
+:is(.cinematic-home, .cinematic-marketing) .mk-hero-gradient {
   background: none;
 }
 
-.cinematic-home header {
+:is(.cinematic-home, .cinematic-marketing) header {
   border-color: transparent;
   background: linear-gradient(
     to bottom,
@@ -21,17 +21,17 @@
   );
 }
 
-.cinematic-home .mk-btn-primary {
+:is(.cinematic-home, .cinematic-marketing) .mk-btn-primary {
   background: linear-gradient(135deg, #f0b84d 0%, #d4922a 100%);
   color: #0c0a06;
   box-shadow: 0 0 32px var(--mk-primary-soft);
 }
 
-.cinematic-home .mk-btn-primary:hover {
+:is(.cinematic-home, .cinematic-marketing) .mk-btn-primary:hover {
   background: linear-gradient(135deg, #ffc857 0%, #e8a838 100%);
 }
 
-.cinematic-home .mk-btn-play {
+:is(.cinematic-home, .cinematic-marketing) .mk-btn-play {
   display: inline-flex;
   align-items: center;
   gap: 0.65rem;
@@ -50,7 +50,7 @@
     box-shadow 0.35s ease;
 }
 
-.cinematic-home .mk-btn-play:hover {
+:is(.cinematic-home, .cinematic-marketing) .mk-btn-play:hover {
   transform: scale(1.03);
   box-shadow:
     0 0 0 1px rgba(255, 220, 150, 0.5),
@@ -58,7 +58,7 @@
     0 0 64px var(--mk-glow);
 }
 
-.cinematic-home .mk-btn-play-icon {
+:is(.cinematic-home, .cinematic-marketing) .mk-btn-play-icon {
   display: flex;
   height: 2rem;
   width: 2rem;
@@ -68,26 +68,26 @@
   background: rgba(12, 10, 6, 0.25);
 }
 
-.cinematic-home .mk-display {
+:is(.cinematic-home, .cinematic-marketing) .mk-display {
   font-family: var(--font-display);
   font-weight: 400;
   letter-spacing: -0.02em;
 }
 
-.cinematic-home .mk-hero-video-wrap {
+:is(.cinematic-home, .cinematic-marketing) .mk-hero-video-wrap {
   position: absolute;
   inset: 0;
   overflow: hidden;
 }
 
-.cinematic-home .mk-hero-video-wrap video {
+:is(.cinematic-home, .cinematic-marketing) .mk-hero-video-wrap video {
   height: 100%;
   width: 100%;
   object-fit: cover;
   transform: scale(1.06);
 }
 
-.cinematic-home .mk-hero-scrim {
+:is(.cinematic-home, .cinematic-marketing) .mk-hero-scrim {
   position: absolute;
   inset: 0;
   background:
@@ -97,7 +97,7 @@
   pointer-events: none;
 }
 
-.cinematic-home .mk-hero-grain {
+:is(.cinematic-home, .cinematic-marketing) .mk-hero-grain {
   position: absolute;
   inset: 0;
   opacity: 0.12;
@@ -106,7 +106,7 @@
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-.cinematic-home .mk-prompt-bar {
+:is(.cinematic-home, .cinematic-marketing) .mk-prompt-bar {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -118,7 +118,7 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
-.cinematic-home .mk-prompt-bar input {
+:is(.cinematic-home, .cinematic-marketing) .mk-prompt-bar input {
   flex: 1;
   min-width: 0;
   border: none;
@@ -128,11 +128,11 @@
   outline: none;
 }
 
-.cinematic-home .mk-prompt-bar input::placeholder {
+:is(.cinematic-home, .cinematic-marketing) .mk-prompt-bar input::placeholder {
   color: var(--mk-muted);
 }
 
-.cinematic-home .mk-prompt-submit {
+:is(.cinematic-home, .cinematic-marketing) .mk-prompt-submit {
   flex-shrink: 0;
   border-radius: 9999px;
   background: var(--mk-primary);
@@ -142,16 +142,16 @@
   font-weight: 600;
 }
 
-.cinematic-home .mk-section-reveal {
+:is(.cinematic-home, .cinematic-marketing) .mk-section-reveal {
   opacity: 0;
   transform: translateY(28px);
   animation: mk-reveal 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.cinematic-home .mk-section-reveal-delay-1 {
+:is(.cinematic-home, .cinematic-marketing) .mk-section-reveal-delay-1 {
   animation-delay: 0.12s;
 }
-.cinematic-home .mk-section-reveal-delay-2 {
+:is(.cinematic-home, .cinematic-marketing) .mk-section-reveal-delay-2 {
   animation-delay: 0.24s;
 }
 
@@ -162,16 +162,16 @@
   }
 }
 
-.cinematic-home .mk-card,
-.cinematic-home .mk-card-cinematic {
+:is(.cinematic-home, .cinematic-marketing) .mk-card,
+:is(.cinematic-home, .cinematic-marketing) .mk-card-cinematic {
   transition:
     transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
     border-color 0.35s ease,
     box-shadow 0.45s ease;
 }
 
-.cinematic-home .mk-card:hover,
-.cinematic-home .mk-card-cinematic:hover {
+:is(.cinematic-home, .cinematic-marketing) .mk-card:hover,
+:is(.cinematic-home, .cinematic-marketing) .mk-card-cinematic:hover {
   transform: translateY(-6px) scale(1.01);
   border-color: rgba(232, 168, 56, 0.45);
   box-shadow:
@@ -179,23 +179,23 @@
     0 0 32px var(--mk-primary-soft);
 }
 
-.cinematic-home .mk-avatar-ring {
+:is(.cinematic-home, .cinematic-marketing) .mk-avatar-ring {
   box-shadow: 0 0 0 2px rgba(232, 168, 56, 0.55);
 }
 
-.cinematic-home .mk-section-title,
-.cinematic-home main section > div > h2 {
+:is(.cinematic-home, .cinematic-marketing) .mk-section-title,
+:is(.cinematic-home, .cinematic-marketing) main section > div > h2 {
   font-family: var(--font-display);
   font-weight: 400;
   letter-spacing: -0.02em;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cinematic-home .mk-hero-video-wrap video {
+  :is(.cinematic-home, .cinematic-marketing) .mk-hero-video-wrap video {
     display: none;
   }
 
-  .cinematic-home .mk-hero-video-wrap::before {
+  :is(.cinematic-home, .cinematic-marketing) .mk-hero-video-wrap::before {
     content: "";
     position: absolute;
     inset: 0;
@@ -207,18 +207,60 @@
     background-color: #0a0a0a;
   }
 
-  .cinematic-home .mk-hero-video-wrap video {
+  :is(.cinematic-home, .cinematic-marketing) .mk-hero-video-wrap video {
     transform: none;
   }
-  .cinematic-home .mk-section-reveal {
+  :is(.cinematic-home, .cinematic-marketing) .mk-section-reveal {
     animation: none;
     opacity: 1;
     transform: none;
   }
-  .cinematic-home .mk-card-cinematic:hover {
+  :is(.cinematic-home, .cinematic-marketing) .mk-card-cinematic:hover {
     transform: none;
   }
-  .cinematic-home .mk-btn-play:hover {
+  :is(.cinematic-home, .cinematic-marketing) .mk-btn-play:hover {
     transform: none;
   }
+}
+
+/* İç sayfa statik hero (video yok) */
+:is(.cinematic-home, .cinematic-marketing) .mk-page-hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 0%, rgba(232, 168, 56, 0.22), transparent 55%),
+    linear-gradient(to bottom, #0a0a0a 0%, #050505 100%);
+  pointer-events: none;
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-page-hero-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.1;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Auth / form sayfaları — koyu panel, video yok */
+.cinematic-auth main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #050505;
+  padding-top: 2rem;
+  padding-bottom: 3rem;
+}
+
+.cinematic-auth .mk-auth-stack {
+  width: 100%;
+  max-width: 28rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.cinematic-auth .mk-auth-stack > .mk-card {
+  border-color: rgba(232, 168, 56, 0.2);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
 }
