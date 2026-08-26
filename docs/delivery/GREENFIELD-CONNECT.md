@@ -15,9 +15,15 @@
 
 | Bileşen | Durum |
 |---------|--------|
-| GitHub `burhancortexplus` | Yerel **2 commit** hazır; remote **boş** (`size: 0`). Push: `gh auth login` → **cortexplus55** → `.\scripts\push-burhancortexplus.ps1` |
-| Supabase `dgjfyewgrukglsehyntc` | Şema + seed uygulandı |
-| Vercel proje **`burhancortexplus`** | Önce GitHub push + [Vercel GitHub App](https://github.com/apps/vercel) → **burhancortexplus**; sonra agent `create_git_project` veya [vercel.com/new](https://vercel.com/new) |
+| GitHub `burhancortexplus` | **`main` push edildi** (`cortexplus55`); güncellemeler için `gh auth setup-git` + `git push origin main` |
+| Supabase `dgjfyewgrukglsehyntc` | Şema + seed (ör. **427** okul) |
+| Vercel **cortexplus55 / cortexplus-prod** | Git import, Root **`cortex-plus`**; prod env: `NEXT_PUBLIC_SUPABASE_*`, `SUPABASE_SECRET_KEY`, `NEXT_PUBLIC_APP_URL` |
+| Vercel **eski / geçici** | `burhan55600-5553s-projects/cortex-plus` → **https://cortex-plus-theta.vercel.app** (isteğe bağlı kapat) |
+
+### Supabase Auth (Dashboard → Authentication → URL Configuration)
+
+- **Site URL:** `https://cortexplus-prod.vercel.app` (veya güncel production deployment URL)
+- **Redirect URLs:** aynı URL, `http://localhost:3000/**`, `https://*.vercel.app/**`
 
 ## Vercel + GitHub (`cortexplus55`)
 
