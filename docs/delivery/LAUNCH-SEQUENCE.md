@@ -1,6 +1,6 @@
 # Launch sırası (PayTR hariç)
 
-Tek kaynak: [GREENFIELD-CONNECT.md](./GREENFIELD-CONNECT.md)
+Tek kaynak: [GREENFIELD-CONNECT.md](./GREENFIELD-CONNECT.md) · **Teslim özeti:** [TESLIM.md](./TESLIM.md)
 
 ## Sıra
 
