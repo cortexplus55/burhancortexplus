@@ -17,14 +17,14 @@
 |---------|--------|
 | GitHub `burhancortexplus` | **`main` push edildi** (`cortexplus55`); güncellemeler için `gh auth setup-git` + `git push origin main` |
 | Supabase `dgjfyewgrukglsehyntc` | Şema + seed (ör. **427** okul) |
-| Vercel **cortexplus55 / burhancortexplus-app** | **Origin canlı build** — Framework **Next.js**, Root **`cortex-plus`**. Önizleme: https://burhancortexplus-app.vercel.app |
-| Vercel **cortexplus55 / cortexplus-prod** | Git + Root **`cortex-plus`**; Framework **Other** → production alias sorunlu / Origin HTML yok; **Next.js yapın** veya domain’i `burhancortexplus-app`’e bağlayın |
+| Vercel **cortexplus55 / burhancortexplus-app** | Canlı domain **`cortexplus.app`**, Framework **Next.js**, Root **`cortex-plus`** |
+| Vercel **cortexplus55 / cortexplus-prod** | Aynı repo; yedek proje |
 | Vercel **eski / geçici** | `burhan55600-5553s-projects/cortex-plus` → **https://cortex-plus-theta.vercel.app** (isteğe bağlı kapat) |
 
 ### Supabase Auth (Dashboard → Authentication → URL Configuration)
 
-- **Site URL:** `https://cortexplus-prod.vercel.app` (veya güncel production deployment URL)
-- **Redirect URLs:** aynı URL, `http://localhost:3000/**`, `https://*.vercel.app/**`
+- **Site URL:** `https://cortexplus.app`
+- **Redirect URLs:** `https://cortexplus.app/**`, `http://localhost:3000/**`, `https://*.vercel.app/**`
 
 ## Vercel + GitHub (`cortexplus55`)
 
