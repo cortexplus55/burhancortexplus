@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,6 @@ import {
   ROLE_OPTIONS,
   SIGNUP_STORAGE_KEY,
   SUBJECT_OPTIONS,
-  searchSchools,
   stepIdsForRole,
   type SignupPayload,
   type SignupRole,
@@ -32,30 +31,6 @@ export function SignupWizard() {
   const [role, setRole] = useState<SignupRole | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [draft, setDraft] = useState<Partial<SignupPayload>>({});
-  const [schoolOptions, setSchoolOptions] = useState<string[]>(() =>
-    searchSchools(""),
-  );
-  const [schoolQuery, setSchoolQuery] = useState("");
-
-  useEffect(() => {
-    const q = schoolQuery.trim();
-    const timer = window.setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/schools/search?q=${encodeURIComponent(q)}`,
-        );
-        const payload = await res.json();
-        if (Array.isArray(payload.schools) && payload.schools.length) {
-          setSchoolOptions(payload.schools);
-        } else {
-          setSchoolOptions(searchSchools(q));
-        }
-      } catch {
-        setSchoolOptions(searchSchools(q));
-      }
-    }, 200);
-    return () => window.clearTimeout(timer);
-  }, [schoolQuery]);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -273,54 +248,6 @@ export function SignupWizard() {
               ))}
             </div>
             <ContinueButton disabled={!draft.gradeLevel} onClick={next} />
-          </StepShell>
-        ) : null}
-
-        {step === "school" ? (
-          <StepShell
-            title="Hangi okula gidiyorsun?"
-            subtitle="Okulunu ara veya kendin yaz."
-          >
-            <Input
-              value={schoolQuery}
-              onChange={(e) => {
-                setSchoolQuery(e.target.value);
-                setDraft((d) => ({ ...d, schoolName: e.target.value }));
-              }}
-              placeholder="Okul ara"
-              aria-label="Okul ara"
-              className="border-[var(--mk-border)] bg-[#0c0c0c]"
-            />
-            <ul className="mt-3 space-y-2">
-              {schoolOptions.map((s) => (
-                <li key={s}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSchoolQuery(s);
-                      setDraft((d) => ({ ...d, schoolName: s }));
-                    }}
-                    className={cn(
-                      "mk-card w-full p-3 text-left text-sm transition-colors",
-                      draft.schoolName === s
-                        ? "border-[var(--mk-primary)]"
-                        : "hover:border-[var(--mk-primary)]",
-                    )}
-                  >
-                    {s}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <ContinueButton
-              onClick={next}
-              secondaryLabel="Sonra ekle"
-              onSecondary={() => {
-                setSchoolQuery("");
-                setDraft((d) => ({ ...d, schoolName: undefined }));
-                next();
-              }}
-            />
           </StepShell>
         ) : null}
 

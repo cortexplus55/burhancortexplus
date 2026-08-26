@@ -133,5 +133,5 @@ export function stepIdsForRole(role: SignupRole): string[] {
   if (role === "parent") return ["role", "parent-intro", "parent-link", "account"];
   if (role === "teacher")
     return ["role", "teacher-school", "teacher-class", "account"];
-  return ["role", "grade", "school", "subject", "goal", "avatar", "account"];
+  return ["role", "grade", "subject", "goal", "avatar", "account"];
 }
