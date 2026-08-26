@@ -15,9 +15,9 @@ Tek kaynak: [GREENFIELD-CONNECT.md](./GREENFIELD-CONNECT.md)
 | 7 | App içi tema | `astra-app` altın | — |
 | 8 | Admin shell | `admin-shell` CSS | — |
 | 9 | PWA | `manifest.ts` theme | — |
-| 10 | SEO | `sitemap.ts`, `robots.ts` | GSC property ekle |
+| 10 | SEO | `sitemap.ts`, `robots.ts` | GSC: `GOOGLE_SITE_VERIFICATION` env + mülk ekle |
 | 11 | Sosyal kanıt | örnek etiketi | — |
-| 12 | CI + RLS | GitHub Actions, migration | `supabase db push` / MCP apply |
+| 12 | CI + RLS | `.github/workflows/ci.yml` (lokal) | Push: [GITHUB-CI-WORKFLOW-SCOPE.md](./GITHUB-CI-WORKFLOW-SCOPE.md); migration’lar Supabase’te uygulu |
 
 **PayTR:** bilinçli olarak bu listede yok; ödeme hazır olunca ayrı faz.
 
