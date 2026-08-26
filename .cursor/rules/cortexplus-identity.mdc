@@ -1,0 +1,31 @@
+---
+description: Cortex Plus tek operasyon kimliği — e-posta ve harici hesaplar
+alwaysApply: true
+---
+
+# Cortex Plus — operasyon kimliği
+
+## Zorunlu e-posta
+
+Tüm **operasyon, otomasyon, panel girişi, OAuth test kullanıcısı, Squarespace/Google/Vercel/Supabase/Resend/Gmail MCP** ve dokümantasyondaki “bizim hesap” referansları için **yalnızca**:
+
+**`cortexplus@cortexplus.app`**
+
+## Yasak (Cortex Plus işleri için)
+
+- Kişisel Gmail veya rastgele adres kullanma (ör. `*@gmail.com`, `*@hotmail.com`).
+- Agent’ın kafasına göre alternatif “destek” veya “admin” e-postası uydurma.
+- Gmail MCP / tarayıcı oturumunda kişisel hesapla devam etme — gerekirse kullanıcıdan **`cortexplus@cortexplus.app`** ile oturum açmasını iste.
+
+## İstisnalar
+
+- **GitHub kullanıcı adları** (`cortexplus55`, vb.) repo/CI kimliğidir; e-posta kuralından ayrıdır.
+- Eski `burhan55600-*` kaynakları yalnızca “kullanma / legacy” uyarısı olarak dokümanda kalabilir; yeni işlem yapılmaz.
+
+## Uygulama e-postaları (gönderen)
+
+- Transactional gönderim: `bildirim@cortexplus.app` (`.env` `EMAIL_FROM`) — bu **gönderen** adresidir; operasyon/oturum kimliği yine `cortexplus@cortexplus.app`.
+
+## Referans
+
+`docs/delivery/IDENTITY.md`

@@ -14,11 +14,10 @@ export default function IletisimPage() {
       <div className="max-w-xl space-y-4 text-sm">
         <div className="rounded-lg border p-4">
           <p className="font-medium">E-posta</p>
-          <p className="mt-1 text-muted-foreground">destek@cortexplus.app</p>
-        </div>
-        <div className="rounded-lg border p-4">
-          <p className="font-medium">KVKK ve veri talepleri</p>
-          <p className="mt-1 text-muted-foreground">kvkk@cortexplus.app</p>
+          <p className="mt-1 text-muted-foreground">cortexplus@cortexplus.app</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Destek, geri bildirim ve KVKK talepleri için aynı adres.
+          </p>
         </div>
         <div className="rounded-lg border p-4">
           <p className="font-medium">Hesabın varsa</p>

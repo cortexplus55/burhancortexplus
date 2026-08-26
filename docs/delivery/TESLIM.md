@@ -48,25 +48,11 @@ Doğrulama (yayıldıktan sonra):
 curl -sI https://www.cortexplus.app/ | findstr /i "HTTP Location"
 ```
 
-### 2) GitHub CI workflow
+### 2) GitHub CI workflow — **yapıldı**
 
-Dosya repoda **lokalde hazır:** `.github/workflows/ci.yml` (lint, typecheck, build, test).
+`.github/workflows/ci.yml` **main**’de (commit `13b0634`). Push, `workflow` scope’lu hesap ile yapıldı; Actions’ta **CI** workflow çalışır.
 
-`cortexplus55` token’ında `workflow` scope yok; bir kez cihaz onayı:
-
-```bash
-gh auth refresh -h github.com -s workflow
-```
-
-Sonra:
-
-```bash
-git add .github/workflows/ci.yml
-git commit -m "ci: lint, typecheck, build, and test for cortex-plus"
-git push origin main
-```
-
-Rehber: [GITHUB-CI-WORKFLOW-SCOPE.md](./GITHUB-CI-WORKFLOW-SCOPE.md)
+İleride `cortexplus55` CLI token’ına `workflow` eklemek isterseniz: [GITHUB-CI-WORKFLOW-SCOPE.md](./GITHUB-CI-WORKFLOW-SCOPE.md)
 
 ---
 
