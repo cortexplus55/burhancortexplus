@@ -23,10 +23,14 @@ export function authErrorMessage(error: AuthError | null | undefined): string {
   if (msg.includes("invalid api key") || msg.includes("jwt")) {
     return "Uygulama yapılandırması hatalı. Site yöneticisi Supabase anahtarlarını kontrol etmeli.";
   }
+  if (msg.includes("signup") && msg.includes("disabled")) {
     return "Yeni kayıt şu an kapalı. Destek ile iletişime geç.";
   }
   if (msg.includes("rate limit") || msg.includes("too many")) {
     return "Çok fazla deneme. Birkaç dakika sonra tekrar dene.";
+  }
+  if (msg.includes("fetch failed") || msg.includes("failed to fetch") || msg.includes("network")) {
+    return "Sunucuya bağlanılamadı. İnternet bağlantını kontrol et; site yöneticisi Supabase adresini doğrulasın.";
   }
   if (msg.includes("email not confirmed")) {
     return "E-postanı doğrulaman gerekiyor. Gelen kutunu ve spam klasörünü kontrol et.";

@@ -33,6 +33,10 @@
 3. **Root Directory:** `cortex-plus`
 4. Env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (+ `.env.example`).
 
+   **Zorunlu değerler (eski `gwqonggqzvavljguiryx` kullanma):**
+   - `NEXT_PUBLIC_SUPABASE_URL=https://dgjfyewgrukglsehyntc.supabase.co`
+   - Publishable key: Supabase Dashboard → Project **dgjfyewgrukglsehyntc** → Settings → API
+
 ## Supabase ↔ GitHub
 
 Project **cortexplus-platform** (`dgjfyewgrukglsehyntc`) → Integrations → GitHub → **`cortexplus55/burhancortexplus`**.

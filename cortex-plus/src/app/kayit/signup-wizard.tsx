@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import {
 } from "@/lib/parity/signup";
 import { completeSignup } from "./actions";
 import { authCallbackUrl, authErrorMessage } from "@/lib/auth/messages";
+import { supabaseConfigIssue } from "@/lib/supabase/config-check";
 import "@/styles/astra-marketing.css";
 import "@/styles/cinematic-home.css";
 import "@/styles/signup-wizard.css";
@@ -90,8 +91,18 @@ export function SignupWizard() {
     }
   }
 
+  const configIssue = useMemo(() => supabaseConfigIssue(), []);
+
+  useEffect(() => {
+    if (configIssue) toast.error(configIssue, { duration: 8000 });
+  }, [configIssue]);
+
   async function submitAccount(event: React.FormEvent) {
     event.preventDefault();
+    if (configIssue) {
+      toast.error(configIssue);
+      return;
+    }
     const issues = passwordIssues(password);
     if (fullName.trim().length < 2) {
       toast.error("Ad soyad gerekli.");
@@ -134,7 +145,9 @@ export function SignupWizard() {
 
     if (error) {
       setLoading(false);
-      toast.error(authErrorMessage(error));
+      const detail = authErrorMessage(error);
+      toast.error(detail);
+      console.error("[signup]", error.message, error);
       return;
     }
 
