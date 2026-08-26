@@ -16,12 +16,10 @@
 
 | Konu | Durum |
 |------|--------|
-| GitHub `main` | `cortexplus55/burhancortexplus` bağlı; **Origin tasarım commit/push bekliyor** |
-| Vercel CLI oturumu | `burhan55600-5553` → proje `cortex-plus` → **cortex-plus-theta.vercel.app** |
-| Vercel env (production) | Yalnızca 3 public Supabase/App URL; **`SUPABASE_SECRET_KEY`, `OPENAI_*`, `RESEND_*` eksik** |
-| `NEXT_PUBLIC_APP_URL` (prod) | `https://cortex-plus-theta.vercel.app` → **`https://cortexplus.app` olmalı** |
-| `cortexplus.app` Vercel | **Başka Vercel hesabında/team’de kayıtlı** — `burhan55600-5553` ekleyemiyor |
-| DNS `cortexplus.app` | A → `216.198.79.1` (henüz Vercel `76.76.21.21` / CNAME değil) |
+| GitHub `main` | **Origin push edildi** (`ef27341`) |
+| Vercel Origin build | **burhancortexplus-app** — https://burhancortexplus-app.vercel.app |
+| Vercel `cortexplus-prod` | Aynı repo; Framework **Other** → Origin yok; **Next.js** yap veya domain’i `-app` projesine bağla |
+| `cortexplus.app` | Eski host (`216.198.79.1`); Vercel projesine **henüz bağlı değil** |
 
 ## Hedef mimari
 
@@ -35,11 +33,8 @@ E-posta      → Google Workspace (@) + Resend (transactional)
 
 ## Adım 1 — Doğru Vercel team + proje
 
-1. [vercel.com](https://vercel.com) → **cortexplus55** team (domain’in kayıtlı olduğu hesap).
-2. **Add New → Project** → Import **`cortexplus55/burhancortexplus`**
-3. **Root Directory:** `cortex-plus`
-4. Framework: Next.js (otomatik)
-5. Production branch: `main`
+1. [burhancortexplus-app](https://vercel.com/cortexplus55/burhancortexplus-app) → **Settings → Domains** → **Add Existing** → `cortexplus.app` + `www.cortexplus.app` (Production).
+2. Alternatif: [cortexplus-prod](https://vercel.com/cortexplus55/cortexplus-prod) → **Build and Deployment** → Framework **Next.js** → Save → Redeploy; sonra domain ekle.
 
 CLI (domain sahibi hesapla):
 
