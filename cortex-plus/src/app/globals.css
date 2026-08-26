@@ -1,6 +1,3 @@
-@import "../styles/origin-tokens.css";
-@import "../styles/origin-controls.css";
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

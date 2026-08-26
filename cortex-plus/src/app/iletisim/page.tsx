@@ -11,18 +11,18 @@ export default function IletisimPage() {
       title="İletişim"
       description="Sorularını, geri bildirimlerini ve iş birliği taleplerini bekliyoruz."
     >
-      <div className="max-w-xl space-y-3">
-        <div className="mk-card p-4">
-          <p className="mk-prose-heading text-sm">E-posta</p>
-          <p className="mk-prose mt-1">destek@cortexplus.app</p>
+      <div className="max-w-xl space-y-4 text-sm">
+        <div className="rounded-lg border p-4">
+          <p className="font-medium">E-posta</p>
+          <p className="mt-1 text-muted-foreground">destek@cortexplus.app</p>
         </div>
-        <div className="mk-card p-4">
-          <p className="mk-prose-heading text-sm">KVKK ve veri talepleri</p>
-          <p className="mk-prose mt-1">kvkk@cortexplus.app</p>
+        <div className="rounded-lg border p-4">
+          <p className="font-medium">KVKK ve veri talepleri</p>
+          <p className="mt-1 text-muted-foreground">kvkk@cortexplus.app</p>
         </div>
-        <div className="mk-card p-4">
-          <p className="mk-prose-heading text-sm">Hesabın varsa</p>
-          <p className="mk-prose mt-1">
+        <div className="rounded-lg border p-4">
+          <p className="font-medium">Hesabın varsa</p>
+          <p className="mt-1 text-muted-foreground">
             Uygulama içindeki Destek sayfasından talep açtığında geçmişini takip
             edebilirsin.
           </p>
@@ -31,4 +31,3 @@ export default function IletisimPage() {
     </MarketingPage>
   );
 }
-

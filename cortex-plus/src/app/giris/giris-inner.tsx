@@ -1,17 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { OriginMarketingPage } from "@/components/marketing/origin-marketing";
-import {
-  OriginButton,
-  OriginButtonOutline,
-  OriginFormPanel,
-  OriginInput,
-  OriginLabel,
-  OriginMarketingLink,
-} from "@/components/marketing/origin-form";
-import "@/styles/origin-marketing.css";
+import { AstraMarketingPage } from "@/components/parity/astra-marketing";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
@@ -49,44 +44,46 @@ export default function GirisPage() {
   }
 
   return (
-    <OriginMarketingPage title="Giriş yap">
-      <OriginFormPanel className="mx-auto max-w-md space-y-4">
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <OriginLabel htmlFor="email">E-posta</OriginLabel>
-            <OriginInput
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <OriginLabel htmlFor="password">Şifre</OriginLabel>
-            <OriginInput
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          <OriginButton type="submit" disabled={loading}>
-            {loading ? "Giriş yapılıyor…" : "Giriş yap"}
-          </OriginButton>
-          <OriginButtonOutline type="button" onClick={google}>
-            Google ile devam et
-          </OriginButtonOutline>
-          <p className="mk-prose text-center text-sm">
-            <OriginMarketingLink href="/sifremi-unuttum">Şifremi unuttum</OriginMarketingLink>
-            {" · "}
-            <OriginMarketingLink href="/kayit">Kayıt ol</OriginMarketingLink>
-          </p>
-        </form>
-      </OriginFormPanel>
-    </OriginMarketingPage>
+    <AstraMarketingPage title="Giriş yap">
+      <form onSubmit={onSubmit} className="mk-card mx-auto max-w-md space-y-4 p-6">
+        <div className="space-y-2">
+          <Label htmlFor="email">E-posta</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Şifre</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        <Button type="submit" disabled={loading} className="w-full">
+          Giriş yap
+        </Button>
+        <Button type="button" variant="outline" className="w-full" onClick={google}>
+          Google ile devam et
+        </Button>
+        <p className="text-sm text-muted-foreground">
+          <Link href="/sifremi-unuttum" className="underline">
+            Şifremi unuttum
+          </Link>
+          {" · "}
+          <Link href="/kayit" className="underline">
+            Kayıt ol
+          </Link>
+        </p>
+      </form>
+    </AstraMarketingPage>
   );
 }

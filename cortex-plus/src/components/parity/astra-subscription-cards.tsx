@@ -211,7 +211,7 @@ export function AstraSubscriptionCards({
               <button
                 type="button"
                 disabled={loadingId === plusPlan?.id}
-                className="astra-btn-primary mt-4 w-full py-3.5 text-sm font-medium disabled:opacity-60"
+                className="astra-btn-primary mt-4 w-full rounded-full py-3.5 text-sm font-semibold disabled:opacity-60"
                 onClick={() =>
                   plusPlan
                     ? startCheckout(plusPlan.id)
@@ -279,7 +279,7 @@ export function AstraSubscriptionCards({
               <button
                 type="button"
                 disabled={loadingId === sigmaPlan?.id}
-                className="astra-btn-primary mt-4 w-full py-3.5 text-sm font-medium disabled:opacity-60"
+                className="astra-btn-primary mt-4 w-full rounded-full py-3.5 text-sm font-semibold disabled:opacity-60"
                 onClick={() =>
                   sigmaPlan
                     ? startCheckout(sigmaPlan.id)
@@ -330,7 +330,7 @@ export function AstraSubscriptionCards({
                 </div>
                 <button
                   type="button"
-                  className="astra-btn-primary px-4 py-2 text-sm font-medium"
+                  className="astra-btn-primary rounded-full px-4 py-2 text-sm font-medium"
                   disabled={loadingId === plan.id}
                   onClick={() => startCheckout(plan.id)}
                 >

@@ -15,13 +15,13 @@ export default function OgretmenlerPage() {
     >
       <div className="grid gap-4 md:grid-cols-2">
         <article className="mk-card p-6">
-          <h2 className="mk-prose-heading text-lg">Sınıf ve ödev</h2>
+          <h2 className="text-lg font-semibold">Sınıf ve ödev</h2>
           <p className="mt-2 text-sm text-[var(--mk-muted)]">
             Katılım kodu ile öğrenci ekle; ödev ve quiz paylaş.
           </p>
         </article>
         <article className="mk-card p-6">
-          <h2 className="mk-prose-heading text-lg">AI destekli içerik</h2>
+          <h2 className="text-lg font-semibold">AI destekli içerik</h2>
           <p className="mt-2 text-sm text-[var(--mk-muted)]">
             Quiz ve flashcard üret; öğrencilerin Cortex Plus ile çalışmasını
             destekle.
@@ -30,7 +30,7 @@ export default function OgretmenlerPage() {
       </div>
       <p className="mt-6 text-sm text-[var(--mk-muted)]">
         Okul öğretmeni olarak kayıt olmak için{" "}
-        <Link href="/kayit" className="mk-link-accent">
+        <Link href="/kayit" className="underline text-[var(--mk-primary)]">
           kayıt sihirbazında &quot;Okul öğretmeniyim&quot;
         </Link>{" "}
         seçeneğini kullan.

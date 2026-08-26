@@ -1,6 +1,5 @@
 ﻿import Link from "next/link";
-import { OriginMarketingPage } from "@/components/marketing/origin-marketing";
-import "@/styles/origin-marketing.css";
+import { AstraMarketingPage } from "@/components/parity/astra-marketing";
 
 export const metadata = {
   title: "Sınav hazırlığı",
@@ -36,37 +35,37 @@ const faq = [
 
 export default function SinavHazirligiPage() {
   return (
-    <OriginMarketingPage>
-      <section className="mk-hero-atmosphere px-4 py-16 md:py-20">
+    <AstraMarketingPage>
+      <section className="mk-hero-gradient px-4 py-16 md:py-20">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="mk-mono-eyebrow">Deneme · analiz · plan</p>
-          <h1 className="mk-display mt-6 text-4xl md:text-[3.5rem]">
+          <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
             Sınav hazırlığı — kişisel öğrenme yolun
           </h1>
-          <p className="mt-4 text-lg font-light text-[var(--mk-muted)]">
+          <p className="mt-4 text-lg text-[var(--mk-muted)]">
             Dağınık kaynak yerine tek akış: ölç, analiz et, planla, tekrar et.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href="/kayit" className="mk-btn-primary px-8 py-3 text-sm">
-              Ücretsiz dene
+              ÜCRETSİZ DENE
             </Link>
-            <Link href="/fiyatlandirma" className="mk-btn-outline px-8 py-3 text-sm">
+            <Link
+              href="/fiyatlandirma"
+              className="mk-btn-outline px-8 py-3 text-sm font-medium"
+            >
               Plus satın al
             </Link>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-[var(--page-max-width)] px-4 py-16">
-        <ol className="grid gap-3 md:grid-cols-2">
+      <section className="mx-auto max-w-6xl px-4 py-16">
+        <ol className="grid gap-4 md:grid-cols-2">
           {steps.map((step, i) => (
             <li key={step.title} className="mk-card p-6">
-              <span className="mk-mono-eyebrow text-[var(--color-cyan-signal)]">
-                Adım {i + 1}
+              <span className="text-sm font-bold text-[var(--mk-primary)]">
+                {i + 1}
               </span>
-              <h2 className="mt-2 text-lg font-normal text-[var(--color-cloud)]">
-                {step.title}
-              </h2>
+              <h2 className="mt-2 text-lg font-semibold">{step.title}</h2>
               <p className="mt-2 text-sm text-[var(--mk-muted)]">{step.body}</p>
             </li>
           ))}
@@ -75,13 +74,11 @@ export default function SinavHazirligiPage() {
 
       <section className="border-t border-[var(--mk-border)] py-16">
         <div className="mx-auto max-w-2xl px-4">
-          <h2 className="mk-display text-center text-3xl">SSS</h2>
+          <h2 className="text-center text-2xl font-bold">SSS</h2>
           <div className="mt-8 space-y-2">
             {faq.map((q) => (
               <details key={q} className="mk-card p-4">
-                <summary className="cursor-pointer font-normal text-[var(--color-cloud)]">
-                  {q}
-                </summary>
+                <summary className="cursor-pointer font-medium">{q}</summary>
                 <p className="mt-2 text-sm text-[var(--mk-muted)]">
                   Cortex Plus sınav odaklı AI ile adım adım çalışmanı ve deneme
                   analizini tek yerde toplar.
@@ -91,6 +88,6 @@ export default function SinavHazirligiPage() {
           </div>
         </div>
       </section>
-    </OriginMarketingPage>
+    </AstraMarketingPage>
   );
 }

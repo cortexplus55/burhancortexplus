@@ -2,25 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Select,
+  SelectContent,
+  SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { OriginMarketingPage } from "@/components/marketing/origin-marketing";
-import {
-  OriginButton,
-  OriginLabel,
-  originSelectTriggerClass,
-} from "@/components/marketing/origin-form";
-import {
-  OriginSelectContent,
-  OriginSelectItem,
-} from "@/components/marketing/origin-form-controls";
+import { AstraMarketingPage } from "@/components/parity/astra-marketing";
 import { createClient } from "@/lib/supabase/client";
 import { homePathForRole } from "@/lib/parity/signup";
 import { toast } from "sonner";
-import "@/styles/origin-marketing.css";
+import "@/styles/astra-marketing.css";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -62,34 +57,34 @@ export default function OnboardingPage() {
   }
 
   return (
-    <OriginMarketingPage title="Hoş geldin">
+    <AstraMarketingPage title="Hoş geldin">
       <div className="mx-auto max-w-md space-y-6 pb-16">
         <p className="text-[var(--mk-muted)]">
           Birkaç soruyla deneyimini kişiselleştirelim.
         </p>
         <div className="mk-card space-y-6 p-6">
           <div className="space-y-2">
-            <OriginLabel>Hangi okula gidiyorsun?</OriginLabel>
+            <Label>Hangi okula gidiyorsun?</Label>
             <Select value={grade} onValueChange={(v) => setGrade(v ?? "")}>
-              <SelectTrigger className={originSelectTriggerClass}>
+              <SelectTrigger className="border-[var(--mk-border)] bg-[#0c0c0c]">
                 <SelectValue placeholder="Sınıf / seviye seç" />
               </SelectTrigger>
-              <OriginSelectContent>
+              <SelectContent>
                 {["9", "10", "11", "12", "Mezun"].map((g) => (
-                  <OriginSelectItem key={g} value={g}>
+                  <SelectItem key={g} value={g}>
                     {g}. sınıf
-                  </OriginSelectItem>
+                  </SelectItem>
                 ))}
-              </OriginSelectContent>
+              </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <OriginLabel>Odak ders</OriginLabel>
+            <Label>Odak ders</Label>
             <Select value={subject} onValueChange={(v) => setSubject(v ?? "")}>
-              <SelectTrigger className={originSelectTriggerClass}>
+              <SelectTrigger className="border-[var(--mk-border)] bg-[#0c0c0c]">
                 <SelectValue placeholder="Ders seç" />
               </SelectTrigger>
-              <OriginSelectContent>
+              <SelectContent>
                 {[
                   "Matematik",
                   "Fizik",
@@ -98,31 +93,36 @@ export default function OnboardingPage() {
                   "Türkçe",
                   "İngilizce",
                 ].map((s) => (
-                  <OriginSelectItem key={s} value={s}>
+                  <SelectItem key={s} value={s}>
                     {s}
-                  </OriginSelectItem>
+                  </SelectItem>
                 ))}
-              </OriginSelectContent>
+              </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <OriginLabel>Hedefin</OriginLabel>
+            <Label>Hedefin</Label>
             <Select value={goal} onValueChange={(v) => setGoal(v ?? "")}>
-              <SelectTrigger className={originSelectTriggerClass}>
+              <SelectTrigger className="border-[var(--mk-border)] bg-[#0c0c0c]">
                 <SelectValue placeholder="Hedef seç" />
               </SelectTrigger>
-              <OriginSelectContent>
-                <OriginSelectItem value="YKS hazırlık">YKS hazırlık</OriginSelectItem>
-                <OriginSelectItem value="Okul sınavları">Okul sınavları</OriginSelectItem>
-                <OriginSelectItem value="Konu pekiştirme">Konu pekiştirme</OriginSelectItem>
-              </OriginSelectContent>
+              <SelectContent>
+                <SelectItem value="YKS hazırlık">YKS hazırlık</SelectItem>
+                <SelectItem value="Okul sınavları">Okul sınavları</SelectItem>
+                <SelectItem value="Konu pekiştirme">Konu pekiştirme</SelectItem>
+              </SelectContent>
             </Select>
           </div>
-          <OriginButton type="button" onClick={finish} disabled={!grade}>
+          <Button
+            type="button"
+            className="mk-btn-primary w-full rounded-full py-3"
+            onClick={finish}
+            disabled={!grade}
+          >
             Başla
-          </OriginButton>
+          </Button>
         </div>
       </div>
-    </OriginMarketingPage>
+    </AstraMarketingPage>
   );
 }

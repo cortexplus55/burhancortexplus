@@ -166,14 +166,15 @@ function DropdownMenuCheckboxItem({
       {...props}
     >
       <span
-        className="pointer-events-none absolute left-2 flex items-center justify-center"
+        className="pointer-events-none absolute right-2 flex items-center justify-center"
         data-slot="dropdown-menu-checkbox-item-indicator"
       >
         <MenuPrimitive.CheckboxItemIndicator>
-          <CheckIcon className="size-3 text-current" />
+          <CheckIcon
+          />
         </MenuPrimitive.CheckboxItemIndicator>
       </span>
-      <span className="pl-6">{children}</span>
+      {children}
     </MenuPrimitive.CheckboxItem>
   )
 }

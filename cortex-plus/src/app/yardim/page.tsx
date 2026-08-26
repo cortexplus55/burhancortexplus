@@ -42,16 +42,18 @@ export default function YardimPage() {
     >
       <div className="space-y-3">
         {faqs.map((faq) => (
-          <details key={faq.question} className="mk-details">
-            <summary>{faq.question}</summary>
-            <p className="mk-prose mt-2">{faq.answer}</p>
+          <details key={faq.question} className="rounded-lg border p-4">
+            <summary className="cursor-pointer text-sm font-medium">
+              {faq.question}
+            </summary>
+            <p className="mt-2 text-sm text-muted-foreground">{faq.answer}</p>
           </details>
         ))}
       </div>
 
-      <p className="mk-prose mt-6">
+      <p className="mt-6 text-sm">
         Hâlâ takıldın mı?{" "}
-        <Link href="/iletisim" className="mk-link-accent">
+        <Link href="/iletisim" className="underline">
           İletişim sayfasından
         </Link>{" "}
         bize ulaş.

@@ -1,20 +1,18 @@
 import {
-  OriginFaqSection,
-  OriginFeatureStrip,
-  OriginMarketingHero,
-  OriginMarketingPage,
-  OriginStatBand,
-  OriginSubjectGrid,
-} from "@/components/marketing/origin-marketing";
+  AstraFaqSection,
+  AstraFeatureStrip,
+  AstraMarketingHero,
+  AstraMarketingPage,
+  AstraSubjectGrid,
+} from "@/components/parity/astra-marketing";
 
 export default function HomePage() {
   return (
-    <OriginMarketingPage>
-      <OriginMarketingHero />
-      <OriginFeatureStrip />
-      <OriginStatBand />
-      <OriginSubjectGrid />
-      <OriginFaqSection />
-    </OriginMarketingPage>
+    <AstraMarketingPage>
+      <AstraMarketingHero />
+      <AstraFeatureStrip />
+      <AstraSubjectGrid />
+      <AstraFaqSection />
+    </AstraMarketingPage>
   );
 }
