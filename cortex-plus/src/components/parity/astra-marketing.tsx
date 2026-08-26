@@ -226,12 +226,14 @@ export function AstraFaqSection() {
 export function AstraMarketingPage({
   children,
   title,
+  className,
 }: {
   children?: React.ReactNode;
   title?: string;
+  className?: string;
 }) {
   return (
-    <div className="astra-marketing flex min-h-screen flex-col">
+    <div className={cn("astra-marketing flex min-h-screen flex-col", className)}>
       <AstraSiteHeader />
       <main className="flex-1">
         {title ? (
