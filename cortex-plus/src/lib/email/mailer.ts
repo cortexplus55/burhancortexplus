@@ -1,5 +1,5 @@
 import "server-only";
-import { Resend } from "resend";
+import { createSmtpTransport, getSmtpConfig } from "@/lib/email/smtp";
 
 type SendResult = { ok: true } | { ok: false; reason: string };
 
@@ -18,26 +18,24 @@ export async function sendEmail({
   html: string;
   text: string;
 }): Promise<SendResult> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
-
-  if (!apiKey || !from) {
+  const config = getSmtpConfig();
+  if (!config) {
     return { ok: false, reason: "email_not_configured" };
   }
 
   try {
-    const resend = new Resend(apiKey);
-    const { error } = await resend.emails.send({
-      from,
+    const transport = createSmtpTransport(config);
+    await transport.sendMail({
+      from: config.from,
       to,
       subject,
       html,
       text,
     });
-    if (error) return { ok: false, reason: error.message ?? "send_failed" };
     return { ok: true };
-  } catch {
-    return { ok: false, reason: "send_failed" };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "send_failed";
+    return { ok: false, reason: message };
   }
 }
 

@@ -9,7 +9,7 @@ const services = [
   { name: "Supabase service key", env: "SUPABASE_SECRET_KEY" },
   { name: "OpenAI", env: "OPENAI_API_KEY" },
   { name: "PayTR", env: "PAYTR_MERCHANT_ID" },
-  { name: "Resend", env: "RESEND_API_KEY" },
+  { name: "Workspace SMTP", env: "SMTP_PASS" },
   { name: "Upstash Redis", env: "UPSTASH_REDIS_REST_URL" },
   { name: "PostHog", env: "NEXT_PUBLIC_POSTHOG_KEY" },
   { name: "Sentry", env: "SENTRY_DSN" },

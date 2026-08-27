@@ -12,7 +12,7 @@ Kişisel e-posta (**ör. `@gmail.com`**) Cortex Plus altyapı ve otomasyon için
 
 | Kullanım | Adres |
 |----------|--------|
-| Auth / bildirim gönderen (`EMAIL_FROM`) | `Cortex Plus <bildirim@cortexplus.app>` |
+| Gönderen (`EMAIL_FROM`) | `Cortex Plus <cortexplus@cortexplus.app>` (Workspace SMTP — bkz. [WORKSPACE-EMAIL.md](./WORKSPACE-EMAIL.md)) |
 | Kamuya açık iletişim (site) | `cortexplus@cortexplus.app` |
 
 ## Agent kuralı

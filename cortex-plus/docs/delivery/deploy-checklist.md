@@ -14,7 +14,7 @@ Production + Preview için `.env.example` içindeki tüm anahtarları doldurun. 
 | `NEXT_PUBLIC_APP_URL` | Evet — canlı domain |
 | `SUPABASE_SECRET_KEY` | Evet |
 | `OPENAI_API_KEY` | Evet |
-| `RESEND_API_KEY` + `EMAIL_FROM` | Veli daveti için |
+| `SMTP_*` + `EMAIL_FROM` | Workspace Gmail — veli daveti ([WORKSPACE-EMAIL.md](../../../docs/delivery/WORKSPACE-EMAIL.md)) |
 | `PAYTR_*` | Ödeme açıksa |
 | `UPSTASH_*` | Rate limit |
 | `GOOGLE_CLIENT_*` | Supabase Google OAuth ile aynı client |
