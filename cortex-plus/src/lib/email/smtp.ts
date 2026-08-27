@@ -10,11 +10,11 @@ export type SmtpConfig = {
 };
 
 export function getSmtpConfig(): SmtpConfig | null {
-  const user = process.env.SMTP_USER?.trim();
   const pass = process.env.SMTP_PASS?.trim();
   const from = process.env.EMAIL_FROM?.trim();
-  if (!user || !pass || !from) return null;
+  if (!pass || !from) return null;
 
+  const user = process.env.SMTP_USER?.trim() || "cortexplus@cortexplus.app";
   const port = Number(process.env.SMTP_PORT ?? "587");
   return {
     host: process.env.SMTP_HOST?.trim() || "smtp.gmail.com",

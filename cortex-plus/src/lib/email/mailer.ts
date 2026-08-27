@@ -3,6 +3,39 @@ import { createSmtpTransport, getSmtpConfig } from "@/lib/email/smtp";
 
 type SendResult = { ok: true } | { ok: false; reason: string };
 
+async function sendViaResend({
+  to,
+  subject,
+  html,
+  text,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<SendResult> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.EMAIL_FROM?.trim();
+  if (!apiKey || !from) {
+    return { ok: false, reason: "resend_not_configured" };
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from, to: [to], subject, html, text }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    return { ok: false, reason: body.slice(0, 200) || `resend_${res.status}` };
+  }
+  return { ok: true };
+}
+
 function appUrl() {
   return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
 }
@@ -20,7 +53,7 @@ export async function sendEmail({
 }): Promise<SendResult> {
   const config = getSmtpConfig();
   if (!config) {
-    return { ok: false, reason: "email_not_configured" };
+    return sendViaResend({ to, subject, html, text });
   }
 
   try {
@@ -33,9 +66,10 @@ export async function sendEmail({
       text,
     });
     return { ok: true };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "send_failed";
-    return { ok: false, reason: message };
+  } catch {
+    const fallback = await sendViaResend({ to, subject, html, text });
+    if (fallback.ok) return fallback;
+    return { ok: false, reason: "smtp_send_failed" };
   }
 }
 
