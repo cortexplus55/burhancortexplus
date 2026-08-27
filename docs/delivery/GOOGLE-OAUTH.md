@@ -7,8 +7,9 @@ Uygulama zaten **Supabase OAuth** kullanıyor (`/giris`, `/kayit` → **Google i
 | Adım | Durum |
 |------|--------|
 | GCP projesi `cortexplus-auth`, istemci **Cortex Plus Web** | Tamam (redirect + JS origins doğru) |
-| Supabase **Google provider** kayıtlı ve açık | **Tamam** — `/auth/v1/authorize?provider=google` → `accounts.google.com` |
-| OAuth **Testing** + test kullanıcıları | Test kullanıcısı: **`cortexplus@cortexplus.app`** (ve gerekirse ekip alias’ları); herkese açık için **Publish app** |
+| Supabase **Google provider** kayıtlı ve açık | **Tamam** |
+| GCP **Branding** (ad, URL’ler, destek e-postası) | **Tamam** — `authuser=1` ile kaydedildi (2026-08-27) |
+| OAuth **Testing** + test kullanıcıları | **cortexplus@cortexplus.app** ile giriş doğrulandı; herkese açık trafik için Audience → **Publish app** (isteğe bağlı) |
 
 **Client ID (Web):** `831373547846-0gna3edio8gg8pomhffm9lg5q1jo9m50.apps.googleusercontent.com`
 
