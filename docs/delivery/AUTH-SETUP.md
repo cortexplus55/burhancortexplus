@@ -2,6 +2,8 @@
 
 Proje: **dgjfyewgrukglsehyntc** · Site: **https://cortexplus.app**
 
+**Canlı kayıt maili patlıyorsa:** [EMAIL-SIGNUP-FIX.md](./EMAIL-SIGNUP-FIX.md) (Custom SMTP + doğrulanmamış Resend domain).
+
 ## Supabase → Authentication → URL Configuration
 
 - **Site URL:** `https://cortexplus.app`

@@ -23,7 +23,6 @@ import {
   type SignupPayload,
   type SignupRole,
 } from "@/lib/parity/signup";
-import { completeSignup } from "./actions";
 import { authCallbackUrl, authErrorMessage } from "@/lib/auth/messages";
 import { supabaseConfigIssue } from "@/lib/supabase/config-check";
 import "@/styles/astra-marketing.css";
@@ -181,15 +180,9 @@ export function SignupWizard() {
     }
 
     if (data.session) {
-      const result = await completeSignup(payload);
       setLoading(false);
-      if (result.ok) {
-        if (result.linkWarning) toast.warning(result.linkWarning);
-        router.push(result.redirectTo);
-        router.refresh();
-        return;
-      }
-      toast.error(result.error);
+      router.refresh();
+      router.push("/kayit/tamamla");
       return;
     }
 

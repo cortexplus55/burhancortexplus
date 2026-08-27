@@ -33,6 +33,21 @@ export type CompleteSignupResult =
 export async function completeSignup(
   input: unknown,
 ): Promise<CompleteSignupResult> {
+  try {
+    return await completeSignupInner(input);
+  } catch (err) {
+    console.error("[completeSignup]", err);
+    return {
+      ok: false,
+      error:
+        "Kayıt tamamlanırken beklenmeyen bir hata oluştu. Birkaç saniye sonra tekrar dene.",
+    };
+  }
+}
+
+async function completeSignupInner(
+  input: unknown,
+): Promise<CompleteSignupResult> {
   const parsed = payloadSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Bilgiler geçersiz." };
 
@@ -44,9 +59,9 @@ export async function completeSignup(
 
   const payload = parsed.data;
 
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .update({
+  const { error: profileError } = await supabase.from("profiles").upsert(
+    {
+      id: user.id,
       full_name: payload.fullName,
       grade_level: payload.gradeLevel ?? null,
       school_name: payload.schoolName ?? payload.teacherInstitution ?? null,
@@ -54,22 +69,26 @@ export async function completeSignup(
       avatar_url: payload.avatarEmoji ?? null,
       primary_role: payload.role,
       onboarding_completed_at: new Date().toISOString(),
-    })
-    .eq("id", user.id);
+    },
+    { onConflict: "id" },
+  );
 
-  if (profileError) return { ok: false, error: "Profil kaydedilemedi." };
-
-  await supabase
-    .from("user_roles")
-    .upsert(
-      { user_id: user.id, role: payload.role },
-      { onConflict: "user_id,role" },
-    );
+  if (profileError) {
+    console.error("[completeSignup] profile", profileError);
+    return { ok: false, error: "Profil kaydedilemedi." };
+  }
 
   if (payload.role === "student" && payload.learningGoal) {
-    await supabase
+    const { data: existingGoals } = await supabase
       .from("learning_goals")
-      .insert({ user_id: user.id, goal_text: payload.learningGoal });
+      .select("id")
+      .eq("user_id", user.id)
+      .limit(1);
+    if (!existingGoals?.length) {
+      await supabase
+        .from("learning_goals")
+        .insert({ user_id: user.id, goal_text: payload.learningGoal });
+    }
   }
 
   let linkWarning: string | undefined;
@@ -98,6 +117,7 @@ export async function completeSignup(
   revalidatePath("/", "layout");
   return { ok: true, redirectTo: homePathForRole(payload.role), linkWarning };
 }
+
 
 async function linkChildInternal(
   parentId: string,
