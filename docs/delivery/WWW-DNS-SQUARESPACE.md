@@ -4,6 +4,8 @@
 
 ## Squarespace’te yapılacak
 
+Tam kayıt listesi (www + Resend): **[DNS-CORTEXPLUS-APP.md](./DNS-CORTEXPLUS-APP.md)**
+
 **Operasyon hesabı:** `cortexplus@cortexplus.app` (Squarespace / Google oturumu). DNS kaydı eklemeden önce üst bannertaki **e-posta doğrulama** kodunu bu kutudan girin.
 
 1. [Squarespace Domains](https://account.squarespace.com/domains) → **cortexplus.app** → DNS.

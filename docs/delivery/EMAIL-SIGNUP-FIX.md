@@ -26,10 +26,8 @@ Prod test: https://cortexplus.app/kayit — kayıt sonrası oturum + `/kayit/tam
 
 ## Kalıcı çözüm (DNS sırası)
 
-1. **Squarespace** → Domains → `cortexplus.app` → üstteki **e-posta doğrulama** (6 haneli kod). Kod gelmezse: Squarespace hesap ayarlarından **yeniden gönder**; kod `cortexplus@cortexplus.app` (Workspace) gelen kutusunda olmalı.
-2. **Resend** → Domains → **Add** → `cortexplus.app` → gösterilen **TXT/CNAME/MX** kayıtlarını Squarespace **Custom records**’a ekle.  
-   - Mevcut SPF: `v=spf1 include:_spf.google.com ~all` → Resend için genelde:  
-     `v=spf1 include:_spf.google.com include:amazonses.com ~all` (Resend panelindeki değeri esas al).
+1. **Squarespace** → [DNS Ayarları](https://account.squarespace.com/domains/managed/cortexplus.app/dns/dns-settings) → **Kayıt ekleyin** öncesi 6 haneli kod (`cortexplus@cortexplus.app`). Tüm kayıtlar: **[DNS-CORTEXPLUS-APP.md](./DNS-CORTEXPLUS-APP.md)**. ICANN iletişim doğrulaması ayrıca kayıt e-postası **`burhan55600@gmail.com`** kutusuna gidebilir (Workspace satın alma maili).
+2. **Resend** → Domains → **cortexplus.app** → DNS kayıtlarını Squarespace’e ekle (tablo aynı dosyada).
 3. Domain **Verified** olduktan sonra Supabase SMTP’yi tekrar aç:  
    - Host `smtp.resend.com`, port **465**, user `resend`, password = **Resend API key**, sender `bildirim@cortexplus.app`.
 4. **Confirm email**’i tekrar **AÇ** → Save.
