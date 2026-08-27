@@ -7,10 +7,10 @@ Tek kaynak: [GREENFIELD-CONNECT.md](./GREENFIELD-CONNECT.md) · **Teslim özeti:
 | # | Konu | Kod / otomasyon | Senin yapman gereken |
 |---|------|-----------------|----------------------|
 | 1 | Supabase env | `/api/health` → `ok: true` | **Tamam** (canlı doğrulandı) |
-| 2 | www → apex | `vercel.json` + Vercel Domains redirect | **Vercel redirect ayarlı**; Squarespace’te **www CNAME** → [WWW-DNS-SQUARESPACE.md](./WWW-DNS-SQUARESPACE.md) |
-| 3 | E-posta doğrulama | [AUTH-SETUP.md](./AUTH-SETUP.md) | Vercel’de `RESEND_API_KEY` var; domain/Supabase SMTP kontrol |
-| 4 | Google OAuth | [GOOGLE-OAUTH.md](./GOOGLE-OAUTH.md) | **Tamam** (Supabase secret + canlı `/onboarding` testi) |
-| 5 | Kayıt uçtan uca | `?prompt=` / `?ders=` kayıt | Deploy sonrası test: kayıt → mail → `/kayit/tamamla` |
+| 2 | www → apex | `vercel.json` + Vercel Domains redirect | **Vercel redirect ayarlı**; Squarespace CNAME → [DNS-CORTEXPLUS-APP.md](./DNS-CORTEXPLUS-APP.md) |
+| 3 | E-posta doğrulama | [EMAIL-SIGNUP-FIX.md](./EMAIL-SIGNUP-FIX.md) | Prod kayıt **açık**; kalıcı mail: Resend DNS + Supabase SMTP |
+| 4 | Google OAuth | [GOOGLE-OAUTH.md](./GOOGLE-OAUTH.md) | **Tamam** (GCP Branding + canlı consent **Cortex Plus**) |
+| 5 | Kayıt uçtan uca | kayıt → `/kayit/tamamla` | **Tamam** (Confirm email kapalıyken prod doğrulandı) |
 | 6 | Onboarding | signup-wizard stilleri | — |
 | 7 | App içi tema | `astra-app` altın | — |
 | 8 | Admin shell | `admin-shell` CSS | — |

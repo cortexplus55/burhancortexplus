@@ -3,7 +3,7 @@
 **Canlı site:** https://cortexplus.app  
 **Supabase:** `dgjfyewgrukglsehyntc`  
 **Vercel:** team `cortexplus55`, proje `burhancortexplus-app`  
-**GitHub:** https://github.com/cortexplus55/burhancortexplus  
+**GitHub:** https://github.com/cortexplus55/burhancortexplus (`main` = production kaynağı)
 
 PayTR bu teslimde **dahil değil** (istek üzerine ayrı faz).
 
@@ -14,67 +14,52 @@ PayTR bu teslimde **dahil değil** (istek üzerine ayrı faz).
 | Konu | Kanıt |
 |------|--------|
 | Canlı ortam + Supabase | `GET /api/health` → `"ok":true`, `"supabaseProjectRef":"dgjfyewgrukglsehyntc"` |
-| Google ile giriş | OAuth → `accounts.google.com`; Supabase provider açık + secret kayıtlı |
-| Auth redirect | Supabase Site URL `https://cortexplus.app`, 4 redirect URL |
+| Kayıt / giriş (e-posta) | Confirm email + Custom SMTP kapalı → prod kayıt oturum açar — [EMAIL-SIGNUP-FIX.md](./EMAIL-SIGNUP-FIX.md) |
+| Post-login uygulama | `/ogretmen`, AppShell — Astra sunucu/client ayrımı düzeltildi |
+| Google OAuth marka | GCP Branding kayıtlı; consent **Cortex Plus** (undefined yok) — [GOOGLE-OAUTH.md](./GOOGLE-OAUTH.md) |
+| Supabase Google provider | Açık, Client ID + callback doğru |
+| PWA ikonları | `/icon/192`, `/icon/512` (manifest) |
+| Auth redirect | Site URL `https://cortexplus.app`, redirect listesi |
 | Vercel env | Production’da `RESEND_API_KEY` ve uygulama env’leri |
 | SEO | `/robots.txt`, `/sitemap.xml` canlı |
-| GSC altyapı | `GOOGLE_SITE_VERIFICATION` env ile meta etiket (layout); değer Vercel’de set edilince aktif |
-| Veritabanı | 13 migration Supabase’te uygulu |
-| Kod + doküman | `main` branch güncel (OAuth, www rehberi, launch sequence) |
+| Veritabanı | Migration’lar Supabase’te (profiles INSERT dahil) |
+| GitHub CI | `.github/workflows/ci.yml` — `main`’de |
+| DNS runbook | www + Resend kayıtları tek tabloda — [DNS-CORTEXPLUS-APP.md](./DNS-CORTEXPLUS-APP.md) |
 
-**Hızlı test:** https://cortexplus.app/giris → **Google ile devam et** → oturum / onboarding.
-
----
-
-## Sizin 5–10 dakikalık kapanış (2 madde)
-
-Bunlar dış servis girişi gerektirdiği için otomasyon tamamlayamadı; adımlar hazır.
-
-### 1) www.cortexplus.app (Squarespace DNS)
-
-Durum: **`www` DNS kaydı yok** (NXDOMAIN). Apex (`cortexplus.app`) çalışıyor. Vercel’de www → apex **308 redirect** ayarlı.
-
-Squarespace → **cortexplus.app** → DNS → Custom record:
-
-| Host | Type | Value |
-|------|------|--------|
-| `www` | CNAME | `30e3ed639132fa83.vercel-dns-017.com` |
-
-Ayrıntı: [WWW-DNS-SQUARESPACE.md](./WWW-DNS-SQUARESPACE.md)
-
-Doğrulama (yayıldıktan sonra):
-
-```bash
-curl -sI https://www.cortexplus.app/ | findstr /i "HTTP Location"
-```
-
-### 2) GitHub CI workflow — **yapıldı**
-
-`.github/workflows/ci.yml` **main**’de (commit `13b0634`). Push, `workflow` scope’lu hesap ile yapıldı; Actions’ta **CI** workflow çalışır.
-
-İleride `cortexplus55` CLI token’ına `workflow` eklemek isterseniz: [GITHUB-CI-WORKFLOW-SCOPE.md](./GITHUB-CI-WORKFLOW-SCOPE.md)
+**Hızlı test:** https://cortexplus.app/kayit · https://cortexplus.app/giris → **Google ile devam et**
 
 ---
 
-## İsteğe bağlı (SEO / e-posta)
+## DNS (Squarespace) — tek manuel adım
 
-- **Search Console:** Mülk ekle → HTML etiket → `content` değerini Vercel’de `GOOGLE_SITE_VERIFICATION` → redeploy.
-- **E-posta kayıt:** Supabase doğrulama maili + Resend domain (`bildirim@cortexplus.app`) — [AUTH-SETUP.md](./AUTH-SETUP.md).
-- **OAuth Testing:** Herkese açık kullanıcılar için GCP Audience test kullanıcıları veya **Publish app** — [GOOGLE-OAUTH.md](./GOOGLE-OAUTH.md).
+Kayıtlar hazır; Squarespace **Kayıt ekleyin** öncesi **`cortexplus@cortexplus.app`** adresine gelen **6 haneli kod** gerekir (Gmail’de henüz görülmediyse `burhan55600@gmail.com` ICANN mailine de bakın).
+
+1. [DNS Ayarları](https://account.squarespace.com/domains/managed/cortexplus.app/dns/dns-settings) → kod → [DNS-CORTEXPLUS-APP.md](./DNS-CORTEXPLUS-APP.md) kayıtlarını ekle  
+2. Resend → **Verify DNS Records**  
+3. Supabase SMTP + **Confirm email** aç — [EMAIL-SIGNUP-FIX.md](./EMAIL-SIGNUP-FIX.md)
+
+**www:** Vercel redirect hazır; CNAME eklenince `https://www.cortexplus.app` → apex. Apex zaten canlı.
 
 ---
 
-## Referans dokümanlar
+## İsteğe bağlı
+
+- **GSC:** `GOOGLE_SITE_VERIFICATION` → Vercel → redeploy  
+- **OAuth Audience:** Testing dışı kullanıcılar için GCP **Publish app** — [GOOGLE-OAUTH.md](./GOOGLE-OAUTH.md)
+
+---
+
+## Referans
 
 | Dosya | İçerik |
 |-------|--------|
-| [GREENFIELD-CONNECT.md](./GREENFIELD-CONNECT.md) | Tek kaynak bağlantılar |
+| [GREENFIELD-CONNECT.md](./GREENFIELD-CONNECT.md) | Bağlantılar |
 | [LAUNCH-SEQUENCE.md](./LAUNCH-SEQUENCE.md) | Launch checklist |
-| [GOOGLE-OAUTH.md](./GOOGLE-OAUTH.md) | Google giriş |
-| [AUTH-SETUP.md](./AUTH-SETUP.md) | E-posta + Auth URL |
+| [DNS-CORTEXPLUS-APP.md](./DNS-CORTEXPLUS-APP.md) | www + Resend DNS |
+| [IDENTITY.md](./IDENTITY.md) | `cortexplus@cortexplus.app` |
 
 ---
 
 ## Teslim cümlesi
 
-**cortexplus.app** production’da çalışır durumda; Google giriş ve Supabase greenfield bağlantısı tamam. Kalan iş yalnızca **Squarespace www CNAME** ve **GitHub CI workflow push** (yukarıdaki iki kısa adım). Bunlar bittiğinde launch listesi PayTR hariç kapanmış sayılır.
+**cortexplus.app** production’da kayıt, giriş ve Google OAuth ile sorunsuz çalışır; kod ve doküman **`main`** üzerinde güncel. www ve Resend doğrulama maili için DNS kayıtları dokümante edildi — Squarespace doğrulama kodu girildiğinde aynı runbook ile kapanır.
