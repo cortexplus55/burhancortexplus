@@ -1,7 +1,5 @@
-import {
-  AstraAppChrome,
-  astraUserInitial,
-} from "@/components/parity/astra-app-chrome";
+import { AstraAppChrome } from "@/components/parity/astra-app-chrome";
+import { astraUserInitial } from "@/components/parity/astra-app-utils";
 import { createClient } from "@/lib/supabase/server";
 
 export async function ParentShell({

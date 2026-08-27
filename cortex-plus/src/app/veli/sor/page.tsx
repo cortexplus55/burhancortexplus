@@ -1,6 +1,6 @@
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { ParentShell } from "@/components/layout/parent-shell";
-import { astraGreetingName } from "@/components/parity/astra-app-chrome";
+import { astraGreetingName } from "@/components/parity/astra-app-utils";
 import { requireParent } from "@/lib/auth/session";
 
 export const metadata = { title: "Veli desteği" };

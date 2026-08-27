@@ -7,8 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserStreak } from "@/lib/streak/record-activity";
 import {
   AstraAppChrome,
-  astraUserInitial,
 } from "@/components/parity/astra-app-chrome";
+import { astraUserInitial } from "@/components/parity/astra-app-utils";
 import "@/styles/admin-shell.css";
 
 const baseLinks = [

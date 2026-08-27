@@ -4,7 +4,7 @@ import { AstraGamificationGate } from "@/components/parity/astra-gamification";
 import {
   astraGreetingName,
   astraTimeGreeting,
-} from "@/components/parity/astra-app-chrome";
+} from "@/components/parity/astra-app-utils";
 import { requireUser } from "@/lib/auth/session";
 
 export const metadata = { title: "Sor" };

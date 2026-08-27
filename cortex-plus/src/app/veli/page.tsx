@@ -4,7 +4,7 @@ import { ParentLinkForms } from "@/components/parity/parent-link-forms";
 import {
   astraGreetingName,
   astraTimeGreeting,
-} from "@/components/parity/astra-app-chrome";
+} from "@/components/parity/astra-app-utils";
 import { requireParent } from "@/lib/auth/session";
 import { getChildSummary, type ChildSummary } from "@/lib/parent/child-summary";
 import { formatDate } from "@/lib/format";
