@@ -14,6 +14,31 @@ Uygulama zaten **Supabase OAuth** kullanıyor (`/giris`, `/kayit` → **Google i
 
 Son doğrulama: [cortexplus.app/giris](https://cortexplus.app/giris) → Google → `/onboarding` (oturum açıldı).
 
+## Onay ekranı: `undefined` ve `*.supabase.co` görünmesi
+
+Google, OAuth isteğini **Supabase callback domain’i** üzerinden gördüğü için satırda `dgjfyewgrukglsehyntc.supabase.co` yazabilir. **`undefined`** genelde marka / proje adının panelde eksik olmasından gelir.
+
+### Hemen yap (≈5 dk)
+
+1. **Supabase** → [Project Settings → General](https://supabase.com/dashboard/project/dgjfyewgrukglsehyntc/settings/general)  
+   - **Project name:** `Cortex Plus` → Save  
+2. **Supabase** → [Authentication → URL Configuration](https://supabase.com/dashboard/project/dgjfyewgrukglsehyntc/auth/url-configuration)  
+   - **Site URL:** `https://cortexplus.app`  
+3. **Google Cloud** — yalnızca **`cortexplus@cortexplus.app`** ile [Branding](https://console.cloud.google.com/auth/branding?project=cortexplus-auth) (proje `cortexplus-auth`):  
+   - **App name:** `Cortex Plus`  
+   - **User support email:** `cortexplus@cortexplus.app`  
+   - **App logo** (kare, ≥128px)  
+   - **Application home page:** `https://cortexplus.app`  
+   - **Privacy policy:** `https://cortexplus.app/gizlilik`  
+   - **Terms of service:** `https://cortexplus.app/kullanim-kosullari`  
+4. **Testing** modundaysanız test kullanıcılarına **`cortexplus@cortexplus.app`** (ve gerekirse ekip) ekleyin; kişisel `@gmail.com` yalnızca geçici test içindir — canlıda **Publish app** hedeflenir.
+
+### İsteğe bağlı (daha profesyonel)
+
+Supabase **Custom Domain** (Pro): örn. `auth.cortexplus.app` — onay ekranında `supabase.co` yerine kendi alan adınız görünür. Ayrıntı: [Supabase custom domains](https://supabase.com/docs/guides/platform/custom-domains).
+
+---
+
 ## 1) Google Cloud (OAuth istemcisi)
 
 1. [Google Cloud Console → Credentials](https://console.cloud.google.com/auth/clients?project=cortexplus-auth&authuser=1) — **cortexplus@cortexplus.app** (`authuser=1`).

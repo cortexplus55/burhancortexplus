@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
+import { signInWithGoogle } from "@/lib/auth/google-oauth";
 import { toast } from "sonner";
 
 export default function GirisPage() {
@@ -35,12 +36,11 @@ export default function GirisPage() {
   async function google() {
     const supabase = createClient();
     const origin = window.location.origin;
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
-      },
-    });
+    const { error } = await signInWithGoogle(
+      supabase,
+      `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+    );
+    if (error) toast.error("Google ile giriş başlatılamadı.");
   }
 
   return (

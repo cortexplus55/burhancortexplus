@@ -24,6 +24,7 @@ import {
   type SignupRole,
 } from "@/lib/parity/signup";
 import { authCallbackUrl, authErrorMessage } from "@/lib/auth/messages";
+import { signInWithGoogle } from "@/lib/auth/google-oauth";
 import { supabaseConfigIssue } from "@/lib/supabase/config-check";
 import "@/styles/astra-marketing.css";
 import "@/styles/cinematic-home.css";
@@ -198,12 +199,11 @@ export function SignupWizard() {
     }
     stashPayload(buildPayload());
     const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: authCallbackUrl("/kayit/tamamla"),
-      },
-    });
+    const { error } = await signInWithGoogle(
+      supabase,
+      authCallbackUrl("/kayit/tamamla"),
+    );
+    if (error) toast.error("Google ile kayıt başlatılamadı.");
   }
 
   return (
