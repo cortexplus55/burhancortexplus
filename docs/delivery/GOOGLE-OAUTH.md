@@ -27,7 +27,7 @@ Google, OAuth isteğini **Supabase callback domain’i** üzerinden gördüğü 
 3. **Google Cloud** — yalnızca **`cortexplus@cortexplus.app`** ile [Branding](https://console.cloud.google.com/auth/branding?project=cortexplus-auth) (proje `cortexplus-auth`):  
    - **App name:** `Cortex Plus`  
    - **User support email:** `cortexplus@cortexplus.app`  
-   - **App logo** (kare, ≥128px)  
+   - **App logo** (kare, ≥128px) — indir: [https://cortexplus.app/icon/512](https://cortexplus.app/icon/512) (deploy sonrası) veya yerel `cortex-plus` build ile `/icon/512`  
    - **Application home page:** `https://cortexplus.app`  
    - **Privacy policy:** `https://cortexplus.app/gizlilik`  
    - **Terms of service:** `https://cortexplus.app/kullanim-kosullari`  
