@@ -217,6 +217,9 @@ export function AstraAppChrome({
         : studentMenu;
   const studentGroups = navRole === "student" ? studentMenuGroups : null;
   const activeTab = tabs.find((tab) => tab.match(pathname))?.id ?? null;
+  const isSorScreen =
+    navRole === "student" &&
+    (pathname === "/ogretmen" || pathname.startsWith("/ogretmen/"));
 
   useEffect(() => {
     if (navRole !== "student") return;
@@ -237,7 +240,12 @@ export function AstraAppChrome({
   }, [menuOpen]);
 
   return (
-    <div className="astra-app cortex-premium-app mx-auto flex min-h-dvh max-w-lg flex-col pb-28 md:max-w-2xl lg:max-w-3xl">
+    <div
+      className={cn(
+        "astra-app cortex-premium-app mx-auto flex min-h-dvh max-w-lg flex-col pb-28 md:max-w-2xl lg:max-w-3xl",
+        isSorScreen && "astra-sor-screen max-w-lg pb-24",
+      )}
+    >
       <header className="flex items-center justify-between gap-2 px-4 py-3">
         {navRole === "student" ? (
           <div className="flex min-w-0 items-center gap-2">
@@ -252,13 +260,13 @@ export function AstraAppChrome({
             {account ? (
               <Link
                 href="/krediler"
-                className="cortex-premium-glass-nav hidden max-w-[140px] truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium sm:inline-block"
+                className="cortex-premium-glass-nav max-w-[100px] truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium sm:max-w-[140px]"
               >
                 {account.isPremium ? "Plus · " : ""}
                 {account.balance} kr
               </Link>
             ) : null}
-            <Link href="/pay" className="cortex-premium-buy hidden sm:inline-flex">
+            <Link href="/pay" className="cortex-premium-buy shrink-0 text-[11px] sm:inline-flex">
               Satın al ✦
             </Link>
           </div>
@@ -277,7 +285,7 @@ export function AstraAppChrome({
             ) : null}
           </div>
         )}
-        {pageTitle ? (
+        {pageTitle && !isSorScreen ? (
           <p className="astra-page-title truncate px-2 text-sm">
             {pageTitle}
           </p>

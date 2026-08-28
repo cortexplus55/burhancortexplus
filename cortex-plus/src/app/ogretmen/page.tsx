@@ -1,14 +1,10 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { ChatPanel } from "@/components/chat/chat-panel";
-import { AstraGamificationGate } from "@/components/parity/astra-gamification";
 import { astraGreetingName } from "@/components/parity/astra-app-utils";
-import { requireUser } from "@/lib/auth/session";
+import { requireStudentArea } from "@/lib/auth/session";
 import { getCreditCost } from "@/lib/credits/rules";
 import { isPremiumUser } from "@/lib/ai/generate";
-import {
-  parseTutorStyle,
-  tutorStyleLabel,
-} from "@/lib/learning/tutor-style";
+import { parseTutorStyle, tutorStyleLabel } from "@/lib/learning/tutor-style";
 
 export const metadata = { title: "Sor" };
 
@@ -17,11 +13,10 @@ export default async function OgretmenPage({
 }: {
   searchParams: Promise<{ sohbet?: string }>;
 }) {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireStudentArea();
   const params = await searchParams;
 
-  const [{ count }, { data: profile }, chatCost, isPremium] =
-    await Promise.all([
+  const [{ count }, { data: profile }, chatCost, isPremium] = await Promise.all([
     supabase
       .from("documents")
       .select("id", { count: "exact", head: true })
@@ -70,12 +65,14 @@ export default async function OgretmenPage({
 
   return (
     <AppShell accountStrip={false}>
-      <AstraGamificationGate />
       <ChatPanel
         variant="astra"
+        composerMode="minimal"
         greetingLine={greetingLine}
-        greetingSubline="Sorunu yaz veya fotoğraf yükle — adım adım birlikte çözelim."
+        greetingSubline="Sorunu yaz — adım adım birlikte çözelim."
         showEmptyStarter={false}
+        showSubjectPicker={false}
+        placeholder="Sorunu yaz…"
         initialConversationId={conversationId}
         initialMessages={initialMessages}
         hasDocuments={(count ?? 0) > 0}

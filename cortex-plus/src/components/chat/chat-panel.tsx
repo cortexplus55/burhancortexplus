@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/markdown";
 import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
 
-import { Camera, Mic, Plus } from "lucide-react";
+import { Camera, Mic, Paperclip, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import "@/styles/astra-sor.css";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -46,6 +47,7 @@ export function ChatPanel({
   startPrompt,
   startLabel = "Başla",
   showEmptyStarter = true,
+  composerMode = "full",
   placeholder,
   showSubjectPicker = true,
   showAttachments = true,
@@ -66,6 +68,7 @@ export function ChatPanel({
   startPrompt?: string;
   startLabel?: string;
   showEmptyStarter?: boolean;
+  composerMode?: "full" | "minimal";
   placeholder?: string;
   showSubjectPicker?: boolean;
   showAttachments?: boolean;
@@ -213,6 +216,7 @@ export function ChatPanel({
   }
 
   const isAstra = variant === "astra";
+  const isMinimalSor = isAstra && composerMode === "minimal";
 
   return (
     <>
@@ -220,6 +224,7 @@ export function ChatPanel({
         className={cn(
           "flex flex-col gap-4",
           isAstra && "flex-1 pb-4",
+          isMinimalSor && "astra-sor-view gap-0 pb-0",
         )}
       >
         {!isAstra ? (
@@ -250,12 +255,17 @@ export function ChatPanel({
         ) : null}
 
         {isAstra && messages.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 py-8 text-center">
-            <p className="text-lg font-semibold tracking-tight">
+          <div
+            className={cn(
+              "flex flex-col items-center justify-center py-8 text-center",
+              isMinimalSor ? "min-h-[min(42vh,360px)] flex-1" : "flex-1 gap-3",
+            )}
+          >
+            <p className={isMinimalSor ? "astra-sor-greeting" : "text-lg font-semibold tracking-tight"}>
               {greetingLine ?? "Merhaba, bugün ne çalışalım?"}
             </p>
             {greetingSubline ? (
-              <p className="max-w-xs text-sm text-[var(--astra-muted)]">
+              <p className={isMinimalSor ? "astra-sor-greeting-sub" : "max-w-xs text-sm text-[var(--astra-muted)]"}>
                 {greetingSubline}
               </p>
             ) : null}
@@ -297,7 +307,10 @@ export function ChatPanel({
         <div
           className={cn(
             isAstra
-              ? "min-h-[120px] flex-1 space-y-3 overflow-y-auto py-2"
+              ? cn(
+                  "min-h-[120px] flex-1 space-y-3 overflow-y-auto py-2",
+                  isMinimalSor && "astra-sor-messages min-h-0 py-0",
+                )
               : "min-h-[280px] space-y-3 rounded-lg border p-3",
           )}
           aria-live="polite"
@@ -313,7 +326,9 @@ export function ChatPanel({
               className={
                 message.role === "user"
                   ? isAstra
-                    ? "ml-auto max-w-[85%] rounded-2xl bg-[var(--astra-primary)] px-3 py-2 text-sm text-white"
+                    ? isMinimalSor
+                      ? "ml-auto max-w-[85%] rounded-2xl bg-[var(--astra-primary)] px-3 py-2 text-sm font-medium text-[#0a0a0a]"
+                      : "ml-auto max-w-[85%] rounded-2xl bg-[var(--astra-primary)] px-3 py-2 text-sm text-white"
                     : "ml-auto max-w-[85%] rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground"
                   : isAstra
                     ? "mr-auto max-w-[92%] rounded-2xl border border-[var(--astra-border)] bg-[var(--astra-surface)] px-3 py-2 text-sm"
@@ -346,6 +361,82 @@ export function ChatPanel({
         ) : null}
 
         {isAstra ? (
+          isMinimalSor ? (
+            <div className="astra-sor-dock">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,image/*"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (!file) return;
+                  setLoading(true);
+                  try {
+                    const docId = await uploadAttachment(file);
+                    const prompt = file.type.startsWith("image/")
+                      ? "Fotoğraftaki soruyu adım adım çöz."
+                      : "Yüklediğim dosyayı özetle ve sorularımı yanıtlamaya hazır ol.";
+                    await send(prompt, false, docId ?? undefined);
+                  } catch (error) {
+                    toast.error(
+                      error instanceof Error
+                        ? error.message
+                        : "Dosya gönderilemedi.",
+                    );
+                    setLoading(false);
+                  }
+                }}
+              />
+              <form
+                className="astra-sor-composer"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (input.trim()) send(input);
+                }}
+              >
+                {showAttachments ? (
+                  <button
+                    type="button"
+                    className="astra-sor-attach"
+                    aria-label="Dosya veya fotoğraf ekle"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </button>
+                ) : null}
+                <Textarea
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  placeholder={placeholder ?? "Sorunu yaz…"}
+                  rows={1}
+                  aria-label="Mesajın"
+                  className="min-h-[44px] flex-1 resize-none border-0 bg-transparent text-sm shadow-none focus-visible:ring-0"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      if (input.trim()) send(input);
+                    }
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={loading || !input.trim()}
+                  className="astra-sor-send"
+                  aria-label="Gönder"
+                >
+                  ↑
+                </button>
+              </form>
+              {chatCreditCost != null ? (
+                <p className="astra-sor-meta">
+                  ~{chatCreditCost} kredi / mesaj
+                  {isPremium ? " · Plus model" : ""}
+                </p>
+              ) : null}
+            </div>
+          ) : (
           <div className="sticky bottom-0 space-y-2 pb-1">
             {quotaHint ? (
               <p className="text-center text-[11px] text-[var(--astra-muted)]">
@@ -540,6 +631,7 @@ export function ChatPanel({
               </Button>
             </form>
           </div>
+          )
         ) : (
           <form
             className="flex flex-col gap-2 sm:flex-row"

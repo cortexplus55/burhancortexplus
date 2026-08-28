@@ -1,0 +1,173 @@
+/* /ogretmen — Astra-style Sor (minimal composer, cinematic empty state) */
+
+.astra-sor-screen {
+  --astra-bg: #070707;
+  background: var(--astra-bg);
+}
+
+.astra-sor-screen main {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0.5rem;
+}
+
+.astra-sor-view {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.astra-sor-greeting {
+  font-size: clamp(1.35rem, 4.5vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  color: var(--astra-text);
+  text-wrap: balance;
+}
+
+.astra-sor-greeting-sub {
+  margin-top: 0.65rem;
+  max-width: 20rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--astra-muted);
+}
+
+.astra-sor-messages {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 0.5rem;
+  scroll-behavior: smooth;
+}
+
+.astra-sor-dock {
+  flex-shrink: 0;
+  padding-top: 0.75rem;
+  padding-bottom: 0.25rem;
+}
+
+.astra-sor-composer {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.35rem 0.35rem 0.85rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, #1a1a1a 0%, #121212 100%);
+  box-shadow:
+    0 0 0 1px rgba(244, 174, 11, 0.06),
+    0 16px 48px rgba(0, 0, 0, 0.55);
+}
+
+.astra-sor-composer:focus-within {
+  border-color: rgba(244, 174, 11, 0.35);
+  box-shadow:
+    0 0 0 1px rgba(244, 174, 11, 0.2),
+    0 0 32px rgba(244, 174, 11, 0.08),
+    0 16px 48px rgba(0, 0, 0, 0.55);
+}
+
+.astra-sor-composer textarea,
+.astra-sor-composer input {
+  min-height: 44px;
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 0.9375rem;
+  color: var(--astra-text);
+  outline: none;
+  resize: none;
+}
+
+.astra-sor-send {
+  display: flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--astra-primary);
+  color: #0a0a0a;
+  font-size: 1.125rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.astra-sor-send:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: scale(1.04);
+}
+
+.astra-sor-send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.astra-sor-attach {
+  display: flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--astra-muted);
+  cursor: pointer;
+}
+
+.astra-sor-attach:hover {
+  color: var(--astra-text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.astra-sor-meta {
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: 0.625rem;
+  letter-spacing: 0.02em;
+  color: var(--astra-muted);
+}
+
+.astra-sor-screen::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse 70% 45% at 50% -5%,
+    rgba(244, 174, 11, 0.07),
+    transparent 55%
+  );
+}
+
+.astra-sor-screen > header,
+.astra-sor-screen > main,
+.astra-sor-screen > footer {
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 768px) {
+  .astra-sor-screen {
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 0 80px rgba(0, 0, 0, 0.65);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .astra-sor-send:hover:not(:disabled) {
+    transform: none;
+  }
+}
