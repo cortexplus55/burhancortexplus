@@ -49,9 +49,13 @@ Uzak projede sırayla uygulanmış olmalı:
 supabase db push --linked
 ```
 
-## 4. Resend domain
+## 4. Workspace SMTP (Supabase Auth + Vercel)
 
-`EMAIL_FROM` için domain DNS (SPF/DKIM) doğrulanmadan davet mailleri düşebilir.
+Resend **kullanılmıyor**. Adımlar: [WORKSPACE-EMAIL.md](../../../docs/delivery/WORKSPACE-EMAIL.md).
+
+- Vercel: `SMTP_*`, `EMAIL_FROM`; `RESEND_API_KEY` yok.
+- Supabase: custom SMTP + Confirm email.
+- Smoke: `/admin/sistem` → SMTP test; yeni kayıt → gelen kutu.
 
 ## 5. Git ↔ Vercel
 
@@ -60,6 +64,7 @@ supabase db push --linked
 ## 6. Smoke (prod)
 
 - [ ] Misafir `/` ve `/kayit` açılıyor
+- [ ] E-posta kayıt (Confirm açık) → mail → `/kayit/tamamla` → role home
 - [ ] Öğrenci kayıt → `/ogretmen`
 - [ ] Veli kayıt → `/veli`
 - [ ] Öğretmen kayıt → sınıf oluşuyor → `/ogretmen-paneli`

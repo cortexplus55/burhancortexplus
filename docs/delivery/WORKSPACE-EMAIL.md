@@ -31,11 +31,14 @@ Production (+ preview) env:
 
 **Sil:** `RESEND_API_KEY`
 
+**CLI (team `cortexplus55` erişimiyle):** `cortex-plus/scripts/setup-workspace-smtp-vercel.ps1` — önce `$env:SMTP_PASS` set et; chat'e yapıştırma.
+
 Redeploy.
 
 ## 3) Supabase Auth SMTP
 
-Proje: `dgjfyewgrukglsehyntc` → **Authentication** → **Emails** → **SMTP Settings**
+Proje: `dgjfyewgrukglsehyntc` → **Authentication** → **Emails** → **SMTP Settings**  
+Ayrıntılı sıra (Confirm en son): [SUPABASE-WORKSPACE-SMTP.md](./SUPABASE-WORKSPACE-SMTP.md)
 
 | Alan | Değer |
 |------|--------|
@@ -60,7 +63,9 @@ URL Configuration: Site URL `https://cortexplus.app`, redirect’ler mevcut kals
 
 1. https://cortexplus.app/kayit — yeni e-posta → gelen kutusunda **Confirm** linki.
 2. Veli daveti (varsa akış) → gönderen `cortexplus@cortexplus.app`.
-3. `/admin/sistem` — SMTP değişkenleri “Yapılandırıldı”.
+3. `/admin/sistem` — SMTP değişkenleri “Yapılandırıldı” + **Workspace SMTP bağlantısını test et** (deploy sonrası).
+
+**Yerel doğrulama (prod’a şifre koymadan):** `npx dotenv -e .env.local -- node scripts/verify-workspace-smtp.mjs` → `SMTP_VERIFY_OK`.
 
 ## Limitler
 

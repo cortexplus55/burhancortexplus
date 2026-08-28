@@ -14,38 +14,48 @@ PayTR bu teslimde **dahil değil** (istek üzerine ayrı faz).
 | Konu | Kanıt |
 |------|--------|
 | Canlı ortam + Supabase | `GET /api/health` → `"ok":true`, `"supabaseProjectRef":"dgjfyewgrukglsehyntc"` |
-| Kayıt / giriş (e-posta) | Confirm email + Custom SMTP kapalı → prod kayıt oturum açar — [EMAIL-SIGNUP-FIX.md](./EMAIL-SIGNUP-FIX.md) |
-| Post-login uygulama | `/ogretmen`, AppShell — Astra sunucu/client ayrımı düzeltildi |
-| Google OAuth marka | GCP Branding kayıtlı; consent **Cortex Plus** (undefined yok) — [GOOGLE-OAUTH.md](./GOOGLE-OAUTH.md) |
+| Kayıt / giriş (e-posta) | Kod: Confirm açıkken `/email-dogrula` → link → `/kayit/tamamla` — [WORKSPACE-EMAIL.md](./WORKSPACE-EMAIL.md) |
+| Post-login uygulama | `/ogretmen`, AppShell |
+| Google OAuth marka | GCP Branding kayıtlı; consent **Cortex Plus** — [GOOGLE-OAUTH.md](./GOOGLE-OAUTH.md) |
 | Supabase Google provider | Açık, Client ID + callback doğru |
 | PWA ikonları | `/icon/192`, `/icon/512` (manifest) |
 | Auth redirect | Site URL `https://cortexplus.app`, redirect listesi |
-| Vercel env | Production’da `RESEND_API_KEY` ve uygulama env’leri |
+| Vercel env | Workspace `SMTP_*` + `EMAIL_FROM`; **Resend kullanılmıyor** |
 | SEO | `/robots.txt`, `/sitemap.xml` canlı |
-| Veritabanı | Migration’lar Supabase’te (profiles INSERT dahil) |
+| Veritabanı | Migration’lar Supabase’te |
 | GitHub CI | `.github/workflows/ci.yml` — `main`’de |
-| DNS runbook | www + Resend kayıtları tek tabloda — [DNS-CORTEXPLUS-APP.md](./DNS-CORTEXPLUS-APP.md) |
+| DNS runbook | www CNAME — [DNS-CORTEXPLUS-APP.md](./DNS-CORTEXPLUS-APP.md) |
 
 **Hızlı test:** https://cortexplus.app/kayit · https://cortexplus.app/giris → **Google ile devam et**
 
 ---
 
-## DNS (Squarespace) — tek manuel adım
+## E-posta (Workspace SMTP) — launch kapanışı
 
-Kayıtlar hazır; Squarespace **Kayıt ekleyin** öncesi **`cortexplus@cortexplus.app`** adresine gelen **6 haneli kod** gerekir (Gmail’de henüz görülmediyse `burhan55600@gmail.com` ICANN mailine de bakın).
+Tek kaynak: **[WORKSPACE-EMAIL.md](./WORKSPACE-EMAIL.md)**
 
-1. [DNS Ayarları](https://account.squarespace.com/domains/managed/cortexplus.app/dns/dns-settings) → kod → [DNS-CORTEXPLUS-APP.md](./DNS-CORTEXPLUS-APP.md) kayıtlarını ekle  
-2. Resend → **Verify DNS Records**  
-3. Supabase SMTP + **Confirm email** aç — [EMAIL-SIGNUP-FIX.md](./EMAIL-SIGNUP-FIX.md)
+1. Google **uygulama şifresi** (`cortexplus@cortexplus.app`, 2FA açık).
+2. Vercel Production + Preview: `SMTP_*`, `EMAIL_FROM`; `RESEND_API_KEY` sil; redeploy.  
+   CLI: `cortex-plus/scripts/setup-workspace-smtp-vercel.ps1` (team erişimi gerekir).
+3. Supabase Auth → custom SMTP (aynı Gmail).
+4. **Confirm email açık** (SMTP doğrulandıktan sonra).
+5. `/admin/sistem` → **Workspace SMTP bağlantısını test et**; kayıt smoke.
 
-**www:** Vercel redirect hazır; CNAME eklenince `https://www.cortexplus.app` → apex. Apex zaten canlı.
+Geçici mod (Confirm kapalı): [EMAIL-SIGNUP-FIX.md](./EMAIL-SIGNUP-FIX.md) — artık hedeflenmez.
+
+---
+
+## DNS (Squarespace) — www
+
+Vercel redirect hazır; Squarespace **CNAME** `www` → [DNS-CORTEXPLUS-APP.md](./DNS-CORTEXPLUS-APP.md).  
+Squarespace doğrulama kodu: [SQUARESPACE-DNS-EMAIL-NEDEN-GELMIYOR.md](./SQUARESPACE-DNS-EMAIL-NEDEN-GELMIYOR.md).
 
 ---
 
 ## İsteğe bağlı
 
 - **GSC:** `GOOGLE_SITE_VERIFICATION` → Vercel → redeploy  
-- **OAuth Audience:** Testing dışı kullanıcılar için GCP **Publish app** — [GOOGLE-OAUTH.md](./GOOGLE-OAUTH.md)
+- **OAuth Audience:** GCP **Publish app** — [GOOGLE-OAUTH.md](./GOOGLE-OAUTH.md)
 
 ---
 
@@ -55,11 +65,11 @@ Kayıtlar hazır; Squarespace **Kayıt ekleyin** öncesi **`cortexplus@cortexplu
 |-------|--------|
 | [GREENFIELD-CONNECT.md](./GREENFIELD-CONNECT.md) | Bağlantılar |
 | [LAUNCH-SEQUENCE.md](./LAUNCH-SEQUENCE.md) | Launch checklist |
-| [DNS-CORTEXPLUS-APP.md](./DNS-CORTEXPLUS-APP.md) | www + Resend DNS |
+| [WORKSPACE-EMAIL.md](./WORKSPACE-EMAIL.md) | SMTP + Confirm |
 | [IDENTITY.md](./IDENTITY.md) | `cortexplus@cortexplus.app` |
 
 ---
 
 ## Teslim cümlesi
 
-**cortexplus.app** production’da kayıt, giriş ve Google OAuth ile sorunsuz çalışır; kod ve doküman **`main`** üzerinde güncel. www ve Resend doğrulama maili için DNS kayıtları dokümante edildi — Squarespace doğrulama kodu girildiğinde aynı runbook ile kapanır.
+**cortexplus.app** production’da kayıt, giriş ve Google OAuth ile çalışır; e-posta **Google Workspace SMTP** (`cortexplus@cortexplus.app`) ile Confirm email açık olduğunda launch kapanır. Kod ve doküman **`main`** üzerinde güncel.

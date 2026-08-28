@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,20 @@ import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { authCallbackUrl } from "@/lib/auth/messages";
 
+const SIGNUP_EMAIL_KEY = "cortex-signup-email";
+
 export default function EmailDogrulaPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(SIGNUP_EMAIL_KEY);
+      if (stored) setEmail(stored);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   async function resend(event: React.FormEvent) {
     event.preventDefault();

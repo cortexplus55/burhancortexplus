@@ -2,7 +2,7 @@
 
 Proje: **dgjfyewgrukglsehyntc** · Site: **https://cortexplus.app**
 
-**Canlı kayıt maili patlıyorsa:** [EMAIL-SIGNUP-FIX.md](./EMAIL-SIGNUP-FIX.md) (Custom SMTP + doğrulanmamış Resend domain).
+**E-posta kurulumu (güncel):** [WORKSPACE-EMAIL.md](./WORKSPACE-EMAIL.md) — Google Workspace SMTP, gönderen `cortexplus@cortexplus.app`. Resend **kullanılmıyor**.
 
 ## Supabase → Authentication → URL Configuration
 
@@ -16,19 +16,27 @@ Proje: **dgjfyewgrukglsehyntc** · Site: **https://cortexplus.app**
 Uygulama kayıt/e-posta yenileme için yönlendirme:  
 `/auth/callback?next=/kayit/tamamla`
 
-## E-posta (Resend)
+## E-posta (Workspace Gmail SMTP)
 
-Vercel env:
+**Vercel** (veli daveti, uygulama maili):
 
-- `RESEND_API_KEY`
-- `EMAIL_FROM` — örn. `Cortex Plus <bildirim@cortexplus.app>` (domain Resend’de doğrulanmış olmalı)
+- `SMTP_HOST=smtp.gmail.com`
+- `SMTP_PORT=587`
+- `SMTP_USER=cortexplus@cortexplus.app`
+- `SMTP_PASS` — Google **uygulama şifresi** (hesap şifresi değil)
+- `EMAIL_FROM=Cortex Plus <cortexplus@cortexplus.app>`
 
-Supabase → Authentication → **SMTP** (veya built-in mail):  
-Canlıda mail gitmiyorsa **Resend SMTP** veya Supabase custom SMTP kullan.
+**Supabase** → Authentication → Emails → **SMTP Settings** (aynı kimlik bilgileri).
 
-**E-posta doğrulama zorunlu mu?**  
-Açıksa: kayıt sonrası oturum yok → kullanıcı `/email-dogrula` görür (beklenen).  
-Kapalıysa (MVP): kayıt anında oturum + `completeSignup` — Dashboard’da “Confirm email” ayarını bilinçli seç.
+**Confirm email:** Production’da **açık** olmalı. Kapalıyken kayıt anında oturum açılır (geçici MVP — bkz. [EMAIL-SIGNUP-FIX.md](./EMAIL-SIGNUP-FIX.md)).
+
+Confirm açıkken akış:
+
+1. `/kayit` → Supabase doğrulama maili gönderir.
+2. Kullanıcı `/email-dogrula` görür (oturum yok).
+3. Maildeki link → `/auth/callback` → `/kayit/tamamla` → rol ana sayfası.
+
+Admin: `/admin/sistem` → **Workspace SMTP bağlantısını test et** (`nodemailer.verify`).
 
 ## Google OAuth
 
@@ -36,14 +44,13 @@ Kapalıysa (MVP): kayıt anında oturum + `completeSignup` — Dashboard’da �
 2. **Authorized redirect URI:**  
    `https://dgjfyewgrukglsehyntc.supabase.co/auth/v1/callback`
 3. Supabase → Authentication → Providers → Google: Client ID + Secret.
-4. Vercel (isteğe bağlı, kod kullanmıyorsa gerekmez):  
-   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` yalnızca custom flow varsa.
 
-Uygulama: `/giris` ve kayıt son adımı **Google ile devam et** → `/auth/callback?next=...`
+Uygulama: `/giris` ve kayıt **Google ile devam et** → `/auth/callback?next=...`
 
 ## Test checklist
 
 - [ ] `/api/health` → `ok: true`
-- [ ] E-posta kayıt → mail gelir → link → `/kayit/tamamla` → `/ogretmen` veya role home
-- [ ] Google kayıt (onaylı) → aynı tamamlama
+- [ ] `/admin/sistem` → SMTP yapılandırıldı + bağlantı testi OK
+- [ ] E-posta kayıt → mail gelir → link → `/kayit/tamamla` → role home
+- [ ] Google kayıt → aynı tamamlama (Confirm OAuth’u etkilemez)
 - [ ] Hatalı link → `/auth/auth-code-error`

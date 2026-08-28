@@ -1,25 +1,25 @@
 # Supabase CLI — proje bağlantısı
 
 > **Aktif proje:** `dgjfyewgrukglsehyntc` (cortexplus-platform, eu-central-1)  
-> **GitHub:** https://github.com/cortexplus55/burhancortexplus
+> **GitHub:** https://github.com/cortexplus55/burhancortexplus  
+> **CLI özeti:** [CLI-CONNECT.md](../../../docs/delivery/CLI-CONNECT.md)
 
 Proje ref: **`dgjfyewgrukglsehyntc`**
 
-## Durum
+## Kurulum (PowerShell, interaktif)
 
-| Adım | Sonuç |
-|------|--------|
-| Dashboard MCP migrations | Uygulandı (greenfield) |
-| `npx supabase link --project-ref dgjfyewgrukglsehyntc` | Dashboard ile **aynı hesap** gerekir |
-
-**Yapılacak:** Dashboard’a girdiğin **aynı Supabase hesabıyla** yerel PowerShell’de `npx supabase login`, ardından:
+Dashboard’da **dgjfyewgrukglsehyntc** gördüğün **aynı Supabase hesabı** ile:
 
 ```powershell
 cd cortex-plus
+npx supabase login
+npx supabase init          # config.toml varsa atlanir
 npx supabase link --project-ref dgjfyewgrukglsehyntc
 npx supabase migration list
 ```
 
 Veya kökten: `.\scripts\setup-supabase.ps1`
 
-Cursor MCP: `.cursor/mcp.json` → `https://mcp.supabase.com/mcp?project_ref=dgjfyewgrukglsehyntc`
+**Yanlış hesap belirtisi:** `projects list` içinde ref yok veya link/migration **403**.
+
+Cursor MCP: `.cursor/mcp.json` → `project_ref=dgjfyewgrukglsehyntc`

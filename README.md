@@ -11,7 +11,7 @@ Tek GitHub kaynağı → Supabase + Vercel aynı repoya bağlanır.
 | **Vercel Root Directory** | `cortex-plus` |
 | **Supabase ref** | `dgjfyewgrukglsehyntc` |
 
-Detay: `docs/delivery/GREENFIELD-CONNECT.md`
+Detay: `docs/delivery/GREENFIELD-CONNECT.md` · **CLI:** `docs/delivery/CLI-CONNECT.md` · `scripts/setup-cli.ps1`
 
 ## Repo
 

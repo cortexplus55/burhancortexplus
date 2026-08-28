@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { AdminTable } from "@/components/admin/admin-table";
+import { SmtpTestButton } from "@/components/admin/smtp-test-button";
 import { requireAdmin } from "@/lib/auth/session";
 
 export const metadata = { title: "Sistem" };
@@ -31,6 +32,14 @@ export default async function AdminSistemPage() {
         görüntülenmez.
       </p>
       <AdminTable columns={["Servis", "Değişken", "Durum"]} rows={rows} />
+      <div className="mt-8 border-t pt-6">
+        <h2 className="mb-2 text-sm font-medium">Workspace SMTP</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Gmail uygulama şifresi ile Vercel&apos;de SMTP_* tanımlı olmalı. Kurulum:{" "}
+          <code className="text-xs">docs/delivery/WORKSPACE-EMAIL.md</code>
+        </p>
+        <SmtpTestButton />
+      </div>
     </AppShell>
   );
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { auditLog } from "@/lib/audit";
+import { verifySmtpConnection } from "@/lib/email/smtp";
 
 async function requireAdminActor() {
   const supabase = await createClient();
@@ -210,5 +211,32 @@ export async function grantCredits(userId: string, amount: number) {
   });
 
   revalidatePath("/admin/kullanicilar");
+  return { ok: true };
+}
+
+export async function testWorkspaceSmtp() {
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+
+  const result = await verifySmtpConnection();
+  if (!result.ok) {
+    const hint =
+      result.reason === "smtp_not_configured"
+        ? "SMTP_PASS veya EMAIL_FROM tanımlı değil."
+        : result.reason.includes("535")
+          ? "535: Uygulama şifresi gerekir (hesap şifresi değil)."
+          : result.reason;
+    return { ok: false, error: hint };
+  }
+
+  const service = createServiceClient();
+  await auditLog(service, {
+    actorId,
+    action: "smtp.verify_ok",
+    entityType: "system",
+    entityId: "workspace_smtp",
+  });
+
+  revalidatePath("/admin/sistem");
   return { ok: true };
 }

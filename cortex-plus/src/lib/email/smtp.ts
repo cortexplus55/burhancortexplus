@@ -34,3 +34,22 @@ export function createSmtpTransport(config: SmtpConfig) {
     auth: { user: config.user, pass: config.pass },
   });
 }
+
+export async function verifySmtpConnection(): Promise<
+  { ok: true } | { ok: false; reason: string }
+> {
+  const config = getSmtpConfig();
+  if (!config) {
+    return { ok: false, reason: "smtp_not_configured" };
+  }
+
+  try {
+    const transport = createSmtpTransport(config);
+    await transport.verify();
+    return { ok: true };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "smtp_verify_failed";
+    return { ok: false, reason: message.slice(0, 240) };
+  }
+}

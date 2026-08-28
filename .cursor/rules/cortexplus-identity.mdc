@@ -24,7 +24,8 @@ Tüm **operasyon, otomasyon, panel girişi, OAuth test kullanıcısı, Squarespa
 
 ## Uygulama e-postaları (gönderen)
 
-- Transactional gönderim: `bildirim@cortexplus.app` (`.env` `EMAIL_FROM`) — bu **gönderen** adresidir; operasyon/oturum kimliği yine `cortexplus@cortexplus.app`.
+- Transactional gönderim: **`Cortex Plus <cortexplus@cortexplus.app>`** (`.env` `EMAIL_FROM`, Google Workspace SMTP — bkz. [WORKSPACE-EMAIL.md](./WORKSPACE-EMAIL.md)).
+- Operasyon/oturum kimliği ile aynı posta kutusu: `cortexplus@cortexplus.app`.
 
 ## Referans
 

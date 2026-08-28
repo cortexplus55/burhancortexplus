@@ -8,8 +8,12 @@
 | **Vercel Root Directory** | `cortex-plus` |
 | **Supabase proje ref** | `dgjfyewgrukglsehyntc` |
 | **Supabase URL** | `https://dgjfyewgrukglsehyntc.supabase.co` |
+| **Vercel CLI link** | team **`cortexplus55`**, proje **`burhancortexplus`** (preview: `burhancortexplus-*-cortexplus55.vercel.app`) |
+| **Vercel prod env** | proje **`burhancortexplus-app`** → **`cortexplus.app`** |
 
-**Kullanma:** `burhan55600-pixel/*`, eski `cortexplus-platform`, eski `cortex-plus` repo, Supabase `gwqonggqzvavljguiryx`.
+**CLI kurulum / doğrulama:** [CLI-CONNECT.md](./CLI-CONNECT.md) · `scripts/setup-cli.ps1` · `scripts/verify-cli.ps1`
+
+**Kullanma:** `burhan55600-pixel/*`, `burhan55600-5553s-projects/cortex-plus`, eski `cortexplus-platform`, eski `cortex-plus` repo, Supabase `gwqonggqzvavljguiryx`.
 
 ## Durum
 
@@ -19,9 +23,10 @@ Yol haritası (PayTR hariç sıra): [LAUNCH-SEQUENCE.md](./LAUNCH-SEQUENCE.md) �
 |---------|--------|
 | GitHub `burhancortexplus` | **`main` push edildi** (`cortexplus55`); güncellemeler için `gh auth setup-git` + `git push origin main` |
 | Supabase `dgjfyewgrukglsehyntc` | Şema + seed (ör. **427** okul) |
-| Vercel **cortexplus55 / burhancortexplus-app** | Canlı domain **`cortexplus.app`**, Framework **Next.js**, Root **`cortex-plus`** |
-| Vercel **cortexplus55 / cortexplus-prod** | Aynı repo; yedek proje |
-| Vercel **eski / geçici** | `burhan55600-5553s-projects/cortex-plus` → **https://cortex-plus-theta.vercel.app** (isteğe bağlı kapat) |
+| Vercel **cortexplus55 / burhancortexplus** | CLI link; Git deploy preview |
+| Vercel **cortexplus55 / burhancortexplus-app** | Canlı domain **`cortexplus.app`**, production env |
+| Vercel **cortexplus55 / cortexplus-prod** | Yedek proje |
+| Vercel **eski — kullanma** | `burhan55600-5553s-projects/cortex-plus` → **cortex-plus-theta.vercel.app** |
 
 ### Supabase Auth (Dashboard → Authentication → URL Configuration)
 
@@ -46,5 +51,6 @@ Project **cortexplus-platform** (`dgjfyewgrukglsehyntc`) → Integrations → Gi
 ## Hazır sinyalleri
 
 - **`github hazır`** — push + Vercel import bitti; env + deploy doğrula  
-- **`supabase cli hazır`** — `scripts/setup-supabase.ps1`  
+- **`supabase cli hazır`** — `scripts/setup-supabase.ps1` (interaktif `supabase login`)  
+- **`cli hazır`** — `scripts/setup-cli.ps1` + `scripts/verify-cli.ps1`
 - **`astra plus hazır`** — Astra Plus audit
