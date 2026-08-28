@@ -33,6 +33,20 @@ const SIGMA_BENEFITS = [
   "Yoğun sınav dönemleri için ek kredi",
 ];
 
+const PARENT_PLUS_BENEFITS = [
+  "Kota çocuğunun hesabına tanımlanır",
+  "Yüksek kredi ve ücretsiz hak",
+  "Deneme sınavı üretimi ve analiz",
+  "Quiz, flashcard ve çalışma planı",
+  "Gelişmiş AI modeli",
+];
+
+const PARENT_SIGMA_BENEFITS = [
+  "Plus’taki tüm avantajlar çocuğunun hesabında",
+  "En gelişmiş model ve yüksek kredi paketi",
+  "Yoğun sınav dönemleri için ek kota",
+];
+
 const FALLBACK_PLUS = 770;
 const FALLBACK_SIGMA = 2567;
 const FALLBACK_YEARLY_PLUS = 321;
@@ -50,6 +64,10 @@ export function AstraSubscriptionCards({
   closeHref,
   studentAskParent = false,
   embedded = false,
+  audience = "default",
+  beneficiaryStudentId,
+  childName,
+  currentBadge = null,
 }: {
   plans: Plan[];
   guestMode?: boolean;
@@ -57,6 +75,11 @@ export function AstraSubscriptionCards({
   studentAskParent?: boolean;
   /** AppShell içinde gösterim */
   embedded?: boolean;
+  audience?: "default" | "parent";
+  /** Veli ödemesinde kota bu öğrenciye yazılır. */
+  beneficiaryStudentId?: string | null;
+  childName?: string | null;
+  currentBadge?: "Plus" | "Sigma" | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -90,9 +113,19 @@ export function AstraSubscriptionCards({
     return Math.round(plusMonthly * (FALLBACK_YEARLY_PLUS / FALLBACK_PLUS));
   }
 
+  const isParent = audience === "parent";
+  const plusOwned = currentBadge === "Plus" || currentBadge === "Sigma";
+  const sigmaOwned = currentBadge === "Sigma";
+  const plusBenefits = isParent ? PARENT_PLUS_BENEFITS : PLUS_BENEFITS;
+  const sigmaBenefits = isParent ? PARENT_SIGMA_BENEFITS : SIGMA_BENEFITS;
+
   async function startCheckout(planId: string) {
     if (guestMode) {
       router.push(`/kayit?next=${encodeURIComponent("/paketler")}`);
+      return;
+    }
+    if (isParent && !beneficiaryStudentId) {
+      toast.error("Plus’ı hangi çocuk için alacağını seç.");
       return;
     }
     setLoadingId(planId);
@@ -100,7 +133,10 @@ export function AstraSubscriptionCards({
       const res = await fetch("/api/payments/paytr/create-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId }),
+        body: JSON.stringify({
+          planId,
+          ...(beneficiaryStudentId ? { studentId: beneficiaryStudentId } : {}),
+        }),
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -122,9 +158,12 @@ export function AstraSubscriptionCards({
 
   if (iframeUrl) {
     return (
-      <div className="astra-app min-h-dvh px-4 py-6">
+      <div className={cn("astra-app py-6", embedded ? "" : "min-h-dvh px-4")}>
         <p className="mb-3 text-sm text-[var(--astra-muted)]">
           Ödeme formu güvenli çerçevede açıldı.
+          {isParent && childName
+            ? ` Kota ${childName} hesabına yazılır.`
+            : null}
         </p>
         <iframe
           src={iframeUrl}
@@ -145,8 +184,8 @@ export function AstraSubscriptionCards({
   return (
     <div
       className={cn(
-        "astra-app relative px-4 pb-8",
-        embedded ? "pt-2" : "min-h-dvh pt-6",
+        "astra-app relative pb-8",
+        embedded ? "pt-2" : "min-h-dvh px-4 pt-6",
       )}
     >
       {!embedded ? (
@@ -161,15 +200,17 @@ export function AstraSubscriptionCards({
       ) : null}
 
       <div className={cn("mx-auto max-w-md space-y-6", embedded ? "" : "pt-8")}>
-        <div className="text-center">
-          <h1 className="text-xl font-semibold leading-snug">
-            Daha iyi notlar al ve 2 kat hızlı öğren
-          </h1>
-          <p className="mt-2 text-sm text-[var(--astra-muted)]">
-            Tüm özellikler açık; AI işlemleri kredi ve ücretsiz hak harcar. Plus
-            aboneliği gelişmiş model ve yüksek kredi paketi sunar.
-          </p>
-        </div>
+        {isParent ? null : (
+          <div className="text-center">
+            <h1 className="text-xl font-semibold leading-snug">
+              Daha iyi notlar al ve 2 kat hızlı öğren
+            </h1>
+            <p className="mt-2 text-sm text-[var(--astra-muted)]">
+              Tüm özellikler açık; AI işlemleri kredi ve ücretsiz hak harcar. Plus
+              aboneliği gelişmiş model ve yüksek kredi paketi sunar.
+            </p>
+          </div>
+        )}
 
         {returnTo && !guestMode ? (
           <p className="rounded-xl border border-[var(--astra-border)] bg-[var(--astra-surface)] p-3 text-sm text-[var(--astra-muted)]">
@@ -177,6 +218,7 @@ export function AstraSubscriptionCards({
           </p>
         ) : null}
 
+        {plusOwned ? null : (
         <article className="astra-pay-card p-5">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
@@ -222,19 +264,25 @@ export function AstraSubscriptionCards({
               </p>
               <button
                 type="button"
-                disabled={loadingId === plusPlan?.id}
+                disabled={plusOwned || loadingId === plusPlan?.id}
                 className="astra-btn-primary mt-4 w-full rounded-full py-3.5 text-sm font-semibold disabled:opacity-60"
                 onClick={() =>
-                  plusPlan
-                    ? startCheckout(plusPlan.id)
-                    : guestMode
-                      ? router.push("/kayit")
-                      : toast.error("Plus paketi yapılandırılmadı.")
+                  plusOwned
+                    ? undefined
+                    : plusPlan
+                      ? startCheckout(plusPlan.id)
+                      : guestMode
+                        ? router.push("/kayit")
+                        : toast.error("Plus paketi yapılandırılmadı.")
                 }
               >
-                {loadingId === plusPlan?.id
-                  ? "Hazırlanıyor…"
-                  : "Plus'a yükselt"}
+                {plusOwned
+                  ? "Bu çocukta Plus açık"
+                  : loadingId === plusPlan?.id
+                    ? "Hazırlanıyor…"
+                    : isParent
+                      ? "Çocuğum için Plus al"
+                      : "Plus'a yükselt"}
               </button>
               {studentAskParent && plusPlan && !guestMode ? (
                 <AskParentPaymentButton
@@ -256,7 +304,7 @@ export function AstraSubscriptionCards({
               </button>
               {plusOpen ? (
                 <ul className="mt-2 space-y-1.5 text-sm text-[var(--astra-muted)]">
-                  {PLUS_BENEFITS.map((b) => (
+                  {plusBenefits.map((b) => (
                     <li key={b}>· {b}</li>
                   ))}
                 </ul>
@@ -264,6 +312,7 @@ export function AstraSubscriptionCards({
             </div>
           </div>
         </article>
+        )}
 
         <article className="astra-pay-card relative overflow-hidden p-5">
           <span className="absolute right-3 top-3 rounded-full border border-violet-400/40 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-200">
@@ -290,26 +339,32 @@ export function AstraSubscriptionCards({
               </p>
               <button
                 type="button"
-                disabled={loadingId === sigmaPlan?.id}
+                disabled={sigmaOwned || loadingId === sigmaPlan?.id}
                 className="astra-btn-primary mt-4 w-full rounded-full py-3.5 text-sm font-semibold disabled:opacity-60"
                 onClick={() =>
-                  sigmaPlan
-                    ? startCheckout(sigmaPlan.id)
-                    : guestMode
-                      ? router.push("/kayit")
-                      : toast.error("Sigma paketi yapılandırılmadı.")
+                  sigmaOwned
+                    ? undefined
+                    : sigmaPlan
+                      ? startCheckout(sigmaPlan.id)
+                      : guestMode
+                        ? router.push("/kayit")
+                        : toast.error("Sigma paketi yapılandırılmadı.")
                 }
               >
-                {loadingId === sigmaPlan?.id
-                  ? "Hazırlanıyor…"
-                  : "Sigma'ya yükselt"}
+                {sigmaOwned
+                  ? "Bu çocukta Sigma açık"
+                  : loadingId === sigmaPlan?.id
+                    ? "Hazırlanıyor…"
+                    : isParent
+                      ? "Çocuğum için Sigma al"
+                      : "Sigma'ya yükselt"}
               </button>
               <ul className="mt-3 space-y-1 text-xs text-[var(--astra-muted)]">
-                {SIGMA_BENEFITS.map((b) => (
+                {sigmaBenefits.map((b) => (
                   <li key={b}>· {b}</li>
                 ))}
               </ul>
-              {studentAskParent && sigmaPlan && !guestMode ? (
+              {isParent ? null : studentAskParent && sigmaPlan && !guestMode ? (
                 <AskParentPaymentButton
                   planId={sigmaPlan.id}
                   planName={sigmaPlan.name}

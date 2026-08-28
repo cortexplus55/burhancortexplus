@@ -51,6 +51,7 @@ export function ChatPanel({
   chatCreditCost,
   isPremium,
   tutorStyleLabel,
+  starterPrompts,
 }: {
   initialConversationId?: string;
   initialMessages?: Message[];
@@ -64,9 +65,10 @@ export function ChatPanel({
   showSubjectPicker?: boolean;
   showAttachments?: boolean;
   returnPath?: string;
-  chatCreditCost?: number;
+  chatCreditCost?: number | null;
   isPremium?: boolean;
   tutorStyleLabel?: string;
+  starterPrompts?: { label: string; prompt: string }[];
 }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -235,7 +237,7 @@ export function ChatPanel({
 
         {isAstra && messages.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 py-8 text-center">
-            <p className="text-lg font-medium">{greetingLine ?? "Merhaba! 👋"}</p>
+            <p className="text-lg font-medium">{greetingLine ?? "Merhaba"}</p>
             <Button
               type="button"
               className="astra-btn-primary rounded-full px-8"
@@ -249,6 +251,21 @@ export function ChatPanel({
             >
               {startLabel}
             </Button>
+            {starterPrompts?.length ? (
+              <div className="flex max-w-md flex-wrap justify-center gap-2">
+                {starterPrompts.map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    disabled={loading}
+                    className="rounded-full border border-[var(--astra-border)] px-3 py-1.5 text-xs text-[var(--astra-muted)] hover:border-[var(--astra-primary)] hover:text-white"
+                    onClick={() => send(item.prompt)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
 

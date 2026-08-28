@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseParentProfileUpdate } from "@/lib/parent/profile";
 
 async function currentUser() {
   const supabase = await createClient();
@@ -42,6 +43,20 @@ export async function markNotificationRead(notificationId: string) {
   return { ok: !error };
 }
 
+export async function markAllNotificationsRead() {
+  const { supabase, user } = await currentUser();
+  if (!user) return { ok: false };
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("user_id", user.id)
+    .is("read_at", null);
+
+  revalidatePath("/bildirimler");
+  return { ok: !error };
+}
+
 const profileSchema = z.object({
   fullName: z.string().min(2).max(120),
   gradeLevel: z.string().max(40).optional(),
@@ -54,6 +69,37 @@ const profileSchema = z.object({
 export async function updateProfile(formData: FormData) {
   const { supabase, user } = await currentUser();
   if (!user) return { ok: false, error: "Giriş gerekli." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("primary_role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profile?.primary_role === "parent") {
+    const parsed = parseParentProfileUpdate({
+      fullName: formData.get("fullName"),
+      locale: formData.get("locale") ?? "tr",
+      parentRelation: formData.get("parentRelation"),
+      phone: formData.get("phone") ?? "",
+    });
+    if (!parsed.ok) return { ok: false, error: parsed.error };
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        full_name: parsed.data.fullName,
+        locale: parsed.data.locale,
+        parent_relation: parsed.data.parentRelation,
+        phone: parsed.data.phone,
+      })
+      .eq("id", user.id);
+
+    revalidatePath("/profil");
+    revalidatePath("/veli");
+    revalidatePath("/ayarlar");
+    return { ok: !error, error: error ? "Kaydedilemedi." : undefined };
+  }
 
   const parsed = profileSchema.safeParse({
     fullName: formData.get("fullName"),

@@ -15,6 +15,7 @@ import {
 } from "@/lib/credits/service";
 import { searchDocumentChunks } from "@/lib/rag/pipeline";
 import { recordUserActivity } from "@/lib/streak/record-activity";
+import { getParentCoachContext } from "@/lib/parent/coach-context";
 
 const bodySchema = z.object({
   message: z.string().min(1).max(12000),
@@ -157,6 +158,11 @@ export async function POST(request: Request) {
         .join("\n")}\nYanıtında kullandığın alıntıları [1], [2] biçiminde belirt.`
     : "";
 
+  let parentContextBlock = "";
+  if (audience === "parent") {
+    parentContextBlock = `\n\n${await getParentCoachContext(userId)}`;
+  }
+
   try {
     const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
 
@@ -175,7 +181,7 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "system",
-          content: `${SYSTEM_GUARDRAIL} ${AUDIENCE_INSTRUCTIONS[audience]}${styleBlock}${contextBlock}`,
+          content: `${SYSTEM_GUARDRAIL} ${AUDIENCE_INSTRUCTIONS[audience]}${styleBlock}${contextBlock}${parentContextBlock}`,
         },
         ...history.slice(0, -1),
         { role: "user", content: userContent },

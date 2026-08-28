@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { parentPlusHref } from "@/lib/parent/plus-href";
 
 type RequestRow = {
   id: string;
@@ -46,10 +47,10 @@ export function ParentPaymentRequests({
             ) : null}
             <div className="mt-3 flex flex-wrap gap-2">
               <Link
-                href={`/odemeler?plan=${row.plan_id ?? ""}`}
+                href={parentPlusHref(row.student_id, { plan: row.plan_id })}
                 className="astra-btn-primary rounded-full px-4 py-1.5 text-xs font-semibold"
               >
-                Ödemeye git
+                Bu çocuk için öde
               </Link>
               <DismissButton requestId={row.id} />
             </div>

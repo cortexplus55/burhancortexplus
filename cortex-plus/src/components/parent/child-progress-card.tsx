@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { ChildSummary } from "@/lib/parent/child-summary";
-import { formatDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export function ChildProgressCard({
@@ -8,11 +7,15 @@ export function ChildProgressCard({
   meta,
   avatar,
   summary,
+  href,
+  plusHref = "/veli/plus",
 }: {
   name: string;
   meta: string;
   avatar: string;
   summary: ChildSummary | null;
+  href: string;
+  plusHref?: string;
 }) {
   const activeStudyDays = summary?.studyDayFlags.filter(Boolean).length ?? 0;
 
@@ -38,10 +41,26 @@ export function ChildProgressCard({
       </div>
 
       {summary ? (
-        <ChildSummaryBlock
-          summary={summary}
-          activeStudyDays={activeStudyDays}
-        />
+        <div className="mt-4 space-y-4">
+          <StatGrid summary={summary} />
+          <StudyStrip
+            flags={summary.studyDayFlags}
+            activeDays={activeStudyDays}
+            days={summary.studyDayFlags.length}
+          />
+          {summary.topics.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {summary.topics.map((topic) => (
+                <span
+                  key={topic.label}
+                  className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs text-amber-300"
+                >
+                  {topic.label}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
       ) : (
         <p className="mt-3 text-xs text-[var(--astra-muted)]">
           Özet yüklenemedi. Onaylı bağlantıyı kontrol et.
@@ -49,28 +68,30 @@ export function ChildProgressCard({
       )}
 
       <p className="mt-3 text-xs text-[var(--astra-muted)]">
-        Sohbet içerikleri gizlidir; yalnızca ilerleme özeti paylaşılır.
+        Sohbet içerikleri gizlidir.
       </p>
 
-      {summary && !summary.hasPlus ? (
+      <div className="mt-3 flex flex-wrap items-center gap-3">
         <Link
-          href="/veli/plus"
-          className="mt-3 inline-flex text-xs font-semibold text-[var(--astra-primary)]"
+          href={href}
+          className="text-xs font-semibold text-[var(--astra-primary)]"
         >
-          Bu çocuk için Plus al
+          Detayı gör
         </Link>
-      ) : null}
+        {summary && !summary.hasPlus ? (
+          <Link
+            href={plusHref}
+            className="text-xs font-semibold text-[var(--astra-muted)]"
+          >
+            Plus al
+          </Link>
+        ) : null}
+      </div>
     </article>
   );
 }
 
-function ChildSummaryBlock({
-  summary,
-  activeStudyDays,
-}: {
-  summary: ChildSummary;
-  activeStudyDays: number;
-}) {
+export function StatGrid({ summary }: { summary: ChildSummary }) {
   const stats = [
     { label: "Aktif gün", value: `${summary.activeDays}` },
     {
@@ -84,95 +105,90 @@ function ChildSummaryBlock({
   ];
 
   return (
-    <div className="mt-4 space-y-4">
-      <div>
-        <p className="text-xs text-[var(--astra-muted)]">Son 30 gün</p>
-        <div className="mt-2 grid grid-cols-4 gap-2">
-          {stats.map((stat) => (
-            <div
-              key={stat.label}
-              className="rounded-xl border border-[var(--astra-border)] p-2 text-center"
-            >
-              <p className="text-sm font-semibold">{stat.value}</p>
-              <p className="mt-0.5 text-[10px] text-[var(--astra-muted)]">
-                {stat.label}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <p className="text-xs text-[var(--astra-muted)]">
-          Çalışma günleri · son 14 gün · {activeStudyDays} aktif
-        </p>
-        <div
-          className="mt-2 flex gap-1"
-          role="img"
-          aria-label={`Son 14 günde ${activeStudyDays} aktif çalışma günü`}
-        >
-          {summary.studyDayFlags.map((on, index) => (
-            <span
-              key={index}
-              className={cn(
-                "h-7 flex-1 rounded-[3px]",
-                on ? "bg-amber-400" : "bg-white/10",
-              )}
-            />
-          ))}
-        </div>
-      </div>
-
-      {summary.topics.length ? (
-        <div>
-          <p className="text-xs text-[var(--astra-muted)]">
-            Desteğe ihtiyaç duyduğu konular
-          </p>
-          <ul className="mt-2 space-y-2">
-            {summary.topics.map((topic) => {
-              const pct = Math.min(100, Math.round(topic.severity * 100));
-              return (
-                <li key={topic.label}>
-                  <div className="flex items-center justify-between text-xs">
-                    <span>{topic.label}</span>
-                    <span className="text-[var(--astra-muted)]">{pct}%</span>
-                  </div>
-                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
-                    <div
-                      className="h-full rounded-full bg-amber-400"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
-
-      <div>
-        <p className="text-xs text-[var(--astra-muted)]">Son denemeler</p>
-        {summary.recentExams.length ? (
-          <ul className="mt-2 space-y-2">
-            {summary.recentExams.map((exam, index) => (
-              <li
-                key={`${exam.title}-${exam.at ?? index}`}
-                className="flex items-center justify-between gap-3 text-sm"
-              >
-                <span className="min-w-0 truncate">{exam.title}</span>
-                <span className="shrink-0 text-xs text-[var(--astra-muted)]">
-                  {exam.score != null ? `${exam.score}` : "—"} ·{" "}
-                  {formatDateShort(exam.at)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-1.5 text-xs text-[var(--astra-muted)]">
-            Son 30 günde tamamlanmış deneme yok.
-          </p>
-        )}
+    <div>
+      <p className="text-xs text-[var(--astra-muted)]">Son 30 gün</p>
+      <div className="mt-2 grid grid-cols-4 gap-2">
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className="rounded-xl border border-[var(--astra-border)] p-2 text-center"
+          >
+            <p className="text-sm font-semibold">{stat.value}</p>
+            <p className="mt-0.5 text-[10px] text-[var(--astra-muted)]">
+              {stat.label}
+            </p>
+          </div>
+        ))}
       </div>
     </div>
+  );
+}
+
+export function StudyStrip({
+  flags,
+  activeDays,
+  days,
+}: {
+  flags: boolean[];
+  activeDays: number;
+  days: number;
+}) {
+  return (
+    <div>
+      <p className="text-xs text-[var(--astra-muted)]">
+        Çalışma günleri · son {days} gün · {activeDays} aktif
+      </p>
+      <div
+        className="mt-2 flex gap-0.5"
+        role="img"
+        aria-label={`Son ${days} günde ${activeDays} aktif çalışma günü`}
+      >
+        {flags.map((on, index) => (
+          <span
+            key={index}
+            className={cn(
+              "h-7 flex-1 rounded-[2px]",
+              on ? "bg-amber-400" : "bg-white/10",
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function TopicBars({
+  topics,
+}: {
+  topics: ChildSummary["topics"];
+}) {
+  if (!topics.length) {
+    return (
+      <p className="text-xs text-[var(--astra-muted)]">
+        Henüz zayıf konu analizi yok.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="space-y-2">
+      {topics.map((topic) => {
+        const pct = Math.min(100, Math.round(topic.severity * 100));
+        return (
+          <li key={topic.label}>
+            <div className="flex items-center justify-between text-xs">
+              <span>{topic.label}</span>
+              <span className="text-[var(--astra-muted)]">{pct}%</span>
+            </div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-amber-400"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

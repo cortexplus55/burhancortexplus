@@ -6,9 +6,13 @@ import {
   generateMerchantOid,
   isPaytrConfigured,
 } from "@/lib/payments/paytr";
+import { resolveCheckoutBeneficiary } from "@/lib/payments/beneficiary";
 import { auditLog } from "@/lib/audit";
 
-const bodySchema = z.object({ planId: z.string().uuid() });
+const bodySchema = z.object({
+  planId: z.string().uuid(),
+  studentId: z.string().uuid().optional(),
+});
 
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "paytr-token", limit: 10 });
@@ -35,9 +39,43 @@ export async function POST(request: Request) {
     );
   }
 
+  const { data: profile } = await service
+    .from("profiles")
+    .select("primary_role, full_name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const beneficiary = resolveCheckoutBeneficiary({
+    payerId: userId,
+    payerRole: profile?.primary_role as string | null,
+    studentId: parsed.data.studentId,
+  });
+
+  if (!beneficiary.ok) {
+    if (beneficiary.code === "child_required") {
+      return NextResponse.json(
+        { error: "Plus’ı hangi çocuk için alacağını seç." },
+        { status: 400 },
+      );
+    }
+    return errorResponse(403, "forbidden");
+  }
+
+  if (beneficiary.beneficiaryId !== userId) {
+    const { data: link } = await service
+      .from("parent_student_links")
+      .select("id")
+      .eq("parent_id", userId)
+      .eq("student_id", beneficiary.beneficiaryId)
+      .eq("status", "active")
+      .maybeSingle();
+    if (!link) return errorResponse(403, "forbidden");
+  }
+
   const merchantOid = generateMerchantOid();
   const { error: insertError } = await service.from("payments").insert({
     user_id: userId,
+    beneficiary_user_id: beneficiary.beneficiaryId,
     plan_id: plan.id,
     merchant_oid: merchantOid,
     amount_try: plan.price_try,
@@ -49,16 +87,18 @@ export async function POST(request: Request) {
   const origin = new URL(request.url).origin;
   const forwarded = request.headers.get("x-forwarded-for");
   const userIp = forwarded?.split(",")[0]?.trim() ?? "127.0.0.1";
+  const forChild = beneficiary.beneficiaryId !== userId;
+  const returnQuery = forChild ? "?kaynak=veli" : "";
 
   const { params } = buildPaytrToken({
     merchantOid,
     email: email ?? "kullanici@cortexplus.app",
     amountKurus: plan.price_try,
     userIp,
-    userName: "Cortex Plus kullanicisi",
-    productName: plan.name,
-    okUrl: `${origin}/odeme/basarili`,
-    failUrl: `${origin}/odeme/basarisiz`,
+    userName: profile?.full_name?.trim() || "Cortex Plus kullanicisi",
+    productName: forChild ? `${plan.name} (cocuk kotasi)` : plan.name,
+    okUrl: `${origin}/odeme/basarili${returnQuery}`,
+    failUrl: `${origin}/odeme/basarisiz${returnQuery}`,
   });
 
   try {
@@ -96,7 +136,11 @@ export async function POST(request: Request) {
       action: "payment.token.created",
       entityType: "payment",
       entityId: merchantOid,
-      metadata: { plan: plan.id, amount_try: plan.price_try },
+      metadata: {
+        plan: plan.id,
+        amount_try: plan.price_try,
+        beneficiary: beneficiary.beneficiaryId,
+      },
     });
 
     return NextResponse.json({

@@ -1,6 +1,10 @@
 import crypto from "crypto";
 import { createServiceClient } from "@/lib/supabase/server";
 import { verifyPaytrCallbackHash } from "@/lib/payments/paytr";
+import {
+  paymentWalletUserId,
+  planGrantsSubscription,
+} from "@/lib/payments/beneficiary";
 import { auditLog } from "@/lib/audit";
 
 /**
@@ -49,7 +53,9 @@ export async function POST(request: Request) {
 
   const { data: payment } = await service
     .from("payments")
-    .select("id, user_id, plan_id, status, plans(credit_amount, name, is_premium)")
+    .select(
+      "id, user_id, beneficiary_user_id, plan_id, status, plans(credit_amount, name, is_premium)",
+    )
     .eq("merchant_oid", merchantOid)
     .maybeSingle();
 
@@ -71,56 +77,97 @@ export async function POST(request: Request) {
     is_premium?: boolean;
   } | null;
   const creditAmount = plan?.credit_amount ?? 0;
+  const walletUserId = paymentWalletUserId(payment);
+  const payerId = payment.user_id as string;
+  const now = new Date().toISOString();
 
   await service
     .from("payments")
-    .update({ status: "paid", updated_at: new Date().toISOString() })
+    .update({ status: "paid", updated_at: now })
     .eq("merchant_oid", merchantOid);
 
-  const { data: wallet } = await service
-    .from("credit_wallets")
-    .select("balance")
-    .eq("user_id", payment.user_id)
-    .maybeSingle();
+  if (creditAmount > 0) {
+    const { data: wallet } = await service
+      .from("credit_wallets")
+      .select("balance")
+      .eq("user_id", walletUserId)
+      .maybeSingle();
 
-  const newBalance = (wallet?.balance ?? 0) + creditAmount;
+    const newBalance = (wallet?.balance ?? 0) + creditAmount;
 
-  await service
-    .from("credit_wallets")
-    .update({ balance: newBalance, updated_at: new Date().toISOString() })
-    .eq("user_id", payment.user_id);
+    if (wallet) {
+      await service
+        .from("credit_wallets")
+        .update({ balance: newBalance, updated_at: now })
+        .eq("user_id", walletUserId);
+    } else {
+      await service.from("credit_wallets").insert({
+        user_id: walletUserId,
+        balance: newBalance,
+        reserved: 0,
+        updated_at: now,
+      });
+    }
 
-  // Unique idempotency key blocks a second credit grant for the same order.
-  await service.from("credit_ledger").insert({
-    user_id: payment.user_id,
-    delta: creditAmount,
-    balance_after: newBalance,
-    entry_type: "purchase",
-    idempotency_key: `pay_${merchantOid}`,
-    reference_id: payment.id,
-    metadata: { merchant_oid: merchantOid },
-  });
+    // Unique idempotency key blocks a second credit grant for the same order.
+    await service.from("credit_ledger").insert({
+      user_id: walletUserId,
+      delta: creditAmount,
+      balance_after: newBalance,
+      entry_type: "purchase",
+      idempotency_key: `pay_${merchantOid}`,
+      reference_id: payment.id,
+      metadata: {
+        merchant_oid: merchantOid,
+        paid_by: payerId,
+        beneficiary: walletUserId,
+      },
+    });
+  }
 
-  await service.from("notifications").insert({
-    user_id: payment.user_id,
-    title: "Kredi yüklendi",
-    body: `${plan?.name ?? "Paket"} için ${creditAmount} kredi hesabına tanımlandı.`,
-  });
+  const notices: {
+    user_id: string;
+    title: string;
+    body: string;
+  }[] = [];
 
-  if (plan?.is_premium && payment.plan_id) {
+  if (walletUserId === payerId) {
+    notices.push({
+      user_id: payerId,
+      title: "Kredi yüklendi",
+      body: `${plan?.name ?? "Paket"} için ${creditAmount} kredi hesabına tanımlandı.`,
+    });
+  } else {
+    notices.push({
+      user_id: walletUserId,
+      title: "Plus hesabına tanımlandı",
+      body: `${plan?.name ?? "Paket"} kotası velin tarafından hesabına yüklendi.`,
+    });
+    notices.push({
+      user_id: payerId,
+      title: "Çocuğunun kotası açıldı",
+      body: `${plan?.name ?? "Paket"} çocuğunun hesabına tanımlandı. Raporların ücretsiz kalır.`,
+    });
+  }
+
+  if (notices.length) {
+    await service.from("notifications").insert(notices);
+  }
+
+  if (planGrantsSubscription(plan) && payment.plan_id) {
     const periodEnd = new Date();
     periodEnd.setDate(periodEnd.getDate() + 30);
 
     await service
       .from("subscriptions")
-      .update({ status: "inactive", updated_at: new Date().toISOString() })
-      .eq("user_id", payment.user_id)
+      .update({ status: "inactive", updated_at: now })
+      .eq("user_id", walletUserId)
       .eq("status", "active");
 
     const { data: existingSub } = await service
       .from("subscriptions")
       .select("id")
-      .eq("user_id", payment.user_id)
+      .eq("user_id", walletUserId)
       .maybeSingle();
 
     if (existingSub?.id) {
@@ -130,12 +177,12 @@ export async function POST(request: Request) {
           plan_id: payment.plan_id,
           status: "active",
           current_period_end: periodEnd.toISOString(),
-          updated_at: new Date().toISOString(),
+          updated_at: now,
         })
         .eq("id", existingSub.id);
     } else {
       await service.from("subscriptions").insert({
-        user_id: payment.user_id,
+        user_id: walletUserId,
         plan_id: payment.plan_id,
         status: "active",
         current_period_end: periodEnd.toISOString(),
@@ -143,12 +190,20 @@ export async function POST(request: Request) {
     }
   }
 
+  if (walletUserId !== payerId) {
+    await service
+      .from("parent_payment_requests")
+      .update({ status: "paid", resolved_at: now })
+      .eq("student_id", walletUserId)
+      .eq("status", "pending");
+  }
+
   await auditLog(service, {
-    actorId: payment.user_id,
+    actorId: payerId,
     action: "payment.completed",
     entityType: "payment",
     entityId: merchantOid,
-    metadata: { credits: creditAmount },
+    metadata: { credits: creditAmount, beneficiary: walletUserId },
   });
 
   return OK();

@@ -9,29 +9,15 @@ import {
 import { requireParent } from "@/lib/auth/session";
 import { getChildSummary, type ChildSummary } from "@/lib/parent/child-summary";
 import { getParentLinkStatus } from "@/lib/parent/link-status";
+import {
+  childAvatarLabel,
+  childMetaLine,
+  firstLinkedProfile,
+} from "@/lib/parent/child-profile";
 import { Users } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = { title: "Çocuklarım" };
-
-type LinkedProfile = {
-  full_name: string | null;
-  grade_level: string | null;
-  school_name: string | null;
-  avatar_url: string | null;
-};
-
-function firstProfile(value: unknown): LinkedProfile | null {
-  if (Array.isArray(value)) return (value[0] as LinkedProfile) ?? null;
-  return (value as LinkedProfile) ?? null;
-}
-
-function childAvatar(child: LinkedProfile | null) {
-  if (child?.avatar_url && !child.avatar_url.startsWith("http")) {
-    return child.avatar_url;
-  }
-  return (child?.full_name ?? "?").slice(0, 1).toUpperCase();
-}
 
 export default async function VeliPage() {
   const { supabase, user } = await requireParent();
@@ -97,18 +83,16 @@ export default async function VeliPage() {
             Bağlı öğrenciler ({active.length})
           </h2>
           {active.map((row) => {
-            const child = firstProfile(row.profiles);
+            const child = firstLinkedProfile(row.profiles);
             return (
               <ChildProgressCard
                 key={row.id}
                 name={child?.full_name ?? "Öğrenci"}
-                meta={
-                  [child?.grade_level, child?.school_name]
-                    .filter(Boolean)
-                    .join(" · ") || "Profil bilgisi yok"
-                }
-                avatar={childAvatar(child)}
+                meta={childMetaLine(child)}
+                avatar={childAvatarLabel(child)}
                 summary={summaries.get(row.id as string) ?? null}
+                href={`/veli/cocuk/${row.student_id}`}
+                plusHref={`/veli/plus?ogrenci=${row.student_id}`}
               />
             );
           })}
@@ -121,7 +105,7 @@ export default async function VeliPage() {
             Onay bekleyen ({pending.length})
           </h2>
           {pending.map((row) => {
-            const child = firstProfile(row.profiles);
+            const child = firstLinkedProfile(row.profiles);
             return (
               <PendingChildCard
                 key={row.id}

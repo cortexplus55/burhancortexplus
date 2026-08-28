@@ -73,7 +73,7 @@ const parentTabs: NavItem[] = [
     href: "/veli",
     label: "Çocuklarım",
     icon: Users,
-    match: (p) => p === "/veli",
+    match: (p) => p === "/veli" || p.startsWith("/veli/cocuk"),
   },
   {
     id: "destek",

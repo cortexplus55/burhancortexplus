@@ -7,12 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
-export function SupportForm() {
+const astraField =
+  "w-full rounded-xl border border-[var(--astra-border)] bg-[var(--astra-bg)] px-3 py-2.5 text-sm";
+
+export function SupportForm({
+  tone = "default",
+}: {
+  tone?: "default" | "astra";
+}) {
   const router = useRouter();
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const astra = tone === "astra";
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -43,29 +52,63 @@ export function SupportForm() {
     <form onSubmit={submit} className="max-w-xl space-y-4">
       <div className="space-y-2">
         <Label htmlFor="support-subject">Konu</Label>
-        <Input
-          id="support-subject"
-          value={subject}
-          onChange={(event) => setSubject(event.target.value)}
-          required
-          minLength={3}
-          maxLength={150}
-        />
+        {astra ? (
+          <input
+            id="support-subject"
+            value={subject}
+            onChange={(event) => setSubject(event.target.value)}
+            required
+            minLength={3}
+            maxLength={150}
+            className={astraField}
+          />
+        ) : (
+          <Input
+            id="support-subject"
+            value={subject}
+            onChange={(event) => setSubject(event.target.value)}
+            required
+            minLength={3}
+            maxLength={150}
+          />
+        )}
       </div>
       <div className="space-y-2">
         <Label htmlFor="support-message">Mesaj</Label>
-        <Textarea
-          id="support-message"
-          rows={5}
-          value={message}
-          onChange={(event) => setMessage(event.target.value)}
-          required
-          minLength={10}
-        />
+        {astra ? (
+          <textarea
+            id="support-message"
+            rows={5}
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            required
+            minLength={10}
+            className={cn(astraField, "min-h-[8rem]")}
+          />
+        ) : (
+          <Textarea
+            id="support-message"
+            rows={5}
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            required
+            minLength={10}
+          />
+        )}
       </div>
-      <Button type="submit" disabled={loading}>
-        {loading ? "Gönderiliyor…" : "Gönder"}
-      </Button>
+      {astra ? (
+        <button
+          type="submit"
+          disabled={loading}
+          className="astra-btn-primary w-full rounded-full py-3 text-sm font-semibold disabled:opacity-60"
+        >
+          {loading ? "Gönderiliyor…" : "Gönder"}
+        </button>
+      ) : (
+        <Button type="submit" disabled={loading}>
+          {loading ? "Gönderiliyor…" : "Gönder"}
+        </Button>
+      )}
     </form>
   );
 }
