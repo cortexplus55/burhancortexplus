@@ -79,7 +79,7 @@ export default async function OgretmenPage({
         initialConversationId={conversationId}
         initialMessages={initialMessages}
         hasDocuments={(count ?? 0) > 0}
-        chatCreditCost={chatCost}
+        chatCreditCost={chatCost ?? undefined}
         isPremium={isPremium}
         tutorStyleLabel={tutorStyleLabel(style)}
       />
