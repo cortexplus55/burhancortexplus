@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sor — Cortex Plus mockup</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="app.css" />
+  </head>
+  <body>
+    <div class="cp-mock-banner">
+      Mockup 4/5 · Karşılaştır: <strong>app boş chat</strong> ·
+      <a href="index.html">Tüm ekranlar</a>
+    </div>
+    <div class="cp-app-frame">
+      <header class="cp-app-top">
+        <div class="cp-app-top-left">
+          <span class="cp-pill">🔥 3 gün</span>
+          <span class="cp-pill cp-pill--gold">12 kr</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem">
+          <a class="cp-buy" href="pay.html">Satın al ✦</a>
+          <span class="cp-avatar" aria-label="Profil">B</span>
+        </div>
+      </header>
+      <main class="cp-app-main">
+        <div class="cp-greeting">
+          <h1>Merhaba, bugün ne çalışalım?</h1>
+          <p>
+            Sorunu yaz veya fotoğraf yükle — adım adım birlikte çözelim.
+          </p>
+        </div>
+      </main>
+
+      <div class="cp-composer-wrap">
+        <div class="cp-composer">
+          <input type="text" placeholder="Matematik sorusunu anlat…" aria-label="Mesaj" />
+          <button type="button" class="cp-composer-send" aria-label="Gönder">↑</button>
+        </div>
+      </div>
+
+      <footer class="cp-bottom-nav" aria-label="Ana menü">
+        <nav class="cp-nav-pill">
+          <a class="cp-nav-item cp-nav-item--active" href="sor.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+            </svg>
+            Sor
+          </a>
+          <a class="cp-nav-item" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 11l3 3L22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+            Sınavlar
+          </a>
+          <a class="cp-nav-item" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+            Uygulamalar
+          </a>
+        </nav>
+        <button type="button" class="cp-menu-btn" aria-label="Menü">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+          </svg>
+        </button>
+      </footer>
+    </div>
+  </body>
+</html>

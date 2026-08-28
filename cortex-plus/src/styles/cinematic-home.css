@@ -2,8 +2,8 @@
 
 /* Ana sayfa sinematik katman — Astra marketing üzerine */
 :is(.cinematic-home, .cinematic-marketing) {
-  --mk-primary: #e8a838;
-  --mk-primary-soft: rgba(232, 168, 56, 0.22);
+  --mk-primary: #f4ae0b;
+  --mk-primary-soft: rgba(244, 174, 11, 0.22);
   --mk-glow: rgba(255, 196, 87, 0.45);
   --font-display: "DM Serif Display", Georgia, serif;
 }

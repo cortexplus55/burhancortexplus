@@ -4,9 +4,9 @@
 .cortex-premium,
 .cortex-premium-auth,
 .astra-app.cortex-premium-app {
-  --cx-gold: #e8a838;
-  --cx-gold-hover: #f0b84d;
-  --cx-gold-glow: rgba(232, 168, 56, 0.35);
+  --cx-gold: #f4ae0b;
+  --cx-gold-hover: #ffc233;
+  --cx-gold-glow: rgba(244, 174, 11, 0.35);
   --cx-bg: #050505;
   --cx-surface: rgba(18, 18, 20, 0.72);
   --cx-surface-solid: #141414;

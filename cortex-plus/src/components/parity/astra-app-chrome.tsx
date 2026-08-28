@@ -146,7 +146,7 @@ const studentMenuGroups: {
     title: "Hesap",
     items: [
       { href: "/krediler", label: "Krediler", icon: CreditCard },
-      { href: "/paketler", label: "Plus'a yükselt", icon: GraduationCap },
+      { href: "/pay", label: "Plus'a yükselt", icon: GraduationCap },
       { href: "/profil", label: "Profil", icon: User },
       { href: "/ayarlar", label: "Ayarlar", icon: Settings },
       { href: "/bildirimler", label: "Bildirimler", icon: Bell },
@@ -258,7 +258,7 @@ export function AstraAppChrome({
                 {account.balance} kr
               </Link>
             ) : null}
-            <Link href="/paketler" className="cortex-premium-buy hidden sm:inline-flex">
+            <Link href="/pay" className="cortex-premium-buy hidden sm:inline-flex">
               Satın al ✦
             </Link>
           </div>

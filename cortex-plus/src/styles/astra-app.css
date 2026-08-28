@@ -5,8 +5,8 @@
   --astra-bg: #0a0a0a;
   --astra-surface: #1a1a1a;
   --astra-surface-elevated: #242424;
-  --astra-primary: #e8a838;
-  --astra-primary-hover: #f0b84d;
+  --astra-primary: #f4ae0b;
+  --astra-primary-hover: #ffc233;
   --astra-text: #ffffff;
   --astra-muted: #a3a3a3;
   --astra-border: #2e2e2e;
@@ -47,7 +47,7 @@
 }
 
 .astra-app .astra-btn-primary:hover {
-  background: linear-gradient(135deg, #ffc857 0%, #e8a838 100%);
+  background: linear-gradient(135deg, #ffc857 0%, #f4ae0b 100%);
 }
 
 .astra-app .astra-pay-card {

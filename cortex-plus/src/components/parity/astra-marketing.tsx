@@ -57,12 +57,12 @@ export function AstraSiteHeader() {
           </Link>
           <Link
             href="/giris"
-            className="rounded-full px-3 py-1.5 text-sm font-medium hover:bg-[var(--mk-surface)]"
+            className="rounded-full px-3 py-1.5 text-sm font-medium text-[var(--mk-muted)] hover:text-[var(--mk-text)]"
           >
-            GİRİŞ YAP
+            Giriş yap
           </Link>
-          <Link href="/kayit" className="mk-btn-primary hidden px-4 py-2 text-sm sm:inline-block">
-            ÜCRETSİZ DENE
+          <Link href="/kayit" className="mk-btn-primary px-4 py-2 text-sm">
+            Ücretsiz dene
           </Link>
         </div>
       </div>

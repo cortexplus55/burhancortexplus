@@ -20,7 +20,7 @@ export function UpgradeSheet({
 
   const packagesBase = returnPath?.startsWith("/ogretmen-paneli")
     ? "/ogretmen-paneli/plus"
-    : "/paketler";
+    : "/pay";
   const href = returnPath
     ? `${packagesBase}?returnTo=${encodeURIComponent(returnPath)}`
     : packagesBase;

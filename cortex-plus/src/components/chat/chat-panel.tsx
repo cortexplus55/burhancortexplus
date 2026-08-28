@@ -41,9 +41,11 @@ export function ChatPanel({
   hasDocuments,
   variant = "default",
   greetingLine,
+  greetingSubline,
   audience = "student",
   startPrompt,
   startLabel = "Başla",
+  showEmptyStarter = true,
   placeholder,
   showSubjectPicker = true,
   showAttachments = true,
@@ -59,9 +61,11 @@ export function ChatPanel({
   hasDocuments: boolean;
   variant?: "default" | "astra";
   greetingLine?: string;
+  greetingSubline?: string;
   audience?: "student" | "parent";
   startPrompt?: string;
   startLabel?: string;
+  showEmptyStarter?: boolean;
   placeholder?: string;
   showSubjectPicker?: boolean;
   showAttachments?: boolean;
@@ -246,35 +250,46 @@ export function ChatPanel({
         ) : null}
 
         {isAstra && messages.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 py-8 text-center">
-            <p className="text-lg font-medium">{greetingLine ?? "Merhaba"}</p>
-            <Button
-              type="button"
-              className="astra-btn-primary rounded-full px-8"
-              disabled={loading}
-              onClick={() =>
-                send(
-                  startPrompt ??
-                    "Bugün hangi konuda çalışmak istiyorsun? Bana kısaca anlat.",
-                )
-              }
-            >
-              {startLabel}
-            </Button>
-            {starterPrompts?.length ? (
-              <div className="flex max-w-md flex-wrap justify-center gap-2">
-                {starterPrompts.map((item) => (
-                  <button
-                    key={item.label}
-                    type="button"
-                    disabled={loading}
-                    className="rounded-full border border-[var(--astra-border)] px-3 py-1.5 text-xs text-[var(--astra-muted)] hover:border-[var(--astra-primary)] hover:text-white"
-                    onClick={() => send(item.prompt)}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 py-8 text-center">
+            <p className="text-lg font-semibold tracking-tight">
+              {greetingLine ?? "Merhaba, bugün ne çalışalım?"}
+            </p>
+            {greetingSubline ? (
+              <p className="max-w-xs text-sm text-[var(--astra-muted)]">
+                {greetingSubline}
+              </p>
+            ) : null}
+            {showEmptyStarter ? (
+              <>
+                <Button
+                  type="button"
+                  className="astra-btn-primary rounded-full px-8"
+                  disabled={loading}
+                  onClick={() =>
+                    send(
+                      startPrompt ??
+                        "Bugün hangi konuda çalışmak istiyorsun? Bana kısaca anlat.",
+                    )
+                  }
+                >
+                  {startLabel}
+                </Button>
+                {starterPrompts?.length ? (
+                  <div className="flex max-w-md flex-wrap justify-center gap-2">
+                    {starterPrompts.map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        disabled={loading}
+                        className="rounded-full border border-[var(--astra-border)] px-3 py-1.5 text-xs text-[var(--astra-muted)] hover:border-[var(--astra-primary)] hover:text-white"
+                        onClick={() => send(item.prompt)}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </>
             ) : null}
           </div>
         ) : null}

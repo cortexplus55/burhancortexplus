@@ -47,9 +47,9 @@ export function CinematicHero() {
         <h1 className="mk-display mk-section-reveal mk-section-reveal-delay-1 mt-4 text-4xl leading-[1.08] md:text-6xl lg:text-7xl">
           Çalışma ve sınav hazırlığında 2 kat hızlı öğren
         </h1>
-        <p className="mk-section-reveal mk-section-reveal-delay-2 mx-auto mt-6 max-w-2xl text-base text-[var(--mk-muted)] md:text-lg">
+        <p className="mk-section-reveal mx-auto mt-6 max-w-2xl text-base text-[var(--mk-muted)] md:text-lg">
           Fotoğraftan soru çözümü, deneme sınavları, sözlü pratik ve onlarca
-          interaktif uygulama — hepsi Cortex Plus&apos;ta.
+          interaktif uygulama — hepsi Cortex Plus&apos;ta, senin ritminde.
         </p>
 
         <form
@@ -96,7 +96,7 @@ export function CinematicHero() {
             href="/fiyatlandirma"
             className="mk-btn-outline inline-flex items-center gap-2 px-8 py-3.5 text-sm font-medium"
           >
-            CORTEX PLUS SATIN AL
+            PLUS SATIN AL
           </Link>
         </div>
       </div>

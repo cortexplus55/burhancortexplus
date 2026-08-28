@@ -250,7 +250,7 @@ export function SignupWizard() {
         {step === "role" ? (
           <StepShell
             title="Cortex Plus'a hoş geldin"
-            subtitle="Seni en iyi şekilde karşılayabilmemiz için kim olduğunu seç."
+            subtitle="Sana en uygun deneyimi açmak için rolünü seç."
           >
             <div className="space-y-3">
               {ROLE_OPTIONS.map((option) => (

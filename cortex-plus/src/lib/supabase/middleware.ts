@@ -19,6 +19,7 @@ const PROTECTED_PREFIXES = [
   "/ilerleme",
   "/krediler",
   "/paketler",
+  "/pay",
   "/odemeler",
   "/bildirimler",
   "/profil",
@@ -46,6 +47,7 @@ const STUDENT_ONLY_PREFIXES = [
   "/ilerleme",
   "/krediler",
   "/paketler",
+  "/pay",
   "/sinifim",
   "/odevlerim",
 ];
