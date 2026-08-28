@@ -11,7 +11,7 @@ export default function OgretmenlerPage() {
   return (
     <MarketingPage
       title="Öğretmenler ve profesörler için"
-      description="Sınıflarını oluştur, öğrencilerini davet et, ilerlemeyi takip et. Kayıt sonrası doğrulama ile öğretmen paneli açılır."
+      description="Sınıflarını oluştur, öğrencilerini davet et, ilerlemeyi takip et. Ücretsiz: 1 sınıf, 30 öğrenci. Plus: sınırsız sınıf, AI quiz, raporlar."
     >
       <div className="grid gap-4 md:grid-cols-2">
         <article className="mk-card p-6">

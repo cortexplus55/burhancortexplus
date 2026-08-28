@@ -1,4 +1,5 @@
-﻿import { AppShell } from "@/components/layout/app-shell";
+﻿import Link from "next/link";
+import { AppShell } from "@/components/layout/app-shell";
 import { SectionCard } from "@/components/ui-kit/empty-state";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { TeacherApplicationForm } from "@/components/profile/teacher-application-form";
@@ -46,7 +47,12 @@ export default async function ProfilPage() {
         .order("created_at", { ascending: false }),
     ]);
 
-  const isTeacher = roles.includes("verified_teacher");
+  const isVerifiedTeacher = roles.includes("verified_teacher");
+  const isSchoolTeacher =
+    roles.includes("teacher") ||
+    isVerifiedTeacher ||
+    profile?.primary_role === "teacher" ||
+    profile?.primary_role === "verified_teacher";
   const isParent = profile?.primary_role === "parent";
 
   const requests: ParentRequest[] = (parentLinks ?? []).map((row) => ({
@@ -90,27 +96,39 @@ export default async function ProfilPage() {
           </SectionCard>
         ) : null}
 
-        {!isParent ? (
+        {!isParent && isSchoolTeacher ? (
           <SectionCard
-            title="Öğretmen doğrulaması"
-            description="Öğretmen paneli yalnızca belge doğrulaması admin tarafından onaylandıktan sonra açılır."
+            title="Okul öğretmeni doğrulaması"
+            description="Panel kayıt sonrası açılır. Belge onayı tam ödev haklarını açar; Plus sınırsız sınıf ve rapor sunar."
           >
-            {isTeacher ? (
+            {isVerifiedTeacher ? (
               <p className="text-sm">
-                Öğretmen hesabın doğrulanmış durumda. Panele menüden
-                ulaşabilirsin.
-              </p>
-            ) : application ? (
-              <p className="text-sm">
-                Başvuru durumu:{" "}
-                <strong>
-                  {applicationLabels[application.status] ?? application.status}
-                </strong>
-                {application.institution ? ` · ${application.institution}` : ""}
+                Hesabın doğrulandı. Öğretmen panelinden sınıf ve ödevlerini yönetebilirsin.{" "}
+                <Link href="/ogretmen-paneli/plus" className="underline">
+                  Plus
+                </Link>
               </p>
             ) : (
-              <TeacherApplicationForm />
+              <div className="space-y-4">
+                {application ? (
+                  <p className="text-sm">
+                    Başvuru:{" "}
+                    <strong>
+                      {applicationLabels[application.status] ?? application.status}
+                    </strong>
+                    {application.institution ? ` · ${application.institution}` : ""}
+                  </p>
+                ) : null}
+                <TeacherApplicationForm />
+              </div>
             )}
+          </SectionCard>
+        ) : !isParent ? (
+          <SectionCard
+            title="Okul öğretmeni ol"
+            description="Okul öğretmeni paneli için kayıt sihirbazında Okul öğretmeniyim seçeneğini kullan veya aşağıdan başvur."
+          >
+            <TeacherApplicationForm />
           </SectionCard>
         ) : null}
       </div>

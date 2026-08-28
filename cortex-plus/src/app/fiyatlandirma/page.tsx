@@ -34,7 +34,7 @@ export default async function FiyatlandirmaPage() {
   return (
     <AstraMarketingPage
       title="Fiyatlandırma"
-      description="Plus ve Sigma paketleri — şeffaf kredi, sınav odaklı AI."
+      description="Plus ve Sigma paketleri — öğrenci AI kredisi; okul öğretmenleri için Plus: sınırsız sınıf, rapor, AI quiz."
     >
       <div data-cinematic-reveal>
         <Suspense fallback={null}>

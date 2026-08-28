@@ -14,8 +14,12 @@ async function openSignupAccountStep(page: Page) {
   await page.goto("/kayit");
   await page.getByText("Veliyim", { exact: true }).click();
   await page.getByRole("button", { name: "Devam" }).click();
-  await page.getByText("Şimdilik atla").click();
+  await page.getByRole("button", { name: /Anne/ }).click();
   await page.getByRole("button", { name: "Devam" }).click();
+  await page.getByRole("button", { name: "Şimdilik geç" }).click();
+  await page.getByRole("button", {
+    name: "Çocuğumun hesabı yok, sonra bağlayacağım",
+  }).click();
   await expect(page.getByRole("heading", { name: "Hesabını oluştur" })).toBeVisible();
 }
 

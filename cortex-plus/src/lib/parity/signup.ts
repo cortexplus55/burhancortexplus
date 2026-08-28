@@ -2,6 +2,8 @@ export type SignupRole = "student" | "parent" | "teacher";
 
 export type ParentLinkMode = "code" | "email" | "later";
 
+export type ParentRelation = "anne" | "baba" | "vasi" | "diger";
+
 export type SignupPayload = {
   role: SignupRole;
   fullName: string;
@@ -10,6 +12,8 @@ export type SignupPayload = {
   focusSubject?: string;
   learningGoal?: string;
   avatarEmoji?: string;
+  parentRelation?: ParentRelation;
+  parentPhone?: string;
   parentLinkMode?: ParentLinkMode;
   parentInviteCode?: string;
   parentInviteEmail?: string;
@@ -35,7 +39,7 @@ export const ROLE_OPTIONS: {
   {
     id: "parent",
     title: "Veliyim",
-    body: "Çocuğunun ilerlemesini takip et, Plus'ı yönet.",
+    body: "Çocuğunun ilerlemesini ücretsiz gör, Plus'ı sen al.",
     emoji: "👨‍👩‍👧",
   },
   {
@@ -129,8 +133,43 @@ export function homePathForRole(role: string | null | undefined): string {
   }
 }
 
+export const PARENT_RELATION_OPTIONS: {
+  id: ParentRelation;
+  title: string;
+  body: string;
+}[] = [
+  { id: "anne", title: "Anne", body: "Çocuğumun annesiyim" },
+  { id: "baba", title: "Baba", body: "Çocuğumun babasıyım" },
+  { id: "vasi", title: "Vasi", body: "Yasal vasi veya velayet sahibiyim" },
+  { id: "diger", title: "Diğer", body: "Aile üyesi veya bakmakla yükümlüyüm" },
+];
+
+export const PARENT_INTRO_POINTS = [
+  "Onaylı çocuğunun deneme, quiz ve çalışma özeti — ücretsiz",
+  "Sohbetler ve mesajlar yalnızca çocuğuna özel kalır",
+  "Plus’ı sen satın alırsın; kota çocuğunun hesabına gider",
+  "Veli AI: çocuğuna nasıl destek olacağını sor",
+];
+
+/** Boş bırakılabilir; doldurulursa 10–15 haneli numara beklenir. */
+export function isOptionalPhoneValid(value: string | undefined): boolean {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return true;
+  const digits = trimmed.replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 15;
+}
+
 export function stepIdsForRole(role: SignupRole): string[] {
-  if (role === "parent") return ["role", "parent-intro", "parent-link", "account"];
+  if (role === "parent") {
+    return [
+      "role",
+      "parent-intro",
+      "parent-relation",
+      "parent-phone",
+      "parent-link",
+      "account",
+    ];
+  }
   if (role === "teacher")
     return ["role", "teacher-school", "teacher-class", "account"];
   return ["role", "grade", "subject", "goal", "avatar", "account"];

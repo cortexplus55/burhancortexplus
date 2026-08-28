@@ -16,9 +16,12 @@ import {
   AVATAR_OPTIONS,
   GOAL_OPTIONS,
   GRADE_OPTIONS,
+  PARENT_INTRO_POINTS,
+  PARENT_RELATION_OPTIONS,
   ROLE_OPTIONS,
   SIGNUP_STORAGE_KEY,
   SUBJECT_OPTIONS,
+  isOptionalPhoneValid,
   stepIdsForRole,
   type SignupPayload,
   type SignupRole,
@@ -76,6 +79,8 @@ export function SignupWizard() {
       focusSubject: draft.focusSubject,
       learningGoal: draft.learningGoal,
       avatarEmoji: draft.avatarEmoji,
+      parentRelation: draft.parentRelation,
+      parentPhone: draft.parentPhone?.trim() || undefined,
       parentLinkMode: draft.parentLinkMode,
       parentInviteCode: draft.parentInviteCode,
       parentInviteEmail: draft.parentInviteEmail,
@@ -161,7 +166,9 @@ export function SignupWizard() {
           school_name: payload.schoolName ?? payload.teacherInstitution ?? "",
           focus_subject: payload.focusSubject ?? payload.teacherBranch ?? "",
           learning_goal: payload.learningGoal ?? "",
-          onboarding_done: "true",
+          onboarding_done: payload.role === "parent" ? "false" : "true",
+          parent_relation: payload.parentRelation ?? "",
+          phone: payload.parentPhone ?? "",
         },
       },
     });
@@ -366,32 +373,89 @@ export function SignupWizard() {
 
         {step === "parent-intro" ? (
           <StepShell
-            title="Çocuğunun yanında ol"
-            subtitle="Cortex Plus veli hesabıyla ilerlemeyi görür, aboneliği yönetir ve destek fikirleri alırsın."
+            title="İlerlemeyi gör, Plus’ı sen al"
+            subtitle="Raporlar ücretsizdir. Sohbet içerikleri gizli kalır. Plus kotası çocuğunun hesabına gider."
           >
             <ul className="space-y-3">
-              {[
-                "Çocuğunun çalışma serisi ve deneme sonuçları",
-                "Plus / Sigma aboneliğini tek yerden yönetme",
-                "Veliye özel AI: “Nasıl destek olurum?”",
-              ].map((item) => (
+              {PARENT_INTRO_POINTS.map((item) => (
                 <li key={item} className="mk-card p-4 text-sm">
                   {item}
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-xs text-[var(--mk-muted)]">
-              Çocuğunun sohbet içerikleri gizlidir; yalnızca özet ve ilerleme
-              paylaşılır.
-            </p>
             <ContinueButton onClick={next} />
+          </StepShell>
+        ) : null}
+
+        {step === "parent-relation" ? (
+          <StepShell
+            title="Çocuğunla yakınlığın"
+            subtitle="Hesabı doğru kişilere bağlamak ve bildirimleri netleştirmek için."
+          >
+            <div className="space-y-3">
+              {PARENT_RELATION_OPTIONS.map((option) => (
+                <SignupChoice
+                  key={option.id}
+                  selected={draft.parentRelation === option.id}
+                  onClick={() =>
+                    setDraft((d) => ({ ...d, parentRelation: option.id }))
+                  }
+                  className="w-full p-4 text-left"
+                >
+                  <span className="block font-semibold">{option.title}</span>
+                  <span className="block text-sm text-[var(--mk-muted)]">
+                    {option.body}
+                  </span>
+                </SignupChoice>
+              ))}
+            </div>
+            <ContinueButton disabled={!draft.parentRelation} onClick={next} />
+          </StepShell>
+        ) : null}
+
+        {step === "parent-phone" ? (
+          <StepShell
+            title="Telefonun (isteğe bağlı)"
+            subtitle="Ödeme ve bağlantı bildirimleri için. Şimdi atlayabilirsin."
+          >
+            <div className="space-y-2">
+              <Label htmlFor="parent-phone">Cep telefonu</Label>
+              <Input
+                id="parent-phone"
+                type="tel"
+                autoComplete="tel"
+                inputMode="tel"
+                value={draft.parentPhone ?? ""}
+                onChange={(e) =>
+                  setDraft((d) => ({ ...d, parentPhone: e.target.value }))
+                }
+                placeholder="05xx xxx xx xx"
+                aria-label="Cep telefonu"
+                className="border-[var(--mk-border)] bg-[#0c0c0c]"
+              />
+              {draft.parentPhone?.trim() &&
+              !isOptionalPhoneValid(draft.parentPhone) ? (
+                <p className="text-xs text-amber-300">
+                  En az 10 haneli bir numara gir veya bu adımı geç.
+                </p>
+              ) : null}
+            </div>
+            <ContinueButton
+              disabled={!isOptionalPhoneValid(draft.parentPhone)}
+              onClick={next}
+              secondaryLabel="Şimdilik geç"
+              onSecondary={() => {
+                setDraft((d) => ({ ...d, parentPhone: undefined }));
+                next();
+              }}
+            />
           </StepShell>
         ) : null}
 
         {step === "parent-link" ? (
           <StepShell
             title="Çocuğunu bağla"
-            subtitle="Nasıl bağlanmak istersin?"
+            subtitle="Kod veya e-posta ile istek gönder. Öğrenci onaylayana kadar rapor ve Plus kapalı kalır."
           >
             <div className="space-y-3">
               <LinkModeCard
@@ -437,17 +501,26 @@ export function SignupWizard() {
                   className="border-[var(--mk-border)] bg-[#0c0c0c]"
                 />
               </LinkModeCard>
-
-              <LinkModeCard
-                title="Şimdilik atla"
-                body="Sadece Plus aboneliğini yönetmek istiyorum."
-                selected={draft.parentLinkMode === "later"}
-                onSelect={() => setDraft((d) => ({ ...d, parentLinkMode: "later" }))}
-              />
             </div>
             <ContinueButton
-              disabled={!draft.parentLinkMode}
+              disabled={
+                draft.parentLinkMode === "code"
+                  ? (draft.parentInviteCode ?? "").trim().length < 4
+                  : draft.parentLinkMode === "email"
+                    ? !(draft.parentInviteEmail ?? "").includes("@")
+                    : true
+              }
               onClick={next}
+              secondaryLabel="Çocuğumun hesabı yok, sonra bağlayacağım"
+              onSecondary={() => {
+                setDraft((d) => ({
+                  ...d,
+                  parentLinkMode: "later",
+                  parentInviteCode: undefined,
+                  parentInviteEmail: undefined,
+                }));
+                next();
+              }}
             />
           </StepShell>
         ) : null}
@@ -483,8 +556,28 @@ export function SignupWizard() {
                 />
               </div>
               <p className="text-xs text-[var(--mk-muted)]">
-                Öğretmen paneli erişimi, kayıt sonrası doğrulama onayıyla açılır.
+                Kayıt bitince öğretmen paneli açılır. Doğrulama sonrası tam ödev
+                hakları; Plus ile sınırsız sınıf ve rapor.
               </p>
+              <div className="flex flex-wrap gap-2 pt-2">
+                {SUBJECT_OPTIONS.slice(0, 6).map((s) => (
+                  <button
+                    key={s.label}
+                    type="button"
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-xs",
+                      draft.teacherBranch === s.label
+                        ? "border-[var(--mk-primary)] bg-[var(--mk-primary)]/20"
+                        : "border-[var(--mk-border)]",
+                    )}
+                    onClick={() =>
+                      setDraft((d) => ({ ...d, teacherBranch: s.label }))
+                    }
+                  >
+                    {s.emoji} {s.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <ContinueButton
               disabled={!draft.teacherInstitution?.trim()}

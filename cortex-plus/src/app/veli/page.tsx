@@ -1,13 +1,16 @@
-import Link from "next/link";
 import { ParentShell } from "@/components/layout/parent-shell";
 import { ParentLinkForms } from "@/components/parity/parent-link-forms";
+import { ChildProgressCard } from "@/components/parent/child-progress-card";
+import { PendingChildCard } from "@/components/parent/pending-child-card";
 import {
   astraGreetingName,
   astraTimeGreeting,
 } from "@/components/parity/astra-app-utils";
 import { requireParent } from "@/lib/auth/session";
 import { getChildSummary, type ChildSummary } from "@/lib/parent/child-summary";
-import { formatDate } from "@/lib/format";
+import { getParentLinkStatus } from "@/lib/parent/link-status";
+import { Users } from "lucide-react";
+import Link from "next/link";
 
 export const metadata = { title: "Çocuklarım" };
 
@@ -18,79 +21,22 @@ type LinkedProfile = {
   avatar_url: string | null;
 };
 
-/** Supabase join sonucu tekil ya da dizi gelebiliyor. */
 function firstProfile(value: unknown): LinkedProfile | null {
   if (Array.isArray(value)) return (value[0] as LinkedProfile) ?? null;
   return (value as LinkedProfile) ?? null;
 }
 
-function ChildSummaryBlock({
-  summary,
-}: {
-  summary: ChildSummary | null | undefined;
-}) {
-  if (!summary) return null;
-
-  const stats = [
-    { label: "Aktif gün", value: `${summary.activeDays}` },
-    {
-      label: "Deneme",
-      value: summary.averageScore
-        ? `${summary.examAttempts} · ort ${summary.averageScore}`
-        : `${summary.examAttempts}`,
-    },
-    { label: "Quiz", value: `${summary.quizAttempts}` },
-    { label: "Açık görev", value: `${summary.openTasks}` },
-  ];
-
-  return (
-    <div className="mt-4">
-      <p className="text-xs text-[var(--astra-muted)]">Son 30 gün</p>
-      <div className="mt-2 grid grid-cols-4 gap-2">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-xl border border-[var(--astra-border)] p-2 text-center"
-          >
-            <p className="text-sm font-semibold">{stat.value}</p>
-            <p className="mt-0.5 text-[10px] text-[var(--astra-muted)]">
-              {stat.label}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {summary.weakTopics.length ? (
-        <div className="mt-3">
-          <p className="text-xs text-[var(--astra-muted)]">
-            Desteğe ihtiyaç duyduğu konular
-          </p>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {summary.weakTopics.map((topic) => (
-              <span
-                key={topic}
-                className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs text-amber-300"
-              >
-                {topic}
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {summary.lastExamAt ? (
-        <p className="mt-3 text-xs text-[var(--astra-muted)]">
-          Son deneme: {formatDate(summary.lastExamAt)}
-        </p>
-      ) : null}
-    </div>
-  );
+function childAvatar(child: LinkedProfile | null) {
+  if (child?.avatar_url && !child.avatar_url.startsWith("http")) {
+    return child.avatar_url;
+  }
+  return (child?.full_name ?? "?").slice(0, 1).toUpperCase();
 }
 
 export default async function VeliPage() {
   const { supabase, user } = await requireParent();
 
-  const [{ data: profile }, { data: links }] = await Promise.all([
+  const [{ data: profile }, { data: links }, linkStatus] = await Promise.all([
     supabase
       .from("profiles")
       .select("full_name")
@@ -104,6 +50,7 @@ export default async function VeliPage() {
       .eq("parent_id", user.id)
       .neq("status", "revoked")
       .order("created_at", { ascending: false }),
+    getParentLinkStatus(supabase, user.id),
   ]);
 
   const rows = links ?? [];
@@ -123,14 +70,24 @@ export default async function VeliPage() {
     ),
   );
 
+  const anyChildNeedsPlus = active.some((row) => {
+    const summary = summaries.get(row.id as string);
+    return summary && !summary.hasPlus;
+  });
+  const allHavePlus =
+    active.length > 0 &&
+    active.every((row) => summaries.get(row.id as string)?.hasPlus);
+
   return (
-    <ParentShell>
+    <ParentShell title="Çocuklarım">
       <section className="pt-2">
         <h1 className="text-xl font-semibold">
           {firstName}, {astraTimeGreeting().toLocaleLowerCase("tr")}
         </h1>
         <p className="mt-1 text-sm text-[var(--astra-muted)]">
-          Çocuğunun ilerlemesini buradan takip edebilirsin.
+          {linkStatus.hasActiveChild
+            ? "Onaylı çocuğunun ilerlemesini buradan takip edersin. Sohbetler gizli kalır."
+            : "Öğrenci onaylayınca ilerleme özeti ve Plus açılır."}
         </p>
       </section>
 
@@ -142,30 +99,17 @@ export default async function VeliPage() {
           {active.map((row) => {
             const child = firstProfile(row.profiles);
             return (
-              <article key={row.id} className="astra-pay-card p-4">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-800/90 text-lg">
-                    {child?.avatar_url && !child.avatar_url.startsWith("http")
-                      ? child.avatar_url
-                      : (child?.full_name ?? "?").slice(0, 1).toUpperCase()}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">
-                      {child?.full_name ?? "Öğrenci"}
-                    </p>
-                    <p className="truncate text-xs text-[var(--astra-muted)]">
-                      {[child?.grade_level, child?.school_name]
-                        .filter(Boolean)
-                        .join(" · ") || "Profil bilgisi yok"}
-                    </p>
-                  </div>
-                </div>
-                <ChildSummaryBlock summary={summaries.get(row.id as string)} />
-
-                <p className="mt-3 text-xs text-[var(--astra-muted)]">
-                  Sohbet içerikleri gizlidir; yalnızca ilerleme özeti paylaşılır.
-                </p>
-              </article>
+              <ChildProgressCard
+                key={row.id}
+                name={child?.full_name ?? "Öğrenci"}
+                meta={
+                  [child?.grade_level, child?.school_name]
+                    .filter(Boolean)
+                    .join(" · ") || "Profil bilgisi yok"
+                }
+                avatar={childAvatar(child)}
+                summary={summaries.get(row.id as string) ?? null}
+              />
             );
           })}
         </section>
@@ -179,22 +123,14 @@ export default async function VeliPage() {
           {pending.map((row) => {
             const child = firstProfile(row.profiles);
             return (
-              <article
+              <PendingChildCard
                 key={row.id}
-                className="astra-pay-card flex items-center justify-between gap-3 p-4"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {child?.full_name ?? row.invite_email ?? "Davet"}
-                  </p>
-                  <p className="text-xs text-[var(--astra-muted)]">
-                    {formatDate(row.created_at)} · onay bekliyor
-                  </p>
-                </div>
-                <span className="shrink-0 rounded-full bg-amber-500/15 px-3 py-1 text-xs text-amber-300">
-                  Bekliyor
-                </span>
-              </article>
+                linkId={row.id as string}
+                title={
+                  child?.full_name ?? (row.invite_email as string) ?? "Davet"
+                }
+                createdAt={row.created_at as string}
+              />
             );
           })}
         </section>
@@ -202,9 +138,10 @@ export default async function VeliPage() {
 
       {!active.length && !pending.length ? (
         <section className="mt-6 astra-pay-card p-5 text-center">
-          <p className="text-2xl" aria-hidden>
-            👋
-          </p>
+          <Users
+            className="mx-auto h-8 w-8 text-[var(--astra-muted)]"
+            aria-hidden
+          />
           <h2 className="mt-2 font-semibold">Henüz bağlı öğrenci yok</h2>
           <p className="mt-1 text-sm text-[var(--astra-muted)]">
             Çocuğunun davet kodunu gir veya e-posta ile davet gönder.
@@ -220,16 +157,46 @@ export default async function VeliPage() {
       </section>
 
       <section className="mt-6 astra-pay-card p-5">
-        <h2 className="font-semibold">Plus ile daha fazlası</h2>
-        <p className="mt-1 text-sm text-[var(--astra-muted)]">
-          Sınırsız AI desteği ve deneme analizi için aboneliği sen yönetebilirsin.
-        </p>
-        <Link
-          href="/veli/plus"
-          className="astra-btn-primary mt-4 flex w-full items-center justify-center rounded-full py-3 text-sm font-semibold"
-        >
-          Paketleri gör
-        </Link>
+        {!linkStatus.hasActiveChild ? (
+          <>
+            <h2 className="font-semibold">Plus henüz kapalı</h2>
+            <p className="mt-1 text-sm text-[var(--astra-muted)]">
+              Öğrenci bağlantıyı onayladıktan sonra Plus’ı onun hesabı için
+              satın alabilirsin.
+            </p>
+          </>
+        ) : allHavePlus ? (
+          <>
+            <h2 className="font-semibold">Plus aktif</h2>
+            <p className="mt-1 text-sm text-[var(--astra-muted)]">
+              Bağlı öğrencilerin aboneliği açık. Kota çocuğunun hesabında.
+            </p>
+            <Link
+              href="/veli/plus"
+              className="astra-btn-primary mt-4 flex w-full items-center justify-center rounded-full py-3 text-sm font-semibold"
+            >
+              Aboneliği yönet
+            </Link>
+          </>
+        ) : (
+          <>
+            <h2 className="font-semibold">
+              {anyChildNeedsPlus
+                ? "Çocuğun için Plus al"
+                : "Plus ile daha fazlası"}
+            </h2>
+            <p className="mt-1 text-sm text-[var(--astra-muted)]">
+              Raporlar ücretsiz. Plus kotası çocuğunun AI ve deneme hakkına
+              gider.
+            </p>
+            <Link
+              href="/veli/plus"
+              className="astra-btn-primary mt-4 flex w-full items-center justify-center rounded-full py-3 text-sm font-semibold"
+            >
+              Paketleri gör
+            </Link>
+          </>
+        )}
       </section>
     </ParentShell>
   );

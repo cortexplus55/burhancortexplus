@@ -15,6 +15,12 @@ export function formatDate(value: string | Date | null | undefined) {
   }).format(date);
 }
 
+export function formatDateShort(value: string | Date | null | undefined) {
+  if (!value) return "—";
+  const date = typeof value === "string" ? new Date(value) : value;
+  return new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium" }).format(date);
+}
+
 export function formatNumber(value: number) {
   return new Intl.NumberFormat("tr-TR").format(value);
 }

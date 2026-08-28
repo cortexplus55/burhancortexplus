@@ -17,6 +17,11 @@ export function ClassroomForm() {
         startTransition(async () => {
           const result = await createClassroom(formData);
           if (result.ok) toast.success("Sınıf oluşturuldu.");
+          else if (result.error === "plus_required")
+            toast.error(
+              (result as { message?: string }).message ??
+                "Plus gerekli — /ogretmen-paneli/plus",
+            );
           else toast.error(result.error ?? "Oluşturulamadı.");
         });
       }}

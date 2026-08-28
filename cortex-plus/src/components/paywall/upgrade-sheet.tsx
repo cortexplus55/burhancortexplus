@@ -18,9 +18,12 @@ export function UpgradeSheet({
 }) {
   if (!open) return null;
 
-  const href = returnPath
-    ? `/paketler?returnTo=${encodeURIComponent(returnPath)}`
+  const packagesBase = returnPath?.startsWith("/ogretmen-paneli")
+    ? "/ogretmen-paneli/plus"
     : "/paketler";
+  const href = returnPath
+    ? `${packagesBase}?returnTo=${encodeURIComponent(returnPath)}`
+    : packagesBase;
 
   return (
     <div

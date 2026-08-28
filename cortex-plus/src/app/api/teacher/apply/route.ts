@@ -24,19 +24,12 @@ export async function POST(request: Request) {
 
   const { data: existing } = await service
     .from("teacher_applications")
-    .select("id, status")
+    .select("id, status, document_path")
     .eq("user_id", userId)
     .eq("status", "pending")
     .maybeSingle();
 
-  if (existing) {
-    return NextResponse.json(
-      { error: "Zaten değerlendirmede olan bir başvurun var." },
-      { status: 409 },
-    );
-  }
-
-  let documentPath: string | null = null;
+  let documentPath: string | null = existing?.document_path ?? null;
 
   if (file instanceof File && file.size > 0) {
     if (file.size > MAX_BYTES || !ALLOWED.has(file.type)) {
@@ -52,14 +45,26 @@ export async function POST(request: Request) {
     if (upload.error) return errorResponse(500, "generation_failed");
   }
 
-  const { error } = await service.from("teacher_applications").insert({
-    user_id: userId,
-    institution,
-    document_path: documentPath,
-    status: "pending",
-  });
+  if (existing) {
+    const { error } = await service
+      .from("teacher_applications")
+      .update({
+        institution,
+        document_path: documentPath,
+      })
+      .eq("id", existing.id);
 
-  if (error) return errorResponse(500, "generation_failed");
+    if (error) return errorResponse(500, "generation_failed");
+  } else {
+    const { error } = await service.from("teacher_applications").insert({
+      user_id: userId,
+      institution,
+      document_path: documentPath,
+      status: "pending",
+    });
+
+    if (error) return errorResponse(500, "generation_failed");
+  }
 
   await service
     .from("profiles")

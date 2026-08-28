@@ -3,6 +3,7 @@ import { z } from "zod";
 import OpenAI from "openai";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
+import { getTeacherEntitlements, incrementTeacherUsage } from "@/lib/teacher/entitlements";
 
 const schema = z.object({
   topic: z.string().min(3).max(500),
@@ -17,6 +18,24 @@ export async function POST(request: Request) {
 
   const { topic } = schema.parse(await request.json());
   const service = createServiceClient();
+
+  const { data: roleRows } = await service
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .is("revoked_at", null);
+  const roles = (roleRows ?? []).map((r) => r.role as string);
+  const isTeacher =
+    roles.includes("teacher") ||
+    roles.includes("verified_teacher");
+
+  if (isTeacher) {
+    const entitlements = await getTeacherEntitlements(service, user.id, roles);
+    if (!entitlements?.canGenerateQuiz()) {
+      return NextResponse.json({ error: "teacher_quiz_locked" }, { status: 403 });
+    }
+  }
+
   const idempotencyKey = `quiz_${user.id}_${Date.now()}`;
 
   const { data: resId, error: reserveError } = await service.rpc("credit_reserve", {
@@ -68,6 +87,14 @@ export async function POST(request: Request) {
     }
 
     await service.rpc("credit_commit", { p_reservation_id: resId });
+
+    if (isTeacher) {
+      const entitlements = await getTeacherEntitlements(service, user.id, roles);
+      if (entitlements?.tier === "pending") {
+        await incrementTeacherUsage(service, user.id, "quizzes_generated");
+      }
+    }
+
     return NextResponse.json({ quizId: quiz?.id });
   } catch {
     await service.rpc("credit_refund", { p_reservation_id: resId });

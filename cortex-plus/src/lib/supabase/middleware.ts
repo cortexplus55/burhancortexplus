@@ -26,6 +26,8 @@ const PROTECTED_PREFIXES = [
   "/destek",
   "/veli",
   "/ogretmen-paneli",
+  "/sinifim",
+  "/odevlerim",
   "/admin",
 ];
 
@@ -44,6 +46,8 @@ const STUDENT_ONLY_PREFIXES = [
   "/ilerleme",
   "/krediler",
   "/paketler",
+  "/sinifim",
+  "/odevlerim",
 ];
 
 const ONBOARDING_SKIP = [
@@ -51,6 +55,18 @@ const ONBOARDING_SKIP = [
   "/kayit",
   "/profil",
   "/ayarlar",
+  "/destek",
+  "/api",
+  "/auth",
+];
+
+/** Bağlantısız veli yalnızca bu yollarda kalabilir. */
+const PARENT_UNLINKED_ALLOWED = [
+  "/onboarding",
+  "/kayit",
+  "/profil",
+  "/ayarlar",
+  "/destek",
   "/api",
   "/auth",
 ];
@@ -113,9 +129,21 @@ export async function updateSession(request: NextRequest) {
   const role = (profile?.primary_role as string | undefined) ?? "student";
   const home = homePathForRole(role);
 
+  let parentNeedsLink = false;
+  if (role === "parent") {
+    const { count } = await supabase
+      .from("parent_student_links")
+      .select("id", { count: "exact", head: true })
+      .eq("parent_id", user.id)
+      .in("status", ["pending", "active"]);
+    parentNeedsLink = !count;
+  }
+
+  const parentHome = parentNeedsLink ? "/onboarding/veli" : home;
+
   if (path === "/" || path === "/giris" || path === "/kayit") {
     const url = request.nextUrl.clone();
-    url.pathname = home;
+    url.pathname = parentHome;
     url.search = "";
     return NextResponse.redirect(url);
   }
@@ -123,6 +151,16 @@ export async function updateSession(request: NextRequest) {
   if (!profile?.onboarding_completed_at && !matches(path, ONBOARDING_SKIP)) {
     const url = request.nextUrl.clone();
     url.pathname = onboardingPathForRole(role);
+    return NextResponse.redirect(url);
+  }
+
+  if (
+    parentNeedsLink &&
+    !matches(path, PARENT_UNLINKED_ALLOWED)
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/onboarding/veli";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 

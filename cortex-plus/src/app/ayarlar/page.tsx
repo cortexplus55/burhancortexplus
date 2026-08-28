@@ -11,13 +11,24 @@ export const metadata = { title: "Ayarlar" };
 export default async function AyarlarPage() {
   const { supabase, user } = await requireUser();
 
-  const { data: deletionRequest } = await supabase
-    .from("data_deletion_requests")
-    .select("id, status, requested_at")
-    .eq("user_id", user.id)
-    .order("requested_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const [{ data: deletionRequest }, { data: profile }] = await Promise.all([
+    supabase
+      .from("data_deletion_requests")
+      .select("id, status, requested_at")
+      .eq("user_id", user.id)
+      .order("requested_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("primary_role")
+      .eq("id", user.id)
+      .maybeSingle(),
+  ]);
+
+  const isTeacher =
+    profile?.primary_role === "teacher" ||
+    profile?.primary_role === "verified_teacher";
 
   return (
     <AppShell title="Ayarlar">
@@ -43,6 +54,15 @@ export default async function AyarlarPage() {
             <Link href="/kullanim-kosullari" className="underline">
               Kullanım koşulları
             </Link>
+            {isTeacher ? (
+              <Link href="/ogretmen-paneli/plus" className="underline">
+                Öğretmen Plus
+              </Link>
+            ) : (
+              <Link href="/paketler" className="underline">
+                Paketler
+              </Link>
+            )}
           </div>
         </SectionCard>
 

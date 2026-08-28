@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { inviteChildByEmail, linkChildByCode } from "@/app/kayit/actions";
 
-export function ParentLinkForms() {
+export function ParentLinkForms({
+  onLinked,
+}: {
+  onLinked?: () => void;
+}) {
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const [pending, startTransition] = useTransition();
@@ -17,6 +21,7 @@ export function ParentLinkForms() {
       if (result.ok) {
         toast.success("İstek gönderildi. Çocuğun onaylayınca bağlanacak.");
         setCode("");
+        onLinked?.();
       } else {
         toast.error(result.error ?? "Bağlantı kurulamadı.");
       }
@@ -27,8 +32,10 @@ export function ParentLinkForms() {
     startTransition(async () => {
       const result = await inviteChildByEmail(email);
       if (result.ok) {
-        toast.success("Davet kaydedildi.");
+        if (result.warning) toast.warning(result.warning);
+        else toast.success("Davet kaydedildi.");
         setEmail("");
+        onLinked?.();
       } else {
         toast.error(result.error ?? "Davet gönderilemedi.");
       }

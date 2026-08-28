@@ -27,7 +27,7 @@ export function TeacherApplicationForm() {
         toast.error(payload.error ?? "Başvuru gönderilemedi.");
         return;
       }
-      toast.success("Başvurun alındı. Sonucu bildirimlerden takip edebilirsin.");
+      toast.success("Başvurun kaydedildi. Sonucu bildirimlerden takip edebilirsin.");
       router.refresh();
     } catch {
       toast.error("Bağlantı hatası.");
@@ -64,7 +64,7 @@ export function TeacherApplicationForm() {
       </div>
 
       <Button type="submit" disabled={loading || institution.length < 2}>
-        {loading ? "Gönderiliyor…" : "Başvur"}
+        {loading ? "Gönderiliyor…" : "Belgeyi kaydet"}
       </Button>
     </form>
   );

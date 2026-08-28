@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
   const { data: payment } = await service
     .from("payments")
-    .select("id, user_id, status, plans(credit_amount, name)")
+    .select("id, user_id, plan_id, status, plans(credit_amount, name, is_premium)")
     .eq("merchant_oid", merchantOid)
     .maybeSingle();
 
@@ -65,7 +65,11 @@ export async function POST(request: Request) {
 
   if (payment.status === "paid") return OK();
 
-  const plan = payment.plans as { credit_amount?: number; name?: string } | null;
+  const plan = payment.plans as {
+    credit_amount?: number;
+    name?: string;
+    is_premium?: boolean;
+  } | null;
   const creditAmount = plan?.credit_amount ?? 0;
 
   await service
@@ -102,6 +106,42 @@ export async function POST(request: Request) {
     title: "Kredi yüklendi",
     body: `${plan?.name ?? "Paket"} için ${creditAmount} kredi hesabına tanımlandı.`,
   });
+
+  if (plan?.is_premium && payment.plan_id) {
+    const periodEnd = new Date();
+    periodEnd.setDate(periodEnd.getDate() + 30);
+
+    await service
+      .from("subscriptions")
+      .update({ status: "inactive", updated_at: new Date().toISOString() })
+      .eq("user_id", payment.user_id)
+      .eq("status", "active");
+
+    const { data: existingSub } = await service
+      .from("subscriptions")
+      .select("id")
+      .eq("user_id", payment.user_id)
+      .maybeSingle();
+
+    if (existingSub?.id) {
+      await service
+        .from("subscriptions")
+        .update({
+          plan_id: payment.plan_id,
+          status: "active",
+          current_period_end: periodEnd.toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingSub.id);
+    } else {
+      await service.from("subscriptions").insert({
+        user_id: payment.user_id,
+        plan_id: payment.plan_id,
+        status: "active",
+        current_period_end: periodEnd.toISOString(),
+      });
+    }
+  }
 
   await auditLog(service, {
     actorId: payment.user_id,

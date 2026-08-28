@@ -7,7 +7,9 @@ import "@/styles/astra-app.css";
 import {
   Atom,
   Bell,
+  BarChart3,
   BookOpen,
+  ClipboardList,
   Camera,
   CreditCard,
   FileText,
@@ -30,7 +32,7 @@ import {
 import { readStreakFromStorage } from "@/components/parity/astra-gamification";
 import { useEffect, useState } from "react";
 
-export type AstraNavRole = "student" | "parent";
+export type AstraNavRole = "student" | "parent" | "teacher";
 
 type NavItem = {
   id: string;
@@ -88,12 +90,38 @@ const parentTabs: NavItem[] = [
   },
 ];
 
+const teacherTabs: NavItem[] = [
+  {
+    id: "ozet",
+    href: "/ogretmen-paneli",
+    label: "Özet",
+    icon: LayoutGrid,
+    match: (p) => p === "/ogretmen-paneli",
+  },
+  {
+    id: "siniflar",
+    href: "/ogretmen-paneli/siniflar",
+    label: "Sınıflar",
+    icon: BookOpen,
+    match: (p) => p.startsWith("/ogretmen-paneli/siniflar"),
+  },
+  {
+    id: "odevler",
+    href: "/ogretmen-paneli/odevler",
+    label: "Ödevler",
+    icon: ClipboardList,
+    match: (p) => p.startsWith("/ogretmen-paneli/odevler"),
+  },
+];
+
 const studentMenu: { href: string; label: string; icon: typeof MessageCircle }[] =
   [
     { href: "/ogretmen", label: "Yeni sohbet", icon: MessageCircle },
     { href: "/sohbetler", label: "Sohbetler", icon: History },
     { href: "/soru-coz", label: "Fotoğraftan çöz", icon: Camera },
     { href: "/dokumanlar", label: "Dokümanlar", icon: FileText },
+    { href: "/sinifim", label: "Sınıfım", icon: Users },
+    { href: "/odevlerim", label: "Ödevlerim", icon: ClipboardList },
     { href: "/quizler", label: "Quiz", icon: Gamepad2 },
     { href: "/flashcardlar", label: "Flashcard", icon: Layers },
     { href: "/deneme-sinavlari", label: "Deneme sınavı", icon: Target },
@@ -106,6 +134,18 @@ const studentMenu: { href: string; label: string; icon: typeof MessageCircle }[]
     { href: "/bildirimler", label: "Bildirimler", icon: Bell },
     { href: "/destek", label: "Yardım", icon: HelpCircle },
     { href: "/dashboard", label: "Panel", icon: LayoutGrid },
+  ];
+
+const teacherMenu: { href: string; label: string; icon: typeof MessageCircle }[] =
+  [
+    { href: "/ogretmen-paneli/ogrenciler", label: "Öğrenciler", icon: Users },
+    { href: "/ogretmen-paneli/quizler", label: "Quizler", icon: Gamepad2 },
+    { href: "/ogretmen-paneli/raporlar", label: "Raporlar", icon: BarChart3 },
+    { href: "/ogretmen-paneli/plus", label: "Plus", icon: GraduationCap },
+    { href: "/profil", label: "Profil", icon: User },
+    { href: "/ayarlar", label: "Ayarlar", icon: Settings },
+    { href: "/bildirimler", label: "Bildirimler", icon: Bell },
+    { href: "/destek", label: "Yardım", icon: HelpCircle },
   ];
 
 const parentMenu: { href: string; label: string; icon: typeof MessageCircle }[] =
@@ -139,8 +179,18 @@ export function AstraAppChrome({
   const [menuOpen, setMenuOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
 
-  const tabs = navRole === "parent" ? parentTabs : studentTabs;
-  const menu = navRole === "parent" ? parentMenu : studentMenu;
+  const tabs =
+    navRole === "parent"
+      ? parentTabs
+      : navRole === "teacher"
+        ? teacherTabs
+        : studentTabs;
+  const menu =
+    navRole === "parent"
+      ? parentMenu
+      : navRole === "teacher"
+        ? teacherMenu
+        : studentMenu;
   const activeTab = tabs.find((tab) => tab.match(pathname))?.id ?? null;
 
   useEffect(() => {
@@ -174,7 +224,10 @@ export function AstraAppChrome({
             {streakCount}
           </button>
         ) : (
-          <Link href="/veli" className="text-sm font-semibold">
+          <Link
+            href={navRole === "teacher" ? "/ogretmen-paneli" : "/veli"}
+            className="text-sm font-semibold"
+          >
             Cortex Plus
           </Link>
         )}

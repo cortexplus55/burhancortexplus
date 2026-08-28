@@ -41,10 +41,14 @@ export async function requireAdmin() {
 export async function requireTeacher() {
   const { supabase, user } = await requireUser();
   const roles = await getUserRoles(user.id);
-  if (!roles.includes("verified_teacher") && !roles.includes("admin")) {
-    redirect("/dashboard");
+  const allowed =
+    roles.includes("teacher") ||
+    roles.includes("verified_teacher") ||
+    roles.includes("admin");
+  if (!allowed) {
+    redirect(homePathForRole(await getPrimaryRole(user.id)));
   }
-  return { supabase, user };
+  return { supabase, user, roles };
 }
 
 /** Veli alanı: yalnızca parent (veya admin) girebilir. */

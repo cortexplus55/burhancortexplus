@@ -4,7 +4,8 @@ import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { homePathForRole } from "@/lib/parity/signup";
+import { homePathForRole, isOptionalPhoneValid } from "@/lib/parity/signup";
+import { getParentLinkStatus } from "@/lib/parent/link-status";
 import {
   sendParentInviteEmail,
   sendParentRequestEmail,
@@ -18,6 +19,8 @@ const payloadSchema = z.object({
   focusSubject: z.string().max(60).optional(),
   learningGoal: z.string().max(120).optional(),
   avatarEmoji: z.string().max(8).optional(),
+  parentRelation: z.enum(["anne", "baba", "vasi", "diger"]).optional(),
+  parentPhone: z.string().max(24).optional(),
   parentLinkMode: z.enum(["code", "email", "later"]).optional(),
   parentInviteCode: z.string().max(12).optional(),
   parentInviteEmail: z.string().email().max(160).optional(),
@@ -58,6 +61,18 @@ async function completeSignupInner(
   if (!user) return { ok: false, error: "Oturum bulunamadı." };
 
   const payload = parsed.data;
+  if (
+    payload.parentPhone &&
+    !isOptionalPhoneValid(payload.parentPhone)
+  ) {
+    return { ok: false, error: "Telefon numarası geçersiz." };
+  }
+
+  const now = new Date().toISOString();
+  const parentRole = payload.role === "parent";
+  if (parentRole && !payload.parentRelation) {
+    return { ok: false, error: "Yakınlık bilgisi gerekli." };
+  }
 
   const { error: profileError } = await supabase.from("profiles").upsert(
     {
@@ -68,7 +83,9 @@ async function completeSignupInner(
       focus_subject: payload.focusSubject ?? payload.teacherBranch ?? null,
       avatar_url: payload.avatarEmoji ?? null,
       primary_role: payload.role,
-      onboarding_completed_at: new Date().toISOString(),
+      parent_relation: parentRole ? payload.parentRelation ?? null : null,
+      phone: parentRole ? payload.parentPhone?.trim() || null : null,
+      onboarding_completed_at: parentRole ? null : now,
     },
     { onConflict: "id" },
   );
@@ -77,6 +94,8 @@ async function completeSignupInner(
     console.error("[completeSignup] profile", profileError);
     return { ok: false, error: "Profil kaydedilemedi." };
   }
+
+  await syncPrimaryUserRole(user.id, payload.role);
 
   if (payload.role === "student" && payload.learningGoal) {
     const { data: existingGoals } = await supabase
@@ -92,9 +111,19 @@ async function completeSignupInner(
   }
 
   let linkWarning: string | undefined;
-  if (payload.role === "parent") {
+  let parentReady = !parentRole;
+  if (parentRole) {
     const result = await linkChildInternal(user.id, payload);
     if (!result.ok) linkWarning = result.error;
+    else if (result.warning) linkWarning = result.warning;
+    const status = await getParentLinkStatus(supabase, user.id);
+    parentReady = status.hasOpenLink;
+    if (parentReady) {
+      await supabase
+        .from("profiles")
+        .update({ onboarding_completed_at: now })
+        .eq("id", user.id);
+    }
   }
 
   if (payload.role === "student" && user.email) {
@@ -115,14 +144,16 @@ async function completeSignupInner(
   }
 
   revalidatePath("/", "layout");
-  return { ok: true, redirectTo: homePathForRole(payload.role), linkWarning };
+  const redirectTo =
+    parentRole && !parentReady ? "/onboarding/veli" : homePathForRole(payload.role);
+  return { ok: true, redirectTo, linkWarning };
 }
 
 
 async function linkChildInternal(
   parentId: string,
   payload: z.infer<typeof payloadSchema>,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true; warning?: string } | { ok: false; error: string }> {
   if (payload.parentLinkMode === "code" && payload.parentInviteCode) {
     return createCodeLink(parentId, payload.parentInviteCode);
   }
@@ -174,7 +205,7 @@ async function createCodeLink(
 async function createEmailInvite(
   parentId: string,
   rawEmail: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true; warning?: string } | { ok: false; error: string }> {
   const supabase = await createClient();
   const email = rawEmail.trim().toLowerCase();
 
@@ -191,8 +222,8 @@ async function createEmailInvite(
 
   if (!sent.ok) {
     return {
-      ok: false,
-      error:
+      ok: true,
+      warning:
         sent.reason === "email_not_configured"
           ? "Davet kaydedildi ama e-posta gönderimi yapılandırılmamış."
           : "Davet kaydedildi ama e-posta gönderilemedi.",
@@ -275,6 +306,24 @@ async function createTeacherClassroom(userId: string, name: string) {
   });
 }
 
+async function syncPrimaryUserRole(
+  userId: string,
+  role: "student" | "parent" | "teacher",
+) {
+  const service = createServiceClient();
+  const { data: existing } = await service
+    .from("user_roles")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("role", role)
+    .is("revoked_at", null)
+    .maybeSingle();
+
+  if (!existing) {
+    await service.from("user_roles").insert({ user_id: userId, role });
+  }
+}
+
 export async function requestParentPayment(planId: string, message?: string) {
   const planParsed = z.string().uuid().safeParse(planId);
   if (!planParsed.success) return { ok: false, error: "Paket seçilemedi." };
@@ -332,10 +381,13 @@ export async function linkChildByCode(rawCode: string) {
 
   const result = await createCodeLink(user.id, parsed.data);
   revalidatePath("/veli");
+  revalidatePath("/onboarding/veli");
   return result.ok ? { ok: true } : { ok: false, error: result.error };
 }
 
-export async function inviteChildByEmail(rawEmail: string) {
+export async function inviteChildByEmail(
+  rawEmail: string,
+): Promise<{ ok: true; warning?: string } | { ok: false; error: string }> {
   const parsed = z.string().email().max(160).safeParse(rawEmail);
   if (!parsed.success) return { ok: false, error: "E-posta geçersiz." };
 
@@ -347,7 +399,31 @@ export async function inviteChildByEmail(rawEmail: string) {
 
   const result = await createEmailInvite(user.id, parsed.data);
   revalidatePath("/veli");
-  return result.ok ? { ok: true } : { ok: false, error: result.error };
+  revalidatePath("/onboarding/veli");
+  return result;
+}
+
+export async function completeParentOnboardingIfLinked() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Oturum bulunamadı." };
+
+  const status = await getParentLinkStatus(supabase, user.id);
+  if (!status.hasOpenLink) {
+    return { ok: false, error: "Önce çocuğunu bağla." };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ onboarding_completed_at: new Date().toISOString() })
+    .eq("id", user.id);
+
+  if (error) return { ok: false, error: "Devam edilemedi." };
+  revalidatePath("/", "layout");
+  revalidatePath("/veli");
+  return { ok: true };
 }
 
 export async function respondToParentRequest(
@@ -372,4 +448,27 @@ export async function respondToParentRequest(
 
   revalidatePath("/profil");
   return { ok: !error };
+}
+
+export async function cancelParentLink(linkId: string) {
+  const parsed = z.string().uuid().safeParse(linkId);
+  if (!parsed.success) return { ok: false, error: "İstek bulunamadı." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Oturum bulunamadı." };
+
+  const { error } = await supabase
+    .from("parent_student_links")
+    .update({ status: "revoked" })
+    .eq("id", parsed.data)
+    .eq("parent_id", user.id)
+    .eq("status", "pending");
+
+  if (error) return { ok: false, error: "İstek iptal edilemedi." };
+  revalidatePath("/veli");
+  revalidatePath("/onboarding/veli");
+  return { ok: true };
 }
