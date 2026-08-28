@@ -51,6 +51,7 @@ export function ChatPanel({
   chatCreditCost,
   isPremium,
   tutorStyleLabel,
+  quotaHint,
   starterPrompts,
 }: {
   initialConversationId?: string;
@@ -68,6 +69,7 @@ export function ChatPanel({
   chatCreditCost?: number | null;
   isPremium?: boolean;
   tutorStyleLabel?: string;
+  quotaHint?: string | null;
   starterPrompts?: { label: string; prompt: string }[];
 }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -136,8 +138,16 @@ export function ChatPanel({
       });
 
       if (res.status === 402) {
-        setPaywall(true);
         setMessages((prev) => prev.slice(0, -1));
+        if (audience === "parent") {
+          const payload = await res.json().catch(() => ({}));
+          toast.error(
+            payload.error ??
+              "Ücretsiz Destek hakkın doldu. Plus gerekmez.",
+          );
+          return;
+        }
+        setPaywall(true);
         return;
       }
 
@@ -322,7 +332,11 @@ export function ChatPanel({
 
         {isAstra ? (
           <div className="sticky bottom-0 space-y-2 pb-1">
-            {chatCreditCost != null ? (
+            {quotaHint ? (
+              <p className="text-center text-[11px] text-[var(--astra-muted)]">
+                {quotaHint}
+              </p>
+            ) : chatCreditCost != null ? (
               <p className="text-center text-[11px] text-[var(--astra-muted)]">
                 Her mesaj yaklaşık {chatCreditCost} kredi harcar.
                 {isPremium ? " Plus ile gelişmiş model kullanılır." : ""}

@@ -16,6 +16,10 @@ import {
 import { searchDocumentChunks } from "@/lib/rag/pipeline";
 import { recordUserActivity } from "@/lib/streak/record-activity";
 import { getParentCoachContext } from "@/lib/parent/coach-context";
+import {
+  refundParentCoach,
+  spendParentCoach,
+} from "@/lib/parent/coach-quota";
 
 const bodySchema = z.object({
   message: z.string().min(1).max(12000),
@@ -60,7 +64,18 @@ export async function POST(request: Request) {
     }
   }
 
-  const isPremium = await isPremiumUser(service, userId);
+  const { data: caller } = await service
+    .from("profiles")
+    .select("primary_role")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (audience === "parent" && caller?.primary_role !== "parent") {
+    return errorResponse(403, "forbidden");
+  }
+
+  const isPremium =
+    audience === "parent" ? false : await isPremiumUser(service, userId);
   let styleBlock = "";
   if (audience === "student") {
     const { data: profile } = await service
@@ -70,28 +85,63 @@ export async function POST(request: Request) {
       .maybeSingle();
     styleBlock = ` ${tutorStylePrompt(parseTutorStyle(profile?.tutor_style))}`;
   }
-  const { model, actionCode } = selectModel({
-    actionCode: parsed.data.actionCode as ActionCode,
-    isPremium,
-    hasImage: Boolean(imageUrl),
-    userSelectedAdvanced: parsed.data.actionCode === "AI_CHAT_ADVANCED",
-  });
+  const { model, actionCode } =
+    audience === "parent"
+      ? {
+          model: env.OPENAI_STANDARD_MODEL,
+          actionCode: "AI_CHAT_PARENT" as ActionCode,
+        }
+      : selectModel({
+          actionCode: parsed.data.actionCode as ActionCode,
+          isPremium,
+          hasImage: Boolean(imageUrl),
+          userSelectedAdvanced: parsed.data.actionCode === "AI_CHAT_ADVANCED",
+        });
 
-  const reservation = await reserveCredits(
-    service,
-    userId,
-    actionCode,
-    newIdempotencyKey("chat"),
-  );
-  if (!reservation.ok) {
-    return errorResponse(
-      reservation.reason === "insufficient_credits" ? 402 : 400,
-      reservation.reason,
+  let parentSpendKey: string | null = null;
+  let reservation: {
+    ok: true;
+    reservationId: string;
+    cost: number;
+  } | null = null;
+
+  if (audience === "parent") {
+    const spent = await spendParentCoach(service, userId);
+    if (!spent.ok) {
+      return errorResponse(
+        spent.reason === "insufficient_credits" ? 402 : 400,
+        spent.reason === "insufficient_credits"
+          ? "parent_coach_exhausted"
+          : "invalid_action",
+      );
+    }
+    parentSpendKey = spent.key;
+  } else {
+    const reserved = await reserveCredits(
+      service,
+      userId,
+      actionCode,
+      newIdempotencyKey("chat"),
     );
+    if (!reserved.ok) {
+      return errorResponse(
+        reserved.reason === "insufficient_credits" ? 402 : 400,
+        reserved.reason,
+      );
+    }
+    reservation = reserved;
+  }
+
+  async function undoSpend() {
+    if (parentSpendKey) {
+      await refundParentCoach(service, userId, parentSpendKey);
+    } else if (reservation) {
+      await refundCredits(service, reservation.reservationId);
+    }
   }
 
   if (!env.OPENAI_API_KEY) {
-    await refundCredits(service, reservation.reservationId);
+    await undoSpend();
     return errorResponse(503, "ai_not_configured");
   }
 
@@ -223,14 +273,16 @@ export async function POST(request: Request) {
               .eq("id", conversationId);
           }
 
-          await commitCredits(service, reservation.reservationId);
+          if (reservation) {
+            await commitCredits(service, reservation.reservationId);
+          }
           await recordUsage(service, {
             userId,
             actionCode,
             model,
             tokensIn,
             tokensOut,
-            reservationId: reservation.reservationId,
+            reservationId: reservation?.reservationId ?? null,
           });
           try {
             await recordUserActivity(service, userId, "chat");
@@ -239,7 +291,7 @@ export async function POST(request: Request) {
           }
           controller.close();
         } catch (streamError) {
-          await refundCredits(service, reservation.reservationId);
+          await undoSpend();
           controller.error(streamError);
         }
       },
@@ -250,12 +302,12 @@ export async function POST(request: Request) {
         "Content-Type": "text/plain; charset=utf-8",
         "X-Conversation-Id": conversationId ?? "",
         "X-Model": model,
-        "X-Credits-Used": String(reservation.cost),
+        "X-Credits-Used": String(reservation?.cost ?? 1),
         "X-Sources": String(sources.length),
       },
     });
   } catch {
-    await refundCredits(service, reservation.reservationId);
+    await undoSpend();
     return NextResponse.json(
       { error: "Yanıt üretilemedi. Lütfen tekrar deneyin." },
       { status: 502 },

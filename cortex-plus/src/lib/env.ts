@@ -30,6 +30,7 @@ export const env = parsed.success
 export type ActionCode =
   | "AI_CHAT_STANDARD"
   | "AI_CHAT_ADVANCED"
+  | "AI_CHAT_PARENT"
   | "IMAGE_SOLUTION"
   | "DOCUMENT_PAGE_PROCESS"
   | "QUIZ_GENERATE"

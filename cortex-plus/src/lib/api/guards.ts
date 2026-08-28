@@ -57,6 +57,8 @@ export function errorResponse(status: number, code: string) {
   const messages: Record<string, string> = {
     insufficient_credits:
       "Bu işlem için yeterli kredin veya ücretsiz hakkın kalmadı.",
+    parent_coach_exhausted:
+      "Ücretsiz Destek hakkın doldu. Plus gerekmez; kota yenilenince tekrar yazabilirsin.",
     invalid_action: "Geçersiz işlem tanımı.",
     ai_not_configured: "AI servisi henüz yapılandırılmadı.",
     invalid_ai_response: "Yapay zekâ yanıtı işlenemedi. Tekrar dener misin?",
