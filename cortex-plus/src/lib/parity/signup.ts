@@ -4,6 +4,11 @@ export type ParentLinkMode = "code" | "email" | "later";
 
 export type ParentRelation = "anne" | "baba" | "vasi" | "diger";
 
+import type { TutorStyle } from "@/lib/learning/tutor-style";
+
+export type { TutorStyle };
+export { TUTOR_STYLE_OPTIONS } from "@/lib/learning/tutor-style";
+
 export type SignupPayload = {
   role: SignupRole;
   fullName: string;
@@ -11,6 +16,7 @@ export type SignupPayload = {
   schoolName?: string;
   focusSubject?: string;
   learningGoal?: string;
+  tutorStyle?: TutorStyle;
   avatarEmoji?: string;
   parentRelation?: ParentRelation;
   parentPhone?: string;
@@ -172,5 +178,5 @@ export function stepIdsForRole(role: SignupRole): string[] {
   }
   if (role === "teacher")
     return ["role", "teacher-school", "teacher-class", "account"];
-  return ["role", "grade", "subject", "goal", "avatar", "account"];
+  return ["role", "grade", "subject", "goal", "tutor-style", "avatar", "account"];
 }

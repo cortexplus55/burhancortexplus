@@ -9,8 +9,12 @@ export default function OdemeBasarisizPage() {
       description="İşlem iptal edildi veya başarısız oldu. Paketler sayfasından tekrar deneyebilirsin."
     >
       <p className="mk-card p-6 text-center text-sm">
-        <Link href="/fiyatlandirma" className="text-[var(--mk-primary)] underline">
-          Fiyatlandırmaya dön
+        <Link href="/paketler" className="text-[var(--mk-primary)] underline">
+          Paketlere dön
+        </Link>
+        {" · "}
+        <Link href="/ogretmen" className="text-[var(--mk-primary)] underline">
+          Sor ekranına git
         </Link>
       </p>
     </MarketingPage>

@@ -7,7 +7,10 @@ export const metadata = { title: "Uygulamalar" };
 export default async function UygulamalarPage() {
   await requireUser();
   return (
-    <AppShell title="Uygulamalar">
+    <AppShell
+      title="Uygulamalar"
+      creditHint="Laboratuvar simülasyonları ücretsiz; AI özellikleri kredi harcar."
+    >
       <UygulamalarLabGrid />
     </AppShell>
   );

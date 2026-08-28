@@ -9,8 +9,12 @@ export default function OdemeBasariliPage() {
       description="Kredilerin birkaç saniye içinde hesabına yansır."
     >
       <p className="mk-card p-6 text-center text-sm">
-        <Link href="/dashboard" className="text-[var(--mk-primary)] underline">
-          Panele git
+        <Link href="/krediler" className="text-[var(--mk-primary)] underline">
+          Kredileri gör
+        </Link>
+        {" · "}
+        <Link href="/ogretmen" className="text-[var(--mk-primary)] underline">
+          Sor ekranına git
         </Link>
       </p>
     </MarketingPage>

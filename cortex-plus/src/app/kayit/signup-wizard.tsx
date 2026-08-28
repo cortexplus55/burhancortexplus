@@ -23,6 +23,7 @@ import {
   SUBJECT_OPTIONS,
   isOptionalPhoneValid,
   stepIdsForRole,
+  TUTOR_STYLE_OPTIONS,
   type SignupPayload,
   type SignupRole,
 } from "@/lib/parity/signup";
@@ -78,6 +79,7 @@ export function SignupWizard() {
       schoolName: draft.schoolName,
       focusSubject: draft.focusSubject,
       learningGoal: draft.learningGoal,
+      tutorStyle: draft.tutorStyle,
       avatarEmoji: draft.avatarEmoji,
       parentRelation: draft.parentRelation,
       parentPhone: draft.parentPhone?.trim() || undefined,
@@ -166,7 +168,8 @@ export function SignupWizard() {
           school_name: payload.schoolName ?? payload.teacherInstitution ?? "",
           focus_subject: payload.focusSubject ?? payload.teacherBranch ?? "",
           learning_goal: payload.learningGoal ?? "",
-          onboarding_done: payload.role === "parent" ? "false" : "true",
+          tutor_style: payload.tutorStyle ?? "step_by_step",
+          onboarding_done: "false",
           parent_relation: payload.parentRelation ?? "",
           phone: payload.parentPhone ?? "",
         },
@@ -345,6 +348,37 @@ export function SignupWizard() {
               ))}
             </div>
             <ContinueButton disabled={!draft.learningGoal} onClick={next} />
+          </StepShell>
+        ) : null}
+
+        {step === "tutor-style" ? (
+          <StepShell
+            title="AI öğretmenin nasıl anlatsın?"
+            subtitle="Tercihini istediğin zaman profilden değiştirebilirsin."
+          >
+            <div className="space-y-3">
+              {TUTOR_STYLE_OPTIONS.map((option) => (
+                <SignupChoice
+                  key={option.id}
+                  selected={draft.tutorStyle === option.id}
+                  onClick={() =>
+                    setDraft((d) => ({ ...d, tutorStyle: option.id }))
+                  }
+                  className="flex w-full items-start gap-3 p-4 text-left"
+                >
+                  <span className="text-xl" aria-hidden>
+                    {option.emoji}
+                  </span>
+                  <span className="min-w-0 flex-1 pr-6">
+                    <span className="block font-semibold">{option.title}</span>
+                    <span className="block text-sm text-[var(--mk-muted)]">
+                      {option.body}
+                    </span>
+                  </span>
+                </SignupChoice>
+              ))}
+            </div>
+            <ContinueButton disabled={!draft.tutorStyle} onClick={next} />
           </StepShell>
         ) : null}
 

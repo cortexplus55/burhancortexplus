@@ -18,6 +18,9 @@ const payloadSchema = z.object({
   schoolName: z.string().max(160).optional(),
   focusSubject: z.string().max(60).optional(),
   learningGoal: z.string().max(120).optional(),
+  tutorStyle: z
+    .enum(["step_by_step", "hints_first", "direct_solve"])
+    .optional(),
   avatarEmoji: z.string().max(8).optional(),
   parentRelation: z.enum(["anne", "baba", "vasi", "diger"]).optional(),
   parentPhone: z.string().max(24).optional(),
@@ -81,6 +84,7 @@ async function completeSignupInner(
       grade_level: payload.gradeLevel ?? null,
       school_name: payload.schoolName ?? payload.teacherInstitution ?? null,
       focus_subject: payload.focusSubject ?? payload.teacherBranch ?? null,
+      ...(payload.tutorStyle ? { tutor_style: payload.tutorStyle } : {}),
       avatar_url: payload.avatarEmoji ?? null,
       primary_role: payload.role,
       parent_relation: parentRole ? payload.parentRelation ?? null : null,

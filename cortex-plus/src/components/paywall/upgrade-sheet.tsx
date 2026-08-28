@@ -52,9 +52,9 @@ export function UpgradeSheet({
         </div>
         <p className="mt-2 text-sm text-[var(--astra-muted)]">{message}</p>
         <ul className="mt-4 space-y-1.5 text-sm text-[var(--astra-muted)]">
-          <li>· Plus ile sınırsız AI sohbet</li>
-          <li>· Deneme sınavı ve analiz</li>
-          <li>· Gelişmiş model erişimi</li>
+          <li>· Daha fazla kredi ve ücretsiz hak</li>
+          <li>· Deneme sınavı üretimi ve analiz</li>
+          <li>· Gelişmiş AI modeli (Plus aboneliği)</li>
         </ul>
         <div className="mt-6 flex flex-col gap-2">
           <Link

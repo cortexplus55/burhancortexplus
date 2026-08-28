@@ -18,7 +18,10 @@ export default async function SohbetlerPage() {
     .limit(50);
 
   return (
-    <AppShell title="Sohbetler">
+    <AppShell
+      title="Sohbetler"
+      creditHint="Her AI mesajı kredi veya ücretsiz hak harcar."
+    >
       {conversations?.length ? (
         <ul className="divide-y rounded-lg border">
           {conversations.map((conversation) => (

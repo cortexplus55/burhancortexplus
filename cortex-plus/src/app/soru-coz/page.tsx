@@ -11,7 +11,7 @@ export default async function SoruCozPage() {
   const cost = await getCreditCost("IMAGE_SOLUTION");
 
   return (
-    <AppShell title="Soru çöz">
+    <AppShell title="Soru çöz" creditHint={`Her çözüm: ${cost} kredi.`}>
       <SectionCard
         title="Fotoğraftan soru çöz"
         description="Sorunun net bir fotoğrafını yükle; adım adım çözüm alırsın."

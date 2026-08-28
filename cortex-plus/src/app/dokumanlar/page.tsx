@@ -28,7 +28,10 @@ export default async function DokumanlarPage() {
     .limit(30);
 
   return (
-    <AppShell title="Dokümanlar">
+    <AppShell
+      title="Dokümanlar"
+      creditHint={`PDF işleme: sayfa başına ${cost} kredi.`}
+    >
       <div className="space-y-6">
         <SectionCard
           title="Doküman yükle"

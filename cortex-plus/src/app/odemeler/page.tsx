@@ -24,7 +24,7 @@ export default async function OdemelerPage() {
     .limit(30);
 
   return (
-    <AppShell title="Ödemeler">
+    <AppShell title="Ödemeler" accountStrip={false}>
       {payments?.length ? (
         <ul className="divide-y rounded-lg border">
           {payments.map((payment) => (

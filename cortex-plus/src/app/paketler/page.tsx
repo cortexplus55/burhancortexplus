@@ -1,4 +1,5 @@
 ﻿import { Suspense } from "react";
+import { AppShell } from "@/components/layout/app-shell";
 import { AstraSubscriptionCards } from "@/components/parity/astra-subscription-cards";
 import { requireUser } from "@/lib/auth/session";
 
@@ -14,8 +15,14 @@ export default async function PaketlerPage() {
     .order("sort_order");
 
   return (
-    <Suspense fallback={<p className="p-6 text-sm">Yükleniyor…</p>}>
-      <AstraSubscriptionCards plans={plans ?? []} studentAskParent />
-    </Suspense>
+    <AppShell title="Plus" accountStrip={false}>
+      <Suspense fallback={<p className="text-sm">Yükleniyor…</p>}>
+        <AstraSubscriptionCards
+          plans={plans ?? []}
+          studentAskParent
+          embedded
+        />
+      </Suspense>
+    </AppShell>
   );
 }

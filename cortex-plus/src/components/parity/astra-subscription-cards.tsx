@@ -19,15 +19,16 @@ type Plan = {
 };
 
 const PLUS_BENEFITS = [
-  "Sınırsız AI sohbet ve adım adım çözüm",
+  "Yüksek kredi kotası ve ücretsiz haklar",
   "Deneme sınavı üretimi ve analiz",
   "Quiz, flashcard ve çalışma planı",
   "Dokümanlarından kaynaklı yanıtlar",
+  "Plus aboneliği ile gelişmiş AI modeli",
 ];
 
 const SIGMA_BENEFITS = [
   "Plus’taki tüm avantajlar",
-  "Gelişmiş model ve daha yüksek kullanım limiti",
+  "En gelişmiş model ve yüksek kredi paketi",
   "Öncelikli yanıt hızı",
   "Yoğun sınav dönemleri için ek kredi",
 ];
@@ -48,11 +49,14 @@ export function AstraSubscriptionCards({
   guestMode = false,
   closeHref,
   studentAskParent = false,
+  embedded = false,
 }: {
   plans: Plan[];
   guestMode?: boolean;
   closeHref?: string;
   studentAskParent?: boolean;
+  /** AppShell içinde gösterim */
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -139,23 +143,31 @@ export function AstraSubscriptionCards({
   }
 
   return (
-    <div className="astra-app relative min-h-dvh px-4 pb-8 pt-6">
-      <button
-        type="button"
-        className="absolute right-4 top-4 rounded-full p-2 text-[var(--astra-muted)] hover:bg-[var(--astra-surface)]"
-        aria-label="Kapat"
-        onClick={closePay}
-      >
-        <X className="h-5 w-5" />
-      </button>
+    <div
+      className={cn(
+        "astra-app relative px-4 pb-8",
+        embedded ? "pt-2" : "min-h-dvh pt-6",
+      )}
+    >
+      {!embedded ? (
+        <button
+          type="button"
+          className="absolute right-4 top-4 rounded-full p-2 text-[var(--astra-muted)] hover:bg-[var(--astra-surface)]"
+          aria-label="Kapat"
+          onClick={closePay}
+        >
+          <X className="h-5 w-5" />
+        </button>
+      ) : null}
 
-      <div className="mx-auto max-w-md space-y-6 pt-8">
+      <div className={cn("mx-auto max-w-md space-y-6", embedded ? "" : "pt-8")}>
         <div className="text-center">
           <h1 className="text-xl font-semibold leading-snug">
             Daha iyi notlar al ve 2 kat hızlı öğren
           </h1>
           <p className="mt-2 text-sm text-[var(--astra-muted)]">
-            Sınavları geçmek için ihtiyacın olan her şey
+            Tüm özellikler açık; AI işlemleri kredi ve ücretsiz hak harcar. Plus
+            aboneliği gelişmiş model ve yüksek kredi paketi sunar.
           </p>
         </div>
 

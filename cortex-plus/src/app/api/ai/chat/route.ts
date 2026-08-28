@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { selectModel } from "@/lib/ai/model-router";
 import { SYSTEM_GUARDRAIL, isPremiumUser } from "@/lib/ai/generate";
+import { parseTutorStyle, tutorStylePrompt } from "@/lib/learning/tutor-style";
 import { env, type ActionCode } from "@/lib/env";
 import {
   commitCredits,
@@ -27,7 +28,8 @@ const bodySchema = z.object({
 });
 
 const AUDIENCE_INSTRUCTIONS: Record<"student" | "parent", string> = {
-  student: "Anlaşılır, adım adım öğret. Markdown ve LaTeX kullanabilirsin.",
+  student:
+    "Anlaşılır öğret. Markdown ve LaTeX kullanabilirsin. Öğrencinin tercih ettiği anlatım stili ayrıca sistem mesajında verilir.",
   parent:
     "Kullanıcı bir veli. Çocuğunun öğrenme sürecine nasıl destek olacağı konusunda rehberlik et: çalışma ortamı, motivasyon, sınav kaygısı, ekran süresi ve iletişim önerileri ver. Somut ve uygulanabilir öneriler sun; teşhis koyma, tıbbi veya psikolojik tanı verme, gerektiğinde uzmana yönlendir. Çocuğun özel sohbet içeriğine erişimin yok; bunu talep edilirse nazikçe belirt.",
 };
@@ -58,6 +60,15 @@ export async function POST(request: Request) {
   }
 
   const isPremium = await isPremiumUser(service, userId);
+  let styleBlock = "";
+  if (audience === "student") {
+    const { data: profile } = await service
+      .from("profiles")
+      .select("tutor_style")
+      .eq("id", userId)
+      .maybeSingle();
+    styleBlock = ` ${tutorStylePrompt(parseTutorStyle(profile?.tutor_style))}`;
+  }
   const { model, actionCode } = selectModel({
     actionCode: parsed.data.actionCode as ActionCode,
     isPremium,
@@ -164,7 +175,7 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "system",
-          content: `${SYSTEM_GUARDRAIL} ${AUDIENCE_INSTRUCTIONS[audience]}${contextBlock}`,
+          content: `${SYSTEM_GUARDRAIL} ${AUDIENCE_INSTRUCTIONS[audience]}${styleBlock}${contextBlock}`,
         },
         ...history.slice(0, -1),
         { role: "user", content: userContent },

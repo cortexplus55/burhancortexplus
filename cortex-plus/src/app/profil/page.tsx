@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { getUserRoles, requireUser } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
+import { parseTutorStyle } from "@/lib/learning/tutor-style";
 
 export const metadata = { title: "Profil" };
 
@@ -27,7 +28,7 @@ export default async function ProfilPage() {
     await Promise.all([
       supabase
         .from("profiles")
-        .select("full_name, grade_level, locale, created_at, invite_code, primary_role")
+        .select("full_name, grade_level, locale, created_at, invite_code, primary_role, tutor_style")
         .eq("id", user.id)
         .maybeSingle(),
       supabase
@@ -63,7 +64,7 @@ export default async function ProfilPage() {
   }));
 
   return (
-    <AppShell title="Profil">
+    <AppShell title="Profil" accountStrip={false}>
       <div className="space-y-6">
         <SectionCard title="Hesap bilgileri">
           <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -79,6 +80,7 @@ export default async function ProfilPage() {
             fullName={profile?.full_name ?? ""}
             gradeLevel={profile?.grade_level ?? ""}
             locale={(profile?.locale as "tr" | "en") ?? "tr"}
+            tutorStyle={parseTutorStyle(profile?.tutor_style)}
           />
         </SectionCard>
 

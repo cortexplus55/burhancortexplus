@@ -51,7 +51,7 @@ export default async function DashboardPage() {
     : null;
 
   return (
-    <AppShell title="Panel">
+    <AppShell title="Panel" accountStrip={false}>
       <div className="space-y-6">
         <div>
           <h2 className="text-lg font-semibold">

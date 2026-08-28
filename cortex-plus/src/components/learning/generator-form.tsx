@@ -114,7 +114,7 @@ export function GeneratorForm({
       <UpgradeSheet
         open={paywall}
         onOpenChange={setPaywall}
-        message="Bu işlem için yeterli kredin kalmadı."
+        message="Bu işlem için yeterli kredin veya ücretsiz hakkın kalmadı."
         returnPath={returnPath}
       />
     </>

@@ -50,7 +50,10 @@ export default async function IlerlemePage() {
   ];
 
   return (
-    <AppShell title="İlerleme">
+    <AppShell
+      title="İlerleme"
+      creditHint="İstatistikler ücretsiz; yeni AI işlemleri kredi harcar."
+    >
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (

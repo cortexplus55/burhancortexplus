@@ -17,7 +17,7 @@ export default async function DestekPage() {
     .limit(10);
 
   return (
-    <AppShell title="Destek">
+    <AppShell title="Destek" creditHint="Destek talebi göndermek ücretsizdir.">
       <div className="space-y-6">
         <SectionCard
           title="Yeni destek talebi"

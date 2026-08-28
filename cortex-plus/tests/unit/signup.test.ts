@@ -5,6 +5,18 @@ import {
 } from "@/lib/parity/signup";
 
 describe("veli kayıt yardımcıları", () => {
+  it("öğrenci adımlarına AI öğretmen stili ekler", () => {
+    expect(stepIdsForRole("student")).toEqual([
+      "role",
+      "grade",
+      "subject",
+      "goal",
+      "tutor-style",
+      "avatar",
+      "account",
+    ]);
+  });
+
   it("veli adımlarına yakınlık ve telefon ekler", () => {
     expect(stepIdsForRole("parent")).toEqual([
       "role",

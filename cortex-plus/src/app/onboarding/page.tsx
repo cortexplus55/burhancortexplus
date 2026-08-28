@@ -13,7 +13,14 @@ import {
 } from "@/components/ui/select";
 import { AstraMarketingPage } from "@/components/parity/astra-marketing";
 import { createClient } from "@/lib/supabase/client";
-import { homePathForRole } from "@/lib/parity/signup";
+import {
+  GOAL_OPTIONS,
+  GRADE_OPTIONS,
+  SUBJECT_OPTIONS,
+  TUTOR_STYLE_OPTIONS,
+  homePathForRole,
+} from "@/lib/parity/signup";
+import { DEFAULT_TUTOR_STYLE, type TutorStyle } from "@/lib/learning/tutor-style";
 import { toast } from "sonner";
 import "@/styles/astra-marketing.css";
 import "@/styles/signup-wizard.css";
@@ -23,6 +30,7 @@ export default function OnboardingPage() {
   const [grade, setGrade] = useState("");
   const [subject, setSubject] = useState("");
   const [goal, setGoal] = useState("");
+  const [tutorStyle, setTutorStyle] = useState<TutorStyle>(DEFAULT_TUTOR_STYLE);
 
   async function finish() {
     const supabase = createClient();
@@ -44,14 +52,22 @@ export default function OnboardingPage() {
       .update({
         grade_level: grade,
         focus_subject: subject || null,
+        tutor_style: tutorStyle,
         onboarding_completed_at: new Date().toISOString(),
       })
       .eq("id", user.id);
     if (goal) {
-      await supabase.from("learning_goals").insert({
-        user_id: user.id,
-        goal_text: goal,
-      });
+      const { data: goals } = await supabase
+        .from("learning_goals")
+        .select("id")
+        .eq("user_id", user.id)
+        .limit(1);
+      if (!goals?.length) {
+        await supabase.from("learning_goals").insert({
+          user_id: user.id,
+          goal_text: goal,
+        });
+      }
     }
     toast.success("Profilin hazır!");
     router.push(homePathForRole(existing?.primary_role));
@@ -61,19 +77,20 @@ export default function OnboardingPage() {
     <AstraMarketingPage variant="auth" title="Hoş geldin">
       <div className="signup-wizard mx-auto max-w-md space-y-6 pb-16">
         <p className="text-[var(--mk-muted)]">
-          Birkaç soruyla deneyimini kişiselleştirelim.
+          Kayıt sihirbazını tamamlayamadıysan birkaç soruyla deneyimini
+          kişiselleştirelim.
         </p>
         <div className="mk-card space-y-6 p-6">
           <div className="space-y-2">
-            <Label>Hangi okula gidiyorsun?</Label>
+            <Label>Hangi sınıftasın?</Label>
             <Select value={grade} onValueChange={(v) => setGrade(v ?? "")}>
               <SelectTrigger className="border-[var(--mk-border)] bg-[#0c0c0c]">
-                <SelectValue placeholder="Sınıf / seviye seç" />
+                <SelectValue placeholder="Sınıf seç" />
               </SelectTrigger>
               <SelectContent>
-                {["9", "10", "11", "12", "Mezun"].map((g) => (
+                {GRADE_OPTIONS.map((g) => (
                   <SelectItem key={g} value={g}>
-                    {g}. sınıf
+                    {g}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -86,16 +103,9 @@ export default function OnboardingPage() {
                 <SelectValue placeholder="Ders seç" />
               </SelectTrigger>
               <SelectContent>
-                {[
-                  "Matematik",
-                  "Fizik",
-                  "Kimya",
-                  "Biyoloji",
-                  "Türkçe",
-                  "İngilizce",
-                ].map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
+                {SUBJECT_OPTIONS.map((s) => (
+                  <SelectItem key={s.label} value={s.label}>
+                    {s.emoji} {s.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -108,9 +118,31 @@ export default function OnboardingPage() {
                 <SelectValue placeholder="Hedef seç" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="YKS hazırlık">YKS hazırlık</SelectItem>
-                <SelectItem value="Okul sınavları">Okul sınavları</SelectItem>
-                <SelectItem value="Konu pekiştirme">Konu pekiştirme</SelectItem>
+                {GOAL_OPTIONS.map((g) => (
+                  <SelectItem key={g.label} value={g.label}>
+                    {g.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>AI öğretmen stili</Label>
+            <Select
+              value={tutorStyle}
+              onValueChange={(v) =>
+                setTutorStyle((v as TutorStyle) ?? DEFAULT_TUTOR_STYLE)
+              }
+            >
+              <SelectTrigger className="border-[var(--mk-border)] bg-[#0c0c0c]">
+                <SelectValue placeholder="Stil seç" />
+              </SelectTrigger>
+              <SelectContent>
+                {TUTOR_STYLE_OPTIONS.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {o.title}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

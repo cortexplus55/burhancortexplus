@@ -9,6 +9,8 @@ import {
   AstraAppChrome,
 } from "@/components/parity/astra-app-chrome";
 import { astraUserInitial } from "@/components/parity/astra-app-utils";
+import { StudentAccountStrip } from "@/components/student/student-account-strip";
+import { getStudentAccountContext } from "@/lib/student/account-context";
 import "@/styles/admin-shell.css";
 
 const baseLinks = [
@@ -30,10 +32,15 @@ export async function AppShell({
   children,
   title,
   variant = "student",
+  accountStrip = true,
+  creditHint,
 }: {
   children: React.ReactNode;
   title?: string;
   variant?: "student" | "admin";
+  /** Öğrenci kabuğunda kredi özeti şeridi (Sor ekranında kapalı). */
+  accountStrip?: boolean;
+  creditHint?: string;
 }) {
   const supabase = await createClient();
   const {
@@ -41,23 +48,33 @@ export async function AppShell({
   } = await supabase.auth.getUser();
 
   if (variant === "student" && user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name, avatar_url, primary_role")
-      .eq("id", user.id)
-      .maybeSingle();
+    const [{ data: profile }, account] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("full_name, avatar_url, primary_role")
+        .eq("id", user.id)
+        .maybeSingle(),
+      getStudentAccountContext(supabase, user.id),
+    ]);
 
     const avatar = profile?.avatar_url as string | null | undefined;
     const streak = await getUserStreak(supabase, user.id);
+    const navRole = profile?.primary_role === "parent" ? "parent" : "student";
+    const showStrip =
+      accountStrip && navRole === "student" && Boolean(title);
 
     return (
       <AstraAppChrome
-        navRole={profile?.primary_role === "parent" ? "parent" : "student"}
+        navRole={navRole}
         userInitial={astraUserInitial(profile?.full_name, user.email)}
         avatarEmoji={avatar && !avatar.startsWith("http") ? avatar : null}
         pageTitle={title}
         streak={streak}
+        account={navRole === "student" ? account : undefined}
       >
+        {showStrip ? (
+          <StudentAccountStrip account={account} creditHint={creditHint} />
+        ) : null}
         {children}
       </AstraAppChrome>
     );

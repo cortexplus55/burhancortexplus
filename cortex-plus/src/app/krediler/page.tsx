@@ -40,7 +40,7 @@ export default async function KredilerPage() {
   ]);
 
   return (
-    <AppShell title="Krediler">
+    <AppShell title="Krediler" accountStrip={false}>
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-3">
           {[

@@ -46,6 +46,9 @@ const profileSchema = z.object({
   fullName: z.string().min(2).max(120),
   gradeLevel: z.string().max(40).optional(),
   locale: z.enum(["tr", "en"]).default("tr"),
+  tutorStyle: z
+    .enum(["step_by_step", "hints_first", "direct_solve"])
+    .optional(),
 });
 
 export async function updateProfile(formData: FormData) {
@@ -56,6 +59,7 @@ export async function updateProfile(formData: FormData) {
     fullName: formData.get("fullName"),
     gradeLevel: formData.get("gradeLevel") ?? undefined,
     locale: formData.get("locale") ?? "tr",
+    tutorStyle: formData.get("tutorStyle") ?? undefined,
   });
 
   if (!parsed.success) return { ok: false, error: "Bilgiler geçersiz." };
@@ -66,6 +70,9 @@ export async function updateProfile(formData: FormData) {
       full_name: parsed.data.fullName,
       grade_level: parsed.data.gradeLevel || null,
       locale: parsed.data.locale,
+      ...(parsed.data.tutorStyle
+        ? { tutor_style: parsed.data.tutorStyle }
+        : {}),
     })
     .eq("id", user.id);
 

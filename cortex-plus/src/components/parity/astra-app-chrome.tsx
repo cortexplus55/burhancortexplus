@@ -30,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { readStreakFromStorage } from "@/components/parity/astra-gamification";
+import type { StudentAccountContext } from "@/lib/student/account-context";
 import { useEffect, useState } from "react";
 
 export type AstraNavRole = "student" | "parent" | "teacher";
@@ -167,6 +168,7 @@ export function AstraAppChrome({
   streak = 0,
   pageTitle,
   navRole = "student",
+  account,
 }: {
   children: React.ReactNode;
   userInitial?: string;
@@ -174,6 +176,7 @@ export function AstraAppChrome({
   streak?: number;
   pageTitle?: string;
   navRole?: AstraNavRole;
+  account?: StudentAccountContext;
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -213,16 +216,27 @@ export function AstraAppChrome({
 
   return (
     <div className="astra-app mx-auto flex min-h-dvh max-w-lg flex-col pb-28 md:max-w-2xl lg:max-w-3xl">
-      <header className="flex items-center justify-between px-4 py-3">
+      <header className="flex items-center justify-between gap-2 px-4 py-3">
         {navRole === "student" ? (
-          <button
-            type="button"
-            className="astra-nav-bar flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
-            aria-label="Seri"
-          >
-            <Flame className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
-            {streakCount}
-          </button>
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              className="astra-nav-bar flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
+              aria-label="Seri"
+            >
+              <Flame className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
+              {streakCount}
+            </button>
+            {account ? (
+              <Link
+                href="/krediler"
+                className="astra-nav-bar hidden max-w-[140px] truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium sm:inline-block"
+              >
+                {account.isPremium ? "Plus · " : ""}
+                {account.balance} kr
+              </Link>
+            ) : null}
+          </div>
         ) : (
           <Link
             href={navRole === "teacher" ? "/ogretmen-paneli" : "/veli"}

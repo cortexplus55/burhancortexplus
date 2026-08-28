@@ -12,6 +12,7 @@ export const metadata = { title: "Sınavlar" };
 export default async function DenemeSinavlariPage() {
   const { supabase, user } = await requireUser();
   const cost = await getCreditCost("PRACTICE_EXAM_GENERATE");
+  const gradeCost = await getCreditCost("PRACTICE_EXAM_GRADE");
 
   const [{ data: exams }, { data: attempts }] = await Promise.all([
     supabase
@@ -31,7 +32,10 @@ export default async function DenemeSinavlariPage() {
   ]);
 
   return (
-    <AppShell title="Sınavlar">
+    <AppShell
+      title="Sınavlar"
+      creditHint={`Deneme üretimi ${cost} kredi; değerlendirme ${gradeCost} kredi.`}
+    >
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--astra-muted)]" />
         <input

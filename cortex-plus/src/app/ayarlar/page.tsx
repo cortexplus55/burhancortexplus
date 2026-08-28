@@ -34,6 +34,15 @@ export default async function AyarlarPage() {
     <AppShell title="Ayarlar">
       <div className="space-y-6">
         <SectionCard
+          title="Öğrenme tercihleri"
+          description="AI öğretmen stilini ve sınıf bilgini profilden güncelleyebilirsin."
+        >
+          <Link href="/profil" className="text-sm font-medium underline">
+            Profile git
+          </Link>
+        </SectionCard>
+
+        <SectionCard
           title="Görünüm"
           description="Açık ve koyu tema arasında geçiş yapabilirsin."
         >

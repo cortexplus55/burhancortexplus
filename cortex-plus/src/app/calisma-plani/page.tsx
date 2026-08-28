@@ -19,7 +19,7 @@ export default async function CalismaPlaniPage() {
     .limit(5);
 
   return (
-    <AppShell title="Çalışma planı">
+    <AppShell title="Çalışma planı" creditHint={`Plan üretimi: ${cost} kredi.`}>
       <div className="space-y-6">
         <SectionCard
           title="Yeni plan oluştur"

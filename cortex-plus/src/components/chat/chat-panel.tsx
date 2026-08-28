@@ -48,6 +48,9 @@ export function ChatPanel({
   showSubjectPicker = true,
   showAttachments = true,
   returnPath = "/ogretmen",
+  chatCreditCost,
+  isPremium,
+  tutorStyleLabel,
 }: {
   initialConversationId?: string;
   initialMessages?: Message[];
@@ -61,6 +64,9 @@ export function ChatPanel({
   showSubjectPicker?: boolean;
   showAttachments?: boolean;
   returnPath?: string;
+  chatCreditCost?: number;
+  isPremium?: boolean;
+  tutorStyleLabel?: string;
 }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -299,6 +305,13 @@ export function ChatPanel({
 
         {isAstra ? (
           <div className="sticky bottom-0 space-y-2 pb-1">
+            {chatCreditCost != null ? (
+              <p className="text-center text-[11px] text-[var(--astra-muted)]">
+                Her mesaj yaklaşık {chatCreditCost} kredi harcar.
+                {isPremium ? " Plus ile gelişmiş model kullanılır." : ""}
+                {tutorStyleLabel ? ` · Stil: ${tutorStyleLabel}` : ""}
+              </p>
+            ) : null}
             <div
               className={cn(
                 "relative flex justify-center",

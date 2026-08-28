@@ -16,7 +16,7 @@ export default async function BildirimlerPage() {
     .limit(50);
 
   return (
-    <AppShell title="Bildirimler">
+    <AppShell title="Bildirimler" creditHint="Bildirimler ücretsizdir.">
       {notifications?.length ? (
         <ul className="divide-y rounded-lg border">
           {notifications.map((notification) => (
