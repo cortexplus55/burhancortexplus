@@ -476,3 +476,33 @@ export async function cancelParentLink(linkId: string) {
   revalidatePath("/onboarding/veli");
   return { ok: true };
 }
+
+export async function unlinkParentChild(linkId: string) {
+  const parsed = z.string().uuid().safeParse(linkId);
+  if (!parsed.success) return { ok: false, error: "Bağlantı bulunamadı." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Oturum bulunamadı." };
+
+  const { data, error } = await supabase
+    .from("parent_student_links")
+    .update({ status: "revoked" })
+    .eq("id", parsed.data)
+    .eq("parent_id", user.id)
+    .eq("status", "active")
+    .select("id")
+    .maybeSingle();
+
+  if (error || !data) {
+    return { ok: false, error: "Bağlantı kaldırılamadı." };
+  }
+
+  revalidatePath("/veli");
+  revalidatePath("/veli/plus");
+  revalidatePath("/profil");
+  revalidatePath("/onboarding/veli");
+  return { ok: true };
+}

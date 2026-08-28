@@ -3,10 +3,9 @@ import { ChatPanel } from "@/components/chat/chat-panel";
 import { ParentShell } from "@/components/layout/parent-shell";
 import { astraGreetingName } from "@/components/parity/astra-app-utils";
 import { requireParent } from "@/lib/auth/session";
-import { getCreditCost } from "@/lib/credits/rules";
-import { isPremiumUser } from "@/lib/ai/generate";
 import { getParentLinkStatus } from "@/lib/parent/link-status";
 import { firstLinkedProfile } from "@/lib/parent/child-profile";
+import { getParentCoachRemaining } from "@/lib/parent/coach-quota";
 import { formatDateShort } from "@/lib/format";
 
 export const metadata = { title: "Veli desteği" };
@@ -42,7 +41,7 @@ export default async function VeliSorPage({
   const { supabase, user } = await requireParent();
   const params = await searchParams;
 
-  const [{ data: profile }, linkStatus, chatCost, parentPremium, { data: children }, { data: threads }] =
+  const [{ data: profile }, linkStatus, coachRemaining, { data: children }, { data: threads }] =
     await Promise.all([
       supabase
         .from("profiles")
@@ -50,8 +49,7 @@ export default async function VeliSorPage({
         .eq("id", user.id)
         .maybeSingle(),
       getParentLinkStatus(supabase, user.id),
-      getCreditCost("AI_CHAT_STANDARD"),
-      isPremiumUser(supabase, user.id),
+      getParentCoachRemaining(supabase, user.id),
       supabase
         .from("parent_student_links")
         .select(
@@ -114,7 +112,7 @@ export default async function VeliSorPage({
           {childNames.length
             ? `Öneriler ${childNames.join(", ")} için onaylı özete bakarak verilir. Çocuğunun sohbetleri görünmez.`
             : "Öneriler onaylı ilerleme özetine bakarak verilir. Sohbetler gizli."}{" "}
-          Bu sohbet senin kredinden düşer.
+          Destek AI ayrı ücretsiz kotadır; Plus gerekmez.
         </p>
       )}
 
@@ -165,8 +163,12 @@ export default async function VeliSorPage({
         initialConversationId={conversationId}
         initialMessages={initialMessages}
         hasDocuments={false}
-        chatCreditCost={chatCost ?? undefined}
-        isPremium={parentPremium}
+        quotaHint={
+          coachRemaining > 0
+            ? `${coachRemaining} ücretsiz Destek hakkın kaldı. Plus gerekmez.`
+            : "Ücretsiz Destek hakkın doldu. Plus gerekmez."
+        }
+        isPremium={false}
         starterPrompts={PARENT_STARTERS}
       />
     </ParentShell>

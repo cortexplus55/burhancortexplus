@@ -1,8 +1,9 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { newIdempotencyKey } from "@/lib/credits/service";
+import { PARENT_COACH_GRANT } from "@/lib/parent/constants";
 
-export const PARENT_COACH_GRANT = 40;
+export { PARENT_COACH_GRANT };
 
 export async function getParentCoachRemaining(
   supabase: SupabaseClient,

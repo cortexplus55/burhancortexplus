@@ -93,6 +93,7 @@ export default async function VeliPage() {
                 summary={summaries.get(row.id as string) ?? null}
                 href={`/veli/cocuk/${row.student_id}`}
                 plusHref={`/veli/plus?ogrenci=${row.student_id}`}
+                linkId={row.id as string}
               />
             );
           })}

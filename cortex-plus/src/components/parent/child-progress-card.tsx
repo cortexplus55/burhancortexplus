@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ChildSummary } from "@/lib/parent/child-summary";
+import { UnlinkChildButton } from "@/components/parent/unlink-child-button";
 import { cn } from "@/lib/utils";
 
 export function ChildProgressCard({
@@ -9,6 +10,7 @@ export function ChildProgressCard({
   summary,
   href,
   plusHref = "/veli/plus",
+  linkId,
 }: {
   name: string;
   meta: string;
@@ -16,6 +18,7 @@ export function ChildProgressCard({
   summary: ChildSummary | null;
   href: string;
   plusHref?: string;
+  linkId?: string;
 }) {
   const activeStudyDays = summary?.studyDayFlags.filter(Boolean).length ?? 0;
 
@@ -85,6 +88,9 @@ export function ChildProgressCard({
           >
             Plus al
           </Link>
+        ) : null}
+        {linkId ? (
+          <UnlinkChildButton linkId={linkId} childName={name} />
         ) : null}
       </div>
     </article>

@@ -74,3 +74,10 @@ describe("veli plus ödeme hedefi", () => {
     );
   });
 });
+
+describe("veli Destek kotası", () => {
+  it("ayrı ücretsiz hak tanır", async () => {
+    const { PARENT_COACH_GRANT } = await import("@/lib/parent/constants");
+    expect(PARENT_COACH_GRANT).toBe(40);
+  });
+});

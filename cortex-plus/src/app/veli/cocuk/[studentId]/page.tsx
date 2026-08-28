@@ -14,6 +14,7 @@ import {
   firstLinkedProfile,
 } from "@/lib/parent/child-profile";
 import { formatDateShort } from "@/lib/format";
+import { UnlinkChildButton } from "@/components/parent/unlink-child-button";
 
 export const metadata = { title: "Çocuk detayı" };
 
@@ -198,6 +199,10 @@ export default async function ChildDetailPage({
             Bu çocuk için Plus al
           </Link>
         )}
+        <UnlinkChildButton
+          linkId={link.id as string}
+          childName={name}
+        />
       </div>
     </ParentShell>
   );
