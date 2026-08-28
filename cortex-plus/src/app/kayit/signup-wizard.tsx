@@ -30,8 +30,8 @@ import {
 import { authCallbackUrl, authErrorMessage } from "@/lib/auth/messages";
 import { signInWithGoogle } from "@/lib/auth/google-oauth";
 import { supabaseConfigIssue } from "@/lib/supabase/config-check";
-import "@/styles/astra-marketing.css";
-import "@/styles/cinematic-home.css";
+import { SignupPremiumShell } from "@/components/layout/signup-premium-shell";
+import "@/styles/cortex-premium.css";
 import "@/styles/signup-wizard.css";
 
 export function SignupWizard() {
@@ -199,6 +199,11 @@ export function SignupWizard() {
 
     setLoading(false);
     toast.success("Doğrulama e-postası gönderildi.");
+    try {
+      sessionStorage.setItem("cortex-signup-email", email);
+    } catch {
+      /* ignore */
+    }
     router.push("/email-dogrula");
   }
 
@@ -216,36 +221,32 @@ export function SignupWizard() {
     if (error) toast.error("Google ile kayıt başlatılamadı.");
   }
 
+  const headerStart =
+    stepIndex > 0 ? (
+      <button
+        type="button"
+        onClick={back}
+        className="rounded-full p-2 text-[var(--cx-muted)] hover:bg-[var(--cx-surface-solid)]"
+        aria-label="Geri"
+      >
+        <ArrowLeft className="h-5 w-5" />
+      </button>
+    ) : (
+      <Link
+        href="/"
+        className="text-sm font-semibold text-[var(--cx-gold-hover)]"
+      >
+        Cortex Plus
+      </Link>
+    );
+
   return (
-    <div className="signup-wizard astra-marketing cinematic-marketing cinematic-auth flex min-h-dvh flex-col">
-      <div className="signup-progress-track w-full">
-        <div
-          className="signup-progress-fill"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      <header className="flex items-center justify-between px-4 py-4">
-        {stepIndex > 0 ? (
-          <button
-            type="button"
-            onClick={back}
-            className="rounded-full p-2 text-[var(--mk-muted)] hover:bg-[var(--mk-surface)]"
-            aria-label="Geri"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-        ) : (
-          <Link href="/" className="text-sm font-semibold">
-            Cortex Plus
-          </Link>
-        )}
-        <span className="text-xs text-[var(--mk-muted)]">
-          Adım {stepIndex + 1}/{steps.length}
-        </span>
-      </header>
-
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-10">
+    <SignupPremiumShell
+      progress={progress}
+      stepLabel={`Adım ${stepIndex + 1}/${steps.length}`}
+      headerStart={headerStart}
+    >
+      <div className="signup-wizard flex flex-1 flex-col">
         {step === "role" ? (
           <StepShell
             title="Cortex Plus'a hoş geldin"
@@ -747,8 +748,8 @@ export function SignupWizard() {
             </form>
           </StepShell>
         ) : null}
-      </main>
-    </div>
+      </div>
+    </SignupPremiumShell>
   );
 }
 
@@ -765,7 +766,7 @@ function StepShell({
     <div className="flex flex-1 flex-col pt-6">
       <h1 className="signup-step-title">{title}</h1>
       {subtitle ? (
-        <p className="mt-2 text-sm text-[var(--mk-muted)]">{subtitle}</p>
+        <p className="mt-2 text-sm text-[var(--cx-muted)]">{subtitle}</p>
       ) : null}
       <div className="mt-8 flex-1">{children}</div>
     </div>

@@ -2,19 +2,20 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { GeneratorForm } from "@/components/learning/generator-form";
 import { ExamRunner } from "@/components/learning/exam-runner";
-import { requireUser } from "@/lib/auth/session";
+import { requireStudentArea } from "@/lib/auth/session";
 import { getCreditCost } from "@/lib/credits/rules";
 import { formatDate } from "@/lib/format";
+import { normalizeExamQuestions } from "@/lib/learning/exam-questions";
 import { Search } from "lucide-react";
 
 export const metadata = { title: "Sınavlar" };
 
 export default async function DenemeSinavlariPage() {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireStudentArea();
   const cost = await getCreditCost("PRACTICE_EXAM_GENERATE");
   const gradeCost = await getCreditCost("PRACTICE_EXAM_GRADE");
 
-  const [{ data: exams }, { data: attempts }] = await Promise.all([
+  const [examsResult, attemptsResult] = await Promise.all([
     supabase
       .from("practice_exams")
       .select(
@@ -31,10 +32,13 @@ export default async function DenemeSinavlariPage() {
       .limit(5),
   ]);
 
+  const exams = examsResult.error ? [] : (examsResult.data ?? []);
+  const attempts = attemptsResult.error ? [] : (attemptsResult.data ?? []);
+
   return (
     <AppShell
       title="Sınavlar"
-      creditHint={`Deneme üretimi ${cost} kredi; değerlendirme ${gradeCost} kredi.`}
+      creditHint={`Deneme üretimi ${cost ?? "—"} kredi; değerlendirme ${gradeCost ?? "—"} kredi.`}
     >
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--astra-muted)]" />
@@ -121,16 +125,7 @@ export default async function DenemeSinavlariPage() {
                 examId={exam.id}
                 title={exam.title}
                 durationMinutes={exam.duration_minutes}
-                questions={(exam.practice_exam_questions ?? [])
-                  .slice()
-                  .sort((a, b) => a.sort_order - b.sort_order)
-                  .map((question) => ({
-                    id: question.id,
-                    text: question.question_text,
-                    options: Array.isArray(question.options)
-                      ? (question.options as string[])
-                      : [],
-                  }))}
+                questions={normalizeExamQuestions(exam.practice_exam_questions)}
               />
             </div>
           ))}
@@ -161,7 +156,9 @@ export default async function DenemeSinavlariPage() {
                 </div>
                 {attempt.analysis ? (
                   <p className="mt-2 whitespace-pre-wrap text-[var(--astra-muted)]">
-                    {attempt.analysis}
+                    {typeof attempt.analysis === "string"
+                      ? attempt.analysis
+                      : JSON.stringify(attempt.analysis)}
                   </p>
                 ) : null}
               </li>

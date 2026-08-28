@@ -36,11 +36,19 @@ function relationLabel(value: string | null | undefined) {
   );
 }
 
+function linkedParentName(value: unknown): string {
+  if (Array.isArray(value)) {
+    const row = value[0] as { full_name?: string } | undefined;
+    return row?.full_name ?? "Bir veli";
+  }
+  return (value as { full_name?: string } | null)?.full_name ?? "Bir veli";
+}
+
 export default async function ProfilPage() {
   const { supabase, user } = await requireUser();
   const roles = await getUserRoles(user.id);
 
-  const [{ data: profile }, { data: application }, { data: parentLinks }] =
+  const [profileResult, applicationResult, parentLinksResult] =
     await Promise.all([
       supabase
         .from("profiles")
@@ -65,6 +73,10 @@ export default async function ProfilPage() {
         .eq("status", "pending")
         .order("created_at", { ascending: false }),
     ]);
+
+  const profile = profileResult.error ? null : profileResult.data;
+  const application = applicationResult.error ? null : applicationResult.data;
+  const parentLinks = parentLinksResult.error ? [] : (parentLinksResult.data ?? []);
 
   const isVerifiedTeacher = roles.includes("verified_teacher");
   const isSchoolTeacher =
@@ -194,10 +206,9 @@ export default async function ProfilPage() {
     );
   }
 
-  const requests: ParentRequest[] = (parentLinks ?? []).map((row) => ({
+  const requests: ParentRequest[] = parentLinks.map((row) => ({
     id: row.id as string,
-    parentName:
-      (row.profiles as { full_name?: string } | null)?.full_name ?? "Bir veli",
+    parentName: linkedParentName(row.profiles),
     createdAt: row.created_at as string | null,
   }));
 

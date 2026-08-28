@@ -118,27 +118,44 @@ const teacherTabs: NavItem[] = [
   },
 ];
 
-const studentMenu: { href: string; label: string; icon: typeof MessageCircle }[] =
-  [
-    { href: "/ogretmen", label: "Yeni sohbet", icon: MessageCircle },
-    { href: "/sohbetler", label: "Sohbetler", icon: History },
-    { href: "/soru-coz", label: "Fotoğraftan çöz", icon: Camera },
-    { href: "/dokumanlar", label: "Dokümanlar", icon: FileText },
-    { href: "/sinifim", label: "Sınıfım", icon: Users },
-    { href: "/odevlerim", label: "Ödevlerim", icon: ClipboardList },
-    { href: "/quizler", label: "Quiz", icon: Gamepad2 },
-    { href: "/flashcardlar", label: "Flashcard", icon: Layers },
-    { href: "/deneme-sinavlari", label: "Deneme sınavı", icon: Target },
-    { href: "/calisma-plani", label: "Çalışma planı", icon: BookOpen },
-    { href: "/ilerleme", label: "İlerleme", icon: Sparkles },
-    { href: "/krediler", label: "Krediler", icon: CreditCard },
-    { href: "/paketler", label: "Plus'a yükselt", icon: GraduationCap },
-    { href: "/profil", label: "Profil", icon: User },
-    { href: "/ayarlar", label: "Ayarlar", icon: Settings },
-    { href: "/bildirimler", label: "Bildirimler", icon: Bell },
-    { href: "/destek", label: "Yardım", icon: HelpCircle },
-    { href: "/dashboard", label: "Panel", icon: LayoutGrid },
-  ];
+const studentMenuGroups: {
+  title: string;
+  items: { href: string; label: string; icon: typeof MessageCircle }[];
+}[] = [
+  {
+    title: "Çalış",
+    items: [
+      { href: "/ogretmen", label: "Yeni sohbet", icon: MessageCircle },
+      { href: "/sohbetler", label: "Sohbetler", icon: History },
+      { href: "/soru-coz", label: "Fotoğraftan çöz", icon: Camera },
+      { href: "/dokumanlar", label: "Dokümanlar", icon: FileText },
+      { href: "/sinifim", label: "Sınıfım", icon: Users },
+      { href: "/odevlerim", label: "Ödevlerim", icon: ClipboardList },
+      { href: "/quizler", label: "Quiz", icon: Gamepad2 },
+      { href: "/flashcardlar", label: "Flashcard", icon: Layers },
+      { href: "/calisma-plani", label: "Çalışma planı", icon: BookOpen },
+      { href: "/ilerleme", label: "İlerleme", icon: Sparkles },
+      { href: "/dashboard", label: "Panel", icon: LayoutGrid },
+    ],
+  },
+  {
+    title: "Sınav",
+    items: [{ href: "/deneme-sinavlari", label: "Deneme sınavı", icon: Target }],
+  },
+  {
+    title: "Hesap",
+    items: [
+      { href: "/krediler", label: "Krediler", icon: CreditCard },
+      { href: "/paketler", label: "Plus'a yükselt", icon: GraduationCap },
+      { href: "/profil", label: "Profil", icon: User },
+      { href: "/ayarlar", label: "Ayarlar", icon: Settings },
+      { href: "/bildirimler", label: "Bildirimler", icon: Bell },
+      { href: "/destek", label: "Yardım", icon: HelpCircle },
+    ],
+  },
+];
+
+const studentMenu = studentMenuGroups.flatMap((group) => group.items);
 
 const teacherMenu: { href: string; label: string; icon: typeof MessageCircle }[] =
   [
@@ -198,6 +215,7 @@ export function AstraAppChrome({
       : navRole === "teacher"
         ? teacherMenu
         : studentMenu;
+  const studentGroups = navRole === "student" ? studentMenuGroups : null;
   const activeTab = tabs.find((tab) => tab.match(pathname))?.id ?? null;
 
   useEffect(() => {
@@ -308,20 +326,49 @@ export function AstraAppChrome({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              {menu.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="astra-pay-card flex flex-col items-center gap-2 p-3 text-center text-xs font-medium transition-colors hover:border-[var(--astra-primary)]"
-                  >
-                    <Icon className="h-6 w-6 text-[var(--astra-primary)]" />
-                    {item.label}
-                  </Link>
-                );
-              })}
+            <div className="max-h-[min(70dvh,520px)] overflow-y-auto pr-1">
+              {studentGroups ? (
+                <div className="space-y-5">
+                  {studentGroups.map((group) => (
+                    <div key={group.title}>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--astra-muted)]">
+                        {group.title}
+                      </p>
+                      <div className="grid grid-cols-3 gap-3">
+                        {group.items.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              className="astra-pay-card flex flex-col items-center gap-2 p-3 text-center text-xs font-medium transition-colors hover:border-[var(--astra-primary)]"
+                            >
+                              <Icon className="h-6 w-6 text-[var(--astra-primary)]" />
+                              {item.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-3">
+                  {menu.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className="astra-pay-card flex flex-col items-center gap-2 p-3 text-center text-xs font-medium transition-colors hover:border-[var(--astra-primary)]"
+                      >
+                        <Icon className="h-6 w-6 text-[var(--astra-primary)]" />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <form action="/api/auth/signout" method="post" className="mt-4">
               <button

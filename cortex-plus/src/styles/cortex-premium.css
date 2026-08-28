@@ -309,3 +309,36 @@
     transform: none;
   }
 }
+
+.cortex-premium-signup .cortex-premium-auth__grid {
+  min-height: calc(100dvh - 4px);
+}
+
+.cortex-premium-signup__progress.signup-progress-track {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--cx-bg);
+}
+
+.cortex-premium-signup .signup-choice {
+  border-color: var(--cx-border);
+  background: var(--cx-surface-solid);
+}
+
+.cortex-premium-signup .signup-choice[data-selected="true"] {
+  border-color: var(--cx-border-gold);
+  box-shadow: 0 0 0 1px var(--cx-border-gold);
+}
+
+.cortex-premium-signup .signup-continue {
+  background: var(--cx-gold);
+  color: #0a0a0a;
+}
+
+.cortex-premium-error .cortex-premium-auth__card {
+  border: 1px solid var(--cx-border);
+  background: var(--cx-surface-solid);
+  padding: 2rem;
+  border-radius: 1.25rem;
+}

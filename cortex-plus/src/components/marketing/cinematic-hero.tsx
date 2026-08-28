@@ -73,6 +73,18 @@ export function CinematicHero() {
           </div>
         </form>
 
+        <div className="mk-section-reveal mk-section-reveal-delay-2 mt-6 flex flex-wrap items-center justify-center gap-3 text-xs text-[var(--mk-muted)]">
+          <span className="rounded-full border border-white/10 px-3 py-1">
+            Ücretsiz başlangıç kredisi
+          </span>
+          <span className="rounded-full border border-white/10 px-3 py-1">
+            Tüm dersler · TR
+          </span>
+          <span className="rounded-full border border-white/10 px-3 py-1">
+            Veli & öğretmen desteği
+          </span>
+        </div>
+
         <div className="mk-section-reveal mk-section-reveal-delay-2 mt-8 flex flex-wrap items-center justify-center gap-4">
           <Link href="/kayit" className="mk-btn-play">
             <span className="mk-btn-play-icon" aria-hidden>
