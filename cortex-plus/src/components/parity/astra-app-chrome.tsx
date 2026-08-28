@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import "@/styles/astra-app.css";
+import "@/styles/cortex-premium.css";
 import {
   Atom,
   Bell,
@@ -93,11 +94,13 @@ const parentTabs: NavItem[] = [
 
 const teacherTabs: NavItem[] = [
   {
-    id: "ozet",
-    href: "/ogretmen-paneli",
-    label: "Özet",
-    icon: LayoutGrid,
-    match: (p) => p === "/ogretmen-paneli",
+    id: "ogretmen",
+    href: "/ogretmen-paneli/araclar",
+    label: "Öğretmen",
+    icon: Sparkles,
+    match: (p) =>
+      p === "/ogretmen-paneli" ||
+      p.startsWith("/ogretmen-paneli/araclar"),
   },
   {
     id: "siniflar",
@@ -139,6 +142,7 @@ const studentMenu: { href: string; label: string; icon: typeof MessageCircle }[]
 
 const teacherMenu: { href: string; label: string; icon: typeof MessageCircle }[] =
   [
+    { href: "/ogretmen-paneli/araclar", label: "AI araçları", icon: Sparkles },
     { href: "/ogretmen-paneli/ogrenciler", label: "Öğrenciler", icon: Users },
     { href: "/ogretmen-paneli/quizler", label: "Quizler", icon: Gamepad2 },
     { href: "/ogretmen-paneli/raporlar", label: "Raporlar", icon: BarChart3 },
@@ -215,13 +219,13 @@ export function AstraAppChrome({
   }, [menuOpen]);
 
   return (
-    <div className="astra-app mx-auto flex min-h-dvh max-w-lg flex-col pb-28 md:max-w-2xl lg:max-w-3xl">
+    <div className="astra-app cortex-premium-app mx-auto flex min-h-dvh max-w-lg flex-col pb-28 md:max-w-2xl lg:max-w-3xl">
       <header className="flex items-center justify-between gap-2 px-4 py-3">
         {navRole === "student" ? (
           <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
-              className="astra-nav-bar flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
+              className="cortex-premium-glass-nav flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
               aria-label="Seri"
             >
               <Flame className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
@@ -230,20 +234,30 @@ export function AstraAppChrome({
             {account ? (
               <Link
                 href="/krediler"
-                className="astra-nav-bar hidden max-w-[140px] truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium sm:inline-block"
+                className="cortex-premium-glass-nav hidden max-w-[140px] truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium sm:inline-block"
               >
                 {account.isPremium ? "Plus · " : ""}
                 {account.balance} kr
               </Link>
             ) : null}
+            <Link href="/paketler" className="cortex-premium-buy hidden sm:inline-flex">
+              Satın al ✦
+            </Link>
           </div>
         ) : (
-          <Link
-            href={navRole === "teacher" ? "/ogretmen-paneli" : "/veli"}
-            className="text-sm font-semibold"
-          >
-            Cortex Plus
-          </Link>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <Link
+              href={navRole === "teacher" ? "/ogretmen-paneli/araclar" : "/veli"}
+              className="text-sm font-semibold"
+            >
+              Cortex Plus
+            </Link>
+            {navRole === "teacher" ? (
+              <Link href="/ogretmen-paneli/plus" className="cortex-premium-buy ml-auto shrink-0">
+                Satın al ✦
+              </Link>
+            ) : null}
+          </div>
         )}
         {pageTitle ? (
           <p className="astra-page-title truncate px-2 text-sm">
@@ -280,7 +294,7 @@ export function AstraAppChrome({
           onClick={() => setMenuOpen(false)}
         >
           <div
-            className="astra-app w-full max-w-md rounded-3xl border border-[var(--astra-border)] bg-[var(--astra-bg)] p-5 shadow-xl"
+            className="astra-app w-full max-w-md rounded-3xl border border-[var(--astra-border)] bg-[var(--astra-bg)] p-5 shadow-xl cortex-premium-glass-nav"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
@@ -323,7 +337,7 @@ export function AstraAppChrome({
 
       <footer className="fixed bottom-0 left-0 right-0 z-50 flex items-end justify-center gap-2 px-3 pb-4 pt-2">
         <nav
-          className="astra-nav-bar flex flex-1 max-w-md items-center justify-around rounded-full px-1 py-1.5"
+          className="cortex-premium-glass-nav astra-nav-bar flex flex-1 max-w-md items-center justify-around rounded-full px-1 py-1.5"
           aria-label="Ana menü"
         >
           {tabs.map((tab) => {
@@ -350,7 +364,7 @@ export function AstraAppChrome({
           type="button"
           onClick={() => setMenuOpen(true)}
           className={cn(
-            "astra-nav-bar flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full",
+            "cortex-premium-glass-nav astra-nav-bar flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full",
             menuOpen && "astra-nav-active",
           )}
           aria-label="Menü"

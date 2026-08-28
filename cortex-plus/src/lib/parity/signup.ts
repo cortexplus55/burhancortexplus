@@ -131,7 +131,7 @@ export function homePathForRole(role: string | null | undefined): string {
       return "/veli";
     case "teacher":
     case "verified_teacher":
-      return "/ogretmen-paneli";
+      return "/ogretmen-paneli/araclar";
     case "admin":
       return "/admin";
     default:

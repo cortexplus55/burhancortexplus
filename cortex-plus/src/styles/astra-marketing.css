@@ -1,29 +1,34 @@
 @import "./astra-app.css";
 
 .astra-marketing {
-  --mk-bg: #0c0c0c;
-  --mk-surface: #161616;
-  --mk-border: #2a2a2a;
-  --mk-primary: #4a6cf7;
+  --mk-bg: #050505;
+  --mk-surface: rgba(18, 18, 20, 0.85);
+  --mk-border: rgba(255, 255, 255, 0.08);
+  --mk-primary: #e8a838;
   --mk-text: #fafafa;
-  --mk-muted: #a1a1a1;
+  --mk-muted: #a3a3a3;
   background: var(--mk-bg);
   color: var(--mk-text);
 }
 
 .astra-marketing .mk-hero-gradient {
-  background: radial-gradient(ellipse 80% 60% at 50% -20%, rgba(74, 108, 247, 0.35), transparent);
+  background: radial-gradient(
+    ellipse 80% 60% at 50% -20%,
+    rgba(232, 168, 56, 0.28),
+    transparent
+  );
 }
 
 .astra-marketing .mk-btn-primary {
-  background: var(--mk-primary);
-  color: white;
+  background: linear-gradient(135deg, #f0b84d 0%, #c9851f 100%);
+  color: #0c0a06;
   border-radius: 9999px;
-  font-weight: 600;
+  font-weight: 700;
+  box-shadow: 0 0 32px rgba(232, 168, 56, 0.25);
 }
 
 .astra-marketing .mk-btn-primary:hover {
-  background: #3d5ce6;
+  background: linear-gradient(135deg, #ffc857 0%, #e8a838 100%);
 }
 
 .astra-marketing .mk-btn-outline {

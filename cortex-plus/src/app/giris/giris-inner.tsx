@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { AstraMarketingPage } from "@/components/parity/astra-marketing";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { PremiumAuthShell } from "@/components/layout/premium-auth-shell";
 import { createClient } from "@/lib/supabase/client";
 import { signInWithGoogle } from "@/lib/auth/google-oauth";
 import { toast } from "sonner";
@@ -44,46 +41,55 @@ export default function GirisPage() {
   }
 
   return (
-    <AstraMarketingPage variant="auth" title="Giriş yap">
-      <form onSubmit={onSubmit} className="mk-card mx-auto max-w-md space-y-4 p-6">
+    <PremiumAuthShell
+      title="Giriş yap"
+      subtitle="Hesabınla devam et veya Google kullan."
+    >
+      <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">E-posta</Label>
-          <Input
+          <label htmlFor="email" className="text-sm font-medium text-[var(--cx-muted)]">
+            E-posta
+          </label>
+          <input
             id="email"
             type="email"
             autoComplete="email"
             required
+            className="cortex-premium-input"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Şifre</Label>
-          <Input
+          <label htmlFor="password" className="text-sm font-medium text-[var(--cx-muted)]">
+            Şifre
+          </label>
+          <input
             id="password"
             type="password"
             autoComplete="current-password"
             required
+            className="cortex-premium-input"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
-        <Button type="submit" disabled={loading} className="w-full">
+        <button type="submit" disabled={loading} className="cortex-premium-btn-primary">
           Giriş yap
-        </Button>
-        <Button type="button" variant="outline" className="w-full" onClick={google}>
+        </button>
+        <button type="button" className="cortex-premium-btn-ghost" onClick={google}>
           Google ile devam et
-        </Button>
-        <p className="text-sm text-muted-foreground">
-          <Link href="/sifremi-unuttum" className="underline">
+        </button>
+        <p className="text-center text-sm text-[var(--cx-muted)]">
+          <Link href="/sifremi-unuttum" className="text-[var(--cx-gold-hover)] underline">
             Şifremi unuttum
           </Link>
           {" · "}
-          <Link href="/kayit" className="underline">
+          <Link href="/kayit" className="text-[var(--cx-gold-hover)] underline">
             Kayıt ol
           </Link>
         </p>
       </form>
-    </AstraMarketingPage>
+    </PremiumAuthShell>
   );
 }

@@ -4,6 +4,7 @@ import { SectionCard } from "@/components/ui-kit/empty-state";
 import { requireUser } from "@/lib/auth/session";
 import { onboardingPathForRole } from "@/lib/auth/onboarding-path";
 import { formatDate } from "@/lib/format";
+import "@/styles/cortex-premium.css";
 
 export const metadata = { title: "Panel" };
 
@@ -52,12 +53,12 @@ export default async function DashboardPage() {
 
   return (
     <AppShell title="Panel" accountStrip={false}>
-      <div className="space-y-6">
+      <div className="cortex-premium space-y-6">
         <div>
-          <h2 className="text-lg font-semibold">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl font-normal tracking-tight">
             {firstName ? `Merhaba ${firstName}` : "Merhaba"}
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-[var(--cx-muted)]">
             {wallet
               ? `${wallet.balance} kredin ve ${wallet.free_allowance_remaining} ücretsiz hakkın var.`
               : "Kredi bilgin yükleniyor."}
@@ -74,10 +75,10 @@ export default async function DashboardPage() {
             <Link
               key={shortcut.href}
               href={shortcut.href}
-              className="rounded-lg border p-4 transition hover:bg-accent"
+              className="cortex-premium-tool-card block"
             >
-              <p className="font-medium">{shortcut.label}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{shortcut.body}</p>
+              <p className="font-semibold text-[var(--cx-text)]">{shortcut.label}</p>
+              <p className="mt-1 text-sm text-[var(--cx-muted)]">{shortcut.body}</p>
             </Link>
           ))}
         </div>

@@ -7,7 +7,7 @@ import { Analytics } from "@/components/analytics";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       {children}
       <Toaster richColors closeButton position="top-center" />
       <Suspense fallback={null}>

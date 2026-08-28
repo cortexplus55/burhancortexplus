@@ -11,6 +11,7 @@
 **/.env
 **/.env.local
 **/.env.*.local
+.cursor/rules/app-test-accounts.mdc
 
 # IDE / OS
 .DS_Store

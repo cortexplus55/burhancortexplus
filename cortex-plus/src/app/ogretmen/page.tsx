@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { AstraGamificationGate } from "@/components/parity/astra-gamification";
+import { StudentHomeHub } from "@/components/student/student-home-hub";
 import {
   astraGreetingName,
   astraTimeGreeting,
@@ -23,7 +24,8 @@ export default async function OgretmenPage({
   const { supabase, user } = await requireUser();
   const params = await searchParams;
 
-  const [{ count }, { data: profile }, chatCost, isPremium] = await Promise.all([
+  const [{ count }, { data: profile }, chatCost, isPremium, { data: wallet }, { data: conversations }] =
+    await Promise.all([
     supabase
       .from("documents")
       .select("id", { count: "exact", head: true })
@@ -31,11 +33,23 @@ export default async function OgretmenPage({
       .eq("status", "completed"),
     supabase
       .from("profiles")
-      .select("full_name, tutor_style")
+      .select("full_name, tutor_style, primary_role")
       .eq("id", user.id)
       .maybeSingle(),
     getCreditCost("AI_CHAT_STANDARD"),
     isPremiumUser(supabase, user.id),
+    supabase
+      .from("credit_wallets")
+      .select("balance, free_allowance_remaining")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("conversations")
+      .select("id, title, updated_at")
+      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .order("updated_at", { ascending: false })
+      .limit(5),
   ]);
 
   let initialMessages: { role: "user" | "assistant"; content: string }[] = [];
@@ -69,10 +83,24 @@ export default async function OgretmenPage({
   const firstName = astraGreetingName(profile?.full_name ?? user.email);
   const greetingLine = `${firstName}, ${astraTimeGreeting().toLowerCase()}! 🌙`;
   const style = parseTutorStyle(profile?.tutor_style);
+  const isStudent = profile?.primary_role !== "parent" && profile?.primary_role !== "teacher";
+  const showHomeHub =
+    isStudent && !params.sohbet && initialMessages.length === 0;
+  const firstNameOnly = (profile?.full_name ?? "").split(" ")[0];
+  const walletLine = wallet
+    ? `${wallet.balance} kredi · ${wallet.free_allowance_remaining} ücretsiz hak`
+    : null;
 
   return (
-    <AppShell>
+    <AppShell accountStrip={false}>
       <AstraGamificationGate />
+      {showHomeHub ? (
+        <StudentHomeHub
+          firstName={firstNameOnly || "Merhaba"}
+          walletLine={walletLine}
+          conversations={conversations ?? []}
+        />
+      ) : null}
       <ChatPanel
         variant="astra"
         greetingLine={greetingLine}

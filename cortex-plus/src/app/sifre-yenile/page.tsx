@@ -1,12 +1,10 @@
 ﻿"use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { MarketingPage } from "@/components/layout/marketing-page";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { PremiumAuthShell } from "@/components/layout/premium-auth-shell";
 import { createClient } from "@/lib/supabase/client";
 import { passwordIssues } from "@/lib/auth/password";
 
@@ -40,48 +38,55 @@ export default function SifreYenilePage() {
     }
 
     toast.success("Şifren güncellendi.");
-    router.push("/dashboard");
+    router.push("/ogretmen");
   }
 
   return (
-    <MarketingPage
-      variant="auth"
-      title="Şifre yenile"
-      description="Yeni şifreni belirle ve hesabına dön."
-    >
-      <form onSubmit={onSubmit} className="mk-card space-y-4 p-6">
+    <PremiumAuthShell title="Şifre yenile" subtitle="Yeni şifreni belirle ve hesabına dön.">
+      <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="password">Yeni şifre</Label>
-          <Input
+          <label htmlFor="password" className="text-sm font-medium text-[var(--cx-muted)]">
+            Yeni şifre
+          </label>
+          <input
             id="password"
             type="password"
             autoComplete="new-password"
             required
+            className="cortex-premium-input"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             aria-describedby="password-rules"
           />
-          <ul id="password-rules" className="text-xs text-muted-foreground">
-            <li>En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam.</li>
-          </ul>
+          <p id="password-rules" className="text-xs text-[var(--cx-muted)]">
+            En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam.
+          </p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="confirm">Yeni şifre tekrar</Label>
-          <Input
+          <label htmlFor="confirm" className="text-sm font-medium text-[var(--cx-muted)]">
+            Yeni şifre tekrar
+          </label>
+          <input
             id="confirm"
             type="password"
             autoComplete="new-password"
             required
+            className="cortex-premium-input"
             value={confirm}
             onChange={(event) => setConfirm(event.target.value)}
           />
         </div>
 
-        <Button type="submit" disabled={loading} className="w-full">
+        <button type="submit" disabled={loading} className="cortex-premium-btn-primary">
           {loading ? "Kaydediliyor…" : "Şifreyi güncelle"}
-        </Button>
+        </button>
       </form>
-    </MarketingPage>
+      <p className="mt-4 text-center text-sm text-[var(--cx-muted)]">
+        <Link href="/giris" className="text-[var(--cx-gold-hover)] underline">
+          Girişe dön
+        </Link>
+      </p>
+    </PremiumAuthShell>
   );
 }

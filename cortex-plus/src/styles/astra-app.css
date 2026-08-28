@@ -35,8 +35,10 @@
 }
 
 .astra-app .astra-nav-active {
-  background: var(--astra-surface-elevated);
-  box-shadow: 0 0 24px rgba(232, 168, 56, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0 24px rgba(232, 168, 56, 0.18),
+    inset 0 0 0 1px rgba(232, 168, 56, 0.15);
 }
 
 .astra-app .astra-btn-primary {
