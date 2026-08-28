@@ -96,7 +96,9 @@ export default async function VeliSorPage({
 
   const firstName = astraGreetingName(profile?.full_name ?? user.email);
   const childNames = (children ?? [])
-    .map((row) => firstLinkedProfile(row.profiles)?.full_name)
+    .map((row: { profiles?: unknown }) =>
+      firstLinkedProfile(row.profiles)?.full_name,
+    )
     .filter((name): name is string => Boolean(name));
   const viewingThread = Boolean(conversationId);
 
@@ -131,7 +133,7 @@ export default async function VeliSorPage({
             Son sohbetlerin
           </h2>
           <ul className="space-y-1">
-            {threads.map((thread) => (
+            {threads.map((thread: { id: string; title: string | null; updated_at: string }) => (
               <li key={thread.id}>
                 <Link
                   href={`/veli/sor?sohbet=${thread.id}`}
