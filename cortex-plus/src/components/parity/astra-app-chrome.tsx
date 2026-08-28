@@ -248,28 +248,75 @@ export function AstraAppChrome({
     >
       <header className="flex items-center justify-between gap-2 px-4 py-3">
         {navRole === "student" ? (
-          <div className="flex min-w-0 items-center gap-2">
-            <button
-              type="button"
-              className="cortex-premium-glass-nav flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
-              aria-label="Seri"
-            >
-              <Flame className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
-              {streakCount}
-            </button>
-            {account ? (
-              <Link
-                href="/krediler"
-                className="cortex-premium-glass-nav max-w-[100px] truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium sm:max-w-[140px]"
+          <>
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                type="button"
+                className="cortex-premium-glass-nav flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
+                aria-label="Seri"
               >
-                {account.isPremium ? "Plus · " : ""}
-                {account.balance} kr
-              </Link>
-            ) : null}
-            <Link href="/pay" className="cortex-premium-buy shrink-0 text-[11px] sm:inline-flex">
-              Satın al ✦
-            </Link>
-          </div>
+                <Flame className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
+                {streakCount}
+              </button>
+              {account ? (
+                <Link
+                  href="/krediler"
+                  className="cortex-premium-glass-nav max-w-[100px] truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium sm:max-w-[140px]"
+                >
+                  {account.isPremium ? "Plus · " : ""}
+                  {account.balance} kr
+                </Link>
+              ) : null}
+              {!isSorScreen ? (
+                <Link href="/pay" className="cortex-premium-buy shrink-0 text-[11px] sm:inline-flex">
+                  Satın al ✦
+                </Link>
+              ) : null}
+            </div>
+            {isSorScreen ? (
+              <div className="astra-sor-header-right">
+                <Link href="/pay" className="cortex-premium-buy shrink-0 text-[11px]">
+                  Satın al ✦
+                </Link>
+                <Link
+                  href="/profil"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--astra-border)] bg-[var(--astra-surface)] text-sm font-semibold uppercase text-[var(--astra-text)]"
+                  aria-label="Profil"
+                >
+                  {avatarEmoji ? (
+                    <span className="text-lg" aria-hidden>
+                      {avatarEmoji}
+                    </span>
+                  ) : (
+                    (userInitial?.slice(0, 1) ?? "?")
+                  )}
+                </Link>
+              </div>
+            ) : (
+              <>
+                {pageTitle ? (
+                  <p className="astra-page-title truncate px-2 text-sm">
+                    {pageTitle}
+                  </p>
+                ) : (
+                  <span className="flex-1" />
+                )}
+                <Link
+                  href="/profil"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-800/90 text-sm font-semibold uppercase text-white"
+                  aria-label="Profil"
+                >
+                  {avatarEmoji ? (
+                    <span className="text-lg" aria-hidden>
+                      {avatarEmoji}
+                    </span>
+                  ) : (
+                    (userInitial?.slice(0, 1) ?? "?")
+                  )}
+                </Link>
+              </>
+            )}
+          </>
         ) : (
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <Link
@@ -285,26 +332,30 @@ export function AstraAppChrome({
             ) : null}
           </div>
         )}
-        {pageTitle && !isSorScreen ? (
-          <p className="astra-page-title truncate px-2 text-sm">
-            {pageTitle}
-          </p>
-        ) : (
-          <span className="flex-1" />
-        )}
-        <Link
-          href="/profil"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-800/90 text-sm font-semibold uppercase text-white"
-          aria-label="Profil"
-        >
-          {avatarEmoji ? (
-            <span className="text-lg" aria-hidden>
-              {avatarEmoji}
-            </span>
-          ) : (
-            (userInitial?.slice(0, 1) ?? "?")
-          )}
-        </Link>
+        {navRole !== "student" ? (
+          <>
+            {pageTitle ? (
+              <p className="astra-page-title truncate px-2 text-sm">
+                {pageTitle}
+              </p>
+            ) : (
+              <span className="flex-1" />
+            )}
+            <Link
+              href="/profil"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-800/90 text-sm font-semibold uppercase text-white"
+              aria-label="Profil"
+            >
+              {avatarEmoji ? (
+                <span className="text-lg" aria-hidden>
+                  {avatarEmoji}
+                </span>
+              ) : (
+                (userInitial?.slice(0, 1) ?? "?")
+              )}
+            </Link>
+          </>
+        ) : null}
       </header>
 
       <main className="flex flex-1 flex-col px-4 text-[var(--astra-text)] [&_.border]:border-[var(--astra-border)] [&_.bg-card]:bg-[var(--astra-surface)] [&_.bg-muted]:bg-[var(--astra-pill)] [&_.text-muted-foreground]:text-[var(--astra-muted)] [&_input]:border-[var(--astra-border)] [&_input]:bg-[var(--astra-bg)] [&_textarea]:border-[var(--astra-border)] [&_textarea]:bg-[var(--astra-bg)]">

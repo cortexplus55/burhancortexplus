@@ -245,15 +245,16 @@
   padding: 0.45rem 0.9rem;
   font-size: 0.75rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #4a6cf7 0%, #7c3aed 100%);
-  color: #fff;
-  box-shadow: 0 0 24px rgba(74, 108, 247, 0.35);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: linear-gradient(135deg, #ffc233 0%, #f4ae0b 50%, #d4920a 100%);
+  color: #0a0a0a;
+  box-shadow: 0 0 20px rgba(244, 174, 11, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .cortex-premium-buy:hover {
   transform: scale(1.03);
-  box-shadow: 0 0 32px rgba(124, 58, 237, 0.45);
+  filter: brightness(1.06);
+  box-shadow: 0 0 28px rgba(244, 174, 11, 0.45);
 }
 
 .cortex-premium-glass-nav {

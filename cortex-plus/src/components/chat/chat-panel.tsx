@@ -257,8 +257,8 @@ export function ChatPanel({
         {isAstra && messages.length === 0 ? (
           <div
             className={cn(
-              "flex flex-col items-center justify-center py-8 text-center",
-              isMinimalSor ? "min-h-[min(42vh,360px)] flex-1" : "flex-1 gap-3",
+              "flex flex-col items-center justify-center text-center",
+              isMinimalSor ? "astra-sor-empty" : "flex-1 gap-3 py-8",
             )}
           >
             <p className={isMinimalSor ? "astra-sor-greeting" : "text-lg font-semibold tracking-tight"}>
@@ -304,6 +304,7 @@ export function ChatPanel({
           </div>
         ) : null}
 
+        {!(isMinimalSor && messages.length === 0) ? (
         <div
           className={cn(
             isAstra
@@ -353,6 +354,7 @@ export function ChatPanel({
             </p>
           ) : null}
         </div>
+        ) : null}
 
         {status && !isAstra ? (
           <Badge variant="secondary" className="w-fit">
