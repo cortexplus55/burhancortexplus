@@ -415,22 +415,13 @@ export function ChatPanel({
               )}
               aria-hidden={!showMinimalEmpty}
             >
-              <div className="astra-sor-hero">
-                <div
-                  className={cn(
-                    "astra-sor-orb",
-                    isPremium && "astra-sor-orb--plus",
-                  )}
-                  aria-hidden
-                />
-                <div className="astra-sor-hero-copy">
-                  <p className="astra-sor-greeting">
-                    {greetingLine ?? "Merhaba, bugün ne çalışalım?"}
-                  </p>
-                  {greetingSubline ? (
-                    <p className="astra-sor-greeting-sub">{greetingSubline}</p>
-                  ) : null}
-                </div>
+              <div className="astra-sor-greeting-block">
+                <p className="astra-sor-greeting">
+                  {greetingLine ?? "Merhaba, bugün ne çalışalım?"}
+                </p>
+                {greetingSubline ? (
+                  <p className="astra-sor-greeting-sub">{greetingSubline}</p>
+                ) : null}
               </div>
             </div>
 
@@ -567,6 +558,19 @@ export function ChatPanel({
                           <Paperclip className="h-4 w-4 shrink-0" aria-hidden />
                           Dosya ekle
                         </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setAttachMenuOpen(false);
+                            toast.message("Sesle sor yakında", {
+                              description: "Mikrofonla soru sorma çok yakında.",
+                            });
+                          }}
+                        >
+                          <Mic className="h-4 w-4 shrink-0" aria-hidden />
+                          Sesle sor (yakında)
+                        </button>
                       </div>
                     ) : null}
                     <button
@@ -596,20 +600,6 @@ export function ChatPanel({
                     }
                   }}
                 />
-                <button
-                  type="button"
-                  className="astra-sor-mic"
-                  aria-label="Sesle sor yakında"
-                  title="Sesle sor yakında"
-                  disabled={loading}
-                  onClick={() =>
-                    toast.message("Sesle sor yakında", {
-                      description: "Mikrofonla soru sorma çok yakında.",
-                    })
-                  }
-                >
-                  <Mic className="h-4 w-4" aria-hidden />
-                </button>
                 <button
                   type="submit"
                   disabled={loading || !input.trim()}

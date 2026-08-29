@@ -2,17 +2,19 @@
 
 .astra-sor-screen {
   --astra-bg: #050505;
+  --astra-sor-nav-lift: calc(5.25rem + env(safe-area-inset-bottom, 0px));
+  --astra-sor-composer-lift: calc(9.5rem + env(safe-area-inset-bottom, 0px));
   font-family: var(--font-ui, "Figtree", system-ui, sans-serif);
   background: var(--astra-bg);
 }
 
-/* Sohbet hub — flex main; diğer sayfalar kaydırılabilir içerik */
+/* Sohbet hub — flex main; composer nav üstünde sabit (Astra / mockup) */
 .astra-sor-screen--chat main {
   min-height: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding-bottom: 0.25rem;
+  padding-bottom: 0;
 }
 
 .astra-sor-screen:not(.astra-sor-screen--chat) main.astra-sor-page-main {
@@ -37,8 +39,8 @@
 
 .astra-sor-view--empty,
 .astra-sor-view--shell {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   flex: 1;
 }
@@ -58,96 +60,33 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0 0.75rem;
+  padding: 0 0.75rem var(--astra-sor-composer-lift);
   text-align: center;
-  transition: opacity 0.35s ease, visibility 0.35s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.28s ease, visibility 0.28s ease;
 }
 
-.astra-sor-hero {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
+.astra-sor-greeting-block {
   max-width: 20rem;
 }
 
-.astra-sor-orb {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(72vw, 16rem);
-  height: min(72vw, 16rem);
-  margin-top: -4.5rem;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 35% 32%,
-    rgba(255, 210, 90, 0.55) 0%,
-    rgba(244, 174, 11, 0.28) 28%,
-    rgba(244, 174, 11, 0.08) 52%,
-    transparent 68%
-  );
-  filter: blur(0.5px);
-  animation: astra-sor-orb-breathe 4.2s ease-in-out infinite;
-  pointer-events: none;
+/* Boş Sor — Astra TR: sans başlık, ortada selamlama (orb yok) */
+.astra-sor-screen--chat .astra-sor-greeting {
+  font-family: var(--font-ui, "Figtree", system-ui, sans-serif);
+  font-size: clamp(1.25rem, 4.5vw, 1.5rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  animation: none;
 }
 
-.astra-sor-orb::after {
-  content: "";
-  position: absolute;
-  inset: 18%;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 40% 35%,
-    rgba(255, 240, 200, 0.35),
-    transparent 62%
-  );
-  animation: astra-sor-orb-core 3.6s ease-in-out infinite;
-}
-
-.astra-sor-orb--plus {
-  background: radial-gradient(
-    circle at 35% 32%,
-    rgba(255, 220, 110, 0.68) 0%,
-    rgba(244, 174, 11, 0.38) 30%,
-    rgba(244, 174, 11, 0.12) 54%,
-    transparent 70%
-  );
-  box-shadow:
-    0 0 80px rgba(244, 174, 11, 0.22),
-    0 0 140px rgba(244, 174, 11, 0.08);
-}
-
-.astra-sor-hero-copy {
-  position: relative;
-  z-index: 1;
-  padding-top: 5.5rem;
-}
-
-@keyframes astra-sor-orb-breathe {
-  0%,
-  100% {
-    opacity: 0.82;
-    transform: translate(-50%, -50%) scale(0.94);
-  }
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.06);
-  }
-}
-
-@keyframes astra-sor-orb-core {
-  0%,
-  100% {
-    opacity: 0.65;
-    transform: scale(0.92);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
+.astra-sor-screen--chat .astra-sor-greeting-sub {
+  margin-top: 0.75rem;
+  max-width: 18rem;
+  margin-left: auto;
+  margin-right: auto;
+  font-size: 0.875rem;
+  font-weight: 500;
+  animation: none;
 }
 
 .astra-sor-header {
@@ -156,6 +95,28 @@
     transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
     padding 0.35s ease;
   transform-origin: top center;
+}
+
+.astra-sor-pill {
+  border: 1px solid var(--astra-border);
+  background: var(--astra-pill);
+  color: var(--astra-muted);
+  font-size: 0.75rem;
+}
+
+.astra-sor-buy {
+  padding: 0.4rem 0.85rem;
+  font-weight: 800;
+  box-shadow: 0 4px 16px rgba(244, 174, 11, 0.25);
+}
+
+.astra-sor-buy:hover {
+  box-shadow: 0 6px 20px rgba(244, 174, 11, 0.32);
+}
+
+.astra-sor-avatar {
+  border: 1px solid var(--astra-border);
+  background: #78350f;
 }
 
 .astra-sor-screen--chat.astra-sor-screen--active-chat > .astra-sor-header {
@@ -214,13 +175,11 @@
 @keyframes astra-sor-bubble-in {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.98);
-    filter: blur(3px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
+    transform: translateY(0);
   }
 }
 
@@ -237,13 +196,13 @@
   background: linear-gradient(
     105deg,
     transparent 0%,
-    rgba(244, 174, 11, 0.07) 45%,
-    rgba(255, 220, 120, 0.12) 50%,
-    rgba(244, 174, 11, 0.07) 55%,
+    rgba(244, 174, 11, 0.04) 45%,
+    rgba(255, 220, 120, 0.07) 50%,
+    rgba(244, 174, 11, 0.04) 55%,
     transparent 100%
   );
   background-size: 220% 100%;
-  animation: astra-sor-stream-shimmer 1.8s ease-in-out infinite;
+  animation: astra-sor-stream-shimmer 2.4s ease-in-out infinite;
 }
 
 .astra-sor-bubble--thinking {
@@ -260,39 +219,32 @@
   }
 }
 
-.astra-sor-mic {
-  display: flex;
-  height: 2.25rem;
-  width: 2.25rem;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--astra-muted);
-  cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-}
-
-.astra-sor-mic:hover:not(:disabled) {
-  color: var(--astra-text);
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 0 16px rgba(244, 174, 11, 0.12);
-}
-
-.astra-sor-mic:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 .astra-sor-empty-layer--hidden {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
   position: absolute;
   inset: 0;
-  transform: scale(0.98);
+}
+
+.astra-sor-footer {
+  pointer-events: none;
+  position: relative;
+}
+
+.astra-sor-footer > * {
+  pointer-events: auto;
+}
+
+.astra-sor-screen--chat .astra-sor-footer::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 3.5rem;
+  pointer-events: none;
+  background: linear-gradient(to top, var(--astra-bg) 40%, transparent);
 }
 
 .astra-sor-empty {
@@ -336,8 +288,21 @@
   min-height: 0;
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 0.5rem;
+  padding-bottom: var(--astra-sor-composer-lift);
   scroll-behavior: smooth;
+}
+
+.astra-sor-screen--chat .astra-sor-dock {
+  position: fixed;
+  left: 50%;
+  z-index: 45;
+  width: min(calc(100% - 2rem), calc(32rem - 2rem));
+  margin-top: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  transform: translateX(-50%);
+  bottom: var(--astra-sor-nav-lift);
+  animation: astra-sor-enter-dock 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
 }
 
 .astra-sor-dock {
@@ -359,25 +324,20 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.35rem 0.35rem 0.35rem 0.85rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(28, 28, 28, 0.95) 0%, rgba(14, 14, 14, 0.98) 100%);
-  box-shadow:
-    0 0 0 1px rgba(244, 174, 11, 0.05),
-    0 20px 56px rgba(0, 0, 0, 0.65),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  padding: 0.4rem 0.4rem 0.4rem 0.85rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(22, 22, 22, 0.94);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .astra-sor-composer:focus-within {
-  border-color: rgba(244, 174, 11, 0.38);
+  border-color: rgba(244, 174, 11, 0.32);
   box-shadow:
-    0 0 0 1px rgba(244, 174, 11, 0.22),
-    0 0 40px rgba(244, 174, 11, 0.1),
-    0 20px 56px rgba(0, 0, 0, 0.65),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 0 0 1px rgba(244, 174, 11, 0.18),
+    0 12px 40px rgba(0, 0, 0, 0.5);
 }
 
 .astra-sor-composer textarea,
@@ -394,26 +354,25 @@
 
 .astra-sor-send {
   display: flex;
-  height: 2.5rem;
-  width: 2.5rem;
+  height: 2.25rem;
+  width: 2.25rem;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
   border: none;
   border-radius: 50%;
-  background: linear-gradient(145deg, #ffc233 0%, #f4ae0b 55%, #d4920a 100%);
+  background: var(--astra-primary);
   color: #0a0a0a;
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 0 20px rgba(244, 174, 11, 0.35);
-  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: none;
+  transition: transform 0.15s ease, filter 0.15s ease;
 }
 
 .astra-sor-send:hover:not(:disabled) {
-  filter: brightness(1.08);
-  transform: scale(1.04);
-  box-shadow: 0 0 28px rgba(244, 174, 11, 0.45);
+  filter: brightness(1.06);
+  transform: scale(1.03);
 }
 
 .astra-sor-send:disabled {
@@ -445,9 +404,9 @@
 }
 
 .astra-sor-bubble--user {
-  background: linear-gradient(145deg, #ffc233 0%, #f4ae0b 52%, #d4920a 100%);
+  background: var(--astra-primary);
   color: #0a0a0a;
-  box-shadow: 0 0 22px rgba(244, 174, 11, 0.28);
+  box-shadow: none;
 }
 
 .astra-sor-typing {
@@ -553,14 +512,14 @@
   z-index: 0;
   background:
     radial-gradient(
-      ellipse 85% 55% at 50% -8%,
-      rgba(244, 174, 11, 0.11),
+      ellipse 90% 58% at 50% -6%,
+      rgba(244, 174, 11, 0.13),
       transparent 58%
     ),
     radial-gradient(
-      ellipse 60% 40% at 50% 100%,
-      rgba(244, 174, 11, 0.04),
-      transparent 50%
+      ellipse 65% 42% at 50% 100%,
+      rgba(244, 174, 11, 0.05),
+      transparent 52%
     );
 }
 
@@ -585,17 +544,14 @@
 }
 
 .astra-sor-screen .astra-nav-bar {
-  background: rgba(18, 18, 18, 0.88);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 0 0 1px rgba(244, 174, 11, 0.06),
-    0 24px 64px rgba(0, 0, 0, 0.55);
+  background: rgba(30, 30, 30, 0.92);
+  border-color: var(--astra-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
 .astra-sor-screen .astra-nav-active {
-  box-shadow:
-    0 0 32px rgba(244, 174, 11, 0.22),
-    inset 0 0 0 1px rgba(244, 174, 11, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(244, 174, 11, 0.22);
 }
 
 @keyframes astra-sor-enter {
@@ -634,9 +590,7 @@
   .astra-sor-greeting,
   .astra-sor-greeting-sub,
   .astra-sor-dock,
-  .astra-sor-bubble-enter,
-  .astra-sor-orb,
-  .astra-sor-orb::after {
+  .astra-sor-bubble-enter {
     animation: none;
   }
 

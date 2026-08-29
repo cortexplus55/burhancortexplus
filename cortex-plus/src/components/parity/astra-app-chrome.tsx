@@ -156,13 +156,20 @@ export function AstraAppChrome({
         <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
-            className="cortex-premium-glass-nav flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold",
+              isSorScreen
+                ? "astra-sor-pill"
+                : "cortex-premium-glass-nav font-medium",
+            )}
             aria-label="Seri"
           >
             <Flame className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
-            {streakCount}
+            {isSorScreen && streakCount > 0
+              ? `${streakCount} gün`
+              : streakCount}
           </button>
-          {account ? (
+          {account && !isSorScreen ? (
             <Link
               href="/krediler"
               className="cortex-premium-glass-nav max-w-[100px] truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium sm:max-w-[140px]"
@@ -174,13 +181,24 @@ export function AstraAppChrome({
         </div>
         <div className="astra-sor-header-right">
           {showBuyCta ? (
-            <Link href="/pay" className="cortex-premium-buy shrink-0 text-[11px]">
+            <Link
+              href="/pay"
+              className={cn(
+                "cortex-premium-buy shrink-0",
+                isSorScreen ? "astra-sor-buy text-[11px]" : "text-[11px]",
+              )}
+            >
               Satın al ✦
             </Link>
           ) : null}
           <Link
             href="/profil"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--astra-border)] bg-[var(--astra-surface)] text-sm font-semibold uppercase text-[var(--astra-text)]"
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold uppercase text-[var(--astra-text)]",
+              isSorScreen
+                ? "astra-sor-avatar"
+                : "border border-[var(--astra-border)] bg-[var(--astra-surface)]",
+            )}
             aria-label="Profil"
           >
             {avatarEmoji ? (
@@ -271,7 +289,7 @@ export function AstraAppChrome({
         </div>
       ) : null}
 
-      <footer className="fixed bottom-0 left-0 right-0 z-50 flex items-end justify-center gap-2 px-3 pb-4 pt-2">
+      <footer className="astra-sor-footer fixed bottom-0 left-0 right-0 z-50 flex items-end justify-center gap-2 px-3 pb-4 pt-2">
         <nav
           className="astra-nav-bar flex flex-1 max-w-md items-center justify-around rounded-full px-1 py-1.5"
           aria-label="Ana menü"

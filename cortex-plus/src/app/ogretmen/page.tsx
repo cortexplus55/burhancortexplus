@@ -69,10 +69,10 @@ export default async function OgretmenPage({
         variant="astra"
         composerMode="minimal"
         greetingLine={greetingLine}
-        greetingSubline="Sorunu yaz — adım adım birlikte çözelim."
+        greetingSubline="Sorunu yaz veya fotoğraf yükle — adım adım birlikte çözelim."
         showEmptyStarter={false}
         showSubjectPicker={false}
-        placeholder="Sorunu yaz…"
+        placeholder="Sorunu yaz veya fotoğraf yükle…"
         initialConversationId={conversationId}
         initialMessages={initialMessages}
         hasDocuments={(count ?? 0) > 0}
