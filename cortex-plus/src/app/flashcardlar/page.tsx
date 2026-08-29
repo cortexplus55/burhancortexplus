@@ -1,5 +1,6 @@
-﻿import { AppShell } from "@/components/layout/app-shell";
-import { GeneratorForm } from "@/components/learning/generator-form";
+﻿import { Layers } from "lucide-react";
+import { AppShell } from "@/components/layout/app-shell";
+import { FlashcardGeneratePanel } from "@/components/learning/learning-generate-panels";
 import { FlashcardDeck } from "@/components/learning/flashcard-deck";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
 import { requireUser } from "@/lib/auth/session";
@@ -22,24 +23,11 @@ export default async function FlashcardlarPage() {
     <AppShell title="Flashcard" creditHint={`Kart seti üretimi: ${cost} kredi.`}>
       <div className="space-y-6">
         <SectionCard
+          variant="astra"
           title="Yeni kart seti üret"
           description="Konu yaz, AI senin için çift yönlü kartlar hazırlasın."
         >
-          <GeneratorForm
-            endpoint="/api/learning/flashcards/generate"
-            fieldLabel="Konu"
-            placeholder="Örn. Türev kuralları"
-            submitLabel="Kart üret"
-            creditCost={cost}
-            returnPath="/flashcardlar"
-            extraFields={[
-              { name: "count", label: "Kart", type: "number", defaultValue: "10" },
-            ]}
-            buildBody={(topic, extras) => ({
-              topic,
-              count: Number(extras.count ?? 10),
-            })}
-          />
+          <FlashcardGeneratePanel creditCost={cost} />
         </SectionCard>
 
         {sets?.length ? (
@@ -61,6 +49,8 @@ export default async function FlashcardlarPage() {
           </div>
         ) : (
           <EmptyState
+            variant="astra"
+            icon={Layers}
             title="Henüz kart setin yok"
             description="Yukarıdan bir konu girerek ilk setini oluştur."
           />

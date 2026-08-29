@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
+import { cn } from "@/lib/utils";
 
 export function GeneratorForm({
   endpoint,
@@ -17,6 +18,7 @@ export function GeneratorForm({
   returnPath,
   buildBody,
   extraFields,
+  variant = "default",
 }: {
   endpoint: string;
   fieldLabel: string;
@@ -26,6 +28,7 @@ export function GeneratorForm({
   returnPath: string;
   buildBody: (value: string, extras: Record<string, string>) => Record<string, unknown>;
   extraFields?: { name: string; label: string; type: "number"; defaultValue: string }[];
+  variant?: "default" | "astra";
 }) {
   const router = useRouter();
   const [value, setValue] = useState("");
@@ -36,6 +39,8 @@ export function GeneratorForm({
   );
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
+
+  const isAstra = variant === "astra";
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -68,11 +73,25 @@ export function GeneratorForm({
     }
   }
 
+  const inputClass = isAstra
+    ? "border-[var(--astra-border)] bg-[var(--astra-surface-elevated)] text-[var(--astra-text)] placeholder:text-[var(--astra-muted)] focus-visible:border-[var(--astra-primary)] focus-visible:ring-[var(--astra-primary)]/30"
+    : undefined;
+
+  const labelClass = isAstra ? "text-[var(--astra-muted)]" : undefined;
+
   return (
     <>
-      <form onSubmit={submit} className="grid max-w-2xl gap-3 sm:grid-cols-[1fr_auto]">
-        <div className="space-y-2">
-          <Label htmlFor="generator-topic">{fieldLabel}</Label>
+      <form
+        onSubmit={submit}
+        className={cn(
+          "grid max-w-2xl gap-3",
+          extraFields?.length ? "sm:grid-cols-2" : "sm:grid-cols-[1fr_auto]",
+        )}
+      >
+        <div className={cn("space-y-2", extraFields?.length && "sm:col-span-2")}>
+          <Label htmlFor="generator-topic" className={labelClass}>
+            {fieldLabel}
+          </Label>
           <Input
             id="generator-topic"
             value={value}
@@ -80,12 +99,16 @@ export function GeneratorForm({
             placeholder={placeholder}
             required
             minLength={3}
+            className={inputClass}
+            disabled={loading}
           />
         </div>
 
         {extraFields?.map((field) => (
           <div key={field.name} className="space-y-2">
-            <Label htmlFor={`generator-${field.name}`}>{field.label}</Label>
+            <Label htmlFor={`generator-${field.name}`} className={labelClass}>
+              {field.label}
+            </Label>
             <Input
               id={`generator-${field.name}`}
               type={field.type}
@@ -93,19 +116,44 @@ export function GeneratorForm({
               onChange={(event) =>
                 setExtras((prev) => ({ ...prev, [field.name]: event.target.value }))
               }
-              className="w-28"
+              className={cn("w-full sm:w-28", inputClass)}
+              disabled={loading}
             />
           </div>
         ))}
 
         <div className="flex items-end">
-          <Button type="submit" disabled={loading || value.trim().length < 3}>
-            {loading ? "Üretiliyor…" : submitLabel}
-          </Button>
+          {isAstra ? (
+            <button
+              type="submit"
+              disabled={loading || value.trim().length < 3}
+              className="astra-btn-primary h-10 w-full rounded-full px-6 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            >
+              {loading ? "Üretiliyor…" : submitLabel}
+            </button>
+          ) : (
+            <Button type="submit" disabled={loading || value.trim().length < 3}>
+              {loading ? "Üretiliyor…" : submitLabel}
+            </Button>
+          )}
         </div>
 
+        {loading && isAstra ? (
+          <div
+            className="h-1 overflow-hidden rounded-full bg-white/10 sm:col-span-2"
+            aria-hidden
+          >
+            <div className="astra-learning-shimmer h-full w-1/3 rounded-full bg-amber-400/60" />
+          </div>
+        ) : null}
+
         {creditCost !== null ? (
-          <p className="text-xs text-muted-foreground sm:col-span-2">
+          <p
+            className={cn(
+              "text-xs sm:col-span-2",
+              isAstra ? "text-[var(--astra-muted)]" : "text-muted-foreground",
+            )}
+          >
             Bu işlem {creditCost} kredi kullanır. Başarısız olursa kredin iade edilir.
           </p>
         ) : null}

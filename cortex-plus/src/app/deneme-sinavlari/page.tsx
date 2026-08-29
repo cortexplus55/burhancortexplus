@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
-import { GeneratorForm } from "@/components/learning/generator-form";
+import { ExamGeneratePanel } from "@/components/learning/learning-generate-panels";
 import { ExamRunner } from "@/components/learning/exam-runner";
 import { requireStudentArea } from "@/lib/auth/session";
 import { getCreditCost } from "@/lib/credits/rules";
@@ -90,27 +90,7 @@ export default async function DenemeSinavlariPage() {
           Yeni deneme
         </h2>
         <div className="astra-pay-card p-4 [&_label]:text-[var(--astra-text)] [&_input]:border-[var(--astra-border)] [&_input]:bg-[var(--astra-bg)]">
-          <GeneratorForm
-            endpoint="/api/learning/exam/generate"
-            fieldLabel="Konu"
-            placeholder="Örn. Fonksiyonlar"
-            submitLabel="Deneme üret"
-            creditCost={cost}
-            returnPath="/deneme-sinavlari"
-            extraFields={[
-              {
-                name: "questionCount",
-                label: "Soru",
-                type: "number",
-                defaultValue: "10",
-              },
-            ]}
-            buildBody={(topic, extras) => ({
-              topic,
-              questionCount: Number(extras.questionCount ?? 10),
-              difficulty: "medium",
-            })}
-          />
+          <ExamGeneratePanel creditCost={cost} />
         </div>
       </div>
 

@@ -64,3 +64,105 @@
   border-color: rgba(232, 168, 56, 0.35);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
 }
+
+/* Öğrenme araçları — quiz, flashcard, generator */
+@keyframes astra-learning-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.astra-app .astra-learning-shimmer {
+  animation: astra-learning-shimmer 1.2s ease-in-out infinite;
+}
+
+.astra-app .astra-quiz-option {
+  border: 1px solid var(--astra-border);
+  background: var(--astra-surface-elevated);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.astra-app .astra-quiz-option--selected {
+  border-color: var(--astra-primary);
+  box-shadow: inset 0 0 0 1px rgba(244, 174, 11, 0.35);
+}
+
+.astra-app .astra-quiz-option--correct {
+  border-color: rgb(245 158 11);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.astra-app .astra-quiz-option--wrong {
+  border-color: rgb(239 68 68);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.astra-app .astra-flashcard-scene {
+  perspective: 1000px;
+}
+
+.astra-app .astra-flashcard-inner {
+  position: relative;
+  min-height: 9rem;
+  transform-style: preserve-3d;
+  transition: transform 0.45s ease;
+}
+
+.astra-app .astra-flashcard-inner--revealed {
+  transform: rotateY(180deg);
+}
+
+.astra-app .astra-flashcard-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border: 1px solid var(--astra-border);
+  border-radius: 1rem;
+  background: var(--astra-surface-elevated);
+  padding: 1rem;
+  text-align: left;
+}
+
+.astra-app .astra-flashcard-face--back {
+  transform: rotateY(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .astra-app .astra-flashcard-inner {
+    transition: none;
+  }
+
+  .astra-app .astra-flashcard-inner--revealed {
+    transform: none;
+  }
+
+  .astra-app .astra-flashcard-face--front {
+    opacity: 1;
+    transition: opacity 0.2s ease;
+  }
+
+  .astra-app .astra-flashcard-inner--revealed .astra-flashcard-face--front {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .astra-app .astra-flashcard-face--back {
+    transform: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .astra-app .astra-flashcard-inner--revealed .astra-flashcard-face--back {
+    opacity: 1;
+  }
+
+  .astra-app .astra-learning-shimmer {
+    animation: none;
+  }
+}

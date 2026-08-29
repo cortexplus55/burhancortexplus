@@ -1,5 +1,8 @@
-﻿import { AppShell } from "@/components/layout/app-shell";
-import { SectionCard } from "@/components/ui-kit/empty-state";
+﻿import Link from "next/link";
+import { TrendingUp } from "lucide-react";
+import { AppShell } from "@/components/layout/app-shell";
+import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
+import { TopicBars } from "@/components/parent/child-progress-card";
 import { requireUser } from "@/lib/auth/session";
 import { formatNumber } from "@/lib/format";
 
@@ -43,11 +46,31 @@ export default async function IlerlemePage() {
     : null;
 
   const stats = [
-    { label: "Sohbet", value: conversations.count ?? 0 },
-    { label: "Quiz", value: quizzes.count ?? 0 },
-    { label: "Kart seti", value: flashcards.count ?? 0 },
-    { label: "Deneme ortalaması", value: average ?? 0, suffix: average ? "/100" : "" },
+    {
+      label: "Sohbet",
+      value: conversations.count ?? 0,
+      href: "/sohbetler",
+    },
+    { label: "Quiz", value: quizzes.count ?? 0, href: "/quizler" },
+    { label: "Kart seti", value: flashcards.count ?? 0, href: "/flashcardlar" },
+    {
+      label: "Deneme ortalaması",
+      value: average ?? 0,
+      suffix: average ? "/100" : "",
+      href: "/deneme-sinavlari",
+    },
   ];
+
+  const topicRows = (weak.data ?? []).map((topic) => ({
+    label: topic.topic_label ?? "Konu",
+    severity: Number(topic.severity ?? 0),
+  }));
+
+  const hasAnyActivity =
+    (conversations.count ?? 0) > 0 ||
+    (quizzes.count ?? 0) > 0 ||
+    (flashcards.count ?? 0) > 0 ||
+    scores.length > 0;
 
   return (
     <AppShell
@@ -55,38 +78,45 @@ export default async function IlerlemePage() {
       creditHint="İstatistikler ücretsiz; yeni AI işlemleri kredi harcar."
     >
       <div className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat) => (
-            <div key={stat.label} className="rounded-lg border p-4">
-              <p className="text-xs text-muted-foreground">{stat.label}</p>
-              <p className="mt-1 text-2xl font-semibold">
-                {formatNumber(stat.value)}
-                {stat.suffix ?? ""}
-              </p>
-            </div>
-          ))}
-        </div>
+        {!hasAnyActivity ? (
+          <EmptyState
+            variant="astra"
+            icon={TrendingUp}
+            title="Henüz ilerleme verin yok"
+            description="Sohbet, quiz veya deneme ile çalışmaya başladığında özet burada görünür."
+            actionHref="/deneme-sinavlari"
+            actionLabel="Deneme çöz"
+          />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {stats.map((stat) => (
+              <Link
+                key={stat.label}
+                href={stat.href}
+                className="astra-pay-card block p-4 transition-transform hover:scale-[1.01]"
+              >
+                <p className="text-xs text-[var(--astra-muted)]">{stat.label}</p>
+                <p className="mt-1 text-2xl font-semibold text-[var(--astra-text)]">
+                  {formatNumber(stat.value)}
+                  {stat.suffix ?? ""}
+                </p>
+                <p className="mt-2 text-xs font-semibold text-[var(--astra-primary)]">
+                  Detaya git →
+                </p>
+              </Link>
+            ))}
+          </div>
+        )}
 
         <SectionCard
+          variant="astra"
           title="Eksik konular"
           description="Deneme sınavı analizlerinden çıkarılan başlıklar."
         >
-          {weak.data?.length ? (
-            <ul className="space-y-2">
-              {weak.data.map((topic) => (
-                <li
-                  key={topic.id}
-                  className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-                >
-                  <span>{topic.topic_label ?? "Konu"}</span>
-                  <span className="text-xs text-muted-foreground">
-                    öncelik {Math.round(Number(topic.severity) * 100)}%
-                  </span>
-                </li>
-              ))}
-            </ul>
+          {topicRows.length ? (
+            <TopicBars topics={topicRows} />
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-[var(--astra-muted)]">
               Henüz analiz verisi yok. Bir deneme sınavı çözdüğünde burada görünür.
             </p>
           )}

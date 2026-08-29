@@ -1,4 +1,5 @@
 ﻿import Link from "next/link";
+import { MessageCircle } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { EmptyState } from "@/components/ui-kit/empty-state";
 import { requireUser } from "@/lib/auth/session";
@@ -23,17 +24,17 @@ export default async function SohbetlerPage() {
       creditHint="Her AI mesajı kredi veya ücretsiz hak harcar."
     >
       {conversations?.length ? (
-        <ul className="divide-y rounded-lg border">
+        <ul className="space-y-2">
           {conversations.map((conversation) => (
             <li key={conversation.id}>
               <Link
                 href={`/ogretmen?sohbet=${conversation.id}`}
-                className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-accent"
+                className="astra-pay-card flex min-h-[52px] items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-[var(--astra-pill)]"
               >
-                <span className="truncate text-sm font-medium">
+                <span className="truncate text-sm font-medium text-[var(--astra-text)]">
                   {conversation.title ?? "Başlıksız sohbet"}
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground">
+                <span className="shrink-0 text-xs text-[var(--astra-muted)]">
                   {formatDate(conversation.updated_at)}
                 </span>
               </Link>
@@ -42,6 +43,8 @@ export default async function SohbetlerPage() {
         </ul>
       ) : (
         <EmptyState
+          variant="astra"
+          icon={MessageCircle}
           title="Henüz sohbetin yok"
           description="AI öğretmenle ilk sorunu sorduğunda burada listelenir."
           actionHref="/ogretmen"

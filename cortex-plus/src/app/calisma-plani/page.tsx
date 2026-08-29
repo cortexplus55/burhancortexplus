@@ -1,5 +1,5 @@
 ﻿import { AppShell } from "@/components/layout/app-shell";
-import { GeneratorForm } from "@/components/learning/generator-form";
+import { StudyPlanGeneratePanel } from "@/components/learning/learning-generate-panels";
 import { PlanTasks } from "@/components/learning/plan-tasks";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
 import { requireUser } from "@/lib/auth/session";
@@ -22,26 +22,11 @@ export default async function CalismaPlaniPage() {
     <AppShell title="Çalışma planı" creditHint={`Plan üretimi: ${cost} kredi.`}>
       <div className="space-y-6">
         <SectionCard
+          variant="astra"
           title="Yeni plan oluştur"
           description="Hedefini yaz; haftalara bölünmüş görevler oluşturulsun."
         >
-          <GeneratorForm
-            endpoint="/api/learning/study-plan/generate"
-            fieldLabel="Hedef"
-            placeholder="Örn. 4 haftada türev konusunu bitirmek"
-            submitLabel="Plan üret"
-            creditCost={cost}
-            returnPath="/calisma-plani"
-            extraFields={[
-              { name: "weeks", label: "Hafta", type: "number", defaultValue: "4" },
-              { name: "hoursPerWeek", label: "Saat/hafta", type: "number", defaultValue: "8" },
-            ]}
-            buildBody={(goal, extras) => ({
-              goal,
-              weeks: Number(extras.weeks ?? 4),
-              hoursPerWeek: Number(extras.hoursPerWeek ?? 8),
-            })}
-          />
+          <StudyPlanGeneratePanel creditCost={cost} />
         </SectionCard>
 
         {plans?.length ? (

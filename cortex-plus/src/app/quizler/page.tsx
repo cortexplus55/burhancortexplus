@@ -1,5 +1,6 @@
-﻿import { AppShell } from "@/components/layout/app-shell";
-import { GeneratorForm } from "@/components/learning/generator-form";
+﻿import { ListChecks } from "lucide-react";
+import { AppShell } from "@/components/layout/app-shell";
+import { QuizGeneratePanel } from "@/components/learning/learning-generate-panels";
 import { QuizRunner } from "@/components/learning/quiz-runner";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
 import { requireUser } from "@/lib/auth/session";
@@ -24,18 +25,11 @@ export default async function QuizlerPage() {
     <AppShell title="Quizler" creditHint={`Quiz üretimi: ${cost} kredi.`}>
       <div className="space-y-6">
         <SectionCard
+          variant="astra"
           title="Yeni quiz üret"
           description="Konu gir, çoktan seçmeli sorular anında hazırlansın."
         >
-          <GeneratorForm
-            endpoint="/api/learning/quiz/generate"
-            fieldLabel="Konu"
-            placeholder="Örn. Üslü sayılar"
-            submitLabel="Quiz üret"
-            creditCost={cost}
-            returnPath="/quizler"
-            buildBody={(topic) => ({ topic })}
-          />
+          <QuizGeneratePanel creditCost={cost} />
         </SectionCard>
 
         {quizzes?.length ? (
@@ -60,6 +54,8 @@ export default async function QuizlerPage() {
           </div>
         ) : (
           <EmptyState
+            variant="astra"
+            icon={ListChecks}
             title="Henüz quizin yok"
             description="Bir konu yazarak ilk quizini oluştur."
           />
