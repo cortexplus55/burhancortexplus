@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import "@/styles/astra-app.css";
+import "@/styles/cortex-premium.css";
 
 export function UpgradeSheet({
   open,
@@ -25,23 +26,26 @@ export function UpgradeSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-end justify-center bg-black/70 p-4 sm:items-center"
+      className="astra-app cortex-premium-app fixed inset-0 z-[80] flex items-end justify-center bg-black/70 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="upgrade-title"
       onClick={() => onOpenChange(false)}
     >
       <div
-        className="astra-app w-full max-w-md rounded-3xl border border-[var(--astra-border)] bg-[var(--astra-bg)] p-6 shadow-xl"
+        className="cortex-premium-upgrade-sheet w-full max-w-md rounded-3xl border p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-2">
-          <h2 id="upgrade-title" className="text-lg font-semibold">
-            Daha iyi notlar al
-          </h2>
+          <div>
+            <p className="cortex-premium-section-eyebrow">Plus</p>
+            <h2 id="upgrade-title" className="cortex-premium-upgrade-sheet__title mt-1">
+              Daha iyi notlar al
+            </h2>
+          </div>
           <button
             type="button"
-            className="rounded-full p-1 text-[var(--astra-muted)]"
+            className="rounded-full p-1 text-[var(--astra-muted)] hover:bg-white/5"
             aria-label="Kapat"
             onClick={() => onOpenChange(false)}
           >
@@ -57,7 +61,7 @@ export function UpgradeSheet({
         <div className="mt-6 flex flex-col gap-2">
           <Link
             href={href}
-            className="astra-btn-primary flex w-full items-center justify-center rounded-full py-3 text-sm font-semibold"
+            className="cortex-premium-btn-primary"
             onClick={() => onOpenChange(false)}
           >
             Plus&apos;a yükselt
@@ -65,7 +69,7 @@ export function UpgradeSheet({
           <Button
             type="button"
             variant="ghost"
-            className="text-[var(--astra-muted)]"
+            className="cortex-premium-btn-ghost"
             onClick={() => onOpenChange(false)}
           >
             Sonra

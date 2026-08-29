@@ -16,7 +16,7 @@ export function StudentAccountStrip({
 
   return (
     <div
-      className={`astra-pay-card mb-4 rounded-2xl border px-4 py-3 text-sm ${className ?? ""}`}
+      className={`astra-pay-card cortex-premium-account-strip mb-4 rounded-2xl border px-4 py-3 text-sm ${className ?? ""}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">

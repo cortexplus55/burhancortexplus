@@ -45,6 +45,7 @@ export default async function OgretmenBasvurulariPage() {
           </ul>
         ) : (
           <EmptyState
+            variant="plain"
             title="Bekleyen başvuru yok"
             description="Yeni başvurular geldiğinde burada listelenir."
           />

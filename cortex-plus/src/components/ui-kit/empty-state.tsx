@@ -3,14 +3,22 @@ import type { LucideIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type UiVariant = "default" | "astra";
+/** `premium` = oturum açık öğrenci kabuğu (misafir/auth ile aynı cam + altın). `plain` = admin / klasik shadcn. */
+type UiVariant = "premium" | "astra" | "plain" | "default";
+
+function resolveVariant(variant: UiVariant): "premium" | "plain" {
+  if (variant === "plain") return "plain";
+  if (variant === "default") return "premium";
+  if (variant === "astra") return "premium";
+  return "premium";
+}
 
 export function EmptyState({
   title,
   description,
   actionHref,
   actionLabel,
-  variant = "default",
+  variant = "premium",
   icon: Icon,
 }: {
   title: string;
@@ -20,9 +28,11 @@ export function EmptyState({
   variant?: UiVariant;
   icon?: LucideIcon;
 }) {
-  if (variant === "astra") {
+  const v = resolveVariant(variant);
+
+  if (v === "premium") {
     return (
-      <div className="astra-pay-card border-dashed border-[var(--astra-border)] p-8 text-center">
+      <div className="astra-pay-card astra-pay-card--premium border-dashed p-8 text-center">
         {Icon ? (
           <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/15 text-[var(--astra-primary)]">
             <Icon className="h-6 w-6" aria-hidden />
@@ -35,7 +45,7 @@ export function EmptyState({
         {actionHref && actionLabel ? (
           <Link
             href={actionHref}
-            className="astra-btn-primary mt-5 inline-flex h-9 items-center justify-center rounded-full px-5 text-sm font-semibold"
+            className="cortex-premium-btn-primary mt-5 inline-flex w-auto min-w-[10rem] px-6"
           >
             {actionLabel}
           </Link>
@@ -45,7 +55,7 @@ export function EmptyState({
   }
 
   return (
-    <div className="rounded-lg border border-dashed p-8 text-center">
+    <div className="rounded-lg border p-8 text-center">
       <p className="font-medium">{title}</p>
       <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
         {description}
@@ -63,17 +73,19 @@ export function SectionCard({
   title,
   description,
   children,
-  variant = "default",
+  variant = "premium",
 }: {
   title: string;
   description?: string;
   children: React.ReactNode;
   variant?: UiVariant;
 }) {
-  if (variant === "astra") {
+  const v = resolveVariant(variant);
+
+  if (v === "premium") {
     return (
-      <section className="astra-pay-card p-4">
-        <h2 className="font-semibold text-[var(--astra-text)]">{title}</h2>
+      <section className="astra-pay-card astra-pay-card--premium p-4 md:p-5">
+        <h2 className="cortex-premium-section-title text-lg">{title}</h2>
         {description ? (
           <p className="mt-1 text-sm text-[var(--astra-muted)]">{description}</p>
         ) : null}

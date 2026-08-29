@@ -11,7 +11,7 @@
 | AI model | Standart router | Gelişmiş model (`model-router`) |
 | Chrome | Kredi chip, **Satın al ✦** | **Plus ·** kredi chip, aynı menü |
 
-Kaynak: `getStudentAccountContext`, `isPremiumUser`, `StudentAccountStrip`, `AstraAppChrome`.
+- Kaynak: `getStudentAccountContext`, `isPremiumUser`, `StudentAccountStrip`, `AstraAppChrome`, `cortex-premium.css`, `SectionCard` / `EmptyState` (premium varsayılan).
 
 ## Ortak kabuk (her iki tier)
 

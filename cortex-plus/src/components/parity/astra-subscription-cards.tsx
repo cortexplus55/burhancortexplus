@@ -7,7 +7,9 @@ import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Plus, Sigma, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AskParentPaymentButton } from "@/components/paywall/ask-parent-payment";
+import { PremiumPlanHero } from "@/components/marketing/premium-plan-hero";
 import "@/styles/astra-app.css";
+import "@/styles/cortex-premium.css";
 
 type Plan = {
   id: string;
@@ -205,16 +207,8 @@ export function AstraSubscriptionCards({
       ) : null}
 
       <div className={cn("mx-auto max-w-md space-y-6", embedded ? "" : "pt-8")}>
-        {isParent || embedded ? null : (
-          <div className="text-center">
-            <h1 className="text-xl font-semibold leading-snug">
-              Daha iyi notlar al ve 2 kat hızlı öğren
-            </h1>
-            <p className="mt-2 text-sm text-[var(--astra-muted)]">
-              Tüm özellikler açık; AI işlemleri kredi ve ücretsiz hak harcar. Plus
-              aboneliği gelişmiş model ve yüksek kredi paketi sunar.
-            </p>
-          </div>
+        {isParent ? null : (
+          <PremiumPlanHero align={embedded ? "start" : "center"} />
         )}
 
         {returnTo && !guestMode ? (
@@ -224,7 +218,7 @@ export function AstraSubscriptionCards({
         ) : null}
 
         {plusOwned ? null : (
-        <article className="astra-pay-card p-5">
+        <article className="astra-pay-card astra-pay-card--premium p-5">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
               <Plus className="h-6 w-6" />
@@ -270,7 +264,7 @@ export function AstraSubscriptionCards({
               <button
                 type="button"
                 disabled={plusOwned || loadingId === plusPlan?.id}
-                className="astra-btn-primary mt-4 w-full rounded-full py-3.5 text-sm font-semibold disabled:opacity-60"
+                className="cortex-premium-btn-primary mt-4 disabled:opacity-60"
                 onClick={() =>
                   plusOwned
                     ? undefined
@@ -331,7 +325,7 @@ export function AstraSubscriptionCards({
         ) : null}
 
         {showSigmaCard && sigmaPlan ? (
-          <article className="astra-pay-card relative overflow-hidden p-5">
+          <article className="astra-pay-card astra-pay-card--premium relative overflow-hidden p-5">
             <span className="absolute right-3 top-3 rounded-full border border-violet-400/40 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-200">
               Daha yüksek limit
             </span>
@@ -439,6 +433,14 @@ export function AstraSubscriptionCards({
               </article>
             ))}
           </div>
+        ) : null}
+
+        {embedded && !guestMode && !isParent ? (
+          <p className="text-center text-xs text-[var(--astra-muted)]">
+            <a href="/ogretmen" className="underline underline-offset-2">
+              Ücretsiz planda devam et
+            </a>
+          </p>
         ) : null}
       </div>
     </div>

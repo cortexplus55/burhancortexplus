@@ -208,7 +208,7 @@ export function AstraAppChrome({
                 )}
                 <Link
                   href="/profil"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-800/90 text-sm font-semibold uppercase text-white"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--astra-border)] bg-[var(--astra-surface)] text-sm font-semibold uppercase text-[var(--astra-text)] shadow-[0_0_20px_rgba(244,174,11,0.12)]"
                   aria-label="Profil"
                 >
                   {avatarEmoji ? (
@@ -224,7 +224,7 @@ export function AstraAppChrome({
         </>
       </header>
 
-      <main className="flex flex-1 flex-col px-4 text-[var(--astra-text)] [&_.border]:border-[var(--astra-border)] [&_.bg-card]:bg-[var(--astra-surface)] [&_.bg-muted]:bg-[var(--astra-pill)] [&_.text-muted-foreground]:text-[var(--astra-muted)] [&_input]:border-[var(--astra-border)] [&_input]:bg-[var(--astra-bg)] [&_textarea]:border-[var(--astra-border)] [&_textarea]:bg-[var(--astra-bg)]">
+      <main className="flex flex-1 flex-col px-4 text-[var(--astra-text)] [&_.border]:border-[var(--astra-border)] [&_.bg-card]:bg-[var(--astra-surface)] [&_.bg-muted]:bg-[var(--astra-pill)] [&_.text-muted-foreground]:text-[var(--astra-muted)] [&_input]:border-[var(--astra-border)] [&_input]:bg-[var(--astra-bg)] [&_textarea]:border-[var(--astra-border)] [&_textarea]:bg-[var(--astra-bg)] [&_.rounded-lg.border]:border-[var(--cx-border,var(--astra-border))] [&_.rounded-lg.border]:bg-[var(--cx-surface-solid,var(--astra-surface))]">
         {children}
       </main>
 
@@ -269,7 +269,7 @@ export function AstraAppChrome({
                           <Link
                             key={item.href}
                             href={item.href}
-                            className="astra-pay-card flex flex-col items-center gap-2 p-3 text-center text-xs font-medium transition-colors hover:border-[var(--astra-primary)]"
+                            className="astra-pay-card astra-pay-card--premium flex flex-col items-center gap-2 p-3 text-center text-xs font-medium transition-colors hover:border-[var(--astra-primary)]"
                           >
                             <Icon className="h-6 w-6 text-[var(--astra-primary)]" />
                             {plusLabel}

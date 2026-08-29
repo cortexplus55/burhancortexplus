@@ -1,8 +1,6 @@
 ﻿import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { SectionCard } from "@/components/ui-kit/empty-state";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { requireUser } from "@/lib/auth/session";
 import { formatDate, formatNumber } from "@/lib/format";
 
@@ -51,16 +49,16 @@ export default async function KredilerPage() {
               value: wallet?.free_allowance_remaining ?? 0,
             },
           ].map((item) => (
-            <div key={item.label} className="rounded-lg border p-4">
-              <p className="text-xs text-muted-foreground">{item.label}</p>
-              <p className="mt-1 text-2xl font-semibold">
+            <div key={item.label} className="cortex-premium-stat-tile">
+              <p className="cortex-premium-stat-tile__label">{item.label}</p>
+              <p className="cortex-premium-stat-tile__value">
                 {formatNumber(item.value)}
               </p>
             </div>
           ))}
         </div>
 
-        <Link href="/paketler" className={cn(buttonVariants())}>
+        <Link href="/pay" className="cortex-premium-btn-primary inline-flex w-auto px-8">
           Kredi yükle
         </Link>
 
@@ -70,12 +68,11 @@ export default async function KredilerPage() {
         >
           <ul className="grid gap-2 sm:grid-cols-2">
             {(rules ?? []).map((rule) => (
-              <li
-                key={rule.action_code}
-                className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-              >
+              <li key={rule.action_code} className="cortex-premium-inset-row">
                 <span>{rule.description ?? rule.action_code}</span>
-                <span className="font-medium">{rule.credit_cost}</span>
+                <span className="font-medium text-[var(--astra-primary)]">
+                  {rule.credit_cost}
+                </span>
               </li>
             ))}
           </ul>
@@ -83,26 +80,28 @@ export default async function KredilerPage() {
 
         <SectionCard title="Hareketler">
           {ledger?.length ? (
-            <ul className="divide-y">
+            <ul className="cortex-premium-inset-list divide-y">
               {ledger.map((entry) => (
                 <li
                   key={entry.id}
-                  className="flex items-center justify-between gap-3 py-2 text-sm"
+                  className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
                 >
-                  <span>
+                  <span className="text-[var(--astra-text)]">
                     {entryLabels[entry.entry_type] ?? entry.entry_type}
                     {entry.action_code ? ` · ${entry.action_code}` : ""}
                   </span>
                   <span className="flex items-center gap-3">
                     <span
                       className={
-                        entry.delta > 0 ? "text-primary" : "text-muted-foreground"
+                        entry.delta > 0
+                          ? "font-medium text-[var(--astra-primary)]"
+                          : "text-[var(--astra-muted)]"
                       }
                     >
                       {entry.delta > 0 ? "+" : ""}
                       {entry.delta}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-[var(--astra-muted)]">
                       {formatDate(entry.created_at)}
                     </span>
                   </span>
@@ -110,7 +109,7 @@ export default async function KredilerPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">Henüz hareket yok.</p>
+            <p className="text-sm text-[var(--astra-muted)]">Henüz hareket yok.</p>
           )}
         </SectionCard>
       </div>
