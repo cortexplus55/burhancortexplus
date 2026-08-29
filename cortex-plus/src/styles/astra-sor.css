@@ -60,7 +60,230 @@
   justify-content: center;
   padding: 0 0.75rem;
   text-align: center;
-  transition: opacity 0.28s ease, visibility 0.28s ease;
+  transition: opacity 0.35s ease, visibility 0.35s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.astra-sor-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 20rem;
+}
+
+.astra-sor-orb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(72vw, 16rem);
+  height: min(72vw, 16rem);
+  margin-top: -4.5rem;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 32%,
+    rgba(255, 210, 90, 0.55) 0%,
+    rgba(244, 174, 11, 0.28) 28%,
+    rgba(244, 174, 11, 0.08) 52%,
+    transparent 68%
+  );
+  filter: blur(0.5px);
+  animation: astra-sor-orb-breathe 4.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.astra-sor-orb::after {
+  content: "";
+  position: absolute;
+  inset: 18%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 40% 35%,
+    rgba(255, 240, 200, 0.35),
+    transparent 62%
+  );
+  animation: astra-sor-orb-core 3.6s ease-in-out infinite;
+}
+
+.astra-sor-orb--plus {
+  background: radial-gradient(
+    circle at 35% 32%,
+    rgba(255, 220, 110, 0.68) 0%,
+    rgba(244, 174, 11, 0.38) 30%,
+    rgba(244, 174, 11, 0.12) 54%,
+    transparent 70%
+  );
+  box-shadow:
+    0 0 80px rgba(244, 174, 11, 0.22),
+    0 0 140px rgba(244, 174, 11, 0.08);
+}
+
+.astra-sor-hero-copy {
+  position: relative;
+  z-index: 1;
+  padding-top: 5.5rem;
+}
+
+@keyframes astra-sor-orb-breathe {
+  0%,
+  100% {
+    opacity: 0.82;
+    transform: translate(-50%, -50%) scale(0.94);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+}
+
+@keyframes astra-sor-orb-core {
+  0%,
+  100% {
+    opacity: 0.65;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+.astra-sor-header {
+  transition:
+    opacity 0.35s ease,
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.35s ease;
+  transform-origin: top center;
+}
+
+.astra-sor-screen--chat.astra-sor-screen--active-chat > .astra-sor-header {
+  opacity: 0.78;
+  transform: scale(0.96);
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+}
+
+.astra-sor-screen--chat.astra-sor-screen--active-chat > .astra-sor-header .cortex-premium-glass-nav,
+.astra-sor-screen--chat.astra-sor-screen--active-chat > .astra-sor-header .cortex-premium-buy {
+  transition: transform 0.35s ease, opacity 0.35s ease;
+}
+
+.astra-sor-screen--plus::before {
+  background:
+    radial-gradient(
+      ellipse 90% 58% at 50% -6%,
+      rgba(244, 174, 11, 0.16),
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 65% 42% at 50% 100%,
+      rgba(244, 174, 11, 0.07),
+      transparent 52%
+    );
+}
+
+.astra-sor-screen--plus .astra-sor-composer:focus-within {
+  box-shadow:
+    0 0 0 1px rgba(244, 174, 11, 0.28),
+    0 0 48px rgba(244, 174, 11, 0.14),
+    0 20px 56px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.astra-sor-bubble--assistant {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(
+    165deg,
+    rgba(32, 32, 32, 0.92) 0%,
+    rgba(18, 18, 18, 0.96) 100%
+  );
+  color: var(--astra-text);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    0 0 0 1px rgba(244, 174, 11, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.astra-sor-bubble-enter {
+  animation: astra-sor-bubble-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes astra-sor-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.astra-sor-bubble--streaming {
+  position: relative;
+  overflow: hidden;
+}
+
+.astra-sor-bubble--streaming::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgba(244, 174, 11, 0.07) 45%,
+    rgba(255, 220, 120, 0.12) 50%,
+    rgba(244, 174, 11, 0.07) 55%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  animation: astra-sor-stream-shimmer 1.8s ease-in-out infinite;
+}
+
+.astra-sor-bubble--thinking {
+  border-color: rgba(244, 174, 11, 0.22);
+  box-shadow: 0 0 24px rgba(244, 174, 11, 0.08);
+}
+
+@keyframes astra-sor-stream-shimmer {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+.astra-sor-mic {
+  display: flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--astra-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.astra-sor-mic:hover:not(:disabled) {
+  color: var(--astra-text);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 16px rgba(244, 174, 11, 0.12);
+}
+
+.astra-sor-mic:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .astra-sor-empty-layer--hidden {
@@ -69,6 +292,7 @@
   pointer-events: none;
   position: absolute;
   inset: 0;
+  transform: scale(0.98);
 }
 
 .astra-sor-empty {
@@ -215,20 +439,15 @@
   }
 }
 
-.astra-sor-bubble--assistant {
-  border: 1px solid var(--astra-border);
-  background: var(--astra-surface-elevated, var(--astra-surface));
-  color: var(--astra-text);
-}
-
 .astra-sor-bubble--error {
   border-color: rgb(239 68 68);
   background: rgba(239, 68, 68, 0.1);
 }
 
 .astra-sor-bubble--user {
-  background: var(--astra-primary);
+  background: linear-gradient(145deg, #ffc233 0%, #f4ae0b 52%, #d4920a 100%);
   color: #0a0a0a;
+  box-shadow: 0 0 22px rgba(244, 174, 11, 0.28);
 }
 
 .astra-sor-typing {
@@ -414,8 +633,21 @@
 @media (prefers-reduced-motion: reduce) {
   .astra-sor-greeting,
   .astra-sor-greeting-sub,
-  .astra-sor-dock {
+  .astra-sor-dock,
+  .astra-sor-bubble-enter,
+  .astra-sor-orb,
+  .astra-sor-orb::after {
     animation: none;
+  }
+
+  .astra-sor-bubble--streaming::after {
+    animation: none;
+    opacity: 0;
+  }
+
+  .astra-sor-screen--chat.astra-sor-screen--active-chat > .astra-sor-header {
+    transform: none;
+    opacity: 1;
   }
 
   .astra-sor-empty-layer {

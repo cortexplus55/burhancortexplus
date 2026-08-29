@@ -127,6 +127,16 @@ export function ChatPanel({
   const isAstra = variant === "astra";
   const isMinimalSor = isAstra && composerMode === "minimal";
 
+  const sorChatActive = isMinimalSor && (messages.length > 0 || loading);
+
+  useEffect(() => {
+    if (!isMinimalSor) return;
+    const root = document.querySelector(".astra-sor-screen--chat");
+    if (!root) return;
+    root.classList.toggle("astra-sor-screen--active-chat", sorChatActive);
+    return () => root.classList.remove("astra-sor-screen--active-chat");
+  }, [isMinimalSor, sorChatActive]);
+
   useEffect(() => {
     if (!isMinimalSor) return;
     messagesEndRef.current?.scrollIntoView({
@@ -286,18 +296,34 @@ export function ChatPanel({
   const showMinimalEmpty = isMinimalSor && messages.length === 0 && !loading;
   const showMinimalMessages = isMinimalSor && (messages.length > 0 || loading);
 
-  function bubbleClass(message: Message) {
+  function bubbleClass(message: Message, index?: number) {
     if (message.role === "user") {
-      return cn(
-        "ml-auto max-w-[85%] rounded-2xl px-3 py-2 text-sm font-medium",
-        isAstra ? "astra-sor-bubble--user" : "rounded-lg bg-primary text-primary-foreground",
-      );
+      return userBubbleClass();
     }
+    const streaming =
+      isMinimalSor &&
+      loading &&
+      index != null &&
+      index === messages.length - 1 &&
+      message.content.length > 0;
     return cn(
       "mr-auto max-w-[92%] rounded-2xl px-3 py-2 text-sm",
       isAstra
-        ? cn("astra-sor-bubble--assistant", message.isError && "astra-sor-bubble--error")
+        ? cn(
+            "astra-sor-bubble--assistant astra-sor-bubble-enter",
+            message.isError && "astra-sor-bubble--error",
+            streaming && "astra-sor-bubble--streaming",
+          )
         : "rounded-lg border",
+    );
+  }
+
+  function userBubbleClass() {
+    return cn(
+      "ml-auto max-w-[85%] rounded-2xl px-3 py-2 text-sm font-medium",
+      isAstra
+        ? "astra-sor-bubble--user astra-sor-bubble-enter"
+        : "rounded-lg bg-primary text-primary-foreground",
     );
   }
 
@@ -389,12 +415,23 @@ export function ChatPanel({
               )}
               aria-hidden={!showMinimalEmpty}
             >
-              <p className="astra-sor-greeting">
-                {greetingLine ?? "Merhaba, bugün ne çalışalım?"}
-              </p>
-              {greetingSubline ? (
-                <p className="astra-sor-greeting-sub">{greetingSubline}</p>
-              ) : null}
+              <div className="astra-sor-hero">
+                <div
+                  className={cn(
+                    "astra-sor-orb",
+                    isPremium && "astra-sor-orb--plus",
+                  )}
+                  aria-hidden
+                />
+                <div className="astra-sor-hero-copy">
+                  <p className="astra-sor-greeting">
+                    {greetingLine ?? "Merhaba, bugün ne çalışalım?"}
+                  </p>
+                  {greetingSubline ? (
+                    <p className="astra-sor-greeting-sub">{greetingSubline}</p>
+                  ) : null}
+                </div>
+              </div>
             </div>
 
             {showMinimalMessages ? (
@@ -404,7 +441,7 @@ export function ChatPanel({
                 aria-live="polite"
               >
                 {messages.map((message, index) => (
-                  <div key={index} className={bubbleClass(message)}>
+                  <div key={index} className={bubbleClass(message, index)}>
                     {message.role === "user" ? (
                       message.content
                     ) : message.content ? (
@@ -419,7 +456,7 @@ export function ChatPanel({
                   <div
                     className={cn(
                       "mr-auto max-w-[92%] rounded-2xl px-3 py-2.5",
-                      "astra-sor-bubble--assistant",
+                      "astra-sor-bubble--assistant astra-sor-bubble--thinking astra-sor-bubble-enter",
                     )}
                   >
                     <SorTypingDots />
@@ -559,6 +596,20 @@ export function ChatPanel({
                     }
                   }}
                 />
+                <button
+                  type="button"
+                  className="astra-sor-mic"
+                  aria-label="Sesle sor yakında"
+                  title="Sesle sor yakında"
+                  disabled={loading}
+                  onClick={() =>
+                    toast.message("Sesle sor yakında", {
+                      description: "Mikrofonla soru sorma çok yakında.",
+                    })
+                  }
+                >
+                  <Mic className="h-4 w-4" aria-hidden />
+                </button>
                 <button
                   type="submit"
                   disabled={loading || !input.trim()}

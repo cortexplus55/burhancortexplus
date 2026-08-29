@@ -149,9 +149,10 @@ export function AstraAppChrome({
       className={cn(
         "astra-app cortex-premium-app astra-sor-screen mx-auto flex min-h-dvh max-w-lg flex-col pb-24",
         isSorScreen && "astra-sor-screen--chat",
+        account?.isPremium && "astra-sor-screen--plus",
       )}
     >
-      <header className="flex items-center justify-between gap-2 px-4 py-3">
+      <header className="astra-sor-header flex items-center justify-between gap-2 px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
