@@ -1,13 +1,13 @@
 # Astra parity — karşılaştırma checklist
 
-Her ekran için Astra TR ile yan yana bak. **Evet / Kısmen / Hayır** — kod + canlı yüzey taraması (2026-08-29, deploy `43b60ff`).
+Her ekran için Astra TR ile yan yana bak. **Evet / Kısmen / Hayır** — kod + canlı yüzey taraması (2026-08-29, deploy `936c517`). P4 ayrıntı: [P4-LIVE-VERIFICATION.md](./P4-LIVE-VERIFICATION.md).
 
 ## Global
 
 - [x] **Evet** — Primary CTA **#f4ae0b** (`--astra-primary`, `mk-btn-primary`, `astra-btn-primary`); koyu zeminde koyu metin (`#0a0a0a`) kullanılıyor.
 - [x] **Evet** — Figtree root layout (`layout.tsx` → `--font-ui`); body `globals.css`. Geist Sans yalnızca fallback değişkeni; mono Geist Mono.
 - [x] **Evet** — Kopya genelde **sen** dili, eğitim odaklı (marketing + app).
-- [x] **Kısmen** — Plus yönlendirme görünür (`Satın al ✦`, `/pay`, hero’da Plus linki); bazı ekranlarda (hero) ikinci CTA biraz baskın olabilir.
+- [x] **Evet** — Plus yönlendirme görünür; hero’da tek birincil CTA, Plus metin linki.
 
 ## 1. Marketing
 
@@ -56,7 +56,7 @@ Her ekran için Astra TR ile yan yana bak. **Evet / Kısmen / Hayır** — kod +
 | P2 | ~~Pay tek CTA~~ | Tamamlandı (`astra-subscription-cards.tsx`, `embedded`) |
 | P3 | ~~Onboarding birleşik~~ | Tamamlandı (`onboarding-shell.tsx`, `/onboarding` adımlar) |
 | P3 | ~~Marketing yoğunluk~~ | Tamamlandı (sosyal kanıt + plan slider) |
-| P4 | Canlı doğrulama | Astra TR hesabıyla Sor/Pay menü — checklist “requires handoff” maddeleri |
+| P4 | ~~Canlı doğrulama~~ | Cortex smoke tamam ([P4-LIVE-VERIFICATION.md](./P4-LIVE-VERIFICATION.md)); Astra Sor/Pay yan yana maddeleri insan handoff |
 
 ---
 
@@ -64,18 +64,14 @@ Her ekran için Astra TR ile yan yana bak. **Evet / Kısmen / Hayır** — kod +
 
 ```
 Marketing:
-  Cinematic home güçlü (video, footer, FAQ). Eksik: AstraSiteHeader mobil menü;
-  hero’da çift CTA. Fiyatlandırma AstraMarketingPage ile tutarlı.
+  Cinematic home: mobil nav, tek hero CTA, sosyal kanıt + plan slider (P3). Astra’da daha fazla Plus CTA — bilinçli fark.
 
 Onboarding:
-  /onboarding 3 adım + progress; veli/öğretmen OnboardingShell ile hizalı.
+  /kayit sihirbaz + /onboarding 3 adım (OnboardingShell).
 
 Login:
-  Parity tamam (Google-first, veya, kayıt linki). PremiumAuthShell görsel dil ayrı ama kabul edilebilir.
+  Parity tamam (Google-first).
 
-Sor:
-  Parity tamam (son tur: dock, typing, attach). Hub grid yok — spec ile uyumlu.
-
-Pay:
-  İçerik tam; UX’te çoklu plan CTA Astra ile yan yana kontrol edilmeli. PayTR fazı ayrı.
+Sor / Pay:
+  Cortex canlı smoke geçti (P4 doc). Astra TR oturumuyla yan yana checkbox’lar kullanıcıda.
 ```

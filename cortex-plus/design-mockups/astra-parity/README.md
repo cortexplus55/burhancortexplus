@@ -27,7 +27,8 @@ Bu klasör **koda geçmeden önce** layout/UX onayı içindir (karar: **1-B**).
 1. Mockup’ı yerelde aç: `index.html`
 2. Aynı anda Astra TR sekmesini aç
 3. [SPEC-CHECKLIST.md](./SPEC-CHECKLIST.md) maddelerini işaretle
-4. Onay / revize notlarını issue veya chat’te topla
+4. Canlı doğrulama: [P4-LIVE-VERIFICATION.md](./P4-LIVE-VERIFICATION.md)
+5. Onay / revize notlarını issue veya chat’te topla
 
 ## Onay sonrası kod sırası
 
