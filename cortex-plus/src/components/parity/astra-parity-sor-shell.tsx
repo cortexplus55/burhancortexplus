@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CalendarDays, Flame, LayoutGrid, LineChart, Users, X } from "lucide-react";
+import { CalendarDays, Flame, Gift, Gauge, LayoutGrid, LineChart, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/astra-gamification";
 import type { StudentAccountContext } from "@/lib/student/account-context";
@@ -29,7 +29,9 @@ function relativeTr(iso: string) {
 const MORE_LINKS = [
   { href: "/siniflar", label: "Sınıflar", icon: Users },
   { href: "/ilerleme", label: "Aktivitelerim", icon: LineChart },
-  { href: "/calisma-plani", label: "Takvimim", icon: CalendarDays },
+  { href: "/calisma-plani?tab=takvim", label: "Takvimim", icon: CalendarDays },
+  { href: "/krediler", label: "Limitler", icon: Gauge },
+  { href: "/davet", label: "Davet et", icon: Gift },
 ] as const;
 
 export function AstraParitySorShell({

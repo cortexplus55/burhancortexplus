@@ -90,6 +90,7 @@ export const studentMenuGroups: {
       { href: "/flashcardlar", label: "Flashcard", icon: Layers },
       { href: "/calisma-plani", label: "Çalışma planı", icon: BookOpen },
       { href: "/siniflar", label: "Sınıflar", icon: Users },
+      { href: "/davet", label: "Davet et", icon: Sparkles },
       { href: "/ilerleme", label: "İlerleme", icon: Sparkles },
       { href: "/dashboard", label: "Panel", icon: LayoutGrid },
     ],
@@ -101,7 +102,7 @@ export const studentMenuGroups: {
   {
     title: "Hesap",
     items: [
-      { href: "/krediler", label: "Krediler", icon: CreditCard },
+      { href: "/krediler", label: "Limitler", icon: CreditCard },
       { href: "/pay", label: "Plus'a yükselt", icon: GraduationCap },
       { href: "/profil", label: "Profil", icon: User },
       { href: "/ayarlar", label: "Ayarlar", icon: Settings },

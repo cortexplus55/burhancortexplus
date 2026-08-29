@@ -30,6 +30,7 @@ const payloadSchema = z.object({
   teacherInstitution: z.string().max(160).optional(),
   teacherBranch: z.string().max(80).optional(),
   teacherClassName: z.string().max(80).optional(),
+  referralCode: z.string().max(16).optional(),
 });
 
 export type CompleteSignupResult =
@@ -107,6 +108,23 @@ async function completeSignupInner(
       await supabase
         .from("learning_goals")
         .insert({ user_id: user.id, goal_text: payload.learningGoal });
+    }
+  }
+
+  if (payload.referralCode) {
+    const service = createServiceClient();
+    const code = payload.referralCode.trim().toUpperCase();
+    const { data: referrer } = await service
+      .from("profiles")
+      .select("id")
+      .eq("referral_code", code)
+      .maybeSingle();
+    if (referrer && referrer.id !== user.id) {
+      await supabase
+        .from("profiles")
+        .update({ referred_by: referrer.id })
+        .eq("id", user.id)
+        .is("referred_by", null);
     }
   }
 

@@ -1,10 +1,11 @@
 ﻿import Link from "next/link";
-import { AppShell } from "@/components/layout/app-shell";
+import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
 import { SectionCard } from "@/components/ui-kit/empty-state";
-import { requireUser } from "@/lib/auth/session";
+import { requireStudentArea } from "@/lib/auth/session";
 import { formatDate, formatNumber } from "@/lib/format";
+import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 
-export const metadata = { title: "Krediler" };
+export const metadata = { title: "Limitler" };
 
 const entryLabels: Record<string, string> = {
   grant: "Hediye",
@@ -15,8 +16,37 @@ const entryLabels: Record<string, string> = {
   adjustment: "Düzeltme",
 };
 
+function LimitBar({
+  label,
+  value,
+  max,
+  hint,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  hint: string;
+}) {
+  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
+  return (
+    <div className="ap-limit-row">
+      <div className="ap-limit-head">
+        <span>{label}</span>
+        <strong>
+          {formatNumber(value)} / {formatNumber(max)}
+        </strong>
+      </div>
+      <div className="ap-limit-track" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+        <div className="ap-limit-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <p>{hint}</p>
+    </div>
+  );
+}
+
 export default async function KredilerPage() {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireStudentArea();
+  const shell = await loadParityShellProps(supabase, user.id, user.email);
 
   const [{ data: wallet }, { data: ledger }, { data: rules }] = await Promise.all([
     supabase
@@ -37,32 +67,48 @@ export default async function KredilerPage() {
       .order("credit_cost"),
   ]);
 
+  const balance = wallet?.balance ?? 0;
+  const reserved = wallet?.reserved ?? 0;
+  const free = wallet?.free_allowance_remaining ?? 0;
+  const creditCap = Math.max(balance + reserved, 100);
+
   return (
-    <AppShell title="Krediler" accountStrip={false}>
-      <div className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-3">
-          {[
-            { label: "Kullanılabilir kredi", value: wallet?.balance ?? 0 },
-            { label: "Rezerve", value: wallet?.reserved ?? 0 },
-            {
-              label: "Ücretsiz hak",
-              value: wallet?.free_allowance_remaining ?? 0,
-            },
-          ].map((item) => (
-            <div key={item.label} className="cortex-premium-stat-tile">
-              <p className="cortex-premium-stat-tile__label">{item.label}</p>
-              <p className="cortex-premium-stat-tile__value">
-                {formatNumber(item.value)}
-              </p>
-            </div>
-          ))}
+    <AstraParitySorShell {...shell}>
+      <div className="ap-exam-page space-y-6">
+        <div>
+          <h1 className="text-xl font-semibold">Kullanım ve limitler</h1>
+          <p className="mt-1 text-sm text-[var(--astra-muted)]">
+            Kredin, ücretsiz hakkın ve günlük serin tek yerde.
+          </p>
         </div>
 
-        <Link href="/pay" className="cortex-premium-btn-primary inline-flex w-auto px-8">
-          Kredi yükle
+        <div className="ap-limit-card">
+          <LimitBar
+            label="Kredi bakiyesi"
+            value={balance}
+            max={creditCap}
+            hint={reserved ? `${formatNumber(reserved)} kredi şu an rezerve` : "Kullanılabilir kredi"}
+          />
+          <LimitBar
+            label="Ücretsiz hak"
+            value={free}
+            max={Math.max(free, 50)}
+            hint="Aylık ücretsiz çözüm hakkı"
+          />
+          <LimitBar
+            label="Çalışma serisi"
+            value={shell.streak ?? 0}
+            max={7}
+            hint="Son 7 günde üst üste çalışma"
+          />
+        </div>
+
+        <Link href="/pay" className="ap-exam-continue inline-flex">
+          Plus’a yükselt
         </Link>
 
         <SectionCard
+          variant="astra"
           title="İşlem başına kredi"
           description="Fiyatlar sunucu tarafında tutulur; işlem öncesinde her zaman gösterilir."
         >
@@ -78,7 +124,7 @@ export default async function KredilerPage() {
           </ul>
         </SectionCard>
 
-        <SectionCard title="Hareketler">
+        <SectionCard variant="astra" title="Hareketler">
           {ledger?.length ? (
             <ul className="cortex-premium-inset-list divide-y">
               {ledger.map((entry) => (
@@ -113,6 +159,6 @@ export default async function KredilerPage() {
           )}
         </SectionCard>
       </div>
-    </AppShell>
+    </AstraParitySorShell>
   );
 }

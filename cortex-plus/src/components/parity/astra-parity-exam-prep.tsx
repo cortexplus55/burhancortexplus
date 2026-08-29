@@ -48,7 +48,7 @@ export function AstraParityExamPrep({
     topicsDone: 0,
     topicsTotal: 0,
     targetScore: null,
-    continueHref: "/calisma-plani",
+    continueHref: "/deneme-sinavlari/olustur",
   };
 
   const targetMarker =
@@ -58,10 +58,15 @@ export function AstraParityExamPrep({
 
   return (
     <div className="ap-exam-page">
-      <Link href="/deneme-sinavlari" className="ap-exam-section-head">
-        Sınav hazırlıklarım
-        <span aria-hidden>›</span>
-      </Link>
+      <div className="ap-exam-section-head">
+        <Link href="/deneme-sinavlari/olustur">
+          Sınav hazırlıklarım
+          <span aria-hidden>›</span>
+        </Link>
+        <Link href="/deneme-sinavlari/olustur" className="ap-exam-create">
+          + Oluştur
+        </Link>
+      </div>
 
       <article className="ap-exam-active-card">
         <h2 className="ap-exam-active-title">{prep.title}</h2>

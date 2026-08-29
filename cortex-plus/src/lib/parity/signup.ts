@@ -26,6 +26,7 @@ export type SignupPayload = {
   teacherInstitution?: string;
   teacherBranch?: string;
   teacherClassName?: string;
+  referralCode?: string;
 };
 
 export const SIGNUP_STORAGE_KEY = "cortex-signup-payload";

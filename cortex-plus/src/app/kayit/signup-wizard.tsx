@@ -57,6 +57,15 @@ export function SignupWizard() {
   }
 
   function buildPayload(): SignupPayload {
+    let referralCode: string | undefined;
+    try {
+      referralCode =
+        searchParams.get("ref")?.trim() ||
+        sessionStorage.getItem("cortex-referral-code") ||
+        undefined;
+    } catch {
+      referralCode = searchParams.get("ref")?.trim() || undefined;
+    }
     return {
       role: "student",
       fullName: fullName.trim(),
@@ -66,6 +75,7 @@ export function SignupWizard() {
       learningGoal: draft.learningGoal,
       tutorStyle: draft.tutorStyle,
       avatarEmoji: draft.avatarEmoji,
+      referralCode,
     };
   }
 
@@ -84,6 +94,15 @@ export function SignupWizard() {
   }, [configIssue]);
 
   useEffect(() => {
+    const ref = searchParams.get("ref")?.trim();
+    if (ref) {
+      try {
+        sessionStorage.setItem("cortex-referral-code", ref);
+      } catch {
+        /* ignore */
+      }
+    }
+
     const prompt = searchParams.get("prompt")?.trim();
     if (prompt) setEntryPrompt(prompt);
 

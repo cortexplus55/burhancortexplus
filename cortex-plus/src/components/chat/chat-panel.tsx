@@ -11,6 +11,7 @@ import { Markdown } from "@/components/markdown";
 import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
 
 import {
+  ArrowLeft,
   AudioLines,
   Camera,
   ChevronsUpDown,
@@ -56,6 +57,28 @@ const quickActions = [
   { id: "quiz", label: "Beni test et", prompt: "Bu konudan bana 3 soru sor ve yanıtlarımı bekle." },
   { id: "summary", label: "Kısa özet", prompt: "Konuşmanın kısa bir özetini çıkar." },
   { id: "advanced", label: "Gelişmiş analiz", prompt: "Bu konuyu ileri düzeyde ayrıntılı analiz et.", advanced: true },
+];
+
+const MATH_SYMBOLS = [
+  "π",
+  "√",
+  "∑",
+  "∫",
+  "∞",
+  "±",
+  "≠",
+  "≤",
+  "≥",
+  "×",
+  "÷",
+  "θ",
+  "α",
+  "β",
+  "Δ",
+  "²",
+  "³",
+  "½",
+  "()",
 ];
 
 const SUBJECTS = [
@@ -131,6 +154,12 @@ export function ChatPanel({
   const [uploadOpen, setUploadOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
+  const [pendingRemote, setPendingRemote] = useState<{
+    documentId: string;
+    fileName: string;
+  } | null>(null);
+  const [mathOpen, setMathOpen] = useState(false);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (initialMessages.length > 0) return;
@@ -147,6 +176,11 @@ export function ChatPanel({
       const mod = new URLSearchParams(window.location.search).get("mod");
       if (mod === "podcast") {
         setInput("Bu dersten 5 dakikalık podcast tarzı, konuşma dilinde bir anlatım yap.");
+      }
+      if (mod === "sozlu") {
+        setInput(
+          "Sözlü deneme gibi davran. Konuyu sor, kısa sorular sor, cevaplarımı bekle ve net geri bildirim ver.",
+        );
       }
     } catch {
       /* ignore */
@@ -219,21 +253,73 @@ export function ChatPanel({
 
   function attachPending(file: File) {
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingRemote(null);
     setPendingFile(file);
     setPendingPreview(file.type.startsWith("image/") ? URL.createObjectURL(file) : null);
+  }
+
+  function attachRemote(doc: { documentId: string; fileName: string }) {
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(null);
+    setPendingPreview(null);
+    setPendingRemote(doc);
   }
 
   function clearPending() {
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPendingFile(null);
     setPendingPreview(null);
+    setPendingRemote(null);
+  }
+
+  function insertMath(symbol: string) {
+    const el = composerRef.current;
+    const start = el?.selectionStart ?? input.length;
+    const end = el?.selectionEnd ?? input.length;
+    const next = `${input.slice(0, start)}${symbol}${input.slice(end)}`;
+    setInput(next);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      const pos = start + symbol.length;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    });
+  }
+
+  function resetParityThread() {
+    setMessages([]);
+    conversationId.current = undefined;
+    clearPending();
+    setInput("");
+    setStatus(null);
+    if (typeof window !== "undefined" && window.location.search.includes("sohbet")) {
+      window.history.replaceState({}, "", "/ogretmen");
+    }
   }
 
   async function sendComposer() {
     const file = pendingFile;
+    const remote = pendingRemote;
     const text = input.trim();
-    if (!file && !text) {
+    if (!file && !remote && !text) {
       setStartHubOpen(true);
+      return;
+    }
+    if (remote) {
+      const prompt =
+        text || "Yüklediğim dosyayı özetle ve sorularımı yanıtlamaya hazır ol.";
+      const docId = remote.documentId;
+      clearPending();
+      setInput("");
+      setLoading(true);
+      try {
+        await send(prompt, false, docId, true);
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Dosya gönderilemedi.",
+        );
+        setLoading(false);
+      }
       return;
     }
     if (file) {
@@ -411,6 +497,17 @@ export function ChatPanel({
     return (
       <>
         <div className="ap-sor-view">
+          {showParityThread ? (
+            <div className="ap-thread-bar">
+              <button type="button" onClick={resetParityThread}>
+                <ArrowLeft className="h-4 w-4" aria-hidden />
+                Geri
+              </button>
+              <button type="button" onClick={resetParityThread}>
+                Yeni sohbet
+              </button>
+            </div>
+          ) : null}
           {showParityEmpty ? (
             <div className="ap-sor-hero">
               <h1 className="ap-sor-hero-title">
@@ -488,7 +585,7 @@ export function ChatPanel({
                 void sendComposer();
               }}
             >
-              {pendingFile ? (
+              {pendingFile || pendingRemote ? (
                 <div className="ap-composer-preview">
                   {pendingPreview ? (
                     <div className="ap-composer-thumb">
@@ -500,7 +597,7 @@ export function ChatPanel({
                     </div>
                   ) : (
                     <div className="ap-composer-file">
-                      {pendingFile.name}
+                      {pendingFile?.name ?? pendingRemote?.fileName}
                       <button type="button" aria-label="Kaldır" onClick={clearPending}>
                         ×
                       </button>
@@ -508,7 +605,21 @@ export function ChatPanel({
                   )}
                 </div>
               ) : null}
+              {mathOpen ? (
+                <div className="ap-math-bar" role="toolbar" aria-label="Matematik simgeleri">
+                  {MATH_SYMBOLS.map((symbol) => (
+                    <button
+                      key={symbol}
+                      type="button"
+                      onClick={() => insertMath(symbol)}
+                    >
+                      {symbol}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <Textarea
+                ref={composerRef}
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 placeholder={placeholder ?? "Sor, konuş veya dosya gönder"}
@@ -536,10 +647,11 @@ export function ChatPanel({
                   </button>
                   <button
                     type="button"
-                    className="ap-sor-tool"
-                    aria-label="El yazısı"
+                    className={cn("ap-sor-tool", mathOpen && "text-[var(--ap-subject)]")}
+                    aria-label="Matematik simgeleri"
+                    aria-pressed={mathOpen}
                     disabled={loading}
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => setMathOpen((open) => !open)}
                   >
                     <PenLine className="h-4 w-4" aria-hidden />
                   </button>
@@ -569,7 +681,7 @@ export function ChatPanel({
                   >
                     <Mic className="h-4 w-4" aria-hidden />
                   </button>
-                  {input.trim() || pendingFile ? (
+                  {input.trim() || pendingFile || pendingRemote ? (
                     <button
                       type="submit"
                       className="ap-send"
@@ -620,6 +732,7 @@ export function ChatPanel({
           open={uploadOpen}
           onClose={() => setUploadOpen(false)}
           onPick={attachPending}
+          onRemote={attachRemote}
         />
         <AstraSubjectModal
           open={subjectOpen}

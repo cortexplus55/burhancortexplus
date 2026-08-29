@@ -16,7 +16,7 @@ import {
 
 const LESSON_TOOLS = [
   { href: "/quizler", label: "Quiz", icon: FileQuestion },
-  { href: "/deneme-sinavlari", label: "Sözlü deneme", icon: Mic },
+  { href: "/ogretmen?mod=sozlu", label: "Sözlü deneme", icon: Mic },
   { href: "/quizler", label: "Doğru / Yanlış", icon: Check },
   { href: "/ogretmen?mod=podcast", label: "Podcast", icon: Headphones },
   { href: "/flashcardlar", label: "Flash kartlar", icon: Layers },
