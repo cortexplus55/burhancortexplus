@@ -15,7 +15,7 @@ export default async function ExamPrepDetailPage({
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
-  const [{ data: prep }, { data: topics }] = await Promise.all([
+  const [{ data: prep }, { data: topics }, { data: lessons }] = await Promise.all([
     supabase
       .from("exam_preps")
       .select("id, title, exam_type, target_score")
@@ -27,6 +27,12 @@ export default async function ExamPrepDetailPage({
       .select("label, sort_order")
       .eq("exam_prep_id", prepId)
       .order("sort_order"),
+    supabase
+      .from("exam_prep_lessons")
+      .select("id, title, created_at")
+      .eq("exam_prep_id", prepId)
+      .order("created_at", { ascending: false })
+      .limit(5),
   ]);
 
   if (!prep) notFound();
@@ -49,6 +55,18 @@ export default async function ExamPrepDetailPage({
             </li>
           ))}
         </ol>
+        {(lessons ?? []).length ? (
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold text-[var(--ap-muted)]">Kayıtlı dersler</h2>
+            <ul className="ap-more-history">
+              {(lessons ?? []).map((lesson) => (
+                <li key={lesson.id} className="ap-more-history-item">
+                  <span>{lesson.title}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         <Link href={`/deneme-sinavlari/${prepId}/calis`} className="ap-exam-continue ap-exam-continue--primary">
           Derse devam et
         </Link>

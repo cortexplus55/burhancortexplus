@@ -26,7 +26,7 @@ export default async function ExamPrepCalisPage({
     isPremiumUser(supabase, user.id),
     supabase
       .from("exam_prep_sessions")
-      .select("conversation_id")
+      .select("id, conversation_id")
       .eq("exam_prep_id", prepId)
       .eq("user_id", user.id)
       .eq("status", "active")
@@ -42,6 +42,7 @@ export default async function ExamPrepCalisPage({
       <ExamPrepStudySession
         prepId={prep.id}
         prepTitle={prep.title ?? "Sınav hazırlığı"}
+        sessionId={session?.id}
         conversationId={session?.conversation_id ?? undefined}
         isPremium={isPremium}
       />

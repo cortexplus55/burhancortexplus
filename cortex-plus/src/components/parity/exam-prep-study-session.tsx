@@ -10,11 +10,13 @@ import { MoreHorizontal } from "lucide-react";
 export function ExamPrepStudySession({
   prepId,
   prepTitle,
+  sessionId,
   conversationId,
   isPremium,
 }: {
   prepId: string;
   prepTitle: string;
+  sessionId?: string;
   conversationId?: string;
   isPremium: boolean;
 }) {
@@ -25,6 +27,17 @@ export function ExamPrepStudySession({
   async function finishWithExam() {
     setCreatingExam(true);
     try {
+      const lessonRes = await fetch("/api/learning/exam-prep/lesson", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prepId,
+          sessionId,
+          conversationId,
+        }),
+      });
+      if (lessonRes.ok) setLessonReady(true);
+
       const res = await fetch("/api/learning/exam-prep/mock-exam", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -81,10 +94,7 @@ export function ExamPrepStudySession({
           type="button"
           className="ap-finish-exam-btn"
           disabled={creatingExam}
-          onClick={() => {
-            setLessonReady(true);
-            void finishWithExam();
-          }}
+          onClick={() => void finishWithExam()}
         >
           {creatingExam ? "Hazırlanıyor…" : "Sınavla bitir"}
         </button>

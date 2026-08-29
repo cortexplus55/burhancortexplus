@@ -9,14 +9,36 @@ const STORAGE_KEY = "cortex-gamification-v1";
 
 export function AstraGamificationGate() {
   const [step, setStep] = useState<"none" | "streak" | "badge">("none");
+  const [streakDays, setStreakDays] = useState(1);
 
   useEffect(() => {
     try {
       if (localStorage.getItem(STORAGE_KEY)) return;
-      setStep("streak");
     } catch {
       /* ignore */
     }
+
+    let cancelled = false;
+    fetch("/api/streak")
+      .then(async (res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const days = Math.max(1, Number(data?.streak ?? 1) || 1);
+        setStreakDays(days);
+        try {
+          localStorage.setItem("cortex-streak-days", String(days));
+        } catch {
+          /* ignore */
+        }
+        setStep("streak");
+      })
+      .catch(() => {
+        if (!cancelled) setStep("streak");
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function dismiss() {
@@ -46,7 +68,9 @@ export function AstraGamificationGate() {
           <p className="text-4xl" aria-hidden>
             🔥
           </p>
-          <h2 className="mt-3 text-xl font-semibold">Serini tamamladın!</h2>
+          <h2 className="mt-3 text-xl font-semibold">
+            {streakDays > 1 ? `${streakDays} günlük serin devam ediyor!` : "Serini başlattın!"}
+          </h2>
           <p className="mt-2 text-sm text-[var(--astra-muted)]">
             Her gün en az bir soru sorarak serini canlı tut.
           </p>
@@ -102,8 +126,8 @@ export function readStreakFromStorage(): number {
   if (typeof window === "undefined") return 0;
   try {
     const raw = localStorage.getItem("cortex-streak-days");
-    return raw ? Number(raw) || 0 : 1;
+    return raw ? Number(raw) || 0 : 0;
   } catch {
-    return 1;
+    return 0;
   }
 }

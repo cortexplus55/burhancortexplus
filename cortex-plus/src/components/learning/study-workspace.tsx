@@ -58,10 +58,15 @@ export function StudyWorkspace({
     : "plan") as TabId;
   const [goal, setGoal] = useState(String(targetScore ?? 80));
   const [saving, setSaving] = useState(false);
+  const [calScope, setCalScope] = useState<"all" | "events">("all");
   const allTasks = plans.flatMap((plan) => plan.tasks);
+  const calendarTasks =
+    calScope === "events"
+      ? allTasks.filter((task) => task.dueDate && !task.completed)
+      : allTasks.filter((task) => task.dueDate);
   const calendar = useMemo(() => monthCells(new Date()), []);
   const dueDays = new Set(
-    allTasks
+    calendarTasks
       .map((task) => (task.dueDate ? new Date(task.dueDate).getDate() : null))
       .filter((day): day is number => day != null),
   );
@@ -181,13 +186,26 @@ export function StudyWorkspace({
           <div className="ap-exam-segment" role="tablist" aria-label="Takvim filtresi">
             <button
               type="button"
-              className="ap-exam-segment-btn ap-exam-segment-btn--active"
+              className={cn(
+                "ap-exam-segment-btn",
+                calScope === "all" && "ap-exam-segment-btn--active",
+              )}
               role="tab"
-              aria-selected
+              aria-selected={calScope === "all"}
+              onClick={() => setCalScope("all")}
             >
               Tümü
             </button>
-            <button type="button" className="ap-exam-segment-btn" role="tab" aria-selected={false}>
+            <button
+              type="button"
+              className={cn(
+                "ap-exam-segment-btn",
+                calScope === "events" && "ap-exam-segment-btn--active",
+              )}
+              role="tab"
+              aria-selected={calScope === "events"}
+              onClick={() => setCalScope("events")}
+            >
               Etkinliklerim
             </button>
           </div>
@@ -217,14 +235,12 @@ export function StudyWorkspace({
             ))}
           </div>
           <ul className="ap-cal-list">
-            {allTasks
-              .filter((task) => task.dueDate)
-              .map((task) => (
-                <li key={task.id}>
-                  <span>{task.dueDate}</span>
-                  <em>{task.title}</em>
-                </li>
-              ))}
+            {calendarTasks.map((task) => (
+              <li key={task.id}>
+                <span>{task.dueDate}</span>
+                <em>{task.title}</em>
+              </li>
+            ))}
           </ul>
         </section>
       ) : null}

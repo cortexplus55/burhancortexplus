@@ -63,7 +63,29 @@ export function AstraParitySorShell({
   const openMenuFromUrl = useCallback(() => setMenuOpen(true), []);
 
   useEffect(() => {
-    setStreakCount(readStreakFromStorage() || streak);
+    let cancelled = false;
+    fetch("/api/streak")
+      .then(async (res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const days = Number(data?.streak ?? 0);
+        if (days > 0) {
+          setStreakCount(days);
+          try {
+            localStorage.setItem("cortex-streak-days", String(days));
+          } catch {
+            /* ignore */
+          }
+        } else {
+          setStreakCount(readStreakFromStorage() || streak);
+        }
+      })
+      .catch(() => {
+        setStreakCount(readStreakFromStorage() || streak);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [streak]);
 
   useEffect(() => {

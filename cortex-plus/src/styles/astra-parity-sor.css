@@ -2455,3 +2455,84 @@
 .ap-classroom-side {
   text-align: right;
 }
+
+.ap-sketch-dialog {
+  width: min(100%, 42rem);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ap-sketch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ap-sketch-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ap-sketch-color {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+}
+
+.ap-sketch-color--active {
+  border-color: var(--ap-gold);
+}
+
+.ap-sketch-canvas {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ap-border);
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.ap-sketch-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.ap-exam-result-cards {
+  margin-top: 1.25rem;
+}
+
+.ap-exam-result-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+}
+
+.ap-exam-result-tags li {
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  background: rgba(124, 108, 247, 0.15);
+  border: 1px solid rgba(124, 108, 247, 0.35);
+  font-size: 0.875rem;
+}
+
+.ap-exam-result-steps {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  color: var(--ap-muted);
+  font-size: 0.875rem;
+}
+
+.ap-exam-result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 1.5rem;
+}

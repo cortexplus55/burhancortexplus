@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,8 +27,10 @@ import {
   Lightbulb,
   Smile,
   SlidersHorizontal,
+  Brush,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { subscribeComposerAttach } from "@/lib/student/composer-bridge";
 import { AstraStartHub } from "@/components/parity/astra-start-hub";
 import { AstraSubjectModal } from "@/components/parity/astra-subject-modal";
 import { AstraUploadModal } from "@/components/parity/astra-upload-modal";
@@ -197,6 +200,35 @@ export function ChatPanel({
     (typeof COMPOSER_MODES)[number]["id"] | null
   >(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const [dailyGoalMinutes, setDailyGoalMinutes] = useState(3);
+
+  useEffect(() => {
+    if (variant !== "astra") return;
+    let cancelled = false;
+    fetch("/api/profile/me")
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled || !data?.daily_goal_minutes) return;
+        setDailyGoalMinutes(Number(data.daily_goal_minutes) || 3);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [variant]);
+
+  function openComposerDialog(dialog: "image_upload" | "sketch") {
+    const params = new URLSearchParams(
+      typeof window !== "undefined" ? window.location.search : "",
+    );
+    params.set("dialog", dialog);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   useEffect(() => {
     if (initialMessages.length > 0) return;
@@ -302,6 +334,24 @@ export function ChatPanel({
     setPendingRemote(doc);
   }
 
+  useEffect(() => {
+    if (variant !== "astra") return;
+    return subscribeComposerAttach({
+      attachFile: (file) => {
+        attachPending(file);
+        toast.success("Eklendi — göndermek için mesajını yaz.");
+        composerRef.current?.focus();
+      },
+      attachRemote: (doc) => {
+        attachRemote(doc);
+        toast.success("Telefon yüklemesi composer’a eklendi.");
+        composerRef.current?.focus();
+      },
+    });
+    // attachPending/attachRemote are stable for this subscription
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variant]);
+
   function clearPending() {
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPendingFile(null);
@@ -383,6 +433,9 @@ export function ChatPanel({
       (() => {
         const mode = COMPOSER_MODES.find((m) => m.id === composerAssist);
         if (!mode || !text) return text;
+        if (mode.id === "today") {
+          return `${mode.prefix}(Günlük hedefim: ${dailyGoalMinutes} dakika.) ${text}`;
+        }
         return `${mode.prefix}${text}`;
       })(),
     );
@@ -700,13 +753,22 @@ export function ChatPanel({
                     disabled={loading}
                     onClick={() => {
                       if (typeof window !== "undefined") {
-                        window.location.href = "/ogretmen?dialog=image_upload";
+                        openComposerDialog("image_upload");
                       } else {
                         setUploadOpen(true);
                       }
                     }}
                   >
                     <ImageIcon className="h-4 w-4" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className="ap-sor-tool"
+                    aria-label="Çizim tahtası"
+                    disabled={loading}
+                    onClick={() => openComposerDialog("sketch")}
+                  >
+                    <Brush className="h-4 w-4" aria-hidden />
                   </button>
                   <button
                     type="button"

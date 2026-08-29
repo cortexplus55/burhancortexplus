@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { formatExamAnalysisText } from "@/lib/learning/exam-analysis";
 
 const bodySchema = z.object({
   examId: z.string().uuid(),
@@ -68,9 +69,11 @@ export async function POST(request: Request) {
   });
 
   const analysisText = outcome.ok
-    ? `${outcome.data.summary}\n\nEksik konular: ${
-        outcome.data.weakTopics.join(", ") || "—"
-      }\n\nSonraki adımlar: ${outcome.data.nextSteps.join(", ") || "—"}`
+    ? JSON.stringify({
+        summary: outcome.data.summary,
+        weakTopics: outcome.data.weakTopics,
+        nextSteps: outcome.data.nextSteps,
+      })
     : "Analiz üretilemedi; puanın kaydedildi.";
 
   const { data: attempt } = await service
@@ -101,6 +104,8 @@ export async function POST(request: Request) {
     score,
     correct: list.length - wrong.length,
     total: list.length,
-    analysis: analysisText,
+    analysis: outcome.ok
+      ? formatExamAnalysisText(outcome.data)
+      : analysisText,
   });
 }
