@@ -6,99 +6,16 @@ import { cn } from "@/lib/utils";
 import "@/styles/astra-app.css";
 import "@/styles/cortex-premium.css";
 import "@/styles/astra-sor.css";
-import {
-  Atom,
-  Bell,
-  BookOpen,
-  Camera,
-  CreditCard,
-  FileText,
-  Flame,
-  Gamepad2,
-  GraduationCap,
-  HelpCircle,
-  History,
-  Layers,
-  LayoutGrid,
-  MessageCircle,
-  Settings,
-  Sparkles,
-  Target,
-  User,
-  X,
-} from "lucide-react";
 import { readStreakFromStorage } from "@/components/parity/astra-gamification";
+import {
+  studentBottomTabs,
+  studentMenuGroups,
+} from "@/components/parity/student-shell-nav";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import { useEffect, useState } from "react";
+import { Flame, LayoutGrid, X } from "lucide-react";
 
 export type AstraNavRole = "student";
-
-type NavItem = {
-  id: string;
-  href: string;
-  label: string;
-  icon: typeof MessageCircle;
-  match: (path: string) => boolean;
-};
-
-const studentTabs: NavItem[] = [
-  {
-    id: "sor",
-    href: "/ogretmen",
-    label: "Sor",
-    icon: MessageCircle,
-    match: (p) => p === "/ogretmen" || p.startsWith("/ogretmen/"),
-  },
-  {
-    id: "sinavlar",
-    href: "/deneme-sinavlari",
-    label: "Sınavlar",
-    icon: Target,
-    match: (p) => p.startsWith("/deneme-sinavlari"),
-  },
-  {
-    id: "uygulamalar",
-    href: "/uygulamalar",
-    label: "Uygulamalar",
-    icon: Atom,
-    match: (p) => p === "/uygulamalar",
-  },
-];
-
-const studentMenuGroups: {
-  title: string;
-  items: { href: string; label: string; icon: typeof MessageCircle }[];
-}[] = [
-  {
-    title: "Çalış",
-    items: [
-      { href: "/ogretmen", label: "Yeni sohbet", icon: MessageCircle },
-      { href: "/sohbetler", label: "Sohbetler", icon: History },
-      { href: "/soru-coz", label: "Fotoğraftan çöz", icon: Camera },
-      { href: "/dokumanlar", label: "Dokümanlar", icon: FileText },
-      { href: "/quizler", label: "Quiz", icon: Gamepad2 },
-      { href: "/flashcardlar", label: "Flashcard", icon: Layers },
-      { href: "/calisma-plani", label: "Çalışma planı", icon: BookOpen },
-      { href: "/ilerleme", label: "İlerleme", icon: Sparkles },
-      { href: "/dashboard", label: "Panel", icon: LayoutGrid },
-    ],
-  },
-  {
-    title: "Sınav",
-    items: [{ href: "/deneme-sinavlari", label: "Deneme sınavı", icon: Target }],
-  },
-  {
-    title: "Hesap",
-    items: [
-      { href: "/krediler", label: "Krediler", icon: CreditCard },
-      { href: "/pay", label: "Plus'a yükselt", icon: GraduationCap },
-      { href: "/profil", label: "Profil", icon: User },
-      { href: "/ayarlar", label: "Ayarlar", icon: Settings },
-      { href: "/bildirimler", label: "Bildirimler", icon: Bell },
-      { href: "/destek", label: "Yardım", icon: HelpCircle },
-    ],
-  },
-];
 
 export function AstraAppChrome({
   children,
@@ -121,7 +38,7 @@ export function AstraAppChrome({
   const [menuOpen, setMenuOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
 
-  const tabs = studentTabs;
+  const tabs = studentBottomTabs;
   const activeTab = tabs.find((tab) => tab.match(pathname))?.id ?? null;
   const isSorScreen =
     pathname === "/ogretmen" || pathname.startsWith("/ogretmen/");

@@ -9,9 +9,21 @@ import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/markdown";
 import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
 
-import { Camera, Mic, Paperclip, Plus } from "lucide-react";
+import {
+  AudioLines,
+  Camera,
+  ChevronsUpDown,
+  ImageIcon,
+  LayoutGrid,
+  Mic,
+  Paperclip,
+  PenLine,
+  Plus,
+  SlidersHorizontal,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/styles/astra-sor.css";
+import "@/styles/astra-parity-sor.css";
 
 type Message = { role: "user" | "assistant"; content: string; isError?: boolean };
 
@@ -84,7 +96,7 @@ export function ChatPanel({
   startPrompt?: string;
   startLabel?: string;
   showEmptyStarter?: boolean;
-  composerMode?: "full" | "minimal";
+  composerMode?: "full" | "minimal" | "parity";
   placeholder?: string;
   showSubjectPicker?: boolean;
   showAttachments?: boolean;
@@ -126,6 +138,7 @@ export function ChatPanel({
 
   const isAstra = variant === "astra";
   const isMinimalSor = isAstra && composerMode === "minimal";
+  const isParitySor = isAstra && composerMode === "parity";
 
   const sorChatActive = isMinimalSor && (messages.length > 0 || loading);
 
@@ -138,14 +151,14 @@ export function ChatPanel({
   }, [isMinimalSor, sorChatActive]);
 
   useEffect(() => {
-    if (!isMinimalSor) return;
+    if (!isMinimalSor && !isParitySor) return;
     messagesEndRef.current?.scrollIntoView({
       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
         ? "auto"
         : "smooth",
       block: "end",
     });
-  }, [messages, loading, isMinimalSor]);
+  }, [messages, loading, isMinimalSor, isParitySor]);
 
   useEffect(() => {
     if (!attachMenuOpen) return;
@@ -295,6 +308,269 @@ export function ChatPanel({
 
   const showMinimalEmpty = isMinimalSor && messages.length === 0 && !loading;
   const showMinimalMessages = isMinimalSor && (messages.length > 0 || loading);
+  const showParityEmpty = isParitySor && messages.length === 0 && !loading;
+  const showParityThread = isParitySor && (messages.length > 0 || loading);
+
+  function startVoiceInput() {
+    type SpeechRecognitionCtor = new () => {
+      lang: string;
+      interimResults: boolean;
+      maxAlternatives: number;
+      onresult: ((event: {
+        results: { [index: number]: { [index: number]: { transcript?: string } } };
+      }) => void) | null;
+      onerror: (() => void) | null;
+      onend: (() => void) | null;
+      start: () => void;
+    };
+    const win = window as unknown as {
+      SpeechRecognition?: SpeechRecognitionCtor;
+      webkitSpeechRecognition?: SpeechRecognitionCtor;
+    };
+    const SpeechRecognition = win.SpeechRecognition ?? win.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.message("Sesle sor yakında", {
+        description: "Bu tarayıcıda ses tanıma desteklenmiyor.",
+      });
+      return;
+    }
+    const rec = new SpeechRecognition();
+    rec.lang = "tr-TR";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    setListening(true);
+    rec.onresult = (event) => {
+      const transcript = event.results[0]?.[0]?.transcript?.toString() ?? "";
+      if (transcript.trim()) setInput(transcript.trim());
+    };
+    rec.onerror = () => setListening(false);
+    rec.onend = () => setListening(false);
+    rec.start();
+  }
+
+  if (isParitySor) {
+    return (
+      <>
+        <div className="ap-sor-view">
+          {showParityEmpty ? (
+            <div className="ap-sor-hero">
+              <h1 className="ap-sor-hero-title">
+                {greetingLine ?? "Merhaba!"}
+              </h1>
+              <button
+                type="button"
+                className="ap-sor-start"
+                disabled={loading}
+                onClick={() =>
+                  send(
+                    startPrompt ??
+                      "Bugün hangi konuda çalışmak istiyorsun? Bana kısaca anlat.",
+                  )
+                }
+              >
+                + {startLabel}
+              </button>
+            </div>
+          ) : null}
+
+          {showParityThread ? (
+            <div
+              ref={messagesScrollRef}
+              className="ap-sor-messages"
+              aria-live="polite"
+            >
+              {messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={
+                    message.role === "user"
+                      ? "ap-sor-msg-user"
+                      : "ap-sor-msg-assistant"
+                  }
+                >
+                  {message.role === "user" ? (
+                    message.content
+                  ) : message.content ? (
+                    <Markdown content={message.content} variant="astra" />
+                  ) : null}
+                </div>
+              ))}
+              {loading &&
+              (messages.length === 0 ||
+                messages[messages.length - 1]?.role === "user" ||
+                messages[messages.length - 1]?.content === "") ? (
+                <div className="ap-sor-msg-assistant">
+                  <SorTypingDots />
+                </div>
+              ) : null}
+              <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
+            </div>
+          ) : null}
+
+          <div className="ap-sor-composer-zone">
+            {showSubjectPicker ? (
+              <div className="ap-sor-subject-wrap">
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="ap-sor-subject"
+                    aria-expanded={subjectOpen}
+                    onClick={() => setSubjectOpen((v) => !v)}
+                  >
+                    {subject}
+                    <ChevronsUpDown className="h-3.5 w-3.5 opacity-80" aria-hidden />
+                  </button>
+                  {subjectOpen ? (
+                    <div className="ap-sor-subject-menu" role="listbox">
+                      {SUBJECTS.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          role="option"
+                          onClick={() => {
+                            setSubject(s);
+                            setSubjectOpen(false);
+                          }}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            <form
+              className="ap-sor-composer-box"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (input.trim()) send(input);
+              }}
+            >
+              <Textarea
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                placeholder={placeholder ?? "Sor, konuş veya dosya gönder"}
+                rows={2}
+                aria-label="Mesajın"
+                disabled={loading}
+                className="min-h-[3.25rem] resize-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    if (input.trim()) send(input);
+                  }
+                }}
+              />
+              <div className="ap-sor-composer-toolbar">
+                <div className="ap-sor-composer-tools">
+                  <button
+                    type="button"
+                    className="ap-sor-tool"
+                    aria-label="Görsel ekle"
+                    disabled={loading}
+                    onClick={() => cameraInputRef.current?.click()}
+                  >
+                    <ImageIcon className="h-4 w-4" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className="ap-sor-tool"
+                    aria-label="El yazısı"
+                    disabled={loading}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <PenLine className="h-4 w-4" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className="ap-sor-tool"
+                    aria-label="Uygulamalar"
+                    disabled={loading}
+                  >
+                    <LayoutGrid className="h-4 w-4" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className="ap-sor-tool"
+                    aria-label="Ayarlar"
+                    disabled={loading}
+                  >
+                    <SlidersHorizontal className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+                <div className="ap-sor-composer-voice">
+                  <button
+                    type="button"
+                    className={cn(
+                      "ap-sor-tool",
+                      listening && "text-[var(--ap-subject)]",
+                    )}
+                    aria-label="Mikrofon"
+                    disabled={loading}
+                    onClick={startVoiceInput}
+                  >
+                    <Mic className="h-4 w-4" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className="ap-sor-voice-chip"
+                    disabled={loading}
+                    onClick={() => {
+                      if (input.trim()) {
+                        send(
+                          `${input.trim()} (Bunu sesli sohbet gibi, kısa ve konuşma dilinde yanıtla.)`,
+                        );
+                        return;
+                      }
+                      startVoiceInput();
+                    }}
+                  >
+                    Cortex Plus ile konuş
+                    <AudioLines className="h-3.5 w-3.5 opacity-80" aria-hidden />
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf"
+          onChange={async (event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (!file) return;
+            await handleAttachmentFile(file);
+          }}
+        />
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={async (event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (!file) return;
+            await handleAttachmentFile(file);
+          }}
+        />
+
+        <UpgradeSheet
+          open={paywall}
+          onOpenChange={setPaywall}
+          message="Bu işlem için yeterli kredin veya ücretsiz hakkın kalmadı. Çalışman kayıtlı kalır."
+          returnPath={returnPath}
+        />
+      </>
+    );
+  }
 
   function bubbleClass(message: Message, index?: number) {
     if (message.role === "user") {

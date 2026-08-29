@@ -1,10 +1,16 @@
-import { AppShell } from "@/components/layout/app-shell";
 import { ChatPanel } from "@/components/chat/chat-panel";
-import { astraGreetingName } from "@/components/parity/astra-app-utils";
+import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import {
+  astraGreetingName,
+  astraTimeGreeting,
+  astraUserInitial,
+} from "@/components/parity/astra-app-utils";
 import { requireStudentArea } from "@/lib/auth/session";
 import { getCreditCost } from "@/lib/credits/rules";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { parseTutorStyle, tutorStyleLabel } from "@/lib/learning/tutor-style";
+import { getStudentAccountContext } from "@/lib/student/account-context";
+import { getUserStreak } from "@/lib/streak/record-activity";
 
 export const metadata = { title: "Sor" };
 
@@ -16,20 +22,23 @@ export default async function OgretmenPage({
   const { supabase, user } = await requireStudentArea();
   const params = await searchParams;
 
-  const [{ count }, { data: profile }, chatCost, isPremium] = await Promise.all([
-    supabase
-      .from("documents")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("status", "completed"),
-    supabase
-      .from("profiles")
-      .select("full_name, tutor_style, primary_role")
-      .eq("id", user.id)
-      .maybeSingle(),
-    getCreditCost("AI_CHAT_STANDARD"),
-    isPremiumUser(supabase, user.id),
-  ]);
+  const [{ count }, { data: profile }, chatCost, isPremium, account, streak] =
+    await Promise.all([
+      supabase
+        .from("documents")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "completed"),
+      supabase
+        .from("profiles")
+        .select("full_name, tutor_style, primary_role, avatar_url")
+        .eq("id", user.id)
+        .maybeSingle(),
+      getCreditCost("AI_CHAT_STANDARD"),
+      isPremiumUser(supabase, user.id),
+      getStudentAccountContext(supabase, user.id),
+      getUserStreak(supabase, user.id),
+    ]);
 
   let initialMessages: { role: "user" | "assistant"; content: string }[] = [];
   let conversationId: string | undefined;
@@ -60,19 +69,28 @@ export default async function OgretmenPage({
   }
 
   const firstName = astraGreetingName(profile?.full_name ?? user.email);
-  const greetingLine = `${firstName}, bugün ne çalışalım?`;
+  const timeGreeting = astraTimeGreeting();
+  const moon =
+    timeGreeting === "İyi akşamlar" || timeGreeting === "İyi geceler" ? " 🌙" : "";
+  const greetingLine = `${firstName}, ${timeGreeting.toLowerCase()}!${moon}`;
   const style = parseTutorStyle(profile?.tutor_style);
+  const avatar = profile?.avatar_url as string | null | undefined;
 
   return (
-    <AppShell accountStrip={false}>
+    <AstraParitySorShell
+      userInitial={astraUserInitial(profile?.full_name, user.email)}
+      avatarEmoji={avatar && !avatar.startsWith("http") ? avatar : null}
+      streak={streak}
+      account={account}
+    >
       <ChatPanel
         variant="astra"
-        composerMode="minimal"
+        composerMode="parity"
         greetingLine={greetingLine}
-        greetingSubline="Sorunu yaz veya fotoğraf yükle — adım adım birlikte çözelim."
-        showEmptyStarter={false}
-        showSubjectPicker={false}
-        placeholder="Sorunu yaz veya fotoğraf yükle…"
+        showEmptyStarter
+        startLabel="Başla"
+        showSubjectPicker
+        placeholder="Sor, konuş veya dosya gönder"
         initialConversationId={conversationId}
         initialMessages={initialMessages}
         hasDocuments={(count ?? 0) > 0}
@@ -80,6 +98,6 @@ export default async function OgretmenPage({
         isPremium={isPremium}
         tutorStyleLabel={tutorStyleLabel(style)}
       />
-    </AppShell>
+    </AstraParitySorShell>
   );
 }

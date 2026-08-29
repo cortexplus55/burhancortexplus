@@ -1,0 +1,110 @@
+import {
+  Atom,
+  Bell,
+  BookOpen,
+  Camera,
+  CreditCard,
+  FileText,
+  Gamepad2,
+  GraduationCap,
+  HelpCircle,
+  History,
+  Layers,
+  LayoutGrid,
+  MessageCircle,
+  Settings,
+  Sparkles,
+  Target,
+  User,
+} from "lucide-react";
+
+export type StudentNavItem = {
+  id: string;
+  href: string;
+  label: string;
+  icon: typeof MessageCircle;
+  match: (path: string) => boolean;
+};
+
+export const studentBottomTabs: StudentNavItem[] = [
+  {
+    id: "sor",
+    href: "/ogretmen",
+    label: "Sor",
+    icon: MessageCircle,
+    match: (p) => p === "/ogretmen" || p.startsWith("/ogretmen/"),
+  },
+  {
+    id: "sinavlar",
+    href: "/deneme-sinavlari",
+    label: "Sınavlar",
+    icon: Target,
+    match: (p) => p.startsWith("/deneme-sinavlari"),
+  },
+  {
+    id: "apps",
+    href: "/uygulamalar",
+    label: "Uygulamalar",
+    icon: Atom,
+    match: (p) => p === "/uygulamalar",
+  },
+];
+
+export const studentTopTabs: StudentNavItem[] = [
+  {
+    id: "sor",
+    href: "/ogretmen",
+    label: "Sor",
+    icon: MessageCircle,
+    match: (p) => p === "/ogretmen" || p.startsWith("/ogretmen/"),
+  },
+  {
+    id: "sinav",
+    href: "/deneme-sinavlari",
+    label: "Sınav hazırlığı",
+    icon: Target,
+    match: (p) => p.startsWith("/deneme-sinavlari") || p.startsWith("/sinav-hazirligi"),
+  },
+  {
+    id: "apps",
+    href: "/uygulamalar",
+    label: "Öğrenme uygulamaları",
+    icon: Atom,
+    match: (p) => p === "/uygulamalar",
+  },
+];
+
+export const studentMenuGroups: {
+  title: string;
+  items: { href: string; label: string; icon: typeof MessageCircle }[];
+}[] = [
+  {
+    title: "Çalış",
+    items: [
+      { href: "/ogretmen", label: "Yeni sohbet", icon: MessageCircle },
+      { href: "/sohbetler", label: "Sohbetler", icon: History },
+      { href: "/soru-coz", label: "Fotoğraftan çöz", icon: Camera },
+      { href: "/dokumanlar", label: "Dokümanlar", icon: FileText },
+      { href: "/quizler", label: "Quiz", icon: Gamepad2 },
+      { href: "/flashcardlar", label: "Flashcard", icon: Layers },
+      { href: "/calisma-plani", label: "Çalışma planı", icon: BookOpen },
+      { href: "/ilerleme", label: "İlerleme", icon: Sparkles },
+      { href: "/dashboard", label: "Panel", icon: LayoutGrid },
+    ],
+  },
+  {
+    title: "Sınav",
+    items: [{ href: "/deneme-sinavlari", label: "Deneme sınavı", icon: Target }],
+  },
+  {
+    title: "Hesap",
+    items: [
+      { href: "/krediler", label: "Krediler", icon: CreditCard },
+      { href: "/pay", label: "Plus'a yükselt", icon: GraduationCap },
+      { href: "/profil", label: "Profil", icon: User },
+      { href: "/ayarlar", label: "Ayarlar", icon: Settings },
+      { href: "/bildirimler", label: "Bildirimler", icon: Bell },
+      { href: "/destek", label: "Yardım", icon: HelpCircle },
+    ],
+  },
+];
