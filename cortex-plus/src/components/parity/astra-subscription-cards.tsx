@@ -205,7 +205,7 @@ export function AstraSubscriptionCards({
       ) : null}
 
       <div className={cn("mx-auto max-w-md space-y-6", embedded ? "" : "pt-8")}>
-        {isParent ? null : (
+        {isParent || embedded ? null : (
           <div className="text-center">
             <h1 className="text-xl font-semibold leading-snug">
               Daha iyi notlar al ve 2 kat hızlı öğren

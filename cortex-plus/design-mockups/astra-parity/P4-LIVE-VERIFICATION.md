@@ -1,7 +1,7 @@
 # P4 — Canlı doğrulama (Cortex Plus + Astra handoff)
 
 **Tarih:** 2026-08-29  
-**Deploy:** `936c517` (`main` → Vercel `cortexplus.app`)
+**Deploy:** `936c517` + `fee8f13` (`main` → Vercel `cortexplus.app`); pay başlık düzeltmesi deploy sonrası.
 
 ## Cortex Plus — otomatik / agent smoke
 
@@ -9,10 +9,10 @@
 |--------|--------|--------|-----|
 | Ana sayfa hero + nav | `https://cortexplus.app/` | **Geçti** | Tek birincil **Ücretsiz dene**; Plus metin linki; plan sekmeleri; sosyal kanıt + plan slider (P3 spacing) |
 | Giriş kabuğu | `https://cortexplus.app/giris` | **Geçti** | Google birincil, e-posta ikincil |
-| Sor (boş) | `localhost:3002/ogretmen` (oturum açık) | **Geçti** | Selamlama, minimal composer, Sor/Sınavlar/Uygulamalar, **Menü** → Çalış / Sınav / Hesap grupları |
-| Pay (embedded) | `localhost:3002/pay` (oturum açık) | **Geçti** | Plus birincil CTA; **Diğer planlar · Sigma** → Sigma ikincil; “Ücretsiz planda devam et” |
+| Sor (boş) | `https://cortexplus.app/ogretmen` (öğrenci oturumu) | **Geçti** | Selamlama, dock, Ekle, menü yapısı |
+| Pay (embedded) | `https://cortexplus.app/pay` (öğrenci oturumu) | **Geçti** | Plus birincil; Diğer planlar · Sigma; ücretsiz devam linki |
 
-> Prod’da öğrenci oturumu agent tarafından doldurulamadı (güvenlik onayı). Sor/Pay satırları yerel dev + aynı commit ile doğrulandı; prod auth smoke için `.cursor/rules/app-test-accounts.mdc` hesabıyla manuel 2 dk kontrol önerilir.
+> Prod öğrenci smoke (2026-08-29): `cortexplus.app/ogretmen` ve `/pay` doğrulandı. `/pay`’de AppShell + kart çift `h1` giderildi (`embedded` iken kart üst metni gizli — bir sonraki deploy).
 
 ## Astra TR — insan handoff (yan yana)
 
@@ -32,7 +32,13 @@ Astra hesabı agent’ta yok; aşağıdaki maddeler **senin** iki sekmeli kontro
 - [ ] Yıllık / aylık toggle davranışı
 - [ ] “Ücretsiz devam” veya eşdeğer çıkış
 
-### Marketing (isteğe bağlı)
+### Marketing (Cortex prod — agent)
+
+- [x] Hero + tek birincil CTA + Plus metin linki (`cortexplus.app/`)
+- [x] Sosyal kanıt + plan slider (P3 spacing) ana sayfada görünür
+- [ ] Mobil hamburger tıklama (prod, 390px) — isteğe bağlı hızlı kontrol
+
+### Marketing (isteğe bağlı — Astra yan yana)
 
 - [ ] Hero video + CTA sayısı
 - [ ] Mobil hamburger içeriği
