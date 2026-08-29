@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
+import { cn } from "@/lib/utils";
 
 const ALLOWED = [
   "application/pdf",
@@ -18,7 +19,13 @@ const ALLOWED = [
 
 const MAX_BYTES = 15 * 1024 * 1024;
 
-export function DocumentUpload({ creditCost }: { creditCost: number | null }) {
+export function DocumentUpload({
+  creditCost,
+  variant = "default",
+}: {
+  creditCost: number | null;
+  variant?: "default" | "astra";
+}) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<"idle" | "uploading" | "processing">("idle");
@@ -80,31 +87,62 @@ export function DocumentUpload({ creditCost }: { creditCost: number | null }) {
     }
   }
 
+  const isAstra = variant === "astra";
+
   return (
     <>
       <form onSubmit={submit} className="max-w-md space-y-3">
         <div className="space-y-2">
-          <Label htmlFor="document-file">Dosya</Label>
+          <Label
+            htmlFor="document-file"
+            className={isAstra ? "text-[var(--astra-muted)]" : undefined}
+          >
+            Dosya
+          </Label>
           <Input
             id="document-file"
             type="file"
             accept=".pdf,.txt,.png,.jpg,.jpeg,.webp"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             required
+            className={
+              isAstra
+                ? "border-[var(--astra-border)] bg-[var(--astra-surface-elevated)] text-[var(--astra-text)] file:text-[var(--astra-muted)]"
+                : undefined
+            }
           />
-          <p className="text-xs text-muted-foreground">
+          <p
+            className={cn(
+              "text-xs",
+              isAstra ? "text-[var(--astra-muted)]" : "text-muted-foreground",
+            )}
+          >
             PDF, TXT ve görsel · en fazla 15 MB
             {creditCost !== null ? ` · işleme ${creditCost} kredi` : ""}
           </p>
         </div>
 
-        <Button type="submit" disabled={!file || stage !== "idle"}>
-          {stage === "uploading"
-            ? "Yükleniyor…"
-            : stage === "processing"
-              ? "İşleniyor…"
-              : "Yükle ve işle"}
-        </Button>
+        {isAstra ? (
+          <button
+            type="submit"
+            disabled={!file || stage !== "idle"}
+            className="astra-btn-primary h-10 rounded-full px-6 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {stage === "uploading"
+              ? "Yükleniyor…"
+              : stage === "processing"
+                ? "İşleniyor…"
+                : "Yükle ve işle"}
+          </button>
+        ) : (
+          <Button type="submit" disabled={!file || stage !== "idle"}>
+            {stage === "uploading"
+              ? "Yükleniyor…"
+              : stage === "processing"
+                ? "İşleniyor…"
+                : "Yükle ve işle"}
+          </Button>
+        )}
       </form>
 
       <UpgradeSheet

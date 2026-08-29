@@ -50,7 +50,7 @@ export default async function OdevlerPage() {
       <div className="space-y-6">
         {classrooms?.length ? (
           canCreate ? (
-            <SectionCard title="Yeni ödev">
+            <SectionCard variant="astra" title="Yeni ödev">
               <AssignmentForm
                 classrooms={classrooms}
                 allowQuizAttach={entitlements?.canAttachQuizToAssignment() ?? false}
@@ -59,6 +59,7 @@ export default async function OdevlerPage() {
             </SectionCard>
           ) : (
             <EmptyState
+              variant="astra"
               title="Deneme ödev hakkın doldu"
               description="Doğrulama sonrası sınırsız temel ödev verebilirsin. Plus ile quiz bağlayabilirsin."
               actionHref="/ogretmen-paneli/plus"
@@ -67,6 +68,7 @@ export default async function OdevlerPage() {
           )
         ) : (
           <EmptyState
+            variant="astra"
             title="Önce bir sınıf oluştur"
             description="Ödev verebilmek için en az bir sınıfın olmalı."
             actionHref="/ogretmen-paneli/siniflar"
@@ -75,29 +77,26 @@ export default async function OdevlerPage() {
         )}
 
         {assignments?.length ? (
-          <ul className="divide-y rounded-xl border border-[var(--astra-border)]">
+          <ul className="space-y-2">
             {assignments.map((assignment) => (
-              <li
-                key={assignment.id}
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"
-              >
-                <div>
-                  <Link
-                    href={`/ogretmen-paneli/odevler/${assignment.id}`}
-                    className="font-medium hover:underline"
-                  >
-                    {assignment.title}
-                  </Link>
-                  <p className="text-xs text-[var(--astra-muted)]">
-                    {classroomNames.get(assignment.classroom_id) ?? "Sınıf"} ·{" "}
-                    {assignment.due_at
-                      ? `Teslim ${formatDate(assignment.due_at)}`
-                      : "Süresiz"}
-                  </p>
-                </div>
-                <span className="text-xs text-[var(--astra-muted)]">
-                  {assignment.assignment_submissions?.length ?? 0} teslim
-                </span>
+              <li key={assignment.id}>
+                <Link
+                  href={`/ogretmen-paneli/odevler/${assignment.id}`}
+                  className="astra-pay-card flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm transition-colors hover:bg-[var(--astra-pill)]"
+                >
+                  <div>
+                    <p className="font-medium text-[var(--astra-text)]">{assignment.title}</p>
+                    <p className="text-xs text-[var(--astra-muted)]">
+                      {classroomNames.get(assignment.classroom_id) ?? "Sınıf"} ·{" "}
+                      {assignment.due_at
+                        ? `Teslim ${formatDate(assignment.due_at)}`
+                        : "Süresiz"}
+                    </p>
+                  </div>
+                  <span className="text-xs text-[var(--astra-muted)]">
+                    {assignment.assignment_submissions?.length ?? 0} teslim
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>

@@ -75,11 +75,11 @@ export default async function OgrencilerPage({
       ) : null}
 
       {rows.length ? (
-        <ul className="divide-y rounded-xl border border-[var(--astra-border)]">
+        <ul className="space-y-2">
           {rows.map((row) => (
             <li
               key={row.memberId}
-              className="flex flex-wrap items-center justify-between gap-2 px-3 py-3 text-sm"
+              className="astra-pay-card flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"
             >
               <div>
                 <p className="font-medium">{row.name}</p>

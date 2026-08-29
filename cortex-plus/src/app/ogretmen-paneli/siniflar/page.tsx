@@ -28,6 +28,7 @@ export default async function SiniflarPage() {
       <div className="space-y-6">
         {canAdd ? (
           <SectionCard
+            variant="astra"
             title="Yeni sınıf"
             description="Sınıf kodunu öğrencilerinle paylaşarak katılmalarını sağlarsın."
           >
@@ -41,16 +42,16 @@ export default async function SiniflarPage() {
         )}
 
         {classrooms?.length ? (
-          <ul className="divide-y rounded-xl border border-[var(--astra-border)]">
+          <ul className="space-y-2">
             {classrooms.map((classroom) => (
               <li
                 key={classroom.id}
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                className="astra-pay-card flex flex-wrap items-center justify-between gap-3 px-4 py-3"
               >
                 <div>
                   <Link
                     href={`/ogretmen-paneli/siniflar/${classroom.id}`}
-                    className="text-sm font-medium hover:underline"
+                    className="text-sm font-medium text-[var(--astra-text)] hover:text-[var(--astra-primary)]"
                   >
                     {classroom.name}
                   </Link>
@@ -65,6 +66,7 @@ export default async function SiniflarPage() {
           </ul>
         ) : (
           <EmptyState
+            variant="astra"
             title="Henüz sınıfın yok"
             description="İlk sınıfını oluşturarak öğrencilerini davet et."
           />

@@ -67,7 +67,7 @@ export default async function VeliPage() {
   return (
     <ParentShell title="Çocuklarım">
       <section className="pt-2">
-        <h1 className="text-xl font-semibold">
+        <h1 className="font-[family-name:var(--font-display)] text-2xl font-normal tracking-tight text-[var(--astra-text)]">
           {firstName}, {astraTimeGreeting().toLocaleLowerCase("tr")}
         </h1>
         <p className="mt-1 text-sm text-[var(--astra-muted)]">
@@ -127,7 +127,7 @@ export default async function VeliPage() {
             className="mx-auto h-8 w-8 text-[var(--astra-muted)]"
             aria-hidden
           />
-          <h2 className="mt-2 font-semibold">Henüz bağlı öğrenci yok</h2>
+          <h2 className="font-semibold text-[var(--astra-text)]">Henüz bağlı öğrenci yok</h2>
           <p className="mt-1 text-sm text-[var(--astra-muted)]">
             Çocuğunun davet kodunu gir veya e-posta ile davet gönder.
           </p>

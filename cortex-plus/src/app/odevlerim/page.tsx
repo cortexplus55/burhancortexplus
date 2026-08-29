@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { ClipboardList } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
+import { EmptyState } from "@/components/ui-kit/empty-state";
 import { requireStudentArea } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Ödevlerim" };
 
@@ -28,30 +31,45 @@ export default async function OdevlerimPage() {
   return (
     <AppShell title="Ödevlerim">
       {!assignments?.length ? (
-        <p className="text-sm text-[var(--astra-muted)]">
-          Henüz ödev yok.{" "}
-          <Link href="/sinifim" className="underline">
-            Sınıfa katıl
-          </Link>
-        </p>
+        <EmptyState
+          variant="astra"
+          icon={ClipboardList}
+          title="Henüz ödevin yok"
+          description="Öğretmenin ödev verdiğinde burada görünür. Sınıfa katılmadıysan kodu gir."
+          actionHref="/sinifim"
+          actionLabel="Sınıfa katıl"
+        />
       ) : (
-        <ul className="divide-y rounded-xl border border-[var(--astra-border)]">
+        <ul className="space-y-2">
           {assignments.map((a) => {
             const submission = (
               a.assignment_submissions as { id: string; submitted_at: string | null }[] | null
             )?.[0];
             const classroom = a.classrooms as unknown as { name: string } | null;
+            const submitted = Boolean(submission?.submitted_at);
             return (
-              <li key={a.id} className="px-4 py-3 text-sm">
-                <Link href={`/odevlerim/${a.id}`} className="font-medium hover:underline">
-                  {a.title}
+              <li key={a.id}>
+                <Link
+                  href={`/odevlerim/${a.id}`}
+                  className="astra-pay-card block px-4 py-3 transition-colors hover:bg-[var(--astra-pill)]"
+                >
+                  <p className="text-sm font-medium text-[var(--astra-text)]">{a.title}</p>
+                  <p className="mt-1 text-xs text-[var(--astra-muted)]">
+                    {classroom?.name ?? "Sınıf"} ·{" "}
+                    {a.due_at ? `Teslim ${formatDate(a.due_at)}` : "Süresiz"}
+                    {a.quiz_id ? " · Quiz" : ""}
+                  </p>
+                  <span
+                    className={cn(
+                      "mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                      submitted
+                        ? "bg-amber-500/20 text-amber-200"
+                        : "bg-white/10 text-[var(--astra-muted)]",
+                    )}
+                  >
+                    {submitted ? "Teslim edildi" : "Bekliyor"}
+                  </span>
                 </Link>
-                <p className="text-xs text-[var(--astra-muted)]">
-                  {classroom?.name ?? "Sınıf"} ·{" "}
-                  {a.due_at ? `Teslim ${formatDate(a.due_at)}` : "Süresiz"} ·{" "}
-                  {submission?.submitted_at ? "Teslim edildi" : "Bekliyor"}
-                  {a.quiz_id ? " · Quiz" : ""}
-                </p>
               </li>
             );
           })}
