@@ -3,20 +3,23 @@ import { CreateClassForm } from "@/components/student/create-class-form";
 import { JoinClassForm } from "@/components/student/join-class-form";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Sınıflar" };
+export const dynamic = "force-dynamic";
 
 export default async function SiniflarPage() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
+  const service = createServiceClient();
 
   const [{ data: owned }, { data: memberships }] = await Promise.all([
-    supabase
+    service
       .from("classrooms")
       .select("id, name, join_code, created_at")
       .eq("teacher_id", user.id)
       .order("created_at", { ascending: false }),
-    supabase
+    service
       .from("classroom_members")
       .select("id, classrooms(id, name, join_code, teacher_id)")
       .eq("student_id", user.id),

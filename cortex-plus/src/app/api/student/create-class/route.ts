@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
@@ -40,5 +41,6 @@ export async function POST(request: Request) {
     student_id: user.id,
   });
 
+  revalidatePath("/siniflar");
   return NextResponse.json({ ok: true, joinCode, classroomId: classroom.id });
 }
