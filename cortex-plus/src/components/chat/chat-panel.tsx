@@ -13,7 +13,23 @@ import { Camera, Mic, Paperclip, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/styles/astra-sor.css";
 
-type Message = { role: "user" | "assistant"; content: string };
+type Message = { role: "user" | "assistant"; content: string; isError?: boolean };
+
+function SorTypingDots() {
+  return (
+    <div className="astra-sor-typing" role="status" aria-label="Yanıt hazırlanıyor">
+      <span />
+      <span />
+      <span />
+    </div>
+  );
+}
+
+function assistantErrorContent(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "Bir hata oluştu. Lütfen tekrar deneyin.";
+}
 
 const quickActions = [
   { id: "hint", label: "İpucu ver", prompt: "Bana çözümü söylemeden bir ipucu ver." },
@@ -88,8 +104,11 @@ export function ChatPanel({
   const conversationId = useRef<string | undefined>(initialConversationId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [subject, setSubject] = useState("Matematik");
   const [subjectOpen, setSubjectOpen] = useState(false);
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [listening, setListening] = useState(false);
 
   useEffect(() => {
@@ -105,6 +124,59 @@ export function ChatPanel({
     }
   }, [initialMessages.length]);
 
+  const isAstra = variant === "astra";
+  const isMinimalSor = isAstra && composerMode === "minimal";
+
+  useEffect(() => {
+    if (!isMinimalSor) return;
+    messagesEndRef.current?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+      block: "end",
+    });
+  }, [messages, loading, isMinimalSor]);
+
+  useEffect(() => {
+    if (!attachMenuOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setAttachMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [attachMenuOpen]);
+
+  function pushAssistantError(error: unknown) {
+    const content = assistantErrorContent(error);
+    setMessages((prev) => {
+      const copy = [...prev];
+      const last = copy[copy.length - 1];
+      if (last?.role === "assistant") {
+        copy[copy.length - 1] = { role: "assistant", content, isError: true };
+        return copy;
+      }
+      copy.push({ role: "assistant", content, isError: true });
+      return copy;
+    });
+  }
+
+  async function handleAttachmentFile(file: File) {
+    setAttachMenuOpen(false);
+    setLoading(true);
+    try {
+      const docId = await uploadAttachment(file);
+      const prompt = file.type.startsWith("image/")
+        ? "Fotoğraftaki soruyu adım adım çöz."
+        : "Yüklediğim dosyayı özetle ve sorularımı yanıtlamaya hazır ol.";
+      await send(prompt, false, docId ?? undefined, true);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Dosya gönderilemedi.",
+      );
+      setLoading(false);
+    }
+  }
+
   async function uploadAttachment(file: File): Promise<string | null> {
     const form = new FormData();
     form.set("file", file);
@@ -119,8 +191,13 @@ export function ChatPanel({
     return uploaded.documentId as string;
   }
 
-  async function send(text: string, advanced = false, imageDocumentId?: string) {
-    if (!text.trim() || loading) return;
+  async function send(
+    text: string,
+    advanced = false,
+    imageDocumentId?: string,
+    allowWhileLoading = false,
+  ) {
+    if (!text.trim() || (loading && !allowWhileLoading)) return;
     const prefixed =
       variant === "astra" && showSubjectPicker && subject
         ? `[${subject}] ${text.trim()}`
@@ -200,23 +277,29 @@ export function ChatPanel({
         localStorage.setItem("cortex-streak-days", "1");
       }
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            error instanceof Error
-              ? error.message
-              : "Bir hata oluştu. Lütfen tekrar deneyin.",
-        },
-      ]);
+      pushAssistantError(error);
     } finally {
       setLoading(false);
     }
   }
 
-  const isAstra = variant === "astra";
-  const isMinimalSor = isAstra && composerMode === "minimal";
+  const showMinimalEmpty = isMinimalSor && messages.length === 0 && !loading;
+  const showMinimalMessages = isMinimalSor && (messages.length > 0 || loading);
+
+  function bubbleClass(message: Message) {
+    if (message.role === "user") {
+      return cn(
+        "ml-auto max-w-[85%] rounded-2xl px-3 py-2 text-sm font-medium",
+        isAstra ? "astra-sor-bubble--user" : "rounded-lg bg-primary text-primary-foreground",
+      );
+    }
+    return cn(
+      "mr-auto max-w-[92%] rounded-2xl px-3 py-2 text-sm",
+      isAstra
+        ? cn("astra-sor-bubble--assistant", message.isError && "astra-sor-bubble--error")
+        : "rounded-lg border",
+    );
+  }
 
   return (
     <>
@@ -224,9 +307,7 @@ export function ChatPanel({
         className={cn(
           "flex flex-col gap-4",
           isAstra && "flex-1 pb-4",
-          isMinimalSor && "astra-sor-view gap-0 pb-0",
-          isMinimalSor && messages.length === 0 && "astra-sor-view--empty",
-          isMinimalSor && messages.length > 0 && "astra-sor-view--active",
+          isMinimalSor && "astra-sor-view astra-sor-view--shell gap-0 pb-0",
         )}
       >
         {!isAstra ? (
@@ -256,24 +337,13 @@ export function ChatPanel({
           </label>
         ) : null}
 
-        {isAstra && messages.length === 0 ? (
-          <div
-            className={cn(
-              "flex flex-col items-center justify-center text-center",
-              isMinimalSor ? "astra-sor-empty" : "flex-1 gap-3 py-8",
-            )}
-          >
-            <p className={isMinimalSor ? "astra-sor-greeting" : "text-lg font-semibold tracking-tight"}>
+        {isAstra && !isMinimalSor && messages.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 py-8 text-center">
+            <p className="text-lg font-semibold tracking-tight">
               {greetingLine ?? "Merhaba, bugün ne çalışalım?"}
             </p>
             {greetingSubline ? (
-              <p
-                className={cn(
-                  isMinimalSor ? "astra-sor-greeting-sub" : "max-w-xs text-sm text-[var(--astra-muted)]",
-                )}
-              >
-                {greetingSubline}
-              </p>
+              <p className="max-w-xs text-sm text-[var(--astra-muted)]">{greetingSubline}</p>
             ) : null}
             {showEmptyStarter ? (
               <>
@@ -310,7 +380,58 @@ export function ChatPanel({
           </div>
         ) : null}
 
-        {!(isMinimalSor && messages.length === 0) ? (
+        {isMinimalSor ? (
+          <div className="astra-sor-main">
+            <div
+              className={cn(
+                "astra-sor-empty-layer",
+                !showMinimalEmpty && "astra-sor-empty-layer--hidden",
+              )}
+              aria-hidden={!showMinimalEmpty}
+            >
+              <p className="astra-sor-greeting">
+                {greetingLine ?? "Merhaba, bugün ne çalışalım?"}
+              </p>
+              {greetingSubline ? (
+                <p className="astra-sor-greeting-sub">{greetingSubline}</p>
+              ) : null}
+            </div>
+
+            {showMinimalMessages ? (
+              <div
+                ref={messagesScrollRef}
+                className="astra-sor-messages min-h-0 flex-1 space-y-3"
+                aria-live="polite"
+              >
+                {messages.map((message, index) => (
+                  <div key={index} className={bubbleClass(message)}>
+                    {message.role === "user" ? (
+                      message.content
+                    ) : message.content ? (
+                      <Markdown content={message.content} variant="astra" />
+                    ) : null}
+                  </div>
+                ))}
+                {loading &&
+                (messages.length === 0 ||
+                  messages[messages.length - 1]?.role === "user" ||
+                  messages[messages.length - 1]?.content === "") ? (
+                  <div
+                    className={cn(
+                      "mr-auto max-w-[92%] rounded-2xl px-3 py-2.5",
+                      "astra-sor-bubble--assistant",
+                    )}
+                  >
+                    <SorTypingDots />
+                  </div>
+                ) : null}
+                <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {!isMinimalSor ? (
         <div
           className={cn(
             isAstra
@@ -328,36 +449,22 @@ export function ChatPanel({
             </p>
           ) : null}
           {messages.map((message, index) => (
-            <div
-              key={index}
-              className={
-                message.role === "user"
-                  ? isAstra
-                    ? isMinimalSor
-                      ? "ml-auto max-w-[85%] rounded-2xl bg-[var(--astra-primary)] px-3 py-2 text-sm font-medium text-[#0a0a0a]"
-                      : "ml-auto max-w-[85%] rounded-2xl bg-[var(--astra-primary)] px-3 py-2 text-sm text-white"
-                    : "ml-auto max-w-[85%] rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground"
-                  : isAstra
-                    ? "mr-auto max-w-[92%] rounded-2xl border border-[var(--astra-border)] bg-[var(--astra-surface)] px-3 py-2 text-sm"
-                    : "mr-auto max-w-[92%] rounded-lg border px-3 py-2"
-              }
-            >
+            <div key={index} className={bubbleClass(message)}>
               {message.role === "user" ? (
                 message.content
               ) : (
-                <Markdown content={message.content} />
+                <Markdown
+                  content={message.content}
+                  variant={isAstra ? "astra" : "default"}
+                />
               )}
             </div>
           ))}
-          {loading ? (
-            <p
-              className={cn(
-                "text-xs",
-                isAstra ? "text-[var(--astra-muted)]" : "text-muted-foreground",
-              )}
-            >
-              Yanıt hazırlanıyor…
-            </p>
+          {loading && !isAstra ? (
+            <p className="text-xs text-muted-foreground">Yanıt hazırlanıyor…</p>
+          ) : null}
+          {loading && isAstra && !isMinimalSor ? (
+            <p className="text-xs text-[var(--astra-muted)]">Yanıt hazırlanıyor…</p>
           ) : null}
         </div>
         ) : null}
@@ -375,26 +482,25 @@ export function ChatPanel({
                 ref={fileInputRef}
                 type="file"
                 className="hidden"
-                accept=".pdf,.png,.jpg,.jpeg,.webp,image/*"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf"
                 onChange={async (event) => {
                   const file = event.target.files?.[0];
                   event.target.value = "";
                   if (!file) return;
-                  setLoading(true);
-                  try {
-                    const docId = await uploadAttachment(file);
-                    const prompt = file.type.startsWith("image/")
-                      ? "Fotoğraftaki soruyu adım adım çöz."
-                      : "Yüklediğim dosyayı özetle ve sorularımı yanıtlamaya hazır ol.";
-                    await send(prompt, false, docId ?? undefined);
-                  } catch (error) {
-                    toast.error(
-                      error instanceof Error
-                        ? error.message
-                        : "Dosya gönderilemedi.",
-                    );
-                    setLoading(false);
-                  }
+                  await handleAttachmentFile(file);
+                }}
+              />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (!file) return;
+                  await handleAttachmentFile(file);
                 }}
               />
               <form
@@ -405,14 +511,38 @@ export function ChatPanel({
                 }}
               >
                 {showAttachments ? (
-                  <button
-                    type="button"
-                    className="astra-sor-attach"
-                    aria-label="Dosya veya fotoğraf ekle"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Paperclip className="h-4 w-4" />
-                  </button>
+                  <div className="astra-sor-attach-wrap">
+                    {attachMenuOpen ? (
+                      <div className="astra-sor-attach-menu" role="menu">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => cameraInputRef.current?.click()}
+                        >
+                          <Camera className="h-4 w-4 shrink-0" aria-hidden />
+                          Fotoğraf çek
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <Paperclip className="h-4 w-4 shrink-0" aria-hidden />
+                          Dosya ekle
+                        </button>
+                      </div>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="astra-sor-attach"
+                      aria-label="Ekle"
+                      aria-expanded={attachMenuOpen}
+                      aria-haspopup="menu"
+                      onClick={() => setAttachMenuOpen((open) => !open)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
                 ) : null}
                 <Textarea
                   value={input}
@@ -420,6 +550,7 @@ export function ChatPanel({
                   placeholder={placeholder ?? "Sorunu yaz…"}
                   rows={1}
                   aria-label="Mesajın"
+                  disabled={loading}
                   className="min-h-[44px] flex-1 resize-none border-0 bg-transparent text-sm shadow-none focus-visible:ring-0"
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
@@ -431,8 +562,8 @@ export function ChatPanel({
                 <button
                   type="submit"
                   disabled={loading || !input.trim()}
-                  className="astra-sor-send"
-                  aria-label="Gönder"
+                  className={cn("astra-sor-send", loading && "astra-sor-send--loading")}
+                  aria-label={loading ? "Gönderiliyor" : "Gönder"}
                 >
                   ↑
                 </button>
