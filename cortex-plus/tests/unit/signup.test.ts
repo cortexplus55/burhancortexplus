@@ -2,23 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   isOptionalPhoneValid,
   stepIdsForRole,
+  stepIdsForRoleLegacy,
+  STUDENT_SIGNUP_STEPS,
 } from "@/lib/parity/signup";
 
-describe("veli kayıt yardımcıları", () => {
-  it("öğrenci adımlarına AI öğretmen stili ekler", () => {
-    expect(stepIdsForRole("student")).toEqual([
-      "role",
-      "grade",
-      "subject",
-      "goal",
-      "tutor-style",
-      "avatar",
-      "account",
-    ]);
+describe("kayıt adımları", () => {
+  it("öğrenci adımları rol seçimi olmadan", () => {
+    expect(stepIdsForRole("student")).toEqual([...STUDENT_SIGNUP_STEPS]);
   });
 
-  it("veli adımlarına yakınlık ve telefon ekler", () => {
-    expect(stepIdsForRole("parent")).toEqual([
+  it("legacy veli adımları ayrı fonksiyonda kalır", () => {
+    expect(stepIdsForRoleLegacy("parent")).toEqual([
       "role",
       "parent-intro",
       "parent-relation",
