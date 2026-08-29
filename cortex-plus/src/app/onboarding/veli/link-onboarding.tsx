@@ -5,9 +5,11 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { AstraMarketingPage } from "@/components/parity/astra-marketing";
 import { ParentLinkForms } from "@/components/parity/parent-link-forms";
+import { OnboardingShell } from "@/components/layout/onboarding-shell";
 import { completeParentOnboardingIfLinked } from "@/app/kayit/actions";
 import "@/styles/astra-marketing.css";
 import "@/styles/astra-app.css";
+import "@/styles/signup-wizard.css";
 
 export function ParentLinkOnboarding() {
   const router = useRouter();
@@ -25,20 +27,23 @@ export function ParentLinkOnboarding() {
 
   return (
     <AstraMarketingPage variant="auth" title="Çocuğunu bağla">
-      <div className="mx-auto max-w-md space-y-6 pb-16">
-        <p className="text-[var(--mk-muted)]">
+      <OnboardingShell step={1} total={1}>
+        <h2 className="signup-step-title">Bağlantı kur</h2>
+        <p className="mt-2 text-sm text-[var(--mk-muted)]">
           Paneli açmak için davet kodu gir veya e-posta ile davet gönder.
           Öğrenci onaylayana kadar ilerleme özeti ve Plus satın alma kapalı
           kalır.
         </p>
-        <ParentLinkForms onLinked={() => void finish()} />
-        <p className="text-center text-sm text-[var(--mk-muted)]">
+        <div className="mk-card mt-6 p-5">
+          <ParentLinkForms onLinked={() => void finish()} />
+        </div>
+        <p className="mt-6 text-center text-sm text-[var(--mk-muted)]">
           Yanlış hesap mı?{" "}
           <Link href="/ayarlar" className="text-[var(--mk-primary)] underline">
             Ayarlar
           </Link>
         </p>
-      </div>
+      </OnboardingShell>
     </AstraMarketingPage>
   );
 }

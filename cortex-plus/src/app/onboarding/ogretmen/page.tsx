@@ -4,12 +4,16 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  OnboardingShell,
+} from "@/components/layout/onboarding-shell";
 import { AstraMarketingPage } from "@/components/parity/astra-marketing";
 import { createClient } from "@/lib/supabase/client";
 import { homePathForRole } from "@/lib/parity/signup";
 import { toast } from "sonner";
 import { useState } from "react";
 import "@/styles/astra-marketing.css";
+import "@/styles/signup-wizard.css";
 
 export default function OgretmenOnboardingPage() {
   const router = useRouter();
@@ -46,12 +50,13 @@ export default function OgretmenOnboardingPage() {
 
   return (
     <AstraMarketingPage variant="auth" title="İlk sınıfın">
-      <div className="mx-auto max-w-md space-y-6 pb-16">
-        <p className="text-[var(--mk-muted)]">
+      <OnboardingShell step={1} total={1}>
+        <h2 className="signup-step-title">Sınıfını oluştur</h2>
+        <p className="mt-2 text-sm text-[var(--mk-muted)]">
           Kayıt sırasında sınıf oluşturmadıysan burada ilk sınıfını
           tanımlayabilirsin.
         </p>
-        <div className="mk-card space-y-4 p-6">
+        <div className="mk-card mt-6 space-y-4 p-6">
           <div className="space-y-2">
             <Label htmlFor="class">Sınıf adı</Label>
             <Input
@@ -78,7 +83,7 @@ export default function OgretmenOnboardingPage() {
             Sonra oluşturacağım
           </Button>
         </div>
-      </div>
+      </OnboardingShell>
     </AstraMarketingPage>
   );
 }

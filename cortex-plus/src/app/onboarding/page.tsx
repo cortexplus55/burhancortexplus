@@ -2,15 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Check } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  OnboardingChoice,
+  OnboardingContinue,
+  OnboardingShell,
+} from "@/components/layout/onboarding-shell";
 import { AstraMarketingPage } from "@/components/parity/astra-marketing";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -23,16 +21,20 @@ import {
 import { DEFAULT_TUTOR_STYLE, type TutorStyle } from "@/lib/learning/tutor-style";
 import { toast } from "sonner";
 import "@/styles/astra-marketing.css";
-import "@/styles/signup-wizard.css";
+
+const STEPS = 3;
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const [step, setStep] = useState(1);
   const [grade, setGrade] = useState("");
   const [subject, setSubject] = useState("");
   const [goal, setGoal] = useState("");
   const [tutorStyle, setTutorStyle] = useState<TutorStyle>(DEFAULT_TUTOR_STYLE);
+  const [saving, setSaving] = useState(false);
 
   async function finish() {
+    setSaving(true);
     const supabase = createClient();
     const {
       data: { user },
@@ -71,91 +73,127 @@ export default function OnboardingPage() {
     }
     toast.success("Profilin hazır!");
     router.push(homePathForRole(existing?.primary_role));
+    setSaving(false);
   }
 
   return (
     <AstraMarketingPage variant="auth" title="Hoş geldin">
-      <div className="signup-wizard mx-auto max-w-md space-y-6 pb-16">
-        <p className="text-[var(--mk-muted)]">
-          Kayıt sihirbazını tamamlayamadıysan birkaç soruyla deneyimini
-          kişiselleştirelim.
-        </p>
-        <div className="mk-card space-y-6 p-6">
-          <div className="space-y-2">
-            <Label>Hangi sınıftasın?</Label>
-            <Select value={grade} onValueChange={(v) => setGrade(v ?? "")}>
-              <SelectTrigger className="border-[var(--mk-border)] bg-[#0c0c0c]">
-                <SelectValue placeholder="Sınıf seç" />
-              </SelectTrigger>
-              <SelectContent>
-                {GRADE_OPTIONS.map((g) => (
-                  <SelectItem key={g} value={g}>
-                    {g}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Odak ders</Label>
-            <Select value={subject} onValueChange={(v) => setSubject(v ?? "")}>
-              <SelectTrigger className="border-[var(--mk-border)] bg-[#0c0c0c]">
-                <SelectValue placeholder="Ders seç" />
-              </SelectTrigger>
-              <SelectContent>
-                {SUBJECT_OPTIONS.map((s) => (
-                  <SelectItem key={s.label} value={s.label}>
-                    {s.emoji} {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Hedefin</Label>
-            <Select value={goal} onValueChange={(v) => setGoal(v ?? "")}>
-              <SelectTrigger className="border-[var(--mk-border)] bg-[#0c0c0c]">
-                <SelectValue placeholder="Hedef seç" />
-              </SelectTrigger>
-              <SelectContent>
-                {GOAL_OPTIONS.map((g) => (
-                  <SelectItem key={g.label} value={g.label}>
-                    {g.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>AI öğretmen stili</Label>
-            <Select
-              value={tutorStyle}
-              onValueChange={(v) =>
-                setTutorStyle((v as TutorStyle) ?? DEFAULT_TUTOR_STYLE)
-              }
-            >
-              <SelectTrigger className="border-[var(--mk-border)] bg-[#0c0c0c]">
-                <SelectValue placeholder="Stil seç" />
-              </SelectTrigger>
-              <SelectContent>
-                {TUTOR_STYLE_OPTIONS.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>
-                    {o.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button
-            type="button"
-            className="mk-btn-primary w-full rounded-full py-3"
-            onClick={finish}
-            disabled={!grade}
-          >
-            Başla
-          </Button>
-        </div>
-      </div>
+      <OnboardingShell
+        step={step}
+        total={STEPS}
+        onBack={step > 1 ? () => setStep((s) => s - 1) : undefined}
+      >
+        {step === 1 ? (
+          <>
+            <h2 className="signup-step-title">Hangi sınıftasın?</h2>
+            <p className="mt-2 text-sm text-[var(--mk-muted)]">
+              İçerik ve öneriler sınıfına göre ayarlanır.
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {GRADE_OPTIONS.map((g) => (
+                <OnboardingChoice
+                  key={g}
+                  selected={grade === g}
+                  onClick={() => setGrade(g)}
+                  ariaLabel={g}
+                  className="px-3 py-3 text-center text-sm font-medium"
+                >
+                  {g}
+                  {grade === g ? (
+                    <span className="signup-choice-check absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full border border-[#e8a838] bg-[#e8a838] text-[#0c0a06]">
+                      <Check className="h-3 w-3" strokeWidth={3} />
+                    </span>
+                  ) : null}
+                </OnboardingChoice>
+              ))}
+            </div>
+            <OnboardingContinue
+              disabled={!grade}
+              onClick={() => setStep(2)}
+            />
+          </>
+        ) : null}
+
+        {step === 2 ? (
+          <>
+            <h2 className="signup-step-title">Odak ders ve hedef</h2>
+            <p className="mt-2 text-sm text-[var(--mk-muted)]">
+              İstersen sonra ayarlardan değiştirebilirsin.
+            </p>
+            <div className="mk-card mt-6 space-y-5 p-5">
+              <div className="space-y-3">
+                <Label>Odak ders</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {SUBJECT_OPTIONS.map((s) => (
+                    <OnboardingChoice
+                      key={s.label}
+                      selected={subject === s.label}
+                      onClick={() => setSubject(s.label)}
+                      ariaLabel={s.label}
+                      className="flex items-center gap-2 p-3 text-sm"
+                    >
+                      <span aria-hidden>{s.emoji}</span>
+                      {s.label}
+                    </OnboardingChoice>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-3">
+                <Label>Hedefin</Label>
+                <div className="space-y-2">
+                  {GOAL_OPTIONS.map((g) => (
+                    <OnboardingChoice
+                      key={g.label}
+                      selected={goal === g.label}
+                      onClick={() => setGoal(g.label)}
+                      ariaLabel={g.label}
+                      className="block p-4"
+                    >
+                      <span className="block font-semibold">{g.label}</span>
+                      <span className="block text-sm text-[var(--mk-muted)]">
+                        {g.body}
+                      </span>
+                    </OnboardingChoice>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <OnboardingContinue onClick={() => setStep(3)} />
+          </>
+        ) : null}
+
+        {step === 3 ? (
+          <>
+            <h2 className="signup-step-title">AI öğretmen stili</h2>
+            <p className="mt-2 text-sm text-[var(--mk-muted)]">
+              Yanıtların tonu ve detay seviyesi buna göre ayarlanır.
+            </p>
+            <div className="mk-card mt-6 space-y-2 p-4">
+              {TUTOR_STYLE_OPTIONS.map((o) => (
+                <OnboardingChoice
+                  key={o.id}
+                  selected={tutorStyle === o.id}
+                  onClick={() => setTutorStyle(o.id as TutorStyle)}
+                  ariaLabel={o.title}
+                  className="block p-4"
+                >
+                  <span className="block font-semibold">
+                    {o.emoji} {o.title}
+                  </span>
+                  <span className="block text-sm text-[var(--mk-muted)]">
+                    {o.body}
+                  </span>
+                </OnboardingChoice>
+              ))}
+            </div>
+            <OnboardingContinue
+              disabled={!grade || saving}
+              label={saving ? "Kaydediliyor…" : "Başla"}
+              onClick={() => void finish()}
+            />
+          </>
+        ) : null}
+      </OnboardingShell>
     </AstraMarketingPage>
   );
 }

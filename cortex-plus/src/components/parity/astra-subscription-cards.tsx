@@ -86,6 +86,7 @@ export function AstraSubscriptionCards({
   const returnTo = searchParams.get("returnTo");
   const [yearly, setYearly] = useState(false);
   const [plusOpen, setPlusOpen] = useState(false);
+  const [otherPlansOpen, setOtherPlansOpen] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
 
@@ -116,6 +117,10 @@ export function AstraSubscriptionCards({
   const isParent = audience === "parent";
   const plusOwned = currentBadge === "Plus" || currentBadge === "Sigma";
   const sigmaOwned = currentBadge === "Sigma";
+  /** Embedded checkout: Plus hero CTA; Sigma under “Diğer planlar”. */
+  const sigmaUnderFold =
+    embedded && !plusOwned && !sigmaOwned && Boolean(sigmaPlan);
+  const showSigmaCard = !sigmaUnderFold || otherPlansOpen || plusOwned;
   const plusBenefits = isParent ? PARENT_PLUS_BENEFITS : PLUS_BENEFITS;
   const sigmaBenefits = isParent ? PARENT_SIGMA_BENEFITS : SIGMA_BENEFITS;
 
@@ -314,72 +319,100 @@ export function AstraSubscriptionCards({
         </article>
         )}
 
-        <article className="astra-pay-card relative overflow-hidden p-5">
-          <span className="absolute right-3 top-3 rounded-full border border-violet-400/40 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-200">
-            Daha yüksek limit
-          </span>
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
-              <Sigma className="h-6 w-6" />
+        {sigmaUnderFold && !otherPlansOpen ? (
+          <button
+            type="button"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--astra-border)] bg-[var(--astra-surface)] py-3.5 text-sm font-medium text-[var(--astra-muted)] transition-colors hover:border-[var(--astra-primary)]/40 hover:text-[var(--astra-text)]"
+            onClick={() => setOtherPlansOpen(true)}
+          >
+            Diğer planlar · Sigma
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        ) : null}
+
+        {showSigmaCard && sigmaPlan ? (
+          <article className="astra-pay-card relative overflow-hidden p-5">
+            <span className="absolute right-3 top-3 rounded-full border border-violet-400/40 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-200">
+              Daha yüksek limit
             </span>
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold">Sigma</h2>
-              <p className="text-sm text-[var(--astra-muted)]">
-                Ciddi çalışma için
-              </p>
-              <p className="mt-4 text-3xl font-bold">
-                ₺{sigmaMonthly.toLocaleString("tr-TR")}
-                <span className="text-base font-normal text-[var(--astra-muted)]">
-                  {" "}
-                  / ay
-                </span>
-              </p>
-              <p className="text-xs text-[var(--astra-muted)]">
-                aylık faturalandırılır
-              </p>
-              <button
-                type="button"
-                disabled={sigmaOwned || loadingId === sigmaPlan?.id}
-                className="astra-btn-primary mt-4 w-full rounded-full py-3.5 text-sm font-semibold disabled:opacity-60"
-                onClick={() =>
-                  sigmaOwned
-                    ? undefined
-                    : sigmaPlan
-                      ? startCheckout(sigmaPlan.id)
-                      : guestMode
-                        ? router.push("/kayit")
-                        : toast.error("Sigma paketi yapılandırılmadı.")
-                }
-              >
-                {sigmaOwned
-                  ? "Bu çocukta Sigma açık"
-                  : loadingId === sigmaPlan?.id
-                    ? "Hazırlanıyor…"
-                    : isParent
-                      ? "Çocuğum için Sigma al"
-                      : "Sigma'ya yükselt"}
-              </button>
-              <ul className="mt-3 space-y-1 text-xs text-[var(--astra-muted)]">
-                {sigmaBenefits.map((b) => (
-                  <li key={b}>· {b}</li>
-                ))}
-              </ul>
-              {isParent ? null : studentAskParent && sigmaPlan && !guestMode ? (
-                <AskParentPaymentButton
-                  planId={sigmaPlan.id}
-                  planName={sigmaPlan.name}
-                />
-              ) : (
-                <Link
-                  href="/destek"
-                  className="mt-3 block text-center text-xs text-[var(--astra-primary)] underline underline-offset-2"
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
+                <Sigma className="h-6 w-6" />
+              </span>
+              <div className="flex-1">
+                {sigmaUnderFold ? (
+                  <button
+                    type="button"
+                    className="mb-2 flex items-center gap-1 text-xs text-[var(--astra-muted)]"
+                    onClick={() => setOtherPlansOpen(false)}
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                    Diğer planları gizle
+                  </button>
+                ) : null}
+                <h2 className="text-lg font-semibold">Sigma</h2>
+                <p className="text-sm text-[var(--astra-muted)]">
+                  Ciddi çalışma için
+                </p>
+                <p className="mt-4 text-3xl font-bold">
+                  ₺{sigmaMonthly.toLocaleString("tr-TR")}
+                  <span className="text-base font-normal text-[var(--astra-muted)]">
+                    {" "}
+                    / ay
+                  </span>
+                </p>
+                <p className="text-xs text-[var(--astra-muted)]">
+                  aylık faturalandırılır
+                </p>
+                <button
+                  type="button"
+                  disabled={sigmaOwned || loadingId === sigmaPlan.id}
+                  className={cn(
+                    "mt-4 w-full rounded-full py-3.5 text-sm font-semibold disabled:opacity-60",
+                    sigmaUnderFold
+                      ? "border border-[var(--astra-border)] bg-transparent text-[var(--astra-text)] hover:bg-[var(--astra-surface)]"
+                      : "astra-btn-primary",
+                  )}
+                  onClick={() =>
+                    sigmaOwned
+                      ? undefined
+                      : sigmaPlan
+                        ? startCheckout(sigmaPlan.id)
+                        : guestMode
+                          ? router.push("/kayit")
+                          : toast.error("Sigma paketi yapılandırılmadı.")
+                  }
                 >
-                  Ebeveynden ödeme iste
-                </Link>
-              )}
+                  {sigmaOwned
+                    ? "Bu çocukta Sigma açık"
+                    : loadingId === sigmaPlan.id
+                      ? "Hazırlanıyor…"
+                      : isParent
+                        ? "Çocuğum için Sigma al"
+                        : "Sigma'ya yükselt"}
+                </button>
+                <ul className="mt-3 space-y-1 text-xs text-[var(--astra-muted)]">
+                  {sigmaBenefits.map((b) => (
+                    <li key={b}>· {b}</li>
+                  ))}
+                </ul>
+                {isParent ? null : studentAskParent && !guestMode ? (
+                  <AskParentPaymentButton
+                    planId={sigmaPlan.id}
+                    planName={sigmaPlan.name}
+                  />
+                ) : sigmaUnderFold ? null : (
+                  <Link
+                    href="/destek"
+                    className="mt-3 block text-center text-xs text-[var(--astra-primary)] underline underline-offset-2"
+                  >
+                    Ebeveynden ödeme iste
+                  </Link>
+                )}
+              </div>
             </div>
-          </div>
-        </article>
+          </article>
+        ) : null}
 
         {rest.length > 0 ? (
           <div className="space-y-3">

@@ -5,7 +5,7 @@ Her ekran için Astra TR ile yan yana bak. **Evet / Kısmen / Hayır** — kod +
 ## Global
 
 - [x] **Evet** — Primary CTA **#f4ae0b** (`--astra-primary`, `mk-btn-primary`, `astra-btn-primary`); koyu zeminde koyu metin (`#0a0a0a`) kullanılıyor.
-- [x] **Kısmen** — Figtree uygulama/marketing CSS’te (`cortex-premium.css`, `astra-sor`); root layout hâlâ **Geist** (`layout.tsx`). Başlıklar DM Serif Display — Astra’ya yakın, birebir değil.
+- [x] **Evet** — Figtree root layout (`layout.tsx` → `--font-ui`); body `globals.css`. Geist Sans yalnızca fallback değişkeni; mono Geist Mono.
 - [x] **Evet** — Kopya genelde **sen** dili, eğitim odaklı (marketing + app).
 - [x] **Kısmen** — Plus yönlendirme görünür (`Satın al ✦`, `/pay`, hero’da Plus linki); bazı ekranlarda (hero) ikinci CTA biraz baskın olabilir.
 
@@ -14,7 +14,7 @@ Her ekran için Astra TR ile yan yana bak. **Evet / Kısmen / Hayır** — kod +
 - [x] **Evet** — [`AstraSiteHeader`](../../src/components/marketing/astra-site-header.tsx): logo, linkler (fiyatlandırma dahil), **Ücretsiz dene**, mobil hamburger + drawer.
 - [x] **Evet** — Hero: video + scrim; tek ana CTA **Ücretsiz dene**; Plus metin linki (`Plus planlarını incele`).
 - [x] **Evet** — Footer: legal + yardım ([`AstraSiteFooter`](../../src/components/parity/astra-marketing.tsx)); app shell’de footer yok (beklenen).
-- [x] **Kısmen** — Sosyal kanıt + plan slider var; yoğunluk Astra Plus’a göre canlı karşılaştırma ile doğrulanmalı.
+- [x] **Evet** — Sosyal kanıt + plan slider spacing/yoğunluk pass (`cinematic-social-proof`, `cinematic-plan-slider`).
 
 ## 2. Onboarding
 
@@ -23,7 +23,7 @@ Her ekran için Astra TR ile yan yana bak. **Evet / Kısmen / Hayır** — kod +
 - [x] **Evet** (`/kayit`) — İlerleme çubuğu üstte ([`SignupPremiumShell`](../../src/components/layout/signup-premium-shell.tsx)).
 - [x] **Evet** (`/kayit`) — Rol kartları emoji + başlık + açıklama ([`signup-wizard.tsx`](../../src/app/kayit/signup-wizard.tsx)).
 - [x] **Evet** (`/kayit`) — Devam altın; geri **ArrowLeft** sol üst.
-- [x] **Kısmen** (`/onboarding`) — Tek form, progress/rol kartı yok; veli/öğretmen alt rotalar ayrı.
+- [x] **Evet** (`/onboarding`) — `OnboardingShell`: progress + adım göstergesi; 3 adımlı profil (sınıf / ders-hedef / AI stili) kayıt kart stiliyle. Veli/öğretmen alt rotalar aynı shell.
 
 ## 3. Login
 
@@ -41,7 +41,7 @@ Her ekran için Astra TR ile yan yana bak. **Evet / Kısmen / Hayır** — kod +
 ## 5. Pay
 
 - [x] **Evet** — Plus değer önermesi + fiyat kartları ([`/pay`](../../src/app/pay/page.tsx) + [`AstraSubscriptionCards`](../../src/components/parity/astra-subscription-cards.tsx)).
-- [x] **Kısmen** — Plus / Sigma (ve dönem seçimi) → birden fazla satın al CTA; Astra’da tek ana CTA ise Sigma ikincil konumlandırma gözden geçirilmeli.
+- [x] **Evet** — Embedded pay: Plus ana CTA; Sigma **Diğer planlar** altında, ikincil buton (`embedded` → `/pay`, veli Plus).
 - [x] **Evet** — “Ücretsiz planda devam et” → `/ogretmen`.
 
 ---
@@ -52,10 +52,10 @@ Her ekran için Astra TR ile yan yana bak. **Evet / Kısmen / Hayır** — kod +
 |--------|--------|-----|
 | P1 | ~~Marketing mobil nav~~ | Tamamlandı (`astra-site-header.tsx`) |
 | P1 | ~~Hero tek CTA~~ | Tamamlandı (`cinematic-hero.tsx`) |
-| P2 | Global font | `layout.tsx`’te Figtree (veya `--font-ui`) body; Geist yalnızca mono/fallback |
-| P2 | Pay tek CTA | Embedded pay’de bir tier öne çıkar; Sigma “Diğer planlar” altında |
-| P3 | Onboarding birleşik | `/onboarding`’e progress + Astra kart stili; veya kayıt sonrası doğrudan role-specific onboarding |
-| P3 | Marketing yoğunluk | Sosyal kanıt + fiyat slider Astra screenshot ile piksel/ spacing pass |
+| P2 | ~~Global font~~ | Tamamlandı (`layout.tsx`, `globals.css`) |
+| P2 | ~~Pay tek CTA~~ | Tamamlandı (`astra-subscription-cards.tsx`, `embedded`) |
+| P3 | ~~Onboarding birleşik~~ | Tamamlandı (`onboarding-shell.tsx`, `/onboarding` adımlar) |
+| P3 | ~~Marketing yoğunluk~~ | Tamamlandı (sosyal kanıt + plan slider) |
 | P4 | Canlı doğrulama | Astra TR hesabıyla Sor/Pay menü — checklist “requires handoff” maddeleri |
 
 ---
@@ -68,7 +68,7 @@ Marketing:
   hero’da çift CTA. Fiyatlandırma AstraMarketingPage ile tutarlı.
 
 Onboarding:
-  Asıl parity /kayit signup-wizard’da. /onboarding sade form — progress/rol yok.
+  /onboarding 3 adım + progress; veli/öğretmen OnboardingShell ile hizalı.
 
 Login:
   Parity tamam (Google-first, veya, kayıt linki). PremiumAuthShell görsel dil ayrı ama kabul edilebilir.

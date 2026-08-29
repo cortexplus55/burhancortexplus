@@ -38,8 +38,8 @@ export function CinematicPlanSlider() {
   const plan = PLANS.find((p) => p.id === active) ?? PLANS[1];
 
   return (
-    <section className="py-16 md:py-20">
-      <div className="mx-auto max-w-3xl px-4 text-center">
+    <section className="border-t border-[var(--mk-border)] py-20 md:py-24">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-400/80">
           Planlar
         </p>
@@ -52,7 +52,7 @@ export function CinematicPlanSlider() {
         </p>
 
         <div
-          className="mx-auto mt-8 inline-flex rounded-full border border-[var(--mk-border)] bg-[var(--mk-surface)] p-1"
+          className="mx-auto mt-10 inline-flex w-full max-w-sm rounded-full border border-[var(--mk-border)] bg-[var(--mk-surface)] p-1 sm:max-w-none sm:w-auto"
           role="tablist"
           aria-label="Plan seçimi"
         >
@@ -64,7 +64,7 @@ export function CinematicPlanSlider() {
               aria-selected={active === p.id}
               onClick={() => setActive(p.id)}
               className={cn(
-                "rounded-full px-6 py-2.5 text-sm font-medium transition-colors",
+                "flex-1 rounded-full px-5 py-2.5 text-sm font-medium transition-colors sm:flex-none sm:px-8",
                 active === p.id
                   ? "bg-amber-500/20 text-amber-200"
                   : "text-[var(--mk-muted)] hover:text-[var(--mk-text)]",
@@ -77,7 +77,7 @@ export function CinematicPlanSlider() {
 
         <article
           className={cn(
-            "mk-card mk-card-cinematic mx-auto mt-8 max-w-md rounded-3xl p-8 text-left",
+            "mk-card mk-card-cinematic mx-auto mt-10 min-h-[320px] max-w-md rounded-3xl p-8 text-left md:mt-12 md:max-w-lg md:p-10",
             plan.highlight && "ring-1 ring-amber-500/30",
           )}
         >
