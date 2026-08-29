@@ -11,9 +11,7 @@ export default async function UygulamalarPage() {
 
   return (
     <AstraParitySorShell {...shell}>
-      <div className="ap-exam-page">
-        <UygulamalarLabGrid />
-      </div>
+      <UygulamalarLabGrid />
     </AstraParitySorShell>
   );
 }
