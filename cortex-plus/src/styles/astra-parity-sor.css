@@ -484,3 +484,271 @@
   color: var(--ap-muted);
   cursor: pointer;
 }
+
+/* Sınav hazırlığı — Astra exam-preps parity */
+.ap-exam-page {
+  width: 100%;
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.ap-exam-page--loading {
+  min-height: 40vh;
+}
+
+.ap-exam-section-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--ap-text);
+  text-decoration: none;
+}
+
+.ap-exam-section-head span {
+  opacity: 0.65;
+}
+
+.ap-exam-active-card {
+  border-radius: 1.25rem;
+  border: 1px solid var(--ap-border);
+  background: linear-gradient(
+    165deg,
+    rgba(32, 32, 34, 0.95) 0%,
+    rgba(18, 18, 20, 0.98) 100%
+  );
+  padding: 1.25rem 1.35rem 1.15rem;
+}
+
+.ap-exam-active-title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.ap-exam-progress-wrap {
+  position: relative;
+  margin-top: 1.35rem;
+}
+
+.ap-exam-target-label {
+  position: absolute;
+  top: -1.35rem;
+  transform: translateX(-50%);
+  font-family: "Segoe Print", "Comic Sans MS", cursive;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #fbbf24;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.ap-exam-progress-track {
+  position: relative;
+  height: 0.35rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: visible;
+}
+
+.ap-exam-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.35);
+  transition: width 0.35s ease;
+}
+
+.ap-exam-target-marker {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 1.25rem;
+  transform: translate(-50%, -50%);
+  background: #fbbf24;
+  border-radius: 1px;
+}
+
+.ap-exam-progress-pct {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--ap-muted);
+}
+
+.ap-exam-active-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.15rem;
+}
+
+.ap-exam-active-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8125rem;
+  color: var(--ap-muted);
+}
+
+.ap-exam-continue {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.15rem;
+  border-radius: 9999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+}
+
+.ap-exam-continue:hover {
+  filter: brightness(1.06);
+}
+
+.ap-exam-segment {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  margin: 1.75rem auto 1.25rem;
+  padding: 0.25rem;
+  border-radius: 9999px;
+  border: 1px solid var(--ap-border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ap-exam-segment-btn {
+  border: none;
+  border-radius: 9999px;
+  padding: 0.45rem 1rem;
+  background: transparent;
+  color: var(--ap-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ap-exam-segment-btn--active {
+  background: #fff;
+  color: #0a0a0a;
+}
+
+.ap-exam-school-prompt {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 1.25rem;
+  border-radius: 1.25rem;
+  border: 1px dashed var(--ap-border);
+  background: transparent;
+  color: var(--ap-muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.ap-exam-discover-grid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .ap-exam-discover-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.ap-exam-discover-card {
+  position: relative;
+  display: flex;
+  min-height: 15rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: hidden;
+  border-radius: 1.35rem;
+  border: 1px solid var(--ap-border);
+  padding: 1.5rem 1.25rem 1.35rem;
+  text-align: center;
+}
+
+.ap-exam-discover-card--curriculum {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(59, 130, 246, 0.12), transparent 55%),
+    linear-gradient(180deg, rgba(28, 28, 32, 0.95) 0%, rgba(12, 12, 14, 1) 100%);
+}
+
+.ap-exam-discover-card--brand {
+  background:
+    radial-gradient(ellipse 70% 55% at 80% 10%, rgba(244, 174, 11, 0.14), transparent 50%),
+    linear-gradient(180deg, rgba(28, 28, 32, 0.95) 0%, rgba(12, 12, 14, 1) 100%);
+}
+
+.ap-exam-discover-icon {
+  position: absolute;
+  top: 1.25rem;
+  display: flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.ap-exam-discover-icon--user {
+  left: 1.25rem;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface-2);
+}
+
+.ap-exam-discover-icon--brand {
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(244, 174, 11, 0.15);
+  color: var(--ap-gold);
+}
+
+.ap-exam-discover-title {
+  margin-top: 2.5rem;
+  font-size: 1.125rem;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.ap-exam-discover-desc {
+  margin-top: 0.65rem;
+  max-width: 16rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ap-muted);
+}
+
+.ap-exam-discover-cta {
+  margin-top: 1.15rem;
+  display: inline-flex;
+  min-width: 7.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.25rem;
+  border-radius: 9999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ap-exam-discover-cta:hover {
+  filter: brightness(1.06);
+}

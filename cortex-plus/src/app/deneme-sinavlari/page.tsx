@@ -1,151 +1,92 @@
-﻿import Link from "next/link";
-import { AppShell } from "@/components/layout/app-shell";
-import { ExamGeneratePanel } from "@/components/learning/learning-generate-panels";
-import { ExamRunner } from "@/components/learning/exam-runner";
+﻿import { Suspense } from "react";
+import { AstraParityExamPrep } from "@/components/parity/astra-parity-exam-prep";
+import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
-import { getCreditCost } from "@/lib/credits/rules";
-import { formatDate } from "@/lib/format";
-import { normalizeExamQuestions } from "@/lib/learning/exam-questions";
-import { Search } from "lucide-react";
+import { loadParityShellProps } from "@/lib/student/parity-shell-props";
+import type { ExamPrepCard } from "@/components/parity/astra-parity-exam-prep";
 
-export const metadata = { title: "Sınavlar" };
+export const metadata = { title: "Sınav hazırlığı" };
+
+function daysUntilLabel(due: Date | null): string {
+  if (!due) return "Tarih yok";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(due);
+  target.setHours(0, 0, 0, 0);
+  const diff = Math.round(
+    (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (diff < 0) return "Süre geçti";
+  if (diff === 0) return "Bugün";
+  if (diff === 1) return "1 gün sonra";
+  return `${diff} gün sonra`;
+}
+
+function buildActivePrep(
+  plan: {
+    id: string;
+    title: string;
+    study_plan_tasks: { completed: boolean; due_date: string | null }[] | null;
+  } | null,
+  targetScore: number | null,
+): ExamPrepCard | null {
+  if (!plan) return null;
+  const tasks = plan.study_plan_tasks ?? [];
+  const total = tasks.length || 3;
+  const done = tasks.filter((t) => t.completed).length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const dueDates = tasks
+    .map((t) => (t.due_date ? new Date(t.due_date) : null))
+    .filter(Boolean) as Date[];
+  const nearest =
+    dueDates.length > 0
+      ? dueDates.sort((a, b) => a.getTime() - b.getTime())[0]
+      : null;
+
+  return {
+    id: plan.id,
+    title: plan.title,
+    progressPct: pct,
+    daysLabel: daysUntilLabel(nearest),
+    topicsDone: done,
+    topicsTotal: total,
+    targetScore,
+    continueHref: "/calisma-plani",
+  };
+}
 
 export default async function DenemeSinavlariPage() {
   const { supabase, user } = await requireStudentArea();
-  const cost = await getCreditCost("PRACTICE_EXAM_GENERATE");
-  const gradeCost = await getCreditCost("PRACTICE_EXAM_GRADE");
+  const shell = await loadParityShellProps(supabase, user.id, user.email);
 
-  const [examsResult, attemptsResult] = await Promise.all([
+  const [{ data: plan }, { data: examPrep }] = await Promise.all([
     supabase
-      .from("practice_exams")
-      .select(
-        "id, title, duration_minutes, created_at, practice_exam_questions(id, question_text, options, sort_order)",
-      )
+      .from("study_plans")
+      .select("id, title, study_plan_tasks(completed, due_date)")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("exam_preps")
+      .select("target_score")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(5),
-    supabase
-      .from("practice_exam_attempts")
-      .select("id, score, analysis, completed_at, practice_exams(title)")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(5),
+      .limit(1)
+      .maybeSingle(),
   ]);
 
-  const exams = examsResult.error ? [] : (examsResult.data ?? []);
-  const attempts = attemptsResult.error ? [] : (attemptsResult.data ?? []);
+  const activePrep = buildActivePrep(plan, examPrep?.target_score ?? null);
 
   return (
-    <AppShell
-      title="Sınavlar"
-      creditHint={`Deneme üretimi ${cost ?? "—"} kredi; değerlendirme ${gradeCost ?? "—"} kredi.`}
-    >
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--astra-muted)]" />
-        <input
-          type="search"
-          placeholder="Ara"
-          className="w-full rounded-full border border-[var(--astra-border)] bg-[var(--astra-surface)] py-2.5 pl-10 pr-4 text-sm outline-none placeholder:text-[var(--astra-muted)] focus:border-[var(--astra-primary)]"
-          aria-label="Ara"
+    <AstraParitySorShell {...shell}>
+      <Suspense fallback={<div className="ap-exam-page ap-exam-page--loading" />}>
+        <AstraParityExamPrep
+          activePrep={activePrep}
+          userInitial={shell.userInitial}
         />
-      </div>
-
-      <div className="astra-pay-card p-5">
-        <h1 className="text-lg font-semibold leading-snug">
-          Sınavlarına AI ile hazırlan
-        </h1>
-        <p className="mt-2 text-sm text-[var(--astra-muted)]">
-          Konu seç, deneme üret ve eksiklerini gör.
-        </p>
-        <Link
-          href="#yeni-test"
-          className="astra-btn-primary mt-4 inline-flex w-full items-center justify-center rounded-full py-3 text-sm font-semibold"
-        >
-          + Yeni test oluştur
-        </Link>
-        <p className="mt-3 text-center text-xs text-[var(--astra-muted)]">
-          <Link href="/yardim" className="underline underline-offset-2">
-            Nasıl çalışır
-          </Link>
-        </p>
-      </div>
-
-      <div className="mt-4 flex rounded-full bg-[var(--astra-pill)] p-1 text-sm">
-        <span className="flex-1 rounded-full py-2 text-center font-medium text-white">
-          Okulum
-        </span>
-        <span className="flex-1 rounded-full py-2 text-center text-[var(--astra-muted)]">
-          Cortex&apos;tan
-        </span>
-      </div>
-      <button
-        type="button"
-        className="mt-3 w-full rounded-2xl border border-dashed border-[var(--astra-border)] py-4 text-sm text-[var(--astra-muted)]"
-      >
-        Hangi okula gidiyorsun?
-      </button>
-
-      <div id="yeni-test" className="mt-8 space-y-4">
-        <h2 className="text-sm font-medium text-[var(--astra-muted)]">
-          Yeni deneme
-        </h2>
-        <div className="astra-pay-card p-4 [&_label]:text-[var(--astra-text)] [&_input]:border-[var(--astra-border)] [&_input]:bg-[var(--astra-bg)]">
-          <ExamGeneratePanel creditCost={cost} />
-        </div>
-      </div>
-
-      {exams?.length ? (
-        <div className="mt-8 space-y-4">
-          {exams.map((exam) => (
-            <div
-              key={exam.id}
-              className="astra-pay-card p-4 [&_.rounded-lg]:border-[var(--astra-border)]"
-            >
-              <ExamRunner
-                examId={exam.id}
-                title={exam.title}
-                durationMinutes={exam.duration_minutes}
-                questions={normalizeExamQuestions(exam.practice_exam_questions)}
-              />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-6 text-center text-sm text-[var(--astra-muted)]">
-          Henüz denemen yok. Yukarıdan ilk testini oluştur.
-        </p>
-      )}
-
-      {attempts?.length ? (
-        <div className="mt-8">
-          <h2 className="mb-3 text-sm font-medium">Geçmiş sonuçların</h2>
-          <ul className="space-y-3">
-            {attempts.map((attempt) => (
-              <li
-                key={attempt.id}
-                className="astra-pay-card p-3 text-sm"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-medium">
-                    {(attempt.practice_exams as { title?: string } | null)
-                      ?.title ?? "Deneme"}
-                  </span>
-                  <span className="text-[var(--astra-muted)]">
-                    {attempt.score ?? 0} puan · {formatDate(attempt.completed_at)}
-                  </span>
-                </div>
-                {attempt.analysis ? (
-                  <p className="mt-2 whitespace-pre-wrap text-[var(--astra-muted)]">
-                    {typeof attempt.analysis === "string"
-                      ? attempt.analysis
-                      : JSON.stringify(attempt.analysis)}
-                  </p>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-    </AppShell>
+      </Suspense>
+    </AstraParitySorShell>
   );
 }
