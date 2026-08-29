@@ -103,9 +103,15 @@ export default async function KredilerPage() {
           />
         </div>
 
-        <Link href="/pay" className="ap-exam-continue inline-flex">
-          Plus’a yükselt
-        </Link>
+        {!shell.account?.isPremium ? (
+          <Link href="/pay" className="ap-exam-continue inline-flex">
+            Plus’a yükselt
+          </Link>
+        ) : (
+          <p className="text-sm text-[var(--ap-muted)]">
+            Plus limitlerin aktif. Aşağıdan kullanımını ve hareketlerini takip edebilirsin.
+          </p>
+        )}
 
         <SectionCard
           variant="astra"

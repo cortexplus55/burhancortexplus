@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
+import { CreditGate } from "@/components/paywall/credit-gate";
 
 type Question = { id: string; text: string; options: string[] };
 
@@ -122,7 +122,7 @@ export function ExamRunner({
         )}
       </section>
 
-      <UpgradeSheet
+      <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
         message="Deneme değerlendirmesi için yeterli kredin kalmadı. Yanıtların ekranda korunuyor."

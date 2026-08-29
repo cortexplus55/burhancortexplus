@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
+import { CreditGate } from "@/components/paywall/credit-gate";
 import { cn } from "@/lib/utils";
 
 const ALLOWED = [
@@ -145,7 +145,7 @@ export function DocumentUpload({
         )}
       </form>
 
-      <UpgradeSheet
+      <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
         message="Doküman işleme için yeterli kredin kalmadı. Dosyan hesabında duruyor."

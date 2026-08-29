@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
+import { CreditGate } from "@/components/paywall/credit-gate";
 import { cn } from "@/lib/utils";
 
 export function GeneratorForm({
@@ -159,7 +159,7 @@ export function GeneratorForm({
         ) : null}
       </form>
 
-      <UpgradeSheet
+      <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
         message="Bu işlem için yeterli kredin veya ücretsiz hakkın kalmadı."

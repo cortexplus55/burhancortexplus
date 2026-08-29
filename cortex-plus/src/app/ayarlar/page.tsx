@@ -26,6 +26,9 @@ export default async function AyarlarPage() {
   return (
     <AppShell title="Ayarlar">
       <div className="space-y-6">
+        <Link href="/ogretmen?dialog=profile" className="ap-exam-continue inline-flex">
+          Hızlı ayarlar paneli
+        </Link>
         <SectionCard
           title="Plan"
           description={

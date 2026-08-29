@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/markdown";
-import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
+import { CreditGate } from "@/components/paywall/credit-gate";
 
 import {
   ArrowLeft,
@@ -22,6 +22,9 @@ import {
   PenLine,
   Plus,
   Send,
+  Zap,
+  Lightbulb,
+  Smile,
   SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -58,6 +61,36 @@ const quickActions = [
   { id: "summary", label: "Kısa özet", prompt: "Konuşmanın kısa bir özetini çıkar." },
   { id: "advanced", label: "Gelişmiş analiz", prompt: "Bu konuyu ileri düzeyde ayrıntılı analiz et.", advanced: true },
 ];
+
+const MATH_ADVANCED = [
+  { label: "lim", insert: "lim_{x \\to a}" },
+  { label: "∫", insert: "\\int " },
+  { label: "f′", insert: "f'(x)" },
+] as const;
+
+const COMPOSER_MODES = [
+  {
+    id: "solution",
+    label: "Çözüm",
+    hint: "Eksiksiz adım adım çözüm",
+    icon: Zap,
+    prefix: "Bu soruyu eksiksiz adım adım çöz: ",
+  },
+  {
+    id: "tips",
+    label: "Öneriler",
+    hint: "İpucu ve yönlendirme",
+    icon: Lightbulb,
+    prefix: "Çözümü vermeden ipucu ve öneriler sun: ",
+  },
+  {
+    id: "today",
+    label: "Bugün",
+    hint: "Günlük hedefe uygun soru",
+    icon: Smile,
+    prefix: "Bugünkü öğrenme hedefime uygun bir soru öner: ",
+  },
+] as const;
 
 const MATH_SYMBOLS = [
   "π",
@@ -159,6 +192,10 @@ export function ChatPanel({
     fileName: string;
   } | null>(null);
   const [mathOpen, setMathOpen] = useState(false);
+  const [composerAssistOpen, setComposerAssistOpen] = useState(false);
+  const [composerAssist, setComposerAssist] = useState<
+    (typeof COMPOSER_MODES)[number]["id"] | null
+  >(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -342,7 +379,13 @@ export function ChatPanel({
       }
       return;
     }
-    await send(text);
+    await send(
+      (() => {
+        const mode = COMPOSER_MODES.find((m) => m.id === composerAssist);
+        if (!mode || !text) return text;
+        return `${mode.prefix}${text}`;
+      })(),
+    );
   }
 
   async function uploadAttachment(file: File): Promise<string | null> {
@@ -606,7 +649,11 @@ export function ChatPanel({
                 </div>
               ) : null}
               {mathOpen ? (
-                <div className="ap-math-bar" role="toolbar" aria-label="Matematik simgeleri">
+                <div
+                  className="ap-math-bar ap-math-bar--extended"
+                  role="toolbar"
+                  aria-label="Matematik simgeleri"
+                >
                   {MATH_SYMBOLS.map((symbol) => (
                     <button
                       key={symbol}
@@ -614,6 +661,16 @@ export function ChatPanel({
                       onClick={() => insertMath(symbol)}
                     >
                       {symbol}
+                    </button>
+                  ))}
+                  {MATH_ADVANCED.map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      className="ap-math-advanced"
+                      onClick={() => insertMath(item.insert)}
+                    >
+                      {item.label}
                     </button>
                   ))}
                 </div>
@@ -635,13 +692,19 @@ export function ChatPanel({
                 }}
               />
               <div className="ap-sor-composer-toolbar">
-                <div className="ap-sor-composer-tools">
+                <div className="ap-sor-composer-tools relative">
                   <button
                     type="button"
                     className="ap-sor-tool"
                     aria-label="Görsel ekle"
                     disabled={loading}
-                    onClick={() => setUploadOpen(true)}
+                    onClick={() => {
+                      if (typeof window !== "undefined") {
+                        window.location.href = "/ogretmen?dialog=image_upload";
+                      } else {
+                        setUploadOpen(true);
+                      }
+                    }}
                   >
                     <ImageIcon className="h-4 w-4" aria-hidden />
                   </button>
@@ -651,20 +714,62 @@ export function ChatPanel({
                     aria-label="Matematik simgeleri"
                     aria-pressed={mathOpen}
                     disabled={loading}
-                    onClick={() => setMathOpen((open) => !open)}
+                    onClick={() => {
+                      setComposerAssistOpen(false);
+                      setMathOpen((open) => !open);
+                    }}
                   >
                     <PenLine className="h-4 w-4" aria-hidden />
                   </button>
                   <button
                     type="button"
-                    className="ap-sor-tool"
-                    aria-label="Uygulamalar"
+                    className={cn(
+                      "ap-sor-tool",
+                      composerAssistOpen && "text-[var(--ap-subject)]",
+                    )}
+                    aria-label="Mod seç"
+                    aria-expanded={composerAssistOpen}
                     disabled={loading}
-                    onClick={() => setStartHubOpen(true)}
+                    onClick={() => {
+                      setMathOpen(false);
+                      setComposerAssistOpen((open) => !open);
+                    }}
                   >
                     <LayoutGrid className="h-4 w-4" aria-hidden />
                   </button>
-                  <Link href="/ayarlar" className="ap-sor-tool" aria-label="Ayarlar">
+                  {composerAssistOpen ? (
+                    <div className="ap-composer-mode-menu" role="menu">
+                      {COMPOSER_MODES.map((mode) => {
+                        const Icon = mode.icon;
+                        return (
+                          <button
+                            key={mode.id}
+                            type="button"
+                            role="menuitem"
+                            className={cn(
+                              "ap-composer-mode-item",
+                              composerAssist === mode.id && "ap-composer-mode-item--active",
+                            )}
+                            onClick={() => {
+                              setComposerAssist(mode.id);
+                              setComposerAssistOpen(false);
+                            }}
+                          >
+                            <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                            <span>
+                              <strong className="block text-sm">{mode.label}</strong>
+                              <span className="text-xs text-[var(--ap-muted)]">{mode.hint}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  <Link
+                    href="/ogretmen?dialog=profile"
+                    className="ap-sor-tool"
+                    aria-label="Ayarlar"
+                  >
                     <SlidersHorizontal className="h-4 w-4" aria-hidden />
                   </Link>
                 </div>
@@ -741,11 +846,12 @@ export function ChatPanel({
           onSelect={setSubject}
         />
 
-        <UpgradeSheet
+        <CreditGate
           open={paywall}
           onOpenChange={setPaywall}
           message="Bu işlem için yeterli kredin veya ücretsiz hakkın kalmadı. Çalışman kayıtlı kalır."
           returnPath={returnPath}
+          isPremium={isPremium}
         />
       </>
     );
@@ -1283,11 +1389,12 @@ export function ChatPanel({
         )}
       </div>
 
-      <UpgradeSheet
+      <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
         message="Bu işlem için yeterli kredin veya ücretsiz hakkın kalmadı. Çalışman kayıtlı kalır."
         returnPath={returnPath}
+        isPremium={isPremium}
       />
     </>
   );

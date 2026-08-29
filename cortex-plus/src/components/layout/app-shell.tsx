@@ -4,13 +4,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
-import { getUserStreak } from "@/lib/streak/record-activity";
-import {
-  AstraAppChrome,
-} from "@/components/parity/astra-app-chrome";
-import { astraUserInitial } from "@/components/parity/astra-app-utils";
-import { StudentAccountStrip } from "@/components/student/student-account-strip";
-import { getStudentAccountContext } from "@/lib/student/account-context";
+import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import "@/styles/admin-shell.css";
 
 const baseLinks = [
@@ -48,34 +43,17 @@ export async function AppShell({
   } = await supabase.auth.getUser();
 
   if (variant === "student" && user) {
-    const [{ data: profile }, account] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("full_name, avatar_url, primary_role")
-        .eq("id", user.id)
-        .maybeSingle(),
-      getStudentAccountContext(supabase, user.id),
-    ]);
-
-    const avatar = profile?.avatar_url as string | null | undefined;
-    const streak = await getUserStreak(supabase, user.id);
-    const navRole = "student" as const;
-    const showStrip = accountStrip && Boolean(title);
+    const shell = await loadParityShellProps(supabase, user.id, user.email);
 
     return (
-      <AstraAppChrome
-        navRole={navRole}
-        userInitial={astraUserInitial(profile?.full_name, user.email)}
-        avatarEmoji={avatar && !avatar.startsWith("http") ? avatar : null}
-        pageTitle={title}
-        streak={streak}
-        account={account}
-      >
-        {showStrip ? (
-          <StudentAccountStrip account={account} creditHint={creditHint} />
+      <AstraParitySorShell {...shell}>
+        {title ? (
+          <div className="ap-page-head">
+            <h1 className="ap-page-title">{title}</h1>
+          </div>
         ) : null}
         {children}
-      </AstraAppChrome>
+      </AstraParitySorShell>
     );
   }
 

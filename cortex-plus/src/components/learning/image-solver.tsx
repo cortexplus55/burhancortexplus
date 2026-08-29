@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Markdown } from "@/components/markdown";
-import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
+import { CreditGate } from "@/components/paywall/credit-gate";
 
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
@@ -116,7 +116,7 @@ export function ImageSolver({ creditCost }: { creditCost: number | null }) {
         </div>
       ) : null}
 
-      <UpgradeSheet
+      <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
         message="Görselden soru çözümü için yeterli kredin kalmadı."

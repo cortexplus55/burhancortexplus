@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { CalendarDays, Flame, Gift, Gauge, LayoutGrid, LineChart, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/astra-gamification";
+import { AstraGamificationGate } from "@/components/parity/astra-gamification";
+import { ParityDialogHost, MenuDialogUrlSync } from "@/components/parity/parity-dialog-host";
 import type { StudentAccountContext } from "@/lib/student/account-context";
+import { StudentShellProvider } from "@/lib/student/student-shell-context";
 import { studentTopTabs } from "@/components/parity/student-shell-nav";
+import { formatNumber } from "@/lib/format";
 import "@/styles/astra-parity-sor.css";
 
 export type RecentConversation = {
@@ -50,9 +54,13 @@ export function AstraParitySorShell({
   recentConversations?: RecentConversation[];
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
   const showBuy = !account?.isPremium;
+  const isPremium = Boolean(account?.isPremium);
+
+  const openMenuFromUrl = useCallback(() => setMenuOpen(true), []);
 
   useEffect(() => {
     setStreakCount(readStreakFromStorage() || streak);
@@ -71,12 +79,27 @@ export function AstraParitySorShell({
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
 
+  function closeMenu() {
+    setMenuOpen(false);
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("dialog") === "menu") {
+        params.delete("dialog");
+        const q = params.toString();
+        router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+      }
+    }
+  }
+
   return (
-    <div className="ap-sor-root">
+    <StudentShellProvider account={account}>
+      <div className={cn("ap-sor-root", isPremium && "ap-sor-root--plus")}>
       <header className="ap-sor-top">
         <Link href="/ogretmen" className="ap-sor-logo" aria-label="Cortex Plus">
           <span className="ap-sor-logo-word">cortex</span>
-          <span className="ap-sor-logo-badge">Plus</span>
+          {isPremium ? (
+            <span className="ap-sor-logo-badge">Plus</span>
+          ) : null}
         </Link>
 
         <nav className="ap-sor-topnav" aria-label="Ana bölümler">
@@ -98,6 +121,10 @@ export function AstraParitySorShell({
           {showBuy ? (
             <Link href="/pay" className="ap-sor-buy">
               Satın al +
+            </Link>
+          ) : account ? (
+            <Link href="/krediler" className="ap-sor-credit-chip">
+              Plus · {formatNumber(account.balance)} kr
             </Link>
           ) : null}
           <button type="button" className="ap-sor-streak" aria-label="Seri">
@@ -123,6 +150,13 @@ export function AstraParitySorShell({
               (userInitial?.slice(0, 1) ?? "?")
             )}
           </Link>
+          <Link
+            href="/ogretmen?dialog=profile"
+            className="ap-sor-settings-link sr-only"
+            aria-label="Ayarlar"
+          >
+            Ayarlar
+          </Link>
         </div>
       </header>
 
@@ -134,7 +168,7 @@ export function AstraParitySorShell({
           role="dialog"
           aria-modal="true"
           aria-label="Menü"
-          onClick={() => setMenuOpen(false)}
+          onClick={closeMenu}
         >
           <div className="ap-sor-menu-panel ap-more-panel" onClick={(e) => e.stopPropagation()}>
             <div className="ap-sor-menu-head">
@@ -143,7 +177,7 @@ export function AstraParitySorShell({
                 type="button"
                 className="rounded-full p-2 text-[var(--ap-muted)]"
                 aria-label="Kapat"
-                onClick={() => setMenuOpen(false)}
+                onClick={closeMenu}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -186,6 +220,13 @@ export function AstraParitySorShell({
           </div>
         </div>
       ) : null}
+
+      <ParityDialogHost onOpenMenu={openMenuFromUrl} />
+      <Suspense fallback={null}>
+        <MenuDialogUrlSync onOpen={openMenuFromUrl} />
+      </Suspense>
+      {isPremium ? <AstraGamificationGate /> : null}
     </div>
+    </StudentShellProvider>
   );
 }

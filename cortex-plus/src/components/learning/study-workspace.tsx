@@ -177,7 +177,20 @@ export function StudyWorkspace({
       ) : null}
 
       {tab === "takvim" ? (
-        <section className="ap-cal">
+        <section className="ap-cal space-y-4">
+          <div className="ap-exam-segment" role="tablist" aria-label="Takvim filtresi">
+            <button
+              type="button"
+              className="ap-exam-segment-btn ap-exam-segment-btn--active"
+              role="tab"
+              aria-selected
+            >
+              Tümü
+            </button>
+            <button type="button" className="ap-exam-segment-btn" role="tab" aria-selected={false}>
+              Etkinliklerim
+            </button>
+          </div>
           <h2>
             {new Intl.DateTimeFormat("tr-TR", {
               month: "long",

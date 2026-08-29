@@ -45,15 +45,55 @@ export async function POST(request: Request) {
     }),
   );
 
-  const { error: prepError } = await service.from("exam_preps").insert({
-    user_id: userId,
-    exam_type: examType,
-    title,
-    target_score: targetScore ?? null,
-    study_plan_id: plan.id,
+  const { data: prep, error: prepError } = await service
+    .from("exam_preps")
+    .insert({
+      user_id: userId,
+      exam_type: examType,
+      title,
+      target_score: targetScore ?? null,
+      study_plan_id: plan.id,
+    })
+    .select("id")
+    .single();
+
+  if (prepError || !prep) return errorResponse(500, "generation_failed");
+
+  await service.from("exam_prep_topics").insert(
+    topics.map((label, sort_order) => ({
+      exam_prep_id: prep.id,
+      label,
+      sort_order,
+    })),
+  );
+
+  const { data: conversation } = await service
+    .from("conversations")
+    .insert({
+      user_id: userId,
+      title: `${title} · ders`,
+    })
+    .select("id")
+    .single();
+
+  const { data: session, error: sessionError } = await service
+    .from("exam_prep_sessions")
+    .insert({
+      exam_prep_id: prep.id,
+      user_id: userId,
+      conversation_id: conversation?.id ?? null,
+      status: "active",
+    })
+    .select("id")
+    .single();
+
+  if (sessionError || !session) return errorResponse(500, "generation_failed");
+
+  return NextResponse.json({
+    ok: true,
+    planId: plan.id,
+    prepId: prep.id,
+    sessionId: session.id,
+    conversationId: conversation?.id ?? null,
   });
-
-  if (prepError) return errorResponse(500, "generation_failed");
-
-  return NextResponse.json({ ok: true, planId: plan.id });
 }

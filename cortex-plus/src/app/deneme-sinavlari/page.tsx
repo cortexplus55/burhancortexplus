@@ -28,10 +28,14 @@ function buildActivePrep(
     title: string;
     study_plan_tasks: { completed: boolean; due_date: string | null }[] | null;
   } | null,
-  targetScore: number | null,
+  examPrep: {
+    id: string;
+    title: string | null;
+    target_score: number | null;
+  } | null,
 ): ExamPrepCard | null {
-  if (!plan) return null;
-  const tasks = plan.study_plan_tasks ?? [];
+  if (!plan && !examPrep) return null;
+  const tasks = plan?.study_plan_tasks ?? [];
   const total = tasks.length || 3;
   const done = tasks.filter((t) => t.completed).length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -44,14 +48,16 @@ function buildActivePrep(
       : null;
 
   return {
-    id: plan.id,
-    title: plan.title,
+    id: examPrep?.id ?? plan!.id,
+    title: examPrep?.title ?? plan?.title ?? "Sınav hazırlığı",
     progressPct: pct,
     daysLabel: daysUntilLabel(nearest),
     topicsDone: done,
     topicsTotal: total,
-    targetScore,
-    continueHref: "/calisma-plani",
+    targetScore: examPrep?.target_score ?? null,
+    continueHref: examPrep
+      ? `/deneme-sinavlari/${examPrep.id}/calis`
+      : "/deneme-sinavlari/olustur",
   };
 }
 
@@ -59,7 +65,7 @@ export default async function DenemeSinavlariPage() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
-  const [{ data: plan }, { data: examPrep }] = await Promise.all([
+  const [{ data: plan }, { data: examPrepRow }] = await Promise.all([
     supabase
       .from("study_plans")
       .select("id, title, study_plan_tasks(completed, due_date)")
@@ -70,14 +76,19 @@ export default async function DenemeSinavlariPage() {
       .maybeSingle(),
     supabase
       .from("exam_preps")
-      .select("target_score")
+      .select("id, title, target_score, study_plan_id")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
   ]);
 
-  const activePrep = buildActivePrep(plan, examPrep?.target_score ?? null);
+  const planForPrep =
+    plan && examPrepRow?.study_plan_id && plan.id !== examPrepRow.study_plan_id
+      ? null
+      : plan;
+
+  const activePrep = buildActivePrep(planForPrep, examPrepRow);
 
   return (
     <AstraParitySorShell {...shell}>

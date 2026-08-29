@@ -2001,3 +2001,457 @@
 .ap-more-actions {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+
+.ap-sor-root--plus {
+  background: #050505;
+}
+
+.ap-sor-root--plus::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 45% at 50% -10%, rgba(244, 174, 11, 0.1), transparent),
+    radial-gradient(ellipse 40% 30% at 100% 20%, rgba(124, 108, 247, 0.06), transparent);
+}
+
+.ap-sor-root--plus .ap-sor-main {
+  position: relative;
+  z-index: 1;
+}
+
+.ap-sor-credit-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(244, 174, 11, 0.35);
+  background: rgba(244, 174, 11, 0.08);
+  color: var(--ap-gold);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ap-page-head {
+  padding: 0.5rem 1.25rem 0;
+}
+
+.ap-page-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.ap-profile-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 75;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+}
+
+.ap-profile-scrim {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 4rem;
+}
+
+.ap-profile-scrim-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.35);
+  filter: blur(1px);
+}
+
+.ap-profile-panel {
+  width: min(100%, 26rem);
+  background: #141414;
+  border-left: 1px solid var(--ap-border);
+  padding: 1rem 1.25rem 2rem;
+  overflow-y: auto;
+}
+
+.ap-profile-panel-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.ap-profile-back,
+.ap-profile-close {
+  border-radius: 9999px;
+  padding: 0.5rem;
+  color: var(--ap-muted);
+}
+
+.ap-profile-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1.25rem;
+}
+
+.ap-profile-tabs button {
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.75rem;
+  color: var(--ap-muted);
+}
+
+.ap-profile-tabs button.ap-profile-tabs--active {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ap-text);
+  font-weight: 600;
+}
+
+.ap-profile-heading {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.ap-profile-lead {
+  font-size: 0.875rem;
+  color: var(--ap-muted);
+  margin-bottom: 1rem;
+}
+
+.ap-profile-role-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ap-profile-role {
+  width: 100%;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--ap-border);
+  background: #1a1a1a;
+}
+
+.ap-profile-role strong {
+  display: block;
+  font-weight: 600;
+}
+
+.ap-profile-role span {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--ap-muted);
+}
+
+.ap-profile-role--active {
+  border-color: var(--ap-gold);
+  box-shadow: 0 0 0 1px rgba(244, 174, 11, 0.25);
+}
+
+.ap-school-suggest {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ap-border);
+  overflow: hidden;
+}
+
+.ap-school-suggest button {
+  width: 100%;
+  text-align: left;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--ap-border);
+}
+
+.ap-school-suggest li:last-child button {
+  border-bottom: none;
+}
+
+.ap-exam-continue--primary {
+  background: linear-gradient(135deg, #6b8cff, #7c6cf7);
+  color: #fff;
+  justify-content: center;
+}
+
+.ap-composer-mode-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.5rem);
+  width: min(16rem, 90vw);
+  border-radius: 1rem;
+  border: 1px solid var(--ap-border);
+  background: #1a1a1a;
+  padding: 0.35rem;
+  z-index: 20;
+}
+
+.ap-composer-mode-item {
+  display: flex;
+  gap: 0.65rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.65rem;
+}
+
+.ap-composer-mode-item:hover,
+.ap-composer-mode-item--active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ap-math-bar--extended {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
+}
+
+.ap-math-bar--extended button.ap-math-advanced {
+  grid-column: span 2;
+  font-size: 0.75rem;
+}
+
+.ap-wizard-progress {
+  height: 3px;
+  border-radius: 9999px;
+  background: rgba(124, 108, 247, 0.2);
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.ap-wizard-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #7c6cf7, #6b8cff);
+  transition: width 0.25s ease;
+}
+
+.ap-wizard-nav {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.ap-topic-numbered-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ap-topic-numbered-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--ap-border);
+  background: #1a1a1a;
+}
+
+.ap-topic-num {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.5rem;
+  background: #242424;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.ap-topic-label {
+  flex: 1;
+}
+
+.ap-back-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 9999px;
+  border: 1px solid var(--ap-border);
+  background: #1a1a1a;
+  font-size: 0.875rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.ap-exam-study-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0 1rem;
+}
+
+.ap-exam-study-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 0;
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(transparent, var(--ap-bg) 30%);
+}
+
+.ap-finish-exam-btn {
+  padding: 0.65rem 1.25rem;
+  border-radius: 9999px;
+  background: #fff;
+  color: #0a0a0a;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.ap-lesson-created-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.85rem;
+  border-radius: 0.75rem;
+  background: #1a1a1a;
+  border: 1px solid var(--ap-border);
+  font-size: 0.875rem;
+}
+
+.ap-lesson-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: #34d399;
+}
+
+.ap-exam-runner-progress {
+  height: 3px;
+  background: rgba(124, 108, 247, 0.2);
+  border-radius: 9999px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.ap-exam-runner-progress div {
+  height: 100%;
+  background: #7c6cf7;
+}
+
+.ap-exam-runner-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0.75rem 0;
+}
+
+.ap-exam-multi-hint {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 9999px;
+  background: rgba(124, 108, 247, 0.15);
+  color: #c4b5fd;
+  font-size: 0.75rem;
+}
+
+.ap-exam-runner-q {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.ap-exam-options {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.ap-exam-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--ap-border);
+  background: #141414;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ap-exam-option:hover,
+.ap-exam-option--active {
+  border-color: rgba(124, 108, 247, 0.55);
+  box-shadow: 0 0 0 1px rgba(124, 108, 247, 0.25);
+}
+
+.ap-exam-option-num {
+  width: 1.5rem;
+  font-weight: 700;
+  color: var(--ap-muted);
+}
+
+.ap-exam-option-check {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--ap-border);
+}
+
+.ap-exam-option--active .ap-exam-option-check {
+  background: #7c6cf7;
+  border-color: #7c6cf7;
+}
+
+.ap-exam-result-divider {
+  width: 2px;
+  height: 4rem;
+  margin: 0 auto 1rem;
+  background: linear-gradient(180deg, #7c6cf7, #f4ae0b);
+  border-radius: 9999px;
+}
+
+.ap-classroom-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.85rem;
+  align-items: center;
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--ap-border);
+  background: #141414;
+}
+
+.ap-classroom-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.65rem;
+  background: linear-gradient(135deg, #34d399, #fbbf24, #f87171, #60a5fa);
+}
+
+.ap-classroom-icon--joined {
+  opacity: 0.85;
+}
+
+.ap-classroom-chevron {
+  color: var(--ap-muted);
+  font-size: 1.25rem;
+}
+
+.ap-classroom-side {
+  text-align: right;
+}
