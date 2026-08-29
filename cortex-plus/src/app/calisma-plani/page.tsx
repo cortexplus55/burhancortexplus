@@ -1,4 +1,5 @@
-﻿import { AppShell } from "@/components/layout/app-shell";
+﻿import { CalendarDays } from "lucide-react";
+import { AppShell } from "@/components/layout/app-shell";
 import { StudyPlanGeneratePanel } from "@/components/learning/learning-generate-panels";
 import { PlanTasks } from "@/components/learning/plan-tasks";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
@@ -47,6 +48,8 @@ export default async function CalismaPlaniPage() {
           ))
         ) : (
           <EmptyState
+            variant="astra"
+            icon={CalendarDays}
             title="Henüz planın yok"
             description="Hedefini yazarak ilk çalışma planını oluştur."
           />
