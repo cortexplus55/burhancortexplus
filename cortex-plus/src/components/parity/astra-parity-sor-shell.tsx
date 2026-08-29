@@ -3,15 +3,34 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Flame, LayoutGrid, X } from "lucide-react";
+import { CalendarDays, Flame, LayoutGrid, LineChart, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/astra-gamification";
 import type { StudentAccountContext } from "@/lib/student/account-context";
-import {
-  studentMenuGroups,
-  studentTopTabs,
-} from "@/components/parity/student-shell-nav";
+import { studentTopTabs } from "@/components/parity/student-shell-nav";
 import "@/styles/astra-parity-sor.css";
+
+export type RecentConversation = {
+  id: string;
+  title: string;
+  updatedAt: string;
+};
+
+function relativeTr(iso: string) {
+  const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return "az önce";
+  if (mins < 60) return `${mins} dakika önce`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} saat önce`;
+  const days = Math.floor(hours / 24);
+  return `${days} gün önce`;
+}
+
+const MORE_LINKS = [
+  { href: "/siniflar", label: "Sınıflar", icon: Users },
+  { href: "/ilerleme", label: "Aktivitelerim", icon: LineChart },
+  { href: "/calisma-plani", label: "Takvimim", icon: CalendarDays },
+] as const;
 
 export function AstraParitySorShell({
   children,
@@ -19,12 +38,14 @@ export function AstraParitySorShell({
   avatarEmoji,
   streak = 0,
   account,
+  recentConversations = [],
 }: {
   children: React.ReactNode;
   userInitial?: string;
   avatarEmoji?: string | null;
   streak?: number;
   account?: StudentAccountContext;
+  recentConversations?: RecentConversation[];
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -113,9 +134,9 @@ export function AstraParitySorShell({
           aria-label="Menü"
           onClick={() => setMenuOpen(false)}
         >
-          <div className="ap-sor-menu-panel" onClick={(e) => e.stopPropagation()}>
+          <div className="ap-sor-menu-panel ap-more-panel" onClick={(e) => e.stopPropagation()}>
             <div className="ap-sor-menu-head">
-              <h2 className="text-lg font-semibold">Menü</h2>
+              <h2 className="text-lg font-semibold">Daha fazla</h2>
               <button
                 type="button"
                 className="rounded-full p-2 text-[var(--ap-muted)]"
@@ -125,33 +146,35 @@ export function AstraParitySorShell({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="ap-sor-menu-scroll">
-              {studentMenuGroups.map((group) => (
-                <div key={group.title} className="mb-5">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--ap-muted)]">
-                    {group.title}
-                  </p>
-                  <div className="grid grid-cols-3 gap-3">
-                    {group.items.map((item) => {
-                      const Icon = item.icon;
-                      const label =
-                        item.href === "/pay" && account?.isPremium
-                          ? "Plus aktif"
-                          : item.label;
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className="ap-sor-menu-tile"
-                        >
-                          <Icon className="h-6 w-6" aria-hidden />
-                          {label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+            <div className="ap-more-actions">
+              {MORE_LINKS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link key={item.href} href={item.href} className="ap-more-action">
+                    <Icon className="h-6 w-6" aria-hidden />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+            <Link href="/sohbetler" className="ap-more-history-head">
+              Geçmiş konuşmalar <span aria-hidden>›</span>
+            </Link>
+            <div className="ap-more-history">
+              {recentConversations.length ? (
+                recentConversations.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/ogretmen?sohbet=${item.id}`}
+                    className="ap-more-history-item"
+                  >
+                    <span>{item.title || "Yeni sohbet"}</span>
+                    <em>{relativeTr(item.updatedAt)}</em>
+                  </Link>
+                ))
+              ) : (
+                <p className="ap-more-empty">Henüz sohbet yok</p>
+              )}
             </div>
             <form action="/api/auth/signout" method="post" className="mt-4">
               <button type="submit" className="ap-sor-menu-signout">

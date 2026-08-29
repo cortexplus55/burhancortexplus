@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,9 +20,13 @@ import {
   Paperclip,
   PenLine,
   Plus,
+  Send,
   SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AstraStartHub } from "@/components/parity/astra-start-hub";
+import { AstraSubjectModal } from "@/components/parity/astra-subject-modal";
+import { AstraUploadModal } from "@/components/parity/astra-upload-modal";
 import "@/styles/astra-sor.css";
 import "@/styles/astra-parity-sor.css";
 
@@ -122,6 +127,10 @@ export function ChatPanel({
   const [subjectOpen, setSubjectOpen] = useState(false);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [listening, setListening] = useState(false);
+  const [startHubOpen, setStartHubOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingPreview, setPendingPreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialMessages.length > 0) return;
@@ -130,6 +139,14 @@ export function ChatPanel({
       if (pending?.trim()) {
         setInput(pending.trim());
         sessionStorage.removeItem("cortex-entry-prompt");
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      const mod = new URLSearchParams(window.location.search).get("mod");
+      if (mod === "podcast") {
+        setInput("Bu dersten 5 dakikalık podcast tarzı, konuşma dilinde bir anlatım yap.");
       }
     } catch {
       /* ignore */
@@ -198,6 +215,48 @@ export function ChatPanel({
       );
       setLoading(false);
     }
+  }
+
+  function attachPending(file: File) {
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(file);
+    setPendingPreview(file.type.startsWith("image/") ? URL.createObjectURL(file) : null);
+  }
+
+  function clearPending() {
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(null);
+    setPendingPreview(null);
+  }
+
+  async function sendComposer() {
+    const file = pendingFile;
+    const text = input.trim();
+    if (!file && !text) {
+      setStartHubOpen(true);
+      return;
+    }
+    if (file) {
+      const prompt =
+        text ||
+        (file.type.startsWith("image/")
+          ? "Fotoğraftaki soruyu adım adım çöz."
+          : "Yüklediğim dosyayı özetle ve sorularımı yanıtlamaya hazır ol.");
+      clearPending();
+      setInput("");
+      setLoading(true);
+      try {
+        const docId = await uploadAttachment(file);
+        await send(prompt, false, docId ?? undefined, true);
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Dosya gönderilemedi.",
+        );
+        setLoading(false);
+      }
+      return;
+    }
+    await send(text);
   }
 
   async function uploadAttachment(file: File): Promise<string | null> {
@@ -361,12 +420,7 @@ export function ChatPanel({
                 type="button"
                 className="ap-sor-start"
                 disabled={loading}
-                onClick={() =>
-                  send(
-                    startPrompt ??
-                      "Bugün hangi konuda çalışmak istiyorsun? Bana kısaca anlat.",
-                  )
-                }
+                onClick={() => setStartHubOpen(true)}
               >
                 + {startLabel}
               </button>
@@ -403,6 +457,11 @@ export function ChatPanel({
                   <SorTypingDots />
                 </div>
               ) : null}
+              {!isPremium && messages.length > 0 ? (
+                <Link href="/pay" className="ap-upgrade-banner">
+                  Daha hızlı öğrenmek için yükselt
+                </Link>
+              ) : null}
               <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
             </div>
           ) : null}
@@ -410,34 +469,15 @@ export function ChatPanel({
           <div className="ap-sor-composer-zone">
             {showSubjectPicker ? (
               <div className="ap-sor-subject-wrap">
-                <div className="relative">
-                  <button
-                    type="button"
-                    className="ap-sor-subject"
-                    aria-expanded={subjectOpen}
-                    onClick={() => setSubjectOpen((v) => !v)}
-                  >
-                    {subject}
-                    <ChevronsUpDown className="h-3.5 w-3.5 opacity-80" aria-hidden />
-                  </button>
-                  {subjectOpen ? (
-                    <div className="ap-sor-subject-menu" role="listbox">
-                      {SUBJECTS.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          role="option"
-                          onClick={() => {
-                            setSubject(s);
-                            setSubjectOpen(false);
-                          }}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
+                <button
+                  type="button"
+                  className="ap-sor-subject"
+                  aria-expanded={subjectOpen}
+                  onClick={() => setSubjectOpen(true)}
+                >
+                  {subject}
+                  <ChevronsUpDown className="h-3.5 w-3.5 opacity-80" aria-hidden />
+                </button>
               </div>
             ) : null}
 
@@ -445,9 +485,29 @@ export function ChatPanel({
               className="ap-sor-composer-box"
               onSubmit={(event) => {
                 event.preventDefault();
-                if (input.trim()) send(input);
+                void sendComposer();
               }}
             >
+              {pendingFile ? (
+                <div className="ap-composer-preview">
+                  {pendingPreview ? (
+                    <div className="ap-composer-thumb">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={pendingPreview} alt="" />
+                      <button type="button" aria-label="Kaldır" onClick={clearPending}>
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="ap-composer-file">
+                      {pendingFile.name}
+                      <button type="button" aria-label="Kaldır" onClick={clearPending}>
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : null}
               <Textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
@@ -459,7 +519,7 @@ export function ChatPanel({
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
-                    if (input.trim()) send(input);
+                    void sendComposer();
                   }
                 }}
               />
@@ -470,7 +530,7 @@ export function ChatPanel({
                     className="ap-sor-tool"
                     aria-label="Görsel ekle"
                     disabled={loading}
-                    onClick={() => cameraInputRef.current?.click()}
+                    onClick={() => setUploadOpen(true)}
                   >
                     <ImageIcon className="h-4 w-4" aria-hidden />
                   </button>
@@ -488,17 +548,13 @@ export function ChatPanel({
                     className="ap-sor-tool"
                     aria-label="Uygulamalar"
                     disabled={loading}
+                    onClick={() => setStartHubOpen(true)}
                   >
                     <LayoutGrid className="h-4 w-4" aria-hidden />
                   </button>
-                  <button
-                    type="button"
-                    className="ap-sor-tool"
-                    aria-label="Ayarlar"
-                    disabled={loading}
-                  >
+                  <Link href="/ayarlar" className="ap-sor-tool" aria-label="Ayarlar">
                     <SlidersHorizontal className="h-4 w-4" aria-hidden />
-                  </button>
+                  </Link>
                 </div>
                 <div className="ap-sor-composer-voice">
                   <button
@@ -513,23 +569,26 @@ export function ChatPanel({
                   >
                     <Mic className="h-4 w-4" aria-hidden />
                   </button>
-                  <button
-                    type="button"
-                    className="ap-sor-voice-chip"
-                    disabled={loading}
-                    onClick={() => {
-                      if (input.trim()) {
-                        send(
-                          `${input.trim()} (Bunu sesli sohbet gibi, kısa ve konuşma dilinde yanıtla.)`,
-                        );
-                        return;
-                      }
-                      startVoiceInput();
-                    }}
-                  >
-                    Cortex Plus ile konuş
-                    <AudioLines className="h-3.5 w-3.5 opacity-80" aria-hidden />
-                  </button>
+                  {input.trim() || pendingFile ? (
+                    <button
+                      type="submit"
+                      className="ap-send"
+                      aria-label="Gönder"
+                      disabled={loading}
+                    >
+                      <Send className="h-4 w-4" aria-hidden />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="ap-sor-voice-chip"
+                      disabled={loading}
+                      onClick={startVoiceInput}
+                    >
+                      Cortex Plus ile konuş
+                      <AudioLines className="h-3.5 w-3.5 opacity-80" aria-hidden />
+                    </button>
+                  )}
                 </div>
               </div>
             </form>
@@ -541,25 +600,32 @@ export function ChatPanel({
           type="file"
           className="hidden"
           accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf"
-          onChange={async (event) => {
+          onChange={(event) => {
             const file = event.target.files?.[0];
             event.target.value = "";
             if (!file) return;
-            await handleAttachmentFile(file);
+            attachPending(file);
           }}
         />
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={async (event) => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (!file) return;
-            await handleAttachmentFile(file);
+
+        <AstraStartHub
+          open={startHubOpen}
+          onClose={() => setStartHubOpen(false)}
+          onScanProblem={() => {
+            setStartHubOpen(false);
+            setUploadOpen(true);
           }}
+        />
+        <AstraUploadModal
+          open={uploadOpen}
+          onClose={() => setUploadOpen(false)}
+          onPick={attachPending}
+        />
+        <AstraSubjectModal
+          open={subjectOpen}
+          value={subject}
+          onClose={() => setSubjectOpen(false)}
+          onSelect={setSubject}
         />
 
         <UpgradeSheet

@@ -22,10 +22,23 @@ export async function loadParityShellProps(
 
   const avatar = profile?.avatar_url as string | null | undefined;
 
+  const { data: conversations } = await supabase
+    .from("conversations")
+    .select("id, title, updated_at")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .order("updated_at", { ascending: false })
+    .limit(5);
+
   return {
     userInitial: astraUserInitial(profile?.full_name, email),
     avatarEmoji: avatar && !avatar.startsWith("http") ? avatar : null,
     streak,
     account,
+    recentConversations: (conversations ?? []).map((row) => ({
+      id: row.id as string,
+      title: (row.title as string | null) ?? "Yeni sohbet",
+      updatedAt: row.updated_at as string,
+    })),
   };
 }

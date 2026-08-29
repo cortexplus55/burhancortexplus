@@ -40,7 +40,7 @@ export function UpgradeSheet({
           <div>
             <p className="cortex-premium-section-eyebrow">Plus</p>
             <h2 id="upgrade-title" className="cortex-premium-upgrade-sheet__title mt-1">
-              Daha iyi notlar al
+              Daha hızlı öğrenmek için yükselt
             </h2>
           </div>
           <button

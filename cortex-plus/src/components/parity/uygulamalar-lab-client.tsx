@@ -23,7 +23,31 @@ export function UygulamalarLabGrid() {
 
   return (
     <>
-      <h1 className="text-xl font-semibold">Öğrenme uygulamaları</h1>
+      <div className="ap-lab-hero">
+        <h1>Öğrenme uygulamaları</h1>
+        <p>
+          Öğrenmek için alışılmışın dışında görsel keşifler ve etkileşimli
+          araçlardan oluşan bir koleksiyon.
+        </p>
+        <div className="ap-lab-cats">
+          <div className="ap-lab-cat">
+            <strong>Hızlı oyunlar</strong>
+            <span>{counts.mini} oyun</span>
+          </div>
+          <div className="ap-lab-cat">
+            <strong>Simülasyonlar</strong>
+            <span>{counts.sim} simülasyon</span>
+          </div>
+          <div className="ap-lab-cat">
+            <strong>Araçlar</strong>
+            <span>{counts.tool} araç</span>
+          </div>
+          <div className="ap-lab-cat">
+            <strong>Uygulamalarım</strong>
+            <span>0 uygulama</span>
+          </div>
+        </div>
+      </div>
       <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {LAB_FILTERS.map((f) => (
           <button

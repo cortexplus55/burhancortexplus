@@ -16,6 +16,7 @@ import {
   Sparkles,
   Target,
   User,
+  Users,
 } from "lucide-react";
 
 export type StudentNavItem = {
@@ -46,7 +47,7 @@ export const studentBottomTabs: StudentNavItem[] = [
     href: "/uygulamalar",
     label: "Uygulamalar",
     icon: Atom,
-    match: (p) => p === "/uygulamalar",
+    match: (p) => p === "/uygulamalar" || p.startsWith("/uygulamalar/"),
   },
 ];
 
@@ -70,7 +71,7 @@ export const studentTopTabs: StudentNavItem[] = [
     href: "/uygulamalar",
     label: "Öğrenme uygulamaları",
     icon: Atom,
-    match: (p) => p === "/uygulamalar",
+    match: (p) => p === "/uygulamalar" || p.startsWith("/uygulamalar/"),
   },
 ];
 
@@ -88,6 +89,7 @@ export const studentMenuGroups: {
       { href: "/quizler", label: "Quiz", icon: Gamepad2 },
       { href: "/flashcardlar", label: "Flashcard", icon: Layers },
       { href: "/calisma-plani", label: "Çalışma planı", icon: BookOpen },
+      { href: "/siniflar", label: "Sınıflar", icon: Users },
       { href: "/ilerleme", label: "İlerleme", icon: Sparkles },
       { href: "/dashboard", label: "Panel", icon: LayoutGrid },
     ],

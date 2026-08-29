@@ -22,7 +22,7 @@ export default async function OgretmenPage({
   const { supabase, user } = await requireStudentArea();
   const params = await searchParams;
 
-  const [{ count }, { data: profile }, chatCost, isPremium, account, streak] =
+  const [{ count }, { data: profile }, chatCost, isPremium, account, streak, { data: conversations }] =
     await Promise.all([
       supabase
         .from("documents")
@@ -38,6 +38,13 @@ export default async function OgretmenPage({
       isPremiumUser(supabase, user.id),
       getStudentAccountContext(supabase, user.id),
       getUserStreak(supabase, user.id),
+      supabase
+        .from("conversations")
+        .select("id, title, updated_at")
+        .eq("user_id", user.id)
+        .is("deleted_at", null)
+        .order("updated_at", { ascending: false })
+        .limit(5),
     ]);
 
   let initialMessages: { role: "user" | "assistant"; content: string }[] = [];
@@ -82,6 +89,11 @@ export default async function OgretmenPage({
       avatarEmoji={avatar && !avatar.startsWith("http") ? avatar : null}
       streak={streak}
       account={account}
+      recentConversations={(conversations ?? []).map((row) => ({
+        id: row.id,
+        title: row.title ?? "Yeni sohbet",
+        updatedAt: row.updated_at,
+      }))}
     >
       <ChatPanel
         variant="astra"

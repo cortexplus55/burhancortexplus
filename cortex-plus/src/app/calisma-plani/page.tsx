@@ -1,15 +1,17 @@
 ﻿import { CalendarDays } from "lucide-react";
-import { AppShell } from "@/components/layout/app-shell";
+import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
 import { StudyPlanGeneratePanel } from "@/components/learning/learning-generate-panels";
 import { PlanTasks } from "@/components/learning/plan-tasks";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
-import { requireUser } from "@/lib/auth/session";
+import { requireStudentArea } from "@/lib/auth/session";
+import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { getCreditCost } from "@/lib/credits/rules";
 
 export const metadata = { title: "Çalışma planı" };
 
 export default async function CalismaPlaniPage() {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireStudentArea();
+  const shell = await loadParityShellProps(supabase, user.id, user.email);
   const cost = await getCreditCost("STUDY_PLAN_GENERATE");
 
   const { data: plans } = await supabase
@@ -20,8 +22,8 @@ export default async function CalismaPlaniPage() {
     .limit(5);
 
   return (
-    <AppShell title="Çalışma planı" creditHint={`Plan üretimi: ${cost} kredi.`}>
-      <div className="space-y-6">
+    <AstraParitySorShell {...shell}>
+      <div className="ap-exam-page space-y-6">
         <SectionCard
           variant="astra"
           title="Yeni plan oluştur"
@@ -55,6 +57,6 @@ export default async function CalismaPlaniPage() {
           />
         )}
       </div>
-    </AppShell>
+    </AstraParitySorShell>
   );
 }

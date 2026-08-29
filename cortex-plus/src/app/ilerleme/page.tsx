@@ -1,15 +1,17 @@
 ﻿import Link from "next/link";
 import { TrendingUp } from "lucide-react";
-import { AppShell } from "@/components/layout/app-shell";
+import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
 import { TopicBars } from "@/components/student/topic-bars";
-import { requireUser } from "@/lib/auth/session";
+import { requireStudentArea } from "@/lib/auth/session";
+import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { formatNumber } from "@/lib/format";
 
 export const metadata = { title: "İlerleme" };
 
 export default async function IlerlemePage() {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireStudentArea();
+  const shell = await loadParityShellProps(supabase, user.id, user.email);
 
   const [conversations, quizzes, flashcards, attempts, weak] = await Promise.all([
     supabase
@@ -73,10 +75,8 @@ export default async function IlerlemePage() {
     scores.length > 0;
 
   return (
-    <AppShell
-      title="İlerleme"
-      creditHint="İstatistikler ücretsiz; yeni AI işlemleri kredi harcar."
-    >
+    <AstraParitySorShell {...shell}>
+      <div className="ap-exam-page">
       <div className="space-y-6">
         {!hasAnyActivity ? (
           <EmptyState
@@ -122,6 +122,7 @@ export default async function IlerlemePage() {
           )}
         </SectionCard>
       </div>
-    </AppShell>
+      </div>
+    </AstraParitySorShell>
   );
 }

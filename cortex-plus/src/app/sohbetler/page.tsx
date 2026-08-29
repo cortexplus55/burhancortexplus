@@ -1,14 +1,16 @@
 ﻿import Link from "next/link";
 import { MessageCircle } from "lucide-react";
-import { AppShell } from "@/components/layout/app-shell";
+import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
 import { EmptyState } from "@/components/ui-kit/empty-state";
-import { requireUser } from "@/lib/auth/session";
+import { requireStudentArea } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
+import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 
 export const metadata = { title: "Sohbetler" };
 
 export default async function SohbetlerPage() {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireStudentArea();
+  const shell = await loadParityShellProps(supabase, user.id, user.email);
 
   const { data: conversations } = await supabase
     .from("conversations")
@@ -19,10 +21,9 @@ export default async function SohbetlerPage() {
     .limit(50);
 
   return (
-    <AppShell
-      title="Sohbetler"
-      creditHint="Her AI mesajı kredi veya ücretsiz hak harcar."
-    >
+    <AstraParitySorShell {...shell}>
+      <div className="ap-exam-page">
+        <h1 className="mb-5 text-xl font-semibold">Geçmiş konuşmalar</h1>
       {conversations?.length ? (
         <ul className="space-y-2">
           {conversations.map((conversation) => (
@@ -51,6 +52,7 @@ export default async function SohbetlerPage() {
           actionLabel="Sohbet başlat"
         />
       )}
-    </AppShell>
+      </div>
+    </AstraParitySorShell>
   );
 }
