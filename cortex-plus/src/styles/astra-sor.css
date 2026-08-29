@@ -1,7 +1,8 @@
 /* /ogretmen — Astra-style Sor (minimal composer, cinematic empty state) */
 
 .astra-sor-screen {
-  --astra-bg: #070707;
+  --astra-bg: #050505;
+  font-family: var(--font-ui, "Figtree", system-ui, sans-serif);
   background: var(--astra-bg);
 }
 
@@ -10,7 +11,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding-bottom: 0.5rem;
+  padding-bottom: 0.25rem;
 }
 
 .astra-sor-view {
@@ -20,14 +21,20 @@
   flex-direction: column;
 }
 
+.astra-sor-view--empty {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+  flex: 1;
+}
+
 .astra-sor-empty {
   display: flex;
   min-height: 0;
-  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem 0.5rem 1rem;
+  padding: 0 0.75rem;
   text-align: center;
 }
 
@@ -37,21 +44,25 @@
 }
 
 .astra-sor-greeting {
-  font-family: "DM Serif Display", Georgia, serif;
-  font-size: clamp(1.5rem, 5vw, 2rem);
+  font-family: var(--font-display, "DM Serif Display", Georgia, serif);
+  font-size: clamp(1.625rem, 5.5vw, 2.125rem);
   font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
   color: var(--astra-text);
   text-wrap: balance;
+  animation: astra-sor-enter 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .astra-sor-greeting-sub {
-  margin-top: 0.65rem;
-  max-width: 20rem;
-  font-size: 0.875rem;
-  line-height: 1.45;
-  color: var(--astra-muted);
+  margin-top: 0.75rem;
+  max-width: 18rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--astra-muted) 92%, white);
+  animation: astra-sor-enter 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
 }
 
 .astra-sor-messages {
@@ -65,8 +76,9 @@
 .astra-sor-dock {
   flex-shrink: 0;
   margin-top: auto;
-  padding-top: 0.5rem;
-  padding-bottom: 0.35rem;
+  padding-top: 0.65rem;
+  padding-bottom: 0.25rem;
+  animation: astra-sor-enter-dock 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both;
 }
 
 .astra-sor-screen .astra-sor-header-right {
@@ -82,19 +94,23 @@
   gap: 0.35rem;
   padding: 0.35rem 0.35rem 0.35rem 0.85rem;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: linear-gradient(180deg, #1a1a1a 0%, #121212 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(28, 28, 28, 0.95) 0%, rgba(14, 14, 14, 0.98) 100%);
   box-shadow:
-    0 0 0 1px rgba(244, 174, 11, 0.06),
-    0 16px 48px rgba(0, 0, 0, 0.55);
+    0 0 0 1px rgba(244, 174, 11, 0.05),
+    0 20px 56px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .astra-sor-composer:focus-within {
-  border-color: rgba(244, 174, 11, 0.35);
+  border-color: rgba(244, 174, 11, 0.38);
   box-shadow:
-    0 0 0 1px rgba(244, 174, 11, 0.2),
-    0 0 32px rgba(244, 174, 11, 0.08),
-    0 16px 48px rgba(0, 0, 0, 0.55);
+    0 0 0 1px rgba(244, 174, 11, 0.22),
+    0 0 40px rgba(244, 174, 11, 0.1),
+    0 20px 56px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .astra-sor-composer textarea,
@@ -118,22 +134,25 @@
   justify-content: center;
   border: none;
   border-radius: 50%;
-  background: var(--astra-primary);
+  background: linear-gradient(145deg, #ffc233 0%, #f4ae0b 55%, #d4920a 100%);
   color: #0a0a0a;
   font-size: 1.125rem;
   font-weight: 800;
   cursor: pointer;
-  transition: transform 0.15s ease, filter 0.15s ease;
+  box-shadow: 0 0 20px rgba(244, 174, 11, 0.35);
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
 }
 
 .astra-sor-send:hover:not(:disabled) {
   filter: brightness(1.08);
   transform: scale(1.04);
+  box-shadow: 0 0 28px rgba(244, 174, 11, 0.45);
 }
 
 .astra-sor-send:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .astra-sor-attach {
@@ -148,19 +167,12 @@
   background: transparent;
   color: var(--astra-muted);
   cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .astra-sor-attach:hover {
   color: var(--astra-text);
   background: rgba(255, 255, 255, 0.06);
-}
-
-.astra-sor-meta {
-  margin-top: 0.5rem;
-  text-align: center;
-  font-size: 0.625rem;
-  letter-spacing: 0.02em;
-  color: var(--astra-muted);
 }
 
 .astra-sor-screen::before {
@@ -169,10 +181,29 @@
   position: fixed;
   inset: 0;
   z-index: 0;
+  background:
+    radial-gradient(
+      ellipse 85% 55% at 50% -8%,
+      rgba(244, 174, 11, 0.11),
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 50% 100%,
+      rgba(244, 174, 11, 0.04),
+      transparent 50%
+    );
+}
+
+.astra-sor-screen::after {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
   background: radial-gradient(
-    ellipse 70% 45% at 50% -5%,
-    rgba(244, 174, 11, 0.07),
-    transparent 55%
+    ellipse 90% 80% at 50% 45%,
+    transparent 40%,
+    rgba(0, 0, 0, 0.55) 100%
   );
 }
 
@@ -183,15 +214,59 @@
   z-index: 1;
 }
 
+.astra-sor-screen .astra-nav-bar {
+  background: rgba(18, 18, 18, 0.88);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0 0 1px rgba(244, 174, 11, 0.06),
+    0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+.astra-sor-screen .astra-nav-active {
+  box-shadow:
+    0 0 32px rgba(244, 174, 11, 0.22),
+    inset 0 0 0 1px rgba(244, 174, 11, 0.2);
+}
+
+@keyframes astra-sor-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes astra-sor-enter-dock {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (min-width: 768px) {
   .astra-sor-screen {
     border-left: 1px solid rgba(255, 255, 255, 0.06);
     border-right: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: 0 0 80px rgba(0, 0, 0, 0.65);
+    box-shadow: 0 0 100px rgba(0, 0, 0, 0.7);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .astra-sor-greeting,
+  .astra-sor-greeting-sub,
+  .astra-sor-dock {
+    animation: none;
+  }
+
   .astra-sor-send:hover:not(:disabled) {
     transform: none;
   }

@@ -225,6 +225,8 @@ export function ChatPanel({
           "flex flex-col gap-4",
           isAstra && "flex-1 pb-4",
           isMinimalSor && "astra-sor-view gap-0 pb-0",
+          isMinimalSor && messages.length === 0 && "astra-sor-view--empty",
+          isMinimalSor && messages.length > 0 && "astra-sor-view--active",
         )}
       >
         {!isAstra ? (
@@ -265,7 +267,11 @@ export function ChatPanel({
               {greetingLine ?? "Merhaba, bugün ne çalışalım?"}
             </p>
             {greetingSubline ? (
-              <p className={isMinimalSor ? "astra-sor-greeting-sub" : "max-w-xs text-sm text-[var(--astra-muted)]"}>
+              <p
+                className={cn(
+                  isMinimalSor ? "astra-sor-greeting-sub" : "max-w-xs text-sm text-[var(--astra-muted)]",
+                )}
+              >
                 {greetingSubline}
               </p>
             ) : null}
@@ -431,12 +437,6 @@ export function ChatPanel({
                   ↑
                 </button>
               </form>
-              {chatCreditCost != null ? (
-                <p className="astra-sor-meta">
-                  ~{chatCreditCost} kredi / mesaj
-                  {isPremium ? " · Plus model" : ""}
-                </p>
-              ) : null}
             </div>
           ) : (
           <div className="sticky bottom-0 space-y-2 pb-1">
