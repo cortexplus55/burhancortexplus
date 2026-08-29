@@ -2,17 +2,12 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import "@/styles/astra-marketing.css";
 import "@/styles/cinematic-home.css";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { AstraSiteHeader } from "@/components/marketing/astra-site-header";
 import { CinematicPrimaryCta } from "@/components/marketing/cinematic-cta";
 import { MARKETING_SUBJECTS } from "@/lib/parity/marketing-subjects";
 import { CinematicPageHero } from "@/components/marketing/cinematic-page-hero";
 import { CinematicScrollReveal } from "@/components/marketing/cinematic-scroll-reveal";
-
-const nav = [
-  { href: "/sinav-hazirligi", label: "Sınav Hazırlığı" },
-  { href: "/ozellikler", label: "Özellikler" },
-  { href: "/yardim", label: "Yardım" },
-];
 
 const faqs = [
   {
@@ -29,46 +24,7 @@ const faqs = [
   },
 ];
 
-export function AstraSiteHeader() {
-  return (
-    <header className="astra-marketing sticky top-0 z-40 border-b backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
-        <Link href="/" className="font-semibold tracking-tight">
-          Cortex Plus
-        </Link>
-        <nav className="hidden items-center gap-6 text-sm text-[var(--mk-muted)] md:flex">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="hover:text-[var(--mk-text)]"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/fiyatlandirma"
-            className="hidden items-center gap-1 rounded-full bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-300 sm:inline-flex"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Plus satın al
-          </Link>
-          <Link
-            href="/giris"
-            className="rounded-full px-3 py-1.5 text-sm font-medium text-[var(--mk-muted)] hover:text-[var(--mk-text)]"
-          >
-            Giriş yap
-          </Link>
-          <Link href="/kayit" className="mk-btn-primary px-4 py-2 text-sm">
-            Ücretsiz dene
-          </Link>
-        </div>
-      </div>
-    </header>
-  );
-}
+export { AstraSiteHeader } from "@/components/marketing/astra-site-header";
 
 export function AstraSiteFooter() {
   return (

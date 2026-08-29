@@ -85,18 +85,18 @@ export function CinematicHero() {
           </span>
         </div>
 
-        <div className="mk-section-reveal mk-section-reveal-delay-2 mt-8 flex flex-wrap items-center justify-center gap-4">
+        <div className="mk-section-reveal mk-section-reveal-delay-2 mt-8 flex flex-col items-center gap-3">
           <Link href="/kayit" className="mk-btn-play">
             <span className="mk-btn-play-icon" aria-hidden>
               <Play className="h-4 w-4 fill-current" />
             </span>
-            Başla
+            Ücretsiz dene
           </Link>
           <Link
             href="/fiyatlandirma"
-            className="mk-btn-outline inline-flex items-center gap-2 px-8 py-3.5 text-sm font-medium"
+            className="text-sm text-[var(--mk-muted)] underline-offset-2 hover:text-[var(--mk-text)] hover:underline"
           >
-            PLUS SATIN AL
+            Plus planlarını incele
           </Link>
         </div>
       </div>
