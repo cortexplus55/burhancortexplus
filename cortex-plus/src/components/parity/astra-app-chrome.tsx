@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import "@/styles/astra-app.css";
 import "@/styles/cortex-premium.css";
+import "@/styles/astra-sor.css";
 import {
   Atom,
   Bell,
@@ -146,85 +147,61 @@ export function AstraAppChrome({
   return (
     <div
       className={cn(
-        "astra-app cortex-premium-app mx-auto flex min-h-dvh max-w-lg flex-col pb-28 md:max-w-2xl lg:max-w-3xl",
-        isSorScreen && "astra-sor-screen max-w-lg pb-24",
+        "astra-app cortex-premium-app astra-sor-screen mx-auto flex min-h-dvh max-w-lg flex-col pb-24",
+        isSorScreen && "astra-sor-screen--chat",
       )}
     >
       <header className="flex items-center justify-between gap-2 px-4 py-3">
-        <>
-          <div className="flex min-w-0 items-center gap-2">
-              <button
-                type="button"
-                className="cortex-premium-glass-nav flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
-                aria-label="Seri"
-              >
-                <Flame className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
-                {streakCount}
-              </button>
-              {account ? (
-                <Link
-                  href="/krediler"
-                  className="cortex-premium-glass-nav max-w-[100px] truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium sm:max-w-[140px]"
-                >
-                  {account.isPremium ? "Plus · " : ""}
-                  {account.balance} kr
-                </Link>
-              ) : null}
-              {showBuyCta && !isSorScreen ? (
-                <Link href="/pay" className="cortex-premium-buy shrink-0 text-[11px] sm:inline-flex">
-                  Satın al ✦
-                </Link>
-              ) : null}
-            </div>
-            {isSorScreen ? (
-              <div className="astra-sor-header-right">
-                {showBuyCta ? (
-                  <Link href="/pay" className="cortex-premium-buy shrink-0 text-[11px]">
-                    Satın al ✦
-                  </Link>
-                ) : null}
-                <Link
-                  href="/profil"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--astra-border)] bg-[var(--astra-surface)] text-sm font-semibold uppercase text-[var(--astra-text)]"
-                  aria-label="Profil"
-                >
-                  {avatarEmoji ? (
-                    <span className="text-lg" aria-hidden>
-                      {avatarEmoji}
-                    </span>
-                  ) : (
-                    (userInitial?.slice(0, 1) ?? "?")
-                  )}
-                </Link>
-              </div>
+        <div className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            className="cortex-premium-glass-nav flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
+            aria-label="Seri"
+          >
+            <Flame className="h-4 w-4 shrink-0 text-orange-500" aria-hidden />
+            {streakCount}
+          </button>
+          {account ? (
+            <Link
+              href="/krediler"
+              className="cortex-premium-glass-nav max-w-[100px] truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium sm:max-w-[140px]"
+            >
+              {account.isPremium ? "Plus · " : ""}
+              {account.balance} kr
+            </Link>
+          ) : null}
+        </div>
+        <div className="astra-sor-header-right">
+          {showBuyCta ? (
+            <Link href="/pay" className="cortex-premium-buy shrink-0 text-[11px]">
+              Satın al ✦
+            </Link>
+          ) : null}
+          <Link
+            href="/profil"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--astra-border)] bg-[var(--astra-surface)] text-sm font-semibold uppercase text-[var(--astra-text)]"
+            aria-label="Profil"
+          >
+            {avatarEmoji ? (
+              <span className="text-lg" aria-hidden>
+                {avatarEmoji}
+              </span>
             ) : (
-              <>
-                {pageTitle ? (
-                  <p className="astra-page-title truncate px-2 text-sm">
-                    {pageTitle}
-                  </p>
-                ) : (
-                  <span className="flex-1" />
-                )}
-                <Link
-                  href="/profil"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--astra-border)] bg-[var(--astra-surface)] text-sm font-semibold uppercase text-[var(--astra-text)] shadow-[0_0_20px_rgba(244,174,11,0.12)]"
-                  aria-label="Profil"
-                >
-                  {avatarEmoji ? (
-                    <span className="text-lg" aria-hidden>
-                      {avatarEmoji}
-                    </span>
-                  ) : (
-                    (userInitial?.slice(0, 1) ?? "?")
-                  )}
-                </Link>
-              </>
+              (userInitial?.slice(0, 1) ?? "?")
             )}
-        </>
+          </Link>
+        </div>
       </header>
 
-      <main className="flex flex-1 flex-col px-4 text-[var(--astra-text)] [&_.border]:border-[var(--astra-border)] [&_.bg-card]:bg-[var(--astra-surface)] [&_.bg-muted]:bg-[var(--astra-pill)] [&_.text-muted-foreground]:text-[var(--astra-muted)] [&_input]:border-[var(--astra-border)] [&_input]:bg-[var(--astra-bg)] [&_textarea]:border-[var(--astra-border)] [&_textarea]:bg-[var(--astra-bg)] [&_.rounded-lg.border]:border-[var(--cx-border,var(--astra-border))] [&_.rounded-lg.border]:bg-[var(--cx-surface-solid,var(--astra-surface))]">
+      <main
+        className={cn(
+          "flex flex-1 flex-col px-4 text-[var(--astra-text)] [&_.border]:border-[var(--astra-border)] [&_.bg-card]:bg-[var(--astra-surface)] [&_.bg-muted]:bg-[var(--astra-pill)] [&_.text-muted-foreground]:text-[var(--astra-muted)] [&_input]:border-[var(--astra-border)] [&_input]:bg-[var(--astra-bg)] [&_textarea]:border-[var(--astra-border)] [&_textarea]:bg-[var(--astra-bg)] [&_.rounded-lg.border]:border-[var(--cx-border,var(--astra-border))] [&_.rounded-lg.border]:bg-[var(--cx-surface-solid,var(--astra-surface))]",
+          !isSorScreen && "astra-sor-page-main",
+        )}
+      >
+        {pageTitle && !isSorScreen ? (
+          <h1 className="astra-sor-greeting mb-5 text-left">{pageTitle}</h1>
+        ) : null}
         {children}
       </main>
 
@@ -295,7 +272,7 @@ export function AstraAppChrome({
 
       <footer className="fixed bottom-0 left-0 right-0 z-50 flex items-end justify-center gap-2 px-3 pb-4 pt-2">
         <nav
-          className="cortex-premium-glass-nav astra-nav-bar flex flex-1 max-w-md items-center justify-around rounded-full px-1 py-1.5"
+          className="astra-nav-bar flex flex-1 max-w-md items-center justify-around rounded-full px-1 py-1.5"
           aria-label="Ana menü"
         >
           {tabs.map((tab) => {
@@ -322,7 +299,7 @@ export function AstraAppChrome({
           type="button"
           onClick={() => setMenuOpen(true)}
           className={cn(
-            "cortex-premium-glass-nav astra-nav-bar flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full",
+            "astra-nav-bar flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full",
             menuOpen && "astra-nav-active",
           )}
           aria-label="Menü"

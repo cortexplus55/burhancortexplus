@@ -19,67 +19,10 @@
   font-family: var(--font-ui);
 }
 
-/* Oturum açık öğrenci kabuğu — Sor dışı sayfalarda sinematik ambient (misafir/premium auth ile aynı dil) */
-.astra-app.cortex-premium-app:not(.astra-sor-screen) {
-  position: relative;
-  isolation: isolate;
+.cortex-premium-auth {
+  min-height: 100dvh;
   background: var(--cx-bg);
   color: var(--cx-text);
-  --astra-bg: var(--cx-bg);
-  --astra-surface: var(--cx-surface-solid);
-  --astra-surface-elevated: #1c1c1e;
-  --astra-primary: var(--cx-gold);
-  --astra-primary-hover: var(--cx-gold-hover);
-  --astra-text: var(--cx-text);
-  --astra-muted: var(--cx-muted);
-  --astra-border: var(--cx-border);
-  --astra-pill: rgba(22, 22, 24, 0.92);
-}
-
-.astra-app.cortex-premium-app:not(.astra-sor-screen)::before {
-  content: "";
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background:
-    radial-gradient(
-      ellipse 90% 50% at 50% -12%,
-      rgba(244, 174, 11, 0.14),
-      transparent 55%
-    ),
-    radial-gradient(
-      ellipse 55% 35% at 50% 105%,
-      rgba(244, 174, 11, 0.05),
-      transparent 50%
-    );
-}
-
-.astra-app.cortex-premium-app:not(.astra-sor-screen)::after {
-  content: "";
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: radial-gradient(
-    ellipse 95% 85% at 50% 40%,
-    transparent 35%,
-    rgba(0, 0, 0, 0.5) 100%
-  );
-}
-
-.astra-app.cortex-premium-app:not(.astra-sor-screen) > header,
-.astra-app.cortex-premium-app:not(.astra-sor-screen) > main,
-.astra-app.cortex-premium-app:not(.astra-sor-screen) > footer {
-  position: relative;
-  z-index: 1;
-}
-
-.astra-app.cortex-premium-app .astra-page-title {
-  font-family: var(--font-display);
-  font-size: 1.125rem;
-  font-weight: 400;
-  letter-spacing: -0.02em;
 }
 
 .astra-app.cortex-premium-app .astra-pay-card--premium {
@@ -179,12 +122,6 @@
   font-size: 1.35rem;
   font-weight: 400;
   letter-spacing: -0.02em;
-}
-
-.cortex-premium-auth {
-  min-height: 100dvh;
-  background: var(--cx-bg);
-  color: var(--cx-text);
 }
 
 .cortex-premium-auth__grid {

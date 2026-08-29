@@ -6,12 +6,26 @@
   background: var(--astra-bg);
 }
 
-.astra-sor-screen main {
+/* Sohbet hub — flex main; diğer sayfalar kaydırılabilir içerik */
+.astra-sor-screen--chat main {
   min-height: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
   padding-bottom: 0.25rem;
+}
+
+.astra-sor-screen:not(.astra-sor-screen--chat) main.astra-sor-page-main {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 0.5rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.astra-sor-screen:not(.astra-sor-screen--chat) .astra-sor-greeting {
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  animation: none;
 }
 
 .astra-sor-view {
