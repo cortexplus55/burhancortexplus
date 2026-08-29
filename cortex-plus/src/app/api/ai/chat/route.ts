@@ -15,11 +15,6 @@ import {
 } from "@/lib/credits/service";
 import { searchDocumentChunks } from "@/lib/rag/pipeline";
 import { recordUserActivity } from "@/lib/streak/record-activity";
-import { getParentCoachContext } from "@/lib/parent/coach-context";
-import {
-  refundParentCoach,
-  spendParentCoach,
-} from "@/lib/parent/coach-quota";
 
 const bodySchema = z.object({
   message: z.string().min(1).max(12000),
@@ -28,16 +23,12 @@ const bodySchema = z.object({
     .default("AI_CHAT_STANDARD"),
   conversationId: z.string().uuid().optional(),
   useDocuments: z.boolean().default(false),
-  audience: z.enum(["student", "parent"]).default("student"),
+  audience: z.enum(["student"]).default("student"),
   imageDocumentId: z.string().uuid().optional(),
 });
 
-const AUDIENCE_INSTRUCTIONS: Record<"student" | "parent", string> = {
-  student:
-    "Anlaşılır öğret. Markdown ve LaTeX kullanabilirsin. Öğrencinin tercih ettiği anlatım stili ayrıca sistem mesajında verilir.",
-  parent:
-    "Kullanıcı bir veli. Çocuğunun öğrenme sürecine nasıl destek olacağı konusunda rehberlik et: çalışma ortamı, motivasyon, sınav kaygısı, ekran süresi ve iletişim önerileri ver. Somut ve uygulanabilir öneriler sun; teşhis koyma, tıbbi veya psikolojik tanı verme, gerektiğinde uzmana yönlendir. Çocuğun özel sohbet içeriğine erişimin yok; bunu talep edilirse nazikçe belirt.",
-};
+const STUDENT_INSTRUCTION =
+  "Anlaşılır öğret. Markdown ve LaTeX kullanabilirsin. Öğrencinin tercih ettiği anlatım stili ayrıca sistem mesajında verilir.";
 
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "chat", limit: 40 });
@@ -46,7 +37,7 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
-  const { message, useDocuments, audience } = parsed.data;
+  const { message, useDocuments } = parsed.data;
 
   let imageUrl: string | null = null;
   if (parsed.data.imageDocumentId) {
@@ -64,80 +55,37 @@ export async function POST(request: Request) {
     }
   }
 
-  const { data: caller } = await service
+  const isPremium = await isPremiumUser(service, userId);
+  const { data: profile } = await service
     .from("profiles")
-    .select("primary_role")
+    .select("tutor_style")
     .eq("id", userId)
     .maybeSingle();
+  const styleBlock = ` ${tutorStylePrompt(parseTutorStyle(profile?.tutor_style))}`;
 
-  if (audience === "parent" && caller?.primary_role !== "parent") {
-    return errorResponse(403, "forbidden");
-  }
+  const { model, actionCode } = selectModel({
+    actionCode: parsed.data.actionCode as ActionCode,
+    isPremium,
+    hasImage: Boolean(imageUrl),
+    userSelectedAdvanced: parsed.data.actionCode === "AI_CHAT_ADVANCED",
+  });
 
-  const isPremium =
-    audience === "parent" ? false : await isPremiumUser(service, userId);
-  let styleBlock = "";
-  if (audience === "student") {
-    const { data: profile } = await service
-      .from("profiles")
-      .select("tutor_style")
-      .eq("id", userId)
-      .maybeSingle();
-    styleBlock = ` ${tutorStylePrompt(parseTutorStyle(profile?.tutor_style))}`;
-  }
-  const { model, actionCode } =
-    audience === "parent"
-      ? {
-          model: env.OPENAI_STANDARD_MODEL,
-          actionCode: "AI_CHAT_PARENT" as ActionCode,
-        }
-      : selectModel({
-          actionCode: parsed.data.actionCode as ActionCode,
-          isPremium,
-          hasImage: Boolean(imageUrl),
-          userSelectedAdvanced: parsed.data.actionCode === "AI_CHAT_ADVANCED",
-        });
-
-  let parentSpendKey: string | null = null;
-  let reservation: {
-    ok: true;
-    reservationId: string;
-    cost: number;
-  } | null = null;
-
-  if (audience === "parent") {
-    const spent = await spendParentCoach(service, userId);
-    if (!spent.ok) {
-      return errorResponse(
-        spent.reason === "insufficient_credits" ? 402 : 400,
-        spent.reason === "insufficient_credits"
-          ? "parent_coach_exhausted"
-          : "invalid_action",
-      );
-    }
-    parentSpendKey = spent.key;
-  } else {
-    const reserved = await reserveCredits(
-      service,
-      userId,
-      actionCode,
-      newIdempotencyKey("chat"),
+  const reserved = await reserveCredits(
+    service,
+    userId,
+    actionCode,
+    newIdempotencyKey("chat"),
+  );
+  if (!reserved.ok) {
+    return errorResponse(
+      reserved.reason === "insufficient_credits" ? 402 : 400,
+      reserved.reason,
     );
-    if (!reserved.ok) {
-      return errorResponse(
-        reserved.reason === "insufficient_credits" ? 402 : 400,
-        reserved.reason,
-      );
-    }
-    reservation = reserved;
   }
+  const reservation = reserved;
 
   async function undoSpend() {
-    if (parentSpendKey) {
-      await refundParentCoach(service, userId, parentSpendKey);
-    } else if (reservation) {
-      await refundCredits(service, reservation.reservationId);
-    }
+    await refundCredits(service, reservation.reservationId);
   }
 
   if (!env.OPENAI_API_KEY) {
@@ -208,11 +156,6 @@ export async function POST(request: Request) {
         .join("\n")}\nYanıtında kullandığın alıntıları [1], [2] biçiminde belirt.`
     : "";
 
-  let parentContextBlock = "";
-  if (audience === "parent") {
-    parentContextBlock = `\n\n${await getParentCoachContext(userId)}`;
-  }
-
   try {
     const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
 
@@ -231,7 +174,7 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "system",
-          content: `${SYSTEM_GUARDRAIL} ${AUDIENCE_INSTRUCTIONS[audience]}${styleBlock}${contextBlock}${parentContextBlock}`,
+          content: `${SYSTEM_GUARDRAIL} ${STUDENT_INSTRUCTION}${styleBlock}${contextBlock}`,
         },
         ...history.slice(0, -1),
         { role: "user", content: userContent },
@@ -273,16 +216,14 @@ export async function POST(request: Request) {
               .eq("id", conversationId);
           }
 
-          if (reservation) {
-            await commitCredits(service, reservation.reservationId);
-          }
+          await commitCredits(service, reservation.reservationId);
           await recordUsage(service, {
             userId,
             actionCode,
             model,
             tokensIn,
             tokensOut,
-            reservationId: reservation?.reservationId ?? null,
+            reservationId: reservation.reservationId,
           });
           try {
             await recordUserActivity(service, userId, "chat");
@@ -302,7 +243,7 @@ export async function POST(request: Request) {
         "Content-Type": "text/plain; charset=utf-8",
         "X-Conversation-Id": conversationId ?? "",
         "X-Model": model,
-        "X-Credits-Used": String(reservation?.cost ?? 1),
+        "X-Credits-Used": String(reservation.cost),
         "X-Sources": String(sources.length),
       },
     });

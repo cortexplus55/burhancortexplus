@@ -8,16 +8,13 @@ import "@/styles/cortex-premium.css";
 import {
   Atom,
   Bell,
-  BarChart3,
   BookOpen,
-  ClipboardList,
   Camera,
   CreditCard,
   FileText,
   Flame,
   Gamepad2,
   GraduationCap,
-  HeartHandshake,
   HelpCircle,
   History,
   Layers,
@@ -27,14 +24,13 @@ import {
   Sparkles,
   Target,
   User,
-  Users,
   X,
 } from "lucide-react";
 import { readStreakFromStorage } from "@/components/parity/astra-gamification";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import { useEffect, useState } from "react";
 
-export type AstraNavRole = "student" | "parent" | "teacher";
+export type AstraNavRole = "student";
 
 type NavItem = {
   id: string;
@@ -68,56 +64,6 @@ const studentTabs: NavItem[] = [
   },
 ];
 
-const parentTabs: NavItem[] = [
-  {
-    id: "cocuklarim",
-    href: "/veli",
-    label: "Çocuklarım",
-    icon: Users,
-    match: (p) => p === "/veli" || p.startsWith("/veli/cocuk"),
-  },
-  {
-    id: "destek",
-    href: "/veli/sor",
-    label: "Destek",
-    icon: HeartHandshake,
-    match: (p) => p.startsWith("/veli/sor"),
-  },
-  {
-    id: "plus",
-    href: "/veli/plus",
-    label: "Plus",
-    icon: GraduationCap,
-    match: (p) => p.startsWith("/veli/plus"),
-  },
-];
-
-const teacherTabs: NavItem[] = [
-  {
-    id: "ogretmen",
-    href: "/ogretmen-paneli/araclar",
-    label: "Öğretmen",
-    icon: Sparkles,
-    match: (p) =>
-      p === "/ogretmen-paneli" ||
-      p.startsWith("/ogretmen-paneli/araclar"),
-  },
-  {
-    id: "siniflar",
-    href: "/ogretmen-paneli/siniflar",
-    label: "Sınıflar",
-    icon: BookOpen,
-    match: (p) => p.startsWith("/ogretmen-paneli/siniflar"),
-  },
-  {
-    id: "odevler",
-    href: "/ogretmen-paneli/odevler",
-    label: "Ödevler",
-    icon: ClipboardList,
-    match: (p) => p.startsWith("/ogretmen-paneli/odevler"),
-  },
-];
-
 const studentMenuGroups: {
   title: string;
   items: { href: string; label: string; icon: typeof MessageCircle }[];
@@ -129,8 +75,6 @@ const studentMenuGroups: {
       { href: "/sohbetler", label: "Sohbetler", icon: History },
       { href: "/soru-coz", label: "Fotoğraftan çöz", icon: Camera },
       { href: "/dokumanlar", label: "Dokümanlar", icon: FileText },
-      { href: "/sinifim", label: "Sınıfım", icon: Users },
-      { href: "/odevlerim", label: "Ödevlerim", icon: ClipboardList },
       { href: "/quizler", label: "Quiz", icon: Gamepad2 },
       { href: "/flashcardlar", label: "Flashcard", icon: Layers },
       { href: "/calisma-plani", label: "Çalışma planı", icon: BookOpen },
@@ -155,40 +99,12 @@ const studentMenuGroups: {
   },
 ];
 
-const studentMenu = studentMenuGroups.flatMap((group) => group.items);
-
-const teacherMenu: { href: string; label: string; icon: typeof MessageCircle }[] =
-  [
-    { href: "/ogretmen-paneli/araclar", label: "AI araçları", icon: Sparkles },
-    { href: "/ogretmen-paneli/ogrenciler", label: "Öğrenciler", icon: Users },
-    { href: "/ogretmen-paneli/quizler", label: "Quizler", icon: Gamepad2 },
-    { href: "/ogretmen-paneli/raporlar", label: "Raporlar", icon: BarChart3 },
-    { href: "/ogretmen-paneli/plus", label: "Plus", icon: GraduationCap },
-    { href: "/profil", label: "Profil", icon: User },
-    { href: "/ayarlar", label: "Ayarlar", icon: Settings },
-    { href: "/bildirimler", label: "Bildirimler", icon: Bell },
-    { href: "/destek", label: "Yardım", icon: HelpCircle },
-  ];
-
-const parentMenu: { href: string; label: string; icon: typeof MessageCircle }[] =
-  [
-    { href: "/veli", label: "Çocuklarım", icon: Users },
-    { href: "/veli/sor", label: "Veli desteği", icon: HeartHandshake },
-    { href: "/veli/plus", label: "Plus", icon: GraduationCap },
-    { href: "/odemeler", label: "Ödemeler", icon: CreditCard },
-    { href: "/profil", label: "Profil", icon: User },
-    { href: "/ayarlar", label: "Ayarlar", icon: Settings },
-    { href: "/bildirimler", label: "Bildirimler", icon: Bell },
-    { href: "/destek", label: "Yardım", icon: HelpCircle },
-  ];
-
 export function AstraAppChrome({
   children,
   userInitial,
   avatarEmoji,
   streak = 0,
   pageTitle,
-  navRole = "student",
   account,
 }: {
   children: React.ReactNode;
@@ -196,6 +112,7 @@ export function AstraAppChrome({
   avatarEmoji?: string | null;
   streak?: number;
   pageTitle?: string;
+  /** @deprecated Yalnızca öğrenci; prop geriye dönük uyumluluk için kalır. */
   navRole?: AstraNavRole;
   account?: StudentAccountContext;
 }) {
@@ -203,28 +120,15 @@ export function AstraAppChrome({
   const [menuOpen, setMenuOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
 
-  const tabs =
-    navRole === "parent"
-      ? parentTabs
-      : navRole === "teacher"
-        ? teacherTabs
-        : studentTabs;
-  const menu =
-    navRole === "parent"
-      ? parentMenu
-      : navRole === "teacher"
-        ? teacherMenu
-        : studentMenu;
-  const studentGroups = navRole === "student" ? studentMenuGroups : null;
+  const tabs = studentTabs;
   const activeTab = tabs.find((tab) => tab.match(pathname))?.id ?? null;
   const isSorScreen =
-    navRole === "student" &&
-    (pathname === "/ogretmen" || pathname.startsWith("/ogretmen/"));
+    pathname === "/ogretmen" || pathname.startsWith("/ogretmen/");
+  const showBuyCta = !account?.isPremium;
 
   useEffect(() => {
-    if (navRole !== "student") return;
     setStreakCount(readStreakFromStorage() || streak);
-  }, [streak, navRole]);
+  }, [streak]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -247,9 +151,8 @@ export function AstraAppChrome({
       )}
     >
       <header className="flex items-center justify-between gap-2 px-4 py-3">
-        {navRole === "student" ? (
-          <>
-            <div className="flex min-w-0 items-center gap-2">
+        <>
+          <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
                 className="cortex-premium-glass-nav flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
@@ -267,7 +170,7 @@ export function AstraAppChrome({
                   {account.balance} kr
                 </Link>
               ) : null}
-              {!isSorScreen ? (
+              {showBuyCta && !isSorScreen ? (
                 <Link href="/pay" className="cortex-premium-buy shrink-0 text-[11px] sm:inline-flex">
                   Satın al ✦
                 </Link>
@@ -275,9 +178,11 @@ export function AstraAppChrome({
             </div>
             {isSorScreen ? (
               <div className="astra-sor-header-right">
-                <Link href="/pay" className="cortex-premium-buy shrink-0 text-[11px]">
-                  Satın al ✦
-                </Link>
+                {showBuyCta ? (
+                  <Link href="/pay" className="cortex-premium-buy shrink-0 text-[11px]">
+                    Satın al ✦
+                  </Link>
+                ) : null}
                 <Link
                   href="/profil"
                   className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--astra-border)] bg-[var(--astra-surface)] text-sm font-semibold uppercase text-[var(--astra-text)]"
@@ -316,46 +221,7 @@ export function AstraAppChrome({
                 </Link>
               </>
             )}
-          </>
-        ) : (
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <Link
-              href={navRole === "teacher" ? "/ogretmen-paneli/araclar" : "/veli"}
-              className="text-sm font-semibold"
-            >
-              Cortex Plus
-            </Link>
-            {navRole === "teacher" ? (
-              <Link href="/ogretmen-paneli/plus" className="cortex-premium-buy ml-auto shrink-0">
-                Satın al ✦
-              </Link>
-            ) : null}
-          </div>
-        )}
-        {navRole !== "student" ? (
-          <>
-            {pageTitle ? (
-              <p className="astra-page-title truncate px-2 text-sm">
-                {pageTitle}
-              </p>
-            ) : (
-              <span className="flex-1" />
-            )}
-            <Link
-              href="/profil"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-800/90 text-sm font-semibold uppercase text-white"
-              aria-label="Profil"
-            >
-              {avatarEmoji ? (
-                <span className="text-lg" aria-hidden>
-                  {avatarEmoji}
-                </span>
-              ) : (
-                (userInitial?.slice(0, 1) ?? "?")
-              )}
-            </Link>
-          </>
-        ) : null}
+        </>
       </header>
 
       <main className="flex flex-1 flex-col px-4 text-[var(--astra-text)] [&_.border]:border-[var(--astra-border)] [&_.bg-card]:bg-[var(--astra-surface)] [&_.bg-muted]:bg-[var(--astra-pill)] [&_.text-muted-foreground]:text-[var(--astra-muted)] [&_input]:border-[var(--astra-border)] [&_input]:bg-[var(--astra-bg)] [&_textarea]:border-[var(--astra-border)] [&_textarea]:bg-[var(--astra-bg)]">
@@ -386,48 +252,34 @@ export function AstraAppChrome({
               </button>
             </div>
             <div className="max-h-[min(70dvh,520px)] overflow-y-auto pr-1">
-              {studentGroups ? (
-                <div className="space-y-5">
-                  {studentGroups.map((group) => (
-                    <div key={group.title}>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--astra-muted)]">
-                        {group.title}
-                      </p>
-                      <div className="grid grid-cols-3 gap-3">
-                        {group.items.map((item) => {
-                          const Icon = item.icon;
-                          return (
-                            <Link
-                              key={item.href}
-                              href={item.href}
-                              className="astra-pay-card flex flex-col items-center gap-2 p-3 text-center text-xs font-medium transition-colors hover:border-[var(--astra-primary)]"
-                            >
-                              <Icon className="h-6 w-6 text-[var(--astra-primary)]" />
-                              {item.label}
-                            </Link>
-                          );
-                        })}
-                      </div>
+              <div className="space-y-5">
+                {studentMenuGroups.map((group) => (
+                  <div key={group.title}>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--astra-muted)]">
+                      {group.title}
+                    </p>
+                    <div className="grid grid-cols-3 gap-3">
+                      {group.items.map((item) => {
+                        const Icon = item.icon;
+                        const plusLabel =
+                          item.href === "/pay" && account?.isPremium
+                            ? "Plus aktif"
+                            : item.label;
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className="astra-pay-card flex flex-col items-center gap-2 p-3 text-center text-xs font-medium transition-colors hover:border-[var(--astra-primary)]"
+                          >
+                            <Icon className="h-6 w-6 text-[var(--astra-primary)]" />
+                            {plusLabel}
+                          </Link>
+                        );
+                      })}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-3">
-                  {menu.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className="astra-pay-card flex flex-col items-center gap-2 p-3 text-center text-xs font-medium transition-colors hover:border-[var(--astra-primary)]"
-                      >
-                        <Icon className="h-6 w-6 text-[var(--astra-primary)]" />
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
             </div>
             <form action="/api/auth/signout" method="post" className="mt-4">
               <button

@@ -24,9 +24,8 @@ export default function HakkimizdaPage() {
           hizmetin çalışması için işlenir.
         </p>
         <p>
-          Öğretmenler için ayrı bir alan sunuyoruz. Öğretmen paneli yalnızca belge
-          doğrulaması sonrası açılır ve öğrencilerin kişisel yapay zekâ sohbetleri
-          öğretmenlerle paylaşılmaz.
+          Öğrenci gizliliğine önem veriyoruz: sohbet içeriklerin yalnızca senin
+          hesabında kalır; ilerleme özetleri isteğe bağlı olarak paylaşılabilir.
         </p>
       </div>
     </MarketingPage>

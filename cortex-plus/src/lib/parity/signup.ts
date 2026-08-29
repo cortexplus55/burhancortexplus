@@ -42,18 +42,6 @@ export const ROLE_OPTIONS: {
     body: "AI öğretmenle çalış, deneme çöz, eksiklerini gör.",
     emoji: "🎓",
   },
-  {
-    id: "parent",
-    title: "Veliyim",
-    body: "Çocuğunun ilerlemesini ücretsiz gör, Plus'ı sen al.",
-    emoji: "👨‍👩‍👧",
-  },
-  {
-    id: "teacher",
-    title: "Okul öğretmeniyim",
-    body: "Sınıflarını yönet, ödev ve quiz paylaş.",
-    emoji: "🏫",
-  },
 ];
 
 export const GRADE_OPTIONS = [
@@ -126,17 +114,21 @@ export function searchSchools(query: string): string[] {
 }
 
 export function homePathForRole(role: string | null | undefined): string {
-  switch (role) {
-    case "parent":
-      return "/veli";
-    case "teacher":
-    case "verified_teacher":
-      return "/ogretmen-paneli/araclar";
-    case "admin":
-      return "/admin";
-    default:
-      return "/ogretmen";
-  }
+  if (role === "admin") return "/admin";
+  return "/ogretmen";
+}
+
+export const STUDENT_SIGNUP_STEPS = [
+  "grade",
+  "subject",
+  "goal",
+  "tutor-style",
+  "avatar",
+  "account",
+] as const;
+
+export function stepIdsForRole(_role: SignupRole = "student"): string[] {
+  return [...STUDENT_SIGNUP_STEPS];
 }
 
 export const PARENT_RELATION_OPTIONS: {
@@ -165,7 +157,8 @@ export function isOptionalPhoneValid(value: string | undefined): boolean {
   return digits.length >= 10 && digits.length <= 15;
 }
 
-export function stepIdsForRole(role: SignupRole): string[] {
+/** @deprecated Veli/öğretmen kaydı kaldırıldı; yalnızca öğrenci adımları kullanılır. */
+export function stepIdsForRoleLegacy(role: SignupRole): string[] {
   if (role === "parent") {
     return [
       "role",
@@ -178,5 +171,5 @@ export function stepIdsForRole(role: SignupRole): string[] {
   }
   if (role === "teacher")
     return ["role", "teacher-school", "teacher-class", "account"];
-  return ["role", "grade", "subject", "goal", "tutor-style", "avatar", "account"];
+  return stepIdsForRole("student");
 }

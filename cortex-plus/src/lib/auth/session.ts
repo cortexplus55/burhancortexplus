@@ -38,37 +38,18 @@ export async function requireAdmin() {
   return { supabase, user };
 }
 
-export async function requireTeacher() {
-  const { supabase, user } = await requireUser();
-  const roles = await getUserRoles(user.id);
-  const allowed =
-    roles.includes("teacher") ||
-    roles.includes("verified_teacher") ||
-    roles.includes("admin");
-  if (!allowed) {
-    redirect(homePathForRole(await getPrimaryRole(user.id)));
-  }
-  return { supabase, user, roles };
+export async function requireParent(): Promise<never> {
+  const { user } = await requireUser();
+  redirect(homePathForRole(await getPrimaryRole(user.id)));
 }
 
-/** Veli alanı: yalnızca parent (veya admin) girebilir. */
-export async function requireParent() {
-  const { supabase, user } = await requireUser();
-  const roles = await getUserRoles(user.id);
-  if (!roles.includes("parent") && !roles.includes("admin")) {
-    redirect(homePathForRole(await getPrimaryRole(user.id)));
-  }
-  return { supabase, user };
+/** @deprecated Okul öğretmeni paneli kaldırıldı. */
+export async function requireTeacher(): Promise<never> {
+  const { user } = await requireUser();
+  redirect(homePathForRole(await getPrimaryRole(user.id)));
 }
 
-/** Öğrenci uygulaması: veli ve okul öğretmeni kendi alanına yönlenir. */
+/** Öğrenci uygulaması (tek ürün yüzeyi). */
 export async function requireStudentArea() {
-  const { supabase, user } = await requireUser();
-  const roles = await getUserRoles(user.id);
-  if (roles.includes("admin")) return { supabase, user };
-  if (roles.includes("parent")) redirect("/veli");
-  if (roles.includes("verified_teacher") || roles.includes("teacher")) {
-    redirect("/ogretmen-paneli");
-  }
-  return { supabase, user };
+  return requireUser();
 }

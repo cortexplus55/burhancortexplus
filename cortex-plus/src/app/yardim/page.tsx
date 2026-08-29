@@ -23,9 +23,9 @@ const faqs = [
       "Yüklediğin dosyalar özel (private) depolama alanında tutulur, yalnızca senin hesabınla ilişkilendirilir ve imzalı bağlantı ile erişilir.",
   },
   {
-    question: "Öğretmen hesabı nasıl alınır?",
+    question: "Plus ile ücretsiz arasındaki fark nedir?",
     answer:
-      "Profil sayfasından kurum bilgini ve doğrulama belgeni yükleyerek başvurursun. Başvurun yönetici tarafından incelendikten sonra öğretmen paneli açılır.",
+      "Ücretsiz planda günlük hakların ve standart AI modeli vardır. Plus’ta daha yüksek kota, gelişmiş model ve öncelikli destek sunulur.",
   },
   {
     question: "Şifremi unuttum, ne yapmalıyım?",

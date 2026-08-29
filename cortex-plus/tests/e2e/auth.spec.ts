@@ -6,20 +6,20 @@ const PROTECTED_ROUTES = [
   "/dokumanlar",
   "/krediler",
   "/admin",
-  "/ogretmen-paneli",
 ];
 
-/** Veli akışı — en kısa yol hesap adımına. */
+/** Öğrenci kayıt — hesap adımına en kısa yol. */
 async function openSignupAccountStep(page: Page) {
   await page.goto("/kayit");
-  await page.getByText("Veliyim", { exact: true }).click();
+  await page.getByRole("button", { name: "9. sınıf" }).click();
   await page.getByRole("button", { name: "Devam" }).click();
-  await page.getByRole("button", { name: /Anne/ }).click();
+  await page.getByRole("button", { name: "Matematik" }).click();
   await page.getByRole("button", { name: "Devam" }).click();
-  await page.getByRole("button", { name: "Şimdilik geç" }).click();
-  await page.getByRole("button", {
-    name: "Çocuğumun hesabı yok, sonra bağlayacağım",
-  }).click();
+  await page.getByRole("button", { name: "YKS hazırlık" }).click();
+  await page.getByRole("button", { name: "Devam" }).click();
+  await page.getByRole("button", { name: "Adım adım anlat" }).click();
+  await page.getByRole("button", { name: "Devam" }).click();
+  await page.getByRole("button", { name: "Atla" }).click();
   await expect(page.getByRole("heading", { name: "Hesabını oluştur" })).toBeVisible();
 }
 
@@ -30,6 +30,11 @@ test.describe("authentication guards", () => {
       await expect(page).toHaveURL(new RegExp(`/giris\\?next=${route.replace("/", "%2F")}`));
     });
   }
+
+  test("legacy teacher panel URL redirects to student hub", async ({ page }) => {
+    await page.goto("/ogretmen-paneli");
+    await expect(page).toHaveURL(/\/ogretmen$/);
+  });
 
   test("sign-in form validates required fields", async ({ page }) => {
     await page.goto("/giris");

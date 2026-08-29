@@ -9,13 +9,13 @@ export default function YaraticiProgramPage() {
   return (
     <MarketingPage
       title="Yaratıcı program"
-      description="Öğretmenler, eğitim kanalları ve okullar Cortex Plus ile öğrencilerine özel deneyim sunabilir."
+      description="Eğitim kanalları ve okullar Cortex Plus ile öğrencilerine özel deneyim sunabilir."
     >
       <div className="grid gap-4 md:grid-cols-2">
         <article className="mk-card p-6">
           <h2 className="font-semibold">Okul lisansı</h2>
           <p className="mt-2 text-sm text-[var(--mk-muted)]">
-            Sınıf bazlı Plus, öğretmen paneli ve ilerleme raporları.
+            Toplu Plus lisansı ve okul içi ilerleme raporları.
           </p>
         </article>
         <article className="mk-card p-6">

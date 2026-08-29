@@ -29,11 +29,7 @@ export default async function PayPage() {
           tek planda.
         </p>
       </div>
-      <AstraSubscriptionCards
-        plans={plans ?? []}
-        studentAskParent
-        embedded
-      />
+      <AstraSubscriptionCards plans={plans ?? []} embedded />
       <p className="mt-6 text-center text-xs text-[var(--astra-muted)]">
         <Link href="/ogretmen" className="underline underline-offset-2">
           Ücretsiz planda devam et

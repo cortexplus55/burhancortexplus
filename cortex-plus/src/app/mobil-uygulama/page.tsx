@@ -14,7 +14,7 @@ export default function MobilUygulamaPage() {
       <ul className="mk-card max-w-xl space-y-3 p-6 text-sm text-[var(--mk-muted)]">
         <li>· Streak ve bildirimlerle düzenli çalışma</li>
         <li>· Fotoğraftan soru çözümü</li>
-        <li>· Veli paneli ile aile desteği</li>
+        <li>· Ücretsiz ve Plus planları aynı hesapta</li>
       </ul>
       <MarketingCta />
     </MarketingPage>

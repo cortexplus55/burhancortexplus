@@ -59,9 +59,8 @@ export async function AppShell({
 
     const avatar = profile?.avatar_url as string | null | undefined;
     const streak = await getUserStreak(supabase, user.id);
-    const navRole = profile?.primary_role === "parent" ? "parent" : "student";
-    const showStrip =
-      accountStrip && navRole === "student" && Boolean(title);
+    const navRole = "student" as const;
+    const showStrip = accountStrip && Boolean(title);
 
     return (
       <AstraAppChrome
@@ -70,7 +69,7 @@ export async function AppShell({
         avatarEmoji={avatar && !avatar.startsWith("http") ? avatar : null}
         pageTitle={title}
         streak={streak}
-        account={navRole === "student" ? account : undefined}
+        account={account}
       >
         {showStrip ? (
           <StudentAccountStrip account={account} creditHint={creditHint} />
@@ -115,9 +114,6 @@ export async function AppShell({
   }
 
   const links = [...baseLinks];
-  if (roles.includes("verified_teacher") || roles.includes("admin")) {
-    links.push({ href: "/ogretmen-paneli", label: "Öğretmen paneli" });
-  }
   if (roles.includes("admin")) {
     links.push({ href: "/admin", label: "Admin" });
   }

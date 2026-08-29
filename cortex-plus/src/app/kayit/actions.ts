@@ -63,7 +63,7 @@ async function completeSignupInner(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Oturum bulunamadı." };
 
-  const payload = parsed.data;
+  const payload = { ...parsed.data, role: "student" as const };
   if (
     payload.parentPhone &&
     !isOptionalPhoneValid(payload.parentPhone)
@@ -72,24 +72,20 @@ async function completeSignupInner(
   }
 
   const now = new Date().toISOString();
-  const parentRole = payload.role === "parent";
-  if (parentRole && !payload.parentRelation) {
-    return { ok: false, error: "Yakınlık bilgisi gerekli." };
-  }
 
   const { error: profileError } = await supabase.from("profiles").upsert(
     {
       id: user.id,
       full_name: payload.fullName,
       grade_level: payload.gradeLevel ?? null,
-      school_name: payload.schoolName ?? payload.teacherInstitution ?? null,
-      focus_subject: payload.focusSubject ?? payload.teacherBranch ?? null,
+      school_name: payload.schoolName ?? null,
+      focus_subject: payload.focusSubject ?? null,
       ...(payload.tutorStyle ? { tutor_style: payload.tutorStyle } : {}),
       avatar_url: payload.avatarEmoji ?? null,
-      primary_role: payload.role,
-      parent_relation: parentRole ? payload.parentRelation ?? null : null,
-      phone: parentRole ? payload.parentPhone?.trim() || null : null,
-      onboarding_completed_at: parentRole ? null : now,
+      primary_role: "student",
+      parent_relation: null,
+      phone: null,
+      onboarding_completed_at: now,
     },
     { onConflict: "id" },
   );
@@ -99,9 +95,9 @@ async function completeSignupInner(
     return { ok: false, error: "Profil kaydedilemedi." };
   }
 
-  await syncPrimaryUserRole(user.id, payload.role);
+  await syncPrimaryUserRole(user.id, "student");
 
-  if (payload.role === "student" && payload.learningGoal) {
+  if (payload.learningGoal) {
     const { data: existingGoals } = await supabase
       .from("learning_goals")
       .select("id")
@@ -114,43 +110,12 @@ async function completeSignupInner(
     }
   }
 
-  let linkWarning: string | undefined;
-  let parentReady = !parentRole;
-  if (parentRole) {
-    const result = await linkChildInternal(user.id, payload);
-    if (!result.ok) linkWarning = result.error;
-    else if (result.warning) linkWarning = result.warning;
-    const status = await getParentLinkStatus(supabase, user.id);
-    parentReady = status.hasOpenLink;
-    if (parentReady) {
-      await supabase
-        .from("profiles")
-        .update({ onboarding_completed_at: now })
-        .eq("id", user.id);
-    }
-  }
-
-  if (payload.role === "student" && user.email) {
+  if (user.email) {
     await claimPendingInvites(user.id, user.email);
   }
 
-  if (payload.role === "teacher") {
-    await createTeacherApplication(
-      user.id,
-      payload.teacherInstitution ?? "Belirtilmedi",
-    );
-    if (payload.teacherClassName?.trim()) {
-      await createTeacherClassroom(
-        user.id,
-        payload.teacherClassName.trim(),
-      );
-    }
-  }
-
   revalidatePath("/", "layout");
-  const redirectTo =
-    parentRole && !parentReady ? "/onboarding/veli" : homePathForRole(payload.role);
-  return { ok: true, redirectTo, linkWarning };
+  return { ok: true, redirectTo: homePathForRole("student") };
 }
 
 

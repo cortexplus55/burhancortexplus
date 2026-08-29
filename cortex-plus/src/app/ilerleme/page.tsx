@@ -2,7 +2,7 @@
 import { TrendingUp } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
-import { TopicBars } from "@/components/parent/child-progress-card";
+import { TopicBars } from "@/components/student/topic-bars";
 import { requireUser } from "@/lib/auth/session";
 import { formatNumber } from "@/lib/format";
 

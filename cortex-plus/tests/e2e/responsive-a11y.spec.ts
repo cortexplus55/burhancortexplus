@@ -37,14 +37,15 @@ test.describe("accessibility basics", () => {
 
   test("signup account step exposes accessible names", async ({ page }) => {
     await page.goto("/kayit");
-    await page.getByText("Veliyim", { exact: true }).click();
+    await page.getByRole("button", { name: "9. sınıf" }).click();
     await page.getByRole("button", { name: "Devam" }).click();
-    await page.getByRole("button", { name: /Anne/ }).click();
+    await page.getByRole("button", { name: "Matematik" }).click();
     await page.getByRole("button", { name: "Devam" }).click();
-    await page.getByRole("button", { name: "Şimdilik geç" }).click();
-    await page.getByRole("button", {
-      name: "Çocuğumun hesabı yok, sonra bağlayacağım",
-    }).click();
+    await page.getByRole("button", { name: "YKS hazırlık" }).click();
+    await page.getByRole("button", { name: "Devam" }).click();
+    await page.getByRole("button", { name: "Adım adım anlat" }).click();
+    await page.getByRole("button", { name: "Devam" }).click();
+    await page.getByRole("button", { name: "Atla" }).click();
     await expect(page.getByLabel("Ad soyad")).toBeVisible();
     await expect(page.getByLabel("E-posta")).toBeVisible();
     await expect(page.getByLabel("Şifre tekrar")).toBeVisible();

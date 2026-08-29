@@ -81,7 +81,7 @@ export function CinematicHero() {
             Tüm dersler · TR
           </span>
           <span className="rounded-full border border-white/10 px-3 py-1">
-            Veli & öğretmen desteği
+            Plus ile gelişmiş model
           </span>
         </div>
 

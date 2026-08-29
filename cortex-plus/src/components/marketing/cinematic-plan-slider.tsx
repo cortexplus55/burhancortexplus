@@ -27,7 +27,7 @@ const PLANS = [
     bullets: [
       "Gelişmiş AI modeli",
       "Daha yüksek günlük limit",
-      "Veli raporları ve öncelikli destek",
+      "İlerleme özeti ve öncelikli destek",
     ],
     cta: { href: "/fiyatlandirma", label: "Plus satın al" },
   },

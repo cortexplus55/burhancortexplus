@@ -3,6 +3,15 @@ import { NextResponse, type NextRequest } from "next/server";
 import { homePathForRole } from "@/lib/parity/signup";
 import { onboardingPathForRole } from "@/lib/auth/onboarding-path";
 
+/** Legacy veli/öğretmen URL’leri — öğrenci-only ürün. */
+const RETIRED_PREFIXES = [
+  "/veli",
+  "/ogretmen-paneli",
+  "/sinifim",
+  "/odevlerim",
+  "/ogretmenler-ve-profesorler-icin",
+];
+
 const PROTECTED_PREFIXES = [
   "/dashboard",
   "/onboarding",
@@ -25,45 +34,10 @@ const PROTECTED_PREFIXES = [
   "/profil",
   "/ayarlar",
   "/destek",
-  "/veli",
-  "/ogretmen-paneli",
-  "/sinifim",
-  "/odevlerim",
   "/admin",
 ];
 
-/** Yalnızca öğrenci (veya admin) girebilir; veli ve okul öğretmeni yönlendirilir. */
-const STUDENT_ONLY_PREFIXES = [
-  "/ogretmen",
-  "/dashboard",
-  "/sohbetler",
-  "/dokumanlar",
-  "/soru-coz",
-  "/quizler",
-  "/flashcardlar",
-  "/deneme-sinavlari",
-  "/uygulamalar",
-  "/calisma-plani",
-  "/ilerleme",
-  "/krediler",
-  "/paketler",
-  "/pay",
-  "/sinifim",
-  "/odevlerim",
-];
-
 const ONBOARDING_SKIP = [
-  "/onboarding",
-  "/kayit",
-  "/profil",
-  "/ayarlar",
-  "/destek",
-  "/api",
-  "/auth",
-];
-
-/** Bağlantısız veli yalnızca bu yollarda kalabilir. */
-const PARENT_UNLINKED_ALLOWED = [
   "/onboarding",
   "/kayit",
   "/profil",
@@ -102,11 +76,31 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
+  const path = request.nextUrl.pathname;
+
+  if (matches(path, RETIRED_PREFIXES)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/ogretmen";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  if (
+    path === "/onboarding/veli" ||
+    path.startsWith("/onboarding/veli/") ||
+    path === "/onboarding/ogretmen" ||
+    path.startsWith("/onboarding/ogretmen/")
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/onboarding";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
   const isProtected = matches(path, PROTECTED_PREFIXES);
 
   if (isProtected && !user) {
@@ -131,21 +125,9 @@ export async function updateSession(request: NextRequest) {
   const role = (profile?.primary_role as string | undefined) ?? "student";
   const home = homePathForRole(role);
 
-  let parentNeedsLink = false;
-  if (role === "parent") {
-    const { count } = await supabase
-      .from("parent_student_links")
-      .select("id", { count: "exact", head: true })
-      .eq("parent_id", user.id)
-      .in("status", ["pending", "active"]);
-    parentNeedsLink = !count;
-  }
-
-  const parentHome = parentNeedsLink ? "/onboarding/veli" : home;
-
   if (path === "/" || path === "/giris" || path === "/kayit") {
     const url = request.nextUrl.clone();
-    url.pathname = parentHome;
+    url.pathname = home;
     url.search = "";
     return NextResponse.redirect(url);
   }
@@ -154,42 +136,6 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = onboardingPathForRole(role);
     return NextResponse.redirect(url);
-  }
-
-  if (
-    parentNeedsLink &&
-    !matches(path, PARENT_UNLINKED_ALLOWED)
-  ) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/onboarding/veli";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
-
-  if (role !== "admin") {
-    if (role === "parent" && matches(path, STUDENT_ONLY_PREFIXES)) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/veli";
-      url.search = "";
-      return NextResponse.redirect(url);
-    }
-
-    if (
-      (role === "teacher" || role === "verified_teacher") &&
-      matches(path, STUDENT_ONLY_PREFIXES)
-    ) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/ogretmen-paneli";
-      url.search = "";
-      return NextResponse.redirect(url);
-    }
-
-    if (role !== "parent" && matches(path, ["/veli"])) {
-      const url = request.nextUrl.clone();
-      url.pathname = home;
-      url.search = "";
-      return NextResponse.redirect(url);
-    }
   }
 
   return supabaseResponse;

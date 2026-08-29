@@ -37,7 +37,7 @@ export function AstraSiteFooter() {
         <div className="flex flex-col gap-2">
           <Link href="/sinav-hazirligi">Sınav hazırlığı</Link>
           <Link href="/mobil-uygulama">Mobil uygulama</Link>
-          <Link href="/ogretmenler-ve-profesorler-icin">Öğretmenler</Link>
+          <Link href="/ozellikler">Özellikler</Link>
           <Link href="/yaratici-program">Yaratıcı program</Link>
           <Link href="/fiyatlandirma">Fiyatlandırma</Link>
           <Link href="/yardim">Yardım</Link>

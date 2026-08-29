@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 export const metadata = {
   title: "Hesap oluştur",
-  description: "Öğrenci, veli veya okul öğretmeni olarak Cortex Plus'a katıl.",
+  description: "Öğrenci hesabı oluştur; ücretsiz haklarla Cortex Plus'a başla.",
 };
 
 export default function KayitPage() {

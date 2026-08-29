@@ -24,9 +24,9 @@ const TESTIMONIALS = [
   },
   {
     name: "Zeynep D.",
-    role: "Veli · İzmir",
+    role: "LGS adayı · İzmir",
     quote:
-      "Kızımın çalışma planını birlikte takip ediyoruz. Kredi şeffaflığı güven veriyor — sürpriz yok.",
+      "Çalışma planımı ve kredi harcamamı tek ekranda görüyorum. Plus’a geçince limit artışı sınav döneminde fark etti.",
     result: "Haftalık plan disiplini",
   },
   {

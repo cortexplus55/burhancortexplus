@@ -36,12 +36,12 @@ export function SignupPremiumShell({
               Dakikalar içinde kişisel AI öğretmenin
             </h1>
             <p className="cortex-premium-auth__hero-lead">
-              Rolünü seç, hedefini söyle — deneme analizi, soru çözümü ve çalışma
+              Sınıfını ve hedefini söyle — deneme analizi, soru çözümü ve çalışma
               planı aynı uygulamada.
             </p>
             <div className="cortex-premium-auth__badges">
               <span className="cortex-premium-auth__badge">Ücretsiz başlangıç</span>
-              <span className="cortex-premium-auth__badge">Veli & öğretmen</span>
+              <span className="cortex-premium-auth__badge">Plus ile gelişmiş model</span>
               <span className="cortex-premium-auth__badge">7/24 erişim</span>
             </div>
           </div>

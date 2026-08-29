@@ -18,9 +18,7 @@ export function UpgradeSheet({
 }) {
   if (!open) return null;
 
-  const packagesBase = returnPath?.startsWith("/ogretmen-paneli")
-    ? "/ogretmen-paneli/plus"
-    : "/pay";
+  const packagesBase = "/pay";
   const href = returnPath
     ? `${packagesBase}?returnTo=${encodeURIComponent(returnPath)}`
     : packagesBase;
