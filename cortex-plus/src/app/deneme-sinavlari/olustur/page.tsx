@@ -1,5 +1,5 @@
 import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
-import { ExamCreateWizard } from "@/components/parity/exam-create-wizard";
+import { ExamCreateChat } from "@/components/parity/exam-create-chat";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 
@@ -11,7 +11,7 @@ export default async function ExamCreatePage() {
 
   return (
     <AstraParitySorShell {...shell}>
-      <ExamCreateWizard />
+      <ExamCreateChat />
     </AstraParitySorShell>
   );
 }

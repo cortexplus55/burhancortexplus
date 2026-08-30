@@ -50,8 +50,8 @@ export default async function ExamPrepDenemePage({
       ) : (
         <div className="ap-exam-page">
           <p>Sorular henüz hazır değil.</p>
-          <Link href={`/deneme-sinavlari/${prepId}/calis`} className="ap-back-pill">
-            ← Derse dön
+          <Link href={`/deneme-sinavlari/${prepId}`} className="ap-back-pill">
+            ← Konu yoluna dön
           </Link>
         </div>
       )}

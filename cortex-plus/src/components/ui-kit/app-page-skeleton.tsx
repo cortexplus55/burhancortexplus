@@ -28,10 +28,16 @@ export function AppPageSkeleton({
 
   if (variant === "study-plan") {
     return (
-      <div className="space-y-6" aria-busy aria-label="Yükleniyor">
-        <Skeleton className="astra-pay-card h-36 bg-white/5" />
-        <Skeleton className="astra-pay-card h-48 bg-white/5" />
-        <Skeleton className="astra-pay-card h-48 bg-white/5" />
+      <div className="ap-plan-page space-y-4" aria-busy aria-label="Yükleniyor">
+        <Skeleton className="h-8 w-40 bg-white/10" />
+        <Skeleton className="h-16 w-72 max-w-full bg-white/10" />
+        <div className="grid grid-cols-3 gap-3">
+          <Skeleton className="h-20 bg-white/5" />
+          <Skeleton className="h-20 bg-white/5" />
+          <Skeleton className="h-20 bg-white/5" />
+        </div>
+        <Skeleton className="h-36 bg-white/5" />
+        <Skeleton className="h-48 bg-white/5" />
       </div>
     );
   }

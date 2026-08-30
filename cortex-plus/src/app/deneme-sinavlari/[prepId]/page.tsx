@@ -1,8 +1,18 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ExamPrepHome } from "@/components/parity/exam-prep-home";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
+import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
+import { ensurePrepNodes } from "@/lib/learning/exam-prep-insert";
+import { daysUntilExam, nodeProgress, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import {
+  examPrepHomeHref,
+  examPrepIntroHref,
+  examPrepNodeHref,
+  examPrepTopicHref,
+  needsExamIntro,
+} from "@/lib/learning/exam-prep-hrefs";
 
 export const metadata = { title: "Sınav hazırlığı" };
 
@@ -15,64 +25,70 @@ export default async function ExamPrepDetailPage({
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
-  const [{ data: prep }, { data: topics }, { data: lessons }] = await Promise.all([
-    supabase
-      .from("exam_preps")
-      .select("id, title, exam_type, target_score")
-      .eq("id", prepId)
-      .eq("user_id", user.id)
-      .maybeSingle(),
-    supabase
-      .from("exam_prep_topics")
-      .select("label, sort_order")
-      .eq("exam_prep_id", prepId)
-      .order("sort_order"),
-    supabase
-      .from("exam_prep_lessons")
-      .select("id, title, created_at")
-      .eq("exam_prep_id", prepId)
-      .order("created_at", { ascending: false })
-      .limit(5),
-  ]);
+  const { data: prep } = await supabase
+    .from("exam_preps")
+    .select("id, title, exam_type, study_plan_id, exam_date, active_topic_id, intro_completed_at")
+    .eq("id", prepId)
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   if (!prep) notFound();
 
+  await loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id);
+  await ensurePrepNodes(supabase, prep);
+
+  const { data: nodeRows } = await supabase
+    .from("exam_prep_nodes")
+    .select("id, kind, title, day_index, sort_order, status")
+    .eq("exam_prep_id", prepId)
+    .order("sort_order");
+
+  const nodes = (nodeRows ?? []).map((row) => ({
+    id: row.id as string,
+    kind: row.kind as PlanNodeKind,
+    title: row.title as string,
+    dayIndex: row.day_index as number,
+    sortOrder: row.sort_order as number,
+    status: row.status as "locked" | "ready" | "done",
+  }));
+
+  const progress = nodeProgress(nodes);
+  const ready = nodes.find((node) => node.status === "ready");
+  const hasTopic = Boolean(prep.active_topic_id);
+  const needsIntro = hasTopic && needsExamIntro(prep.intro_completed_at, nodes);
+  const startHref = !hasTopic
+    ? examPrepTopicHref(prepId)
+    : needsIntro
+      ? examPrepIntroHref(prepId)
+      : ready
+        ? examPrepNodeHref(prepId, ready.id)
+        : examPrepHomeHref(prepId);
+
+  let topicLabel: string | null = null;
+  if (prep.active_topic_id) {
+    const { data: topic } = await supabase
+      .from("exam_prep_topics")
+      .select("label")
+      .eq("id", prep.active_topic_id)
+      .maybeSingle();
+    topicLabel = topic?.label ?? null;
+  }
+
   return (
     <AstraParitySorShell {...shell}>
-      <div className="ap-exam-page space-y-4">
-        <Link href="/deneme-sinavlari" className="ap-back-pill">
-          ← Geri
-        </Link>
-        <h1 className="text-xl font-semibold">{prep.title ?? prep.exam_type}</h1>
-        {prep.target_score ? (
-          <p className="text-sm text-[var(--ap-muted)]">Hedef puan: %{prep.target_score}</p>
-        ) : null}
-        <ol className="ap-topic-numbered-list">
-          {(topics ?? []).map((topic, index) => (
-            <li key={topic.sort_order}>
-              <span className="ap-topic-num">{index + 1}</span>
-              <span className="ap-topic-label">{topic.label}</span>
-            </li>
-          ))}
-        </ol>
-        {(lessons ?? []).length ? (
-          <section className="space-y-2">
-            <h2 className="text-sm font-semibold text-[var(--ap-muted)]">Kayıtlı dersler</h2>
-            <ul className="ap-more-history">
-              {(lessons ?? []).map((lesson) => (
-                <li key={lesson.id} className="ap-more-history-item">
-                  <Link href={`/deneme-sinavlari/${prepId}/ders/${lesson.id}`}>
-                    {lesson.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-        <Link href={`/deneme-sinavlari/${prepId}/calis`} className="ap-exam-continue ap-exam-continue--primary">
-          Derse devam et
-        </Link>
-      </div>
+      <ExamPrepHome
+        prepId={prep.id}
+        title={prep.title ?? prep.exam_type}
+        examType={prep.exam_type}
+        examDate={prep.exam_date}
+        daysLabel={prep.exam_date ? `${daysUntilExam(prep.exam_date)} gün kaldı` : ""}
+        progressPct={progress.pct}
+        nodes={nodes}
+        hasTopic={hasTopic}
+        activeTopicLabel={topicLabel}
+        needsIntro={needsIntro}
+        startHref={startHref}
+      />
     </AstraParitySorShell>
   );
 }

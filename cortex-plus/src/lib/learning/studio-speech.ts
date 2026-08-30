@@ -36,7 +36,10 @@ export function speakTurkish(
   if (voice) utterance.voice = voice;
   utterance.rate = 1;
   utterance.onend = () => onEnd?.();
-  utterance.onerror = () => onEnd?.();
+  utterance.onerror = (event) => {
+    if (event.error === "interrupted" || event.error === "canceled") return;
+    onEnd?.();
+  };
   window.speechSynthesis.speak(utterance);
   return utterance;
 }

@@ -41,11 +41,21 @@ export async function POST(request: Request) {
 
   const { data: topics } = await service
     .from("exam_prep_topics")
-    .select("label")
+    .select("label, status")
     .eq("exam_prep_id", prepId)
     .order("sort_order");
 
-  const topicLabels = (topics ?? []).map((t) => t.label as string);
+  const doneLabels = (topics ?? [])
+    .filter((t) => t.status === "done")
+    .map((t) => t.label as string);
+  const topicLabels =
+    doneLabels.length > 0
+      ? doneLabels
+      : (topics ?? []).map((t) => t.label as string);
+
+  if (!topicLabels.length) {
+    return errorResponse(400, "no_topics");
+  }
 
   const outcome = await generateJson({
     service,
@@ -54,7 +64,7 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
       'JSON: {"questions":[{"text":string,"options":string[],"correct":string,"multi":boolean}]}. correct, options içinden olmalı.',
-    userPrompt: `Sınav: ${prep.title} (${prep.exam_type}). Konular: ${topicLabels.join(", ")}. 5 çoktan seçmeli soru; en az birinde multi true.`,
+    userPrompt: `Sınav: ${prep.title} (${prep.exam_type}). Öğrencinin çalıştığı konular: ${topicLabels.join(", ") || "genel"}. 5 çoktan seçmeli soru; en az birinde multi true. Yalnızca bu konulardan sor.`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       if (!result.success) return null;

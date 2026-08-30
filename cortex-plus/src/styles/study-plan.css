@@ -1,0 +1,798 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap");
+
+.ap-plan-page {
+  --ap-plan-gold: #f4ae0b;
+  --ap-plan-gold-soft: rgba(244, 174, 11, 0.2);
+  --ap-plan-display: "DM Serif Display", Georgia, serif;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3.5rem;
+  color: var(--ap-text, #fafafa);
+}
+
+.ap-plan-ambient {
+  pointer-events: none;
+  position: absolute;
+  inset: -2rem -1rem auto;
+  height: 22rem;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 55% at 18% 0%, rgba(244, 174, 11, 0.22), transparent 62%),
+    radial-gradient(ellipse 45% 40% at 92% 18%, rgba(99, 102, 241, 0.12), transparent 58%);
+}
+
+.ap-plan-page--plus .ap-plan-ambient {
+  background:
+    radial-gradient(ellipse 75% 58% at 16% 0%, rgba(244, 174, 11, 0.32), transparent 64%),
+    radial-gradient(ellipse 50% 42% at 94% 16%, rgba(99, 102, 241, 0.16), transparent 56%);
+}
+
+.ap-plan-page > *:not(.ap-plan-ambient) {
+  position: relative;
+  z-index: 1;
+}
+
+.ap-plan-hero {
+  display: grid;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 760px) {
+  .ap-plan-hero {
+    grid-template-columns: minmax(0, 1.35fr) minmax(16rem, 0.85fr);
+    align-items: end;
+    gap: 1.75rem;
+  }
+}
+
+.ap-plan-kicker {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ap-plan-gold);
+}
+
+.ap-plan-title {
+  margin-top: 0.45rem;
+  font-family: var(--ap-plan-display);
+  font-size: clamp(2rem, 4.4vw, 2.85rem);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.ap-plan-lead {
+  margin-top: 0.7rem;
+  max-width: 34rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--ap-muted, #a3a3a3);
+}
+
+.ap-plan-world {
+  position: relative;
+  height: 4.2rem;
+  width: 5.6rem;
+  margin-bottom: 0.35rem;
+}
+
+.ap-plan-world span {
+  position: absolute;
+  inset: 0;
+}
+
+.ap-plan-world span:nth-child(1) {
+  background: radial-gradient(ellipse at 50% 20%, rgba(244, 174, 11, 0.42), transparent 68%);
+}
+
+.ap-plan-world span:nth-child(2) {
+  left: 16%;
+  right: 16%;
+  top: 22%;
+  bottom: 8%;
+  border: 1px solid rgba(244, 174, 11, 0.32);
+  border-radius: 0.45rem 0.45rem 0.85rem 0.85rem;
+  box-shadow: 0 0 28px rgba(244, 174, 11, 0.16);
+}
+
+.ap-plan-world span:nth-child(3) {
+  left: 38%;
+  right: 38%;
+  top: 38%;
+  bottom: 28%;
+  border-radius: 0.2rem;
+  background: linear-gradient(180deg, rgba(244, 174, 11, 0.55), rgba(244, 174, 11, 0.08));
+}
+
+.ap-plan-score {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  align-items: center;
+  border-radius: 1.35rem;
+  border: 1px solid rgba(244, 174, 11, 0.22);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(244, 174, 11, 0.16), transparent 58%),
+    rgba(18, 18, 20, 0.72);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  padding: 1.05rem 1.15rem;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 20px 48px rgba(0, 0, 0, 0.35);
+}
+
+.ap-plan-ring {
+  position: relative;
+  width: 4.75rem;
+  height: 4.75rem;
+}
+
+.ap-plan-ring svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ap-plan-ring-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.ap-plan-score-copy strong {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.ap-plan-score-copy span {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--ap-muted, #a3a3a3);
+}
+
+.ap-plan-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.ap-plan-stat {
+  border-radius: 1.05rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(18, 18, 20, 0.55);
+  padding: 0.8rem 0.85rem;
+}
+
+.ap-plan-stat em {
+  display: block;
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ap-muted, #a3a3a3);
+}
+
+.ap-plan-stat strong {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.ap-plan-weekstrip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.4rem;
+  margin: 0 0 1.25rem;
+}
+
+.ap-plan-weekday {
+  display: flex;
+  min-height: 4.4rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(18, 18, 20, 0.5);
+  color: var(--ap-muted, #a3a3a3);
+}
+
+.ap-plan-weekday span {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ap-plan-weekday strong {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #fafafa;
+}
+
+.ap-plan-weekday.is-today {
+  border-color: rgba(244, 174, 11, 0.45);
+  background: rgba(244, 174, 11, 0.1);
+  box-shadow: 0 0 20px rgba(244, 174, 11, 0.12);
+}
+
+.ap-plan-weekday.has-due strong::after {
+  content: "";
+  display: block;
+  width: 0.35rem;
+  height: 0.35rem;
+  margin: 0.2rem auto 0;
+  border-radius: 9999px;
+  background: var(--ap-plan-gold);
+}
+
+.ap-plan-weekday.is-done strong::after {
+  background: #34d399;
+}
+
+.ap-plan-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.45rem;
+  margin: 0 0 1.35rem;
+}
+
+.ap-plan-tab {
+  display: flex;
+  min-height: 3.4rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.22rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  background: rgba(18, 18, 20, 0.45);
+  color: var(--ap-muted, #a3a3a3);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.ap-plan-tab:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #fafafa;
+}
+
+.ap-plan-tab--on {
+  border-color: rgba(244, 174, 11, 0.42);
+  background: rgba(244, 174, 11, 0.1);
+  color: #fde68a;
+  box-shadow: 0 0 22px rgba(244, 174, 11, 0.1);
+}
+
+.ap-plan-tab span {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.ap-plan-compose,
+.ap-plan-card,
+.ap-plan-empty,
+.ap-plan-goal,
+.ap-plan-cal {
+  border-radius: 1.35rem;
+  border: 1px solid rgba(244, 174, 11, 0.16);
+  background:
+    linear-gradient(180deg, rgba(28, 24, 16, 0.35), rgba(14, 14, 16, 0.86)),
+    rgba(18, 18, 20, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 22px 56px rgba(0, 0, 0, 0.38);
+}
+
+.ap-plan-compose,
+.ap-plan-empty,
+.ap-plan-goal,
+.ap-plan-cal {
+  padding: 1.2rem 1.2rem 1.3rem;
+}
+
+.ap-plan-compose {
+  margin-bottom: 1rem;
+}
+
+.ap-plan-compose-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.ap-plan-compose-head h2,
+.ap-plan-goal h2,
+.ap-plan-cal-head h2,
+.ap-plan-card-title,
+.ap-plan-empty h2 {
+  font-family: var(--ap-plan-display);
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.ap-plan-compose-head p,
+.ap-plan-empty p,
+.ap-plan-goal > p {
+  margin-top: 0.3rem;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--ap-muted, #a3a3a3);
+}
+
+.ap-plan-compose input {
+  height: 2.85rem;
+  width: 100%;
+  border-radius: 0.9rem;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(8, 8, 10, 0.55);
+  color: #fafafa;
+}
+
+.ap-plan-compose input:focus,
+.ap-plan-compose input:focus-visible {
+  border-color: rgba(244, 174, 11, 0.55);
+  box-shadow: 0 0 0 3px rgba(244, 174, 11, 0.14);
+}
+
+.ap-plan-compose label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ap-muted, #a3a3a3);
+}
+
+.ap-plan-compose .astra-btn-primary,
+.ap-plan-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.85rem;
+  border: 0;
+  border-radius: 9999px;
+  padding: 0.7rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #f0b84d 0%, #c9851f 100%);
+  color: #0c0a06;
+  box-shadow:
+    0 0 0 1px rgba(255, 220, 150, 0.28),
+    0 10px 28px rgba(0, 0, 0, 0.35),
+    0 0 24px rgba(244, 174, 11, 0.22);
+  cursor: pointer;
+}
+
+.ap-plan-compose .astra-btn-primary:disabled,
+.ap-plan-cta:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ap-plan-empty {
+  display: flex;
+  min-height: 16rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  text-align: center;
+  border-style: dashed;
+}
+
+.ap-plan-card {
+  padding: 1.15rem 1.15rem 0.85rem;
+}
+
+.ap-plan-card + .ap-plan-card {
+  margin-top: 0.85rem;
+}
+
+.ap-plan-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.ap-plan-card-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--ap-muted, #a3a3a3);
+}
+
+.ap-plan-badge {
+  border-radius: 9999px;
+  border: 1px solid rgba(244, 174, 11, 0.28);
+  background: rgba(244, 174, 11, 0.1);
+  padding: 0.15rem 0.55rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fde68a;
+}
+
+.ap-plan-progress {
+  height: 0.4rem;
+  margin-top: 0.9rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ap-plan-progress > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f4ae0b, #ffc857);
+  transition: width 0.35s ease;
+}
+
+.ap-plan-group {
+  margin-top: 1rem;
+}
+
+.ap-plan-group-label {
+  margin-bottom: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ap-muted, #a3a3a3);
+}
+
+.ap-plan-task {
+  display: flex;
+  min-height: 3rem;
+  cursor: pointer;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-radius: 0.95rem;
+  padding: 0.7rem 0.55rem;
+  transition: background 0.15s ease;
+}
+
+.ap-plan-task:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ap-plan-task.is-done {
+  opacity: 0.72;
+}
+
+.ap-plan-task input,
+.ap-plan-task [data-slot="checkbox"] {
+  margin-top: 0.15rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.ap-plan-task [data-slot="checkbox"][data-checked],
+.ap-plan-task [data-slot="checkbox"][data-state="checked"] {
+  border-color: var(--ap-plan-gold);
+  background: var(--ap-plan-gold);
+  color: #0a0a0a;
+}
+
+.ap-plan-task-title {
+  display: block;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.ap-plan-task.is-done .ap-plan-task-title {
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
+.ap-plan-task-due {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--ap-muted, #a3a3a3);
+}
+
+.ap-plan-path {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.35rem 0.15rem 0.35rem 0.35rem;
+}
+
+.ap-plan-path::before {
+  content: "";
+  position: absolute;
+  left: 1.45rem;
+  top: 1.4rem;
+  bottom: 1.4rem;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(244, 174, 11, 0.45), rgba(255, 255, 255, 0.08));
+}
+
+.ap-plan-node {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.2rem 1fr;
+  gap: 0.85rem;
+  align-items: start;
+  padding: 0.55rem 0;
+}
+
+.ap-plan-node i {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  place-items: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #161616;
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-style: normal;
+}
+
+.ap-plan-node.is-done i {
+  border-color: transparent;
+  background: var(--ap-plan-gold);
+  color: #111;
+  box-shadow: 0 0 16px rgba(244, 174, 11, 0.35);
+}
+
+.ap-plan-node strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.ap-plan-node em {
+  display: inline-flex;
+  margin-top: 0.28rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.12rem 0.5rem;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ap-muted, #a3a3a3);
+}
+
+.ap-plan-node.is-done em {
+  background: rgba(244, 174, 11, 0.14);
+  color: #fde68a;
+}
+
+.ap-plan-goal-stage {
+  display: grid;
+  gap: 1.15rem;
+}
+
+@media (min-width: 720px) {
+  .ap-plan-goal-stage {
+    grid-template-columns: 11rem 1fr;
+    align-items: center;
+  }
+}
+
+.ap-plan-goal-dial {
+  position: relative;
+  width: 10.5rem;
+  height: 10.5rem;
+  margin: 0 auto;
+}
+
+.ap-plan-goal-dial svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ap-plan-goal-dial b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--ap-plan-display);
+  font-size: 2.4rem;
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+
+.ap-plan-goal input[type="number"] {
+  width: 100%;
+  height: 3rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(8, 8, 10, 0.55);
+  padding: 0 0.9rem;
+  color: inherit;
+  font-size: 1.05rem;
+}
+
+.ap-plan-goal input[type="number"]:focus {
+  outline: none;
+  border-color: rgba(244, 174, 11, 0.5);
+  box-shadow: 0 0 0 3px rgba(244, 174, 11, 0.14);
+}
+
+.ap-plan-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.ap-plan-cal-nav {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.ap-plan-cal-nav button,
+.ap-plan-filter {
+  min-height: 2.4rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  cursor: pointer;
+}
+
+.ap-plan-cal-nav button {
+  width: 2.4rem;
+  font-size: 1rem;
+}
+
+.ap-plan-filters {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.ap-plan-filter {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.ap-plan-filter.is-on {
+  border-color: transparent;
+  background: #fff;
+  color: #111;
+}
+
+.ap-plan-cal-week,
+.ap-plan-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+}
+
+.ap-plan-cal-week {
+  margin-bottom: 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ap-muted, #a3a3a3);
+  text-align: center;
+}
+
+.ap-plan-cal-cell {
+  min-height: 2.7rem;
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.4rem 0.2rem;
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.ap-plan-cal-cell.is-empty {
+  background: transparent;
+}
+
+.ap-plan-cal-cell.is-today {
+  box-shadow: inset 0 0 0 1px rgba(244, 174, 11, 0.7);
+}
+
+.ap-plan-cal-cell.is-due {
+  background: rgba(244, 174, 11, 0.12);
+}
+
+.ap-plan-cal-cell.is-done {
+  background: rgba(52, 211, 153, 0.16);
+}
+
+.ap-plan-cal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 1.1rem;
+}
+
+.ap-plan-cal-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.22);
+  padding: 0.7rem 0.85rem;
+  font-size: 0.84rem;
+}
+
+.ap-plan-cal-list em {
+  font-style: normal;
+}
+
+.ap-plan-cal-list span {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--ap-muted, #a3a3a3);
+}
+
+.ap-plan-page--loading {
+  min-height: 100dvh;
+  background: #0f0f0f;
+}
+
+.ap-plan-skel {
+  border-radius: 1.2rem;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+  background-size: 200% 100%;
+  animation: ap-plan-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes ap-plan-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ap-plan-progress > i,
+  .ap-plan-tab,
+  .ap-plan-task,
+  .ap-plan-skel {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .ap-plan-tab span {
+    font-size: 0.64rem;
+  }
+
+  .ap-plan-weekday {
+    min-height: 3.8rem;
+  }
+}

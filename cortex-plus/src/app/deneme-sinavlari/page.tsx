@@ -3,61 +3,42 @@ import { AstraParityExamPrep } from "@/components/parity/astra-parity-exam-prep"
 import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
+import { mapPrepTopics, type PrepTopic } from "@/lib/learning/exam-prep-progress";
+import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
+import { daysUntilExam, nodeProgress } from "@/lib/learning/exam-prep-plan";
 import type { ExamPrepCard } from "@/components/parity/astra-parity-exam-prep";
 
 export const metadata = { title: "Sınav hazırlığı" };
 
-function daysUntilLabel(due: Date | null): string {
-  if (!due) return "Tarih yok";
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const target = new Date(due);
-  target.setHours(0, 0, 0, 0);
-  const diff = Math.round(
-    (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-  );
-  if (diff < 0) return "Süre geçti";
-  if (diff === 0) return "Bugün";
-  if (diff === 1) return "1 gün sonra";
-  return `${diff} gün sonra`;
-}
-
-function buildActivePrep(
-  plan: {
-    id: string;
-    title: string;
-    study_plan_tasks: { completed: boolean; due_date: string | null }[] | null;
-  } | null,
-  examPrep: {
+function toCard(
+  prep: {
     id: string;
     title: string | null;
+    exam_type: string;
     target_score: number | null;
-  } | null,
-): ExamPrepCard | null {
-  if (!plan && !examPrep) return null;
-  const tasks = plan?.study_plan_tasks ?? [];
-  const total = tasks.length || 3;
-  const done = tasks.filter((t) => t.completed).length;
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  const dueDates = tasks
-    .map((t) => (t.due_date ? new Date(t.due_date) : null))
-    .filter(Boolean) as Date[];
-  const nearest =
-    dueDates.length > 0
-      ? dueDates.sort((a, b) => a.getTime() - b.getTime())[0]
-      : null;
-
+    exam_date?: string | null;
+  },
+  topics: PrepTopic[],
+  nodes: { status: "locked" | "ready" | "done" }[],
+): ExamPrepCard {
+  const progress = nodes.length
+    ? nodeProgress(nodes)
+    : { done: 0, total: topics.length, pct: 0 };
+  const next = nodes.find((node) => node.status === "ready");
   return {
-    id: examPrep?.id ?? plan!.id,
-    title: examPrep?.title ?? plan?.title ?? "Sınav hazırlığı",
-    progressPct: pct,
-    daysLabel: daysUntilLabel(nearest),
-    topicsDone: done,
-    topicsTotal: total,
-    targetScore: examPrep?.target_score ?? null,
-    continueHref: examPrep
-      ? `/deneme-sinavlari/${examPrep.id}/calis`
-      : "/deneme-sinavlari/olustur",
+    id: prep.id,
+    title: prep.title ?? prep.exam_type,
+    examType: prep.exam_type,
+    progressPct: progress.pct,
+    daysLabel: prep.exam_date
+      ? `${daysUntilExam(prep.exam_date)} gün kaldı`
+      : next
+        ? "Devam et"
+        : "Yola başla",
+    topicsDone: progress.done,
+    topicsTotal: progress.total,
+    targetScore: prep.target_score,
+    continueHref: `/deneme-sinavlari/${prep.id}`,
   };
 }
 
@@ -65,22 +46,13 @@ export default async function DenemeSinavlariPage() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
-  const [{ data: plan }, { data: examPrepRow }, { data: profile }] = await Promise.all([
-    supabase
-      .from("study_plans")
-      .select("id, title, study_plan_tasks(completed, due_date)")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+  const [{ data: prepRows }, { data: profile }] = await Promise.all([
     supabase
       .from("exam_preps")
-      .select("id, title, target_score, study_plan_id")
+      .select("id, title, exam_type, target_score, created_at, study_plan_id, exam_date")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .limit(8),
     supabase
       .from("profiles")
       .select("school_name")
@@ -88,18 +60,68 @@ export default async function DenemeSinavlariPage() {
       .maybeSingle(),
   ]);
 
-  const planForPrep =
-    plan && examPrepRow?.study_plan_id && plan.id !== examPrepRow.study_plan_id
-      ? null
-      : plan;
+  const preps = prepRows ?? [];
+  const prepIds = preps.map((prep) => prep.id);
+  const { data: allTopics } = prepIds.length
+    ? await supabase
+        .from("exam_prep_topics")
+        .select("id, label, sort_order, status, lesson_id, exam_prep_id")
+        .in("exam_prep_id", prepIds)
+        .order("sort_order")
+    : { data: [] as { exam_prep_id: string }[] };
 
-  const activePrep = buildActivePrep(planForPrep, examPrepRow);
+  const topicMap = new Map<string, ReturnType<typeof mapPrepTopics>>();
+  for (const prep of preps) {
+    topicMap.set(
+      prep.id,
+      mapPrepTopics(
+        (allTopics ?? []).filter((row) => row.exam_prep_id === prep.id) as Parameters<
+          typeof mapPrepTopics
+        >[0],
+      ),
+    );
+  }
+
+  for (const prep of preps) {
+    const existing = topicMap.get(prep.id) ?? [];
+    if (existing.length) continue;
+    topicMap.set(
+      prep.id,
+      await loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id),
+    );
+  }
+
+  const { data: allNodes } = prepIds.length
+    ? await supabase
+        .from("exam_prep_nodes")
+        .select("exam_prep_id, status")
+        .in("exam_prep_id", prepIds)
+    : { data: [] as { exam_prep_id: string; status: string }[] };
+
+  const cards = preps.map((prep) =>
+    toCard(
+      prep,
+      topicMap.get(prep.id) ?? [],
+      (allNodes ?? [])
+        .filter((row) => row.exam_prep_id === prep.id)
+        .map((row) => ({
+          status: (row.status as "locked" | "ready" | "done") ?? "locked",
+        })),
+    ),
+  );
+  const activePrep =
+    cards.find((card) => card.topicsTotal > 0 && card.topicsDone < card.topicsTotal) ??
+    cards.find((card) => card.topicsTotal > 0) ??
+    cards[0] ??
+    null;
+  const otherPreps = cards.filter((card) => card.id !== activePrep?.id);
 
   return (
     <AstraParitySorShell {...shell}>
       <Suspense fallback={<div className="ap-exam-page ap-exam-page--loading" />}>
         <AstraParityExamPrep
           activePrep={activePrep}
+          otherPreps={otherPreps}
           userInitial={shell.userInitial}
           initialSchoolName={profile?.school_name ?? ""}
         />

@@ -26,7 +26,7 @@ export default async function ExamPrepLessonPage({
       .maybeSingle(),
     supabase
       .from("exam_prep_lessons")
-      .select("id, title, content_md, liked, exam_prep_id, created_at")
+      .select("id, title, content_md, liked, exam_prep_id, created_at, topic_id")
       .eq("id", lessonId)
       .maybeSingle(),
   ]);
@@ -62,13 +62,17 @@ export default async function ExamPrepLessonPage({
 
         <div className="ap-exam-result-actions">
           <Link
-            href={`/deneme-sinavlari/${prepId}/calis`}
+            href={
+              lesson.topic_id
+                ? `/deneme-sinavlari/${prepId}/calis?topic=${lesson.topic_id}`
+                : `/deneme-sinavlari/${prepId}/calis`
+            }
             className="ap-exam-continue ap-exam-continue--primary"
           >
-            Derse devam et
+            Konuya dön
           </Link>
           <Link href={`/deneme-sinavlari/${prepId}`} className="ap-exam-continue">
-            Hazırlığa dön
+            Konu yoluna dön
           </Link>
         </div>
       </article>

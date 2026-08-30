@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { BookOpen, HelpCircle, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export type ExamPrepCard = {
   id: string;
   title: string;
+  examType?: string;
   progressPct: number;
   daysLabel: string;
   topicsDone: number;
@@ -21,10 +23,12 @@ type TabId = "school" | "cortex";
 
 export function AstraParityExamPrep({
   activePrep,
+  otherPreps = [],
   userInitial,
   initialSchoolName = "",
 }: {
   activePrep: ExamPrepCard | null;
+  otherPreps?: ExamPrepCard[];
   userInitial?: string;
   initialSchoolName?: string;
 }) {
@@ -37,6 +41,8 @@ export function AstraParityExamPrep({
   const [schoolOptions, setSchoolOptions] = useState<string[]>([]);
   const [pickingSchool, setPickingSchool] = useState(!initialSchoolName);
   const [savingSchool, setSavingSchool] = useState(false);
+  const [query, setQuery] = useState("");
+  const [howOpen, setHowOpen] = useState(false);
 
   useEffect(() => {
     setSchoolName(initialSchoolName);
@@ -90,68 +96,104 @@ export function AstraParityExamPrep({
     router.replace(q ? `?${q}` : "/deneme-sinavlari", { scroll: false });
   }
 
-  const prep = activePrep ?? {
-    id: "empty",
-    title: "İlk sınav hazırlığını oluştur",
-    progressPct: 0,
-    daysLabel: "—",
-    topicsDone: 0,
-    topicsTotal: 0,
-    targetScore: null,
-    continueHref: "/deneme-sinavlari/olustur",
-  };
-
+  const prep = activePrep;
+  const needle = query.trim().toLowerCase();
+  function matches(card: ExamPrepCard) {
+    if (!needle) return true;
+    return `${card.title} ${card.examType ?? ""} ${card.daysLabel}`
+      .toLowerCase()
+      .includes(needle);
+  }
+  const visibleActive = prep && matches(prep) ? prep : null;
+  const visibleOthers = otherPreps.filter(matches);
   const targetMarker =
-    prep.targetScore != null && prep.targetScore > 0
-      ? Math.min(100, Math.max(8, prep.targetScore))
+    visibleActive?.targetScore != null && visibleActive.targetScore > 0
+      ? Math.min(100, Math.max(8, visibleActive.targetScore))
       : 72;
 
   return (
     <div className="ap-exam-page">
       <div className="ap-exam-section-head">
-        <Link href="/deneme-sinavlari/olustur">
+        <span>
           Sınav hazırlıklarım
-          <span aria-hidden>›</span>
-        </Link>
+          <span aria-hidden> ›</span>
+        </span>
         <Link href="/deneme-sinavlari/olustur" className="ap-exam-create">
           + Oluştur
         </Link>
       </div>
 
-      <article className="ap-exam-active-card">
-        <h2 className="ap-exam-active-title">{prep.title}</h2>
-        <div className="ap-exam-progress-wrap">
-          <span
-            className="ap-exam-target-label"
-            style={{ left: `${targetMarker}%` }}
-          >
-            hedef puan
-          </span>
-          <div className="ap-exam-progress-track">
-            <div
-              className="ap-exam-progress-fill"
-              style={{ width: `${prep.progressPct}%` }}
-            />
+      <div className="ap-exam-hub-tools">
+        <label className="ap-exam-search">
+          <Search className="h-4 w-4" aria-hidden />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Ara"
+            aria-label="Hazırlık ara"
+          />
+        </label>
+        <button type="button" className="ap-exam-how" onClick={() => setHowOpen(true)}>
+          <HelpCircle className="h-4 w-4" aria-hidden />
+          Nasıl çalışır
+        </button>
+      </div>
+
+      {visibleActive ? (
+        <article className="ap-exam-active-card">
+          <h2 className="ap-exam-active-title">{visibleActive.title}</h2>
+          <div className="ap-exam-progress-wrap">
             <span
-              className="ap-exam-target-marker"
+              className="ap-exam-target-label"
               style={{ left: `${targetMarker}%` }}
-              aria-hidden
-            />
-          </div>
-          <p className="ap-exam-progress-pct">{prep.progressPct}%</p>
-        </div>
-        <div className="ap-exam-active-footer">
-          <div className="ap-exam-active-meta">
-            <span>{prep.daysLabel}</span>
-            <span>
-              {prep.topicsDone} / {prep.topicsTotal} konu
+            >
+              hedef puan
             </span>
+            <div className="ap-exam-progress-track">
+              <div
+                className="ap-exam-progress-fill"
+                style={{ width: `${visibleActive.progressPct}%` }}
+              />
+              <span
+                className="ap-exam-target-marker"
+                style={{ left: `${targetMarker}%` }}
+                aria-hidden
+              />
+            </div>
+            <p className="ap-exam-progress-pct">{visibleActive.progressPct}%</p>
           </div>
-          <Link href={prep.continueHref} className="ap-exam-continue">
-            Devam et
-          </Link>
-        </div>
-      </article>
+          <div className="ap-exam-active-footer">
+            <div className="ap-exam-active-meta">
+              <span>{visibleActive.daysLabel}</span>
+              <span>
+                {visibleActive.topicsDone} / {visibleActive.topicsTotal} konu
+              </span>
+            </div>
+            <Link href={visibleActive.continueHref} className="ap-exam-continue">
+              {visibleActive.topicsDone === visibleActive.topicsTotal && visibleActive.topicsTotal > 0
+                ? "Deneme çöz"
+                : "Devam et"}
+            </Link>
+          </div>
+        </article>
+      ) : needle ? (
+        visibleOthers.length === 0 && tab === "cortex" ? (
+          <p className="ap-exam-search-empty">Bu aramaya uyan hazırlık yok.</p>
+        ) : null
+      ) : !prep ? (
+        <article className="ap-exam-active-card">
+          <h2 className="ap-exam-active-title">İlk sınav hazırlığını oluştur</h2>
+          <p className="mt-2 text-sm text-[var(--ap-muted)]">
+            Sınavında neler var söyle; konuları sohbetle topla, tarihi seç, yolda ilerle.
+          </p>
+          <div className="ap-exam-active-footer">
+            <span />
+            <Link href="/deneme-sinavlari/olustur" className="ap-exam-continue">
+              Oluştur
+            </Link>
+          </div>
+        </article>
+      ) : null}
 
       <div className="ap-exam-segment" role="tablist" aria-label="Kaynak">
         <button
@@ -227,7 +269,7 @@ export function AstraParityExamPrep({
             <article className="ap-exam-discover-card">
               <h3 className="ap-exam-discover-title">{schoolName}</h3>
               <p className="ap-exam-discover-desc">
-                Okuluna özel yazılı ve müfredat yolları burada.
+                Okul yazılısı oluştur; konular ders ders ilerler.
               </p>
               <div className="ap-exam-school-actions">
                 <Link
@@ -235,9 +277,6 @@ export function AstraParityExamPrep({
                   className="ap-exam-discover-cta"
                 >
                   Okul yazılısı oluştur
-                </Link>
-                <Link href="/calisma-plani" className="ap-exam-discover-cta">
-                  Müfredatı aç
                 </Link>
                 <button
                   type="button"
@@ -255,34 +294,80 @@ export function AstraParityExamPrep({
         )
       ) : (
         <div className="ap-exam-discover-grid">
-          <article className="ap-exam-discover-card ap-exam-discover-card--curriculum">
-            <div className="ap-exam-discover-icon ap-exam-discover-icon--user">
-              {userInitial?.slice(0, 1) ?? "?"}
+          {visibleOthers.map((item) => (
+            <article key={item.id} className="ap-exam-discover-card ap-exam-discover-card--curriculum">
+              <div className="ap-exam-discover-icon ap-exam-discover-icon--user">
+                <BookOpen className="h-4 w-4 text-sky-400" aria-hidden />
+              </div>
+              <h3 className="ap-exam-discover-title">{item.title}</h3>
+              <p className="ap-exam-discover-desc">
+                {item.topicsDone} / {item.topicsTotal} konu · {item.daysLabel}
+              </p>
+              <Link href={`/deneme-sinavlari/${item.id}`} className="ap-exam-discover-cta">
+                Aç
+              </Link>
+            </article>
+          ))}
+          {!needle ? (
+            <article className="ap-exam-discover-card ap-exam-discover-card--brand">
+              <div className="ap-exam-discover-icon ap-exam-discover-icon--brand">
+                {userInitial?.slice(0, 1) ?? "✦"}
+              </div>
+              <h3 className="ap-exam-discover-title">Yeni hazırlık</h3>
+              <p className="ap-exam-discover-desc">
+                TYT, AYT, LGS veya okul yazılısı — konuları seç, ders ders ilerle.
+              </p>
+              <Link href="/deneme-sinavlari/olustur" className="ap-exam-discover-cta">
+                Oluştur
+              </Link>
+            </article>
+          ) : null}
+        </div>
+      )}
+
+      {howOpen ? (
+        <div
+          className="ap-exam-how-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="exam-how-title"
+          onClick={() => setHowOpen(false)}
+        >
+          <article className="ap-exam-how-sheet" onClick={(event) => event.stopPropagation()}>
+            <div className="ap-exam-how-head">
+              <h2 id="exam-how-title">Nasıl çalışır</h2>
+              <button type="button" aria-label="Kapat" onClick={() => setHowOpen(false)}>
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <h3 className="ap-exam-discover-title">Matematik müfredatım</h3>
-            <p className="ap-exam-discover-desc">
-              Matematik müfredatından önceden hazırlanmış öğrenme yolları.
-            </p>
-            <Link href="/calisma-plani" className="ap-exam-discover-cta">
-              Keşfet
-            </Link>
-          </article>
-          <article className="ap-exam-discover-card ap-exam-discover-card--brand">
-            <div className="ap-exam-discover-icon ap-exam-discover-icon--brand">
-              ✦
-            </div>
-            <h3 className="ap-exam-discover-title">
-              Cortex Plus tarafından önceden hazırlanmış
-            </h3>
-            <p className="ap-exam-discover-desc">
-              Bilgini genişletmek için seçilmiş konular.
-            </p>
-            <Link href="/quizler" className="ap-exam-discover-cta">
-              Keşfet
+            <ol className="ap-exam-how-steps">
+              <li>
+                <strong>Sınavını anlat</strong>
+                <span>Sohbette neler çıkacağını söyle. Konular toplanır, sınav tarihini seçersin.</span>
+              </li>
+              <li>
+                <strong>Hadi başlayalım</strong>
+                <span>Bir konu seç. 5 soruluk tanışma testi gelir; bazı sorularda birden fazla yanıt vardır.</span>
+              </li>
+              <li>
+                <strong>Yolda ilerle</strong>
+                <span>Podcast, alıştırma, quiz, sözlü ve deneme sırayla açılır. Kilitli düğümler önceki bitince çözülür.</span>
+              </li>
+              <li>
+                <strong>Ders bitince</strong>
+                <span>Skorunu gör, eğitmenden kısa not al, sonraki düğüme geç.</span>
+              </li>
+            </ol>
+            <Link
+              href="/deneme-sinavlari/olustur"
+              className="ap-exam-continue ap-exam-continue--primary"
+              onClick={() => setHowOpen(false)}
+            >
+              Hazırlık oluştur
             </Link>
           </article>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

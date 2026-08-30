@@ -6,8 +6,8 @@ import { formatStructuredLesson } from "@/lib/learning/exam-lesson";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
-  sessionId: z.string().uuid().optional(),
-  conversationId: z.string().uuid().optional(),
+  topicId: z.string().uuid(),
+  force: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
-  const { prepId, sessionId, conversationId } = parsed.data;
+  const { prepId, topicId, force } = parsed.data;
 
   const { data: prep } = await service
     .from("exam_preps")
@@ -29,52 +29,18 @@ export async function POST(request: Request) {
 
   if (!prep) return errorResponse(404, "not_found");
 
-  let convId = conversationId;
-  if (!convId && sessionId) {
-    const { data: session } = await service
-      .from("exam_prep_sessions")
-      .select("conversation_id")
-      .eq("id", sessionId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    convId = session?.conversation_id ?? undefined;
-  }
-
-  if (!convId) {
-    const { data: fallbackSession } = await service
-      .from("exam_prep_sessions")
-      .select("conversation_id")
-      .eq("exam_prep_id", prepId)
-      .eq("user_id", userId)
-      .eq("status", "active")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    convId = fallbackSession?.conversation_id ?? undefined;
-  }
-
-  let transcript = "";
-  if (convId) {
-    const { data: rows } = await service
-      .from("messages")
-      .select("role, content, created_at")
-      .eq("conversation_id", convId)
-      .order("created_at", { ascending: true })
-      .limit(40);
-
-    transcript = (rows ?? [])
-      .filter((m) => typeof m.content === "string" && m.content.trim())
-      .slice(-12)
-      .map((m) => `${m.role === "user" ? "Öğrenci" : "Öğretmen"}: ${(m.content as string).trim()}`)
-      .join("\n");
-  }
-
-  const { data: topics } = await service
+  const { data: topic } = await service
     .from("exam_prep_topics")
-    .select("label")
+    .select("id, label, lesson_id, status")
+    .eq("id", topicId)
     .eq("exam_prep_id", prepId)
-    .order("sort_order");
-  const topicLabels = (topics ?? []).map((t) => t.label as string);
+    .maybeSingle();
+
+  if (!topic) return errorResponse(404, "not_found");
+
+  if (topic.lesson_id && !force) {
+    return NextResponse.json({ ok: true, lessonId: topic.lesson_id, reused: true });
+  }
 
   const lessonSchema = z.object({
     title: z.string().min(2).max(120),
@@ -98,9 +64,10 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
       'Yalnızca JSON: {"title":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"summary":string[],"nextFocus":string[]}',
-    userPrompt: `Öğrenci için Türkçe, sınava hazırlık dersi yaz. Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}). Konular: ${
-      topicLabels.join(", ") || "genel tekrar"
-    }. Sohbet notları:\n${transcript || "Sohbet henüz yok; konuları temelden anlat."}\n\nAnlatım + 1 çözümlü örnek + özet + sonraki odak. Astra tarzı ders notu; sohbet dökümü değil.`,
+    userPrompt: `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
+Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
+Bu dersin konusu YALNIZCA: ${topic.label}.
+Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.`,
     parse: (raw) => {
       const result = lessonSchema.safeParse(raw);
       return result.success ? result.data : null;
@@ -109,50 +76,32 @@ export async function POST(request: Request) {
 
   const contentMd = outcome.ok
     ? formatStructuredLesson(outcome.data)
-    : transcript
-      ? transcript
-          .split("\n")
-          .map((line) =>
-            line.startsWith("Öğrenci:")
-              ? `**Sen:** ${line.slice(8).trim()}`
-              : `**Cortex:** ${line.replace(/^Öğretmen:\s*/, "").trim()}`,
-          )
-          .join("\n\n")
-      : `${prep.title ?? "Ders"} — anlatım henüz üretilemedi. Çalışma oturumuna dönüp birkaç soru sor.`;
-
-  const title = outcome.ok
-    ? outcome.data.title
-    : `${prep.title ?? "Sınav"} · ders`;
+    : `## ${topic.label}\n\nBu konu için anlatım henüz üretilemedi. Tekrar dene.`;
+  const title = outcome.ok ? outcome.data.title : topic.label;
 
   const { data: lesson, error: lessonError } = await service
     .from("exam_prep_lessons")
     .insert({
       exam_prep_id: prepId,
+      topic_id: topicId,
       title,
       content_md: contentMd,
-      conversation_id: convId ?? null,
     })
     .select("id")
     .single();
 
   if (lessonError || !lesson) return errorResponse(500, "generation_failed");
 
-  if (sessionId) {
-    await service
-      .from("exam_prep_sessions")
-      .update({ lesson_id: lesson.id })
-      .eq("id", sessionId)
-      .eq("user_id", userId);
-  } else {
-    await service
-      .from("exam_prep_sessions")
-      .update({ lesson_id: lesson.id })
-      .eq("exam_prep_id", prepId)
-      .eq("user_id", userId)
-      .eq("status", "active");
-  }
+  await service
+    .from("exam_prep_topics")
+    .update({
+      lesson_id: lesson.id,
+      status: topic.status === "done" ? "done" : "in_progress",
+    })
+    .eq("id", topicId)
+    .eq("exam_prep_id", prepId);
 
-  return NextResponse.json({ ok: true, lessonId: lesson.id });
+  return NextResponse.json({ ok: true, lessonId: lesson.id, reused: false });
 }
 
 const patchSchema = z.object({

@@ -1,12 +1,10 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ReviewTools } from "@/components/parity/review-tools";
 import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ExamQuestionReviewClient } from "@/components/parity/exam-question-review-client";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
-import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Soru inceleme" };
+export const metadata = { title: "Soru İnceleme · Astra AI" };
 
 export default async function ExamQuestionReviewPage({
   params,
@@ -49,83 +47,33 @@ export default async function ExamQuestionReviewPage({
       : Promise.resolve({ data: [] as never[] }),
   ]);
 
-  const reviewByQuestion = new Map(
-    (reviews ?? []).map((row) => [row.question_id as string, row]),
-  );
+  const mappedQuestions = (questions ?? []).map((q) => ({
+    id: q.id as string,
+    question_text: q.question_text as string,
+    options: (q.options as string[]) ?? [],
+    correct_answer: q.correct_answer as string | null,
+    sort_order: (q.sort_order as number) ?? 0,
+  }));
+
+  const mappedReviews = (reviews ?? []).map((r) => ({
+    id: r.id as string,
+    question_id: r.question_id as string,
+    user_answer: r.user_answer as string | null,
+    is_correct: Boolean(r.is_correct),
+    explanation: r.explanation as string | null,
+    liked: Boolean(r.liked),
+  }));
 
   return (
     <AstraParitySorShell {...shell}>
-      <div className="ap-exam-page ap-exam-review">
-        <Link
-          href={`/deneme-sinavlari/${prepId}/sonuc?examId=${examId}${
-            attempt?.score != null ? `&score=${attempt.score}` : ""
-          }`}
-          className="ap-back-pill"
-        >
-          ← Sonuca dön
-        </Link>
-        <div className="ap-exam-result-divider" aria-hidden />
-        <h1>Soru soru incele</h1>
-        <p className="text-sm text-[var(--ap-muted)]">{exam.title}</p>
-
-        <ol className="ap-exam-review-list">
-          {(questions ?? []).map((question, index) => {
-            const review = reviewByQuestion.get(question.id as string);
-            const options = (question.options as string[]) ?? [];
-            const explanation =
-              review?.explanation ||
-              `Doğru yanıt: ${question.correct_answer ?? "—"}`;
-            const speakText = `${question.question_text}. ${explanation}`;
-            return (
-              <li key={question.id} className="ap-exam-review-card">
-                <p className="ap-exam-review-index">Soru {index + 1}</p>
-                <p className="ap-exam-runner-q">{question.question_text}</p>
-                <ul className="ap-exam-options">
-                  {options.map((option) => {
-                    const isCorrect = option === question.correct_answer;
-                    const isPicked = option === review?.user_answer;
-                    return (
-                      <li
-                        key={option}
-                        className={cn(
-                          "ap-exam-option",
-                          isCorrect && "ap-exam-option--correct",
-                          isPicked && !isCorrect && "ap-exam-option--wrong",
-                        )}
-                      >
-                        <span>{option}</span>
-                        {isCorrect ? <em>Doğru</em> : null}
-                        {isPicked && !isCorrect ? <em>Senin yanıtın</em> : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-                <p
-                  className={cn(
-                    "ap-exam-review-verdict",
-                    review?.is_correct
-                      ? "ap-exam-review-verdict--ok"
-                      : "ap-exam-review-verdict--bad",
-                  )}
-                >
-                  {review?.is_correct ? "Doğru" : "Yanlış"}
-                </p>
-                <p className="ap-exam-review-explain">{explanation}</p>
-                {review ? (
-                  <ReviewTools
-                    text={speakText}
-                    initialLiked={Boolean(review.liked)}
-                    likeHref="/api/learning/exam/review-like"
-                    likeBody={{ reviewId: review.id }}
-                    copyLabel="Açıklama kopyalandı."
-                    ariaLabel={`Soru ${index + 1} araçları`}
-                  />
-                ) : null}
-              </li>
-            );
-          })}
-        </ol>
-      </div>
+      <ExamQuestionReviewClient
+        prepId={prepId}
+        examId={examId}
+        examTitle={exam.title ?? "Deneme Sınavı"}
+        score={attempt?.score != null ? Number(attempt.score) : null}
+        questions={mappedQuestions}
+        reviews={mappedReviews}
+      />
     </AstraParitySorShell>
   );
 }

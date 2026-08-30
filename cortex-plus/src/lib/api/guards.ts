@@ -66,6 +66,7 @@ export function errorResponse(status: number, code: string) {
     invalid_input: "Gönderilen bilgiler geçersiz.",
     not_found: "Kayıt bulunamadı.",
     forbidden: "Bu içeriğe erişim yetkin yok.",
+    no_topics: "Önce en az bir konu ekle.",
   };
   return NextResponse.json(
     { error: messages[code] ?? "Beklenmeyen bir hata oluştu." },

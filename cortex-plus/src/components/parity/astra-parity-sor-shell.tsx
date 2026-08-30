@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/astra-gamification";
 import { AstraGamificationGate } from "@/components/parity/astra-gamification";
 import { ParityDialogHost, MenuDialogUrlSync } from "@/components/parity/parity-dialog-host";
+import { PlusLimitBanner } from "@/components/paywall/plus-limit-banner";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
 import { studentTopTabs } from "@/components/parity/student-shell-nav";
@@ -57,11 +58,17 @@ export function AstraParitySorShell({
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
+  const [limitDismissed, setLimitDismissed] = useState(false);
   const showBuy = !account?.isPremium;
   const isPremium = Boolean(account?.isPremium);
+  const showPlusLimit = isPremium && account && !account.canSpend && !limitDismissed;
   const isStudio = pathname.startsWith("/studio");
 
   const openMenuFromUrl = useCallback(() => setMenuOpen(true), []);
+
+  useEffect(() => {
+    if (account?.canSpend) setLimitDismissed(false);
+  }, [account?.canSpend]);
 
   useEffect(() => {
     let cancelled = false;
@@ -182,6 +189,10 @@ export function AstraParitySorShell({
           </Link>
         </div>
       </header>
+
+      {showPlusLimit ? (
+        <PlusLimitBanner onDismiss={() => setLimitDismissed(true)} />
+      ) : null}
 
       <main className="ap-sor-main">{children}</main>
 

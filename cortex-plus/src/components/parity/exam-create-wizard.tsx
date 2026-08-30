@@ -41,8 +41,14 @@ export function ExamCreateWizard() {
   }, [examType, topicSearch, topics]);
 
   function applyType(next: (typeof EXAM_TYPES)[number]) {
+    const previousDefaults = DEFAULT_TOPICS[examType] ?? [];
+    const stillDefault =
+      topics.length === previousDefaults.length &&
+      topics.every((topic, index) => topic === previousDefaults[index]);
     setExamType(next);
-    setTopics(DEFAULT_TOPICS[next] ?? DEFAULT_TOPICS.Serbest);
+    if (stillDefault) {
+      setTopics(DEFAULT_TOPICS[next] ?? DEFAULT_TOPICS.Serbest);
+    }
     if (next === "Okul yazılısı") setTitle("Okul yazılısı");
     else if (next === "Serbest") setTitle("Sınav hazırlığım");
     else setTitle(`${next} Matematik`);
@@ -81,8 +87,8 @@ export function ExamCreateWizard() {
         toast.error("Sınav hazırlığı oluşturulamadı.");
         return;
       }
-      toast.success("Hazırlık planın oluşturuldu.");
-      router.push(`/deneme-sinavlari/${payload.prepId}/calis`);
+      toast.success("Hazırlık planın oluşturuldu. İlk konudan başla.");
+      router.push(`/deneme-sinavlari/${payload.prepId}`);
       router.refresh();
     } catch {
       toast.error("Bağlantı hatası.");
@@ -187,7 +193,7 @@ export function ExamCreateWizard() {
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} />
           </label>
           <p className="rounded-xl border border-[var(--ap-border)] bg-[#1a1a1a] p-3 text-sm text-[var(--ap-muted)]">
-            Devam etmeden önce konuları yalnızca burada düzenleyebilirsin; sonra AI ile ders oturumuna geçersin.
+            Devam etmeden önce konuları yalnızca burada düzenleyebilirsin. Sonra her konuyu sırayla açıp dersini üretirsin; bitince deneme çözersin.
           </p>
           <div className="ap-wizard-nav">
             <button type="button" className="ap-chip" onClick={() => setStep(1)}>
