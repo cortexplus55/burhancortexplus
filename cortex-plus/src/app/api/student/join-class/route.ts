@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import {
@@ -84,6 +85,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "join_failed" }, { status: 500 });
   }
 
+  revalidatePath("/siniflar");
+  revalidatePath(`/siniflar/${classroom.id}`);
   return NextResponse.json({
     ok: true,
     classroomId: classroom.id,

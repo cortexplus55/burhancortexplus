@@ -61,7 +61,9 @@ export default async function ExamPrepDetailPage({
             <ul className="ap-more-history">
               {(lessons ?? []).map((lesson) => (
                 <li key={lesson.id} className="ap-more-history-item">
-                  <span>{lesson.title}</span>
+                  <Link href={`/deneme-sinavlari/${prepId}/ders/${lesson.id}`}>
+                    {lesson.title}
+                  </Link>
                 </li>
               ))}
             </ul>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
 import { CreateClassForm } from "@/components/student/create-class-form";
 import { JoinClassForm } from "@/components/student/join-class-form";
@@ -52,26 +53,30 @@ export default async function SiniflarPage() {
         {hasAny ? (
           <ul className="space-y-3">
             {(owned ?? []).map((room) => (
-              <li key={room.id} className="ap-classroom-card">
-                <div className="ap-classroom-icon" aria-hidden />
-                <div>
-                  <p className="font-semibold">{room.name}</p>
-                  <p className="text-xs text-[var(--ap-muted)]">Senin grubun · kod {room.join_code}</p>
-                </div>
-                <span className="ap-classroom-chevron" aria-hidden>›</span>
+              <li key={room.id}>
+                <Link href={`/siniflar/${room.id}`} className="ap-classroom-card">
+                  <div className="ap-classroom-icon" aria-hidden />
+                  <div>
+                    <p className="font-semibold">{room.name}</p>
+                    <p className="text-xs text-[var(--ap-muted)]">Senin grubun · kod {room.join_code}</p>
+                  </div>
+                  <span className="ap-classroom-chevron" aria-hidden>›</span>
+                </Link>
               </li>
             ))}
             {joined.map((room) => (
-              <li key={room.id} className="ap-classroom-card">
-                <div className="ap-classroom-icon ap-classroom-icon--joined" aria-hidden />
-                <div>
-                  <p className="font-semibold">{room.name}</p>
-                  <p className="text-xs text-[var(--ap-muted)]">Katıldığın sınıf</p>
-                </div>
-                <div className="ap-classroom-side">
-                  <p className="text-xs text-[var(--ap-muted)]">Sınav hazırlıkları</p>
-                  <p className="text-sm">Hazırlık yok</p>
-                </div>
+              <li key={room.id}>
+                <Link href={`/siniflar/${room.id}`} className="ap-classroom-card">
+                  <div className="ap-classroom-icon ap-classroom-icon--joined" aria-hidden />
+                  <div>
+                    <p className="font-semibold">{room.name}</p>
+                    <p className="text-xs text-[var(--ap-muted)]">Katıldığın sınıf</p>
+                  </div>
+                  <div className="ap-classroom-side">
+                    <p className="text-xs text-[var(--ap-muted)]">Sınav hazırlıkları</p>
+                    <p className="text-sm">Detay</p>
+                  </div>
+                </Link>
               </li>
             ))}
           </ul>

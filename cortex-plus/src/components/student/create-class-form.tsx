@@ -28,7 +28,11 @@ export function CreateClassForm() {
       }
       toast.success(`Sınıf hazır. Katılım kodu: ${payload.joinCode}`);
       setName("");
-      router.refresh();
+      if (payload.classroomId) {
+        router.push(`/siniflar/${payload.classroomId}`);
+      } else {
+        router.refresh();
+      }
     } catch {
       toast.error("Bağlantı hatası.");
     } finally {

@@ -18,6 +18,14 @@ export default async function ExamPrepSonucPage({
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
+  const { data: latestLesson } = await supabase
+    .from("exam_prep_lessons")
+    .select("id, title")
+    .eq("exam_prep_id", prepId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   let analysisRaw = "";
   let attemptScore: number | null = null;
   if (query.examId) {
@@ -73,18 +81,31 @@ export default async function ExamPrepSonucPage({
         ) : null}
 
         <div className="ap-exam-result-actions">
-          <Link
-            href={`/deneme-sinavlari/${prepId}/calis`}
-            className="ap-exam-continue ap-exam-continue--primary"
-          >
+          {query.examId ? (
+            <Link
+              href={`/deneme-sinavlari/${prepId}/deneme/${query.examId}/incele`}
+              className="ap-exam-continue ap-exam-continue--primary"
+            >
+              Soruları incele
+            </Link>
+          ) : null}
+          <Link href={`/deneme-sinavlari/${prepId}/calis`} className="ap-exam-continue">
             Derse devam et
           </Link>
+          {latestLesson ? (
+            <Link
+              href={`/deneme-sinavlari/${prepId}/ders/${latestLesson.id}`}
+              className="ap-exam-continue"
+            >
+              Dersi oku
+            </Link>
+          ) : null}
           {query.examId ? (
             <Link
               href={`/deneme-sinavlari/${prepId}/deneme/${query.examId}`}
               className="ap-exam-continue"
             >
-              Denemeyi tekrar gözden geçir
+              Denemeyi tekrar çöz
             </Link>
           ) : null}
         </div>

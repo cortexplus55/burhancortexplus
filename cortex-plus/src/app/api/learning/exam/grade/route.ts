@@ -13,6 +13,14 @@ const analysisSchema = z.object({
   summary: z.string().min(1),
   weakTopics: z.array(z.string()).default([]),
   nextSteps: z.array(z.string()).default([]),
+  items: z
+    .array(
+      z.object({
+        questionId: z.string().optional(),
+        explanation: z.string().min(8),
+      }),
+    )
+    .default([]),
 });
 
 export async function POST(request: Request) {
@@ -35,7 +43,7 @@ export async function POST(request: Request) {
 
   const { data: questions } = await service
     .from("practice_exam_questions")
-    .select("id, question_text, correct_answer, points")
+    .select("id, question_text, correct_answer, points, options")
     .eq("exam_id", examId)
     .order("sort_order");
 
@@ -52,16 +60,24 @@ export async function POST(request: Request) {
     .map((q) => q.question_text)
     .slice(0, 15);
 
+  const itemLines = list
+    .map((q, index) => {
+      const given = answers[q.id] || "—";
+      const ok = given === q.correct_answer;
+      return `${index + 1}. id=${q.id} | ${ok ? "doğru" : "yanlış"} | soru: ${q.question_text} | verilen: ${given} | doğru: ${q.correct_answer}`;
+    })
+    .join("\n");
+
   const outcome = await generateJson({
     service,
     userId,
     actionCode: "PRACTICE_EXAM_GRADE",
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
-      'Yalnızca şu JSON şemasını döndür: {"summary": string, "weakTopics": string[], "nextSteps": string[]}',
-    userPrompt: `Sınav: ${exam.title}. Puan: ${score}/100. Yanlış yanıtlanan sorular: ${
+      'JSON: {"summary":string,"weakTopics":string[],"nextSteps":string[],"items":[{"questionId":string,"explanation":string}]}',
+    userPrompt: `Sınav: ${exam.title}. Puan: ${score}/100. Yanlışlar: ${
       wrong.length ? wrong.join(" | ") : "yok"
-    }. Öğrenciye kısa ve yapıcı bir analiz üret.`,
+    }.\nHer soru için kısa Türkçe açıklama yaz (neden doğru/yanlış).\n${itemLines}`,
     parse: (raw) => {
       const result = analysisSchema.safeParse(raw);
       return result.success ? result.data : null;
@@ -87,6 +103,35 @@ export async function POST(request: Request) {
     })
     .select("id")
     .single();
+
+  if (attempt) {
+    const explanationById = new Map(
+      (outcome.ok ? outcome.data.items : []).map((item) => [
+        item.questionId ?? "",
+        item.explanation,
+      ]),
+    );
+    await service.from("practice_exam_item_reviews").insert(
+      list.map((q, index) => {
+        const given = answers[q.id] ?? "";
+        const fallback = outcome.ok
+          ? outcome.data.items[index]?.explanation
+          : undefined;
+        return {
+          attempt_id: attempt.id,
+          question_id: q.id,
+          user_answer: given,
+          is_correct: given === q.correct_answer,
+          explanation:
+            explanationById.get(q.id) ??
+            fallback ??
+            (given === q.correct_answer
+              ? "Bu yanıt doğru."
+              : `Doğru yanıt: ${q.correct_answer}`),
+        };
+      }),
+    );
+  }
 
   if (outcome.ok && outcome.data.weakTopics.length) {
     await service.from("weak_topics").insert(

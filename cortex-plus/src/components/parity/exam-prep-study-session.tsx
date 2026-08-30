@@ -22,6 +22,7 @@ export function ExamPrepStudySession({
 }) {
   const router = useRouter();
   const [lessonReady, setLessonReady] = useState(false);
+  const [lessonId, setLessonId] = useState<string | null>(null);
   const [creatingExam, setCreatingExam] = useState(false);
 
   async function finishWithExam() {
@@ -36,7 +37,13 @@ export function ExamPrepStudySession({
           conversationId,
         }),
       });
-      if (lessonRes.ok) setLessonReady(true);
+      if (lessonRes.ok) {
+        const lessonPayload = (await lessonRes.json().catch(() => ({}))) as {
+          lessonId?: string;
+        };
+        if (lessonPayload.lessonId) setLessonId(lessonPayload.lessonId);
+        setLessonReady(true);
+      }
 
       const res = await fetch("/api/learning/exam-prep/mock-exam", {
         method: "POST",
@@ -68,7 +75,13 @@ export function ExamPrepStudySession({
       {lessonReady ? (
         <div className="ap-lesson-created-toast" role="status">
           <span className="ap-lesson-dot" aria-hidden />
-          Ders oluşturuldu
+          {lessonId ? (
+            <Link href={`/deneme-sinavlari/${prepId}/ders/${lessonId}`}>
+              Ders oluşturuldu — aç
+            </Link>
+          ) : (
+            "Ders oluşturuldu"
+          )}
         </div>
       ) : null}
 

@@ -65,7 +65,7 @@ export default async function DenemeSinavlariPage() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
-  const [{ data: plan }, { data: examPrepRow }] = await Promise.all([
+  const [{ data: plan }, { data: examPrepRow }, { data: profile }] = await Promise.all([
     supabase
       .from("study_plans")
       .select("id, title, study_plan_tasks(completed, due_date)")
@@ -80,6 +80,11 @@ export default async function DenemeSinavlariPage() {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("school_name")
+      .eq("id", user.id)
       .maybeSingle(),
   ]);
 
@@ -96,6 +101,7 @@ export default async function DenemeSinavlariPage() {
         <AstraParityExamPrep
           activePrep={activePrep}
           userInitial={shell.userInitial}
+          initialSchoolName={profile?.school_name ?? ""}
         />
       </Suspense>
     </AstraParitySorShell>
