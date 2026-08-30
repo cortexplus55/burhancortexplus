@@ -56,10 +56,21 @@ export async function POST(request: Request) {
     })),
   );
 
+  const { data: rows } = await service
+    .from("flashcards")
+    .select("id, front_text, back_text, sort_order")
+    .eq("set_id", set.id)
+    .order("sort_order");
+
   return NextResponse.json({
     setId: set.id,
     title: outcome.data.title,
     count: outcome.data.cards.length,
     creditsUsed: outcome.cost,
+    cards: (rows ?? []).map((card) => ({
+      id: card.id,
+      front: card.front_text,
+      back: card.back_text,
+    })),
   });
 }

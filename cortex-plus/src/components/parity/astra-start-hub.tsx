@@ -15,12 +15,12 @@ import {
 } from "lucide-react";
 
 const LESSON_TOOLS = [
-  { href: "/quizler", label: "Quiz", icon: FileQuestion },
-  { href: "/ogretmen?mod=sozlu", label: "Sözlü deneme", icon: Mic },
-  { href: "/quizler", label: "Doğru / Yanlış", icon: Check },
-  { href: "/ogretmen?mod=podcast", label: "Podcast", icon: Headphones },
-  { href: "/flashcardlar", label: "Flash kartlar", icon: Layers },
-  { href: "/deneme-sinavlari", label: "Yazılı deneme", icon: Timer },
+  { id: "quiz", href: "/studio/quiz", label: "Quiz", hint: "Çoktan seçmeli", icon: FileQuestion },
+  { id: "sozlu", href: "/studio/sozlu", label: "Sözlü deneme", hint: "Sesli pratik", icon: Mic },
+  { id: "tf", href: "/studio/dogru-yanlis", label: "Doğru / Yanlış", hint: "Hızlı tur", icon: Check },
+  { id: "podcast", href: "/studio/podcast", label: "Podcast", hint: "Dinleyerek öğren", icon: Headphones },
+  { id: "flash", href: "/studio/flashcard", label: "Flash kartlar", hint: "Kart çalışması", icon: Layers },
+  { id: "yazili", href: "/studio/yazili", label: "Yazılı deneme", hint: "Sınav kağıdı", icon: Timer },
 ] as const;
 
 export function AstraStartHub({
@@ -58,6 +58,7 @@ export function AstraStartHub({
         </div>
 
         <button type="button" className="ap-hub-scan" onClick={onScanProblem}>
+          <span className="ap-hub-scan-scene" aria-hidden />
           <span className="ap-hub-scan-icon" aria-hidden>
             <Camera className="h-6 w-6" />
           </span>
@@ -73,13 +74,19 @@ export function AstraStartHub({
             const Icon = tool.icon;
             return (
               <Link
-                key={tool.label}
+                key={tool.id}
                 href={tool.href}
-                className="ap-hub-tool"
-                onClick={onClose}
+                className={`ap-hub-tool ap-hub-tool--${tool.id}`}
               >
-                <Icon className="h-5 w-5" aria-hidden />
-                {tool.label}
+                <span className="ap-hub-tool-scene" aria-hidden />
+                <span className="ap-hub-tool-glow" aria-hidden />
+                <span className="ap-hub-tool-icon">
+                  <Icon className="h-5 w-5" aria-hidden />
+                </span>
+                <span className="ap-hub-tool-copy">
+                  <span className="ap-hub-tool-label">{tool.label}</span>
+                  <span className="ap-hub-tool-hint">{tool.hint}</span>
+                </span>
               </Link>
             );
           })}
@@ -88,16 +95,18 @@ export function AstraStartHub({
         <div className="ap-hub-foot">
           <Link
             href="/deneme-sinavlari"
-            className="ap-hub-foot-card"
+            className="ap-hub-foot-card ap-hub-foot-card--exam"
             onClick={onClose}
           >
+            <span className="ap-hub-foot-scene" aria-hidden />
             <Target className="h-5 w-5" aria-hidden />
             <span>
               <strong>Sınav hazırlığı</strong>
               <em>{examDaysLabel}</em>
             </span>
           </Link>
-          <Link href="/siniflar" className="ap-hub-foot-card" onClick={onClose}>
+          <Link href="/siniflar" className="ap-hub-foot-card ap-hub-foot-card--class" onClick={onClose}>
+            <span className="ap-hub-foot-scene" aria-hidden />
             <Users className="h-5 w-5" aria-hidden />
             <span>
               <strong>Sınıf arkadaşlarınla bağlantı kur</strong>

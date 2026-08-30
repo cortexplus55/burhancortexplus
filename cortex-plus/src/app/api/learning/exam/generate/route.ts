@@ -78,10 +78,23 @@ export async function POST(request: Request) {
     })),
   );
 
+  const { data: qrows } = await service
+    .from("practice_exam_questions")
+    .select("id, question_text, options, points, sort_order")
+    .eq("exam_id", exam.id)
+    .order("sort_order");
+
   return NextResponse.json({
     examId: exam.id,
     title: outcome.data.title,
+    durationMinutes: outcome.data.durationMinutes,
     questionCount: outcome.data.questions.length,
     creditsUsed: outcome.cost,
+    questions: (qrows ?? []).map((q) => ({
+      id: q.id,
+      text: q.question_text,
+      options: Array.isArray(q.options) ? q.options : [],
+      points: q.points,
+    })),
   });
 }

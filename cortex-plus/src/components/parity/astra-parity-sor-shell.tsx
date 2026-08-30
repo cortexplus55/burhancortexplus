@@ -59,6 +59,7 @@ export function AstraParitySorShell({
   const [streakCount, setStreakCount] = useState(streak);
   const showBuy = !account?.isPremium;
   const isPremium = Boolean(account?.isPremium);
+  const isStudio = pathname.startsWith("/studio");
 
   const openMenuFromUrl = useCallback(() => setMenuOpen(true), []);
 
@@ -115,7 +116,7 @@ export function AstraParitySorShell({
 
   return (
     <StudentShellProvider account={account}>
-      <div className={cn("ap-sor-root", isPremium && "ap-sor-root--plus")}>
+      <div className={cn("ap-sor-root", isPremium && "ap-sor-root--plus", isStudio && "ap-sor-root--studio")}>
       <header className="ap-sor-top">
         <Link href="/ogretmen" className="ap-sor-logo" aria-label="Cortex Plus">
           <span className="ap-sor-logo-word">cortex</span>

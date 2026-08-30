@@ -7,6 +7,7 @@ import { getTeacherEntitlements, incrementTeacherUsage } from "@/lib/teacher/ent
 
 const schema = z.object({
   topic: z.string().min(3).max(500),
+  count: z.number().int().min(4).max(10).optional(),
 });
 
 export async function POST(request: Request) {
@@ -16,7 +17,8 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const { topic } = schema.parse(await request.json());
+  const { topic, count } = schema.parse(await request.json());
+  const questionCount = count ?? 5;
   const service = createServiceClient();
 
   const { data: roleRows } = await service
@@ -58,7 +60,7 @@ export async function POST(request: Request) {
           content:
             "JSON döndür: { title, questions: [{ question, options: string[4], correct }] }",
         },
-        { role: "user", content: `Konu: ${topic}. 5 soruluk quiz üret.` },
+        { role: "user", content: `Konu: ${topic}. ${questionCount} soruluk quiz üret.` },
       ],
       response_format: { type: "json_object" },
     });
@@ -86,6 +88,14 @@ export async function POST(request: Request) {
       );
     }
 
+    const { data: rows } = quiz
+      ? await service
+          .from("quiz_questions")
+          .select("id, question_text, options, correct_answer, sort_order")
+          .eq("quiz_id", quiz.id)
+          .order("sort_order")
+      : { data: null };
+
     await service.rpc("credit_commit", { p_reservation_id: resId });
 
     if (isTeacher) {
@@ -95,7 +105,26 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ quizId: quiz?.id });
+    const questions = (rows ?? []).map((q) => ({
+      id: q.id as string,
+      text: q.question_text as string,
+      options: Array.isArray(q.options) ? (q.options as string[]) : [],
+      correct: (q.correct_answer as string) ?? "",
+    }));
+
+    return NextResponse.json({
+      quizId: quiz?.id,
+      title: parsed.title ?? topic,
+      questions:
+        questions.length > 0
+          ? questions
+          : (parsed.questions ?? []).map((q, i) => ({
+              id: `q-${i}`,
+              text: q.question,
+              options: q.options,
+              correct: q.correct,
+            })),
+    });
   } catch {
     await service.rpc("credit_refund", { p_reservation_id: resId });
     return NextResponse.json({ error: "generate_failed" }, { status: 500 });

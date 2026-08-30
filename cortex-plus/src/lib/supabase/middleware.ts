@@ -22,6 +22,7 @@ const PROTECTED_PREFIXES = [
   "/sinav-hazirligi/app",
   "/quizler",
   "/flashcardlar",
+  "/studio",
   "/deneme-sinavlari",
   "/uygulamalar",
   "/calisma-plani",
