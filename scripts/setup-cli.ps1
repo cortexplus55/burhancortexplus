@@ -3,7 +3,7 @@
 $ErrorActionPreference = "Stop"
 $Root = (Join-Path $PSScriptRoot ".." | Resolve-Path).Path
 
-Write-Host "1/2 Vercel (cortexplus55/burhancortexplus)" -ForegroundColor Cyan
+Write-Host "1/2 Vercel (cortexplus55/burhancortexplus-app)" -ForegroundColor Cyan
 & (Join-Path $Root "cortex-plus/scripts/setup-vercel-link.ps1")
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
