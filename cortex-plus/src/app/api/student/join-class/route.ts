@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { readJson, withUser } from "@/lib/api/guards";
 import {
   countTeacherStudents,
   getTeacherEntitlements,
@@ -11,19 +11,17 @@ const schema = z.object({
   code: z.string().min(4).max(12),
 });
 
+// A join code is short enough to enumerate, so the per-user ceiling here is the
+// thing standing between a logged-in account and every classroom on the site.
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const guard = await withUser(request, { scope: "join-class", limit: 10 });
+  if (!guard.ok) return guard.response;
+  const { userId, supabase, service } = guard.ctx;
 
   const roles = await supabase
     .from("user_roles")
     .select("role")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .is("revoked_at", null);
 
   const roleList = (roles.data ?? []).map((r) => r.role as string);
@@ -34,13 +32,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "student_only" }, { status: 403 });
   }
 
-  const parsed = schema.safeParse(await request.json());
+  const parsed = schema.safeParse(await readJson(request));
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid_code" }, { status: 400 });
   }
 
   const code = parsed.data.code.trim().toUpperCase();
-  const service = createServiceClient();
 
   const { data: classroom } = await service
     .from("classrooms")
@@ -56,7 +53,7 @@ export async function POST(request: Request) {
     .from("classroom_members")
     .select("id")
     .eq("classroom_id", classroom.id)
-    .eq("student_id", user.id)
+    .eq("student_id", userId)
     .maybeSingle();
 
   if (existing) {
@@ -78,7 +75,7 @@ export async function POST(request: Request) {
 
   const { error } = await supabase.from("classroom_members").insert({
     classroom_id: classroom.id,
-    student_id: user.id,
+    student_id: userId,
   });
 
   if (error) {

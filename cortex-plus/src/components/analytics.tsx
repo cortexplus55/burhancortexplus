@@ -19,7 +19,10 @@ declare global {
 export function Analytics() {
   const pathname = usePathname();
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.i.posthog.com";
+  // `||`: the var is usually present but empty, which `??` would pass through
+  // as an empty api_host.
+  const host =
+    process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://eu.i.posthog.com";
 
   useEffect(() => {
     if (!key) return;

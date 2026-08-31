@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/guards";
 
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  // Fired on each keystroke of the school typeahead, so the ceiling is high.
+  const guard = await withUser(request, { scope: "schools-search", limit: 90 });
+  if (!guard.ok) return guard.response;
+  const { supabase } = guard.ctx;
 
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") ?? "").trim().slice(0, 80);

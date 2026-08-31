@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import OpenAI from "openai";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { errorResponse, readJson, withUser } from "@/lib/api/guards";
+import { newIdempotencyKey } from "@/lib/credits/service";
 import { env } from "@/lib/env";
 import { getTeacherEntitlements, incrementTeacherUsage } from "@/lib/teacher/entitlements";
 
@@ -11,20 +12,19 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const guard = await withUser(request, { scope: "quiz", limit: 8 });
+  if (!guard.ok) return guard.response;
+  const { userId, service } = guard.ctx;
 
-  const { topic, count } = schema.parse(await request.json());
+  const parsed = schema.safeParse(await readJson(request));
+  if (!parsed.success) return errorResponse(400, "invalid_input");
+  const { topic, count } = parsed.data;
   const questionCount = count ?? 5;
-  const service = createServiceClient();
 
   const { data: roleRows } = await service
     .from("user_roles")
     .select("role")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .is("revoked_at", null);
   const roles = (roleRows ?? []).map((r) => r.role as string);
   const isTeacher =
@@ -32,16 +32,16 @@ export async function POST(request: Request) {
     roles.includes("verified_teacher");
 
   if (isTeacher) {
-    const entitlements = await getTeacherEntitlements(service, user.id, roles);
+    const entitlements = await getTeacherEntitlements(service, userId, roles);
     if (!entitlements?.canGenerateQuiz()) {
       return NextResponse.json({ error: "teacher_quiz_locked" }, { status: 403 });
     }
   }
 
-  const idempotencyKey = `quiz_${user.id}_${Date.now()}`;
+  const idempotencyKey = newIdempotencyKey(`quiz_${userId}`);
 
   const { data: resId, error: reserveError } = await service.rpc("credit_reserve", {
-    p_user_id: user.id,
+    p_user_id: userId,
     p_action_code: "QUIZ_GENERATE",
     p_idempotency_key: idempotencyKey,
   });
@@ -65,20 +65,20 @@ export async function POST(request: Request) {
       response_format: { type: "json_object" },
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(raw) as {
+    const generated = JSON.parse(raw) as {
       title?: string;
       questions?: { question: string; options: string[]; correct: string }[];
     };
 
     const { data: quiz } = await service
       .from("quizzes")
-      .insert({ user_id: user.id, title: parsed.title ?? topic })
+      .insert({ user_id: userId, title: generated.title ?? topic })
       .select("id")
       .single();
 
-    if (quiz && parsed.questions) {
+    if (quiz && generated.questions) {
       await service.from("quiz_questions").insert(
-        parsed.questions.map((q, i) => ({
+        generated.questions.map((q, i) => ({
           quiz_id: quiz.id,
           question_text: q.question,
           options: q.options,
@@ -99,9 +99,9 @@ export async function POST(request: Request) {
     await service.rpc("credit_commit", { p_reservation_id: resId });
 
     if (isTeacher) {
-      const entitlements = await getTeacherEntitlements(service, user.id, roles);
+      const entitlements = await getTeacherEntitlements(service, userId, roles);
       if (entitlements?.tier === "pending") {
-        await incrementTeacherUsage(service, user.id, "quizzes_generated");
+        await incrementTeacherUsage(service, userId, "quizzes_generated");
       }
     }
 
@@ -114,11 +114,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       quizId: quiz?.id,
-      title: parsed.title ?? topic,
+      title: generated.title ?? topic,
       questions:
         questions.length > 0
           ? questions
-          : (parsed.questions ?? []).map((q, i) => ({
+          : (generated.questions ?? []).map((q, i) => ({
               id: `q-${i}`,
               text: q.question,
               options: q.options,

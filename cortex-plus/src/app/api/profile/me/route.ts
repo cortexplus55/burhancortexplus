@@ -1,20 +1,16 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { readJson, withUser } from "@/lib/api/guards";
 
-export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+export async function GET(request: Request) {
+  const guard = await withUser(request, { scope: "profile-read", limit: 60 });
+  if (!guard.ok) return guard.response;
+  const { userId, supabase } = guard.ctx;
 
   const { data } = await supabase
     .from("profiles")
     .select("school_name, daily_goal_minutes, learning_role, full_name")
-    .eq("id", user.id)
+    .eq("id", userId)
     .maybeSingle();
 
   return NextResponse.json({
@@ -32,15 +28,11 @@ const patchSchema = z.object({
 });
 
 export async function PATCH(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const guard = await withUser(request, { scope: "profile-write", limit: 20 });
+  if (!guard.ok) return guard.response;
+  const { userId, supabase } = guard.ctx;
 
-  const parsed = patchSchema.safeParse(await request.json());
+  const parsed = patchSchema.safeParse(await readJson(request));
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
@@ -48,7 +40,7 @@ export async function PATCH(request: Request) {
   const { error } = await supabase
     .from("profiles")
     .update(parsed.data)
-    .eq("id", user.id);
+    .eq("id", userId);
 
   if (error) {
     return NextResponse.json({ error: "update_failed" }, { status: 500 });
