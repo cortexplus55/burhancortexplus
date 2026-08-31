@@ -87,42 +87,39 @@ export async function POST(request: Request) {
     .eq("merchant_oid", merchantOid);
 
   if (creditAmount > 0) {
-    const { data: wallet } = await service
-      .from("credit_wallets")
-      .select("balance")
-      .eq("user_id", walletUserId)
-      .maybeSingle();
-
-    const newBalance = (wallet?.balance ?? 0) + creditAmount;
-
-    if (wallet) {
-      await service
-        .from("credit_wallets")
-        .update({ balance: newBalance, updated_at: now })
-        .eq("user_id", walletUserId);
-    } else {
-      await service.from("credit_wallets").insert({
-        user_id: walletUserId,
-        balance: newBalance,
-        reserved: 0,
-        updated_at: now,
-      });
-    }
-
-    // Unique idempotency key blocks a second credit grant for the same order.
-    await service.from("credit_ledger").insert({
-      user_id: walletUserId,
-      delta: creditAmount,
-      balance_after: newBalance,
-      entry_type: "purchase",
-      idempotency_key: `pay_${merchantOid}`,
-      reference_id: payment.id,
-      metadata: {
+    // Locks the wallet row and writes the ledger entry in one statement, so two
+    // deliveries landing together cannot overwrite each other's balance. The
+    // unique idempotency key still blocks a second grant for the same order.
+    const { error: topupError } = await service.rpc("credit_topup", {
+      p_user_id: walletUserId,
+      p_amount: creditAmount,
+      p_idempotency_key: `pay_${merchantOid}`,
+      p_reference_id: payment.id,
+      p_metadata: {
         merchant_oid: merchantOid,
         paid_by: payerId,
         beneficiary: walletUserId,
       },
     });
+
+    if (topupError) {
+      // Asking PayTR to redeliver would not help: the replay guard above has
+      // already claimed this delivery, so a retry returns early. Record it
+      // loudly instead — the payment is marked paid and the grant is not, which
+      // needs a human.
+      await auditLog(service, {
+        actorId: payerId,
+        action: "payment.topup_failed",
+        entityType: "payment",
+        entityId: merchantOid,
+        metadata: {
+          credits: creditAmount,
+          beneficiary: walletUserId,
+          reason: topupError.message,
+        },
+      });
+      return OK();
+    }
   }
 
   const notices: {

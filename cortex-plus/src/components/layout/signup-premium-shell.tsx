@@ -32,9 +32,10 @@ export function SignupPremiumShell({
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cx-gold)]">
               Cortex Plus
             </p>
-            <h1 className="cortex-premium-auth__hero-title">
+            {/* The wizard's step title is the h1; this panel is a standing ad. */}
+            <h2 className="cortex-premium-auth__hero-title">
               Dakikalar içinde kişisel AI öğretmenin
-            </h1>
+            </h2>
             <p className="cortex-premium-auth__hero-lead">
               Sınıfını ve hedefini söyle — deneme analizi, soru çözümü ve çalışma
               planı aynı uygulamada.

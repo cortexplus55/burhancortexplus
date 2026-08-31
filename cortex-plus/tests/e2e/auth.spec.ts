@@ -33,7 +33,9 @@ test.describe("authentication guards", () => {
 
   test("legacy teacher panel URL redirects to student hub", async ({ page }) => {
     await page.goto("/ogretmen-paneli");
-    await expect(page).toHaveURL(/\/ogretmen$/);
+    // Two hops for an anonymous visitor: retired -> /ogretmen, which is itself
+    // protected and hands off to sign-in carrying the destination.
+    await expect(page).toHaveURL(/\/giris\?next=%2Fogretmen$/);
   });
 
   test("sign-in form validates required fields", async ({ page }) => {

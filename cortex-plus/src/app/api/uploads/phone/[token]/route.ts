@@ -1,11 +1,24 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { storeUserDocument } from "@/lib/documents/store-upload";
+import { clientKey, rateLimit } from "@/lib/rate-limit";
+
+/**
+ * This pair is reached from a phone that never signs in, so the token is the
+ * only credential and the address is the only thing left to meter. The token
+ * itself is 128 bits of `randomBytes`, but without a ceiling here an attacker
+ * can still grind tokens — and upload into whatever session they land on.
+ */
+const tooManyRequests = () =>
+  NextResponse.json({ error: "rate_limited" }, { status: 429 });
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
+  const gate = await rateLimit(clientKey(request, "phone-upload-check"), 60, 60);
+  if (!gate.allowed) return tooManyRequests();
+
   const { token } = await params;
   const service = createServiceClient();
   const { data } = await service
@@ -30,6 +43,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
+  const gate = await rateLimit(clientKey(request, "phone-upload"), 12, 60);
+  if (!gate.allowed) return tooManyRequests();
+
   const { token } = await params;
   const service = createServiceClient();
   const { data: session } = await service

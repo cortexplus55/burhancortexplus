@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/guards";
 import { storeUserDocument } from "@/lib/documents/store-upload";
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const guard = await withUser(request, { scope: "doc-upload", limit: 20 });
+  if (!guard.ok) return guard.response;
+  const { userId, service } = guard.ctx;
 
   const form = await request.formData();
   const file = form.get("file");
@@ -15,7 +13,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_file" }, { status: 400 });
   }
 
-  const stored = await storeUserDocument(createServiceClient(), user.id, file);
+  const stored = await storeUserDocument(service, userId, file);
   if (!stored.ok) {
     return NextResponse.json({ error: stored.error }, { status: 400 });
   }

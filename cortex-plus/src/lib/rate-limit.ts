@@ -52,8 +52,19 @@ export async function rateLimit(
   return { allowed: bucket.count <= limit, remaining: Math.max(0, limit - bucket.count) };
 }
 
+/**
+ * Vercel sets `x-vercel-forwarded-for` itself and strips any client-supplied
+ * copy, so it is preferred over `x-forwarded-for`, whose leftmost entry is only
+ * trustworthy because the platform rewrites it.
+ */
 export function clientKey(request: Request, scope: string) {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() ?? "local";
-  return `cortex:${scope}:${ip}`;
+  const trusted = request.headers.get("x-vercel-forwarded-for");
+  const forwarded = trusted ?? request.headers.get("x-forwarded-for");
+  const ip = forwarded?.split(",")[0]?.trim() || "local";
+  return `cortex:ip:${scope}:${ip}`;
+}
+
+/** Per-caller quota key. Survives the caller changing networks. */
+export function userKey(userId: string, scope: string) {
+  return `cortex:user:${scope}:${userId}`;
 }
