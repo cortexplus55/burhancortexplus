@@ -1,14 +1,26 @@
 #Requires -Version 5.1
-# Cortex Plus — Vercel CLI → cortexplus55/burhancortexplus
+# Cortex Plus — Vercel CLI → cortexplus55/burhancortexplus-app
+#
+# The link belongs at the repository root, not in cortex-plus/: the Vercel
+# project already carries "cortex-plus" as its Root Directory. Linking from
+# inside the app folder is what produced a second, competing .vercel link.
 $ErrorActionPreference = "Stop"
-Set-Location (Join-Path $PSScriptRoot "..")
+Set-Location (Join-Path $PSScriptRoot "../..")
 
 $ExpectedTeam = "cortexplus55"
-$ExpectedProject = "burhancortexplus"
+$ExpectedProject = "burhancortexplus-app"
 $ExpectedOrgId = "team_7fZJmWjbQtKXSDwCZCA4s7Ym"
-$ExpectedProjectId = "prj_xd0PYMnQZnaz0Ksh0ksqIR8a9NEm"
+$ExpectedProjectId = "prj_fBxyWhMERs4pZUq9sJMaVa9Gt29A"
 
 Write-Host "Vercel link: $ExpectedTeam / $ExpectedProject" -ForegroundColor Cyan
+
+# A leftover link inside the app folder shadows the root one for any CLI call
+# made from there, so clear it before linking.
+$StaleLink = Join-Path (Get-Location) "cortex-plus/.vercel"
+if (Test-Path $StaleLink) {
+  Write-Host "Eski cortex-plus/.vercel kaldiriliyor..." -ForegroundColor Yellow
+  Remove-Item -Recurse -Force $StaleLink
+}
 
 $teams = npx vercel teams ls 2>&1 | Out-String
 if ($teams -notmatch $ExpectedTeam) {
@@ -35,4 +47,4 @@ if ($linked.orgId -ne $ExpectedOrgId -or $linked.projectId -ne $ExpectedProjectI
   Write-Host "UYARI: project.json ID'ler beklenenden farkli. CLI-CONNECT.md guncelle." -ForegroundColor Yellow
   Write-Host "  orgId=$($linked.orgId) projectId=$($linked.projectId)"
 }
-Write-Host "Tamam: cortexplus55/burhancortexplus" -ForegroundColor Green
+Write-Host "Tamam: cortexplus55/burhancortexplus-app" -ForegroundColor Green

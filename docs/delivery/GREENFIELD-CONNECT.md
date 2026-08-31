@@ -8,7 +8,7 @@
 | **Vercel Root Directory** | `cortex-plus` |
 | **Supabase proje ref** | `dgjfyewgrukglsehyntc` |
 | **Supabase URL** | `https://dgjfyewgrukglsehyntc.supabase.co` |
-| **Vercel CLI link** | team **`cortexplus55`**, proje **`burhancortexplus`** (preview: `burhancortexplus-*-cortexplus55.vercel.app`) |
+| **Vercel CLI link** | team **`cortexplus55`**, proje **`burhancortexplus-app`** — link repo **kökünde** (preview: `burhancortexplus-app-*-cortexplus55.vercel.app`) |
 | **Vercel prod env** | proje **`burhancortexplus-app`** → **`cortexplus.app`** |
 
 **CLI kurulum / doğrulama:** [CLI-CONNECT.md](./CLI-CONNECT.md) · `scripts/setup-cli.ps1` · `scripts/verify-cli.ps1`
@@ -23,10 +23,14 @@ Yol haritası (PayTR hariç sıra): [LAUNCH-SEQUENCE.md](./LAUNCH-SEQUENCE.md) �
 |---------|--------|
 | GitHub `burhancortexplus` | **`main` push edildi** (`cortexplus55`); güncellemeler için `gh auth setup-git` + `git push origin main` |
 | Supabase `dgjfyewgrukglsehyntc` | Şema + seed (ör. **427** okul) |
-| Vercel **cortexplus55 / burhancortexplus** | CLI link; Git deploy preview |
-| Vercel **cortexplus55 / burhancortexplus-app** | Canlı domain **`cortexplus.app`**, production env |
-| Vercel **cortexplus55 / cortexplus-prod** | Yedek proje |
+| Vercel **cortexplus55 / burhancortexplus-app** | **Tek proje.** Canlı domain **`cortexplus.app`** + `www` 308, CLI link, preview'lar |
 | Vercel **eski — kullanma** | `burhan55600-5553s-projects/cortex-plus` → **cortex-plus-theta.vercel.app** |
+
+> **Tek Vercel projesi kuralı.** Bir dönem aynı repoya dört proje bağlıydı
+> (`burhancortexplus`, `cortexplus-prod`, `cortexplus-web` ve bu). Her push
+> dördünü birden derliyordu ve `cortexplus-web`, Supabase anahtarları olmadan
+> herkese açık şekilde yayındaydı — `robots.txt` indekslemeye açık, `noindex`
+> yok. Üçü silindi. Yeni proje açmak yerine mevcut projeye ortam ekleyin.
 
 ### Supabase Auth (Dashboard → Authentication → URL Configuration)
 

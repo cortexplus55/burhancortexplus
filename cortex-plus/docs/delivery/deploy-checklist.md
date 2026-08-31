@@ -1,7 +1,7 @@
 # Cortex Plus — prod deploy kontrol listesi
 
 **GitHub (tek kaynak):** https://github.com/cortexplus55/burhancortexplus · Vercel **Root Directory:** `cortex-plus`  
-**Takım:** **cortexplus55** · Supabase ref **`dgjfyewgrukglsehyntc`** · Vercel proje **`burhancortexplus`**
+**Takım:** **cortexplus55** · Supabase ref **`dgjfyewgrukglsehyntc`** · Vercel proje **`burhancortexplus-app`**
 
 ## 1. Ortam değişkenleri (Vercel)
 

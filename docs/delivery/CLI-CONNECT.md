@@ -6,7 +6,7 @@ Yerel geliştirmede **yalnızca** bu hedefler kullanılır. Eski `burhan55600-55
 |------|--------|
 | **Git** | https://github.com/cortexplus55/burhancortexplus |
 | **GitHub CLI** | Aktif hesap: **`cortexplus55`** |
-| **Vercel CLI** | Takım **`cortexplus55`**, proje **`burhancortexplus`** |
+| **Vercel CLI** | Takım **`cortexplus55`**, proje **`burhancortexplus-app`** |
 | **Supabase CLI** | Ref **`dgjfyewgrukglsehyntc`** (`cortex-plus/supabase`) |
 
 ## Vercel
@@ -14,10 +14,10 @@ Yerel geliştirmede **yalnızca** bu hedefler kullanılır. Eski `burhan55600-55
 | Alan | Değer |
 |------|--------|
 | Team slug | `cortexplus55` |
-| Proje (CLI link) | `burhancortexplus` |
-| Preview örnek | `burhancortexplus-pmhyowmgl-cortexplus55.vercel.app` |
+| Proje (CLI link) | `burhancortexplus-app` — link repo **kökünde**, Root Directory `cortex-plus` |
+| Preview örnek | `burhancortexplus-app-*-cortexplus55.vercel.app` |
 | `orgId` | `team_7fZJmWjbQtKXSDwCZCA4s7Ym` |
-| `projectId` | `prj_xd0PYMnQZnaz0Ksh0ksqIR8a9NEm` |
+| `projectId` | `prj_fBxyWhMERs4pZUq9sJMaVa9Gt29A` |
 | Root Directory | `cortex-plus` (monorepo) |
 
 **Canlı domain `cortexplus.app`:** ayrı Vercel projesi **`burhancortexplus-app`** (production env burada). Env çekmek için:

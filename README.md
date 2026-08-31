@@ -21,7 +21,7 @@ Detay: `docs/delivery/GREENFIELD-CONNECT.md` · **CLI:** `docs/delivery/CLI-CONN
 ## Senin adımların (bir kez)
 
 1. **GitHub** — repoya erişimin olduğunu doğrula (private repo).
-2. **Vercel** — [vercel.com](https://vercel.com) → team **cortexplus55** → Import **burhancortexplus** → Root Directory: **`cortex-plus`** → Deploy.  
+2. **Vercel** — [vercel.com](https://vercel.com) → team **cortexplus55** → Import **burhancortexplus** reposu → proje **burhancortexplus-app** → Root Directory: **`cortex-plus`** → Deploy.  
    (İstersen agent `create_git_project` ile de bağlar; GitHub Vercel uygulamasına repo izni ver.)
 3. **Supabase** — [supabase.com/dashboard](https://supabase.com/dashboard) → org **cortexplus55** → **New project** (veya agent MCP ile oluşturur).  
    → Project Settings → **Integrations → GitHub** → bu repoyu bağla (migrations/branching için).
