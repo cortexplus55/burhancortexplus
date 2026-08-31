@@ -4,21 +4,23 @@ const PUBLIC_ROUTES: [string, string][] = [
   ["/", "2 kat hızlı öğren"],
   ["/ozellikler", "Özellikler"],
   ["/sinav-hazirligi", "Sınav hazırlığı"],
-  ["/fiyatlandirma", "Daha iyi notlar"],
+  ["/fiyatlandirma", "Fiyatlandırma"],
   ["/hakkimizda", "Hakkımızda"],
   ["/iletisim", "İletişim"],
   ["/yardim", "Yardım"],
   ["/gizlilik", "Gizlilik politikası"],
   ["/kvkk", "KVKK"],
   ["/kullanim-kosullari", "Kullanım koşulları"],
-  ["/giris", "Giriş yap"],
-  ["/kayit", "hoş geldin"],
+  ["/giris", "Tekrar hoş geldin"],
+  ["/kayit", "Hangi sınıftasın?"],
   ["/sifremi-unuttum", "Şifremi unuttum"],
   ["/email-dogrula", "E-posta doğrulama"],
   ["/mobil-uygulama", "Mobil uygulama"],
   ["/yaratici-program", "Yaratıcı program"],
-  ["/ogretmenler-ve-profesorler-icin", "Öğretmenler ve profesörler için"],
 ];
+
+/** Retired in favour of the student-only surface (see RETIRED_PREFIXES). */
+const RETIRED_ROUTES = ["/ogretmenler-ve-profesorler-icin", "/veli"];
 
 test.describe("public pages", () => {
   for (const [route, heading] of PUBLIC_ROUTES) {
@@ -26,6 +28,14 @@ test.describe("public pages", () => {
       const response = await page.goto(route);
       expect(response?.status()).toBeLessThan(400);
       await expect(page.getByRole("heading", { level: 1 })).toContainText(heading);
+    });
+  }
+
+  for (const route of RETIRED_ROUTES) {
+    test(`${route} sends visitors to the student hub`, async ({ page }) => {
+      await page.goto(route);
+      // Anonymous visitors bounce again off /ogretmen, which is protected.
+      await expect(page).toHaveURL(/\/(ogretmen|giris)/);
     });
   }
 
@@ -42,5 +52,18 @@ test.describe("public pages", () => {
     expect(headers["x-frame-options"]).toBe("DENY");
     expect(headers["x-content-type-options"]).toBe("nosniff");
     expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+    expect(headers["content-security-policy"]).toContain("object-src 'none'");
+    expect(headers["content-security-policy"]).toContain("base-uri 'self'");
+  });
+
+  test("the report-only policy still allows what the app loads", async ({
+    page,
+  }) => {
+    const response = await page.goto("/");
+    const policy = response?.headers()["content-security-policy-report-only"];
+    // Losing either of these silently breaks checkout or the hero video once
+    // the policy is promoted to enforcing.
+    expect(policy).toContain("frame-src https://www.paytr.com");
+    expect(policy).toContain("media-src 'self' https://videos.pexels.com");
   });
 });

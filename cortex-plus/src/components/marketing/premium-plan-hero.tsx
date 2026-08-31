@@ -12,7 +12,8 @@ export function PremiumPlanHero({
   return (
     <header className={align === "center" ? "text-center" : "text-left"}>
       <p className="cortex-premium-section-eyebrow">{eyebrow}</p>
-      <h1 className="cortex-premium-section-title mt-2">{title}</h1>
+      {/* Always rendered inside a page that already owns the h1. */}
+      <h2 className="cortex-premium-section-title mt-2">{title}</h2>
       <p className="mt-2 text-sm leading-relaxed text-[var(--astra-muted)]">
         {description}
       </p>
