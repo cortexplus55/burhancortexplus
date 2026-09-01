@@ -9,6 +9,8 @@ const KEYS = [
   "EMAIL_FROM",
   "UPSTASH_REDIS_REST_URL",
   "UPSTASH_REDIS_REST_TOKEN",
+  "KV_REST_API_URL",
+  "KV_REST_API_TOKEN",
   "PAYTR_MERCHANT_ID",
   "PAYTR_MERCHANT_KEY",
   "PAYTR_MERCHANT_SALT",
@@ -61,7 +63,23 @@ describe("integration readiness", () => {
     expect(report.ready).toBe(false);
     expect(report.missing).toContain("rateLimitStore");
     expect(report.integrations.rateLimitStore.detail).toContain(
-      "UPSTASH_REDIS_REST_URL",
+      "bellek içi yedek",
+    );
+  });
+
+  it("accepts the names Vercel's Upstash integration provisions", () => {
+    configureFully();
+    // Provisioning through Vercel yields KV_REST_API_*, not UPSTASH_REDIS_REST_*.
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    process.env.KV_REST_API_URL = "https://fra1-example.upstash.io";
+    process.env.KV_REST_API_TOKEN = "kv-token";
+
+    const report = integrationReport();
+    expect(report.ready).toBe(true);
+    expect(report.integrations.rateLimitStore.configured).toBe(true);
+    expect(report.integrations.rateLimitStore.detail).toBe(
+      "fra1-example.upstash.io",
     );
   });
 

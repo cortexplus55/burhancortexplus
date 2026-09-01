@@ -1,5 +1,6 @@
 import "server-only";
 import { getSmtpConfig } from "@/lib/email/smtp";
+import { rateLimitStore } from "@/lib/rate-limit";
 import { supabaseConfigIssue } from "@/lib/supabase/config-check";
 
 export type IntegrationStatus = {
@@ -29,8 +30,7 @@ const isSet = (value: string | undefined) => Boolean(value?.trim());
 export function integrationReport(): IntegrationReport {
   const supabaseIssue = supabaseConfigIssue();
 
-  const upstashUrl = isSet(process.env.UPSTASH_REDIS_REST_URL);
-  const upstashToken = isSet(process.env.UPSTASH_REDIS_REST_TOKEN);
+  const limiterStore = rateLimitStore();
 
   const paytrParts = {
     id: isSet(process.env.PAYTR_MERCHANT_ID),
@@ -64,17 +64,13 @@ export function integrationReport(): IntegrationReport {
     // bucket. On Vercel each lambda gets its own, so the ceiling stops being a
     // ceiling — the failure mode is invisible, which is why it is required.
     rateLimitStore: {
-      configured: upstashUrl && upstashToken,
+      configured: Boolean(limiterStore),
       required: true,
-      detail:
-        upstashUrl && upstashToken
-          ? "Upstash Redis"
-          : `bellek içi yedek — dağıtık limit YOK (eksik: ${[
-              !upstashUrl && "UPSTASH_REDIS_REST_URL",
-              !upstashToken && "UPSTASH_REDIS_REST_TOKEN",
-            ]
-              .filter(Boolean)
-              .join(", ")})`,
+      // The host identifies which store is in use without exposing the token.
+      detail: limiterStore
+        ? new URL(limiterStore.url).host
+        : "bellek içi yedek — dağıtık limit YOK (KV_REST_API_URL/TOKEN veya " +
+          "UPSTASH_REDIS_REST_URL/TOKEN gerekli)",
     },
     paytr: {
       configured: paytrConfigured,
