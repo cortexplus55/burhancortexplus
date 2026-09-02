@@ -71,7 +71,12 @@ git remote -v           # origin → cortexplus55/burhancortexplus
 
 CI workflow push için bazen `burhan55600-pixel` + `workflow` scope — bkz. [GITHUB-CI-WORKFLOW-SCOPE.md](./GITHUB-CI-WORKFLOW-SCOPE.md).
 
-**Migration drift:** Uzak DB canlı; yerel migration dosya adları ile `supabase migration list`’teki remote sürümler farklı timestamp’lerle eşleşebilir. `db push` öncesi listeyi kontrol et.
+**Migration drift — `db push` çalıştırmayın.** Sorun farklı timestamp değil:
+iki geçmiş tamamen ayrık. 2026-09-02 ölçümü: repodaki **25** migration uzakta
+kayıtlı değil, uzaktaki **34** kayıt repoda yok. Şema panel/MCP üzerinden
+kurulmuş. `db push` 25 dosyayı zaten kurulu şemanın üstüne uygulamayı dener.
+Şema değişikliğini SQL Editor’dan elle uygulayın; ayrıntı
+[deploy-checklist.md](../../cortex-plus/docs/delivery/deploy-checklist.md#3-migrationlar).
 
 ## Hepsini doğrula
 

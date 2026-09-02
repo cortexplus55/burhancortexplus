@@ -34,6 +34,11 @@ npx supabase link --project-ref <PROJECT_REF>
 npx supabase db push
 ```
 
+> Yukarıdaki `db push` yalnızca **sıfırdan kurulan boş bir proje** içindir.
+> Mevcut canlı proje (`dgjfyewgrukglsehyntc`) için **çalıştırmayın** — geçmişi
+> ayrışmış durumda, ayrıntı
+> [deploy-checklist.md](../../cortex-plus/docs/delivery/deploy-checklist.md#3-migrationlar).
+
 ## 4. Auth ayarları
 
 **Site URL**

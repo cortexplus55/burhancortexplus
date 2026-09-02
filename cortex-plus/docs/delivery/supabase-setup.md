@@ -141,7 +141,9 @@ on conflict (user_id, role) do update set revoked_at = null;
 
 ## 7. Supabase CLI bağlantısı
 
-Lokal `db push` / migration list için: bkz. **`docs/delivery/supabase-cli-link.md`**.
+Migration listesi için: bkz. **`docs/delivery/supabase-cli-link.md`**.
+Canlı projede `db push` **kullanılmaz** — bkz.
+[deploy-checklist.md](./deploy-checklist.md#3-migrationlar).
 
 MCP ile uzak proje zaten yönetilebiliyor; CLI link için Supabase hesabınızın projede yetkili olması ve `npx supabase login` gerekir.
 

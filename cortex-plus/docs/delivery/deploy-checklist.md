@@ -41,13 +41,32 @@ Kayıt akışı: `/kayit/tamamla` — e-posta doğrulama linkinde `next=/kayit/t
 
 ## 3. Migration’lar
 
-Uzak projede sırayla uygulanmış olmalı:
+> **`supabase db push` ÇALIŞTIRMAYIN.** Uzak veritabanı ile bu depodaki
+> migration geçmişi ayrışmış durumda: repodaki **25** dosyanın hiçbiri uzakta
+> kayıtlı değil, uzaktaki **34** kayıt ise repoda yok. Şema sağlıklı — panel
+> veya MCP üzerinden kurulmuş, bu dosyalarla değil. `db push` bu durumda
+> 25 migration’ı zaten kurulu şemanın üstüne uygulamayı dener.
 
-- `20250825120000_init.sql` … `20250826130000_schools_expand.sql`
+Durumu her zaman önce görün:
 
 ```bash
-supabase db push --linked
+npx supabase migration list --linked
 ```
+
+Yeni bir şema değişikliği gerektiğinde, dosyayı `supabase/migrations/` altına
+kayıt için ekleyin ve **SQL’i Supabase panelindeki SQL Editor’dan elle
+çalıştırın**:
+
+```
+https://supabase.com/dashboard/project/dgjfyewgrukglsehyntc/sql/new
+```
+
+Değişikliği yazarken `CREATE OR REPLACE` / `IF NOT EXISTS` kullanın; aynı SQL
+iki kez çalıştırıldığında zarar vermemeli.
+
+**Kalıcı çözüm bekliyor:** Geçmişi hizalamak (uzak şemadan taban migration
+üretip eski kayıtları uygulanmış işaretlemek) ayrı bir iş olarak duruyor.
+O yapılana kadar yukarıdaki elle akış geçerlidir.
 
 ## 4. Workspace SMTP (Supabase Auth + Vercel)
 

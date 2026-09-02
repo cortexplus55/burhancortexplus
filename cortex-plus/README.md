@@ -15,10 +15,15 @@ npm run dev
 
 ```bash
 npx supabase link
-npx supabase db push
+npx supabase migration list --linked
 ```
 
 Migration dosyaları: `supabase/migrations/`
+
+> **`db push` çalıştırmayın.** Uzak veritabanının migration geçmişi bu
+> depodakiyle ayrışmış; şema panel üzerinden kurulmuş. Şema değişikliklerini
+> Supabase SQL Editor’dan elle uygulayın ve dosyayı buraya kayıt için ekleyin.
+> Ayrıntı: [deploy-checklist.md](docs/delivery/deploy-checklist.md#3-migrationlar)
 
 ## Test
 

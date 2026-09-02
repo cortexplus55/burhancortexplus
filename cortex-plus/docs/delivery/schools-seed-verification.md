@@ -16,9 +16,16 @@ Uzakta uygulanan: `schools_expand_seed` (MCP `apply_migration`)
 
 ## Yerel CLI (önerilen tam seed)
 
+> **Bu bölüm güncelliğini yitirdi.** Aşağıdaki komut hem emekliye ayrılmış
+> `gwqonggqzvavljguiryx` projesini işaret ediyor hem de `db push` kullanıyor;
+> ikisi de artık geçersiz. Canlı proje `dgjfyewgrukglsehyntc` ve migration
+> geçmişi ayrışmış — bkz.
+> [deploy-checklist.md](./deploy-checklist.md#3-migrationlar).
+> Seed’i doğrulamak için aşağıdaki SQL sorgularını panelden çalıştırmanız
+> yeterlidir.
+
 ```powershell
-cd cortex-plus
-npx supabase@latest login
+# ESKİ — çalıştırmayın, kayıt olarak bırakıldı
 npx supabase@latest link --project-ref gwqonggqzvavljguiryx
 npx supabase@latest db push --linked
 ```
@@ -31,7 +38,7 @@ SELECT city, count(*) FROM public.schools GROUP BY city ORDER BY count DESC LIMI
 SELECT name FROM public.schools WHERE city = 'Artvin';
 ```
 
-`Artvin` için en az bir kayıt görünmüyorsa geniş seed tam uygulanmamış demektir — `db push` tekrarlayın.
+`Artvin` için en az bir kayıt görünmüyorsa geniş seed tam uygulanmamış demektir — eksik seed SQL’ini panelden elle çalıştırın.
 
 ## API smoke
 

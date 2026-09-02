@@ -114,7 +114,7 @@ sayfalar, auth yönlendirmeleri, güvenlik başlıkları, mobil taşma, erişile
 ## 6. Production öncesi manuel checklist
 
 1. Supabase MCP bağlantısını `cortexplus@cortexplus.app` ile yeniden yetkilendir.
-2. Supabase projesini oluştur, `npx supabase db push` ile migration'ları uygula.
+2. Supabase projesini oluştur ve şemayı kur. **Not:** canlı projede `db push` kullanılmaz — migration geçmişi ayrışmış, bkz. deploy-checklist.
 3. Auth Site URL / Redirect URL'leri gir; Google provider'ı yapılandır.
 4. `.env.local` ve Vercel environment değişkenlerini doldur (bkz. `.env.example`).
 5. PayTR mağaza panelinde bildirim URL'sini `https://cortexplus.app/api/payments/paytr/callback` yap.
