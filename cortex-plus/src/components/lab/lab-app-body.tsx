@@ -32,8 +32,16 @@ import { RiemannLab } from "@/components/lab/sims/riemann";
 import { FonksiyonAnaliziLab } from "@/components/lab/sims/fonksiyon-analizi";
 import { VektorlerLab } from "@/components/lab/sims/vektorler";
 import { DonelCisimlerLab } from "@/components/lab/sims/donel-cisimler";
+import { PhKaristiriciLab } from "@/components/lab/sims/ph-karistirici";
+import { GazYasalariLab } from "@/components/lab/sims/gaz-yasalari";
+import { TepkimeHiziLab } from "@/components/lab/sims/tepkime-hizi";
+import { MolekulGeometrisiLab } from "@/components/lab/sims/molekul-geometrisi";
 
 const LAB_COMPONENTS: Record<string, () => React.ReactNode> = {
+  "molekul-geometrisi": MolekulGeometrisiLab,
+  "tepkime-hizi": TepkimeHiziLab,
+  "gaz-yasalari": GazYasalariLab,
+  "ph-karistirici": PhKaristiriciLab,
   "donel-cisimler": DonelCisimlerLab,
   vektorler: VektorlerLab,
   "fonksiyon-analizi": FonksiyonAnaliziLab,

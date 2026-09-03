@@ -54,6 +54,10 @@ export const LAB_APPS: LabApp[] = [
   { id: "fonksiyon-analizi", title: "Fonksiyon analizi", subject: "Matematik", href: lab("fonksiyon-analizi"), category: "sim", blurb: "f, f′ ve f″ alt alta — ilişkiyi tek bakışta oku." },
   { id: "vektorler", title: "Vektörler", subject: "Matematik", href: lab("vektorler"), category: "sim", blurb: "|a| + |b| neden bileşkenin boyu değil?" },
   { id: "donel-cisimler", title: "Dönel cisimler", subject: "Matematik", href: lab("donel-cisimler"), category: "sim", blurb: "Eğriyi döndür, hacmini dilim dilim gör." },
+  { id: "ph-karistirici", title: "pH karıştırıcı", subject: "Kimya", href: lab("ph-karistirici"), category: "sim", blurb: "Derişimi 10 katına çıkar, pH neden sadece 1 birim kayıyor?" },
+  { id: "gaz-yasalari", title: "Gaz yasaları", subject: "Kimya", href: lab("gaz-yasalari"), category: "sim", blurb: "Boyle, Charles, Gay-Lussac — hepsi tek denklemin yüzleri." },
+  { id: "tepkime-hizi", title: "Tepkime hızı", subject: "Kimya", href: lab("tepkime-hizi"), category: "sim", blurb: "10 derece neden hızı ikiye katlıyor?" },
+  { id: "molekul-geometrisi", title: "Molekül geometrisi", subject: "Kimya", href: lab("molekul-geometrisi"), category: "sim", blurb: "Su neden düz değil? Görünmeyen çiftleri aç, gör." },
 ];
 
 export const LAB_FILTERS = [
