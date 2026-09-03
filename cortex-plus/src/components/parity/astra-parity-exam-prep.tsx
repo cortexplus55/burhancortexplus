@@ -6,6 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { BookOpen, HelpCircle, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { SchoolFeedView } from "@/components/parity/school-feed-view";
+import type {
+  SchoolFeedRow,
+  SchoolSummary,
+} from "@/lib/parity/school-feed";
 
 export type ExamPrepCard = {
   id: string;
@@ -26,11 +31,15 @@ export function AstraParityExamPrep({
   otherPreps = [],
   userInitial,
   initialSchoolName = "",
+  schoolSummary = null,
+  schoolRows = [],
 }: {
   activePrep: ExamPrepCard | null;
   otherPreps?: ExamPrepCard[];
   userInitial?: string;
   initialSchoolName?: string;
+  schoolSummary?: SchoolSummary | null;
+  schoolRows?: SchoolFeedRow[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -38,7 +47,9 @@ export function AstraParityExamPrep({
     searchParams.get("tab") === "school" ? "school" : "cortex";
   const [schoolName, setSchoolName] = useState(initialSchoolName);
   const [schoolQuery, setSchoolQuery] = useState("");
-  const [schoolOptions, setSchoolOptions] = useState<string[]>([]);
+  const [schoolOptions, setSchoolOptions] = useState<
+    { id: string; name: string; city: string | null }[]
+  >([]);
   const [pickingSchool, setPickingSchool] = useState(!initialSchoolName);
   const [savingSchool, setSavingSchool] = useState(false);
   const [query, setQuery] = useState("");
@@ -55,20 +66,21 @@ export function AstraParityExamPrep({
     const t = window.setTimeout(() => {
       void fetch(`/api/schools/search?q=${encodeURIComponent(q)}`)
         .then((r) => r.json())
-        .then((data) => setSchoolOptions(data.schools ?? []))
+        .then((data) => setSchoolOptions(data.results ?? []))
         .catch(() => setSchoolOptions([]));
     }, 200);
     return () => window.clearTimeout(t);
   }, [tab, pickingSchool, schoolQuery]);
 
-  async function saveSchool(name: string) {
-    const clean = name.split(" (")[0] ?? name;
+  // Ad artik yalnizca gosterim icin; agin dayandigi sey school_id.
+  async function saveSchool(school: { id: string; name: string }) {
+    const clean = school.name;
     setSavingSchool(true);
     try {
       const res = await fetch("/api/profile/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ school_name: clean }),
+        body: JSON.stringify({ school_name: clean, school_id: school.id }),
       });
       if (!res.ok) {
         toast.error("Okul kaydedilemedi.");
@@ -237,14 +249,17 @@ export function AstraParityExamPrep({
             </label>
             {schoolOptions.length ? (
               <ul className="ap-school-suggest">
-                {schoolOptions.map((name) => (
-                  <li key={name}>
+                {schoolOptions.map((option) => (
+                  <li key={option.id}>
                     <button
                       type="button"
                       disabled={savingSchool}
-                      onClick={() => void saveSchool(name)}
+                      onClick={() => void saveSchool(option)}
                     >
-                      + {name}
+                      + {option.name}
+                      {option.city ? (
+                        <span className="ap-school-suggest-city">{option.city}</span>
+                      ) : null}
                     </button>
                   </li>
                 ))}
@@ -266,30 +281,20 @@ export function AstraParityExamPrep({
           </div>
         ) : (
           <div className="ap-exam-school-filled">
-            <article className="ap-exam-discover-card">
-              <h3 className="ap-exam-discover-title">{schoolName}</h3>
-              <p className="ap-exam-discover-desc">
-                Okul yazılısı oluştur; konular ders ders ilerler.
-              </p>
-              <div className="ap-exam-school-actions">
-                <Link
-                  href="/deneme-sinavlari/olustur"
-                  className="ap-exam-discover-cta"
-                >
-                  Okul yazılısı oluştur
-                </Link>
-                <button
-                  type="button"
-                  className="ap-chip"
-                  onClick={() => {
-                    setSchoolQuery(schoolName);
-                    setPickingSchool(true);
-                  }}
-                >
-                  Okulu değiştir
-                </button>
-              </div>
-            </article>
+            <SchoolFeedView
+              summary={schoolSummary}
+              rows={schoolRows}
+              onPickSchool={() => {
+                setSchoolQuery(schoolName);
+                setPickingSchool(true);
+              }}
+            />
+            <Link
+              href="/deneme-sinavlari/olustur"
+              className="ap-exam-discover-cta mt-4 inline-flex"
+            >
+              Okul yazılısı oluştur
+            </Link>
           </div>
         )
       ) : (

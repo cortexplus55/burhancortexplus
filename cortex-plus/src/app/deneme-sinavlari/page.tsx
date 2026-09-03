@@ -7,6 +7,7 @@ import { mapPrepTopics, type PrepTopic } from "@/lib/learning/exam-prep-progress
 import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
 import { daysUntilExam, nodeProgress } from "@/lib/learning/exam-prep-plan";
 import type { ExamPrepCard } from "@/components/parity/astra-parity-exam-prep";
+import { toFeedRows, toSummary } from "@/lib/parity/school-feed";
 
 export const metadata = { title: "Sınav hazırlığı" };
 
@@ -61,6 +62,15 @@ export default async function DenemeSinavlariPage() {
   ]);
 
   const preps = prepRows ?? [];
+
+  // Okul agi RPC'leri migration ile geliyor; fonksiyon yoksa sayfa cokmesin
+  // diye bos akisla devam ediyoruz (sekme "okulunu sec" halini gosterir).
+  const [summaryRes, feedRes] = await Promise.all([
+    supabase.rpc("school_summary"),
+    supabase.rpc("school_feed", { p_limit: 30 }),
+  ]);
+  const schoolSummary = toSummary(summaryRes.data);
+  const schoolRows = toFeedRows(feedRes.data);
   const prepIds = preps.map((prep) => prep.id);
   const { data: allTopics } = prepIds.length
     ? await supabase
@@ -124,6 +134,8 @@ export default async function DenemeSinavlariPage() {
           otherPreps={otherPreps}
           userInitial={shell.userInitial}
           initialSchoolName={profile?.school_name ?? ""}
+          schoolSummary={schoolSummary}
+          schoolRows={schoolRows}
         />
       </Suspense>
     </AstraParitySorShell>
