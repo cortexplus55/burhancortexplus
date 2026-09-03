@@ -36,8 +36,16 @@ import { PhKaristiriciLab } from "@/components/lab/sims/ph-karistirici";
 import { GazYasalariLab } from "@/components/lab/sims/gaz-yasalari";
 import { TepkimeHiziLab } from "@/components/lab/sims/tepkime-hizi";
 import { MolekulGeometrisiLab } from "@/components/lab/sims/molekul-geometrisi";
+import { PopulasyonLab } from "@/components/lab/sims/populasyon";
+import { EnzimKinetigiLab } from "@/components/lab/sims/enzim-kinetigi";
+import { PunnettLab } from "@/components/lab/sims/punnett";
+import { MercekLab } from "@/components/lab/sims/mercek";
 
 const LAB_COMPONENTS: Record<string, () => React.ReactNode> = {
+  mercek: MercekLab,
+  punnett: PunnettLab,
+  "enzim-kinetigi": EnzimKinetigiLab,
+  populasyon: PopulasyonLab,
   "molekul-geometrisi": MolekulGeometrisiLab,
   "tepkime-hizi": TepkimeHiziLab,
   "gaz-yasalari": GazYasalariLab,

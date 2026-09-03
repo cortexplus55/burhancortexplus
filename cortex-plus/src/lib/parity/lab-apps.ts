@@ -58,6 +58,10 @@ export const LAB_APPS: LabApp[] = [
   { id: "gaz-yasalari", title: "Gaz yasaları", subject: "Kimya", href: lab("gaz-yasalari"), category: "sim", blurb: "Boyle, Charles, Gay-Lussac — hepsi tek denklemin yüzleri." },
   { id: "tepkime-hizi", title: "Tepkime hızı", subject: "Kimya", href: lab("tepkime-hizi"), category: "sim", blurb: "10 derece neden hızı ikiye katlıyor?" },
   { id: "molekul-geometrisi", title: "Molekül geometrisi", subject: "Kimya", href: lab("molekul-geometrisi"), category: "sim", blurb: "Su neden düz değil? Görünmeyen çiftleri aç, gör." },
+  { id: "populasyon", title: "Popülasyon dinamiği", subject: "Biyoloji", href: lab("populasyon"), category: "sim", blurb: "Üstel büyümenin başı neden düz görünür?" },
+  { id: "enzim-kinetigi", title: "Enzim kinetiği", subject: "Biyoloji", href: lab("enzim-kinetigi"), category: "sim", blurb: "Substrat artınca hız neden bir yerden sonra artmıyor?" },
+  { id: "punnett", title: "Punnett karesi", subject: "Biyoloji", href: lab("punnett"), category: "sim", blurb: "Genotip 1:2:1 iken fenotip neden 3:1?" },
+  { id: "mercek", title: "Mercekte görüntü", subject: "Fizik", href: lab("mercek"), category: "sim", blurb: "Görüntü ne zaman gerçek, ne zaman sanal olur?" },
 ];
 
 export const LAB_FILTERS = [

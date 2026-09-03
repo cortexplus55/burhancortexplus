@@ -6865,3 +6865,49 @@
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
   pointer-events: none;
 }
+
+/* --- Punnett karesi ------------------------------------------------------- */
+.pn-wrap {
+  overflow-x: auto;
+}
+
+.pn {
+  border-collapse: separate;
+  border-spacing: 3px;
+  margin: 0 auto;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+.pn th,
+.pn td {
+  width: 3.6rem;
+  height: 3.1rem;
+  text-align: center;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+}
+
+.pn th {
+  background: var(--ap-surface-2);
+  color: var(--ap-muted);
+  font-weight: 600;
+}
+
+.pn thead th:first-child {
+  background: transparent;
+}
+
+/* Baskın ve çekinik gözler renkle ayrılıyor: oranı saymak yerine
+   görmek, 9:3:3:1 gibi kalıpların nereden geldiğini anlatıyor. */
+.pn td.is-dominant {
+  background: rgba(244, 174, 11, 0.16);
+  border: 1px solid rgba(244, 174, 11, 0.5);
+  color: #f4ae0b;
+  font-weight: 600;
+}
+
+.pn td.is-recessive {
+  background: rgba(122, 162, 247, 0.14);
+  border: 1px solid rgba(122, 162, 247, 0.45);
+  color: #7aa2f7;
+}
