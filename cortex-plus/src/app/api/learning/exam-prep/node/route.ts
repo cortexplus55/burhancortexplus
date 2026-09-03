@@ -6,8 +6,8 @@ import {
   EMPTY_SOURCE_CONTEXT,
   loadSourceContext,
 } from "@/lib/learning/source-context";
-import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
+import type { NodeStatus, PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { PLAN_NODE_META, readinessScore } from "@/lib/learning/exam-prep-plan";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import {
   parseFamiliarity,
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
 
     const { data: rows } = await service
       .from("exam_prep_nodes")
-      .select("id, status, sort_order")
+      .select("id, kind, status, sort_order")
       .eq("exam_prep_id", prepId)
       .order("sort_order");
 
@@ -175,6 +175,24 @@ export async function POST(request: Request) {
     if (next) {
       await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", next.id);
     }
+
+    // Hazırlık puanı arayüzde düğümlerden anlık hesaplanıyor; kolon ise
+    // yazılmadığı için ölüydü. Burada tek bir update ile dolduruluyor —
+    // düğüm listesi zaten elimizde. Böylece puan, tüm düğümleri çekmeden
+    // sunucu tarafında da (okul akışı, ilerleme özetleri) okunabiliyor.
+    const readiness = readinessScore(
+      (rows ?? []).map((row) => ({
+        kind: row.kind as PlanNodeKind,
+        status: (row.status as NodeStatus) ?? "locked",
+      })),
+    );
+    // Hata bilerek yutuluyor: kolon migration ile geldi, ama kod ondan
+    // önce dağıtılırsa ders tamamlama akışı bir puan yazamadı diye
+    // kırılmamalı.
+    await service
+      .from("exam_preps")
+      .update({ readiness_score: readiness })
+      .eq("id", prepId);
 
     return NextResponse.json({
       ok: true,
