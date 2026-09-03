@@ -142,6 +142,44 @@ export function nodeProgress(nodes: { status: NodeStatus }[]) {
   };
 }
 
+/**
+ * Hazırlık puanı — düz ilerlemeden farkı, düğümlerin sınava hazır olmaya
+ * katkısının eşit olmaması. Yazılı deneme bitirmek, bir podcast dinlemekten
+ * daha güçlü bir hazır olma sinyali.
+ */
+const READINESS_WEIGHT: Record<PlanNodeKind, number> = {
+  written_exam: 4,
+  oral: 3,
+  quiz: 2,
+  qa: 2,
+  true_false: 2,
+  gaps: 2,
+  spaced: 1,
+  flashcards: 1,
+  podcast: 1,
+};
+
+export function readinessScore(
+  nodes: { kind: PlanNodeKind; status: NodeStatus }[],
+): number {
+  let total = 0;
+  let earned = 0;
+  for (const node of nodes) {
+    const weight = READINESS_WEIGHT[node.kind] ?? 1;
+    total += weight;
+    if (node.status === "done") earned += weight;
+  }
+  return total ? Math.round((earned / total) * 100) : 0;
+}
+
+/** Puanın karşılık geldiği kısa durum — geri sayım kartındaki etiket. */
+export function readinessLabel(score: number): { emoji: string; text: string } {
+  if (score >= 80) return { emoji: "🥳", text: "Hazırsın" };
+  if (score >= 45) return { emoji: "🙂", text: "Yolundasın" };
+  if (score > 0) return { emoji: "😅", text: "Daha yolun var" };
+  return { emoji: "😰", text: "Henüz başlamadın" };
+}
+
 export function nextReadyNode<T extends { status: NodeStatus; sortOrder: number }>(
   nodes: T[],
 ) {

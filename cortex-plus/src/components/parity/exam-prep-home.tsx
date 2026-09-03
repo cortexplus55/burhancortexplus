@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PLAN_NODE_META, type PlanNodeKind, type NodeStatus } from "@/lib/learning/exam-prep-plan";
+import {
+  PLAN_NODE_META,
+  daysUntilExam,
+  readinessLabel,
+  readinessScore,
+  type NodeStatus,
+  type PlanNodeKind,
+} from "@/lib/learning/exam-prep-plan";
+import { cn } from "@/lib/utils";
 
 export type HomeNode = {
   id: string;
@@ -41,6 +49,9 @@ export function ExamPrepHome({
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
   const started = hasTopic && !needsIntro;
+  const daysLeft = examDate ? daysUntilExam(examDate) : null;
+  const readiness = readinessScore(nodes);
+  const readinessState = readinessLabel(readiness);
 
   return (
     <div className="ap-exam-page ap-exam-trail-page">
@@ -71,6 +82,34 @@ export function ExamPrepHome({
           </div>
         ) : null}
       </header>
+
+      {daysLeft !== null ? (
+        <section
+          className={cn(
+            "ap-countdown",
+            daysLeft <= 3 && "ap-countdown--urgent",
+          )}
+        >
+          <p className="ap-countdown-kicker">Sınava kadar</p>
+          <p className="ap-countdown-days">
+            <strong>{daysLeft}</strong>
+            <span>gün</span>
+          </p>
+
+          <div className="ap-countdown-readiness">
+            <div className="ap-countdown-row">
+              <span>Hazırlık puanın</span>
+              <span className="ap-countdown-pct">%{readiness}</span>
+            </div>
+            <div className="ap-countdown-meter" aria-hidden>
+              <span style={{ width: `${Math.max(readiness, readiness > 0 ? 3 : 0)}%` }} />
+            </div>
+            <p className="ap-countdown-state">
+              <span aria-hidden>{readinessState.emoji}</span> {readinessState.text}
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       <ol className="ap-exam-trail">
         {nodes.map((node, index) => (
