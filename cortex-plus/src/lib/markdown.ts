@@ -1,12 +1,10 @@
-function escapeHtml(text: string) {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+import { escapeHtml, renderMath, splitMath } from "@/lib/learning/math-text";
 
-function renderInline(text: string) {
+/**
+ * Metin biçimlendirmesi — girdi önce escape edilir, sonra sabit bir izin
+ * listesi yeniden uygulanır.
+ */
+function formatText(text: string) {
   return escapeHtml(text)
     .replace(/`([^`]+)`/g, '<code class="rounded bg-muted px-1 py-0.5">$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
@@ -14,8 +12,29 @@ function renderInline(text: string) {
 }
 
 /**
+ * Satır içi içerik: önce LaTeX parçaları ayrılır (KaTeX kendi güvenli
+ * işaretlemesini üretir), kalan metin escape edilip biçimlendirilir. Formül
+ * gövdesi escape'e girmez — aksi hâlde `\frac{a}{b}` içindeki karakterler
+ * bozulurdu.
+ */
+function renderInline(text: string, breaks = false) {
+  return splitMath(text)
+    .map((segment) => {
+      if (segment.type === "math") {
+        return renderMath(segment.value, segment.display);
+      }
+      const html = formatText(segment.value);
+      // Satır sonu dönüşümü yalnızca metne uygulanır; KaTeX çıktısına dokunmaz.
+      return breaks ? html.replace(/\n/g, "<br />") : html;
+    })
+    .join("");
+}
+
+/**
  * Everything is escaped first and only a fixed allow-list of inline formatting
  * is re-applied, so model output can never inject markup or event handlers.
+ * Math is the one exception: it is handed to KaTeX with `trust: false`, which
+ * emits its own markup and rejects HTML-injecting commands like `\href`.
  */
 export function renderMarkdownToHtml(content: string): string {
   return content
@@ -52,7 +71,7 @@ export function renderMarkdownToHtml(content: string): string {
           : `<ul class="list-disc space-y-1 pl-5">${items}</ul>`;
       }
 
-      return `<p>${renderInline(trimmed).replace(/\n/g, "<br />")}</p>`;
+      return `<p>${renderInline(trimmed, true)}</p>`;
     })
     .join("");
 }

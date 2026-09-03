@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Figtree, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+// Model çıktısındaki LaTeX her yüzeyde render edilebilsin diye kök seviyede.
+import "katex/dist/katex.min.css";
 import { Providers } from "@/components/providers";
 
 const figtree = Figtree({

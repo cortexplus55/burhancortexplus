@@ -3999,3 +3999,26 @@
   font-size: 0.75rem;
   font-weight: 500;
 }
+
+/* ---------------------------------------------------------------------------
+   LaTeX — model çıktısındaki formüller
+   Paketler kuruluydu ama hiçbir renderer kullanmıyordu; ekranda ham "$...$"
+   görünüyordu. Blok formüller taşarsa yatayda kendi içinde kaysın, sayfa
+   yana kaymasın.
+   --------------------------------------------------------------------------- */
+.ap-lesson-math {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+  margin: 0.2rem 0;
+}
+
+.ap-lesson-prose .katex,
+.ap-lesson-turn .katex {
+  font-size: 1.04em;
+}
+
+.ap-lesson-prose .katex-display,
+.ap-lesson-turn .katex-display {
+  margin: 0;
+}

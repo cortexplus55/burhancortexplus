@@ -1,10 +1,30 @@
+import { renderMath, splitMath } from "@/lib/learning/math-text";
+
+/**
+ * Kalın metin ve LaTeX'i birlikte işler. Formüller KaTeX'e verilir
+ * (`trust: false` — HTML enjekte eden komutlar kapalı); geri kalan her şey
+ * React metin düğümü olarak kalır, yani escape'i React yapar.
+ */
 function renderInline(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, index) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={index}>{part.slice(2, -2)}</strong>;
+  return splitMath(text).flatMap((segment, segIndex) => {
+    if (segment.type === "math") {
+      const Tag = segment.display ? "div" : "span";
+      return (
+        <Tag
+          key={`m-${segIndex}`}
+          className={segment.display ? "ap-lesson-math" : undefined}
+          dangerouslySetInnerHTML={{
+            __html: renderMath(segment.value, segment.display),
+          }}
+        />
+      );
     }
-    return <span key={index}>{part}</span>;
+    return segment.value.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={`${segIndex}-${index}`}>{part.slice(2, -2)}</strong>;
+      }
+      return <span key={`${segIndex}-${index}`}>{part}</span>;
+    });
   });
 }
 
