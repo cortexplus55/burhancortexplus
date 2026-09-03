@@ -1,0 +1,178 @@
+{
+  "sourceName": "fotosentez-ders-notu.pdf",
+  "sourceHref": "/ornek/fotosentez-ders-notu.pdf",
+  "sourceText": "FOTOSENTEZ 9. Sinif Biyoloji - Ders Notu 1. Fotosentez nedir? Fotosentez, bitkilerin gunes isigini kullanarak karbondioksit ve sudan kendi besinini uretmesidir. Bu olay yapraklardaki kloroplastlarda gecer. 2. Denklem 6 CO2 + 6 H2O + isik enerjisi -> C6H12O6 + 6 O2 Yani alti karbondioksit ve alti su molekulunden bir glikoz ve alti oksijen molekulu olusur. 3. Klorofil Kloroplastlardaki yesil pigment klorofildir. Klorofil isigin en cok mavi ve kirmizi dalga boylarini soger, yesili yansitir. Yapraklarin yesil gorunmesinin sebebi budur. 4. Fotosentez hizini etkileyen etkenler - Isik siddeti: belli bir noktaya kadar artirir, sonra sabitlenir. - Karbondioksit derisimi: artarsa hiz artar. - Sicaklik: enzimler calistigi icin optimum sicaklik vardir. - Su miktari: azalirsa stomalar kapanir ve hiz duser. 5. Neden onemli? Fotosentez atmosferdeki oksijenin kaynagidir ve besin zincirinin ilk halkasini olusturur. Bitkiler uretici, digerleri tuketicidir.",
+  "topics": [
+    "Fotosentez Nedir?",
+    "Fotosentez Denklemi",
+    "Klorofil ve Görevi",
+    "Fotosentez Hızını Etkileyen Etkenler",
+    "Fotosentezin Önemi"
+  ],
+  "podcast": {
+    "title": "Fotosentez Üzerine Kısa Podcast",
+    "chapters": [
+      {
+        "title": "Bölüm 1: Fotosentez Nedir?",
+        "lines": [
+          {
+            "speaker": "ada",
+            "text": "Merhaba Kerem, bugün fotosentez konusunu konuşalım. Öncelikle, fotosentez nedir?"
+          },
+          {
+            "speaker": "kerem",
+            "text": "Merhaba Ada! Fotosentez, bitkilerin güneş ışığını kullanarak karbondioksit ve sudan besin üretmesidir."
+          },
+          {
+            "speaker": "ada",
+            "text": "Evet, bu olay yapraklardaki kloroplastlarda gerçekleşir. Doğru."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Aynen öyle, ve fotosentez için gerekli denklem de oldukça önemli."
+          },
+          {
+            "speaker": "ada",
+            "text": "Kesinlikle! 6 CO2 + 6 H2O + ışık enerjisi -> C6H12O6 + 6 O2 şeklinde."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Bu durumda altı karbondioksit ve altı su molekülü, bir glikoz ve altı oksijen molekülü oluşturuyor."
+          }
+        ]
+      },
+      {
+        "title": "Bölüm 2: Fotosentez Hızını Etkileyen Faktörler",
+        "lines": [
+          {
+            "speaker": "ada",
+            "text": "Peki, fotosentez hızını etkileyen faktörler nelerdir, Kerem?"
+          },
+          {
+            "speaker": "kerem",
+            "text": "Işık şiddeti, karbondioksit derişimi, sıcaklık ve su miktarı bu faktörler arasında."
+          },
+          {
+            "speaker": "ada",
+            "text": "Doğru, ışık şiddeti belli bir noktaya kadar artar, sonra sabit kalır."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Evet, karbondioksit derişimi artarsa fotosentez hızı da artıyor."
+          },
+          {
+            "speaker": "ada",
+            "text": "Optimum sıcaklık da önemlidir çünkü enzimlerin çalışmasını etkiler."
+          },
+          {
+            "speaker": "kerem",
+            "text": "Ayrıca, su miktarı azalırsa stomalar kapanır ve hız düşer."
+          },
+          {
+            "speaker": "ada",
+            "text": "Son olarak, fotosentez atmosferdeki oksijenin kaynağıdır. Bu çok önemli!"
+          }
+        ]
+      }
+    ]
+  },
+  "audio": [
+    {
+      "hash": "f966bd84871843c99070c02e2923f9536d493170d5622a5d55297145e2de0236",
+      "durationMs": 6312
+    },
+    {
+      "hash": "3eec188b0d1d3f7b8fda68a41f77a706e21c047dba125d2c36144b2477081a9f",
+      "durationMs": 7968
+    },
+    {
+      "hash": "70bb23b49c07ba4ca8ac0500617565801f885a4f468f4295801b5846152d29de",
+      "durationMs": 5664
+    },
+    {
+      "hash": "134e99580c825b8503672711ac2cab8cd1bd38daf75d8533d655b29a47013138",
+      "durationMs": 5664
+    },
+    {
+      "hash": "d976577a20c237c83ca106a0243402bce0489005bc41e26de2d19c56a5c9ff71",
+      "durationMs": 10464
+    },
+    {
+      "hash": "f25599544adfefbac006a04c09ae4e2292eb785b1c20d7c99a3b9563237ff90a",
+      "durationMs": 8208
+    },
+    {
+      "hash": "d85009126e323ab708357e2805dd672e5350658b1af61391e91124dea79a1209",
+      "durationMs": 5016
+    },
+    {
+      "hash": "8773fd61cc1b2d58b5b3b2875831daf076cfcf7949338a860c595bd4ca34586d",
+      "durationMs": 7200
+    },
+    {
+      "hash": "02dc9ab6acfe750ae31b43e61c6439a6dea4de270fb1f3e13a9f040e552b61a2",
+      "durationMs": 5256
+    },
+    {
+      "hash": "68b774ca061df23d77c4c6630f5e2ddcf3d70639b8f79b2776d764a7d65257a0",
+      "durationMs": 5760
+    },
+    {
+      "hash": "424393706b96377852d95e757771aa746351d151ac75316ca562c69c01fd7944",
+      "durationMs": 5400
+    },
+    {
+      "hash": "5c18e56baf9c7160a55cbe8593b08e392dda12cbaac385bef76d3e46d4a6d4cc",
+      "durationMs": 5664
+    },
+    {
+      "hash": "9bb2f541002e73f113fc106c2b6dd2c669a306f026938a80a5c1d1d17ac2504f",
+      "durationMs": 6312
+    }
+  ],
+  "quiz": [
+    {
+      "text": "Fotosentez sırasında hangi maddeler kullanılır?",
+      "options": [
+        "H2O ve O2",
+        "CO2 ve H2O",
+        "C6H12O6 ve O2",
+        "H2O ve C6H12O6"
+      ],
+      "correct": 1,
+      "explanation": "Fotosentez, karbondioksit (CO2) ve su (H2O) kullanarak glikoz ve oksijen üretir."
+    },
+    {
+      "text": "Fotosentez olayının gerçekleştiği yer nedir?",
+      "options": [
+        "Kökler",
+        "Yapraklar",
+        "Kloroplastlar",
+        "Stomalar"
+      ],
+      "correct": 2,
+      "explanation": "Fotosentez, bitkilerin yapraklarındaki kloroplastlarda gerçekleşir."
+    },
+    {
+      "text": "Aşağıdaki faktörlerden hangisi fotosentez hızını etkilemez?",
+      "options": [
+        "Işık şiddeti",
+        "Sıcaklık",
+        "Karbondioksit derişimi",
+        "Toprak pH'ı"
+      ],
+      "correct": 3,
+      "explanation": "Fotosentez hızı üzerinde doğrudan etkili olan etkenler ışık şiddeti, sıcaklık ve karbondioksit derişimidir. Toprak pH'ı doğrudan fotosentez hızını etkilemez."
+    }
+  ],
+  "oral": [
+    {
+      "prompt": "Fotosentez nedir ve bu süreçte hangi temel maddeler kullanılır?",
+      "hint": "Kendi besinini üreten bitkilerin kullandığı enerji kaynağı ve süreçte oluşan ürünleri düşünün."
+    },
+    {
+      "prompt": "Fotosentez hızını etkileyen faktörler nelerdir? Her bir faktörün fotosentez üzerindeki etkisini açıklayın.",
+      "hint": "Işık şiddeti, karbondioksit derişimi, sıcaklık ve su miktarının fotosentez üzerindeki etkilerini sıralayın."
+    }
+  ]
+}

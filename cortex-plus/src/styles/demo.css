@@ -1,0 +1,632 @@
+/**
+ * Örnek akış sayfası — kutu modeli (kenarlık/radius/gölge/arkaplan) "pm-"
+ * sınıflarından geliyor (bkz. premium-design-system.css). Bu dosya yalnızca
+ * yerleşim, boşluk ve tipografiye dokunuyor; bir öğede hem "pm-card" hem
+ * "dm-*" varsa dm-* kutu modeli özelliklerini bir daha tanımlamıyor —
+ * ikisi aynı özelliği tanımlarsa kazanan hangi dosyanın sonra yüklendiğine
+ * bağlı kalırdı, bu belirsizliği baştan kesiyoruz.
+ */
+
+.dm-shell {
+  --dm-bg: #0d0d0f;
+  --dm-text: #f4f2ee;
+  --dm-muted: #9a978f;
+
+  min-height: 100vh;
+  background: var(--dm-bg);
+  color: var(--dm-text);
+}
+
+.dm-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 1.1rem 1.25rem;
+}
+
+.dm-brand {
+  font-family: var(--font-display), var(--font-ui), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--dm-text);
+  text-decoration: none;
+}
+
+.dm-page {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 5rem;
+}
+
+.dm-head {
+  padding: 1.5rem 0 2rem;
+}
+
+.dm-head-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.dm-eyebrow {
+  margin: 0 0 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--pm-amber-500);
+}
+
+.dm-greeting {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--dm-muted);
+}
+
+.dm-head h1 {
+  margin: 0 0 0.6rem;
+  font-size: clamp(1.8rem, 4.5vw, 2.6rem);
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.dm-lead {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--dm-muted);
+  line-height: 1.6;
+}
+
+/* --- adım rayı --- */
+.dm-rail {
+  display: flex;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0 0 0.4rem;
+  overflow-x: auto;
+}
+
+.dm-rail-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-pill);
+  background: var(--pm-surface);
+  padding: 0.4rem 0.85rem 0.4rem 0.4rem;
+  color: var(--dm-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--pm-dur-base) var(--pm-ease),
+    transform var(--pm-dur-base) var(--pm-ease),
+    color var(--pm-dur-base) var(--pm-ease);
+}
+
+.dm-rail-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(232, 163, 61, 0.4);
+}
+
+.dm-rail-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: var(--pm-surface-2);
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: background var(--pm-dur-base) var(--pm-ease), color var(--pm-dur-base) var(--pm-ease);
+}
+
+.dm-rail-item.is-on {
+  border-color: rgba(232, 163, 61, 0.45);
+  background: rgba(232, 163, 61, 0.12);
+  color: var(--pm-amber-500);
+}
+
+.dm-rail-item.is-on .dm-rail-dot {
+  background: var(--pm-amber-500);
+  color: #17110a;
+}
+
+.dm-rail-item.is-done .dm-rail-dot {
+  background: rgba(74, 222, 128, 0.18);
+  color: var(--pm-success);
+}
+
+/* --- sahne: kutu modeli burada tanımlı, pm- token'larını doğrudan kullanır --- */
+.dm-stage {
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-lg);
+  background:
+    radial-gradient(ellipse 80% 60% at 0% 0%, rgba(139, 142, 247, 0.12), transparent 58%),
+    var(--pm-surface);
+  box-shadow: var(--pm-shadow-lg);
+  padding: 1.5rem 1.4rem;
+  overflow: hidden;
+}
+
+.dm-stage-head {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.dm-stage-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.8rem;
+  background: rgba(139, 142, 247, 0.16);
+  color: var(--pm-violet-400);
+}
+
+.dm-kicker {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--dm-muted);
+}
+
+.dm-stage-head h2 {
+  margin: 0.1rem 0 0;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+}
+
+.dm-stage-lead {
+  margin: 0.85rem 0 1.35rem;
+  max-width: 60ch;
+  color: var(--dm-muted);
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+/* --- 1. kaynak: kutu modeli pm-card'dan geliyor, burada yalnızca içerik --- */
+.dm-file {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  color: var(--dm-text);
+  text-decoration: none;
+}
+
+.dm-file span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dm-file em {
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--dm-muted);
+}
+
+.dm-source-kicker {
+  margin: 1.1rem 0 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--dm-muted);
+}
+
+.dm-source-text {
+  max-height: 11rem;
+  overflow-y: auto;
+  border-left: 2px solid var(--pm-line);
+  padding: 0.2rem 0 0.2rem 0.85rem;
+  color: var(--dm-muted);
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+
+/* --- 2. konular --- */
+.dm-topics {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dm-topics li {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-md);
+  background: var(--pm-surface-2);
+  padding: 0.7rem 0.9rem;
+  font-size: 0.9375rem;
+  transition: border-color var(--pm-dur-base) var(--pm-ease);
+}
+
+.dm-topics li:hover {
+  border-color: rgba(232, 163, 61, 0.35);
+}
+
+.dm-topic-no {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: rgba(139, 142, 247, 0.16);
+  color: var(--pm-violet-400);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.dm-topic-tag {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 0.6875rem;
+  color: var(--pm-amber-500);
+}
+
+/* --- 3. podcast --- */
+.dm-pod-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-md);
+  background: var(--pm-surface-2);
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.dm-pod-play {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: none;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, var(--pm-violet-400), var(--pm-violet-600));
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 10px 24px -10px rgba(107, 108, 240, 0.7);
+  transition: transform var(--pm-dur-fast) var(--pm-ease);
+}
+
+.dm-pod-play:active {
+  transform: scale(0.94);
+}
+
+.dm-pod-play:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+}
+
+.dm-pod-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dm-pod-time {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--dm-muted);
+}
+
+.dm-pod-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dm-pod-chapter {
+  margin: 0.9rem 0 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dm-muted);
+}
+
+.dm-pod-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  width: 100%;
+  border: none;
+  border-radius: var(--pm-radius-sm);
+  background: transparent;
+  padding: 0.4rem 0.5rem;
+  color: var(--dm-muted);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--pm-dur-base) var(--pm-ease), color var(--pm-dur-base) var(--pm-ease);
+}
+
+.dm-pod-line:disabled {
+  cursor: default;
+}
+
+.dm-pod-avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-top: 0.05rem;
+  border-radius: 9999px;
+  color: #17110a;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.dm-pod-said {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.dm-pod-who {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--dm-muted);
+}
+
+.dm-pod-line.is-on {
+  background: rgba(139, 142, 247, 0.14);
+  color: var(--dm-text);
+}
+
+.dm-pod-line.is-on .dm-pod-who {
+  color: var(--pm-violet-300);
+}
+
+/* --- 4. quiz --- */
+.dm-quiz-count {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  color: var(--dm-muted);
+}
+
+.dm-quiz-text {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+.dm-quiz-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dm-quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-md);
+  background: var(--pm-surface-2);
+  padding: 0.7rem 0.9rem;
+  color: var(--dm-text);
+  font-size: 0.9375rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--pm-dur-base) var(--pm-ease),
+    transform var(--pm-dur-fast) var(--pm-ease);
+}
+
+.dm-quiz-option:not(:disabled):hover {
+  border-color: rgba(232, 163, 61, 0.4);
+}
+
+.dm-quiz-option:not(:disabled):active {
+  transform: scale(0.99);
+}
+
+.dm-quiz-option:disabled {
+  cursor: default;
+}
+
+.dm-quiz-letter {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.dm-quiz-option.is-right {
+  border-color: rgba(74, 222, 128, 0.5);
+  background: rgba(74, 222, 128, 0.12);
+}
+
+.dm-quiz-option.is-wrong {
+  border-color: rgba(242, 96, 60, 0.5);
+  background: rgba(242, 96, 60, 0.12);
+}
+
+.dm-quiz-explain {
+  margin-top: 0.9rem;
+  border-left: 2px solid var(--pm-line);
+  padding-left: 0.85rem;
+  color: var(--dm-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.dm-quiz-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1rem 0 0.5rem;
+}
+
+.dm-quiz-done-pct {
+  font-family: var(--font-display), var(--font-ui), sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--pm-amber-400);
+}
+
+.dm-quiz-done-line {
+  margin: 1.1rem 0 0.3rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.dm-quiz-done-sub {
+  margin: 0;
+  max-width: 34ch;
+  color: var(--dm-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+/* --- 5. sözlü --- */
+.dm-oral {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.dm-oral-orb {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
+.dm-oral-caption {
+  margin: 0.9rem 0 1.2rem;
+  font-size: 0.875rem;
+  color: var(--dm-muted);
+}
+
+.dm-oral-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  text-align: left;
+}
+
+.dm-oral-list li {
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-md);
+  background: var(--pm-surface-2);
+  padding: 0.85rem 1rem;
+}
+
+.dm-oral-q {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.dm-oral-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--dm-muted);
+}
+
+.dm-oral-note {
+  margin: 1.1rem 0 0;
+  max-width: 44ch;
+  font-size: 0.8125rem;
+  color: var(--dm-muted);
+  line-height: 1.6;
+}
+
+/* --- gezinme --- */
+.dm-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.dm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-pill);
+  background: var(--pm-surface);
+  padding: 0.6rem 1.25rem;
+  color: var(--dm-text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform var(--pm-dur-fast) var(--pm-ease),
+    box-shadow var(--pm-dur-base) var(--pm-ease);
+}
+
+.dm-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.dm-btn:not(:disabled):active {
+  transform: translateY(0) scale(0.98);
+}
+
+.dm-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.dm-btn--primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--pm-amber-400), var(--pm-amber-500));
+  color: #17110a;
+  box-shadow: 0 10px 24px -10px rgba(232, 163, 61, 0.6);
+}
+
+.dm-btn--sm {
+  padding: 0.45rem 0.95rem;
+  font-size: 0.8125rem;
+}
