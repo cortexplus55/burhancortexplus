@@ -100,7 +100,19 @@ describe("gün etiketleri", () => {
     expect(formatDayLabel("2026-09-03", TODAY)).toBe("Bugün");
     expect(formatDayLabel("2026-09-04", TODAY)).toBe("Yarın");
     expect(formatDayLabel("2026-09-08", TODAY)).toBe("5 gün sonra");
-    expect(formatDayLabel("2026-09-01", TODAY)).toBe("2 gün önce");
+  });
+
+  // Yakın günler konuşma dilinde okunuyor; sayıya düşmek yalnızca üç günden
+  // itibaren. Astra da aynı tonu kullanıyor ("evvelsi gün").
+  it("yakın günleri konuşma dilinde yazar", () => {
+    expect(formatDayLabel("2026-09-05", TODAY)).toBe("Öbür gün");
+    expect(formatDayLabel("2026-09-02", TODAY)).toBe("Dün");
+    expect(formatDayLabel("2026-09-01", TODAY)).toBe("Evvelsi gün");
+  });
+
+  it("üç gün ve ötesinde sayıya döner", () => {
+    expect(formatDayLabel("2026-09-06", TODAY)).toBe("3 gün sonra");
+    expect(formatDayLabel("2026-08-31", TODAY)).toBe("3 gün önce");
   });
 
   it("toIsoDate yerel tarihi sıfır dolgulu verir", () => {

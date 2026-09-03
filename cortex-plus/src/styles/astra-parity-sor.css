@@ -5389,7 +5389,8 @@
    yani herkes aynı tahtayı çözüyor — sıralama ancak böyle anlamlı.
    --------------------------------------------------------------------------- */
 .ap-daily {
-  margin: 0 0 1.5rem;
+  /* Hero paragrafinin dibine yapismasin. */
+  margin: 1.5rem 0;
 }
 
 .ap-daily-head {
