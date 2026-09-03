@@ -3665,12 +3665,29 @@
 }
 
 .ap-tutor-orb {
+  position: relative;
   width: 7.5rem;
   height: 7.5rem;
   border-radius: 9999px;
   background:
     radial-gradient(circle at 35% 30%, #ffe7a8, #d4922a 42%, #7a4a12 78%);
-  box-shadow: 0 0 48px rgba(244, 174, 11, 0.35);
+  /* İki katman: geniş yumuşak parıltı + dar keskin halka — Astra'nın küresi
+     de aynı tekniği kullanıyor, tek gölgeyle bu derinlik yakalanmıyor. */
+  box-shadow:
+    0 0 64px -4px rgba(244, 174, 11, 0.45),
+    0 0 18px -2px rgba(244, 174, 11, 0.6);
+  isolation: isolate;
+  transition: box-shadow 300ms var(--pm-ease, ease);
+}
+
+/* Cam/3B hissi veren parlama noktası — sağ üstten ışık alıyormuş gibi. */
+.ap-tutor-orb::after {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  border-radius: inherit;
+  background: radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.55), transparent 46%);
+  mix-blend-mode: screen;
 }
 
 .ap-tutor-orb.is-talk {
@@ -3678,12 +3695,20 @@
 }
 
 .ap-tutor-orb.is-listen {
-  box-shadow: 0 0 48px rgba(96, 165, 250, 0.45);
+  box-shadow:
+    0 0 64px -4px rgba(139, 142, 247, 0.5),
+    0 0 18px -2px rgba(139, 142, 247, 0.65);
 }
 
 @keyframes ap-orb-pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.06); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ap-tutor-orb.is-talk {
+    animation: none;
+  }
 }
 
 .ap-tutor-caption {
