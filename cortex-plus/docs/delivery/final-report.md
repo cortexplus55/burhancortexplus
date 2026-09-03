@@ -103,8 +103,8 @@ sayfalar, auth yönlendirmeleri, güvenlik başlıkları, mobil taşma, erişile
 
 | Servis | Durum |
 |--------|--------|
-| GitHub | **Tamam** — https://github.com/burhan55600-pixel/cortex-plus (private) |
-| Vercel preview | **Tamam** — `cortex-plus-k6raedava-burhan55600-5553s-projects.vercel.app` (Deployment Protection açık) |
+| GitHub | **Tamam** — https://github.com/cortexplus55/burhancortexplus (tek repo) |
+| Vercel | **Tamam** — `burhancortexplus-app` → cortexplus.app |
 | Supabase | **Tamam** — `cortex-plus-app` projesi kuruldu, 4 migration uygulandı, denetim temiz |
 | Google OAuth | **Bekliyor** — GCP client + Supabase provider (secret'ı siz gireceksiniz) |
 | PayTR | Kod hazır (test modu); mağaza paneli ayarları ve canlı mod **onay bekliyor** |
@@ -122,7 +122,6 @@ sayfalar, auth yönlendirmeleri, güvenlik başlıkları, mobil taşma, erişile
 3. Preview deployment'ta ortam değişkenleri henüz tanımlı değil; şu an yalnızca pazarlama
    sayfaları render olur.
 4. PDF metin çıkarımı metin katmanı olan dosyalar içindir; taranmış PDF için OCR eklenmeli.
-5. Vercel projesi GitHub'a bağlı değil (iki farklı hesap); şu an CLI ile deploy ediliyor.
 6. PWA ikonları (`icon-192.png`, `icon-512.png`) eklenmeli.
 7. Kalan iki Supabase advisor uyarısı bilinçli kabul edildi: `is_admin`/`has_role` RLS için
    gerekli, `vector` eklentisi `public` şemasında.

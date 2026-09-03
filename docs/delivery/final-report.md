@@ -87,8 +87,8 @@ sayfalar, auth yönlendirmeleri, güvenlik başlıkları, mobil taşma, erişile
 
 | Servis | Durum |
 |--------|--------|
-| GitHub | **Tamam** — https://github.com/burhan55600-pixel/cortex-plus (private) |
-| Vercel preview | **Tamam** — `cortex-plus-k6raedava-burhan55600-5553s-projects.vercel.app` (Deployment Protection açık) |
+| GitHub | **Tamam** — https://github.com/cortexplus55/burhancortexplus (tek repo) |
+| Vercel | **Tamam** — `burhancortexplus-app` → cortexplus.app |
 | Supabase | **Bekliyor** — hesap `cortexplus@cortexplus.app` olarak değiştirilecek, sonra proje + migration |
 | Google OAuth | **Bekliyor** — GCP client + Supabase provider |
 | PayTR | Kod hazır (test modu); mağaza paneli ayarları ve canlı mod **onay bekliyor** |
@@ -103,8 +103,6 @@ sayfalar, auth yönlendirmeleri, güvenlik başlıkları, mobil taşma, erişile
 1. Astra ücretsiz/premium oturum gözlemi tamamlanmadı (manuel giriş gerekiyor).
 2. Supabase projesi bağlanmadan veri gerektiren ekranlar boş durum gösterir.
 3. PDF metin çıkarımı metin katmanı olan dosyalar içindir; taranmış PDF için OCR eklenmeli.
-4. Vercel projesi GitHub'a bağlı değil (Vercel hesabı farklı GitHub hesabı görüyor); şu an
-   CLI ile deploy ediliyor.
 5. PWA ikonları (`icon-192.png`, `icon-512.png`) eklenmeli.
 6. `next` içindeki transitive `postcss` uyarısı Next 16'ya geçildiğinde kapanır; Next 16
    shadcn "base-nova" bileşenleri için Tailwind v4 migrasyonu gerektirir.
@@ -119,6 +117,5 @@ sayfalar, auth yönlendirmeleri, güvenlik başlıkları, mobil taşma, erişile
 4. `.env.local` ve Vercel environment değişkenlerini doldur (bkz. `.env.example`).
 5. PayTR mağaza panelinde bildirim URL'sini `https://cortexplus.app/api/payments/paytr/callback` yap.
 6. Preview üzerinde kayıt → onboarding → sohbet → kredi akışını uçtan uca doğrula.
-7. Vercel projesini GitHub deposuna bağla (otomatik deploy için).
 8. Onay sonrası: DNS (`cortexplus.app`, `www` → ana domain) ve production deployment.
 9. Production smoke test + PayTR canlı mod onayı.

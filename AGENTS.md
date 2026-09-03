@@ -1,8 +1,30 @@
 # Cortex Plus Platform
 
-- **GitHub (tek kaynak):** https://github.com/cortexplus55/burhancortexplus
+## TEK KAYNAK — başka hiçbir yer yok
+
+| | Değer |
+|---|---|
+| **Repo** | `cortexplus55/burhancortexplus` — **tek repo** |
+| **Yerel klasör** | `C:\Users\burha\OneDrive\Masaüstü\Cortex-Plus-Dev` |
+| **Vercel** | `burhancortexplus-app` → `cortexplus.app` (Root Directory: `cortex-plus/`) |
+| **Supabase** | `dgjfyewgrukglsehyntc` |
+| **GitHub hesabı** | `cortexplus55` (repoya `git config --local` ile sabitlendi) |
+
+"Commit et" / "deploy et" denince gidilecek yer budur. Başka repo, başka klasör,
+başka Supabase projesi **yok**. Bir tanesini gördüğünüzde bu dosyaya geri dönün.
+
+**Kullanılmayacaklar:** `burhan55600-pixel/*` (GitHub'dan silindi),
+`burhan55600-5553s-projects/*`, Supabase `gwqonggqzvavljguiryx` (emekli),
+`nslhmgbicczkrcjwmdix` (duraklatılmış).
+
+> Doğrulama sırası — bir daha yanlış hedefe çalışmamak için:
+> 1. `cortexplus.app` istemci paketinden Supabase ref'ini oku
+> 2. Vercel'de hangi projenin hangi repoyu deploy ettiğine bak
+> 3. Ancak ondan sonra kod veya şema değiştir
+
+---
+
 - **App path:** `cortex-plus/` (Vercel Root Directory)
-- **Greenfield:** yeni Supabase + yeni Vercel; eski `cortex-plus` repo ve `gwqonggqzvavljguiryx` kullanılmaz
 - **Bağlantı rehberi:** `docs/delivery/GREENFIELD-CONNECT.md`
 - **CLI (Vercel / Supabase / gh):** `docs/delivery/CLI-CONNECT.md` — tek hedef; kurulum: `scripts/setup-cli.ps1`
 - **Operasyon e-postası (tek):** **`cortexplus@cortexplus.app`** — panel, OAuth test, Squarespace, Gmail MCP, doküman; kişisel `@gmail.com` **yasak**. Ayrıntı: `docs/delivery/IDENTITY.md`, kural: `.cursor/rules/cortexplus-identity.mdc`

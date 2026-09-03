@@ -69,7 +69,9 @@ gh auth switch          # gerekirse
 git remote -v           # origin → cortexplus55/burhancortexplus
 ```
 
-CI workflow push için bazen `burhan55600-pixel` + `workflow` scope — bkz. [GITHUB-CI-WORKFLOW-SCOPE.md](./GITHUB-CI-WORKFLOW-SCOPE.md).
+CI workflow dosyalarını push etmek `workflow` scope'u ister; token bu scope ile
+yenilenir. Hesap her zaman `cortexplus55` kalır — bkz.
+[GITHUB-CI-WORKFLOW-SCOPE.md](./GITHUB-CI-WORKFLOW-SCOPE.md).
 
 **Migration drift — `db push` çalıştırmayın.** Sorun farklı timestamp değil:
 iki geçmiş tamamen ayrık. 2026-09-02 ölçümü: repodaki **25** migration uzakta

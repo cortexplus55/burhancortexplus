@@ -60,7 +60,7 @@ Zaten dolu olanlar: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABL
 
 ### Vercel
 
-Vercel projesi: `cortex-plus` (hesap `burhan55600-5553`). Dashboard → Settings →
+Vercel projesi: `burhancortexplus-app` (hesap `cortexplus55`). Dashboard → Settings →
 Environment Variables bölümüne aşağıdakileri ekleyin (Production + Preview + Development):
 
 ```
@@ -115,11 +115,12 @@ http://localhost:3000/auth/confirm
 
 ## 4. GitHub ↔ Vercel bağlantısı
 
-Şu an kopuk: GitHub deposu `burhan55600-pixel` hesabında, Vercel projesi
-`burhan55600-5553` hesabında. Otomatik deploy için Vercel Dashboard → Settings → Git
-bölümünden GitHub hesabını bağlayın ve `burhan55600-pixel/cortex-plus` deposunu seçin.
+Tek repo: **`cortexplus55/burhancortexplus`**. Vercel projesi `burhancortexplus-app`
+bu repoya bağlı ve `cortexplus.app` alan adını sunuyor. Root Directory: `cortex-plus/`.
 
-Bağlanana kadar deploy: `npx vercel deploy` (preview) / `npx vercel deploy --prod`.
+> Bu bölüm daha önce `burhan55600-pixel/cortex-plus` deposunun bağlanmasını
+> tarif ediyordu. O depo GitHub'tan silindi ve canlıya hiç deploy etmiyordu;
+> talimat izlenirse yanlış kaynak bağlanırdı. Başka hiçbir repo bağlanmamalı.
 
 ---
 
