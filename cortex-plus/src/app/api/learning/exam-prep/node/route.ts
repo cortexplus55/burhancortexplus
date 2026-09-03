@@ -6,6 +6,13 @@ import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import {
+  parseFamiliarity,
+  parseMood,
+  sessionSignalsPrompt,
+  type Familiarity,
+  type Mood,
+} from "@/lib/learning/session-signals";
+import {
   normalizeQuizQuestion,
   publicQuizQuestion,
   scoreQuizAnswers,
@@ -18,6 +25,13 @@ const bodySchema = z.object({
   action: z.enum(["start", "complete"]).default("start"),
   difficulty: z.enum(["kolay", "orta", "ileri"]).optional(),
   voiceMode: z.boolean().optional(),
+  // Ders başında sorulan iki sinyal: konuya aşinalık ve o anki ruh hali.
+  familiarity: z
+    .enum(["new", "heard", "basics", "good", "confident"])
+    .optional(),
+  mood: z
+    .enum(["ready", "curious", "calm", "neutral", "low_energy", "stressed"])
+    .optional(),
   answers: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -98,6 +112,8 @@ export async function POST(request: Request) {
   const kind = node.kind as PlanNodeKind;
   const difficulty = parsed.data.difficulty ?? "orta";
   const voiceMode = parsed.data.voiceMode ?? false;
+  const familiarity = parseFamiliarity(parsed.data.familiarity);
+  const mood = parseMood(parsed.data.mood);
 
   if (action === "complete") {
     const { data: attempt } = await service
@@ -160,26 +176,56 @@ export async function POST(request: Request) {
         prepTitle: prep.title ?? "Hazırlık",
         topicLabel,
         difficulty,
+        familiarity,
+        mood,
       });
 
   const total = countTotal(kind, payload);
-  const { data: attempt, error } = await service
+  const baseAttempt = {
+    node_id: nodeId,
+    exam_prep_id: prepId,
+    user_id: userId,
+    topic_id: topic?.id ?? null,
+    difficulty,
+    voice_mode: voiceMode,
+    payload,
+    total,
+    status: "active",
+  };
+
+  let { data: attempt, error } = await service
     .from("exam_prep_node_attempts")
-    .insert({
-      node_id: nodeId,
-      exam_prep_id: prepId,
-      user_id: userId,
-      topic_id: topic?.id ?? null,
-      difficulty,
-      voice_mode: voiceMode,
-      payload,
-      total,
-      status: "active",
-    })
+    .insert({ ...baseAttempt, familiarity, mood })
     .select("id")
     .single();
 
+  // Kalibrasyon kolonları migration ile geliyor. Kod migration'dan önce
+  // dağıtılırsa ders üretimi tamamen kırılmasın diye sinyalsiz tekrar denenir.
+  if (error) {
+    ({ data: attempt, error } = await service
+      .from("exam_prep_node_attempts")
+      .insert(baseAttempt)
+      .select("id")
+      .single());
+  }
+
   if (error || !attempt) return errorResponse(500, "generation_failed");
+
+  // Aşinalık konuya yazılır ki sonraki derste varsayılan olarak gelsin;
+  // ruh hali zaman içinde desen çıkarmak için ayrı tabloda birikir.
+  // İkisi de yan etki: başarısız olurlarsa dersi engellemezler.
+  if (topic?.id) {
+    await service
+      .from("exam_prep_topics")
+      .update({ familiarity })
+      .eq("id", topic.id);
+  }
+  await service.from("study_session_moods").insert({
+    user_id: userId,
+    exam_prep_id: prepId,
+    node_id: nodeId,
+    mood,
+  });
 
   if (node.status !== "done") {
     await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
@@ -204,8 +250,14 @@ async function generateNodePayload(input: {
   prepTitle: string;
   topicLabel: string;
   difficulty: string;
+  familiarity: Familiarity;
+  mood: Mood;
 }) {
-  const ctx = `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}. Zorluk: ${input.difficulty}.`;
+  // Aşinalık içeriğin nereden başlayacağını, ruh hali tonunu belirler.
+  const ctx = `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}. Zorluk: ${input.difficulty}. ${sessionSignalsPrompt(
+    input.familiarity,
+    input.mood,
+  )}`;
 
   if (input.kind === "qa") {
     const outcome = await generateExamQuiz({

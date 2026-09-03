@@ -5,6 +5,7 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { examPrepIntroHref, needsExamIntro } from "@/lib/learning/exam-prep-hrefs";
+import type { Familiarity } from "@/lib/learning/session-signals";
 
 export const metadata = { title: "Ders" };
 
@@ -43,13 +44,16 @@ export default async function ExamNodePage({
   }
 
   let topicLabel: string | null = null;
+  let topicFamiliarity: Familiarity | null = null;
   if (prep.active_topic_id) {
     const { data: topic } = await supabase
       .from("exam_prep_topics")
-      .select("label")
+      .select("label, familiarity")
       .eq("id", prep.active_topic_id)
       .maybeSingle();
     topicLabel = topic?.label ?? null;
+    // Bu konuya daha önce girildiyse beyan edilen seviye varsayılan olur.
+    topicFamiliarity = (topic?.familiarity as Familiarity | null) ?? null;
   }
 
   return (
@@ -60,6 +64,7 @@ export default async function ExamNodePage({
         kind={node.kind as PlanNodeKind}
         prepTitle={prep.title ?? "Sınav hazırlığı"}
         topicLabel={topicLabel}
+        initialFamiliarity={topicFamiliarity}
       />
     </AstraParitySorShell>
   );

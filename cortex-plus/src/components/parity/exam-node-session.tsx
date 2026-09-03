@@ -11,6 +11,14 @@ import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { ExamVoiceTutor } from "@/components/parity/exam-voice-tutor";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import {
+  DEFAULT_FAMILIARITY,
+  DEFAULT_MOOD,
+  FAMILIARITY_OPTIONS,
+  MOOD_OPTIONS,
+  type Familiarity,
+  type Mood,
+} from "@/lib/learning/session-signals";
 import { cn } from "@/lib/utils";
 
 type Difficulty = "kolay" | "orta" | "ileri";
@@ -39,16 +47,27 @@ export function ExamNodeSession({
   kind,
   prepTitle,
   topicLabel,
+  initialFamiliarity,
 }: {
   prepId: string;
   nodeId: string;
   kind: PlanNodeKind;
   prepTitle: string;
   topicLabel: string | null;
+  /** Konuya daha önce girildiyse beyan edilen aşinalık — varsayılan olarak gelir. */
+  initialFamiliarity?: Familiarity | null;
 }) {
   const router = useRouter();
   const meta = PLAN_NODE_META[kind];
-  const [stage, setStage] = useState<"setup" | "play" | "result">("setup");
+  // Astra'daki sıra: aşinalık → ruh hali → kurulum. İkisi de zorunlu değil;
+  // "setup"tan geri dönülebilsin diye aynı stage makinesinde tutuluyorlar.
+  const [stage, setStage] = useState<
+    "familiarity" | "mood" | "setup" | "play" | "result"
+  >("familiarity");
+  const [familiarity, setFamiliarity] = useState<Familiarity>(
+    initialFamiliarity ?? DEFAULT_FAMILIARITY,
+  );
+  const [mood, setMood] = useState<Mood>(DEFAULT_MOOD);
   const [difficulty, setDifficulty] = useState<Difficulty>("orta");
   const [voiceMode, setVoiceMode] = useState(meta.voice);
   const [loading, setLoading] = useState(false);
@@ -97,7 +116,15 @@ export function ExamNodeSession({
       const res = await fetch("/api/learning/exam-prep/node", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prepId, nodeId, action: "start", difficulty, voiceMode }),
+        body: JSON.stringify({
+          prepId,
+          nodeId,
+          action: "start",
+          difficulty,
+          voiceMode,
+          familiarity,
+          mood,
+        }),
       });
       if (res.status === 402) {
         setPaywall(true);
@@ -208,6 +235,69 @@ export function ExamNodeSession({
           ×
         </button>
       </div>
+
+      {stage === "familiarity" || stage === "mood" ? (
+        <article className="ap-signal-card">
+          <div className="ap-signal-steps" aria-hidden>
+            <span className="ap-signal-step ap-signal-step--on" />
+            <span
+              className={cn(
+                "ap-signal-step",
+                stage === "mood" && "ap-signal-step--on",
+              )}
+            />
+          </div>
+          {stage === "familiarity" ? (
+            <>
+              <h1>Bu konuya ne kadar aşinasın?</h1>
+              <p className="ap-signal-lead">
+                Doğru zorluk seviyesini belirlememize yardımcı olur.
+              </p>
+              {FAMILIARITY_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className="ap-signal-option"
+                  aria-pressed={familiarity === option.id}
+                  onClick={() => {
+                    setFamiliarity(option.id);
+                    setStage("mood");
+                  }}
+                >
+                  <span className="ap-signal-emoji" aria-hidden>
+                    {option.emoji}
+                  </span>
+                  <span className="ap-signal-title">{option.title}</span>
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              <h1>Bugün ruh halin nasıl?</h1>
+              <p className="ap-signal-lead">
+                Anlatım tonunu buna göre ayarlayacağım.
+              </p>
+              {MOOD_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className="ap-signal-option"
+                  aria-pressed={mood === option.id}
+                  onClick={() => {
+                    setMood(option.id);
+                    setStage("setup");
+                  }}
+                >
+                  <span className="ap-signal-emoji" aria-hidden>
+                    {option.emoji}
+                  </span>
+                  <span className="ap-signal-title">{option.title}</span>
+                </button>
+              ))}
+            </>
+          )}
+        </article>
+      ) : null}
 
       {stage === "setup" ? (
         <article className="ap-exam-setup-card">
