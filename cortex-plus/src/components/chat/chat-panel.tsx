@@ -508,9 +508,21 @@ export function ChatPanel({
       if (newConversation) conversationId.current = newConversation;
       const credits = res.headers.get("X-Credits-Used");
       const sourceCount = Number(res.headers.get("X-Sources") ?? "0");
+      // Hangi nottan geldiği "3 kaynak"tan anlamlı. Kaynak bulunamadığında
+      // cevabın genel bilgi olduğunu yazıyoruz: eskiden bu sessizce geçiyordu.
+      let sourceDoc = "";
+      try {
+        sourceDoc = decodeURIComponent(res.headers.get("X-Source-Doc") ?? "");
+      } catch {
+        sourceDoc = "";
+      }
+      const sourceLabel = sourceCount
+        ? ` · notundan: ${sourceDoc || `${sourceCount} kaynak`}`
+        : useDocuments
+          ? " · genel bilgi"
+          : "";
       setStatus(
-        `${res.headers.get("X-Model") ?? ""} · ${credits ?? "0"} kredi` +
-          (sourceCount ? ` · ${sourceCount} kaynak` : ""),
+        `${res.headers.get("X-Model") ?? ""} · ${credits ?? "0"} kredi${sourceLabel}`,
       );
 
       const reader = res.body.getReader();
