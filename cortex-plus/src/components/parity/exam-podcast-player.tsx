@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Pause, Play, RotateCcw, RotateCw } from "lucide-react";
 import { speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
 import {
@@ -38,7 +39,13 @@ export function ExamPodcastPlayer({
 }) {
   const normalized = useMemo(() => normalizeChapters(chapters), [chapters]);
   const [audio, setAudio] = useState<AudioLine[] | null>(null);
-  const [status, setStatus] = useState<"loading" | "ready" | "fallback">("loading");
+  // "premium" ile "fallback" ayrı: ikisi de tarayıcı sesine düşüyor ama
+  // sebepleri farklı ve öğrenciye farklı şey söylenmeli. Gating geldikten
+  // sonra herkese "sunucu sesi şu an yok" demek, premium özelliğini arıza
+  // gibi göstermek olurdu.
+  const [status, setStatus] = useState<
+    "loading" | "ready" | "fallback" | "premium"
+  >("loading");
   const [playing, setPlaying] = useState(false);
   const [positionMs, setPositionMs] = useState(0);
   const [heard, setHeard] = useState(false);
@@ -68,17 +75,22 @@ export function ExamPodcastPlayer({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chapters: normalized }),
     })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error())))
+      .then(async (res) => {
+        // 402 = premium gerekiyor; arıza değil, o yüzden ayrı işaretleniyor.
+        if (res.status === 402) throw new Error("premium");
+        if (!res.ok) throw new Error("unavailable");
+        return res.json();
+      })
       .then((data: { lines?: AudioLine[] }) => {
         if (!alive) return;
-        if (!data.lines?.length) throw new Error();
+        if (!data.lines?.length) throw new Error("unavailable");
         setAudio(data.lines);
         setStatus("ready");
       })
-      .catch(() => {
-        // Sunucu sesi gelmezse ders sessiz kalmasın: tarayıcı sesine dönüyoruz.
-        // Orada zaman çizelgesi yok, bu yüzden senkron da kapanıyor.
-        if (alive) setStatus("fallback");
+      .catch((error: Error) => {
+        // Her iki durumda da ders sessiz kalmasın diye tarayıcı sesine
+        // dönüyoruz; orada zaman çizelgesi olmadığı için senkron kapanıyor.
+        if (alive) setStatus(error.message === "premium" ? "premium" : "fallback");
       });
     return () => {
       alive = false;
@@ -160,7 +172,7 @@ export function ExamPodcastPlayer({
   }
 
   function toggle() {
-    if (status === "fallback") {
+    if (status === "fallback" || status === "premium") {
       toggleFallback();
       return;
     }
@@ -261,6 +273,14 @@ export function ExamPodcastPlayer({
 
         {status === "loading" ? (
           <p className="ap-pod-state">Ses hazırlanıyor…</p>
+        ) : status === "premium" ? (
+          <p className="ap-pod-state">
+            İki sesli stüdyo anlatımı Plus&apos;a özel — şimdilik cihazının
+            sesiyle okunuyor.{" "}
+            <Link href="/paketler" className="ap-pod-upsell">
+              Plus&apos;a bak
+            </Link>
+          </p>
         ) : status === "fallback" ? (
           <p className="ap-pod-state">
             Sunucu sesi şu an yok; cihazının sesiyle okunuyor.

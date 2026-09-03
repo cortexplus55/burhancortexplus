@@ -5044,3 +5044,11 @@
   margin: 0 0 0.5rem;
   line-height: 1.55;
 }
+
+/* Podcast: premium ses kapalıyken gösterilen yükseltme bağlantısı. */
+.ap-pod-upsell {
+  color: var(--pm-amber-500, #e8a33d);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
