@@ -1,0 +1,301 @@
+/**
+ * Premium tasarım sistemi — "pm-" öneki.
+ *
+ * Astra AI'ın vitrinini inceledikten sonra kuruldu (bkz. commit mesajı).
+ * Amaç birebir kopya değil: aynı işçilik seviyesini (katmanlı derinlik,
+ * parlayan AI küresi, dairesel ilerleme, konuya özel renk) kendi
+ * kimliğimizle (amber ana renk, mor ikincil, mevcut --ap-* koyu zemin)
+ * kurmak. Mevcut --ap-* token'larını değiştirmiyor, üstüne ekliyor —
+ * böylece halihazırda çalışan 30+ sayfa etkilenmeden yeni yüzeyler
+ * (/ornek, ap-tutor-orb gibi izole bileşenler) bunu kullanabiliyor.
+ *
+ * Bu ilk faz: sistem + /ornek vitrin sayfası + sesli eğitmen küresi.
+ * Geri kalan yüzeylere yayılım ayrı fazlarda.
+ */
+
+:root {
+  /* --- Marka: amber ---------------------------------------------------- */
+  --pm-amber-300: #f6c987;
+  --pm-amber-400: #f0b354;
+  --pm-amber-500: #e8a33d;
+  --pm-amber-600: #c47c1f;
+  --pm-amber-700: #8f5710;
+
+  /* --- İkincil: "zeka" moru — mevcut ap-exam-continue--primary'deki
+     gradyanla aynı aile, sistemleştirilmiş hali. --------------------------- */
+  --pm-violet-300: #c7cbfb;
+  --pm-violet-400: #a5b4fc;
+  --pm-violet-500: #8b8ef7;
+  --pm-violet-600: #6b6cf0;
+
+  /* --- Anlamsal --------------------------------------------------------- */
+  --pm-success: #4ade80;
+  --pm-danger: #f2603c;
+
+  /* --- Zemin (mevcut --ap-bg/--ap-surface ile aynı aile) ------------------ */
+  --pm-surface: #17171b;
+  --pm-surface-2: #202027;
+  --pm-line: #2c2c34;
+  --pm-ring-track: #26262e;
+
+  /* --- Ölçek -------------------------------------------------------------- */
+  --pm-radius-sm: 0.625rem;
+  --pm-radius-md: 1.1rem;
+  --pm-radius-lg: 1.6rem;
+  --pm-radius-pill: 9999px;
+
+  /* --- Hareket: expo-out — sıçramasız ama kesin bir "yerine oturma" hissi. */
+  --pm-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --pm-dur-fast: 150ms;
+  --pm-dur-base: 260ms;
+  --pm-dur-slow: 420ms;
+
+  /* --- Yükselti: ton amber'e hafif kaymış, tamamen nötr gölge cansız durur. */
+  --pm-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --pm-shadow-md: 0 8px 24px -8px rgba(10, 8, 4, 0.55);
+  --pm-shadow-lg: 0 24px 60px -16px rgba(10, 8, 4, 0.6);
+  --pm-glow-amber: 0 0 56px -8px rgba(232, 163, 61, 0.55);
+  --pm-glow-violet: 0 0 56px -8px rgba(139, 142, 247, 0.55);
+
+  /* --- Ders/konu renkleri: her biri kendi tonu — Astra'nın "her derse kendi
+     rengi" fikri, bizim koyu zeminde parlayan-cam yorumuyla. ---------------- */
+  --pm-subj-matematik: #6b8cff;
+  --pm-subj-fizik: #34d399;
+  --pm-subj-kimya: #f0b354;
+  --pm-subj-biyoloji: #a3e635;
+  --pm-subj-turkce: #f2603c;
+  --pm-subj-ingilizce: #f472b6;
+  --pm-subj-tarih: #fbbf24;
+  --pm-subj-cografya: #22d3ee;
+}
+
+/* ============================================================ Tipografi */
+
+.pm-display {
+  font-family: var(--font-display), var(--font-ui), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+/* ============================================================ AI küresi */
+/*
+ * Astra'nın sözlü sınav bölümündeki parlayan küreden ilham alındı: radial
+ * gradyan + üst-sol parlama noktası + yumuşak dış parıltı. Renk kendi
+ * paletimizden — onlarınki mor, bizimki varsayılan amber (konuşma/dinleme
+ * durumuna göre mor'a geçebiliyor, bkz. .is-listen).
+ */
+.pm-orb {
+  position: relative;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at 32% 28%,
+    var(--pm-amber-300),
+    var(--pm-amber-500) 46%,
+    var(--pm-amber-700) 82%
+  );
+  box-shadow: var(--pm-glow-amber);
+  isolation: isolate;
+}
+
+.pm-orb::after {
+  /* İkinci, daha küçük ve daha keskin bir parlama katmanı — cam/3B hissi
+     tek gradyanla zor yakalanıyor, iki katman üst üste bindiriliyor. */
+  content: "";
+  position: absolute;
+  inset: 8%;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at 30% 24%,
+    rgba(255, 255, 255, 0.55),
+    transparent 46%
+  );
+  mix-blend-mode: screen;
+}
+
+.pm-orb--violet {
+  background: radial-gradient(
+    circle at 32% 28%,
+    var(--pm-violet-300),
+    var(--pm-violet-500) 46%,
+    #2f2f8f 82%
+  );
+  box-shadow: var(--pm-glow-violet);
+}
+
+.pm-orb.is-breathing {
+  animation: pm-orb-breathe 3.2s var(--pm-ease) infinite;
+}
+
+.pm-orb.is-active {
+  animation: pm-orb-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes pm-orb-breathe {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.035); filter: brightness(1.08); }
+}
+
+@keyframes pm-orb-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-orb.is-breathing,
+  .pm-orb.is-active {
+    animation: none;
+  }
+}
+
+/* ======================================================= İlerleme halkası */
+
+.pm-ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pm-ring svg {
+  transform: rotate(0deg);
+}
+
+.pm-ring-fill {
+  transition: stroke-dashoffset var(--pm-dur-slow) var(--pm-ease);
+}
+
+.pm-ring-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* ================================================================ Kartlar */
+
+.pm-card {
+  position: relative;
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-md);
+  background: var(--pm-surface);
+  box-shadow: var(--pm-shadow-md);
+  transition: transform var(--pm-dur-base) var(--pm-ease),
+    box-shadow var(--pm-dur-base) var(--pm-ease),
+    border-color var(--pm-dur-base) var(--pm-ease);
+}
+
+.pm-card--interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--pm-shadow-lg);
+  border-color: rgba(232, 163, 61, 0.35);
+}
+
+/* Astra'nın konu kartlarındaki devasa, soluk "hayalet ikon" dokusu —
+   bizim yorumumuz: parlak dolgu yerine ince bir kontur, koyu zeminde
+   bağırmadan doku katıyor. */
+.pm-card--ghost {
+  overflow: hidden;
+}
+
+.pm-card--ghost::before {
+  content: attr(data-ghost-icon);
+  position: absolute;
+  right: -0.5rem;
+  bottom: -1.2rem;
+  font-size: 6rem;
+  line-height: 1;
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+/* ================================================================== Çip */
+
+.pm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: var(--pm-radius-pill);
+  padding: 0.3rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: color-mix(in srgb, var(--pm-chip-color, var(--pm-amber-500)) 16%, transparent);
+  color: var(--pm-chip-color, var(--pm-amber-500));
+  border: 1px solid color-mix(in srgb, var(--pm-chip-color, var(--pm-amber-500)) 30%, transparent);
+}
+
+/* ============================================================= İskelet */
+
+.pm-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--pm-radius-sm);
+  background: var(--pm-surface-2);
+}
+
+.pm-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 70%
+  );
+  animation: pm-shimmer 1.5s linear infinite;
+}
+
+@keyframes pm-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-skeleton::after {
+    animation: none;
+  }
+}
+
+/* ============================================================= Geçişler */
+
+/* Adım/sekme değişimlerinde kullanılan yumuşak giriş — key değişince
+   React öğeyi yeniden monte ediyor, bu da animasyonu her seferinde
+   yeniden tetikliyor. */
+.pm-enter {
+  animation: pm-enter var(--pm-dur-slow) var(--pm-ease) both;
+}
+
+@keyframes pm-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-enter {
+    animation: none;
+  }
+}
+
+/* Sıralı listelerde kademeli beliriş: her öğe .pm-stagger + style'da
+   --pm-i indeksiyle kullanılır. */
+.pm-stagger {
+  animation: pm-enter var(--pm-dur-base) var(--pm-ease) both;
+  animation-delay: calc(var(--pm-i, 0) * 55ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-stagger {
+    animation: none;
+  }
+}
