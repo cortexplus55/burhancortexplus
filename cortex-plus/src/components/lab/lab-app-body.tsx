@@ -40,8 +40,18 @@ import { PopulasyonLab } from "@/components/lab/sims/populasyon";
 import { EnzimKinetigiLab } from "@/components/lab/sims/enzim-kinetigi";
 import { PunnettLab } from "@/components/lab/sims/punnett";
 import { MercekLab } from "@/components/lab/sims/mercek";
+import { MonteCarloLab } from "@/components/lab/sims/monte-carlo";
+import { NormalDagilimLab } from "@/components/lab/sims/normal-dagilim";
+import { OzyinelemeLab } from "@/components/lab/sims/ozyineleme";
+import { SozsuzIspatLab } from "@/components/lab/sims/sozsuz-ispat";
+import { CiftSarkacLab } from "@/components/lab/sims/cift-sarkac";
 
 const LAB_COMPONENTS: Record<string, () => React.ReactNode> = {
+  "cift-sarkac": CiftSarkacLab,
+  "sozsuz-ispat": SozsuzIspatLab,
+  ozyineleme: OzyinelemeLab,
+  "normal-dagilim": NormalDagilimLab,
+  "monte-carlo": MonteCarloLab,
   mercek: MercekLab,
   punnett: PunnettLab,
   "enzim-kinetigi": EnzimKinetigiLab,

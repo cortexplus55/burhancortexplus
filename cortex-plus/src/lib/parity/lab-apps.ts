@@ -62,6 +62,11 @@ export const LAB_APPS: LabApp[] = [
   { id: "enzim-kinetigi", title: "Enzim kinetiği", subject: "Biyoloji", href: lab("enzim-kinetigi"), category: "sim", blurb: "Substrat artınca hız neden bir yerden sonra artmıyor?" },
   { id: "punnett", title: "Punnett karesi", subject: "Biyoloji", href: lab("punnett"), category: "sim", blurb: "Genotip 1:2:1 iken fenotip neden 3:1?" },
   { id: "mercek", title: "Mercekte görüntü", subject: "Fizik", href: lab("mercek"), category: "sim", blurb: "Görüntü ne zaman gerçek, ne zaman sanal olur?" },
+  { id: "monte-carlo", title: "Monte Carlo ile π", subject: "Matematik", href: lab("monte-carlo"), category: "sim", blurb: "Rastgele nokta atarak π nasıl bulunur?" },
+  { id: "normal-dagilim", title: "Normal dağılım", subject: "Matematik", href: lab("normal-dagilim"), category: "sim", blurb: "68-95-99,7 kuralı nereden geliyor?" },
+  { id: "ozyineleme", title: "Özyinelemeli diziler", subject: "Matematik", href: lab("ozyineleme"), category: "sim", blurb: "Başlangıç değişse de oran neden altın orana gidiyor?" },
+  { id: "sozsuz-ispat", title: "Sözsüz ispat", subject: "Matematik", href: lab("sozsuz-ispat"), category: "sim", blurb: "(a+b)² neden a² + b² değil? Kayıp alanı gör." },
+  { id: "cift-sarkac", title: "Çift sarkaç", subject: "Fizik", href: lab("cift-sarkac"), category: "sim", blurb: "İki sarkaç, binde bir fark. Ne kadar sürede ayrılırlar?" },
 ];
 
 export const LAB_FILTERS = [
