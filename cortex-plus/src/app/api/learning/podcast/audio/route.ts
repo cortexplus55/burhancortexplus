@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
+import { isPremiumUser } from "@/lib/ai/generate";
 import { ensureAudio } from "@/lib/learning/audio-cache";
 import { flattenLines, normalizeChapters } from "@/lib/learning/podcast-script";
 
 /**
  * Podcast seslendirme.
  *
- * Ses düğümün bedeline dahil: senaryo üretilirken kredi zaten düşüyor,
- * seslendirme ayrıca kredi yakmıyor. Bunu ayakta tutan şey önbellek —
- * aynı cümle bir daha üretilmiyor, tekrar dinleme bedava.
+ * Ses premium özelliği. Ölçüm bunu zorunlu kıldı: bir podcast'in maliyetinin
+ * %98,4'ü seslendirme ve günlük bütçesini hep podcasta harcayan bir ücretsiz
+ * kullanıcı hiç ödeme yapmadan ayda 108 TL'ye mal oluyordu.
+ *
+ * Ücretsiz kullanıcı senaryoyu okumaya ve cihazının sesiyle dinlemeye devam
+ * ediyor — oynatıcı bu yanıtı alamayınca tarayıcı sesine düşüyor.
+ *
+ * Premium tarafta ses düğümün bedeline dahil; ayrıca kredi yakmıyor. Bunu
+ * ayakta tutan şey önbellek — aynı cümle bir daha üretilmiyor.
  */
 
 /** Tek istekte üretilecek en fazla cümle; kaçak bir senaryo faturayı şişirmesin. */
@@ -22,6 +29,10 @@ const bodySchema = z.object({
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "podcast-audio", limit: 12 });
   if (!guard.ok) return guard.response;
+
+  if (!(await isPremiumUser(guard.ctx.service, guard.ctx.userId))) {
+    return errorResponse(402, "premium_required");
+  }
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");

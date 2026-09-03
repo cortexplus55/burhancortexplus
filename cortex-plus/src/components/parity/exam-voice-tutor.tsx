@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
+import {
+  createRecognizer,
+  speakTurkish,
+  stopSpeech,
+} from "@/lib/learning/studio-speech";
 import {
   isRecordingSupported,
   speakFromServer,
@@ -39,6 +43,9 @@ export function ExamVoiceTutor({
   const [paywall, setPaywall] = useState(false);
   const recRef = useRef<Recorder | null>(null);
   const voiceRef = useRef<{ stop: () => void } | null>(null);
+  const browserRecRef = useRef<ReturnType<typeof createRecognizer>>(null);
+  // null = henuz bilinmiyor. Ilk seslendirme denemesi belirliyor.
+  const serverVoice = useRef<boolean | null>(null);
   const stopped = useRef(false);
 
   useEffect(() => {
@@ -48,6 +55,7 @@ export function ExamVoiceTutor({
       stopped.current = true;
       stopSpeech();
       voiceRef.current?.stop();
+      browserRecRef.current?.stop();
       recRef.current?.cancel();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -103,7 +111,7 @@ export function ExamVoiceTutor({
   }
 
   // Eğitmenin sesi sunucudan geliyor; cihazda Türkçe ses olmaması artık
-  // dersi sessiz bırakmıyor. Sunucu sesi gelmezse tarayıcıya düşüyoruz.
+  // dersi sessiz bırakmıyor. Sunucu sesi premium — gelmezse tarayıcıya düşüyoruz.
   async function speak(text: string, onEnd: () => void) {
     if (stopped.current) return;
     setPhase("speaking");
@@ -117,6 +125,10 @@ export function ExamVoiceTutor({
       handle?.stop();
       return;
     }
+    // İlk denemenin sonucu kulakları da belirliyor: sunucu sesi varsa sunucu
+    // çözümlemesi de vardır. Böylece premium bilgisini prop olarak taşımaya
+    // gerek kalmıyor ve iki taraf hep aynı sistemde kalıyor.
+    serverVoice.current = Boolean(handle);
     if (handle) {
       voiceRef.current = handle;
       return;
@@ -127,6 +139,43 @@ export function ExamVoiceTutor({
     });
   }
 
+  /** Ücretsiz taraf: tarayıcının kendi tanıma API'si. Bize maliyeti yok. */
+  function listenInBrowser(history: Msg[]) {
+    const rec = createRecognizer();
+    if (!rec) {
+      setPhase("idle");
+      setCaption("Sesli yanıt bu tarayıcıda yok; yazarak sürebilirsin.");
+      return;
+    }
+    browserRecRef.current?.stop();
+    browserRecRef.current = rec;
+    setPhase("listening");
+    setCaption("Seni dinliyorum…");
+    rec.onresult = (event) => {
+      const last = event.results[event.results.length - 1];
+      const transcript = last?.[0]?.transcript?.trim() ?? "";
+      if (transcript) setCaption(transcript);
+      const isFinal =
+        typeof (last as { isFinal?: boolean })?.isFinal === "boolean"
+          ? Boolean((last as { isFinal?: boolean }).isFinal)
+          : transcript.length > 0;
+      if (isFinal && transcript) {
+        rec.stop();
+        void turn(history, transcript);
+      }
+    };
+    rec.onerror = () => {
+      setPhase("idle");
+      setCaption("Mikrofon durdu. Tekrar konuş veya yazarak sür.");
+    };
+    try {
+      rec.start();
+    } catch {
+      setPhase("idle");
+      setCaption("Mikrofon açılamadı; yazarak sürebilirsin.");
+    }
+  }
+
   /**
    * Kayıt sessizlikle kendiliğinden biter, sonra sunucuda çözümlenir.
    * Tarayıcı tanıma API'sinden ayrıldık: o yalnız Chrome'da çalışıyordu.
@@ -134,6 +183,12 @@ export function ExamVoiceTutor({
   async function listen(history: Msg[]) {
     if (stopped.current) return;
     stopSpeech();
+
+    // Sunucu sesi yoksa (ücretsiz kullanıcı) sunucu çözümlemesi de yok.
+    if (serverVoice.current === false) {
+      listenInBrowser(history);
+      return;
+    }
 
     if (!isRecordingSupported()) {
       setPhase("idle");
@@ -192,6 +247,7 @@ export function ExamVoiceTutor({
     stopSpeech();
     voiceRef.current?.stop();
     voiceRef.current = null;
+    browserRecRef.current?.stop();
     recRef.current?.cancel();
     recRef.current = null;
     setPhase("idle");

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { errorResponse, withUser } from "@/lib/api/guards";
+import { isPremiumUser } from "@/lib/ai/generate";
 import { transcribeAudio } from "@/lib/ai/speech";
 
 /**
@@ -18,6 +19,11 @@ const ALLOWED = ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wa
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "oral-stt", limit: 60 });
   if (!guard.ok) return guard.response;
+
+  // Sunucu sesi premium. Ucretsiz kullanici tarayici sesiyle devam ediyor.
+  if (!(await isPremiumUser(guard.ctx.service, guard.ctx.userId))) {
+    return errorResponse(402, "premium_required");
+  }
 
   let form: FormData;
   try {

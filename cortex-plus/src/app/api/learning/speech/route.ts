@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
+import { isPremiumUser } from "@/lib/ai/generate";
 import { ensureAudio } from "@/lib/learning/audio-cache";
 import { splitSentences, SPEAKERS } from "@/lib/learning/podcast-script";
 
@@ -22,6 +23,11 @@ const bodySchema = z.object({
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "speech", limit: 60 });
   if (!guard.ok) return guard.response;
+
+  // Sunucu sesi premium. Ucretsiz kullanici tarayici sesiyle devam ediyor.
+  if (!(await isPremiumUser(guard.ctx.service, guard.ctx.userId))) {
+    return errorResponse(402, "premium_required");
+  }
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
