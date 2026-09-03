@@ -10,6 +10,8 @@ export async function insertExamPrepGraph(
     topics: string[];
     examDate: string;
     targetScore?: number;
+    /** Hazırlığın dayandığı belge; seçilmezse arama tüm belgelere düşer. */
+    documentId?: string | null;
   },
 ) {
   const { data: plan, error: planError } = await service
@@ -34,18 +36,30 @@ export async function insertExamPrepGraph(
     }),
   );
 
-  const { data: prep, error: prepError } = await service
+  const basePrep = {
+    user_id: input.userId,
+    exam_type: input.examType,
+    title: input.title,
+    target_score: input.targetScore ?? null,
+    study_plan_id: plan.id,
+    exam_date: input.examDate,
+  };
+
+  let { data: prep, error: prepError } = await service
     .from("exam_preps")
-    .insert({
-      user_id: input.userId,
-      exam_type: input.examType,
-      title: input.title,
-      target_score: input.targetScore ?? null,
-      study_plan_id: plan.id,
-      exam_date: input.examDate,
-    })
+    .insert({ ...basePrep, document_id: input.documentId ?? null })
     .select("id")
     .single();
+
+  // document_id migration ile geliyor. Kod migration'dan önce dağıtılırsa
+  // hazırlık oluşturma tamamen kırılmasın diye kaynaksız tekrar deneniyor.
+  if (prepError) {
+    ({ data: prep, error: prepError } = await service
+      .from("exam_preps")
+      .insert(basePrep)
+      .select("id")
+      .single());
+  }
 
   if (prepError || !prep) return { error: "generation_failed" as const };
 

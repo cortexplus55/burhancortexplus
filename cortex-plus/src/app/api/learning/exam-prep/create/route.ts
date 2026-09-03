@@ -10,6 +10,8 @@ const bodySchema = z.object({
   topics: z.array(z.string().min(1).max(120)).min(1).max(24),
   examDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   note: z.string().max(500).optional(),
+  // Hazırlığın dayanacağı kaynak; yoksa arama kullanıcının tüm belgelerine düşer.
+  documentId: z.string().uuid().optional(),
 });
 
 export async function POST(request: Request) {
@@ -31,6 +33,7 @@ export async function POST(request: Request) {
     topics,
     examDate: parsed.data.examDate,
     targetScore: parsed.data.targetScore,
+    documentId: parsed.data.documentId ?? null,
   });
 
   if ("error" in result) return errorResponse(500, result.error ?? "exam_prep_failed");

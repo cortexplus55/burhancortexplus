@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PLAN_NODE_META, type PlanNodeDraft } from "@/lib/learning/exam-prep-plan";
@@ -32,6 +32,22 @@ export function ExamCreateChat() {
   const [loading, setLoading] = useState(false);
   const [starting, setStarting] = useState(false);
   const [paywall, setPaywall] = useState(false);
+  const [docs, setDocs] = useState<{ id: string; fileName: string }[]>([]);
+  const [documentId, setDocumentId] = useState<string | null>(null);
+
+  // İşlenmiş belgeleri bir kez çekiyoruz; yoksa seçici hiç görünmüyor.
+  useEffect(() => {
+    let alive = true;
+    void fetch("/api/documents")
+      .then((res) => (res.ok ? res.json() : { documents: [] }))
+      .then((data: { documents?: { id: string; fileName: string }[] }) => {
+        if (alive) setDocs(data.documents ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const canStart = Boolean(examDate && draft.topics.length && draft.title);
 
@@ -96,6 +112,7 @@ export function ExamCreateChat() {
           examType: draft.examType,
           topics: draft.topics,
           examDate,
+          documentId: documentId ?? undefined,
         }),
       });
       const payload = await res.json().catch(() => ({}));
@@ -157,6 +174,26 @@ export function ExamCreateChat() {
               if (examDate) void send(examDate);
             }}
           />
+        </label>
+      ) : null}
+
+      {/* Kaynak seçimi: seçilirse ders içeriği yalnızca o belgeden üretilir.
+          Belgesi olmayan kullanıcıya hiç gösterilmiyor — boş bir seçici,
+          olmayan bir özelliği varmış gibi gösterirdi. */}
+      {docs.length && (needDate || draft.topics.length >= 2) ? (
+        <label className="ap-field">
+          <span>Hangi kaynaktan çalışalım?</span>
+          <select
+            value={documentId ?? ""}
+            onChange={(event) => setDocumentId(event.target.value || null)}
+          >
+            <option value="">Tüm belgelerim</option>
+            {docs.map((doc) => (
+              <option key={doc.id} value={doc.id}>
+                {doc.fileName}
+              </option>
+            ))}
+          </select>
         </label>
       ) : null}
 
