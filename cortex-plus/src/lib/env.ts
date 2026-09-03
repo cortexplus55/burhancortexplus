@@ -9,6 +9,8 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_STANDARD_MODEL: z.string().default("gpt-4o-mini"),
   OPENAI_ADVANCED_MODEL: z.string().default("gpt-4o"),
+  OPENAI_TTS_MODEL: z.string().default("gpt-4o-mini-tts"),
+  OPENAI_STT_MODEL: z.string().default("gpt-4o-mini-transcribe"),
 });
 
 const parsed = envSchema.safeParse({
@@ -21,6 +23,8 @@ const parsed = envSchema.safeParse({
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_STANDARD_MODEL: process.env.OPENAI_STANDARD_MODEL,
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,
+  OPENAI_TTS_MODEL: process.env.OPENAI_TTS_MODEL,
+  OPENAI_STT_MODEL: process.env.OPENAI_STT_MODEL,
 });
 
 export const env = parsed.success

@@ -7,11 +7,25 @@ const bodySchema = z.object({
   topic: z.string().min(3).max(300),
 });
 
+// Satır bazlı iki sesli biçim; ayrıntı için lib/learning/podcast-script.ts.
 const resultSchema = z.object({
   title: z.string().min(1),
   tagline: z.string().min(1),
   chapters: z
-    .array(z.object({ title: z.string().min(1), script: z.string().min(40) }))
+    .array(
+      z.object({
+        title: z.string().min(1),
+        lines: z
+          .array(
+            z.object({
+              speaker: z.enum(["ada", "kerem"]),
+              text: z.string().min(4),
+            }),
+          )
+          .min(2)
+          .max(14),
+      }),
+    )
     .min(3)
     .max(6),
 });
@@ -30,8 +44,10 @@ export async function POST(request: Request) {
     actionCode: "AI_CHAT_STANDARD",
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
-      'Yalnızca şu JSON: {"title":string,"tagline":string,"chapters":[{"title":string,"script":string}]}. 4-5 bölüm. Script konuşma dilinde Türkçe, her bölüm 80-160 kelime.',
-    userPrompt: `Konu: ${parsedBody.data.topic}. Öğrenci için 5 dakikalık podcast senaryosu yaz.`,
+      'Yalnızca şu JSON: {"title":string,"tagline":string,"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +
+      "4-5 bölüm. Ada ve Kerem iki sunucu; sırayla konuşur, birbirine soru sorar. " +
+      "Her text TEK cümle olsun ve 25 kelimeyi geçmesin. Konuşma dilinde Türkçe.",
+    userPrompt: `Konu: ${parsedBody.data.topic}. Ada ve Kerem'in sohbet ettiği 5 dakikalık podcast senaryosu yaz.`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       return result.success ? result.data : null;
