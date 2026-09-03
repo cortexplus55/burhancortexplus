@@ -6,7 +6,7 @@
 |---|---|
 | **Repo** | `cortexplus55/burhancortexplus` — **tek repo** |
 | **Yerel klasör** | `C:\Users\burha\OneDrive\Masaüstü\Cortex-Plus-Dev` |
-| **Vercel** | `burhancortexplus-app` → `cortexplus.app` (Root Directory: `cortex-plus/`) |
+| **Vercel** | scope `cortexplus55` → proje `burhancortexplus-app` → `cortexplus.app` (Root Directory: `cortex-plus/`) |
 | **Supabase** | `dgjfyewgrukglsehyntc` |
 | **GitHub hesabı** | `cortexplus55` (repoya `git config --local` ile sabitlendi) |
 
@@ -27,6 +27,11 @@ başka Supabase projesi **yok**. Bir tanesini gördüğünüzde bu dosyaya geri 
 - **App path:** `cortex-plus/` (Vercel Root Directory)
 - **Bağlantı rehberi:** `docs/delivery/GREENFIELD-CONNECT.md`
 - **CLI (Vercel / Supabase / gh):** `docs/delivery/CLI-CONNECT.md` — tek hedef; kurulum: `scripts/setup-cli.ps1`
+  - ⚠️ **Yerel `vercel` CLI yanlış hesapta oturumlu** (`burhan55600-5553s-projects` / BrhnOndr — yukarıdaki
+    "kullanılmayacaklar" listesinde). Deploy için CLI'ya güvenmeyin: `git push origin main` zaten
+    production deploy'unu tetikliyor, doğrulama Chrome'daki panelden yapılır.
+  - Panel URL'i: `https://vercel.com/cortexplus55/burhancortexplus-app/deployments`
+    (`cortexplus55s-projects` diye bir scope **yok**, 404 verir).
 - **Operasyon e-postası (tek):** **`cortexplus@cortexplus.app`** — panel, OAuth test, Squarespace, Gmail MCP, doküman; kişisel `@gmail.com` **yasak**. Ayrıntı: `docs/delivery/IDENTITY.md`, kural: `.cursor/rules/cortexplus-identity.mdc`
 
 Kullanıcı **github hazır** dedikten sonra: Supabase proje oluştur, migration push, Vercel env, MCP `project_ref` güncelle.
