@@ -157,12 +157,29 @@ export async function processDocument(
   return { ok: true, chunks: allChunks.length };
 }
 
+/**
+ * Alakasız sorularda bağlam enjekte etmemek için taban eşik.
+ *
+ * Ölçüm: kaynak içi sorular 0,35-0,38; tamamen alakasız bir soru 0,20 verdi.
+ * Eşik bunları ayırıyor. Ayıramadığı şey, konuya yakın ama belgede olmayan
+ * soru — o da 0,35 civarı veriyor. Kaynak dışına çıkıldığını söylemek eşiğin
+ * değil, prompt'un işi.
+ */
+export const MIN_CHUNK_SIMILARITY = 0.25;
+
+export type DocumentMatch = {
+  content: string;
+  documentName: string;
+  similarity: number;
+};
+
 export async function searchDocumentChunks(
   service: SupabaseClient,
   userId: string,
   query: string,
   limit = 5,
-): Promise<{ content: string; documentName: string }[]> {
+  options: { documentId?: string | null; minSimilarity?: number } = {},
+): Promise<DocumentMatch[]> {
   const [embedding] = await embedTexts([query]);
   if (!embedding) return [];
 
@@ -170,12 +187,15 @@ export async function searchDocumentChunks(
     p_user_id: userId,
     p_query_embedding: embedding as unknown as string,
     p_match_count: limit,
+    p_min_similarity: options.minSimilarity ?? MIN_CHUNK_SIMILARITY,
+    p_document_id: options.documentId ?? null,
   });
 
   return (data ?? []).map(
-    (row: { content: string; file_name: string }) => ({
+    (row: { content: string; file_name: string; similarity: number }) => ({
       content: row.content,
       documentName: row.file_name,
+      similarity: Number(row.similarity ?? 0),
     }),
   );
 }

@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import {
+  EMPTY_SOURCE_CONTEXT,
+  loadSourceContext,
+} from "@/lib/learning/source-context";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
@@ -184,6 +188,27 @@ export async function POST(request: Request) {
 
   const premium = await isPremiumUser(service, userId);
   const voiceSession = voiceMode && (kind === "qa" || kind === "oral");
+
+  // Ders öğrencinin kendi kaynağından üretilsin. Hazırlığa bağlı bir belge
+  // varsa yalnızca onun içinde, yoksa kullanıcının tüm belgelerinde aranıyor.
+  //
+  // document_id ayrı okunuyor: kolon migration ile geliyor ve ana select'e
+  // eklenseydi, kod migration'dan önce dağıtıldığında her düğüm 404 verirdi.
+  const { data: prepSource } = await service
+    .from("exam_preps")
+    .select("document_id")
+    .eq("id", prepId)
+    .maybeSingle();
+
+  const source = voiceSession
+    ? EMPTY_SOURCE_CONTEXT
+    : await loadSourceContext(
+        service,
+        userId,
+        `${prep.title ?? ""} ${topicLabel}`.trim(),
+        { documentId: prepSource?.document_id ?? null },
+      );
+
   const payload = voiceSession
     ? { type: "voice" }
     : await generateNodePayload({
@@ -196,6 +221,7 @@ export async function POST(request: Request) {
         difficulty,
         familiarity,
         mood,
+        sourceBlock: source.block,
       });
 
   const total = countTotal(kind, payload);
@@ -270,12 +296,15 @@ async function generateNodePayload(input: {
   difficulty: string;
   familiarity: Familiarity;
   mood: Mood;
+  /** Öğrencinin kendi kaynağından alıntılar; kaynak yoksa boş. */
+  sourceBlock: string;
 }) {
   // Aşinalık içeriğin nereden başlayacağını, ruh hali tonunu belirler.
+  // Kaynak bloğu sona geliyor: model en son okuduğu talimata daha sadık.
   const ctx = `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}. Zorluk: ${input.difficulty}. ${sessionSignalsPrompt(
     input.familiarity,
     input.mood,
-  )}`;
+  )}${input.sourceBlock}`;
 
   if (input.kind === "qa") {
     const outcome = await generateExamQuiz({
