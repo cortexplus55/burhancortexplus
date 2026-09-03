@@ -1,5 +1,5 @@
 import {
-  Atom,
+  Wrench,
   Bell,
   BookOpen,
   Camera,
@@ -43,11 +43,11 @@ export const studentBottomTabs: StudentNavItem[] = [
     match: (p) => p.startsWith("/deneme-sinavlari"),
   },
   {
-    id: "apps",
-    href: "/uygulamalar",
-    label: "Uygulamalar",
-    icon: Atom,
-    match: (p) => p === "/uygulamalar" || p.startsWith("/uygulamalar/"),
+    id: "araclar",
+    href: "/araclar",
+    label: "Araçlar",
+    icon: Wrench,
+    match: (p) => p === "/araclar" || p.startsWith("/araclar/"),
   },
 ];
 
@@ -67,11 +67,11 @@ export const studentTopTabs: StudentNavItem[] = [
     match: (p) => p.startsWith("/deneme-sinavlari") || p.startsWith("/sinav-hazirligi"),
   },
   {
-    id: "apps",
-    href: "/uygulamalar",
-    label: "Öğrenme uygulamaları",
-    icon: Atom,
-    match: (p) => p === "/uygulamalar" || p.startsWith("/uygulamalar/"),
+    id: "araclar",
+    href: "/araclar",
+    label: "Araçlar",
+    icon: Wrench,
+    match: (p) => p === "/araclar" || p.startsWith("/araclar/"),
   },
 ];
 

@@ -6,7 +6,7 @@ const shortcuts = [
   { href: "/ogretmen", label: "Yeni ders sohbeti", body: "Takıldığın soruyu adım adım çöz." },
   { href: "/soru-coz", label: "Fotoğraftan çöz", body: "Sorunun fotoğrafını yükle." },
   { href: "/deneme-sinavlari", label: "Deneme çöz", body: "Eksiklerini ortaya çıkar." },
-  { href: "/uygulamalar", label: "Uygulamalar", body: "Simülasyon ve mini oyunlar." },
+  { href: "/araclar", label: "Araçlar", body: "Hesaplayıcılar ve çalışma kısayolları." },
 ];
 
 export function StudentHomeHub({

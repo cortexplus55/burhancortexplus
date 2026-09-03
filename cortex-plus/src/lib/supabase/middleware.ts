@@ -25,6 +25,7 @@ const PROTECTED_PREFIXES = [
   "/studio",
   "/deneme-sinavlari",
   "/uygulamalar",
+  "/araclar",
   "/calisma-plani",
   "/ilerleme",
   "/krediler",
