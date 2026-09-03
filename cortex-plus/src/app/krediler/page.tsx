@@ -4,6 +4,7 @@ import { SectionCard } from "@/components/ui-kit/empty-state";
 import { requireStudentArea } from "@/lib/auth/session";
 import { formatDate, formatNumber } from "@/lib/format";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
+import { formatResetAt, periodLabel, quotaView } from "@/lib/credits/period";
 
 export const metadata = { title: "Limitler" };
 
@@ -51,7 +52,9 @@ export default async function KredilerPage() {
   const [{ data: wallet }, { data: ledger }, { data: rules }] = await Promise.all([
     supabase
       .from("credit_wallets")
-      .select("balance, reserved, free_allowance_remaining")
+      .select(
+        "balance, reserved, free_allowance_remaining, period_allowance, period_ends_at, period_kind",
+      )
       .eq("user_id", user.id)
       .maybeSingle(),
     supabase
@@ -69,32 +72,67 @@ export default async function KredilerPage() {
 
   const balance = wallet?.balance ?? 0;
   const reserved = wallet?.reserved ?? 0;
-  const free = wallet?.free_allowance_remaining ?? 0;
-  const creditCap = Math.max(balance + reserved, 100);
+  const isPremium = Boolean(shell.account?.isPremium);
+  const quota = quotaView(wallet, isPremium);
 
   return (
     <AstraParitySorShell {...shell}>
       <div className="ap-exam-page space-y-6">
         <div>
-          <h1 className="text-xl font-semibold">Kullanım ve limitler</h1>
+          <h1 className="text-xl font-semibold">Kullanım limitleri</h1>
           <p className="mt-1 text-sm text-[var(--astra-muted)]">
-            Kredin, ücretsiz hakkın ve günlük serin tek yerde.
+            Tüm özellikler açık; sınır yalnızca ne kadar üretebildiğinde.
           </p>
         </div>
 
+        <div className="ap-quota-card">
+          <div className="ap-quota-head">
+            <span className="ap-quota-plan">
+              {isPremium ? "Cortex Plus" : "Temel"} — {periodLabel(quota.kind)}
+            </span>
+            <span className="ap-quota-pct">%{quota.usedPercent} kullanıldı</span>
+          </div>
+          <div
+            className="ap-quota-track"
+            role="progressbar"
+            aria-valuenow={quota.usedPercent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Dönem kullanımı"
+          >
+            <div
+              className="ap-quota-fill"
+              style={{ width: `${Math.max(quota.usedPercent, quota.usedPercent > 0 ? 3 : 0)}%` }}
+            />
+          </div>
+          <p className="ap-quota-reset">
+            {formatResetAt(quota.resetsAt)} tarihinde sıfırlanır
+            {quota.pendingRefill ? " · bütçen yenilendi" : ""}
+          </p>
+          <p className="ap-quota-detail">
+            <strong>{formatNumber(quota.remaining)}</strong> / {formatNumber(quota.allowance)} hak kaldı
+            {balance > 0 ? ` · ayrıca ${formatNumber(balance)} satın alınmış kredin var` : ""}
+            {reserved > 0 ? ` · ${formatNumber(reserved)} rezerve` : ""}
+          </p>
+        </div>
+
+        {!isPremium ? (
+          <div className="ap-quota-upsell">
+            <p>Daha fazlasına mı ihtiyacın var?</p>
+            <Link href="/pay" className="ap-exam-continue inline-flex">
+              Kullanımını artır
+            </Link>
+          </div>
+        ) : (
+          <div className="ap-quota-upsell">
+            <p>Aylık limitin dolduysa ek paketle devam edebilirsin.</p>
+            <Link href="/pay" className="ap-exam-continue inline-flex">
+              Ek paket satın al
+            </Link>
+          </div>
+        )}
+
         <div className="ap-limit-card">
-          <LimitBar
-            label="Kredi bakiyesi"
-            value={balance}
-            max={creditCap}
-            hint={reserved ? `${formatNumber(reserved)} kredi şu an rezerve` : "Kullanılabilir kredi"}
-          />
-          <LimitBar
-            label="Ücretsiz hak"
-            value={free}
-            max={Math.max(free, 50)}
-            hint="Aylık ücretsiz çözüm hakkı"
-          />
           <LimitBar
             label="Çalışma serisi"
             value={shell.streak ?? 0}
@@ -102,16 +140,6 @@ export default async function KredilerPage() {
             hint="Son 7 günde üst üste çalışma"
           />
         </div>
-
-        {!shell.account?.isPremium ? (
-          <Link href="/pay" className="ap-exam-continue inline-flex">
-            Plus’a yükselt
-          </Link>
-        ) : (
-          <p className="text-sm text-[var(--ap-muted)]">
-            Plus limitlerin aktif. Aşağıdan kullanımını ve hareketlerini takip edebilirsin.
-          </p>
-        )}
 
         <SectionCard
           variant="astra"
