@@ -7,6 +7,8 @@ import {
   Gamepad2,
   LayoutGrid,
   Layers,
+  Eye,
+  Star,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,6 +19,13 @@ import {
   labCategoryCounts,
   type LabApp,
 } from "@/lib/parity/lab-apps";
+import {
+  displayRating,
+  formatPlays,
+  topPlayed,
+  type LabStat,
+  type LabStatMap,
+} from "@/lib/parity/lab-stats";
 
 type CatId = "mini" | "sim" | "tool" | "mine";
 
@@ -35,7 +44,7 @@ const CATEGORIES: {
 
 const TONES = ["violet", "blue", "amber", "emerald", "rose"] as const;
 
-export function UygulamalarLabGrid() {
+export function UygulamalarLabGrid({ stats = {} }: { stats?: LabStatMap }) {
   const [subject, setSubject] = useState<(typeof LAB_FILTERS)[number]>("Tümü");
   const [category, setCategory] = useState<CatId | null>(null);
   const [featuredIdx, setFeaturedIdx] = useState(0);
@@ -58,6 +67,9 @@ export function UygulamalarLabGrid() {
   }, [filtered]);
 
   const featured = featuredPool[featuredIdx % featuredPool.length] ?? featuredPool[0];
+  // Gerçek oynanmadan türetilir; hiç açılmamış uygulama listeye girmez, yani
+  // veri birikene kadar bölüm hiç görünmez.
+  const mostPlayed = useMemo(() => topPlayed(LAB_APPS, stats), [stats]);
 
   return (
     <div className="ap-lab-page">
@@ -133,13 +145,41 @@ export function UygulamalarLabGrid() {
                 key={app.id}
                 href={app.href}
                 className={cn("ap-lab-tile", `ap-lab-tile--${TONES[i % TONES.length]}`)}
+                onClick={() => recordPlay(app.id)}
               >
                 <span className="ap-lab-tile-kicker">{app.subject}</span>
                 <span className="ap-lab-tile-title">{app.title}</span>
                 {app.blurb ? <span className="ap-lab-tile-blurb">{app.blurb}</span> : null}
+                <LabMetrics stat={stats[app.id]} />
               </Link>
             ))}
           </div>
+
+          {mostPlayed.length ? (
+            <section className="ap-lab-top">
+              <h2 className="ap-cal-section-title">En çok oynananlar</h2>
+              <ol className="ap-lab-top-list">
+                {mostPlayed.map((row, index) => {
+                  const app = LAB_APPS.find((a) => a.id === row.id);
+                  if (!app) return null;
+                  return (
+                    <li key={row.id}>
+                      <Link href={app.href} onClick={() => recordPlay(app.id)}>
+                        <span className="ap-lab-top-rank">{index + 1}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="ap-lab-top-title">{app.title}</span>
+                          <span className="ap-lab-top-meta">{app.subject}</span>
+                        </span>
+                        <span className="ap-lab-top-plays">
+                          {formatPlays(row.plays)}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          ) : null}
         </>
       )}
     </div>
@@ -193,4 +233,49 @@ function FeaturedCard({
       </div>
     </article>
   );
+}
+
+/**
+ * Kart üzerindeki metrikler. Sıfır oynanma ve az oylu puan hiç gösterilmez —
+ * uydurma sosyal kanıt yerine boşluk bırakmayı tercih ediyoruz.
+ */
+function LabMetrics({ stat }: { stat?: LabStat }) {
+  const rating = displayRating(stat);
+  const plays = stat?.plays ?? 0;
+  if (!rating && plays === 0) return null;
+  return (
+    <span className="ap-lab-metrics">
+      {rating ? (
+        <span className="ap-lab-metric">
+          <Star className="h-3 w-3" aria-hidden />
+          {rating}
+        </span>
+      ) : null}
+      {plays > 0 ? (
+        <span className="ap-lab-metric" title={`${plays} kez açıldı`}>
+          <Eye className="h-3 w-3" aria-hidden />
+          {formatPlays(plays)}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/**
+ * Açılış kaydı. Sayaç ikincil bir şey; başarısız olursa kullanıcı yine de
+ * uygulamaya gider, bu yüzden hata yutuluyor ve gezinme beklemiyor.
+ *
+ * Sayım burada, katalog tıklamasında yapılıyor — detay sayfasında değil.
+ * Katalogdaki 30 uygulamanın 9'u /uygulamalar/lab/[id] yerine kısayol
+ * rotalarına gidiyor (/quizler, /flashcardlar gibi); detay sayfasında saymak
+ * onları kaçırır, iki yerde birden saymak kalan 21'ini çift sayardı.
+ * Bunun bedeli: doğrudan bağlantı veya yer imiyle açılışlar sayılmıyor.
+ */
+function recordPlay(appId: string) {
+  void fetch("/api/lab", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ appId }),
+    keepalive: true,
+  }).catch(() => {});
 }
