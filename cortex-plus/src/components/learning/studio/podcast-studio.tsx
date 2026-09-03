@@ -12,9 +12,13 @@ import {
   StudioResults,
 } from "@/components/learning/studio/studio-shared";
 import { speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
+import {
+  SPEAKER_LABEL,
+  normalizeChapters,
+  type PodcastChapter,
+} from "@/lib/learning/podcast-script";
 import { cn } from "@/lib/utils";
 
-type Chapter = { title: string; script: string };
 
 export function PodcastStudio({
   creditCost,
@@ -27,7 +31,7 @@ export function PodcastStudio({
   const [topic, setTopic] = useState(initialTopic);
   const [title, setTitle] = useState("");
   const [tagline, setTagline] = useState("");
-  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [chapters, setChapters] = useState<PodcastChapter[]>([]);
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [paywall, setPaywall] = useState(false);
@@ -39,7 +43,7 @@ export function PodcastStudio({
     const result = await postStudio<{
       title?: string;
       tagline?: string;
-      chapters?: Chapter[];
+      chapters?: unknown[];
     }>("/api/learning/podcast/generate", { topic });
     if ("paywall" in result) {
       setPaywall(true);
@@ -54,7 +58,13 @@ export function PodcastStudio({
     setTopic(topic);
     setTitle(result.data.title ?? topic);
     setTagline(result.data.tagline ?? "Kısa, konuşma dilinde bir tekrar.");
-    setChapters(result.data.chapters);
+    const normalized = normalizeChapters(result.data.chapters);
+    if (!normalized.length) {
+      toast.error("Podcast üretilemedi.");
+      setPhase("entry");
+      return;
+    }
+    setChapters(normalized);
     setIndex(0);
     setPlaying(false);
     setPhase("play");
@@ -69,7 +79,7 @@ export function PodcastStudio({
     }
     setIndex(nextIndex);
     setPlaying(true);
-    speakTurkish(chapter.script, () => {
+    speakTurkish(chapter.lines.map((line) => line.text).join(" "), () => {
       if (nextIndex + 1 >= chapters.length) {
         setPlaying(false);
         setPhase("results");
@@ -131,9 +141,13 @@ export function PodcastStudio({
             ))}
           </div>
           <p className="ls-flash-text">{chapter.title}</p>
-          <p className="ls-explain" style={{ textAlign: "left" }}>
-            {chapter.script}
-          </p>
+          <div className="ls-explain" style={{ textAlign: "left" }}>
+            {chapter.lines.map((line, i) => (
+              <p key={i} className="ls-pod-line">
+                <strong>{SPEAKER_LABEL[line.speaker]}</strong> {line.text}
+              </p>
+            ))}
+          </div>
           <div className="ls-chapters">
             {chapters.map((item, i) => (
               <button

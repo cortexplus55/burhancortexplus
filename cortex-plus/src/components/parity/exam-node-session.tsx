@@ -27,7 +27,9 @@ type Payload = {
   type?: string;
   title?: string;
   contentMd?: string;
-  chapters?: { title: string; script: string }[];
+  // Podcast senaryosu satır bazlı; biçim lib/learning/podcast-script.ts
+  // tarafından normalleştiriliyor, eski script biçimi de kabul ediliyor.
+  chapters?: unknown[];
   questions?: {
     text?: string;
     prompt?: string;

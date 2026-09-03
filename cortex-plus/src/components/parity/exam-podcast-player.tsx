@@ -1,11 +1,29 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Pause, Play } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Pause, Play, RotateCcw, RotateCw } from "lucide-react";
 import { speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
+import {
+  SPEAKER_LABEL,
+  buildTimeline,
+  formatClock,
+  lineAt,
+  normalizeChapters,
+  totalDurationMs,
+  type SpeakerId,
+  type TimedLine,
+} from "@/lib/learning/podcast-script";
 import { cn } from "@/lib/utils";
 
-type Chapter = { title: string; script: string };
+type AudioLine = {
+  chapterIndex: number;
+  speaker: SpeakerId;
+  text: string;
+  url: string;
+  durationMs: number;
+};
+
+const SKIP_MS = 10_000;
 
 export function ExamPodcastPlayer({
   title,
@@ -14,106 +32,312 @@ export function ExamPodcastPlayer({
   finishing,
 }: {
   title: string;
-  chapters: Chapter[];
+  chapters: unknown[];
   onFinish: () => void;
   finishing?: boolean;
 }) {
-  const [index, setIndex] = useState(0);
+  const normalized = useMemo(() => normalizeChapters(chapters), [chapters]);
+  const [audio, setAudio] = useState<AudioLine[] | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "fallback">("loading");
   const [playing, setPlaying] = useState(false);
+  const [positionMs, setPositionMs] = useState(0);
   const [heard, setHeard] = useState(false);
+
+  const elementRef = useRef<HTMLAudioElement | null>(null);
+  const preloadRef = useRef<HTMLAudioElement | null>(null);
+  const indexRef = useRef(0);
   const tokenRef = useRef(0);
-  const chaptersRef = useRef(chapters);
-  chaptersRef.current = chapters;
 
+  const timeline: TimedLine[] = useMemo(
+    () => buildTimeline(normalized, (audio ?? []).map((line) => line.durationMs)),
+    [normalized, audio],
+  );
+  const totalMs = totalDurationMs(timeline);
+  const activeIndex = playing || positionMs > 0 ? lineAt(timeline, positionMs) : 0;
+
+  // Ses üretimi bir defalık: aynı cümleler sunucuda önbellekli olduğu için
+  // ikinci açılışta anında geliyor.
   useEffect(() => {
-    playFrom(0);
-    return () => {
-      tokenRef.current += 1;
-      stopSpeech();
-    };
-    // Mounted once per generated podcast.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function playFrom(nextIndex: number) {
-    const list = chaptersRef.current;
-    const chapter = list[nextIndex];
-    if (!chapter) {
-      setPlaying(false);
-      setHeard(true);
+    if (!normalized.length) {
+      setStatus("fallback");
       return;
     }
-    const token = ++tokenRef.current;
-    setIndex(nextIndex);
-    setPlaying(true);
-    speakTurkish(chapter.script, () => {
-      if (token !== tokenRef.current) return;
-      if (nextIndex + 1 >= list.length) {
+    let alive = true;
+    void fetch("/api/learning/podcast/audio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chapters: normalized }),
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error())))
+      .then((data: { lines?: AudioLine[] }) => {
+        if (!alive) return;
+        if (!data.lines?.length) throw new Error();
+        setAudio(data.lines);
+        setStatus("ready");
+      })
+      .catch(() => {
+        // Sunucu sesi gelmezse ders sessiz kalmasın: tarayıcı sesine dönüyoruz.
+        // Orada zaman çizelgesi yok, bu yüzden senkron da kapanıyor.
+        if (alive) setStatus("fallback");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [normalized]);
+
+  useEffect(() => {
+    return () => {
+      tokenRef.current += 1;
+      elementRef.current?.pause();
+      stopSpeech();
+    };
+  }, []);
+
+  const playFromLine = useCallback(
+    (index: number, offsetMs = 0) => {
+      const lines = audio;
+      if (!lines) return;
+      const line = lines[index];
+      if (!line) {
         setPlaying(false);
         setHeard(true);
         return;
       }
-      playFrom(nextIndex + 1);
-    });
+
+      const token = ++tokenRef.current;
+      indexRef.current = index;
+
+      let element = elementRef.current;
+      if (!element) {
+        element = new Audio();
+        elementRef.current = element;
+      }
+      element.pause();
+      element.src = line.url;
+      element.currentTime = Math.max(0, offsetMs) / 1000;
+
+      element.ontimeupdate = () => {
+        if (token !== tokenRef.current) return;
+        const start = timeline[index]?.startMs ?? 0;
+        setPositionMs(start + element!.currentTime * 1000);
+      };
+      element.onended = () => {
+        if (token !== tokenRef.current) return;
+        if (index + 1 >= lines.length) {
+          setPlaying(false);
+          setHeard(true);
+          setPositionMs(totalMs);
+          return;
+        }
+        playFromLine(index + 1);
+      };
+
+      void element.play().then(
+        () => setPlaying(true),
+        () => setPlaying(false),
+      );
+
+      // Sonraki cümleyi önden yükle ki cümleler arası boşluk duyulmasın.
+      const next = lines[index + 1];
+      if (next) {
+        const pre = preloadRef.current ?? new Audio();
+        pre.preload = "auto";
+        pre.src = next.url;
+        preloadRef.current = pre;
+      }
+    },
+    [audio, timeline, totalMs],
+  );
+
+  function seekTo(ms: number) {
+    if (!audio) return;
+    const clamped = Math.max(0, Math.min(ms, Math.max(0, totalMs - 1)));
+    const index = Math.max(0, lineAt(timeline, clamped));
+    const start = timeline[index]?.startMs ?? 0;
+    setPositionMs(clamped);
+    setHeard(false);
+    playFromLine(index, clamped - start);
   }
 
   function toggle() {
+    if (status === "fallback") {
+      toggleFallback();
+      return;
+    }
+    if (!audio) return;
     if (playing) {
       tokenRef.current += 1;
+      elementRef.current?.pause();
+      setPlaying(false);
+      return;
+    }
+    const index = Math.max(0, lineAt(timeline, positionMs));
+    const start = timeline[index]?.startMs ?? 0;
+    playFromLine(index, positionMs - start);
+  }
+
+  function toggleFallback() {
+    if (playing) {
       stopSpeech();
       setPlaying(false);
       return;
     }
-    playFrom(index);
+    const script = normalized
+      .flatMap((chapter) => chapter.lines.map((line) => line.text))
+      .join(" ");
+    setPlaying(true);
+    speakTurkish(script, () => {
+      setPlaying(false);
+      setHeard(true);
+    });
   }
 
-  const chapter = chapters[index];
-  if (!chapter) {
-    return <p className="text-sm text-[var(--ap-muted)]">Bu podcast henüz üretilemedi.</p>;
+  if (!normalized.length) {
+    return (
+      <p className="text-sm text-[var(--ap-muted)]">
+        Bu podcast henüz üretilemedi.
+      </p>
+    );
   }
+
+  const chapterTitle =
+    normalized[timeline[activeIndex]?.chapterIndex ?? 0]?.title ?? "";
+  const progressPct = totalMs > 0 ? (positionMs / totalMs) * 100 : 0;
 
   return (
-    <section className="ap-exam-pod">
-      <p className="ap-lesson-kicker">
-        Bölüm {index + 1}/{chapters.length}
-      </p>
-      <h1>{title}</h1>
-      <div className="ap-exam-pod-stage">
-        <button
-          type="button"
-          className={cn("ap-exam-pod-orb", playing && "is-on")}
-          onClick={toggle}
-          aria-label={playing ? "Duraklat" : "Oynat"}
-        >
-          {playing ? <Pause className="h-8 w-8" /> : <Play className="h-8 w-8" />}
-        </button>
-        <p className="ap-exam-pod-now">{playing ? "Çalıyor" : heard ? "Bitti" : "Duraklatıldı"}</p>
-        <h2>{chapter.title}</h2>
-        <p className="ap-exam-pod-script">{chapter.script}</p>
+    <section className="ap-pod">
+      <header className="ap-pod-head">
+        <p className="ap-lesson-kicker">Podcast</p>
+        <h1>{title}</h1>
+        {status === "ready" && chapterTitle ? (
+          <p className="ap-pod-chapter-now">{chapterTitle}</p>
+        ) : null}
+      </header>
+
+      <div className="ap-pod-stage">
+        <div className={cn("ap-pod-wave", playing && "is-on")} aria-hidden>
+          {Array.from({ length: 5 }, (_, i) => (
+            <span key={i} style={{ animationDelay: `${i * 0.12}s` }} />
+          ))}
+        </div>
+
+        <div className="ap-pod-controls">
+          <button
+            type="button"
+            className="ap-pod-skip"
+            onClick={() => seekTo(positionMs - SKIP_MS)}
+            disabled={status !== "ready"}
+            aria-label="10 saniye geri"
+          >
+            <RotateCcw className="h-5 w-5" aria-hidden />
+            <em>10</em>
+          </button>
+
+          <button
+            type="button"
+            className={cn("ap-pod-play", playing && "is-on")}
+            onClick={toggle}
+            disabled={status === "loading"}
+            aria-label={playing ? "Duraklat" : "Oynat"}
+          >
+            {playing ? (
+              <Pause className="h-7 w-7" />
+            ) : (
+              <Play className="h-7 w-7 translate-x-0.5" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            className="ap-pod-skip"
+            onClick={() => seekTo(positionMs + SKIP_MS)}
+            disabled={status !== "ready"}
+            aria-label="10 saniye ileri"
+          >
+            <RotateCw className="h-5 w-5" aria-hidden />
+            <em>10</em>
+          </button>
+        </div>
+
+        {status === "loading" ? (
+          <p className="ap-pod-state">Ses hazırlanıyor…</p>
+        ) : status === "fallback" ? (
+          <p className="ap-pod-state">
+            Sunucu sesi şu an yok; cihazının sesiyle okunuyor.
+          </p>
+        ) : (
+          <div className="ap-pod-track">
+            <input
+              type="range"
+              min={0}
+              max={Math.max(1, totalMs)}
+              value={Math.round(positionMs)}
+              onChange={(event) => seekTo(Number(event.target.value))}
+              aria-label="Ses konumu"
+              style={{ ["--ap-pod-pos" as string]: `${progressPct}%` }}
+            />
+            <div className="ap-pod-time">
+              <span>{formatClock(positionMs)}</span>
+              <span>{formatClock(totalMs)}</span>
+            </div>
+          </div>
+        )}
       </div>
-      <ol className="ap-exam-pod-chapters">
-        {chapters.map((item, i) => (
-          <li key={`${item.title}-${i}`}>
-            <button
-              type="button"
-              className={cn("ap-exam-pod-chapter", i === index && "is-on")}
-              onClick={() => playFrom(i)}
-            >
-              <strong>
-                {i + 1}. {item.title}
-              </strong>
-              <em>{i === index && playing ? "çalıyor" : "bölüm"}</em>
-            </button>
-          </li>
-        ))}
-      </ol>
+
+      {status === "ready" ? (
+        <ol className="ap-pod-transcript">
+          {timeline.map((line, i) => {
+            const first =
+              i === 0 || timeline[i - 1].chapterIndex !== line.chapterIndex;
+            return (
+              <li key={i}>
+                {first ? (
+                  <p className="ap-pod-chapter-mark">
+                    {normalized[line.chapterIndex]?.title}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  className={cn(
+                    "ap-pod-line",
+                    `ap-pod-line--${line.speaker}`,
+                    i === activeIndex && "is-on",
+                  )}
+                  onClick={() => seekTo(line.startMs)}
+                >
+                  <span className="ap-pod-who">{SPEAKER_LABEL[line.speaker]}</span>
+                  <span className="ap-pod-said">{line.text}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <ol className="ap-pod-transcript">
+          {normalized.map((chapter, ci) => (
+            <li key={ci}>
+              <p className="ap-pod-chapter-mark">{chapter.title}</p>
+              {chapter.lines.map((line, li) => (
+                <span
+                  key={li}
+                  className={cn("ap-pod-line", `ap-pod-line--${line.speaker}`)}
+                >
+                  <span className="ap-pod-who">{SPEAKER_LABEL[line.speaker]}</span>
+                  <span className="ap-pod-said">{line.text}</span>
+                </span>
+              ))}
+            </li>
+          ))}
+        </ol>
+      )}
+
       <button
         type="button"
         className="ap-exam-continue ap-exam-continue--primary"
-        disabled={finishing || (!heard && playing)}
+        disabled={finishing}
         onClick={onFinish}
       >
-        {finishing ? "Kaydediliyor…" : heard ? "Dinledim, devam" : "Bu bölümü atla"}
+        {finishing ? "Kaydediliyor…" : heard ? "Dinledim, devam" : "Devam et"}
       </button>
     </section>
   );
