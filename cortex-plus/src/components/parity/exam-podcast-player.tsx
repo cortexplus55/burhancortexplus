@@ -11,6 +11,8 @@ import {
   lineAt,
   normalizeChapters,
   totalDurationMs,
+  wordAt,
+  wordTimings,
   type SpeakerId,
   type TimedLine,
 } from "@/lib/learning/podcast-script";
@@ -24,7 +26,8 @@ type AudioLine = {
   durationMs: number;
 };
 
-const SKIP_MS = 10_000;
+// Astra da 15 saniye atliyor; 10 saniye bir cumleyi bile geri almiyordu.
+const SKIP_MS = 15_000;
 
 export function ExamPodcastPlayer({
   title,
@@ -61,6 +64,20 @@ export function ExamPodcastPlayer({
   );
   const totalMs = totalDurationMs(timeline);
   const activeIndex = playing || positionMs > 0 ? lineAt(timeline, positionMs) : 0;
+
+  // Kelime vurgusu yalnızca çalan cümle için hesaplanıyor. Cümle sınırları
+  // gerçek ses süresinden geliyor; cümle içi dağılım tahmin (bkz. wordTimings).
+  const activeLine = timeline[activeIndex];
+  const activeWords = useMemo(
+    () =>
+      activeLine
+        ? wordTimings(activeLine.text, activeLine.endMs - activeLine.startMs)
+        : [],
+    [activeLine],
+  );
+  const activeWordIndex = activeLine
+    ? wordAt(activeWords, positionMs - activeLine.startMs)
+    : -1;
 
   // Ses üretimi bir defalık: aynı cümleler sunucuda önbellekli olduğu için
   // ikinci açılışta anında geliyor.
@@ -239,10 +256,10 @@ export function ExamPodcastPlayer({
             className="ap-pod-skip"
             onClick={() => seekTo(positionMs - SKIP_MS)}
             disabled={status !== "ready"}
-            aria-label="10 saniye geri"
+            aria-label="15 saniye geri"
           >
             <RotateCcw className="h-5 w-5" aria-hidden />
-            <em>10</em>
+            <em>15</em>
           </button>
 
           <button
@@ -264,10 +281,10 @@ export function ExamPodcastPlayer({
             className="ap-pod-skip"
             onClick={() => seekTo(positionMs + SKIP_MS)}
             disabled={status !== "ready"}
-            aria-label="10 saniye ileri"
+            aria-label="15 saniye ileri"
           >
             <RotateCw className="h-5 w-5" aria-hidden />
-            <em>10</em>
+            <em>15</em>
           </button>
         </div>
 
@@ -326,7 +343,26 @@ export function ExamPodcastPlayer({
                   onClick={() => seekTo(line.startMs)}
                 >
                   <span className="ap-pod-who">{SPEAKER_LABEL[line.speaker]}</span>
-                  <span className="ap-pod-said">{line.text}</span>
+                  {i === activeIndex && activeWords.length ? (
+                    // Yalnızca çalan satır kelimelere bölünüyor; tüm
+                    // transkripti bölmek yüzlerce gereksiz span üretirdi.
+                    <span className="ap-pod-said">
+                      {activeWords.map((word, w) => (
+                        <span
+                          key={w}
+                          className={cn(
+                            "ap-pod-word",
+                            w === activeWordIndex && "is-now",
+                            w < activeWordIndex && "is-said",
+                          )}
+                        >
+                          {word.text}{" "}
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    <span className="ap-pod-said">{line.text}</span>
+                  )}
                 </button>
               </li>
             );

@@ -5,6 +5,9 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { formatDate, formatNumber } from "@/lib/format";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { formatResetAt, periodLabel, quotaView } from "@/lib/credits/period";
+import { loadReferralSummary } from "@/lib/credits/referral";
+import { loadInviteLink } from "@/lib/credits/invite-code";
+import { ReferralRewardCard } from "@/components/parity/referral-reward-card";
 
 export const metadata = { title: "Limitler" };
 
@@ -49,7 +52,13 @@ export default async function KredilerPage() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
-  const [{ data: wallet }, { data: ledger }, { data: rules }] = await Promise.all([
+  const [
+    { data: wallet },
+    { data: ledger },
+    { data: rules },
+    referral,
+    invite,
+  ] = await Promise.all([
     supabase
       .from("credit_wallets")
       .select(
@@ -68,6 +77,8 @@ export default async function KredilerPage() {
       .select("action_code, credit_cost, description")
       .eq("active", true)
       .order("credit_cost"),
+    loadReferralSummary(supabase),
+    loadInviteLink(supabase, user.id),
   ]);
 
   const balance = wallet?.balance ?? 0;
@@ -84,6 +95,10 @@ export default async function KredilerPage() {
             Tüm özellikler açık; sınır yalnızca ne kadar üretebildiğinde.
           </p>
         </div>
+
+        {/* Astra'da da davet kartı kotanın üstünde duruyor: limitini gören
+            kullanıcı hemen ardından nasıl artıracağını görüyor. */}
+        <ReferralRewardCard summary={referral} inviteUrl={invite.url} />
 
         <div className="ap-quota-card">
           <div className="ap-quota-head">

@@ -34,6 +34,7 @@ import { subscribeComposerAttach } from "@/lib/student/composer-bridge";
 import { AstraStartHub } from "@/components/parity/astra-start-hub";
 import { AstraSubjectModal } from "@/components/parity/astra-subject-modal";
 import { AstraUploadModal } from "@/components/parity/astra-upload-modal";
+import { MathKeyboard } from "@/components/parity/math-keyboard";
 import "@/styles/astra-sor.css";
 import "@/styles/astra-parity-sor.css";
 
@@ -65,12 +66,6 @@ const quickActions = [
   { id: "advanced", label: "Gelişmiş analiz", prompt: "Bu konuyu ileri düzeyde ayrıntılı analiz et.", advanced: true },
 ];
 
-const MATH_ADVANCED = [
-  { label: "lim", insert: "lim_{x \\to a}" },
-  { label: "∫", insert: "\\int " },
-  { label: "f′", insert: "f'(x)" },
-] as const;
-
 const COMPOSER_MODES = [
   {
     id: "solution",
@@ -94,28 +89,6 @@ const COMPOSER_MODES = [
     prefix: "Bugünkü öğrenme hedefime uygun bir soru öner: ",
   },
 ] as const;
-
-const MATH_SYMBOLS = [
-  "π",
-  "√",
-  "∑",
-  "∫",
-  "∞",
-  "±",
-  "≠",
-  "≤",
-  "≥",
-  "×",
-  "÷",
-  "θ",
-  "α",
-  "β",
-  "Δ",
-  "²",
-  "³",
-  "½",
-  "()",
-];
 
 const SUBJECTS = [
   "Matematik",
@@ -371,6 +344,33 @@ export function ChatPanel({
       el.focus();
       el.setSelectionRange(pos, pos);
     });
+  }
+
+  /** Klavyedeki ⌫ — seçim varsa onu, yoksa imlecin solundaki karakteri siler. */
+  function backspaceComposer() {
+    const el = composerRef.current;
+    const start = el?.selectionStart ?? input.length;
+    const end = el?.selectionEnd ?? input.length;
+    const cutFrom = start === end ? Math.max(0, start - 1) : start;
+    const next = `${input.slice(0, cutFrom)}${input.slice(end)}`;
+    setInput(next);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(cutFrom, cutFrom);
+    });
+  }
+
+  /** Uzun bir ifadenin ortasına dönebilmek için imleç okları. */
+  function moveComposerCaret(direction: -1 | 1) {
+    const el = composerRef.current;
+    if (!el) return;
+    const pos = Math.min(
+      input.length,
+      Math.max(0, (el.selectionStart ?? 0) + direction),
+    );
+    el.focus();
+    el.setSelectionRange(pos, pos);
   }
 
   function resetParityThread() {
@@ -714,31 +714,12 @@ export function ChatPanel({
                 </div>
               ) : null}
               {mathOpen ? (
-                <div
-                  className="ap-math-bar ap-math-bar--extended"
-                  role="toolbar"
-                  aria-label="Matematik simgeleri"
-                >
-                  {MATH_SYMBOLS.map((symbol) => (
-                    <button
-                      key={symbol}
-                      type="button"
-                      onClick={() => insertMath(symbol)}
-                    >
-                      {symbol}
-                    </button>
-                  ))}
-                  {MATH_ADVANCED.map((item) => (
-                    <button
-                      key={item.label}
-                      type="button"
-                      className="ap-math-advanced"
-                      onClick={() => insertMath(item.insert)}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
+                <MathKeyboard
+                  onInsert={insertMath}
+                  onBackspace={backspaceComposer}
+                  onMoveCaret={moveComposerCaret}
+                  onClose={() => setMathOpen(false)}
+                />
               ) : null}
               <Textarea
                 ref={composerRef}

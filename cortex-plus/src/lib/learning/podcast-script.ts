@@ -186,6 +186,65 @@ export function lineAt(timeline: TimedLine[], ms: number): number {
   return -1;
 }
 
+/** Transkriptte tek tek vurgulanan birim. */
+export type TimedWord = {
+  text: string;
+  startMs: number;
+  endMs: number;
+};
+
+/**
+ * Cümle içi kelime zamanlaması.
+ *
+ * Kullandığımız TTS kelime zaman damgası döndürmüyor. Damga almak için üretilen
+ * sesi ayrıca deşifre etmek gerekirdi — her cümle için ikinci bir API çağrısı,
+ * podcast başına kayda değer bir maliyet. Bunun yerine cümlenin ÖLÇÜLMÜŞ
+ * süresini kelimelere payla dağıtıyoruz.
+ *
+ * Ağırlık yalnızca harf sayısı değil: her kelimeye sabit bir pay ekleniyor
+ * (kelime araları), noktalama sonrası fazladan pay veriliyor (virgülde ses
+ * duraklıyor). Cümle birimi kısa olduğu için sapma kulakla fark edilmiyor;
+ * uzun bir paragrafa aynı yöntem uygulansa kayardı.
+ *
+ * Yani: cümle sınırları gerçek ölçüm, cümle İÇİ dağılım tahmin.
+ */
+export function wordTimings(text: string, durationMs: number): TimedWord[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (!words.length || durationMs <= 0) return [];
+
+  // Sabit pay, harf başına pay, noktalama payı — birimler görecelidir,
+  // toplam yine cümlenin ölçülen süresine normalize ediliyor.
+  const weights = words.map((word) => {
+    const letters = word.replace(/[^\p{L}\p{N}]/gu, "").length;
+    const pause = /[,;:]$/.test(word) ? 2.5 : /[.!?…]$/.test(word) ? 4 : 0;
+    return 2 + letters + pause;
+  });
+
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  const out: TimedWord[] = [];
+  let cursor = 0;
+
+  words.forEach((word, i) => {
+    // Son kelime bitişi tam olarak süreye oturmalı; yuvarlama artığı
+    // birikmesin diye son eleman doğrudan durationMs'e sabitleniyor.
+    const startMs = cursor;
+    const share = (weights[i] / total) * durationMs;
+    cursor = i === words.length - 1 ? durationMs : cursor + share;
+    out.push({ text: word, startMs: Math.round(startMs), endMs: Math.round(cursor) });
+  });
+
+  return out;
+}
+
+/** Cümle içindeki `ms` anına denk gelen kelime; hiçbiri yoksa -1. */
+export function wordAt(words: TimedWord[], ms: number): number {
+  if (ms < 0) return -1;
+  for (let i = 0; i < words.length; i += 1) {
+    if (ms < words[i].endMs) return i;
+  }
+  return -1;
+}
+
 export function formatClock(ms: number): string {
   const total = Math.max(0, Math.round(ms / 1000));
   const minutes = Math.floor(total / 60);

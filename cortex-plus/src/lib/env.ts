@@ -6,6 +6,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().optional(),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().optional(),
   SUPABASE_SECRET_KEY: z.string().optional(),
+  APP_SECRET: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_STANDARD_MODEL: z.string().default("gpt-4o-mini"),
   OPENAI_ADVANCED_MODEL: z.string().default("gpt-4o"),
@@ -20,6 +21,7 @@ const parsed = envSchema.safeParse({
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY,
+  APP_SECRET: process.env.APP_SECRET,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_STANDARD_MODEL: process.env.OPENAI_STANDARD_MODEL,
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,

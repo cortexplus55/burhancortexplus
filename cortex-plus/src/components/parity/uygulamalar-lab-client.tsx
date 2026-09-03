@@ -44,11 +44,24 @@ const CATEGORIES: {
 
 const TONES = ["violet", "blue", "amber", "emerald", "rose"] as const;
 
-export function UygulamalarLabGrid({ stats = {} }: { stats?: LabStatMap }) {
+export type MyApp = {
+  id: string;
+  title: string;
+  description: string | null;
+  visibility: string;
+};
+
+export function UygulamalarLabGrid({
+  stats = {},
+  myApps = [],
+}: {
+  stats?: LabStatMap;
+  myApps?: MyApp[];
+}) {
   const [subject, setSubject] = useState<(typeof LAB_FILTERS)[number]>("Tümü");
   const [category, setCategory] = useState<CatId | null>(null);
   const [featuredIdx, setFeaturedIdx] = useState(0);
-  const counts = { ...labCategoryCounts(), mine: 0 };
+  const counts = { ...labCategoryCounts(), mine: myApps.length };
 
   const filtered = useMemo(() => {
     return LAB_APPS.filter((app) => {
@@ -115,19 +128,39 @@ export function UygulamalarLabGrid({ stats = {} }: { stats?: LabStatMap }) {
             </button>
           ))}
         </div>
-        <Link href="/quizler" className="ap-lab-create">
+        <Link href="/uygulamalar/olustur" className="ap-lab-create">
           + Uygulama oluştur
         </Link>
       </div>
 
       {category === "mine" ? (
-        <div className="ap-lab-empty">
-          <LayoutGrid className="h-8 w-8 opacity-50" aria-hidden />
-          <p>Henüz kendi uygulaman yok.</p>
-          <Link href="/quizler" className="ap-lab-create">
-            + Uygulama oluştur
-          </Link>
-        </div>
+        myApps.length ? (
+          <div className="ap-lab-mine">
+            {myApps.map((app) => (
+              <Link
+                key={app.id}
+                href={`/uygulamalar/benim/${app.id}`}
+                className="ap-lab-mine-card"
+              >
+                <strong>{app.title}</strong>
+                {app.description ? <span>{app.description}</span> : null}
+                <em>
+                  {app.visibility === "school"
+                    ? "Okulunla paylaşıldı"
+                    : "Yalnızca sen"}
+                </em>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="ap-lab-empty">
+            <LayoutGrid className="h-8 w-8 opacity-50" aria-hidden />
+            <p>Henüz kendi uygulaman yok.</p>
+            <Link href="/uygulamalar/olustur" className="ap-lab-create">
+              + Uygulama oluştur
+            </Link>
+          </div>
+        )
       ) : (
         <>
           {featured ? (
