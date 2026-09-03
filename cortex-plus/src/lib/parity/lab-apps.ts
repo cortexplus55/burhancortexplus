@@ -22,6 +22,7 @@ export const LAB_APPS: LabApp[] = [
   { id: "trigonometri", title: "Trigonometri", subject: "Matematik", href: lab("trigonometri"), category: "mini" },
   { id: "integral", title: "İntegral", subject: "Matematik", href: lab("integral"), category: "tool" },
   { id: "olasilik", title: "Olasılık", subject: "Matematik", href: lab("olasilik"), category: "mini" },
+  { id: "faiz", title: "Faiz laboratuvarı", subject: "Matematik", href: lab("faiz"), category: "sim", blurb: "Aynı para, aynı oran — basit ve bileşik faiz yan yana." },
   { id: "renk", title: "Renk modelleri", subject: "Fizik", href: lab("renk"), category: "sim" },
   { id: "devre", title: "Elektrik devreleri", subject: "Fizik", href: lab("devre"), category: "sim" },
   { id: "kuvvet", title: "Kuvvet ve hareket", subject: "Fizik", href: lab("kuvvet"), category: "sim" },

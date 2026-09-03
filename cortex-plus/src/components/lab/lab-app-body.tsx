@@ -22,6 +22,7 @@ import {
   TepkimeLab,
   TrigonometriLab,
 } from "@/components/lab/lab-simulations";
+import { FaizLab } from "@/components/lab/sims/faiz-lab";
 
 const LAB_COMPONENTS: Record<string, () => React.ReactNode> = {
   grafik: GrafikCiziciLab,
@@ -32,6 +33,7 @@ const LAB_COMPONENTS: Record<string, () => React.ReactNode> = {
   integral: IntegralLab,
   trigonometri: TrigonometriLab,
   olasilik: OlasilikLab,
+  faiz: FaizLab,
   renk: RenkLab,
   devre: DevreLab,
   gunes: GunesLab,

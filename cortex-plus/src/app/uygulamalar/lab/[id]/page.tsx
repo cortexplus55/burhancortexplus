@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
 import { LabAppBody } from "@/components/lab/lab-app-body";
 import { LAB_APPS } from "@/lib/parity/lab-apps";
@@ -13,7 +14,8 @@ export default async function LabDetailPage({
   const { id } = await params;
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
-  const catalog = LAB_APPS.find((a) => a.id === id);
+  // Katalogda olmayan kimlik icin bos sayfa yerine 404.
+  if (!LAB_APPS.some((a) => a.id === id)) notFound();
 
   return (
     <AstraParitySorShell {...shell}>
@@ -21,7 +23,7 @@ export default async function LabDetailPage({
         <Link href="/uygulamalar" className="text-sm text-[var(--astra-primary)]">
           ← Uygulamalar
         </Link>
-        <h1 className="text-xl font-semibold">{catalog?.title ?? "Uygulama"}</h1>
+        {/* Baslik simulasyonun kendi kabugunda; burada yinelemek gereksiz. */}
         <LabAppBody id={id} />
       </div>
     </AstraParitySorShell>

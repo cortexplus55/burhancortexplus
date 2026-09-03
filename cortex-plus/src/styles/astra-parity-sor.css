@@ -6367,3 +6367,444 @@
 .ap-pp-signout button:hover {
   background: var(--ap-surface-2);
 }
+
+/* ---------------------------------------------------------------------------
+   Simülasyon kabuğu
+   Eski lab uygulamaları bir düğme ve bir sayıydı. Bu kabuk her simülasyona
+   aynı iskeleti veriyor: yardım, etiketli denetimler, canlı sonuç şeridi.
+   --------------------------------------------------------------------------- */
+.sim {
+  position: relative;
+  display: grid;
+  gap: 1rem;
+}
+
+.sim-head-main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sim-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.sim-tag {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--ap-border);
+  font-size: 0.625rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ap-muted);
+}
+
+.sim-tag--kind {
+  border-color: rgba(244, 174, 11, 0.4);
+  color: var(--ap-gold);
+}
+
+.sim-summary {
+  margin: 0.3rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--ap-muted);
+}
+
+.sim-help-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--ap-border);
+  background: transparent;
+  color: var(--ap-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.sim-help-btn:hover {
+  color: var(--ap-text);
+  border-color: #4a4a4a;
+}
+
+.sim-modes {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--ap-surface-2);
+  width: fit-content;
+}
+
+.sim-mode {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--ap-muted);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.sim-mode.is-on {
+  background: var(--ap-gold);
+  color: #1a1204;
+  font-weight: 600;
+}
+
+.sim-body {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.sim-controls {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface);
+}
+
+.sim-stage {
+  display: grid;
+  gap: 0.9rem;
+  min-width: 0;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface);
+}
+
+/* --- Denetimler ----------------------------------------------------------- */
+.sim-field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.sim-field label,
+.sim-field-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ap-muted);
+}
+
+.sim-field label strong {
+  font-size: 0.875rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ap-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.sim-field label strong em {
+  font-style: normal;
+  color: var(--ap-muted);
+}
+
+.sim-field input[type="range"] {
+  width: 100%;
+  accent-color: var(--ap-gold);
+}
+
+.sim-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.sim-chip {
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--ap-border);
+  background: transparent;
+  color: var(--ap-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.sim-chip:hover {
+  border-color: #4a4a4a;
+}
+
+.sim-chip.is-on {
+  border-color: var(--ap-gold);
+  background: rgba(244, 174, 11, 0.14);
+  color: var(--ap-gold);
+  font-weight: 600;
+}
+
+/* --- Sonuç şeridi --------------------------------------------------------- */
+.sim-readouts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.6rem;
+}
+
+.sim-card {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.8rem 0.95rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface);
+}
+
+.sim-card--accent {
+  border-color: rgba(122, 162, 247, 0.45);
+}
+
+.sim-card--highlight {
+  border-color: var(--ap-gold);
+  background:
+    linear-gradient(180deg, rgba(244, 174, 11, 0.1), transparent 70%),
+    var(--ap-surface);
+}
+
+.sim-card-label {
+  font-size: 0.625rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ap-muted);
+}
+
+.sim-card-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--ap-muted);
+}
+
+.sim-card-row strong {
+  color: var(--ap-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Grafik --------------------------------------------------------------- */
+.sim-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.sim-axis {
+  fill: var(--ap-muted);
+  font-size: 11px;
+}
+
+/* --- Yardım --------------------------------------------------------------- */
+.sim-help-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.sim-help {
+  position: relative;
+  width: min(30rem, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 1.4rem 1.5rem 1.2rem;
+  border-radius: 1.25rem;
+  border: 1px solid var(--ap-border);
+  background: #1b1b1b;
+}
+
+.sim-help h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.sim-help p {
+  margin: 0 0 0.8rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--ap-muted);
+}
+
+.sim-help ul {
+  margin: 0 0 0.9rem;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--ap-muted);
+}
+
+.sim-help-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.75rem;
+  background: var(--ap-surface-2);
+  font-size: 0.8125rem;
+}
+
+.sim-help-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sim-help-legend i {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+}
+
+.sim-help-close {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  border: 0;
+  background: transparent;
+  color: var(--ap-muted);
+  cursor: pointer;
+}
+
+.sim-help-ok {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.7rem;
+  border-radius: 999px;
+  border: 0;
+  background: var(--ap-gold);
+  color: #1a1204;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* --- Tahmin kapısı -------------------------------------------------------- */
+.pg {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.9rem 1.05rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(122, 162, 247, 0.45);
+  background: rgba(122, 162, 247, 0.07);
+}
+
+.pg--good {
+  border-color: rgba(84, 197, 148, 0.5);
+  background: rgba(84, 197, 148, 0.08);
+}
+
+.pg--off {
+  border-color: rgba(244, 174, 11, 0.5);
+  background: rgba(244, 174, 11, 0.08);
+}
+
+.pg-kicker {
+  margin: 0;
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7aa2f7;
+  font-weight: 600;
+}
+
+.pg-question,
+.pg-verdict {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.pg-hint,
+.pg-note,
+.pg-numbers {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--ap-muted);
+}
+
+.pg-numbers strong {
+  color: var(--ap-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.pg-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+.pg-row input {
+  flex: 1 1 8rem;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface);
+  color: var(--ap-text);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.pg-unit {
+  font-size: 0.8125rem;
+  color: var(--ap-muted);
+}
+
+.pg-row button {
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  border: 0;
+  background: var(--ap-gold);
+  color: #1a1204;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pg-row button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pg-skip {
+  justify-self: start;
+  border: 0;
+  background: transparent;
+  color: var(--ap-muted);
+  font-size: 0.75rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .sim-body {
+    grid-template-columns: 1fr;
+  }
+  .sim-help-btn {
+    position: static;
+    justify-self: start;
+    margin-top: 0.5rem;
+  }
+}
