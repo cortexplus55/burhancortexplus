@@ -1,53 +1,33 @@
-﻿import { AppShell } from "@/components/layout/app-shell";
-import { SectionCard } from "@/components/ui-kit/empty-state";
-import { ProfileForm } from "@/components/profile/profile-form";
-import { Badge } from "@/components/ui/badge";
-import { getUserRoles, requireUser } from "@/lib/auth/session";
-import { formatDate } from "@/lib/format";
-import { parseTutorStyle } from "@/lib/learning/tutor-style";
-import { getStudentAccountContext } from "@/lib/student/account-context";
+import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { AstraProfilePanel } from "@/components/parity/astra-profile-panel";
+import { ReferralRewardCard } from "@/components/parity/referral-reward-card";
+import { requireStudentArea } from "@/lib/auth/session";
+import { loadParityShellProps } from "@/lib/student/parity-shell-props";
+import { loadProfileDashboard } from "@/lib/student/profile-dashboard";
+import { loadReferralSummary } from "@/lib/credits/referral";
+import { loadInviteLink } from "@/lib/credits/invite-code";
 
 export const metadata = { title: "Profil" };
 
 export default async function ProfilPage() {
-  const { supabase, user } = await requireUser();
-  const roles = await getUserRoles(user.id);
+  const { supabase, user } = await requireStudentArea();
 
-  const [{ data: profile }, account] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select(
-        "full_name, grade_level, locale, created_at, tutor_style, primary_role",
-      )
-      .eq("id", user.id)
-      .maybeSingle(),
-    getStudentAccountContext(supabase, user.id),
+  const [shell, dashboard, referral, invite] = await Promise.all([
+    loadParityShellProps(supabase, user.id, user.email),
+    loadProfileDashboard(supabase, user.id),
+    loadReferralSummary(supabase),
+    loadInviteLink(supabase, user.id),
   ]);
 
   return (
-    <AppShell title="Profil" accountStrip={false}>
-      <div className="space-y-6">
-        <SectionCard title="Hesap bilgileri">
-          <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>{user.email}</span>
-            {account.isPremium ? (
-              <Badge className="bg-amber-500/20 text-amber-200">Plus</Badge>
-            ) : (
-              <Badge variant="secondary">Ücretsiz</Badge>
-            )}
-            {roles.includes("admin") ? (
-              <Badge variant="secondary">admin</Badge>
-            ) : null}
-            <span>· Katılım {formatDate(profile?.created_at)}</span>
-          </div>
-          <ProfileForm
-            fullName={profile?.full_name ?? ""}
-            gradeLevel={profile?.grade_level ?? ""}
-            locale={(profile?.locale as "tr" | "en") ?? "tr"}
-            tutorStyle={parseTutorStyle(profile?.tutor_style)}
-          />
-        </SectionCard>
-      </div>
-    </AppShell>
+    <AstraParitySorShell {...shell}>
+      <AstraProfilePanel
+        data={dashboard}
+        email={user.email ?? null}
+        isPremium={Boolean(shell.account?.isPremium)}
+      >
+        <ReferralRewardCard summary={referral} inviteUrl={invite.url} />
+      </AstraProfilePanel>
+    </AstraParitySorShell>
   );
 }
