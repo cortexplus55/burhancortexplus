@@ -2,11 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
 import {
-  createRecognizer,
-  speakTurkish,
-  stopSpeech,
-} from "@/lib/learning/studio-speech";
+  isRecordingSupported,
+  speakFromServer,
+  startRecording,
+  transcribe,
+  type Recorder,
+} from "@/lib/learning/voice-recorder";
 import { CreditGate } from "@/components/paywall/credit-gate";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -34,7 +37,8 @@ export function ExamVoiceTutor({
   );
   const [caption, setCaption] = useState("");
   const [paywall, setPaywall] = useState(false);
-  const recRef = useRef<ReturnType<typeof createRecognizer>>(null);
+  const recRef = useRef<Recorder | null>(null);
+  const voiceRef = useRef<{ stop: () => void } | null>(null);
   const stopped = useRef(false);
 
   useEffect(() => {
@@ -43,7 +47,8 @@ export function ExamVoiceTutor({
     return () => {
       stopped.current = true;
       stopSpeech();
-      recRef.current?.stop();
+      voiceRef.current?.stop();
+      recRef.current?.cancel();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -83,13 +88,13 @@ export function ExamVoiceTutor({
       const reply = String(payload.reply ?? "");
       const withReply = [...nextHistory, { role: "assistant" as const, content: reply }];
       setMessages(withReply);
-      speak(reply, () => {
+      void speak(reply, () => {
         if (payload.done) {
           setPhase("idle");
           setCaption("Oturum bitti.");
           return;
         }
-        listen(withReply);
+        void listen(withReply);
       });
     } catch {
       toast.error("Bağlantı hatası.");
@@ -97,62 +102,98 @@ export function ExamVoiceTutor({
     }
   }
 
-  function speak(text: string, onEnd: () => void) {
+  // Eğitmenin sesi sunucudan geliyor; cihazda Türkçe ses olmaması artık
+  // dersi sessiz bırakmıyor. Sunucu sesi gelmezse tarayıcıya düşüyoruz.
+  async function speak(text: string, onEnd: () => void) {
     if (stopped.current) return;
     setPhase("speaking");
     setCaption("Eğitmen konuşuyor…");
+
+    const handle = await speakFromServer(text, "ada", () => {
+      voiceRef.current = null;
+      if (!stopped.current) onEnd();
+    });
+    if (stopped.current) {
+      handle?.stop();
+      return;
+    }
+    if (handle) {
+      voiceRef.current = handle;
+      return;
+    }
+
     speakTurkish(text, () => {
       if (!stopped.current) onEnd();
     });
   }
 
-  function listen(history: Msg[]) {
+  /**
+   * Kayıt sessizlikle kendiliğinden biter, sonra sunucuda çözümlenir.
+   * Tarayıcı tanıma API'sinden ayrıldık: o yalnız Chrome'da çalışıyordu.
+   */
+  async function listen(history: Msg[]) {
     if (stopped.current) return;
     stopSpeech();
-    const rec = createRecognizer();
-    if (!rec) {
+
+    if (!isRecordingSupported()) {
       setPhase("idle");
       setCaption("Mikrofon bu tarayıcıda yok; yazarak da sürebilirsin.");
       return;
     }
-    recRef.current?.stop();
-    recRef.current = rec;
-    rec.continuous = false;
-    rec.interimResults = true;
+
+    recRef.current?.cancel();
     setPhase("listening");
     setCaption("Seni dinliyorum…");
-    rec.onresult = (event) => {
-      const last = event.results[event.results.length - 1];
-      const transcript = last?.[0]?.transcript?.trim() ?? "";
-      if (transcript) setCaption(transcript);
-      const isFinal =
-        typeof (last as { isFinal?: boolean })?.isFinal === "boolean"
-          ? Boolean((last as { isFinal?: boolean }).isFinal)
-          : transcript.length > 0;
-      if (isFinal && transcript) {
-        rec.stop();
-        void turn(history, transcript);
-      }
-    };
-    rec.onerror = () => {
+
+    const recorder = await startRecording({
+      onAutoStop: () => void finishListening(history),
+    });
+    if (!recorder) {
       setPhase("idle");
-      setCaption("Mikrofon durdu. Tekrar konuş veya bitir.");
-    };
-    rec.onend = () => {
-      if (phase === "listening") setPhase("idle");
-    };
-    try {
-      rec.start();
-    } catch {
-      setPhase("idle");
-      toast.error("Mikrofon açılamadı.");
+      setCaption("Mikrofon açılamadı; yazarak da sürebilirsin.");
+      return;
     }
+    if (stopped.current) {
+      recorder.cancel();
+      return;
+    }
+    recRef.current = recorder;
+  }
+
+  async function finishListening(history: Msg[]) {
+    const recorder = recRef.current;
+    if (!recorder || stopped.current) return;
+    recRef.current = null;
+
+    setPhase("thinking");
+    setCaption("Anlıyorum…");
+    const blob = await recorder.stop();
+    if (stopped.current) return;
+    if (!blob) {
+      setPhase("idle");
+      setCaption("Sesini alamadım. Tekrar dene veya yazarak sür.");
+      return;
+    }
+
+    const text = await transcribe(blob);
+    if (stopped.current) return;
+    if (!text) {
+      setPhase("idle");
+      setCaption("Söylediğini çözemedim. Tekrar dene veya yazarak sür.");
+      return;
+    }
+
+    setCaption(text);
+    void turn(history, text);
   }
 
   function stopAll() {
     stopped.current = true;
     stopSpeech();
-    recRef.current?.stop();
+    voiceRef.current?.stop();
+    voiceRef.current = null;
+    recRef.current?.cancel();
+    recRef.current = null;
     setPhase("idle");
     setCaption("Durduruldu.");
   }
@@ -177,7 +218,17 @@ export function ExamVoiceTutor({
       </div>
 
       <div className="ap-tutor-actions">
-        {phase === "speaking" || phase === "thinking" ? (
+        {phase === "listening" ? (
+          // Kayıt sessizlikle kendiliğinden biter; bu düğüm sessizliği
+          // beklemek istemeyen için.
+          <button
+            type="button"
+            className="ap-exam-continue ap-exam-continue--primary"
+            onClick={() => void finishListening(messages)}
+          >
+            Bitirdim
+          </button>
+        ) : phase === "speaking" || phase === "thinking" ? (
           <button type="button" className="ap-exam-continue ap-exam-continue--primary" onClick={stopAll}>
             Durdur
           </button>
@@ -185,7 +236,7 @@ export function ExamVoiceTutor({
           <button
             type="button"
             className="ap-exam-continue ap-exam-continue--primary"
-            onClick={() => listen(messages)}
+            onClick={() => void listen(messages)}
           >
             Konuş
           </button>
