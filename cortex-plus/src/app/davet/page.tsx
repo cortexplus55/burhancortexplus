@@ -4,6 +4,7 @@ import { InviteShare } from "@/components/parity/invite-share";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { appOrigin } from "@/lib/app-url";
+import { qrDataUri } from "@/lib/qr";
 
 export const metadata = { title: "Davet et" };
 
@@ -51,6 +52,8 @@ export default async function DavetPage() {
   );
 
   const inviteUrl = `${appOrigin()}/kayit?ref=${code ?? user.id.slice(0, 8)}`;
+  // QR sunucuda uretilir; davet kodu dis servise gitmez.
+  const inviteQr = await qrDataUri(inviteUrl, 200);
 
   return (
     <AstraParitySorShell {...shell}>
@@ -60,7 +63,7 @@ export default async function DavetPage() {
           QR’ı paylaş veya bağlantıyı kopyala. Arkadaşın kayıt olurken senin
           kodun hesaba işlenir.
         </p>
-        <InviteShare url={inviteUrl} code={code ?? "—"} />
+        <InviteShare url={inviteUrl} code={code ?? "—"} qr={inviteQr} />
       </div>
     </AstraParitySorShell>
   );

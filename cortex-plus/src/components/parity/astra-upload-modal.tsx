@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Smartphone, Upload, X } from "lucide-react";
-import { qrImageUrl } from "@/lib/app-url";
 
 export function AstraUploadModal({
   open,
@@ -20,6 +19,7 @@ export function AstraUploadModal({
   const onRemoteRef = useRef(onRemote);
   const [over, setOver] = useState(false);
   const [uploadUrl, setUploadUrl] = useState<string | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
 
   onCloseRef.current = onClose;
@@ -28,6 +28,7 @@ export function AstraUploadModal({
   useEffect(() => {
     if (!open) {
       setUploadUrl(null);
+      setQr(null);
       setPhoneError(null);
       return;
     }
@@ -41,6 +42,7 @@ export function AstraUploadModal({
         if (!res.ok) throw new Error(payload.error ?? "session");
         if (cancelled) return;
         setUploadUrl(payload.uploadUrl as string);
+        setQr((payload.qr as string) ?? null);
         const token = payload.token as string;
         poll = setInterval(async () => {
           const statusRes = await fetch(`/api/uploads/phone-session/${token}`);
@@ -140,10 +142,11 @@ export function AstraUploadModal({
             <p className="ap-upload-hint">
               QR’ı telefonunla tara; kamera veya galeriden görseli gönder.
             </p>
-            {uploadUrl ? (
+            {uploadUrl && qr ? (
               <div className="ap-upload-qr">
+                {/* Sunucuda üretilen data URI — token dış servise gitmez. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qrImageUrl(uploadUrl, 168)} alt="Yükleme QR kodu" />
+                <img src={qr} alt="Yükleme QR kodu" width={168} height={168} />
                 <button
                   type="button"
                   className="ap-copy-link"

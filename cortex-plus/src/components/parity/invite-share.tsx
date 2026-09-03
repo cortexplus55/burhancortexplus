@@ -1,13 +1,21 @@
 "use client";
 
 import { toast } from "sonner";
-import { qrImageUrl } from "@/lib/app-url";
 
-export function InviteShare({ url, code }: { url: string; code: string }) {
+export function InviteShare({
+  url,
+  code,
+  qr,
+}: {
+  url: string;
+  code: string;
+  /** Sunucuda uretilen data URI -- token dis servise gitmez. */
+  qr: string;
+}) {
   return (
     <div className="ap-invite-card">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={qrImageUrl(url, 200)} alt="Davet QR kodu" />
+      <img src={qr} alt="Davet QR kodu" width={200} height={200} />
       <p className="ap-invite-code">{code}</p>
       <p className="ap-upload-hint break-all">{url}</p>
       <button

@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { withUser, errorResponse } from "@/lib/api/guards";
 import { appOrigin } from "@/lib/app-url";
+import { qrDataUri } from "@/lib/qr";
 
 const TTL_MS = 15 * 60 * 1000;
 
@@ -26,9 +27,10 @@ export async function POST(request: Request) {
   const origin =
     request.headers.get("origin")?.replace(/\/$/, "") ||
     (forwardedHost ? `${forwardedProto}://${forwardedHost}` : appOrigin());
-  return NextResponse.json({
-    token,
-    expiresAt,
-    uploadUrl: `${origin}/yukle/${token}`,
-  });
+  const uploadUrl = `${origin}/yukle/${token}`;
+
+  // QR sunucuda üretilir; token hiçbir dış servise gitmez.
+  const qr = await qrDataUri(uploadUrl, 168);
+
+  return NextResponse.json({ token, expiresAt, uploadUrl, qr });
 }
