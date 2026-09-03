@@ -33,8 +33,13 @@ export default async function UygulamalarPage() {
 
   return (
     <AstraParitySorShell {...shell}>
-      <DailyPuzzleStrip solved={solved} />
-      <UygulamalarLabGrid stats={toStatMap(stats)} myApps={myApps ?? []} />
+      {/* Şerit ızgaranın içine slot olarak veriliyor: hem sayfa kapsayıcısının
+          içinde kalsın hem de başlıktan sonra gelsin. */}
+      <UygulamalarLabGrid
+        stats={toStatMap(stats)}
+        myApps={myApps ?? []}
+        dailySlot={<DailyPuzzleStrip solved={solved} />}
+      />
     </AstraParitySorShell>
   );
 }

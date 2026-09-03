@@ -54,9 +54,12 @@ export type MyApp = {
 export function UygulamalarLabGrid({
   stats = {},
   myApps = [],
+  dailySlot,
 }: {
   stats?: LabStatMap;
   myApps?: MyApp[];
+  /** Gunun bulmacalari seridi. Sunucu bileseni olarak disaridan gelir. */
+  dailySlot?: React.ReactNode;
 }) {
   const [subject, setSubject] = useState<(typeof LAB_FILTERS)[number]>("Tümü");
   const [category, setCategory] = useState<CatId | null>(null);
@@ -93,6 +96,8 @@ export function UygulamalarLabGrid({
           araçlardan oluşan büyüleyici bir koleksiyon.
         </p>
       </header>
+
+      {dailySlot}
 
       <div className="ap-lab-cats">
         {CATEGORIES.map((cat) => {
