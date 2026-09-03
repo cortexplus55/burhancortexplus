@@ -35,6 +35,7 @@ export function AstraSiteFooter() {
           <p className="mt-2">Çalışma ve sınav hazırlığı için AI öğretmen.</p>
         </div>
         <div className="flex flex-col gap-2">
+          <Link href="/ornek">Nasıl çalışır</Link>
           <Link href="/sinav-hazirligi">Sınav hazırlığı</Link>
           <Link href="/mobil-uygulama">Mobil uygulama</Link>
           <Link href="/ozellikler">Özellikler</Link>

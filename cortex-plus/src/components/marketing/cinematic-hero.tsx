@@ -92,6 +92,12 @@ export function CinematicHero() {
             </span>
             Ücretsiz dene
           </Link>
+          {/* Kaydolmadan ürünü gösteren tek yer burası. Örnek akış hazırdı
+              ama hiçbir yerden bağlı değildi; ana sayfayı açan biri ürünü
+              görmeden karar vermek zorunda kalıyordu. */}
+          <Link href="/ornek" className="mk-btn-ghost">
+            Nasıl çalıştığını gör
+          </Link>
           <Link
             href="/fiyatlandirma"
             className="text-sm text-[var(--mk-muted)] underline-offset-2 hover:text-[var(--mk-text)] hover:underline"

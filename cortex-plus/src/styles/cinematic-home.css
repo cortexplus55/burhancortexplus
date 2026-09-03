@@ -264,3 +264,28 @@
   border-color: rgba(232, 168, 56, 0.2);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
 }
+
+/* İkincil hero eylemi: örnek akışa götürür. Birincil CTA ile aynı ölçü,
+   ama dolgusuz — "önce gör, sonra kaydol" sırasını bozmadan görünür olsun. */
+:is(.cinematic-home, .cinematic-marketing) .mk-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.72rem 1.5rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--mk-text);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.35s ease,
+    background 0.35s ease;
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-btn-ghost:hover {
+  transform: scale(1.02);
+  border-color: rgba(240, 184, 77, 0.55);
+  background: rgba(240, 184, 77, 0.08);
+}
