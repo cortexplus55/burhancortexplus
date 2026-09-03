@@ -45,6 +45,10 @@ export const LAB_APPS: LabApp[] = [
   { id: "docs", title: "Doküman asistanı", subject: "Genel", href: "/dokumanlar", category: "tool" },
   { id: "ilerleme", title: "İlerleme panosu", subject: "Genel", href: "/ilerleme", category: "tool" },
   { id: "sohbet", title: "Sohbet geçmişi", subject: "Genel", href: "/sohbetler", category: "tool" },
+  { id: "egik-atis", title: "Eğik atış", subject: "Fizik", href: lab("egik-atis"), category: "sim", blurb: "Hangi açı en uzağa atar? Simetriyi kendin gör." },
+  { id: "sarkac", title: "Sarkaç", subject: "Fizik", href: lab("sarkac"), category: "sim", blurb: "Periyodu ne belirler? Kütleyi oynat ve şaşır." },
+  { id: "dalga-girisimi", title: "Dalga girişimi", subject: "Fizik", href: lab("dalga-girisimi"), category: "sim", blurb: "İki dalga üst üste binince faz farkı her şeyi değiştirir." },
+  { id: "serbest-dusus", title: "Serbest düşüş", subject: "Fizik", href: lab("serbest-dusus"), category: "sim", blurb: "Boşlukta tüy de çekiç de aynı anda düşer. Havada ne oluyor?" },
 ];
 
 export const LAB_FILTERS = [

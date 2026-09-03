@@ -7,6 +7,7 @@ import {
   SimReadout,
   SimShell,
   SimSlider,
+  r2,
 } from "@/components/lab/sim-shell";
 
 /**
@@ -78,8 +79,8 @@ export function FaizLab() {
   const H = 260;
   const PAD = 34;
 
-  const x = (t: number) => PAD + (t / Math.max(years, 1e-9)) * (W - PAD * 2);
-  const y = (v: number) => H - PAD - (v / maxY) * (H - PAD * 2);
+  const x = (t: number) => r2(PAD + (t / Math.max(years, 1e-9)) * (W - PAD * 2));
+  const y = (v: number) => r2(H - PAD - (v / maxY) * (H - PAD * 2));
 
   const path = (key: "s" | "c") =>
     curve.map((p, i) => `${i ? "L" : "M"}${x(p.t)},${y(p[key])}`).join(" ");

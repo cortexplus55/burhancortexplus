@@ -19,6 +19,16 @@ import { cn } from "@/lib/utils";
  * yazıyor; düzen, erişilebilirlik ve pedagoji burada bir kez çözülmüş oluyor.
  */
 
+/**
+ * SVG koordinatlarını yuvarlar.
+ *
+ * Tam duyarlıklı kayan noktalar sunucu ve istemcide farklı dizgeye
+ * dönüşebiliyor; React bunu hidrasyon uyuşmazlığı sayıyor ve "düzeltilmeyecek"
+ * uyarısı veriyor. İki ondalık hem sorunu kapatıyor hem DOM'u küçültüyor —
+ * ekranda bir pikselin yüzde biri zaten görünmüyor.
+ */
+export const r2 = (v: number) => Math.round(v * 100) / 100;
+
 export type SimHelp = {
   /** Bu simülasyon neyi öğretiyor — tek paragraf. */
   intro: string;

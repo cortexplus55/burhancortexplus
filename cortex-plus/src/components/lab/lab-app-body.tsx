@@ -23,8 +23,16 @@ import {
   TrigonometriLab,
 } from "@/components/lab/lab-simulations";
 import { FaizLab } from "@/components/lab/sims/faiz-lab";
+import { EgikAtisLab } from "@/components/lab/sims/egik-atis";
+import { SarkacLab } from "@/components/lab/sims/sarkac";
+import { DalgaGirisimiLab } from "@/components/lab/sims/dalga-girisimi";
+import { SerbestDususLab } from "@/components/lab/sims/serbest-dusus";
 
 const LAB_COMPONENTS: Record<string, () => React.ReactNode> = {
+  "serbest-dusus": SerbestDususLab,
+  "dalga-girisimi": DalgaGirisimiLab,
+  sarkac: SarkacLab,
+  "egik-atis": EgikAtisLab,
   grafik: GrafikCiziciLab,
   periyodik: PeriyodikTabloLab,
   kuvvet: KuvvetHareketLab,
