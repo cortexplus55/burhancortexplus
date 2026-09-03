@@ -27,8 +27,18 @@ import { EgikAtisLab } from "@/components/lab/sims/egik-atis";
 import { SarkacLab } from "@/components/lab/sims/sarkac";
 import { DalgaGirisimiLab } from "@/components/lab/sims/dalga-girisimi";
 import { SerbestDususLab } from "@/components/lab/sims/serbest-dusus";
+import { TurevTegetLab } from "@/components/lab/sims/turev-teget";
+import { RiemannLab } from "@/components/lab/sims/riemann";
+import { FonksiyonAnaliziLab } from "@/components/lab/sims/fonksiyon-analizi";
+import { VektorlerLab } from "@/components/lab/sims/vektorler";
+import { DonelCisimlerLab } from "@/components/lab/sims/donel-cisimler";
 
 const LAB_COMPONENTS: Record<string, () => React.ReactNode> = {
+  "donel-cisimler": DonelCisimlerLab,
+  vektorler: VektorlerLab,
+  "fonksiyon-analizi": FonksiyonAnaliziLab,
+  riemann: RiemannLab,
+  "turev-teget": TurevTegetLab,
   "serbest-dusus": SerbestDususLab,
   "dalga-girisimi": DalgaGirisimiLab,
   sarkac: SarkacLab,

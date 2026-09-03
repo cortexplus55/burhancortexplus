@@ -6808,3 +6808,60 @@
     margin-top: 0.5rem;
   }
 }
+
+/* --- Simülasyon: fonksiyon girişi ve satırlı grafikler --------------------- */
+.sim-fn-input {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface-2);
+  color: var(--ap-text);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.875rem;
+}
+
+.sim-fn-input:focus-visible {
+  outline: 2px solid var(--ap-gold);
+  outline-offset: 1px;
+}
+
+.sim-error {
+  margin: 0;
+  padding: 0.9rem 1.05rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(240, 160, 140, 0.4);
+  background: rgba(240, 160, 140, 0.08);
+  font-size: 0.875rem;
+  color: #f0a08c;
+}
+
+.sim-error code {
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  background: rgba(0, 0, 0, 0.3);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.8125rem;
+}
+
+/* f, f′, f″ alt alta — x eksenleri hizalı olsun diye satır satır. */
+.sim-rows {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.sim-row {
+  position: relative;
+  border-radius: 0.6rem;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.sim-row-label {
+  position: absolute;
+  top: 0.35rem;
+  left: 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  pointer-events: none;
+}

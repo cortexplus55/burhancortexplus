@@ -49,6 +49,11 @@ export const LAB_APPS: LabApp[] = [
   { id: "sarkac", title: "Sarkaç", subject: "Fizik", href: lab("sarkac"), category: "sim", blurb: "Periyodu ne belirler? Kütleyi oynat ve şaşır." },
   { id: "dalga-girisimi", title: "Dalga girişimi", subject: "Fizik", href: lab("dalga-girisimi"), category: "sim", blurb: "İki dalga üst üste binince faz farkı her şeyi değiştirir." },
   { id: "serbest-dusus", title: "Serbest düşüş", subject: "Fizik", href: lab("serbest-dusus"), category: "sim", blurb: "Boşlukta tüy de çekiç de aynı anda düşer. Havada ne oluyor?" },
+  { id: "turev-teget", title: "Türev ve teğet", subject: "Matematik", href: lab("turev-teget"), category: "sim", blurb: "Türev bir sayı değil, her noktada değişen bir eğim." },
+  { id: "riemann", title: "Riemann toplamı", subject: "Matematik", href: lab("riemann"), category: "sim", blurb: "Dikdörtgen sayısını artır, hatanın eridiğini gör." },
+  { id: "fonksiyon-analizi", title: "Fonksiyon analizi", subject: "Matematik", href: lab("fonksiyon-analizi"), category: "sim", blurb: "f, f′ ve f″ alt alta — ilişkiyi tek bakışta oku." },
+  { id: "vektorler", title: "Vektörler", subject: "Matematik", href: lab("vektorler"), category: "sim", blurb: "|a| + |b| neden bileşkenin boyu değil?" },
+  { id: "donel-cisimler", title: "Dönel cisimler", subject: "Matematik", href: lab("donel-cisimler"), category: "sim", blurb: "Eğriyi döndür, hacmini dilim dilim gör." },
 ];
 
 export const LAB_FILTERS = [
