@@ -4766,3 +4766,29 @@
   font-size: 0.75rem;
   color: var(--ap-muted);
 }
+
+.ap-share-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
+  border-radius: 9999px;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface-2);
+  padding: 0.42rem 0.85rem;
+  color: var(--ap-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ap-share-toggle:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.ap-share-toggle--on {
+  border-color: rgba(52, 211, 153, 0.4);
+  background: rgba(16, 185, 129, 0.14);
+  color: #6ee7b7;
+}

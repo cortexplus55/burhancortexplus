@@ -34,6 +34,12 @@ export default async function ExamPrepDetailPage({
 
   if (!prep) notFound();
 
+  // Paylaşım kolonları migration ile geliyor; yoksa düğme gizli kalır.
+  const [{ data: profile }, { data: shareRow }] = await Promise.all([
+    supabase.from("profiles").select("school_id").eq("id", user.id).maybeSingle(),
+    supabase.from("exam_preps").select("visibility").eq("id", prepId).maybeSingle(),
+  ]);
+
   await loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id);
   await ensurePrepNodes(supabase, prep);
 
@@ -88,6 +94,8 @@ export default async function ExamPrepDetailPage({
         activeTopicLabel={topicLabel}
         needsIntro={needsIntro}
         startHref={startHref}
+        canShare={Boolean(profile?.school_id)}
+        initialShared={shareRow?.visibility === "school"}
       />
     </AstraParitySorShell>
   );

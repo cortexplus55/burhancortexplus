@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Check, Share2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   PLAN_NODE_META,
   daysUntilExam,
@@ -33,6 +36,8 @@ export function ExamPrepHome({
   activeTopicLabel,
   needsIntro,
   startHref,
+  canShare = false,
+  initialShared = false,
 }: {
   prepId: string;
   title: string;
@@ -45,6 +50,9 @@ export function ExamPrepHome({
   activeTopicLabel?: string | null;
   needsIntro: boolean;
   startHref: string;
+  /** Okulu seçilmemiş kullanıcıya paylaşım düğmesi gösterilmez. */
+  canShare?: boolean;
+  initialShared?: boolean;
 }) {
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
@@ -52,6 +60,33 @@ export function ExamPrepHome({
   const daysLeft = examDate ? daysUntilExam(examDate) : null;
   const readiness = readinessScore(nodes);
   const readinessState = readinessLabel(readiness);
+  const [shared, setShared] = useState(initialShared);
+  const [sharing, setSharing] = useState(false);
+
+  // Paylaşım yalnızca konu başlıklarını görünür kılar; ilerleme ve cevaplar
+  // hiçbir zaman paylaşılmaz — katılan kişi kendi kopyasını alır.
+  async function toggleShare() {
+    const next = !shared;
+    setSharing(true);
+    try {
+      const res = await fetch("/api/school", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prepId, share: next }),
+      });
+      if (!res.ok) throw new Error();
+      setShared(next);
+      toast.success(
+        next
+          ? "Hazırlığın okul akışında görünüyor."
+          : "Paylaşım kaldırıldı.",
+      );
+    } catch {
+      toast.error("İşlem tamamlanamadı.");
+    } finally {
+      setSharing(false);
+    }
+  }
 
   return (
     <div className="ap-exam-page ap-exam-trail-page">
@@ -80,6 +115,24 @@ export function ExamPrepHome({
               <span>Değiştir ↻</span>
             </Link>
           </div>
+        ) : null}
+        {canShare ? (
+          <button
+            type="button"
+            className={cn("ap-share-toggle", shared && "ap-share-toggle--on")}
+            disabled={sharing}
+            onClick={() => void toggleShare()}
+          >
+            {shared ? (
+              <>
+                <Check className="h-3.5 w-3.5" aria-hidden /> Okulunla paylaşıldı
+              </>
+            ) : (
+              <>
+                <Share2 className="h-3.5 w-3.5" aria-hidden /> Okulunla paylaş
+              </>
+            )}
+          </button>
         ) : null}
       </header>
 
