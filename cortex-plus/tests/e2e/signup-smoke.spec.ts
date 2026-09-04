@@ -3,7 +3,10 @@ import { test, expect } from "@playwright/test";
 test.describe("Kayıt ve marketing", () => {
   test("ana sayfa ve kayıt sihirbazı öğrenci adımları", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("link", { name: /ÜCRETSİZ DENE/i }).first()).toBeVisible();
+    // Regex'te büyük "İ" kullanmayın: JS'te "İ".toLowerCase() düz "i" değil,
+    // "i" + birleşen nokta (U+0307) üretir; /İ/i bu yüzden "i" ile eşleşmez ve
+    // sayfada duran "Ücretsiz dene" linkini bulamaz.
+    await expect(page.getByRole("link", { name: "Ücretsiz dene" }).first()).toBeVisible();
 
     await page.goto("/kayit");
     await expect(

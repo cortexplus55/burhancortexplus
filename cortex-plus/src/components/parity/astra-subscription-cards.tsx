@@ -66,6 +66,7 @@ export function AstraSubscriptionCards({
   closeHref,
   studentAskParent = false,
   embedded = false,
+  headingLevel = "h2",
   audience = "default",
   beneficiaryStudentId,
   childName,
@@ -77,6 +78,8 @@ export function AstraSubscriptionCards({
   studentAskParent?: boolean;
   /** AppShell içinde gösterim */
   embedded?: boolean;
+  /** Sayfanın kendi başlığı bu blok ise "h1"; başka bir başlığın altındaysa "h2". */
+  headingLevel?: "h1" | "h2";
   audience?: "default" | "parent";
   /** Veli ödemesinde kota bu öğrenciye yazılır. */
   beneficiaryStudentId?: string | null;
@@ -208,7 +211,10 @@ export function AstraSubscriptionCards({
 
       <div className={cn("mx-auto max-w-md space-y-6", embedded ? "" : "pt-8")}>
         {isParent ? null : (
-          <PremiumPlanHero align={embedded ? "start" : "center"} />
+          <PremiumPlanHero
+            align={embedded ? "start" : "center"}
+            headingLevel={headingLevel}
+          />
         )}
 
         {returnTo && !guestMode ? (

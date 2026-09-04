@@ -18,9 +18,14 @@ export function PremiumAuthShell({
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cx-gold)]">
               Cortex Plus
             </p>
-            <h1 className="cortex-premium-auth__hero-title">
+            {/*
+              Bu yan panel dekoratif: sayfanın konusu sağdaki form. Başlık
+              seviyesi bunu yansıtmalı — `h1` karttaki başlıkta. Sınıf aynı
+              kaldığı için görünüm değişmiyor.
+            */}
+            <p className="cortex-premium-auth__hero-title">
               Sınav hazırlığında 2 kat hızlı öğren
-            </h1>
+            </p>
             <p className="cortex-premium-auth__hero-lead">
               Kişisel AI öğretmenin, deneme analizi ve çalışma planı — tek uygulamada,
               7/24.
@@ -45,7 +50,7 @@ export function PremiumAuthShell({
             </Link>
           </div>
           <div className="cortex-premium-auth__card">
-            <h2 className="cortex-premium-auth__title">{title}</h2>
+            <h1 className="cortex-premium-auth__title">{title}</h1>
             {subtitle ? (
               <p className="cortex-premium-auth__subtitle">{subtitle}</p>
             ) : null}

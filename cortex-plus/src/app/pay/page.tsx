@@ -23,6 +23,7 @@ export default async function PayPage() {
       <AstraSubscriptionCards
         plans={plans ?? []}
         embedded
+        headingLevel="h1"
         currentBadge={currentBadge}
       />
     </AppShell>

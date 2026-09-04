@@ -31,10 +31,15 @@ test.describe("authentication guards", () => {
     });
   }
 
-  test("legacy teacher panel URL redirects to student hub", async ({ page }) => {
-    await page.goto("/ogretmen-paneli");
-    await expect(page).toHaveURL(/\/ogretmen$/);
-  });
+  // Emekli rotalar `/ogretmen`'e gider, ama `/ogretmen` de korumalı: oturumsuz
+  // ziyaretçi zincirin sonunda giriş ekranında biter. Test eskiden zincirin
+  // yalnızca ilk halkasını bekliyordu.
+  for (const legacy of ["/ogretmen-paneli", "/ogretmenler-ve-profesorler-icin"]) {
+    test(`${legacy} redirects to sign in for the student hub`, async ({ page }) => {
+      await page.goto(legacy);
+      await expect(page).toHaveURL(/\/giris\?next=%2Fogretmen$/);
+    });
+  }
 
   test("sign-in form validates required fields", async ({ page }) => {
     await page.goto("/giris");

@@ -1,23 +1,32 @@
 import { test, expect } from "@playwright/test";
 
+/**
+ * Her herkese açık sayfada **tek** bir `h1` olmalı ve o `h1` sayfanın konusunu
+ * söylemeli. Bu tablo bir zamanlar sayfalarla uyuşmuyordu; uyuşmayan yerlerin
+ * çoğu testin değil sayfanın hatasıydı (giriş/kayıt ekranlarında `h1` sağdaki
+ * forma değil soldaki dekoratif panele veriliyordu, `/fiyatlandirma` ve
+ * `/kayit`'ta iki tane `h1` vardı).
+ *
+ * `/ogretmenler-ve-profesorler-icin` bilerek yok: o rota emekli, middleware
+ * `/ogretmen`'e yönlendiriyor. Yönlendirmenin kendisi `auth.spec.ts`'te.
+ */
 const PUBLIC_ROUTES: [string, string][] = [
   ["/", "2 kat hızlı öğren"],
   ["/ozellikler", "Özellikler"],
   ["/sinav-hazirligi", "Sınav hazırlığı"],
-  ["/fiyatlandirma", "Daha iyi notlar"],
+  ["/fiyatlandirma", "Fiyatlandırma"],
   ["/hakkimizda", "Hakkımızda"],
   ["/iletisim", "İletişim"],
   ["/yardim", "Yardım"],
   ["/gizlilik", "Gizlilik politikası"],
   ["/kvkk", "KVKK"],
   ["/kullanim-kosullari", "Kullanım koşulları"],
-  ["/giris", "Giriş yap"],
-  ["/kayit", "hoş geldin"],
+  ["/giris", "Tekrar hoş geldin"],
+  ["/kayit", "Hangi sınıftasın?"],
   ["/sifremi-unuttum", "Şifremi unuttum"],
   ["/email-dogrula", "E-posta doğrulama"],
   ["/mobil-uygulama", "Mobil uygulama"],
   ["/yaratici-program", "Yaratıcı program"],
-  ["/ogretmenler-ve-profesorler-icin", "Öğretmenler ve profesörler için"],
 ];
 
 test.describe("public pages", () => {
@@ -25,7 +34,11 @@ test.describe("public pages", () => {
     test(`${route} renders its heading`, async ({ page }) => {
       const response = await page.goto(route);
       expect(response?.status()).toBeLessThan(400);
-      await expect(page.getByRole("heading", { level: 1 })).toContainText(heading);
+      const h1 = page.getByRole("heading", { level: 1 });
+      // Sayısı ayrıca kontrol ediliyor: iki `h1` olduğunda Playwright'ın
+      // "strict mode violation" hatası sorunu gizliyor, bu satır adıyla söylüyor.
+      await expect(h1).toHaveCount(1);
+      await expect(h1).toContainText(heading);
     });
   }
 

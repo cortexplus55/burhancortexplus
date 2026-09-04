@@ -32,9 +32,14 @@ export function SignupPremiumShell({
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cx-gold)]">
               Cortex Plus
             </p>
-            <h1 className="cortex-premium-auth__hero-title">
+            {/*
+              Dekoratif yan panel — sayfanın `h1`'i sihirbazın o anki adımı
+              (`signup-wizard.tsx`). İki `h1` bir arada olunca hem ekran
+              okuyucu hem test hangisinin sayfa başlığı olduğunu bilemiyordu.
+            */}
+            <p className="cortex-premium-auth__hero-title">
               Dakikalar içinde kişisel AI öğretmenin
-            </h1>
+            </p>
             <p className="cortex-premium-auth__hero-lead">
               Sınıfını ve hedefini söyle — deneme analizi, soru çözümü ve çalışma
               planı aynı uygulamada.
