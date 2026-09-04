@@ -766,6 +766,24 @@ export function ChatPanel({
               >
                 + {startLabel}
               </button>
+
+              {/* Boş ekranda "ne sorabilirim" sorusunun cevabı. Öneriler
+                  kayıt cevaplarından üretiliyor; basınca doğrudan soruyor. */}
+              {starterPrompts?.length ? (
+                <div className="ap-sor-starters" role="group" aria-label="Başlangıç önerileri">
+                  {starterPrompts.map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      className="ap-sor-starter"
+                      disabled={loading}
+                      onClick={() => void send(item.prompt)}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
 

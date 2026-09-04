@@ -10,6 +10,7 @@ import { getCreditCost } from "@/lib/credits/rules";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { parseTutorStyle, tutorStyleLabel } from "@/lib/learning/tutor-style";
 import { messageFeedbackEnabled } from "@/lib/learning/message-feedback";
+import { firstPrompts } from "@/lib/student/first-prompts";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
 
@@ -23,7 +24,16 @@ export default async function OgretmenPage({
   const { supabase, user } = await requireStudentArea();
   const params = await searchParams;
 
-  const [{ count }, { data: profile }, chatCost, isPremium, account, streak, { data: conversations }] =
+  const [
+    { count },
+    { data: profile },
+    chatCost,
+    isPremium,
+    account,
+    streak,
+    { data: goal },
+    { data: conversations },
+  ] =
     await Promise.all([
       supabase
         .from("documents")
@@ -32,13 +42,23 @@ export default async function OgretmenPage({
         .eq("status", "completed"),
       supabase
         .from("profiles")
-        .select("full_name, tutor_style, primary_role, avatar_url")
+        .select(
+          "full_name, tutor_style, primary_role, avatar_url, grade_level, focus_subject",
+        )
         .eq("id", user.id)
         .maybeSingle(),
       getCreditCost("AI_CHAT_STANDARD"),
       isPremiumUser(supabase, user.id),
       getStudentAccountContext(supabase, user.id),
       getUserStreak(supabase, user.id),
+      // Kayıt sırasında verilen hedef; başlangıç önerilerini buna göre yazıyoruz.
+      supabase
+        .from("learning_goals")
+        .select("goal_text")
+        .eq("user_id", user.id)
+        .order("created_at")
+        .limit(1)
+        .maybeSingle(),
       supabase
         .from("conversations")
         .select("id, title, updated_at")
@@ -128,6 +148,11 @@ export default async function OgretmenPage({
         chatCreditCost={chatCost ?? undefined}
         isPremium={isPremium}
         tutorStyleLabel={tutorStyleLabel(style)}
+        starterPrompts={firstPrompts({
+          grade: profile?.grade_level,
+          subject: profile?.focus_subject,
+          goal: goal?.goal_text,
+        })}
       />
     </AstraParitySorShell>
   );

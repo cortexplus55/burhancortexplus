@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -35,45 +35,67 @@ export default function OnboardingPage() {
 
   async function finish() {
     setSaving(true);
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      router.push("/giris");
-      return;
-    }
-    const { data: existing } = await supabase
-      .from("profiles")
-      .select("primary_role")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    await supabase
-      .from("profiles")
-      .update({
-        grade_level: grade,
-        focus_subject: subject || null,
-        tutor_style: tutorStyle,
-        onboarding_completed_at: new Date().toISOString(),
-      })
-      .eq("id", user.id);
-    if (goal) {
-      const { data: goals } = await supabase
-        .from("learning_goals")
-        .select("id")
-        .eq("user_id", user.id)
-        .limit(1);
-      if (!goals?.length) {
-        await supabase.from("learning_goals").insert({
-          user_id: user.id,
-          goal_text: goal,
-        });
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/giris");
+        return;
       }
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("primary_role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      /*
+        Kaydın başarısını kontrol etmek zorundayız.
+
+        `onboarding_completed_at` boş kalırsa ara katman kullanıcıyı buraya
+        geri gönderiyor. Eskiden sonuç bakılmadan "Profilin hazır!" deniyor ve
+        yönlendiriliyordu: kayıt başarısızsa öğrenci aynı ekrana düşüyor, üstelik
+        az önce "hazır" yazısını okumuş oluyordu. Bir kez yalan söyleyen ekrana
+        bir daha inanılmıyor.
+      */
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          grade_level: grade,
+          focus_subject: subject || null,
+          tutor_style: tutorStyle,
+          onboarding_completed_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      if (error) {
+        toast.error("Kaydedilemedi", {
+          description: "Bağlantını kontrol edip tekrar dene.",
+        });
+        return;
+      }
+
+      // Hedef ikincil: kaydedilemezse akışı durdurmuyoruz, profil zaten hazır.
+      if (goal) {
+        const { data: goals } = await supabase
+          .from("learning_goals")
+          .select("id")
+          .eq("user_id", user.id)
+          .limit(1);
+        if (!goals?.length) {
+          await supabase.from("learning_goals").insert({
+            user_id: user.id,
+            goal_text: goal,
+          });
+        }
+      }
+
+      toast.success("Profilin hazır!");
+      router.push(homePathForRole(existing?.primary_role));
+    } finally {
+      setSaving(false);
     }
-    toast.success("Profilin hazır!");
-    router.push(homePathForRole(existing?.primary_role));
-    setSaving(false);
   }
 
   return (
@@ -187,7 +209,7 @@ export default function OnboardingPage() {
               ))}
             </div>
             <OnboardingContinue
-              disabled={!grade || saving}
+              disabled={saving}
               label={saving ? "Kaydediliyor…" : "Başla"}
               onClick={() => void finish()}
             />
