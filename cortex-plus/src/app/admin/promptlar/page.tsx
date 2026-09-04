@@ -1,6 +1,8 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { PromptActivate } from "@/components/admin/admin-rows";
+import { PromptEditor } from "@/components/admin/prompt-editor";
+import { BUILTIN_PROMPTS, PROMPT_KEYS, loadActivePrompt } from "@/lib/ai/prompts";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
@@ -23,8 +25,24 @@ export default async function AdminAiTalimatlariPage() {
 
   const rows = prompts ?? [];
 
+  // Ekranda "şu an ne geçerli" sorusunun cevabı: tabloda yayında sürüm varsa
+  // o, yoksa koddaki varsayılan.
+  const activeChat = await loadActivePrompt(service, PROMPT_KEYS.studentChat);
+  const chatIsBuiltin = activeChat === BUILTIN_PROMPTS[PROMPT_KEYS.studentChat];
+
   return (
     <AdminShell href="/admin/promptlar" pendingApplications={pending}>
+      <AdminCard
+        title="Sohbetteki öğretmen"
+        desc="Öğrenci Sor ekranında soru sorduğunda yapay zekâya verilen yönerge. Kaydettiğin metin bir sonraki sorudan itibaren geçerli olur."
+      >
+        <PromptEditor
+          promptKey={PROMPT_KEYS.studentChat}
+          current={activeChat}
+          isBuiltin={chatIsBuiltin}
+        />
+      </AdminCard>
+
       <AdminNote tone="warn">
         Talimat, yapay zekâya &ldquo;nasıl davran&rdquo; diyen metindir —
         öğretmenin üslubunu, adım adım anlatıp anlatmayacağını bunlar belirler.

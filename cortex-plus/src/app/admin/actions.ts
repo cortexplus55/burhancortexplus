@@ -710,3 +710,70 @@ export async function endPromoCampaign() {
   revalidatePath("/ogretmen");
   return { ok: true, message: "Bant kaldırıldı." };
 }
+
+/**
+ * Yeni talimat sürümü kaydeder ve yayına alır.
+ *
+ * Sayfada bir sürüm oluşturmanın hiçbir yolu yoktu: tablo boştu, ekranda
+ * yalnızca "kayıtlı talimat yok" yazıyordu ve düğme de yoktu. Yani panel
+ * kendi vaadini yerine getiremiyordu.
+ *
+ * Sürüm numarası elle verilmiyor; aynı anahtarın en büyüğünün bir fazlası
+ * alınıyor. Eski sürümler duruyor, geri dönmek için listeden yayına
+ * alınabiliyor.
+ */
+export async function savePromptVersion(input: { key: string; content: string }) {
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+
+  const parsed = z
+    .object({
+      key: z.string().min(2).max(64).regex(/^[a-z0-9_]+$/),
+      content: z.string().trim().min(20).max(4000),
+    })
+    .safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Talimat en az 20 karakter olmalı." };
+  }
+
+  const service = createServiceClient();
+
+  const { data: latest } = await service
+    .from("prompt_versions")
+    .select("version")
+    .eq("key", parsed.data.key)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const nextVersion = Number(latest?.version ?? 0) + 1;
+
+  await service
+    .from("prompt_versions")
+    .update({ active: false })
+    .eq("key", parsed.data.key);
+
+  const { data: created, error } = await service
+    .from("prompt_versions")
+    .insert({
+      key: parsed.data.key,
+      version: nextVersion,
+      content: parsed.data.content,
+      active: true,
+    })
+    .select("id")
+    .single();
+
+  if (error || !created) return { ok: false, error: "Kaydedilemedi." };
+
+  await auditLog(service, {
+    actorId,
+    action: "prompt.saved",
+    entityType: "prompt_version",
+    entityId: created.id,
+    metadata: { key: parsed.data.key, version: nextVersion },
+  });
+
+  revalidatePath("/admin/promptlar");
+  return { ok: true, message: `v${nextVersion} yayına alındı.` };
+}

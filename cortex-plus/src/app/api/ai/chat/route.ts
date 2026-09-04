@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { loadActivePrompt, PROMPT_KEYS } from "@/lib/ai/prompts";
 import { z } from "zod";
 import OpenAI from "openai";
 import { errorResponse, withUser } from "@/lib/api/guards";
@@ -27,9 +28,6 @@ const bodySchema = z.object({
   audience: z.enum(["student"]).default("student"),
   imageDocumentId: z.string().uuid().optional(),
 });
-
-const STUDENT_INSTRUCTION =
-  "Anlaşılır öğret. Markdown ve LaTeX kullanabilirsin. Öğrencinin tercih ettiği anlatım stili ayrıca sistem mesajında verilir.";
 
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "chat", limit: 40 });
@@ -157,6 +155,9 @@ export async function POST(request: Request) {
   const contextBlock = chatSourceBlock(sources);
 
   try {
+    // Yönetim panelinden yayına alınan talimat; yoksa koddaki varsayılan.
+    const studentInstruction = await loadActivePrompt(service, PROMPT_KEYS.studentChat);
+
     const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
 
     const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] =
@@ -174,7 +175,7 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "system",
-          content: `${SYSTEM_GUARDRAIL} ${STUDENT_INSTRUCTION}${styleBlock}${contextBlock}`,
+          content: `${SYSTEM_GUARDRAIL} ${studentInstruction}${styleBlock}${contextBlock}`,
         },
         ...history.slice(0, -1),
         { role: "user", content: userContent },
