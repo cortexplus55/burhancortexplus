@@ -48,6 +48,27 @@ tek başına yapılacak iş gerekçesi **değil**. Bir özellik ancak Cortex Plu
 İçlerindeki "bizde yok" ve "kapatıldı ✓" satırları bayat; kullanmadan önce
 koddan doğrulayın. Gerekçe: `docs/astra-parity/README.md`.
 
+## Suspense sınırı bu projede sayfayı boşaltıyor
+
+**4 Eylül 2026'da yayında yedi sayfa boştu.** Sunucu doğru HTML'i gönderiyordu;
+sayfanın içeriği tarayıcıya ulaşıp gizli bir kutuda bekliyor, React'in onu
+yerine koyan çağrısı ise sınırı bulamıyordu. Ekranda yalnızca menü ya da
+sonsuza kadar duran bir iskelet kalıyordu.
+
+Kural — bu projede bir sayfaya **Suspense sınırı eklemeyin**:
+
+| Yapmayın | Yapın |
+|---|---|
+| Oturum gerektiren sayfaya `loading.tsx` koymak | Koymayın. Sayfa hazır olunca gelsin. |
+| `useSearchParams()` kullanan istemci bileşenini `<Suspense>` ile sarmak | Sayfaya `export const dynamic = "force-dynamic"` ekleyin; sınır gereksizleşir. |
+
+Tek istisna `/sohbetler/loading.tsx`: boş bir koyu kutu çiziyor ve çalıştığı
+doğrulandı. Yeni bir tane eklerseniz, ekledikten sonra sayfanın **yayında
+gerçekten açıldığını gözle görün** — derleme ve testler bunu yakalamıyor.
+Bekçi test: `tests/unit/loading-fallbacks.test.ts`.
+
+---
+
 ## Ürün öğrenci-only — veli ve öğretmen paneli yok
 
 **`3e666f6` (29 Ağustos 2026)** veli ve öğretmen arayüzünü tümüyle emekli
