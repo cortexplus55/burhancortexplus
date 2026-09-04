@@ -35,3 +35,21 @@ başka Supabase projesi **yok**. Bir tanesini gördüğünüzde bu dosyaya geri 
 - **Operasyon e-postası (tek):** **`cortexplus@cortexplus.app`** — panel, OAuth test, Squarespace, Gmail MCP, doküman; kişisel `@gmail.com` **yasak**. Ayrıntı: `docs/delivery/IDENTITY.md`, kural: `.cursor/rules/cortexplus-identity.mdc`
 
 Kullanıcı **github hazır** dedikten sonra: Supabase proje oluştur, migration push, Vercel env, MCP `project_ref` güncelle.
+
+---
+
+## Ürün yönü — Astra paritesi kuzey yıldızı DEĞİL
+
+**Karar tarihi: 2026-09-04.** Astra AI bir referans; "Astra'da var, bizde yok"
+tek başına yapılacak iş gerekçesi **değil**. Bir özellik ancak Cortex Plus
+öğrencisine bir şey öğrettiği için yazılır.
+
+`docs/astra-parity/` ve `docs/astra-audit/` **arşivdir** — iş listesi değil.
+İçlerindeki "bizde yok" ve "kapatıldı ✓" satırları bayat; kullanmadan önce
+koddan doğrulayın. Gerekçe: `docs/astra-parity/README.md`.
+
+**Geri alınmış özellikler — yeniden yazmayın:** `13a175e` "Uygulamalar"
+bölümünü tümüyle kaldırdı (34 simülasyon, 5 mini oyun, günün bulmacaları,
+liderlik tablosu, AI uygulama üreteci). Yerine 12 araçlık `/araclar` geldi;
+`/uygulamalar` kalıcı yönlendirme. Veritabanı tabloları (`lab_app_plays`,
+`daily_puzzles`, `user_apps` …) bilerek duruyor — arayüz geri gelir, veri gelmez.

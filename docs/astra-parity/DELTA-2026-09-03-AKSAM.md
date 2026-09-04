@@ -1,5 +1,20 @@
 # Astra AI ↔ Cortex Plus — Güncel Fark Analizi
 
+> ## ⚠️ 2026-09-04 düzeltmesi — bu dosya bir iş listesi DEĞİL
+>
+> Aşağıdaki **Bölüm 6** beş maddeyi "kapatıldı ✓" diye anlatıyor. O maddelerin
+> dördü aynı gece `13a175e` ile **üründen kaldırıldı**: günün bulmacaları,
+> liderlik tablosu, AI uygulama üreteci ve 34 simülasyon. "Uygulamalar" bölümü
+> tümüyle kalktı, yerine 12 araçlık `/araclar` merkezi geldi.
+>
+> Ayrıca ürün kararı değişti: **Astra paritesi artık kuzey yıldızı değil.**
+> Astra bir referans; "Astra'da var, bizde yok" tek başına yapılacak iş
+> gerekçesi sayılmıyor. Ayrıntı: [README.md](./README.md).
+>
+> Dosya tarihsel kayıt olarak duruyor — Astra gözlemleri hâlâ geçerli, bizim
+> tarafımıza dair her satır koddan doğrulanmadan kullanılmamalı.
+
+
 **Tarih:** 2026-09-03 akşam
 **Karşılaştırılan:** `app.astra-ai.co/tr-TR` (premium oturum) ↔ `cortexplus.app`
 **Kod tabanı:** `cortexplus55/burhancortexplus` @ `a5b4a53`
