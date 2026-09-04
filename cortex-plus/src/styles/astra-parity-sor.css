@@ -9,6 +9,28 @@
   --ap-muted: #a3a3a3;
   --ap-subject: #6b8cff;
   --ap-gold: #f4ae0b;
+
+  /*
+    Eski tasarım sistemine köprü.
+
+    Bu kabuk `--astra-*` değişkenlerinin hiçbirini tanımlamıyordu. İçine
+    yerleştirilen eski bileşenler (doküman yükleme, quiz üretici, boş
+    durumlar) bu değişkenlere dayandığı için tarayıcı varsayılanlarına
+    düşüyordu: çıplak dosya seçici, kenarlıksız kart, gri buton. Sorunun her
+    sayfada ayrı ayrı görünmesinin tek sebebi buydu.
+
+    Yeniden yazmak yerine eşliyoruz; iki sistem aynı renkleri konuşsun.
+  */
+  --astra-bg: var(--ap-bg);
+  --astra-surface: var(--ap-surface);
+  --astra-surface-elevated: var(--ap-surface-2);
+  --astra-border: var(--ap-border);
+  --astra-text: var(--ap-text);
+  --astra-muted: var(--ap-muted);
+  --astra-primary: var(--ap-gold);
+  --astra-primary-hover: #ffc857;
+  --astra-pill: var(--ap-surface-2);
+
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -2260,6 +2282,70 @@
   max-width: 34rem;
   font-size: 0.875rem;
   color: var(--ap-muted);
+}
+
+/*
+  Eski sınıfların bu kabuktaki karşılıkları.
+
+  `astra-pay-card` ve `astra-btn-primary` kuralları `.astra-app` altına
+  kapsanmış; burada o sarmalayıcı olmadığı için hiç uygulanmıyorlardı.
+  Doküman satırlarının kenarlıksız, "Yükle ve işle" düğmesinin gri
+  görünmesinin sebebi buydu.
+*/
+.ap-sor-root .astra-pay-card {
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface);
+  border-radius: 1rem;
+}
+
+.ap-sor-root .astra-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ap-gold);
+  color: #0a0a0a;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.ap-sor-root .astra-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+/*
+  Dosya seçici. Tarayıcının kendi düğmesi koyu temada beyaz bir kutu olarak
+  duruyordu — sayfadaki tek stilsiz öğeydi ve "burası bitmemiş" izlenimi
+  veren şey oydu.
+*/
+.ap-sor-root input[type="file"] {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface-2);
+  color: var(--ap-muted);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.ap-sor-root input[type="file"]::file-selector-button {
+  margin-right: 0.75rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 9999px;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface);
+  color: var(--ap-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ap-sor-root input[type="file"]::file-selector-button:hover {
+  border-color: var(--ap-gold);
+  color: var(--ap-gold);
 }
 
 .ap-profile-backdrop {
