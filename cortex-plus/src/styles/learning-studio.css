@@ -247,6 +247,14 @@
   align-items: center;
   justify-content: center;
   min-height: 3.1rem;
+  /*
+    Yatay boşluk burada duruyor.
+
+    Eskiden yalnızca `.ls-chat-form .ls-cta` altında vardı; giriş ekranı dışındaki
+    her düğmede yazı yuvarlağın dışına taşıyordu. "Sonraki soru" 87 piksellik bir
+    hapın içine sığmıyordu ve altı stüdyoda da böyleydi.
+  */
+  padding-inline: 1.4rem;
   border: 0;
   border-radius: 9999px;
   background: linear-gradient(135deg, #ffc857 0%, #d4922a 100%);
@@ -969,8 +977,6 @@
 
 .ls-chat-form .ls-cta {
   flex: none;
-  min-height: 3.1rem;
-  padding-inline: 1.4rem;
 }
 
 @media (max-width: 34rem) {

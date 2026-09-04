@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
 import { getTeacherEntitlements, incrementTeacherUsage } from "@/lib/teacher/entitlements";
+import { CONTENT_STYLE, SYSTEM_GUARDRAIL } from "@/lib/ai/generate";
 
 const schema = z.object({
   topic: z.string().min(3).max(500),
@@ -58,7 +59,10 @@ export async function POST(request: Request) {
         {
           role: "system",
           content:
-            "JSON döndür: { title, questions: [{ question, options: string[4], correct }] }",
+            `${SYSTEM_GUARDRAIL}\n${CONTENT_STYLE}\n` +
+            "JSON döndür: { title, questions: [{ question, options: string[4], correct }] }. " +
+            "Şıklar birbirinden ayırt edilebilir olsun; 'hepsi' ya da 'hiçbiri' yazma. " +
+            "correct alanı, options dizisindeki metnin birebir aynısı olmalı.",
         },
         { role: "user", content: `Konu: ${topic}. ${questionCount} soruluk quiz üret.` },
       ],
