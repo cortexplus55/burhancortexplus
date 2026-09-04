@@ -13,6 +13,29 @@ describe("splitMath", () => {
     expect(math[0]!.value).toContain("\\lim");
   });
 
+  // Model matematiği çoğunlukla köşeli/parantezli biçimle yazıyor. Ayırıcı
+  // yalnızca dolar işaretine baktığı sürece ekranda ham LaTeX görünüyordu.
+  it("köşeli blok biçimini tanır", () => {
+    const segments = splitMath("Hesap:\n\\[\n2^3 = 8\n\\]");
+    const math = segments.filter((s) => s.type === "math");
+    expect(math).toHaveLength(1);
+    expect(math[0]).toMatchObject({ display: true });
+    expect(math[0]!.value).toContain("2^3");
+  });
+
+  it("parantezli satır içi biçimini tanır", () => {
+    const segments = splitMath("Sonuç \\(x = 5\\) olur.");
+    const math = segments.filter((s) => s.type === "math");
+    expect(math).toHaveLength(1);
+    expect(math[0]).toMatchObject({ display: false, value: "x = 5" });
+  });
+
+  it("köşeli biçimden sonra metin kaybolmuyor", () => {
+    const segments = splitMath("Önce \\[a+b\\] sonra devam.");
+    expect(segments.map((s) => s.type)).toEqual(["text", "math", "text"]);
+    expect(segments[2]).toMatchObject({ value: " sonra devam." });
+  });
+
   it("blok formülü display olarak işaretler", () => {
     const segments = splitMath("Sonuç:\n$$\\int_0^1 x^2\\,dx = \\frac{1}{3}$$");
     const math = segments.filter((s) => s.type === "math");

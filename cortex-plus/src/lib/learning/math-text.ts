@@ -17,23 +17,30 @@ export type MathSegment =
   | { type: "math"; value: string; display: boolean };
 
 /**
- * `$$...$$` (blok) ve `$...$` (satır içi) parçalarını ayırır.
+ * Formül parçalarını metinden ayırır.
  *
- * Tek `$` para birimi olarak da kullanılabildiği için, satır içi eşleşme
- * yalnızca açılıştan hemen sonra ve kapanıştan hemen önce boşluk olmayan bir
- * karakter varsa geçerli sayılır — "5 $ ve 10 $" gibi metinler bozulmaz.
+ * Dört gösterim de tanınıyor: `$$...$$` ve `\[...\]` blok, `$...$` ve
+ * `\(...\)` satır içi. Köşeli ve parantezli biçimi sonradan eklemek zorunda
+ * kaldık: model matematiği çoğunlukla onlarla yazıyor, yalnızca dolar
+ * işaretine bakan ayırıcı ise onları düz metin sanıyordu. Sohbette "2 üssü 3
+ * kaç eder?" diye sorduğumda yanıtta ekranda düpedüz `\[ 2^3 \]` yazıyordu.
+ *
+ * Tek `$` para birimi olarak da kullanılabildiği için, satır içi dolar
+ * eşleşmesi yalnızca açılıştan hemen sonra ve kapanıştan hemen önce boşluk
+ * olmayan bir karakter varsa geçerli sayılır — "5 $ ve 10 $" bozulmaz.
  */
 export function splitMath(input: string): MathSegment[] {
   const segments: MathSegment[] = [];
-  const pattern = /\$\$([\s\S]+?)\$\$|\$(?!\s)((?:[^$\n\\]|\\.)+?)(?<!\s)\$/g;
+  const pattern =
+    /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|\$(?!\s)((?:[^$\n\\]|\\.)+?)(?<!\s)\$/g;
   let cursor = 0;
 
   for (let match = pattern.exec(input); match; match = pattern.exec(input)) {
     if (match.index > cursor) {
       segments.push({ type: "text", value: input.slice(cursor, match.index) });
     }
-    const block = match[1];
-    const inline = match[2];
+    const block = match[1] ?? match[2];
+    const inline = match[3] ?? match[4];
     if (typeof block === "string") {
       segments.push({ type: "math", value: block.trim(), display: true });
     } else if (typeof inline === "string") {
@@ -72,7 +79,12 @@ export function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Metinde işlenmeyi bekleyen matematik var mı — gereksiz işten kaçınmak için. */
+/**
+ * Metinde işlenmeyi bekleyen matematik var mı — gereksiz işten kaçınmak için.
+ *
+ * `splitMath` ile aynı gösterimlere bakmak zorunda: yalnızca dolara bakarken
+ * köşeli biçimli formüller "matematik yok" sayılıp ham metin olarak geçiyordu.
+ */
 export function hasMath(input: string): boolean {
-  return /\$[^$\n]/.test(input);
+  return /\$[^$\n]/.test(input) || /\\\[|\\\(/.test(input);
 }
