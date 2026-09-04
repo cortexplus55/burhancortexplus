@@ -104,37 +104,31 @@ pahalı işlemimiz bu.
 
 ---
 
-## 4. Uygulanacaklar
+## 4. Yapılanlar (2026-09-04)
 
-### A. Kota modeli (Astra'nın mantığı)
-
-- Ücretsiz: **günlük** kota, her gece sabit saatte sıfırlanır
-- Plus: **aylık** kota + "Ek paket satın al"
-- İkisinde de yüzde göstergesi ve sıfırlanma tarihi — **bizde zaten var**
-- Eksik olan: ücretsizde günlük / Plus'ta aylık ayrımı ve ek paket satışı
-
-### B. Ekran farkları
-
-| Ekran | Yapılacak |
+| İş | Durum |
 |---|---|
-| Üst çubuk | Ücretsizde "Satın al" düğmesi — **var**, kalsın |
-| Sohbet kutusu yanı | Ücretsizde kalıcı yükseltme kartı — **yok**, eklenecek |
-| Profil | "Temel · Ücretsiz plan" satırı + yükseltme düğmesi — **yok**, eklenecek |
-| Profil | Plus'ta isim yanında altın rozet — **var** (`ap-sor-logo-badge`), profile de taşınacak |
-| Limitler | Ücretsizde günlük, Plus'ta aylık + ek paket — kısmen var |
+| Kota modeli — ücretsiz günlük, Plus aylık, yüzde, sıfırlanma tarihi | Zaten vardı |
+| Profilde "Temel · Ücretsiz plan" satırı, Plus'ta altın rozet | Zaten vardı |
+| Limitlerde "Ek paket satın al" | Zaten vardı |
+| **Yükseltme kapısı tam ekran** — sebep, tek düğme, yenilenme saati | Yapıldı |
+| **Sohbet kutusunun yanında kalıcı yükseltme kartı** (ücretsiz) | Yapıldı |
+| **Kampanya bandı** — `promo_campaigns`, gerçek bitiş tarihi | Yapıldı |
+| **Altı stüdyonun açılışı sohbet akışına** — karşılama + öneri çipleri | Yapıldı |
 
-### C. Yazılacak metin
+### Astra'dan bilerek alınmayanlar
 
-`PLUS_BENEFITS` "Ücretsiz plandaki her şey ve:" başlığıyla yeniden yazılacak
-ve yalnızca gerçekten Plus'a ait olanlar sayılacak: daha yüksek günlük
-kullanım, gelişmiş model, sunucu sesiyle podcast ve sözlü sınav, daha yüksek
-yükleme limiti.
+- **Kendi kendine yenilenen geri sayım.** Bizimki gerçek bir bitiş tarihine
+  bakıyor; tarih geçince bant kayboluyor. Sürekli sıfırlanan sayaç sahte
+  aciliyettir.
+- **"1300 kat" gibi sayılar.** Ölçemediğimiz bir şeyi yazmıyoruz.
+- **Odaklanma Modu, para iadesi garantisi, "ebeveynden ödeme iste".** Ürün
+  kararı; ayrı değerlendirilecek. (Sonuncusu bizim kitleye uygun.)
 
-### D. Kasıtlı olarak almadıklarımız
+### Açık kalan
 
-- **Geri sayımlı kampanya bandı.** Sahte aciliyet; sayaç bitince yenileniyor.
-  Öğrenciye baskı kurmak istemiyoruz.
-- **"1300 kat" gibi sayılar.** Ölçülebilir değil.
-- **Odaklanma Modu, para iadesi garantisi.** Ürün kararı, ayrı iş.
-
-> "Ebeveynden ödeme iste" fikri iyi ve bizim kitleye uygun — ayrı değerlendir.
+- `promo_campaigns` migration'ı canlıya uygulanmalı; uygulanana kadar bant
+  görünmez (sayfa çalışır, hata vermez).
+- `PLUS_BENEFITS` listesi hâlâ ücretsizde açık olan şeyleri sayıyor. Astra
+  bunu "Ücretsiz plandaki her şey **ve**:" başlığıyla çözmüş; aynısını
+  yapmak yeterli.
