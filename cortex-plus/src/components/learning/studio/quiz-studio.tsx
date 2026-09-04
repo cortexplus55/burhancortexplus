@@ -97,7 +97,6 @@ export function QuizStudio({
         <StudioEntry
           tool="quiz"
           title="Bir sahne, altı soru."
-          lead="Konuyu yaz. Cortex Plus çoktan seçmeli bir tur hazırlar — her soru tek başına, altın ışıkta."
           placeholder="Örn. Üslü sayılar"
           submitLabel="Sahneyi aç"
           creditCost={creditCost}

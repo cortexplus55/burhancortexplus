@@ -883,3 +883,115 @@
     display: flex;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Stüdyo açılışı — sohbet biçimi
+
+   Eski açılış ortalanmış bir başlık ve tek satırlık formdu. Sohbet biçiminde
+   hizalama sola kayıyor: konuşma soldan akar, ortalanmış konuşma balonu
+   okunmuyor.
+   --------------------------------------------------------------------------- */
+
+.ls-chat {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.1rem;
+  width: min(100%, 34rem);
+  margin: 0 auto;
+}
+
+/* Öğretmen mesajı: işaret solda, metin yanında — sohbet ekranındaki düzenin
+   aynısı, böylece stüdyo ayrı bir dünya gibi durmuyor. */
+.ls-msg {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.ls-msg-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ls-msg-body {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--ls-text);
+}
+
+/* Kullanıcının seçtiği konu sağa yaslı bir balon: kimin ne söylediği
+   hizalamadan anlaşılıyor, etiket gerekmiyor. */
+.ls-msg-user {
+  align-self: flex-end;
+  margin: 0;
+  max-width: 80%;
+  padding: 0.6rem 1rem;
+  border-radius: 1.1rem 1.1rem 0.35rem 1.1rem;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  font-size: 0.9375rem;
+}
+
+/* Öneriler sağa yaslı: kullanıcının söyleyebilecekleri, kullanıcının
+   tarafında duruyor. */
+.ls-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.ls-chip {
+  padding: 0.55rem 0.95rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ls-text);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.ls-chip:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--ls-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--ls-accent) 10%, transparent);
+}
+
+.ls-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ls-chat-form {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.4rem;
+}
+
+.ls-chat-form .ls-field { flex: 1 1 auto; }
+
+.ls-chat-form .ls-cta {
+  flex: none;
+  min-height: 3.1rem;
+  padding-inline: 1.4rem;
+}
+
+@media (max-width: 34rem) {
+  .ls-chat-form { flex-direction: column; align-items: stretch; }
+}
+
+.ls-chat .ls-credit { text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ls-chip { transition: none; }
+}

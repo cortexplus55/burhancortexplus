@@ -106,7 +106,6 @@ export function PodcastStudio({
         <StudioEntry
           tool="podcast"
           title="Konuyu dinle."
-          lead="Beş dakikalık, konuşma dilinde bir yayın. Bölüm bölüm, senin temposunda."
           placeholder="Örn. Hücre bölünmesi"
           submitLabel="Yayını hazırla"
           creditCost={creditCost}

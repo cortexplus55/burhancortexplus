@@ -87,7 +87,6 @@ export function TrueFalseStudio({
         <StudioEntry
           tool="tf"
           title="İki kapı. Bir gerçek."
-          lead="Her kart tek bir iddia. Doğru mu, yanlış mı — hızlı, net, sinematik."
           placeholder="Örn. Fotosentez"
           submitLabel="Turu başlat"
           creditCost={creditCost}

@@ -74,7 +74,6 @@ export function FlashcardStudio({
         <StudioEntry
           tool="flash"
           title="Kartlar sahneye çıkar."
-          lead="Ön yüz kavram, arka yüz net açıklama. Dokun, çevir, sahiplen."
           placeholder="Örn. Türev kuralları"
           submitLabel="Desteyi aç"
           creditCost={creditCost}

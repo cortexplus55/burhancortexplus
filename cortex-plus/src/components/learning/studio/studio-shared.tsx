@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { CortexMark } from "@/components/brand/cortex-mark";
+import { STUDIO_INTRO } from "@/lib/learning/studio-intro";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { STUDIO_NEXT, studioHref, type StudioToolId } from "@/lib/learning/studio-next";
 import { playPlusTone } from "@/lib/learning/studio-sound";
@@ -58,10 +60,20 @@ export function StudioFrame({
   );
 }
 
+/**
+ * Stüdyoların açılışı.
+ *
+ * Eskiden tek satırlık bir formdu: "Konu" yazan boş bir kutu ve bir düğme. O
+ * kutu ne yazacağını bilmeyen öğrenciyi orada bırakıyordu — stüdyoya girip
+ * hiçbir şey yazmadan çıkmak en kolay yoldu.
+ *
+ * Şimdi öğretmen soruyu soruyor ve üç somut örnek veriyor. Örneğe dokunmak
+ * doğrudan başlatıyor; yazmak isteyen için kutu duruyor. `onSubmit` sözleşmesi
+ * değişmedi, o yüzden altı stüdyo da tek yerden dönüştü.
+ */
 export function StudioEntry({
   tool,
   title,
-  lead,
   placeholder,
   submitLabel,
   creditCost,
@@ -71,7 +83,6 @@ export function StudioEntry({
 }: {
   tool: StudioToolId;
   title: string;
-  lead: string;
   placeholder: string;
   submitLabel: string;
   creditCost: number | null;
@@ -79,26 +90,61 @@ export function StudioEntry({
   initialTopic?: string;
   onSubmit: (topic: string) => void;
 }) {
+  const intro = STUDIO_INTRO[tool];
+  const [draft, setDraft] = useState(initialTopic);
+  /** Seçilen konu kullanıcı balonu olarak görünüyor; sohbet hissi buradan. */
+  const [picked, setPicked] = useState<string | null>(null);
+
+  function start(topic: string) {
+    const clean = topic.trim();
+    if (clean.length < 3 || loading) return;
+    setPicked(clean);
+    onSubmit(clean);
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const topic = String(data.get("topic") ?? "").trim();
-    if (topic.length < 3) return;
-    onSubmit(topic);
+    start(draft);
   }
 
   return (
-    <div className="ls-entry">
+    <div className="ls-chat">
+      {/* Başlık ekranda değil ama sayfanın bir adı olmalı: ekran okuyucu ve
+          sekme başlığı için duruyor. */}
+      <h1 className="sr-only">{title}</h1>
+
       <div className={cn("ls-world", `ls-world--${tool}`)} aria-hidden>
         <span />
         <span />
         <span />
       </div>
-      <div>
-        <h1 className="ls-entry-title">{title}</h1>
-        <p className="ls-entry-lead">{lead}</p>
+
+      <div className="ls-msg">
+        <span className="ls-msg-mark" aria-hidden>
+          <CortexMark size={20} />
+        </span>
+        <p className="ls-msg-body">{intro.greeting}</p>
       </div>
-      <form className="ls-entry-form" onSubmit={handleSubmit}>
+
+      {picked ? (
+        <p className="ls-msg-user">{picked}</p>
+      ) : (
+        <div className="ls-chips" role="group" aria-label="Örnek konular">
+          {intro.suggestions.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              className="ls-chip"
+              disabled={loading}
+              onClick={() => start(suggestion)}
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <form className="ls-chat-form" onSubmit={handleSubmit}>
         <label className="sr-only" htmlFor="studio-topic">
           Konu
         </label>
@@ -107,18 +153,23 @@ export function StudioEntry({
           name="topic"
           className="ls-field"
           placeholder={placeholder}
-          defaultValue={initialTopic}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
           minLength={3}
-          required
           autoComplete="off"
         />
-        <button type="submit" className="ls-cta" disabled={loading}>
+        <button
+          type="submit"
+          className="ls-cta"
+          disabled={loading || draft.trim().length < 3}
+        >
           {loading ? "Hazırlanıyor…" : submitLabel}
         </button>
-        {creditCost != null ? (
-          <p className="ls-credit">{creditCost} kredi</p>
-        ) : null}
       </form>
+
+      {creditCost != null ? (
+        <p className="ls-credit">{creditCost} kredi</p>
+      ) : null}
     </div>
   );
 }

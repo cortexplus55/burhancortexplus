@@ -158,7 +158,6 @@ export function OralStudio({
         <StudioEntry
           tool="sozlu"
           title="Söyle, notunu al."
-          lead="Gerçek sözlü gibi: soru gelir, süre işler, sen konuşursun. Yazılı yedek her zaman açık."
           placeholder="Örn. Kurtuluş Savaşı"
           submitLabel="Sözlüyü başlat"
           creditCost={creditCost}

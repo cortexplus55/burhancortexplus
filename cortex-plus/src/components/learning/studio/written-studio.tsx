@@ -103,7 +103,6 @@ export function WrittenStudio({
         <StudioEntry
           tool="yazili"
           title="Kağıt önünde."
-          lead="Sekiz soruluk yazılı. Tek soru, tek nefes, sonunda not ve analiz."
           placeholder="Örn. Fonksiyonlar"
           submitLabel="Yazılıyı aç"
           creditCost={creditCost}
