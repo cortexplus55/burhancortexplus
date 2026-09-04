@@ -30,16 +30,28 @@ PayTR bu teslimde **dahil değil** (istek üzerine ayrı faz).
 
 ---
 
-## E-posta (Workspace SMTP) — launch kapanışı
+## E-posta (Workspace SMTP) — ✅ kapandı (2026-09-04)
 
-Tek kaynak: **[WORKSPACE-EMAIL.md](./WORKSPACE-EMAIL.md)**
+Tek kaynak: **[WORKSPACE-EMAIL.md](./WORKSPACE-EMAIL.md)** — doğrulama tablosu orada.
 
-1. Google **uygulama şifresi** (`cortexplus@cortexplus.app`, 2FA açık).
-2. Vercel Production + Preview: `SMTP_*`, `EMAIL_FROM`; `RESEND_API_KEY` sil; redeploy.  
-   CLI: `cortex-plus/scripts/setup-workspace-smtp-vercel.ps1` (team erişimi gerekir).
-3. Supabase Auth → custom SMTP (aynı Gmail).
-4. **Confirm email açık** (SMTP doğrulandıktan sonra).
-5. `/admin/sistem` → **Workspace SMTP bağlantısını test et**; kayıt smoke.
+| # | Adım | Durum |
+|---|------|-------|
+| 1 | Google uygulama şifresi | **Tamam** — `SMTP_VERIFY_OK`, Gmail'e canlı bağlandı |
+| 2 | Vercel env | **Tamam** — `SMTP_PASS` + `EMAIL_FROM` var, `RESEND_API_KEY` yok. `SMTP_HOST/PORT/USER` gerekmiyor (kodda varsayılan) |
+| 3 | Supabase custom SMTP | **Tamam** — açık, Gmail 587, `cortexplus@cortexplus.app` |
+| 4 | **Confirm email** | **Tamam** — açık |
+| 5 | Kayıt smoke | **Kalan tek adım** — aşağıya bak |
+
+Kayıt/doğrulama e-postaları **Supabase'in kendi SMTP'sinden** gidiyor. Auth
+kayıtlarında son 24 saatte tek hata/uyarı yok; 07:23'teki gerçek `/recover`
+e-postası sorunsuz tamamlanmış — yani zincir çalışıyor.
+
+**Elle yapılacak son iki teyit** (ajan yapamaz: biri giriş, diğeri hesap açmak ister)
+
+1. `/admin/sistem` → **Workspace SMTP bağlantısını test et** — Vercel'deki
+   `SMTP_PASS` kopyasını sınar. (Yerel kopya doğrulandı, Vercel'inki gizli
+   olduğu için okunamıyor; ikisi 28 Ağu / 3 Eyl tarihli.)
+2. `/kayit` → gerçek bir adresle kayıt → gelen kutusunda **Confirm** linki.
 
 Geçici mod (Confirm kapalı): [EMAIL-SIGNUP-FIX.md](./EMAIL-SIGNUP-FIX.md) — artık hedeflenmez.
 

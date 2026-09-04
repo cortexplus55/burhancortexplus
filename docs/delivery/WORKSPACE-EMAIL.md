@@ -1,5 +1,25 @@
 # E-posta — Google Workspace (Resend yok)
 
+> ## ✅ 2026-09-04 — bu kurulum TAMAM, aşağısı referans
+>
+> Panellerde ve kodda tek tek doğrulandı:
+>
+> | Kontrol | Sonuç |
+> |---|---|
+> | Google uygulama şifresi geçerli mi | **`SMTP_VERIFY_OK`** — `node --env-file=.env.local scripts/verify-workspace-smtp.mjs` Gmail'e bağlanıp kimlik doğruladı |
+> | Supabase özel SMTP | **Açık** — `smtp.gmail.com`, 587, `cortexplus@cortexplus.app`, gönderen adı `Cortex Plus` |
+> | Supabase **Confirm email** | **Açık** · yeni kayıt açık |
+> | Supabase Auth kayıtları (24 saat) | 100 olay, **hata + uyarı filtresi boş** — 07:23'teki gerçek `/recover` e-postası hatasız |
+> | Vercel env | `SMTP_PASS` (Production) + `EMAIL_FROM` (All Environments) **var**, `RESEND_API_KEY` **yok** |
+>
+> **Kayıt/doğrulama e-postaları Supabase'in kendi SMTP'sinden gidiyor**, Vercel
+> env'inden değil. Vercel'deki `SMTP_PASS` yalnızca uygulamanın kendi yolladığı
+> veli davet/istek e-postalarını besliyor (`lib/email/mailer.ts`).
+>
+> Kapanmayan tek küçük halka: Vercel'deki `SMTP_PASS` (28 Ağu) ile yerelde
+> doğrulanmış şifrenin aynı olduğu okunamıyor — Vercel gizli değeri göstermiyor.
+> Teyit için `/admin/sistem` → **Workspace SMTP bağlantısını test et**.
+
 **Gönderen:** `cortexplus@cortexplus.app`  
 **Alım:** Zaten Workspace MX (`smtp.google.com`) — ek DNS (Resend) gerekmez.
 
@@ -19,17 +39,22 @@ Doğrudan: https://myaccount.google.com/apppasswords?authuser=1
 
 ## 2) Vercel (burhancortexplus-app)
 
-Production (+ preview) env:
+Production env. **Yalnızca ilk iki satır zorunlu** — `getSmtpConfig()`
+(`src/lib/email/smtp.ts:12`) sadece bu ikisini arıyor, yoksa `null` dönüyor:
 
-| Değişken | Değer |
-|----------|--------|
-| `SMTP_HOST` | `smtp.gmail.com` |
-| `SMTP_PORT` | `587` |
-| `SMTP_USER` | `cortexplus@cortexplus.app` |
-| `SMTP_PASS` | *(uygulama şifresi — gizli)* |
-| `EMAIL_FROM` | `Cortex Plus <cortexplus@cortexplus.app>` |
+| Değişken | Değer | Durum |
+|----------|--------|---|
+| `SMTP_PASS` | *(uygulama şifresi — gizli)* | **zorunlu** · Vercel'de var (28 Ağu) |
+| `EMAIL_FROM` | `Cortex Plus <cortexplus@cortexplus.app>` | **zorunlu** · Vercel'de var |
+| `SMTP_HOST` | `smtp.gmail.com` | opsiyonel — kodda varsayılan (`smtp.ts:20`) |
+| `SMTP_PORT` | `587` | opsiyonel — kodda varsayılan (`smtp.ts:18`) |
+| `SMTP_USER` | `cortexplus@cortexplus.app` | opsiyonel — kodda varsayılan (`smtp.ts:17`) |
 
-**Sil:** `RESEND_API_KEY`
+> Son üçü production'da **tanımlı değil ve olmasına gerek yok**; kod aynı
+> değerlere düşüyor. Bu tablo eskiden üçünü de zorunlu gösteriyordu ve
+> kurulum yarım kalmış gibi okunuyordu — öyle değil.
+
+**Sil:** `RESEND_API_KEY` — ✅ zaten yok (2026-09-04 kontrolü).
 
 **CLI (team `cortexplus55` erişimiyle):** `cortex-plus/scripts/setup-workspace-smtp-vercel.ps1` — önce `$env:SMTP_PASS` set et; chat'e yapıştırma.
 
