@@ -10,6 +10,7 @@ import { getCreditCost } from "@/lib/credits/rules";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { parseTutorStyle, tutorStyleLabel } from "@/lib/learning/tutor-style";
 import { messageFeedbackEnabled } from "@/lib/learning/message-feedback";
+import { turkishLower } from "@/lib/text/turkish";
 import { firstPrompts } from "@/lib/student/first-prompts";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
@@ -117,7 +118,9 @@ export default async function OgretmenPage({
   const timeGreeting = astraTimeGreeting();
   const moon =
     timeGreeting === "İyi akşamlar" || timeGreeting === "İyi geceler" ? " 🌙" : "";
-  const greetingLine = `${firstName}, ${timeGreeting.toLowerCase()}!${moon}`;
+  // `toLowerCase()` burada "İ"yi "i" + ayrı bir nokta işaretine çeviriyordu:
+  // ekranda "i̇yi günler" diye çift noktalı görünüyordu.
+  const greetingLine = `${firstName}, ${turkishLower(timeGreeting)}!${moon}`;
   const style = parseTutorStyle(profile?.tutor_style);
   const avatar = profile?.avatar_url as string | null | undefined;
 

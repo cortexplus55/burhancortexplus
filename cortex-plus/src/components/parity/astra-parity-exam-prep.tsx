@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BookOpen, HelpCircle, Search, X } from "lucide-react";
 import { toast } from "sonner";
+import { turkishFold } from "@/lib/text/turkish";
 import { cn } from "@/lib/utils";
 import { SchoolFeedView } from "@/components/parity/school-feed-view";
 import type {
@@ -109,12 +110,13 @@ export function AstraParityExamPrep({
   }
 
   const prep = activePrep;
-  const needle = query.trim().toLowerCase();
+  // Katlama olmadan "ingilizce" yazan "İngilizce"yi bulamıyordu.
+  const needle = turkishFold(query.trim());
   function matches(card: ExamPrepCard) {
     if (!needle) return true;
-    return `${card.title} ${card.examType ?? ""} ${card.daysLabel}`
-      .toLowerCase()
-      .includes(needle);
+    return turkishFold(
+      `${card.title} ${card.examType ?? ""} ${card.daysLabel}`,
+    ).includes(needle);
   }
   const visibleActive = prep && matches(prep) ? prep : null;
   const visibleOthers = otherPreps.filter(matches);
