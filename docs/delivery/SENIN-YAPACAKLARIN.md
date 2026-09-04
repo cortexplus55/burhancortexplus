@@ -68,6 +68,11 @@ Gelmezse önce spam klasörüne bakın.
 Sohbetteki mikrofon bu oturumda baştan yazıldı ama **gerçek sesle denenmedi** —
 giriş gerektiriyor.
 
+> **Düzeltildi (4 Eylül):** mikrofon yayında zaten çalışmıyordu. Kendi güvenlik
+> başlığımız `microphone=()` gönderiyordu, bu "kendi sitem dahil hiçbir yere izin
+> verme" demek; tarayıcı izin kutusunu hiç göstermeden reddediyordu. Artık
+> `microphone=(self)`. Aşağıdaki deneme bundan sonra anlamlı.
+
 **Yapılacak:** `/ogretmen` → yazı kutusundaki mikrofon simgesine basın.
 
 - Chrome'da: konuşun, yazı kutusuna metin düşmeli.
@@ -92,15 +97,63 @@ boş, sayfada doğrulama etiketi yok.
 
 ---
 
-## 6. Hata takibi ve analitik — karar sizin
+## 6. Hata takibi — kod hazır, tek satır sizde
 
-Şu an canlıda **hiçbir hata takibi yok**. Bir öğrencide site patlarsa haberiniz
-olmuyor.
+**Sentry kodu yazıldı ve yayında.** Adres (DSN) girilene kadar hiç başlamıyor;
+girdiğiniz an yayındaki her hata panele düşmeye başlıyor.
 
-- **PostHog:** kodu hazır (`components/analytics.tsx`), sadece anahtar bekliyor.
-  posthog.com'da proje açıp `NEXT_PUBLIC_POSTHOG_KEY`'i Vercel'e eklemek yeterli.
-- **Sentry:** kodu **yok**, sadece admin panelinde adı geçiyor. Kurulması gereken
-  gerçek bir iş; isterseniz yazarım, DSN'i siz verirsiniz.
+Vercel'deki form da hazırlandı: değişken adı, tipi ve ortamları girili, yalnızca
+**Value** kutusu boş. Adım adım anlatım: `docs/delivery/SENTRY-HATA-TAKIBI.md`
+
+1. <https://sentry.io> → `cortexplus@cortexplus.app` ile giriş → Next.js projesi aç.
+2. Çıkan DSN adresini kopyalayın.
+3. Vercel → Environment Variables → `NEXT_PUBLIC_SENTRY_DSN` → yapıştır → Save.
+4. Deployments → en üstteki dağıtımda `⋯ → Redeploy`.
+
+**PostHog** hâlâ bekliyor: kodu hazır (`components/analytics.tsx`), posthog.com'da
+proje açıp `NEXT_PUBLIC_POSTHOG_KEY`'i Vercel'e eklemek yeterli.
+
+---
+
+## 7. Kampanya bandı için tek SQL — panel bu olmadan kaydetmiyor
+
+Yönetim panelindeki **Kampanyalar → Ana ekran duyuru bandı** bölümü hazır ama
+tablosu veritabanında yok. Şu an "Bandı yayına al" düğmesi hata veriyor.
+
+Bunu ajan uygulayamıyor: yerel göç dosyalarıyla veritabanının geçmişi birbirini
+tutmuyor (yaklaşık 30 dosya karşılıklı eksik), toplu `db push` yanlış şeyler
+uygulayabilir. Bu yüzden tek parça, ekleme yapan bir SQL:
+
+<https://supabase.com/dashboard/project/dgjfyewgrukglsehyntc/sql/new>
+adresine gidip aşağıdakini yapıştırıp **Run** deyin. Kaynağı:
+`cortex-plus/supabase/migrations/20260904120000_promo_campaigns.sql`
+
+```sql
+CREATE TABLE public.promo_campaigns (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  description text NOT NULL,
+  href text NOT NULL DEFAULT '/pay',
+  starts_at timestamptz NOT NULL DEFAULT now(),
+  ends_at timestamptz NOT NULL,
+  active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT promo_campaigns_window CHECK (ends_at > starts_at)
+);
+
+CREATE INDEX promo_campaigns_live_idx
+  ON public.promo_campaigns (ends_at DESC)
+  WHERE active;
+
+ALTER TABLE public.promo_campaigns ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY promo_campaigns_read ON public.promo_campaigns
+  FOR SELECT USING (active AND now() BETWEEN starts_at AND ends_at);
+```
+
+Yalnızca yeni tablo ekliyor, var olan hiçbir şeye dokunmuyor. Sonrasında
+panelden bandı açıp kapatabilirsiniz.
 
 ---
 
@@ -115,3 +168,4 @@ olmuyor.
 | Kırık link | Herkese açık sayfalar tarandı — kırık link yok |
 | Sayfa başlık yapısı | Her sayfada tek ve doğru `h1` (38caff5) |
 | Otomatik testler | Playwright 38/38, vitest 192/192 |
+| Mikrofon izin başlığı | `microphone=(self)` yayında doğrulandı (`allowsFeature('microphone') === true`) |
