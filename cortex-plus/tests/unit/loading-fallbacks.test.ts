@@ -4,12 +4,17 @@ import { describe, expect, it } from "vitest";
 
 /**
  * `loading.tsx` dosyaları React'in Suspense yedeği oluyor ve anında
- * çizilmeleri gerekiyor. Yedek kendi içinde beklemeye girerse React onu
- * içerikle değiştiremiyor: iskelet ile asıl sayfa aynı anda ekranda kalıyor,
- * bazı sayfalarda asıl içerik hiç görünmüyor.
+ * çizilmeleri gerekiyor.
  *
- * Bu yayında gerçekten oldu — beş sayfada birden. Yedekler `AppShell`
- * çiziyordu, o da oturum ve profil sorgusu yapan `async` bir bileşen.
+ * Bu yayında altı sayfada birden bozuldu: yedek ekranda kalıyor, asıl sayfa
+ * hiç görünmüyordu. Sunucu doğru HTML'i gönderiyordu — sayfanın içeriği
+ * tarayıcıya ulaşıp gizli bir kutuda bekliyor, React'in onu yerine koyan
+ * çağrısı ise sınırı bulamıyordu. Altı sayfanın `loading.tsx` dosyası
+ * kaldırıldı; kalan tek dosya (`/sohbetler`) boş bir koyu kutu çiziyor ve
+ * çalışıyor.
+ *
+ * Yeni bir `loading.tsx` eklerken: eşzamanlı olmalı, veri okumamalı ve
+ * eklendikten sonra sayfanın yayında gerçekten açıldığı gözle görülmeli.
  */
 function loadingFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
