@@ -22,7 +22,7 @@ export default async function AdminOdemelerPage() {
   const [{ data: payments }, { data: events }, pending] = await Promise.all([
     service
       .from("payments")
-      .select("id, merchant_oid, amount_try, status, created_at, profiles(full_name)")
+      .select("id, merchant_oid, amount_try, status, created_at, profiles!payments_user_id_fkey(full_name)")
       .order("created_at", { ascending: false })
       .limit(50),
     service

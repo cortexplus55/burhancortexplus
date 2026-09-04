@@ -20,7 +20,7 @@ export default async function OgretmenBasvurulariPage() {
 
   const { data: applications } = await service
     .from("teacher_applications")
-    .select("id, institution, status, created_at, notes, profiles(full_name)")
+    .select("id, institution, status, created_at, notes, profiles!teacher_applications_user_id_fkey(full_name)")
     .order("created_at", { ascending: false })
     .limit(50);
 

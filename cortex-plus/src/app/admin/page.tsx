@@ -37,7 +37,7 @@ export default async function AdminPage() {
         .gte("created_at", since),
       service
         .from("payments")
-        .select("id, amount_try, status, created_at, profiles(full_name)")
+        .select("id, amount_try, status, created_at, profiles!payments_user_id_fkey(full_name)")
         .order("created_at", { ascending: false })
         .limit(5),
     ]);

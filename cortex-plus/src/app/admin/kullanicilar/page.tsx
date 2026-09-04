@@ -22,10 +22,18 @@ export default async function AdminKullanicilarPage({
 
   const service = createServiceClient();
 
+  /*
+    `user_roles!user_roles_user_id_fkey` bilerek açık yazılı.
+
+    O tablonun `profiles`'a iki bağlantısı var: yetkinin sahibi (`user_id`) ve
+    yetkiyi veren kişi (`granted_by`). Hangisi olduğu söylenmezse veritabanı
+    seçemiyor ve sorgunun tamamı boş dönüyor — hata da vermiyor, yalnızca sıfır
+    satır. Bu sayfa uzun süredir bu yüzden boş görünüyordu.
+  */
   let query = service
     .from("profiles")
     .select(
-      "id, full_name, grade_level, created_at, credit_wallets(balance), user_roles(role, revoked_at)",
+      "id, full_name, grade_level, created_at, credit_wallets(balance), user_roles!user_roles_user_id_fkey(role, revoked_at)",
     )
     .order("created_at", { ascending: false })
     .limit(PAGE_SIZE);
