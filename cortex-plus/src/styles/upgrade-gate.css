@@ -1,0 +1,257 @@
+/*
+  Yükseltme kapısı ve ücretsiz katman yükseltme öğeleri.
+
+  Kapı tam ekran ve arkası bulanık: hak dolduğunda ekranın yarısında kalan bir
+  panel, arkadaki içerikle yarışıyor ve okunmuyordu. Bulanıklık dikkati tek
+  yere topluyor.
+*/
+
+.ug-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(6, 6, 8, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: ug-fade 0.18s ease-out;
+}
+
+@keyframes ug-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ug-panel {
+  position: relative;
+  width: 100%;
+  max-width: 30rem;
+  padding: 3rem 1.75rem 2rem;
+  border-radius: 1.75rem;
+  text-align: center;
+  color: #f2f0ec;
+  border: 1px solid rgba(244, 174, 11, 0.22);
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 0%, rgba(244, 174, 11, 0.14), transparent 70%),
+    linear-gradient(180deg, #17161a 0%, #0e0e10 100%);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+
+.ug-close {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  display: inline-flex;
+  padding: 0.45rem;
+  border: none;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #a3a19c;
+  cursor: pointer;
+}
+
+.ug-close:hover { background: rgba(255, 255, 255, 0.12); color: #f2f0ec; }
+
+/* Yıldız panelin üst kenarından taşıyor: kapıya bir "üst" veriyor, panel
+   ortada asılı bir kutu gibi durmuyor. */
+.ug-star {
+  position: absolute;
+  top: -1.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  color: #f4ae0b;
+  filter: drop-shadow(0 0 18px rgba(244, 174, 11, 0.55));
+}
+
+.ug-title {
+  margin: 0;
+  font-size: clamp(1.6rem, 4.5vw, 2.15rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.ug-title-gold { color: #f4ae0b; }
+
+.ug-reason {
+  margin: 0.9rem 0 0;
+  font-size: 0.9375rem;
+  color: #a3a19c;
+}
+
+.ug-perk {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #f4ae0b;
+  background: rgba(244, 174, 11, 0.1);
+  border: 1px solid rgba(244, 174, 11, 0.24);
+}
+
+.ug-cta {
+  display: block;
+  margin-top: 1.5rem;
+  padding: 0.95rem 1.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #f0b84d 0%, #c9851f 100%);
+  color: #0c0a06;
+  font-size: 1rem;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 0 32px rgba(232, 168, 56, 0.25);
+}
+
+.ug-cta:hover { background: linear-gradient(135deg, #ffc857 0%, #e8a838 100%); }
+
+.ug-reset {
+  margin: 1rem 0 0;
+  font-size: 0.8125rem;
+  color: #a3a19c;
+}
+
+.ug-why {
+  display: inline-block;
+  margin-top: 1.25rem;
+  font-size: 0.8125rem;
+  color: #a3a19c;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.ug-why:hover { color: #f2f0ec; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ug-backdrop { animation: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   Sohbet kutusunun yanındaki kalıcı yükseltme kartı (yalnızca ücretsiz)
+   --------------------------------------------------------------------------- */
+
+.ug-aside {
+  flex: 0 0 15rem;
+  align-self: flex-end;
+  padding: 1.1rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(244, 174, 11, 0.2);
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(244, 174, 11, 0.1), transparent 70%),
+    #16161a;
+}
+
+/* Dar ekranda kart sohbet kutusunun altına iner; yan yana durursa yazı alanı
+   kullanılamayacak kadar daralıyor. */
+@media (max-width: 60rem) {
+  .ug-aside { flex: 1 1 auto; align-self: stretch; }
+}
+
+.ug-aside-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.ug-aside-plus {
+  color: #f4ae0b;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.ug-aside-title {
+  margin: 0.7rem 0 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #f2f0ec;
+}
+
+.ug-aside-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 0.9rem;
+  padding: 0.65rem 1rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #f0b84d 0%, #c9851f 100%);
+  color: #0c0a06;
+  font-size: 0.875rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.ug-aside-cta:hover { background: linear-gradient(135deg, #ffc857 0%, #e8a838 100%); }
+
+/* ---------------------------------------------------------------------------
+   Kampanya bandı
+
+   Sayaç kendi kendine yenilenmiyor: bitiş tarihi yönetim panelinden giriliyor
+   ve tarih geçtiğinde bant tamamen kayboluyor. Sürekli yenilenen bir sayaç
+   sahte aciliyet üretir; öğrenciye bunu yapmıyoruz.
+   --------------------------------------------------------------------------- */
+
+.ug-promo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 1.25rem 0;
+  padding: 0.85rem 1.1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(244, 174, 11, 0.35);
+  background:
+    radial-gradient(ellipse 60% 100% at 0% 50%, rgba(244, 174, 11, 0.12), transparent 70%),
+    #141317;
+  text-decoration: none;
+  color: inherit;
+}
+
+.ug-promo:hover { border-color: rgba(244, 174, 11, 0.6); }
+
+.ug-promo-body { flex: 1 1 14rem; min-width: 0; }
+
+.ug-promo-title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #f4ae0b;
+}
+
+.ug-promo-desc {
+  margin: 0.15rem 0 0;
+  font-size: 0.875rem;
+  color: #a3a19c;
+}
+
+.ug-promo-clock {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #f2f0ec;
+}
+
+.ug-promo-clock small {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #a3a19c;
+}

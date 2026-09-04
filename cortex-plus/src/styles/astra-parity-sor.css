@@ -6010,3 +6010,31 @@
     grid-template-columns: 1fr;
   }
 }
+
+/*
+  Ücretsiz katmanda sohbet kutusunun yanındaki yükseltme kartı.
+
+  Kutu normalde ortalanmış ve 42rem genişliğinde. Kart eklendiğinde alan
+  genişliyor ve ikisi yan yana duruyor; kutunun kendi genişliği korunuyor ki
+  ücretsiz kullanıcının yazacak yeri daralmasın. Dar ekranda kart alta iniyor.
+*/
+.ap-sor-composer-zone--aside {
+  width: min(calc(100% - 2rem), 60rem);
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.ap-sor-composer-zone--aside .ap-sor-composer-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  position: relative;
+}
+
+@media (max-width: 60rem) {
+  .ap-sor-composer-zone--aside {
+    flex-direction: column;
+    align-items: stretch;
+    width: min(calc(100% - 2rem), 42rem);
+  }
+}

@@ -30,12 +30,19 @@ export function CreditGate({
     );
   }
 
+  // Yenilenme saati kapıya taşınıyor: "abone ol" tek çözüm değil, beklemek de
+  // çözüm ve bunu söylemek dürüst olan.
+  const resetHint = account?.resetsAtLabel
+    ? `${account.periodKind === "monthly" ? "Aylık" : "Günlük"} hakkın ${account.resetsAtLabel} tarihinde yenilenir.`
+    : undefined;
+
   return (
     <UpgradeSheet
       open={open}
       onOpenChange={onOpenChange}
       message={message}
       returnPath={returnPath}
+      resetHint={resetHint}
     />
   );
 }

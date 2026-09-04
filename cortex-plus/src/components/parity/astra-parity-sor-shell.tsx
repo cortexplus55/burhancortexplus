@@ -10,6 +10,7 @@ import { readStreakFromStorage } from "@/components/parity/astra-gamification";
 import { AstraGamificationGate } from "@/components/parity/astra-gamification";
 import { ParityDialogHost, MenuDialogUrlSync } from "@/components/parity/parity-dialog-host";
 import { PlusLimitBanner } from "@/components/paywall/plus-limit-banner";
+import { PromoBanner, type PromoCampaign } from "@/components/paywall/promo-banner";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
 import { studentTopTabs } from "@/components/parity/student-shell-nav";
@@ -46,6 +47,7 @@ export function AstraParitySorShell({
   avatarEmoji,
   streak = 0,
   account,
+  promo = null,
   recentConversations = [],
 }: {
   children: React.ReactNode;
@@ -53,6 +55,7 @@ export function AstraParitySorShell({
   avatarEmoji?: string | null;
   streak?: number;
   account?: StudentAccountContext;
+  promo?: PromoCampaign | null;
   recentConversations?: RecentConversation[];
 }) {
   const pathname = usePathname();
@@ -195,6 +198,10 @@ export function AstraParitySorShell({
       {showPlusLimit ? (
         <PlusLimitBanner onDismiss={() => setLimitDismissed(true)} />
       ) : null}
+
+      {/* Kampanya bandı yalnızca ücretsiz katmanda: abone olana indirim
+          duyurusu göstermek anlamsız. */}
+      {promo && !isPremium ? <PromoBanner campaign={promo} /> : null}
 
       <main className="ap-sor-main">{children}</main>
 

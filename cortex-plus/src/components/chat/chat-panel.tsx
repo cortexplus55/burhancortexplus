@@ -43,6 +43,7 @@ import { AstraStartHub } from "@/components/parity/astra-start-hub";
 import { AstraSubjectModal } from "@/components/parity/astra-subject-modal";
 import { AstraUploadModal } from "@/components/parity/astra-upload-modal";
 import { MathKeyboard } from "@/components/parity/math-keyboard";
+import { UpgradeAside } from "@/components/paywall/upgrade-aside";
 import "@/styles/astra-sor.css";
 import "@/styles/astra-parity-sor.css";
 
@@ -757,7 +758,16 @@ export function ChatPanel({
             </div>
           ) : null}
 
-          <div className="ap-sor-composer-zone">
+          {/* Ücretsiz kullanıcıda yazı alanının yanına kalıcı bir yükseltme
+              kartı giriyor. Kutunun içine değil yanına: yazacak yeri
+              daraltmadan her açılışta görünüyor. */}
+          <div
+            className={cn(
+              "ap-sor-composer-zone",
+              !isPremium && "ap-sor-composer-zone--aside",
+            )}
+          >
+            <div className="ap-sor-composer-main">
             {showSubjectPicker ? (
               <div className="ap-sor-subject-wrap">
                 <button
@@ -956,6 +966,9 @@ export function ChatPanel({
                 </div>
               </div>
             </form>
+            </div>
+
+            {!isPremium ? <UpgradeAside returnPath={returnPath} /> : null}
           </div>
         </div>
 
