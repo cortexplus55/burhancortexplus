@@ -97,21 +97,19 @@ boş, sayfada doğrulama etiketi yok.
 
 ---
 
-## 6. Hata takibi — kod hazır, tek satır sizde
+## 6. Hata takibi — ✅ tamam
 
-**Sentry kodu yazıldı ve yayında.** Adres (DSN) girilene kadar hiç başlamıyor;
-girdiğiniz an yayındaki her hata panele düşmeye başlıyor.
+DSN 4 Eylül'de Vercel'e girildi (`NEXT_PUBLIC_SENTRY_DSN`, Config tipi, üç
+ortam). Yeni dağıtımla birlikte devreye girdi.
 
-Vercel'deki form da hazırlandı: değişken adı, tipi ve ortamları girili, yalnızca
-**Value** kutusu boş. Adım adım anlatım: `docs/delivery/SENTRY-HATA-TAKIBI.md`
-
-1. <https://sentry.io> → `cortexplus@cortexplus.app` ile giriş → Next.js projesi aç.
-2. Çıkan DSN adresini kopyalayın.
-3. Vercel → Environment Variables → `NEXT_PUBLIC_SENTRY_DSN` → yapıştır → Save.
-4. Deployments → en üstteki dağıtımda `⋯ → Redeploy`.
+Ne toplanıyor, ne toplanmıyor: `docs/delivery/SENTRY-HATA-TAKIBI.md`
 
 **PostHog** hâlâ bekliyor: kodu hazır (`components/analytics.tsx`), posthog.com'da
 proje açıp `NEXT_PUBLIC_POSTHOG_KEY`'i Vercel'e eklemek yeterli.
+
+İsteğe bağlı: hata izinin sıkıştırılmış değil gerçek dosya adı ve satır
+numarasıyla görünmesi için `SENTRY_ORG`, `SENTRY_PROJECT` ve
+`SENTRY_AUTH_TOKEN` de eklenebilir. Bu üçü olmadan da her şey çalışıyor.
 
 ---
 
