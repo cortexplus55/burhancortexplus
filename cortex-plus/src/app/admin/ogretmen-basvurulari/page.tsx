@@ -32,11 +32,13 @@ export default async function OgretmenBasvurulariPage() {
 
   return (
     <AdminShell href="/admin/ogretmen-basvurulari" pendingApplications={pending.length}>
-      <AdminNote tone="info">
-        Onayladığın kişi öğretmen özelliklerini kullanmaya başlar. Karar
-        verdikten sonra bu listeden aşağıya, sonuçlananlara iner — kararı geri
-        almak için kişiyi <strong>Kullanıcılar</strong> sayfasından
-        düzenleyebilirsin.
+      <AdminNote tone="warn">
+        <strong>Buraya yeni başvuru gelmiyor.</strong> Ürün öğrenci-only olduğu
+        için başvuru formu kaldırıldı; listede yalnızca o karardan önce gelmiş
+        başvurular var. Onaylamak bugün tek bir şey yapıyor: kişiye{" "}
+        <em>onaylı öğretmen</em> rolü verip quiz üretme sınırını yükseltiyor.
+        Ayrı bir öğretmen paneli yok. Aynı rolü{" "}
+        <strong>Kullanıcılar</strong> sayfasından elle de verebilirsin.
       </AdminNote>
 
       <AdminCard

@@ -62,9 +62,24 @@ Bugün geriye kalanlar (4 Eylül 2026 itibarıyla doğrulandı):
 |---|---|
 | `/siniflar` | **Öğrenci** sayfası — öğrenci sınıf kurar ya da koda katılır. Öğretmen paneli değil. |
 | `verified_teacher` rolü | Hâlâ iş görüyor (quiz üretiminde daha yüksek sınır). Yalnızca yönetim panelinden elle veriliyor. |
-| `/admin/ogretmen-basvurulari` | Kuyruk çalışıyor ama **hiç dolamaz**: `TeacherApplicationForm` bileşeni hiçbir sayfada kullanılmıyor. |
-| `src/lib/parent/coach-*.ts`, `plus-children.ts`, `plus-href.ts`, `src/lib/teacher/ai-tools-catalog.ts` | Öksüz: hiçbir yerden çağrılmıyor (278 satır). |
-| `parent_payment_requests` | Yaşıyor ama öğrenci tarafı: "veliden ödeme iste". |
+| `/admin/ogretmen-basvurulari` | Duruyor ama **yeni başvuru gelmiyor** — form ve API kaldırıldı. Karardan önce gelmiş 1 bekleyen kayıt var. |
+| `parent_payment_requests` | Yaşıyor ve öğrenci tarafı: "veliden ödeme iste". Astra'da bu yok, bizde çalışıyor — bilerek duruyor. |
+| `src/lib/parent/link-status.ts`, `profile.ts` | Canlı: veli bağlama ve veli profili kaydı hâlâ kullanılıyor. |
+
+**Astra karşılaştırması (4 Eylül 2026, siteden doğrulandı):** Astra'da veli
+paneli, öğretmen paneli, okul/kurum planı ve aile planı **yok**. Pazarlama
+sitesinde yalnızca öğrenci sayfaları var; "ebeveyn" kelimesi tek bir yerde,
+yorum başlığında geçiyor ("Ebeveynler ve öğrenciler ne düşünüyor?").
+"Öğretmen" her yerde yapay zekâ öğretmeni anlamında. Ödeme sayfasında iki
+ücretli kademe var (Plus, Sigma), veliyle ilgili hiçbir şey yok.
+
+**Bu yüzden 4 Eylül'de temizlendi:** `coach-context`, `coach-quota`,
+`constants`, `child-profile`, `child-summary`, `plus-children`,
+`plus-href`, `study-days`, `teacher/ai-tools-catalog`,
+`TeacherApplicationForm`, `/api/teacher/apply`,
+`/api/teacher/bootstrap-class` — 567 satır ölü kod. Son ikisi arayüzden
+erişilemeyen ama canlı POST uçlarıydı; `bootstrap-class` ayrıca
+`/api/student/create-class`'ın hız sınırı olmayan bayat kopyasıydı.
 
 Veritabanı tabloları bilerek duruyor — arayüz geri gelebilir, veri gelmez.
 

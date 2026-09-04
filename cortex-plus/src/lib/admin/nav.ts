@@ -65,7 +65,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         href: "/admin/ogretmen-basvurulari",
         label: "Öğretmen başvuruları",
         icon: GraduationCap,
-        blurb: "Öğretmen olmak için başvuranların belgesini incele, onayla ya da reddet.",
+        blurb: "Öğrenci-only karardan önce gelmiş başvurular. Yenisi gelmiyor; onaylamak yalnızca quiz sınırını yükseltiyor.",
       },
     ],
   },

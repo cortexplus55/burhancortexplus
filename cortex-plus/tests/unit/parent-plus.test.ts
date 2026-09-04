@@ -4,9 +4,13 @@ import {
   planGrantsSubscription,
   resolveCheckoutBeneficiary,
 } from "@/lib/payments/beneficiary";
-import { parentPlusHref } from "@/lib/parent/plus-href";
 
-describe("veli plus ödeme hedefi", () => {
+/*
+ * Veli paneli kaldırıldı ama "veliden ödeme iste" yaşıyor: öğrencinin kredi
+ * kartı yok, velisi ödüyor ve abonelik öğrencinin hesabına yazılıyor. Bu
+ * dosya o hesaplamayı koruyor.
+ */
+describe("veli adına ödeme hedefi", () => {
   it("veli için çocuk id zorunlu", () => {
     expect(
       resolveCheckoutBeneficiary({
@@ -65,19 +69,5 @@ describe("veli plus ödeme hedefi", () => {
     expect(planGrantsSubscription({ name: "Sigma", is_premium: true })).toBe(
       true,
     );
-  });
-
-  it("veli plus derin bağlantısı üretir", () => {
-    expect(parentPlusHref("child-1")).toBe("/veli/plus?ogrenci=child-1");
-    expect(parentPlusHref("child-1", { plan: "plan-9" })).toBe(
-      "/veli/plus?ogrenci=child-1&plan=plan-9",
-    );
-  });
-});
-
-describe("veli Destek kotası", () => {
-  it("ayrı ücretsiz hak tanır", async () => {
-    const { PARENT_COACH_GRANT } = await import("@/lib/parent/constants");
-    expect(PARENT_COACH_GRANT).toBe(40);
   });
 });
