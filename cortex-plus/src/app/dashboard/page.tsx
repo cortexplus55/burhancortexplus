@@ -78,7 +78,7 @@ export default async function DashboardPage() {
     : null;
 
   return (
-    <AppShell title="Panel" accountStrip={false}>
+    <AppShell title="Panel">
       <div className="space-y-6">
         <div>
           <h2 className="font-[family-name:var(--font-display)] text-2xl font-normal tracking-tight text-[var(--astra-text)]">

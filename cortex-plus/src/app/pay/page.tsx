@@ -19,7 +19,7 @@ export default async function PayPage() {
   ]);
 
   return (
-    <AppShell accountStrip={false}>
+    <AppShell>
       <AstraSubscriptionCards
         plans={plans ?? []}
         embedded

@@ -25,7 +25,7 @@ export default async function ProfilPage() {
   ]);
 
   return (
-    <AppShell title="Profil" accountStrip={false}>
+    <AppShell title="Profil">
       <div className="space-y-6">
         <SectionCard title="Hesap bilgileri">
           <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

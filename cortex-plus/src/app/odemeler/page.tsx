@@ -26,7 +26,7 @@ export default async function OdemelerPage() {
     .limit(30);
 
   return (
-    <AppShell title="Ödemeler" accountStrip={false}>
+    <AppShell title="Ödemeler">
       {payments?.length ? (
         <ul className="cortex-premium-inset-list divide-y">
           {payments.map((payment) => (

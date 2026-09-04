@@ -7,5 +7,5 @@ export default async function StudioLayout({
   children: React.ReactNode;
 }) {
   await requireStudentArea();
-  return <AppShell accountStrip={false}>{children}</AppShell>;
+  return <AppShell>{children}</AppShell>;
 }
