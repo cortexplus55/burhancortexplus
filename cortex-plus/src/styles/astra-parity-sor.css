@@ -2150,13 +2150,116 @@
   text-decoration: none;
 }
 
+/*
+  Ortak sayfa kapsayıcısı.
+
+  Bunun yokluğu uzun süre gizli kaldı: `/araclar`, `/krediler` gibi sayfalar
+  kendi kapsayıcılarını taşıdığı için düzgün görünüyordu, ama `AppShell`
+  üzerinden gelen sayfalar (`/dokumanlar`, `/destek`, `/quizler`,
+  `/bildirimler` …) hiç kapsayıcı almıyordu — başlık ve form ekranın sol
+  kenarına yapışıyor, içerik 2000px'lik ekranda tek satıra yayılıyordu.
+
+  Ölçüler `.tools` ile aynı: aynı üründe iki farklı sayfa genişliği olmasın.
+*/
+.ap-page {
+  width: 100%;
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 1.75rem 1.25rem 4rem;
+  display: grid;
+  gap: 1.5rem;
+  align-content: start;
+}
+
 .ap-page-head {
-  padding: 0.5rem 1.25rem 0;
+  display: grid;
+  gap: 0.5rem;
 }
 
 .ap-page-title {
-  font-size: 1.25rem;
-  font-weight: 600;
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.15rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.ap-page-hint {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--ap-muted);
+  max-width: 48ch;
+}
+
+/*
+  Bölüm kartı.
+
+  `SectionCard` zaten `astra-pay-card--premium` sınıfını basıyordu ama o kural
+  `.astra-app.cortex-premium-app` altına kapsanmış ve o sarmalayıcı bu kabukta
+  yok — sınıf yazılıyor, hiçbir etkisi olmuyordu. Kartların kenarlıksız
+  görünmesinin sebebi buydu. Kural burada, kabuğun kendi dosyasında.
+*/
+.ap-sor-root .ap-section {
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface);
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .ap-sor-root .ap-section {
+    padding: 1.5rem;
+  }
+}
+
+.ap-sor-root .ap-section-title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.ap-sor-root .ap-section-desc {
+  margin: 0.35rem 0 0;
+  font-size: 0.875rem;
+  color: var(--ap-muted);
+}
+
+.ap-sor-root .ap-section-body {
+  margin-top: 1.25rem;
+}
+
+/* Boş durum: kesikli çerçeve "burada bir şey olacak" diyor, dolu kart
+   "burada bir şey var" diyor. */
+.ap-sor-root .ap-empty {
+  border: 1px dashed var(--ap-border);
+  background: var(--ap-surface);
+  border-radius: 1.25rem;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+}
+
+.ap-sor-root .ap-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 0.75rem;
+  border-radius: 9999px;
+  color: var(--ap-gold);
+  background: rgba(244, 174, 11, 0.12);
+}
+
+.ap-sor-root .ap-empty-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.ap-sor-root .ap-empty-desc {
+  margin: 0.5rem auto 0;
+  max-width: 34rem;
+  font-size: 0.875rem;
+  color: var(--ap-muted);
 }
 
 .ap-profile-backdrop {

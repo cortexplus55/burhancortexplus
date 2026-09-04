@@ -47,12 +47,21 @@ export async function AppShell({
 
     return (
       <AstraParitySorShell {...shell}>
-        {title ? (
-          <div className="ap-page-head">
-            <h1 className="ap-page-title">{title}</h1>
-          </div>
-        ) : null}
-        {children}
+        {/*
+          `.ap-page` olmadan bu sayfaların içeriği hiçbir kapsayıcıya
+          girmiyordu: başlık ekranın sol kenarına yapışıyor, form ve listeler
+          geniş ekranda tek satıra dağılıyordu. `/araclar` gibi sayfalar
+          düzgün görünüyordu çünkü kendi kapsayıcılarını taşıyorlar.
+        */}
+        <div className="ap-page">
+          {title ? (
+            <div className="ap-page-head">
+              <h1 className="ap-page-title">{title}</h1>
+              {creditHint ? <p className="ap-page-hint">{creditHint}</p> : null}
+            </div>
+          ) : null}
+          {children}
+        </div>
       </AstraParitySorShell>
     );
   }

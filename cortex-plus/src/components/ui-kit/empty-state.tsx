@@ -32,16 +32,17 @@ export function EmptyState({
 
   if (v === "premium") {
     return (
-      <div className="astra-pay-card astra-pay-card--premium border-dashed p-8 text-center">
+      // `ap-empty` öğrenci kabuğunun kendi dosyasında tanımlı; eski
+      // `astra-pay-card--premium` sınıfı burada hiç uygulanmıyordu, çünkü
+      // kuralı `.astra-app.cortex-premium-app` altına kapsanmış.
+      <div className="ap-empty astra-pay-card astra-pay-card--premium">
         {Icon ? (
-          <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/15 text-[var(--astra-primary)]">
+          <span className="ap-empty-icon">
             <Icon className="h-6 w-6" aria-hidden />
           </span>
         ) : null}
-        <p className="font-semibold text-[var(--astra-text)]">{title}</p>
-        <p className="mx-auto mt-2 max-w-md text-sm text-[var(--astra-muted)]">
-          {description}
-        </p>
+        <p className="ap-empty-title">{title}</p>
+        <p className="ap-empty-desc">{description}</p>
         {actionHref && actionLabel ? (
           <Link
             href={actionHref}
@@ -84,12 +85,10 @@ export function SectionCard({
 
   if (v === "premium") {
     return (
-      <section className="astra-pay-card astra-pay-card--premium p-4 md:p-5">
-        <h2 className="cortex-premium-section-title text-lg">{title}</h2>
-        {description ? (
-          <p className="mt-1 text-sm text-[var(--astra-muted)]">{description}</p>
-        ) : null}
-        <div className="mt-4">{children}</div>
+      <section className="ap-section astra-pay-card astra-pay-card--premium">
+        <h2 className="ap-section-title">{title}</h2>
+        {description ? <p className="ap-section-desc">{description}</p> : null}
+        <div className="ap-section-body">{children}</div>
       </section>
     );
   }
