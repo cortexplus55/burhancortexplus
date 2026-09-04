@@ -9,7 +9,7 @@ export default function MobilUygulamaPage() {
   return (
     <MarketingPage
       title="Mobil uygulama"
-      description="AI öğretmen, deneme sınavları ve lab uygulamaları telefonunda. Web sürümü şimdiden mobil tarayıcıda optimize; mağaza sürümü yakında."
+      description="AI öğretmen, deneme sınavları ve çalışma araçları telefonunda. Web sürümü şimdiden mobil tarayıcıda optimize; mağaza sürümü yakında."
     >
       <ul className="mk-card max-w-xl space-y-3 p-6 text-sm text-[var(--mk-muted)]">
         <li>· Streak ve bildirimlerle düzenli çalışma</li>

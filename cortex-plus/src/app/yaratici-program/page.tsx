@@ -21,7 +21,7 @@ export default function YaraticiProgramPage() {
         <article className="mk-card p-6">
           <h2 className="font-semibold">İçerik ortaklığı</h2>
           <p className="mt-2 text-sm text-[var(--mk-muted)]">
-            Lab uygulamaları ve deneme paketlerini birlikte üretelim.
+            Ders içeriği ve deneme paketlerini birlikte üretelim.
           </p>
         </article>
       </div>

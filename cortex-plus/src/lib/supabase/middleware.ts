@@ -24,7 +24,9 @@ const PROTECTED_PREFIXES = [
   "/flashcardlar",
   "/studio",
   "/deneme-sinavlari",
-  "/uygulamalar",
+  // "/uygulamalar" bilerek yok: o rota artık yalnızca /araclar’a kalıcı
+  // yönlendirme. Korumalı sayılsaydı giriş ekranına emekli adresi taşırdık;
+  // böylece "next" parametresi doğrudan gerçek hedefi gösteriyor.
   "/araclar",
   "/calisma-plani",
   "/ilerleme",

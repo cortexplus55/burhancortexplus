@@ -10,7 +10,7 @@ const ITEMS = [
   {
     icon: Zap,
     title: "Anında erişim",
-    body: "Kayıt sonrası AI öğretmen, deneme ve uygulamalar aynı gün kullanıma açılır.",
+    body: "Kayıt sonrası AI öğretmen, deneme sınavları ve çalışma araçları aynı gün kullanıma açılır.",
   },
   {
     icon: Sparkles,
