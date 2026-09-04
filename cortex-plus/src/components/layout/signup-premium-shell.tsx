@@ -1,3 +1,4 @@
+import { CortexMark } from "@/components/brand/cortex-mark";
 import Link from "next/link";
 import "@/styles/cortex-premium.css";
 
@@ -29,7 +30,8 @@ export function SignupPremiumShell({
       <div className="cortex-premium-auth__grid cortex-premium-signup__grid">
         <aside className="cortex-premium-auth__hero hidden lg:block">
           <div className="cortex-premium-auth__hero-inner">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cx-gold)]">
+            <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cx-gold)]">
+              <CortexMark size={20} />
               Cortex Plus
             </p>
             {/*

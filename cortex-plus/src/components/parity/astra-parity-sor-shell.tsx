@@ -1,5 +1,6 @@
 "use client";
 
+import { CortexMark } from "@/components/brand/cortex-mark";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
@@ -126,6 +127,7 @@ export function AstraParitySorShell({
       <div className={cn("ap-sor-root", isPremium && "ap-sor-root--plus", isStudio && "ap-sor-root--studio")}>
       <header className="ap-sor-top">
         <Link href="/ogretmen" className="ap-sor-logo" aria-label="Cortex Plus">
+          <CortexMark size={20} />
           <span className="ap-sor-logo-word">cortex</span>
           {isPremium ? (
             <span className="ap-sor-logo-badge">Plus</span>

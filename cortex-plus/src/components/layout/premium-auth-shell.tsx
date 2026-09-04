@@ -1,3 +1,4 @@
+import { CortexMark } from "@/components/brand/cortex-mark";
 import Link from "next/link";
 import "@/styles/cortex-premium.css";
 
@@ -39,7 +40,11 @@ export function PremiumAuthShell({
         </aside>
         <div className="cortex-premium-auth__panel">
           <div className="cortex-premium-auth__topbar">
-            <Link href="/" className="cortex-premium-auth__logo">
+            <Link
+              href="/"
+              className="cortex-premium-auth__logo inline-flex items-center gap-2"
+            >
+              <CortexMark size={22} />
               Cortex Plus
             </Link>
             <Link

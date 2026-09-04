@@ -1,5 +1,6 @@
 "use client";
 
+import { CortexMark } from "@/components/brand/cortex-mark";
 import { useState } from "react";
 import Link from "next/link";
 import { Menu, Sparkles, X } from "lucide-react";
@@ -18,7 +19,11 @@ export function AstraSiteHeader() {
   return (
     <header className="astra-marketing sticky top-0 z-40 border-b border-[var(--mk-border)] backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4">
-        <Link href="/" className="shrink-0 font-semibold tracking-tight text-[var(--mk-text)]">
+        <Link
+          href="/"
+          className="flex shrink-0 items-center gap-2 font-semibold tracking-tight text-[var(--mk-text)]"
+        >
+          <CortexMark size={22} />
           Cortex Plus
         </Link>
 
