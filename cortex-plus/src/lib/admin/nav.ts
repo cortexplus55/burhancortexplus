@@ -85,9 +85,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       },
       {
         href: "/admin/promosyonlar",
-        label: "Kampanya kodları",
+        label: "Kampanyalar",
         icon: Ticket,
-        blurb: "Hediye kredi kodları oluştur, kullanım sayısını gör, süresi dolanı kapat.",
+        blurb: "Ana ekrandaki duyuru bandı ve hediye kredi kodları. Bant, verdiğin bitiş tarihinde kendiliğinden kaybolur.",
       },
     ],
   },

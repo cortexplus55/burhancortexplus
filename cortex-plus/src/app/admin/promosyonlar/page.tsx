@@ -1,23 +1,32 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import { PromoCreateForm, PromoToggle } from "@/components/admin/promo-tools";
+import { CampaignForm } from "@/components/admin/campaign-form";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { formatDate, formatNumber } from "@/lib/format";
 
-export const metadata = { title: "Yönetim · Kampanya kodları" };
+export const metadata = { title: "Yönetim · Kampanyalar" };
 
 export default async function AdminPromosyonlarPage() {
   await requireAdmin();
   const service = createServiceClient();
 
-  const [{ data: promos }, pending] = await Promise.all([
+  const [{ data: promos }, { data: campaign }, pending] = await Promise.all([
     service
       .from("promo_codes")
       .select("id, code, credit_amount, max_redemptions, redemption_count, active, expires_at, created_at")
       .order("created_at", { ascending: false })
       .limit(100),
+    service
+      .from("promo_campaigns")
+      .select("title, description, href, ends_at")
+      .eq("active", true)
+      .gt("ends_at", new Date().toISOString())
+      .order("ends_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
     countPendingApplications(service),
   ]);
 
@@ -30,6 +39,24 @@ export default async function AdminPromosyonlarPage() {
         kişi aynı kodu bir kez kullanabilir. Kodu kapattığında daha önce
         kullananların kredisi geri alınmaz.
       </AdminNote>
+
+      <AdminCard
+        title="Ana ekran duyuru bandı"
+        desc="Ücretsiz kullanıcıların ana ekranında görünen geri sayımlı şerit. Bitiş tarihi geçtiğinde kendiliğinden kaybolur; süresiz bant yoktur."
+      >
+        <CampaignForm
+          current={
+            campaign
+              ? {
+                  title: campaign.title,
+                  description: campaign.description,
+                  href: campaign.href,
+                  endsAt: campaign.ends_at,
+                }
+              : null
+          }
+        />
+      </AdminCard>
 
       <AdminCard
         title="Yeni kod oluştur"

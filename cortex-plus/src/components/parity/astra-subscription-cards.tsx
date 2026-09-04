@@ -20,32 +20,49 @@ type Plan = {
   is_premium: boolean;
 };
 
+/*
+  Bu listeler bir zamanlar satılmayan şeyleri satıyordu: "deneme sınavı",
+  "quiz, flashcard", "dokümanlarından kaynaklı yanıtlar" Plus'a aitmiş gibi
+  yazılıydı, oysa dördü de ücretsiz katmanda açık. Ücretsiz kullanıcı zaten
+  yaptığı bir şey için para istenince ne aldığını anlamıyor.
+
+  Şimdi liste yalnızca kodda gerçekten Plus'a bağlı olanları sayıyor ve
+  başında "ücretsiz plandaki her şey ve" yazıyor — ücretsizde olanı gizlemeye
+  gerek yok, üstüne ne eklendiğini söylemek yeterli.
+
+  Sigma'dan iki madde çıkarıldı: "en gelişmiş model" ve "öncelikli yanıt hızı".
+  Kodda Sigma'yı Plus'tan ayıran tek şey kota; ne ayrı bir model ne de öncelik
+  sırası var. Olmayan şeyi satmıyoruz.
+*/
+
+/** Listelerin başında duran çerçeve cümlesi. */
+export const BENEFITS_LEAD = "Ücretsiz plandaki her şey ve:";
+
 const PLUS_BENEFITS = [
-  "Yüksek kredi kotası ve ücretsiz haklar",
-  "Deneme sınavı üretimi ve analiz",
-  "Quiz, flashcard ve çalışma planı",
-  "Dokümanlarından kaynaklı yanıtlar",
-  "Plus aboneliği ile gelişmiş AI modeli",
+  "Günlük hak yerine aylık hak — kat kat fazla kullanım",
+  "Sohbette gelişmiş AI modeli seçeneği",
+  "Deneme sınavlarında gelişmiş model",
+  "Podcast ve ders anlatımında gerçek seslendirme",
+  "Sözlü sınavda sesini tanıma",
+  "Hakkın biterse ek paket alabilme",
 ];
 
 const SIGMA_BENEFITS = [
-  "Plus’taki tüm avantajlar",
-  "En gelişmiş model ve yüksek kredi paketi",
-  "Öncelikli yanıt hızı",
-  "Yoğun sınav dönemleri için ek kredi",
+  "Plus’taki her şey",
+  "Daha yüksek aylık kullanım hakkı",
+  "Yoğun sınav dönemleri için ek kota",
 ];
 
 const PARENT_PLUS_BENEFITS = [
   "Kota çocuğunun hesabına tanımlanır",
-  "Yüksek kredi ve ücretsiz hak",
-  "Deneme sınavı üretimi ve analiz",
-  "Quiz, flashcard ve çalışma planı",
-  "Gelişmiş AI modeli",
+  "Günlük hak yerine aylık hak",
+  "Sohbette ve denemelerde gelişmiş AI modeli",
+  "Podcast ve sözlü sınavda gerçek seslendirme",
 ];
 
 const PARENT_SIGMA_BENEFITS = [
-  "Plus’taki tüm avantajlar çocuğunun hesabında",
-  "En gelişmiş model ve yüksek kredi paketi",
+  "Plus’taki her şey çocuğunun hesabında",
+  "Daha yüksek aylık kullanım hakkı",
   "Yoğun sınav dönemleri için ek kota",
 ];
 
@@ -308,11 +325,16 @@ export function AstraSubscriptionCards({
                 )}
               </button>
               {plusOpen ? (
-                <ul className="mt-2 space-y-1.5 text-sm text-[var(--astra-muted)]">
+                <>
+                <p className="mt-2 text-xs font-semibold text-[var(--astra-text)]">
+                  {BENEFITS_LEAD}
+                </p>
+                <ul className="mt-1.5 space-y-1.5 text-sm text-[var(--astra-muted)]">
                   {plusBenefits.map((b) => (
                     <li key={b}>· {b}</li>
                   ))}
                 </ul>
+                </>
               ) : null}
             </div>
           </div>

@@ -617,3 +617,96 @@ export async function activatePromptVersion(promptId: string) {
   revalidatePath("/admin/promptlar");
   return { ok: true, message: `${target.key} v${target.version} yayına alındı.` };
 }
+
+/**
+ * Ana ekran duyuru bandı.
+ *
+ * Bant ücretsiz kullanıcıya görünüyor ve bitiş tarihi geçince kendiliğinden
+ * kayboluyor. Tarihi buradan giriyoruz; kod içinde sabit bir süre yok ve
+ * sayaç kendi kendine yenilenmiyor.
+ */
+export async function savePromoCampaign(input: {
+  title: string;
+  description: string;
+  href: string;
+  endsAt: string;
+}) {
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+
+  const parsed = z
+    .object({
+      title: z.string().trim().min(3).max(60),
+      description: z.string().trim().min(5).max(160),
+      href: z.string().trim().startsWith("/").max(200),
+      endsAt: z.string().min(1),
+    })
+    .safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Başlık, metin ve bağlantı doldurulmalı." };
+  }
+
+  const endsAt = new Date(parsed.data.endsAt);
+  if (Number.isNaN(endsAt.getTime())) {
+    return { ok: false, error: "Bitiş tarihi okunamadı." };
+  }
+  if (endsAt.getTime() <= Date.now()) {
+    return { ok: false, error: "Bitiş tarihi gelecekte olmalı." };
+  }
+
+  const service = createServiceClient();
+
+  // Aynı anda tek bant gösteriliyor; yenisini açarken eskisini kapatıyoruz ki
+  // hangisinin yayında olduğu belirsiz kalmasın.
+  await service
+    .from("promo_campaigns")
+    .update({ active: false })
+    .eq("active", true);
+
+  const { error } = await service.from("promo_campaigns").insert({
+    title: parsed.data.title,
+    description: parsed.data.description,
+    href: parsed.data.href,
+    ends_at: endsAt.toISOString(),
+  });
+
+  if (error) return { ok: false, error: "Kampanya kaydedilemedi." };
+
+  await auditLog(service, {
+    actorId,
+    action: "campaign.started",
+    entityType: "promo_campaign",
+    entityId: parsed.data.title,
+    metadata: { ends_at: endsAt.toISOString() },
+  });
+
+  revalidatePath("/admin/promosyonlar");
+  revalidatePath("/ogretmen");
+  return { ok: true, message: "Bant yayına alındı." };
+}
+
+/** Yayındaki bandı hemen kaldırır. */
+export async function endPromoCampaign() {
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+
+  const service = createServiceClient();
+  const { error } = await service
+    .from("promo_campaigns")
+    .update({ active: false })
+    .eq("active", true);
+
+  if (error) return { ok: false, error: "Kaldırılamadı." };
+
+  await auditLog(service, {
+    actorId,
+    action: "campaign.ended",
+    entityType: "promo_campaign",
+    entityId: "active",
+    metadata: {},
+  });
+
+  revalidatePath("/admin/promosyonlar");
+  revalidatePath("/ogretmen");
+  return { ok: true, message: "Bant kaldırıldı." };
+}
