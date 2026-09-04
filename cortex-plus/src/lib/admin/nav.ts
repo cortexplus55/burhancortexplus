@@ -5,6 +5,7 @@ import {
   GraduationCap,
   History,
   LayoutDashboard,
+  MessageSquare,
   Package,
   Receipt,
   ServerCog,
@@ -111,6 +112,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         label: "Giderler",
         icon: TrendingUp,
         blurb: "Yapay zekâ sağlayıcısına ödenen tahmini tutar. Gelirle karşılaştırmak için.",
+      },
+      {
+        href: "/admin/yanit-oylari",
+        label: "Yanıt oyları",
+        icon: MessageSquare,
+        blurb: "Öğrencilerin işine yaramadı dediği yanıtlar. Talimatları nereden düzelteceğini burası söylüyor.",
       },
       {
         href: "/admin/promptlar",

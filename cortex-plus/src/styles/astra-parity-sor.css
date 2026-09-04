@@ -366,6 +366,7 @@
 */
 .ap-msg-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.25rem;
   margin-top: 0.5rem;
@@ -405,6 +406,52 @@
 .ap-msg-action-hint {
   font-size: 0.75rem;
   color: var(--ap-muted);
+}
+
+/* Basılı başparmak. Renk yönü söylüyor: altın = işine yaradı, kırmızı = yaramadı. */
+.ap-msg-action.is-on {
+  background: color-mix(in srgb, var(--ap-gold) 18%, transparent);
+  color: var(--ap-gold);
+}
+
+.ap-msg-action.is-off {
+  background: color-mix(in srgb, #ef4444 18%, transparent);
+  color: #f87171;
+}
+
+/*
+  "Sorun neydi?" seçenekleri.
+
+  Düğmelerin altına, tam genişlikte iniyor: yan yana sıkıştırırsak dokunmatikte
+  yanlış seçeneğe basılıyor.
+*/
+.ap-msg-reasons {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.ap-msg-reason {
+  border-radius: 999px;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface-2);
+  color: var(--ap-text);
+  padding: 0.25rem 0.7rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.ap-msg-reason:hover {
+  border-color: var(--ap-gold);
+}
+
+.ap-msg-reason:focus-visible {
+  outline: 2px solid var(--ap-gold);
+  outline-offset: 2px;
 }
 
 /*

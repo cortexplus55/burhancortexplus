@@ -44,11 +44,18 @@ import { AstraSubjectModal } from "@/components/parity/astra-subject-modal";
 import { AstraUploadModal } from "@/components/parity/astra-upload-modal";
 import { MathKeyboard } from "@/components/parity/math-keyboard";
 import { UpgradeAside } from "@/components/paywall/upgrade-aside";
-import { MessageActions } from "@/components/chat/message-actions";
+import { MessageActions, type Rating } from "@/components/chat/message-actions";
 import "@/styles/astra-sor.css";
 import "@/styles/astra-parity-sor.css";
 
-type Message = { role: "user" | "assistant"; content: string; isError?: boolean };
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+  isError?: boolean;
+  /** Kaydedilmiş yanıtın satır kimliği; oylama bunsuz yapılamıyor. */
+  id?: string;
+  rating?: Rating;
+};
 
 function SorTypingDots() {
   return (
@@ -144,6 +151,7 @@ export function ChatPanel({
   tutorStyleLabel,
   quotaHint,
   starterPrompts,
+  feedbackEnabled = false,
 }: {
   initialConversationId?: string;
   initialMessages?: Message[];
@@ -165,6 +173,12 @@ export function ChatPanel({
   tutorStyleLabel?: string;
   quotaHint?: string | null;
   starterPrompts?: { label: string; prompt: string }[];
+  /**
+   * Oylama sütunları veritabanında var mı. Sunucu karar veriyor; göç
+   * uygulanmadan başparmak göstermek, basıldığında hata veren bir düğme
+   * demek olurdu.
+   */
+  feedbackEnabled?: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -542,6 +556,9 @@ export function ChatPanel({
 
       const newConversation = res.headers.get("X-Conversation-Id");
       if (newConversation) conversationId.current = newConversation;
+      // Sohbet kaydedilmemişse başlık boş geliyor; o durumda oy düğmesi de
+      // çıkmıyor.
+      const messageId = res.headers.get("X-Message-Id") || undefined;
       const credits = res.headers.get("X-Credits-Used");
       const sourceCount = Number(res.headers.get("X-Sources") ?? "0");
       // Hangi nottan geldiği "3 kaynak"tan anlamlı. Kaynak bulunamadığında
@@ -564,7 +581,10 @@ export function ChatPanel({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistant = "";
-      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "", id: messageId },
+      ]);
 
       for (;;) {
         const { done, value } = await reader.read();
@@ -572,7 +592,11 @@ export function ChatPanel({
         assistant += decoder.decode(value, { stream: true });
         setMessages((prev) => {
           const copy = [...prev];
-          copy[copy.length - 1] = { role: "assistant", content: assistant };
+          copy[copy.length - 1] = {
+            role: "assistant",
+            content: assistant,
+            id: messageId,
+          };
           return copy;
         });
       }
@@ -601,6 +625,12 @@ export function ChatPanel({
   const showParityThread = isParitySor && (messages.length > 0 || loading);
   // Öneri çipleri yalnızca dolu, hatasız bir yanıtın ardından çıkıyor:
   // yazarken, hata ekranında ya da kullanıcı sırasındayken görünmüyor.
+  function setRating(index: number, rating: Rating) {
+    setMessages((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, rating } : item)),
+    );
+  }
+
   const lastMessage = messages[messages.length - 1];
   const lastIsAnswer =
     lastMessage?.role === "assistant" &&
@@ -760,7 +790,12 @@ export function ChatPanel({
                     <>
                       <Markdown content={message.content} variant="astra" />
                       {!message.isError ? (
-                        <MessageActions content={message.content} />
+                        <MessageActions
+                          content={message.content}
+                          messageId={feedbackEnabled ? message.id : undefined}
+                          rating={message.rating ?? null}
+                          onRated={(next) => setRating(index, next)}
+                        />
                       ) : null}
                     </>
                   ) : null}

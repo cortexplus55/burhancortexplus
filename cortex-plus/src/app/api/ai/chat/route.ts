@@ -182,6 +182,17 @@ export async function POST(request: Request) {
     });
 
     const encoder = new TextEncoder();
+    /*
+      Yanıtın kimliğini akış başlamadan üretiyoruz.
+
+      Satır ancak akış bittiğinde yazılıyor, ama başlıklar gövdeden önce
+      gidiyor — yani "yazdıktan sonra kimliği başlığa koy" mümkün değil.
+      Kimliği önce üretip sonra o kimlikle yazınca, tarayıcı ilk harften
+      itibaren hangi satırı oylayacağını biliyor. Akış hata alırsa satır hiç
+      yazılmıyor ve kimlik boşa gidiyor; oylama denemesi de "bulunamadı"
+      döndürüyor, ki doğrusu bu.
+    */
+    const assistantMessageId = crypto.randomUUID();
     let fullText = "";
     let tokensIn = 0;
     let tokensOut = 0;
@@ -203,6 +214,7 @@ export async function POST(request: Request) {
 
           if (conversationId) {
             await service.from("messages").insert({
+              id: assistantMessageId,
               conversation_id: conversationId,
               role: "assistant",
               content: fullText,
@@ -242,6 +254,8 @@ export async function POST(request: Request) {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "X-Conversation-Id": conversationId ?? "",
+        // Sohbet kaydedilmiyorsa oylanacak satır da yok.
+        "X-Message-Id": conversationId ? assistantMessageId : "",
         "X-Model": model,
         "X-Credits-Used": String(reservation.cost),
         "X-Sources": String(sources.length),

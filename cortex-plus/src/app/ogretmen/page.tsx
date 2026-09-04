@@ -9,6 +9,7 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { getCreditCost } from "@/lib/credits/rules";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { parseTutorStyle, tutorStyleLabel } from "@/lib/learning/tutor-style";
+import { messageFeedbackEnabled } from "@/lib/learning/message-feedback";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
 
@@ -47,8 +48,17 @@ export default async function OgretmenPage({
         .limit(5),
     ]);
 
-  let initialMessages: { role: "user" | "assistant"; content: string }[] = [];
+  // Kimlik ve oy da geliyor: eski bir sohbeti açtığında daha önce bastığın
+  // başparmak dolu görünsün, ikinci kez oy vermeye kalkmayasın.
+  let initialMessages: {
+    role: "user" | "assistant";
+    content: string;
+    id?: string;
+    rating?: 1 | -1 | null;
+  }[] = [];
   let conversationId: string | undefined;
+
+  const feedbackOn = await messageFeedbackEnabled(supabase);
 
   if (params.sohbet) {
     const { data: conversation } = await supabase
@@ -60,17 +70,25 @@ export default async function OgretmenPage({
 
     if (conversation) {
       conversationId = conversation.id;
-      const { data: rows } = await supabase
-        .from("messages")
-        .select("role, content")
-        .eq("conversation_id", conversation.id)
-        .order("created_at");
-
+      // İki ayrı sorgu, çünkü sütun listesi tip düzeyinde sabit olmak zorunda.
+      const { data: rows } = feedbackOn
+        ? await supabase
+            .from("messages")
+            .select("id, role, content, rating")
+            .eq("conversation_id", conversation.id)
+            .order("created_at")
+        : await supabase
+            .from("messages")
+            .select("id, role, content")
+            .eq("conversation_id", conversation.id)
+            .order("created_at");
       initialMessages = (rows ?? [])
         .filter((row) => row.role === "user" || row.role === "assistant")
         .map((row) => ({
           role: row.role as "user" | "assistant",
           content: row.content as string,
+          id: row.id as string,
+          rating: ("rating" in row ? (row.rating as 1 | -1 | null) : null) ?? null,
         }));
     }
   }
@@ -98,6 +116,7 @@ export default async function OgretmenPage({
       <ChatPanel
         variant="astra"
         composerMode="parity"
+        feedbackEnabled={feedbackOn}
         greetingLine={greetingLine}
         showEmptyStarter
         startLabel="Başla"

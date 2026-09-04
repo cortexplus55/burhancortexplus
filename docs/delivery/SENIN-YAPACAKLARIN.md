@@ -115,45 +115,35 @@ proje açıp `NEXT_PUBLIC_POSTHOG_KEY`'i Vercel'e eklemek yeterli.
 
 ---
 
-## 7. Kampanya bandı için tek SQL — panel bu olmadan kaydetmiyor
+## 7. Veritabanı: tek komut
 
-Yönetim panelindeki **Kampanyalar → Ana ekran duyuru bandı** bölümü hazır ama
-tablosu veritabanında yok. Şu an "Bandı yayına al" düğmesi hata veriyor.
+Göç geçmişi temizlendi. Eskiden yerel dosyalarla veritabanının kaydı birbirini
+tutmuyordu (iki tarafta da 34'er kayıt eksikti) ve toplu uygulama mümkün
+değildi. Artık 33 dosya "uygulandı" olarak eşleşiyor, karşılıksız kayıt yok.
 
-Bunu ajan uygulayamıyor: yerel göç dosyalarıyla veritabanının geçmişi birbirini
-tutmuyor (yaklaşık 30 dosya karşılıklı eksik), toplu `db push` yanlış şeyler
-uygulayabilir. Bu yüzden tek parça, ekleme yapan bir SQL:
+**Bekleyen iki göç var:**
 
-<https://supabase.com/dashboard/project/dgjfyewgrukglsehyntc/sql/new>
-adresine gidip aşağıdakini yapıştırıp **Run** deyin. Kaynağı:
-`cortex-plus/supabase/migrations/20260904120000_promo_campaigns.sql`
+| Dosya | Ne için |
+|-------|---------|
+| `20260904120000_promo_campaigns.sql` | Ana ekrandaki duyuru bandı. Bu olmadan panelden bant kaydedilemiyor. |
+| `20260904140000_message_feedback.sql` | Yanıt altındaki beğen/beğenme. Bu olmadan başparmak düğmeleri hiç görünmüyor. |
 
-```sql
-CREATE TABLE public.promo_campaigns (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  title text NOT NULL,
-  description text NOT NULL,
-  href text NOT NULL DEFAULT '/pay',
-  starts_at timestamptz NOT NULL DEFAULT now(),
-  ends_at timestamptz NOT NULL,
-  active boolean NOT NULL DEFAULT true,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT promo_campaigns_window CHECK (ends_at > starts_at)
-);
+**Yapılacak** — proje klasöründe tek komut:
 
-CREATE INDEX promo_campaigns_live_idx
-  ON public.promo_campaigns (ends_at DESC)
-  WHERE active;
-
-ALTER TABLE public.promo_campaigns ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY promo_campaigns_read ON public.promo_campaigns
-  FOR SELECT USING (active AND now() BETWEEN starts_at AND ends_at);
+```bash
+cd cortex-plus && npx supabase db push
 ```
 
-Yalnızca yeni tablo ekliyor, var olan hiçbir şeye dokunmuyor. Sonrasında
-panelden bandı açıp kapatabilirsiniz.
+Ajan bu komutu çalıştıramıyor: canlı veritabanına yapı değiştiren yazma
+işlemi, güvenlik gereği onay istiyor.
+
+Komut satırı istemezsen SQL editöründen de olur —
+<https://supabase.com/dashboard/project/dgjfyewgrukglsehyntc/sql/new> —
+iki dosyanın içeriğini sırayla yapıştırıp **Run** de. Dosyalar:
+`cortex-plus/supabase/migrations/` klasöründe.
+
+> Başparmak düğmeleri göç uygulanana kadar **hiç görünmüyor**; uygulandıktan
+> sonra kendiliğinden açılıyor. Yani "basıyorum bir şey olmuyor" durumu yok.
 
 ---
 
