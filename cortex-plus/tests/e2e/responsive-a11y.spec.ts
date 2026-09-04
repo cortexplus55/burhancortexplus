@@ -22,6 +22,22 @@ test.describe("responsive layout", () => {
     await page.goto("/fiyatlandirma");
     await expect(page.getByRole("heading", { name: /Plus/i }).first()).toBeVisible();
   });
+
+  // Alt menü bağlantıları eskiden 20 piksel yüksekliğindeydi, aralarında da
+  // 8 piksel vardı; parmakla yanlış sayfaya gitmek kural oluyordu.
+  test("footer links are tappable on mobile", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+
+    const heights = await page.evaluate(() =>
+      [...document.querySelectorAll("footer .mk-footer-links a")].map(
+        (el) => el.getBoundingClientRect().height,
+      ),
+    );
+
+    expect(heights.length).toBeGreaterThan(5);
+    expect(Math.min(...heights)).toBeGreaterThanOrEqual(36);
+  });
 });
 
 test.describe("accessibility basics", () => {

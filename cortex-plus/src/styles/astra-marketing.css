@@ -250,3 +250,22 @@
     transition: none;
   }
 }
+
+/*
+  Telefonda alt menü bağlantıları.
+
+  Masaüstünde 20 piksel yükseklik ve 8 piksel aralık doğru görünüyor, ama
+  parmakla 28 piksellik bir aralığa isabet ettirmek zor: yanlış sayfaya
+  gitmek kural oluyor. Telefonda bağlantının kendisini yükseltiyoruz,
+  aralığı da sıfırlıyoruz ki alt menü uzayıp gitmesin.
+*/
+@media (max-width: 767px) {
+  .astra-marketing .mk-footer-links {
+    gap: 0;
+  }
+
+  .astra-marketing .mk-footer-links a {
+    display: block;
+    padding-block: 0.7rem;
+  }
+}

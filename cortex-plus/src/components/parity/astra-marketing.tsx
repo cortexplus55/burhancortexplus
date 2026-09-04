@@ -34,7 +34,7 @@ export function AstraSiteFooter() {
           <p className="font-semibold text-[var(--mk-text)]">Cortex Plus</p>
           <p className="mt-2">Çalışma ve sınav hazırlığı için AI öğretmen.</p>
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="mk-footer-links flex flex-col gap-2">
           <Link href="/ornek">Nasıl çalışır</Link>
           <Link href="/sinav-hazirligi">Sınav hazırlığı</Link>
           <Link href="/mobil-uygulama">Mobil uygulama</Link>
@@ -43,12 +43,12 @@ export function AstraSiteFooter() {
           <Link href="/fiyatlandirma">Fiyatlandırma</Link>
           <Link href="/yardim">Yardım</Link>
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="mk-footer-links flex flex-col gap-2">
           <Link href="/gizlilik">Gizlilik</Link>
           <Link href="/kvkk">KVKK</Link>
           <Link href="/kullanim-kosullari">Kullanım koşulları</Link>
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="mk-footer-links flex flex-col gap-2">
           <Link href="/iletisim">Bize ulaşın</Link>
           <Link href="/hakkimizda">Künye</Link>
         </div>
