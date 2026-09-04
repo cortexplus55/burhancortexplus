@@ -1,22 +1,23 @@
-import Link from "next/link";
+import { XCircle } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
+import { ResultCard } from "@/components/marketing/result-card";
 
 export default async function OdemeBasarisizPage() {
   return (
     <MarketingPage
       variant="auth"
       title="Ödeme tamamlanamadı"
-      description="İşlem iptal edildi veya başarısız oldu. Paketler sayfasından tekrar deneyebilirsin."
+      description="İşlem iptal edildi veya banka onaylamadı."
     >
-      <p className="mk-card p-6 text-center text-sm">
-        <Link href="/paketler" className="text-[var(--mk-primary)] underline">
-          Paketlere dön
-        </Link>
-        {" · "}
-        <Link href="/ogretmen" className="text-[var(--mk-primary)] underline">
-          Sor ekranına git
-        </Link>
-      </p>
+      <ResultCard
+        icon={XCircle}
+        tone="error"
+        detail="Siparişin oluşmadı, kredin değişmedi. Tekrar denemek istersen paketler sayfasından aynı yerden devam edebilirsin; sorun sürerse bize yaz."
+        primaryHref="/paketler"
+        primaryLabel="Tekrar dene"
+        secondaryHref="/iletisim"
+        secondaryLabel="Bize ulaş"
+      />
     </MarketingPage>
   );
 }

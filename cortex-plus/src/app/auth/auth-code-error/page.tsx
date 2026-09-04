@@ -1,18 +1,23 @@
+import { LinkIcon } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
-import Link from "next/link";
+import { ResultCard } from "@/components/marketing/result-card";
 
 export default function AuthCodeErrorPage() {
   return (
     <MarketingPage
       variant="auth"
-      title="Doğrulama hatası"
-      description="Bağlantının süresi dolmuş veya geçersiz olabilir."
+      title="Bağlantı çalışmadı"
+      description="Doğrulama bağlantısının süresi dolmuş ya da daha önce kullanılmış olabilir."
     >
-      <p className="mk-card p-4 text-center text-sm">
-        <Link href="/giris" className="text-[var(--mk-primary)] underline">
-        Giriş sayfasına dön
-        </Link>
-      </p>
+      <ResultCard
+        icon={LinkIcon}
+        tone="error"
+        detail="Doğrulama bağlantıları tek kullanımlıktır ve bir süre sonra geçersiz olur. Giriş ekranından yeniden dene; gerekirse yeni bir bağlantı gönderilir."
+        primaryHref="/giris"
+        primaryLabel="Giriş ekranına dön"
+        secondaryHref="/yardim"
+        secondaryLabel="Yardım sayfası"
+      />
     </MarketingPage>
   );
 }

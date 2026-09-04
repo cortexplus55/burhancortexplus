@@ -56,6 +56,29 @@
    düşüyordu. Aşağısı o eksik parçalar.
    --------------------------------------------------------------------------- */
 
+/* Sonuç ikonu. Durum rengi marka amberinden ayrı: amber "vurgu" demek,
+   başarılı ile başarısız onunla ayrılamaz. */
+.astra-marketing .mk-result-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 9999px;
+}
+
+.astra-marketing .mk-result-icon--success {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.28);
+}
+
+.astra-marketing .mk-result-icon--error {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.28);
+}
+
 /* Bölüm üstü küçük etiket. Sayfaya ritim veriyor: başlıktan önce ne
    okuyacağını söylüyor. */
 .astra-marketing .mk-eyebrow {

@@ -1,5 +1,6 @@
-import Link from "next/link";
+import { CheckCircle2 } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
+import { ResultCard } from "@/components/marketing/result-card";
 
 export default async function OdemeBasariliPage() {
   return (
@@ -8,15 +9,15 @@ export default async function OdemeBasariliPage() {
       title="Ödeme alındı"
       description="Kredilerin birkaç saniye içinde hesabına yansır."
     >
-      <p className="mk-card p-6 text-center text-sm">
-        <Link href="/krediler" className="text-[var(--mk-primary)] underline">
-          Kredileri gör
-        </Link>
-        {" · "}
-        <Link href="/ogretmen" className="text-[var(--mk-primary)] underline">
-          Sor ekranına git
-        </Link>
-      </p>
+      <ResultCard
+        icon={CheckCircle2}
+        tone="success"
+        detail="Makbuzun Ödemeler sayfasında duruyor. Kredin hemen görünmezse sayfayı bir kez yenile — bankadan onay birkaç saniye sürebiliyor."
+        primaryHref="/ogretmen"
+        primaryLabel="Çalışmaya başla"
+        secondaryHref="/krediler"
+        secondaryLabel="Kredilerimi gör"
+      />
     </MarketingPage>
   );
 }
