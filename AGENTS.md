@@ -48,6 +48,28 @@ tek başına yapılacak iş gerekçesi **değil**. Bir özellik ancak Cortex Plu
 İçlerindeki "bizde yok" ve "kapatıldı ✓" satırları bayat; kullanmadan önce
 koddan doğrulayın. Gerekçe: `docs/astra-parity/README.md`.
 
+## Ürün öğrenci-only — veli ve öğretmen paneli yok
+
+**`3e666f6` (29 Ağustos 2026)** veli ve öğretmen arayüzünü tümüyle emekli
+etti: `/ogretmen-paneli/*`, `/odevlerim/*`, `/onboarding/veli`,
+`/onboarding/ogretmen` silindi, kayıt sihirbazından veli/öğretmen adımları
+çıkarıldı, `/ogretmenler-ve-profesorler-icin` `/kayit`'e yönlendirmeye
+dönüştü. "Veli tarafını düzeltelim" denince önce bu satır okunmalı.
+
+Bugün geriye kalanlar (4 Eylül 2026 itibarıyla doğrulandı):
+
+| Kalan | Durum |
+|---|---|
+| `/siniflar` | **Öğrenci** sayfası — öğrenci sınıf kurar ya da koda katılır. Öğretmen paneli değil. |
+| `verified_teacher` rolü | Hâlâ iş görüyor (quiz üretiminde daha yüksek sınır). Yalnızca yönetim panelinden elle veriliyor. |
+| `/admin/ogretmen-basvurulari` | Kuyruk çalışıyor ama **hiç dolamaz**: `TeacherApplicationForm` bileşeni hiçbir sayfada kullanılmıyor. |
+| `src/lib/parent/coach-*.ts`, `plus-children.ts`, `plus-href.ts`, `src/lib/teacher/ai-tools-catalog.ts` | Öksüz: hiçbir yerden çağrılmıyor (278 satır). |
+| `parent_payment_requests` | Yaşıyor ama öğrenci tarafı: "veliden ödeme iste". |
+
+Veritabanı tabloları bilerek duruyor — arayüz geri gelebilir, veri gelmez.
+
+---
+
 **Geri alınmış özellikler — yeniden yazmayın:** `13a175e` "Uygulamalar"
 bölümünü tümüyle kaldırdı (34 simülasyon, 5 mini oyun, günün bulmacaları,
 liderlik tablosu, AI uygulama üreteci). Yerine 12 araçlık `/araclar` geldi;

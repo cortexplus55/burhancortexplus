@@ -9,7 +9,10 @@ const marketingPaths = [
   "/fiyatlandirma",
   "/yardim",
   "/mobil-uygulama",
-  "/ogretmenler-ve-profesorler-icin",
+  // "/ogretmenler-ve-profesorler-icin" bilerek yok: o sayfa 29 Ağustos'ta
+  // emekli edildi ve artık /kayit'e yönlendiriyor. Yönlendirmeye düşen bir
+  // adresi site haritasına koymak, Google'a boş yere gezdirilecek bir adres
+  // bildirmek demek.
   "/yaratici-program",
   "/hakkimizda",
   "/iletisim",
