@@ -215,9 +215,13 @@ export function ExamPodcastPlayer({
       .flatMap((chapter) => chapter.lines.map((line) => line.text))
       .join(" ");
     setPlaying(true);
-    speakTurkish(script, () => {
-      setPlaying(false);
-      setHeard(true);
+    speakTurkish(script, {
+      onEnd: () => {
+        setPlaying(false);
+        setHeard(true);
+      },
+      // Ses çıkmadıysa dinlenmiş saymıyoruz.
+      onError: () => setPlaying(false),
     });
   }
 

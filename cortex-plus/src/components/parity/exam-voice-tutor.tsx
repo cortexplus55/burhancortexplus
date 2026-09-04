@@ -134,8 +134,14 @@ export function ExamVoiceTutor({
       return;
     }
 
-    speakTurkish(text, () => {
-      if (!stopped.current) onEnd();
+    speakTurkish(text, {
+      onEnd: () => {
+        if (!stopped.current) onEnd();
+      },
+      // Konuşamadıysak da akış tıkanmasın; sıradaki adıma geçiyoruz.
+      onError: () => {
+        if (!stopped.current) onEnd();
+      },
     });
   }
 

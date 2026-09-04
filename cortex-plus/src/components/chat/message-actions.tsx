@@ -77,7 +77,15 @@ export function MessageActions({
       .trim();
     if (!plain) return;
     setSpeaking(true);
-    speakTurkish(plain, () => setSpeaking(false));
+    speakTurkish(plain, {
+      onEnd: () => setSpeaking(false),
+      onError: () => {
+        setSpeaking(false);
+        toast.error("Sesli okuma çalışmadı", {
+          description: "Tarayıcında Türkçe ses yüklü olmayabilir.",
+        });
+      },
+    });
   }
 
   async function rate(next: Rating, reason?: RatingReason) {

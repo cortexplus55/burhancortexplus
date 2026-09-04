@@ -79,13 +79,30 @@ export function PodcastStudio({
     }
     setIndex(nextIndex);
     setPlaying(true);
-    speakTurkish(chapter.lines.map((line) => line.text).join(" "), () => {
-      if (nextIndex + 1 >= chapters.length) {
+    speakTurkish(chapter.lines.map((line) => line.text).join(" "), {
+      onEnd: () => {
+        if (nextIndex + 1 >= chapters.length) {
+          setPlaying(false);
+          setPhase("results");
+          return;
+        }
+        playFrom(nextIndex + 1);
+      },
+      /*
+        Seslendirme yapılamıyorsa yayını bitmiş saymıyoruz.
+
+        Eskiden hata da bitiş sayıldığı için beş bölüm anında zincirleniyor,
+        öğrenci hiç ses duymadan "Yayın bitti." ekranını görüyordu. Şimdi
+        oynatma olduğu yerde duruyor ve sebebi yazıyor; senaryo ekranda
+        okunmaya devam ediyor.
+      */
+      onError: () => {
         setPlaying(false);
-        setPhase("results");
-        return;
-      }
-      playFrom(nextIndex + 1);
+        toast.error("Bu tarayıcı seslendiremedi", {
+          description:
+            "Bölümleri aşağıdan okuyabilirsin. Cihazında Türkçe ses yüklüyse tekrar dene.",
+        });
+      },
     });
   }
 

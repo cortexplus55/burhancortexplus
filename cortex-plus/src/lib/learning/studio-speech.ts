@@ -19,29 +19,69 @@ export function pickTurkishVoice(): SpeechSynthesisVoice | null {
   );
 }
 
+/**
+ * Tarayıcının ses listesi ilk çağrıda boş gelebiliyor.
+ *
+ * Chrome sesleri sonradan yüklüyor ve `voiceschanged` olayıyla haber veriyor.
+ * Beklemezsek Türkçe ses bulunamıyor ve konuşma "dil yok" diye düşüyor.
+ * Bazı tarayıcılarda o olay hiç gelmediği için bir üst sınır koyuyoruz.
+ */
+async function voicesReady(): Promise<void> {
+  if (window.speechSynthesis.getVoices().length > 0) return;
+  await new Promise<void>((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      window.speechSynthesis.removeEventListener("voiceschanged", finish);
+      resolve();
+    };
+    window.speechSynthesis.addEventListener("voiceschanged", finish);
+    window.setTimeout(finish, 1200);
+  });
+}
+
+/**
+ * Metni Türkçe seslendirir.
+ *
+ * `onEnd` yalnızca konuşma **gerçekten bittiğinde**, `onError` ise
+ * seslendirme yapılamadığında çalışıyor. İkisini ayırmak zorundayız:
+ * eskiden hata da "bitti" sayılıyordu ve bunun bedeli podcast stüdyosunda
+ * ağırdı — öğrenci Oynat'a bastığında beş bölüm arka arkaya "bitti" diye
+ * zincirleniyor, ekran hiç ses çıkmadan "Yayın bitti." yazısına atlıyordu.
+ * Arıza, başarı gibi görünüyordu.
+ */
 export function speakTurkish(
   text: string,
-  onEnd?: () => void,
-): SpeechSynthesisUtterance | null {
+  handlers?: { onEnd?: () => void; onError?: (reason: string) => void },
+): void {
   if (typeof window === "undefined" || !window.speechSynthesis) {
-    onEnd?.();
-    return null;
+    handlers?.onError?.("unsupported");
+    return;
   }
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(
-    text.replace(/\s+/g, " ").trim().slice(0, 4000),
-  );
-  utterance.lang = "tr-TR";
-  const voice = pickTurkishVoice();
-  if (voice) utterance.voice = voice;
-  utterance.rate = 1;
-  utterance.onend = () => onEnd?.();
-  utterance.onerror = (event) => {
-    if (event.error === "interrupted" || event.error === "canceled") return;
-    onEnd?.();
-  };
-  window.speechSynthesis.speak(utterance);
-  return utterance;
+
+  const clean = text.replace(/\s+/g, " ").trim().slice(0, 4000);
+  if (!clean) {
+    handlers?.onEnd?.();
+    return;
+  }
+
+  void voicesReady().then(() => {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.lang = "tr-TR";
+    const voice = pickTurkishVoice();
+    if (voice) utterance.voice = voice;
+    utterance.rate = 1;
+    utterance.onend = () => handlers?.onEnd?.();
+    utterance.onerror = (event) => {
+      // Kullanıcı durdurduğunda ya da araya yeni bir metin girdiğinde de bu
+      // olay geliyor; bu bir arıza değil, kimseye bildirmiyoruz.
+      if (event.error === "interrupted" || event.error === "canceled") return;
+      handlers?.onError?.(event.error || "failed");
+    };
+    window.speechSynthesis.speak(utterance);
+  });
 }
 
 export function stopSpeech() {
