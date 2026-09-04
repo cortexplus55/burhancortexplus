@@ -1,118 +1,140 @@
-# Ücretsiz / Plus ayrımı — durum ve karar bekleyenler
+# Ücretsiz / Plus ayrımı — Astra karşılaştırması ve plan
 
 **Tarih:** 2026-09-04
-**Durum:** Karar bekliyor. Astra'nın ücretsiz katmanı görülemedi.
+**Durum:** Astra'nın her iki katmanı da gözlemlendi. Uygulama kararı bekliyor.
 
 ---
 
-## 1. Bugün gerçekte ne oluyor
+## 1. Astra'da ücretsiz ile Plus arasındaki fark
 
-Kodda ölçüldü, tahmin değil.
+Aynı hesapla önce Plus, sonra ücretsiz oturum açılarak ekran ekran
+karşılaştırıldı. Tahmin yok, hepsi gözlem.
+
+### Ana ekran
+
+| | Ücretsiz | Plus |
+|---|---|---|
+| Üst çubuk | **"Satın al ✦"** düğmesi | Düğme yok |
+| Üst bant | **Canlı geri sayımlı kampanya**: "FIRSAT YAKINDA BİTİYOR · Yıllık planı seç ve %67 tasarruf et" + saat/dk/sn sayacı | Yok |
+| Sohbet kutusu | Dar; **yanında kalıcı yükseltme kartı** ("Astra AI Plus'a Yükselt" · "Daha Hızlı Öğren") | Ortada ve geniş, kart yok |
+
+### Profil
+
+| | Ücretsiz | Plus |
+|---|---|---|
+| İsim | Düz | Yanında **altın ✦ rozeti** |
+| Plan satırı | **"Temel · Ücretsiz plan"** + "Daha Hızlı Öğren" düğmesi | Satır yok |
+
+### Kullanım limitleri
+
+| | Ücretsiz | Plus |
+|---|---|---|
+| Plan adı | **"Astra AI Free"** | **"Astra AI Plus – Aylık limit"** |
+| Sıfırlanma | **Her gün 03:00** ("5 Eyl 2026 03:00 tarihinde sıfırlanır") | **Ayda bir** ("24 Eyl 2026 21:20") |
+| Gösterim | Yüzde ("%0 kullanıldı") | Yüzde ("%27 kullanıldı") |
+| Ek kota alma | **Yok** | **"Ek paket satın al"** |
+| Davet çarpanı | Var — 3 kat / 400 kat, 0/3 davet | Aynı |
+
+### Satın alma ekranı — Plus'ın vaat listesi
+
+Başlığı önemli: **"Ücretsiz plandaki her şey ve:"**
+
+1. **1300 kat daha fazla günlük AI kullanımı**
+2. 2 kat daha hızlı yanıtlar
+3. Daha yüksek yükleme limitleri
+4. 1,4 kat daha akıllı yapay zeka modeli
+5. Testler, kartlar ve podcast'ler
+6. Deneme ve sözlü sınavlar
+7. Ders kitabından herhangi bir soruyu fotoğrafla
+8. Sınıflarda arkadaşlarınla çalış
+9. Notlarını yükselt ya da tam para iadesi al
+10. Dezavantajlı öğrencilere ücretsiz erişim desteği
+11. Odaklanma Modu
+
+Sigma (üst paket): "Plus'taki her şey ve: 8 kat fazla kullanım · öncelikli
+hız · en akıllı model · yeni özelliklere erken erişim".
+
+Ayrıca: **"Ebeveynden ödeme iste"** düğmesi ve **"Astra AI neden ücretsiz
+değil?"** bağlantısı.
+
+---
+
+## 2. Çıkan asıl sonuç
+
+**Astra özellik kilitlemiyor, kota kısıyor.**
+
+Listedeki "testler, kartlar, podcast, deneme, sözlü sınav, fotoğrafla soru"
+maddeleri özellik kilidi gibi duruyor ama başlık "ücretsiz plandaki her şey
+ve" diyor ve manşet madde **"1300 kat daha fazla günlük kullanım"**. Yani
+ücretsiz kullanıcı her şeye dokunabiliyor; sadece günlük hakkı çok küçük ve
+her gece 03:00'te yenileniyor.
+
+Bu bizim için iyi haber: modelimiz zaten kredi tabanlı, yani aynı mantık.
+Kilit yazmak yerine **kotayı doğru ayarlamak** yetiyor.
+
+---
+
+## 3. Bizde bugün ne var
 
 ### Plus'ın gerçekten açtığı şeyler
 
 | Ne | Nerede |
 |---|---|
-| Sunucuda üretilen ses (podcast, ders anlatımı) | `api/learning/speech`, `api/learning/podcast/audio` — 402 `premium_required` |
-| Ses tanıma (sözlü sınav) | `api/learning/oral/transcribe` — 402 `premium_required` |
-| Sohbette "gelişmiş model" seçeneği | `lib/ai/model-router.ts` — `userSelectedAdvanced && isPremium` |
-| Deneme üretim/değerlendirmede otomatik gelişmiş model | Aynı dosya; ücretsiz yalnızca `difficulty === "hard"` ise alıyor |
+| Sunucuda üretilen ses (podcast, ders) | `api/learning/speech`, `api/learning/podcast/audio` |
+| Ses tanıma (sözlü sınav) | `api/learning/oral/transcribe` |
+| Sohbette "gelişmiş model" seçeneği | `lib/ai/model-router.ts` |
+| Deneme üretiminde otomatik gelişmiş model | Aynı dosya |
 | Daha yüksek kota | `credit_wallets.period_allowance` |
 
-**Toplamı bu kadar.** Premium kontrolü yapan yalnızca üç API rotası var.
+Premium kontrolü yapan toplam **üç** API rotası var.
 
-### Ücretsiz kullanıcının da yaptıkları
+### Düzeltilmesi gereken çelişki
 
-- Deneme sınavı üretimi ve analizi
-- Quiz, flashcard, çalışma planı
-- Doküman yükleme ve kaynaklı yanıtlar
-- **Fotoğraftan çözüm** — üstelik her zaman gelişmiş modele gidiyor
-  (`model-router.ts`: `if (input.hasImage) return ADVANCED`), yani en pahalı
-  işlemimizin ücretsiz katmanda hiçbir sınırı yok
+`PLUS_BENEFITS` listesi (`components/parity/astra-subscription-cards.tsx`)
+"deneme sınavı, quiz, flashcard, doküman kaynaklı yanıtlar" Plus'a ait diyor;
+dördü de ücretsizde açık. Astra bunu "ücretsiz plandaki her şey **ve**" diye
+çözmüş — biz de aynısını yapabiliriz, ama o zaman listenin geri kalanı gerçek
+olmalı.
 
----
+### Maliyet notu
 
-## 2. Düzeltilmesi gereken çelişki
-
-`components/parity/astra-subscription-cards.tsx` içindeki `PLUS_BENEFITS`
-listesi Plus'ın şunları verdiğini söylüyor:
-
-- "Deneme sınavı üretimi ve analiz"
-- "Quiz, flashcard ve çalışma planı"
-- "Dokümanlarından kaynaklı yanıtlar"
-
-**Üçü de ücretsiz katmanda açık.** Fiyatlandırma sayfası satılmayan bir şeyi
-satıyor. Bu metin canlıda duruyor ve ayrım kararı verilir verilmez
-düzeltilmeli — hangi yöne düzeltileceği karara bağlı.
+Fotoğraftan çözüm ücretsiz kullanıcıda da **her zaman gelişmiş modele**
+gidiyor (`model-router.ts`, `hasImage` dalı) ve hiçbir ek sınırı yok. En
+pahalı işlemimiz bu.
 
 ---
 
-## 3. Astra'da gözlemlenen (premium hesapla)
+## 4. Uygulanacaklar
 
-| Ekran | İçerik |
+### A. Kota modeli (Astra'nın mantığı)
+
+- Ücretsiz: **günlük** kota, her gece sabit saatte sıfırlanır
+- Plus: **aylık** kota + "Ek paket satın al"
+- İkisinde de yüzde göstergesi ve sıfırlanma tarihi — **bizde zaten var**
+- Eksik olan: ücretsizde günlük / Plus'ta aylık ayrımı ve ek paket satışı
+
+### B. Ekran farkları
+
+| Ekran | Yapılacak |
 |---|---|
-| Profil | İsmin yanında altın **+** rozeti |
-| Kullanım limitleri | "Astra AI Plus – Aylık limit" · sıfırlanma tarih-saati · yüzdelik çubuk ("%27 kullanıldı") |
-| Aynı ekran | **"Ek paket satın al"** — abonelik üstü ek kota |
-| Davet kartı | "0/3 davet kullanıldı" · yeni kayıtta 3 kat · davet edilen abone olursa 400 kat |
-| Abonelikler | "Astra AI Plus" rozeti · paket bitiş tarihi · "Yükseltme paketi" · fatura listesi |
+| Üst çubuk | Ücretsizde "Satın al" düğmesi — **var**, kalsın |
+| Sohbet kutusu yanı | Ücretsizde kalıcı yükseltme kartı — **yok**, eklenecek |
+| Profil | "Temel · Ücretsiz plan" satırı + yükseltme düğmesi — **yok**, eklenecek |
+| Profil | Plus'ta isim yanında altın rozet — **var** (`ap-sor-logo-badge`), profile de taşınacak |
+| Limitler | Ücretsizde günlük, Plus'ta aylık + ek paket — kısmen var |
 
-Bunların hepsinin karşılığı **bizde zaten var**. Premium tarafta ciddi bir
-fark yok; fark ücretsiz tarafta ve orası görülemedi.
+### C. Yazılacak metin
 
----
+`PLUS_BENEFITS` "Ücretsiz plandaki her şey ve:" başlığıyla yeniden yazılacak
+ve yalnızca gerçekten Plus'a ait olanlar sayılacak: daha yüksek günlük
+kullanım, gelişmiş model, sunucu sesiyle podcast ve sözlü sınav, daha yüksek
+yükleme limiti.
 
-## 4. Neden görülemedi
+### D. Kasıtlı olarak almadıklarımız
 
-Astra'da ücretsiz bir hesapla oturum açmak gerekiyor. Giriş ekranı şunu
-diyor:
+- **Geri sayımlı kampanya bandı.** Sahte aciliyet; sayaç bitince yenileniyor.
+  Öğrenciye baskı kurmak istemiyoruz.
+- **"1300 kat" gibi sayılar.** Ölçülebilir değil.
+- **Odaklanma Modu, para iadesi garantisi.** Ürün kararı, ayrı iş.
 
-> Giriş yap veya **yeni bir hesap oluştur**. Ücretsiz.
-> Devam ederek Kullanım Şartları ve Gizlilik Politikası'nı kabul etmiş olursun.
-
-Aynı düğme ya giriş yapıyor ya hesap açıyor; hangisi olacağı önceden belli
-değil. Ajan hesap açmıyor ve kullanıcı adına şart kabul etmiyor, o yüzden
-burada durdu.
-
-**Açmak için (bilgisayar başında, tek tık):**
-
-1. `app.astra-ai.co/login`
-2. "Google hesabı ile devam et" → `burhan55600@gmail.com`
-3. Giriş olduysa haber ver; ajan ücretsiz ekranları inceleyip bu dosyayı
-   günceller.
-
-> Not: 2026-09-04'te "Deneme" premium hesabından çıkış yapıldı (ücretsiz
-> hesaba geçebilmek için). O hesaba tekrar girmek gerekiyor.
-
----
-
-## 5. Karara hazır öneri (onay bekliyor)
-
-Seçilen mekanik: **bir kez denet, sonra kilitle.** Tablo maliyet mantığıyla
-kuruldu — pahalı olan kilitleniyor, ucuz olan açık kalıyor.
-
-| Özellik | Ücretsiz | Plus |
-|---|---|---|
-| Sohbet (standart model) | Açık | Açık, yüksek kota |
-| Gelişmiş model sohbeti | 1 kez dene → kilit | Açık |
-| Fotoğraftan çözüm | 1 kez dene → kilit | Açık |
-| Podcast / sesli ders | 1 kez dene → kilit | Açık |
-| Sözlü sınav (ses tanıma) | 1 kez dene → kilit | Açık |
-| Deneme sınavı üretimi | Standart model | Gelişmiş model + detaylı analiz |
-| Quiz, flashcard, plan | Açık | Açık, yüksek kota |
-| Doküman yükleme | 1 doküman | Sınırsız |
-
-### Uygulanacak ekranlar (kullanıcı seçimi)
-
-- Sohbet kutusu — "gelişmiş model" ve mikrofon; şu an basınca sessizce
-  çalışmıyor ya da anlaşılmaz hata veriyor
-- Stüdyolar — sunucu sesi zaten kapalı ama önceden belli değil, kullanıcı
-  üretmeye çalışıp duvara çarpıyor
-- Sınav hazırlığı — model farkı hiçbir yerde söylenmiyor
-- Limitler ve profil — ücretsizde neyin eksik olduğu net değil
-
-### Yazılması gereken altyapı
-
-"Bir kez dene" hakkı için kullanım sayacı gerekiyor: özellik başına, hesap
-başına, tek kullanımlık. `credit_ledger` bunu taşımıyor; ayrı bir tablo ya
-da `profiles` üzerinde bir alan gerekecek.
+> "Ebeveynden ödeme iste" fikri iyi ve bizim kitleye uygun — ayrı değerlendir.
