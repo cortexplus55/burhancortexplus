@@ -1,4 +1,3 @@
-﻿import { Suspense } from "react";
 import { AstraParityExamPrep } from "@/components/parity/astra-parity-exam-prep";
 import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
@@ -10,6 +9,13 @@ import type { ExamPrepCard } from "@/components/parity/astra-parity-exam-prep";
 import { toFeedRows, toSummary } from "@/lib/parity/school-feed";
 
 export const metadata = { title: "Sınav hazırlığı" };
+
+/*
+  Sayfa tümüyle dinamik çiziliyor. Aynı sebep `/calisma-plani`'ndaki gibi:
+  sarmalanan istemci bileşeni `useSearchParams()` kullanıyor, Suspense sınırı
+  da yayında açılmıyordu. Sayfa zaten oturum gerektiriyor.
+*/
+export const dynamic = "force-dynamic";
 
 function toCard(
   prep: {
@@ -128,16 +134,14 @@ export default async function DenemeSinavlariPage() {
 
   return (
     <AstraParitySorShell {...shell}>
-      <Suspense fallback={<div className="ap-exam-page ap-exam-page--loading" />}>
-        <AstraParityExamPrep
-          activePrep={activePrep}
-          otherPreps={otherPreps}
-          userInitial={shell.userInitial}
-          initialSchoolName={profile?.school_name ?? ""}
-          schoolSummary={schoolSummary}
-          schoolRows={schoolRows}
-        />
-      </Suspense>
+      <AstraParityExamPrep
+        activePrep={activePrep}
+        otherPreps={otherPreps}
+        userInitial={shell.userInitial}
+        initialSchoolName={profile?.school_name ?? ""}
+        schoolSummary={schoolSummary}
+        schoolRows={schoolRows}
+      />
     </AstraParitySorShell>
   );
 }

@@ -1,4 +1,3 @@
-﻿import { Suspense } from "react";
 import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
 import { StudyPlanGeneratePanel } from "@/components/learning/learning-generate-panels";
 import { StudyWorkspace } from "@/components/learning/study-workspace";
@@ -7,6 +6,17 @@ import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { getCreditCost } from "@/lib/credits/rules";
 
 export const metadata = { title: "Çalışma planı" };
+
+/*
+  Sayfa tümüyle dinamik çiziliyor.
+
+  `StudyWorkspace` bir istemci bileşeni ve `useSearchParams()` kullanıyor;
+  Next.js bunu durağan çizimde Suspense sınırı içine almanı istiyor. O sınır
+  burada işe yaramıyordu: sayfa yayında hiç görünmüyordu, ekranda yalnızca
+  menü kalıyordu. Sayfa zaten oturum gerektiriyor, yani durağan çizilmesinin
+  bir anlamı yok — dinamik çizince sınır da gerekmiyor.
+*/
+export const dynamic = "force-dynamic";
 
 export default async function CalismaPlaniPage() {
   const { supabase, user } = await requireStudentArea();
@@ -31,26 +41,24 @@ export default async function CalismaPlaniPage() {
 
   return (
     <AstraParitySorShell {...shell}>
-      <Suspense fallback={<div className="ap-plan-page ap-plan-page--loading" />}>
-        <StudyWorkspace
-          targetScore={examPrep?.target_score ?? null}
-          generateSlot={<StudyPlanGeneratePanel creditCost={cost} />}
-          plans={(plans ?? []).map((plan) => ({
-            id: plan.id,
-            title: plan.title,
-            status: plan.status,
-            tasks: (plan.study_plan_tasks ?? [])
-              .slice()
-              .sort((a, b) => a.sort_order - b.sort_order)
-              .map((task) => ({
-                id: task.id,
-                title: task.title,
-                dueDate: task.due_date,
-                completed: task.completed,
-              })),
-          }))}
-        />
-      </Suspense>
+      <StudyWorkspace
+        targetScore={examPrep?.target_score ?? null}
+        generateSlot={<StudyPlanGeneratePanel creditCost={cost} />}
+        plans={(plans ?? []).map((plan) => ({
+          id: plan.id,
+          title: plan.title,
+          status: plan.status,
+          tasks: (plan.study_plan_tasks ?? [])
+            .slice()
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .map((task) => ({
+              id: task.id,
+              title: task.title,
+              dueDate: task.due_date,
+              completed: task.completed,
+            })),
+        }))}
+      />
     </AstraParitySorShell>
   );
 }
