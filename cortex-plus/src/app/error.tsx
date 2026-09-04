@@ -2,8 +2,14 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 
-export default function GlobalError({
+/**
+ * Sayfa içi hata ekranı. Kök şablonun kendisi çöktüğünde
+ * global-error.tsx devreye giriyor; adları karışmasın diye bu dosyanın
+ * bileşeni "RouteError" adını taşıyor.
+ */
+export default function RouteError({
   error,
   reset,
 }: {
@@ -11,8 +17,12 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
+    // Yerelde konsola, yayında Sentry'ye. Sentry adresi girilmemişse bu
+    // çağrı sessizce hiçbir şey yapmıyor.
     if (process.env.NODE_ENV !== "production") {
       console.error(error);
+    } else {
+      Sentry.captureException(error);
     }
   }, [error]);
 
