@@ -1,10 +1,5 @@
-import { AppShell } from "@/components/layout/app-shell";
-import { AppPageSkeleton } from "@/components/ui-kit/app-page-skeleton";
+import { AppLoadingScreen } from "@/components/ui-kit/app-loading-screen";
 
-export default async function DashboardLoading() {
-  return (
-    <AppShell title="Panel">
-      <AppPageSkeleton variant="dashboard" />
-    </AppShell>
-  );
+export default function DashboardLoading() {
+  return <AppLoadingScreen title="Panel" variant="dashboard" />;
 }

@@ -1,10 +1,5 @@
-import { AppShell } from "@/components/layout/app-shell";
-import { AppPageSkeleton } from "@/components/ui-kit/app-page-skeleton";
+import { AppLoadingScreen } from "@/components/ui-kit/app-loading-screen";
 
-export default async function FlashcardlarLoading() {
-  return (
-    <AppShell title="Flashcard">
-      <AppPageSkeleton />
-    </AppShell>
-  );
+export default function FlashcardlarLoading() {
+  return <AppLoadingScreen title="Flashcardlar" />;
 }

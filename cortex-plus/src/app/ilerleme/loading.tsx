@@ -1,10 +1,5 @@
-import { AppShell } from "@/components/layout/app-shell";
-import { AppPageSkeleton } from "@/components/ui-kit/app-page-skeleton";
+import { AppLoadingScreen } from "@/components/ui-kit/app-loading-screen";
 
-export default async function IlerlemeLoading() {
-  return (
-    <AppShell title="İlerleme">
-      <AppPageSkeleton />
-    </AppShell>
-  );
+export default function IlerlemeLoading() {
+  return <AppLoadingScreen title="İlerleme" />;
 }
