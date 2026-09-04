@@ -356,6 +356,107 @@
   font-size: 0.9375rem;
 }
 
+/*
+  Yanıtın altındaki küçük işlem düğmeleri (sesli oku / kopyala).
+
+  Balonun içinde ama dip kenarında duruyorlar ve normalde soluk: metni
+  okurken göz onlara takılmasın, ama fareyle üstüne gelince ya da klavyeyle
+  gezerken hemen bulunsunlar. Dokunmatikte "üstüne gelme" diye bir şey
+  olmadığı için ince ekranda kalıcı olarak görünüyorlar.
+*/
+.ap-msg-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  opacity: 0.45;
+  transition: opacity 0.15s ease;
+}
+
+.ap-sor-msg-assistant:hover .ap-msg-actions,
+.ap-msg-actions:focus-within {
+  opacity: 1;
+}
+
+.ap-msg-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ap-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ap-msg-action:hover {
+  background: var(--ap-surface-2);
+  color: var(--ap-text);
+}
+
+.ap-msg-action:focus-visible {
+  outline: 2px solid var(--ap-gold);
+  outline-offset: 2px;
+}
+
+.ap-msg-action-hint {
+  font-size: 0.75rem;
+  color: var(--ap-muted);
+}
+
+/*
+  Yanıt bittikten sonraki devam önerileri.
+
+  Yanıt balonunun altında ve soldan hizalı — sohbetin devamı gibi okunsun,
+  ayrı bir araç çubuğu gibi değil.
+*/
+.ap-followups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 auto 0.75rem 0;
+  max-width: min(92%, 42rem);
+}
+
+.ap-followup {
+  border-radius: 999px;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface);
+  color: var(--ap-muted);
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.ap-followup:hover {
+  background: var(--ap-surface-2);
+  border-color: var(--ap-gold);
+  color: var(--ap-text);
+}
+
+.ap-followup:focus-visible {
+  outline: 2px solid var(--ap-gold);
+  outline-offset: 2px;
+}
+
+@media (hover: none) {
+  .ap-msg-actions {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ap-msg-actions,
+  .ap-msg-action,
+  .ap-followup {
+    transition: none;
+  }
+}
+
 .ap-sor-composer-zone {
   position: fixed;
   left: 50%;

@@ -44,6 +44,7 @@ import { AstraSubjectModal } from "@/components/parity/astra-subject-modal";
 import { AstraUploadModal } from "@/components/parity/astra-upload-modal";
 import { MathKeyboard } from "@/components/parity/math-keyboard";
 import { UpgradeAside } from "@/components/paywall/upgrade-aside";
+import { MessageActions } from "@/components/chat/message-actions";
 import "@/styles/astra-sor.css";
 import "@/styles/astra-parity-sor.css";
 
@@ -74,6 +75,18 @@ const quickActions = [
   { id: "summary", label: "Kısa özet", prompt: "Konuşmanın kısa bir özetini çıkar." },
   { id: "advanced", label: "Gelişmiş analiz", prompt: "Bu konuyu ileri düzeyde ayrıntılı analiz et.", advanced: true },
 ];
+
+/**
+ * Yanıt sonrası devam önerileri.
+ *
+ * Astra bunları yapay zekâya ürettiriyor; biz sabit tutuyoruz çünkü üçü de her
+ * konuda geçerli ve fazladan bir AI çağrısı (yani fazladan kredi) yakmıyor.
+ */
+const FOLLOW_UPS = [
+  { id: "simpler", label: "Daha basit anlat", prompt: "Aynı konuyu daha basit anlat." },
+  { id: "similar", label: "Benzer örnek ver", prompt: "Aynı mantıkta benzer bir örnek soru üret ve çöz." },
+  { id: "quiz", label: "Beni test et", prompt: "Bu konudan bana 3 soru sor ve yanıtlarımı bekle." },
+] as const;
 
 const COMPOSER_MODES = [
   {
@@ -586,6 +599,13 @@ export function ChatPanel({
   const showMinimalMessages = isMinimalSor && (messages.length > 0 || loading);
   const showParityEmpty = isParitySor && messages.length === 0 && !loading;
   const showParityThread = isParitySor && (messages.length > 0 || loading);
+  // Öneri çipleri yalnızca dolu, hatasız bir yanıtın ardından çıkıyor:
+  // yazarken, hata ekranında ya da kullanıcı sırasındayken görünmüyor.
+  const lastMessage = messages[messages.length - 1];
+  const lastIsAnswer =
+    lastMessage?.role === "assistant" &&
+    !lastMessage.isError &&
+    lastMessage.content.trim().length > 0;
 
   function appendTranscript(text: string) {
     if (!text.trim()) return;
@@ -737,10 +757,33 @@ export function ChatPanel({
                   {message.role === "user" ? (
                     message.content
                   ) : message.content ? (
-                    <Markdown content={message.content} variant="astra" />
+                    <>
+                      <Markdown content={message.content} variant="astra" />
+                      {!message.isError ? (
+                        <MessageActions content={message.content} />
+                      ) : null}
+                    </>
                   ) : null}
                 </div>
               ))}
+
+              {/* Yanıt bittikten sonra devam önerileri. Öğrenci "peki şimdi ne
+                  sorayım" diye kalmasın; bunlar gerçekten çalışan komutlar,
+                  süs değil. */}
+              {!loading && lastIsAnswer ? (
+                <div className="ap-followups" role="group" aria-label="Devam önerileri">
+                  {FOLLOW_UPS.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="ap-followup"
+                      onClick={() => void send(item.prompt)}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               {loading &&
               (messages.length === 0 ||
                 messages[messages.length - 1]?.role === "user" ||
