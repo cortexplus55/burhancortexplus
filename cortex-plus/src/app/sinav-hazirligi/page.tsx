@@ -1,4 +1,4 @@
-﻿import { AstraMarketingPage } from "@/components/parity/astra-marketing";
+import { AstraMarketingPage } from "@/components/parity/astra-marketing";
 import { CinematicPageHero } from "@/components/marketing/cinematic-page-hero";
 import { CinematicCtaRow } from "@/components/marketing/cinematic-cta";
 

@@ -1,4 +1,4 @@
-﻿import { AppShell } from "@/components/layout/app-shell";
+import { AppShell } from "@/components/layout/app-shell";
 import { SectionCard } from "@/components/ui-kit/empty-state";
 import { SupportForm } from "@/components/support/support-form";
 import { requireUser } from "@/lib/auth/session";

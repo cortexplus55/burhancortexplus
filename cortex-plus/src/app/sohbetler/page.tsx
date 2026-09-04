@@ -1,4 +1,4 @@
-﻿import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
 import { SohbetlerList } from "@/components/parity/sohbetler-list";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";

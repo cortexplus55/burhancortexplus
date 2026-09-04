@@ -1,4 +1,4 @@
-﻿import { AppShell } from "@/components/layout/app-shell";
+import { AppShell } from "@/components/layout/app-shell";
 import { EmptyState } from "@/components/ui-kit/empty-state";
 import { NotificationItem } from "@/components/notifications/notification-item";
 import { requireUser } from "@/lib/auth/session";

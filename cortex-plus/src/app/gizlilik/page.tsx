@@ -1,4 +1,4 @@
-﻿import { LegalDocument } from "@/components/layout/legal-document";
+import { LegalDocument } from "@/components/layout/legal-document";
 
 export const metadata = {
   title: "Gizlilik politikası",

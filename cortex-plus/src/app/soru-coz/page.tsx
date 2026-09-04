@@ -1,4 +1,4 @@
-﻿import { AppShell } from "@/components/layout/app-shell";
+import { AppShell } from "@/components/layout/app-shell";
 import { ImageSolver } from "@/components/learning/image-solver";
 import { requireUser } from "@/lib/auth/session";
 import { getCreditCost } from "@/lib/credits/rules";

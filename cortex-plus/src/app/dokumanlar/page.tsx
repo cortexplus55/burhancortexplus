@@ -1,4 +1,4 @@
-﻿import { FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { DocumentUpload } from "@/components/documents/document-upload";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";

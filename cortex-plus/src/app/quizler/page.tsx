@@ -1,4 +1,4 @@
-﻿import { ListChecks } from "lucide-react";
+import { ListChecks } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { QuizGeneratePanel } from "@/components/learning/learning-generate-panels";
 import { QuizRunner } from "@/components/learning/quiz-runner";

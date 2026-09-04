@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { Suspense } from "react";
 import { AstraMarketingPage } from "@/components/parity/astra-marketing";
 import { AstraSubscriptionCards } from "@/components/parity/astra-subscription-cards";

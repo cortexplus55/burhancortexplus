@@ -1,4 +1,4 @@
-﻿import { Layers } from "lucide-react";
+import { Layers } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { FlashcardGeneratePanel } from "@/components/learning/learning-generate-panels";
 import { FlashcardDeck } from "@/components/learning/flashcard-deck";

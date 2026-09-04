@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
 import { SectionCard } from "@/components/ui-kit/empty-state";
 import { requireStudentArea } from "@/lib/auth/session";
