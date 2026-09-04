@@ -30,6 +30,14 @@ import {
   Brush,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { createRecognizer } from "@/lib/learning/studio-speech";
+import {
+  isRecordingSupported,
+  mergeTranscript,
+  startRecording,
+  transcribe,
+  type Recorder,
+} from "@/lib/learning/voice-recorder";
 import { subscribeComposerAttach } from "@/lib/student/composer-bridge";
 import { AstraStartHub } from "@/components/parity/astra-start-hub";
 import { AstraSubjectModal } from "@/components/parity/astra-subject-modal";
@@ -159,6 +167,9 @@ export function ChatPanel({
   const [subjectOpen, setSubjectOpen] = useState(false);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [listening, setListening] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const recorderRef = useRef<Recorder | null>(null);
+  const recognizerRef = useRef<ReturnType<typeof createRecognizer>>(null);
   const [startHubOpen, setStartHubOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -261,6 +272,17 @@ export function ChatPanel({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [attachMenuOpen]);
+
+  // Sayfadan çıkılırken mikrofon kapanmalı: açık kalan bir kayıt tarayıcı
+  // sekmesinde "kaydediyor" göstergesini yakılı bırakır.
+  useEffect(() => {
+    return () => {
+      recorderRef.current?.cancel();
+      recorderRef.current = null;
+      recognizerRef.current?.stop();
+      recognizerRef.current = null;
+    };
+  }, []);
 
   function pushAssistantError(error: unknown) {
     const content = assistantErrorContent(error);
@@ -564,41 +586,105 @@ export function ChatPanel({
   const showParityEmpty = isParitySor && messages.length === 0 && !loading;
   const showParityThread = isParitySor && (messages.length > 0 || loading);
 
+  function appendTranscript(text: string) {
+    if (!text.trim()) return;
+    setInput((prev) => mergeTranscript(prev, text));
+  }
+
+  /**
+   * Kaydı bitirir ve sunucuda çözümletir. Sessizlikle kendiliğinden de,
+   * mikrofona ikinci kez dokunularak da buraya geliniyor.
+   */
+  async function finishRecording() {
+    const recorder = recorderRef.current;
+    if (!recorder) return;
+    recorderRef.current = null;
+    setListening(false);
+    setTranscribing(true);
+    try {
+      const blob = await recorder.stop();
+      if (!blob) return;
+      const text = await transcribe(blob);
+      if (text) appendTranscript(text);
+      else {
+        toast.error("Sesi çözümleyemedim", {
+          description: "Bir kez daha dener misin?",
+        });
+      }
+    } finally {
+      setTranscribing(false);
+    }
+  }
+
+  /**
+   * Mikrofon: önce tarayıcının kendi tanıması, olmazsa sunucu çözümlemesi.
+   *
+   * Sıra bilerek böyle. Tarayıcı tanıması Chrome'da anında ve bedava çalışıyor;
+   * yükleme beklemesi ve API bedeli yok. Safari ve Firefox'ta ise hiç yok — o
+   * öğrenciler için `MediaRecorder` + sunucu çözümlemesi devreye giriyor.
+   * Sunucu tarafı Plus'a kapalı olduğundan ücretsiz katmandaki bir Safari
+   * kullanıcısına "yakında" demek yerine gerçeği söylüyoruz.
+   */
   function startVoiceInput() {
-    type SpeechRecognitionCtor = new () => {
-      lang: string;
-      interimResults: boolean;
-      maxAlternatives: number;
-      onresult: ((event: {
-        results: { [index: number]: { [index: number]: { transcript?: string } } };
-      }) => void) | null;
-      onerror: (() => void) | null;
-      onend: (() => void) | null;
-      start: () => void;
-    };
-    const win = window as unknown as {
-      SpeechRecognition?: SpeechRecognitionCtor;
-      webkitSpeechRecognition?: SpeechRecognitionCtor;
-    };
-    const SpeechRecognition = win.SpeechRecognition ?? win.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.message("Sesle sor yakında", {
-        description: "Bu tarayıcıda ses tanıma desteklenmiyor.",
+    // İkinci dokunuş her iki yolda da dinlemeyi bitirir; buton "Kaydı bitir"
+    // yazdığında gerçekten bitiriyor olmalı.
+    if (recorderRef.current) {
+      void finishRecording();
+      return;
+    }
+    if (recognizerRef.current) {
+      recognizerRef.current.stop();
+      return;
+    }
+    if (listening || transcribing) return;
+
+    const recognizer = createRecognizer();
+    if (recognizer) {
+      recognizer.interimResults = false;
+      recognizerRef.current = recognizer;
+      setListening(true);
+      recognizer.onresult = (event) => {
+        appendTranscript(event.results[0]?.[0]?.transcript ?? "");
+      };
+      recognizer.onerror = () => {
+        recognizerRef.current = null;
+        setListening(false);
+      };
+      recognizer.onend = () => {
+        recognizerRef.current = null;
+        setListening(false);
+      };
+      recognizer.start();
+      return;
+    }
+
+    if (!isRecordingSupported()) {
+      toast.error("Mikrofon kullanılamıyor", {
+        description: "Bu tarayıcı ses kaydını desteklemiyor.",
       });
       return;
     }
-    const rec = new SpeechRecognition();
-    rec.lang = "tr-TR";
-    rec.interimResults = false;
-    rec.maxAlternatives = 1;
-    setListening(true);
-    rec.onresult = (event) => {
-      const transcript = event.results[0]?.[0]?.transcript?.toString() ?? "";
-      if (transcript.trim()) setInput(transcript.trim());
-    };
-    rec.onerror = () => setListening(false);
-    rec.onend = () => setListening(false);
-    rec.start();
+    if (!isPremium) {
+      toast.message("Sesle sormak için Plus gerekiyor", {
+        description:
+          "Bu tarayıcıda ses tanıma yok; sunucu çözümlemesi Plus planında.",
+      });
+      return;
+    }
+
+    void (async () => {
+      const recorder = await startRecording({
+        onAutoStop: () => void finishRecording(),
+      });
+      if (!recorder) {
+        toast.error("Mikrofona erişemedim", {
+          description: "Tarayıcı iznini kontrol eder misin?",
+        });
+        return;
+      }
+      recorderRef.current = recorder;
+      setListening(true);
+    })();
   }
 
   if (isParitySor) {
@@ -835,8 +921,14 @@ export function ChatPanel({
                       "ap-sor-tool",
                       listening && "text-[var(--ap-subject)]",
                     )}
-                    aria-label="Mikrofon"
-                    disabled={loading}
+                    aria-label={
+                      listening
+                        ? "Kaydı bitir"
+                        : transcribing
+                          ? "Sesin çözümleniyor"
+                          : "Mikrofon"
+                    }
+                    disabled={loading || transcribing}
                     onClick={startVoiceInput}
                   >
                     <Mic className="h-4 w-4" aria-hidden />
@@ -1179,13 +1271,11 @@ export function ChatPanel({
                           role="menuitem"
                           onClick={() => {
                             setAttachMenuOpen(false);
-                            toast.message("Sesle sor yakında", {
-                              description: "Mikrofonla soru sorma çok yakında.",
-                            });
+                            startVoiceInput();
                           }}
                         >
                           <Mic className="h-4 w-4 shrink-0" aria-hidden />
-                          Sesle sor (yakında)
+                          {listening ? "Dinliyorum — bitir" : "Sesle sor"}
                         </button>
                       </div>
                     ) : null}
@@ -1370,45 +1460,9 @@ export function ChatPanel({
                     ? "text-[var(--astra-primary)]"
                     : "text-[var(--astra-muted)]",
                 )}
-                aria-label="Mikrofon"
-                onClick={() => {
-                  type SpeechRecognitionCtor = new () => {
-                    lang: string;
-                    interimResults: boolean;
-                    maxAlternatives: number;
-                    onresult: ((event: {
-                      results: { [index: number]: { [index: number]: { transcript?: string } } };
-                    }) => void) | null;
-                    onerror: (() => void) | null;
-                    onend: (() => void) | null;
-                    start: () => void;
-                  };
-                  const win = window as unknown as {
-                    SpeechRecognition?: SpeechRecognitionCtor;
-                    webkitSpeechRecognition?: SpeechRecognitionCtor;
-                  };
-                  const SpeechRecognition =
-                    win.SpeechRecognition ?? win.webkitSpeechRecognition;
-                  if (!SpeechRecognition) {
-                    send(
-                      "Bu mesajı sesli sohbet gibi yanıtla; kısa ve konuşma dilinde anlat.",
-                    );
-                    return;
-                  }
-                  const rec = new SpeechRecognition();
-                  rec.lang = "tr-TR";
-                  rec.interimResults = false;
-                  rec.maxAlternatives = 1;
-                  setListening(true);
-                  rec.onresult = (event) => {
-                    const transcript =
-                      event.results[0]?.[0]?.transcript?.toString() ?? "";
-                    if (transcript.trim()) setInput(transcript.trim());
-                  };
-                  rec.onerror = () => setListening(false);
-                  rec.onend = () => setListening(false);
-                  rec.start();
-                }}
+                aria-label={listening ? "Kaydı bitir" : "Mikrofon"}
+                disabled={transcribing}
+                onClick={startVoiceInput}
               >
                 <Mic className="h-5 w-5" />
               </button>

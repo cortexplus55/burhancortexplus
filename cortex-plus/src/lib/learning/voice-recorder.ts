@@ -212,6 +212,19 @@ export async function speakFromServer(
   };
 }
 
+/**
+ * Söyleneni yazılana ekler.
+ *
+ * Değiştirmek yerine eklemek bilinçli: mikrofon yazı alanının içinde duruyor ve
+ * yanlışlıkla dokunmak öğrencinin yarım kalmış cümlesini silmemeli.
+ */
+export function mergeTranscript(existing: string, spoken: string): string {
+  const next = spoken.trim();
+  if (!next) return existing;
+  const prev = existing.trim();
+  return prev ? `${prev} ${next}` : next;
+}
+
 export async function transcribe(blob: Blob): Promise<string | null> {
   const form = new FormData();
   const ext = blob.type.includes("mp4")
