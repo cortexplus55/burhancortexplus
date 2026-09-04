@@ -100,7 +100,6 @@ export function QuizStudio({
           placeholder="Örn. Üslü sayılar"
           submitLabel="Sahneyi aç"
           creditCost={creditCost}
-          loading={false}
           initialTopic={initialTopic}
           onSubmit={(next) => void start(next)}
         />

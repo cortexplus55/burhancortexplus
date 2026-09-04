@@ -90,7 +90,6 @@ export function TrueFalseStudio({
           placeholder="Örn. Fotosentez"
           submitLabel="Turu başlat"
           creditCost={creditCost}
-          loading={false}
           initialTopic={initialTopic}
           onSubmit={(next) => void start(next)}
         />

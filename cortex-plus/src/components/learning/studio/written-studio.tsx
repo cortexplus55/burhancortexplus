@@ -106,7 +106,6 @@ export function WrittenStudio({
           placeholder="Örn. Fonksiyonlar"
           submitLabel="Yazılıyı aç"
           creditCost={creditCost}
-          loading={false}
           initialTopic={initialTopic}
           onSubmit={(next) => void start(next)}
         />

@@ -930,19 +930,6 @@
   color: var(--ls-text);
 }
 
-/* Kullanıcının seçtiği konu sağa yaslı bir balon: kimin ne söylediği
-   hizalamadan anlaşılıyor, etiket gerekmiyor. */
-.ls-msg-user {
-  align-self: flex-end;
-  margin: 0;
-  max-width: 80%;
-  padding: 0.6rem 1rem;
-  border-radius: 1.1rem 1.1rem 0.35rem 1.1rem;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  font-size: 0.9375rem;
-}
-
 /* Öneriler sağa yaslı: kullanıcının söyleyebilecekleri, kullanıcının
    tarafında duruyor. */
 .ls-chips {

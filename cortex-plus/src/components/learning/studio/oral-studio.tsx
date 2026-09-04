@@ -161,7 +161,6 @@ export function OralStudio({
           placeholder="Örn. Kurtuluş Savaşı"
           submitLabel="Sözlüyü başlat"
           creditCost={creditCost}
-          loading={false}
           initialTopic={initialTopic}
           onSubmit={(next) => void start(next)}
         />

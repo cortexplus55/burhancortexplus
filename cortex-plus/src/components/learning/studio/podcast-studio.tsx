@@ -109,7 +109,6 @@ export function PodcastStudio({
           placeholder="Örn. Hücre bölünmesi"
           submitLabel="Yayını hazırla"
           creditCost={creditCost}
-          loading={false}
           initialTopic={initialTopic}
           onSubmit={(next) => void start(next)}
         />

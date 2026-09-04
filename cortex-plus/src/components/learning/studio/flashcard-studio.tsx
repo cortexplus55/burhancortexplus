@@ -77,7 +77,6 @@ export function FlashcardStudio({
           placeholder="Örn. Türev kuralları"
           submitLabel="Desteyi aç"
           creditCost={creditCost}
-          loading={false}
           initialTopic={initialTopic}
           onSubmit={(next) => void start(next)}
         />

@@ -77,7 +77,6 @@ export function StudioEntry({
   placeholder,
   submitLabel,
   creditCost,
-  loading,
   initialTopic = "",
   onSubmit,
 }: {
@@ -86,19 +85,15 @@ export function StudioEntry({
   placeholder: string;
   submitLabel: string;
   creditCost: number | null;
-  loading: boolean;
   initialTopic?: string;
   onSubmit: (topic: string) => void;
 }) {
   const intro = STUDIO_INTRO[tool];
   const [draft, setDraft] = useState(initialTopic);
-  /** Seçilen konu kullanıcı balonu olarak görünüyor; sohbet hissi buradan. */
-  const [picked, setPicked] = useState<string | null>(null);
 
   function start(topic: string) {
     const clean = topic.trim();
-    if (clean.length < 3 || loading) return;
-    setPicked(clean);
+    if (clean.length < 3) return;
     onSubmit(clean);
   }
 
@@ -126,23 +121,18 @@ export function StudioEntry({
         <p className="ls-msg-body">{intro.greeting}</p>
       </div>
 
-      {picked ? (
-        <p className="ls-msg-user">{picked}</p>
-      ) : (
-        <div className="ls-chips" role="group" aria-label="Örnek konular">
-          {intro.suggestions.map((suggestion) => (
-            <button
-              key={suggestion}
-              type="button"
-              className="ls-chip"
-              disabled={loading}
-              onClick={() => start(suggestion)}
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="ls-chips" role="group" aria-label="Örnek konular">
+        {intro.suggestions.map((suggestion) => (
+          <button
+            key={suggestion}
+            type="button"
+            className="ls-chip"
+            onClick={() => start(suggestion)}
+          >
+            {suggestion}
+          </button>
+        ))}
+      </div>
 
       <form className="ls-chat-form" onSubmit={handleSubmit}>
         <label className="sr-only" htmlFor="studio-topic">
@@ -161,9 +151,9 @@ export function StudioEntry({
         <button
           type="submit"
           className="ls-cta"
-          disabled={loading || draft.trim().length < 3}
+          disabled={draft.trim().length < 3}
         >
-          {loading ? "Hazırlanıyor…" : submitLabel}
+          {submitLabel}
         </button>
       </form>
 
