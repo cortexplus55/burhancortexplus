@@ -128,10 +128,11 @@ export function AstraParityExamPrep({
   return (
     <div className="ap-exam-page">
       <div className="ap-exam-section-head">
-        <span>
+        {/* Sayfanın h1'i yoktu; görsel başlık zaten buydu. */}
+        <h1 className="ap-exam-section-title">
           Sınav hazırlıklarım
           <span aria-hidden> ›</span>
-        </span>
+        </h1>
         <Link href="/deneme-sinavlari/olustur" className="ap-exam-create">
           + Oluştur
         </Link>

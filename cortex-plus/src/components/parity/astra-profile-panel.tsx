@@ -58,14 +58,15 @@ export function AstraProfilePanel({
         <span className="ap-pp-avatar" aria-hidden>
           {initial}
         </span>
-        <p className="ap-pp-name">
+        {/* Sayfanın tek başlığı bu; `p` olduğu için sayfanın h1'i yoktu. */}
+        <h1 className="ap-pp-name">
           {name}
           {isPremium ? (
             <span className="ap-pp-badge" title="Cortex Plus">
               +
             </span>
           ) : null}
-        </p>
+        </h1>
         {identity ? <p className="ap-pp-identity">{identity}</p> : null}
         <Link href="/ayarlar" className="ap-pp-settings">
           <Settings className="h-4 w-4" aria-hidden /> Ayarlar

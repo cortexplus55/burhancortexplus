@@ -808,6 +808,13 @@
   text-decoration: none;
 }
 
+/* Başlık artık h1: boyutunu ve boşluğunu kapsayıcıdan alsın. */
+.ap-exam-section-title {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
 .ap-exam-section-head a {
   display: inline-flex;
   align-items: center;

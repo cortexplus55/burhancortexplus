@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { TrendingUp } from "lucide-react";
 import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
@@ -77,6 +77,11 @@ export default async function IlerlemePage() {
   return (
     <AstraParitySorShell {...shell}>
       <div className="ap-exam-page">
+      {/* Sayfanın h1'i yoktu: ekran okuyucu "burası neresi" sorusunu
+          yanıtlayamıyordu, sekme başlığı dışında hiçbir işaret yoktu. */}
+      <div className="ap-page-head">
+        <h1 className="ap-page-title">İlerleme</h1>
+      </div>
       <div className="space-y-6">
         {!hasAnyActivity ? (
           <EmptyState
