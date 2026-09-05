@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { AstraMarketingPage } from "@/components/parity/astra-marketing";
 import { CinematicPrimaryCta } from "@/components/marketing/cinematic-cta";
+import { MistakeLoopSection } from "@/components/marketing/mistake-loop-section";
 
 export const metadata = {
   title: "Özellikler",
@@ -95,6 +96,10 @@ export default function OzelliklerPage() {
       title="Özellikler"
       description="Cortex Plus, çalışmanı tek bir akışta toplayan yapay zekâ destekli öğrenme platformudur."
     >
+      {/* Döngü listelerden önce: kartlar tek tek ne yaptığımızı sayıyor,
+          döngü hepsinin neden bir arada durduğunu anlatıyor. */}
+      <MistakeLoopSection variant="full" />
+
       <div className="mx-auto max-w-6xl px-4 pb-16" data-cinematic-reveal>
         <p className="mk-eyebrow">Çalışırken</p>
         <h2 className="mt-2 text-2xl font-bold text-[var(--mk-text)] md:text-3xl">
