@@ -85,17 +85,20 @@ giriş gerektiriyor.
 
 ---
 
-## 5. Google arama kaydı (SEO) — acil değil
+## 5. Google arama kaydı (SEO) — ✅ **kapandı (2026-09-05)**
 
-Site şu an Google Search Console'a kayıtlı değil; `GOOGLE_SITE_VERIFICATION`
-boş, sayfada doğrulama etiketi yok.
+Search Console'da `https://cortexplus.app/` mülkü açıldı. **Sahiplik otomatik
+doğrulandı** — alan adı `cortexplus@cortexplus.app` Workspace hesabına ait
+olduğu için Google kendi tanıdı; HTML etiketi gerekmedi.
 
-**Yapılacak:**
+Bu yüzden **`GOOGLE_SITE_VERIFICATION` env değişkeni gereksiz.** Kodda desteği
+duruyor (`layout.tsx`), yalnızca yedek doğrulama yöntemi istenirse kullanılır.
 
-1. <https://search.google.com/search-console> → `cortexplus.app` mülkünü ekleyin.
-2. Doğrulama yöntemi: **HTML etiketi** → `content="..."` içindeki kodu kopyalayın.
-3. Vercel → Environment Variables → `GOOGLE_SITE_VERIFICATION` = o kod → redeploy.
-4. Search Console'a dönüp **Doğrula**'ya basın.
+Site haritası gönderildi ve Google tarafından **okundu**: durum `Başarılı`,
+**14 sayfa** keşfedildi. Arama sonuçlarına düşmesi birkaç gün sürer.
+
+> Yanında bir hata çıktı ve düzeltildi: `robots.txt` hâlâ `/ogretmen-paneli`'ni
+> engelliyordu, o bölüm `3e666f6` ile silinmişti (`203fa81`).
 
 ---
 
@@ -128,19 +131,27 @@ değildi. Artık 33 dosya "uygulandı" olarak eşleşiyor, karşılıksız kayı
 | `20260904120000_promo_campaigns.sql` | Ana ekrandaki duyuru bandı. Bu olmadan panelden bant kaydedilemiyor. |
 | `20260904140000_message_feedback.sql` | Yanıt altındaki beğen/beğenme. Bu olmadan başparmak düğmeleri hiç görünmüyor. |
 
+**2026-09-05'te doğrulandı: ikisi de gerçekten uygulanmamış.** Canlı veritabanına
+atılan sorgu `promo_campaigns` tablosunun ve `messages.rating` kolonunun
+olmadığını gösterdi; göç geçmişindeki son kayıt `20260904020000`.
+
 **Yapılacak** — proje klasöründe tek komut:
 
 ```bash
 cd cortex-plus && npx supabase db push
 ```
 
-Ajan bu komutu çalıştıramıyor: canlı veritabanına yapı değiştiren yazma
-işlemi, güvenlik gereği onay istiyor.
+> Komut `Unauthorized (401)` derse önce `npx supabase login` gerekiyor —
+> CLI bu makinede oturumsuz.
 
-Komut satırı istemezsen SQL editöründen de olur —
+Ajan bu adımı yapamıyor: canlı veritabanına şema yazmak güvenlik katmanı
+tarafından engelleniyor, CLI için gereken erişim jetonunu da giremez.
+
+Komut satırı istemezsen SQL editöründen tek seferde olur —
 <https://supabase.com/dashboard/project/dgjfyewgrukglsehyntc/sql/new> —
-iki dosyanın içeriğini sırayla yapıştırıp **Run** de. Dosyalar:
-`cortex-plus/supabase/migrations/` klasöründe.
+ajanın hazırladığı birleşik dosyayı yapıştırıp **Run** de. Dosya iki göçü de,
+göç geçmişi kaydını da içeriyor ve tek işlem hâlinde: bir satır hata verirse
+hiçbiri uygulanmıyor.
 
 > Başparmak düğmeleri göç uygulanana kadar **hiç görünmüyor**; uygulandıktan
 > sonra kendiliğinden açılıyor. Yani "basıyorum bir şey olmuyor" durumu yok.

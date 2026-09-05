@@ -15,7 +15,7 @@ Tek kaynak: [GREENFIELD-CONNECT.md](./GREENFIELD-CONNECT.md) · **Teslim özeti:
 | 7 | App içi tema | `astra-app` altın | — |
 | 8 | Admin shell | `admin-shell` CSS | — |
 | 9 | PWA | `manifest.ts` theme | — |
-| 10 | SEO | `sitemap.ts`, `robots.ts` | GSC: `GOOGLE_SITE_VERIFICATION` env + mülk ekle |
+| 10 | SEO | `sitemap.ts`, `robots.ts` | **Tamam** — 2026-09-05: Search Console mülkü açıldı, sahiplik Workspace üzerinden otomatik doğrulandı (`GOOGLE_SITE_VERIFICATION` gerekmedi), site haritası okundu (14 sayfa) |
 | 11 | Sosyal kanıt | örnek etiketi | — |
 | 12 | CI + RLS | `.github/workflows/ci.yml` (lokal) | Push: [GITHUB-CI-WORKFLOW-SCOPE.md](./GITHUB-CI-WORKFLOW-SCOPE.md); migration’lar Supabase’te uygulu |
 
