@@ -71,6 +71,9 @@ export function buildExplainPrompt(topic: string, explanation: string): string {
     "- `verdict`: kendi cümleleriyle bağ kurmuşsa \"anladin\"; parçalar doğru ama bağ zayıfsa \"kismen\"; tanım tekrarı gibiyse \"ezber\".",
     "- `followUp`: anlattığı şeyi başka bir açıdan sınayan TEK soru. Anlatımda geçen bir cümleyi tekrar sordurma.",
     "- Türkçe yaz, kısa ve doğrudan konuş. Övgü cümlesi kurma.",
+    // Ürünün tamamı öğrenciye \"sen\" diye hitap ediyor; model kendi başına
+    // \"siz\"e kayıyordu ve tek ekranda iki farklı ses duyuluyordu.
+    "- Öğrenciye \"sen\" diye hitap et, \"siz\" kullanma.",
   ].join("\n");
 }
 
