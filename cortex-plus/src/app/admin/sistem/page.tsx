@@ -11,16 +11,31 @@ export const metadata = { title: "Yönetim · Sistem durumu" };
 /**
  * `critical` olanlar eksikse ürünün bir parçası hiç çalışmaz; diğerleri
  * eksikse ürün çalışır ama körsün (ölçüm, hata takibi).
+ *
+ * `env` bir liste, çünkü aynı ayar farklı adlarla gelebiliyor. 5 Eylül
+ * 2026'da bu satırın tek isme bakması yüzünden bir sorun günlerce görünmedi:
+ * Upstash 1 Eylül'den beri bağlıydı, panel "kurulu değil" diyordu, kimse de
+ * hız sınırının çalışmadığını fark etmedi. Bir durum ekranının en kötü hâli
+ * yanlış bilgi vermesidir.
  */
-const SERVICES = [
-  { name: "Supabase", env: "NEXT_PUBLIC_SUPABASE_URL", critical: true },
-  { name: "Supabase service key", env: "SUPABASE_SECRET_KEY", critical: true },
-  { name: "OpenAI", env: "OPENAI_API_KEY", critical: true },
-  { name: "Workspace SMTP", env: "SMTP_PASS", critical: true },
-  { name: "PayTR", env: "PAYTR_MERCHANT_ID", critical: false },
-  { name: "Upstash Redis", env: "UPSTASH_REDIS_REST_URL", critical: false },
-  { name: "PostHog", env: "NEXT_PUBLIC_POSTHOG_KEY", critical: false },
-  { name: "Sentry", env: "SENTRY_DSN", critical: false },
+const SERVICES: { name: string; env: string[]; critical: boolean }[] = [
+  { name: "Supabase", env: ["NEXT_PUBLIC_SUPABASE_URL"], critical: true },
+  { name: "Supabase service key", env: ["SUPABASE_SECRET_KEY"], critical: true },
+  { name: "OpenAI", env: ["OPENAI_API_KEY"], critical: true },
+  { name: "Workspace SMTP", env: ["SMTP_PASS"], critical: true },
+  { name: "PayTR", env: ["PAYTR_MERCHANT_ID"], critical: false },
+  {
+    name: "Upstash Redis",
+    // Vercel'in Upstash entegrasyonu KV_* adlarını enjekte ediyor.
+    env: ["UPSTASH_REDIS_REST_URL", "KV_REST_API_URL"],
+    critical: false,
+  },
+  { name: "PostHog", env: ["NEXT_PUBLIC_POSTHOG_KEY"], critical: false },
+  {
+    name: "Sentry",
+    env: ["NEXT_PUBLIC_SENTRY_DSN", "SENTRY_DSN"],
+    critical: false,
+  },
 ];
 
 export default async function AdminSistemPage() {
@@ -30,7 +45,7 @@ export default async function AdminSistemPage() {
 
   const rows = SERVICES.map((item) => ({
     ...item,
-    configured: Boolean(process.env[item.env]),
+    configured: item.env.some((name) => Boolean(process.env[name])),
   }));
 
   const missingCritical = rows.filter((row) => row.critical && !row.configured);
@@ -58,10 +73,12 @@ export default async function AdminSistemPage() {
       >
         <AdminTableFrame columns={["Servis", "Ne işe yarar", "Durum"]}>
           {rows.map((row) => (
-            <tr key={row.env}>
+            <tr key={row.name}>
               <td>
                 <div className="font-medium">{row.name}</div>
-                <div className="text-xs text-[var(--adm-muted)]">{row.env}</div>
+                <div className="text-xs text-[var(--adm-muted)]">
+                  {row.env.join(" / ")}
+                </div>
               </td>
               <td className="max-w-md whitespace-normal text-xs text-[var(--adm-muted)]">
                 {SERVICE_NOTES[row.name] ?? "—"}
