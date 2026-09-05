@@ -10,6 +10,7 @@ import { getCreditCost } from "@/lib/credits/rules";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { parseTutorStyle, tutorStyleLabel } from "@/lib/learning/tutor-style";
 import { messageFeedbackEnabled } from "@/lib/learning/message-feedback";
+import { countMistakes } from "@/lib/learning/mistake-notebook";
 import { turkishLower } from "@/lib/text/turkish";
 import { firstPrompts } from "@/lib/student/first-prompts";
 import { getStudentAccountContext } from "@/lib/student/account-context";
@@ -34,6 +35,7 @@ export default async function OgretmenPage({
     streak,
     { data: goal },
     { data: conversations },
+    mistakes,
   ] =
     await Promise.all([
       supabase
@@ -67,6 +69,7 @@ export default async function OgretmenPage({
         .is("deleted_at", null)
         .order("updated_at", { ascending: false })
         .limit(5),
+      countMistakes(supabase, user.id),
     ]);
 
   // Kimlik ve oy da geliyor: eski bir sohbeti açtığında daha önce bastığın
@@ -156,6 +159,7 @@ export default async function OgretmenPage({
           subject: profile?.focus_subject,
           goal: goal?.goal_text,
         })}
+        dailyDrillCount={mistakes.open}
       />
     </AstraParitySorShell>
   );

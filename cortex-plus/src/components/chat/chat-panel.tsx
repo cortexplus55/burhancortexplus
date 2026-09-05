@@ -152,6 +152,7 @@ export function ChatPanel({
   quotaHint,
   starterPrompts,
   feedbackEnabled = false,
+  dailyDrillCount = 0,
 }: {
   initialConversationId?: string;
   initialMessages?: Message[];
@@ -179,6 +180,8 @@ export function ChatPanel({
    * demek olurdu.
    */
   feedbackEnabled?: boolean;
+  /** Yanlış defterinde bekleyen soru sayısı. 0 ise günün turu kartı çıkmıyor. */
+  dailyDrillCount?: number;
 }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -783,6 +786,18 @@ export function ChatPanel({
                     </button>
                   ))}
                 </div>
+              ) : null}
+
+              {/* Günün turu yalnızca defterde bekleyen soru varsa görünüyor.
+                  Boşken göstermek, basınca "soru yok" diyen bir düğme
+                  demekti. */}
+              {dailyDrillCount ? (
+                <Link href="/gunluk" className="ap-sor-daily">
+                  <span className="ap-sor-daily-title">Günün turu</span>
+                  <span className="ap-sor-daily-sub">
+                    Defterinden {dailyDrillCount} soru bekliyor · beş dakika
+                  </span>
+                </Link>
               ) : null}
             </div>
           ) : null}

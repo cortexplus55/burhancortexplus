@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { reviewMistake } from "@/lib/learning/mistake-notebook";
+import { recordDrillAnswer } from "@/lib/learning/daily-drill";
 
 /**
  * Defterden sorulan bir soruya verilen yanıt.
@@ -17,6 +18,10 @@ import { reviewMistake } from "@/lib/learning/mistake-notebook";
 const schema = z.object({
   entryId: z.string().uuid(),
   answer: z.string().max(2000),
+  // Günün turundan geliyorsa turun sayaçları da ilerliyor. Defter
+  // sayfasından gelen yanıtlarda bu alanlar yok.
+  drillId: z.string().uuid().optional(),
+  drillTotal: z.number().int().min(1).max(50).optional(),
 });
 
 export async function POST(request: Request) {
@@ -42,6 +47,17 @@ export async function POST(request: Request) {
 
   if (!outcome) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  const { drillId, drillTotal } = parsed.data;
+  if (drillId && drillTotal) {
+    await recordDrillAnswer(
+      supabase,
+      user.id,
+      drillId,
+      outcome.correct,
+      drillTotal,
+    );
   }
 
   return NextResponse.json(outcome);

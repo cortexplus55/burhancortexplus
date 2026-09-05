@@ -6254,3 +6254,48 @@
     width: min(calc(100% - 2rem), 42rem);
   }
 }
+
+/*
+  Günün turu kartı — boş sohbet ekranında, başlangıç önerilerinin altında.
+
+  Öneri çipleri sohbeti başlatıyor; bu ise sayfadan çıkarıp başka bir yere
+  götürüyor. Aynı çip stilini vermek ikisini karıştırırdı, bu yüzden kart:
+  daha geniş, sola hizalı, altın kenarlı. Defterde bekleyen soru yoksa
+  bileşen hiç basılmıyor.
+*/
+.ap-sor-daily {
+  display: block;
+  margin: 1.25rem auto 0;
+  max-width: 34rem;
+  padding: 0.85rem 1.1rem;
+  border-radius: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--ap-gold) 45%, transparent);
+  background: color-mix(in srgb, var(--ap-gold) 8%, var(--ap-surface));
+  text-align: left;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.ap-sor-daily:hover {
+  border-color: var(--ap-gold);
+  background: color-mix(in srgb, var(--ap-gold) 14%, var(--ap-surface));
+}
+
+.ap-sor-daily:focus-visible {
+  outline: 2px solid var(--ap-gold);
+  outline-offset: 2px;
+}
+
+.ap-sor-daily-title {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--ap-text);
+}
+
+.ap-sor-daily-sub {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.8125rem;
+  color: var(--ap-muted);
+}
