@@ -9,7 +9,7 @@ Tek kaynak: [GREENFIELD-CONNECT.md](./GREENFIELD-CONNECT.md) · **Teslim özeti:
 | 1 | Supabase env | `/api/health` → `ok: true` | **Tamam** (canlı doğrulandı) |
 | 2 | www → apex | `vercel.json` + Vercel Domains redirect | **Tamam** — `www.cortexplus.app` → 308 → `cortexplus.app` (2026-09-04 ölçüldü) |
 | 3 | E-posta doğrulama | [WORKSPACE-EMAIL.md](./WORKSPACE-EMAIL.md) | **Tamam** (2026-09-04 panelden doğrulandı: Supabase SMTP açık, Confirm email açık, `SMTP_VERIFY_OK`) |
-| 4 | Google OAuth | [GOOGLE-OAUTH.md](./GOOGLE-OAUTH.md) | Branding tamam, ama **yayın durumu doğrulanmadı** — "Testing"de kalırsa hiçbir öğrenci Google ile giremez. Kontrol: [SENIN-YAPACAKLARIN.md](./SENIN-YAPACAKLARIN.md) §1 |
+| 4 | Google OAuth | [GOOGLE-OAUTH.md](./GOOGLE-OAUTH.md) | **Tamam** — 2026-09-05: uygulama `Testing`'den çıkarılıp **In production**'a alındı; doğrulama gerekmediği için anında etkili. Zincirin tamamı (kod → Supabase → Google → geri dönüş) doğrulandı. |
 | 5 | Kayıt uçtan uca | kayıt → `/email-dogrula` veya `/kayit/tamamla` | **Kalan tek adım** — gerçek adresle bir kayıt; ajan hesap açamaz |
 | 6 | Onboarding | signup-wizard stilleri | — |
 | 7 | App içi tema | `astra-app` altın | — |

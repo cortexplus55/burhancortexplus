@@ -2,18 +2,52 @@
 
 Uygulama zaten **Supabase OAuth** kullanıyor (`/giris`, `/kayit` → **Google ile devam et**). Eksik olan yalnızca Google + Supabase panel ayarları.
 
-## Durum (canlı kontrol)
+## Durum (canlı kontrol — 2026-09-05 panelden yeniden doğrulandı)
 
 | Adım | Durum |
 |------|--------|
 | GCP projesi `cortexplus-auth`, istemci **Cortex Plus Web** | Tamam (redirect + JS origins doğru) |
-| Supabase **Google provider** kayıtlı ve açık | **Tamam** |
+| Supabase **Google provider** açık | **Tamam** — panelde yeşil `Enabled`; Client ID aşağıdakiyle birebir aynı, Client Secret dolu, Callback URL `https://dgjfyewgrukglsehyntc.supabase.co/auth/v1/callback` |
+| Supabase **Site URL** | **Tamam** — `https://cortexplus.app` |
+| Supabase **Redirect URLs** | **Tamam** — 4 kayıt: `/auth/callback`, `cortexplus.app/**`, `localhost:3000/**`, `*.vercel.app/**` |
+| Supabase **Allow new users to sign up** | **Açık** — kapalı olsaydı Google dahil hiçbir yeni kayıt olmazdı |
+| Uygulama kodu | **Tamam** — `/giris` ve `/kayit` ikisi de `signInWithGoogle` çağırıyor, `/auth/callback` kodu oturuma çeviriyor |
+| Google yetkilendirme ucu | **Tamam** — istemci kimliğiyle hesap seçici açılıyor, uygulama alanı `dgjfyewgrukglsehyntc.supabase.co` |
 | GCP **Branding** (ad, URL’ler, destek e-postası) | **Tamam** — `authuser=1` ile kaydedildi (2026-08-27) |
-| OAuth **Testing** + test kullanıcıları | **cortexplus@cortexplus.app** ile giriş doğrulandı; herkese açık trafik için Audience → **Publish app** (isteğe bağlı) |
+| GCP **Publishing status** | ✅ **In production** — 2026-09-05'te `Testing`'den çıkarıldı |
+| GCP **Doğrulama (verification)** | **Gerekmiyor** — Verification Center: "not requesting any sensitive or restricted scopes" |
+| GCP **Authorized redirect URI** | **Tamam** — `https://dgjfyewgrukglsehyntc.supabase.co/auth/v1/callback` (Supabase'inkiyle birebir) |
+| GCP **JS origins** | **Tamam** — `https://cortexplus.app`, `http://localhost:3000` |
+| GCP **Authorized domains** | **Tamam** — `cortexplus.app`, `dgjfyewgrukglsehyntc.supabase.co` |
 
 **Client ID (Web):** `831373547846-0gna3edio8gg8pomhffm9lg5q1jo9m50.apps.googleusercontent.com`
 
-Son doğrulama: [cortexplus.app/giris](https://cortexplus.app/giris) → Google → `/onboarding` (oturum açıldı).
+### 2026-09-05: uygulama `Testing`'deydi — yayına alındı
+
+Konsola girildiğinde **Publishing status: Testing** çıktı. Yani o ana kadar
+**yalnızca elle eklenmiş test kullanıcıları** Google ile girebiliyordu; başka
+herkes "erişim engellendi" alıyordu. Google ile girmiş 5 hesabın (27–31 Ağustos)
+hepsi test kullanıcısıymış.
+
+**Publish app → Push to production → Confirm** ile yayına alındı. Doğrulama
+gerekmediği için **anında** etkili oldu; artık Google hesabı olan herkes
+girebilir ve kayıt olabilir.
+
+### İki bilinçli eksik — dokunmayın
+
+**1. App logo boş bırakıldı.** Konsolun kendi uyarısı: *"After you upload a
+logo, you will need to submit your app for verification unless the app … has a
+publishing status of Testing."* Artık `In production` olduğumuz için **logo
+yüklemek uygulamayı doğrulama kuyruğuna sokar** — haftalar sürebilir ve o süre
+boyunca giriş kısıtlanabilir. Logo, marka doğrulaması bilinçli olarak
+istendiğinde eklenmeli, önce değil.
+
+**2. Onay ekranında `dgjfyewgrukglsehyntc.supabase.co` yazıyor**, "Cortex Plus"
+değil. Sebebi aşağıdaki bölümde: istek Supabase'in callback alan adı üzerinden
+gidiyor. Çözümü Supabase **Custom Domain** (Pro plan) — proje şu an **Free**
+planda. Kozmetik; girişi engellemiyor.
+
+Son uçtan uca doğrulama: [cortexplus.app/giris](https://cortexplus.app/giris) → Google → `/onboarding` (oturum açıldı).
 
 ## Onay ekranı: `undefined` ve `*.supabase.co` görünmesi
 

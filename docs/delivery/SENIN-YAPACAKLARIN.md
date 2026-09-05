@@ -1,32 +1,34 @@
 # Sende kalanlar — ajanın yapamadığı işler
 
-Son güncelleme: 2026-09-04
+Son güncelleme: 2026-09-05
 
 Buradaki her madde ya **şifre girmeyi** ya **hesap açmayı** gerektiriyor; ikisi de
 ajanın yapmayacağı işler. Sırayla gidin, her biri birkaç dakika.
 
 ---
 
-## 1. Google ile giriş yayında mı? ⚠️ **en önemlisi**
+## 1. Google ile giriş — ✅ **kapandı (2026-09-05)**
 
-**Neden önemli:** OAuth uygulaması "Testing" modundaysa, **elle eklediğiniz test
-kullanıcıları dışında hiç kimse Google ile giriş yapamaz**. Öğrenci "erişim
-engellendi" hatası alır. Lansmanda fark edilirse geç olur.
+Uygulama gerçekten **`Testing`** modundaymış: o ana kadar yalnızca elle
+eklenmiş test kullanıcıları Google ile girebiliyordu, başka herkes "erişim
+engellendi" alıyordu. Sahibi konsola giriş yaptıktan sonra ajan **Publish app →
+Push to production → Confirm** adımlarını uyguladı; **Publishing status artık
+In production**.
 
-**Durum:** doğrulanamadı. `cortexplus-auth` projesi `cortexplus@cortexplus.app`
-hesabına ait; o hesap tarayıcıda oturumlu ama Google Cloud Console şifre
-doğrulaması istiyor.
+Hassas izin istemediğimiz için Google doğrulaması gerekmedi, yayın **anında**
+etkili oldu. Zincirin tamamı doğrulandı: uygulama kodu → Supabase (sağlayıcı
+açık, Client ID/Secret doğru, Site URL + 4 redirect adresi, "Allow new users to
+sign up" açık) → Google (In production, doğru redirect URI, iki alan adı
+kayıtlı) → geri dönüş. Ayrıntı: [GOOGLE-OAUTH.md](./GOOGLE-OAUTH.md).
 
-**Yapılacak:**
+**İki şeye dokunmayın:**
 
-1. Şu adrese gidin: <https://console.cloud.google.com/auth/audience?project=cortexplus-auth>
-2. `cortexplus@cortexplus.app` ile devam edin (şifre isteyecek).
-3. **Publishing status** satırına bakın:
-   - **In production** → sorun yok, bu maddeyi kapatın.
-   - **Testing** → **PUBLISH APP** düğmesine basın, çıkan uyarıyı onaylayın.
-
-> `email` ve `profile` dışında hassas kapsam istemiyoruz, bu yüzden Google
-> doğrulaması (verification) gerekmiyor; yayınlamak anında etkili olur.
+- **Logo yüklemeyin.** Artık `In production` olduğumuz için konsola logo
+  eklemek uygulamayı doğrulama kuyruğuna sokar; haftalar sürer ve o süre
+  boyunca giriş kısıtlanabilir.
+- Onay ekranında "Cortex Plus" yerine `dgjfyewgrukglsehyntc.supabase.co`
+  yazıyor. Kozmetik, girişi engellemiyor; düzeltmesi Supabase Pro
+  (Custom Domain) gerektiriyor.
 
 ---
 
