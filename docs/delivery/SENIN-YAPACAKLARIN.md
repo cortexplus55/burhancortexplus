@@ -102,19 +102,30 @@ Site haritası gönderildi ve Google tarafından **okundu**: durum `Başarılı`
 
 ---
 
-## 6. Hata takibi — ✅ tamam
+## 6. Hata takibi — ✅ tamam · PostHog — ⏳ **sende**
 
 DSN 4 Eylül'de Vercel'e girildi (`NEXT_PUBLIC_SENTRY_DSN`, Config tipi, üç
 ortam). Yeni dağıtımla birlikte devreye girdi.
 
 Ne toplanıyor, ne toplanmıyor: `docs/delivery/SENTRY-HATA-TAKIBI.md`
 
-**PostHog** hâlâ bekliyor: kodu hazır (`components/analytics.tsx`), posthog.com'da
-proje açıp `NEXT_PUBLIC_POSTHOG_KEY`'i Vercel'e eklemek yeterli.
+### PostHog (reklam ölçümü — zorunlu)
 
-İsteğe bağlı: hata izinin sıkıştırılmış değil gerçek dosya adı ve satır
-numarasıyla görünmesi için `SENTRY_ORG`, `SENTRY_PROJECT` ve
-`SENTRY_AUTH_TOKEN` de eklenebilir. Bu üçü olmadan da her şey çalışıyor.
+Kod hazır (`src/components/analytics.tsx`); 6 Eylül abuse deploy'undan sonra
+OG/paylaşım da yayında. **`NEXT_PUBLIC_POSTHOG_KEY` Vercel'de yok** (2026-09-06
+doğrulandı). Anahtar girilmeden pageview düşmez.
+
+1. [eu.posthog.com](https://eu.posthog.com) → `cortexplus@cortexplus.app` ile hesap/proje.
+2. Project settings → Project API key (`phc_…`).
+3. Vercel → `burhancortexplus-app` → Environment Variables → Production + Preview:
+   - `NEXT_PUBLIC_POSTHOG_KEY` = `phc_…`
+   - `NEXT_PUBLIC_POSTHOG_HOST` = `https://eu.i.posthog.com` (isteğe bağlı; kodda varsayılan bu)
+4. Redeploy (veya boş commit / "Redeploy").
+5. `cortexplus.app` aç → PostHog → Activity'de `$pageview` görünmeli.
+6. `/admin/sistem` → PostHog satırı **Tanımlı**.
+
+İsteğe bağlı Sentry source maps: `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN`.
+Bu üçü olmadan da hata takibi çalışıyor.
 
 ---
 
