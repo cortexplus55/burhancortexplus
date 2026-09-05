@@ -118,43 +118,31 @@ numarasıyla görünmesi için `SENTRY_ORG`, `SENTRY_PROJECT` ve
 
 ---
 
-## 7. Veritabanı: tek komut
+## 7. Veritabanı — ✅ **kapandı (2026-09-05)**
 
-Göç geçmişi temizlendi. Eskiden yerel dosyalarla veritabanının kaydı birbirini
-tutmuyordu (iki tarafta da 34'er kayıt eksikti) ve toplu uygulama mümkün
-değildi. Artık 33 dosya "uygulandı" olarak eşleşiyor, karşılıksız kayıt yok.
+İki bekleyen veritabanı eklemesi sahibi tarafından SQL editöründen uygulandı.
+Ajan uygulayamadı: canlı veritabanına şema yazmak güvenlik katmanınca
+engelleniyor, CLI için gereken erişim jetonunu da giremiyor.
 
-**Bekleyen iki göç var:**
+| Dosya | Ne için | Durum |
+|-------|---------|-------|
+| `20260904120000_promo_campaigns.sql` | Ana ekrandaki duyuru bandı | **uygulandı** |
+| `20260904140000_message_feedback.sql` | Yanıt altındaki beğen/beğenme | **uygulandı** |
 
-| Dosya | Ne için |
-|-------|---------|
-| `20260904120000_promo_campaigns.sql` | Ana ekrandaki duyuru bandı. Bu olmadan panelden bant kaydedilemiyor. |
-| `20260904140000_message_feedback.sql` | Yanıt altındaki beğen/beğenme. Bu olmadan başparmak düğmeleri hiç görünmüyor. |
+Göç geçmişi de işlendi — son kayıt `20260904140000`, karşılıksız kayıt yok.
 
-**2026-09-05'te doğrulandı: ikisi de gerçekten uygulanmamış.** Canlı veritabanına
-atılan sorgu `promo_campaigns` tablosunun ve `messages.rating` kolonunun
-olmadığını gösterdi; göç geçmişindeki son kayıt `20260904020000`.
+**Uçtan uca doğrulandı (canlıda, elle):**
 
-**Yapılacak** — proje klasöründe tek komut:
+- `promo_campaigns` tablosu var; `messages` tablosunda üç oy kolonunun üçü de var
+- `/admin/yanıt-oyları` artık uyarı yerine gerçek panoyu gösteriyor
+- Sohbette başparmak düğmeleri **göründü**; bir yanıt beğenildi → panelde
+  `1 oy · %100 olumlu` olarak belirdi → sayfa yenilendiğinde düğme
+  "Beğeniyi geri al" olarak açıldı (yani veritabanına yazılmış) → geri alındı,
+  sayaç `0`'a döndü. Test verisi bırakılmadı.
 
-```bash
-cd cortex-plus && npx supabase db push
-```
-
-> Komut `Unauthorized (401)` derse önce `npx supabase login` gerekiyor —
-> CLI bu makinede oturumsuz.
-
-Ajan bu adımı yapamıyor: canlı veritabanına şema yazmak güvenlik katmanı
-tarafından engelleniyor, CLI için gereken erişim jetonunu da giremez.
-
-Komut satırı istemezsen SQL editöründen tek seferde olur —
-<https://supabase.com/dashboard/project/dgjfyewgrukglsehyntc/sql/new> —
-ajanın hazırladığı birleşik dosyayı yapıştırıp **Run** de. Dosya iki göçü de,
-göç geçmişi kaydını da içeriyor ve tek işlem hâlinde: bir satır hata verirse
-hiçbiri uygulanmıyor.
-
-> Başparmak düğmeleri göç uygulanana kadar **hiç görünmüyor**; uygulandıktan
-> sonra kendiliğinden açılıyor. Yani "basıyorum bir şey olmuyor" durumu yok.
+> Duyuru bandının **kaydedileceği yer** artık var ve panel formu açılıyor.
+> Ajan gerçek bir bant açmadı: o, her ücretsiz kullanıcının ana ekranında
+> görünen herkese açık bir duyuru olurdu — içeriği ve zamanı sahibinin kararı.
 
 ---
 
