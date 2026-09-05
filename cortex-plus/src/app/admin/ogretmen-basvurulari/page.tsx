@@ -3,7 +3,6 @@ import { AdminBadge, AdminCard, AdminEmpty, AdminNote, AdminTableFrame } from "@
 import { ApplicationReview } from "@/components/admin/application-review";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
-import { countPendingApplications } from "@/lib/admin/pending";
 import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Yönetim · Öğretmen başvuruları" };

@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin", "/ogretmen-paneli", "/api/", "/auth/"],
+      disallow: ["/admin", "/api/", "/auth/"],
     },
     sitemap: "https://cortexplus.app/sitemap.xml",
   };

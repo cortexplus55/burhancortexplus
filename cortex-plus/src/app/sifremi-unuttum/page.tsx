@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { PremiumAuthShell } from "@/components/layout/premium-auth-shell";
 import { createClient } from "@/lib/supabase/client";
-import { toast } from "sonner";
 
 export default function SifremiUnuttumPage() {
   const [email, setEmail] = useState("");

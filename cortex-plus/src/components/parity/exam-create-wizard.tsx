@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { turkishFold } from "@/lib/text/turkish";
 
 const EXAM_TYPES = ["LGS", "TYT", "AYT", "Okul yazılısı", "Serbest"] as const;
 
