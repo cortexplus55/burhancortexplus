@@ -46,7 +46,8 @@ export const SERVICE_NOTES: Record<string, string> = {
   OpenAI: "Yapay zekâ yanıtları buradan geliyor. Eksikse AI hiç çalışmaz.",
   PayTR: "Ödeme altyapısı. Eksikse paket satın alınamaz.",
   "Workspace SMTP": "Doğrulama ve bildirim e-postaları buradan gidiyor.",
-  "Upstash Redis": "İstek sınırlama. Eksikse kötüye kullanım engeli zayıflar.",
+  "Upstash Redis":
+    "İstek sınırlama sayacı. Tanımsızsa sayaç her sunucuda ayrı tutulur ve sınır fiilen çalışmaz.",
   PostHog: "Kullanım istatistikleri. Eksikse kimin ne yaptığı ölçülmez.",
   Sentry: "Hata takibi. Eksikse bir kullanıcıda site patlarsa haberin olmaz.",
 };
