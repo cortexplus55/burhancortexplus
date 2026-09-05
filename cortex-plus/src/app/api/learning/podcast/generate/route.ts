@@ -31,7 +31,7 @@ const resultSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const guard = await withUser(request, { scope: "podcast", limit: 6 });
+  const guard = await withUser(request, { scope: "podcast", limit: 6, trackSharing: true });
   if (!guard.ok) return guard.response;
   const { userId, service } = guard.ctx;
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/guards";
 
 /**
  * Kullanıcının işlenmiş belgeleri.
@@ -12,14 +12,11 @@ import { createClient } from "@/lib/supabase/server";
  * arama gömmesi (embedding) hazır değildir, seçtirmek boş bir kaynak bağlamak
  * olurdu.
  */
-export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+export async function GET(request: Request) {
+  const guard = await withUser(request, { scope: "documents-list", limit: 30 });
+  if (!guard.ok) return guard.response;
+  const { supabase, userId } = guard.ctx;
+  const user = { id: userId };
 
   const { data } = await supabase
     .from("documents")

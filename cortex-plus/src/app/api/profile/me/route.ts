@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/guards";
 
-export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+export async function GET(request: Request) {
+  const guard = await withUser(request, { scope: "profile-read", limit: 60 });
+  if (!guard.ok) return guard.response;
+  const { supabase, userId } = guard.ctx;
+  const user = { id: userId };
 
   const { data } = await supabase
     .from("profiles")
@@ -36,13 +33,14 @@ const patchSchema = z.object({
 });
 
 export async function PATCH(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const guard = await withUser(request, {
+    scope: "profile-write",
+    limit: 20,
+    dailyLimit: 120,
+  });
+  if (!guard.ok) return guard.response;
+  const { supabase, userId } = guard.ctx;
+  const user = { id: userId };
 
   const parsed = patchSchema.safeParse(await request.json());
   if (!parsed.success) {

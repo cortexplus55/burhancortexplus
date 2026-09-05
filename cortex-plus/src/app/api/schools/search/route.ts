@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/guards";
 
 /**
  * Okul arama.
@@ -13,13 +13,15 @@ import { createClient } from "@/lib/supabase/server";
  * dönük uyumluluk için korunuyor; henüz güncellenmemiş çağıranlar bozulmasın.
  */
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  // Okul listesi tüm kullanıcılara açık bir veri kümesi; asıl korunan şey
+  // her tuş vuruşunda tetiklenen aramanın veritabanına bindirdiği yük.
+  const guard = await withUser(request, {
+    scope: "school-search",
+    limit: 40,
+    dailyLimit: 400,
+  });
+  if (!guard.ok) return guard.response;
+  const { supabase } = guard.ctx;
 
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") ?? "").trim().slice(0, 80);

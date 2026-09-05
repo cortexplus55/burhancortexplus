@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/guards";
 import { reviewMistake } from "@/lib/learning/mistake-notebook";
 import { recordDrillAnswer } from "@/lib/learning/daily-drill";
 
@@ -25,13 +25,14 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const guard = await withUser(request, {
+    scope: "mistake-review",
+    limit: 40,
+    dailyLimit: 400,
+  });
+  if (!guard.ok) return guard.response;
+  const { supabase, userId } = guard.ctx;
+  const user = { id: userId };
 
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

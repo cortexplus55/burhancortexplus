@@ -2,25 +2,27 @@ import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/guards";
 
 const bodySchema = z.object({ name: z.string().min(2).max(80) });
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  // Bir öğrencinin gerçekten kaç sınıfı olur? Günde beş fazlasıyla cömert.
+  // Sınırsızken tek hesap binlerce sınıf açıp tabloyu şişirebiliyordu.
+  const guard = await withUser(request, {
+    scope: "create-class",
+    limit: 3,
+    dailyLimit: 5,
+  });
+  if (!guard.ok) return guard.response;
+  const { service, userId } = guard.ctx;
+  const user = { id: userId };
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
 
-  const service = createServiceClient();
   const joinCode = randomBytes(3).toString("hex").toUpperCase();
   const { data: classroom, error } = await service
     .from("classrooms")

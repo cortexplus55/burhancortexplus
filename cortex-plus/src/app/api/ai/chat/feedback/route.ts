@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/guards";
 
 /**
  * Yanıt oylaması.
@@ -18,13 +18,13 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const guard = await withUser(request, {
+    scope: "chat-feedback",
+    limit: 30,
+    dailyLimit: 300,
+  });
+  if (!guard.ok) return guard.response;
+  const { supabase } = guard.ctx;
 
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

@@ -11,6 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { createClient } from "@/lib/supabase/client";
 import { passwordIssues } from "@/lib/auth/password";
+import {
+  DISPOSABLE_EMAIL_MESSAGE,
+  isDisposableEmail,
+} from "@/lib/auth/email-policy";
 import { cn } from "@/lib/utils";
 import {
   AVATAR_OPTIONS,
@@ -137,6 +141,12 @@ export function SignupWizard() {
     }
     if (!consent) {
       toast.error("Devam etmek için sözleşmeleri onaylaman gerekiyor.");
+      return;
+    }
+    // Kuralı burada söylüyoruz ki kullanıcı kayıt olduktan sonra hakkının
+    // neden kısıtlı olduğunu aramasın. Asıl kontrol veritabanında.
+    if (isDisposableEmail(email)) {
+      toast.error(DISPOSABLE_EMAIL_MESSAGE);
       return;
     }
 

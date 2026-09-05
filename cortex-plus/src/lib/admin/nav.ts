@@ -9,6 +9,7 @@ import {
   Package,
   Receipt,
   ServerCog,
+  ShieldAlert,
   Ticket,
   ToggleRight,
   TrendingUp,
@@ -135,6 +136,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         label: "Özellik anahtarları",
         icon: ToggleRight,
         blurb: "Bir özelliği tüm kullanıcılara açıp kapatan anahtarlar. Etkisi anında.",
+      },
+      {
+        href: "/admin/kotuye-kullanim",
+        label: "Kötüye kullanım",
+        icon: ShieldAlert,
+        blurb: "Sınırlara takılan, tavanı zorlayan ya da kod deneyen hesaplar. Şimdilik yalnızca kaydediliyor, kimse otomatik engellenmiyor.",
       },
       {
         href: "/admin/audit-log",

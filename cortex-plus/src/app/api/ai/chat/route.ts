@@ -5,6 +5,8 @@ import OpenAI from "openai";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { selectModel } from "@/lib/ai/model-router";
 import { SYSTEM_GUARDRAIL, isPremiumUser } from "@/lib/ai/generate";
+import { moderate } from "@/lib/ai/moderation";
+import { recordAbuse } from "@/lib/abuse/record";
 import { parseTutorStyle, tutorStylePrompt } from "@/lib/learning/tutor-style";
 import { env, type ActionCode } from "@/lib/env";
 import {
@@ -30,7 +32,7 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const guard = await withUser(request, { scope: "chat", limit: 40 });
+  const guard = await withUser(request, { scope: "chat", limit: 40, trackSharing: true });
   if (!guard.ok) return guard.response;
   const { userId, service } = guard.ctx;
 
@@ -52,6 +54,44 @@ export async function POST(request: Request) {
         .createSignedUrl(doc.storage_path as string, 600);
       imageUrl = signed?.signedUrl ?? null;
     }
+  }
+
+  /*
+    İçerik denetimi krediden önce.
+
+    Sırası önemli: engellenen bir istek için öğrencinin hakkı yanmamalı.
+    Denetim ücretsiz bir uçta çalışıyor, yani bu kontrol faturaya bir şey
+    eklemiyor.
+
+    Yanıt, hata değil normal bir cevap olarak dönüyor (200, düz metin).
+    Kendine zarar sinyalinde ekrana kırmızı bir hata kutusu çıkarmak, yardım
+    isteyen bir gence "sistem seni reddetti" demek olurdu.
+  */
+  const verdict = await moderate({
+    text: message,
+    imageUrls: imageUrl ? [imageUrl] : [],
+  });
+  if (verdict.action !== "allow") {
+    void recordAbuse({
+      signal: "moderation",
+      severity: verdict.action === "flag" ? "low" : "high",
+      scope: "chat",
+      userId,
+      request,
+      // Metnin kendisi kaydedilmiyor; hangi kategoriye düştüğü yeterli.
+      metadata: { categories: verdict.categories, outcome: verdict.action },
+    });
+  }
+  if (verdict.action === "block" || verdict.action === "support") {
+    return new Response(verdict.message, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-Conversation-Id": parsed.data.conversationId ?? "",
+        // Bu yanıt modelden gelmedi; oylanacak bir satır yok.
+        "X-Message-Id": "",
+        "X-Credits-Used": "0",
+      },
+    });
   }
 
   const isPremium = await isPremiumUser(service, userId);

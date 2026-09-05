@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import OpenAI from "openai";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/guards";
 import { env } from "@/lib/env";
 import { getTeacherEntitlements, incrementTeacherUsage } from "@/lib/teacher/entitlements";
 import { CONTENT_STYLE, SYSTEM_GUARDRAIL } from "@/lib/ai/generate";
@@ -12,15 +12,23 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const guard = await withUser(request, {
+    scope: "quiz-generate",
+    limit: 8,
+    dailyLimit: 60,
+  });
+  if (!guard.ok) return guard.response;
+  const { service, userId } = guard.ctx;
+  const user = { id: userId };
 
-  const { topic, count } = schema.parse(await request.json());
+  // Eskiden `schema.parse` idi: geçersiz gövde 400 yerine 500 döndürüyordu,
+  // yani her bozuk istek hata raporuna düşüyordu.
+  const parsedBody = schema.safeParse(await request.json().catch(() => null));
+  if (!parsedBody.success) {
+    return NextResponse.json({ error: "invalid_input" }, { status: 400 });
+  }
+  const { topic, count } = parsedBody.data;
   const questionCount = count ?? 5;
-  const service = createServiceClient();
 
   const { data: roleRows } = await service
     .from("user_roles")

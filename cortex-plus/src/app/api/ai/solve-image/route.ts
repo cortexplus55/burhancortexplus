@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { moderate } from "@/lib/ai/moderation";
+import { recordAbuse } from "@/lib/abuse/record";
 import { z } from "zod";
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -14,7 +16,7 @@ const resultSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const guard = await withUser(request, { scope: "solve-image", limit: 8 });
+  const guard = await withUser(request, { scope: "solve-image", limit: 8, trackSharing: true });
   if (!guard.ok) return guard.response;
   const { userId, service } = guard.ctx;
 
@@ -28,6 +30,27 @@ export async function POST(request: Request) {
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const dataUrl = `data:${file.type};base64,${buffer.toString("base64")}`;
+
+  // Görsel de denetimden geçiyor. Buraya yüklenen şeyin ödev fotoğrafı
+  // olduğunu varsayamayız; kamera açılan her yerden her şey gelebilir.
+  const verdict = await moderate({ text: note, imageUrls: [dataUrl] });
+  if (verdict.action !== "allow") {
+    void recordAbuse({
+      signal: "moderation",
+      severity: verdict.action === "flag" ? "low" : "high",
+      scope: "solve-image",
+      userId,
+      request,
+      metadata: { categories: verdict.categories, outcome: verdict.action },
+    });
+  }
+  if (verdict.action === "block" || verdict.action === "support") {
+    // Kredi henüz ayrılmadı; engellenen istek öğrencinin hakkını yakmıyor.
+    return NextResponse.json(
+      { error: verdict.message, moderated: true },
+      { status: 422 },
+    );
+  }
 
   const outcome = await generateJson({
     service,

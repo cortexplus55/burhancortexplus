@@ -21,7 +21,7 @@ const resultSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const guard = await withUser(request, { scope: "exam-mock", limit: 8 });
+  const guard = await withUser(request, { scope: "exam-mock", limit: 8, trackSharing: true });
   if (!guard.ok) return guard.response;
   const { userId, service } = guard.ctx;
 

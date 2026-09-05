@@ -16,7 +16,7 @@ Production + Preview için `.env.example` içindeki tüm anahtarları doldurun. 
 | `OPENAI_API_KEY` | Evet |
 | `SMTP_*` + `EMAIL_FROM` | Workspace Gmail — veli daveti ([WORKSPACE-EMAIL.md](../../../docs/delivery/WORKSPACE-EMAIL.md)) |
 | `PAYTR_*` | Ödeme açıksa |
-| `UPSTASH_*` | Rate limit |
+| `UPSTASH_*` | **Elle eklemeyin.** Vercel Storage'daki Upstash bağlı; aynı bilgi `KV_REST_API_*` adıyla geliyor ve kod ikisini de tanıyor ([KOTUYE-KULLANIM.md](KOTUYE-KULLANIM.md)) |
 | `GOOGLE_CLIENT_*` | Supabase Google OAuth ile aynı client |
 
 CLI (doğru Vercel hesabıyla):

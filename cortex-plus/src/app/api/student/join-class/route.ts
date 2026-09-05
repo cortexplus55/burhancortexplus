@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { withUser } from "@/lib/api/guards";
+import { peekCount, rateLimit, userKey } from "@/lib/rate-limit";
+import { recordAbuse } from "@/lib/abuse/record";
 import {
   countTeacherStudents,
   getTeacherEntitlements,
@@ -11,13 +13,47 @@ const schema = z.object({
   code: z.string().min(4).max(12),
 });
 
+/**
+ * Yanlış kod denemesi için ayrı ve dar bir sayaç.
+ *
+ * Katılma kodu altı haneli onaltılık; deneyerek bulmak makinelerin sevdiği
+ * türden bir iş. Genel istek sınırı bunu görmüyor, çünkü saatte on istek
+ * normal bir sayı. Görülmesi gereken şey isteğin sayısı değil, kaçının boşa
+ * çıktığı: doğru kodu bilen bir öğrenci ikinci denemede içeride olur.
+ */
+const MISS_LIMIT = 8;
+const MISS_WINDOW = 3600;
+
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const guard = await withUser(request, {
+    scope: "join-class",
+    limit: 10,
+    dailyLimit: 40,
+  });
+  if (!guard.ok) return guard.response;
+  const { supabase, service, userId } = guard.ctx;
+  const user = { id: userId };
+  const missKey = userKey(userId, "join-class-miss");
+
+  // Sayaç yalnızca yanlış denemede artıyor, o yüzden burada artırmadan
+  // bakılıyor: doğru kodu giren öğrenci kotasından yemesin.
+  if ((await peekCount(missKey)) >= MISS_LIMIT) {
+    void recordAbuse({
+      signal: "token_bruteforce",
+      severity: "high",
+      scope: "join-class",
+      userId,
+      request,
+      metadata: { missLimit: MISS_LIMIT, windowSeconds: MISS_WINDOW },
+    });
+    return NextResponse.json(
+      {
+        error: "too_many_attempts",
+        message:
+          "Çok fazla yanlış kod denendi. Bir süre sonra tekrar deneyebilirsin.",
+      },
+      { status: 429, headers: { "Retry-After": String(MISS_WINDOW) } },
+    );
   }
 
   const roles = await supabase
@@ -40,7 +76,6 @@ export async function POST(request: Request) {
   }
 
   const code = parsed.data.code.trim().toUpperCase();
-  const service = createServiceClient();
 
   const { data: classroom } = await service
     .from("classrooms")
@@ -49,6 +84,9 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (!classroom) {
+    // Boşa çıkan deneme sayılıyor. Yanıt her hâlükârda aynı 404: hangi
+    // kodun var olduğunu sızdırmamak, kod aramayı zorlaştırmanın diğer yarısı.
+    await rateLimit(missKey, MISS_LIMIT, MISS_WINDOW);
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 

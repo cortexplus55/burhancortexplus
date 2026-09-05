@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { withUser, errorResponse } from "@/lib/api/guards";
+import { recordAbuse } from "@/lib/abuse/record";
+import { isPremiumUser } from "@/lib/ai/generate";
 import { storeUserDocument } from "@/lib/documents/store-upload";
+import { fitsInQuota, storageUsage } from "@/lib/documents/storage-quota";
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const guard = await withUser(request, {
+    scope: "doc-upload",
+    limit: 6,
+    dailyLimit: 40,
+  });
+  if (!guard.ok) return guard.response;
+  const { service, userId } = guard.ctx;
 
   const form = await request.formData();
   const file = form.get("file");
@@ -15,7 +20,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_file" }, { status: 400 });
   }
 
-  const stored = await storeUserDocument(createServiceClient(), user.id, file);
+  // Alan dolu mu — yükleme başlamadan bakılıyor, yoksa dosyayı depoya
+  // koyduktan sonra geri almak gerekirdi.
+  const isPremium = await isPremiumUser(service, userId);
+  const usage = await storageUsage(service, userId, isPremium);
+  if (!fitsInQuota(usage, file.size)) {
+    void recordAbuse({
+      signal: "storage_cap",
+      severity: "medium",
+      scope: "doc-upload",
+      userId,
+      request,
+      metadata: {
+        usedBytes: usage.usedBytes,
+        capBytes: usage.capBytes,
+        fileSize: file.size,
+      },
+    });
+    return errorResponse(413, "storage_full");
+  }
+
+  const stored = await storeUserDocument(service, userId, file);
   if (!stored.ok) {
     return NextResponse.json({ error: stored.error }, { status: 400 });
   }
