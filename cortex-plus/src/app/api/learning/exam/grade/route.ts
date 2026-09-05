@@ -3,6 +3,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { formatExamAnalysisText } from "@/lib/learning/exam-analysis";
+import { recordMistakes } from "@/lib/learning/mistake-notebook";
 
 const bodySchema = z.object({
   examId: z.string().uuid(),
@@ -18,6 +19,10 @@ const analysisSchema = z.object({
       z.object({
         questionId: z.string().optional(),
         explanation: z.string().min(8),
+        // Soru başına konu etiketi. Yanlış defteri soruları buna göre
+        // gruplandığı için isteniyor; sınav geneli için üretilen weakTopics
+        // bunun yerini tutmuyor, o tek bir sınavın özeti.
+        topic: z.string().optional(),
       }),
     )
     .default([]),
@@ -74,10 +79,10 @@ export async function POST(request: Request) {
     actionCode: "PRACTICE_EXAM_GRADE",
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
-      'JSON: {"summary":string,"weakTopics":string[],"nextSteps":string[],"items":[{"questionId":string,"explanation":string}]}',
+      'JSON: {"summary":string,"weakTopics":string[],"nextSteps":string[],"items":[{"questionId":string,"explanation":string,"topic":string}]}',
     userPrompt: `Sınav: ${exam.title}. Puan: ${score}/100. Yanlışlar: ${
       wrong.length ? wrong.join(" | ") : "yok"
-    }.\nHer soru için kısa Türkçe açıklama yaz (neden doğru/yanlış).\n${itemLines}`,
+    }.\nHer soru için kısa Türkçe açıklama yaz (neden doğru/yanlış) ve o sorunun konusunu "topic" alanına 1-3 kelimeyle yaz (örn. "Üslü sayılar", "Paragrafta ana fikir"). Konu adları tutarlı olsun: aynı konudaki iki soruya aynı etiketi ver.\n${itemLines}`,
     parse: (raw) => {
       const result = analysisSchema.safeParse(raw);
       return result.success ? result.data : null;
@@ -105,31 +110,57 @@ export async function POST(request: Request) {
     .single();
 
   if (attempt) {
-    const explanationById = new Map(
+    const itemById = new Map(
       (outcome.ok ? outcome.data.items : []).map((item) => [
         item.questionId ?? "",
-        item.explanation,
+        item,
       ]),
     );
+
+    const graded = list.map((q, index) => {
+      const given = answers[q.id] ?? "";
+      const item = itemById.get(q.id) ?? (outcome.ok ? outcome.data.items[index] : undefined);
+      const isCorrect = given === q.correct_answer;
+      return {
+        question: q,
+        given,
+        isCorrect,
+        topic: item?.topic?.trim() || null,
+        explanation:
+          item?.explanation ??
+          (isCorrect ? "Bu yanıt doğru." : `Doğru yanıt: ${q.correct_answer}`),
+      };
+    });
+
     await service.from("practice_exam_item_reviews").insert(
-      list.map((q, index) => {
-        const given = answers[q.id] ?? "";
-        const fallback = outcome.ok
-          ? outcome.data.items[index]?.explanation
-          : undefined;
-        return {
-          attempt_id: attempt.id,
-          question_id: q.id,
-          user_answer: given,
-          is_correct: given === q.correct_answer,
-          explanation:
-            explanationById.get(q.id) ??
-            fallback ??
-            (given === q.correct_answer
-              ? "Bu yanıt doğru."
-              : `Doğru yanıt: ${q.correct_answer}`),
-        };
-      }),
+      graded.map((g) => ({
+        attempt_id: attempt.id,
+        question_id: g.question.id,
+        user_answer: g.given,
+        is_correct: g.isCorrect,
+        explanation: g.explanation,
+      })),
+    );
+
+    // Yanlışlar deftere düşüyor. Sınav bittikten sonra ayrıca bir şey yapmak
+    // gerekmiyor: öğrenci hiçbir düğmeye basmadan defteri dolmuş oluyor.
+    await recordMistakes(
+      service,
+      userId,
+      graded
+        .filter((g) => !g.isCorrect)
+        .map((g) => ({
+          source: "deneme" as const,
+          sourceQuestionId: g.question.id,
+          topicLabel: g.topic,
+          questionText: g.question.question_text,
+          options: Array.isArray(g.question.options)
+            ? (g.question.options as string[])
+            : null,
+          correctAnswer: g.question.correct_answer,
+          wrongAnswer: g.given || null,
+          explanation: g.explanation,
+        })),
     );
   }
 

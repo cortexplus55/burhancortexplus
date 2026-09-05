@@ -6,6 +6,7 @@ import { TopicBars } from "@/components/student/topic-bars";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { formatNumber } from "@/lib/format";
+import { countMistakes } from "@/lib/learning/mistake-notebook";
 
 export const metadata = { title: "İlerleme" };
 
@@ -13,7 +14,7 @@ export default async function IlerlemePage() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
-  const [conversations, quizzes, flashcards, attempts, weak] = await Promise.all([
+  const [conversations, quizzes, flashcards, attempts, weak, mistakes] = await Promise.all([
     supabase
       .from("conversations")
       .select("id", { count: "exact", head: true })
@@ -38,6 +39,7 @@ export default async function IlerlemePage() {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(10),
+    countMistakes(supabase, user.id),
   ]);
 
   const scores = (attempts.data ?? [])
@@ -125,6 +127,29 @@ export default async function IlerlemePage() {
               Henüz analiz verisi yok. Bir deneme sınavı çözdüğünde burada görünür.
             </p>
           )}
+
+          {/* Grafik neyi bilmediğini söylüyordu ama yapılacak bir şey
+              önermiyordu. Defter tam olarak o soruları tutuyor. */}
+          <Link
+            href="/yanlislarim"
+            className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-white/10 p-4 transition-colors hover:border-white/25"
+          >
+            <span>
+              <span className="block text-sm font-semibold text-[var(--astra-text)]">
+                Yanlış defteri
+              </span>
+              <span className="mt-1 block text-xs text-[var(--astra-muted)]">
+                {mistakes.open > 0
+                  ? `${formatNumber(mistakes.open)} soru tekrar bekliyor`
+                  : mistakes.mastered > 0
+                    ? `Bekleyen soru yok · ${formatNumber(mistakes.mastered)} soruyu aştın`
+                    : "Yanlış yaptığın sorular burada birikir"}
+              </span>
+            </span>
+            <span className="shrink-0 text-xs font-semibold text-[var(--astra-primary)]">
+              Aç →
+            </span>
+          </Link>
         </SectionCard>
       </div>
       </div>
