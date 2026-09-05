@@ -174,27 +174,43 @@ export function MistakeNotebookView({
           </Link>
 
           <div className="mt-5 flex flex-col gap-2">
-            {groups.map((group) => (
-              <button
-                key={group.label}
-                type="button"
-                onClick={() => startTopic(group.label)}
-                className="astra-pay-card flex items-center justify-between gap-4 p-4 text-left transition-transform hover:scale-[1.01]"
-              >
-                <span>
-                  <span className="block text-sm font-semibold text-[var(--astra-text)]">
-                    {group.label}
-                  </span>
-                  <span className="mt-1 block text-xs text-[var(--astra-muted)]">
-                    {group.questions.length} soru bekliyor
-                  </span>
-                </span>
-                <span className="inline-flex shrink-0 items-center gap-2 text-xs font-semibold text-amber-400">
-                  Tekrar et
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </span>
-              </button>
-            ))}
+            {groups.map((group) => {
+              // Üç soruyu aşamamak artık soru tekrarıyla çözülmüyor: konu
+              // anlaşılmamış demektir. Tekrar etmeye devam etmek yerine
+              // anlatmaya davet ediyoruz.
+              const stuck = group.questions.length >= 3;
+              return (
+                <div key={group.label} className="astra-pay-card p-4">
+                  <button
+                    type="button"
+                    onClick={() => startTopic(group.label)}
+                    className="flex w-full items-center justify-between gap-4 text-left"
+                  >
+                    <span>
+                      <span className="block text-sm font-semibold text-[var(--astra-text)]">
+                        {group.label}
+                      </span>
+                      <span className="mt-1 block text-xs text-[var(--astra-muted)]">
+                        {group.questions.length} soru bekliyor
+                      </span>
+                    </span>
+                    <span className="inline-flex shrink-0 items-center gap-2 text-xs font-semibold text-amber-400">
+                      Tekrar et
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                  </button>
+
+                  {stuck ? (
+                    <Link
+                      href={`/studio/anlat?topic=${encodeURIComponent(group.label)}`}
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-[var(--astra-muted)] transition-colors hover:border-amber-500/50 hover:text-[var(--astra-text)]"
+                    >
+                      Bu konu sana zor geliyor — bir de sen anlat
+                    </Link>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         </>
       )}

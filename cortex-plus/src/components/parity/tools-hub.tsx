@@ -12,6 +12,8 @@ import {
   Layers,
   LineChart,
   MessageSquare,
+  Mic,
+  NotebookPen,
   Ruler,
   Sigma,
   Superscript,
@@ -45,6 +47,8 @@ const ICONS: Record<string, LucideIcon> = {
   dokuman: FileText,
   ilerleme: LineChart,
   sohbetler: MessageSquare,
+  yanlislarim: NotebookPen,
+  anlat: Mic,
 };
 
 export function ToolsHub() {

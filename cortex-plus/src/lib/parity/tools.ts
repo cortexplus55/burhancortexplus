@@ -124,6 +124,22 @@ export const TOOLS: Tool[] = [
     kind: "kisayol",
     href: "/sohbetler",
   },
+  {
+    id: "yanlislarim",
+    title: "Yanlış defteri",
+    blurb: "Yanlış yaptığın sorular burada birikir, doğru yapana kadar sorar.",
+    subject: "Genel",
+    kind: "kisayol",
+    href: "/yanlislarim",
+  },
+  {
+    id: "anlat",
+    title: "Anlatarak öğren",
+    blurb: "Konuyu sen anlat, nerede tökezlediğini birlikte görelim.",
+    subject: "Genel",
+    kind: "kisayol",
+    href: "/studio/anlat",
+  },
 ];
 
 /** Sayfada açılan araçlar — /araclar/[id] bunları tanıyor. */

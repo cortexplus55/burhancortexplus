@@ -49,4 +49,9 @@ export const STUDIO_INTRO: Record<StudioToolId, StudioIntro> = {
       "Yazılı hazırlayalım. Hangi konudan sekiz soru çıkarayım? Sonunda notunu ve eksik kaldığın yerleri de vereceğim.",
     suggestions: ["Fonksiyonlar", "Elektrik devreleri", "Paragraf soruları"],
   },
+  anlat: {
+    greeting:
+      "Bu sefer ben anlatmayacağım, sen anlatacaksın. Hangi konuyu bana anlatmak istersin? Bilmeyen birine anlatır gibi anlat — nerede tökezlediğini ikimiz de göreceğiz.",
+    suggestions: ["Fotosentez", "Türev ne işe yarar?", "Osmanlı'nın kuruluşu"],
+  },
 };
