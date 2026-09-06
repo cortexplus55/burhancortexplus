@@ -19,18 +19,19 @@ const KNOWN = [
       "Açıkken yapay zekâ, yüklenen dokümandan yararlandığında hangi sayfadan aldığını gösterir. Kapatırsan yanıtlar gelmeye devam eder ama kaynak bağlantısı görünmez.",
   },
   {
-    key: "teacher_panel",
-    label: "Öğretmen paneli",
-    description:
-      "Onaylı öğretmenlerin sınıf ve ödev ekranlarını açar. Kapalıyken öğretmenler de normal öğrenci gibi görür.",
-  },
-  {
     key: "paytr_live",
     label: "Ödeme canlı modu",
     description:
       "Açıkken kartlardan gerçekten para çekilir. Test bitmeden açma — açık kalırsa deneme alışverişleri gerçek tahsilat olur.",
   },
 ];
+
+/**
+ * Üründen kaldırılmış özelliklerin eski veritabanı kayıtları bilerek kalabilir.
+ * Bunları "tanımsız anahtar" olarak göstermek, yöneticiye artık var olmayan bir
+ * özelliği açabileceği izlenimini verir.
+ */
+const RETIRED = new Set(["teacher_panel"]);
 
 export default async function AdminOzellikAnahtarlariPage() {
   await requireAdmin();
@@ -53,7 +54,11 @@ export default async function AdminOzellikAnahtarlariPage() {
     // Veritabanına sonradan eklenmiş, burada tanımlamadığımız anahtarlar da
     // görünmeli; yoksa panelde olmayan bir ayar sessizce açık kalabilir.
     ...(flags ?? [])
-      .filter((flag) => !KNOWN.some((item) => item.key === flag.key))
+      .filter(
+        (flag) =>
+          !RETIRED.has(flag.key) &&
+          !KNOWN.some((item) => item.key === flag.key),
+      )
       .map((flag) => ({
         key: flag.key,
         label: flag.key,

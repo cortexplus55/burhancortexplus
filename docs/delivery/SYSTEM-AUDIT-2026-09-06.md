@@ -89,6 +89,10 @@ GitHub CI Node 20 kullanırken Vercel Node 24 kullanıyor. CI lint, typecheck, b
 
 Production'da doğrulanmamış sayılar, isimli örnek yorumlar, “2 kat hızlı” ve kaldırılmış uygulamalar vaadi çıkarıldı. Yerine çalışan ürün döngüsü — yanlış defteri, kişisel kaynak, çalışma planı ve ilerleme — anlatılıyor.
 
+### P2 — Yönetim panelinde kaldırılmış öğretmen paneli anahtarı görünüyordu
+
+Canlı `/admin/feature-flags`, ürün öğrenci odaklı hâle getirildiği ve öğretmen/ödev arayüzleri kaldırıldığı hâlde “Öğretmen paneli” anahtarını açılabilir gösteriyordu. Kaynakta `teacher_panel` anahtarını tüketen hiçbir kod kalmamıştı; kontrol yalnızca yöneticiyi yanıltıyordu. Eski veritabanı satırı veri geçmişi için korunurken emekli anahtar yönetim arayüzünden çıkarıldı.
+
 ## 3. Geçen kontroller
 
 - Doğru GitHub reposuna bağlayıcı ve CLI erişimi.
@@ -102,6 +106,7 @@ Production'da doğrulanmamış sayılar, isimli örnek yorumlar, “2 kat hızl�
 - npm run build: başarılı, 131 rota üretildi; doğrulanan commit production'a dağıtıldı.
 - Playwright: 39/39 tarayıcı testi başarılı; anonim erişim korumaları, genel sayfalar, mobil taşma, başlık ve temel erişilebilirlik kontrolleri geçti.
 - Bu görevde değiştirilen 3 PowerShell dosyası: 0 parse hatası; git diff --check başarılı.
+- Canlı yönetim sistemi ekranındaki Workspace SMTP bağlantı denemesi başarılı: Gmail SMTP verify tamamlandı ve hiç kimseye e-posta gönderilmedi.
 
 ## 4. Tarayıcıda görülenler ve eksik kapsam
 
