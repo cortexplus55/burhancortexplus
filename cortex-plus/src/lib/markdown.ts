@@ -50,7 +50,7 @@ export function renderMarkdownToHtml(content: string): string {
         )}</code></pre>`;
       }
 
-      if (/^#{1,3}\s/.test(trimmed)) {
+      if (/^#{1,6}\s/.test(trimmed)) {
         const level = trimmed.match(/^#+/)?.[0].length ?? 1;
         const size = level === 1 ? "text-lg" : level === 2 ? "text-base" : "text-sm";
         return `<p class="${size} font-semibold">${renderInline(
