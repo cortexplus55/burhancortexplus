@@ -91,7 +91,9 @@ export function AstraAppChrome({
               href="/krediler"
               className="cortex-premium-glass-nav max-w-[100px] truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium sm:max-w-[140px]"
             >
-              {account.isPremium ? "Plus · " : ""}
+              {account.isPremium
+                ? `${account.subscriptionBadge ?? "Plus"} · `
+                : ""}
               {account.balance} kr
             </Link>
           ) : null}
@@ -174,14 +176,18 @@ export function AstraAppChrome({
                     <div className="grid grid-cols-3 gap-3">
                       {group.items.map((item) => {
                         const Icon = item.icon;
+                        const href =
+                          item.href === "/pay" && account?.isPremium
+                            ? "/odemeler"
+                            : item.href;
                         const plusLabel =
                           item.href === "/pay" && account?.isPremium
-                            ? "Plus aktif"
+                            ? `${account.subscriptionBadge ?? "Plus"} aktif`
                             : item.label;
                         return (
-                          <Link
-                            key={item.href}
-                            href={item.href}
+                            <Link
+                              key={item.href}
+                              href={href}
                             className="astra-pay-card astra-pay-card--premium flex flex-col items-center gap-2 p-3 text-center text-xs font-medium transition-colors hover:border-[var(--astra-primary)]"
                           >
                             <Icon className="h-6 w-6 text-[var(--astra-primary)]" />

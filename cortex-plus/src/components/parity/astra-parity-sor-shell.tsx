@@ -65,6 +65,7 @@ export function AstraParitySorShell({
   const [limitDismissed, setLimitDismissed] = useState(false);
   const showBuy = !account?.isPremium;
   const isPremium = Boolean(account?.isPremium);
+  const planLabel = account?.subscriptionBadge ?? "Plus";
   const showPlusLimit = isPremium && account && !account.canSpend && !limitDismissed;
   const isStudio = pathname.startsWith("/studio");
 
@@ -133,7 +134,7 @@ export function AstraParitySorShell({
           <CortexMark size={20} />
           <span className="ap-sor-logo-word">cortex</span>
           {isPremium ? (
-            <span className="ap-sor-logo-badge">Plus</span>
+            <span className="ap-sor-logo-badge">{planLabel}</span>
           ) : null}
         </Link>
 
@@ -159,7 +160,7 @@ export function AstraParitySorShell({
             </Link>
           ) : account ? (
             <Link href="/krediler" className="ap-sor-credit-chip">
-              Plus · {formatNumber(account.balance)} kr
+              {planLabel} · {formatNumber(account.balance)} kr
             </Link>
           ) : null}
           <button type="button" className="ap-sor-streak" aria-label="Seri">

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ProfileDashboard } from "@/lib/student/profile-dashboard";
+import type { SubscriptionBadge } from "@/lib/student/subscription-badge";
 
 /**
  * Profil paneli.
@@ -37,11 +38,13 @@ export function AstraProfilePanel({
   data,
   email,
   isPremium,
+  subscriptionBadge,
   children,
 }: {
   data: ProfileDashboard;
   email: string | null;
   isPremium: boolean;
+  subscriptionBadge: SubscriptionBadge;
   /** Davet kartı — sunucu tarafında hazırlanıp buraya veriliyor. */
   children?: React.ReactNode;
 }) {
@@ -73,19 +76,19 @@ export function AstraProfilePanel({
         </Link>
       </header>
 
-      {/* Ücretsiz kullanıcıya planını ve çıkışını göster; premium'da bu satır
-          yalnızca gürültü olurdu. */}
-      {!isPremium ? (
-        <div className="ap-pp-plan">
-          <div>
-            <strong>Temel</strong>
-            <span>Ücretsiz plan</span>
-          </div>
-          <Link href="/paketler" className="ap-pp-upgrade">
-            <Sparkles className="h-4 w-4" aria-hidden /> Daha hızlı öğren
-          </Link>
+      <div className="ap-pp-plan">
+        <div>
+          <strong>{subscriptionBadge ?? "Temel"}</strong>
+          <span>{isPremium ? "Premium plan" : "Ücretsiz plan"}</span>
         </div>
-      ) : null}
+        <Link
+          href={isPremium ? "/odemeler" : "/paketler"}
+          className="ap-pp-upgrade"
+        >
+          <Sparkles className="h-4 w-4" aria-hidden />
+          {isPremium ? "Aboneliği yönet" : "Daha hızlı öğren"}
+        </Link>
+      </div>
 
       {children}
 
@@ -135,8 +138,10 @@ export function AstraProfilePanel({
       <nav className="ap-pp-menu" aria-label="Hesap">
         {MENU.map((item) => {
           const Icon = item.icon;
+          const href =
+            item.href === "/paketler" && isPremium ? "/odemeler" : item.href;
           return (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={href}>
               <Icon className="h-4 w-4" aria-hidden />
               {item.label}
             </Link>

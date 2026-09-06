@@ -93,6 +93,10 @@ Production'da doğrulanmamış sayılar, isimli örnek yorumlar, “2 kat hızl�
 
 Canlı `/admin/feature-flags`, ürün öğrenci odaklı hâle getirildiği ve öğretmen/ödev arayüzleri kaldırıldığı hâlde “Öğretmen paneli” anahtarını açılabilir gösteriyordu. Kaynakta `teacher_panel` anahtarını tüketen hiçbir kod kalmamıştı; kontrol yalnızca yöneticiyi yanıltıyordu. Eski veritabanı satırı veri geçmişi için korunurken emekli anahtar yönetim arayüzünden çıkarıldı.
 
+### P2 — Sigma üyeliği arayüzde Plus diye etiketleniyordu
+
+Yönetici hesabına 24 saatlik, otomatik yenilenmeyen Sigma test aboneliği tanımlanınca sunucu premium hakkını ve 1.600 aylık kotayı doğru verdi; üst menü ise plan kademesini taşımadığı için “Plus” yazdı. Profil de premium kullanıcıda plan satırını tümüyle gizliyordu ve “Abonelikler” bağlantısı yönetim ekranı yerine yeniden satış sayfasına gidiyordu. Öğrenci hesap bağlamına gerçek `Plus`/`Sigma` rozeti eklendi; üst menü, kredi şeridi ve profil bunu kullanacak şekilde düzeltildi. Premium profili plan adını gösteriyor ve `/odemeler` abonelik yönetimine bağlanıyor. Satış sayfasında mevcut Sigma kullanıcısının kartı, PayTR kapalıyken “Yakında” yerine aktif üyelik durumunu gösterecek.
+
 ## 3. Geçen kontroller
 
 - Doğru GitHub reposuna bağlayıcı ve CLI erişimi.
@@ -107,6 +111,7 @@ Canlı `/admin/feature-flags`, ürün öğrenci odaklı hâle getirildiği ve ö
 - Playwright: 39/39 tarayıcı testi başarılı; anonim erişim korumaları, genel sayfalar, mobil taşma, başlık ve temel erişilebilirlik kontrolleri geçti.
 - Bu görevde değiştirilen 3 PowerShell dosyası: 0 parse hatası; git diff --check başarılı.
 - Canlı yönetim sistemi ekranındaki Workspace SMTP bağlantı denemesi başarılı: Gmail SMTP verify tamamlandı ve hiç kimseye e-posta gönderilmedi.
+- Yönetici hesabına ödeme kaydı oluşturmadan 24 saatlik `sigma-aylik` test aboneliği tanımlandı; otomatik yenileme kapalı, bitiş 7 Eylül 2026 17:55 TSİ ve işlem `subscription.test_granted` olarak denetim günlüğüne yazıldı.
 
 ## 4. Tarayıcıda görülenler ve eksik kapsam
 

@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth/session";
 import { getSubscriptionBadge } from "@/lib/student/subscription-badge";
 import { isPaytrConfigured } from "@/lib/payments/paytr";
 
-export const metadata = { title: "Plus" };
+export const metadata = { title: "Abonelik" };
 
 /** Astra `/pay` — uygulama içi Plus satın alma (checkout altyapısı /paketler ile aynı). */
 export default async function PayPage() {

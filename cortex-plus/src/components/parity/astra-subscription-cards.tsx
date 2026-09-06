@@ -477,10 +477,10 @@ export function AstraSubscriptionCards({
                           : toast.error("Sigma paketi yapılandırılmadı.")
                   }
                 >
-                  {!checkoutEnabled
+                {sigmaOwned
+                  ? "Bu çocukta Sigma açık"
+                  : !checkoutEnabled
                     ? "Yakında"
-                    : sigmaOwned
-                    ? "Bu çocukta Sigma açık"
                     : loadingId === sigmaPlan.id
                       ? "Hazırlanıyor…"
                       : isParent
@@ -536,7 +536,7 @@ export function AstraSubscriptionCards({
           </div>
         ) : null}
 
-        {embedded && !guestMode && !isParent ? (
+        {embedded && !guestMode && !isParent && !plusOwned ? (
           <p className="text-center text-xs text-[var(--astra-muted)]">
             <a href="/ogretmen" className="underline underline-offset-2">
               Ücretsiz planda devam et

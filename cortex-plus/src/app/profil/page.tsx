@@ -25,6 +25,7 @@ export default async function ProfilPage() {
         data={dashboard}
         email={user.email ?? null}
         isPremium={Boolean(shell.account?.isPremium)}
+        subscriptionBadge={shell.account?.subscriptionBadge ?? null}
       >
         <ReferralRewardCard summary={referral} inviteUrl={invite.url} />
       </AstraProfilePanel>

@@ -1,12 +1,16 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isPremiumUser } from "@/lib/ai/generate";
 import { formatResetAt, quotaView } from "@/lib/credits/period";
+import {
+  getSubscriptionBadge,
+  type SubscriptionBadge,
+} from "@/lib/student/subscription-badge";
 
 export type StudentAccountContext = {
   balance: number;
   freeAllowanceRemaining: number;
   isPremium: boolean;
+  subscriptionBadge: SubscriptionBadge;
   canSpend: boolean;
   /**
    * "5 Eylül 2026 03:00" — hakkın ne zaman yenileneceği.
@@ -22,7 +26,7 @@ export async function getStudentAccountContext(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<StudentAccountContext> {
-  const [{ data: wallet }, isPremium] = await Promise.all([
+  const [{ data: wallet }, subscriptionBadge] = await Promise.all([
     supabase
       .from("credit_wallets")
       .select(
@@ -30,9 +34,10 @@ export async function getStudentAccountContext(
       )
       .eq("user_id", userId)
       .maybeSingle(),
-    isPremiumUser(supabase, userId),
+    getSubscriptionBadge(supabase, userId),
   ]);
 
+  const isPremium = subscriptionBadge !== null;
   const balance = wallet?.balance ?? 0;
   const freeAllowanceRemaining = wallet?.free_allowance_remaining ?? 0;
   const quota = quotaView(wallet, isPremium);
@@ -41,6 +46,7 @@ export async function getStudentAccountContext(
     balance,
     freeAllowanceRemaining,
     isPremium,
+    subscriptionBadge,
     canSpend: balance > 0 || freeAllowanceRemaining > 0,
     resetsAtLabel: formatResetAt(quota.resetsAt),
     periodKind: quota.kind,

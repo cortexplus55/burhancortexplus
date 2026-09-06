@@ -22,7 +22,7 @@ export function StudentAccountStrip({
         <div className="flex flex-wrap items-center gap-2">
           {account.isPremium ? (
             <span className="rounded-full bg-[var(--astra-primary)]/20 px-2.5 py-0.5 text-xs font-semibold text-[var(--astra-primary)]">
-              Plus
+              {account.subscriptionBadge ?? "Plus"}
             </span>
           ) : (
             <span className="text-xs text-[var(--astra-muted)]">Ücretsiz plan</span>
@@ -60,7 +60,8 @@ export function StudentAccountStrip({
         </p>
       ) : account.isPremium ? (
         <p className="mt-1.5 text-xs text-[var(--astra-muted)]">
-          Plus ile gelişmiş model kullanılır; işlemler yine kredi harcar.
+          {account.subscriptionBadge ?? "Plus"} ile gelişmiş model kullanılır;
+          işlemler yine kredi harcar.
         </p>
       ) : null}
     </div>
