@@ -287,6 +287,13 @@ export function AstraSubscriptionCards({
           <PremiumPlanHero
             align={embedded ? "start" : "center"}
             headingLevel={headingLevel}
+            eyebrow={currentBadge ?? undefined}
+            title={currentBadge ? "Aboneliğin aktif" : undefined}
+            description={
+              currentBadge
+                ? `${currentBadge} planınla premium özellikler ve aylık kullanım hakkın açık.`
+                : undefined
+            }
           />
         )}
 
@@ -478,7 +485,9 @@ export function AstraSubscriptionCards({
                   }
                 >
                 {sigmaOwned
-                  ? "Bu çocukta Sigma açık"
+                  ? isParent
+                    ? "Bu çocukta Sigma açık"
+                    : "Sigma aktif"
                   : !checkoutEnabled
                     ? "Yakında"
                     : loadingId === sigmaPlan.id
