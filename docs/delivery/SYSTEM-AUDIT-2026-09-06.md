@@ -1,12 +1,12 @@
 # Cortex Plus — kapsamlı inceleme çalışma raporu
 
-**Güncelleme:** 6 Eylül 2026, 13:08 TSİ. **Durum:** bağlantı, ödeme, abonelik ve temel öğrenci akışları incelendi; kritik düzeltmeler production'a alındı. Astra ücretsiz hesap karşılaştırması ve PayTR mağaza onayından sonraki gerçek test ödeme henüz tamamlanmadı.
+**Güncelleme:** 6 Eylül 2026. **Durum:** bağlantı, ödeme, abonelik ve temel öğrenci akışları incelendi; kritik düzeltmeler production'a alındı. Astra ücretli ve ücretsiz hesap karşılaştırması tamamlandı. PayTR mağaza onayından sonraki gerçek test ödeme henüz yapılamadı.
 
 Bu rapor ölçülmüş bulguları koddan çıkarılan risklerden ayırır. Bir testin geçmesi, gerçek ödeme veya tüm ekranların çalıştığı anlamına gelmez.
 
 ## 0. Uygulama sonucu
 
-- GitHub `main`: `b93ebdd` — abonelik, ödeme mutabakatı, doküman tekrar işleme, doğru bağlantı betikleri ve doğrulanmamış pazarlama iddialarının temizliği.
+- GitHub `main`: `05210c8` — abonelik, ödeme mutabakatı, doküman tekrar işleme, doğru bağlantı betikleri, doğrulanmamış pazarlama iddialarının temizliği ve süresi dolan üyelik haklarının kapatılması.
 - Vercel: aynı commit `burhancortexplus-app` production dağıtımında **Ready**.
 - Supabase `dgjfyewgrukglsehyntc`: `20260906130000_subscription_billing`, `20260906140000_atomic_paytr_callback` ve `20260906150000_subscription_expiry_guards` uygulandı ve migration geçmişine kaydedildi.
 - Satıştaki planlar: Plus aylık 599 TL, Plus yıllık 2.990 TL; Sigma aylık 1.999 TL, Sigma yıllık 9.990 TL.
@@ -107,15 +107,18 @@ Production'da doğrulanmamış sayılar, isimli örnek yorumlar, “2 kat hızl�
 
 Görüldü: Cortex Plus misafir ana sayfa, fiyatlandırma, kayıt ilk adımı; oturumlu hesapta Sor, Profil, sınav hazırlığı, araçlar, yanlış defteri, günün turu, çalışma planı, dokümanlar, quizler, flashcardlar, anlatarak öğren, ilerleme ve sohbet geçmişi. Sayfalar boş kalmadı. Cortex profilinde Temel — Ücretsiz plan yazıyordu; bu hesap premium değil.
 
-Astra Chrome oturumu açık. Hesap adı “Deneme”; Astra AI Plus üyeliği 24 Eylül 2026'ya kadar geçerli. Sor ekranı, sınav hazırlıkları, etkinlik menüsü ve Lab incelendi. Lab'da oyun, simülasyon, araç, günlük bulmaca, liderlik tablosu ve kullanıcı uygulamaları var; Cortex Plus'ta bu alan ürün kararıyla kaldırıldığı için otomatik parite işi sayılmadı. Ücretsiz Astra hesabı henüz ayrı oturumda açılmadı.
+Astra ücretli hesapta hesap adı “Deneme”; Astra AI Plus üyeliği 24 Eylül 2026'ya kadar geçerliydi. Sor ekranı, sınav hazırlıkları, etkinlik menüsü ve Lab incelendi. Lab'da oyun, simülasyon, araç, günlük bulmaca, liderlik tablosu ve kullanıcı uygulamaları var; Cortex Plus'ta bu alan ürün kararıyla kaldırıldığı için otomatik parite işi sayılmadı.
 
-Bekliyor: Astra ücretsiz hesap karşılaştırması; Cortex premium hesabı; gerçek sohbet/quiz/sınav oluşturma, yeni doküman yükleme ve ses akışları; hesaplar arası veri izolasyonu, admin ve mail teslimi; PayTR test ödeme ve callback doğrulaması; Vercel environment değerlerinin isim/kapsam karşılaştırması; Supabase canlı RLS ve fonksiyon izinleri; migration geçmişinin tam karşılaştırılması; mobil ekranların kapsamlı görsel kontrolü. Bu kalemler tamamlanmadan tam sistem denetimi tamamlandı denmemeli.
+Astra ücretsiz hesap 6 Eylül'de ayrıca incelendi. Profil “Temel · Ücretsiz plan”, abonelik “Astra AI Basic · Sonsuza dek ücretsiz” ve fatura geçmişi boş görünüyordu. Kullanım ekranı günlük kotanın 7 Eylül 03:00'te yenileneceğini ve 0/3 davet kullanıldığını gösterdi; kesin ücretsiz mesaj sayısını göstermedi. Ücretsiz hesapta Sor, Sınavlar ve Uygulamalar sekmeleri gizlenmiyor. Sınav arama/oluşturma ve topluluk hazırlıkları, Lab kataloğu, geçmiş konuşmalar, aktiviteler ve takvim görünür durumda. “Başla” menüsünde problem tarama, quiz, sözlü deneme, doğru/yanlış, podcast, flash kart ve yazılı deneme; ekleme menüsünde kamera, fotoğraf, dosya, çizim, matematik klavyesi, çözücü ve önerilen sorular bulunuyor. Cortex Plus'ın öğrenci akışında bunların öğretimle ilgili çekirdek karşılıkları zaten var.
+
+Astra'nın 6 Eylül satın alma ekranında aylık Plus 770 TL, Sigma 2.567 TL görünüyordu. Yıllık sekmede Plus aylık karşılığı 321 TL ve yıllık faturalandırma gösterilirken Sigma 2.567 TL/ay ve aylık faturalandırma olarak kaldı. Plus listesi ücretsizdekilere ek olarak daha yüksek kullanım, hızlı yanıt, yüksek yükleme sınırı, daha güçlü model, içerik üretimi, fotoğraflı soru, odak modu ve para iadesi iddialarını; Sigma ise Plus'a göre 8 kat kullanım, yoğun saatte öncelik, en güçlü model ve erken erişimi gösterdi. Bunlar rakip gözlemidir; Cortex'te kodla desteklenmeyen model/hız/garanti iddiası eklenmemelidir. Kullanıcının Cortex için verdiği 599/1.999 TL ve iki kademe için yıllık paket kararı geçerlidir.
+
+Bekliyor: Cortex premium hesabı; gerçek sohbet/quiz/sınav oluşturma, yeni doküman yükleme ve ses akışları; hesaplar arası veri izolasyonu, admin ve mail teslimi; PayTR test ödeme ve callback doğrulaması; Supabase canlı RLS ve fonksiyon izinleri; migration geçmişinin tam karşılaştırılması; mobil ekranların kapsamlı görsel kontrolü. Bu kalemler tamamlanmadan tam sistem denetimi tamamlandı denmemeli.
 
 ## 5. Önerilen uygulama sırası
 
-1. Chrome'u yeniden bağla; Astra premium ve Cortex test hesaplarını aç. Codex Vercel/Supabase bağlantılarının doğru hesaba yetkilendirilmesini tamamla.
-2. Canlı fiyat birimi hatasını bağımsız düzelt; ardından kart/checkout tutarını birlikte kontrol et.
-3. Ödeme callback'ini atomik ve yeniden denemeye dayanıklı hâle getir; kesinti/tekrar/eşzamanlılık testleri ekle.
-4. Abonelik + e-posta doğrulama kota değişikliklerini birleştir; canlı şema geçmişini çıkar ve uygulanacak tek değişikliği incele. Otomatik db push kullanma.
-5. Şema önkoşulları → preview → test ödeme → production → gerçek ekran kontrolü sırasıyla yayımla.
-6. Öğrenci akışları ve Astra karşılaştırmasını tamamla; yalnızca öğrenciye yarar sağlayan farkları iş listesine al.
+1. PayTR mağaza onayı gelince üç gizli değeri Vercel production/preview ortamlarına ekle; test modu veya PayTR'nin izin verdiği en düşük gerçek işlemle token → iframe → callback → ödeme → cüzdan → abonelik zincirini doğrula.
+2. Cortex premium test hesabını aç; ücretsiz ve premium hesaplarda sohbet, quiz, sınav hazırlığı, doküman, ses ve abonelik ekranlarını aynı senaryoyla karşılaştır.
+3. İkinci test hesabıyla kullanıcılar arası veri izolasyonunu ve canlı RLS politikalarını doğrula; güvenlik tanımlayıcılı fonksiyonların yürütme izinlerini ayrıca incele.
+4. Kayıt doğrulaması, parola sıfırlama, ödeme hatırlatma ve destek e-postalarının gerçek teslimini operasyon adresiyle test et.
+5. Codex Vercel ve Supabase bağlayıcılarını doğru `cortexplus55` hesaplarına yeniden yetkilendir. Uygulamanın çalışan GitHub → Vercel → Supabase teslimat zincirini bu panel kolaylıklarından bağımsız tut.
