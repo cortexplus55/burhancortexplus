@@ -61,10 +61,10 @@ export function renderMarkdownToHtml(content: string): string {
       if (/^(\d+\.|[-*])\s/.test(trimmed)) {
         const ordered = /^\d+\./.test(trimmed);
         const items = trimmed
-          .split("\n")
+          .split(/\n(?=\s*(?:\d+\.|[-*])\s)/)
           .map((line) => line.replace(/^(\d+\.|[-*])\s*/, "").trim())
           .filter(Boolean)
-          .map((item) => `<li>${renderInline(item)}</li>`)
+          .map((item) => `<li>${renderInline(item, true)}</li>`)
           .join("");
         return ordered
           ? `<ol class="list-decimal space-y-1 pl-5">${items}</ol>`

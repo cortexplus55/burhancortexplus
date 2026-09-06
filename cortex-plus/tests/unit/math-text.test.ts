@@ -86,6 +86,12 @@ describe("renderMath", () => {
 });
 
 describe("renderMarkdownToHtml", () => {
+  it("keeps multiline display formulas inside list items intact", () => {
+    const html = renderMarkdownToHtml("1. Hesapla:\n\\[\n\\frac{6}{2}=3\n\\]\n2. Kontrol et");
+    expect(html).toContain("katex-display");
+    expect(html).not.toContain("\\frac{6}{2}");
+    expect(html.match(/<li>/g)).toHaveLength(2);
+  });
   it("formülü KaTeX'e verir, düz metni escape eder", () => {
     const html = renderMarkdownToHtml("Şu $x^2$ formülü ve <script>kötü</script> metin");
     expect(html).toContain("katex");
