@@ -132,6 +132,7 @@ const SUBJECTS = [
 
 export function ChatPanel({
   initialConversationId,
+  initialDocumentId,
   initialMessages = [],
   hasDocuments,
   variant = "default",
@@ -155,6 +156,7 @@ export function ChatPanel({
   dailyDrillCount = 0,
 }: {
   initialConversationId?: string;
+  initialDocumentId?: string;
   initialMessages?: Message[];
   hasDocuments: boolean;
   variant?: "default" | "astra";
@@ -190,6 +192,7 @@ export function ChatPanel({
   const [useDocuments, setUseDocuments] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const conversationId = useRef<string | undefined>(initialConversationId);
+  const activeDocumentId = useRef<string | undefined>(initialDocumentId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
@@ -427,6 +430,7 @@ export function ChatPanel({
   }
 
   function resetParityThread() {
+    activeDocumentId.current = undefined;
     setMessages([]);
     conversationId.current = undefined;
     clearPending();
@@ -515,6 +519,7 @@ export function ChatPanel({
     allowWhileLoading = false,
   ) {
     if (!text.trim() || (loading && !allowWhileLoading)) return;
+    if (imageDocumentId) activeDocumentId.current = imageDocumentId;
     const prefixed =
       variant === "astra" && showSubjectPicker && subject
         ? `[${subject}] ${text.trim()}`
@@ -534,7 +539,7 @@ export function ChatPanel({
           conversationId: conversationId.current,
           useDocuments,
           audience,
-          imageDocumentId,
+          imageDocumentId: activeDocumentId.current,
         }),
       });
 

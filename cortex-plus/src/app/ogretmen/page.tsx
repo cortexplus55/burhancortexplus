@@ -21,7 +21,7 @@ export const metadata = { title: "Sor" };
 export default async function OgretmenPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sohbet?: string }>;
+  searchParams: Promise<{ sohbet?: string; belge?: string }>;
 }) {
   const { supabase, user } = await requireStudentArea();
   const params = await searchParams;
@@ -149,6 +149,7 @@ export default async function OgretmenPage({
         showSubjectPicker
         placeholder="Sor, konuş veya dosya gönder"
         initialConversationId={conversationId}
+        initialDocumentId={params.belge}
         initialMessages={initialMessages}
         hasDocuments={(count ?? 0) > 0}
         chatCreditCost={chatCost ?? undefined}

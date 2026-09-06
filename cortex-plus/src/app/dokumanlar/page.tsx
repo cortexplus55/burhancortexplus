@@ -1,4 +1,5 @@
 import { FileText } from "lucide-react";
+import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { DocumentUpload } from "@/components/documents/document-upload";
 import { DocumentRetryButton } from "@/components/documents/document-retry-button";
@@ -68,6 +69,11 @@ export default async function DokumanlarPage() {
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
+                  {document.status === "completed" ? (
+                    <Link href={`/ogretmen?belge=${document.id}`} className="text-xs underline">
+                      Bu belgeyle sohbet et
+                    </Link>
+                  ) : null}
                   {document.status === "processing" || document.status === "failed" || document.status === "pending" ? (
                     <DocumentRetryButton documentId={document.id} />
                   ) : null}
