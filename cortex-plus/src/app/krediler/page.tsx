@@ -103,7 +103,7 @@ export default async function KredilerPage() {
         <div className="ap-quota-card">
           <div className="ap-quota-head">
             <span className="ap-quota-plan">
-              {isPremium ? "Cortex Plus" : "Temel"} — {periodLabel(quota.kind)}
+              {shell.account?.subscriptionBadge ?? "Temel"} — {periodLabel(quota.kind)}
             </span>
             <span className="ap-quota-pct">%{quota.usedPercent} kullanıldı</span>
           </div>
@@ -140,9 +140,9 @@ export default async function KredilerPage() {
           </div>
         ) : (
           <div className="ap-quota-upsell">
-            <p>Aylık limitin dolduysa ek paketle devam edebilirsin.</p>
+            <p>Aylık limitin dolduysa paketini erkenden yenileyebilirsin.</p>
             <Link href="/pay" className="ap-exam-continue inline-flex">
-              Ek paket satın al
+              Paketi yenile
             </Link>
           </div>
         )}
