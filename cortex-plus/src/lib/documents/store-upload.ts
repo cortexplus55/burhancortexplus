@@ -15,7 +15,7 @@ export async function storeUserDocument(
   userId: string,
   file: File,
 ) {
-  if (file.size > DOCUMENT_MAX_BYTES || !DOCUMENT_ALLOWED_TYPES.has(file.type)) {
+  if (file.size === 0 || file.size > DOCUMENT_MAX_BYTES || !DOCUMENT_ALLOWED_TYPES.has(file.type)) {
     return { ok: false as const, error: "invalid_file" as const };
   }
 

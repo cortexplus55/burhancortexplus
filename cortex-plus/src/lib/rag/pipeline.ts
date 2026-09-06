@@ -1,4 +1,6 @@
 import "server-only";
+import { extractText } from "@/lib/documents/extract-text";
+export { extractText } from "@/lib/documents/extract-text";
 import OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
@@ -30,30 +32,6 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
     input: texts,
   });
   return response.data.map((item) => item.embedding);
-}
-
-export async function extractText(
-  buffer: Buffer,
-  mimeType: string,
-): Promise<{ pages: string[]; ok: boolean }> {
-  if (mimeType === "text/plain") {
-    return { pages: [buffer.toString("utf8")], ok: true };
-  }
-
-  if (mimeType === "application/pdf") {
-    // Text layer extraction without a native dependency: pull readable strings
-    // from the PDF content streams. Scanned PDFs fall back to OCR-less failure.
-    const raw = buffer.toString("latin1");
-    const matches = raw.match(/\(((?:\\.|[^\\()])*)\)/g) ?? [];
-    const text = matches
-      .map((m) => m.slice(1, -1).replace(/\\([()\\])/g, "$1"))
-      .join(" ")
-      .replace(/\s+/g, " ")
-      .trim();
-    return { pages: text ? [text] : [], ok: text.length > 40 };
-  }
-
-  return { pages: [], ok: false };
 }
 
 export async function processDocument(
@@ -91,6 +69,7 @@ export async function processDocument(
 
   if (download.error || !download.data) return fail("download_failed");
 
+  try {
   const buffer = Buffer.from(await download.data.arrayBuffer());
   const extracted = await extractText(buffer, doc.mime_type);
 
@@ -125,7 +104,10 @@ export async function processDocument(
       .select("id")
       .single();
 
-    if (pageError || !page) return fail("page_insert_failed");
+    if (pageError || !page) {
+      console.error("document page insert failed", { code: pageError?.code });
+      return fail("page_insert_failed");
+    }
 
     for (const content of chunkText(pageText)) {
       allChunks.push({ pageId: page.id, content });
@@ -172,6 +154,12 @@ export async function processDocument(
     .eq("document_id", documentId);
 
   return { ok: true, chunks: allChunks.length };
+  } catch (error) {
+    console.error("document processing failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return fail("processing_failed");
+  }
 }
 
 /**
@@ -216,3 +204,4 @@ export async function searchDocumentChunks(
     }),
   );
 }
+

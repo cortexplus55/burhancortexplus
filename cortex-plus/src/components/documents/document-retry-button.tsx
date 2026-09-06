@@ -27,6 +27,7 @@ export function DocumentRetryButton({ documentId }: { documentId: string }) {
       toast.error("Bağlantı hatası.");
     } finally {
       setPending(false);
+      router.refresh();
     }
   }
 

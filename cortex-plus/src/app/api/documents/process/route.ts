@@ -9,6 +9,7 @@ import {
 } from "@/lib/credits/service";
 
 const bodySchema = z.object({ documentId: z.string().uuid() });
+export const maxDuration = 120;
 
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "doc-process", limit: 12 });
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          result.error === "text_extraction_unsupported"
+          result.error === "text_extraction_unsupported" || result.error === "empty_content"
             ? "Bu dosyadan metin çıkarılamadı. Metin katmanı olan bir PDF veya TXT deneyin."
             : "Doküman işlenemedi.",
       },

@@ -68,7 +68,7 @@ export default async function DokumanlarPage() {
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  {document.status === "processing" ? (
+                  {document.status === "processing" || document.status === "failed" || document.status === "pending" ? (
                     <DocumentRetryButton documentId={document.id} />
                   ) : null}
                   <span

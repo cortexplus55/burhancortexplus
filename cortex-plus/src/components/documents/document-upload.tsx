@@ -84,6 +84,7 @@ export function DocumentUpload({
       toast.error("Bağlantı hatası.");
     } finally {
       setStage("idle");
+      router.refresh();
     }
   }
 
