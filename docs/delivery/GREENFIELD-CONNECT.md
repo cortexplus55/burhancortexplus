@@ -1,56 +1,19 @@
-# Greenfield bağlantı — tek GitHub kaynağı
+# Cortex Plus bağlantıları
 
-## Tek kaynak (zorunlu)
+Tek kaynak [AGENTS.md](../../AGENTS.md), kurulum ayrıntıları [CLI-CONNECT.md](CLI-CONNECT.md).
 
-| Alan | Değer |
-|------|--------|
-| **GitHub** | https://github.com/cortexplus55/burhancortexplus |
-| **Vercel Root Directory** | `cortex-plus` |
-| **Supabase proje ref** | `dgjfyewgrukglsehyntc` |
-| **Supabase URL** | `https://dgjfyewgrukglsehyntc.supabase.co` |
-| **Vercel CLI link** | team **`cortexplus55`**, proje **`burhancortexplus`** (preview: `burhancortexplus-*-cortexplus55.vercel.app`) |
-| **Vercel prod env** | proje **`burhancortexplus-app`** → **`cortexplus.app`** |
+| Bileşen | Hedef |
+|---|---|
+| GitHub | `cortexplus55/burhancortexplus` |
+| Production dalı | `main` |
+| Vercel takım / proje | `cortexplus55/burhancortexplus-app` |
+| Vercel Root Directory | `cortex-plus` |
+| Domain | `https://cortexplus.app` |
+| Supabase | `dgjfyewgrukglsehyntc` |
+| Operasyon e-postası | `cortexplus@cortexplus.app` |
 
-**CLI kurulum / doğrulama:** [CLI-CONNECT.md](./CLI-CONNECT.md) · `scripts/setup-cli.ps1` · `scripts/verify-cli.ps1`
+5 Eylül 2026 kontrolünde canlı istemci doğru Supabase ref'ini kullanıyordu. Vercel'de `cortexplus.app`, doğru reponun `main` dalındaki `45f3e57` commit'ine bağlıydı. Bu tarihli gözlemdir; yeni yayında güncel commit tekrar doğrulanmalıdır.
 
-**Kullanma:** `burhan55600-pixel/*`, `burhan55600-5553s-projects/cortex-plus`, eski `cortexplus-platform`, eski `cortex-plus` repo, Supabase `gwqonggqzvavljguiryx`.
+Chrome oturumları ile CLI/Codex bağlayıcı oturumlarını birbirine karıştırmayın. Vercel bağlayıcısında eski hesap, Supabase bağlayıcısında yetki sorunu görüldü. Supabase panelinde GitHub/Vercel entegrasyonu bağlı görünmüyordu; bu, uygulamanın Supabase'e bağlanamadığı anlamına gelmez.
 
-## Durum
-
-Yol haritası (PayTR hariç sıra): [LAUNCH-SEQUENCE.md](./LAUNCH-SEQUENCE.md) · Auth: [AUTH-SETUP.md](./AUTH-SETUP.md)
-
-| Bileşen | Durum |
-|---------|--------|
-| GitHub `burhancortexplus` | **`main` push edildi** (`cortexplus55`); güncellemeler için `gh auth setup-git` + `git push origin main` |
-| Supabase `dgjfyewgrukglsehyntc` | Şema + seed (ör. **427** okul) |
-| Vercel **cortexplus55 / burhancortexplus** | CLI link; Git deploy preview |
-| Vercel **cortexplus55 / burhancortexplus-app** | Canlı domain **`cortexplus.app`**, production env |
-| Vercel **cortexplus55 / cortexplus-prod** | Yedek proje |
-| Vercel **eski — kullanma** | `burhan55600-5553s-projects/cortex-plus` → **cortex-plus-theta.vercel.app** |
-
-### Supabase Auth (Dashboard → Authentication → URL Configuration)
-
-- **Site URL:** `https://cortexplus.app`
-- **Redirect URLs:** `https://cortexplus.app/**`, `http://localhost:3000/**`, `https://*.vercel.app/**`
-
-## Vercel + GitHub (`cortexplus55`)
-
-1. GitHub → [Vercel App](https://github.com/apps/vercel) → **Configure** → **`burhancortexplus`** erişimi.
-2. [vercel.com/new](https://vercel.com/new) → team **cortexplus55** → Import **`cortexplus55/burhancortexplus`**.
-3. **Root Directory:** `cortex-plus`
-4. Env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (+ `.env.example`).
-
-   **Zorunlu değerler (eski `gwqonggqzvavljguiryx` kullanma):**
-   - `NEXT_PUBLIC_SUPABASE_URL=https://dgjfyewgrukglsehyntc.supabase.co`
-   - Publishable key: Supabase Dashboard → Project **dgjfyewgrukglsehyntc** → Settings → API
-
-## Supabase ↔ GitHub
-
-Project **cortexplus-platform** (`dgjfyewgrukglsehyntc`) → Integrations → GitHub → **`cortexplus55/burhancortexplus`**.
-
-## Hazır sinyalleri
-
-- **`github hazır`** — push + Vercel import bitti; env + deploy doğrula  
-- **`supabase cli hazır`** — `scripts/setup-supabase.ps1` (interaktif `supabase login`)  
-- **`cli hazır`** — `scripts/setup-cli.ps1` + `scripts/verify-cli.ps1`
-- **`astra plus hazır`** — Astra Plus audit
+Yeni proje oluşturmayın. Eski veya yedek projeleri hedef almayın. Mevcut projelere erişimi düzeltin. Migration geçmişi hizalanana kadar otomatik şema dağıtımını etkinleştirmeyin ve `supabase db push` çalıştırmayın.

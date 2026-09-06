@@ -80,6 +80,11 @@ export async function processDocument(
     return { ok: false, chunks: 0, error: message };
   };
 
+  await service
+    .from("processing_jobs")
+    .update({ status: "processing", progress: 0, error_message: null })
+    .eq("document_id", documentId);
+
   const download = await service.storage
     .from("documents")
     .download(doc.storage_path);
@@ -98,11 +103,19 @@ export async function processDocument(
     .update({ status: "processing", page_count: extracted.pages.length })
     .eq("id", documentId);
 
+  // A request can be interrupted after writing only part of the derived data.
+  // Retrying starts from a clean derived-data set; the source file stays intact.
+  const { error: cleanupError } = await service
+    .from("document_pages")
+    .delete()
+    .eq("document_id", documentId);
+  if (cleanupError) return fail("cleanup_failed");
+
   let chunkIndex = 0;
   const allChunks: { pageId: string; content: string }[] = [];
 
   for (const [pageNumber, pageText] of extracted.pages.entries()) {
-    const { data: page } = await service
+    const { data: page, error: pageError } = await service
       .from("document_pages")
       .insert({
         document_id: documentId,
@@ -112,7 +125,7 @@ export async function processDocument(
       .select("id")
       .single();
 
-    if (!page) continue;
+    if (pageError || !page) return fail("page_insert_failed");
 
     for (const content of chunkText(pageText)) {
       allChunks.push({ pageId: page.id, content });
@@ -124,7 +137,7 @@ export async function processDocument(
   const embeddings = await embedTexts(allChunks.map((c) => c.content));
 
   for (const [index, chunk] of allChunks.entries()) {
-    const { data: inserted } = await service
+    const { data: inserted, error: chunkError } = await service
       .from("document_chunks")
       .insert({
         document_id: documentId,
@@ -136,19 +149,23 @@ export async function processDocument(
       .select("id")
       .single();
 
+    if (chunkError || !inserted) return fail("chunk_insert_failed");
+
     const vector = embeddings[index];
     if (inserted && vector) {
-      await service.from("document_embeddings").insert({
+      const { error: embeddingError } = await service.from("document_embeddings").insert({
         chunk_id: inserted.id,
         embedding: vector as unknown as string,
       });
+      if (embeddingError) return fail("embedding_insert_failed");
     }
   }
 
-  await service
+  const { error: completedError } = await service
     .from("documents")
     .update({ status: "completed", error_message: null })
     .eq("id", documentId);
+  if (completedError) return fail("completion_update_failed");
   await service
     .from("processing_jobs")
     .update({ status: "completed", progress: 100 })

@@ -1,87 +1,67 @@
-# CLI bağlantıları (tek kaynak)
+# CLI bağlantıları — tek hedef
 
-Yerel geliştirmede **yalnızca** bu hedefler kullanılır. Eski `burhan55600-5553s-projects/cortex-plus` (theta) ve kişisel Supabase org **kullanılmaz**.
+5 Eylül 2026'da canlı istemci paketi, Vercel production dağıtımı ve panel kimlikleriyle doğrulandı.
 
-| Araç | Hedef |
-|------|--------|
-| **Git** | https://github.com/cortexplus55/burhancortexplus |
-| **GitHub CLI** | Aktif hesap: **`cortexplus55`** |
-| **Vercel CLI** | Takım **`cortexplus55`**, proje **`burhancortexplus`** |
-| **Supabase CLI** | Ref **`dgjfyewgrukglsehyntc`** (`cortex-plus/supabase`) |
+| Bileşen | Tek hedef |
+|---|---|
+| GitHub | `cortexplus55/burhancortexplus`, production dalı `main` |
+| Vercel takım | `cortexplus55` / `team_7fZJmWjbQtKXSDwCZCA4s7Ym` |
+| Vercel proje | `burhancortexplus-app` / `prj_fBxyWhMERs4pZUq9sJMaVa9Gt29A` |
+| Root Directory | `cortex-plus` |
+| Production domain | `https://cortexplus.app` |
+| Supabase | `dgjfyewgrukglsehyntc` |
+
+`burhancortexplus` GitHub reposunun adıdır; Vercel proje adı **`burhancortexplus-app`** olmalıdır. Eski Vercel `prj_xd0PYMnQZnaz0Ksh0ksqIR8a9NEm` hedefini kullanmayın.
+
+## Oturum ve proje bağlantısı ayrı şeylerdir
+
+Chrome'da doğru hesap açık olması, CLI veya Codex bağlayıcısının aynı hesapta olduğu anlamına gelmez. 5 Eylül incelemesinde Vercel bağlayıcısı yalnızca eski `burhan55600-5553s-projects` takımını gördü; doğru projeye erişimi 403 verdi. Supabase bağlayıcısı da yetki hatası verdi. İki doğru proje Chrome'dan erişilebilir durumdaydı.
+
+Yerel `.vercel/project.json` yalnızca hedefi seçer; erişim yetkisi sağlamaz ve ortam değişkenlerini indirmez. Dosya yereldir; tekrar oluşturmak için aşağıdaki kurulum betiğini kullanın.
 
 ## Vercel
 
-| Alan | Değer |
-|------|--------|
-| Team slug | `cortexplus55` |
-| Proje (CLI link) | `burhancortexplus` |
-| Preview örnek | `burhancortexplus-pmhyowmgl-cortexplus55.vercel.app` |
-| `orgId` | `team_7fZJmWjbQtKXSDwCZCA4s7Ym` |
-| `projectId` | `prj_xd0PYMnQZnaz0Ksh0ksqIR8a9NEm` |
-| Root Directory | `cortex-plus` (monorepo) |
-
-**Canlı domain `cortexplus.app`:** ayrı Vercel projesi **`burhancortexplus-app`** (production env burada). Env çekmek için:
+Doğru hesaba giriş ve hedef kontrolü:
 
 ```powershell
 cd cortex-plus
-npx vercel env pull .env.vercel.local --scope cortexplus55 --project burhancortexplus-app
-```
-
-**İlk kurulum / yeniden link:**
-
-```powershell
-cd cortex-plus
-npx vercel login          # cortexplus55 takımına erişimi olan hesap
+npx vercel login
 .\scripts\setup-vercel-link.ps1
 ```
 
-`cortex-plus/.vercel/project.json` repoda tutulur (yanlış projeye dönmesin diye).
+Oturum doğru takımda doğrulanmadan CLI üzerinden deploy veya env değişikliği yapmayın. Normal yayın akışı, incelenmiş değişikliklerin `main` dalına gönderilmesidir. Diğer dallardaki Ready dağıtımları preview olabilir; canlı sitenin güncellendiğini göstermez.
+
+[Production paneli](https://vercel.com/cortexplus55/burhancortexplus-app/deployments) üzerinde Current Domains içinde `cortexplus.app`, Source içinde beklenen commit ve `main` görünmelidir.
 
 ## Supabase
 
-| Alan | Değer |
-|------|--------|
-| Project ref | `dgjfyewgrukglsehyntc` |
-| URL | `https://dgjfyewgrukglsehyntc.supabase.co` |
-| Config | `cortex-plus/supabase/config.toml` |
-
-**İlk kurulum (PowerShell, interaktif — tarayıcı açılır):**
-
 ```powershell
 cd cortex-plus
-npx supabase login      # Dashboard’da dgjfyewgrukglsehyntc gördüğün hesap
-npx supabase init       # config.toml zaten varsa atlanır
+npx supabase login
 npx supabase link --project-ref dgjfyewgrukglsehyntc
-npx supabase migration list
+npx supabase migration list --linked
 ```
 
-Veya kökten: `.\scripts\setup-supabase.ps1`
+**Migration geçmişi hizalanana kadar `supabase db push` çalıştırmayın.** Repo dosyaları ve uzak migration kayıtları birebir eşleşmiyor. Kayıt yokluğu tek başına şema yokluğunu da kanıtlamaz; tablo, sütun ve fonksiyonlar ayrıca doğrulanmalıdır.
 
-**Cursor MCP:** `.cursor/mcp.json` → `project_ref=dgjfyewgrukglsehyntc`
+5 Eylül incelemesinde yereldeki abonelik değişikliklerinin beklediği `plans.billing_period`, `subscriptions.current_period_start` ve `abuse_events` canlı şemada yoktu. Kod yayınından önce ilgili değişikliklerin bütünü incelenmeli, şema uygulanmalı ve doğrulanmalıdır.
 
-CLI `projects list` içinde **dgjfyewgrukglsehyntc yoksa** yanlış Supabase hesabındasın → `supabase logout` + doğru hesapla `supabase login`.
+Supabase panelinde GitHub ve Vercel entegrasyonları bağlı görünmüyor. Uygulama doğru URL ve anahtarlarla çalışabiliyor. Migration geçmişi incelenmeden otomatik veritabanı dağıtımını açmayın.
 
-## GitHub CLI
+## GitHub
 
 ```powershell
-gh auth status          # aktif: cortexplus55
-gh auth switch          # gerekirse
-git remote -v           # origin → cortexplus55/burhancortexplus
+gh auth status
+git remote -v
+git ls-remote origin refs/heads/main
 ```
 
-CI workflow dosyalarını push etmek `workflow` scope'u ister; token bu scope ile
-yenilenir. Hesap her zaman `cortexplus55` kalır — bkz.
-[GITHUB-CI-WORKFLOW-SCOPE.md](./GITHUB-CI-WORKFLOW-SCOPE.md).
+Beklenen hesap `cortexplus55`, repo `cortexplus55/burhancortexplus`. Git kimliği, CLI oturumu ve bağlayıcı oturumu ayrı ayrı doğrulanmalıdır.
 
-**Migration drift — `db push` çalıştırmayın.** Sorun farklı timestamp değil:
-iki geçmiş tamamen ayrık. 2026-09-02 ölçümü: repodaki **25** migration uzakta
-kayıtlı değil, uzaktaki **34** kayıt repoda yok. Şema panel/MCP üzerinden
-kurulmuş. `db push` 25 dosyayı zaten kurulu şemanın üstüne uygulamayı dener.
-Şema değişikliğini SQL Editor’dan elle uygulayın; ayrıntı
-[deploy-checklist.md](../../cortex-plus/docs/delivery/deploy-checklist.md#3-migrationlar).
+## Kurulum ve kontrol
 
-## Hepsini doğrula
+Repo kökünden `scripts/setup-cli.ps1` giriş/bağlama adımlarını çalıştırır. `scripts/verify-cli.ps1` yerel hedefleri denetler. Şema değişikliği veya production yayını yapmaz. Operasyon e-postası yalnızca `cortexplus@cortexplus.app`.
 
-```powershell
-.\scripts\verify-cli.ps1
-```
+## 6 Eylül 2026 güncellemesi
+
+İnceleme sırasında main b42230f'e ilerledi. abuse_events artık mevcut; abonelik sütunları hâlâ eksik. Güncel durum ve tamamlanmamış kapsam: [SYSTEM-AUDIT-2026-09-06.md](SYSTEM-AUDIT-2026-09-06.md). İlk gözlemdeki eksik tablo ve eski commit kayıtları tarihsel kanıttır.

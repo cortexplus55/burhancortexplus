@@ -18,12 +18,17 @@ export const metadata = { title: "Yönetim · Sistem durumu" };
  * hız sınırının çalışmadığını fark etmedi. Bir durum ekranının en kötü hâli
  * yanlış bilgi vermesidir.
  */
-const SERVICES: { name: string; env: string[]; critical: boolean }[] = [
+const SERVICES: { name: string; env: string[]; critical: boolean; all?: boolean }[] = [
   { name: "Supabase", env: ["NEXT_PUBLIC_SUPABASE_URL"], critical: true },
   { name: "Supabase service key", env: ["SUPABASE_SECRET_KEY"], critical: true },
   { name: "OpenAI", env: ["OPENAI_API_KEY"], critical: true },
   { name: "Workspace SMTP", env: ["SMTP_PASS"], critical: true },
-  { name: "PayTR", env: ["PAYTR_MERCHANT_ID"], critical: false },
+  {
+    name: "PayTR",
+    env: ["PAYTR_MERCHANT_ID", "PAYTR_MERCHANT_KEY", "PAYTR_MERCHANT_SALT"],
+    critical: true,
+    all: true,
+  },
   {
     name: "Upstash Redis",
     // Vercel'in Upstash entegrasyonu KV_* adlarını enjekte ediyor.
@@ -45,7 +50,9 @@ export default async function AdminSistemPage() {
 
   const rows = SERVICES.map((item) => ({
     ...item,
-    configured: item.env.some((name) => Boolean(process.env[name])),
+    configured: item.all
+      ? item.env.every((name) => Boolean(process.env[name]))
+      : item.env.some((name) => Boolean(process.env[name])),
   }));
 
   const missingCritical = rows.filter((row) => row.critical && !row.configured);

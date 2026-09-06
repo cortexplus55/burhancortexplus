@@ -8,6 +8,7 @@ import { ChevronDown, ChevronUp, Plus, Sigma, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AskParentPaymentButton } from "@/components/paywall/ask-parent-payment";
 import { PremiumPlanHero } from "@/components/marketing/premium-plan-hero";
+import { billingPeriodOf } from "@/lib/payments/subscription";
 import "@/styles/astra-app.css";
 import "@/styles/cortex-premium.css";
 
@@ -15,9 +16,13 @@ type Plan = {
   id: string;
   name: string;
   description: string | null;
+  /** Kuruş. 59900 = ₺599,00. */
   price_try: number;
   credit_amount: number;
   is_premium: boolean;
+  billing_period?: string | null;
+  tier?: string | null;
+  period_days?: number | null;
 };
 
 /*
@@ -66,15 +71,40 @@ const PARENT_SIGMA_BENEFITS = [
   "Yoğun sınav dönemleri için ek kota",
 ];
 
-const FALLBACK_PLUS = 770;
-const FALLBACK_SIGMA = 2567;
-const FALLBACK_YEARLY_PLUS = 321;
+type Tier = "plus" | "sigma";
+type TierPlans = { monthly?: Plan; yearly?: Plan };
 
-function planTier(name: string): "plus" | "sigma" | "other" {
-  const n = name.toLowerCase();
-  if (n.includes("sigma")) return "sigma";
-  if (n.includes("plus") || n.includes("premium")) return "plus";
+function tierOf(plan: Plan): Tier | "other" {
+  const explicit = (plan.tier ?? "").toLowerCase();
+  if (explicit === "plus" || explicit === "sigma") return explicit;
+  const name = plan.name.toLowerCase();
+  if (name.includes("sigma")) return "sigma";
+  if (name.includes("plus") || name.includes("premium")) return "plus";
   return "other";
+}
+
+/** Kuruş → tam lira. Ondalık göstermiyoruz; fiyatlar zaten tam liralık. */
+function lira(kurus: number): number {
+  return Math.round(kurus / 100);
+}
+
+/** Yıllık planın aylık karşılığı — Astra da böyle gösteriyor. */
+function perMonthLira(plan: Plan): number {
+  const total = lira(plan.price_try);
+  return billingPeriodOf(plan) === "yearly" ? Math.round(total / 12) : total;
+}
+
+/** Yıllığın aylığa göre kaç puan ucuz olduğu. Hesaplanamıyorsa null. */
+function savingPercent(tier: TierPlans): number | null {
+  if (!tier.monthly || !tier.yearly) return null;
+  const twelveMonths = tier.monthly.price_try * 12;
+  if (twelveMonths <= 0) return null;
+  const saved = Math.round((1 - tier.yearly.price_try / twelveMonths) * 100);
+  return saved > 0 ? saved : null;
+}
+
+function tl(value: number): string {
+  return value.toLocaleString("tr-TR");
 }
 
 export function AstraSubscriptionCards({
@@ -88,6 +118,7 @@ export function AstraSubscriptionCards({
   beneficiaryStudentId,
   childName,
   currentBadge = null,
+  checkoutEnabled = true,
 }: {
   plans: Plan[];
   guestMode?: boolean;
@@ -102,6 +133,7 @@ export function AstraSubscriptionCards({
   beneficiaryStudentId?: string | null;
   childName?: string | null;
   currentBadge?: "Plus" | "Sigma" | null;
+  checkoutEnabled?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -112,28 +144,51 @@ export function AstraSubscriptionCards({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
 
-  const { plusPlan, sigmaPlan, rest } = useMemo(() => {
-    let plus: Plan | undefined;
-    let sigma: Plan | undefined;
+  const { plusTier, sigmaTier, rest } = useMemo(() => {
+    const plus: TierPlans = {};
+    const sigma: TierPlans = {};
     const others: Plan[] = [];
-    for (const p of plans) {
-      const tier = planTier(p.name);
-      if (tier === "plus" && !plus) plus = p;
-      else if (tier === "sigma" && !sigma) sigma = p;
-      else others.push(p);
+
+    for (const plan of plans) {
+      const tier = tierOf(plan);
+      const period = billingPeriodOf(plan);
+      if (tier === "other" || period === "one_time") {
+        others.push(plan);
+        continue;
+      }
+      const bucket = tier === "plus" ? plus : sigma;
+      const slot = period === "yearly" ? "yearly" : "monthly";
+      if (!bucket[slot]) bucket[slot] = plan;
     }
-    if (!plus && plans[0]) plus = plans.find((p) => !p.is_premium) ?? plans[0];
-    if (!sigma && plans.length > 1)
-      sigma = plans.find((p) => p.is_premium && p.id !== plus?.id) ?? plans[1];
-    return { plusPlan: plus, sigmaPlan: sigma, rest: others };
+
+    return { plusTier: plus, sigmaTier: sigma, rest: others };
   }, [plans]);
 
-  const plusMonthly = plusPlan?.price_try ?? FALLBACK_PLUS;
-  const sigmaMonthly = sigmaPlan?.price_try ?? FALLBACK_SIGMA;
+  /** Yıllık hiç yoksa düğmeyi göstermenin anlamı yok. */
+  const hasYearly = Boolean(plusTier.yearly || sigmaTier.yearly);
 
-  function displayPlusMonthly() {
-    if (!yearly) return plusMonthly;
-    return Math.round(plusMonthly * (FALLBACK_YEARLY_PLUS / FALLBACK_PLUS));
+  function selected(tier: TierPlans): Plan | undefined {
+    if (yearly) return tier.yearly ?? tier.monthly;
+    return tier.monthly ?? tier.yearly;
+  }
+
+  const plusPlan = selected(plusTier);
+  const sigmaPlan = selected(sigmaTier);
+
+  const plusPerMonth = plusPlan ? perMonthLira(plusPlan) : null;
+  const sigmaPerMonth = sigmaPlan ? perMonthLira(sigmaPlan) : null;
+
+  const plusSaving = savingPercent(plusTier);
+  const sigmaSaving = savingPercent(sigmaTier);
+  const headlineSaving = plusSaving ?? sigmaSaving;
+
+  /** "yıllık faturalandırılır · toplam ₺2.990" */
+  function billingNoteFor(plan: Plan | undefined): string {
+    if (!plan) return yearly ? "yıllık faturalandırılır" : "aylık faturalandırılır";
+    if (billingPeriodOf(plan) === "yearly") {
+      return `yıllık faturalandırılır · toplam ₺${tl(lira(plan.price_try))}`;
+    }
+    return "aylık faturalandırılır";
   }
 
   const isParent = audience === "parent";
@@ -147,8 +202,9 @@ export function AstraSubscriptionCards({
   const sigmaBenefits = isParent ? PARENT_SIGMA_BENEFITS : SIGMA_BENEFITS;
 
   async function startCheckout(planId: string) {
+    if (!checkoutEnabled) return;
     if (guestMode) {
-      router.push(`/kayit?next=${encodeURIComponent("/paketler")}`);
+      router.push(`/kayit?next=${encodeURIComponent("/pay")}`);
       return;
     }
     if (isParent && !beneficiaryStudentId) {
@@ -240,6 +296,42 @@ export function AstraSubscriptionCards({
           </p>
         ) : null}
 
+        {/* Tek düğme iki kartı birden çevirir; her kartta ayrı bir düğme olsaydı
+            hangi fiyatın seçili olduğu karışırdı. */}
+        {hasYearly && !plusOwned ? (
+          <div
+            role="tablist"
+            aria-label="Fatura dönemi"
+            className="mx-auto flex max-w-xs rounded-full bg-[var(--astra-bg)] p-1 text-xs"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={yearly}
+              className={cn(
+                "flex-1 rounded-full py-2 font-medium transition-colors",
+                yearly ? "astra-nav-active text-white" : "text-[var(--astra-muted)]",
+              )}
+              onClick={() => setYearly(true)}
+            >
+              Yıllık
+              {headlineSaving ? ` · %${headlineSaving} tasarruf` : null}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!yearly}
+              className={cn(
+                "flex-1 rounded-full py-2 font-medium transition-colors",
+                !yearly ? "astra-nav-active text-white" : "text-[var(--astra-muted)]",
+              )}
+              onClick={() => setYearly(false)}
+            >
+              Aylık
+            </button>
+          </div>
+        ) : null}
+
         {plusOwned ? null : (
         <article className="astra-pay-card astra-pay-card--premium p-5">
           <div className="flex items-start gap-3">
@@ -248,45 +340,23 @@ export function AstraSubscriptionCards({
             </span>
             <div className="flex-1">
               <h2 className="text-lg font-semibold">Plus</h2>
-              <div className="mt-3 flex rounded-full bg-[var(--astra-bg)] p-1 text-xs">
-                <button
-                  type="button"
-                  className={cn(
-                    "flex-1 rounded-full py-2 font-medium transition-colors",
-                    yearly
-                      ? "astra-nav-active text-white"
-                      : "text-[var(--astra-muted)]",
-                  )}
-                  onClick={() => setYearly(true)}
-                >
-                  Yıllık · %58 tasarruf
-                </button>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex-1 rounded-full py-2 font-medium transition-colors",
-                    !yearly
-                      ? "astra-nav-active text-white"
-                      : "text-[var(--astra-muted)]",
-                  )}
-                  onClick={() => setYearly(false)}
-                >
-                  Aylık
-                </button>
-              </div>
+              <p className="text-sm text-[var(--astra-muted)]">
+                Günlük öğrenme için
+              </p>
               <p className="mt-4 text-3xl font-bold">
-                ₺{displayPlusMonthly().toLocaleString("tr-TR")}
-                <span className="text-base font-normal text-[var(--astra-muted)]">
-                  {" "}
-                  / ay
-                </span>
+                {plusPerMonth === null ? "Yapılandırılıyor" : `₺${tl(plusPerMonth)}`}
+                {plusPerMonth === null ? null : (
+                  <span className="text-base font-normal text-[var(--astra-muted)]">
+                    {" "}/ ay
+                  </span>
+                )}
               </p>
               <p className="text-xs text-[var(--astra-muted)]">
-                {yearly ? "yıllık faturalandırılır" : "aylık faturalandırılır"}
+                {billingNoteFor(plusPlan)}
               </p>
               <button
                 type="button"
-                disabled={plusOwned || loadingId === plusPlan?.id}
+                disabled={!checkoutEnabled || plusOwned || loadingId === plusPlan?.id}
                 className="cortex-premium-btn-primary mt-4 disabled:opacity-60"
                 onClick={() =>
                   plusOwned
@@ -298,7 +368,9 @@ export function AstraSubscriptionCards({
                         : toast.error("Plus paketi yapılandırılmadı.")
                 }
               >
-                {plusOwned
+                {!checkoutEnabled
+                  ? "Yakında"
+                  : plusOwned
                   ? "Bu çocukta Plus açık"
                   : loadingId === plusPlan?.id
                     ? "Hazırlanıyor…"
@@ -306,7 +378,7 @@ export function AstraSubscriptionCards({
                       ? "Çocuğum için Plus al"
                       : "Plus'a yükselt"}
               </button>
-              {studentAskParent && plusPlan && !guestMode ? (
+              {checkoutEnabled && studentAskParent && plusPlan && !guestMode ? (
                 <AskParentPaymentButton
                   planId={plusPlan.id}
                   planName={plusPlan.name}
@@ -377,18 +449,18 @@ export function AstraSubscriptionCards({
                   Ciddi çalışma için
                 </p>
                 <p className="mt-4 text-3xl font-bold">
-                  ₺{sigmaMonthly.toLocaleString("tr-TR")}
+                  ₺{tl(sigmaPerMonth ?? 0)}
                   <span className="text-base font-normal text-[var(--astra-muted)]">
                     {" "}
                     / ay
                   </span>
                 </p>
                 <p className="text-xs text-[var(--astra-muted)]">
-                  aylık faturalandırılır
+                  {billingNoteFor(sigmaPlan)}
                 </p>
                 <button
                   type="button"
-                  disabled={sigmaOwned || loadingId === sigmaPlan.id}
+                  disabled={!checkoutEnabled || sigmaOwned || loadingId === sigmaPlan.id}
                   className={cn(
                     "mt-4 w-full rounded-full py-3.5 text-sm font-semibold disabled:opacity-60",
                     sigmaUnderFold
@@ -405,7 +477,9 @@ export function AstraSubscriptionCards({
                           : toast.error("Sigma paketi yapılandırılmadı.")
                   }
                 >
-                  {sigmaOwned
+                  {!checkoutEnabled
+                    ? "Yakında"
+                    : sigmaOwned
                     ? "Bu çocukta Sigma açık"
                     : loadingId === sigmaPlan.id
                       ? "Hazırlanıyor…"
@@ -418,7 +492,7 @@ export function AstraSubscriptionCards({
                     <li key={b}>· {b}</li>
                   ))}
                 </ul>
-                {isParent ? null : studentAskParent && !guestMode ? (
+                {!checkoutEnabled || isParent ? null : studentAskParent && !guestMode ? (
                   <AskParentPaymentButton
                     planId={sigmaPlan.id}
                     planName={sigmaPlan.name}
@@ -446,17 +520,16 @@ export function AstraSubscriptionCards({
                 <div>
                   <h3 className="font-medium">{plan.name}</h3>
                   <p className="text-sm text-[var(--astra-muted)]">
-                    ₺{plan.price_try.toLocaleString("tr-TR")} · {plan.credit_amount}{" "}
-                    kredi
+                    ₺{tl(lira(plan.price_try))} · {plan.credit_amount} kredi
                   </p>
                 </div>
                 <button
                   type="button"
                   className="astra-btn-primary rounded-full px-4 py-2 text-sm font-medium"
-                  disabled={loadingId === plan.id}
+                  disabled={!checkoutEnabled || loadingId === plan.id}
                   onClick={() => startCheckout(plan.id)}
                 >
-                  Satın al
+                  {checkoutEnabled ? "Satın al" : "Yakında"}
                 </button>
               </article>
             ))}

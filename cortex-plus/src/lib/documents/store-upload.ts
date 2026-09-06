@@ -30,7 +30,7 @@ export async function storeUserDocument(
     return { ok: false as const, error: "upload_failed" as const };
   }
 
-  await service.from("documents").insert({
+  const { error: documentError } = await service.from("documents").insert({
     id: documentId,
     user_id: userId,
     file_name: file.name,
@@ -40,11 +40,22 @@ export async function storeUserDocument(
     status: "processing",
   });
 
-  await service.from("processing_jobs").insert({
+  if (documentError) {
+    await service.storage.from("documents").remove([path]);
+    return { ok: false as const, error: "upload_failed" as const };
+  }
+
+  const { error: jobError } = await service.from("processing_jobs").insert({
     document_id: documentId,
     job_type: "extract",
     status: "pending",
   });
+
+  if (jobError) {
+    await service.from("documents").delete().eq("id", documentId);
+    await service.storage.from("documents").remove([path]);
+    return { ok: false as const, error: "upload_failed" as const };
+  }
 
   return { ok: true as const, documentId, fileName: file.name };
 }

@@ -407,8 +407,12 @@ export async function adjustCredits(input: {
  * Ödemeyi iade edildi olarak işaretler.
  *
  * Parayı geri göndermez — o işlem ödeme sağlayıcısının panelinden yapılır.
- * Buradaki kayıt yalnızca bizim tarafımızdaki durumu düzeltir, gelir tablosu
- * şişik kalmasın.
+ * Buradaki kayıt bizim tarafımızdaki durumu düzeltir.
+ *
+ * Aboneliği de kapatıyor. Eskiden kapatmıyordu ve şöyle bir açık kalıyordu:
+ * Plus al, aylık hakkı bir günde yak, sonra iade iste. Para geri gider,
+ * abonelik ve kalan hak yerinde kalırdı. Artık iade, satın alınan şeyi de
+ * geri alıyor.
  */
 export async function markPaymentRefunded(paymentId: string) {
   const actorId = await requireAdminActor();
@@ -420,7 +424,7 @@ export async function markPaymentRefunded(paymentId: string) {
   const service = createServiceClient();
   const { data: payment } = await service
     .from("payments")
-    .select("id, status")
+    .select("id, status, user_id, beneficiary_user_id, plan_id")
     .eq("id", parsed.data)
     .maybeSingle();
 
@@ -436,17 +440,57 @@ export async function markPaymentRefunded(paymentId: string) {
 
   if (error) return { ok: false, error: "Güncellenemedi." };
 
+  // Hakkı kimin kullandığıysa aboneliği de onda; hediye ödemelerinde
+  // ödeyenle yararlanan farklı olabiliyor.
+  const beneficiaryId =
+    (payment.beneficiary_user_id as string | null) ??
+    (payment.user_id as string | null);
+
+  let subscriptionCancelled = false;
+  if (beneficiaryId && payment.plan_id) {
+    const { data: cancelled } = await service
+      .from("subscriptions")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("user_id", beneficiaryId)
+      .eq("plan_id", payment.plan_id)
+      .eq("status", "active")
+      .select("id");
+    subscriptionCancelled = (cancelled ?? []).length > 0;
+
+    if (subscriptionCancelled) {
+      /*
+        Dönemi hemen kapat. Cüzdanın hakkı `credit_reserve` içinde tembel
+        yenileniyor: dönem bitmiş görünmezse kullanıcı, aboneliği iptal
+        edilmiş olsa bile kalan aylık hakkını harcamaya devam ederdi.
+        Bitişi geçmişe çekince bir sonraki işlemde ücretsiz kademeye düşüyor.
+      */
+      await service
+        .from("credit_wallets")
+        .update({
+          free_allowance_remaining: 0,
+          period_ends_at: new Date(Date.now() - 1000).toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", beneficiaryId);
+    }
+  }
+
   await auditLog(service, {
     actorId,
     action: "payment.refunded",
     entityType: "payment",
     entityId: parsed.data,
-    metadata: {},
+    metadata: { subscriptionCancelled, beneficiaryId },
   });
 
   revalidatePath("/admin/odemeler");
   revalidatePath("/admin");
-  return { ok: true, message: "İade edildi olarak işaretlendi." };
+  return {
+    ok: true,
+    message: subscriptionCancelled
+      ? "İade edildi olarak işaretlendi. Abonelik kapatıldı, kalan hak sıfırlandı."
+      : "İade edildi olarak işaretlendi.",
+  };
 }
 
 /** Paketin fiyatını, kredi miktarını ve satışta olup olmadığını günceller. */

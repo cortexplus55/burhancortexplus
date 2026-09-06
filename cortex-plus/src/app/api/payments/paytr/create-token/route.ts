@@ -7,6 +7,7 @@ import {
   isPaytrConfigured,
 } from "@/lib/payments/paytr";
 import { resolveCheckoutBeneficiary } from "@/lib/payments/beneficiary";
+import { billingPeriodOf } from "@/lib/payments/subscription";
 import { auditLog } from "@/lib/audit";
 
 const bodySchema = z.object({
@@ -23,12 +24,27 @@ export async function POST(request: Request) {
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
   // Price always comes from the database, never from the client payload.
-  const { data: plan } = await service
+  const { data: extendedPlan, error: extendedPlanError } = await service
     .from("plans")
-    .select("id, name, price_try, credit_amount")
+    .select(
+      "id, name, price_try, credit_amount, is_premium, billing_period, period_days, tier",
+    )
     .eq("id", parsed.data.planId)
     .eq("active", true)
     .maybeSingle();
+
+  let plan = extendedPlan;
+  if (extendedPlanError) {
+    const { data: legacyPlan } = await service
+      .from("plans")
+      .select("id, name, price_try, credit_amount, is_premium")
+      .eq("id", parsed.data.planId)
+      .eq("active", true)
+      .maybeSingle();
+    plan = legacyPlan
+      ? { ...legacyPlan, billing_period: null, period_days: null, tier: null }
+      : null;
+  }
 
   if (!plan) return errorResponse(404, "not_found");
 
@@ -90,13 +106,19 @@ export async function POST(request: Request) {
   const forChild = beneficiary.beneficiaryId !== userId;
   const returnQuery = forChild ? "?kaynak=veli" : "";
 
+  // PayTR sepet adi Turkce karakter kaldirmiyor; donem etiketi ASCII yazilir.
+  const period = billingPeriodOf(plan);
+  const periodSuffix =
+    period === "yearly" ? " yillik" : period === "monthly" ? " aylik" : "";
+  const productName = `${plan.name}${periodSuffix}${forChild ? " (cocuk kotasi)" : ""}`;
+
   const { params } = buildPaytrToken({
     merchantOid,
     email: email ?? "kullanici@cortexplus.app",
     amountKurus: plan.price_try,
     userIp,
     userName: profile?.full_name?.trim() || "Cortex Plus kullanicisi",
-    productName: forChild ? `${plan.name} (cocuk kotasi)` : plan.name,
+    productName,
     okUrl: `${origin}/odeme/basarili${returnQuery}`,
     failUrl: `${origin}/odeme/basarisiz${returnQuery}`,
   });

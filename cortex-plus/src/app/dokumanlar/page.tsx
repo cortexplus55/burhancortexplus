@@ -1,6 +1,7 @@
 import { FileText } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { DocumentUpload } from "@/components/documents/document-upload";
+import { DocumentRetryButton } from "@/components/documents/document-retry-button";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
 import { requireUser } from "@/lib/auth/session";
 import { getCreditCost } from "@/lib/credits/rules";
@@ -66,14 +67,19 @@ export default async function DokumanlarPage() {
                     {document.error_message ? ` · ${document.error_message}` : ""}
                   </p>
                 </div>
-                <span
-                  className={cn(
-                    "shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium",
-                    statusClass(document.status),
-                  )}
-                >
-                  {statusLabels[document.status] ?? document.status}
-                </span>
+                <div className="flex shrink-0 items-center gap-3">
+                  {document.status === "processing" ? (
+                    <DocumentRetryButton documentId={document.id} />
+                  ) : null}
+                  <span
+                    className={cn(
+                      "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                      statusClass(document.status),
+                    )}
+                  >
+                    {statusLabels[document.status] ?? document.status}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>

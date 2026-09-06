@@ -12,15 +12,30 @@ export default async function AdminPaketlerPage() {
   await requireAdmin();
   const service = createServiceClient();
 
-  const [{ data: plans }, pending] = await Promise.all([
+  const [extendedPlans, pending] = await Promise.all([
     service
       .from("plans")
-      .select("id, slug, name, description, price_try, credit_amount, is_premium, active, sort_order")
+      .select(
+        "id, slug, name, description, price_try, credit_amount, is_premium, active, sort_order, billing_period",
+      )
       .order("sort_order"),
     countPendingApplications(service),
   ]);
 
-  const rows = plans ?? [];
+  let rows = extendedPlans.data;
+  if (extendedPlans.error) {
+    const { data: legacyPlans } = await service
+      .from("plans")
+      .select(
+        "id, slug, name, description, price_try, credit_amount, is_premium, active, sort_order",
+      )
+      .order("sort_order");
+    rows = (legacyPlans ?? []).map((plan) => ({
+      ...plan,
+      billing_period: null,
+    }));
+  }
+  rows ??= [];
 
   return (
     <AdminShell href="/admin/paketler" pendingApplications={pending}>
@@ -47,7 +62,11 @@ export default async function AdminPaketlerPage() {
                   </div>
                 </td>
                 <td>
-                  {plan.is_premium ? (
+                  {plan.billing_period === "yearly" ? (
+                    <AdminBadge tone="gold">Yıllık abonelik</AdminBadge>
+                  ) : plan.billing_period === "monthly" ? (
+                    <AdminBadge tone="gold">Aylık abonelik</AdminBadge>
+                  ) : plan.is_premium ? (
                     <AdminBadge tone="gold">Abonelik</AdminBadge>
                   ) : (
                     <AdminBadge tone="mute">Kredi paketi</AdminBadge>

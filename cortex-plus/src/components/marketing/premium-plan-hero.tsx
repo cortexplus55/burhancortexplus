@@ -1,6 +1,6 @@
 export function PremiumPlanHero({
   eyebrow = "Plus",
-  title = "Daha iyi notlar al ve 2 kat hızlı öğren",
+  title = "Daha fazla çalış, sınırda kalma",
   description = "Tüm özellikler açık; AI işlemleri kredi ve ücretsiz hak harcar. Plus aboneliği gelişmiş model ve yüksek kredi paketi sunar.",
   align = "center",
   headingLevel = "h2",

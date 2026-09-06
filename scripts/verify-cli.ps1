@@ -29,11 +29,11 @@ if (-not (Test-Path $projFile)) {
   exit 1
 }
 $v = Get-Content $projFile -Raw | ConvertFrom-Json
-if ($v.projectName -ne "burhancortexplus" -or $v.orgId -ne "team_7fZJmWjbQtKXSDwCZCA4s7Ym") {
+if ($v.projectName -ne "burhancortexplus-app" -or $v.orgId -ne "team_7fZJmWjbQtKXSDwCZCA4s7Ym" -or $v.projectId -ne "prj_fBxyWhMERs4pZUq9sJMaVa9Gt29A") {
   Write-Host "FAIL Vercel link: $($v.projectName) / $($v.orgId)" -ForegroundColor Red
   exit 1
 }
-Write-Host "OK  Vercel: cortexplus55/burhancortexplus" -ForegroundColor Green
+Write-Host "OK  Vercel link: cortexplus55/burhancortexplus-app (oturum yetkisi ayrica dogrulanmali)" -ForegroundColor Green
 
 $refFile = Join-Path $App "supabase/.temp/project-ref"
 if (Test-Path $refFile) {

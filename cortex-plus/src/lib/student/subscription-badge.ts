@@ -8,12 +8,16 @@ export async function getSubscriptionBadge(
 ): Promise<SubscriptionBadge> {
   const { data } = await supabase
     .from("subscriptions")
-    .select("status, plans(name, is_premium)")
+    .select("status, current_period_end, plans(name, is_premium)")
     .eq("user_id", userId)
     .eq("status", "active")
     .maybeSingle();
 
   if (!data?.plans) return null;
+  if (data.current_period_end) {
+    const end = new Date(data.current_period_end);
+    if (!Number.isNaN(end.getTime()) && end.getTime() <= Date.now()) return null;
+  }
 
   const plan = data.plans as { name?: string; is_premium?: boolean };
   const name = (plan.name ?? "").toLowerCase();

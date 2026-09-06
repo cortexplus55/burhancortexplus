@@ -130,10 +130,14 @@ export async function isPremiumUser(
 ): Promise<boolean> {
   const { data } = await service
     .from("subscriptions")
-    .select("status, plans(is_premium)")
+    .select("status, current_period_end, plans(is_premium)")
     .eq("user_id", userId)
     .eq("status", "active")
     .maybeSingle();
 
+  if (data?.current_period_end) {
+    const end = new Date(data.current_period_end);
+    if (!Number.isNaN(end.getTime()) && end.getTime() <= Date.now()) return false;
+  }
   return Boolean((data?.plans as { is_premium?: boolean } | null)?.is_premium);
 }

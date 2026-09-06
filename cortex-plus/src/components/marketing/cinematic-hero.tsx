@@ -45,11 +45,11 @@ export function CinematicHero() {
           Tüm dersler için AI öğretmen
         </p>
         <h1 className="mk-display mk-section-reveal mk-section-reveal-delay-1 mt-4 text-4xl leading-[1.08] md:text-6xl lg:text-7xl">
-          Çalışma ve sınav hazırlığında 2 kat hızlı öğren
+          Nerede zorlandığını gör, ne çalışacağını bil
         </h1>
         <p className="mk-section-reveal mx-auto mt-6 max-w-2xl text-base text-[var(--mk-muted)] md:text-lg">
-          Fotoğraftan soru çözümü, deneme sınavları, sözlü pratik ve onlarca
-          interaktif uygulama — hepsi Cortex Plus&apos;ta, senin ritminde.
+          Fotoğraftan soru çözümü, deneme sınavları, sözlü pratik ve kişisel
+          çalışma planın tek yerde, senin ritminde.
         </p>
 
         <form

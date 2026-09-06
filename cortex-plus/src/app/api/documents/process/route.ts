@@ -4,7 +4,6 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { processDocument } from "@/lib/rag/pipeline";
 import {
   commitCredits,
-  newIdempotencyKey,
   refundCredits,
   reserveCredits,
 } from "@/lib/credits/service";
@@ -27,12 +26,15 @@ export async function POST(request: Request) {
 
   if (!doc) return errorResponse(404, "not_found");
   if (doc.user_id !== userId) return errorResponse(403, "forbidden");
+  if (doc.status === "completed") {
+    return NextResponse.json({ documentId: doc.id, status: "completed" });
+  }
 
   const reservation = await reserveCredits(
     service,
     userId,
     "DOCUMENT_PAGE_PROCESS",
-    newIdempotencyKey(`doc_${doc.id}`),
+    `document_process_${doc.id}`,
   );
   if (!reservation.ok) {
     return errorResponse(

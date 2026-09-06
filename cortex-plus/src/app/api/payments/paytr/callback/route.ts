@@ -1,24 +1,26 @@
 import crypto from "crypto";
 import { createServiceClient } from "@/lib/supabase/server";
 import { verifyPaytrCallbackHash } from "@/lib/payments/paytr";
-import {
-  paymentWalletUserId,
-  planGrantsSubscription,
-} from "@/lib/payments/beneficiary";
 import { auditLog } from "@/lib/audit";
 
-/**
- * PayTR requires a plain-text "OK" for every delivered notification, otherwise
- * it keeps retrying. Failures are recorded but never surfaced to the provider.
- */
 const OK = () => new Response("OK", { status: 200 });
+const RETRY = () => new Response("RETRY", { status: 500 });
+const INVALID = () => new Response("INVALID", { status: 400 });
+
+type FinalizeResult = {
+  result?: string;
+  payment_id?: string;
+  payer_id?: string;
+  beneficiary_id?: string;
+  credits?: number;
+};
 
 export async function POST(request: Request) {
   let form: FormData;
   try {
     form = await request.formData();
   } catch {
-    return OK();
+    return INVALID();
   }
 
   const merchantOid = String(form.get("merchant_oid") ?? "");
@@ -26,185 +28,48 @@ export async function POST(request: Request) {
   const totalAmount = String(form.get("total_amount") ?? "");
   const hash = String(form.get("hash") ?? "");
 
-  if (!merchantOid || !hash) return OK();
+  if (!merchantOid || !hash) return INVALID();
   if (!verifyPaytrCallbackHash({ merchantOid, status, totalAmount, hash })) {
-    return OK();
+    return INVALID();
   }
 
-  const service = createServiceClient();
-
-  // Replay protection: the unique payload hash rejects duplicate deliveries.
   const payloadHash = crypto
     .createHash("sha256")
     .update(`${merchantOid}:${status}:${totalAmount}`)
     .digest("hex");
+  const rawPayload = Object.fromEntries(
+    [...form.entries()].filter(([key]) => key !== "hash").map(([key, value]) => [
+      key,
+      typeof value === "string" ? value : value.name,
+    ]),
+  );
 
-  const { error: duplicate } = await service
-    .from("payment_webhook_events")
-    .insert({
-      merchant_oid: merchantOid,
-      payload_hash: payloadHash,
-      status,
-      raw_payload: { merchant_oid: merchantOid, status, total_amount: totalAmount },
-      processed_at: new Date().toISOString(),
-    });
+  const service = createServiceClient();
+  const { data, error } = await service.rpc("finalize_paytr_payment", {
+    p_merchant_oid: merchantOid,
+    p_payload_hash: payloadHash,
+    p_status: status,
+    p_raw_payload: rawPayload,
+  });
 
-  if (duplicate) return OK();
+  // PayTR retries non-OK responses. The database function is transactional, so
+  // a retry can safely resume after any database error.
+  if (error) return RETRY();
 
-  const { data: payment } = await service
-    .from("payments")
-    .select(
-      "id, user_id, beneficiary_user_id, plan_id, status, plans(credit_amount, name, is_premium)",
-    )
-    .eq("merchant_oid", merchantOid)
-    .maybeSingle();
-
-  if (!payment) return OK();
-
-  if (status !== "success") {
-    await service
-      .from("payments")
-      .update({ status: "failed", updated_at: new Date().toISOString() })
-      .eq("merchant_oid", merchantOid);
-    return OK();
-  }
-
-  if (payment.status === "paid") return OK();
-
-  const plan = payment.plans as {
-    credit_amount?: number;
-    name?: string;
-    is_premium?: boolean;
-  } | null;
-  const creditAmount = plan?.credit_amount ?? 0;
-  const walletUserId = paymentWalletUserId(payment);
-  const payerId = payment.user_id as string;
-  const now = new Date().toISOString();
-
-  await service
-    .from("payments")
-    .update({ status: "paid", updated_at: now })
-    .eq("merchant_oid", merchantOid);
-
-  if (creditAmount > 0) {
-    const { data: wallet } = await service
-      .from("credit_wallets")
-      .select("balance")
-      .eq("user_id", walletUserId)
-      .maybeSingle();
-
-    const newBalance = (wallet?.balance ?? 0) + creditAmount;
-
-    if (wallet) {
-      await service
-        .from("credit_wallets")
-        .update({ balance: newBalance, updated_at: now })
-        .eq("user_id", walletUserId);
-    } else {
-      await service.from("credit_wallets").insert({
-        user_id: walletUserId,
-        balance: newBalance,
-        reserved: 0,
-        updated_at: now,
-      });
-    }
-
-    // Unique idempotency key blocks a second credit grant for the same order.
-    await service.from("credit_ledger").insert({
-      user_id: walletUserId,
-      delta: creditAmount,
-      balance_after: newBalance,
-      entry_type: "purchase",
-      idempotency_key: `pay_${merchantOid}`,
-      reference_id: payment.id,
+  const result = (data ?? {}) as FinalizeResult;
+  if (result.result === "completed" && result.payer_id) {
+    await auditLog(service, {
+      actorId: result.payer_id,
+      action: "payment.completed",
+      entityType: "payment",
+      entityId: merchantOid,
       metadata: {
-        merchant_oid: merchantOid,
-        paid_by: payerId,
-        beneficiary: walletUserId,
+        payment_id: result.payment_id ?? null,
+        beneficiary: result.beneficiary_id ?? null,
+        credits: result.credits ?? 0,
       },
     });
   }
-
-  const notices: {
-    user_id: string;
-    title: string;
-    body: string;
-  }[] = [];
-
-  if (walletUserId === payerId) {
-    notices.push({
-      user_id: payerId,
-      title: "Kredi yüklendi",
-      body: `${plan?.name ?? "Paket"} için ${creditAmount} kredi hesabına tanımlandı.`,
-    });
-  } else {
-    notices.push({
-      user_id: walletUserId,
-      title: "Plus hesabına tanımlandı",
-      body: `${plan?.name ?? "Paket"} kotası velin tarafından hesabına yüklendi.`,
-    });
-    notices.push({
-      user_id: payerId,
-      title: "Çocuğunun kotası açıldı",
-      body: `${plan?.name ?? "Paket"} çocuğunun hesabına tanımlandı. Raporların ücretsiz kalır.`,
-    });
-  }
-
-  if (notices.length) {
-    await service.from("notifications").insert(notices);
-  }
-
-  if (planGrantsSubscription(plan) && payment.plan_id) {
-    const periodEnd = new Date();
-    periodEnd.setDate(periodEnd.getDate() + 30);
-
-    await service
-      .from("subscriptions")
-      .update({ status: "inactive", updated_at: now })
-      .eq("user_id", walletUserId)
-      .eq("status", "active");
-
-    const { data: existingSub } = await service
-      .from("subscriptions")
-      .select("id")
-      .eq("user_id", walletUserId)
-      .maybeSingle();
-
-    if (existingSub?.id) {
-      await service
-        .from("subscriptions")
-        .update({
-          plan_id: payment.plan_id,
-          status: "active",
-          current_period_end: periodEnd.toISOString(),
-          updated_at: now,
-        })
-        .eq("id", existingSub.id);
-    } else {
-      await service.from("subscriptions").insert({
-        user_id: walletUserId,
-        plan_id: payment.plan_id,
-        status: "active",
-        current_period_end: periodEnd.toISOString(),
-      });
-    }
-  }
-
-  if (walletUserId !== payerId) {
-    await service
-      .from("parent_payment_requests")
-      .update({ status: "paid", resolved_at: now })
-      .eq("student_id", walletUserId)
-      .eq("status", "pending");
-  }
-
-  await auditLog(service, {
-    actorId: payerId,
-    action: "payment.completed",
-    entityType: "payment",
-    entityId: merchantOid,
-    metadata: { credits: creditAmount, beneficiary: walletUserId },
-  });
 
   return OK();
 }
