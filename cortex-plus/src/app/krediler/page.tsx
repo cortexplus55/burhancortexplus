@@ -84,7 +84,12 @@ export default async function KredilerPage() {
   const balance = wallet?.balance ?? 0;
   const reserved = wallet?.reserved ?? 0;
   const isPremium = Boolean(shell.account?.isPremium);
-  const quota = quotaView(wallet, isPremium);
+  const quota = quotaView(
+    wallet,
+    isPremium,
+    new Date(),
+    shell.account?.subscriptionAllowance ?? undefined,
+  );
 
   return (
     <AstraParitySorShell {...shell}>

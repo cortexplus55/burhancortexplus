@@ -66,6 +66,21 @@ describe("quotaView", () => {
     expect(quotaView(null, true, NOW).allowance).toBe(400);
   });
 
+  it("Sigma dönem yenilenmesini planın gerçek kotasıyla gösterir", () => {
+    const view = quotaView(
+      wallet({
+        free_allowance_remaining: 0,
+        period_ends_at: "2026-09-03T00:00:00.000Z",
+      }),
+      true,
+      NOW,
+      1600,
+    );
+    expect(view.pendingRefill).toBe(true);
+    expect(view.remaining).toBe(1600);
+    expect(view.allowance).toBe(1600);
+  });
+
   it("sıfırlama anı UTC gün başına denk gelir", () => {
     const view = quotaView(null, false, NOW);
     expect(view.resetsAt.toISOString()).toBe("2026-09-04T00:00:00.000Z");

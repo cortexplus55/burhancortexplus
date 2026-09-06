@@ -51,9 +51,10 @@ export function quotaView(
   wallet: WalletPeriod | null | undefined,
   isPremium: boolean,
   now = new Date(),
+  premiumAllowance = PREMIUM_MONTHLY_ALLOWANCE,
 ): QuotaView {
   const fallbackAllowance = isPremium
-    ? PREMIUM_MONTHLY_ALLOWANCE
+    ? premiumAllowance
     : FREE_DAILY_ALLOWANCE;
 
   if (!wallet) {

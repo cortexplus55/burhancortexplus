@@ -97,6 +97,8 @@ Canlı `/admin/feature-flags`, ürün öğrenci odaklı hâle getirildiği ve ö
 
 Yönetici hesabına 24 saatlik, otomatik yenilenmeyen Sigma test aboneliği tanımlanınca sunucu premium hakkını ve 1.600 aylık kotayı doğru verdi; üst menü ise plan kademesini taşımadığı için “Plus” yazdı. Profil de premium kullanıcıda plan satırını tümüyle gizliyordu ve “Abonelikler” bağlantısı yönetim ekranı yerine yeniden satış sayfasına gidiyordu. Öğrenci hesap bağlamına gerçek `Plus`/`Sigma` rozeti eklendi; üst menü, kredi şeridi ve profil bunu kullanacak şekilde düzeltildi. Premium profili plan adını gösteriyor ve `/odemeler` abonelik yönetimine bağlanıyor. Satış sayfasında mevcut Sigma kullanıcısının kartı, PayTR kapalıyken “Yakında” yerine aktif üyelik durumunu gösterecek.
 
+Yıllık Sigma'nın 30 günlük kota dönemi sona erdiğinde ilk yeni işlem veritabanını yenileyene kadar kullanım ekranı varsayılan 400 Plus kotasını gösterebiliyordu. Abonelik bağlamı artık planın `monthly_allowance` değerini de taşıyor; bekleyen yenileme Sigma için 1.600 olarak hesaplanıyor. Bu davranış ayrı birim testiyle güvenceye alındı.
+
 ## 3. Geçen kontroller
 
 - Doğru GitHub reposuna bağlayıcı ve CLI erişimi.
