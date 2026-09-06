@@ -3,6 +3,10 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["pdfjs-dist"],
+  outputFileTracingIncludes: {
+    "/api/documents/process": ["./node_modules/pdfjs-dist/**/*", "./node_modules/@napi-rs/canvas*/**/*"],
+    "/api/ai/chat": ["./node_modules/pdfjs-dist/**/*", "./node_modules/@napi-rs/canvas*/**/*"],
+  },
   async headers() {
     return [
       {
