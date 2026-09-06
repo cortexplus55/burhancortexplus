@@ -1,8 +1,18 @@
 # Cortex Plus — kapsamlı inceleme çalışma raporu
 
-**Güncelleme:** 6 Eylül 2026, 12:32 TSİ. **Durum:** bağlantı, ödeme ve temel öğrenci akışları incelendi; Astra ücretsiz hesap karşılaştırması ve gerçek test ödeme henüz tamamlanmadı.
+**Güncelleme:** 6 Eylül 2026, 13:08 TSİ. **Durum:** bağlantı, ödeme, abonelik ve temel öğrenci akışları incelendi; kritik düzeltmeler production'a alındı. Astra ücretsiz hesap karşılaştırması ve PayTR mağaza onayından sonraki gerçek test ödeme henüz tamamlanmadı.
 
-Bu rapor ölçülmüş bulguları koddan çıkarılan risklerden ayırır. Bir testin geçmesi, gerçek ödeme veya tüm ekranların çalıştığı anlamına gelmez. Bu görevden production deploy, ödeme, şema değişikliği veya hesap yetkisi değişikliği yapılmadı.
+Bu rapor ölçülmüş bulguları koddan çıkarılan risklerden ayırır. Bir testin geçmesi, gerçek ödeme veya tüm ekranların çalıştığı anlamına gelmez.
+
+## 0. Uygulama sonucu
+
+- GitHub `main`: `b93ebdd` — abonelik, ödeme mutabakatı, doküman tekrar işleme, doğru bağlantı betikleri ve doğrulanmamış pazarlama iddialarının temizliği.
+- Vercel: aynı commit `burhancortexplus-app` production dağıtımında **Ready**.
+- Supabase `dgjfyewgrukglsehyntc`: `20260906130000_subscription_billing`, `20260906140000_atomic_paytr_callback` ve `20260906150000_subscription_expiry_guards` uygulandı ve migration geçmişine kaydedildi.
+- Satıştaki planlar: Plus aylık 599 TL, Plus yıllık 2.990 TL; Sigma aylık 1.999 TL, Sigma yıllık 9.990 TL.
+- Canlı `/fiyatlandirma`: aylık ve yıllık değerler tarayıcıda doğrulandı. PayTR anahtarları beklediği için satın alma düğmeleri “Yakında” ve pasif.
+- Canlı şema denetimi: 65/65 kontrol başarılı; proje ref'i `dgjfyewgrukglsehyntc`.
+- `finalize_paytr_payment` RPC çağrılabilir durumda; olmayan denetim ödemesine beklendiği gibi `payment_not_found` döndürdü ve işlem geri alındı.
 
 ## 1. Bağlantı haritası
 
@@ -31,7 +41,7 @@ Vercel proje ortam listesinde Supabase, OpenAI, uygulama alan adı, SMTP parolas
 
 6 Eylül uygulama içi tarayıcıda /fiyatlandirma: Plus 29.900 TL, Sigma 49.900 TL, Başlangıç 9.900 TL. Görsel olarak da doğrulandı. Aynı anda canlı plans sorgusu: Plus price_try=29900, Pro=49900, Başlangıç=9900. PayTR sepet oluşturucusu bu tutarları kuruş kabul edip 100'e bölüyor. Dolayısıyla gerçek tutarlar 299, 499 ve 99 TL.
 
-Kaynak: src/components/parity/astra-subscription-cards.tsx (HEAD sürümü), src/lib/payments/paytr.ts. Yerelde fiyat birimi düzeltildi ve yeni abonelik kolonları yoksa eski plan sorgusuna güvenli dönüş eklendi. Canlıdaki `Cortex Pro` artık veri tarafından gerçekten Sigma olarak tanımlanmadıkça Sigma diye yeniden adlandırılmıyor. Düzeltme yayına henüz geçmedi.
+Kaynak: src/components/parity/astra-subscription-cards.tsx, src/lib/payments/paytr.ts. Fiyat birimi düzeltildi ve yeni abonelik kolonları yoksa eski plan sorgusuna güvenli dönüş eklendi. Production'da planlar gerçek Plus/Sigma verisiyle gösteriliyor.
 
 ### P1 — Yerel abonelik kodu mevcut canlı şemayla uyumsuz
 
@@ -39,19 +49,19 @@ Kaynak: src/components/parity/astra-subscription-cards.tsx (HEAD sürümü), src
 
 Kaynak: src/app/pay/page.tsx; src/app/fiyatlandirma/page.tsx; src/app/api/payments/paytr/create-token/route.ts; src/app/api/payments/subscription/route.ts.
 
-İncelemede bekleyen abonelik migration'ının canlı 299/499 TL planlarını kapatıp 599/1.999 TL yeni Plus/Sigma planları açtığı görüldü. Bu teknik bir düzeltme değil, ticari karar. Yanlışlıkla `supabase db push` ile uygulanmaması için `docs/delivery/subscription-billing-draft.sql` konumuna taslak olarak taşındı ve şemaya bağlı günlük cron henüz Vercel'e eklenmedi. Fiyat/kademe kararı alındıktan sonra ayrı migration hazırlanmalı.
+Kullanıcı kararıyla yeni ticari model uygulandı: Plus 599 TL/ay ve 2.990 TL/yıl; Sigma 1.999 TL/ay ve 9.990 TL/yıl. Eski paketler geçmiş ödeme bağları korunarak satıştan kaldırıldı. Yeni kolonlar, kademeye bağlı aylık kota ve günlük yenileme hatırlatma işi production'da etkin.
 
 ### P1 — Ödeme alındığı hâlde hizmet tanımlanamayabilir
 
 Hem HEAD hem yerel callback, payment_webhook_events kaydını işlemin başında processed_at ile ekliyor. Her insert hatasını tekrar bildirim sayıp OK dönüyor. Sonraki ödeme/abonelik/kredi yazımlarının çoğunda hata denetlenmiyor. İşlem yarıda kalırsa sonraki bildirim mevcut olay kaydı nedeniyle atlanıyor; üstelik payments.status hizmet tanımlanmadan paid yapılıyor.
 
-Bu koddan doğrulanan bir başarısızlık senaryosudur; gerçek kullanıcıda para kaybı yaşandığı tespit edilmedi. Yerelde `finalize_paytr_payment` veritabanı fonksiyonu hazırlandı: ödeme, cüzdan, hareket, abonelik, bildirim ve webhook tamamlanması tek işlem; veritabanı hatasında callback 500 dönüyor ve PayTR tekrar deneyebiliyor. PayTR dokümanı tekrar bildirimlerin merchant_oid ile ayırt edilmesini anlatır: https://dev.paytr.com/iframe-api/iframe-api-2-adim . Fonksiyon henüz canlıya uygulanmadı ve test ödeme yapılmadı.
+Bu koddan doğrulanan bir başarısızlık senaryosudur; gerçek kullanıcıda para kaybı yaşandığı tespit edilmedi. `finalize_paytr_payment` veritabanı fonksiyonu production'a uygulandı: ödeme, cüzdan, hareket, abonelik, bildirim ve webhook tamamlanması tek işlem; veritabanı hatasında callback 500 dönüyor ve PayTR tekrar deneyebiliyor. PayTR dokümanı tekrar bildirimlerin merchant_oid ile ayırt edilmesini anlatır: https://dev.paytr.com/iframe-api/iframe-api-2-adim . PayTR mağazası onaylanmadığı için gerçek test ödeme henüz yapılmadı.
 
 ### P1 — Dokümanlar tarayıcı yarıda kalınca sonsuza kadar işleniyor görünebilir
 
 Yükleme ve işleme iki ayrı istemci isteği. İlk istek dosyayı ve `processing_jobs` kaydını oluşturuyor; ikinci istek gelmezse işi sunucuda alan bir worker/cron yok. Canlı hesapta 29 Ağustos tarihli iki PDF hâlâ İşleniyor, aynı dosyanın başka denemesi `empty_content` ile Başarısız. Bu, tasarım kusurunun canlı belirtisi.
 
-Yerelde İşleniyor kayıtlarına “Yeniden işle” eklendi; tekrar deneme dokümana sabit idempotency anahtarı kullanıyor, yarım türetilmiş sayfa/chunk verisini temizliyor ve veritabanı kayıt hatalarında depodaki yetim dosyayı kaldırıyor. 271 test ve tür kontrolü geçti. Henüz yayına gönderilmedi.
+Production'da İşleniyor kayıtlarına “Yeniden işle” eklendi; tekrar deneme dokümana sabit idempotency anahtarı kullanıyor, yarım türetilmiş sayfa/chunk verisini temizliyor ve veritabanı kayıt hatalarında depodaki yetim dosyayı kaldırıyor. 271 test ve tür kontrolü geçti.
 
 ### P1 — Abonelik ve doğrulama migration'ları birbirini eziyor
 
@@ -59,7 +69,7 @@ Yerelde İşleniyor kayıtlarına “Yeniden işle” eklendi; tekrar deneme dok
 
 ### P1 — Premium kararı bitiş tarihini denetlemiyor
 
-src/lib/ai/generate.ts:127 isPremiumUser yalnızca status=active ve plans.is_premium bakıyor; current_period_end denetlenmiyor. Doğrulama migration'ındaki premium/referral sorgularında da aynı eksik var. Süresi dolmuş ama active kalan bir abonelik premium kabul edilir. Yereldeki günlük cron da hasExpired için ceil(gün farkı)<0 kullanıyor; ilk 24 saatlik gecikme aralığını kaçırıyor. Bunun canlı kullanıcı sayısına etkisi bu incelemede ölçülmedi.
+Premium erişim, kredi yenileme ve davet ödülü sorguları artık `current_period_end` değerini denetliyor. Günlük cron tam bitiş anında aboneliği kapatıyor; cron çalışana kadarki saatlerde de hak sorguları süresi dolmuş üyeliği premium saymıyor.
 
 ### P2 — Bağlantı kurulum araçları yanlış projeye yönlendiriyordu
 
@@ -67,7 +77,7 @@ setup-vercel-link.ps1 ve verify-cli.ps1 eski burhancortexplus Vercel projesini d
 
 ### P1 — PayTR mağaza onayı beklerken satın alma düğmesi açıktı
 
-6 Eylül proje ortam listesinde `PAYTR_MERCHANT_ID`, `PAYTR_MERCHANT_KEY` ve `PAYTR_MERCHANT_SALT` yok; takım ortak değişkenleri de boş. Yerel `.env.local` dosyasında aynı alanlar boş. `PAYTR-ABONELIK.md`, cortexplus.app ek mağaza başvurusunun 5 Eylül'de gönderildiğini ve onay beklediğini belgeliyor; bu nedenle anahtarların henüz olmaması beklenen durum. Sorun, canlı `/pay` ekranının buna rağmen satın alma düğmesini açık göstermesi ve tıklanınca “Ödeme altyapısı henüz yapılandırılmadı” hatası vermesi. Yerelde sunucu yapılandırmasına göre düğmeler “Yakında” ve pasif olacak şekilde düzeltildi. Mağaza onaylandığında anahtarlar Vercel secret olarak eklenmeli ve PayTR'nin istediği gerçek test ödeme yapılmalı.
+6 Eylül proje ortam listesinde `PAYTR_MERCHANT_ID`, `PAYTR_MERCHANT_KEY` ve `PAYTR_MERCHANT_SALT` yok; takım ortak değişkenleri de boş. Yerel `.env.local` dosyasında aynı alanlar boş. `PAYTR-ABONELIK.md`, cortexplus.app ek mağaza başvurusunun 5 Eylül'de gönderildiğini ve onay beklediğini belgeliyor; bu nedenle anahtarların henüz olmaması beklenen durum. Production'da sunucu yapılandırmasına göre düğmeler “Yakında” ve pasif. Mağaza onaylandığında anahtarlar Vercel secret olarak eklenmeli ve PayTR'nin istediği gerçek test ödeme yapılmalı.
 
 ### P2 — Yayın kontrolleri şemayı doğrulamıyor
 
@@ -77,7 +87,7 @@ GitHub CI Node 20 kullanırken Vercel Node 24 kullanıyor. CI lint, typecheck, b
 
 /fiyatlandirma Sigma gösteriyor; canlı veri setinde aktif paketler Başlangıç, Cortex Plus ve Cortex Pro. Yıllık %58 düğmesi var; canlı şemada yıllık plan alanları yok. Ana sayfada kaldırılan uygulamalar bölümüne rağmen onlarca interaktif uygulama sözü var. 12.400 öğrenci, 2.1M soru, %94 net artışı değerleri cinematic-social-proof.tsx içinde sabit metinler; analitikten çekilmiyor. Kanıtları kullanıcıyla doğrulanmalı veya vitrin metinleri gerçek ürüne göre düzeltilmeli.
 
-Yerelde doğrulanmamış sayılar, isimli örnek yorumlar, “2 kat hızlı” ve kaldırılmış uygulamalar vaadi çıkarıldı. Yerine çalışan ürün döngüsü — yanlış defteri, kişisel kaynak, çalışma planı ve ilerleme — anlatılıyor. Plan kartı da canlı veri gerçekten Sigma demedikçe Cortex Pro'yu Sigma diye sunmuyor.
+Production'da doğrulanmamış sayılar, isimli örnek yorumlar, “2 kat hızlı” ve kaldırılmış uygulamalar vaadi çıkarıldı. Yerine çalışan ürün döngüsü — yanlış defteri, kişisel kaynak, çalışma planı ve ilerleme — anlatılıyor.
 
 ## 3. Geçen kontroller
 
@@ -88,8 +98,8 @@ Yerelde doğrulanmamış sayılar, isimli örnek yorumlar, “2 kat hızlı” v
 - Supabase panelindeki son bir saatlik dört Postgres hatasının tamamı 11:42–11:43'te yapılan şema denetiminden geldi: iki kez `plans.billing_period`, iki kez `subscriptions.current_period_start`. Başka Postgres hatası görünmedi.
 - npm run lint: hata yok, 6 kullanılmayan değişken/fonksiyon uyarısı.
 - npm run typecheck: başarılı.
-- npm test: 33 dosya / 270 test başarılı.
-- npm run build: başarılı, 131 rota üretildi. Bu yerel kodla yapıldı; yayımlanmış olduğu anlamına gelmez.
+- npm test: 33 dosya / 271 test başarılı.
+- npm run build: başarılı, 131 rota üretildi; doğrulanan commit production'a dağıtıldı.
 - Playwright: 39/39 tarayıcı testi başarılı; anonim erişim korumaları, genel sayfalar, mobil taşma, başlık ve temel erişilebilirlik kontrolleri geçti.
 - Bu görevde değiştirilen 3 PowerShell dosyası: 0 parse hatası; git diff --check başarılı.
 
