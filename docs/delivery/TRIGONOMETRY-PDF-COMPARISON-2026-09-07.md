@@ -57,3 +57,15 @@ Sonuç: Bu 20 sayfalık metin katmanlı PDF için işleme → hazır belge → s
 - Yeni açılan/eski geçmiş sohbetlerinde belge ilişkisinin kalıcı veritabanı kaydı ayrıca ele alınmalı; mevcut düzeltme açık sohbeti ve `belge` bağlantısını kapsar.
 - Yanıt süreleri eşzamanlı ölçülmedi; hız üstünlüğü iddiası yok.
 - Kredi hesabının sayfa başına fiyat metniyle uyumu bu karşılaştırmada doğrulanmadı.
+
+## Ayrıntılı belge turu — 7 Eylül
+
+İkinci karşılaştırmada `trigonometri_20_sayfa_detayli.pdf` (133.607 bayt) iki ürüne de yüklendi. Astra dosyayı sohbet gönderimiyle birlikte kabul etti. Cortex dosyayı `71cd76fd-3ea2-4c4e-b6a0-d90b344ec937` kimliğiyle işledi ve yaklaşık 30 saniye içinde **Hazır** durumuna getirdi.
+
+İki ürüne aynı istem gönderildi: 6–8 maddelik kavram haritası, belgeden iki çözümlü örnek, fiziksel sayfa numaraları ve cevapları saklı üç kademeli soru. Astra 6 maddelik harita, sayfa 2'den radyan/yay uzunluğu ve sayfa 9'dan iki kat açı örneği üretti. Cortex 8 maddelik harita, sayfa 2'den 225° dönüşümü ve sayfa 4'ten sin 60° örneği üretti. İki ürün de takip testinde `cos 120° = +1/2` yanılgısını cevabı doğrudan söylemeden bölge → işaret → referans açı sırasıyla ele aldı ve yeni bir soru sordu.
+
+İlk DOM metin incelemesinde Cortex kesirleri ters yazmış gibi görünüyordu. Görsel kontrol bunun KaTeX'in erişilebilirlik metnindeki okuma sırası olduğunu gösterdi; öğrenci ekranında `225° × π/180 = 5π/4` ve `sin 60° = √3/2` doğru gösteriliyor. Bu nedenle ilk “matematik hatası” kaydı bu tur için geçerli değildir.
+
+Gerçek bağlantı hatası model yönlendirmesinde bulundu: `>10` sayfalık belgeleri gelişmiş modele taşıyan kural vardı, fakat sohbet rotası fiziksel sayfa sayısını yönlendiriciye göndermiyordu. `4313bb0` ile sayfa sayısı bağlandı. Aynı değişiklik belge örneğini kaynakta bulunan soru ve verilerden seçme, sonuçtan önce işaret/kesir/aritmetik kontrolü yapma talimatlarını ekledi. 35 test dosyasında 276 test, TypeScript kontrolü ve üretim derlemesi geçti; değişiklik canlıya gönderildi ve ayrıntılı PDF ile yeniden doğrulandı. Temiz canlı sohbette Cortex sayfa 6'daki `sin 240°` örneğini `−√3/2` olarak doğru çözdü. Takipte `cos 120° = +1/2` yanılgısına karşı cevabı açıklamadan bölge → referans açı → birim çember ipuçlarını verdi ve `sin 135°` sorusuyla devam etti. Belge bağlamı takip mesajında korundu.
+
+Kalite hedef tarihi **21 Eylül 2026**. O tarihe kadar iki günde bir yükleme, kaynak bağlılığı, sayfa atfı, matematik doğruluğu, öğretim sırası, aşamalı ipucu, takip bağlamı ve yanıt süresi ölçülecek. Otomatik takip yalnızca anlamlı değişiklik veya kullanıcı eylemi gerektiğinde bildirim üretir.
