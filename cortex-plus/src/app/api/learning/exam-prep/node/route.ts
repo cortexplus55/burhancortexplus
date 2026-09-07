@@ -331,7 +331,8 @@ async function generateNodePayload(input: {
       isPremium: input.isPremium,
       userPrompt: `${ctx} 5 çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,
     });
-    return { type: "quiz", questions: outcome.ok ? outcome.questions : [] };
+    if (!outcome.ok) throw new Error(`node_generation_failed:${outcome.error}`);
+    return { type: "quiz", questions: outcome.questions };
   }
 
   if (input.kind === "podcast") {
@@ -347,9 +348,8 @@ async function generateNodePayload(input: {
       userPrompt: `${ctx} Ada ve Kerem'in sohbet ettiği 4 bölümlük kısa podcast senaryosu.`,
       parse: (raw) => podcastSchema.safeParse(raw).data ?? null,
     });
-    return outcome.ok
-      ? { type: "podcast", ...outcome.data }
-      : { type: "podcast", title: input.topicLabel, chapters: [] };
+    if (!outcome.ok) throw new Error(`node_generation_failed:${outcome.error}`);
+    return { type: "podcast", ...outcome.data };
   }
 
   if (input.kind === "oral") {
@@ -362,7 +362,8 @@ async function generateNodePayload(input: {
       userPrompt: `${ctx} 5 sözlü soru.`,
       parse: (raw) => oralSchema.safeParse(raw).data ?? null,
     });
-    return { type: "oral", questions: outcome.ok ? outcome.data.questions : [] };
+    if (!outcome.ok) throw new Error(`node_generation_failed:${outcome.error}`);
+    return { type: "oral", questions: outcome.data.questions };
   }
 
   if (input.kind === "flashcards" || input.kind === "spaced") {
@@ -375,7 +376,8 @@ async function generateNodePayload(input: {
       userPrompt: `${ctx} 8 flashcard.`,
       parse: (raw) => cardsSchema.safeParse(raw).data ?? null,
     });
-    return { type: "cards", cards: outcome.ok ? outcome.data.cards : [] };
+    if (!outcome.ok) throw new Error(`node_generation_failed:${outcome.error}`);
+    return { type: "cards", cards: outcome.data.cards };
   }
 
   if (input.kind === "true_false") {
@@ -388,7 +390,8 @@ async function generateNodePayload(input: {
       userPrompt: `${ctx} 8 doğru/yanlış.`,
       parse: (raw) => tfSchema.safeParse(raw).data ?? null,
     });
-    return { type: "true_false", items: outcome.ok ? outcome.data.items : [] };
+    if (!outcome.ok) throw new Error(`node_generation_failed:${outcome.error}`);
+    return { type: "true_false", items: outcome.data.items };
   }
 
   const outcome = await generateExamQuiz({
@@ -397,7 +400,8 @@ async function generateNodePayload(input: {
     isPremium: input.isPremium,
     userPrompt: `${ctx} 5 çoktan seçmeli soru. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi). ${input.kind === "written_exam" ? "Sınav disiplini, ipucu yok." : ""} ${input.kind === "gaps" ? "Zayıf nokta / tuzak sorular." : ""}`,
   });
-  return { type: "quiz", questions: outcome.ok ? outcome.questions : [] };
+  if (!outcome.ok) throw new Error(`node_generation_failed:${outcome.error}`);
+  return { type: "quiz", questions: outcome.questions };
 }
 
 function publicNodePayload(payload: Record<string, unknown>) {
