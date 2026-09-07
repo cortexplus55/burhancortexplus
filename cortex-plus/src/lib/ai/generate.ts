@@ -1,5 +1,6 @@
 import "server-only";
 import OpenAI from "openai";
+import { verifyEducationalContent } from "@/lib/ai/quality-gate";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env, type ActionCode } from "@/lib/env";
 import { selectModel } from "@/lib/ai/model-router";
@@ -101,7 +102,8 @@ export async function generateJson<T>(
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
-    const parsed = params.parse(JSON.parse(raw));
+    const verified = await verifyEducationalContent({ client: openai, context: params.userPrompt, draft: raw, format: params.schemaHint, imageUrls: params.imageUrls });
+    const parsed = params.parse(JSON.parse(verified.content));
     if (!parsed) {
       await refundCredits(params.service, reservation.reservationId);
       return { ok: false, status: 502, error: "invalid_ai_response" };
@@ -114,6 +116,12 @@ export async function generateJson<T>(
       model,
       tokensIn: completion.usage?.prompt_tokens ?? 0,
       tokensOut: completion.usage?.completion_tokens ?? 0,
+      reservationId: reservation.reservationId,
+    });
+
+    await recordUsage(params.service, {
+      userId: params.userId, actionCode, model: env.OPENAI_ADVANCED_MODEL,
+      tokensIn: verified.tokensIn, tokensOut: verified.tokensOut,
       reservationId: reservation.reservationId,
     });
 

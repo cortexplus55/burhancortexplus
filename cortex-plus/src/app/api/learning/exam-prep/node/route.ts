@@ -166,9 +166,10 @@ export async function POST(request: Request) {
         actionCode: "PRACTICE_EXAM_GRADE",
         isPremium: await isPremiumUser(service, userId),
         schemaHint: `Yalnızca {"correctCount":number} JSON döndür. correctCount 0-${questions.length} arasında tam sayı olmalı. Anlamsız, ilgisiz veya yalnızca genel ifadeler doğru sayılmaz.`,
-        userPrompt: `Trigonometri sözlü yanıtlarını içerik doğruluğuna göre değerlendir. Her yanıtı ancak soruyu doğru ve yeterli biçimde cevaplıyorsa doğru say.\n\n${answerLines}`,
+        userPrompt: `${topicLabel} sözlü yanıtlarını içerik doğruluğuna göre değerlendir. Her yanıtı ancak soruyu doğru ve yeterli biçimde cevaplıyorsa doğru say.\n\n${answerLines}`,
         parse: (raw) => oralGradeSchema.safeParse(raw).data ?? null,
       });
+      if (!grade.ok) return errorResponse(grade.status, grade.error);
       if (grade.ok) {
         scored = {
           score: Math.min(questions.length, grade.data.correctCount),

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { loadActivePrompt, PROMPT_KEYS } from "@/lib/ai/prompts";
 import { z } from "zod";
 import OpenAI from "openai";
+import { verifyEducationalContent } from "@/lib/ai/quality-gate";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { selectModel } from "@/lib/ai/model-router";
 import { SYSTEM_GUARDRAIL, isPremiumUser } from "@/lib/ai/generate";
@@ -265,13 +266,27 @@ export async function POST(request: Request) {
             const delta = chunk.choices[0]?.delta?.content ?? "";
             if (delta) {
               fullText += delta;
-              controller.enqueue(encoder.encode(delta));
             }
             if (chunk.usage) {
               tokensIn = chunk.usage.prompt_tokens ?? 0;
               tokensOut = chunk.usage.completion_tokens ?? 0;
             }
           }
+
+          const verified = await verifyEducationalContent({
+            client: openai,
+            context: JSON.stringify({ history: history.slice(0, -1), message, contextBlock }),
+            draft: fullText,
+            format: "Öğrenciye gösterilecek sohbet yanıtı. Metin ve matematik biçimlendirmesini koru.",
+            imageUrls: imageUrl ? [imageUrl] : [],
+          });
+          fullText = verified.content;
+          await recordUsage(service, {
+            userId, actionCode, model: env.OPENAI_ADVANCED_MODEL,
+            tokensIn: verified.tokensIn, tokensOut: verified.tokensOut,
+            reservationId: reservation.reservationId,
+          });
+          controller.enqueue(encoder.encode(fullText));
 
           if (conversationId) {
             await service.from("messages").insert({

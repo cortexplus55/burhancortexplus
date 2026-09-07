@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import OpenAI from "openai";
+import { verifyEducationalContent } from "@/lib/ai/quality-gate";
+import { recordUsage } from "@/lib/credits/service";
 import { withUser } from "@/lib/api/guards";
 import { env } from "@/lib/env";
 import { getTeacherEntitlements, incrementTeacherUsage } from "@/lib/teacher/entitlements";
@@ -77,7 +79,12 @@ export async function POST(request: Request) {
       response_format: { type: "json_object" },
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(raw) as {
+    const verified = await verifyEducationalContent({ client: openai, context: `Konu: ${topic}. ${questionCount} soruluk quiz üret.`, draft: raw, format: 'JSON: {title:string,questions:[{question:string,options:string[],correct:string}]}. correct bir seçenek metni olmalı.' });
+    await recordUsage(service, { userId, actionCode: "QUIZ_GENERATE", model: env.OPENAI_ADVANCED_MODEL, tokensIn: verified.tokensIn, tokensOut: verified.tokensOut, reservationId: resId });
+    const parsed = z.object({
+      title: z.string().min(1),
+      questions: z.array(z.object({ question: z.string().min(1), options: z.array(z.string()).length(4), correct: z.string() }).refine(q => q.options.includes(q.correct))).length(questionCount),
+    }).parse(JSON.parse(verified.content)) as {
       title?: string;
       questions?: { question: string; options: string[]; correct: string }[];
     };
