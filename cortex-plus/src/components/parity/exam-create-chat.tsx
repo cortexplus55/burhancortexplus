@@ -170,9 +170,6 @@ export function ExamCreateChat() {
             min={tomorrowIso()}
             value={examDate}
             onChange={(event) => setExamDate(event.target.value)}
-            onBlur={() => {
-              if (examDate) void send(examDate);
-            }}
           />
         </label>
       ) : null}
@@ -195,6 +192,17 @@ export function ExamCreateChat() {
             ))}
           </select>
         </label>
+      ) : null}
+
+      {canStart && preview.length === 0 ? (
+        <button
+          type="button"
+          className="ap-exam-continue ap-exam-continue--primary"
+          disabled={loading}
+          onClick={() => void send(examDate)}
+        >
+          {loading ? "Yol hazırlanıyor…" : "Çalışma yolunu hazırla"}
+        </button>
       ) : null}
 
       {grouped.length ? (
