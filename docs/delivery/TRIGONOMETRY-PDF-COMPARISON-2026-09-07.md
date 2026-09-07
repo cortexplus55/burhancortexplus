@@ -1,5 +1,20 @@
 # Trigonometri PDF akışı ve Astra karşılaştırması
 
+## 14 günlük canlı akış testi
+
+21 Eylül 2026 hedef tarihli `db9b08dd-0efa-4457-ae36-aef40fbd2942` hazırlığı, plan yazıldıktan sonra bekletilmeden 14 günün tamamı sırayla çalıştırıldı. Podcast, soru-cevap, quiz, doğru/yanlış, sözlü, aralıklı tekrar, zayıf nokta, bilgi kartı ve süreli yazılı türlerinin her biri gerçekten üretildi; sonuç kaydı ve bir sonraki düğümün açılması doğrulandı. Son düğümün “Devam et” bağlantısı hazırlık özetine döndü.
+
+Canlı testte bulunan ve giderilen sorunlar:
+
+- Plan önizlemesi tarih alanının bulanıklaşmasına bağlıydı; açık bir “Çalışma yolunu hazırla” eylemine dönüştürüldü.
+- Giriş quizi hazırlığa seçilen PDF'i kullanmıyordu; belge bağlamı eklendi.
+- Başarısız içerik üretimi boş ders ekranına dönüşüyordu; artık hata döndürüp yeniden denemeye izin veriyor.
+- Premium quiz üretimleri gelişmiş modele taşındı ve çoklu seçim/cevap-açıklama tutarlılığı kuralları güçlendirildi.
+- Bilgi kartlarının son yanıtı React durum güncellemesi tamamlanmadan sunucuya gönderildiği için 8/8 yerine 7/8 kaydoluyordu; son yanıt artık tamamlama isteğine doğrudan ekleniyor.
+- Sözlüde uzunluğu sekiz karakteri aşan her metin doğru sayılıyordu; yanıtlar artık soruyla ilgisi ve içerik doğruluğu açısından yapay zekâ ile değerlendiriliyor.
+
+Kalan içerik riski: Gelişmiş model, önceki modele göre belirgin biçimde daha tutarlı sorular üretti. Yine de tek üretimde referans açı açıklamasının 0°–360° aralığı ile karıştırıldığı bir soru görüldü. Bu nedenle model seçimi tek başına kesin doğruluk garantisi değildir; ileride ikinci bir matematik doğrulama geçidi eklenmelidir.
+
 ## Kapsam
 
 Kullanıcının iki ürüne yüklediği `trigonometri_konu_anlatimi.pdf`: 75.450 bayt, 20 fiziksel sayfa. Astra Plus ve Cortex Sigma oturumlarıyla, aynı ana istem üzerinden manuel karşılaştırma. Bu tek belge deneyi genel model sıralaması değildir. Modelin iç muhakemesi değil, gösterdiği çözüm ve ürün akışı değerlendirildi.

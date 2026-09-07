@@ -60,6 +60,10 @@ const oralSchema = z.object({
   questions: z.array(z.object({ prompt: z.string().min(8), hint: z.string().optional() })).min(3).max(6),
 });
 
+const oralGradeSchema = z.object({
+  correctCount: z.number().int().min(0),
+});
+
 // Satır bazlı iki sesli biçim: her satır tek cümle, konuşmacı etiketli.
 // Ses cümle başına üretildiği için senkron tahmine değil ölçüme dayanıyor.
 const podcastSchema = z.object({
@@ -148,7 +152,30 @@ export async function POST(request: Request) {
       .limit(1)
       .maybeSingle();
 
-    const scored = scoreAttempt(kind, attempt?.payload, parsed.data.answers ?? {});
+    let scored = scoreAttempt(kind, attempt?.payload, parsed.data.answers ?? {});
+    if (kind === "oral" && attempt?.payload) {
+      const questions = ((attempt.payload as { questions?: { prompt?: string }[] }).questions ?? []);
+      const answerLines = questions
+        .map((question, index) =>
+          `${index + 1}. Soru: ${question.prompt ?? ""}\nÖğrenci yanıtı: ${String(parsed.data.answers?.[String(index)] ?? "")}`,
+        )
+        .join("\n\n");
+      const grade = await generateJson({
+        service,
+        userId,
+        actionCode: "PRACTICE_EXAM_GRADE",
+        isPremium: await isPremiumUser(service, userId),
+        schemaHint: `Yalnızca {"correctCount":number} JSON döndür. correctCount 0-${questions.length} arasında tam sayı olmalı. Anlamsız, ilgisiz veya yalnızca genel ifadeler doğru sayılmaz.`,
+        userPrompt: `Trigonometri sözlü yanıtlarını içerik doğruluğuna göre değerlendir. Her yanıtı ancak soruyu doğru ve yeterli biçimde cevaplıyorsa doğru say.\n\n${answerLines}`,
+        parse: (raw) => oralGradeSchema.safeParse(raw).data ?? null,
+      });
+      if (grade.ok) {
+        scored = {
+          score: Math.min(questions.length, grade.data.correctCount),
+          total: questions.length || 1,
+        };
+      }
+    }
     if (attempt) {
       await service
         .from("exam_prep_node_attempts")

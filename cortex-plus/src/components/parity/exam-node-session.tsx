@@ -483,10 +483,11 @@ export function ExamNodeSession({
               type="button"
               className="ap-exam-continue"
               onClick={() => {
-                setAnswers((prev) => ({ ...prev, [String(index)]: false }));
+                const nextAnswers = { ...answers, [String(index)]: false };
+                setAnswers(nextAnswers);
                 setFlipped(false);
                 if (index + 1 < cards.length) setIndex(index + 1);
-                else void finish();
+                else void finish(nextAnswers);
               }}
             >
               Hayır
@@ -495,10 +496,11 @@ export function ExamNodeSession({
               type="button"
               className="ap-exam-continue ap-exam-continue--primary"
               onClick={() => {
-                setAnswers((prev) => ({ ...prev, [String(index)]: true }));
+                const nextAnswers = { ...answers, [String(index)]: true };
+                setAnswers(nextAnswers);
                 setFlipped(false);
                 if (index + 1 < cards.length) setIndex(index + 1);
-                else void finish();
+                else void finish(nextAnswers);
               }}
             >
               Evet
