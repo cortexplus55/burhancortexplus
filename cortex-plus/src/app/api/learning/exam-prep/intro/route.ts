@@ -3,6 +3,7 @@ import { z } from "zod";
 import { errorResponse, withUser, type ApiContext } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
+import { loadSourceContext } from "@/lib/learning/source-context";
 import {
   publicQuizQuestion,
   scoreQuizAnswers,
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
 
   const { data: prep } = await service
     .from("exam_preps")
-    .select("id, title, exam_type, active_topic_id, intro_completed_at")
+    .select("id, title, exam_type, active_topic_id, intro_completed_at, document_id")
     .eq("id", prepId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -131,14 +132,22 @@ export async function POST(request: Request) {
     }
   }
 
+  const source = await loadSourceContext(
+    service,
+    userId,
+    `${prep.title ?? prep.exam_type} ${topic.label}`,
+    { documentId: prep.document_id ?? null, limit: 6 },
+  );
+
   const outcome = await generateExamQuiz({
     service,
     userId,
     isPremium: await isPremiumUser(service, userId),
-    userPrompt: `Sınav: ${prep.title ?? prep.exam_type}. Konu: ${topic.label}.
+    userPrompt: `Sınav: ${prep.title ?? prep.exam_type}. Konu: ${topic.label}.${source.block}
 5 çoktan seçmeli tanışma sorusu yaz. Konunun temelini yokla, aşırı tuzak kurma.
 En az 2 soruda birden fazla doğru şık olsun (multi true, correct dizi).
-Tek doğrularda multi false, correct tek string. correct her zaman options içinde olsun.`,
+Tek doğrularda multi false, correct tek string. correct her zaman options içinde olsun.
+Her soruyu göndermeden önce bilimsel ve matematiksel doğruluğunu kontrol et. Soru kökü ile doğru seçenek tam olarak uyuşsun; doğru yanıt seçeneklerde eksiksiz bulunsun. Yaklaşık, kısmen doğru veya yalnızca özel bir durumu anlatan seçeneği doğru sayma. Birden fazla yorumlanabilen soru yazma.`,
   });
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
 
