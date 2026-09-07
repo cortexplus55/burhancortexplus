@@ -67,6 +67,16 @@ describe("model router", () => {
     expect(result.model).toBe(ADVANCED);
   });
 
+  it("uses the advanced model for premium quiz generation", () => {
+    expect(
+      selectModel({
+        actionCode: "QUIZ_GENERATE",
+        isPremium: true,
+        hasImage: false,
+      }).model,
+    ).toBe(ADVANCED);
+  });
+
   it("keeps flashcards cheap", () => {
     const result = selectModel({
       actionCode: "FLASHCARD_GENERATE",

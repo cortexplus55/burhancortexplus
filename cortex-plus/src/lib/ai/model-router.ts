@@ -12,6 +12,7 @@ export type ModelRouterInput = {
 const ADVANCED_ACTIONS: ActionCode[] = [
   "AI_CHAT_ADVANCED",
   "IMAGE_SOLUTION",
+  "QUIZ_GENERATE",
   "PRACTICE_EXAM_GENERATE",
   "PRACTICE_EXAM_GRADE",
 ];
