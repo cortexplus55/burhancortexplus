@@ -260,6 +260,12 @@ export function errorResponse(status: number, code: string) {
     no_topics: "Önce en az bir konu ekle.",
     storage_full:
       "Yükleme alanın doldu. Yeni belge eklemek için eskilerinden birini sil.",
+    content_verification_failed:
+      "Üretilen sorular eğitim doğrulamasından geçmedi. Tekrar dener misin?",
+    source_unavailable:
+      "Seçili belge kaynağı okunamadı. Belgeyi yeniden işle veya başka kaynak seç.",
+    no_measurable_topics:
+      "Ölçülebilir konu bulunamadı. Konu haritasını kontrol et.",
   };
   return NextResponse.json(
     { error: messages[code] ?? "Beklenmeyen bir hata oluştu." },

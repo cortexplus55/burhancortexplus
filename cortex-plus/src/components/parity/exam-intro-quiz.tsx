@@ -56,6 +56,7 @@ export function ExamIntroQuiz({
   const [mode, setMode] = useState<"legacy" | "diagnostic_v2">("legacy");
   const [diagnostic, setDiagnostic] = useState<DiagnosticPayload | null>(null);
   const [displayTopic, setDisplayTopic] = useState(topicLabel);
+  const [startError, setStartError] = useState<string | null>(null);
 
   useEffect(() => {
     void start();
@@ -64,6 +65,8 @@ export function ExamIntroQuiz({
 
   async function start() {
     setLoading(true);
+    setStartError(null);
+    setQuestions([]);
     try {
       const res = await fetch("/api/learning/exam-prep/intro", {
         method: "POST",
@@ -84,13 +87,23 @@ export function ExamIntroQuiz({
         return;
       }
       if (!res.ok) {
-        toast.error(data.error ?? "Tanışma testi üretilemedi.");
+        const message = data.error ?? "Tanışma testi üretilemedi.";
+        setStartError(message);
+        toast.error(message);
         return;
       }
-      setQuestions(data.questions ?? []);
+      const nextQuestions = data.questions ?? [];
+      if (!nextQuestions.length) {
+        const message = "Soru listesi boş geldi. Tekrar dene.";
+        setStartError(message);
+        toast.error(message);
+        return;
+      }
+      setQuestions(nextQuestions);
       if (data.mode === "diagnostic_v2") setMode("diagnostic_v2");
       if (typeof data.topicLabel === "string") setDisplayTopic(data.topicLabel);
     } catch {
+      setStartError("Bağlantı hatası.");
       toast.error("Bağlantı hatası.");
     } finally {
       setLoading(false);
@@ -157,6 +170,23 @@ export function ExamIntroQuiz({
               ? "Belgedeki ana konuların hepsinden kısa bir örnekleme geliyor. Bu test ustalığı kanıtlamaz."
               : "Konuyu kısaca yoklayan 5 soru geliyor."}
           </p>
+        </section>
+      ) : null}
+
+      {!loading && stage === "play" && !questions.length && !paywall ? (
+        <section>
+          <p className="ap-lesson-kicker">{displayTopic}</p>
+          <h1>Tanışma testi açılamadı</h1>
+          <p className="text-sm text-[var(--ap-muted)]">
+            {startError ?? "Sorular yüklenemedi. Boş ekranda kalma — tekrar dene."}
+          </p>
+          <button
+            type="button"
+            className="ap-exam-continue ap-exam-continue--primary"
+            onClick={() => void start()}
+          >
+            Tekrar dene
+          </button>
         </section>
       ) : null}
 

@@ -133,31 +133,52 @@ export async function generateTopicMapDiagnostic(input: {
     throw err;
   }
 
-  const blueprint = slots
-    .map(
-      (s, i) =>
-        `${i + 1}) Konu: "${s.topic.title}" · beceri: ${SKILL_HINT[s.skill]} (${s.skill})`,
-    )
-    .join("\n");
+  const boundaryNote =
+    input.sourceBoundaryMode === "allow_supporting"
+      ? "destekleyici genel bilgi sınırlı kullanılabilir"
+      : "documents_only — kaynak dışı uydurma yok";
 
-  const outcome = await generateExamQuiz({
-    service: input.service,
-    userId: input.userId,
-    isPremium: input.isPremium,
-    userPrompt: `Sınav: ${input.prepTitle ?? input.examType}. Kısa TANİ (başlangıç düzeyi) testi yaz.
-Bu kısa test ustalığı kanıtlamaz; yalnızca başlangıç sinyali verir.
-Her satır için TAM BİR soru üret; sıra ve konu eşlemesi bozulmasın.
+  // Smaller batches pass educational verification more reliably than one long multi-topic quiz.
+  const BATCH = 4;
+  const rawQuestions: QuizQuestion[] = [];
+  for (let start = 0; start < slots.length; start += BATCH) {
+    const batch = slots.slice(start, start + BATCH);
+    const blueprint = batch
+      .map(
+        (s, i) =>
+          `${i + 1}) Konu: "${s.topic.title}" · beceri: ${SKILL_HINT[s.skill]} (${s.skill})`,
+      )
+      .join("\n");
+    const userPrompt = `Sınav: ${input.prepTitle ?? input.examType}. Kısa TANİ (başlangıç) soruları.
+Ustalık iddiası yok; her satır için TAM BİR basit soru yaz; sıra bozulmasın.
 ${blueprint}
 ${source.block}
 Kurallar:
-- Yalnızca kaynak alıntılarına dayan (${input.sourceBoundaryMode === "allow_supporting" ? "destekleyici genel bilgi sınırlı kullanılabilir" : "documents_only — kaynak dışı uydurma yok"}).
-- En az 2 soruda multi true (birden fazla doğru şık); diğerlerinde multi false.
-- correct her zaman options içinde olsun.
-- Bilimsel/matematiksel doğruluğu kontrol et.`,
-  });
-  if (!outcome.ok) return outcome;
+- Yalnızca kaynak alıntılarına dayan (${boundaryNote}).
+- Tercihen multi false (tek doğru); en fazla bir soruda multi true.
+- 4 net şık; correct options içinde; kısa Türkçe explanation.
+- Bilimsel/matematiksel doğruluğu kontrol et.`;
 
-  let questions = attachQuestionMeta(outcome.questions, slots);
+    let outcome = await generateExamQuiz({
+      service: input.service,
+      userId: input.userId,
+      isPremium: input.isPremium,
+      userPrompt,
+    });
+    if (!outcome.ok && outcome.error === "content_verification_failed") {
+      outcome = await generateExamQuiz({
+        service: input.service,
+        userId: input.userId,
+        isPremium: input.isPremium,
+        userPrompt: `${userPrompt}
+Önceki taslak reddedildi. Daha kısa, tek doğru şıklı, belgedeki açık cümlelere dayalı sorular yaz.`,
+      });
+    }
+    if (!outcome.ok) return outcome;
+    rawQuestions.push(...outcome.questions.slice(0, batch.length));
+  }
+
+  let questions = attachQuestionMeta(rawQuestions, slots);
 
   // If model returned fewer questions, still keep meta alignment for what we have.
   if (questions.length < slots.length) {
@@ -166,8 +187,7 @@ Kurallar:
 
   // Prefer model-provided skill tags when present on raw objects (best-effort).
   questions = questions.map((q, i) => {
-    const rawSkill = (outcome.questions[i] as QuizQuestion & { skill?: unknown })
-      ?.skill;
+    const rawSkill = (rawQuestions[i] as QuizQuestion & { skill?: unknown })?.skill;
     return {
       ...q,
       skill: isDiagnosticSkill(rawSkill) ? rawSkill : slots[i].skill,
