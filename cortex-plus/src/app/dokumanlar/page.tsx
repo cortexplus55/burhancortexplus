@@ -8,6 +8,11 @@ import { requireUser } from "@/lib/auth/session";
 import { getCreditCost } from "@/lib/credits/rules";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import {
+  isFeatureEnabled,
+  PDF_LEARNING_V2_FLAG,
+} from "@/lib/admin/feature-flags";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Dokümanlar" };
 
@@ -28,10 +33,14 @@ function statusClass(status: string) {
 export default async function DokumanlarPage() {
   const { supabase, user } = await requireUser();
   const cost = await getCreditCost("DOCUMENT_PAGE_PROCESS");
+  const service = createServiceClient();
+  const pdfLearningV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
 
   const { data: documents } = await supabase
     .from("documents")
-    .select("id, file_name, status, size_bytes, created_at, error_message")
+    .select(
+      "id, file_name, status, size_bytes, created_at, error_message, topic_map_status",
+    )
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
@@ -66,15 +75,33 @@ export default async function DokumanlarPage() {
                     {Math.round(document.size_bytes / 1024)} KB ·{" "}
                     {formatDate(document.created_at)}
                     {document.error_message ? ` · ${document.error_message}` : ""}
+                    {pdfLearningV2 &&
+                    document.topic_map_status &&
+                    document.topic_map_status !== "none"
+                      ? ` · harita: ${document.topic_map_status}`
+                      : ""}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   {document.status === "completed" ? (
-                    <Link href={`/ogretmen?belge=${document.id}`} className="text-xs underline">
+                    <Link
+                      href={`/ogretmen?belge=${document.id}`}
+                      className="text-xs underline"
+                    >
                       Bu belgeyle sohbet et
                     </Link>
                   ) : null}
-                  {document.status === "processing" || document.status === "failed" || document.status === "pending" ? (
+                  {pdfLearningV2 && document.status === "completed" ? (
+                    <Link
+                      href={`/dokumanlar/${document.id}`}
+                      className="text-xs underline"
+                    >
+                      Konu haritası
+                    </Link>
+                  ) : null}
+                  {document.status === "processing" ||
+                  document.status === "failed" ||
+                  document.status === "pending" ? (
                     <DocumentRetryButton documentId={document.id} />
                   ) : null}
                   <span

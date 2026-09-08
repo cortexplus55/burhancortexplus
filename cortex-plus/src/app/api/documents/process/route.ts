@@ -66,5 +66,6 @@ export async function POST(request: Request) {
     status: "completed",
     chunks: result.chunks,
     creditsUsed: reservation.cost,
+    topicMap: result.topicMap ?? null,
   });
 }

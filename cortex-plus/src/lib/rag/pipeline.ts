@@ -4,6 +4,11 @@ export { extractText } from "@/lib/documents/extract-text";
 import OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
+import {
+  isFeatureEnabled,
+  PDF_LEARNING_V2_FLAG,
+} from "@/lib/admin/feature-flags";
+import { runPdfLearningV2 } from "@/lib/documents/pdf-learning-v2";
 
 export const EMBEDDING_MODEL = "text-embedding-3-small";
 const CHUNK_SIZE = 1200;
@@ -37,7 +42,12 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
 export async function processDocument(
   service: SupabaseClient,
   documentId: string,
-): Promise<{ ok: boolean; chunks: number; error?: string }> {
+): Promise<{
+  ok: boolean;
+  chunks: number;
+  error?: string;
+  topicMap?: { ok: boolean; topics: number; coverageStatus?: string };
+}> {
   const { data: doc } = await service
     .from("documents")
     .select("id, user_id, storage_path, mime_type")
@@ -89,6 +99,24 @@ export async function processDocument(
     .delete()
     .eq("document_id", documentId);
   if (cleanupError) return fail("cleanup_failed");
+
+  // Topic links cascade from pages; clear topic nodes so rebuilds never orphan.
+  await service
+    .from("document_topic_nodes")
+    .delete()
+    .eq("document_id", documentId);
+  await service
+    .from("document_coverage_reports")
+    .delete()
+    .eq("document_id", documentId);
+  await service
+    .from("documents")
+    .update({
+      topic_map_status: "none",
+      topic_map_error: null,
+      topic_map_updated_at: null,
+    })
+    .eq("id", documentId);
 
   let chunkIndex = 0;
   const allChunks: { pageId: string; content: string }[] = [];
@@ -153,7 +181,20 @@ export async function processDocument(
     .update({ status: "completed", progress: 100 })
     .eq("document_id", documentId);
 
-  return { ok: true, chunks: allChunks.length };
+  // Stage 2 path is opt-in. Flag off → classic RAG complete, no topic map.
+  let topicMap:
+    | { ok: boolean; topics: number; coverageStatus?: string }
+    | undefined;
+  if (await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG)) {
+    const v2 = await runPdfLearningV2(service, documentId);
+    topicMap = {
+      ok: v2.ok,
+      topics: v2.topics,
+      coverageStatus: v2.coverage?.status,
+    };
+  }
+
+  return { ok: true, chunks: allChunks.length, topicMap };
   } catch (error) {
     console.error("document processing failed", {
       name: error instanceof Error ? error.name : "UnknownError",

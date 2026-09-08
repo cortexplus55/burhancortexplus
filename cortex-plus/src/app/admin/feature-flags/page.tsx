@@ -24,6 +24,12 @@ const KNOWN = [
     description:
       "Açıkken kartlardan gerçekten para çekilir. Test bitmeden açma — açık kalırsa deneme alışverişleri gerçek tahsilat olur.",
   },
+  {
+    key: "pdf_learning_v2",
+    label: "PDF öğrenme v2 (konu haritası)",
+    description:
+      "Açıkken belge işleme sonrası sayfa meta, konu haritası ve kapsam raporu üretilir; /dokumanlar/[id] incelenebilir. Kapalıyken mevcut sınav hazırlığı ve klasik RAG process aynen çalışır.",
+  },
 ];
 
 /**

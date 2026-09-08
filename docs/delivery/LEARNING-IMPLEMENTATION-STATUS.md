@@ -2,10 +2,13 @@
 
 Başlangıç: 8 Eylül 2026. Kullanıcı bütün aşamaların uygulanmasını ve yalnızca doğrulanan madde için “Madde N sorunsuz halledildi” denmesini istedi.
 
+Kalıcı ürün planı: [pdf-kaynakli-ogrenme-plani.md](../product/pdf-kaynakli-ogrenme-plani.md).  
+Aşama 1 baseline kaydı (8 Eylül 2026 akşam): [PDF-LEARNING-STAGE1-BASELINE-2026-09-08.md](./PDF-LEARNING-STAGE1-BASELINE-2026-09-08.md).
+
 ## Sıralı teslimler
 
-1. Mevcut altyapı, veri bütünlüğü ve kontrollü geçiş — devam ediyor.
-2. PDF konu haritası ve kapsam — bekliyor.
+1. Mevcut altyapı, veri bütünlüğü ve kontrollü geçiş — **Aşama 1 baseline haritası tamam** (hedef PASS, yol haritası, geçiş/rollback, bayrak önerisi). Üretim kalite/e2e açık maddeler Aşama 2+ ile devam.
+2. PDF konu haritası ve kapsam — **Aşama 2 temel dilim tamam** (şema + `pdf_learning_v2` runtime + heuristic harita/kapsam + UI; bayrak varsayılan kapalı). Tam kriter (OCR/vision, üretimde kaynak sınırı) kısmi — bkz. [PDF-LEARNING-STAGE2-2026-09-08.md](./PDF-LEARNING-STAGE2-2026-09-08.md).
 3. Tanı ölçümü ve öğrenci öğrenme kaydı — bekliyor.
 4. Tarih/süre/konuya göre çalışma dağılımı — bekliyor.
 5. Etkinlik türlerine özel öğretim — bekliyor.
@@ -42,11 +45,23 @@ Bu sıralama onaylanan planın uygulama/teslim sırasıdır; önceki metindeki a
 - ba6f5bb GitHub main üzerinde doğrulandı. Otomatik Vercel dağıtımı listede oluşmadığı için doğru proje panelinde Create Deployment → main → ba6f5bb → Production yolu kullanıldı. FYvmtWxFQmZsiuXcu1iqiyXsKtKR, Ready, Production Current ve cortexplus.app alan adı doğrulandı. Otomatik tetikleme sorunu çözülmüş sayılmaz.
 - Yeni tarayıcı sayfasında "Çalışma ilerlemen", "Etkinlikler tamamlandı" ve ustalığı ölçmediğini belirten açıklama canlı doğrulandı.
 
-Madde 1 henüz kapatılmadı. Testlerin geçmesi bu açık bulguları ortadan kaldırmaz.
+Madde 1’in **baseline harita / hedef doğrulama / geçiş planı** kısmı Stage-1 notunda kapatıldı. Canlı üretim kalitesi, backup ve v2 bayrak uygulaması hâlâ açık; bunlar Madde 1’in “sorunsuz kabul” barını tek başına karşılamaz — Aşama 2 öncesi bilinçli borç olarak durur.
+
+## Son kontrol — 8 Eylül akşam (Aşama 2 temel dilim)
+
+- Aşama 2 kod + migration + doküman: [PDF-LEARNING-STAGE2-2026-09-08.md](./PDF-LEARNING-STAGE2-2026-09-08.md). Canlı DB’de `pdf_learning_v2` satırı var, **enabled=false**.
+- Yerel birim: `pdf-learning-v2` + `feature-flags` + RLS tabloları geçti (~20 sayfa fikstür kapsam `complete`).
+- Geçerli sıra: **Aşama 3 bekliyor** (tanı); Aşama 2 ürün kriteri kısmi (OCR/vision ve üretimde kaynak-sınırı dallanması açık). Commit/push kullanıcı onayı bekliyor.
+
+## Son kontrol — 8 Eylül akşam (Aşama 1 baseline)
+
+- Production Current: `6d657c9` / `dpl_DksgQkwW2xmnPunKWrZCv4MRyuVK` → `cortexplus.app`; canlı `/giris` JS ref `dgjfyewgrukglsehyntc`.
+- Aşama 1 hedef/yol/geçiş/bayrak önerisi: [PDF-LEARNING-STAGE1-BASELINE-2026-09-08.md](./PDF-LEARNING-STAGE1-BASELINE-2026-09-08.md).
+- Aşama 2 temel dilim yukarıda; Madde 1’in “canlı kalite sorunsuz” barı hâlâ açık borç.
 
 ## Son kontrol — 8 Eylül, 13:20 İstanbul
 
-- Geçerli sıra: **Madde 1 / 10**, hâlâ açık.
+- Geçerli sıra o sırada: **Madde 1 / 10**, hâlâ açık.
 - e6e7b1e için GitHub Vercel durumu success; canlı arayüzde kalıcı üretim hatası mesajı görüldü. Canlı doğru/yanlış üretimi başarıyla bitmiş sayılmıyor.
 - Aynı hazırlık ve kaynak ile yerel sağlayıcı/doğrulama denemesi başarılı: 4 kaynak parçası, gpt-4o-mini taslağı ve bağımsız denetim. Bu sonuç production ortamının sağlıklı olduğunu kanıtlamaz.
 - Chrome bağlantısı yanıt vermiyor; doğru Vercel proje kimliğiyle kayıt bağlayıcısı 403 döndürüyor. Uygulama tarayıcısındaki Vercel ekranı giriş istiyor. Yeni canlı hata ayrıntısı bu nedenle henüz okunamadı.
