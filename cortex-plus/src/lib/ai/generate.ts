@@ -102,7 +102,15 @@ export async function generateJson<T>(
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
-    const verified = await verifyEducationalContent({ client: openai, context: params.userPrompt, draft: raw, format: params.schemaHint, imageUrls: params.imageUrls });
+    const verified = await verifyEducationalContent({
+      client: openai, context: params.userPrompt, draft: raw, format: params.schemaHint, imageUrls: params.imageUrls,
+      validate: (content) => {
+        try {
+          if (params.parse(JSON.parse(content)) !== null) return [];
+        } catch { /* Invalid JSON also needs repair before it can be approved. */ }
+        return ["Çıktı istenen JSON şemasını veya etkinlik kurallarını karşılamıyor. Format alanındaki bütün kuralları uygula."];
+      },
+    });
     const parsed = params.parse(JSON.parse(verified.content));
     if (!parsed) {
       await refundCredits(params.service, reservation.reservationId);

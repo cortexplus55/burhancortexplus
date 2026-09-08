@@ -35,7 +35,9 @@ Bu sıralama onaylanan planın uygulama/teslim sırasıdır; önceki metindeki a
 - Canlı transaction testi PASS: geç aşamadaki hatada altı tablonun sayıları değişmiyor, başka kullanıcı belgesi reddediliyor, hazırlık bütünlüğü korunuyor, tekrar tamamlamada puan/sonraki kilit değişmiyor, anonim/kullanıcı rolü fonksiyonları çağıramıyor. Test verileri ROLLBACK ile kaldırıldı.
 - node complete: aktif denemesiz tamamlama engellendi; tarayıcı kendi attemptId değerini gönderiyor. Uygulama değişikliği henüz yayında değil.
 - Canlı veri sorgusu: düğümsüz hazırlık, tamamlanmış denemesiz done düğüm, belge/deneme sahibi uyuşmazlığı dört kontrolde de 0.
-- Uzak migration kaydının hizalanması, yayın doğrulaması ve eşzamanlı istek testi bekliyor.
-- readinessScore yalnızca etkinlik durumundan türetiliyor; ustalık olarak sunulmamalı.
+- Yeni migration kaydı 20260907211748 adıyla uzakta doğrulandı (6 statement). Tarihsel migration farkları ayrıca incelenmeli.
+- ff163a1 kayıt güvenliği ve 73ba9f2 ilerleme metni düzeltmeleri main'e gönderildi; 73ba9f2 Vercel Production Ready doğrulandı.
+- readinessScore yalnızca etkinlik durumundan türetiliyor. Arayüz "Çalışma ilerlemen" olarak düzeltildi; "Hazırsın" iddiası kaldırıldı.
+- Canlı uçtan uca testte doğru/yanlış sorusu yerine "Açı nedir?" görüldü. Etkinlik sözleşmesi ve bağımsız model onayı birlikte zorunlu hale getirildi; soru cümlesi/tekrar/eksik düzeltme reddediliyor. Yerel 297 test geçti; bu kalite düzeltmesinin canlı yeniden testi bekliyor.
 
 Madde 1 henüz kapatılmadı. Testlerin geçmesi bu açık bulguları ortadan kaldırmaz.

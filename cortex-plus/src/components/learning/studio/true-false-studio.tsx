@@ -16,7 +16,7 @@ import { playPlusTone } from "@/lib/learning/studio-sound";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { cn } from "@/lib/utils";
 
-type Item = { id: string; text: string; correct: boolean; explanation: string };
+type Item = { id: string; text: string; correct: boolean; explanation: string; correctedStatement?: string };
 
 export function TrueFalseStudio({
   creditCost,
@@ -135,6 +135,9 @@ export function TrueFalseStudio({
           </div>
           {phase === "reveal" ? (
             <>
+              {!item.correct && item.correctedStatement ? (
+                <p className="ls-explain"><strong>Doğru ifade:</strong> {item.correctedStatement}</p>
+              ) : null}
               <p className="ls-explain">{item.explanation}</p>
               <div className="ls-actions">
                 <button type="button" className="ls-cta" onClick={next}>

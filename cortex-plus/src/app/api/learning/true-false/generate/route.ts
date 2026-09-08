@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { trueFalseItemsSchema, TRUE_FALSE_FORMAT } from "@/lib/learning/true-false";
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
@@ -9,16 +10,7 @@ const bodySchema = z.object({
 
 const resultSchema = z.object({
   title: z.string().min(1),
-  items: z
-    .array(
-      z.object({
-        text: z.string().min(1),
-        correct: z.boolean(),
-        explanation: z.string().min(4),
-      }),
-    )
-    .min(4)
-    .max(10),
+  items: trueFalseItemsSchema,
 });
 
 export async function POST(request: Request) {
@@ -35,7 +27,7 @@ export async function POST(request: Request) {
     actionCode: "QUIZ_GENERATE",
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
-      'Yalnızca şu JSON: {"title":string,"items":[{"text":string,"correct":boolean,"explanation":string}]}. 8 kısa Türkçe iddia yaz. Yarısı doğru, yarısı yanlış olsun.',
+      'Yalnızca şu JSON: {"title":string,"items":[{"text":string,"correct":boolean,"explanation":string,"correctedStatement":string}]}. 8 kısa Türkçe iddia yaz. Yarısı doğru, yarısı yanlış olsun. ' + TRUE_FALSE_FORMAT,
     userPrompt: `Konu: ${parsedBody.data.topic}. 8 doğru/yanlış iddiası üret.`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
@@ -71,6 +63,7 @@ export async function POST(request: Request) {
       text: item.text,
       correct: item.correct,
       explanation: item.explanation,
+      correctedStatement: item.correctedStatement,
     })),
   });
 }

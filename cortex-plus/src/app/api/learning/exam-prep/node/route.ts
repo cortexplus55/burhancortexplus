@@ -9,6 +9,7 @@ import {
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
+import { trueFalseItemsSchema, TRUE_FALSE_FORMAT } from "@/lib/learning/true-false";
 import {
   parseFamiliarity,
   parseMood,
@@ -41,16 +42,7 @@ const bodySchema = z.object({
 });
 
 const tfSchema = z.object({
-  items: z
-    .array(
-      z.object({
-        text: z.string().min(1),
-        correct: z.boolean(),
-        explanation: z.string().min(4),
-      }),
-    )
-    .min(5)
-    .max(8),
+  items: trueFalseItemsSchema,
 });
 
 const cardsSchema = z.object({
@@ -388,8 +380,8 @@ async function generateNodePayload(input: {
       userId: input.userId,
       actionCode: actionForKind(input.kind),
       isPremium: input.isPremium,
-      schemaHint: 'JSON: {"items":[{"text":string,"correct":boolean,"explanation":string}]}',
-      userPrompt: `${ctx} 8 doğru/yanlış.`,
+      schemaHint: 'JSON: {"items":[{"text":string,"correct":boolean,"explanation":string,"correctedStatement":string}]} ' + TRUE_FALSE_FORMAT,
+      userPrompt: `${ctx} 8 doğru/yanlış önermesi. Her önerme bir kavramı veya yaygın yanılgıyı ölçsün. ${TRUE_FALSE_FORMAT}`,
       parse: (raw) => tfSchema.safeParse(raw).data ?? null,
     });
     if (!outcome.ok) throw new Error(`node_generation_failed:${outcome.error}`);

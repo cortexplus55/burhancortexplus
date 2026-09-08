@@ -28,4 +28,15 @@ describe("educational quality gate", () => {
     const { input } = fixture([{ approved: "yes" }]);
     await expect(verifyEducationalContent(input)).rejects.toThrow();
   });
+  it("repairs an invalid activity even when the model approves it", async () => {
+    const { input, create } = fixture([{ approved: true, issues: [] }, { content: "geçerli önerme" }, { approved: true, issues: [] }]);
+    const validate = (content: string) => content === "geçerli önerme" ? [] : ["Açık uçlu soru doğru/yanlış önermesi değildir."];
+    expect((await verifyEducationalContent({ ...input, validate })).content).toBe("geçerli önerme");
+    expect(create).toHaveBeenCalledTimes(3);
+    expect(create.mock.calls[1][0].messages[0].content).toContain("Açık uçlu soru");
+  });
+  it("rejects a still-invalid repair even if both model reviews approve", async () => {
+    const { input } = fixture([{ approved: true, issues: [] }, { content: "yine hatalı" }, { approved: true, issues: [] }]);
+    await expect(verifyEducationalContent({ ...input, validate: () => ["format yanlış"] })).rejects.toThrow("doğrulanamadı");
+  });
 });

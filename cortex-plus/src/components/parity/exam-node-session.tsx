@@ -39,7 +39,7 @@ type Payload = {
     explanation?: string;
     hint?: string;
   }[];
-  items?: { text: string; correct: boolean; explanation: string }[];
+  items?: { text: string; correct: boolean; explanation: string; correctedStatement?: string }[];
   cards?: { front: string; back: string }[];
 };
 
@@ -452,6 +452,9 @@ export function ExamNodeSession({
               >
                 {answers[String(index)] === items[index].correct ? "✓ Doğru!" : "✕ Yanlış"}
               </div>
+              {!items[index].correct && items[index].correctedStatement ? (
+                <p className="ap-exam-quiz-explain"><strong>Doğru ifade:</strong> {items[index].correctedStatement}</p>
+              ) : null}
               {items[index].explanation ? (
                 <p className="ap-exam-quiz-explain">{items[index].explanation}</p>
               ) : null}

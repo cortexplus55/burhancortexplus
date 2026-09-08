@@ -14,6 +14,8 @@ export async function verifyEducationalContent(input: {
   draft: string;
   format: string;
   imageUrls?: string[];
+  /** Deterministic format/domain checks cannot be overridden by model approval. */
+  validate?: (content: string) => string[];
 }): Promise<{ content: string; tokensIn: number; tokensOut: number }> {
   let content = input.draft;
   let tokensIn = 0;
@@ -38,10 +40,11 @@ export async function verifyEducationalContent(input: {
     const verdict = verdictSchema.parse(await request(
       'Bağımsız eğitim içerik denetçisisin. Önce dersi ve görev türünü belirle. Matematikte işlemler ve tanım aralıklarını; fen derslerinde birim, neden-sonuç ve bilimsel doğruluğu; tarih/coğrafyada tarih, yer ve bağlamı; dil derslerinde dilbilgisi ve yorumu kontrol et. Tüm derslerde kaynakla uyum, yaş/seviye uygunluğu, soru belirsizliği, doğru şık kümesi, açıklama tutarlılığı ve puanlamanın öğrenci yanıtıyla uyumunu denetle. Planlarda tarih, süre ve konu kapsamını kontrol et. Kaynağın desteklemediği iddiaya kaynak uydurma; belirsiz bilgi kesin sunulmasın. Öğrenciye soru soran veya belirsizliğini açıklayan uygun yanıtları kabul et. JSON döndür: {"approved":boolean,"issues":string[]}. Kritik hata veya doğrulanamayan kesin iddia varsa approved false. Doğruysa issues boş olmalı.',
     ));
-    if (verdict.approved && verdict.issues.length === 0) return { content, tokensIn, tokensOut };
+    const issues = [...verdict.issues, ...(input.validate?.(content) ?? [])];
+    if (verdict.approved && issues.length === 0) return { content, tokensIn, tokensOut };
     if (attempt === 1) break;
     const repair = z.object({ content: z.string().min(1) }).parse(await request(
-      'Eğitim içeriğindeki şu sorunları düzelt: ' + JSON.stringify(verdict.issues) +
+      'Eğitim içeriğindeki şu sorunları düzelt: ' + JSON.stringify(issues) +
       '. Görevin kapsamını ve istenen çıktı şemasını koru. Bilmediğini uydurma. JSON döndür: {"content":string}; content düzeltilmiş tam taslak metnidir (istenen biçim JSON ise geçerli JSON metni).',
     ));
     content = repair.content;
