@@ -164,30 +164,13 @@ Kurallar:
       userId: input.userId,
       isPremium: input.isPremium,
       difficulty: "hard",
+      teachingV2: true,
+      sourceExcerpt: source.block,
+      requireSourceSupport: true,
       userPrompt,
     });
-    if (!outcome.ok && outcome.error === "content_verification_failed") {
-      outcome = await generateExamQuiz({
-        service: input.service,
-        userId: input.userId,
-        isPremium: input.isPremium,
-        difficulty: "hard",
-        userPrompt: `${userPrompt}
-Önceki taslak reddedildi. Daha kısa, tek doğru şıklı, belgedeki açık cümlelere dayalı sorular yaz.`,
-      });
-    }
-    if (!outcome.ok && outcome.error === "content_verification_failed") {
-      // Last resort: advanced model + schema validation only (intro must not brick).
-      outcome = await generateExamQuiz({
-        service: input.service,
-        userId: input.userId,
-        isPremium: input.isPremium,
-        difficulty: "hard",
-        verificationMode: "schema",
-        userPrompt: `${userPrompt}
-Yalnızca tek doğru şık (multi false). Kısa, belgeden doğrulanabilir sorular.`,
-      });
-    }
+    // Stage 7: retries + independent-only accept live inside generateExamQuiz / generateJson
+    // under one credit reservation. Do not call again (would risk double-charge).
     if (!outcome.ok) return outcome;
     rawQuestions.push(...outcome.questions.slice(0, batch.length));
   }

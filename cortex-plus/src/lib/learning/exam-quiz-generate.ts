@@ -14,6 +14,12 @@ export async function generateExamQuiz(input: {
   /** Stage 5: enforce pedagogy validators (fail closed via quality gate). */
   teachingV2?: boolean;
   schemaHintExtra?: string;
+  /** Stage 7: source excerpt for independent source checks. */
+  sourceExcerpt?: string;
+  requireSourceSupport?: boolean;
+  sourcePages?: number[];
+  /** Shared key if caller already reserved this user operation elsewhere. */
+  idempotencyKey?: string;
 }): Promise<{ ok: true; questions: QuizQuestion[] } | { ok: false; status: number; error: string }> {
   const pedagogyHint = input.teachingV2
     ? " Her soruda learningObjective (kısa hedef) ve explanation zorunlu. misconceptionTag isteğe bağlı. multi yalnızca birden fazla bağımsız doğru varken."
@@ -35,48 +41,38 @@ export async function generateExamQuiz(input: {
     return { questions };
   };
 
-  const run = (opts: {
-    userPrompt: string;
-    verificationMode?: "full" | "schema";
-    difficulty?: "easy" | "medium" | "hard";
-  }) =>
-    generateJson({
-      service: input.service,
-      userId: input.userId,
-      actionCode: "QUIZ_GENERATE",
-      isPremium: input.isPremium,
-      difficulty: opts.difficulty ?? input.difficulty,
-      verificationMode: opts.verificationMode ?? input.verificationMode,
-      schemaHint,
-      userPrompt: opts.userPrompt,
-      parse,
-    });
-
-  let outcome = await run({ userPrompt: input.userPrompt });
-  if (
-    input.teachingV2 &&
-    !outcome.ok &&
-    outcome.error === "content_verification_failed"
-  ) {
-    outcome = await run({
-      difficulty: "hard",
-      userPrompt: `${input.userPrompt}
-Önceki taslak reddedildi. Daha kısa sorular yaz; tek doğru şık (multi false) tercih et; learningObjective ve explanation her soruda olsun; yalnızca kaynak alıntılarındaki tanımlara dayan.`,
-    });
-  }
-  if (
-    input.teachingV2 &&
-    !outcome.ok &&
-    outcome.error === "content_verification_failed"
-  ) {
-    // Last resort: local schema + pedagogy validators still required; AI review skipped.
-    outcome = await run({
-      difficulty: "hard",
-      verificationMode: "schema",
-      userPrompt: `${input.userPrompt}
-Yalnızca tek doğru şık (multi false). Kısa, kaynaktan doğrulanabilir; learningObjective + explanation zorunlu.`,
-    });
-  }
+  // Single reservation: draft retries + optional independent-only accept stay inside generateJson.
+  const outcome = await generateJson({
+    service: input.service,
+    userId: input.userId,
+    actionCode: "QUIZ_GENERATE",
+    isPremium: input.isPremium,
+    difficulty: input.difficulty ?? (input.teachingV2 ? "hard" : undefined),
+    verificationMode: input.verificationMode,
+    validationProfile: input.teachingV2 ? "v2" : "legacy",
+    idempotencyKey: input.idempotencyKey,
+    maxDraftAttempts: input.teachingV2 ? 2 : 1,
+    allowIndependentAccept: input.teachingV2 && input.verificationMode !== "schema",
+    activityKind: "quiz",
+    buildIndependent: input.teachingV2
+      ? (_content, parsed) => {
+          const questions = parsed ? parseQuizQuestions(parsed) : null;
+          return {
+            pedagogyIssues: questions
+              ? validateQuizPedagogy(questions, { requireObjective: false })
+              : ["Quiz şeması geçersiz."],
+            minItems: 3,
+            sourceExcerpt: input.sourceExcerpt,
+            requireSourceSupport: input.requireSourceSupport,
+            sourcePages: input.sourcePages,
+            subjectHint: "quiz",
+          };
+        }
+      : undefined,
+    schemaHint,
+    userPrompt: input.userPrompt,
+    parse,
+  });
 
   if (!outcome.ok) return outcome;
   return { ok: true, questions: outcome.data.questions };

@@ -387,6 +387,9 @@ export async function POST(request: Request) {
           sourceBlock: source.block,
           teachingV2,
           sessionMeta,
+          requireSourceSupport: Boolean(
+            teachingV2 && prepSource.document_id && sourceBoundaryMode !== "allow_supporting",
+          ),
         });
   } catch (error) {
     if (error instanceof NodeGenerationError) return errorResponse(error.status, error.code);
@@ -475,6 +478,7 @@ async function generateNodePayload(input: {
   sourceBlock: string;
   teachingV2: boolean;
   sessionMeta: SessionTeachingMeta | null;
+  requireSourceSupport?: boolean;
 }) {
   const activity = teachingActivityForKind(input.kind);
   const sessionCtx = input.teachingV2
@@ -488,6 +492,21 @@ async function generateNodePayload(input: {
     input.mood,
   )} ${sessionCtx} ${standards}${input.sourceBlock}`;
 
+  const v2Common = input.teachingV2
+    ? {
+        validationProfile: "v2" as const,
+        maxDraftAttempts: 2 as const,
+        allowIndependentAccept: true,
+        activityKind: activity,
+      }
+    : {};
+
+  const sourceIndependent = {
+    sourceExcerpt: input.sourceBlock,
+    requireSourceSupport: Boolean(input.requireSourceSupport),
+    sourcePages: input.sessionMeta?.sourcePages,
+  };
+
   if (input.kind === "qa") {
     const outcome = await generateExamQuiz({
       service: input.service,
@@ -495,6 +514,9 @@ async function generateNodePayload(input: {
       isPremium: input.isPremium,
       teachingV2: input.teachingV2,
       difficulty: input.teachingV2 ? "hard" : undefined,
+      sourceExcerpt: input.sourceBlock,
+      requireSourceSupport: input.requireSourceSupport,
+      sourcePages: input.sessionMeta?.sourcePages,
       userPrompt: input.teachingV2
         ? `${ctx} 5 alıştırma sorusu (intro Q&A standardı). Tek kavramdan başla; en az 1 soruda kademeli ipucu için explanation'da ilk adımı ver. En az 1 multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
         : `${ctx} 5 çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,
@@ -513,6 +535,19 @@ async function generateNodePayload(input: {
       // Hard difficulty uses the advanced model — podcast pedagogy + review
       // rejected mini drafts too often in Stage 5 browser checks.
       difficulty: input.teachingV2 ? "hard" : undefined,
+      ...v2Common,
+      buildIndependent: input.teachingV2
+        ? (_c, parsed) => {
+            const data = schema.safeParse(parsed).data;
+            return {
+              pedagogyIssues: data
+                ? validatePodcastPedagogy(data)
+                : ["Podcast şeması geçersiz."],
+              minItems: 4,
+              ...sourceIndependent,
+            };
+          }
+        : undefined,
       schemaHint: input.teachingV2
         ? 'JSON: {"title":string,"objective":string,"sourcePoints":string[],"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +
           "4-5 bölüm: Tanım, Neden, Örnek, Yaygın hata, Özet. Ada ve Kerem sırayla. Her text TEK cümle, ≤25 kelime. Kaynak dışı iddia yok."
@@ -543,6 +578,19 @@ async function generateNodePayload(input: {
       userId: input.userId,
       actionCode: actionForKind(input.kind),
       isPremium: input.isPremium,
+      ...v2Common,
+      buildIndependent: input.teachingV2
+        ? (_c, parsed) => {
+            const data = schema.safeParse(parsed).data;
+            return {
+              pedagogyIssues: data
+                ? validateOralPedagogy(data.questions)
+                : ["Sözlü şema geçersiz."],
+              minItems: 3,
+              ...sourceIndependent,
+            };
+          }
+        : undefined,
       schemaHint: input.teachingV2
         ? 'JSON: {"questions":[{"prompt":string,"hint":string,"learningObjective":string,"rubricCriteria":string[],"expectedPoints":string[]}]}'
         : 'JSON: {"questions":[{"prompt":string,"hint":string}]}',
@@ -570,6 +618,19 @@ async function generateNodePayload(input: {
       userId: input.userId,
       actionCode: actionForKind(input.kind),
       isPremium: input.isPremium,
+      ...v2Common,
+      buildIndependent: input.teachingV2
+        ? (_c, parsed) => {
+            const data = schema.safeParse(parsed).data;
+            return {
+              pedagogyIssues: data
+                ? validateFlashcardPedagogy(data.cards)
+                : ["Flashcard şeması geçersiz."],
+              minItems: 4,
+              ...sourceIndependent,
+            };
+          }
+        : undefined,
       schemaHint: input.teachingV2
         ? 'JSON: {"cards":[{"front":string,"back":string,"difficulty":"easy"|"medium"|"hard"}]}. Zor kartlar önce. Ön yüz cevabı sızdırmasın. Tek olgu/kart.'
         : 'JSON: {"cards":[{"front":string,"back":string}]}',
@@ -601,6 +662,19 @@ async function generateNodePayload(input: {
       userId: input.userId,
       actionCode: actionForKind(input.kind),
       isPremium: input.isPremium,
+      ...v2Common,
+      buildIndependent: input.teachingV2
+        ? (_c, parsed) => {
+            const data = tfSchema.safeParse(parsed).data;
+            return {
+              pedagogyIssues: data
+                ? validateTrueFalsePedagogy(data.items)
+                : ["Doğru/yanlış şeması geçersiz."],
+              minItems: 5,
+              ...sourceIndependent,
+            };
+          }
+        : undefined,
       schemaHint:
         'JSON: {"items":[{"text":string,"correct":boolean,"explanation":string,"correctedStatement":string,"misconceptionTag":string}]} ' +
         TRUE_FALSE_FORMAT,
@@ -625,6 +699,9 @@ async function generateNodePayload(input: {
     isPremium: input.isPremium,
     teachingV2: input.teachingV2,
     difficulty: input.teachingV2 ? "hard" : undefined,
+    sourceExcerpt: input.sourceBlock,
+    requireSourceSupport: input.requireSourceSupport,
+    sourcePages: input.sessionMeta?.sourcePages,
     userPrompt: `${ctx} 5 çoktan seçmeli soru. ${
       input.teachingV2
         ? "multi=true yalnızca gerçekten birden fazla bağımsız doğru varken; aksi halde multi false. Her soruda learningObjective ve explanation yaz."
