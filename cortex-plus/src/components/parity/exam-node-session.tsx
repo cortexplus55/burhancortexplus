@@ -75,6 +75,7 @@ export function ExamNodeSession({
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
   const [payload, setPayload] = useState<Payload>({});
+  const [attemptId, setAttemptId] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [flipped, setFlipped] = useState(false);
@@ -138,6 +139,7 @@ export function ExamNodeSession({
         return;
       }
       setPayload(data.payload ?? {});
+      setAttemptId(data.attemptId);
       setStage("play");
     } catch {
       toast.error("Bağlantı hatası.");
@@ -156,6 +158,7 @@ export function ExamNodeSession({
           prepId,
           nodeId,
           action: "complete",
+          attemptId: attemptId ?? undefined,
           answers: nextAnswers ?? answers,
         }),
       });

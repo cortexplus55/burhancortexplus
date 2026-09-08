@@ -6,8 +6,8 @@ import {
   EMPTY_SOURCE_CONTEXT,
   loadSourceContext,
 } from "@/lib/learning/source-context";
-import type { NodeStatus, PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { PLAN_NODE_META, readinessScore } from "@/lib/learning/exam-prep-plan";
+import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import {
   parseFamiliarity,
@@ -26,6 +26,7 @@ import {
 const bodySchema = z.object({
   prepId: z.string().uuid(),
   nodeId: z.string().uuid(),
+  attemptId: z.string().uuid().optional(),
   action: z.enum(["start", "complete"]).default("start"),
   difficulty: z.enum(["kolay", "orta", "ileri"]).optional(),
   voiceMode: z.boolean().optional(),
@@ -142,18 +143,26 @@ export async function POST(request: Request) {
   const mood = parseMood(parsed.data.mood);
 
   if (action === "complete") {
-    const { data: attempt } = await service
+    let attemptQuery = service
       .from("exam_prep_node_attempts")
-      .select("id, payload, total")
+      .select("id, payload, total, score, status")
       .eq("node_id", nodeId)
       .eq("user_id", userId)
-      .eq("status", "active")
+      .eq("exam_prep_id", prepId);
+    // Explicit attempt IDs prevent another tab's newer attempt being graded.
+    attemptQuery = parsed.data.attemptId
+      ? attemptQuery.eq("id", parsed.data.attemptId)
+      : attemptQuery.eq("status", "active");
+    const { data: attempt, error: attemptError } = await attemptQuery
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
+    if (attemptError) return errorResponse(503, "attempt_lookup_failed");
+    if (!attempt) return errorResponse(409, "active_attempt_required");
+
     let scored = scoreAttempt(kind, attempt?.payload, parsed.data.answers ?? {});
-    if (kind === "oral" && attempt?.payload) {
+    if (kind === "oral" && attempt?.payload && attempt.status !== "completed") {
       const questions = ((attempt.payload as { questions?: { prompt?: string }[] }).questions ?? []);
       const answerLines = questions
         .map((question, index) =>
@@ -177,57 +186,22 @@ export async function POST(request: Request) {
         };
       }
     }
-    if (attempt) {
-      await service
-        .from("exam_prep_node_attempts")
-        .update({
-          status: "completed",
-          score: scored.score,
-          total: scored.total,
-          answers: parsed.data.answers ?? {},
-        })
-        .eq("id", attempt.id);
-    }
-
-    await service.from("exam_prep_nodes").update({ status: "done" }).eq("id", nodeId);
-
-    const { data: rows } = await service
-      .from("exam_prep_nodes")
-      .select("id, kind, status, sort_order")
-      .eq("exam_prep_id", prepId)
-      .order("sort_order");
-
-    const next = (rows ?? []).find(
-      (row) => row.sort_order > node.sort_order && row.status === "locked",
-    );
-    if (next) {
-      await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", next.id);
-    }
-
-    // Hazırlık puanı arayüzde düğümlerden anlık hesaplanıyor; kolon ise
-    // yazılmadığı için ölüydü. Burada tek bir update ile dolduruluyor —
-    // düğüm listesi zaten elimizde. Böylece puan, tüm düğümleri çekmeden
-    // sunucu tarafında da (okul akışı, ilerleme özetleri) okunabiliyor.
-    const readiness = readinessScore(
-      (rows ?? []).map((row) => ({
-        kind: row.kind as PlanNodeKind,
-        status: (row.status as NodeStatus) ?? "locked",
-      })),
-    );
-    // Hata bilerek yutuluyor: kolon migration ile geldi, ama kod ondan
-    // önce dağıtılırsa ders tamamlama akışı bir puan yazamadı diye
-    // kırılmamalı.
-    await service
-      .from("exam_preps")
-      .update({ readiness_score: readiness })
-      .eq("id", prepId);
-
+    const { data: completed, error: completeError } = await service.rpc("complete_exam_prep_node", {
+      p_user_id: userId,
+      p_prep_id: prepId,
+      p_node_id: nodeId,
+      p_attempt_id: attempt.id,
+      p_score: scored.score,
+      p_total: scored.total,
+      p_answers: parsed.data.answers ?? {},
+    });
+    if (completeError || !completed) return errorResponse(503, "completion_failed");
     return NextResponse.json({
       ok: true,
-      score: scored.score,
-      total: scored.total,
-      nextHref: next
-        ? `/deneme-sinavlari/${prepId}/dugum/${next.id}`
+      score: completed.score,
+      total: completed.total,
+      nextHref: completed.nextId
+        ? `/deneme-sinavlari/${prepId}/dugum/${completed.nextId}`
         : `/deneme-sinavlari/${prepId}`,
     });
   }

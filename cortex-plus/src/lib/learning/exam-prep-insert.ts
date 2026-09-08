@@ -14,83 +14,28 @@ export async function insertExamPrepGraph(
     documentId?: string | null;
   },
 ) {
-  const { data: plan, error: planError } = await service
-    .from("study_plans")
-    .insert({ user_id: input.userId, title: input.title, status: "active" })
-    .select("id")
-    .single();
-
-  if (planError || !plan) return { error: "generation_failed" as const };
-
   const days = daysUntilExam(input.examDate);
-  await service.from("study_plan_tasks").insert(
-    input.topics.map((topic, index) => {
-      const due = new Date(`${input.examDate}T00:00:00`);
-      due.setDate(due.getDate() - Math.max(0, days - 1 - index));
-      return {
-        plan_id: plan.id,
-        title: topic,
-        due_date: due.toISOString().slice(0, 10),
-        sort_order: index,
-      };
-    }),
-  );
-
-  const basePrep = {
-    user_id: input.userId,
-    exam_type: input.examType,
-    title: input.title,
-    target_score: input.targetScore ?? null,
-    study_plan_id: plan.id,
-    exam_date: input.examDate,
-  };
-
-  let { data: prep, error: prepError } = await service
-    .from("exam_preps")
-    .insert({ ...basePrep, document_id: input.documentId ?? null })
-    .select("id")
-    .single();
-
-  // document_id migration ile geliyor. Kod migration'dan önce dağıtılırsa
-  // hazırlık oluşturma tamamen kırılmasın diye kaynaksız tekrar deneniyor.
-  if (prepError) {
-    ({ data: prep, error: prepError } = await service
-      .from("exam_preps")
-      .insert(basePrep)
-      .select("id")
-      .single());
-  }
-
-  if (prepError || !prep) return { error: "generation_failed" as const };
-
-  await service.from("exam_prep_topics").insert(
-    input.topics.map((label, sort_order) => ({
-      exam_prep_id: prep.id,
-      label,
-      sort_order,
-      status: "ready",
-    })),
-  );
-
-  const nodes = buildExamPlan(days);
-  await service.from("exam_prep_nodes").insert(
-    nodes.map((node, index) => ({
-      exam_prep_id: prep.id,
-      kind: node.kind,
-      title: node.title,
-      day_index: node.dayIndex,
-      sort_order: node.sortOrder,
-      status: index === 0 ? "ready" : "locked",
-    })),
-  );
-
-  await service.from("exam_prep_sessions").insert({
-    exam_prep_id: prep.id,
-    user_id: input.userId,
-    status: "active",
+  const tasks = input.topics.map((topic, index) => {
+    const due = new Date(`${input.examDate}T00:00:00`);
+    due.setDate(due.getDate() - Math.max(0, days - 1 - index));
+    return { title: topic, due_date: due.toISOString().slice(0, 10), sort_order: index };
   });
-
-  return { prepId: prep.id as string, days };
+  const nodes = buildExamPlan(days).map((node, index) => ({
+    kind: node.kind,
+    title: node.title,
+    day_index: node.dayIndex,
+    sort_order: node.sortOrder,
+    status: index === 0 ? "ready" : "locked",
+  }));
+  // One transaction: any failed child insert rolls back the whole graph.
+  // Never retry with separate writes or drop the selected source.
+  const { data, error } = await service.rpc("create_exam_prep_graph", {
+    p_input: { ...input, documentId: input.documentId ?? null, tasks, nodes },
+  });
+  if (error || typeof data !== "string" || !data) {
+    return { error: "generation_failed" as const };
+  }
+  return { prepId: data, days };
 }
 
 export async function ensurePrepNodes(
