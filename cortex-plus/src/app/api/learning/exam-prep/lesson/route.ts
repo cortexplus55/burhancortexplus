@@ -1,13 +1,36 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
+import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { formatStructuredLesson } from "@/lib/learning/exam-lesson";
+import { loadSourceContext } from "@/lib/learning/source-context";
+import {
+  lessonV2Schema,
+  teachingStandardConstraints,
+  teachingSessionContext,
+  validateLessonPedagogy,
+} from "@/lib/learning/teaching-standards";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
   topicId: z.string().uuid(),
   force: z.boolean().optional(),
+});
+
+const legacyLessonSchema = z.object({
+  title: z.string().min(2).max(120),
+  overview: z.string().min(20),
+  sections: z
+    .array(z.object({ heading: z.string().min(2), body: z.string().min(20) }))
+    .min(2)
+    .max(5),
+  example: z.object({
+    prompt: z.string().min(8),
+    solution: z.string().min(8),
+  }),
+  summary: z.array(z.string().min(2)).min(2).max(6),
+  nextFocus: z.array(z.string().min(2)).min(1).max(4),
 });
 
 export async function POST(request: Request) {
@@ -19,10 +42,11 @@ export async function POST(request: Request) {
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
   const { prepId, topicId, force } = parsed.data;
+  const teachingV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
 
   const { data: prep } = await service
     .from("exam_preps")
-    .select("id, title, exam_type")
+    .select("id, title, exam_type, document_id")
     .eq("id", prepId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -42,37 +66,78 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, lessonId: topic.lesson_id, reused: true });
   }
 
-  const lessonSchema = z.object({
-    title: z.string().min(2).max(120),
-    overview: z.string().min(20),
-    sections: z
-      .array(z.object({ heading: z.string().min(2), body: z.string().min(20) }))
-      .min(2)
-      .max(5),
-    example: z.object({
-      prompt: z.string().min(8),
-      solution: z.string().min(8),
-    }),
-    summary: z.array(z.string().min(2)).min(2).max(6),
-    nextFocus: z.array(z.string().min(2)).min(1).max(4),
-  });
+  let sourceBlock = "";
+  if (teachingV2) {
+    let sourceBoundaryMode: "documents_only" | "allow_supporting" | null = "documents_only";
+    if (prep.document_id) {
+      const { data: doc } = await service
+        .from("documents")
+        .select("source_boundary_mode")
+        .eq("id", prep.document_id)
+        .eq("user_id", userId)
+        .maybeSingle();
+      sourceBoundaryMode =
+        (doc?.source_boundary_mode as "documents_only" | "allow_supporting" | null) ??
+        "documents_only";
+    }
+    try {
+      const source = await loadSourceContext(
+        service,
+        userId,
+        `${prep.title ?? ""} ${topic.label}`.trim(),
+        {
+          documentId: prep.document_id ?? null,
+          sourceBoundaryMode,
+        },
+      );
+      sourceBlock = source.block;
+      if (prep.document_id && !sourceBlock.trim()) {
+        return errorResponse(503, "source_unavailable");
+      }
+    } catch {
+      return errorResponse(503, "source_unavailable");
+    }
+  }
+
+  const sessionCtx = teachingV2
+    ? teachingSessionContext({ topicTitle: topic.label, objective: `${topic.label} konusunu öğren` }, topic.label)
+    : "";
+  const standards = teachingV2 ? teachingStandardConstraints("lesson") : "";
 
   const outcome = await generateJson({
     service,
     userId,
     actionCode: "STUDY_PLAN_GENERATE",
     isPremium: await isPremiumUser(service, userId),
-    schemaHint:
-      'Yalnızca JSON: {"title":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"summary":string[],"nextFocus":string[]}',
-    userPrompt: `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
+    schemaHint: teachingV2
+      ? 'Yalnızca JSON: {"title":string,"objective":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}'
+      : 'Yalnızca JSON: {"title":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"summary":string[],"nextFocus":string[]}',
+    userPrompt: teachingV2
+      ? `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
+Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
+${sessionCtx}
+${standards}
+Bu dersin konusu YALNIZCA: ${topic.label}.
+Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.${sourceBlock}`
+      : `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
 Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
 Bu dersin konusu YALNIZCA: ${topic.label}.
 Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.`,
     parse: (raw) => {
-      const result = lessonSchema.safeParse(raw);
+      if (teachingV2) {
+        if (validateLessonPedagogy(raw).length) return null;
+        return lessonV2Schema.safeParse(raw).data ?? null;
+      }
+      const result = legacyLessonSchema.safeParse(raw);
       return result.success ? result.data : null;
     },
   });
+
+  // Legacy: soft placeholder so older UI does not hard-fail.
+  // v2: fail closed — do not store ungated placeholder content.
+  if (!outcome.ok) {
+    if (teachingV2) return errorResponse(outcome.status, outcome.error);
+  }
 
   const contentMd = outcome.ok
     ? formatStructuredLesson(outcome.data)

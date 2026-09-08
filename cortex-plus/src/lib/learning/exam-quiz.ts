@@ -6,6 +6,10 @@ export type QuizQuestion = {
   correct: string[];
   multi: boolean;
   explanation?: string;
+  /** Stage 5 teaching standard — clear per-item objective. */
+  learningObjective?: string;
+  /** Stage 5/6 — dominant misconception this item targets. */
+  misconceptionTag?: string;
 };
 
 export type PublicQuizQuestion = {
@@ -24,6 +28,8 @@ export const quizQuestionSchema = z.object({
   correct: z.union([correctValueSchema, z.array(correctValueSchema).min(1)]),
   multi: z.boolean().optional(),
   explanation: z.string().optional(),
+  learningObjective: z.string().min(8).max(200).optional(),
+  misconceptionTag: z.string().min(2).max(80).optional(),
 });
 
 export const quizPayloadSchema = z.object({
@@ -78,6 +84,8 @@ export function normalizeQuizQuestion(raw: {
   correct: string | number | (string | number)[] | string[] | number[];
   multi?: boolean;
   explanation?: string;
+  learningObjective?: string;
+  misconceptionTag?: string;
 }): QuizQuestion | null {
   const options = [...new Set(raw.options.map((item) => item.trim()).filter(Boolean))];
   const corrects = resolveCorrects(options, raw.correct);
@@ -88,6 +96,8 @@ export function normalizeQuizQuestion(raw: {
     correct: corrects,
     multi: raw.multi === true || corrects.length > 1,
     explanation: raw.explanation?.trim() || undefined,
+    learningObjective: raw.learningObjective?.trim() || undefined,
+    misconceptionTag: raw.misconceptionTag?.trim() || undefined,
   };
 }
 
