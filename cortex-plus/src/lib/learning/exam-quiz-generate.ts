@@ -34,8 +34,11 @@ export async function generateExamQuiz(input: {
       const questions = parseQuizQuestions(raw);
       if (!questions) return null;
       if (input.teachingV2) {
-        const issues = validateQuizPedagogy(questions, { requireObjective: true });
+        const issues = validateQuizPedagogy(questions, { requireObjective: false });
         if (issues.length) return null;
+        // Soft: prefer objectives but do not fail closed solely on missing tags.
+        const missingObj = questions.every((q) => !q.learningObjective?.trim());
+        if (missingObj) return null;
       }
       return { questions };
     },

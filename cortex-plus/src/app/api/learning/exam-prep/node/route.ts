@@ -460,6 +460,7 @@ async function generateNodePayload(input: {
       userId: input.userId,
       isPremium: input.isPremium,
       teachingV2: input.teachingV2,
+      difficulty: input.teachingV2 ? "hard" : undefined,
       userPrompt: input.teachingV2
         ? `${ctx} 5 alıştırma sorusu (intro Q&A standardı). Tek kavramdan başla; en az 1 soruda kademeli ipucu için explanation'da ilk adımı ver. En az 1 multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
         : `${ctx} 5 çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,
@@ -589,9 +590,10 @@ async function generateNodePayload(input: {
     userId: input.userId,
     isPremium: input.isPremium,
     teachingV2: input.teachingV2,
+    difficulty: input.teachingV2 ? "hard" : undefined,
     userPrompt: `${ctx} 5 çoktan seçmeli soru. ${
       input.teachingV2
-        ? "multi=true yalnızca gerçekten birden fazla bağımsız doğru varken; aksi halde multi false."
+        ? "multi=true yalnızca gerçekten birden fazla bağımsız doğru varken; aksi halde multi false. Her soruda learningObjective ve explanation yaz."
         : "En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi)."
     } ${input.kind === "written_exam" ? "Sınav disiplini, ipucu yok." : ""} ${input.kind === "gaps" ? "Zayıf nokta / tuzak sorular." : ""}`,
   });
