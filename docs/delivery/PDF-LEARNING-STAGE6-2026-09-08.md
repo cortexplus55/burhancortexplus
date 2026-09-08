@@ -74,9 +74,13 @@ Bayrağı kapat. Additive tablolara dokunma. Önceki Ready deploy.
 
 ---
 
-## 4. Manuel doğrulama
+## 4. Manuel doğrulama (8 Eylül 2026 akşam)
 
-(Commit sonrası doldurulur: üç gösterge + yanlışlarla bitişte hazırlık ≠ %100 + bayrak OFF.)
+1. Production `ecc0d59` Ready (`dpl_EBmNmcQn7HvzU5T6BfwZoKF4xfvh` → cortexplus.app).
+2. Bayrak geçici açıldı.
+3. `Trigonometri Sınavı Konuları` (14/14 done + zayıf mastery seed): **Program %100** + “Planlanan etkinlikler tamamlandı”; **Konu hâkimiyeti** “zayıf sinyal”; **Sınava hazırlık tahmini** “Hazırlık henüz düşük” + “Etkinlik bitirmek tek başına %100 hazırlık değildir.” — **“%100 Hazırsın” yok**.
+4. `Stage4 Trigonometri Plan`: üç ayrı etiket (program / hâkimiyet ölçülmedi / hazırlık düşük).
+5. Bayrak tekrar **OFF** → legacy “Çalışmaya devam ediyorsun” / tek metre.
 
 ---
 
