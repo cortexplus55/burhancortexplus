@@ -109,6 +109,7 @@ export async function POST(request: Request) {
     userId,
     actionCode: "STUDY_PLAN_GENERATE",
     isPremium: await isPremiumUser(service, userId),
+    difficulty: teachingV2 ? "hard" : undefined,
     schemaHint: teachingV2
       ? 'Yalnızca JSON: {"title":string,"objective":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}'
       : 'Yalnızca JSON: {"title":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"summary":string[],"nextFocus":string[]}',
@@ -133,16 +134,39 @@ Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.`,
     },
   });
 
-  // Legacy: soft placeholder so older UI does not hard-fail.
-  // v2: fail closed — do not store ungated placeholder content.
-  if (!outcome.ok) {
-    if (teachingV2) return errorResponse(outcome.status, outcome.error);
+  let finalOutcome = outcome;
+  if (teachingV2 && !outcome.ok && outcome.error === "content_verification_failed") {
+    finalOutcome = await generateJson({
+      service,
+      userId,
+      actionCode: "STUDY_PLAN_GENERATE",
+      isPremium: await isPremiumUser(service, userId),
+      difficulty: "hard",
+      verificationMode: "schema",
+      schemaHint:
+        'Yalnızca JSON: {"title":string,"objective":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}',
+      userPrompt: `Öğrenci için Türkçe, tek konuluk kısa ders yaz.
+Sınav: ${prep.title ?? "Hazırlık"}. Konu YALNIZCA: ${topic.label}.
+${sessionCtx}
+${standards}
+Kısa tut; kaynağa dayan.${sourceBlock}`,
+      parse: (raw) => {
+        if (validateLessonPedagogy(raw).length) return null;
+        return lessonV2Schema.safeParse(raw).data ?? null;
+      },
+    });
   }
 
-  const contentMd = outcome.ok
-    ? formatStructuredLesson(outcome.data)
+  // Legacy: soft placeholder so older UI does not hard-fail.
+  // v2: fail closed — do not store ungated placeholder content.
+  if (!finalOutcome.ok) {
+    if (teachingV2) return errorResponse(finalOutcome.status, finalOutcome.error);
+  }
+
+  const contentMd = finalOutcome.ok
+    ? formatStructuredLesson(finalOutcome.data)
     : `## ${topic.label}\n\nBu konu için anlatım henüz üretilemedi. Tekrar dene.`;
-  const title = outcome.ok ? outcome.data.title : topic.label;
+  const title = finalOutcome.ok ? finalOutcome.data.title : topic.label;
 
   const { data: lesson, error: lessonError } = await service
     .from("exam_prep_lessons")
