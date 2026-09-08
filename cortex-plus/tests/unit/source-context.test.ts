@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { chatSourceBlock } from "@/lib/learning/source-context";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
+const search = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/rag/pipeline", () => ({ searchDocumentChunks: search }));
+import { chatSourceBlock, loadSourceContext, SourceUnavailableError } from "@/lib/learning/source-context";
 import type { DocumentMatch } from "@/lib/rag/pipeline";
 
 function match(over: Partial<DocumentMatch> = {}): DocumentMatch {
@@ -10,6 +13,36 @@ function match(over: Partial<DocumentMatch> = {}): DocumentMatch {
     ...over,
   };
 }
+
+describe("selected document availability", () => {
+  const service = {} as SupabaseClient;
+  beforeEach(() => { search.mockReset(); });
+
+  it.each([{ matches: [] }, { matches: [match({ content: "  " })] }])("rejects missing or empty selected source: %j", async ({ matches }) => {
+    search.mockResolvedValue(matches);
+    await expect(loadSourceContext(service, "student", "biology", { documentId: "selected" }))
+      .rejects.toBeInstanceOf(SourceUnavailableError);
+  });
+
+  it("does not silently substitute general content when search fails", async () => {
+    search.mockRejectedValue(new Error("private provider detail"));
+    await expect(loadSourceContext(service, "student", "biology", { documentId: "selected" }))
+      .rejects.toThrow("source_unavailable");
+  });
+
+  it("allows a document-free lesson with no optional search results", async () => {
+    search.mockResolvedValue([]);
+    expect((await loadSourceContext(service, "student", "biology")).block).toBe("");
+  });
+
+  it("retains the user and selected document restriction", async () => {
+    search.mockResolvedValue([match()]);
+    const result = await loadSourceContext(service, "student", "biology", { documentId: "selected" });
+    expect(search).toHaveBeenCalledWith(service, "student", "biology", 4, { documentId: "selected" });
+    expect(result.documentName).toBe("biyoloji.pdf");
+    expect(result.block).toContain("Fotosentez");
+  });
+});
 
 describe("chatSourceBlock", () => {
   it("kaynak yoksa boş döner", () => {

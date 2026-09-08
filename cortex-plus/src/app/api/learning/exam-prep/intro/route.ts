@@ -132,12 +132,17 @@ export async function POST(request: Request) {
     }
   }
 
-  const source = await loadSourceContext(
+  let source;
+  try {
+    source = await loadSourceContext(
     service,
     userId,
     `${prep.title ?? prep.exam_type} ${topic.label}`,
     { documentId: prep.document_id ?? null, limit: 6 },
   );
+  } catch {
+    return errorResponse(503, "source_unavailable");
+  }
 
   const outcome = await generateExamQuiz({
     service,

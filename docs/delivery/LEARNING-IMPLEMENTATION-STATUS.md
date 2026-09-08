@@ -30,10 +30,10 @@ Bu sıralama onaylanan planın uygulama/teslim sırasıdır; önceki metindeki a
 
 ## Açık kayıt bütünlüğü bulguları
 
-- exam-prep-insert: kaynaksız geri dönüş kaldırıldı; tüm hazırlık tek RPC işlemine taşındı. Uygulama değişikliği henüz yayında değil.
+- exam-prep-insert: kaynaksız geri dönüş kaldırıldı; tüm hazırlık tek RPC işlemine taşındı. ff163a1 ile yayımlandı.
 - Hazırlık ve tamamlama fonksiyonları canlı Supabase SQL Editor üzerinden eklendi. Mevcut satırlar değiştirilmedi.
 - Canlı transaction testi PASS: geç aşamadaki hatada altı tablonun sayıları değişmiyor, başka kullanıcı belgesi reddediliyor, hazırlık bütünlüğü korunuyor, tekrar tamamlamada puan/sonraki kilit değişmiyor, anonim/kullanıcı rolü fonksiyonları çağıramıyor. Test verileri ROLLBACK ile kaldırıldı.
-- node complete: aktif denemesiz tamamlama engellendi; tarayıcı kendi attemptId değerini gönderiyor. Uygulama değişikliği henüz yayında değil.
+- node complete: aktif denemesiz tamamlama engellendi; tarayıcı kendi attemptId değerini gönderiyor. ff163a1 ile yayımlandı.
 - Canlı veri sorgusu: düğümsüz hazırlık, tamamlanmış denemesiz done düğüm, belge/deneme sahibi uyuşmazlığı dört kontrolde de 0.
 - Yeni migration kaydı 20260907211748 adıyla uzakta doğrulandı (6 statement). Tarihsel migration farkları ayrıca incelenmeli.
 - ff163a1 kayıt güvenliği ve 73ba9f2 ilerleme metni düzeltmeleri main'e gönderildi; 73ba9f2 Vercel Production Ready doğrulandı.
@@ -43,3 +43,13 @@ Bu sıralama onaylanan planın uygulama/teslim sırasıdır; önceki metindeki a
 - Yeni tarayıcı sayfasında "Çalışma ilerlemen", "Etkinlikler tamamlandı" ve ustalığı ölçmediğini belirten açıklama canlı doğrulandı.
 
 Madde 1 henüz kapatılmadı. Testlerin geçmesi bu açık bulguları ortadan kaldırmaz.
+
+## Son kontrol — 8 Eylül, 13:20 İstanbul
+
+- Geçerli sıra: **Madde 1 / 10**, hâlâ açık.
+- e6e7b1e için GitHub Vercel durumu success; canlı arayüzde kalıcı üretim hatası mesajı görüldü. Canlı doğru/yanlış üretimi başarıyla bitmiş sayılmıyor.
+- Aynı hazırlık ve kaynak ile yerel sağlayıcı/doğrulama denemesi başarılı: 4 kaynak parçası, gpt-4o-mini taslağı ve bağımsız denetim. Bu sonuç production ortamının sağlıklı olduğunu kanıtlamaz.
+- Chrome bağlantısı yanıt vermiyor; doğru Vercel proje kimliğiyle kayıt bağlayıcısı 403 döndürüyor. Uygulama tarayıcısındaki Vercel ekranı giriş istiyor. Yeni canlı hata ayrıntısı bu nedenle henüz okunamadı.
+- Ek düzeltme: seçilmiş belge araması hata/boş içerik döndürürse tanışma ve metin tabanlı düğüm üretimi source_unavailable ile durur. Düğümün belge ilişkisi sorgulanamazsa da üretime geçilmez. Testler bu durumda model çağrısı ve deneme kaydı başlamadığını doğruluyor.
+- Yerel testler: **39 dosya, 304 test geçti**; tür kontrolü geçti.
+- Bu kaynak düzeltmesi tam PDF kapsam haritası değildir. Sesli oturumun kaynak bağlantısı, kaynak parçalarının konu kapsamı ve kaynak dışı tamamlama politikası hâlâ açık işlerdir.

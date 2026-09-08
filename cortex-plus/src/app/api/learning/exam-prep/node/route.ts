@@ -206,13 +206,18 @@ export async function POST(request: Request) {
   //
   // document_id ayrı okunuyor: kolon migration ile geliyor ve ana select'e
   // eklenseydi, kod migration'dan önce dağıtıldığında her düğüm 404 verirdi.
-  const { data: prepSource } = await service
+  const { data: prepSource, error: sourceLookupError } = await service
     .from("exam_preps")
     .select("document_id")
     .eq("id", prepId)
+    .eq("user_id", userId)
     .maybeSingle();
 
-  const source = voiceSession
+  if (sourceLookupError || !prepSource) return errorResponse(503, "source_unavailable");
+
+  let source;
+  try {
+    source = voiceSession
     ? EMPTY_SOURCE_CONTEXT
     : await loadSourceContext(
         service,
@@ -220,6 +225,9 @@ export async function POST(request: Request) {
         `${prep.title ?? ""} ${topicLabel}`.trim(),
         { documentId: prepSource?.document_id ?? null },
       );
+  } catch {
+    return errorResponse(503, "source_unavailable");
+  }
 
   let payload: Record<string, unknown>;
   try {

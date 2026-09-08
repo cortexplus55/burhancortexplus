@@ -10,11 +10,8 @@ import { searchDocumentChunks, type DocumentMatch } from "@/lib/rag/pipeline";
  * üretiliyordu. Öğrenci öğretmeninin notunu yükleyip internetin ortalama
  * bilgisini dinliyordu.
  *
- * Buradaki iki kural bilinçli:
- *  - Kaynak varsa "öncelikle bunlardan üret" deniyor, "yalnızca" değil.
- *    Konu etiketi belgede eksik kalabilir; o zaman ders yarım kalmamalı.
- *  - Kaynak yoksa bloğa hiçbir şey eklenmiyor. Boş bir "kaynak" başlığı
- *    modeli olmayan bir belgeye atıf vermeye iter.
+ * Seçilmiş belge okunamıyorsa kaynaksız içerik üretilmez. Belgesiz
+ * çalışmalar ise isteğe bağlı kaynak araması sonuç vermeden devam edebilir.
  */
 
 /** Kaynak parçalarını istemcinin gönderemeyeceği kadar sınırlı tut. */
@@ -33,6 +30,13 @@ export const EMPTY_SOURCE_CONTEXT: SourceContext = {
   documentName: null,
 };
 
+export class SourceUnavailableError extends Error {
+  constructor() {
+    super("source_unavailable");
+    this.name = "SourceUnavailableError";
+  }
+}
+
 export async function loadSourceContext(
   service: SupabaseClient,
   userId: string,
@@ -45,11 +49,15 @@ export async function loadSourceContext(
       documentId: options.documentId ?? null,
     });
   } catch {
-    // Arama katmanı düşerse ders üretimi kırılmasın; kaynaksız devam eder.
+    if (options.documentId) throw new SourceUnavailableError();
     return EMPTY_SOURCE_CONTEXT;
   }
 
-  if (!matches.length) return EMPTY_SOURCE_CONTEXT;
+  matches = matches.filter((match) => match.content.trim().length > 0);
+  if (!matches.length) {
+    if (options.documentId) throw new SourceUnavailableError();
+    return EMPTY_SOURCE_CONTEXT;
+  }
 
   const body = matches
     .map((m, i) => `[${i + 1}] ${m.documentName}: ${m.content.slice(0, MAX_CHARS_PER_CHUNK)}`)
