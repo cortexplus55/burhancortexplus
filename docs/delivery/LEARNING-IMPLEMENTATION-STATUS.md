@@ -50,7 +50,8 @@ Madde 1’in **baseline harita / hedef doğrulama / geçiş planı** kısmı Sta
 ## Son kontrol — 9 Eylül (Aşama 7 doğrulama)
 
 - Aşama 7 kod + migration + doküman: [PDF-LEARNING-STAGE7-2026-09-09.md](./PDF-LEARNING-STAGE7-2026-09-09.md).
-- `pdf_learning_v2` kapalıyken legacy gate; açıkken structural→source→domain→pedagogy→repair→recheck + metrik.
+- Production Ready: `d03eabf` / `dpl_HCB5E1WNsL9kAL72ptNmtgaDuDmA` → cortexplus.app.
+- Bayrak geçici ON: quiz üretimi kabul + `ai_validation_events` accepted; sonra **OFF**.
 - Birim: `validation-pipeline` + `quality-gate` — sıra, fail-closed, onarım auto-accept yok.
 - Geçerli sıra: **Aşama 8 bekliyor** (idempotency / resume).
 

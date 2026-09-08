@@ -70,9 +70,13 @@ Bayrağı kapat. Additive `ai_validation_events` tablosuna dokunma. Önceki Read
 
 ---
 
-## 4. Manuel doğrulama
+## 4. Manuel doğrulama (9 Eylül 2026)
 
-(Deploy sonrası doldurulacak: Production SHA, bayrak ON → etkinlik üretimi pass/clear fail, ungated içerik yok, bayrak OFF.)
+1. Production `d03eabf` Ready (`dpl_HCB5E1WNsL9kAL72ptNmtgaDuDmA` → cortexplus.app). İlk `900a8b3` lint (prefer-const) ile ERROR; düzeltme sonrası Ready.
+2. Bayrak geçici açıldı.
+3. Stage4 Trigonometri Plan → Quiz düğümü: **200 / içerik geldi** — “Soru 1 / 5”, birim çember sinüs sorusu + A–D şıklar; boş ungated ekran yok.
+4. `ai_validation_events`: `QUIZ_GENERATE` / `quiz` / `outcome=accepted` / `generation_ms≈6928` / `validation_ms≈1307` / `repair_attempted=false`.
+5. Bayrak tekrar **OFF** (`enabled=false` doğrulandı).
 
 ---
 
