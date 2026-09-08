@@ -5,7 +5,11 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
 import { ensurePrepNodes } from "@/lib/learning/exam-prep-insert";
-import { daysUntilExam, nodeProgress, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import {
+  daysUntilExam,
+  nodeProgress,
+  type PlanNodeKind,
+} from "@/lib/learning/exam-prep-plan";
 import {
   examPrepHomeHref,
   examPrepIntroHref,
@@ -13,6 +17,17 @@ import {
   examPrepTopicHref,
   needsExamIntro,
 } from "@/lib/learning/exam-prep-hrefs";
+import {
+  isFeatureEnabled,
+  PDF_LEARNING_V2_FLAG,
+} from "@/lib/admin/feature-flags";
+import { createServiceClient } from "@/lib/supabase/server";
+import {
+  buildLearningIndicators,
+  preferNextNodeForTracking,
+  weakOrStaleTopicKeys,
+  type TopicMasterySnapshot,
+} from "@/lib/learning/learning-tracking";
 
 export const metadata = { title: "Sınav hazırlığı" };
 
@@ -24,11 +39,13 @@ export default async function ExamPrepDetailPage({
   const { prepId } = await params;
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
+  const service = createServiceClient();
+  const trackingV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
 
   const { data: prep } = await supabase
     .from("exam_preps")
     .select(
-      "id, title, exam_type, study_plan_id, exam_date, active_topic_id, intro_completed_at, schedule_v2",
+      "id, title, exam_type, study_plan_id, exam_date, active_topic_id, intro_completed_at, schedule_v2, learning_tracking, target_score",
     )
     .eq("id", prepId)
     .eq("user_id", user.id)
@@ -72,9 +89,103 @@ export default async function ExamPrepDetailPage({
   }));
 
   const progress = nodeProgress(nodes);
-  const ready = nodes.find((node) => node.status === "ready");
+  let ready = nodes.find((node) => node.status === "ready");
   const hasTopic = Boolean(prep.active_topic_id);
   const needsIntro = hasTopic && needsExamIntro(prep.intro_completed_at, nodes);
+
+  let learningTrackingView = null as null | {
+    programProgressPct: number;
+    programLabel: string;
+    topicMasteryPct: number | null;
+    topicMasteryLabel: string;
+    measuredTopicCount: number;
+    unmeasuredTopicCount: number;
+    examReadinessPct: number;
+    examReadinessLabel: string;
+    claimFullyReady: boolean;
+  };
+
+  if (trackingV2) {
+    const { data: masteryRows } = await supabase
+      .from("exam_prep_topic_mastery")
+      .select(
+        "topic_key, measured_level, confidence, evidence_count, first_attempt_correct, first_attempt_total, independent_correct, independent_total, last_practiced_at",
+      )
+      .eq("exam_prep_id", prepId);
+
+    const { data: topicRows } = await supabase
+      .from("exam_prep_topics")
+      .select("label")
+      .eq("exam_prep_id", prepId);
+
+    const { count: misconceptionCount } = await supabase
+      .from("exam_prep_misconceptions")
+      .select("id", { count: "exact", head: true })
+      .eq("exam_prep_id", prepId);
+
+    const topics: TopicMasterySnapshot[] = (masteryRows ?? []).map((row) => ({
+      topicKey: row.topic_key as string,
+      measured: Number(row.evidence_count ?? 0) > 0,
+      level: row.measured_level as TopicMasterySnapshot["level"],
+      confidence: Number(row.confidence ?? 0),
+      evidenceCount: Number(row.evidence_count ?? 0),
+      firstAttemptCorrect: Number(row.first_attempt_correct ?? 0),
+      firstAttemptTotal: Number(row.first_attempt_total ?? 0),
+      independentCorrect: Number(row.independent_correct ?? 0),
+      independentTotal: Number(row.independent_total ?? 0),
+      lastPracticedAt: (row.last_practiced_at as string | null) ?? null,
+    }));
+
+    const plannedTopicKeys = (topicRows ?? [])
+      .map((t) => String(t.label ?? "").trim())
+      .filter(Boolean);
+
+    const mockNode = nodes.find((n) => n.kind === "written_exam" && n.status === "done");
+    let mockScorePct: number | null = null;
+    if (mockNode) {
+      const { data: mockAttempt } = await supabase
+        .from("exam_prep_node_attempts")
+        .select("score, total")
+        .eq("node_id", mockNode.id)
+        .eq("status", "completed")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (mockAttempt?.total) {
+        mockScorePct = Math.round(
+          (Number(mockAttempt.score ?? 0) / Number(mockAttempt.total)) * 100,
+        );
+      }
+    }
+
+    const indicators = buildLearningIndicators({
+      nodes,
+      topics,
+      plannedTopicKeys,
+      mockScorePct,
+      targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
+      openMisconceptions: misconceptionCount ?? 0,
+    });
+
+    learningTrackingView = {
+      programProgressPct: indicators.programProgress.pct,
+      programLabel: indicators.programProgress.label,
+      topicMasteryPct: indicators.topicMastery.pct,
+      topicMasteryLabel: indicators.topicMastery.label,
+      measuredTopicCount: indicators.topicMastery.measuredCount,
+      unmeasuredTopicCount: indicators.topicMastery.unmeasuredCount,
+      examReadinessPct: indicators.examReadiness.pct,
+      examReadinessLabel: indicators.examReadiness.label,
+      claimFullyReady: indicators.examReadiness.claimFullyReady,
+    };
+
+    const biased = preferNextNodeForTracking(nodes, {
+      openMisconceptions: misconceptionCount ?? 0,
+      weakOrStaleTopicKeys: weakOrStaleTopicKeys(topics),
+    });
+    if (biased) ready = biased;
+  }
+
   const startHref = !hasTopic
     ? examPrepTopicHref(prepId)
     : needsIntro
@@ -115,6 +226,7 @@ export default async function ExamPrepDetailPage({
         canShare={Boolean(profile?.school_id)}
         initialShared={shareRow?.visibility === "school"}
         scheduleSummary={scheduleV2?.summary ?? null}
+        learningTracking={learningTrackingView}
       />
     </AstraParitySorShell>
   );

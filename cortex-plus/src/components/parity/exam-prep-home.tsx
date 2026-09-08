@@ -32,6 +32,18 @@ export type HomeNode = {
   } | null;
 };
 
+export type LearningTrackingView = {
+  programProgressPct: number;
+  programLabel: string;
+  topicMasteryPct: number | null;
+  topicMasteryLabel: string;
+  measuredTopicCount: number;
+  unmeasuredTopicCount: number;
+  examReadinessPct: number;
+  examReadinessLabel: string;
+  claimFullyReady: boolean;
+};
+
 export function ExamPrepHome({
   prepId,
   title,
@@ -47,6 +59,7 @@ export function ExamPrepHome({
   canShare = false,
   initialShared = false,
   scheduleSummary = null,
+  learningTracking = null,
 }: {
   prepId: string;
   title: string;
@@ -63,6 +76,8 @@ export function ExamPrepHome({
   canShare?: boolean;
   initialShared?: boolean;
   scheduleSummary?: string | null;
+  /** Stage 6 — three separate indicators when pdf_learning_v2 is on. */
+  learningTracking?: LearningTrackingView | null;
 }) {
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
@@ -72,6 +87,7 @@ export function ExamPrepHome({
   const readinessState = readinessLabel(readiness);
   const [shared, setShared] = useState(initialShared);
   const [sharing, setSharing] = useState(false);
+  const showTracking = Boolean(learningTracking);
 
   // Paylaşım yalnızca konu başlıklarını görünür kılar; ilerleme ve cevaplar
   // hiçbir zaman paylaşılmaz — katılan kişi kendi kopyasını alır.
@@ -152,34 +168,72 @@ export function ExamPrepHome({
         </p>
       ) : null}
 
-      {daysLeft !== null ? (
+      {daysLeft !== null || showTracking ? (
         <section
           className={cn(
             "ap-countdown",
-            daysLeft <= 3 && "ap-countdown--urgent",
+            daysLeft !== null && daysLeft <= 3 && "ap-countdown--urgent",
           )}
         >
-          <p className="ap-countdown-kicker">Sınava kadar</p>
-          <p className="ap-countdown-days">
-            <strong>{daysLeft}</strong>
-            <span>gün</span>
-          </p>
+          {daysLeft !== null ? (
+            <>
+              <p className="ap-countdown-kicker">Sınava kadar</p>
+              <p className="ap-countdown-days">
+                <strong>{daysLeft}</strong>
+                <span>gün</span>
+              </p>
+            </>
+          ) : (
+            <p className="ap-countdown-kicker">Öğrenme takibi</p>
+          )}
 
-          <div className="ap-countdown-readiness">
-            <div className="ap-countdown-row">
-              <span>Çalışma ilerlemen</span>
-              <span className="ap-countdown-pct">%{readiness}</span>
+          {showTracking && learningTracking ? (
+            <div className="ap-countdown-readiness space-y-4">
+              <TrackingMeter
+                title="Program ilerlemesi"
+                pct={learningTracking.programProgressPct}
+                label={learningTracking.programLabel}
+                hint="Planlanan etkinliklerin ne kadarı bitti — doğruluk ölçmez."
+              />
+              <TrackingMeter
+                title="Konu hâkimiyeti"
+                pct={learningTracking.topicMasteryPct}
+                label={learningTracking.topicMasteryLabel}
+                hint={
+                  learningTracking.measuredTopicCount === 0
+                    ? "Ölçülmemiş konularda yüksek güven gösterilmez."
+                    : `${learningTracking.measuredTopicCount} ölçülen · ${learningTracking.unmeasuredTopicCount} ölçülmemiş`
+                }
+                emptyText="Henüz ölçülmedi"
+              />
+              <TrackingMeter
+                title="Sınava hazırlık tahmini"
+                pct={learningTracking.examReadinessPct}
+                label={learningTracking.examReadinessLabel}
+                hint={
+                  learningTracking.claimFullyReady
+                    ? "Ölçülen başarı + kapsam + deneme sonuçlarına göre."
+                    : "Etkinlik bitirmek tek başına %100 hazırlık değildir."
+                }
+              />
             </div>
-            <div className="ap-countdown-meter" aria-hidden>
-              <span style={{ width: `${Math.max(readiness, readiness > 0 ? 3 : 0)}%` }} />
+          ) : daysLeft !== null ? (
+            <div className="ap-countdown-readiness">
+              <div className="ap-countdown-row">
+                <span>Çalışma ilerlemen</span>
+                <span className="ap-countdown-pct">%{readiness}</span>
+              </div>
+              <div className="ap-countdown-meter" aria-hidden>
+                <span style={{ width: `${Math.max(readiness, readiness > 0 ? 3 : 0)}%` }} />
+              </div>
+              <p className="ap-countdown-state">
+                <span aria-hidden>{readinessState.emoji}</span> {readinessState.text}
+              </p>
+              <p className="text-xs text-[var(--ap-muted)]">
+                Bu oran etkinliklerin tamamlanmasını gösterir; konu hakimiyetini ölçmez.
+              </p>
             </div>
-            <p className="ap-countdown-state">
-              <span aria-hidden>{readinessState.emoji}</span> {readinessState.text}
-            </p>
-            <p className="text-xs text-[var(--ap-muted)]">
-              Bu oran etkinliklerin tamamlanmasını gösterir; konu hakimiyetini ölçmez.
-            </p>
-          </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -234,6 +288,41 @@ export function ExamPrepHome({
             : "Hadi başlayalım!"}
         </Link>
       </div>
+    </div>
+  );
+}
+
+function TrackingMeter({
+  title,
+  pct,
+  label,
+  hint,
+  emptyText = "—",
+}: {
+  title: string;
+  pct: number | null;
+  label: string;
+  hint: string;
+  emptyText?: string;
+}) {
+  const shown = pct == null ? null : Math.max(0, Math.min(100, pct));
+  return (
+    <div>
+      <div className="ap-countdown-row">
+        <span>{title}</span>
+        <span className="ap-countdown-pct">
+          {shown == null ? emptyText : `%${shown}`}
+        </span>
+      </div>
+      <div className="ap-countdown-meter" aria-hidden>
+        <span
+          style={{
+            width: `${shown == null ? 0 : Math.max(shown, shown > 0 ? 3 : 0)}%`,
+          }}
+        />
+      </div>
+      <p className="ap-countdown-state text-sm">{label}</p>
+      <p className="text-xs text-[var(--ap-muted)]">{hint}</p>
     </div>
   );
 }

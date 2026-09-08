@@ -90,6 +90,8 @@ export function ExamNodeSession({
   } | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [tfRevealed, setTfRevealed] = useState(false);
+  /** Stage 6: which question indices showed a hint before submit. */
+  const [hintsUsed, setHintsUsed] = useState<Record<string, boolean>>({});
 
   const isTimedExam = kind === "written_exam";
   const [timeLeft, setTimeLeft] = useState(15 * 60);
@@ -155,6 +157,7 @@ export function ExamNodeSession({
   async function finish(nextAnswers?: Record<string, unknown>) {
     setLoading(true);
     try {
+      const base = nextAnswers ?? answers;
       const res = await fetch("/api/learning/exam-prep/node", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -163,7 +166,10 @@ export function ExamNodeSession({
           nodeId,
           action: "complete",
           attemptId: attemptId ?? undefined,
-          answers: nextAnswers ?? answers,
+          answers: {
+            ...base,
+            __meta: { hintsUsed },
+          },
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -180,6 +186,10 @@ export function ExamNodeSession({
     } finally {
       setLoading(false);
     }
+  }
+
+  function markHint(index: number) {
+    setHintsUsed((prev) => ({ ...prev, [String(index)]: true }));
   }
 
   async function loadFeedback() {
@@ -527,7 +537,17 @@ export function ExamNodeSession({
           </p>
           <h1>{questions[index].prompt}</h1>
           {questions[index].hint ? (
-            <p className="text-sm text-[var(--ap-muted)]">İpucu: {questions[index].hint}</p>
+            hintsUsed[String(index)] ? (
+              <p className="text-sm text-[var(--ap-muted)]">İpucu: {questions[index].hint}</p>
+            ) : (
+              <button
+                type="button"
+                className="text-sm text-[var(--ap-muted)] underline"
+                onClick={() => markHint(index)}
+              >
+                İpucu göster
+              </button>
+            )
           ) : null}
           <textarea
             className="ap-exam-oral-input"
@@ -560,6 +580,7 @@ export function ExamNodeSession({
           <p>{score.total && score.score / score.total >= 0.7 ? "Güzel gidiyor" : "Biraz daha gelişebilirsin"}</p>
           <p className="text-sm text-[var(--ap-muted)]">
             Doğruluk {Math.round((score.score / Math.max(1, score.total)) * 100)}%
+            {" · "}Bu oturum skoru program ilerlemesinden ve sınava hazırlık tahmininden ayrıdır.
           </p>
           <div className="flex flex-wrap gap-2">
             <button type="button" className="ap-exam-continue" onClick={() => {

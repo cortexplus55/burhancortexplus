@@ -40,6 +40,10 @@ import {
   validateTrueFalsePedagogy,
   type SessionTeachingMeta,
 } from "@/lib/learning/teaching-standards";
+import {
+  recordLearningTrackingAfterComplete,
+  stripAnswerMeta,
+} from "@/lib/learning/learning-tracking-persist";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -118,7 +122,7 @@ export async function POST(request: Request) {
 
   const { data: prep } = await service
     .from("exam_preps")
-    .select("id, title, exam_type, active_topic_id")
+    .select("id, title, exam_type, active_topic_id, target_score")
     .eq("id", prepId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -220,6 +224,9 @@ export async function POST(request: Request) {
         };
       }
     }
+    const rawAnswers = parsed.data.answers ?? {};
+    const answersForRpc = teachingV2 ? stripAnswerMeta(rawAnswers) : rawAnswers;
+
     const { data: completed, error: completeError } = await service.rpc("complete_exam_prep_node", {
       p_user_id: userId,
       p_prep_id: prepId,
@@ -227,15 +234,32 @@ export async function POST(request: Request) {
       p_attempt_id: attempt.id,
       p_score: scored.score,
       p_total: scored.total,
-      p_answers: parsed.data.answers ?? {},
+      p_answers: answersForRpc,
     });
     if (completeError || !completed) return errorResponse(503, "completion_failed");
 
+    let nextHref = completed.nextId
+      ? `/deneme-sinavlari/${prepId}/dugum/${completed.nextId}`
+      : `/deneme-sinavlari/${prepId}`;
+    let learningTracking: unknown = null;
+
     if (teachingV2) {
+      let payloadForEvidence = attempt.payload;
+      if (Object.keys(oralExtras).length) {
+        payloadForEvidence = {
+          ...((attempt.payload as object) ?? {}),
+          gradeMeta: oralExtras,
+        };
+        await service
+          .from("exam_prep_node_attempts")
+          .update({ payload: payloadForEvidence })
+          .eq("id", attempt.id);
+      }
+
       const drafts = extractMisconceptions({
         kind,
-        payload: attempt.payload,
-        answers: parsed.data.answers ?? {},
+        payload: payloadForEvidence,
+        answers: answersForRpc,
         topicLabel,
       });
       if (drafts.length) {
@@ -254,16 +278,27 @@ export async function POST(request: Request) {
           })),
         );
       }
-      if (Object.keys(oralExtras).length) {
-        await service
-          .from("exam_prep_node_attempts")
-          .update({
-            payload: {
-              ...((attempt.payload as object) ?? {}),
-              gradeMeta: oralExtras,
-            },
-          })
-          .eq("id", attempt.id);
+
+      try {
+        const tracked = await recordLearningTrackingAfterComplete(service, {
+          userId,
+          prepId,
+          nodeId,
+          attemptId: attempt.id,
+          kind,
+          payload: payloadForEvidence,
+          answers: rawAnswers,
+          topicLabel,
+          sessionObjective: sessionMeta?.objective ?? null,
+          targetScore:
+            typeof prep.target_score === "number" ? prep.target_score : null,
+        });
+        learningTracking = tracked.tracking;
+        if (tracked.nextNodeId) {
+          nextHref = `/deneme-sinavlari/${prepId}/dugum/${tracked.nextNodeId}`;
+        }
+      } catch {
+        // Tracking is additive; completion already succeeded.
       }
     }
 
@@ -271,9 +306,8 @@ export async function POST(request: Request) {
       ok: true,
       score: completed.score,
       total: completed.total,
-      nextHref: completed.nextId
-        ? `/deneme-sinavlari/${prepId}/dugum/${completed.nextId}`
-        : `/deneme-sinavlari/${prepId}`,
+      nextHref,
+      learningTracking,
     });
   }
 

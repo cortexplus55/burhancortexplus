@@ -12,7 +12,7 @@ Aşama 1 baseline kaydı (8 Eylül 2026 akşam): [PDF-LEARNING-STAGE1-BASELINE-2
 3. Tanı ölçümü ve öğrenci öğrenme kaydı — **Aşama 3 temel dilim tamam** (intake profili + topic-map tanı + öz-bildirim/ölçüm ayrımı + evidence UI; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE3-2026-09-08.md](./PDF-LEARNING-STAGE3-2026-09-08.md).
 4. Tarih/süre/konuya göre çalışma dağılımı — **Aşama 4 temel dilim tamam** (saf plan motoru + bayraklı create + additive şema; bayrak kapalıyken legacy `buildExamPlan`). Bkz. [PDF-LEARNING-STAGE4-2026-09-08.md](./PDF-LEARNING-STAGE4-2026-09-08.md).
 5. Etkinlik türlerine özel öğretim — **Aşama 5 temel dilim tamam** (paylaşılan teaching-standards sözleşmesi + bayraklı node/lesson üretimi + misconception hook; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE5-2026-09-08.md](./PDF-LEARNING-STAGE5-2026-09-08.md).
-6. Cevaplara göre tekrar ve sonraki ders — bekliyor.
+6. Cevaplara göre tekrar ve sonraki ders — **Aşama 6 temel dilim tamam** (ilerleme / ustalık / hazırlık ayrımı + evidence + anti-%100; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE6-2026-09-08.md](./PDF-LEARNING-STAGE6-2026-09-08.md).
 7. Doğrulama, kayıt ve kesinti güvenliği — bekliyor.
 8. Çalışma yolu ve sonuç arayüzü — bekliyor.
 9. Aynı PDF ile uçtan uca karşılaştırma — bekliyor.
@@ -47,6 +47,12 @@ Bu sıralama onaylanan planın uygulama/teslim sırasıdır; önceki metindeki a
 
 Madde 1’in **baseline harita / hedef doğrulama / geçiş planı** kısmı Stage-1 notunda kapatıldı. Canlı üretim kalitesi, backup ve v2 bayrak uygulaması hâlâ açık; bunlar Madde 1’in “sorunsuz kabul” barını tek başına karşılamaz — Aşama 2 öncesi bilinçli borç olarak durur.
 
+## Son kontrol — 8 Eylül akşam (Aşama 6 öğrenme takibi)
+
+- Aşama 6 kod + migration + doküman: [PDF-LEARNING-STAGE6-2026-09-08.md](./PDF-LEARNING-STAGE6-2026-09-08.md).
+- `pdf_learning_v2` kapalıyken legacy “Çalışma ilerlemen”; açıkken üç gösterge + evidence yazımı.
+- Birim: `learning-tracking` — yanlışlarla %100 program ≠ hazırlık; ölçülmemiş güven 0.
+
 ## Son kontrol — 8 Eylül akşam (Aşama 5 öğretim standardı)
 
 - Aşama 5 kod + migration + doküman: [PDF-LEARNING-STAGE5-2026-09-08.md](./PDF-LEARNING-STAGE5-2026-09-08.md).
@@ -63,7 +69,7 @@ Madde 1’in **baseline harita / hedef doğrulama / geçiş planı** kısmı Sta
 
 - Aşama 3 kod + migration + doküman: [PDF-LEARNING-STAGE3-2026-09-08.md](./PDF-LEARNING-STAGE3-2026-09-08.md). Canlı DB’de stage3 kolonları/tablosu var; `pdf_learning_v2` **enabled=false**.
 - Intake/create/intro bayraklı; legacy yol bayrak kapalıyken korunur.
-- Geçerli sıra (Aşama 5 sonrası): **Aşama 6 bekliyor** (ilerleme / ustalık / hazırlık).
+- Geçerli sıra (Aşama 6 sonrası): **Aşama 7 bekliyor** (doğrulama katmanı).
 
 ## Son kontrol — 8 Eylül akşam (Aşama 2 temel dilim)
 
