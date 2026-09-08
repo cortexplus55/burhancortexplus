@@ -9,6 +9,16 @@ import { CreditGate } from "@/components/paywall/credit-gate";
 type Draft = { title: string; examType: string; topics: string[] };
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
+const WEEKDAYS: { id: number; label: string }[] = [
+  { id: 1, label: "Pzt" },
+  { id: 2, label: "Sal" },
+  { id: 3, label: "Çar" },
+  { id: 4, label: "Per" },
+  { id: 5, label: "Cum" },
+  { id: 6, label: "Cmt" },
+  { id: 7, label: "Paz" },
+];
+
 function tomorrowIso() {
   const date = new Date();
   date.setDate(date.getDate() + 1);
@@ -20,7 +30,8 @@ export function ExamCreateChat() {
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       role: "assistant",
-      content: "Sınavında neler var, söyle. Konuları birlikte netleştirelim; sonra tarihi seçip yolunu çıkaracağım.",
+      content:
+        "Sınavında neler var, söyle. Konuları birlikte netleştirelim; sonra tarihi seçip yolunu çıkaracağım.",
     },
   ]);
   const [draft, setDraft] = useState<Draft>({ title: "", examType: "Serbest", topics: [] });
@@ -34,8 +45,13 @@ export function ExamCreateChat() {
   const [paywall, setPaywall] = useState(false);
   const [docs, setDocs] = useState<{ id: string; fileName: string }[]>([]);
   const [documentId, setDocumentId] = useState<string | null>(null);
+  const [intakeMode, setIntakeMode] = useState<"legacy" | "v2">("legacy");
+  const [dailyMinutes, setDailyMinutes] = useState(45);
+  const [studyDays, setStudyDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [hardTopics, setHardTopics] = useState<string[]>([]);
+  const [prefStyle, setPrefStyle] = useState<"examples" | "theory" | "mixed">("mixed");
+  const [prefPace, setPrefPace] = useState<"slow" | "normal" | "fast">("normal");
 
-  // İşlenmiş belgeleri bir kez çekiyoruz; yoksa seçici hiç görünmüyor.
   useEffect(() => {
     let alive = true;
     void fetch("/api/documents")
@@ -49,7 +65,41 @@ export function ExamCreateChat() {
     };
   }, []);
 
+  // Belge seçilince kredi harcamadan v2 profil / konu haritası var mı bak.
+  useEffect(() => {
+    if (!documentId) {
+      setIntakeMode("legacy");
+      return;
+    }
+    let alive = true;
+    void fetch("/api/learning/exam-prep/intake", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentId, probeOnly: true }),
+    })
+      .then(async (res) => {
+        if (!alive || !res.ok) return;
+        const payload = await res.json().catch(() => ({}));
+        if (payload.intakeMode === "v2" || payload.intakeMode === "legacy") {
+          setIntakeMode(payload.intakeMode);
+        }
+        if (payload.intakeMode === "v2" && payload.draft?.topics?.length) {
+          setDraft((prev) => ({
+            ...prev,
+            topics: payload.draft.topics,
+            title: prev.title || payload.draft.title || prev.title,
+          }));
+          setNeedDate(true);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [documentId]);
+
   const canStart = Boolean(examDate && draft.topics.length && draft.title);
+  const showProfile = intakeMode === "v2" && (needDate || draft.topics.length >= 2);
 
   const grouped = useMemo(() => {
     const map = new Map<number, PlanNodeDraft[]>();
@@ -58,6 +108,18 @@ export function ExamCreateChat() {
     }
     return [...map.entries()].sort((a, b) => a[0] - b[0]);
   }, [preview]);
+
+  function toggleStudyDay(day: number) {
+    setStudyDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort(),
+    );
+  }
+
+  function toggleHardTopic(topic: string) {
+    setHardTopics((prev) =>
+      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic],
+    );
+  }
 
   async function send(nextDate?: string) {
     const text = input.trim();
@@ -77,6 +139,14 @@ export function ExamCreateChat() {
         body: JSON.stringify({
           messages: history,
           examDate: nextDate || examDate || undefined,
+          documentId: documentId ?? undefined,
+          dailyMinutes: intakeMode === "v2" ? dailyMinutes : undefined,
+          studyDays: intakeMode === "v2" ? studyDays : undefined,
+          hardTopics: intakeMode === "v2" ? hardTopics : undefined,
+          learningPreferences:
+            intakeMode === "v2"
+              ? { style: prefStyle, pace: prefPace }
+              : undefined,
         }),
       });
       if (res.status === 402) {
@@ -93,6 +163,9 @@ export function ExamCreateChat() {
       setNeedDate(Boolean(payload.needDate));
       setPreview(payload.preview ?? []);
       setDays(payload.days ?? null);
+      if (payload.intakeMode === "v2" || payload.intakeMode === "legacy") {
+        setIntakeMode(payload.intakeMode);
+      }
     } catch {
       toast.error("Bağlantı hatası.");
     } finally {
@@ -113,6 +186,14 @@ export function ExamCreateChat() {
           topics: draft.topics,
           examDate,
           documentId: documentId ?? undefined,
+          ...(intakeMode === "v2"
+            ? {
+                dailyMinutes,
+                studyDays,
+                hardTopics,
+                learningPreferences: { style: prefStyle, pace: prefPace },
+              }
+            : {}),
         }),
       });
       const payload = await res.json().catch(() => ({}));
@@ -174,15 +255,15 @@ export function ExamCreateChat() {
         </label>
       ) : null}
 
-      {/* Kaynak seçimi: seçilirse ders içeriği yalnızca o belgeden üretilir.
-          Belgesi olmayan kullanıcıya hiç gösterilmiyor — boş bir seçici,
-          olmayan bir özelliği varmış gibi gösterirdi. */}
       {docs.length && (needDate || draft.topics.length >= 2) ? (
         <label className="ap-field">
           <span>Hangi kaynaktan çalışalım?</span>
           <select
             value={documentId ?? ""}
-            onChange={(event) => setDocumentId(event.target.value || null)}
+            onChange={(event) => {
+              setDocumentId(event.target.value || null);
+              setIntakeMode("legacy");
+            }}
           >
             <option value="">Tüm belgelerim</option>
             {docs.map((doc) => (
@@ -192,6 +273,86 @@ export function ExamCreateChat() {
             ))}
           </select>
         </label>
+      ) : null}
+
+      {showProfile ? (
+        <div className="ap-exam-intake" style={{ gap: "0.75rem" }}>
+          <p className="text-sm text-[var(--ap-muted)]">
+            Öğrenme profilin (sonra düzenlenebilir). Zor bulduğun konular öz-bildirimdir;
+            tanışma testi ölçülen seviyeyi ayrı kaydeder.
+          </p>
+          <label className="ap-field">
+            <span>Günde kaç dakika?</span>
+            <input
+              type="number"
+              min={5}
+              max={480}
+              step={5}
+              value={dailyMinutes}
+              onChange={(event) => setDailyMinutes(Number(event.target.value) || 45)}
+            />
+          </label>
+          <fieldset className="ap-field">
+            <legend>Çalışma günleri</legend>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+              {WEEKDAYS.map((day) => (
+                <button
+                  key={day.id}
+                  type="button"
+                  className="ap-back-pill"
+                  aria-pressed={studyDays.includes(day.id)}
+                  onClick={() => toggleStudyDay(day.id)}
+                >
+                  {day.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          {draft.topics.length ? (
+            <fieldset className="ap-field">
+              <legend>Zor bulduğun konular (öz-bildirim)</legend>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                {draft.topics.map((topic) => (
+                  <button
+                    key={topic}
+                    type="button"
+                    className="ap-back-pill"
+                    aria-pressed={hardTopics.includes(topic)}
+                    onClick={() => toggleHardTopic(topic)}
+                  >
+                    {topic}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
+          <label className="ap-field">
+            <span>Nasıl öğrenmek istersin?</span>
+            <select
+              value={prefStyle}
+              onChange={(event) =>
+                setPrefStyle(event.target.value as "examples" | "theory" | "mixed")
+              }
+            >
+              <option value="examples">Örneklerle</option>
+              <option value="theory">Kuram / tanım</option>
+              <option value="mixed">Karışık</option>
+            </select>
+          </label>
+          <label className="ap-field">
+            <span>Tempo</span>
+            <select
+              value={prefPace}
+              onChange={(event) =>
+                setPrefPace(event.target.value as "slow" | "normal" | "fast")
+              }
+            >
+              <option value="slow">Yavaş</option>
+              <option value="normal">Normal</option>
+              <option value="fast">Hızlı</option>
+            </select>
+          </label>
+        </div>
       ) : null}
 
       {canStart && preview.length === 0 ? (

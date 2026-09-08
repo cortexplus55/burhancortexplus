@@ -8,6 +8,35 @@ import { CreditGate } from "@/components/paywall/credit-gate";
 import type { PublicQuizQuestion } from "@/lib/learning/exam-quiz";
 import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
 
+type DiagnosticEvidence = {
+  questionIndex: number;
+  topicLabel: string;
+  skill: string;
+  correct: boolean;
+  questionPreview: string;
+};
+
+type DiagnosticPayload = {
+  startingLevelLabel: string;
+  overallMeasured: string;
+  evidence: DiagnosticEvidence[];
+  topicResults?: {
+    topicLabel: string;
+    status: string;
+    measuredLevel: string;
+    reason?: string;
+  }[];
+  hardTopicsSelf?: string[];
+};
+
+const SKILL_TR: Record<string, string> = {
+  definition: "tanım",
+  concept: "kavram",
+  application: "uygulama",
+  multi_step: "çok adım",
+  misconception: "yanılgı",
+};
+
 export function ExamIntroQuiz({
   prepId,
   topicLabel,
@@ -24,6 +53,9 @@ export function ExamIntroQuiz({
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [score, setScore] = useState({ score: 0, total: 5 });
   const [nextHref, setNextHref] = useState(home);
+  const [mode, setMode] = useState<"legacy" | "diagnostic_v2">("legacy");
+  const [diagnostic, setDiagnostic] = useState<DiagnosticPayload | null>(null);
+  const [displayTopic, setDisplayTopic] = useState(topicLabel);
 
   useEffect(() => {
     void start();
@@ -56,6 +88,8 @@ export function ExamIntroQuiz({
         return;
       }
       setQuestions(data.questions ?? []);
+      if (data.mode === "diagnostic_v2") setMode("diagnostic_v2");
+      if (typeof data.topicLabel === "string") setDisplayTopic(data.topicLabel);
     } catch {
       toast.error("Bağlantı hatası.");
     } finally {
@@ -78,6 +112,10 @@ export function ExamIntroQuiz({
       }
       setScore({ score: data.score ?? 0, total: data.total ?? questions.length });
       setNextHref(data.nextHref ?? home);
+      if (data.mode === "diagnostic_v2" && data.diagnostic) {
+        setMode("diagnostic_v2");
+        setDiagnostic(data.diagnostic as DiagnosticPayload);
+      }
       setStage("result");
     } catch {
       toast.error("Bağlantı hatası.");
@@ -108,17 +146,26 @@ export function ExamIntroQuiz({
 
       {loading && stage === "play" && !questions.length ? (
         <section>
-          <p className="ap-lesson-kicker">{topicLabel}</p>
-          <h1>Tanışma testi hazırlanıyor…</h1>
+          <p className="ap-lesson-kicker">{displayTopic}</p>
+          <h1>
+            {mode === "diagnostic_v2"
+              ? "Başlangıç tanısı hazırlanıyor…"
+              : "Tanışma testi hazırlanıyor…"}
+          </h1>
           <p className="text-sm text-[var(--ap-muted)]">
-            Konuyu kısaca yoklayan 5 soru geliyor.
+            {mode === "diagnostic_v2"
+              ? "Belgedeki ana konuların hepsinden kısa bir örnekleme geliyor. Bu test ustalığı kanıtlamaz."
+              : "Konuyu kısaca yoklayan 5 soru geliyor."}
           </p>
         </section>
       ) : null}
 
       {stage === "play" && questions[index] ? (
         <>
-          <p className="ap-lesson-kicker">Tanışma testi · {topicLabel}</p>
+          <p className="ap-lesson-kicker">
+            {mode === "diagnostic_v2" ? "Başlangıç tanısı" : "Tanışma testi"} ·{" "}
+            {displayTopic}
+          </p>
           <ExamQuizPlay
             questions={questions}
             index={index}
@@ -135,18 +182,60 @@ export function ExamIntroQuiz({
 
       {stage === "result" ? (
         <section className="ap-exam-node-result">
-          <p className="ap-lesson-kicker">Doğru cevaplar</p>
+          <p className="ap-lesson-kicker">
+            {mode === "diagnostic_v2" ? "Başlangıç düzeyi" : "Doğru cevaplar"}
+          </p>
           <p className="ap-exam-score-xl">
             {score.score}/{score.total}
           </p>
-          <p>
-            {score.total && score.score / score.total >= 0.7
-              ? "Güzel gidiyor"
-              : "Biraz daha gelişebilirsin"}
-          </p>
-          <p className="text-sm text-[var(--ap-muted)]">
-            Doğruluk {Math.round((score.score / Math.max(1, score.total)) * 100)}%
-          </p>
+          {mode === "diagnostic_v2" && diagnostic ? (
+            <>
+              <p>{diagnostic.startingLevelLabel}</p>
+              <p className="text-sm text-[var(--ap-muted)]">
+                Ölçülen seviye öz-bildirimden ayrıdır.
+                {diagnostic.hardTopicsSelf?.length
+                  ? ` Öz-bildirim (zor): ${diagnostic.hardTopicsSelf.join(", ")}.`
+                  : ""}
+              </p>
+              {diagnostic.topicResults?.length ? (
+                <ul className="text-sm text-[var(--ap-muted)]">
+                  {diagnostic.topicResults.map((topic) => (
+                    <li key={topic.topicLabel}>
+                      {topic.topicLabel}:{" "}
+                      {topic.status === "unreadable" || topic.status === "unmeasured"
+                        ? `ölçülmedi (${topic.measuredLevel})`
+                        : `ölçülen ${topic.measuredLevel}`}
+                      {topic.reason ? ` — ${topic.reason}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {diagnostic.evidence?.length ? (
+                <div>
+                  <p className="ap-lesson-kicker">Hangi cevaplar seviyeyi belirledi?</p>
+                  <ul className="text-sm">
+                    {diagnostic.evidence.map((item) => (
+                      <li key={`${item.questionIndex}-${item.topicLabel}`}>
+                        {item.correct ? "✓" : "✗"} {item.topicLabel} ·{" "}
+                        {SKILL_TR[item.skill] ?? item.skill}: {item.questionPreview}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <p>
+                {score.total && score.score / score.total >= 0.7
+                  ? "Güzel gidiyor"
+                  : "Biraz daha gelişebilirsin"}
+              </p>
+              <p className="text-sm text-[var(--ap-muted)]">
+                Doğruluk {Math.round((score.score / Math.max(1, score.total)) * 100)}%
+              </p>
+            </>
+          )}
           <Link href={nextHref} className="ap-exam-continue ap-exam-continue--primary">
             Devam et
           </Link>
