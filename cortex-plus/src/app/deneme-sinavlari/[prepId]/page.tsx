@@ -27,7 +27,9 @@ export default async function ExamPrepDetailPage({
 
   const { data: prep } = await supabase
     .from("exam_preps")
-    .select("id, title, exam_type, study_plan_id, exam_date, active_topic_id, intro_completed_at")
+    .select(
+      "id, title, exam_type, study_plan_id, exam_date, active_topic_id, intro_completed_at, schedule_v2",
+    )
     .eq("id", prepId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -45,7 +47,7 @@ export default async function ExamPrepDetailPage({
 
   const { data: nodeRows } = await supabase
     .from("exam_prep_nodes")
-    .select("id, kind, title, day_index, sort_order, status")
+    .select("id, kind, title, day_index, sort_order, status, session_meta")
     .eq("exam_prep_id", prepId)
     .order("sort_order");
 
@@ -56,6 +58,17 @@ export default async function ExamPrepDetailPage({
     dayIndex: row.day_index as number,
     sortOrder: row.sort_order as number,
     status: row.status as "locked" | "ready" | "done",
+    sessionMeta:
+      row.session_meta && typeof row.session_meta === "object"
+        ? (row.session_meta as {
+            objective?: string;
+            sourcePages?: number[];
+            durationMinutes?: number;
+            role?: string;
+            calendarDate?: string;
+            topicTitle?: string;
+          })
+        : null,
   }));
 
   const progress = nodeProgress(nodes);
@@ -80,6 +93,11 @@ export default async function ExamPrepDetailPage({
     topicLabel = topic?.label ?? null;
   }
 
+  const scheduleV2 =
+    prep.schedule_v2 && typeof prep.schedule_v2 === "object"
+      ? (prep.schedule_v2 as { summary?: string })
+      : null;
+
   return (
     <AstraParitySorShell {...shell}>
       <ExamPrepHome
@@ -96,6 +114,7 @@ export default async function ExamPrepDetailPage({
         startHref={startHref}
         canShare={Boolean(profile?.school_id)}
         initialShared={shareRow?.visibility === "school"}
+        scheduleSummary={scheduleV2?.summary ?? null}
       />
     </AstraParitySorShell>
   );

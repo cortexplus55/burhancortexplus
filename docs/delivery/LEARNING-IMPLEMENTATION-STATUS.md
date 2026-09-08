@@ -10,7 +10,7 @@ Aşama 1 baseline kaydı (8 Eylül 2026 akşam): [PDF-LEARNING-STAGE1-BASELINE-2
 1. Mevcut altyapı, veri bütünlüğü ve kontrollü geçiş — **Aşama 1 baseline haritası tamam** (hedef PASS, yol haritası, geçiş/rollback, bayrak önerisi). Üretim kalite/e2e açık maddeler Aşama 2+ ile devam.
 2. PDF konu haritası ve kapsam — **Aşama 2 temel dilim tamam** (şema + `pdf_learning_v2` runtime + heuristic harita/kapsam + UI; bayrak varsayılan kapalı). Tam kriter (OCR/vision, üretimde kaynak sınırı) kısmi — bkz. [PDF-LEARNING-STAGE2-2026-09-08.md](./PDF-LEARNING-STAGE2-2026-09-08.md).
 3. Tanı ölçümü ve öğrenci öğrenme kaydı — **Aşama 3 temel dilim tamam** (intake profili + topic-map tanı + öz-bildirim/ölçüm ayrımı + evidence UI; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE3-2026-09-08.md](./PDF-LEARNING-STAGE3-2026-09-08.md).
-4. Tarih/süre/konuya göre çalışma dağılımı — bekliyor.
+4. Tarih/süre/konuya göre çalışma dağılımı — **Aşama 4 temel dilim tamam** (saf plan motoru + bayraklı create + additive şema; bayrak kapalıyken legacy `buildExamPlan`). Bkz. [PDF-LEARNING-STAGE4-2026-09-08.md](./PDF-LEARNING-STAGE4-2026-09-08.md).
 5. Etkinlik türlerine özel öğretim — bekliyor.
 6. Cevaplara göre tekrar ve sonraki ders — bekliyor.
 7. Doğrulama, kayıt ve kesinti güvenliği — bekliyor.
@@ -46,6 +46,12 @@ Bu sıralama onaylanan planın uygulama/teslim sırasıdır; önceki metindeki a
 - Yeni tarayıcı sayfasında "Çalışma ilerlemen", "Etkinlikler tamamlandı" ve ustalığı ölçmediğini belirten açıklama canlı doğrulandı.
 
 Madde 1’in **baseline harita / hedef doğrulama / geçiş planı** kısmı Stage-1 notunda kapatıldı. Canlı üretim kalitesi, backup ve v2 bayrak uygulaması hâlâ açık; bunlar Madde 1’in “sorunsuz kabul” barını tek başına karşılamaz — Aşama 2 öncesi bilinçli borç olarak durur.
+
+## Son kontrol — 8 Eylül akşam (Aşama 4 plan)
+
+- Aşama 4 kod + migration + doküman: [PDF-LEARNING-STAGE4-2026-09-08.md](./PDF-LEARNING-STAGE4-2026-09-08.md).
+- `pdf_learning_v2` kapalıyken legacy plan; açıkken konu haritası + süre/gün ile gerçek dağılım.
+- Birim: `exam-schedule-v2` — 3/7/14 aynı liste uzatması değil; sığmama dürüst seçenekler; kaçırılan gün redistribute.
 
 ## Son kontrol — 8 Eylül akşam (Aşama 3 tanı)
 

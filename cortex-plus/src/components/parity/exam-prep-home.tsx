@@ -22,6 +22,14 @@ export type HomeNode = {
   dayIndex: number;
   sortOrder: number;
   status: NodeStatus;
+  sessionMeta?: {
+    objective?: string;
+    sourcePages?: number[];
+    durationMinutes?: number;
+    role?: string;
+    calendarDate?: string;
+    topicTitle?: string;
+  } | null;
 };
 
 export function ExamPrepHome({
@@ -38,6 +46,7 @@ export function ExamPrepHome({
   startHref,
   canShare = false,
   initialShared = false,
+  scheduleSummary = null,
 }: {
   prepId: string;
   title: string;
@@ -53,6 +62,7 @@ export function ExamPrepHome({
   /** Okulu seçilmemiş kullanıcıya paylaşım düğmesi gösterilmez. */
   canShare?: boolean;
   initialShared?: boolean;
+  scheduleSummary?: string | null;
 }) {
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
@@ -136,6 +146,12 @@ export function ExamPrepHome({
         ) : null}
       </header>
 
+      {scheduleSummary ? (
+        <p className="text-sm text-[var(--ap-muted)]" style={{ margin: "0.75rem 0" }}>
+          Plan: {scheduleSummary}
+        </p>
+      ) : null}
+
       {daysLeft !== null ? (
         <section
           className={cn(
@@ -193,8 +209,16 @@ export function ExamPrepHome({
               {node.status === "done" ? "✓" : node.status === "locked" ? "🔒" : index + 1}
             </button>
             <span>
-              <strong>{PLAN_NODE_META[node.kind].title}</strong>
-              <em>Gün {node.dayIndex}</em>
+              <strong>{node.title || PLAN_NODE_META[node.kind].title}</strong>
+              <em>
+                Gün {node.dayIndex}
+                {node.sessionMeta?.durationMinutes
+                  ? ` · ${node.sessionMeta.durationMinutes} dk`
+                  : ""}
+                {node.sessionMeta?.sourcePages?.length
+                  ? ` · s.${node.sessionMeta.sourcePages.slice(0, 4).join(",")}`
+                  : ""}
+              </em>
             </span>
           </li>
         ))}

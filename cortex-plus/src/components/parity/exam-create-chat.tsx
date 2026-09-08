@@ -201,7 +201,16 @@ export function ExamCreateChat() {
         toast.error(payload.error ?? "Plan oluşturulamadı.");
         return;
       }
-      toast.success(`${days ?? ""} günlük planın hazır.`);
+      if (payload.schedule?.summary) {
+        toast.message(payload.schedule.summary);
+        if (!payload.schedule.fits && payload.schedule.optionsIfTight?.length) {
+          toast.warning(
+            "Süre yetmiyor — günlük süreyi artır, önceliklendir veya kapsamı daralt.",
+          );
+        }
+      } else {
+        toast.success(`${days ?? ""} günlük planın hazır.`);
+      }
       router.push(`/deneme-sinavlari/${payload.prepId}`);
       router.refresh();
     } catch {
