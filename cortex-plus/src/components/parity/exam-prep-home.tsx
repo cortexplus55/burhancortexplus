@@ -151,7 +151,7 @@ export function ExamPrepHome({
 
           <div className="ap-countdown-readiness">
             <div className="ap-countdown-row">
-              <span>Hazırlık puanın</span>
+              <span>Çalışma ilerlemen</span>
               <span className="ap-countdown-pct">%{readiness}</span>
             </div>
             <div className="ap-countdown-meter" aria-hidden>
@@ -159,6 +159,9 @@ export function ExamPrepHome({
             </div>
             <p className="ap-countdown-state">
               <span aria-hidden>{readinessState.emoji}</span> {readinessState.text}
+            </p>
+            <p className="text-xs text-[var(--ap-muted)]">
+              Bu oran etkinliklerin tamamlanmasını gösterir; konu hakimiyetini ölçmez.
             </p>
           </div>
         </section>
