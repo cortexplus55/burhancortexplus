@@ -1,6 +1,6 @@
 import "server-only";
 import OpenAI from "openai";
-import { verifyEducationalContent } from "@/lib/ai/quality-gate";
+import { EducationalVerificationError, verifyEducationalContent } from "@/lib/ai/quality-gate";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env, type ActionCode } from "@/lib/env";
 import { selectModel } from "@/lib/ai/model-router";
@@ -134,9 +134,17 @@ export async function generateJson<T>(
     });
 
     return { ok: true, data: parsed, model, cost: reservation.cost };
-  } catch {
+  } catch (error) {
+    // No prompts, answers, provider messages, document text or keys in logs.
+    console.error("educational_generation_failed", {
+      actionCode,
+      model,
+      errorType: error instanceof Error ? error.name : "unknown",
+      reason: error instanceof EducationalVerificationError ? error.reason : "provider_or_storage",
+      status: error instanceof OpenAI.APIError ? error.status : undefined,
+    });
     await refundCredits(params.service, reservation.reservationId);
-    return { ok: false, status: 502, error: "generation_failed" };
+    return { ok: false, status: 502, error: error instanceof EducationalVerificationError ? "content_verification_failed" : "generation_failed" };
   }
 }
 

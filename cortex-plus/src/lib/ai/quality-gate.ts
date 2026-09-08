@@ -7,6 +7,13 @@ const verdictSchema = z.object({
   issues: z.array(z.string()).max(12),
 });
 
+export class EducationalVerificationError extends Error {
+  constructor(public readonly reason: "invalid_review" | "invalid_repair" | "invalid_json" | "rejected") {
+    super("İçerik doğrulanamadı. Lütfen tekrar deneyin.");
+    this.name = "EducationalVerificationError";
+  }
+}
+
 /** Review is a separate call; corrected drafts must pass a fresh review. */
 export async function verifyEducationalContent(input: {
   client: OpenAI;
@@ -34,20 +41,27 @@ export async function verifyEducationalContent(input: {
     }, { timeout: 45000, maxRetries: 0 });
     tokensIn += response.usage?.prompt_tokens ?? 0;
     tokensOut += response.usage?.completion_tokens ?? 0;
-    return JSON.parse(response.choices[0]?.message?.content ?? "null");
+    try {
+      return JSON.parse(response.choices[0]?.message?.content ?? "null");
+    } catch {
+      throw new EducationalVerificationError("invalid_json");
+    }
   };
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const verdict = verdictSchema.parse(await request(
+    const verdictResult = verdictSchema.safeParse(await request(
       'Bağımsız eğitim içerik denetçisisin. Önce dersi ve görev türünü belirle. Matematikte işlemler ve tanım aralıklarını; fen derslerinde birim, neden-sonuç ve bilimsel doğruluğu; tarih/coğrafyada tarih, yer ve bağlamı; dil derslerinde dilbilgisi ve yorumu kontrol et. Tüm derslerde kaynakla uyum, yaş/seviye uygunluğu, soru belirsizliği, doğru şık kümesi, açıklama tutarlılığı ve puanlamanın öğrenci yanıtıyla uyumunu denetle. Planlarda tarih, süre ve konu kapsamını kontrol et. Kaynağın desteklemediği iddiaya kaynak uydurma; belirsiz bilgi kesin sunulmasın. Öğrenciye soru soran veya belirsizliğini açıklayan uygun yanıtları kabul et. JSON döndür: {"approved":boolean,"issues":string[]}. Kritik hata veya doğrulanamayan kesin iddia varsa approved false. Doğruysa issues boş olmalı.',
     ));
+    if (!verdictResult.success) throw new EducationalVerificationError("invalid_review");
+    const verdict = verdictResult.data;
     const issues = [...verdict.issues, ...(input.validate?.(content) ?? [])];
     if (verdict.approved && issues.length === 0) return { content, tokensIn, tokensOut };
     if (attempt === 1) break;
-    const repair = z.object({ content: z.string().min(1) }).parse(await request(
+    const repair = z.object({ content: z.string().min(1) }).safeParse(await request(
       'Eğitim içeriğindeki şu sorunları düzelt: ' + JSON.stringify(issues) +
       '. Görevin kapsamını ve istenen çıktı şemasını koru. Bilmediğini uydurma. JSON döndür: {"content":string}; content düzeltilmiş tam taslak metnidir (istenen biçim JSON ise geçerli JSON metni).',
     ));
-    content = repair.content;
+    if (!repair.success) throw new EducationalVerificationError("invalid_repair");
+    content = repair.data.content;
   }
-  throw new Error("İçerik doğrulanamadı. Lütfen tekrar deneyin.");
+  throw new EducationalVerificationError("rejected");
 }

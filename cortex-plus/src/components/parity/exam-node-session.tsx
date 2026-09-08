@@ -73,6 +73,7 @@ export function ExamNodeSession({
   const [difficulty, setDifficulty] = useState<Difficulty>("orta");
   const [voiceMode, setVoiceMode] = useState(meta.voice);
   const [loading, setLoading] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [paywall, setPaywall] = useState(false);
   const [payload, setPayload] = useState<Payload>({});
   const [attemptId, setAttemptId] = useState<string | null>(null);
@@ -115,6 +116,7 @@ export function ExamNodeSession({
 
   async function start() {
     setLoading(true);
+    setGenerationError(null);
     try {
       const res = await fetch("/api/learning/exam-prep/node", {
         method: "POST",
@@ -135,14 +137,16 @@ export function ExamNodeSession({
       }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(data.error ?? "Ders üretilemedi.");
+        setGenerationError(data.error === "content_verification_failed"
+          ? "Hazırlanan içerik kalite kontrolünü geçemedi. Yeniden deneyebilirsin."
+          : "Ders şu anda oluşturulamadı. Yeniden deneyebilirsin.");
         return;
       }
       setPayload(data.payload ?? {});
       setAttemptId(data.attemptId);
       setStage("play");
     } catch {
-      toast.error("Bağlantı hatası.");
+      setGenerationError("Bağlantı kurulamadı. Lütfen yeniden dene.");
     } finally {
       setLoading(false);
     }
@@ -346,6 +350,7 @@ export function ExamNodeSession({
           >
             {loading ? "Hazırlanıyor…" : "Ders oluştur"}
           </button>
+          {generationError ? <p role="alert" className="text-sm text-red-400">{generationError}</p> : null}
         </article>
       ) : null}
 

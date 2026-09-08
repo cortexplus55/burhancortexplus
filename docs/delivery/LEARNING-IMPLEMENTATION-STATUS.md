@@ -39,5 +39,7 @@ Bu sıralama onaylanan planın uygulama/teslim sırasıdır; önceki metindeki a
 - ff163a1 kayıt güvenliği ve 73ba9f2 ilerleme metni düzeltmeleri main'e gönderildi; 73ba9f2 Vercel Production Ready doğrulandı.
 - readinessScore yalnızca etkinlik durumundan türetiliyor. Arayüz "Çalışma ilerlemen" olarak düzeltildi; "Hazırsın" iddiası kaldırıldı.
 - Canlı uçtan uca testte doğru/yanlış sorusu yerine "Açı nedir?" görüldü. Etkinlik sözleşmesi ve bağımsız model onayı birlikte zorunlu hale getirildi; soru cümlesi/tekrar/eksik düzeltme reddediliyor. Yerel 297 test geçti; bu kalite düzeltmesinin canlı yeniden testi bekliyor.
+- ba6f5bb GitHub main üzerinde doğrulandı. Otomatik Vercel dağıtımı listede oluşmadığı için doğru proje panelinde Create Deployment → main → ba6f5bb → Production yolu kullanıldı. FYvmtWxFQmZsiuXcu1iqiyXsKtKR, Ready, Production Current ve cortexplus.app alan adı doğrulandı. Otomatik tetikleme sorunu çözülmüş sayılmaz.
+- Yeni tarayıcı sayfasında "Çalışma ilerlemen", "Etkinlikler tamamlandı" ve ustalığı ölçmediğini belirten açıklama canlı doğrulandı.
 
 Madde 1 henüz kapatılmadı. Testlerin geçmesi bu açık bulguları ortadan kaldırmaz.

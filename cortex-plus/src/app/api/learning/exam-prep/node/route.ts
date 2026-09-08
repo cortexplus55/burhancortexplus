@@ -221,7 +221,9 @@ export async function POST(request: Request) {
         { documentId: prepSource?.document_id ?? null },
       );
 
-  const payload = voiceSession
+  let payload: Record<string, unknown>;
+  try {
+    payload = voiceSession
     ? { type: "voice" }
     : await generateNodePayload({
         service,
@@ -235,6 +237,10 @@ export async function POST(request: Request) {
         mood,
         sourceBlock: source.block,
       });
+  } catch (error) {
+    if (error instanceof NodeGenerationError) return errorResponse(error.status, error.code);
+    return errorResponse(502, "generation_failed");
+  }
 
   const total = countTotal(kind, payload);
   const baseAttempt = {
@@ -298,6 +304,12 @@ export async function POST(request: Request) {
   });
 }
 
+class NodeGenerationError extends Error {
+  constructor(public readonly status: number, public readonly code: string) {
+    super(code);
+  }
+}
+
 async function generateNodePayload(input: {
   service: Parameters<typeof generateJson>[0]["service"];
   userId: string;
@@ -325,7 +337,7 @@ async function generateNodePayload(input: {
       isPremium: input.isPremium,
       userPrompt: `${ctx} 5 çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,
     });
-    if (!outcome.ok) throw new Error(`node_generation_failed:${outcome.error}`);
+    if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
     return { type: "quiz", questions: outcome.questions };
   }
 
@@ -342,7 +354,7 @@ async function generateNodePayload(input: {
       userPrompt: `${ctx} Ada ve Kerem'in sohbet ettiği 4 bölümlük kısa podcast senaryosu.`,
       parse: (raw) => podcastSchema.safeParse(raw).data ?? null,
     });
-    if (!outcome.ok) throw new Error(`node_generation_failed:${outcome.error}`);
+    if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
     return { type: "podcast", ...outcome.data };
   }
 
@@ -356,7 +368,7 @@ async function generateNodePayload(input: {
       userPrompt: `${ctx} 5 sözlü soru.`,
       parse: (raw) => oralSchema.safeParse(raw).data ?? null,
     });
-    if (!outcome.ok) throw new Error(`node_generation_failed:${outcome.error}`);
+    if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
     return { type: "oral", questions: outcome.data.questions };
   }
 
@@ -370,7 +382,7 @@ async function generateNodePayload(input: {
       userPrompt: `${ctx} 8 flashcard.`,
       parse: (raw) => cardsSchema.safeParse(raw).data ?? null,
     });
-    if (!outcome.ok) throw new Error(`node_generation_failed:${outcome.error}`);
+    if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
     return { type: "cards", cards: outcome.data.cards };
   }
 
@@ -384,7 +396,7 @@ async function generateNodePayload(input: {
       userPrompt: `${ctx} 8 doğru/yanlış önermesi. Her önerme bir kavramı veya yaygın yanılgıyı ölçsün. ${TRUE_FALSE_FORMAT}`,
       parse: (raw) => tfSchema.safeParse(raw).data ?? null,
     });
-    if (!outcome.ok) throw new Error(`node_generation_failed:${outcome.error}`);
+    if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
     return { type: "true_false", items: outcome.data.items };
   }
 
@@ -394,7 +406,7 @@ async function generateNodePayload(input: {
     isPremium: input.isPremium,
     userPrompt: `${ctx} 5 çoktan seçmeli soru. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi). ${input.kind === "written_exam" ? "Sınav disiplini, ipucu yok." : ""} ${input.kind === "gaps" ? "Zayıf nokta / tuzak sorular." : ""}`,
   });
-  if (!outcome.ok) throw new Error(`node_generation_failed:${outcome.error}`);
+  if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
   return { type: "quiz", questions: outcome.questions };
 }
 
