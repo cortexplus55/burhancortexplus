@@ -286,37 +286,44 @@ export async function POST(request: Request) {
         "documents_only",
       plans,
     });
-    if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
+    if (outcome.ok) {
+      const { data: attempt, error } = await service
+        .from("exam_prep_intro_attempts")
+        .insert({
+          exam_prep_id: prepId,
+          user_id: userId,
+          topic_id: topic.id,
+          payload: {
+            mode: "diagnostic_v2",
+            questions: outcome.questions,
+            plans: outcome.plans,
+          },
+          total: outcome.questions.length,
+          status: "active",
+        })
+        .select("id")
+        .single();
 
-    const { data: attempt, error } = await service
-      .from("exam_prep_intro_attempts")
-      .insert({
-        exam_prep_id: prepId,
-        user_id: userId,
-        topic_id: topic.id,
-        payload: {
-          mode: "diagnostic_v2",
-          questions: outcome.questions,
-          plans: outcome.plans,
-        },
-        total: outcome.questions.length,
-        status: "active",
-      })
-      .select("id")
-      .single();
+      if (error || !attempt) return errorResponse(500, "generation_failed");
 
-    if (error || !attempt) return errorResponse(500, "generation_failed");
-
-    return NextResponse.json({
-      ok: true,
-      attemptId: attempt.id,
-      topicLabel: "Belge konu haritası tanı",
-      mode: "diagnostic_v2",
-      questions: outcome.questions.map((q) => publicQuizQuestion(q)),
-      hardTopicsSelf: prep.hard_topics_self ?? [],
-      unmeasuredTopics: outcome.plans
-        .filter((p) => p.status === "unreadable" || !p.pageNumbers.length)
-        .map((p) => ({ title: p.title, reason: p.reason, status: p.status })),
+      return NextResponse.json({
+        ok: true,
+        attemptId: attempt.id,
+        topicLabel: "Belge konu haritası tanı",
+        mode: "diagnostic_v2",
+        questions: outcome.questions.map((q) => publicQuizQuestion(q)),
+        hardTopicsSelf: prep.hard_topics_self ?? [],
+        unmeasuredTopics: outcome.plans
+          .filter((p) => p.status === "unreadable" || !p.pageNumbers.length)
+          .map((p) => ({ title: p.title, reason: p.reason, status: p.status })),
+      });
+    }
+    // Verification/provider failure → legacy 5-question intro so the student
+    // is not stuck on an error screen.
+    console.error("diagnostic_v2_fallback_legacy", {
+      prepId,
+      error: outcome.error,
+      status: outcome.status,
     });
   }
 

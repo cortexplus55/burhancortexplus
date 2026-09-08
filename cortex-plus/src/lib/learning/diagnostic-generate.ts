@@ -138,8 +138,8 @@ export async function generateTopicMapDiagnostic(input: {
       ? "destekleyici genel bilgi sınırlı kullanılabilir"
       : "documents_only — kaynak dışı uydurma yok";
 
-  // Smaller batches pass educational verification more reliably than one long multi-topic quiz.
-  const BATCH = 4;
+  // One question per call maximizes educational-verification pass rate.
+  const BATCH = 1;
   const rawQuestions: QuizQuestion[] = [];
   for (let start = 0; start < slots.length; start += BATCH) {
     const batch = slots.slice(start, start + BATCH);
