@@ -475,6 +475,9 @@ async function generateNodePayload(input: {
       userId: input.userId,
       actionCode: actionForKind(input.kind),
       isPremium: input.isPremium,
+      // Hard difficulty uses the advanced model — podcast pedagogy + review
+      // rejected mini drafts too often in Stage 5 browser checks.
+      difficulty: input.teachingV2 ? "hard" : undefined,
       schemaHint: input.teachingV2
         ? 'JSON: {"title":string,"objective":string,"sourcePoints":string[],"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +
           "4-5 bölüm: Tanım, Neden, Örnek, Yaygın hata, Özet. Ada ve Kerem sırayla. Her text TEK cümle, ≤25 kelime. Kaynak dışı iddia yok."

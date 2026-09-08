@@ -86,6 +86,12 @@ describe("teaching standards contract", () => {
       },
     ];
     expect(validateQuizPedagogy(good, { requireObjective: true })).toEqual([]);
+    expect(
+      validateQuizPedagogy(
+        [{ ...good[0], learningObjective: undefined }],
+        { requireObjective: true },
+      ).some((i) => i.includes("learningObjective")),
+    ).toBe(true);
   });
 
   it("flags vague true/false and missing correction", () => {
