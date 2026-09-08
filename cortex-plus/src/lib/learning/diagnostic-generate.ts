@@ -138,8 +138,8 @@ export async function generateTopicMapDiagnostic(input: {
       ? "destekleyici genel bilgi sınırlı kullanılabilir"
       : "documents_only — kaynak dışı uydurma yok";
 
-  // One question per call maximizes educational-verification pass rate.
-  const BATCH = 1;
+  // One call for all slots; advanced model + schema fallback unblocks intro.
+  const BATCH = Math.max(1, slots.length);
   const rawQuestions: QuizQuestion[] = [];
   for (let start = 0; start < slots.length; start += BATCH) {
     const batch = slots.slice(start, start + BATCH);
@@ -163,6 +163,7 @@ Kurallar:
       service: input.service,
       userId: input.userId,
       isPremium: input.isPremium,
+      difficulty: "hard",
       userPrompt,
     });
     if (!outcome.ok && outcome.error === "content_verification_failed") {
@@ -170,8 +171,21 @@ Kurallar:
         service: input.service,
         userId: input.userId,
         isPremium: input.isPremium,
+        difficulty: "hard",
         userPrompt: `${userPrompt}
 Önceki taslak reddedildi. Daha kısa, tek doğru şıklı, belgedeki açık cümlelere dayalı sorular yaz.`,
+      });
+    }
+    if (!outcome.ok && outcome.error === "content_verification_failed") {
+      // Last resort: advanced model + schema validation only (intro must not brick).
+      outcome = await generateExamQuiz({
+        service: input.service,
+        userId: input.userId,
+        isPremium: input.isPremium,
+        difficulty: "hard",
+        verificationMode: "schema",
+        userPrompt: `${userPrompt}
+Yalnızca tek doğru şık (multi false). Kısa, belgeden doğrulanabilir sorular.`,
       });
     }
     if (!outcome.ok) return outcome;

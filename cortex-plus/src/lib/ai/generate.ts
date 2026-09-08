@@ -43,6 +43,11 @@ type GenerateJsonParams<T> = {
   isPremium: boolean;
   hasImage?: boolean;
   difficulty?: "easy" | "medium" | "hard";
+  /**
+   * `full` (default): independent educational review.
+   * `schema`: local parse/format only — last-resort for intro/diagnostic when review rejects valid drafts.
+   */
+  verificationMode?: "full" | "schema";
   schemaHint: string;
   userPrompt: string;
   imageUrls?: string[];
@@ -102,16 +107,34 @@ export async function generateJson<T>(
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
-    const verified = await verifyEducationalContent({
-      client: openai, context: params.userPrompt, draft: raw, format: params.schemaHint, imageUrls: params.imageUrls,
-      validate: (content) => {
-        try {
-          if (params.parse(JSON.parse(content)) !== null) return [];
-        } catch { /* Invalid JSON also needs repair before it can be approved. */ }
-        return ["Çıktı istenen JSON şemasını veya etkinlik kurallarını karşılamıyor. Format alanındaki bütün kuralları uygula."];
-      },
-    });
-    const parsed = params.parse(JSON.parse(verified.content));
+    let content = raw;
+    let reviewTokensIn = 0;
+    let reviewTokensOut = 0;
+    if (params.verificationMode === "schema") {
+      console.error("educational_verification_schema_only", { actionCode, model });
+    } else {
+      const verified = await verifyEducationalContent({
+        client: openai,
+        context: params.userPrompt,
+        draft: raw,
+        format: params.schemaHint,
+        imageUrls: params.imageUrls,
+        validate: (candidate) => {
+          try {
+            if (params.parse(JSON.parse(candidate)) !== null) return [];
+          } catch {
+            /* Invalid JSON also needs repair before it can be approved. */
+          }
+          return [
+            "Çıktı istenen JSON şemasını veya etkinlik kurallarını karşılamıyor. Format alanındaki bütün kuralları uygula.",
+          ];
+        },
+      });
+      content = verified.content;
+      reviewTokensIn = verified.tokensIn;
+      reviewTokensOut = verified.tokensOut;
+    }
+    const parsed = params.parse(JSON.parse(content));
     if (!parsed) {
       await refundCredits(params.service, reservation.reservationId);
       return { ok: false, status: 502, error: "invalid_ai_response" };
@@ -127,11 +150,16 @@ export async function generateJson<T>(
       reservationId: reservation.reservationId,
     });
 
-    await recordUsage(params.service, {
-      userId: params.userId, actionCode, model: env.OPENAI_ADVANCED_MODEL,
-      tokensIn: verified.tokensIn, tokensOut: verified.tokensOut,
-      reservationId: reservation.reservationId,
-    });
+    if (reviewTokensIn || reviewTokensOut) {
+      await recordUsage(params.service, {
+        userId: params.userId,
+        actionCode,
+        model: env.OPENAI_ADVANCED_MODEL,
+        tokensIn: reviewTokensIn,
+        tokensOut: reviewTokensOut,
+        reservationId: reservation.reservationId,
+      });
+    }
 
     return { ok: true, data: parsed, model, cost: reservation.cost };
   } catch (error) {

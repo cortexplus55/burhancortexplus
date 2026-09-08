@@ -339,16 +339,28 @@ export async function POST(request: Request) {
     return errorResponse(503, "source_unavailable");
   }
 
-  const outcome = await generateExamQuiz({
+  const isPremium = await isPremiumUser(service, userId);
+  let outcome = await generateExamQuiz({
     service,
     userId,
-    isPremium: await isPremiumUser(service, userId),
+    isPremium,
+    difficulty: "hard",
     userPrompt: `Sınav: ${prep.title ?? prep.exam_type}. Konu: ${topic.label}.${source.block}
 5 çoktan seçmeli tanışma sorusu yaz. Konunun temelini yokla, aşırı tuzak kurma.
-En az 2 soruda birden fazla doğru şık olsun (multi true, correct dizi).
-Tek doğrularda multi false, correct tek string. correct her zaman options içinde olsun.
-Her soruyu göndermeden önce bilimsel ve matematiksel doğruluğunu kontrol et. Soru kökü ile doğru seçenek tam olarak uyuşsun; doğru yanıt seçeneklerde eksiksiz bulunsun. Yaklaşık, kısmen doğru veya yalnızca özel bir durumu anlatan seçeneği doğru sayma. Birden fazla yorumlanabilen soru yazma.`,
+Tüm sorularda multi false (tek doğru). correct her zaman options içinde olsun.
+Her soruyu göndermeden önce bilimsel ve matematiksel doğruluğunu kontrol et. Soru kökü ile doğru seçenek tam olarak uyuşsun.`,
   });
+  if (!outcome.ok && outcome.error === "content_verification_failed") {
+    outcome = await generateExamQuiz({
+      service,
+      userId,
+      isPremium,
+      difficulty: "hard",
+      verificationMode: "schema",
+      userPrompt: `Sınav: ${prep.title ?? prep.exam_type}. Konu: ${topic.label}.${source.block}
+5 kısa çoktan seçmeli tanışma sorusu. Hepsi multi false, tek doğru şık. Belge alıntılarına dayan.`,
+    });
+  }
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
 
   const questions = outcome.questions.slice(0, 5);
