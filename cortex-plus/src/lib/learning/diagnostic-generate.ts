@@ -159,7 +159,7 @@ Kurallar:
 - 4 net şık; correct options içinde; kısa Türkçe explanation.
 - Bilimsel/matematiksel doğruluğu kontrol et.`;
 
-    let outcome = await generateExamQuiz({
+    const outcome = await generateExamQuiz({
       service: input.service,
       userId: input.userId,
       isPremium: input.isPremium,

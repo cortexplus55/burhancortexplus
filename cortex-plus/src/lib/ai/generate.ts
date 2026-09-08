@@ -130,7 +130,7 @@ export async function generateJson<T>(
 
   const generationStarted = Date.now();
   let validationMs = 0;
-  let stagesMs: Partial<Record<ValidationStage, number>> = {};
+  const stagesMs: Partial<Record<ValidationStage, number>> = {};
   let repairAttempted = false;
   let recheckPassed: boolean | null = null;
   let lastFailureCodes: string[] = [];
