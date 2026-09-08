@@ -61,7 +61,16 @@ Bayrağı kapat. Additive tabloya dokunma. Önceki Ready deploy.
 
 ---
 
-## 4. Kapsam / boşluklar (tam §7’ye göre)
+## 4. Manuel doğrulama (8 Eylül 2026 akşam)
+
+1. Production `fbedd83` Ready (`dpl_351SFMKtQUb83jmpk6pkLM15s3td`).
+2. Bayrak geçici açıldı → Stage4 Trigonometri Plan hazırlığı.
+3. Learn/podcast node: 200 — bölümler Tanım→Neden→Örnek→Yaygın hata→Özet; `teachingStandard=podcast`; kaynak noktaları dolu.
+4. Practice/quiz node: 200 — 5 soru, explanation var; `teachingStandard=quiz` (schema fallback sonrası).
+5. Topic lesson API: 200 — v2 ders kaydı (`Öğrenme hedefi` / yaygın hata / bilgi kontrolü).
+6. Bayrak tekrar **OFF**.
+
+## 5. Kapsam / boşluklar (tam §7’ye göre)
 
 | § | Durum |
 |---|---|
