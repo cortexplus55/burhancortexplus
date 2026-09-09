@@ -41,7 +41,7 @@ describe("Stage 7 validation pipeline", () => {
   });
 
   it("flags impossible percents and mol/g unit clashes", () => {
-    expect(checkImpossiblePercentClaims("yüzde 150 verim")).toContain(
+    expect(checkImpossiblePercentClaims("yüzde 150 başarı oranı")).toContain(
       "İmkânsız yüzde: 150",
     );
     const unit = runIndependentValidation({

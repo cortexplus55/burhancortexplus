@@ -4,7 +4,10 @@ export const trueFalseItemSchema = z.object({
   text: z.string().trim().min(8).refine(text => !/[?？]/u.test(text), "Soru değil, doğruluğu değerlendirilebilen bir önerme yaz."),
   correct: z.boolean(),
   explanation: z.string().trim().min(12),
-  correctedStatement: z.string().trim().min(8).optional(),
+  correctedStatement: z.preprocess(
+    (value) => typeof value === "string" && !value.trim() ? undefined : value,
+    z.string().trim().min(8).optional(),
+  ),
   /** Stage 5/6 hook — misconception label for later review. */
   misconceptionTag: z.string().trim().min(2).max(80).optional(),
 }).superRefine((item, ctx) => {

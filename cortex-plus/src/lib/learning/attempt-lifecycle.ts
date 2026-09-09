@@ -87,7 +87,8 @@ export function shouldReuseExistingStart(input: {
 }
 
 /** Half-finished creating older than this may be retried under the same credit key. */
-export const CREATING_STALE_MS = 2 * 60 * 1000;
+// Longer than the bounded draft + review + repair calls (maximum 9 minutes).
+export const CREATING_STALE_MS = 15 * 60 * 1000;
 
 export function isCreatingStale(
   updatedAt: string | null | undefined,

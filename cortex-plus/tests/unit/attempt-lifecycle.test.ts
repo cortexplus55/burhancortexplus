@@ -95,7 +95,7 @@ describe("attempt lifecycle helpers", () => {
     expect(
       shouldReuseExistingStart({ status: "failed", hasPayload: false }),
     ).toBe("reject_failed");
-    expect(isCreatingStale(new Date(Date.now() - 3 * 60 * 1000).toISOString())).toBe(
+    expect(isCreatingStale(new Date(Date.now() - 16 * 60 * 1000).toISOString())).toBe(
       true,
     );
     expect(isCreatingStale(new Date().toISOString())).toBe(false);

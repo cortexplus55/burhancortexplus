@@ -530,7 +530,9 @@ export async function POST(request: Request) {
         ),
       );
     }
-    // creating without payload (or stale): fall through and regenerate under same credit key.
+    if (reuse === "resume_creating" && !isCreatingStale(existingForKey.updated_at)) {
+      return errorResponse(409, "generation_in_progress");
+    }
   }
 
   // Without a client key, prefer resuming an active attempt over a new charge.
@@ -623,10 +625,7 @@ export async function POST(request: Request) {
     if (!clientRequestId) {
       clientRequestId = crypto.randomUUID();
     }
-    generationId =
-      existingForKey?.generation_id && existingForKey.status === "creating"
-        ? existingForKey.generation_id
-        : crypto.randomUUID();
+    generationId = crypto.randomUUID();
     creditKey = creditIdempotencyKeyForStart({
       userId,
       nodeId,
@@ -635,17 +634,24 @@ export async function POST(request: Request) {
 
     if (existingForKey?.status === "creating") {
       creatingAttemptId = existingForKey.id;
-      await service
+      let claim = service
         .from("exam_prep_node_attempts")
         .update({
           status: "creating",
+          generation_id: generationId,
           updated_at: new Date().toISOString(),
           familiarity,
           mood,
           difficulty,
           voice_mode: voiceMode,
         })
-        .eq("id", existingForKey.id);
+        .eq("id", existingForKey.id)
+        .eq("status", "creating");
+      claim = existingForKey.updated_at
+        ? claim.eq("updated_at", existingForKey.updated_at)
+        : claim.is("updated_at", null);
+      const { data: claimed, error: claimError } = await claim.select("id").maybeSingle();
+      if (claimError || !claimed) return errorResponse(409, "generation_in_progress");
     } else {
       const creatingRow = {
         node_id: nodeId,
@@ -689,6 +695,7 @@ export async function POST(request: Request) {
             }),
           );
         }
+        if (raced) return errorResponse(409, "generation_in_progress");
         ({ data: created, error: createErr } = await service
           .from("exam_prep_node_attempts")
           .insert({
@@ -756,7 +763,8 @@ export async function POST(request: Request) {
           status: "failed",
           updated_at: new Date().toISOString(),
         })
-        .eq("id", creatingAttemptId);
+        .eq("id", creatingAttemptId)
+        .eq("generation_id", generationId);
       await upsertGenerationJob(service, {
         userId,
         prepId,
@@ -786,6 +794,7 @@ export async function POST(request: Request) {
       })
       .eq("id", creatingAttemptId)
       .eq("generation_id", generationId)
+      .eq("status", "creating")
       .select(
         "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode",
       )

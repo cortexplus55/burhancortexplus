@@ -159,7 +159,7 @@ export async function generateJson<T>(
   };
 
   try {
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 45000, maxRetries: 0 });
 
     const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
       { type: "text", text: params.userPrompt },

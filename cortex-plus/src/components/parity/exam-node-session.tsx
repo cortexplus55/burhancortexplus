@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { createSerialTaskQueue } from "@/lib/learning/serial-task-queue";
 import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
@@ -101,12 +102,21 @@ export function ExamNodeSession({
   const startInFlight = useRef(false);
   const completeInFlight = useRef(false);
   const completeRequestIdRef = useRef<string | null>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveQueue = useRef(createSerialTaskQueue());
+  const [pendingSaves, setPendingSaves] = useState(0);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const contentVersionRef = useRef(1);
   const answersRef = useRef<Record<string, unknown>>({});
 
   const isTimedExam = kind === "written_exam";
   const [timeLeft, setTimeLeft] = useState(15 * 60);
+
+  useEffect(() => {
+    if (!pendingSaves && !saveError) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [pendingSaves, saveError]);
 
   useEffect(() => {
     contentVersionRef.current = contentVersion;
@@ -202,10 +212,7 @@ export function ExamNodeSession({
 
   function scheduleSave(nextAnswers: Record<string, unknown>, cursor: number) {
     if (!resumeEnabled || !attemptId || !generationId) return;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      void persistAnswers(nextAnswers, cursor);
-    }, 400);
+    void persistAnswers(nextAnswers, cursor).catch(() => undefined);
   }
 
   async function persistAnswers(
@@ -213,7 +220,9 @@ export function ExamNodeSession({
     cursor: number,
   ) {
     if (!resumeEnabled || !attemptId || !generationId) return;
-    try {
+    setPendingSaves((n) => n + 1);
+    return saveQueue.current.run(async () => {
+      try {
       const res = await fetch("/api/learning/exam-prep/node", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -229,13 +238,21 @@ export function ExamNodeSession({
         }),
       });
       const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data.contentVersion !== "number") {
+        throw Object.assign(new Error(data.error === "stale_version"
+          ? "Bu ders başka bir sekmede değişti. Devam etmeden sayfayı yenile."
+          : "Cevapların kaydedilemedi. Bağlantını kontrol edip kaydı yeniden dene."), { code: data.error });
+      }
       if (res.ok && typeof data.contentVersion === "number") {
         setContentVersion(data.contentVersion);
         contentVersionRef.current = data.contentVersion;
+        setSaveError(null);
       }
-    } catch {
-      // Best-effort; complete still merges client answers.
-    }
+      } catch (error) {
+        setSaveError(error instanceof Error ? error.message : "Cevapların kaydedilemedi.");
+        throw error;
+      } finally { setPendingSaves((n) => n - 1); }
+    });
   }
 
   function formatTimer(sec: number) {
@@ -275,7 +292,9 @@ export function ExamNodeSession({
         if (data.error === "generation_failed_retry") {
           clearClientRequestId();
         }
-        setGenerationError(data.error === "content_verification_failed"
+        setGenerationError(data.error === "generation_in_progress"
+          ? "Dersin hâlâ hazırlanıyor. Biraz sonra yeniden dene; ikinci bir üretim başlatılmayacak."
+          : data.error === "content_verification_failed"
           ? "Hazırlanan içerik kalite kontrolünü geçemedi. Yeniden deneyebilirsin."
           : "Ders şu anda oluşturulamadı. Yeniden deneyebilirsin.");
         return;
@@ -297,7 +316,12 @@ export function ExamNodeSession({
     try {
       const base = nextAnswers ?? answersRef.current;
       if (resumeEnabled && attemptId && generationId) {
-        await persistAnswers(base, index);
+        try { await persistAnswers(base, index); }
+        catch (error) {
+          // A lost completion response can leave the server already completed.
+          // Let the idempotent complete endpoint return its saved result.
+          if (!(error && typeof error === "object" && "code" in error && error.code === "attempt_not_active")) throw error;
+        }
       }
       if (!completeRequestIdRef.current) {
         completeRequestIdRef.current = crypto.randomUUID();
@@ -327,6 +351,7 @@ export function ExamNodeSession({
         return;
       }
       clearClientRequestId();
+      setSaveError(null);
       completeRequestIdRef.current = null;
       setScore({ score: data.score ?? 0, total: data.total ?? 1 });
       setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
@@ -341,12 +366,10 @@ export function ExamNodeSession({
   }
 
   function updateAnswer(key: string, value: unknown) {
-    setAnswers((prev) => {
-      const next = { ...prev, [key]: value };
-      answersRef.current = next;
-      scheduleSave(next, Number(key) || index);
-      return next;
-    });
+    const next = { ...answersRef.current, [key]: value };
+    answersRef.current = next;
+    setAnswers(next);
+    scheduleSave(next, Number(key) || index);
   }
 
   function markHint(index: number) {
@@ -402,8 +425,15 @@ export function ExamNodeSession({
 
   return (
     <div className="ap-exam-page ap-exam-node">
+      {pendingSaves > 0 ? <p role="status" className="text-sm">Cevapların kaydediliyor…</p> : null}
+      {saveError ? <div role="alert" className="text-sm text-red-400">
+        <p>{saveError}</p>
+        <button type="button" className="underline" disabled={pendingSaves > 0}
+          onClick={() => { void persistAnswers(answersRef.current, index).catch(() => undefined); }}>Kaydı yeniden dene</button>
+      </div> : null}
       <div className="ap-exam-study-bar">
-        <Link href={`/deneme-sinavlari/${prepId}`} className="ap-back-pill">
+        <Link href={`/deneme-sinavlari/${prepId}`} className="ap-back-pill"
+          onClick={(event) => { if (pendingSaves || saveError) { event.preventDefault(); toast.error("Çıkmadan önce cevapların kaydedilmesini bekle."); } }}>
           ← Geri
         </Link>
         {stage === "play" && isTimedExam ? (
@@ -411,7 +441,7 @@ export function ExamNodeSession({
             ⏱ {formatTimer(timeLeft)}
           </span>
         ) : null}
-        <button type="button" className="ap-back-pill" onClick={() => router.push(`/deneme-sinavlari/${prepId}`)}>
+        <button type="button" className="ap-back-pill" disabled={pendingSaves > 0 || Boolean(saveError)} onClick={() => router.push(`/deneme-sinavlari/${prepId}`)}>
           ×
         </button>
       </div>

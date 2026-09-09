@@ -164,7 +164,7 @@ describe("Stage 10 subject varieties (domain validators + topic seeds)", () => {
         label: "Biology",
         pages: ["Fotosentez\nKlorofil ışık enerjisini yakalar.\nMitokondri ATP üretir."],
         topic: "Hücre ve enerji",
-        badDraft: "yüzde 150 verim",
+        badDraft: "yüzde 150 başarı oranı",
       },
       {
         label: "History",
@@ -429,7 +429,7 @@ describe("Stage 10 technical scenarios", () => {
   });
 
   it("generation timeout: creating older than threshold is stale", () => {
-    expect(isCreatingStale(new Date(Date.now() - 3 * 60 * 1000).toISOString())).toBe(
+    expect(isCreatingStale(new Date(Date.now() - 16 * 60 * 1000).toISOString())).toBe(
       true,
     );
     expect(isCreatingStale(new Date().toISOString())).toBe(false);

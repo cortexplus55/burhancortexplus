@@ -56,6 +56,23 @@ function chain(result: { data: unknown; error?: unknown }) {
 }
 
 describe("stage 8 idempotent start", () => {
+  it("does not start a second model call while the original request is creating", async () => {
+    mocks.flag.mockResolvedValue(true);
+    mocks.generate.mockClear(); mocks.source.mockClear(); mocks.quiz.mockClear();
+    const from = vi.fn((table: string) => chain({data:
+      table === "exam_preps" ? {id: PREP, title: "T"} :
+      table === "exam_prep_nodes" ? {id: NODE, kind: "true_false", status: "ready"} :
+      table === "exam_prep_node_attempts" ? {id: ATTEMPT, status: "creating", payload: null,
+        generation_id: GEN, client_request_id: REQ, updated_at: new Date().toISOString()} : null
+    }));
+    mocks.guard.mockResolvedValue({ok: true, ctx: {userId: "user", service: {from}}});
+    const response = await POST(new Request("https://example.test", {method:"POST",body:JSON.stringify({prepId:PREP,nodeId:NODE,action:"start",clientRequestId:REQ})}));
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({error:"generation_in_progress"});
+    expect(mocks.generate).not.toHaveBeenCalled();
+    expect(mocks.quiz).not.toHaveBeenCalled();
+    expect(mocks.source).not.toHaveBeenCalled();
+  });
   it("returns the same ready attempt for a repeated clientRequestId without regenerating", async () => {
     mocks.flag.mockResolvedValue(true);
     mocks.quiz.mockClear();

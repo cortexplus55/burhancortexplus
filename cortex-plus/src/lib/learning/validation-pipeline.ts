@@ -95,16 +95,17 @@ function emptyish(value: unknown): boolean {
 /** Cheap arithmetic equality: "2+2=4", "3×4=12", "½=0.5" style fragments. */
 export function checkSimpleMathClaims(text: string): string[] {
   const issues: string[] = [];
-  const eq = /(?:^|[^\d])(\d+)\s*([+\-×x*÷/])\s*(\d+)\s*=\s*(-?\d+(?:[.,]\d+)?)/gi;
+  const eq = /(?<![\d.,\w])([−-]?\d+(?:[.,]\d+)?)\s*([+\-−×x*÷/])\s*([−-]?\d+(?:[.,]\d+)?)\s*=\s*([−-]?\d+(?:[.,]\d+)?)(?![\d.,/])/gi;
   let match: RegExpExecArray | null;
   while ((match = eq.exec(text)) !== null) {
-    const a = Number(match[1]);
+    const number = (value: string) => Number(value.replace("−", "-").replace(",", "."));
+    const a = number(match[1]);
     const op = match[2];
-    const b = Number(match[3]);
-    const claimed = Number(String(match[4]).replace(",", "."));
+    const b = number(match[3]);
+    const claimed = number(match[4]);
     if (![a, b, claimed].every((n) => Number.isFinite(n))) continue;
     let expected: number | null = null;
-    if (op === "+" || op === "-") expected = op === "+" ? a + b : a - b;
+    if (op === "+" || op === "-" || op === "−") expected = op === "+" ? a + b : a - b;
     else if (op === "×" || op === "x" || op === "*") expected = a * b;
     else if (op === "÷" || op === "/") expected = b === 0 ? null : a / b;
     if (expected == null) continue;
@@ -165,6 +166,19 @@ function structuralCheck(input: IndependentValidationInput): ValidationIssue[] {
     const item = asRecord(items[i]);
     if (!item) {
       issues.push(issue("structural", "empty_item", `Boş öğe #${i + 1}`));
+      continue;
+    }
+    if (Array.isArray(row.chapters)) {
+      if (emptyish(item.title) || !Array.isArray(item.lines) || !item.lines.length ||
+          item.lines.some((line) => emptyish(asRecord(line)?.text))) {
+        issues.push(issue("structural", "empty_content", `Bölüm #${i + 1} başlığı veya konuşması boş.`));
+      }
+      continue;
+    }
+    if (Array.isArray(row.sections)) {
+      if (emptyish(item.heading) || emptyish(item.body)) {
+        issues.push(issue("structural", "empty_content", `Bölüm #${i + 1} başlığı veya anlatımı boş.`));
+      }
       continue;
     }
     const text =
@@ -243,19 +257,35 @@ export function checkImpossiblePercentClaims(text: string): string[] {
   while ((match = re.exec(text)) !== null) {
     const raw = match[1] ?? match[2];
     const value = Number(raw);
-    if (Number.isFinite(value) && value > 100) {
+    const context = text.slice(Math.max(0, match.index - 35), re.lastIndex + 35);
+    if (Number.isFinite(value) && value > 100 && /olasılık|başarı oranı|doğru cevap oranı/i.test(context)) {
       issues.push(`İmkânsız yüzde: ${value}`);
     }
   }
   return issues;
 }
 
+/** Wrong propositions, distractors and misconception claims are not assertions. */
+function assertionTexts(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(assertionTexts);
+  const row = asRecord(value);
+  if (!row) return [];
+  if (typeof row.correct === "boolean") {
+    return assertionTexts(row.correct ? row.text : row.correctedStatement);
+  }
+  return Object.entries(row).flatMap(([key, child]) => {
+    if (["claim", "options", "prompt", "question"].includes(key)) return [];
+    if (key === "text" && Array.isArray(row.options)) return [];
+    return assertionTexts(child);
+  });
+}
+
 function domainCheck(input: IndependentValidationInput): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  const text =
-    typeof input.draft === "string"
-      ? input.draft
-      : JSON.stringify(input.parsed ?? {});
+  // A non-JSON draft is used by standalone diagnostic callers.
+  const text = typeof input.draft === "string" && !/^[\s]*[\[{]/.test(input.draft)
+    ? input.draft : assertionTexts(input.parsed).join("\n");
   for (const msg of checkSimpleMathClaims(text)) {
     issues.push(issue("domain", "math_mismatch", msg));
   }
