@@ -50,7 +50,8 @@ Madde 1’in **baseline harita / hedef doğrulama / geçiş planı** kısmı Sta
 ## Son kontrol — 9 Eylül (Aşama 9 arayüz)
 
 - Aşama 9 kod + doküman: [PDF-LEARNING-STAGE9-2026-09-09.md](./PDF-LEARNING-STAGE9-2026-09-09.md).
-- Günlük yol / tercihler / reschedule / tekrarlar / değerlendirme `pdf_learning_v2` arkasında.
+- Production Ready: `d163d83` / `dpl_BxzjXJ9K1oZTCCcibruvEmVeCi8c` → cortexplus.app.
+- Bayrak geçici ON: günlük yol, yanlışlar, değerlendirme, doküman CTA, resume metni; sonra **OFF**.
 - Birim: `exam-prep-ui-stage9` — gün gruplama, kaçırılan gün, prefs.
 - Geçerli sıra: **Aşama 10 bekliyor** (uçtan uca kalite / kontrollü yayın).
 

@@ -67,6 +67,12 @@ Bayrağı kapat. Yeni sayfalar bayrak kapalıyken home’a redirect. Additive ş
 
 ---
 
-## 5. Manuel doğrulama
+## 5. Manuel doğrulama (9 Eylül 2026)
 
-Bkz. commit sonrası production Ready + bayrak ON tarayıcı yürüyüşü (desktop + dar viewport) + bayrak OFF.
+1. Production Ready: `d163d83` / `dpl_BxzjXJ9K1oZTCCcibruvEmVeCi8c` → cortexplus.app.
+2. Bayrak geçici ON.
+3. Prep `Stage4 Trigonometri Plan`: günlük yol (Bugün + takvim günleri), tercihler/yeniden dağıt, **Yanlışlar (3)**, üç metre, primary CTA.
+4. `/tekrarlar`: 3 yanılgı + formül metinleri (`√2/2`, `90°`); `/degerlendirme`: üç gösterge + “Önce zayıf noktaları kapat”.
+5. `/dokumanlar`: “Harita hazır” + “Sınav hazırlığı başlat”; düğüm resume: “Kaldığın yer açılıyor…” açıklamalı.
+6. Dar viewport (~390): overview + resume ekranı okunaklı.
+7. Bayrak **OFF**: legacy trail + tek “Çalışma ilerlemen”; v2 linkleri yok (`enabled=false` doğrulandı).
