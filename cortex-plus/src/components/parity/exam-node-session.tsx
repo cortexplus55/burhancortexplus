@@ -141,7 +141,6 @@ export function ExamNodeSession({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only restore
   }, [resumeEnabled, prepId, nodeId]);
 
   useEffect(() => {

@@ -478,7 +478,7 @@ export async function POST(request: Request) {
 
   // Stage 8: same clientRequestId → reuse attempt (no second charge / content).
   let clientRequestId = teachingV2 ? parsed.data.clientRequestId : undefined;
-  let existingForKey =
+  const existingForKey =
     teachingV2 && clientRequestId
       ? await findAttemptByClientRequest(service, {
           userId,

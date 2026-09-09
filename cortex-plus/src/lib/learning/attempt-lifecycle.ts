@@ -47,7 +47,8 @@ export function mergeAnswersForScoring(
 export function stripMetaFromAnswers(
   answers: Record<string, unknown>,
 ): Record<string, unknown> {
-  const { __meta: _meta, ...rest } = answers;
+  const rest = { ...answers };
+  delete rest.__meta;
   return rest;
 }
 
