@@ -50,7 +50,8 @@ Madde 1’in **baseline harita / hedef doğrulama / geçiş planı** kısmı Sta
 ## Son kontrol — 9 Eylül (Aşama 8 idempotency / resume)
 
 - Aşama 8 kod + migration + doküman: [PDF-LEARNING-STAGE8-2026-09-09.md](./PDF-LEARNING-STAGE8-2026-09-09.md).
-- `pdf_learning_v2` kapalıyken legacy node; açıkken start/save/resume/complete idempotent.
+- Production Ready: `d07e97c` / `dpl_BckSmtsiULCqynuFtZRL4ZXgS9gX` → cortexplus.app.
+- Bayrak geçici ON: refresh’te cevap restore + çift complete `idempotent`; sonra **OFF**.
 - Birim: `attempt-lifecycle` + `exam-node-stage8-idempotency` — çift start, çift complete, refresh restore, son cevap skorda.
 - Geçerli sıra: **Aşama 9 bekliyor** (çalışma yolu / sonuç UI).
 

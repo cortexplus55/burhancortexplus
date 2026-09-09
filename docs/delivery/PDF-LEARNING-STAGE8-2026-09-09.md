@@ -70,13 +70,13 @@ Bayrağı kapat. Additive kolon/tabloya dokunma. Önceki Ready deploy.
 
 ---
 
-## 4. Manuel doğrulama
+## 4. Manuel doğrulama (9 Eylül 2026)
 
-1. Production deploy Ready.
-2. Bayrak geçici ON.
-3. Etkinlik başlat → birkaç cevap → yenile → aynı attempt + cevaplar.
-4. Bitir’e çift tık → tek complete / skor bir kez.
-5. Bayrak tekrar **OFF**.
+1. Production Ready: `d07e97c` / `dpl_BckSmtsiULCqynuFtZRL4ZXgS9gX` → cortexplus.app (önceki `da0e167` prefer-const ERROR).
+2. Bayrak geçici açıldı.
+3. Stage4 Trigonometri Plan → Quiz düğümü: yenilemeden önce cevap C (90°) kaydedildi (`content_version=2`, `answers.0=90°`); yenileme sonrası **"Kaldığın yer açılıyor…"** → aynı soru, **C seçili** (yeniden ücret yok).
+4. Aynı attempt için çift `complete` (aynı `completeRequestId`): 1. yanıt `score=2/5`; 2. yanıt `idempotent:true` + aynı skor.
+5. Bayrak tekrar **OFF** (`enabled=false` doğrulandı).
 
 ---
 
