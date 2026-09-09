@@ -16,7 +16,7 @@ Aşama 1 baseline kaydı (8 Eylül 2026 akşam): [PDF-LEARNING-STAGE1-BASELINE-2
 7. Doğrulama, kayıt ve kesinti güvenliği — **Aşama 7 temel dilim tamam** (sıralı validation pipeline + metrik + fail-closed + tek rezervasyon; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE7-2026-09-09.md](./PDF-LEARNING-STAGE7-2026-09-09.md).
 8. Idempotency / resume — **Aşama 8 temel dilim tamam** (generation/attempt kimlikleri + save/resume + çift start/complete koruması; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE8-2026-09-09.md](./PDF-LEARNING-STAGE8-2026-09-09.md).
 9. Çalışma yolu ve sonuç arayüzü — **Aşama 9 temel dilim tamam** (günlük yol, tercihler/yeniden plan, yanlışlar, sınav öncesi değerlendirme; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE9-2026-09-09.md](./PDF-LEARNING-STAGE9-2026-09-09.md).
-10. Aynı PDF ile uçtan uca karşılaştırma / kontrollü yayın — bekliyor.
+10. Aynı PDF ile uçtan uca kalite / kontrollü yayın hazırlığı — **Aşama 10 kalite matrisi tamam** (birim + probe; bayrak kapalı; herkese açılış değil). Bkz. [PDF-LEARNING-STAGE10-2026-09-09.md](./PDF-LEARNING-STAGE10-2026-09-09.md).
 
 Bu sıralama onaylanan planın uygulama/teslim sırasıdır; önceki metindeki açıklama bölümleri ayrı tamamlanmış işler değildir.
 
@@ -47,13 +47,22 @@ Bu sıralama onaylanan planın uygulama/teslim sırasıdır; önceki metindeki a
 
 Madde 1’in **baseline harita / hedef doğrulama / geçiş planı** kısmı Stage-1 notunda kapatıldı. Canlı üretim kalitesi, backup ve v2 bayrak uygulaması hâlâ açık; bunlar Madde 1’in “sorunsuz kabul” barını tek başına karşılamaz — Aşama 2 öncesi bilinçli borç olarak durur.
 
+## Son kontrol — 9 Eylül (Aşama 10 kalite)
+
+- Aşama 10 kod + doküman: [PDF-LEARNING-STAGE10-2026-09-09.md](./PDF-LEARNING-STAGE10-2026-09-09.md).
+- Birim: `pdf-learning-stage10-quality` + ilgili Stage 2–9 suite — **407 test**.
+- Probe: `scripts/probe-pdf-learning-stage10.mjs` — 19 pass / 0 fail / 1 skip (multi-doc ürün yok).
+- Bug fix: kısa TOC/cevap sınıflaması, tablo regex, formül-gap sırası, boş coverage=blocked, domain mol/% , ders seed’leri.
+- §15: bayrak/rollback **met**; izleme **partial**; yedek **blocked**; OCR/vision/multi-doc **known limit**; herkese yayın **not done**.
+- Bayrak **OFF**. Sonraki: kontrollü yayın izleme (backup + kademeli açılış).
+
 ## Son kontrol — 9 Eylül (Aşama 9 arayüz)
 
 - Aşama 9 kod + doküman: [PDF-LEARNING-STAGE9-2026-09-09.md](./PDF-LEARNING-STAGE9-2026-09-09.md).
 - Production Ready: `d163d83` / `dpl_BxzjXJ9K1oZTCCcibruvEmVeCi8c` → cortexplus.app.
 - Bayrak geçici ON: günlük yol, yanlışlar, değerlendirme, doküman CTA, resume metni; sonra **OFF**.
 - Birim: `exam-prep-ui-stage9` — gün gruplama, kaçırılan gün, prefs.
-- Geçerli sıra: **Aşama 10 bekliyor** (uçtan uca kalite / kontrollü yayın).
+- Geçerli sıra: **Aşama 10 tamam** (kalite matrisi); kontrollü yayın izleme açık.
 
 ## Son kontrol — 9 Eylül (Aşama 8 idempotency / resume)
 

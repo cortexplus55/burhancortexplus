@@ -43,7 +43,8 @@ const FORMULA_PATTERNS = [
   /[=≠≈≤≥].{0,40}[=≠≈≤≥]/,
   /\^[0-9n]|[₀-₉]/,
 ];
-const TABLE_HINT = /(?:\|\s*[^|\n]+\s*\|){2,}|(?:\t[^\t\n]+){2,}/;
+const TABLE_HINT =
+  /(?:\|[^|\n]+){2,}\||(?:\t[^\t\n]+){2,}/;
 
 /** Fold Turkish letters so ASCII-ish regexes match KAPAK / İÇİNDEKİLER. */
 export function foldTr(text: string): string {
@@ -107,14 +108,17 @@ export function classifyPageKind(text: string, pageNumber: number): PageKind {
   const charCount = trimmed.length;
 
   if (charCount === 0) return "blank";
-  if (charCount < 40) return "unreadable";
 
   const sample = foldTr(trimmed.slice(0, 800));
+  // Structural kinds win before the thin-text unreadable cutoff — short TOC /
+  // answer-key pages are common and must not be reported as OCR gaps.
   if (pageNumber === 1 && COVER_HINTS.test(sample) && charCount < 900) {
     return "cover";
   }
   if (TOC_HINTS.test(sample)) return "toc";
   if (ANSWER_HINTS.test(sample)) return "answer_key";
+
+  if (charCount < 40) return "unreadable";
   if (charCount < 80) return "uncertain";
   return "content";
 }
@@ -133,10 +137,11 @@ export function analyzePage(
   const uncertainRegions: string[] = [];
   if (pageKind === "unreadable" || pageKind === "blank") {
     uncertainRegions.push("Sayfadan anlamlı metin çıkarılamadı; taranmış veya görsel ağırlıklı olabilir.");
+  } else if (formulas.length >= 4 && charCount < 200) {
+    // Prefer the visual-gap signal over "too short" when the page is formula-dense.
+    uncertainRegions.push("Formül/grafik ağırlıklı görünüyor; görsel analiz henüz yok.");
   } else if (pageKind === "uncertain") {
     uncertainRegions.push("Çıkarılan metin çok kısa; kapsam belirsiz.");
-  } else if (formulas.length >= 4 && charCount < 200) {
-    uncertainRegions.push("Formül/grafik ağırlıklı görünüyor; görsel analiz henüz yok.");
   }
 
   const extractionOk =

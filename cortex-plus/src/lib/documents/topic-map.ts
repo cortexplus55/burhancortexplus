@@ -49,14 +49,55 @@ const TRIG_SPLITTERS: { pattern: RegExp; title: string; objective: string }[] = 
     objective: "Temel kimlikleri kullanarak ifadeleri sadeleştirmek.",
   },
   {
-    pattern: /grafik|graph|dalga|periyot|amplitude/i,
+    pattern:
+      /(?:trigonometr\w*|sin|cos|tan).{0,80}(?:grafik|graph|dalga|periyot|amplitude)|(?:y\s*=\s*[Aa]?\s*sin)/i,
     title: "Trigonometrik grafikler",
     objective: "Sinüs/kosinüs grafiklerini yorumlamak.",
   },
   {
-    pattern: /denklem|equation/i,
+    pattern:
+      /(?:trigonometr\w*|sin|cos|tan).{0,80}denklem|denklem.{0,40}(?:sin|cos|tan)|sin\s*θ\s*=/i,
     title: "Trigonometrik denklemler",
     objective: "Basit trigonometrik denklemleri çözmek.",
+  },
+];
+
+/** Stage 10 — non-trig curriculum seeds for subject-variety fixtures. */
+const DOMAIN_SPLITTERS: { pattern: RegExp; title: string; objective: string }[] = [
+  {
+    pattern: /\b(newton|kuvvet|ivme|momentum|kinetik\s*enerji|potansiyel\s*enerji)\b/i,
+    title: "Kuvvet ve hareket",
+    objective: "Newton yasalarıyla kuvvet, ivme ve enerji ilişkilerini kurmak.",
+  },
+  {
+    pattern: /\b(ohm|direnç|akım|voltaj|elektrik\s*devre|coulomb)\b/i,
+    title: "Elektrik",
+    objective: "Basit doğru akım devrelerinde Ohm yasasını uygulamak.",
+  },
+  {
+    pattern: /\b(mol|avogadro|periyodik|asit|baz|tepki\s*denklemi|molekül)\b/i,
+    title: "Kimyasal tepkimeler",
+    objective: "Mol kavramı ve basit tepkime denklemlerini yorumlamak.",
+  },
+  {
+    pattern: /\b(fotosentez|hücre|mitokondri|dna|enzim|klorofil)\b/i,
+    title: "Hücre ve enerji",
+    objective: "Hücresel enerji dönüşümlerini ve organelleri ayırt etmek.",
+  },
+  {
+    pattern: /\b(osmanlı|cumhuriyet|inkılap|selçuklu|anadolu\s*beylik|lozan)\b/i,
+    title: "Tarih",
+    objective: "Dönem olaylarını neden-sonuç ilişkisiyle sıralamak.",
+  },
+  {
+    pattern: /\b(iklim|harita|nüfus|yer\s*şekil|coğrafya|plato|delta)\b/i,
+    title: "Coğrafya",
+    objective: "Harita ve yer şekilleri üzerinden coğrafi kavramları okumak.",
+  },
+  {
+    pattern: /\b(fiil|özne|yüklem|paragraf|anlatım\s*bozukluğu|yazım\s*kural|edat)\b/i,
+    title: "Türkçe dil bilgisi",
+    objective: "Cümle öğeleri ve anlatım kurallarını uygulamak.",
   },
 ];
 
@@ -141,6 +182,13 @@ function topicSeedsForPage(page: PageAnalysis): { title: string; objective: stri
   }
 
   // Prefer canonical curriculum splits when they fire; headings become notes only.
+  if (seeds.length) return seeds;
+
+  for (const splitter of DOMAIN_SPLITTERS) {
+    if (splitter.pattern.test(blob)) {
+      seeds.push({ title: splitter.title, objective: splitter.objective });
+    }
+  }
   if (seeds.length) return seeds;
 
   if (page.pageKind === "content") {

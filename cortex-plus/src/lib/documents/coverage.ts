@@ -77,8 +77,10 @@ export function buildCoverageReport(
   }
 
   let status: CoverageStatus = "complete";
-  if (unreadablePages.length > 0 && contentPages === 0) status = "blocked";
-  else if (uncoveredContentPages.length > 0 || unreadablePages.length > 0) {
+  if (contentPages === 0) {
+    // No instructional pages to teach from (all blank/unreadable/skipped).
+    status = "blocked";
+  } else if (uncoveredContentPages.length > 0 || unreadablePages.length > 0) {
     status = "incomplete";
   }
 

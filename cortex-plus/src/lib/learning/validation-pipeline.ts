@@ -235,6 +235,21 @@ function sourceCheck(input: IndependentValidationInput): ValidationIssue[] {
   return issues;
 }
 
+/** Soft percent claims like "yüzde 150" / "150%" that cannot be a success rate. */
+export function checkImpossiblePercentClaims(text: string): string[] {
+  const issues: string[] = [];
+  const re = /(?:yüzde|%)\s*(\d{3,})|(\d{3,})\s*%/gi;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    const raw = match[1] ?? match[2];
+    const value = Number(raw);
+    if (Number.isFinite(value) && value > 100) {
+      issues.push(`İmkânsız yüzde: ${value}`);
+    }
+  }
+  return issues;
+}
+
 function domainCheck(input: IndependentValidationInput): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const text =
@@ -247,10 +262,20 @@ function domainCheck(input: IndependentValidationInput): ValidationIssue[] {
   for (const msg of uniqueOptionsIssues(input.parsed)) {
     issues.push(issue("domain", "duplicate_options", msg));
   }
-  // Lightweight unit clash: "5 kg = 5 g" style nonsense
-  if (/\b(\d+)\s*kg\s*=\s*\1\s*g\b/i.test(text) || /\b(\d+)\s*g\s*=\s*\1\s*kg\b/i.test(text)) {
+  // Lightweight unit clash: "5 kg = 5 g" / "1 mol = 1 g" style nonsense
+  if (
+    /\b(\d+)\s*kg\s*=\s*\1\s*g\b/i.test(text) ||
+    /\b(\d+)\s*g\s*=\s*\1\s*kg\b/i.test(text) ||
+    /\b(\d+)\s*mol\s*=\s*\1\s*g\b/i.test(text) ||
+    /\b(\d+)\s*g\s*=\s*\1\s*mol\b/i.test(text)
+  ) {
     issues.push(issue("domain", "unit_mismatch", "Birim dönüşümü tutarsız."));
   }
+  for (const msg of checkImpossiblePercentClaims(text)) {
+    issues.push(issue("domain", "impossible_percent", msg));
+  }
+  // Subject hint only softens messaging; checks stay deterministic.
+  void input.subjectHint;
   return issues;
 }
 

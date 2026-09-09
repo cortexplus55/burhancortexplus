@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   checkSimpleMathClaims,
+  checkImpossiblePercentClaims,
   recheckAfterRepair,
   runIndependentValidation,
 } from "@/lib/learning/validation-pipeline";
@@ -37,6 +38,26 @@ describe("Stage 7 validation pipeline", () => {
       "Hesap uyuşmazlığı: 2+2≠5",
     );
     expect(checkSimpleMathClaims("3×4=12")).toEqual([]);
+  });
+
+  it("flags impossible percents and mol/g unit clashes", () => {
+    expect(checkImpossiblePercentClaims("yüzde 150 verim")).toContain(
+      "İmkânsız yüzde: 150",
+    );
+    const unit = runIndependentValidation({
+      draft: "1 mol = 1 g",
+      parsed: {
+        questions: [
+          { text: "Soru bir yeterince uzun", options: ["a", "b"] },
+          { text: "Soru iki yeterince uzun", options: ["a", "b"] },
+          { text: "Soru üç yeterince uzun", options: ["a", "b"] },
+        ],
+      },
+      minItems: 3,
+      pedagogyIssues: [],
+    });
+    expect(unit.failedStage).toBe("domain");
+    expect(unit.issues.some((i) => i.code === "unit_mismatch")).toBe(true);
   });
 
   it("flags duplicate options in domain stage", () => {
