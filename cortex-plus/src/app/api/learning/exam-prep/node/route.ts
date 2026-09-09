@@ -44,12 +44,25 @@ import {
   recordLearningTrackingAfterComplete,
   stripAnswerMeta,
 } from "@/lib/learning/learning-tracking-persist";
+import {
+  creditIdempotencyKeyForStart,
+  isCreatingStale,
+  mergeAnswersForScoring,
+  shouldReuseExistingStart,
+} from "@/lib/learning/attempt-lifecycle";
+import {
+  attemptStartResponse,
+  findAttemptByClientRequest,
+  findResumableAttempt,
+  saveAnswersRpc,
+  upsertGenerationJob,
+} from "@/lib/learning/attempt-lifecycle-persist";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
   nodeId: z.string().uuid(),
   attemptId: z.string().uuid().optional(),
-  action: z.enum(["start", "complete"]).default("start"),
+  action: z.enum(["start", "complete", "save", "resume"]).default("start"),
   difficulty: z.enum(["kolay", "orta", "ileri"]).optional(),
   voiceMode: z.boolean().optional(),
   // Ders başında sorulan iki sinyal: konuya aşinalık ve o anki ruh hali.
@@ -60,6 +73,12 @@ const bodySchema = z.object({
     .enum(["ready", "curious", "calm", "neutral", "low_energy", "stressed"])
     .optional(),
   answers: z.record(z.string(), z.unknown()).optional(),
+  /** Stage 8 — stable client keys (v2 only). */
+  clientRequestId: z.string().uuid().optional(),
+  completeRequestId: z.string().uuid().optional(),
+  generationId: z.string().uuid().optional(),
+  contentVersion: z.number().int().positive().optional(),
+  cursorIndex: z.number().int().min(0).optional(),
 });
 
 const tfSchema = z.object({
@@ -160,11 +179,71 @@ export async function POST(request: Request) {
   const voiceMode = parsed.data.voiceMode ?? false;
   const familiarity = parseFamiliarity(parsed.data.familiarity);
   const mood = parseMood(parsed.data.mood);
+  const title = PLAN_NODE_META[kind]?.setupLabel ?? node.title;
+
+  // --- Stage 8: resume in-progress attempt (flag ON) ---
+  if (action === "resume") {
+    if (!teachingV2) return errorResponse(400, "invalid_input");
+    const attempt = await findResumableAttempt(service, {
+      userId,
+      prepId,
+      nodeId,
+    });
+    if (!attempt?.payload) {
+      return NextResponse.json({ ok: true, resumed: false });
+    }
+    return NextResponse.json(
+      attemptStartResponse(attempt, {
+        kind,
+        title,
+        topicLabel,
+        publicPayload: publicNodePayload(
+          attempt.payload as Record<string, unknown>,
+        ),
+        resumed: true,
+      }),
+    );
+  }
+
+  // --- Stage 8: mid-session answer save (flag ON) ---
+  if (action === "save") {
+    if (!teachingV2) return errorResponse(400, "invalid_input");
+    const attemptId = parsed.data.attemptId;
+    const generationId = parsed.data.generationId;
+    const contentVersion = parsed.data.contentVersion;
+    if (!attemptId || !generationId || contentVersion == null) {
+      return errorResponse(400, "invalid_input");
+    }
+    const saved = await saveAnswersRpc(service, {
+      userId,
+      attemptId,
+      generationId,
+      expectedVersion: contentVersion,
+      answers: parsed.data.answers ?? {},
+      cursorIndex: parsed.data.cursorIndex,
+    });
+    if (!saved.ok) {
+      if (saved.code === "stale_generation" || saved.code === "stale_version") {
+        return errorResponse(409, saved.code);
+      }
+      if (saved.code === "attempt_not_active") {
+        return errorResponse(409, "attempt_not_active");
+      }
+      return errorResponse(503, "save_failed");
+    }
+    return NextResponse.json({
+      ok: true,
+      contentVersion: saved.contentVersion,
+      generationId: saved.generationId,
+    });
+  }
 
   if (action === "complete") {
     let attemptQuery = service
       .from("exam_prep_node_attempts")
-      .select("id, payload, total, score, status")
+      .select(
+        "id, payload, total, score, status, answers, generation_id, client_request_id, complete_request_id, content_version",
+      )
       .eq("node_id", nodeId)
       .eq("user_id", userId)
       .eq("exam_prep_id", prepId);
@@ -180,12 +259,72 @@ export async function POST(request: Request) {
     if (attemptError) return errorResponse(503, "attempt_lookup_failed");
     if (!attempt) return errorResponse(409, "active_attempt_required");
 
-    let scored = scoreAttempt(
-      kind,
-      attempt?.payload,
-      parsed.data.answers ?? {},
-      teachingV2,
-    );
+    // Stale complete from an older generation must not overwrite a newer attempt.
+    if (
+      teachingV2 &&
+      parsed.data.generationId &&
+      attempt.generation_id &&
+      parsed.data.generationId !== attempt.generation_id
+    ) {
+      return errorResponse(409, "stale_generation");
+    }
+
+    // Double-complete with same client key → return stored score (no re-grade side effects).
+    if (
+      teachingV2 &&
+      parsed.data.completeRequestId &&
+      attempt.status === "completed" &&
+      attempt.complete_request_id === parsed.data.completeRequestId
+    ) {
+      const { data: nextRow } = await service
+        .from("exam_prep_nodes")
+        .select("id")
+        .eq("exam_prep_id", prepId)
+        .gt("sort_order", node.sort_order)
+        .order("sort_order")
+        .limit(1)
+        .maybeSingle();
+      return NextResponse.json({
+        ok: true,
+        score: attempt.score ?? 0,
+        total: attempt.total ?? 1,
+        nextHref: nextRow?.id
+          ? `/deneme-sinavlari/${prepId}/dugum/${nextRow.id}`
+          : `/deneme-sinavlari/${prepId}`,
+        state: "completed",
+        idempotent: true,
+      });
+    }
+
+    if (teachingV2 && attempt.status === "completed") {
+      const { data: nextRow } = await service
+        .from("exam_prep_nodes")
+        .select("id")
+        .eq("exam_prep_id", prepId)
+        .gt("sort_order", node.sort_order)
+        .order("sort_order")
+        .limit(1)
+        .maybeSingle();
+      return NextResponse.json({
+        ok: true,
+        score: attempt.score ?? 0,
+        total: attempt.total ?? 1,
+        nextHref: nextRow?.id
+          ? `/deneme-sinavlari/${prepId}/dugum/${nextRow.id}`
+          : `/deneme-sinavlari/${prepId}`,
+        state: "completed",
+        idempotent: true,
+      });
+    }
+
+    const mergedAnswers = teachingV2
+      ? mergeAnswersForScoring(
+          (attempt.answers as Record<string, unknown> | null) ?? {},
+          parsed.data.answers ?? {},
+        )
+      : (parsed.data.answers ?? {});
+
+    let scored = scoreAttempt(kind, attempt?.payload, mergedAnswers, teachingV2);
     let oralExtras: { missingObjectives?: string[]; scoreRationale?: string } = {};
     if (kind === "oral" && attempt?.payload && attempt.status !== "completed") {
       const questions = ((attempt.payload as {
@@ -198,7 +337,7 @@ export async function POST(request: Request) {
       }).questions ?? []);
       const answerLines = questions
         .map((question, index) =>
-          `${index + 1}. Soru: ${question.prompt ?? ""}\nHedef: ${question.learningObjective ?? "-"}\nRubrik: ${(question.rubricCriteria ?? []).join("; ")}\nBeklenen: ${(question.expectedPoints ?? []).join("; ")}\nÖğrenci yanıtı: ${String(parsed.data.answers?.[String(index)] ?? "")}`,
+          `${index + 1}. Soru: ${question.prompt ?? ""}\nHedef: ${question.learningObjective ?? "-"}\nRubrik: ${(question.rubricCriteria ?? []).join("; ")}\nBeklenen: ${(question.expectedPoints ?? []).join("; ")}\nÖğrenci yanıtı: ${String(mergedAnswers[String(index)] ?? "")}`,
         )
         .join("\n\n");
       const grade = await generateJson({
@@ -224,8 +363,7 @@ export async function POST(request: Request) {
         };
       }
     }
-    const rawAnswers = parsed.data.answers ?? {};
-    const answersForRpc = teachingV2 ? stripAnswerMeta(rawAnswers) : rawAnswers;
+    const answersForRpc = teachingV2 ? stripAnswerMeta(mergedAnswers) : mergedAnswers;
 
     const { data: completed, error: completeError } = await service.rpc("complete_exam_prep_node", {
       p_user_id: userId,
@@ -237,6 +375,17 @@ export async function POST(request: Request) {
       p_answers: answersForRpc,
     });
     if (completeError || !completed) return errorResponse(503, "completion_failed");
+
+    if (teachingV2 && parsed.data.completeRequestId) {
+      await service
+        .from("exam_prep_node_attempts")
+        .update({
+          complete_request_id: parsed.data.completeRequestId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", attempt.id)
+        .is("complete_request_id", null);
+    }
 
     let nextHref = completed.nextId
       ? `/deneme-sinavlari/${prepId}/dugum/${completed.nextId}`
@@ -287,7 +436,7 @@ export async function POST(request: Request) {
           attemptId: attempt.id,
           kind,
           payload: payloadForEvidence,
-          answers: rawAnswers,
+          answers: mergedAnswers,
           topicLabel,
           sessionObjective: sessionMeta?.objective ?? null,
           targetScore:
@@ -300,6 +449,21 @@ export async function POST(request: Request) {
       } catch {
         // Tracking is additive; completion already succeeded.
       }
+
+      if (attempt.client_request_id || parsed.data.clientRequestId) {
+        const reqId = attempt.client_request_id ?? parsed.data.clientRequestId!;
+        if (attempt.generation_id) {
+          await upsertGenerationJob(service, {
+            userId,
+            prepId,
+            nodeId,
+            attemptId: attempt.id,
+            clientRequestId: reqId,
+            generationId: attempt.generation_id,
+            status: "completed",
+          });
+        }
+      }
     }
 
     return NextResponse.json({
@@ -308,7 +472,87 @@ export async function POST(request: Request) {
       total: completed.total,
       nextHref,
       learningTracking,
+      state: "completed",
     });
+  }
+
+  // Stage 8: same clientRequestId → reuse attempt (no second charge / content).
+  let clientRequestId = teachingV2 ? parsed.data.clientRequestId : undefined;
+  let existingForKey =
+    teachingV2 && clientRequestId
+      ? await findAttemptByClientRequest(service, {
+          userId,
+          nodeId,
+          clientRequestId,
+        })
+      : null;
+
+  if (teachingV2 && existingForKey) {
+    const reuse = shouldReuseExistingStart({
+      status: existingForKey.status,
+      hasPayload: Boolean(existingForKey.payload),
+    });
+    if (reuse === "return_ready" && existingForKey.payload) {
+      return NextResponse.json(
+        attemptStartResponse(existingForKey, {
+          kind,
+          title,
+          topicLabel,
+          publicPayload: publicNodePayload(
+            existingForKey.payload as Record<string, unknown>,
+          ),
+          resumed: true,
+        }),
+      );
+    }
+    if (reuse === "reject_failed") {
+      // Client must mint a new request id after a failed generation.
+      return errorResponse(409, "generation_failed_retry");
+    }
+    if (
+      reuse === "resume_creating" &&
+      existingForKey.payload &&
+      !isCreatingStale(existingForKey.updated_at)
+    ) {
+      // Rare: payload landed but status not flipped — treat as ready.
+      return NextResponse.json(
+        attemptStartResponse(
+          { ...existingForKey, status: "active" },
+          {
+            kind,
+            title,
+            topicLabel,
+            publicPayload: publicNodePayload(
+              existingForKey.payload as Record<string, unknown>,
+            ),
+            resumed: true,
+          },
+        ),
+      );
+    }
+    // creating without payload (or stale): fall through and regenerate under same credit key.
+  }
+
+  // Without a client key, prefer resuming an active attempt over a new charge.
+  if (teachingV2 && !clientRequestId) {
+    const resumable = await findResumableAttempt(service, {
+      userId,
+      prepId,
+      nodeId,
+    });
+    if (resumable?.payload) {
+      return NextResponse.json(
+        attemptStartResponse(resumable, {
+          kind,
+          title,
+          topicLabel,
+          publicPayload: publicNodePayload(
+            resumable.payload as Record<string, unknown>,
+          ),
+          resumed: true,
+        }),
+      );
+    }
   }
 
   const premium = await isPremiumUser(service, userId);
@@ -370,6 +614,117 @@ export async function POST(request: Request) {
     return errorResponse(503, "source_unavailable");
   }
 
+  // Stage 8: reserve a creating row + stable credit key before model work.
+  let generationId: string | undefined;
+  let creatingAttemptId: string | undefined;
+  let creditKey: string | undefined;
+
+  if (teachingV2) {
+    if (!clientRequestId) {
+      clientRequestId = crypto.randomUUID();
+    }
+    generationId =
+      existingForKey?.generation_id && existingForKey.status === "creating"
+        ? existingForKey.generation_id
+        : crypto.randomUUID();
+    creditKey = creditIdempotencyKeyForStart({
+      userId,
+      nodeId,
+      clientRequestId,
+    });
+
+    if (existingForKey?.status === "creating") {
+      creatingAttemptId = existingForKey.id;
+      await service
+        .from("exam_prep_node_attempts")
+        .update({
+          status: "creating",
+          updated_at: new Date().toISOString(),
+          familiarity,
+          mood,
+          difficulty,
+          voice_mode: voiceMode,
+        })
+        .eq("id", existingForKey.id);
+    } else {
+      const creatingRow = {
+        node_id: nodeId,
+        exam_prep_id: prepId,
+        user_id: userId,
+        topic_id: topic?.id ?? null,
+        difficulty,
+        voice_mode: voiceMode,
+        payload: null,
+        total: 1,
+        status: "creating",
+        generation_id: generationId,
+        client_request_id: clientRequestId,
+        familiarity,
+        mood,
+        content_version: 1,
+        updated_at: new Date().toISOString(),
+      };
+      let { data: created, error: createErr } = await service
+        .from("exam_prep_node_attempts")
+        .insert(creatingRow)
+        .select("id, generation_id")
+        .single();
+      if (createErr) {
+        // Unique client_request_id race: re-read and return if ready.
+        const raced = await findAttemptByClientRequest(service, {
+          userId,
+          nodeId,
+          clientRequestId,
+        });
+        if (raced?.payload) {
+          return NextResponse.json(
+            attemptStartResponse(raced, {
+              kind,
+              title,
+              topicLabel,
+              publicPayload: publicNodePayload(
+                raced.payload as Record<string, unknown>,
+              ),
+              resumed: true,
+            }),
+          );
+        }
+        ({ data: created, error: createErr } = await service
+          .from("exam_prep_node_attempts")
+          .insert({
+            node_id: nodeId,
+            exam_prep_id: prepId,
+            user_id: userId,
+            topic_id: topic?.id ?? null,
+            difficulty,
+            voice_mode: voiceMode,
+            payload: null,
+            total: 1,
+            status: "creating",
+            generation_id: generationId,
+            client_request_id: clientRequestId,
+            content_version: 1,
+            updated_at: new Date().toISOString(),
+          })
+          .select("id, generation_id")
+          .single());
+      }
+      if (createErr || !created) return errorResponse(500, "generation_failed");
+      creatingAttemptId = created.id;
+      generationId = created.generation_id ?? generationId;
+    }
+
+    await upsertGenerationJob(service, {
+      userId,
+      prepId,
+      nodeId,
+      attemptId: creatingAttemptId!,
+      clientRequestId,
+      generationId: generationId!,
+      status: "creating",
+    });
+  }
+
   let payload: Record<string, unknown>;
   try {
     payload = voiceSession
@@ -390,13 +745,94 @@ export async function POST(request: Request) {
           requireSourceSupport: Boolean(
             teachingV2 && prepSource.document_id && sourceBoundaryMode !== "allow_supporting",
           ),
+          idempotencyKey: creditKey,
         });
   } catch (error) {
+    if (teachingV2 && creatingAttemptId && generationId && clientRequestId) {
+      await service
+        .from("exam_prep_node_attempts")
+        .update({
+          status: "failed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", creatingAttemptId);
+      await upsertGenerationJob(service, {
+        userId,
+        prepId,
+        nodeId,
+        attemptId: creatingAttemptId,
+        clientRequestId,
+        generationId,
+        status: "failed",
+        errorCode:
+          error instanceof NodeGenerationError ? error.code : "generation_failed",
+      });
+    }
     if (error instanceof NodeGenerationError) return errorResponse(error.status, error.code);
     return errorResponse(502, "generation_failed");
   }
 
   const total = countTotal(kind, payload);
+
+  if (teachingV2 && creatingAttemptId && generationId && clientRequestId) {
+    const { data: readyAttempt, error: readyErr } = await service
+      .from("exam_prep_node_attempts")
+      .update({
+        payload,
+        total,
+        status: "active",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", creatingAttemptId)
+      .eq("generation_id", generationId)
+      .select(
+        "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode",
+      )
+      .maybeSingle();
+
+    if (readyErr || !readyAttempt) {
+      // Newer generation won the race — do not overwrite.
+      return errorResponse(409, "stale_generation");
+    }
+
+    await upsertGenerationJob(service, {
+      userId,
+      prepId,
+      nodeId,
+      attemptId: creatingAttemptId,
+      clientRequestId,
+      generationId,
+      status: "ready",
+    });
+
+    if (topic?.id) {
+      await service
+        .from("exam_prep_topics")
+        .update({ familiarity })
+        .eq("id", topic.id);
+    }
+    await service.from("study_session_moods").insert({
+      user_id: userId,
+      exam_prep_id: prepId,
+      node_id: nodeId,
+      mood,
+    });
+
+    if (node.status !== "done") {
+      await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
+    }
+
+    return NextResponse.json(
+      attemptStartResponse(readyAttempt, {
+        kind,
+        title,
+        topicLabel,
+        publicPayload: publicNodePayload(payload),
+        resumed: false,
+      }),
+    );
+  }
+
   const baseAttempt = {
     node_id: nodeId,
     exam_prep_id: prepId,
@@ -451,7 +887,7 @@ export async function POST(request: Request) {
     ok: true,
     attemptId: attempt.id,
     kind,
-    title: PLAN_NODE_META[kind]?.setupLabel ?? node.title,
+    title,
     topicLabel,
     voiceMode,
     payload: publicNodePayload(payload),
@@ -479,6 +915,8 @@ async function generateNodePayload(input: {
   teachingV2: boolean;
   sessionMeta: SessionTeachingMeta | null;
   requireSourceSupport?: boolean;
+  /** Stage 8: stable key so double-click / retry does not double-charge. */
+  idempotencyKey?: string;
 }) {
   const activity = teachingActivityForKind(input.kind);
   const sessionCtx = input.teachingV2
@@ -498,8 +936,9 @@ async function generateNodePayload(input: {
         maxDraftAttempts: 2 as const,
         allowIndependentAccept: true,
         activityKind: activity,
+        idempotencyKey: input.idempotencyKey,
       }
-    : {};
+    : { idempotencyKey: input.idempotencyKey };
 
   const sourceIndependent = {
     sourceExcerpt: input.sourceBlock,
@@ -517,6 +956,7 @@ async function generateNodePayload(input: {
       sourceExcerpt: input.sourceBlock,
       requireSourceSupport: input.requireSourceSupport,
       sourcePages: input.sessionMeta?.sourcePages,
+      idempotencyKey: input.idempotencyKey,
       userPrompt: input.teachingV2
         ? `${ctx} 5 alıştırma sorusu (intro Q&A standardı). Tek kavramdan başla; en az 1 soruda kademeli ipucu için explanation'da ilk adımı ver. En az 1 multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
         : `${ctx} 5 çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,
@@ -702,6 +1142,7 @@ async function generateNodePayload(input: {
     sourceExcerpt: input.sourceBlock,
     requireSourceSupport: input.requireSourceSupport,
     sourcePages: input.sessionMeta?.sourcePages,
+    idempotencyKey: input.idempotencyKey,
     userPrompt: `${ctx} 5 çoktan seçmeli soru. ${
       input.teachingV2
         ? "multi=true yalnızca gerçekten birden fazla bağımsız doğru varken; aksi halde multi false. Her soruda learningObjective ve explanation yaz."

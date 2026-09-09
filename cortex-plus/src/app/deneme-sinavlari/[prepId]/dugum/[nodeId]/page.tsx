@@ -6,6 +6,8 @@ import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { examPrepIntroHref, needsExamIntro } from "@/lib/learning/exam-prep-hrefs";
 import type { Familiarity } from "@/lib/learning/session-signals";
+import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Ders" };
 
@@ -17,6 +19,10 @@ export default async function ExamNodePage({
   const { prepId, nodeId } = await params;
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
+  const resumeEnabled = await isFeatureEnabled(
+    createServiceClient(),
+    PDF_LEARNING_V2_FLAG,
+  );
 
   const [{ data: prep }, { data: node }] = await Promise.all([
     supabase
@@ -65,6 +71,7 @@ export default async function ExamNodePage({
         prepTitle={prep.title ?? "Sınav hazırlığı"}
         topicLabel={topicLabel}
         initialFamiliarity={topicFamiliarity}
+        resumeEnabled={resumeEnabled}
       />
     </AstraParitySorShell>
   );

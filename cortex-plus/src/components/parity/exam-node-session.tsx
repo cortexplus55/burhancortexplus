@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
@@ -50,6 +50,7 @@ export function ExamNodeSession({
   prepTitle,
   topicLabel,
   initialFamiliarity,
+  resumeEnabled = false,
 }: {
   prepId: string;
   nodeId: string;
@@ -58,14 +59,16 @@ export function ExamNodeSession({
   topicLabel: string | null;
   /** Konuya daha önce girildiyse beyan edilen aşinalık — varsayılan olarak gelir. */
   initialFamiliarity?: Familiarity | null;
+  /** Stage 8 — pdf_learning_v2: restore attempt + debounce + save answers. */
+  resumeEnabled?: boolean;
 }) {
   const router = useRouter();
   const meta = PLAN_NODE_META[kind];
   // Astra'daki sıra: aşinalık → ruh hali → kurulum. İkisi de zorunlu değil;
   // "setup"tan geri dönülebilsin diye aynı stage makinesinde tutuluyorlar.
   const [stage, setStage] = useState<
-    "familiarity" | "mood" | "setup" | "play" | "result"
-  >("familiarity");
+    "familiarity" | "mood" | "setup" | "play" | "result" | "restoring"
+  >(resumeEnabled ? "restoring" : "familiarity");
   const [familiarity, setFamiliarity] = useState<Familiarity>(
     initialFamiliarity ?? DEFAULT_FAMILIARITY,
   );
@@ -77,6 +80,9 @@ export function ExamNodeSession({
   const [paywall, setPaywall] = useState(false);
   const [payload, setPayload] = useState<Payload>({});
   const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [generationId, setGenerationId] = useState<string | null>(null);
+  const [contentVersion, setContentVersion] = useState(1);
+  const [clientRequestId, setClientRequestId] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [flipped, setFlipped] = useState(false);
@@ -92,9 +98,51 @@ export function ExamNodeSession({
   const [tfRevealed, setTfRevealed] = useState(false);
   /** Stage 6: which question indices showed a hint before submit. */
   const [hintsUsed, setHintsUsed] = useState<Record<string, boolean>>({});
+  const startInFlight = useRef(false);
+  const completeInFlight = useRef(false);
+  const completeRequestIdRef = useRef<string | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contentVersionRef = useRef(1);
+  const answersRef = useRef<Record<string, unknown>>({});
 
   const isTimedExam = kind === "written_exam";
   const [timeLeft, setTimeLeft] = useState(15 * 60);
+
+  useEffect(() => {
+    contentVersionRef.current = contentVersion;
+  }, [contentVersion]);
+
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  useEffect(() => {
+    if (!resumeEnabled) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/learning/exam-prep/node", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prepId, nodeId, action: "resume" }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (res.ok && data.resumed && data.attemptId && data.payload) {
+          applyStartPayload(data);
+          setStage("play");
+          return;
+        }
+      } catch {
+        // Fall through to normal setup.
+      }
+      if (!cancelled) setStage("familiarity");
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only restore
+  }, [resumeEnabled, prepId, nodeId]);
 
   useEffect(() => {
     if (stage !== "play" || !isTimedExam) return;
@@ -110,6 +158,87 @@ export function ExamNodeSession({
     return () => clearInterval(interval);
   }, [stage, isTimedExam]);
 
+  function storageKey() {
+    return `exam-node-req:${prepId}:${nodeId}`;
+  }
+
+  function getOrCreateClientRequestId() {
+    if (typeof window === "undefined") return crypto.randomUUID();
+    const existing = sessionStorage.getItem(storageKey());
+    if (existing) return existing;
+    const id = crypto.randomUUID();
+    sessionStorage.setItem(storageKey(), id);
+    return id;
+  }
+
+  function clearClientRequestId() {
+    if (typeof window === "undefined") return;
+    sessionStorage.removeItem(storageKey());
+  }
+
+  function applyStartPayload(data: {
+    attemptId?: string;
+    generationId?: string;
+    clientRequestId?: string;
+    contentVersion?: number;
+    payload?: Payload;
+    answers?: Record<string, unknown>;
+    cursorIndex?: number;
+    voiceMode?: boolean;
+  }) {
+    setPayload(data.payload ?? {});
+    setAttemptId(data.attemptId ?? null);
+    setGenerationId(data.generationId ?? null);
+    if (data.clientRequestId) setClientRequestId(data.clientRequestId);
+    const ver = data.contentVersion ?? 1;
+    setContentVersion(ver);
+    contentVersionRef.current = ver;
+    if (data.answers && typeof data.answers === "object") {
+      setAnswers(data.answers);
+      answersRef.current = data.answers;
+    }
+    if (typeof data.cursorIndex === "number") setIndex(data.cursorIndex);
+    if (typeof data.voiceMode === "boolean") setVoiceMode(data.voiceMode);
+  }
+
+  function scheduleSave(nextAnswers: Record<string, unknown>, cursor: number) {
+    if (!resumeEnabled || !attemptId || !generationId) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      void persistAnswers(nextAnswers, cursor);
+    }, 400);
+  }
+
+  async function persistAnswers(
+    nextAnswers: Record<string, unknown>,
+    cursor: number,
+  ) {
+    if (!resumeEnabled || !attemptId || !generationId) return;
+    try {
+      const res = await fetch("/api/learning/exam-prep/node", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prepId,
+          nodeId,
+          action: "save",
+          attemptId,
+          generationId,
+          contentVersion: contentVersionRef.current,
+          answers: nextAnswers,
+          cursorIndex: cursor,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && typeof data.contentVersion === "number") {
+        setContentVersion(data.contentVersion);
+        contentVersionRef.current = data.contentVersion;
+      }
+    } catch {
+      // Best-effort; complete still merges client answers.
+    }
+  }
+
   function formatTimer(sec: number) {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
@@ -117,9 +246,13 @@ export function ExamNodeSession({
   }
 
   async function start() {
+    if (startInFlight.current || loading) return;
+    startInFlight.current = true;
     setLoading(true);
     setGenerationError(null);
     try {
+      const reqId = resumeEnabled ? getOrCreateClientRequestId() : undefined;
+      if (reqId) setClientRequestId(reqId);
       const res = await fetch("/api/learning/exam-prep/node", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -131,6 +264,7 @@ export function ExamNodeSession({
           voiceMode,
           familiarity,
           mood,
+          ...(reqId ? { clientRequestId: reqId } : {}),
         }),
       });
       if (res.status === 402) {
@@ -139,25 +273,36 @@ export function ExamNodeSession({
       }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (data.error === "generation_failed_retry") {
+          clearClientRequestId();
+        }
         setGenerationError(data.error === "content_verification_failed"
           ? "Hazırlanan içerik kalite kontrolünü geçemedi. Yeniden deneyebilirsin."
           : "Ders şu anda oluşturulamadı. Yeniden deneyebilirsin.");
         return;
       }
-      setPayload(data.payload ?? {});
-      setAttemptId(data.attemptId);
+      applyStartPayload(data);
       setStage("play");
     } catch {
       setGenerationError("Bağlantı kurulamadı. Lütfen yeniden dene.");
     } finally {
       setLoading(false);
+      startInFlight.current = false;
     }
   }
 
   async function finish(nextAnswers?: Record<string, unknown>) {
+    if (completeInFlight.current || loading) return;
+    completeInFlight.current = true;
     setLoading(true);
     try {
-      const base = nextAnswers ?? answers;
+      const base = nextAnswers ?? answersRef.current;
+      if (resumeEnabled && attemptId && generationId) {
+        await persistAnswers(base, index);
+      }
+      if (!completeRequestIdRef.current) {
+        completeRequestIdRef.current = crypto.randomUUID();
+      }
       const res = await fetch("/api/learning/exam-prep/node", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -166,6 +311,11 @@ export function ExamNodeSession({
           nodeId,
           action: "complete",
           attemptId: attemptId ?? undefined,
+          generationId: generationId ?? undefined,
+          clientRequestId: clientRequestId ?? undefined,
+          completeRequestId: resumeEnabled
+            ? completeRequestIdRef.current
+            : undefined,
           answers: {
             ...base,
             __meta: { hintsUsed },
@@ -177,6 +327,8 @@ export function ExamNodeSession({
         toast.error(data.error ?? "Kaydedilemedi.");
         return;
       }
+      clearClientRequestId();
+      completeRequestIdRef.current = null;
       setScore({ score: data.score ?? 0, total: data.total ?? 1 });
       setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
       setFeedback(null);
@@ -185,7 +337,17 @@ export function ExamNodeSession({
       toast.error("Bağlantı hatası.");
     } finally {
       setLoading(false);
+      completeInFlight.current = false;
     }
+  }
+
+  function updateAnswer(key: string, value: unknown) {
+    setAnswers((prev) => {
+      const next = { ...prev, [key]: value };
+      answersRef.current = next;
+      scheduleSave(next, Number(key) || index);
+      return next;
+    });
   }
 
   function markHint(index: number) {
@@ -254,6 +416,13 @@ export function ExamNodeSession({
           ×
         </button>
       </div>
+
+      {stage === "restoring" ? (
+        <section className="ap-exam-setup">
+          <p className="ap-lesson-kicker">Devam</p>
+          <h1>Kaldığın yer açılıyor…</h1>
+        </section>
+      ) : null}
 
       {stage === "familiarity" || stage === "mood" ? (
         <article className="ap-signal-card">
@@ -408,9 +577,7 @@ export function ExamNodeSession({
           }))}
           index={index}
           value={answers[String(index)]}
-          onChange={(value) =>
-            setAnswers((prev) => ({ ...prev, [String(index)]: value }))
-          }
+          onChange={(value) => updateAnswer(String(index), value)}
           onContinue={() => {
             if (index + 1 < questions.length) setIndex(index + 1);
             else void finish();
@@ -445,7 +612,7 @@ export function ExamNodeSession({
                     showRed && "border-rose-500 bg-rose-500/20 text-rose-300",
                   )}
                   onClick={() => {
-                    setAnswers((prev) => ({ ...prev, [String(index)]: value }));
+                    updateAnswer(String(index), value);
                     setTfRevealed(true);
                   }}
                 >
@@ -504,8 +671,8 @@ export function ExamNodeSession({
               type="button"
               className="ap-exam-continue"
               onClick={() => {
-                const nextAnswers = { ...answers, [String(index)]: false };
-                setAnswers(nextAnswers);
+                const nextAnswers = { ...answersRef.current, [String(index)]: false };
+                updateAnswer(String(index), false);
                 setFlipped(false);
                 if (index + 1 < cards.length) setIndex(index + 1);
                 else void finish(nextAnswers);
@@ -517,8 +684,8 @@ export function ExamNodeSession({
               type="button"
               className="ap-exam-continue ap-exam-continue--primary"
               onClick={() => {
-                const nextAnswers = { ...answers, [String(index)]: true };
-                setAnswers(nextAnswers);
+                const nextAnswers = { ...answersRef.current, [String(index)]: true };
+                updateAnswer(String(index), true);
                 setFlipped(false);
                 if (index + 1 < cards.length) setIndex(index + 1);
                 else void finish(nextAnswers);
@@ -555,7 +722,7 @@ export function ExamNodeSession({
             placeholder={voiceMode ? "Konuşarak veya yazarak yanıtla" : "Yanıtın"}
             value={String(answers[String(index)] ?? "")}
             onChange={(event) =>
-              setAnswers((prev) => ({ ...prev, [String(index)]: event.target.value }))
+              updateAnswer(String(index), event.target.value)
             }
           />
           <button

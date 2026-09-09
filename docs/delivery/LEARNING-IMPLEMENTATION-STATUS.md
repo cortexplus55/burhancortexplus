@@ -13,10 +13,10 @@ Aşama 1 baseline kaydı (8 Eylül 2026 akşam): [PDF-LEARNING-STAGE1-BASELINE-2
 4. Tarih/süre/konuya göre çalışma dağılımı — **Aşama 4 temel dilim tamam** (saf plan motoru + bayraklı create + additive şema; bayrak kapalıyken legacy `buildExamPlan`). Bkz. [PDF-LEARNING-STAGE4-2026-09-08.md](./PDF-LEARNING-STAGE4-2026-09-08.md).
 5. Etkinlik türlerine özel öğretim — **Aşama 5 temel dilim tamam** (paylaşılan teaching-standards sözleşmesi + bayraklı node/lesson üretimi + misconception hook; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE5-2026-09-08.md](./PDF-LEARNING-STAGE5-2026-09-08.md).
 6. Cevaplara göre tekrar ve sonraki ders — **Aşama 6 temel dilim tamam** (ilerleme / ustalık / hazırlık ayrımı + evidence + anti-%100; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE6-2026-09-08.md](./PDF-LEARNING-STAGE6-2026-09-08.md).
-7. Doğrulama, kayıt ve kesinti güvenliği — **Aşama 7 temel dilim tamam** (sıralı validation pipeline + metrik + fail-closed + tek rezervasyon; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE7-2026-09-09.md](./PDF-LEARNING-STAGE7-2026-09-09.md). Idempotency/resume (Aşama 8) ayrı.
-8. Çalışma yolu ve sonuç arayüzü — bekliyor.
-9. Aynı PDF ile uçtan uca karşılaştırma — bekliyor.
-10. Farklı dersler, kontrollü yayın ve izleme — bekliyor.
+7. Doğrulama, kayıt ve kesinti güvenliği — **Aşama 7 temel dilim tamam** (sıralı validation pipeline + metrik + fail-closed + tek rezervasyon; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE7-2026-09-09.md](./PDF-LEARNING-STAGE7-2026-09-09.md).
+8. Idempotency / resume — **Aşama 8 temel dilim tamam** (generation/attempt kimlikleri + save/resume + çift start/complete koruması; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE8-2026-09-09.md](./PDF-LEARNING-STAGE8-2026-09-09.md).
+9. Çalışma yolu ve sonuç arayüzü — bekliyor.
+10. Aynı PDF ile uçtan uca karşılaştırma / kontrollü yayın — bekliyor.
 
 Bu sıralama onaylanan planın uygulama/teslim sırasıdır; önceki metindeki açıklama bölümleri ayrı tamamlanmış işler değildir.
 
@@ -47,13 +47,20 @@ Bu sıralama onaylanan planın uygulama/teslim sırasıdır; önceki metindeki a
 
 Madde 1’in **baseline harita / hedef doğrulama / geçiş planı** kısmı Stage-1 notunda kapatıldı. Canlı üretim kalitesi, backup ve v2 bayrak uygulaması hâlâ açık; bunlar Madde 1’in “sorunsuz kabul” barını tek başına karşılamaz — Aşama 2 öncesi bilinçli borç olarak durur.
 
+## Son kontrol — 9 Eylül (Aşama 8 idempotency / resume)
+
+- Aşama 8 kod + migration + doküman: [PDF-LEARNING-STAGE8-2026-09-09.md](./PDF-LEARNING-STAGE8-2026-09-09.md).
+- `pdf_learning_v2` kapalıyken legacy node; açıkken start/save/resume/complete idempotent.
+- Birim: `attempt-lifecycle` + `exam-node-stage8-idempotency` — çift start, çift complete, refresh restore, son cevap skorda.
+- Geçerli sıra: **Aşama 9 bekliyor** (çalışma yolu / sonuç UI).
+
 ## Son kontrol — 9 Eylül (Aşama 7 doğrulama)
 
 - Aşama 7 kod + migration + doküman: [PDF-LEARNING-STAGE7-2026-09-09.md](./PDF-LEARNING-STAGE7-2026-09-09.md).
 - Production Ready: `d03eabf` / `dpl_HCB5E1WNsL9kAL72ptNmtgaDuDmA` → cortexplus.app.
 - Bayrak geçici ON: quiz üretimi kabul + `ai_validation_events` accepted; sonra **OFF**.
 - Birim: `validation-pipeline` + `quality-gate` — sıra, fail-closed, onarım auto-accept yok.
-- Geçerli sıra: **Aşama 8 bekliyor** (idempotency / resume).
+- Geçerli sıra: **Aşama 9 bekliyor** (çalışma yolu / sonuç UI). Önceki: Aşama 8 tamam.
 
 ## Son kontrol — 8 Eylül akşam (Aşama 6 öğrenme takibi)
 
@@ -77,7 +84,7 @@ Madde 1’in **baseline harita / hedef doğrulama / geçiş planı** kısmı Sta
 
 - Aşama 3 kod + migration + doküman: [PDF-LEARNING-STAGE3-2026-09-08.md](./PDF-LEARNING-STAGE3-2026-09-08.md). Canlı DB’de stage3 kolonları/tablosu var; `pdf_learning_v2` **enabled=false**.
 - Intake/create/intro bayraklı; legacy yol bayrak kapalıyken korunur.
-- Geçerli sıra (Aşama 7 sonrası): **Aşama 8 bekliyor** (idempotency / resume).
+- Geçerli sıra (Aşama 8 sonrası): **Aşama 9 bekliyor** (çalışma yolu / sonuç UI).
 
 ## Son kontrol — 8 Eylül akşam (Aşama 2 temel dilim)
 
