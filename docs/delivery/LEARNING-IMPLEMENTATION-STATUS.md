@@ -58,6 +58,15 @@ Madde 1’in **baseline harita / hedef doğrulama / geçiş planı** kısmı Sta
 - §15: bayrak/rollback **met**; izleme **partial**; yedek **blocked**; OCR/vision/multi-doc **known limit**; herkese yayın **not done**.
 - Bayrak **OFF**. Sonraki: kontrollü yayın izleme (backup + kademeli açılış).
 
+## Kontrollü yayın — 9 Eylül (sonrası)
+
+- Not: [PDF-LEARNING-CONTROLLED-PUBLISH-2026-09-09.md](./PDF-LEARNING-CONTROLLED-PUBLISH-2026-09-09.md).
+- Production Ready: **`320ad30`** (Stage 10 dahil; `a4caed6` önceki Ready rollback).
+- Supabase yedek: **blocked** — org **Free**; daily/PITR için Pro upgrade gerekir.
+- `pdf_learning_v2` **ON** (`enabled_at` 2026-09-09 14:51:34 UTC) — smoke PASS.
+- Smoke: `/dokumanlar` Konu haritası CTA + harita sayfası; prep üç metre + Bugünün yolu; `/ogretmen` `/araclar` boş/500 yok.
+- Kill-switch: `update feature_flags set enabled=false where key='pdf_learning_v2'`.
+
 ## Son kontrol — 9 Eylül (Aşama 9 arayüz)
 
 - Aşama 9 kod + doküman: [PDF-LEARNING-STAGE9-2026-09-09.md](./PDF-LEARNING-STAGE9-2026-09-09.md).
