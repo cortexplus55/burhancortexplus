@@ -118,7 +118,22 @@ Smoke sırasında geçici ON → bitince **OFF**. Production’da açık bırak�
 
 ---
 
-## 6. Aşama 10 sonrası kalanlar
+## 6. Manuel / tarayıcı smoke (9 Eylül 2026)
+
+Production Ready: `a4caed6` / `dpl_7tsbCaSoUMgQ9MYn69YyEJqbAxEU` → cortexplus.app.  
+Prep: `Stage4 Trigonometri Plan` (`e6bfcc0f-…`). Bayrak geçici ON.
+
+| Senaryo | Sonuç |
+|---|---|
+| Üç metre anti-%100 (home + `/degerlendirme`) | PASS — “Hazırlık henüz düşük”; “%100 hazırlık değildir” |
+| Refresh resume | PASS — “Kaldığın yer açılıyor…”; DB’de `answers.0=true` korundu |
+| Çift complete (aynı `completeRequestId`) | PASS — iki çağrı `idempotent: true`, skor 2/5 |
+| Mobil ~390 | PASS — günlük yol + tercihler/yanlışlar/değerlendirme okunaklı |
+| Bayrak OFF sonrası | PASS — legacy trail + tek “Çalışmaya devam ediyorsun”; v2 linkleri yok |
+
+---
+
+## 7. Aşama 10 sonrası kalanlar
 
 1. Kontrollü yayın izleme planı (örnek kullanıcı / hata oranı).
 2. Supabase yedek doğrulama.

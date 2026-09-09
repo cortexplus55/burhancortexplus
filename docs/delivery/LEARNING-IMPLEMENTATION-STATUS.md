@@ -50,8 +50,10 @@ Madde 1’in **baseline harita / hedef doğrulama / geçiş planı** kısmı Sta
 ## Son kontrol — 9 Eylül (Aşama 10 kalite)
 
 - Aşama 10 kod + doküman: [PDF-LEARNING-STAGE10-2026-09-09.md](./PDF-LEARNING-STAGE10-2026-09-09.md).
-- Birim: `pdf-learning-stage10-quality` + ilgili Stage 2–9 suite — **407 test**.
+- Production Ready: `a4caed6` / `dpl_7tsbCaSoUMgQ9MYn69YyEJqbAxEU` → cortexplus.app.
+- Birim: `pdf-learning-stage10-quality` + suite — **407 test**.
 - Probe: `scripts/probe-pdf-learning-stage10.mjs` — 19 pass / 0 fail / 1 skip (multi-doc ürün yok).
+- Browser (bayrak geçici ON): üç metre anti-%100, refresh resume, çift complete idempotent, mobil ~390; sonra **OFF**.
 - Bug fix: kısa TOC/cevap sınıflaması, tablo regex, formül-gap sırası, boş coverage=blocked, domain mol/% , ders seed’leri.
 - §15: bayrak/rollback **met**; izleme **partial**; yedek **blocked**; OCR/vision/multi-doc **known limit**; herkese yayın **not done**.
 - Bayrak **OFF**. Sonraki: kontrollü yayın izleme (backup + kademeli açılış).
