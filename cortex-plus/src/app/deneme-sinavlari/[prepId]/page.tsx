@@ -28,8 +28,10 @@ import {
   weakOrStaleTopicKeys,
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
+import { parseLearningPreferences } from "@/lib/learning/exam-prep-ui-path";
 
 export const metadata = { title: "Sınav hazırlığı" };
+export const dynamic = "force-dynamic";
 
 export default async function ExamPrepDetailPage({
   params,
@@ -45,7 +47,7 @@ export default async function ExamPrepDetailPage({
   const { data: prep } = await supabase
     .from("exam_preps")
     .select(
-      "id, title, exam_type, study_plan_id, exam_date, active_topic_id, intro_completed_at, schedule_v2, learning_tracking, target_score",
+      "id, title, exam_type, study_plan_id, exam_date, active_topic_id, intro_completed_at, schedule_v2, learning_tracking, target_score, daily_minutes, study_days, hard_topics_self, learning_preferences",
     )
     .eq("id", prepId)
     .eq("user_id", user.id)
@@ -105,6 +107,8 @@ export default async function ExamPrepDetailPage({
     claimFullyReady: boolean;
   };
 
+  let openMisconceptions = 0;
+
   if (trackingV2) {
     const { data: masteryRows } = await supabase
       .from("exam_prep_topic_mastery")
@@ -122,6 +126,8 @@ export default async function ExamPrepDetailPage({
       .from("exam_prep_misconceptions")
       .select("id", { count: "exact", head: true })
       .eq("exam_prep_id", prepId);
+
+    openMisconceptions = misconceptionCount ?? 0;
 
     const topics: TopicMasterySnapshot[] = (masteryRows ?? []).map((row) => ({
       topicKey: row.topic_key as string,
@@ -164,7 +170,7 @@ export default async function ExamPrepDetailPage({
       plannedTopicKeys,
       mockScorePct,
       targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
-      openMisconceptions: misconceptionCount ?? 0,
+      openMisconceptions,
     });
 
     learningTrackingView = {
@@ -180,7 +186,7 @@ export default async function ExamPrepDetailPage({
     };
 
     const biased = preferNextNodeForTracking(nodes, {
-      openMisconceptions: misconceptionCount ?? 0,
+      openMisconceptions,
       weakOrStaleTopicKeys: weakOrStaleTopicKeys(topics),
     });
     if (biased) ready = biased;
@@ -206,8 +212,43 @@ export default async function ExamPrepDetailPage({
 
   const scheduleV2 =
     prep.schedule_v2 && typeof prep.schedule_v2 === "object"
-      ? (prep.schedule_v2 as { summary?: string })
+      ? (prep.schedule_v2 as {
+          summary?: string;
+          fits?: boolean;
+          optionsIfTight?: string[];
+        })
       : null;
+
+  const { data: allTopics } = trackingV2
+    ? await supabase
+        .from("exam_prep_topics")
+        .select("label")
+        .eq("exam_prep_id", prepId)
+    : { data: [] as { label: string }[] };
+
+  const settings = trackingV2
+    ? {
+        examDate: (prep.exam_date as string | null) ?? null,
+        dailyMinutes:
+          typeof prep.daily_minutes === "number" ? prep.daily_minutes : 45,
+        studyDays:
+          Array.isArray(prep.study_days) && prep.study_days.length
+            ? (prep.study_days as number[])
+            : [1, 2, 3, 4, 5],
+        hardTopics: Array.isArray(prep.hard_topics_self)
+          ? (prep.hard_topics_self as string[])
+          : [],
+        topicOptions: (allTopics ?? [])
+          .map((t) => String(t.label ?? "").trim())
+          .filter(Boolean),
+        preferences: parseLearningPreferences(prep.learning_preferences),
+        scheduleFits:
+          typeof scheduleV2?.fits === "boolean" ? scheduleV2.fits : null,
+        optionsIfTight: Array.isArray(scheduleV2?.optionsIfTight)
+          ? scheduleV2!.optionsIfTight!
+          : [],
+      }
+    : null;
 
   return (
     <AstraParitySorShell {...shell}>
@@ -227,6 +268,9 @@ export default async function ExamPrepDetailPage({
         initialShared={shareRow?.visibility === "school"}
         scheduleSummary={scheduleV2?.summary ?? null}
         learningTracking={learningTrackingView}
+        uiV2={trackingV2}
+        openMisconceptions={openMisconceptions}
+        settings={settings}
       />
     </AstraParitySorShell>
   );

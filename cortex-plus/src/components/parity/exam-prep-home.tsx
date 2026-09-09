@@ -13,7 +13,20 @@ import {
   type NodeStatus,
   type PlanNodeKind,
 } from "@/lib/learning/exam-prep-plan";
+import {
+  examPrepAssessmentHref,
+  examPrepReviewsHref,
+} from "@/lib/learning/exam-prep-hrefs";
+import {
+  findTodayGroup,
+  groupNodesByStudyDay,
+  missedIncompleteGroups,
+} from "@/lib/learning/exam-prep-ui-path";
 import { cn } from "@/lib/utils";
+import {
+  ExamPrepSettingsPanel,
+  type PrepSettingsInitial,
+} from "@/components/parity/exam-prep-settings-panel";
 
 export type HomeNode = {
   id: string;
@@ -60,6 +73,9 @@ export function ExamPrepHome({
   initialShared = false,
   scheduleSummary = null,
   learningTracking = null,
+  uiV2 = false,
+  openMisconceptions = 0,
+  settings = null,
 }: {
   prepId: string;
   title: string;
@@ -78,6 +94,10 @@ export function ExamPrepHome({
   scheduleSummary?: string | null;
   /** Stage 6 — three separate indicators when pdf_learning_v2 is on. */
   learningTracking?: LearningTrackingView | null;
+  /** Stage 9 — daily path, settings, reviews, assessment chrome. */
+  uiV2?: boolean;
+  openMisconceptions?: number;
+  settings?: PrepSettingsInitial | null;
 }) {
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
@@ -88,6 +108,22 @@ export function ExamPrepHome({
   const [shared, setShared] = useState(initialShared);
   const [sharing, setSharing] = useState(false);
   const showTracking = Boolean(learningTracking);
+
+  const dayGroups = uiV2 ? groupNodesByStudyDay(nodes) : [];
+  const todayGroup = uiV2 ? findTodayGroup(dayGroups) : null;
+  const missed = uiV2 ? missedIncompleteGroups(dayGroups) : [];
+
+  function openNode(node: HomeNode) {
+    if (!hasTopic) {
+      router.push(`/deneme-sinavlari/${prepId}/konu`);
+      return;
+    }
+    if (needsIntro) {
+      router.push(`/deneme-sinavlari/${prepId}/tanisma`);
+      return;
+    }
+    router.push(`/deneme-sinavlari/${prepId}/dugum/${node.id}`);
+  }
 
   // Paylaşım yalnızca konu başlıklarını görünür kılar; ilerleme ve cevaplar
   // hiçbir zaman paylaşılmaz — katılan kişi kendi kopyasını alır.
@@ -168,6 +204,22 @@ export function ExamPrepHome({
         </p>
       ) : null}
 
+      {uiV2 && settings ? (
+        <ExamPrepSettingsPanel prepId={prepId} initial={settings} />
+      ) : null}
+
+      {uiV2 ? (
+        <nav className="ap-exam-v2-links" aria-label="Öğrenme ekranları">
+          <Link href={examPrepReviewsHref(prepId)} className="ap-back-pill">
+            Yanlışlar
+            {openMisconceptions > 0 ? ` (${openMisconceptions})` : ""}
+          </Link>
+          <Link href={examPrepAssessmentHref(prepId)} className="ap-back-pill">
+            Sınav öncesi değerlendirme
+          </Link>
+        </nav>
+      ) : null}
+
       {daysLeft !== null || showTracking ? (
         <section
           className={cn(
@@ -237,46 +289,167 @@ export function ExamPrepHome({
         </section>
       ) : null}
 
-      <ol className="ap-exam-trail">
-        {nodes.map((node, index) => (
-          <li
-            key={node.id}
-            className={`ap-exam-trail-item ap-exam-trail-item--${index % 2 === 0 ? "left" : "right"}`}
-          >
-            <button
-              type="button"
-              className={`ap-exam-trail-node ap-exam-trail-node--${node.status}`}
-              disabled={node.status === "locked"}
-              aria-label={`${node.title}, gün ${node.dayIndex}`}
-              onClick={() => {
-                if (!hasTopic) {
-                  router.push(`/deneme-sinavlari/${prepId}/konu`);
-                  return;
-                }
-                if (needsIntro) {
-                  router.push(`/deneme-sinavlari/${prepId}/tanisma`);
-                  return;
-                }
-                router.push(`/deneme-sinavlari/${prepId}/dugum/${node.id}`);
-              }}
+      {uiV2 && missed.length ? (
+        <p className="ap-exam-settings-warn" role="status">
+          {missed.length} geçmiş günde tamamlanmamış oturum var. “Kaçırılan günleri
+          yeniden dağıt” ile kalan planı bugünden itibaren sıkıştırabilirsin.
+        </p>
+      ) : null}
+
+      {uiV2 && todayGroup ? (
+        <section className="ap-exam-today" aria-label="Bugünün yolu">
+          <p className="ap-lesson-kicker">Bugün</p>
+          <h2>{todayGroup.label}</h2>
+          <p className="text-sm text-[var(--ap-muted)]">
+            {todayGroup.doneCount}/{todayGroup.nodes.length} bitti
+            {todayGroup.totalMinutes
+              ? ` · ~${todayGroup.totalMinutes} dk`
+              : ""}
+          </p>
+          <ul className="ap-exam-today-list">
+            {todayGroup.nodes.map((node) => {
+              const homeNode = nodes.find((n) => n.id === node.id);
+              if (!homeNode) return null;
+              return (
+                <li key={node.id}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "ap-exam-today-item",
+                      `ap-exam-today-item--${node.status}`,
+                    )}
+                    disabled={node.status === "locked"}
+                    onClick={() => openNode(homeNode)}
+                  >
+                    <strong>
+                      {homeNode.title || PLAN_NODE_META[homeNode.kind].title}
+                    </strong>
+                    <span>
+                      {node.status === "done"
+                        ? "Tamam"
+                        : node.status === "ready"
+                          ? "Sırada"
+                          : "Kilitli"}
+                      {node.sessionMeta?.durationMinutes
+                        ? ` · ${node.sessionMeta.durationMinutes} dk`
+                        : ""}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
+      {!nodes.length ? (
+        <div className="ap-exam-empty" role="status">
+          <p>
+            <strong>Henüz çalışma yolu yok</strong>
+          </p>
+          <p className="text-sm text-[var(--ap-muted)]">
+            Konu seçip tanı ölçümünü tamamladığında günlük yol burada görünür.
+          </p>
+          <Link href={startHref} className="ap-exam-continue ap-exam-continue--primary">
+            İlk adımı aç
+          </Link>
+        </div>
+      ) : uiV2 ? (
+        <div className="ap-exam-day-path" aria-label="Günlük çalışma yolu">
+          {dayGroups.map((group) => (
+            <section
+              key={group.key}
+              className={cn(
+                "ap-exam-day-block",
+                group.isToday && "ap-exam-day-block--today",
+                group.isPast && "ap-exam-day-block--past",
+              )}
             >
-              {node.status === "done" ? "✓" : node.status === "locked" ? "🔒" : index + 1}
-            </button>
-            <span>
-              <strong>{node.title || PLAN_NODE_META[node.kind].title}</strong>
-              <em>
-                Gün {node.dayIndex}
-                {node.sessionMeta?.durationMinutes
-                  ? ` · ${node.sessionMeta.durationMinutes} dk`
-                  : ""}
-                {node.sessionMeta?.sourcePages?.length
-                  ? ` · s.${node.sessionMeta.sourcePages.slice(0, 4).join(",")}`
-                  : ""}
-              </em>
-            </span>
-          </li>
-        ))}
-      </ol>
+              <header>
+                <h3>{group.label}</h3>
+                <p>
+                  {group.doneCount}/{group.nodes.length}
+                  {group.totalMinutes ? ` · ${group.totalMinutes} dk` : ""}
+                  {group.isToday ? " · bugün" : ""}
+                </p>
+              </header>
+              <ol className="ap-exam-trail ap-exam-trail--compact">
+                {group.nodes.map((node, index) => {
+                  const homeNode = nodes.find((n) => n.id === node.id);
+                  if (!homeNode) return null;
+                  return (
+                    <li
+                      key={node.id}
+                      className={`ap-exam-trail-item ap-exam-trail-item--${index % 2 === 0 ? "left" : "right"}`}
+                    >
+                      <button
+                        type="button"
+                        className={`ap-exam-trail-node ap-exam-trail-node--${node.status}`}
+                        disabled={node.status === "locked"}
+                        aria-label={`${homeNode.title}, ${group.label}`}
+                        onClick={() => openNode(homeNode)}
+                      >
+                        {node.status === "done"
+                          ? "✓"
+                          : node.status === "locked"
+                            ? "🔒"
+                            : index + 1}
+                      </button>
+                      <span>
+                        <strong>
+                          {homeNode.title || PLAN_NODE_META[homeNode.kind].title}
+                        </strong>
+                        <em>
+                          {homeNode.sessionMeta?.topicTitle
+                            ? `${homeNode.sessionMeta.topicTitle} · `
+                            : ""}
+                          {homeNode.sessionMeta?.durationMinutes
+                            ? `${homeNode.sessionMeta.durationMinutes} dk`
+                            : ""}
+                          {homeNode.sessionMeta?.sourcePages?.length
+                            ? ` · s.${homeNode.sessionMeta.sourcePages.slice(0, 4).join(",")}`
+                            : ""}
+                        </em>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <ol className="ap-exam-trail">
+          {nodes.map((node, index) => (
+            <li
+              key={node.id}
+              className={`ap-exam-trail-item ap-exam-trail-item--${index % 2 === 0 ? "left" : "right"}`}
+            >
+              <button
+                type="button"
+                className={`ap-exam-trail-node ap-exam-trail-node--${node.status}`}
+                disabled={node.status === "locked"}
+                aria-label={`${node.title}, gün ${node.dayIndex}`}
+                onClick={() => openNode(node)}
+              >
+                {node.status === "done" ? "✓" : node.status === "locked" ? "🔒" : index + 1}
+              </button>
+              <span>
+                <strong>{node.title || PLAN_NODE_META[node.kind].title}</strong>
+                <em>
+                  Gün {node.dayIndex}
+                  {node.sessionMeta?.durationMinutes
+                    ? ` · ${node.sessionMeta.durationMinutes} dk`
+                    : ""}
+                  {node.sessionMeta?.sourcePages?.length
+                    ? ` · s.${node.sessionMeta.sourcePages.slice(0, 4).join(",")}`
+                    : ""}
+                </em>
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
 
       <div className="ap-exam-start-card">
         <p>{started ? "Sıradaki derse geç" : "Başlamaya hazır mısın?"}</p>

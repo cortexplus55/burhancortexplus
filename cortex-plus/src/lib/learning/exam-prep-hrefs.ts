@@ -14,6 +14,14 @@ export function examPrepNodeHref(prepId: string, nodeId: string) {
   return `/deneme-sinavlari/${prepId}/dugum/${nodeId}`;
 }
 
+export function examPrepReviewsHref(prepId: string) {
+  return `/deneme-sinavlari/${prepId}/tekrarlar`;
+}
+
+export function examPrepAssessmentHref(prepId: string) {
+  return `/deneme-sinavlari/${prepId}/degerlendirme`;
+}
+
 export function needsExamIntro(
   introCompletedAt: string | null | undefined,
   nodes: { status: string }[],

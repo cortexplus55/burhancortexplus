@@ -141,7 +141,7 @@ export async function POST(request: Request) {
 
   const { data: prep } = await service
     .from("exam_preps")
-    .select("id, title, exam_type, active_topic_id, target_score")
+    .select("id, title, exam_type, active_topic_id, target_score, learning_preferences")
     .eq("id", prepId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -746,6 +746,7 @@ export async function POST(request: Request) {
             teachingV2 && prepSource.document_id && sourceBoundaryMode !== "allow_supporting",
           ),
           idempotencyKey: creditKey,
+          learningPreferences: teachingV2 ? prep.learning_preferences : null,
         });
   } catch (error) {
     if (teachingV2 && creatingAttemptId && generationId && clientRequestId) {
@@ -917,18 +918,22 @@ async function generateNodePayload(input: {
   requireSourceSupport?: boolean;
   /** Stage 8: stable key so double-click / retry does not double-charge. */
   idempotencyKey?: string;
+  learningPreferences?: unknown;
 }) {
   const activity = teachingActivityForKind(input.kind);
   const sessionCtx = input.teachingV2
     ? teachingSessionContext(input.sessionMeta, input.topicLabel)
     : "";
   const standards = input.teachingV2 ? teachingStandardConstraints(activity) : "";
+  const prefsHint = input.teachingV2
+    ? preferencePromptHint(input.learningPreferences)
+    : "";
   // Aşinalık içeriğin nereden başlayacağını, ruh hali tonunu belirler.
   // Kaynak bloğu sona geliyor: model en son okuduğu talimata daha sadık.
   const ctx = `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}. Zorluk: ${input.difficulty}. ${sessionSignalsPrompt(
     input.familiarity,
     input.mood,
-  )} ${sessionCtx} ${standards}${input.sourceBlock}`;
+  )} ${sessionCtx} ${standards}${prefsHint}${input.sourceBlock}`;
 
   const v2Common = input.teachingV2
     ? {
@@ -1213,4 +1218,17 @@ function scoreAttempt(
     return { score, total: questions.length || 1 };
   }
   return { score: 1, total: 1 };
+}
+
+function preferencePromptHint(raw: unknown): string {
+  if (!raw || typeof raw !== "object") return "";
+  const o = raw as Record<string, unknown>;
+  const parts: string[] = [];
+  if (o.style === "examples") parts.push("Öğrenme tercihi: örneklerle anlat.");
+  if (o.style === "theory") parts.push("Öğrenme tercihi: tanım ve kuramı önce ver.");
+  if (o.style === "mixed") parts.push("Öğrenme tercihi: kuram + örnek karışık.");
+  if (o.pace === "slow") parts.push("Tempo: yavaş, adım adım.");
+  if (o.pace === "fast") parts.push("Tempo: kısa ve öz.");
+  if (o.pace === "normal") parts.push("Tempo: normal.");
+  return parts.length ? ` ${parts.join(" ")}` : "";
 }

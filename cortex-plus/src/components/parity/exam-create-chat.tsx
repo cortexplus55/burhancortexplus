@@ -25,7 +25,12 @@ function tomorrowIso() {
   return date.toISOString().slice(0, 10);
 }
 
-export function ExamCreateChat() {
+export function ExamCreateChat({
+  initialDocumentId = null,
+}: {
+  /** Stage 9 — deep link from topic map / docs list. */
+  initialDocumentId?: string | null;
+}) {
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
@@ -44,7 +49,7 @@ export function ExamCreateChat() {
   const [starting, setStarting] = useState(false);
   const [paywall, setPaywall] = useState(false);
   const [docs, setDocs] = useState<{ id: string; fileName: string }[]>([]);
-  const [documentId, setDocumentId] = useState<string | null>(null);
+  const [documentId, setDocumentId] = useState<string | null>(initialDocumentId);
   const [intakeMode, setIntakeMode] = useState<"legacy" | "v2">("legacy");
   const [dailyMinutes, setDailyMinutes] = useState(45);
   const [studyDays, setStudyDays] = useState<number[]>([1, 2, 3, 4, 5]);

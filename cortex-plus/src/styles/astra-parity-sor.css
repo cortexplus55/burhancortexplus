@@ -4315,6 +4315,229 @@
   color: var(--ap-muted);
 }
 
+/* Stage 9 — daily path, settings, reviews, assessment */
+.ap-exam-settings {
+  margin: 0.75rem 0 1rem;
+}
+
+.ap-exam-settings-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.ap-exam-settings-warn {
+  margin: 0.65rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--ap-gold) 35%, var(--ap-border));
+  background: color-mix(in srgb, var(--ap-gold) 8%, #161616);
+  color: var(--ap-text);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.ap-exam-v2-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.35rem 0 0.85rem;
+}
+
+.ap-exam-today {
+  margin: 0.5rem 0 1.1rem;
+  padding: 1rem 1.05rem;
+  border-radius: 1.2rem;
+  border: 1px solid var(--ap-border);
+  background: #161616;
+}
+
+.ap-exam-today h2 {
+  margin: 0.15rem 0 0.35rem;
+  font-size: 1.15rem;
+}
+
+.ap-exam-today-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.ap-exam-today-item {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.95rem;
+  border: 1px solid var(--ap-border);
+  background: #1a1a1a;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ap-exam-today-item:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ap-exam-today-item--ready {
+  border-color: color-mix(in srgb, var(--ap-gold) 45%, var(--ap-border));
+}
+
+.ap-exam-today-item--done {
+  opacity: 0.8;
+}
+
+.ap-exam-today-item span {
+  font-size: 0.75rem;
+  color: var(--ap-muted);
+}
+
+.ap-exam-day-path {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  margin: 0.5rem 0 1.25rem;
+}
+
+.ap-exam-day-block {
+  padding: 0.85rem 0.2rem 0.2rem;
+  border-top: 1px solid var(--ap-border);
+}
+
+.ap-exam-day-block--today {
+  border-top-color: color-mix(in srgb, var(--ap-gold) 50%, var(--ap-border));
+}
+
+.ap-exam-day-block header {
+  margin: 0 0 0.55rem 0.35rem;
+}
+
+.ap-exam-day-block h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.ap-exam-day-block header p {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  color: var(--ap-muted);
+}
+
+.ap-exam-trail--compact {
+  margin-top: 0.25rem;
+}
+
+.ap-exam-empty {
+  margin: 1rem 0;
+  padding: 1.1rem 1.15rem;
+  border-radius: 1.2rem;
+  border: 1px dashed var(--ap-border);
+  background: #141414;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  align-items: flex-start;
+}
+
+.ap-exam-review-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ap-exam-review-card {
+  padding: 0.95rem 1rem;
+  border-radius: 1.1rem;
+  border: 1px solid var(--ap-border);
+  background: #161616;
+  overflow-wrap: anywhere;
+}
+
+.ap-exam-review-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  font-size: 0.75rem;
+  color: var(--ap-muted);
+  margin-bottom: 0.45rem;
+}
+
+.ap-exam-review-tag {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--ap-border);
+  background: #222;
+  color: var(--ap-text);
+}
+
+.ap-exam-review-claim {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ap-exam-assessment-verdict {
+  margin: 1rem 0;
+  padding: 1rem 1.05rem;
+  border-radius: 1.2rem;
+  border: 1px solid var(--ap-border);
+  background: #161616;
+}
+
+.ap-exam-assessment-verdict h2 {
+  margin: 0.2rem 0 0.55rem;
+  font-size: 1.15rem;
+}
+
+.ap-exam-topic-board {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.ap-exam-topic-board li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.95rem;
+  border: 1px solid var(--ap-border);
+  background: #161616;
+  overflow-wrap: anywhere;
+}
+
+.ap-exam-topic-board span {
+  font-size: 0.78rem;
+  color: var(--ap-muted);
+}
+
+@media (max-width: 640px) {
+  .ap-exam-today-item,
+  .ap-exam-review-card,
+  .ap-exam-topic-board li {
+    max-width: 100%;
+  }
+
+  .ap-exam-trail-item span {
+    max-width: min(100%, 14rem);
+    overflow-wrap: anywhere;
+  }
+}
+
 /* ---------------------------------------------------------------------------
    Kullanım limitleri kartı
    Kota artık mutlak kredi değil, dönem içinde kullanılan yüzde. Sıfırlanma anı

@@ -417,9 +417,16 @@ export function ExamNodeSession({
       </div>
 
       {stage === "restoring" ? (
-        <section className="ap-exam-setup">
+        <section className="ap-exam-setup" aria-busy="true" aria-live="polite">
           <p className="ap-lesson-kicker">Devam</p>
           <h1>Kaldığın yer açılıyor…</h1>
+          <p className="text-sm text-[var(--ap-muted)]">
+            Kaydedilmiş cevapların yükleniyor. Yeniden ücret alınmaz — yarım kalan
+            oturum güvenle sürer.
+          </p>
+          <p className="text-xs text-[var(--ap-muted)]" role="status">
+            Bu ekran boş değil; kısa süre sonra sorulara döneceksin.
+          </p>
         </section>
       ) : null}
 
@@ -748,6 +755,23 @@ export function ExamNodeSession({
             Doğruluk {Math.round((score.score / Math.max(1, score.total)) * 100)}%
             {" · "}Bu oturum skoru program ilerlemesinden ve sınava hazırlık tahmininden ayrıdır.
           </p>
+          {resumeEnabled ? (
+            <p className="text-sm">
+              <Link
+                href={`/deneme-sinavlari/${prepId}/tekrarlar`}
+                className="underline"
+              >
+                Yanlışlar ve tekrarlar
+              </Link>
+              {" · "}
+              <Link
+                href={`/deneme-sinavlari/${prepId}/degerlendirme`}
+                className="underline"
+              >
+                Sınav öncesi değerlendirme
+              </Link>
+            </p>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <button type="button" className="ap-exam-continue" onClick={() => {
               setStage("setup");

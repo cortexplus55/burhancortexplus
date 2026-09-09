@@ -23,6 +23,14 @@ const statusLabels: Record<string, string> = {
   failed: "Başarısız",
 };
 
+const topicMapLabels: Record<string, string> = {
+  none: "Harita yok",
+  pending: "Harita çıkarılıyor",
+  ready: "Harita hazır",
+  reviewed: "Harita gözden geçirildi",
+  failed: "Harita başarısız",
+};
+
 function statusClass(status: string) {
   if (status === "completed") return "bg-amber-500/20 text-amber-200";
   if (status === "failed") return "bg-red-500/15 text-red-300";
@@ -39,7 +47,7 @@ export default async function DokumanlarPage() {
   const { data: documents } = await supabase
     .from("documents")
     .select(
-      "id, file_name, status, size_bytes, created_at, error_message, topic_map_status",
+      "id, file_name, status, size_bytes, created_at, error_message, topic_map_status, topic_map_error",
     )
     .eq("user_id", user.id)
     .is("deleted_at", null)
@@ -57,7 +65,11 @@ export default async function DokumanlarPage() {
           title="Doküman yükle"
           description="Yüklediğin kaynaklar yalnızca senin hesabına bağlıdır ve özel depolamada tutulur."
         >
-          <DocumentUpload creditCost={cost} variant="astra" />
+          <DocumentUpload
+            creditCost={cost}
+            variant="astra"
+            learningV2={pdfLearningV2}
+          />
         </SectionCard>
 
         {documents?.length ? (
@@ -75,10 +87,11 @@ export default async function DokumanlarPage() {
                     {Math.round(document.size_bytes / 1024)} KB ·{" "}
                     {formatDate(document.created_at)}
                     {document.error_message ? ` · ${document.error_message}` : ""}
-                    {pdfLearningV2 &&
-                    document.topic_map_status &&
-                    document.topic_map_status !== "none"
-                      ? ` · harita: ${document.topic_map_status}`
+                    {pdfLearningV2 && document.topic_map_status
+                      ? ` · ${topicMapLabels[document.topic_map_status] ?? `harita: ${document.topic_map_status}`}`
+                      : ""}
+                    {pdfLearningV2 && document.topic_map_error
+                      ? ` · ${document.topic_map_error}`
                       : ""}
                   </p>
                 </div>
@@ -97,6 +110,17 @@ export default async function DokumanlarPage() {
                       className="text-xs underline"
                     >
                       Konu haritası
+                    </Link>
+                  ) : null}
+                  {pdfLearningV2 &&
+                  document.status === "completed" &&
+                  (document.topic_map_status === "ready" ||
+                    document.topic_map_status === "reviewed") ? (
+                    <Link
+                      href={`/deneme-sinavlari/olustur?documentId=${document.id}`}
+                      className="text-xs font-medium underline"
+                    >
+                      Sınav hazırlığı başlat
                     </Link>
                   ) : null}
                   {document.status === "processing" ||

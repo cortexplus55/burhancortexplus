@@ -15,7 +15,7 @@ Aşama 1 baseline kaydı (8 Eylül 2026 akşam): [PDF-LEARNING-STAGE1-BASELINE-2
 6. Cevaplara göre tekrar ve sonraki ders — **Aşama 6 temel dilim tamam** (ilerleme / ustalık / hazırlık ayrımı + evidence + anti-%100; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE6-2026-09-08.md](./PDF-LEARNING-STAGE6-2026-09-08.md).
 7. Doğrulama, kayıt ve kesinti güvenliği — **Aşama 7 temel dilim tamam** (sıralı validation pipeline + metrik + fail-closed + tek rezervasyon; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE7-2026-09-09.md](./PDF-LEARNING-STAGE7-2026-09-09.md).
 8. Idempotency / resume — **Aşama 8 temel dilim tamam** (generation/attempt kimlikleri + save/resume + çift start/complete koruması; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE8-2026-09-09.md](./PDF-LEARNING-STAGE8-2026-09-09.md).
-9. Çalışma yolu ve sonuç arayüzü — bekliyor.
+9. Çalışma yolu ve sonuç arayüzü — **Aşama 9 temel dilim tamam** (günlük yol, tercihler/yeniden plan, yanlışlar, sınav öncesi değerlendirme; bayrak kapalı). Bkz. [PDF-LEARNING-STAGE9-2026-09-09.md](./PDF-LEARNING-STAGE9-2026-09-09.md).
 10. Aynı PDF ile uçtan uca karşılaştırma / kontrollü yayın — bekliyor.
 
 Bu sıralama onaylanan planın uygulama/teslim sırasıdır; önceki metindeki açıklama bölümleri ayrı tamamlanmış işler değildir.
@@ -47,13 +47,20 @@ Bu sıralama onaylanan planın uygulama/teslim sırasıdır; önceki metindeki a
 
 Madde 1’in **baseline harita / hedef doğrulama / geçiş planı** kısmı Stage-1 notunda kapatıldı. Canlı üretim kalitesi, backup ve v2 bayrak uygulaması hâlâ açık; bunlar Madde 1’in “sorunsuz kabul” barını tek başına karşılamaz — Aşama 2 öncesi bilinçli borç olarak durur.
 
+## Son kontrol — 9 Eylül (Aşama 9 arayüz)
+
+- Aşama 9 kod + doküman: [PDF-LEARNING-STAGE9-2026-09-09.md](./PDF-LEARNING-STAGE9-2026-09-09.md).
+- Günlük yol / tercihler / reschedule / tekrarlar / değerlendirme `pdf_learning_v2` arkasında.
+- Birim: `exam-prep-ui-stage9` — gün gruplama, kaçırılan gün, prefs.
+- Geçerli sıra: **Aşama 10 bekliyor** (uçtan uca kalite / kontrollü yayın).
+
 ## Son kontrol — 9 Eylül (Aşama 8 idempotency / resume)
 
 - Aşama 8 kod + migration + doküman: [PDF-LEARNING-STAGE8-2026-09-09.md](./PDF-LEARNING-STAGE8-2026-09-09.md).
 - Production Ready: `d07e97c` / `dpl_BckSmtsiULCqynuFtZRL4ZXgS9gX` → cortexplus.app.
 - Bayrak geçici ON: refresh’te cevap restore + çift complete `idempotent`; sonra **OFF**.
 - Birim: `attempt-lifecycle` + `exam-node-stage8-idempotency` — çift start, çift complete, refresh restore, son cevap skorda.
-- Geçerli sıra: **Aşama 9 bekliyor** (çalışma yolu / sonuç UI).
+- Geçerli sıra (Aşama 9 sonrası): **Aşama 10 bekliyor**.
 
 ## Son kontrol — 9 Eylül (Aşama 7 doğrulama)
 
@@ -61,7 +68,7 @@ Madde 1’in **baseline harita / hedef doğrulama / geçiş planı** kısmı Sta
 - Production Ready: `d03eabf` / `dpl_HCB5E1WNsL9kAL72ptNmtgaDuDmA` → cortexplus.app.
 - Bayrak geçici ON: quiz üretimi kabul + `ai_validation_events` accepted; sonra **OFF**.
 - Birim: `validation-pipeline` + `quality-gate` — sıra, fail-closed, onarım auto-accept yok.
-- Geçerli sıra: **Aşama 9 bekliyor** (çalışma yolu / sonuç UI). Önceki: Aşama 8 tamam.
+- Geçerli sıra: **Aşama 10 bekliyor** (Aşama 9 tamam; tarihsel not: o sırada Aşama 8 sonrası Aşama 9 bekliyordu).
 
 ## Son kontrol — 8 Eylül akşam (Aşama 6 öğrenme takibi)
 

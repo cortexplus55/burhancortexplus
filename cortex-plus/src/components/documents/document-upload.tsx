@@ -22,13 +22,17 @@ const MAX_BYTES = 15 * 1024 * 1024;
 export function DocumentUpload({
   creditCost,
   variant = "default",
+  learningV2 = false,
 }: {
   creditCost: number | null;
   variant?: "default" | "astra";
+  /** Stage 9 — explain topic-map pipeline when pdf_learning_v2 is on. */
+  learningV2?: boolean;
 }) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<"idle" | "uploading" | "processing">("idle");
+  const [statusDetail, setStatusDetail] = useState<string | null>(null);
   const [paywall, setPaywall] = useState(false);
 
   async function submit(event: React.FormEvent) {
@@ -45,6 +49,7 @@ export function DocumentUpload({
     }
 
     setStage("uploading");
+    setStatusDetail("Dosya hesabına yükleniyor…");
     try {
       const form = new FormData();
       form.append("file", file);
@@ -56,10 +61,16 @@ export function DocumentUpload({
 
       if (!uploadRes.ok) {
         toast.error(uploaded.error ?? "Yükleme başarısız.");
+        setStatusDetail(null);
         return;
       }
 
       setStage("processing");
+      setStatusDetail(
+        learningV2
+          ? "Sayfalar okunuyor ve konu haritası çıkarılıyor…"
+          : "Doküman işleniyor…",
+      );
       const processRes = await fetch("/api/documents/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -68,12 +79,23 @@ export function DocumentUpload({
 
       if (processRes.status === 402) {
         setPaywall(true);
+        setStatusDetail(null);
         return;
       }
 
       const processed = await processRes.json().catch(() => ({}));
       if (!processRes.ok) {
         toast.error(processed.error ?? "Doküman işlenemedi.");
+        setStatusDetail(null);
+        return;
+      }
+
+      if (learningV2 && uploaded.documentId) {
+        toast.success(
+          "Belge hazır. Konu haritasını gözden geçirip sınav hazırlığına geçebilirsin.",
+        );
+        setFile(null);
+        router.push(`/dokumanlar/${uploaded.documentId}`);
         return;
       }
 
@@ -82,8 +104,10 @@ export function DocumentUpload({
       router.refresh();
     } catch {
       toast.error("Bağlantı hatası.");
+      setStatusDetail(null);
     } finally {
       setStage("idle");
+      setStatusDetail(null);
       router.refresh();
     }
   }
@@ -120,7 +144,22 @@ export function DocumentUpload({
           >
             PDF, TXT ve görsel · en fazla 15 MB
             {creditCost !== null ? ` · işleme ${creditCost} kredi` : ""}
+            {learningV2
+              ? " · işlem sonrası konu haritası çıkarılır"
+              : ""}
           </p>
+          {statusDetail ? (
+            <p
+              className={cn(
+                "text-xs",
+                isAstra ? "text-[var(--astra-muted)]" : "text-muted-foreground",
+              )}
+              role="status"
+              aria-live="polite"
+            >
+              {statusDetail}
+            </p>
+          ) : null}
         </div>
 
         {isAstra ? (
@@ -132,7 +171,9 @@ export function DocumentUpload({
             {stage === "uploading"
               ? "Yükleniyor…"
               : stage === "processing"
-                ? "İşleniyor…"
+                ? learningV2
+                  ? "Harita çıkarılıyor…"
+                  : "İşleniyor…"
                 : "Yükle ve işle"}
           </button>
         ) : (
@@ -140,7 +181,9 @@ export function DocumentUpload({
             {stage === "uploading"
               ? "Yükleniyor…"
               : stage === "processing"
-                ? "İşleniyor…"
+                ? learningV2
+                  ? "Harita çıkarılıyor…"
+                  : "İşleniyor…"
                 : "Yükle ve işle"}
           </Button>
         )}

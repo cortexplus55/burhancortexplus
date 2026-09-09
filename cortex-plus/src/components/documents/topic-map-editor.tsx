@@ -302,6 +302,12 @@ export function TopicMapEditor({
         >
           Haritayı yeniden oluştur
         </button>
+        <a
+          href={`/deneme-sinavlari/olustur?documentId=${documentId}`}
+          className="rounded-full border border-[var(--astra-primary)]/40 px-4 py-2 text-sm font-medium text-[var(--astra-primary)]"
+        >
+          Bu haritayla sınav hazırlığı başlat →
+        </a>
       </div>
     </div>
   );
