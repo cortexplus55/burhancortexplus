@@ -93,10 +93,14 @@ const CORE_ORDER: PlanNodeKind[] = [
 const FILL_ORDER: PlanNodeKind[] = ["spaced", "gaps", "flashcards", "quiz", "qa"];
 
 export function daysUntilExam(examDate: string, from = new Date()): number {
-  const start = new Date(from);
-  start.setHours(0, 0, 0, 0);
-  const exam = new Date(`${examDate}T00:00:00`);
-  const diff = Math.ceil((exam.getTime() - start.getTime()) / 86_400_000);
+  // Use the same Turkish calendar date on the UTC server and in the browser.
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(from);
+  const part = (type: string) => parts.find((item) => item.type === type)!.value;
+  const start = Date.parse(`${part("year")}-${part("month")}-${part("day")}T00:00:00Z`);
+  const exam = Date.parse(`${examDate}T00:00:00Z`);
+  const diff = Math.ceil((exam - start) / 86_400_000);
   return Math.max(1, diff);
 }
 
