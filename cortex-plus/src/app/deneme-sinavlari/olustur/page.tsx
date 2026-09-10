@@ -1,5 +1,5 @@
 import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
-import { ExamCreateChat } from "@/components/parity/exam-create-chat";
+import { ExamCreateEntry } from "@/components/parity/exam-create-entry";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 
@@ -20,9 +20,28 @@ export default async function ExamCreatePage({
       ? params.documentId
       : null;
 
+  // Ders seçiminde en üste öğrencinin hâlihazırda çalıştığı dersler gelsin.
+  const { data: recentRows } = await supabase
+    .from("exam_preps")
+    .select("exam_type")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(12);
+
+  const recentSubjects = [
+    ...new Set(
+      (recentRows ?? [])
+        .map((row) => (row.exam_type as string | null)?.trim())
+        .filter((value): value is string => Boolean(value && value.length > 1)),
+    ),
+  ].slice(0, 6);
+
   return (
     <AstraParitySorShell {...shell}>
-      <ExamCreateChat initialDocumentId={documentId} />
+      <ExamCreateEntry
+        initialDocumentId={documentId}
+        recentSubjects={recentSubjects}
+      />
     </AstraParitySorShell>
   );
 }
