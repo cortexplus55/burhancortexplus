@@ -29,12 +29,16 @@ export type DiagnosticTopicInput = {
   /** Prep topic row id when already linked. */
   examPrepTopicId?: string | null;
   pageNumbers: number[];
+  /** Belgeden çıkarılmış yanılgılar — yanılgı sorusunun çeldiricisi olur. */
+  commonMistakes?: string[];
 };
 
 export type DiagnosticTopicPlan = {
   id: string;
   title: string;
   examPrepTopicId: string | null;
+  /** Belgeden çıkarılmış yanılgılar; yanılgı sorusu bunlardan üretilir. */
+  commonMistakes?: string[];
   pageNumbers: number[];
   status: DiagnosticTopicStatus;
   reason?: string;
@@ -106,6 +110,7 @@ export function planDiagnosticTopics(
         id: topic.id,
         title: topic.title,
         examPrepTopicId: topic.examPrepTopicId ?? null,
+        commonMistakes: topic.commonMistakes ?? [],
         pageNumbers: pages,
         status: "unmeasured" as const,
         reason: "Konuya bağlı okunabilir sayfa yok — ölçülmedi.",
@@ -117,6 +122,7 @@ export function planDiagnosticTopics(
         id: topic.id,
         title: topic.title,
         examPrepTopicId: topic.examPrepTopicId ?? null,
+        commonMistakes: topic.commonMistakes ?? [],
         pageNumbers: pages,
         status: "unreadable" as const,
         reason: "Konu sayfaları okunamadı — ölçülmedi (unknown).",
@@ -126,6 +132,7 @@ export function planDiagnosticTopics(
       id: topic.id,
       title: topic.title,
       examPrepTopicId: topic.examPrepTopicId ?? null,
+      commonMistakes: topic.commonMistakes ?? [],
       pageNumbers: readable,
       status: "unmeasured" as const,
     };

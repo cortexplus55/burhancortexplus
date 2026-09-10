@@ -35,7 +35,7 @@ export async function loadDocumentTopicPlans(
 ): Promise<DiagnosticTopicPlan[]> {
   const { data: nodes } = await service
     .from("document_topic_nodes")
-    .select("id, title, parent_id, sort_order")
+    .select("id, title, parent_id, sort_order, common_mistakes")
     .eq("document_id", documentId)
     .order("sort_order");
 
@@ -144,10 +144,15 @@ export async function generateTopicMapDiagnostic(input: {
   for (let start = 0; start < slots.length; start += BATCH) {
     const batch = slots.slice(start, start + BATCH);
     const blueprint = batch
-      .map(
-        (s, i) =>
-          `${i + 1}) Konu: "${s.topic.title}" · beceri: ${SKILL_HINT[s.skill]} (${s.skill})`,
-      )
+      .map((s, i) => {
+        const line = `${i + 1}) Konu: "${s.topic.title}" · beceri: ${SKILL_HINT[s.skill]} (${s.skill})`;
+        // Belgenin kendi "yaygın hata" satırları. Bunlar olmadan model
+        // çeldiricileri uyduruyordu ve "bir sayıyı yansıtmak için" gibi
+        // elemesi bedava şıklar çıkıyordu.
+        const mistakes = (s.topic.commonMistakes ?? []).slice(0, 3);
+        if (!mistakes.length) return line;
+        return `${line}\n   Belgedeki yanılgılar (çeldirici olarak kullan): ${mistakes.join(" | ")}`;
+      })
       .join("\n");
     const userPrompt = `Sınav: ${input.prepTitle ?? input.examType}. Kısa TANİ (başlangıç) soruları.
 Ustalık iddiası yok; her satır için TAM BİR basit soru yaz; sıra bozulmasın.
@@ -157,6 +162,10 @@ Kurallar:
 - Yalnızca kaynak alıntılarına dayan (${boundaryNote}).
 - Tercihen multi false (tek doğru); en fazla bir soruda multi true.
 - 4 net şık; correct options içinde; kısa Türkçe explanation.
+- ÇELDİRİCİLER GERÇEK HATA OLSUN: yukarıda konuya ait yanılgı verildiyse onu
+  şıklaştır; verilmediyse öğrencinin o konuda gerçekten yapacağı hatayı yaz.
+  Konuyla ilgisiz uydurma şık ("bir sayıyı yansıtmak için", "sabitlemek için")
+  ve "hepsi/hiçbiri" yasak — elemesi bedava olan şık seviyeyi ölçmez.
 - Bilimsel/matematiksel doğruluğu kontrol et.`;
 
     const outcome = await generateExamQuiz({
