@@ -50,7 +50,7 @@ describe("teaching standards contract", () => {
       sections: [
         {
           heading: "Açı Ölçüsü Neyi Sayar",
-          body: "Açı ölçüsü yay uzunluğu ile ilişkilidir ve derece veya radyan ile ifade edilir.",
+          body: "Açı ölçüsü yay uzunluğu ile ilişkilidir ve **derece** veya **radyan** ile ifade edilir.",
           check: {
             type: "mcq" as const,
             prompt: "Radyan neyi ölçer?",
@@ -141,7 +141,7 @@ describe("teaching standards contract", () => {
       overview: "Zeminin dayanımı toplam gerilmeye değil, efektif gerilmeye bağlıdır.",
       sections: headings.map((heading) => ({
         heading,
-        body: "Efektif gerilme, toplam gerilmeden boşluk suyu basıncının çıkarılmasıdır.",
+        body: "**Efektif gerilme**, toplam gerilmeden **boşluk suyu basıncının** çıkarılmasıdır.",
         check: {
           type: "trueFalse" as const,
           prompt: "σ' = σ − u doğru mu?",
@@ -182,7 +182,7 @@ describe("teaching standards contract", () => {
       title: "Efektif Gerilme İlkesi",
       overview: "Zeminin dayanımı toplam gerilmeye değil, efektif gerilmeye bağlıdır.",
       sections: [
-        { heading: "Su Tablası Etkisi", body: "Su tablası yükselince efektif gerilme düşer." },
+        { heading: "Su Tablası Etkisi", body: "**Su tablası** yükselince **efektif gerilme** düşer." },
         { heading: "Formülün Anlamı", body: "Efektif gerilme toplam gerilme eksi boşluk suyu basıncıdır." },
         { heading: "Kaynama Koşulu", body: "Efektif gerilme sıfıra inince zemin kaynar." },
       ],
@@ -522,7 +522,7 @@ describe("blocking vs cosmetic lesson issues", () => {
     sections: [
       {
         heading: "Derecelenme Katsayıları",
-        body: "Kum için Cu ≥ 6 ve 1 ≤ Cc ≤ 3 sağlanmalıdır.",
+        body: "Kum için **Cu** ≥ 6 ve 1 ≤ **Cc** ≤ 3 sağlanmalıdır.",
         check: {
           type: "mcq" as const,
           prompt: "Kum için iyi derecelenme şartı hangisidir?",
@@ -586,5 +586,58 @@ describe("blocking vs cosmetic lesson issues", () => {
     };
     expect(blockingLessonIssues(scaffold)).toEqual([]);
     expect(validateLessonPedagogy(scaffold).some((i) => i.includes("şablon adı"))).toBe(true);
+  });
+});
+
+describe("key terms and in-place warnings", () => {
+  const withTerms = {
+    title: "Üç Fazlı Zemin Modeli",
+    objective: "Faz diyagramındaki hacim ve ağırlıkları ayırt edebileceksin.",
+    overview: "Zemin katı, sıvı ve gaz olmak üzere üç fazdan oluşur.",
+    sections: [
+      {
+        heading: "Faz Diyagramının Bileşenleri",
+        body: "**Katı faz** mineral taneleridir; **sıvı faz** boşluklardaki sudur.",
+        note: {
+          title: "Havanın Ağırlığı",
+          body: "Havanın hacmi hesaba dahildir, ağırlığı değil.",
+        },
+      },
+      { heading: "Boşluk Oranı", body: "Boşluk hacminin katı hacmine oranıdır." },
+      { heading: "Porozite", body: "Boşluk hacminin toplam hacme oranıdır." },
+    ],
+    example: { prompt: "e = 0,5 ise n nedir?", solution: "n = e/(1+e) = 0,333." },
+    commonMistake: { claim: "e ile n aynıdır", correction: "Paydaları farklıdır." },
+    infoCheck: { prompt: "Boşluk oranı nedir?", answer: "Vv / Vs" },
+    summary: ["e = Vv/Vs", "n = Vv/V"],
+    nextFocus: ["Doygunluk derecesi"],
+  };
+
+  it("accepts a lesson whose terms are marked", () => {
+    expect(validateLessonPedagogy(withTerms)).toEqual([]);
+  });
+
+  it("rejects a lesson with no marked terms", () => {
+    // Sınava iki gün kala geri dönen öğrenci düz paragraftan neye
+    // bakacağını çıkaramıyor.
+    const plain = {
+      ...withTerms,
+      sections: withTerms.sections.map((s) => ({
+        ...s,
+        body: s.body.replaceAll("**", ""),
+      })),
+    };
+    expect(
+      validateLessonPedagogy(plain).some((i) => i.includes("Anahtar terimler")),
+    ).toBe(true);
+  });
+
+  it("treats the in-place warning as optional", () => {
+    // Her bölüme kutu koymak uyarıyı değersizleştirir.
+    const noNote = {
+      ...withTerms,
+      sections: withTerms.sections.map(({ note: _note, ...rest }) => rest),
+    };
+    expect(validateLessonPedagogy(noNote)).toEqual([]);
   });
 });
