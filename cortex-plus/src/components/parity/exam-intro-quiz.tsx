@@ -191,6 +191,16 @@ export function ExamIntroQuiz({
               ? "Belgedeki ana konuların hepsinden kısa bir örnekleme geliyor. Bu test ustalığı kanıtlamaz."
               : "Konuyu kısaca yoklayan 5 soru geliyor."}
           </p>
+          {/* Kaçış hazırlanma sırasında da dursun: test yirmi saniyeden uzun
+              sürebiliyor ve öğrencinin atlamak isteyeceği an tam burası. */}
+          <button
+            type="button"
+            className="ap-exam-intro-defer"
+            disabled={deferring}
+            onClick={() => void deferIntro()}
+          >
+            {deferring ? "Açılıyor…" : "Beklemeden derse geç"}
+          </button>
         </section>
       ) : null}
 
