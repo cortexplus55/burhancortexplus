@@ -276,6 +276,22 @@ function wallOfText(body: string) {
   return body.trim().length > 700 || body.split(/\n+/).length > 8;
 }
 
+const SUPERSCRIPTS = "⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁽⁾";
+
+/**
+ * Yarım kalmış üst simge dizisi.
+ *
+ * Üretilen bir derste "2³+⁴" geçti: model 2⁽³⁺⁴⁾ demek istemiş ama üssün
+ * ortasında normal satıra düşmüş. Ekranda "2 üssü 3, artı 4" okunuyor ve
+ * anlam tersine dönüyor. Üst simgeden sonra normal bir işleç gelip ardından
+ * yeniden üst simgeye dönülüyorsa üs bölünmüş demektir.
+ */
+export function brokenSuperscript(text: string): boolean {
+  return new RegExp(`[${SUPERSCRIPTS}]\\s*[+\\-*/×÷]\\s*[${SUPERSCRIPTS}]`).test(
+    text,
+  );
+}
+
 /** Deterministic lesson pedagogy checks (structure → pedagogy). */
 export function validateLessonPedagogy(raw: unknown): string[] {
   const parsed = lessonV2Schema.safeParse(raw);
@@ -287,6 +303,19 @@ export function validateLessonPedagogy(raw: unknown): string[] {
   if (wallOfText(lesson.overview)) {
     issues.push("Genel bakış çok uzun; kısa tut.");
   }
+  const mathTexts = [
+    lesson.overview,
+    ...lesson.sections.map((s) => s.body),
+    lesson.example.prompt,
+    lesson.example.solution,
+    lesson.commonMistake.correction,
+  ];
+  if (mathTexts.some(brokenSuperscript)) {
+    issues.push(
+      "Üs bölünmüş (ör. 2³+⁴): üssün tamamını üst simgeyle yaz ya da sonucu hesapla.",
+    );
+  }
+
   for (const section of lesson.sections) {
     if (wallOfText(section.body)) {
       issues.push(`Bölüm duvar metin: ${section.heading}`);
@@ -472,6 +501,11 @@ export function validatePodcastPedagogy(
     for (const line of chapter.lines) {
       if (/\^|\\frac|\$\$/.test(line.text)) {
         issues.push("Formül konuşulabilir Unicode olmalı; LaTeX yok.");
+      }
+      // Sesli okunduğunda "2 üssü 3 artı 4" duyulur; kastedilen 2⁽³⁺⁴⁾ ise
+      // öğrenci yanlış formülü duyar.
+      if (brokenSuperscript(line.text)) {
+        issues.push("Üs bölünmüş; üssün tamamı üst simge olmalı ya da hesaplanmalı.");
       }
     }
   }
