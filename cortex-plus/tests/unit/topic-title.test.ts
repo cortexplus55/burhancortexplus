@@ -185,3 +185,43 @@ describe("unrepresentedHeadings — words must land in one title", () => {
     ).toEqual([]);
   });
 });
+
+describe("chapterHeadings — real document shape", () => {
+  // Zemin belgesinin gerçek sayfa başlıkları. Sayfaların ilk başlığı
+  // çoğunlukla bölüm adı değil; bölüm adı listenin içinde bir yerde.
+  const pages = [
+    { headings: ["temel faz özdeşliği", "2. Faz Bağıntıları ve İndeks Özellikler"] },
+    { headings: ["ÖRNEK 1", "1. n = 0,40 ise e kaçtır?"] },
+    { headings: ["i = Δh / L (hidrolik eğim)", "4. Zeminde Su Akışı ve Permeabilite"] },
+    { headings: ["6. Yük Altında Gerilme Dağılımı"] },
+    // İçindekiler sayfası: aynı başlıklar, sonunda sayfa numarasıyla.
+    {
+      headings: [
+        "2. Faz Bağıntıları ve İndeks Özellikler 5",
+        "6. Yük Altında Gerilme Dağılımı 14",
+      ],
+    },
+  ];
+
+  it("finds chapters that are not the page's first heading", () => {
+    const found = chapterHeadings(pages);
+    expect(found).toContain("6. Yük Altında Gerilme Dağılımı");
+    expect(found).toContain("2. Faz Bağıntıları ve İndeks Özellikler");
+    expect(found).toContain("4. Zeminde Su Akışı ve Permeabilite");
+  });
+
+  it("treats the contents-page line as the same chapter", () => {
+    // "… 14" ayrı bir bölüm değil; aynı bölümün içindekiler satırı.
+    expect(chapterHeadings(pages)).not.toContain("6. Yük Altında Gerilme Dağılımı 14");
+  });
+
+  it("keeps the document's numbered quiz questions out of the backbone", () => {
+    // Bunlar omurgaya girseydi bekçi otuz sahte bölüm arardı.
+    const noisy = [
+      { headings: ["1. Boussinesq çözümü hangi malzeme varsayımlarını yapar?"] },
+      { headings: ["2. S r e = w G s özdeşliğini bir faz diyagramıyla doğrula."] },
+      { headings: ["3. C c ile C r : yük ön konsolidasyon basıncını aşana kadar C r , sonrasında C c ."] },
+    ];
+    expect(chapterHeadings(noisy)).toEqual([]);
+  });
+});
