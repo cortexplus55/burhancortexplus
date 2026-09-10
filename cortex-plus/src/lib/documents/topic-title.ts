@@ -79,6 +79,36 @@ export function topicTitleIssues(title: string): string[] {
   return issues;
 }
 
+/** Üst düzey bölüm numarası: "3." evet, alt başlık "2.3." hayır. */
+const CHAPTER_NUMBER = /^\s*\d+[.)]\s+\S/;
+const SUB_NUMBER = /^\s*\d+\.\d/;
+
+/**
+ * Haritanın kaybetmemesi gereken omurga: belgenin kendi bölümleri.
+ *
+ * Numaralı başlık en temiz sinyal ama binlerce PDF'in çoğunda yok —
+ * slayt destesi, taranmış ders notu, makale. Numara şartı konursa bekçi
+ * o belgelerde sessiz kalıyor ve konu düşmesini yakalayamıyoruz.
+ *
+ * Numarasız belgede ölçü sayfa yayılımı: bir başlık iki ya da daha fazla
+ * sayfanın ilk başlığıysa gerçek bir bölümdür. Tek sayfada geçen başlık
+ * gürültü olabilir (kutu başlığı, şekil adı) ve onu omurga sayarsak
+ * gereksiz yere taslak reddedip kredi yakıyoruz.
+ */
+export function chapterHeadings(
+  pages: { headings: string[] }[],
+): string[] {
+  const counts = new Map<string, number>();
+  for (const page of pages) {
+    const heading = (page.headings[0] ?? "").trim();
+    if (!heading || SUB_NUMBER.test(heading)) continue;
+    counts.set(heading, (counts.get(heading) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .filter(([heading, count]) => CHAPTER_NUMBER.test(heading) || count >= 2)
+    .map(([heading]) => heading);
+}
+
 /**
  * Hedef konu sayısı yüzünden düşürülen bölüm var mı?
  *
