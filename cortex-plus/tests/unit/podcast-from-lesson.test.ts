@@ -76,3 +76,33 @@ describe("podcastNumbersOutsideLesson", () => {
     expect(podcastNumbersOutsideLesson("9,81 kN", "birim ağırlık 9.81 kN")).toEqual([]);
   });
 });
+
+describe("lessonPodcastBrief and scaffold headings", () => {
+  it("does not hand the podcast a heading its own validator forbids", () => {
+    // Canlıda kilitlenme buydu: dersin bölümü "Kontrol Noktası" adını
+    // taşıyordu, podcast onu kopyaladı, doğrulayıcı reddetti ve üretim
+    // 32 denemede de tamamlanamadı.
+    const withScaffold: LessonV2 = {
+      ...lesson,
+      sections: [
+        { heading: "Kontrol Noktası", body: "48. ayda DaBT-İPA rapeli yapılır." },
+        ...lesson.sections.slice(1),
+      ],
+    };
+    const brief = lessonPodcastBrief(withScaffold);
+    expect(brief).not.toContain("Kontrol Noktası");
+    expect(brief).toContain("sen adlandır");
+    // Bölümün içeriği duruyor; kaybolan yalnızca şablon adı.
+    expect(brief).toContain("DaBT-İPA rapeli");
+  });
+
+  it("keeps a conceptual heading as it is", () => {
+    expect(lessonPodcastBrief(lesson)).toContain("No.200 Eleği Eşiği");
+  });
+
+  it("does not label fields with words that become chapter titles", () => {
+    const brief = lessonPodcastBrief(lesson);
+    expect(brief).not.toMatch(/^Özet:/m);
+    expect(brief).not.toMatch(/^Yaygın hata:/m);
+  });
+});
