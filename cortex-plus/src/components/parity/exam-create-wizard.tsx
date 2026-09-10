@@ -87,10 +87,22 @@ function addDays(days: number) {
   return date;
 }
 
+const WEEKDAYS_LONG = [
+  "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar",
+];
+
+/** Kısa görünür etiket: "17 Eylül Per". */
 function longLabel(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
   const date = new Date(y, m - 1, d);
   return `${d} ${MONTHS[m - 1]} ${WEEKDAYS[(date.getDay() + 6) % 7]}`;
+}
+
+/** Ekran okuyucu için tam tarih: "17 Eylül 2026 Perşembe". */
+function fullLabel(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return `${d} ${MONTHS[m - 1]} ${y} ${WEEKDAYS_LONG[(date.getDay() + 6) % 7]}`;
 }
 
 export function ExamCreateWizard({
@@ -801,6 +813,9 @@ function DateStep({
                 type="button"
                 disabled={disabled}
                 aria-pressed={value === iso}
+                // Ekran okuyucuya yalnızca "10" demek hangi ay/gün olduğunu
+                // gizliyordu; tam tarih okunsun.
+                aria-label={fullLabel(iso)}
                 className={value === iso ? "apw-cal-day apw-cal-day--on" : "apw-cal-day"}
                 onClick={() => onPick(iso)}
               >

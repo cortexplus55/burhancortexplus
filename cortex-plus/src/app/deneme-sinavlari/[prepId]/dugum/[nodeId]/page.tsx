@@ -8,6 +8,7 @@ import { examPrepIntroHref, needsExamIntro } from "@/lib/learning/exam-prep-href
 import type { Familiarity } from "@/lib/learning/session-signals";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
+import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 
 export const metadata = { title: "Ders" };
 
@@ -33,7 +34,7 @@ export default async function ExamNodePage({
       .maybeSingle(),
     supabase
       .from("exam_prep_nodes")
-      .select("id, kind, status")
+      .select("id, kind, status, session_meta")
       .eq("id", nodeId)
       .eq("exam_prep_id", prepId)
       .maybeSingle(),
@@ -49,15 +50,25 @@ export default async function ExamNodePage({
     redirect(examPrepIntroHref(prepId));
   }
 
-  let topicLabel: string | null = null;
+  // Etiket, düğümün kendi konusundan gelir.
+  //
+  // Burada yalnızca prep.active_topic_id okunuyordu; üretimi yapan node route
+  // ise session_meta.topicTitle'ı tercih ediyor. Öğrenci aktif konu dışında bir
+  // düğüm açtığında kurulum ekranı "Üs Kavramı ve Tanımı" derken üretilen ders
+  // "Aynı Tabanlı İfadelerde Çarpma ve Bölme" çıkıyordu. İki taraf da aynı
+  // önceliği kullanmalı.
+  const sessionMeta = parseSessionMeta(node.session_meta);
+  let topicLabel: string | null = sessionMeta?.topicTitle?.trim() || null;
   let topicFamiliarity: Familiarity | null = null;
-  if (prep.active_topic_id) {
+
+  const topicId = sessionMeta?.topicId ?? prep.active_topic_id;
+  if (topicId) {
     const { data: topic } = await supabase
       .from("exam_prep_topics")
       .select("label, familiarity")
-      .eq("id", prep.active_topic_id)
+      .eq("id", topicId)
       .maybeSingle();
-    topicLabel = topic?.label ?? null;
+    topicLabel = topicLabel ?? topic?.label ?? null;
     // Bu konuya daha önce girildiyse beyan edilen seviye varsayılan olur.
     topicFamiliarity = (topic?.familiarity as Familiarity | null) ?? null;
   }
