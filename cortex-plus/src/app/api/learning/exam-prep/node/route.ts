@@ -38,8 +38,14 @@ import {
   validateOralPedagogy,
   validatePodcastPedagogy,
   validateTrueFalsePedagogy,
+  lessonV2Schema,
+  type LessonV2,
   type SessionTeachingMeta,
 } from "@/lib/learning/teaching-standards";
+import {
+  lessonPodcastBrief,
+  podcastNumbersOutsideLesson,
+} from "@/lib/learning/podcast-from-lesson";
 import {
   recordLearningTrackingAfterComplete,
   stripAnswerMeta,
@@ -754,6 +760,10 @@ export async function POST(request: Request) {
           ),
           idempotencyKey: creditKey,
           learningPreferences: teachingV2 ? prep.learning_preferences : null,
+          lessonContent:
+            kind === "podcast" && teachingV2 && topic?.id
+              ? await loadTopicLesson(service, topic.id)
+              : null,
         });
   } catch (error) {
     if (teachingV2 && creatingAttemptId && generationId && clientRequestId) {
@@ -904,6 +914,27 @@ export async function POST(request: Request) {
   });
 }
 
+/**
+ * Konunun en son doğrulanmış dersi. Podcast bunun üzerine kuruluyor;
+ * yoksa (ders henüz üretilmemişse) podcast eskisi gibi kaynaktan çıkar.
+ * Sorgu ya da şema tutmazsa sessizce null — podcast üretimi kırılmasın.
+ */
+async function loadTopicLesson(
+  service: Parameters<typeof generateJson>[0]["service"],
+  topicId: string,
+): Promise<LessonV2 | null> {
+  const { data } = await service
+    .from("exam_prep_lessons")
+    .select("content_json")
+    .eq("topic_id", topicId)
+    .not("content_json", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data?.content_json) return null;
+  return lessonV2Schema.safeParse(data.content_json).data ?? null;
+}
+
 class NodeGenerationError extends Error {
   constructor(public readonly status: number, public readonly code: string) {
     super(code);
@@ -928,6 +959,12 @@ async function generateNodePayload(input: {
   /** Stage 8: stable key so double-click / retry does not double-charge. */
   idempotencyKey?: string;
   learningPreferences?: unknown;
+  /**
+   * Aynı konunun doğrulanmış dersi — varsa podcast bunun sesli hâli olur.
+   * Olguyu ikinci kez çıkarmak yerine aktarmak, kaynağı ters çevirme
+   * ihtimalini kaynağında kurutuyor.
+   */
+  lessonContent?: LessonV2 | null;
 }) {
   const activity = teachingActivityForKind(input.kind);
   const sessionCtx = input.teachingV2
@@ -981,6 +1018,9 @@ async function generateNodePayload(input: {
 
   if (input.kind === "podcast") {
     const schema = input.teachingV2 ? podcastV2Schema : podcastSchema;
+    // Ders varsa podcast onun sesli hâli; yoksa eskisi gibi kaynaktan.
+    const lesson = input.teachingV2 ? input.lessonContent ?? null : null;
+    const lessonBrief = lesson ? lessonPodcastBrief(lesson) : "";
     const outcome = await generateJson({
       service: input.service,
       userId: input.userId,
@@ -1012,13 +1052,18 @@ async function generateNodePayload(input: {
           "Ada ve Kerem iki sunucu; sırayla konuşur, birbirine soru sorar. " +
           "Her text TEK cümle olsun ve 25 kelimeyi geçmesin.",
       userPrompt: input.teachingV2
-        ? `${ctx} Ada ve Kerem'in kaynak bağlı podcast senaryosu. Akış: önce kavramı ` +
-          `tanımlayın, sonra niye önemli olduğunu, sonra kaynaktaki sayılarla bir örnek, ` +
+        ? `${ctx} Ada ve Kerem'in podcast senaryosu. Akış: önce kavramı ` +
+          `tanımlayın, sonra niye önemli olduğunu, sonra sayılarla bir örnek, ` +
           `sonra öğrencinin gerçekten yaptığı bir yanlış adım, sonunda özet. ` +
-          `SAYISAL SONUÇ VE SINIFLANDIRMA KARARLARI: eşik, yön ve sonuç kaynakta ne ` +
-          `diyorsa aynen o olmalı — "%8 geçiyorsa ince daneli" gibi kaynağın kuralını ` +
-          `ters çeviren bir cümle en ağır hatadır. Örnekteki her sayıyı sourcePoints'e yaz. ` +
-          `"Yaygın hata" bölümü öğüt değil hata olsun: "X'i göz ardı etmek yanlıştır" ` +
+          (lessonBrief
+            ? `\n\n${lessonBrief}\n\nBu podcast yukarıdaki DERSİN sesli hâlidir. ` +
+              `Olguyu yeniden çıkarma, aktar: bölümler dersin bölümlerinden gelsin, ` +
+              `örnek dersin çözümlü örneği olsun, yaygın hata dersinki olsun. ` +
+              `Derste geçmeyen bir sayı kullanma — nicelik uyduramazsın.`
+            : `SAYISAL SONUÇ VE SINIFLANDIRMA KARARLARI: eşik, yön ve sonuç kaynakta ne ` +
+              `diyorsa aynen o olmalı — "%8 geçiyorsa ince daneli" gibi kaynağın kuralını ` +
+              `ters çeviren bir cümle en ağır hatadır. Örnekteki her sayıyı sourcePoints'e yaz.`) +
+          ` "Yaygın hata" bölümü öğüt değil hata olsun: "X'i göz ardı etmek yanlıştır" ` +
           `bir hata değildir; "LL yerine PI kullanmak" bir hatadır.`
         : `${ctx} Ada ve Kerem'in sohbet ettiği 4 bölümlük kısa podcast senaryosu.`,
       parse: (raw) => {
@@ -1027,6 +1072,15 @@ async function generateNodePayload(input: {
         if (input.teachingV2) {
           const issues = validatePodcastPedagogy(data);
           if (issues.length) return null;
+          // Ders varsa podcast onun külliyatıyla sınırlı: geçen her
+          // nicelik derste de geçmeli, yoksa uydurulmuştur.
+          if (
+            lessonBrief &&
+            podcastNumbersOutsideLesson(JSON.stringify(data.chapters), lessonBrief)
+              .length
+          ) {
+            return null;
+          }
         }
         return data;
       },

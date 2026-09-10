@@ -8,6 +8,7 @@ import {
   type TopicMapBuildResult,
 } from "@/lib/documents/topic-map";
 import {
+  chapterHeadings,
   normalizeTopicTitle,
   targetTopicCount,
   topicTitleIssues,
@@ -67,16 +68,7 @@ export async function buildTopicMapLLM(
 
   const target = targetTopicCount(contentPages.length);
 
-  // Numaralı üst düzey bölüm başlıkları: haritanın kaybetmemesi gereken
-  // omurga. Alt başlıklar ("2.3. Birim Hacim Ağırlıkları") sayılmaz —
-  // onların ayrı konu olmaması normal.
-  const chapterHeadings = [
-    ...new Set(
-      contentPages
-        .map((page) => page.headings[0] ?? "")
-        .filter((h) => /^\s*\d+[.)]\s+\S/.test(h)),
-    ),
-  ];
+  const backbone = chapterHeadings(contentPages);
 
   let outcome;
   try {
@@ -107,7 +99,7 @@ ${pageDigest(contentPages)}`,
         // Bölüm atarak sayıyı tutturan taslak reddedilir; generateJson
         // geri bildirimle yeniden yazdırır.
         const titles = parsed.data.topics.map((t) => normalizeTopicTitle(t.title));
-        if (unrepresentedHeadings(chapterHeadings, titles).length) return null;
+        if (unrepresentedHeadings(backbone, titles).length) return null;
         return parsed.data;
       },
     });

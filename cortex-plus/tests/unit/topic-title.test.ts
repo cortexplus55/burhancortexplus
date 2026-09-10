@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  chapterHeadings,
   normalizeTopicTitle,
   targetTopicCount,
   topicTitleIssues,
@@ -102,5 +103,33 @@ describe("unrepresentedHeadings", () => {
 
   it("ignores headings with nothing distinctive to match", () => {
     expect(unrepresentedHeadings(["1. Giriş", "2. Genel"], ["Kayma Mukavemeti"])).toEqual([]);
+  });
+});
+
+describe("chapterHeadings", () => {
+  it("keeps numbered chapters and drops their sub-headings", () => {
+    const pages = [
+      { headings: ["2. Faz Bağıntıları ve İndeks Özellikler"] },
+      { headings: ["2.3. Birim Hacim Ağırlıkları"] },
+      { headings: ["3. Dane Boyu, Kıvam Limitleri ve Sınıflandırma"] },
+    ];
+    expect(chapterHeadings(pages)).toEqual([
+      "2. Faz Bağıntıları ve İndeks Özellikler",
+      "3. Dane Boyu, Kıvam Limitleri ve Sınıflandırma",
+    ]);
+  });
+
+  it("treats an unnumbered heading as a chapter once it spans two pages", () => {
+    // Slayt destesi ve taranmış ders notunda numara yok; ölçü sayfa yayılımı.
+    const pages = [
+      { headings: ["Kayma Mukavemeti"] },
+      { headings: ["Kayma Mukavemeti"] },
+      { headings: ["Şekil 4: Mohr dairesi"] },
+    ];
+    expect(chapterHeadings(pages)).toEqual(["Kayma Mukavemeti"]);
+  });
+
+  it("ignores pages with no heading", () => {
+    expect(chapterHeadings([{ headings: [] }, { headings: [""] }])).toEqual([]);
   });
 });
