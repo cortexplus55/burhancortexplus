@@ -1112,7 +1112,7 @@ async function generateNodePayload(input: {
         : undefined,
       schemaHint: input.teachingV2
         ? 'JSON: {"title":string,"objective":string,"sourcePoints":string[],"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +
-          "4-5 bölüm. Her bölümün title'ı O BÖLÜMDE KONUŞULAN KAVRAMIN ADI olsun " +
+          "4-8 bölüm. Her bölümün title'ı O BÖLÜMDE KONUŞULAN KAVRAMIN ADI olsun " +
           '("Dane Boyu Dağılımı", "Atterberg Limitleri"); üretim aşamalarının adı ' +
           '("Tanım", "Neden", "Örnek", "Yaygın hata", "Özet") başlık olarak YASAK. ' +
           "Ada ve Kerem sırayla. Her text TEK cümle, ≤25 kelime. Kaynak dışı iddia yok."

@@ -283,7 +283,11 @@ export const podcastV2Schema = z.object({
       }),
     )
     .min(4)
-    .max(5),
+    // Üst sınır 5 idi ve eski beş evreli tasarımdan (Tanım→Neden→Örnek→
+    // Hata→Özet) kalmıştı. Podcast artık dersi izliyor: ders 3-6 bölüm,
+    // üstüne çözümlü örnek, yaygın hata ve kapanış. Dersten türeyen ilk
+    // podcast 7 bölüm üretti ve 32 denemenin 32'sinde bu sınıra takıldı.
+    .max(8),
 });
 
 function normalizeOption(text: string) {
