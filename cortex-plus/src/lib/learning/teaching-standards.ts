@@ -6,6 +6,7 @@
 
 import { z } from "zod";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { foldTr } from "@/lib/documents/page-analysis";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import type { PodcastChapter } from "@/lib/learning/podcast-script";
 
@@ -119,9 +120,23 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
       );
     case "lesson":
       return (
-        "Ders yapısı zorunlu sıra: (1) öğrenme hedefi, (2) kısa açıklama, (3) kaynağa dayalı örnek, " +
-        "(4) gerekirse adımlar, (5) yaygın hata (commonMistake), (6) orta bilgi kontrolü (infoCheck), " +
-        "(7) kısa kapanış + sonraki adım. Anlamlı bölümler; duvar metin yok. Her bölüm kısa tut. " +
+        "Ders şunları kapsamalı: öğrenme hedefi, konuyu açan anlatım, kaynağa dayalı " +
+        "çözümlü örnek, gerekirse adımlar, yaygın hata (commonMistake), bilgi kontrolü " +
+        "(infoCheck), kapanış ve sonraki adım. " +
+        // Bu maddeler bölüm BAŞLIĞI olarak kopyalanıyordu: üretilen bir derste
+        // başlıklar "Kısa Açıklama / Kaynağa Dayalı Örnek / Yaygın Hata / Orta
+        // Bilgi Kontrolü / Kısa Kapanış" çıktı. Öğrenci başlıktan ne
+        // öğreneceğini değil, ders şablonunun iskeletini görüyor.
+        "BÖLÜM BAŞLIKLARI KONUNUN KENDİSİNDEN GELSİN: o bölümde ne öğretiliyorsa onu " +
+        "adlandır (ör. \"Su Tablası Yükselince Ne Değişir\", \"Ayrışma Türleri\"). " +
+        "\"Kısa açıklama\", \"Kaynağa dayalı örnek\", \"Yaygın hata\", \"Bilgi kontrolü\", " +
+        "\"Kapanış\", \"Giriş\", \"Bölüm 1\" gibi yapı adlarını başlık yapma. " +
+        // Hedef ve genel bakış başlığı tekrar ediyordu: "Efektif Gerilme İlkesi
+        // konusunu öğren." bir hedef değil, başlığın kopyası.
+        "objective ve overview başlığı tekrarlamasın: hedef öğrencinin ne YAPABİLİR " +
+        "olacağını söylesin, genel bakış konunun özünü bir cümlede versin. " +
+        "\"Bu derste X konusunu öğreneceğiz\" gibi içi boş cümleler yasak. " +
+        "Anlamlı bölümler; duvar metin yok. Her bölüm kısa tut. " +
         // Üretilen bir derste "(2/3)⁻³ = 3²/2³ = 27/8" çıktı: sonuç doğru, ara
         // adım yanlış (3² değil 3³). Öğrenci ara adımı ezberliyor; sonucun
         // tutması hatayı görünmez kılıyor.
@@ -282,6 +297,29 @@ function wallOfText(body: string) {
   return body.trim().length > 700 || body.split(/\n+/).length > 8;
 }
 
+/**
+ * Ders şablonunun iskeleti başlık olarak kullanılamaz.
+ *
+ * Kısıt metni bölümleri sayınca model onları başlığa çeviriyordu: bir zemin
+ * dersinde başlıklar "Kısa Açıklama / Kaynağa Dayalı Örnek / Yaygın Hata /
+ * Orta Bilgi Kontrolü / Kısa Kapanış" çıktı. Öğrenci içindekilerden ne
+ * öğreneceğini değil, üretim şablonunu okuyor.
+ */
+const SCAFFOLD_HEADINGS = [
+  "kisa aciklama",
+  "aciklama",
+  "kaynaga dayali ornek",
+  "ornek",
+  "yaygin hata",
+  "bilgi kontrolu",
+  "orta bilgi kontrolu",
+  "kisa kapanis",
+  "kapanis",
+  "giris",
+  "ozet",
+  "adimlar",
+];
+
 const SUPERSCRIPTS = "⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁽⁾";
 
 /**
@@ -309,6 +347,42 @@ export function validateLessonPedagogy(raw: unknown): string[] {
   if (wallOfText(lesson.overview)) {
     issues.push("Genel bakış çok uzun; kısa tut.");
   }
+  // Başlık, o bölümde ne öğretildiğini söylemeli; şablonun adını değil.
+  const scaffold = lesson.sections.filter((s) =>
+    SCAFFOLD_HEADINGS.includes(foldTr(s.heading).replace(/[^a-z ]/g, "").trim()),
+  );
+  if (scaffold.length) {
+    issues.push(
+      `Bölüm başlığı şablon adı: ${scaffold.map((s) => s.heading).join(", ")} — konuyu adlandır.`,
+    );
+  }
+
+  // "X konusunu öğren." bir hedef değil, başlığın kopyası.
+  const titleFolded = foldTr(lesson.title);
+  const objectiveFolded = foldTr(lesson.objective);
+  if (objectiveFolded.includes(titleFolded)) {
+    // Başlık çıkınca geriye kalan: gerçek bir hedef mi, yoksa "…konusunu
+    // öğren" gibi kalıp mı?
+    const rest = objectiveFolded.replace(titleFolded, "").trim();
+    const stock = /^(konusunu|konusu|konuyu|yi|yu)?\s*(ogren|anla|kavra|incele|calis)/.test(
+      rest,
+    );
+    if (stock || rest.replace(/[^a-z]/g, "").length < 12) {
+      issues.push("Öğrenme hedefi başlığı tekrarlıyor; ne yapabilir olacağını yaz.");
+    }
+  }
+  if (/bu derste .{0,60}(ogren|anlat|incele|ele al)/.test(foldTr(lesson.overview))) {
+    issues.push("Genel bakış içi boş; konunun özünü bir cümlede ver.");
+  }
+
+  // Tek kontrol dersin sonunda kalıyordu; okunan yerde yoklanmalı.
+  if (lesson.sections.length >= 4) {
+    const checks = lesson.sections.filter((s) => s.check).length;
+    if (checks < 2) {
+      issues.push("En az iki bölümün kendi kontrolü olmalı.");
+    }
+  }
+
   const mathTexts = [
     lesson.overview,
     ...lesson.sections.map((s) => s.body),

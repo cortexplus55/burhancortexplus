@@ -45,9 +45,32 @@ describe("teaching standards contract", () => {
       objective: "Birim çember üzerinde açıları okuyabilmek",
       overview: "Birim çember, merkezi orijinde olan ve yarıçapı 1 olan çemberdir.",
       sections: [
-        { heading: "Açıklama", body: "Açı ölçüsü yay uzunluğu ile ilişkilidir ve derece veya radyan ile ifade edilir." },
-        { heading: "Adımlar", body: "Önce açı yönünü belirle, sonra kesişim noktasının koordinatlarını oku." },
-        { heading: "Kapanış", body: "Koordinatları (cos θ, sin θ) olarak hatırla ve sonraki alıştırmaya geç." },
+        {
+          heading: "Açı Ölçüsü Neyi Sayar",
+          body: "Açı ölçüsü yay uzunluğu ile ilişkilidir ve derece veya radyan ile ifade edilir.",
+          check: {
+            type: "mcq" as const,
+            prompt: "Radyan neyi ölçer?",
+            options: ["Yay uzunluğunu", "Alanı", "Çevreyi"],
+            answerIndex: 0,
+            explanation: "Metinde açı ölçüsünün yay uzunluğuyla ilişkili olduğu söylendi.",
+          },
+        },
+        {
+          heading: "Koordinat Nasıl Okunur",
+          body: "Önce açı yönünü belirle, sonra kesişim noktasının koordinatlarını oku.",
+          check: {
+            type: "trueFalse" as const,
+            prompt: "Önce koordinat, sonra yön okunur.",
+            options: ["Doğru", "Yanlış"],
+            answerIndex: 1,
+            explanation: "Sıra tersidir: önce yön, sonra koordinat.",
+          },
+        },
+        {
+          heading: "Sinüs ve Kosinüsü Ayırt Etmek",
+          body: "Koordinatları (cos θ, sin θ) olarak hatırla ve sonraki alıştırmaya geç.",
+        },
       ],
       example: { prompt: "90° noktası neresi?", solution: "Nokta (0, 1) olur." },
       commonMistake: {
@@ -103,6 +126,83 @@ describe("teaching standards contract", () => {
         }),
       ).length,
     ).toBeGreaterThan(0);
+  });
+
+  it("rejects the lesson template's own skeleton as section headings", () => {
+    // Canlıda üretilen zemin dersinin başlıkları "Kısa Açıklama / Kaynağa
+    // Dayalı Örnek / Yaygın Hata / Orta Bilgi Kontrolü / Kısa Kapanış" çıktı:
+    // öğrenci ne öğreneceğini değil, üretim şablonunu okuyor.
+    const withHeadings = (headings: string[]) => ({
+      title: "Efektif gerilme",
+      objective: "Su tablası değişince efektif gerilmeyi hesaplayabilmek",
+      overview: "Zeminin dayanımı toplam gerilmeye değil, efektif gerilmeye bağlıdır.",
+      sections: headings.map((heading) => ({
+        heading,
+        body: "Efektif gerilme, toplam gerilmeden boşluk suyu basıncının çıkarılmasıdır.",
+        check: {
+          type: "trueFalse" as const,
+          prompt: "σ' = σ − u doğru mu?",
+          options: ["Doğru", "Yanlış"],
+          answerIndex: 0,
+          explanation: "Metinde bu formül verildi.",
+        },
+      })),
+      example: { prompt: "σ = 92 kPa, u = 19,62 kPa ise σ'?", solution: "σ' = 72,38 kPa." },
+      commonMistake: {
+        claim: "Toplam ve efektif gerilme eşittir",
+        correction: "Aralarındaki fark boşluk suyu basıncıdır.",
+      },
+      infoCheck: { prompt: "Formül nedir?", answer: "σ' = σ − u" },
+      summary: ["σ' = σ − u", "Su tablası efektif gerilmeyi değiştirir"],
+      nextFocus: ["Konsolidasyon"],
+    });
+
+    expect(
+      validateLessonPedagogy(
+        withHeadings(["Kısa Açıklama", "Yaygın Hata", "Kısa Kapanış"]),
+      ).some((i) => i.includes("şablon adı")),
+    ).toBe(true);
+
+    expect(
+      validateLessonPedagogy(
+        withHeadings([
+          "Su Tablası Yükselince Ne Değişir",
+          "Toplam ve Efektif Gerilmeyi Ayırmak",
+          "Kaynama Nasıl Başlar",
+        ]),
+      ),
+    ).toEqual([]);
+  });
+
+  it("rejects an objective that only restates the title", () => {
+    const base = {
+      title: "Efektif Gerilme İlkesi",
+      overview: "Zeminin dayanımı toplam gerilmeye değil, efektif gerilmeye bağlıdır.",
+      sections: [
+        { heading: "Su Tablası Etkisi", body: "Su tablası yükselince efektif gerilme düşer." },
+        { heading: "Formülün Anlamı", body: "Efektif gerilme toplam gerilme eksi boşluk suyu basıncıdır." },
+        { heading: "Kaynama Koşulu", body: "Efektif gerilme sıfıra inince zemin kaynar." },
+      ],
+      example: { prompt: "σ = 92, u = 19,62 ise σ'?", solution: "σ' = 72,38 kPa." },
+      commonMistake: { claim: "İkisi eşittir", correction: "Fark boşluk suyu basıncıdır." },
+      infoCheck: { prompt: "Formül nedir?", answer: "σ' = σ − u" },
+      summary: ["σ' = σ − u", "Su tablası önemlidir"],
+      nextFocus: ["Konsolidasyon"],
+    };
+    expect(
+      validateLessonPedagogy({
+        ...base,
+        objective: "Efektif Gerilme İlkesi konusunu öğren.",
+      }).some((i) => i.includes("başlığı tekrarlıyor")),
+    ).toBe(true);
+
+    expect(
+      validateLessonPedagogy({
+        ...base,
+        objective: "Efektif Gerilme İlkesi konusunu öğren.",
+        overview: "Bu derste efektif gerilme konusunu öğreneceğiz.",
+      }).some((i) => i.includes("içi boş")),
+    ).toBe(true);
   });
 
   it("rejects an exponent split between superscript and baseline", () => {
