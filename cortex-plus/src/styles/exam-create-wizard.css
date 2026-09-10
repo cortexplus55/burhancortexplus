@@ -662,3 +662,33 @@
     transition: none;
   }
 }
+
+/* Çalışma günleri seçici */
+.apw-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.apw-day {
+  min-width: 3rem;
+  border-radius: 9999px;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface);
+  color: var(--ap-muted);
+  padding: 0.45rem 0.7rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.apw-day--on {
+  border-color: #7c6cf7;
+  background: rgba(124, 108, 247, 0.16);
+  color: var(--ap-text);
+}
+
+.apw-day:focus-visible {
+  outline: 2px solid #7c6cf7;
+  outline-offset: 2px;
+}

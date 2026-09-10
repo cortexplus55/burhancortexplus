@@ -114,6 +114,8 @@ export function ExamCreateWizard({
   const [subjectQuery, setSubjectQuery] = useState("");
   const [examDate, setExamDate] = useState("");
   const [target, setTarget] = useState(75);
+  const [dailyMinutes, setDailyMinutes] = useState(45);
+  const [studyDays, setStudyDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [language, setLanguage] = useState<"tr" | "en">("tr");
 
   const [documentId, setDocumentId] = useState<string | null>(initialDocumentId);
@@ -253,6 +255,8 @@ export function ExamCreateWizard({
           targetScore: target,
           documentId: documentId ?? undefined,
           hardTopics: focusTopics,
+          dailyMinutes,
+          studyDays,
         }),
       });
       if (res.status === 402) {
@@ -387,9 +391,60 @@ export function ExamCreateWizard({
               <span>%100</span>
             </div>
           </div>
+          <h2 className="apw-group">Günde ne kadar çalışabilirsin?</h2>
+          <p className="apw-lead">
+            Plan bu süreye sığdırılır. Az süre verirsen bazı konular plana
+            girmeyebilir.
+          </p>
+          <div className="apw-quick">
+            {[30, 45, 60, 90].map((minutes) => (
+              <button
+                key={minutes}
+                type="button"
+                className={
+                  dailyMinutes === minutes
+                    ? "apw-quick-btn apw-quick-btn--on"
+                    : "apw-quick-btn"
+                }
+                aria-pressed={dailyMinutes === minutes}
+                onClick={() => setDailyMinutes(minutes)}
+              >
+                <span>{minutes} dakika</span>
+                <small>günde</small>
+              </button>
+            ))}
+          </div>
+
+          <h2 className="apw-group">Hangi günler?</h2>
+          <div className="apw-days">
+            {WEEKDAYS.map((label, index) => {
+              const day = index + 1;
+              const on = studyDays.includes(day);
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  className={on ? "apw-day apw-day--on" : "apw-day"}
+                  aria-pressed={on}
+                  aria-label={`${label} günü çalış`}
+                  onClick={() =>
+                    setStudyDays((prev) =>
+                      prev.includes(day)
+                        ? prev.filter((d) => d !== day)
+                        : [...prev, day].sort((a, b) => a - b),
+                    )
+                  }
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
           <button
             type="button"
             className="apw-cta"
+            disabled={!studyDays.length}
             onClick={() => setStep("material")}
           >
             Devam et
