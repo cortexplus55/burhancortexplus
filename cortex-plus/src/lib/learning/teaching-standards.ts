@@ -318,7 +318,21 @@ const SCAFFOLD_HEADINGS = [
   "giris",
   "ozet",
   "adimlar",
+  // Podcast'in beş evresi de aynı tuzağa düşüyordu: bölüm adları
+  // "TANIM / NEDEN / ÖRNEK / YAYGIN HATA / ÖZET" çıkıyordu.
+  "tanim",
+  "neden",
+  "nicin",
+  "sonuc",
+  "tekrar",
 ];
+
+/** Şablon adı mı, yoksa konunun kendi adı mı? */
+export function isScaffoldHeading(heading: string): boolean {
+  return SCAFFOLD_HEADINGS.includes(
+    foldTr(heading).replace(/[^a-z ]/g, "").trim(),
+  );
+}
 
 const SUPERSCRIPTS = "⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁽⁾";
 
@@ -348,9 +362,7 @@ export function validateLessonPedagogy(raw: unknown): string[] {
     issues.push("Genel bakış çok uzun; kısa tut.");
   }
   // Başlık, o bölümde ne öğretildiğini söylemeli; şablonun adını değil.
-  const scaffold = lesson.sections.filter((s) =>
-    SCAFFOLD_HEADINGS.includes(foldTr(s.heading).replace(/[^a-z ]/g, "").trim()),
-  );
+  const scaffold = lesson.sections.filter((s) => isScaffoldHeading(s.heading));
   if (scaffold.length) {
     issues.push(
       `Bölüm başlığı şablon adı: ${scaffold.map((s) => s.heading).join(", ")} — konuyu adlandır.`,
@@ -546,31 +558,26 @@ export function validateFlashcardPedagogy(
   return issues;
 }
 
-const PODCAST_PHASES = [
-  { key: "definition", re: /tan[iı]m|nedir|kavram/i },
-  { key: "reason", re: /neden|niçin|gerekçe|anlam/i },
-  { key: "example", re: /örnek|uygula|çöz/i },
-  { key: "mistake", re: /hata|yan[iı]lg[iı]|yanl[iı]ş|tuzak/i },
-  { key: "summary", re: /özet|kapan[iı]ş|sonuç|tekrar/i },
-] as const;
-
+/**
+ * Podcast bölüm adı, dinleyicinin duyduğu tek gezinme işareti.
+ *
+ * Buradaki kontrol eskiden evre adlarını ARIYORDU; model de en kolay yolu
+ * seçip bölümlere "TANIM / NEDEN / ÖRNEK / YAYGIN HATA / ÖZET" adını verdi.
+ * Zemin podcast'inde dinleyici beş başlıktan hiçbirinde konunun adını
+ * duymuyordu. Evre sırası dursun, adı görünmesin: başlık kavramı söylemeli.
+ */
 export function validatePodcastPedagogy(
   input: { title?: string; chapters: PodcastChapter[] | { title: string; lines: { text: string }[] }[] },
 ): string[] {
   const issues: string[] = [];
   const chapters = input.chapters ?? [];
   if (chapters.length < 4) {
-    issues.push("Podcast en az 4 bölüm olmalı (Tanım→Neden→Örnek→Hata→Özet).");
+    issues.push("Podcast en az 4 bölüm olmalı (tanım → neden → örnek → hata → özet akışı).");
   }
-  const titles = chapters.map((c) => c.title ?? "");
-  const matched = PODCAST_PHASES.filter((phase) =>
-    titles.some((t) => phase.re.test(t)),
-  ).length;
-  // Soft structure hint only when clearly unstructured (<4 chapters already failed).
-  // Do not reject solely for title naming — quality gate covers pedagogy.
-  if (chapters.length >= 4 && matched === 0) {
+  const scaffold = chapters.filter((c) => isScaffoldHeading(c.title ?? ""));
+  if (scaffold.length) {
     issues.push(
-      "Bölüm başlıkları Tanım / Neden / Örnek / Yaygın hata / Özet yapısını yansıtmalı.",
+      `Bölüm başlığı şablon adı: ${scaffold.map((c) => c.title).join(", ")} — o bölümde konuşulan kavramı adlandır.`,
     );
   }
   for (const chapter of chapters) {
@@ -587,9 +594,34 @@ export function validatePodcastPedagogy(
       if (brokenSuperscript(line.text)) {
         issues.push("Üs bölünmüş; üssün tamamı üst simge olmalı ya da hesaplanmalı.");
       }
+      if (emptyMistake(line.text)) {
+        issues.push(
+          `Yaygın hata değil, öğüt: "${line.text}" — öğrencinin gerçekten yaptığı yanlış adımı söyle.`,
+        );
+      }
     }
   }
   return issues;
+}
+
+/**
+ * "Yaygın hata" diye sunulan ama hata olmayan cümle.
+ *
+ * Zemin podcast'inde üç maddenin üçü de böyleydi: "Dane boyu dağılımını
+ * anlamadan zemin sınıflandırması yapmak yanlıştır." Bu bir hata değil,
+ * "dikkatli ol" öğüdü — dinleyici neyi yanlış yaptığını öğrenmiyor.
+ * Gerçek hata somut olur: hangi değeri, hangi yerine koyuyor.
+ */
+export function emptyMistake(text: string): boolean {
+  const folded = foldTr(text);
+  const advice =
+    /(anlamadan|bilmeden|dikkate almadan|goz ardi et|onemsemem|hesaba katmadan)/.test(
+      folded,
+    );
+  const verdict = /(yanlis|hatali|dogru degil|eksik olur|sorun yaratir)/.test(folded);
+  // Somut bir dayanak (sayı ya da sembol) varsa öğüt değil, gerçek hatadır.
+  const concrete = /[0-9]|[=<>±×÷√]/.test(text);
+  return advice && verdict && !concrete;
 }
 
 export function validateOralPedagogy(

@@ -43,6 +43,12 @@ export const CONTENT_STYLE =
   // "2 üssü 3, artı 4" okunuyor; kastedilen 2⁽³⁺⁴⁾ ise anlam tersine dönüyor.
   "Bir üs birden çok terimden oluşuyorsa ya tamamını üst simgeyle yaz (2³⁺⁴, aⁿ⁻¹) " +
   "ya da sonucu hesaplayıp tek üsle ver (2⁷). Üst simge ile normal satırı aynı üste karıştırma. " +
+  // Zemin podcast'i kaynaktaki "No.200'den geçen %50'yi aşıyorsa ince daneli"
+  // kuralını "%8 geçiyorsa ince daneli" diye aktardı: sayı kaynaktan, sonuç
+  // ters. Sayıyı doğru kopyalamak yetmiyor, eşiğin yönü de kaynağın.
+  "Eşik, oran ve sınıflandırma kuralını kaynaktan aynen aktar: hangi değer, hangi " +
+  "yön (üstü/altı) ve hangi sonuç birlikte gelir. Kaynağın örneğini kullanıyorsan " +
+  "vardığı sonucu da aynen kullan; sayıyı alıp sonucu değiştirme. " +
   "Metni sade tut: gereksiz giriş cümlesi, özür ya da 'işte cevabınız' gibi kalıplar yok.";
 
 export type GenerationOutcome<T> =
