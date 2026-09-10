@@ -71,16 +71,19 @@ export async function buildTopicMapLLM(
   const backbone = chapterHeadings(contentPages);
 
   /**
-   * Bekçiye takılan ama şeması geçerli son taslak.
+   * Bekçiye takılan taslaklardan EN İYİSİ.
    *
-   * Bekçi ilk canlı denemede pediatri belgesini tümden düşürdü: hiçbir
-   * taslak geçemedi, `buildTopicMapLLM` null döndü ve çağıran taraf
-   * trigonometri fikstürüne ayarlı sezgisel haritaya düştü — pediatri
-   * PDF'inde "Derece ve radyan" ve "Sayfa 4 içeriği" konuları çıktı.
-   * Bekçinin amacı bir bölümün adını kurtarmaktı; bedeli haritanın
-   * tamamı olamaz. Bu yüzden bekçi tavsiye, son çare değil.
+   * Bekçi tavsiye, son çare değil: pediatri belgesinde hiçbir taslak
+   * geçmeyince harita null döndü ve trigonometri fikstürüne düşüldü.
+   * O yüzden reddedilen taslaklardan biriyle devam ediyoruz.
+   *
+   * Ama önce "sonuncusu" tutuluyordu ve bu zemin belgesinde geri tepti:
+   * yedi konuluk harita altıya indi, hem "Yük Altında Gerilme Dağılımı"
+   * hem "Kayma Mukavemeti" kayboldu. Sonuncu taslak en kötüsü olabilir.
+   * Ölçü var: kaç bölüm temsil edilmiyor. En az kaybedeni sakla.
    */
-  let lastValidDraft: z.infer<typeof llmSchema> | null = null;
+  let bestDraft: z.infer<typeof llmSchema> | null = null;
+  let bestMissing = Number.POSITIVE_INFINITY;
 
   let outcome;
   try {
@@ -122,23 +125,25 @@ ${pageDigest(contentPages)}`,
         const parsed = llmSchema.safeParse(raw);
         if (!parsed.success) return null;
         // Bölüm atarak sayıyı tutturan taslak reddedilir; generateJson
-        // geri bildirimle yeniden yazdırır. Ama reddedilen taslak da
-        // saklanıyor: bekçi tatmin olmazsa bile elimizde belgeden çıkmış
-        // bir harita var ve o, aşağıdaki yedekten her hâlükârda iyi.
-        lastValidDraft = parsed.data;
+        // geri bildirimle yeniden yazdırır. Reddedilenlerin en iyisi
+        // saklanıyor — hiçbiri geçmezse onunla devam edilecek.
         const titles = parsed.data.topics.map((t) => normalizeTopicTitle(t.title));
-        if (unrepresentedHeadings(backbone, titles).length) return null;
-        return parsed.data;
+        const missing = unrepresentedHeadings(backbone, titles).length;
+        if (missing < bestMissing) {
+          bestMissing = missing;
+          bestDraft = parsed.data;
+        }
+        return missing ? null : parsed.data;
       },
     });
   } catch {
     return null;
   }
 
-  // Bekçi hiçbir taslağı geçirmediyse elimizdeki son geçerli taslakla
+  // Bekçi hiçbir taslağı geçirmediyse en az bölüm kaybeden taslakla
   // devam et: belgeden çıkmış eksik bir harita, fikstüre ayarlı sezgisel
   // haritadan her zaman iyi.
-  const data = outcome.ok ? outcome.data : lastValidDraft;
+  const data = outcome.ok ? outcome.data : bestDraft;
   if (!data) return null;
 
   const seen = new Set<string>();
