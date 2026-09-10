@@ -30,8 +30,17 @@ export type PageAnalysis = {
 
 const COVER_HINTS =
   /\b(kapak|cover|on\s*soz|yazar|yayinevi|copyright|isbn)\b/i;
-const TOC_HINTS =
-  /\b(icindekiler|table\s+of\s+contents|\bicerik\b|konu\s*basliklari)\b/i;
+/**
+ * İçindekiler yalnızca başlıkla tanınır.
+ *
+ * Listede `\bicerik\b` de vardı; "içerik" gündelik bir kelime olduğu için bir
+ * tablo hücresindeki "Organik içerik belirgin" satırı, dolu bir öğretim
+ * sayfasını içindekiler sanıp müfredat dışına attı. Geçerken anılması değil,
+ * sayfanın başında başlık olarak durması aranıyor.
+ */
+const TOC_HINTS = /\b(icindekiler|table\s+of\s+contents|konu\s*basliklari)\b/i;
+/** Başlık sayfanın en başında olmalı — gövdede geçmesi içindekiler yapmaz. */
+const TOC_HEAD_WINDOW = 200;
 const ANSWER_HINTS =
   /\b(cevap\s*anahtari|dogru\s*cevaplar|answer\s*key|solutions?\s*key)\b/i;
 const HEADING_LINE =
@@ -115,7 +124,7 @@ export function classifyPageKind(text: string, pageNumber: number): PageKind {
   if (pageNumber === 1 && COVER_HINTS.test(sample) && charCount < 900) {
     return "cover";
   }
-  if (TOC_HINTS.test(sample)) return "toc";
+  if (TOC_HINTS.test(sample.slice(0, TOC_HEAD_WINDOW))) return "toc";
   if (ANSWER_HINTS.test(sample)) return "answer_key";
 
   if (charCount < 40) return "unreadable";

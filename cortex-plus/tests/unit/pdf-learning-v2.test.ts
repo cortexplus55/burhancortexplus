@@ -41,6 +41,23 @@ describe("PDF learning page analysis", () => {
     expect(pages[2].formulas.length + pages[2].headings.length).toBeGreaterThan(0);
   });
 
+  it("does not call a content page a table of contents over one stray word", () => {
+    // Zemin mekaniği notunda USCS tablosundaki "Organik içerik belirgin"
+    // satırı, dolu bir öğretim sayfasını içindekiler sanıp kapsam dışına
+    // atmıştı. "içerik" gündelik bir kelime; başlık olarak aranmalı.
+    const [page] = analyzePages([
+      [
+        "3.3. Birleştirilmiş Zemin Sınıflandırması (USCS)",
+        "Sembol Zemin Ölçüt (özet)",
+        "CL / CH Düşük / yüksek plastisiteli kil A-hattı üzeri",
+        "OL / OH, Pt Organik zeminler, turba Organik içerik belirgin",
+        "ÖRNEK 2: Bir zeminin No.200 eleğinden geçeni %8; C u = 8, C c = 2.",
+        "Çözüm. İnce <%50 → kaba daneli, çoğu kum → S. Sınıf: SW",
+      ].join("\n"),
+    ]);
+    expect(page.pageKind).toBe("content");
+  });
+
   it("flags empty pages as blank/unreadable", () => {
     const [blank, thin] = analyzePages(["", "ab"]);
     expect(blank.pageKind).toBe("blank");
