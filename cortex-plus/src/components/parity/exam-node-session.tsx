@@ -91,6 +91,7 @@ export function ExamNodeSession({
   const [loading, setLoading] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [paywall, setPaywall] = useState(false);
+  const [paywallReason, setPaywallReason] = useState<"credit" | "premium">("credit");
   const [payload, setPayload] = useState<Payload>({});
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [generationId, setGenerationId] = useState<string | null>(null);
@@ -301,6 +302,7 @@ export function ExamNodeSession({
         }),
       });
       if (res.status === 402) {
+        setPaywallReason("credit");
         setPaywall(true);
         return;
       }
@@ -404,6 +406,7 @@ export function ExamNodeSession({
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 402) {
+        setPaywallReason("premium");
         setPaywall(true);
         return;
       }
@@ -428,6 +431,7 @@ export function ExamNodeSession({
         body: JSON.stringify({ prepId, nodeId }),
       });
       if (res.status === 402) {
+        setPaywallReason("credit");
         setPaywall(true);
         return;
       }
@@ -945,7 +949,14 @@ export function ExamNodeSession({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Bu ders için kredin kalmadı."
+        // Podcast kredi bitti diye değil, Plus'a özel olduğu için
+        // kapalı. "Kredin kalmadı" demek öğrenciye yarın gelince
+        // açılacağını söyler; açılmayacak.
+        message={
+          paywallReason === "premium"
+            ? "Sesli tekrar Plus'a özel."
+            : "Bu ders için kredin kalmadı."
+        }
         returnPath={`/deneme-sinavlari/${prepId}`}
       />
     </div>

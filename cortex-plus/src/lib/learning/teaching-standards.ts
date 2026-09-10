@@ -314,6 +314,13 @@ const SCAFFOLD_HEADINGS = [
   "yaygin hata",
   "bilgi kontrolu",
   "orta bilgi kontrolu",
+  // Pediatri dersinde bu çıktı: dört başlığın üçü kavramdı, dördüncüsü
+  // yine şablonun adıydı. Liste sızdıkça büyüyor.
+  "kontrol noktasi",
+  "kontrol",
+  "kisa kontrol",
+  "degerlendirme",
+  "uygulama",
   "kisa kapanis",
   "kapanis",
   "giris",

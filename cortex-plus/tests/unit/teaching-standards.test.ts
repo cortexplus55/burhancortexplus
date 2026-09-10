@@ -9,6 +9,7 @@ import {
   validateFlashcardPedagogy,
   brokenSuperscript,
   emptyMistake,
+  isScaffoldHeading,
   validateLessonPedagogy,
   validateOralPedagogy,
   validatePodcastPedagogy,
@@ -433,5 +434,33 @@ describe("podcast advice tolerance", () => {
     expect(
       validatePodcastPedagogy({ chapters: many }).some((i) => i.includes("öğüt")),
     ).toBe(true);
+  });
+});
+
+describe("scaffold headings keep leaking", () => {
+  it("rejects the new variants seen in live lessons", () => {
+    // Pediatri dersinde dört başlığın üçü kavramdı, dördüncüsü
+    // "Kontrol Noktası" idi — listede yoktu, geçti.
+    for (const heading of [
+      "Kontrol Noktası",
+      "Kısa Kontrol",
+      "Değerlendirme",
+      "Uygulama",
+      "Tanım",
+      "Özet",
+    ]) {
+      expect(isScaffoldHeading(heading)).toBe(true);
+    }
+  });
+
+  it("keeps conceptual headings", () => {
+    for (const heading of [
+      "GBP Aşı Takvimi",
+      "Zamanında Aşılama",
+      "Su Tablası Yükselince Ne Değişir",
+      "Ayrışma Türleri",
+    ]) {
+      expect(isScaffoldHeading(heading)).toBe(false);
+    }
   });
 });
