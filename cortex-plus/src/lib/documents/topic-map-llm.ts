@@ -72,7 +72,11 @@ export async function buildTopicMapLLM(
         "learningObjective: o konuda öğrencinin kazanacağı beceri, tek cümle. " +
         "pageNumbers: konunun işlendiği sayfa numaraları. " +
         "Konular belgedeki sıraya göre; her öğretim sayfası en az bir konuya bağlanmalı; 4-14 konu ideal.",
-      userPrompt: `Aşağıda "${fileName}" adlı ders belgesinin sayfa sayfa metni var. Belgenin konu haritasını çıkar: her ana konu için başlık, öğrenme hedefi ve o konunun geçtiği sayfa numaraları. Sadece bu belgede geçen konuları kullan, dışarıdan konu ekleme.\n\n${pageDigest(contentPages)}`,
+      userPrompt: `Aşağıda "${fileName}" adlı ders belgesinin sayfa sayfa metni var. Belgenin konu haritasını çıkar: her ana konu için başlık, öğrenme hedefi ve o konunun geçtiği sayfa numaraları. Sadece bu belgede geçen konuları kullan, dışarıdan konu ekleme.
+
+Kapak, içindekiler, önsöz, "öğrenme hedefleri"/"kazanımlar" listesi ve formül kartı gibi ön/arka bölümler konu DEĞİLDİR — bunlar öğretim içeriği taşımaz, konu olarak çıkarma. Bu sayfaları, anlattıkları asıl konuya ait sayfalardan biri say ya da hiç kullanma.
+
+${pageDigest(contentPages)}`,
       parse: (raw) => {
         const parsed = llmSchema.safeParse(raw);
         return parsed.success ? parsed.data : null;
