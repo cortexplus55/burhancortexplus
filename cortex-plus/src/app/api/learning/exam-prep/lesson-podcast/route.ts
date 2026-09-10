@@ -66,6 +66,10 @@ export async function POST(request: Request) {
     : null;
   if (!lesson) return errorResponse(409, "lesson_required");
 
+  // Reddedilen taslakların gerekçesi; başarısızlıkta yanıta ekleniyor.
+  // Bu olmadan "doğrulamadan geçmedi" dışında bir şey görülemiyordu.
+  const rejections: string[][] = [];
+
   const outcome = await generatePodcastFromLesson({
     service,
     userId,
@@ -73,8 +77,15 @@ export async function POST(request: Request) {
     prepTitle: prep.title ?? "Hazırlık",
     topicLabel: topic.label ?? "Konu",
     lesson,
+    onReject: (issues) => rejections.push(issues),
   });
-  if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
+  if (!outcome.ok) {
+    console.error("lesson podcast rejected", { rejections });
+    return NextResponse.json(
+      { error: outcome.error, rejections },
+      { status: outcome.status },
+    );
+  }
 
   return NextResponse.json({
     title: outcome.data.title,
