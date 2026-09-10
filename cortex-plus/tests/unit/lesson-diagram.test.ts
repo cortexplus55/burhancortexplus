@@ -92,3 +92,37 @@ describe("lessonDiagramSchema", () => {
     expect(diagramIssues(unitCircle)).toEqual([]);
   });
 });
+
+describe("a broken diagram must not take the lesson down", () => {
+  it("drops an invalid diagram and keeps the lesson", async () => {
+    // diagram eklenince ders üretimi tamamen durdu: kurala uymayan tek
+    // bir çizim lessonV2Schema'yı tümden düşürüyordu.
+    const { lessonV2Schema } = await import("@/lib/learning/teaching-standards");
+    const lesson = {
+      title: "Üç Fazlı Zemin Modeli",
+      objective: "Faz diyagramındaki hacimleri ayırt edebileceksin.",
+      overview: "Zemin katı, sıvı ve gaz olmak üzere üç fazdan oluşur.",
+      sections: [
+        {
+          heading: "Faz Diyagramı",
+          body: "**Katı faz** mineral taneleridir; **sıvı faz** sudur.",
+          diagram: {
+            caption: "Bozuk çizim: alan dışına taşan bir daire.",
+            shapes: [{ kind: "circle", cx: 9999, cy: 9999, r: 5 }],
+          },
+        },
+        { heading: "Boşluk Oranı", body: "Boşluk hacminin katı hacmine oranıdır." },
+        { heading: "Porozite", body: "Boşluk hacminin toplam hacme oranıdır." },
+      ],
+      example: { prompt: "e = 0,5 ise n?", solution: "n = e/(1+e) = 0,333." },
+      commonMistake: { claim: "e ile n aynı", correction: "Paydaları farklı." },
+      infoCheck: { prompt: "Boşluk oranı nedir?", answer: "Vv / Vs" },
+      summary: ["e = Vv/Vs", "n = Vv/V"],
+      nextFocus: ["Doygunluk derecesi"],
+    };
+    const parsed = lessonV2Schema.safeParse(lesson);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.sections[0].diagram).toBeUndefined();
+    expect(parsed.data?.sections[0].body).toContain("Katı faz");
+  });
+});
