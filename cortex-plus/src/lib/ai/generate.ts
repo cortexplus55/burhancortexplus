@@ -39,6 +39,10 @@ export const SYSTEM_GUARDRAIL =
 export const CONTENT_STYLE =
   "Matematiksel ifadeleri Unicode ile yaz: üsler ² ³ ⁴ ⁿ, çarpı ×, bölü ÷, kök √, " +
   "kesirler ½ ¾ ya da a/b biçiminde, ≤ ≥ ≠ ≈ π ∞ °. Şapka (^), yıldız (*) ve LaTeX kullanma. " +
+  // Üste taşınan ifadenin tamamı üst simge olmalı. "2³+⁴" yazıldığında ekranda
+  // "2 üssü 3, artı 4" okunuyor; kastedilen 2⁽³⁺⁴⁾ ise anlam tersine dönüyor.
+  "Bir üs birden çok terimden oluşuyorsa ya tamamını üst simgeyle yaz (2³⁺⁴, aⁿ⁻¹) " +
+  "ya da sonucu hesaplayıp tek üsle ver (2⁷). Üst simge ile normal satırı aynı üste karıştırma. " +
   "Metni sade tut: gereksiz giriş cümlesi, özür ya da 'işte cevabınız' gibi kalıplar yok.";
 
 export type GenerationOutcome<T> =

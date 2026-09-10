@@ -7,6 +7,7 @@ import {
   teachingSessionContext,
   teachingStandardConstraints,
   validateFlashcardPedagogy,
+  brokenSuperscript,
   validateLessonPedagogy,
   validateOralPedagogy,
   validatePodcastPedagogy,
@@ -102,6 +103,18 @@ describe("teaching standards contract", () => {
         }),
       ).length,
     ).toBeGreaterThan(0);
+  });
+
+  it("rejects an exponent split between superscript and baseline", () => {
+    // Canlıda üretilen bir derste "2³+⁴" geçti: model 2⁽³⁺⁴⁾ demek isteyip
+    // üssün ortasında normal satıra düşmüş, ekranda anlam tersine dönüyor.
+    expect(brokenSuperscript("2³+⁴ = 2⁷")).toBe(true);
+    // Meşru olanlar bayraklanmamalı: tamamı üst simge olan üs, iki kuvvetin
+    // toplamı, ve düz metin.
+    expect(brokenSuperscript("aⁿ⁻¹ terimi")).toBe(false);
+    expect(brokenSuperscript("2³ + 2⁴ toplamı")).toBe(false);
+    expect(brokenSuperscript("2⁷ = 128")).toBe(false);
+    expect(brokenSuperscript("Taban 3, üs 4")).toBe(false);
   });
 
   it("rejects quiz pedagogy failures", () => {
