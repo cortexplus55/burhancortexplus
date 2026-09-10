@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonToolbar } from "@/components/parity/exam-lesson-toolbar";
+import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
+import { lessonV2Schema } from "@/lib/learning/teaching-standards";
 import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -26,7 +28,7 @@ export default async function ExamPrepLessonPage({
       .maybeSingle(),
     supabase
       .from("exam_prep_lessons")
-      .select("id, title, content_md, liked, exam_prep_id, created_at, topic_id")
+      .select("id, title, content_md, content_json, liked, exam_prep_id, created_at, topic_id")
       .eq("id", lessonId)
       .maybeSingle(),
   ]);
@@ -34,6 +36,11 @@ export default async function ExamPrepLessonPage({
   if (!prep || !lesson || lesson.exam_prep_id !== prepId) notFound();
 
   const content = (lesson.content_md as string) ?? "";
+  // Yapı varsa adım adım göster; eski dersler markdown olarak açılmayı sürdürür.
+  const structured = lesson.content_json
+    ? (lessonV2Schema.safeParse(lesson.content_json).data ?? null)
+    : null;
+
   const created = lesson.created_at
     ? new Date(lesson.created_at as string).toLocaleDateString("tr-TR", {
         day: "numeric",
@@ -58,7 +65,11 @@ export default async function ExamPrepLessonPage({
           initialLiked={Boolean(lesson.liked)}
         />
 
-        <ExamLessonBody content={content} />
+        {structured ? (
+          <ExamLessonSteps lesson={structured} />
+        ) : (
+          <ExamLessonBody content={content} />
+        )}
 
         <div className="ap-exam-result-actions">
           <Link

@@ -163,12 +163,36 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
   }
 }
 
+/**
+ * Bölüm sonu kontrolü.
+ *
+ * Ders tek akış hâlinde okunurken öğrenci anlayıp anlamadığını ancak en sonda
+ * öğreniyordu. Her bölümün kendi kontrolü olunca yanlış anlama okunduğu yerde
+ * yakalanıyor. `answerIndex` seçenek dizisine bakar; `explanation` cevabı
+ * bölümün metnine bağlar.
+ */
+export const sectionCheckSchema = z.object({
+  type: z.enum(["mcq", "trueFalse"]),
+  prompt: z.string().min(8).max(300),
+  options: z.array(z.string().min(1).max(160)).min(2).max(4),
+  answerIndex: z.number().int().min(0).max(3),
+  explanation: z.string().min(8).max(400),
+});
+
+export type SectionCheck = z.infer<typeof sectionCheckSchema>;
+
 export const lessonV2Schema = z.object({
   title: z.string().min(2).max(120),
   objective: z.string().min(12).max(240),
   overview: z.string().min(20).max(600),
   sections: z
-    .array(z.object({ heading: z.string().min(2), body: z.string().min(20).max(900) }))
+    .array(
+      z.object({
+        heading: z.string().min(2),
+        body: z.string().min(20).max(900),
+        check: sectionCheckSchema.optional(),
+      }),
+    )
     .min(3)
     .max(6),
   example: z.object({
@@ -266,6 +290,22 @@ export function validateLessonPedagogy(raw: unknown): string[] {
   for (const section of lesson.sections) {
     if (wallOfText(section.body)) {
       issues.push(`Bölüm duvar metin: ${section.heading}`);
+    }
+    const check = section.check;
+    if (!check) continue;
+    if (check.answerIndex >= check.options.length) {
+      issues.push(`Kontrol cevabı seçenek dışında: ${section.heading}`);
+    }
+    const normalized = check.options.map((o) => o.trim().toLocaleLowerCase("tr"));
+    if (new Set(normalized).size !== normalized.length) {
+      issues.push(`Kontrol seçenekleri tekrar ediyor: ${section.heading}`);
+    }
+    if (check.type === "trueFalse" && check.options.length !== 2) {
+      issues.push(`Doğru/yanlış kontrolü iki seçenekli olmalı: ${section.heading}`);
+    }
+    // Çeldirici, doğru cevabın kopyası ya da "hiçbiri" türü dolgu olmamalı.
+    if (normalized.some((o) => o === "hiçbiri" || o === "hepsi")) {
+      issues.push(`Dolgu şık kullanılmış: ${section.heading}`);
     }
   }
   if (lesson.commonMistake.claim === lesson.commonMistake.correction) {
