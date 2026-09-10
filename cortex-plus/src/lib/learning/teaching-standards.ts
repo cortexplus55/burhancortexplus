@@ -580,6 +580,7 @@ export function validatePodcastPedagogy(
       `Bölüm başlığı şablon adı: ${scaffold.map((c) => c.title).join(", ")} — o bölümde konuşulan kavramı adlandır.`,
     );
   }
+  const advice: string[] = [];
   for (const chapter of chapters) {
     if (!chapter.lines?.length) {
       issues.push(`Boş bölüm: ${chapter.title || "?"}`);
@@ -594,12 +595,18 @@ export function validatePodcastPedagogy(
       if (brokenSuperscript(line.text)) {
         issues.push("Üs bölünmüş; üssün tamamı üst simge olmalı ya da hesaplanmalı.");
       }
-      if (emptyMistake(line.text)) {
-        issues.push(
-          `Yaygın hata değil, öğüt: "${line.text}" — öğrencinin gerçekten yaptığı yanlış adımı söyle.`,
-        );
-      }
+      if (emptyMistake(line.text)) advice.push(line.text);
     }
+  }
+  // Tek bir öğüt cümlesi podcast'i bozmuyor; sorun bölümün TAMAMININ öğüde
+  // dönmesiydi (zemin podcast'inde üç maddenin üçü de böyleydi). Her satırı
+  // ayrı ayrı reddetmek üretimi tümden düşürdü: pediatri podcast'i üst üste
+  // iki denemede "oluşturulamadı" verdi, çünkü tek cümlenin takılması bütün
+  // taslağı çöpe atıyordu.
+  if (advice.length >= 2) {
+    issues.push(
+      `Yaygın hata değil, öğüt: ${advice.map((t) => `"${t}"`).join(" ")} — öğrencinin gerçekten yaptığı yanlış adımı söyle.`,
+    );
   }
   return issues;
 }

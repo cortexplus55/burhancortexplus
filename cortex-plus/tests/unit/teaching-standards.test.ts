@@ -380,3 +380,41 @@ describe("teaching standards contract", () => {
     expect(drafts[0].wrongType).toBe("cos_sin_swap");
   });
 });
+
+describe("podcast advice tolerance", () => {
+  const chapter = (title: string, texts: string[]) => ({
+    title,
+    lines: texts.map((text, i) => ({
+      speaker: (i % 2 === 0 ? "ada" : "kerem") as "ada" | "kerem",
+      text,
+    })),
+  });
+
+  const base = [
+    chapter("Aşı Takviminin Yapısı", ["Takvim doğumdan itibaren başlar."]),
+    chapter("Doz Aralıkları", ["İki doz arası en az dört hafta olmalıdır."]),
+    chapter("Kaçırılan Doz", ["Kaçırılan doz takvimi baştan başlatmaz."]),
+    chapter("Son Bakış", ["Takvim yaşa göre okunur."]),
+  ];
+
+  it("tolerates a single advice-shaped sentence", () => {
+    // Her satırı ayrı ayrı reddetmek üretimi tümden düşürüyordu: pediatri
+    // podcast'i üst üste iki denemede "oluşturulamadı" verdi.
+    const one = [...base];
+    one[2] = chapter("Kaçırılan Doz", [
+      "Takvimi dikkate almadan doz yapmak yanlıştır.",
+    ]);
+    expect(validatePodcastPedagogy({ chapters: one })).toEqual([]);
+  });
+
+  it("still rejects a podcast whose mistakes are all advice", () => {
+    const many = [...base];
+    many[2] = chapter("Kaçırılan Doz", [
+      "Takvimi dikkate almadan doz yapmak yanlıştır.",
+      "Doz aralıklarını göz ardı etmek hatalı olur.",
+    ]);
+    expect(
+      validatePodcastPedagogy({ chapters: many }).some((i) => i.includes("öğüt")),
+    ).toBe(true);
+  });
+});
