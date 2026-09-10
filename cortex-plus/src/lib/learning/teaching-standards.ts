@@ -384,8 +384,17 @@ export function validateLessonPedagogy(raw: unknown): string[] {
       issues.push("Öğrenme hedefi başlığı tekrarlıyor; ne yapabilir olacağını yaz.");
     }
   }
-  if (/bu derste .{0,60}(ogren|anlat|incele|ele al)/.test(foldTr(lesson.overview))) {
-    issues.push("Genel bakış içi boş; konunun özünü bir cümlede ver.");
+  // İçi boş genel bakışın işareti açılış cümlesi değil, EDİLGEN GELECEK:
+  // "açıklanacak", "pekiştirilecektir" dersi tarif eder, konuyu anlatmaz.
+  // Önceki hâli "bu derste" ile başlayan her şeyi reddediyordu; oysa
+  // "Bu derste aşı takvimini yaşa göre okumayı öğreneceksin" iyi bir
+  // genel bakış ve o da eleniyordu.
+  if (
+    /(aciklanacak|anlatilacak|ele alinacak|pekistirilecek|incelenecek|islenecek)/.test(
+      foldTr(lesson.overview),
+    )
+  ) {
+    issues.push("Genel bakış dersi tarif ediyor; konunun özünü bir cümlede ver.");
   }
 
   // Tek kontrol dersin sonunda kalıyordu; okunan yerde yoklanmalı.
