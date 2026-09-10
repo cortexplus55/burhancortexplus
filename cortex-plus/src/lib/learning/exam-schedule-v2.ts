@@ -64,8 +64,22 @@ export type ScheduleBuildResult = {
   summary: string;
 };
 
+/**
+ * Öğrenme adımı ders, podcast değil.
+ *
+ * Uzun süre `learn: "podcast"` idi: planda her konunun "· Öğren" düğümü
+ * bir podcast üretiyordu. İki sonucu vardı. Birincisi, öğretme en kırılgan
+ * ve en pahalı üretim türüne bağlıydı — podcast üretimi düştüğünde öğrenci
+ * o konuda okuyacak hiçbir şey bulamıyordu. İkincisi, sesli metin geri
+ * dönüp bakılamıyor: formülü tekrar okuyamıyor, bölüm başlığına göz
+ * atamıyor.
+ *
+ * Ders sisteminde bunların hepsi var ve doğrulanmış: bölüm başlıkları,
+ * ara kontroller, çözümlü örneğin adım adım doğruluğu. Astra'nın öğrenme
+ * adımı da metin ("Akıllı Metin"); podcast onda da seçmeli.
+ */
 const ROLE_KIND: Record<ScheduleSessionRole, PlanNodeKind> = {
-  learn: "podcast",
+  learn: "lesson",
   practice: "quiz",
   review: "spaced",
   mock: "written_exam",

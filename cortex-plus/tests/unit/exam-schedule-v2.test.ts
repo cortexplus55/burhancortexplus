@@ -197,6 +197,26 @@ describe("exam-schedule-v2", () => {
     expect(drafts[0].meta.durationMinutes).toBeGreaterThan(0);
   });
 
+  it("teaches with a lesson, not a podcast", () => {
+    // learn uzun süre "podcast"e bağlıydı: öğretme adımı en kırılgan ve
+    // en pahalı üretim türüne dayanıyordu, üretim düştüğünde öğrencinin
+    // o konuda okuyacak hiçbir şeyi kalmıyordu.
+    const plan = buildExamScheduleV2({
+      daysToExam: 5,
+      dailyMinutes: 40,
+      studyDays: [1, 2, 3, 4, 5],
+      topics: topics(2),
+      fromDate: new Date("2026-09-08T12:00:00"),
+    });
+    const drafts = scheduleSessionsToNodeDrafts(plan.sessions);
+    const learn = plan.sessions
+      .map((session, i) => ({ session, draft: drafts[i] }))
+      .filter(({ session }) => session.role === "learn");
+    expect(learn.length).toBeGreaterThan(0);
+    for (const { draft } of learn) expect(draft.kind).toBe("lesson");
+    expect(drafts.some((d) => d.kind === "podcast")).toBe(false);
+  });
+
   it("estimates higher load for weak/self-hard topics", () => {
     const weak = estimateTopicMinutes({
       id: "1",
