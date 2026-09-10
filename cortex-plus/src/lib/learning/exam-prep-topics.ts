@@ -5,6 +5,8 @@ export type TopicLesson = {
   id: string;
   title: string;
   contentMd: string;
+  /** Varsa adım adım gösterim için yapılandırılmış ders (lessonV2Schema). */
+  contentJson?: unknown;
 };
 
 const NOTE_PREFIX = "Sınav notu:";
@@ -18,6 +20,7 @@ export function mapLessonsByTopic(
     id: string;
     title: string;
     content_md: string | null;
+    content_json?: unknown;
     topic_id?: string | null;
   }[],
   topics: PrepTopic[],
@@ -30,6 +33,7 @@ export function mapLessonsByTopic(
         id: row.id,
         title: row.title,
         contentMd: row.content_md ?? "",
+        contentJson: row.content_json ?? null,
       } satisfies TopicLesson,
     ]),
   );
@@ -40,6 +44,7 @@ export function mapLessonsByTopic(
       id: row.id,
       title: row.title,
       contentMd: row.content_md ?? "",
+      contentJson: row.content_json ?? null,
     };
   }
 
