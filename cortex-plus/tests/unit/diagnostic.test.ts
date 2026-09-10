@@ -31,6 +31,23 @@ describe("planDiagnosticTopics", () => {
     expect(plan.status).toBe("unmeasured");
     expect(plan.reason).toMatch(/ölçülmedi/i);
   });
+
+  it("carries the document's own mistakes into every plan branch", () => {
+    // Çeldiriciler bunlardan üretiliyor; yolda düşerse tanı soruları yine
+    // uydurma şıklara döner.
+    const mistakes = ["Üssü tabanla çarpmak", "Negatif üssü sonucu negatif sanmak"];
+    const plans = planDiagnosticTopics(
+      [
+        { id: "ok", title: "Okunur", pageNumbers: [1], commonMistakes: mistakes },
+        { id: "unread", title: "Okunmaz", pageNumbers: [9], commonMistakes: mistakes },
+        { id: "empty", title: "Sayfasız", pageNumbers: [], commonMistakes: mistakes },
+      ],
+      [9],
+    );
+    for (const plan of plans) {
+      expect(plan.commonMistakes).toEqual(mistakes);
+    }
+  });
 });
 
 describe("pickMainTopics / skill plan", () => {
