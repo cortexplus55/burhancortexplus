@@ -36,13 +36,11 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (!prep) return errorResponse(404, "not_found");
 
-  // GEÇİCİ: Plus duvarı doğrulama için kaldırıldı (10 Eylül 2026).
-  // Podcast'in dersten türeyen içeriğini canlıda görmenin başka yolu
-  // yoktu. Ses üretimi podcast maliyetinin %98,4'ü; doğrulama biter
-  // bitmez geri konmalı:
-  //   if (!(await isPremiumUser(service, userId))) {
-  //     return errorResponse(402, "premium_required");
-  //   }
+  // Ses üretimi podcast maliyetinin %98,4'ü; Plus'a özel. 10 Eylül'de
+  // dersten türeyen içeriği canlıda görebilmek için geçici olarak
+  // kaldırılmıştı, doğrulama bitince geri kondu.
+  const premium = await isPremiumUser(service, userId);
+  if (!premium) return errorResponse(402, "premium_required");
 
   const { data: topic } = await service
     .from("exam_prep_topics")
@@ -73,7 +71,7 @@ export async function POST(request: Request) {
   const outcome = await generatePodcastFromLesson({
     service,
     userId,
-    isPremium: await isPremiumUser(service, userId),
+    isPremium: premium,
     prepTitle: prep.title ?? "Hazırlık",
     topicLabel: topic.label ?? "Konu",
     lesson,
