@@ -15,6 +15,7 @@ import {
 } from "@/lib/learning/exam-prep-plan";
 import {
   examPrepAssessmentHref,
+  examPrepIntroHref,
   examPrepReviewsHref,
 } from "@/lib/learning/exam-prep-hrefs";
 import {
@@ -68,6 +69,7 @@ export function ExamPrepHome({
   hasTopic,
   activeTopicLabel,
   needsIntro,
+  introPending = false,
   startHref,
   canShare = false,
   initialShared = false,
@@ -87,6 +89,8 @@ export function ExamPrepHome({
   hasTopic: boolean;
   activeTopicLabel?: string | null;
   needsIntro: boolean;
+  /** Tanı ertelendi ve hâlâ yapılmadı — hatırlatılır. */
+  introPending?: boolean;
   startHref: string;
   /** Okulu seçilmemiş kullanıcıya paylaşım düğmesi gösterilmez. */
   canShare?: boolean;
@@ -287,6 +291,16 @@ export function ExamPrepHome({
             </div>
           ) : null}
         </section>
+      ) : null}
+
+      {introPending ? (
+        <Link href={examPrepIntroHref(prepId)} className="ap-intro-nudge">
+          <strong>Seviyeni henüz ölçmedik.</strong>
+          <span>
+            8 soruluk tanı, planı hangi konuya daha çok zaman ayıracağına göre
+            ayarlar. Birkaç dakika sürer.
+          </span>
+        </Link>
       ) : null}
 
       {uiV2 && missed.length ? (
