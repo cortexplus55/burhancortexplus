@@ -214,6 +214,14 @@ export function ExamPrepHome({
 
       {uiV2 ? (
         <nav className="ap-exam-v2-links" aria-label="Öğrenme ekranları">
+          {/* Sohbet hazırlığın içinde duruyor: takılan öğrenci sınavdan
+              çıkıp konuyu baştan anlatmak zorunda kalmasın. */}
+          <Link
+            href={`/deneme-sinavlari/${prepId}/sohbet`}
+            className="ap-back-pill ap-back-pill--accent"
+          >
+            Bu sınav için sor
+          </Link>
           <Link href={examPrepReviewsHref(prepId)} className="ap-back-pill">
             Yanlışlar
             {openMisconceptions > 0 ? ` (${openMisconceptions})` : ""}

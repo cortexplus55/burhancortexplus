@@ -22,6 +22,7 @@ import { chatSourceBlock } from "@/lib/learning/source-context";
 import { extractText } from "@/lib/documents/extract-text";
 import { documentPageContext } from "@/lib/documents/page-context";
 import { recordUserActivity } from "@/lib/streak/record-activity";
+import { loadExamChatContext } from "@/lib/learning/exam-chat-context";
 
 const bodySchema = z.object({
   message: z.string().min(1).max(12000),
@@ -32,6 +33,8 @@ const bodySchema = z.object({
   useDocuments: z.boolean().default(false),
   audience: z.enum(["student"]).default("student"),
   imageDocumentId: z.string().uuid().optional(),
+  /** Sohbet bir sınav hazırlığının içinden açıldıysa o hazırlığın kimliği. */
+  prepId: z.string().uuid().optional(),
 });
 
 export async function POST(request: Request) {
@@ -215,6 +218,13 @@ export async function POST(request: Request) {
   // cevaplıyor ve öğrenci cevabın nereden geldiğini anlayamıyordu.
   const contextBlock = attachmentContext || chatSourceBlock(sources);
 
+  // Sınavın içinden açılan sohbet nerede olduğunu bilsin: hangi hazırlık,
+  // kaç gün kaldı, en son hangi ders okundu. Bu olmadan öğrenci derste
+  // takıldığında konuyu sohbete baştan anlatmak zorunda kalıyordu.
+  const examContext = parsed.data.prepId
+    ? await loadExamChatContext(service, userId, parsed.data.prepId)
+    : null;
+
   try {
     // Yönetim panelinden yayına alınan talimat; yoksa koddaki varsayılan.
     const studentInstruction = await loadActivePrompt(service, PROMPT_KEYS.studentChat);
@@ -236,7 +246,7 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "system",
-          content: `${SYSTEM_GUARDRAIL} ${studentInstruction}${styleBlock}${contextBlock}`,
+          content: `${SYSTEM_GUARDRAIL} ${studentInstruction}${styleBlock}${examContext?.block ?? ""}${contextBlock}`,
         },
         ...history.slice(0, -1),
         { role: "user", content: userContent },

@@ -2810,6 +2810,13 @@
   color: inherit;
 }
 
+/* Sohbet girişi diğer bakım bağlantılarıyla aynı sırada duruyor ama
+   çalışmanın bir parçası, bakım değil — altın kenar onu ayırıyor. */
+.ap-back-pill--accent {
+  border-color: color-mix(in srgb, var(--ap-gold) 45%, transparent);
+  color: var(--ap-gold);
+}
+
 .ap-exam-study-bar {
   display: flex;
   align-items: center;
