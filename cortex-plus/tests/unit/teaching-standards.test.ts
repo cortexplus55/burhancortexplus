@@ -9,6 +9,7 @@ import {
   validateFlashcardPedagogy,
   blockingLessonIssues,
   brokenSuperscript,
+  dropScaffoldSections,
   emptyMistake,
   isScaffoldHeading,
   validateLessonPedagogy,
@@ -639,5 +640,49 @@ describe("key terms and in-place warnings", () => {
       sections: withTerms.sections.map(({ note: _note, ...rest }) => rest),
     };
     expect(validateLessonPedagogy(noNote)).toEqual([]);
+  });
+});
+
+describe("dropScaffoldSections", () => {
+  const section = (heading: string) => ({
+    heading,
+    body: "Bu bölümün gövdesi; kavramı anlatan birkaç cümle burada duruyor.",
+  });
+
+  it("keeps only the concept sections", () => {
+    // Astra'nın dersinde "Yaygın Hata" ya da "Bilgi Kontrolü" diye bir
+    // bölüm yok: uyarı bölümün içinde bir kutu, kontrol soru olarak
+    // soruluyor. Bizde bu alanlar zaten ayrı duruyordu, model bir de
+    // bölüm olarak yazınca öğrenci aynı şeyi iki kez görüyordu.
+    const lesson = {
+      sections: [
+        section("Dane Boyu Dağılımı"),
+        section("Atterberg Limitleri"),
+        section("Kıvam İndisi"),
+        section("Yaygın Hata"),
+        section("Kapanış"),
+      ],
+    };
+    expect(dropScaffoldSections(lesson).sections.map((s) => s.heading)).toEqual([
+      "Dane Boyu Dağılımı",
+      "Atterberg Limitleri",
+      "Kıvam İndisi",
+    ]);
+  });
+
+  it("leaves the lesson alone when trimming would empty it", () => {
+    // Ayıklama dersi üçün altına düşürüyorsa dokunmuyoruz: eksik bir ders
+    // yollamaktansa başlığı kötü bir ders yollamak yeğdir.
+    const lesson = {
+      sections: [section("Boşluk Oranı"), section("Özet"), section("Kapanış")],
+    };
+    expect(dropScaffoldSections(lesson)).toBe(lesson);
+  });
+
+  it("returns the same object when nothing is scaffold", () => {
+    const lesson = {
+      sections: [section("Boşluk Oranı"), section("Porozite"), section("Doygunluk")],
+    };
+    expect(dropScaffoldSections(lesson)).toBe(lesson);
   });
 });

@@ -411,6 +411,33 @@ export function brokenSuperscript(text: string): boolean {
   );
 }
 
+/**
+ * Bölümler yalnızca kavram; şablon adlı bölümler atılır.
+ *
+ * Astra'nın dersinde "Yaygın Hata" ya da "Bilgi Kontrolü" diye bir bölüm
+ * yok: bölümlerin hepsi kavram, yanılgı bölümün içinde kutu, kontrol
+ * bölümün içinde soru, özet ayrı adım.
+ *
+ * Bizim şemamızda da commonMistake, infoCheck ve summary ayrı alanlar.
+ * Ama model onları bir kez daha bölüm olarak yazıyordu — üretilen bir
+ * derste beş bölümün üçü "Yaygın Hata", "Bilgi Kontrolü", "Kapanış"tı ve
+ * öğrenci aynı içeriği iki kez görüyordu. Bu kozmetik bir kusur değil,
+ * tekrar.
+ *
+ * Prompta bir talimat daha eklemek bugün defalarca ters tepti; ikna
+ * etmek yerine atıyoruz. Atmak içerik kaybettirmiyor çünkü karşılığı
+ * zaten kendi alanında duruyor. En az üç kavram bölümü kalmıyorsa
+ * dokunmuyoruz — şema üçten az bölüm kabul etmiyor.
+ */
+export function dropScaffoldSections<T extends { sections: { heading: string }[] }>(
+  lesson: T,
+): T {
+  const concepts = lesson.sections.filter((s) => !isScaffoldHeading(s.heading));
+  if (concepts.length === lesson.sections.length) return lesson;
+  if (concepts.length < 3) return lesson;
+  return { ...lesson, sections: concepts };
+}
+
 /** Deterministic lesson pedagogy checks (structure → pedagogy). */
 export function validateLessonPedagogy(raw: unknown): string[] {
   const parsed = lessonV2Schema.safeParse(raw);
