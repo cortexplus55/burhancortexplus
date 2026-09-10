@@ -250,10 +250,18 @@ export const lessonV2Schema = z.object({
         // bakacağını düz paragraftan çıkaramıyordu.
         body: z.string().min(20).max(900),
         check: sectionCheckSchema.optional(),
-        note: sectionNoteSchema.optional(),
+        // Süs alanlar dersi düşürmemeli.
+        //
+        // diagram eklenince ders üretimi tamamen durdu: model kurala
+        // uymayan tek bir çizim yazdığında (alan dışı koordinat, uydurma
+        // renk) lessonV2Schema tümden başarısız oluyor ve elde ders
+        // kalmıyordu. Oysa çizim isteğe bağlı bir ek — yokluğu dersi
+        // bozmaz, bozuğu da bozmamalı. `.catch` bozuk olanı düşürüyor,
+        // dersin geri kalanı ayakta kalıyor.
+        note: sectionNoteSchema.optional().catch(undefined),
         // Şekille anlaşılan konularda çizim; model tarifini veriyor,
         // SVG'yi biz kuruyoruz (bkz. lesson-diagram.ts).
-        diagram: lessonDiagramSchema.optional(),
+        diagram: lessonDiagramSchema.optional().catch(undefined),
       }),
     )
     .min(3)
