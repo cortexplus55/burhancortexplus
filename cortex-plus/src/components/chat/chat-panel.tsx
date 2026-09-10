@@ -154,6 +154,7 @@ export function ChatPanel({
   starterPrompts,
   feedbackEnabled = false,
   dailyDrillCount = 0,
+  prepId,
 }: {
   initialConversationId?: string;
   initialDocumentId?: string;
@@ -176,6 +177,12 @@ export function ChatPanel({
   tutorStyleLabel?: string;
   quotaHint?: string | null;
   starterPrompts?: { label: string; prompt: string }[];
+  /**
+   * Sohbet bir sınav hazırlığının içinden açıldıysa o hazırlığın kimliği.
+   * Sunucu bununla hangi sınav, kaç gün kaldı ve en son hangi ders
+   * okundu bilgisini modele veriyor.
+   */
+  prepId?: string;
   /**
    * Oylama sütunları veritabanında var mı. Sunucu karar veriyor; göç
    * uygulanmadan başparmak göstermek, basıldığında hata veren bir düğme
@@ -540,6 +547,7 @@ export function ChatPanel({
           useDocuments,
           audience,
           imageDocumentId: activeDocumentId.current,
+          prepId,
         }),
       });
 
