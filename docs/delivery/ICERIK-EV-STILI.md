@@ -72,6 +72,23 @@ gerçekte ne olduğunu** söyler ve kaynağa yaslanır ("Metne göre…").
 
 ---
 
+### Öğrenme adımı ders, podcast değil
+
+Kod: `src/lib/learning/exam-schedule-v2.ts` (`ROLE_KIND`)
+
+**10 Eylül 2026'ya kadar `learn: "podcast"` idi.** Planda her konunun
+"· Öğren" düğümü bir podcast üretiyordu — veritabanında 57 podcast
+düğümünün başlığı "… · Öğren". Podcast bir ekstra değil, öğretmenin
+kendisiydi.
+
+İki bedeli vardı. Öğretme en kırılgan ve en pahalı üretim türüne
+bağlıydı: pediatri podcast'i iki denemede de düştüğünde öğrencinin o
+konuda okuyacak hiçbir şeyi kalmadı. Ve sesli metne geri dönülemiyor —
+formül tekrar okunamıyor, başlığa göz atılamıyor.
+
+Artık `learn: "lesson"`. Astra'nın öğrenme adımı da metin ("Akıllı
+Metin"); podcast onda da seçmeli.
+
 ## 3. Podcast
 
 Kod: `src/lib/learning/teaching-standards.ts` (`validatePodcastPedagogy`,
@@ -85,7 +102,27 @@ podcast'inde beş bölümün beşi de "TANIM / NEDEN / ÖRNEK / YAYGIN HATA /
 
 "Yaygın hata" öğüt olamaz (`emptyMistake`). "Dane boyu dağılımını
 anlamadan sınıflandırma yapmak yanlıştır" bir hata değil; "LL yerine PI
-kullanmak" bir hatadır.
+kullanmak" bir hatadır. Bir öğüt cümlesi tolere edilir, ikisi edilmez —
+her satırı ayrı ayrı reddetmek podcast üretimini tümden düşürüyordu.
+
+Podcast **Plus'a özel** ve **dersin devamı**: öğrenci konuyu okuyup
+bitirince sonuç ekranında "Şimdi dinle" çıkar. Kaynağı ham PDF değil,
+az önce okunan ders (`generatePodcastFromLesson`); ders yoksa podcast de
+yok. Ses üretimi podcast maliyetinin %98,4'ü.
+
+## Doğrulayıcı yazarken sorulacak soru
+
+**"Bu kontrol hiçbir taslağı geçirmezse ne olur?"**
+
+10 Eylül'de aynı hataya iki kez düşüldü:
+
+| Kontrol | Hiçbir taslak geçmeyince |
+|---|---|
+| Konu haritası bölüm bekçisi | Harita `null` → trigonometri fikstürüne düşüldü, pediatri belgesinde "Derece ve radyan" çıktı |
+| Podcast `emptyMistake` | Podcast hiç üretilemedi, "oluşturulamadı" |
+
+Kabul edilebilir bir cevabı yoksa kontrol ya gevşetilmeli ya da
+reddetmek yerine tavsiyeye çevrilmeli (bkz. `lastValidDraft`).
 
 ---
 
