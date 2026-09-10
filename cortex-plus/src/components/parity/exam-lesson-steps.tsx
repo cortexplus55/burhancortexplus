@@ -25,7 +25,12 @@ type Step =
     }
   | { kind: "example"; heading: string; prompt: string; solution: string }
   | { kind: "mistake"; heading: string; claim: string; correction: string }
-  | { kind: "summary"; heading: string; points: string[]; next: string[] };
+  | { kind: "summary"; heading: string; points: string[]; next: string[] }
+  | {
+      kind: "retry";
+      heading: string;
+      check: NonNullable<LessonV2["sections"][number]["check"]>;
+    };
 
 function buildSteps(lesson: LessonV2): Step[] {
   const steps: Step[] = [
@@ -71,15 +76,42 @@ export function ExamLessonSteps({
   lesson: LessonV2;
   onFinish?: () => void;
 }) {
-  const steps = useMemo(() => buildSteps(lesson), [lesson]);
+  const base = useMemo(() => buildSteps(lesson), [lesson]);
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [solutionShown, setSolutionShown] = useState(false);
+  /** Yanlış cevaplanan bölümlerin sırası — tekrar kuyruğunu bunlar doğurur. */
+  const [missed, setMissed] = useState<number[]>([]);
+
+  /**
+   * Ders özetle bitmiyor.
+   *
+   * Astra'da bir dersi adım adım geçerken sayaç 6/6 iken 7/7 oldu: özetten
+   * sonra, yanlış cevapladığın bölümün adıyla etiketlenmiş bir hatırlama
+   * sorusu eklendi. Öğrenme okumakla değil, geri çağırmakla oturuyor;
+   * üstelik hangi bölümden geldiği yazılı olduğu için öğrenci nereye
+   * döneceğini biliyor.
+   *
+   * Yeni üretim yok: soru zaten o bölümün kontrolü. Yanlış yaptıysan bir
+   * kez daha karşına çıkıyor, o kadar.
+   */
+  const steps = useMemo(() => {
+    const retries = missed
+      .map((sectionIndex) => {
+        const section = lesson.sections[sectionIndex];
+        return section?.check
+          ? ({ kind: "retry", heading: section.heading, check: section.check } as Step)
+          : null;
+      })
+      .filter((s): s is Step => s !== null);
+    return [...base, ...retries];
+  }, [base, missed, lesson]);
 
   const step = steps[index];
   const last = index === steps.length - 1;
-  const check = step.kind === "section" ? step.check : undefined;
+  const check =
+    step.kind === "section" ? step.check : step.kind === "retry" ? step.check : undefined;
   const mustAnswer = Boolean(check) && !revealed;
 
   function next() {
@@ -105,6 +137,9 @@ export function ExamLessonSteps({
         {index + 1} / {steps.length}
       </p>
 
+      {step.kind === "retry" ? (
+        <p className="als-check-kicker als-retry-kicker">Tekrarla</p>
+      ) : null}
       <h1 className="als-heading">{step.heading}</h1>
 
       {step.kind === "overview" || step.kind === "section" ? (
@@ -191,6 +226,16 @@ export function ExamLessonSteps({
                   onClick={() => {
                     setPicked(optionIndex);
                     setRevealed(true);
+                    // Yanlış cevaplanan bölüm özetten sonra bir kez daha
+                    // sorulur. Tekrar adımında tekrar yanlış yapmak yeni
+                    // bir adım doğurmaz; kuyruk sonsuza gitmemeli.
+                    if (
+                      step.kind === "section" &&
+                      optionIndex !== check.answerIndex &&
+                      !missed.includes(index - 1)
+                    ) {
+                      setMissed((prev) => [...prev, index - 1]);
+                    }
                   }}
                 >
                   <span>{option}</span>

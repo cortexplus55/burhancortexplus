@@ -250,3 +250,11 @@
     transition: none;
   }
 }
+
+/* Tekrar adımı: özetten sonra gelen hatırlama sorusu. Altın renk,
+   ders akışındaki mor kontrolden ayrılsın diye — öğrenci bunun yeni
+   bir bölüm değil, geri dönüş olduğunu bir bakışta görsün. */
+.als-retry-kicker {
+  color: var(--ap-gold, #f4ae0b);
+  margin-bottom: 0.25rem;
+}
