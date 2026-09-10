@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { analyzePages, type PageAnalysis } from "@/lib/documents/page-analysis";
 import { buildCoverageReport, type CoverageReport } from "@/lib/documents/coverage";
 import { buildTopicMap, type TopicDraft } from "@/lib/documents/topic-map";
+import { buildTopicMapLLM } from "@/lib/documents/topic-map-llm";
 
 export type PdfLearningV2Result = {
   ok: boolean;
@@ -141,6 +142,12 @@ export async function runPdfLearningV2(
   try {
     await clearTopicMap(service, documentId);
 
+    const { data: docRow } = await service
+      .from("documents")
+      .select("user_id, file_name")
+      .eq("id", documentId)
+      .maybeSingle();
+
     const rows = await loadPageRows(service, documentId);
     const texts = rows.map((row) => row.text_content ?? "");
     const analyses = analyzePages(texts);
@@ -154,7 +161,17 @@ export async function runPdfLearningV2(
       await persistPageMeta(service, pageId, analysis);
     }
 
-    const { topics, mergedTitles } = buildTopicMap(analyses);
+    // Prefer a model-read topic map; the heuristic only knows a trig fixture set.
+    const llmMap = docRow?.user_id
+      ? await buildTopicMapLLM(
+          service,
+          documentId,
+          docRow.user_id as string,
+          (docRow.file_name as string) ?? "belge",
+          analyses,
+        )
+      : null;
+    const { topics, mergedTitles } = llmMap ?? buildTopicMap(analyses);
     await persistTopics(service, documentId, topics, pageIdByNumber);
 
     const coverage = buildCoverageReport(analyses, topics, mergedTitles);
