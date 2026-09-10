@@ -64,8 +64,10 @@ export async function POST(request: Request) {
     : null;
   if (!lesson) return errorResponse(409, "lesson_required");
 
-  // Reddedilen taslakların gerekçesi; başarısızlıkta yanıta ekleniyor.
-  // Bu olmadan "doğrulamadan geçmedi" dışında bir şey görülemiyordu.
+  // Reddedilen taslakların gerekçesi. Podcast üretimi bir kez susarak
+  // tıkandı ve altı tur tahminle uğraşıldı; ölçüm sebebi tek turda
+  // buldu. Gerekçe logda kalıyor, yanıta girmiyor: doğrulayıcının iç
+  // mesajı öğrencinin göreceği bir şey değil.
   const rejections: string[][] = [];
 
   const outcome = await generatePodcastFromLesson({
@@ -78,11 +80,12 @@ export async function POST(request: Request) {
     onReject: (issues) => rejections.push(issues),
   });
   if (!outcome.ok) {
-    console.error("lesson podcast rejected", { rejections });
-    return NextResponse.json(
-      { error: outcome.error, rejections },
-      { status: outcome.status },
-    );
+    console.error("lesson podcast rejected", {
+      topicId,
+      attempts: rejections.length,
+      rejections,
+    });
+    return errorResponse(outcome.status, outcome.error);
   }
 
   return NextResponse.json({

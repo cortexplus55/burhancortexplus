@@ -149,6 +149,13 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
       return (
         "Her soruda net learningObjective. Yeterli bilgi ver. correct seçenekleri options içinde birebir. " +
         "Çeldiriciler gerçek yanılgılardan gelsin (misconceptionTag). Açıklama doğru kümesiyle uyumlu. " +
+        // Üretilen beş sorunun beşinde de açıklama yalnızca doğruyu
+        // tekrarlıyordu. Yanlışı çürütmek zorunda olan bir açıklama
+        // ayrıca soruyu denetler: aynı beşlide "90° ve 270°'de tanımsız"
+        // sorusunun Sec şıkkı da doğruydu ve kimse fark etmemişti.
+        "AÇIKLAMA YANLIŞI DA ÇÜRÜTSÜN: en az bir çeldiricinin gerçekte ne olduğunu yaz " +
+        "(\"Sin 90°'de 1'dir, tanımsız değildir\"). Bir çeldiriciyi çürütemiyorsan o şık " +
+        "aslında doğrudur — soruyu düzelt. " +
         "Eşdeğer tekrar şık yok. Seviyeye uygun. multi=true yalnızca birden fazla bağımsız doğru varken; " +
         "'hepsi/hiçbiri' şıkkı yok."
       );
@@ -459,6 +466,38 @@ export function validateLessonPedagogy(raw: unknown): string[] {
   return issues;
 }
 
+/**
+ * Açıklama yanlış şıkkı çürütüyor mu?
+ *
+ * Üretilmiş beş quiz sorusuna bakınca beşinin de açıklaması yalnızca
+ * doğruyu tekrarlıyordu: "Sinus(y)=-1 sağlayan açı 270°'dir." Öğrenci
+ * neden 90° değil öğrenmiyor. Astra'nın açıklaması her çeldiricinin
+ * gerçekte ne olduğunu söylüyor: "V_w suyun, V_a havanın hacmidir."
+ *
+ * Kural aynı zamanda bir doğruluk ağı: aynı beşlide "90° ve 270°'de
+ * tanımsız olan fonksiyon" sorusunun şıkları Tan/Sin/Cos/Sec idi ve
+ * cos = 0 olduğu için Sec de tanımsız — soru iki doğrulu ama tek
+ * cevaplı işaretlenmişti. "Sec neden yanlış?" yazmak zorunda olan bir
+ * açıklama bunu yazamazdı.
+ */
+function explanationRefutesADistractor(q: QuizQuestion): boolean {
+  const explanation = foldTr(q.explanation ?? "");
+  if (!explanation.trim()) return false;
+  const correctTokens = new Set(
+    q.correct.flatMap((c) => foldTr(c).split(/[^a-z0-9]+/).filter(Boolean)),
+  );
+  for (const option of q.options) {
+    if (q.correct.includes(option)) continue;
+    // Yanlış şıkkı ayırt eden parça: doğru şıkta geçmeyen bir kelime
+    // ya da sayı. "270" doğru cevapta da geçiyorsa ayırt etmiyor.
+    const distinctive = foldTr(option)
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t.length >= 2 && !correctTokens.has(t));
+    if (distinctive.some((t) => explanation.includes(t))) return true;
+  }
+  return false;
+}
+
 /** Quiz pedagogy beyond basic schema parse. */
 export function validateQuizPedagogy(
   questions: QuizQuestion[],
@@ -506,6 +545,20 @@ export function validateQuizPedagogy(
       if (missingAll) {
         issues.push("En az bir soruda learningObjective zorunlu.");
       }
+    }
+  }
+
+  // Soru bazında değil, set bazında: tek bir sorunun açıklaması kısa
+  // kalabilir, ama BEŞİNİN BEŞİ de yalnızca doğruyu tekrarlıyorsa
+  // öğrenci hiçbir yanlışının nedenini öğrenmiyor. Set kuralı olması
+  // ayrıca üretimi tıkamıyor — bugün bunu üç kez pahalıya öğrendik.
+  const multiOption = questions.filter((q) => q.options.length >= 3);
+  if (multiOption.length >= 2) {
+    const refuting = multiOption.filter(explanationRefutesADistractor).length;
+    if (refuting * 2 < multiOption.length) {
+      issues.push(
+        "Açıklamalar yalnızca doğruyu tekrarlıyor; en az yarısı bir yanlış şıkkın gerçekte ne olduğunu söylemeli.",
+      );
     }
   }
   return issues;
