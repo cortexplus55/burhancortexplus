@@ -6579,3 +6579,134 @@
   font-size: 0.8125rem;
   line-height: 1.5;
 }
+
+/* --- Sınav sayfası: tek kahraman kart, iki görünüm --- */
+
+/* Kartın altına hafif bir ışık: başlık ile içerik arasında sınır
+   olduğu belli olsun ama çizgiyle bölmeyelim. */
+.ap-exam-hero {
+  border-radius: 18px;
+  padding: 1.25rem 1.25rem 1rem;
+  background:
+    radial-gradient(120% 120% at 50% 120%, rgba(124, 108, 247, 0.16), transparent 60%),
+    var(--ap-surface);
+  border: 1px solid var(--ap-border);
+}
+
+.ap-exam-tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-top: 0.85rem;
+  padding: 0.25rem;
+  border-radius: 9999px;
+  background: var(--ap-bg);
+  border: 1px solid var(--ap-border);
+}
+
+.ap-exam-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.9rem;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--ap-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.ap-exam-tab.is-active {
+  background: var(--ap-surface-2);
+  color: var(--ap-text);
+}
+
+.ap-exam-tab-count {
+  font-size: 0.75rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 9999px;
+  background: var(--ap-surface-2);
+  color: var(--ap-muted);
+}
+.ap-exam-tab.is-active .ap-exam-tab-count {
+  background: var(--ap-bg);
+}
+
+.ap-exam-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.5rem 0 1rem;
+}
+
+/* Konular sekmesi: her satırda ad, kaç etkinlik bitti ve yüzde.
+   Öğrenci nerede kaldığını konu bazında görsün. */
+.ap-topic-progress ul {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ap-topic-progress a {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "name pct"
+    "bar bar"
+    "count count";
+  gap: 0.3rem 0.75rem;
+  align-items: center;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--ap-border);
+  border-radius: 12px;
+  background: var(--ap-surface);
+  text-decoration: none;
+  color: inherit;
+}
+
+.ap-topic-progress-name {
+  grid-area: name;
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+.ap-topic-progress-pct {
+  grid-area: pct;
+  font-size: 0.875rem;
+  color: var(--ap-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ap-topic-progress-count {
+  grid-area: count;
+  font-size: 0.75rem;
+  color: var(--ap-muted);
+}
+.ap-topic-progress-bar {
+  grid-area: bar;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--ap-surface-2);
+  overflow: hidden;
+}
+.ap-topic-progress-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--ap-gold);
+}
+
+/* Üç ölçütten hangisinin öne çıktığı belli olsun: ikincil olanlar
+   küçülüyor ama uyarı cümleleri duruyor — dürüstlük bozulmuyor. */
+.ap-tracking-secondary {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--ap-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  font-size: 0.9375rem;
+}
