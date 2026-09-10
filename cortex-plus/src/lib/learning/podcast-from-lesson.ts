@@ -16,7 +16,13 @@
  * gövdeden besleniyor, bölüm başlıkları birebir örtüşüyor.
  */
 
-import type { LessonV2 } from "@/lib/learning/teaching-standards";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { generateJson } from "@/lib/ai/generate";
+import {
+  podcastV2Schema,
+  validatePodcastPedagogy,
+  type LessonV2,
+} from "@/lib/learning/teaching-standards";
 
 /** Podcast promptuna giren, dersin sıkıştırılmış hâli. */
 export function lessonPodcastBrief(lesson: LessonV2): string {
@@ -75,4 +81,65 @@ function numericTokens(text: string): string[] {
     out.push(raw);
   }
   return out;
+}
+
+/**
+ * Dersin sesli hâlini üretir.
+ *
+ * Podcast artık planın öğrenme adımı değil; öğrenci konuyu okuyup
+ * bitirdikten sonra "şimdi dinle" derse geliyor. O yüzden kaynağı ham PDF
+ * değil, az önce okuduğu ders: aynı bölümler, aynı örnek, aynı yanılgı.
+ * Öğrencinin duyduğu şey okuduğunun tekrarı olur ve olgu ikinci kez
+ * çıkarılmadığı için kaynağı ters çevirme ihtimali kalmaz.
+ */
+export async function generatePodcastFromLesson(input: {
+  service: SupabaseClient;
+  userId: string;
+  isPremium: boolean;
+  prepTitle: string;
+  topicLabel: string;
+  lesson: LessonV2;
+  idempotencyKey?: string;
+}) {
+  const brief = lessonPodcastBrief(input.lesson);
+  return generateJson({
+    service: input.service,
+    userId: input.userId,
+    actionCode: "STUDY_PLAN_GENERATE",
+    isPremium: input.isPremium,
+    difficulty: "hard",
+    validationProfile: "v2",
+    maxDraftAttempts: 2,
+    allowIndependentAccept: true,
+    activityKind: "podcast",
+    idempotencyKey: input.idempotencyKey,
+    buildIndependent: (_c, parsed) => {
+      const data = podcastV2Schema.safeParse(parsed).data;
+      return {
+        pedagogyIssues: data
+          ? validatePodcastPedagogy(data)
+          : ["Podcast şeması geçersiz."],
+        minItems: 4,
+      };
+    },
+    schemaHint:
+      'JSON: {"title":string,"objective":string,"sourcePoints":string[],"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +
+      "4-5 bölüm. Her bölümün title'ı O BÖLÜMDE KONUŞULAN KAVRAMIN ADI olsun; " +
+      '"Tanım", "Neden", "Örnek", "Yaygın hata", "Özet" gibi aşama adları başlık olarak YASAK. ' +
+      "Ada ve Kerem sırayla. Her text TEK cümle, ≤25 kelime.",
+    userPrompt: `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}.
+
+${brief}
+
+Bu podcast yukarıdaki DERSİN sesli hâlidir. Öğrenci dersi az önce okudu; şimdi aynı şeyi kulakla tekrar ediyor. Olguyu yeniden çıkarma, aktar: bölümler dersin bölümlerinden gelsin, örnek dersin çözümlü örneği olsun, yaygın hata dersinki olsun. Derste geçmeyen bir sayı kullanma.`,
+    parse: (raw) => {
+      const data = podcastV2Schema.safeParse(raw).data ?? null;
+      if (!data) return null;
+      if (validatePodcastPedagogy(data).length) return null;
+      if (podcastNumbersOutsideLesson(JSON.stringify(data.chapters), brief).length) {
+        return null;
+      }
+      return data;
+    },
+  });
 }
