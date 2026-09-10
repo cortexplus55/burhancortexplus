@@ -100,6 +100,12 @@ export async function generatePodcastFromLesson(input: {
   topicLabel: string;
   lesson: LessonV2;
   idempotencyKey?: string;
+  /**
+   * Reddedilen taslakların gerekçesi. Podcast üretimi canlıda hiç
+   * tamamlanmıyordu ve hangi kontrolün elediğini sunucu logu olmadan
+   * anlamak mümkün değildi; çağıran taraf bunu okuyup yüzeye çıkarabilir.
+   */
+  onReject?: (issues: string[]) => void;
 }) {
   const brief = lessonPodcastBrief(input.lesson);
   return generateJson({
@@ -134,9 +140,20 @@ ${brief}
 Bu podcast yukarıdaki DERSİN sesli hâlidir. Öğrenci dersi az önce okudu; şimdi aynı şeyi kulakla tekrar ediyor. Olguyu yeniden çıkarma, aktar: bölümler dersin bölümlerinden gelsin, örnek dersin çözümlü örneği olsun, yaygın hata dersinki olsun. Derste geçmeyen bir sayı kullanma.`,
     parse: (raw) => {
       const data = podcastV2Schema.safeParse(raw).data ?? null;
-      if (!data) return null;
-      if (validatePodcastPedagogy(data).length) return null;
-      if (podcastNumbersOutsideLesson(JSON.stringify(data.chapters), brief).length) {
+      if (!data) {
+        input.onReject?.(["Podcast şeması geçersiz."]);
+        return null;
+      }
+      const issues = validatePodcastPedagogy(data);
+      const strayNumbers = podcastNumbersOutsideLesson(
+        JSON.stringify(data.chapters),
+        brief,
+      );
+      if (strayNumbers.length) {
+        issues.push(`Derste geçmeyen sayı: ${strayNumbers.join(", ")}`);
+      }
+      if (issues.length) {
+        input.onReject?.(issues);
         return null;
       }
       return data;
