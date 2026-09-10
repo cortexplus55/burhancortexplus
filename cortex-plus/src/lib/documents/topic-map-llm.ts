@@ -179,6 +179,30 @@ ${pageDigest(contentPages)}`,
 
   if (topics.length < 2) return null;
 
+  // Modelin hâlâ atladığı bölümü kendimiz ekle.
+  //
+  // Bekçi bölümü doğru işaretliyordu ama uyarı modele hiç ulaşmıyordu:
+  // yeniden deneme promptu yalnızca hata KODLARINI taşıyor, metni değil.
+  // Zemin belgesinde "6. Yük Altında Gerilme Dağılımı" üst üste üç
+  // denemede de kayboldu — model ikna edilemedi.
+  //
+  // İkna etmeye gerek yok: bölümün başlığı da sayfaları da elimizde.
+  // Başlığı temizleyip kendi konumuzu kuruyoruz. Böylece "hiçbir öğretim
+  // bölümü listeden kaybolmaz" bir temenni değil, garanti oluyor.
+  const shipped = topics.map((t) => t.title);
+  for (const heading of unrepresentedHeadings(backbone, shipped)) {
+    const title = normalizeTopicTitle(heading);
+    if (topicTitleIssues(title).length) continue;
+    if (seen.has(title.toLocaleLowerCase("tr").trim())) continue;
+    const pageNumbers = contentPages
+      .filter((page) => (page.headings[0] ?? "").trim() === heading)
+      .map((page) => page.pageNumber)
+      .sort((a, b) => a - b);
+    if (!pageNumbers.length) continue;
+    seen.add(title.toLocaleLowerCase("tr").trim());
+    topics.push(draftFromLlmTopic(title, null, pageNumbers, pages, topics.length));
+  }
+
   // Attach any content page the model missed to the nearest earlier topic so
   // coverage can still reach 100%.
   const linked = new Set<number>();
