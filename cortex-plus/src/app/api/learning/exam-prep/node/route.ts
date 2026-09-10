@@ -1004,12 +1004,22 @@ async function generateNodePayload(input: {
         : undefined,
       schemaHint: input.teachingV2
         ? 'JSON: {"title":string,"objective":string,"sourcePoints":string[],"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +
-          "4-5 bölüm: Tanım, Neden, Örnek, Yaygın hata, Özet. Ada ve Kerem sırayla. Her text TEK cümle, ≤25 kelime. Kaynak dışı iddia yok."
+          "4-5 bölüm. Her bölümün title'ı O BÖLÜMDE KONUŞULAN KAVRAMIN ADI olsun " +
+          '("Dane Boyu Dağılımı", "Atterberg Limitleri"); üretim aşamalarının adı ' +
+          '("Tanım", "Neden", "Örnek", "Yaygın hata", "Özet") başlık olarak YASAK. ' +
+          "Ada ve Kerem sırayla. Her text TEK cümle, ≤25 kelime. Kaynak dışı iddia yok."
         : 'JSON: {"title":string,"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +
           "Ada ve Kerem iki sunucu; sırayla konuşur, birbirine soru sorar. " +
           "Her text TEK cümle olsun ve 25 kelimeyi geçmesin.",
       userPrompt: input.teachingV2
-        ? `${ctx} Ada ve Kerem'in kaynak bağlı 5 bölümlük podcast senaryosu (Tanım→Neden→Örnek→Yaygın hata→Özet).`
+        ? `${ctx} Ada ve Kerem'in kaynak bağlı podcast senaryosu. Akış: önce kavramı ` +
+          `tanımlayın, sonra niye önemli olduğunu, sonra kaynaktaki sayılarla bir örnek, ` +
+          `sonra öğrencinin gerçekten yaptığı bir yanlış adım, sonunda özet. ` +
+          `SAYISAL SONUÇ VE SINIFLANDIRMA KARARLARI: eşik, yön ve sonuç kaynakta ne ` +
+          `diyorsa aynen o olmalı — "%8 geçiyorsa ince daneli" gibi kaynağın kuralını ` +
+          `ters çeviren bir cümle en ağır hatadır. Örnekteki her sayıyı sourcePoints'e yaz. ` +
+          `"Yaygın hata" bölümü öğüt değil hata olsun: "X'i göz ardı etmek yanlıştır" ` +
+          `bir hata değildir; "LL yerine PI kullanmak" bir hatadır.`
         : `${ctx} Ada ve Kerem'in sohbet ettiği 4 bölümlük kısa podcast senaryosu.`,
       parse: (raw) => {
         const data = schema.safeParse(raw).data ?? null;

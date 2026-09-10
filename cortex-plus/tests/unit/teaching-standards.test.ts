@@ -8,6 +8,7 @@ import {
   teachingStandardConstraints,
   validateFlashcardPedagogy,
   brokenSuperscript,
+  emptyMistake,
   validateLessonPedagogy,
   validateOralPedagogy,
   validatePodcastPedagogy,
@@ -297,17 +298,47 @@ describe("teaching standards contract", () => {
   });
 
   it("validates podcast phase structure and short lines", () => {
+    // Evre sırası duruyor ama başlıklar kavramın adı — dinleyici bölüm
+    // adından ne konuşulduğunu anlıyor.
     const ok = validatePodcastPedagogy({
       title: "Birim çember",
       chapters: [
-        { title: "Tanım", lines: [{ speaker: "ada", text: "Birim çemberin yarıçapı birdir." }] },
-        { title: "Neden", lines: [{ speaker: "kerem", text: "Bu sayede cos ve sin doğrudan koordinat olur." }] },
-        { title: "Örnek", lines: [{ speaker: "ada", text: "Doksan derecede nokta sıfır bir olur." }] },
-        { title: "Yaygın hata", lines: [{ speaker: "kerem", text: "Sin ile cosu yer değiştirmek sık hatadır." }] },
-        { title: "Özet", lines: [{ speaker: "ada", text: "x kosinüs, y sinüstür." }] },
+        { title: "Birim Çemberin Yarıçapı", lines: [{ speaker: "ada", text: "Birim çemberin yarıçapı birdir." }] },
+        { title: "Koordinat Olarak Sinüs ve Kosinüs", lines: [{ speaker: "kerem", text: "Bu sayede cos ve sin doğrudan koordinat olur." }] },
+        { title: "Doksan Derecedeki Nokta", lines: [{ speaker: "ada", text: "Doksan derecede nokta sıfır bir olur." }] },
+        { title: "Sinüs ile Kosinüsü Karıştırmak", lines: [{ speaker: "kerem", text: "Sin ile cosu yer değiştirmek sık hatadır." }] },
+        { title: "Çemberde Ne Nerede", lines: [{ speaker: "ada", text: "x kosinüs, y sinüstür." }] },
       ],
     });
     expect(ok).toEqual([]);
+  });
+
+  it("rejects podcast chapters named after the production scaffold", () => {
+    // Zemin podcast'inde beş bölümün beşi de böyleydi: TANIM / NEDEN /
+    // ÖRNEK / YAYGIN HATA / ÖZET. Kural bunları eskiden zorunlu tutuyordu.
+    const issues = validatePodcastPedagogy({
+      title: "Zemin sınıflandırması",
+      chapters: [
+        { title: "Tanım", lines: [{ speaker: "ada", text: "Dane boyu tane çapını anlatır." }] },
+        { title: "Neden", lines: [{ speaker: "kerem", text: "Sınıflandırma tasarım kararını belirler." }] },
+        { title: "Örnek", lines: [{ speaker: "ada", text: "No 200 eleğinden geçen yüzde 8 ise kaba danelidir." }] },
+        { title: "Yaygın hata", lines: [{ speaker: "kerem", text: "LL yerine PI kullanmak sınıfı kaydırır." }] },
+        { title: "Özet", lines: [{ speaker: "ada", text: "Eşik yüzde 50 geçentir." }] },
+      ],
+    });
+    expect(issues.some((i) => i.includes("şablon adı"))).toBe(true);
+  });
+
+  it("rejects advice dressed up as a common mistake", () => {
+    expect(emptyMistake("Dane boyu dağılımını anlamadan sınıflandırma yapmak yanlıştır.")).toBe(
+      true,
+    );
+    expect(emptyMistake("Kıvam limitlerini göz ardı etmek zemin davranışını yanlış değerlendirir.")).toBe(
+      true,
+    );
+    // Somut hata: hangi değeri neyin yerine koyduğu belli.
+    expect(emptyMistake("LL = 52 yerine PI = 28 kullanmak sınıfı yanlış verir.")).toBe(false);
+    expect(emptyMistake("Sinüs ile kosinüsü yer değiştirmek sık hatadır.")).toBe(false);
   });
 
   it("requires oral rubrics under v2", () => {
