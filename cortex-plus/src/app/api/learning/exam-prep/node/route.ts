@@ -1034,10 +1034,11 @@ async function generateNodePayload(input: {
       }),
       schemaHint:
         'JSON: {"title":string,"objective":string,"overview":string,' +
-        '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string}}],' +
+        '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"note":{"title":string,"body":string}}],' +
         '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
         '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
-        "3-6 bölüm; en az iki bölümde check olsun.",
+        "3-6 bölüm; en az iki bölümde check olsun. note isteğe bağlı: yalnızca " +
+        "karıştırılması kolay bir ayrımın olduğu bölüme koy.",
       userPrompt: `${ctx} Bu konunun dersini yaz.`,
       parse: (raw) => {
         const data = lessonV2Schema.safeParse(raw).data ?? null;

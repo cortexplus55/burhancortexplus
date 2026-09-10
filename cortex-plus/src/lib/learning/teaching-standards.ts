@@ -143,7 +143,17 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         // tutması hatayı görünmez kılıyor.
         "Çözümde her ara adımı yaz ve her adımın kendi içinde doğru olduğunu denetle: " +
         "bir önceki satırdan bu satıra hangi kuralla geçildiği tutarlı olmalı. " +
-        "Sonucun doğru çıkması ara adımı doğrulamaz — yanlış bir ara adımla doğru sonuca varma."
+        "Sonucun doğru çıkması ara adımı doğrulamaz — yanlış bir ara adımla doğru sonuca varma. " +
+        // Sınava iki gün kala dersi yeniden okuyan öğrenci düz paragraftan
+        // neye bakacağını çıkaramıyordu.
+        "ANAHTAR TERİMLERİ İŞARETLE: sınavda çıkacak terim ve tanımları bölüm metninde " +
+        "**iki yıldız** arasına al (**boşluk oranı**, **likit limit**). Cümlenin tamamını " +
+        "değil, terimi işaretle; ders başına en az iki tane. " +
+        // Yanılgı dersin sonunda tek adımdı; öğrenci onu beş adım sonra
+        // görüyordu. Okunduğu yerde kesilirse hiç yerleşmiyor.
+        "TUZAĞI YERİNDE UYAR: bir bölümde karıştırılması kolay bir ayrım varsa o bölüme " +
+        "note ekle — kısa başlık ve tek cümle (\"Havanın Ağırlığı: hacmi hesaba dahil, " +
+        "ağırlığı değil\"). Her bölüme değil, gerçekten tuzak olan yere."
       );
     case "quiz":
       return (
@@ -210,6 +220,22 @@ export const sectionCheckSchema = z.object({
 
 export type SectionCheck = z.infer<typeof sectionCheckSchema>;
 
+/**
+ * Bölümün içindeki uyarı kutusu.
+ *
+ * Astra tuzağı kavramın hemen yanında veriyor: üç fazlı model anlatılırken
+ * "Havanın Ağırlığı — hacmi hesaba dahil, ağırlığı değil" diye küçük bir
+ * kutu çıkıyor. Bizde yanılgı dersin en sonunda tek bir adımdı; öğrenci
+ * onu, üzerinden beş adım geçtikten sonra görüyordu. Yanılgı okunduğu
+ * yerde kesilirse hiç yerleşmiyor.
+ */
+export const sectionNoteSchema = z.object({
+  title: z.string().min(3).max(80),
+  body: z.string().min(10).max(400),
+});
+
+export type SectionNote = z.infer<typeof sectionNoteSchema>;
+
 export const lessonV2Schema = z.object({
   title: z.string().min(2).max(120),
   objective: z.string().min(12).max(240),
@@ -218,8 +244,12 @@ export const lessonV2Schema = z.object({
     .array(
       z.object({
         heading: z.string().min(2),
+        // Anahtar terimler **iki yıldız** arasında gelir; ekranda koyu
+        // görünür. Sınava iki gün kala dersi yeniden okuyan öğrenci neye
+        // bakacağını düz paragraftan çıkaramıyordu.
         body: z.string().min(20).max(900),
         check: sectionCheckSchema.optional(),
+        note: sectionNoteSchema.optional(),
       }),
     )
     .min(3)
@@ -421,6 +451,19 @@ export function validateLessonPedagogy(raw: unknown): string[] {
     if (checks < 2) {
       issues.push("En az iki bölümün kendi kontrolü olmalı.");
     }
+  }
+
+  // Anahtar terim işaretlenmemiş ders, sınav öncesi taranamıyor. Kural
+  // set bazında: her bölümde terim aramak yerine dersin genelinde en az
+  // birkaç tanesi işaretli olsun.
+  const boldTerms = lesson.sections.reduce(
+    (sum, s) => sum + (s.body.match(/\*\*[^*\n]{2,60}\*\*/g)?.length ?? 0),
+    0,
+  );
+  if (boldTerms < 2) {
+    issues.push(
+      "Anahtar terimler işaretlenmemiş; sınavda çıkacak terimleri **iki yıldız** arasına al.",
+    );
   }
 
   const mathTexts = [

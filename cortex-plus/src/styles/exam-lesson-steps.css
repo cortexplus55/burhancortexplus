@@ -258,3 +258,35 @@
   color: var(--ap-gold, #f4ae0b);
   margin-bottom: 0.25rem;
 }
+
+/* Anahtar terim: gövde içinde kalıyor ama gözle bulunuyor. Renk değil
+   ağırlık kullanıyoruz — paragraf alacalı görünmesin. */
+.als-term {
+  font-weight: 650;
+  color: var(--ap-text, #fff);
+}
+
+/* Bölüm içi uyarı kutusu: karıştırılması kolay ayrım, kavramın yanında.
+   Altın şerit ders akışındaki mor kontrolden ayırıyor. */
+.als-note {
+  margin-top: 0.9rem;
+  padding: 0.7rem 0.9rem;
+  border-left: 3px solid var(--ap-gold, #f4ae0b);
+  border-radius: 0 10px 10px 0;
+  background: color-mix(in srgb, var(--ap-gold, #f4ae0b) 8%, transparent);
+}
+
+.als-note-title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ap-gold, #f4ae0b);
+}
+
+.als-note-body {
+  margin: 0.25rem 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}

@@ -15,6 +15,34 @@ import "@/styles/exam-lesson-steps.css";
  * İçerik zaten böyle üretiliyordu; kaybolduğu yer depolamaydı.
  */
 
+/**
+ * Anahtar terimleri koyu göster.
+ *
+ * Ders gövdesi düz paragraftı: sınava iki gün kala geri dönen öğrenci
+ * hangi kelimenin sınavda çıkacak terim olduğunu göremiyordu. Astra
+ * terimleri metnin içinde koyu veriyor.
+ *
+ * Metin `**terim**` biçiminde geliyor; HTML'e çevirmiyoruz, parçalayıp
+ * <strong> ile basıyoruz — modelden gelen metne innerHTML açmak, ders
+ * içeriğini işaretleme kanalına dönüştürürdü.
+ */
+function RichBody({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*\n]{1,80}\*\*)/g);
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.startsWith("**") && part.endsWith("**") && part.length > 4 ? (
+          <strong key={i} className="als-term">
+            {part.slice(2, -2)}
+          </strong>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
+
 type Step =
   | { kind: "overview"; heading: string; body: string }
   | {
@@ -22,6 +50,7 @@ type Step =
       heading: string;
       body: string;
       check?: LessonV2["sections"][number]["check"];
+      note?: LessonV2["sections"][number]["note"];
     }
   | { kind: "example"; heading: string; prompt: string; solution: string }
   | { kind: "mistake"; heading: string; claim: string; correction: string }
@@ -41,6 +70,7 @@ function buildSteps(lesson: LessonV2): Step[] {
         heading: s.heading,
         body: s.body,
         check: s.check,
+        note: s.note,
       }),
     ),
   ];
@@ -143,7 +173,20 @@ export function ExamLessonSteps({
       <h1 className="als-heading">{step.heading}</h1>
 
       {step.kind === "overview" || step.kind === "section" ? (
-        <p className="als-body">{step.body}</p>
+        <p className="als-body">
+          <RichBody text={step.body} />
+        </p>
+      ) : null}
+
+      {/* Tuzak, kavramın hemen yanında. Dersin sonunda tek adım olarak
+          durduğunda öğrenci onu beş adım geç görüyordu. */}
+      {step.kind === "section" && step.note ? (
+        <aside className="als-note">
+          <p className="als-note-title">{step.note.title}</p>
+          <p className="als-note-body">
+            <RichBody text={step.note.body} />
+          </p>
+        </aside>
       ) : null}
 
       {step.kind === "example" ? (
