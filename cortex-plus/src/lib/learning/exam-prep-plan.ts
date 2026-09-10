@@ -1,4 +1,5 @@
 export type PlanNodeKind =
+  | "lesson"
   | "podcast"
   | "qa"
   | "quiz"
@@ -22,6 +23,12 @@ export const PLAN_NODE_META: Record<
   PlanNodeKind,
   { title: string; blurb: string; setupLabel: string; voice: boolean }
 > = {
+  lesson: {
+    title: "Konuyu öğren",
+    blurb: "Adım adım anlatım, her adımda kısa kontrol.",
+    setupLabel: "Ders",
+    voice: false,
+  },
   podcast: {
     title: "Podcast dinle",
     blurb: "Konuyu sesli özetle dinle.",
@@ -79,6 +86,7 @@ export const PLAN_NODE_META: Record<
 };
 
 const CORE_ORDER: PlanNodeKind[] = [
+  "lesson",
   "podcast",
   "qa",
   "quiz",
@@ -159,6 +167,8 @@ const READINESS_WEIGHT: Record<PlanNodeKind, number> = {
   gaps: 2,
   spaced: 1,
   flashcards: 1,
+  // Ders ve podcast okuma/dinleme; bitirmek konuyu bildiğini göstermez.
+  lesson: 1,
   podcast: 1,
 };
 

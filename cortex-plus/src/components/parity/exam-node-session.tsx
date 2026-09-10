@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { createSerialTaskQueue } from "@/lib/learning/serial-task-queue";
 import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
+import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
+import { lessonV2Schema } from "@/lib/learning/teaching-standards";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { ExamVoiceTutor } from "@/components/parity/exam-voice-tutor";
@@ -30,6 +32,8 @@ type Payload = {
   type?: string;
   title?: string;
   contentMd?: string;
+  /** Yapısal ders; yoksa contentMd'ye düşülür (eski kayıtlar). */
+  lesson?: unknown;
   // Podcast senaryosu satır bazlı; biçim lib/learning/podcast-script.ts
   // tarafından normalleştiriliyor, eski script biçimi de kabul ediliyor.
   chapters?: unknown[];
@@ -410,6 +414,12 @@ export function ExamNodeSession({
   const items = payload.items ?? [];
   const cards = payload.cards ?? [];
   const chapters = payload.chapters ?? [];
+  // Şema tutmazsa düz markdown'a düşülür; ders hiç açılmamasındansa
+  // biçimsiz açılsın.
+  const structuredLesson = useMemo(
+    () => (payload.lesson ? lessonV2Schema.safeParse(payload.lesson).data ?? null : null),
+    [payload.lesson],
+  );
   const coachItem =
     payload.type === "quiz"
       ? questions[index]?.text
@@ -593,13 +603,19 @@ export function ExamNodeSession({
       ) : null}
 
       {stage === "play" && payload.type === "lesson" ? (
-        <section>
-          <h1>{payload.title}</h1>
-          <ExamLessonBody content={payload.contentMd ?? ""} />
-          <button type="button" className="ap-exam-continue ap-exam-continue--primary" onClick={() => void finish()}>
-            Bitir
-          </button>
-        </section>
+        structuredLesson ? (
+          // Yapısal ders adım adım gelir: her bölüm kendi kontrolüyle
+          // biter ve öğrenci cevaplamadan ilerleyemez.
+          <ExamLessonSteps lesson={structuredLesson} onFinish={() => void finish()} />
+        ) : (
+          <section>
+            <h1>{payload.title}</h1>
+            <ExamLessonBody content={payload.contentMd ?? ""} />
+            <button type="button" className="ap-exam-continue ap-exam-continue--primary" onClick={() => void finish()}>
+              Bitir
+            </button>
+          </section>
+        )
       ) : null}
 
       {stage === "play" && payload.type === "podcast" ? (

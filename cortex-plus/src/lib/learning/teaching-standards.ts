@@ -48,6 +48,7 @@ const VAGUE_TF =
 /** Map exam-prep node kinds onto teaching activities. */
 export function teachingActivityForKind(kind: PlanNodeKind): TeachingActivity {
   if (kind === "qa") return "intro_qa";
+  if (kind === "lesson") return "lesson";
   if (kind === "podcast") return "podcast";
   if (kind === "true_false") return "true_false";
   if (kind === "oral") return "oral";

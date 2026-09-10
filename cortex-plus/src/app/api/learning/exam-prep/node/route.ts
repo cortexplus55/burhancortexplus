@@ -38,6 +38,7 @@ import {
   validateOralPedagogy,
   validatePodcastPedagogy,
   validateTrueFalsePedagogy,
+  validateLessonPedagogy,
   lessonV2Schema,
   type LessonV2,
   type SessionTeachingMeta,
@@ -130,7 +131,9 @@ const podcastSchema = z.object({
 
 function actionForKind(kind: PlanNodeKind) {
   if (kind === "flashcards" || kind === "spaced") return "FLASHCARD_GENERATE" as const;
-  if (kind === "podcast" || kind === "oral") return "STUDY_PLAN_GENERATE" as const;
+  if (kind === "lesson" || kind === "podcast" || kind === "oral") {
+    return "STUDY_PLAN_GENERATE" as const;
+  }
   return "QUIZ_GENERATE" as const;
 }
 
@@ -564,6 +567,12 @@ export async function POST(request: Request) {
   }
 
   const premium = await isPremiumUser(service, userId);
+  // Podcast Plus'a özel. Öğrenme adımı artık ders olduğu için ücretsiz
+  // kullanıcı hiçbir şey kaybetmiyor; podcast konuyu bitirdikten sonra
+  // gelen sesli tekrar. Ses üretimi podcast maliyetinin %98,4'ü.
+  if (kind === "podcast" && !premium) {
+    return errorResponse(402, "premium_required");
+  }
   const voiceSession = voiceMode && (kind === "qa" || kind === "oral");
 
   // Ders öğrencinin kendi kaynağından üretilsin. Hazırlığa bağlı bir belge
@@ -996,6 +1005,38 @@ async function generateNodePayload(input: {
     requireSourceSupport: Boolean(input.requireSourceSupport),
     sourcePages: input.sessionMeta?.sourcePages,
   };
+
+  // Planın öğrenme adımı. Podcast'ten devraldı: metin geri dönüp
+  // okunabiliyor ve doğrulayıcısı (validateLessonPedagogy) bölüm
+  // başlığından çözümlü örneğin her adımına kadar kontrol ediyor.
+  if (input.kind === "lesson") {
+    const outcome = await generateJson({
+      service: input.service,
+      userId: input.userId,
+      actionCode: actionForKind(input.kind),
+      isPremium: input.isPremium,
+      difficulty: "hard",
+      ...v2Common,
+      buildIndependent: (_c, parsed) => ({
+        pedagogyIssues: validateLessonPedagogy(parsed),
+        ...sourceIndependent,
+      }),
+      schemaHint:
+        'JSON: {"title":string,"objective":string,"overview":string,' +
+        '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string}}],' +
+        '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
+        '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
+        "3-6 bölüm; en az iki bölümde check olsun.",
+      userPrompt: `${ctx} Bu konunun dersini yaz.`,
+      parse: (raw) => {
+        const data = lessonV2Schema.safeParse(raw).data ?? null;
+        if (!data) return null;
+        return validateLessonPedagogy(data).length ? null : data;
+      },
+    });
+    if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
+    return { type: "lesson", lesson: outcome.data, title: outcome.data.title, teachingStandard: activity };
+  }
 
   if (input.kind === "qa") {
     const outcome = await generateExamQuiz({
