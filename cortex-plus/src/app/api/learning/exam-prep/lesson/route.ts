@@ -124,7 +124,14 @@ export async function POST(request: Request) {
         })
       : undefined,
     schemaHint: teachingV2
-      ? 'Yalnızca JSON: {"title":string,"objective":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}'
+      ? 'Yalnızca JSON: {"title":string,"objective":string,"overview":string,"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string}}],"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
+        'heading: o bölümün kendi kavramsal başlığı — "Bölüm 1" gibi genel değil. ' +
+        'check: HER bölüm için zorunlu, bölümün hemen o metnini yoklar. ' +
+        'trueFalse ise options tam olarak ["Doğru","Yanlış"]. ' +
+        'ÇELDİRİCİLER GERÇEK KAVRAM YANILGISI OLMALI: öğrencinin gerçekten yapacağı hatayı yansıtsın ' +
+        '(ör. üssü tabanla çarpmak, negatif üssü sonucu negatif sanmak). ' +
+        '"hiçbiri", "hepsi" ya da konuyla ilgisiz uydurma şık YASAK — elemesi bedava olan şık öğrenciyi ölçmez. ' +
+        'explanation: doğru cevabı bu bölümün metnindeki ifadeye bağla.'
       : 'Yalnızca JSON: {"title":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"summary":string[],"nextFocus":string[]}',
     userPrompt: teachingV2
       ? `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
@@ -158,16 +165,30 @@ Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.`,
     : `## ${topic.label}\n\nBu konu için anlatım henüz üretilemedi. Tekrar dene.`;
   const title = outcome.ok ? outcome.data.title : topic.label;
 
-  const { data: lesson, error: lessonError } = await service
+  const baseLesson = {
+    exam_prep_id: prepId,
+    topic_id: topicId,
+    title,
+    content_md: contentMd,
+  };
+
+  // Yapıyı da sakla ki ders adım adım gösterilebilsin; markdown yedek kalır.
+  let { data: lesson, error: lessonError } = await service
     .from("exam_prep_lessons")
-    .insert({
-      exam_prep_id: prepId,
-      topic_id: topicId,
-      title,
-      content_md: contentMd,
-    })
+    .insert({ ...baseLesson, content_json: outcome.ok ? outcome.data : null })
     .select("id")
     .single();
+
+  // content_json kolonu migration ile geliyor. Kod migration'dan önce
+  // dağıtılırsa ders üretimi tamamen kırılmasın diye yapısız tekrar denenir —
+  // node/route.ts'teki kalibrasyon kolonlarıyla aynı kalıp.
+  if (lessonError) {
+    ({ data: lesson, error: lessonError } = await service
+      .from("exam_prep_lessons")
+      .insert(baseLesson)
+      .select("id")
+      .single());
+  }
 
   if (lessonError || !lesson) return errorResponse(500, "generation_failed");
 

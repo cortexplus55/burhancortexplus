@@ -1,0 +1,252 @@
+/* Adım adım ders (.als-*). Renkler astra-parity-sor.css tokenlarından. */
+
+.als {
+  width: min(38rem, 100%);
+  margin: 0 auto;
+  padding: 1.25rem 0 4rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.als-progress {
+  height: 3px;
+  border-radius: 9999px;
+  background: rgba(124, 108, 247, 0.2);
+  overflow: hidden;
+}
+
+.als-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #7c6cf7, #6b8cff);
+  transition: width 0.3s ease;
+}
+
+.als-count {
+  margin-top: 0.6rem;
+  color: var(--ap-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.als-heading {
+  margin-top: 0.35rem;
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.als-subhead {
+  margin-top: 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.als-body {
+  margin-top: 0.75rem;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: #dcdcdc;
+}
+
+.als-list {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-left: 1.1rem;
+  list-style: disc;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.als-list--muted {
+  color: var(--ap-muted);
+}
+
+.als-tag {
+  display: inline-block;
+  margin-right: 0.45rem;
+  border-radius: 9999px;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: var(--ap-surface-2);
+  color: var(--ap-muted);
+}
+
+.als-tag--warn {
+  background: rgba(244, 174, 11, 0.18);
+  color: var(--ap-gold);
+}
+
+.als-tag--ok {
+  background: rgba(46, 158, 79, 0.18);
+  color: #5ed08a;
+}
+
+.als-solution {
+  margin-top: 0.9rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface);
+  padding: 0.85rem 1rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.als-secondary {
+  align-self: flex-start;
+  margin-top: 0.9rem;
+  border-radius: 9999px;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface-2);
+  color: inherit;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.als-mistake {
+  margin-top: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.als-mistake-claim,
+.als-mistake-fix {
+  border-radius: 0.85rem;
+  border: 1px solid var(--ap-border);
+  padding: 0.8rem 0.95rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.als-mistake-claim {
+  background: rgba(244, 174, 11, 0.07);
+  border-color: rgba(244, 174, 11, 0.35);
+}
+
+.als-mistake-fix {
+  background: rgba(46, 158, 79, 0.07);
+  border-color: rgba(46, 158, 79, 0.35);
+}
+
+/* --- Bölüm kontrolü --- */
+
+.als-check {
+  margin-top: 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface);
+  padding: 1rem;
+}
+
+.als-check-kicker {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #7c6cf7;
+}
+
+.als-check-prompt {
+  margin-top: 0.4rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.als-options {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.als-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ap-border);
+  background: #141414;
+  color: inherit;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.9375rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.als-option:hover:not(:disabled) {
+  border-color: #7c6cf7;
+}
+
+.als-option:disabled {
+  cursor: default;
+}
+
+.als-option:focus-visible,
+.als-cta:focus-visible,
+.als-secondary:focus-visible {
+  outline: 2px solid #7c6cf7;
+  outline-offset: 2px;
+}
+
+.als-option.is-picked {
+  border-color: #7c6cf7;
+  background: rgba(124, 108, 247, 0.14);
+}
+
+.als-option.is-right {
+  border-color: #2e9e4f;
+  background: rgba(46, 158, 79, 0.16);
+}
+
+.als-option.is-wrong {
+  border-color: #c0453b;
+  background: rgba(192, 69, 59, 0.14);
+}
+
+.als-explain {
+  margin-top: 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--ap-surface-2);
+  padding: 0.75rem 0.85rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #dcdcdc;
+}
+
+.als-cta {
+  width: 100%;
+  margin-top: 1.75rem;
+  border: 0;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #6b8cff, #7c6cf7);
+  color: #fff;
+  padding: 0.9rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(107, 140, 255, 0.28);
+}
+
+.als-cta:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .als-progress-fill,
+  .als-option {
+    transition: none;
+  }
+}

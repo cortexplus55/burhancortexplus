@@ -59,6 +59,49 @@ describe("teaching standards contract", () => {
     };
     expect(validateLessonPedagogy(good)).toEqual([]);
     expect(validateLessonPedagogy({ title: "x" }).length).toBeGreaterThan(0);
+
+    // Bölüm kontrolü isteğe bağlı; varsa cevabı seçenekler içinde olmalı ve
+    // şıklar birbirinden farklı, dolgu olmayan gerçek çeldiriciler olmalı.
+    const withCheck = (check: unknown) => ({
+      ...good,
+      sections: [{ ...good.sections[0], check }, ...good.sections.slice(1)],
+    });
+
+    expect(
+      validateLessonPedagogy(
+        withCheck({
+          type: "mcq",
+          prompt: "Birim çemberde x koordinatı neye karşılık gelir?",
+          options: ["cos θ", "sin θ", "tan θ"],
+          answerIndex: 0,
+          explanation: "Metinde x = cos θ olduğu belirtildi.",
+        }),
+      ),
+    ).toEqual([]);
+
+    expect(
+      validateLessonPedagogy(
+        withCheck({
+          type: "mcq",
+          prompt: "Birim çemberde x koordinatı neye karşılık gelir?",
+          options: ["cos θ", "hiçbiri"],
+          answerIndex: 0,
+          explanation: "Metinde x = cos θ olduğu belirtildi.",
+        }),
+      ).length,
+    ).toBeGreaterThan(0);
+
+    expect(
+      validateLessonPedagogy(
+        withCheck({
+          type: "trueFalse",
+          prompt: "x = sin θ mıdır?",
+          options: ["Doğru", "Yanlış", "Belki"],
+          answerIndex: 1,
+          explanation: "x = cos θ olduğu için yanlış.",
+        }),
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it("rejects quiz pedagogy failures", () => {
