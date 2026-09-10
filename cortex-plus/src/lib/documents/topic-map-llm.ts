@@ -90,6 +90,19 @@ export async function buildTopicMapLLM(
       actionCode: "STUDY_PLAN_GENERATE",
       isPremium: await isPremiumUser(service, userId),
       verificationMode: "schema",
+      // Taslak reddedildiğinde modele "geçmedi" demek yetmiyordu; hangi
+      // bölümün kaybolduğunu söyleyince düzeltebiliyor.
+      buildIndependent: (_c, parsed) => {
+        const data = llmSchema.safeParse(parsed).data;
+        if (!data) return { pedagogyIssues: ["Konu haritası şeması geçersiz."] };
+        const titles = data.topics.map((t) => normalizeTopicTitle(t.title));
+        const missing = unrepresentedHeadings(backbone, titles);
+        return {
+          pedagogyIssues: missing.length
+            ? [`Şu bölümler hiçbir konu başlığında yok: ${missing.join(" | ")}`]
+            : [],
+        };
+      },
       schemaHint:
         'JSON: {"topics":[{"title":string,"learningObjective":string|null,"pageNumbers":number[]}]}. ' +
         `title: belgenin kendi dilinde konu başlığı. ${TOPIC_TITLE_RULE} ` +

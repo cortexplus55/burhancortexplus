@@ -193,19 +193,20 @@ export function unrepresentedHeadings(
     // Anlamlı kelimesi olmayan başlık ("Giriş", "Bölüm 2") ölçülemez.
     if (words.length === 0) continue;
 
-    // En uzun kelime bölümün en ayırt edici parçası: "Yük Altında Gerilme
-    // Dağılımı" içinde "gerilme" başka konularda da geçer, "dağılımı"
-    // geçmez. O kelime hiçbir başlıkta yoksa bölüm temsil edilmiyordur.
+    // En uzun kelime bölümün en ayırt edici parçası.
     const distinctive = [...words].sort((a, b) => b.length - a.length)[0];
 
-    let best = 0;
-    let distinctiveCovered = false;
-    for (const title of titleWords) {
+    // Kelimelerin TEK BİR başlıkta toplanması gerekiyor. Ayrı ayrı
+    // bakmak bir bölümü kaçırdı: "6. Yük Altında Gerilme Dağılımı"
+    // düşmüştü ama "gerilme" başka konuda ("Efektif Gerilme İlkesi"),
+    // "dağılımı" bir başkasında ("Dane Boyu Dağılımı") geçtiği için
+    // bekçi bölümü temsil edilmiş saydı. İki farklı konunun kelimeleri
+    // üçüncü bir konuyu var etmez.
+    const represented = titleWords.some((title) => {
       const hit = words.filter((w) => covers(title, w)).length / words.length;
-      if (hit > best) best = hit;
-      if (covers(title, distinctive)) distinctiveCovered = true;
-    }
-    if (best < 0.5 || !distinctiveCovered) missing.push(heading);
+      return hit >= 0.6 && covers(title, distinctive);
+    });
+    if (!represented) missing.push(heading);
   }
   return missing;
 }
