@@ -1053,15 +1053,19 @@ async function generateNodePayload(input: {
       parse: (raw) => {
         const parsed = lessonV2Schema.safeParse(raw).data ?? null;
         if (!parsed) return null;
-        // Şablon adlı bölümler doğrulamadan ÖNCE atılıyor: karşılıkları
-        // zaten commonMistake / infoCheck / summary alanlarında duruyor,
-        // bölüm olarak da yazılınca öğrenci aynı şeyi iki kez görüyordu.
-        const data = dropScaffoldSections(parsed);
         // Yedek yalnızca "kusurlu" taslağı tutar, "yanlış" olanı değil.
         // Canlıda dolgu şıklı ("Hepsi"), sorusu şıklarıyla uyuşmayan ve
         // ham LaTeX içeren bir ders bu yoldan geçmişti.
-        if (!blockingLessonIssues(data).length) lastValidLesson = data;
-        return validateLessonPedagogy(data).length ? null : data;
+        //
+        // Yedeğe şablon başlıkları ayıklanmış hâli konuyor. Model üç
+        // denemede de "Yaygın Hata" diye bir bölüm yazarsa doğrulama onu
+        // reddediyor ama yedek yine de yayına gidiyordu; öğrenci aynı
+        // içeriği hem bölüm hem kutu olarak görüyordu. Karşılığı zaten
+        // commonMistake / infoCheck / summary alanlarında duruyor.
+        if (!blockingLessonIssues(parsed).length) {
+          lastValidLesson = dropScaffoldSections(parsed);
+        }
+        return validateLessonPedagogy(parsed).length ? null : parsed;
       },
     });
     const lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;

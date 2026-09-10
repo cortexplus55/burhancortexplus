@@ -12,6 +12,7 @@ import {
   dropScaffoldSections,
   emptyMistake,
   isScaffoldHeading,
+  lessonV2Schema,
   validateLessonPedagogy,
   validateOralPedagogy,
   validatePodcastPedagogy,
@@ -670,9 +671,25 @@ describe("dropScaffoldSections", () => {
     ]);
   });
 
-  it("leaves the lesson alone when trimming would empty it", () => {
-    // Ayıklama dersi üçün altına düşürüyorsa dokunmuyoruz: eksik bir ders
-    // yollamaktansa başlığı kötü bir ders yollamak yeğdir.
+  it("still trims when only two concept sections survive", () => {
+    // Canlıda tam bu çıktı: model şemanın alt sınırı olan üç bölümü
+    // yazıp üçüncüyü "Yaygın Hata" ile doldurdu. Eşik üç olduğu için
+    // ayıklama hiç çalışmadı ve ders şablon başlıkla yayına gitti.
+    const lesson = {
+      sections: [
+        section("Dane Boyu Dağılımı"),
+        section("Atterberg Limitleri"),
+        section("Yaygın Hata"),
+      ],
+    };
+    expect(dropScaffoldSections(lesson).sections.map((s) => s.heading)).toEqual([
+      "Dane Boyu Dağılımı",
+      "Atterberg Limitleri",
+    ]);
+  });
+
+  it("leaves the lesson alone when a single concept would remain", () => {
+    // Tek bölümlük ders ders değil; başlığı kötü olanı yollamak yeğdir.
     const lesson = {
       sections: [section("Boşluk Oranı"), section("Özet"), section("Kapanış")],
     };
@@ -684,5 +701,42 @@ describe("dropScaffoldSections", () => {
       sections: [section("Boşluk Oranı"), section("Porozite"), section("Doygunluk")],
     };
     expect(dropScaffoldSections(lesson)).toBe(lesson);
+  });
+});
+
+describe("the schema tolerates two sections, the validator does not", () => {
+  const twoSectionLesson = {
+    title: "Dane Boyu Dağılımı",
+    objective: "Elek ve hidrometre analizini ayırt edip derecelenmeyi okuyabilmek",
+    overview: "Zeminler dane boyuna göre ayrılır; ölçüm yöntemi dane boyuna bağlıdır.",
+    sections: [
+      {
+        heading: "Dane Boyu Dağılımı",
+        body: "Kaba daneliler için **elek analizi**, ince daneliler için **hidrometre** kullanılır.",
+      },
+      {
+        heading: "Atterberg Limitleri",
+        body: "**Likit limit** akmanın, **plastik limit** ise çatlamanın başladığı su içeriğidir.",
+      },
+    ],
+    example: { prompt: "LL = 45, PL = 22 ise PI?", solution: "PI = 45 − 22 = 23." },
+    commonMistake: { claim: "PI ile LI aynıdır", correction: "LI su içeriğine bağlıdır." },
+    infoCheck: { prompt: "Plastisite indisi nedir?", answer: "LL − PL" },
+    summary: ["PI = LL − PL", "Elek kaba, hidrometre ince dane"],
+    nextFocus: ["Zemin sınıflandırma"],
+  };
+
+  it("parses, so a trimmed lesson still reaches the screen", () => {
+    // Ayıklanmış ders hem sunucuda hem tarayıcıda yeniden bu şemadan
+    // geçiyor; şema üçte kalsaydı ekran boş çizilirdi.
+    expect(lessonV2Schema.safeParse(twoSectionLesson).success).toBe(true);
+  });
+
+  it("is still rejected as a draft, so the model keeps writing three", () => {
+    expect(
+      validateLessonPedagogy(twoSectionLesson).some((i) =>
+        i.includes("en az üç bölüm"),
+      ),
+    ).toBe(true);
   });
 });

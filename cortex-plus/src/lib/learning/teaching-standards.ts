@@ -264,7 +264,12 @@ export const lessonV2Schema = z.object({
         diagram: lessonDiagramSchema.optional().catch(undefined),
       }),
     )
-    .min(3)
+    // Alt sınır ikide: şablon adlı bölüm ayıklanınca (dropScaffoldSections)
+    // geriye iki kavram bölümü kalabiliyor ve bu nesne hem sunucuda hem
+    // tarayıcıda yeniden bu şemadan geçiyor. Üçte kalsaydı ayıklanmış ders
+    // ekranda hiç çizilmezdi. Modelden üç bölüm istemeyi şema değil
+    // validateLessonPedagogy sürdürüyor.
+    .min(2)
     .max(6),
   example: z.object({
     prompt: z.string().min(8),
@@ -426,15 +431,20 @@ export function brokenSuperscript(text: string): boolean {
  *
  * Prompta bir talimat daha eklemek bugün defalarca ters tepti; ikna
  * etmek yerine atıyoruz. Atmak içerik kaybettirmiyor çünkü karşılığı
- * zaten kendi alanında duruyor. En az üç kavram bölümü kalmıyorsa
- * dokunmuyoruz — şema üçten az bölüm kabul etmiyor.
+ * zaten kendi alanında duruyor.
+ *
+ * Eşik ikide, üçte değil. Model şemanın alt sınırı olan üç bölümü
+ * yazıp üçüncüyü şablonla dolduruyor; eşik üç olunca ayıklama hiç
+ * çalışmıyor, ders şablon başlıkla yayına gidiyordu. İki kavram bölümü
+ * + örnek + yanılgı + kontrol + özet zaten bir ders; tek kavram
+ * kalacaksa dokunmuyoruz.
  */
 export function dropScaffoldSections<T extends { sections: { heading: string }[] }>(
   lesson: T,
 ): T {
   const concepts = lesson.sections.filter((s) => !isScaffoldHeading(s.heading));
   if (concepts.length === lesson.sections.length) return lesson;
-  if (concepts.length < 3) return lesson;
+  if (concepts.length < 2) return lesson;
   return { ...lesson, sections: concepts };
 }
 
@@ -448,6 +458,11 @@ export function validateLessonPedagogy(raw: unknown): string[] {
   const issues: string[] = [];
   if (wallOfText(lesson.overview)) {
     issues.push("Genel bakış çok uzun; kısa tut.");
+  }
+  // Şema ikiye iniyor ama modelden istenen hâlâ üç: iki bölüm yalnızca
+  // ayıklama sonrası kabul edilebilir bir kalıntı, taslak hedefi değil.
+  if (lesson.sections.length < 3) {
+    issues.push("Ders en az üç bölüm istiyor; konunun kavramlarını ayır.");
   }
   // Başlık, o bölümde ne öğretildiğini söylemeli; şablonun adını değil.
   const scaffold = lesson.sections.filter((s) => isScaffoldHeading(s.heading));
