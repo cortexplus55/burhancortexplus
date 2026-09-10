@@ -70,6 +70,18 @@ export async function buildTopicMapLLM(
 
   const backbone = chapterHeadings(contentPages);
 
+  /**
+   * Bekçiye takılan ama şeması geçerli son taslak.
+   *
+   * Bekçi ilk canlı denemede pediatri belgesini tümden düşürdü: hiçbir
+   * taslak geçemedi, `buildTopicMapLLM` null döndü ve çağıran taraf
+   * trigonometri fikstürüne ayarlı sezgisel haritaya düştü — pediatri
+   * PDF'inde "Derece ve radyan" ve "Sayfa 4 içeriği" konuları çıktı.
+   * Bekçinin amacı bir bölümün adını kurtarmaktı; bedeli haritanın
+   * tamamı olamaz. Bu yüzden bekçi tavsiye, son çare değil.
+   */
+  let lastValidDraft: z.infer<typeof llmSchema> | null = null;
+
   let outcome;
   try {
     outcome = await generateJson({
@@ -97,7 +109,10 @@ ${pageDigest(contentPages)}`,
         const parsed = llmSchema.safeParse(raw);
         if (!parsed.success) return null;
         // Bölüm atarak sayıyı tutturan taslak reddedilir; generateJson
-        // geri bildirimle yeniden yazdırır.
+        // geri bildirimle yeniden yazdırır. Ama reddedilen taslak da
+        // saklanıyor: bekçi tatmin olmazsa bile elimizde belgeden çıkmış
+        // bir harita var ve o, aşağıdaki yedekten her hâlükârda iyi.
+        lastValidDraft = parsed.data;
         const titles = parsed.data.topics.map((t) => normalizeTopicTitle(t.title));
         if (unrepresentedHeadings(backbone, titles).length) return null;
         return parsed.data;
@@ -107,10 +122,14 @@ ${pageDigest(contentPages)}`,
     return null;
   }
 
-  if (!outcome.ok) return null;
+  // Bekçi hiçbir taslağı geçirmediyse elimizdeki son geçerli taslakla
+  // devam et: belgeden çıkmış eksik bir harita, fikstüre ayarlı sezgisel
+  // haritadan her zaman iyi.
+  const data = outcome.ok ? outcome.data : lastValidDraft;
+  if (!data) return null;
 
   const seen = new Set<string>();
-  const topics = outcome.data.topics
+  const topics = data.topics
     .map((topic) => {
       const pageNumbers = [...new Set(topic.pageNumbers)]
         .filter((n) => contentNumbers.has(n))
