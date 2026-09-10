@@ -83,30 +83,70 @@ export function topicTitleIssues(title: string): string[] {
 const CHAPTER_NUMBER = /^\s*\d+[.)]\s+\S/;
 const SUB_NUMBER = /^\s*\d+\.\d/;
 
+/** İçindekiler satırının sonundaki sayfa numarası: "… Dağılımı 14". */
+const TOC_PAGE_TAIL = /\s+\d{1,3}$/;
+
+/**
+ * Numaralı ama bölüm olmayan başlık.
+ *
+ * Belgeler bölüm sonlarına numaralı kontrol soruları koyuyor ve bunlar da
+ * başlık olarak çıkıyor: "1. Boussinesq çözümü hangi varsayımları yapar?",
+ * "2. S r e = w G s özdeşliğini bir faz diyagramıyla doğrula." Omurgaya
+ * girerlerse bekçi otuz sahte bölüm arar ve hiçbir taslağı geçirmez.
+ */
+function looksLikeQuestionOrSentence(heading: string): boolean {
+  if (/[?]$/.test(heading)) return true;
+  if (/[=<>≤≥±×÷√]/.test(heading)) return true;
+  const words = heading.split(/\s+/).filter(Boolean).length;
+  return words > 9;
+}
+
 /**
  * Haritanın kaybetmemesi gereken omurga: belgenin kendi bölümleri.
  *
- * Numaralı başlık en temiz sinyal ama binlerce PDF'in çoğunda yok —
- * slayt destesi, taranmış ders notu, makale. Numara şartı konursa bekçi
- * o belgelerde sessiz kalıyor ve konu düşmesini yakalayamıyoruz.
+ * Uzun süre yalnızca `headings[0]`'a bakıyordu ve omurga neredeyse boş
+ * kalıyordu: zemin belgesinde sayfaların ilk başlığı çoğunlukla bölüm
+ * adı değil, bir tablo başlığı ya da formül satırıydı ("temel faz
+ * özdeşliği", "ÖRNEK 1", "i = Δh / L"). Sekiz bölümden yalnızca ikisi
+ * omurgaya giriyor, "6. Yük Altında Gerilme Dağılımı" hiç görünmüyordu —
+ * bekçi de onu koruyamıyordu.
  *
- * Numarasız belgede ölçü sayfa yayılımı: bir başlık iki ya da daha fazla
- * sayfanın ilk başlığıysa gerçek bir bölümdür. Tek sayfada geçen başlık
- * gürültü olabilir (kutu başlığı, şekil adı) ve onu omurga sayarsak
- * gereksiz yere taslak reddedip kredi yakıyoruz.
+ * Artık sayfanın BÜTÜN başlıkları taranıyor. İçindekiler satırının
+ * sonundaki sayfa numarası atılıyor ki "… Dağılımı 14" ile "… Dağılımı"
+ * aynı bölüm sayılsın.
+ *
+ * Numarasız belgeler (slayt destesi, taranmış not) için ölçü sayfa
+ * yayılımı: iki ya da daha fazla sayfada geçen başlık gerçek bir
+ * bölümdür; tek sayfalık başlık gürültü olabilir.
  */
 export function chapterHeadings(
   pages: { headings: string[] }[],
 ): string[] {
   const counts = new Map<string, number>();
   for (const page of pages) {
-    const heading = (page.headings[0] ?? "").trim();
-    if (!heading || SUB_NUMBER.test(heading)) continue;
-    counts.set(heading, (counts.get(heading) ?? 0) + 1);
+    const seenOnPage = new Set<string>();
+    for (const raw of page.headings ?? []) {
+      const heading = (raw ?? "").replace(TOC_PAGE_TAIL, "").trim();
+      if (!heading || SUB_NUMBER.test(heading)) continue;
+      if (looksLikeQuestionOrSentence(heading)) continue;
+      if (seenOnPage.has(heading)) continue;
+      seenOnPage.add(heading);
+      counts.set(heading, (counts.get(heading) ?? 0) + 1);
+    }
   }
   return [...counts.entries()]
     .filter(([heading, count]) => CHAPTER_NUMBER.test(heading) || count >= 2)
     .map(([heading]) => heading);
+}
+
+/** Bir sayfa bu bölümü taşıyor mu? İçindekiler kuyruğu göz ardı edilir. */
+export function pageCarriesHeading(
+  page: { headings: string[] },
+  heading: string,
+): boolean {
+  return (page.headings ?? []).some(
+    (raw) => (raw ?? "").replace(TOC_PAGE_TAIL, "").trim() === heading,
+  );
 }
 
 /**

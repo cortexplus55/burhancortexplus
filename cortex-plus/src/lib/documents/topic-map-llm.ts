@@ -9,6 +9,7 @@ import {
 } from "@/lib/documents/topic-map";
 import {
   chapterHeadings,
+  pageCarriesHeading,
   normalizeTopicTitle,
   targetTopicCount,
   topicTitleIssues,
@@ -195,7 +196,7 @@ ${pageDigest(contentPages)}`,
     if (topicTitleIssues(title).length) continue;
     if (seen.has(title.toLocaleLowerCase("tr").trim())) continue;
     const pageNumbers = contentPages
-      .filter((page) => (page.headings[0] ?? "").trim() === heading)
+      .filter((page) => pageCarriesHeading(page, heading))
       .map((page) => page.pageNumber)
       .sort((a, b) => a - b);
     if (!pageNumbers.length) continue;
