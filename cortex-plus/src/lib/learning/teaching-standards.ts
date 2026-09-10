@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import { diagramIssues, lessonDiagramSchema } from "@/lib/learning/lesson-diagram";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { foldTr } from "@/lib/documents/page-analysis";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
@@ -250,6 +251,9 @@ export const lessonV2Schema = z.object({
         body: z.string().min(20).max(900),
         check: sectionCheckSchema.optional(),
         note: sectionNoteSchema.optional(),
+        // Şekille anlaşılan konularda çizim; model tarifini veriyor,
+        // SVG'yi biz kuruyoruz (bkz. lesson-diagram.ts).
+        diagram: lessonDiagramSchema.optional(),
       }),
     )
     .min(3)
@@ -464,6 +468,15 @@ export function validateLessonPedagogy(raw: unknown): string[] {
     issues.push(
       "Anahtar terimler işaretlenmemiş; sınavda çıkacak terimleri **iki yıldız** arasına al.",
     );
+  }
+
+  // Çizim isteğe bağlı ama varsa okunabilir olmalı: etiketsiz bir şema
+  // öğrenciye hangi parçanın ne olduğunu söylemiyor.
+  for (const section of lesson.sections) {
+    if (!section.diagram) continue;
+    for (const issue of diagramIssues(section.diagram)) {
+      issues.push(`${section.heading}: ${issue}`);
+    }
   }
 
   const mathTexts = [
