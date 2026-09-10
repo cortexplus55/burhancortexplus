@@ -773,6 +773,8 @@ export async function POST(request: Request) {
             kind === "podcast" && teachingV2 && topic?.id
               ? await loadTopicLesson(service, topic.id)
               : null,
+          prepId,
+          topicId: topic?.id ?? null,
         });
   } catch (error) {
     if (teachingV2 && creatingAttemptId && generationId && clientRequestId) {
@@ -974,6 +976,9 @@ async function generateNodePayload(input: {
    * ihtimalini kaynağında kurutuyor.
    */
   lessonContent?: LessonV2 | null;
+  /** Ders düğümü içeriğini konuya yazabilsin diye. */
+  prepId?: string;
+  topicId?: string | null;
 }) {
   const activity = teachingActivityForKind(input.kind);
   const sessionCtx = input.teachingV2
@@ -1035,6 +1040,21 @@ async function generateNodePayload(input: {
       },
     });
     if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
+    // Dersi konuya da yaz: öğrenci sonra geri dönüp okuyabilsin ve ders
+    // bitince önerilen podcast bu içerikten türeyebilsin. Yazamamak dersi
+    // bozmaz — öğrenci ekranda zaten okuyor.
+    if (input.prepId && input.topicId) {
+      await input.service
+        .from("exam_prep_lessons")
+        .insert({
+          exam_prep_id: input.prepId,
+          topic_id: input.topicId,
+          title: outcome.data.title,
+          content_md: outcome.data.overview,
+          content_json: outcome.data,
+        })
+        .then(undefined, () => undefined);
+    }
     return { type: "lesson", lesson: outcome.data, title: outcome.data.title, teachingStandard: activity };
   }
 

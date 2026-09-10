@@ -56,6 +56,7 @@ export function ExamNodeSession({
   kind,
   prepTitle,
   topicLabel,
+  topicId = null,
   initialFamiliarity,
   resumeEnabled = false,
   sourceName = null,
@@ -65,6 +66,8 @@ export function ExamNodeSession({
   kind: PlanNodeKind;
   prepTitle: string;
   topicLabel: string | null;
+  /** Sesli tekrar bu konunun dersinden türetiliyor. */
+  topicId?: string | null;
   /** Konuya daha önce girildiyse beyan edilen aşinalık — varsayılan olarak gelir. */
   initialFamiliarity?: Familiarity | null;
   /** Stage 8 — pdf_learning_v2: restore attempt + debounce + save answers. */
@@ -106,6 +109,11 @@ export function ExamNodeSession({
   } | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [tfRevealed, setTfRevealed] = useState(false);
+  const [podcastLoading, setPodcastLoading] = useState(false);
+  const [lessonPodcast, setLessonPodcast] = useState<{
+    title: string;
+    chapters: unknown[];
+  } | null>(null);
   /** Stage 6: which question indices showed a hint before submit. */
   const [hintsUsed, setHintsUsed] = useState<Record<string, boolean>>({});
   const startInFlight = useRef(false);
@@ -383,6 +391,32 @@ export function ExamNodeSession({
 
   function markHint(index: number) {
     setHintsUsed((prev) => ({ ...prev, [String(index)]: true }));
+  }
+
+  async function loadLessonPodcast() {
+    if (!topicId) return;
+    setPodcastLoading(true);
+    try {
+      const res = await fetch("/api/learning/exam-prep/lesson-podcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prepId, topicId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 402) {
+        setPaywall(true);
+        return;
+      }
+      if (!res.ok || !Array.isArray(data.chapters)) {
+        toast.error("Sesli tekrar şu anda hazırlanamadı.");
+        return;
+      }
+      setLessonPodcast({ title: data.title ?? topicLabel ?? "Sesli tekrar", chapters: data.chapters });
+    } catch {
+      toast.error("Sesli tekrar şu anda hazırlanamadı.");
+    } finally {
+      setPodcastLoading(false);
+    }
   }
 
   async function loadFeedback() {
@@ -844,7 +878,27 @@ export function ExamNodeSession({
             >
               {feedbackLoading ? "Yazıyor…" : "Eğitmeninden geri bildirim"}
             </button>
+            {/* Sesli tekrar dersin devamı: aynı bölümler, aynı örnek,
+                kulakla bir kez daha. Ders bitmeden önerilmiyor. */}
+            {kind === "lesson" && topicId && !lessonPodcast ? (
+              <button
+                type="button"
+                className="ap-exam-continue"
+                disabled={podcastLoading}
+                onClick={() => void loadLessonPodcast()}
+              >
+                {podcastLoading ? "Hazırlanıyor…" : "Şimdi dinle"}
+              </button>
+            ) : null}
           </div>
+          {lessonPodcast ? (
+            <ExamPodcastPlayer
+              title={lessonPodcast.title}
+              chapters={lessonPodcast.chapters}
+              finishing={false}
+              onFinish={() => setLessonPodcast(null)}
+            />
+          ) : null}
           {feedback ? (
             <article className="ap-exam-debrief">
               <p className="ap-lesson-kicker">Eğitmen notu</p>

@@ -94,6 +94,7 @@ export default async function ExamNodePage({
         kind={node.kind as PlanNodeKind}
         prepTitle={prep.title ?? "Sınav hazırlığı"}
         topicLabel={topicLabel}
+        topicId={topicId ?? null}
         initialFamiliarity={topicFamiliarity}
         resumeEnabled={resumeEnabled}
         sourceName={sourceName}
