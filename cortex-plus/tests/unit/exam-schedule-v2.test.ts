@@ -75,6 +75,25 @@ describe("exam-schedule-v2", () => {
     ).toBe(true);
   });
 
+  it("spreads new learning over a long plan instead of front-loading it", () => {
+    // 30 günlük bir hazırlık, ilk 10 güne yığılıp ortada boş hafta bırakmamalı.
+    const plan = buildExamScheduleV2({
+      daysToExam: 30,
+      dailyMinutes: 45,
+      studyDays: [1, 2, 3, 4, 5],
+      topics: topics(9),
+      fromDate: new Date("2026-09-10T12:00:00"),
+    });
+    const learnDays = plan.sessions
+      .filter((s) => s.role === "learn")
+      .map((s) => s.dayIndex);
+    const lastDay = Math.max(...plan.sessions.map((s) => s.dayIndex));
+    // Son "yeni konu" günü, dönemin ilk üçte birinde bitmemeli.
+    expect(Math.max(...learnDays)).toBeGreaterThan(lastDay / 3);
+    // Ve dönemin sonuna da sarkmamalı — orası tekrar/deneme için.
+    expect(Math.max(...learnDays)).toBeLessThan(lastDay);
+  });
+
   it("keeps every topic when time is short — compresses instead of cutting", () => {
     const heavy = topics(8).map((t) => ({
       ...t,
