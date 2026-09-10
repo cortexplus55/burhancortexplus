@@ -155,3 +155,33 @@ describe("unrepresentedHeadings — structural tails", () => {
     ).toEqual(["5. Bağışıklama ve Aşı Takvimi"]);
   });
 });
+
+describe("unrepresentedHeadings — words must land in one title", () => {
+  it("does not let two other topics vouch for a missing chapter", () => {
+    // Canlıda olan: "6. Yük Altında Gerilme Dağılımı" haritadan düştü ama
+    // "gerilme" Efektif Gerilme'de, "dağılımı" Dane Boyu Dağılımı'nda
+    // geçtiği için bekçi bölümü temsil edilmiş saydı. İki farklı konunun
+    // kelimeleri üçüncü bir konuyu var etmez.
+    const shipped = [
+      "Zeminin Oluşumu ve Üç Fazlı Sistem",
+      "Faz Bağıntıları ve İndeks Özellikler",
+      "Dane Boyu Dağılımı ve Zemin Sınıflandırması",
+      "Zeminde Su Akışı ve Permeabilite",
+      "Efektif Gerilme İlkesi ve Sızma Kuvvetleri",
+      "Konsolidasyon ve Oturma Analizi",
+      "Kayma Mukavemeti ve Mohr-Coulomb Kırılma Ölçütü",
+    ];
+    expect(unrepresentedHeadings(["6. Yük Altında Gerilme Dağılımı"], shipped)).toEqual([
+      "6. Yük Altında Gerilme Dağılımı",
+    ]);
+  });
+
+  it("accepts the chapter once one title actually carries it", () => {
+    expect(
+      unrepresentedHeadings(
+        ["6. Yük Altında Gerilme Dağılımı"],
+        ["Dane Boyu Dağılımı", "Zeminlerde Yük Altında Gerilme Dağılımı"],
+      ),
+    ).toEqual([]);
+  });
+});
