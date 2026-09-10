@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { CreditGate } from "@/components/paywall/credit-gate";
@@ -44,6 +45,7 @@ export function ExamIntroQuiz({
   prepId: string;
   topicLabel: string;
 }) {
+  const router = useRouter();
   const home = examPrepHomeHref(prepId);
   const [loading, setLoading] = useState(true);
   const [paywall, setPaywall] = useState(false);
@@ -57,11 +59,30 @@ export function ExamIntroQuiz({
   const [diagnostic, setDiagnostic] = useState<DiagnosticPayload | null>(null);
   const [displayTopic, setDisplayTopic] = useState(topicLabel);
   const [startError, setStartError] = useState<string | null>(null);
+  const [deferring, setDeferring] = useState(false);
 
   useEffect(() => {
     void start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prepId]);
+
+  // Ölçüm yapmadan kapıyı aç. Test kaybolmuyor: hazırlık sayfasında
+  // hatırlatma kartı kalıyor, öğrenci hazır olduğunda dönüyor.
+  async function deferIntro() {
+    setDeferring(true);
+    try {
+      const res = await fetch("/api/learning/exam-prep/intro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prepId, action: "skip" }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      router.push(payload.nextHref ?? home);
+      router.refresh();
+    } catch {
+      setDeferring(false);
+    }
+  }
 
   async function start() {
     setLoading(true);
@@ -207,6 +228,14 @@ export function ExamIntroQuiz({
             continueLabel={index + 1 < questions.length ? "İleri" : "Bitir"}
             disabled={loading}
           />
+          <button
+            type="button"
+            className="ap-exam-intro-defer"
+            disabled={deferring}
+            onClick={() => void deferIntro()}
+          >
+            {deferring ? "Açılıyor…" : "Sonra yaparım, derse geç"}
+          </button>
         </>
       ) : null}
 

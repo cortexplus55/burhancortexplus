@@ -28,7 +28,7 @@ export default async function ExamNodePage({
   const [{ data: prep }, { data: node }] = await Promise.all([
     supabase
       .from("exam_preps")
-      .select("id, title, active_topic_id, intro_completed_at, document_id")
+      .select("id, title, active_topic_id, intro_completed_at, intro_deferred_at, document_id")
       .eq("id", prepId)
       .eq("user_id", user.id)
       .maybeSingle(),
@@ -46,7 +46,7 @@ export default async function ExamNodePage({
     .from("exam_prep_nodes")
     .select("status")
     .eq("exam_prep_id", prepId);
-  if (needsExamIntro(prep.intro_completed_at, nodeRows ?? [])) {
+  if (needsExamIntro(prep.intro_completed_at, nodeRows ?? [], prep.intro_deferred_at)) {
     redirect(examPrepIntroHref(prepId));
   }
 

@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
   const { data: prep } = await service
     .from("exam_preps")
-    .select("id, intro_completed_at")
+    .select("id, intro_completed_at, intro_deferred_at")
     .eq("id", parsed.data.prepId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     .eq("exam_prep_id", prep.id)
     .order("sort_order");
 
-  if (needsExamIntro(prep.intro_completed_at, nodes ?? [])) {
+  if (needsExamIntro(prep.intro_completed_at, nodes ?? [], prep.intro_deferred_at)) {
     return NextResponse.json({ ok: true, nextHref: examPrepIntroHref(prep.id) });
   }
 

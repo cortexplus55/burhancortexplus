@@ -23,7 +23,7 @@ export default async function ExamIntroPage({
 
   const { data: prep } = await supabase
     .from("exam_preps")
-    .select("id, active_topic_id, intro_completed_at")
+    .select("id, active_topic_id, intro_completed_at, intro_deferred_at")
     .eq("id", prepId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -36,7 +36,7 @@ export default async function ExamIntroPage({
     .eq("exam_prep_id", prepId)
     .order("sort_order");
 
-  if (!needsExamIntro(prep.intro_completed_at, nodeRows ?? [])) {
+  if (!needsExamIntro(prep.intro_completed_at, nodeRows ?? [], prep.intro_deferred_at)) {
     const ready = (nodeRows ?? []).find((row) => row.status === "ready");
     redirect(ready ? examPrepNodeHref(prepId, ready.id) : examPrepHomeHref(prepId));
   }

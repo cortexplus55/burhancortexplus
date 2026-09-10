@@ -25,7 +25,7 @@ import {
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
-  action: z.enum(["start", "complete"]).default("start"),
+  action: z.enum(["start", "complete", "skip"]).default("start"),
   answers: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -62,6 +62,16 @@ export async function POST(request: Request) {
   if (!prep) return errorResponse(404, "not_found");
 
   const nextHref = await firstReadyHref(service, prepId);
+
+  // Erteleme: ölçüm yapılmadı, yalnızca kapı açıldı. intro_completed_at
+  // dolmuyor ki hazırlık sayfası hatırlatmayı sürdürebilsin.
+  if (action === "skip") {
+    await service
+      .from("exam_preps")
+      .update({ intro_deferred_at: new Date().toISOString() })
+      .eq("id", prepId);
+    return NextResponse.json({ ok: true, deferred: true, nextHref });
+  }
 
   if (prep.intro_completed_at) {
     const { data: summary } = await service

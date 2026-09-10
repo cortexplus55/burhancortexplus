@@ -15,6 +15,7 @@ import {
   examPrepIntroHref,
   examPrepNodeHref,
   examPrepTopicHref,
+  examIntroPending,
   needsExamIntro,
 } from "@/lib/learning/exam-prep-hrefs";
 import {
@@ -47,7 +48,7 @@ export default async function ExamPrepDetailPage({
   const { data: prep } = await supabase
     .from("exam_preps")
     .select(
-      "id, title, exam_type, study_plan_id, exam_date, active_topic_id, intro_completed_at, schedule_v2, learning_tracking, target_score, daily_minutes, study_days, hard_topics_self, learning_preferences",
+      "id, title, exam_type, study_plan_id, exam_date, active_topic_id, intro_completed_at, intro_deferred_at, schedule_v2, learning_tracking, target_score, daily_minutes, study_days, hard_topics_self, learning_preferences",
     )
     .eq("id", prepId)
     .eq("user_id", user.id)
@@ -93,7 +94,7 @@ export default async function ExamPrepDetailPage({
   const progress = nodeProgress(nodes);
   let ready = nodes.find((node) => node.status === "ready");
   const hasTopic = Boolean(prep.active_topic_id);
-  const needsIntro = hasTopic && needsExamIntro(prep.intro_completed_at, nodes);
+  const needsIntro = hasTopic && needsExamIntro(prep.intro_completed_at, nodes, prep.intro_deferred_at);
 
   let learningTrackingView = null as null | {
     programProgressPct: number;
@@ -263,6 +264,7 @@ export default async function ExamPrepDetailPage({
         hasTopic={hasTopic}
         activeTopicLabel={topicLabel}
         needsIntro={needsIntro}
+        introPending={examIntroPending(prep.intro_completed_at, prep.intro_deferred_at)}
         startHref={startHref}
         canShare={Boolean(profile?.school_id)}
         initialShared={shareRow?.visibility === "school"}

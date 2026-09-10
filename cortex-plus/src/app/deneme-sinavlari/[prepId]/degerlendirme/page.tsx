@@ -46,7 +46,7 @@ export default async function ExamPrepAssessmentPage({
   const { data: prep } = await supabase
     .from("exam_preps")
     .select(
-      "id, title, exam_type, exam_date, active_topic_id, intro_completed_at, target_score",
+      "id, title, exam_type, exam_date, active_topic_id, intro_completed_at, intro_deferred_at, target_score",
     )
     .eq("id", prepId)
     .eq("user_id", user.id)
@@ -140,7 +140,7 @@ export default async function ExamPrepAssessmentPage({
   });
 
   const hasTopic = Boolean(prep.active_topic_id);
-  const needsIntro = hasTopic && needsExamIntro(prep.intro_completed_at, nodes);
+  const needsIntro = hasTopic && needsExamIntro(prep.intro_completed_at, nodes, prep.intro_deferred_at);
   const ready =
     preferNextNodeForTracking(nodes, {
       openMisconceptions,
