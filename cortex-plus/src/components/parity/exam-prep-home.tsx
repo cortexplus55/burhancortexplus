@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Check, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -22,6 +22,7 @@ import {
   findTodayGroup,
   groupNodesByStudyDay,
   missedIncompleteGroups,
+  topicProgressFromNodes,
 } from "@/lib/learning/exam-prep-ui-path";
 import { cn } from "@/lib/utils";
 import {
@@ -111,6 +112,10 @@ export function ExamPrepHome({
   const readinessState = readinessLabel(readiness);
   const [shared, setShared] = useState(initialShared);
   const [sharing, setSharing] = useState(false);
+  const [view, setView] = useState<"yol" | "konular">("yol");
+  /** Bakım bağlantıları çalışmanın önüne geçmesin diye kapalı başlıyor. */
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const topicRows = useMemo(() => topicProgressFromNodes(nodes), [nodes]);
   const showTracking = Boolean(learningTracking);
 
   const dayGroups = uiV2 ? groupNodesByStudyDay(nodes) : [];
@@ -159,7 +164,10 @@ export function ExamPrepHome({
       <Link href="/deneme-sinavlari" className="ap-back-pill">
         ← Geri
       </Link>
-      <header className="ap-exam-trail-head">
+      {/* Tek kart: ders, sınav ve iki görünüm bir arada. Önceden başlık
+          düz metindi ve konular ayrı bir sayfadaydı; öğrenci nerede
+          kaldığını görmek için sayfadan çıkmak zorundaydı. */}
+      <header className="ap-exam-trail-head ap-exam-hero">
         <div className="ap-exam-trail-meter" aria-hidden>
           <span style={{ width: `${progressPct}%` }} />
         </div>
@@ -170,6 +178,26 @@ export function ExamPrepHome({
           {examDate ? ` · sınav ${examDate}` : ""}
           {daysLabel ? ` · ${daysLabel}` : ""}
         </p>
+        <div className="ap-exam-tabs" role="tablist" aria-label="Hazırlık görünümü">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "yol"}
+            className={cn("ap-exam-tab", view === "yol" && "is-active")}
+            onClick={() => setView("yol")}
+          >
+            Çalışma yolu
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "konular"}
+            className={cn("ap-exam-tab", view === "konular" && "is-active")}
+            onClick={() => setView("konular")}
+          >
+            Konular <span className="ap-exam-tab-count">{topicRows.length}</span>
+          </button>
+        </div>
         {activeTopicLabel ? (
           <div>
             <Link
@@ -208,14 +236,11 @@ export function ExamPrepHome({
         </p>
       ) : null}
 
-      {uiV2 && settings ? (
-        <ExamPrepSettingsPanel prepId={prepId} initial={settings} />
-      ) : null}
-
       {uiV2 ? (
         <nav className="ap-exam-v2-links" aria-label="Öğrenme ekranları">
           {/* Sohbet hazırlığın içinde duruyor: takılan öğrenci sınavdan
-              çıkıp konuyu baştan anlatmak zorunda kalmasın. */}
+              çıkıp konuyu baştan anlatmak zorunda kalmasın. Bakımla
+              birlikte gizlenmiyor, çünkü çalışmanın parçası. */}
           <Link
             href={`/deneme-sinavlari/${prepId}/sohbet`}
             className="ap-back-pill ap-back-pill--accent"
@@ -226,10 +251,59 @@ export function ExamPrepHome({
             Yanlışlar
             {openMisconceptions > 0 ? ` (${openMisconceptions})` : ""}
           </Link>
+          {/* Tarih değiştirme, gün dağıtma ve değerlendirme bakım işleri;
+              ilk ekranda çalışmanın önüne geçiyorlardı. */}
+          <button
+            type="button"
+            className="ap-back-pill"
+            aria-expanded={toolsOpen}
+            onClick={() => setToolsOpen((open) => !open)}
+          >
+            Daha fazla {toolsOpen ? "▴" : "▾"}
+          </button>
+        </nav>
+      ) : null}
+
+      {uiV2 && toolsOpen ? (
+        <div className="ap-exam-tools">
           <Link href={examPrepAssessmentHref(prepId)} className="ap-back-pill">
             Sınav öncesi değerlendirme
           </Link>
-        </nav>
+          {settings ? (
+            <ExamPrepSettingsPanel prepId={prepId} initial={settings} />
+          ) : null}
+        </div>
+      ) : null}
+
+      {!uiV2 && settings ? (
+        <ExamPrepSettingsPanel prepId={prepId} initial={settings} />
+      ) : null}
+
+      {uiV2 && view === "konular" ? (
+        <section className="ap-topic-progress" aria-label="Konular">
+          {topicRows.length ? (
+            <ul>
+              {topicRows.map((row) => (
+                <li key={row.title}>
+                  <Link href={`/deneme-sinavlari/${prepId}/konu`}>
+                    <span className="ap-topic-progress-name">{row.title}</span>
+                    <span className="ap-topic-progress-count">
+                      {row.done}/{row.total} tamamlandı
+                    </span>
+                    <span className="ap-topic-progress-bar" aria-hidden>
+                      <span style={{ width: `${row.pct}%` }} />
+                    </span>
+                    <span className="ap-topic-progress-pct">%{row.pct}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-[var(--ap-muted)]">
+              Plan kurulunca konular burada ilerlemeleriyle listelenir.
+            </p>
+          )}
+        </section>
       ) : null}
 
       {daysLeft !== null || showTracking ? (
@@ -252,24 +326,11 @@ export function ExamPrepHome({
           )}
 
           {showTracking && learningTracking ? (
-            <div className="ap-countdown-readiness space-y-4">
-              <TrackingMeter
-                title="Program ilerlemesi"
-                pct={learningTracking.programProgressPct}
-                label={learningTracking.programLabel}
-                hint="Planlanan etkinliklerin ne kadarı bitti — doğruluk ölçmez."
-              />
-              <TrackingMeter
-                title="Konu hâkimiyeti"
-                pct={learningTracking.topicMasteryPct}
-                label={learningTracking.topicMasteryLabel}
-                hint={
-                  learningTracking.measuredTopicCount === 0
-                    ? "Ölçülmemiş konularda yüksek güven gösterilmez."
-                    : `${learningTracking.measuredTopicCount} ölçülen · ${learningTracking.unmeasuredTopicCount} ölçülmemiş`
-                }
-                emptyText="Henüz ölçülmedi"
-              />
+            /* Üç ölçüt yan yana durunca öğrenci "hazır mıyım?" sorusuna
+               tek bakışta cevap alamıyordu. Sınava hazırlık tahmini öne
+               çıkıyor; diğer ikisi altında küçülüyor ama kalıyor — hangi
+               sayının neyi ölçtüğü uyarılarıyla birlikte. */
+            <div className="ap-countdown-readiness">
               <TrackingMeter
                 title="Sınava hazırlık tahmini"
                 pct={learningTracking.examReadinessPct}
@@ -280,6 +341,25 @@ export function ExamPrepHome({
                     : "Etkinlik bitirmek tek başına %100 hazırlık değildir."
                 }
               />
+              <div className="ap-tracking-secondary">
+                <TrackingMeter
+                  title="Program ilerlemesi"
+                  pct={learningTracking.programProgressPct}
+                  label={learningTracking.programLabel}
+                  hint="Planlanan etkinliklerin ne kadarı bitti — doğruluk ölçmez."
+                />
+                <TrackingMeter
+                  title="Konu hâkimiyeti"
+                  pct={learningTracking.topicMasteryPct}
+                  label={learningTracking.topicMasteryLabel}
+                  hint={
+                    learningTracking.measuredTopicCount === 0
+                      ? "Ölçülmemiş konularda yüksek güven gösterilmez."
+                      : `${learningTracking.measuredTopicCount} ölçülen · ${learningTracking.unmeasuredTopicCount} ölçülmemiş`
+                  }
+                  emptyText="Henüz ölçülmedi"
+                />
+              </div>
             </div>
           ) : daysLeft !== null ? (
             <div className="ap-countdown-readiness">
@@ -311,14 +391,14 @@ export function ExamPrepHome({
         </Link>
       ) : null}
 
-      {uiV2 && missed.length ? (
+      {uiV2 && view === "yol" && missed.length ? (
         <p className="ap-exam-settings-warn" role="status">
           {missed.length} geçmiş günde tamamlanmamış oturum var. “Kaçırılan günleri
           yeniden dağıt” ile kalan planı bugünden itibaren sıkıştırabilirsin.
         </p>
       ) : null}
 
-      {uiV2 && todayGroup ? (
+      {uiV2 && view === "yol" && todayGroup ? (
         <section className="ap-exam-today" aria-label="Bugünün yolu">
           <p className="ap-lesson-kicker">Bugün</p>
           <h2>{todayGroup.label}</h2>
@@ -376,7 +456,7 @@ export function ExamPrepHome({
             İlk adımı aç
           </Link>
         </div>
-      ) : uiV2 ? (
+      ) : uiV2 && view === "yol" ? (
         <div className="ap-exam-day-path" aria-label="Günlük çalışma yolu">
           {dayGroups.map((group) => (
             <section
