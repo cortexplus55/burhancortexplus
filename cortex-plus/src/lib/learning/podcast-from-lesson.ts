@@ -121,12 +121,15 @@ export async function generatePodcastFromLesson(input: {
     idempotencyKey: input.idempotencyKey,
     buildIndependent: (_c, parsed) => {
       const data = podcastV2Schema.safeParse(parsed).data;
-      return {
-        pedagogyIssues: data
-          ? validatePodcastPedagogy(data)
-          : ["Podcast şeması geçersiz."],
-        minItems: 4,
-      };
+      // Red çoğu zaman burada oluyor, `parse`'ta değil: bağımsız
+      // doğrulama taslağı daha erken eliyor. Gerekçeyi burada da
+      // toplamazsak dışarıdan "doğrulamadan geçmedi"den başka bir şey
+      // görünmüyor.
+      const issues = data
+        ? validatePodcastPedagogy(data)
+        : ["Podcast şeması geçersiz."];
+      if (issues.length) input.onReject?.(issues);
+      return { pedagogyIssues: issues, minItems: 4 };
     },
     schemaHint:
       'JSON: {"title":string,"objective":string,"sourcePoints":string[],"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +
