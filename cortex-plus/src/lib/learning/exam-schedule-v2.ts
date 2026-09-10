@@ -290,14 +290,36 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     return true;
   };
 
-  // Place learn+practice early; reviews mid/late; mock only on last day.
-  for (const { topic, minutes } of kept) {
+  /**
+   * Yeni konuların öğrenilmesi dönemin ilk ~%60'ına yayılır; kalan kısım
+   * tekrar, eksik kapatma ve denemeye kalır.
+   *
+   * Önceden her konu "ilk uygun gün"e yerleştiriliyordu. Bol zamanlı planlarda
+   * bu, 30 günlük hazırlığı ilk 10 güne yığıp ortada 11 boş gün bırakıyordu:
+   * öğrenci ya baştan boğuluyor ya da ortada planı bırakıyordu. Konu başına
+   * bir hedef gün hesaplayıp aramayı oradan başlatmak yükü döneme dağıtıyor.
+   */
+  const learnWindow = Math.max(1, Math.floor(Math.max(1, lastIdx) * 0.6));
+  const spreadStep = kept.length > 0 ? learnWindow / kept.length : 0;
+
+  // Place learn+practice across the first stretch; reviews mid/late; mock last.
+  for (const [topicIndex, { topic, minutes }] of kept.entries()) {
     const learnM = roleMinutes("learn", minutes);
     const practiceM = roleMinutes("practice", minutes);
     const reviewM = roleMinutes("review", minutes);
+    const preferredDay = Math.min(
+      Math.max(0, lastIdx - 1),
+      Math.floor(topicIndex * spreadStep),
+    );
 
     let learnDay = -1;
-    for (let d = 0; d < Math.max(0, lastIdx); d += 1) {
+    // Hedef günden ileri doğru, sonra baştan — böylece hedef gün doluysa konu
+    // kaybolmaz, sadece kayar.
+    const learnOrder: number[] = [];
+    for (let d = preferredDay; d < Math.max(0, lastIdx); d += 1) learnOrder.push(d);
+    for (let d = 0; d < preferredDay; d += 1) learnOrder.push(d);
+
+    for (const d of learnOrder) {
       if (dayBudget[d] >= learnM) {
         if (place(d, topic, "learn", learnM)) {
           learnDay = d;
@@ -306,7 +328,7 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
       }
     }
     if (learnDay < 0) {
-      for (let d = 0; d < lastIdx; d += 1) {
+      for (const d of learnOrder) {
         if (place(d, topic, "learn", Math.min(learnM, dayBudget[d]))) {
           learnDay = d;
           break;
