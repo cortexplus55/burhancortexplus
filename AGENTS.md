@@ -48,6 +48,14 @@ tek başına yapılacak iş gerekçesi **değil**. Bir özellik ancak Cortex Plu
 İçlerindeki "bizde yok" ve "kapatıldı ✓" satırları bayat; kullanmadan önce
 koddan doğrulayın. Gerekçe: `docs/astra-parity/README.md`.
 
+**İçerik ev stili: `docs/delivery/ICERIK-EV-STILI.md`.** Konunun nasıl
+bölüneceği, ders adımlarının ve podcast bölümlerinin nasıl adlandırılacağı,
+eşik/sınıflandırma iddialarının kaynağa nasıl bağlanacağı orada. Kurallar
+kodda doğrulayıcı olarak duruyor (`topic-title.ts`, `teaching-standards.ts`,
+`CONTENT_STYLE`); belge nedeni anlatır. İkisi ayrışırsa **kod haklıdır**.
+Ders/konu/podcast üretimine dokunmadan önce okuyun — buradaki her kural
+canlıda çıkmış somut bir hatadan geliyor.
+
 ## Suspense sınırı bu projede sayfayı boşaltıyor
 
 **4 Eylül 2026'da yayında yedi sayfa boştu.** Sunucu doğru HTML'i gönderiyordu;
