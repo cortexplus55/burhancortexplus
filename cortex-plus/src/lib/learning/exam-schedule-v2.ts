@@ -326,12 +326,16 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     }
   }
 
+  // Kapsam kesildikten sonra `required` zaten `availableMinutes`in altına iner;
+  // o rakamları yazdırmak "219 dk gerekir, 225 dk var" gibi kendi kendini
+  // yalanlayan bir cümle üretiyordu. Kesme olduysa kesmeyi anlat, aritmetiği
+  // değil.
   const summary = fits
     ? `${studyDayDates.length} çalışma günü · ${availableMinutes} dk uygun · plan sığıyor`
-    : `Sığmıyor: ~${required} dk gerekir, ${availableMinutes} dk var` +
-      (cutTopicIds.length
-        ? ` · ${cutTopicIds.length} konu kapsam dışı bırakıldı`
-        : "");
+    : cutTopicIds.length
+      ? `${loads.length} konudan ${cutTopicIds.length} tanesi bu süreye sığmadı ve plana alınmadı` +
+        ` · ${studyDayDates.length} çalışma günü × ${daily} dk`
+      : `Süre yetmiyor: ~${required} dk gerekir, ${availableMinutes} dk var`;
 
   return {
     sessions: sessions.sort(

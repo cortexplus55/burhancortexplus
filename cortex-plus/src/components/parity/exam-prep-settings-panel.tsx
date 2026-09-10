@@ -162,7 +162,9 @@ export function ExamPrepSettingsPanel({
                       ? "konuları önceliklendir"
                       : o === "cut_scope"
                         ? "kapsamı daralt"
-                        : o,
+                        : o === "extend_days"
+                          ? "sınav tarihini ileri al"
+                          : o,
                 )
                 .join(", ")}`
             : ""}
