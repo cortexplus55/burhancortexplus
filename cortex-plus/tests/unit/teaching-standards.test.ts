@@ -464,3 +464,51 @@ describe("scaffold headings keep leaking", () => {
     }
   });
 });
+
+describe("quiz explanations must refute a distractor", () => {
+  const q = (
+    text: string,
+    options: string[],
+    correct: string[],
+    explanation: string,
+  ): QuizQuestion => ({ text, options, correct, multi: false, explanation });
+
+  it("rejects a set where every explanation only restates the answer", () => {
+    // Canlıda üretilmiş beşlinin aynısı: hepsi doğruyu tekrarlıyor.
+    const questions = [
+      q(
+        "Hangi açı için kosinüs -1 olur?",
+        ["180°", "90°", "270°", "360°"],
+        ["180°"],
+        "Kosinüs -1 sadece 180° için elde edilir.",
+      ),
+      q(
+        "Sinüs 1/2 olan açı grubu hangisidir?",
+        ["30°, 150°", "120°, 240°", "45°, 225°", "60°, 300°"],
+        ["30°, 150°"],
+        "Sinüs 1/2 olan açılar 30° ve 150°'dir.",
+      ),
+    ];
+    expect(
+      validateQuizPedagogy(questions).some((i) => i.includes("yalnızca doğruyu tekrarlıyor")),
+    ).toBe(true);
+  });
+
+  it("accepts a set whose explanations say what a wrong option actually is", () => {
+    const questions = [
+      q(
+        "90° ve 270°'de tanımsız olan fonksiyon hangisidir?",
+        ["Tanjant", "Sinüs", "Kosinüs", "Kotanjant"],
+        ["Tanjant"],
+        "Tanjant sinüs/kosinüs olduğundan kosinüs sıfırken tanımsızdır. Sinüs 90°'de 1 değerini alır, tanımsız değildir.",
+      ),
+      q(
+        "Hangi açı için kosinüs -1 olur?",
+        ["180°", "90°", "270°", "360°"],
+        ["180°"],
+        "Kosinüs x koordinatıdır; 180°'de -1 olur. 90° ve 270°'de kosinüs sıfırdır.",
+      ),
+    ];
+    expect(validateQuizPedagogy(questions)).toEqual([]);
+  });
+});
