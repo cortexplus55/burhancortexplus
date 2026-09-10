@@ -3,6 +3,7 @@ import {
   normalizeTopicTitle,
   targetTopicCount,
   topicTitleIssues,
+  unrepresentedHeadings,
 } from "@/lib/documents/topic-title";
 
 describe("targetTopicCount", () => {
@@ -52,5 +53,54 @@ describe("topicTitleIssues", () => {
   it("accepts a house-style title", () => {
     expect(topicTitleIssues("Efektif Gerilme İlkesi ve Sızma Kuvvetleri")).toEqual([]);
     expect(topicTitleIssues("Zeminde Su Akışı ve Permeabilite")).toEqual([]);
+  });
+});
+
+describe("unrepresentedHeadings", () => {
+  // Canlı denemede gerçekten olan şey: 8 bölümlük zemin PDF'inden 7 konu
+  // çıktı ve "6. Yük Altında Gerilme Dağılımı" listeden düştü. Sayfalar en
+  // yakın konuya bağlandığı için kapsama %100 görünüyordu.
+  const chapters = [
+    "1. Zeminin Oluşumu ve Üç Fazlı Sistem",
+    "2. Faz Bağıntıları ve İndeks Özellikler",
+    "3. Dane Boyu, Kıvam Limitleri ve Sınıflandırma (USCS)",
+    "4. Zeminde Su Akışı ve Permeabilite",
+    "5. Efektif Gerilme İlkesi",
+    "6. Yük Altında Gerilme Dağılımı",
+    "7. Konsolidasyon ve Oturma",
+    "8. Kayma Mukavemeti",
+  ];
+
+  it("catches the chapter that was dropped to hit the target count", () => {
+    const shipped = [
+      "Zemin Oluşumu ve Üç Fazlı Sistem",
+      "Faz Bağıntıları ve İndeks Özellikler",
+      "Dane Boyu, Kıvam Limitleri ve Sınıflandırma",
+      "Zeminde Su Akışı ve Permeabilite",
+      "Efektif Gerilme İlkesi",
+      "Konsolidasyon ve Oturma",
+      "Kayma Mukavemeti",
+    ];
+    expect(unrepresentedHeadings(chapters, shipped)).toEqual([
+      "6. Yük Altında Gerilme Dağılımı",
+    ]);
+  });
+
+  it("accepts a merge that keeps both names in the title", () => {
+    const merged = [
+      "Zeminlerin Faz Bağıntıları ve İndeks Özellikleri",
+      "Dane Boyu Dağılımı ve Zemin Sınıflandırması",
+      "Zeminde Su Akışı ve Permeabilite",
+      "Efektif Gerilme İlkesi ve Sızma Kuvvetleri",
+      "Zeminlerde Yük Altında Gerilme Dağılımı",
+      "Zeminlerin Konsolidasyonu ve Oturma Analizi",
+      "Zeminlerin Kayma Mukavemeti ve Kırılma Ölçütleri",
+      "Zeminin Oluşumu ve Üç Fazlı Sistem",
+    ];
+    expect(unrepresentedHeadings(chapters, merged)).toEqual([]);
+  });
+
+  it("ignores headings with nothing distinctive to match", () => {
+    expect(unrepresentedHeadings(["1. Giriş", "2. Genel"], ["Kayma Mukavemeti"])).toEqual([]);
   });
 });

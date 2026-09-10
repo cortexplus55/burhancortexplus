@@ -11,6 +11,7 @@ import {
   normalizeTopicTitle,
   targetTopicCount,
   topicTitleIssues,
+  unrepresentedHeadings,
   TOPIC_TITLE_RULE,
 } from "@/lib/documents/topic-title";
 
@@ -66,6 +67,17 @@ export async function buildTopicMapLLM(
 
   const target = targetTopicCount(contentPages.length);
 
+  // Numaralı üst düzey bölüm başlıkları: haritanın kaybetmemesi gereken
+  // omurga. Alt başlıklar ("2.3. Birim Hacim Ağırlıkları") sayılmaz —
+  // onların ayrı konu olmaması normal.
+  const chapterHeadings = [
+    ...new Set(
+      contentPages
+        .map((page) => page.headings[0] ?? "")
+        .filter((h) => /^\s*\d+[.)]\s+\S/.test(h)),
+    ),
+  ];
+
   let outcome;
   try {
     outcome = await generateJson({
@@ -79,17 +91,24 @@ export async function buildTopicMapLLM(
         `title: belgenin kendi dilinde konu başlığı. ${TOPIC_TITLE_RULE} ` +
         "learningObjective: o konuda öğrencinin kazanacağı beceri, tek cümle. " +
         "pageNumbers: konunun işlendiği sayfa numaraları. " +
-        `Konular belgedeki sıraya göre; her öğretim sayfası en az bir konuya bağlanmalı; ${target} konu hedefle.`,
+        `Konular belgedeki sıraya göre; her öğretim sayfası en az bir konuya bağlanmalı; yaklaşık ${target} konu hedefle.`,
       userPrompt: `Aşağıda "${fileName}" adlı ders belgesinin sayfa sayfa metni var. Belgenin konu haritasını çıkar: her ana konu için başlık, öğrenme hedefi ve o konunun geçtiği sayfa numaraları. Sadece bu belgede geçen konuları kullan, dışarıdan konu ekleme.
 
-Bu belgede ${contentPages.length} öğretim sayfası var; yaklaşık ${target} konu bekleniyor. Belgenin bölüm sayısı buna uymuyorsa bölümleri körü körüne kopyalama: ince bölümleri komşusuyla birleştir, tek başına sınanabilecek kadar dolu bir alt başlığı ayrı konuya çıkar.
+Bu belgede ${contentPages.length} öğretim sayfası var; yaklaşık ${target} konu bekleniyor. Bu bir hedef, kota değil — bir ya da iki fazlası sorun değil.
+
+HİÇBİR ÖĞRETİM BÖLÜMÜ LİSTEDEN KAYBOLMAZ. Sayıyı tutturmak için bölüm atmak yasak. Sayıyı azaltmanın tek yolu birleştirmek, birleştirdiğinde de her iki bölümün adı başlıkta görünür ("Konsolidasyon ve Oturma Analizi"); öğrenci listeye baktığında belgede öğrendiği hiçbir konuyu arayıp bulamamazlık etmemeli. Tersi de geçerli: tek başına sınanabilecek kadar dolu bir alt başlığı ayrı konuya çıkarabilirsin.
 
 Kapak, içindekiler, önsöz, "öğrenme hedefleri"/"kazanımlar" listesi ve formül kartı gibi ön/arka bölümler konu DEĞİLDİR — bunlar öğretim içeriği taşımaz, konu olarak çıkarma. Bu sayfaları, anlattıkları asıl konuya ait sayfalardan biri say ya da hiç kullanma.
 
 ${pageDigest(contentPages)}`,
       parse: (raw) => {
         const parsed = llmSchema.safeParse(raw);
-        return parsed.success ? parsed.data : null;
+        if (!parsed.success) return null;
+        // Bölüm atarak sayıyı tutturan taslak reddedilir; generateJson
+        // geri bildirimle yeniden yazdırır.
+        const titles = parsed.data.topics.map((t) => normalizeTopicTitle(t.title));
+        if (unrepresentedHeadings(chapterHeadings, titles).length) return null;
+        return parsed.data;
       },
     });
   } catch {

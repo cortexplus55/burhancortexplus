@@ -79,6 +79,93 @@ export function topicTitleIssues(title: string): string[] {
   return issues;
 }
 
+/**
+ * Hedef konu sayısı yüzünden düşürülen bölüm var mı?
+ *
+ * İlk canlı denemede kural işledi ama pahalıya patladı: 8 bölümlük zemin
+ * PDF'inden 7 konu çıktı, çünkü model "6. Yük Altında Gerilme Dağılımı"
+ * bölümünü birleştirmek yerine listeden attı. Sayfalar en yakın konuya
+ * bağlandığı için kapsama %100 görünüyordu; kaybolan şey konunun ADIYDI.
+ * Öğrenci listede o konuyu göremiyor, o adla bir ders üretilmiyor.
+ *
+ * Bölüm başlığındaki anlamlı kelimelerin yarısı hiçbir konu başlığında
+ * geçmiyorsa o bölüm temsil edilmiyor demektir. Birleştirme buradan
+ * geçer ("Konsolidasyon ve Oturma Analizi" her iki adı da taşır), atma
+ * geçmez.
+ */
+const TITLE_STOPWORDS = new Set([
+  "ve",
+  "ile",
+  "veya",
+  "icin",
+  "bir",
+  "bu",
+  "altinda",
+  "uzerinde",
+  "arasinda",
+  "giris",
+  "temel",
+  "genel",
+]);
+
+function significantWords(heading: string): string[] {
+  return foldTrLocal(normalizeTopicTitle(heading))
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 4 && !TITLE_STOPWORDS.has(w));
+}
+
+/** Türkçe katlama — page-analysis'e bağımlılık yaratmamak için yerel kopya. */
+function foldTrLocal(text: string): string {
+  return text
+    .toLocaleLowerCase("tr")
+    .replace(/ı/g, "i")
+    .replace(/ş/g, "s")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/â/g, "a")
+    .replace(/î/g, "i");
+}
+
+/**
+ * Türkçe ek almış hâlleri de eşleştir: "sınıflandırma" başlıktaki
+ * "sınıflandırması" ile aynı kelimedir. Tam eşitlik arayınca bu ikisi
+ * ıskalanıyor ve doğru birleştirilmiş bir başlık bile eksik sayılıyordu.
+ */
+function covers(titleWords: string[], word: string): boolean {
+  return titleWords.some((t) => t.startsWith(word) || word.startsWith(t));
+}
+
+export function unrepresentedHeadings(
+  headings: string[],
+  topicTitles: string[],
+): string[] {
+  const titleWords = topicTitles.map(significantWords);
+  const missing: string[] = [];
+
+  for (const heading of headings) {
+    const words = significantWords(heading);
+    // Anlamlı kelimesi olmayan başlık ("Giriş", "Bölüm 2") ölçülemez.
+    if (words.length === 0) continue;
+
+    // En uzun kelime bölümün en ayırt edici parçası: "Yük Altında Gerilme
+    // Dağılımı" içinde "gerilme" başka konularda da geçer, "dağılımı"
+    // geçmez. O kelime hiçbir başlıkta yoksa bölüm temsil edilmiyordur.
+    const distinctive = [...words].sort((a, b) => b.length - a.length)[0];
+
+    let best = 0;
+    let distinctiveCovered = false;
+    for (const title of titleWords) {
+      const hit = words.filter((w) => covers(title, w)).length / words.length;
+      if (hit > best) best = hit;
+      if (covers(title, distinctive)) distinctiveCovered = true;
+    }
+    if (best < 0.5 || !distinctiveCovered) missing.push(heading);
+  }
+  return missing;
+}
+
 /** Üretim tarafına verilen adlandırma talimatı — kural tek yerde dursun. */
 export const TOPIC_TITLE_RULE =
   "Başlık, belgenin içindekiler satırını kopyalamak değil, konuyu adlandırmaktır. " +
