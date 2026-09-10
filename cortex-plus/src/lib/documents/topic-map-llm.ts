@@ -7,6 +7,12 @@ import {
   draftFromLlmTopic,
   type TopicMapBuildResult,
 } from "@/lib/documents/topic-map";
+import {
+  normalizeTopicTitle,
+  targetTopicCount,
+  topicTitleIssues,
+  TOPIC_TITLE_RULE,
+} from "@/lib/documents/topic-title";
 
 /**
  * Model-backed topic map. The heuristic in {@link buildTopicMap} only recognises
@@ -58,6 +64,8 @@ export async function buildTopicMapLLM(
 
   const contentNumbers = new Set(contentPages.map((page) => page.pageNumber));
 
+  const target = targetTopicCount(contentPages.length);
+
   let outcome;
   try {
     outcome = await generateJson({
@@ -68,11 +76,13 @@ export async function buildTopicMapLLM(
       verificationMode: "schema",
       schemaHint:
         'JSON: {"topics":[{"title":string,"learningObjective":string|null,"pageNumbers":number[]}]}. ' +
-        "title: belgenin kendi dilinde, o bölümün gerçek konu başlığı (5-9 kelime, \"Sayfa N\" yazma). " +
+        `title: belgenin kendi dilinde konu başlığı. ${TOPIC_TITLE_RULE} ` +
         "learningObjective: o konuda öğrencinin kazanacağı beceri, tek cümle. " +
         "pageNumbers: konunun işlendiği sayfa numaraları. " +
-        "Konular belgedeki sıraya göre; her öğretim sayfası en az bir konuya bağlanmalı; 4-14 konu ideal.",
+        `Konular belgedeki sıraya göre; her öğretim sayfası en az bir konuya bağlanmalı; ${target} konu hedefle.`,
       userPrompt: `Aşağıda "${fileName}" adlı ders belgesinin sayfa sayfa metni var. Belgenin konu haritasını çıkar: her ana konu için başlık, öğrenme hedefi ve o konunun geçtiği sayfa numaraları. Sadece bu belgede geçen konuları kullan, dışarıdan konu ekleme.
+
+Bu belgede ${contentPages.length} öğretim sayfası var; yaklaşık ${target} konu bekleniyor. Belgenin bölüm sayısı buna uymuyorsa bölümleri körü körüne kopyalama: ince bölümleri komşusuyla birleştir, tek başına sınanabilecek kadar dolu bir alt başlığı ayrı konuya çıkar.
 
 Kapak, içindekiler, önsöz, "öğrenme hedefleri"/"kazanımlar" listesi ve formül kartı gibi ön/arka bölümler konu DEĞİLDİR — bunlar öğretim içeriği taşımaz, konu olarak çıkarma. Bu sayfaları, anlattıkları asıl konuya ait sayfalardan biri say ya da hiç kullanma.
 
@@ -94,10 +104,16 @@ ${pageDigest(contentPages)}`,
       const pageNumbers = [...new Set(topic.pageNumbers)]
         .filter((n) => contentNumbers.has(n))
         .sort((a, b) => a - b);
-      return { ...topic, pageNumbers };
+      // Numara ve parantezli kısaltmayı burada kesiyoruz: modele
+      // söylüyoruz ama söylemek yetmiyor, belgenin kendi başlığı güçlü
+      // bir çekim yaratıyor.
+      return { ...topic, title: normalizeTopicTitle(topic.title), pageNumbers };
     })
     .filter((topic) => {
       if (!topic.pageNumbers.length) return false;
+      // Kurala uymayan başlık, haritayı tümden düşürmektense elenir;
+      // sayfaları aşağıda en yakın konuya bağlanıyor.
+      if (topicTitleIssues(topic.title).length) return false;
       const key = topic.title.toLocaleLowerCase("tr").trim();
       if (seen.has(key)) return false;
       seen.add(key);
