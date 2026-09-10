@@ -27,7 +27,7 @@ export default async function ExamNodePage({
   const [{ data: prep }, { data: node }] = await Promise.all([
     supabase
       .from("exam_preps")
-      .select("id, title, active_topic_id, intro_completed_at")
+      .select("id, title, active_topic_id, intro_completed_at, document_id")
       .eq("id", prepId)
       .eq("user_id", user.id)
       .maybeSingle(),
@@ -62,6 +62,19 @@ export default async function ExamNodePage({
     topicFamiliarity = (topic?.familiarity as Familiarity | null) ?? null;
   }
 
+  // Üretim ekranı "senin notundan çıkıyor" diyebilsin diye kaynak dosya adı.
+  // Hazırlık bir belgeye bağlı değilse gösterilmez — olmayan bir güvence
+  // vermemek için.
+  let sourceName: string | null = null;
+  if (prep.document_id) {
+    const { data: doc } = await supabase
+      .from("documents")
+      .select("file_name")
+      .eq("id", prep.document_id)
+      .maybeSingle();
+    sourceName = (doc?.file_name as string | null) ?? null;
+  }
+
   return (
     <AstraParitySorShell {...shell}>
       <ExamNodeSession
@@ -72,6 +85,7 @@ export default async function ExamNodePage({
         topicLabel={topicLabel}
         initialFamiliarity={topicFamiliarity}
         resumeEnabled={resumeEnabled}
+        sourceName={sourceName}
       />
     </AstraParitySorShell>
   );

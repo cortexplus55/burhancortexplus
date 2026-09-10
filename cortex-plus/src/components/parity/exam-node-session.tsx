@@ -21,6 +21,8 @@ import {
   type Mood,
 } from "@/lib/learning/session-signals";
 import { cn } from "@/lib/utils";
+import { NodeGenerationProgress } from "@/components/parity/node-generation-progress";
+import "@/styles/node-generation-progress.css";
 
 type Difficulty = "kolay" | "orta" | "ileri";
 
@@ -52,6 +54,7 @@ export function ExamNodeSession({
   topicLabel,
   initialFamiliarity,
   resumeEnabled = false,
+  sourceName = null,
 }: {
   prepId: string;
   nodeId: string;
@@ -62,6 +65,8 @@ export function ExamNodeSession({
   initialFamiliarity?: Familiarity | null;
   /** Stage 8 — pdf_learning_v2: restore attempt + debounce + save answers. */
   resumeEnabled?: boolean;
+  /** Hazırlık bir belgeye bağlıysa dosya adı — üretim ekranında gösterilir. */
+  sourceName?: string | null;
 }) {
   const router = useRouter();
   const meta = PLAN_NODE_META[kind];
@@ -523,7 +528,11 @@ export function ExamNodeSession({
         </article>
       ) : null}
 
-      {stage === "setup" ? (
+      {stage === "setup" && loading ? (
+        <NodeGenerationProgress sourceName={sourceName} />
+      ) : null}
+
+      {stage === "setup" && !loading ? (
         <article className="ap-exam-setup-card">
           <p className="ap-lesson-kicker">{prepTitle}</p>
           <h1>{meta.setupLabel}</h1>
