@@ -197,13 +197,30 @@ describe("teaching standards contract", () => {
       }).some((i) => i.includes("başlığı tekrarlıyor")),
     ).toBe(true);
 
+    const good = {
+      ...base,
+      objective: "Su tablası değişince efektif gerilmeyi hesaplayabileceksin.",
+    };
+
+    // Canlıda çıkan hâli: edilgen gelecek, dersi tarif ediyor.
     expect(
       validateLessonPedagogy({
-        ...base,
-        objective: "Efektif Gerilme İlkesi konusunu öğren.",
-        overview: "Bu derste efektif gerilme konusunu öğreneceğiz.",
-      }).some((i) => i.includes("içi boş")),
+        ...good,
+        overview:
+          "Bu derste Efektif Gerilme İlkesi açıklanacak ve örnekle pekiştirilecektir.",
+      }).some((i) => i.includes("dersi tarif ediyor")),
     ).toBe(true);
+
+    // "Bu derste" ile başlayan her genel bakış kötü değil; bu cümle
+    // öğrencinin ne yapabilir olacağını söylüyor ve geçmeli. Eski kural
+    // bunu da eliyordu ve ders hiç üretilemiyordu.
+    expect(
+      validateLessonPedagogy({
+        ...good,
+        overview:
+          "Bu derste su tablası yükselince efektif gerilmenin neden düştüğünü hesapla göreceksin.",
+      }),
+    ).toEqual([]);
   });
 
   it("rejects an exponent split between superscript and baseline", () => {

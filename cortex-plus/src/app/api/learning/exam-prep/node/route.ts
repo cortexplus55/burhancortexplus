@@ -1015,6 +1015,11 @@ async function generateNodePayload(input: {
   // okunabiliyor ve doğrulayıcısı (validateLessonPedagogy) bölüm
   // başlığından çözümlü örneğin her adımına kadar kontrol ediyor.
   if (input.kind === "lesson") {
+    // Pedagoji kontrolleri hiçbir taslağı geçirmezse ders hiç üretilmiyor
+    // ve öğrencinin o konuda okuyacak bir şeyi kalmıyor — bugün iki kez
+    // olan buydu. Şeması geçerli son taslak saklanıyor: kusurlu bir ders,
+    // dersin hiç olmamasından iyi.
+    let lastValidLesson: LessonV2 | null = null;
     const outcome = await generateJson({
       service: input.service,
       userId: input.userId,
@@ -1036,10 +1041,12 @@ async function generateNodePayload(input: {
       parse: (raw) => {
         const data = lessonV2Schema.safeParse(raw).data ?? null;
         if (!data) return null;
+        lastValidLesson = data;
         return validateLessonPedagogy(data).length ? null : data;
       },
     });
-    if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
+    const lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;
+    if (!lesson) throw new NodeGenerationError(outcome.ok ? 500 : outcome.status, outcome.ok ? "lesson_missing" : outcome.error);
     // Dersi konuya da yaz: öğrenci sonra geri dönüp okuyabilsin ve ders
     // bitince önerilen podcast bu içerikten türeyebilsin. Yazamamak dersi
     // bozmaz — öğrenci ekranda zaten okuyor.
@@ -1049,13 +1056,13 @@ async function generateNodePayload(input: {
         .insert({
           exam_prep_id: input.prepId,
           topic_id: input.topicId,
-          title: outcome.data.title,
-          content_md: outcome.data.overview,
-          content_json: outcome.data,
+          title: lesson.title,
+          content_md: lesson.overview,
+          content_json: lesson,
         })
         .then(undefined, () => undefined);
     }
-    return { type: "lesson", lesson: outcome.data, title: outcome.data.title, teachingStandard: activity };
+    return { type: "lesson", lesson, title: lesson.title, teachingStandard: activity };
   }
 
   if (input.kind === "qa") {
