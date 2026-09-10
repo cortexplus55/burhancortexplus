@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { analyzePages, type PageAnalysis } from "@/lib/documents/page-analysis";
 import { buildCoverageReport, type CoverageReport } from "@/lib/documents/coverage";
-import { buildTopicMap, type TopicDraft } from "@/lib/documents/topic-map";
+import type { TopicDraft } from "@/lib/documents/topic-map";
 import { buildTopicMapLLM } from "@/lib/documents/topic-map-llm";
 
 export type PdfLearningV2Result = {
@@ -161,7 +161,13 @@ export async function runPdfLearningV2(
       await persistPageMeta(service, pageId, analysis);
     }
 
-    // Prefer a model-read topic map; the heuristic only knows a trig fixture set.
+    // Konu haritası modelin belgeyi okumasıyla çıkar. Eskiden model
+    // başarısız olduğunda sezgisel haritaya düşülüyordu; o harita bir
+    // trigonometri fikstürüne ayarlı olduğu için pediatri belgesinde
+    // "Derece ve radyan" ve "Sayfa 4 içeriği" konuları üretti. Yanlış
+    // harita, harita olmamasından kötü: öğrenci çalıştığı konuyu değil
+    // başka bir dersi görüyor ve ürüne güveni bitiyor. Artık yedek yok;
+    // çıkmazsa belge "failed" işaretlenir ve öğrenci tekrar dener.
     const llmMap = docRow?.user_id
       ? await buildTopicMapLLM(
           service,
@@ -171,7 +177,8 @@ export async function runPdfLearningV2(
           analyses,
         )
       : null;
-    const { topics, mergedTitles } = llmMap ?? buildTopicMap(analyses);
+    if (!llmMap) throw new Error("topic_map_unavailable");
+    const { topics, mergedTitles } = llmMap;
     await persistTopics(service, documentId, topics, pageIdByNumber);
 
     const coverage = buildCoverageReport(analyses, topics, mergedTitles);

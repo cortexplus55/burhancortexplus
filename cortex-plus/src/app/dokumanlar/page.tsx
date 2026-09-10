@@ -31,6 +31,20 @@ const topicMapLabels: Record<string, string> = {
   failed: "Harita başarısız",
 };
 
+/**
+ * Hata kodu öğrenciye ham gösterilmemeli — "topic_map_unavailable"
+ * kimseye ne yapacağını söylemiyor. Bilinmeyen kod da sızmasın diye
+ * eşleşmeyen her şey tek bir genel cümleye düşüyor.
+ */
+const topicMapErrorLabels: Record<string, string> = {
+  topic_map_unavailable: "Konular çıkarılamadı — belgeyi tekrar yüklemeyi dene",
+  document_status_update_failed: "Kaydedilemedi — tekrar dene",
+};
+
+function topicMapErrorLabel(code: string) {
+  return topicMapErrorLabels[code] ?? "Belge işlenemedi — tekrar dene";
+}
+
 function statusClass(status: string) {
   if (status === "completed") return "bg-amber-500/20 text-amber-200";
   if (status === "failed") return "bg-red-500/15 text-red-300";
@@ -91,7 +105,7 @@ export default async function DokumanlarPage() {
                       ? ` · ${topicMapLabels[document.topic_map_status] ?? `harita: ${document.topic_map_status}`}`
                       : ""}
                     {pdfLearningV2 && document.topic_map_error
-                      ? ` · ${document.topic_map_error}`
+                      ? ` · ${topicMapErrorLabel(document.topic_map_error)}`
                       : ""}
                   </p>
                 </div>
