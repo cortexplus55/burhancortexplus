@@ -127,7 +127,7 @@ export async function generatePodcastFromLesson(input: {
       // görünmüyor.
       const issues = data
         ? validatePodcastPedagogy(data)
-        : ["Podcast şeması geçersiz."];
+        : [`Podcast şeması geçersiz. ${describeDraft(parsed)}`];
       if (issues.length) input.onReject?.(issues);
       return { pedagogyIssues: issues, minItems: 4 };
     },
@@ -162,4 +162,35 @@ Bu podcast yukarıdaki DERSİN sesli hâlidir. Öğrenci dersi az önce okudu; �
       return data;
     },
   });
+}
+
+/**
+ * Reddedilen taslağın şekli — metnini değil.
+ *
+ * "Podcast şeması geçersiz" yirmi denemenin yirmisinde çıktı ve hangi
+ * alanın tutmadığını söylemiyordu. Bölüm sayısı, satır sayıları ve en
+ * uzun satırın uzunluğu şemanın üç sınırına (4-5 bölüm, 2-14 satır,
+ * ≤180 karakter) doğrudan karşılık geliyor.
+ */
+function describeDraft(parsed: unknown): string {
+  if (parsed == null) return "(taslak JSON olarak okunamadı)";
+  if (typeof parsed !== "object") return `(tip: ${typeof parsed})`;
+  const row = parsed as Record<string, unknown>;
+  const keys = Object.keys(row).join(",");
+  const chapters = Array.isArray(row.chapters) ? row.chapters : null;
+  if (!chapters) return `alanlar: ${keys}; chapters yok`;
+  const lineCounts = chapters.map((c) => {
+    const lines = (c as Record<string, unknown>)?.lines;
+    return Array.isArray(lines) ? lines.length : -1;
+  });
+  let longest = 0;
+  for (const c of chapters) {
+    const lines = (c as Record<string, unknown>)?.lines;
+    if (!Array.isArray(lines)) continue;
+    for (const l of lines) {
+      const t = (l as Record<string, unknown>)?.text;
+      if (typeof t === "string") longest = Math.max(longest, t.length);
+    }
+  }
+  return `alanlar: ${keys}; bölüm: ${chapters.length}; satırlar: ${lineCounts.join("/")}; en uzun satır: ${longest}`;
 }
