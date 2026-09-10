@@ -71,6 +71,12 @@ const ROLE_KIND: Record<ScheduleSessionRole, PlanNodeKind> = {
   mock: "written_exam",
 };
 
+/**
+ * Sıkıştırmanın tabanı. Bunun altına inen bir konu, planda görünse de
+ * öğrenciye bir şey öğretemeyecek kadar kısa kalır.
+ */
+const MIN_TOPIC_MINUTES = 12;
+
 const LEVEL_LOAD: Record<MeasuredLevel, number> = {
   unknown: 1.15,
   weak: 1.35,
@@ -213,32 +219,46 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     minutes: estimateTopicMinutes(t),
   }));
 
-  let required = loads.reduce((s, x) => s + x.minutes, 0) + Math.min(45, daily);
+  const mockBuffer = Math.min(45, daily);
+  let required = loads.reduce((s, x) => s + x.minutes, 0) + mockBuffer;
   // Mock exam buffer on last day.
-  let kept = [...loads];
+  const kept = [...loads];
   const cutTopicIds: string[] = [];
   const optionsIfTight: ScheduleFitOption[] = [];
 
+  /**
+   * Süre yetmediğinde konu ATILMAZ, sıkıştırılır.
+   *
+   * Eskiden en düşük öncelikli konular plandan çıkarılıyordu: öğrenci sekiz
+   * konu onaylayıp dördünü alıyordu. Sınavda o dört konu da çıkacağı için
+   * plan, kapsamı daraltarak değil yalnızca kendi vaadini daraltarak
+   * "sığıyor" hâline geliyordu. Konu başına süreyi kısmak dürüst olan:
+   * her konu planda kalır, dar zamanda her birine daha az yer düşer.
+   */
   if (required > availableMinutes) {
-    optionsIfTight.push("increase_daily_time", "prioritize_topics", "cut_scope");
+    optionsIfTight.push("increase_daily_time", "prioritize_topics");
     if (input.daysToExam < 60) optionsIfTight.push("extend_days");
-    // Drop lowest priority / strongest measured topics first (never pretend it fits).
-    const dropOrder = [...kept].sort((a, b) => {
-      const ap = a.topic.priority ?? 3;
-      const bp = b.topic.priority ?? 3;
-      const aSolid = a.topic.measuredLevel === "solid" ? 0 : 1;
-      const bSolid = b.topic.measuredLevel === "solid" ? 0 : 1;
-      return bSolid - aSolid || bp - ap || b.minutes - a.minutes;
-    });
-    while (required > availableMinutes && dropOrder.length > 1) {
-      const drop = dropOrder.pop()!;
-      kept = kept.filter((k) => k.topic.id !== drop.topic.id);
-      cutTopicIds.push(drop.topic.id);
-      required = kept.reduce((s, x) => s + x.minutes, 0) + Math.min(45, daily);
+
+    const topicTotal = required - mockBuffer;
+    const budget = Math.max(0, availableMinutes - mockBuffer);
+    const factor = topicTotal > 0 ? budget / topicTotal : 1;
+    for (const load of kept) {
+      // Zorlandığı ve ölçülmemiş konular sıkıştırmadan daha az etkilenir.
+      const shield =
+        load.topic.selfHard || (load.topic.measuredLevel ?? "unknown") === "unknown"
+          ? 1.1
+          : 1;
+      load.minutes = Math.max(
+        MIN_TOPIC_MINUTES,
+        Math.round(load.minutes * factor * shield),
+      );
     }
+    required = kept.reduce((s, x) => s + x.minutes, 0) + mockBuffer;
   }
 
-  const fits = required <= availableMinutes && cutTopicIds.length === 0;
+  // Taban süreye rağmen sığmıyorsa gerçekten süre yetmiyor — yine de kapsam
+  // daraltılmaz, durum olduğu gibi bildirilir.
+  const fits = required <= availableMinutes;
   const sessions: ScheduleSession[] = [];
   let sortOrder = 0;
 
@@ -293,6 +313,30 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
         }
       }
     }
+    if (learnDay < 0) {
+      // Günlük bütçeler tükendi. Konuyu plandan düşürmek yerine en boş güne
+      // taşımayı seçiyoruz: o gün hedeflenen süreyi aşar ama konu sınavda
+      // çıkacağı için planda görünmesi gerekir. `fits` zaten false, öğrenci
+      // planın sıkıştığını görüyor.
+      let target = 0;
+      for (let d = 1; d < Math.max(1, lastIdx); d += 1) {
+        if (dayBudget[d] > dayBudget[target]) target = d;
+      }
+      dayBudget[target] -= MIN_TOPIC_MINUTES;
+      sessions.push({
+        dayIndex: target + 1,
+        calendarDate: studyDayDates[target],
+        topicId: topic.id,
+        topicTitle: topic.title,
+        objective: objectiveFor(topic, "learn"),
+        sourcePages: [...(topic.pageNumbers ?? [])],
+        durationMinutes: MIN_TOPIC_MINUTES,
+        role: "learn",
+        kind: ROLE_KIND.learn,
+        sortOrder: sortOrder++,
+      });
+      learnDay = target;
+    }
 
     const practiceStart = Math.max(0, learnDay);
     for (let d = practiceStart; d < lastIdx; d += 1) {
@@ -326,16 +370,10 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     }
   }
 
-  // Kapsam kesildikten sonra `required` zaten `availableMinutes`in altına iner;
-  // o rakamları yazdırmak "219 dk gerekir, 225 dk var" gibi kendi kendini
-  // yalanlayan bir cümle üretiyordu. Kesme olduysa kesmeyi anlat, aritmetiği
-  // değil.
   const summary = fits
-    ? `${studyDayDates.length} çalışma günü · ${availableMinutes} dk uygun · plan sığıyor`
-    : cutTopicIds.length
-      ? `${loads.length} konudan ${cutTopicIds.length} tanesi bu süreye sığmadı ve plana alınmadı` +
-        ` · ${studyDayDates.length} çalışma günü × ${daily} dk`
-      : `Süre yetmiyor: ~${required} dk gerekir, ${availableMinutes} dk var`;
+    ? `${loads.length} konu · ${studyDayDates.length} çalışma günü × ${daily} dk`
+    : `${loads.length} konu planda, ama süre dar: ~${required} dk gerekir, ` +
+      `${studyDayDates.length} çalışma gününde ${availableMinutes} dk var`;
 
   return {
     sessions: sessions.sort(

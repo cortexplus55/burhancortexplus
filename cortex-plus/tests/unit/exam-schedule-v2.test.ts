@@ -75,7 +75,7 @@ describe("exam-schedule-v2", () => {
     ).toBe(true);
   });
 
-  it("does not pretend a huge scope fits short time — offers honest options", () => {
+  it("keeps every topic when time is short — compresses instead of cutting", () => {
     const heavy = topics(8).map((t) => ({
       ...t,
       pageNumbers: [1, 2, 3, 4, 5, 6, 7, 8],
@@ -89,10 +89,15 @@ describe("exam-schedule-v2", () => {
       topics: heavy,
       fromDate: new Date("2026-09-08T12:00:00"),
     });
+    // Dar zaman planın vaadini daraltır, kapsamı değil: sınavda o konular da
+    // çıkacağı için hiçbiri plandan atılmaz.
     expect(plan.fits).toBe(false);
     expect(plan.optionsIfTight.length).toBeGreaterThan(0);
     expect(plan.optionsIfTight).toContain("increase_daily_time");
-    expect(plan.cutTopicIds.length).toBeGreaterThan(0);
+    expect(plan.cutTopicIds).toEqual([]);
+    expect(plan.orderedTopicIds).toHaveLength(heavy.length);
+    const scheduled = new Set(plan.sessions.map((s) => s.topicId));
+    for (const topic of heavy) expect(scheduled.has(topic.id)).toBe(true);
   });
 
   it("3/7/14 day plans are not the same list stretched", () => {
