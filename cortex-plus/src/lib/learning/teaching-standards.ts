@@ -121,7 +121,13 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
       return (
         "Ders yapısı zorunlu sıra: (1) öğrenme hedefi, (2) kısa açıklama, (3) kaynağa dayalı örnek, " +
         "(4) gerekirse adımlar, (5) yaygın hata (commonMistake), (6) orta bilgi kontrolü (infoCheck), " +
-        "(7) kısa kapanış + sonraki adım. Anlamlı bölümler; duvar metin yok. Her bölüm kısa tut."
+        "(7) kısa kapanış + sonraki adım. Anlamlı bölümler; duvar metin yok. Her bölüm kısa tut. " +
+        // Üretilen bir derste "(2/3)⁻³ = 3²/2³ = 27/8" çıktı: sonuç doğru, ara
+        // adım yanlış (3² değil 3³). Öğrenci ara adımı ezberliyor; sonucun
+        // tutması hatayı görünmez kılıyor.
+        "Çözümde her ara adımı yaz ve her adımın kendi içinde doğru olduğunu denetle: " +
+        "bir önceki satırdan bu satıra hangi kuralla geçildiği tutarlı olmalı. " +
+        "Sonucun doğru çıkması ara adımı doğrulamaz — yanlış bir ara adımla doğru sonuca varma."
       );
     case "quiz":
       return (
