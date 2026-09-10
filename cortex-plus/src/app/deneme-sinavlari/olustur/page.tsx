@@ -28,13 +28,16 @@ export default async function ExamCreatePage({
     .order("created_at", { ascending: false })
     .limit(12);
 
-  const recentSubjects = [
-    ...new Set(
-      (recentRows ?? [])
-        .map((row) => (row.exam_type as string | null)?.trim())
-        .filter((value): value is string => Boolean(value && value.length > 1)),
-    ),
-  ].slice(0, 6);
+  // "okul" ve "Okul" iki ayrı seçenek gibi görünüyordu — büyük/küçük harf
+  // farkını yok sayarak ilk yazılışı korunur.
+  const seenSubjects = new Map<string, string>();
+  for (const row of recentRows ?? []) {
+    const label = (row.exam_type as string | null)?.trim();
+    if (!label || label.length < 2) continue;
+    const key = label.toLocaleLowerCase("tr");
+    if (!seenSubjects.has(key)) seenSubjects.set(key, label);
+  }
+  const recentSubjects = [...seenSubjects.values()].slice(0, 6);
 
   return (
     <AstraParitySorShell {...shell}>

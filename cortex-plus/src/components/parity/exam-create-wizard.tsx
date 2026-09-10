@@ -105,7 +105,10 @@ export function ExamCreateWizard({
   onUseChat: () => void;
 }) {
   const router = useRouter();
-  const [step, setStep] = useState<Step>(initialDocumentId ? "date" : "subject");
+  // Belgeden gelinse bile ders adımıyla başlanır: ders atlanırsa hazırlık
+  // "Serbest" olarak kaydediliyor ve listede ayırt edilemiyordu. Belge yalnızca
+  // materyal adımında seçili gelir.
+  const [step, setStep] = useState<Step>("subject");
 
   const [subject, setSubject] = useState("");
   const [subjectQuery, setSubjectQuery] = useState("");
