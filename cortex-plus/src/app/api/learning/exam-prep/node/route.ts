@@ -39,6 +39,7 @@ import {
   validatePodcastPedagogy,
   validateTrueFalsePedagogy,
   validateLessonPedagogy,
+  blockingLessonIssues,
   lessonV2Schema,
   type LessonV2,
   type SessionTeachingMeta,
@@ -1041,7 +1042,10 @@ async function generateNodePayload(input: {
       parse: (raw) => {
         const data = lessonV2Schema.safeParse(raw).data ?? null;
         if (!data) return null;
-        lastValidLesson = data;
+        // Yedek yalnızca "kusurlu" taslağı tutar, "yanlış" olanı değil.
+        // Canlıda dolgu şıklı ("Hepsi"), sorusu şıklarıyla uyuşmayan ve
+        // ham LaTeX içeren bir ders bu yoldan geçmişti.
+        if (!blockingLessonIssues(data).length) lastValidLesson = data;
         return validateLessonPedagogy(data).length ? null : data;
       },
     });

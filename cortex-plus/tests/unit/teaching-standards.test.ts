@@ -7,6 +7,7 @@ import {
   teachingSessionContext,
   teachingStandardConstraints,
   validateFlashcardPedagogy,
+  blockingLessonIssues,
   brokenSuperscript,
   emptyMistake,
   isScaffoldHeading,
@@ -510,5 +511,80 @@ describe("quiz explanations must refute a distractor", () => {
       ),
     ];
     expect(validateQuizPedagogy(questions)).toEqual([]);
+  });
+});
+
+describe("blocking vs cosmetic lesson issues", () => {
+  const sound = {
+    title: "Dane Boyu Dağılımı",
+    objective: "Cu ve Cc değerlerine bakarak derecelenmeyi söyleyebileceksin.",
+    overview: "Derecelenme, dağılım eğrisinin iki katsayısıyla değerlendirilir.",
+    sections: [
+      {
+        heading: "Derecelenme Katsayıları",
+        body: "Kum için Cu ≥ 6 ve 1 ≤ Cc ≤ 3 sağlanmalıdır.",
+        check: {
+          type: "mcq" as const,
+          prompt: "Kum için iyi derecelenme şartı hangisidir?",
+          options: ["Cu ≥ 6", "Cu < 4", "Cc < 1", "Cc ≥ 5"],
+          answerIndex: 0,
+          explanation: "Cu ≥ 6 gerekir; Cu < 4 kötü derecelenmeyi gösterir.",
+        },
+      },
+      { heading: "Elek Analizi", body: "Kaba danelilerde elek analizi kullanılır." },
+      { heading: "Hidrometre", body: "İnce danelilerde hidrometre kullanılır." },
+    ],
+    example: { prompt: "Cu = 8, Cc = 2 olan kum?", solution: "İyi derecelenmiştir." },
+    commonMistake: { claim: "Cc tek başına yeter", correction: "Cu ile birlikte bakılır." },
+    infoCheck: { prompt: "Cu neyi gösterir?", answer: "Düzgünsüzlük katsayısı" },
+    summary: ["Cu ≥ 6", "1 ≤ Cc ≤ 3"],
+    nextFocus: ["Atterberg limitleri"],
+  };
+
+  it("passes a sound lesson", () => {
+    expect(blockingLessonIssues(sound)).toEqual([]);
+  });
+
+  it("blocks raw LaTeX that reaches the student verbatim", () => {
+    // Canlıda ekranda böyle göründü.
+    const latex = {
+      ...sound,
+      sections: [
+        {
+          ...sound.sections[0],
+          body: String.raw`Dağılım eğrisi \( C_u = \frac{D_{60}}{D_{10}} \) içerir.`,
+        },
+        ...sound.sections.slice(1),
+      ],
+    };
+    expect(blockingLessonIssues(latex).some((i) => i.includes("LaTeX"))).toBe(true);
+  });
+
+  it("blocks a filler option", () => {
+    const filler = {
+      ...sound,
+      sections: [
+        {
+          ...sound.sections[0],
+          check: { ...sound.sections[0].check!, options: ["Cu ≥ 6", "Cu < 4", "Cc < 1", "Hepsi"] },
+        },
+        ...sound.sections.slice(1),
+      ],
+    };
+    expect(blockingLessonIssues(filler).some((i) => i.includes("Dolgu şık"))).toBe(true);
+  });
+
+  it("treats a scaffold heading as cosmetic, not blocking", () => {
+    // Başlığın adı hoş olmaması ile sorunun cevaplanamaz olması aynı şey
+    // değil; yedek birincisini geçirebilir, ikincisini geçiremez.
+    const scaffold = {
+      ...sound,
+      sections: [
+        { ...sound.sections[0], heading: "Bilgi Kontrolü" },
+        ...sound.sections.slice(1),
+      ],
+    };
+    expect(blockingLessonIssues(scaffold)).toEqual([]);
+    expect(validateLessonPedagogy(scaffold).some((i) => i.includes("şablon adı"))).toBe(true);
   });
 });

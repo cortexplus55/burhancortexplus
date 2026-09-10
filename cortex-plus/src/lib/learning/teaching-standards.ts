@@ -440,28 +440,73 @@ export function validateLessonPedagogy(raw: unknown): string[] {
     if (wallOfText(section.body)) {
       issues.push(`Bölüm duvar metin: ${section.heading}`);
     }
-    const check = section.check;
-    if (!check) continue;
-    if (check.answerIndex >= check.options.length) {
-      issues.push(`Kontrol cevabı seçenek dışında: ${section.heading}`);
-    }
-    const normalized = check.options.map((o) => o.trim().toLocaleLowerCase("tr"));
-    if (new Set(normalized).size !== normalized.length) {
-      issues.push(`Kontrol seçenekleri tekrar ediyor: ${section.heading}`);
-    }
-    if (check.type === "trueFalse" && check.options.length !== 2) {
-      issues.push(`Doğru/yanlış kontrolü iki seçenekli olmalı: ${section.heading}`);
-    }
-    // Çeldirici, doğru cevabın kopyası ya da "hiçbiri" türü dolgu olmamalı.
-    if (normalized.some((o) => o === "hiçbiri" || o === "hepsi")) {
-      issues.push(`Dolgu şık kullanılmış: ${section.heading}`);
-    }
+    // Kontrolün bütünlüğü (dolgu şık, cevap indeksi, tekrar) artık
+    // blockingLessonIssues'ta; oradan aşağıda ekleniyor.
   }
   if (lesson.commonMistake.claim === lesson.commonMistake.correction) {
     issues.push("Yaygın hata ile düzeltme aynı olamaz.");
   }
   if (!lesson.objective.trim()) {
     issues.push("Öğrenme hedefi zorunlu.");
+  }
+  return [...issues, ...blockingLessonIssues(lesson)];
+}
+
+/**
+ * Yayına asla çıkmaması gereken kusurlar.
+ *
+ * `validateLessonPedagogy` her şeyi topluyor ve taslağı yeniden yazdırmak
+ * için doğru araç. Ama hiçbir taslak geçmezse elimizdeki en iyi taslakla
+ * devam ediyoruz (#34) — yoksa öğrencinin okuyacak bir şeyi kalmıyor. O
+ * yedek canlıda şunu geçirdi:
+ *
+ *   - "Hepsi" şıkkı (dolgu, elemesi bedava)
+ *   - soru PI soruyor, şıklar LI: cevaplanamaz
+ *   - ders metninde ham LaTeX: \( C_u = \frac{D_{60}}{D_{10}} \)
+ *
+ * Başlığın adı hoş olmaması ile sorunun cevaplanamaz olması aynı şey
+ * değil. Birincisi kusurlu ders, ikincisi yanlış ders. Yedek yalnızca
+ * birincisini geçirebilir.
+ */
+export function blockingLessonIssues(raw: unknown): string[] {
+  const parsed = lessonV2Schema.safeParse(raw);
+  if (!parsed.success) return ["Ders v2 şemasını karşılamıyor."];
+  const lesson = parsed.data;
+  const issues: string[] = [];
+
+  // Ham LaTeX ekranda olduğu gibi görünüyor; podcast doğrulayıcısı bunu
+  // baştan beri reddediyordu, ders doğrulayıcısında yoktu.
+  const texts = [
+    lesson.overview,
+    ...lesson.sections.map((s) => s.body),
+    lesson.example.prompt,
+    lesson.example.solution,
+    lesson.commonMistake.correction,
+  ];
+  if (texts.some((t) => /\\\(|\\\[|\\frac|\\geq|\\leq|\\cdot|\$\$/.test(t))) {
+    issues.push("Ham LaTeX var; formülleri konuşulabilir Unicode ile yaz.");
+  }
+  if (texts.some(brokenSuperscript)) {
+    issues.push("Üs bölünmüş; üssün tamamını üst simgeyle yaz.");
+  }
+
+  for (const section of lesson.sections) {
+    const check = section.check;
+    if (!check) continue;
+    const label = section.heading;
+    if (check.answerIndex >= check.options.length || check.answerIndex < 0) {
+      issues.push(`Kontrol cevabı seçenek dışında: ${label}`);
+    }
+    const normalized = check.options.map((o) => o.trim().toLocaleLowerCase("tr"));
+    if (new Set(normalized).size !== normalized.length) {
+      issues.push(`Kontrol seçenekleri tekrar ediyor: ${label}`);
+    }
+    if (normalized.some((o) => o === "hiçbiri" || o === "hepsi")) {
+      issues.push(`Dolgu şık kullanılmış: ${label}`);
+    }
+    if (check.type === "trueFalse" && check.options.length !== 2) {
+      issues.push(`Doğru/yanlış kontrolü iki seçenekli olmalı: ${label}`);
+    }
   }
   return issues;
 }
