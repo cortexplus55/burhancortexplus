@@ -290,6 +290,51 @@ export function buildTopicMap(pages: PageAnalysis[]): TopicMapBuildResult {
   return { topics, mergedTitles };
 }
 
+/**
+ * Build one draft from a model-produced topic (title + objective + pages).
+ * Mirrors the enrichment {@link buildTopicMap} does per page, so the persisted
+ * shape and coverage report are identical whichever builder ran.
+ */
+export function draftFromLlmTopic(
+  title: string,
+  learningObjective: string | null,
+  pageNumbers: number[],
+  pages: PageAnalysis[],
+  index: number,
+) {
+  const byNumber = new Map(pages.map((page) => [page.pageNumber, page]));
+  const draft: TopicDraft & { sortHint: number } = {
+    title,
+    learningObjective: learningObjective?.trim() || null,
+    prerequisites: [],
+    keyDefinitions: [],
+    keyRelations: [],
+    workedExamples: [],
+    commonMistakes: [],
+    sourceExercises: [],
+    pageNumbers: [...new Set(pageNumbers)].sort((a, b) => a - b),
+    mergeKey: mergeKeyFor(`${title} ${index}`),
+    sortHint: index,
+  };
+
+  for (const pageNumber of draft.pageNumbers) {
+    const page = byNumber.get(pageNumber);
+    if (!page) continue;
+    draft.keyDefinitions.push(...definitionsFromText(page.textContent));
+    draft.keyRelations.push(...relationsFromFormulas(page.formulas));
+    draft.workedExamples.push(...examplesFromText(page.textContent));
+    draft.commonMistakes.push(...mistakesFromText(page.textContent));
+    draft.sourceExercises.push(...exercisesFromText(page.textContent));
+  }
+
+  draft.keyDefinitions = [...new Set(draft.keyDefinitions)].slice(0, 12);
+  draft.keyRelations = [...new Set(draft.keyRelations)].slice(0, 12);
+  draft.workedExamples = [...new Set(draft.workedExamples)].slice(0, 12);
+  draft.commonMistakes = [...new Set(draft.commonMistakes)].slice(0, 8);
+  draft.sourceExercises = [...new Set(draft.sourceExercises)].slice(0, 12);
+  return draft;
+}
+
 function inferPrerequisites(title: string, all: TopicDraft[]): string[] {
   const order = [
     "Derece ve radyan",
