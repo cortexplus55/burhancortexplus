@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Check, X } from "lucide-react";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
+import { LessonDiagramView } from "@/components/parity/lesson-diagram";
 import "@/styles/exam-lesson-steps.css";
 
 /**
@@ -51,6 +52,7 @@ type Step =
       body: string;
       check?: LessonV2["sections"][number]["check"];
       note?: LessonV2["sections"][number]["note"];
+      diagram?: LessonV2["sections"][number]["diagram"];
     }
   | { kind: "example"; heading: string; prompt: string; solution: string }
   | { kind: "mistake"; heading: string; claim: string; correction: string }
@@ -71,6 +73,7 @@ function buildSteps(lesson: LessonV2): Step[] {
         body: s.body,
         check: s.check,
         note: s.note,
+        diagram: s.diagram,
       }),
     ),
   ];
@@ -176,6 +179,10 @@ export function ExamLessonSteps({
         <p className="als-body">
           <RichBody text={step.body} />
         </p>
+      ) : null}
+
+      {step.kind === "section" && step.diagram ? (
+        <LessonDiagramView diagram={step.diagram} id={`als-d-${index}`} />
       ) : null}
 
       {/* Tuzak, kavramın hemen yanında. Dersin sonunda tek adım olarak

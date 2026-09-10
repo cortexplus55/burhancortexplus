@@ -1034,11 +1034,20 @@ async function generateNodePayload(input: {
       }),
       schemaHint:
         'JSON: {"title":string,"objective":string,"overview":string,' +
-        '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"note":{"title":string,"body":string}}],' +
+        '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"note":{"title":string,"body":string},"diagram":{"caption":string,"shapes":[...]}}],' +
         '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
         '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
         "3-6 bölüm; en az iki bölümde check olsun. note isteğe bağlı: yalnızca " +
-        "karıştırılması kolay bir ayrımın olduğu bölüme koy.",
+        "karıştırılması kolay bir ayrımın olduğu bölüme koy. " +
+        // Çizimi model tarif ediyor, SVG'yi biz kuruyoruz: modelden gelen
+        // metin hiçbir zaman işaretleme olarak yorumlanmıyor.
+        "diagram da isteğe bağlı ve YALNIZCA şekille anlaşılan konular için " +
+        "(faz diyagramı, Mohr dairesi, birim çember, kuvvet diyagramı). " +
+        "Çizim alanı 320x200. Şekiller: {kind:\"rect\",x,y,w,h}, " +
+        "{kind:\"circle\",cx,cy,r}, {kind:\"line\",x1,y1,x2,y2,arrow?,dashed?}, " +
+        "{kind:\"text\",x,y,text,anchor?}. Renk seçme; tone/fill/stroke yalnızca " +
+        "ink, muted, accent, surface, line olabilir. Her çizimde en az bir etiket " +
+        "ve bir caption olsun. Metinle anlaşılan konuya çizim koyma.",
       userPrompt: `${ctx} Bu konunun dersini yaz.`,
       parse: (raw) => {
         const data = lessonV2Schema.safeParse(raw).data ?? null;
