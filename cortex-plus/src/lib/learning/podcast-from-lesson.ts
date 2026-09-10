@@ -19,33 +19,50 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateJson } from "@/lib/ai/generate";
 import {
+  isScaffoldHeading,
   podcastV2Schema,
   validatePodcastPedagogy,
   type LessonV2,
 } from "@/lib/learning/teaching-standards";
 
-/** Podcast promptuna giren, dersin sıkıştırılmış hâli. */
+/**
+ * Podcast promptuna giren, dersin sıkıştırılmış hâli.
+ *
+ * Brief'te geçen HER AD podcast'te bölüm başlığı olma eğiliminde. Bu
+ * canlıda kilitlenmeye yol açtı: dersin bir bölümü "Kontrol Noktası"
+ * adını taşıyordu, podcast onu sadakatle kopyaladı, doğrulayıcı da
+ * şablon adı diye reddetti — üretim hiç tamamlanamadı. Prompt "dersin
+ * bölümlerinden gelsin" derken doğrulayıcı "o adı kullanma" diyordu.
+ *
+ * Bu yüzden şablon adı taşıyan bölüm başlıksız veriliyor (model kendi
+ * adını koymak zorunda) ve alan etiketleri başlığa dönüşmeyecek biçimde
+ * yazılıyor — "Özet:" yerine "Dersin kapanışında söylenenler".
+ */
 export function lessonPodcastBrief(lesson: LessonV2): string {
   const sections = lesson.sections
-    .map((s, i) => `${i + 1}. ${s.heading}: ${s.body}`)
+    .map((s, i) =>
+      isScaffoldHeading(s.heading)
+        ? `${i + 1}. (bu bölümü içeriğine göre sen adlandır): ${s.body}`
+        : `${i + 1}. ${s.heading}: ${s.body}`,
+    )
     .join("\n");
 
   return [
     `DERSİN KENDİSİ (bu podcast onun sesli hâli):`,
     `Başlık: ${lesson.title}`,
     `Hedef: ${lesson.objective}`,
-    `Genel bakış: ${lesson.overview}`,
+    `Konunun özü: ${lesson.overview}`,
     ``,
-    `Bölümler:`,
+    `Dersin bölümleri:`,
     sections,
     ``,
-    `Çözümlü örnek: ${lesson.example.prompt}`,
-    `Çözüm: ${lesson.example.solution}`,
+    `Kaynaktaki çözümlü soru: ${lesson.example.prompt}`,
+    `Çözümü: ${lesson.example.solution}`,
     ``,
-    `Yaygın hata: ${lesson.commonMistake.claim}`,
-    `Düzeltme: ${lesson.commonMistake.correction}`,
+    `Öğrencinin düştüğü yanılgı: ${lesson.commonMistake.claim}`,
+    `Doğrusu: ${lesson.commonMistake.correction}`,
     ``,
-    `Özet: ${lesson.summary.join(" ")}`,
+    `Dersin kapanışında söylenenler: ${lesson.summary.join(" ")}`,
   ].join("\n");
 }
 
@@ -140,7 +157,7 @@ export async function generatePodcastFromLesson(input: {
 
 ${brief}
 
-Bu podcast yukarıdaki DERSİN sesli hâlidir. Öğrenci dersi az önce okudu; şimdi aynı şeyi kulakla tekrar ediyor. Olguyu yeniden çıkarma, aktar: bölümler dersin bölümlerinden gelsin, örnek dersin çözümlü örneği olsun, yaygın hata dersinki olsun. Derste geçmeyen bir sayı kullanma.`,
+Bu podcast yukarıdaki DERSİN sesli hâlidir. Öğrenci dersi az önce okudu; şimdi aynı şeyi kulakla tekrar ediyor. Olguyu yeniden çıkarma, aktar: bölümler dersin bölümlerini izlesin, örnek dersin çözümlü örneği olsun, yaygın hata dersinki olsun. Derste geçmeyen bir sayı kullanma. BÖLÜM ADLARINI DERSTEN KOPYALAMA ZORUNDA DEĞİLSİN: her başlık o bölümde konuşulan kavramı adlandırsın.`,
     parse: (raw) => {
       const data = podcastV2Schema.safeParse(raw).data ?? null;
       if (!data) {
