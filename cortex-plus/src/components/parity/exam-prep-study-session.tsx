@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
+import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
+import { lessonV2Schema, type LessonV2 } from "@/lib/learning/teaching-standards";
 import { ExamPrepPath } from "@/components/parity/exam-prep-path";
 import { ExamFinishButton } from "@/components/parity/exam-finish-button";
 import {
@@ -14,6 +16,12 @@ import {
 } from "@/lib/learning/exam-prep-progress";
 import type { TopicLesson } from "@/lib/learning/exam-prep-topics";
 import { CreditGate } from "@/components/paywall/credit-gate";
+
+/** Yapılandırılmış ders varsa döndürür; şemaya uymuyorsa markdowna düşülür. */
+function structuredLesson(raw: unknown): LessonV2 | null {
+  if (!raw) return null;
+  return lessonV2Schema.safeParse(raw).data ?? null;
+}
 
 export function ExamPrepStudySession({
   prepId,
@@ -46,6 +54,10 @@ export function ExamPrepStudySession({
   }, [searchParams, topics, initialTopicId]);
 
   const lesson = activeTopic ? (lessonsByTopic[activeTopic.id] ?? null) : null;
+  const structured = useMemo(
+    () => structuredLesson(lesson?.contentJson),
+    [lesson?.contentJson],
+  );
   const nextAfter = activeTopic
     ? (topics.find(
         (topic) => topic.sortOrder > activeTopic.sortOrder && topic.status !== "done",
@@ -133,7 +145,12 @@ export function ExamPrepStudySession({
           {lesson ? (
             <>
               <h2 className="ap-exam-topic-lesson-title">{lesson.title}</h2>
-              <ExamLessonBody content={lesson.contentMd} />
+              {/* Yapı varsa adım adım; yoksa (eski dersler) markdown. */}
+              {structured ? (
+                <ExamLessonSteps lesson={structured} />
+              ) : (
+                <ExamLessonBody content={lesson.contentMd} />
+              )}
             </>
           ) : (
             <div className="ap-exam-topic-empty">

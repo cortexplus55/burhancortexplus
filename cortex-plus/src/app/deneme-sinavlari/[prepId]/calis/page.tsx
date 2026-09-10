@@ -38,9 +38,9 @@ export default async function ExamPrepCalisPage({
   const { data: lessonRows } = topics.length
     ? await supabase
         .from("exam_prep_lessons")
-        .select("id, title, content_md, topic_id")
+        .select("id, title, content_md, content_json, topic_id")
         .eq("exam_prep_id", prepId)
-    : { data: [] as { id: string; title: string; content_md: string | null; topic_id: string | null }[] };
+    : { data: [] as { id: string; title: string; content_md: string | null; content_json: unknown; topic_id: string | null }[] };
 
   const lessonsByTopic = mapLessonsByTopic(lessonRows ?? [], topics);
 
