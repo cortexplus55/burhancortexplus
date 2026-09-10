@@ -133,3 +133,25 @@ describe("chapterHeadings", () => {
     expect(chapterHeadings([{ headings: [] }, { headings: [""] }])).toEqual([]);
   });
 });
+
+describe("unrepresentedHeadings — structural tails", () => {
+  // Pediatri belgesi bekçiyi tetikleyip haritanın tamamını düşürmüştü.
+  // "Çerçeve" başlığın en uzun kelimesi ama konuyu adlandırmıyor.
+  it("does not demand a structural tail word be echoed in the title", () => {
+    expect(
+      unrepresentedHeadings(
+        ["1. Sağlam Çocuk İzlemi: Çerçeve", "8. Dehidratasyon ve Oral Rehidratasyon"],
+        ["Sağlam Çocuk İzlemi Sıklığı", "Dehidratasyon ve Oral Rehidratasyon"],
+      ),
+    ).toEqual([]);
+  });
+
+  it("still catches a chapter with no echo at all", () => {
+    expect(
+      unrepresentedHeadings(
+        ["5. Bağışıklama ve Aşı Takvimi"],
+        ["Yenidoğan Muayenesi", "Bebek ve Çocuk Beslenmesi"],
+      ),
+    ).toEqual(["5. Bağışıklama ve Aşı Takvimi"]);
+  });
+});

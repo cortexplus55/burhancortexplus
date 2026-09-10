@@ -136,6 +136,20 @@ const TITLE_STOPWORDS = new Set([
   "giris",
   "temel",
   "genel",
+  // Bölüm başlığındaki yapısal kuyruklar. Pediatri belgesinde "1. Sağlam
+  // Çocuk İzlemi: Çerçeve" başlığının en uzun kelimesi "çerçeve" çıkıyor
+  // ve model doğru bir başlık yazsa bile ("Sağlam Çocuk İzlemi Sıklığı")
+  // bekçi bölümü eksik sayıyordu. Bunlar konuyu adlandırmaz, çerçeveler.
+  "cerceve",
+  "cercevesi",
+  "yaklasim",
+  "yaklasimi",
+  "degerlendirilmesi",
+  "degerlendirme",
+  "basliklari",
+  "kurallari",
+  "olcutler",
+  "olcutleri",
 ]);
 
 function significantWords(heading: string): string[] {
