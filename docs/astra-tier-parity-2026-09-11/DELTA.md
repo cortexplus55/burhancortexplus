@@ -1,0 +1,39 @@
+# Katman farkları — Astra'ya karşı Cortex Plus
+
+Durum kodları: `matched` bizde var · `missing` yok · `partial` var ama farklı ·
+`extra` bizde var Astra'da yok · `BLOCKED` görülemedi.
+
+## Kapanan (bu turda yapıldı)
+
+| # | Katman | Fark | Durum | Kanıt |
+|---|---|---|---|---|
+| 1 | ücretsiz | Öğrenci hangi pakette olduğunu göremiyordu; Astra'da profilin en üstünde | **kapandı** | `astra-profile-dialog.tsx` paket rozeti + "Daha hızlı öğren"; canlı: "Temel — Ücretsiz plan · günlük hak, 12 Eylül 2026 03:00 yenilenir" |
+| 2 | her ikisi | Yenilenme saati ekranda 00:00 yazıyordu, gerçekte 03:00 | **kapandı** | `period.ts` + `format.ts` saat dilimi sabitlendi; canlı: "12 Eylül 2026 03:00 tarihinde sıfırlanır"; test: `credit-period.test.ts` |
+
+## Zaten eşleşenler (kod okunarak doğrulandı — yeniden yazılmadı)
+
+| # | Fark | Durum | Kanıt |
+|---|---|---|---|
+| 3 | Günlük hak / aylık hak ayrımı | `matched` | `credit_reserve` SQL: ücretsiz `v_kind='daily'`, premium `'monthly'` |
+| 4 | Tek toplam sayaç + yüzde + sıfırlanma tarihi | `matched` | `/krediler` — "Temel — Günlük limit / %100 kullanıldı" |
+| 5 | Davet çarpanı 3 kat / 400 kat | `matched` | `referral_multiplier()`; `/krediler` davet bloğu metni birebir aynı mantık |
+| 6 | "Satın al" yalnızca ücretsize | `matched` | `astra-parity-sor-shell.tsx:66` `showBuy = !account?.isPremium` |
+| 7 | Kampanya bandı yalnızca ücretsize | `matched` | aynı dosya: `promo && !isPremium` |
+| 8 | Premium'a özel limit uyarısı | `matched` | aynı dosya: `showPlusLimit` |
+| 9 | Misafir uygulamaya giremez, pazarlama sitesi açık | `matched` | `middleware.ts`; Astra'da da `app.` alt alanı giriş duvarlı |
+| 10 | Özellikler katmana göre KAPATILMAZ | `matched` | Astra ücretsiz hesabı podcast'i açtı, `/lab` tamamen açık — bizde de kapı kullanımda |
+
+## Açık kalanlar
+
+| # | Katman | Fark | Durum | Not |
+|---|---|---|---|---|
+| 11 | premium | Astra'da hak ekranında **"Ek paket satın al"** yalnızca abonede; bizde "Kullanımını artır" herkese | `partial` | Ödeme kapalı olduğu için bugün çıkmaz sonuç verir |
+| 12 | ücretsiz | Hak bitince çıkan duvarın metni | `BLOCKED` | Astra hesabının günlük hakkı bu sabah sıfırlanmıştı (%0), duvar görülemedi |
+| 13 | misafir | Astra hesapsız onboarding'e sokuyor (rol, ses, niyet, ad, yaş) | `BLOCKED` | Bizim `/kayit` de çok adımlı; hesapsız mı ilerliyor, doğrulanmadı |
+| 14 | misafir | Astra onboarding'inde **rol seçimi** (öğrenci/öğretmen/ebeveyn) | `extra (bilerek)` | `3e666f6` veli/öğretmen arayüzünü emekli etti; AGENTS.md kaydı |
+| 15 | her ikisi | Astra'da `/lab` (34 simülasyon) | `extra (bilerek)` | `13a175e` kaldırdı, 11 Eylül'de bir daha soruldu, karar aynı |
+
+## Bizde olan, Astra'da olmayan
+
+- `parent_payment_requests` — "veliden ödeme iste" (AGENTS.md: Astra'da yok, bizde çalışıyor)
+- `/krediler` işlem başına kredi tablosu ve hareket dökümü — Astra kırılım göstermiyor
