@@ -93,8 +93,16 @@ export async function PATCH(request: Request) {
 
     const { data: topicRows } = await service
       .from("exam_prep_topics")
-      .select("id, label, document_topic_node_id")
-      .eq("exam_prep_id", prep.id);
+      // SIRA ÖNEMLİ, SIRASIZ SORGU YETMİYOR.
+      //
+      // Planı kuran sıralama, konular eşit puanlıysa GİRDİ SIRASINI koruyor
+      // ve girdinin belgenin sırası olduğunu varsayıyor. Kurulumda öyle
+      // (`document_topic_nodes` sort_order'a göre okunuyor), ama yenilemede
+      // değildi: bu sorgunun sırası yoktu. Sonuç, canlıda yenilenen bir
+      // Türkçe planının "Topluluğun Doğuşu" ile BİTMESİ oldu.
+      .select("id, label, document_topic_node_id, sort_order")
+      .eq("exam_prep_id", prep.id)
+      .order("sort_order");
 
     const hardSet = new Set(
       nextHard.map((t) => t.trim().toLocaleLowerCase("tr")),
