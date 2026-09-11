@@ -1057,12 +1057,22 @@ async function generateNodePayload(input: {
   const v2Common = input.teachingV2
     ? {
         validationProfile: "v2" as const,
-        // Üç deneme: geri bildirim anlamlı olduğu sürece her deneme bir
-        // öncekini düzeltiyor. İki deneme, modele ne yanlış olduğu
-        // söylenmezken konmuştu — orada üçüncü zar atmanın faydası yoktu.
-        // Kabul edilen bir tur ~55 saniye; üçü fonksiyonun 5 dakikalık
-        // bütçesine sığıyor.
-        maxDraftAttempts: 3 as const,
+        /**
+         * İKİ DENEME. Üçe çıkarıldı ve GERİ ALINDI.
+         *
+         * Geri bildirim anlamlı hâle gelince üçüncü denemenin de değerli
+         * olacağını düşündüm; ölçmeden yaptığım tek değişiklik buydu ve
+         * canlıda karşılığı kötü oldu. Üçüncü tur toplam üretim süresini
+         * 107 saniyeye çıkardı ve arka arkaya iki üretim, daha önce
+         * sağlayıcı zaman aşımı olduğu teşhis edilmiş olan
+         * `safe_outcome/generation_failed` ile düştü — yani öğrenci ders
+         * alamadı.
+         *
+         * Kazanç fazladan denemede değil, denemeye ne yanlış olduğunun
+         * söylenmesindeydi. Süre bütçesi gerçek bir sınır: iki tur güvenli
+         * kalıyor.
+         */
+        maxDraftAttempts: 2 as const,
         allowIndependentAccept: true,
         activityKind: activity,
         idempotencyKey: input.idempotencyKey,
