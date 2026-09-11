@@ -53,7 +53,7 @@ async function resolveTopicSuggestions(
   documentId: string | undefined,
   v2: boolean,
 ) {
-  let topicSuggestions: { id: string; title: string }[] = [];
+  let topicSuggestions: { id: string; title: string; pages: number[] }[] = [];
   let intakeMode: "legacy" | "v2" = "legacy";
   if (!v2 || !documentId) return { topicSuggestions, intakeMode };
 
@@ -76,7 +76,25 @@ async function resolveTopicSuggestions(
         parentId: (n.parent_id as string | null) ?? null,
       })),
     );
-    topicSuggestions = mains.map((n) => ({ id: n.id, title: n.title }));
+    // Konunun hangi sayfalara dayandığı. Astra konu kartında "1 kaynak"
+    // yazıyor; bizde belge zaten tek, o yüzden sayı değil SAYFA
+    // gösteriliyor — aynı soruya ("bu konu neye dayanıyor?") gerçekten
+    // değişen bir cevap.
+    const { data: links } = await service
+      .from("document_topic_page_links")
+      .select("topic_id, page_number")
+      .eq("document_id", doc.id);
+    const pagesByTopic = new Map<string, number[]>();
+    for (const link of links ?? []) {
+      const list = pagesByTopic.get(link.topic_id as string) ?? [];
+      list.push(link.page_number as number);
+      pagesByTopic.set(link.topic_id as string, list);
+    }
+    topicSuggestions = mains.map((n) => ({
+      id: n.id,
+      title: n.title,
+      pages: [...new Set(pagesByTopic.get(n.id) ?? [])].sort((a, b) => a - b),
+    }));
     if (topicSuggestions.length) intakeMode = "v2";
   }
   return { topicSuggestions, intakeMode };
@@ -155,6 +173,9 @@ export async function POST(request: Request) {
             ),
             examType: "Serbest",
             topics: topicSuggestions.map((t) => t.title).slice(0, 16),
+            topicPages: topicSuggestions
+              .slice(0, 16)
+              .map((t) => t.pages.slice(0, 6)),
           }
         : null,
     });

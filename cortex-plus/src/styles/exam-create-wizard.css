@@ -888,3 +888,21 @@
     animation: none;
   }
 }
+
+/* Konunun dayandığı sayfalar. Astra konu kartında "1 kaynak" yazıyor;
+   bizde belge tek olduğu için sayı hep 1 çıkardı — sayfa gerçekten
+   değişen bilgi. */
+.apw-topic-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.apw-topic-field em {
+  font-size: 0.75rem;
+  font-style: normal;
+  color: var(--ap-muted);
+  padding-left: 0.3rem;
+}

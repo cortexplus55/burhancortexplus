@@ -146,6 +146,8 @@ export function ExamCreateWizard({
 
   const [buildStage, setBuildStage] = useState(0);
   const [topics, setTopics] = useState<string[]>([]);
+  /** Her konunun dayandığı sayfalar; öğrenci neye dayandığını görsün. */
+  const [topicPages, setTopicPages] = useState<number[][]>([]);
   const [focusTopics, setFocusTopics] = useState<string[]>([]);
   const [newTopic, setNewTopic] = useState("");
   const [title, setTitle] = useState("");
@@ -200,6 +202,7 @@ export function ExamCreateWizard({
         const payload = await res.json().catch(() => ({}));
         const found: string[] = payload?.draft?.topics ?? [];
         setTopics(found);
+        setTopicPages(payload?.draft?.topicPages ?? []);
         setTitle(payload?.draft?.title || `${subject} sınav hazırlığı`);
       } catch {
         setTopics([]);
@@ -616,15 +619,20 @@ export function ExamCreateWizard({
                 >
                   {focusTopics.includes(topic) ? "Zor" : "•"}
                 </button>
-                <input
-                  value={topic}
-                  aria-label={`${index + 1}. konu`}
-                  onChange={(e) =>
-                    setTopics((prev) =>
-                      prev.map((t, i) => (i === index ? e.target.value : t)),
-                    )
-                  }
-                />
+                <span className="apw-topic-field">
+                  <input
+                    value={topic}
+                    aria-label={`${index + 1}. konu`}
+                    onChange={(e) =>
+                      setTopics((prev) =>
+                        prev.map((t, i) => (i === index ? e.target.value : t)),
+                      )
+                    }
+                  />
+                  {topicPages[index]?.length ? (
+                    <em>Kaynak: s.{topicPages[index].join(", ")}</em>
+                  ) : null}
+                </span>
                 <button
                   type="button"
                   aria-label={`${topic} konusunu kaldır`}
