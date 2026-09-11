@@ -39,8 +39,14 @@ export function CinematicScrollReveal({
          * İlk kare her zaman okunur olmalı. Efekt, açılışta katlanın altında
          * kalan bloklara ait; görünür olan olduğu gibi durur.
          */
+        // Görünür alanı ölçemiyorsak hiç animasyon yok: okunur bir sayfa,
+        // efektli bir sayfadan önce gelir. (Gömülü tarayıcılarda
+        // innerHeight 0 dönebiliyor; ilk hâlinde koruma buna takıldı ve
+        // her bloğu "katlanın altında" sayıp gizledi.)
+        const viewport = window.innerHeight || document.documentElement.clientHeight || 0;
+        if (!viewport) return;
         const rect = el.getBoundingClientRect();
-        if (rect.top < window.innerHeight) return;
+        if (rect.top < viewport) return;
 
         gsap.from(el, {
           y: 36,
