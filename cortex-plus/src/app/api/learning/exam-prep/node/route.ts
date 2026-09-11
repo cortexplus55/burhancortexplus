@@ -51,7 +51,7 @@ import {
   sectionHeadings,
   unrepresentedHeadings,
 } from "@/lib/documents/topic-title";
-import { needsDiagram } from "@/lib/learning/lesson-diagram";
+import { diagramIssues, needsDiagram } from "@/lib/learning/lesson-diagram";
 import { formulaFidelityIssues } from "@/lib/learning/formula-fidelity";
 import {
   lessonPodcastBrief,
@@ -1106,8 +1106,16 @@ async function generateNodePayload(input: {
       : "";
     // Çizim "isteğe bağlı" kaldığı sürece model hiç çizmiyor.
     const wantsDiagram = needsDiagram(input.topicLabel, ...backbone);
+    // Soyut bir "çizim koy" talimatını model atlıyordu. Somut bir örnek —
+    // koordinatlı, etiketli, tam bir şekil listesi — atlanamıyor: ne
+    // isteneceğini değil, neye benzeyeceğini gösteriyor.
     const diagramPrompt = wantsDiagram
-      ? " BU KONU ŞEKİLLE ANLAŞILIYOR: en az bir bölüme diagram koy."
+      ? " BU KONU ŞEKİLLE ANLAŞILIYOR: bir bölüme diagram KOY, atlama. " +
+        'Örnek biçim: {"caption":"Üç fazlı zemin: katı, su, hava",' +
+        '"shapes":[{"kind":"rect","x":40,"y":30,"w":120,"h":40,"fill":"surface"},' +
+        '{"kind":"text","x":100,"y":50,"text":"Hava","anchor":"middle"},' +
+        '{"kind":"line","x1":40,"y1":70,"x2":160,"y2":70}]}. ' +
+        "Sayıları kendi konuna göre seç, örneği kopyalama."
       : "";
     const outcome = await generateJson({
       service: input.service,
@@ -1178,7 +1186,27 @@ async function generateNodePayload(input: {
         // Kaynakta duran bir bölümü atlayan ders eksik bir derstir:
         // canlıda üretilen zemin dersi "Birleştirilmiş Zemin
         // Sınıflandırması"nı hiç anlatmadı ve öğrenci bunu bilemedi.
-        return missing ? null : parsed;
+        if (missing) return null;
+        // ÇİZİM İSTEMİ DOĞRULAMAYA BAĞLI, YOKSA HİÇ ÇİZİLMİYOR.
+        //
+        // İstem "diagram ZORUNLU" diyordu ve model yine çizmedi: canlıda
+        // üretilen "Üç Fazlı Sistem" dersinde — şekilsiz anlatılamayacak
+        // bir konu — tek çizim yoktu. Bu projede modelin yapması gereken
+        // her şey bir doğrulayıcıya bağlı; çizim istemin kibarlığına
+        // kalmış tek şeydi. Etiketsiz çizim de sayılmaz.
+        if (wantsDiagram) {
+          const drawn = parsed.sections
+            .map((section) => section.diagram)
+            .filter((diagram) => diagram != null);
+          if (!drawn.length) return null;
+          if (drawn.some((diagram) => diagramIssues(diagram).length)) return null;
+        }
+        // Şablon başlıkları BURADA da ayıklanıyor, yalnızca yedekte değil.
+        // Ayıklama sadece yedek taslağa uygulandığı için başarıyla üretilen
+        // derste hiç çalışmıyordu: canlıdaki ders "Kapanış ve Sonraki Adım"
+        // diye bir bölümle öğrenciye ulaştı. Karşılığı zaten summary ve
+        // nextFocus alanlarında duruyor.
+        return dropScaffoldSections(parsed);
       },
     });
     const lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;
