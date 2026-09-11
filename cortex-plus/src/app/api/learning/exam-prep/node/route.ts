@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
@@ -45,6 +46,11 @@ import {
   type LessonV2,
   type SessionTeachingMeta,
 } from "@/lib/learning/teaching-standards";
+import {
+  sectionHeadings,
+  unrepresentedHeadings,
+} from "@/lib/documents/topic-title";
+import { needsDiagram } from "@/lib/learning/lesson-diagram";
 import {
   lessonPodcastBrief,
   podcastNumbersOutsideLesson,
@@ -770,6 +776,14 @@ export async function POST(request: Request) {
             teachingV2 && prepSource.document_id && sourceBoundaryMode !== "allow_supporting",
           ),
           idempotencyKey: creditKey,
+          // Dersin bölümleri kaynağın kendi alt başlıkları olsun.
+          sectionBackbone:
+            kind === "lesson" && teachingV2
+              ? await loadSectionBackbone(service, {
+                  documentId: prepSource.document_id,
+                  pageNumbers: sessionMeta?.sourcePages,
+                })
+              : [],
           learningPreferences: teachingV2 ? prep.learning_preferences : null,
           lessonContent:
             kind === "podcast" && teachingV2 && topic?.id
@@ -954,6 +968,29 @@ class NodeGenerationError extends Error {
   }
 }
 
+/**
+ * Dersin bölüm omurgası: kaynağın o sayfalardaki kendi alt başlıkları.
+ *
+ * Okunamazsa boş dönüyor ve bölümleri model seçmeye devam ediyor —
+ * omurga bir iyileştirme, üretimin ön koşulu değil.
+ */
+async function loadSectionBackbone(
+  service: SupabaseClient,
+  input: { documentId: string | null; pageNumbers: number[] | undefined },
+): Promise<string[]> {
+  if (!input.documentId || !input.pageNumbers?.length) return [];
+  const { data } = await service
+    .from("document_pages")
+    .select("page_number, headings")
+    .eq("document_id", input.documentId)
+    .in("page_number", input.pageNumbers)
+    .order("page_number", { ascending: true });
+  if (!data?.length) return [];
+  return sectionHeadings(
+    data.map((page) => ({ headings: (page.headings as string[]) ?? [] })),
+  );
+}
+
 async function generateNodePayload(input: {
   service: Parameters<typeof generateJson>[0]["service"];
   userId: string;
@@ -981,6 +1018,8 @@ async function generateNodePayload(input: {
   /** Ders düğümü içeriğini konuya yazabilsin diye. */
   prepId?: string;
   topicId?: string | null;
+  /** Kaynağın o sayfalardaki kendi alt başlıkları; boşsa bölümü model seçer. */
+  sectionBackbone?: string[];
 }) {
   const activity = teachingActivityForKind(input.kind);
   const sessionCtx = input.teachingV2
@@ -1021,7 +1060,34 @@ async function generateNodePayload(input: {
     // ve öğrencinin o konuda okuyacak bir şeyi kalmıyor — bugün iki kez
     // olan buydu. Şeması geçerli son taslak saklanıyor: kusurlu bir ders,
     // dersin hiç olmamasından iyi.
+    //
+    // Yedek "son" taslağı değil "en iyi" taslağı tutuyor. Konu haritasında
+    // aynı hatayı yapmıştık: son taslak çoğu zaman en kötüsüydü, çünkü
+    // model her turda biraz daha kısaltıyordu. Ölçü: kaynaktan gelen
+    // bölümlerden kaçının karşılıksız kaldığı.
     let lastValidLesson: LessonV2 | null = null;
+    let lastValidMissing = Number.POSITIVE_INFINITY;
+    const backbone = input.sectionBackbone ?? [];
+    // Omurga tek başlıksa dayatmıyoruz: tek bölümlük ders, dersin kendisi
+    // olmaz. İki ve üzeri gerçek bir iskelettir.
+    const useBackbone = backbone.length >= 2;
+    const missingSections = (lesson: LessonV2) =>
+      useBackbone
+        ? unrepresentedHeadings(
+            backbone,
+            lesson.sections.map((section) => section.heading),
+          ).length
+        : 0;
+    const backbonePrompt = useBackbone
+      ? ` BÖLÜMLER KAYNAĞIN KENDİ ALT BAŞLIKLARI: sırayla ${backbone
+          .map((heading, i) => `${i + 1}) ${heading}`)
+          .join(" ")}. Bu başlıkları kullan; birini atlama, kendinden yeni bölüm ekleme.`
+      : "";
+    // Çizim "isteğe bağlı" kaldığı sürece model hiç çizmiyor.
+    const wantsDiagram = needsDiagram(input.topicLabel, ...backbone);
+    const diagramPrompt = wantsDiagram
+      ? " BU KONU ŞEKİLLE ANLAŞILIYOR: en az bir bölüme diagram koy."
+      : "";
     const outcome = await generateJson({
       service: input.service,
       userId: input.userId,
@@ -1038,21 +1104,27 @@ async function generateNodePayload(input: {
         '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"note":{"title":string,"body":string},"diagram":{"caption":string,"shapes":[...]}}],' +
         '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
         '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
-        "3-6 bölüm; en az iki bölümde check olsun. note isteğe bağlı: yalnızca " +
+        (useBackbone
+          ? `${backbone.length} bölüm (aşağıda sayılan başlıklar). `
+          : "3-6 bölüm; ") +
+        "en az iki bölümde check olsun. note isteğe bağlı: yalnızca " +
         "karıştırılması kolay bir ayrımın olduğu bölüme koy. " +
         // Çizimi model tarif ediyor, SVG'yi biz kuruyoruz: modelden gelen
         // metin hiçbir zaman işaretleme olarak yorumlanmıyor.
-        "diagram da isteğe bağlı ve YALNIZCA şekille anlaşılan konular için " +
-        "(faz diyagramı, Mohr dairesi, birim çember, kuvvet diyagramı). " +
+        (wantsDiagram
+          ? "diagram ZORUNLU: en az bir bölüme koy. "
+          : "diagram isteğe bağlı ve YALNIZCA şekille anlaşılan konular için " +
+            "(faz diyagramı, Mohr dairesi, birim çember, kuvvet diyagramı). ") +
         "Çizim alanı 320x200. Şekiller: {kind:\"rect\",x,y,w,h}, " +
         "{kind:\"circle\",cx,cy,r}, {kind:\"line\",x1,y1,x2,y2,arrow?,dashed?}, " +
         "{kind:\"text\",x,y,text,anchor?}. Renk seçme; tone/fill/stroke yalnızca " +
         "ink, muted, accent, surface, line olabilir. Her çizimde en az bir etiket " +
         "ve bir caption olsun. Metinle anlaşılan konuya çizim koyma.",
-      userPrompt: `${ctx} Bu konunun dersini yaz.`,
+      userPrompt: `${ctx}${backbonePrompt}${diagramPrompt} Bu konunun dersini yaz.`,
       parse: (raw) => {
         const parsed = lessonV2Schema.safeParse(raw).data ?? null;
         if (!parsed) return null;
+        const missing = missingSections(parsed);
         // Yedek yalnızca "kusurlu" taslağı tutar, "yanlış" olanı değil.
         // Canlıda dolgu şıklı ("Hepsi"), sorusu şıklarıyla uyuşmayan ve
         // ham LaTeX içeren bir ders bu yoldan geçmişti.
@@ -1062,10 +1134,15 @@ async function generateNodePayload(input: {
         // reddediyor ama yedek yine de yayına gidiyordu; öğrenci aynı
         // içeriği hem bölüm hem kutu olarak görüyordu. Karşılığı zaten
         // commonMistake / infoCheck / summary alanlarında duruyor.
-        if (!blockingLessonIssues(parsed).length) {
+        if (!blockingLessonIssues(parsed).length && missing < lastValidMissing) {
+          lastValidMissing = missing;
           lastValidLesson = dropScaffoldSections(parsed);
         }
-        return validateLessonPedagogy(parsed).length ? null : parsed;
+        if (validateLessonPedagogy(parsed).length) return null;
+        // Kaynakta duran bir bölümü atlayan ders eksik bir derstir:
+        // canlıda üretilen zemin dersi "Birleştirilmiş Zemin
+        // Sınıflandırması"nı hiç anlatmadı ve öğrenci bunu bilemedi.
+        return missing ? null : parsed;
       },
     });
     const lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;

@@ -4,6 +4,7 @@ import {
   DIAGRAM_WIDTH,
   diagramIssues,
   lessonDiagramSchema,
+  needsDiagram,
 } from "@/lib/learning/lesson-diagram";
 
 /** Üç fazlı zemin modeli — üst üste üç kutu, yanlarında sembolleri. */
@@ -124,5 +125,27 @@ describe("a broken diagram must not take the lesson down", () => {
     expect(parsed.success).toBe(true);
     expect(parsed.data?.sections[0].diagram).toBeUndefined();
     expect(parsed.data?.sections[0].body).toContain("Katı faz");
+  });
+});
+
+describe("needsDiagram", () => {
+  it("fires on the topics a picture explains", () => {
+    // Çizim yolu yazıldıktan sonra canlıda bir kez bile çalışmadı:
+    // "isteğe bağlı" diyen talimatı model her seferinde atlıyor.
+    expect(needsDiagram("Zeminin Oluşumu ve Üç Fazlı Sistem")).toBe(true);
+    expect(needsDiagram("Kayma Mukavemeti", "Mohr Dairesi ve Kırılma Zarfı")).toBe(true);
+    expect(needsDiagram("Yük Altında Gerilme Dağılımı")).toBe(true);
+    expect(needsDiagram("Trigonometri", "Birim Çember")).toBe(true);
+  });
+
+  it("stays quiet on topics that words explain", () => {
+    // Her konuya çizim istemek çizimi değersizleştirir.
+    expect(needsDiagram("Atterberg (Kıvam) Limitleri")).toBe(false);
+    expect(needsDiagram("Darcy Yasası", "Laboratuvar Deneyleri")).toBe(false);
+    expect(needsDiagram("Sağlam Çocuk İzlemi", "Aşı Takvimi")).toBe(false);
+  });
+
+  it("ignores empty inputs", () => {
+    expect(needsDiagram(null, undefined, "")).toBe(false);
   });
 });

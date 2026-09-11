@@ -139,6 +139,47 @@ export function chapterHeadings(
     .map(([heading]) => heading);
 }
 
+/**
+ * Bir bölümün kendi alt başlıkları — dersin bölüm omurgası.
+ *
+ * `chapterHeadings` üst düzey başlıkları topluyor ve alt başlıkları
+ * ELİYOR; burada tam tersi yapılıyor. Belgenin kendi alt başlıkları
+ * dersin bölümleri oluyor:
+ *
+ *   3. Dane Boyu, Kıvam Limitleri ve Sınıflandırma (USCS)  ← konu
+ *     3.1. Dane Boyu Dağılımı                              ← bölüm
+ *     3.2. Atterberg (Kıvam) Limitleri                     ← bölüm
+ *     3.3. Birleştirilmiş Zemin Sınıflandırması (USCS)     ← bölüm
+ *
+ * Neden: model kendi başına bölüm seçince şemanın alt sınırı kadar
+ * yazıp gerisini "Yaygın Hata", "Kapanış" gibi şablon adlarıyla
+ * dolduruyordu. Canlıda üretilen zemin dersi yukarıdaki üç bölümün
+ * ikisini yazdı, USCS sınıflandırmasını hiç anlatmadı — öğrenci
+ * kaynağında duran bir konuyu hiç görmedi.
+ *
+ * Numarasız belgede boş dönüyor; o zaman bölümleri model seçmeye
+ * devam ediyor. Eksik omurga, yanlış omurgadan iyidir.
+ */
+export function sectionHeadings(pages: { headings: string[] }[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const page of pages) {
+    for (const raw of page.headings ?? []) {
+      const heading = (raw ?? "").replace(TOC_PAGE_TAIL, "").trim();
+      if (!heading || !SUB_NUMBER.test(heading)) continue;
+      if (looksLikeQuestionOrSentence(heading)) continue;
+      const title = normalizeTopicTitle(heading);
+      if (topicTitleIssues(title).length) continue;
+      const key = foldTrLocal(title);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(title);
+    }
+  }
+  // lessonV2Schema en fazla altı bölüm kabul ediyor.
+  return out.slice(0, 6);
+}
+
 /** Bir sayfa bu bölümü taşıyor mu? İçindekiler kuyruğu göz ardı edilir. */
 export function pageCarriesHeading(
   page: { headings: string[] },

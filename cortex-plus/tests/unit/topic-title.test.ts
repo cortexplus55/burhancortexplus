@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   chapterHeadings,
   normalizeTopicTitle,
+  sectionHeadings,
   targetTopicCount,
   topicTitleIssues,
   unrepresentedHeadings,
@@ -223,5 +224,84 @@ describe("chapterHeadings — real document shape", () => {
       { headings: ["3. C c ile C r : yük ön konsolidasyon basıncını aşana kadar C r , sonrasında C c ."] },
     ];
     expect(chapterHeadings(noisy)).toEqual([]);
+  });
+});
+
+describe("sectionHeadings", () => {
+  // Zemin PDF'inin gerçek sayfa başlıkları (document_pages.headings).
+  const daneBoyuSayfasi = {
+    headings: [
+      "3. Dane Boyu, Kıvam Limitleri ve Sınıflandırma (USCS)",
+      "3.1. Dane Boyu Dağılımı",
+      "C u = D 60 / D 10 | C c = (D 30 ) 2 / (D 10 · D 60 )",
+      "3.2. Atterberg (Kıvam) Limitleri",
+      "3.3. Birleştirilmiş Zemin Sınıflandırması (USCS)",
+      "6 / 18",
+    ],
+  };
+
+  it("takes the source's own sub-headings as the lesson's sections", () => {
+    // Canlıda üretilen ders bu üç bölümün ikisini yazdı; USCS
+    // sınıflandırmasını hiç anlatmadı ve öğrenci bunu göremedi.
+    expect(sectionHeadings([daneBoyuSayfasi])).toEqual([
+      "Dane Boyu Dağılımı",
+      "Atterberg (Kıvam) Limitleri",
+      "Birleştirilmiş Zemin Sınıflandırması",
+    ]);
+  });
+
+  it("leaves the chapter title itself out", () => {
+    // "3." bölümün adı, dersin konusu; bölüm değil.
+    expect(sectionHeadings([daneBoyuSayfasi])).not.toContain(
+      "Dane Boyu, Kıvam Limitleri ve Sınıflandırma",
+    );
+  });
+
+  it("spans the topic's pages in order", () => {
+    // Efektif gerilme konusu iki sayfaya yayılıyor (s.10 ve s.11).
+    const pages = [
+      {
+        headings: [
+          "efektif = toplam − boşluk suyu basıncı",
+          "5. Efektif Gerilme İlkesi",
+          "5.1. Hidrostatik Durum",
+          "ÖRNEK 4",
+          "5.2. Sızmanın Etkisi",
+        ],
+      },
+      {
+        headings: [
+          "BÖLÜM 5 — KENDİNİ SINA",
+          "1. σ' = σ − u ilkesini bir cümleyle açıkla.",
+          "11 / 18",
+        ],
+      },
+    ];
+    expect(sectionHeadings(pages)).toEqual([
+      "Hidrostatik Durum",
+      "Sızmanın Etkisi",
+    ]);
+  });
+
+  it("returns nothing when the document has no numbered sub-headings", () => {
+    // Slayt destesi ya da taranmış not: omurga yoksa bölümü model seçer.
+    const slides = [{ headings: ["Giriş", "Zemin nedir", "Teşekkürler"] }];
+    expect(sectionHeadings(slides)).toEqual([]);
+  });
+
+  it("stops at six, the most a lesson can hold", () => {
+    const adlar = [
+      "Temel Tanımlar",
+      "Birim Hacim Ağırlıkları",
+      "Rölatif Sıkılık",
+      "Kıvam Limitleri",
+      "Permeabilite Deneyleri",
+      "Akış Ağı Kuralları",
+      "Konsolidasyon Süresi",
+      "İkincil Sıkışma",
+      "Drenaj Yolu",
+    ];
+    const many = { headings: adlar.map((ad, i) => `2.${i + 1}. ${ad}`) };
+    expect(sectionHeadings([many])).toHaveLength(6);
   });
 });
