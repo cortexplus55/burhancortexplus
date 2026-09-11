@@ -23,6 +23,25 @@ export function CinematicScrollReveal({
 
       const nodes = gsap.utils.toArray<HTMLElement>("[data-cinematic-reveal]");
       nodes.forEach((el) => {
+        /**
+         * EKRANDA OLANA DOKUNMA.
+         *
+         * `gsap.from(..., opacity: 0)` elemanı ANINDA görünmez yapıyor ve
+         * geri getirmeyi kaydırma tetikleyicisine bırakıyor. Açılışta zaten
+         * ekranda duran bir blok için o tetikleyici güvenilir değil: gsap
+         * sonradan yükleniyor, tetikleyicinin başlangıç noktası çoktan
+         * geçilmiş oluyor ve blok yarı saydam takılı kalıyor.
+         *
+         * Canlıda fiyatlandırma sayfasının kendi başlığı — insanların ödeme
+         * kararı verdiği sayfa — hem masaüstünde hem telefonda %29 opaklıkta
+         * açılıyordu. Kaydırınca düzeliyordu; kaydırmayan görmüyordu.
+         *
+         * İlk kare her zaman okunur olmalı. Efekt, açılışta katlanın altında
+         * kalan bloklara ait; görünür olan olduğu gibi durur.
+         */
+        const rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight) return;
+
         gsap.from(el, {
           y: 36,
           opacity: 0,

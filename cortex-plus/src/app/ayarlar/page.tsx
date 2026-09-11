@@ -66,7 +66,7 @@ export default async function AyarlarPage() {
 
         <SectionCard
           title="Çalışma hatırlatması"
-          description="Yoluna bir gün uğramazsan, sınavına üç gün kalırsa ya da serin kırılmak üzereyse hatırlatırız. Günde en fazla bir kez."
+          description="Yoluna bir gün uğramazsan, sınavına son üç gün kalırsa ya da serin kırılmak üzereyse hatırlatırız. Günde en fazla bir kez."
         >
           <StudyReminderToggle
             initial={
