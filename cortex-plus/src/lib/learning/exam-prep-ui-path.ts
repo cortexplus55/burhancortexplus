@@ -35,21 +35,27 @@ function foldTitle(text: string | undefined | null): string {
  * açıyordu. Seçim ekranı öğrenciye bir söz veriyor; tutmayan söz,
  * olmayan ekrandan kötüdür.
  *
- * Eşleştirme önce `topicId` ile: düğüm hangi konuya yazıldıysa o. Eski
- * planlarda bu alan yok, orada başlık eşleşmesine düşülüyor.
+ * AYNI KONUNUN İKİ AYRI KİMLİĞİ VAR ve kodun hiçbir yerinde bu yazmıyor:
+ * `exam_prep_topics.id` hazırlığa ait, düğümün `sessionMeta.topicId`
+ * alanındaki ise belgeden gelen `document_topic_node_id`. Tek kimlikle
+ * eşleştirmek sessizce hiçbir şey bulmaz — ilk denemede olan buydu, ve
+ * fark yalnızca canlı veriye bakınca görüldü. O yüzden konunun bilinen
+ * bütün kimlikleri veriliyor, üstüne başlık da kabul ediliyor: eski
+ * planlarda `topicId` hiç yok.
  *
  * Bitmemiş ilk etkinlik seçilir. Konunun hepsi bitmişse ilk etkinlik
  * döner: öğrenci bitirdiği konuya geri dönüp okuyabilmeli.
  */
 export function nodeForTopic(
   nodes: TopicNodeLike[],
-  topic: { id: string; label?: string | null },
+  topic: { ids: (string | null | undefined)[]; label?: string | null },
 ): TopicNodeLike | null {
+  const ids = new Set(topic.ids.filter((id): id is string => Boolean(id)));
   const label = foldTitle(topic.label);
   const mine = nodes
     .filter((node) => {
       const metaId = node.sessionMeta?.topicId;
-      if (metaId) return metaId === topic.id;
+      if (metaId && ids.has(metaId)) return true;
       return label ? foldTitle(node.sessionMeta?.topicTitle) === label : false;
     })
     .sort((a, b) => a.sortOrder - b.sortOrder);

@@ -27,7 +27,7 @@ const plan: TopicNodeLike[] = [
 
 describe("nodeForTopic", () => {
   it("opens the chosen topic, not the first ready node in the plan", () => {
-    expect(nodeForTopic(plan, { id: "C", label: "Üç Fazlı Sistem" })?.id).toBe("c1");
+    expect(nodeForTopic(plan, { ids: ["C"], label: "Üç Fazlı Sistem" })?.id).toBe("c1");
   });
 
   it("picks the first unfinished activity of that topic", () => {
@@ -36,11 +36,11 @@ describe("nodeForTopic", () => {
       node("x2", 1, "ready", { topicId: "X" }),
       node("x3", 2, "locked", { topicId: "X" }),
     ];
-    expect(nodeForTopic(mixed, { id: "X" })?.id).toBe("x2");
+    expect(nodeForTopic(mixed, { ids: ["X"] })?.id).toBe("x2");
   });
 
   it("lets the student reopen a topic they already finished", () => {
-    expect(nodeForTopic(plan, { id: "A", label: "Dane Boyu" })?.id).toBe("a1");
+    expect(nodeForTopic(plan, { ids: ["A"], label: "Dane Boyu" })?.id).toBe("a1");
   });
 
   it("falls back to the title for plans written before topicId was stored", () => {
@@ -48,17 +48,21 @@ describe("nodeForTopic", () => {
       node("o1", 0, "locked", { topicTitle: "Üç Fazlı Sistem" }),
       node("o2", 1, "locked", { topicTitle: "Efektif Gerilme" }),
     ];
-    expect(nodeForTopic(old, { id: "C", label: "üç fazlı sistem" })?.id).toBe("o1");
+    expect(nodeForTopic(old, { ids: ["C"], label: "üç fazlı sistem" })?.id).toBe("o1");
   });
 
   it("returns nothing when no node belongs to the topic", () => {
     // Caller then keeps its old behaviour; a wrong screen is worse than none.
-    expect(nodeForTopic(plan, { id: "Z", label: "Yok" })).toBeNull();
+    expect(nodeForTopic(plan, { ids: ["Z"], label: "Yok" })).toBeNull();
   });
 
-  it("does not match a node that carries a different topic id", () => {
-    // Eski plandaki başlık eşleşmesi, topicId olan bir düğümü kaçırmamalı.
-    const conflicting = [node("q1", 0, "ready", { topicId: "OTHER", topicTitle: "Aynı Başlık" })];
-    expect(nodeForTopic(conflicting, { id: "MINE", label: "Aynı Başlık" })).toBeNull();
+  it("matches the document's topic id, which is what the node actually stores", () => {
+    // Canlıda bulunan tuzak: hazırlığın konu kimliği ile düğümün taşıdığı
+    // kimlik ayrı tablolardan geliyor. Yalnızca hazırlık kimliğiyle
+    // aramak sessizce hiçbir şey bulmuyordu.
+    const real = [node("n1", 0, "locked", { topicId: "belge-kimligi", topicTitle: "Üç Fazlı Sistem" })];
+    expect(
+      nodeForTopic(real, { ids: ["hazirlik-kimligi", "belge-kimligi"], label: "Üç Fazlı Sistem" })?.id,
+    ).toBe("n1");
   });
 });

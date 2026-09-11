@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
   const { data: topic } = await service
     .from("exam_prep_topics")
-    .select("id, label")
+    .select("id, label, document_topic_node_id")
     .eq("id", parsed.data.topicId)
     .eq("exam_prep_id", parsed.data.prepId)
     .maybeSingle();
@@ -62,7 +62,15 @@ export async function POST(request: Request) {
       status: row.status as "locked" | "ready" | "done",
       sessionMeta: parseSessionMeta(row.session_meta),
     })),
-    { id: topic.id as string, label: (topic.label as string | null) ?? null },
+    {
+      // Aynı konunun iki kimliği: hazırlığa ait olan ve belgeden gelen.
+      // Düğümler belgedekini taşıyor.
+      ids: [
+        topic.id as string,
+        (topic.document_topic_node_id as string | null) ?? null,
+      ],
+      label: (topic.label as string | null) ?? null,
+    },
   );
 
   // Plan sırayla kilitli geliyor. Öğrenci konuyu kendisi seçtiyse o konu
