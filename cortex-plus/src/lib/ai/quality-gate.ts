@@ -163,6 +163,17 @@ export async function verifyEducationalContent(input: {
     } catch (error) {
       if (error instanceof EducationalVerificationError) throw error;
       if (failClosed) {
+        // Hata burada "validator_unavailable"a dönüşüyor ve ASLI
+        // kayboluyordu. Canlıda bir ders üretilemedi ve sebebini iki tur
+        // tahmin ettim: kayıtta yalnızca "validator_unavailable" yazıyordu,
+        // sağlayıcının ne dediği hiçbir yerde yoktu.
+        console.error("ai_validator_unavailable", {
+          model: env.OPENAI_ADVANCED_MODEL,
+          format: input.format,
+          contextChars: (input.context ?? "").length,
+          draftChars: content.length,
+          message: error instanceof Error ? error.message : String(error),
+        });
         throw new EducationalVerificationError(
           "validator_unavailable",
           "recheck",
