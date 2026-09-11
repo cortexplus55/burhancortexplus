@@ -3,6 +3,7 @@ import {
   DIAGRAM_HEIGHT,
   DIAGRAM_WIDTH,
   diagramIssues,
+  diagramViewBox,
   placeLabel,
   lessonDiagramSchema,
   needsDiagram,
@@ -166,6 +167,47 @@ describe("placeLabel", () => {
     expect(
       placeLabel({ x: 50, y: DIAGRAM_HEIGHT, text: "τ" }).y,
     ).toBeLessThan(DIAGRAM_HEIGHT);
+  });
+});
+
+describe("diagramViewBox", () => {
+  it("crops away the empty half the model left below the drawing", () => {
+    // Canlıdaki çizim iki kutuyu üst şeride koydu; alanın altı bomboştu
+    // ve kutu ekranda kocaman bir delik gibi duruyordu.
+    const topStrip = [
+      { kind: "rect" as const, x: 20, y: 30, w: 120, h: 50 },
+      { kind: "rect" as const, x: 160, y: 30, w: 120, h: 50 },
+      { kind: "text" as const, x: 80, y: 55, text: "Drenajlı" },
+      { kind: "text" as const, x: 220, y: 55, text: "Drenajsız" },
+    ];
+    const [, y, , height] = diagramViewBox(topStrip).split(" ").map(Number);
+    expect(y + height).toBeLessThan(DIAGRAM_HEIGHT);
+  });
+
+  it("falls back to the full area when there is nothing to measure", () => {
+    expect(diagramViewBox([])).toBe(`0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`);
+  });
+
+  it("never crops a shape out of view", () => {
+    const spread = [
+      { kind: "circle" as const, cx: 160, cy: 100, r: 90 },
+      { kind: "text" as const, x: 160, y: 190, text: "τ", anchor: "middle" as const },
+    ];
+    const [x, y, w, h] = diagramViewBox(spread).split(" ").map(Number);
+    expect(x).toBeLessThanOrEqual(70);
+    expect(y).toBeLessThanOrEqual(10);
+    expect(x + w).toBeGreaterThanOrEqual(250);
+    expect(y + h).toBeGreaterThanOrEqual(190);
+  });
+
+  it("does not stretch a wide thin drawing across the page", () => {
+    const thin = [
+      { kind: "line" as const, x1: 10, y1: 100, x2: 310, y2: 100, arrow: true },
+      { kind: "text" as const, x: 20, y: 95, text: "σ" },
+      { kind: "text" as const, x: 300, y: 95, text: "τ", anchor: "end" as const },
+    ];
+    const [, , w, h] = diagramViewBox(thin).split(" ").map(Number);
+    expect(w / h).toBeLessThanOrEqual(2.01);
   });
 });
 

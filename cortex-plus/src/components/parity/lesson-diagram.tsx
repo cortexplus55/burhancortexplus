@@ -1,6 +1,5 @@
 import {
-  DIAGRAM_HEIGHT,
-  DIAGRAM_WIDTH,
+  diagramViewBox,
   type DiagramShape,
   type DiagramTone,
   type LessonDiagram,
@@ -101,7 +100,9 @@ export function LessonDiagramView({
   return (
     <figure className="als-diagram">
       <svg
-        viewBox={`0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`}
+        // Çerçeve çizilene daralıyor: model çoğu zaman alanın üst şeridine
+        // çiziyor ve kalan boşluk ekranda kocaman bir delik bırakıyordu.
+        viewBox={diagramViewBox(diagram.shapes)}
         role="img"
         aria-label={diagram.caption}
       >

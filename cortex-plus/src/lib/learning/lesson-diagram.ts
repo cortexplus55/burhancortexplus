@@ -192,6 +192,90 @@ export function placeLabel(shape: {
 }
 
 /**
+ * Çizimin gerçekten kullandığı alan.
+ *
+ * Alan 320x200 sabit ama model çoğu zaman üst şeride çiziyor: canlıdaki
+ * ilk çizimde iki kutu üstte duruyor, kutunun alt yarısı bomboş kalıyor
+ * ve şekil ekranda kaybolmuş gibi görünüyordu. Boşluğu modelden düzgün
+ * koordinat isteyerek değil, çerçeveyi çizilene daraltarak kapatıyoruz.
+ *
+ * Taban ölçü korunuyor: üç çizgiden ibaret bir şema sayfayı kaplamasın.
+ */
+export function diagramViewBox(shapes: DiagramShape[]): string {
+  let minX = DIAGRAM_WIDTH;
+  let minY = DIAGRAM_HEIGHT;
+  let maxX = 0;
+  let maxY = 0;
+  const grow = (x1: number, y1: number, x2: number, y2: number) => {
+    minX = Math.min(minX, x1);
+    minY = Math.min(minY, y1);
+    maxX = Math.max(maxX, x2);
+    maxY = Math.max(maxY, y2);
+  };
+
+  for (const shape of shapes) {
+    if (shape.kind === "rect") {
+      grow(shape.x, shape.y, shape.x + shape.w, shape.y + shape.h);
+    } else if (shape.kind === "circle") {
+      grow(
+        shape.cx - shape.r,
+        shape.cy - shape.r,
+        shape.cx + shape.r,
+        shape.cy + shape.r,
+      );
+    } else if (shape.kind === "line") {
+      grow(
+        Math.min(shape.x1, shape.x2),
+        Math.min(shape.y1, shape.y2),
+        Math.max(shape.x1, shape.x2),
+        Math.max(shape.y1, shape.y2),
+      );
+    } else {
+      const placed = placeLabel(shape);
+      const fontSize = LABEL_SIZE[shape.size ?? "md"];
+      const width = placed.fitWidth ?? shape.text.length * fontSize * CHAR_RATIO;
+      const left =
+        placed.anchor === "start"
+          ? placed.x
+          : placed.anchor === "end"
+            ? placed.x - width
+            : placed.x - width / 2;
+      grow(left, placed.y - fontSize, left + width, placed.y + fontSize);
+    }
+  }
+
+  if (maxX <= minX || maxY <= minY) return `0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`;
+
+  const pad = 8;
+  minX = Math.max(0, minX - pad);
+  minY = Math.max(0, minY - pad);
+  maxX = Math.min(DIAGRAM_WIDTH, maxX + pad);
+  maxY = Math.min(DIAGRAM_HEIGHT, maxY + pad);
+
+  // Çok dar bir çizim sayfayı kaplamasın: en boy oranı 2:1'i geçmesin.
+  let width = maxX - minX;
+  let height = maxY - minY;
+  if (width / height > 2) {
+    const wanted = width / 2;
+    const extra = (wanted - height) / 2;
+    minY = Math.max(0, minY - extra);
+    height = Math.min(DIAGRAM_HEIGHT - minY, wanted);
+  }
+  if (height / width > 1.5) {
+    const wanted = height / 1.5;
+    const extra = (wanted - width) / 2;
+    minX = Math.max(0, minX - extra);
+    width = Math.min(DIAGRAM_WIDTH - minX, wanted);
+  }
+
+  return `${round(minX)} ${round(minY)} ${round(width)} ${round(height)}`;
+}
+
+function round(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/**
  * Çizimin okunabilir olup olmadığı.
  *
  * Şema sınırları şekilleri kutunun içinde tutuyor ama tek başına yeterli
