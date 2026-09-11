@@ -102,13 +102,18 @@ async function probeDocumentTitle(
       .maybeSingle(),
     service
       .from("document_pages")
-      .select("page_number, headings")
+      .select("page_number, page_kind, headings")
       .eq("document_id", documentId)
       .order("page_number", { ascending: true })
       .limit(2),
   ]);
+  // Yalnızca kapak. İlk iki sayfaya bakınca zemin belgesinin hazırlığı
+  // "Öğrenme Hedefleri" adını aldı: kapak harf aralıklı olduğu için
+  // elendi ve 2. sayfadaki içindekiler başlığı geçti. İçindekiler
+  // sayfasının başlığı belgenin adı değildir.
+  const cover = (pages ?? []).filter((page) => page.page_kind === "cover");
   return documentTitle({
-    coverHeadings: (pages ?? []).flatMap(
+    coverHeadings: cover.flatMap(
       (page) => (page.headings as string[] | null) ?? [],
     ),
     topicTitles,
