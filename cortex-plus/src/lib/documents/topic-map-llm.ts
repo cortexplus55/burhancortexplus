@@ -53,6 +53,44 @@ function pageDigest(pages: PageAnalysis[]): string {
     .join("\n");
 }
 
+/** Türkçe katlama — karşılaştırma için. */
+function fold(text: string): string {
+  return text
+    .toLocaleLowerCase("tr")
+    .replace(/ı/g, "i")
+    .replace(/ş/g, "s")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c");
+}
+
+/**
+ * Sayfanın başlıkları hangi konuyu işaret ediyor?
+ *
+ * Ölçü: başlığın ayırt edici kelimelerinin çoğu bir konu başlığında
+ * geçiyorsa sayfa o konuya aittir. Hiçbiri yeterince tutmuyorsa null —
+ * o zaman çağıran taraf "en yakın önceki" ölçüsüne düşüyor.
+ */
+export function topicForHeadings<T extends { title: string }>(
+  topics: T[],
+  headings: string[],
+): T | null {
+  for (const heading of headings) {
+    const words = fold(heading)
+      .replace(/[^a-z0-9 ]/g, " ")
+      .split(/\s+/)
+      .filter((word) => word.length >= 4);
+    if (words.length < 2) continue;
+    for (const topic of topics) {
+      const title = fold(topic.title);
+      const hits = words.filter((word) => title.includes(word.slice(0, 5)));
+      if (hits.length / words.length >= 0.6) return topic;
+    }
+  }
+  return null;
+}
+
 export async function buildTopicMapLLM(
   service: SupabaseClient,
   documentId: string,
@@ -204,15 +242,27 @@ ${pageDigest(contentPages)}`,
     topics.push(draftFromLlmTopic(title, null, pageNumbers, pages, topics.length));
   }
 
-  // Attach any content page the model missed to the nearest earlier topic so
-  // coverage can still reach 100%.
+  // Modelin bağlamadığı sayfayı bir konuya iliştir ki kapsama %100'e
+  // ulaşsın. Ama SAYFANIN KENDİ BAŞLIĞINA bak.
+  //
+  // Eskiden yalnızca "en yakın önceki konu" ölçüsü vardı ve komşu bölümü
+  // sızdırıyordu: zemin belgesinin 12. sayfası "6. Yük Altında Gerilme
+  // Dağılımı" başlığını taşıdığı hâlde 5. bölümün konusuna eklendi, ders
+  // de iki bölümü komşu konudan anlattı.
   const linked = new Set<number>();
   for (const topic of topics) for (const n of topic.pageNumbers) linked.add(n);
   for (const page of contentPages) {
     if (linked.has(page.pageNumber)) continue;
-    let host = topics[0];
-    for (const topic of topics) {
-      if ((topic.pageNumbers[0] ?? Infinity) <= page.pageNumber) host = topic;
+
+    // Sayfanın başlıklarından biri bir konu başlığını işaret ediyor mu?
+    let host = topicForHeadings(topics, page.headings ?? []);
+
+    if (!host) {
+      // İşaret yoksa eski ölçü: en yakın önceki konu.
+      host = topics[0];
+      for (const topic of topics) {
+        if ((topic.pageNumbers[0] ?? Infinity) <= page.pageNumber) host = topic;
+      }
     }
     host.pageNumbers = [...new Set([...host.pageNumbers, page.pageNumber])].sort(
       (a, b) => a - b,
