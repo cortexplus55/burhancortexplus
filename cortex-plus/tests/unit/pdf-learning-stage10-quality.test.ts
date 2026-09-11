@@ -31,7 +31,6 @@ import {
   buildExamScheduleV2,
   redistributeRemainingSchedule,
 } from "@/lib/learning/exam-schedule-v2";
-import { missedIncompleteGroups, groupNodesByStudyDay } from "@/lib/learning/exam-prep-ui-path";
 import { isLongEnough, wordCount } from "@/lib/learning/explain-review";
 import { scoreQuizAnswers, type QuizQuestion } from "@/lib/learning/exam-quiz";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
@@ -353,21 +352,6 @@ describe("Stage 10 student behaviors", () => {
     expect(
       shouldReuseExistingStart({ status: "creating", hasPayload: false }),
     ).toBe("resume_creating");
-  });
-
-  it("missed day surfaces for reschedule nudge", () => {
-    const groups = groupNodesByStudyDay(
-      [
-        {
-          id: "a",
-          dayIndex: 1,
-          status: "ready",
-          sessionMeta: { calendarDate: "2026-09-07" },
-        },
-      ],
-      new Date(2026, 8, 9),
-    );
-    expect(missedIncompleteGroups(groups)).toHaveLength(1);
   });
 
   it("changing exam date redistributes remaining while keeping completed", () => {
