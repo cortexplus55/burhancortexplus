@@ -763,10 +763,12 @@
   white-space: nowrap;
 }
 
+/* Dokunmatikte hover yok: "değiştir" hep görünür, yalnızca sönük durur.
+   Gizli bir çıkış yolu, olmayan bir çıkış yoludur. */
 .apc-edit {
   font-size: 0.75rem;
   color: var(--ap-muted);
-  opacity: 0;
+  opacity: 0.55;
   transition: opacity 0.15s ease;
 }
 
@@ -805,9 +807,12 @@
   line-height: 1.5;
 }
 
+/* Sütun sayısı seçenek sayısına uyar: üç seçenek üçe, iki seçenek ikiye
+   bölünür. Sabit iki sütunda üçüncü seçenek tek başına kalıp yanında
+   boşluk bırakıyordu. */
 .apc-opts {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
   gap: 0.5rem;
 }
 
