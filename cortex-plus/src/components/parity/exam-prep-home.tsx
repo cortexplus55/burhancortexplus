@@ -19,9 +19,6 @@ import {
   examPrepReviewsHref,
 } from "@/lib/learning/exam-prep-hrefs";
 import {
-  findTodayGroup,
-  groupNodesByStudyDay,
-  missedIncompleteGroups,
   topicProgressFromNodes,
 } from "@/lib/learning/exam-prep-ui-path";
 import { cn } from "@/lib/utils";
@@ -123,9 +120,6 @@ export function ExamPrepHome({
   const topicRows = useMemo(() => topicProgressFromNodes(nodes), [nodes]);
   const showTracking = Boolean(learningTracking);
 
-  const dayGroups = uiV2 ? groupNodesByStudyDay(nodes) : [];
-  const todayGroup = uiV2 ? findTodayGroup(dayGroups) : null;
-  const missed = uiV2 ? missedIncompleteGroups(dayGroups) : [];
 
   function openNode(node: HomeNode) {
     if (!hasTopic) {
@@ -340,10 +334,9 @@ export function ExamPrepHome({
           )}
 
           {showTracking && learningTracking ? (
-            /* Üç ölçüt yan yana durunca öğrenci "hazır mıyım?" sorusuna
-               tek bakışta cevap alamıyordu. Sınava hazırlık tahmini öne
-               çıkıyor; diğer ikisi altında küçülüyor ama kalıyor — hangi
-               sayının neyi ölçtüğü uyarılarıyla birlikte. */
+            /* Sınava hazırlık tahmini öne çıkıyor; konu hâkimiyeti altında
+               küçülüyor ama kalıyor — hangi sayının neyi ölçtüğü
+               uyarısıyla birlikte. */
             <div className="ap-countdown-readiness">
               <TrackingMeter
                 title="Sınava hazırlık tahmini"
@@ -356,12 +349,10 @@ export function ExamPrepHome({
                 }
               />
               <div className="ap-tracking-secondary">
-                <TrackingMeter
-                  title="Program ilerlemesi"
-                  pct={learningTracking.programProgressPct}
-                  label={learningTracking.programLabel}
-                  hint="Planlanan etkinliklerin ne kadarı bitti — doğruluk ölçmez."
-                />
+                {/* "Program ilerlemesi" takvime bağlıydı: planın kaçıncı
+                    gününde olduğunu ölçüyordu. Takvim kalkınca ölçtüğü şey
+                    kalmadı; yerini yolun ne kadarının bittiği aldı ve o da
+                    üstteki çubukta zaten duruyor. */}
                 <TrackingMeter
                   title="Konu hâkimiyeti"
                   pct={learningTracking.topicMasteryPct}
@@ -405,59 +396,6 @@ export function ExamPrepHome({
         </Link>
       ) : null}
 
-      {uiV2 && view === "yol" && missed.length ? (
-        <p className="ap-exam-settings-warn" role="status">
-          {missed.length} geçmiş günde tamamlanmamış oturum var. “Kaçırılan günleri
-          yeniden dağıt” ile kalan planı bugünden itibaren sıkıştırabilirsin.
-        </p>
-      ) : null}
-
-      {uiV2 && view === "yol" && todayGroup ? (
-        <section className="ap-exam-today" aria-label="Bugünün yolu">
-          <p className="ap-lesson-kicker">Bugün</p>
-          <h2>{todayGroup.label}</h2>
-          <p className="text-sm text-[var(--ap-muted)]">
-            {todayGroup.doneCount}/{todayGroup.nodes.length} bitti
-            {todayGroup.totalMinutes
-              ? ` · ~${todayGroup.totalMinutes} dk`
-              : ""}
-          </p>
-          <ul className="ap-exam-today-list">
-            {todayGroup.nodes.map((node) => {
-              const homeNode = nodes.find((n) => n.id === node.id);
-              if (!homeNode) return null;
-              return (
-                <li key={node.id}>
-                  <button
-                    type="button"
-                    className={cn(
-                      "ap-exam-today-item",
-                      `ap-exam-today-item--${node.status}`,
-                    )}
-                    disabled={node.status === "locked"}
-                    onClick={() => openNode(homeNode)}
-                  >
-                    <strong>
-                      {homeNode.title || PLAN_NODE_META[homeNode.kind].title}
-                    </strong>
-                    <span>
-                      {node.status === "done"
-                        ? "Tamam"
-                        : node.status === "ready"
-                          ? "Sırada"
-                          : "Kilitli"}
-                      {node.sessionMeta?.durationMinutes
-                        ? ` · ${node.sessionMeta.durationMinutes} dk`
-                        : ""}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
-
       {!nodes.length ? (
         <div className="ap-exam-empty" role="status">
           <p>
@@ -471,69 +409,48 @@ export function ExamPrepHome({
           </Link>
         </div>
       ) : uiV2 && view === "yol" ? (
-        <div className="ap-exam-day-path" aria-label="Günlük çalışma yolu">
-          {dayGroups.map((group) => (
-            <section
-              key={group.key}
-              className={cn(
-                "ap-exam-day-block",
-                group.isToday && "ap-exam-day-block--today",
-                group.isPast && "ap-exam-day-block--past",
-              )}
+        // Yol tarihsiz: öğrenci neyi ne zaman çalışacağına kendi karar
+        // veriyor. Gün blokları kalktı — "Gün 3" yazan bir başlık,
+        // öğrenciyi geri kalmışlık duygusuna sokmaktan başka bir şey
+        // yapmıyordu. Sıra duruyor, kilit duruyor, takvim yok.
+        <ol className="ap-exam-trail" aria-label="Çalışma yolu">
+          {nodes.map((node, index) => (
+            <li
+              key={node.id}
+              className={`ap-exam-trail-item ap-exam-trail-item--${index % 2 === 0 ? "left" : "right"}`}
             >
-              <header>
-                <h3>{group.label}</h3>
-                <p>
-                  {group.doneCount}/{group.nodes.length}
-                  {group.totalMinutes ? ` · ${group.totalMinutes} dk` : ""}
-                  {group.isToday ? " · bugün" : ""}
-                </p>
-              </header>
-              <ol className="ap-exam-trail ap-exam-trail--compact">
-                {group.nodes.map((node, index) => {
-                  const homeNode = nodes.find((n) => n.id === node.id);
-                  if (!homeNode) return null;
-                  return (
-                    <li
-                      key={node.id}
-                      className={`ap-exam-trail-item ap-exam-trail-item--${index % 2 === 0 ? "left" : "right"}`}
-                    >
-                      <button
-                        type="button"
-                        className={`ap-exam-trail-node ap-exam-trail-node--${node.status}`}
-                        disabled={node.status === "locked"}
-                        aria-label={`${homeNode.title}, ${group.label}`}
-                        onClick={() => openNode(homeNode)}
-                      >
-                        {node.status === "done"
-                          ? "✓"
-                          : node.status === "locked"
-                            ? "🔒"
-                            : index + 1}
-                      </button>
-                      <span>
-                        <strong>
-                          {homeNode.title || PLAN_NODE_META[homeNode.kind].title}
-                        </strong>
-                        <em>
-                          {homeNode.sessionMeta?.topicTitle
-                            ? `${homeNode.sessionMeta.topicTitle} · `
-                            : ""}
-                          {homeNode.sessionMeta?.durationMinutes
-                            ? `${homeNode.sessionMeta.durationMinutes} dk`
-                            : ""}
-                          {homeNode.sessionMeta?.sourcePages?.length
-                            ? ` · s.${homeNode.sessionMeta.sourcePages.slice(0, 4).join(",")}`
-                            : ""}
-                        </em>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
+              <button
+                type="button"
+                className={`ap-exam-trail-node ap-exam-trail-node--${node.status}`}
+                disabled={node.status === "locked"}
+                aria-label={`${node.title || PLAN_NODE_META[node.kind].title}, ${
+                  node.status === "done"
+                    ? "tamamlandı"
+                    : node.status === "locked"
+                      ? "kilitli"
+                      : "sırada"
+                }`}
+                onClick={() => openNode(node)}
+              >
+                {node.status === "done" ? "✓" : node.status === "locked" ? "🔒" : index + 1}
+              </button>
+              <span>
+                <strong>{node.title || PLAN_NODE_META[node.kind].title}</strong>
+                <em>
+                  {node.sessionMeta?.topicTitle
+                    ? `${node.sessionMeta.topicTitle}`
+                    : PLAN_NODE_META[node.kind].title}
+                  {node.sessionMeta?.durationMinutes
+                    ? ` · ${node.sessionMeta.durationMinutes} dk`
+                    : ""}
+                  {node.sessionMeta?.sourcePages?.length
+                    ? ` · s.${node.sessionMeta.sourcePages.slice(0, 4).join(",")}`
+                    : ""}
+                </em>
+              </span>
+            </li>
           ))}
-        </div>
+        </ol>
       ) : (
         <ol className="ap-exam-trail">
           {nodes.map((node, index) => (

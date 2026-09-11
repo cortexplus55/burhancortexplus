@@ -46,7 +46,6 @@ export function ExamPrepSettingsPanel({
     initial.preferences.pace ?? "normal",
   );
   const [saving, setSaving] = useState(false);
-  const [rescheduling, setRescheduling] = useState(false);
 
   function toggleStudyDay(id: number) {
     setStudyDays((days) =>
@@ -103,32 +102,6 @@ export function ExamPrepSettingsPanel({
     }
   }
 
-  async function rescheduleMissed() {
-    setRescheduling(true);
-    try {
-      const res = await fetch("/api/learning/exam-prep/reschedule", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prepId, reason: "missed_days" }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(
-          data.error === "no_schedule_v2"
-            ? "Yeniden dağıtılacak v2 planı yok."
-            : "Plan yeniden dağıtılamadı.",
-        );
-        return;
-      }
-      toast.success(data.summary ?? "Kalan günler yeniden dağıtıldı.");
-      router.refresh();
-    } catch {
-      toast.error("Bağlantı hatası.");
-    } finally {
-      setRescheduling(false);
-    }
-  }
-
   return (
     <section className="ap-exam-settings" aria-label="Çalışma tercihleri">
       <div className="ap-exam-settings-bar">
@@ -138,15 +111,7 @@ export function ExamPrepSettingsPanel({
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
-          {open ? "Tercihleri gizle" : "Tarih · süre · tercihler"}
-        </button>
-        <button
-          type="button"
-          className="ap-back-pill"
-          disabled={rescheduling}
-          onClick={() => void rescheduleMissed()}
-        >
-          {rescheduling ? "Dağıtılıyor…" : "Kaçırılan günleri yeniden dağıt"}
+          {open ? "Tercihleri gizle" : "Sınav tarihi · tercihler"}
         </button>
       </div>
 
