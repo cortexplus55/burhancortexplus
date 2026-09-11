@@ -210,6 +210,44 @@ describe("exam-schedule-v2", () => {
     expect(next.summary).toMatch(/Kaçırılan günler|yeniden dağıtıldı/i);
   });
 
+  it("does not hand back a session the student already finished", () => {
+    // Canlıda olan: "Dane Boyu" dersini bitiren öğrenci sınav tarihini
+    // değiştirince aynı dersi planda bir daha gördü. Konunun quiz'i
+    // kalmıştı, konu "bitmemiş" sayıldı ve kurulum konunun BÜTÜN
+    // oturumlarını — dersi dahil — yeniden üretti.
+    const plan = buildExamScheduleV2({
+      daysToExam: 10,
+      dailyMinutes: 50,
+      studyDays: [1, 2, 3, 4, 5],
+      topics: topics(3),
+      fromDate: new Date("2026-09-08T12:00:00"),
+    });
+    const learn = plan.sessions.find((s) => s.role === "learn")!;
+    const next = redistributeRemainingSchedule({
+      previous: plan,
+      completed: [{ sortOrder: learn.sortOrder, calendarDate: learn.calendarDate }],
+      dailyMinutes: 50,
+      studyDays: [1, 2, 3, 4, 5],
+      daysToExam: 8,
+      topics: topics(3),
+      fromDate: new Date("2026-09-10T12:00:00"),
+    });
+
+    const sameAgain = next.sessions.filter(
+      (s) => s.topicId === learn.topicId && s.role === "learn",
+    );
+    expect(sameAgain).toHaveLength(1);
+    expect(sameAgain[0].calendarDate).toBe(learn.calendarDate);
+
+    // Ama o konunun yapılmamış alıştırması planda kalmalı — konuyu
+    // tümden düşürmek de yanlış olurdu.
+    expect(
+      next.sessions.some(
+        (s) => s.topicId === learn.topicId && s.role === "practice",
+      ),
+    ).toBe(true);
+  });
+
   it("maps sessions to node drafts for the legacy graph insert", () => {
     const plan = buildExamScheduleV2({
       daysToExam: 5,

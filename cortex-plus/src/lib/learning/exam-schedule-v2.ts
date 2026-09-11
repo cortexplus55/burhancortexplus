@@ -483,12 +483,29 @@ export function redistributeRemainingSchedule(input: {
     (m, s) => Math.max(m, s.sortOrder),
     -1,
   );
+  /**
+   * BİTİRİLEN OTURUM YENİDEN ÜRETİLMEZ.
+   *
+   * Konu, oturumlarından biri bile kalmışsa yeniden kuruluyor ve kurulum
+   * konunun BÜTÜN oturumlarını üretiyor. Sonuç: dersini bitirip quiz'ine
+   * gelmemiş öğrenci sınav tarihini değiştirdiğinde aynı dersi bir daha
+   * karşısında buluyordu — canlıda "Dane Boyu" hem bitmiş hem kilitli
+   * olarak iki kez duruyordu.
+   *
+   * Ölçü konu değil, KONU + ROL: bitirilen ders geri gelmez, o konunun
+   * yapılmamış alıştırması ve tekrarı planda kalır.
+   */
+  const doneTopicRoles = new Set(
+    keptCompleted.map((s) => `${s.topicId}:${s.role}`),
+  );
   const merged = [
     ...keptCompleted,
-    ...rebuilt.sessions.map((s, i) => ({
-      ...s,
-      sortOrder: completedMaxSort + 1 + i,
-    })),
+    ...rebuilt.sessions
+      .filter((s) => !doneTopicRoles.has(`${s.topicId}:${s.role}`))
+      .map((s, i) => ({
+        ...s,
+        sortOrder: completedMaxSort + 1 + i,
+      })),
   ];
   return {
     ...rebuilt,
