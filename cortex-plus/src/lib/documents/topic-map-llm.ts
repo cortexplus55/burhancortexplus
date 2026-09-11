@@ -14,7 +14,7 @@ import {
   targetTopicCount,
   topicTitleIssues,
   unrepresentedHeadings,
-  TOPIC_TITLE_RULE,
+  topicTitleRule,
 } from "@/lib/documents/topic-title";
 
 /**
@@ -109,7 +109,7 @@ export async function buildTopicMapLLM(
       },
       schemaHint:
         'JSON: {"topics":[{"title":string,"learningObjective":string|null,"pageNumbers":number[]}]}. ' +
-        `title: belgenin kendi dilinde konu başlığı. ${TOPIC_TITLE_RULE} ` +
+        `title: belgenin kendi dilinde konu başlığı. ${topicTitleRule(backbone)} ` +
         "learningObjective: o konuda öğrencinin kazanacağı beceri, tek cümle. " +
         "pageNumbers: konunun işlendiği sayfa numaraları. " +
         `Konular belgedeki sıraya göre; her öğretim sayfası en az bir konuya bağlanmalı; yaklaşık ${target} konu hedefle.`,
@@ -117,7 +117,7 @@ export async function buildTopicMapLLM(
 
 Bu belgede ${contentPages.length} öğretim sayfası var; yaklaşık ${target} konu bekleniyor. Bu bir hedef, kota değil — bir ya da iki fazlası sorun değil.
 
-HİÇBİR ÖĞRETİM BÖLÜMÜ LİSTEDEN KAYBOLMAZ. Sayıyı tutturmak için bölüm atmak yasak. Sayıyı azaltmanın tek yolu birleştirmek, birleştirdiğinde de her iki bölümün adı başlıkta görünür ("Konsolidasyon ve Oturma Analizi"); öğrenci listeye baktığında belgede öğrendiği hiçbir konuyu arayıp bulamamazlık etmemeli. Tersi de geçerli: tek başına sınanabilecek kadar dolu bir alt başlığı ayrı konuya çıkarabilirsin.
+HİÇBİR ÖĞRETİM BÖLÜMÜ LİSTEDEN KAYBOLMAZ. Sayıyı tutturmak için bölüm atmak yasak. Sayıyı azaltmanın tek yolu birleştirmek, birleştirdiğinde de her iki bölümün adı başlıkta görünür — iki bölümü "ve" ile tek başlıkta topla; öğrenci listeye baktığında belgede öğrendiği hiçbir konuyu arayıp bulamamazlık etmemeli. Tersi de geçerli: tek başına sınanabilecek kadar dolu bir alt başlığı ayrı konuya çıkarabilirsin.
 
 Kapak, içindekiler, önsöz, "öğrenme hedefleri"/"kazanımlar" listesi ve formül kartı gibi ön/arka bölümler konu DEĞİLDİR — bunlar öğretim içeriği taşımaz, konu olarak çıkarma. Bu sayfaları, anlattıkları asıl konuya ait sayfalardan biri say ya da hiç kullanma.
 

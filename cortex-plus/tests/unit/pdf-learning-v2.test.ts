@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { analyzePages } from "@/lib/documents/page-analysis";
-import { buildTopicMap } from "@/lib/documents/topic-map";
+import { draftFromLlmTopic } from "@/lib/documents/topic-map";
 import { buildCoverageReport } from "@/lib/documents/coverage";
 
 /** ~20 instructional pages modeled on a trigonometry workbook slice. */
@@ -27,6 +27,21 @@ function trigWorkbookPages(): string[] {
     "Özet\nDerece-radyan, birim çember, işaret, kimlik, grafik ve denklem ayrı izlenir.\nTanım listesi: radyan, referans açı, periyot.",
     "CEVAP ANAHTARI\n1) π/3  2) 60  3) III  4) −  5) −1/2  6) 180  7) 3π/2  8) 1",
   ];
+}
+
+/**
+ * Üretimdeki yol: konu başlıklarını model belgeden çıkarır, biz sayfalara
+ * bağlayıp zenginleştiririz. Eskiden burada elle yazılmış bir trigonometri
+ * müfredatına dayanan buildTopicMap çağrılıyordu; o kod silindi
+ * (bkz. tests/unit/no-baked-in-curriculum.test.ts).
+ */
+function topicsFor(
+  analyses: ReturnType<typeof analyzePages>,
+  seeds: { title: string; pages: number[] }[],
+) {
+  return seeds.map((seed, i) =>
+    draftFromLlmTopic(seed.title, null, seed.pages, analyses, i),
+  );
 }
 
 describe("PDF learning page analysis", () => {
@@ -67,34 +82,18 @@ describe("PDF learning page analysis", () => {
 });
 
 describe("PDF learning topic map + coverage", () => {
-  it("splits trigonometry into separately trackable topics", () => {
-    const analyses = analyzePages(trigWorkbookPages());
-    const { topics } = buildTopicMap(analyses);
-    const titles = topics.map((topic) => topic.title);
-
-    expect(titles).toEqual(
-      expect.arrayContaining([
-        "Derece ve radyan",
-        "Birim çember",
-        "İşaretler ve bölgeler",
-        "Trigonometrik kimlikler",
-        "Trigonometrik grafikler",
-        "Trigonometrik denklemler",
-      ]),
-    );
-
-    const degree = topics.find((topic) => topic.title === "Derece ve radyan");
-    expect(degree?.pageNumbers.length).toBeGreaterThan(0);
-    expect(degree?.prerequisites ?? []).toEqual([]);
-
-    const circle = topics.find((topic) => topic.title === "Birim çember");
-    expect(circle?.prerequisites).toContain("Derece ve radyan");
-  });
-
   it("covers every instructional page on the ~20-page fixture", () => {
     const analyses = analyzePages(trigWorkbookPages());
-    const { topics, mergedTitles } = buildTopicMap(analyses);
-    const coverage = buildCoverageReport(analyses, topics, mergedTitles);
+    // Model her öğretim sayfasını bir konuya bağladı; kapsam raporu bunu
+    // doğrular — konuların adını değil.
+    const contentPages = analyses
+      .filter((page) => page.pageKind === "content")
+      .map((page) => page.pageNumber);
+    const topics = topicsFor(analyses, [
+      { title: "Açı Ölçüsü ve Birim Çember", pages: contentPages.slice(0, 8) },
+      { title: "Kimlikler, Grafikler ve Denklemler", pages: contentPages.slice(8) },
+    ]);
+    const coverage = buildCoverageReport(analyses, topics, []);
 
     expect(coverage.totalPages).toBe(20);
     expect(coverage.contentPages).toBeGreaterThan(10);
@@ -109,12 +108,14 @@ describe("PDF learning topic map + coverage", () => {
 
   it("reports blank/unreadable pages instead of silently covering them", () => {
     const analyses = analyzePages([
-      "1. Derece ve radyan\n180 derece = π radyan.",
+      "1. Açı ölçü birimleri\n180 derece = π radyan.",
       "",
       "xx",
     ]);
-    const { topics, mergedTitles } = buildTopicMap(analyses);
-    const coverage = buildCoverageReport(analyses, topics, mergedTitles);
+    const topics = topicsFor(analyses, [
+      { title: "Açı Ölçü Birimleri", pages: [1] },
+    ]);
+    const coverage = buildCoverageReport(analyses, topics, []);
 
     expect(coverage.skippedPages.map((p) => p.pageNumber)).toContain(2);
     expect(coverage.unreadablePages.map((p) => p.pageNumber)).toContain(3);

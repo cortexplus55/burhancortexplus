@@ -129,13 +129,17 @@ describe("a broken diagram must not take the lesson down", () => {
 });
 
 describe("needsDiagram", () => {
-  it("fires on the topics a picture explains", () => {
-    // Çizim yolu yazıldıktan sonra canlıda bir kez bile çalışmadı:
-    // "isteğe bağlı" diyen talimatı model her seferinde atlıyor.
-    expect(needsDiagram("Zeminin Oluşumu ve Üç Fazlı Sistem")).toBe(true);
+  it("fires on a heading that carries a shape word, whatever the subject", () => {
+    // İlk hâlinde liste konu adlarından ("mohr", "birim çember", "akış
+    // ağı") kuruluydu; ürün yalnızca mühendislik belgelerinde çizim
+    // üretirdi. Artık ölçü, başlığın bir resmi işaret edip etmediği.
     expect(needsDiagram("Kayma Mukavemeti", "Mohr Dairesi ve Kırılma Zarfı")).toBe(true);
-    expect(needsDiagram("Yük Altında Gerilme Dağılımı")).toBe(true);
     expect(needsDiagram("Trigonometri", "Birim Çember")).toBe(true);
+    expect(needsDiagram("Zemin Fiziği", "Faz Diyagramı")).toBe(true);
+    expect(needsDiagram("Hücre Biyolojisi", "Krebs Döngüsü")).toBe(true);
+    expect(needsDiagram("Anatomi", "Kalbin Kesiti")).toBe(true);
+    expect(needsDiagram("Coğrafya", "İklim Haritası")).toBe(true);
+    expect(needsDiagram("Fizik", "Serbest Cisim Diyagramı")).toBe(true);
   });
 
   it("stays quiet on topics that words explain", () => {
@@ -143,6 +147,7 @@ describe("needsDiagram", () => {
     expect(needsDiagram("Atterberg (Kıvam) Limitleri")).toBe(false);
     expect(needsDiagram("Darcy Yasası", "Laboratuvar Deneyleri")).toBe(false);
     expect(needsDiagram("Sağlam Çocuk İzlemi", "Aşı Takvimi")).toBe(false);
+    expect(needsDiagram("Osmanlı'da Toprak Sistemi")).toBe(false);
   });
 
   it("ignores empty inputs", () => {

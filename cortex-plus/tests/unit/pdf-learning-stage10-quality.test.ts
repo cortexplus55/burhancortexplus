@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { analyzePages } from "@/lib/documents/page-analysis";
-import { buildTopicMap } from "@/lib/documents/topic-map";
+import { draftFromLlmTopic } from "@/lib/documents/topic-map";
 import { buildCoverageReport } from "@/lib/documents/coverage";
 import {
   checkImpossiblePercentClaims,
@@ -51,6 +51,21 @@ const quizQ = (
   ...extra,
 });
 
+/**
+ * Üretimdeki yol: konu başlıklarını model belgeden çıkarır, biz sayfalara
+ * bağlayıp zenginleştiririz. Eskiden burada elle yazılmış bir müfredata
+ * dayanan buildTopicMap çağrılıyordu; o kod silindi
+ * (bkz. tests/unit/no-baked-in-curriculum.test.ts).
+ */
+function topicsFor(
+  analyses: ReturnType<typeof analyzePages>,
+  seeds: { title: string; pages: number[] }[],
+) {
+  return seeds.map((seed, i) =>
+    draftFromLlmTopic(seed.title, null, seed.pages, analyses, i),
+  );
+}
+
 describe("Stage 10 document varieties", () => {
   it("text PDF fixture covers instructional pages", () => {
     const pages = [
@@ -58,8 +73,10 @@ describe("Stage 10 document varieties", () => {
       "2. Birim çember\nsin θ = y, cos θ = x\nsin²+cos²=1",
     ];
     const analyses = analyzePages(pages);
-    const { topics, mergedTitles } = buildTopicMap(analyses);
-    const coverage = buildCoverageReport(analyses, topics, mergedTitles);
+    const topics = topicsFor(analyses, [
+      { title: "Açı Ölçüsü ve Birim Çember", pages: [1, 2] },
+    ]);
+    const coverage = buildCoverageReport(analyses, topics, []);
     expect(coverage.uncoveredContentPages).toEqual([]);
     expect(coverage.status).toBe("complete");
   });
@@ -105,23 +122,21 @@ describe("Stage 10 document varieties", () => {
     const analyses = analyzePages(pages);
     expect(analyses[1].pageKind).toBe("toc");
     expect(analyses[39].pageKind).toBe("answer_key");
-    const { topics, mergedTitles } = buildTopicMap(analyses);
-    const coverage = buildCoverageReport(analyses, topics, mergedTitles);
-    expect(coverage.totalPages).toBe(40);
-    expect(topics.some((t) => t.title === "Kuvvet ve hareket")).toBe(true);
-    expect(coverage.unreadablePages).toEqual([]);
-  });
-
-  it("repeated near-duplicate topics merge instead of double-counting", () => {
-    const analyses = analyzePages([
-      "1. Birim çember\nsin θ = y\nÖrnek: 90°",
-      "Birim çember devam\ncos θ = x\nÖrnek: 0°",
+    // Kapsam raporu "uncertain" sayfaları da öğretim sayfası sayıyor;
+    // konu bunların hepsini taşımalı, yoksa rapor boşluk bildirir.
+    const teachingPages = analyses
+      .filter(
+        (page) =>
+          !["cover", "toc", "answer_key", "blank"].includes(page.pageKind),
+      )
+      .map((page) => page.pageNumber);
+    const topics = topicsFor(analyses, [
+      { title: "Kuvvet, İvme ve Enerji", pages: teachingPages },
     ]);
-    const { topics, mergedTitles } = buildTopicMap(analyses);
-    const circle = topics.filter((t) => /birim çember/i.test(t.title));
-    expect(circle.length).toBe(1);
-    expect(circle[0].pageNumbers).toEqual(expect.arrayContaining([1, 2]));
-    expect(mergedTitles.length + topics.length).toBeGreaterThan(0);
+    const coverage = buildCoverageReport(analyses, topics, []);
+    expect(coverage.totalPages).toBe(40);
+    expect(coverage.uncoveredContentPages).toEqual([]);
+    expect(coverage.unreadablePages).toEqual([]);
   });
 
   it("multi-doc is simulated by concatenating page arrays (prep binds one document)", () => {
@@ -133,65 +148,56 @@ describe("Stage 10 document varieties", () => {
     ]);
     // Product: exam_preps.document_id is singular — Stage 10 records this as partial.
     const combined = [...docA, ...docB.map((p) => ({ ...p, pageNumber: p.pageNumber + 1 }))];
-    const { topics } = buildTopicMap(combined);
-    const titles = topics.map((t) => t.title);
-    expect(titles).toEqual(expect.arrayContaining(["Hücre ve enerji", "Tarih"]));
+    const topics = topicsFor(combined, [
+      { title: "Hücrede Enerji Üretimi", pages: [1] },
+      { title: "Osmanlı'dan Cumhuriyet'e", pages: [2] },
+    ]);
+    expect(topics.map((t) => t.pageNumbers)).toEqual([[1], [2]]);
   });
 });
 
 describe("Stage 10 subject varieties (domain validators + topic seeds)", () => {
-  const subjects: { label: string; pages: string[]; topic: string; badDraft: string }[] =
+  const subjects: { label: string; pages: string[]; badDraft: string }[] =
     [
       {
         label: "Math",
         pages: ["Birim çember\nsin 90° = 1\ncos 0° = 1"],
-        topic: "Birim çember",
         badDraft: "2+2=5",
       },
       {
         label: "Physics",
         pages: ["Newton kuvvet\nF = m a\nKinetik enerji = 1/2 m v²"],
-        topic: "Kuvvet ve hareket",
         badDraft: "5 kg = 5 g",
       },
       {
         label: "Chemistry",
         pages: ["Mol ve Avogadro\n1 mol madde 6.02×10²³ parçacıktır.\nAsit-baz tepkimesi."],
-        topic: "Kimyasal tepkimeler",
         badDraft: "1 mol = 1 g",
       },
       {
         label: "Biology",
         pages: ["Fotosentez\nKlorofil ışık enerjisini yakalar.\nMitokondri ATP üretir."],
-        topic: "Hücre ve enerji",
         badDraft: "yüzde 150 başarı oranı",
       },
       {
         label: "History",
         pages: ["Osmanlı ve Cumhuriyet\n1453 İstanbul.\nİnkılaplar dönemi."],
-        topic: "Tarih",
         badDraft: "2+2=5",
       },
       {
         label: "Geography",
         pages: ["Türkiye coğrafyası\nİklim tipleri ve yer şekilleri.\nHarita okuma: plato, delta."],
-        topic: "Coğrafya",
         badDraft: "3×3=10",
       },
       {
         label: "Turkish",
         pages: ["Cümle öğeleri\nÖzne ve yüklem.\nAnlatım bozukluğu ve yazım kuralı."],
-        topic: "Türkçe dil bilgisi",
         badDraft: "4÷2=3",
       },
     ];
 
   for (const subject of subjects) {
-    it(`${subject.label}: topic seed + domain reject on bad claim`, () => {
-      const analyses = analyzePages(subject.pages);
-      const { topics } = buildTopicMap(analyses);
-      expect(topics.some((t) => t.title === subject.topic)).toBe(true);
-
+    it(`${subject.label}: domain reject on bad claim`, () => {
       const mathIssues = checkSimpleMathClaims(subject.badDraft);
       const percentIssues = checkImpossiblePercentClaims(subject.badDraft);
       const unitResult = runIndependentValidation({

@@ -1113,8 +1113,8 @@ async function generateNodePayload(input: {
         // metin hiçbir zaman işaretleme olarak yorumlanmıyor.
         (wantsDiagram
           ? "diagram ZORUNLU: en az bir bölüme koy. "
-          : "diagram isteğe bağlı ve YALNIZCA şekille anlaşılan konular için " +
-            "(faz diyagramı, Mohr dairesi, birim çember, kuvvet diyagramı). ") +
+          : "diagram isteğe bağlı ve YALNIZCA şekille anlaşılan konular için: " +
+            "konum, yön, oran ya da parça-bütün ilişkisi çizilmeden anlaşılmıyorsa. ") +
         "Çizim alanı 320x200. Şekiller: {kind:\"rect\",x,y,w,h}, " +
         "{kind:\"circle\",cx,cy,r}, {kind:\"line\",x1,y1,x2,y2,arrow?,dashed?}, " +
         "{kind:\"text\",x,y,text,anchor?}. Renk seçme; tone/fill/stroke yalnızca " +
@@ -1189,6 +1189,15 @@ async function generateNodePayload(input: {
     // Ders varsa podcast onun sesli hâli; yoksa eskisi gibi kaynaktan.
     const lesson = input.teachingV2 ? input.lessonContent ?? null : null;
     const lessonBrief = lesson ? lessonPodcastBrief(lesson) : "";
+    // Bölüm adı örneği dersin KENDİ kavramlarından geliyor. Eskiden burada
+    // zemin mekaniği örnekleri sabitti ve biyoloji podcast'ine de onlar
+    // gidiyordu; kural, örneklere benzemeyen belgede zayıf çalışıyordu.
+    const chapterExample = lesson
+      ? lesson.sections
+          .slice(0, 2)
+          .map((section) => `"${section.heading}"`)
+          .join(", ")
+      : "";
     const outcome = await generateJson({
       service: input.service,
       userId: input.userId,
@@ -1212,8 +1221,9 @@ async function generateNodePayload(input: {
         : undefined,
       schemaHint: input.teachingV2
         ? 'JSON: {"title":string,"objective":string,"sourcePoints":string[],"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +
-          "4-8 bölüm. Her bölümün title'ı O BÖLÜMDE KONUŞULAN KAVRAMIN ADI olsun " +
-          '("Dane Boyu Dağılımı", "Atterberg Limitleri"); üretim aşamalarının adı ' +
+          "4-8 bölüm. Her bölümün title'ı O BÖLÜMDE KONUŞULAN KAVRAMIN ADI olsun" +
+          (chapterExample ? ` (bu dersteki gibi: ${chapterExample})` : "") +
+          '; üretim aşamalarının adı ' +
           '("Tanım", "Neden", "Örnek", "Yaygın hata", "Özet") başlık olarak YASAK. ' +
           "Ada ve Kerem sırayla. Her text TEK cümle, ≤25 kelime. Kaynak dışı iddia yok."
         : 'JSON: {"title":string,"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +

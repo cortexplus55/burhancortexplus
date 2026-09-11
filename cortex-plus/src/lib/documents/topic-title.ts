@@ -295,26 +295,44 @@ export function unrepresentedHeadings(
 /**
  * Üretim tarafına verilen adlandırma talimatı — kural tek yerde dursun.
  *
- * Soyut kural iki kez denendi ve kapsam eki gelmedi; örnek verince
- * geliyor. Aşağıdaki çiftler uydurma değil: aynı zemin PDF'inin bizde ve
- * Astra'da aldığı gerçek başlıklar.
+ * Örnekler ARTIK BELGENİN KENDİSİNDEN geliyor. Eskiden burada üç sabit
+ * çift vardı ve hepsi bir zemin mekaniği PDF'inden alınmıştı: biyoloji
+ * belgesi yükleyen öğrencinin isteği de "Dane Boyu Dağılımı" örneğini
+ * taşıyordu. İçerik öğrenciye sızmıyordu ama model başka bir alanın
+ * diliyle yönlendiriliyordu ve kural, örneklere benzemeyen belgelerde
+ * daha zayıf çalışıyordu.
  *
- * Kapsam eki HER başlığa gerekmiyor. Pediatri belgesinde "Gelişimsel
- * Basamaklar", üslü belgesinde "Bilimsel Gösterim" tek başına anlaşılıyor
- * ve model doğru davranıp dokunmadı. Gereken yer, başlık belgeden
- * koparıldığında neyin konusu olduğunun kaybolduğu yer.
+ * Soyut kural tek başına yetmiyor (iki kez denendi, kapsam eki gelmedi);
+ * modelin önüne o an işlenen belgenin gerçek satırları konuyor.
+ *
+ * Kapsam eki HER başlığa gerekmiyor: kendi başına anlaşılan bir başlığa
+ * dokunulmaz. Gereken yer, başlık belgeden koparıldığında neyin konusu
+ * olduğunun kaybolduğu yer.
  */
-export const TOPIC_TITLE_RULE =
-  "Başlık, belgenin içindekiler satırını kopyalamak değil, konuyu adlandırmaktır. " +
-  "Bölüm numarasını ve sondaki parantezli kısaltmayı yazma. " +
-  "Başlık tek başına, listede okununca neyin konusu olduğu anlaşılsın. " +
-  "Örnekler — solda belgenin satırı, sağda olması gereken: " +
-  '"2. Faz Bağıntıları ve İndeks Özellikler" → "Zeminlerin Faz Bağıntıları ve İndeks Özellikleri"; ' +
-  '"3. Dane Boyu, Kıvam Limitleri ve Sınıflandırma (USCS)" → "Dane Boyu Dağılımı ve Zemin Sınıflandırması"; ' +
-  '"5. Efektif Gerilme İlkesi" (alt başlığı: Sızmanın Etkisi) → "Efektif Gerilme İlkesi ve Sızma Kuvvetleri". ' +
-  "Kapsam ekini yalnızca gerektiğinde koy: \"Gelişimsel Basamaklar\" ya da " +
-  '"Bilimsel Gösterim" zaten tek başına anlaşılıyor, onlara dokunma. ' +
-  "Bir bölümün alt başlığı kendi başına sınanacak kadar önemliyse ana başlığa " +
-  '"ve" ile ekle; en fazla iki bileşen. ' +
-  "Tek başına ölçülemeyen, yalnızca bağlam veren bir bölümü ayrı konu yapma — " +
-  "onu anlattığı asıl konunun içine kat. Başlık cümle değildir, sonuna nokta koyma.";
+export function topicTitleRule(documentHeadings: string[] = []): string {
+  // Kuralın anlattığı durum numaralı içindekiler satırı; örnek olarak da
+  // onlar gösteriliyor. Numarasız belgede örnek verilmiyor, kural yine
+  // geçerli.
+  const samples = documentHeadings
+    .map((heading) => (heading ?? "").replace(TOC_PAGE_TAIL, "").trim())
+    .filter((heading) => LEADING_NUMBER.test(heading) || TRAILING_PAREN.test(heading))
+    .slice(0, 3);
+  const examples = samples.length
+    ? "Bu belgenin kendi satırlarından örnek: " +
+      samples.map((heading) => `"${heading}"`).join(", ") +
+      ". Bunları numarasız, kısaltmasız ve tek başına okununca ne anlattığı " +
+      "belli olacak şekilde yeniden adlandır. "
+    : "";
+  return (
+    "Başlık, belgenin içindekiler satırını kopyalamak değil, konuyu adlandırmaktır. " +
+    "Bölüm numarasını ve sondaki parantezli kısaltmayı yazma. " +
+    "Başlık tek başına, listede okununca neyin konusu olduğu anlaşılsın. " +
+    examples +
+    "Kapsam ekini yalnızca gerektiğinde koy: başlık kendi başına zaten " +
+    "anlaşılıyorsa olduğu gibi bırak. " +
+    "Bir bölümün alt başlığı kendi başına sınanacak kadar önemliyse ana başlığa " +
+    '"ve" ile ekle; en fazla iki bileşen. ' +
+    "Tek başına ölçülemeyen, yalnızca bağlam veren bir bölümü ayrı konu yapma — " +
+    "onu anlattığı asıl konunun içine kat. Başlık cümle değildir, sonuna nokta koyma."
+  );
+}
