@@ -15,6 +15,48 @@ export type PathNodeLike = {
 };
 
 
+export type TopicNodeLike = {
+  id: string;
+  sortOrder: number;
+  status: "locked" | "ready" | "done";
+  sessionMeta?: { topicId?: string; topicTitle?: string } | null;
+};
+
+function foldTitle(text: string | undefined | null): string {
+  return (text ?? "").trim().toLocaleLowerCase("tr");
+}
+
+/**
+ * "Konu seç" ekranında seçilen konunun açılacak etkinliği.
+ *
+ * Eskiden seçim yalnızca `active_topic_id` alanını yazıyor, öğrenci ise
+ * PLANDAKİ İLK HAZIR düğüme gönderiliyordu — hangi konuya ait olursa
+ * olsun. Canlıda "Zeminin Oluşumu"nu seçmek "Efektif Gerilme" dersini
+ * açıyordu. Seçim ekranı öğrenciye bir söz veriyor; tutmayan söz,
+ * olmayan ekrandan kötüdür.
+ *
+ * Eşleştirme önce `topicId` ile: düğüm hangi konuya yazıldıysa o. Eski
+ * planlarda bu alan yok, orada başlık eşleşmesine düşülüyor.
+ *
+ * Bitmemiş ilk etkinlik seçilir. Konunun hepsi bitmişse ilk etkinlik
+ * döner: öğrenci bitirdiği konuya geri dönüp okuyabilmeli.
+ */
+export function nodeForTopic(
+  nodes: TopicNodeLike[],
+  topic: { id: string; label?: string | null },
+): TopicNodeLike | null {
+  const label = foldTitle(topic.label);
+  const mine = nodes
+    .filter((node) => {
+      const metaId = node.sessionMeta?.topicId;
+      if (metaId) return metaId === topic.id;
+      return label ? foldTitle(node.sessionMeta?.topicTitle) === label : false;
+    })
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  if (!mine.length) return null;
+  return mine.find((node) => node.status !== "done") ?? mine[0];
+}
+
 export type LearningPreferencesView = {
   style?: "examples" | "theory" | "mixed";
   pace?: "slow" | "normal" | "fast";

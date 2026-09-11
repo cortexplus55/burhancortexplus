@@ -39,6 +39,32 @@ describe("exam-schedule-v2", () => {
     expect(ordered.map((t) => t.id)).toEqual(["a", "b", "c"]);
   });
 
+  it("keeps the document's own order when nothing separates the topics", () => {
+    // Canlıda olan buydu: yeni bir hazırlıkta hiçbir konu ölçülmemiş
+    // olduğu için puanlar eşitti ve sıralamayı alfabe belirliyordu.
+    // Zemin mekaniği planı kitabın üçüncü bölümüyle başlayıp birinci
+    // bölümüyle bitiyordu. Konular buraya belgeden çıktıkları sırayla
+    // geliyor; ölçülmüş bir zayıflık yoksa o sıra korunmalı.
+    const ordered = orderTopicsByPrerequisites([
+      { id: "1", title: "Zeminin Oluşumu ve Üç Fazlı Sistem" },
+      { id: "2", title: "Faz Bağıntıları ve İndeks Özellikler" },
+      { id: "3", title: "Dane Boyu Dağılımı ve Zemin Sınıflandırması" },
+      { id: "4", title: "Konsolidasyon ve Oturma Analizi" },
+    ]);
+    expect(ordered.map((t) => t.id)).toEqual(["1", "2", "3", "4"]);
+  });
+
+  it("still lifts a measured weakness above the document order", () => {
+    // Belge sırası varsayılan, kural değil: ölçülmüş bir zayıflık öne geçer.
+    const ordered = orderTopicsByPrerequisites([
+      { id: "1", title: "Birinci bölüm" },
+      { id: "2", title: "İkinci bölüm", measuredLevel: "weak" },
+      { id: "3", title: "Üçüncü bölüm" },
+    ]);
+    expect(ordered[0].id).toBe("2");
+    expect(ordered.slice(1).map((t) => t.id)).toEqual(["1", "3"]);
+  });
+
   it("lists only selected study weekdays within the exam window", () => {
     // 2026-09-08 is Tuesday
     const dates = listStudyDayDates(7, [1, 3, 5], new Date("2026-09-08T12:00:00"));

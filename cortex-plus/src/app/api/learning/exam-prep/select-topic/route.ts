@@ -7,6 +7,8 @@ import {
   examPrepNodeHref,
   needsExamIntro,
 } from "@/lib/learning/exam-prep-hrefs";
+import { nodeForTopic } from "@/lib/learning/exam-prep-ui-path";
+import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -31,7 +33,7 @@ export async function POST(request: Request) {
 
   const { data: topic } = await service
     .from("exam_prep_topics")
-    .select("id")
+    .select("id, label")
     .eq("id", parsed.data.topicId)
     .eq("exam_prep_id", parsed.data.prepId)
     .maybeSingle();
@@ -44,7 +46,7 @@ export async function POST(request: Request) {
 
   const { data: nodes } = await service
     .from("exam_prep_nodes")
-    .select("id, status")
+    .select("id, status, sort_order, session_meta")
     .eq("exam_prep_id", prep.id)
     .order("sort_order");
 
@@ -52,11 +54,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, nextHref: examPrepIntroHref(prep.id) });
   }
 
-  const node = (nodes ?? []).find((row) => row.status === "ready");
+  // Seçilen konunun kendi etkinliği; bulunamazsa plandaki ilk hazır düğüm.
+  const chosen = nodeForTopic(
+    (nodes ?? []).map((row) => ({
+      id: row.id as string,
+      sortOrder: (row.sort_order as number) ?? 0,
+      status: row.status as "locked" | "ready" | "done",
+      sessionMeta: parseSessionMeta(row.session_meta),
+    })),
+    { id: topic.id as string, label: (topic.label as string | null) ?? null },
+  );
+
+  // Plan sırayla kilitli geliyor. Öğrenci konuyu kendisi seçtiyse o konu
+  // açılmalı: yol haritasını biz veriyoruz, sırayı öğrenci seçiyor. Kilidi
+  // açmazsak seçim ekranı kendi seçtiği konuya 403 döndürür.
+  if (chosen?.status === "locked") {
+    await service
+      .from("exam_prep_nodes")
+      .update({ status: "ready" })
+      .eq("id", chosen.id)
+      .eq("exam_prep_id", prep.id);
+  }
+
+  const fallback = (nodes ?? []).find((row) => row.status === "ready");
+  const target = chosen ?? fallback ?? null;
   return NextResponse.json({
     ok: true,
-    nextHref: node
-      ? examPrepNodeHref(prep.id, node.id)
+    nextHref: target
+      ? examPrepNodeHref(prep.id, target.id as string)
       : examPrepHomeHref(prep.id),
   });
 }

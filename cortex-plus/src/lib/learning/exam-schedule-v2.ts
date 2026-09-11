@@ -156,6 +156,19 @@ export function estimateTopicMinutes(topic: ScheduleTopicInput): number {
 
 /**
  * Topological order by prerequisites (titles), then priority / weakness.
+ *
+ * Eşitlik bozucu BELGENİN KENDİ SIRASI, alfabe değil.
+ *
+ * Yeni bir hazırlıkta hiçbir konu ölçülmemiştir: hepsinin puanı aynı çıkar
+ * ve sıralamayı yalnızca eşitlik bozucu belirler. Alfabe olduğu sürece
+ * sonuç şuydu — canlıdaki zemin mekaniği planı "Dane Boyu" ile başlayıp
+ * "Üç Fazlı Sistem" ile bitiyordu; yani kitabın birinci bölümü altıncı
+ * sırada öğretiliyordu. Konu haritası sadeleştirilirken ön koşul çıkarımı
+ * kaldırılınca alfabe TEK sıralama ölçütü hâline geldi ve bu, plana
+ * bakmakla değil ancak canlı veriye bakmakla görülüyordu.
+ *
+ * Konular buraya belgeden çıktıkları sırayla geliyor: yazarın öğretim
+ * sırası. Ölçülmüş bir zayıflık yoksa ona uymak doğru olan.
  */
 export function orderTopicsByPrerequisites(
   topics: ScheduleTopicInput[],
@@ -163,6 +176,7 @@ export function orderTopicsByPrerequisites(
   const byTitle = new Map(
     topics.map((t) => [t.title.trim().toLocaleLowerCase("tr"), t]),
   );
+  const documentOrder = new Map(topics.map((t, index) => [t.id, index]));
   const remaining = new Set(topics.map((t) => t.id));
   const ordered: ScheduleTopicInput[] = [];
   const score = (t: ScheduleTopicInput) => {
@@ -186,7 +200,9 @@ export function orderTopicsByPrerequisites(
       });
     });
     const pick = (ready.length ? ready : topics.filter((t) => remaining.has(t.id))).sort(
-      (a, b) => score(a) - score(b) || a.title.localeCompare(b.title, "tr"),
+      (a, b) =>
+        score(a) - score(b) ||
+        (documentOrder.get(a.id) ?? 0) - (documentOrder.get(b.id) ?? 0),
     )[0];
     if (!pick) break;
     remaining.delete(pick.id);
