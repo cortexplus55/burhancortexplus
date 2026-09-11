@@ -30,3 +30,11 @@ yarn-error.log*
 **/next-env.d.ts
 **/*.tsbuildinfo
 .env*
+
+# Yerel çalışma alanı — depoya girmez
+# Deneme PDF'leri, üretilen çıktılar ve elle indirilen paketler burada birikiyor.
+# Bunlar bir turda işe yarayan geçici dosyalar; kimse bir daha açmıyor.
+tmp/
+output/
+*.tgz
+/Cortex-Plus-*.pdf

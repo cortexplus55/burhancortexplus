@@ -119,3 +119,10 @@ bölümünü tümüyle kaldırdı (34 simülasyon, 5 mini oyun, günün bulmacal
 liderlik tablosu, AI uygulama üreteci). Yerine 12 araçlık `/araclar` geldi;
 `/uygulamalar` kalıcı yönlendirme. Veritabanı tabloları (`lab_app_plays`,
 `daily_puzzles`, `user_apps` …) bilerek duruyor — arayüz geri gelir, veri gelmez.
+
+**11 Eylül 2026 — karar bir kez daha soruldu, aynı kaldı.** Astra paritesi
+turunun sonunda "Astra'da `/lab` var, bizde yok" maddesi ürün sahibine açıkça
+soruldu; cevap **geri getirilmesin** oldu. Gerekçe değişmedi: 34 simülasyonun
+öğrenciye ne öğrettiği ölçülemiyordu, yerine gelen 12 araçlı `/araclar` ölçülebilir
+iş yapıyor. Bu satır tartışmayı kapatmak için duruyor — bir sonraki parite
+turunda bu maddeyi yeniden açmayın.
