@@ -78,31 +78,18 @@ export async function PATCH(request: Request) {
           JSON.stringify(prep.study_days)),
   );
 
-  const { error: updateErr } = await service
-    .from("exam_preps")
-    .update({
-      exam_date: nextExamDate,
-      daily_minutes: nextDaily,
-      study_days: nextStudyDays,
-      hard_topics_self: nextHard,
-      learning_preferences: nextPrefs,
-    })
-    .eq("id", prep.id)
-    .eq("user_id", userId);
-
-  if (updateErr) return errorResponse(500, "update_failed");
-
   let summary: string | null = null;
   if (parsed.data.rebuildSchedule && scheduleChanged && prep.schedule_v2) {
     const previous = prep.schedule_v2 as ScheduleBuildResult;
     if (!previous?.sessions?.length) {
-      return NextResponse.json({ ok: true, rebuilt: false });
+      return errorResponse(409, "no_schedule_v2");
     }
 
-    const { data: nodeRows } = await service
+    const { data: nodeRows, error: nodesError } = await service
       .from("exam_prep_nodes")
       .select("id, sort_order, status, session_meta")
       .eq("exam_prep_id", prep.id);
+    if (nodesError) return errorResponse(503, "node_lookup_failed");
 
     const { data: topicRows } = await service
       .from("exam_prep_topics")
@@ -139,6 +126,7 @@ export async function PATCH(request: Request) {
       studyDays: nextStudyDays,
       topics: [...topicMap.values()],
       previous,
+      settings: { hard_topics_self: nextHard, learning_preferences: nextPrefs },
       nodes: (nodeRows ?? []).map((n) => ({
         id: n.id as string,
         sort_order: n.sort_order as number,
@@ -151,6 +139,12 @@ export async function PATCH(request: Request) {
     summary = result.summary;
     return NextResponse.json({ ok: true, rebuilt: true, summary });
   }
+
+  const { error: updateErr } = await service.from("exam_preps").update({
+    exam_date: nextExamDate, daily_minutes: nextDaily, study_days: nextStudyDays,
+    hard_topics_self: nextHard, learning_preferences: nextPrefs,
+  }).eq("id", prep.id).eq("user_id", userId);
+  if (updateErr) return errorResponse(500, "update_failed");
 
   return NextResponse.json({
     ok: true,

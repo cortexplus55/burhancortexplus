@@ -51,10 +51,11 @@ export async function POST(request: Request) {
       ? (prep.study_days as number[])
       : [1, 2, 3, 4, 5];
 
-  const { data: nodeRows } = await service
+  const { data: nodeRows, error: nodesError } = await service
     .from("exam_prep_nodes")
     .select("id, sort_order, status, session_meta")
     .eq("exam_prep_id", prep.id);
+  if (nodesError) return errorResponse(503, "node_lookup_failed");
 
   const hardSet = new Set(
     (Array.isArray(prep.hard_topics_self)

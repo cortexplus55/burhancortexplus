@@ -63,9 +63,20 @@ export async function rebuildPrepSchedule(
     topics: ScheduleTopicInput[];
     previous: ScheduleBuildResult;
     nodes: PrepNodeForReschedule[];
+    settings?: { hard_topics_self: string[]; learning_preferences: unknown };
   },
 ): Promise<{ ok: true; summary: string } | { ok: false; error: string }> {
-  const completed = completedRefsFromDoneNodes(input.nodes);
+  const { data: attempts, error: attemptsError } = await service
+    .from("exam_prep_node_attempts").select("node_id").eq("exam_prep_id", input.prepId);
+  if (attemptsError) return { ok: false, error: "attempt_lookup_failed" };
+  const startedIds = new Set((attempts ?? []).map((a) => a.node_id));
+  const protectedNodes = input.nodes
+    .filter((n) => n.status === "done" || startedIds.has(n.id))
+    .map((n) => ({ ...n, status: "done" }));
+  if (protectedNodes.some((n) => !completedRefsFromDoneNodes([n]).length)) {
+    return { ok: false, error: "schedule_metadata_missing" };
+  }
+  const completed = completedRefsFromDoneNodes(protectedNodes);
   const rebuilt = redistributeRemainingSchedule({
     previous: input.previous,
     completed,
@@ -75,65 +86,17 @@ export async function rebuildPrepSchedule(
     topics: input.topics,
   });
 
-  const { error: prepErr } = await service
-    .from("exam_preps")
-    .update({
-      daily_minutes: input.dailyMinutes,
-      study_days: input.studyDays,
-      exam_date: input.examDate,
-      schedule_v2: {
-        fits: rebuilt.fits,
-        availableMinutes: rebuilt.availableMinutes,
-        requiredMinutes: rebuilt.requiredMinutes,
-        cutTopicIds: rebuilt.cutTopicIds,
-        optionsIfTight: rebuilt.optionsIfTight,
-        studyDayDates: rebuilt.studyDayDates,
-        orderedTopicIds: rebuilt.orderedTopicIds,
-        summary: rebuilt.summary,
-        sessions: rebuilt.sessions,
-      },
-    })
-    .eq("id", input.prepId)
-    .eq("user_id", input.userId);
-
-  if (prepErr) return { ok: false, error: "prep_update_failed" };
-
-  const doneIds = input.nodes.filter((n) => n.status === "done").map((n) => n.id);
-  const removable = input.nodes.filter((n) => n.status !== "done").map((n) => n.id);
-  if (removable.length) {
-    const { error: delErr } = await service
-      .from("exam_prep_nodes")
-      .delete()
-      .in("id", removable)
-      .eq("exam_prep_id", input.prepId);
-    if (delErr) return { ok: false, error: "node_delete_failed" };
-  }
-
-  const toInsert = sessionsToInsert(rebuilt, input.nodes);
-  const drafts = scheduleSessionsToNodeDrafts(toInsert);
-  if (drafts.length) {
-    const rows = drafts.map((d, index) => ({
-      exam_prep_id: input.prepId,
-      kind: d.kind,
-      title: d.title,
-      day_index: d.dayIndex,
-      sort_order: d.sortOrder,
-      status: (doneIds.length === 0 && index === 0
-        ? "ready"
-        : index === 0
-          ? "ready"
-          : "locked") as "ready" | "locked",
-      session_meta: d.meta,
-    }));
-    // Only one ready among new batch; if some done exist, first remaining is ready.
-    if (rows.length) {
-      rows.forEach((r, i) => {
-        r.status = i === 0 ? "ready" : "locked";
-      });
-    }
-    const { error: insErr } = await service.from("exam_prep_nodes").insert(rows);
-    if (insErr) return { ok: false, error: "node_insert_failed" };
-  }
-
+  const drafts = scheduleSessionsToNodeDrafts(sessionsToInsert(rebuilt, protectedNodes));
+  const { data, error } = await service.rpc("replace_exam_prep_schedule", {
+    p_user_id: input.userId, p_prep_id: input.prepId,
+    p_expected_schedule: input.previous, p_expected_nodes: input.nodes,
+    p_preserved_ids: protectedNodes.map((n) => n.id),
+    p_schedule: rebuilt,
+    p_settings: { exam_date: input.examDate, daily_minutes: input.dailyMinutes,
+      study_days: input.studyDays, ...(input.settings ?? {}) },
+    p_nodes: drafts.map((d) => ({ kind: d.kind, title: d.title,
+      day_index: d.dayIndex, sort_order: d.sortOrder, session_meta: d.meta })),
+  });
+  if (error || !data) return { ok: false, error: "schedule_update_failed" };
   return { ok: true, summary: rebuilt.summary };
 }
