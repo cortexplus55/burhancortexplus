@@ -56,6 +56,23 @@ export default async function ExamPrepDetailPage({
 
   if (!prep) notFound();
 
+  // Hazırlığın kurulduğu belge. document_id ana select'te değil: kolon
+  // migration ile geldi ve ana select'e eklenseydi kod migration'dan önce
+  // dağıtıldığında sayfa 404 verirdi.
+  const { data: prepSource } = await supabase
+    .from("exam_preps")
+    .select("document_id")
+    .eq("id", prepId)
+    .maybeSingle();
+  const { data: sourceDoc } = prepSource?.document_id
+    ? await supabase
+        .from("documents")
+        .select("id, file_name")
+        .eq("id", prepSource.document_id)
+        .is("deleted_at", null)
+        .maybeSingle()
+    : { data: null };
+
   // Paylaşım kolonları migration ile geliyor; yoksa düğme gizli kalır.
   const [{ data: profile }, { data: shareRow }] = await Promise.all([
     supabase.from("profiles").select("school_id").eq("id", user.id).maybeSingle(),
@@ -273,6 +290,8 @@ export default async function ExamPrepDetailPage({
         uiV2={trackingV2}
         openMisconceptions={openMisconceptions}
         settings={settings}
+        documentId={sourceDoc?.id ?? null}
+        documentName={sourceDoc?.file_name ?? null}
       />
     </AstraParitySorShell>
   );

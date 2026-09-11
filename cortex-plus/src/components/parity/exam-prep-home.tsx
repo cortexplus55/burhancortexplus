@@ -79,8 +79,13 @@ export function ExamPrepHome({
   uiV2 = false,
   openMisconceptions = 0,
   settings = null,
+  documentId = null,
+  documentName = null,
 }: {
   prepId: string;
+  /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
+  documentId?: string | null;
+  documentName?: string | null;
   title: string;
   examType: string;
   examDate: string | null;
@@ -269,6 +274,15 @@ export function ExamPrepHome({
           <Link href={examPrepAssessmentHref(prepId)} className="ap-back-pill">
             Sınav öncesi değerlendirme
           </Link>
+          {/* Konu haritası belgenin kendisine ait; yenilemek için oraya
+              gidiliyor. Buradan yenilenemiyor çünkü bu hazırlığın konuları
+              kurulurken kopyalandı — belgeyi yenilemek bu planı değil,
+              bundan sonra kurulacak hazırlıkları etkiler. */}
+          {documentId ? (
+            <Link href={`/dokumanlar/${documentId}`} className="ap-back-pill">
+              Kaynağı aç{documentName ? ` · ${documentName}` : ""}
+            </Link>
+          ) : null}
           {settings ? (
             <ExamPrepSettingsPanel prepId={prepId} initial={settings} />
           ) : null}
