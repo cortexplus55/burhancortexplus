@@ -27,7 +27,7 @@ Durum kodları: `matched` bizde var · `missing` yok · `partial` var ama farkl�
 
 | # | Katman | Fark | Durum | Not |
 |---|---|---|---|---|
-| 11 | premium | Astra'da hak ekranında **"Ek paket satın al"** yalnızca abonede; bizde "Kullanımını artır" herkese | `partial` | Ödeme kapalı olduğu için bugün çıkmaz sonuç verir |
+| 11 | premium | Astra hak ekranında **"Ek paket satın al"** yalnızca abonede; ücretsizde sayacın altı boş görünüyordu | `doğrulanmadı` | Ücretsiz ekranın görüntüsü kesilmiş olabilir. Bizde `/krediler` zaten katmana göre dallanıyor (`isPremium`) ve ücretsize "Kullanımını artır" veriyor. Çalışan bir yükseltme yolunu yarım gözleme dayanarak KALDIRMADIM; ücretsiz hesapta sayacın altı yeniden bakılmalı. |
 | 12 | ücretsiz | Hak bitince çıkan duvarın metni | `BLOCKED` | Astra hesabının günlük hakkı bu sabah sıfırlanmıştı (%0), duvar görülemedi |
 | 13 | misafir | Astra hesapsız onboarding'e sokuyor (rol, ses, niyet, ad, yaş) | `BLOCKED` | Bizim `/kayit` de çok adımlı; hesapsız mı ilerliyor, doğrulanmadı |
 | 14 | misafir | Astra onboarding'inde **rol seçimi** (öğrenci/öğretmen/ebeveyn) | `extra (bilerek)` | `3e666f6` veli/öğretmen arayüzünü emekli etti; AGENTS.md kaydı |
