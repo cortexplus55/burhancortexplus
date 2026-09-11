@@ -449,7 +449,10 @@ export function dropScaffoldSections<T extends { sections: { heading: string }[]
 }
 
 /** Deterministic lesson pedagogy checks (structure → pedagogy). */
-export function validateLessonPedagogy(raw: unknown): string[] {
+export function validateLessonPedagogy(
+  raw: unknown,
+  options: { minSections?: number } = {},
+): string[] {
   const parsed = lessonV2Schema.safeParse(raw);
   if (!parsed.success) {
     return ["Ders v2 şemasını karşılamıyor (hedef, bölümler, örnek, yaygın hata, bilgi kontrolü)."];
@@ -461,8 +464,15 @@ export function validateLessonPedagogy(raw: unknown): string[] {
   }
   // Şema ikiye iniyor ama modelden istenen hâlâ üç: iki bölüm yalnızca
   // ayıklama sonrası kabul edilebilir bir kalıntı, taslak hedefi değil.
-  if (lesson.sections.length < 3) {
-    issues.push("Ders en az üç bölüm istiyor; konunun kavramlarını ayır.");
+  //
+  // Alt sınır dışarıdan verilebiliyor: kaynaktan gelen bölüm omurgası iki
+  // başlıksa prompt iki bölüm istiyor, burada üç dayatmak her taslağı
+  // reddediyordu ve ders hiç üretilmiyordu.
+  const minSections = options.minSections ?? 3;
+  if (lesson.sections.length < minSections) {
+    issues.push(
+      `Ders en az ${minSections} bölüm istiyor; konunun kavramlarını ayır.`,
+    );
   }
   // Başlık, o bölümde ne öğretildiğini söylemeli; şablonun adını değil.
   const scaffold = lesson.sections.filter((s) => isScaffoldHeading(s.heading));

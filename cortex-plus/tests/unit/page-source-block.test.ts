@@ -63,3 +63,26 @@ describe("pageSourceBlock", () => {
     expect(pageSourceBlock("uzun.pdf", long, true).length).toBeLessThan(3000);
   });
 });
+
+describe("çok sayfalı konu prompt'u taşırmıyor", () => {
+  // "Yük Altında Gerilme Dağılımı" beş sayfaya yayılıyor. Sayfa başına
+  // sınır vardı, toplama sınır yoktu: blok 11 bin karaktere çıktı ve ders
+  // üretimi 503 ile düştü. Çok sayfalı konu istisna değil.
+  const fivePages = Array.from({ length: 5 }, (_, i) => ({
+    pageNumber: i + 1,
+    text: "x".repeat(4000),
+    formulas: [`F${i} = m a`],
+  }));
+
+  it("keeps the whole block inside the budget", () => {
+    expect(pageSourceBlock("kitap.pdf", fivePages, true).length).toBeLessThan(7000);
+  });
+
+  it("still shows every page and every formula", () => {
+    const block = pageSourceBlock("kitap.pdf", fivePages, true);
+    for (let i = 0; i < 5; i += 1) {
+      expect(block).toContain(`[s.${i + 1}]`);
+      expect(block).toContain(`F${i} = m a`);
+    }
+  });
+});

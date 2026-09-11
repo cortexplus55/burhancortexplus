@@ -90,6 +90,16 @@ export async function loadSourceContext(
 const MAX_CHARS_PER_PAGE = 2200;
 
 /**
+ * Bütün sayfaların toplam sınırı.
+ *
+ * Sayfa başına sınır vardı, toplama sınır yoktu. "Yük Altında Gerilme
+ * Dağılımı" beş sayfaya yayılıyor: blok 11 bin karaktere çıktı ve ders
+ * üretimi 503 ile düştü (doğrulama aşaması kalkmadı). Çok sayfalı konu
+ * istisna değil — kitaptan yüklenen her belgede olacak.
+ */
+const MAX_CHARS_TOTAL = 6000;
+
+/**
  * Konunun KENDİ sayfalarından kaynak bloğu.
  *
  * `loadSourceContext` benzerlik araması yapıyor: sorgu konu adından
@@ -151,11 +161,18 @@ export function pageSourceBlock(
   documentsOnly: boolean,
 ): string {
   if (!pages.length) return "";
+  // Sayfa payı, sayfa sayısına göre daralıyor. Formüller kısaltmanın
+  // dışında: en kısa ve en değerli satırlar onlar, dersin yanlış yazdığı
+  // şey de tam olarak onlardı.
+  const perPage = Math.min(
+    MAX_CHARS_PER_PAGE,
+    Math.floor(MAX_CHARS_TOTAL / pages.length),
+  );
   const body = pages
     .map((page) => {
       const formulas = (page.formulas ?? []).slice(0, 8);
       return (
-        `[s.${page.pageNumber}] ${documentName}: ${page.text.slice(0, MAX_CHARS_PER_PAGE)}` +
+        `[s.${page.pageNumber}] ${documentName}: ${page.text.slice(0, perPage)}` +
         (formulas.length ? `\nBu sayfadaki formüller: ${formulas.join(" | ")}` : "")
       );
     })

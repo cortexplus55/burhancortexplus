@@ -1093,6 +1093,8 @@ async function generateNodePayload(input: {
             lesson.sections.map((section) => section.heading),
           ).length
         : 0;
+    // Kaynaktan gelen omurga kaç bölüm diyorsa doğrulayıcı da onu ister.
+    const minSections = useBackbone ? Math.max(2, backbone.length) : 3;
     const backbonePrompt = useBackbone
       ? ` BÖLÜMLER KAYNAĞIN KENDİ ALT BAŞLIKLARI: sırayla ${backbone
           .map((heading, i) => `${i + 1}) ${heading}`)
@@ -1111,7 +1113,7 @@ async function generateNodePayload(input: {
       difficulty: "hard",
       ...v2Common,
       buildIndependent: (_c, parsed) => ({
-        pedagogyIssues: validateLessonPedagogy(parsed),
+        pedagogyIssues: validateLessonPedagogy(parsed, { minSections }),
         ...sourceIndependent,
       }),
       schemaHint:
@@ -1153,7 +1155,7 @@ async function generateNodePayload(input: {
           lastValidMissing = missing;
           lastValidLesson = dropScaffoldSections(parsed);
         }
-        if (validateLessonPedagogy(parsed).length) return null;
+        if (validateLessonPedagogy(parsed, { minSections }).length) return null;
         // Kaynakta duran bir bölümü atlayan ders eksik bir derstir:
         // canlıda üretilen zemin dersi "Birleştirilmiş Zemin
         // Sınıflandırması"nı hiç anlatmadı ve öğrenci bunu bilemedi.

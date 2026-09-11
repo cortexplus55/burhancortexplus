@@ -735,8 +735,17 @@ describe("the schema tolerates two sections, the validator does not", () => {
   it("is still rejected as a draft, so the model keeps writing three", () => {
     expect(
       validateLessonPedagogy(twoSectionLesson).some((i) =>
-        i.includes("en az üç bölüm"),
+        i.includes("en az 3 bölüm"),
       ),
     ).toBe(true);
+  });
+
+  it("follows the source backbone when it asks for fewer", () => {
+    // Kaynaktan gelen omurga iki başlıksa prompt iki bölüm istiyor.
+    // Burada üç dayatmak her taslağı reddediyor ve ders hiç üretilmiyordu —
+    // canlıda "Yük Altında Gerilme Dağılımı" tam bundan düştü.
+    expect(
+      validateLessonPedagogy(twoSectionLesson, { minSections: 2 }),
+    ).toEqual([]);
   });
 });
