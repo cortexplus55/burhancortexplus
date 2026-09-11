@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AstraProfileDialog } from "@/components/parity/astra-profile-dialog";
+import { AstraProfileDialog, type ProfilePlanView } from "@/components/parity/astra-profile-dialog";
 import { AstraSketchDialog } from "@/components/parity/astra-sketch-dialog";
 import { AstraUploadModal } from "@/components/parity/astra-upload-modal";
 import {
@@ -12,8 +12,10 @@ import {
 
 function ParityDialogHostInner({
   onOpenMenu,
+  plan,
 }: {
   onOpenMenu?: () => void;
+  plan?: ProfilePlanView | null;
 }) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -38,6 +40,7 @@ function ParityDialogHostInner({
       <AstraProfileDialog
         open={dialog === "profile"}
         onClose={closeDialog}
+        plan={plan}
       />
       <AstraUploadModal
         open={dialog === "image_upload"}
@@ -58,12 +61,14 @@ function ParityDialogHostInner({
 
 export function ParityDialogHost({
   onOpenMenu,
+  plan,
 }: {
   onOpenMenu?: () => void;
+  plan?: ProfilePlanView | null;
 } = {}) {
   return (
     <Suspense fallback={null}>
-      <ParityDialogHostInner onOpenMenu={onOpenMenu} />
+      <ParityDialogHostInner onOpenMenu={onOpenMenu} plan={plan} />
     </Suspense>
   );
 }

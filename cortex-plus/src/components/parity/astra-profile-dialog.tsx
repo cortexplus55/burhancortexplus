@@ -14,12 +14,22 @@ const ROLES = [
   { id: "parent", label: "Veli", hint: "Çocuğunun ilerlemesini takip et" },
 ] as const;
 
+export type ProfilePlanView = {
+  /** Ücretsizde paketin adı ('Temel'), abonede rozet ('Plus' / 'Sigma'). */
+  label: string;
+  /** Paketin bir cümlelik hâli. */
+  hint: string;
+  isPremium: boolean;
+};
+
 export function AstraProfileDialog({
   open,
   onClose,
+  plan,
 }: {
   open: boolean;
   onClose: () => void;
+  plan?: ProfilePlanView | null;
 }) {
   const [tab, setTab] = useState<TabId>("account");
   const [role, setRole] = useState("student");
@@ -138,6 +148,30 @@ export function AstraProfileDialog({
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {/*
+          PAKET ROZETİ — öğrencinin hangi katmanda olduğunu gördüğü yer.
+
+          Astra'da profil penceresi bir hesap merkezi: en üstte paket adı
+          ('Temel — Ücretsiz plan') ve ücretsiz kullanıcıya bir yükseltme
+          çağrısı duruyor. Bizde profil yalnızca ayar paneliydi; öğrenci
+          hangi pakette olduğunu buradan hiç göremiyordu.
+
+          Abonede çağrı yok: parasını ödemiş kullanıcıya satış gösterilmez.
+        */}
+        {plan ? (
+          <div className={cn("ap-profile-plan", plan.isPremium && "ap-profile-plan--premium")}>
+            <div>
+              <strong>{plan.label}</strong>
+              <span>{plan.hint}</span>
+            </div>
+            {plan.isPremium ? null : (
+              <a className="ap-profile-plan-cta" href="/paketler">
+                Daha hızlı öğren
+              </a>
+            )}
+          </div>
+        ) : null}
 
         <nav className="ap-profile-tabs" aria-label="Ayarlar bölümleri">
           {(

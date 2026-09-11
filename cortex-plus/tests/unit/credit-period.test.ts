@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { periodLabel, quotaView, type WalletPeriod } from "@/lib/credits/period";
+import { formatResetAt, periodLabel, quotaView, type WalletPeriod } from "@/lib/credits/period";
 
 const NOW = new Date("2026-09-03T10:00:00.000Z");
 
@@ -102,5 +102,14 @@ describe("quotaView", () => {
   it("etiketleri döndürür", () => {
     expect(periodLabel("daily")).toBe("Günlük limit");
     expect(periodLabel("monthly")).toBe("Aylık limit");
+  });
+
+  it("yenilenme saatini ÖĞRENCİNİN saatiyle yazar, sunucununkiyle değil", () => {
+    // Sınır UTC gece yarısı; Türkiye'de 03:00 eder. Etiket sunucuda
+    // üretiliyor ve sunucu UTC'de olduğu için ekranda "00:00" yazıyordu.
+    // Hakkı biten öğrenci gece yarısını bekliyor, hiçbir şey olmuyordu.
+    const sinir = new Date("2026-09-12T00:00:00.000Z");
+    expect(formatResetAt(sinir)).toContain("03:00");
+    expect(formatResetAt(sinir)).toContain("12 Eylül 2026");
   });
 });

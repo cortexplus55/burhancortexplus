@@ -9,7 +9,11 @@ export function formatTry(kurus: number) {
 export function formatDate(value: string | Date | null | undefined) {
   if (!value) return "—";
   const date = typeof value === "string" ? new Date(value) : value;
+  // Saat dilimi sabit: etiketlerin çoğu sunucuda üretiliyor ve sunucu
+  // UTC'de. Sabitlenmezse öğrenciye kendi saatinden üç saat geride bir
+  // zaman gösteriliyor.
   return new Intl.DateTimeFormat("tr-TR", {
+    timeZone: "Europe/Istanbul",
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
@@ -18,7 +22,10 @@ export function formatDate(value: string | Date | null | undefined) {
 export function formatDateShort(value: string | Date | null | undefined) {
   if (!value) return "—";
   const date = typeof value === "string" ? new Date(value) : value;
-  return new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium" }).format(date);
+  return new Intl.DateTimeFormat("tr-TR", {
+    timeZone: "Europe/Istanbul",
+    dateStyle: "medium",
+  }).format(date);
 }
 
 export function formatNumber(value: number) {

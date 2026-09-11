@@ -95,9 +95,20 @@ export function quotaView(
   };
 }
 
-/** "4 Eylül 2026 03:00" — kullanıcının saat diliminde. */
+/**
+ * "4 Eylül 2026 03:00" — ÖĞRENCİNİN saatinde, sunucununkinde değil.
+ *
+ * Saat dilimi sabitlenmemişti ve etiket sunucuda üretiliyor. Vercel UTC'de
+ * çalıştığı için hak yenilenme anı ekranda "00:00" yazıyordu; oysa sınır
+ * UTC gece yarısı, yani Türkiye'de 03:00. Hakkı biten öğrenci gece yarısını
+ * bekliyor, hiçbir şey olmuyor ve üç saat daha bekliyordu.
+ *
+ * Ürün Türkiye'ye ait; proje zaten başka yerlerde (streak, günlük tur,
+ * sınav takvimi) aynı saat dilimini sabitliyor.
+ */
 export function formatResetAt(date: Date): string {
   return date.toLocaleString("tr-TR", {
+    timeZone: "Europe/Istanbul",
     day: "numeric",
     month: "long",
     year: "numeric",

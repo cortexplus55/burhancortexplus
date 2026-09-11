@@ -67,6 +67,22 @@ export function AstraParitySorShell({
   const isPremium = Boolean(account?.isPremium);
   const planLabel = account?.subscriptionBadge ?? "Plus";
   const showPlusLimit = isPremium && account && !account.canSpend && !limitDismissed;
+  /**
+   * Profil penceresinde gösterilecek paket özeti.
+   *
+   * Ücretsiz kullanıcının katmanını gördüğü tek yer burası; Astra'da da
+   * paket adı profilin en üstünde duruyor. Hak birimini de yazıyoruz
+   * çünkü ücretsizde GÜNLÜK, abonede AYLIK — fark bu.
+   */
+  const planView = account
+    ? {
+        label: account.isPremium ? planLabel : "Temel",
+        hint: account.isPremium
+          ? "Aylık hak · " + account.resetsAtLabel + " yenilenir"
+          : "Ücretsiz plan · günlük hak, " + account.resetsAtLabel + " yenilenir",
+        isPremium: account.isPremium,
+      }
+    : null;
   const isStudio = pathname.startsWith("/studio");
 
   const openMenuFromUrl = useCallback(() => setMenuOpen(true), []);
@@ -265,7 +281,7 @@ export function AstraParitySorShell({
         </div>
       ) : null}
 
-      <ParityDialogHost onOpenMenu={openMenuFromUrl} />
+      <ParityDialogHost onOpenMenu={openMenuFromUrl} plan={planView} />
       <Suspense fallback={null}>
         <MenuDialogUrlSync onOpen={openMenuFromUrl} />
       </Suspense>
