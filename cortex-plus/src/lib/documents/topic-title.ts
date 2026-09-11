@@ -197,11 +197,30 @@ function letterSpaced(text: string): boolean {
 /** Dosya adını okunabilir bir başlığa çevirir: "zemin-mekanigi-giris.pdf". */
 function titleFromFileName(fileName: string): string {
   const base = fileName.replace(/\.[a-z0-9]{1,5}$/i, "").replace(/[_-]+/g, " ");
-  const words = base
+  return titleCase(base);
+}
+
+/**
+ * Başlığı okunabilir hale getirir.
+ *
+ * Kapaklar başlığı BÜYÜK HARFLE yazıyor ve ilk canlı denemede hazırlığın
+ * adı "SERVET-İ FÜNÛN EDEBİYATI" çıktı: doğru ama ekranda bağırıyor.
+ * Zaten karışık yazılmış bir başlığa dokunulmuyor — "iPhone", "USCS"
+ * gibi yazımları bozmamak için.
+ */
+function titleCase(text: string): string {
+  const letters = text.replace(/[^\p{L}]/gu, "");
+  const upper = letters.replace(/[^\p{Lu}]/gu, "").length;
+  const shouting = letters.length > 3 && upper / letters.length > 0.8;
+  return text
     .split(/\s+/)
     .filter(Boolean)
-    .map((word) => word.charAt(0).toLocaleUpperCase("tr") + word.slice(1));
-  return words.join(" ").trim();
+    .map((word) => {
+      const body = shouting ? word.toLocaleLowerCase("tr") : word;
+      return body.charAt(0).toLocaleUpperCase("tr") + body.slice(1);
+    })
+    .join(" ")
+    .trim();
 }
 
 /**
@@ -227,7 +246,7 @@ export function documentTitle(input: {
     const heading = normalizeTopicTitle((raw ?? "").replace(TOC_PAGE_TAIL, "").trim());
     if (!heading || letterSpaced(heading)) continue;
     if (topicTitleIssues(heading).length) continue;
-    return heading;
+    return titleCase(heading);
   }
 
   // Konu başlıkları belgenin konusunu taşıyorsa ortak baş kısım belgenin

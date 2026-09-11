@@ -319,7 +319,18 @@ describe("documentTitle", () => {
         ],
         fileName: "servet-i-funun-edebiyati.pdf",
       }),
-    ).toBe("SERVET-İ FÜNÛN EDEBİYATI");
+    ).toBe("Servet-i Fünûn Edebiyatı");
+  });
+
+  it("stops the cover from shouting", () => {
+    // İlk canlı denemede hazırlığın adı "SERVET-İ FÜNÛN EDEBİYATI" çıktı:
+    // doğru ama ekranda bağırıyor. Karışık yazılmış başlığa dokunulmuyor.
+    expect(documentTitle({ coverHeadings: ["MOL VE AVOGADRO SAYISI"] })).toBe(
+      "Mol Ve Avogadro Sayısı",
+    );
+    expect(documentTitle({ coverHeadings: ["Zeminde Su Akışı"] })).toBe(
+      "Zeminde Su Akışı",
+    );
   });
 
   it("skips a letter-spaced cover line", () => {
