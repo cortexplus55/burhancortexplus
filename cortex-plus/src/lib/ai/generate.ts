@@ -169,7 +169,18 @@ export async function generateJson<T>(
   };
 
   try {
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 45000, maxRetries: 0 });
+    // 45 saniye uzun bir ders için yetmiyordu.
+    //
+    // Çizim isteyen bir ders canlıda 502 döndü. Fonksiyonun 5 dakikalık
+    // bütçesi vardı, 112 saniye çalıştı ve 9 OpenAI çağrısı yaptı; hata
+    // sağlayıcıdan gelen bir zaman aşımıydı. Yani sınır bizimdi, platformun
+    // değil: bölümleri, çizimi ve kontrol sorularıyla tam bir ders JSON'u
+    // yazmak 45 saniyeden uzun sürebiliyor ve tek bir zaman aşımı dersin
+    // tamamını çöpe atıyor.
+    //
+    // 90 saniye hâlâ fonksiyon bütçesinin içinde: en kötü durumda iki
+    // taslak ve doğrulama turları 5 dakikayı doldurmuyor.
+    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 90_000, maxRetries: 0 });
 
     const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
       { type: "text", text: params.userPrompt },
@@ -423,7 +434,13 @@ export async function generateJson<T>(
     console.error("educational_generation_failed", {
       actionCode,
       model,
-      errorType: error instanceof Error ? error.name : "unknown",
+      // `name` çoğu sağlayıcı hatasında düz "Error" — zaman aşımını
+      // ağ hatasından ayırmıyor ve kayıt işe yaramaz hâle geliyor.
+      // Sınıf adı ayırıyor; mesaj loglanmıyor, sağlayıcı metni içerebilir.
+      errorType:
+        error instanceof Error
+          ? (error.constructor?.name ?? error.name)
+          : "unknown",
       reason:
         error instanceof EducationalVerificationError
           ? error.reason
