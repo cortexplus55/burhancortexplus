@@ -41,7 +41,6 @@ import {
   validatePodcastPedagogy,
   validateTrueFalsePedagogy,
   validateLessonPedagogy,
-  blockingLessonIssues,
   dropScaffoldSections,
   lessonV2Schema,
   type LessonV2,
@@ -1166,22 +1165,24 @@ async function generateNodePayload(input: {
       describeParseFailure: () => lastParseIssues,
       parse: (raw) => {
         lastParseIssues = [];
-        const parsed = lessonV2Schema.safeParse(raw).data ?? null;
-        if (!parsed) return null;
+        const raw2 = lessonV2Schema.safeParse(raw).data ?? null;
+        if (!raw2) return null;
+        /**
+         * ÖNCE TEMİZLE, SONRA DOĞRULA.
+         *
+         * Şablon başlıklarını ayıklamak taslağı çoğu zaman kusursuz hâle
+         * getiriyor — ama ayıklama doğrulamadan SONRA yapıldığı için kimse
+         * temizlenmiş hâle bakmıyordu. Canlıda olan tam buydu: "Zeminde Su
+         * Akışı" dersi reddedildi diye kaydedildi, oysa öğrenciye giden
+         * temizlenmiş hâli bütün kuralları geçiyordu. Ders iyiydi, kayıt
+         * yanlıştı.
+         *
+         * Sıra düzelince "yedek" de anlamını değiştiriyor: artık kusurlu
+         * bir taslağı saklamıyor, TAMAMEN GEÇEN en iyi taslağı saklıyor.
+         * Hiçbiri geçmezse ders yayına çıkmaz.
+         */
+        const parsed = dropScaffoldSections(raw2);
         const missing = missingSections(parsed);
-        // Yedek yalnızca "kusurlu" taslağı tutar, "yanlış" olanı değil.
-        // Canlıda dolgu şıklı ("Hepsi"), sorusu şıklarıyla uyuşmayan ve
-        // ham LaTeX içeren bir ders bu yoldan geçmişti.
-        //
-        // Yedeğe şablon başlıkları ayıklanmış hâli konuyor. Model üç
-        // denemede de "Yaygın Hata" diye bir bölüm yazarsa doğrulama onu
-        // reddediyor ama yedek yine de yayına gidiyordu; öğrenci aynı
-        // içeriği hem bölüm hem kutu olarak görüyordu. Karşılığı zaten
-        // commonMistake / infoCheck / summary alanlarında duruyor.
-        if (!blockingLessonIssues(parsed).length && missing < lastValidMissing) {
-          lastValidMissing = missing;
-          lastValidLesson = dropScaffoldSections(parsed);
-        }
         const pedagoji = validateLessonPedagogy(parsed, { minSections });
         if (pedagoji.length) {
           lastParseIssues = pedagoji;
@@ -1237,14 +1238,27 @@ async function generateNodePayload(input: {
             return null;
           }
         }
-        // Şablon başlıkları BURADA da ayıklanıyor, yalnızca yedekte değil.
-        // Ayıklama sadece yedek taslağa uygulandığı için başarıyla üretilen
-        // derste hiç çalışmıyordu: canlıdaki ders "Kapanış ve Sonraki Adım"
-        // diye bir bölümle öğrenciye ulaştı. Karşılığı zaten summary ve
-        // nextFocus alanlarında duruyor.
-        return dropScaffoldSections(parsed);
+        // Buraya gelen taslak temizlenmiş VE bütün kuralları geçmiş
+        // demektir. En iyisini sakla: doğrulayıcının son turu başka bir
+        // sebeple düşerse öğrenciye giden ders yine kusursuz olsun.
+        if (missing < lastValidMissing) {
+          lastValidMissing = missing;
+          lastValidLesson = parsed;
+        }
+        return parsed;
       },
     });
+    /**
+     * KUSURLU DERS ÖĞRENCİYE GİTMEZ.
+     *
+     * `lastValidLesson` artık "kusurlu ama var" taslağı değil: yukarıda
+     * yalnızca temizlenmiş VE bütün kuralları geçmiş taslak oraya konuyor.
+     * Yani burada ne gelirse gelsin doğrulanmış bir derstir.
+     *
+     * Hiçbiri geçmediyse ders açılmaz ve öğrenci "yeniden dene" görür.
+     * Bunun bedeli kabul edildi: yarım bir ders, dersin hiç olmamasından
+     * iyi DEĞİL — sınavına çalışan öğrenci yanlış öğrenir ve bunu bilemez.
+     */
     const lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;
     if (!lesson) throw new NodeGenerationError(outcome.ok ? 500 : outcome.status, outcome.ok ? "lesson_missing" : outcome.error);
     // Dersi konuya da yaz: öğrenci sonra geri dönüp okuyabilsin ve ders
