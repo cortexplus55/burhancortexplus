@@ -15,6 +15,7 @@ import {
   projectedReadiness,
 } from "@/lib/learning/exam-plan-phases";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { ExamSetupChat } from "@/components/parity/exam-setup-chat";
 import "@/styles/exam-create-wizard.css";
 
 type Step =
@@ -133,8 +134,8 @@ export function ExamCreateWizard({
   // kimse doldurmuyordu: learning_preferences boş kayıt ediliyor,
   // source_boundary_mode her belgede documents_only'de kalıyordu.
   const [prefStyle, setPrefStyle] = useState<"theory" | "examples" | "mixed">("mixed");
-  const [onlyMyFiles, setOnlyMyFiles] = useState(true);
   const [dailyMinutes, setDailyMinutes] = useState(45);
+  const [prefNotes, setPrefNotes] = useState("");
 
   const [documentId, setDocumentId] = useState<string | null>(initialDocumentId);
   const [documentName, setDocumentName] = useState<string | null>(null);
@@ -274,7 +275,10 @@ export function ExamCreateWizard({
           documentId: documentId ?? undefined,
           hardTopics: focusTopics,
           dailyMinutes,
-          learningPreferences: { style: prefStyle },
+          learningPreferences: {
+            style: prefStyle,
+            ...(prefNotes ? { notes: prefNotes } : {}),
+          },
         }),
       });
       if (res.status === 402) {
@@ -670,101 +674,28 @@ export function ExamCreateWizard({
       ) : null}
 
       {step === "setup" ? (
-        <section className="apw-step">
-          <h1>Nasıl çalışalım?</h1>
-          <p className="apw-lead">
-            Üç kısa soru; dersler buna göre yazılır. Sonradan
-            değiştirebilirsin.
-          </p>
-
-          <h2 className="apw-group">Anlatım ağırlığı</h2>
-          <div className="apw-grid">
-            {(
-              [
-                ["theory", "Daha çok anlatım", "Kavramı açan uzun anlatım"],
-                ["examples", "Daha çok soru", "Çözümlü örnek ve alıştırma"],
-                ["mixed", "Dengeli", "İkisinden de"],
-              ] as const
-            ).map(([value, label, hint]) => (
-              <button
-                key={value}
-                type="button"
-                className={
-                  prefStyle === value ? "apw-tile apw-tile--on" : "apw-tile"
-                }
-                aria-pressed={prefStyle === value}
-                onClick={() => setPrefStyle(value)}
-              >
-                <b>{label}</b>
-                <span>{hint}</span>
-              </button>
-            ))}
-          </div>
-
-          <h2 className="apw-group">Kaynak sınırı</h2>
-          <div className="apw-grid">
-            {(
-              [
-                [true, "Yalnızca yüklediğim", "Belgende olmayan bilgi eklenmez"],
-                [false, "Eksikleri tamamla", "Belgen yetmezse genel bilgiyle destekle"],
-              ] as const
-            ).map(([value, label, hint]) => (
-              <button
-                key={String(value)}
-                type="button"
-                className={
-                  onlyMyFiles === value ? "apw-tile apw-tile--on" : "apw-tile"
-                }
-                aria-pressed={onlyMyFiles === value}
-                onClick={() => setOnlyMyFiles(value)}
-              >
-                <b>{label}</b>
-                <span>{hint}</span>
-              </button>
-            ))}
-          </div>
-
-          <h2 className="apw-group">Günde ne kadar vaktin var?</h2>
-          <div className="apw-grid">
-            {[20, 30, 45, 60, 90].map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={
-                  dailyMinutes === value ? "apw-tile apw-tile--on" : "apw-tile"
-                }
-                aria-pressed={dailyMinutes === value}
-                onClick={() => setDailyMinutes(value)}
-              >
-                <b>{value} dk</b>
-              </button>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            className="apw-cta"
-            onClick={() => {
-              // Kaynak sınırı belgenin kendi ayarı; plan kurulmadan yazılıyor
-              // ki ilk ders de bu sınırla üretilsin. Yazılamazsa plan yine
-              // kurulur — sınır varsayılanda (yalnızca belge) kalır.
-              if (documentId) {
-                void fetch(`/api/documents/${documentId}/topic-map`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    sourceBoundaryMode: onlyMyFiles
-                      ? "documents_only"
-                      : "allow_supporting",
-                  }),
-                }).catch(() => {});
-              }
-              setStep("plan");
-            }}
-          >
-            Yolumu göster
-          </button>
-        </section>
+        <ExamSetupChat
+          onDone={(answers) => {
+            setPrefStyle(answers.style);
+            setDailyMinutes(answers.dailyMinutes);
+            setPrefNotes(answers.notes);
+            // Kaynak sınırı belgenin kendi ayarı; plan kurulmadan yazılıyor
+            // ki ilk ders de bu sınırla üretilsin. Yazılamazsa plan yine
+            // kurulur — sınır varsayılanda (yalnızca belge) kalır.
+            if (documentId) {
+              void fetch(`/api/documents/${documentId}/topic-map`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  sourceBoundaryMode: answers.onlyMyFiles
+                    ? "documents_only"
+                    : "allow_supporting",
+                }),
+              }).catch(() => {});
+            }
+            setStep("plan");
+          }}
+        />
       ) : null}
 
       {step === "plan" ? (

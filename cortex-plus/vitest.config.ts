@@ -1,10 +1,15 @@
 import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
+  // @vitejs/plugin-react bağımlılıklarda duruyordu ama yapılandırmaya
+  // bağlı değildi: JSX içeren bir test dosyası ayrıştırılamıyordu.
+  plugins: [react()],
   test: {
     environment: "node",
-    include: ["tests/unit/**/*.test.ts"],
+    // Bileşen testleri .tsx; ortam dosya başında @vitest-environment ile seçilir.
+    include: ["tests/unit/**/*.test.ts", "tests/unit/**/*.test.tsx"],
   },
   resolve: {
     alias: {
