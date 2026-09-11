@@ -92,24 +92,52 @@ function emptyish(value: unknown): boolean {
   return false;
 }
 
-/** Cheap arithmetic equality: "2+2=4", "3×4=12", "½=0.5" style fragments. */
+/**
+ * Ucuz aritmetik denetimi: "2+2=4", "3×4=12" gibi parçalar.
+ *
+ * DENETÇİ İKİ KEZ DOĞRU DERSİ REDDETTİ; ikisi de burada düzeltildi.
+ *
+ * 1. YUVARLAMA. Ders "0,54 / 1,54 = 0,351" yazdı. Doğrusu 0,35064…; üç
+ *    basamağa yuvarlanmış hâli tam olarak 0,351. Denetim 1e-6 mutlak fark
+ *    istediği için bunu hata saydı. Oysa ders kitabı da yuvarlar. Hoşgörü
+ *    artık iddianın YAZILDIĞI basamağa göre: üç basamak yazılmışsa yarım
+ *    birim sapma kabul, dördüncü basamakta değil.
+ *
+ * 2. ZİNCİR. Ders "3,24 × 9,81 / 1,54 = 20,64" yazdı. Denetim zincirin
+ *    ortasından "9,81 / 1,54"ü koparıp sonuçla karşılaştırdı ve tutmadı.
+ *    Üç terimli bir işlemin son iki terimi tek başına sonucu vermez.
+ *    Eşleşmenin solunda bir işleç varsa parça bir zincirin ortasıdır ve
+ *    tek başına denetlenemez.
+ *
+ * Yanlış alarmın bedeli görünmez ve ağır: taslak reddedilir, üç deneme de
+ * düşerse ders yedek yoldan — daha kötü hâliyle — öğrenciye gider.
+ */
 export function checkSimpleMathClaims(text: string): string[] {
   const issues: string[] = [];
   const eq = /(?<![\d.,\w])([−-]?\d+(?:[.,]\d+)?)\s*([+\-−×x*÷/])\s*([−-]?\d+(?:[.,]\d+)?)\s*=\s*([−-]?\d+(?:[.,]\d+)?)(?![\d.,/])/gi;
   let match: RegExpExecArray | null;
   while ((match = eq.exec(text)) !== null) {
+    // Zincirin ortası mı? Solunda bir işleç varsa evet.
+    const before = text.slice(0, match.index).trimEnd();
+    if (/[+\-−×x*÷/]$/i.test(before)) continue;
+
     const number = (value: string) => Number(value.replace("−", "-").replace(",", "."));
     const a = number(match[1]);
     const op = match[2];
     const b = number(match[3]);
-    const claimed = number(match[4]);
+    const claimedText = match[4];
+    const claimed = number(claimedText);
     if (![a, b, claimed].every((n) => Number.isFinite(n))) continue;
     let expected: number | null = null;
     if (op === "+" || op === "-" || op === "−") expected = op === "+" ? a + b : a - b;
     else if (op === "×" || op === "x" || op === "*") expected = a * b;
     else if (op === "÷" || op === "/") expected = b === 0 ? null : a / b;
     if (expected == null) continue;
-    if (Math.abs(expected - claimed) > 1e-6) {
+
+    // Yazılan basamak kadar hoşgörü: "0,351" için yarım binde bir.
+    const decimals = claimedText.split(/[.,]/)[1]?.length ?? 0;
+    const tolerance = decimals > 0 ? 0.5 * 10 ** -decimals : 1e-6;
+    if (Math.abs(expected - claimed) > tolerance) {
       issues.push(`Hesap uyuşmazlığı: ${a}${op}${b}≠${claimed}`);
     }
   }

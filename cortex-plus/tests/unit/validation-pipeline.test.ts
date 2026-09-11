@@ -40,6 +40,26 @@ describe("Stage 7 validation pipeline", () => {
     expect(checkSimpleMathClaims("3×4=12")).toEqual([]);
   });
 
+  it("accepts a result rounded to the decimals it shows", () => {
+    // Canlıda bu yüzden doğru bir zemin dersi reddedildi: 0,54/1,54 =
+    // 0,35064… ve ders üç basamağa yuvarlayıp 0,351 yazmıştı. Ders kitabı
+    // da yuvarlar; denetim 1e-6 mutlak fark istiyordu.
+    expect(checkSimpleMathClaims("n = 0,54 / 1,54 = 0,351")).toEqual([]);
+    expect(checkSimpleMathClaims("1 / 3 = 0,33")).toEqual([]);
+    // Yuvarlamaya izin vermek, yanlışa izin vermek değil.
+    expect(checkSimpleMathClaims("0,54 / 1,54 = 0,451")).toHaveLength(1);
+  });
+
+  it("does not grade the middle of a chained calculation", () => {
+    // "3,24 × 9,81 / 1,54 = 20,64" doğru. Denetim zincirin son iki terimini
+    // koparıp "9,81 / 1,54 = 20,64" diye okuyor ve hata sanıyordu.
+    expect(
+      checkSimpleMathClaims("γ sat = 3,24 × 9,81 / 1,54 = 20,64 kN/m³"),
+    ).toEqual([]);
+    // Zincirin BAŞI hâlâ denetlenir.
+    expect(checkSimpleMathClaims("2 + 2 = 5 ve sonra devam")).toHaveLength(1);
+  });
+
   it("flags impossible percents and mol/g unit clashes", () => {
     expect(checkImpossiblePercentClaims("yüzde 150 başarı oranı")).toContain(
       "İmkânsız yüzde: 150",
