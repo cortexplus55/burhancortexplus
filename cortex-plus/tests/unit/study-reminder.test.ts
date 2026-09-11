@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickReminder, type ReminderInput } from "@/lib/learning/study-reminder";
+import { moreUrgent, pickReminder, type ReminderInput } from "@/lib/learning/study-reminder";
 
 /**
  * Hatırlatma kuralı.
@@ -76,9 +76,52 @@ describe("pickReminder", () => {
     ).toBe("exam_soon");
   });
 
-  it("mentions the exam only on the third day out", () => {
+  it("covers the last three days, not only the third", () => {
+    // Kural `=== 3` iken tek bir kaçan çalıştırma uyarıyı yok ediyordu.
+    // Canlıda sınavına iki gün kalmış bir hazırlık bulundu; penceresi
+    // kapanmıştı ve uyarıyı hiç alamayacaktı.
+    expect(pickReminder({ ...base, daysUntilExam: 3 })?.kind).toBe("exam_soon");
+    expect(pickReminder({ ...base, daysUntilExam: 2 })?.kind).toBe("exam_soon");
+    expect(pickReminder({ ...base, daysUntilExam: 1 })?.kind).toBe("exam_soon");
+  });
+
+  it("says the number of days it actually is", () => {
+    // "Sınava 3 gün kaldı" yazıp bir gün kalmış olması öğrenciyi yanıltır.
+    expect(pickReminder({ ...base, daysUntilExam: 1 })?.title).toBe("Sınava 1 gün kaldı");
+    expect(pickReminder({ ...base, daysUntilExam: 2 })?.title).toBe("Sınava 2 gün kaldı");
+  });
+
+  it("stays quiet before the window and on exam day itself", () => {
+    // Dördüncü gün erken. Sınav günü çalışma hatırlatması artık geç.
     expect(pickReminder({ ...base, daysUntilExam: 4 })).toBeNull();
-    expect(pickReminder({ ...base, daysUntilExam: 2 })).toBeNull();
+    expect(pickReminder({ ...base, daysUntilExam: 0 })).toBeNull();
+  });
+
+  it("lets the nearest exam speak when a student has several preps", () => {
+    // Öğrenci başına tek bildirim kuralı hazırlıklar ARASINDA da bir seçim
+    // gerektiriyor; orada seçim yoktu, sorgudan ilk dönen kazanıyordu.
+    const idle = {
+      reminder: pickReminder({ ...base, hoursSinceActivity: 30 })!,
+      daysUntilExam: 19,
+    };
+    const examSoon = {
+      reminder: pickReminder({ ...base, daysUntilExam: 2 })!,
+      daysUntilExam: 2,
+    };
+    expect(moreUrgent(examSoon, idle)).toBeLessThan(0);
+    expect(moreUrgent(idle, examSoon)).toBeGreaterThan(0);
+  });
+
+  it("picks the closer exam when two are both close", () => {
+    const twoDays = {
+      reminder: pickReminder({ ...base, daysUntilExam: 2 })!,
+      daysUntilExam: 2,
+    };
+    const threeDays = {
+      reminder: pickReminder({ ...base, daysUntilExam: 3 })!,
+      daysUntilExam: 3,
+    };
+    expect(moreUrgent(twoDays, threeDays)).toBeLessThan(0);
   });
 
   it("never sends a second reminder the same day", () => {

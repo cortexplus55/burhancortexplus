@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { pickReminder } from "@/lib/learning/study-reminder";
+import { moreUrgent, pickReminder, type Reminder } from "@/lib/learning/study-reminder";
 import { sendEmail } from "@/lib/email/mailer";
 
 export const dynamic = "force-dynamic";
@@ -103,13 +103,16 @@ export async function GET(request: Request) {
     (sentToday ?? []).map((row) => row.user_id as string),
   );
 
-  const rows: { user_id: string; title: string; body: string }[] = [];
-  const seen = new Set<string>();
+  // Öğrenci başına EN ACİL aday. Eskiden sorgudan ilk dönen hazırlık
+  // kazanıyordu; sınavına iki gün kalmış öğrenci sırf satır sırası yüzünden
+  // "kaldığın yer seni bekliyor" mesajı alabiliyordu.
+  const best = new Map<
+    string,
+    { reminder: Reminder; daysUntilExam: number | null; prepTitle: string }
+  >();
 
   for (const prep of preps) {
     const userId = prep.user_id as string;
-    // Bir öğrencinin birden çok hazırlığı olabilir; ilk uygun olan yeter.
-    if (seen.has(userId)) continue;
     if (!unfinishedByPrep.has(prep.id as string)) continue;
 
     const last = lastActivity.get(userId);
@@ -138,13 +141,22 @@ export async function GET(request: Request) {
     });
     if (!reminder) continue;
 
-    seen.add(userId);
-    rows.push({
-      user_id: userId,
-      title: reminder.title,
-      body: `${prep.title ?? "Sınav hazırlığın"} — ${reminder.body}`,
-    });
+    const candidate = {
+      reminder,
+      daysUntilExam,
+      prepTitle: (prep.title as string | null) ?? "Sınav hazırlığın",
+    };
+    const current = best.get(userId);
+    if (!current || moreUrgent(candidate, current) < 0) {
+      best.set(userId, candidate);
+    }
   }
+
+  const rows = [...best.entries()].map(([userId, pick]) => ({
+    user_id: userId,
+    title: pick.reminder.title,
+    body: `${pick.prepTitle} — ${pick.reminder.body}`,
+  }));
 
   if (!rows.length) {
     return NextResponse.json({ ok: true, checked: preps.length, sent: 0, mailed: 0 });
