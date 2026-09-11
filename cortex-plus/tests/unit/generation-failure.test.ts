@@ -53,3 +53,32 @@ describe("describeGenerationFailure", () => {
     expect(failure.retryMintsNewId).toBe(true);
   });
 });
+
+describe("hak bittiğinde", () => {
+  it("yeniden denemeyi ÖNERMEZ — denemek işe yaramıyor", () => {
+    // Bu kodun karşılığı yoktu; öğrenci genel mesajı görüyordu:
+    // "Ders şu anda oluşturulamadı. Yeniden deneyebilirsin." Oysa hak
+    // ertesi gün geliyor; öğrenci düğmeye basıp duruyordu.
+    const f = describeGenerationFailure("insufficient_credits");
+    expect(f.canRetryNow).toBe(false);
+    expect(f.retryMintsNewId).toBe(false);
+    expect(f.message).not.toContain("Yeniden dene");
+  });
+
+  it("yenilenme zamanını yazar — beklemek de bir çözüm", () => {
+    const f = describeGenerationFailure(
+      "insufficient_credits",
+      "12 Eylül 2026 03:00",
+    );
+    expect(f.message).toContain("12 Eylül 2026 03:00");
+  });
+
+  it("çıkış yolunu gösterir", () => {
+    expect(describeGenerationFailure("insufficient_credits").action?.href).toBe(
+      "/krediler",
+    );
+    expect(describeGenerationFailure("premium_required").action?.href).toBe(
+      "/paketler",
+    );
+  });
+});

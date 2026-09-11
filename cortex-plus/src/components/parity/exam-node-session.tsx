@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { createSerialTaskQueue } from "@/lib/learning/serial-task-queue";
-import { describeGenerationFailure } from "@/lib/learning/generation-failure";
+import {
+  describeGenerationFailure,
+  type GenerationFailure,
+} from "@/lib/learning/generation-failure";
 import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
@@ -61,6 +64,7 @@ export function ExamNodeSession({
   initialFamiliarity,
   resumeEnabled = false,
   sourceName = null,
+  resetsAtLabel = null,
 }: {
   prepId: string;
   nodeId: string;
@@ -75,6 +79,13 @@ export function ExamNodeSession({
   resumeEnabled?: boolean;
   /** Hazırlık bir belgeye bağlıysa dosya adı — üretim ekranında gösterilir. */
   sourceName?: string | null;
+  /**
+   * Hakkın ne zaman yenileneceği — "12 Eylül 2026 03:00".
+   *
+   * Hakkı biten öğrenciye yalnızca "yükselt" demek eksik cevap: beklemek de
+   * çözüyor ve bunu saklamak doğru olmaz.
+   */
+  resetsAtLabel?: string | null;
 }) {
   const router = useRouter();
   const meta = PLAN_NODE_META[kind];
@@ -91,6 +102,14 @@ export function ExamNodeSession({
   const [voiceMode, setVoiceMode] = useState(meta.voice);
   const [loading, setLoading] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  /**
+   * Hatanın kendisi, yalnızca metni değil.
+   *
+   * `canRetryNow` hesaplanıyordu ama arayüz onu hiç okumuyordu: hakkı biten
+   * öğrenciye de, üretimi süren öğrenciye de çalışmayan bir "Ders oluştur"
+   * düğmesi gösteriliyordu.
+   */
+  const [generationFailure, setGenerationFailure] = useState<GenerationFailure | null>(null);
   const [paywall, setPaywall] = useState(false);
   const [paywallReason, setPaywallReason] = useState<"credit" | "premium">("credit");
   const [payload, setPayload] = useState<Payload>({});
@@ -283,6 +302,7 @@ export function ExamNodeSession({
   async function start() {
     if (startInFlight.current || loading) return;
     startInFlight.current = true;
+    setGenerationFailure(null);
     setLoading(true);
     setGenerationError(null);
     try {
@@ -316,8 +336,9 @@ export function ExamNodeSession({
         //
         // Üretim hâlâ sürüyorsa yenilenmiyor: yenilemek ikinci bir üretim
         // başlatır ve öğrenci iki kez ödeyebilir.
-        const failure = describeGenerationFailure(data.error);
+        const failure = describeGenerationFailure(data.error, resetsAtLabel ?? undefined);
         if (failure.retryMintsNewId) clearClientRequestId();
+        setGenerationFailure(failure);
         setGenerationError(failure.message);
         return;
       }
@@ -617,15 +638,29 @@ export function ExamNodeSession({
               />
             </label>
           ) : null}
-          <button
-            type="button"
-            className="ap-exam-continue ap-exam-continue--primary"
-            disabled={loading}
-            onClick={() => void start()}
-          >
-            {loading ? "Hazırlanıyor…" : "Ders oluştur"}
-          </button>
-          {generationError ? <p role="alert" className="text-sm text-red-400">{generationError}</p> : null}
+          {generationFailure && !generationFailure.canRetryNow ? null : (
+            <button
+              type="button"
+              className="ap-exam-continue ap-exam-continue--primary"
+              disabled={loading}
+              onClick={() => void start()}
+            >
+              {loading ? "Hazırlanıyor…" : "Ders oluştur"}
+            </button>
+          )}
+          {generationError ? (
+            <p role="alert" className="text-sm text-red-400">
+              {generationError}
+            </p>
+          ) : null}
+          {generationFailure?.action ? (
+            <Link
+              href={generationFailure.action.href}
+              className="ap-exam-continue inline-flex"
+            >
+              {generationFailure.action.label}
+            </Link>
+          ) : null}
         </article>
       ) : null}
 
