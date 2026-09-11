@@ -9,6 +9,9 @@ Durum kodları: `matched` bizde var · `missing` yok · `partial` var ama farkl�
 |---|---|---|---|---|
 | 1 | ücretsiz | Öğrenci hangi pakette olduğunu göremiyordu; Astra'da profilin en üstünde | **kapandı** | `astra-profile-dialog.tsx` paket rozeti + "Daha hızlı öğren"; canlı: "Temel — Ücretsiz plan · günlük hak, 12 Eylül 2026 03:00 yenilenir" |
 | 2 | her ikisi | Yenilenme saati ekranda 00:00 yazıyordu, gerçekte 03:00 | **kapandı** | `period.ts` + `format.ts` saat dilimi sabitlendi; canlı: "12 Eylül 2026 03:00 tarihinde sıfırlanır"; test: `credit-period.test.ts` |
+| 16 | ücretsiz | Hak bitince ekran "Yeniden deneyebilirsin" diyordu; denemek hiç işe yaramıyor | **kapandı** | `generation-failure.ts` `insufficient_credits` karşılığı + yenilenme saati + "Hakkımı gör"; `canRetryNow` artık arayüzde okunuyor, çalışmayan düğme çizilmiyor. Test: `generation-failure.test.ts` |
+| 17 | premium | Rozet ücretsize özel olunca abonenin paketini görebileceği yol kalmadı | **kapandı** | Profil paneline "Kullanımım → /krediler" ve "Aboneliğim → /odemeler" eklendi; canlıda doğrulandı |
+| 18 | premium | Astra profilinde paket rozeti YOK, yalnızca ücretsizde | **kapandı** | Rozet `account && !account.isPremium` koşuluna alındı; her iki Astra katmanına da girilip doğrulandı |
 
 ## Zaten eşleşenler (kod okunarak doğrulandı — yeniden yazılmadı)
 
