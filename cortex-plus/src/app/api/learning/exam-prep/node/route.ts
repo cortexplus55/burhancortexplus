@@ -6,6 +6,7 @@ import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flag
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import {
   EMPTY_SOURCE_CONTEXT,
+  loadPageSourceContext,
   loadSourceContext,
 } from "@/lib/learning/source-context";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
@@ -612,7 +613,21 @@ export async function POST(request: Request) {
 
   let source;
   try {
-    source = voiceSession
+    // Konunun kendi sayfaları varsa onları okuyoruz; benzerlik araması
+    // o sayfaların prompta girdiğini garanti etmiyordu ve ders kaynakta
+    // duran formülü yanlış yazabiliyordu. Sayfa okunamazsa aramaya düşer.
+    const pageSource =
+      teachingV2 && !voiceSession
+        ? await loadPageSourceContext(
+            service,
+            prepSource.document_id,
+            sessionMeta?.sourcePages,
+            { sourceBoundaryMode },
+          )
+        : EMPTY_SOURCE_CONTEXT;
+    source = pageSource.block
+      ? pageSource
+      : voiceSession
       ? EMPTY_SOURCE_CONTEXT
       : await loadSourceContext(
           service,
