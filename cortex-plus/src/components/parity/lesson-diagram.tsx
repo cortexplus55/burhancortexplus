@@ -4,6 +4,7 @@ import {
   type DiagramShape,
   type DiagramTone,
   type LessonDiagram,
+  placeLabel,
 } from "@/lib/learning/lesson-diagram";
 
 /**
@@ -68,19 +69,25 @@ function Shape({ shape, id }: { shape: DiagramShape; id: string }) {
           markerEnd={shape.arrow ? `url(#${id}-arrow)` : undefined}
         />
       );
-    case "text":
+    case "text": {
+      // Yerleştirmeyi biz yapıyoruz: modelin verdiği x kutudan taşabiliyor
+      // ve yazı ekranda ortadan kesiliyor.
+      const placed = placeLabel(shape);
       return (
         <text
-          x={shape.x}
-          y={shape.y}
+          x={placed.x}
+          y={placed.y}
           fill={color(shape.tone, "ink")}
-          textAnchor={shape.anchor ?? "start"}
+          textAnchor={placed.anchor}
           fontSize={shape.size === "sm" ? 9 : 11}
           dominantBaseline="middle"
+          textLength={placed.fitWidth}
+          lengthAdjust={placed.fitWidth ? "spacingAndGlyphs" : undefined}
         >
           {shape.text}
         </text>
       );
+    }
   }
 }
 

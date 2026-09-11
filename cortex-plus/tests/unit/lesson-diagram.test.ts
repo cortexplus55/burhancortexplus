@@ -3,6 +3,7 @@ import {
   DIAGRAM_HEIGHT,
   DIAGRAM_WIDTH,
   diagramIssues,
+  placeLabel,
   lessonDiagramSchema,
   needsDiagram,
 } from "@/lib/learning/lesson-diagram";
@@ -129,6 +130,42 @@ describe("lessonDiagramSchema", () => {
     };
     expect(lessonDiagramSchema.safeParse(unitCircle).success).toBe(true);
     expect(diagramIssues(unitCircle)).toEqual([]);
+  });
+});
+
+describe("placeLabel", () => {
+  it("pulls a label back inside instead of letting it be clipped", () => {
+    // Canlıda olan: x=220'de başlayan 24 karakterlik etiket kutunun
+    // sağından taştı ve "Drenajsız (c u, φ u ≈ 0)" ortadan kesildi.
+    const placed = placeLabel({ x: 220, y: 55, text: "Drenajsız (c u, φ u ≈ 0)" });
+    expect(placed.x).toBeLessThan(220);
+    expect(placed.x + "Drenajsız (c u, φ u ≈ 0)".length * 11 * 0.55).toBeLessThanOrEqual(
+      DIAGRAM_WIDTH,
+    );
+  });
+
+  it("leaves a label that already fits exactly where the model put it", () => {
+    const placed = placeLabel({ x: 40, y: 50, text: "σ'" });
+    expect(placed).toMatchObject({ x: 40, y: 50, anchor: "start" });
+  });
+
+  it("keeps an end-anchored label off the left edge", () => {
+    const placed = placeLabel({ x: 5, y: 50, text: "kırılma zarfı", anchor: "end" });
+    expect(placed.x).toBeGreaterThan(5);
+  });
+
+  it("squeezes a label too wide for the box rather than clipping it", () => {
+    const long = "a".repeat(60);
+    const placed = placeLabel({ x: 10, y: 50, text: long });
+    expect(placed.anchor).toBe("middle");
+    expect(placed.fitWidth).toBeLessThanOrEqual(DIAGRAM_WIDTH);
+  });
+
+  it("keeps a label off the top and bottom edges", () => {
+    expect(placeLabel({ x: 50, y: 0, text: "τ" }).y).toBeGreaterThan(0);
+    expect(
+      placeLabel({ x: 50, y: DIAGRAM_HEIGHT, text: "τ" }).y,
+    ).toBeLessThan(DIAGRAM_HEIGHT);
   });
 });
 

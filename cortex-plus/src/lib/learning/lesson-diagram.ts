@@ -129,6 +129,68 @@ export function needsDiagram(...texts: (string | null | undefined)[]): boolean {
   return DIAGRAM_WORDS.some((word) => blob.includes(word));
 }
 
+/** Etiket yazı tipi boyu; çizen bileşenle aynı olmak zorunda. */
+const LABEL_SIZE = { sm: 9, md: 11 } as const;
+/** Ortalama karakter genişliği / punto. Ölçmüyoruz, sığdırıyoruz. */
+const CHAR_RATIO = 0.55;
+
+export type PlacedLabel = {
+  x: number;
+  y: number;
+  anchor: "start" | "middle" | "end";
+  /** Kutuya hiç sığmıyorsa yazının sıkıştırılacağı genişlik. */
+  fitWidth?: number;
+};
+
+/**
+ * Etiketi çizim alanının İÇİNDE tutar.
+ *
+ * Şema şekillerin koordinatını sınırlıyor ama yazının uzunluğunu değil:
+ * x = 220'de başlayan 24 karakterlik bir etiket kutunun sağından taşıyor
+ * ve ekranda ortadan kesiliyor. Canlıda çıkan buydu — "Drenajsız (c u,
+ * φ u ≈ 0)" yarısından kesildi.
+ *
+ * Modelden daha iyi koordinat ummak yerine yerleştirmeyi biz yapıyoruz:
+ * yazı taşacaksa içeri kaydırılır, kutudan geniş olan tek satır ise
+ * kutuya sıkıştırılır. Kırpılmış yazı okunmuyor; sıkıştırılmış okunuyor.
+ */
+export function placeLabel(shape: {
+  x: number;
+  y: number;
+  text: string;
+  anchor?: "start" | "middle" | "end";
+  size?: "sm" | "md";
+}): PlacedLabel {
+  const anchor = shape.anchor ?? "start";
+  const fontSize = LABEL_SIZE[shape.size ?? "md"];
+  const width = shape.text.length * fontSize * CHAR_RATIO;
+  const pad = 2;
+  const y = Math.min(DIAGRAM_HEIGHT - pad, Math.max(fontSize / 2, shape.y));
+
+  if (width >= DIAGRAM_WIDTH - pad * 2) {
+    // Hiçbir yere sığmıyor: ortala ve kutu genişliğine sıkıştır.
+    return {
+      x: DIAGRAM_WIDTH / 2,
+      y,
+      anchor: "middle",
+      fitWidth: DIAGRAM_WIDTH - pad * 2,
+    };
+  }
+
+  let x = shape.x;
+  if (anchor === "start") {
+    x = Math.min(x, DIAGRAM_WIDTH - pad - width);
+    x = Math.max(pad, x);
+  } else if (anchor === "end") {
+    x = Math.max(x, pad + width);
+    x = Math.min(DIAGRAM_WIDTH - pad, x);
+  } else {
+    x = Math.min(x, DIAGRAM_WIDTH - pad - width / 2);
+    x = Math.max(pad + width / 2, x);
+  }
+  return { x, y, anchor };
+}
+
 /**
  * Çizimin okunabilir olup olmadığı.
  *
