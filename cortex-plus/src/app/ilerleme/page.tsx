@@ -7,6 +7,7 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { formatNumber } from "@/lib/format";
 import { countMistakes } from "@/lib/learning/mistake-notebook";
+import { ActivityHistory } from "@/components/student/activity-history";
 
 export const metadata = { title: "İlerleme" };
 
@@ -14,7 +15,8 @@ export default async function IlerlemePage() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
-  const [conversations, quizzes, flashcards, attempts, weak, mistakes] = await Promise.all([
+  const [conversations, quizzes, flashcards, attempts, weak, mistakes, activity] =
+    await Promise.all([
     supabase
       .from("conversations")
       .select("id", { count: "exact", head: true })
@@ -40,7 +42,24 @@ export default async function IlerlemePage() {
       .order("created_at", { ascending: false })
       .limit(10),
     countMistakes(supabase, user.id),
+    // Çalışma geçmişi: bitirilen etkinliklerin tarihleri. Son bir yıl
+    // yeter; ısı haritası 52 hafta gösteriyor.
+    supabase
+      .from("exam_prep_node_attempts")
+      .select("updated_at")
+      .eq("user_id", user.id)
+      .eq("status", "completed")
+      .gte(
+        "updated_at",
+        new Date(Date.now() - 370 * 24 * 60 * 60 * 1000).toISOString(),
+      )
+      .order("updated_at", { ascending: false })
+      .limit(2000),
   ]);
+
+  const activityStamps = (activity.data ?? [])
+    .map((row) => row.updated_at as string)
+    .filter(Boolean);
 
   const scores = (attempts.data ?? [])
     .map((row) => Number(row.score ?? 0))
@@ -71,6 +90,7 @@ export default async function IlerlemePage() {
   }));
 
   const hasAnyActivity =
+    activityStamps.length > 0 ||
     (conversations.count ?? 0) > 0 ||
     (quizzes.count ?? 0) > 0 ||
     (flashcards.count ?? 0) > 0 ||
@@ -95,6 +115,15 @@ export default async function IlerlemePage() {
             actionLabel="Deneme çöz"
           />
         ) : (
+          <>
+          {activityStamps.length ? (
+            <SectionCard
+              title="Çalışma geçmişin"
+              description="Bitirdiğin etkinlikler. Ekranda geçirdiğin süreyi ölçmüyoruz; bu grafik etkinlik sayar."
+            >
+              <ActivityHistory timestamps={activityStamps} />
+            </SectionCard>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
             {stats.map((stat) => (
               <Link
@@ -113,6 +142,7 @@ export default async function IlerlemePage() {
               </Link>
             ))}
           </div>
+          </>
         )}
 
         <SectionCard
