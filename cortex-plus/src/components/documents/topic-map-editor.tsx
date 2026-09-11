@@ -29,7 +29,16 @@ type Props = {
   initialBoundary: "documents_only" | "allow_supporting";
   initialStatus: string;
   coverage: Coverage | null;
+  /** Konu haritasının çıkarıldığı an; eski kuralla kurulmuşsa uyarılır. */
+  mapUpdatedAt?: string | null;
 };
+
+/**
+ * Başlık kapsamı ve bölüm omurgası kuralları bu tarihte değişti. Daha
+ * önce çıkarılmış haritalar eski kuralla kurulu; düğme zaten vardı ama
+ * kimse öğrenciye yenilemesi gerektiğini söylemiyordu.
+ */
+const RULES_CHANGED_AT = Date.parse("2026-09-11T00:00:00Z");
 
 export function TopicMapEditor({
   documentId,
@@ -37,11 +46,15 @@ export function TopicMapEditor({
   initialBoundary,
   initialStatus,
   coverage,
+  mapUpdatedAt = null,
 }: Props) {
   const router = useRouter();
   const [topics, setTopics] = useState(initialTopics);
   const [boundary, setBoundary] = useState(initialBoundary);
   const [pending, startTransition] = useTransition();
+
+  const stale =
+    !mapUpdatedAt || Date.parse(mapUpdatedAt) < RULES_CHANGED_AT;
 
   const dirty = useMemo(() => {
     if (boundary !== initialBoundary) return true;
@@ -277,6 +290,15 @@ export function TopicMapEditor({
         ))}
       </section>
 
+      {stale ? (
+        <p className="rounded-xl border border-[var(--astra-primary)]/30 bg-[var(--astra-primary)]/5 px-4 py-3 text-sm text-[var(--astra-text)]">
+          <strong>Bu harita eski kurallarla çıkarıldı.</strong>{" "}
+          Yenilersen konu başlıkları belgenin konusunu taşır ve ders
+          bölümleri belgenin kendi alt başlıklarından kurulur. Kendi
+          düzenlediğin başlıklar silinir.
+        </p>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -298,6 +320,7 @@ export function TopicMapEditor({
           type="button"
           disabled={pending}
           onClick={rebuild}
+          title={stale ? "Bu harita eski kurallarla çıkarıldı." : undefined}
           className="rounded-full border border-white/15 px-4 py-2 text-sm text-[var(--astra-text)] disabled:opacity-50"
         >
           Haritayı yeniden oluştur

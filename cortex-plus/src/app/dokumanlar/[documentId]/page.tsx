@@ -33,6 +33,15 @@ export default async function DocumentTopicMapPage({ params }: PageProps) {
   if (!doc || doc.deleted_at || doc.user_id !== user.id) notFound();
 
   const snapshot = await loadTopicMapSnapshot(service, documentId);
+
+  // Harita ne zaman çıkarıldı? Kurallar 11 Eylül 2026'da değişti (başlık
+  // kapsamı ve bölüm omurgası); ondan önce çıkarılmış haritalar eski
+  // kuralla kurulu ve yenilenmedikçe öyle kalıyor.
+  const { data: mapMeta } = await service
+    .from("documents")
+    .select("topic_map_updated_at")
+    .eq("id", documentId)
+    .maybeSingle();
   if (!snapshot) notFound();
 
   return (
@@ -68,6 +77,7 @@ export default async function DocumentTopicMapPage({ params }: PageProps) {
         }))}
         initialBoundary={snapshot.sourceBoundaryMode}
         initialStatus={snapshot.topicMapStatus}
+        mapUpdatedAt={(mapMeta?.topic_map_updated_at as string | null) ?? null}
         coverage={
           snapshot.coverage
             ? {
