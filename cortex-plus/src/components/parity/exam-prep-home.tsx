@@ -229,7 +229,9 @@ export function ExamPrepHome({
         ) : null}
       </header>
 
-      {scheduleSummary ? (
+      {/* Plan özeti "5 çalışma gününde 225 dk var" diyordu: takvim
+          kalktıktan sonra öğrencinin karşılığını göremediği bir cümle. */}
+      {!uiV2 && scheduleSummary ? (
         <p className="text-sm text-[var(--ap-muted)]" style={{ margin: "0.75rem 0" }}>
           Plan: {scheduleSummary}
         </p>
@@ -437,9 +439,10 @@ export function ExamPrepHome({
               <span>
                 <strong>{node.title || PLAN_NODE_META[node.kind].title}</strong>
                 <em>
-                  {node.sessionMeta?.topicTitle
-                    ? `${node.sessionMeta.topicTitle}`
-                    : PLAN_NODE_META[node.kind].title}
+                  {/* Konu adı başlıkta zaten geçiyor; altında bir daha
+                      yazınca her satır kendini tekrar ediyordu. Burada
+                      yalnızca başlıkta OLMAYAN bilgi kalıyor. */}
+                  {PLAN_NODE_META[node.kind].title}
                   {node.sessionMeta?.durationMinutes
                     ? ` · ${node.sessionMeta.durationMinutes} dk`
                     : ""}
