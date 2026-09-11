@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { SectionCard } from "@/components/ui-kit/empty-state";
 import { DataDeletionButton } from "@/components/profile/data-deletion-button";
+import { StudyReminderToggle } from "@/components/profile/study-reminder-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { requireUser } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
@@ -22,6 +23,15 @@ export default async function AyarlarPage() {
       .maybeSingle(),
     getStudentAccountContext(supabase, user.id),
   ]);
+
+  // Kolon migration ile geliyor; gelmeden önce dağıtılırsa sorgu hata
+  // verir ve tercih "açık" varsayılır — e-posta zaten kolon yokken
+  // gönderilmiyor, yani yanlış tarafa düşmüyoruz.
+  const { data: reminderPref } = await supabase
+    .from("profiles")
+    .select("study_reminder_email")
+    .eq("id", user.id)
+    .maybeSingle();
 
   return (
     <AppShell title="Ayarlar">
@@ -52,6 +62,17 @@ export default async function AyarlarPage() {
           <Link href="/profil" className="text-sm font-medium underline">
             Profile git
           </Link>
+        </SectionCard>
+
+        <SectionCard
+          title="Çalışma hatırlatması"
+          description="Yoluna bir gün uğramazsan, sınavına üç gün kalırsa ya da serin kırılmak üzereyse hatırlatırız. Günde en fazla bir kez."
+        >
+          <StudyReminderToggle
+            initial={
+              (reminderPref?.study_reminder_email as boolean | null) ?? true
+            }
+          />
         </SectionCard>
 
         <SectionCard

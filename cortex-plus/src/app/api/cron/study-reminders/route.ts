@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { pickReminder } from "@/lib/learning/study-reminder";
+import { sendEmail } from "@/lib/email/mailer";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +12,10 @@ export const dynamic = "force-dynamic";
  * bir kez çalışıyor ve öğrenci başına EN FAZLA BİR bildirim bırakıyor;
  * kural `study-reminder.ts` içinde ve sınanıyor.
  *
- * Şimdilik yalnızca uygulama içi bildirim yazıyor. E-posta bilerek
- * kapalı: kapatma ayarı için bir alan yok ve kapatılamayan e-posta
- * gönderilmez.
+ * Uygulama içi bildirim herkese, e-posta yalnızca kapatmamış olana.
+ * Kapatılamayan e-posta gönderilmez; tercih profiles.study_reminder_email
+ * kolonunda ve ayarlar ekranından tek tıkla kapanıyor. Kolon henüz
+ * yoksa e-posta gönderilmiyor — sorgu hata verdiğinde liste boş kalıyor.
  *
  * Vercel Cron `Authorization: Bearer $CRON_SECRET` gönderir.
  */
@@ -22,6 +24,8 @@ function authorized(request: Request): boolean {
   if (!secret) return false;
   return (request.headers.get("authorization") ?? "") === `Bearer ${secret}`;
 }
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://cortexplus.app";
 
 function isoDay(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -142,9 +146,52 @@ export async function GET(request: Request) {
     });
   }
 
-  if (rows.length) {
-    await service.from("notifications").insert(rows);
+  if (!rows.length) {
+    return NextResponse.json({ ok: true, checked: preps.length, sent: 0, mailed: 0 });
   }
 
-  return NextResponse.json({ ok: true, checked: preps.length, sent: rows.length });
+  await service.from("notifications").insert(rows);
+
+  // E-posta yalnızca kapatmamış olana. Kolon yoksa sorgu hata verir ve
+  // kimseye posta gitmez — migration uygulanmadan gönderim açılmıyor.
+  const { data: optedIn } = await service
+    .from("profiles")
+    .select("id")
+    .in(
+      "id",
+      rows.map((row) => row.user_id),
+    )
+    .eq("study_reminder_email", true);
+
+  let mailed = 0;
+  for (const profile of optedIn ?? []) {
+    const row = rows.find((r) => r.user_id === profile.id);
+    if (!row) continue;
+    const { data: account } = await service.auth.admin.getUserById(
+      profile.id as string,
+    );
+    const to = account?.user?.email;
+    if (!to) continue;
+    const result = await sendEmail({
+      to,
+      subject: row.title,
+      text: `${row.body}
+
+Yoluna dön: ${APP_URL}/deneme-sinavlari
+
+Bu hatırlatmayı ayarlardan kapatabilirsin.`,
+      html:
+        `<p>${row.body}</p>` +
+        `<p><a href="${APP_URL}/deneme-sinavlari">Yoluna dön</a></p>` +
+        `<p style="color:#666;font-size:12px">Bu hatırlatmayı ayarlardan kapatabilirsin.</p>`,
+    });
+    if (result.ok) mailed += 1;
+  }
+
+  return NextResponse.json({
+    ok: true,
+    checked: preps.length,
+    sent: rows.length,
+    mailed,
+  });
 }
