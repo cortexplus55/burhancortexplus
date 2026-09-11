@@ -265,6 +265,26 @@ export async function generateJson<T>(
         lastFailureCodes = independent.issues.map((i) => i.code);
         lastFailureMessages = independent.issues.map((i) => i.message);
         lastOutcome = "rejected";
+        /**
+         * REDDİN SEBEBİ KAYDA GEÇSİN.
+         *
+         * Olay tablosu yalnızca kodu tutuyor ("empty_item") ve kod hangi
+         * öğenin, neden boş olduğunu söylemiyor. Reddedilen taslak da
+         * saklanmadığı için sebep hiçbir yerde kalmıyordu: canlıda üst üste
+         * `empty_item` gördük ve tek bir kez bile neyin kastedildiğini
+         * okuyamadık.
+         *
+         * Doğrulayıcı cümleleri kısaltılarak yazılıyor; istem, belge metni
+         * ve öğrenci yanıtı buraya girmiyor.
+         */
+        console.error("educational_validation_rejected", {
+          actionCode,
+          activityKind: params.activityKind,
+          stage: independent.failedStage,
+          issues: independent.issues
+            .slice(0, 6)
+            .map((i) => `${i.code}: ${i.message.slice(0, 80)}`),
+        });
         return false;
       }
       return true;
