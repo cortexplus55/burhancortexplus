@@ -52,17 +52,53 @@ function symbolsOf(formula: string): Set<string> {
  * ayırt etmiyor. Üç ve üstü ayırt ediyor: Boussinesq'in 3'ü ve 5'i.
  */
 function coefficientsOf(formula: string): Set<string> {
-  const numbers = normalize(formula).match(/\d+/g) ?? [];
+  /**
+   * ALT İNDİS KATSAYI DEĞİL, İSİMDİR.
+   *
+   * σ'₁ ve σ'₃ iki ayrı gerilmenin adı; oradaki 1 ile 3 formülü çarpmıyor.
+   * Ama düz sayı taraması onları katsayı sanıyordu ve kaynağın sayısal
+   * örneğiyle ("φ' = arcsin 0,5 = 30°") dersin genel bağıntısını
+   * ("sin φ' = (σ'₁ − σ'₃)/(σ'₁ + σ'₃)") uyuşmaz ilan ediyordu. İkisi
+   * aynı şeyi söylüyor.
+   *
+   * Yanlış alarmın bedeli görünmez ve ağır: taslak reddediliyor, yeniden
+   * çizdiriliyor, üçü de düşünce ders yedek yoldan — daha kötü hâliyle —
+   * yayına gidiyor. Canlıda bir Mohr-Coulomb dersinde bu oldu.
+   *
+   * Yalnızca üs işaretinin ardından gelen sayı atlanıyor (σ'1, σ'3). Daha
+   * geniş bir tarama "arcsin 0,5" içindeki 0'ı da yiyordu.
+   */
+  const numbers =
+    normalize(formula)
+      .replace(/['′]\d+/g, " ")
+      .match(/\d+/g) ?? [];
   return new Set(numbers.filter((n) => Number(n) >= 3));
 }
 
-/** İki formül aynı büyüklüğü mü anlatıyor? Sol taraf aynıysa evet. */
+/**
+ * İki formül aynı büyüklüğü mü anlatıyor? Sol taraf aynıysa evet.
+ *
+ * Eşleşme BAŞTAN olmalı, herhangi bir yerden değil.
+ *
+ * "İçeriyorsa aynıdır" kuralı canlıda φ' ile sin φ'yi aynı büyüklük saydı:
+ * kaynak sayfada açının sayısal değeri ("φ' = arcsin 0,5 = 30°"), derste
+ * ise açının sinüsünün genel bağıntısı vardı. İkisi çelişmiyor — biri açı,
+ * öbürü açının sinüsü — ama katsayıları tutmadığı için ders reddedildi ve
+ * yedek yoldan daha kötü hâliyle yayına gitti.
+ *
+ * Baştan eşleşme, aynı büyüklüğün yazım farklarını (Δσz / Δσ z) hâlâ
+ * yakalıyor; başına bir fonksiyon geçince yakalamıyor. Doğru olan da bu.
+ */
 function sameSubject(a: string, b: string): boolean {
-  const left = (text: string) => normalize(text).split("=")[0] ?? "";
+  // Ders formülü çoğu zaman cümlenin içinde geçiyor ("… etkisini verir.
+  // Δσz = …"). Eşitliğin solundaki CÜMLE değil, büyüklüğün kendisi
+  // aranıyor: son ayıraçtan sonrası.
+  const left = (text: string) =>
+    (normalize(text).split("=")[0] ?? "").split(/[.:,]/).pop() ?? "";
   const la = left(a);
   const lb = left(b);
   if (!la || !lb) return false;
-  return la === lb || la.includes(lb) || lb.includes(la);
+  return la === lb || la.startsWith(lb) || lb.startsWith(la);
 }
 
 /** Sembol örtüşmesi — aynı sol tarafı paylaşan kaynaklardan hangisi. */

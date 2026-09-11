@@ -54,6 +54,35 @@ describe("formulaMismatches", () => {
     expect(formulaMismatches(lesson, zeminSayfa12)).toEqual([]);
   });
 
+  it("does not measure a quantity against a function of it", () => {
+    // Canlıda çıkan yanlış alarm. Kaynak sayfasında yalnızca açının
+    // sayısal değeri var; ders açının SİNÜSÜNÜN genel bağıntısını yazıyor.
+    // İkisi çelişmiyor, farklı büyüklükler. Eski kural "sol taraf içeriyorsa
+    // aynıdır" dediği için sin φ' ile φ' aynı sayılıyor, katsayılar
+    // tutmuyor ve ders reddediliyordu.
+    //
+    // Bedeli sessiz: taslak reddedilir, yeniden çizdirilir, üçü de düşerse
+    // ders yedek yoldan — daha kötü hâliyle — yayına gider.
+    const kaynak = ["φ' = arcsin 0,5 = 30°"];
+    const ders = ["sin φ' = (σ' 1 − σ' 3) / (σ' 1 + σ' 3)"];
+    expect(formulaMismatches(ders, kaynak)).toEqual([]);
+  });
+
+  it("still catches a rewritten coefficient for the same quantity", () => {
+    // Gevşetme, modülün var oluş sebebini bozmasın: aynı sol taraf,
+    // uydurulmuş katsayı — yakalanmalı.
+    const kaynak = ["φ' = 30 * k + 12"];
+    const ders = ["φ' = 77 * k + 48"];
+    expect(formulaMismatches(ders, kaynak).length).toBeGreaterThan(0);
+  });
+
+  it("does not read a primed subscript as a coefficient", () => {
+    // σ'₁ ve σ'₃ iki gerilmenin adı; oradaki 1 ile 3 formülü çarpmıyor.
+    const kaynak = ["σ' 1 = σ' 3 + 40"];
+    const ders = ["σ' 1 = σ' 3 + 40"];
+    expect(formulaMismatches(ders, kaynak)).toEqual([]);
+  });
+
   it("tells the model both versions so it can fix itself", () => {
     const lesson = ["Δσ z = (Q/π) × (1/(1 + (z/R)²))"];
     const [message] = formulaFidelityIssues(lesson, zeminSayfa12);
