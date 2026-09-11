@@ -29,7 +29,7 @@ Durum kodları: `matched` bizde var · `missing` yok · `partial` var ama farkl�
 |---|---|---|---|---|
 | 11 | premium | Astra hak ekranında **"Ek paket satın al"** yalnızca abonede; ücretsizde sayacın altı boş görünüyordu | `doğrulanmadı` | Ücretsiz ekranın görüntüsü kesilmiş olabilir. Bizde `/krediler` zaten katmana göre dallanıyor (`isPremium`) ve ücretsize "Kullanımını artır" veriyor. Çalışan bir yükseltme yolunu yarım gözleme dayanarak KALDIRMADIM; ücretsiz hesapta sayacın altı yeniden bakılmalı. |
 | 12 | ücretsiz | Hak bitince çıkan duvarın metni | `BLOCKED` | Astra hesabının günlük hakkı bu sabah sıfırlanmıştı (%0), duvar görülemedi |
-| 13 | misafir | Astra hesapsız onboarding'e sokuyor (rol, ses, niyet, ad, yaş) | `BLOCKED` | Bizim `/kayit` de çok adımlı; hesapsız mı ilerliyor, doğrulanmadı |
+| 13 | misafir | Astra hesapsız onboarding'e sokuyor | `matched` | Bizim `/kayit` de öyle: oturumsuz tarayıcıda "Adım 1/6 — Hangi sınıftasın?" açıldı, seçim yapıldı, hesap istemeden "Adım 2/6 — En çok hangi derste desteğe ihtiyacın var?" geldi. Astra: welcome → role → voice → intent → ad → yaş. İkisi de hesabı sona bırakıyor. |
 | 14 | misafir | Astra onboarding'inde **rol seçimi** (öğrenci/öğretmen/ebeveyn) | `extra (bilerek)` | `3e666f6` veli/öğretmen arayüzünü emekli etti; AGENTS.md kaydı |
 | 15 | her ikisi | Astra'da `/lab` (34 simülasyon) | `extra (bilerek)` | `13a175e` kaldırdı, 11 Eylül'de bir daha soruldu, karar aynı |
 
