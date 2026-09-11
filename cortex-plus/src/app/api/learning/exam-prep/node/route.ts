@@ -52,6 +52,7 @@ import {
   unrepresentedHeadings,
 } from "@/lib/documents/topic-title";
 import { needsDiagram } from "@/lib/learning/lesson-diagram";
+import { formulaFidelityIssues } from "@/lib/learning/formula-fidelity";
 import {
   lessonPodcastBrief,
   podcastNumbersOutsideLesson,
@@ -785,6 +786,7 @@ export async function POST(request: Request) {
           familiarity,
           mood,
           sourceBlock: source.block,
+          sourceFormulas: source.formulas ?? [],
           teachingV2,
           sessionMeta,
           requireSourceSupport: Boolean(
@@ -1018,6 +1020,8 @@ async function generateNodePayload(input: {
   mood: Mood;
   /** Öğrencinin kendi kaynağından alıntılar; kaynak yoksa boş. */
   sourceBlock: string;
+  /** Sayfalardan çıkarılmış formüller; ders bunlara karşı denetleniyor. */
+  sourceFormulas?: string[];
   teachingV2: boolean;
   sessionMeta: SessionTeachingMeta | null;
   requireSourceSupport?: boolean;
@@ -1156,6 +1160,21 @@ async function generateNodePayload(input: {
           lastValidLesson = dropScaffoldSections(parsed);
         }
         if (validateLessonPedagogy(parsed, { minSections }).length) return null;
+        // Formül kaynakla tutmuyorsa taslak yeniden çizdiriliyor. Canlıda
+        // Boussinesq formülünü tamamen uyduran bir ders yayına gitmişti;
+        // başlık kaynaktan geliyordu ama içi modelin genel bilgisindendi.
+        if (
+          formulaFidelityIssues(
+            [
+              parsed.overview,
+              ...parsed.sections.map((section) => section.body),
+              parsed.example.solution,
+            ],
+            input.sourceFormulas ?? [],
+          ).length
+        ) {
+          return null;
+        }
         // Kaynakta duran bir bölümü atlayan ders eksik bir derstir:
         // canlıda üretilen zemin dersi "Birleştirilmiş Zemin
         // Sınıflandırması"nı hiç anlatmadı ve öğrenci bunu bilemedi.

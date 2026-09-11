@@ -22,6 +22,8 @@ export type SourceContext = {
   block: string;
   matches: DocumentMatch[];
   documentName: string | null;
+  /** Sayfalardan çıkarılmış formüller; ders bunlara karşı denetleniyor. */
+  formulas?: string[];
 };
 
 export const EMPTY_SOURCE_CONTEXT: SourceContext = {
@@ -139,9 +141,13 @@ export async function loadPageSourceContext(
   if (!usable.length) return EMPTY_SOURCE_CONTEXT;
 
   const documentName = (doc?.file_name as string | null) ?? "kaynak";
+  const formulas = usable.flatMap(
+    (page) => ((page.formulas as string[] | null) ?? []).slice(0, 8),
+  );
   return {
     matches: [],
     documentName,
+    formulas,
     block: pageSourceBlock(
       documentName,
       usable.map((page) => ({
