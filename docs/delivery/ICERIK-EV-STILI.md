@@ -39,6 +39,21 @@ Astra: (konu değil — tek başına sınanamıyor, 2'nin açılışı)
 Elenen başlığın sayfaları en yakın konuya bağlanır; kapsama düşmez,
 harita tümden çöpe gitmez.
 
+### Konuların sırası belgenin sırasıdır
+
+Kod: `orderTopicsByPrerequisites` · Test: `tests/unit/exam-schedule-v2.test.ts`
+
+Yeni bir hazırlıkta hiçbir konu ölçülmemiştir; hepsinin puanı eşittir ve
+sıralamayı yalnızca eşitlik bozucu belirler. Eşitlik bozucu bir süre
+**alfabe** kaldı ve kimse görmedi: canlıdaki zemin mekaniği planı kitabın
+üçüncü bölümüyle başlıyor, temeli olan "Üç Fazlı Sistem" ile bitiyordu.
+Konu haritası sadeleştirilirken ön koşul çıkarımı kalkınca alfabe tek
+ölçüt hâline gelmişti.
+
+Konular haritadan belgenin kendi sırasıyla çıkıyor — yazarın öğretim
+sırası. Ölçülmüş bir zayıflık yoksa o sıra korunur; ölçülmüş zayıflık
+öne geçer. **11 Eylül 2026'da düzeltildi.**
+
 ---
 
 ## 2. Ders adımları
@@ -88,6 +103,34 @@ formül tekrar okunamıyor, başlığa göz atılamıyor.
 
 Artık `learn: "lesson"`. Astra'nın öğrenme adımı da metin ("Akıllı
 Metin"); podcast onda da seçmeli.
+
+---
+
+### Şekille anlaşılan konuya çizim
+
+Kod: `src/lib/learning/lesson-diagram.ts` · Test: `tests/unit/lesson-diagram.test.ts`
+
+Model **ham SVG üretmez**. Çizimin tarifini yazar — sayılar ve etiketler —
+SVG'yi biz kurarız. Modelden gelen hiçbir metin işaretleme olarak
+yorumlanmaz. Renk de serbest değil: tema jetonlarına bağlı bir isim
+kümesi, böylece çizim açık ve koyu temada birlikte çalışır.
+
+Bu bölümün her satırı canlıda çıkmış bir hatadan geliyor:
+
+| Olan | Kural |
+|---|---|
+| "İsteğe bağlı" diyen talimatı model hep atladı | Konu adı ya da kaynağın alt başlığı bir ŞEKİL kelimesi taşıyorsa çizim zorunlu (`needsDiagram`) |
+| "ZORUNLU" yazdık, yine çizmedi | Çizim artık **doğrulamaya bağlı**: çizimsiz taslak yeniden çizdiriliyor |
+| İstemdeki örnek olduğu gibi kopyalandı ("Kili temsil eder" yazan bir kutu) | İstem biçimi gösteriyor, çizimi değil |
+| Çemberin yanına "Daire" yazıldı | En az iki etiket, en az iki şekil; başlığı tekrarlayan etiket reddedilir (`diagramIssues`) |
+| "Drenajsız (c u, φ u ≈ 0)" kutunun sağından taşıp kesildi | Yerleştirmeyi biz yapıyoruz (`placeLabel`) |
+| İki kutu üste çizildi, altı bomboş kaldı | Çerçeve çizilene daraltılıyor (`diagramViewBox`) |
+
+Kelime listesi KONU adı değil ŞEKİL kelimesi taşır ("döngü", "kesit",
+"eksen", "harita"…): kimya öğrencisinin "Lewis Yapısı" da, biyolojinin
+"Krebs Döngüsü" de tetiklemeli. Liste yine de dar — her konuya çizim
+istemek çizimi değersizleştirir ve modeli kelimeyle anlaşılan bir şeyi
+kutularla anlatmaya zorlar.
 
 ## 3. Podcast
 
@@ -154,5 +197,5 @@ yapılmadı.
 | Astra | Biz | Gerekçe |
 |---|---|---|
 | LaTeX render | Konuşulabilir Unicode | Aynı metin podcast ve sesli anlatımda okunuyor |
-| Çalışma yolunda tek "sonraki iş" kartı | Gün gün plan | Sınav tarihi olan öğrenci ne zaman neyi bitireceğini görmek istiyor |
+| ~~Çalışma yolunda tek "sonraki iş" kartı~~ | ~~Gün gün plan~~ | **11 Eylül 2026'da bırakıldı.** Gün gün plan öğrenciyi geciktiği için suçlu hissettiriyordu. Artık yol haritasını biz veriyoruz, sırayı öğrenci seçiyor; 24 saat girmeyene hatırlatma gidiyor. |
 | Ücretsiz kullanıcıya stüdyo TTS | Cihaz sesi | Podcast maliyetin %98,4'ü; ücretsiz kullanıcı başına aylık ~108 TL |
