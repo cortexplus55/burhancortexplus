@@ -93,6 +93,16 @@ type GenerateJsonParams<T> = {
   userPrompt: string;
   imageUrls?: string[];
   parse: (raw: unknown) => T | null;
+  /**
+   * `parse` null döndürdüyse NEDEN döndürdüğü.
+   *
+   * Çağıran kendi kurallarıyla da reddediyor (çizim yok, kaynaktaki bölüm
+   * atlanmış, formül kaynakla tutmuyor). O red buraya yalnızca "null" olarak
+   * geliyordu ve modele "çıktın JSON şemasına uymadı" deniyordu — doğru
+   * olmayan, düzeltilemeyecek bir geri bildirim. Sebebini bilen taraf
+   * söylesin.
+   */
+  describeParseFailure?: () => string[];
 };
 
 function parseCandidate(raw: string): unknown | null {
@@ -144,6 +154,8 @@ export async function generateJson<T>(
   let repairAttempted = false;
   let recheckPassed: boolean | null = null;
   let lastFailureCodes: string[] = [];
+  // Doğrulayıcının kendi cümleleri; yeniden üretim istemine bunlar gider.
+  let lastFailureMessages: string[] = [];
   let lastFailedStage: ValidationStage | null = null;
   let lastOutcome: "rejected" | "validator_unavailable" = "rejected";
 
@@ -251,6 +263,7 @@ export async function generateJson<T>(
       if (!independent.ok) {
         lastFailedStage = independent.failedStage;
         lastFailureCodes = independent.issues.map((i) => i.code);
+        lastFailureMessages = independent.issues.map((i) => i.message);
         lastOutcome = "rejected";
         return false;
       }
@@ -284,7 +297,33 @@ export async function generateJson<T>(
                   : [
                       {
                         type: "text",
-                        text: `${params.userPrompt}\nÖnceki taslak doğrulamadan geçmedi (${lastFailureCodes.join(",") || "rejected"}). Daha kısa, şemaya uygun, kaynaktan doğrulanabilir çıktı yaz.${mode === "schema" ? " Tek doğru şık tercih et." : ""}`,
+                        /**
+                         * YENİDEN ÜRETİM, ZAR ATMAK DEĞİL DÜZELTMEDİR.
+                         *
+                         * Burada modele yalnızca kod veriliyordu
+                         * ("pedagogy_rule") ve üstüne "daha kısa yaz"
+                         * deniyordu. Kod modele hiçbir şey anlatmıyor,
+                         * "daha kısa" ise çoğu kuralın ihlalini büsbütün
+                         * kötüleştiriyor. Model aynı istemle aynı zarı
+                         * yeniden atıyordu.
+                         *
+                         * Canlıda 19 ders denemesinin 13'ü reddedildi ve
+                         * redlerin yarısından fazlası TEK bir kuraldan
+                         * geliyordu: anahtar terimleri koyu yazmamak.
+                         * Doğrulayıcı bunu zaten tek cümleyle söylüyor;
+                         * söylediği şey modele ulaşmıyordu.
+                         */
+                        text:
+                          `${params.userPrompt}\n\n` +
+                          (lastFailureMessages.length
+                            ? `ÖNCEKİ TASLAK ŞU SEBEPLERLE REDDEDİLDİ — her birini düzelt:\n` +
+                              lastFailureMessages
+                                .slice(0, 8)
+                                .map((m, i) => `${i + 1}. ${m}`)
+                                .join("\n") +
+                              `\nGeri kalanını koru; yalnızca bu maddeleri gider.`
+                            : `Önceki taslak doğrulamadan geçmedi (${lastFailureCodes.join(",") || "rejected"}). Şemaya uygun, kaynaktan doğrulanabilir çıktı yaz.`) +
+                          (mode === "schema" ? " Tek doğru şık tercih et." : ""),
                       },
                       ...userContent.slice(1),
                     ],
@@ -353,6 +392,10 @@ export async function generateJson<T>(
               lastFailureCodes = error.failureCodes.length
                 ? error.failureCodes
                 : [error.reason];
+              // Kod değil, doğrulayıcının cümlesi düzeltmeyi mümkün kılan şey.
+              if (error.failureMessages.length) {
+                lastFailureMessages = error.failureMessages;
+              }
               lastOutcome =
                 error.reason === "validator_unavailable"
                   ? "validator_unavailable"
@@ -377,6 +420,12 @@ export async function generateJson<T>(
 
         lastFailedStage = "structural";
         lastFailureCodes = ["invalid_ai_response"];
+        const parseIssues = params.describeParseFailure?.() ?? [];
+        lastFailureMessages = parseIssues.length
+          ? parseIssues
+          : [
+              "Çıktı beklenen JSON şemasına uymadı; şemadaki alanları eksiksiz ve doğru türde yaz.",
+            ];
         if (draftAttempt + 1 < maxDraftAttempts) continue;
       }
     }

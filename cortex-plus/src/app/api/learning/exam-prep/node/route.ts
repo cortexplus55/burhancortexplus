@@ -1058,7 +1058,12 @@ async function generateNodePayload(input: {
   const v2Common = input.teachingV2
     ? {
         validationProfile: "v2" as const,
-        maxDraftAttempts: 2 as const,
+        // Üç deneme: geri bildirim anlamlı olduğu sürece her deneme bir
+        // öncekini düzeltiyor. İki deneme, modele ne yanlış olduğu
+        // söylenmezken konmuştu — orada üçüncü zar atmanın faydası yoktu.
+        // Kabul edilen bir tur ~55 saniye; üçü fonksiyonun 5 dakikalık
+        // bütçesine sığıyor.
+        maxDraftAttempts: 3 as const,
         allowIndependentAccept: true,
         activityKind: activity,
         idempotencyKey: input.idempotencyKey,
@@ -1086,6 +1091,7 @@ async function generateNodePayload(input: {
     // bölümlerden kaçının karşılıksız kaldığı.
     let lastValidLesson: LessonV2 | null = null;
     let lastValidMissing = Number.POSITIVE_INFINITY;
+    let lastParseIssues: string[] = [];
     const backbone = input.sectionBackbone ?? [];
     // Omurga tek başlıksa dayatmıyoruz: tek bölümlük ders, dersin kendisi
     // olmaz. İki ve üzeri gerçek bir iskelettir.
@@ -1154,7 +1160,12 @@ async function generateNodePayload(input: {
         "ink, muted, accent, surface, line olabilir. Her çizimde en az bir etiket " +
         "ve bir caption olsun. Metinle anlaşılan konuya çizim koyma.",
       userPrompt: `${ctx}${backbonePrompt}${diagramPrompt} Bu konunun dersini yaz.`,
+      // Bu tur neden reddedildi — modele aynen iletiliyor. Rota kendi
+      // kurallarıyla da reddediyor; sebebini söylemezse yeniden üretim
+      // "JSON şeman bozuk" gibi yanlış bir yönlendirmeyle gidiyordu.
+      describeParseFailure: () => lastParseIssues,
       parse: (raw) => {
+        lastParseIssues = [];
         const parsed = lessonV2Schema.safeParse(raw).data ?? null;
         if (!parsed) return null;
         const missing = missingSections(parsed);
@@ -1171,26 +1182,38 @@ async function generateNodePayload(input: {
           lastValidMissing = missing;
           lastValidLesson = dropScaffoldSections(parsed);
         }
-        if (validateLessonPedagogy(parsed, { minSections }).length) return null;
+        const pedagoji = validateLessonPedagogy(parsed, { minSections });
+        if (pedagoji.length) {
+          lastParseIssues = pedagoji;
+          return null;
+        }
         // Formül kaynakla tutmuyorsa taslak yeniden çizdiriliyor. Canlıda
         // Boussinesq formülünü tamamen uyduran bir ders yayına gitmişti;
         // başlık kaynaktan geliyordu ama içi modelin genel bilgisindendi.
-        if (
-          formulaFidelityIssues(
-            [
-              parsed.overview,
-              ...parsed.sections.map((section) => section.body),
-              parsed.example.solution,
-            ],
-            input.sourceFormulas ?? [],
-          ).length
-        ) {
+        const formulIssues = formulaFidelityIssues(
+          [
+            parsed.overview,
+            ...parsed.sections.map((section) => section.body),
+            parsed.example.solution,
+          ],
+          input.sourceFormulas ?? [],
+        );
+        if (formulIssues.length) {
+          lastParseIssues = formulIssues;
           return null;
         }
         // Kaynakta duran bir bölümü atlayan ders eksik bir derstir:
         // canlıda üretilen zemin dersi "Birleştirilmiş Zemin
         // Sınıflandırması"nı hiç anlatmadı ve öğrenci bunu bilemedi.
-        if (missing) return null;
+        if (missing) {
+          lastParseIssues = [
+            `Kaynağın şu alt başlıkları derste yok: ${unrepresentedHeadings(
+              backbone,
+              parsed.sections.map((section) => section.heading),
+            ).join(", ")}. Her birine bir bölüm yaz.`,
+          ];
+          return null;
+        }
         // ÇİZİM İSTEMİ DOĞRULAMAYA BAĞLI, YOKSA HİÇ ÇİZİLMİYOR.
         //
         // İstem "diagram ZORUNLU" diyordu ve model yine çizmedi: canlıda
@@ -1202,8 +1225,17 @@ async function generateNodePayload(input: {
           const drawn = parsed.sections
             .map((section) => section.diagram)
             .filter((diagram) => diagram != null);
-          if (!drawn.length) return null;
-          if (drawn.some((diagram) => diagramIssues(diagram).length)) return null;
+          if (!drawn.length) {
+            lastParseIssues = [
+              "Bu konu şekille anlaşılıyor ama derste hiç diagram yok: bir bölüme diagram ekle.",
+            ];
+            return null;
+          }
+          const cizimSorunlari = drawn.flatMap((diagram) => diagramIssues(diagram));
+          if (cizimSorunlari.length) {
+            lastParseIssues = cizimSorunlari;
+            return null;
+          }
         }
         // Şablon başlıkları BURADA da ayıklanıyor, yalnızca yedekte değil.
         // Ayıklama sadece yedek taslağa uygulandığı için başarıyla üretilen

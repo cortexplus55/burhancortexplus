@@ -26,6 +26,19 @@ export class EducationalVerificationError extends Error {
       | "independent_failed",
     public readonly failedStage: ValidationStage | null = null,
     public readonly failureCodes: string[] = [],
+    /**
+     * Doğrulayıcının İNSAN OKUYABİLİR şikâyetleri.
+     *
+     * Kod ("pedagogy_rule") modele hiçbir şey söylemiyor. Reddedilen taslak
+     * yeniden üretilirken modele yalnızca bu kod veriliyordu; yani "bir şey
+     * yanlıştı, tekrar dene" deniyordu ve model aynı zarı yeniden atıyordu.
+     * Canlıda 19 ders denemesinin 13'ü böyle düştü ve redlerin yarısından
+     * fazlası TEK bir kuraldandı: anahtar terimleri koyu yazmamak.
+     *
+     * Şikâyetin kendisi taşınırsa yeniden üretim zar atmak değil düzeltme
+     * olur.
+     */
+    public readonly failureMessages: string[] = [],
   ) {
     super(
       reason === "validator_unavailable"
@@ -193,6 +206,9 @@ export async function verifyEducationalContent(input: {
     }
   }
 
+  // Son turda toplanan şikâyetler; reddedersek modele bunlar iletilecek.
+  let lastReviewIssues: string[] = [];
+
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const reviewStarted = Date.now();
     let verdictRaw: unknown;
@@ -215,6 +231,7 @@ export async function verifyEducationalContent(input: {
     const verdict = verdictResult.data;
     const independent = runIndependent(content);
     const issues = [...verdict.issues, ...independent.messages];
+    if (issues.length) lastReviewIssues = issues;
     if (verdict.approved && issues.length === 0) {
       return {
         content,
@@ -266,5 +283,10 @@ export async function verifyEducationalContent(input: {
     finalIndependent.ok
       ? ["rejected"]
       : codesFromIssues(finalIndependent.issues),
+    // Modelin düzeltebilmesi için şikâyetin kendisi; reddeden gözden
+    // geçirmenin notları da eklenir.
+    finalIndependent.ok
+      ? lastReviewIssues
+      : [...finalIndependent.issues.map((i) => i.message), ...lastReviewIssues],
   );
 }
