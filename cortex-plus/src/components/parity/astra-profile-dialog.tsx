@@ -192,6 +192,20 @@ export function AstraProfileDialog({
           ))}
         </nav>
 
+        {/*
+          HESAP BAĞLANTILARI — paketini ve hakkını görmenin yolu.
+
+          Astra'da profil menüsünde "Kullanım" ve "Abonelikler" duruyor.
+          Bizde profil yalnızca ayar paneliydi; iki ekran da vardı ama
+          profilden erişilemiyordu. Paket rozeti ücretsize özel olunca
+          (Astra'da da öyle) abone öğrencinin paketini görebileceği hiçbir
+          yol kalmıyordu — bu boşluğu kapatıyor.
+        */}
+        <div className="ap-profile-links">
+          <a href="/krediler">Kullanımım</a>
+          <a href="/odemeler">Aboneliğim</a>
+        </div>
+
         {tab === "account" ? (
           <div className="ap-profile-body">
             <h2 className="ap-profile-heading">Rolüm</h2>
