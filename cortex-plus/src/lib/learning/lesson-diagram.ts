@@ -252,15 +252,12 @@ export function diagramViewBox(shapes: DiagramShape[]): string {
   maxX = Math.min(DIAGRAM_WIDTH, maxX + pad);
   maxY = Math.min(DIAGRAM_HEIGHT, maxY + pad);
 
-  // Çok dar bir çizim sayfayı kaplamasın: en boy oranı 2:1'i geçmesin.
+  // Geniş ve alçak bir çizim geniş ve alçak görünsün — yan yana iki
+  // kutuya kare bir çerçeve vermek, kapatmaya çalıştığımız boşluğu geri
+  // getiriyor. Yalnızca DAR ve UZUN olan sınırlanıyor: o, sütun gibi
+  // uzayıp sayfayı bölüyor.
   let width = maxX - minX;
-  let height = maxY - minY;
-  if (width / height > 2) {
-    const wanted = width / 2;
-    const extra = (wanted - height) / 2;
-    minY = Math.max(0, minY - extra);
-    height = Math.min(DIAGRAM_HEIGHT - minY, wanted);
-  }
+  const height = maxY - minY;
   if (height / width > 1.5) {
     const wanted = height / 1.5;
     const extra = (wanted - width) / 2;

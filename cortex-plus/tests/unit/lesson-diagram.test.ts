@@ -200,14 +200,27 @@ describe("diagramViewBox", () => {
     expect(y + h).toBeGreaterThanOrEqual(190);
   });
 
-  it("does not stretch a wide thin drawing across the page", () => {
-    const thin = [
-      { kind: "line" as const, x1: 10, y1: 100, x2: 310, y2: 100, arrow: true },
-      { kind: "text" as const, x: 20, y: 95, text: "σ" },
-      { kind: "text" as const, x: 300, y: 95, text: "τ", anchor: "end" as const },
+  it("lets a wide low drawing stay wide and low", () => {
+    // Yan yana iki kutuya kare bir çerçeve vermek, kırpmanın kapattığı
+    // boşluğu geri getiriyordu; canlıda görülen buydu.
+    const wide = [
+      { kind: "rect" as const, x: 20, y: 30, w: 120, h: 50 },
+      { kind: "rect" as const, x: 160, y: 30, w: 120, h: 50 },
+      { kind: "text" as const, x: 80, y: 55, text: "Drenajlı" },
+      { kind: "text" as const, x: 220, y: 55, text: "Drenajsız" },
     ];
-    const [, , w, h] = diagramViewBox(thin).split(" ").map(Number);
-    expect(w / h).toBeLessThanOrEqual(2.01);
+    const [, , w, h] = diagramViewBox(wide).split(" ").map(Number);
+    expect(w / h).toBeGreaterThan(2.5);
+  });
+
+  it("does not let a narrow tall drawing stretch into a column", () => {
+    const tall = [
+      { kind: "rect" as const, x: 150, y: 10, w: 20, h: 180 },
+      { kind: "text" as const, x: 160, y: 100, text: "z", anchor: "middle" as const },
+      { kind: "text" as const, x: 160, y: 20, text: "0", anchor: "middle" as const },
+    ];
+    const [, , w, h] = diagramViewBox(tall).split(" ").map(Number);
+    expect(h / w).toBeLessThanOrEqual(1.51);
   });
 });
 
