@@ -64,7 +64,44 @@ describe("lessonDiagramSchema", () => {
         { kind: "text" as const, x: 10, y: 30, text: "sıvı" },
       ],
     };
-    expect(diagramIssues(wordsOnly).some((i) => i.includes("şekil yok"))).toBe(true);
+    expect(diagramIssues(wordsOnly).some((i) => i.includes("iki şekil"))).toBe(true);
+  });
+
+  it("rejects the two drawings the live site actually produced", () => {
+    // İkisi de eski kuralı (bir etiket, bir şekil) geçti ve öğrenciye
+    // hiçbir şey öğretmedi. Kuralın taşıması gereken yük bu.
+    const badge = {
+      caption: "Konsolidasyon deneyinde örnek numune",
+      shapes: [
+        { kind: "rect" as const, x: 40, y: 30, w: 120, h: 40, fill: "surface" as const },
+        { kind: "text" as const, x: 100, y: 50, text: "Kili temsil eder", anchor: "middle" as const },
+        { kind: "line" as const, x1: 40, y1: 70, x2: 160, y2: 70 },
+      ],
+    };
+    expect(diagramIssues(badge).some((i) => i.includes("iki etiket"))).toBe(true);
+
+    const circleNamedCircle = {
+      caption: "Mohr Dairesi ve gerilme zarfı",
+      shapes: [
+        { kind: "circle" as const, cx: 160, cy: 120, r: 40, fill: "surface" as const },
+        { kind: "line" as const, x1: 120, y1: 120, x2: 200, y2: 120, arrow: true },
+        { kind: "text" as const, x: 160, y: 70, text: "Daire", anchor: "middle" as const },
+      ],
+    };
+    expect(diagramIssues(circleNamedCircle).length).toBeGreaterThan(0);
+  });
+
+  it("rejects labels that only repeat the caption", () => {
+    const echo = {
+      caption: "Birim çember ve yarıçap",
+      shapes: [
+        { kind: "circle" as const, cx: 160, cy: 100, r: 60 },
+        { kind: "line" as const, x1: 160, y1: 100, x2: 220, y2: 100 },
+        { kind: "text" as const, x: 160, y: 30, text: "Birim çember", anchor: "middle" as const },
+        { kind: "text" as const, x: 190, y: 90, text: "yarıçap" },
+      ],
+    };
+    expect(diagramIssues(echo).some((i) => i.includes("başlığı tekrarlıyor"))).toBe(true);
   });
 
   it("catches a line that would be invisible", () => {
@@ -87,6 +124,7 @@ describe("lessonDiagramSchema", () => {
         { kind: "line" as const, x1: 20, y1: 100, x2: 300, y2: 100, arrow: true },
         { kind: "line" as const, x1: 160, y1: 190, x2: 160, y2: 10, arrow: true },
         { kind: "text" as const, x: 305, y: 100, text: "x = cos θ", anchor: "end" as const },
+        { kind: "text" as const, x: 160, y: 8, text: "y = sin θ", anchor: "middle" as const },
       ],
     };
     expect(lessonDiagramSchema.safeParse(unitCircle).success).toBe(true);

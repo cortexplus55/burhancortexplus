@@ -1106,16 +1106,20 @@ async function generateNodePayload(input: {
       : "";
     // Çizim "isteğe bağlı" kaldığı sürece model hiç çizmiyor.
     const wantsDiagram = needsDiagram(input.topicLabel, ...backbone);
-    // Soyut bir "çizim koy" talimatını model atlıyordu. Somut bir örnek —
-    // koordinatlı, etiketli, tam bir şekil listesi — atlanamıyor: ne
-    // isteneceğini değil, neye benzeyeceğini gösteriyor.
+    // Soyut bir "çizim koy" talimatını model atlıyordu; somut bir örnek
+    // atlanmıyor. Ama örnek de aynen kopyalanıyor: canlıda zemin dersine
+    // örnekteki kutu "Kili temsil eder" etiketiyle olduğu gibi girdi. O
+    // yüzden örnek artık BİÇİMİ gösteriyor, çizimin kendisini değil, ve
+    // istenen şey tek cümlede duruyor: parçaların ADI yazılacak.
     const diagramPrompt = wantsDiagram
       ? " BU KONU ŞEKİLLE ANLAŞILIYOR: bir bölüme diagram KOY, atlama. " +
-        'Örnek biçim: {"caption":"Üç fazlı zemin: katı, su, hava",' +
-        '"shapes":[{"kind":"rect","x":40,"y":30,"w":120,"h":40,"fill":"surface"},' +
-        '{"kind":"text","x":100,"y":50,"text":"Hava","anchor":"middle"},' +
-        '{"kind":"line","x1":40,"y1":70,"x2":160,"y2":70}]}. ' +
-        "Sayıları kendi konuna göre seç, örneği kopyalama."
+        "Çizimin işi parçaları ADLANDIRMAK: eksenin, bölgenin, katmanın " +
+        "kendi adı yazılsın — en az iki etiket, en az iki şekil. " +
+        "Etiket başlığı tekrarlamasın (çemberin yanına 'Daire' yazmak " +
+        "çizim değildir; 'σ' ve 'τ' yazmak çizimdir). " +
+        'Biçim: {"caption":"...","shapes":[{"kind":"line","x1":20,"y1":170,' +
+        '"x2":300,"y2":170,"arrow":true},{"kind":"text","x":300,"y":182,' +
+        '"text":"...","anchor":"end"}]} — koordinatları kendi çizimine göre seç.'
       : "";
     const outcome = await generateJson({
       service: input.service,

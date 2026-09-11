@@ -139,12 +139,31 @@ export function needsDiagram(...texts: (string | null | undefined)[]): boolean {
 export function diagramIssues(diagram: LessonDiagram): string[] {
   const issues: string[] = [];
   const labels = diagram.shapes.filter((s) => s.kind === "text");
-  if (labels.length < 1) {
-    issues.push("Çizimde etiket yok; hangi parçanın ne olduğu yazılmalı.");
+  /**
+   * İKİ ETİKET, İKİ ŞEKİL — tek etiket bir çizim değil, bir rozet.
+   *
+   * Taban bir etikete ayarlıyken canlıda çıkan iki çizim şunlardı: içinde
+   * "Kili temsil eder" yazan bir kutu, ve içinden bir çizgi geçen, yanında
+   * "Daire" yazan bir çember. İkisi de kuralı geçti, ikisi de öğrenciye
+   * hiçbir şey öğretmedi. Bir şeklin anlamı parçalarının adlandırılmasıyla
+   * doğuyor: eksenin adı, bölgenin adı, ölçünün adı. Tek etiket, çizimin
+   * kendi başlığını tekrarlamaktan öteye geçmiyor.
+   *
+   * Taban bilinçli olarak düşük: iki etiket ve iki şekil, bir eksen ile
+   * adlandırılmış iki bölge demek. Daha yükseği modeli her konuyu kutularla
+   * anlatmaya zorlardı.
+   */
+  if (labels.length < 2) {
+    issues.push("Çizimde en az iki etiket olmalı; parçaların adı yazılmalı.");
   }
   const drawn = diagram.shapes.length - labels.length;
-  if (drawn < 1) {
-    issues.push("Çizimde şekil yok; yalnızca yazıdan diyagram olmaz.");
+  if (drawn < 2) {
+    issues.push("Çizimde en az iki şekil olmalı; tek kutu diyagram değil.");
+  }
+  // Etiketi başlığın kopyası olan çizim kendini tekrar ediyor demektir.
+  const caption = diagram.caption.trim().toLocaleLowerCase("tr");
+  if (labels.every((s) => caption.includes(s.text.trim().toLocaleLowerCase("tr")))) {
+    issues.push("Etiketler başlığı tekrarlıyor; parçaların kendi adı yok.");
   }
   // Sıfır alanlı dikdörtgen ve sıfır uzunluklu çizgi ekranda kaybolur.
   for (const shape of diagram.shapes) {
