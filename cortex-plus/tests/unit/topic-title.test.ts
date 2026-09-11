@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   chapterHeadings,
+  documentTitle,
   normalizeTopicTitle,
   sectionHeadings,
   targetTopicCount,
@@ -303,5 +304,62 @@ describe("sectionHeadings", () => {
     ];
     const many = { headings: adlar.map((ad, i) => `2.${i + 1}. ${ad}`) };
     expect(sectionHeadings([many])).toHaveLength(6);
+  });
+});
+
+describe("documentTitle", () => {
+  it("takes the cover's own title", () => {
+    // Astra aynı belgeye "Servet-i Fünûn Edebiyatı ve Yenilikleri" derken
+    // biz "Türkçe sınav hazırlığı" diyorduk: ad dersten geliyordu.
+    expect(
+      documentTitle({
+        coverHeadings: [
+          "SERVET-İ FÜNÛN EDEBİYATI",
+          "TÜRK DİLİ VE EDEBİYATI · DERS NOTU",
+        ],
+        fileName: "servet-i-funun-edebiyati.pdf",
+      }),
+    ).toBe("SERVET-İ FÜNÛN EDEBİYATI");
+  });
+
+  it("skips a letter-spaced cover line", () => {
+    // Zemin belgesinin kapağı gerçekte böyle çıkıyor: PDF harf aralığını
+    // açmış, metin çıkarıcı her harfi ayrı kelime sanmış.
+    expect(
+      documentTitle({
+        coverHeadings: ["İ N Ş A AT M Ü H E N D İ S L İ Ğ İ · D E R S N O T U", "1 / 18"],
+        fileName: "zemin-mekanigi-giris.pdf",
+      }),
+    ).toBe("Zemin Mekanigi Giris");
+  });
+
+  it("falls back to what the topics have in common", () => {
+    // Kapak okunamadıysa konu başlıklarının ortak baş kısmı belgenin adıdır.
+    expect(
+      documentTitle({
+        coverHeadings: ["1 / 18"],
+        topicTitles: [
+          "Servet-i Fünûn Şiiri ve Biçimsel Yenilikler",
+          "Servet-i Fünûn Romanı ve İç Çözümleme",
+          "Servet-i Fünûn Topluluğunun Doğuşu",
+          "Dil, Üslup ve Dekadanlar Tartışması",
+        ],
+        fileName: null,
+      }),
+    ).toBe("Servet-i Fünûn");
+  });
+
+  it("does not invent a common prefix that is not there", () => {
+    expect(
+      documentTitle({
+        topicTitles: ["Fotosentez", "Solunum", "Hücre Bölünmesi"],
+        fileName: "biyoloji-notlarim.pdf",
+      }),
+    ).toBe("Biyoloji Notlarim");
+  });
+
+  it("returns empty when nothing usable is left", () => {
+    // Çağıran taraf kendi yedeğini kullanır; uydurma başlık üretilmez.
+    expect(documentTitle({ coverHeadings: [], fileName: "a.pdf" })).toBe("");
   });
 });

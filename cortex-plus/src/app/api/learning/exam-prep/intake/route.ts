@@ -6,6 +6,7 @@ import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { pickMainTopics } from "@/lib/learning/diagnostic";
 import { buildExamPlan, daysUntilExam } from "@/lib/learning/exam-prep-plan";
+import { documentTitle } from "@/lib/documents/topic-title";
 
 const bodySchema = z.object({
   messages: z
@@ -81,6 +82,40 @@ async function resolveTopicSuggestions(
   return { topicSuggestions, intakeMode };
 }
 
+/**
+ * Belgenin adı — kapak başlığı, konu başlıklarının ortak kısmı ya da
+ * dosya adı. Model çağrısı yok; bu uç kredi harcamıyor.
+ */
+async function probeDocumentTitle(
+  service: SupabaseClient,
+  userId: string,
+  documentId: string | undefined,
+  topicTitles: string[],
+): Promise<string> {
+  if (!documentId) return "";
+  const [{ data: doc }, { data: pages }] = await Promise.all([
+    service
+      .from("documents")
+      .select("file_name")
+      .eq("id", documentId)
+      .eq("user_id", userId)
+      .maybeSingle(),
+    service
+      .from("document_pages")
+      .select("page_number, headings")
+      .eq("document_id", documentId)
+      .order("page_number", { ascending: true })
+      .limit(2),
+  ]);
+  return documentTitle({
+    coverHeadings: (pages ?? []).flatMap(
+      (page) => (page.headings as string[] | null) ?? [],
+    ),
+    topicTitles,
+    fileName: (doc?.file_name as string | null) ?? null,
+  });
+}
+
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "exam-prep-intake", limit: 20 });
   if (!guard.ok) return guard.response;
@@ -104,7 +139,15 @@ export async function POST(request: Request) {
       topicSuggestions,
       draft: topicSuggestions.length
         ? {
-            title: "",
+            // Hazırlığın adı belgeden gelir; boş kalırsa sihirbaz
+            // "${ders} sınav hazırlığı" diyordu ve aynı dersten yüklenen
+            // her belge aynı adı taşıyordu.
+            title: await probeDocumentTitle(
+              service,
+              userId,
+              parsed.data.documentId,
+              topicSuggestions.map((t) => t.title),
+            ),
             examType: "Serbest",
             topics: topicSuggestions.map((t) => t.title).slice(0, 16),
           }

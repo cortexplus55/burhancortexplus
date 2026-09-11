@@ -25,6 +25,7 @@ type Step =
   | "language"
   | "building"
   | "topics"
+  | "setup"
   | "plan";
 
 const STEP_ORDER: Step[] = [
@@ -35,6 +36,7 @@ const STEP_ORDER: Step[] = [
   "language",
   "building",
   "topics",
+  "setup",
   "plan",
 ];
 
@@ -127,6 +129,12 @@ export function ExamCreateWizard({
   const [examDate, setExamDate] = useState("");
   const [target, setTarget] = useState(75);
   const [language, setLanguage] = useState<"tr" | "en">("tr");
+  // Belge okunduktan sonra sorulan üç soru. Karşılıkları zaten vardı ama
+  // kimse doldurmuyordu: learning_preferences boş kayıt ediliyor,
+  // source_boundary_mode her belgede documents_only'de kalıyordu.
+  const [prefStyle, setPrefStyle] = useState<"theory" | "examples" | "mixed">("mixed");
+  const [onlyMyFiles, setOnlyMyFiles] = useState(true);
+  const [dailyMinutes, setDailyMinutes] = useState(45);
 
   const [documentId, setDocumentId] = useState<string | null>(initialDocumentId);
   const [documentName, setDocumentName] = useState<string | null>(null);
@@ -265,6 +273,8 @@ export function ExamCreateWizard({
           targetScore: target,
           documentId: documentId ?? undefined,
           hardTopics: focusTopics,
+          dailyMinutes,
+          learningPreferences: { style: prefStyle },
         }),
       });
       if (res.status === 402) {
@@ -573,12 +583,12 @@ export function ExamCreateWizard({
         <section className="apw-step">
           <h1>
             {topics.length
-              ? `Materyalinde ${topics.length} konu buldum`
+              ? `Materyalinde ${topics.length} konu buldum — hangisinde zorlanıyorsun?`
               : "Konuları birlikte yazalım"}
           </h1>
           <p className="apw-lead">
-            Yanlış olanı düzelt, eksik olanı ekle. Zorlandığın konuları
-            işaretlersen plan onlara daha çok yer ayırır.
+            İşaretlediklerine plan daha çok yer ayırır. Yanlış olanı düzelt,
+            eksik olanı ekle.
           </p>
           <ul className="apw-topics">
             {topics.map((topic, index) => (
@@ -652,7 +662,105 @@ export function ExamCreateWizard({
             type="button"
             className="apw-cta"
             disabled={!topics.length}
-            onClick={() => setStep("plan")}
+            onClick={() => setStep("setup")}
+          >
+            Devam et
+          </button>
+        </section>
+      ) : null}
+
+      {step === "setup" ? (
+        <section className="apw-step">
+          <h1>Nasıl çalışalım?</h1>
+          <p className="apw-lead">
+            Üç kısa soru; dersler buna göre yazılır. Sonradan
+            değiştirebilirsin.
+          </p>
+
+          <h2 className="apw-group">Anlatım ağırlığı</h2>
+          <div className="apw-grid">
+            {(
+              [
+                ["theory", "Daha çok anlatım", "Kavramı açan uzun anlatım"],
+                ["examples", "Daha çok soru", "Çözümlü örnek ve alıştırma"],
+                ["mixed", "Dengeli", "İkisinden de"],
+              ] as const
+            ).map(([value, label, hint]) => (
+              <button
+                key={value}
+                type="button"
+                className={
+                  prefStyle === value ? "apw-tile apw-tile--on" : "apw-tile"
+                }
+                aria-pressed={prefStyle === value}
+                onClick={() => setPrefStyle(value)}
+              >
+                <b>{label}</b>
+                <span>{hint}</span>
+              </button>
+            ))}
+          </div>
+
+          <h2 className="apw-group">Kaynak sınırı</h2>
+          <div className="apw-grid">
+            {(
+              [
+                [true, "Yalnızca yüklediğim", "Belgende olmayan bilgi eklenmez"],
+                [false, "Eksikleri tamamla", "Belgen yetmezse genel bilgiyle destekle"],
+              ] as const
+            ).map(([value, label, hint]) => (
+              <button
+                key={String(value)}
+                type="button"
+                className={
+                  onlyMyFiles === value ? "apw-tile apw-tile--on" : "apw-tile"
+                }
+                aria-pressed={onlyMyFiles === value}
+                onClick={() => setOnlyMyFiles(value)}
+              >
+                <b>{label}</b>
+                <span>{hint}</span>
+              </button>
+            ))}
+          </div>
+
+          <h2 className="apw-group">Günde ne kadar vaktin var?</h2>
+          <div className="apw-grid">
+            {[20, 30, 45, 60, 90].map((value) => (
+              <button
+                key={value}
+                type="button"
+                className={
+                  dailyMinutes === value ? "apw-tile apw-tile--on" : "apw-tile"
+                }
+                aria-pressed={dailyMinutes === value}
+                onClick={() => setDailyMinutes(value)}
+              >
+                <b>{value} dk</b>
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className="apw-cta"
+            onClick={() => {
+              // Kaynak sınırı belgenin kendi ayarı; plan kurulmadan yazılıyor
+              // ki ilk ders de bu sınırla üretilsin. Yazılamazsa plan yine
+              // kurulur — sınır varsayılanda (yalnızca belge) kalır.
+              if (documentId) {
+                void fetch(`/api/documents/${documentId}/topic-map`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    sourceBoundaryMode: onlyMyFiles
+                      ? "documents_only"
+                      : "allow_supporting",
+                  }),
+                }).catch(() => {});
+              }
+              setStep("plan");
+            }}
           >
             Yolumu göster
           </button>

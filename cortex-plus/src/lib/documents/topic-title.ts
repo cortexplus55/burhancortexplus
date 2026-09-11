@@ -180,6 +180,83 @@ export function sectionHeadings(pages: { headings: string[] }[]): string[] {
   return out.slice(0, 6);
 }
 
+/**
+ * Harflerin arasına boşluk konmuş kapak başlığı.
+ *
+ * PDF'ler kapakta harf aralığını açıyor ve metin çıkarıcı bunu
+ * "İ N Ş A AT M Ü H E N D İ S L İ Ğ İ" diye okuyor. Böyle bir satır
+ * başlık olarak kullanılamaz.
+ */
+function letterSpaced(text: string): boolean {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length < 4) return false;
+  const singles = words.filter((word) => word.replace(/[^\p{L}]/gu, "").length <= 1);
+  return singles.length / words.length > 0.4;
+}
+
+/** Dosya adını okunabilir bir başlığa çevirir: "zemin-mekanigi-giris.pdf". */
+function titleFromFileName(fileName: string): string {
+  const base = fileName.replace(/\.[a-z0-9]{1,5}$/i, "").replace(/[_-]+/g, " ");
+  const words = base
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toLocaleUpperCase("tr") + word.slice(1));
+  return words.join(" ").trim();
+}
+
+/**
+ * Hazırlığın adı — belgeden, dersten değil.
+ *
+ * Astra aynı belgeye "Servet-i Fünûn Edebiyatı ve Yenilikleri" derken biz
+ * "Türkçe sınav hazırlığı" diyorduk: ad dersten geliyordu. Aynı dersten üç
+ * belge yükleyen öğrencinin listesinde üçü de aynı adı taşıyordu.
+ *
+ * Model çağrısı yok; üç deterministik sinyal sırayla deneniyor:
+ *   1. Kapak sayfasının kendi başlığı
+ *   2. Konu başlıklarının ortak baş kısmı ("Servet-i Fünûn …")
+ *   3. Dosya adı
+ *
+ * Hiçbiri tutmazsa boş dönüyor ve çağıran taraf kendi yedeğini kullanıyor.
+ */
+export function documentTitle(input: {
+  coverHeadings?: string[];
+  topicTitles?: string[];
+  fileName?: string | null;
+}): string {
+  for (const raw of input.coverHeadings ?? []) {
+    const heading = normalizeTopicTitle((raw ?? "").replace(TOC_PAGE_TAIL, "").trim());
+    if (!heading || letterSpaced(heading)) continue;
+    if (topicTitleIssues(heading).length) continue;
+    return heading;
+  }
+
+  // Konu başlıkları belgenin konusunu taşıyorsa ortak baş kısım belgenin
+  // adıdır: "Servet-i Fünûn Şiiri…", "Servet-i Fünûn Romanı…" → "Servet-i Fünûn".
+  const titles = (input.topicTitles ?? []).filter(Boolean);
+  if (titles.length >= 3) {
+    const wordLists = titles.map((title) => title.split(/\s+/).filter(Boolean));
+    const shared: string[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      const counts = new Map<string, number>();
+      for (const words of wordLists) {
+        const word = words[i];
+        if (!word) continue;
+        const key = foldTrLocal(word);
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+      const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+      if (!best || best[1] * 2 < titles.length) break;
+      const sample = wordLists.find((words) => words[i] && foldTrLocal(words[i]) === best[0]);
+      shared.push(sample![i]);
+    }
+    const prefix = shared.join(" ").trim();
+    if (shared.length >= 2 && !topicTitleIssues(prefix).length) return prefix;
+  }
+
+  const fromFile = input.fileName ? titleFromFileName(input.fileName) : "";
+  return topicTitleIssues(fromFile).length ? "" : fromFile;
+}
+
 /** Bir sayfa bu bölümü taşıyor mu? İçindekiler kuyruğu göz ardı edilir. */
 export function pageCarriesHeading(
   page: { headings: string[] },
@@ -328,8 +405,13 @@ export function topicTitleRule(documentHeadings: string[] = []): string {
     "Bölüm numarasını ve sondaki parantezli kısaltmayı yazma. " +
     "Başlık tek başına, listede okununca neyin konusu olduğu anlaşılsın. " +
     examples +
-    "Kapsam ekini yalnızca gerektiğinde koy: başlık kendi başına zaten " +
-    "anlaşılıyorsa olduğu gibi bırak. " +
+    // Kapsam eki eskiden "yalnızca gerektiğinde" idi ve model hiç koymuyordu.
+    // Aynı belgede Astra "Servet-i Fünûn Şiiri ve Biçimsel Yenilikler"
+    // derken biz "Şiirde Yenilik Arayışı" dedik: listede tek başına
+    // okununca hangi dersin konusu olduğu belli değil. Konu adı sohbette,
+    // tekrarda ve plan ekranında da bu haliyle geçiyor.
+    "BAŞLIK BELGEDEN KOPARILINCA DA ANLAŞILMALI: belgenin konusu başlıkta " +
+    "görünsün. Başlık zaten konuyu adlandırıyorsa tekrar etme. " +
     "Bir bölümün alt başlığı kendi başına sınanacak kadar önemliyse ana başlığa " +
     '"ve" ile ekle; en fazla iki bileşen. ' +
     "Tek başına ölçülemeyen, yalnızca bağlam veren bir bölümü ayrı konu yapma — " +

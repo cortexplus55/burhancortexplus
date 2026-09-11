@@ -692,3 +692,16 @@
   outline: 2px solid #7c6cf7;
   outline-offset: 2px;
 }
+
+/* Kurulum adımındaki iki satırlı kutular: üstte seçim, altta ne demek. */
+.apw-tile b {
+  display: block;
+}
+
+.apw-tile span {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--ap-muted);
+}
