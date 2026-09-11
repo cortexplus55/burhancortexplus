@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { createSerialTaskQueue } from "@/lib/learning/serial-task-queue";
+import { describeGenerationFailure } from "@/lib/learning/generation-failure";
 import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
@@ -308,14 +309,16 @@ export function ExamNodeSession({
       }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (data.error === "generation_failed_retry") {
-          clearClientRequestId();
-        }
-        setGenerationError(data.error === "generation_in_progress"
-          ? "Dersin hâlâ hazırlanıyor. Biraz sonra yeniden dene; ikinci bir üretim başlatılmayacak."
-          : data.error === "content_verification_failed"
-          ? "Hazırlanan içerik kalite kontrolünü geçemedi. Yeniden deneyebilirsin."
-          : "Ders şu anda oluşturulamadı. Yeniden deneyebilirsin.");
+        // Kimlik HER gerçek hatada yenileniyor. Eskiden yalnızca
+        // "generation_failed_retry" kodunda yenileniyordu; gerçek bir
+        // hatadan (503) sonra ilk iki tıklama hiçbir şey yapmıyor,
+        // üçüncüsü deniyordu. Öğrenci için bu "düğme bozuk" demekti.
+        //
+        // Üretim hâlâ sürüyorsa yenilenmiyor: yenilemek ikinci bir üretim
+        // başlatır ve öğrenci iki kez ödeyebilir.
+        const failure = describeGenerationFailure(data.error);
+        if (failure.retryMintsNewId) clearClientRequestId();
+        setGenerationError(failure.message);
         return;
       }
       applyStartPayload(data);
