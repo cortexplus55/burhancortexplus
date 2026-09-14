@@ -28,7 +28,10 @@ export function ExamCreateEntry({
         >
           ← Adım adım kuruluma dön
         </button>
-        <ExamCreateChat initialDocumentId={initialDocumentId} />
+        <ExamCreateChat
+          initialDocumentId={initialDocumentId}
+          recentSubjects={recentSubjects}
+        />
       </>
     );
   }

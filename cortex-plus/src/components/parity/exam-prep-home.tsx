@@ -22,6 +22,7 @@ import {
   topicProgressFromNodes,
 } from "@/lib/learning/exam-prep-ui-path";
 import { cn } from "@/lib/utils";
+import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
 import {
   ExamPrepSettingsPanel,
   type PrepSettingsInitial,
@@ -177,6 +178,11 @@ export function ExamPrepHome({
           {examDate ? ` · sınav ${examDate}` : ""}
           {daysLabel ? ` · ${daysLabel}` : ""}
         </p>
+        {/* Belgesiz hazırlıkta içerik konunun genel bilgisinden geliyor.
+            Öğrenci bunu bilmezse "notumda bu varmış" diye okur. */}
+        {documentId ? null : (
+          <p className="cp-exam-source-note">{TOPIC_ONLY_NOTICE}</p>
+        )}
         <div className="cp-exam-tabs" role="tablist" aria-label="Hazırlık görünümü">
           <button
             type="button"
@@ -278,7 +284,13 @@ export function ExamPrepHome({
             <Link href={`/dokumanlar/${documentId}`} className="cp-back-pill">
               Kaynağı aç{documentName ? ` · ${documentName}` : ""}
             </Link>
-          ) : null}
+          ) : (
+            // İçeriğin öğrencinin belgesinden gelmediğini gizlemek, "notumda
+            // bu varmış" yanılgısının ta kendisi olurdu.
+            <Link href="/dokumanlar" className="cp-back-pill">
+              Belge ekle
+            </Link>
+          )}
           {settings ? (
             <ExamPrepSettingsPanel prepId={prepId} initial={settings} />
           ) : null}

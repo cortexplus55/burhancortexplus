@@ -3507,6 +3507,38 @@
   background: rgba(244, 174, 11, 0.12);
 }
 
+/* Belgesiz hazırlıkta içeriğin nereden geldiğini söyleyen satır. */
+.cp-exam-source-note {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--cp-muted);
+}
+
+/* Belgesiz kurulumun ders önerileri — boş kutunun karşısına konuluyor. */
+.cp-exam-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+}
+
+.cp-exam-chip {
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: #161616;
+  color: inherit;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.cp-exam-chip:hover,
+.cp-exam-chip:focus-visible {
+  border-color: rgba(244, 174, 11, 0.55);
+  background: rgba(244, 174, 11, 0.1);
+}
+
 .cp-exam-plan-preview {
   margin: 1rem 0 1.5rem;
   padding: 1rem 1.1rem;

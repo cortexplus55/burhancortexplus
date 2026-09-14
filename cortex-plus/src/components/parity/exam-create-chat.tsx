@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PLAN_NODE_META, type PlanNodeDraft } from "@/lib/learning/exam-prep-plan";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { subjectSuggestions } from "@/lib/learning/subjects";
 
 type Draft = { title: string; examType: string; topics: string[] };
 type ChatMsg = { role: "user" | "assistant"; content: string };
@@ -27,9 +28,12 @@ function tomorrowIso() {
 
 export function ExamCreateChat({
   initialDocumentId = null,
+  recentSubjects = [],
 }: {
   /** Stage 9 — deep link from topic map / docs list. */
   initialDocumentId?: string | null;
+  /** Öğrencinin daha önce çalıştığı dersler — öneri çiplerinin ilk sırası. */
+  recentSubjects?: string[];
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMsg[]>([
@@ -279,7 +283,7 @@ export function ExamCreateChat({
               setIntakeMode("legacy");
             }}
           >
-            <option value="">Tüm belgelerim</option>
+            <option value="">Belge kullanma — konudan çalış</option>
             {docs.map((doc) => (
               <option key={doc.id} value={doc.id}>
                 {doc.fileName}
@@ -403,6 +407,26 @@ export function ExamCreateChat({
           >
             {starting ? "Kuruluyor…" : `${days} günlük planını başlat`}
           </button>
+        </div>
+      ) : null}
+
+      {/*
+        Boş kutu "ne yazacağım" duraksaması yapıyor. Çipler öğrencinin kendi
+        derslerinden başlıyor; yeni öğrenciye yaygın dersler düşüyor.
+        Konuyu yine öğrenci yazıyor — çip sadece ilk cümleyi kuruyor.
+      */}
+      {!draft.topics.length && !loading ? (
+        <div className="cp-exam-chips">
+          {subjectSuggestions(recentSubjects).map((subject) => (
+            <button
+              key={subject}
+              type="button"
+              className="cp-exam-chip"
+              onClick={() => setInput(`${subject} sınavım var.`)}
+            >
+              {subject}
+            </button>
+          ))}
         </div>
       ) : null}
 
