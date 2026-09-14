@@ -13,9 +13,9 @@
 
 /** `public/ornek/fotosentez-ders-notu.pdf` — özet, ad ve boyut. */
 export const DEMO_PDF_SHA256 =
-  "eb424a4c4f1ff995526db5e81544c1572cec060308b8ae70b214fa318d1148bb";
+  "7c31bf5c20a681d05e322b4da8a0f0fe31f540135d1a884b872707e9f4efef1f";
 export const DEMO_PDF_NAME = "fotosentez-ders-notu.pdf";
-export const DEMO_PDF_BYTES = 1753;
+export const DEMO_PDF_BYTES = 214184;
 
 export type SourceVerdict = "match" | "other-pdf" | "not-pdf";
 
