@@ -1,5 +1,15 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
+import { cspHeaderName, cspHeaderValue } from "./src/lib/security/csp";
+
+/**
+ * CSP zorunlu mu, yalnızca rapor mu.
+ *
+ * Rapor kipinde başlıyoruz ve bir hafta gerçek ihlal raporu topladıktan sonra
+ * false'a çekiyoruz. Erken zorunlu kipe geçmek, gözden kaçan tek bir kaynak
+ * yüzünden ödeme ya da giriş sayfasını bozabilir.
+ */
+const REPORT_ONLY = true;
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["pdfjs-dist"],
@@ -30,6 +40,23 @@ const nextConfig: NextConfig = {
             */
             key: "Permissions-Policy",
             value: "camera=(), microphone=(self), geolocation=()",
+          },
+          {
+            /*
+              İçerik Güvenlik Politikası — RAPOR KİPİNDE.
+
+              Hiçbir şeyi engellemiyor; tarayıcı yalnızca politikayı ihlal
+              edecek bir şey gördüğünde `/api/csp-report`'a bildiriyor.
+              Listeler koddan okunarak yazıldı (bkz. `lib/security/csp.ts`)
+              ama gerçek trafikte gözden kaçmış bir kaynak olabilir ve zorunlu
+              kipte o, bozuk bir sayfa demek. Bir hafta rapor toplandıktan
+              sonra `REPORT_ONLY` false'a çekilir.
+            */
+            key: cspHeaderName(REPORT_ONLY),
+            value: cspHeaderValue({
+              allowEval: process.env.NODE_ENV !== "production",
+              reportUri: "/api/csp-report",
+            }),
           },
         ],
       },
