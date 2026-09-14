@@ -2,6 +2,8 @@ import "server-only";
 import type { createServiceClient } from "@/lib/supabase/server";
 import { audioHash, synthesizeLine } from "@/lib/ai/speech";
 import type { SpeakerId } from "@/lib/learning/podcast-script";
+import { env } from "@/lib/env";
+import { recordUsage } from "@/lib/credits/service";
 
 /**
  * Ses önbelleği.
@@ -30,6 +32,14 @@ type Service = ReturnType<typeof createServiceClient>;
 export async function ensureAudio(
   service: Service,
   lines: AudioRequest[],
+  /**
+   * Verildiginde seslendirme harcamasi bu kullaniciya yaziliyor.
+   *
+   * Yalnizca GERCEKTEN uretilen satirlar kaydediliyor: onbellek paylasimli ve
+   * icerik adresli, onbellekten gelen cumlenin bize maliyeti yok. Kaydi
+   * sisirmek marj hesabini yanlis gosterirdi.
+   */
+  userId?: string,
 ): Promise<AudioTrack[] | null> {
   if (!lines.length) return null;
 
@@ -77,7 +87,7 @@ export async function ensureAudio(
           path,
           durationMs: result.durationMs,
           speaker: line.speaker,
-          chars: line.text.length,
+          chars: result.chars,
         };
       }),
     );
@@ -97,6 +107,19 @@ export async function ensureAudio(
       );
       for (const row of rows) {
         cache.set(row.hash, { path: row.path, durationMs: row.durationMs });
+      }
+
+      if (userId) {
+        // Tek olay, uretilen karakterlerin toplami. Sesin maliyeti bugune
+        // kadar hicbir yere yazilmiyordu; marji belirleyen kalem olcusuz
+        // duruyordu.
+        void recordUsage(service, {
+          userId,
+          actionCode: "TTS_SYNTHESIZE",
+          model: env.OPENAI_TTS_MODEL,
+          tokensIn: rows.reduce((sum, row) => sum + row.chars, 0),
+          tokensOut: 0,
+        });
       }
     }
   }

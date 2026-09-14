@@ -44,6 +44,7 @@ export async function POST(request: Request) {
   const tracks = await ensureAudio(
     guard.ctx.service,
     lines.map((line) => ({ text: line.text, speaker: line.speaker })),
+    guard.ctx.userId,
   );
 
   // Bir cümle bile üretilemediyse açıkça başarısız oluyoruz; istemci

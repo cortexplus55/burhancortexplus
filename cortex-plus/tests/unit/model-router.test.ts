@@ -36,6 +36,13 @@ describe("model router", () => {
     expect(result.actionCode).toBe("AI_CHAT_ADVANCED");
   });
 
+  /*
+    Bu testin adı hep "downgrades" idi ama `toBe(ADVANCED)` diyordu — yani
+    adının tam tersini doğruluyordu. Sızıntıyı tutan değil, yazan testti:
+    ücretsiz bir hesap sohbet ucuna AI_CHAT_ADVANCED gönderip gpt-4o alıyordu.
+    İddia adına uyduruldu; kredi kodunun da düşmesi ayrıca tutuluyor, çünkü
+    standart model alan kullanıcıya gelişmiş fiyat yazılmamalı.
+  */
   it("downgrades an advanced request from a non-premium user", () => {
     const result = selectModel({
       actionCode: "AI_CHAT_ADVANCED",
@@ -43,8 +50,28 @@ describe("model router", () => {
       hasImage: false,
       userSelectedAdvanced: true,
     });
+    expect(result.model).toBe(STANDARD);
+    expect(result.actionCode).toBe("AI_CHAT_STANDARD");
+  });
+
+  it("keeps the advanced model for a premium user who asks for it", () => {
+    const result = selectModel({
+      actionCode: "AI_CHAT_ADVANCED",
+      isPremium: true,
+      hasImage: false,
+      userSelectedAdvanced: true,
+    });
     expect(result.model).toBe(ADVANCED);
     expect(result.actionCode).toBe("AI_CHAT_ADVANCED");
+  });
+
+  it.each([
+    "QUIZ_GENERATE",
+    "PRACTICE_EXAM_GENERATE",
+    "PRACTICE_EXAM_GRADE",
+  ] as const)("keeps %s on the standard model for a free account", (actionCode) => {
+    const result = selectModel({ actionCode, isPremium: false, hasImage: false });
+    expect(result.model).toBe(STANDARD);
   });
 
   it("escalates hard exam grading", () => {

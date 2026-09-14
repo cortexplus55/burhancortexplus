@@ -38,6 +38,7 @@ export async function POST(request: Request) {
   const tracks = await ensureAudio(
     guard.ctx.service,
     sentences.map((text) => ({ text, speaker: parsed.data.speaker })),
+    guard.ctx.userId,
   );
   if (!tracks) return errorResponse(503, "audio_unavailable");
 

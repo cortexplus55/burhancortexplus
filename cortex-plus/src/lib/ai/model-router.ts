@@ -36,12 +36,21 @@ export function selectModel(input: ModelRouterInput): {
     };
   }
 
+  /*
+    Gelişmiş model ödeme gerekçesi; istemekle gelmiyor.
+
+    Burada `input.actionCode === "AI_CHAT_ADVANCED"` de yazıyordu ve bir
+    üstteki premium kontrolünü işlevsiz bırakıyordu: ücretsiz bir hesap sohbet
+    ucuna `actionCode: "AI_CHAT_ADVANCED"` göndererek gpt-4o alıyordu. Kademe
+    modelinin sattığı şey "daha akıllı model"di ve isteyene bedavaydı.
+
+    Aşağıdaki `standardMap` düşürmesi tam bu durum için yazılmış ama o satır
+    yüzünden hiç çalışmıyordu. Artık çalışıyor: premium olmayan gelişmiş
+    sohbet isteği standart modele düşüyor ve kredisi de 3 yerine 1 yazılıyor —
+    aldığı hizmetin fiyatı.
+  */
   if (ADVANCED_ACTIONS.includes(input.actionCode)) {
-    if (
-      input.actionCode === "AI_CHAT_ADVANCED" ||
-      input.isPremium ||
-      input.difficulty === "hard"
-    ) {
+    if (input.isPremium || input.difficulty === "hard") {
       return { model: env.OPENAI_ADVANCED_MODEL, actionCode: input.actionCode };
     }
   }

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { transcribeAudio } from "@/lib/ai/speech";
+import { env } from "@/lib/env";
+import { recordUsage } from "@/lib/credits/service";
 
 /**
  * Sözlü sınavda öğrencinin sesini metne çevirir.
@@ -43,6 +45,21 @@ export async function POST(request: Request) {
 
   const text = await transcribeAudio(file);
   if (!text) return errorResponse(503, "transcribe_unavailable");
+
+  /*
+    Cozumlemenin bedeli krediden dusmuyor ama bize para ediyor; bugune kadar
+    hicbir yere yazilmiyordu. Fatura sesin suresiyle olculuyor, sunucuda
+    sureyi cozmeden bilmiyoruz: yuklenen kilobayt sabit bit hizinda sureyle
+    dogru orantili oldugu icin fatura birimi olarak o yaziliyor. Cikti da
+    gercek: donen metnin karakter sayisi.
+  */
+  void recordUsage(guard.ctx.service, {
+    userId: guard.ctx.userId,
+    actionCode: "STT_TRANSCRIBE",
+    model: env.OPENAI_STT_MODEL,
+    tokensIn: Math.ceil(file.size / 1024),
+    tokensOut: text.length,
+  });
 
   return NextResponse.json({ text });
 }
