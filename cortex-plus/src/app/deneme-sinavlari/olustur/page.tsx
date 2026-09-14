@@ -1,4 +1,4 @@
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ExamCreateEntry } from "@/components/parity/exam-create-entry";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -40,11 +40,11 @@ export default async function ExamCreatePage({
   const recentSubjects = [...seenSubjects.values()].slice(0, 6);
 
   return (
-    <AstraParitySorShell {...shell}>
+    <ParitySorShell {...shell}>
       <ExamCreateEntry
         initialDocumentId={documentId}
         recentSubjects={recentSubjects}
       />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

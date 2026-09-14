@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { SectionCard } from "@/components/ui-kit/empty-state";
 import { requireStudentArea } from "@/lib/auth/session";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -33,15 +33,15 @@ function LimitBar({
 }) {
   const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
   return (
-    <div className="ap-limit-row">
-      <div className="ap-limit-head">
+    <div className="cp-limit-row">
+      <div className="cp-limit-head">
         <span>{label}</span>
         <strong>
           {formatNumber(value)} / {formatNumber(max)}
         </strong>
       </div>
-      <div className="ap-limit-track" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-        <div className="ap-limit-fill" style={{ width: `${pct}%` }} />
+      <div className="cp-limit-track" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+        <div className="cp-limit-fill" style={{ width: `${pct}%` }} />
       </div>
       <p>{hint}</p>
     </div>
@@ -92,28 +92,28 @@ export default async function KredilerPage() {
   );
 
   return (
-    <AstraParitySorShell {...shell}>
-      <div className="ap-exam-page space-y-6">
+    <ParitySorShell {...shell}>
+      <div className="cp-exam-page space-y-6">
         <div>
           <h1 className="text-xl font-semibold">Kullanım limitleri</h1>
-          <p className="mt-1 text-sm text-[var(--astra-muted)]">
+          <p className="mt-1 text-sm text-[var(--cs-muted)]">
             Tüm özellikler açık; sınır yalnızca ne kadar üretebildiğinde.
           </p>
         </div>
 
-        {/* Astra'da da davet kartı kotanın üstünde duruyor: limitini gören
+        {/* Referans üründe de davet kartı kotanın üstünde duruyor: limitini gören
             kullanıcı hemen ardından nasıl artıracağını görüyor. */}
         <ReferralRewardCard summary={referral} inviteUrl={invite.url} />
 
-        <div className="ap-quota-card">
-          <div className="ap-quota-head">
-            <span className="ap-quota-plan">
+        <div className="cp-quota-card">
+          <div className="cp-quota-head">
+            <span className="cp-quota-plan">
               {shell.account?.subscriptionBadge ?? "Temel"} — {periodLabel(quota.kind)}
             </span>
-            <span className="ap-quota-pct">%{quota.usedPercent} kullanıldı</span>
+            <span className="cp-quota-pct">%{quota.usedPercent} kullanıldı</span>
           </div>
           <div
-            className="ap-quota-track"
+            className="cp-quota-track"
             role="progressbar"
             aria-valuenow={quota.usedPercent}
             aria-valuemin={0}
@@ -121,15 +121,15 @@ export default async function KredilerPage() {
             aria-label="Dönem kullanımı"
           >
             <div
-              className="ap-quota-fill"
+              className="cp-quota-fill"
               style={{ width: `${Math.max(quota.usedPercent, quota.usedPercent > 0 ? 3 : 0)}%` }}
             />
           </div>
-          <p className="ap-quota-reset">
+          <p className="cp-quota-reset">
             {formatResetAt(quota.resetsAt)} tarihinde sıfırlanır
             {quota.pendingRefill ? " · bütçen yenilendi" : ""}
           </p>
-          <p className="ap-quota-detail">
+          <p className="cp-quota-detail">
             <strong>{formatNumber(quota.remaining)}</strong> / {formatNumber(quota.allowance)} hak kaldı
             {balance > 0 ? ` · ayrıca ${formatNumber(balance)} satın alınmış kredin var` : ""}
             {reserved > 0 ? ` · ${formatNumber(reserved)} rezerve` : ""}
@@ -137,22 +137,22 @@ export default async function KredilerPage() {
         </div>
 
         {!isPremium ? (
-          <div className="ap-quota-upsell">
+          <div className="cp-quota-upsell">
             <p>Daha fazlasına mı ihtiyacın var?</p>
-            <Link href="/pay" className="ap-exam-continue inline-flex">
+            <Link href="/pay" className="cp-exam-continue inline-flex">
               Kullanımını artır
             </Link>
           </div>
         ) : (
-          <div className="ap-quota-upsell">
+          <div className="cp-quota-upsell">
             <p>Aylık limitin dolduysa paketini erkenden yenileyebilirsin.</p>
-            <Link href="/pay" className="ap-exam-continue inline-flex">
+            <Link href="/pay" className="cp-exam-continue inline-flex">
               Paketi yenile
             </Link>
           </div>
         )}
 
-        <div className="ap-limit-card">
+        <div className="cp-limit-card">
           <LimitBar
             label="Çalışma serisi"
             value={shell.streak ?? 0}
@@ -162,7 +162,7 @@ export default async function KredilerPage() {
         </div>
 
         <SectionCard
-          variant="astra"
+          variant="parity"
           title="İşlem başına kredi"
           description="Fiyatlar sunucu tarafında tutulur; işlem öncesinde her zaman gösterilir."
         >
@@ -170,7 +170,7 @@ export default async function KredilerPage() {
             {(rules ?? []).map((rule) => (
               <li key={rule.action_code} className="cortex-premium-inset-row">
                 <span>{rule.description ?? rule.action_code}</span>
-                <span className="font-medium text-[var(--astra-primary)]">
+                <span className="font-medium text-[var(--cs-primary)]">
                   {rule.credit_cost}
                 </span>
               </li>
@@ -178,7 +178,7 @@ export default async function KredilerPage() {
           </ul>
         </SectionCard>
 
-        <SectionCard variant="astra" title="Hareketler">
+        <SectionCard variant="parity" title="Hareketler">
           {ledger?.length ? (
             <ul className="cortex-premium-inset-list divide-y">
               {ledger.map((entry) => (
@@ -186,7 +186,7 @@ export default async function KredilerPage() {
                   key={entry.id}
                   className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
                 >
-                  <span className="text-[var(--astra-text)]">
+                  <span className="text-[var(--cs-text)]">
                     {entryLabels[entry.entry_type] ?? entry.entry_type}
                     {entry.action_code ? ` · ${entry.action_code}` : ""}
                   </span>
@@ -194,14 +194,14 @@ export default async function KredilerPage() {
                     <span
                       className={
                         entry.delta > 0
-                          ? "font-medium text-[var(--astra-primary)]"
-                          : "text-[var(--astra-muted)]"
+                          ? "font-medium text-[var(--cs-primary)]"
+                          : "text-[var(--cs-muted)]"
                       }
                     >
                       {entry.delta > 0 ? "+" : ""}
                       {entry.delta}
                     </span>
-                    <span className="text-xs text-[var(--astra-muted)]">
+                    <span className="text-xs text-[var(--cs-muted)]">
                       {formatDate(entry.created_at)}
                     </span>
                   </span>
@@ -209,10 +209,10 @@ export default async function KredilerPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-[var(--astra-muted)]">Henüz hareket yok.</p>
+            <p className="text-sm text-[var(--cs-muted)]">Henüz hareket yok.</p>
           )}
         </SectionCard>
       </div>
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

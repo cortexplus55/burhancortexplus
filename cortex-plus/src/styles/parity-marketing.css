@@ -1,6 +1,6 @@
-@import "./astra-app.css";
+@import "./parity-app.css";
 
-.astra-marketing {
+.cs-marketing {
   --mk-bg: #050505;
   --mk-surface: rgba(18, 18, 20, 0.85);
   --mk-border: rgba(255, 255, 255, 0.08);
@@ -11,7 +11,7 @@
   color: var(--mk-text);
 }
 
-.astra-marketing .mk-hero-gradient {
+.cs-marketing .mk-hero-gradient {
   background: radial-gradient(
     ellipse 80% 60% at 50% -20%,
     rgba(232, 168, 56, 0.28),
@@ -19,7 +19,7 @@
   );
 }
 
-.astra-marketing .mk-btn-primary {
+.cs-marketing .mk-btn-primary {
   background: linear-gradient(135deg, #f0b84d 0%, #c9851f 100%);
   color: #0c0a06;
   border-radius: 9999px;
@@ -27,23 +27,23 @@
   box-shadow: 0 0 32px rgba(232, 168, 56, 0.25);
 }
 
-.astra-marketing .mk-btn-primary:hover {
+.cs-marketing .mk-btn-primary:hover {
   background: linear-gradient(135deg, #ffc857 0%, #e8a838 100%);
 }
 
-.astra-marketing .mk-btn-outline {
+.cs-marketing .mk-btn-outline {
   border: 1px solid var(--mk-border);
   border-radius: 9999px;
   background: var(--mk-surface);
 }
 
-.astra-marketing .mk-card {
+.cs-marketing .mk-card {
   background: var(--mk-surface);
   border: 1px solid var(--mk-border);
   border-radius: 1.25rem;
 }
 
-.astra-marketing header {
+.cs-marketing header {
   border-color: var(--mk-border);
   background: rgba(12, 12, 12, 0.85);
 }
@@ -58,7 +58,7 @@
 
 /* Sonuç ikonu. Durum rengi marka amberinden ayrı: amber "vurgu" demek,
    başarılı ile başarısız onunla ayrılamaz. */
-.astra-marketing .mk-result-icon {
+.cs-marketing .mk-result-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -67,13 +67,13 @@
   border-radius: 9999px;
 }
 
-.astra-marketing .mk-result-icon--success {
+.cs-marketing .mk-result-icon--success {
   color: #4ade80;
   background: rgba(74, 222, 128, 0.12);
   border: 1px solid rgba(74, 222, 128, 0.28);
 }
 
-.astra-marketing .mk-result-icon--error {
+.cs-marketing .mk-result-icon--error {
   color: #f87171;
   background: rgba(248, 113, 113, 0.12);
   border: 1px solid rgba(248, 113, 113, 0.28);
@@ -81,7 +81,7 @@
 
 /* Bölüm üstü küçük etiket. Sayfaya ritim veriyor: başlıktan önce ne
    okuyacağını söylüyor. */
-.astra-marketing .mk-eyebrow {
+.cs-marketing .mk-eyebrow {
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.18em;
@@ -90,7 +90,7 @@
 }
 
 /* İkonlu kart. İkon bir "çip" içinde: koyu zeminde çıplak ikon kayboluyor. */
-.astra-marketing .mk-icon {
+.cs-marketing .mk-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -102,7 +102,7 @@
   border: 1px solid rgba(244, 174, 11, 0.22);
 }
 
-.astra-marketing .mk-feature {
+.cs-marketing .mk-feature {
   background: var(--mk-surface);
   border: 1px solid var(--mk-border);
   border-radius: 1.25rem;
@@ -112,23 +112,23 @@
     transform 0.2s ease;
 }
 
-.astra-marketing .mk-feature:hover {
+.cs-marketing .mk-feature:hover {
   border-color: rgba(244, 174, 11, 0.35);
   transform: translateY(-2px);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .astra-marketing .mk-feature {
+  .cs-marketing .mk-feature {
     transition: none;
   }
-  .astra-marketing .mk-feature:hover {
+  .cs-marketing .mk-feature:hover {
     transform: none;
   }
 }
 
 /* İşaretli liste. Ham "·" karakteri yerine gerçek bir onay işareti — madde
    sayılabilir bir kazanım olduğunda nokta değil tik doğru işaret. */
-.astra-marketing .mk-list {
+.cs-marketing .mk-list {
   display: grid;
   gap: 0.875rem;
   list-style: none;
@@ -140,7 +140,7 @@
    içinde ham metin, `strong` ve bağlantı yan yana durunca her düğüm ayrı bir
    ızgara hücresine düşüp satır satır kırılıyordu. Dolgu yöntemi içeriğin
    yapısına karışmıyor. */
-.astra-marketing .mk-list > li {
+.cs-marketing .mk-list > li {
   position: relative;
   padding-left: 2.125rem;
   color: var(--mk-muted);
@@ -148,7 +148,7 @@
 }
 
 /* Yuvarlak zemin */
-.astra-marketing .mk-list > li::before {
+.cs-marketing .mk-list > li::before {
   content: "";
   position: absolute;
   left: 0;
@@ -162,7 +162,7 @@
 
 /* Tik: iki kenarlıktan çizilip döndürülüyor — ek dosya istemiyor, rengini
    tokendan alıyor. */
-.astra-marketing .mk-list > li::after {
+.cs-marketing .mk-list > li::after {
   content: "";
   position: absolute;
   left: 0.47rem;
@@ -174,7 +174,7 @@
   transform: rotate(45deg);
 }
 
-.astra-marketing .mk-list > li > strong {
+.cs-marketing .mk-list > li > strong {
   display: block;
   color: var(--mk-text);
   font-weight: 600;
@@ -184,12 +184,12 @@
 /* Açılır soru. Tarayıcının kendi üçgeni kaldırıldı; yerine dönen bir işaret.
    `details` bilerek korundu: JavaScript olmadan çalışıyor ve klavye ile
    erişilebilir. */
-.astra-marketing .mk-faq {
+.cs-marketing .mk-faq {
   display: grid;
   gap: 0.75rem;
 }
 
-.astra-marketing .mk-faq__item {
+.cs-marketing .mk-faq__item {
   background: var(--mk-surface);
   border: 1px solid var(--mk-border);
   border-radius: 1rem;
@@ -197,12 +197,12 @@
   transition: border-color 0.2s ease;
 }
 
-.astra-marketing .mk-faq__item[open],
-.astra-marketing .mk-faq__item:hover {
+.cs-marketing .mk-faq__item[open],
+.cs-marketing .mk-faq__item:hover {
   border-color: rgba(244, 174, 11, 0.3);
 }
 
-.astra-marketing .mk-faq__q {
+.cs-marketing .mk-faq__q {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -214,11 +214,11 @@
   list-style: none;
 }
 
-.astra-marketing .mk-faq__q::-webkit-details-marker {
+.cs-marketing .mk-faq__q::-webkit-details-marker {
   display: none;
 }
 
-.astra-marketing .mk-faq__q::after {
+.cs-marketing .mk-faq__q::after {
   content: "";
   flex: none;
   width: 0.55rem;
@@ -229,24 +229,24 @@
   transition: transform 0.2s ease;
 }
 
-.astra-marketing .mk-faq__item[open] .mk-faq__q::after {
+.cs-marketing .mk-faq__item[open] .mk-faq__q::after {
   transform: rotate(-135deg) translate(-0.1rem, -0.1rem);
 }
 
-.astra-marketing .mk-faq__q:focus-visible {
+.cs-marketing .mk-faq__q:focus-visible {
   outline: 2px solid var(--mk-primary);
   outline-offset: -2px;
 }
 
-.astra-marketing .mk-faq__a {
+.cs-marketing .mk-faq__a {
   padding: 0 1.25rem 1.25rem;
   color: var(--mk-muted);
   line-height: 1.7;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .astra-marketing .mk-faq__item,
-  .astra-marketing .mk-faq__q::after {
+  .cs-marketing .mk-faq__item,
+  .cs-marketing .mk-faq__q::after {
     transition: none;
   }
 }
@@ -260,11 +260,11 @@
   aralığı da sıfırlıyoruz ki alt menü uzayıp gitmesin.
 */
 @media (max-width: 767px) {
-  .astra-marketing .mk-footer-links {
+  .cs-marketing .mk-footer-links {
     gap: 0;
   }
 
-  .astra-marketing .mk-footer-links a {
+  .cs-marketing .mk-footer-links a {
     display: block;
     padding-block: 0.7rem;
   }
@@ -281,7 +281,7 @@
   Telefonda dikey, masaüstünde yatay. Dikeyken çizgi işaretlerin arasından
   geçiyor; yatayken üstlerinden.
 */
-.astra-marketing .mk-loop {
+.cs-marketing .mk-loop {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -290,7 +290,7 @@
   counter-reset: loop;
 }
 
-.astra-marketing .mk-loop-step {
+.cs-marketing .mk-loop-step {
   position: relative;
   display: grid;
   grid-template-columns: 2.75rem 1fr;
@@ -298,12 +298,12 @@
   padding-bottom: 2rem;
 }
 
-.astra-marketing .mk-loop-step:last-child {
+.cs-marketing .mk-loop-step:last-child {
   padding-bottom: 0;
 }
 
 /* Dikey bağlayıcı: işaretin altından bir sonrakine iniyor. */
-.astra-marketing .mk-loop-step:not(:last-child)::before {
+.cs-marketing .mk-loop-step:not(:last-child)::before {
   content: "";
   position: absolute;
   left: 1.32rem;
@@ -317,7 +317,7 @@
   );
 }
 
-.astra-marketing .mk-loop-marker {
+.cs-marketing .mk-loop-marker {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -329,7 +329,7 @@
   border: 1px solid rgba(244, 174, 11, 0.3);
 }
 
-.astra-marketing .mk-loop-index {
+.cs-marketing .mk-loop-index {
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -337,14 +337,14 @@
   color: rgba(244, 174, 11, 0.75);
 }
 
-.astra-marketing .mk-loop-title {
+.cs-marketing .mk-loop-title {
   margin: 0.35rem 0 0;
   font-size: 1.0625rem;
   font-weight: 700;
   color: var(--mk-text);
 }
 
-.astra-marketing .mk-loop-text {
+.cs-marketing .mk-loop-text {
   margin: 0.4rem 0 0;
   font-size: 0.875rem;
   line-height: 1.65;
@@ -352,7 +352,7 @@
   max-width: 46ch;
 }
 
-.astra-marketing .mk-loop-close {
+.cs-marketing .mk-loop-close {
   margin: 1.75rem 0 0;
   padding-left: 3.75rem;
   font-size: 0.875rem;
@@ -360,7 +360,7 @@
   color: rgba(244, 174, 11, 0.8);
 }
 
-.astra-marketing .mk-loop-cta {
+.cs-marketing .mk-loop-cta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -374,35 +374,35 @@
   transition: filter 0.15s ease;
 }
 
-.astra-marketing .mk-loop-cta:hover {
+.cs-marketing .mk-loop-cta:hover {
   filter: brightness(1.08);
 }
 
-.astra-marketing .mk-loop-cta--ghost {
+.cs-marketing .mk-loop-cta--ghost {
   color: var(--mk-text);
   background: transparent;
   border: 1px solid var(--mk-border);
 }
 
-.astra-marketing .mk-loop-cta--ghost:hover {
+.cs-marketing .mk-loop-cta--ghost:hover {
   border-color: rgba(244, 174, 11, 0.45);
   filter: none;
 }
 
 @media (min-width: 900px) {
-  .astra-marketing .mk-loop {
+  .cs-marketing .mk-loop {
     grid-template-columns: repeat(4, 1fr);
     gap: 1.5rem;
   }
 
-  .astra-marketing .mk-loop-step {
+  .cs-marketing .mk-loop-step {
     grid-template-columns: 1fr;
     gap: 0.9rem;
     padding-bottom: 0;
   }
 
   /* Yatayken çizgi işaretlerin ortasından yanlara uzanıyor. */
-  .astra-marketing .mk-loop-step:not(:last-child)::before {
+  .cs-marketing .mk-loop-step:not(:last-child)::before {
     left: 3.25rem;
     right: -1.5rem;
     top: 1.37rem;
@@ -416,7 +416,7 @@
     );
   }
 
-  .astra-marketing .mk-loop-close {
+  .cs-marketing .mk-loop-close {
     padding-left: 0;
   }
 }

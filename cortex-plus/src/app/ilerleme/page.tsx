@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { TrendingUp } from "lucide-react";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
 import { TopicBars } from "@/components/student/topic-bars";
 import { requireStudentArea } from "@/lib/auth/session";
@@ -97,17 +97,17 @@ export default async function IlerlemePage() {
     scores.length > 0;
 
   return (
-    <AstraParitySorShell {...shell}>
-      <div className="ap-exam-page">
+    <ParitySorShell {...shell}>
+      <div className="cp-exam-page">
       {/* Sayfanın h1'i yoktu: ekran okuyucu "burası neresi" sorusunu
           yanıtlayamıyordu, sekme başlığı dışında hiçbir işaret yoktu. */}
-      <div className="ap-page-head">
-        <h1 className="ap-page-title">İlerleme</h1>
+      <div className="cp-page-head">
+        <h1 className="cp-page-title">İlerleme</h1>
       </div>
       <div className="space-y-6">
         {!hasAnyActivity ? (
           <EmptyState
-            variant="astra"
+            variant="parity"
             icon={TrendingUp}
             title="Henüz ilerleme verin yok"
             description="Sohbet, quiz veya deneme ile çalışmaya başladığında özet burada görünür."
@@ -129,14 +129,14 @@ export default async function IlerlemePage() {
               <Link
                 key={stat.label}
                 href={stat.href}
-                className="astra-pay-card block p-4 transition-transform hover:scale-[1.01]"
+                className="cs-pay-card block p-4 transition-transform hover:scale-[1.01]"
               >
-                <p className="text-xs text-[var(--astra-muted)]">{stat.label}</p>
-                <p className="mt-1 text-2xl font-semibold text-[var(--astra-text)]">
+                <p className="text-xs text-[var(--cs-muted)]">{stat.label}</p>
+                <p className="mt-1 text-2xl font-semibold text-[var(--cs-text)]">
                   {formatNumber(stat.value)}
                   {stat.suffix ?? ""}
                 </p>
-                <p className="mt-2 text-xs font-semibold text-[var(--astra-primary)]">
+                <p className="mt-2 text-xs font-semibold text-[var(--cs-primary)]">
                   Detaya git →
                 </p>
               </Link>
@@ -146,14 +146,14 @@ export default async function IlerlemePage() {
         )}
 
         <SectionCard
-          variant="astra"
+          variant="parity"
           title="Eksik konular"
           description="Deneme sınavı analizlerinden çıkarılan başlıklar."
         >
           {topicRows.length ? (
             <TopicBars topics={topicRows} />
           ) : (
-            <p className="text-sm text-[var(--astra-muted)]">
+            <p className="text-sm text-[var(--cs-muted)]">
               Henüz analiz verisi yok. Bir deneme sınavı çözdüğünde burada görünür.
             </p>
           )}
@@ -165,10 +165,10 @@ export default async function IlerlemePage() {
             className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-white/10 p-4 transition-colors hover:border-white/25"
           >
             <span>
-              <span className="block text-sm font-semibold text-[var(--astra-text)]">
+              <span className="block text-sm font-semibold text-[var(--cs-text)]">
                 Yanlış defteri
               </span>
-              <span className="mt-1 block text-xs text-[var(--astra-muted)]">
+              <span className="mt-1 block text-xs text-[var(--cs-muted)]">
                 {mistakes.open > 0
                   ? `${formatNumber(mistakes.open)} soru tekrar bekliyor`
                   : mistakes.mastered > 0
@@ -176,13 +176,13 @@ export default async function IlerlemePage() {
                     : "Yanlış yaptığın sorular burada birikir"}
               </span>
             </span>
-            <span className="shrink-0 text-xs font-semibold text-[var(--astra-primary)]">
+            <span className="shrink-0 text-xs font-semibold text-[var(--cs-primary)]">
               Aç →
             </span>
           </Link>
         </SectionCard>
       </div>
       </div>
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

@@ -23,7 +23,7 @@ const LESSON_TOOLS = [
   { id: "yazili", href: "/studio/yazili", label: "Yazılı deneme", hint: "Sınav kağıdı", icon: Timer },
 ] as const;
 
-export function AstraStartHub({
+export function StartHub({
   open,
   onClose,
   onScanProblem,
@@ -38,18 +38,18 @@ export function AstraStartHub({
 
   return (
     <div
-      className="ap-hub-backdrop"
+      className="cp-hub-backdrop"
       role="dialog"
       aria-modal="true"
       aria-label="Başla"
       onClick={onClose}
     >
-      <div className="ap-hub-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="ap-hub-head">
-          <h2 className="ap-hub-title">Bugün ne çalışıyoruz?</h2>
+      <div className="cp-hub-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="cp-hub-head">
+          <h2 className="cp-hub-title">Bugün ne çalışıyoruz?</h2>
           <button
             type="button"
-            className="ap-hub-close"
+            className="cp-hub-close"
             aria-label="Kapat"
             onClick={onClose}
           >
@@ -57,56 +57,56 @@ export function AstraStartHub({
           </button>
         </div>
 
-        <button type="button" className="ap-hub-scan" onClick={onScanProblem}>
-          <span className="ap-hub-scan-scene" aria-hidden />
-          <span className="ap-hub-scan-icon" aria-hidden>
+        <button type="button" className="cp-hub-scan" onClick={onScanProblem}>
+          <span className="cp-hub-scan-scene" aria-hidden />
+          <span className="cp-hub-scan-icon" aria-hidden>
             <Camera className="h-6 w-6" />
           </span>
-          <span className="ap-hub-scan-copy">
+          <span className="cp-hub-scan-copy">
             <strong>Problemi tara</strong>
             <span>Fotoğraf çek ve adım adım yardım al</span>
           </span>
         </button>
 
-        <p className="ap-hub-section">Ders oluştur</p>
-        <div className="ap-hub-tools">
+        <p className="cp-hub-section">Ders oluştur</p>
+        <div className="cp-hub-tools">
           {LESSON_TOOLS.map((tool) => {
             const Icon = tool.icon;
             return (
               <Link
                 key={tool.id}
                 href={tool.href}
-                className={`ap-hub-tool ap-hub-tool--${tool.id}`}
+                className={`cp-hub-tool cp-hub-tool--${tool.id}`}
               >
-                <span className="ap-hub-tool-scene" aria-hidden />
-                <span className="ap-hub-tool-glow" aria-hidden />
-                <span className="ap-hub-tool-icon">
+                <span className="cp-hub-tool-scene" aria-hidden />
+                <span className="cp-hub-tool-glow" aria-hidden />
+                <span className="cp-hub-tool-icon">
                   <Icon className="h-5 w-5" aria-hidden />
                 </span>
-                <span className="ap-hub-tool-copy">
-                  <span className="ap-hub-tool-label">{tool.label}</span>
-                  <span className="ap-hub-tool-hint">{tool.hint}</span>
+                <span className="cp-hub-tool-copy">
+                  <span className="cp-hub-tool-label">{tool.label}</span>
+                  <span className="cp-hub-tool-hint">{tool.hint}</span>
                 </span>
               </Link>
             );
           })}
         </div>
 
-        <div className="ap-hub-foot">
+        <div className="cp-hub-foot">
           <Link
             href="/deneme-sinavlari"
-            className="ap-hub-foot-card ap-hub-foot-card--exam"
+            className="cp-hub-foot-card cp-hub-foot-card--exam"
             onClick={onClose}
           >
-            <span className="ap-hub-foot-scene" aria-hidden />
+            <span className="cp-hub-foot-scene" aria-hidden />
             <Target className="h-5 w-5" aria-hidden />
             <span>
               <strong>Sınav hazırlığı</strong>
               <em>{examDaysLabel}</em>
             </span>
           </Link>
-          <Link href="/siniflar" className="ap-hub-foot-card ap-hub-foot-card--class" onClick={onClose}>
-            <span className="ap-hub-foot-scene" aria-hidden />
+          <Link href="/siniflar" className="cp-hub-foot-card cp-hub-foot-card--class" onClick={onClose}>
+            <span className="cp-hub-foot-scene" aria-hidden />
             <Users className="h-5 w-5" aria-hidden />
             <span>
               <strong>Sınıf arkadaşlarınla bağlantı kur</strong>

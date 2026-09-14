@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import "@/styles/astra-app.css";
+import "@/styles/parity-app.css";
 
 const STORAGE_KEY = "cortex-gamification-v1";
 
-export function AstraGamificationGate() {
+export function GamificationGate() {
   const [step, setStep] = useState<"none" | "streak" | "badge">("none");
   const [streakDays, setStreakDays] = useState(1);
 
@@ -64,19 +64,19 @@ export function AstraGamificationGate() {
         aria-modal="true"
         aria-label="Seri"
       >
-        <div className="astra-app astra-pay-card w-full max-w-sm p-6 text-center">
+        <div className="cs-app cs-pay-card w-full max-w-sm p-6 text-center">
           <p className="text-4xl" aria-hidden>
             🔥
           </p>
           <h2 className="mt-3 text-xl font-semibold">
             {streakDays > 1 ? `${streakDays} günlük serin devam ediyor!` : "Serini başlattın!"}
           </h2>
-          <p className="mt-2 text-sm text-[var(--astra-muted)]">
+          <p className="mt-2 text-sm text-[var(--cs-muted)]">
             Her gün en az bir soru sorarak serini canlı tut.
           </p>
           <Button
             type="button"
-            className="astra-btn-primary mt-6 w-full rounded-full"
+            className="cs-btn-primary mt-6 w-full rounded-full"
             onClick={continueFromStreak}
           >
             Devam et
@@ -93,25 +93,25 @@ export function AstraGamificationGate() {
       aria-modal="true"
       aria-label="Başarı"
     >
-      <div className="astra-app astra-pay-card w-full max-w-sm p-6 text-center">
+      <div className="cs-app cs-pay-card w-full max-w-sm p-6 text-center">
         <p className="text-4xl" aria-hidden>
           🚀
         </p>
         <h2 className="mt-3 text-xl font-semibold">İlk Roket açıldı!</h2>
-        <p className="mt-2 text-sm text-[var(--astra-muted)]">
+        <p className="mt-2 text-sm text-[var(--cs-muted)]">
           Cortex Plus yolculuğuna başladın. Sıradaki rozetler seni bekliyor.
         </p>
         <div className="mt-6 flex flex-col gap-2">
           <Link
             href="/ilerleme"
-            className="text-sm text-[var(--astra-primary)] underline underline-offset-2"
+            className="text-sm text-[var(--cs-primary)] underline underline-offset-2"
             onClick={dismiss}
           >
             Hikâyeyi gör
           </Link>
           <Button
             type="button"
-            className="astra-btn-primary w-full rounded-full"
+            className="cs-btn-primary w-full rounded-full"
             onClick={dismiss}
           >
             Devam et

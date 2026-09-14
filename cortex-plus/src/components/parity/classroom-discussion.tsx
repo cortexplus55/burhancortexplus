@@ -38,7 +38,7 @@ export function ClassroomDiscussion({
   }
 
   return (
-    <form className="ap-class-composer" onSubmit={(e) => void submit(e)}>
+    <form className="cp-class-composer" onSubmit={(e) => void submit(e)}>
       <label className="sr-only" htmlFor="class-post">
         Tartışmaya yaz
       </label>
@@ -52,7 +52,7 @@ export function ClassroomDiscussion({
       />
       <button
         type="submit"
-        className="ap-exam-continue ap-exam-continue--primary"
+        className="cp-exam-continue cp-exam-continue--primary"
         disabled={sending || !body.trim()}
       >
         {sending ? "Gönderiliyor…" : "Gönder"}

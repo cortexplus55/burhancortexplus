@@ -773,7 +773,7 @@ export function ExamCreateWizard({
   );
 }
 
-/** Hızlı seçenekler + ay takvimi. Astra'daki gibi tarih ayrı bir adım. */
+/** Hızlı seçenekler + ay takvimi. Referans üründeki gibi tarih ayrı bir adım. */
 function DateStep({
   value,
   onPick,

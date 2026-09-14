@@ -21,7 +21,7 @@ export function PremiumPlanHero({
     <header className={align === "center" ? "text-center" : "text-left"}>
       <p className="cortex-premium-section-eyebrow">{eyebrow}</p>
       <Heading className="cortex-premium-section-title mt-2">{title}</Heading>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--astra-muted)]">
+      <p className="mt-2 text-sm leading-relaxed text-[var(--cs-muted)]">
         {description}
       </p>
     </header>

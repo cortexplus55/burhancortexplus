@@ -37,16 +37,16 @@ export function DailyDrillView({
   if (done) {
     const score = total > 0 ? Math.round((correct / total) * 100) : 0;
     return (
-      <div className="ap-exam-page">
-        <div className="ap-page-head">
-          <h1 className="ap-page-title">Bugünü bitirdin</h1>
+      <div className="cp-exam-page">
+        <div className="cp-page-head">
+          <h1 className="cp-page-title">Bugünü bitirdin</h1>
         </div>
 
-        <div className="astra-pay-card p-6 text-center">
-          <p className="text-4xl font-bold text-[var(--astra-text)]">
+        <div className="cs-pay-card p-6 text-center">
+          <p className="text-4xl font-bold text-[var(--cs-text)]">
             {correct} / {total}
           </p>
-          <p className="mt-2 text-sm text-[var(--astra-muted)]">
+          <p className="mt-2 text-sm text-[var(--cs-muted)]">
             {score >= 80
               ? "Defterin eriyor. Yarın yenileri gelir."
               : score >= 40
@@ -62,7 +62,7 @@ export function DailyDrillView({
             </Link>
             <Link
               href="/ogretmen"
-              className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-[var(--astra-muted)] transition-colors hover:border-white/30 hover:text-[var(--astra-text)]"
+              className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-[var(--cs-muted)] transition-colors hover:border-white/30 hover:text-[var(--cs-text)]"
             >
               Ana ekrana dön
             </Link>
@@ -73,9 +73,9 @@ export function DailyDrillView({
   }
 
   return (
-    <div className="ap-exam-page">
-      <div className="ap-page-head">
-        <h1 className="ap-page-title">Günün turu</h1>
+    <div className="cp-exam-page">
+      <div className="cp-page-head">
+        <h1 className="cp-page-title">Günün turu</h1>
       </div>
 
       {/* İlerleme çubuğu: turun sonu görünsün diye. Kaç soru kaldığını

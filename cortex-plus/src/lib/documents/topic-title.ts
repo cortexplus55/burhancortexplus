@@ -2,15 +2,15 @@
  * Konu bölme ve adlandırma kuralı — "ev stili".
  *
  * Aynı zemin mekaniği PDF'ini iki ürüne yükleyip karşılaştırdık. Belgenin
- * kendi içindekiler tablosunda sekiz numaralı bölüm var; Astra bundan yedi
+ * kendi içindekiler tablosunda sekiz numaralı bölüm var; Referans ürün bundan yedi
  * konu çıkardı, biz sekizini de olduğu gibi kopyaladık:
  *
  *   biz:    "3. Dane Boyu, Kıvam Limitleri ve Sınıflandırma (USCS)"
- *   Astra:  "Dane Boyu Dağılımı ve Zemin Sınıflandırması"
+ *   Referans ürün:  "Dane Boyu Dağılımı ve Zemin Sınıflandırması"
  *   biz:    "5. Efektif Gerilme İlkesi"
- *   Astra:  "Efektif Gerilme İlkesi ve Sızma Kuvvetleri"   (5.2'den terfi)
+ *   Referans ürün:  "Efektif Gerilme İlkesi ve Sızma Kuvvetleri"   (5.2'den terfi)
  *   biz:    "1. Zeminin Oluşumu ve Üç Fazlı Sistem"
- *   Astra:  (konu değil — tek başına sınanamıyor, 2'nin açılışına katıldı)
+ *   Referans ürün:  (konu değil — tek başına sınanamıyor, 2'nin açılışına katıldı)
  *
  * Fark okunabilirlik değil, işlev: konu listesi öğrencinin gördüğü ilk
  * ekran. Numara ve parantez içi kısaltma orada hiçbir şey öğretmiyor,
@@ -226,7 +226,7 @@ function titleCase(text: string): string {
 /**
  * Hazırlığın adı — belgeden, dersten değil.
  *
- * Astra aynı belgeye "Servet-i Fünûn Edebiyatı ve Yenilikleri" derken biz
+ * Referans ürün aynı belgeye "Servet-i Fünûn Edebiyatı ve Yenilikleri" derken biz
  * "Türkçe sınav hazırlığı" diyorduk: ad dersten geliyordu. Aynı dersten üç
  * belge yükleyen öğrencinin listesinde üçü de aynı adı taşıyordu.
  *
@@ -425,7 +425,7 @@ export function topicTitleRule(documentHeadings: string[] = []): string {
     "Başlık tek başına, listede okununca neyin konusu olduğu anlaşılsın. " +
     examples +
     // Kapsam eki eskiden "yalnızca gerektiğinde" idi ve model hiç koymuyordu.
-    // Aynı belgede Astra "Servet-i Fünûn Şiiri ve Biçimsel Yenilikler"
+    // Aynı belgede referans ürün "Servet-i Fünûn Şiiri ve Biçimsel Yenilikler"
     // derken biz "Şiirde Yenilik Arayışı" dedik: listede tek başına
     // okununca hangi dersin konusu olduğu belli değil. Konu adı sohbette,
     // tekrarda ve plan ekranında da bu haliyle geçiyor.

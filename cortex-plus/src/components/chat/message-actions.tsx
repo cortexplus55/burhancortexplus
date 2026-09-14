@@ -133,10 +133,10 @@ export function MessageActions({
   }
 
   return (
-    <div className="ap-msg-actions">
+    <div className="cp-msg-actions">
       <button
         type="button"
-        className="ap-msg-action"
+        className="cp-msg-action"
         onClick={toggleSpeech}
         aria-label={speaking ? "Okumayı durdur" : "Sesli oku"}
         title={speaking ? "Okumayı durdur" : "Sesli oku"}
@@ -150,7 +150,7 @@ export function MessageActions({
 
       <button
         type="button"
-        className="ap-msg-action"
+        className="cp-msg-action"
         onClick={copy}
         aria-label="Kopyala"
         title="Kopyala"
@@ -166,7 +166,7 @@ export function MessageActions({
         <>
           <button
             type="button"
-            className={rating === 1 ? "ap-msg-action is-on" : "ap-msg-action"}
+            className={rating === 1 ? "cp-msg-action is-on" : "cp-msg-action"}
             onClick={onThumbUp}
             aria-pressed={rating === 1}
             aria-label={rating === 1 ? "Beğeniyi geri al" : "Bu yanıt işime yaradı"}
@@ -177,7 +177,7 @@ export function MessageActions({
 
           <button
             type="button"
-            className={rating === -1 ? "ap-msg-action is-off" : "ap-msg-action"}
+            className={rating === -1 ? "cp-msg-action is-off" : "cp-msg-action"}
             onClick={onThumbDown}
             aria-pressed={rating === -1}
             aria-label={rating === -1 ? "Oyu geri al" : "Bu yanıt işime yaramadı"}
@@ -188,16 +188,16 @@ export function MessageActions({
         </>
       ) : null}
 
-      {copied ? <span className="ap-msg-action-hint">Kopyalandı</span> : null}
+      {copied ? <span className="cp-msg-action-hint">Kopyalandı</span> : null}
 
       {askReason && rating === -1 ? (
-        <div className="ap-msg-reasons" role="group" aria-label="Sorun neydi?">
-          <span className="ap-msg-action-hint">Sorun neydi?</span>
+        <div className="cp-msg-reasons" role="group" aria-label="Sorun neydi?">
+          <span className="cp-msg-action-hint">Sorun neydi?</span>
           {REASONS.map((item) => (
             <button
               key={item.id}
               type="button"
-              className="ap-msg-reason"
+              className="cp-msg-reason"
               onClick={() => {
                 setAskReason(false);
                 void rate(-1, item.id);

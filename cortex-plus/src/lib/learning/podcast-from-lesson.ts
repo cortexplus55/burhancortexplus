@@ -12,7 +12,7 @@
  * dersin üzerine kurulursa olgu ikinci kez çıkarılmıyor, aktarılıyor —
  * ters çevirme ihtimali kaynağında kuruyor.
  *
- * Astra da böyle yapıyor: konunun "Akıllı Metin"i ile podcast'i aynı
+ * Referans ürün da böyle yapıyor: konunun "Akıllı Metin"i ile podcast'i aynı
  * gövdeden besleniyor, bölüm başlıkları birebir örtüşüyor.
  */
 

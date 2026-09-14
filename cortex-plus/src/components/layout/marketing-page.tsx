@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { AstraMarketingPage } from "@/components/parity/astra-marketing";
+import { ParityMarketingPage } from "@/components/parity/marketing";
 import { CinematicPrimaryCta } from "@/components/marketing/cinematic-cta";
 
 export function MarketingPage({
@@ -15,7 +15,7 @@ export function MarketingPage({
   variant?: "marketing" | "auth" | "legal";
 }) {
   return (
-    <AstraMarketingPage
+    <ParityMarketingPage
       title={title}
       description={description}
       variant={variant}
@@ -27,7 +27,7 @@ export function MarketingPage({
       ) : (
         children
       )}
-    </AstraMarketingPage>
+    </ParityMarketingPage>
   );
 }
 

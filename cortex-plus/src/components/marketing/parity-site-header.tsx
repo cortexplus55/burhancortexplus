@@ -13,11 +13,11 @@ const nav = [
   { href: "/yardim", label: "Yardım" },
 ];
 
-export function AstraSiteHeader() {
+export function ParitySiteHeader() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="astra-marketing sticky top-0 z-40 border-b border-[var(--mk-border)] backdrop-blur">
+    <header className="cs-marketing sticky top-0 z-40 border-b border-[var(--mk-border)] backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4">
         <Link
           href="/"
@@ -59,7 +59,7 @@ export function AstraSiteHeader() {
             type="button"
             className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--mk-border)] text-[var(--mk-text)] md:hidden"
             aria-expanded={open}
-            aria-controls="astra-mobile-nav"
+            aria-controls="cs-mobile-nav"
             aria-label={open ? "Menüyü kapat" : "Menüyü aç"}
             onClick={() => setOpen((value) => !value)}
           >
@@ -70,7 +70,7 @@ export function AstraSiteHeader() {
 
       {open ? (
         <nav
-          id="astra-mobile-nav"
+          id="cs-mobile-nav"
           className="border-t border-[var(--mk-border)] bg-[var(--mk-bg)] px-4 py-3 md:hidden"
           aria-label="Mobil menü"
         >

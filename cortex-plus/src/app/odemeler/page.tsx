@@ -74,11 +74,11 @@ export default async function OdemelerPage() {
               className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"
             >
               <div>
-                <p className="font-medium text-[var(--astra-text)]">
+                <p className="font-medium text-[var(--cs-text)]">
                   {(payment.plans as { name?: string } | null)?.name ??
                     "Kredi paketi"}
                 </p>
-                <p className="text-xs text-[var(--astra-muted)]">
+                <p className="text-xs text-[var(--cs-muted)]">
                   {formatDate(payment.created_at)} · {payment.merchant_oid}
                 </p>
               </div>

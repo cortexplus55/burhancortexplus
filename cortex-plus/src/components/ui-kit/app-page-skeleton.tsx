@@ -15,12 +15,12 @@ export function AppPageSkeleton({
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="astra-pay-card h-24 bg-white/5" />
+            <Skeleton key={i} className="cs-pay-card h-24 bg-white/5" />
           ))}
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
-          <Skeleton className="astra-pay-card h-40 bg-white/5" />
-          <Skeleton className="astra-pay-card h-40 bg-white/5" />
+          <Skeleton className="cs-pay-card h-40 bg-white/5" />
+          <Skeleton className="cs-pay-card h-40 bg-white/5" />
         </div>
       </div>
     );
@@ -28,7 +28,7 @@ export function AppPageSkeleton({
 
   if (variant === "study-plan") {
     return (
-      <div className="ap-plan-page space-y-4" aria-busy aria-label="Yükleniyor">
+      <div className="cp-plan-page space-y-4" aria-busy aria-label="Yükleniyor">
         <Skeleton className="h-8 w-40 bg-white/10" />
         <Skeleton className="h-16 w-72 max-w-full bg-white/10" />
         <div className="grid grid-cols-3 gap-3">
@@ -45,8 +45,8 @@ export function AppPageSkeleton({
   return (
     <div className={cn("space-y-4")} aria-busy aria-label="Yükleniyor">
       <Skeleton className="h-6 w-40 bg-white/10" />
-      <Skeleton className="astra-pay-card h-32 bg-white/5" />
-      <Skeleton className="astra-pay-card h-32 bg-white/5" />
+      <Skeleton className="cs-pay-card h-32 bg-white/5" />
+      <Skeleton className="cs-pay-card h-32 bg-white/5" />
     </div>
   );
 }

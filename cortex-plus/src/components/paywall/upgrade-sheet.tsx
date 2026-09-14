@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { Sparkles, Unlock, X } from "lucide-react";
-import "@/styles/astra-app.css";
+import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import "@/styles/upgrade-gate.css";
 
@@ -50,7 +50,7 @@ export function UpgradeSheet({
 
   return (
     <div
-      className="astra-app cortex-premium-app ug-backdrop"
+      className="cs-app cortex-premium-app ug-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="ug-title"

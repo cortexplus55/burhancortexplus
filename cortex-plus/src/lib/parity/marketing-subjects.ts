@@ -1,4 +1,4 @@
-/** Marketing ders kartları — Astra /tr/ parity (Cortex metinleri) */
+/** Marketing ders kartları — referans ürün /tr/ parity (Cortex metinleri) */
 
 export type MarketingSubject = {
   slug: string;

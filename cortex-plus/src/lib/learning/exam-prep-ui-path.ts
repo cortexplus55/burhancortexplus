@@ -96,7 +96,7 @@ export type TopicProgress = {
 /**
  * Konu başına ilerleme.
  *
- * Astra'nın "Konular" sekmesinde her konunun yanında yüzdesi ve
+ * Referans ürünün "Konular" sekmesinde her konunun yanında yüzdesi ve
  * "0 tamamlandı" yazıyor; öğrenci nerede kaldığını konu bazında
  * görüyor. Bizde yalnızca toplam yüzde vardı ve konu listesi ayrı bir
  * sayfada, ilerleme bilgisi olmadan duruyordu.

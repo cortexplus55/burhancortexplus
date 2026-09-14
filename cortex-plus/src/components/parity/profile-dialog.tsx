@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import "@/styles/astra-parity-sor.css";
+import "@/styles/parity-shell.css";
 
 type TabId = "account" | "school" | "learning";
 
@@ -22,7 +22,7 @@ export type ProfilePlanView = {
   isPremium: boolean;
 };
 
-export function AstraProfileDialog({
+export function ProfileDialog({
   open,
   onClose,
   plan,
@@ -130,21 +130,21 @@ export function AstraProfileDialog({
 
   return (
     <div
-      className="ap-profile-backdrop"
+      className="cp-profile-backdrop"
       role="dialog"
       aria-modal="true"
       aria-label="Ayarlar"
       onClick={onClose}
     >
-      <div className="ap-profile-scrim">
-        <p className="ap-profile-scrim-title">Ayarlar</p>
+      <div className="cp-profile-scrim">
+        <p className="cp-profile-scrim-title">Ayarlar</p>
       </div>
-      <div className="ap-profile-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="ap-profile-panel-head">
-          <button type="button" className="ap-profile-back" onClick={onClose} aria-label="Geri">
+      <div className="cp-profile-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="cp-profile-panel-head">
+          <button type="button" className="cp-profile-back" onClick={onClose} aria-label="Geri">
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <button type="button" className="ap-profile-close" onClick={onClose} aria-label="Kapat">
+          <button type="button" className="cp-profile-close" onClick={onClose} aria-label="Kapat">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -152,7 +152,7 @@ export function AstraProfileDialog({
         {/*
           PAKET ROZETİ — öğrencinin hangi katmanda olduğunu gördüğü yer.
 
-          Astra'da profil penceresi bir hesap merkezi: en üstte paket adı
+          Referans üründe profil penceresi bir hesap merkezi: en üstte paket adı
           ('Temel — Ücretsiz plan') ve ücretsiz kullanıcıya bir yükseltme
           çağrısı duruyor. Bizde profil yalnızca ayar paneliydi; öğrenci
           hangi pakette olduğunu buradan hiç göremiyordu.
@@ -160,20 +160,20 @@ export function AstraProfileDialog({
           Abonede çağrı yok: parasını ödemiş kullanıcıya satış gösterilmez.
         */}
         {plan ? (
-          <div className={cn("ap-profile-plan", plan.isPremium && "ap-profile-plan--premium")}>
+          <div className={cn("cp-profile-plan", plan.isPremium && "cp-profile-plan--premium")}>
             <div>
               <strong>{plan.label}</strong>
               <span>{plan.hint}</span>
             </div>
             {plan.isPremium ? null : (
-              <a className="ap-profile-plan-cta" href="/paketler">
+              <a className="cp-profile-plan-cta" href="/paketler">
                 Daha hızlı öğren
               </a>
             )}
           </div>
         ) : null}
 
-        <nav className="ap-profile-tabs" aria-label="Ayarlar bölümleri">
+        <nav className="cp-profile-tabs" aria-label="Ayarlar bölümleri">
           {(
             [
               ["account", "Hesabım"],
@@ -184,7 +184,7 @@ export function AstraProfileDialog({
             <button
               key={id}
               type="button"
-              className={cn(tab === id && "ap-profile-tabs--active")}
+              className={cn(tab === id && "cp-profile-tabs--active")}
               onClick={() => setTab(id)}
             >
               {label}
@@ -195,28 +195,28 @@ export function AstraProfileDialog({
         {/*
           HESAP BAĞLANTILARI — paketini ve hakkını görmenin yolu.
 
-          Astra'da profil menüsünde "Kullanım" ve "Abonelikler" duruyor.
+          Referans üründe profil menüsünde "Kullanım" ve "Abonelikler" duruyor.
           Bizde profil yalnızca ayar paneliydi; iki ekran da vardı ama
           profilden erişilemiyordu. Paket rozeti ücretsize özel olunca
-          (Astra'da da öyle) abone öğrencinin paketini görebileceği hiçbir
+          (referans üründe de öyle) abone öğrencinin paketini görebileceği hiçbir
           yol kalmıyordu — bu boşluğu kapatıyor.
         */}
-        <div className="ap-profile-links">
+        <div className="cp-profile-links">
           <a href="/krediler">Kullanımım</a>
           <a href="/odemeler">Aboneliğim</a>
         </div>
 
         {tab === "account" ? (
-          <div className="ap-profile-body">
-            <h2 className="ap-profile-heading">Rolüm</h2>
-            <ul className="ap-profile-role-list">
+          <div className="cp-profile-body">
+            <h2 className="cp-profile-heading">Rolüm</h2>
+            <ul className="cp-profile-role-list">
               {ROLES.map((item) => (
                 <li key={item.id}>
                   <button
                     type="button"
                     className={cn(
-                      "ap-profile-role",
-                      role === item.id && "ap-profile-role--active",
+                      "cp-profile-role",
+                      role === item.id && "cp-profile-role--active",
                     )}
                     onClick={() => setRole(item.id)}
                   >
@@ -230,9 +230,9 @@ export function AstraProfileDialog({
         ) : null}
 
         {tab === "school" ? (
-          <div className="ap-profile-body">
-            <h2 className="ap-profile-heading">Okul</h2>
-            <label className="ap-field">
+          <div className="cp-profile-body">
+            <h2 className="cp-profile-heading">Okul</h2>
+            <label className="cp-field">
               <span>Hangi okula gidiyorsun?</span>
               <input
                 value={schoolQuery}
@@ -242,7 +242,7 @@ export function AstraProfileDialog({
               />
             </label>
             {schoolOptions.length ? (
-              <ul className="ap-school-suggest">
+              <ul className="cp-school-suggest">
                 {schoolOptions.map((name) => (
                   <li key={name}>
                     <button type="button" onClick={() => void saveSchool(name.split(" (")[0] ?? name)}>
@@ -253,18 +253,18 @@ export function AstraProfileDialog({
               </ul>
             ) : null}
             {schoolName ? (
-              <p className="mt-3 text-sm text-[var(--ap-muted)]">Seçili: {schoolName}</p>
+              <p className="mt-3 text-sm text-[var(--cp-muted)]">Seçili: {schoolName}</p>
             ) : null}
           </div>
         ) : null}
 
         {tab === "learning" ? (
-          <div className="ap-profile-body">
-            <h2 className="ap-profile-heading">Günlük hedef</h2>
-            <p className="ap-profile-lead">
+          <div className="cp-profile-body">
+            <h2 className="cp-profile-heading">Günlük hedef</h2>
+            <p className="cp-profile-lead">
               Her gün kaç soru veya görev tamamlamak istediğini seç.
             </p>
-            <label className="ap-field">
+            <label className="cp-field">
               <span>Günlük görev sayısı</span>
               <input
                 type="number"
@@ -276,7 +276,7 @@ export function AstraProfileDialog({
             </label>
             <button
               type="button"
-              className="ap-exam-continue ap-exam-continue--primary mt-4 w-full"
+              className="cp-exam-continue cp-exam-continue--primary mt-4 w-full"
               disabled={loading}
               onClick={() => void saveLearning()}
             >

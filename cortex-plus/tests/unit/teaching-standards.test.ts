@@ -651,7 +651,7 @@ describe("dropScaffoldSections", () => {
   });
 
   it("keeps only the concept sections", () => {
-    // Astra'nın dersinde "Yaygın Hata" ya da "Bilgi Kontrolü" diye bir
+    // Referans ürünün dersinde "Yaygın Hata" ya da "Bilgi Kontrolü" diye bir
     // bölüm yok: uyarı bölümün içinde bir kutu, kontrol soru olarak
     // soruluyor. Bizde bu alanlar zaten ayrı duruyordu, model bir de
     // bölüm olarak yazınca öğrenci aynı şeyi iki kez görüyordu.

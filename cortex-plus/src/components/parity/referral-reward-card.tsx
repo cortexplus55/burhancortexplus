@@ -29,22 +29,22 @@ export function ReferralRewardCard({
   if (!summary.available) return null;
 
   return (
-    <div className="ap-ref-card">
-      <span className="ap-ref-badge">
+    <div className="cp-ref-card">
+      <span className="cp-ref-badge">
         {summary.usedCount}/{summary.maxCount} davet sayıldı
       </span>
 
-      <div className="ap-ref-coin" aria-hidden />
+      <div className="cp-ref-coin" aria-hidden />
 
-      <h2 className="ap-ref-title">Arkadaşını davet et, hakkın katlansın</h2>
-      <p className="ap-ref-body">{referralPitch(summary)}</p>
+      <h2 className="cp-ref-title">Arkadaşını davet et, hakkın katlansın</h2>
+      <p className="cp-ref-body">{referralPitch(summary)}</p>
 
-      {status ? <p className="ap-ref-status">{status}</p> : null}
+      {status ? <p className="cp-ref-status">{status}</p> : null}
 
-      <div className="ap-ref-actions">
+      <div className="cp-ref-actions">
         <button
           type="button"
-          className="ap-ref-primary"
+          className="cp-ref-primary"
           onClick={async () => {
             try {
               await navigator.clipboard.writeText(inviteUrl);
@@ -59,7 +59,7 @@ export function ReferralRewardCard({
         </button>
         <button
           type="button"
-          className="ap-ref-ghost"
+          className="cp-ref-ghost"
           aria-expanded={explaining}
           onClick={() => setExplaining((v) => !v)}
         >
@@ -68,7 +68,7 @@ export function ReferralRewardCard({
       </div>
 
       {explaining ? (
-        <ul className="ap-ref-steps">
+        <ul className="cp-ref-steps">
           <li>Bağlantını paylaş; arkadaşın kayıt olurken kodun işlenir.</li>
           <li>
             Kaydolduğu anda ikinizin de dönemlik hakkı{" "}

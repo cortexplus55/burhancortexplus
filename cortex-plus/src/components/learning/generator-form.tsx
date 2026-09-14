@@ -28,7 +28,7 @@ export function GeneratorForm({
   returnPath: string;
   buildBody: (value: string, extras: Record<string, string>) => Record<string, unknown>;
   extraFields?: { name: string; label: string; type: "number"; defaultValue: string }[];
-  variant?: "default" | "astra";
+  variant?: "default" | "parity";
 }) {
   const router = useRouter();
   const [value, setValue] = useState("");
@@ -40,7 +40,7 @@ export function GeneratorForm({
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
 
-  const isAstra = variant === "astra";
+  const isParity = variant === "parity";
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -73,11 +73,11 @@ export function GeneratorForm({
     }
   }
 
-  const inputClass = isAstra
-    ? "border-[var(--astra-border)] bg-[var(--astra-surface-elevated)] text-[var(--astra-text)] placeholder:text-[var(--astra-muted)] focus-visible:border-[var(--astra-primary)] focus-visible:ring-[var(--astra-primary)]/30"
+  const inputClass = isParity
+    ? "border-[var(--cs-border)] bg-[var(--cs-surface-elevated)] text-[var(--cs-text)] placeholder:text-[var(--cs-muted)] focus-visible:border-[var(--cs-primary)] focus-visible:ring-[var(--cs-primary)]/30"
     : undefined;
 
-  const labelClass = isAstra ? "text-[var(--astra-muted)]" : undefined;
+  const labelClass = isParity ? "text-[var(--cs-muted)]" : undefined;
 
   return (
     <>
@@ -123,11 +123,11 @@ export function GeneratorForm({
         ))}
 
         <div className="flex items-end">
-          {isAstra ? (
+          {isParity ? (
             <button
               type="submit"
               disabled={loading || value.trim().length < 3}
-              className="astra-btn-primary h-10 w-full rounded-full px-6 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              className="cs-btn-primary h-10 w-full rounded-full px-6 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               {loading ? "Üretiliyor…" : submitLabel}
             </button>
@@ -138,12 +138,12 @@ export function GeneratorForm({
           )}
         </div>
 
-        {loading && isAstra ? (
+        {loading && isParity ? (
           <div
             className="h-1 overflow-hidden rounded-full bg-white/10 sm:col-span-2"
             aria-hidden
           >
-            <div className="astra-learning-shimmer h-full w-1/3 rounded-full bg-amber-400/60" />
+            <div className="cs-learning-shimmer h-full w-1/3 rounded-full bg-amber-400/60" />
           </div>
         ) : null}
 
@@ -151,7 +151,7 @@ export function GeneratorForm({
           <p
             className={cn(
               "text-xs sm:col-span-2",
-              isAstra ? "text-[var(--astra-muted)]" : "text-muted-foreground",
+              isParity ? "text-[var(--cs-muted)]" : "text-muted-foreground",
             )}
           >
             Bu işlem {creditCost} kredi kullanır. Başarısız olursa kredin iade edilir.

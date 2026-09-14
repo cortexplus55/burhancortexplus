@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { CreateClassForm } from "@/components/student/create-class-form";
 import { JoinClassForm } from "@/components/student/join-class-form";
 import { requireStudentArea } from "@/lib/auth/session";
@@ -41,11 +41,11 @@ export default async function SiniflarPage() {
   const hasAny = (owned?.length ?? 0) > 0 || joined.length > 0;
 
   return (
-    <AstraParitySorShell {...shell}>
-      <div className="ap-exam-page space-y-6">
+    <ParitySorShell {...shell}>
+      <div className="cp-exam-page space-y-6">
         <div>
           <h1 className="text-xl font-semibold">Sınıflar</h1>
-          <p className="mt-1 text-sm text-[var(--astra-muted)]">
+          <p className="mt-1 text-sm text-[var(--cs-muted)]">
             Kendi çalışma grubunu oluştur veya öğretmen koduyla katıl.
           </p>
         </div>
@@ -54,26 +54,26 @@ export default async function SiniflarPage() {
           <ul className="space-y-3">
             {(owned ?? []).map((room) => (
               <li key={room.id}>
-                <Link href={`/siniflar/${room.id}`} className="ap-classroom-card">
-                  <div className="ap-classroom-icon" aria-hidden />
+                <Link href={`/siniflar/${room.id}`} className="cp-classroom-card">
+                  <div className="cp-classroom-icon" aria-hidden />
                   <div>
                     <p className="font-semibold">{room.name}</p>
-                    <p className="text-xs text-[var(--ap-muted)]">Senin grubun · kod {room.join_code}</p>
+                    <p className="text-xs text-[var(--cp-muted)]">Senin grubun · kod {room.join_code}</p>
                   </div>
-                  <span className="ap-classroom-chevron" aria-hidden>›</span>
+                  <span className="cp-classroom-chevron" aria-hidden>›</span>
                 </Link>
               </li>
             ))}
             {joined.map((room) => (
               <li key={room.id}>
-                <Link href={`/siniflar/${room.id}`} className="ap-classroom-card">
-                  <div className="ap-classroom-icon ap-classroom-icon--joined" aria-hidden />
+                <Link href={`/siniflar/${room.id}`} className="cp-classroom-card">
+                  <div className="cp-classroom-icon cp-classroom-icon--joined" aria-hidden />
                   <div>
                     <p className="font-semibold">{room.name}</p>
-                    <p className="text-xs text-[var(--ap-muted)]">Katıldığın sınıf</p>
+                    <p className="text-xs text-[var(--cp-muted)]">Katıldığın sınıf</p>
                   </div>
-                  <div className="ap-classroom-side">
-                    <p className="text-xs text-[var(--ap-muted)]">Sınav hazırlıkları</p>
+                  <div className="cp-classroom-side">
+                    <p className="text-xs text-[var(--cp-muted)]">Sınav hazırlıkları</p>
                     <p className="text-sm">Detay</p>
                   </div>
                 </Link>
@@ -81,7 +81,7 @@ export default async function SiniflarPage() {
             ))}
           </ul>
         ) : (
-          <div className="ap-class-empty">
+          <div className="cp-class-empty">
             <h1>İlk sınıfına katıl veya oluştur</h1>
             <p>
               Öğretmeninin verdiği kodla gir; ya da arkadaşlarınla çalışmak için
@@ -95,6 +95,6 @@ export default async function SiniflarPage() {
           <CreateClassForm />
         </div>
       </div>
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

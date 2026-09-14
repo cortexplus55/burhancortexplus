@@ -51,24 +51,24 @@ export function MistakeNotebookView({
     const done = index >= queue.length;
 
     return (
-      <div className="ap-exam-page">
-        <div className="ap-page-head">
-          <h1 className="ap-page-title">{activeTopic}</h1>
+      <div className="cp-exam-page">
+        <div className="cp-page-head">
+          <h1 className="cp-page-title">{activeTopic}</h1>
           <button
             type="button"
             onClick={leave}
-            className="self-start rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-[var(--astra-muted)] transition-colors hover:border-white/30 hover:text-[var(--astra-text)]"
+            className="self-start rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-[var(--cs-muted)] transition-colors hover:border-white/30 hover:text-[var(--cs-text)]"
           >
             Deftere dön
           </button>
         </div>
 
         {done || !current ? (
-          <div className="astra-pay-card p-6 text-center">
-            <p className="text-lg font-semibold text-[var(--astra-text)]">
+          <div className="cs-pay-card p-6 text-center">
+            <p className="text-lg font-semibold text-[var(--cs-text)]">
               Bu turu bitirdin.
             </p>
-            <p className="mt-2 text-sm text-[var(--astra-muted)]">
+            <p className="mt-2 text-sm text-[var(--cs-muted)]">
               {solvedCount
                 ? `${solvedCount} soru defterden çıktı. Kalanlar bir sonraki tura kaldı — üst üste iki doğru gerekiyor.`
                 : "Hiçbir soru henüz defterden çıkmadı. Üst üste iki doğru gerekiyor; bir tur daha at."}
@@ -85,7 +85,7 @@ export function MistakeNotebookView({
               <button
                 type="button"
                 onClick={leave}
-                className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-[var(--astra-muted)] transition-colors hover:border-white/30 hover:text-[var(--astra-text)]"
+                className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-[var(--cs-muted)] transition-colors hover:border-white/30 hover:text-[var(--cs-text)]"
               >
                 Deftere dön
               </button>
@@ -111,23 +111,23 @@ export function MistakeNotebookView({
   // ---------- liste ekranı ----------
 
   return (
-    <div className="ap-exam-page">
-      <div className="ap-page-head">
-        <h1 className="ap-page-title">Yanlış defteri</h1>
+    <div className="cp-exam-page">
+      <div className="cp-page-head">
+        <h1 className="cp-page-title">Yanlış defteri</h1>
       </div>
 
-      <p className="text-sm text-[var(--astra-muted)]">
+      <p className="text-sm text-[var(--cs-muted)]">
         Denemede ve quizde yanlış yaptığın sorular burada birikiyor. Bir soru
         defterden ancak <strong>üst üste iki kez</strong> doğru yaptığında
         çıkıyor — tek doğru şans olabilir.
       </p>
 
       {openCount === 0 ? (
-        <div className="astra-pay-card mt-5 p-6 text-center">
-          <p className="text-lg font-semibold text-[var(--astra-text)]">
+        <div className="cs-pay-card mt-5 p-6 text-center">
+          <p className="text-lg font-semibold text-[var(--cs-text)]">
             {masteredCount > 0 ? "Defterin şu an boş." : "Defterin henüz boş."}
           </p>
-          <p className="mt-2 text-sm text-[var(--astra-muted)]">
+          <p className="mt-2 text-sm text-[var(--cs-muted)]">
             {masteredCount > 0
               ? `Bekleyen soru kalmadı. Bugüne kadar ${masteredCount} soruyu defterden çıkardın.`
               : "Bir deneme sınavı ya da quiz çözdüğünde yanlışların buraya kendiliğinden düşecek."}
@@ -142,15 +142,15 @@ export function MistakeNotebookView({
       ) : (
         <>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <div className="astra-pay-card p-4">
-              <p className="text-xs text-[var(--astra-muted)]">Bekleyen soru</p>
-              <p className="mt-1 text-2xl font-semibold text-[var(--astra-text)]">
+            <div className="cs-pay-card p-4">
+              <p className="text-xs text-[var(--cs-muted)]">Bekleyen soru</p>
+              <p className="mt-1 text-2xl font-semibold text-[var(--cs-text)]">
                 {openCount}
               </p>
             </div>
-            <div className="astra-pay-card p-4">
-              <p className="text-xs text-[var(--astra-muted)]">Defterden çıkan</p>
-              <p className="mt-1 text-2xl font-semibold text-[var(--astra-text)]">
+            <div className="cs-pay-card p-4">
+              <p className="text-xs text-[var(--cs-muted)]">Defterden çıkan</p>
+              <p className="mt-1 text-2xl font-semibold text-[var(--cs-text)]">
                 {masteredCount}
               </p>
             </div>
@@ -158,13 +158,13 @@ export function MistakeNotebookView({
 
           <Link
             href="/gunluk"
-            className="astra-pay-card mt-3 flex items-center justify-between gap-4 p-4 transition-transform hover:scale-[1.01]"
+            className="cs-pay-card mt-3 flex items-center justify-between gap-4 p-4 transition-transform hover:scale-[1.01]"
           >
             <span>
-              <span className="block text-sm font-semibold text-[var(--astra-text)]">
+              <span className="block text-sm font-semibold text-[var(--cs-text)]">
                 Günün turu
               </span>
-              <span className="mt-1 block text-xs text-[var(--astra-muted)]">
+              <span className="mt-1 block text-xs text-[var(--cs-muted)]">
                 Konulara dağıtılmış 10 soru, beş dakika
               </span>
             </span>
@@ -180,17 +180,17 @@ export function MistakeNotebookView({
               // anlatmaya davet ediyoruz.
               const stuck = group.questions.length >= 3;
               return (
-                <div key={group.label} className="astra-pay-card p-4">
+                <div key={group.label} className="cs-pay-card p-4">
                   <button
                     type="button"
                     onClick={() => startTopic(group.label)}
                     className="flex w-full items-center justify-between gap-4 text-left"
                   >
                     <span>
-                      <span className="block text-sm font-semibold text-[var(--astra-text)]">
+                      <span className="block text-sm font-semibold text-[var(--cs-text)]">
                         {group.label}
                       </span>
-                      <span className="mt-1 block text-xs text-[var(--astra-muted)]">
+                      <span className="mt-1 block text-xs text-[var(--cs-muted)]">
                         {group.questions.length} soru bekliyor
                       </span>
                     </span>
@@ -203,7 +203,7 @@ export function MistakeNotebookView({
                   {stuck ? (
                     <Link
                       href={`/studio/anlat?topic=${encodeURIComponent(group.label)}`}
-                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-[var(--astra-muted)] transition-colors hover:border-amber-500/50 hover:text-[var(--astra-text)]"
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-[var(--cs-muted)] transition-colors hover:border-amber-500/50 hover:text-[var(--cs-text)]"
                     >
                       Bu konu sana zor geliyor — bir de sen anlat
                     </Link>

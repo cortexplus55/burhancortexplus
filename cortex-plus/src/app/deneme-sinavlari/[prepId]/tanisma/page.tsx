@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ExamIntroQuiz } from "@/components/parity/exam-intro-quiz";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -48,8 +48,8 @@ export default async function ExamIntroPage({
     .maybeSingle();
 
   return (
-    <AstraParitySorShell {...shell}>
+    <ParitySorShell {...shell}>
       <ExamIntroQuiz prepId={prep.id} topicLabel={topic?.label ?? "Konu"} />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

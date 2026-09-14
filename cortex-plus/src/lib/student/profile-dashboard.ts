@@ -6,7 +6,7 @@ import { toIsoDate } from "@/lib/learning/calendar";
  * Profil panelinin verisi.
  *
  * Panel bir toplama yüzeyi: streak, davet, okul, plan ve mevcut sayfalara
- * giden kısayollar. Astra'da da avatar buna açılıyor.
+ * giden kısayollar. Referans üründe de avatar buna açılıyor.
  */
 
 export type ProfileDay = {

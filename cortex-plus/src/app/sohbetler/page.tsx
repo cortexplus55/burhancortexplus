@@ -1,4 +1,4 @@
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { SohbetlerList } from "@/components/parity/sohbetler-list";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -18,7 +18,7 @@ export default async function SohbetlerPage() {
     .limit(80);
 
   return (
-    <AstraParitySorShell {...shell}>
+    <ParitySorShell {...shell}>
       <SohbetlerList
         items={(conversations ?? []).map((row) => ({
           id: row.id,
@@ -26,6 +26,6 @@ export default async function SohbetlerPage() {
           updatedAt: row.updated_at,
         }))}
       />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

@@ -40,10 +40,10 @@ export function FlashcardDeck({ title, cards }: { title: string; cards: Card[] }
   if (!card) return null;
 
   return (
-    <section className="astra-pay-card p-4">
+    <section className="cs-pay-card p-4">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-semibold text-[var(--astra-text)]">{title}</h3>
-        <span className="text-xs text-[var(--astra-muted)]">
+        <h3 className="font-semibold text-[var(--cs-text)]">{title}</h3>
+        <span className="text-xs text-[var(--cs-muted)]">
           {safeIndex + 1} / {count}
         </span>
       </div>
@@ -64,30 +64,30 @@ export function FlashcardDeck({ title, cards }: { title: string; cards: Card[] }
         type="button"
         onClick={() => setRevealed((prev) => !prev)}
         aria-expanded={revealed}
-        className="astra-flashcard-scene mt-3 w-full text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--astra-primary)]"
+        className="cs-flashcard-scene mt-3 w-full text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--cs-primary)]"
       >
         <div
           className={cn(
-            "astra-flashcard-inner",
-            revealed && "astra-flashcard-inner--revealed",
+            "cs-flashcard-inner",
+            revealed && "cs-flashcard-inner--revealed",
           )}
         >
-          <div className="astra-flashcard-face astra-flashcard-face--front">
-            <span className="block text-xs font-medium uppercase tracking-wide text-[var(--astra-muted)]">
+          <div className="cs-flashcard-face cs-flashcard-face--front">
+            <span className="block text-xs font-medium uppercase tracking-wide text-[var(--cs-muted)]">
               Soru
             </span>
-            <span className="mt-2 block text-sm font-medium text-[var(--astra-text)]">
+            <span className="mt-2 block text-sm font-medium text-[var(--cs-text)]">
               {card.front}
             </span>
-            <span className="mt-3 block text-xs text-[var(--astra-muted)]">
+            <span className="mt-3 block text-xs text-[var(--cs-muted)]">
               Cevabı görmek için dokun
             </span>
           </div>
-          <div className="astra-flashcard-face astra-flashcard-face--back">
-            <span className="block text-xs font-medium uppercase tracking-wide text-[var(--astra-muted)]">
+          <div className="cs-flashcard-face cs-flashcard-face--back">
+            <span className="block text-xs font-medium uppercase tracking-wide text-[var(--cs-muted)]">
               Cevap
             </span>
-            <span className="mt-2 block text-sm text-[var(--astra-text)]">{card.back}</span>
+            <span className="mt-2 block text-sm text-[var(--cs-text)]">{card.back}</span>
           </div>
         </div>
       </button>
@@ -98,7 +98,7 @@ export function FlashcardDeck({ title, cards }: { title: string; cards: Card[] }
           variant="outline"
           size="sm"
           onClick={() => move(-1)}
-          className="border-[var(--astra-border)] bg-transparent text-[var(--astra-text)] hover:bg-white/5"
+          className="border-[var(--cs-border)] bg-transparent text-[var(--cs-text)] hover:bg-white/5"
         >
           Önceki
         </Button>
@@ -107,7 +107,7 @@ export function FlashcardDeck({ title, cards }: { title: string; cards: Card[] }
           variant="outline"
           size="sm"
           onClick={() => move(1)}
-          className="border-[var(--astra-border)] bg-transparent text-[var(--astra-text)] hover:bg-white/5"
+          className="border-[var(--cs-border)] bg-transparent text-[var(--cs-text)] hover:bg-white/5"
         >
           Sonraki
         </Button>

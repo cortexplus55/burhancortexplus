@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Upload } from "lucide-react";
-import "@/styles/astra-parity-sor.css";
+import "@/styles/parity-shell.css";
 
 export function PhoneUploadClient({ token }: { token: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -57,9 +57,9 @@ export function PhoneUploadClient({ token }: { token: string }) {
   }
 
   return (
-    <div className="ap-phone-page">
-      <div className="ap-phone-card">
-        <p className="ap-phone-brand">cortex Plus</p>
+    <div className="cp-phone-page">
+      <div className="cp-phone-card">
+        <p className="cp-phone-brand">cortex Plus</p>
         <h1>Ödev resmini yükle</h1>
         {status === "loading" ? <p>Bağlantı kontrol ediliyor…</p> : null}
         {status === "expired" ? (
@@ -78,7 +78,7 @@ export function PhoneUploadClient({ token }: { token: string }) {
             <p>Kameradan veya galeriden görseli seç; masaüstündeki sohbete düşer.</p>
             <button
               type="button"
-              className="ap-upload-pick"
+              className="cp-upload-pick"
               disabled={busy}
               onClick={() => inputRef.current?.click()}
             >

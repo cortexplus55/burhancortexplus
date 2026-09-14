@@ -27,7 +27,7 @@ export type ExamPrepCard = {
 
 type TabId = "school" | "cortex";
 
-export function AstraParityExamPrep({
+export function ParityExamPrep({
   activePrep,
   otherPreps = [],
   userInitial,
@@ -126,20 +126,20 @@ export function AstraParityExamPrep({
       : 72;
 
   return (
-    <div className="ap-exam-page">
-      <div className="ap-exam-section-head">
+    <div className="cp-exam-page">
+      <div className="cp-exam-section-head">
         {/* Sayfanın h1'i yoktu; görsel başlık zaten buydu. */}
-        <h1 className="ap-exam-section-title">
+        <h1 className="cp-exam-section-title">
           Sınav hazırlıklarım
           <span aria-hidden> ›</span>
         </h1>
-        <Link href="/deneme-sinavlari/olustur" className="ap-exam-create">
+        <Link href="/deneme-sinavlari/olustur" className="cp-exam-create">
           + Oluştur
         </Link>
       </div>
 
-      <div className="ap-exam-hub-tools">
-        <label className="ap-exam-search">
+      <div className="cp-exam-hub-tools">
+        <label className="cp-exam-search">
           <Search className="h-4 w-4" aria-hidden />
           <input
             value={query}
@@ -148,43 +148,43 @@ export function AstraParityExamPrep({
             aria-label="Hazırlık ara"
           />
         </label>
-        <button type="button" className="ap-exam-how" onClick={() => setHowOpen(true)}>
+        <button type="button" className="cp-exam-how" onClick={() => setHowOpen(true)}>
           <HelpCircle className="h-4 w-4" aria-hidden />
           Nasıl çalışır
         </button>
       </div>
 
       {visibleActive ? (
-        <article className="ap-exam-active-card">
-          <h2 className="ap-exam-active-title">{visibleActive.title}</h2>
-          <div className="ap-exam-progress-wrap">
+        <article className="cp-exam-active-card">
+          <h2 className="cp-exam-active-title">{visibleActive.title}</h2>
+          <div className="cp-exam-progress-wrap">
             <span
-              className="ap-exam-target-label"
+              className="cp-exam-target-label"
               style={{ left: `${targetMarker}%` }}
             >
               hedef puan
             </span>
-            <div className="ap-exam-progress-track">
+            <div className="cp-exam-progress-track">
               <div
-                className="ap-exam-progress-fill"
+                className="cp-exam-progress-fill"
                 style={{ width: `${visibleActive.progressPct}%` }}
               />
               <span
-                className="ap-exam-target-marker"
+                className="cp-exam-target-marker"
                 style={{ left: `${targetMarker}%` }}
                 aria-hidden
               />
             </div>
-            <p className="ap-exam-progress-pct">{visibleActive.progressPct}%</p>
+            <p className="cp-exam-progress-pct">{visibleActive.progressPct}%</p>
           </div>
-          <div className="ap-exam-active-footer">
-            <div className="ap-exam-active-meta">
+          <div className="cp-exam-active-footer">
+            <div className="cp-exam-active-meta">
               <span>{visibleActive.daysLabel}</span>
               <span>
                 {visibleActive.topicsDone} / {visibleActive.topicsTotal} konu
               </span>
             </div>
-            <Link href={visibleActive.continueHref} className="ap-exam-continue">
+            <Link href={visibleActive.continueHref} className="cp-exam-continue">
               {visibleActive.topicsDone === visibleActive.topicsTotal && visibleActive.topicsTotal > 0
                 ? "Deneme çöz"
                 : "Devam et"}
@@ -193,31 +193,31 @@ export function AstraParityExamPrep({
         </article>
       ) : needle ? (
         visibleOthers.length === 0 && tab === "cortex" ? (
-          <p className="ap-exam-search-empty">Bu aramaya uyan hazırlık yok.</p>
+          <p className="cp-exam-search-empty">Bu aramaya uyan hazırlık yok.</p>
         ) : null
       ) : !prep ? (
-        <article className="ap-exam-active-card">
-          <h2 className="ap-exam-active-title">İlk sınav hazırlığını oluştur</h2>
-          <p className="mt-2 text-sm text-[var(--ap-muted)]">
+        <article className="cp-exam-active-card">
+          <h2 className="cp-exam-active-title">İlk sınav hazırlığını oluştur</h2>
+          <p className="mt-2 text-sm text-[var(--cp-muted)]">
             Sınavında neler var söyle; konuları sohbetle topla, tarihi seç, yolda ilerle.
           </p>
-          <div className="ap-exam-active-footer">
+          <div className="cp-exam-active-footer">
             <span />
-            <Link href="/deneme-sinavlari/olustur" className="ap-exam-continue">
+            <Link href="/deneme-sinavlari/olustur" className="cp-exam-continue">
               Oluştur
             </Link>
           </div>
         </article>
       ) : null}
 
-      <div className="ap-exam-segment" role="tablist" aria-label="Kaynak">
+      <div className="cp-exam-segment" role="tablist" aria-label="Kaynak">
         <button
           type="button"
           role="tab"
           aria-selected={tab === "school"}
           className={cn(
-            "ap-exam-segment-btn",
-            tab === "school" && "ap-exam-segment-btn--active",
+            "cp-exam-segment-btn",
+            tab === "school" && "cp-exam-segment-btn--active",
           )}
           onClick={() => setTab("school")}
         >
@@ -228,8 +228,8 @@ export function AstraParityExamPrep({
           role="tab"
           aria-selected={tab === "cortex"}
           className={cn(
-            "ap-exam-segment-btn",
-            tab === "cortex" && "ap-exam-segment-btn--active",
+            "cp-exam-segment-btn",
+            tab === "cortex" && "cp-exam-segment-btn--active",
           )}
           onClick={() => setTab("cortex")}
         >
@@ -239,8 +239,8 @@ export function AstraParityExamPrep({
 
       {tab === "school" ? (
         pickingSchool || !schoolName ? (
-          <div className="ap-exam-school-picker">
-            <label className="ap-field">
+          <div className="cp-exam-school-picker">
+            <label className="cp-field">
               <span>Hangi okula gidiyorsun?</span>
               <input
                 value={schoolQuery}
@@ -251,7 +251,7 @@ export function AstraParityExamPrep({
               />
             </label>
             {schoolOptions.length ? (
-              <ul className="ap-school-suggest">
+              <ul className="cp-school-suggest">
                 {schoolOptions.map((option) => (
                   <li key={option.id}>
                     <button
@@ -261,21 +261,21 @@ export function AstraParityExamPrep({
                     >
                       + {option.name}
                       {option.city ? (
-                        <span className="ap-school-suggest-city">{option.city}</span>
+                        <span className="cp-school-suggest-city">{option.city}</span>
                       ) : null}
                     </button>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="mt-2 text-sm text-[var(--ap-muted)]">
+              <p className="mt-2 text-sm text-[var(--cp-muted)]">
                 En az 2 harf yaz; önerilerden okulunu seç.
               </p>
             )}
             {schoolName ? (
               <button
                 type="button"
-                className="ap-chip mt-3"
+                className="cp-chip mt-3"
                 onClick={() => setPickingSchool(false)}
               >
                 Vazgeç
@@ -283,7 +283,7 @@ export function AstraParityExamPrep({
             ) : null}
           </div>
         ) : (
-          <div className="ap-exam-school-filled">
+          <div className="cp-exam-school-filled">
             <SchoolFeedView
               summary={schoolSummary}
               rows={schoolRows}
@@ -294,38 +294,38 @@ export function AstraParityExamPrep({
             />
             <Link
               href="/deneme-sinavlari/olustur"
-              className="ap-exam-discover-cta mt-4 inline-flex"
+              className="cp-exam-discover-cta mt-4 inline-flex"
             >
               Okul yazılısı oluştur
             </Link>
           </div>
         )
       ) : (
-        <div className="ap-exam-discover-grid">
+        <div className="cp-exam-discover-grid">
           {visibleOthers.map((item) => (
-            <article key={item.id} className="ap-exam-discover-card ap-exam-discover-card--curriculum">
-              <div className="ap-exam-discover-icon ap-exam-discover-icon--user">
+            <article key={item.id} className="cp-exam-discover-card cp-exam-discover-card--curriculum">
+              <div className="cp-exam-discover-icon cp-exam-discover-icon--user">
                 <BookOpen className="h-4 w-4 text-sky-400" aria-hidden />
               </div>
-              <h3 className="ap-exam-discover-title">{item.title}</h3>
-              <p className="ap-exam-discover-desc">
+              <h3 className="cp-exam-discover-title">{item.title}</h3>
+              <p className="cp-exam-discover-desc">
                 {item.topicsDone} / {item.topicsTotal} konu · {item.daysLabel}
               </p>
-              <Link href={`/deneme-sinavlari/${item.id}`} className="ap-exam-discover-cta">
+              <Link href={`/deneme-sinavlari/${item.id}`} className="cp-exam-discover-cta">
                 Aç
               </Link>
             </article>
           ))}
           {!needle ? (
-            <article className="ap-exam-discover-card ap-exam-discover-card--brand">
-              <div className="ap-exam-discover-icon ap-exam-discover-icon--brand">
+            <article className="cp-exam-discover-card cp-exam-discover-card--brand">
+              <div className="cp-exam-discover-icon cp-exam-discover-icon--brand">
                 {userInitial?.slice(0, 1) ?? "✦"}
               </div>
-              <h3 className="ap-exam-discover-title">Yeni hazırlık</h3>
-              <p className="ap-exam-discover-desc">
+              <h3 className="cp-exam-discover-title">Yeni hazırlık</h3>
+              <p className="cp-exam-discover-desc">
                 TYT, AYT, LGS veya okul yazılısı — konuları seç, ders ders ilerle.
               </p>
-              <Link href="/deneme-sinavlari/olustur" className="ap-exam-discover-cta">
+              <Link href="/deneme-sinavlari/olustur" className="cp-exam-discover-cta">
                 Oluştur
               </Link>
             </article>
@@ -335,20 +335,20 @@ export function AstraParityExamPrep({
 
       {howOpen ? (
         <div
-          className="ap-exam-how-backdrop"
+          className="cp-exam-how-backdrop"
           role="dialog"
           aria-modal="true"
           aria-labelledby="exam-how-title"
           onClick={() => setHowOpen(false)}
         >
-          <article className="ap-exam-how-sheet" onClick={(event) => event.stopPropagation()}>
-            <div className="ap-exam-how-head">
+          <article className="cp-exam-how-sheet" onClick={(event) => event.stopPropagation()}>
+            <div className="cp-exam-how-head">
               <h2 id="exam-how-title">Nasıl çalışır</h2>
               <button type="button" aria-label="Kapat" onClick={() => setHowOpen(false)}>
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <ol className="ap-exam-how-steps">
+            <ol className="cp-exam-how-steps">
               <li>
                 <strong>Sınavını anlat</strong>
                 <span>Sohbette neler çıkacağını söyle. Konular toplanır, sınav tarihini seçersin.</span>
@@ -368,7 +368,7 @@ export function AstraParityExamPrep({
             </ol>
             <Link
               href="/deneme-sinavlari/olustur"
-              className="ap-exam-continue ap-exam-continue--primary"
+              className="cp-exam-continue cp-exam-continue--primary"
               onClick={() => setHowOpen(false)}
             >
               Hazırlık oluştur

@@ -85,7 +85,7 @@ function ProgressRing({
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   return (
-    <div className="ap-plan-ring" style={{ width: size, height: size }}>
+    <div className="cp-plan-ring" style={{ width: size, height: size }}>
       <svg viewBox={`0 0 ${size} ${size}`} aria-hidden>
         <circle
           cx={size / 2}
@@ -107,7 +107,7 @@ function ProgressRing({
           strokeDashoffset={c * (1 - pct / 100)}
         />
       </svg>
-      <span className="ap-plan-ring-label">{pct}%</span>
+      <span className="cp-plan-ring-label">{pct}%</span>
     </div>
   );
 }
@@ -207,25 +207,25 @@ export function StudyWorkspace({
   }
 
   return (
-    <div className={cn("ap-plan-page", isPlus && "ap-plan-page--plus")}>
-      <div className="ap-plan-ambient" aria-hidden />
+    <div className={cn("cp-plan-page", isPlus && "cp-plan-page--plus")}>
+      <div className="cp-plan-ambient" aria-hidden />
 
-      <header className="ap-plan-hero">
+      <header className="cp-plan-hero">
         <div>
-          <div className="ap-plan-world" aria-hidden>
+          <div className="cp-plan-world" aria-hidden>
             <span />
             <span />
             <span />
           </div>
-          <p className="ap-plan-kicker">Çalışma planı</p>
-          <h1 className="ap-plan-title">Haftanı yönet. Hedefini tut.</h1>
-          <p className="ap-plan-lead">
+          <p className="cp-plan-kicker">Çalışma planı</p>
+          <h1 className="cp-plan-title">Haftanı yönet. Hedefini tut.</h1>
+          <p className="cp-plan-lead">
             Görevlerini üret, yolu takip et, takvimde işaretle — sınav hazırlığı tek sahnede.
           </p>
         </div>
-        <aside className="ap-plan-score">
+        <aside className="cp-plan-score">
           <ProgressRing value={progress} />
-          <div className="ap-plan-score-copy">
+          <div className="cp-plan-score-copy">
             <strong>{allTasks.length ? "Plan ilerliyor" : "Sahne boş"}</strong>
             <span>
               {allTasks.length
@@ -236,22 +236,22 @@ export function StudyWorkspace({
         </aside>
       </header>
 
-      <div className="ap-plan-stats">
-        <div className="ap-plan-stat">
+      <div className="cp-plan-stats">
+        <div className="cp-plan-stat">
           <em>Plan</em>
           <strong>{plans.length}</strong>
         </div>
-        <div className="ap-plan-stat">
+        <div className="cp-plan-stat">
           <em>Bu hafta</em>
           <strong>{thisWeekDue}</strong>
         </div>
-        <div className="ap-plan-stat">
+        <div className="cp-plan-stat">
           <em>Hedef</em>
           <strong>{targetScore ?? "—"}</strong>
         </div>
       </div>
 
-      <div className="ap-plan-weekstrip" aria-label="Bu hafta" suppressHydrationWarning>
+      <div className="cp-plan-weekstrip" aria-label="Bu hafta" suppressHydrationWarning>
         {weekDays.map((day) => {
           const has = allTasks.some((task) => sameDay(task.dueDate, day));
           const done = allTasks.some((task) => task.completed && sameDay(task.dueDate, day));
@@ -259,7 +259,7 @@ export function StudyWorkspace({
             <div
               key={day.toISOString()}
               className={cn(
-                "ap-plan-weekday",
+                "cp-plan-weekday",
                 Boolean(now) && sameDay(now, day) && "is-today",
                 has && "has-due",
                 done && "is-done",
@@ -272,7 +272,7 @@ export function StudyWorkspace({
         })}
       </div>
 
-      <div className="ap-plan-tabs" role="tablist" aria-label="Çalışma görünümü">
+      <div className="cp-plan-tabs" role="tablist" aria-label="Çalışma görünümü">
         {TABS.map((item) => {
           const Icon = item.icon;
           return (
@@ -281,7 +281,7 @@ export function StudyWorkspace({
               type="button"
               role="tab"
               aria-selected={tab === item.id}
-              className={cn("ap-plan-tab", tab === item.id && "ap-plan-tab--on")}
+              className={cn("cp-plan-tab", tab === item.id && "cp-plan-tab--on")}
               onClick={() => setTab(item.id)}
             >
               <Icon className="h-4 w-4" aria-hidden />
@@ -293,8 +293,8 @@ export function StudyWorkspace({
 
       {tab === "plan" ? (
         <>
-          <section className="ap-plan-compose">
-            <div className="ap-plan-compose-head">
+          <section className="cp-plan-compose">
+            <div className="cp-plan-compose-head">
               <div>
                 <h2>Yeni plan oluştur</h2>
                 <p>Hedefini yaz; haftalara bölünmüş, ölçülebilir görevler oluşsun.</p>
@@ -312,8 +312,8 @@ export function StudyWorkspace({
               />
             ))
           ) : (
-            <div className="ap-plan-empty">
-              <div className="ap-plan-world" aria-hidden>
+            <div className="cp-plan-empty">
+              <div className="cp-plan-world" aria-hidden>
                 <span />
                 <span />
                 <span />
@@ -326,12 +326,12 @@ export function StudyWorkspace({
       ) : null}
 
       {tab === "yol" ? (
-        <section className="ap-plan-card ap-plan-path">
+        <section className="cp-plan-card cp-plan-path">
           {allTasks.length ? (
             allTasks.map((task, index) => (
               <div
                 key={task.id}
-                className={cn("ap-plan-node", task.completed && "is-done")}
+                className={cn("cp-plan-node", task.completed && "is-done")}
               >
                 <i>{index + 1}</i>
                 <div>
@@ -341,7 +341,7 @@ export function StudyWorkspace({
               </div>
             ))
           ) : (
-            <p className="text-sm text-[var(--ap-muted)]">
+            <p className="text-sm text-[var(--cp-muted)]">
               Önce bir plan veya sınav hazırlığı oluştur.
             </p>
           )}
@@ -349,11 +349,11 @@ export function StudyWorkspace({
       ) : null}
 
       {tab === "hedef" ? (
-        <section className="ap-plan-goal">
+        <section className="cp-plan-goal">
           <h2>Hedef puan</h2>
           <p>Sınav hazırlığı çubuğundaki işaret bu puana göre konumlanır.</p>
-          <div className="ap-plan-goal-stage">
-            <div className="ap-plan-goal-dial" aria-hidden>
+          <div className="cp-plan-goal-stage">
+            <div className="cp-plan-goal-dial" aria-hidden>
               <svg viewBox="0 0 168 168">
                 <circle
                   cx="84"
@@ -383,7 +383,7 @@ export function StudyWorkspace({
               </label>
               <input
                 id="plan-goal"
-                className="ap-goal-input"
+                className="cp-goal-input"
                 type="number"
                 min={1}
                 max={100}
@@ -392,7 +392,7 @@ export function StudyWorkspace({
               />
               <button
                 type="button"
-                className="ap-plan-cta w-full"
+                className="cp-plan-cta w-full"
                 disabled={saving}
                 onClick={() => void saveGoal()}
               >
@@ -404,15 +404,15 @@ export function StudyWorkspace({
       ) : null}
 
       {tab === "takvim" ? (
-        <section className="ap-plan-cal">
-          <div className="ap-plan-cal-head">
+        <section className="cp-plan-cal">
+          <div className="cp-plan-cal-head">
             <h2>
               {new Intl.DateTimeFormat("tr-TR", {
                 month: "long",
                 year: "numeric",
               }).format(new Date(calendar.year, calendar.month, 1))}
             </h2>
-            <div className="ap-plan-cal-nav">
+            <div className="cp-plan-cal-nav">
               <button
                 type="button"
                 aria-label="Önceki ay"
@@ -433,10 +433,10 @@ export function StudyWorkspace({
               </button>
             </div>
           </div>
-          <div className="ap-plan-filters" role="tablist" aria-label="Takvim filtresi">
+          <div className="cp-plan-filters" role="tablist" aria-label="Takvim filtresi">
             <button
               type="button"
-              className={cn("ap-plan-filter", calScope === "all" && "is-on")}
+              className={cn("cp-plan-filter", calScope === "all" && "is-on")}
               role="tab"
               aria-selected={calScope === "all"}
               onClick={() => setCalScope("all")}
@@ -445,7 +445,7 @@ export function StudyWorkspace({
             </button>
             <button
               type="button"
-              className={cn("ap-plan-filter", calScope === "events" && "is-on")}
+              className={cn("cp-plan-filter", calScope === "events" && "is-on")}
               role="tab"
               aria-selected={calScope === "events"}
               onClick={() => setCalScope("events")}
@@ -453,17 +453,17 @@ export function StudyWorkspace({
               Etkinliklerim
             </button>
           </div>
-          <div className="ap-plan-cal-week">
+          <div className="cp-plan-cal-week">
             {WEEKDAYS.map((day) => (
               <span key={day}>{day}</span>
             ))}
           </div>
-          <div className="ap-plan-cal-grid">
+          <div className="cp-plan-cal-grid">
             {calendar.cells.map((day, index) => (
               <div
                 key={`${day}-${index}`}
                 className={cn(
-                  "ap-plan-cal-cell",
+                  "cp-plan-cal-cell",
                   !day && "is-empty",
                   day && todayDay === day && "is-today",
                   day && dueDays.has(day) && "is-due",
@@ -474,7 +474,7 @@ export function StudyWorkspace({
               </div>
             ))}
           </div>
-          <ul className="ap-plan-cal-list">
+          <ul className="cp-plan-cal-list">
             {calendarTasks.length ? (
               calendarTasks.map((task) => (
                 <li key={task.id}>

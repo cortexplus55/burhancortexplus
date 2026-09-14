@@ -9,12 +9,12 @@ import {
   Target,
   Trophy,
 } from "lucide-react";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { parseExamAnalysis } from "@/lib/learning/exam-analysis";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 
-export const metadata = { title: "Sınav Sonucu · Astra AI" };
+export const metadata = { title: "Sınav Sonucu · Cortex Plus" };
 
 export default async function ExamPrepSonucPage({
   params,
@@ -87,8 +87,8 @@ export default async function ExamPrepSonucPage({
   const tier = getTierInfo(scoreNum);
 
   return (
-    <AstraParitySorShell {...shell}>
-      <div className="ap-exam-suite-container max-w-4xl mx-auto px-4 py-8 space-y-8">
+    <ParitySorShell {...shell}>
+      <div className="cp-exam-suite-container max-w-4xl mx-auto px-4 py-8 space-y-8">
         {/* Top Back Navigation */}
         <div className="flex items-center justify-between">
           <Link
@@ -263,6 +263,6 @@ export default async function ExamPrepSonucPage({
           </div>
         </div>
       </div>
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

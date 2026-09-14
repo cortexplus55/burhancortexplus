@@ -25,7 +25,7 @@ export default async function QuizlerPage() {
     <AppShell title="Quizler" creditHint={`Quiz üretimi: ${cost} kredi.`}>
       <div className="space-y-6">
         <SectionCard
-          variant="astra"
+          variant="parity"
           title="Yeni quiz üret"
           description="Konu gir, çoktan seçmeli sorular anında hazırlansın."
         >
@@ -54,7 +54,7 @@ export default async function QuizlerPage() {
           </div>
         ) : (
           <EmptyState
-            variant="astra"
+            variant="parity"
             icon={ListChecks}
             title="Henüz quizin yok"
             description="Bir konu yazarak ilk quizini oluştur."

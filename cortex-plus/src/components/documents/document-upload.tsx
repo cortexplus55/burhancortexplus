@@ -25,7 +25,7 @@ export function DocumentUpload({
   learningV2 = false,
 }: {
   creditCost: number | null;
-  variant?: "default" | "astra";
+  variant?: "default" | "parity";
   /** Stage 9 — explain topic-map pipeline when pdf_learning_v2 is on. */
   learningV2?: boolean;
 }) {
@@ -112,7 +112,7 @@ export function DocumentUpload({
     }
   }
 
-  const isAstra = variant === "astra";
+  const isParity = variant === "parity";
 
   return (
     <>
@@ -120,7 +120,7 @@ export function DocumentUpload({
         <div className="space-y-2">
           <Label
             htmlFor="document-file"
-            className={isAstra ? "text-[var(--astra-muted)]" : undefined}
+            className={isParity ? "text-[var(--cs-muted)]" : undefined}
           >
             Dosya
           </Label>
@@ -131,15 +131,15 @@ export function DocumentUpload({
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             required
             className={
-              isAstra
-                ? "border-[var(--astra-border)] bg-[var(--astra-surface-elevated)] text-[var(--astra-text)] file:text-[var(--astra-muted)]"
+              isParity
+                ? "border-[var(--cs-border)] bg-[var(--cs-surface-elevated)] text-[var(--cs-text)] file:text-[var(--cs-muted)]"
                 : undefined
             }
           />
           <p
             className={cn(
               "text-xs",
-              isAstra ? "text-[var(--astra-muted)]" : "text-muted-foreground",
+              isParity ? "text-[var(--cs-muted)]" : "text-muted-foreground",
             )}
           >
             PDF, TXT ve görsel · en fazla 15 MB
@@ -152,7 +152,7 @@ export function DocumentUpload({
             <p
               className={cn(
                 "text-xs",
-                isAstra ? "text-[var(--astra-muted)]" : "text-muted-foreground",
+                isParity ? "text-[var(--cs-muted)]" : "text-muted-foreground",
               )}
               role="status"
               aria-live="polite"
@@ -162,11 +162,11 @@ export function DocumentUpload({
           ) : null}
         </div>
 
-        {isAstra ? (
+        {isParity ? (
           <button
             type="submit"
             disabled={!file || stage !== "idle"}
-            className="astra-btn-primary h-10 rounded-full px-6 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            className="cs-btn-primary h-10 rounded-full px-6 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
           >
             {stage === "uploading"
               ? "Yükleniyor…"

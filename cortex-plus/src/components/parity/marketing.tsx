@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import "@/styles/astra-marketing.css";
+import "@/styles/parity-marketing.css";
 import "@/styles/cinematic-home.css";
 import { ArrowRight } from "lucide-react";
-import { AstraSiteHeader } from "@/components/marketing/astra-site-header";
+import { ParitySiteHeader } from "@/components/marketing/parity-site-header";
 import { CinematicPrimaryCta } from "@/components/marketing/cinematic-cta";
 import { MARKETING_SUBJECTS } from "@/lib/parity/marketing-subjects";
 import { CinematicPageHero } from "@/components/marketing/cinematic-page-hero";
@@ -24,11 +24,11 @@ const faqs = [
   },
 ];
 
-export { AstraSiteHeader } from "@/components/marketing/astra-site-header";
+export { ParitySiteHeader } from "@/components/marketing/parity-site-header";
 
-export function AstraSiteFooter() {
+export function ParitySiteFooter() {
   return (
-    <footer className="astra-marketing border-t border-[var(--mk-border)] py-12 text-sm text-[var(--mk-muted)]">
+    <footer className="cs-marketing border-t border-[var(--mk-border)] py-12 text-sm text-[var(--mk-muted)]">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 md:grid-cols-4">
         <div>
           <p className="font-semibold text-[var(--mk-text)]">Cortex Plus</p>
@@ -57,7 +57,7 @@ export function AstraSiteFooter() {
   );
 }
 
-export function AstraMarketingHero() {
+export function MarketingHero() {
   return (
     <section className="mk-hero-gradient px-4 pb-20 pt-16 md:pt-24">
       <div className="mx-auto max-w-4xl text-center">
@@ -88,7 +88,7 @@ export function AstraMarketingHero() {
   );
 }
 
-export function AstraSubjectGrid() {
+export function SubjectGrid() {
   return (
     <section className="border-t border-[var(--mk-border)] py-16" data-cinematic-reveal>
       <div className="mx-auto max-w-6xl px-4">
@@ -127,7 +127,7 @@ export function AstraSubjectGrid() {
   );
 }
 
-export function AstraFeatureStrip() {
+export function FeatureStrip() {
   const items = [
     {
       title: "Sözlü sınav",
@@ -159,7 +159,7 @@ export function AstraFeatureStrip() {
   );
 }
 
-export function AstraFaqSection() {
+export function FaqSection() {
   return (
     <section className="border-t border-[var(--mk-border)] py-16" data-cinematic-reveal>
       <div className="mx-auto max-w-2xl px-4">
@@ -182,7 +182,7 @@ export function AstraFaqSection() {
   );
 }
 
-export function AstraMarketingPage({
+export function ParityMarketingPage({
   children,
   title,
   description,
@@ -196,7 +196,7 @@ export function AstraMarketingPage({
   variant?: "marketing" | "auth" | "legal" | "home";
 }) {
   const shellClass = cn(
-    "astra-marketing cinematic-marketing flex min-h-screen flex-col",
+    "cs-marketing cinematic-marketing flex min-h-screen flex-col",
     variant === "home" && "cinematic-home",
     variant === "auth" && "cinematic-auth",
     className,
@@ -204,7 +204,7 @@ export function AstraMarketingPage({
 
   return (
     <div className={shellClass}>
-      <AstraSiteHeader />
+      <ParitySiteHeader />
       <CinematicScrollReveal>
         <main className="flex-1">
           {title && variant === "marketing" ? (
@@ -239,7 +239,7 @@ export function AstraMarketingPage({
           )}
         </main>
       </CinematicScrollReveal>
-      <AstraSiteFooter />
+      <ParitySiteFooter />
     </div>
   );
 }

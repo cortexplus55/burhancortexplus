@@ -1,4 +1,4 @@
-import { AstraMarketingPage } from "@/components/parity/astra-marketing";
+import { ParityMarketingPage } from "@/components/parity/marketing";
 import { CinematicPageHero } from "@/components/marketing/cinematic-page-hero";
 import { CinematicCtaRow } from "@/components/marketing/cinematic-cta";
 
@@ -36,7 +36,7 @@ const faq = [
 
 export default function SinavHazirligiPage() {
   return (
-    <AstraMarketingPage>
+    <ParityMarketingPage>
       <CinematicPageHero
         title="Sınav hazırlığı — kişisel öğrenme yolun"
         description="Dağınık kaynak yerine tek akış: ölç, analiz et, planla, tekrar et."
@@ -74,6 +74,6 @@ export default function SinavHazirligiPage() {
           </div>
         </div>
       </section>
-    </AstraMarketingPage>
+    </ParityMarketingPage>
   );
 }

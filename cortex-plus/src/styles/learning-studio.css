@@ -882,12 +882,12 @@
   }
 }
 
-.ap-sor-root--studio .ap-sor-topnav {
+.cp-sor-root--studio .cp-sor-topnav {
   display: none;
 }
 
 @media (min-width: 900px) {
-  .ap-sor-root--studio .ap-sor-topnav {
+  .cp-sor-root--studio .cp-sor-topnav {
     display: flex;
   }
 }

@@ -1,9 +1,9 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Figtree:ital,wght@0,400..800;1,400..800&display=swap");
 
-/* Cortex Plus — ultra premium (Astra-inspired, gold cinematic) */
+/* Cortex Plus — ultra premium (referans üründen esinlenmiş, gold cinematic) */
 .cortex-premium,
 .cortex-premium-auth,
-.astra-app.cortex-premium-app {
+.cs-app.cortex-premium-app {
   --cx-gold: #f4ae0b;
   --cx-gold-hover: #ffc233;
   --cx-gold-glow: rgba(244, 174, 11, 0.35);
@@ -25,7 +25,7 @@
   color: var(--cx-text);
 }
 
-.astra-app.cortex-premium-app .astra-pay-card--premium {
+.cs-app.cortex-premium-app .cs-pay-card--premium {
   border-color: var(--cx-border-gold);
   background: var(--cx-surface);
   backdrop-filter: blur(18px);
@@ -36,7 +36,7 @@
     0 0 40px rgba(232, 168, 56, 0.07);
 }
 
-.astra-app.cortex-premium-app .cortex-premium-section-eyebrow {
+.cs-app.cortex-premium-app .cortex-premium-section-eyebrow {
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -44,7 +44,7 @@
   color: var(--cx-gold-hover);
 }
 
-.astra-app.cortex-premium-app .cortex-premium-section-title {
+.cs-app.cortex-premium-app .cortex-premium-section-title {
   font-family: var(--font-display);
   font-size: clamp(1.35rem, 4vw, 1.75rem);
   font-weight: 400;

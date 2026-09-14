@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { ChatPanel } from "@/components/chat/chat-panel";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
-import { astraUserInitial } from "@/components/parity/astra-app-utils";
+import { ParitySorShell } from "@/components/parity/sor-shell";
+import { parityUserInitial } from "@/components/parity/app-utils";
 import { requireStudentArea } from "@/lib/auth/session";
 import { getCreditCost } from "@/lib/credits/rules";
 import { isPremiumUser } from "@/lib/ai/generate";
@@ -15,7 +15,7 @@ import { examCountdownLine, loadExamChatContext } from "@/lib/learning/exam-chat
  * Sınavın içinden açılan sohbet.
  *
  * Sohbet genel bir sekmedeydi: öğrenci derste takıldığında sınavdan çıkıp
- * konuyu baştan anlatmak zorunda kalıyordu. Astra'da sohbet hazırlığın
+ * konuyu baştan anlatmak zorunda kalıyordu. Referans üründe sohbet hazırlığın
  * içinde duruyor, kaç gün kaldığını biliyor ve hazır başlangıçlardan biri
  * "son testimi veya dersimi gözden geçir".
  *
@@ -54,15 +54,15 @@ export default async function ExamPrepChatPage({
   const avatar = profile?.avatar_url as string | null | undefined;
 
   return (
-    <AstraParitySorShell
-      userInitial={astraUserInitial(profile?.full_name, user.email)}
+    <ParitySorShell
+      userInitial={parityUserInitial(profile?.full_name, user.email)}
       avatarEmoji={avatar && !avatar.startsWith("http") ? avatar : null}
       streak={streak}
       account={account}
       recentConversations={[]}
     >
       <ChatPanel
-        variant="astra"
+        variant="parity"
         composerMode="parity"
         prepId={prepId}
         feedbackEnabled={feedbackOn}
@@ -97,6 +97,6 @@ export default async function ExamPrepChatPage({
           },
         ]}
       />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

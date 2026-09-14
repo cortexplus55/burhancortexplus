@@ -1,4 +1,4 @@
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ToolsHub } from "@/components/parity/tools-hub";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -10,8 +10,8 @@ export default async function AraclarPage() {
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
   return (
-    <AstraParitySorShell {...shell}>
+    <ParitySorShell {...shell}>
       <ToolsHub />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

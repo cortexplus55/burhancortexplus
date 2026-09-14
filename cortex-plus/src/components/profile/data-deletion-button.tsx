@@ -8,18 +8,18 @@ import { requestDataDeletion } from "@/app/actions";
 export function DataDeletionButton({
   tone = "default",
 }: {
-  tone?: "default" | "astra";
+  tone?: "default" | "parity";
 }) {
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
-  const astra = tone === "astra";
+  const parity = tone === "parity";
 
   if (!confirming) {
-    if (astra) {
+    if (parity) {
       return (
         <button
           type="button"
-          className="rounded-full border border-[var(--astra-border)] px-4 py-2 text-sm"
+          className="rounded-full border border-[var(--cs-border)] px-4 py-2 text-sm"
           onClick={() => setConfirming(true)}
         >
           Veri silme talebi oluştur
@@ -37,14 +37,14 @@ export function DataDeletionButton({
     <div className="space-y-3">
       <p
         className={
-          astra ? "text-sm text-[var(--astra-muted)]" : "text-sm text-muted-foreground"
+          parity ? "text-sm text-[var(--cs-muted)]" : "text-sm text-muted-foreground"
         }
       >
         Talebi onaylarsan hesabındaki içerikler silinmek üzere sıraya alınır. Bu
         işlem geri alınamaz. Bağlı çocuk hesapları silinmez.
       </p>
       <div className="flex gap-2">
-        {astra ? (
+        {parity ? (
           <>
             <button
               type="button"
@@ -63,7 +63,7 @@ export function DataDeletionButton({
             </button>
             <button
               type="button"
-              className="rounded-full px-4 py-2 text-sm text-[var(--astra-muted)]"
+              className="rounded-full px-4 py-2 text-sm text-[var(--cs-muted)]"
               onClick={() => setConfirming(false)}
             >
               Vazgeç

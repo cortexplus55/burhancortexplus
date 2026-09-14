@@ -76,7 +76,7 @@ async function resolveTopicSuggestions(
         parentId: (n.parent_id as string | null) ?? null,
       })),
     );
-    // Konunun hangi sayfalara dayandığı. Astra konu kartında "1 kaynak"
+    // Konunun hangi sayfalara dayandığı. Referans ürünün konu kartında "1 kaynak"
     // yazıyor; bizde belge zaten tek, o yüzden sayı değil SAYFA
     // gösteriliyor — aynı soruya ("bu konu neye dayanıyor?") gerçekten
     // değişen bir cevap.

@@ -12,7 +12,7 @@ function renderInline(text: string) {
       return (
         <Tag
           key={`m-${segIndex}`}
-          className={segment.display ? "ap-lesson-math" : undefined}
+          className={segment.display ? "cp-lesson-math" : undefined}
           dangerouslySetInnerHTML={{
             __html: renderMath(segment.value, segment.display),
           }}
@@ -36,14 +36,14 @@ export function ExamLessonBody({ content }: { content: string }) {
 
   if (!blocks.length) {
     return (
-      <p className="text-sm text-[var(--ap-muted)]">
+      <p className="text-sm text-[var(--cp-muted)]">
         Bu dersin içeriği henüz oluşmadı. Çalışma oturumuna dönüp birkaç soru sor, sonra tekrar aç.
       </p>
     );
   }
 
   return (
-    <div className="ap-lesson-prose">
+    <div className="cp-lesson-prose">
       {blocks.map((block, index) => {
         const heading = /^##\s+(.+)$/.exec(block);
         if (heading) {
@@ -69,10 +69,10 @@ export function ExamLessonBody({ content }: { content: string }) {
             <article
               key={index}
               className={
-                who === "Cortex" ? "ap-lesson-turn ap-lesson-turn--ai" : "ap-lesson-turn"
+                who === "Cortex" ? "cp-lesson-turn cp-lesson-turn--ai" : "cp-lesson-turn"
               }
             >
-              <p className="ap-lesson-turn-who">{who === "Cortex" ? "Cortex" : "Sen"}</p>
+              <p className="cp-lesson-turn-who">{who === "Cortex" ? "Cortex" : "Sen"}</p>
               <p>{renderInline(body)}</p>
             </article>
           );

@@ -23,11 +23,11 @@ export function QuizRunner({
   const correctCount = questions.filter((q) => answers[q.id] === q.correct).length;
 
   return (
-    <section className="astra-pay-card p-4">
+    <section className="cs-pay-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-[var(--astra-text)]">{title}</h3>
-          <p className="mt-1 text-xs text-[var(--astra-muted)]">
+          <h3 className="font-semibold text-[var(--cs-text)]">{title}</h3>
+          <p className="mt-1 text-xs text-[var(--cs-muted)]">
             {submitted
               ? `${correctCount} / ${questions.length} doğru`
               : `${answeredCount} / ${questions.length} cevaplandı`}
@@ -39,7 +39,7 @@ export function QuizRunner({
               "shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
               correctCount === questions.length
                 ? "bg-amber-500/20 text-amber-200"
-                : "bg-white/10 text-[var(--astra-muted)]",
+                : "bg-white/10 text-[var(--cs-muted)]",
             )}
           >
             {correctCount === questions.length ? "Mükemmel" : "Sonuç"}
@@ -66,7 +66,7 @@ export function QuizRunner({
         {questions.map((question, index) => (
           <li key={question.id}>
             <fieldset>
-              <legend className="text-sm font-medium text-[var(--astra-text)]">
+              <legend className="text-sm font-medium text-[var(--cs-text)]">
                 {index + 1}. {question.text}
               </legend>
               <div className="mt-2 space-y-2">
@@ -80,10 +80,10 @@ export function QuizRunner({
                     <label
                       key={option}
                       className={cn(
-                        "astra-quiz-option flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--astra-text)]",
-                        !submitted && selected && "astra-quiz-option--selected",
-                        isCorrect && "astra-quiz-option--correct",
-                        isWrong && "astra-quiz-option--wrong",
+                        "cs-quiz-option flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--cs-text)]",
+                        !submitted && selected && "cs-quiz-option--selected",
+                        isCorrect && "cs-quiz-option--correct",
+                        isWrong && "cs-quiz-option--wrong",
                         submitted && "cursor-default",
                       )}
                     >
@@ -100,8 +100,8 @@ export function QuizRunner({
                       />
                       <span
                         className={cn(
-                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--astra-border)]",
-                          selected && !submitted && "border-[var(--astra-primary)]",
+                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--cs-border)]",
+                          selected && !submitted && "border-[var(--cs-primary)]",
                         )}
                         aria-hidden
                       >
@@ -133,7 +133,7 @@ export function QuizRunner({
             type="button"
             disabled={answeredCount !== questions.length}
             onClick={() => setSubmitted(true)}
-            className="astra-btn-primary h-9 rounded-full px-5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            className="cs-btn-primary h-9 rounded-full px-5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
           >
             Kontrol et
           </button>
@@ -142,7 +142,7 @@ export function QuizRunner({
             type="button"
             size="sm"
             variant="outline"
-            className="border-[var(--astra-border)] bg-transparent text-[var(--astra-text)] hover:bg-white/5"
+            className="border-[var(--cs-border)] bg-transparent text-[var(--cs-text)] hover:bg-white/5"
             onClick={() => {
               setAnswers({});
               setSubmitted(false);

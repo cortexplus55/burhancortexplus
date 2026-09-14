@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { AskParentPaymentButton } from "@/components/paywall/ask-parent-payment";
 import { PremiumPlanHero } from "@/components/marketing/premium-plan-hero";
 import { billingPeriodOf } from "@/lib/payments/subscription";
-import "@/styles/astra-app.css";
+import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 
 type Plan = {
@@ -88,7 +88,7 @@ function lira(kurus: number): number {
   return Math.round(kurus / 100);
 }
 
-/** Yıllık planın aylık karşılığı — Astra da böyle gösteriyor. */
+/** Yıllık planın aylık karşılığı — referans ürün da böyle gösteriyor. */
 function perMonthLira(plan: Plan): number {
   const total = lira(plan.price_try);
   return billingPeriodOf(plan) === "yearly" ? Math.round(total / 12) : total;
@@ -107,7 +107,7 @@ function tl(value: number): string {
   return value.toLocaleString("tr-TR");
 }
 
-export function AstraSubscriptionCards({
+export function SubscriptionCards({
   plans,
   guestMode = false,
   closeHref,
@@ -241,8 +241,8 @@ export function AstraSubscriptionCards({
 
   if (iframeUrl) {
     return (
-      <div className={cn("astra-app py-6", embedded ? "" : "min-h-dvh px-4")}>
-        <p className="mb-3 text-sm text-[var(--astra-muted)]">
+      <div className={cn("cs-app py-6", embedded ? "" : "min-h-dvh px-4")}>
+        <p className="mb-3 text-sm text-[var(--cs-muted)]">
           Ödeme formu güvenli çerçevede açıldı.
           {isParent && childName
             ? ` Kota ${childName} hesabına yazılır.`
@@ -251,11 +251,11 @@ export function AstraSubscriptionCards({
         <iframe
           src={iframeUrl}
           title="PayTR ödeme formu"
-          className="h-[min(640px,70dvh)] w-full rounded-2xl border border-[var(--astra-border)]"
+          className="h-[min(640px,70dvh)] w-full rounded-2xl border border-[var(--cs-border)]"
         />
         <button
           type="button"
-          className="mt-4 text-sm text-[var(--astra-primary)]"
+          className="mt-4 text-sm text-[var(--cs-primary)]"
           onClick={() => setIframeUrl(null)}
         >
           Paketlere dön
@@ -267,14 +267,14 @@ export function AstraSubscriptionCards({
   return (
     <div
       className={cn(
-        "astra-app relative pb-8",
+        "cs-app relative pb-8",
         embedded ? "pt-2" : "min-h-dvh px-4 pt-6",
       )}
     >
       {!embedded ? (
         <button
           type="button"
-          className="absolute right-4 top-4 rounded-full p-2 text-[var(--astra-muted)] hover:bg-[var(--astra-surface)]"
+          className="absolute right-4 top-4 rounded-full p-2 text-[var(--cs-muted)] hover:bg-[var(--cs-surface)]"
           aria-label="Kapat"
           onClick={closePay}
         >
@@ -298,7 +298,7 @@ export function AstraSubscriptionCards({
         )}
 
         {returnTo && !guestMode ? (
-          <p className="rounded-xl border border-[var(--astra-border)] bg-[var(--astra-surface)] p-3 text-sm text-[var(--astra-muted)]">
+          <p className="rounded-xl border border-[var(--cs-border)] bg-[var(--cs-surface)] p-3 text-sm text-[var(--cs-muted)]">
             Ödeme sonrası kaldığın yere döneceksin.
           </p>
         ) : null}
@@ -309,7 +309,7 @@ export function AstraSubscriptionCards({
           <div
             role="tablist"
             aria-label="Fatura dönemi"
-            className="mx-auto flex max-w-xs rounded-full bg-[var(--astra-bg)] p-1 text-xs"
+            className="mx-auto flex max-w-xs rounded-full bg-[var(--cs-bg)] p-1 text-xs"
           >
             <button
               type="button"
@@ -317,7 +317,7 @@ export function AstraSubscriptionCards({
               aria-selected={yearly}
               className={cn(
                 "flex-1 rounded-full py-2 font-medium transition-colors",
-                yearly ? "astra-nav-active text-white" : "text-[var(--astra-muted)]",
+                yearly ? "cs-nav-active text-white" : "text-[var(--cs-muted)]",
               )}
               onClick={() => setYearly(true)}
             >
@@ -330,7 +330,7 @@ export function AstraSubscriptionCards({
               aria-selected={!yearly}
               className={cn(
                 "flex-1 rounded-full py-2 font-medium transition-colors",
-                !yearly ? "astra-nav-active text-white" : "text-[var(--astra-muted)]",
+                !yearly ? "cs-nav-active text-white" : "text-[var(--cs-muted)]",
               )}
               onClick={() => setYearly(false)}
             >
@@ -340,25 +340,25 @@ export function AstraSubscriptionCards({
         ) : null}
 
         {plusOwned ? null : (
-        <article className="astra-pay-card astra-pay-card--premium p-5">
+        <article className="cs-pay-card cs-pay-card--premium p-5">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
               <Plus className="h-6 w-6" />
             </span>
             <div className="flex-1">
               <h2 className="text-lg font-semibold">Plus</h2>
-              <p className="text-sm text-[var(--astra-muted)]">
+              <p className="text-sm text-[var(--cs-muted)]">
                 Günlük öğrenme için
               </p>
               <p className="mt-4 text-3xl font-bold">
                 {plusPerMonth === null ? "Yapılandırılıyor" : `₺${tl(plusPerMonth)}`}
                 {plusPerMonth === null ? null : (
-                  <span className="text-base font-normal text-[var(--astra-muted)]">
+                  <span className="text-base font-normal text-[var(--cs-muted)]">
                     {" "}/ ay
                   </span>
                 )}
               </p>
-              <p className="text-xs text-[var(--astra-muted)]">
+              <p className="text-xs text-[var(--cs-muted)]">
                 {billingNoteFor(plusPlan)}
               </p>
               <button
@@ -393,7 +393,7 @@ export function AstraSubscriptionCards({
               ) : null}
               <button
                 type="button"
-                className="mt-3 flex w-full items-center justify-center gap-1 text-sm text-[var(--astra-muted)]"
+                className="mt-3 flex w-full items-center justify-center gap-1 text-sm text-[var(--cs-muted)]"
                 onClick={() => setPlusOpen((v) => !v)}
               >
                 Tüm avantajları gör
@@ -405,10 +405,10 @@ export function AstraSubscriptionCards({
               </button>
               {plusOpen ? (
                 <>
-                <p className="mt-2 text-xs font-semibold text-[var(--astra-text)]">
+                <p className="mt-2 text-xs font-semibold text-[var(--cs-text)]">
                   {BENEFITS_LEAD}
                 </p>
-                <ul className="mt-1.5 space-y-1.5 text-sm text-[var(--astra-muted)]">
+                <ul className="mt-1.5 space-y-1.5 text-sm text-[var(--cs-muted)]">
                   {plusBenefits.map((b) => (
                     <li key={b}>· {b}</li>
                   ))}
@@ -423,7 +423,7 @@ export function AstraSubscriptionCards({
         {sigmaUnderFold && !otherPlansOpen ? (
           <button
             type="button"
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--astra-border)] bg-[var(--astra-surface)] py-3.5 text-sm font-medium text-[var(--astra-muted)] transition-colors hover:border-[var(--astra-primary)]/40 hover:text-[var(--astra-text)]"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--cs-border)] bg-[var(--cs-surface)] py-3.5 text-sm font-medium text-[var(--cs-muted)] transition-colors hover:border-[var(--cs-primary)]/40 hover:text-[var(--cs-text)]"
             onClick={() => setOtherPlansOpen(true)}
           >
             Diğer planlar · Sigma
@@ -432,7 +432,7 @@ export function AstraSubscriptionCards({
         ) : null}
 
         {showSigmaCard && sigmaPlan ? (
-          <article className="astra-pay-card astra-pay-card--premium relative overflow-hidden p-5">
+          <article className="cs-pay-card cs-pay-card--premium relative overflow-hidden p-5">
             <span className="absolute right-3 top-3 rounded-full border border-violet-400/40 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-200">
               Daha yüksek limit
             </span>
@@ -444,7 +444,7 @@ export function AstraSubscriptionCards({
                 {sigmaUnderFold ? (
                   <button
                     type="button"
-                    className="mb-2 flex items-center gap-1 text-xs text-[var(--astra-muted)]"
+                    className="mb-2 flex items-center gap-1 text-xs text-[var(--cs-muted)]"
                     onClick={() => setOtherPlansOpen(false)}
                   >
                     <ChevronUp className="h-3.5 w-3.5" />
@@ -452,17 +452,17 @@ export function AstraSubscriptionCards({
                   </button>
                 ) : null}
                 <h2 className="text-lg font-semibold">Sigma</h2>
-                <p className="text-sm text-[var(--astra-muted)]">
+                <p className="text-sm text-[var(--cs-muted)]">
                   Ciddi çalışma için
                 </p>
                 <p className="mt-4 text-3xl font-bold">
                   ₺{tl(sigmaPerMonth ?? 0)}
-                  <span className="text-base font-normal text-[var(--astra-muted)]">
+                  <span className="text-base font-normal text-[var(--cs-muted)]">
                     {" "}
                     / ay
                   </span>
                 </p>
-                <p className="text-xs text-[var(--astra-muted)]">
+                <p className="text-xs text-[var(--cs-muted)]">
                   {billingNoteFor(sigmaPlan)}
                 </p>
                 <button
@@ -471,8 +471,8 @@ export function AstraSubscriptionCards({
                   className={cn(
                     "mt-4 w-full rounded-full py-3.5 text-sm font-semibold disabled:opacity-60",
                     sigmaUnderFold
-                      ? "border border-[var(--astra-border)] bg-transparent text-[var(--astra-text)] hover:bg-[var(--astra-surface)]"
-                      : "astra-btn-primary",
+                      ? "border border-[var(--cs-border)] bg-transparent text-[var(--cs-text)] hover:bg-[var(--cs-surface)]"
+                      : "cs-btn-primary",
                   )}
                   onClick={() =>
                     sigmaOwned
@@ -496,7 +496,7 @@ export function AstraSubscriptionCards({
                         ? "Çocuğum için Sigma al"
                         : "Sigma'ya yükselt"}
                 </button>
-                <ul className="mt-3 space-y-1 text-xs text-[var(--astra-muted)]">
+                <ul className="mt-3 space-y-1 text-xs text-[var(--cs-muted)]">
                   {sigmaBenefits.map((b) => (
                     <li key={b}>· {b}</li>
                   ))}
@@ -509,7 +509,7 @@ export function AstraSubscriptionCards({
                 ) : sigmaUnderFold ? null : (
                   <Link
                     href="/destek"
-                    className="mt-3 block text-center text-xs text-[var(--astra-primary)] underline underline-offset-2"
+                    className="mt-3 block text-center text-xs text-[var(--cs-primary)] underline underline-offset-2"
                   >
                     Ebeveynden ödeme iste
                   </Link>
@@ -524,17 +524,17 @@ export function AstraSubscriptionCards({
             {rest.map((plan) => (
               <article
                 key={plan.id}
-                className="astra-pay-card flex items-center justify-between p-4"
+                className="cs-pay-card flex items-center justify-between p-4"
               >
                 <div>
                   <h3 className="font-medium">{plan.name}</h3>
-                  <p className="text-sm text-[var(--astra-muted)]">
+                  <p className="text-sm text-[var(--cs-muted)]">
                     ₺{tl(lira(plan.price_try))} · {plan.credit_amount} kredi
                   </p>
                 </div>
                 <button
                   type="button"
-                  className="astra-btn-primary rounded-full px-4 py-2 text-sm font-medium"
+                  className="cs-btn-primary rounded-full px-4 py-2 text-sm font-medium"
                   disabled={!checkoutEnabled || loadingId === plan.id}
                   onClick={() => startCheckout(plan.id)}
                 >
@@ -546,7 +546,7 @@ export function AstraSubscriptionCards({
         ) : null}
 
         {embedded && !guestMode && !isParent && !plusOwned ? (
-          <p className="text-center text-xs text-[var(--astra-muted)]">
+          <p className="text-center text-xs text-[var(--cs-muted)]">
             <a href="/ogretmen" className="underline underline-offset-2">
               Ücretsiz planda devam et
             </a>

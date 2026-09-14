@@ -3,7 +3,7 @@
 /**
  * Dairesel ilerleme halkası.
  *
- * Astra'nın "konu hakimiyeti %63" ve geri sayım halkalarında kullandığı
+ * Referans ürünün "konu hakimiyeti %63" ve geri sayım halkalarında kullandığı
  * motifin bizim sürümü: aynı okunabilirlik, kendi renk sistemimizle.
  * Değer değiştiğinde dolgu CSS transition ile akıyor; strokeDashoffset
  * doğrudan hesaplanıyor, animasyon kütüphanesi gerekmiyor.

@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import "@/styles/astra-app.css";
+import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
-import "@/styles/astra-sor.css";
-import { readStreakFromStorage } from "@/components/parity/astra-gamification";
+import "@/styles/parity-sor.css";
+import { readStreakFromStorage } from "@/components/parity/gamification";
 import {
   studentBottomTabs,
   studentMenuGroups,
@@ -15,9 +15,9 @@ import type { StudentAccountContext } from "@/lib/student/account-context";
 import { useEffect, useState } from "react";
 import { Flame, LayoutGrid, X } from "lucide-react";
 
-export type AstraNavRole = "student";
+export type NavRole = "student";
 
-export function AstraAppChrome({
+export function AppChrome({
   children,
   userInitial,
   avatarEmoji,
@@ -31,7 +31,7 @@ export function AstraAppChrome({
   streak?: number;
   pageTitle?: string;
   /** @deprecated Yalnızca öğrenci; prop geriye dönük uyumluluk için kalır. */
-  navRole?: AstraNavRole;
+  navRole?: NavRole;
   account?: StudentAccountContext;
 }) {
   const pathname = usePathname();
@@ -64,19 +64,19 @@ export function AstraAppChrome({
   return (
     <div
       className={cn(
-        "astra-app cortex-premium-app astra-sor-screen mx-auto flex min-h-dvh max-w-lg flex-col pb-24",
-        isSorScreen && "astra-sor-screen--chat",
-        account?.isPremium && "astra-sor-screen--plus",
+        "cs-app cortex-premium-app cs-sor-screen mx-auto flex min-h-dvh max-w-lg flex-col pb-24",
+        isSorScreen && "cs-sor-screen--chat",
+        account?.isPremium && "cs-sor-screen--plus",
       )}
     >
-      <header className="astra-sor-header flex items-center justify-between gap-2 px-4 py-3">
+      <header className="cs-sor-header flex items-center justify-between gap-2 px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
             className={cn(
               "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold",
               isSorScreen
-                ? "astra-sor-pill"
+                ? "cs-sor-pill"
                 : "cortex-premium-glass-nav font-medium",
             )}
             aria-label="Seri"
@@ -98,13 +98,13 @@ export function AstraAppChrome({
             </Link>
           ) : null}
         </div>
-        <div className="astra-sor-header-right">
+        <div className="cs-sor-header-right">
           {showBuyCta ? (
             <Link
               href="/pay"
               className={cn(
                 "cortex-premium-buy shrink-0",
-                isSorScreen ? "astra-sor-buy text-[11px]" : "text-[11px]",
+                isSorScreen ? "cs-sor-buy text-[11px]" : "text-[11px]",
               )}
             >
               Satın al ✦
@@ -113,10 +113,10 @@ export function AstraAppChrome({
           <Link
             href="/profil"
             className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold uppercase text-[var(--astra-text)]",
+              "flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold uppercase text-[var(--cs-text)]",
               isSorScreen
-                ? "astra-sor-avatar"
-                : "border border-[var(--astra-border)] bg-[var(--astra-surface)]",
+                ? "cs-sor-avatar"
+                : "border border-[var(--cs-border)] bg-[var(--cs-surface)]",
             )}
             aria-label="Profil"
           >
@@ -133,12 +133,12 @@ export function AstraAppChrome({
 
       <main
         className={cn(
-          "flex flex-1 flex-col px-4 text-[var(--astra-text)] [&_.border]:border-[var(--astra-border)] [&_.bg-card]:bg-[var(--astra-surface)] [&_.bg-muted]:bg-[var(--astra-pill)] [&_.text-muted-foreground]:text-[var(--astra-muted)] [&_input]:border-[var(--astra-border)] [&_input]:bg-[var(--astra-bg)] [&_textarea]:border-[var(--astra-border)] [&_textarea]:bg-[var(--astra-bg)] [&_.rounded-lg.border]:border-[var(--cx-border,var(--astra-border))] [&_.rounded-lg.border]:bg-[var(--cx-surface-solid,var(--astra-surface))]",
-          !isSorScreen && "astra-sor-page-main",
+          "flex flex-1 flex-col px-4 text-[var(--cs-text)] [&_.border]:border-[var(--cs-border)] [&_.bg-card]:bg-[var(--cs-surface)] [&_.bg-muted]:bg-[var(--cs-pill)] [&_.text-muted-foreground]:text-[var(--cs-muted)] [&_input]:border-[var(--cs-border)] [&_input]:bg-[var(--cs-bg)] [&_textarea]:border-[var(--cs-border)] [&_textarea]:bg-[var(--cs-bg)] [&_.rounded-lg.border]:border-[var(--cx-border,var(--cs-border))] [&_.rounded-lg.border]:bg-[var(--cx-surface-solid,var(--cs-surface))]",
+          !isSorScreen && "cs-sor-page-main",
         )}
       >
         {pageTitle && !isSorScreen ? (
-          <h1 className="astra-sor-greeting mb-5 text-left">{pageTitle}</h1>
+          <h1 className="cs-sor-greeting mb-5 text-left">{pageTitle}</h1>
         ) : null}
         {children}
       </main>
@@ -152,14 +152,14 @@ export function AstraAppChrome({
           onClick={() => setMenuOpen(false)}
         >
           <div
-            className="astra-app w-full max-w-md rounded-3xl border border-[var(--astra-border)] bg-[var(--astra-bg)] p-5 shadow-xl cortex-premium-glass-nav"
+            className="cs-app w-full max-w-md rounded-3xl border border-[var(--cs-border)] bg-[var(--cs-bg)] p-5 shadow-xl cortex-premium-glass-nav"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Menü</h2>
               <button
                 type="button"
-                className="rounded-full p-2 text-[var(--astra-muted)] hover:bg-[var(--astra-surface)]"
+                className="rounded-full p-2 text-[var(--cs-muted)] hover:bg-[var(--cs-surface)]"
                 aria-label="Kapat"
                 onClick={() => setMenuOpen(false)}
               >
@@ -170,7 +170,7 @@ export function AstraAppChrome({
               <div className="space-y-5">
                 {studentMenuGroups.map((group) => (
                   <div key={group.title}>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--astra-muted)]">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--cs-muted)]">
                       {group.title}
                     </p>
                     <div className="grid grid-cols-3 gap-3">
@@ -188,9 +188,9 @@ export function AstraAppChrome({
                             <Link
                               key={item.href}
                               href={href}
-                            className="astra-pay-card astra-pay-card--premium flex flex-col items-center gap-2 p-3 text-center text-xs font-medium transition-colors hover:border-[var(--astra-primary)]"
+                            className="cs-pay-card cs-pay-card--premium flex flex-col items-center gap-2 p-3 text-center text-xs font-medium transition-colors hover:border-[var(--cs-primary)]"
                           >
-                            <Icon className="h-6 w-6 text-[var(--astra-primary)]" />
+                            <Icon className="h-6 w-6 text-[var(--cs-primary)]" />
                             {plusLabel}
                           </Link>
                         );
@@ -203,7 +203,7 @@ export function AstraAppChrome({
             <form action="/api/auth/signout" method="post" className="mt-4">
               <button
                 type="submit"
-                className="w-full rounded-full border border-[var(--astra-border)] py-2.5 text-sm text-[var(--astra-muted)]"
+                className="w-full rounded-full border border-[var(--cs-border)] py-2.5 text-sm text-[var(--cs-muted)]"
               >
                 Çıkış yap
               </button>
@@ -212,9 +212,9 @@ export function AstraAppChrome({
         </div>
       ) : null}
 
-      <footer className="astra-sor-footer fixed bottom-0 left-0 right-0 z-50 flex items-end justify-center gap-2 px-3 pb-4 pt-2">
+      <footer className="cs-sor-footer fixed bottom-0 left-0 right-0 z-50 flex items-end justify-center gap-2 px-3 pb-4 pt-2">
         <nav
-          className="astra-nav-bar flex flex-1 max-w-md items-center justify-around rounded-full px-1 py-1.5"
+          className="cs-nav-bar flex flex-1 max-w-md items-center justify-around rounded-full px-1 py-1.5"
           aria-label="Ana menü"
         >
           {tabs.map((tab) => {
@@ -227,8 +227,8 @@ export function AstraAppChrome({
                 className={cn(
                   "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-full px-2 py-2 text-[11px] font-medium transition-colors",
                   isActive
-                    ? "astra-nav-active text-white"
-                    : "text-[var(--astra-muted)] hover:text-white",
+                    ? "cs-nav-active text-white"
+                    : "text-[var(--cs-muted)] hover:text-white",
                 )}
               >
                 <Icon className="h-5 w-5 shrink-0" aria-hidden />
@@ -241,8 +241,8 @@ export function AstraAppChrome({
           type="button"
           onClick={() => setMenuOpen(true)}
           className={cn(
-            "astra-nav-bar flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full",
-            menuOpen && "astra-nav-active",
+            "cs-nav-bar flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full",
+            menuOpen && "cs-nav-active",
           )}
           aria-label="Menü"
           aria-expanded={menuOpen}

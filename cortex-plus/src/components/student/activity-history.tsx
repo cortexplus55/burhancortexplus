@@ -36,21 +36,21 @@ export function ActivityHistory({ timestamps }: { timestamps: string[] }) {
   const peak = Math.max(1, ...week.map((day) => day.count));
 
   return (
-    <div className="ap-activity">
-      <div className="ap-activity-head">
+    <div className="cp-activity">
+      <div className="cp-activity-head">
         <span>
           <strong>{weekTotal}</strong> etkinlik · son 7 gün
         </span>
         {streak > 0 ? (
-          <span className="ap-activity-streak">{streak} gündür aralıksız</span>
+          <span className="cp-activity-streak">{streak} gündür aralıksız</span>
         ) : null}
       </div>
 
-      <ul className="ap-activity-bars" aria-label="Son yedi günün etkinlikleri">
+      <ul className="cp-activity-bars" aria-label="Son yedi günün etkinlikleri">
         {week.map((day: ActivityDay) => (
           <li key={day.date}>
             <span
-              className="ap-activity-bar"
+              className="cp-activity-bar"
               style={{ height: `${Math.max(6, (day.count / peak) * 100)}%` }}
               data-empty={day.count === 0 ? "" : undefined}
             />
@@ -62,28 +62,28 @@ export function ActivityHistory({ timestamps }: { timestamps: string[] }) {
         ))}
       </ul>
 
-      <p className="ap-activity-kicker">Son bir yıl</p>
-      <div className="ap-activity-year" aria-label="Son bir yılın etkinlik haritası">
-        <div className="ap-activity-weekdays" aria-hidden>
+      <p className="cp-activity-kicker">Son bir yıl</p>
+      <div className="cp-activity-year" aria-label="Son bir yılın etkinlik haritası">
+        <div className="cp-activity-weekdays" aria-hidden>
           {WEEKDAYS.map((label, index) => (
             <span key={label}>{index % 2 === 1 ? label : ""}</span>
           ))}
         </div>
-        <div className="ap-activity-grid">
+        <div className="cp-activity-grid">
           {weeks.map((days, weekIndex) => (
-            <div key={weekIndex} className="ap-activity-week">
+            <div key={weekIndex} className="cp-activity-week">
               {days.map((day, dayIndex) =>
                 day ? (
                   <span
                     key={day.date}
-                    className="ap-activity-cell"
+                    className="cp-activity-cell"
                     data-level={level(day.count)}
                     title={`${day.date}: ${day.count} etkinlik`}
                   />
                 ) : (
                   <span
                     key={`${weekIndex}-${dayIndex}`}
-                    className="ap-activity-cell ap-activity-cell--void"
+                    className="cp-activity-cell cp-activity-cell--void"
                   />
                 ),
               )}

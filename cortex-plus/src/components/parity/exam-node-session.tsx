@@ -89,7 +89,7 @@ export function ExamNodeSession({
 }) {
   const router = useRouter();
   const meta = PLAN_NODE_META[kind];
-  // Astra'daki sıra: aşinalık → ruh hali → kurulum. İkisi de zorunlu değil;
+  // Referans üründeki sıra: aşinalık → ruh hali → kurulum. İkisi de zorunlu değil;
   // "setup"tan geri dönülebilsin diye aynı stage makinesinde tutuluyorlar.
   const [stage, setStage] = useState<
     "familiarity" | "mood" | "setup" | "play" | "result" | "restoring"
@@ -501,98 +501,98 @@ export function ExamNodeSession({
     payload.type !== "podcast";
 
   return (
-    <div className="ap-exam-page ap-exam-node">
+    <div className="cp-exam-page cp-exam-node">
       {pendingSaves > 0 ? <p role="status" className="text-sm">Cevapların kaydediliyor…</p> : null}
       {saveError ? <div role="alert" className="text-sm text-red-400">
         <p>{saveError}</p>
         <button type="button" className="underline" disabled={pendingSaves > 0}
           onClick={() => { void persistAnswers(answersRef.current, index).catch(() => undefined); }}>Kaydı yeniden dene</button>
       </div> : null}
-      <div className="ap-exam-study-bar">
-        <Link href={`/deneme-sinavlari/${prepId}`} className="ap-back-pill"
+      <div className="cp-exam-study-bar">
+        <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill"
           onClick={(event) => { if (pendingSaves || saveError) { event.preventDefault(); toast.error("Çıkmadan önce cevapların kaydedilmesini bekle."); } }}>
           ← Geri
         </Link>
         {stage === "play" && isTimedExam ? (
-          <span className={cn("ap-exam-timer", timeLeft < 120 && "ap-exam-timer--urgent")}>
+          <span className={cn("cp-exam-timer", timeLeft < 120 && "cp-exam-timer--urgent")}>
             ⏱ {formatTimer(timeLeft)}
           </span>
         ) : null}
-        <button type="button" className="ap-back-pill" disabled={pendingSaves > 0 || Boolean(saveError)} onClick={() => router.push(`/deneme-sinavlari/${prepId}`)}>
+        <button type="button" className="cp-back-pill" disabled={pendingSaves > 0 || Boolean(saveError)} onClick={() => router.push(`/deneme-sinavlari/${prepId}`)}>
           ×
         </button>
       </div>
 
       {stage === "restoring" ? (
-        <section className="ap-exam-setup" aria-busy="true" aria-live="polite">
-          <p className="ap-lesson-kicker">Devam</p>
+        <section className="cp-exam-setup" aria-busy="true" aria-live="polite">
+          <p className="cp-lesson-kicker">Devam</p>
           <h1>Kaldığın yer açılıyor…</h1>
-          <p className="text-sm text-[var(--ap-muted)]">
+          <p className="text-sm text-[var(--cp-muted)]">
             Kaydedilmiş cevapların yükleniyor. Yeniden ücret alınmaz — yarım kalan
             oturum güvenle sürer.
           </p>
-          <p className="text-xs text-[var(--ap-muted)]" role="status">
+          <p className="text-xs text-[var(--cp-muted)]" role="status">
             Bu ekran boş değil; kısa süre sonra sorulara döneceksin.
           </p>
         </section>
       ) : null}
 
       {stage === "familiarity" || stage === "mood" ? (
-        <article className="ap-signal-card">
-          <div className="ap-signal-steps" aria-hidden>
-            <span className="ap-signal-step ap-signal-step--on" />
+        <article className="cp-signal-card">
+          <div className="cp-signal-steps" aria-hidden>
+            <span className="cp-signal-step cp-signal-step--on" />
             <span
               className={cn(
-                "ap-signal-step",
-                stage === "mood" && "ap-signal-step--on",
+                "cp-signal-step",
+                stage === "mood" && "cp-signal-step--on",
               )}
             />
           </div>
           {stage === "familiarity" ? (
             <>
               <h1>Bu konuya ne kadar aşinasın?</h1>
-              <p className="ap-signal-lead">
+              <p className="cp-signal-lead">
                 Doğru zorluk seviyesini belirlememize yardımcı olur.
               </p>
               {FAMILIARITY_OPTIONS.map((option) => (
                 <button
                   key={option.id}
                   type="button"
-                  className="ap-signal-option"
+                  className="cp-signal-option"
                   aria-pressed={familiarity === option.id}
                   onClick={() => {
                     setFamiliarity(option.id);
                     setStage("mood");
                   }}
                 >
-                  <span className="ap-signal-emoji" aria-hidden>
+                  <span className="cp-signal-emoji" aria-hidden>
                     {option.emoji}
                   </span>
-                  <span className="ap-signal-title">{option.title}</span>
+                  <span className="cp-signal-title">{option.title}</span>
                 </button>
               ))}
             </>
           ) : (
             <>
               <h1>Bugün ruh halin nasıl?</h1>
-              <p className="ap-signal-lead">
+              <p className="cp-signal-lead">
                 Anlatım tonunu buna göre ayarlayacağım.
               </p>
               {MOOD_OPTIONS.map((option) => (
                 <button
                   key={option.id}
                   type="button"
-                  className="ap-signal-option"
+                  className="cp-signal-option"
                   aria-pressed={mood === option.id}
                   onClick={() => {
                     setMood(option.id);
                     setStage("setup");
                   }}
                 >
-                  <span className="ap-signal-emoji" aria-hidden>
+                  <span className="cp-signal-emoji" aria-hidden>
                     {option.emoji}
                   </span>
-                  <span className="ap-signal-title">{option.title}</span>
+                  <span className="cp-signal-title">{option.title}</span>
                 </button>
               ))}
             </>
@@ -605,13 +605,13 @@ export function ExamNodeSession({
       ) : null}
 
       {stage === "setup" && !loading ? (
-        <article className="ap-exam-setup-card">
-          <p className="ap-lesson-kicker">{prepTitle}</p>
+        <article className="cp-exam-setup-card">
+          <p className="cp-lesson-kicker">{prepTitle}</p>
           <h1>{meta.setupLabel}</h1>
-          {topicLabel ? <p className="text-sm text-[var(--ap-muted)]">{topicLabel}</p> : null}
-          <label className="ap-field">
+          {topicLabel ? <p className="text-sm text-[var(--cp-muted)]">{topicLabel}</p> : null}
+          <label className="cp-field">
             <span>Zorluk seviyesi belirle</span>
-            <strong className="ap-exam-diff-label">
+            <strong className="cp-exam-diff-label">
               {difficulty === "kolay" ? "Kolay" : difficulty === "ileri" ? "İleri" : "Orta"}
             </strong>
             <input
@@ -626,7 +626,7 @@ export function ExamNodeSession({
             />
           </label>
           {meta.voice ? (
-            <label className="ap-exam-voice-row">
+            <label className="cp-exam-voice-row">
               <span>
                 Sesli mod
                 <em>Yazmak yerine konuş</em>
@@ -641,7 +641,7 @@ export function ExamNodeSession({
           {generationFailure && !generationFailure.canRetryNow ? null : (
             <button
               type="button"
-              className="ap-exam-continue ap-exam-continue--primary"
+              className="cp-exam-continue cp-exam-continue--primary"
               disabled={loading}
               onClick={() => void start()}
             >
@@ -656,7 +656,7 @@ export function ExamNodeSession({
           {generationFailure?.action ? (
             <Link
               href={generationFailure.action.href}
-              className="ap-exam-continue inline-flex"
+              className="cp-exam-continue inline-flex"
             >
               {generationFailure.action.label}
             </Link>
@@ -687,7 +687,7 @@ export function ExamNodeSession({
           <section>
             <h1>{payload.title}</h1>
             <ExamLessonBody content={payload.contentMd ?? ""} />
-            <button type="button" className="ap-exam-continue ap-exam-continue--primary" onClick={() => void finish()}>
+            <button type="button" className="cp-exam-continue cp-exam-continue--primary" onClick={() => void finish()}>
               Bitir
             </button>
           </section>
@@ -726,7 +726,7 @@ export function ExamNodeSession({
 
       {stage === "play" && payload.type === "true_false" && items[index] ? (
         <section>
-          <p className="ap-lesson-kicker">
+          <p className="cp-lesson-kicker">
             {index + 1}/{items.length}
           </p>
           <h1>{items[index].text}</h1>
@@ -743,8 +743,8 @@ export function ExamNodeSession({
                   type="button"
                   disabled={tfRevealed}
                   className={cn(
-                    "ap-exam-continue",
-                    isSelected && "ap-exam-continue--primary",
+                    "cp-exam-continue",
+                    isSelected && "cp-exam-continue--primary",
                     showGreen && "border-emerald-500 bg-emerald-500/20 text-emerald-300",
                     showRed && "border-rose-500 bg-rose-500/20 text-rose-300",
                   )}
@@ -760,26 +760,26 @@ export function ExamNodeSession({
           </div>
 
           {tfRevealed ? (
-            <div className="ap-exam-quiz-feedback">
+            <div className="cp-exam-quiz-feedback">
               <div
                 className={cn(
-                  "ap-exam-quiz-verdict",
+                  "cp-exam-quiz-verdict",
                   answers[String(index)] === items[index].correct
-                    ? "ap-exam-quiz-verdict--ok"
-                    : "ap-exam-quiz-verdict--bad",
+                    ? "cp-exam-quiz-verdict--ok"
+                    : "cp-exam-quiz-verdict--bad",
                 )}
               >
                 {answers[String(index)] === items[index].correct ? "✓ Doğru!" : "✕ Yanlış"}
               </div>
               {!items[index].correct && items[index].correctedStatement ? (
-                <p className="ap-exam-quiz-explain"><strong>Doğru ifade:</strong> {items[index].correctedStatement}</p>
+                <p className="cp-exam-quiz-explain"><strong>Doğru ifade:</strong> {items[index].correctedStatement}</p>
               ) : null}
               {items[index].explanation ? (
-                <p className="ap-exam-quiz-explain">{items[index].explanation}</p>
+                <p className="cp-exam-quiz-explain">{items[index].explanation}</p>
               ) : null}
               <button
                 type="button"
-                className="ap-exam-continue ap-exam-continue--primary mt-2"
+                className="cp-exam-continue cp-exam-continue--primary mt-2"
                 onClick={() => {
                   setTfRevealed(false);
                   if (index + 1 < items.length) setIndex(index + 1);
@@ -794,19 +794,19 @@ export function ExamNodeSession({
       ) : null}
 
       {stage === "play" && payload.type === "cards" && cards[index] ? (
-        <section className="ap-exam-card-stage">
-          <p className="ap-lesson-kicker">
+        <section className="cp-exam-card-stage">
+          <p className="cp-lesson-kicker">
             {index + 1}/{cards.length}
           </p>
-          <button type="button" className="ap-exam-flash" onClick={() => setFlipped((value) => !value)}>
+          <button type="button" className="cp-exam-flash" onClick={() => setFlipped((value) => !value)}>
             {flipped ? cards[index].back : cards[index].front}
           </button>
-          <p className="text-sm text-[var(--ap-muted)]">Kartı çevirmek için tıkla</p>
+          <p className="text-sm text-[var(--cp-muted)]">Kartı çevirmek için tıkla</p>
           <p>Cevabı biliyor musun?</p>
           <div className="flex gap-2">
             <button
               type="button"
-              className="ap-exam-continue"
+              className="cp-exam-continue"
               onClick={() => {
                 const nextAnswers = { ...answersRef.current, [String(index)]: false };
                 updateAnswer(String(index), false);
@@ -819,7 +819,7 @@ export function ExamNodeSession({
             </button>
             <button
               type="button"
-              className="ap-exam-continue ap-exam-continue--primary"
+              className="cp-exam-continue cp-exam-continue--primary"
               onClick={() => {
                 const nextAnswers = { ...answersRef.current, [String(index)]: true };
                 updateAnswer(String(index), true);
@@ -836,17 +836,17 @@ export function ExamNodeSession({
 
       {stage === "play" && payload.type === "oral" && questions[index] ? (
         <section>
-          <p className="ap-lesson-kicker">
+          <p className="cp-lesson-kicker">
             {index + 1}/{questions.length}
           </p>
           <h1>{questions[index].prompt}</h1>
           {questions[index].hint ? (
             hintsUsed[String(index)] ? (
-              <p className="text-sm text-[var(--ap-muted)]">İpucu: {questions[index].hint}</p>
+              <p className="text-sm text-[var(--cp-muted)]">İpucu: {questions[index].hint}</p>
             ) : (
               <button
                 type="button"
-                className="text-sm text-[var(--ap-muted)] underline"
+                className="text-sm text-[var(--cp-muted)] underline"
                 onClick={() => markHint(index)}
               >
                 İpucu göster
@@ -854,7 +854,7 @@ export function ExamNodeSession({
             )
           ) : null}
           <textarea
-            className="ap-exam-oral-input"
+            className="cp-exam-oral-input"
             rows={4}
             placeholder={voiceMode ? "Konuşarak veya yazarak yanıtla" : "Yanıtın"}
             value={String(answers[String(index)] ?? "")}
@@ -864,7 +864,7 @@ export function ExamNodeSession({
           />
           <button
             type="button"
-            className="ap-exam-continue ap-exam-continue--primary"
+            className="cp-exam-continue cp-exam-continue--primary"
             onClick={() => {
               if (index + 1 < questions.length) setIndex(index + 1);
               else void finish();
@@ -876,13 +876,13 @@ export function ExamNodeSession({
       ) : null}
 
       {stage === "result" ? (
-        <section className="ap-exam-node-result">
-          <p className="ap-lesson-kicker">Doğru cevaplar</p>
-          <p className="ap-exam-score-xl">
+        <section className="cp-exam-node-result">
+          <p className="cp-lesson-kicker">Doğru cevaplar</p>
+          <p className="cp-exam-score-xl">
             {score.score}/{score.total}
           </p>
           <p>{score.total && score.score / score.total >= 0.7 ? "Güzel gidiyor" : "Biraz daha gelişebilirsin"}</p>
-          <p className="text-sm text-[var(--ap-muted)]">
+          <p className="text-sm text-[var(--cp-muted)]">
             Doğruluk {Math.round((score.score / Math.max(1, score.total)) * 100)}%
             {" · "}Bu oturum skoru program ilerlemesinden ve sınava hazırlık tahmininden ayrıdır.
           </p>
@@ -904,7 +904,7 @@ export function ExamNodeSession({
             </p>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            <button type="button" className="ap-exam-continue" onClick={() => {
+            <button type="button" className="cp-exam-continue" onClick={() => {
               setStage("setup");
               setIndex(0);
               setAnswers({});
@@ -914,7 +914,7 @@ export function ExamNodeSession({
             </button>
             <button
               type="button"
-              className="ap-exam-continue"
+              className="cp-exam-continue"
               disabled={feedbackLoading}
               onClick={() => void loadFeedback()}
             >
@@ -925,7 +925,7 @@ export function ExamNodeSession({
             {kind === "lesson" && topicId && !lessonPodcast ? (
               <button
                 type="button"
-                className="ap-exam-continue"
+                className="cp-exam-continue"
                 disabled={podcastLoading}
                 onClick={() => void loadLessonPodcast()}
               >
@@ -942,13 +942,13 @@ export function ExamNodeSession({
             />
           ) : null}
           {feedback ? (
-            <article className="ap-exam-debrief">
-              <p className="ap-lesson-kicker">Eğitmen notu</p>
+            <article className="cp-exam-debrief">
+              <p className="cp-lesson-kicker">Eğitmen notu</p>
               <h2>{feedback.headline}</h2>
               <p>{feedback.note}</p>
               {feedback.gaps.length ? (
                 <>
-                  <p className="ap-exam-debrief-label">Zayıf noktalar</p>
+                  <p className="cp-exam-debrief-label">Zayıf noktalar</p>
                   <ul>
                     {feedback.gaps.map((item) => (
                       <li key={item}>{item}</li>
@@ -958,7 +958,7 @@ export function ExamNodeSession({
               ) : null}
               {feedback.nextFocus.length ? (
                 <>
-                  <p className="ap-exam-debrief-label">Bundan sonra</p>
+                  <p className="cp-exam-debrief-label">Bundan sonra</p>
                   <ul>
                     {feedback.nextFocus.map((item) => (
                       <li key={item}>{item}</li>
@@ -968,7 +968,7 @@ export function ExamNodeSession({
               ) : null}
             </article>
           ) : null}
-          <Link href={nextHref} className="ap-exam-continue ap-exam-continue--primary">
+          <Link href={nextHref} className="cp-exam-continue cp-exam-continue--primary">
             Devam et
           </Link>
         </section>

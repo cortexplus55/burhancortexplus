@@ -1,9 +1,9 @@
 import {
-  AstraFaqSection,
-  AstraFeatureStrip,
-  AstraMarketingPage,
-  AstraSubjectGrid,
-} from "@/components/parity/astra-marketing";
+  FaqSection,
+  FeatureStrip,
+  ParityMarketingPage,
+  SubjectGrid,
+} from "@/components/parity/marketing";
 import { CinematicHero } from "@/components/marketing/cinematic-hero";
 import { CinematicSocialProof } from "@/components/marketing/cinematic-social-proof";
 import { CinematicGuaranteeStrip } from "@/components/marketing/cinematic-guarantee-strip";
@@ -12,7 +12,7 @@ import { MistakeLoopSection } from "@/components/marketing/mistake-loop-section"
 
 export default function HomePage() {
   return (
-    <AstraMarketingPage variant="home">
+    <ParityMarketingPage variant="home">
       <CinematicHero />
       <CinematicGuaranteeStrip />
       {/* Döngü, özellik şeridinden ÖNCE: şerit ne yapabildiğimizi sayıyor,
@@ -21,9 +21,9 @@ export default function HomePage() {
       <MistakeLoopSection />
       <CinematicSocialProof />
       <CinematicPlanSlider />
-      <AstraFeatureStrip />
-      <AstraSubjectGrid />
-      <AstraFaqSection />
-    </AstraMarketingPage>
+      <FeatureStrip />
+      <SubjectGrid />
+      <FaqSection />
+    </ParityMarketingPage>
   );
 }

@@ -4,12 +4,12 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /** `premium` = oturum açık öğrenci kabuğu (misafir/auth ile aynı cam + altın). `plain` = admin / klasik shadcn. */
-type UiVariant = "premium" | "astra" | "plain" | "default";
+type UiVariant = "premium" | "parity" | "plain" | "default";
 
 function resolveVariant(variant: UiVariant): "premium" | "plain" {
   if (variant === "plain") return "plain";
   if (variant === "default") return "premium";
-  if (variant === "astra") return "premium";
+  if (variant === "parity") return "premium";
   return "premium";
 }
 
@@ -32,17 +32,17 @@ export function EmptyState({
 
   if (v === "premium") {
     return (
-      // `ap-empty` öğrenci kabuğunun kendi dosyasında tanımlı; eski
-      // `astra-pay-card--premium` sınıfı burada hiç uygulanmıyordu, çünkü
-      // kuralı `.astra-app.cortex-premium-app` altına kapsanmış.
-      <div className="ap-empty astra-pay-card astra-pay-card--premium">
+      // `cp-empty` öğrenci kabuğunun kendi dosyasında tanımlı; eski
+      // `cs-pay-card--premium` sınıfı burada hiç uygulanmıyordu, çünkü
+      // kuralı `.cs-app.cortex-premium-app` altına kapsanmış.
+      <div className="cp-empty cs-pay-card cs-pay-card--premium">
         {Icon ? (
-          <span className="ap-empty-icon">
+          <span className="cp-empty-icon">
             <Icon className="h-6 w-6" aria-hidden />
           </span>
         ) : null}
-        <p className="ap-empty-title">{title}</p>
-        <p className="ap-empty-desc">{description}</p>
+        <p className="cp-empty-title">{title}</p>
+        <p className="cp-empty-desc">{description}</p>
         {actionHref && actionLabel ? (
           <Link
             href={actionHref}
@@ -85,10 +85,10 @@ export function SectionCard({
 
   if (v === "premium") {
     return (
-      <section className="ap-section astra-pay-card astra-pay-card--premium">
-        <h2 className="ap-section-title">{title}</h2>
-        {description ? <p className="ap-section-desc">{description}</p> : null}
-        <div className="ap-section-body">{children}</div>
+      <section className="cp-section cs-pay-card cs-pay-card--premium">
+        <h2 className="cp-section-title">{title}</h2>
+        {description ? <p className="cp-section-desc">{description}</p> : null}
+        <div className="cp-section-body">{children}</div>
       </section>
     );
   }

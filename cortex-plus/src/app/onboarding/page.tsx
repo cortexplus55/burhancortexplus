@@ -9,7 +9,7 @@ import {
   OnboardingContinue,
   OnboardingShell,
 } from "@/components/layout/onboarding-shell";
-import { AstraMarketingPage } from "@/components/parity/astra-marketing";
+import { ParityMarketingPage } from "@/components/parity/marketing";
 import { createClient } from "@/lib/supabase/client";
 import {
   GOAL_OPTIONS,
@@ -20,7 +20,7 @@ import {
 } from "@/lib/parity/signup";
 import { DEFAULT_TUTOR_STYLE, type TutorStyle } from "@/lib/learning/tutor-style";
 import { toast } from "sonner";
-import "@/styles/astra-marketing.css";
+import "@/styles/parity-marketing.css";
 
 const STEPS = 3;
 
@@ -99,7 +99,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <AstraMarketingPage variant="auth" title="Hoş geldin">
+    <ParityMarketingPage variant="auth" title="Hoş geldin">
       <OnboardingShell
         step={step}
         total={STEPS}
@@ -216,6 +216,6 @@ export default function OnboardingPage() {
           </>
         ) : null}
       </OnboardingShell>
-    </AstraMarketingPage>
+    </ParityMarketingPage>
   );
 }

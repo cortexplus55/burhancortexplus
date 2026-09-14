@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Smartphone, Upload, X } from "lucide-react";
 
-export function AstraUploadModal({
+export function UploadModal({
   open,
   onClose,
   onPick,
@@ -85,20 +85,20 @@ export function AstraUploadModal({
 
   return (
     <div
-      className="ap-hub-backdrop"
+      className="cp-hub-backdrop"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="ap-upload-title"
+      aria-labelledby="cp-upload-title"
       onClick={onClose}
     >
-      <div className="ap-upload-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="ap-hub-head">
-          <h2 id="ap-upload-title" className="ap-hub-title">
+      <div className="cp-upload-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="cp-hub-head">
+          <h2 id="cp-upload-title" className="cp-hub-title">
             Ödev resmini yükle
           </h2>
           <button
             type="button"
-            className="ap-hub-close"
+            className="cp-hub-close"
             aria-label="Kapat"
             onClick={onClose}
           >
@@ -107,7 +107,7 @@ export function AstraUploadModal({
         </div>
 
         <div
-          className={over ? "ap-upload-drop ap-upload-drop--over" : "ap-upload-drop"}
+          className={over ? "cp-upload-drop cp-upload-drop--over" : "cp-upload-drop"}
           onDragOver={(e) => {
             e.preventDefault();
             setOver(true);
@@ -121,42 +121,42 @@ export function AstraUploadModal({
         >
           <Upload className="h-8 w-8 opacity-70" aria-hidden />
           <p>Dosyalarını buraya bırak</p>
-          <p className="ap-upload-hint">Görseller, PDF</p>
+          <p className="cp-upload-hint">Görseller, PDF</p>
           <button
             type="button"
-            className="ap-upload-pick"
+            className="cp-upload-pick"
             onClick={() => inputRef.current?.click()}
           >
             Dosya seç
           </button>
         </div>
 
-        <div className="ap-upload-or">
+        <div className="cp-upload-or">
           <span>veya</span>
         </div>
 
-        <div className="ap-upload-phone">
+        <div className="cp-upload-phone">
           <Smartphone className="h-8 w-8 shrink-0 opacity-70" aria-hidden />
           <div className="min-w-0 flex-1">
             <p className="font-semibold">Telefonundan yükle</p>
-            <p className="ap-upload-hint">
+            <p className="cp-upload-hint">
               QR’ı telefonunla tara; kamera veya galeriden görseli gönder.
             </p>
             {uploadUrl && qr ? (
-              <div className="ap-upload-qr">
+              <div className="cp-upload-qr">
                 {/* Sunucuda üretilen data URI — token dış servise gitmez. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={qr} alt="Yükleme QR kodu" width={168} height={168} />
                 <button
                   type="button"
-                  className="ap-copy-link"
+                  className="cp-copy-link"
                   onClick={() => void navigator.clipboard.writeText(uploadUrl)}
                 >
                   Bağlantıyı kopyala
                 </button>
               </div>
             ) : (
-              <p className="ap-upload-hint">
+              <p className="cp-upload-hint">
                 {phoneError ?? "QR hazırlanıyor…"}
               </p>
             )}

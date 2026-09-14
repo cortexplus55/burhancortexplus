@@ -34,12 +34,12 @@ export function SchoolFeedView({
 
   if (!summary) {
     return (
-      <div className="ap-exam-school-picker">
-        <p className="ap-upload-hint">
+      <div className="cp-exam-school-picker">
+        <p className="cp-upload-hint">
           Okulunu seçtiğinde arkadaşlarının paylaştığı hazırlıklar burada
           görünür.
         </p>
-        <button type="button" className="ap-exam-discover-cta mt-3" onClick={onPickSchool}>
+        <button type="button" className="cp-exam-discover-cta mt-3" onClick={onPickSchool}>
           Okulumu seç
         </button>
       </div>
@@ -68,14 +68,14 @@ export function SchoolFeedView({
   }
 
   return (
-    <div className="ap-school-feed">
-      <article className="ap-school-card">
-        <span className="ap-school-icon" aria-hidden>
+    <div className="cp-school-feed">
+      <article className="cp-school-card">
+        <span className="cp-school-icon" aria-hidden>
           <GraduationCap className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <h3 className="ap-school-name">{summary.schoolName}</h3>
-          <p className="ap-school-meta">
+          <h3 className="cp-school-name">{summary.schoolName}</h3>
+          <p className="cp-school-meta">
             <span>
               <Users className="h-3 w-3" aria-hidden /> {summary.memberCount} üye
             </span>
@@ -83,17 +83,17 @@ export function SchoolFeedView({
             <span>{summary.sharedCount} paylaşılan hazırlık</span>
           </p>
         </div>
-        <button type="button" className="ap-chip" onClick={onPickSchool}>
+        <button type="button" className="cp-chip" onClick={onPickSchool}>
           Değiştir
         </button>
       </article>
 
       {subjects.length > 1 ? (
-        <div className="ap-lab-filters">
+        <div className="cp-lab-filters">
           <button
             type="button"
             onClick={() => setSubject(null)}
-            className={cn("ap-lab-chip", subject === null && "ap-lab-chip--on")}
+            className={cn("cp-lab-chip", subject === null && "cp-lab-chip--on")}
           >
             Tüm dersler
           </button>
@@ -102,7 +102,7 @@ export function SchoolFeedView({
               key={s}
               type="button"
               onClick={() => setSubject(s)}
-              className={cn("ap-lab-chip", subject === s && "ap-lab-chip--on")}
+              className={cn("cp-lab-chip", subject === s && "cp-lab-chip--on")}
             >
               {s}
             </button>
@@ -111,42 +111,42 @@ export function SchoolFeedView({
       ) : null}
 
       {visible.length ? (
-        <ul className="ap-school-list">
+        <ul className="cp-school-list">
           {visible.map((item) => (
-            <li key={item.id} className="ap-school-item">
-              <div className="ap-school-item-head">
-                <span className="ap-school-avatar" aria-hidden>
+            <li key={item.id} className="cp-school-item">
+              <div className="cp-school-item-head">
+                <span className="cp-school-avatar" aria-hidden>
                   {item.ownerName.slice(0, 1).toUpperCase()}
                 </span>
-                <span className="ap-school-owner">
+                <span className="cp-school-owner">
                   {item.isOwn ? "Sen" : item.ownerName}
                 </span>
                 {popular.has(item.id) ? (
-                  <span className="ap-school-badge">POPÜLER</span>
+                  <span className="cp-school-badge">POPÜLER</span>
                 ) : null}
-                {item.isOwn ? <span className="ap-school-own">Seninki</span> : null}
+                {item.isOwn ? <span className="cp-school-own">Seninki</span> : null}
               </div>
 
               {item.examType ? (
-                <span className="ap-school-subject">{item.examType}</span>
+                <span className="cp-school-subject">{item.examType}</span>
               ) : null}
-              <h4 className="ap-school-title">{item.title ?? "Sınav hazırlığı"}</h4>
+              <h4 className="cp-school-title">{item.title ?? "Sınav hazırlığı"}</h4>
 
-              <div className="ap-school-item-foot">
+              <div className="cp-school-item-foot">
                 {/* Sayaç katılımları sayıyor; "görüntülenme" demek yanlış olurdu. */}
-                <span className="ap-school-views">
+                <span className="cp-school-views">
                   <Users className="h-3 w-3" aria-hidden />
                   {item.viewCount} katılım
                   {item.topicCount > 0 ? ` · ${item.topicCount} konu` : ""}
                 </span>
                 {item.isOwn ? (
-                  <Link href={`/deneme-sinavlari/${item.id}`} className="ap-chip">
+                  <Link href={`/deneme-sinavlari/${item.id}`} className="cp-chip">
                     Aç
                   </Link>
                 ) : (
                   <button
                     type="button"
-                    className="ap-exam-discover-cta"
+                    className="cp-exam-discover-cta"
                     disabled={joining === item.id}
                     onClick={() => void join(item.id)}
                   >
@@ -158,7 +158,7 @@ export function SchoolFeedView({
           ))}
         </ul>
       ) : (
-        <p className="ap-upload-hint">
+        <p className="cp-upload-hint">
           {rows.length
             ? "Bu derste paylaşılan hazırlık yok."
             : "Okulunda henüz paylaşılan hazırlık yok. İlk paylaşan sen ol — hazırlığını açıp menüden paylaşabilirsin."}

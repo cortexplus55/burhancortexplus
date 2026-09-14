@@ -5,7 +5,7 @@ import { GeneratorForm } from "@/components/learning/generator-form";
 export function QuizGeneratePanel({ creditCost }: { creditCost: number | null }) {
   return (
     <GeneratorForm
-      variant="astra"
+      variant="parity"
       endpoint="/api/learning/quiz/generate"
       fieldLabel="Konu"
       placeholder="Örn. Üslü sayılar"
@@ -20,7 +20,7 @@ export function QuizGeneratePanel({ creditCost }: { creditCost: number | null })
 export function FlashcardGeneratePanel({ creditCost }: { creditCost: number | null }) {
   return (
     <GeneratorForm
-      variant="astra"
+      variant="parity"
       endpoint="/api/learning/flashcards/generate"
       fieldLabel="Konu"
       placeholder="Örn. Türev kuralları"
@@ -41,7 +41,7 @@ export function FlashcardGeneratePanel({ creditCost }: { creditCost: number | nu
 export function StudyPlanGeneratePanel({ creditCost }: { creditCost: number | null }) {
   return (
     <GeneratorForm
-      variant="astra"
+      variant="parity"
       endpoint="/api/learning/study-plan/generate"
       fieldLabel="Hedef"
       placeholder="Örn. 4 haftada türev konusunu bitirmek"

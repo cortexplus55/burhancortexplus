@@ -1,15 +1,15 @@
-/* /ogretmen — Astra-style Sor (minimal composer, cinematic empty state) */
+/* /ogretmen — referans ürün tarzı Sor (minimal composer, cinematic empty state) */
 
-.astra-sor-screen {
-  --astra-bg: #050505;
-  --astra-sor-nav-lift: calc(5.25rem + env(safe-area-inset-bottom, 0px));
-  --astra-sor-composer-lift: calc(9.5rem + env(safe-area-inset-bottom, 0px));
+.cs-sor-screen {
+  --cs-bg: #050505;
+  --cs-sor-nav-lift: calc(5.25rem + env(safe-area-inset-bottom, 0px));
+  --cs-sor-composer-lift: calc(9.5rem + env(safe-area-inset-bottom, 0px));
   font-family: var(--font-ui, "Figtree", system-ui, sans-serif);
-  background: var(--astra-bg);
+  background: var(--cs-bg);
 }
 
-/* Sohbet hub — flex main; composer nav üstünde sabit (Astra / mockup) */
-.astra-sor-screen--chat main {
+/* Sohbet hub — flex main; composer nav üstünde sabit (referans ürün / mockup) */
+.cs-sor-screen--chat main {
   min-height: 0;
   flex: 1;
   display: flex;
@@ -17,7 +17,7 @@
   padding-bottom: 0;
 }
 
-.astra-sor-screen:not(.astra-sor-screen--chat) main.astra-sor-page-main {
+.cs-sor-screen:not(.cs-sor-screen--chat) main.cs-sor-page-main {
   min-height: 0;
   flex: 1;
   overflow-y: auto;
@@ -25,27 +25,27 @@
   -webkit-overflow-scrolling: touch;
 }
 
-.astra-sor-screen:not(.astra-sor-screen--chat) .astra-sor-greeting {
+.cs-sor-screen:not(.cs-sor-screen--chat) .cs-sor-greeting {
   font-size: clamp(1.5rem, 5vw, 2rem);
   animation: none;
 }
 
-.astra-sor-view {
+.cs-sor-view {
   display: flex;
   min-height: 0;
   flex: 1;
   flex-direction: column;
 }
 
-.astra-sor-view--empty,
-.astra-sor-view--shell {
+.cs-sor-view--empty,
+.cs-sor-view--shell {
   display: flex;
   flex-direction: column;
   min-height: 0;
   flex: 1;
 }
 
-.astra-sor-main {
+.cs-sor-main {
   position: relative;
   display: flex;
   min-height: 0;
@@ -53,24 +53,24 @@
   overflow: hidden;
 }
 
-.astra-sor-empty-layer {
+.cs-sor-empty-layer {
   display: flex;
   min-height: 0;
   flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0 0.75rem var(--astra-sor-composer-lift);
+  padding: 0 0.75rem var(--cs-sor-composer-lift);
   text-align: center;
   transition: opacity 0.28s ease, visibility 0.28s ease;
 }
 
-.astra-sor-greeting-block {
+.cs-sor-greeting-block {
   max-width: 20rem;
 }
 
-/* Boş Sor — Astra TR: sans başlık, ortada selamlama (orb yok) */
-.astra-sor-screen--chat .astra-sor-greeting {
+/* Boş Sor — referans ürün TR: sans başlık, ortada selamlama (orb yok) */
+.cs-sor-screen--chat .cs-sor-greeting {
   font-family: var(--font-ui, "Figtree", system-ui, sans-serif);
   font-size: clamp(1.25rem, 4.5vw, 1.5rem);
   font-weight: 800;
@@ -79,7 +79,7 @@
   animation: none;
 }
 
-.astra-sor-screen--chat .astra-sor-greeting-sub {
+.cs-sor-screen--chat .cs-sor-greeting-sub {
   margin-top: 0.75rem;
   max-width: 18rem;
   margin-left: auto;
@@ -89,7 +89,7 @@
   animation: none;
 }
 
-.astra-sor-header {
+.cs-sor-header {
   transition:
     opacity 0.35s ease,
     transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
@@ -97,41 +97,41 @@
   transform-origin: top center;
 }
 
-.astra-sor-pill {
-  border: 1px solid var(--astra-border);
-  background: var(--astra-pill);
-  color: var(--astra-muted);
+.cs-sor-pill {
+  border: 1px solid var(--cs-border);
+  background: var(--cs-pill);
+  color: var(--cs-muted);
   font-size: 0.75rem;
 }
 
-.astra-sor-buy {
+.cs-sor-buy {
   padding: 0.4rem 0.85rem;
   font-weight: 800;
   box-shadow: 0 4px 16px rgba(244, 174, 11, 0.25);
 }
 
-.astra-sor-buy:hover {
+.cs-sor-buy:hover {
   box-shadow: 0 6px 20px rgba(244, 174, 11, 0.32);
 }
 
-.astra-sor-avatar {
-  border: 1px solid var(--astra-border);
+.cs-sor-avatar {
+  border: 1px solid var(--cs-border);
   background: #78350f;
 }
 
-.astra-sor-screen--chat.astra-sor-screen--active-chat > .astra-sor-header {
+.cs-sor-screen--chat.cs-sor-screen--active-chat > .cs-sor-header {
   opacity: 0.78;
   transform: scale(0.96);
   padding-top: 0.45rem;
   padding-bottom: 0.45rem;
 }
 
-.astra-sor-screen--chat.astra-sor-screen--active-chat > .astra-sor-header .cortex-premium-glass-nav,
-.astra-sor-screen--chat.astra-sor-screen--active-chat > .astra-sor-header .cortex-premium-buy {
+.cs-sor-screen--chat.cs-sor-screen--active-chat > .cs-sor-header .cortex-premium-glass-nav,
+.cs-sor-screen--chat.cs-sor-screen--active-chat > .cs-sor-header .cortex-premium-buy {
   transition: transform 0.35s ease, opacity 0.35s ease;
 }
 
-.astra-sor-screen--plus::before {
+.cs-sor-screen--plus::before {
   background:
     radial-gradient(
       ellipse 90% 58% at 50% -6%,
@@ -145,7 +145,7 @@
     );
 }
 
-.astra-sor-screen--plus .astra-sor-composer:focus-within {
+.cs-sor-screen--plus .cs-sor-composer:focus-within {
   box-shadow:
     0 0 0 1px rgba(244, 174, 11, 0.28),
     0 0 48px rgba(244, 174, 11, 0.14),
@@ -153,14 +153,14 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
-.astra-sor-bubble--assistant {
+.cs-sor-bubble--assistant {
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: linear-gradient(
     165deg,
     rgba(32, 32, 32, 0.92) 0%,
     rgba(18, 18, 18, 0.96) 100%
   );
-  color: var(--astra-text);
+  color: var(--cs-text);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   box-shadow:
@@ -168,11 +168,11 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.astra-sor-bubble-enter {
-  animation: astra-sor-bubble-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+.cs-sor-bubble-enter {
+  animation: cs-sor-bubble-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@keyframes astra-sor-bubble-in {
+@keyframes cs-sor-bubble-in {
   from {
     opacity: 0;
     transform: translateY(6px);
@@ -183,12 +183,12 @@
   }
 }
 
-.astra-sor-bubble--streaming {
+.cs-sor-bubble--streaming {
   position: relative;
   overflow: hidden;
 }
 
-.astra-sor-bubble--streaming::after {
+.cs-sor-bubble--streaming::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -202,15 +202,15 @@
     transparent 100%
   );
   background-size: 220% 100%;
-  animation: astra-sor-stream-shimmer 2.4s ease-in-out infinite;
+  animation: cs-sor-stream-shimmer 2.4s ease-in-out infinite;
 }
 
-.astra-sor-bubble--thinking {
+.cs-sor-bubble--thinking {
   border-color: rgba(244, 174, 11, 0.22);
   box-shadow: 0 0 24px rgba(244, 174, 11, 0.08);
 }
 
-@keyframes astra-sor-stream-shimmer {
+@keyframes cs-sor-stream-shimmer {
   0% {
     background-position: 120% 0;
   }
@@ -219,7 +219,7 @@
   }
 }
 
-.astra-sor-empty-layer--hidden {
+.cs-sor-empty-layer--hidden {
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
@@ -227,16 +227,16 @@
   inset: 0;
 }
 
-.astra-sor-footer {
+.cs-sor-footer {
   pointer-events: none;
   position: relative;
 }
 
-.astra-sor-footer > * {
+.cs-sor-footer > * {
   pointer-events: auto;
 }
 
-.astra-sor-screen--chat .astra-sor-footer::before {
+.cs-sor-screen--chat .cs-sor-footer::before {
   content: "";
   position: absolute;
   left: 0;
@@ -244,10 +244,10 @@
   bottom: 100%;
   height: 3.5rem;
   pointer-events: none;
-  background: linear-gradient(to top, var(--astra-bg) 40%, transparent);
+  background: linear-gradient(to top, var(--cs-bg) 40%, transparent);
 }
 
-.astra-sor-empty {
+.cs-sor-empty {
   display: flex;
   min-height: 0;
   flex-direction: column;
@@ -257,42 +257,42 @@
   text-align: center;
 }
 
-.astra-sor-view--active {
+.cs-sor-view--active {
   min-height: 0;
   flex: 1;
 }
 
-.astra-sor-greeting {
+.cs-sor-greeting {
   font-family: var(--font-display, "DM Serif Display", Georgia, serif);
   font-size: clamp(1.625rem, 5.5vw, 2.125rem);
   font-weight: 400;
   letter-spacing: -0.025em;
   line-height: 1.12;
-  color: var(--astra-text);
+  color: var(--cs-text);
   text-wrap: balance;
-  animation: astra-sor-enter 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: cs-sor-enter 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.astra-sor-greeting-sub {
+.cs-sor-greeting-sub {
   margin-top: 0.75rem;
   max-width: 18rem;
   font-size: 0.9375rem;
   font-weight: 500;
   line-height: 1.5;
   letter-spacing: 0.01em;
-  color: color-mix(in srgb, var(--astra-muted) 92%, white);
-  animation: astra-sor-enter 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+  color: color-mix(in srgb, var(--cs-muted) 92%, white);
+  animation: cs-sor-enter 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
 }
 
-.astra-sor-messages {
+.cs-sor-messages {
   min-height: 0;
   flex: 1;
   overflow-y: auto;
-  padding-bottom: var(--astra-sor-composer-lift);
+  padding-bottom: var(--cs-sor-composer-lift);
   scroll-behavior: smooth;
 }
 
-.astra-sor-screen--chat .astra-sor-dock {
+.cs-sor-screen--chat .cs-sor-dock {
   position: fixed;
   left: 50%;
   z-index: 45;
@@ -301,26 +301,26 @@
   padding-top: 0;
   padding-bottom: 0;
   transform: translateX(-50%);
-  bottom: var(--astra-sor-nav-lift);
-  animation: astra-sor-enter-dock 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+  bottom: var(--cs-sor-nav-lift);
+  animation: cs-sor-enter-dock 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
 }
 
-.astra-sor-dock {
+.cs-sor-dock {
   flex-shrink: 0;
   margin-top: auto;
   padding-top: 0.65rem;
   padding-bottom: 0.25rem;
-  animation: astra-sor-enter-dock 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both;
+  animation: cs-sor-enter-dock 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both;
 }
 
-.astra-sor-screen .astra-sor-header-right {
+.cs-sor-screen .cs-sor-header-right {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-left: auto;
 }
 
-.astra-sor-composer {
+.cs-sor-composer {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -333,26 +333,26 @@
   -webkit-backdrop-filter: blur(16px);
 }
 
-.astra-sor-composer:focus-within {
+.cs-sor-composer:focus-within {
   border-color: rgba(244, 174, 11, 0.32);
   box-shadow:
     0 0 0 1px rgba(244, 174, 11, 0.18),
     0 12px 40px rgba(0, 0, 0, 0.5);
 }
 
-.astra-sor-composer textarea,
-.astra-sor-composer input {
+.cs-sor-composer textarea,
+.cs-sor-composer input {
   min-height: 44px;
   flex: 1;
   border: none;
   background: transparent;
   font-size: 0.9375rem;
-  color: var(--astra-text);
+  color: var(--cs-text);
   outline: none;
   resize: none;
 }
 
-.astra-sor-send {
+.cs-sor-send {
   display: flex;
   height: 2.25rem;
   width: 2.25rem;
@@ -361,7 +361,7 @@
   justify-content: center;
   border: none;
   border-radius: 50%;
-  background: var(--astra-primary);
+  background: var(--cs-primary);
   color: #0a0a0a;
   font-size: 1rem;
   font-weight: 800;
@@ -370,23 +370,23 @@
   transition: transform 0.15s ease, filter 0.15s ease;
 }
 
-.astra-sor-send:hover:not(:disabled) {
+.cs-sor-send:hover:not(:disabled) {
   filter: brightness(1.06);
   transform: scale(1.03);
 }
 
-.astra-sor-send:disabled {
+.cs-sor-send:disabled {
   opacity: 0.4;
   cursor: not-allowed;
   box-shadow: none;
 }
 
-.astra-sor-send--loading {
-  animation: astra-sor-send-pulse 1.1s ease-in-out infinite;
+.cs-sor-send--loading {
+  animation: cs-sor-send-pulse 1.1s ease-in-out infinite;
   cursor: wait;
 }
 
-@keyframes astra-sor-send-pulse {
+@keyframes cs-sor-send-pulse {
   0%,
   100% {
     opacity: 0.45;
@@ -398,42 +398,42 @@
   }
 }
 
-.astra-sor-bubble--error {
+.cs-sor-bubble--error {
   border-color: rgb(239 68 68);
   background: rgba(239, 68, 68, 0.1);
 }
 
-.astra-sor-bubble--user {
-  background: var(--astra-primary);
+.cs-sor-bubble--user {
+  background: var(--cs-primary);
   color: #0a0a0a;
   box-shadow: none;
 }
 
-.astra-sor-typing {
+.cs-sor-typing {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   padding: 0.15rem 0;
 }
 
-.astra-sor-typing span {
+.cs-sor-typing span {
   display: block;
   height: 0.4rem;
   width: 0.4rem;
   border-radius: 50%;
-  background: var(--astra-muted);
-  animation: astra-sor-typing 1.2s ease-in-out infinite;
+  background: var(--cs-muted);
+  animation: cs-sor-typing 1.2s ease-in-out infinite;
 }
 
-.astra-sor-typing span:nth-child(2) {
+.cs-sor-typing span:nth-child(2) {
   animation-delay: 0.15s;
 }
 
-.astra-sor-typing span:nth-child(3) {
+.cs-sor-typing span:nth-child(3) {
   animation-delay: 0.3s;
 }
 
-@keyframes astra-sor-typing {
+@keyframes cs-sor-typing {
   0%,
   80%,
   100% {
@@ -446,12 +446,12 @@
   }
 }
 
-.astra-sor-attach-wrap {
+.cs-sor-attach-wrap {
   position: relative;
   flex-shrink: 0;
 }
 
-.astra-sor-attach-menu {
+.cs-sor-attach-menu {
   position: absolute;
   bottom: calc(100% + 0.5rem);
   left: 0;
@@ -459,13 +459,13 @@
   min-width: 10.5rem;
   overflow: hidden;
   border-radius: 1rem;
-  border: 1px solid var(--astra-border);
-  background: var(--astra-surface);
+  border: 1px solid var(--cs-border);
+  background: var(--cs-surface);
   padding: 0.35rem;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
 }
 
-.astra-sor-attach-menu button {
+.cs-sor-attach-menu button {
   display: flex;
   width: 100%;
   align-items: center;
@@ -475,16 +475,16 @@
   background: transparent;
   padding: 0.55rem 0.65rem;
   font-size: 0.8125rem;
-  color: var(--astra-text);
+  color: var(--cs-text);
   cursor: pointer;
   text-align: left;
 }
 
-.astra-sor-attach-menu button:hover {
-  background: var(--astra-pill);
+.cs-sor-attach-menu button:hover {
+  background: var(--cs-pill);
 }
 
-.astra-sor-attach {
+.cs-sor-attach {
   display: flex;
   height: 2.25rem;
   width: 2.25rem;
@@ -494,17 +494,17 @@
   border: none;
   border-radius: 50%;
   background: transparent;
-  color: var(--astra-muted);
+  color: var(--cs-muted);
   cursor: pointer;
   transition: color 0.15s ease, background 0.15s ease;
 }
 
-.astra-sor-attach:hover {
-  color: var(--astra-text);
+.cs-sor-attach:hover {
+  color: var(--cs-text);
   background: rgba(255, 255, 255, 0.06);
 }
 
-.astra-sor-screen::before {
+.cs-sor-screen::before {
   content: "";
   pointer-events: none;
   position: fixed;
@@ -523,7 +523,7 @@
     );
 }
 
-.astra-sor-screen::after {
+.cs-sor-screen::after {
   content: "";
   pointer-events: none;
   position: fixed;
@@ -536,25 +536,25 @@
   );
 }
 
-.astra-sor-screen > header,
-.astra-sor-screen > main,
-.astra-sor-screen > footer {
+.cs-sor-screen > header,
+.cs-sor-screen > main,
+.cs-sor-screen > footer {
   position: relative;
   z-index: 1;
 }
 
-.astra-sor-screen .astra-nav-bar {
+.cs-sor-screen .cs-nav-bar {
   background: rgba(30, 30, 30, 0.92);
-  border-color: var(--astra-border);
+  border-color: var(--cs-border);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
-.astra-sor-screen .astra-nav-active {
+.cs-sor-screen .cs-nav-active {
   background: rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 0 0 1px rgba(244, 174, 11, 0.22);
 }
 
-@keyframes astra-sor-enter {
+@keyframes cs-sor-enter {
   from {
     opacity: 0;
     transform: translateY(14px);
@@ -567,7 +567,7 @@
   }
 }
 
-@keyframes astra-sor-enter-dock {
+@keyframes cs-sor-enter-dock {
   from {
     opacity: 0;
     transform: translateY(20px);
@@ -579,7 +579,7 @@
 }
 
 @media (min-width: 768px) {
-  .astra-sor-screen {
+  .cs-sor-screen {
     border-left: 1px solid rgba(255, 255, 255, 0.06);
     border-right: 1px solid rgba(255, 255, 255, 0.06);
     box-shadow: 0 0 100px rgba(0, 0, 0, 0.7);
@@ -587,42 +587,42 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .astra-sor-greeting,
-  .astra-sor-greeting-sub,
-  .astra-sor-dock,
-  .astra-sor-bubble-enter {
+  .cs-sor-greeting,
+  .cs-sor-greeting-sub,
+  .cs-sor-dock,
+  .cs-sor-bubble-enter {
     animation: none;
   }
 
-  .astra-sor-bubble--streaming::after {
+  .cs-sor-bubble--streaming::after {
     animation: none;
     opacity: 0;
   }
 
-  .astra-sor-screen--chat.astra-sor-screen--active-chat > .astra-sor-header {
+  .cs-sor-screen--chat.cs-sor-screen--active-chat > .cs-sor-header {
     transform: none;
     opacity: 1;
   }
 
-  .astra-sor-empty-layer {
+  .cs-sor-empty-layer {
     transition: none;
   }
 
-  .astra-sor-send:hover:not(:disabled) {
+  .cs-sor-send:hover:not(:disabled) {
     transform: none;
   }
 
-  .astra-sor-send--loading {
+  .cs-sor-send--loading {
     animation: none;
     opacity: 0.65;
   }
 
-  .astra-sor-typing span {
+  .cs-sor-typing span {
     animation: none;
     opacity: 0.7;
   }
 
-  .astra-sor-messages {
+  .cs-sor-messages {
     scroll-behavior: auto;
   }
 }

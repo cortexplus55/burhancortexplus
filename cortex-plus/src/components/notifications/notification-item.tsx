@@ -18,16 +18,16 @@ export function NotificationItem({
   body: string | null;
   readAt: string | null;
   createdAt: string;
-  tone?: "default" | "astra";
+  tone?: "default" | "parity";
 }) {
   const [read, setRead] = useState(Boolean(readAt));
   const [, startTransition] = useTransition();
-  const astra = tone === "astra";
+  const parity = tone === "parity";
 
   return (
     <li
       className={cn(
-        astra ? "astra-pay-card p-4" : "px-4 py-3",
+        parity ? "cs-pay-card p-4" : "px-4 py-3",
         read && "opacity-70",
       )}
     >
@@ -38,7 +38,7 @@ export function NotificationItem({
             <p
               className={cn(
                 "mt-1 text-sm",
-                astra ? "text-[var(--astra-muted)]" : "text-muted-foreground",
+                parity ? "text-[var(--cs-muted)]" : "text-muted-foreground",
               )}
             >
               {body}
@@ -47,7 +47,7 @@ export function NotificationItem({
           <p
             className={cn(
               "mt-1 text-xs",
-              astra ? "text-[var(--astra-muted)]" : "text-muted-foreground",
+              parity ? "text-[var(--cs-muted)]" : "text-muted-foreground",
             )}
           >
             {formatDate(createdAt)}
@@ -57,8 +57,8 @@ export function NotificationItem({
           <button
             type="button"
             className={
-              astra
-                ? "rounded-full border border-[var(--astra-border)] px-3 py-1.5 text-xs text-[var(--astra-muted)] hover:bg-[var(--astra-pill)]"
+              parity
+                ? "rounded-full border border-[var(--cs-border)] px-3 py-1.5 text-xs text-[var(--cs-muted)] hover:bg-[var(--cs-pill)]"
                 : "rounded-md border px-3 py-1.5 text-xs"
             }
             onClick={() => {

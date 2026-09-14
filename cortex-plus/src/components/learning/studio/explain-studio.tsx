@@ -138,13 +138,13 @@ export function ExplainStudio({
             </p>
           </div>
 
-          <p className="text-sm leading-relaxed text-[var(--astra-muted)]">
+          <p className="text-sm leading-relaxed text-[var(--cs-muted)]">
             {review.summary}
           </p>
 
           {review.gaps.length ? (
             <section>
-              <h2 className="text-sm font-bold text-[var(--astra-text)]">
+              <h2 className="text-sm font-bold text-[var(--cs-text)]">
                 Burada tökezledin
               </h2>
               <ul className="mt-2 flex flex-col gap-3">
@@ -153,10 +153,10 @@ export function ExplainStudio({
                     key={gap.point}
                     className="rounded-xl border border-white/10 p-3"
                   >
-                    <p className="text-sm font-semibold text-[var(--astra-text)]">
+                    <p className="text-sm font-semibold text-[var(--cs-text)]">
                       {gap.point}
                     </p>
-                    <p className="mt-1 text-sm text-[var(--astra-muted)]">
+                    <p className="mt-1 text-sm text-[var(--cs-muted)]">
                       {gap.why}
                     </p>
                   </li>
@@ -167,14 +167,14 @@ export function ExplainStudio({
 
           {review.missed.length ? (
             <section>
-              <h2 className="text-sm font-bold text-[var(--astra-text)]">
+              <h2 className="text-sm font-bold text-[var(--cs-text)]">
                 Hiç değinmedin
               </h2>
               <ul className="mt-2 flex flex-wrap gap-2">
                 {review.missed.map((item) => (
                   <li
                     key={item}
-                    className="rounded-full border border-white/15 px-3 py-1 text-xs text-[var(--astra-muted)]"
+                    className="rounded-full border border-white/15 px-3 py-1 text-xs text-[var(--cs-muted)]"
                   >
                     {item}
                   </li>
@@ -184,10 +184,10 @@ export function ExplainStudio({
           ) : null}
 
           <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
-            <h2 className="text-sm font-bold text-[var(--astra-text)]">
+            <h2 className="text-sm font-bold text-[var(--cs-text)]">
               Şimdi şuna cevap ver
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-[var(--astra-muted)]">
+            <p className="mt-2 text-sm leading-relaxed text-[var(--cs-muted)]">
               {review.followUp}
             </p>
             {/* Soru burada yanıtlanıyor, başka bir ekrana taşınmıyor:
@@ -205,7 +205,7 @@ export function ExplainStudio({
           <button
             type="button"
             onClick={() => restart()}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-[var(--astra-muted)] transition-colors hover:border-white/30 hover:text-[var(--astra-text)]"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-[var(--cs-muted)] transition-colors hover:border-white/30 hover:text-[var(--cs-text)]"
           >
             <RotateCcw className="h-4 w-4" aria-hidden="true" />
             Baştan anlat
@@ -225,13 +225,13 @@ export function ExplainStudio({
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-400">
               Cevaplaman gereken soru
             </p>
-            <p className="mt-1 text-sm leading-relaxed text-[var(--astra-text)]">
+            <p className="mt-1 text-sm leading-relaxed text-[var(--cs-text)]">
               {probe}
             </p>
           </div>
         ) : (
-          <p className="text-sm text-[var(--astra-muted)]">
-            <strong className="text-[var(--astra-text)]">{topic}</strong>{" "}
+          <p className="text-sm text-[var(--cs-muted)]">
+            <strong className="text-[var(--cs-text)]">{topic}</strong>{" "}
             konusunu bu konuyu hiç bilmeyen birine anlatır gibi anlat. Tanım
             ezberlemene gerek yok — kendi cümlelerinle kur, örnek ver.
           </p>
@@ -246,12 +246,12 @@ export function ExplainStudio({
           onChange={(e) => setText(e.target.value)}
           rows={12}
           placeholder="Anlatmaya başla…"
-          className="w-full rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-relaxed text-[var(--astra-text)] outline-none transition-colors focus:border-amber-500/60"
+          className="w-full rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-relaxed text-[var(--cs-text)] outline-none transition-colors focus:border-amber-500/60"
         />
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p
-            className="text-xs text-[var(--astra-muted)]"
+            className="text-xs text-[var(--cs-muted)]"
             aria-live="polite"
           >
             {ready

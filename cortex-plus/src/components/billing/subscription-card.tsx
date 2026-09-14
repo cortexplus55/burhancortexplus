@@ -70,26 +70,26 @@ export function SubscriptionCard({ sub }: { sub: SubscriptionView }) {
   }
 
   return (
-    <section className="cortex-premium-card mb-6 rounded-2xl border border-[var(--astra-border)] bg-[var(--astra-surface)] p-5">
+    <section className="cortex-premium-card mb-6 rounded-2xl border border-[var(--cs-border)] bg-[var(--cs-surface)] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-[var(--astra-text)]">
+            <h2 className="text-lg font-semibold text-[var(--cs-text)]">
               {sub.planName}
             </h2>
             <Badge className="border-amber-500/30 bg-amber-500/15 text-amber-100">
               {periodLabel(sub.billingPeriod)}
             </Badge>
           </div>
-          <p className="mt-1 text-sm text-[var(--astra-muted)]">
+          <p className="mt-1 text-sm text-[var(--cs-muted)]">
             {cancelled
               ? `İptal edildi — ${endText} tarihine kadar açık kalıyor, sonra ücretsiz plana döner.`
               : `${endText} tarihinde yenilenmesi gerekiyor.`}
           </p>
         </div>
         {sub.planPriceTry !== null ? (
-          <p className="text-right text-sm text-[var(--astra-muted)]">
-            <span className="block text-base font-semibold text-[var(--astra-text)]">
+          <p className="text-right text-sm text-[var(--cs-muted)]">
+            <span className="block text-base font-semibold text-[var(--cs-text)]">
               {formatTry(sub.planPriceTry)}
             </span>
             {periodLabel(sub.billingPeriod)}
@@ -102,7 +102,7 @@ export function SubscriptionCard({ sub }: { sub: SubscriptionView }) {
           className={
             soon
               ? "mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100"
-              : "mt-3 text-sm text-[var(--astra-muted)]"
+              : "mt-3 text-sm text-[var(--cs-muted)]"
           }
         >
           {left <= 0

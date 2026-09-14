@@ -20,7 +20,7 @@ export type QuotaView = {
   remaining: number;
   /** Dönemin toplam bütçesi. */
   allowance: number;
-  /** Kullanılan yüzde — Astra'nın gösterdiği sayı. */
+  /** Kullanılan yüzde — referans ürünün gösterdiği sayı. */
   usedPercent: number;
   /** Sıfırlanma anı (yenileme beklentisi uygulanmış). */
   resetsAt: Date;

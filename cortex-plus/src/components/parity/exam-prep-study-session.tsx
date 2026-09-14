@@ -120,21 +120,21 @@ export function ExamPrepStudySession({
   }
 
   return (
-    <div className="ap-exam-page ap-exam-study">
-      <div className="ap-exam-study-bar">
-        <Link href={`/deneme-sinavlari/${prepId}`} className="ap-back-pill">
+    <div className="cp-exam-page cp-exam-study">
+      <div className="cp-exam-study-bar">
+        <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill">
           ← Konu yolu
         </Link>
-        <span className="text-sm text-[var(--ap-muted)]">{prepTitle}</span>
+        <span className="text-sm text-[var(--cp-muted)]">{prepTitle}</span>
       </div>
 
-      <p className="ap-lesson-kicker">Konu seç</p>
+      <p className="cp-lesson-kicker">Konu seç</p>
       <ExamPrepPath prepId={prepId} topics={topics} activeId={activeTopic?.id} />
 
       {activeTopic ? (
-        <section className="ap-exam-topic-stage" key={activeTopic.id}>
+        <section className="cp-exam-topic-stage" key={activeTopic.id}>
           <h1>{activeTopic.label}</h1>
-          <p className="text-sm text-[var(--ap-muted)]">
+          <p className="text-sm text-[var(--cp-muted)]">
             {activeTopic.status === "done"
               ? "Bu konuyu bitirdin. İstersen dersi tekrar oku veya sıradakine geç."
               : lesson
@@ -144,7 +144,7 @@ export function ExamPrepStudySession({
 
           {lesson ? (
             <>
-              <h2 className="ap-exam-topic-lesson-title">{lesson.title}</h2>
+              <h2 className="cp-exam-topic-lesson-title">{lesson.title}</h2>
               {/* Yapı varsa adım adım; yoksa (eski dersler) markdown. */}
               {structured ? (
                 <ExamLessonSteps lesson={structured} />
@@ -153,11 +153,11 @@ export function ExamPrepStudySession({
               )}
             </>
           ) : (
-            <div className="ap-exam-topic-empty">
+            <div className="cp-exam-topic-empty">
               <p>Henüz ders yok.</p>
               <button
                 type="button"
-                className="ap-exam-continue ap-exam-continue--primary"
+                className="cp-exam-continue cp-exam-continue--primary"
                 disabled={generating}
                 onClick={() => void generateLesson()}
               >
@@ -167,14 +167,14 @@ export function ExamPrepStudySession({
           )}
         </section>
       ) : (
-        <p className="text-sm text-[var(--ap-muted)]">Önce bir konu seç.</p>
+        <p className="text-sm text-[var(--cp-muted)]">Önce bir konu seç.</p>
       )}
 
-      <div className="ap-exam-study-footer">
+      <div className="cp-exam-study-footer">
         {lesson && activeTopic && activeTopic.status !== "done" ? (
           <button
             type="button"
-            className="ap-exam-continue ap-exam-continue--primary"
+            className="cp-exam-continue cp-exam-continue--primary"
             disabled={completing}
             onClick={() => void completeTopic()}
           >
@@ -184,7 +184,7 @@ export function ExamPrepStudySession({
         {nextAfter && nextAfter.id !== activeTopic?.id ? (
           <button
             type="button"
-            className="ap-exam-continue"
+            className="cp-exam-continue"
             onClick={() =>
               router.push(
                 `/deneme-sinavlari/${prepId}/calis?topic=${nextAfter.id}`,

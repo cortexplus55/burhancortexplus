@@ -26,7 +26,7 @@ type AudioLine = {
   durationMs: number;
 };
 
-// Astra da 15 saniye atliyor; 10 saniye bir cumleyi bile geri almiyordu.
+// Referans ürün da 15 saniye atliyor; 10 saniye bir cumleyi bile geri almiyordu.
 const SKIP_MS = 15_000;
 
 export function ExamPodcastPlayer({
@@ -227,7 +227,7 @@ export function ExamPodcastPlayer({
 
   if (!normalized.length) {
     return (
-      <p className="text-sm text-[var(--ap-muted)]">
+      <p className="text-sm text-[var(--cp-muted)]">
         Bu podcast henüz üretilemedi.
       </p>
     );
@@ -238,26 +238,26 @@ export function ExamPodcastPlayer({
   const progressPct = totalMs > 0 ? (positionMs / totalMs) * 100 : 0;
 
   return (
-    <section className="ap-pod">
-      <header className="ap-pod-head">
-        <p className="ap-lesson-kicker">Podcast</p>
+    <section className="cp-pod">
+      <header className="cp-pod-head">
+        <p className="cp-lesson-kicker">Podcast</p>
         <h1>{title}</h1>
         {status === "ready" && chapterTitle ? (
-          <p className="ap-pod-chapter-now">{chapterTitle}</p>
+          <p className="cp-pod-chapter-now">{chapterTitle}</p>
         ) : null}
       </header>
 
-      <div className="ap-pod-stage">
-        <div className={cn("ap-pod-wave", playing && "is-on")} aria-hidden>
+      <div className="cp-pod-stage">
+        <div className={cn("cp-pod-wave", playing && "is-on")} aria-hidden>
           {Array.from({ length: 5 }, (_, i) => (
             <span key={i} style={{ animationDelay: `${i * 0.12}s` }} />
           ))}
         </div>
 
-        <div className="ap-pod-controls">
+        <div className="cp-pod-controls">
           <button
             type="button"
-            className="ap-pod-skip"
+            className="cp-pod-skip"
             onClick={() => seekTo(positionMs - SKIP_MS)}
             disabled={status !== "ready"}
             aria-label="15 saniye geri"
@@ -268,7 +268,7 @@ export function ExamPodcastPlayer({
 
           <button
             type="button"
-            className={cn("ap-pod-play", playing && "is-on")}
+            className={cn("cp-pod-play", playing && "is-on")}
             onClick={toggle}
             disabled={status === "loading"}
             aria-label={playing ? "Duraklat" : "Oynat"}
@@ -282,7 +282,7 @@ export function ExamPodcastPlayer({
 
           <button
             type="button"
-            className="ap-pod-skip"
+            className="cp-pod-skip"
             onClick={() => seekTo(positionMs + SKIP_MS)}
             disabled={status !== "ready"}
             aria-label="15 saniye ileri"
@@ -293,21 +293,21 @@ export function ExamPodcastPlayer({
         </div>
 
         {status === "loading" ? (
-          <p className="ap-pod-state">Ses hazırlanıyor…</p>
+          <p className="cp-pod-state">Ses hazırlanıyor…</p>
         ) : status === "premium" ? (
-          <p className="ap-pod-state">
+          <p className="cp-pod-state">
             İki sesli stüdyo anlatımı Plus&apos;a özel — şimdilik cihazının
             sesiyle okunuyor.{" "}
-            <Link href="/paketler" className="ap-pod-upsell">
+            <Link href="/paketler" className="cp-pod-upsell">
               Plus&apos;a bak
             </Link>
           </p>
         ) : status === "fallback" ? (
-          <p className="ap-pod-state">
+          <p className="cp-pod-state">
             Sunucu sesi şu an yok; cihazının sesiyle okunuyor.
           </p>
         ) : (
-          <div className="ap-pod-track">
+          <div className="cp-pod-track">
             <input
               type="range"
               min={0}
@@ -315,9 +315,9 @@ export function ExamPodcastPlayer({
               value={Math.round(positionMs)}
               onChange={(event) => seekTo(Number(event.target.value))}
               aria-label="Ses konumu"
-              style={{ ["--ap-pod-pos" as string]: `${progressPct}%` }}
+              style={{ ["--cp-pod-pos" as string]: `${progressPct}%` }}
             />
-            <div className="ap-pod-time">
+            <div className="cp-pod-time">
               <span>{formatClock(positionMs)}</span>
               <span>{formatClock(totalMs)}</span>
             </div>
@@ -326,36 +326,36 @@ export function ExamPodcastPlayer({
       </div>
 
       {status === "ready" ? (
-        <ol className="ap-pod-transcript">
+        <ol className="cp-pod-transcript">
           {timeline.map((line, i) => {
             const first =
               i === 0 || timeline[i - 1].chapterIndex !== line.chapterIndex;
             return (
               <li key={i}>
                 {first ? (
-                  <p className="ap-pod-chapter-mark">
+                  <p className="cp-pod-chapter-mark">
                     {normalized[line.chapterIndex]?.title}
                   </p>
                 ) : null}
                 <button
                   type="button"
                   className={cn(
-                    "ap-pod-line",
-                    `ap-pod-line--${line.speaker}`,
+                    "cp-pod-line",
+                    `cp-pod-line--${line.speaker}`,
                     i === activeIndex && "is-on",
                   )}
                   onClick={() => seekTo(line.startMs)}
                 >
-                  <span className="ap-pod-who">{SPEAKER_LABEL[line.speaker]}</span>
+                  <span className="cp-pod-who">{SPEAKER_LABEL[line.speaker]}</span>
                   {i === activeIndex && activeWords.length ? (
                     // Yalnızca çalan satır kelimelere bölünüyor; tüm
                     // transkripti bölmek yüzlerce gereksiz span üretirdi.
-                    <span className="ap-pod-said">
+                    <span className="cp-pod-said">
                       {activeWords.map((word, w) => (
                         <span
                           key={w}
                           className={cn(
-                            "ap-pod-word",
+                            "cp-pod-word",
                             w === activeWordIndex && "is-now",
                             w < activeWordIndex && "is-said",
                           )}
@@ -365,7 +365,7 @@ export function ExamPodcastPlayer({
                       ))}
                     </span>
                   ) : (
-                    <span className="ap-pod-said">{line.text}</span>
+                    <span className="cp-pod-said">{line.text}</span>
                   )}
                 </button>
               </li>
@@ -373,17 +373,17 @@ export function ExamPodcastPlayer({
           })}
         </ol>
       ) : (
-        <ol className="ap-pod-transcript">
+        <ol className="cp-pod-transcript">
           {normalized.map((chapter, ci) => (
             <li key={ci}>
-              <p className="ap-pod-chapter-mark">{chapter.title}</p>
+              <p className="cp-pod-chapter-mark">{chapter.title}</p>
               {chapter.lines.map((line, li) => (
                 <span
                   key={li}
-                  className={cn("ap-pod-line", `ap-pod-line--${line.speaker}`)}
+                  className={cn("cp-pod-line", `cp-pod-line--${line.speaker}`)}
                 >
-                  <span className="ap-pod-who">{SPEAKER_LABEL[line.speaker]}</span>
-                  <span className="ap-pod-said">{line.text}</span>
+                  <span className="cp-pod-who">{SPEAKER_LABEL[line.speaker]}</span>
+                  <span className="cp-pod-said">{line.text}</span>
                 </span>
               ))}
             </li>
@@ -393,7 +393,7 @@ export function ExamPodcastPlayer({
 
       <button
         type="button"
-        className="ap-exam-continue ap-exam-continue--primary"
+        className="cp-exam-continue cp-exam-continue--primary"
         disabled={finishing}
         onClick={onFinish}
       >

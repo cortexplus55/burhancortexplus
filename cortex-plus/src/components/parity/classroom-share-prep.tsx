@@ -40,7 +40,7 @@ export function ClassroomSharePrep({
   }
 
   return (
-    <div className="ap-class-share">
+    <div className="cp-class-share">
       <select
         value={prepId}
         onChange={(e) => setPrepId(e.target.value)}
@@ -54,7 +54,7 @@ export function ClassroomSharePrep({
       </select>
       <button
         type="button"
-        className="ap-chip"
+        className="cp-chip"
         disabled={saving}
         onClick={() => void share()}
       >

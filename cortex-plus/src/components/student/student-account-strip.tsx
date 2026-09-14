@@ -16,16 +16,16 @@ export function StudentAccountStrip({
 
   return (
     <div
-      className={`astra-pay-card cortex-premium-account-strip mb-4 rounded-2xl border px-4 py-3 text-sm ${className ?? ""}`}
+      className={`cs-pay-card cortex-premium-account-strip mb-4 rounded-2xl border px-4 py-3 text-sm ${className ?? ""}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           {account.isPremium ? (
-            <span className="rounded-full bg-[var(--astra-primary)]/20 px-2.5 py-0.5 text-xs font-semibold text-[var(--astra-primary)]">
+            <span className="rounded-full bg-[var(--cs-primary)]/20 px-2.5 py-0.5 text-xs font-semibold text-[var(--cs-primary)]">
               {account.subscriptionBadge ?? "Plus"}
             </span>
           ) : (
-            <span className="text-xs text-[var(--astra-muted)]">Ücretsiz plan</span>
+            <span className="text-xs text-[var(--cs-muted)]">Ücretsiz plan</span>
           )}
           <Link
             href="/krediler"
@@ -37,21 +37,21 @@ export function StudentAccountStrip({
         {!account.canSpend ? (
           <Link
             href="/paketler"
-            className="text-xs font-semibold text-[var(--astra-primary)]"
+            className="text-xs font-semibold text-[var(--cs-primary)]"
           >
             Kredi al
           </Link>
         ) : low ? (
           <Link
             href="/paketler"
-            className="text-xs text-[var(--astra-muted)] hover:text-[var(--astra-primary)]"
+            className="text-xs text-[var(--cs-muted)] hover:text-[var(--cs-primary)]"
           >
             Kredi yükle
           </Link>
         ) : null}
       </div>
       {creditHint ? (
-        <p className="mt-1.5 text-xs text-[var(--astra-muted)]">{creditHint}</p>
+        <p className="mt-1.5 text-xs text-[var(--cs-muted)]">{creditHint}</p>
       ) : null}
       {!account.canSpend ? (
         <p className="mt-1.5 text-xs text-amber-200/90">
@@ -59,7 +59,7 @@ export function StudentAccountStrip({
           korunur.
         </p>
       ) : account.isPremium ? (
-        <p className="mt-1.5 text-xs text-[var(--astra-muted)]">
+        <p className="mt-1.5 text-xs text-[var(--cs-muted)]">
           {account.subscriptionBadge ?? "Plus"} ile gelişmiş model kullanılır;
           işlemler yine kredi harcar.
         </p>

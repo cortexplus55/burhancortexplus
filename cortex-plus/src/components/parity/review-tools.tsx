@@ -102,10 +102,10 @@ export function ReviewTools({
   }
 
   return (
-    <div className="ap-lesson-toolbar" role="toolbar" aria-label={ariaLabel}>
+    <div className="cp-lesson-toolbar" role="toolbar" aria-label={ariaLabel}>
       <button
         type="button"
-        className={cn("ap-lesson-tool", speaking && "ap-lesson-tool--active")}
+        className={cn("cp-lesson-tool", speaking && "cp-lesson-tool--active")}
         onClick={toggleSpeak}
         aria-pressed={speaking}
       >
@@ -116,13 +116,13 @@ export function ReviewTools({
         )}
         {speaking ? "Durdur" : "Sesli oku"}
       </button>
-      <button type="button" className="ap-lesson-tool" onClick={() => void copyText()}>
+      <button type="button" className="cp-lesson-tool" onClick={() => void copyText()}>
         <Copy className="h-4 w-4" aria-hidden />
         Kopyala
       </button>
       <button
         type="button"
-        className={cn("ap-lesson-tool", liked && "ap-lesson-tool--liked")}
+        className={cn("cp-lesson-tool", liked && "cp-lesson-tool--liked")}
         onClick={() => void toggleLike()}
         disabled={savingLike}
         aria-pressed={liked}

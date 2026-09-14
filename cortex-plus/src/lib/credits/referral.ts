@@ -17,7 +17,7 @@ export type ReferralSummary = {
   available: boolean;
   /** Sayılan davet adedi (tavan uygulanmış). */
   usedCount: number;
-  /** Kaç davetin sayıldığı — Astra'da 3. */
+  /** Kaç davetin sayıldığı — referans üründe 3. */
   maxCount: number;
   /** Bunlardan kaçı aboneye dönüştü. */
   subscribedCount: number;

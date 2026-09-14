@@ -4,7 +4,7 @@ import { z } from "zod";
  * Ders şeması — modelin çizdiği, bizim bastığımız.
  *
  * Şekille anlaşılan konuları (faz diyagramı, Mohr dairesi, birim çember)
- * kelimeyle anlatıyorduk; Astra'nın dersinde bölümün içinde diyagram var.
+ * kelimeyle anlatıyorduk; Referans ürünün dersinde bölümün içinde diyagram var.
  *
  * Model ham SVG üretseydi o metni DOM'a basmak zorunda kalırdık ve ders
  * içeriği bir işaretleme kanalına dönerdi: <script>, olay öznitelikleri,

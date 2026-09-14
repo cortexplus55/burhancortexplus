@@ -1,5 +1,5 @@
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
-import { AstraProfilePanel } from "@/components/parity/astra-profile-panel";
+import { ParitySorShell } from "@/components/parity/sor-shell";
+import { ProfilePanel } from "@/components/parity/profile-panel";
 import { ReferralRewardCard } from "@/components/parity/referral-reward-card";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -20,15 +20,15 @@ export default async function ProfilPage() {
   ]);
 
   return (
-    <AstraParitySorShell {...shell}>
-      <AstraProfilePanel
+    <ParitySorShell {...shell}>
+      <ProfilePanel
         data={dashboard}
         email={user.email ?? null}
         isPremium={Boolean(shell.account?.isPremium)}
         subscriptionBadge={shell.account?.subscriptionBadge ?? null}
       >
         <ReferralRewardCard summary={referral} inviteUrl={invite.url} />
-      </AstraProfilePanel>
-    </AstraParitySorShell>
+      </ProfilePanel>
+    </ParitySorShell>
   );
 }

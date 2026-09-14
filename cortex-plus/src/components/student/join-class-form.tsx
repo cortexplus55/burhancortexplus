@@ -53,7 +53,7 @@ export function JoinClassForm() {
   }
 
   return (
-    <form onSubmit={submit} className="astra-pay-card space-y-3 p-4">
+    <form onSubmit={submit} className="cs-pay-card space-y-3 p-4">
       <div className="space-y-2">
         <Label htmlFor="join-code">Katılım kodu</Label>
         <Input

@@ -26,7 +26,7 @@ type Question = {
   question_type: string;
 };
 
-export function AstraExamRunner({
+export function ParityExamRunner({
   examId,
   prepId,
   title,
@@ -216,7 +216,7 @@ export function AstraExamRunner({
 
   if (result) {
     return (
-      <div className="ap-exam-page max-w-2xl mx-auto py-12 px-4">
+      <div className="cp-exam-page max-w-2xl mx-auto py-12 px-4">
         <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-8 backdrop-blur-xl shadow-2xl text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 mb-4">
             <Sparkles className="w-8 h-8" />
@@ -230,7 +230,7 @@ export function AstraExamRunner({
   }
 
   return (
-    <div className="ap-exam-suite-container min-h-[calc(100vh-140px)] flex flex-col justify-between max-w-4xl mx-auto px-4 py-6">
+    <div className="cp-exam-suite-container min-h-[calc(100vh-140px)] flex flex-col justify-between max-w-4xl mx-auto px-4 py-6">
       {/* Top Header & Breadcrumb Bar */}
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-4">

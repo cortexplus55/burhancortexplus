@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ClassroomDiscussion } from "@/components/parity/classroom-discussion";
 import { ClassroomSharePrep } from "@/components/parity/classroom-share-prep";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import {
   displayName,
@@ -88,29 +88,29 @@ export default async function SinifDetailPage({
   }
 
   return (
-    <AstraParitySorShell {...shell}>
-      <div className="ap-exam-page ap-class-detail">
-        <Link href="/siniflar" className="ap-back-pill">
+    <ParitySorShell {...shell}>
+      <div className="cp-exam-page cp-class-detail">
+        <Link href="/siniflar" className="cp-back-pill">
           ← Geri
         </Link>
 
-        <header className="ap-class-hero">
-          <div className="ap-classroom-icon" aria-hidden />
+        <header className="cp-class-hero">
+          <div className="cp-classroom-icon" aria-hidden />
           <div>
             <h1>{room.name}</h1>
-            <p className="text-sm text-[var(--ap-muted)]">
+            <p className="text-sm text-[var(--cp-muted)]">
               {people.length} üye
               {access.isOwner ? ` · kod ${room.join_code}` : ""}
             </p>
           </div>
         </header>
 
-        <section className="ap-class-section">
+        <section className="cp-class-section">
           <h2>Üyeler</h2>
-          <ul className="ap-class-members">
+          <ul className="cp-class-members">
             {people.map((person) => (
               <li key={person.id} title={person.name}>
-                <span className="ap-class-avatar" aria-hidden>
+                <span className="cp-class-avatar" aria-hidden>
                   {person.initial}
                 </span>
                 <span>{person.name}</span>
@@ -119,37 +119,37 @@ export default async function SinifDetailPage({
           </ul>
         </section>
 
-        <section className="ap-class-section">
+        <section className="cp-class-section">
           <h2>Sınav hazırlıkları</h2>
           {(sharedPreps ?? []).length ? (
-            <ul className="ap-class-preps">
+            <ul className="cp-class-preps">
               {(sharedPreps ?? []).map((prep) => {
                 const title = prep.title || prep.exam_type || "Hazırlık";
                 const mine = prep.user_id === user.id;
                 return (
-                  <li key={prep.id} className="ap-classroom-card">
+                  <li key={prep.id} className="cp-classroom-card">
                     <div>
                       <p className="font-semibold">{title}</p>
-                      <p className="text-xs text-[var(--ap-muted)]">
+                      <p className="text-xs text-[var(--cp-muted)]">
                         {mine ? "Senin hazırlığın" : "Sınıf paylaşımı"}
                       </p>
                     </div>
                     {mine ? (
                       <Link
                         href={`/deneme-sinavlari/${prep.id}`}
-                        className="ap-chip"
+                        className="cp-chip"
                       >
                         Aç
                       </Link>
                     ) : (
-                      <span className="text-xs text-[var(--ap-muted)]">Paylaşıldı</span>
+                      <span className="text-xs text-[var(--cp-muted)]">Paylaşıldı</span>
                     )}
                   </li>
                 );
               })}
             </ul>
           ) : (
-            <p className="text-sm text-[var(--ap-muted)]">Henüz paylaşılmış hazırlık yok.</p>
+            <p className="text-sm text-[var(--cp-muted)]">Henüz paylaşılmış hazırlık yok.</p>
           )}
           <ClassroomSharePrep
             classroomId={id}
@@ -160,11 +160,11 @@ export default async function SinifDetailPage({
           />
         </section>
 
-        <section className="ap-class-section">
+        <section className="cp-class-section">
           <h2>Tartışma</h2>
           <ClassroomDiscussion classroomId={id} />
           {(posts ?? []).length ? (
-            <ul className="ap-class-posts">
+            <ul className="cp-class-posts">
               {(posts ?? []).map((post) => {
                 const name =
                   post.user_id === user.id
@@ -177,8 +177,8 @@ export default async function SinifDetailPage({
                   minute: "2-digit",
                 });
                 return (
-                  <li key={post.id} className="ap-class-post">
-                    <p className="ap-class-post-meta">
+                  <li key={post.id} className="cp-class-post">
+                    <p className="cp-class-post-meta">
                       {name} · {when}
                     </p>
                     <p>{post.body}</p>
@@ -187,10 +187,10 @@ export default async function SinifDetailPage({
               })}
             </ul>
           ) : (
-            <p className="text-sm text-[var(--ap-muted)]">İlk notu sen bırak.</p>
+            <p className="text-sm text-[var(--cp-muted)]">İlk notu sen bırak.</p>
           )}
         </section>
       </div>
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

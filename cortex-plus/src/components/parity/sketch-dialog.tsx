@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Eraser, X } from "lucide-react";
 import { dispatchComposerAttach } from "@/lib/student/composer-bridge";
 
-export function AstraSketchDialog({
+export function SketchDialog({
   open,
   onClose,
 }: {
@@ -96,34 +96,34 @@ export function AstraSketchDialog({
 
   return (
     <div
-      className="ap-profile-backdrop"
+      className="cp-profile-backdrop"
       role="dialog"
       aria-modal="true"
       aria-label="Çizim tahtası"
       onClick={onClose}
     >
-      <div className="ap-sketch-dialog ap-profile-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="ap-sketch-head">
+      <div className="cp-sketch-dialog cp-profile-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="cp-sketch-head">
           <h2>Sorunu çiz</h2>
-          <button type="button" className="ap-profile-close" aria-label="Kapat" onClick={onClose}>
+          <button type="button" className="cp-profile-close" aria-label="Kapat" onClick={onClose}>
             <X className="h-5 w-5" />
           </button>
         </div>
-        <p className="ap-sketch-hint text-sm text-[var(--ap-muted)]">
+        <p className="cp-sketch-hint text-sm text-[var(--cp-muted)]">
           Tahtaya çiz; kaydedince composer’a eklenir ve gönderebilirsin.
         </p>
-        <div className="ap-sketch-tools">
+        <div className="cp-sketch-tools">
           {(["#f4f4f5", "#f4ae0b", "#60a5fa", "#f87171"] as const).map((color) => (
             <button
               key={color}
               type="button"
-              className={stroke === color ? "ap-sketch-color ap-sketch-color--active" : "ap-sketch-color"}
+              className={stroke === color ? "cp-sketch-color cp-sketch-color--active" : "cp-sketch-color"}
               style={{ background: color }}
               aria-label="Renk"
               onClick={() => setStroke(color)}
             />
           ))}
-          <button type="button" className="ap-chip" onClick={clearCanvas}>
+          <button type="button" className="cp-chip" onClick={clearCanvas}>
             <Eraser className="mr-1 inline h-4 w-4" aria-hidden />
             Temizle
           </button>
@@ -132,7 +132,7 @@ export function AstraSketchDialog({
           ref={canvasRef}
           width={640}
           height={360}
-          className="ap-sketch-canvas"
+          className="cp-sketch-canvas"
           onPointerDown={(e) => {
             e.currentTarget.setPointerCapture(e.pointerId);
             const p = pointFromEvent(e.clientX, e.clientY);
@@ -145,11 +145,11 @@ export function AstraSketchDialog({
           onPointerUp={endDraw}
           onPointerLeave={endDraw}
         />
-        <div className="ap-sketch-actions">
-          <button type="button" className="ap-chip" onClick={onClose}>
+        <div className="cp-sketch-actions">
+          <button type="button" className="cp-chip" onClick={onClose}>
             Vazgeç
           </button>
-          <button type="button" className="ap-exam-continue ap-exam-continue--primary" onClick={() => void saveSketch()}>
+          <button type="button" className="cp-exam-continue cp-exam-continue--primary" onClick={() => void saveSketch()}>
             Composer’a ekle
           </button>
         </div>

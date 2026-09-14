@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Check, Pencil, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const ASTRA_SUBJECTS = [
+export const PARITY_SUBJECTS = [
   "Matematik",
   "Fizik",
   "Kimya",
@@ -23,7 +23,7 @@ export const ASTRA_SUBJECTS = [
   "Edebiyat",
 ] as const;
 
-export function AstraSubjectModal({
+export function SubjectModal({
   open,
   value,
   onClose,
@@ -36,29 +36,29 @@ export function AstraSubjectModal({
 }) {
   const [custom, setCustom] = useState("");
   const [adding, setAdding] = useState(false);
-  const extras = !ASTRA_SUBJECTS.includes(value as (typeof ASTRA_SUBJECTS)[number])
+  const extras = !PARITY_SUBJECTS.includes(value as (typeof PARITY_SUBJECTS)[number])
     ? [value]
     : [];
-  const list = [...ASTRA_SUBJECTS, ...extras];
+  const list = [...PARITY_SUBJECTS, ...extras];
 
   if (!open) return null;
 
   return (
     <div
-      className="ap-hub-backdrop"
+      className="cp-hub-backdrop"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="ap-subject-title"
+      aria-labelledby="cp-subject-title"
       onClick={onClose}
     >
-      <div className="ap-subject-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="ap-hub-head">
-          <h2 id="ap-subject-title" className="ap-hub-title">
+      <div className="cp-subject-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="cp-hub-head">
+          <h2 id="cp-subject-title" className="cp-hub-title">
             Konu seç
           </h2>
           <button
             type="button"
-            className="ap-hub-close"
+            className="cp-hub-close"
             aria-label="Kapat"
             onClick={onClose}
           >
@@ -66,14 +66,14 @@ export function AstraSubjectModal({
           </button>
         </div>
 
-        <div className="ap-subject-grid">
+        <div className="cp-subject-grid">
           {list.map((subject) => {
             const selected = subject === value;
             return (
               <button
                 key={subject}
                 type="button"
-                className={cn("ap-subject-chip", selected && "ap-subject-chip--on")}
+                className={cn("cp-subject-chip", selected && "cp-subject-chip--on")}
                 onClick={() => {
                   onSelect(subject);
                   onClose();
@@ -86,10 +86,10 @@ export function AstraSubjectModal({
           })}
         </div>
 
-        <div className="ap-subject-actions">
+        <div className="cp-subject-actions">
           <button
             type="button"
-            className="ap-subject-edit"
+            className="cp-subject-edit"
             onClick={() => setAdding((v) => !v)}
           >
             <Pencil className="h-4 w-4" aria-hidden />
@@ -97,7 +97,7 @@ export function AstraSubjectModal({
           </button>
           {adding ? (
             <form
-              className="ap-subject-add-form"
+              className="cp-subject-add-form"
               onSubmit={(e) => {
                 e.preventDefault();
                 const next = custom.trim();
@@ -120,7 +120,7 @@ export function AstraSubjectModal({
           ) : (
             <button
               type="button"
-              className="ap-subject-add"
+              className="cp-subject-add"
               onClick={() => setAdding(true)}
             >
               <Plus className="h-4 w-4" aria-hidden />

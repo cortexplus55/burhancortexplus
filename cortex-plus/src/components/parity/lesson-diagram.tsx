@@ -18,11 +18,11 @@ import {
  */
 
 const TONE_VAR: Record<DiagramTone, string> = {
-  ink: "var(--ap-text, #fff)",
-  muted: "var(--ap-muted, #a3a3a3)",
-  accent: "var(--ap-gold, #f4ae0b)",
-  surface: "var(--ap-surface-2, #242424)",
-  line: "var(--ap-border, #2e2e2e)",
+  ink: "var(--cp-text, #fff)",
+  muted: "var(--cp-muted, #a3a3a3)",
+  accent: "var(--cp-gold, #f4ae0b)",
+  surface: "var(--cp-surface-2, #242424)",
+  line: "var(--cp-border, #2e2e2e)",
 };
 
 function color(tone: DiagramTone | undefined, fallback: DiagramTone): string {
