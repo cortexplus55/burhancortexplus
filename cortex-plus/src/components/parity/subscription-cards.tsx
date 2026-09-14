@@ -72,7 +72,7 @@ const PARENT_SIGMA_BENEFITS = [
 ];
 
 type Tier = "plus" | "sigma";
-type TierPlans = { monthly?: Plan; yearly?: Plan };
+type TierPlans = { weekly?: Plan; monthly?: Plan; yearly?: Plan };
 
 function tierOf(plan: Plan): Tier | "other" {
   const explicit = (plan.tier ?? "").toLowerCase();
@@ -157,7 +157,13 @@ export function SubscriptionCards({
         continue;
       }
       const bucket = tier === "plus" ? plus : sigma;
-      const slot = period === "yearly" ? "yearly" : "monthly";
+      /*
+        Dönem kendi slotuna. Önceden yıllık olmayan her şey "monthly" sayılıyordu;
+        haftalık paket geldiğinde (sort_order 0, yani listenin başı) Plus'ın aylık
+        slotunu kapatıp 599 TL'lik paketi ekrandan siliyordu.
+      */
+      const slot =
+        period === "yearly" ? "yearly" : period === "weekly" ? "weekly" : "monthly";
       if (!bucket[slot]) bucket[slot] = plan;
     }
 
@@ -174,6 +180,14 @@ export function SubscriptionCards({
 
   const plusPlan = selected(plusTier);
   const sigmaPlan = selected(sigmaTier);
+
+  /*
+    Haftalık, aylığın rakibi değil kapısı: sınav haftasındaki öğrenci aya
+    bağlanmıyor. Bu yüzden aylık/yıllık geçişine üçüncü sekme olarak değil,
+    Plus kartının altında ayrı bir satır olarak duruyor — karşılaştırmayı
+    bozmuyor, isteyene görünüyor.
+  */
+  const plusWeekly = plusTier.weekly;
 
   const plusPerMonth = plusPlan ? perMonthLira(plusPlan) : null;
   const sigmaPerMonth = sigmaPlan ? perMonthLira(sigmaPlan) : null;
@@ -390,6 +404,27 @@ export function SubscriptionCards({
                   planId={plusPlan.id}
                   planName={plusPlan.name}
                 />
+              ) : null}
+              {checkoutEnabled && plusWeekly && !plusOwned && !isParent ? (
+                <button
+                  type="button"
+                  className="mt-3 w-full rounded-full border border-[var(--cs-border)] py-2.5 text-sm text-[var(--cs-text)] disabled:opacity-60"
+                  disabled={loadingId === plusWeekly.id}
+                  onClick={() =>
+                    guestMode
+                      ? router.push("/kayit")
+                      : startCheckout(plusWeekly.id)
+                  }
+                >
+                  {loadingId === plusWeekly.id
+                    ? "Hazırlanıyor…"
+                    : `Bir hafta dene · ₺${tl(lira(plusWeekly.price_try))}`}
+                </button>
+              ) : null}
+              {plusWeekly && !plusOwned && !isParent ? (
+                <p className="mt-1.5 text-center text-xs text-[var(--cs-muted)]">
+                  Sınav haftası için tek ödeme, abonelik açılmaz.
+                </p>
               ) : null}
               <button
                 type="button"
