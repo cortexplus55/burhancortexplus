@@ -49,13 +49,26 @@ export function selectModel(input: ModelRouterInput): {
     sohbet isteği standart modele düşüyor ve kredisi de 3 yerine 1 yazılıyor —
     aldığı hizmetin fiyatı.
   */
-  if (ADVANCED_ACTIONS.includes(input.actionCode)) {
-    if (input.isPremium || input.difficulty === "hard") {
-      return { model: env.OPENAI_ADVANCED_MODEL, actionCode: input.actionCode };
-    }
+  if (ADVANCED_ACTIONS.includes(input.actionCode) && input.isPremium) {
+    return { model: env.OPENAI_ADVANCED_MODEL, actionCode: input.actionCode };
   }
 
-  if ((input.documentPages ?? 0) > 10) {
+  /*
+    Zorluk ve belge boyutu yükseltmeleri de artık abonelik istiyor.
+
+    İkisi de ücretsiz hesabın gpt-4o'ya çıkabildiği yollardı ve ikisi de
+    isteğin içinden geliyordu. `difficulty` alanını istemci yazıyor
+    (`/api/learning/exam/generate` zod şeması "hard" kabul ediyor): öğrenci
+    kendi işine "ileri" diyerek 4 kredi karşılığında on iki kat pahalı üretim
+    alıyordu. `documentPages` daha sessiz ama daha pahalıydı — 40 sayfalık bir
+    PDF'i gpt-4o ile işlemek, 2 kredilik DOCUMENT_PAGE_PROCESS'in karşıladığı
+    tutarın kat kat üstünde.
+
+    Kural artık tek cümle: ücretsiz hesap standart modelde kalır. Tek istisna
+    görsel, çünkü yapılandırdığımız tek gören model gelişmiş olan ve o iş
+    zaten en yüksek kredili eylem (5).
+  */
+  if (input.isPremium && (input.documentPages ?? 0) > 10) {
     return {
       model: env.OPENAI_ADVANCED_MODEL,
       actionCode: input.actionCode,
