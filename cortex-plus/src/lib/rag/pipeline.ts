@@ -1,5 +1,7 @@
 import "server-only";
 import { extractText } from "@/lib/documents/extract-text";
+import { chunkText } from "@/lib/rag/chunk";
+export { chunkText } from "@/lib/rag/chunk";
 export { extractText } from "@/lib/documents/extract-text";
 import OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -11,23 +13,6 @@ import {
 import { runPdfLearningV2 } from "@/lib/documents/pdf-learning-v2";
 
 export const EMBEDDING_MODEL = "text-embedding-3-small";
-const CHUNK_SIZE = 1200;
-const CHUNK_OVERLAP = 150;
-
-export function chunkText(text: string): string[] {
-  const normalized = text.replace(/\s+/g, " ").trim();
-  if (!normalized) return [];
-
-  const chunks: string[] = [];
-  let start = 0;
-  while (start < normalized.length) {
-    const end = Math.min(start + CHUNK_SIZE, normalized.length);
-    chunks.push(normalized.slice(start, end));
-    if (end === normalized.length) break;
-    start = end - CHUNK_OVERLAP;
-  }
-  return chunks;
-}
 
 export async function embedTexts(texts: string[]): Promise<number[][]> {
   if (!env.OPENAI_API_KEY || texts.length === 0) return [];

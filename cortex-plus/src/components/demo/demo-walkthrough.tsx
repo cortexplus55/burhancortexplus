@@ -25,6 +25,8 @@ import {
   type PodcastChapter,
   type SpeakerId,
 } from "@/lib/learning/podcast-script";
+import { SourceUpload } from "@/components/demo/source-upload";
+import type { DemoPipeline } from "@/lib/demo/lesson";
 
 /**
  * Örnek akış.
@@ -56,7 +58,7 @@ const STEPS: Step[] = [
     id: "kaynak",
     kicker: "1. adım",
     title: "Kaynağını yükle",
-    lead: "Öğretmenin notu, kitabın bir bölümü ya da kendi özetin. Metin çıkarılır ve konuya göre aranabilir hâle gelir.",
+    lead: "Örnek notu indir ve aşağıya bırak — gerçek üründe buraya kendi notunu koyuyorsun. Metin çıkarılır, parçalanır ve konuya göre aranabilir hâle gelir.",
     icon: FileText,
   },
   {
@@ -94,6 +96,7 @@ export function DemoWalkthrough({
   sourceName,
   sourceHref,
   sourceText,
+  pipeline,
   topics,
   podcastTitle,
   chapters,
@@ -105,6 +108,7 @@ export function DemoWalkthrough({
   sourceName: string;
   sourceHref: string;
   sourceText: string;
+  pipeline: DemoPipeline;
   topics: string[];
   podcastTitle: string;
   chapters: PodcastChapter[];
@@ -114,6 +118,12 @@ export function DemoWalkthrough({
 }) {
   const [step, setStep] = useState(0);
   const current = STEPS[step];
+
+  // Not bırakılana kadar sonraki adımlar kapalı: bu akışın vitrinden farkı
+  // ziyaretçinin işi kendi başlatması. Kilitlenme riski yok — 1. adımda
+  // yüklemeyi geçme yolu her zaman duruyor.
+  const [sourceAccepted, setSourceAccepted] = useState(false);
+  const locked = !sourceAccepted;
 
   // Sunucu ile istemcinin saati farklı çıkabilir; SSR'da hiç göstermeyip
   // yalnızca istemcide beliriyor — kayan/uyuşmayan metin yerine kasıtlı bir
@@ -152,6 +162,7 @@ export function DemoWalkthrough({
                 i < step && "is-done",
               )}
               onClick={() => setStep(i)}
+              disabled={locked && i > 0}
               aria-current={i === step ? "step" : undefined}
             >
               <span className="dm-rail-dot" aria-hidden>
@@ -177,7 +188,14 @@ export function DemoWalkthrough({
           <p className="dm-stage-lead">{current.lead}</p>
 
           {current.id === "kaynak" ? (
-            <SourceStep name={sourceName} href={sourceHref} text={sourceText} />
+            <SourceUpload
+              name={sourceName}
+              href={sourceHref}
+              text={sourceText}
+              pipeline={pipeline}
+              accepted={sourceAccepted}
+              onAccepted={() => setSourceAccepted(true)}
+            />
           ) : null}
           {current.id === "konular" ? <TopicsStep topics={topics} /> : null}
           {current.id === "podcast" ? (
@@ -202,6 +220,7 @@ export function DemoWalkthrough({
             type="button"
             className="dm-btn dm-btn--primary"
             onClick={() => setStep((s) => s + 1)}
+            disabled={locked}
           >
             Sonraki adım
           </button>
@@ -211,28 +230,6 @@ export function DemoWalkthrough({
           </Link>
         )}
       </div>
-    </div>
-  );
-}
-
-function SourceStep({ name, href, text }: { name: string; href: string; text: string }) {
-  return (
-    <div className="dm-source">
-      <a
-        className="dm-file pm-card pm-card--interactive pm-card--ghost"
-        data-ghost-icon="📄"
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-      >
-        <FileText className="h-5 w-5" aria-hidden />
-        <span>
-          <strong>{name}</strong>
-          <em>Örnek ders notu · PDF</em>
-        </span>
-      </a>
-      <p className="dm-source-kicker">Çıkarılan metin</p>
-      <div className="dm-source-text">{text}</div>
     </div>
   );
 }

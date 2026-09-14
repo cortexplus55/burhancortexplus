@@ -16,7 +16,25 @@ export const metadata: Metadata = {
  * Giriş gerektirmiyor ve hiçbir AI çağrısı yapmıyor: gösterilen içerik bir kez
  * üretilip depoya konuldu. Tek dinamik iş, ses dosyaları için kısa ömürlü
  * imzalı URL üretmek — onun da maliyeti yok.
+ *
+ * İlk adımdaki yükleme gerçek bir harekettir ama sunucuya dosya taşımaz:
+ * ziyaretçi örnek notu indirip geri bırakır, tarayıcı özetini hesaplayıp
+ * bizim notumuzla karşılaştırır. Gerekçesi `lib/demo/source-check.ts` içinde.
  */
+/*
+  Sayfa her istekte üretiliyor.
+
+  Podcast sesleri depoda duruyor ve `loadDemoLesson` onlara bir saatlik imzalı
+  URL çıkarıyor. Sayfa statik üretildiğinde o URL'ler derleme anında
+  damgalanıyordu: dağıtımdan bir saat sonra 3. adımın oynatıcısı sessiz
+  kalıyor, sonraki dağıtıma kadar da öyle kalıyordu. Derleme ve testler bunu
+  yakalamıyor — bir saat beklemek gerekiyor.
+
+  `force-dynamic` sayfayı isteğe bağlı üretime alıyor, imza her ziyaretçi için
+  tazeleniyor. Sayfa hâlâ hiç AI çağrısı yapmıyor; tek iş imzalamak.
+*/
+export const dynamic = "force-dynamic";
+
 export default async function OrnekPage() {
   const lesson = await loadDemoLesson();
 
@@ -36,6 +54,7 @@ export default async function OrnekPage() {
         sourceName={lesson.sourceName}
         sourceHref={lesson.sourceHref}
         sourceText={lesson.sourceText}
+        pipeline={lesson.pipeline}
         topics={lesson.topics}
         podcastTitle={lesson.podcastTitle}
         chapters={lesson.chapters}

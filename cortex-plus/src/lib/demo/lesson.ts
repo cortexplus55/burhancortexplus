@@ -3,6 +3,7 @@ import raw from "./lesson.json";
 import { createServiceClient } from "@/lib/supabase/server";
 import { AUDIO_BUCKET } from "@/lib/learning/audio-cache";
 import { normalizeChapters, type PodcastChapter } from "@/lib/learning/podcast-script";
+import { chunkText } from "@/lib/rag/chunk";
 
 /**
  * Örnek akış — sıfır maliyetli önizleme.
@@ -24,10 +25,25 @@ export type DemoQuiz = {
   explanation: string;
 };
 
+/**
+ * Ziyaretçiye gösterilen hat sayıları.
+ *
+ * Hiçbiri elle yazılmadı: sayfa sayısı kaynak PDF'ten, karakter sayısı
+ * çıkarılan metnin kendisinden, parça sayısı üretimin kullandığı
+ * `chunkText`ten, konu sayısı da bu dosyadaki konu listesinden geliyor.
+ */
+export type DemoPipeline = {
+  pages: number;
+  characters: number;
+  chunks: number;
+  topics: number;
+};
+
 export type DemoLesson = {
   sourceName: string;
   sourceHref: string;
   sourceText: string;
+  pipeline: DemoPipeline;
   topics: string[];
   podcastTitle: string;
   chapters: PodcastChapter[];
@@ -39,6 +55,7 @@ export type DemoLesson = {
 
 type RawShape = {
   sourceName: string;
+  pages: number;
   sourceHref: string;
   sourceText: string;
   topics: string[];
@@ -74,6 +91,14 @@ export async function loadDemoLesson(): Promise<DemoLesson> {
     sourceName: data.sourceName,
     sourceHref: data.sourceHref,
     sourceText: data.sourceText,
+    // Kaynak tek sayfa, hat da parçalamayı sayfa sayfa yapıyor; bu yüzden
+    // metnin tamamını parçalamak hattın bu belgede yaptığının aynısı.
+    pipeline: {
+      pages: data.pages,
+      characters: data.sourceText.length,
+      chunks: chunkText(data.sourceText).length,
+      topics: data.topics.length,
+    },
     topics: data.topics,
     podcastTitle: data.podcast.title,
     chapters,
