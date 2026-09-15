@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { SERVICE_NOTES } from "@/lib/admin/labels";
+import { paytrMode } from "@/lib/payments/paytr";
 
 export const metadata = { title: "Yönetim · Sistem durumu" };
 
@@ -56,6 +57,7 @@ export default async function AdminSistemPage() {
   }));
 
   const missingCritical = rows.filter((row) => row.critical && !row.configured);
+  const mode = paytrMode();
 
   return (
     <AdminShell href="/admin/sistem" pendingApplications={pending}>
@@ -64,6 +66,30 @@ export default async function AdminSistemPage() {
         görünür; şifrelerin ve anahtarların kendisi asla gösterilmez. Bir satır
         eksik görünüyorsa ayar sunucuda (Vercel) tanımlanmalı.
       </AdminNote>
+
+      {/*
+        Ödeme kipi kendi uyarısını hak ediyor.
+
+        Üç anahtar girildiği an tablo "PayTR: Tanımlı" diyor ve fiyat
+        sayfasındaki buton "Satın al"a dönüyor. Ama PAYTR_TEST_MODE varsayılanı
+        "1": akış baştan sona çalışıyor, kredi bile yükleniyor, yalnızca PARA
+        GELMİYOR. Kurulumu yapan kişi ödeme almaya başladığını sanıyor ve hata
+        sessiz kalıyor.
+      */}
+      {mode === "test" ? (
+        <AdminNote tone="warn">
+          PayTR <strong>TEST kipinde</strong>. Ödeme akışı baştan sona
+          çalışıyor ve krediler yükleniyor, ama{" "}
+          <strong>gerçek para çekilmiyor</strong>. Canlıya geçmek için Vercel&apos;de{" "}
+          <code>PAYTR_TEST_MODE=0</code> tanımlayıp yeniden dağıtın.
+        </AdminNote>
+      ) : null}
+
+      {mode === "live" ? (
+        <AdminNote tone="info">
+          PayTR <strong>canlı kipte</strong> — ödemeler gerçek karttan çekilir.
+        </AdminNote>
+      ) : null}
 
       {missingCritical.length ? (
         <AdminNote tone="warn">
