@@ -10,6 +10,7 @@ import {
   Mic,
   Pause,
   Play,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -88,6 +89,73 @@ const STEPS: Step[] = [
     title: "Sözlüye çalış",
     lead: "Eğitmen sorar, sen sesli yanıtlarsın. Yazılıda çıkacak soruların provası.",
     icon: Mic,
+  },
+  /*
+    Altıncı adım ürünün YAPTIĞI değil YAPMADIĞI şeyi gösteriyor ve bu yüzden
+    en sona konuldu: kayıt düğmesinden hemen önceki son izlenim.
+
+    İlk beş adım "içerik senin notundan üretilir" diyor — rakip de bunu
+    yapıyor, yani fark değil. Fark, notta olmayan bir şey sorulduğunda ortaya
+    çıkıyor. Ziyaretçi bunu anlatıyla değil, kendi tıklayıp görerek anlıyor.
+  */
+  {
+    id: "sinir",
+    kicker: "6. adım",
+    title: "Notunun dışına çıkmaz",
+    lead: "Asıl fark burada. Sor ve ne yaptığını gör — notunda olmayana cevap uydurmaz, yanlış bir varsayımı da onaylamaz.",
+    icon: ShieldCheck,
+  },
+];
+
+/**
+ * Sınır adımının önceden yazılmış soruları.
+ *
+ * Üçü de yukarıdaki örnek nota göre seçildi ve her biri ayrı bir davranışı
+ * gösteriyor:
+ *
+ *   • "var"      — notta geçen bir soru: cevap notun kendi cümlesine dayanıyor.
+ *   • "yok"      — notun kapsamadığı bir soru: cevap vermiyor, notta GERÇEKTEN
+ *                  olan başlıkları sayıyor ve kredi almıyor.
+ *   • "duzeltme" — öğrencinin yanlış varsayımı: katılmıyor, düzeltiyor.
+ *
+ * Sonuncusu en güçlüsü. Not "klorofil yeşili YANSITIR" diyor; soru ise
+ * "soğurduğu için yeşil, değil mi?" diye bitiyor. Öğrenciye katılmak en kolay
+ * cevap ve tam olarak yapılmaması gereken şey.
+ *
+ * Burada AI çağrısı yok — demonun tamamında olmadığı gibi.
+ */
+type BoundaryCase = {
+  id: string;
+  kind: "var" | "yok" | "duzeltme";
+  question: string;
+  badge: string;
+  answer: string;
+};
+
+const BOUNDARY_CASES: BoundaryCase[] = [
+  {
+    id: "var",
+    kind: "var",
+    question: "Yapraklar neden yeşil görünüyor?",
+    badge: "Notunda var",
+    answer:
+      "Kloroplastlardaki yeşil pigment klorofil, ışığın en çok mavi ve kırmızı dalga boylarını soğuruyor; yeşili ise yansıtıyor. Yaprakların yeşil görünmesinin sebebi bu yansıma.",
+  },
+  {
+    id: "yok",
+    kind: "yok",
+    question: "Solunum denklemi nedir?",
+    badge: "Notunda yok — kredin düşmedi",
+    answer:
+      "Bu notta solunum geçmiyor, o yüzden cevap vermiyorum. Genel bilgiden anlatabilirdim ama sınavda bu nottan sorumluysan seni yanlış yere götürürdü.\n\nNotta gerçekten olanlar: fotosentez denklemi, klorofilin görevi, fotosentez hızını etkileyen etkenler. Hangisine bakalım?",
+  },
+  {
+    id: "duzeltme",
+    kind: "duzeltme",
+    question: "Klorofil yeşil ışığı soğurduğu için yapraklar yeşil, değil mi?",
+    badge: "Notun seni düzeltti",
+    answer:
+      "Hayır — notunda tam tersi yazıyor. Klorofil mavi ve kırmızıyı SOĞURUYOR, yeşili YANSITIYOR. Yaprağın yeşil görünmesi soğurulan renkten değil, yansıtılan renkten.\n\nBu ayrım sınavda sık sorulur; sorunun kendisi yanlış kurulmuş olsa bile notun ne dediği geçerli.",
   },
 ];
 
@@ -203,6 +271,7 @@ export function DemoWalkthrough({
           ) : null}
           {current.id === "quiz" ? <QuizStep quiz={quiz} /> : null}
           {current.id === "sozlu" ? <OralStep oral={oral} /> : null}
+          {current.id === "sinir" ? <BoundaryStep /> : null}
         </div>
       </section>
 
@@ -486,6 +555,56 @@ function OralStep({ oral }: { oral: { prompt: string; hint?: string }[] }) {
       <p className="dm-oral-note">
         Gerçek oturumda mikrofonla yanıtlarsın; eğitmen cevabını dinleyip
         eksikleri söyler.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Sınır adımı — ziyaretçi soruyu seçer, cevabı görür.
+ *
+ * Anlatı yerine etkileşim: "notundan şaşmaz" cümlesi okunduğunda bir pazarlama
+ * iddiası, tıklanıp görüldüğünde kanıt. Özellikle üçüncü durumda — ürünün
+ * öğrenciye KATILMADIĞI an — fark kendi kendini anlatıyor.
+ */
+function BoundaryStep() {
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  return (
+    <div className="dm-bound">
+      {BOUNDARY_CASES.map((item) => {
+        const open = openId === item.id;
+        return (
+          <div key={item.id} className="dm-bound-item">
+            <button
+              type="button"
+              className={cn("dm-bound-q", open && "dm-bound-q--on")}
+              aria-expanded={open}
+              onClick={() => setOpenId(open ? null : item.id)}
+            >
+              <span>{item.question}</span>
+              <span className="dm-bound-cue" aria-hidden>
+                {open ? "−" : "+"}
+              </span>
+            </button>
+
+            {open ? (
+              <div className="pm-enter dm-bound-a">
+                <span className={`dm-bound-badge dm-bound-badge--${item.kind}`}>
+                  {item.badge}
+                </span>
+                {item.answer.split("\n\n").map((paragraph, index) => (
+                  <p key={index}>{paragraph}</p>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+
+      <p className="dm-bound-note">
+        Üçü de aynı nottan. Sistemin cevap vermediği soruda kredin düşmüyor —
+        dürüst cevabın bedelini sen ödeme.
       </p>
     </div>
   );

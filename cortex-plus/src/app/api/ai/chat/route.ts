@@ -24,7 +24,12 @@ import {
 } from "@/lib/credits/service";
 import { searchDocumentChunks, type DocumentMatch } from "@/lib/rag/pipeline";
 import { chatSourceBlock } from "@/lib/learning/source-context";
-import { documentInstruction, stripNoSourceMarker } from "@/lib/ai/grounding";
+import {
+  documentInstruction,
+  NO_SOURCE_CREDIT_NOTE,
+  saidNoSource,
+  stripNoSourceMarker,
+} from "@/lib/ai/grounding";
 import { extractText } from "@/lib/documents/extract-text";
 import { documentPageContext } from "@/lib/documents/page-context";
 import { recordUserActivity } from "@/lib/streak/record-activity";
@@ -408,7 +413,26 @@ export async function POST(request: Request) {
             değil: ekranda köşeli parantezli bir etiket görmek, cevabın
             kendisinden daha çok soru işareti doğurur.
           */
+          /*
+            "Notunda yok" cevabı KREDİ ALMIYOR.
+
+            Bunun gerekçesi ürünün kendi mantığında: katı çiti koyarken
+            "belgede olmayan doğru bir bilgi bile öğrenci için yanlış
+            yönlendirmedir" dedik. O kural gereği model bazen cevap vermeyi
+            reddediyor — ve reddettiği her soruda öğrenciden kredi almak,
+            dürüst davranışı öğrenciye ceza olarak yaşatmak olur.
+
+            Sonucu da öngörülebilir: krediyi yiyen reddi gören öğrenci
+            reddetmeyen bir ürüne geçer. Yani çitin bedelini biz ödemezsek
+            öğrenci ödüyor ve çit kendi kendini sabote ediyor.
+
+            Ölçüm tarafı bozulmuyor: `recordUsage` yine yazılıyor, yani
+            sağlayıcıya gerçekten ödediğimiz jeton kaydı duruyor. Düşen şey
+            öğrencinin kredisi.
+          */
+          const noSource = saidNoSource(verified.content);
           fullText = stripNoSourceMarker(verified.content);
+          if (noSource) fullText += NO_SOURCE_CREDIT_NOTE;
           await recordUsage(service, {
             userId, actionCode, model: env.OPENAI_ADVANCED_MODEL,
             tokensIn: verified.tokensIn, tokensOut: verified.tokensOut,
@@ -432,7 +456,11 @@ export async function POST(request: Request) {
               .eq("id", conversationId);
           }
 
-          await commitCredits(service, reservation.reservationId);
+          if (noSource) {
+            await undoSpend();
+          } else {
+            await commitCredits(service, reservation.reservationId);
+          }
           await recordUsage(service, {
             userId,
             actionCode,

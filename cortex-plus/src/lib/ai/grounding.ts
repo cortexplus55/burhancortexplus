@@ -79,6 +79,17 @@ export function documentInstruction(params: {
   );
 }
 
+/**
+ * "Notunda yok" cevabının altına düşen satır.
+ *
+ * Kredinin geri verilmesi öğrenci görmezse güvence değil, sessiz bir
+ * muhasebe hareketi. Yanıtın kendi içinde yazıyor çünkü başlıklar gövdeden
+ * önce gidiyor: `X-Credits-Used` akış başlamadan yazıldığı için iadeyi
+ * bilemez ve "1 kredi" der.
+ */
+export const NO_SOURCE_CREDIT_NOTE =
+  "\n\n_Bu soru notunda geçmediği için kredin düşmedi._";
+
 /** Model "belgede yok" dedi mi? */
 export function saidNoSource(answer: string): boolean {
   return answer.trimStart().toUpperCase().startsWith(NO_SOURCE_MARKER);

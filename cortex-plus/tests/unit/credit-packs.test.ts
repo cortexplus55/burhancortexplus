@@ -111,27 +111,3 @@ describe("paket fiyatlandırması", () => {
     expect(biggest.kurus).toBeGreaterThan(59900);
   });
 });
-
-/*
-  İade sözü iki yerde birden durmak zorunda: sözleşmede (hukuken bağlayıcı
-  metin) ve fiyat kartında (öğrencinin gerçekten okuduğu yer). Yalnızca
-  sözleşmede kalırsa kimse görmez; görülmeyen söz güven kurmaz.
-*/
-describe("14 gün iade sözü", () => {
-  const terms = readFileSync("src/app/kullanim-kosullari/page.tsx", "utf8");
-  const cards = readFileSync("src/components/parity/subscription-cards.tsx", "utf8");
-
-  it("sözleşmede süre ve koşulsuzluk yazılı", () => {
-    expect(terms).toContain("14 gün");
-    expect(terms).toContain("gerekçe göstermeden");
-  });
-
-  it("sözleşme iade yolunu gösteriyor", () => {
-    expect(terms).toContain("destek sayfasından");
-  });
-
-  it("fiyat kartında görünür ve koşullara bağlanıyor", () => {
-    expect(cards).toContain("14 gün");
-    expect(cards).toContain("/kullanim-kosullari");
-  });
-});

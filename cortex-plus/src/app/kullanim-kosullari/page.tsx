@@ -27,13 +27,11 @@ export default function KullanimKosullariPage() {
           ],
         },
         {
-          heading: "Cayma hakkı ve iade",
+          heading: "Cayma hakkı",
           body: [
-            "Abonelik ve kredi paketi satın alımlarında, satın alma tarihinden itibaren 14 gün içinde gerekçe göstermeden iade talep edebilirsin. Talebin karşılanır ve ödediğin tutarın tamamı iade edilir.",
-            "Mesafeli Sözleşmeler Yönetmeliği, anında sunulan dijital hizmetlerde cayma hakkını zorunlu tutmuyor. Bu 14 günlük hakkı yasa gerektirdiği için değil, ürünü denemeden ödeme yapmanı istemediğimiz için veriyoruz.",
-            "İade talebini destek sayfasından iletebilirsin. Talep alındıktan sonra ödeme sağlayıcısına iletilir; tutarın kartına geçmesi bankana bağlı olarak birkaç iş günü sürebilir.",
-            "İade sonrası abonelik kapatılır ve o satın almayla gelen kullanılmamış kredi hesaptan düşülür.",
-            "Başarısız işlemlerde harcanan kredi, iade talebine gerek kalmadan otomatik geri verilir.",
+            "Cortex Plus anında sunulan dijital bir hizmettir: satın alma tamamlandığı anda kredi hesabına geçer ve hizmet kullanıma açılır. Mesafeli Sözleşmeler Yönetmeliği'nin 15. maddesi uyarınca bu tür hizmetlerde cayma hakkı kullanılamaz; satın alarak bunu kabul etmiş olursun.",
+            "Aboneliğini dilediğin zaman iptal edebilirsin. İptal, o dönemin sonunda yenilemeyi durdurur; ödediğin dönem sonuna kadar hizmet açık kalır.",
+            "Hatalı ya da yetkisiz bir işlem olduğunu düşünüyorsan destek sayfasından bize yaz; her talebi tek tek inceliyoruz.",
           ],
         },
         {

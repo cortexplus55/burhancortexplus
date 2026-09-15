@@ -798,3 +798,92 @@
   padding: 0.45rem 0.95rem;
   font-size: 0.8125rem;
 }
+
+/* --- 6. adım: sınır --------------------------------------------------- */
+
+.dm-bound {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+
+.dm-bound-item {
+  border-radius: 0.9rem;
+  border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12));
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+.dm-bound-q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0.85rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dm-bound-q:hover,
+.dm-bound-q--on {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dm-bound-cue {
+  flex: none;
+  font-size: 1.1rem;
+  opacity: 0.6;
+}
+
+.dm-bound-a {
+  padding: 0 1rem 1rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.dm-bound-a p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  opacity: 0.88;
+}
+
+.dm-bound-badge {
+  justify-self: start;
+  border-radius: 9999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.dm-bound-badge--var {
+  background: rgba(52, 199, 123, 0.16);
+  color: #6ee7a8;
+}
+
+/* Reddetme ve düzeltme ürünün DOĞRU davranışı — kırmızı "hata" rengiyle
+   gösterilirse ziyaretçi bunu kusur sanır. Ayırt edici ama olumlu renkler. */
+.dm-bound-badge--yok {
+  background: rgba(244, 174, 11, 0.16);
+  color: #f4ae0b;
+}
+
+.dm-bound-badge--duzeltme {
+  background: rgba(124, 108, 247, 0.18);
+  color: #a99cff;
+}
+
+.dm-bound-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  opacity: 0.66;
+}

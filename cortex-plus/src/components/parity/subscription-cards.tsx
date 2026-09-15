@@ -581,15 +581,16 @@ export function SubscriptionCards({
         ) : null}
 
         {/*
-          İade sözü sözleşmenin içinde kalırsa kimse görmez; görülmeyen söz
-          güven kurmaz. Tanınmayan bir markadan ilk kez ödeme yapan öğrenci
-          için "vazgeçebilirim" bilgisi, kredinin kaç olduğu kadar önemli.
+          Para iadesi sözü yerine ÜRÜN sözü.
+
+          "14 gün koşulsuz iade" nakitle güven satın almaya çalışıyordu ve
+          kredisini yakıp iade isteyen kullanıcıya açıktı. Buradaki söz ise
+          ürünün zaten yaptığı şey: notunda olmayanı uydurmuyor ve
+          uydurmadığı o soruda kredi de almıyor. Bedeli nakit değil kredi,
+          karşılığı da kodda duruyor.
         */}
         <p className="text-center text-xs text-[var(--cs-muted)]">
-          14 gün içinde gerekçe göstermeden iade edebilirsin ·{" "}
-          <a href="/kullanim-kosullari" className="underline underline-offset-2">
-            koşullar
-          </a>
+          Notunda olmayanı uydurmaz. Cevaplayamadığı soruda kredin düşmez.
         </p>
 
         {embedded && !guestMode && !isParent && !plusOwned ? (
