@@ -580,6 +580,18 @@ export function SubscriptionCards({
           </div>
         ) : null}
 
+        {/*
+          İade sözü sözleşmenin içinde kalırsa kimse görmez; görülmeyen söz
+          güven kurmaz. Tanınmayan bir markadan ilk kez ödeme yapan öğrenci
+          için "vazgeçebilirim" bilgisi, kredinin kaç olduğu kadar önemli.
+        */}
+        <p className="text-center text-xs text-[var(--cs-muted)]">
+          14 gün içinde gerekçe göstermeden iade edebilirsin ·{" "}
+          <a href="/kullanim-kosullari" className="underline underline-offset-2">
+            koşullar
+          </a>
+        </p>
+
         {embedded && !guestMode && !isParent && !plusOwned ? (
           <p className="text-center text-xs text-[var(--cs-muted)]">
             <a href="/ogretmen" className="underline underline-offset-2">

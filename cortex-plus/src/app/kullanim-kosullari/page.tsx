@@ -27,6 +27,16 @@ export default function KullanimKosullariPage() {
           ],
         },
         {
+          heading: "Cayma hakkı ve iade",
+          body: [
+            "Abonelik ve kredi paketi satın alımlarında, satın alma tarihinden itibaren 14 gün içinde gerekçe göstermeden iade talep edebilirsin. Talebin karşılanır ve ödediğin tutarın tamamı iade edilir.",
+            "Mesafeli Sözleşmeler Yönetmeliği, anında sunulan dijital hizmetlerde cayma hakkını zorunlu tutmuyor. Bu 14 günlük hakkı yasa gerektirdiği için değil, ürünü denemeden ödeme yapmanı istemediğimiz için veriyoruz.",
+            "İade talebini destek sayfasından iletebilirsin. Talep alındıktan sonra ödeme sağlayıcısına iletilir; tutarın kartına geçmesi bankana bağlı olarak birkaç iş günü sürebilir.",
+            "İade sonrası abonelik kapatılır ve o satın almayla gelen kullanılmamış kredi hesaptan düşülür.",
+            "Başarısız işlemlerde harcanan kredi, iade talebine gerek kalmadan otomatik geri verilir.",
+          ],
+        },
+        {
           heading: "Kabul edilebilir kullanım",
           body: [
             "Hizmeti yasa dışı amaçlarla, başkalarının haklarını ihlal edecek şekilde veya sistem güvenliğini tehdit ederek kullanamazsın.",
