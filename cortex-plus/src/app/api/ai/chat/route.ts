@@ -2,9 +2,14 @@ import { NextResponse } from "next/server";
 import { loadActivePrompt, PROMPT_KEYS } from "@/lib/ai/prompts";
 import { z } from "zod";
 import OpenAI from "openai";
-import { verifyEducationalContent } from "@/lib/ai/quality-gate";
+import {
+  EducationalVerificationError,
+  verifyEducationalContent,
+} from "@/lib/ai/quality-gate";
+import { chatFallbackMessage } from "@/lib/ai/chat-fallback";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { selectModel } from "@/lib/ai/model-router";
+import { assessQuestionDifficulty } from "@/lib/ai/question-difficulty";
 import { SYSTEM_GUARDRAIL, isPremiumUser } from "@/lib/ai/generate";
 import { moderate } from "@/lib/ai/moderation";
 import { recordAbuse } from "@/lib/abuse/record";
@@ -133,12 +138,42 @@ export async function POST(request: Request) {
     .maybeSingle();
   const styleBlock = ` ${tutorStylePrompt(parseTutorStyle(profile?.tutor_style))}`;
 
+  /*
+    Kaçıncı tur olduğunu SUNUCU sayıyor.
+
+    Zorluk ölçümünün en güçlü sinyali "öğrenci üçüncü turda hâlâ anlamadım
+    diyor" — bu tahmin değil ölçüm: ucuz modelin anlatımı bir kez denendi ve
+    tutmadı. Ama tur sayısını istemciden almak, model seçimini yeniden
+    istemcinin eline vermek olurdu; `difficulty` alanı tam bu yüzden bir kez
+    devre dışı bırakılmıştı.
+
+    Sayım `user_id` ile sınırlı: başkasının sohbet kimliği gönderilse bile
+    sıfır dönüyor.
+  */
+  let priorUserTurns = 0;
+  if (parsed.data.conversationId) {
+    const { count } = await service
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("conversation_id", parsed.data.conversationId)
+      .eq("user_id", userId)
+      .eq("role", "user");
+    priorUserTurns = count ?? 0;
+  }
+
+  const difficulty = assessQuestionDifficulty({
+    message,
+    turn: priorUserTurns + 1,
+    hasImage: Boolean(imageUrl),
+  });
+
   const { model, actionCode } = selectModel({
     actionCode: parsed.data.actionCode as ActionCode,
     isPremium,
     hasImage: Boolean(imageUrl),
     userSelectedAdvanced: parsed.data.actionCode === "AI_CHAT_ADVANCED",
     documentPages,
+    difficulty: difficulty.level,
   });
 
   const reserved = await reserveCredits(
@@ -247,18 +282,29 @@ export async function POST(request: Request) {
           ]
         : [{ type: "text", text: message }];
 
+    const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      {
+        role: "system",
+        content: `${SYSTEM_GUARDRAIL} ${studentInstruction}${styleBlock}${examContext?.block ?? ""}${contextBlock}`,
+      },
+      ...history.slice(0, -1),
+      { role: "user", content: userContent },
+    ];
+
+    /*
+      İlk çağrı akışın DIŞINDA kalıyor.
+
+      Sağlayıcı kaynaklı hatalar (anahtar geçersiz, kota, 5xx) burada
+      yakalanıp 502 JSON'a dönüyor. Çağrı akışın içine taşınsa aynı hata
+      kırık bir akış hâline gelir ve istemci "yanıt üretilemedi" yerine yarım
+      bir metin görür. İkinci deneme zorunlu olarak içeride, çünkü
+      gerekliliği ancak ilk cevap denetlendikten sonra biliniyor.
+    */
     const stream = await openai.chat.completions.create({
       model,
       stream: true,
       stream_options: { include_usage: true },
-      messages: [
-        {
-          role: "system",
-          content: `${SYSTEM_GUARDRAIL} ${studentInstruction}${styleBlock}${examContext?.block ?? ""}${contextBlock}`,
-        },
-        ...history.slice(0, -1),
-        { role: "user", content: userContent },
-      ],
+      messages: requestMessages,
     });
 
     const encoder = new TextEncoder();
@@ -279,25 +325,83 @@ export async function POST(request: Request) {
 
     const readable = new ReadableStream({
       async start(controller) {
-        try {
-          for await (const chunk of stream) {
+        /** Akışı boşalt; metni ve jeton sayımını topla. */
+        async function drain(
+          source: Awaited<ReturnType<typeof openai.chat.completions.create>>,
+        ) {
+          let text = "";
+          for await (const chunk of source as AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>) {
             const delta = chunk.choices[0]?.delta?.content ?? "";
-            if (delta) {
-              fullText += delta;
-            }
+            if (delta) text += delta;
             if (chunk.usage) {
               tokensIn = chunk.usage.prompt_tokens ?? 0;
               tokensOut = chunk.usage.completion_tokens ?? 0;
             }
           }
+          return text;
+        }
 
-          const verified = await verifyEducationalContent({
+        function review(draft: string) {
+          return verifyEducationalContent({
             client: openai,
             context: JSON.stringify({ history: history.slice(0, -1), message, contextBlock }),
-            draft: fullText,
+            draft,
             format: "Öğrenciye gösterilecek sohbet yanıtı. Metin ve matematik biçimlendirmesini koru.",
             imageUrls: imageUrl ? [imageUrl] : [],
           });
+        }
+
+        try {
+          fullText = await drain(stream);
+
+          /*
+            Kalite kapısı ikinci katman: zorluk tahmini yanılırsa bedeli bir
+            tur gecikme oluyor, yanlış cevap değil.
+
+            İkinci deneme premium hesapta GÜÇLÜ modelle yapılıyor — tahmin
+            "kolay" dediği hâlde denetimden geçmeyen cevap, tam olarak
+            tahminin yanıldığı durumdur. Ücretsiz hesapta aynı modelle bir kez
+            daha deniyoruz: standart modelin kendi varyansı bile çoğu zaman
+            ikinci turda düzgün cevap veriyor.
+
+            Kredi ikinci denemede de artmıyor: öğrenci bir soru sordu.
+          */
+          let verified;
+          try {
+            verified = await review(fullText);
+          } catch (firstError) {
+            if (!(firstError instanceof EducationalVerificationError)) throw firstError;
+
+            const retryModel = isPremium ? env.OPENAI_ADVANCED_MODEL : model;
+            const retryStream = await openai.chat.completions.create({
+              model: retryModel,
+              stream: true,
+              stream_options: { include_usage: true },
+              messages: requestMessages,
+            });
+            fullText = await drain(retryStream);
+
+            try {
+              verified = await review(fullText);
+            } catch (secondError) {
+              if (!(secondError instanceof EducationalVerificationError)) throw secondError;
+
+              /*
+                İki kez geçemedi. Eskiden akış burada hata veriyordu: kredi
+                iade ediliyor ama öğrenci ekranda boş bir yanıt görüyordu ve
+                gördüğü şey "bu sistem çalışmıyor"du. Artık ne olduğunu
+                söylüyoruz.
+              */
+              await undoSpend();
+              controller.enqueue(
+                encoder.encode(
+                  chatFallbackMessage({ isPremium, difficulty: difficulty.level }),
+                ),
+              );
+              controller.close();
+              return;
+            }
+          }
           /*
             Katı kipte model "belgede yok" cevabını `[KAYNAKTA_YOK]` ile
             işaretliyor. İşaret bize lazım (ölçüm ve kayıt için), öğrenciye

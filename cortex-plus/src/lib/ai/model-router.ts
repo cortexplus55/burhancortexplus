@@ -68,6 +68,36 @@ export function selectModel(input: ModelRouterInput): {
     görsel, çünkü yapılandırdığımız tek gören model gelişmiş olan ve o iş
     zaten en yüksek kredili eylem (5).
   */
+  /*
+    Sistemin kendi kararıyla güçlü modele çıkması — kredi DEĞİŞMEDEN.
+
+    `difficulty` alanı bu dosyada zaten duruyordu ama gövdede hiç okunmuyordu:
+    bir güvenlik düzeltmesinde çıkarılmıştı, çünkü alanı İSTEMCİ yazıyordu.
+    `/api/learning/exam/generate` şeması "hard" kabul ediyor, yani öğrenci
+    kendi işine "ileri" deyip on iki kat pahalı üretimi 4 krediye alıyordu.
+
+    Geri gelmesini iki şey güvenli kılıyor:
+
+    1. Yalnızca sohbet eylemlerinde çalışıyor (`AI_CHAT*`). Sohbette zorluğu
+       istemci göndermiyor: rota mesaj metninden kendisi ölçüyor
+       (`assessQuestionDifficulty`). İstemcinin dokunabildiği uçlar bu daldan
+       etkilenmiyor.
+    2. Abonelik istiyor. Ücretsiz hesap standart modelde kalıyor; zor soruda
+       cevap kalite kapısından geçemezse öğrenciye bunu dürüstçe söylüyoruz.
+
+    Kredi bilerek yükselmiyor: `actionCode` standart kalıyor, yani öğrenci bir
+    soru sorup bir soruluk kredi ödüyor. Modeli seçen biz olduğumuza göre
+    maliyeti de bizim. Aksi hâlde öğrenci aynı görünen iki soruda farklı kredi
+    harcadığını görür ve bunun anlaşılır bir açıklaması olmaz.
+  */
+  if (
+    input.isPremium &&
+    input.difficulty === "hard" &&
+    input.actionCode.startsWith("AI_CHAT")
+  ) {
+    return { model: env.OPENAI_ADVANCED_MODEL, actionCode: "AI_CHAT_STANDARD" };
+  }
+
   if (input.isPremium && (input.documentPages ?? 0) > 10) {
     return {
       model: env.OPENAI_ADVANCED_MODEL,
