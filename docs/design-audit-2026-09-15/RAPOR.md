@@ -85,3 +85,37 @@ hero'daki stok video, yani ürünle ilgisi olmayan bir görüntüydü.
 `kanit/` altında üç kare: önceki ana sayfamız, sonraki ana sayfamız ve
 referansın ana sayfası. Diğer 19 kare ve ölçüm betikleri repoya alınmadı —
 11MB kalıcı yük olurdu; sayılar bu belgede duruyor.
+
+---
+
+## İkinci tur — içerik boşluğunu kapatma (aynı gün)
+
+Referansın yapısı bölüm bölüm çıkarıldı. Bulgu: 20.047px'lik sayfalarının
+**yaklaşık 9.500px'i iki büyük boşluk** (~4.700px ve ~4.800px). Yani uzunluk
+avantajı metin değil, görsel/animasyon alanı.
+
+İçerik tarafında tek anlamlı fark **SSS**'ti: onlarda 13 soru, bizde 3. Üstelik
+bizimkilerden ikisi yanlış şeyi cevaplıyordu — "Ücretsiz deneyebilir miyim?"
+sorusuna "kayıt olmadan marketing sayfalarını gezebilirsin" deniyordu.
+Öğrencinin sorduğu bu değil.
+
+SSS on iki soruya çıkarıldı, kendi sesimizle. Her cevabın arkasında gerçekten
+var olan bir davranış var ve bekçi testler bunu tutuyor: 6 kredi iddiası göç
+dosyasıyla, kredi iadesi sözü sohbet rotasıyla, belgesiz çalışma kurulum
+sihirbazıyla, kaynak sınırı seçeneği `prep-source.ts` ile karşılaştırılıyor.
+İki test de vaat ETMEDİKLERİMİZİ tutuyor: not garantisi (ölçemiyoruz) ve
+uygulama indirme (mağazada olup olmadığını doğrulayamıyoruz).
+
+### Sonuç
+
+| | Önce | Sonra | Referans |
+|---|---|---|---|
+| Ana sayfa boyu | 5.174px | 6.641px | 20.047px |
+| Ürün görseli | 0 | 4 | 30 |
+| h2 + h3 | 34 | **39** | 33 |
+| SSS sorusu | 3 | **12** | 13 |
+
+Başlık sayısında referansı geçtik: sayfamız üçte bir boyda ama daha yoğun.
+Kalan boy farkı onların animasyon alanları — kopyalanmadı. AGENTS.md'nin
+kuralı burada geçerli: "referansta var, bizde yok" tek başına yapılacak iş
+gerekçesi değil.

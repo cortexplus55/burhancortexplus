@@ -6,23 +6,10 @@ import { ArrowRight } from "lucide-react";
 import { ParitySiteHeader } from "@/components/marketing/parity-site-header";
 import { CinematicPrimaryCta } from "@/components/marketing/cinematic-cta";
 import { MARKETING_SUBJECTS } from "@/lib/parity/marketing-subjects";
+import { MARKETING_FAQ } from "@/lib/parity/marketing-faq";
 import { CinematicPageHero } from "@/components/marketing/cinematic-page-hero";
 import { CinematicScrollReveal } from "@/components/marketing/cinematic-scroll-reveal";
 
-const faqs = [
-  {
-    q: "Cortex Plus nedir?",
-    a: "Tüm dersler için kişisel AI öğretmenin. Soru çöz, deneme üret, eksiklerini gör.",
-  },
-  {
-    q: "Ücretsiz deneyebilir miyim?",
-    a: "Evet. Kayıt olmadan marketing sayfalarını gezebilir; uygulama için ücretsiz haklarla başlarsın.",
-  },
-  {
-    q: "ChatGPT'den farkı ne?",
-    a: "Sınav odaklı adım adım çözüm, deneme analizi ve çalışma planı tek uygulamada.",
-  },
-];
 
 export { ParitySiteHeader } from "@/components/marketing/parity-site-header";
 
@@ -168,10 +155,13 @@ export function FeatureStrip() {
 export function FaqSection() {
   return (
     <section className="border-t border-[var(--mk-border)] py-16" data-cinematic-reveal>
-      <div className="mx-auto max-w-2xl px-4">
+      <div className="mx-auto max-w-4xl px-4">
         <h2 className="text-center text-2xl font-bold">Sık sorulanlar</h2>
-        <div className="mt-8 space-y-3">
-          {faqs.map((item) => (
+        {/* On iki soru tek sütunda uzun bir şerit oluyor; geniş ekranda iki
+            sütuna bölünüyor. Sütun içi sıra korunuyor ki cevaplar konularına
+            göre birbirini izlesin. */}
+        <div className="mt-8 grid gap-3 md:grid-cols-2 md:items-start">
+          {MARKETING_FAQ.map((item) => (
             <details key={item.q} className="mk-card group p-4">
               <summary className="cursor-pointer list-none font-medium marker:content-none [&::-webkit-details-marker]:hidden">
                 {item.q}
