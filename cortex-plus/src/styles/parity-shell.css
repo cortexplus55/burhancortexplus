@@ -6950,3 +6950,89 @@
 .cp-profile-links a:hover {
   border-color: color-mix(in srgb, var(--cp-gold, #f4ae0b) 50%, transparent);
 }
+
+/* --- Sınıf davet kartı --- */
+
+.cp-class-invite {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0 0 1.25rem;
+  padding: 1.1rem 1.15rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border);
+  background: #161616;
+}
+
+.cp-class-invite-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.cp-class-invite-body {
+  margin: 0.3rem 0 0;
+  font-size: 0.83rem;
+  line-height: 1.5;
+  color: var(--cp-muted);
+}
+
+.cp-class-invite-code {
+  margin: 0.6rem 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.cp-class-invite-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cp-class-invite-primary,
+.cp-class-invite-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 9999px;
+  padding: 0.55rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-class-invite-primary {
+  border: 0;
+  background: rgba(244, 174, 11, 0.16);
+  color: #f4ae0b;
+}
+
+.cp-class-invite-primary:hover {
+  background: rgba(244, 174, 11, 0.24);
+}
+
+.cp-class-invite-ghost {
+  border: 1px solid var(--cp-border);
+  background: transparent;
+  color: inherit;
+}
+
+.cp-class-invite-ghost:hover {
+  border-color: rgba(244, 174, 11, 0.45);
+}
+
+.cp-class-invite-qr {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.cp-class-invite-qr p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #444;
+}

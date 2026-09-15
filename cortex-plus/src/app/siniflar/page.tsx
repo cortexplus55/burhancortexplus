@@ -9,7 +9,20 @@ import { createServiceClient } from "@/lib/supabase/server";
 export const metadata = { title: "Sınıflar" };
 export const dynamic = "force-dynamic";
 
-export default async function SiniflarPage() {
+/** Davet bağlantısındaki kod: /siniflar?kod=ABC123 */
+function codeFromQuery(value: string | string[] | undefined): string {
+  const raw = Array.isArray(value) ? value[0] : value;
+  // Sunucudan geliyor ama yine de istemci girdisi; forma ham hâliyle
+  // koymuyoruz.
+  return (raw ?? "").trim().slice(0, 12).toUpperCase();
+}
+
+export default async function SiniflarPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const initialCode = codeFromQuery((await searchParams).kod);
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
   const service = createServiceClient();
@@ -91,7 +104,7 @@ export default async function SiniflarPage() {
         )}
 
         <div className="grid gap-4 md:grid-cols-2">
-          <JoinClassForm />
+          <JoinClassForm initialCode={initialCode} />
           <CreateClassForm />
         </div>
       </div>

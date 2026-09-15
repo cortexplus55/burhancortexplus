@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ClassroomDiscussion } from "@/components/parity/classroom-discussion";
 import { ClassroomSharePrep } from "@/components/parity/classroom-share-prep";
+import { ClassInvite } from "@/components/parity/class-invite";
+import { appOrigin } from "@/lib/app-url";
+import { qrDataUri } from "@/lib/qr";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import {
@@ -29,6 +32,13 @@ export default async function SinifDetailPage({
   if (!access.allowed || !access.room) notFound();
 
   const room = access.room;
+
+  // Davet bağlantısı ve QR yalnızca sınıf sahibine gösteriliyor; QR sunucuda
+  // üretiliyor, katılım kodu dış servise gitmiyor.
+  const inviteUrl = access.isOwner
+    ? `${appOrigin()}/siniflar?kod=${encodeURIComponent(room.join_code as string)}`
+    : "";
+  const inviteQr = inviteUrl ? await qrDataUri(inviteUrl, 180) : "";
 
   const [{ data: members }, { data: posts }, { data: sharedPreps }, { data: ownPreps }] =
     await Promise.all([
@@ -98,12 +108,24 @@ export default async function SinifDetailPage({
           <div className="cp-classroom-icon" aria-hidden />
           <div>
             <h1>{room.name}</h1>
-            <p className="text-sm text-[var(--cp-muted)]">
-              {people.length} üye
-              {access.isOwner ? ` · kod ${room.join_code}` : ""}
-            </p>
+            <p className="text-sm text-[var(--cp-muted)]">{people.length} üye</p>
           </div>
         </header>
+
+        {/*
+          Kod eskiden başlığın altında düz metindi: "12 üye · kod ABC123".
+          Otuz kişilik bir sınıfı çağırmanın tek yolu kodu tek tek okutmaktı.
+          Kart, kopyalanıp sınıf grubuna yapıştırılabilen hazır bir mesaj ve
+          tahtaya yansıtılabilen bir QR veriyor.
+        */}
+        {access.isOwner ? (
+          <ClassInvite
+            className={room.name as string}
+            code={room.join_code as string}
+            url={inviteUrl}
+            qr={inviteQr}
+          />
+        ) : null}
 
         <section className="cp-class-section">
           <h2>Üyeler</h2>

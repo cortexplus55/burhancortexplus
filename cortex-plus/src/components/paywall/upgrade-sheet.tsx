@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { Sparkles, Unlock, X } from "lucide-react";
+import { Sparkles, Unlock, Users, X } from "lucide-react";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import "@/styles/upgrade-gate.css";
@@ -85,6 +85,28 @@ export function UpgradeSheet({
 
         <Link href={href} className="ug-cta" onClick={() => onOpenChange(false)}>
           Plus&apos;a yükselt
+        </Link>
+
+        {/*
+          Üçüncü yol — ve bugüne kadar bu ekranda hiç söylenmiyordu.
+
+          Davet sistemi kurulu, çarpanlar işliyor, kart da yazılmış; ama
+          yalnızca /krediler, /profil ve /davet sayfalarında duruyordu. Üçü de
+          öğrencinin BİLEREK gittiği yerler. Oysa "daha fazla hak istiyorum"
+          düşüncesi tam burada, hakkı dolduğu anda doğuyor.
+
+          Çarpanın kaç olduğu yazılmıyor: sayı veritabanından geliyor ve
+          değişebiliyor, kabuk bağlamında da taşınmıyor. Sırf bu satır için
+          her sayfa yüklemesine fazladan sorgu eklemek yerine, çarpan kaç
+          olursa olsun doğru kalan cümle kuruldu.
+        */}
+        <Link
+          href="/davet"
+          className="ug-invite"
+          onClick={() => onOpenChange(false)}
+        >
+          <Users className="h-4 w-4" aria-hidden />
+          <span>Ya da arkadaşını davet et — ikinizin de hakkı katlanır</span>
         </Link>
 
         {/* Hakkı yenilenecek olan öğrenciye "beklersen de olur" demek dürüst
