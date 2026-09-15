@@ -105,8 +105,14 @@ export function SubjectGrid() {
               href={`/kayit?ders=${s.slug}`}
               className="mk-card group p-5 transition-colors hover:border-[var(--mk-primary)]"
             >
-              <span className="text-2xl" aria-hidden>
-                {s.emoji}
+              {/* Renk ikonun kendisinde: dil dersleri aynı ikonu paylaşıyor,
+                  ayrımı vurgu rengi ve ders adı yapıyor. */}
+              <span
+                className="mk-subject-icon"
+                style={{ color: s.tint, background: `${s.tint}1f` }}
+                aria-hidden
+              >
+                <s.icon className="h-5 w-5" />
               </span>
               <h3 className="mt-3 font-semibold">{s.label}</h3>
               <p className="mt-1 text-sm text-[var(--mk-muted)]">{s.blurb}</p>

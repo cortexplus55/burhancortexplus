@@ -9,6 +9,7 @@ import { CinematicSocialProof } from "@/components/marketing/cinematic-social-pr
 import { CinematicGuaranteeStrip } from "@/components/marketing/cinematic-guarantee-strip";
 import { CinematicPlanSlider } from "@/components/marketing/cinematic-plan-slider";
 import { MistakeLoopSection } from "@/components/marketing/mistake-loop-section";
+import { ProductShowcase } from "@/components/marketing/product-showcase";
 
 export default function HomePage() {
   return (
@@ -19,6 +20,7 @@ export default function HomePage() {
           döngü ise neden işe yaradığını anlatıyor. Sırası tersine dönerse
           ziyaretçi özellik listesini okuyup ayrılıyor. */}
       <MistakeLoopSection />
+      <ProductShowcase />
       <CinematicSocialProof />
       <CinematicPlanSlider />
       <FeatureStrip />

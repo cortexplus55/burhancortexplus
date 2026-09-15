@@ -248,6 +248,11 @@ export function SubscriptionCards({
     }
   }
 
+  // Izgara düzeni kaç kart çizileceğine bakıyor; koşullar aşağıdakilerle
+  // birebir aynı kalmalı, yoksa düzen gerçekte olmayan bir karta göre kurulur.
+  const planCardCount =
+    (plusOwned ? 0 : 1) + (showSigmaCard && sigmaPlan ? 1 : 0);
+
   function closePay() {
     if (guestMode) router.push("/");
     else router.push(returnTo ?? closeHref ?? "/ogretmen");
@@ -285,7 +290,18 @@ export function SubscriptionCards({
         embedded ? "pt-2" : "min-h-dvh px-4 pt-6",
       )}
     >
-      {!embedded ? (
+      {/*
+        Kapatma düğmesi yalnızca dönülecek BELİRLİ bir yer varken.
+
+        Eskiden `!embedded` yetiyordu ve /fiyatlandirma'da havada duran bir ×
+        çıkıyordu: sayfanın üstünde menü, altında footer var, ortada da
+        kapatılacak bir pencere yokken bir kapatma düğmesi. Modalden sızmış
+        gibi duruyordu ve bastığında öğrenciyi habersizce ana sayfaya atıyordu.
+
+        Katman olarak açıldığında (returnTo / closeHref dolu) düğme anlamlı:
+        öğrenci geldiği yere döner.
+      */}
+      {!embedded && (returnTo || closeHref) ? (
         <button
           type="button"
           className="absolute right-4 top-4 rounded-full p-2 text-[var(--cs-muted)] hover:bg-[var(--cs-surface)]"
@@ -296,7 +312,24 @@ export function SubscriptionCards({
         </button>
       ) : null}
 
-      <div className={cn("mx-auto max-w-md space-y-6", embedded ? "" : "pt-8")}>
+      {/*
+        Geniş ekranda kap genişliyor, kademeler yan yana geliyor.
+
+        Eskiden her şey `max-w-md` (448px) içindeydi: 1440px'lik bir ekranda
+        iki kart dar bir sütunda alt alta duruyor, iki yan bomboş kalıyordu.
+        Kademeler ancak yan yana kıyaslanabiliyor — alt alta okuyan öğrenci
+        ikisini kafasında tutamıyor.
+
+        Başlık, dönem düğmesi ve alt notlar dar kalıyor: onlar okunacak metin,
+        kıyaslanacak kart değil.
+      */}
+      <div
+        className={cn(
+          "mx-auto max-w-md space-y-6 lg:max-w-4xl",
+          embedded ? "" : "pt-8",
+        )}
+      >
+      <div className="mx-auto max-w-md space-y-6">
         {isParent ? null : (
           <PremiumPlanHero
             align={embedded ? "start" : "center"}
@@ -353,6 +386,18 @@ export function SubscriptionCards({
           </div>
         ) : null}
 
+      </div>
+
+      {/*
+        İki sütun ancak iki kart varken. Tek kart iki sütunlu bir ızgarada sol
+        yarıya oturup sağ yarıyı boş bırakıyor — sayfa eksik görünüyor.
+      */}
+      <div
+        className={cn(
+          "grid gap-4 lg:items-start",
+          planCardCount > 1 ? "lg:grid-cols-2" : "mx-auto max-w-md",
+        )}
+      >
         {plusOwned ? null : (
         <article className="cs-pay-card cs-pay-card--premium p-5">
           <div className="flex items-start gap-3">
@@ -554,6 +599,9 @@ export function SubscriptionCards({
           </article>
         ) : null}
 
+      </div>
+
+      <div className="mx-auto max-w-md space-y-6">
         {rest.length > 0 ? (
           <div className="space-y-3">
             {rest.map((plan) => (
@@ -600,6 +648,7 @@ export function SubscriptionCards({
             </a>
           </p>
         ) : null}
+      </div>
       </div>
     </div>
   );
