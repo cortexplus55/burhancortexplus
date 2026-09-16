@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:db": "node scripts/test-reschedule-transaction.mjs",
     "verify:paytr": "node scripts/verify-paytr.mjs",
+    "activate:paytr": "node scripts/activate-paytr.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"

@@ -73,6 +73,27 @@ ve yetki onayı ister.
    Ödemenin gerçekten açıldığını `/fiyatlandirma` butonlarının artık
    "Yakında" yazmamasından gör — o yazı `isPaytrConfigured()`'a bağlı.
 
+### Tek komutla aktivasyon
+
+Yukarıdaki 2–5. adımları elle yapmak yerine:
+
+```bash
+VERCEL_TOKEN=... PAYTR_MERCHANT_ID=... PAYTR_MERCHANT_KEY=... PAYTR_MERCHANT_SALT=... \
+  node scripts/activate-paytr.mjs
+```
+
+Sırayla: anahtar biçimi ve 710114 koruması → PayTR'dan gerçek `get-token` →
+anahtarları Vercel'e yaz → **production'ı yeniden dağıt** (env değişkeni
+dağıtım olmadan etkimez, kolay atlanan adım bu) → dağıtım READY olana kadar
+bekle → canlıdan callback imzasını ve `/fiyatlandirma` butonlarını doğrula.
+
+Herhangi bir adım düşerse sonrakine geçilmez. Önemli sonucu: anahtarlar
+PayTR'a karşı kanıtlanmadan Vercel'e **yazılmaz**, yani hatalı anahtarla
+yarım açık bir ödeme akışı bırakılamaz. `--dry-run` hiçbir şey yazmadan ne
+yapacağını söyler ve token istemez.
+
+Kalan tek elle iş bildirim URL'i — o mağaza ayarı, API'si yok.
+
 ## Yenileme neden otomatik değil
 
 PayTR'ın iFrame API'si tek seferlik ödeme alır. Otomatik tahsilat için
