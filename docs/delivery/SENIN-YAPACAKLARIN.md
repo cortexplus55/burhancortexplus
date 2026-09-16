@@ -1,6 +1,6 @@
 # Sende kalanlar — ajanın yapamadığı işler
 
-Son güncelleme: 2026-09-05
+Son güncelleme: 2026-09-16
 
 Buradaki her madde ya **şifre girmeyi** ya **hesap açmayı** gerektiriyor; ikisi de
 ajanın yapmayacağı işler. Sırayla gidin, her biri birkaç dakika.
@@ -112,8 +112,13 @@ Ne toplanıyor, ne toplanmıyor: `docs/delivery/SENTRY-HATA-TAKIBI.md`
 ### PostHog (reklam ölçümü — zorunlu)
 
 Kod hazır (`src/components/analytics.tsx`); 6 Eylül abuse deploy'undan sonra
-OG/paylaşım da yayında. **`NEXT_PUBLIC_POSTHOG_KEY` Vercel'de yok** (2026-09-06
-doğrulandı). Anahtar girilmeden pageview düşmez.
+OG/paylaşım da yayında. **`NEXT_PUBLIC_POSTHOG_KEY` Vercel'de yok.**
+Anahtar girilmeden pageview düşmez.
+
+> **16 Eylül 2026'da yeniden doğrulandı — hâlâ açık.** `cortexplus.app` ana
+> sayfasının HTML'inde PostHog'a ait tek bir iz yok; anahtar tanımlı olsaydı
+> istemci paketi onu gömerdi. On bir gündür ölçüm toplanmıyor, yani bu süre
+> geriye dönük olarak kurtarılamaz.
 
 1. [eu.posthog.com](https://eu.posthog.com) → `cortexplus@cortexplus.app` ile hesap/proje.
 2. Project settings → Project API key (`phc_…`).
@@ -154,6 +159,32 @@ Göç geçmişi de işlendi — son kayıt `20260904140000`, karşılıksız kay
 > Duyuru bandının **kaydedileceği yer** artık var ve panel formu açılıyor.
 > Ajan gerçek bir bant açmadı: o, her ücretsiz kullanıcının ana ekranında
 > görünen herkese açık bir duyuru olurdu — içeriği ve zamanı sahibinin kararı.
+
+---
+
+## 8. PayTR'ı canlıya al — ⏳ **sende**
+
+Ek mağaza onaylandı (16 Eylül). Kod tarafı bitti: token üretimi, callback imza
+doğrulaması, middleware muafiyeti ve `finalize_paytr_payment` yerinde.
+Ayrıntı ve gerekçeler: [PAYTR-ABONELIK.md](../../cortex-plus/docs/delivery/PAYTR-ABONELIK.md)
+
+Sırayla:
+
+1. PR #59'u `main`'e merge et → production deploy tetiklenir.
+2. PayTR paneli → yeni mağaza → Destek & Kurulum → Ayarlar → **Bildirim URL**:
+   `https://cortexplus.app/api/payments/paytr/callback`
+   PayTR'ın örneği `paytr-notify` diyor, bizim rotamız o değil. Yanlış yazılırsa
+   para çekilir ama abonelik hiç açılmaz.
+3. Vercel → `PAYTR_MERCHANT_ID`, `PAYTR_MERCHANT_KEY`, `PAYTR_MERCHANT_SALT`
+   + `PAYTR_TEST_MODE=1`, `PAYTR_DEBUG_ON=1` → redeploy.
+   **Mağaza 710114'ün anahtarlarını kullanma** — o tusaicortex.com'un.
+4. Test kartıyla uçtan uca dene. `/admin/sistem` → PayTR satırı **"Test modu"**
+   görünmeli; "Tanımlı" görünüyorsa env yanlış ortamda.
+5. Çalıştı → `PAYTR_TEST_MODE=0` **ve** `PAYTR_DEBUG_ON=0` → redeploy.
+
+> Neden 5. adım atlanamaz: test modunda PayTR para çekmez ama callback yine
+> `success` döner — abonelik açılır, kredi yüklenir, kasaya hiçbir şey girmez.
+> Ekranda her şey doğru görünürken ürün bedava dağıtılır.
 
 ---
 

@@ -1,4 +1,4 @@
-# Launch sırası (PayTR hariç)
+# Launch sırası
 
 Tek kaynak: [GREENFIELD-CONNECT.md](./GREENFIELD-CONNECT.md) · **Teslim özeti:** [TESLIM.md](./TESLIM.md) · **Sende kalanlar:** [SENIN-YAPACAKLARIN.md](./SENIN-YAPACAKLARIN.md)
 
@@ -10,7 +10,7 @@ Tek kaynak: [GREENFIELD-CONNECT.md](./GREENFIELD-CONNECT.md) · **Teslim özeti:
 | 2 | www → apex | `vercel.json` + Vercel Domains redirect | **Tamam** — `www.cortexplus.app` → 308 → `cortexplus.app` (2026-09-04 ölçüldü) |
 | 3 | E-posta doğrulama | [WORKSPACE-EMAIL.md](./WORKSPACE-EMAIL.md) | **Tamam** (2026-09-04 panelden doğrulandı: Supabase SMTP açık, Confirm email açık, `SMTP_VERIFY_OK`) |
 | 4 | Google OAuth | [GOOGLE-OAUTH.md](./GOOGLE-OAUTH.md) | **Tamam** — 2026-09-05: uygulama `Testing`'den çıkarılıp **In production**'a alındı; doğrulama gerekmediği için anında etkili. Zincirin tamamı (kod → Supabase → Google → geri dönüş) doğrulandı. |
-| 5 | Kayıt uçtan uca | kayıt → `/email-dogrula` veya `/kayit/tamamla` | **Kalan tek adım** — gerçek adresle bir kayıt; ajan hesap açamaz |
+| 5 | Kayıt uçtan uca | kayıt → `/email-dogrula` veya `/kayit/tamamla` | **Açık** — gerçek adresle bir kayıt; ajan hesap açamaz. ("Kalan tek adım" değil artık: PostHog ve PayTR de açık — [SENIN-YAPACAKLARIN.md](./SENIN-YAPACAKLARIN.md)) |
 | 6 | Onboarding | signup-wizard stilleri | — |
 | 7 | App içi tema | `astra-app` altın | — |
 | 8 | Admin shell | `admin-shell` CSS | — |
@@ -19,7 +19,11 @@ Tek kaynak: [GREENFIELD-CONNECT.md](./GREENFIELD-CONNECT.md) · **Teslim özeti:
 | 11 | Sosyal kanıt | örnek etiketi | — |
 | 12 | CI + RLS | `.github/workflows/ci.yml` (lokal) | Push: [GITHUB-CI-WORKFLOW-SCOPE.md](./GITHUB-CI-WORKFLOW-SCOPE.md); migration’lar Supabase’te uygulu |
 
-**PayTR:** bilinçli olarak bu listede yok; ödeme hazır olunca ayrı faz.
+**PayTR — 16 Eylül 2026'da listeye girdi.** Bu satır uzun süre "bilinçli olarak
+bu listede yok, ödeme hazır olunca ayrı faz" diyordu. Ek mağaza onaylandı, kod
+tarafı bitti; artık ayrı faz değil, kalan launch işlerinden biri.
+Adımlar: [SENIN-YAPACAKLARIN.md](./SENIN-YAPACAKLARIN.md) §8 ·
+gerekçeler: [PAYTR-ABONELIK.md](../../cortex-plus/docs/delivery/PAYTR-ABONELIK.md)
 
 ## Hızlı doğrulama
 
