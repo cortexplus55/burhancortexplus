@@ -26,21 +26,52 @@ mağaza mı açmak istiyorsunuz?"). Ek mağaza, ana mağazayla aynı firma
 bilgileriyle açılır; başvuru formu yalnızca site adresi, aylık ortalama ciro
 ve yetki onayı ister.
 
-> **Durum (5 Eylül 2026):** `https://cortexplus.app` için ek mağaza başvurusu
-> gönderildi, PayTR işleme aldı. Onay gelene kadar cortexplus.app'ten ödeme
-> alınamaz — ortamda PayTR anahtarı yok ve olmamalı.
+> **Durum (16 Eylül 2026, canlıdan doğrulandı):** kod tarafı bitti ve
+> yayında çalışıyor; eksik olan tek şey mağaza anahtarları.
+>
+> | Kontrol | Sonuç |
+> |---|---|
+> | `POST /api/payments/paytr/callback` (bozuk imza) | **400 `INVALID`** — rota yayında, middleware muaf tutuyor, imzasızı reddediyor |
+> | `POST /api/payments/paytr/create-token` (oturumsuz) | **401** — yetki koruması çalışıyor |
+> | `/fiyatlandirma` butonları | **"Yakında"** — `isPaytrConfigured()` false, yani Vercel'de `PAYTR_*` **tanımlı değil** |
+> | `tests/unit/paytr.test.ts` | 10/10 geçiyor |
+>
+> Yani ek mağaza onayı gelir gelmez yapılacak iş yalnızca üç değeri almak ve
+> bildirim URL'ini yazmak. Kodda dokunulacak yer yok.
 
 **Onay gelince yapılacaklar:**
 
 1. Yeni mağazanın Entegrasyon Bilgileri sayfasından üç değeri al.
-2. Vercel → `burhancortexplus-app` → Environment Variables:
+2. Bunları **`.env.local`'a** yaz (terminale yapıştırma) ve doğrula:
+
+   ```bash
+   npx dotenv -e .env.local -- node scripts/verify-paytr.mjs
+   ```
+
+   Script sırayla şunları yapar: anahtarların varlığı, mağaza numarasının
+   710114 *olmadığı*, imza gidiş-dönüşü, PayTR'dan **gerçek** `get-token`
+   yanıtı (mağazanın canlı olduğunun tek kesin kanıtı), canlı callback ucunun
+   bozuk imzayı reddetmesi ve son olarak doğru imzalı bir yoklamayla
+   **Vercel'deki anahtarların yereldekiyle eşleştiği**. Hiçbir adım para
+   çekmez. Hepsi ✓ olmadan ödeme akışı açılmamalı.
+3. Vercel → `burhancortexplus-app` → Environment Variables:
    `PAYTR_MERCHANT_ID`, `PAYTR_MERCHANT_KEY`, `PAYTR_MERCHANT_SALT`.
    **710114'ün anahtarlarını buraya yazma** — o tusaicortex'in mağazası.
-3. Yeni mağazanın panelinde Destek & Kurulum → Ayarlar → Bildirim URL:
+   Panel yerine script kullanacaksan:
+
+   ```bash
+   VERCEL_TOKEN=... node scripts/push-vercel-env.mjs --include-paytr
+   ```
+
+   `--include-paytr` bilerek zorunlu: bayrak olmadan `PAYTR_*` atlanır, böylece
+   tusaicortex anahtarları kazara bu projeye gitmez.
+4. Yeni mağazanın panelinde Destek & Kurulum → Ayarlar → Bildirim URL:
    `https://cortexplus.app/api/payments/paytr/callback`
    Yolun sonundaki `callback` önemli; PayTR'ın varsayılan örneği
    `paytr-notify` diyor, bizim rotamız o değil.
-4. `PAYTR_TEST_MODE=1` ile test kartından uçtan uca dene, sonra `0` yap.
+5. `PAYTR_TEST_MODE=1` ile test kartından uçtan uca dene, sonra `0` yap.
+   Ödemenin gerçekten açıldığını `/fiyatlandirma` butonlarının artık
+   "Yakında" yazmamasından gör — o yazı `isPaytrConfigured()`'a bağlı.
 
 ## Yenileme neden otomatik değil
 
