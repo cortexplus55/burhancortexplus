@@ -10,10 +10,14 @@
     1) npx vercel login        # cortexplus55 erisimi olan hesapla
     2) .\scripts\setup-paytr.ps1
 
-  Degerler PayTR magaza panelinde: Bilgi -> Magaza Bilgileri
-    Magaza No        -> PAYTR_MERCHANT_ID
-    Magaza Parola    -> PAYTR_MERCHANT_KEY
-    Magaza Gizli Anahtar -> PAYTR_MERCHANT_SALT
+  Degerler nerede: Magaza Paneli -> Destek & Kurulum -> Entegrasyon Bilgileri
+  (Bu ekrani yalnizca ana kullanici ve teknik kullanici gorebilir.)
+    merchant_id   -> PAYTR_MERCHANT_ID
+    merchant_key  -> PAYTR_MERCHANT_KEY
+    merchant_salt -> PAYTR_MERCHANT_SALT
+
+  Bildirim URL: Destek & Kurulum -> Ayarlar -> Bildirim URL Ayarlari
+    https://cortexplus.app/api/payments/paytr/callback
 
   DIKKAT: Bu betik TEST kipinde birakir (PAYTR_TEST_MODE=1). Canliya gecmek
   ayri ve bilincli bir adim; en altta yaziyor.
@@ -49,10 +53,10 @@ function Read-Secret([string]$Label) {
 }
 
 Write-Host "`n2/5 PayTR degerleri (yazarken ekranda gorunmez)" -ForegroundColor Cyan
-Write-Host "  PayTR panel: Bilgi -> Magaza Bilgileri" -ForegroundColor DarkGray
-$merchantId   = Read-Secret "Magaza No (PAYTR_MERCHANT_ID)"
-$merchantKey  = Read-Secret "Magaza Parola (PAYTR_MERCHANT_KEY)"
-$merchantSalt = Read-Secret "Gizli Anahtar (PAYTR_MERCHANT_SALT)"
+Write-Host "  PayTR panel: Destek & Kurulum -> Entegrasyon Bilgileri" -ForegroundColor DarkGray
+$merchantId   = Read-Secret "merchant_id"
+$merchantKey  = Read-Secret "merchant_key"
+$merchantSalt = Read-Secret "merchant_salt"
 
 if ($merchantId -notmatch '^\d+$') {
   Write-Host "UYARI: Magaza No genelde yalnizca rakamdan olusur. Girilen deger farkli gorunuyor." -ForegroundColor Yellow
@@ -106,7 +110,7 @@ try {
 }
 
 Write-Host "`n--- SIRADAKI ADIMLAR ---" -ForegroundColor Cyan
-Write-Host "1) PayTR panelinde Bildirim/Callback URL alanina:" -ForegroundColor White
+Write-Host "1) PayTR panel: Destek & Kurulum -> Ayarlar -> Bildirim URL Ayarlari" -ForegroundColor White
 Write-Host "   https://cortexplus.app/api/payments/paytr/callback" -ForegroundColor Yellow
 Write-Host "   Bu adres olmadan para cekilir ama KREDI YUKLENMEZ." -ForegroundColor Yellow
 Write-Host ""

@@ -49,20 +49,29 @@ Göç dosyaları için de ayrı bir betik var:
 
 ## 1. PayTR panelinden alınacak üç değer
 
-PayTR mağaza panelinde **Bilgi → Mağaza Bilgileri** altında:
+> Bu menü yolları PayTR'nin kendi geliştirici dokümanından doğrulandı
+> (`dev.paytr.com`, 16 Eylül 2026). Belgenin ilk sürümünde yol yanlış
+> yazılmıştı.
+
+**Mağaza Paneli → Destek & Kurulum → Entegrasyon Bilgileri**
 
 | Vercel'deki ad | PayTR'deki karşılığı |
 |---|---|
-| `PAYTR_MERCHANT_ID` | Mağaza No |
-| `PAYTR_MERCHANT_KEY` | Mağaza Parola (merchant_key) |
-| `PAYTR_MERCHANT_SALT` | Mağaza Gizli Anahtar (merchant_salt) |
+| `PAYTR_MERCHANT_ID` | merchant_id |
+| `PAYTR_MERCHANT_KEY` | merchant_key |
+| `PAYTR_MERCHANT_SALT` | merchant_salt |
 
-Bu üçü **gizli**. Vercel'de "Sensitive" olarak işaretleyin; hiçbir yere
-kopyalamayın, ekran görüntüsü almayın.
+⚠️ Bu ekranı **yalnızca ana kullanıcı ve teknik kullanıcı** görebiliyor. Alt
+kullanıcıyla giriş yaptıysanız sayfa açılmaz.
+
+Üç değer de gizli. Vercel'de "Sensitive" işaretleyin; ekran görüntüsü almayın,
+sohbete yapıştırmayın.
 
 ## 2. PayTR paneline kaydedilecek adres
 
-**Bildirim URL / Callback URL** alanına tam olarak:
+**Destek & Kurulum → Ayarlar → Bildirim URL Ayarları**
+
+Oraya tam olarak:
 
 ```
 https://cortexplus.app/api/payments/paytr/callback
@@ -70,6 +79,15 @@ https://cortexplus.app/api/payments/paytr/callback
 
 Bu adres olmadan ödeme alınır ama **kredi yüklenmez**: para çeker, kullanıcı
 hiçbir şey almaz. Kurulumun en kritik tek alanı bu.
+
+### Kodumuz PayTR'nin beklediğini yapıyor mu — doğrulandı
+
+| PayTR'nin şartı | Bizde |
+|---|---|
+| Bildirim sayfası **yalnızca `OK`** dönmeli, HTML olmamalı | ✅ `new Response("OK", { status: 200 })` |
+| Hash: `merchant_oid + merchant_salt + status + total_amount` | ✅ `verifyPaytrCallbackHash` |
+| HMAC-SHA256, anahtar `merchant_key`, sonuç base64 | ✅ aynı |
+| Hash tutmazsa işlem sonlandırılmalı | ✅ `INVALID` dönüyor |
 
 ## 3. Vercel'e girilecek değişkenler
 
@@ -119,7 +137,12 @@ bırakmamak en temizi.
 
 ## 4. Test kipinde ne sınanmalı
 
-PayTR test kartlarıyla, `/fiyatlandirma` üzerinden:
+`/fiyatlandirma` üzerinden. **Kart numarası aramanıza gerek yok:** iFrame
+API'de test kartı bilgileri ödeme formunun üstünde otomatik gösteriliyor
+(PayTR dokümanı: "iFrame API ödemelerinde test kart bilgileri otomatik
+verilir"). Listedeki kart numaraları Direkt API içindir, bizde kullanılmaz.
+
+Sınanacaklar:
 
 1. Buton **"Satın al"** oldu mu? (olmadıysa üç anahtardan biri eksik ya da
    yeniden dağıtım yapılmadı)
