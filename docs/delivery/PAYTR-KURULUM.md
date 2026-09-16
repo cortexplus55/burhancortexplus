@@ -20,6 +20,33 @@ karşılaşacağı tuzakları da yazıyor — biri akşamını yiyebilecek türd
 Yani üç anahtar tanımlandığı an fiyat sayfasındaki **"Yakında" butonu
 "Satın al"a dönüyor**; kod değişikliği gerekmiyor, yeniden dağıtım yeterli.
 
+## Kısayol: tek betik
+
+Panelde tıklamak yerine, giriş yaptıktan sonra tek komut:
+
+```powershell
+npx vercel login          # cortexplus55 erişimi olan hesapla — TEK giriş adımı
+.\scripts\setup-paytr.ps1
+```
+
+Betik üç değeri terminalde **gizli** olarak soruyor (yazarken ekranda
+görünmüyor), Vercel'e Production ortamına yazıyor, yeniden dağıtıyor ve fiyat
+sayfasındaki butonun "Satın al"a döndüğünü kontrol ediyor. Değerler yalnızca o
+terminalde yaşıyor: sohbete, bir dosyaya ya da ekran görüntüsüne uğramıyor.
+
+Göç dosyaları için de ayrı bir betik var:
+
+```powershell
+.\scripts\setup-supabase.ps1     # giriş + link (bir kez)
+.\scripts\apply-migrations.ps1   # ne olacağını gösterir, onay ister
+```
+
+> Bu iki betik yazıldı ama **çalıştırılarak denenmedi** — geliştirme ortamında
+> PowerShell yok. Sözdizimi statik olarak doğrulandı; ilk çalıştırmada bir şey
+> takılırsa aşağıdaki elle adımlar her zaman geçerli.
+
+---
+
 ## 1. PayTR panelinden alınacak üç değer
 
 PayTR mağaza panelinde **Bilgi → Mağaza Bilgileri** altında:
