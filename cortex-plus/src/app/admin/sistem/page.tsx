@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { SERVICE_NOTES } from "@/lib/admin/labels";
+import { isPaytrConfigured, isPaytrTestMode } from "@/lib/payments/paytr";
 
 export const metadata = { title: "Yönetim · Sistem durumu" };
 
@@ -56,6 +57,9 @@ export default async function AdminSistemPage() {
   }));
 
   const missingCritical = rows.filter((row) => row.critical && !row.configured);
+  // Anahtarlar tanimli + test modu acik = panelde yesil, kasada bos. Bu ekranin
+  // yalan soyleyebilecegi tek yer burasi oldugu icin ayrica isaretleniyor.
+  const paytrInTestMode = isPaytrConfigured() && isPaytrTestMode();
 
   return (
     <AdminShell href="/admin/sistem" pendingApplications={pending}>
@@ -70,6 +74,16 @@ export default async function AdminSistemPage() {
           {missingCritical.length} zorunlu ayar eksik:{" "}
           <strong>{missingCritical.map((row) => row.name).join(", ")}</strong>.
           Bunlar olmadan ürünün bir kısmı çalışmaz.
+        </AdminNote>
+      ) : null}
+
+      {paytrInTestMode ? (
+        <AdminNote tone="warn">
+          <strong>PayTR test modunda.</strong> Anahtarlar tanımlı, ödeme akışı
+          çalışıyor — ama PayTR gerçek para çekmiyor: test kartı geçiyor,
+          bildirim <code>success</code> dönüyor ve abonelik açılıyor. Canlıya
+          geçmek için Vercel&apos;de <code>PAYTR_TEST_MODE=0</code> yapıp yeniden
+          dağıtın.
         </AdminNote>
       ) : null}
 
@@ -91,7 +105,9 @@ export default async function AdminSistemPage() {
                 {SERVICE_NOTES[row.name] ?? "—"}
               </td>
               <td>
-                {row.configured ? (
+                {row.configured && row.name === "PayTR" && paytrInTestMode ? (
+                  <AdminBadge tone="warn">Test modu</AdminBadge>
+                ) : row.configured ? (
                   <AdminBadge tone="ok">Tanımlı</AdminBadge>
                 ) : row.critical ? (
                   <AdminBadge tone="bad">Eksik</AdminBadge>

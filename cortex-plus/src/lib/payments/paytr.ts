@@ -24,7 +24,9 @@ export function paytrConfig() {
     merchantKey: process.env.PAYTR_MERCHANT_KEY ?? "",
     merchantSalt: process.env.PAYTR_MERCHANT_SALT ?? "",
     testMode: process.env.PAYTR_TEST_MODE ?? "1",
-    debugOn: process.env.PAYTR_DEBUG_ON ?? "1",
+    // PayTR: debug_on=1 hata ayrintisini odeme cercevesine basar; entegrasyon
+    // icin, canli icin degil. Varsayilan 0 — unutulursa acik kalmasin.
+    debugOn: process.env.PAYTR_DEBUG_ON ?? "0",
     noInstallment: process.env.PAYTR_NO_INSTALLMENT ?? "0",
     maxInstallment: process.env.PAYTR_MAX_INSTALLMENT ?? "0",
   };
@@ -33,6 +35,17 @@ export function paytrConfig() {
 export function isPaytrConfigured() {
   const config = paytrConfig();
   return Boolean(config.merchantId && config.merchantKey && config.merchantSalt);
+}
+
+/**
+ * Test modunda PayTR gercek para cekmez; test kartlari gecerli olur ve
+ * callback yine "success" doner — yani abonelik acilir, para gelmez.
+ * Anahtarlar tanimliyken bu sessiz bir kayip oldugu icin panelde uyari
+ * gosteriyoruz. "0" disindaki her deger test sayilir: yazim hatasi
+ * canliya degil, teste dussun.
+ */
+export function isPaytrTestMode() {
+  return paytrConfig().testMode !== "0";
 }
 
 /**

@@ -5,6 +5,7 @@ import {
   buildPaytrToken,
   generateMerchantOid,
   isPaytrConfigured,
+  isPaytrTestMode,
   verifyPaytrCallbackHash,
 } from "@/lib/payments/paytr";
 
@@ -118,5 +119,51 @@ describe("paytr token request", () => {
     const second = generateMerchantOid();
     expect(first).not.toBe(second);
     expect(first).toMatch(/^cp[a-f0-9]{28}$/);
+  });
+});
+
+/**
+ * Bu iki ayar unutulduğunda ürün çalışıyormuş gibi görünür: test modunda
+ * abonelik açılır ama kasaya para girmez, debug açıkken PayTR'ın hata
+ * ayrıntısı müşterinin gördüğü ödeme çerçevesine basılır. Varsayılanların
+ * güvenli tarafta kalması bu yüzden test ediliyor.
+ */
+describe("paytr canlı/test ayrımı", () => {
+  beforeEach(() => {
+    process.env.PAYTR_MERCHANT_ID = "123456";
+    process.env.PAYTR_MERCHANT_KEY = MERCHANT_KEY;
+    process.env.PAYTR_MERCHANT_SALT = MERCHANT_SALT;
+    delete process.env.PAYTR_TEST_MODE;
+    delete process.env.PAYTR_DEBUG_ON;
+  });
+
+  it("ayar yokken test modunda sayılır", () => {
+    expect(isPaytrTestMode()).toBe(true);
+  });
+
+  it("yalnızca tam olarak \"0\" canlı sayılır", () => {
+    process.env.PAYTR_TEST_MODE = "0";
+    expect(isPaytrTestMode()).toBe(false);
+
+    // Yazım hatası canlıya değil, teste düşmeli.
+    for (const value of ["1", "", "false", "0 ", "no"]) {
+      process.env.PAYTR_TEST_MODE = value;
+      expect(isPaytrTestMode()).toBe(true);
+    }
+  });
+
+  it("debug_on varsayılanı kapalıdır", () => {
+    const { params } = buildPaytrToken({
+      merchantOid: "cpabc123",
+      email: "ogrenci@cortexplus.app",
+      amountKurus: 29900,
+      userIp: "203.0.113.9",
+      userName: "Ogrenci",
+      productName: "Cortex Plus",
+      okUrl: "https://cortexplus.app/odeme/basarili",
+      failUrl: "https://cortexplus.app/odeme/basarisiz",
+    });
+
+    expect(params.get("debug_on")).toBe("0");
   });
 });
