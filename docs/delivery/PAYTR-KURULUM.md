@@ -208,6 +208,9 @@ Mağazada kart saklama yetkisinin gerçekten olup olmadığı artık
 `/admin/sistem` sayfasında yazıyor; anahtarlar Vercel'e girildiği an
 kendiliğinden cevaplanıyor.
 
+Karar park edildi: önce PayTR'ye soruluyor. Gönderilmeye hazır talep:
+`cortex-plus/docs/delivery/PAYTR-DESTEK-TALEBI.md`.
+
 ## Bekçi testler
 
 `tests/unit/paytr-mode.test.ts` — test/canlı kipinin doğru okunduğunu,

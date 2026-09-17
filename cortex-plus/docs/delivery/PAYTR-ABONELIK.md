@@ -97,6 +97,15 @@ veriyor.
 
 Bekçi test: `tests/unit/paytr-capability.test.ts`.
 
+### Sıradaki adım: PayTR'den yazılı cevap
+
+Direkt API'ye geçmek ürün sahibinin kararı ve karar **park edildi**: önce
+PayTR'ye sorulacak. Dört soru ve her cevabın ne değiştireceği hazır:
+`PAYTR-DESTEK-TALEBI.md`. Dördüncü soru Non3D / `recurring_payment`
+yetkisinin bu mağazada tanımlı olup olmadığını doğrudan kaynağından
+soruyor — "yetki alındı sanıyorum" ile gerçek durum arasındaki farkı
+kapatacak olan da bu.
+
 Bu yüzden bugünkü model **hatırlatmalı yenileme**:
 
 - Ödeme gelince `subscriptions.current_period_end` planın `period_days`
