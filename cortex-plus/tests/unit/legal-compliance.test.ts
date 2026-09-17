@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, globSync } from "node:fs";
 import {
   ACCEPTED_OMISSIONS,
   SELLER,
@@ -116,6 +116,31 @@ describe("satıcı bilgileri", () => {
     expect(warn).toContain("missingSellerFields");
     expect(warn).toContain('role="alert"');
   });
+});
+
+/*
+  Onay kapısı TEK bir yerde değil, ödemeyi başlatan HER yerde olmalı.
+
+  17 Eylül 2026: create-token ucu `legalAccepted` zorunlu hâle getirildi ama
+  `paket-list.tsx` bunu göndermiyordu — yani o bileşenden ödeme hiç
+  başlamayacaktı. Bileşen arayüzden erişilemediği için (ölü kod) canlıda
+  görünmezdi; silindi. Bu test bir sonrakini erken yakalasın diye duruyor:
+  uca POST atan her istemci bileşeni onayı da göndermek zorunda.
+*/
+describe("ödeme başlatan her yer onay gönderiyor", () => {
+  const callers = globSync("src/**/*.tsx").filter((file) =>
+    readFileSync(file, "utf8").includes("payments/paytr/create-token"),
+  );
+
+  it("en az bir ödeme başlatan bileşen var", () => {
+    expect(callers.length).toBeGreaterThan(0);
+  });
+
+  for (const file of callers) {
+    it(`${file} legalAccepted gönderiyor`, () => {
+      expect(readFileSync(file, "utf8")).toContain("legalAccepted");
+    });
+  }
 });
 
 describe("sözleşme metinleri ürünle çelişmiyor", () => {
