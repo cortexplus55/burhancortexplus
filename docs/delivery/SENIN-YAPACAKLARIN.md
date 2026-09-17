@@ -1,6 +1,6 @@
 # Sende kalanlar — ajanın yapamadığı işler
 
-Son güncelleme: 2026-09-05
+Son güncelleme: 2026-09-17
 
 Buradaki her madde ya **şifre girmeyi** ya **hesap açmayı** gerektiriyor; ikisi de
 ajanın yapmayacağı işler. Sırayla gidin, her biri birkaç dakika.
@@ -112,8 +112,20 @@ Ne toplanıyor, ne toplanmıyor: `docs/delivery/SENTRY-HATA-TAKIBI.md`
 ### PostHog (reklam ölçümü — zorunlu)
 
 Kod hazır (`src/components/analytics.tsx`); 6 Eylül abuse deploy'undan sonra
-OG/paylaşım da yayında. **`NEXT_PUBLIC_POSTHOG_KEY` Vercel'de yok** (2026-09-06
-doğrulandı). Anahtar girilmeden pageview düşmez.
+OG/paylaşım da yayında. **`NEXT_PUBLIC_POSTHOG_KEY` Vercel'de yok.**
+Anahtar girilmeden pageview düşmez.
+
+> **17 Eylül 2026'da yeniden doğrulandı — hâlâ açık.** `cortexplus.app` ana
+> sayfasının HTML'inde PostHog'a ait tek bir iz yok; anahtar tanımlı olsaydı
+> istemci paketi onu gömerdi (`analytics.tsx` anahtar yoksa `posthog-js`'i hiç
+> yüklemiyor). On iki gündür ölçüm toplanmıyor ve bu süre geriye dönük
+> kurtarılamaz.
+
+> **Bölge tuzağı:** kodun varsayılanı **EU** (`analytics.tsx`:
+> `?? "https://eu.i.posthog.com"`). `posthog.com` üzerinden kaydolmak sizi US
+> bulutuna atabiliyor ve **proje iki bulut arasında taşınmıyor**. Doğru adres
+> `https://eu.posthog.com/signup`. US'te açtıysanız ya EU'da yeniden kurun ya
+> da Vercel'e ayrıca `NEXT_PUBLIC_POSTHOG_HOST` girin.
 
 1. [eu.posthog.com](https://eu.posthog.com) → `cortexplus@cortexplus.app` ile hesap/proje.
 2. Project settings → Project API key (`phc_…`).
@@ -154,6 +166,33 @@ Göç geçmişi de işlendi — son kayıt `20260904140000`, karşılıksız kay
 > Duyuru bandının **kaydedileceği yer** artık var ve panel formu açılıyor.
 > Ajan gerçek bir bant açmadı: o, her ücretsiz kullanıcının ana ekranında
 > görünen herkese açık bir duyuru olurdu — içeriği ve zamanı sahibinin kararı.
+
+---
+
+## 8. PayTR'ı canlıya al — ⏳ **sende**
+
+Ek mağaza onaylandı (16 Eylül). Kod tarafında yapılacak bir şey kalmadı;
+eksik olan üç anahtar ve panelde bir adres.
+
+**Adım adım rehber: [PAYTR-KURULUM.md](./PAYTR-KURULUM.md)** — menü yolları
+PayTR'nin kendi dokümanından doğrulanmış, tuzaklar da yazılı. Burada
+tekrarlamıyorum ki iki belge birbirinden ayrışmasın.
+
+Kısayol: `npx vercel login` sonrası `.\scripts\setup-paytr.ps1` üç değeri
+gizli sorup Vercel'e yazıyor ve dağıtımı kontrol ediyor.
+
+İki şeyi aklında tut:
+
+- **Bildirim URL'i** tam olarak `https://cortexplus.app/api/payments/paytr/callback`
+  olmalı. Yanlışsa para çekilir ama kredi yüklenmez.
+- **`PAYTR_TEST_MODE` varsayılanı `1`.** Test kipinde akış baştan sona
+  çalışır, abonelik açılır, kredi yüklenir — yalnızca para gelmez. Bu yüzden
+  `/admin/sistem` artık PayTR satırını "TEST kipinde" diye işaretliyor
+  (`paytrMode()`). "Tanımlı" demek "para geliyor" demek değil.
+
+**Otomatik yenileme bu kurulumla açılmıyor** — yetki meselesi değil, mimari:
+kullandığımız iFrame API'nin kart saklama parametresi yok. Ayrıntı ve park
+edilmiş karar `AGENTS.md` → "Ödeme: otomatik yenileme bugün açılamıyor".
 
 ---
 
