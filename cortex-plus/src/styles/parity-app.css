@@ -166,3 +166,36 @@
     animation: none;
   }
 }
+
+
+/*
+  SOHBET YAZMA ALANI — telefonda metin kendi satırını alıyor.
+
+  Ölçüm (17 Eylül 2026, 360px): metin alanı 108px, yani ekranın %30'u.
+  Sebep aritmetik: dört düğme (ekle, kamera, mikrofon, "Konuş") artı
+  boşluklar ve dolgu ~250px yiyor, geriye kalan yer bir cümleye
+  yetmiyor. Yer tutucu ("Sor, konuş veya dosya gönder") iki satıra
+  düşüyor ve 44px'lik kutunun içinde ikinci satır kesiliyor — öğrenci
+  ne yazacağını söyleyen yazıyı okuyamıyor.
+
+  Düğmeleri küçültmek çözüm değil: az önce 44px'e çıkarıldılar, çünkü
+  altında parmakla isabet edilmiyordu. İkisi aynı satıra sığmıyorsa
+  satır ikiye ayrılır.
+
+  `order: -1` ile metin alanı üste, düğmeler altına geçiyor — telefon
+  sohbet arayüzlerinin bilinen düzeni. 480px sınırı: tablette ve
+  masaüstünde tek satır zaten rahat sığıyor, orada değişmiyor.
+*/
+@media (max-width: 480px) {
+  .cs-app .cs-composer,
+  .cs-composer {
+    flex-wrap: wrap;
+  }
+
+  .cs-composer > textarea,
+  .cs-composer > [data-slot="textarea"] {
+    order: -1;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}

@@ -213,3 +213,68 @@ Uzun süren bir dalda ara ara `npm ci`'yi elle çalıştırın ya da PR açın.
 **404 döndüğü** görüldü: sayfalar yazılmış, test edilmiş, commit edilmişti —
 ama dalda duruyordu. Yazılmış olmak yayında olmak değil; `curl` ile bakmak
 on saniye sürüyor.
+
+---
+
+## Mobil düzen: dört kural ve bir ölçüm aleti
+
+**17 Eylül 2026.** Ürün sahibi telefonda "üst üste binmeler, eksik parçalar,
+sol tarafa sıfır olmuş yazılar" bildirdi. 360/390/430px genişliklerde gerçek
+tarayıcıda ölçüldü; dördü de tek tek bulundu ve kaynağından kapatıldı.
+
+**1. Grid kolonu `minmax(0, 1fr)` olmak zorunda.** `.cp-page` grid'inin örtük
+`auto` kolonunun tabanı `min-content`. İçerikte kırılamayan uzun bir dizi
+varsa (belge adı, bağlantı, konu başlığı) kolon o dizinin genişliğine
+zorlanıyor: 360px ekranda kolon 438px çıkıyordu ve sayfadaki 33 öğe ekranın
+dışına taşıyordu. Aynı tuzak flex çocuklarında `min-width: auto` olarak var.
+
+**2. Dokunmatikte metin girdileri 16px'in altına düşemez.** iOS Safari,
+16px'ten küçük yazı tipli bir girdiye dokunulduğunda sayfayı kendiliğinden
+yakınlaştırıyor — düzen büyüyor, öğeler üst üste biniyor, odak kalkınca sayfa
+yana kaymış kalıyor. Ölçümde dokuz girdi 13-15px arasındaydı, sohbetin ana
+yazma alanı dahil. Kural `src/app/globals.css` → `@media (pointer: coarse)`
+içinde ve `!important` ile yazılmış olmak **zorunda**: sınıf seçicileri eleman
+seçicisini yeniyor, yoksa `.tool-input { font-size: 0.9375rem }` kazanır ve
+hata sessizce geri gelir.
+
+**3. Dokunma hedefi asgarisi 44px.** Ölçümde paylaşılan `Button` 32px,
+`Input` 32px, kabuğun tüm üst gezinmesi 34px, "Daha fazla" 20px çıktı. Kural
+aynı `pointer: coarse` bloğunda; kabuğa özgü olanlar `parity-shell.css` ve
+`learning-studio.css` içinde. Masaüstünde değişmiyor.
+
+**4. Uzun dizi her yerde kırılabilir olmalı.** `overflow-wrap: anywhere`
+(`break-word` değil — yalnızca `anywhere` min-content tabanını da düşürür).
+Sohbette bu eksikti: mesaj listesi 360px ekranda 417px'e ulaşıp yatay
+kaydırılabilir hâle geliyordu, ekranda ise kelime ortadan kesik görünüyordu.
+
+**Ölçüm aleti: `cortex-plus/scripts/mobile-audit.mjs`.** Üç genişlikte yatay
+taşmayı, kenardan taşan ve kesilen öğeleri, kenara yapışan yazıyı, üst üste
+binmeyi ve küçük dokunma hedeflerini sayıyla veriyor. Kullanımı:
+
+```bash
+npx next dev -p 3005 &
+node scripts/mobile-audit.mjs / /fiyatlandirma /mobil-onizleme
+```
+
+> **Aletin kendisi üç kez yanlış ölçtü; üçü de kodda yazılı.** Bir denetim
+> aracının en tehlikeli hâli sessizce yanlış olmasıdır: (a) görünürlük elle
+> hesaplanınca kaydırmayla açılan bölümler "üst üste binmiş" sanıldı —
+> `checkVisibility` ve önce sayfayı kaydırmak gerekiyor; (b) Playwright'ın
+> `isMobile` ayarıyla `window.innerWidth` 360 yerine 459 bildiriyor, ölçüm
+> 99px fazla toleranslı çalışıyordu — doğru değer
+> `documentElement.clientWidth`; (c) `overflow-y: auto` verilen her liste
+> `overflow-x: auto` da oluyor, "kasıtlı yatay kaydırma" sanılıp içindeki
+> gerçek kesilme atlanıyordu — gerçekten kaydırıyor mu diye bakmak gerekiyor
+> (`scrollWidth > clientWidth`).
+
+**Oturumlu ekranları ölçmek için `(dev)/mobil-onizleme`.** 55 ekran oturum
+istiyor ve oturumsuz denetimde hepsi `/giris`'e yönlüyor. Bu rota gerçek
+kabuğu, yedi stüdyo ekranını ve Sor ekranını sahte veriyle çiziyor; üretimde
+`notFound()`. Kimlik doğrulama yoluna **bilerek dokunulmadı** — ölçüm
+kolaylığı için auth'a dev bayrağı eklemek ödeme alan bir uygulamada alınacak
+bir risk değil.
+
+Bekçi testler: `tests/unit/mobile-layout.test.ts` ve
+`tests/e2e/responsive-a11y.spec.ts` → "mobil dokunma kuralları" (dokunmatik
+bağlam kuran ayrı blok; kurallar `pointer: coarse` altında olduğu için
+masaüstü projesinde sınanamıyor).

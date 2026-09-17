@@ -50,7 +50,7 @@ export function ResultCard({
 
       <Link
         href={secondaryHref}
-        className="mt-4 inline-block text-sm font-medium text-[var(--mk-muted)] underline underline-offset-4 hover:text-[var(--mk-text)]"
+        className="cx-tap mt-4 text-sm font-medium text-[var(--mk-muted)] underline underline-offset-4 hover:text-[var(--mk-text)]"
       >
         {secondaryLabel}
       </Link>

@@ -1,6 +1,17 @@
 import { notFound } from "next/navigation";
 import { ParitySorShell } from "@/components/parity/sor-shell";
+import { ExplainStudio } from "@/components/learning/studio/explain-studio";
+import { FlashcardStudio } from "@/components/learning/studio/flashcard-studio";
+import { OralStudio } from "@/components/learning/studio/oral-studio";
+import { PodcastStudio } from "@/components/learning/studio/podcast-studio";
+import { QuizStudio } from "@/components/learning/studio/quiz-studio";
+import { TrueFalseStudio } from "@/components/learning/studio/true-false-studio";
+import { WrittenStudio } from "@/components/learning/studio/written-studio";
 import { SectionCard } from "@/components/ui-kit/empty-state";
+import { Button } from "@/components/ui/button";
+import { ChatPanel } from "@/components/chat/chat-panel";
+import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminBadge, AdminCard, AdminNote, AdminTableFrame } from "@/components/admin/admin-ui";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 
 /**
@@ -68,19 +79,22 @@ function ContentBlocks() {
       </SectionCard>
 
       <SectionCard title="Düğmeler ve dokunma hedefleri" description="Hepsi parmakla rahat basılabiliyor mu?">
+        {/*
+          Ürünün GERÇEK düğme bileşeni kullanılıyor. İlk yazımda
+          `cp-btn` diye var olmayan bir sınıf uydurmuştum: düğmeler
+          biçimsiz, 24px yüksek çıkıyordu ve denetim bunları "küçük
+          dokunma hedefi" diye raporluyordu. Var olmayan bir bileşenin
+          ölçümü ürün hakkında hiçbir şey söylemiyor.
+        */}
         <div className="flex flex-wrap gap-2">
-          <button type="button" className="cp-btn">
-            Kaydet
-          </button>
-          <button type="button" className="cp-btn cp-btn--ghost">
+          <Button type="button">Kaydet</Button>
+          <Button type="button" variant="outline">
             Vazgeç
-          </button>
-          <button type="button" className="cp-btn">
-            Çok uzun bir düğme yazısı da olabilir
-          </button>
-          <button type="button" aria-label="Sil" className="cp-icon-btn">
+          </Button>
+          <Button type="button">Çok uzun bir düğme yazısı da olabilir</Button>
+          <Button type="button" size="icon" aria-label="Sil">
             ×
-          </button>
+          </Button>
         </div>
       </SectionCard>
 
@@ -97,8 +111,124 @@ function ContentBlocks() {
   );
 }
 
-export default function MobilOnizlemePage() {
+/*
+  Stüdyo ekranları — kullanıcının adını verdiği "quiz ekranları".
+
+  Yedisi de aynı basit props'u alıyor (`creditCost`, `initialTopic`), yani
+  gerçek bileşen burada birebir çiziliyor. Oturum kontrolü
+  `src/app/studio/layout.tsx` içinde; burada o katmana hiç girilmiyor,
+  yalnızca sunum bileşeni render ediliyor.
+
+  Her biri ayrı adreste ölçülüyor: hepsi tek sayfada olsa biri diğerinin
+  düzenini etkiler ve hangi ekranın bozuk olduğu anlaşılmaz.
+*/
+const STUDIOS = {
+  quiz: QuizStudio,
+  flashcard: FlashcardStudio,
+  podcast: PodcastStudio,
+  sozlu: OralStudio,
+  yazili: WrittenStudio,
+  anlat: ExplainStudio,
+  "dogru-yanlis": TrueFalseStudio,
+} as const;
+
+export type OnizlemeEkrani = keyof typeof STUDIOS;
+
+export default async function MobilOnizlemePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ekran?: string }>;
+}) {
   if (process.env.NODE_ENV === "production") notFound();
+
+  const { ekran } = await searchParams;
+
+  /*
+    Sor ekranı (yapay zekâ öğretmeni) — ürünün en çok kullanılan yüzeyi.
+
+    Mesajlar bilerek dolu veriliyor: boş başlangıç ekranı düzenin kolay
+    kısmı. Mobilde kırılan şey uzun cevap balonu, kırılamayan bir
+    bağlantı, kod bloğu ve bunların altındaki sabit yazma alanı.
+  */
+  if (ekran === "sor") {
+    return (
+      <ParitySorShell userInitial="B" avatarEmoji={null} streak={7} account={account()}>
+        <ChatPanel
+          hasDocuments
+          variant="parity"
+          greetingLine="Merhaba Burhan"
+          greetingSubline="Bugün neyi çalışalım?"
+          chatCreditCost={1}
+          isPremium={false}
+          initialMessages={[
+            { role: "user", content: "Zincir kuralını bir örnekle anlatır mısın?" },
+            {
+              role: "assistant",
+              id: "m2",
+              content:
+                "Zincir kuralı, iç içe fonksiyonların türevini alırken kullanılır. " +
+                "f(g(x)) için türev f'(g(x)) · g'(x) olur.\n\n" +
+                "Kaynak: " + LONG_URL + "\n\n" +
+                "Uzun ve kırılamayan bir örnek: " + LONG_WORD,
+            },
+            { role: "user", content: LONG_WORD },
+          ]}
+        />
+      </ParitySorShell>
+    );
+  }
+
+  /*
+    Yönetim ekranları. Kendi kabuğunu kullanıyor (`AdminShell`) ve tek
+    tablosu bu üründe burada — tablo mobilde yatay taşmanın bir
+    numaralı sebebi, o yüzden ayrıca ölçülüyor.
+  */
+  if (ekran === "admin") {
+    return (
+      <AdminShell href="/admin/sistem" pendingApplications={3}>
+        <AdminNote tone="warn">
+          Uzun bir uyarı metni: {LONG_WORD} — dar ekranda kutunun dışına taşıyor mu?
+        </AdminNote>
+        <AdminCard title="Bağlantılar" desc="Tablo dar ekranda ne yapıyor?" bodyless>
+          <AdminTableFrame columns={["Servis", "Ne işe yarar", "Durum"]}>
+            <tr>
+              <td>
+                <div className="font-medium">Supabase</div>
+                <div className="text-xs text-[var(--adm-muted)]">NEXT_PUBLIC_SUPABASE_URL</div>
+              </td>
+              <td className="max-w-md whitespace-normal text-xs text-[var(--adm-muted)]">
+                Veritabanı ve oturum. Eksikse hiçbir sayfa açılmaz.
+              </td>
+              <td>
+                <AdminBadge tone="ok">Tanımlı</AdminBadge>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div className="font-medium">{LONG_WORD}</div>
+              </td>
+              <td className="max-w-md whitespace-normal text-xs text-[var(--adm-muted)]">
+                {LONG_URL}
+              </td>
+              <td>
+                <AdminBadge tone="bad">Eksik</AdminBadge>
+              </td>
+            </tr>
+          </AdminTableFrame>
+        </AdminCard>
+      </AdminShell>
+    );
+  }
+
+  const Studio = ekran && ekran in STUDIOS ? STUDIOS[ekran as OnizlemeEkrani] : null;
+
+  if (Studio) {
+    return (
+      <ParitySorShell userInitial="B" avatarEmoji={null} streak={7} account={account()}>
+        <Studio creditCost={3} initialTopic="Türev alma kuralları ve zincir kuralı" />
+      </ParitySorShell>
+    );
+  }
 
   return (
     <ParitySorShell

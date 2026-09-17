@@ -41,6 +41,7 @@ const probe = ({ EDGE, TAP }) => {
     overflowing: [],
     offLeft: [],
     flushLeft: [],
+    clippedText: [],
     smallTaps: [],
     overlaps: [],
     fixed: [],
@@ -140,11 +141,29 @@ const probe = ({ EDGE, TAP }) => {
     r.height > 2 &&
     el.checkVisibility({ opacityProperty: true, visibilityProperty: true });
 
-  // Yatay kaydırma kapsayıcısı: içindeki taşma KASITLI.
+  /*
+    Yatay kaydırma kapsayıcısı: içindeki taşma KASITLI, kullanıcı
+    kaydırıp görebiliyor.
+
+    Ama `overflow-x: auto` tek başına yetmiyor. CSS'te `overflow-y: auto`
+    verildiğinde diğer eksen de `auto`ya dönüyor — yani dikey kaydırılan
+    her liste "yatay kaydırıcı" gibi görünüyor. Sor ekranındaki mesaj
+    listesi tam bu durumda: ölçüm balonlardaki kesilmeyi hiç görmedi,
+    çünkü hepsini "kasıtlı taşma" sayıp atladı. Ekran görüntüsünde ise
+    uzun kelime ekranın kenarında ortadan kopuyordu.
+
+    Doğru ölçüt GERÇEKTEN yatay kaydırıyor olması: içerik kapsayıcıdan
+    geniş değilse orada kaydırma yok, kesilme var.
+  */
   const inScroller = (el) => {
     for (let p = el.parentElement; p; p = p.parentElement) {
       const ox = getComputedStyle(p).overflowX;
-      if (ox === "auto" || ox === "scroll") return true;
+      if (
+        (ox === "auto" || ox === "scroll") &&
+        p.scrollWidth > p.clientWidth + 1
+      ) {
+        return true;
+      }
     }
     return false;
   };
@@ -166,8 +185,27 @@ const probe = ({ EDGE, TAP }) => {
     return false;
   };
 
+  /*
+    Geliştirme aracı katmanları ölçüme girmiyor.
+
+    `nextjs-portal`, Next.js'in dev modundaki göstergesi: sol alt köşede
+    yarısı ekran dışında duran bir yuvarlak. Ekran görüntüsünde kart
+    yazısının üstüne binmiş görünüyor ve ürün hatası sanılıyor — oysa
+    üretim derlemesinde hiç yok. Ölçtüğü şey ürün olmayan bir aletin
+    kendisi olan bir denetim, yanlış iş üretir.
+  */
+  const isDevOverlay = (el) => {
+    for (let n = el; n; n = n.parentElement) {
+      const t = n.tagName.toLowerCase();
+      if (t === "nextjs-portal" || n.id === "__next-build-watcher") return true;
+      if (n.hasAttribute?.("data-nextjs-dev-tools-button")) return true;
+    }
+    return false;
+  };
+
   const leaves = [];
   for (const el of document.querySelectorAll("body *")) {
+    if (isDevOverlay(el)) continue;
     const st = getComputedStyle(el);
     const raw = el.getBoundingClientRect();
     // Ekranda gerçekten kalan alan; kırpılmışsa küçülmüş hâli.
@@ -201,16 +239,66 @@ const probe = ({ EDGE, TAP }) => {
 
     if (ownText.length > 1) {
       leaves.push({ el, r, text: ownText });
-      if (r.left < EDGE && r.width > 24) {
-        out.flushLeft.push({ el: label(el), left: Math.round(r.left) });
+      /*
+        Yazının başladığı yer ölçülüyor, kutunun değil.
+
+        `px-5` eklenen ortalı bir paragraf hâlâ `left: 0` bildiriyordu:
+        kutu sıfırdan başlıyor, dolgu içeride kalıyor ve yazı aslında
+        20px içeriden başlıyor. Kutuya bakan ölçüm düzeltilmiş bir
+        sayfayı "hâlâ bozuk" diye raporluyor — yani doğru düzeltmeyi
+        geri almaya ikna eder.
+      */
+      const st2 = getComputedStyle(el);
+
+      /*
+        YAZI KIRPILIYOR MU.
+
+        Kırpma farkındalığı `<details>` yanlış alarmını susturmak için
+        eklendi, ama sonra GERÇEK kırpmayı da susturmaya başladı: Sor
+        ekranındaki mesaj balonlarında uzun kelime ekranın kenarında
+        ortadan kopuyordu ve ölçüm "0 taşma" diyordu. Ekran görüntüsünde
+        açıkça görünen şeyi sayı görmüyordu.
+
+        Bu yüzden öğenin DOĞAL kutusu ile ekranda KALAN kutusu
+        karşılaştırılıyor. Doğal genişlik belirgin biçimde büyükse yazının
+        bir kısmı görünmüyor demektir — kullanıcının "eksik parçalar"
+        dediği şey.
+
+        Kasıtlı kısaltma hariç: `text-overflow: ellipsis` ve
+        `-webkit-line-clamp` zaten "buraya sığmıyorsa kes" demek, ve
+        yatay kaydırılabilen kapsayıcıda kullanıcı içeriği görebiliyor.
+      */
+      const intentional =
+        st2.textOverflow === "ellipsis" ||
+        (st2.webkitLineClamp && st2.webkitLineClamp !== "none");
+      if (!intentional && !inScroller(el) && raw.width - r.width > 6) {
+        out.clippedText.push({
+          el: label(el),
+          kayip: Math.round(raw.width - r.width),
+        });
+      }
+
+      const textLeft = r.left + (parseFloat(st2.paddingLeft) || 0);
+      if (textLeft < EDGE && r.width > 24) {
+        out.flushLeft.push({ el: label(el), left: Math.round(textLeft) });
       }
     }
 
     if (/^(button|a|input|select|textarea)$/i.test(el.tagName) || el.getAttribute("role") === "button") {
       // Paragraf içi bağlantı kucuk olabilir; yalnizca blok gibi duranlar.
+      /*
+        Dokunma hedefi KENDİ kutusuyla ölçülüyor (`raw`), kırpılmış hâliyle
+        değil.
+
+        Demo sayfasındaki yatay şeritte bir öğe 16x44 diye raporlanıyordu:
+        öğe normal boyutta ama şeridin görünür alanından kısmen dışarıda
+        kalmış ve kırpılmış kutusu 16px çıkıyor. Bir düğmenin
+        basılabilirliği o an ne kadarının göründüğüne bağlı değil —
+        kullanıcı kaydırıp tamamını görüyor.
+      */
       const inline = getComputedStyle(el).display === "inline";
-      if (!inline && (r.height < TAP || r.width < TAP)) {
-        out.smallTaps.push({ el: label(el), w: Math.round(r.width), h: Math.round(r.height) });
+      if (!inline && (raw.height < TAP || raw.width < TAP)) {
+        out.smallTaps.push({ el: label(el), w: Math.round(raw.width), h: Math.round(raw.height) });
       }
     }
   }
@@ -301,6 +389,7 @@ const score = (r) =>
   (r.overflowing?.length ?? 0) * 3 +
   (r.offLeft?.length ?? 0) * 3 +
   (r.flushLeft?.length ?? 0) * 2 +
+  (r.clippedText?.length ?? 0) * 4 +
   (r.overlaps?.length ?? 0) * 4 +
   (r.smallTaps?.length ?? 0);
 
@@ -312,7 +401,7 @@ for (const r of results) {
   byRoute.set(r.route, cur);
 }
 
-console.log("rota".padEnd(42), "gen", "taşma", "sağ", "sol", "yapışık", "binme", "küçük", "durum");
+console.log("rota".padEnd(42), "gen", "taşma", "sağ", "sol", "kesik", "yapışık", "binme", "küçük", "durum");
 for (const { route, rows } of [...byRoute.values()].sort((a, b) => b.s - a.s)) {
   for (const r of rows) {
     console.log(
@@ -321,6 +410,7 @@ for (const { route, rows } of [...byRoute.values()].sort((a, b) => b.s - a.s)) {
       String(r.docOverflow ?? "-").padStart(5),
       String(r.overflowing?.length ?? "-").padStart(3),
       String(r.offLeft?.length ?? "-").padStart(3),
+      String(r.clippedText?.length ?? "-").padStart(5),
       String(r.flushLeft?.length ?? "-").padStart(7),
       String(r.overlaps?.length ?? "-").padStart(5),
       String(r.smallTaps?.length ?? "-").padStart(5),

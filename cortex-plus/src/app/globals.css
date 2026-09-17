@@ -57,3 +57,159 @@
     font-family: var(--font-ui), var(--font-geist-sans), system-ui, sans-serif;
   }
 }
+
+/*
+  ============================================================
+  DOKUNMATİK KURALLARI — tek yerde, platform düzeyinde
+  ============================================================
+
+  Bu blok 17 Eylül 2026'da gerçek ölçümden doğdu. Ürün sahibi telefonda
+  "üst üste binmeler, eksik parçalar, sol tarafa sıfır olmuş yazılar"
+  bildirdi; 360/390/430px genişliklerde ölçünce iki kaynak çıktı.
+
+  1) iOS'TA GİRDİ YAKINLAŞTIRMASI
+
+  iOS Safari, yazı tipi 16px'in ALTINDA olan bir metin girdisine
+  dokunulduğunda sayfayı kendiliğinden yakınlaştırıyor. Sonuç tam olarak
+  bildirilen tablo: düzen büyüyor, öğeler üst üste biniyor, içerik
+  ekranın dışına kayıyor ve odak kalktığında yakınlaştırma çoğu zaman
+  eski hâline tam dönmüyor — sayfa yana kaymış kalıyor.
+
+  Ölçümde 16px altında bulunan metin girdileri (hepsi ayrı CSS
+  dosyalarında): `.cs-sor-composer input` 15px — SOHBETİN ANA YAZMA
+  ALANI, `.cp-sor-composer-box textarea` 15px, `.tool-input` 15px,
+  `.cortex-premium-input` 15px, `.apw-topic-add input` 15px,
+  `.apc-compose input` 14px, `.cp-field` 13px,
+  `.cp-subject-add-form input` 13px.
+
+  Neden `!important`: bu bir tasarım tercihi değil, platform sınırı.
+  Kural her girdiyi, hangi dosyada biçimlendirildiğine bakmadan ve
+  bundan sonra eklenecek olanları da kapsayacak şekilde tutmak
+  zorunda. Sınıf seçicileri eleman seçicisini yendiği için tek
+  güvenilir yol bu. Sonradan 15px yazan biri hatayı geri getirmesin.
+
+  Neden `pointer: coarse`: masaüstündeki tipografi değişmiyor. Orada
+  yakınlaştırma sorunu yok ve 16px bilerek seçilmemiş boyutları
+  bozardı. Onay kutusu, radyo, kaydırıcı ve dosya seçici dışarıda:
+  onlar metin girdisi değil.
+
+  2) DOKUNMA HEDEFİ BOYUTU
+
+  Apple'ın asgarisi 44x44pt, Google'ın 48dp. Ölçümde paylaşılan
+  `Button` bileşeninin varsayılanı 32px, `Input` 32px çıktı — yani
+  uygulamadaki neredeyse her düğme ve her alan eşiğin altındaydı.
+  Parmak bu boyutlarda hedefi kaçırıyor, özellikle yan yana duran
+  gezinme bağlantılarında.
+
+  Kabuğa özgü düğmeler kendi dosyalarında ele alındı
+  (`parity-shell.css`, `learning-studio.css`); burada tasarım
+  sisteminin ortak bileşenleri var.
+*/
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /*
+    Yükseklik yalnızca tasarım sisteminin bileşenine değil, HER metin
+    girdisine uygulanıyor. Sayım: 38 dosya çıplak `<input>` kullanıyor,
+    paylaşılan `Input` bileşenini yalnızca 11 dosya kullanıyor. Yani
+    kural `[data-slot="input"]` ile sınırlı kalsa uygulamadaki girdilerin
+    çoğu — quiz ekranı ve sınav hazırlığı sihirbazı dahil — dışarıda
+    kalırdı.
+
+    Onay kutusu, radyo, kaydırıcı, dosya ve renk seçici hariç: onların
+    dokunma alanı sarmalayan etiket satırıyla büyüyor, kendilerini
+    44px'e zorlamak işaretleme kutusunu bozar.
+  */
+  /*
+    `button` de listede: pazarlama sayfalarındaki düğmeler Tailwind
+    sınıflarıyla satır içinde yazılmış, tasarım sisteminin
+    `data-slot="button"` işaretini taşımıyorlar. Ölçüm: "Tüm
+    avantajları gör" 234x20, tema düğmesi 36x36.
+
+    Bağlantılar (`a`) BİLEREK listede değil: çoğu paragraf içinde satır
+    içi metin ve onları 44px'e zorlamak paragrafın satır yüksekliğini
+    bozar. Blok gibi duran bağlantılar kendi sınıflarıyla ele alınıyor.
+  */
+  [data-slot="button"],
+  [data-slot="input"],
+  button,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="hidden"]),
+  textarea,
+  select {
+    min-height: 44px;
+  }
+
+  /*
+    Simge düğmesi kare kalmalı; yalnızca yüksekliği büyütmek 36x44 gibi
+    bir dikdörtgen bırakıyor ve hedef yine küçük kalıyor. Ölçümde tam
+    bunu gördük: pazarlama başlığındaki tema düğmesi min-height'tan
+    sonra 36x44 çıktı.
+
+    Genişlik yalnızca düğmelere veriliyor; yazılı düğmeler zaten 44px'ten
+    geniş olduğu için etkilenmiyor, dar olan yalnızca simge düğmeleri.
+  */
+  button,
+  [data-slot="button"] {
+    min-width: 44px;
+  }
+}
+
+
+/*
+  UZUN DİZİ HER YERDE KIRILABİLİR OLMALI
+
+  `.cp-page` için çözülmüştü ama sohbet o kapsayıcının içinde değil.
+  Ölçüm (17 Eylül 2026, Sor ekranı, 360px): mesaj balonundaki uzun
+  kelime kendi kutusundan 42px taşıyor, balon 331px'lik kutusunda
+  359px içerik taşıyor ve mesaj listesi 360px ekranda 417px'e ulaşıp
+  YATAY KAYDIRILABİLİR hâle geliyor.
+
+  Teknik olarak kullanıcı yana kaydırıp görebiliyor — ama kimse sohbeti
+  yana kaydırmaz. Ekranda görünen şey kelimenin ortadan kesilmesi: ürün
+  sahibinin "eksik parçalar" dediği tablo.
+
+  Uzun dizi bu üründe istisna değil: öğrencinin yüklediği belge adı,
+  paylaştığı bağlantı, yapıştırdığı formül, sınav düğümü başlığı. Bu
+  yüzden kural tek bir ekrana değil uygulama kabuğunun tamamına
+  konuyor.
+
+  `anywhere`, `break-word` değil: yalnızca `anywhere` öğenin min-content
+  genişliğini de düşürüyor. Mesaj listesinin yatay kaydırması tam olarak
+  o min-content tabanından doğuyordu; `break-word` satırı kırar ama
+  tabanı düşürmediği için kaydırma kalırdı.
+*/
+.cp-sor-root :where(p, li, span, strong, em, code, pre, a, h1, h2, h3, h4, blockquote, td, th, div) {
+  overflow-wrap: anywhere;
+}
+
+
+/*
+  `cx-tap` — tek başına duran bir bağlantının dokunma hedefi.
+
+  Global kural bağlantıları bilerek kapsamıyor: çoğu paragraf içinde
+  satır içi metin ve onları 44px'e zorlamak satır yüksekliğini bozar.
+  Ama bazı bağlantılar cümlenin içinde değil, kendi başına bir EYLEM:
+  ödeme sonrası "Kredilerimi gör", iletişim sayfasındaki e-posta
+  adresi, destek sayfasına giden bağlantı.
+
+  Ölçüm (17 Eylül 2026, 360px): bunlar 20-24px yükseklikteydi. Ödeme
+  sonrası ekrandaki bağlantı, öğrencinin parasını verdikten sonra
+  basacağı ilk şey.
+
+  Sınıf niyeti de yazıyor: "bu bağlantı bir düğme gibi davranıyor".
+*/
+.cx-tap {
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (pointer: coarse) {
+  .cx-tap {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

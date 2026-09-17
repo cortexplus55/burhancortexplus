@@ -909,6 +909,20 @@
   gap: 1.1rem;
   width: min(100%, 34rem);
   margin: 0 auto;
+  /*
+    Yatay boşluk BURADA olmak zorunda.
+
+    Ölçüm (17 Eylül 2026, 360px): giriş ekranındaki "Anlatmaya başla"
+    düğmesi ve "3 kredi" yazısı `left: 0` çıkıyordu — ekranın sol
+    kenarına sıfır yapışmış. Sebep: bu kolon `StudioFrame`in DIŞINDA
+    render ediliyor, yani 18px boşluğu olan `.ls-studio-body`den hiç
+    geçmiyor; zincirin tamamı sıfır boşluklu.
+
+    Yedi stüdyonun giriş ekranı da bu tek bileşeni paylaşıyor
+    (`StudioIntro`), o yüzden düzeltme tek yerde duruyor. `.ls-chat`
+    başka hiçbir yerde kullanılmıyor — boşluk ikiye katlanmıyor.
+  */
+  padding-inline: 1.25rem;
 }
 
 /* Öğretmen mesajı: işaret solda, metin yanında — sohbet ekranındaki düzenin
@@ -1016,4 +1030,20 @@
   bottom: 46%;
   border-top: 1px solid rgba(244, 174, 11, 0.22);
   border-bottom: 1px solid rgba(244, 174, 11, 0.16);
+}
+
+
+/*
+  Stüdyo düğmeleri de dokunmatikte 44px'e çıkıyor.
+
+  Ölçüm: `.ls-back` 70x34, `.ls-chip` 41px yüksek. Konu önerisi çipleri
+  giriş ekranının ana etkileşimi — öğrencinin ilk dokunduğu şey.
+  Gerekçe ve kaynak: `parity-shell.css` içindeki dokunma hedefi notu.
+*/
+@media (pointer: coarse) {
+  .ls-back,
+  .ls-chip,
+  .ls-cta {
+    min-height: 44px;
+  }
 }

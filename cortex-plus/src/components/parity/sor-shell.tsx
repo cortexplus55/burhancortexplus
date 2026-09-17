@@ -183,10 +183,23 @@ export function ParitySorShell({
               {planLabel} · {formatNumber(account.balance)} kr
             </Link>
           ) : null}
-          <button type="button" className="cp-sor-streak" aria-label="Seri">
+          {/*
+            Seri göstergesi DÜĞME DEĞİL.
+
+            Eskiden `<button>` idi: tıklanamıyordu (`cursor: default`,
+            onClick yok) ama ekran okuyucu "Seri, düğme" diye duyuruyor,
+            klavyeyle odaklanılıyor ve basınca hiçbir şey olmuyordu.
+            Yapmadığı işi vaat eden bir arayüz öğesi.
+
+            Dokunma hedefi denetiminde de 28x21 ile "küçük düğme" diye
+            çıkıyordu. Doğru cevap büyütmek değil, düğme olmadığını
+            söylemek.
+          */}
+          <span className="cp-sor-streak">
             <Flame className="h-4 w-4 text-orange-500" aria-hidden />
             <span>{streakCount}</span>
-          </button>
+            <span className="sr-only">günlük seri</span>
+          </span>
           <button
             type="button"
             className="cp-sor-more"

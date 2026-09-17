@@ -1460,7 +1460,9 @@ export function ChatPanel({
                 {quotaHint}
               </p>
             ) : chatCreditCost != null ? (
-              <p className="text-center text-[11px] text-[var(--cs-muted)]">
+              // Ortalı olduğu için kenara yapışmış görünmüyor, ama kutusu
+              // ekranın sıfırından başlıyor: yazı uzadığında kenara dayanıyor.
+              <p className="px-4 text-center text-[11px] text-[var(--cs-muted)]">
                 Her mesaj yaklaşık {chatCreditCost} kredi harcar.
                 {isPremium ? " Plus ile gelişmiş model kullanılır." : ""}
                 {tutorStyleLabel ? ` · Stil: ${tutorStyleLabel}` : ""}

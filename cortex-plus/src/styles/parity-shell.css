@@ -568,7 +568,17 @@
 .cp-sor-composer-zone {
   position: fixed;
   left: 50%;
-  bottom: 1.5rem;
+  /*
+    iPhone'un alt gesture çubuğu payı. `bottom: 1.5rem` (24px) tek
+    başına yetmiyor: çentikli iPhone'larda alt güvenli alan ~34px, yani
+    ürünün ana yazma alanı sistem çubuğunun altına giriyor ve
+    dokunulamaz hâle geliyor.
+
+    Aynı dosyadaki `--cs-sor-nav-lift` bunu zaten hesaba katıyordu;
+    burada unutulmuştu. Kod güvenli alanı bir yerde biliyor, diğerinde
+    bilmiyordu.
+  */
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
   z-index: 40;
   width: min(calc(100% - 2rem), 42rem);
   transform: translateX(-50%);
@@ -7062,4 +7072,47 @@
   margin: 0;
   font-size: 0.78rem;
   color: #444;
+}
+
+
+/*
+  DOKUNMA HEDEFLERİ — parmakla basılabilir asgari boyut.
+
+  Ölçüm (17 Eylül 2026, 360px telefon): kabuğun üst çubuğundaki her şey
+  44px'in altındaydı ve bu 55 oturumlu ekranın hepsinde aynıydı:
+
+    .cp-sor-more     83x20   ← "Daha fazla" menüsü
+    .cp-sor-logo     77x27
+    .cp-sor-buy      84x34   ← satın alma düğmesi
+    .cp-sor-topnav-link  34px yüksek  ← ana gezinme (Sor / Sınav / Araçlar)
+    .cp-sor-avatar   36x36
+    .ls-back         70x34
+    .ls-chip         41px yüksek
+
+  Apple'ın asgarisi 44x44pt, Google'ın 48dp. Bu boyutların altında
+  parmak hedefi kaçırıyor ve kullanıcı yanlış yere basıyor — özellikle
+  yan yana duran gezinme bağlantılarında.
+
+  Koşul `pointer: coarse`: yalnızca dokunmatik girdide büyüyor. Fare ile
+  kullanılan masaüstünde çubuk aynı kalıyor, çünkü orada 44px gereksiz
+  yer kaplıyor ve imleç zaten pikselde isabetli.
+
+  `.cp-sor-streak` bilerek dışarıda: `cursor: default` ile tanımlı, yani
+  bir düğme değil, bilgi göstergesi. Basılamayan bir şeyi büyütmek
+  ekranı boşuna şişirir.
+*/
+@media (pointer: coarse) {
+  .cp-sor-topnav-link,
+  .cp-sor-buy,
+  .cp-sor-more,
+  .cp-sor-logo {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .cp-sor-avatar {
+    height: 44px;
+    width: 44px;
+  }
 }

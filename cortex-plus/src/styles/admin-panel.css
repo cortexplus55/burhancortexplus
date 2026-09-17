@@ -30,14 +30,30 @@
 
   min-height: 100dvh;
   display: grid;
-  grid-template-columns: 16rem 1fr;
+  /*
+    `1fr` DEĞİL, `minmax(0, 1fr)`.
+
+    `1fr`in otomatik asgarisi `min-content`: içerik kolonunda kırılamayan
+    uzun bir dizi (bir uyarı metnindeki uzun kelime, tablodaki bir
+    bağlantı) varsa kolon o dizinin genişliğine zorlanıyor ve TÜM
+    yönetim içeriği ekranın dışına taşıyor.
+
+    Ölçüm (17 Eylül 2026): 360px telefonda 64px, 390px'te 35px taşma;
+    başlık, açıklama, uyarı kutusu ve kart — sekiz öğe birden ekranın
+    dışındaydı. 430px'te kayboluyordu, yani yalnızca telefonda görünen
+    bir hata.
+
+    Aynı tuzak öğrenci kabuğunda `.cp-page` için de çıktı; gerekçe ve
+    ayrıntı `AGENTS.md` → "Mobil düzen" bölümünde.
+  */
+  grid-template-columns: 16rem minmax(0, 1fr);
   background: var(--adm-bg);
   color: var(--adm-text);
   font-family: var(--font-ui, "Figtree", system-ui, sans-serif);
 }
 
 @media (max-width: 60rem) {
-  .adm { grid-template-columns: 1fr; }
+  .adm { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ---------- Yan menü ---------- */
@@ -380,4 +396,38 @@
 
 @media (prefers-reduced-motion: reduce) {
   .adm * { transition: none !important; }
+}
+
+
+/*
+  Uzun dizi yönetim ekranlarında da kırılabilir olmalı.
+
+  Kolon artık zorlanamıyor (yukarıdaki `minmax(0, 1fr)`), ama kırılamayan
+  bir kelime o zaman kutunun dışına taşar. İki kural birlikte çalışıyor.
+
+  Tablo hariç: `.adm-table` bilerek `white-space: nowrap` ve kendi yatay
+  kaydırma kabuğunda (`.adm-scroll`) duruyor — sütunları kırmak tabloyu
+  okunmaz yapardı, kaydırmak ise yönetim tablosu için doğru davranış.
+*/
+.adm :where(h1, h2, h3, p, li, span, strong, em, code, div):not(.adm-table *) {
+  overflow-wrap: anywhere;
+}
+
+
+/*
+  Yönetim menüsü dokunmatikte 44px.
+
+  Ölçüm (360px): `.adm-brand` 333x26, `.adm-nav-link` 333x36,
+  `.adm-side-link` 317x20. Bunlar bağlantı olduğu için globaldeki düğme
+  kuralı kapsamıyor — paragraf içi bağlantılar bilerek dışarıda
+  bırakıldı, ama bunlar gezinme satırı.
+*/
+@media (pointer: coarse) {
+  .adm-brand,
+  .adm-nav-link,
+  .adm-side-link {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
 }

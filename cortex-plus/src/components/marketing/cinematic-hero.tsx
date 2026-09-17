@@ -100,7 +100,12 @@ export function CinematicHero() {
           </Link>
           <Link
             href="/fiyatlandirma"
-            className="text-sm text-[var(--mk-muted)] underline-offset-2 hover:text-[var(--mk-text)] hover:underline"
+            /*
+              `cx-tap`: bu bağlantı bir cümlenin içinde değil, iki
+              düğmenin yanında duran ikincil bir eylem. Ölçümde 125x20
+              çıkıyordu — yanındaki düğmeler 44px iken bu değil.
+            */
+            className="cx-tap text-sm text-[var(--mk-muted)] underline-offset-2 hover:text-[var(--mk-text)] hover:underline"
           >
             Plus planlarını incele
           </Link>

@@ -61,7 +61,7 @@ export default function IletisimPage() {
           </h2>
           <a
             href="mailto:cortexplus@cortexplus.app"
-            className="mt-2 inline-block text-base font-medium text-[var(--mk-primary)] underline underline-offset-4"
+            className="cx-tap mt-2 text-base font-medium text-[var(--mk-primary)] underline underline-offset-4"
           >
             cortexplus@cortexplus.app
           </a>
@@ -84,7 +84,7 @@ export default function IletisimPage() {
           </p>
           <Link
             href="/giris?next=%2Fdestek"
-            className="mt-4 inline-block text-sm font-medium text-[var(--mk-primary)] underline underline-offset-4"
+            className="cx-tap mt-4 text-sm font-medium text-[var(--mk-primary)] underline underline-offset-4"
           >
             Destek sayfasına git
           </Link>

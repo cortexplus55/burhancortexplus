@@ -64,7 +64,12 @@ export default async function FiyatlandirmaPage() {
           checkoutEnabled={isPaytrConfigured()}
         />
       </div>
-      <p className="pb-8 text-center text-sm text-[var(--mk-muted)]">
+      {/*
+        Yatay boşluk: metin ortalı olduğu için dar ekranda kenara
+        yapışmış GÖRÜNMÜYOR, ama kutusu 0'dan başlıyor ve yazı uzadığında
+        ekranın kenarına dayanıyor. Sayfadaki diğer içerikle aynı oluk.
+      */}
+      <p className="px-5 pb-8 text-center text-sm text-[var(--mk-muted)]">
         Zaten hesabın var mı?{" "}
         <Link href="/giris" className="text-[var(--mk-primary)] underline">
           Giriş yap

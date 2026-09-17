@@ -887,3 +887,22 @@
   line-height: 1.55;
   opacity: 0.66;
 }
+
+
+/*
+  Demo (`/ornek`) sayfasında dokunma hedefleri. Ölçüm: `.dm-brand`,
+  `.dm-btn--sm` ve `.dm-rail-item` 44px'in altındaydı. Bu sayfa ürünü
+  denemeden önce gezilen yer; buradaki her dokunuş satışa dokunuyor.
+*/
+@media (pointer: coarse) {
+  .dm-brand,
+  .dm-btn,
+  .dm-rail-item {
+    min-height: 44px;
+  }
+
+  /* Ray öğesi 16px genişliğinde kalıyordu; yatayda da hedef olmalı. */
+  .dm-rail-item {
+    min-width: 44px;
+  }
+}

@@ -58,3 +58,97 @@ describe("mobil önizleme üretimde erişilemez", () => {
     }
   });
 });
+
+/*
+  iOS'ta girdi yakınlaştırması — CSS'ten tutuluyor, tarayıcıdan değil.
+
+  Bu hata oturum gerektiren ekranların CSS'inde yaşıyordu
+  (`.cs-sor-composer input` 15px, `.cp-field` 13px, `.tool-input` 15px …)
+  ve o ekranlara e2e ile girilemiyor. Tarayıcı testi yalnızca `/giris`e
+  bakabiliyor, orası ise zaten 16px'ti — yani hiç bozulmamış bir sayfayı
+  koruyan bir bekçi. Asıl güvence CSS'i taramaktan geliyor.
+*/
+describe("dokunmatikte metin girdileri 16px'in altına düşmüyor", () => {
+  const globals = readFileSync("src/app/globals.css", "utf8");
+
+  it("platform kuralı yerinde", () => {
+    const i = globals.indexOf("@media (pointer: coarse)");
+    expect(i).toBeGreaterThan(-1);
+    const block = globals.slice(i, i + 1200);
+    expect(block).toContain("font-size: 16px !important");
+    expect(block).toContain("textarea");
+    expect(block).toContain("select");
+  });
+
+  it("dokunma hedefi asgarisi 44px", () => {
+    const i = globals.indexOf("@media (pointer: coarse)");
+    const block = globals.slice(i, i + 2600);
+    expect(block).toContain("min-height: 44px");
+    expect(block).toContain("min-width: 44px");
+  });
+
+  /*
+    Kural `!important` ile yazılmış olmak zorunda: sınıf seçicileri
+    eleman seçicisini yeniyor, yani `.tool-input { font-size: 0.9375rem }`
+    aksi hâlde kazanır ve hata sessizce geri gelir.
+  */
+  it("kural sınıf seçicilerini yenebiliyor", () => {
+    expect(globals).toMatch(/font-size:\s*16px\s*!important/);
+  });
+});
+
+describe("iPhone güvenli alanı", () => {
+  /*
+    Sohbetin yazma alanı `position: fixed; bottom` ile duruyor. Çentikli
+    iPhone'da alt güvenli alan ~34px; pay eklenmezse ürünün ana girdisi
+    sistem gesture çubuğunun altına giriyor.
+  */
+  it("sohbet yazma alanı alt güvenli alanı hesaba katıyor", () => {
+    const r = rule(shellCss, ".cp-sor-composer-zone");
+    expect(r).toContain("env(safe-area-inset-bottom");
+  });
+});
+
+describe("stüdyo giriş kolonu kenara yapışmıyor", () => {
+  it(".ls-chat yatay boşluğa sahip", () => {
+    const css = readFileSync("src/styles/learning-studio.css", "utf8");
+    const i = css.indexOf(".ls-chat {");
+    expect(i).toBeGreaterThan(-1);
+    expect(css.slice(i, css.indexOf("}", i))).toContain("padding-inline");
+  });
+});
+
+describe("sohbet ekranı mobilde okunabiliyor", () => {
+  /*
+    Uzun dizi sohbette de kırılabilmeli. Ölçüm (Sor ekranı, 360px):
+    mesaj balonundaki uzun kelime kutusundan 42px taşıyor, balon 331px
+    kutusunda 359px içerik taşıyor ve mesaj listesi 417px'e ulaşıp yatay
+    kaydırılabilir hâle geliyordu. Ekranda görünen şey kelimenin
+    ortadan kesilmesiydi.
+
+    `.cp-page` kuralı sohbeti kapsamıyor: sohbet o kapsayıcının içinde
+    değil. Bu yüzden kural uygulama kabuğunun tamamına konuldu.
+  */
+  it("uygulama kabuğunda uzun dizi kırılabiliyor", () => {
+    const globals = readFileSync("src/app/globals.css", "utf8");
+    const i = globals.indexOf(".cp-sor-root :where(");
+    expect(i).toBeGreaterThan(-1);
+    expect(globals.slice(i, globals.indexOf("}", i))).toContain("overflow-wrap: anywhere");
+  });
+
+  /*
+    Yazma alanı telefonda kendi satırını alıyor. Ölçüm: dört düğme ve
+    boşluklar ~250px yiyordu, metin alanına 108px kalıyordu ve yer
+    tutucu 44px'lik kutuda ikinci satıra düşüp kesiliyordu. Düğmeleri
+    küçültmek çözüm değil — 44px'e çıkarılmalarının sebebi parmakla
+    isabet edilmemesiydi.
+  */
+  it("telefonda metin alanı kendi satırında", () => {
+    const css = readFileSync("src/styles/parity-app.css", "utf8");
+    const i = css.indexOf("@media (max-width: 480px)");
+    expect(i).toBeGreaterThan(-1);
+    const block = css.slice(i);
+    expect(block).toContain("flex-wrap: wrap");
+    expect(block).toContain("order: -1");
+  });
+});

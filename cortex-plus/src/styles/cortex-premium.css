@@ -474,3 +474,32 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+
+/*
+  Kimlik doğrulama sayfalarında dokunma hedefleri.
+
+  Ölçüm (17 Eylül 2026, 360px): `.cortex-premium-auth__logo` ve altındaki
+  "giriş yap / kayıt ol" bağlantısı 44px'in altındaydı; giriş, kayıt,
+  şifre sıfırlama ve e-posta doğrulama sayfalarının hepsinde aynı.
+  Bunlar ürünün ilk ekranları — yanlış yere basmak ilk izlenim oluyor.
+
+  Bağlantılar global kuralın dışında (paragraf içi bağlantıları
+  bozmamak için), o yüzden burada adlarıyla ele alınıyorlar.
+*/
+@media (pointer: coarse) {
+  .cortex-premium-auth__logo,
+  .cortex-premium-auth a,
+  .cortex-premium-auth__footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    /*
+      Genişlik de gerekiyor: "Yardım" bağlantısı 37x44 kalıyordu, yani
+      yükseklik tamam ama parmak hedefi yatayda dardı. Yazı kısa olduğu
+      için dolgu ile değil asgari genişlikle çözülüyor.
+    */
+    min-width: 44px;
+    justify-content: center;
+  }
+}

@@ -266,7 +266,23 @@
 
   .cs-marketing .mk-footer-links a {
     display: block;
-    padding-block: 0.7rem;
+    /*
+      0.7rem ile satır 42px oluyordu — Apple'ın 44px asgarisinin 2px
+      altında. Ölçüm (17 Eylül 2026, 360px): 328x42. Kural zaten
+      doğruydu, yalnızca eşiğe yetişmiyordu.
+    */
+    padding-block: 0.75rem;
+    min-height: 44px;
+  }
+
+  /*
+    Başlıktaki logo bağlantısı 109x24'tü. Ana sayfaya dönüş yolu ve
+    telefonda en üstteki dokunma hedefi.
+  */
+  .cs-marketing header a[href="/"] {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
   }
 }
 
