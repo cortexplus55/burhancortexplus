@@ -178,3 +178,38 @@ Vergi levhasından girildi (`src/lib/legal/seller.ts`): **Mukadder Önder**,
 başında sürekli kırmızı uyarı dururdu ve uyarı anlamını yitirirdi. Kabul
 edilen risk: bir denetimde eksik sayılabilir. "Neden telefon yok" diye
 sorulduğunda cevap bu satırdır.
+
+---
+
+## `npm install` "up to date" derken lockfile bozuk olabilir
+
+**17 Eylül 2026'da CI main'de kırmızıydı** ve üç işin hepsi aynı yerde
+düşüyordu:
+
+```
+npm error Missing: @esbuild/linux-x64@0.28.2 from lock file
+```
+
+Sebep: `package-lock.json` **kendi içinde tutarsızdı**. `tsx@4.23.13` girişi
+`"esbuild": "~0.28.0"` bağımlılığını bildiriyordu ama lockfile'da ne `esbuild`
+ne `@esbuild/*` kaydı vardı. Önemli olan şu:
+
+| Komut | Davranış |
+|---|---|
+| `npm ci` | Doğrular, tutarsızlığı görür, **reddeder** |
+| `npm install` | Toleranslı, sessizce **"up to date" der** |
+
+Bu yüzden sorun yerelde de vardı ve kimse görmedi: `tsx` ve `esbuild` hiç
+kurulu değildi. Lockfile elle düzeltilmez — npm ile sıfırdan üretilir.
+
+**Daha büyük ders — CI iş dallarında çalışmıyor.** Workflow yalnızca
+`main` push'unda ve PR'da tetikleniyor (`.github/workflows/ci.yml`). Doğrudan
+bir iş dalına çalışıp main'e geçmeden CI'a hiç girmiyorsunuz: bu sefer
+**25 commit doğrulanmadan birikti** ve hata ancak main'e push edilince çıktı.
+Uzun süren bir dalda ara ara `npm ci`'yi elle çalıştırın ya da PR açın.
+
+**Bir şeyin yayında olduğunu varsaymayın.** Aynı gün dört hukuki sayfanın
+(`/mesafeli-satis`, `/on-bilgilendirme`, `/iptal-iade`, `/teslimat`) canlıda
+**404 döndüğü** görüldü: sayfalar yazılmış, test edilmiş, commit edilmişti —
+ama dalda duruyordu. Yazılmış olmak yayında olmak değil; `curl` ile bakmak
+on saniye sürüyor.
