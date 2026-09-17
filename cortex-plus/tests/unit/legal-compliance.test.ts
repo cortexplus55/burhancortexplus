@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import {
+  ACCEPTED_OMISSIONS,
   SELLER,
   isSellerComplete,
   missingSellerFields,
@@ -55,10 +56,45 @@ describe("satıcı bilgileri", () => {
   });
 
   /*
-    Alanlar şu an boş ve bu BİLEREK: uydurulmuş bir adres ya da vergi
-    numarası, hiç yazmamaktan kötü. Test boşluğu hata saymıyor — eksikliğin
-    GÖRÜNÜR olmasını şart koşuyor.
+    Alanlar artık vergi levhasından dolu. Test verinin kendisini değil,
+    EKSİKLİĞİN GÖRÜNÜR olmasını tutuyor: uydurulmuş bir adres hiç
+    yazmamaktan kötü, sessizce boş kalan bir alan da öyle.
   */
+  it("vergi levhasındaki alanlar dolu", () => {
+    expect(SELLER.legalName.length).toBeGreaterThan(3);
+    expect(SELLER.address).toContain("Bafra");
+    expect(SELLER.taxOffice).toBe("Bafra");
+    expect(SELLER.email).toBe("cortexplus@cortexplus.app");
+    expect(missingSellerFields()).toEqual([]);
+  });
+
+  /*
+    Şahıs işletmesinde vergi kimlik numarası T.C. kimlik numarasıdır ve
+    yayınlanmıyor. Test bunun bir KARAR olduğunu tutuyor: numara koda
+    girmesin, ama gerekçesi de kaybolmasın.
+  */
+  it("T.C. kimlik numarası sitede yayınlanmıyor", () => {
+    expect(SELLER.taxNumber).toBe("");
+    const labels = ACCEPTED_OMISSIONS.map((item) => item.label);
+    expect(labels).toContain("Vergi kimlik numarası");
+    expect(labels).toContain("Telefon");
+    for (const item of ACCEPTED_OMISSIONS) {
+      expect(item.reason.length).toBeGreaterThan(30);
+    }
+  });
+
+  it("bilerek boş alanlar kırmızı uyarıyı tetiklemiyor", () => {
+    // Her zaman yanan bir lamba bilgi vermiyor: uyarı gerçek eksiklik için.
+    expect(missingSellerFields({ ...SELLER, phone: "", taxNumber: "" })).toEqual([]);
+    expect(missingSellerFields({ ...SELLER, address: "" })).toContain("Açık adres");
+  });
+
+  it("bilerek boş alanlar yönetim panelinde gerekçesiyle görünüyor", () => {
+    const page = readFileSync("src/app/admin/sistem/page.tsx", "utf8");
+    expect(page).toContain("ACCEPTED_OMISSIONS");
+    expect(page).toContain("missingSellerFields");
+  });
+
   it("eksik alanlar tespit ediliyor", () => {
     expect(missingSellerFields({ ...SELLER, legalName: "" })).toContain(
       "Ad soyad / ünvan",

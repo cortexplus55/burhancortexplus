@@ -32,6 +32,13 @@ function formatDay(value: string | null): string {
 /**
  * Aboneliğin bitişi ekranda durmadığında öğrenci ancak kotası kesilince
  * öğreniyordu. Kalan gün, yenileme tarihi ve iptal buradan görünür.
+ *
+ * İkinci butonun yazısı `autoRenew`e bağlı ve bu bilerek: otomatik yenileme
+ * yokken "Yenilemeyi durdur" demek, hemen üstündeki "Yenileme otomatik değil"
+ * satırıyla çelişiyordu. Öğrenci gelmeyecek bir tahsilatı durdurmaya çalışıp
+ * aslında "devam etmeyeceğim" kaydı bırakıyordu. Otomatik yenileme gerçekten
+ * açıldığında yazı kendiliğinden eski hâline dönüyor —
+ * `src/lib/payments/paytr-capability.ts` → `AUTO_RENEW_SUPPORTED`.
  */
 export function SubscriptionCard({ sub }: { sub: SubscriptionView }) {
   const router = useRouter();
@@ -131,7 +138,9 @@ export function SubscriptionCard({ sub }: { sub: SubscriptionView }) {
             ? "…"
             : cancelled
               ? "İptali geri al"
-              : "Yenilemeyi durdur"}
+              : sub.autoRenew
+                ? "Yenilemeyi durdur"
+                : "Yenilemeyeceğim"}
         </Button>
       </div>
     </section>

@@ -165,6 +165,49 @@ bir kez gözle doğrulamak gerekiyor.
   yüklendiğini görün. İlk gerçek ödemeyi bir öğrenciye denemek zorunda
   bırakmayın.
 
+## Satıcı bilgileri — vergi levhasından
+
+PayTR mağaza incelemesi ve Mesafeli Sözleşmeler Yönetmeliği satıcının
+kimliğini sitede ister. Bilgiler **vergi levhasından** girildi
+(`src/lib/legal/seller.ts`):
+
+| Alan | Değer |
+|---|---|
+| Ad / ünvan | Mukadder Önder (şahıs işletmesi) |
+| Adres | Emirefendi Mah. Manas Sk. Tekin Apartmanı No: 7 İç Kapı No: 5, Bafra / Samsun |
+| Vergi dairesi | Bafra |
+| E-posta | cortexplus@cortexplus.app |
+| İşe başlama | 21.05.2026 |
+
+**İki alan bilerek yayınlanmıyor** — ürün sahibinin kararı:
+
+- **Vergi kimlik numarası:** şahıs işletmesinde bu numara T.C. kimlik
+  numarasıdır. Türkiye'de pek çok yerde kimlik doğrulamada kullanıldığı için
+  herkese açık olması gerçek bir gizlilik riski. Vergi dairesi yazılıyor,
+  numara yazılmıyor.
+- **Telefon:** kişisel numara yayınlanmak istenmedi; iletişim e-posta
+  üzerinden.
+
+Her ikisi de `ACCEPTED_OMISSIONS` altında **gerekçesiyle** duruyor ve
+`/admin/sistem` sayfasında görünüyor. `missingSellerFields()` bunları eksik
+saymıyor — sebebi şu: liste eksik saysa hukuki sayfaların başında sürekli
+kırmızı uyarı dururdu ve uyarı anlamını yitirirdi. Her zaman yanan bir lamba
+bilgi vermiyor.
+
+Kabul edilen risk: bir denetimde ya da PayTR incelemesinde eksik sayılabilir.
+İş için ayrı bir telefon alınırsa tek satırla eklenir.
+
+## Otomatik yenileme (auto renew) — bugün açılamaz
+
+Kısa cevap: **yetki alınmış olsa bile açılamaz.** Sebep izin değil, mimari:
+kullandığımız iFrame API'de kart saklama parametresi yok. Ayrıntı, engel
+listesi ve açılma sırası: `cortex-plus/docs/delivery/PAYTR-ABONELIK.md`
+→ "Yenileme neden otomatik değil".
+
+Mağazada kart saklama yetkisinin gerçekten olup olmadığı artık
+`/admin/sistem` sayfasında yazıyor; anahtarlar Vercel'e girildiği an
+kendiliğinden cevaplanıyor.
+
 ## Bekçi testler
 
 `tests/unit/paytr-mode.test.ts` — test/canlı kipinin doğru okunduğunu,

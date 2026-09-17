@@ -39,24 +39,53 @@ export type SellerInfo = {
 };
 
 export const SELLER: SellerInfo = {
-  legalName: "",
-  address: "",
+  // Vergi levhasından (21.05.2026 işe başlama, şahıs işletmesi).
+  legalName: "Mukadder Önder",
+  address:
+    "Emirefendi Mah. Manas Sk. Tekin Apartmanı No: 7 İç Kapı No: 5, Bafra / Samsun",
+  /*
+    BİLEREK BOŞ — ürün sahibinin kararı.
+
+    Yönetmelik telefonu da sayıyor. Kitle öğrenci ve yazışarak ulaşıyor;
+    kişisel numara yayınlamak istenmedi. İletişim e-posta üzerinden.
+    Aynı risk: eksik sayılabilir. İş için ayrı bir numara alınırsa buraya.
+  */
   phone: "",
   email: "cortexplus@cortexplus.app",
-  taxOffice: "",
+  taxOffice: "Bafra",
+  /*
+    BİLEREK BOŞ — ürün sahibinin kararı.
+
+    Şahıs işletmesinde vergi kimlik numarası T.C. kimlik numarasıdır.
+    Elektronik Ticarette Hizmet Sağlayıcılar Yönetmeliği vergi kimlik
+    numarasının sitede gösterilmesini istiyor; ama bu numaranın herkese açık
+    olması Türkiye'de gerçek bir gizlilik riski (pek çok yerde kimlik
+    doğrulamada kullanılıyor).
+
+    Karar: yayınlanmıyor, vergi dairesi yazılıyor. Risk kabul edildi:
+    bir denetimde ya da PayTR incelemesinde eksik sayılabilir. Karar
+    değişirse tek satır yeter.
+  */
   taxNumber: "",
   website: "cortexplus.app",
 };
 
 /** Doldurulmamış zorunlu alanlar. Boş dizi = hukuki metinler yayına hazır. */
 export function missingSellerFields(seller: SellerInfo = SELLER): string[] {
+  /*
+    Telefon ve vergi numarası BİLEREK bu listede değil: ikisi de yukarıda
+    açıklanan gerekçeyle yayınlanmıyor ve bu bir ürün kararı, eksiklik değil.
+    Listede kalsalardı hukuki sayfalarda sürekli kırmızı uyarı dururdu ve
+    uyarı anlamını yitirirdi — her zaman yanan bir lamba bilgi vermiyor.
+
+    Kararın kendisi kaybolmasın diye `ACCEPTED_OMISSIONS` altında duruyor ve
+    yönetim panelinde ayrı bir satır olarak görünüyor.
+  */
   const required: { key: keyof SellerInfo; label: string }[] = [
     { key: "legalName", label: "Ad soyad / ünvan" },
     { key: "address", label: "Açık adres" },
-    { key: "phone", label: "Telefon" },
     { key: "email", label: "E-posta" },
     { key: "taxOffice", label: "Vergi dairesi" },
-    { key: "taxNumber", label: "Vergi numarası" },
   ];
   return required.filter((f) => !seller[f.key]?.trim()).map((f) => f.label);
 }
@@ -70,3 +99,22 @@ export function sellerField(key: keyof SellerInfo, seller: SellerInfo = SELLER):
   const value = seller[key]?.trim();
   return value ? value : "[doldurulacak]";
 }
+
+/**
+ * Bilerek yayınlanmayan alanlar ve gerekçeleri.
+ *
+ * Yönetim panelinde gösteriliyor: bir kararın "biz böyle karar verdik" ile
+ * "kimse fark etmedi" arasındaki fark, yazılı olup olmamasıdır.
+ */
+export const ACCEPTED_OMISSIONS: { label: string; reason: string }[] = [
+  {
+    label: "Telefon",
+    reason:
+      "Kişisel numara yayınlanmak istenmedi; iletişim e-posta ve destek sayfası üzerinden.",
+  },
+  {
+    label: "Vergi kimlik numarası",
+    reason:
+      "Şahıs işletmesinde bu numara T.C. kimlik numarası; gizlilik riski nedeniyle yayınlanmıyor, vergi dairesi gösteriliyor.",
+  },
+];

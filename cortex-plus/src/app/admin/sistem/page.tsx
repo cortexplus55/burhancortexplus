@@ -6,6 +6,12 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { countPendingApplications } from "@/lib/admin/pending";
 import { SERVICE_NOTES } from "@/lib/admin/labels";
 import { paytrMode } from "@/lib/payments/paytr";
+import {
+  AUTO_RENEW_SUPPORTED,
+  RECURRING_BLOCKERS,
+  probePaytrRecurring,
+} from "@/lib/payments/paytr-capability";
+import { ACCEPTED_OMISSIONS, missingSellerFields } from "@/lib/legal/seller";
 
 export const metadata = { title: "Yönetim · Sistem durumu" };
 
@@ -58,6 +64,9 @@ export default async function AdminSistemPage() {
 
   const missingCritical = rows.filter((row) => row.critical && !row.configured);
   const mode = paytrMode();
+  // Panel açılışını bekletmemek için yoklamanın kendi zaman aşımı var.
+  const capability = await probePaytrRecurring();
+  const missingSeller = missingSellerFields();
 
   return (
     <AdminShell href="/admin/sistem" pendingApplications={pending}>
@@ -90,6 +99,83 @@ export default async function AdminSistemPage() {
           PayTR <strong>canlı kipte</strong> — ödemeler gerçek karttan çekilir.
         </AdminNote>
       ) : null}
+
+      {/*
+        Tekrarlayan tahsilat yetkisi. "Yetki alındı sanıyorum" ile "yetki var"
+        arasındaki farkı kapatıyor: burada PayTR'ye sorulup cevabı yazılıyor.
+
+        Gözle panelden bakılan şey zamanla bayatlıyor ve yanlış hatırlanıyor.
+        Yetkinin olduğu sanılıp otomatik yenileme açılırsa abonelik sessizce
+        biter ve sözleşmede vaat edilen tahsilat hiç olmaz.
+      */}
+      {mode === "unconfigured" ? null : (
+        <AdminNote
+          tone={
+            capability.recurring === "available"
+              ? "info"
+              : capability.recurring === "unavailable"
+                ? "warn"
+                : "info"
+          }
+        >
+          <strong>PayTR kart saklama yetkisi:</strong>{" "}
+          {capability.recurring === "available"
+            ? "açık"
+            : capability.recurring === "unavailable"
+              ? "kapalı"
+              : "belirlenemedi"}
+          . {capability.detail}
+        </AdminNote>
+      )}
+
+      {/*
+        Yetki tek başına yetmiyor. Yukarıdaki satır "PayTR izin verdi mi"
+        sorusunu cevaplıyor; burada ise entegrasyonun bunu taşıyıp taşımadığı
+        yazıyor. İkisi karıştığında ortaya "yetki geldi, açalım" kararı çıkıyor
+        ve abonelik sessizce bitiyor.
+      */}
+      {AUTO_RENEW_SUPPORTED ? null : (
+        <AdminCard
+          title="Otomatik yenileme neden kapalı"
+          desc="Yetki gelse bile bugün açılamaz; önce bu üç madde aşılmalı. Sözleşme metni de bu yüzden “otomatik yenilenmez” diyor."
+          bodyless
+        >
+          <AdminTableFrame columns={["Engel", "Neden"]}>
+            {RECURRING_BLOCKERS.map((blocker) => (
+              <tr key={blocker.title}>
+                <td className="font-medium">{blocker.title}</td>
+                <td className="max-w-md whitespace-normal text-xs text-[var(--adm-muted)]">
+                  {blocker.detail}
+                </td>
+              </tr>
+            ))}
+          </AdminTableFrame>
+        </AdminCard>
+      )}
+
+      {/*
+        Satıcı bilgileri. Hukuki sayfalarda okuyucuya görünen uyarının
+        yönetim tarafındaki karşılığı; ayrıca BİLEREK yayınlanmayan alanlar
+        burada gerekçesiyle duruyor.
+
+        Neden: bir kararın "biz böyle karar verdik" ile "kimse fark etmedi"
+        arasındaki fark, yazılı olup olmamasıdır. Aylar sonra "telefon neden
+        yok" diye sorulduğunda cevabın bir yerde durması gerekiyor.
+      */}
+      {missingSeller.length ? (
+        <AdminNote tone="warn">
+          <strong>Satıcı bilgisi eksik:</strong> {missingSeller.join(", ")}.
+          Hukuki sayfalarda bu alanlar “[doldurulacak]” görünüyor ve ödeme
+          akışı yasal olarak eksik sayılır.
+        </AdminNote>
+      ) : (
+        <AdminNote tone="info">
+          <strong>Satıcı bilgileri tam.</strong> Bilerek yayınlanmayanlar:{" "}
+          {ACCEPTED_OMISSIONS.map((item) => item.label).join(", ")} — bunlar
+          eksiklik değil, ürün kararı. Gerekçeler{" "}
+          <code>src/lib/legal/seller.ts</code> içinde.
+        </AdminNote>
+      )}
 
       {missingCritical.length ? (
         <AdminNote tone="warn">

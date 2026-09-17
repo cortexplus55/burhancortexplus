@@ -126,3 +126,49 @@ soruldu; cevap **geri getirilmesin** oldu. Gerekçe değişmedi: 34 simülasyonu
 öğrenciye ne öğrettiği ölçülemiyordu, yerine gelen 12 araçlı `/araclar` ölçülebilir
 iş yapıyor. Bu satır tartışmayı kapatmak için duruyor — bir sonraki parite
 turunda bu maddeyi yeniden açmayın.
+
+---
+
+## Ödeme: otomatik yenileme bugün açılamıyor — mimari engel
+
+**17 Eylül 2026'da PayTR'nin kendi dokümanından doğrulandı.** "Auto renew
+açalım" istendiğinde bakılacak yer burası; cevap "yetki bekliyoruz" değil.
+
+Kullandığımız **iFrame API'nin kart saklama parametresi yok** — `store_card`,
+`utoken`, `ctoken` iFrame token isteğinin parametre listesinde geçmiyor. Kart
+saklama tümüyle **Direkt API** başlığının altında ve Direkt API'de kart
+numarası ile CVV **kendi sunucumuzdan** PayTR'ye gidiyor: PCI-DSS kapsamı.
+
+Yani Non3D yetkisi alınsa bile saklanacak bir kart olmuyor. Engeller kodda
+tek yerde: `src/lib/payments/paytr-capability.ts` → `RECURRING_BLOCKERS`,
+`/admin/sistem` sayfasında tablo olarak görünüyor. Aynı dosyadaki
+`AUTO_RENEW_SUPPORTED` **tek kaynak**: `false` durduğu sürece bir bekçi test
+sözleşme metninin "otomatik olarak yenilenmez" demeye devam ettiğini tutuyor.
+
+**Sıra önemli:** önce Direkt API + kart saklama + Non3D yetkisi, en son
+sözleşme metni ve `AUTO_RENEW_SUPPORTED`. Tersi yapılırsa sözleşme
+tutulamayan bir söz verir — abonelik sessizce biter, vaat edilen tahsilat hiç
+olmaz. Ayrıntı: `cortex-plus/docs/delivery/PAYTR-ABONELIK.md`.
+
+Mağazada yetkinin gerçekten olup olmadığı artık tahmin değil:
+`probePaytrRecurring()` kart saklama servisine var olmayan bir kullanıcı için
+liste soruyor (para hareketi yok) ve cevabı `/admin/sistem`'e yazıyor.
+
+## Satıcı bilgileri: iki alan bilerek yayınlanmıyor
+
+Vergi levhasından girildi (`src/lib/legal/seller.ts`): **Mukadder Önder**,
+şahıs işletmesi, Bafra / Samsun, vergi dairesi **Bafra**, iletişim
+`cortexplus@cortexplus.app`.
+
+**Yayınlanmayanlar — ürün sahibinin kararı, eksiklik değil:**
+
+| Alan | Neden |
+|---|---|
+| Vergi kimlik numarası | Şahıs işletmesinde bu numara T.C. kimlik numarası; herkese açık olması gerçek bir gizlilik riski. Vergi dairesi gösteriliyor. |
+| Telefon | Kişisel numara yayınlanmak istenmedi; iletişim e-posta üzerinden. |
+
+İkisi de `ACCEPTED_OMISSIONS` altında gerekçesiyle duruyor ve
+`missingSellerFields()` bunları eksik saymıyor — saysaydı hukuki sayfaların
+başında sürekli kırmızı uyarı dururdu ve uyarı anlamını yitirirdi. Kabul
+edilen risk: bir denetimde eksik sayılabilir. "Neden telefon yok" diye
+sorulduğunda cevap bu satırdır.
