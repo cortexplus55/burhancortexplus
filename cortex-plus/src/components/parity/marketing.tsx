@@ -34,6 +34,11 @@ export function ParitySiteFooter() {
           <Link href="/gizlilik">Gizlilik</Link>
           <Link href="/kvkk">KVKK</Link>
           <Link href="/kullanim-kosullari">Kullanım koşulları</Link>
+          {/* Mesafeli satışta bu dördü sitede erişilebilir olmak zorunda. */}
+          <Link href="/mesafeli-satis">Mesafeli satış sözleşmesi</Link>
+          <Link href="/on-bilgilendirme">Ön bilgilendirme formu</Link>
+          <Link href="/iptal-iade">İptal ve iade</Link>
+          <Link href="/teslimat">Teslimat</Link>
         </div>
         <div className="mk-footer-links flex flex-col gap-2">
           <Link href="/iletisim">Bize ulaşın</Link>

@@ -217,6 +217,10 @@ export function SubscriptionCards({
 
   async function startCheckout(planId: string) {
     if (!checkoutEnabled) return;
+    if (!legalAccepted && !guestMode) {
+      toast.error("Devam etmek için sözleşmeleri onaylaman gerekiyor.");
+      return;
+    }
     if (guestMode) {
       router.push(`/kayit?next=${encodeURIComponent("/pay")}`);
       return;
@@ -232,6 +236,7 @@ export function SubscriptionCards({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           planId,
+          legalAccepted: true,
           ...(beneficiaryStudentId ? { studentId: beneficiaryStudentId } : {}),
         }),
       });
@@ -250,6 +255,16 @@ export function SubscriptionCards({
 
   // Izgara düzeni kaç kart çizileceğine bakıyor; koşullar aşağıdakilerle
   // birebir aynı kalmalı, yoksa düzen gerçekte olmayan bir karta göre kurulur.
+  /*
+    Mesafeli Sözleşmeler Yönetmeliği m.5: tüketici, siparişten ÖNCE ön
+    bilgilendirmeyi aldığını ve sözleşmeyi kabul ettiğini teyit etmeli.
+    Bu teyit üründe hiç yoktu — ödeme doğrudan başlıyordu.
+
+    Onay kutusu işaretlenmeden ödeme başlamıyor; onay ayrıca sunucuda
+    kayda geçiyor (zaman + IP), çünkü itiraz hâlinde kanıt bizde olmalı.
+  */
+  const [legalAccepted, setLegalAccepted] = useState(false);
+
   const planCardCount =
     (plusOwned ? 0 : 1) + (showSigmaCard && sigmaPlan ? 1 : 0);
 
@@ -637,6 +652,33 @@ export function SubscriptionCards({
           uydurmadığı o soruda kredi de almıyor. Bedeli nakit değil kredi,
           karşılığı da kodda duruyor.
         */}
+        {/*
+          Yasal onay. Tek kutu: iki belge de aynı cümlede anılıyor.
+
+          Misafir modda gösterilmiyor çünkü orada "Satın al" ödemeye değil
+          kayıt sayfasına gidiyor; onay, ödemenin gerçekten başladığı yerde
+          alınmalı.
+        */}
+        {guestMode ? null : (
+          <label className="cs-legal-consent">
+            <input
+              type="checkbox"
+              checked={legalAccepted}
+              onChange={(event) => setLegalAccepted(event.target.checked)}
+            />
+            <span>
+              <a href="/on-bilgilendirme" target="_blank" rel="noreferrer">
+                Ön Bilgilendirme Formu
+              </a>
+              &apos;nu ve{" "}
+              <a href="/mesafeli-satis" target="_blank" rel="noreferrer">
+                Mesafeli Satış Sözleşmesi
+              </a>
+              &apos;ni okudum, kabul ediyorum.
+            </span>
+          </label>
+        )}
+
         <p className="text-center text-xs text-[var(--cs-muted)]">
           Notunda olmayanı uydurmaz. Cevaplayamadığı soruda kredin düşmez.
         </p>

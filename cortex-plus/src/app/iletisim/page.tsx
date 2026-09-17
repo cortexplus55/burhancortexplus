@@ -1,6 +1,18 @@
 import Link from "next/link";
 import { LifeBuoy, ListChecks, Mail, ShieldCheck } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
+import { SellerWarning } from "@/components/layout/seller-warning";
+import { SELLER, sellerField } from "@/lib/legal/seller";
+
+const SELLER_ROWS = [
+  { label: "Ad soyad / ünvan", value: sellerField("legalName") },
+  { label: "Adres", value: sellerField("address") },
+  { label: "Telefon", value: sellerField("phone") },
+  { label: "E-posta", value: sellerField("email") },
+  { label: "Vergi dairesi", value: sellerField("taxOffice") },
+  { label: "Vergi numarası", value: sellerField("taxNumber") },
+  { label: "İnternet sitesi", value: SELLER.website },
+];
 
 export const metadata = {
   title: "İletişim",
@@ -14,6 +26,28 @@ export default function IletisimPage() {
       description="Sorularını, geri bildirimlerini ve iş birliği taleplerini bekliyoruz."
     >
       <p className="mk-eyebrow">Bize ulaş</p>
+
+      {/*
+        Satıcı bilgileri. 6563 sayılı Elektronik Ticaretin Düzenlenmesi
+        Hakkında Kanun bunları sitede açıkça göstermeyi zorunlu tutuyor ve
+        PayTR üye iş yeri incelemesinde arıyor. Bu sayfada yalnızca bir
+        e-posta adresi vardı.
+      */}
+      <SellerWarning />
+
+      <section className="mk-card mt-5 p-6 sm:p-8">
+        <h2 className="text-lg font-semibold text-[var(--mk-text)]">
+          Satıcı bilgileri
+        </h2>
+        <dl className="mt-4 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-[auto_1fr]">
+          {SELLER_ROWS.map((row) => (
+            <div key={row.label} className="contents">
+              <dt className="text-[var(--mk-muted)]">{row.label}</dt>
+              <dd className="text-[var(--mk-text)]">{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
 
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         {/* Tek adres kullanıyoruz; bu kart bu yüzden diğerinden büyük ve
