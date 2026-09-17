@@ -21,14 +21,40 @@ import { SELLER, sellerField } from "@/lib/legal/seller";
  * önerilir.
  */
 
-const SELLER_BLOCK = () => [
-  `Satıcı: ${sellerField("legalName")}`,
-  `Adres: ${sellerField("address")}`,
-  `Telefon: ${sellerField("phone")}`,
-  `E-posta: ${sellerField("email")}`,
-  `Vergi dairesi / numarası: ${sellerField("taxOffice")} / ${sellerField("taxNumber")}`,
-  `İnternet sitesi: ${SELLER.website}`,
-];
+/*
+  Satıcı kimliği bloğu.
+
+  Bilerek yayınlanmayan alan için SATIR HİÇ YAZILMIYOR — "[doldurulacak]"
+  yazılmıyor. 17 Eylül 2026'da tam bu hata yayına çıktı: telefon ve vergi
+  numarası ürün kararıyla boş bırakılmıştı, `missingSellerFields()` bunları
+  eksik saymıyordu (kırmızı uyarı yoktu), ama sözleşme metni yine
+  "Telefon: [doldurulacak]" ve "Vergi dairesi / numarası: Bafra /
+  [doldurulacak]" diye basıyordu.
+
+  Sonuç her iki seçenekten de kötüydü: müşteriye sunulan bağlayıcı metin
+  yarım görünüyor ve göz tam olarak yayınlamamayı seçtiğimiz iki şeye
+  gidiyor. Boş bir alanın doğru karşılığı, o satırın olmamasıdır.
+
+  `sellerField()` yine "[doldurulacak]" döndürüyor ve bu doğru: gerçekten
+  zorunlu ama girilmemiş bir alan (ad, adres, e-posta, vergi dairesi)
+  metinde görünmek zorunda. Ayrım şu — zorunlu alan eksikse haykırır,
+  bilerek yayınlanmayan alan susar.
+*/
+const SELLER_BLOCK = () => {
+  const lines = [
+    `Satıcı: ${sellerField("legalName")}`,
+    `Adres: ${sellerField("address")}`,
+  ];
+  if (SELLER.phone.trim()) lines.push(`Telefon: ${SELLER.phone.trim()}`);
+  lines.push(`E-posta: ${sellerField("email")}`);
+  lines.push(
+    SELLER.taxNumber.trim()
+      ? `Vergi dairesi / numarası: ${sellerField("taxOffice")} / ${SELLER.taxNumber.trim()}`
+      : `Vergi dairesi: ${sellerField("taxOffice")}`,
+  );
+  lines.push(`İnternet sitesi: ${SELLER.website}`);
+  return lines;
+};
 
 const SERVICE_DESC = [
   "Hizmetin konusu: Cortex Plus, öğrencinin yüklediği ders materyalinden ya da seçtiği konudan yapay zekâ ile çalışma içeriği üreten bir internet hizmetidir. Üretilen içerikler anlatım, konu haritası, test, sesli anlatım (podcast) ve sözlü pratiktir.",

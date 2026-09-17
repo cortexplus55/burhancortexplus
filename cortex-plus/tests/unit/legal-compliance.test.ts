@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync, existsSync, globSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import {
   ACCEPTED_OMISSIONS,
   SELLER,
@@ -128,7 +129,18 @@ describe("satıcı bilgileri", () => {
   uca POST atan her istemci bileşeni onayı da göndermek zorunda.
 */
 describe("ödeme başlatan her yer onay gönderiyor", () => {
-  const callers = globSync("src/**/*.tsx").filter((file) =>
+  // `globSync` bu @types/node sürümünde tanımlı değil; projedeki mevcut
+  // yürüyüş kalıbı kullanılıyor (bkz. loading-fallbacks.test.ts).
+  function tsxFiles(dir: string, out: string[] = []): string[] {
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) tsxFiles(path, out);
+      else if (entry.endsWith(".tsx")) out.push(path);
+    }
+    return out;
+  }
+
+  const callers = tsxFiles("src").filter((file) =>
     readFileSync(file, "utf8").includes("payments/paytr/create-token"),
   );
 
@@ -141,6 +153,48 @@ describe("ödeme başlatan her yer onay gönderiyor", () => {
       expect(readFileSync(file, "utf8")).toContain("legalAccepted");
     });
   }
+});
+
+/*
+  17 Eylül 2026'da yayına çıkan gerçek hata.
+
+  Telefon ve vergi numarası ürün kararıyla boş bırakıldı ve
+  missingSellerFields() bunları eksik saymıyordu — yani kırmızı uyarı yoktu
+  ve her şey yolunda görünüyordu. Ama sözleşme metni yine
+  "Telefon: [doldurulacak]" basıyordu ve bu canlıya gitti.
+
+  Müşteriye sunulan bağlayıcı metinde yer tutucu görünmesi, hem yarım
+  duruyor hem de gözü tam olarak yayınlamamayı seçtiğimiz alana çekiyor.
+  Bu test o durumu kilitliyor: eksik zorunlu alan YOKSA, metinlerde yer
+  tutucu da OLMAYACAK.
+*/
+describe("hukuki metinlerde yer tutucu kalmadı", () => {
+  const allText = [
+    ...PRE_INFO_SECTIONS,
+    ...DISTANCE_SALES_SECTIONS,
+    ...CANCELLATION_SECTIONS,
+    ...DELIVERY_SECTIONS,
+  ]
+    .flatMap((section) => [section.heading, ...section.body])
+    .join("\n");
+
+  it("zorunlu alan eksik değilse yer tutucu da yok", () => {
+    expect(missingSellerFields()).toEqual([]);
+    expect(allText).not.toContain("[doldurulacak]");
+  });
+
+  it("bilerek boş alanın satırı hiç yazılmıyor", () => {
+    // Telefon yayınlanmıyor: satır olmayacak, boş da görünmeyecek.
+    expect(allText).not.toMatch(/Telefon:/);
+    // Vergi numarası yayınlanmıyor: eğik çizgili biçim yerine yalnız daire.
+    expect(allText).toContain("Vergi dairesi: Bafra");
+    expect(allText).not.toMatch(/Vergi dairesi \/ numarası/);
+  });
+
+  it("satıcı kimliği yine metinde duruyor", () => {
+    expect(allText).toContain("Mukadder Önder");
+    expect(allText).toContain("cortexplus@cortexplus.app");
+  });
 });
 
 describe("sözleşme metinleri ürünle çelişmiyor", () => {
