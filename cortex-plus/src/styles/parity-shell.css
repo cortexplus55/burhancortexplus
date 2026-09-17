@@ -2405,8 +2405,35 @@
   margin: 0 auto;
   padding: 1.75rem 1.25rem 4rem;
   display: grid;
+  /*
+    KOLON `minmax(0, 1fr)` OLMAK ZORUNDA — `auto` DEĞİL.
+
+    17 Eylül 2026'da ölçüldü: 360px'lik telefonda bu grid'in tek kolonu
+    438px çıkıyordu, yani kapsayıcının 320px'lik iç genişliğinden 118px
+    geniş. Sebep, grid'in `auto` kolonunun tabanının `min-content`
+    olması: içerikte kırılamayan uzun bir dizi (uzun bir belge adı, bir
+    bağlantı, uzun bir konu başlığı) varsa kolon o dizinin genişliğine
+    zorlanıyor ve SAYFANIN TAMAMI yatay taşmaya giriyor.
+
+    Sonuç telefonda şöyle görünüyordu: sayfa yana kayıyor, başlıklar ve
+    kartlar ekranın dışına taşıyor, içerik kenara yapışmış ya da üst üste
+    binmiş duruyor. Tek bir uzun kelime bunu yapıyor ve öğrenci
+    yüklediği belgenin adını kendi yazıyor.
+
+    `minmax(0, 1fr)` tabanı sıfıra indiriyor; uzun dizi artık kolonu
+    zorlamıyor, aşağıdaki `overflow-wrap` ile satır atlıyor.
+  */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.5rem;
   align-content: start;
+}
+
+/*
+  Uzun dizi kolonu zorlayamıyor; o hâlde kırılabilmeli. Aksi hâlde taşma
+  kolondan içeriğe kayar: kelime kartın dışına çıkar.
+*/
+.cp-page :where(p, h1, h2, h3, h4, li, td, th, span, a, strong, em, code) {
+  overflow-wrap: anywhere;
 }
 
 .cp-page-head {
