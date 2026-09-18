@@ -1,6 +1,6 @@
 # Sende kalanlar — ajanın yapamadığı işler
 
-Son güncelleme: 2026-09-17
+Son güncelleme: 2026-09-18
 
 Buradaki her madde ya **şifre girmeyi** ya **hesap açmayı** gerektiriyor; ikisi de
 ajanın yapmayacağı işler. Sırayla gidin, her biri birkaç dakika.
@@ -102,7 +102,7 @@ Site haritası gönderildi ve Google tarafından **okundu**: durum `Başarılı`
 
 ---
 
-## 6. Hata takibi — ✅ tamam · PostHog — ⏳ **sende**
+## 6. Hata takibi — ✅ tamam · PostHog — ✅ **kapandı (2026-09-17)**
 
 DSN 4 Eylül'de Vercel'e girildi (`NEXT_PUBLIC_SENTRY_DSN`, Config tipi, üç
 ortam). Yeni dağıtımla birlikte devreye girdi.
@@ -111,28 +111,26 @@ Ne toplanıyor, ne toplanmıyor: `docs/delivery/SENTRY-HATA-TAKIBI.md`
 
 ### PostHog (reklam ölçümü — zorunlu)
 
-Kod hazır (`src/components/analytics.tsx`); 6 Eylül abuse deploy'undan sonra
-OG/paylaşım da yayında. **`NEXT_PUBLIC_POSTHOG_KEY` Vercel'de yok.**
-Anahtar girilmeden pageview düşmez.
+**17 Eylül 2026'da kuruldu ve canlıda doğrulandı.** Anahtar istemci paketine
+gömülü (`phc_sEEho3…`) ve host `https://eu.i.posthog.com` — doğru bölge.
+`NEXT_PUBLIC_POSTHOG_HOST` ayrıca tanımlanmadı, kod kendi EU varsayılanına
+düşüyor.
 
-> **17 Eylül 2026'da yeniden doğrulandı — hâlâ açık.** `cortexplus.app` ana
-> sayfasının HTML'inde PostHog'a ait tek bir iz yok; anahtar tanımlı olsaydı
-> istemci paketi onu gömerdi (`analytics.tsx` anahtar yoksa `posthog-js`'i hiç
-> yüklemiyor). On iki gündür ölçüm toplanmıyor ve bu süre geriye dönük
-> kurtarılamaz.
+> **Bölge tuzağı bir kurulum yedi.** İlk kayıt `posthog.com` üzerinden yapıldı
+> ve US bulutuna düştü; PostHog'da EU ile US ayrı sistemler ve **proje ikisi
+> arasında taşınmıyor**. Proje henüz boşken fark edildiği için
+> `https://eu.posthog.com/signup` adresinden sıfırdan kuruldu, veri kaybı
+> olmadı. Bir daha olursa: US'te ısrar edilecekse Vercel'e ayrıca
+> `NEXT_PUBLIC_POSTHOG_HOST` girilmeli, yoksa ölçüm hiç düşmez.
 
-> **Bölge tuzağı:** kodun varsayılanı **EU** (`analytics.tsx`:
-> `?? "https://eu.i.posthog.com"`). `posthog.com` üzerinden kaydolmak sizi US
-> bulutuna atabiliyor ve **proje iki bulut arasında taşınmıyor**. Doğru adres
-> `https://eu.posthog.com/signup`. US'te açtıysanız ya EU'da yeniden kurun ya
-> da Vercel'e ayrıca `NEXT_PUBLIC_POSTHOG_HOST` girin.
+> **Nasıl doğrulanır — ana sayfanın HTML'ine bakmak işe yaramaz.**
+> `NEXT_PUBLIC_*` değişkenleri HTML'e değil JS paketine giriyor. Doğru yol:
+> ana sayfadaki `/_next/static/**.js` dosyalarını indirip içlerinde `phc_` ara.
+> Bu belgenin bir önceki sürümü HTML'de arayıp "PostHog yok" diyordu; sonuç o
+> gün tesadüfen doğruydu ama yöntem yanlıştı ve yanlış yöntem yanlış güven
+> verir.
 
-1. [eu.posthog.com](https://eu.posthog.com) → `cortexplus@cortexplus.app` ile hesap/proje.
-2. Project settings → Project API key (`phc_…`).
-3. Vercel → `burhancortexplus-app` → Environment Variables → Production + Preview:
-   - `NEXT_PUBLIC_POSTHOG_KEY` = `phc_…`
-   - `NEXT_PUBLIC_POSTHOG_HOST` = `https://eu.i.posthog.com` (isteğe bağlı; kodda varsayılan bu)
-4. Redeploy (veya boş commit / "Redeploy").
+6–17 Eylül arasında ölçüm toplanmadı; o pencere geriye dönük kurtarılamıyor.
 5. `cortexplus.app` aç → PostHog → Activity'de `$pageview` görünmeli.
 6. `/admin/sistem` → PostHog satırı **Tanımlı**.
 
@@ -169,10 +167,15 @@ Göç geçmişi de işlendi — son kayıt `20260904140000`, karşılıksız kay
 
 ---
 
-## 8. PayTR'ı canlıya al — ⏳ **sende**
+## 8. PayTR'ı canlıya al — 🔶 **yarısı bitti**
 
-Ek mağaza onaylandı (16 Eylül). Kod tarafında yapılacak bir şey kalmadı;
-eksik olan üç anahtar ve panelde bir adres.
+Ek mağaza onaylandı (16 Eylül), üç anahtar 17 Eylül'de Vercel'e girildi.
+Canlıdan doğrulandı: `/fiyatlandirma`'daki "Yakında" düğmeleri **"Satın al"**
+oldu ve haftalık paket (₺349) satışa açıldı.
+
+**Ama bitmedi.** "Satın al" düğmesi, anahtarlar tanımlı olduğu an test
+kipinde de canlı kipte de görünür — dışarıdan ikisi ayırt edilemiyor.
+Kalan iki adım aşağıda.
 
 **Adım adım rehber: [PAYTR-KURULUM.md](./PAYTR-KURULUM.md)** — menü yolları
 PayTR'nin kendi dokümanından doğrulanmış, tuzaklar da yazılı. Burada
@@ -181,14 +184,30 @@ tekrarlamıyorum ki iki belge birbirinden ayrışmasın.
 Kısayol: `npx vercel login` sonrası `.\scripts\setup-paytr.ps1` üç değeri
 gizli sorup Vercel'e yazıyor ve dağıtımı kontrol ediyor.
 
-İki şeyi aklında tut:
+### Kalan adım 1 — kipi doğrula
 
-- **Bildirim URL'i** tam olarak `https://cortexplus.app/api/payments/paytr/callback`
-  olmalı. Yanlışsa para çekilir ama kredi yüklenmez.
-- **`PAYTR_TEST_MODE` varsayılanı `1`.** Test kipinde akış baştan sona
-  çalışır, abonelik açılır, kredi yüklenir — yalnızca para gelmez. Bu yüzden
-  `/admin/sistem` artık PayTR satırını "TEST kipinde" diye işaretliyor
-  (`paytrMode()`). "Tanımlı" demek "para geliyor" demek değil.
+`/admin/sistem` → PayTR satırı. Rozet **"TEST kipinde"** diyorsa Vercel'de
+`PAYTR_TEST_MODE=0` **ve** `PAYTR_DEBUG_ON=0` yapıp yeniden dağıt.
+
+Aciliyeti şundan: test kipinde akış baştan sona çalışır — form açılır, ödeme
+"başarılı" döner, abonelik açılır, kredi yüklenir. Yalnızca para gelmez. Satın
+alma düğmesi şu anda herkese açık bir sayfada duruyor, yani kip yanlışsa ürün
+sessizce bedava dağıtılır. Bunu görünür kılan `paytrMode()`; "Tanımlı" demek
+"para geliyor" demek değil.
+
+### Kalan adım 2 — gerçek kartla bir alım ve bir iade provası
+
+**Test kipi canlı kipi kanıtlamaz**: farklı uç, farklı 3D akışı, farklı banka
+cevabı. En ucuz paketi kendi kartınla al → kredinin yüklendiğini gör → PayTR
+panelinden iade et → iadenin işlediğini gör.
+
+Yan faydası: iadeyi panelde nereden yaptığını bir kez görmüş olursun.
+`/iptal-iade` müşteriye "haklı durumda karta iade" sözü veriyor ve o sözü
+tutacak olan sensin. Bu prova yapılmazsa ilk gerçek müşteri senin testin olur.
+
+Bir de kurulumun tek kritik alanı: **Bildirim URL'i** tam olarak
+`https://cortexplus.app/api/payments/paytr/callback` olmalı. Yanlışsa para
+çekilir ama kredi yüklenmez.
 
 **Otomatik yenileme bu kurulumla açılmıyor** — yetki meselesi değil, mimari:
 kullandığımız iFrame API'nin kart saklama parametresi yok. Ayrıntı ve park
