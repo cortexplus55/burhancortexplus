@@ -57,12 +57,12 @@ export function ExamNodeCoach({
   }
 
   return (
-    <div className="ap-exam-coach">
-      <button type="button" className="ap-exam-coach-chip" disabled={loading} onClick={() => void send(ASK)}>
+    <div className="cp-exam-coach">
+      <button type="button" className="cp-exam-coach-chip" disabled={loading} onClick={() => void send(ASK)}>
         Bilmiyorum, sen anlat
       </button>
       <form
-        className="ap-exam-coach-form"
+        className="cp-exam-coach-form"
         onSubmit={(event) => {
           event.preventDefault();
           void send(input);
@@ -79,9 +79,9 @@ export function ExamNodeCoach({
         </button>
       </form>
       {open && messages.length ? (
-        <ol className="ap-exam-coach-log">
+        <ol className="cp-exam-coach-log">
           {messages.map((msg, index) => (
-            <li key={`${msg.role}-${index}`} className={`ap-exam-coach-msg ap-exam-coach-msg--${msg.role}`}>
+            <li key={`${msg.role}-${index}`} className={`cp-exam-coach-msg cp-exam-coach-msg--${msg.role}`}>
               <em>{msg.role === "user" ? "Sen" : "Eğitmen"}</em>
               <p>{msg.content}</p>
             </li>

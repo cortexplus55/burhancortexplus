@@ -103,11 +103,11 @@ export function ExamPrepSettingsPanel({
   }
 
   return (
-    <section className="ap-exam-settings" aria-label="Çalışma tercihleri">
-      <div className="ap-exam-settings-bar">
+    <section className="cp-exam-settings" aria-label="Çalışma tercihleri">
+      <div className="cp-exam-settings-bar">
         <button
           type="button"
-          className="ap-back-pill"
+          className="cp-back-pill"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
@@ -116,7 +116,7 @@ export function ExamPrepSettingsPanel({
       </div>
 
       {initial.scheduleFits === false ? (
-        <p className="ap-exam-settings-warn" role="status">
+        <p className="cp-exam-settings-warn" role="status">
           Plan süreye sığmıyor
           {initial.optionsIfTight.length
             ? ` — seçenekler: ${initial.optionsIfTight
@@ -138,11 +138,11 @@ export function ExamPrepSettingsPanel({
       ) : null}
 
       {open ? (
-        <div className="ap-exam-intake" style={{ gap: "0.75rem", marginTop: "0.75rem" }}>
-          <p className="text-sm text-[var(--ap-muted)]">
+        <div className="cp-exam-intake" style={{ gap: "0.75rem", marginTop: "0.75rem" }}>
+          <p className="text-sm text-[var(--cp-muted)]">
             Bu tercihler hazırlığına kaydedilir; her oturumda yeniden sorulmaz.
           </p>
-          <label className="ap-field">
+          <label className="cp-field">
             <span>Sınav tarihi</span>
             <input
               type="date"
@@ -150,7 +150,7 @@ export function ExamPrepSettingsPanel({
               onChange={(e) => setExamDate(e.target.value)}
             />
           </label>
-          <label className="ap-field">
+          <label className="cp-field">
             <span>Günde kaç dakika?</span>
             <input
               type="number"
@@ -161,14 +161,14 @@ export function ExamPrepSettingsPanel({
               onChange={(e) => setDailyMinutes(Number(e.target.value) || 45)}
             />
           </label>
-          <fieldset className="ap-field">
+          <fieldset className="cp-field">
             <legend>Çalışma günleri</legend>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
               {WEEKDAYS.map((day) => (
                 <button
                   key={day.id}
                   type="button"
-                  className="ap-back-pill"
+                  className="cp-back-pill"
                   aria-pressed={studyDays.includes(day.id)}
                   onClick={() => toggleStudyDay(day.id)}
                 >
@@ -178,14 +178,14 @@ export function ExamPrepSettingsPanel({
             </div>
           </fieldset>
           {initial.topicOptions.length ? (
-            <fieldset className="ap-field">
+            <fieldset className="cp-field">
               <legend>Zor bulduğun konular (öz-bildirim)</legend>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
                 {initial.topicOptions.map((topic) => (
                   <button
                     key={topic}
                     type="button"
-                    className="ap-back-pill"
+                    className="cp-back-pill"
                     aria-pressed={hardTopics.includes(topic)}
                     onClick={() => toggleHard(topic)}
                   >
@@ -195,7 +195,7 @@ export function ExamPrepSettingsPanel({
               </div>
             </fieldset>
           ) : null}
-          <label className="ap-field">
+          <label className="cp-field">
             <span>Nasıl öğrenmek istersin?</span>
             <select
               value={prefStyle}
@@ -208,7 +208,7 @@ export function ExamPrepSettingsPanel({
               <option value="mixed">Karışık</option>
             </select>
           </label>
-          <label className="ap-field">
+          <label className="cp-field">
             <span>Tempo</span>
             <select
               value={prefPace}
@@ -224,7 +224,7 @@ export function ExamPrepSettingsPanel({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="ap-exam-continue"
+              className="cp-exam-continue"
               disabled={saving}
               onClick={() => void save(false)}
             >
@@ -232,7 +232,7 @@ export function ExamPrepSettingsPanel({
             </button>
             <button
               type="button"
-              className="ap-exam-continue ap-exam-continue--primary"
+              className="cp-exam-continue cp-exam-continue--primary"
               disabled={saving}
               onClick={() => void save(true)}
             >

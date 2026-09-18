@@ -103,7 +103,7 @@ describe("gün etiketleri", () => {
   });
 
   // Yakın günler konuşma dilinde okunuyor; sayıya düşmek yalnızca üç günden
-  // itibaren. Astra da aynı tonu kullanıyor ("evvelsi gün").
+  // itibaren. Referans ürün da aynı tonu kullanıyor ("evvelsi gün").
   it("yakın günleri konuşma dilinde yazar", () => {
     expect(formatDayLabel("2026-09-05", TODAY)).toBe("Öbür gün");
     expect(formatDayLabel("2026-09-02", TODAY)).toBe("Dün");

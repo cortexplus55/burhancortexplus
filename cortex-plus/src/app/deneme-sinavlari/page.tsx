@@ -1,11 +1,11 @@
-import { AstraParityExamPrep } from "@/components/parity/astra-parity-exam-prep";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParityExamPrep } from "@/components/parity/exam-prep";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { mapPrepTopics, type PrepTopic } from "@/lib/learning/exam-prep-progress";
 import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
 import { daysUntilExam, nodeProgress } from "@/lib/learning/exam-prep-plan";
-import type { ExamPrepCard } from "@/components/parity/astra-parity-exam-prep";
+import type { ExamPrepCard } from "@/components/parity/exam-prep";
 import { toFeedRows, toSummary } from "@/lib/parity/school-feed";
 
 export const metadata = { title: "Sınav hazırlığı" };
@@ -133,8 +133,8 @@ export default async function DenemeSinavlariPage() {
   const otherPreps = cards.filter((card) => card.id !== activePrep?.id);
 
   return (
-    <AstraParitySorShell {...shell}>
-      <AstraParityExamPrep
+    <ParitySorShell {...shell}>
+      <ParityExamPrep
         activePrep={activePrep}
         otherPreps={otherPreps}
         userInitial={shell.userInitial}
@@ -142,6 +142,6 @@ export default async function DenemeSinavlariPage() {
         schoolSummary={schoolSummary}
         schoolRows={schoolRows}
       />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

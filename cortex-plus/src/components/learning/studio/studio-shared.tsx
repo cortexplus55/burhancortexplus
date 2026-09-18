@@ -18,15 +18,28 @@ export type { StudioToolId };
 export async function postStudio<T>(
   url: string,
   body: Record<string, unknown>,
-): Promise<{ paywall: true } | { ok: true; data: T } | { ok: false; error: string }> {
+): Promise<
+  | { paywall: true; code?: string }
+  | { ok: true; data: T }
+  | { ok: false; error: string }
+> {
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (res.status === 402) return { paywall: true };
-    const payload = (await res.json().catch(() => ({}))) as T & { error?: string };
+    const payload = (await res.json().catch(() => ({}))) as T & {
+      error?: string;
+      code?: string;
+    };
+    /*
+      402 iki ayrı sebeple geliyor ve ikisine farklı kapı açılıyor: kredisi
+      biten aboneye "ay başında yenilenir", aboneliği olmayana "Plus'a geç".
+      `code` olmadan ikisi ayrılamıyordu ve podcast Plus'a kapanınca ücretsiz
+      kullanıcıya "kredin yetmiyor" denirdi — kredi alsa da açılmayan bir kapı.
+    */
+    if (res.status === 402) return { paywall: true, code: payload.code };
     if (!res.ok) return { ok: false, error: payload.error ?? "İşlem tamamlanamadı." };
     return { ok: true, data: payload };
   } catch {

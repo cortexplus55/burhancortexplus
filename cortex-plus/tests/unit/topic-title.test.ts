@@ -11,7 +11,7 @@ import {
 
 describe("targetTopicCount", () => {
   it("scales with the document and stays inside the readable band", () => {
-    // 20 sayfalık zemin PDF'i → 7; Astra'nın aynı belgeden çıkardığı sayı.
+    // 20 sayfalık zemin PDF'i → 7; Referans ürünün aynı belgeden çıkardığı sayı.
     expect(targetTopicCount(20)).toBe(7);
     // Kısa özet notu bölünemeyecek kadar kısa olsa da plan üretebilmeli.
     expect(targetTopicCount(3)).toBe(4);
@@ -309,7 +309,7 @@ describe("sectionHeadings", () => {
 
 describe("documentTitle", () => {
   it("takes the cover's own title", () => {
-    // Astra aynı belgeye "Servet-i Fünûn Edebiyatı ve Yenilikleri" derken
+    // Referans ürün aynı belgeye "Servet-i Fünûn Edebiyatı ve Yenilikleri" derken
     // biz "Türkçe sınav hazırlığı" diyorduk: ad dersten geliyordu.
     expect(
       documentTitle({

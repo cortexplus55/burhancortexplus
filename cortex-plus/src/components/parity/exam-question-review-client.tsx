@@ -78,7 +78,7 @@ export function ExamQuestionReviewClient({
   }, [filter, questions, reviewMap]);
 
   return (
-    <div className="ap-exam-suite-container max-w-4xl mx-auto px-4 py-6 space-y-6">
+    <div className="cp-exam-suite-container max-w-4xl mx-auto px-4 py-6 space-y-6">
       {/* Top Navigation Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-white/5">
         <Link
@@ -116,7 +116,7 @@ export function ExamQuestionReviewClient({
               {examTitle}
             </h1>
             <p className="text-sm text-zinc-400 mt-1">
-              Soruların doğru cevaplarını ve Astra AI çözüm açıklamalarını incele.
+              Soruların doğru cevaplarını ve Cortex Plus çözüm açıklamalarını incele.
             </p>
           </div>
 
@@ -301,7 +301,7 @@ export function ExamQuestionReviewClient({
                       <Sparkles className="w-3.5 h-3.5" />
                     </div>
                     <span className="text-xs font-bold text-violet-300 uppercase tracking-wider">
-                      Astra AI Çözüm Açıklaması
+                      Cortex Plus Çözüm Açıklaması
                     </span>
                   </div>
 

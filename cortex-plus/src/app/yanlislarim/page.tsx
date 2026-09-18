@@ -1,4 +1,4 @@
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { MistakeNotebookView } from "@/components/parity/mistake-notebook-view";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -24,11 +24,11 @@ export default async function YanlislarimPage() {
   ]);
 
   return (
-    <AstraParitySorShell {...shell}>
+    <ParitySorShell {...shell}>
       <MistakeNotebookView
         groups={toClientGroups(groups)}
         masteredCount={counts.mastered}
       />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

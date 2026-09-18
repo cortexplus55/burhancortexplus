@@ -1,4 +1,4 @@
-/* Adım adım ders (.als-*). Renkler astra-parity-sor.css tokenlarından. */
+/* Adım adım ders (.als-*). Renkler parity-shell.css tokenlarından. */
 
 .als {
   width: min(38rem, 100%);
@@ -23,7 +23,7 @@
 
 .als-count {
   margin-top: 0.6rem;
-  color: var(--ap-muted);
+  color: var(--cp-muted);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -62,7 +62,7 @@
 }
 
 .als-list--muted {
-  color: var(--ap-muted);
+  color: var(--cp-muted);
 }
 
 .als-tag {
@@ -73,13 +73,13 @@
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  background: var(--ap-surface-2);
-  color: var(--ap-muted);
+  background: var(--cp-surface-2);
+  color: var(--cp-muted);
 }
 
 .als-tag--warn {
   background: rgba(244, 174, 11, 0.18);
-  color: var(--ap-gold);
+  color: var(--cp-gold);
 }
 
 .als-tag--ok {
@@ -90,8 +90,8 @@
 .als-solution {
   margin-top: 0.9rem;
   border-radius: 0.85rem;
-  border: 1px solid var(--ap-border);
-  background: var(--ap-surface);
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
   padding: 0.85rem 1rem;
   font-size: 0.9375rem;
   line-height: 1.55;
@@ -101,8 +101,8 @@
   align-self: flex-start;
   margin-top: 0.9rem;
   border-radius: 9999px;
-  border: 1px solid var(--ap-border);
-  background: var(--ap-surface-2);
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface-2);
   color: inherit;
   padding: 0.5rem 1.1rem;
   font-size: 0.875rem;
@@ -120,7 +120,7 @@
 .als-mistake-claim,
 .als-mistake-fix {
   border-radius: 0.85rem;
-  border: 1px solid var(--ap-border);
+  border: 1px solid var(--cp-border);
   padding: 0.8rem 0.95rem;
   font-size: 0.9375rem;
   line-height: 1.55;
@@ -141,8 +141,8 @@
 .als-check {
   margin-top: 1.5rem;
   border-radius: 1rem;
-  border: 1px solid var(--ap-border);
-  background: var(--ap-surface);
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
   padding: 1rem;
 }
 
@@ -174,7 +174,7 @@
   justify-content: space-between;
   gap: 0.5rem;
   border-radius: 0.75rem;
-  border: 1px solid var(--ap-border);
+  border: 1px solid var(--cp-border);
   background: #141414;
   color: inherit;
   padding: 0.7rem 0.85rem;
@@ -217,7 +217,7 @@
 .als-explain {
   margin-top: 0.75rem;
   border-radius: 0.75rem;
-  background: var(--ap-surface-2);
+  background: var(--cp-surface-2);
   padding: 0.75rem 0.85rem;
   font-size: 0.875rem;
   line-height: 1.55;
@@ -255,7 +255,7 @@
    ders akışındaki mor kontrolden ayrılsın diye — öğrenci bunun yeni
    bir bölüm değil, geri dönüş olduğunu bir bakışta görsün. */
 .als-retry-kicker {
-  color: var(--ap-gold, #f4ae0b);
+  color: var(--cp-gold, #f4ae0b);
   margin-bottom: 0.25rem;
 }
 
@@ -263,7 +263,7 @@
    ağırlık kullanıyoruz — paragraf alacalı görünmesin. */
 .als-term {
   font-weight: 650;
-  color: var(--ap-text, #fff);
+  color: var(--cp-text, #fff);
 }
 
 /* Bölüm içi uyarı kutusu: karıştırılması kolay ayrım, kavramın yanında.
@@ -271,9 +271,9 @@
 .als-note {
   margin-top: 0.9rem;
   padding: 0.7rem 0.9rem;
-  border-left: 3px solid var(--ap-gold, #f4ae0b);
+  border-left: 3px solid var(--cp-gold, #f4ae0b);
   border-radius: 0 10px 10px 0;
-  background: color-mix(in srgb, var(--ap-gold, #f4ae0b) 8%, transparent);
+  background: color-mix(in srgb, var(--cp-gold, #f4ae0b) 8%, transparent);
 }
 
 .als-note-title {
@@ -282,7 +282,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--ap-gold, #f4ae0b);
+  color: var(--cp-gold, #f4ae0b);
 }
 
 .als-note-body {
@@ -297,9 +297,9 @@
 .als-diagram {
   margin: 0.9rem 0 0;
   padding: 0.75rem;
-  border: 1px solid var(--ap-border, #2e2e2e);
+  border: 1px solid var(--cp-border, #2e2e2e);
   border-radius: 12px;
-  background: var(--ap-surface, #1a1a1a);
+  background: var(--cp-surface, #1a1a1a);
 }
 
 .als-diagram svg {
@@ -314,6 +314,6 @@
   margin-top: 0.5rem;
   font-size: 0.8125rem;
   line-height: 1.5;
-  color: var(--ap-muted, #a3a3a3);
+  color: var(--cp-muted, #a3a3a3);
   text-align: center;
 }

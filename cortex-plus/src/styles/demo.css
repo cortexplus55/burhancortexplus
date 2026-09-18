@@ -237,6 +237,174 @@
   line-height: 1.7;
 }
 
+/* --- 1. kaynak: indirme, bırakma alanı ve işlenme adımları --- */
+.dm-drop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+  border: 1px dashed var(--pm-line);
+  border-radius: var(--pm-radius-md);
+  background: var(--pm-surface);
+  padding: 1.5rem 1rem;
+  color: var(--dm-text);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--pm-dur-base) var(--pm-ease),
+    background var(--pm-dur-base) var(--pm-ease);
+}
+
+/* Dosya seçici görünmüyor ama klavyeyle odaklanabiliyor; odak o yüzden
+   sarmalayan alanda gösteriliyor, yoksa klavye kullanan nerede olduğunu
+   göremiyor. */
+.dm-drop:has(.dm-drop-input:focus-visible) {
+  outline: 2px solid var(--pm-amber-500);
+  outline-offset: 2px;
+}
+
+.dm-drop:hover,
+.dm-drop.is-over {
+  border-color: rgba(232, 163, 61, 0.55);
+  background: rgba(232, 163, 61, 0.08);
+}
+
+.dm-drop strong {
+  font-size: 0.9rem;
+}
+
+.dm-drop em {
+  font-style: normal;
+  font-size: 0.78rem;
+  color: var(--dm-muted);
+}
+
+/* Dosya seçici görünmüyor ama etiketin içinde duruyor: tıklama ve klavye
+   erişimi tarayıcının kendi davranışıyla geliyor, taklit edilmiyor. */
+.dm-drop-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dm-drop-msg {
+  margin-top: 0.75rem;
+  border: 1px solid rgba(242, 96, 60, 0.35);
+  border-radius: var(--pm-radius-sm);
+  background: rgba(242, 96, 60, 0.08);
+  padding: 0.8rem 0.9rem;
+  color: var(--dm-text);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.dm-drop-msg-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+.dm-skip {
+  display: block;
+  margin: 0.7rem auto 0;
+  border: 0;
+  background: none;
+  padding: 0.25rem;
+  color: var(--dm-muted);
+  font-size: 0.78rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.dm-skip:hover {
+  color: var(--dm-text);
+}
+
+.dm-stages {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dm-stages li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid var(--pm-line);
+  border-radius: var(--pm-radius-sm);
+  background: var(--pm-surface);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  opacity: 0.45;
+  transition: opacity var(--pm-dur-base) var(--pm-ease),
+    border-color var(--pm-dur-base) var(--pm-ease);
+}
+
+.dm-stages li.is-done {
+  border-color: rgba(74, 222, 128, 0.3);
+  opacity: 1;
+}
+
+.dm-stages-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--pm-surface-2);
+  color: var(--dm-muted);
+}
+
+.dm-stages li.is-done .dm-stages-dot {
+  background: rgba(74, 222, 128, 0.18);
+  color: var(--pm-success);
+}
+
+.dm-stages-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dm-stages-detail {
+  font-style: normal;
+  font-size: 0.78rem;
+  color: var(--dm-muted);
+  text-align: right;
+}
+
+.dm-source-note {
+  margin-top: 0.9rem;
+  color: var(--dm-muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.dm-spin {
+  animation: dm-spin 0.9s linear infinite;
+}
+
+@keyframes dm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-spin {
+    animation: none;
+  }
+}
+
 /* --- 2. konular --- */
 .dm-topics {
   list-style: none;
@@ -629,4 +797,93 @@
 .dm-btn--sm {
   padding: 0.45rem 0.95rem;
   font-size: 0.8125rem;
+}
+
+/* --- 6. adım: sınır --------------------------------------------------- */
+
+.dm-bound {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+
+.dm-bound-item {
+  border-radius: 0.9rem;
+  border: 1px solid var(--pm-border, rgba(255, 255, 255, 0.12));
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+.dm-bound-q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0.85rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dm-bound-q:hover,
+.dm-bound-q--on {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dm-bound-cue {
+  flex: none;
+  font-size: 1.1rem;
+  opacity: 0.6;
+}
+
+.dm-bound-a {
+  padding: 0 1rem 1rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.dm-bound-a p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  opacity: 0.88;
+}
+
+.dm-bound-badge {
+  justify-self: start;
+  border-radius: 9999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.dm-bound-badge--var {
+  background: rgba(52, 199, 123, 0.16);
+  color: #6ee7a8;
+}
+
+/* Reddetme ve düzeltme ürünün DOĞRU davranışı — kırmızı "hata" rengiyle
+   gösterilirse ziyaretçi bunu kusur sanır. Ayırt edici ama olumlu renkler. */
+.dm-bound-badge--yok {
+  background: rgba(244, 174, 11, 0.16);
+  color: #f4ae0b;
+}
+
+.dm-bound-badge--duzeltme {
+  background: rgba(124, 108, 247, 0.18);
+  color: #a99cff;
+}
+
+.dm-bound-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  opacity: 0.66;
 }

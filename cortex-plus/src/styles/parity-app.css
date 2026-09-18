@@ -1,0 +1,168 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap");
+
+/* Referans ürün tarzı mobile app shell (dark) — sinematik altın vurgu */
+.cs-app {
+  --cs-bg: #0a0a0a;
+  --cs-surface: #1a1a1a;
+  --cs-surface-elevated: #242424;
+  --cs-primary: #f4ae0b;
+  --cs-primary-hover: #ffc233;
+  --cs-text: #ffffff;
+  --cs-muted: #a3a3a3;
+  --cs-border: #2e2e2e;
+  --cs-pill: #1e1e1e;
+  color: var(--cs-text);
+  background: var(--cs-bg);
+  min-height: 100dvh;
+}
+
+.cs-app .cs-page-title {
+  font-family: "DM Serif Display", Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--cs-text);
+}
+
+.cs-app .cs-composer {
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
+  border-radius: 1.25rem;
+}
+
+.cs-app .cs-nav-bar {
+  background: var(--cs-pill);
+  border: 1px solid var(--cs-border);
+}
+
+.cs-app .cs-nav-active {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0 24px rgba(232, 168, 56, 0.18),
+    inset 0 0 0 1px rgba(232, 168, 56, 0.15);
+}
+
+.cs-app .cs-btn-primary {
+  background: linear-gradient(135deg, #f0b84d 0%, #d4922a 100%);
+  color: #0c0a06;
+}
+
+.cs-app .cs-btn-primary:hover {
+  background: linear-gradient(135deg, #ffc857 0%, #f4ae0b 100%);
+}
+
+.cs-app .cs-pay-card {
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
+  border-radius: 1.25rem;
+  transition:
+    transform 0.35s ease,
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.cs-app .cs-pay-card:hover {
+  border-color: rgba(232, 168, 56, 0.35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* Öğrenme araçları — quiz, flashcard, generator */
+@keyframes cs-learning-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.cs-app .cs-learning-shimmer {
+  animation: cs-learning-shimmer 1.2s ease-in-out infinite;
+}
+
+.cs-app .cs-quiz-option {
+  border: 1px solid var(--cs-border);
+  background: var(--cs-surface-elevated);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.cs-app .cs-quiz-option--selected {
+  border-color: var(--cs-primary);
+  box-shadow: inset 0 0 0 1px rgba(244, 174, 11, 0.35);
+}
+
+.cs-app .cs-quiz-option--correct {
+  border-color: rgb(245 158 11);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.cs-app .cs-quiz-option--wrong {
+  border-color: rgb(239 68 68);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.cs-app .cs-flashcard-scene {
+  perspective: 1000px;
+}
+
+.cs-app .cs-flashcard-inner {
+  position: relative;
+  min-height: 9rem;
+  transform-style: preserve-3d;
+  transition: transform 0.45s ease;
+}
+
+.cs-app .cs-flashcard-inner--revealed {
+  transform: rotateY(180deg);
+}
+
+.cs-app .cs-flashcard-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border: 1px solid var(--cs-border);
+  border-radius: 1rem;
+  background: var(--cs-surface-elevated);
+  padding: 1rem;
+  text-align: left;
+}
+
+.cs-app .cs-flashcard-face--back {
+  transform: rotateY(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-app .cs-flashcard-inner {
+    transition: none;
+  }
+
+  .cs-app .cs-flashcard-inner--revealed {
+    transform: none;
+  }
+
+  .cs-app .cs-flashcard-face--front {
+    opacity: 1;
+    transition: opacity 0.2s ease;
+  }
+
+  .cs-app .cs-flashcard-inner--revealed .cs-flashcard-face--front {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .cs-app .cs-flashcard-face--back {
+    transform: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .cs-app .cs-flashcard-inner--revealed .cs-flashcard-face--back {
+    opacity: 1;
+  }
+
+  .cs-app .cs-learning-shimmer {
+    animation: none;
+  }
+}

@@ -3,7 +3,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check, ChevronLeft, FileText, Plus, Upload, X } from "lucide-react";
+import { isPhotoQuotaError } from "@/lib/documents/process-errors";
+import {
+  Check,
+  ChevronLeft,
+  FileText,
+  MessageSquare,
+  Plus,
+  Upload,
+  X,
+} from "lucide-react";
 import {
   buildExamPlan,
   daysUntilExam,
@@ -16,9 +25,11 @@ import {
 } from "@/lib/learning/exam-plan-phases";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { ExamSetupChat } from "@/components/parity/exam-setup-chat";
+import { COMMON_SUBJECTS } from "@/lib/learning/subjects";
 import "@/styles/exam-create-wizard.css";
 
 type Step =
+  | "start"
   | "subject"
   | "date"
   | "target"
@@ -30,6 +41,7 @@ type Step =
   | "plan";
 
 const STEP_ORDER: Step[] = [
+  "start",
   "subject",
   "date",
   "target",
@@ -41,18 +53,6 @@ const STEP_ORDER: Step[] = [
   "plan",
 ];
 
-const COMMON_SUBJECTS = [
-  "Matematik",
-  "Fizik",
-  "Kimya",
-  "Biyoloji",
-  "Türkçe",
-  "Tarih",
-  "Coğrafya",
-  "İngilizce",
-  "Felsefe",
-  "Bilgisayar",
-];
 
 const BUILD_STAGES = [
   "Sayfalar okunuyor",
@@ -120,10 +120,13 @@ export function ExamCreateWizard({
   onUseChat: () => void;
 }) {
   const router = useRouter();
-  // Belgeden gelinse bile ders adımıyla başlanır: ders atlanırsa hazırlık
-  // "Serbest" olarak kaydediliyor ve listede ayırt edilemiyordu. Belge yalnızca
-  // materyal adımında seçili gelir.
-  const [step, setStep] = useState<Step>("subject");
+  // İlk soru "materyalin var mı?" — elinde dosya olmayan öğrenci eskiden üç
+  // adım yürüyüp materyal adımının altındaki ince yazıyı bulmak zorundaydı.
+  // Belgeyle gelen öğrenci (deep link) o adımı atlar.
+  //
+  // Ders adımı hâlâ ikinci: ders atlanırsa hazırlık "Serbest" olarak
+  // kaydediliyor ve listede ayırt edilemiyordu.
+  const [step, setStep] = useState<Step>(initialDocumentId ? "subject" : "start");
 
   const [subject, setSubject] = useState("");
   const [subjectQuery, setSubjectQuery] = useState("");
@@ -243,18 +246,25 @@ export function ExamCreateWizard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ documentId: uploaded.documentId }),
       });
+      const processed = await processRes.json().catch(() => ({}));
       if (processRes.status === 402) {
+        // Fotoğraf kotası bittiyse kredi satın almak işe yaramıyor.
+        if (isPhotoQuotaError(processed)) {
+          toast.error(processed.error ?? "Bu ayki fotoğraf hakkın doldu.");
+          return;
+        }
         setPaywall(true);
         return;
       }
       if (!processRes.ok) {
-        const processed = await processRes.json().catch(() => ({}));
         toast.error(processed.error ?? "Dosya işlenemedi.");
         return;
       }
       setDocumentId(uploaded.documentId);
       setDocumentName(file.name);
-      toast.success("Materyalin hazır.");
+      toast.success("Materyalin hazır.", {
+        description: processed.notice ?? undefined,
+      });
     } catch {
       toast.error("Bağlantı hatası.");
     } finally {
@@ -319,6 +329,42 @@ export function ExamCreateWizard({
         <button type="button" className="apw-back" onClick={goBack}>
           <ChevronLeft className="h-4 w-4" aria-hidden /> Geri
         </button>
+      ) : null}
+
+      {step === "start" ? (
+        <section className="apw-step">
+          <h1>Nasıl çalışalım?</h1>
+          <p className="apw-lead">
+            Ders notun varsa konular, sorular ve podcast senin materyalinden
+            çıkar. Yoksa da olur — sınavında ne olduğunu anlat, yeter.
+          </p>
+
+          <div className="apw-picks">
+            <button
+              type="button"
+              className="apw-pick"
+              onClick={() => setStep("subject")}
+            >
+              <FileText className="h-6 w-6" aria-hidden />
+              <span className="apw-pick-title">Ders notum var</span>
+              <span className="apw-pick-hint">
+                PDF, görsel ya da metin yükle; her şey senin belgenden üretilsin.
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className="apw-pick"
+              onClick={onUseChat}
+            >
+              <MessageSquare className="h-6 w-6" aria-hidden />
+              <span className="apw-pick-title">Belgem yok, konudan çalışayım</span>
+              <span className="apw-pick-hint">
+                Sınavında ne var söyle; konuları birlikte çıkarıp planı kuralım.
+              </span>
+            </button>
+          </div>
+        </section>
       ) : null}
 
       {step === "subject" ? (
@@ -773,7 +819,7 @@ export function ExamCreateWizard({
   );
 }
 
-/** Hızlı seçenekler + ay takvimi. Astra'daki gibi tarih ayrı bir adım. */
+/** Hızlı seçenekler + ay takvimi. Referans üründeki gibi tarih ayrı bir adım. */
 function DateStep({
   value,
   onPick,

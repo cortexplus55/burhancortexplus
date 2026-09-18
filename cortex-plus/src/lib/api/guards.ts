@@ -266,9 +266,21 @@ export function errorResponse(status: number, code: string) {
       "Seçili belge kaynağı okunamadı. Belgeyi yeniden işle veya başka kaynak seç.",
     no_measurable_topics:
       "Ölçülebilir konu bulunamadı. Konu haritasını kontrol et.",
+    premium_required: "Bu özellik Plus aboneliğine özel.",
+    free_image_limit:
+      "Ücretsiz hesapta günde 3 fotoğraf çözülebiliyor. Yarın devam edebilir ya da Plus'a geçebilirsin.",
   };
+  /*
+    `code` de gönderiliyor. Sebebi somut: podcast oynatıcısı 402'yi tek başına
+    "Plus'a geç" diye okuyordu ve seslendirme krediye bağlandıktan sonra bu,
+    kredisi biten BİR PLUS ABONESİNE "Plus'a bak" demek olurdu. İki durumu
+    ayırmak için istemcinin makine tarafından okunabilir bir ayrıma ihtiyacı
+    var; Türkçe metni karşılaştırmak, metni değiştiren ilk kişide kırılırdı.
+
+    `error` alanı olduğu gibi duruyor — mevcut istemciler onu okuyor.
+  */
   return NextResponse.json(
-    { error: messages[code] ?? "Beklenmeyen bir hata oluştu." },
+    { error: messages[code] ?? "Beklenmeyen bir hata oluştu.", code },
     { status },
   );
 }

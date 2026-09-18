@@ -5,7 +5,7 @@ export function TopicBars({
 }) {
   if (!topics.length) {
     return (
-      <p className="text-xs text-[var(--astra-muted)]">
+      <p className="text-xs text-[var(--cs-muted)]">
         Henüz zayıf konu analizi yok.
       </p>
     );
@@ -19,7 +19,7 @@ export function TopicBars({
           <li key={topic.label}>
             <div className="flex items-center justify-between text-xs">
               <span>{topic.label}</span>
-              <span className="text-[var(--astra-muted)]">{pct}%</span>
+              <span className="text-[var(--cs-muted)]">{pct}%</span>
             </div>
             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
               <div

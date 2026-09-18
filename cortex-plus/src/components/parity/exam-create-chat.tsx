@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PLAN_NODE_META, type PlanNodeDraft } from "@/lib/learning/exam-prep-plan";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { subjectSuggestions } from "@/lib/learning/subjects";
 
 type Draft = { title: string; examType: string; topics: string[] };
 type ChatMsg = { role: "user" | "assistant"; content: string };
@@ -27,9 +28,12 @@ function tomorrowIso() {
 
 export function ExamCreateChat({
   initialDocumentId = null,
+  recentSubjects = [],
 }: {
   /** Stage 9 — deep link from topic map / docs list. */
   initialDocumentId?: string | null;
+  /** Öğrencinin daha önce çalıştığı dersler — öneri çiplerinin ilk sırası. */
+  recentSubjects?: string[];
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMsg[]>([
@@ -226,20 +230,20 @@ export function ExamCreateChat({
   }
 
   return (
-    <div className="ap-exam-page ap-wizard ap-wizard--flow">
-      <div className="ap-wizard-progress" aria-hidden>
+    <div className="cp-exam-page cp-wizard cp-wizard--flow">
+      <div className="cp-wizard-progress" aria-hidden>
         <div
-          className="ap-wizard-progress-fill"
+          className="cp-wizard-progress-fill"
           style={{ width: canStart ? "100%" : needDate ? "70%" : "35%" }}
         />
       </div>
 
       <h1>Sınavında neler var?</h1>
-      <div className="ap-exam-intake">
+      <div className="cp-exam-intake">
         {messages.map((message, index) => (
           <p
             key={`${message.role}-${index}`}
-            className={message.role === "user" ? "ap-exam-intake-user" : "ap-exam-intake-ai"}
+            className={message.role === "user" ? "cp-exam-intake-user" : "cp-exam-intake-ai"}
           >
             {message.content}
           </p>
@@ -247,18 +251,18 @@ export function ExamCreateChat({
       </div>
 
       {draft.topics.length ? (
-        <ol className="ap-topic-numbered-list">
+        <ol className="cp-topic-numbered-list">
           {draft.topics.map((topic, index) => (
             <li key={`${topic}-${index}`}>
-              <span className="ap-topic-num">{index + 1}</span>
-              <span className="ap-topic-label">{topic}</span>
+              <span className="cp-topic-num">{index + 1}</span>
+              <span className="cp-topic-label">{topic}</span>
             </li>
           ))}
         </ol>
       ) : null}
 
       {needDate || draft.topics.length >= 2 ? (
-        <label className="ap-field">
+        <label className="cp-field">
           <span>Sınav tarihi</span>
           <input
             type="date"
@@ -270,7 +274,7 @@ export function ExamCreateChat({
       ) : null}
 
       {docs.length && (needDate || draft.topics.length >= 2) ? (
-        <label className="ap-field">
+        <label className="cp-field">
           <span>Hangi kaynaktan çalışalım?</span>
           <select
             value={documentId ?? ""}
@@ -279,7 +283,7 @@ export function ExamCreateChat({
               setIntakeMode("legacy");
             }}
           >
-            <option value="">Tüm belgelerim</option>
+            <option value="">Belge kullanma — konudan çalış</option>
             {docs.map((doc) => (
               <option key={doc.id} value={doc.id}>
                 {doc.fileName}
@@ -290,12 +294,12 @@ export function ExamCreateChat({
       ) : null}
 
       {showProfile ? (
-        <div className="ap-exam-intake" style={{ gap: "0.75rem" }}>
-          <p className="text-sm text-[var(--ap-muted)]">
+        <div className="cp-exam-intake" style={{ gap: "0.75rem" }}>
+          <p className="text-sm text-[var(--cp-muted)]">
             Öğrenme profilin (sonra düzenlenebilir). Zor bulduğun konular öz-bildirimdir;
             tanışma testi ölçülen seviyeyi ayrı kaydeder.
           </p>
-          <label className="ap-field">
+          <label className="cp-field">
             <span>Günde kaç dakika?</span>
             <input
               type="number"
@@ -306,14 +310,14 @@ export function ExamCreateChat({
               onChange={(event) => setDailyMinutes(Number(event.target.value) || 45)}
             />
           </label>
-          <fieldset className="ap-field">
+          <fieldset className="cp-field">
             <legend>Çalışma günleri</legend>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
               {WEEKDAYS.map((day) => (
                 <button
                   key={day.id}
                   type="button"
-                  className="ap-back-pill"
+                  className="cp-back-pill"
                   aria-pressed={studyDays.includes(day.id)}
                   onClick={() => toggleStudyDay(day.id)}
                 >
@@ -323,14 +327,14 @@ export function ExamCreateChat({
             </div>
           </fieldset>
           {draft.topics.length ? (
-            <fieldset className="ap-field">
+            <fieldset className="cp-field">
               <legend>Zor bulduğun konular (öz-bildirim)</legend>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
                 {draft.topics.map((topic) => (
                   <button
                     key={topic}
                     type="button"
-                    className="ap-back-pill"
+                    className="cp-back-pill"
                     aria-pressed={hardTopics.includes(topic)}
                     onClick={() => toggleHardTopic(topic)}
                   >
@@ -340,7 +344,7 @@ export function ExamCreateChat({
               </div>
             </fieldset>
           ) : null}
-          <label className="ap-field">
+          <label className="cp-field">
             <span>Nasıl öğrenmek istersin?</span>
             <select
               value={prefStyle}
@@ -353,7 +357,7 @@ export function ExamCreateChat({
               <option value="mixed">Karışık</option>
             </select>
           </label>
-          <label className="ap-field">
+          <label className="cp-field">
             <span>Tempo</span>
             <select
               value={prefPace}
@@ -372,7 +376,7 @@ export function ExamCreateChat({
       {canStart && preview.length === 0 ? (
         <button
           type="button"
-          className="ap-exam-continue ap-exam-continue--primary"
+          className="cp-exam-continue cp-exam-continue--primary"
           disabled={loading}
           onClick={() => void send(examDate)}
         >
@@ -381,8 +385,8 @@ export function ExamCreateChat({
       ) : null}
 
       {grouped.length ? (
-        <div className="ap-exam-plan-preview">
-          <p className="ap-lesson-kicker">{days} günlük yol</p>
+        <div className="cp-exam-plan-preview">
+          <p className="cp-lesson-kicker">{days} günlük yol</p>
           {grouped.map(([day, nodes]) => (
             <section key={day}>
               <h2>Gün {day}</h2>
@@ -397,7 +401,7 @@ export function ExamCreateChat({
           ))}
           <button
             type="button"
-            className="ap-exam-continue ap-exam-continue--primary"
+            className="cp-exam-continue cp-exam-continue--primary"
             disabled={starting || !canStart}
             onClick={() => void startPlan()}
           >
@@ -406,7 +410,27 @@ export function ExamCreateChat({
         </div>
       ) : null}
 
-      <label className="ap-field">
+      {/*
+        Boş kutu "ne yazacağım" duraksaması yapıyor. Çipler öğrencinin kendi
+        derslerinden başlıyor; yeni öğrenciye yaygın dersler düşüyor.
+        Konuyu yine öğrenci yazıyor — çip sadece ilk cümleyi kuruyor.
+      */}
+      {!draft.topics.length && !loading ? (
+        <div className="cp-exam-chips">
+          {subjectSuggestions(recentSubjects).map((subject) => (
+            <button
+              key={subject}
+              type="button"
+              className="cp-exam-chip"
+              onClick={() => setInput(`${subject} sınavım var.`)}
+            >
+              {subject}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <label className="cp-field">
         <span className="sr-only">Mesaj</span>
         <input
           value={input}
@@ -422,7 +446,7 @@ export function ExamCreateChat({
       </label>
       <button
         type="button"
-        className="ap-exam-continue ap-exam-continue--primary"
+        className="cp-exam-continue cp-exam-continue--primary"
         disabled={loading || !input.trim()}
         onClick={() => void send()}
       >

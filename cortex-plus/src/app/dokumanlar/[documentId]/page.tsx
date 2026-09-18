@@ -52,14 +52,14 @@ export default async function DocumentTopicMapPage({ params }: PageProps) {
       <div className="mb-4 space-y-1">
         <Link
           href="/dokumanlar"
-          className="text-xs text-[var(--astra-muted)] underline"
+          className="text-xs text-[var(--cs-muted)] underline"
         >
           ← Dokümanlar
         </Link>
-        <h1 className="truncate text-lg font-semibold text-[var(--astra-text)]">
+        <h1 className="truncate text-lg font-semibold text-[var(--cs-text)]">
           {doc.file_name}
         </h1>
-        <p className="text-sm text-[var(--astra-muted)]">
+        <p className="text-sm text-[var(--cs-muted)]">
           Belge durumu: {doc.status}. Okunamayan sayfalar genel bilgiyle
           doldurulmaz — aşağıdaki raporda görünür.
         </p>

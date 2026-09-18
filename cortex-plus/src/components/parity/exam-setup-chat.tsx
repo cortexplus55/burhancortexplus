@@ -6,7 +6,7 @@ import { ArrowUp, Check } from "lucide-react";
 /**
  * Kurulum soruları — form değil, sohbet.
  *
- * Üç soruyu aynı anda gösteren bir form çalışıyordu ama Astra bunları
+ * Üç soruyu aynı anda gösteren bir form çalışıyordu ama referans ürün bunları
  * sırayla soruyor ve fark yalnızca görsel değil: tek soru ekranda
  * durunca öğrenci okuyor, üçü birden durunca atlıyor.
  *

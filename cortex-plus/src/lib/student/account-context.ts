@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { formatResetAt, quotaView } from "@/lib/credits/period";
+import { formatResetAt, quotaView, type PeriodKind } from "@/lib/credits/period";
 import {
   getSubscriptionEntitlement,
   type SubscriptionBadge,
@@ -20,7 +20,7 @@ export type StudentAccountContext = {
    * ol" demek eksik cevap. Beklerse de çözülüyor ve bunu saklamıyoruz.
    */
   resetsAtLabel: string;
-  periodKind: "daily" | "monthly";
+  periodKind: PeriodKind;
 };
 
 export async function getStudentAccountContext(

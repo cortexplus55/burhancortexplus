@@ -5,7 +5,7 @@ import { lessonV2Schema } from "@/lib/learning/teaching-standards";
 /**
  * Sohbetin hangi sınava çalıştığını bilmesi.
  *
- * Astra'da sohbet sınavın içinden açılıyor ve "Zemin Mekaniği Temelleri
+ * Referans üründe sohbet sınavın içinden açılıyor ve "Zemin Mekaniği Temelleri
  * için 20 gün kaldı, neye çalışmak istersin?" diye başlıyor; hazır
  * başlangıçlardan biri "son testimi veya dersimi gözden geçir".
  *

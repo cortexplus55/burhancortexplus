@@ -9,19 +9,19 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-const astraField =
-  "w-full rounded-xl border border-[var(--astra-border)] bg-[var(--astra-bg)] px-3 py-2.5 text-sm";
+const parityField =
+  "w-full rounded-xl border border-[var(--cs-border)] bg-[var(--cs-bg)] px-3 py-2.5 text-sm";
 
 export function SupportForm({
   tone = "default",
 }: {
-  tone?: "default" | "astra";
+  tone?: "default" | "parity";
 }) {
   const router = useRouter();
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const astra = tone === "astra";
+  const parity = tone === "parity";
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -52,7 +52,7 @@ export function SupportForm({
     <form onSubmit={submit} className="max-w-xl space-y-4">
       <div className="space-y-2">
         <Label htmlFor="support-subject">Konu</Label>
-        {astra ? (
+        {parity ? (
           <input
             id="support-subject"
             value={subject}
@@ -60,7 +60,7 @@ export function SupportForm({
             required
             minLength={3}
             maxLength={150}
-            className={astraField}
+            className={parityField}
           />
         ) : (
           <Input
@@ -75,7 +75,7 @@ export function SupportForm({
       </div>
       <div className="space-y-2">
         <Label htmlFor="support-message">Mesaj</Label>
-        {astra ? (
+        {parity ? (
           <textarea
             id="support-message"
             rows={5}
@@ -83,7 +83,7 @@ export function SupportForm({
             onChange={(event) => setMessage(event.target.value)}
             required
             minLength={10}
-            className={cn(astraField, "min-h-[8rem]")}
+            className={cn(parityField, "min-h-[8rem]")}
           />
         ) : (
           <Textarea
@@ -96,11 +96,11 @@ export function SupportForm({
           />
         )}
       </div>
-      {astra ? (
+      {parity ? (
         <button
           type="submit"
           disabled={loading}
-          className="astra-btn-primary w-full rounded-full py-3 text-sm font-semibold disabled:opacity-60"
+          className="cs-btn-primary w-full rounded-full py-3 text-sm font-semibold disabled:opacity-60"
         >
           {loading ? "Gönderiliyor…" : "Gönder"}
         </button>

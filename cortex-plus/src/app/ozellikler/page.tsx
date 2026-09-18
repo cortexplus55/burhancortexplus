@@ -8,7 +8,7 @@ import {
   Receipt,
   ShieldCheck,
 } from "lucide-react";
-import { AstraMarketingPage } from "@/components/parity/astra-marketing";
+import { ParityMarketingPage } from "@/components/parity/marketing";
 import { CinematicPrimaryCta } from "@/components/marketing/cinematic-cta";
 import { MistakeLoopSection } from "@/components/marketing/mistake-loop-section";
 
@@ -92,7 +92,7 @@ function FeatureCard({
 
 export default function OzelliklerPage() {
   return (
-    <AstraMarketingPage
+    <ParityMarketingPage
       title="Özellikler"
       description="Cortex Plus, çalışmanı tek bir akışta toplayan yapay zekâ destekli öğrenme platformudur."
     >
@@ -125,6 +125,6 @@ export default function OzelliklerPage() {
           <CinematicPrimaryCta label="Başla" />
         </div>
       </div>
-    </AstraMarketingPage>
+    </ParityMarketingPage>
   );
 }

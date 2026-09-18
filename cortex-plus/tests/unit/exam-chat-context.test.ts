@@ -5,7 +5,7 @@ describe("examCountdownLine", () => {
   const prep = "Zemin Mekaniği Temelleri";
 
   it("says how many days are left", () => {
-    // Astra'nın açılışı: "… için 20 gün kaldı. Neye çalışmak istersin?"
+    // Referans ürünün açılışı: "… için 20 gün kaldı. Neye çalışmak istersin?"
     expect(examCountdownLine(prep, 20)).toBe(
       "Zemin Mekaniği Temelleri için 20 gün kaldı. Neye çalışmak istersin?",
     );

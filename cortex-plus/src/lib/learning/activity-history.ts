@@ -1,7 +1,7 @@
 /**
  * Öğrencinin çalışma geçmişi — kaç gün, ne sıklıkla.
  *
- * Astra'nın "Aktivitelerim" ekranında üç şey var: son yedi günün çubuk
+ * Referans ürünün "Aktivitelerim" ekranında üç şey var: son yedi günün çubuk
  * grafiği, yıllık bir ısı haritası ve "tüm zamanların tasarrufları"
  * diye bir lira tutarı.
  *

@@ -58,8 +58,8 @@ export function ProfileForm({
               className={cn(
                 "flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm",
                 selectedStyle === option.id
-                  ? "border-[var(--astra-primary)] bg-[var(--astra-primary)]/10"
-                  : "border-[var(--astra-border)]",
+                  ? "border-[var(--cs-primary)] bg-[var(--cs-primary)]/10"
+                  : "border-[var(--cs-border)]",
               )}
             >
               <input

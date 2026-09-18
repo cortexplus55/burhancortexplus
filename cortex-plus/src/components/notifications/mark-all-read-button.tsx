@@ -13,7 +13,7 @@ export function MarkAllReadButton() {
     <button
       type="button"
       disabled={pending}
-      className="text-xs font-semibold text-[var(--astra-primary)] disabled:opacity-60"
+      className="text-xs font-semibold text-[var(--cs-primary)] disabled:opacity-60"
       onClick={() => {
         startTransition(async () => {
           const result = await markAllNotificationsRead();

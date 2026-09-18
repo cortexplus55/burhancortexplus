@@ -26,18 +26,12 @@ mağaza mı açmak istiyorsunuz?"). Ek mağaza, ana mağazayla aynı firma
 bilgileriyle açılır; başvuru formu yalnızca site adresi, aylık ortalama ciro
 ve yetki onayı ister.
 
-> **Durum (16 Eylül 2026, canlıdan doğrulandı):** kod tarafı bitti ve
-> yayında çalışıyor; eksik olan tek şey mağaza anahtarları.
->
-> | Kontrol | Sonuç |
-> |---|---|
-> | `POST /api/payments/paytr/callback` (bozuk imza) | **400 `INVALID`** — rota yayında, middleware muaf tutuyor, imzasızı reddediyor |
-> | `POST /api/payments/paytr/create-token` (oturumsuz) | **401** — yetki koruması çalışıyor |
-> | `/fiyatlandirma` butonları | **"Yakında"** — `isPaytrConfigured()` false, yani Vercel'de `PAYTR_*` **tanımlı değil** |
-> | `tests/unit/paytr.test.ts` | 10/10 geçiyor |
->
-> Yani ek mağaza onayı gelir gelmez yapılacak iş yalnızca üç değeri almak ve
-> bildirim URL'ini yazmak. Kodda dokunulacak yer yok.
+> **Durum (18 Eylül 2026, canlıdan doğrulandı):** `https://cortexplus.app`
+> için ek mağaza onaylandı, üç anahtar Vercel'e girildi, `PAYTR_TEST_MODE=1`
+> ile test kipinde canlı. `/fiyatlandirma` butonları artık "Yakında" değil —
+> `isPaytrConfigured()` true, gerçek fiyat ve "Satın al" görünüyor. Kart
+> saklama sorgusu işlendi: mağazada kayıt yok (bkz. "Yenileme neden otomatik
+> değil"). Kalan tek adım gerçek karta geçiş: `PAYTR_TEST_MODE=0`.
 
 **Onay gelince yapılacaklar:**
 
@@ -103,19 +97,82 @@ yetkisi**. Non3D ile `recurring_payment` yetkisi mağazaya otomatik gelmiyor —
 PayTR'a talep açılıyor, birimleri onaylıyor.
 Belge: <https://dev.paytr.com/direkt-api/kart-saklama-api/kayitli-kart-tekrarlayan-odeme>
 
+### Engel yalnızca izin değil — 17 Eylül 2026'da doğrulandı
+
+PayTR'nin kendi dokümanı yeniden okundu ve şu ortaya çıktı: **iFrame API'nin
+kart saklama parametresi yok**. `store_card`, `utoken`, `ctoken` — hiçbiri
+iFrame token isteğinin parametre listesinde geçmiyor; kart saklama tümüyle
+Direkt API başlığının altında tanımlı.
+
+Yani Non3D yetkisi alınsa bile bugün saklanacak bir kart olmuyor. Kart
+saklamak Direkt API'ye geçmek demek ve Direkt API'de **kart numarası ile CVV
+kendi sunucumuzdan** PayTR'ye gidiyor — bu PCI-DSS kapsamına girmek, tek
+kişilik bir işletme için ayrı ve ciddi bir karar.
+
+| Engel | Neden |
+|---|---|
+| Kart saklama iFrame API'de yok | `store_card` yalnızca Direkt API'de |
+| Direkt API kart verisini bizden geçiriyor | PCI-DSS kapsamı |
+| Non3D yetkisi ayrıca talep ediliyor | PayTR birimleri onaylıyor |
+
+Bu üç madde kodda tek yerde yazılı: `src/lib/payments/paytr-capability.ts`
+→ `RECURRING_BLOCKERS`, ve `/admin/sistem` sayfasında tablo olarak görünüyor.
+Aynı dosyadaki `AUTO_RENEW_SUPPORTED` sabiti **tek kaynak**: `false` durduğu
+sürece bir bekçi test, sözleşme metninin "otomatik olarak yenilenmez" demeye
+devam ettiğini doğruluyor. Sözleşmede söz verilip üründe yapılmayan şey, hiç
+söz vermemekten kötü.
+
+### Yetki gerçekten var mı — artık sorulabiliyor
+
+`probePaytrRecurring()` kart saklama servisine **var olmayan** bir kullanıcı
+için kayıtlı kart listesi soruyor (`/odeme/capi/list`). Para hareketi yok,
+yalnızca okuma. Cevap `/admin/sistem`'de açık / kapalı / belirlenemedi olarak
+yazıyor ve anahtarlar Vercel'e girildiği an kendiliğinden gerçek cevabı
+veriyor.
+
+İki şeye dikkat edildi:
+
+- **İmza formülü** dokümandan birebir: `hash_str = utoken + merchant_salt`.
+  `merchant_id` EKLENMEZ. İlk yazımda eklenmişti; PayTR her isteği imza
+  hatasıyla reddedecekti ve hata cevabı `{"status":"error",...}` olduğu için
+  "status" kelimesine bakan okuma bunu **başarı** sanacaktı. Yani yanlış
+  formül tam olarak kaçınılmak istenen sonucu üretiyordu: yetki yokken
+  "yetki var".
+- **Belirsizlik asla "açık" okunmuyor.** Yanlış "kapalı" okumanın bedeli
+  gereksiz bir uyarı; yanlış "açık" okumanın bedeli tutulamayacak bir söz.
+
+Bekçi test: `tests/unit/paytr-capability.test.ts`.
+
+### Sıradaki adım: PayTR'den yazılı cevap
+
+Direkt API'ye geçmek ürün sahibinin kararı ve karar **park edildi**: önce
+PayTR'ye sorulacak. Dört soru ve her cevabın ne değiştireceği hazır:
+`PAYTR-DESTEK-TALEBI.md`. Dördüncü soru Non3D / `recurring_payment`
+yetkisinin bu mağazada tanımlı olup olmadığını doğrudan kaynağından
+soruyor — "yetki alındı sanıyorum" ile gerçek durum arasındaki farkı
+kapatacak olan da bu.
+
 Bu yüzden bugünkü model **hatırlatmalı yenileme**:
 
 - Ödeme gelince `subscriptions.current_period_end` planın `period_days`
   kadar ileri atılır (30 veya 365).
-- `subscriptions.auto_renew` **false** duruyor — kod hazır, yetki yok.
+- `subscriptions.auto_renew` **false** duruyor. "Kod hazır, yalnızca yetki
+  eksik" demek yanlış olurdu: tahsilat kodu hiç yazılmadı ve yazılabilmesi
+  için önce Direkt API'ye geçilmesi gerekiyor.
 - Günlük cron (`/api/cron/subscription-renewal`, Vercel `crons`, 06:00 UTC)
   bitişe 3 gün kalanlara bildirim atar, süresi dolanı `inactive` yapar.
   Yetkilendirme: `Authorization: Bearer $CRON_SECRET`.
 
-**Yetki geldiğinde:** cron'un içine `auto_renew = true` olan satırlar için
-`https://www.paytr.com/odeme` üzerine `non_3d=1` + `recurring_payment=1`
-POST'u eklenecek; kart tokenları için `subscriptions` tablosuna `paytr_utoken`
-ve `paytr_ctoken` sütunları gerekecek.
+**Açılabilmesi için sırayla:** (1) Direkt API'ye geçiş — ödeme formu bizde,
+kart verisi bizden geçiyor, PCI kapsamı kabul ediliyor; (2) ödeme anında
+`store_card=1` ile kart saklama ve dönen `utoken`/`ctoken`'ın saklanması
+(`subscriptions` tablosuna `paytr_utoken`, `paytr_ctoken` sütunları);
+(3) PayTR'den Non3D + `recurring_payment` yetkisi; (4) cron'a `auto_renew =
+true` satırları için `https://www.paytr.com/odeme` POST'u (`non_3d=1`,
+`recurring_payment=1`); (5) sözleşme metinlerinin ve
+`AUTO_RENEW_SUPPORTED`'ın aynı anda güncellenmesi.
+
+Sıra önemli: (5) önce yapılırsa sözleşme tutulamayan bir söz verir.
 
 ## Erken yenileme kalan günü yakmaz
 
@@ -128,6 +185,11 @@ yenilemek cezaya dönerdi ve kimse süresi dolmadan yenilemezdi.
 Astra AI'ın 5 Eylül 2026 tarihli vitrini referans alındı (Plus ₺770/ay ve
 ₺3.852/yıl, Sigma ₺2.567/ay; Sigma'da yıllık seçeneği yok). Her kalemde
 %22 aşağıda kaldık:
+
+> **18 Eylül 2026'da referans yeniden kontrol edildi: Astra Plus hâlâ 770 TL.**
+> Kademeler de aynı (Plus + Sigma, aylık/yıllık). Yani aşağıdaki fiyatlar
+> güncel bir karşılaştırmaya dayanıyor, değiştirilecek bir şey yok. Bir daha
+> sorulursa bu satır cevaptır.
 
 | | Aylık | Yıllık | Yıllıkta tasarruf |
 |---|---|---|---|

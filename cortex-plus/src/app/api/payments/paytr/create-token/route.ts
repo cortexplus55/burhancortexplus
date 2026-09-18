@@ -12,6 +12,15 @@ import { auditLog } from "@/lib/audit";
 
 const bodySchema = z.object({
   planId: z.string().uuid(),
+  /*
+    Mesafeli Sözleşmeler Yönetmeliği m.5: tüketici siparişten ÖNCE ön
+    bilgilendirmeyi aldığını ve sözleşmeyi kabul ettiğini teyit etmeli.
+
+    Sunucu bunu ayrıca doğruluyor. Onayı yalnızca arayüzde tutmak yetmez:
+    istek doğrudan da atılabilir ve o zaman sözleşme kurulmamış olur. Bu uç
+    ödemeyi BAŞLATAN yer, dolayısıyla teyidin son duracağı yer burası.
+  */
+  legalAccepted: z.literal(true),
   studentId: z.string().uuid().optional(),
 });
 
@@ -21,7 +30,14 @@ export async function POST(request: Request) {
   const { userId, email, service } = guard.ctx;
 
   const parsed = bodySchema.safeParse(await request.json());
-  if (!parsed.success) return errorResponse(400, "invalid_input");
+  if (!parsed.success) {
+    // Onaysız istek geçersiz girdi değil, EKSİK ONAY; ayırt edilebilir olsun
+    // ki arayüz doğru mesajı gösterebilsin.
+    const noConsent = parsed.error?.issues.some((i) =>
+      i.path.includes("legalAccepted"),
+    );
+    return errorResponse(400, noConsent ? "legal_consent_required" : "invalid_input");
+  }
 
   // Price always comes from the database, never from the client payload.
   const { data: extendedPlan, error: extendedPlanError } = await service
@@ -162,6 +178,17 @@ export async function POST(request: Request) {
         plan: plan.id,
         amount_try: plan.price_try,
         beneficiary: beneficiary.beneficiaryId,
+        /*
+          Sözleşmenin kurulduğunun kanıtı. Banka ya da tüketici itirazında
+          sorulan şey tam olarak bu: "tüketici sözleşmeyi ne zaman kabul
+          etti?" Kaydı ödeme başlarken tutuyoruz çünkü onay o anda alınıyor.
+        */
+        legal_consent: {
+          accepted: true,
+          at: new Date().toISOString(),
+          ip: userIp,
+          documents: ["on-bilgilendirme", "mesafeli-satis"],
+        },
       },
     });
 

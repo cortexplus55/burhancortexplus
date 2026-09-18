@@ -882,12 +882,12 @@
   }
 }
 
-.ap-sor-root--studio .ap-sor-topnav {
+.cp-sor-root--studio .cp-sor-topnav {
   display: none;
 }
 
 @media (min-width: 900px) {
-  .ap-sor-root--studio .ap-sor-topnav {
+  .cp-sor-root--studio .cp-sor-topnav {
     display: flex;
   }
 }
@@ -936,6 +936,36 @@
   font-size: 1.0625rem;
   line-height: 1.6;
   color: var(--ls-text);
+}
+
+/* Podcast kilidi. Kapı gizlenmiyor — öğrenci ne olduğunu görmeli ki
+   isteyebilsin; yanındaki bağlantı örneği gerçek sesiyle dinletiyor. */
+.ls-pod-lock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.875rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ls-pod-lock p {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--ls-text);
+}
+
+.ls-pod-lock-link {
+  flex: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ls-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* Öneriler sağa yaslı: kullanıcının söyleyebilecekleri, kullanıcının

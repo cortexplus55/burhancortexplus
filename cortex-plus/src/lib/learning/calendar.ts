@@ -104,7 +104,7 @@ export function daysUntil(dateIso: string, today = new Date()): number {
 export function formatDayLabel(dateIso: string, today = new Date()): string {
   const diff = daysUntil(dateIso, today);
   // Yakin gunler konusma dilinde okunuyor; "2 gun once" yerine "evvelsi gun"
-  // demek Astra ile ayni tonu veriyor ve daha dogal.
+  // demek referans ürün ile ayni tonu veriyor ve daha dogal.
   if (diff === 0) return "Bugün";
   if (diff === 1) return "Yarın";
   if (diff === 2) return "Öbür gün";

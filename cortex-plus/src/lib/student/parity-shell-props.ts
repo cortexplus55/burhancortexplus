@@ -1,6 +1,6 @@
 import {
-  astraUserInitial,
-} from "@/components/parity/astra-app-utils";
+  parityUserInitial,
+} from "@/components/parity/app-utils";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
 import { loadPromoCampaign } from "@/lib/student/promo-campaign";
@@ -33,7 +33,7 @@ export async function loadParityShellProps(
     .limit(5);
 
   return {
-    userInitial: astraUserInitial(profile?.full_name, email),
+    userInitial: parityUserInitial(profile?.full_name, email),
     avatarEmoji: avatar && !avatar.startsWith("http") ? avatar : null,
     streak,
     account,

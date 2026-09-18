@@ -18,21 +18,63 @@ export function buildBasket(productName: string, amountKurus: number) {
   ).toString("base64");
 }
 
+/**
+ * Boş bir ortam değişkeni TANIMSIZ sayılıyor.
+ *
+ * Eskiden `process.env.X ?? "0"` yazıyordu ve `??` yalnızca undefined'da
+ * devreye giriyor. Vercel'de bir değişkeni oluşturup değerini boş bırakmak
+ * ise çok kolay: o durumda varsayılan atlanıyor ve PayTR'ye boş dize
+ * gidiyordu. Taksit ve kip alanlarında bu, PayTR'nin isteği reddetmesi ya da
+ * sessizce kendi varsayılanını uygulaması demek — ikisi de bizim
+ * bilmediğimiz bir davranış.
+ */
+function envOr(name: string, fallback: string): string {
+  const raw = process.env[name];
+  return raw && raw.trim() ? raw.trim() : fallback;
+}
+
 export function paytrConfig() {
   return {
-    merchantId: process.env.PAYTR_MERCHANT_ID ?? "",
-    merchantKey: process.env.PAYTR_MERCHANT_KEY ?? "",
-    merchantSalt: process.env.PAYTR_MERCHANT_SALT ?? "",
-    testMode: process.env.PAYTR_TEST_MODE ?? "1",
-    debugOn: process.env.PAYTR_DEBUG_ON ?? "1",
-    noInstallment: process.env.PAYTR_NO_INSTALLMENT ?? "0",
-    maxInstallment: process.env.PAYTR_MAX_INSTALLMENT ?? "0",
+    merchantId: envOr("PAYTR_MERCHANT_ID", ""),
+    merchantKey: envOr("PAYTR_MERCHANT_KEY", ""),
+    merchantSalt: envOr("PAYTR_MERCHANT_SALT", ""),
+    // Varsayılan TEST. Canlıya geçmek açık bir karar olmalı, kaza olmamalı.
+    testMode: envOr("PAYTR_TEST_MODE", "1"),
+    // Ayrıntılı hata dökümü geliştirmede işe yarıyor, üretimde gereksiz.
+    debugOn: envOr(
+      "PAYTR_DEBUG_ON",
+      process.env.NODE_ENV === "production" ? "0" : "1",
+    ),
+    noInstallment: envOr("PAYTR_NO_INSTALLMENT", "0"),
+    maxInstallment: envOr("PAYTR_MAX_INSTALLMENT", "0"),
   };
 }
 
 export function isPaytrConfigured() {
   const config = paytrConfig();
   return Boolean(config.merchantId && config.merchantKey && config.merchantSalt);
+}
+
+export type PaytrMode = "unconfigured" | "test" | "live";
+
+/**
+ * Ödeme altyapısının GERÇEKTEN hangi kipte olduğu.
+ *
+ * `isPaytrConfigured()` yalnızca üç anahtarın dolu olup olmadığına bakıyor ve
+ * bu, yönetim panelinde yanıltıcı bir yeşil üretiyordu: anahtarlar girildiği
+ * anda "PayTR kurulu" yazıyor, fiyat sayfasındaki buton "Yakında"dan "Satın
+ * al"a dönüyor — ama `PAYTR_TEST_MODE` varsayılanı "1" olduğu için hiçbir
+ * ödemede gerçek para çekilmiyor.
+ *
+ * Yani kurulumu yapan kişi ödeme almaya başladığını sanıyor. Hata sessiz:
+ * akış baştan sona çalışıyor, kredi bile yükleniyor, yalnızca para gelmiyor.
+ *
+ * Varsayılanın "1" olması doğru — canlıya geçmek açık bir karar olmalı, kaza
+ * olmamalı. Eksik olan şey o kararın GÖRÜNMESİYDİ.
+ */
+export function paytrMode(): PaytrMode {
+  if (!isPaytrConfigured()) return "unconfigured";
+  return paytrConfig().testMode === "0" ? "live" : "test";
 }
 
 /**

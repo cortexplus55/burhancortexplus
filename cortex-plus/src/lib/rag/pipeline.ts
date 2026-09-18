@@ -1,5 +1,20 @@
 import "server-only";
 import { extractText } from "@/lib/documents/extract-text";
+import {
+  extractImagePages,
+  extractImageText,
+  isImageDocument,
+} from "@/lib/documents/extract-image-text";
+import { renderPdfPages } from "@/lib/documents/render-pdf-pages";
+import {
+  claimPhotoPages,
+  planTier,
+  releasePhotoPages,
+} from "@/lib/documents/photo-quota";
+import { recordUsage } from "@/lib/credits/service";
+import { recordAbuse } from "@/lib/abuse/record";
+import { chunkText } from "@/lib/rag/chunk";
+export { chunkText } from "@/lib/rag/chunk";
 export { extractText } from "@/lib/documents/extract-text";
 import OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -11,23 +26,6 @@ import {
 import { runPdfLearningV2 } from "@/lib/documents/pdf-learning-v2";
 
 export const EMBEDDING_MODEL = "text-embedding-3-small";
-const CHUNK_SIZE = 1200;
-const CHUNK_OVERLAP = 150;
-
-export function chunkText(text: string): string[] {
-  const normalized = text.replace(/\s+/g, " ").trim();
-  if (!normalized) return [];
-
-  const chunks: string[] = [];
-  let start = 0;
-  while (start < normalized.length) {
-    const end = Math.min(start + CHUNK_SIZE, normalized.length);
-    chunks.push(normalized.slice(start, end));
-    if (end === normalized.length) break;
-    start = end - CHUNK_OVERLAP;
-  }
-  return chunks;
-}
 
 export async function embedTexts(texts: string[]): Promise<number[][]> {
   if (!env.OPENAI_API_KEY || texts.length === 0) return [];
@@ -46,6 +44,8 @@ export async function processDocument(
   ok: boolean;
   chunks: number;
   error?: string;
+  /** Öğrenciye söylenecek, hata olmayan durum — örn. uzun belge kesildi. */
+  notice?: string;
   topicMap?: { ok: boolean; topics: number; coverageStatus?: string };
 }> {
   const { data: doc } = await service
@@ -79,17 +79,149 @@ export async function processDocument(
 
   if (download.error || !download.data) return fail("download_failed");
 
+  const userId = doc.user_id as string;
+
+  /**
+   * Bu belgenin yaktığı fotoğraf sayfası kotası.
+   *
+   * `try` bloğunun DIŞINDA duruyor: beklenmeyen bir hata da kota yakmamalı.
+   * İçeride olsaydı `catch` ona erişemez ve düşen her istek öğrencinin
+   * hakkından bir sayfa götürürdü.
+   */
+  let claimedPages = 0;
+  const failAndRelease = async (message: string) => {
+    if (claimedPages) {
+      await releasePhotoPages(service, userId, claimedPages);
+      claimedPages = 0;
+    }
+    return fail(message);
+  };
+
   try {
   const buffer = Buffer.from(await download.data.arrayBuffer());
-  const extracted = await extractText(buffer, doc.mime_type);
 
-  if (!extracted.ok || !extracted.pages.length) {
-    return fail("text_extraction_unsupported");
+  /*
+    Görüntüden okuma iki yerden giriyor: yüklenen fotoğraf ve METİN KATMANI
+    OLMAYAN PDF.
+
+    İkincisi 18 Eylül 2026'da geldi. Tarayıcıdan ya da telefondan çıkmış bir
+    ders notu PDF'inde metin katmanı yok; `extractText` boş dönüyordu ve
+    öğrenci "metin katmanı olan bir PDF deneyin" uyarısı alıyordu. Türkiye'de
+    dolaşan ders PDF'lerinin büyük kısmı tam olarak bu.
+
+    KOTA BURADA İŞLİYOR, uçta değil. Sebebi: bir belgenin kaç fotoğraf
+    sayfası yakacağını ancak burada biliyoruz — PDF'in metin katmanı olup
+    olmadığı açılmadan belli olmuyor. Uç noktada tahmin etmek, taranmış bir
+    PDF'i ya bedavaya geçirir ya da metin katmanı olan bir PDF'ten haksız
+    yere kota keserdi.
+  */
+  const claim = async (count: number): Promise<boolean> => {
+    if (count <= 0) return true;
+    const tier = await planTier(service, userId);
+    const ok = await claimPhotoPages(service, userId, count, tier);
+    if (ok) claimedPages += count;
+    return ok;
+  };
+
+  const recordVision = (
+    tokensIn: number,
+    tokensOut: number,
+    model: string | null,
+  ) => {
+    // Okunamayan denemenin faturası da bize geliyor; kayıt ikisini de
+    // taşısın, yoksa kademeli okumanın gerçek bedeli görünmez.
+    if (!tokensIn && !tokensOut) return;
+    void recordUsage(service, {
+      userId,
+      actionCode: "DOCUMENT_PAGE_PROCESS",
+      model: model ?? env.OPENAI_STANDARD_MODEL,
+      tokensIn,
+      tokensOut,
+    });
+  };
+
+  const reportBlocked = () => {
+    void recordAbuse({
+      signal: "moderation",
+      severity: "high",
+      scope: "document-image",
+      userId,
+      // Görselin kendisi kaydedilmiyor; hangi belgede olduğu yeterli.
+      metadata: { documentId },
+    });
+  };
+
+  let pages: string[];
+  let notice: string | undefined;
+
+  if (isImageDocument(doc.mime_type)) {
+    if (!(await claim(1))) return fail("photo_quota_exhausted");
+
+    const read = await extractImageText(buffer, doc.mime_type);
+    recordVision(read.tokensIn, read.tokensOut, read.model);
+
+    if (read.reason === "blocked") {
+      reportBlocked();
+      return failAndRelease("image_blocked");
+    }
+    if (!read.ok || !read.pages.length) {
+      if (read.reason === "too_large") return failAndRelease("image_too_large");
+      return failAndRelease("image_unreadable");
+    }
+    pages = read.pages;
+  } else {
+    const extracted = await extractText(buffer, doc.mime_type);
+
+    if (extracted.ok && extracted.pages.length) {
+      pages = extracted.pages;
+    } else if (doc.mime_type === "application/pdf") {
+      /*
+        Metin katmanı yok — taranmış say ve sayfaları çizerek oku.
+
+        Çizim bize hiçbir şeye mal olmuyor (model çağrısı yok), o yüzden kota
+        ÇİZİMDEN SONRA isteniyor: kaç sayfa okunacağını ancak o zaman
+        biliyoruz ve öğrenci gerçekten okunacak sayfa kadar ödüyor.
+      */
+      const rendered = await renderPdfPages(buffer);
+      if (!rendered.pages.length) return fail("text_extraction_unsupported");
+
+      if (!(await claim(rendered.pages.length))) {
+        return fail("photo_quota_exhausted");
+      }
+
+      const read = await extractImagePages(rendered.pages);
+      recordVision(read.tokensIn, read.tokensOut, null);
+
+      if (read.blocked) {
+        reportBlocked();
+        return failAndRelease("image_blocked");
+      }
+      if (!read.readCount) return failAndRelease("scan_unreadable");
+
+      /*
+        Okunamayan tek sayfa belgeyi düşürmüyor ama boş sayfa da kaydedilmiyor:
+        gömülü boş bir parça, alakasız sorularda bağlam diye geri gelirdi.
+      */
+      pages = read.pages.filter((page) => page.trim().length > 0);
+
+      // Okunamayan sayfalar kota yakmasın.
+      const unread = rendered.pages.length - read.readCount;
+      if (unread > 0) {
+        await releasePhotoPages(service, userId, unread);
+        claimedPages -= unread;
+      }
+
+      if (rendered.total > rendered.pages.length) {
+        notice = `${rendered.total} sayfalık belgenin ilk ${rendered.pages.length} sayfası okundu.`;
+      }
+    } else {
+      return fail("text_extraction_unsupported");
+    }
   }
 
   await service
     .from("documents")
-    .update({ status: "processing", page_count: extracted.pages.length })
+    .update({ status: "processing", page_count: pages.length })
     .eq("id", documentId);
 
   // A request can be interrupted after writing only part of the derived data.
@@ -98,7 +230,7 @@ export async function processDocument(
     .from("document_pages")
     .delete()
     .eq("document_id", documentId);
-  if (cleanupError) return fail("cleanup_failed");
+  if (cleanupError) return failAndRelease("cleanup_failed");
 
   // Topic links cascade from pages; clear topic nodes so rebuilds never orphan.
   await service
@@ -121,7 +253,7 @@ export async function processDocument(
   let chunkIndex = 0;
   const allChunks: { pageId: string; content: string }[] = [];
 
-  for (const [pageNumber, pageText] of extracted.pages.entries()) {
+  for (const [pageNumber, pageText] of pages.entries()) {
     const { data: page, error: pageError } = await service
       .from("document_pages")
       .insert({
@@ -134,7 +266,7 @@ export async function processDocument(
 
     if (pageError || !page) {
       console.error("document page insert failed", { code: pageError?.code });
-      return fail("page_insert_failed");
+      return failAndRelease("page_insert_failed");
     }
 
     for (const content of chunkText(pageText)) {
@@ -142,7 +274,7 @@ export async function processDocument(
     }
   }
 
-  if (!allChunks.length) return fail("empty_content");
+  if (!allChunks.length) return failAndRelease("empty_content");
 
   const embeddings = await embedTexts(allChunks.map((c) => c.content));
 
@@ -159,7 +291,7 @@ export async function processDocument(
       .select("id")
       .single();
 
-    if (chunkError || !inserted) return fail("chunk_insert_failed");
+    if (chunkError || !inserted) return failAndRelease("chunk_insert_failed");
 
     const vector = embeddings[index];
     if (inserted && vector) {
@@ -167,7 +299,7 @@ export async function processDocument(
         chunk_id: inserted.id,
         embedding: vector as unknown as string,
       });
-      if (embeddingError) return fail("embedding_insert_failed");
+      if (embeddingError) return failAndRelease("embedding_insert_failed");
     }
   }
 
@@ -175,7 +307,7 @@ export async function processDocument(
     .from("documents")
     .update({ status: "completed", error_message: null })
     .eq("id", documentId);
-  if (completedError) return fail("completion_update_failed");
+  if (completedError) return failAndRelease("completion_update_failed");
   await service
     .from("processing_jobs")
     .update({ status: "completed", progress: 100 })
@@ -194,12 +326,12 @@ export async function processDocument(
     };
   }
 
-  return { ok: true, chunks: allChunks.length, topicMap };
+  return { ok: true, chunks: allChunks.length, notice, topicMap };
   } catch (error) {
     console.error("document processing failed", {
       name: error instanceof Error ? error.name : "UnknownError",
     });
-    return fail("processing_failed");
+    return failAndRelease("processing_failed");
   }
 }
 

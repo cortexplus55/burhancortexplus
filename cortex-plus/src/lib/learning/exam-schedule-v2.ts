@@ -75,7 +75,7 @@ export type ScheduleBuildResult = {
  * atamıyor.
  *
  * Ders sisteminde bunların hepsi var ve doğrulanmış: bölüm başlıkları,
- * ara kontroller, çözümlü örneğin adım adım doğruluğu. Astra'nın öğrenme
+ * ara kontroller, çözümlü örneğin adım adım doğruluğu. Referans ürünün öğrenme
  * adımı da metin ("Akıllı Metin"); podcast onda da seçmeli.
  */
 const ROLE_KIND: Record<ScheduleSessionRole, PlanNodeKind> = {

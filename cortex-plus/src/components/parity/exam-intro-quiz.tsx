@@ -168,25 +168,25 @@ export function ExamIntroQuiz({
   }
 
   return (
-    <div className="ap-exam-page ap-exam-node">
-      <div className="ap-exam-study-bar">
-        <Link href={home} className="ap-back-pill">
+    <div className="cp-exam-page cp-exam-node">
+      <div className="cp-exam-study-bar">
+        <Link href={home} className="cp-back-pill">
           ← Geri
         </Link>
-        <Link href={home} className="ap-back-pill">
+        <Link href={home} className="cp-back-pill">
           ×
         </Link>
       </div>
 
       {loading && stage === "play" && !questions.length ? (
         <section>
-          <p className="ap-lesson-kicker">{displayTopic}</p>
+          <p className="cp-lesson-kicker">{displayTopic}</p>
           <h1>
             {mode === "diagnostic_v2"
               ? "Başlangıç tanısı hazırlanıyor…"
               : "Tanışma testi hazırlanıyor…"}
           </h1>
-          <p className="text-sm text-[var(--ap-muted)]">
+          <p className="text-sm text-[var(--cp-muted)]">
             {mode === "diagnostic_v2"
               ? "Belgedeki ana konuların hepsinden kısa bir örnekleme geliyor. Bu test ustalığı kanıtlamaz."
               : "Konuyu kısaca yoklayan 5 soru geliyor."}
@@ -195,7 +195,7 @@ export function ExamIntroQuiz({
               sürebiliyor ve öğrencinin atlamak isteyeceği an tam burası. */}
           <button
             type="button"
-            className="ap-exam-intro-defer"
+            className="cp-exam-intro-defer"
             disabled={deferring}
             onClick={() => void deferIntro()}
           >
@@ -206,14 +206,14 @@ export function ExamIntroQuiz({
 
       {!loading && stage === "play" && !questions.length && !paywall ? (
         <section>
-          <p className="ap-lesson-kicker">{displayTopic}</p>
+          <p className="cp-lesson-kicker">{displayTopic}</p>
           <h1>Tanışma testi açılamadı</h1>
-          <p className="text-sm text-[var(--ap-muted)]">
+          <p className="text-sm text-[var(--cp-muted)]">
             {startError ?? "Sorular yüklenemedi. Boş ekranda kalma — tekrar dene."}
           </p>
           <button
             type="button"
-            className="ap-exam-continue ap-exam-continue--primary"
+            className="cp-exam-continue cp-exam-continue--primary"
             onClick={() => void start()}
           >
             Tekrar dene
@@ -223,7 +223,7 @@ export function ExamIntroQuiz({
 
       {stage === "play" && questions[index] ? (
         <>
-          <p className="ap-lesson-kicker">
+          <p className="cp-lesson-kicker">
             {mode === "diagnostic_v2" ? "Başlangıç tanısı" : "Tanışma testi"} ·{" "}
             {displayTopic}
           </p>
@@ -240,7 +240,7 @@ export function ExamIntroQuiz({
           />
           <button
             type="button"
-            className="ap-exam-intro-defer"
+            className="cp-exam-intro-defer"
             disabled={deferring}
             onClick={() => void deferIntro()}
           >
@@ -250,24 +250,24 @@ export function ExamIntroQuiz({
       ) : null}
 
       {stage === "result" ? (
-        <section className="ap-exam-node-result">
-          <p className="ap-lesson-kicker">
+        <section className="cp-exam-node-result">
+          <p className="cp-lesson-kicker">
             {mode === "diagnostic_v2" ? "Başlangıç düzeyi" : "Doğru cevaplar"}
           </p>
-          <p className="ap-exam-score-xl">
+          <p className="cp-exam-score-xl">
             {score.score}/{score.total}
           </p>
           {mode === "diagnostic_v2" && diagnostic ? (
             <>
               <p>{diagnostic.startingLevelLabel}</p>
-              <p className="text-sm text-[var(--ap-muted)]">
+              <p className="text-sm text-[var(--cp-muted)]">
                 Ölçülen seviye öz-bildirimden ayrıdır.
                 {diagnostic.hardTopicsSelf?.length
                   ? ` Öz-bildirim (zor): ${diagnostic.hardTopicsSelf.join(", ")}.`
                   : ""}
               </p>
               {diagnostic.topicResults?.length ? (
-                <ul className="text-sm text-[var(--ap-muted)]">
+                <ul className="text-sm text-[var(--cp-muted)]">
                   {diagnostic.topicResults.map((topic) => (
                     <li key={topic.topicLabel}>
                       {topic.topicLabel}:{" "}
@@ -281,7 +281,7 @@ export function ExamIntroQuiz({
               ) : null}
               {diagnostic.evidence?.length ? (
                 <div>
-                  <p className="ap-lesson-kicker">Hangi cevaplar seviyeyi belirledi?</p>
+                  <p className="cp-lesson-kicker">Hangi cevaplar seviyeyi belirledi?</p>
                   <ul className="text-sm">
                     {diagnostic.evidence.map((item) => (
                       <li key={`${item.questionIndex}-${item.topicLabel}`}>
@@ -300,12 +300,12 @@ export function ExamIntroQuiz({
                   ? "Güzel gidiyor"
                   : "Biraz daha gelişebilirsin"}
               </p>
-              <p className="text-sm text-[var(--ap-muted)]">
+              <p className="text-sm text-[var(--cp-muted)]">
                 Doğruluk {Math.round((score.score / Math.max(1, score.total)) * 100)}%
               </p>
             </>
           )}
-          <Link href={nextHref} className="ap-exam-continue ap-exam-continue--primary">
+          <Link href={nextHref} className="cp-exam-continue cp-exam-continue--primary">
             Devam et
           </Link>
         </section>

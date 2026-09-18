@@ -22,7 +22,7 @@ export function AskParentPaymentButton({
     <button
       type="button"
       disabled={pending || sent}
-      className="mt-2 w-full rounded-full border border-[var(--astra-border)] py-2.5 text-sm font-medium text-[var(--astra-text)] hover:border-[var(--astra-primary)] disabled:opacity-60"
+      className="mt-2 w-full rounded-full border border-[var(--cs-border)] py-2.5 text-sm font-medium text-[var(--cs-text)] hover:border-[var(--cs-primary)] disabled:opacity-60"
       onClick={() => {
         startTransition(async () => {
           const result = await requestParentPayment(

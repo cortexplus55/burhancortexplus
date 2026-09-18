@@ -46,11 +46,11 @@ export function SohbetlerList({ items }: { items: ConversationRow[] }) {
   }, [items, query, now]);
 
   return (
-    <div className="ap-exam-page">
+    <div className="cp-exam-page">
       <h1 className="mb-5 text-xl font-semibold">Geçmiş konuşmalar</h1>
       {items.length ? (
         <>
-          <label className="ap-search">
+          <label className="cp-search">
             <Search className="h-4 w-4 opacity-70" aria-hidden />
             <input
               value={query}
@@ -61,19 +61,19 @@ export function SohbetlerList({ items }: { items: ConversationRow[] }) {
           </label>
           {grouped.length ? (
             grouped.map((group) => (
-              <section key={group.label} className="ap-chat-group">
+              <section key={group.label} className="cp-chat-group">
                 <h2>{group.label}</h2>
                 <ul>
                   {group.rows.map((conversation) => (
                     <li key={conversation.id}>
                       <Link
                         href={`/ogretmen?sohbet=${conversation.id}`}
-                        className="astra-pay-card flex min-h-[52px] items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-[var(--astra-pill)]"
+                        className="cs-pay-card flex min-h-[52px] items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-[var(--cs-pill)]"
                       >
-                        <span className="truncate text-sm font-medium text-[var(--astra-text)]">
+                        <span className="truncate text-sm font-medium text-[var(--cs-text)]">
                           {conversation.title ?? "Başlıksız sohbet"}
                         </span>
-                        <span className="shrink-0 text-xs text-[var(--astra-muted)]">
+                        <span className="shrink-0 text-xs text-[var(--cs-muted)]">
                           {new Intl.DateTimeFormat("tr-TR", {
                             hour: "2-digit",
                             minute: "2-digit",
@@ -86,12 +86,12 @@ export function SohbetlerList({ items }: { items: ConversationRow[] }) {
               </section>
             ))
           ) : (
-            <p className="mt-6 text-sm text-[var(--astra-muted)]">Eşleşen sohbet yok.</p>
+            <p className="mt-6 text-sm text-[var(--cs-muted)]">Eşleşen sohbet yok.</p>
           )}
         </>
       ) : (
         <EmptyState
-          variant="astra"
+          variant="parity"
           icon={MessageCircle}
           title="Henüz sohbetin yok"
           description="AI öğretmenle ilk sorunu sorduğunda burada listelenir."

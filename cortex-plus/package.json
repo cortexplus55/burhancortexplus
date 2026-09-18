@@ -14,10 +14,12 @@
     "activate:paytr": "node scripts/activate-paytr.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "eval:grounding": "tsx tests/eval/run-grounding.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
+    "@napi-rs/canvas": "^1.0.9",
     "@sentry/nextjs": "^10.73.0",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
@@ -69,6 +71,7 @@
     "jsdom": "^29.1.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.19.2",
     "typescript": "^5",
     "vitest": "^4.1.11"
   }

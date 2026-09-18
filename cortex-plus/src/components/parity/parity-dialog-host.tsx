@@ -2,9 +2,9 @@
 
 import { Suspense, useCallback, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AstraProfileDialog, type ProfilePlanView } from "@/components/parity/astra-profile-dialog";
-import { AstraSketchDialog } from "@/components/parity/astra-sketch-dialog";
-import { AstraUploadModal } from "@/components/parity/astra-upload-modal";
+import { ProfileDialog, type ProfilePlanView } from "@/components/parity/profile-dialog";
+import { SketchDialog } from "@/components/parity/sketch-dialog";
+import { UploadModal } from "@/components/parity/upload-modal";
 import {
   dispatchComposerAttach,
   type ComposerRemoteDoc,
@@ -37,12 +37,12 @@ function ParityDialogHostInner({
 
   return (
     <>
-      <AstraProfileDialog
+      <ProfileDialog
         open={dialog === "profile"}
         onClose={closeDialog}
         plan={plan}
       />
-      <AstraUploadModal
+      <UploadModal
         open={dialog === "image_upload"}
         onClose={closeDialog}
         onPick={(file) => {
@@ -54,7 +54,7 @@ function ParityDialogHostInner({
           closeDialog();
         }}
       />
-      <AstraSketchDialog open={dialog === "sketch"} onClose={closeDialog} />
+      <SketchDialog open={dialog === "sketch"} onClose={closeDialog} />
     </>
   );
 }

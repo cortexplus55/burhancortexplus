@@ -11,7 +11,15 @@ import {
 } from "@/lib/learning/diagnostic-generate";
 import type { DiagnosticTopicPlan } from "@/lib/learning/diagnostic";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
-import { loadSourceContext } from "@/lib/learning/source-context";
+import {
+  EMPTY_SOURCE_CONTEXT,
+  loadSourceContext,
+} from "@/lib/learning/source-context";
+import {
+  resolvePrepSourceMode,
+  shouldSearchSources,
+  topicFence,
+} from "@/lib/learning/prep-source";
 import {
   publicQuizQuestion,
   scoreQuizAnswers,
@@ -337,17 +345,30 @@ export async function POST(request: Request) {
     });
   }
 
-  let source;
-  try {
-    source = await loadSourceContext(
-      service,
-      userId,
-      `${prep.title ?? prep.exam_type} ${topic.label}`,
-      { documentId: prep.document_id ?? null, limit: 6 },
-    );
-  } catch {
-    return errorResponse(503, "source_unavailable");
+  // Belge seçili değilse arama yapılmaz: filtresiz arama öğrencinin ilgisiz
+  // belgelerinden parça çekiyordu. Belgesiz hazırlıkta çit konunun kendisi.
+  const sourceMode = resolvePrepSourceMode({ documentId: prep.document_id });
+  let source = EMPTY_SOURCE_CONTEXT;
+  if (shouldSearchSources(sourceMode)) {
+    try {
+      source = await loadSourceContext(
+        service,
+        userId,
+        `${prep.title ?? prep.exam_type} ${topic.label}`,
+        { documentId: prep.document_id ?? null, limit: 6 },
+      );
+    } catch {
+      return errorResponse(503, "source_unavailable");
+    }
   }
+  const topicBlock =
+    sourceMode === "topic_only"
+      ? topicFence({
+          topic: topic.label,
+          examTitle: prep.title,
+          examType: prep.exam_type,
+        })
+      : "";
 
   const isPremium = await isPremiumUser(service, userId);
   let outcome = await generateExamQuiz({
@@ -355,7 +376,7 @@ export async function POST(request: Request) {
     userId,
     isPremium,
     difficulty: "hard",
-    userPrompt: `Sınav: ${prep.title ?? prep.exam_type}. Konu: ${topic.label}.${source.block}
+    userPrompt: `Sınav: ${prep.title ?? prep.exam_type}. Konu: ${topic.label}.${source.block}${topicBlock}
 5 çoktan seçmeli tanışma sorusu yaz. Konunun temelini yokla, aşırı tuzak kurma.
 Tüm sorularda multi false (tek doğru). correct her zaman options içinde olsun.
 Her soruyu göndermeden önce bilimsel ve matematiksel doğruluğunu kontrol et. Soru kökü ile doğru seçenek tam olarak uyuşsun.`,
@@ -367,8 +388,8 @@ Her soruyu göndermeden önce bilimsel ve matematiksel doğruluğunu kontrol et.
       isPremium,
       difficulty: "hard",
       verificationMode: "schema",
-      userPrompt: `Sınav: ${prep.title ?? prep.exam_type}. Konu: ${topic.label}.${source.block}
-5 kısa çoktan seçmeli tanışma sorusu. Hepsi multi false, tek doğru şık. Belge alıntılarına dayan.`,
+      userPrompt: `Sınav: ${prep.title ?? prep.exam_type}. Konu: ${topic.label}.${source.block}${topicBlock}
+5 kısa çoktan seçmeli tanışma sorusu. Hepsi multi false, tek doğru şık.${sourceMode === "topic_only" ? "" : " Belge alıntılarına dayan."}`,
     });
   }
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);

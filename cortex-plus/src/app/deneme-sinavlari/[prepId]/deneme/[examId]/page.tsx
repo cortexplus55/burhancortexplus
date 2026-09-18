@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
-import { AstraExamRunner } from "@/components/parity/astra-exam-runner";
+import { ParitySorShell } from "@/components/parity/sor-shell";
+import { ParityExamRunner } from "@/components/parity/exam-runner";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 
@@ -39,22 +39,22 @@ export default async function ExamPrepDenemePage({
   }));
 
   return (
-    <AstraParitySorShell {...shell}>
+    <ParitySorShell {...shell}>
       {questions.length ? (
-        <AstraExamRunner
+        <ParityExamRunner
           examId={examId}
           prepId={prepId}
           title={exam.title ?? "Deneme"}
           questions={questions}
         />
       ) : (
-        <div className="ap-exam-page">
+        <div className="cp-exam-page">
           <p>Sorular henüz hazır değil.</p>
-          <Link href={`/deneme-sinavlari/${prepId}`} className="ap-back-pill">
+          <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill">
             ← Konu yoluna dön
           </Link>
         </div>
       )}
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

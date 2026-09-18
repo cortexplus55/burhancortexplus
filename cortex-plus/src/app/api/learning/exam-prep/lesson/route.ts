@@ -6,6 +6,11 @@ import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { formatStructuredLesson } from "@/lib/learning/exam-lesson";
 import { loadSourceContext } from "@/lib/learning/source-context";
 import {
+  resolvePrepSourceMode,
+  shouldSearchSources,
+  topicFence,
+} from "@/lib/learning/prep-source";
+import {
   lessonV2Schema,
   teachingStandardConstraints,
   teachingSessionContext,
@@ -67,19 +72,27 @@ export async function POST(request: Request) {
   }
 
   let sourceBlock = "";
-  if (teachingV2) {
-    let sourceBoundaryMode: "documents_only" | "allow_supporting" | null = "documents_only";
-    if (prep.document_id) {
-      const { data: doc } = await service
-        .from("documents")
-        .select("source_boundary_mode")
-        .eq("id", prep.document_id)
-        .eq("user_id", userId)
-        .maybeSingle();
-      sourceBoundaryMode =
-        (doc?.source_boundary_mode as "documents_only" | "allow_supporting" | null) ??
-        "documents_only";
-    }
+  // Belge seçili değilse kaynak araması YAPILMAZ. Eskiden aranıyordu ve
+  // arama belge filtresiz olduğu için öğrencinin ilgisiz belgelerinden
+  // parça çekip derse "yalnızca buna dayan" diyordu.
+  let documentBoundary: "documents_only" | "allow_supporting" | null = null;
+  if (teachingV2 && prep.document_id) {
+    const { data: doc } = await service
+      .from("documents")
+      .select("source_boundary_mode")
+      .eq("id", prep.document_id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    documentBoundary =
+      (doc?.source_boundary_mode as "documents_only" | "allow_supporting" | null) ??
+      "documents_only";
+  }
+  const sourceMode = resolvePrepSourceMode({
+    documentId: prep.document_id,
+    documentBoundary,
+  });
+
+  if (teachingV2 && shouldSearchSources(sourceMode)) {
     try {
       const source = await loadSourceContext(
         service,
@@ -87,17 +100,25 @@ export async function POST(request: Request) {
         `${prep.title ?? ""} ${topic.label}`.trim(),
         {
           documentId: prep.document_id ?? null,
-          sourceBoundaryMode,
+          sourceBoundaryMode: sourceMode,
         },
       );
       sourceBlock = source.block;
-      if (prep.document_id && !sourceBlock.trim()) {
-        return errorResponse(503, "source_unavailable");
-      }
+      if (!sourceBlock.trim()) return errorResponse(503, "source_unavailable");
     } catch {
       return errorResponse(503, "source_unavailable");
     }
   }
+
+  // Belgesiz derste çit belge değil konunun kendisi.
+  const topicBlock =
+    sourceMode === "topic_only"
+      ? topicFence({
+          topic: topic.label,
+          examTitle: prep.title,
+          examType: prep.exam_type,
+        })
+      : "";
 
   const sessionCtx = teachingV2
     ? teachingSessionContext({ topicTitle: topic.label, objective: `${topic.label} konusunu öğren` }, topic.label)
@@ -119,7 +140,7 @@ export async function POST(request: Request) {
           pedagogyIssues: validateLessonPedagogy(parsed),
           minItems: 2,
           sourceExcerpt: sourceBlock,
-          requireSourceSupport: Boolean(prep.document_id),
+          requireSourceSupport: shouldSearchSources(sourceMode),
           subjectHint: "lesson",
         })
       : undefined,
@@ -139,11 +160,11 @@ Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
 ${sessionCtx}
 ${standards}
 Bu dersin konusu YALNIZCA: ${topic.label}.
-Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.${sourceBlock}`
+Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.${sourceBlock}${topicBlock}`
       : `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
 Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
 Bu dersin konusu YALNIZCA: ${topic.label}.
-Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.`,
+Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${topicBlock}`,
     parse: (raw) => {
       if (teachingV2) {
         if (validateLessonPedagogy(raw).length) return null;

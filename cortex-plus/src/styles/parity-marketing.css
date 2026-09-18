@@ -1,0 +1,487 @@
+@import "./parity-app.css";
+
+.cs-marketing {
+  --mk-bg: #050505;
+  --mk-surface: rgba(18, 18, 20, 0.85);
+  --mk-border: rgba(255, 255, 255, 0.08);
+  --mk-primary: #f4ae0b;
+  --mk-text: #fafafa;
+  --mk-muted: #a3a3a3;
+  background: var(--mk-bg);
+  color: var(--mk-text);
+}
+
+.cs-marketing .mk-hero-gradient {
+  background: radial-gradient(
+    ellipse 80% 60% at 50% -20%,
+    rgba(232, 168, 56, 0.28),
+    transparent
+  );
+}
+
+.cs-marketing .mk-btn-primary {
+  background: linear-gradient(135deg, #f0b84d 0%, #c9851f 100%);
+  color: #0c0a06;
+  border-radius: 9999px;
+  font-weight: 700;
+  box-shadow: 0 0 32px rgba(232, 168, 56, 0.25);
+}
+
+.cs-marketing .mk-btn-primary:hover {
+  background: linear-gradient(135deg, #ffc857 0%, #e8a838 100%);
+}
+
+.cs-marketing .mk-btn-outline {
+  border: 1px solid var(--mk-border);
+  border-radius: 9999px;
+  background: var(--mk-surface);
+}
+
+.cs-marketing .mk-card {
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border);
+  border-radius: 1.25rem;
+}
+
+.cs-marketing header {
+  border-color: var(--mk-border);
+  background: rgba(12, 12, 12, 0.85);
+}
+
+/* ---------------------------------------------------------------------------
+   İkincil sayfa parçaları
+
+   Ana sayfa zengin, ikincil sayfalar cılızdı — sebebi zevk değil, envanterdi:
+   burada yalnızca kart ve iki buton vardı, o yüzden her sayfa düz metne
+   düşüyordu. Aşağısı o eksik parçalar.
+   --------------------------------------------------------------------------- */
+
+/* Sonuç ikonu. Durum rengi marka amberinden ayrı: amber "vurgu" demek,
+   başarılı ile başarısız onunla ayrılamaz. */
+.cs-marketing .mk-result-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 9999px;
+}
+
+.cs-marketing .mk-result-icon--success {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.28);
+}
+
+.cs-marketing .mk-result-icon--error {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.28);
+}
+
+/* Bölüm üstü küçük etiket. Sayfaya ritim veriyor: başlıktan önce ne
+   okuyacağını söylüyor. */
+.cs-marketing .mk-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mk-primary);
+}
+
+/* İkonlu kart. İkon bir "çip" içinde: koyu zeminde çıplak ikon kayboluyor. */
+.cs-marketing .mk-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.875rem;
+  color: var(--mk-primary);
+  background: rgba(244, 174, 11, 0.1);
+  border: 1px solid rgba(244, 174, 11, 0.22);
+}
+
+.cs-marketing .mk-feature {
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.cs-marketing .mk-feature:hover {
+  border-color: rgba(244, 174, 11, 0.35);
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-marketing .mk-feature {
+    transition: none;
+  }
+  .cs-marketing .mk-feature:hover {
+    transform: none;
+  }
+}
+
+/* İşaretli liste. Ham "·" karakteri yerine gerçek bir onay işareti — madde
+   sayılabilir bir kazanım olduğunda nokta değil tik doğru işaret. */
+.cs-marketing .mk-list {
+  display: grid;
+  gap: 0.875rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Izgara yerine dolgu + konumlanmış işaret. Izgara denendi ve yanlıştı: madde
+   içinde ham metin, `strong` ve bağlantı yan yana durunca her düğüm ayrı bir
+   ızgara hücresine düşüp satır satır kırılıyordu. Dolgu yöntemi içeriğin
+   yapısına karışmıyor. */
+.cs-marketing .mk-list > li {
+  position: relative;
+  padding-left: 2.125rem;
+  color: var(--mk-muted);
+  line-height: 1.65;
+}
+
+/* Yuvarlak zemin */
+.cs-marketing .mk-list > li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.1rem;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 9999px;
+  background: rgba(244, 174, 11, 0.12);
+  border: 1px solid rgba(244, 174, 11, 0.3);
+}
+
+/* Tik: iki kenarlıktan çizilip döndürülüyor — ek dosya istemiyor, rengini
+   tokendan alıyor. */
+.cs-marketing .mk-list > li::after {
+  content: "";
+  position: absolute;
+  left: 0.47rem;
+  top: 0.42rem;
+  width: 0.3rem;
+  height: 0.55rem;
+  border-right: 2px solid var(--mk-primary);
+  border-bottom: 2px solid var(--mk-primary);
+  transform: rotate(45deg);
+}
+
+.cs-marketing .mk-list > li > strong {
+  display: block;
+  color: var(--mk-text);
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+
+/* Açılır soru. Tarayıcının kendi üçgeni kaldırıldı; yerine dönen bir işaret.
+   `details` bilerek korundu: JavaScript olmadan çalışıyor ve klavye ile
+   erişilebilir. */
+.cs-marketing .mk-faq {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cs-marketing .mk-faq__item {
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border);
+  border-radius: 1rem;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.cs-marketing .mk-faq__item[open],
+.cs-marketing .mk-faq__item:hover {
+  border-color: rgba(244, 174, 11, 0.3);
+}
+
+.cs-marketing .mk-faq__q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.125rem 1.25rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--mk-text);
+  list-style: none;
+}
+
+.cs-marketing .mk-faq__q::-webkit-details-marker {
+  display: none;
+}
+
+.cs-marketing .mk-faq__q::after {
+  content: "";
+  flex: none;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-right: 2px solid var(--mk-primary);
+  border-bottom: 2px solid var(--mk-primary);
+  transform: rotate(45deg) translate(-0.1rem, -0.1rem);
+  transition: transform 0.2s ease;
+}
+
+.cs-marketing .mk-faq__item[open] .mk-faq__q::after {
+  transform: rotate(-135deg) translate(-0.1rem, -0.1rem);
+}
+
+.cs-marketing .mk-faq__q:focus-visible {
+  outline: 2px solid var(--mk-primary);
+  outline-offset: -2px;
+}
+
+.cs-marketing .mk-faq__a {
+  padding: 0 1.25rem 1.25rem;
+  color: var(--mk-muted);
+  line-height: 1.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-marketing .mk-faq__item,
+  .cs-marketing .mk-faq__q::after {
+    transition: none;
+  }
+}
+
+/*
+  Telefonda alt menü bağlantıları.
+
+  Masaüstünde 20 piksel yükseklik ve 8 piksel aralık doğru görünüyor, ama
+  parmakla 28 piksellik bir aralığa isabet ettirmek zor: yanlış sayfaya
+  gitmek kural oluyor. Telefonda bağlantının kendisini yükseltiyoruz,
+  aralığı da sıfırlıyoruz ki alt menü uzayıp gitmesin.
+*/
+@media (max-width: 767px) {
+  .cs-marketing .mk-footer-links {
+    gap: 0;
+  }
+
+  .cs-marketing .mk-footer-links a {
+    display: block;
+    padding-block: 0.7rem;
+  }
+}
+
+/*
+  "Yanlışların kaybolmuyor" döngüsü.
+
+  Kart ızgarası değil zincir: adımlar arasında çizgi var ve çizgi son adımdan
+  sonra kesiliyor, çünkü orası döngünün başa döndüğü yer. Kart ızgarası dört
+  bağımsız özellik anlatırdı; oysa anlatılan şey adımların birbirine
+  bağlanması.
+
+  Telefonda dikey, masaüstünde yatay. Dikeyken çizgi işaretlerin arasından
+  geçiyor; yatayken üstlerinden.
+*/
+.cs-marketing .mk-loop {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  counter-reset: loop;
+}
+
+.cs-marketing .mk-loop-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.75rem 1fr;
+  gap: 1rem;
+  padding-bottom: 2rem;
+}
+
+.cs-marketing .mk-loop-step:last-child {
+  padding-bottom: 0;
+}
+
+/* Dikey bağlayıcı: işaretin altından bir sonrakine iniyor. */
+.cs-marketing .mk-loop-step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 1.32rem;
+  top: 2.75rem;
+  bottom: 0.35rem;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    rgba(244, 174, 11, 0.5),
+    rgba(244, 174, 11, 0.12)
+  );
+}
+
+.cs-marketing .mk-loop-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  color: var(--mk-primary);
+  background: rgba(244, 174, 11, 0.1);
+  border: 1px solid rgba(244, 174, 11, 0.3);
+}
+
+.cs-marketing .mk-loop-index {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(244, 174, 11, 0.75);
+}
+
+.cs-marketing .mk-loop-title {
+  margin: 0.35rem 0 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--mk-text);
+}
+
+.cs-marketing .mk-loop-text {
+  margin: 0.4rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--mk-muted);
+  max-width: 46ch;
+}
+
+.cs-marketing .mk-loop-close {
+  margin: 1.75rem 0 0;
+  padding-left: 3.75rem;
+  font-size: 0.875rem;
+  font-style: italic;
+  color: rgba(244, 174, 11, 0.8);
+}
+
+.cs-marketing .mk-loop-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.7rem 1.6rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #050505;
+  background: var(--mk-primary);
+  text-decoration: none;
+  transition: filter 0.15s ease;
+}
+
+.cs-marketing .mk-loop-cta:hover {
+  filter: brightness(1.08);
+}
+
+.cs-marketing .mk-loop-cta--ghost {
+  color: var(--mk-text);
+  background: transparent;
+  border: 1px solid var(--mk-border);
+}
+
+.cs-marketing .mk-loop-cta--ghost:hover {
+  border-color: rgba(244, 174, 11, 0.45);
+  filter: none;
+}
+
+@media (min-width: 900px) {
+  .cs-marketing .mk-loop {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+  }
+
+  .cs-marketing .mk-loop-step {
+    grid-template-columns: 1fr;
+    gap: 0.9rem;
+    padding-bottom: 0;
+  }
+
+  /* Yatayken çizgi işaretlerin ortasından yanlara uzanıyor. */
+  .cs-marketing .mk-loop-step:not(:last-child)::before {
+    left: 3.25rem;
+    right: -1.5rem;
+    top: 1.37rem;
+    bottom: auto;
+    width: auto;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      rgba(244, 174, 11, 0.5),
+      rgba(244, 174, 11, 0.12)
+    );
+  }
+
+  .cs-marketing .mk-loop-close {
+    padding-left: 0;
+  }
+}
+
+/* --- Ürün kareleri -------------------------------------------------------
+   Kareler koyu zeminde koyu; çerçevesiz bırakılınca sayfaya karışıp
+   kayboluyorlar. Kenarlık ve hafif yükselti onları "ekran" olarak okutuyor. */
+
+.mk-shots {
+  display: grid;
+  gap: 3.5rem;
+  margin-top: 3rem;
+}
+
+.mk-shot {
+  display: grid;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.mk-shot-title {
+  margin: 0.4rem 0 0.6rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.mk-shot-frame {
+  border-radius: 0.9rem;
+  border: 1px solid var(--mk-border, rgba(255, 255, 255, 0.12));
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.4rem;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.mk-shot-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.6rem;
+}
+
+@media (min-width: 900px) {
+  .mk-shot {
+    grid-template-columns: 5fr 7fr;
+    gap: 3rem;
+  }
+
+  /* Tek düzen sayfayı monotonlaştırıyor; çift sıralarda görsel sola geçiyor. */
+  .mk-shot:nth-child(even) .mk-shot-text {
+    order: 2;
+  }
+
+  .mk-shot:nth-child(even) .mk-shot-frame {
+    order: 1;
+  }
+}
+
+/* Ders kartı ikonu — emoji yerine tutarlı ikon + ders rengi. */
+.mk-subject-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.7rem;
+}

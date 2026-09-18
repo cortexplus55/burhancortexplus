@@ -37,24 +37,24 @@ export function ExamTopicPick({
   }
 
   return (
-    <div className="ap-exam-page">
-      <div className="ap-exam-study-bar mb-2">
-        <Link href={`/deneme-sinavlari/${prepId}`} className="ap-back-pill">
+    <div className="cp-exam-page">
+      <div className="cp-exam-study-bar mb-2">
+        <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill">
           ← Geri
         </Link>
       </div>
       <h1>Konu seç</h1>
-      <p className="ap-wizard-lead">Bu sınavın konularından birini seç; önce 5 soruluk tanışma testi gelir.</p>
-      <ol className="ap-topic-pick">
+      <p className="cp-wizard-lead">Bu sınavın konularından birini seç; önce 5 soruluk tanışma testi gelir.</p>
+      <ol className="cp-topic-pick">
         {topics.map((topic, index) => (
           <li key={topic.id}>
             <button
               type="button"
-              className="ap-topic-pick-item"
+              className="cp-topic-pick-item"
               disabled={Boolean(busy)}
               onClick={() => void pick(topic.id)}
             >
-              <span className="ap-topic-num">{index + 1}</span>
+              <span className="cp-topic-num">{index + 1}</span>
               <strong>{topic.label}</strong>
               <span aria-hidden>→</span>
             </button>

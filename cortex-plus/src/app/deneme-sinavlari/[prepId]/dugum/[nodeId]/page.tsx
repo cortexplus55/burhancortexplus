@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ExamNodeSession } from "@/components/parity/exam-node-session";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -87,7 +87,7 @@ export default async function ExamNodePage({
   }
 
   return (
-    <AstraParitySorShell {...shell}>
+    <ParitySorShell {...shell}>
       <ExamNodeSession
         prepId={prep.id}
         nodeId={node.id}
@@ -99,6 +99,6 @@ export default async function ExamNodePage({
         resumeEnabled={resumeEnabled}
         sourceName={sourceName}
       />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

@@ -1,6 +1,10 @@
 import { planGrantsSubscription } from "@/lib/payments/beneficiary";
 
-export type BillingPeriod = "one_time" | "monthly" | "yearly";
+/**
+ * `weekly` haftalık Plus paketiyle geldi: tek ödemeyle 7 gün açıyor, kotası da
+ * 7 günde bir yenileniyor (bkz. migration 20260914130000).
+ */
+export type BillingPeriod = "one_time" | "weekly" | "monthly" | "yearly";
 
 export type SubscriptionPlanInfo = {
   name?: string | null;
@@ -19,7 +23,12 @@ export function billingPeriodOf(
   plan: SubscriptionPlanInfo | null | undefined,
 ): BillingPeriod {
   const value = plan?.billing_period;
-  if (value === "monthly" || value === "yearly" || value === "one_time") {
+  if (
+    value === "weekly" ||
+    value === "monthly" ||
+    value === "yearly" ||
+    value === "one_time"
+  ) {
     return value;
   }
   // Sütun eklenmeden önce yazılmış satırlar: is_premium abonelik demekti.
@@ -38,7 +47,10 @@ export function planPeriodDays(
 ): number {
   const explicit = plan?.period_days;
   if (typeof explicit === "number" && explicit > 0) return explicit;
-  return billingPeriodOf(plan) === "yearly" ? 365 : 30;
+  const period = billingPeriodOf(plan);
+  if (period === "yearly") return 365;
+  if (period === "weekly") return 7;
+  return 30;
 }
 
 /**

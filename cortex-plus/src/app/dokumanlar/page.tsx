@@ -48,8 +48,8 @@ function topicMapErrorLabel(code: string) {
 function statusClass(status: string) {
   if (status === "completed") return "bg-amber-500/20 text-amber-200";
   if (status === "failed") return "bg-red-500/15 text-red-300";
-  if (status === "processing") return "bg-white/10 text-[var(--astra-text)]";
-  return "bg-white/5 text-[var(--astra-muted)]";
+  if (status === "processing") return "bg-white/10 text-[var(--cs-text)]";
+  return "bg-white/5 text-[var(--cs-muted)]";
 }
 
 export default async function DokumanlarPage() {
@@ -75,13 +75,13 @@ export default async function DokumanlarPage() {
     >
       <div className="space-y-6">
         <SectionCard
-          variant="astra"
+          variant="parity"
           title="Doküman yükle"
           description="Yüklediğin kaynaklar yalnızca senin hesabına bağlıdır ve özel depolamada tutulur."
         >
           <DocumentUpload
             creditCost={cost}
-            variant="astra"
+            variant="parity"
             learningV2={pdfLearningV2}
           />
         </SectionCard>
@@ -91,13 +91,13 @@ export default async function DokumanlarPage() {
             {documents.map((document) => (
               <li
                 key={document.id}
-                className="astra-pay-card flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                className="cs-pay-card flex flex-wrap items-center justify-between gap-3 px-4 py-3"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[var(--astra-text)]">
+                  <p className="truncate text-sm font-medium text-[var(--cs-text)]">
                     {document.file_name}
                   </p>
-                  <p className="text-xs text-[var(--astra-muted)]">
+                  <p className="text-xs text-[var(--cs-muted)]">
                     {Math.round(document.size_bytes / 1024)} KB ·{" "}
                     {formatDate(document.created_at)}
                     {document.error_message ? ` · ${document.error_message}` : ""}
@@ -156,7 +156,7 @@ export default async function DokumanlarPage() {
           </ul>
         ) : (
           <EmptyState
-            variant="astra"
+            variant="parity"
             icon={FileText}
             title="Henüz doküman yüklemedin"
             description="Ders notunu yükle, AI öğretmen yanıtlarında kaynak olarak kullansın."

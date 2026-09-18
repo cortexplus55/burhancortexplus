@@ -27,6 +27,14 @@ export default function KullanimKosullariPage() {
           ],
         },
         {
+          heading: "Cayma hakkı",
+          body: [
+            "Cortex Plus anında sunulan dijital bir hizmettir: satın alma tamamlandığı anda kredi hesabına geçer ve hizmet kullanıma açılır. Mesafeli Sözleşmeler Yönetmeliği'nin 15. maddesi uyarınca bu tür hizmetlerde cayma hakkı kullanılamaz; satın alarak bunu kabul etmiş olursun.",
+            "Aboneliğini dilediğin zaman iptal edebilirsin. İptal, o dönemin sonunda yenilemeyi durdurur; ödediğin dönem sonuna kadar hizmet açık kalır.",
+            "Hatalı ya da yetkisiz bir işlem olduğunu düşünüyorsan destek sayfasından bize yaz; her talebi tek tek inceliyoruz.",
+          ],
+        },
+        {
           heading: "Kabul edilebilir kullanım",
           body: [
             "Hizmeti yasa dışı amaçlarla, başkalarının haklarını ihlal edecek şekilde veya sistem güvenliğini tehdit ederek kullanamazsın.",

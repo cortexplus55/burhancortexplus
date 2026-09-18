@@ -53,7 +53,7 @@ export function PromoBanner({ campaign }: { campaign: PromoCampaign }) {
 
   return (
     <Link href={campaign.href} className="ug-promo">
-      <Hourglass className="h-5 w-5 text-[var(--ap-gold,#f4ae0b)]" aria-hidden />
+      <Hourglass className="h-5 w-5 text-[var(--cp-gold,#f4ae0b)]" aria-hidden />
 
       <div className="ug-promo-body">
         <p className="ug-promo-title">{campaign.title}</p>

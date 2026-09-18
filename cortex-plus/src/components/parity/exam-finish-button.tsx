@@ -7,7 +7,7 @@ import { toast } from "sonner";
 export function ExamFinishButton({
   prepId,
   label = "Sınavla bitir",
-  className = "ap-finish-exam-btn",
+  className = "cp-finish-exam-btn",
 }: {
   prepId: string;
   label?: string;

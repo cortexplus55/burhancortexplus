@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ExamPrepStudySession } from "@/components/parity/exam-prep-study-session";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -45,8 +45,8 @@ export default async function ExamPrepCalisPage({
   const lessonsByTopic = mapLessonsByTopic(lessonRows ?? [], topics);
 
   return (
-    <AstraParitySorShell {...shell}>
-      <Suspense fallback={<div className="ap-exam-page ap-exam-page--loading" />}>
+    <ParitySorShell {...shell}>
+      <Suspense fallback={<div className="cp-exam-page cp-exam-page--loading" />}>
         <ExamPrepStudySession
           prepId={prep.id}
           prepTitle={prep.title ?? "Sınav hazırlığı"}
@@ -55,6 +55,6 @@ export default async function ExamPrepCalisPage({
           lessonsByTopic={lessonsByTopic}
         />
       </Suspense>
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

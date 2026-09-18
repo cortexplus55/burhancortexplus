@@ -13,9 +13,9 @@ const figtree = Figtree({
   display: "swap",
 });
 
-// Astra'nın gövde fontuyla (Figtree) birebir aynı fontu kullanıyorduk —
+// Referans ürünün gövde fontuyla (Figtree) birebir aynı fontu kullanıyorduk —
 // "kendi kimliğimiz" kararının en somut karşılığı burada: başlıklar artık
-// Astra'da hiç kullanılmayan, daha geometrik/kendinden emin bir yüz alıyor.
+// Referans üründe hiç kullanılmayan, daha geometrik/kendinden emin bir yüz alıyor.
 // Gövde metni şimdilik Figtree'de kalıyor — bunu da değiştirmek 30+ sayfayı
 // tek seferde etkiler, ayrı bir faz olarak planlandı.
 const sora = Sora({

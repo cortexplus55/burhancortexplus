@@ -39,14 +39,14 @@ import {
   type Recorder,
 } from "@/lib/learning/voice-recorder";
 import { subscribeComposerAttach } from "@/lib/student/composer-bridge";
-import { AstraStartHub } from "@/components/parity/astra-start-hub";
-import { AstraSubjectModal } from "@/components/parity/astra-subject-modal";
-import { AstraUploadModal } from "@/components/parity/astra-upload-modal";
+import { StartHub } from "@/components/parity/start-hub";
+import { SubjectModal } from "@/components/parity/subject-modal";
+import { UploadModal } from "@/components/parity/upload-modal";
 import { MathKeyboard } from "@/components/parity/math-keyboard";
 import { UpgradeAside } from "@/components/paywall/upgrade-aside";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
-import "@/styles/astra-sor.css";
-import "@/styles/astra-parity-sor.css";
+import "@/styles/parity-sor.css";
+import "@/styles/parity-shell.css";
 
 type Message = {
   role: "user" | "assistant";
@@ -59,7 +59,7 @@ type Message = {
 
 function SorTypingDots() {
   return (
-    <div className="astra-sor-typing" role="status" aria-label="Yanıt hazırlanıyor">
+    <div className="cs-sor-typing" role="status" aria-label="Yanıt hazırlanıyor">
       <span />
       <span />
       <span />
@@ -86,7 +86,7 @@ const quickActions = [
 /**
  * Yanıt sonrası devam önerileri.
  *
- * Astra bunları yapay zekâya ürettiriyor; biz sabit tutuyoruz çünkü üçü de her
+ * Referans ürün bunları yapay zekâya ürettiriyor; biz sabit tutuyoruz çünkü üçü de her
  * konuda geçerli ve fazladan bir AI çağrısı (yani fazladan kredi) yakmıyor.
  */
 const FOLLOW_UPS = [
@@ -160,7 +160,7 @@ export function ChatPanel({
   initialDocumentId?: string;
   initialMessages?: Message[];
   hasDocuments: boolean;
-  variant?: "default" | "astra";
+  variant?: "default" | "parity";
   greetingLine?: string;
   greetingSubline?: string;
   audience?: "student" | "parent";
@@ -230,7 +230,7 @@ export function ChatPanel({
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(3);
 
   useEffect(() => {
-    if (variant !== "astra") return;
+    if (variant !== "parity") return;
     let cancelled = false;
     fetch("/api/profile/me")
       .then(async (res) => {
@@ -281,18 +281,18 @@ export function ChatPanel({
     }
   }, [initialMessages.length]);
 
-  const isAstra = variant === "astra";
-  const isMinimalSor = isAstra && composerMode === "minimal";
-  const isParitySor = isAstra && composerMode === "parity";
+  const isParity = variant === "parity";
+  const isMinimalSor = isParity && composerMode === "minimal";
+  const isParitySor = isParity && composerMode === "parity";
 
   const sorChatActive = isMinimalSor && (messages.length > 0 || loading);
 
   useEffect(() => {
     if (!isMinimalSor) return;
-    const root = document.querySelector(".astra-sor-screen--chat");
+    const root = document.querySelector(".cs-sor-screen--chat");
     if (!root) return;
-    root.classList.toggle("astra-sor-screen--active-chat", sorChatActive);
-    return () => root.classList.remove("astra-sor-screen--active-chat");
+    root.classList.toggle("cs-sor-screen--active-chat", sorChatActive);
+    return () => root.classList.remove("cs-sor-screen--active-chat");
   }, [isMinimalSor, sorChatActive]);
 
   useEffect(() => {
@@ -371,7 +371,7 @@ export function ChatPanel({
   }
 
   useEffect(() => {
-    if (variant !== "astra") return;
+    if (variant !== "parity") return;
     return subscribeComposerAttach({
       attachFile: (file) => {
         attachPending(file);
@@ -528,7 +528,7 @@ export function ChatPanel({
     if (!text.trim() || (loading && !allowWhileLoading)) return;
     if (imageDocumentId) activeDocumentId.current = imageDocumentId;
     const prefixed =
-      variant === "astra" && showSubjectPicker && subject
+      variant === "parity" && showSubjectPicker && subject
         ? `[${subject}] ${text.trim()}`
         : text.trim();
     setLoading(true);
@@ -757,9 +757,9 @@ export function ChatPanel({
   if (isParitySor) {
     return (
       <>
-        <div className="ap-sor-view">
+        <div className="cp-sor-view">
           {showParityThread ? (
-            <div className="ap-thread-bar">
+            <div className="cp-thread-bar">
               <button type="button" onClick={resetParityThread}>
                 <ArrowLeft className="h-4 w-4" aria-hidden />
                 Geri
@@ -770,13 +770,13 @@ export function ChatPanel({
             </div>
           ) : null}
           {showParityEmpty ? (
-            <div className="ap-sor-hero">
-              <h1 className="ap-sor-hero-title">
+            <div className="cp-sor-hero">
+              <h1 className="cp-sor-hero-title">
                 {greetingLine ?? "Merhaba!"}
               </h1>
               <button
                 type="button"
-                className="ap-sor-start"
+                className="cp-sor-start"
                 disabled={loading}
                 onClick={() => setStartHubOpen(true)}
               >
@@ -786,12 +786,12 @@ export function ChatPanel({
               {/* Boş ekranda "ne sorabilirim" sorusunun cevabı. Öneriler
                   kayıt cevaplarından üretiliyor; basınca doğrudan soruyor. */}
               {starterPrompts?.length ? (
-                <div className="ap-sor-starters" role="group" aria-label="Başlangıç önerileri">
+                <div className="cp-sor-starters" role="group" aria-label="Başlangıç önerileri">
                   {starterPrompts.map((item) => (
                     <button
                       key={item.label}
                       type="button"
-                      className="ap-sor-starter"
+                      className="cp-sor-starter"
                       disabled={loading}
                       onClick={() => void send(item.prompt)}
                     >
@@ -805,9 +805,9 @@ export function ChatPanel({
                   Boşken göstermek, basınca "soru yok" diyen bir düğme
                   demekti. */}
               {dailyDrillCount ? (
-                <Link href="/gunluk" className="ap-sor-daily">
-                  <span className="ap-sor-daily-title">Günün turu</span>
-                  <span className="ap-sor-daily-sub">
+                <Link href="/gunluk" className="cp-sor-daily">
+                  <span className="cp-sor-daily-title">Günün turu</span>
+                  <span className="cp-sor-daily-sub">
                     Defterinden {dailyDrillCount} soru bekliyor · beş dakika
                   </span>
                 </Link>
@@ -818,7 +818,7 @@ export function ChatPanel({
           {showParityThread ? (
             <div
               ref={messagesScrollRef}
-              className="ap-sor-messages"
+              className="cp-sor-messages"
               aria-live="polite"
             >
               {messages.map((message, index) => (
@@ -826,15 +826,15 @@ export function ChatPanel({
                   key={index}
                   className={
                     message.role === "user"
-                      ? "ap-sor-msg-user"
-                      : "ap-sor-msg-assistant"
+                      ? "cp-sor-msg-user"
+                      : "cp-sor-msg-assistant"
                   }
                 >
                   {message.role === "user" ? (
                     message.content
                   ) : message.content ? (
                     <>
-                      <Markdown content={message.content} variant="astra" />
+                      <Markdown content={message.content} variant="parity" />
                       {!message.isError ? (
                         <MessageActions
                           content={message.content}
@@ -852,12 +852,12 @@ export function ChatPanel({
                   sorayım" diye kalmasın; bunlar gerçekten çalışan komutlar,
                   süs değil. */}
               {!loading && lastIsAnswer ? (
-                <div className="ap-followups" role="group" aria-label="Devam önerileri">
+                <div className="cp-followups" role="group" aria-label="Devam önerileri">
                   {FOLLOW_UPS.map((item) => (
                     <button
                       key={item.id}
                       type="button"
-                      className="ap-followup"
+                      className="cp-followup"
                       onClick={() => void send(item.prompt)}
                     >
                       {item.label}
@@ -869,12 +869,12 @@ export function ChatPanel({
               (messages.length === 0 ||
                 messages[messages.length - 1]?.role === "user" ||
                 messages[messages.length - 1]?.content === "") ? (
-                <div className="ap-sor-msg-assistant">
+                <div className="cp-sor-msg-assistant">
                   <SorTypingDots />
                 </div>
               ) : null}
               {!isPremium && messages.length > 0 ? (
-                <Link href="/pay" className="ap-upgrade-banner">
+                <Link href="/pay" className="cp-upgrade-banner">
                   Daha hızlı öğrenmek için yükselt
                 </Link>
               ) : null}
@@ -887,16 +887,16 @@ export function ChatPanel({
               daraltmadan her açılışta görünüyor. */}
           <div
             className={cn(
-              "ap-sor-composer-zone",
-              !isPremium && "ap-sor-composer-zone--aside",
+              "cp-sor-composer-zone",
+              !isPremium && "cp-sor-composer-zone--aside",
             )}
           >
-            <div className="ap-sor-composer-main">
+            <div className="cp-sor-composer-main">
             {showSubjectPicker ? (
-              <div className="ap-sor-subject-wrap">
+              <div className="cp-sor-subject-wrap">
                 <button
                   type="button"
-                  className="ap-sor-subject"
+                  className="cp-sor-subject"
                   aria-expanded={subjectOpen}
                   onClick={() => setSubjectOpen(true)}
                 >
@@ -907,16 +907,16 @@ export function ChatPanel({
             ) : null}
 
             <form
-              className="ap-sor-composer-box"
+              className="cp-sor-composer-box"
               onSubmit={(event) => {
                 event.preventDefault();
                 void sendComposer();
               }}
             >
               {pendingFile || pendingRemote ? (
-                <div className="ap-composer-preview">
+                <div className="cp-composer-preview">
                   {pendingPreview ? (
-                    <div className="ap-composer-thumb">
+                    <div className="cp-composer-thumb">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={pendingPreview} alt="" />
                       <button type="button" aria-label="Kaldır" onClick={clearPending}>
@@ -924,7 +924,7 @@ export function ChatPanel({
                       </button>
                     </div>
                   ) : (
-                    <div className="ap-composer-file">
+                    <div className="cp-composer-file">
                       {pendingFile?.name ?? pendingRemote?.fileName}
                       <button type="button" aria-label="Kaldır" onClick={clearPending}>
                         ×
@@ -957,11 +957,11 @@ export function ChatPanel({
                   }
                 }}
               />
-              <div className="ap-sor-composer-toolbar">
-                <div className="ap-sor-composer-tools relative">
+              <div className="cp-sor-composer-toolbar">
+                <div className="cp-sor-composer-tools relative">
                   <button
                     type="button"
-                    className="ap-sor-tool"
+                    className="cp-sor-tool"
                     aria-label="Görsel ekle"
                     disabled={loading}
                     onClick={() => {
@@ -976,7 +976,7 @@ export function ChatPanel({
                   </button>
                   <button
                     type="button"
-                    className="ap-sor-tool"
+                    className="cp-sor-tool"
                     aria-label="Çizim tahtası"
                     disabled={loading}
                     onClick={() => openComposerDialog("sketch")}
@@ -985,7 +985,7 @@ export function ChatPanel({
                   </button>
                   <button
                     type="button"
-                    className={cn("ap-sor-tool", mathOpen && "text-[var(--ap-subject)]")}
+                    className={cn("cp-sor-tool", mathOpen && "text-[var(--cp-subject)]")}
                     aria-label="Matematik simgeleri"
                     aria-pressed={mathOpen}
                     disabled={loading}
@@ -999,8 +999,8 @@ export function ChatPanel({
                   <button
                     type="button"
                     className={cn(
-                      "ap-sor-tool",
-                      composerAssistOpen && "text-[var(--ap-subject)]",
+                      "cp-sor-tool",
+                      composerAssistOpen && "text-[var(--cp-subject)]",
                     )}
                     aria-label="Mod seç"
                     aria-expanded={composerAssistOpen}
@@ -1013,7 +1013,7 @@ export function ChatPanel({
                     <LayoutGrid className="h-4 w-4" aria-hidden />
                   </button>
                   {composerAssistOpen ? (
-                    <div className="ap-composer-mode-menu" role="menu">
+                    <div className="cp-composer-mode-menu" role="menu">
                       {COMPOSER_MODES.map((mode) => {
                         const Icon = mode.icon;
                         return (
@@ -1022,8 +1022,8 @@ export function ChatPanel({
                             type="button"
                             role="menuitem"
                             className={cn(
-                              "ap-composer-mode-item",
-                              composerAssist === mode.id && "ap-composer-mode-item--active",
+                              "cp-composer-mode-item",
+                              composerAssist === mode.id && "cp-composer-mode-item--active",
                             )}
                             onClick={() => {
                               setComposerAssist(mode.id);
@@ -1033,7 +1033,7 @@ export function ChatPanel({
                             <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                             <span>
                               <strong className="block text-sm">{mode.label}</strong>
-                              <span className="text-xs text-[var(--ap-muted)]">{mode.hint}</span>
+                              <span className="text-xs text-[var(--cp-muted)]">{mode.hint}</span>
                             </span>
                           </button>
                         );
@@ -1042,18 +1042,18 @@ export function ChatPanel({
                   ) : null}
                   <Link
                     href="/ogretmen?dialog=profile"
-                    className="ap-sor-tool"
+                    className="cp-sor-tool"
                     aria-label="Ayarlar"
                   >
                     <SlidersHorizontal className="h-4 w-4" aria-hidden />
                   </Link>
                 </div>
-                <div className="ap-sor-composer-voice">
+                <div className="cp-sor-composer-voice">
                   <button
                     type="button"
                     className={cn(
-                      "ap-sor-tool",
-                      listening && "text-[var(--ap-subject)]",
+                      "cp-sor-tool",
+                      listening && "text-[var(--cp-subject)]",
                     )}
                     aria-label={
                       listening
@@ -1070,7 +1070,7 @@ export function ChatPanel({
                   {input.trim() || pendingFile || pendingRemote ? (
                     <button
                       type="submit"
-                      className="ap-send"
+                      className="cp-send"
                       aria-label="Gönder"
                       disabled={loading}
                     >
@@ -1079,7 +1079,7 @@ export function ChatPanel({
                   ) : (
                     <button
                       type="button"
-                      className="ap-sor-voice-chip"
+                      className="cp-sor-voice-chip"
                       disabled={loading}
                       onClick={startVoiceInput}
                     >
@@ -1109,7 +1109,7 @@ export function ChatPanel({
           }}
         />
 
-        <AstraStartHub
+        <StartHub
           open={startHubOpen}
           onClose={() => setStartHubOpen(false)}
           onScanProblem={() => {
@@ -1117,13 +1117,13 @@ export function ChatPanel({
             setUploadOpen(true);
           }}
         />
-        <AstraUploadModal
+        <UploadModal
           open={uploadOpen}
           onClose={() => setUploadOpen(false)}
           onPick={attachPending}
           onRemote={attachRemote}
         />
-        <AstraSubjectModal
+        <SubjectModal
           open={subjectOpen}
           value={subject}
           onClose={() => setSubjectOpen(false)}
@@ -1153,11 +1153,11 @@ export function ChatPanel({
       message.content.length > 0;
     return cn(
       "mr-auto max-w-[92%] rounded-2xl px-3 py-2 text-sm",
-      isAstra
+      isParity
         ? cn(
-            "astra-sor-bubble--assistant astra-sor-bubble-enter",
-            message.isError && "astra-sor-bubble--error",
-            streaming && "astra-sor-bubble--streaming",
+            "cs-sor-bubble--assistant cs-sor-bubble-enter",
+            message.isError && "cs-sor-bubble--error",
+            streaming && "cs-sor-bubble--streaming",
           )
         : "rounded-lg border",
     );
@@ -1166,8 +1166,8 @@ export function ChatPanel({
   function userBubbleClass() {
     return cn(
       "ml-auto max-w-[85%] rounded-2xl px-3 py-2 text-sm font-medium",
-      isAstra
-        ? "astra-sor-bubble--user astra-sor-bubble-enter"
+      isParity
+        ? "cs-sor-bubble--user cs-sor-bubble-enter"
         : "rounded-lg bg-primary text-primary-foreground",
     );
   }
@@ -1177,11 +1177,11 @@ export function ChatPanel({
       <div
         className={cn(
           "flex flex-col gap-4",
-          isAstra && "flex-1 pb-4",
-          isMinimalSor && "astra-sor-view astra-sor-view--shell gap-0 pb-0",
+          isParity && "flex-1 pb-4",
+          isMinimalSor && "cs-sor-view cs-sor-view--shell gap-0 pb-0",
         )}
       >
-        {!isAstra ? (
+        {!isParity ? (
           <div className="flex flex-wrap gap-2">
             {quickActions.map((action) => (
               <Button
@@ -1198,7 +1198,7 @@ export function ChatPanel({
           </div>
         ) : null}
 
-        {hasDocuments && !isAstra ? (
+        {hasDocuments && !isParity ? (
           <label className="flex items-center gap-2 text-sm">
             <Checkbox
               checked={useDocuments}
@@ -1208,19 +1208,19 @@ export function ChatPanel({
           </label>
         ) : null}
 
-        {isAstra && !isMinimalSor && messages.length === 0 ? (
+        {isParity && !isMinimalSor && messages.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 py-8 text-center">
             <p className="text-lg font-semibold tracking-tight">
               {greetingLine ?? "Merhaba, bugün ne çalışalım?"}
             </p>
             {greetingSubline ? (
-              <p className="max-w-xs text-sm text-[var(--astra-muted)]">{greetingSubline}</p>
+              <p className="max-w-xs text-sm text-[var(--cs-muted)]">{greetingSubline}</p>
             ) : null}
             {showEmptyStarter ? (
               <>
                 <Button
                   type="button"
-                  className="astra-btn-primary rounded-full px-8"
+                  className="cs-btn-primary rounded-full px-8"
                   disabled={loading}
                   onClick={() =>
                     send(
@@ -1238,7 +1238,7 @@ export function ChatPanel({
                         key={item.label}
                         type="button"
                         disabled={loading}
-                        className="rounded-full border border-[var(--astra-border)] px-3 py-1.5 text-xs text-[var(--astra-muted)] hover:border-[var(--astra-primary)] hover:text-white"
+                        className="rounded-full border border-[var(--cs-border)] px-3 py-1.5 text-xs text-[var(--cs-muted)] hover:border-[var(--cs-primary)] hover:text-white"
                         onClick={() => send(item.prompt)}
                       >
                         {item.label}
@@ -1252,20 +1252,20 @@ export function ChatPanel({
         ) : null}
 
         {isMinimalSor ? (
-          <div className="astra-sor-main">
+          <div className="cs-sor-main">
             <div
               className={cn(
-                "astra-sor-empty-layer",
-                !showMinimalEmpty && "astra-sor-empty-layer--hidden",
+                "cs-sor-empty-layer",
+                !showMinimalEmpty && "cs-sor-empty-layer--hidden",
               )}
               aria-hidden={!showMinimalEmpty}
             >
-              <div className="astra-sor-greeting-block">
-                <p className="astra-sor-greeting">
+              <div className="cs-sor-greeting-block">
+                <p className="cs-sor-greeting">
                   {greetingLine ?? "Merhaba, bugün ne çalışalım?"}
                 </p>
                 {greetingSubline ? (
-                  <p className="astra-sor-greeting-sub">{greetingSubline}</p>
+                  <p className="cs-sor-greeting-sub">{greetingSubline}</p>
                 ) : null}
               </div>
             </div>
@@ -1273,7 +1273,7 @@ export function ChatPanel({
             {showMinimalMessages ? (
               <div
                 ref={messagesScrollRef}
-                className="astra-sor-messages min-h-0 flex-1 space-y-3"
+                className="cs-sor-messages min-h-0 flex-1 space-y-3"
                 aria-live="polite"
               >
                 {messages.map((message, index) => (
@@ -1281,7 +1281,7 @@ export function ChatPanel({
                     {message.role === "user" ? (
                       message.content
                     ) : message.content ? (
-                      <Markdown content={message.content} variant="astra" />
+                      <Markdown content={message.content} variant="parity" />
                     ) : null}
                   </div>
                 ))}
@@ -1292,7 +1292,7 @@ export function ChatPanel({
                   <div
                     className={cn(
                       "mr-auto max-w-[92%] rounded-2xl px-3 py-2.5",
-                      "astra-sor-bubble--assistant astra-sor-bubble--thinking astra-sor-bubble-enter",
+                      "cs-sor-bubble--assistant cs-sor-bubble--thinking cs-sor-bubble-enter",
                     )}
                   >
                     <SorTypingDots />
@@ -1307,16 +1307,16 @@ export function ChatPanel({
         {!isMinimalSor ? (
         <div
           className={cn(
-            isAstra
+            isParity
               ? cn(
                   "min-h-[120px] flex-1 space-y-3 overflow-y-auto py-2",
-                  isMinimalSor && "astra-sor-messages min-h-0 py-0",
+                  isMinimalSor && "cs-sor-messages min-h-0 py-0",
                 )
               : "min-h-[280px] space-y-3 rounded-lg border p-3",
           )}
           aria-live="polite"
         >
-          {!isAstra && messages.length === 0 ? (
+          {!isParity && messages.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Bir soru yaz ya da yukarıdaki hızlı eylemlerden birini seç.
             </p>
@@ -1328,29 +1328,29 @@ export function ChatPanel({
               ) : (
                 <Markdown
                   content={message.content}
-                  variant={isAstra ? "astra" : "default"}
+                  variant={isParity ? "parity" : "default"}
                 />
               )}
             </div>
           ))}
-          {loading && !isAstra ? (
+          {loading && !isParity ? (
             <p className="text-xs text-muted-foreground">Yanıt hazırlanıyor…</p>
           ) : null}
-          {loading && isAstra && !isMinimalSor ? (
-            <p className="text-xs text-[var(--astra-muted)]">Yanıt hazırlanıyor…</p>
+          {loading && isParity && !isMinimalSor ? (
+            <p className="text-xs text-[var(--cs-muted)]">Yanıt hazırlanıyor…</p>
           ) : null}
         </div>
         ) : null}
 
-        {status && !isAstra ? (
+        {status && !isParity ? (
           <Badge variant="secondary" className="w-fit">
             {status}
           </Badge>
         ) : null}
 
-        {isAstra ? (
+        {isParity ? (
           isMinimalSor ? (
-            <div className="astra-sor-dock">
+            <div className="cs-sor-dock">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1377,16 +1377,16 @@ export function ChatPanel({
                 }}
               />
               <form
-                className="astra-sor-composer"
+                className="cs-sor-composer"
                 onSubmit={(event) => {
                   event.preventDefault();
                   if (input.trim()) send(input);
                 }}
               >
                 {showAttachments ? (
-                  <div className="astra-sor-attach-wrap">
+                  <div className="cs-sor-attach-wrap">
                     {attachMenuOpen ? (
-                      <div className="astra-sor-attach-menu" role="menu">
+                      <div className="cs-sor-attach-menu" role="menu">
                         <button
                           type="button"
                           role="menuitem"
@@ -1418,7 +1418,7 @@ export function ChatPanel({
                     ) : null}
                     <button
                       type="button"
-                      className="astra-sor-attach"
+                      className="cs-sor-attach"
                       aria-label="Ekle"
                       aria-expanded={attachMenuOpen}
                       aria-haspopup="menu"
@@ -1446,7 +1446,7 @@ export function ChatPanel({
                 <button
                   type="submit"
                   disabled={loading || !input.trim()}
-                  className={cn("astra-sor-send", loading && "astra-sor-send--loading")}
+                  className={cn("cs-sor-send", loading && "cs-sor-send--loading")}
                   aria-label={loading ? "Gönderiliyor" : "Gönder"}
                 >
                   ↑
@@ -1456,11 +1456,11 @@ export function ChatPanel({
           ) : (
           <div className="sticky bottom-0 space-y-2 pb-1">
             {quotaHint ? (
-              <p className="text-center text-[11px] text-[var(--astra-muted)]">
+              <p className="text-center text-[11px] text-[var(--cs-muted)]">
                 {quotaHint}
               </p>
             ) : chatCreditCost != null ? (
-              <p className="text-center text-[11px] text-[var(--astra-muted)]">
+              <p className="text-center text-[11px] text-[var(--cs-muted)]">
                 Her mesaj yaklaşık {chatCreditCost} kredi harcar.
                 {isPremium ? " Plus ile gelişmiş model kullanılır." : ""}
                 {tutorStyleLabel ? ` · Stil: ${tutorStyleLabel}` : ""}
@@ -1474,19 +1474,19 @@ export function ChatPanel({
             >
               <button
                 type="button"
-                className="rounded-full border border-[var(--astra-border)] bg-[var(--astra-pill)] px-4 py-1.5 text-sm"
+                className="rounded-full border border-[var(--cs-border)] bg-[var(--cs-pill)] px-4 py-1.5 text-sm"
                 onClick={() => setSubjectOpen((v) => !v)}
                 aria-expanded={subjectOpen}
               >
                 {subject}
               </button>
               {subjectOpen ? (
-                <ul className="absolute bottom-full z-10 mb-2 max-h-48 w-48 overflow-auto rounded-2xl border border-[var(--astra-border)] bg-[var(--astra-surface)] py-1 text-sm shadow-lg">
+                <ul className="absolute bottom-full z-10 mb-2 max-h-48 w-48 overflow-auto rounded-2xl border border-[var(--cs-border)] bg-[var(--cs-surface)] py-1 text-sm shadow-lg">
                   {SUBJECTS.map((s) => (
                     <li key={s}>
                       <button
                         type="button"
-                        className="block w-full px-4 py-2 text-left hover:bg-[var(--astra-pill)]"
+                        className="block w-full px-4 py-2 text-left hover:bg-[var(--cs-pill)]"
                         onClick={() => {
                           setSubject(s);
                           setSubjectOpen(false);
@@ -1555,7 +1555,7 @@ export function ChatPanel({
               }}
             />
             <form
-              className="astra-composer flex items-end gap-2 p-2"
+              className="cs-composer flex items-end gap-2 p-2"
               onSubmit={(event) => {
                 event.preventDefault();
                 if (input.trim()) send(input);
@@ -1565,7 +1565,7 @@ export function ChatPanel({
                 <>
                   <button
                     type="button"
-                    className="rounded-full p-2 text-[var(--astra-muted)]"
+                    className="rounded-full p-2 text-[var(--cs-muted)]"
                     aria-label="Dosya ekle"
                     onClick={() => fileInputRef.current?.click()}
                   >
@@ -1573,7 +1573,7 @@ export function ChatPanel({
                   </button>
                   <button
                     type="button"
-                    className="astra-btn-primary flex rounded-full p-2"
+                    className="cs-btn-primary flex rounded-full p-2"
                     aria-label="Kamera"
                     onClick={() => cameraInputRef.current?.click()}
                   >
@@ -1594,8 +1594,8 @@ export function ChatPanel({
                 className={cn(
                   "rounded-full p-2",
                   listening
-                    ? "text-[var(--astra-primary)]"
-                    : "text-[var(--astra-muted)]",
+                    ? "text-[var(--cs-primary)]"
+                    : "text-[var(--cs-muted)]",
                 )}
                 aria-label={listening ? "Kaydı bitir" : "Mikrofon"}
                 disabled={transcribing}
@@ -1606,7 +1606,7 @@ export function ChatPanel({
               <Button
                 type="submit"
                 disabled={loading || !input.trim()}
-                className="astra-btn-primary shrink-0 rounded-full px-4"
+                className="cs-btn-primary shrink-0 rounded-full px-4"
               >
                 {loading ? "…" : "Konuş"}
               </Button>

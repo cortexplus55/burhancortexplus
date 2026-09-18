@@ -224,7 +224,7 @@ export type SectionCheck = z.infer<typeof sectionCheckSchema>;
 /**
  * Bölümün içindeki uyarı kutusu.
  *
- * Astra tuzağı kavramın hemen yanında veriyor: üç fazlı model anlatılırken
+ * Referans ürün tuzağı kavramın hemen yanında veriyor: üç fazlı model anlatılırken
  * "Havanın Ağırlığı — hacmi hesaba dahil, ağırlığı değil" diye küçük bir
  * kutu çıkıyor. Bizde yanılgı dersin en sonunda tek bir adımdı; öğrenci
  * onu, üzerinden beş adım geçtikten sonra görüyordu. Yanılgı okunduğu
@@ -419,7 +419,7 @@ export function brokenSuperscript(text: string): boolean {
 /**
  * Bölümler yalnızca kavram; şablon adlı bölümler atılır.
  *
- * Astra'nın dersinde "Yaygın Hata" ya da "Bilgi Kontrolü" diye bir bölüm
+ * Referans ürünün dersinde "Yaygın Hata" ya da "Bilgi Kontrolü" diye bir bölüm
  * yok: bölümlerin hepsi kavram, yanılgı bölümün içinde kutu, kontrol
  * bölümün içinde soru, özet ayrı adım.
  *
@@ -632,7 +632,7 @@ export function blockingLessonIssues(raw: unknown): string[] {
  *
  * Üretilmiş beş quiz sorusuna bakınca beşinin de açıklaması yalnızca
  * doğruyu tekrarlıyordu: "Sinus(y)=-1 sağlayan açı 270°'dir." Öğrenci
- * neden 90° değil öğrenmiyor. Astra'nın açıklaması her çeldiricinin
+ * neden 90° değil öğrenmiyor. Referans ürünün açıklaması her çeldiricinin
  * gerçekte ne olduğunu söylüyor: "V_w suyun, V_a havanın hacmidir."
  *
  * Kural aynı zamanda bir doğruluk ağı: aynı beşlide "90° ve 270°'de

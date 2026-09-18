@@ -1,29 +1,31 @@
 import {
-  AstraFaqSection,
-  AstraFeatureStrip,
-  AstraMarketingPage,
-  AstraSubjectGrid,
-} from "@/components/parity/astra-marketing";
+  FaqSection,
+  FeatureStrip,
+  ParityMarketingPage,
+  SubjectGrid,
+} from "@/components/parity/marketing";
 import { CinematicHero } from "@/components/marketing/cinematic-hero";
 import { CinematicSocialProof } from "@/components/marketing/cinematic-social-proof";
 import { CinematicGuaranteeStrip } from "@/components/marketing/cinematic-guarantee-strip";
 import { CinematicPlanSlider } from "@/components/marketing/cinematic-plan-slider";
 import { MistakeLoopSection } from "@/components/marketing/mistake-loop-section";
+import { ProductShowcase } from "@/components/marketing/product-showcase";
 
 export default function HomePage() {
   return (
-    <AstraMarketingPage variant="home">
+    <ParityMarketingPage variant="home">
       <CinematicHero />
       <CinematicGuaranteeStrip />
       {/* Döngü, özellik şeridinden ÖNCE: şerit ne yapabildiğimizi sayıyor,
           döngü ise neden işe yaradığını anlatıyor. Sırası tersine dönerse
           ziyaretçi özellik listesini okuyup ayrılıyor. */}
       <MistakeLoopSection />
+      <ProductShowcase />
       <CinematicSocialProof />
       <CinematicPlanSlider />
-      <AstraFeatureStrip />
-      <AstraSubjectGrid />
-      <AstraFaqSection />
-    </AstraMarketingPage>
+      <FeatureStrip />
+      <SubjectGrid />
+      <FaqSection />
+    </ParityMarketingPage>
   );
 }

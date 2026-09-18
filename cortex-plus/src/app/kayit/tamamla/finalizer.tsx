@@ -6,7 +6,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { SIGNUP_STORAGE_KEY, type SignupPayload } from "@/lib/parity/signup";
 import { completeSignup } from "../actions";
-import "@/styles/astra-marketing.css";
+import "@/styles/parity-marketing.css";
 import "@/styles/cinematic-home.css";
 
 function sleep(ms: number) {
@@ -77,7 +77,7 @@ export function SignupFinalizer() {
   }, [router]);
 
   return (
-    <div className="astra-marketing cinematic-marketing cinematic-auth flex min-h-dvh items-center justify-center px-4">
+    <div className="cs-marketing cinematic-marketing cinematic-auth flex min-h-dvh items-center justify-center px-4">
       <div className="mk-card w-full max-w-sm p-8 text-center">
         <p className="text-3xl" aria-hidden>
           {failed ? "⚠️" : "✨"}

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Pause, Play, RotateCcw, RotateCw } from "lucide-react";
-import { speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
 import {
   SPEAKER_LABEL,
   buildTimeline,
@@ -26,7 +25,7 @@ type AudioLine = {
   durationMs: number;
 };
 
-// Astra da 15 saniye atliyor; 10 saniye bir cumleyi bile geri almiyordu.
+// Referans ürün da 15 saniye atliyor; 10 saniye bir cumleyi bile geri almiyordu.
 const SKIP_MS = 15_000;
 
 export function ExamPodcastPlayer({
@@ -42,12 +41,19 @@ export function ExamPodcastPlayer({
 }) {
   const normalized = useMemo(() => normalizeChapters(chapters), [chapters]);
   const [audio, setAudio] = useState<AudioLine[] | null>(null);
-  // "premium" ile "fallback" ayrı: ikisi de tarayıcı sesine düşüyor ama
-  // sebepleri farklı ve öğrenciye farklı şey söylenmeli. Gating geldikten
-  // sonra herkese "sunucu sesi şu an yok" demek, premium özelliğini arıza
-  // gibi göstermek olurdu.
+  /*
+    Üç "ses yok" hâli ayrı tutuluyor; hepsinde senaryo okunabilir kalıyor ama
+    öğrenciye söylenen cümle farklı. Herkese "sunucu sesi şu an yok" demek
+    premium özelliğini arıza gibi gösterirdi; kredisi biten bir PLUS
+    ABONESİNE "Plus'a bak" demek de olmazdı.
+
+    18 Eylül 2026: tarayıcı sesi yedeği KALKTI. Podcast ya iki sesli gerçek
+    anlatımıyla vardır ya yoktur — telefonun robot sesi, ürünün en cazip
+    özelliğini ucuz gösteriyordu ve onu hiç duymamış öğrenci duyduğunu ürün
+    sanıyordu. Ses gelmediğinde artık senaryo okunuyor, sebebi yazıyor.
+  */
   const [status, setStatus] = useState<
-    "loading" | "ready" | "fallback" | "premium"
+    "loading" | "ready" | "fallback" | "premium" | "credits"
   >("loading");
   const [playing, setPlaying] = useState(false);
   const [positionMs, setPositionMs] = useState(0);
@@ -93,8 +99,18 @@ export function ExamPodcastPlayer({
       body: JSON.stringify({ chapters: normalized }),
     })
       .then(async (res) => {
-        // 402 = premium gerekiyor; arıza değil, o yüzden ayrı işaretleniyor.
-        if (res.status === 402) throw new Error("premium");
+        // 402 iki ayrı sebeple geliyor ve ikisi de arıza değil: aboneliği
+        // olmayan öğrenci ile kredisi biten abone. Ayrım yanıttaki `code`
+        // alanından; Türkçe metni karşılaştırmak, metni değiştiren ilk
+        // kişide sessizce kırılırdı.
+        if (res.status === 402) {
+          const body = (await res.json().catch(() => null)) as
+            | { code?: string }
+            | null;
+          throw new Error(
+            body?.code === "insufficient_credits" ? "credits" : "premium",
+          );
+        }
         if (!res.ok) throw new Error("unavailable");
         return res.json();
       })
@@ -105,9 +121,14 @@ export function ExamPodcastPlayer({
         setStatus("ready");
       })
       .catch((error: Error) => {
-        // Her iki durumda da ders sessiz kalmasın diye tarayıcı sesine
+        // Hangi sebep olursa olsun ders sessiz kalmasın diye tarayıcı sesine
         // dönüyoruz; orada zaman çizelgesi olmadığı için senkron kapanıyor.
-        if (alive) setStatus(error.message === "premium" ? "premium" : "fallback");
+        if (!alive) return;
+        setStatus(
+          error.message === "premium" || error.message === "credits"
+            ? error.message
+            : "fallback",
+        );
       });
     return () => {
       alive = false;
@@ -118,7 +139,6 @@ export function ExamPodcastPlayer({
     return () => {
       tokenRef.current += 1;
       elementRef.current?.pause();
-      stopSpeech();
     };
   }, []);
 
@@ -189,10 +209,7 @@ export function ExamPodcastPlayer({
   }
 
   function toggle() {
-    if (status === "fallback" || status === "premium") {
-      toggleFallback();
-      return;
-    }
+    // Ses yoksa oynatacak bir şey de yok; düğme zaten kapalı.
     if (!audio) return;
     if (playing) {
       tokenRef.current += 1;
@@ -205,29 +222,9 @@ export function ExamPodcastPlayer({
     playFromLine(index, positionMs - start);
   }
 
-  function toggleFallback() {
-    if (playing) {
-      stopSpeech();
-      setPlaying(false);
-      return;
-    }
-    const script = normalized
-      .flatMap((chapter) => chapter.lines.map((line) => line.text))
-      .join(" ");
-    setPlaying(true);
-    speakTurkish(script, {
-      onEnd: () => {
-        setPlaying(false);
-        setHeard(true);
-      },
-      // Ses çıkmadıysa dinlenmiş saymıyoruz.
-      onError: () => setPlaying(false),
-    });
-  }
-
   if (!normalized.length) {
     return (
-      <p className="text-sm text-[var(--ap-muted)]">
+      <p className="text-sm text-[var(--cp-muted)]">
         Bu podcast henüz üretilemedi.
       </p>
     );
@@ -238,26 +235,26 @@ export function ExamPodcastPlayer({
   const progressPct = totalMs > 0 ? (positionMs / totalMs) * 100 : 0;
 
   return (
-    <section className="ap-pod">
-      <header className="ap-pod-head">
-        <p className="ap-lesson-kicker">Podcast</p>
+    <section className="cp-pod">
+      <header className="cp-pod-head">
+        <p className="cp-lesson-kicker">Podcast</p>
         <h1>{title}</h1>
         {status === "ready" && chapterTitle ? (
-          <p className="ap-pod-chapter-now">{chapterTitle}</p>
+          <p className="cp-pod-chapter-now">{chapterTitle}</p>
         ) : null}
       </header>
 
-      <div className="ap-pod-stage">
-        <div className={cn("ap-pod-wave", playing && "is-on")} aria-hidden>
+      <div className="cp-pod-stage">
+        <div className={cn("cp-pod-wave", playing && "is-on")} aria-hidden>
           {Array.from({ length: 5 }, (_, i) => (
             <span key={i} style={{ animationDelay: `${i * 0.12}s` }} />
           ))}
         </div>
 
-        <div className="ap-pod-controls">
+        <div className="cp-pod-controls">
           <button
             type="button"
-            className="ap-pod-skip"
+            className="cp-pod-skip"
             onClick={() => seekTo(positionMs - SKIP_MS)}
             disabled={status !== "ready"}
             aria-label="15 saniye geri"
@@ -268,9 +265,9 @@ export function ExamPodcastPlayer({
 
           <button
             type="button"
-            className={cn("ap-pod-play", playing && "is-on")}
+            className={cn("cp-pod-play", playing && "is-on")}
             onClick={toggle}
-            disabled={status === "loading"}
+            disabled={status !== "ready"}
             aria-label={playing ? "Duraklat" : "Oynat"}
           >
             {playing ? (
@@ -282,7 +279,7 @@ export function ExamPodcastPlayer({
 
           <button
             type="button"
-            className="ap-pod-skip"
+            className="cp-pod-skip"
             onClick={() => seekTo(positionMs + SKIP_MS)}
             disabled={status !== "ready"}
             aria-label="15 saniye ileri"
@@ -293,21 +290,29 @@ export function ExamPodcastPlayer({
         </div>
 
         {status === "loading" ? (
-          <p className="ap-pod-state">Ses hazırlanıyor…</p>
+          <p className="cp-pod-state">Ses hazırlanıyor…</p>
         ) : status === "premium" ? (
-          <p className="ap-pod-state">
-            İki sesli stüdyo anlatımı Plus&apos;a özel — şimdilik cihazının
-            sesiyle okunuyor.{" "}
-            <Link href="/paketler" className="ap-pod-upsell">
+          <p className="cp-pod-state">
+            İki sesli stüdyo anlatımı Plus&apos;a özel. Bölümleri aşağıdan
+            okuyabilirsin.{" "}
+            <Link href="/paketler" className="cp-pod-upsell">
               Plus&apos;a bak
             </Link>
           </p>
+        ) : status === "credits" ? (
+          <p className="cp-pod-state">
+            Bu ayki seslendirme kredin kalmadı. Bölümleri aşağıdan
+            okuyabilirsin.{" "}
+            <Link href="/paketler" className="cp-pod-upsell">
+              Kredi ekle
+            </Link>
+          </p>
         ) : status === "fallback" ? (
-          <p className="ap-pod-state">
-            Sunucu sesi şu an yok; cihazının sesiyle okunuyor.
+          <p className="cp-pod-state">
+            Ses şu an üretilemedi. Bölümleri aşağıdan okuyabilirsin.
           </p>
         ) : (
-          <div className="ap-pod-track">
+          <div className="cp-pod-track">
             <input
               type="range"
               min={0}
@@ -315,9 +320,9 @@ export function ExamPodcastPlayer({
               value={Math.round(positionMs)}
               onChange={(event) => seekTo(Number(event.target.value))}
               aria-label="Ses konumu"
-              style={{ ["--ap-pod-pos" as string]: `${progressPct}%` }}
+              style={{ ["--cp-pod-pos" as string]: `${progressPct}%` }}
             />
-            <div className="ap-pod-time">
+            <div className="cp-pod-time">
               <span>{formatClock(positionMs)}</span>
               <span>{formatClock(totalMs)}</span>
             </div>
@@ -326,36 +331,36 @@ export function ExamPodcastPlayer({
       </div>
 
       {status === "ready" ? (
-        <ol className="ap-pod-transcript">
+        <ol className="cp-pod-transcript">
           {timeline.map((line, i) => {
             const first =
               i === 0 || timeline[i - 1].chapterIndex !== line.chapterIndex;
             return (
               <li key={i}>
                 {first ? (
-                  <p className="ap-pod-chapter-mark">
+                  <p className="cp-pod-chapter-mark">
                     {normalized[line.chapterIndex]?.title}
                   </p>
                 ) : null}
                 <button
                   type="button"
                   className={cn(
-                    "ap-pod-line",
-                    `ap-pod-line--${line.speaker}`,
+                    "cp-pod-line",
+                    `cp-pod-line--${line.speaker}`,
                     i === activeIndex && "is-on",
                   )}
                   onClick={() => seekTo(line.startMs)}
                 >
-                  <span className="ap-pod-who">{SPEAKER_LABEL[line.speaker]}</span>
+                  <span className="cp-pod-who">{SPEAKER_LABEL[line.speaker]}</span>
                   {i === activeIndex && activeWords.length ? (
                     // Yalnızca çalan satır kelimelere bölünüyor; tüm
                     // transkripti bölmek yüzlerce gereksiz span üretirdi.
-                    <span className="ap-pod-said">
+                    <span className="cp-pod-said">
                       {activeWords.map((word, w) => (
                         <span
                           key={w}
                           className={cn(
-                            "ap-pod-word",
+                            "cp-pod-word",
                             w === activeWordIndex && "is-now",
                             w < activeWordIndex && "is-said",
                           )}
@@ -365,7 +370,7 @@ export function ExamPodcastPlayer({
                       ))}
                     </span>
                   ) : (
-                    <span className="ap-pod-said">{line.text}</span>
+                    <span className="cp-pod-said">{line.text}</span>
                   )}
                 </button>
               </li>
@@ -373,17 +378,17 @@ export function ExamPodcastPlayer({
           })}
         </ol>
       ) : (
-        <ol className="ap-pod-transcript">
+        <ol className="cp-pod-transcript">
           {normalized.map((chapter, ci) => (
             <li key={ci}>
-              <p className="ap-pod-chapter-mark">{chapter.title}</p>
+              <p className="cp-pod-chapter-mark">{chapter.title}</p>
               {chapter.lines.map((line, li) => (
                 <span
                   key={li}
-                  className={cn("ap-pod-line", `ap-pod-line--${line.speaker}`)}
+                  className={cn("cp-pod-line", `cp-pod-line--${line.speaker}`)}
                 >
-                  <span className="ap-pod-who">{SPEAKER_LABEL[line.speaker]}</span>
-                  <span className="ap-pod-said">{line.text}</span>
+                  <span className="cp-pod-who">{SPEAKER_LABEL[line.speaker]}</span>
+                  <span className="cp-pod-said">{line.text}</span>
                 </span>
               ))}
             </li>
@@ -393,7 +398,7 @@ export function ExamPodcastPlayer({
 
       <button
         type="button"
-        className="ap-exam-continue ap-exam-continue--primary"
+        className="cp-exam-continue cp-exam-continue--primary"
         disabled={finishing}
         onClick={onFinish}
       >

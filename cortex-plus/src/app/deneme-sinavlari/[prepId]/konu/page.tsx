@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ExamTopicPick } from "@/components/parity/exam-topic-pick";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -27,11 +27,11 @@ export default async function ExamTopicPickPage({
   const topics = await loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id);
 
   return (
-    <AstraParitySorShell {...shell}>
+    <ParitySorShell {...shell}>
       <ExamTopicPick
         prepId={prep.id}
         topics={topics.map((topic) => ({ id: topic.id, label: topic.label }))}
       />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

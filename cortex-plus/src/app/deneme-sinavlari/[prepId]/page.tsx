@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ExamPrepHome } from "@/components/parity/exam-prep-home";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -269,7 +269,7 @@ export default async function ExamPrepDetailPage({
     : null;
 
   return (
-    <AstraParitySorShell {...shell}>
+    <ParitySorShell {...shell}>
       <ExamPrepHome
         prepId={prep.id}
         title={prep.title ?? prep.exam_type}
@@ -293,6 +293,6 @@ export default async function ExamPrepDetailPage({
         documentId={sourceDoc?.id ?? null}
         documentName={sourceDoc?.file_name ?? null}
       />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

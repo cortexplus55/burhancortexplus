@@ -3,6 +3,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { moderate } from "@/lib/ai/moderation";
 import { recordAbuse } from "@/lib/abuse/record";
+import { freeImageAllowed } from "@/lib/ai/image-quota";
 import { z } from "zod";
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -52,11 +53,19 @@ export async function POST(request: Request) {
     );
   }
 
+  const isPremium = await isPremiumUser(service, userId);
+
+  // Sohbet ucundaki tavanın aynısı; iki giriş de aynı sayacı kullanıyor ki
+  // biri kapanıp diğeri açık kalmasın. Gerekçe: `image-quota.ts`.
+  if (!(await freeImageAllowed(userId, isPremium))) {
+    return errorResponse(429, "free_image_limit");
+  }
+
   const outcome = await generateJson({
     service,
     userId,
     actionCode: "IMAGE_SOLUTION",
-    isPremium: await isPremiumUser(service, userId),
+    isPremium,
     hasImage: true,
     imageUrls: [dataUrl],
     schemaHint:

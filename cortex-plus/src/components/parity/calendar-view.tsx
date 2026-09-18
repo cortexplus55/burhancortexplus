@@ -112,12 +112,12 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
   }
 
   return (
-    <div className="ap-exam-page space-y-5">
+    <div className="cp-exam-page space-y-5">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Takvimim</h1>
         <button
           type="button"
-          className="ap-cal-add"
+          className="cp-cal-add"
           onClick={() => setAdding(true)}
         >
           <CalendarPlus className="h-4 w-4" aria-hidden />
@@ -125,14 +125,14 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
         </button>
       </div>
 
-      <div className="ap-cal-filters" role="tablist" aria-label="Takvim filtresi">
+      <div className="cp-cal-filters" role="tablist" aria-label="Takvim filtresi">
         {FILTERS.map((f) => (
           <button
             key={f.id}
             type="button"
             role="tab"
             aria-selected={filter === f.id}
-            className="ap-cal-filter"
+            className="cp-cal-filter"
             onClick={() => setFilter(f.id)}
           >
             {f.label}
@@ -140,8 +140,8 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
         ))}
       </div>
 
-      <section className="ap-cal-card">
-        <header className="ap-cal-month">
+      <section className="cp-cal-card">
+        <header className="cp-cal-month">
           <button type="button" onClick={() => shiftMonth(-1)} aria-label="Önceki ay">
             <ChevronLeft className="h-4 w-4" aria-hidden />
           </button>
@@ -151,13 +151,13 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
           </button>
         </header>
 
-        <div className="ap-cal-weekdays" aria-hidden>
+        <div className="cp-cal-weekdays" aria-hidden>
           {WEEKDAYS.map((d) => (
             <span key={d}>{d}</span>
           ))}
         </div>
 
-        <div className="ap-cal-grid">
+        <div className="cp-cal-grid">
           {grid.map((iso) => {
             const dayItems = byDate.get(iso) ?? [];
             const inMonth = Number(iso.slice(5, 7)) - 1 === cursor.month;
@@ -167,10 +167,10 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
               <div
                 key={iso}
                 className={[
-                  "ap-cal-day",
-                  inMonth ? "" : "ap-cal-day--muted",
-                  isToday ? "ap-cal-day--today" : "",
-                  dayItems.length ? "ap-cal-day--has" : "",
+                  "cp-cal-day",
+                  inMonth ? "" : "cp-cal-day--muted",
+                  isToday ? "cp-cal-day--today" : "",
+                  dayItems.length ? "cp-cal-day--has" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -179,7 +179,7 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
                 <span>{Number(iso.slice(8, 10))}</span>
                 {dayItems.length ? (
                   <em
-                    className={hasExam ? "ap-cal-dot ap-cal-dot--exam" : "ap-cal-dot"}
+                    className={hasExam ? "cp-cal-dot cp-cal-dot--exam" : "cp-cal-dot"}
                     aria-hidden
                   />
                 ) : null}
@@ -190,12 +190,12 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
       </section>
 
       <section>
-        <h2 className="ap-cal-section-title">Yaklaşan</h2>
+        <h2 className="cp-cal-section-title">Yaklaşan</h2>
         {next.length ? (
-          <ul className="ap-cal-list">
+          <ul className="cp-cal-list">
             {next.map((item) => (
-              <li key={item.id} className="ap-cal-item">
-                <span className="ap-cal-date">
+              <li key={item.id} className="cp-cal-item">
+                <span className="cp-cal-date">
                   <strong>{Number(item.date.slice(8, 10))}</strong>
                   <em>
                     {new Date(`${item.date}T00:00:00`).toLocaleDateString("tr-TR", {
@@ -204,14 +204,14 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
                   </em>
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="ap-cal-item-title">
+                  <span className="cp-cal-item-title">
                     {item.prepId ? (
                       <Link href={`/deneme-sinavlari/${item.prepId}`}>{item.title}</Link>
                     ) : (
                       item.title
                     )}
                   </span>
-                  <span className="ap-cal-item-meta">
+                  <span className="cp-cal-item-meta">
                     {item.kind === "exam" ? "Sınav" : "Etkinlik"}
                     {item.subject ? ` · ${item.subject}` : ""} ·{" "}
                     {formatDayLabel(item.date, today)}
@@ -220,7 +220,7 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
                 {item.kind === "personal" ? (
                   <button
                     type="button"
-                    className="ap-cal-remove"
+                    className="cp-cal-remove"
                     disabled={busy}
                     aria-label={`${item.title} etkinliğini sil`}
                     onClick={() => void removeEvent(item.id)}
@@ -232,7 +232,7 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
             ))}
           </ul>
         ) : (
-          <p className="ap-upload-hint">
+          <p className="cp-upload-hint">
             Yaklaşan etkinlik yok. Sınav hazırlığı oluşturduğunda tarihi burada
             görünür.
           </p>
@@ -241,25 +241,25 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
 
       {adding ? (
         <div
-          className="ap-hub-backdrop"
+          className="cp-hub-backdrop"
           role="dialog"
           aria-modal="true"
           aria-label="Etkinlik ekle"
           onClick={() => setAdding(false)}
         >
-          <div className="ap-upload-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="ap-hub-head">
-              <h2 className="ap-hub-title">Etkinlik ekle</h2>
+          <div className="cp-upload-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="cp-hub-head">
+              <h2 className="cp-hub-title">Etkinlik ekle</h2>
               <button
                 type="button"
-                className="ap-hub-close"
+                className="cp-hub-close"
                 aria-label="Kapat"
                 onClick={() => setAdding(false)}
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <label className="ap-field">
+            <label className="cp-field">
               <span>Başlık</span>
               <input
                 autoFocus
@@ -269,7 +269,7 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
                 placeholder="Örn. Matematik yazılısı"
               />
             </label>
-            <label className="ap-field">
+            <label className="cp-field">
               <span>Tarih</span>
               <input
                 type="date"
@@ -277,7 +277,7 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
                 onChange={(e) => setForm((f) => ({ ...f, eventDate: e.target.value }))}
               />
             </label>
-            <label className="ap-field">
+            <label className="cp-field">
               <span>Ders (isteğe bağlı)</span>
               <input
                 value={form.subject}
@@ -288,7 +288,7 @@ export function CalendarView({ items }: { items: CalendarItem[] }) {
             </label>
             <button
               type="button"
-              className="ap-exam-continue ap-exam-continue--primary"
+              className="cp-exam-continue cp-exam-continue--primary"
               disabled={busy}
               onClick={() => void addEvent()}
             >

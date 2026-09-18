@@ -22,6 +22,7 @@ import {
   topicProgressFromNodes,
 } from "@/lib/learning/exam-prep-ui-path";
 import { cn } from "@/lib/utils";
+import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
 import {
   ExamPrepSettingsPanel,
   type PrepSettingsInitial,
@@ -159,30 +160,35 @@ export function ExamPrepHome({
   }
 
   return (
-    <div className="ap-exam-page ap-exam-trail-page">
-      <Link href="/deneme-sinavlari" className="ap-back-pill">
+    <div className="cp-exam-page cp-exam-trail-page">
+      <Link href="/deneme-sinavlari" className="cp-back-pill">
         ← Geri
       </Link>
       {/* Tek kart: ders, sınav ve iki görünüm bir arada. Önceden başlık
           düz metindi ve konular ayrı bir sayfadaydı; öğrenci nerede
           kaldığını görmek için sayfadan çıkmak zorundaydı. */}
-      <header className="ap-exam-trail-head ap-exam-hero">
-        <div className="ap-exam-trail-meter" aria-hidden>
+      <header className="cp-exam-trail-head cp-exam-hero">
+        <div className="cp-exam-trail-meter" aria-hidden>
           <span style={{ width: `${progressPct}%` }} />
         </div>
         <p>{progressPct}%</p>
         <h1>{title}</h1>
-        <p className="text-sm text-[var(--ap-muted)]">
+        <p className="text-sm text-[var(--cp-muted)]">
           {examType}
           {examDate ? ` · sınav ${examDate}` : ""}
           {daysLabel ? ` · ${daysLabel}` : ""}
         </p>
-        <div className="ap-exam-tabs" role="tablist" aria-label="Hazırlık görünümü">
+        {/* Belgesiz hazırlıkta içerik konunun genel bilgisinden geliyor.
+            Öğrenci bunu bilmezse "notumda bu varmış" diye okur. */}
+        {documentId ? null : (
+          <p className="cp-exam-source-note">{TOPIC_ONLY_NOTICE}</p>
+        )}
+        <div className="cp-exam-tabs" role="tablist" aria-label="Hazırlık görünümü">
           <button
             type="button"
             role="tab"
             aria-selected={view === "yol"}
-            className={cn("ap-exam-tab", view === "yol" && "is-active")}
+            className={cn("cp-exam-tab", view === "yol" && "is-active")}
             onClick={() => setView("yol")}
           >
             Çalışma yolu
@@ -191,17 +197,17 @@ export function ExamPrepHome({
             type="button"
             role="tab"
             aria-selected={view === "konular"}
-            className={cn("ap-exam-tab", view === "konular" && "is-active")}
+            className={cn("cp-exam-tab", view === "konular" && "is-active")}
             onClick={() => setView("konular")}
           >
-            Konular <span className="ap-exam-tab-count">{topicRows.length}</span>
+            Konular <span className="cp-exam-tab-count">{topicRows.length}</span>
           </button>
         </div>
         {activeTopicLabel ? (
           <div>
             <Link
               href={`/deneme-sinavlari/${prepId}/konu`}
-              className="ap-exam-topic-badge"
+              className="cp-exam-topic-badge"
               title="Çalışılan konuyu değiştir"
             >
               <strong>{activeTopicLabel}</strong>
@@ -212,7 +218,7 @@ export function ExamPrepHome({
         {canShare ? (
           <button
             type="button"
-            className={cn("ap-share-toggle", shared && "ap-share-toggle--on")}
+            className={cn("cp-share-toggle", shared && "cp-share-toggle--on")}
             disabled={sharing}
             onClick={() => void toggleShare()}
           >
@@ -232,23 +238,23 @@ export function ExamPrepHome({
       {/* Plan özeti "5 çalışma gününde 225 dk var" diyordu: takvim
           kalktıktan sonra öğrencinin karşılığını göremediği bir cümle. */}
       {!uiV2 && scheduleSummary ? (
-        <p className="text-sm text-[var(--ap-muted)]" style={{ margin: "0.75rem 0" }}>
+        <p className="text-sm text-[var(--cp-muted)]" style={{ margin: "0.75rem 0" }}>
           Plan: {scheduleSummary}
         </p>
       ) : null}
 
       {uiV2 ? (
-        <nav className="ap-exam-v2-links" aria-label="Öğrenme ekranları">
+        <nav className="cp-exam-v2-links" aria-label="Öğrenme ekranları">
           {/* Sohbet hazırlığın içinde duruyor: takılan öğrenci sınavdan
               çıkıp konuyu baştan anlatmak zorunda kalmasın. Bakımla
               birlikte gizlenmiyor, çünkü çalışmanın parçası. */}
           <Link
             href={`/deneme-sinavlari/${prepId}/sohbet`}
-            className="ap-back-pill ap-back-pill--accent"
+            className="cp-back-pill cp-back-pill--accent"
           >
             Bu sınav için sor
           </Link>
-          <Link href={examPrepReviewsHref(prepId)} className="ap-back-pill">
+          <Link href={examPrepReviewsHref(prepId)} className="cp-back-pill">
             Yanlışlar
             {openMisconceptions > 0 ? ` (${openMisconceptions})` : ""}
           </Link>
@@ -256,7 +262,7 @@ export function ExamPrepHome({
               ilk ekranda çalışmanın önüne geçiyorlardı. */}
           <button
             type="button"
-            className="ap-back-pill"
+            className="cp-back-pill"
             aria-expanded={toolsOpen}
             onClick={() => setToolsOpen((open) => !open)}
           >
@@ -266,8 +272,8 @@ export function ExamPrepHome({
       ) : null}
 
       {uiV2 && toolsOpen ? (
-        <div className="ap-exam-tools">
-          <Link href={examPrepAssessmentHref(prepId)} className="ap-back-pill">
+        <div className="cp-exam-tools">
+          <Link href={examPrepAssessmentHref(prepId)} className="cp-back-pill">
             Sınav öncesi değerlendirme
           </Link>
           {/* Konu haritası belgenin kendisine ait; yenilemek için oraya
@@ -275,10 +281,16 @@ export function ExamPrepHome({
               kurulurken kopyalandı — belgeyi yenilemek bu planı değil,
               bundan sonra kurulacak hazırlıkları etkiler. */}
           {documentId ? (
-            <Link href={`/dokumanlar/${documentId}`} className="ap-back-pill">
+            <Link href={`/dokumanlar/${documentId}`} className="cp-back-pill">
               Kaynağı aç{documentName ? ` · ${documentName}` : ""}
             </Link>
-          ) : null}
+          ) : (
+            // İçeriğin öğrencinin belgesinden gelmediğini gizlemek, "notumda
+            // bu varmış" yanılgısının ta kendisi olurdu.
+            <Link href="/dokumanlar" className="cp-back-pill">
+              Belge ekle
+            </Link>
+          )}
           {settings ? (
             <ExamPrepSettingsPanel prepId={prepId} initial={settings} />
           ) : null}
@@ -290,26 +302,26 @@ export function ExamPrepHome({
       ) : null}
 
       {uiV2 && view === "konular" ? (
-        <section className="ap-topic-progress" aria-label="Konular">
+        <section className="cp-topic-progress" aria-label="Konular">
           {topicRows.length ? (
             <ul>
               {topicRows.map((row) => (
                 <li key={row.title}>
                   <Link href={`/deneme-sinavlari/${prepId}/konu`}>
-                    <span className="ap-topic-progress-name">{row.title}</span>
-                    <span className="ap-topic-progress-count">
+                    <span className="cp-topic-progress-name">{row.title}</span>
+                    <span className="cp-topic-progress-count">
                       {row.done}/{row.total} tamamlandı
                     </span>
-                    <span className="ap-topic-progress-bar" aria-hidden>
+                    <span className="cp-topic-progress-bar" aria-hidden>
                       <span style={{ width: `${row.pct}%` }} />
                     </span>
-                    <span className="ap-topic-progress-pct">%{row.pct}</span>
+                    <span className="cp-topic-progress-pct">%{row.pct}</span>
                   </Link>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-[var(--ap-muted)]">
+            <p className="text-sm text-[var(--cp-muted)]">
               Plan kurulunca konular burada ilerlemeleriyle listelenir.
             </p>
           )}
@@ -319,27 +331,27 @@ export function ExamPrepHome({
       {daysLeft !== null || showTracking ? (
         <section
           className={cn(
-            "ap-countdown",
-            daysLeft !== null && daysLeft <= 3 && "ap-countdown--urgent",
+            "cp-countdown",
+            daysLeft !== null && daysLeft <= 3 && "cp-countdown--urgent",
           )}
         >
           {daysLeft !== null ? (
             <>
-              <p className="ap-countdown-kicker">Sınava kadar</p>
-              <p className="ap-countdown-days">
+              <p className="cp-countdown-kicker">Sınava kadar</p>
+              <p className="cp-countdown-days">
                 <strong>{daysLeft}</strong>
                 <span>gün</span>
               </p>
             </>
           ) : (
-            <p className="ap-countdown-kicker">Öğrenme takibi</p>
+            <p className="cp-countdown-kicker">Öğrenme takibi</p>
           )}
 
           {showTracking && learningTracking ? (
             /* Sınava hazırlık tahmini öne çıkıyor; konu hâkimiyeti altında
                küçülüyor ama kalıyor — hangi sayının neyi ölçtüğü
                uyarısıyla birlikte. */
-            <div className="ap-countdown-readiness">
+            <div className="cp-countdown-readiness">
               <TrackingMeter
                 title="Sınava hazırlık tahmini"
                 pct={learningTracking.examReadinessPct}
@@ -350,7 +362,7 @@ export function ExamPrepHome({
                     : "Etkinlik bitirmek tek başına %100 hazırlık değildir."
                 }
               />
-              <div className="ap-tracking-secondary">
+              <div className="cp-tracking-secondary">
                 {/* "Program ilerlemesi" takvime bağlıydı: planın kaçıncı
                     gününde olduğunu ölçüyordu. Takvim kalkınca ölçtüğü şey
                     kalmadı; yerini yolun ne kadarının bittiği aldı ve o da
@@ -369,18 +381,18 @@ export function ExamPrepHome({
               </div>
             </div>
           ) : daysLeft !== null ? (
-            <div className="ap-countdown-readiness">
-              <div className="ap-countdown-row">
+            <div className="cp-countdown-readiness">
+              <div className="cp-countdown-row">
                 <span>Çalışma ilerlemen</span>
-                <span className="ap-countdown-pct">%{readiness}</span>
+                <span className="cp-countdown-pct">%{readiness}</span>
               </div>
-              <div className="ap-countdown-meter" aria-hidden>
+              <div className="cp-countdown-meter" aria-hidden>
                 <span style={{ width: `${Math.max(readiness, readiness > 0 ? 3 : 0)}%` }} />
               </div>
-              <p className="ap-countdown-state">
+              <p className="cp-countdown-state">
                 <span aria-hidden>{readinessState.emoji}</span> {readinessState.text}
               </p>
-              <p className="text-xs text-[var(--ap-muted)]">
+              <p className="text-xs text-[var(--cp-muted)]">
                 Bu oran etkinliklerin tamamlanmasını gösterir; konu hakimiyetini ölçmez.
               </p>
             </div>
@@ -389,7 +401,7 @@ export function ExamPrepHome({
       ) : null}
 
       {introPending ? (
-        <Link href={examPrepIntroHref(prepId)} className="ap-intro-nudge">
+        <Link href={examPrepIntroHref(prepId)} className="cp-intro-nudge">
           <strong>Seviyeni henüz ölçmedik.</strong>
           <span>
             8 soruluk tanı, planı hangi konuya daha çok zaman ayıracağına göre
@@ -399,14 +411,14 @@ export function ExamPrepHome({
       ) : null}
 
       {!nodes.length ? (
-        <div className="ap-exam-empty" role="status">
+        <div className="cp-exam-empty" role="status">
           <p>
             <strong>Henüz çalışma yolu yok</strong>
           </p>
-          <p className="text-sm text-[var(--ap-muted)]">
+          <p className="text-sm text-[var(--cp-muted)]">
             Konu seçip tanı ölçümünü tamamladığında günlük yol burada görünür.
           </p>
-          <Link href={startHref} className="ap-exam-continue ap-exam-continue--primary">
+          <Link href={startHref} className="cp-exam-continue cp-exam-continue--primary">
             İlk adımı aç
           </Link>
         </div>
@@ -415,15 +427,15 @@ export function ExamPrepHome({
         // veriyor. Gün blokları kalktı — "Gün 3" yazan bir başlık,
         // öğrenciyi geri kalmışlık duygusuna sokmaktan başka bir şey
         // yapmıyordu. Sıra duruyor, kilit duruyor, takvim yok.
-        <ol className="ap-exam-trail" aria-label="Çalışma yolu">
+        <ol className="cp-exam-trail" aria-label="Çalışma yolu">
           {nodes.map((node, index) => (
             <li
               key={node.id}
-              className={`ap-exam-trail-item ap-exam-trail-item--${index % 2 === 0 ? "left" : "right"}`}
+              className={`cp-exam-trail-item cp-exam-trail-item--${index % 2 === 0 ? "left" : "right"}`}
             >
               <button
                 type="button"
-                className={`ap-exam-trail-node ap-exam-trail-node--${node.status}`}
+                className={`cp-exam-trail-node cp-exam-trail-node--${node.status}`}
                 disabled={node.status === "locked"}
                 aria-label={`${node.title || PLAN_NODE_META[node.kind].title}, ${
                   node.status === "done"
@@ -455,15 +467,15 @@ export function ExamPrepHome({
           ))}
         </ol>
       ) : (
-        <ol className="ap-exam-trail">
+        <ol className="cp-exam-trail">
           {nodes.map((node, index) => (
             <li
               key={node.id}
-              className={`ap-exam-trail-item ap-exam-trail-item--${index % 2 === 0 ? "left" : "right"}`}
+              className={`cp-exam-trail-item cp-exam-trail-item--${index % 2 === 0 ? "left" : "right"}`}
             >
               <button
                 type="button"
-                className={`ap-exam-trail-node ap-exam-trail-node--${node.status}`}
+                className={`cp-exam-trail-node cp-exam-trail-node--${node.status}`}
                 disabled={node.status === "locked"}
                 aria-label={`${node.title}, gün ${node.dayIndex}`}
                 onClick={() => openNode(node)}
@@ -487,9 +499,9 @@ export function ExamPrepHome({
         </ol>
       )}
 
-      <div className="ap-exam-start-card">
+      <div className="cp-exam-start-card">
         <p>{started ? "Sıradaki derse geç" : "Başlamaya hazır mısın?"}</p>
-        <Link href={startHref} className="ap-exam-continue ap-exam-continue--primary">
+        <Link href={startHref} className="cp-exam-continue cp-exam-continue--primary">
           {started
             ? ready
               ? `Sonraki: ${PLAN_NODE_META[ready.kind].title}`
@@ -517,21 +529,21 @@ function TrackingMeter({
   const shown = pct == null ? null : Math.max(0, Math.min(100, pct));
   return (
     <div>
-      <div className="ap-countdown-row">
+      <div className="cp-countdown-row">
         <span>{title}</span>
-        <span className="ap-countdown-pct">
+        <span className="cp-countdown-pct">
           {shown == null ? emptyText : `%${shown}`}
         </span>
       </div>
-      <div className="ap-countdown-meter" aria-hidden>
+      <div className="cp-countdown-meter" aria-hidden>
         <span
           style={{
             width: `${shown == null ? 0 : Math.max(shown, shown > 0 ? 3 : 0)}%`,
           }}
         />
       </div>
-      <p className="ap-countdown-state text-sm">{label}</p>
-      <p className="text-xs text-[var(--ap-muted)]">{hint}</p>
+      <p className="cp-countdown-state text-sm">{label}</p>
+      <p className="text-xs text-[var(--cp-muted)]">{hint}</p>
     </div>
   );
 }

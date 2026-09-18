@@ -10,6 +10,7 @@ import {
   Mic,
   Pause,
   Play,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,8 @@ import {
   type PodcastChapter,
   type SpeakerId,
 } from "@/lib/learning/podcast-script";
+import { SourceUpload } from "@/components/demo/source-upload";
+import type { DemoPipeline } from "@/lib/demo/lesson";
 
 /**
  * Örnek akış.
@@ -56,7 +59,7 @@ const STEPS: Step[] = [
     id: "kaynak",
     kicker: "1. adım",
     title: "Kaynağını yükle",
-    lead: "Öğretmenin notu, kitabın bir bölümü ya da kendi özetin. Metin çıkarılır ve konuya göre aranabilir hâle gelir.",
+    lead: "Örnek notu indir ve aşağıya bırak — gerçek üründe buraya kendi notunu koyuyorsun. Metin çıkarılır, parçalanır ve konuya göre aranabilir hâle gelir.",
     icon: FileText,
   },
   {
@@ -87,6 +90,73 @@ const STEPS: Step[] = [
     lead: "Eğitmen sorar, sen sesli yanıtlarsın. Yazılıda çıkacak soruların provası.",
     icon: Mic,
   },
+  /*
+    Altıncı adım ürünün YAPTIĞI değil YAPMADIĞI şeyi gösteriyor ve bu yüzden
+    en sona konuldu: kayıt düğmesinden hemen önceki son izlenim.
+
+    İlk beş adım "içerik senin notundan üretilir" diyor — rakip de bunu
+    yapıyor, yani fark değil. Fark, notta olmayan bir şey sorulduğunda ortaya
+    çıkıyor. Ziyaretçi bunu anlatıyla değil, kendi tıklayıp görerek anlıyor.
+  */
+  {
+    id: "sinir",
+    kicker: "6. adım",
+    title: "Notunun dışına çıkmaz",
+    lead: "Asıl fark burada. Sor ve ne yaptığını gör — notunda olmayana cevap uydurmaz, yanlış bir varsayımı da onaylamaz.",
+    icon: ShieldCheck,
+  },
+];
+
+/**
+ * Sınır adımının önceden yazılmış soruları.
+ *
+ * Üçü de yukarıdaki örnek nota göre seçildi ve her biri ayrı bir davranışı
+ * gösteriyor:
+ *
+ *   • "var"      — notta geçen bir soru: cevap notun kendi cümlesine dayanıyor.
+ *   • "yok"      — notun kapsamadığı bir soru: cevap vermiyor, notta GERÇEKTEN
+ *                  olan başlıkları sayıyor ve kredi almıyor.
+ *   • "duzeltme" — öğrencinin yanlış varsayımı: katılmıyor, düzeltiyor.
+ *
+ * Sonuncusu en güçlüsü. Not "klorofil yeşili YANSITIR" diyor; soru ise
+ * "soğurduğu için yeşil, değil mi?" diye bitiyor. Öğrenciye katılmak en kolay
+ * cevap ve tam olarak yapılmaması gereken şey.
+ *
+ * Burada AI çağrısı yok — demonun tamamında olmadığı gibi.
+ */
+type BoundaryCase = {
+  id: string;
+  kind: "var" | "yok" | "duzeltme";
+  question: string;
+  badge: string;
+  answer: string;
+};
+
+const BOUNDARY_CASES: BoundaryCase[] = [
+  {
+    id: "var",
+    kind: "var",
+    question: "Yapraklar neden yeşil görünüyor?",
+    badge: "Notunda var",
+    answer:
+      "Kloroplastlardaki yeşil pigment klorofil, ışığın en çok mavi ve kırmızı dalga boylarını soğuruyor; yeşili ise yansıtıyor. Yaprakların yeşil görünmesinin sebebi bu yansıma.",
+  },
+  {
+    id: "yok",
+    kind: "yok",
+    question: "Solunum denklemi nedir?",
+    badge: "Notunda yok — kredin düşmedi",
+    answer:
+      "Bu notta solunum geçmiyor, o yüzden cevap vermiyorum. Genel bilgiden anlatabilirdim ama sınavda bu nottan sorumluysan seni yanlış yere götürürdü.\n\nNotta gerçekten olanlar: fotosentez denklemi, klorofilin görevi, fotosentez hızını etkileyen etkenler. Hangisine bakalım?",
+  },
+  {
+    id: "duzeltme",
+    kind: "duzeltme",
+    question: "Klorofil yeşil ışığı soğurduğu için yapraklar yeşil, değil mi?",
+    badge: "Notun seni düzeltti",
+    answer:
+      "Hayır — notunda tam tersi yazıyor. Klorofil mavi ve kırmızıyı SOĞURUYOR, yeşili YANSITIYOR. Yaprağın yeşil görünmesi soğurulan renkten değil, yansıtılan renkten.\n\nBu ayrım sınavda sık sorulur; sorunun kendisi yanlış kurulmuş olsa bile notun ne dediği geçerli.",
+  },
 ];
 
 export function DemoWalkthrough({
@@ -94,6 +164,7 @@ export function DemoWalkthrough({
   sourceName,
   sourceHref,
   sourceText,
+  pipeline,
   topics,
   podcastTitle,
   chapters,
@@ -105,6 +176,7 @@ export function DemoWalkthrough({
   sourceName: string;
   sourceHref: string;
   sourceText: string;
+  pipeline: DemoPipeline;
   topics: string[];
   podcastTitle: string;
   chapters: PodcastChapter[];
@@ -114,6 +186,12 @@ export function DemoWalkthrough({
 }) {
   const [step, setStep] = useState(0);
   const current = STEPS[step];
+
+  // Not bırakılana kadar sonraki adımlar kapalı: bu akışın vitrinden farkı
+  // ziyaretçinin işi kendi başlatması. Kilitlenme riski yok — 1. adımda
+  // yüklemeyi geçme yolu her zaman duruyor.
+  const [sourceAccepted, setSourceAccepted] = useState(false);
+  const locked = !sourceAccepted;
 
   // Sunucu ile istemcinin saati farklı çıkabilir; SSR'da hiç göstermeyip
   // yalnızca istemcide beliriyor — kayan/uyuşmayan metin yerine kasıtlı bir
@@ -152,6 +230,7 @@ export function DemoWalkthrough({
                 i < step && "is-done",
               )}
               onClick={() => setStep(i)}
+              disabled={locked && i > 0}
               aria-current={i === step ? "step" : undefined}
             >
               <span className="dm-rail-dot" aria-hidden>
@@ -177,7 +256,14 @@ export function DemoWalkthrough({
           <p className="dm-stage-lead">{current.lead}</p>
 
           {current.id === "kaynak" ? (
-            <SourceStep name={sourceName} href={sourceHref} text={sourceText} />
+            <SourceUpload
+              name={sourceName}
+              href={sourceHref}
+              text={sourceText}
+              pipeline={pipeline}
+              accepted={sourceAccepted}
+              onAccepted={() => setSourceAccepted(true)}
+            />
           ) : null}
           {current.id === "konular" ? <TopicsStep topics={topics} /> : null}
           {current.id === "podcast" ? (
@@ -185,6 +271,7 @@ export function DemoWalkthrough({
           ) : null}
           {current.id === "quiz" ? <QuizStep quiz={quiz} /> : null}
           {current.id === "sozlu" ? <OralStep oral={oral} /> : null}
+          {current.id === "sinir" ? <BoundaryStep /> : null}
         </div>
       </section>
 
@@ -202,6 +289,7 @@ export function DemoWalkthrough({
             type="button"
             className="dm-btn dm-btn--primary"
             onClick={() => setStep((s) => s + 1)}
+            disabled={locked}
           >
             Sonraki adım
           </button>
@@ -211,28 +299,6 @@ export function DemoWalkthrough({
           </Link>
         )}
       </div>
-    </div>
-  );
-}
-
-function SourceStep({ name, href, text }: { name: string; href: string; text: string }) {
-  return (
-    <div className="dm-source">
-      <a
-        className="dm-file pm-card pm-card--interactive pm-card--ghost"
-        data-ghost-icon="📄"
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-      >
-        <FileText className="h-5 w-5" aria-hidden />
-        <span>
-          <strong>{name}</strong>
-          <em>Örnek ders notu · PDF</em>
-        </span>
-      </a>
-      <p className="dm-source-kicker">Çıkarılan metin</p>
-      <div className="dm-source-text">{text}</div>
     </div>
   );
 }
@@ -489,6 +555,56 @@ function OralStep({ oral }: { oral: { prompt: string; hint?: string }[] }) {
       <p className="dm-oral-note">
         Gerçek oturumda mikrofonla yanıtlarsın; eğitmen cevabını dinleyip
         eksikleri söyler.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Sınır adımı — ziyaretçi soruyu seçer, cevabı görür.
+ *
+ * Anlatı yerine etkileşim: "notundan şaşmaz" cümlesi okunduğunda bir pazarlama
+ * iddiası, tıklanıp görüldüğünde kanıt. Özellikle üçüncü durumda — ürünün
+ * öğrenciye KATILMADIĞI an — fark kendi kendini anlatıyor.
+ */
+function BoundaryStep() {
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  return (
+    <div className="dm-bound">
+      {BOUNDARY_CASES.map((item) => {
+        const open = openId === item.id;
+        return (
+          <div key={item.id} className="dm-bound-item">
+            <button
+              type="button"
+              className={cn("dm-bound-q", open && "dm-bound-q--on")}
+              aria-expanded={open}
+              onClick={() => setOpenId(open ? null : item.id)}
+            >
+              <span>{item.question}</span>
+              <span className="dm-bound-cue" aria-hidden>
+                {open ? "−" : "+"}
+              </span>
+            </button>
+
+            {open ? (
+              <div className="pm-enter dm-bound-a">
+                <span className={`dm-bound-badge dm-bound-badge--${item.kind}`}>
+                  {item.badge}
+                </span>
+                {item.answer.split("\n\n").map((paragraph, index) => (
+                  <p key={index}>{paragraph}</p>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+
+      <p className="dm-bound-note">
+        Üçü de aynı nottan. Sistemin cevap vermediği soruda kredin düşmüyor —
+        dürüst cevabın bedelini sen ödeme.
       </p>
     </div>
   );

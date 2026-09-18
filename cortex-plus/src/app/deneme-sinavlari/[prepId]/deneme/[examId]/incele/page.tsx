@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { parseExamAnalysis } from "@/lib/learning/exam-analysis";
 import { ExamQuestionReviewClient } from "@/components/parity/exam-question-review-client";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 
-export const metadata = { title: "Soru İnceleme · Astra AI" };
+export const metadata = { title: "Soru İnceleme · Cortex Plus" };
 
 export default async function ExamQuestionReviewPage({
   params,
@@ -73,19 +73,19 @@ export default async function ExamQuestionReviewPage({
   const wrongCount = mappedReviews.filter((r) => !r.is_correct).length;
 
   return (
-    <AstraParitySorShell {...shell}>
+    <ParitySorShell {...shell}>
       {analysis.summary ? (
         <section className="mb-6 rounded-2xl border border-white/10 p-5">
-          <h2 className="text-base font-semibold text-[var(--astra-text)]">
+          <h2 className="text-base font-semibold text-[var(--cs-text)]">
             Bu sınav sana ne söylüyor
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-[var(--astra-muted)]">
+          <p className="mt-2 text-sm leading-relaxed text-[var(--cs-muted)]">
             {analysis.summary}
           </p>
 
           {analysis.weakTopics.length ? (
             <div className="mt-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--astra-muted)]">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--cs-muted)]">
                 Puanı burada kaybettin
               </p>
               <ul className="mt-2 flex flex-wrap gap-2">
@@ -103,10 +103,10 @@ export default async function ExamQuestionReviewPage({
 
           {analysis.nextSteps.length ? (
             <div className="mt-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--astra-muted)]">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--cs-muted)]">
                 Sırada ne yapmalısın
               </p>
-              <ol className="mt-2 flex list-decimal flex-col gap-1 pl-5 text-sm text-[var(--astra-muted)]">
+              <ol className="mt-2 flex list-decimal flex-col gap-1 pl-5 text-sm text-[var(--cs-muted)]">
                 {analysis.nextSteps.map((step) => (
                   <li key={step}>{step}</li>
                 ))}
@@ -133,6 +133,6 @@ export default async function ExamQuestionReviewPage({
         questions={mappedQuestions}
         reviews={mappedReviews}
       />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

@@ -20,7 +20,7 @@ import "@/styles/exam-lesson-steps.css";
  * Anahtar terimleri koyu göster.
  *
  * Ders gövdesi düz paragraftı: sınava iki gün kala geri dönen öğrenci
- * hangi kelimenin sınavda çıkacak terim olduğunu göremiyordu. Astra
+ * hangi kelimenin sınavda çıkacak terim olduğunu göremiyordu. Referans ürün
  * terimleri metnin içinde koyu veriyor.
  *
  * Metin `**terim**` biçiminde geliyor; HTML'e çevirmiyoruz, parçalayıp
@@ -120,7 +120,7 @@ export function ExamLessonSteps({
   /**
    * Ders özetle bitmiyor.
    *
-   * Astra'da bir dersi adım adım geçerken sayaç 6/6 iken 7/7 oldu: özetten
+   * Referans üründe bir dersi adım adım geçerken sayaç 6/6 iken 7/7 oldu: özetten
    * sonra, yanlış cevapladığın bölümün adıyla etiketlenmiş bir hatırlama
    * sorusu eklendi. Öğrenme okumakla değil, geri çağırmakla oturuyor;
    * üstelik hangi bölümden geldiği yazılı olduğu için öğrenci nereye

@@ -20,14 +20,22 @@ export type QuotaView = {
   remaining: number;
   /** Dönemin toplam bütçesi. */
   allowance: number;
-  /** Kullanılan yüzde — Astra'nın gösterdiği sayı. */
+  /** Kullanılan yüzde — referans ürünün gösterdiği sayı. */
   usedPercent: number;
   /** Sıfırlanma anı (yenileme beklentisi uygulanmış). */
   resetsAt: Date;
-  kind: "daily" | "monthly";
+  kind: PeriodKind;
   /** Dönem dolmuş ama henüz yenilenmemiş — ilk işlemde dolacak. */
   pendingRefill: boolean;
 };
+
+/**
+ * Cüzdanın dönem türü.
+ *
+ * `weekly` haftalık Plus paketiyle geldi: o abonenin hakkı 30 günde bir değil
+ * 7 günde bir yenileniyor, ekranda da "Aylık limit" yazması yanlış olurdu.
+ */
+export type PeriodKind = "daily" | "weekly" | "monthly";
 
 const FREE_DAILY_ALLOWANCE = 6;
 const PREMIUM_MONTHLY_ALLOWANCE = 400;
@@ -90,7 +98,12 @@ export function quotaView(
     allowance,
     usedPercent: Math.round(((allowance - remaining) / allowance) * 100),
     resetsAt: endsAt,
-    kind: wallet.period_kind === "monthly" ? "monthly" : "daily",
+    kind:
+      wallet.period_kind === "monthly"
+        ? "monthly"
+        : wallet.period_kind === "weekly"
+          ? "weekly"
+          : "daily",
     pendingRefill: false,
   };
 }
@@ -117,6 +130,8 @@ export function formatResetAt(date: Date): string {
   });
 }
 
-export function periodLabel(kind: "daily" | "monthly"): string {
-  return kind === "monthly" ? "Aylık limit" : "Günlük limit";
+export function periodLabel(kind: PeriodKind): string {
+  if (kind === "monthly") return "Aylık limit";
+  if (kind === "weekly") return "Haftalık limit";
+  return "Günlük limit";
 }

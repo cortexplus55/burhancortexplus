@@ -9,6 +9,11 @@ import {
   loadPageSourceContext,
   loadSourceContext,
 } from "@/lib/learning/source-context";
+import {
+  resolvePrepSourceMode,
+  shouldSearchSources,
+  topicFence,
+} from "@/lib/learning/prep-source";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
@@ -610,6 +615,13 @@ export async function POST(request: Request) {
       (doc?.source_boundary_mode as "documents_only" | "allow_supporting" | null) ??
       "documents_only";
   }
+  // Belge seçili değilse kaynak araması yapılmaz. Eskiden `sourceBoundaryMode
+  // ?? "documents_only"` ile filtresiz arama yapılıyordu: öğrencinin ilgisiz
+  // belgesinden gelen bir parça derse "yalnızca buna dayan" diye giriyordu.
+  const sourceMode = resolvePrepSourceMode({
+    documentId: prepSource.document_id,
+    documentBoundary: sourceBoundaryMode,
+  });
 
   let source;
   try {
@@ -627,7 +639,7 @@ export async function POST(request: Request) {
         : EMPTY_SOURCE_CONTEXT;
     source = pageSource.block
       ? pageSource
-      : voiceSession
+      : voiceSession || !shouldSearchSources(sourceMode)
       ? EMPTY_SOURCE_CONTEXT
       : await loadSourceContext(
           service,
@@ -635,9 +647,7 @@ export async function POST(request: Request) {
           `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim(),
           {
             documentId: prepSource?.document_id ?? null,
-            sourceBoundaryMode: teachingV2
-              ? sourceBoundaryMode ?? "documents_only"
-              : null,
+            sourceBoundaryMode: teachingV2 ? sourceMode : null,
           },
         );
   } catch {
@@ -788,9 +798,15 @@ export async function POST(request: Request) {
           sourceFormulas: source.formulas ?? [],
           teachingV2,
           sessionMeta,
-          requireSourceSupport: Boolean(
-            teachingV2 && prepSource.document_id && sourceBoundaryMode !== "allow_supporting",
-          ),
+          requireSourceSupport: Boolean(teachingV2 && sourceMode === "documents_only"),
+          topicFenceBlock:
+            sourceMode === "topic_only"
+              ? topicFence({
+                  topic: topicLabel,
+                  examTitle: prep.title,
+                  examType: prep.exam_type,
+                })
+              : "",
           idempotencyKey: creditKey,
           // Dersin bölümleri kaynağın kendi alt başlıkları olsun.
           sectionBackbone:
@@ -1019,6 +1035,11 @@ async function generateNodePayload(input: {
   mood: Mood;
   /** Öğrencinin kendi kaynağından alıntılar; kaynak yoksa boş. */
   sourceBlock: string;
+  /**
+   * Belge yokken konunun çiti. Sohbetteki "belgede yoksa cevap verme"
+   * kuralının belgesiz karşılığı: model konu başlığının dışına çıkamaz.
+   */
+  topicFenceBlock?: string;
   /** Sayfalardan çıkarılmış formüller; ders bunlara karşı denetleniyor. */
   sourceFormulas?: string[];
   teachingV2: boolean;
@@ -1052,7 +1073,7 @@ async function generateNodePayload(input: {
   const ctx = `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}. Zorluk: ${input.difficulty}. ${sessionSignalsPrompt(
     input.familiarity,
     input.mood,
-  )} ${sessionCtx} ${standards}${prefsHint}${input.sourceBlock}`;
+  )} ${sessionCtx} ${standards}${prefsHint}${input.sourceBlock}${input.topicFenceBlock ?? ""}`;
 
   const v2Common = input.teachingV2
     ? {

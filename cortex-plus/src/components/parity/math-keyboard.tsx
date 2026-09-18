@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 /**
  * Matematik klavyesi.
  *
- * Önceki hâli tek sıra 19 sembollük düz bir şeritti. Astra'da bu, dört
+ * Önceki hâli tek sıra 19 sembollük düz bir şeritti. Referans üründe bu, dört
  * kategoriye ayrılmış 30 tuşluk bir tuş takımı; ayrıca geri silme ve imleci
  * sola/sağa taşıma var — kullanıcı uzun bir ifadenin ortasına dönebiliyor.
  *
@@ -21,13 +21,13 @@ type Key = {
   insert: string;
   /** Ekran okuyucu için — görsel etiket sembolse gerekli. */
   aria: string;
-  /** Rakamlar Astra'da olduğu gibi vurgulu. */
+  /** Rakamlar referans üründe olduğu gibi vurgulu. */
   accent?: boolean;
 };
 
 type Category = {
   id: string;
-  /** Sekme başlığı iki satır: Astra'da da öyle. */
+  /** Sekme başlığı iki satır: Referans üründe de öyle. */
   top: string;
   bottom: string;
   keys: Key[];
@@ -48,7 +48,7 @@ const sub = (base: string, low: string): ReactNode => (
 );
 
 const frac = (top: string, bottom: string): ReactNode => (
-  <span className="ap-mk-frac">
+  <span className="cp-mk-frac">
     <span>{top}</span>
     <span>{bottom}</span>
   </span>
@@ -189,20 +189,20 @@ export function MathKeyboard({
   const category = CATEGORIES.find((c) => c.id === active) ?? CATEGORIES[0];
 
   return (
-    <div className="ap-mk" role="group" aria-label="Matematik klavyesi">
-      <div className="ap-mk-controls">
+    <div className="cp-mk" role="group" aria-label="Matematik klavyesi">
+      <div className="cp-mk-controls">
         <button
           type="button"
-          className="ap-mk-ctrl"
+          className="cp-mk-ctrl"
           onClick={onBackspace}
           aria-label="Geri sil"
         >
           ⌫
         </button>
-        <div className="ap-mk-caret">
+        <div className="cp-mk-caret">
           <button
             type="button"
-            className="ap-mk-ctrl"
+            className="cp-mk-ctrl"
             onClick={() => onMoveCaret(-1)}
             aria-label="İmleci sola taşı"
           >
@@ -210,26 +210,26 @@ export function MathKeyboard({
           </button>
           <button
             type="button"
-            className="ap-mk-ctrl"
+            className="cp-mk-ctrl"
             onClick={() => onMoveCaret(1)}
             aria-label="İmleci sağa taşı"
           >
             →
           </button>
         </div>
-        <button type="button" className="ap-mk-close" onClick={onClose}>
+        <button type="button" className="cp-mk-close" onClick={onClose}>
           Klavyeyi kapat <span aria-hidden>✕</span>
         </button>
       </div>
 
-      <div className="ap-mk-tabs" role="tablist" aria-label="Sembol kategorileri">
+      <div className="cp-mk-tabs" role="tablist" aria-label="Sembol kategorileri">
         {CATEGORIES.map((c) => (
           <button
             key={c.id}
             type="button"
             role="tab"
             aria-selected={c.id === active}
-            className={cn("ap-mk-tab", c.id === active && "is-active")}
+            className={cn("cp-mk-tab", c.id === active && "is-active")}
             onClick={() => setActive(c.id)}
           >
             <span>{c.top}</span>
@@ -238,12 +238,12 @@ export function MathKeyboard({
         ))}
       </div>
 
-      <div className="ap-mk-grid">
+      <div className="cp-mk-grid">
         {category.keys.map((key, i) => (
           <button
             key={`${category.id}-${i}`}
             type="button"
-            className={cn("ap-mk-key", key.accent && "is-accent")}
+            className={cn("cp-mk-key", key.accent && "is-accent")}
             aria-label={key.aria}
             onClick={() => onInsert(key.insert)}
           >

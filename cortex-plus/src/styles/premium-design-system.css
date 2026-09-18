@@ -1,13 +1,13 @@
 /**
  * Premium tasarım sistemi — "pm-" öneki.
  *
- * Astra AI'ın vitrinini inceledikten sonra kuruldu (bkz. commit mesajı).
+ * Referans ürünün vitrinini inceledikten sonra kuruldu (bkz. commit mesajı).
  * Amaç birebir kopya değil: aynı işçilik seviyesini (katmanlı derinlik,
  * parlayan AI küresi, dairesel ilerleme, konuya özel renk) kendi
- * kimliğimizle (amber ana renk, mor ikincil, mevcut --ap-* koyu zemin)
- * kurmak. Mevcut --ap-* token'larını değiştirmiyor, üstüne ekliyor —
+ * kimliğimizle (amber ana renk, mor ikincil, mevcut --cp-* koyu zemin)
+ * kurmak. Mevcut --cp-* token'larını değiştirmiyor, üstüne ekliyor —
  * böylece halihazırda çalışan 30+ sayfa etkilenmeden yeni yüzeyler
- * (/ornek, ap-tutor-orb gibi izole bileşenler) bunu kullanabiliyor.
+ * (/ornek, cp-tutor-orb gibi izole bileşenler) bunu kullanabiliyor.
  *
  * Bu ilk faz: sistem + /ornek vitrin sayfası + sesli eğitmen küresi.
  * Geri kalan yüzeylere yayılım ayrı fazlarda.
@@ -21,7 +21,7 @@
   --pm-amber-600: #c47c1f;
   --pm-amber-700: #8f5710;
 
-  /* --- İkincil: "zeka" moru — mevcut ap-exam-continue--primary'deki
+  /* --- İkincil: "zeka" moru — mevcut cp-exam-continue--primary'deki
      gradyanla aynı aile, sistemleştirilmiş hali. --------------------------- */
   --pm-violet-300: #c7cbfb;
   --pm-violet-400: #a5b4fc;
@@ -32,7 +32,7 @@
   --pm-success: #4ade80;
   --pm-danger: #f2603c;
 
-  /* --- Zemin (mevcut --ap-bg/--ap-surface ile aynı aile) ------------------ */
+  /* --- Zemin (mevcut --cp-bg/--cp-surface ile aynı aile) ------------------ */
   --pm-surface: #17171b;
   --pm-surface-2: #202027;
   --pm-line: #2c2c34;
@@ -57,7 +57,7 @@
   --pm-glow-amber: 0 0 56px -8px rgba(232, 163, 61, 0.55);
   --pm-glow-violet: 0 0 56px -8px rgba(139, 142, 247, 0.55);
 
-  /* --- Ders/konu renkleri: her biri kendi tonu — Astra'nın "her derse kendi
+  /* --- Ders/konu renkleri: her biri kendi tonu — referans ürünün "her derse kendi
      rengi" fikri, bizim koyu zeminde parlayan-cam yorumuyla. ---------------- */
   --pm-subj-matematik: #6b8cff;
   --pm-subj-fizik: #34d399;
@@ -80,7 +80,7 @@
 
 /* ============================================================ AI küresi */
 /*
- * Astra'nın sözlü sınav bölümündeki parlayan küreden ilham alındı: radial
+ * Referans ürünün sözlü sınav bölümündeki parlayan küreden ilham alındı: radial
  * gradyan + üst-sol parlama noktası + yumuşak dış parıltı. Renk kendi
  * paletimizden — onlarınki mor, bizimki varsayılan amber (konuşma/dinleme
  * durumuna göre mor'a geçebiliyor, bkz. .is-listen).
@@ -194,7 +194,7 @@
   border-color: rgba(232, 163, 61, 0.35);
 }
 
-/* Astra'nın konu kartlarındaki devasa, soluk "hayalet ikon" dokusu —
+/* Referans ürünün konu kartlarındaki devasa, soluk "hayalet ikon" dokusu —
    bizim yorumumuz: parlak dolgu yerine ince bir kontur, koyu zeminde
    bağırmadan doku katıyor. */
 .pm-card--ghost {

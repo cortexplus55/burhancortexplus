@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { AstraMarketingPage } from "@/components/parity/astra-marketing";
-import { AstraSubscriptionCards } from "@/components/parity/astra-subscription-cards";
+import { ParityMarketingPage } from "@/components/parity/marketing";
+import { SubscriptionCards } from "@/components/parity/subscription-cards";
 import { createClient } from "@/lib/supabase/server";
 import { isPaytrConfigured } from "@/lib/payments/paytr";
 
@@ -53,12 +53,12 @@ export default async function FiyatlandirmaPage() {
   }
 
   return (
-    <AstraMarketingPage
+    <ParityMarketingPage
       title="Fiyatlandırma"
       description="İhtiyacına uygun kullanım hakkını seç."
     >
       <div data-cinematic-reveal>
-        <AstraSubscriptionCards
+        <SubscriptionCards
           plans={plans}
           guestMode
           checkoutEnabled={isPaytrConfigured()}
@@ -70,6 +70,6 @@ export default async function FiyatlandirmaPage() {
           Giriş yap
         </Link>
       </p>
-    </AstraMarketingPage>
+    </ParityMarketingPage>
   );
 }

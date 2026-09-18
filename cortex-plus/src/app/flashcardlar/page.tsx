@@ -23,7 +23,7 @@ export default async function FlashcardlarPage() {
     <AppShell title="Flashcard" creditHint={`Kart seti üretimi: ${cost} kredi.`}>
       <div className="space-y-6">
         <SectionCard
-          variant="astra"
+          variant="parity"
           title="Yeni kart seti üret"
           description="Konu yaz, AI senin için çift yönlü kartlar hazırlasın."
         >
@@ -49,7 +49,7 @@ export default async function FlashcardlarPage() {
           </div>
         ) : (
           <EmptyState
-            variant="astra"
+            variant="parity"
             icon={Layers}
             title="Henüz kart setin yok"
             description="Yukarıdan bir konu girerek ilk setini oluştur."

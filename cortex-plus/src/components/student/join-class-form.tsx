@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function JoinClassForm() {
+export function JoinClassForm({ initialCode = "" }: { initialCode?: string }) {
   const router = useRouter();
-  const [code, setCode] = useState("");
+  // Bağlantıyla gelen öğrenci kodu elle yazmıyor. `useSearchParams` bilerek
+  // kullanılmadı: bu projede Suspense sınırı sayfayı boşaltıyor, o yüzden kod
+  // sunucudan prop olarak geliyor.
+  const [code, setCode] = useState(initialCode);
   const [loading, setLoading] = useState(false);
 
   async function submit(event: React.FormEvent) {
@@ -53,7 +56,7 @@ export function JoinClassForm() {
   }
 
   return (
-    <form onSubmit={submit} className="astra-pay-card space-y-3 p-4">
+    <form onSubmit={submit} className="cs-pay-card space-y-3 p-4">
       <div className="space-y-2">
         <Label htmlFor="join-code">Katılım kodu</Label>
         <Input

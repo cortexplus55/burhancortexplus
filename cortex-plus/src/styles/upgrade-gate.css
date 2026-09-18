@@ -255,3 +255,25 @@
   font-weight: 600;
   color: #a3a19c;
 }
+
+/* Üçüncü yol: davet. Ana eylemden (abone ol) zayıf, yenilenme
+   bilgisinden güçlü — çünkü o bir bilgi, bu bir eylem. */
+.ug-invite {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: inherit;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.ug-invite:hover,
+.ug-invite:focus-visible {
+  border-color: rgba(244, 174, 11, 0.5);
+  background: rgba(244, 174, 11, 0.08);
+}

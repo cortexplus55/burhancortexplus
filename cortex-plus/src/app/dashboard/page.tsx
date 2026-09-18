@@ -81,10 +81,10 @@ export default async function DashboardPage() {
     <AppShell title="Panel">
       <div className="space-y-6">
         <div>
-          <h2 className="font-[family-name:var(--font-display)] text-2xl font-normal tracking-tight text-[var(--astra-text)]">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl font-normal tracking-tight text-[var(--cs-text)]">
             {firstName ? `Merhaba ${firstName}` : "Merhaba"}
           </h2>
-          <p className="mt-1 text-sm text-[var(--astra-muted)]">
+          <p className="mt-1 text-sm text-[var(--cs-muted)]">
             {wallet
               ? `${wallet.balance} kredin ve ${wallet.free_allowance_remaining} ücretsiz hakkın var.`
               : "Kredi bilgin yükleniyor."}
@@ -92,7 +92,7 @@ export default async function DashboardPage() {
           {finishProfileHref ? (
             <Link
               href={finishProfileHref}
-              className="mt-2 inline-block text-sm font-medium text-[var(--astra-primary)] underline-offset-2 hover:underline"
+              className="mt-2 inline-block text-sm font-medium text-[var(--cs-primary)] underline-offset-2 hover:underline"
             >
               Profilini tamamla
             </Link>
@@ -106,32 +106,32 @@ export default async function DashboardPage() {
               <Link
                 key={shortcut.href}
                 href={shortcut.href}
-                className="astra-pay-card group block p-4 transition-transform hover:scale-[1.01]"
+                className="cs-pay-card group block p-4 transition-transform hover:scale-[1.01]"
               >
-                <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/15 text-[var(--astra-primary)] transition-colors group-hover:bg-amber-500/25">
+                <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/15 text-[var(--cs-primary)] transition-colors group-hover:bg-amber-500/25">
                   <Icon className="h-4 w-4" aria-hidden />
                 </span>
-                <p className="font-semibold text-[var(--astra-text)]">{shortcut.label}</p>
-                <p className="mt-1 text-sm text-[var(--astra-muted)]">{shortcut.body}</p>
+                <p className="font-semibold text-[var(--cs-text)]">{shortcut.label}</p>
+                <p className="mt-1 text-sm text-[var(--cs-muted)]">{shortcut.body}</p>
               </Link>
             );
           })}
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <SectionCard variant="astra" title="Kaldığın yerden devam et">
+          <SectionCard variant="parity" title="Kaldığın yerden devam et">
             {conversations?.length ? (
               <ul className="space-y-2">
                 {conversations.map((conversation) => (
                   <li key={conversation.id}>
                     <Link
                       href={`/ogretmen?sohbet=${conversation.id}`}
-                      className="flex min-h-[44px] items-center justify-between gap-3 rounded-xl px-2 py-2 text-sm transition-colors hover:bg-[var(--astra-pill)]"
+                      className="flex min-h-[44px] items-center justify-between gap-3 rounded-xl px-2 py-2 text-sm transition-colors hover:bg-[var(--cs-pill)]"
                     >
-                      <span className="truncate font-medium text-[var(--astra-text)]">
+                      <span className="truncate font-medium text-[var(--cs-text)]">
                         {conversation.title ?? "Başlıksız sohbet"}
                       </span>
-                      <span className="shrink-0 text-xs text-[var(--astra-muted)]">
+                      <span className="shrink-0 text-xs text-[var(--cs-muted)]">
                         {formatDate(conversation.updated_at)}
                       </span>
                     </Link>
@@ -140,7 +140,7 @@ export default async function DashboardPage() {
               </ul>
             ) : (
               <EmptyState
-                variant="astra"
+                variant="parity"
                 icon={Sparkles}
                 title="Henüz sohbetin yok"
                 description="İlk sorunu Sor ekranından yazarak başla."
@@ -150,17 +150,17 @@ export default async function DashboardPage() {
             )}
           </SectionCard>
 
-          <SectionCard variant="astra" title="Yaklaşan görevlerin">
+          <SectionCard variant="parity" title="Yaklaşan görevlerin">
             {tasks?.length ? (
               <ul className="space-y-2">
                 {tasks.map((task) => (
                   <li key={task.id}>
                     <Link
                       href="/calisma-plani"
-                      className="flex min-h-[44px] items-center justify-between gap-3 rounded-xl px-2 py-2 text-sm transition-colors hover:bg-[var(--astra-pill)]"
+                      className="flex min-h-[44px] items-center justify-between gap-3 rounded-xl px-2 py-2 text-sm transition-colors hover:bg-[var(--cs-pill)]"
                     >
-                      <span className="truncate text-[var(--astra-text)]">{task.title}</span>
-                      <span className="shrink-0 text-xs text-[var(--astra-muted)]">
+                      <span className="truncate text-[var(--cs-text)]">{task.title}</span>
+                      <span className="shrink-0 text-xs text-[var(--cs-muted)]">
                         {task.due_date ?? "—"}
                       </span>
                     </Link>
@@ -169,7 +169,7 @@ export default async function DashboardPage() {
               </ul>
             ) : (
               <EmptyState
-                variant="astra"
+                variant="parity"
                 icon={BookOpen}
                 title="Aktif görevin yok"
                 description="Hedefini yazarak haftalık görevler oluştur."

@@ -1,12 +1,12 @@
 import { AppShell } from "@/components/layout/app-shell";
-import { AstraSubscriptionCards } from "@/components/parity/astra-subscription-cards";
+import { SubscriptionCards } from "@/components/parity/subscription-cards";
 import { requireUser } from "@/lib/auth/session";
 import { getSubscriptionBadge } from "@/lib/student/subscription-badge";
 import { isPaytrConfigured } from "@/lib/payments/paytr";
 
 export const metadata = { title: "Abonelik" };
 
-/** Astra `/pay` — uygulama içi Plus satın alma (checkout altyapısı /paketler ile aynı). */
+/** Referans ürün `/pay` — uygulama içi Plus satın alma (checkout altyapısı /paketler ile aynı). */
 export default async function PayPage() {
   const { supabase, user } = await requireUser();
 
@@ -38,7 +38,7 @@ export default async function PayPage() {
 
   return (
     <AppShell>
-      <AstraSubscriptionCards
+      <SubscriptionCards
         plans={plans ?? []}
         embedded
         headingLevel="h1"

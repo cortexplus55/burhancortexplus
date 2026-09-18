@@ -44,9 +44,9 @@ export function ParentLinkForms({
 
   return (
     <div className="space-y-3">
-      <div className="astra-pay-card p-4">
+      <div className="cs-pay-card p-4">
         <h3 className="text-sm font-semibold">Davet kodu ile bağla</h3>
-        <p className="mt-1 text-xs text-[var(--astra-muted)]">
+        <p className="mt-1 text-xs text-[var(--cs-muted)]">
           Çocuğunun profilindeki 6 haneli kodu gir.
         </p>
         <div className="mt-3 flex gap-2">
@@ -62,16 +62,16 @@ export function ParentLinkForms({
             type="button"
             onClick={submitCode}
             disabled={pending || code.trim().length < 4}
-            className="astra-btn-primary shrink-0 rounded-full px-5"
+            className="cs-btn-primary shrink-0 rounded-full px-5"
           >
             Bağla
           </Button>
         </div>
       </div>
 
-      <div className="astra-pay-card p-4">
+      <div className="cs-pay-card p-4">
         <h3 className="text-sm font-semibold">E-posta ile davet et</h3>
-        <p className="mt-1 text-xs text-[var(--astra-muted)]">
+        <p className="mt-1 text-xs text-[var(--cs-muted)]">
           Çocuğun onayladığında bağlantı kurulur.
         </p>
         <div className="mt-3 flex gap-2">
@@ -86,7 +86,7 @@ export function ParentLinkForms({
             type="button"
             onClick={submitEmail}
             disabled={pending || !email.includes("@")}
-            className="astra-btn-primary shrink-0 rounded-full px-5"
+            className="cs-btn-primary shrink-0 rounded-full px-5"
           >
             Davet et
           </Button>

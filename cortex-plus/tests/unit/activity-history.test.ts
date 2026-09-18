@@ -9,7 +9,7 @@ import {
 /**
  * Çalışma geçmişi.
  *
- * Astra'nın "Aktivitelerim" ekranında son yedi günün çubukları ve yıllık
+ * Referans ürünün "Aktivitelerim" ekranında son yedi günün çubukları ve yıllık
  * bir ısı haritası var; ikisi de alındı. Üçüncü kutu olan "tüm zamanların
  * tasarrufları — 2.318 ₺" alınmadı: ölçülen bir şey değil, saat sayısının
  * bir ders ücretiyle çarpımı.

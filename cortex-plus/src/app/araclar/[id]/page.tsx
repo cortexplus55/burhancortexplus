@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { BirimDonusturucu } from "@/components/lab/tools/birim-donusturucu";
 import { DenklemCozucu } from "@/components/lab/tools/denklem-cozucu";
 import { IntegralHesaplayici } from "@/components/lab/tools/integral-hesaplayici";
@@ -38,8 +38,8 @@ export default async function AracPage({
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
   return (
-    <AstraParitySorShell {...shell}>
+    <ParitySorShell {...shell}>
       <Component />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

@@ -151,17 +151,17 @@ export function TopicMapEditor({
   return (
     <div className="space-y-6">
       {coverage ? (
-        <section className="astra-pay-card space-y-3 px-4 py-4">
+        <section className="cs-pay-card space-y-3 px-4 py-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-sm font-semibold text-[var(--astra-text)]">
+            <h2 className="text-sm font-semibold text-[var(--cs-text)]">
               Kapsam raporu
             </h2>
-            <span className="text-xs text-[var(--astra-muted)]">
+            <span className="text-xs text-[var(--cs-muted)]">
               {coverage.coveredPages}/{coverage.contentPages} içerik sayfası ·{" "}
               {coverage.status}
             </span>
           </div>
-          <p className="text-sm text-[var(--astra-text)]">{coverage.summary}</p>
+          <p className="text-sm text-[var(--cs-text)]">{coverage.summary}</p>
           {coverage.unreadablePages.length ? (
             <ul className="space-y-1 text-xs text-red-300">
               {coverage.unreadablePages.map((page) => (
@@ -181,7 +181,7 @@ export function TopicMapEditor({
             </ul>
           ) : null}
           {coverage.skippedPages.length ? (
-            <ul className="space-y-1 text-xs text-[var(--astra-muted)]">
+            <ul className="space-y-1 text-xs text-[var(--cs-muted)]">
               {coverage.skippedPages.map((page) => (
                 <li key={`s-${page.pageNumber}`}>
                   Sayfa {page.pageNumber} ({page.kind}): {page.reason}
@@ -191,16 +191,16 @@ export function TopicMapEditor({
           ) : null}
         </section>
       ) : (
-        <p className="text-sm text-[var(--astra-muted)]">
+        <p className="text-sm text-[var(--cs-muted)]">
           Henüz kapsam raporu yok. Aşağıdan yeniden oluşturabilirsiniz.
         </p>
       )}
 
-      <section className="astra-pay-card space-y-3 px-4 py-4">
-        <h2 className="text-sm font-semibold text-[var(--astra-text)]">
+      <section className="cs-pay-card space-y-3 px-4 py-4">
+        <h2 className="text-sm font-semibold text-[var(--cs-text)]">
           Kaynak sınırı
         </h2>
-        <label className="flex items-start gap-2 text-sm text-[var(--astra-text)]">
+        <label className="flex items-start gap-2 text-sm text-[var(--cs-text)]">
           <input
             type="radio"
             name="boundary"
@@ -213,7 +213,7 @@ export function TopicMapEditor({
             bilgi alanı eklenmez. Okunamayan yerler açıkça belirtilir.
           </span>
         </label>
-        <label className="flex items-start gap-2 text-sm text-[var(--astra-text)]">
+        <label className="flex items-start gap-2 text-sm text-[var(--cs-text)]">
           <input
             type="radio"
             name="boundary"
@@ -230,16 +230,16 @@ export function TopicMapEditor({
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-[var(--astra-text)]">
+          <h2 className="text-sm font-semibold text-[var(--cs-text)]">
             Konu haritası ({topics.length})
           </h2>
-          <p className="text-xs text-[var(--astra-muted)]">Durum: {initialStatus}</p>
+          <p className="text-xs text-[var(--cs-muted)]">Durum: {initialStatus}</p>
         </div>
 
         {topics.map((topic) => (
           <article
             key={topic.id}
-            className="astra-pay-card space-y-2 px-4 py-3"
+            className="cs-pay-card space-y-2 px-4 py-3"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <input
@@ -247,7 +247,7 @@ export function TopicMapEditor({
                 onChange={(event) =>
                   updateTopic(topic.id, { title: event.target.value })
                 }
-                className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-sm text-[var(--astra-text)]"
+                className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-sm text-[var(--cs-text)]"
               />
               <button
                 type="button"
@@ -257,7 +257,7 @@ export function TopicMapEditor({
                 Sil
               </button>
             </div>
-            <p className="text-[11px] text-[var(--astra-muted)]">
+            <p className="text-[11px] text-[var(--cs-muted)]">
               Sayfalar:{" "}
               {topic.pageNumbers.length
                 ? topic.pageNumbers.join(", ")
@@ -273,7 +273,7 @@ export function TopicMapEditor({
               }
               placeholder="Öğrenme hedefi"
               rows={2}
-              className="w-full rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-sm text-[var(--astra-text)]"
+              className="w-full rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-sm text-[var(--cs-text)]"
             />
             <textarea
               value={topic.studentNotes ?? ""}
@@ -284,14 +284,14 @@ export function TopicMapEditor({
               }
               placeholder="Kendi notun (isteğe bağlı)"
               rows={2}
-              className="w-full rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-sm text-[var(--astra-text)]"
+              className="w-full rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-sm text-[var(--cs-text)]"
             />
           </article>
         ))}
       </section>
 
       {stale ? (
-        <p className="rounded-xl border border-[var(--astra-primary)]/30 bg-[var(--astra-primary)]/5 px-4 py-3 text-sm text-[var(--astra-text)]">
+        <p className="rounded-xl border border-[var(--cs-primary)]/30 bg-[var(--cs-primary)]/5 px-4 py-3 text-sm text-[var(--cs-text)]">
           <strong>Bu harita eski kurallarla çıkarıldı.</strong>{" "}
           Yenilersen konu başlıkları belgenin konusunu taşır ve ders
           bölümleri belgenin kendi alt başlıklarından kurulur. Kendi
@@ -304,7 +304,7 @@ export function TopicMapEditor({
           type="button"
           disabled={pending || !dirty}
           onClick={() => save(false)}
-          className="rounded-full bg-[var(--astra-primary)] px-4 py-2 text-sm font-medium text-black disabled:opacity-50"
+          className="rounded-full bg-[var(--cs-primary)] px-4 py-2 text-sm font-medium text-black disabled:opacity-50"
         >
           {pending ? "Kaydediliyor…" : "Kaydet"}
         </button>
@@ -312,7 +312,7 @@ export function TopicMapEditor({
           type="button"
           disabled={pending}
           onClick={() => save(true)}
-          className="rounded-full border border-white/15 px-4 py-2 text-sm text-[var(--astra-text)] disabled:opacity-50"
+          className="rounded-full border border-white/15 px-4 py-2 text-sm text-[var(--cs-text)] disabled:opacity-50"
         >
           Gözden geçirdim
         </button>
@@ -321,13 +321,13 @@ export function TopicMapEditor({
           disabled={pending}
           onClick={rebuild}
           title={stale ? "Bu harita eski kurallarla çıkarıldı." : undefined}
-          className="rounded-full border border-white/15 px-4 py-2 text-sm text-[var(--astra-text)] disabled:opacity-50"
+          className="rounded-full border border-white/15 px-4 py-2 text-sm text-[var(--cs-text)] disabled:opacity-50"
         >
           Haritayı yeniden oluştur
         </button>
         <a
           href={`/deneme-sinavlari/olustur?documentId=${documentId}`}
-          className="rounded-full border border-[var(--astra-primary)]/40 px-4 py-2 text-sm font-medium text-[var(--astra-primary)]"
+          className="rounded-full border border-[var(--cs-primary)]/40 px-4 py-2 text-sm font-medium text-[var(--cs-primary)]"
         >
           Bu haritayla sınav hazırlığı başlat →
         </a>

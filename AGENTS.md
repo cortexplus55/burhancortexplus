@@ -126,3 +126,90 @@ soruldu; cevap **geri getirilmesin** oldu. Gerekçe değişmedi: 34 simülasyonu
 öğrenciye ne öğrettiği ölçülemiyordu, yerine gelen 12 araçlı `/araclar` ölçülebilir
 iş yapıyor. Bu satır tartışmayı kapatmak için duruyor — bir sonraki parite
 turunda bu maddeyi yeniden açmayın.
+
+---
+
+## Ödeme: otomatik yenileme bugün açılamıyor — mimari engel
+
+**17 Eylül 2026'da PayTR'nin kendi dokümanından doğrulandı.** "Auto renew
+açalım" istendiğinde bakılacak yer burası; cevap "yetki bekliyoruz" değil.
+
+Kullandığımız **iFrame API'nin kart saklama parametresi yok** — `store_card`,
+`utoken`, `ctoken` iFrame token isteğinin parametre listesinde geçmiyor. Kart
+saklama tümüyle **Direkt API** başlığının altında ve Direkt API'de kart
+numarası ile CVV **kendi sunucumuzdan** PayTR'ye gidiyor: PCI-DSS kapsamı.
+
+Yani Non3D yetkisi alınsa bile saklanacak bir kart olmuyor. Engeller kodda
+tek yerde: `src/lib/payments/paytr-capability.ts` → `RECURRING_BLOCKERS`,
+`/admin/sistem` sayfasında tablo olarak görünüyor. Aynı dosyadaki
+`AUTO_RENEW_SUPPORTED` **tek kaynak**: `false` durduğu sürece bir bekçi test
+sözleşme metninin "otomatik olarak yenilenmez" demeye devam ettiğini tutuyor.
+
+**Sıra önemli:** önce Direkt API + kart saklama + Non3D yetkisi, en son
+sözleşme metni ve `AUTO_RENEW_SUPPORTED`. Tersi yapılırsa sözleşme
+tutulamayan bir söz verir — abonelik sessizce biter, vaat edilen tahsilat hiç
+olmaz. Ayrıntı: `cortex-plus/docs/delivery/PAYTR-ABONELIK.md`.
+
+Mağazada yetkinin gerçekten olup olmadığı artık tahmin değil:
+`probePaytrRecurring()` kart saklama servisine var olmayan bir kullanıcı için
+liste soruyor (para hareketi yok) ve cevabı `/admin/sistem`'e yazıyor.
+
+**Karar park edildi (17 Eylül 2026):** "Direkt API'ye geçip PCI'ı kabul
+edelim mi" sorusu ürün sahibine soruldu; cevap **önce PayTR'ye soralım**
+oldu. Gönderilecek talep hazır: `cortex-plus/docs/delivery/PAYTR-DESTEK-TALEBI.md`
+— dört soru ve her cevabın ne değiştireceği yazılı. Yazılı cevap gelmeden
+Direkt API'ye geçilmiyor ve sözleşme metnine dokunulmuyor.
+
+## Satıcı bilgileri: iki alan bilerek yayınlanmıyor
+
+Vergi levhasından girildi (`src/lib/legal/seller.ts`): **Mukadder Önder**,
+şahıs işletmesi, Bafra / Samsun, vergi dairesi **Bafra**, iletişim
+`cortexplus@cortexplus.app`.
+
+**Yayınlanmayanlar — ürün sahibinin kararı, eksiklik değil:**
+
+| Alan | Neden |
+|---|---|
+| Vergi kimlik numarası | Şahıs işletmesinde bu numara T.C. kimlik numarası; herkese açık olması gerçek bir gizlilik riski. Vergi dairesi gösteriliyor. |
+| Telefon | Kişisel numara yayınlanmak istenmedi; iletişim e-posta üzerinden. |
+
+İkisi de `ACCEPTED_OMISSIONS` altında gerekçesiyle duruyor ve
+`missingSellerFields()` bunları eksik saymıyor — saysaydı hukuki sayfaların
+başında sürekli kırmızı uyarı dururdu ve uyarı anlamını yitirirdi. Kabul
+edilen risk: bir denetimde eksik sayılabilir. "Neden telefon yok" diye
+sorulduğunda cevap bu satırdır.
+
+---
+
+## `npm install` "up to date" derken lockfile bozuk olabilir
+
+**17 Eylül 2026'da CI main'de kırmızıydı** ve üç işin hepsi aynı yerde
+düşüyordu:
+
+```
+npm error Missing: @esbuild/linux-x64@0.28.2 from lock file
+```
+
+Sebep: `package-lock.json` **kendi içinde tutarsızdı**. `tsx@4.23.13` girişi
+`"esbuild": "~0.28.0"` bağımlılığını bildiriyordu ama lockfile'da ne `esbuild`
+ne `@esbuild/*` kaydı vardı. Önemli olan şu:
+
+| Komut | Davranış |
+|---|---|
+| `npm ci` | Doğrular, tutarsızlığı görür, **reddeder** |
+| `npm install` | Toleranslı, sessizce **"up to date" der** |
+
+Bu yüzden sorun yerelde de vardı ve kimse görmedi: `tsx` ve `esbuild` hiç
+kurulu değildi. Lockfile elle düzeltilmez — npm ile sıfırdan üretilir.
+
+**Daha büyük ders — CI iş dallarında çalışmıyor.** Workflow yalnızca
+`main` push'unda ve PR'da tetikleniyor (`.github/workflows/ci.yml`). Doğrudan
+bir iş dalına çalışıp main'e geçmeden CI'a hiç girmiyorsunuz: bu sefer
+**25 commit doğrulanmadan birikti** ve hata ancak main'e push edilince çıktı.
+Uzun süren bir dalda ara ara `npm ci`'yi elle çalıştırın ya da PR açın.
+
+**Bir şeyin yayında olduğunu varsaymayın.** Aynı gün dört hukuki sayfanın
+(`/mesafeli-satis`, `/on-bilgilendirme`, `/iptal-iade`, `/teslimat`) canlıda
+**404 döndüğü** görüldü: sayfalar yazılmış, test edilmiş, commit edilmişti —
+ama dalda duruyordu. Yazılmış olmak yayında olmak değil; `curl` ile bakmak
+on saniye sürüyor.

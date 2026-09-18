@@ -261,43 +261,43 @@ export function ExamVoiceTutor({
   }
 
   return (
-    <section className="ap-tutor">
+    <section className="cp-tutor">
       <div
-        className={`ap-tutor-orb ${phase === "speaking" ? "is-talk" : ""} ${phase === "listening" ? "is-listen" : ""}`}
+        className={`cp-tutor-orb ${phase === "speaking" ? "is-talk" : ""} ${phase === "listening" ? "is-listen" : ""}`}
         aria-hidden
       />
-      <p className="ap-tutor-caption">{caption}</p>
+      <p className="cp-tutor-caption">{caption}</p>
 
-      <div className="ap-tutor-log">
+      <div className="cp-tutor-log">
         {messages.map((message, index) => (
           <p
             key={`${message.role}-${index}`}
-            className={message.role === "user" ? "ap-exam-intake-user" : "ap-exam-intake-ai"}
+            className={message.role === "user" ? "cp-exam-intake-user" : "cp-exam-intake-ai"}
           >
             {message.content}
           </p>
         ))}
       </div>
 
-      <div className="ap-tutor-actions">
+      <div className="cp-tutor-actions">
         {phase === "listening" ? (
           // Kayıt sessizlikle kendiliğinden biter; bu düğüm sessizliği
           // beklemek istemeyen için.
           <button
             type="button"
-            className="ap-exam-continue ap-exam-continue--primary"
+            className="cp-exam-continue cp-exam-continue--primary"
             onClick={() => void finishListening(messages)}
           >
             Bitirdim
           </button>
         ) : phase === "speaking" || phase === "thinking" ? (
-          <button type="button" className="ap-exam-continue ap-exam-continue--primary" onClick={stopAll}>
+          <button type="button" className="cp-exam-continue cp-exam-continue--primary" onClick={stopAll}>
             Durdur
           </button>
         ) : (
           <button
             type="button"
-            className="ap-exam-continue ap-exam-continue--primary"
+            className="cp-exam-continue cp-exam-continue--primary"
             onClick={() => void listen(messages)}
           >
             Konuş
@@ -305,7 +305,7 @@ export function ExamVoiceTutor({
         )}
         <button
           type="button"
-          className="ap-exam-continue"
+          className="cp-exam-continue"
           onClick={() => {
             stopAll();
             onFinish(messages.filter((m) => m.role === "user").length);

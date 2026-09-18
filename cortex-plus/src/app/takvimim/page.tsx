@@ -1,4 +1,4 @@
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { CalendarView } from "@/components/parity/calendar-view";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
@@ -27,8 +27,8 @@ export default async function TakvimimPage() {
   const items = buildCalendarItems(events ?? [], preps ?? []);
 
   return (
-    <AstraParitySorShell {...shell}>
+    <ParitySorShell {...shell}>
       <CalendarView items={items} />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

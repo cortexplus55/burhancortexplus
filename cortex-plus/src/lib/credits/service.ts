@@ -29,14 +29,32 @@ export async function reserveCredits(
   userId: string,
   actionCode: ActionCode,
   idempotencyKey: string,
+  /**
+   * Kaç birim iş yapılacağı. Varsayılan 1 — on bir eylemin onu sabit fiyatlı
+   * ve parametreyi hiç göndermiyor.
+   *
+   * Seslendirme için var: önbellek paylaşımlı olduğu için aynı istekte kimi
+   * cümle bedava gelir, kimi yeniden üretilir. Düz ücret ikisini de yanlış
+   * fiyatlar — bedava geleni faturalandırır, uzun üretimi zarara yazar.
+   */
+  quantity = 1,
 ): Promise<ReservationResult> {
-  const cost = await getActionCost(service, actionCode);
-  if (cost === null) return { ok: false, reason: "invalid_action" };
+  const unitCost = await getActionCost(service, actionCode);
+  if (unitCost === null) return { ok: false, reason: "invalid_action" };
+
+  // Miktar burada bir kez normalleşiyor ve RPC'ye de bu hâli gidiyor.
+  // Ham değeri göndermek, sunucunun kırptığı bir sayıyla burada hesaplanan
+  // tutarın ayrışması demekti: kullanıcıya bir rakam gösterip cüzdanından
+  // başka bir rakam düşerdi. Sunucu tarafındaki kırpma yine duruyor —
+  // `credit_reserve` tek başına da doğru davranmalı.
+  const units = Math.min(Math.max(Math.trunc(quantity) || 1, 1), 1000);
+  const cost = unitCost * units;
 
   const { data, error } = await service.rpc("credit_reserve", {
     p_user_id: userId,
     p_action_code: actionCode,
     p_idempotency_key: idempotencyKey,
+    p_quantity: units,
   });
 
   if (error) {
@@ -66,17 +84,30 @@ export async function refundCredits(
   await service.rpc("credit_refund", { p_reservation_id: reservationId });
 }
 
+/**
+ * Sesin kendi eylem kodlari.
+ *
+ * Seslendirme ve cozumleme krediden dusmuyor (bedeli dugume dahil), bu yuzden
+ * `ActionCode` birligine girmiyorlar — ama maliyeti olan tek kalem olmalari
+ * onlari olculmesi en gerekli yer yapiyor. `ai_usage_events.action_code`
+ * serbest metin oldugu icin sema degisikligi gerekmiyor.
+ */
+export type UsageCode = ActionCode | "TTS_SYNTHESIZE" | "STT_TRANSCRIBE";
+
 export async function recordUsage(
   service: SupabaseClient,
   params: {
     userId: string;
-    actionCode: ActionCode;
+    actionCode: UsageCode;
     model: string;
     tokensIn: number;
     tokensOut: number;
     reservationId?: string | null;
   },
 ) {
+  // tokensIn/Out = FATURALANAN BIRIM. Metin modellerinde jeton; seslendirmede
+  // gonderilen karakter, cozumlemede yuklenen kilobayt. Fiyat satirlari
+  // (ai_model_prices) her model icin ayni birimle yaziliyor.
   await service.from("ai_usage_events").insert({
     user_id: params.userId,
     action_code: params.actionCode,

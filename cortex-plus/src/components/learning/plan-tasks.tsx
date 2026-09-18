@@ -71,11 +71,11 @@ export function PlanTasks({
   }
 
   return (
-    <section className="ap-plan-card">
-      <div className="ap-plan-card-head">
-        <h3 className="ap-plan-card-title">{title}</h3>
-        <div className="ap-plan-card-meta">
-          {status === "active" ? <span className="ap-plan-badge">Aktif</span> : null}
+    <section className="cp-plan-card">
+      <div className="cp-plan-card-head">
+        <h3 className="cp-plan-card-title">{title}</h3>
+        <div className="cp-plan-card-meta">
+          {status === "active" ? <span className="cp-plan-badge">Aktif</span> : null}
           <span>
             {done} / {state.length} tamamlandı
           </span>
@@ -84,7 +84,7 @@ export function PlanTasks({
 
       {state.length > 0 ? (
         <div
-          className="ap-plan-progress"
+          className="cp-plan-progress"
           role="progressbar"
           aria-valuenow={Math.round(progress)}
           aria-valuemin={0}
@@ -95,25 +95,25 @@ export function PlanTasks({
       ) : null}
 
       {groups.map(([label, items]) => (
-        <div key={label} className="ap-plan-group">
-          <p className="ap-plan-group-label">{label}</p>
+        <div key={label} className="cp-plan-group">
+          <p className="cp-plan-group-label">{label}</p>
           <ul>
             {items.map((task) => (
               <li key={task.id}>
                 <label
                   htmlFor={`task-${task.id}`}
-                  className={cn("ap-plan-task", task.completed && "is-done")}
+                  className={cn("cp-plan-task", task.completed && "is-done")}
                 >
                   <Checkbox
                     id={`task-${task.id}`}
                     checked={task.completed}
                     onCheckedChange={(value) => toggle(task.id, value === true)}
-                    className="mt-0.5 border-[var(--ap-border)] data-[state=checked]:border-[var(--ap-gold)] data-[state=checked]:bg-[var(--ap-gold)] data-[state=checked]:text-[#0a0a0a] data-checked:border-[var(--ap-gold)] data-checked:bg-[var(--ap-gold)] data-checked:text-[#0a0a0a]"
+                    className="mt-0.5 border-[var(--cp-border)] data-[state=checked]:border-[var(--cp-gold)] data-[state=checked]:bg-[var(--cp-gold)] data-[state=checked]:text-[#0a0a0a] data-checked:border-[var(--cp-gold)] data-checked:bg-[var(--cp-gold)] data-checked:text-[#0a0a0a]"
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="ap-plan-task-title">{task.title}</span>
+                    <span className="cp-plan-task-title">{task.title}</span>
                     {task.dueDate ? (
-                      <span className="ap-plan-task-due">
+                      <span className="cp-plan-task-due">
                         {" "}
                         {formatDateShort(task.dueDate)}
                       </span>

@@ -51,20 +51,20 @@ export function ExamPrepAssessment({
       openMisconceptions === 0);
 
   return (
-    <div className="ap-exam-page">
-      <Link href={`/deneme-sinavlari/${prepId}`} className="ap-back-pill">
+    <div className="cp-exam-page">
+      <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill">
         ← Yola dön
       </Link>
-      <header className="ap-exam-trail-head" style={{ marginTop: "1rem" }}>
+      <header className="cp-exam-trail-head" style={{ marginTop: "1rem" }}>
         <h1>Sınav öncesi genel değerlendirme</h1>
-        <p className="text-sm text-[var(--ap-muted)]">
+        <p className="text-sm text-[var(--cp-muted)]">
           {title}
           {examDate ? ` · sınav ${examDate}` : ""}
           {daysLeft != null ? ` · ${daysLeft} gün` : ""}
         </p>
       </header>
 
-      <section className="ap-countdown" aria-label="Üç gösterge">
+      <section className="cp-countdown" aria-label="Üç gösterge">
         <AssessmentMeter
           title="Program ilerlemesi"
           pct={tracking.programProgressPct}
@@ -90,10 +90,10 @@ export function ExamPrepAssessment({
         />
       </section>
 
-      <section className="ap-exam-assessment-verdict" role="status">
-        <p className="ap-lesson-kicker">Karar özeti</p>
+      <section className="cp-exam-assessment-verdict" role="status">
+        <p className="cp-lesson-kicker">Karar özeti</p>
         <h2>{go ? "Denemeye hazır görünüyorsun" : "Önce zayıf noktaları kapat"}</h2>
-        <ul className="text-sm text-[var(--ap-muted)]" style={{ paddingLeft: "1.1rem" }}>
+        <ul className="text-sm text-[var(--cp-muted)]" style={{ paddingLeft: "1.1rem" }}>
           <li>
             Açık yanılgı: {openMisconceptions}
             {openMisconceptions > 0 ? " — tekrarlar ekranına bak" : ""}
@@ -105,19 +105,19 @@ export function ExamPrepAssessment({
           </li>
         </ul>
         <div className="flex flex-wrap gap-2" style={{ marginTop: "0.75rem" }}>
-          <Link href={nextHref} className="ap-exam-continue ap-exam-continue--primary">
+          <Link href={nextHref} className="cp-exam-continue cp-exam-continue--primary">
             {go ? "Sıradaki adıma git" : "Öncelikli derse git"}
           </Link>
           {openMisconceptions > 0 ? (
             <Link
               href={`/deneme-sinavlari/${prepId}/tekrarlar`}
-              className="ap-exam-continue"
+              className="cp-exam-continue"
             >
               Yanlışlar ve tekrarlar
             </Link>
           ) : null}
           {mockNodeHref ? (
-            <Link href={mockNodeHref} className="ap-exam-continue">
+            <Link href={mockNodeHref} className="cp-exam-continue">
               Genel denemeyi aç
             </Link>
           ) : null}
@@ -127,11 +127,11 @@ export function ExamPrepAssessment({
       <section aria-label="Konu bazlı sonuçlar" style={{ marginTop: "1.25rem" }}>
         <h2 className="text-base font-semibold">Konu bazlı sonuçlar</h2>
         {!topics.length ? (
-          <p className="text-sm text-[var(--ap-muted)]" role="status">
+          <p className="text-sm text-[var(--cp-muted)]" role="status">
             Henüz konu ölçümü yok. Tanışma veya quiz oturumları burayı doldurur.
           </p>
         ) : (
-          <ul className="ap-exam-topic-board">
+          <ul className="cp-exam-topic-board">
             {topics.map((t) => (
               <li key={t.topicKey}>
                 <strong>{t.topicKey}</strong>
@@ -165,21 +165,21 @@ function AssessmentMeter({
   const shown = pct == null ? null : Math.max(0, Math.min(100, pct));
   return (
     <div style={{ marginBottom: "0.85rem" }}>
-      <div className="ap-countdown-row">
+      <div className="cp-countdown-row">
         <span>{title}</span>
-        <span className="ap-countdown-pct">
+        <span className="cp-countdown-pct">
           {shown == null ? emptyText : `%${shown}`}
         </span>
       </div>
-      <div className="ap-countdown-meter" aria-hidden>
+      <div className="cp-countdown-meter" aria-hidden>
         <span
           style={{
             width: `${shown == null ? 0 : Math.max(shown, shown > 0 ? 3 : 0)}%`,
           }}
         />
       </div>
-      <p className="ap-countdown-state text-sm">{label}</p>
-      <p className="text-xs text-[var(--ap-muted)]">{hint}</p>
+      <p className="cp-countdown-state text-sm">{label}</p>
+      <p className="text-xs text-[var(--cp-muted)]">{hint}</p>
     </div>
   );
 }

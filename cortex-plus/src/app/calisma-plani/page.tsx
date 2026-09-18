@@ -1,4 +1,4 @@
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { StudyPlanGeneratePanel } from "@/components/learning/learning-generate-panels";
 import { StudyWorkspace } from "@/components/learning/study-workspace";
 import { requireStudentArea } from "@/lib/auth/session";
@@ -40,7 +40,7 @@ export default async function CalismaPlaniPage() {
   ]);
 
   return (
-    <AstraParitySorShell {...shell}>
+    <ParitySorShell {...shell}>
       <StudyWorkspace
         targetScore={examPrep?.target_score ?? null}
         generateSlot={<StudyPlanGeneratePanel creditCost={cost} />}
@@ -59,6 +59,6 @@ export default async function CalismaPlaniPage() {
             })),
         }))}
       />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

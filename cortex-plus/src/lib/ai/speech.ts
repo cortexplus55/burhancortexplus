@@ -37,7 +37,8 @@ export function audioHash(text: string, speaker: SpeakerId): string {
     .digest("hex");
 }
 
-export type SynthResult = { audio: Buffer; durationMs: number };
+/** `chars` = API'ye gonderilen karakter sayisi; TTS faturasi bununla olculuyor. */
+export type SynthResult = { audio: Buffer; durationMs: number; chars: number };
 
 export async function synthesizeLine(
   text: string,
@@ -47,12 +48,14 @@ export async function synthesizeLine(
   const clean = text.trim();
   if (!clean) return null;
 
+  const input = clean.slice(0, 1200);
+
   try {
     const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
     const response = await openai.audio.speech.create({
       model: env.OPENAI_TTS_MODEL,
       voice: voiceFor(speaker),
-      input: clean.slice(0, 1200),
+      input,
       instructions: SPEAKER_STYLE[speaker],
       response_format: "mp3",
     });
@@ -62,7 +65,7 @@ export async function synthesizeLine(
     // Süre ölçülemediyse bu parçayı önbelleğe almıyoruz: sıfır süreli bir
     // satır zaman çizelgesini kaydırır ve vurgu sesin gerisinde kalır.
     if (!durationMs) return null;
-    return { audio, durationMs };
+    return { audio, durationMs, chars: input.length };
   } catch {
     return null;
   }

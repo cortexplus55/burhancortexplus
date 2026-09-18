@@ -1,10 +1,10 @@
 import { ChatPanel } from "@/components/chat/chat-panel";
-import { AstraParitySorShell } from "@/components/parity/astra-parity-sor-shell";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import {
-  astraGreetingName,
-  astraTimeGreeting,
-  astraUserInitial,
-} from "@/components/parity/astra-app-utils";
+  parityGreetingName,
+  parityTimeGreeting,
+  parityUserInitial,
+} from "@/components/parity/app-utils";
 import { requireStudentArea } from "@/lib/auth/session";
 import { getCreditCost } from "@/lib/credits/rules";
 import { isPremiumUser } from "@/lib/ai/generate";
@@ -117,8 +117,8 @@ export default async function OgretmenPage({
     }
   }
 
-  const firstName = astraGreetingName(profile?.full_name ?? user.email);
-  const timeGreeting = astraTimeGreeting();
+  const firstName = parityGreetingName(profile?.full_name ?? user.email);
+  const timeGreeting = parityTimeGreeting();
   const moon =
     timeGreeting === "İyi akşamlar" || timeGreeting === "İyi geceler" ? " 🌙" : "";
   // `toLowerCase()` burada "İ"yi "i" + ayrı bir nokta işaretine çeviriyordu:
@@ -128,8 +128,8 @@ export default async function OgretmenPage({
   const avatar = profile?.avatar_url as string | null | undefined;
 
   return (
-    <AstraParitySorShell
-      userInitial={astraUserInitial(profile?.full_name, user.email)}
+    <ParitySorShell
+      userInitial={parityUserInitial(profile?.full_name, user.email)}
       avatarEmoji={avatar && !avatar.startsWith("http") ? avatar : null}
       streak={streak}
       account={account}
@@ -140,7 +140,7 @@ export default async function OgretmenPage({
       }))}
     >
       <ChatPanel
-        variant="astra"
+        variant="parity"
         composerMode="parity"
         feedbackEnabled={feedbackOn}
         greetingLine={greetingLine}
@@ -162,6 +162,6 @@ export default async function OgretmenPage({
         })}
         dailyDrillCount={mistakes.open}
       />
-    </AstraParitySorShell>
+    </ParitySorShell>
   );
 }

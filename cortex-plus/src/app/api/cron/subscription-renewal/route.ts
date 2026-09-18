@@ -14,10 +14,14 @@ export const dynamic = "force-dynamic";
 /**
  * Yenileme hatırlatması ve dönem kapanışı.
  *
- * PayTR'da otomatik tahsilat, mağazaya Non3D + Direkt API yetkisi tanımlanana
- * kadar mümkün değil. O gelene kadar abonelik kendiliğinden yenilenmiyor; bu
- * iş bitişten üç gün önce haber veriyor ve süresi dolanı kapatıyor. Yetki
- * geldiğinde burası `auto_renew = true` olan satırlar için tahsilata döner.
+ * PayTR'da otomatik tahsilat bugün mümkün değil. Engeller tek yerde yazılı:
+ * `src/lib/payments/paytr-capability.ts` → `RECURRING_BLOCKERS`. Kısaca kart
+ * saklama yalnızca Direkt API'de var, biz iFrame API kullanıyoruz; üstelik
+ * Direkt API kart numarasını bizim sunucumuzdan geçiriyor (PCI kapsamı).
+ *
+ * O yüzden abonelik kendiliğinden yenilenmiyor; bu iş bitişten üç gün önce
+ * haber veriyor ve süresi dolanı kapatıyor. Engeller aşıldığında burası
+ * `auto_renew = true` olan satırlar için tahsilata döner.
  *
  * Vercel Cron `Authorization: Bearer $CRON_SECRET` gönderir.
  */

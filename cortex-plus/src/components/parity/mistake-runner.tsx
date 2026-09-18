@@ -80,15 +80,15 @@ export function MistakeRunner({
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-[var(--astra-muted)]">
+      <p className="text-xs text-[var(--cs-muted)]">
         {position} / {total}
         {question.wrongCount > 1
           ? ` · bu soruyu ${question.wrongCount} kez yanlış yaptın`
           : ""}
       </p>
 
-      <div className="astra-pay-card p-5">
-        <p className="text-base leading-relaxed text-[var(--astra-text)]">
+      <div className="cs-pay-card p-5">
+        <p className="text-base leading-relaxed text-[var(--cs-text)]">
           {question.questionText}
         </p>
 
@@ -107,12 +107,12 @@ export function MistakeRunner({
                 className={[
                   "rounded-lg border px-4 py-3 text-left text-sm transition-colors",
                   isAnswer
-                    ? "border-emerald-500/60 bg-emerald-500/10 text-[var(--astra-text)]"
+                    ? "border-emerald-500/60 bg-emerald-500/10 text-[var(--cs-text)]"
                     : isPicked && feedback && !feedback.correct
-                      ? "border-red-500/60 bg-red-500/10 text-[var(--astra-text)]"
+                      ? "border-red-500/60 bg-red-500/10 text-[var(--cs-text)]"
                       : isPicked
-                        ? "border-amber-500 bg-amber-500/10 text-[var(--astra-text)]"
-                        : "border-white/10 text-[var(--astra-muted)] hover:border-white/25",
+                        ? "border-amber-500 bg-amber-500/10 text-[var(--cs-text)]"
+                        : "border-white/10 text-[var(--cs-muted)] hover:border-white/25",
                 ].join(" ")}
               >
                 {option}
@@ -148,7 +148,7 @@ export function MistakeRunner({
             </p>
 
             {feedback.explanation ? (
-              <p className="text-sm leading-relaxed text-[var(--astra-muted)]">
+              <p className="text-sm leading-relaxed text-[var(--cs-muted)]">
                 {feedback.explanation}
               </p>
             ) : null}
