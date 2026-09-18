@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { isPhotoQuotaError } from "@/lib/documents/process-errors";
 import {
   Check,
   ChevronLeft,
@@ -245,12 +246,17 @@ export function ExamCreateWizard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ documentId: uploaded.documentId }),
       });
+      const processed = await processRes.json().catch(() => ({}));
       if (processRes.status === 402) {
+        // Fotoğraf kotası bittiyse kredi satın almak işe yaramıyor.
+        if (isPhotoQuotaError(processed)) {
+          toast.error(processed.error ?? "Bu ayki fotoğraf hakkın doldu.");
+          return;
+        }
         setPaywall(true);
         return;
       }
       if (!processRes.ok) {
-        const processed = await processRes.json().catch(() => ({}));
         toast.error(processed.error ?? "Dosya işlenemedi.");
         return;
       }

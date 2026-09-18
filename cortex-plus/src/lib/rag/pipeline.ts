@@ -1,5 +1,11 @@
 import "server-only";
 import { extractText } from "@/lib/documents/extract-text";
+import {
+  extractImageText,
+  isImageDocument,
+} from "@/lib/documents/extract-image-text";
+import { recordUsage } from "@/lib/credits/service";
+import { recordAbuse } from "@/lib/abuse/record";
 import { chunkText } from "@/lib/rag/chunk";
 export { chunkText } from "@/lib/rag/chunk";
 export { extractText } from "@/lib/documents/extract-text";
@@ -66,15 +72,64 @@ export async function processDocument(
 
   try {
   const buffer = Buffer.from(await download.data.arrayBuffer());
-  const extracted = await extractText(buffer, doc.mime_type);
 
-  if (!extracted.ok || !extracted.pages.length) {
-    return fail("text_extraction_unsupported");
+  /*
+    Fotoğraf ayrı yoldan okunuyor.
+
+    Yükleme tarafı `image/*` kabul ediyordu ama okuma tarafı yalnızca PDF ve
+    TXT biliyordu; yüklenen her fotoğraf burada düşüyordu. Fotoğrafı okumak
+    biçim dönüşümü — ayrı bir eylem kodu ya da kredi fiyatı yok, belge işleme
+    neyse o.
+
+    Hata kodu da ayrı: "metin katmanı olan bir PDF deneyin" öğüdü, PDF
+    yüklememiş bir öğrenciye anlamsız gelir.
+  */
+  let pages: string[];
+
+  if (isImageDocument(doc.mime_type)) {
+    const read = await extractImageText(buffer, doc.mime_type);
+
+    // Okunamayan denemenin faturası da bize geliyor; kayıt ikisini de
+    // taşısın, yoksa kademeli okumanın gerçek bedeli görünmez.
+    if (read.tokensIn || read.tokensOut) {
+      void recordUsage(service, {
+        userId: doc.user_id as string,
+        actionCode: "DOCUMENT_PAGE_PROCESS",
+        model: read.model ?? env.OPENAI_STANDARD_MODEL,
+        tokensIn: read.tokensIn,
+        tokensOut: read.tokensOut,
+      });
+    }
+
+    if (read.reason === "blocked") {
+      void recordAbuse({
+        signal: "moderation",
+        severity: "high",
+        scope: "document-image",
+        userId: doc.user_id as string,
+        // Görselin kendisi kaydedilmiyor; hangi belgede olduğu yeterli.
+        metadata: { documentId },
+      });
+      return fail("image_blocked");
+    }
+
+    if (!read.ok || !read.pages.length) {
+      return fail(
+        read.reason === "too_large" ? "image_too_large" : "image_unreadable",
+      );
+    }
+    pages = read.pages;
+  } else {
+    const extracted = await extractText(buffer, doc.mime_type);
+    if (!extracted.ok || !extracted.pages.length) {
+      return fail("text_extraction_unsupported");
+    }
+    pages = extracted.pages;
   }
 
   await service
     .from("documents")
-    .update({ status: "processing", page_count: extracted.pages.length })
+    .update({ status: "processing", page_count: pages.length })
     .eq("id", documentId);
 
   // A request can be interrupted after writing only part of the derived data.
@@ -106,7 +161,7 @@ export async function processDocument(
   let chunkIndex = 0;
   const allChunks: { pageId: string; content: string }[] = [];
 
-  for (const [pageNumber, pageText] of extracted.pages.entries()) {
+  for (const [pageNumber, pageText] of pages.entries()) {
     const { data: page, error: pageError } = await service
       .from("document_pages")
       .insert({
