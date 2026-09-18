@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { isPhotoQuotaError } from "@/lib/documents/process-errors";
 import { cn } from "@/lib/utils";
 
 const ALLOWED = [
@@ -77,13 +78,20 @@ export function DocumentUpload({
         body: JSON.stringify({ documentId: uploaded.documentId }),
       });
 
+      const processed = await processRes.json().catch(() => ({}));
+
       if (processRes.status === 402) {
-        setPaywall(true);
         setStatusDetail(null);
+        // Fotoğraf kotası bittiyse kredi satın almak işe yaramıyor; kapı
+        // yerine ne olduğunu söyleyen cümle çıkıyor.
+        if (isPhotoQuotaError(processed)) {
+          toast.error(processed.error ?? "Bu ayki fotoğraf hakkın doldu.");
+          return;
+        }
+        setPaywall(true);
         return;
       }
 
-      const processed = await processRes.json().catch(() => ({}));
       if (!processRes.ok) {
         toast.error(processed.error ?? "Doküman işlenemedi.");
         setStatusDetail(null);
@@ -99,7 +107,11 @@ export function DocumentUpload({
         return;
       }
 
-      toast.success("Doküman hazır. AI öğretmende kaynak olarak kullanabilirsin.");
+      // Uzun bir tarama kesildiyse bunu söylemek zorundayız: öğrenci
+      // belgenin tamamının okunduğunu sanıp eksik kaynakla çalışmasın.
+      toast.success("Doküman hazır. AI öğretmende kaynak olarak kullanabilirsin.", {
+        description: processed.notice ?? undefined,
+      });
       setFile(null);
       router.refresh();
     } catch {

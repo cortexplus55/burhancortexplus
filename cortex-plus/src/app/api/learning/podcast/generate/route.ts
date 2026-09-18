@@ -35,6 +35,23 @@ export async function POST(request: Request) {
   if (!guard.ok) return guard.response;
   const { userId, service } = guard.ctx;
 
+  /*
+    Podcast Plus'a özel (18 Eylül 2026).
+
+    Önceki hâli ücretsiz kullanıcıya 1 kredi karşılığı senaryo üretiyor, sonra
+    onu TARAYICININ ROBOT SESİYLE okutuyordu. Ses zaten premium'a kapalıydı,
+    yani ücretsiz kullanıcı "podcast" diye telefonunun sesini dinliyordu. Bu
+    ürünü tanıtmıyor, kötü gösteriyordu: iki sesli stüdyo anlatımını hiç
+    duymamış bir öğrenci, duyduğu şeyi ürünün kendisi sanıyordu.
+
+    Şimdi kapı burada: ücretsiz kullanıcı senaryoyu da üretemiyor, yerine
+    "Plus'a özel" diyen bir kart görüyor. Ürünü gerçekten duymak isteyen için
+    `/ornek` sayfası duruyor — orada hazır bir bölüm, gerçek sesiyle,
+    girişsiz ve bize maliyetsiz çalıyor.
+  */
+  const isPremium = await isPremiumUser(service, userId);
+  if (!isPremium) return errorResponse(402, "premium_required");
+
   const parsedBody = bodySchema.safeParse(await request.json());
   if (!parsedBody.success) return errorResponse(400, "invalid_input");
 
@@ -42,7 +59,7 @@ export async function POST(request: Request) {
     service,
     userId,
     actionCode: "AI_CHAT_STANDARD",
-    isPremium: await isPremiumUser(service, userId),
+    isPremium,
     schemaHint:
       'Yalnızca şu JSON: {"title":string,"tagline":string,"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +
       "4-5 bölüm. Ada ve Kerem iki sunucu; sırayla konuşur, birbirine soru sorar. " +

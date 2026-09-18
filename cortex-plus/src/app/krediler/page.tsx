@@ -8,6 +8,9 @@ import { formatResetAt, periodLabel, quotaView } from "@/lib/credits/period";
 import { loadReferralSummary } from "@/lib/credits/referral";
 import { loadInviteLink } from "@/lib/credits/invite-code";
 import { ReferralRewardCard } from "@/components/parity/referral-reward-card";
+import { createServiceClient } from "@/lib/supabase/server";
+import { planTier } from "@/lib/documents/photo-quota";
+import { loadUsageLimits } from "@/lib/student/usage-limits";
 
 export const metadata = { title: "Limitler" };
 
@@ -51,6 +54,16 @@ function LimitBar({
 export default async function KredilerPage() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
+
+  /*
+    Krediden bağımsız sayaçlar service role ile okunuyor: `document_page_grants`
+    ve `model_upgrade_grants` istemciye tümüyle kapalı (RLS açık, politika yok).
+    Öğrencinin kendi sayısını görmesi için tabloları açmak, ikisini de
+    yazılabilir hâle getirme riskini doğururdu.
+  */
+  const service = createServiceClient();
+  const tier = await planTier(service, user.id);
+  const usageLimits = await loadUsageLimits(service, user.id, tier);
 
   const [
     { data: wallet },
@@ -151,6 +164,27 @@ export default async function KredilerPage() {
             </Link>
           </div>
         )}
+
+        {/* Krediyle ölçülmeyen sınırlar. Kredi kartının hemen altında
+            duruyorlar çünkü öğrenci "hakkım kalmadı" cümlesini duyduğunda
+            önce krediye, sonra buraya bakıyor. */}
+        <SectionCard
+          variant="parity"
+          title="Krediden ayrı sınırlar"
+          description="Bu işler krediyle ölçülmüyor; kendi sayaçları var."
+        >
+          <div className="cp-limit-card">
+            {usageLimits.map((limit) => (
+              <LimitBar
+                key={limit.key}
+                label={limit.label}
+                value={limit.used}
+                max={limit.limit}
+                hint={limit.hint}
+              />
+            ))}
+          </div>
+        </SectionCard>
 
         <div className="cp-limit-card">
           <LimitBar

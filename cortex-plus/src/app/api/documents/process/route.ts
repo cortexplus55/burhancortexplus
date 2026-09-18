@@ -7,6 +7,8 @@ import {
   refundCredits,
   reserveCredits,
 } from "@/lib/credits/service";
+import { PHOTO_QUOTA_CODE } from "@/lib/documents/process-errors";
+import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
 
 const bodySchema = z.object({ documentId: z.string().uuid() });
 export const maxDuration = 120;
@@ -21,7 +23,7 @@ export async function POST(request: Request) {
 
   const { data: doc } = await service
     .from("documents")
-    .select("id, user_id, status")
+    .select("id, user_id, status, mime_type")
     .eq("id", parsed.data.documentId)
     .maybeSingle();
 
@@ -31,6 +33,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ documentId: doc.id, status: "completed" });
   }
 
+  /*
+    Fotoğraf sayfası kotası artık BORU HATTINDA işliyor, burada değil.
+
+    Sebebi: bir belgenin kaç fotoğraf sayfası yakacağını ancak orada
+    biliyoruz. Taranmış bir PDF'in metin katmanı olmadığı açılmadan belli
+    olmuyor; burada tahmin etmek ya taranmış PDF'i bedavaya geçirirdi ya da
+    metin katmanı olan bir PDF'ten haksız yere kota keserdi.
+
+    Buranın işi kredi. Kota dolduğunda boru hattı `photo_quota_exhausted`
+    dönüyor ve aşağıda krediyle birlikte iade ediliyor.
+  */
   const reservation = await reserveCredits(
     service,
     userId,
@@ -48,13 +61,22 @@ export async function POST(request: Request) {
 
   if (!result.ok) {
     await refundCredits(service, reservation.reservationId);
+
+    // Kota dolduğunda kredi kapısı AÇILMIYOR: kredi satın almak o sorunu
+    // çözmüyor. İstemci bunu `code` alanından ayırıyor.
+    if (result.error === "photo_quota_exhausted") {
+      const tier = await planTier(service, userId);
+      return NextResponse.json(
+        {
+          error: `Bu ayki fotoğraf hakkın doldu (${photoPageLimit(tier)}). Metin katmanı olan PDF ve metin belgeleri etkilenmiyor.`,
+          code: PHOTO_QUOTA_CODE,
+        },
+        { status: 402 },
+      );
+    }
+
     return NextResponse.json(
-      {
-        error:
-          result.error === "text_extraction_unsupported" || result.error === "empty_content"
-            ? "Bu dosyadan metin çıkarılamadı. Metin katmanı olan bir PDF veya TXT deneyin."
-            : "Doküman işlenemedi.",
-      },
+      { error: processFailureMessage(result.error) },
       { status: 422 },
     );
   }
@@ -66,6 +88,33 @@ export async function POST(request: Request) {
     status: "completed",
     chunks: result.chunks,
     creditsUsed: reservation.cost,
+    // Hata değil ama söylenmesi gereken şey — örn. uzun tarama kesildi.
+    notice: result.notice ?? null,
     topicMap: result.topicMap ?? null,
   });
+}
+
+/**
+ * Hata kodunu öğrencinin okuyacağı cümleye çevirir.
+ *
+ * Fotoğrafın kendi cümleleri var: "metin katmanı olan bir PDF deneyin" öğüdü,
+ * telefonundan bir ders notu çeken öğrenciye hiçbir şey anlatmıyor — ne
+ * yaptığını yanlış anladığımızı gösteriyor.
+ */
+function processFailureMessage(error?: string): string {
+  switch (error) {
+    case "image_unreadable":
+      return "Fotoğraftaki yazı okunamadı. Daha yakından, düz ve iyi ışıkta çekilmiş bir kare dener misin?";
+    case "image_too_large":
+      return "Fotoğraf çok büyük. 10 MB'ın altında bir kare gönder.";
+    case "image_blocked":
+      return "Bu görsel işlenemedi. Ders içeriği olan bir fotoğraf yükle.";
+    case "scan_unreadable":
+      return "Taranmış sayfalardaki yazı okunamadı. Daha net taranmış ya da metin katmanı olan bir PDF dener misin?";
+    case "text_extraction_unsupported":
+    case "empty_content":
+      return "Bu dosyadan metin çıkarılamadı. Metin katmanı olan bir PDF veya TXT deneyin.";
+    default:
+      return "Doküman işlenemedi.";
+  }
 }

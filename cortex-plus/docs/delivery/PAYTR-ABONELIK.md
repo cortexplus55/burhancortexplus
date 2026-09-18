@@ -140,6 +140,11 @@ Astra AI'ın 5 Eylül 2026 tarihli vitrini referans alındı (Plus ₺770/ay ve
 ₺3.852/yıl, Sigma ₺2.567/ay; Sigma'da yıllık seçeneği yok). Her kalemde
 %22 aşağıda kaldık:
 
+> **18 Eylül 2026'da referans yeniden kontrol edildi: Astra Plus hâlâ 770 TL.**
+> Kademeler de aynı (Plus + Sigma, aylık/yıllık). Yani aşağıdaki fiyatlar
+> güncel bir karşılaştırmaya dayanıyor, değiştirilecek bir şey yok. Bir daha
+> sorulursa bu satır cevaptır.
+
 | | Aylık | Yıllık | Yıllıkta tasarruf |
 |---|---|---|---|
 | Plus | ₺599 | ₺2.990 (₺249/ay) | %58 |

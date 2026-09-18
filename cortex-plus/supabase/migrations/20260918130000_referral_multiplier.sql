@@ -1,0 +1,56 @@
+-- Davet çarpanı 400 → 10.
+--
+-- --------------------------------- NEDEN ---------------------------------
+--
+-- Çarpan Astra'nın ilan ettiği mekanikten alınmıştı ("O da abone olursa
+-- seninki 400 kata çıkar") ve `20260904000000_referral_rewards.sql` bunu
+-- bilerek tabloya koymuştu: "kısmak için tek bir UPDATE yeterli". Bu, o
+-- UPDATE.
+--
+-- Oradaki maliyet uyarısı ücretsiz katmanı anlatıyordu — 6 birimlik günlük
+-- bütçe 2.400'e çıkıyor. Eksik olan şey çarpanın PREMIUM hesaba da
+-- uygulanması: `credit_reserve` içinde çarpan, planın aylık kotasının üstüne
+-- biniyor. Bugünkü tabloyla:
+--
+--   Katman           Taban            400 çarpanıyla
+--   ---------------  ---------------  ---------------------------
+--   Ücretsiz         6 / gün          2.400 / gün  (~72.000 / ay)
+--   Plus             400 / ay         160.000 → tavanla 100.000 / ay
+--   Sigma            1.600 / ay       640.000 → tavanla 100.000 / ay
+--
+-- 100.000 kredi pratikte sınırsız demek: ölçülen karma maliyetle (~0,12 TL
+-- kredi başına) 12.000 TL'lik kullanım, 599 TL'lik bir abonelikte. Tek bir
+-- paylaşılan davet kodu aylık geliri katbekat aşan bir fatura üretebilirdi.
+--
+-- ------------------------------ NEDEN 10 ---------------------------------
+--
+-- Ödül, GETİRDİĞİ GELİRLE finanse edilebilmeli. Abone olan bir davet ayda
+-- 599 TL getiriyor. 10 çarpanıyla:
+--
+--   Ücretsiz davet eden:  60 / gün  ≈ 1.800 / ay  ≈ 216 TL maliyet
+--   Plus davet eden:      4.000 / ay           ≈ 480 TL maliyet
+--   Sigma davet eden:     16.000 / ay          ≈ 1.920 TL maliyet
+--
+-- Üçünde de getirilen abonenin geliri masrafı karşılıyor ve hiçbiri artık
+-- 100.000 tavanına dayanmıyor — tavan yeniden gerçek bir emniyet kemeri.
+--
+-- 10 aynı zamanda ödülü anlamlı bırakıyor: davet eden ücretsiz öğrenci ayda
+-- ~1.800 krediye çıkıyor, yani bir Plus ayının dört katından fazlasına.
+-- Astra'nın "400 kat" rakamından ayrılıyoruz; onların OpenAI faturası bizde
+-- değil ve ilan edilen sayıyı taklit etmek ürünü finanse etmiyor.
+--
+-- Kaydolan ama abone OLMAYAN davet 3'te kalıyor (6 → 18 / gün). O sayı
+-- zaten zararsızdı ve büyümenin asıl kancası orası.
+--
+-- -------------------------- KAPSAM DIŞI KALAN ----------------------------
+--
+-- Sigma abonesi + abone getiren davet + harcamanın tamamı seslendirme: 16.000
+-- kredi ses, 1.000 karakter başına 0,0167 USD ile ~2.400 TL eder ve o senaryo
+-- hâlâ zararda. Bunu kapatmak `credit_reserve` içindeki 100.000 tavanını
+-- indirmeyi gerektiriyor — para fonksiyonunu aynı gün ikinci kez yeniden
+-- yazmak yerine ürün sahibine ayrı bir karar olarak bırakıldı.
+
+UPDATE public.referral_tiers
+   SET multiplier = 10,
+       note = 'Davet edilen abone oldu — getirdigi gelirle finanse edilen odul'
+ WHERE status = 'subscribed';

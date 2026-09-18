@@ -29,14 +29,32 @@ export async function reserveCredits(
   userId: string,
   actionCode: ActionCode,
   idempotencyKey: string,
+  /**
+   * Kaç birim iş yapılacağı. Varsayılan 1 — on bir eylemin onu sabit fiyatlı
+   * ve parametreyi hiç göndermiyor.
+   *
+   * Seslendirme için var: önbellek paylaşımlı olduğu için aynı istekte kimi
+   * cümle bedava gelir, kimi yeniden üretilir. Düz ücret ikisini de yanlış
+   * fiyatlar — bedava geleni faturalandırır, uzun üretimi zarara yazar.
+   */
+  quantity = 1,
 ): Promise<ReservationResult> {
-  const cost = await getActionCost(service, actionCode);
-  if (cost === null) return { ok: false, reason: "invalid_action" };
+  const unitCost = await getActionCost(service, actionCode);
+  if (unitCost === null) return { ok: false, reason: "invalid_action" };
+
+  // Miktar burada bir kez normalleşiyor ve RPC'ye de bu hâli gidiyor.
+  // Ham değeri göndermek, sunucunun kırptığı bir sayıyla burada hesaplanan
+  // tutarın ayrışması demekti: kullanıcıya bir rakam gösterip cüzdanından
+  // başka bir rakam düşerdi. Sunucu tarafındaki kırpma yine duruyor —
+  // `credit_reserve` tek başına da doğru davranmalı.
+  const units = Math.min(Math.max(Math.trunc(quantity) || 1, 1), 1000);
+  const cost = unitCost * units;
 
   const { data, error } = await service.rpc("credit_reserve", {
     p_user_id: userId,
     p_action_code: actionCode,
     p_idempotency_key: idempotencyKey,
+    p_quantity: units,
   });
 
   if (error) {

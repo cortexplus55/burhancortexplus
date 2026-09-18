@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Pause, Play, RotateCcw, RotateCw } from "lucide-react";
-import { speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
 import {
   SPEAKER_LABEL,
   buildTimeline,
@@ -42,12 +41,19 @@ export function ExamPodcastPlayer({
 }) {
   const normalized = useMemo(() => normalizeChapters(chapters), [chapters]);
   const [audio, setAudio] = useState<AudioLine[] | null>(null);
-  // "premium" ile "fallback" ayrı: ikisi de tarayıcı sesine düşüyor ama
-  // sebepleri farklı ve öğrenciye farklı şey söylenmeli. Gating geldikten
-  // sonra herkese "sunucu sesi şu an yok" demek, premium özelliğini arıza
-  // gibi göstermek olurdu.
+  /*
+    Üç "ses yok" hâli ayrı tutuluyor; hepsinde senaryo okunabilir kalıyor ama
+    öğrenciye söylenen cümle farklı. Herkese "sunucu sesi şu an yok" demek
+    premium özelliğini arıza gibi gösterirdi; kredisi biten bir PLUS
+    ABONESİNE "Plus'a bak" demek de olmazdı.
+
+    18 Eylül 2026: tarayıcı sesi yedeği KALKTI. Podcast ya iki sesli gerçek
+    anlatımıyla vardır ya yoktur — telefonun robot sesi, ürünün en cazip
+    özelliğini ucuz gösteriyordu ve onu hiç duymamış öğrenci duyduğunu ürün
+    sanıyordu. Ses gelmediğinde artık senaryo okunuyor, sebebi yazıyor.
+  */
   const [status, setStatus] = useState<
-    "loading" | "ready" | "fallback" | "premium"
+    "loading" | "ready" | "fallback" | "premium" | "credits"
   >("loading");
   const [playing, setPlaying] = useState(false);
   const [positionMs, setPositionMs] = useState(0);
@@ -93,8 +99,18 @@ export function ExamPodcastPlayer({
       body: JSON.stringify({ chapters: normalized }),
     })
       .then(async (res) => {
-        // 402 = premium gerekiyor; arıza değil, o yüzden ayrı işaretleniyor.
-        if (res.status === 402) throw new Error("premium");
+        // 402 iki ayrı sebeple geliyor ve ikisi de arıza değil: aboneliği
+        // olmayan öğrenci ile kredisi biten abone. Ayrım yanıttaki `code`
+        // alanından; Türkçe metni karşılaştırmak, metni değiştiren ilk
+        // kişide sessizce kırılırdı.
+        if (res.status === 402) {
+          const body = (await res.json().catch(() => null)) as
+            | { code?: string }
+            | null;
+          throw new Error(
+            body?.code === "insufficient_credits" ? "credits" : "premium",
+          );
+        }
         if (!res.ok) throw new Error("unavailable");
         return res.json();
       })
@@ -105,9 +121,14 @@ export function ExamPodcastPlayer({
         setStatus("ready");
       })
       .catch((error: Error) => {
-        // Her iki durumda da ders sessiz kalmasın diye tarayıcı sesine
+        // Hangi sebep olursa olsun ders sessiz kalmasın diye tarayıcı sesine
         // dönüyoruz; orada zaman çizelgesi olmadığı için senkron kapanıyor.
-        if (alive) setStatus(error.message === "premium" ? "premium" : "fallback");
+        if (!alive) return;
+        setStatus(
+          error.message === "premium" || error.message === "credits"
+            ? error.message
+            : "fallback",
+        );
       });
     return () => {
       alive = false;
@@ -118,7 +139,6 @@ export function ExamPodcastPlayer({
     return () => {
       tokenRef.current += 1;
       elementRef.current?.pause();
-      stopSpeech();
     };
   }, []);
 
@@ -189,10 +209,7 @@ export function ExamPodcastPlayer({
   }
 
   function toggle() {
-    if (status === "fallback" || status === "premium") {
-      toggleFallback();
-      return;
-    }
+    // Ses yoksa oynatacak bir şey de yok; düğme zaten kapalı.
     if (!audio) return;
     if (playing) {
       tokenRef.current += 1;
@@ -203,26 +220,6 @@ export function ExamPodcastPlayer({
     const index = Math.max(0, lineAt(timeline, positionMs));
     const start = timeline[index]?.startMs ?? 0;
     playFromLine(index, positionMs - start);
-  }
-
-  function toggleFallback() {
-    if (playing) {
-      stopSpeech();
-      setPlaying(false);
-      return;
-    }
-    const script = normalized
-      .flatMap((chapter) => chapter.lines.map((line) => line.text))
-      .join(" ");
-    setPlaying(true);
-    speakTurkish(script, {
-      onEnd: () => {
-        setPlaying(false);
-        setHeard(true);
-      },
-      // Ses çıkmadıysa dinlenmiş saymıyoruz.
-      onError: () => setPlaying(false),
-    });
   }
 
   if (!normalized.length) {
@@ -270,7 +267,7 @@ export function ExamPodcastPlayer({
             type="button"
             className={cn("cp-pod-play", playing && "is-on")}
             onClick={toggle}
-            disabled={status === "loading"}
+            disabled={status !== "ready"}
             aria-label={playing ? "Duraklat" : "Oynat"}
           >
             {playing ? (
@@ -296,15 +293,23 @@ export function ExamPodcastPlayer({
           <p className="cp-pod-state">Ses hazırlanıyor…</p>
         ) : status === "premium" ? (
           <p className="cp-pod-state">
-            İki sesli stüdyo anlatımı Plus&apos;a özel — şimdilik cihazının
-            sesiyle okunuyor.{" "}
+            İki sesli stüdyo anlatımı Plus&apos;a özel. Bölümleri aşağıdan
+            okuyabilirsin.{" "}
             <Link href="/paketler" className="cp-pod-upsell">
               Plus&apos;a bak
             </Link>
           </p>
+        ) : status === "credits" ? (
+          <p className="cp-pod-state">
+            Bu ayki seslendirme kredin kalmadı. Bölümleri aşağıdan
+            okuyabilirsin.{" "}
+            <Link href="/paketler" className="cp-pod-upsell">
+              Kredi ekle
+            </Link>
+          </p>
         ) : status === "fallback" ? (
           <p className="cp-pod-state">
-            Sunucu sesi şu an yok; cihazının sesiyle okunuyor.
+            Ses şu an üretilemedi. Bölümleri aşağıdan okuyabilirsin.
           </p>
         ) : (
           <div className="cp-pod-track">

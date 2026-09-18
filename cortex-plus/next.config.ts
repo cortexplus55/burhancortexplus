@@ -12,7 +12,15 @@ import { cspHeaderName, cspHeaderValue } from "./src/lib/security/csp";
 const REPORT_ONLY = true;
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pdfjs-dist"],
+  /*
+    Yerel ikili taşıyan paketler webpack'e girmemeli.
+
+    `@napi-rs/canvas` bir `.node` dosyası yüklüyor ve webpack onu ayrıştırmaya
+    çalışıp derlemeyi düşürüyordu ("Unexpected character"). Dışarıda
+    bırakılınca çalışma anında `require` ediliyor. `outputFileTracingIncludes`
+    zaten ikiliyi dağıtıma kopyalıyor.
+  */
+  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
   outputFileTracingIncludes: {
     "/api/documents/process": ["./node_modules/pdfjs-dist/**/*", "./node_modules/@napi-rs/canvas*/**/*"],
     "/api/ai/chat": ["./node_modules/pdfjs-dist/**/*", "./node_modules/@napi-rs/canvas*/**/*"],

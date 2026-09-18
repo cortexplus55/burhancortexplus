@@ -212,6 +212,22 @@ export function SubscriptionCards({
   const sigmaUnderFold =
     embedded && !plusOwned && !sigmaOwned && Boolean(sigmaPlan);
   const showSigmaCard = !sigmaUnderFold || otherPlansOpen || plusOwned;
+  /*
+    Ek kredi paketleri YALNIZCA aboneye gösteriliyor (ürün sahibi kararı,
+    18 Eylül 2026).
+
+    Paketin işi aboneliği ikame etmek değil: ayın ortasında kredisi biten
+    aboneyi beklemekten kurtarmak. Ücretsiz kullanıcıya gösterilince soru
+    "abone olayım mı" değil "hangi paketi alayım" hâline geliyor ve asıl
+    ürünün önüne geçiyor. Fiyatlar zaten bu ikameyi caydıracak şekilde
+    kuruldu (paket kredisi abonelik biriminin üstünde), ama vitrinde yan
+    yana durmaları o caydırıcılığı gereksiz bir karara dönüştürüyordu.
+
+    `currentBadge` yalnızca oturumu olan ve ücretli kademede olan kullanıcı
+    için dolu geliyor; herkese açık /fiyatlandirma sayfası onu hiç
+    göndermediği için paketler orada da görünmüyor.
+  */
+  const showCreditPacks = rest.length > 0 && plusOwned;
   const plusBenefits = isParent ? PARENT_PLUS_BENEFITS : PLUS_BENEFITS;
   const sigmaBenefits = isParent ? PARENT_SIGMA_BENEFITS : SIGMA_BENEFITS;
 
@@ -617,7 +633,7 @@ export function SubscriptionCards({
       </div>
 
       <div className="mx-auto max-w-md space-y-6">
-        {rest.length > 0 ? (
+        {showCreditPacks ? (
           <div className="space-y-3">
             {rest.map((plan) => (
               <article
