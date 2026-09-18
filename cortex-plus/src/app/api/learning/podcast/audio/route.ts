@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
-import { ensureAudio } from "@/lib/learning/audio-cache";
+import { synthesizeCharged } from "@/lib/learning/audio-cache";
 import { flattenLines, normalizeChapters } from "@/lib/learning/podcast-script";
 
 /**
@@ -15,8 +15,12 @@ import { flattenLines, normalizeChapters } from "@/lib/learning/podcast-script";
  * Ücretsiz kullanıcı senaryoyu okumaya ve cihazının sesiyle dinlemeye devam
  * ediyor — oynatıcı bu yanıtı alamayınca tarayıcı sesine düşüyor.
  *
- * Premium tarafta ses düğümün bedeline dahil; ayrıca kredi yakmıyor. Bunu
- * ayakta tutan şey önbellek — aynı cümle bir daha üretilmiyor.
+ * Premium tarafta ses uzun süre düğümün bedeline dahildi; 18 Eylül 2026'da
+ * bu bırakıldı. Sebebi ölçüm: senaryo 1 kredi düşerken beş dakikalık sesi
+ * bunun kat kat üzerine mal oluyordu, yani düğümün bedeli sesi hiçbir zaman
+ * karşılamıyordu. Artık YALNIZCA gerçekten üretilen karakter faturalanıyor
+ * (900 karakter = 1 kredi); önbellekten gelen cümle hâlâ bedava, çünkü bize
+ * de bir maliyeti yok.
  */
 
 /** Tek istekte üretilecek en fazla cümle; kaçak bir senaryo faturayı şişirmesin. */
@@ -41,23 +45,30 @@ export async function POST(request: Request) {
   if (!chapters.length) return errorResponse(400, "invalid_input");
 
   const lines = flattenLines(chapters).slice(0, MAX_LINES);
-  const tracks = await ensureAudio(
+  const result = await synthesizeCharged(
     guard.ctx.service,
-    lines.map((line) => ({ text: line.text, speaker: line.speaker })),
     guard.ctx.userId,
+    lines.map((line) => ({ text: line.text, speaker: line.speaker })),
   );
+
+  // Kredisi yetmeyen öğrenci senaryoyu okumaya ve tarayıcı sesiyle
+  // dinlemeye devam ediyor; oynatıcı 402'yi de 503 gibi karşılıyor.
+  if (!result.ok && result.reason === "insufficient_credits") {
+    return errorResponse(402, "insufficient_credits");
+  }
 
   // Bir cümle bile üretilemediyse açıkça başarısız oluyoruz; istemci
   // tarayıcı sesine döner, yarım bir zaman çizelgesiyle çalışmaz.
-  if (!tracks) return errorResponse(503, "audio_unavailable");
+  if (!result.ok) return errorResponse(503, "audio_unavailable");
 
   return NextResponse.json({
+    creditsSpent: result.creditsSpent,
     lines: lines.map((line, i) => ({
       chapterIndex: line.chapterIndex,
       speaker: line.speaker,
       text: line.text,
-      url: tracks[i].url,
-      durationMs: tracks[i].durationMs,
+      url: result.tracks[i].url,
+      durationMs: result.tracks[i].durationMs,
     })),
   });
 }

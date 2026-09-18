@@ -42,12 +42,13 @@ export function ExamPodcastPlayer({
 }) {
   const normalized = useMemo(() => normalizeChapters(chapters), [chapters]);
   const [audio, setAudio] = useState<AudioLine[] | null>(null);
-  // "premium" ile "fallback" ayrı: ikisi de tarayıcı sesine düşüyor ama
+  // Üç "ses yok" hâli ayrı tutuluyor: hepsi tarayıcı sesine düşüyor ama
   // sebepleri farklı ve öğrenciye farklı şey söylenmeli. Gating geldikten
   // sonra herkese "sunucu sesi şu an yok" demek, premium özelliğini arıza
-  // gibi göstermek olurdu.
+  // gibi göstermek olurdu. "credits" ise seslendirme krediye bağlandığında
+  // geldi: kredisi biten bir PLUS ABONESİNE "Plus'a bak" demek olmazdı.
   const [status, setStatus] = useState<
-    "loading" | "ready" | "fallback" | "premium"
+    "loading" | "ready" | "fallback" | "premium" | "credits"
   >("loading");
   const [playing, setPlaying] = useState(false);
   const [positionMs, setPositionMs] = useState(0);
@@ -93,8 +94,18 @@ export function ExamPodcastPlayer({
       body: JSON.stringify({ chapters: normalized }),
     })
       .then(async (res) => {
-        // 402 = premium gerekiyor; arıza değil, o yüzden ayrı işaretleniyor.
-        if (res.status === 402) throw new Error("premium");
+        // 402 iki ayrı sebeple geliyor ve ikisi de arıza değil: aboneliği
+        // olmayan öğrenci ile kredisi biten abone. Ayrım yanıttaki `code`
+        // alanından; Türkçe metni karşılaştırmak, metni değiştiren ilk
+        // kişide sessizce kırılırdı.
+        if (res.status === 402) {
+          const body = (await res.json().catch(() => null)) as
+            | { code?: string }
+            | null;
+          throw new Error(
+            body?.code === "insufficient_credits" ? "credits" : "premium",
+          );
+        }
         if (!res.ok) throw new Error("unavailable");
         return res.json();
       })
@@ -105,9 +116,14 @@ export function ExamPodcastPlayer({
         setStatus("ready");
       })
       .catch((error: Error) => {
-        // Her iki durumda da ders sessiz kalmasın diye tarayıcı sesine
+        // Hangi sebep olursa olsun ders sessiz kalmasın diye tarayıcı sesine
         // dönüyoruz; orada zaman çizelgesi olmadığı için senkron kapanıyor.
-        if (alive) setStatus(error.message === "premium" ? "premium" : "fallback");
+        if (!alive) return;
+        setStatus(
+          error.message === "premium" || error.message === "credits"
+            ? error.message
+            : "fallback",
+        );
       });
     return () => {
       alive = false;
@@ -189,7 +205,7 @@ export function ExamPodcastPlayer({
   }
 
   function toggle() {
-    if (status === "fallback" || status === "premium") {
+    if (status === "fallback" || status === "premium" || status === "credits") {
       toggleFallback();
       return;
     }
@@ -300,6 +316,14 @@ export function ExamPodcastPlayer({
             sesiyle okunuyor.{" "}
             <Link href="/paketler" className="cp-pod-upsell">
               Plus&apos;a bak
+            </Link>
+          </p>
+        ) : status === "credits" ? (
+          <p className="cp-pod-state">
+            Seslendirme için kredin kalmadı — şimdilik cihazının sesiyle
+            okunuyor.{" "}
+            <Link href="/paketler" className="cp-pod-upsell">
+              Kredi ekle
             </Link>
           </p>
         ) : status === "fallback" ? (

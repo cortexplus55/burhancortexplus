@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
-import { ensureAudio } from "@/lib/learning/audio-cache";
+import { synthesizeCharged } from "@/lib/learning/audio-cache";
 import { splitSentences, SPEAKERS } from "@/lib/learning/podcast-script";
 
 /**
@@ -10,7 +10,9 @@ import { splitSentences, SPEAKERS } from "@/lib/learning/podcast-script";
  * geliyor. Podcast ile aynı önbelleği kullanıyor, bu yüzden tekrar eden
  * kalıplar ("Güzel, devam edelim.") ikinci kez üretilmiyor.
  *
- * Bedeli düğüme dahil; ayrıca kredi düşmüyor.
+ * Podcast ile aynı ücretlendirmeden geçiyor: yalnızca gerçekten üretilen
+ * karakter faturalanıyor (900 karakter = 1 kredi). Sözlü sınavda tekrar eden
+ * kalıplar zaten önbellekte olduğu için pratikte çoğu cümle bedava geliyor.
  */
 
 const MAX_SENTENCES = 12;
@@ -35,15 +37,19 @@ export async function POST(request: Request) {
   const sentences = splitSentences(parsed.data.text).slice(0, MAX_SENTENCES);
   if (!sentences.length) return errorResponse(400, "invalid_input");
 
-  const tracks = await ensureAudio(
+  const result = await synthesizeCharged(
     guard.ctx.service,
-    sentences.map((text) => ({ text, speaker: parsed.data.speaker })),
     guard.ctx.userId,
+    sentences.map((text) => ({ text, speaker: parsed.data.speaker })),
   );
-  if (!tracks) return errorResponse(503, "audio_unavailable");
+  if (!result.ok && result.reason === "insufficient_credits") {
+    return errorResponse(402, "insufficient_credits");
+  }
+  if (!result.ok) return errorResponse(503, "audio_unavailable");
 
   return NextResponse.json({
-    parts: tracks.map((track, i) => ({
+    creditsSpent: result.creditsSpent,
+    parts: result.tracks.map((track, i) => ({
       text: sentences[i],
       url: track.url,
       durationMs: track.durationMs,
