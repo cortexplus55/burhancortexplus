@@ -33,18 +33,28 @@ Dışarıdan dolaylı ölçülebilir — satılan plan satırları veritabanınd
 geliyor, yani fiyat sayfası veritabanının aynası:
 
 ```bash
-curl -s https://cortexplus.app/fiyatlandirma | grep -oE '₺[0-9.]+' | sort -u
+curl -s https://cortexplus.app/fiyatlandirma \
+  | python3 -c "import sys,re; t=re.sub(r'<[^>]+>','',sys.stdin.read()); print(' '.join(sorted(set(re.findall(r'₺\s?[0-9.]+', t)))))"
 ```
 
 | Görünmesi gereken | Hangi göç dosyasını kanıtlar |
 |---|---|
-| `₺599` | taban (eski) |
+| `₺599` `₺1.999` | taban (eski) |
 | `₺349` | `20260914130000_weekly_plan` |
 | `₺129` `₺329` `₺749` | `20260915090000_credit_packs` |
 
-Kredi paketleri görünmüyorsa o dosya uygulanmamıştır: arayüz onları koşulsuz
-render ediyor (`subscription-cards.tsx` → `rest` kovası) ve göç dosyası
-`active = true` yazıyor.
+> **`grep '₺[0-9]'` bu sayfada ÇALIŞMAZ ve sessizce yanlış cevap verir.**
+> React `₺` ile sayının arasına bir `<!-- -->` yorumu koyuyor (`₺{value}`
+> JSX'inin metin ayırıcısı), yani ham HTML'de `₺<!-- -->129` duruyor. Etiketleri
+> ayıklamayan her komut paketleri göremez ve "göç uygulanmamış" der. 18 Eylül
+> 2026'da tam olarak bu oldu: kısmi uygulama sanıldı, oysa hepsi yerindeydi.
+> Yukarıdaki sürüm etiketleri temizlediği için doğru sonucu veriyor.
+
+> **Kredi paketleri artık vitrinde yalnızca aboneye görünüyor.** Dolayısıyla
+> `₺129`/`₺329`/`₺749` herkese açık fiyat sayfasında **görünmemesi normaldir**
+> ve göç dosyası hakkında hiçbir şey söylemez. Paket göçünü doğrulamanın tek
+> güvenilir yolu `apply-migrations.ps1`; bu sayfa yalnızca kademe planlarının
+> aynası.
 
 > **Sıra kuralı — `20260914130000` tek başına uygulanmaz.** O dosya hem
 > haftalık plan satırını ekliyor hem `credit_reserve`'ü değiştiriyor ve
