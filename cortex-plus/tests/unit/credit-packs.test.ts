@@ -111,3 +111,34 @@ describe("paket fiyatlandırması", () => {
     expect(biggest.kurus).toBeGreaterThan(59900);
   });
 });
+
+/*
+  Paketler vitrinde yalnızca aboneye görünür (ürün sahibi kararı, 18 Eylül
+  2026). Fiyat caydırıcılığı zaten kurulu — paket kredisi abonelik biriminin
+  üstünde — ama ücretsiz kullanıcıya paketleri göstermek soruyu "abone olayım
+  mı"dan "hangi paketi alayım"a çeviriyordu.
+
+  Bu bir render testi değil, kaynak bekçisi: kapının kalktığını yakalar.
+  Kaldırılırsa ücretsiz kullanıcı herkese açık /fiyatlandirma sayfasında
+  paketleri görmeye başlar ve kimse fark etmez.
+*/
+describe("kredi paketleri vitrin kapısı", () => {
+  const CARDS = "src/components/parity/subscription-cards.tsx";
+  const tsx = readFileSync(CARDS, "utf8");
+
+  it("paket bölümü abonelik koşuluna bağlı", () => {
+    expect(tsx).toMatch(/const showCreditPacks\s*=\s*rest\.length > 0 && plusOwned/);
+  });
+
+  it("paket bölümü doğrudan rest.length ile çizilmiyor", () => {
+    // Eski hâl: `{rest.length > 0 ? (` — katman kapısı yoktu.
+    expect(tsx).not.toMatch(/\{\s*rest\.length > 0 \?\s*\(/);
+    expect(tsx).toMatch(/\{showCreditPacks \? \(/);
+  });
+
+  it("plusOwned yalnızca ücretli kademede dolu", () => {
+    expect(tsx).toMatch(
+      /const plusOwned\s*=\s*currentBadge === "Plus" \|\| currentBadge === "Sigma"/,
+    );
+  });
+});
