@@ -1,6 +1,6 @@
 # Launch sırası
 
-Tek kaynak: [GREENFIELD-CONNECT.md](./GREENFIELD-CONNECT.md) · **Teslim özeti:** [TESLIM.md](./TESLIM.md) · **Sende kalanlar:** [SENIN-YAPACAKLARIN.md](./SENIN-YAPACAKLARIN.md)
+Tek kaynak: [GREENFIELD-CONNECT.md](./GREENFIELD-CONNECT.md) · **Teslim özeti:** [TESLIM.md](./TESLIM.md) · **Sende kalanlar:** [SENIN-YAPACAKLARIN.md](./SENIN-YAPACAKLARIN.md) · **Müşteri almadan önceki eşik:** [ACILIS-KAPISI.md](./ACILIS-KAPISI.md)
 
 ## Sıra
 
