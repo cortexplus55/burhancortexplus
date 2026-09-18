@@ -262,7 +262,9 @@ export function ExamCreateWizard({
       }
       setDocumentId(uploaded.documentId);
       setDocumentName(file.name);
-      toast.success("Materyalin hazır.");
+      toast.success("Materyalin hazır.", {
+        description: processed.notice ?? undefined,
+      });
     } catch {
       toast.error("Bağlantı hatası.");
     } finally {

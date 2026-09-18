@@ -262,38 +262,44 @@ describe("migration", () => {
 describe("işleme ucu", () => {
   const source = readFileSync("src/app/api/documents/process/route.ts", "utf8");
 
-  /* Tersi olsaydı kotası dolmuş öğrencinin kredisi ayrılır, sonra iade
-     edilirdi — cüzdanda gidip gelen bir hareket. */
-  it("kotayı krediden önce soruyor", () => {
-    expect(source.indexOf("claimPhotoPages(")).toBeLessThan(
-      source.indexOf("reserveCredits("),
-    );
+  /* Kota 18 Eylül akşamı boru hattına taşındı: bir belgenin kaç fotoğraf
+     sayfası yakacağını ancak orada biliyoruz. Taranmış bir PDF'in metin
+     katmanı olmadığı açılmadan belli olmuyor; uçta tahmin etmek ya taranmış
+     PDF'i bedavaya geçirirdi ya da metin katmanlı bir PDF'ten haksız yere
+     kota keserdi. */
+  it("kota mantığını kendisi taşımıyor", () => {
+    expect(source).not.toContain("claimPhotoPages(");
+    expect(source).not.toContain("releasePhotoPages(");
   });
 
-  it("okuma düşerse kotayı geri veriyor", () => {
-    const failureBlock = source.slice(
-      source.indexOf("if (!result.ok) {"),
-      source.indexOf("await commitCredits("),
-    );
-    expect(failureBlock).toContain("refundCredits(");
-    expect(failureBlock).toContain("releasePhotoPages(");
-  });
-
-  it("kredi ayrılamazsa da kotayı geri veriyor", () => {
+  /* Kredi satın almak kota sorununu çözmüyor; istemci bunu `code` alanından
+     ayırıp kredi kapısını açmıyor. */
+  it("kota dolduğunda krediyi iade edip ayrı kod dönüyor", () => {
     const block = source.slice(
-      source.indexOf("if (!reservation.ok) {"),
-      source.indexOf("const result = await processDocument("),
+      source.indexOf("if (!result.ok) {"),
+      source.indexOf("return NextResponse.json({\n    documentId"),
     );
-    expect(block).toContain("releasePhotoPages(");
+    expect(block).toContain("refundCredits(");
+    expect(block).toContain('result.error === "photo_quota_exhausted"');
+    expect(block).toContain("code: PHOTO_QUOTA_CODE");
   });
 
   /* "Metin katmanı olan bir PDF deneyin" öğüdü, telefonundan ders notu çeken
-     öğrenciye ne yaptığını yanlış anladığımızı söylerdi. */
-  it("fotoğrafın kendi hata cümleleri var", () => {
+     ya da taranmış bir kitap yükleyen öğrenciye ne yaptığımızı yanlış
+     anladığımızı söylerdi. */
+  it("fotoğrafın ve taramanın kendi hata cümleleri var", () => {
     expect(source).toContain("image_unreadable");
     expect(source).toContain("image_too_large");
     expect(source).toContain("image_blocked");
+    expect(source).toContain("scan_unreadable");
     expect(source).toMatch(/Fotoğraftaki yazı okunamadı/);
+    expect(source).toMatch(/Taranmış sayfalardaki yazı okunamadı/);
+  });
+
+  /* Uzun bir tarama kesildiyse öğrenci belgenin tamamının okunduğunu sanıp
+     eksik kaynakla çalışmamalı. */
+  it("kesilen belgeyi istemciye bildiriyor", () => {
+    expect(source).toContain("notice: result.notice ?? null");
   });
 });
 
@@ -317,7 +323,7 @@ describe("kotası dolan aboneye kredi satılmıyor", () => {
   });
 });
 
-describe("boru hattı fotoğrafı ayrı yoldan okuyor", () => {
+describe("boru hattı", () => {
   const source = readFileSync("src/lib/rag/pipeline.ts", "utf8");
 
   it("fotoğrafta extractText'e hiç gitmiyor", () => {
@@ -325,13 +331,55 @@ describe("boru hattı fotoğrafı ayrı yoldan okuyor", () => {
   });
 
   /* Sesin maliyeti yıllarca hiçbir yere yazılmamıştı; aynı hatayı burada
-     tekrarlamayalım. */
+     tekrarlamayalım. Okunamayan denemenin faturası da bize geliyor. */
   it("okuma maliyetini kaydediyor", () => {
-    const branch = source.slice(
-      source.indexOf("if (isImageDocument(doc.mime_type))"),
-      source.indexOf("const extracted = await extractText("),
+    expect(source).toContain('actionCode: "DOCUMENT_PAGE_PROCESS"');
+    expect(source).toMatch(/recordVision\(read\.tokensIn, read\.tokensOut/);
+  });
+
+  /* Kota okumadan ÖNCE alınmalı: sonra alınsaydı kotası dolmuş bir hesap
+     önce okunur, sonra reddedilirdi — bedava iş. */
+  it("fotoğrafta okumadan önce kota alıyor", () => {
+    expect(source.indexOf("await claim(1)")).toBeLessThan(
+      source.indexOf("await extractImageText(buffer"),
     );
-    expect(branch).toContain("recordUsage(service, {");
-    expect(branch).toContain('actionCode: "DOCUMENT_PAGE_PROCESS"');
+  });
+
+  /* Çizim bize hiçbir şeye mal olmuyor (model çağrısı yok), o yüzden kota
+     çizimden SONRA isteniyor — kaç sayfa okunacağını ancak o zaman biliyoruz
+     ve öğrenci gerçekten okunacak sayfa kadar ödüyor. */
+  it("taramada çizimden sonra, okumadan önce kota alıyor", () => {
+    const render = source.indexOf("await renderPdfPages(buffer)");
+    const claim = source.indexOf("await claim(rendered.pages.length)");
+    const read = source.indexOf("await extractImagePages(rendered.pages)");
+    expect(render).toBeLessThan(claim);
+    expect(claim).toBeLessThan(read);
+  });
+
+  /* Okunamayan sayfa kota yakmamalı — taranmış bir kitabın boş arka yüzü
+     için öğrenciden hak kesmek yanlış olurdu. */
+  it("okunamayan tarama sayfalarının hakkını geri veriyor", () => {
+    expect(source).toContain("const unread = rendered.pages.length - read.readCount");
+    expect(source).toContain("await releasePhotoPages(service, userId, unread)");
+  });
+
+  /* Kota alındıktan sonraki HER düşüş iade etmeli; düz `fail()` çağrısı
+     öğrencinin hakkını yakar. */
+  it("kota alındıktan sonraki düşüşler iade ediyor", () => {
+    for (const code of [
+      "image_blocked",
+      "image_unreadable",
+      "scan_unreadable",
+      "empty_content",
+      "page_insert_failed",
+      "chunk_insert_failed",
+    ]) {
+      expect(source).toContain(`failAndRelease("${code}")`);
+    }
+  });
+
+  /* Boş sayfa gömülürse alakasız sorularda bağlam diye geri gelirdi. */
+  it("boş tarama sayfalarını kaydetmiyor", () => {
+    expect(source).toContain("read.pages.filter((page) => page.trim().length > 0)");
   });
 });

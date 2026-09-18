@@ -107,7 +107,11 @@ export function DocumentUpload({
         return;
       }
 
-      toast.success("Doküman hazır. AI öğretmende kaynak olarak kullanabilirsin.");
+      // Uzun bir tarama kesildiyse bunu söylemek zorundayız: öğrenci
+      // belgenin tamamının okunduğunu sanıp eksik kaynakla çalışmasın.
+      toast.success("Doküman hazır. AI öğretmende kaynak olarak kullanabilirsin.", {
+        description: processed.notice ?? undefined,
+      });
       setFile(null);
       router.refresh();
     } catch {

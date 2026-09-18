@@ -166,3 +166,64 @@ export async function extractImageText(
     reason: "unreadable",
   };
 }
+
+/**
+ * Aynı anda kaç sayfa okunuyor.
+ *
+ * Seri okuma taranmış bir belgeyi uç noktanın 120 saniyelik bütçesine
+ * sığdıramıyordu (sayfa başına ~5 saniye). Dört, hem bütçeye sığıyor hem
+ * sağlayıcının hız sınırına dayanmıyor.
+ */
+const PAGE_CONCURRENCY = 4;
+
+export type ImagePagesResult = {
+  /** Sayfa sırasına göre metin; okunamayan sayfa boş string. */
+  pages: string[];
+  /** Gerçekten okunabilen sayfa sayısı — kota bu kadarını yakıyor. */
+  readCount: number;
+  tokensIn: number;
+  tokensOut: number;
+  /** Bir sayfa bile denetimden geçemediyse belgenin tamamı reddediliyor. */
+  blocked: boolean;
+};
+
+/**
+ * Birden çok görüntüyü sırayla değil, kümeler hâlinde okur.
+ *
+ * Okunamayan sayfa belgeyi düşürmüyor: taranmış bir kitabın boş arka yüzü ya
+ * da tek bir bulanık sayfa yüzünden yüz sayfalık bir kaynağı reddetmek yanlış
+ * olurdu. Çağıran taraf `readCount` sıfırsa vazgeçiyor.
+ */
+export async function extractImagePages(
+  images: Buffer[],
+  mimeType = "image/png",
+): Promise<ImagePagesResult> {
+  const pages: string[] = new Array(images.length).fill("");
+  let readCount = 0;
+  let tokensIn = 0;
+  let tokensOut = 0;
+  let blocked = false;
+
+  for (let start = 0; start < images.length; start += PAGE_CONCURRENCY) {
+    const batch = images.slice(start, start + PAGE_CONCURRENCY);
+    const results = await Promise.all(
+      batch.map((image) => extractImageText(image, mimeType)),
+    );
+
+    results.forEach((result, offset) => {
+      tokensIn += result.tokensIn;
+      tokensOut += result.tokensOut;
+      if (result.reason === "blocked") blocked = true;
+      if (result.ok && result.pages[0]) {
+        pages[start + offset] = result.pages[0];
+        readCount += 1;
+      }
+    });
+
+    // Denetimden dönen bir belgede kalan sayfaları okumaya devam etmenin
+    // anlamı yok; fatura da büyümesin.
+    if (blocked) break;
+  }
+
+  return { pages, readCount, tokensIn, tokensOut, blocked };
+}

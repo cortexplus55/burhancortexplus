@@ -7,14 +7,8 @@ import {
   refundCredits,
   reserveCredits,
 } from "@/lib/credits/service";
-import { isImageDocument } from "@/lib/documents/extract-image-text";
 import { PHOTO_QUOTA_CODE } from "@/lib/documents/process-errors";
-import {
-  claimPhotoPages,
-  photoPageLimit,
-  planTier,
-  releasePhotoPages,
-} from "@/lib/documents/photo-quota";
+import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
 
 const bodySchema = z.object({ documentId: z.string().uuid() });
 export const maxDuration = 120;
@@ -40,30 +34,16 @@ export async function POST(request: Request) {
   }
 
   /*
-    Fotoğrafın kredinin yanında bir de sayfa kotası var (`photo-quota.ts`).
+    Fotoğraf sayfası kotası artık BORU HATTINDA işliyor, burada değil.
 
-    Sıra önemli: kota KREDİDEN ÖNCE soruluyor. Tersi olsaydı kotası dolmuş
-    öğrencinin kredisi ayrılır, sonra iade edilirdi — cüzdanda gidip gelen
-    bir hareket ve defterde iki gereksiz satır.
+    Sebebi: bir belgenin kaç fotoğraf sayfası yakacağını ancak orada
+    biliyoruz. Taranmış bir PDF'in metin katmanı olmadığı açılmadan belli
+    olmuyor; burada tahmin etmek ya taranmış PDF'i bedavaya geçirirdi ya da
+    metin katmanı olan bir PDF'ten haksız yere kota keserdi.
 
-    Bir fotoğraf bir sayfa.
+    Buranın işi kredi. Kota dolduğunda boru hattı `photo_quota_exhausted`
+    dönüyor ve aşağıda krediyle birlikte iade ediliyor.
   */
-  const isPhoto = isImageDocument(doc.mime_type as string | null);
-  let photoPages = 0;
-  if (isPhoto) {
-    const tier = await planTier(service, userId);
-    if (!(await claimPhotoPages(service, userId, 1, tier))) {
-      return NextResponse.json(
-        {
-          error: `Bu ayki fotoğraf hakkın doldu (${photoPageLimit(tier)}). PDF ve metin belgeleri etkilenmiyor.`,
-          code: PHOTO_QUOTA_CODE,
-        },
-        { status: 402 },
-      );
-    }
-    photoPages = 1;
-  }
-
   const reservation = await reserveCredits(
     service,
     userId,
@@ -71,7 +51,6 @@ export async function POST(request: Request) {
     `document_process_${doc.id}`,
   );
   if (!reservation.ok) {
-    if (photoPages) await releasePhotoPages(service, userId, photoPages);
     return errorResponse(
       reservation.reason === "insufficient_credits" ? 402 : 400,
       reservation.reason,
@@ -82,8 +61,20 @@ export async function POST(request: Request) {
 
   if (!result.ok) {
     await refundCredits(service, reservation.reservationId);
-    // Okunamayan fotoğraf kota yakmıyor: hak geri veriliyor.
-    if (photoPages) await releasePhotoPages(service, userId, photoPages);
+
+    // Kota dolduğunda kredi kapısı AÇILMIYOR: kredi satın almak o sorunu
+    // çözmüyor. İstemci bunu `code` alanından ayırıyor.
+    if (result.error === "photo_quota_exhausted") {
+      const tier = await planTier(service, userId);
+      return NextResponse.json(
+        {
+          error: `Bu ayki fotoğraf hakkın doldu (${photoPageLimit(tier)}). Metin katmanı olan PDF ve metin belgeleri etkilenmiyor.`,
+          code: PHOTO_QUOTA_CODE,
+        },
+        { status: 402 },
+      );
+    }
+
     return NextResponse.json(
       { error: processFailureMessage(result.error) },
       { status: 422 },
@@ -97,6 +88,8 @@ export async function POST(request: Request) {
     status: "completed",
     chunks: result.chunks,
     creditsUsed: reservation.cost,
+    // Hata değil ama söylenmesi gereken şey — örn. uzun tarama kesildi.
+    notice: result.notice ?? null,
     topicMap: result.topicMap ?? null,
   });
 }
@@ -116,6 +109,8 @@ function processFailureMessage(error?: string): string {
       return "Fotoğraf çok büyük. 10 MB'ın altında bir kare gönder.";
     case "image_blocked":
       return "Bu görsel işlenemedi. Ders içeriği olan bir fotoğraf yükle.";
+    case "scan_unreadable":
+      return "Taranmış sayfalardaki yazı okunamadı. Daha net taranmış ya da metin katmanı olan bir PDF dener misin?";
     case "text_extraction_unsupported":
     case "empty_content":
       return "Bu dosyadan metin çıkarılamadı. Metin katmanı olan bir PDF veya TXT deneyin.";
