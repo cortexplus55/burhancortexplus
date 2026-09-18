@@ -2,6 +2,11 @@
 /**
  * Push env vars from .env.local to Vercel project (team cortexplus55).
  * Usage: set VERCEL_TOKEN=... && node scripts/push-vercel-env.mjs
+ *
+ * PAYTR_* varsayilan olarak atlanir: 710114 (tusaicortex) anahtarlarinin
+ * yanlislikla cortexplus.app projesine gitmesini engeller. cortexplus.app'in
+ * kendi ek magazasi onaylandiginda bilerek gondermek icin --include-paytr
+ * kullanin; once `node scripts/verify-paytr.mjs` ile anahtarlari dogrulayin.
  */
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -14,7 +19,13 @@ const envPath = resolve(root, ".env.local");
 const TEAM_SLUG = "cortexplus55";
 const PROJECT = "burhancortexplus-app";
 
-const SKIP_PREFIX = ["PAYTR_", "NEXT_PUBLIC_POSTHOG", "SENTRY_", "UPSTASH_"];
+const includePaytr = process.argv.includes("--include-paytr");
+const SKIP_PREFIX = [
+  ...(includePaytr ? [] : ["PAYTR_"]),
+  "NEXT_PUBLIC_POSTHOG",
+  "SENTRY_",
+  "UPSTASH_",
+];
 const SKIP_KEYS = new Set([
   // Google: set in Supabase; optional on Vercel unless custom server flow
 ]);
@@ -97,4 +108,12 @@ if (!res.ok) {
 }
 
 console.log("OK:", entries.length, "variables upserted");
+if (includePaytr) {
+  const pushed = entries.filter(([k]) => k.startsWith("PAYTR_")).map(([k]) => k);
+  console.log(
+    pushed.length
+      ? `PayTR: ${pushed.join(", ")} gonderildi. Bildirim URL'ini PayTR panelinde ayarlamayi unutmayin.`
+      : "PayTR: --include-paytr verildi ama .env.local'da PAYTR_* yok.",
+  );
+}
 console.log(text.slice(0, 500));

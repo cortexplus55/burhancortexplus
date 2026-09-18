@@ -120,3 +120,75 @@ describe("paytr token request", () => {
     expect(first).toMatch(/^cp[a-f0-9]{28}$/);
   });
 });
+
+describe("verify-paytr.mjs scriptinin imzaları kütüphaneyle aynı", () => {
+  beforeEach(() => {
+    process.env.PAYTR_MERCHANT_ID = "123456";
+    process.env.PAYTR_MERCHANT_KEY = MERCHANT_KEY;
+    process.env.PAYTR_MERCHANT_SALT = MERCHANT_SALT;
+    process.env.PAYTR_TEST_MODE = "1";
+    process.env.PAYTR_NO_INSTALLMENT = "0";
+    process.env.PAYTR_MAX_INSTALLMENT = "0";
+  });
+
+  // Script tek başına çalışabilmek için imza mantığını kopyalıyor. Kopya
+  // buradan sabitlenir; biri değişirse bu test kırılır.
+  it("token imzası kütüphaneyle birebir aynı", async () => {
+    const script = await import("../../scripts/verify-paytr.mjs");
+    const input = {
+      merchantOid: "cpabc123",
+      email: "ogrenci@cortexplus.app",
+      amountKurus: 29900,
+      userIp: "203.0.113.9",
+      userName: "Ogrenci",
+      productName: "Cortex Plus",
+      okUrl: "https://cortexplus.app/odeme/basarili",
+      failUrl: "https://cortexplus.app/odeme/basarisiz",
+    };
+
+    const { params } = buildPaytrToken(input);
+    const scriptToken = script.paytrTokenHash({
+      merchantId: "123456",
+      merchantKey: MERCHANT_KEY,
+      merchantSalt: MERCHANT_SALT,
+      userIp: input.userIp,
+      merchantOid: input.merchantOid,
+      email: input.email,
+      amountKurus: input.amountKurus,
+      basket: script.buildBasket(input.productName, input.amountKurus),
+      noInstallment: "0",
+      maxInstallment: "0",
+      currency: "TL",
+      testMode: "1",
+    });
+
+    expect(scriptToken).toBe(params.get("paytr_token"));
+  });
+
+  it("sepet kodlaması kütüphaneyle birebir aynı", async () => {
+    const script = await import("../../scripts/verify-paytr.mjs");
+    expect(script.buildBasket("Cortex Plus", 29900)).toBe(
+      buildBasket("Cortex Plus", 29900),
+    );
+  });
+
+  it("callback imzası rotanın doğrulayıcısını geçer", async () => {
+    const script = await import("../../scripts/verify-paytr.mjs");
+    const hash = script.callbackHash({
+      merchantKey: MERCHANT_KEY,
+      merchantSalt: MERCHANT_SALT,
+      merchantOid: "cpverify01",
+      status: "success",
+      totalAmount: "100",
+    });
+
+    expect(
+      verifyPaytrCallbackHash({
+        merchantOid: "cpverify01",
+        status: "success",
+        totalAmount: "100",
+        hash,
+      }),
+    ).toBe(true);
+  });
+});
