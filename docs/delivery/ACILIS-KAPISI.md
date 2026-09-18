@@ -11,6 +11,17 @@ Her şartın yanında onu ölçen komut var. Bu bilinçli: bu projede iki kez
 "yazıldı ama yayında değil" hatası yaşandı (dört hukuki sayfa dalda kaldı,
 sonra göç dosyaları veritabanına uygulanmadı). Göz kararı yetmiyor.
 
+> **Ölçülebilir şartların hepsi tek komutta:**
+> ```bash
+> cd cortex-plus
+> node scripts/acilis-kapisi.mjs        # dışarıdan ölçülenler
+> node scripts/acilis-kapisi.mjs --db   # göç dosyalarının kanıt nesneleri de
+> ```
+> Betik kapıyı **açmıyor**: 1. ve 3. madde (PayTR'nin canlı kipte olduğu ve
+> gerçek kartla prova) dışarıdan ölçülemez, betik bunları listeleyip geçiyor.
+> Aşağıdaki tek tek komutlar duruyor — biri şüpheli çıktığında elle
+> bakabilmek için.
+
 ---
 
 ## 1. Ödeme gerçekten para çekiyor mu
