@@ -267,6 +267,8 @@ export function errorResponse(status: number, code: string) {
     no_measurable_topics:
       "Ölçülebilir konu bulunamadı. Konu haritasını kontrol et.",
     premium_required: "Bu özellik Plus aboneliğine özel.",
+    free_image_limit:
+      "Ücretsiz hesapta günde 3 fotoğraf çözülebiliyor. Yarın devam edebilir ya da Plus'a geçebilirsin.",
   };
   /*
     `code` de gönderiliyor. Sebebi somut: podcast oynatıcısı 402'yi tek başına

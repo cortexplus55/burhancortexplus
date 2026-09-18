@@ -9,6 +9,8 @@ import {
 import { chatFallbackMessage } from "@/lib/ai/chat-fallback";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { selectModel } from "@/lib/ai/model-router";
+import { claimHardUpgrade } from "@/lib/ai/model-upgrade";
+import { freeImageAllowed } from "@/lib/ai/image-quota";
 import { assessQuestionDifficulty } from "@/lib/ai/question-difficulty";
 import { SYSTEM_GUARDRAIL, isPremiumUser } from "@/lib/ai/generate";
 import { moderate } from "@/lib/ai/moderation";
@@ -136,6 +138,21 @@ export async function POST(request: Request) {
   }
 
   const isPremium = await isPremiumUser(service, userId);
+
+  /*
+    Ücretsiz hesapta fotoğrafın günlük tavanı.
+
+    Denetimden SONRA: engellenen bir istek öğrencinin hakkını yakmamalı —
+    aynı gerekçe krediyi de denetimden sonra ayırıyor.
+
+    Tavanın neden gerektiği `image-quota.ts` içinde: kredi freni davet
+    çarpanında kayboluyor ve ödeme yapmamış bir hesap günde yüzlerce gpt-4o
+    fotoğrafına çıkabiliyordu.
+  */
+  if (imageUrl && !(await freeImageAllowed(userId, isPremium))) {
+    return errorResponse(429, "free_image_limit");
+  }
+
   const { data: profile } = await service
     .from("profiles")
     .select("tutor_style")
@@ -172,14 +189,33 @@ export async function POST(request: Request) {
     hasImage: Boolean(imageUrl),
   });
 
-  const { model, actionCode } = selectModel({
+  const routerInput = {
     actionCode: parsed.data.actionCode as ActionCode,
     isPremium,
     hasImage: Boolean(imageUrl),
     userSelectedAdvanced: parsed.data.actionCode === "AI_CHAT_ADVANCED",
     documentPages,
     difficulty: difficulty.level,
-  });
+  };
+
+  /*
+    Zor soru yükseltmesinin aylık tavanı burada işliyor.
+
+    Yönlendirici saf: hangi dala düştüğünü `upgrade` ile söylüyor, hakkı
+    sormuyor. Tavan yalnızca gerçekten yükseltilen istekte sorgulanıyor —
+    görsel, ücretli gelişmiş sohbet ve ücretsiz hesap bu turu hiç ödemiyor.
+
+    Hak verilmezse istek REDDEDİLMİYOR: aynı girdi, yükseltme kapalıyken bir
+    daha yönlendiriliyor ve öğrenci cevabını standart modelden alıyor. Kredi
+    zaten iki durumda da aynı (`AI_CHAT_STANDARD`), yani öğrencinin ödediği
+    değişmiyor; biten şey onun ödemediği ikram.
+  */
+  const routed = selectModel(routerInput);
+  const { model, actionCode } =
+    routed.upgrade === "difficulty" &&
+    !(await claimHardUpgrade(service, userId))
+      ? selectModel({ ...routerInput, hardUpgradeAllowed: false })
+      : routed;
 
   const reserved = await reserveCredits(
     service,
