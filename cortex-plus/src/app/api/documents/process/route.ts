@@ -109,6 +109,10 @@ function processFailureMessage(error?: string): string {
       return "Fotoğraf çok büyük. 10 MB'ın altında bir kare gönder.";
     case "image_blocked":
       return "Bu görsel işlenemedi. Ders içeriği olan bir fotoğraf yükle.";
+    case "office_unreadable":
+      return "Bu slayt veya Word belgesinden yazı çıkarılamadı. İçi boş olabilir ya da dosya bozulmuş olabilir.";
+    case "office_too_large":
+      return "Bu belge açıldığında çok büyük. Daha küçük bir bölümünü yükler misin?";
     case "scan_unreadable":
       return "Taranmış sayfalardaki yazı okunamadı. Daha net taranmış ya da metin katmanı olan bir PDF dener misin?";
     case "text_extraction_unsupported":

@@ -47,6 +47,8 @@ const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "text/plain",
 ];
 const MAX_BYTES = 15 * 1024 * 1024;
@@ -523,7 +525,7 @@ export function ExamCreateWizard({
               ref={fileRef}
               type="file"
               className="hidden"
-              accept=".pdf,.txt,.png,.jpg,.jpeg,.webp"
+              accept=".pdf,.txt,.png,.jpg,.jpeg,.webp,.docx,.pptx"
               onChange={(e) => {
                 void takeFile(e.target.files?.[0]);
                 e.target.value = "";
