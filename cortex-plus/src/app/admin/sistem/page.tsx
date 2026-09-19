@@ -12,6 +12,7 @@ import {
   probePaytrRecurring,
 } from "@/lib/payments/paytr-capability";
 import { ACCEPTED_OMISSIONS, missingSellerFields } from "@/lib/legal/seller";
+import { probeSchema } from "@/lib/admin/schema-probe";
 
 export const metadata = { title: "Yönetim · Sistem durumu" };
 
@@ -67,6 +68,9 @@ export default async function AdminSistemPage() {
   // Panel açılışını bekletmemek için yoklamanın kendi zaman aşımı var.
   const capability = await probePaytrRecurring();
   const missingSeller = missingSellerFields();
+  const schema = await probeSchema(service);
+  const schemaBroken = schema.filter((check) => !check.ok);
+  const schemaCritical = schemaBroken.filter((check) => check.critical);
 
   return (
     <AdminShell href="/admin/sistem" pendingApplications={pending}>
@@ -127,6 +131,62 @@ export default async function AdminSistemPage() {
           . {capability.detail}
         </AdminNote>
       )}
+
+      {/*
+        Şema durumu.
+
+        Bu projede göç dosyaları elle uygulanıyor (repo geçmişi ile uzak
+        veritabanının geçmişi ayrışmış) ve elle uygulamanın riski bir dosyanın
+        atlandığının fark edilmemesi. 18 Eylül 2026'da tam olarak bu oldu:
+        dal yayına çıktı, sayfa açıldı, `/api/health` "ok" dedi — ama
+        `credit_reserve` eski imzada kalmışsa her kredi ayırma isteği düşüyor.
+
+        En pahalı arıza, en sessiz görünen arızaydı. Burası onu sesli yapıyor.
+      */}
+      {schemaCritical.length ? (
+        <AdminNote tone="warn">
+          <strong>Şema koddan geride:</strong>{" "}
+          {schemaCritical.map((check) => check.name).join(", ")}. Ürünün bir
+          parçası şu anda hiç çalışmıyor — göç dosyalarını uygulayın.
+        </AdminNote>
+      ) : schemaBroken.length ? (
+        <AdminNote tone="info">
+          <strong>Şema büyük ölçüde güncel.</strong> Eksik olanlar ürünü
+          durdurmuyor ama yeni özellikler kapalı:{" "}
+          {schemaBroken.map((check) => check.name).join(", ")}.
+        </AdminNote>
+      ) : (
+        <AdminNote tone="info">
+          <strong>Şema kodla uyumlu.</strong> Beklenen göç dosyalarının hepsi
+          canlı veritabanında.
+        </AdminNote>
+      )}
+
+      <AdminCard
+        title="Canlı şema"
+        desc="Her satır bir göç dosyasının kanıt nesnesini arıyor. Kırmızı bir satır, o dosyanın uygulanmadığı anlamına gelir."
+        bodyless
+      >
+        <AdminTableFrame columns={["Kontrol", "Durum", "Ayrıntı"]}>
+          {schema.map((check) => (
+            <tr key={check.name}>
+              <td className="font-medium">{check.name}</td>
+              <td>
+                {check.ok ? (
+                  <AdminBadge tone="ok">uyumlu</AdminBadge>
+                ) : check.critical ? (
+                  <AdminBadge tone="bad">eksik</AdminBadge>
+                ) : (
+                  <AdminBadge tone="warn">eksik</AdminBadge>
+                )}
+              </td>
+              <td className="max-w-md whitespace-normal text-xs text-[var(--adm-muted)]">
+                {check.detail}
+              </td>
+            </tr>
+          ))}
+        </AdminTableFrame>
+      </AdminCard>
 
       {/*
         Yetki tek başına yetmiyor. Yukarıdaki satır "PayTR izin verdi mi"

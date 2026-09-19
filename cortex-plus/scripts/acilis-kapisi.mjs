@@ -218,15 +218,20 @@ if (!WITH_DB) {
     /*
       Asıl kritik madde. `reserveCredits` artık `p_quantity` gönderiyor; eski
       üç argümanlı imza duruyorsa PostgREST işlevi bulamaz ve HER kredi
-      ayırma isteği düşer. Bunu var olmayan bir kullanıcı için çağırarak
-      sınıyoruz: imza varsa "insufficient_credits"/"invalid_action" gibi bir
-      İŞ hatası döner, yoksa "Could not find the function" (PGRST202).
+      ayırma isteği düşer.
+
+      VAR OLMAYAN bir eylem koduyla soruluyor: fonksiyonun ikinci adımı
+      kuralı bulamayıp `invalid_action` ile çıkıyor, yani hiçbir satır
+      yazılmıyor ve cüzdana dokunulmuyor. Gerçek bir eylem kodu akışı cüzdan
+      güncellemesine kadar götürürdü ve yazmamasını yalnızca
+      `credit_reservations.user_id` üzerindeki yabancı anahtara borçlu
+      olurduk; bir yoklama tesadüfe dayanmamalı.
     */
     await check("20260918090000 — credit_reserve miktar alıyor", async () => {
       const { error } = await sb.rpc("credit_reserve", {
         p_user_id: "00000000-0000-0000-0000-000000000000",
-        p_action_code: "AUDIO_SYNTHESIZE",
-        p_idempotency_key: `kapi_probe_${Date.now()}`,
+        p_action_code: "__schema_probe__",
+        p_idempotency_key: "__schema_probe__",
         p_quantity: 1,
       });
       const missing =
