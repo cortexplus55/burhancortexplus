@@ -25,6 +25,25 @@ const nextConfig: NextConfig = {
     "/api/documents/process": ["./node_modules/pdfjs-dist/**/*", "./node_modules/@napi-rs/canvas*/**/*"],
     "/api/ai/chat": ["./node_modules/pdfjs-dist/**/*", "./node_modules/@napi-rs/canvas*/**/*"],
   },
+  /*
+    `/.well-known/assetlinks.json` bir uç noktadan geliyor.
+
+    Android TWA açılırken bu adresi okuyup uygulamanın imza parmak izini
+    arıyor; bulamazsa uygulamayı adres çubuğuyla gösteriyor. Dosya statik
+    değil çünkü parmak izi Play tarafında üretiliyor ve değişebiliyor —
+    gerekçe `src/app/api/assetlinks/route.ts` içinde.
+
+    Nokta ile başlayan bir klasör App Router'da yol olmuyor, o yüzden
+    yönlendirme.
+  */
+  async rewrites() {
+    return [
+      {
+        source: "/.well-known/assetlinks.json",
+        destination: "/api/assetlinks",
+      },
+    ];
+  },
   async headers() {
     return [
       {
