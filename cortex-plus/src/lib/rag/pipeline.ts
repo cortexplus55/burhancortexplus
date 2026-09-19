@@ -7,6 +7,10 @@ import {
 } from "@/lib/documents/extract-image-text";
 import { renderPdfPages } from "@/lib/documents/render-pdf-pages";
 import {
+  extractOfficeText,
+  isOfficeDocument,
+} from "@/lib/documents/extract-office-text";
+import {
   claimPhotoPages,
   planTier,
   releasePhotoPages,
@@ -167,6 +171,16 @@ export async function processDocument(
     if (!read.ok || !read.pages.length) {
       if (read.reason === "too_large") return failAndRelease("image_too_large");
       return failAndRelease("image_unreadable");
+    }
+    pages = read.pages;
+  } else if (isOfficeDocument(doc.mime_type)) {
+    /*
+      Slayt ve Word. Model çağrısı yok, kota yok: metin dosyanın içinde zaten
+      duruyor, okunması yeter — PDF'in metin katmanını okumaktan farkı yok.
+    */
+    const read = extractOfficeText(buffer, doc.mime_type);
+    if (!read.ok) {
+      return fail(read.reason === "too_large" ? "office_too_large" : "office_unreadable");
     }
     pages = read.pages;
   } else {

@@ -8,6 +8,9 @@ export const DOCUMENT_ALLOWED_TYPES = new Set([
   "image/png",
   "image/webp",
   "text/plain",
+  // Slayt ve Word: içinde XML taşıyan zip'ler, metin zaten orada duruyor.
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ]);
 
 export async function storeUserDocument(

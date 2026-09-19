@@ -15,6 +15,8 @@ const ALLOWED = [
   "image/jpeg",
   "image/png",
   "image/webp",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "text/plain",
 ];
 
@@ -139,7 +141,7 @@ export function DocumentUpload({
           <Input
             id="document-file"
             type="file"
-            accept=".pdf,.txt,.png,.jpg,.jpeg,.webp"
+            accept=".pdf,.txt,.png,.jpg,.jpeg,.webp,.docx,.pptx"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             required
             className={
