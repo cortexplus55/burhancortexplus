@@ -38,7 +38,12 @@ bedava dağıtmak** demek.
 
 ## 2. Göç dosyaları canlı veritabanında
 
-**Şart:** `.\scripts\apply-migrations.ps1` bekleyen dosya göstermiyor.
+**Şart:** `node cortex-plus/scripts/acilis-kapisi.mjs --db` hiçbir satırı
+kırmızı göstermiyor. (Uygulamak için: `.\scripts\apply-migrations.ps1` —
+listeyi gösterir, onay ister, sonra aynı doğrulamayı kendisi çalıştırır.)
+
+Panelden de görünüyor: `/admin/sistem` → **"Canlı şema"** tablosu. Her satır
+bir göç dosyasının kanıt nesnesini arıyor.
 
 Dışarıdan dolaylı ölçülebilir — satılan plan satırları veritabanından
 geliyor, yani fiyat sayfası veritabanının aynası:
