@@ -538,3 +538,50 @@
     font-size: 1rem; /* iOS zoom ��nleyici */
   }
 }
+
+/* SHELL_THEME_CINEMATIC_PACK */
+
+.cp-sor-root {
+  --cp-bg: #050505;
+  --cp-surface: #121212;
+  --cp-surface-2: #1a1a1a;
+  --cp-border: rgba(255, 255, 255, 0.08);
+  --cp-gold: #f4ae0b;
+  --cs-primary: #f4ae0b;
+  --cs-primary-hover: #ffc233;
+  background:
+    radial-gradient(ellipse 70% 40% at 80% -10%, rgba(244, 174, 11, 0.08), transparent 50%),
+    radial-gradient(ellipse 50% 35% at 0% 100%, rgba(99, 70, 220, 0.06), transparent 45%),
+    var(--cp-bg);
+}
+
+.cp-sor-top {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  background: rgba(5, 5, 5, 0.72);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.cp-sor-topnav-link--active,
+.cp-sor-nav-link--active {
+  color: #ffc857 !important;
+  box-shadow: inset 0 -2px 0 #f4ae0b;
+}
+
+.cp-sor-composer,
+.cp-sor-panel,
+.cp-card-premium {
+  border-color: rgba(232, 168, 56, 0.16);
+  background: rgba(18, 18, 20, 0.72);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 18px 48px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
+}
+
+.cp-plus-limit-banner {
+  background: linear-gradient(135deg, #ffc857 0%, #f4ae0b 45%, #c9851f 100%);
+  box-shadow:
+    0 12px 36px rgba(244, 174, 11, 0.32),
+    0 0 24px rgba(244, 174, 11, 0.18);
+}

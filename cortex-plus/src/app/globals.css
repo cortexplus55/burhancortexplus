@@ -57,3 +57,28 @@
     font-family: var(--font-ui), var(--font-geist-sans), system-ui, sans-serif;
   }
 }
+
+const fs = require("fs");
+
+function appendOnce(file, marker, content) {
+  let t = fs.readFileSync(file, "utf8");
+  if (t.includes(marker)) {
+    console.log("already", file, marker);
+    return;
+  }
+  fs.writeFileSync(file, t.trimEnd() + "\n\n" + content.trim() + "\n", "utf8");
+  console.log("appended", file, marker);
+}
+
+appendOnce("src/app/globals.css", "THEME_CINEMATIC_PREMIUM_PACK", fs.readFileSync(process.argv[1], "utf8"));
+appendOnce("src/styles/parity-shell.css", "SHELL_THEME_CINEMATIC_PACK", fs.readFileSync(process.argv[2], "utf8"));
+appendOnce("src/styles/cortex-premium.css", "PREMIUM_THEME_ALIGN_PACK", fs.readFileSync(process.argv[3], "utf8"));
+
+// Ensure globals imports premium fonts if not already via cortex-premium
+let g = fs.readFileSync("src/app/globals.css", "utf8");
+if (!g.includes("DM+Serif+Display") && !g.includes("DM Serif Display")) {
+  // cortex-premium already imports; ok
+  console.log("font import left to cortex-premium");
+}
+
+console.log("theme pack applied");

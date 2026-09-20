@@ -7371,3 +7371,89 @@
   font-size: 0.6875rem;
   color: var(--cp-muted);
 }
+
+/* THEME_CINEMATIC_PREMIUM_PACK */
+
+:root {
+  --cx-gold: #f4ae0b;
+  --cx-gold-hover: #ffc233;
+  --cx-gold-glow: rgba(244, 174, 11, 0.35);
+  --font-display: "DM Serif Display", Georgia, serif;
+  --font-ui: "Figtree", var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.dark {
+  --background: 0 0% 2%;
+  --foreground: 40 20% 98%;
+  --card: 0 0% 6%;
+  --card-foreground: 40 20% 98%;
+  --popover: 0 0% 6%;
+  --popover-foreground: 40 20% 98%;
+  --primary: 42 91% 51%;
+  --primary-foreground: 30 10% 6%;
+  --secondary: 0 0% 10%;
+  --secondary-foreground: 40 20% 98%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 64%;
+  --accent: 38 45% 12%;
+  --accent-foreground: 38 92% 88%;
+  --destructive: 0 62% 45%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 14%;
+  --input: 0 0% 14%;
+  --ring: 42 92% 54%;
+
+  /* Bridge tokens used across shells */
+  --mk-bg: #050505;
+  --mk-text: #fafafa;
+  --mk-muted: #a3a3a3;
+  --mk-border: rgba(255, 255, 255, 0.08);
+  --mk-primary: #f4ae0b;
+  --cp-bg: #050505;
+  --cp-surface: #121212;
+  --cp-surface-2: #1a1a1a;
+  --cp-border: rgba(255, 255, 255, 0.08);
+  --cp-text: #fafafa;
+  --cp-muted: #a3a3a3;
+  --cp-gold: #f4ae0b;
+}
+
+.dark body {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(244, 174, 11, 0.07), transparent 55%),
+    hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.dark ::selection {
+  background: rgba(244, 174, 11, 0.35);
+  color: #fff8e8;
+}
+
+.dark :focus-visible {
+  outline: 2px solid rgba(244, 174, 11, 0.75);
+  outline-offset: 2px;
+}
+
+/* Premium scrollbars (Chromium/WebKit) */
+.dark * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(244, 174, 11, 0.35) transparent;
+}
+
+.dark *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background: rgba(244, 174, 11, 0.28);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 174, 11, 0.45);
+  background-clip: padding-box;
+}
