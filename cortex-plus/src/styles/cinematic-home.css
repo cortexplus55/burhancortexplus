@@ -966,24 +966,8 @@
   opacity: 0.35;
 }
 
-/* ASTRA_HERO_DEVICES_V1 */
-:is(.cinematic-home, .cinematic-marketing) .mk-hero-astra {
-  text-align: center;
-}
 
-:is(.cinematic-home, .cinematic-marketing) .mk-hero-stars {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.35), transparent),
-    radial-gradient(1px 1px at 70% 20%, rgba(255,255,255,0.25), transparent),
-    radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,0.2), transparent),
-    radial-gradient(1px 1px at 85% 55%, rgba(255,255,255,0.28), transparent),
-    radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,0.18), transparent);
-  background-size: 100% 100%;
-  opacity: 0.55;
-  pointer-events: none;
-}
-
+/* ASTRA_HERO_DEVICES_V2 — photoreal MacBook + iPhone */
 :is(.cinematic-home, .cinematic-marketing) .mk-hero-title--astra {
   font-size: clamp(2.6rem, 7vw, 4.6rem);
   line-height: 1.05;
@@ -1038,69 +1022,165 @@
   transform: translateY(-1px);
 }
 
-:is(.cinematic-home, .cinematic-marketing) .mk-device-stack {
+:is(.cinematic-home, .cinematic-marketing) .mk-device-stage {
   position: relative;
-  min-height: 340px;
+  min-height: 420px;
   display: grid;
-  place-items: center;
-  padding-bottom: 1.5rem;
+  place-items: end center;
+  padding: 0 0 1.25rem;
+  perspective: 1400px;
 }
 
-:is(.cinematic-home, .cinematic-marketing) .mk-device-stack-glow {
+:is(.cinematic-home, .cinematic-marketing) .mk-device-stage-glow {
   position: absolute;
   left: 50%;
-  bottom: 8%;
-  width: min(70%, 420px);
-  height: 120px;
+  bottom: 6%;
+  width: min(78%, 520px);
+  height: 140px;
   transform: translateX(-50%);
-  background: radial-gradient(ellipse at center, rgba(232,184,75,0.35), transparent 70%);
-  filter: blur(18px);
+  background: radial-gradient(ellipse at center, rgba(232,184,75,0.38), rgba(120,80,255,0.08) 45%, transparent 72%);
+  filter: blur(22px);
   pointer-events: none;
 }
 
-:is(.cinematic-home, .cinematic-marketing) .mk-laptop {
+:is(.cinematic-home, .cinematic-marketing) .mk-device-stage-floor {
+  position: absolute;
+  left: 50%;
+  bottom: 4%;
+  width: min(70%, 460px);
+  height: 28px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.65), transparent 70%);
+  filter: blur(10px);
+  pointer-events: none;
+}
+
+/* —— MacBook Pro —— */
+:is(.cinematic-home, .cinematic-marketing) .mk-mbp {
   position: relative;
-  width: min(100%, 560px);
+  width: min(100%, 620px);
   z-index: 1;
+  transform: rotateX(8deg) translateZ(0);
+  transform-style: preserve-3d;
 }
 
-:is(.cinematic-home, .cinematic-marketing) .mk-laptop-bezel {
-  border-radius: 14px 14px 8px 8px;
-  padding: 10px 10px 0;
-  background: linear-gradient(180deg, #2a2a32, #141418);
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+:is(.cinematic-home, .cinematic-marketing) .mk-mbp-lid {
+  position: relative;
+  border-radius: 16px 16px 10px 10px;
+  padding: 1px;
+  background: linear-gradient(145deg, #9a9aa3 0%, #3d3d45 22%, #1c1c20 55%, #6e6e78 100%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.22) inset,
+    0 -1px 0 rgba(0,0,0,0.45) inset,
+    0 40px 80px rgba(0,0,0,0.55);
 }
 
-:is(.cinematic-home, .cinematic-marketing) .mk-laptop-screen {
-  border-radius: 8px 8px 4px 4px;
+:is(.cinematic-home, .cinematic-marketing) .mk-mbp-bezel {
+  position: relative;
+  border-radius: 15px 15px 9px 9px;
+  padding: 11px 11px 14px;
+  background: linear-gradient(180deg, #1a1a1e 0%, #0c0c0e 100%);
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-mbp-camera {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 35%, #3a4a5a, #0a0a0c 70%);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+  z-index: 3;
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-mbp-glass {
+  position: relative;
+  border-radius: 6px;
   overflow: hidden;
-  background: #0b0b0f;
-  aspect-ratio: 16 / 10;
+  background: #07070a;
+  aspect-ratio: 16 / 10.2;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.05) inset,
+    0 0 40px rgba(0,0,0,0.35) inset;
 }
 
-:is(.cinematic-home, .cinematic-marketing) .mk-laptop-base {
-  height: 12px;
-  margin: 0 auto;
-  width: 108%;
-  margin-left: -4%;
+:is(.cinematic-home, .cinematic-marketing) .mk-mbp-shine {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: linear-gradient(
+    115deg,
+    rgba(255,255,255,0.14) 0%,
+    rgba(255,255,255,0.03) 22%,
+    transparent 38%,
+    transparent 62%,
+    rgba(255,255,255,0.04) 78%,
+    rgba(255,255,255,0.08) 100%
+  );
+  mix-blend-mode: screen;
+  opacity: 0.55;
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-mbp-chin {
+  height: 18px;
+  margin-top: -1px;
   border-radius: 0 0 10px 10px;
-  background: linear-gradient(180deg, #3a3a42, #1c1c22);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: linear-gradient(180deg, #2a2a30 0%, #151518 100%);
+  border: 1px solid rgba(255,255,255,0.08);
   border-top: none;
+  display: grid;
+  place-items: center;
 }
 
-:is(.cinematic-home, .cinematic-marketing) .mk-laptop-notch {
-  width: 18%;
-  height: 5px;
-  margin: -5px auto 0;
-  border-radius: 0 0 6px 6px;
-  background: #111;
+:is(.cinematic-home, .cinematic-marketing) .mk-mbp-logo {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: linear-gradient(145deg, #7a7a82, #2e2e34);
+  opacity: 0.55;
 }
 
+:is(.cinematic-home, .cinematic-marketing) .mk-mbp-base {
+  position: relative;
+  height: 10px;
+  width: 108%;
+  margin: 0 auto 0 -4%;
+  border-radius: 0 0 12px 12px;
+  background: linear-gradient(180deg, #4a4a52 0%, #242428 40%, #121214 100%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.18) inset,
+    0 8px 16px rgba(0,0,0,0.35);
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-mbp-indent {
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  width: 22%;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(180deg, #0e0e10, #2a2a30);
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-mbp-shadow {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: -18px;
+  height: 28px;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.55), transparent 70%);
+  filter: blur(8px);
+  z-index: -1;
+}
+
+/* Dashboard UI inside laptop */
 :is(.cinematic-home, .cinematic-marketing) .mk-dash {
   display: grid;
-  grid-template-columns: 128px 1fr;
+  grid-template-columns: 132px 1fr;
   height: 100%;
   color: #f2f2f5;
   font-size: 11px;
@@ -1140,7 +1220,7 @@
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-dash-main {
-  padding: 14px 14px 12px;
+  padding: 12px 14px 10px;
   text-align: left;
 }
 
@@ -1149,7 +1229,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-dash-label {
@@ -1178,13 +1258,33 @@
   text-align: center;
 }
 
-:is(.cinematic-home, .cinematic-marketing) .mk-dash-ring strong {
-  font-size: 12px;
-}
-
+:is(.cinematic-home, .cinematic-marketing) .mk-dash-ring strong { font-size: 12px; }
 :is(.cinematic-home, .cinematic-marketing) .mk-dash-ring span {
   font-size: 8px;
   color: rgba(255,255,255,0.55);
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-dash-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 42px;
+  margin-bottom: 10px;
+  padding: 6px 8px 0;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-dash-chart span {
+  flex: 1;
+  border-radius: 4px 4px 2px 2px;
+  background: linear-gradient(180deg, rgba(160,160,180,0.55), rgba(80,80,100,0.35));
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-dash-chart span.is-gold {
+  background: linear-gradient(180deg, #f5d78e, #c9922a);
+  box-shadow: 0 0 12px rgba(232,184,75,0.35);
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-dash-list {
@@ -1192,7 +1292,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 8px;
+  gap: 7px;
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-dash-list li {
@@ -1200,7 +1300,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 7px 10px;
   border-radius: 10px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.06);
@@ -1226,42 +1326,126 @@
   font-weight: 650;
 }
 
-:is(.cinematic-home, .cinematic-marketing) .mk-phone {
+/* —— iPhone —— */
+:is(.cinematic-home, .cinematic-marketing) .mk-iphone {
   position: absolute;
-  right: max(0px, calc(8% - 12px));
-  bottom: 18px;
-  width: min(38%, 168px);
-  aspect-ratio: 9 / 19;
-  z-index: 2;
-  border-radius: 28px;
-  padding: 8px;
-  background: linear-gradient(160deg, #d4af5a, #8a6a28 40%, #1a1a1e);
-  box-shadow: 0 24px 50px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,215,140,0.25);
+  right: max(-4px, calc(4% - 8px));
+  bottom: 22px;
+  width: min(34%, 178px);
+  z-index: 3;
+  filter: drop-shadow(0 28px 40px rgba(0,0,0,0.55));
 }
 
-:is(.cinematic-home, .cinematic-marketing) .mk-phone-notch {
+:is(.cinematic-home, .cinematic-marketing) .mk-iphone-frame {
+  position: relative;
+  border-radius: 34px;
+  padding: 2px;
+  background:
+    linear-gradient(145deg, #f0d78a 0%, #b8913d 18%, #3a2a12 42%, #e8c56a 68%, #8a6a28 100%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.35) inset,
+    0 -2px 6px rgba(0,0,0,0.35) inset;
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-iphone-screen {
+  position: relative;
+  border-radius: 32px;
+  overflow: hidden;
+  aspect-ratio: 9 / 19.4;
+  background: #000;
+  box-shadow: 0 0 0 3px #0a0a0c inset;
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-iphone-island {
   position: absolute;
-  top: 14px;
+  top: 10px;
   left: 50%;
+  z-index: 5;
+  width: 42%;
+  height: 18px;
   transform: translateX(-50%);
-  width: 36%;
-  height: 10px;
   border-radius: 999px;
-  background: #0a0a0c;
-  z-index: 2;
+  background: #050505;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.04);
 }
 
-:is(.cinematic-home, .cinematic-marketing) .mk-phone-screen {
+:is(.cinematic-home, .cinematic-marketing) .mk-iphone-shine {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: linear-gradient(
+    125deg,
+    rgba(255,255,255,0.18) 0%,
+    rgba(255,255,255,0.04) 18%,
+    transparent 36%,
+    transparent 70%,
+    rgba(255,255,255,0.06) 100%
+  );
+  opacity: 0.5;
+  mix-blend-mode: screen;
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-iphone-ui {
+  position: relative;
+  z-index: 2;
   height: 100%;
-  border-radius: 22px;
-  background: radial-gradient(ellipse at 50% 28%, rgba(232,184,75,0.22), transparent 45%), #09090c;
-  border: 1px solid rgba(255,255,255,0.08);
-  padding: 28px 12px 14px;
+  padding: 42px 12px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   color: #fff;
+  background:
+    radial-gradient(ellipse at 50% 28%, rgba(232,184,75,0.28), transparent 48%),
+    linear-gradient(180deg, #101014 0%, #07070a 100%);
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-iphone-btn {
+  position: absolute;
+  background: linear-gradient(90deg, #c9a54e, #7a5a22);
+  border-radius: 2px;
+  z-index: 0;
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-iphone-btn--silent {
+  left: -2px;
+  top: 18%;
+  width: 3px;
+  height: 18px;
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-iphone-btn--volup {
+  left: -2px;
+  top: 28%;
+  width: 3px;
+  height: 28px;
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-iphone-btn--voldown {
+  left: -2px;
+  top: 40%;
+  width: 3px;
+  height: 28px;
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-iphone-btn--power {
+  right: -2px;
+  top: 30%;
+  width: 3px;
+  height: 52px;
+  background: linear-gradient(90deg, #7a5a22, #c9a54e);
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-iphone-shadow {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: -14px;
+  height: 22px;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.5), transparent 70%);
+  filter: blur(6px);
+  z-index: -1;
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-phone-hi {
@@ -1271,22 +1455,22 @@
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-phone-orb {
-  width: 54px;
-  height: 54px;
-  margin: 10px 0 8px;
+  width: 58px;
+  height: 58px;
+  margin: 12px 0 10px;
   border-radius: 999px;
   background: radial-gradient(circle at 35% 30%, #fff6d6, #e8b84b 40%, #7a5418 75%, transparent 76%);
-  box-shadow: 0 0 28px rgba(232,184,75,0.55);
+  box-shadow: 0 0 32px rgba(232,184,75,0.6);
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-phone-title {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-phone-sub {
-  margin: 4px 0 0;
+  margin: 5px 0 0;
   font-size: 9px;
   line-height: 1.35;
   color: rgba(255,255,255,0.55);
@@ -1297,41 +1481,46 @@
   flex-wrap: wrap;
   gap: 4px;
   justify-content: center;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-phone-chips span {
   font-size: 8px;
-  padding: 3px 6px;
+  padding: 3px 7px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,0.14);
   color: rgba(255,255,255,0.75);
+  background: rgba(255,255,255,0.04);
 }
 
 :is(.cinematic-home, .cinematic-marketing) .mk-phone-cta {
   margin-top: auto;
   width: 100%;
   border-radius: 999px;
-  padding: 7px 8px;
+  padding: 8px;
   font-size: 9px;
   font-weight: 650;
   color: #1a1205;
   background: linear-gradient(135deg, #f5d78e, #e8b84b);
+  box-shadow: 0 6px 18px rgba(232,184,75,0.35);
 }
 
 @media (max-width: 640px) {
-  :is(.cinematic-home, .cinematic-marketing) .mk-device-stack {
-    min-height: 280px;
+  :is(.cinematic-home, .cinematic-marketing) .mk-device-stage {
+    min-height: 300px;
   }
-  :is(.cinematic-home, .cinematic-marketing) .mk-phone {
-    width: min(42%, 132px);
-    right: 2%;
-    bottom: 10px;
+  :is(.cinematic-home, .cinematic-marketing) .mk-iphone {
+    width: min(40%, 138px);
+    right: 0;
+    bottom: 12px;
   }
   :is(.cinematic-home, .cinematic-marketing) .mk-dash {
     grid-template-columns: 1fr;
   }
   :is(.cinematic-home, .cinematic-marketing) .mk-dash-nav {
     display: none;
+  }
+  :is(.cinematic-home, .cinematic-marketing) .mk-mbp {
+    transform: none;
   }
 }

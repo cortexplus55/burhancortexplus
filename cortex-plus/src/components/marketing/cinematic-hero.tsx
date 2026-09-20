@@ -9,7 +9,7 @@ import { Sparkles } from "lucide-react";
  */
 export function CinematicHero() {
   return (
-    <section className="mk-hero-premium mk-hero-astra relative flex min-h-[min(100dvh,920px)] flex-col justify-center overflow-hidden pb-16 pt-24 md:pb-24 md:pt-28">
+    <section className="mk-hero-premium mk-hero-astra relative flex min-h-[min(100dvh,960px)] flex-col justify-center overflow-hidden pb-20 pt-24 md:pb-28 md:pt-28">
       <div className="mk-hero-ambient" aria-hidden>
         <span className="mk-hero-orb mk-hero-orb--gold" />
         <span className="mk-hero-orb mk-hero-orb--violet" />
@@ -42,78 +42,106 @@ export function CinematicHero() {
           </Link>
         </div>
 
-        <div className="mk-section-reveal mk-section-reveal-delay-2 mk-device-stack mt-14 w-full max-w-3xl">
-          <div className="mk-device-stack-glow" aria-hidden />
+        <div className="mk-section-reveal mk-section-reveal-delay-2 mk-device-stage mt-16 w-full max-w-[720px]">
+          <div className="mk-device-stage-glow" aria-hidden />
+          <div className="mk-device-stage-floor" aria-hidden />
 
-          <div className="mk-laptop" aria-hidden={false}>
-            <div className="mk-laptop-bezel">
-              <div className="mk-laptop-screen">
-                <div className="mk-dash">
-                  <aside className="mk-dash-nav">
-                    <p className="mk-dash-brand">cortex+</p>
-                    <ul>
-                      <li className="is-active">Genel bakış</li>
-                      <li>Zayıf konular</li>
-                      <li>Plan</li>
-                      <li>AI öğretmen</li>
-                    </ul>
-                  </aside>
-                  <div className="mk-dash-main">
-                    <div className="mk-dash-head">
-                      <div>
-                        <p className="mk-dash-label">Bu hafta</p>
-                        <h2>Zayıf noktaların</h2>
+          <div className="mk-mbp" aria-label="Cortex Plus masaüstü önizleme">
+            <div className="mk-mbp-lid">
+              <div className="mk-mbp-bezel">
+                <span className="mk-mbp-camera" aria-hidden />
+                <div className="mk-mbp-glass">
+                  <div className="mk-mbp-shine" aria-hidden />
+                  <div className="mk-dash">
+                    <aside className="mk-dash-nav">
+                      <p className="mk-dash-brand">cortex+</p>
+                      <ul>
+                        <li className="is-active">Genel bakış</li>
+                        <li>Zayıf konular</li>
+                        <li>Plan</li>
+                        <li>AI öğretmen</li>
+                      </ul>
+                    </aside>
+                    <div className="mk-dash-main">
+                      <div className="mk-dash-head">
+                        <div>
+                          <p className="mk-dash-label">Bu hafta</p>
+                          <h2>Zayıf noktaların</h2>
+                        </div>
+                        <div className="mk-dash-ring">
+                          <strong>%62</strong>
+                          <span>hazır</span>
+                        </div>
                       </div>
-                      <div className="mk-dash-ring">
-                        <strong>%62</strong>
-                        <span>hazır</span>
+                      <div className="mk-dash-chart" aria-hidden>
+                        <span style={{ height: "38%" }} />
+                        <span style={{ height: "52%" }} />
+                        <span style={{ height: "44%" }} />
+                        <span style={{ height: "68%" }} />
+                        <span style={{ height: "81%" }} />
+                        <span className="is-gold" style={{ height: "94%" }} />
                       </div>
+                      <ul className="mk-dash-list">
+                        <li>
+                          <div>
+                            <strong>İstatistik</strong>
+                            <span>Net %34 · öncelik</span>
+                          </div>
+                          <em>Çalış</em>
+                        </li>
+                        <li>
+                          <div>
+                            <strong>Fonksiyonlar</strong>
+                            <span>Net %41 · tekrar</span>
+                          </div>
+                          <em>Çalış</em>
+                        </li>
+                        <li>
+                          <div>
+                            <strong>Problemler</strong>
+                            <span>Net %48 · güçlendir</span>
+                          </div>
+                          <em>Çalış</em>
+                        </li>
+                      </ul>
                     </div>
-                    <ul className="mk-dash-list">
-                      <li>
-                        <div>
-                          <strong>İstatistik</strong>
-                          <span>Net %34 · öncelik</span>
-                        </div>
-                        <em>Çalış</em>
-                      </li>
-                      <li>
-                        <div>
-                          <strong>Fonksiyonlar</strong>
-                          <span>Net %41 · tekrar</span>
-                        </div>
-                        <em>Çalış</em>
-                      </li>
-                      <li>
-                        <div>
-                          <strong>Problemler</strong>
-                          <span>Net %48 · güçlendir</span>
-                        </div>
-                        <em>Çalış</em>
-                      </li>
-                    </ul>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="mk-laptop-base" aria-hidden />
-            <div className="mk-laptop-notch" aria-hidden />
+            <div className="mk-mbp-chin" aria-hidden>
+              <span className="mk-mbp-logo" />
+            </div>
+            <div className="mk-mbp-base" aria-hidden>
+              <span className="mk-mbp-indent" />
+            </div>
+            <div className="mk-mbp-shadow" aria-hidden />
           </div>
 
-          <div className="mk-phone">
-            <div className="mk-phone-notch" aria-hidden />
-            <div className="mk-phone-screen">
-              <p className="mk-phone-hi">Merhaba</p>
-              <div className="mk-phone-orb" aria-hidden />
-              <p className="mk-phone-title">AI öğretmen hazır</p>
-              <p className="mk-phone-sub">Materyalini ver — planı çıkaralım.</p>
-              <div className="mk-phone-chips">
-                <span>TYT</span>
-                <span>AYT</span>
-                <span>KPSS</span>
+          <div className="mk-iphone" aria-label="Cortex Plus mobil AI öğretmen">
+            <span className="mk-iphone-btn mk-iphone-btn--silent" aria-hidden />
+            <span className="mk-iphone-btn mk-iphone-btn--volup" aria-hidden />
+            <span className="mk-iphone-btn mk-iphone-btn--voldown" aria-hidden />
+            <span className="mk-iphone-btn mk-iphone-btn--power" aria-hidden />
+            <div className="mk-iphone-frame">
+              <div className="mk-iphone-screen">
+                <span className="mk-iphone-island" aria-hidden />
+                <div className="mk-iphone-shine" aria-hidden />
+                <div className="mk-iphone-ui">
+                  <p className="mk-phone-hi">Merhaba</p>
+                  <div className="mk-phone-orb" aria-hidden />
+                  <p className="mk-phone-title">AI öğretmen hazır</p>
+                  <p className="mk-phone-sub">Materyalini ver — planı çıkaralım.</p>
+                  <div className="mk-phone-chips">
+                    <span>TYT</span>
+                    <span>AYT</span>
+                    <span>KPSS</span>
+                  </div>
+                  <div className="mk-phone-cta">Sohbete başla ✦</div>
+                </div>
               </div>
-              <div className="mk-phone-cta">Sohbete başla ✦</div>
             </div>
+            <div className="mk-iphone-shadow" aria-hidden />
           </div>
         </div>
       </div>
