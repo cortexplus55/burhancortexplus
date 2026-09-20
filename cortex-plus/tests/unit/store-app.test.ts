@@ -37,7 +37,12 @@ describe("PWA bildirimi", () => {
     expect(maskable).toHaveLength(1);
     expect(maskable[0].sizes).toBe("512x512");
     expect(any.length).toBeGreaterThan(0);
-    expect(icons.some((icon) => icon.purpose === "any maskable")).toBe(false);
+
+    // Birleşik `"any maskable"` biçimi burada AYRICA sınanmıyor: Next'in
+    // manifest tipi `purpose` için yalnızca "any" | "maskable" |
+    // "monochrome" kabul ediyor, yani birleşik dize zaten derlenmiyor.
+    // Tip sisteminin kapattığı bir kapıyı testle ikinci kez kapatmak,
+    // TypeScript'in "bu karşılaştırmanın anlamı yok" demesine yol açıyordu.
   });
 
   it("512 piksellik simge var — Play bunu istiyor", () => {
