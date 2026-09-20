@@ -143,6 +143,7 @@ export function SubscriptionCards({
   const [otherPlansOpen, setOtherPlansOpen] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
+  const [iframeReady, setIframeReady] = useState(false);
 
   const { plusTier, sigmaTier, rest } = useMemo(() => {
     const plus: TierPlans = {};
@@ -261,6 +262,7 @@ export function SubscriptionCards({
         toast.error(payload.error ?? "Ödeme başlatılamadı.");
         return;
       }
+      setIframeReady(false);
       setIframeUrl(payload.iframeUrl);
     } catch {
       toast.error("Bağlantı hatası.");
@@ -292,24 +294,47 @@ export function SubscriptionCards({
   if (iframeUrl) {
     return (
       <div className={cn("cs-app py-6", embedded ? "" : "min-h-dvh px-4")}>
-        <p className="mb-3 text-sm text-[var(--cs-muted)]">
-          Ödeme formu güvenli çerçevede açıldı.
-          {isParent && childName
-            ? ` Kota ${childName} hesabına yazılır.`
-            : null}
-        </p>
-        <iframe
-          src={iframeUrl}
-          title="PayTR ödeme formu"
-          className="h-[min(640px,70dvh)] w-full rounded-2xl border border-[var(--cs-border)]"
-        />
-        <button
-          type="button"
-          className="mt-4 text-sm text-[var(--cs-primary)]"
-          onClick={() => setIframeUrl(null)}
-        >
-          Paketlere dön
-        </button>
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-[var(--cs-text)]">
+              Güvenli ödeme
+            </p>
+            <p className="mt-1 text-sm text-[var(--cs-muted)]">
+              Form PayTR altyapısında açılır; kart bilgisi bizim sunucuya gelmez.
+              {isParent && childName
+                ? ` Kota ${childName} hesabına yazılır.`
+                : null}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="shrink-0 rounded-full px-3 py-1.5 text-sm text-[var(--cs-primary)] hover:bg-[var(--cs-surface)]"
+            onClick={() => {
+              setIframeUrl(null);
+              setIframeReady(false);
+            }}
+          >
+            Paketlere dön
+          </button>
+        </div>
+        <div className="relative overflow-hidden rounded-2xl border border-[var(--cs-border)] bg-[var(--cs-surface)] shadow-[0_20px_60px_-40px_rgba(0,0,0,0.45)]">
+          {!iframeReady ? (
+            <div
+              className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--cs-surface)]/95"
+              aria-busy="true"
+              aria-live="polite"
+            >
+              <span className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--cs-border)] border-t-[var(--cs-primary)]" />
+              <p className="text-sm text-[var(--cs-muted)]">Ödeme formu yükleniyor…</p>
+            </div>
+          ) : null}
+          <iframe
+            src={iframeUrl}
+            title="PayTR ödeme formu"
+            className="h-[min(640px,70dvh)] w-full bg-white"
+            onLoad={() => setIframeReady(true)}
+          />
+        </div>
       </div>
     );
   }
