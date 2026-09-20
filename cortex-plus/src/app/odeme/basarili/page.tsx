@@ -7,16 +7,16 @@ export default async function OdemeBasariliPage() {
     <MarketingPage
       variant="auth"
       title="Ödeme alındı"
-      description="Kredilerin birkaç saniye içinde hesabına yansır."
+      description="Plus hakkın birkaç saniye içinde hesabına işlenir."
     >
       <ResultCard
         icon={CheckCircle2}
         tone="success"
-        detail="Makbuzun Ödemeler sayfasında duruyor. Kredin hemen görünmezse sayfayı bir kez yenile — bankadan onay birkaç saniye sürebiliyor."
-        primaryHref="/ogretmen"
+        detail="Makbuzun Ödemeler sayfasında duruyor. Hakların hemen görünmezse sayfayı bir kez yenile — bankadan onay bazen birkaç saniye sürer."
+        primaryHref="/"
         primaryLabel="Çalışmaya başla"
-        secondaryHref="/krediler"
-        secondaryLabel="Kredilerimi gör"
+        secondaryHref="/odemeler"
+        secondaryLabel="Makbuzumu gör"
       />
     </MarketingPage>
   );

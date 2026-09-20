@@ -383,6 +383,7 @@ export function computeExamReadiness(input: {
     }
   }
 
+  void unmeasured;
   const measuredSuccessPct =
     successN > 0 ? Math.round((successSum / successN) * 100) : null;
   const coveragePct =

@@ -1,6 +1,5 @@
 "use server";
 
-import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
@@ -137,20 +136,6 @@ async function completeSignupInner(
 }
 
 
-async function linkChildInternal(
-  parentId: string,
-  payload: z.infer<typeof payloadSchema>,
-): Promise<{ ok: true; warning?: string } | { ok: false; error: string }> {
-  if (payload.parentLinkMode === "code" && payload.parentInviteCode) {
-    return createCodeLink(parentId, payload.parentInviteCode);
-  }
-
-  if (payload.parentLinkMode === "email" && payload.parentInviteEmail) {
-    return createEmailInvite(parentId, payload.parentInviteEmail);
-  }
-
-  return { ok: true };
-}
 
 async function createCodeLink(
   parentId: string,
@@ -259,39 +244,6 @@ async function claimPendingInvites(studentId: string, email: string) {
     .eq("invite_email", email.toLowerCase());
 }
 
-async function createTeacherApplication(userId: string, institution: string) {
-  const service = createServiceClient();
-
-  const { data: existing } = await service
-    .from("teacher_applications")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("status", "pending")
-    .maybeSingle();
-
-  if (existing) return;
-
-  await service.from("teacher_applications").insert({
-    user_id: userId,
-    institution: institution.slice(0, 200),
-    status: "pending",
-  });
-
-  await service
-    .from("profiles")
-    .update({ teacher_application_status: "pending" })
-    .eq("id", userId);
-}
-
-async function createTeacherClassroom(userId: string, name: string) {
-  const service = createServiceClient();
-  const joinCode = randomBytes(3).toString("hex").toUpperCase();
-  await service.from("classrooms").insert({
-    teacher_id: userId,
-    name,
-    join_code: joinCode,
-  });
-}
 
 async function syncPrimaryUserRole(
   userId: string,

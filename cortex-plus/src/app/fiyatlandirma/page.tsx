@@ -52,17 +52,42 @@ export default async function FiyatlandirmaPage() {
     plans = [];
   }
 
+  const checkoutEnabled = isPaytrConfigured();
+
   return (
     <ParityMarketingPage
       title="Fiyatlandırma"
       description="İhtiyacına uygun kullanım hakkını seç."
     >
-      <div data-cinematic-reveal>
-        <SubscriptionCards
-          plans={plans}
-          guestMode
-          checkoutEnabled={isPaytrConfigured()}
-        />
+      <div data-cinematic-reveal className="space-y-4">
+        {!checkoutEnabled ? (
+          <p className="mx-auto max-w-lg rounded-2xl border border-[var(--mk-border)] bg-[var(--mk-surface)] px-4 py-3 text-center text-sm text-[var(--mk-muted)]">
+            Ödeme altyapısı henüz canlı değil. Paketleri inceleyebilirsin; satın alma
+            yakında açılacak.
+          </p>
+        ) : null}
+        {plans.length === 0 ? (
+          <div className="mx-auto max-w-lg rounded-3xl border border-dashed border-[var(--mk-border)] bg-[var(--mk-surface)]/60 px-6 py-12 text-center">
+            <p className="text-base font-medium text-[var(--mk-text)]">
+              Paketler şu an listelenemiyor
+            </p>
+            <p className="mt-2 text-sm text-[var(--mk-muted)]">
+              Biraz sonra yeniden dene. Sorun sürerse destek hattından yazman yeterli.
+            </p>
+            <Link
+              href="/iletisim"
+              className="mt-5 inline-flex text-sm font-medium text-[var(--mk-primary)] underline underline-offset-4"
+            >
+              Destekle konuş
+            </Link>
+          </div>
+        ) : (
+          <SubscriptionCards
+            plans={plans}
+            guestMode
+            checkoutEnabled={checkoutEnabled}
+          />
+        )}
       </div>
       <p className="pb-8 text-center text-sm text-[var(--mk-muted)]">
         Zaten hesabın var mı?{" "}

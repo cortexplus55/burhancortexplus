@@ -12,11 +12,11 @@ export default async function OdemeBasarisizPage() {
       <ResultCard
         icon={XCircle}
         tone="error"
-        detail="Siparişin oluşmadı, kredin değişmedi. Tekrar denemek istersen paketler sayfasından aynı yerden devam edebilirsin; sorun sürerse bize yaz."
-        primaryHref="/paketler"
-        primaryLabel="Tekrar dene"
+        detail="Siparişin oluşmadı, hesabında bir değişiklik yok. Kartını veya bakiyeni kontrol edip fiyatlandırmadan tekrar deneyebilirsin."
+        primaryHref="/fiyatlandirma"
+        primaryLabel="Paketlere dön"
         secondaryHref="/iletisim"
-        secondaryLabel="Bize ulaş"
+        secondaryLabel="Destek al"
       />
     </MarketingPage>
   );
