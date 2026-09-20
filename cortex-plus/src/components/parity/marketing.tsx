@@ -4,6 +4,7 @@ import "@/styles/parity-marketing.css";
 import "@/styles/cinematic-home.css";
 import { ArrowRight } from "lucide-react";
 import { ParitySiteHeader } from "@/components/marketing/parity-site-header";
+import { MARKETING_NAV } from "@/lib/parity/marketing-nav";
 import { CinematicPrimaryCta } from "@/components/marketing/cinematic-cta";
 import { MARKETING_SUBJECTS } from "@/lib/parity/marketing-subjects";
 import { MARKETING_FAQ } from "@/lib/parity/marketing-faq";
@@ -23,12 +24,11 @@ export function ParitySiteFooter() {
         </div>
         <div className="mk-footer-links flex flex-col gap-2">
           <Link href="/ornek">Nasıl çalışır</Link>
-          <Link href="/sinav-hazirligi">Sınav hazırlığı</Link>
-          <Link href="/mobil-uygulama">Mobil uygulama</Link>
-          <Link href="/ozellikler">Özellikler</Link>
-          <Link href="/yaratici-program">Yaratıcı program</Link>
-          <Link href="/fiyatlandirma">Fiyatlandırma</Link>
-          <Link href="/yardim">Yardım</Link>
+          {MARKETING_NAV.map((item) => (
+            <Link key={item.href} href={item.href}>
+              {item.label}
+            </Link>
+          ))}
         </div>
         <div className="mk-footer-links flex flex-col gap-2">
           <Link href="/gizlilik">Gizlilik</Link>

@@ -6,13 +6,7 @@ import { Menu, X } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const nav = [
-  { href: "/ozellikler", label: "Özellikler" },
-  { href: "/sinav-hazirligi", label: "Sınav hazırlığı" },
-  { href: "/fiyatlandirma", label: "Fiyatlandırma" },
-  { href: "/yardim", label: "Yardım" },
-];
+import { MARKETING_AUTH, MARKETING_NAV } from "@/lib/parity/marketing-nav";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -25,7 +19,7 @@ export function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm md:flex" aria-label="Ana menü">
-          {nav.map((item) => (
+          {MARKETING_NAV.map((item) => (
             <Link key={item.href} href={item.href} className="hover:text-primary">
               {item.label}
             </Link>
@@ -35,13 +29,16 @@ export function SiteHeader() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Link
-            href="/giris"
+            href={MARKETING_AUTH.loginHref}
             className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden sm:inline-flex")}
           >
-            Giriş
+            {MARKETING_AUTH.loginLabel}
           </Link>
-          <Link href="/kayit" className={cn(buttonVariants({ size: "sm" }), "hidden sm:inline-flex")}>
-            Kayıt ol
+          <Link
+            href={MARKETING_AUTH.signupHref}
+            className={cn(buttonVariants({ size: "sm" }), "hidden sm:inline-flex")}
+          >
+            {MARKETING_AUTH.signupLabel}
           </Link>
           <button
             type="button"
@@ -63,7 +60,7 @@ export function SiteHeader() {
           aria-label="Mobil menü"
         >
           <ul className="flex flex-col gap-1 text-sm">
-            {nav.map((item) => (
+            {MARKETING_NAV.map((item) => (
               <li key={item.href}>
                 <Link
                   href={item.href}
@@ -76,18 +73,18 @@ export function SiteHeader() {
             ))}
             <li className="mt-2 flex gap-2 border-t pt-3">
               <Link
-                href="/giris"
+                href={MARKETING_AUTH.loginHref}
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex-1")}
                 onClick={() => setOpen(false)}
               >
-                Giriş
+                {MARKETING_AUTH.loginLabel}
               </Link>
               <Link
-                href="/kayit"
+                href={MARKETING_AUTH.signupHref}
                 className={cn(buttonVariants({ size: "sm" }), "flex-1")}
                 onClick={() => setOpen(false)}
               >
-                Kayıt ol
+                {MARKETING_AUTH.signupLabel}
               </Link>
             </li>
           </ul>

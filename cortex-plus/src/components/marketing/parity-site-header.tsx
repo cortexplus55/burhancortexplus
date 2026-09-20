@@ -5,13 +5,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MARKETING_AUTH, MARKETING_NAV } from "@/lib/parity/marketing-nav";
 
-const nav = [
-  { href: "/sinav-hazirligi", label: "Sınav hazırlığı" },
-  { href: "/ozellikler", label: "Özellikler" },
-  { href: "/fiyatlandirma", label: "Fiyatlandırma" },
-  { href: "/yardim", label: "Yardım" },
-];
+const navFocus =
+  "rounded-md outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--mk-primary)]";
 
 export function ParitySiteHeader() {
   const [open, setOpen] = useState(false);
@@ -21,7 +18,10 @@ export function ParitySiteHeader() {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4">
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-2 font-semibold tracking-tight text-[var(--mk-text)]"
+          className={cn(
+            "flex shrink-0 items-center gap-2 font-semibold tracking-tight text-[var(--mk-text)]",
+            navFocus,
+          )}
         >
           <CortexMark size={22} />
           Cortex Plus
@@ -31,8 +31,12 @@ export function ParitySiteHeader() {
           className="hidden items-center gap-6 text-sm text-[var(--mk-muted)] md:flex"
           aria-label="Ana menü"
         >
-          {nav.map((item) => (
-            <Link key={item.href} href={item.href} className="hover:text-[var(--mk-text)]">
+          {MARKETING_NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn("hover:text-[var(--mk-text)]", navFocus)}
+            >
               {item.label}
             </Link>
           ))}
@@ -41,23 +45,35 @@ export function ParitySiteHeader() {
         <div className="flex items-center gap-2">
           <Link
             href="/fiyatlandirma"
-            className="hidden items-center gap-1 rounded-full bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-300 lg:inline-flex"
+            className={cn(
+              "hidden items-center gap-1 rounded-full bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-300 lg:inline-flex",
+              navFocus,
+            )}
           >
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
             Plus
           </Link>
           <Link
-            href="/giris"
-            className="hidden rounded-full px-3 py-1.5 text-sm font-medium text-[var(--mk-muted)] hover:text-[var(--mk-text)] sm:inline-flex"
+            href={MARKETING_AUTH.loginHref}
+            className={cn(
+              "hidden rounded-full px-3 py-1.5 text-sm font-medium text-[var(--mk-muted)] hover:text-[var(--mk-text)] sm:inline-flex",
+              navFocus,
+            )}
           >
-            Giriş yap
+            {MARKETING_AUTH.loginLabel}
           </Link>
-          <Link href="/kayit" className="mk-btn-primary hidden px-4 py-2 text-sm sm:inline-flex">
-            Ücretsiz dene
+          <Link
+            href={MARKETING_AUTH.signupHref}
+            className={cn("mk-btn-primary hidden px-4 py-2 text-sm sm:inline-flex", navFocus)}
+          >
+            {MARKETING_AUTH.signupLabel}
           </Link>
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--mk-border)] text-[var(--mk-text)] md:hidden"
+            className={cn(
+              "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--mk-border)] text-[var(--mk-text)] md:hidden",
+              navFocus,
+            )}
             aria-expanded={open}
             aria-controls="cs-mobile-nav"
             aria-label={open ? "Menüyü kapat" : "Menüyü aç"}
@@ -75,11 +91,14 @@ export function ParitySiteHeader() {
           aria-label="Mobil menü"
         >
           <ul className="flex flex-col gap-1 text-sm">
-            {nav.map((item) => (
+            {MARKETING_NAV.map((item) => (
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className="flex min-h-[44px] items-center rounded-lg px-2 text-[var(--mk-text)] hover:bg-white/5"
+                  className={cn(
+                    "flex min-h-[44px] items-center rounded-lg px-2 text-[var(--mk-text)] hover:bg-white/5",
+                    navFocus,
+                  )}
                   onClick={() => setOpen(false)}
                 >
                   {item.label}
@@ -89,7 +108,10 @@ export function ParitySiteHeader() {
             <li className="mt-2 border-t border-[var(--mk-border)] pt-3">
               <Link
                 href="/fiyatlandirma"
-                className="flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-amber-300"
+                className={cn(
+                  "flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-amber-300",
+                  navFocus,
+                )}
                 onClick={() => setOpen(false)}
               >
                 <Sparkles className="h-4 w-4" aria-hidden />
@@ -98,20 +120,24 @@ export function ParitySiteHeader() {
             </li>
             <li className="mt-3 flex gap-2">
               <Link
-                href="/giris"
+                href={MARKETING_AUTH.loginHref}
                 className={cn(
                   "flex flex-1 items-center justify-center rounded-full border border-[var(--mk-border)] py-2.5 text-sm font-medium text-[var(--mk-text)]",
+                  navFocus,
                 )}
                 onClick={() => setOpen(false)}
               >
-                Giriş yap
+                {MARKETING_AUTH.loginLabel}
               </Link>
               <Link
-                href="/kayit"
-                className="mk-btn-primary flex flex-1 items-center justify-center py-2.5 text-sm"
+                href={MARKETING_AUTH.signupHref}
+                className={cn(
+                  "mk-btn-primary flex flex-1 items-center justify-center py-2.5 text-sm",
+                  navFocus,
+                )}
                 onClick={() => setOpen(false)}
               >
-                Ücretsiz dene
+                {MARKETING_AUTH.signupLabel}
               </Link>
             </li>
           </ul>

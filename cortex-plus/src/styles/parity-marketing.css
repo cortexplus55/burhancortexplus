@@ -6,7 +6,7 @@
   --mk-border: rgba(255, 255, 255, 0.08);
   --mk-primary: #f4ae0b;
   --mk-text: #fafafa;
-  --mk-muted: #a3a3a3;
+  --mk-muted: #c4c4c4;
   background: var(--mk-bg);
   color: var(--mk-text);
 }

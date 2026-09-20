@@ -289,3 +289,69 @@
   border-color: rgba(240, 184, 77, 0.55);
   background: rgba(240, 184, 77, 0.08);
 }
+
+
+/* --- Hero product panel (stok video yerine ürün UI) --- */
+:is(.cinematic-home, .cinematic-marketing) .mk-hero-product-bg {
+  background:
+    radial-gradient(ellipse 70% 55% at 70% 40%, rgba(232, 168, 56, 0.16), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 15% 80%, rgba(232, 168, 56, 0.08), transparent 55%),
+    linear-gradient(to bottom, #0a0a0a 0%, #050505 100%);
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-hero-product-frame {
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 220, 150, 0.22);
+  background: rgba(12, 12, 14, 0.92);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.55),
+    0 0 40px rgba(232, 168, 56, 0.12);
+  overflow: hidden;
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-hero-product-chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.55rem 0.85rem;
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-hero-product-chrome span {
+  display: block;
+  height: 0.55rem;
+  width: 0.55rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-hero-product-chrome span:nth-child(1) {
+  background: #ff5f57;
+}
+:is(.cinematic-home, .cinematic-marketing) .mk-hero-product-chrome span:nth-child(2) {
+  background: #febc2e;
+}
+:is(.cinematic-home, .cinematic-marketing) .mk-hero-product-chrome span:nth-child(3) {
+  background: #28c840;
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-hero-product-chrome p {
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mk-muted);
+}
+
+:is(.cinematic-home, .cinematic-marketing) .mk-hero-product-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 1023px) {
+  :is(.cinematic-home, .cinematic-marketing) .mk-hero-product-frame {
+    margin-top: 0.5rem;
+  }
+}
