@@ -37,16 +37,6 @@ function mergeKeyFor(title: string): string {
   return normalizeTitle(title).slice(0, 48);
 }
 
-function titlesSimilar(a: string, b: string): boolean {
-  const na = normalizeTitle(a);
-  const nb = normalizeTitle(b);
-  if (!na || !nb) return false;
-  if (na === nb) return true;
-  if (na.includes(nb) || nb.includes(na)) {
-    return Math.min(na.length, nb.length) >= 8;
-  }
-  return false;
-}
 
 function definitionsFromText(text: string): string[] {
   const out: string[] = [];

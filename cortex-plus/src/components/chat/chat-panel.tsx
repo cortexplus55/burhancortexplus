@@ -57,12 +57,17 @@ type Message = {
   rating?: Rating;
 };
 
-function SorTypingDots() {
+function SorTypingDots({ label }: { label?: string }) {
   return (
-    <div className="cs-sor-typing" role="status" aria-label="Yanıt hazırlanıyor">
-      <span />
-      <span />
-      <span />
+    <div className="flex items-center gap-2">
+      {label ? (
+        <span className="text-xs text-[var(--cs-muted)]">{label}</span>
+      ) : null}
+      <div className="cs-sor-typing" role="status" aria-label={label ?? "Yanıt hazırlanıyor"}>
+        <span />
+        <span />
+        <span />
+      </div>
     </div>
   );
 }
@@ -653,6 +658,14 @@ export function ChatPanel({
     !lastMessage.isError &&
     lastMessage.content.trim().length > 0;
 
+  // Jenerik "yükleniyor" yerine ne beklediğini söylüyor — Astra'daki "Çözüm
+  // arıyor" gibi. Ekstra istek yok, yalnızca zaten elimizdeki duruma göre metin.
+  const thinkingLabel = activeDocumentId.current
+    ? "Belgeni inceliyor…"
+    : useDocuments
+      ? "Notunu tarıyor…"
+      : "Düşünüyor…";
+
   function appendTranscript(text: string) {
     if (!text.trim()) return;
     setInput((prev) => mergeTranscript(prev, text));
@@ -870,7 +883,7 @@ export function ChatPanel({
                 messages[messages.length - 1]?.role === "user" ||
                 messages[messages.length - 1]?.content === "") ? (
                 <div className="cp-sor-msg-assistant">
-                  <SorTypingDots />
+                  <SorTypingDots label={thinkingLabel} />
                 </div>
               ) : null}
               {!isPremium && messages.length > 0 ? (
@@ -1295,7 +1308,7 @@ export function ChatPanel({
                       "cs-sor-bubble--assistant cs-sor-bubble--thinking cs-sor-bubble-enter",
                     )}
                   >
-                    <SorTypingDots />
+                    <SorTypingDots label={thinkingLabel} />
                   </div>
                 ) : null}
                 <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
@@ -1334,10 +1347,10 @@ export function ChatPanel({
             </div>
           ))}
           {loading && !isParity ? (
-            <p className="text-xs text-muted-foreground">Yanıt hazırlanıyor…</p>
+            <p className="text-xs text-muted-foreground">{thinkingLabel}</p>
           ) : null}
           {loading && isParity && !isMinimalSor ? (
-            <p className="text-xs text-[var(--cs-muted)]">Yanıt hazırlanıyor…</p>
+            <p className="text-xs text-[var(--cs-muted)]">{thinkingLabel}</p>
           ) : null}
         </div>
         ) : null}

@@ -18,8 +18,13 @@ export function StudentHomeHub({
   walletLine: string | null;
   conversations: { id: string; title: string | null; updated_at: string }[];
 }) {
+  const greeting = firstName?.trim() ? `Merhaba, ${firstName.trim()}` : "Merhaba";
+
   return (
     <section className="cortex-premium mb-4 space-y-4">
+      <h1 className="text-center text-lg font-semibold tracking-tight text-[var(--cx-text)] sm:text-left">
+        {greeting}
+      </h1>
       {walletLine ? (
         <p className="text-center text-xs text-[var(--cx-muted)] sm:text-left">
           {walletLine}

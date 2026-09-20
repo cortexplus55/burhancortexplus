@@ -129,6 +129,7 @@ export const STUDENT_SIGNUP_STEPS = [
 ] as const;
 
 export function stepIdsForRole(_role: SignupRole = "student"): string[] {
+  void _role;
   return [...STUDENT_SIGNUP_STEPS];
 }
 
