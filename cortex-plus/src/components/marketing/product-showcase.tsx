@@ -1,8 +1,7 @@
 import { Camera, LineChart, CalendarRange } from "lucide-react";
 
 /**
- * Ürün vitrini — büyük, okunaklı, sinematik sahneler.
- * Küçük/karışık webp yerine yüksek kontrastlı ürün kartları.
+ * Ürün vitrini — film sonrası okunaklı sahneler (destekleyici).
  */
 
 const SCENES = [
@@ -56,12 +55,12 @@ export function ProductShowcase() {
       data-cinematic-reveal
       aria-labelledby="showcase-heading"
     >
-      <p className="mk-eyebrow">Canlı arayüz</p>
+      <p className="mk-eyebrow">Yakın plan</p>
       <h2 id="showcase-heading" className="mk-section-title">
-        Kayıt olmadan önce ürünü gör
+        Ürünü yakından oku
       </h2>
       <p className="mk-muted mt-3 max-w-2xl text-base">
-        Üç kritik akış — bulanık ekran görüntüsü değil, okunaklı ürün sahneleri.
+        Film bittiğinde elde kalan üç net sahne — bulanık ekran görüntüsü değil.
       </p>
 
       <div className="mk-showcase-grid">

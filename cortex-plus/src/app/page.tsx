@@ -10,12 +10,15 @@ import { CinematicGuaranteeStrip } from "@/components/marketing/cinematic-guaran
 import { CinematicPlanSlider } from "@/components/marketing/cinematic-plan-slider";
 import { MistakeLoopSection } from "@/components/marketing/mistake-loop-section";
 import { ProductShowcase } from "@/components/marketing/product-showcase";
+import { FilmScrollStory } from "@/components/marketing/film-scroll-story";
+import { FilmClimaxCta } from "@/components/marketing/film-climax-cta";
 
 export default function HomePage() {
   return (
     <ParityMarketingPage variant="home">
       <CinematicHero />
       <CinematicGuaranteeStrip />
+      <FilmScrollStory />
       {/* Döngü, özellik şeridinden ÖNCE: şerit ne yapabildiğimizi sayıyor,
           döngü ise neden işe yaradığını anlatıyor. Sırası tersine dönerse
           ziyaretçi özellik listesini okuyup ayrılıyor. */}
@@ -23,6 +26,7 @@ export default function HomePage() {
       <ProductShowcase />
       <CinematicSocialProof />
       <CinematicPlanSlider />
+      <FilmClimaxCta />
       <FeatureStrip />
       <SubjectGrid />
       <FaqSection />
