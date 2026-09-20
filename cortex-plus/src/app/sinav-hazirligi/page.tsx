@@ -1,11 +1,12 @@
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { CinematicPageHero } from "@/components/marketing/cinematic-page-hero";
 import { CinematicCtaRow } from "@/components/marketing/cinematic-cta";
+import { ProductShowcase } from "@/components/marketing/product-showcase";
 
 export const metadata = {
   title: "Sınav hazırlığı",
   description:
-    "Deneme sınavı, eksik konu analizi ve kişisel çalışma planıyla sınavına hazırlan.",
+    "Zayıf konuyu gör, deneme analizi al, kişisel planla bir sonraki netini büyüt.",
 };
 
 const steps = [
@@ -38,20 +39,24 @@ export default function SinavHazirligiPage() {
   return (
     <ParityMarketingPage>
       <CinematicPageHero
-        title="Sınav hazırlığı — kişisel öğrenme yolun"
-        description="Dağınık kaynak yerine tek akış: ölç, analiz et, planla, tekrar et."
+        title="Sınav hazırlığı — netini büyüt"
+        description="Ölç, analiz et, planla. Dağınık kaynak yerine tek akışta çalışan AI öğretmen."
       >
         <CinematicCtaRow />
       </CinematicPageHero>
 
+      <ProductShowcase />
+
       <section className="mx-auto max-w-6xl px-4 py-16" data-cinematic-reveal>
-        <ol className="grid gap-4 md:grid-cols-2">
+        <p className="mk-eyebrow">Nasıl çalışır</p>
+        <h2 className="mk-section-title mt-2">Dört adımda kişisel yol</h2>
+        <ol className="mt-8 grid gap-4 md:grid-cols-2">
           {steps.map((step, i) => (
             <li key={step.title} className="mk-card p-6">
               <span className="text-sm font-bold text-[var(--mk-primary)]">
                 {i + 1}
               </span>
-              <h2 className="mt-2 text-lg font-semibold">{step.title}</h2>
+              <h3 className="mt-2 text-lg font-semibold">{step.title}</h3>
               <p className="mt-2 text-sm text-[var(--mk-muted)]">{step.body}</p>
             </li>
           ))}

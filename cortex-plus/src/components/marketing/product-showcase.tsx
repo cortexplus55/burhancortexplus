@@ -1,99 +1,98 @@
-import Image from "next/image";
+import { Camera, LineChart, CalendarRange } from "lucide-react";
 
 /**
- * Ürünün kendisini gösteren bölüm.
- *
- * Ana sayfada bugüne kadar ürünün TEK BİR görüntüsü yoktu. Ölçüldü: bizim
- * sayfada 0 görsel, referans üründe 30 görsel + 4 büyük SVG. Yapı benzerdi
- * (dokuz bölüm, otuz dört başlık) ama biz anlatıyor, onlar gösteriyordu.
- * Tek medyamız hero'daki stok video — yani ürünle ilgisi olmayan bir
- * görüntüydü.
- *
- * Buradaki dört kare gerçek: canlı /ornek akışından, ürünün kendi
- * arayüzünden alındı. Çizim ya da temsilî görsel değil; öğrencinin kayıt
- * olduktan sonra göreceği ekranın aynısı. Vaat ile ekran arasında fark
- * olmaması, tanınmayan bir markada tek başına bir güven argümanı.
- *
- * Kareler koyu zeminde koyu duruyor: çerçeve olmadan sayfaya karışıp
- * kayboluyorlardı — sayfanın "boş" hissettirmesinin bir sebebi de buydu.
- * Bu yüzden her karenin kendi kenarlığı ve hafif yükseltisi var.
+ * Ürün vitrini — büyük, okunaklı, sinematik sahneler.
+ * Küçük/karışık webp yerine yüksek kontrastlı ürün kartları.
  */
 
-const SHOTS = [
+const SCENES = [
   {
-    src: "/urun/konular",
-    w: 1904,
-    h: 616,
-    eyebrow: "Konu haritası",
-    title: "Notun konulara ayrılır",
-    body: "Yüklediğin ders notu okunur ve çalışılacak başlıklar çıkarılır. Sıra rastgele değil: önce temeli olan konu gelir.",
+    id: "solve",
+    icon: Camera,
+    eyebrow: "1 · Soru çöz",
+    title: "Fotoğraftan adım adım çözüm",
+    body: "Şıkları eleyen gerçek çeldiriciler; yanlışta neden, doğruda pekiştirme.",
+    panel: {
+      label: "Geometri",
+      lines: [
+        "Üçgende |AB|=16, |BC|=12 iken |AC|?",
+        "16² + 12² = 400 → √400 = 20",
+        "Anlama skoru %94",
+      ],
+    },
   },
   {
-    src: "/urun/podcast",
-    w: 1904,
-    h: 732,
-    eyebrow: "Podcast",
-    title: "Konu iki sunucuyla anlatılır",
-    body: "Notundan üretilen diyalog. Okunan cümle vurgulanır, tıklayınca oraya atlarsın — yolda dinlemek için.",
+    id: "analyze",
+    icon: LineChart,
+    eyebrow: "2 · Deneme analizi",
+    title: "Zayıf konuyu net olarak gör",
+    body: "Deneme sonrası konu bazlı kayıp listesi; sıradaki çalışma buna göre kurulur.",
+    panel: {
+      label: "Son deneme",
+      lines: ["Net 28.4", "Doğruluk %35", "Öncelik: olasılık + geometri"],
+    },
   },
   {
-    src: "/urun/quiz",
-    w: 1904,
-    h: 642,
-    eyebrow: "Test",
-    title: "Sorular aynı nottan gelir",
-    body: "Çeldiriciler gerçek kavram yanılgısı; elemesi bedava olan şık yok. Yanlışta açıklama, doğruda pekiştirme.",
-  },
-  {
-    src: "/urun/sozlu",
-    w: 1904,
-    h: 770,
-    eyebrow: "Sözlü",
-    title: "Sesli anlatarak çalışırsın",
-    body: "Eğitmen sorar, sen konuşursun. Ezberlediğin yerle anladığın yeri ayıran adım bu.",
+    id: "plan",
+    icon: CalendarRange,
+    eyebrow: "3 · Kişisel plan",
+    title: "Bugünün yolu hazır",
+    body: "Sınav tarihine göre günlük bloklar; AI koç hangi derse kaç dakika diyecek.",
+    panel: {
+      label: "Bugün",
+      lines: [
+        "09:00 Matematik · türev",
+        "11:00 Geometri · üçgen",
+        "14:00 Fizik · dinamik test",
+      ],
+    },
   },
 ] as const;
 
 export function ProductShowcase() {
   return (
     <section
-      className="mx-auto max-w-6xl px-4 py-16"
+      className="mk-showcase-premium mx-auto max-w-6xl px-4 py-20"
       data-cinematic-reveal
-      aria-labelledby="shot-heading"
+      aria-labelledby="showcase-heading"
     >
-      <p className="mk-eyebrow">Ürünün içi</p>
-      <h2 id="shot-heading" className="mk-section-title">
-        Kayıt olmadan önce ne alacağını gör
+      <p className="mk-eyebrow">Canlı arayüz</p>
+      <h2 id="showcase-heading" className="mk-section-title">
+        Kayıt olmadan önce ürünü gör
       </h2>
-      <p className="mk-muted mt-3 max-w-2xl">
-        Aşağıdakiler temsilî görsel değil — ürünün canlı ekranları.
+      <p className="mk-muted mt-3 max-w-2xl text-base">
+        Üç kritik akış — bulanık ekran görüntüsü değil, okunaklı ürün sahneleri.
       </p>
 
-      <div className="mk-shots">
-        {SHOTS.map((shot) => (
-          <article key={shot.src} className="mk-shot">
-            <div className="mk-shot-text">
-              <p className="mk-eyebrow">{shot.eyebrow}</p>
-              <h3 className="mk-shot-title">{shot.title}</h3>
-              <p className="mk-muted">{shot.body}</p>
-            </div>
-
-            {/*
-              Genişlik ve yükseklik yazılı: görsel yüklenirken sayfa
-              zıplamasın. Ekranın dışındakiler tembel yükleniyor.
-            */}
-            <div className="mk-shot-frame">
-              <Image
-                src={`${shot.src}.webp`}
-                alt={shot.title}
-                width={shot.w}
-                height={shot.h}
-                sizes="(max-width: 900px) 100vw, 640px"
-                className="mk-shot-img"
-              />
-            </div>
-          </article>
-        ))}
+      <div className="mk-showcase-grid">
+        {SCENES.map((scene) => {
+          const Icon = scene.icon;
+          return (
+            <article key={scene.id} className="mk-showcase-card">
+              <div className="mk-showcase-card-copy">
+                <p className="mk-eyebrow inline-flex items-center gap-2">
+                  <Icon className="h-3.5 w-3.5" aria-hidden />
+                  {scene.eyebrow}
+                </p>
+                <h3>{scene.title}</h3>
+                <p>{scene.body}</p>
+              </div>
+              <div className="mk-showcase-panel" aria-hidden>
+                <div className="mk-showcase-panel-chrome">
+                  <span />
+                  <span />
+                  <span />
+                  <em>{scene.panel.label}</em>
+                </div>
+                <ol>
+                  {scene.panel.lines.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ol>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );

@@ -1,5 +1,9 @@
 import { cn } from "@/lib/utils";
 
+/**
+ * Alt pazarlama sayfaları için sinematik sayfa hero’su.
+ * Ambient orb + vignette; başlık display tipografi ile.
+ */
 export function CinematicPageHero({
   title,
   description,
@@ -14,10 +18,15 @@ export function CinematicPageHero({
   return (
     <section
       className={cn(
-        "relative overflow-hidden px-4 py-14 md:py-20",
+        "mk-page-hero-premium relative overflow-hidden px-4 py-16 md:py-24",
         className,
       )}
     >
+      <div className="mk-hero-ambient" aria-hidden>
+        <span className="mk-hero-orb mk-hero-orb--gold" />
+        <span className="mk-hero-orb mk-hero-orb--violet" />
+        <span className="mk-hero-vignette" />
+      </div>
       <div className="mk-page-hero-bg" aria-hidden />
       <div
         className="relative z-10 mx-auto max-w-3xl text-center"

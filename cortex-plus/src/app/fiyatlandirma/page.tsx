@@ -6,7 +6,7 @@ import { isPaytrConfigured } from "@/lib/payments/paytr";
 
 export const metadata = {
   title: "Fiyatlandırma",
-  description: "Cortex Plus paketleri.",
+  description: "Ücretsiz başla; Plus ile daha derin model ve daha fazla kredi.",
 };
 
 export const dynamic = "force-dynamic";
@@ -57,7 +57,7 @@ export default async function FiyatlandirmaPage() {
   return (
     <ParityMarketingPage
       title="Fiyatlandırma"
-      description="İhtiyacına uygun kullanım hakkını seç."
+      description="Ücretsiz dene. Plus ile daha derin model ve daha fazla kredi."
     >
       <div data-cinematic-reveal className="space-y-4">
         {!checkoutEnabled ? (

@@ -15,7 +15,7 @@ import { MistakeLoopSection } from "@/components/marketing/mistake-loop-section"
 export const metadata = {
   title: "Özellikler",
   description:
-    "AI öğretmen, doküman tabanlı çalışma, quiz, flashcard, deneme sınavı ve çalışma planı.",
+    "Fotoğraftan çözüm, deneme analizi, quiz ve kişisel plan — sınav odaklı AI öğretmen.",
 };
 
 /**
@@ -94,7 +94,7 @@ export default function OzelliklerPage() {
   return (
     <ParityMarketingPage
       title="Özellikler"
-      description="Cortex Plus, çalışmanı tek bir akışta toplayan yapay zekâ destekli öğrenme platformudur."
+      description="Zayıf konuyu gör, bir sonraki adımı bil. Öğrenme araçları tek akışta."
     >
       {/* Döngü listelerden önce: kartlar tek tek ne yaptığımızı sayıyor,
           döngü hepsinin neden bir arada durduğunu anlatıyor. */}
