@@ -1,97 +1,72 @@
 import { Camera, LineChart, CalendarRange } from "lucide-react";
-
-/**
- * Ürün vitrini — film sonrası okunaklı sahneler (destekleyici).
- */
+import Link from "next/link";
 
 const SCENES = [
   {
     id: "solve",
     icon: Camera,
-    eyebrow: "1 · Soru çöz",
-    title: "Fotoğraftan adım adım çözüm",
-    body: "Şıkları eleyen gerçek çeldiriciler; yanlışta neden, doğruda pekiştirme.",
-    panel: {
-      label: "Geometri",
-      lines: [
-        "Üçgende |AB|=16, |BC|=12 iken |AC|?",
-        "16² + 12² = 400 → √400 = 20",
-        "Anlama skoru %94",
-      ],
-    },
+    eyebrow: "Soru çöz",
+    title: "Fotoğraftan adım adım",
+    body: "Çeldiricilerle gerçek sınav mantığı; yanlışta neden, doğruda pekiştirme.",
+    lines: ["Soru yakalandı", "Adımlar açık", "Anlama skoru görünür"],
   },
   {
     id: "analyze",
     icon: LineChart,
-    eyebrow: "2 · Deneme analizi",
-    title: "Zayıf konuyu net olarak gör",
-    body: "Deneme sonrası konu bazlı kayıp listesi; sıradaki çalışma buna göre kurulur.",
-    panel: {
-      label: "Son deneme",
-      lines: ["Net 28.4", "Doğruluk %35", "Öncelik: olasılık + geometri"],
-    },
+    eyebrow: "Analiz",
+    title: "Zayıf konuyu net gör",
+    body: "Deneme sonrası kayıp listesi — sıradaki çalışma buna göre kurulur.",
+    lines: ["Konu bazlı net", "Öncelik sırası", "Koç notu"],
   },
   {
     id: "plan",
     icon: CalendarRange,
-    eyebrow: "3 · Kişisel plan",
-    title: "Bugünün yolu hazır",
-    body: "Sınav tarihine göre günlük bloklar; AI koç hangi derse kaç dakika diyecek.",
-    panel: {
-      label: "Bugün",
-      lines: [
-        "09:00 Matematik · türev",
-        "11:00 Geometri · üçgen",
-        "14:00 Fizik · dinamik test",
-      ],
-    },
+    eyebrow: "Plan",
+    title: "Tek akışta öğretmen",
+    body: "Sınav tarihine göre günlük bloklar; ne çalışacağını bilerek başla.",
+    lines: ["Bugünün yolu", "Süre önerisi", "Takip"],
   },
 ] as const;
 
 export function ProductShowcase() {
   return (
     <section
-      className="mk-showcase-premium mx-auto max-w-6xl px-4 py-20"
+      className="mk-astra-showcase"
+      aria-labelledby="astra-showcase-heading"
       data-cinematic-reveal
-      aria-labelledby="showcase-heading"
     >
-      <p className="mk-eyebrow">Yakın plan</p>
-      <h2 id="showcase-heading" className="mk-section-title">
-        Ürünü yakından oku
-      </h2>
-      <p className="mk-muted mt-3 max-w-2xl text-base">
-        Film bittiğinde elde kalan üç net sahne — bulanık ekran görüntüsü değil.
+      <p className="mk-astra-eyebrow">Ürün</p>
+      <h2 id="astra-showcase-heading">Üç net sahne. Tek öğretmen.</h2>
+      <p className="mk-astra-showcase-lead">
+        Bulanık ekran görüntüsü değil — okunaklı ürün akışı.
       </p>
-
-      <div className="mk-showcase-grid">
-        {SCENES.map((scene) => {
-          const Icon = scene.icon;
+      <div className="mk-astra-showcase-grid">
+        {SCENES.map((s) => {
+          const Icon = s.icon;
           return (
-            <article key={scene.id} className="mk-showcase-card">
-              <div className="mk-showcase-card-copy">
-                <p className="mk-eyebrow inline-flex items-center gap-2">
-                  <Icon className="h-3.5 w-3.5" aria-hidden />
-                  {scene.eyebrow}
-                </p>
-                <h3>{scene.title}</h3>
-                <p>{scene.body}</p>
-              </div>
-              <div className="mk-showcase-panel" aria-hidden>
-                <div className="mk-showcase-panel-chrome">
-                  <span />
-                  <span />
-                  <span />
-                  <em>{scene.panel.label}</em>
-                </div>
-                <ol>
-                  {scene.panel.lines.map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ol>
-              </div>
+            <article key={s.id} className="mk-astra-showcase-card">
+              <p className="mk-astra-eyebrow">
+                <Icon className="h-3.5 w-3.5" aria-hidden />
+                {s.eyebrow}
+              </p>
+              <h3>{s.title}</h3>
+              <p>{s.body}</p>
+              <ul>
+                {s.lines.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
             </article>
           );
         })}
+      </div>
+      <div className="mk-astra-cta-row mk-astra-cta-row--center">
+        <Link href="/kayit" className="mk-astra-btn-primary">
+          Ücretsiz dene
+        </Link>
+        <Link href="/ornek" className="mk-astra-btn-secondary">
+          Ürünü gör
+        </Link>
       </div>
     </section>
   );

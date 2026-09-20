@@ -14,8 +14,7 @@ import { MistakeLoopSection } from "@/components/marketing/mistake-loop-section"
 
 export const metadata = {
   title: "Özellikler",
-  description:
-    "Fotoğraftan çözüm, deneme analizi, quiz ve kişisel plan — sınav odaklı AI öğretmen.",
+  description: "Sınava özel AI öğretmen — soru, analiz ve plan tek akışta.",
 };
 
 /**
@@ -93,8 +92,8 @@ function FeatureCard({
 export default function OzelliklerPage() {
   return (
     <ParityMarketingPage
-      title="Özellikler"
-      description="Zayıf konuyu gör, bir sonraki adımı bil. Öğrenme araçları tek akışta."
+      title="Her şey tek akışta."
+      description="Soru çöz, eksiğini gör, planını kilitle — dağınık araç yok."
     >
       {/* Döngü listelerden önce: kartlar tek tek ne yaptığımızı sayıyor,
           döngü hepsinin neden bir arada durduğunu anlatıyor. */}
@@ -122,7 +121,7 @@ export default function OzelliklerPage() {
         </div>
 
         <div className="mt-12">
-          <CinematicPrimaryCta label="Başla" />
+          <CinematicPrimaryCta label="Ücretsiz dene" />
         </div>
       </div>
     </ParityMarketingPage>
