@@ -99,7 +99,11 @@ export default function OnboardingPage() {
   }
 
   return (
-    <ParityMarketingPage variant="auth" title="Hoş geldin">
+    <ParityMarketingPage
+      variant="auth"
+      title="Hoş geldin"
+      description="Üç kısa adımda profilin hazır — sınıf, odak ve öğretmen stilin."
+    >
       <OnboardingShell
         step={step}
         total={STEPS}
@@ -107,6 +111,7 @@ export default function OnboardingPage() {
       >
         {step === 1 ? (
           <>
+            <p className="onboarding-kicker">Profil</p>
             <h2 className="signup-step-title">Hangi sınıftasın?</h2>
             <p className="mt-2 text-sm text-[var(--mk-muted)]">
               İçerik ve öneriler sınıfına göre ayarlanır.
@@ -138,6 +143,7 @@ export default function OnboardingPage() {
 
         {step === 2 ? (
           <>
+            <p className="onboarding-kicker">Odak</p>
             <h2 className="signup-step-title">Odak ders ve hedef</h2>
             <p className="mt-2 text-sm text-[var(--mk-muted)]">
               İstersen sonra ayarlardan değiştirebilirsin.
@@ -186,6 +192,7 @@ export default function OnboardingPage() {
 
         {step === 3 ? (
           <>
+            <p className="onboarding-kicker">Öğretmen</p>
             <h2 className="signup-step-title">AI öğretmen stili</h2>
             <p className="mt-2 text-sm text-[var(--mk-muted)]">
               Yanıtların tonu ve detay seviyesi buna göre ayarlanır.

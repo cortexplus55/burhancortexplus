@@ -356,3 +356,46 @@
     margin-top: 0.5rem;
   }
 }
+
+/* AUTH_CINEMATIC_PREMIUM */
+.cinematic-auth {
+  position: relative;
+  background: #050505;
+}
+
+.cinematic-auth::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(244, 174, 11, 0.16), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 80%, rgba(99, 70, 220, 0.12), transparent 50%),
+    radial-gradient(ellipse 50% 35% at 0% 60%, rgba(244, 174, 11, 0.06), transparent 45%);
+}
+
+.cinematic-auth > * {
+  position: relative;
+  z-index: 1;
+}
+
+.cinematic-auth main {
+  background: transparent;
+}
+
+.cinematic-auth .mk-auth-stack > .mb-6 h1.mk-display {
+  font-family: var(--font-display, "DM Serif Display", Georgia, serif);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  background: linear-gradient(180deg, #fff8e8 0%, #f0b84d 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.cinematic-auth .mk-auth-stack > .mb-6 p {
+  max-width: 28ch;
+  margin-left: auto;
+  margin-right: auto;
+}
