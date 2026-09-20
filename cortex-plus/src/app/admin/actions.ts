@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { auditLog } from "@/lib/audit";
 import { verifySmtpConnection } from "@/lib/email/smtp";
+import { requestPaytrRefund } from "@/lib/payments/paytr";
 
 async function requireAdminActor() {
   const supabase = await createClient();
@@ -404,10 +405,12 @@ export async function adjustCredits(input: {
 }
 
 /**
- * Ödemeyi iade edildi olarak işaretler.
+ * PayTR üzerinden para iadesi yapar; yalnızca PayTR başarı dönerse DB'yi
+ * refunded yapar ve abonelik/cüzdan tezgâhını söker.
  *
- * Parayı geri göndermez — o işlem ödeme sağlayıcısının panelinden yapılır.
- * Buradaki kayıt bizim tarafımızdaki durumu düzeltir.
+ * Cayma hakkı (m.15/1-ğ) zaten doğmaz — bu akış yalnızca hatalı/yetkisiz
+ * tahsilat incelemeleri için admin tarafında kullanılır. Kullanıcıya
+ * self-serve para iadesi açmaz.
  *
  * Aboneliği de kapatıyor. Eskiden kapatmıyordu ve şöyle bir açık kalıyordu:
  * Plus al, aylık hakkı bir günde yak, sonra iade iste. Para geri gider,
@@ -424,7 +427,7 @@ export async function markPaymentRefunded(paymentId: string) {
   const service = createServiceClient();
   const { data: payment } = await service
     .from("payments")
-    .select("id, status, user_id, beneficiary_user_id, plan_id")
+    .select("id, status, user_id, beneficiary_user_id, plan_id, merchant_oid, amount_try")
     .eq("id", parsed.data)
     .maybeSingle();
 
@@ -433,12 +436,42 @@ export async function markPaymentRefunded(paymentId: string) {
     return { ok: false, error: "Yalnızca ödenmiş işlemler iade edilebilir." };
   }
 
+  const merchantOid = payment.merchant_oid as string | null;
+  const amountTry = payment.amount_try as number | null;
+  if (!merchantOid || amountTry == null || !(amountTry > 0)) {
+    return {
+      ok: false,
+      error: "Ödeme kaydında PayTR sipariş no veya tutar eksik; iade yapılamadı.",
+    };
+  }
+
+  const paytr = await requestPaytrRefund({
+    merchantOid,
+    returnAmountTry: amountTry,
+    referenceNo: `admin-${parsed.data.slice(0, 8)}`,
+  });
+
+  if (!paytr.ok) {
+    return {
+      ok: false,
+      error: paytr.errMsg
+        ? `PayTR iade başarısız: ${paytr.errMsg}`
+        : "PayTR iade başarısız; kayıt iade edildi olarak işaretlenmedi.",
+    };
+  }
+
   const { error } = await service
     .from("payments")
     .update({ status: "refunded", updated_at: new Date().toISOString() })
     .eq("id", parsed.data);
 
-  if (error) return { ok: false, error: "Güncellenemedi." };
+  if (error) {
+    return {
+      ok: false,
+      error:
+        "PayTR iade alındı ama yerel kayıt güncellenemedi. Destek ile kontrol edin.",
+    };
+  }
 
   // Hakkı kimin kullandığıysa aboneliği de onda; hediye ödemelerinde
   // ödeyenle yararlanan farklı olabiliyor.
@@ -480,7 +513,16 @@ export async function markPaymentRefunded(paymentId: string) {
     action: "payment.refunded",
     entityType: "payment",
     entityId: parsed.data,
-    metadata: { subscriptionCancelled, beneficiaryId },
+    metadata: {
+      subscriptionCancelled,
+      beneficiaryId,
+      paytr: {
+        status: paytr.status,
+        merchantOid,
+        returnAmountTry: amountTry,
+        raw: paytr.raw,
+      },
+    },
   });
 
   revalidatePath("/admin/odemeler");
@@ -488,8 +530,8 @@ export async function markPaymentRefunded(paymentId: string) {
   return {
     ok: true,
     message: subscriptionCancelled
-      ? "İade edildi olarak işaretlendi. Abonelik kapatıldı, kalan hak sıfırlandı."
-      : "İade edildi olarak işaretlendi.",
+      ? "PayTR iadesi alındı. Abonelik kapatıldı, kalan hak sıfırlandı."
+      : "PayTR iadesi alındı; ödeme iade edildi olarak işaretlendi.",
   };
 }
 

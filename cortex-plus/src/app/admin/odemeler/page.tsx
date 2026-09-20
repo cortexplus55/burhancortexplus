@@ -46,9 +46,11 @@ export default async function AdminOdemelerPage() {
   return (
     <AdminShell href="/admin/odemeler" pendingApplications={pending}>
       <AdminNote tone="warn">
-        <strong>İade işareti parayı geri göndermez.</strong> Parayı iade etmek
-        ödeme sağlayıcısının kendi panelinden yapılır; buradaki işaret yalnızca
-        bizim kayıtlarımızı düzeltir, böylece gelir toplamı şişik kalmaz.
+        <strong>Buton artık PayTR üzerinden karta para iadesi yapar.</strong>{" "}
+        Anında teslim edilen dijital hizmette cayma hakkı yoktur (Mesafeli
+        Sözleşmeler m.15/1-ğ). Admin iadesi yalnızca hatalı veya yetkisiz
+        tahsilat incelemesi içindir; kullanıcıya self-serve para iadesi
+        açmaz. Başarısız AI / kaynak yok cevapları kredi iadesidir, para değil.
       </AdminNote>
 
       <div className="adm-stats">

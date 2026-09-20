@@ -155,3 +155,101 @@ export function generateMerchantOid(): string {
   // Alphanumeric only: PayTR rejects separators in merchant_oid.
   return `cp${crypto.randomBytes(14).toString("hex")}`;
 }
+
+export type PaytrRefundInput = {
+  merchantOid: string;
+  /** Amount in TRY (not kuruş). Serialized with two decimals. */
+  returnAmountTry: number;
+  referenceNo?: string;
+};
+
+export type PaytrRefundResult = {
+  ok: boolean;
+  status: string;
+  errMsg?: string;
+  raw: unknown;
+};
+
+/**
+ * PayTR iade API.
+ *
+ * Token: Base64(HMAC-SHA256(merchant_id + merchant_oid + return_amount + merchant_salt)).
+ * return_amount must use a dot decimal separator (e.g. "299.00").
+ */
+export async function requestPaytrRefund(
+  input: PaytrRefundInput,
+): Promise<PaytrRefundResult> {
+  if (!isPaytrConfigured()) {
+    return {
+      ok: false,
+      status: "error",
+      errMsg: "PayTR yapılandırılmamış (merchant kimlik bilgileri eksik).",
+      raw: null,
+    };
+  }
+
+  const config = paytrConfig();
+  const returnAmount = Number(input.returnAmountTry).toFixed(2);
+
+  const paytrToken = Buffer.from(
+    crypto
+      .createHmac("sha256", config.merchantKey)
+      .update(config.merchantId + input.merchantOid + returnAmount + config.merchantSalt)
+      .digest(),
+  ).toString("base64");
+
+  const body = new URLSearchParams({
+    merchant_id: config.merchantId,
+    merchant_oid: input.merchantOid,
+    return_amount: returnAmount,
+    paytr_token: paytrToken,
+  });
+  if (input.referenceNo) {
+    body.set("reference_no", input.referenceNo);
+  }
+
+  let raw: unknown = null;
+  try {
+    const response = await fetch("https://www.paytr.com/odeme/iade", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    const text = await response.text();
+    try {
+      raw = JSON.parse(text);
+    } catch {
+      raw = { nonJson: text, httpStatus: response.status };
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      status: "error",
+      errMsg:
+        error instanceof Error
+          ? `PayTR iade isteği başarısız: ${error.message}`
+          : "PayTR iade isteği başarısız.",
+      raw: null,
+    };
+  }
+
+  const status =
+    raw && typeof raw === "object" && "status" in raw
+      ? String((raw as { status: unknown }).status ?? "")
+      : "";
+  const errMsg =
+    raw && typeof raw === "object" && "err_msg" in raw
+      ? String((raw as { err_msg: unknown }).err_msg ?? "")
+      : undefined;
+
+  if (status === "success") {
+    return { ok: true, status, raw };
+  }
+
+  return {
+    ok: false,
+    status: status || "error",
+    errMsg: errMsg || "PayTR iade reddedildi.",
+    raw,
+  };
+}
