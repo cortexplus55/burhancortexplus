@@ -825,6 +825,12 @@ export function ChatPanel({
                   </span>
                 </Link>
               ) : null}
+
+              {!isPremium ? (
+                <div className="cp-sor-empty-upgrade">
+                  <UpgradeAside returnPath={returnPath} />
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -1105,7 +1111,16 @@ export function ChatPanel({
             </form>
             </div>
 
-            {!isPremium ? <UpgradeAside returnPath={returnPath} /> : null}
+            {!isPremium ? (
+              <div
+                className={cn(
+                  "cp-sor-composer-upgrade",
+                  showParityEmpty && "cp-sor-composer-upgrade--empty-deferred",
+                )}
+              >
+                <UpgradeAside returnPath={returnPath} />
+              </div>
+            ) : null}
           </div>
         </div>
 

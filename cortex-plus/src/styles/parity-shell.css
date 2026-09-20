@@ -6489,6 +6489,61 @@
   }
 }
 
+
+/*
+  Mobil boş Sor: sabit composer + ders seçici + Plus kartı yukarı şişince
+  ortalanmış öneri çiplerinin üstüne biniyordu (Matematik / Fizik / Beni test et).
+  Boş ekranda Plus kartını hero akışına alıyoruz; composer yalnız yazı alanı.
+*/
+@media (max-width: 640px) {
+  .cp-sor-hero {
+    justify-content: flex-start;
+    padding-top: 1.5rem;
+    padding-bottom: calc(9.5rem + env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cp-sor-starters {
+    position: relative;
+    z-index: 1;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+    width: 100%;
+    max-width: 22rem;
+    margin-top: 1rem;
+    padding: 0 0.25rem;
+  }
+
+  .cp-sor-starter {
+    width: 100%;
+    padding-block: 0.7rem;
+    min-height: 44px;
+  }
+
+  .cp-sor-composer-zone {
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .cp-sor-composer-upgrade--empty-deferred {
+    display: none !important;
+  }
+
+  .cp-sor-empty-upgrade {
+    display: block;
+    width: 100%;
+    max-width: 22rem;
+    margin: 1.5rem auto 0;
+  }
+}
+
+@media (min-width: 641px) {
+  .cp-sor-empty-upgrade {
+    display: none;
+  }
+}
 /*
   Ücretsiz katmanda sohbet kutusunun yanındaki yükseltme kartı.
 
