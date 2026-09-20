@@ -12,7 +12,7 @@ export function CinematicPrimaryCta({
   className?: string;
 }) {
   return (
-    <Link href={href} className={cn("mk-astra-btn-primary", className)}>
+    <Link href={href} className={cn("mk-lux-btn-primary", className)}>
       {label}
       <ArrowRight className="h-4 w-4" aria-hidden />
     </Link>
@@ -21,9 +21,9 @@ export function CinematicPrimaryCta({
 
 export function CinematicCtaRow({ className }: { className?: string }) {
   return (
-    <div className={cn("mk-astra-cta-row mk-astra-cta-row--center", className)}>
+    <div className={cn("mk-lux-cta-row mk-lux-cta-row--center", className)}>
       <CinematicPrimaryCta />
-      <Link href="/ornek" className="mk-astra-btn-secondary">
+      <Link href="/ornek" className="mk-lux-btn-ghost">
         Ürünü gör
       </Link>
     </div>

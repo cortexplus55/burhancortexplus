@@ -1,70 +1,85 @@
-import { Camera, LineChart, CalendarRange } from "lucide-react";
+"use client";
+
 import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
+import { Camera, LineChart, CalendarRange, ArrowRight } from "lucide-react";
 
 const SCENES = [
   {
-    id: "solve",
     icon: Camera,
-    eyebrow: "Soru çöz",
-    title: "Fotoğraftan adım adım",
-    body: "Çeldiricilerle gerçek sınav mantığı; yanlışta neden, doğruda pekiştirme.",
-    lines: ["Soru yakalandı", "Adımlar açık", "Anlama skoru görünür"],
+    eyebrow: "Soru",
+    title: "Fotoğraftan net çözüm",
+    body: "Çeldiricilerle gerçek sınav mantığı — yanlışta neden, doğruda pekiştirme.",
+    points: ["Anında tanıma", "Adım adım anlatım", "Anlama skoru"],
   },
   {
-    id: "analyze",
     icon: LineChart,
     eyebrow: "Analiz",
-    title: "Zayıf konuyu net gör",
-    body: "Deneme sonrası kayıp listesi — sıradaki çalışma buna göre kurulur.",
-    lines: ["Konu bazlı net", "Öncelik sırası", "Koç notu"],
+    title: "Zayıf konu haritası",
+    body: "Deneme sonrası kayıplar sıralanır; sıradaki çalışma buna göre kurulur.",
+    points: ["Konu bazlı net", "Öncelik listesi", "Koç notu"],
   },
   {
-    id: "plan",
     icon: CalendarRange,
     eyebrow: "Plan",
     title: "Tek akışta öğretmen",
-    body: "Sınav tarihine göre günlük bloklar; ne çalışacağını bilerek başla.",
-    lines: ["Bugünün yolu", "Süre önerisi", "Takip"],
+    body: "Sınav tarihine göre günlük bloklar — ne çalışacağını bilerek başla.",
+    points: ["Günlük yol", "Süre önerisi", "Takip"],
   },
 ] as const;
 
 export function ProductShowcase() {
+  const reduce = useReducedMotion();
   return (
-    <section
-      className="mk-astra-showcase"
-      aria-labelledby="astra-showcase-heading"
-      data-cinematic-reveal
-    >
-      <p className="mk-astra-eyebrow">Ürün</p>
-      <h2 id="astra-showcase-heading">Üç net sahne. Tek öğretmen.</h2>
-      <p className="mk-astra-showcase-lead">
-        Bulanık ekran görüntüsü değil — okunaklı ürün akışı.
-      </p>
-      <div className="mk-astra-showcase-grid">
-        {SCENES.map((s) => {
+    <section className="mk-lux-showcase" aria-labelledby="lux-show-h">
+      <motion.div
+        initial={reduce ? false : { opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.35 }}
+        transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] as const }}
+      >
+        <p className="mk-lux-eyebrow">Yakın plan</p>
+        <h2 id="lux-show-h">Ürünü yakından oku</h2>
+        <p className="mk-lux-showcase-lead">
+          Üç sahne. Tek vaat: sınava özel AI öğretmen.
+        </p>
+      </motion.div>
+
+      <div className="mk-lux-showcase-grid">
+        {SCENES.map((s, i) => {
           const Icon = s.icon;
           return (
-            <article key={s.id} className="mk-astra-showcase-card">
-              <p className="mk-astra-eyebrow">
+            <motion.article
+              key={s.title}
+              className="mk-lux-showcase-card"
+              initial={reduce ? false : { opacity: 0, y: 28 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ delay: i * 0.1, duration: 0.55, ease: [0.22, 1, 0.36, 1] as const }}
+              whileHover={reduce ? undefined : { y: -6, transition: { duration: 0.25 } }}
+            >
+              <p className="mk-lux-eyebrow">
                 <Icon className="h-3.5 w-3.5" aria-hidden />
                 {s.eyebrow}
               </p>
               <h3>{s.title}</h3>
               <p>{s.body}</p>
               <ul>
-                {s.lines.map((line) => (
-                  <li key={line}>{line}</li>
+                {s.points.map((p) => (
+                  <li key={p}>{p}</li>
                 ))}
               </ul>
-            </article>
+            </motion.article>
           );
         })}
       </div>
-      <div className="mk-astra-cta-row mk-astra-cta-row--center">
-        <Link href="/kayit" className="mk-astra-btn-primary">
+
+      <div className="mk-lux-cta-row mk-lux-cta-row--center">
+        <Link href="/kayit" className="mk-lux-btn-primary">
           Ücretsiz dene
+          <ArrowRight className="h-4 w-4" aria-hidden />
         </Link>
-        <Link href="/ornek" className="mk-astra-btn-secondary">
+        <Link href="/ornek" className="mk-lux-btn-ghost">
           Ürünü gör
         </Link>
       </div>
