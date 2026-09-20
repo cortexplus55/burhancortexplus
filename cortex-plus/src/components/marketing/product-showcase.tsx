@@ -1,87 +1,98 @@
-"use client";
+import { Camera, LineChart, CalendarRange } from "lucide-react";
 
-import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
-import { Camera, LineChart, CalendarRange, ArrowRight } from "lucide-react";
+/**
+ * Ürün vitrini — büyük, okunaklı, sinematik sahneler.
+ * Küçük/karışık webp yerine yüksek kontrastlı ürün kartları.
+ */
 
 const SCENES = [
   {
+    id: "solve",
     icon: Camera,
-    eyebrow: "Soru",
-    title: "Fotoğraftan net çözüm",
-    body: "Çeldiricilerle gerçek sınav mantığı — yanlışta neden, doğruda pekiştirme.",
-    points: ["Anında tanıma", "Adım adım anlatım", "Anlama skoru"],
+    eyebrow: "1 · Soru çöz",
+    title: "Fotoğraftan adım adım çözüm",
+    body: "Şıkları eleyen gerçek çeldiriciler; yanlışta neden, doğruda pekiştirme.",
+    panel: {
+      label: "Geometri",
+      lines: [
+        "Üçgende |AB|=16, |BC|=12 iken |AC|?",
+        "16² + 12² = 400 → √400 = 20",
+        "Anlama skoru %94",
+      ],
+    },
   },
   {
+    id: "analyze",
     icon: LineChart,
-    eyebrow: "Analiz",
-    title: "Zayıf konu haritası",
-    body: "Deneme sonrası kayıplar sıralanır; sıradaki çalışma buna göre kurulur.",
-    points: ["Konu bazlı net", "Öncelik listesi", "Koç notu"],
+    eyebrow: "2 · Deneme analizi",
+    title: "Zayıf konuyu net olarak gör",
+    body: "Deneme sonrası konu bazlı kayıp listesi; sıradaki çalışma buna göre kurulur.",
+    panel: {
+      label: "Son deneme",
+      lines: ["Net 28.4", "Doğruluk %35", "Öncelik: olasılık + geometri"],
+    },
   },
   {
+    id: "plan",
     icon: CalendarRange,
-    eyebrow: "Plan",
-    title: "Tek akışta öğretmen",
-    body: "Sınav tarihine göre günlük bloklar — ne çalışacağını bilerek başla.",
-    points: ["Günlük yol", "Süre önerisi", "Takip"],
+    eyebrow: "3 · Kişisel plan",
+    title: "Bugünün yolu hazır",
+    body: "Sınav tarihine göre günlük bloklar; AI koç hangi derse kaç dakika diyecek.",
+    panel: {
+      label: "Bugün",
+      lines: [
+        "09:00 Matematik · türev",
+        "11:00 Geometri · üçgen",
+        "14:00 Fizik · dinamik test",
+      ],
+    },
   },
 ] as const;
 
 export function ProductShowcase() {
-  const reduce = useReducedMotion();
   return (
-    <section className="mk-lux-showcase" aria-labelledby="lux-show-h">
-      <motion.div
-        initial={reduce ? false : { opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.35 }}
-        transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] as const }}
-      >
-        <p className="mk-lux-eyebrow">Yakın plan</p>
-        <h2 id="lux-show-h">Ürünü yakından oku</h2>
-        <p className="mk-lux-showcase-lead">
-          Üç sahne. Tek vaat: sınava özel AI öğretmen.
-        </p>
-      </motion.div>
+    <section
+      className="mk-showcase-premium mx-auto max-w-6xl px-4 py-20"
+      data-cinematic-reveal
+      aria-labelledby="showcase-heading"
+    >
+      <p className="mk-eyebrow">Canlı arayüz</p>
+      <h2 id="showcase-heading" className="mk-section-title">
+        Kayıt olmadan önce ürünü gör
+      </h2>
+      <p className="mk-muted mt-3 max-w-2xl text-base">
+        Üç kritik akış — bulanık ekran görüntüsü değil, okunaklı ürün sahneleri.
+      </p>
 
-      <div className="mk-lux-showcase-grid">
-        {SCENES.map((s, i) => {
-          const Icon = s.icon;
+      <div className="mk-showcase-grid">
+        {SCENES.map((scene) => {
+          const Icon = scene.icon;
           return (
-            <motion.article
-              key={s.title}
-              className="mk-lux-showcase-card"
-              initial={reduce ? false : { opacity: 0, y: 28 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ delay: i * 0.1, duration: 0.55, ease: [0.22, 1, 0.36, 1] as const }}
-              whileHover={reduce ? undefined : { y: -6, transition: { duration: 0.25 } }}
-            >
-              <p className="mk-lux-eyebrow">
-                <Icon className="h-3.5 w-3.5" aria-hidden />
-                {s.eyebrow}
-              </p>
-              <h3>{s.title}</h3>
-              <p>{s.body}</p>
-              <ul>
-                {s.points.map((p) => (
-                  <li key={p}>{p}</li>
-                ))}
-              </ul>
-            </motion.article>
+            <article key={scene.id} className="mk-showcase-card">
+              <div className="mk-showcase-card-copy">
+                <p className="mk-eyebrow inline-flex items-center gap-2">
+                  <Icon className="h-3.5 w-3.5" aria-hidden />
+                  {scene.eyebrow}
+                </p>
+                <h3>{scene.title}</h3>
+                <p>{scene.body}</p>
+              </div>
+              <div className="mk-showcase-panel" aria-hidden>
+                <div className="mk-showcase-panel-chrome">
+                  <span />
+                  <span />
+                  <span />
+                  <em>{scene.panel.label}</em>
+                </div>
+                <ol>
+                  {scene.panel.lines.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ol>
+              </div>
+            </article>
           );
         })}
-      </div>
-
-      <div className="mk-lux-cta-row mk-lux-cta-row--center">
-        <Link href="/kayit" className="mk-lux-btn-primary">
-          Ücretsiz dene
-          <ArrowRight className="h-4 w-4" aria-hidden />
-        </Link>
-        <Link href="/ornek" className="mk-lux-btn-ghost">
-          Ürünü gör
-        </Link>
       </div>
     </section>
   );

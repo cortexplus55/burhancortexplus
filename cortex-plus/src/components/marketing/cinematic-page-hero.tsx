@@ -1,8 +1,9 @@
-"use client";
-
-import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
+/**
+ * Alt pazarlama sayfaları için sinematik sayfa hero’su.
+ * Ambient orb + vignette; başlık display tipografi ile.
+ */
 export function CinematicPageHero({
   title,
   description,
@@ -14,22 +15,33 @@ export function CinematicPageHero({
   children?: React.ReactNode;
   className?: string;
 }) {
-  const reduce = useReducedMotion();
   return (
-    <section className={cn("mk-lux-page-hero", className)}>
-      <div className="mk-lux-page-hero-ambient" aria-hidden>
-        <span />
+    <section
+      className={cn(
+        "mk-page-hero-premium relative overflow-hidden px-4 py-16 md:py-24",
+        className,
+      )}
+    >
+      <div className="mk-hero-ambient" aria-hidden>
+        <span className="mk-hero-orb mk-hero-orb--gold" />
+        <span className="mk-hero-orb mk-hero-orb--violet" />
+        <span className="mk-hero-vignette" />
       </div>
-      <motion.div
-        className="mk-lux-page-hero-inner"
-        initial={reduce ? false : { opacity: 0, y: 22 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] as const }}
+      <div className="mk-page-hero-bg" aria-hidden />
+      <div
+        className="relative z-10 mx-auto max-w-3xl text-center"
+        data-cinematic-reveal
       >
-        <h1>{title}</h1>
-        {description ? <p>{description}</p> : null}
-        {children ? <div className="mk-lux-page-hero-actions">{children}</div> : null}
-      </motion.div>
+        <h1 className="mk-display text-4xl leading-tight md:text-5xl lg:text-6xl">
+          {title}
+        </h1>
+        {description ? (
+          <p className="mx-auto mt-4 max-w-2xl text-base text-[var(--mk-muted)] md:text-lg">
+            {description}
+          </p>
+        ) : null}
+        {children ? <div className="mt-8">{children}</div> : null}
+      </div>
     </section>
   );
 }

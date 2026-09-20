@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function CinematicPrimaryCta({
   href = "/kayit",
-  label = "Ücretsiz dene",
+  label = "Başla",
   className,
 }: {
   href?: string;
@@ -12,19 +12,24 @@ export function CinematicPrimaryCta({
   className?: string;
 }) {
   return (
-    <Link href={href} className={cn("mk-lux-btn-primary", className)}>
+    <Link href={href} className={cn("mk-btn-play", className)}>
+      <span className="mk-btn-play-icon" aria-hidden>
+        <Play className="h-4 w-4 fill-current" />
+      </span>
       {label}
-      <ArrowRight className="h-4 w-4" aria-hidden />
     </Link>
   );
 }
 
 export function CinematicCtaRow({ className }: { className?: string }) {
   return (
-    <div className={cn("mk-lux-cta-row mk-lux-cta-row--center", className)}>
+    <div className={cn("flex flex-wrap items-center justify-center gap-3", className)}>
       <CinematicPrimaryCta />
-      <Link href="/ornek" className="mk-lux-btn-ghost">
-        Ürünü gör
+      <Link
+        href="/fiyatlandirma"
+        className="mk-btn-outline inline-flex px-8 py-3.5 text-sm font-medium"
+      >
+        CORTEX PLUS SATIN AL
       </Link>
     </div>
   );

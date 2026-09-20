@@ -6,7 +6,7 @@ import { isPaytrConfigured } from "@/lib/payments/paytr";
 
 export const metadata = {
   title: "Fiyatlandırma",
-  description: "Ücretsiz dene. Plus ile daha derin öğretmen.",
+  description: "Ücretsiz başla; Plus ile daha derin model ve daha fazla kredi.",
 };
 
 export const dynamic = "force-dynamic";
@@ -56,8 +56,8 @@ export default async function FiyatlandirmaPage() {
 
   return (
     <ParityMarketingPage
-      title="Basit fiyat. Net değer."
-      description="Ücretsiz başla. Hazır olunca Plus."
+      title="Fiyatlandırma"
+      description="Ücretsiz dene. Plus ile daha derin model ve daha fazla kredi."
     >
       <div data-cinematic-reveal className="space-y-4">
         {!checkoutEnabled ? (
