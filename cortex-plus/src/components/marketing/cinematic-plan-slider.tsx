@@ -38,7 +38,7 @@ export function CinematicPlanSlider() {
   const plan = PLANS.find((p) => p.id === active) ?? PLANS[1];
 
   return (
-    <section className="border-t border-[var(--mk-border)] py-20 md:py-24">
+    <section className="border-t border-[var(--mk-border)] py-20 md:py-24" data-cinematic-reveal>
       <div className="mx-auto max-w-3xl px-4 sm:px-6 text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-400/80">
           Planlar

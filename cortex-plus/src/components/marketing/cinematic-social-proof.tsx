@@ -23,7 +23,7 @@ const OUTCOMES = [
 
 export function CinematicSocialProof() {
   return (
-    <section className="border-t border-[var(--mk-border)] bg-[#080808] py-20 md:py-24">
+    <section className="border-t border-[var(--mk-border)] bg-[#080808] py-20 md:py-24" data-cinematic-reveal>
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-amber-400/80">
           Çalışma döngün

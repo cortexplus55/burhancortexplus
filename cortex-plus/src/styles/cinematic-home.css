@@ -399,3 +399,101 @@
   margin-left: auto;
   margin-right: auto;
 }
+
+const fs = require("fs");
+const path = require("path");
+
+const pack = fs.readFileSync(process.argv[1], "utf8");
+const cinPath = "src/styles/cinematic-home.css";
+let cin = fs.readFileSync(cinPath, "utf8");
+if (!cin.includes("MARKETING_CINEMATIC_PREMIUM_PACK")) {
+  fs.writeFileSync(cinPath, cin.trimEnd() + "\n\n" + pack, "utf8");
+  console.log("appended cinematic pack");
+} else {
+  console.log("pack already in cinematic-home");
+}
+
+// Ensure key home sections expose data-cinematic-reveal
+const files = [
+  "src/components/marketing/cinematic-guarantee-strip.tsx",
+  "src/components/marketing/cinematic-social-proof.tsx",
+  "src/components/marketing/cinematic-plan-slider.tsx",
+];
+
+for (const f of files) {
+  if (!fs.existsSync(f)) {
+    console.log("missing", f);
+    continue;
+  }
+  let t = fs.readFileSync(f, "utf8");
+  if (t.includes("data-cinematic-reveal")) {
+    console.log("already reveal", f);
+    continue;
+  }
+  // Add attribute to first <section ...>
+  const next = t.replace(/<section(\s[^>]*)?>/, (m, attrs = "") => {
+    if (attrs && attrs.includes("data-cinematic-reveal")) return m;
+    if (attrs) return `<section${attrs} data-cinematic-reveal>`;
+    return `<section data-cinematic-reveal>`;
+  });
+  if (next === t) {
+    console.log("no section tag", f);
+  } else {
+    fs.writeFileSync(f, next, "utf8");
+    console.log("added reveal", f);
+  }
+}
+
+// Soft-stagger children in scroll reveal for richer motion
+const revealPath = "src/components/marketing/cinematic-scroll-reveal.tsx";
+let reveal = fs.readFileSync(revealPath, "utf8");
+if (!reveal.includes("MARKETING_STAGGER_V1")) {
+  reveal = reveal.replace(
+    `gsap.from(el, {
+          y: 36,
+          opacity: 0,
+          duration: 0.85,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: el,
+            start: "top 88%",
+            once: true,
+          },
+        });`,
+    `// MARKETING_STAGGER_V1
+        gsap.from(el, {
+          y: 40,
+          opacity: 0,
+          duration: 0.95,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: el,
+            start: "top 86%",
+            once: true,
+          },
+        });
+        const kids = el.querySelectorAll(
+          ":scope > * , :scope .mk-shot, :scope .mk-loop-step, :scope .mk-card",
+        );
+        if (kids.length > 1 && kids.length < 12) {
+          gsap.from(kids, {
+            y: 18,
+            opacity: 0,
+            duration: 0.7,
+            stagger: 0.08,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: el,
+              start: "top 84%",
+              once: true,
+            },
+          });
+        }`
+  );
+  fs.writeFileSync(revealPath, reveal, "utf8");
+  console.log("scroll reveal stagger updated");
+} else {
+  console.log("stagger already present");
+}
+
+console.log("marketing premium apply done");

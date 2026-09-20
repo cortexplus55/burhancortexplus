@@ -21,7 +21,7 @@ const ITEMS = [
 
 export function CinematicGuaranteeStrip() {
   return (
-    <section className="border-y border-[var(--mk-border)] bg-[#0a0a0a] py-12 md:py-14">
+    <section className="border-y border-[var(--mk-border)] bg-[#0a0a0a] py-12 md:py-14" data-cinematic-reveal>
       <div className="mx-auto max-w-6xl px-4">
         <div className="grid gap-6 md:grid-cols-3">
           {ITEMS.map((item) => {

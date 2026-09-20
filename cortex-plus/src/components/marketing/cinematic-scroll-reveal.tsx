@@ -48,17 +48,35 @@ export function CinematicScrollReveal({
         const rect = el.getBoundingClientRect();
         if (rect.top < viewport) return;
 
+        // MARKETING_STAGGER_V1
         gsap.from(el, {
-          y: 36,
+          y: 40,
           opacity: 0,
-          duration: 0.85,
+          duration: 0.95,
           ease: "power3.out",
           scrollTrigger: {
             trigger: el,
-            start: "top 88%",
+            start: "top 86%",
             once: true,
           },
         });
+        const kids = el.querySelectorAll(
+          ":scope > * , :scope .mk-shot, :scope .mk-loop-step, :scope .mk-card",
+        );
+        if (kids.length > 1 && kids.length < 12) {
+          gsap.from(kids, {
+            y: 18,
+            opacity: 0,
+            duration: 0.7,
+            stagger: 0.08,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: el,
+              start: "top 84%",
+              once: true,
+            },
+          });
+        }
       });
     })();
 
