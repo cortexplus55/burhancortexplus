@@ -64,6 +64,13 @@ export async function sendEmail({
       subject,
       html,
       text,
+      // DELIVERABILITY P1 — Outlook/Hotmail için tutarlı From + unsubscribe
+      replyTo: config.user,
+      headers: {
+        "X-Entity-Ref-ID": `cortexplus-${Date.now()}`,
+        "List-Unsubscribe": `<mailto:cortexplus@cortexplus.app?subject=unsubscribe>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
     });
     return { ok: true };
   } catch {

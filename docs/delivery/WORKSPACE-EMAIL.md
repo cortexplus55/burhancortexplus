@@ -100,3 +100,7 @@ Workspace gönderim kotası (Business Starter ~2000/gün) çoğu lansman için y
 
 - Resend + Squarespace DNS: [DNS-CORTEXPLUS-APP.md](./DNS-CORTEXPLUS-APP.md) §2 artık **opsiyonel / kullanılmıyor**.
 - Geçici prod fix: [EMAIL-SIGNUP-FIX.md](./EMAIL-SIGNUP-FIX.md) — Workspace SMTP sonrası Confirm email **açık** olmalı.
+
+## Deliverability
+
+Hotmail/Outlook ve DMARC: [EMAIL-DELIVERABILITY.md](./EMAIL-DELIVERABILITY.md).
