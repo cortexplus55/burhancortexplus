@@ -22,12 +22,12 @@ export function UpgradeAside({ returnPath }: { returnPath?: string }) {
           +
         </span>
       </div>
-      <p className="ug-aside-title">Plus'a yükselt</p>
+      <p className="ug-aside-title">Plus&apos;a yükselt</p>
       <p className="ug-aside-blurb">
         Daha yüksek kullanım hakkı ve premium özellikler.
       </p>
       <Link href={href} className="ug-aside-cta">
-        Plus'a geç
+        Plus&apos;a geç
         <ArrowRight className="h-3.5 w-3.5" aria-hidden />
       </Link>
     </aside>

@@ -78,7 +78,7 @@ describe("satıcı bilgileri", () => {
     expect(SELLER.taxNumber).toBe("");
     const labels = ACCEPTED_OMISSIONS.map((item) => item.label);
     expect(labels).toContain("Vergi kimlik numarası");
-    expect(labels).toContain("Telefon");
+    expect(labels).not.toContain("Telefon");
     for (const item of ACCEPTED_OMISSIONS) {
       expect(item.reason.length).toBeGreaterThan(30);
     }
@@ -86,7 +86,8 @@ describe("satıcı bilgileri", () => {
 
   it("bilerek boş alanlar kırmızı uyarıyı tetiklemiyor", () => {
     // Her zaman yanan bir lamba bilgi vermiyor: uyarı gerçek eksiklik için.
-    expect(missingSellerFields({ ...SELLER, phone: "", taxNumber: "" })).toEqual([]);
+    expect(missingSellerFields({ ...SELLER, phone: "", taxNumber: "" })).toEqual(["Telefon"]);
+    expect(missingSellerFields({ ...SELLER, taxNumber: "" })).toEqual([]);
     expect(missingSellerFields({ ...SELLER, address: "" })).toContain("Açık adres");
   });
 
@@ -184,8 +185,9 @@ describe("hukuki metinlerde yer tutucu kalmadı", () => {
   });
 
   it("bilerek boş alanın satırı hiç yazılmıyor", () => {
-    // Telefon yayınlanmıyor: satır olmayacak, boş da görünmeyecek.
-    expect(allText).not.toMatch(/Telefon:/);
+    // Telefon PayTR canlı onayı için yayınlanıyor.
+    expect(allText).toMatch(/Telefon:/);
+    expect(allText).toContain(SELLER.phone);
     // Vergi numarası yayınlanmıyor: eğik çizgili biçim yerine yalnız daire.
     expect(allText).toContain("Vergi dairesi: Bafra");
     expect(allText).not.toMatch(/Vergi dairesi \/ numarası/);

@@ -22,7 +22,7 @@ export function TrustStrip({ className = "" }: { className?: string }) {
       <div className="cs-trust-item">
         <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden />
         <p>
-          Güvenli ödeme <strong>PayTR</strong> ile alınır. Kart bilgisi Cortex'e
+          Güvenli ödeme <strong>PayTR</strong> ile alınır. Kart bilgisi Cortex&apos;e
           gelmez.
         </p>
       </div>
