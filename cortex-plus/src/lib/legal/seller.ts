@@ -43,14 +43,8 @@ export const SELLER: SellerInfo = {
   legalName: "Mukadder Önder",
   address:
     "Emirefendi Mah. Manas Sk. Tekin Apartmanı No: 7 İç Kapı No: 5, Bafra / Samsun",
-  /*
-    BİLEREK BOŞ — ürün sahibinin kararı.
-
-    Yönetmelik telefonu da sayıyor. Kitle öğrenci ve yazışarak ulaşıyor;
-    kişisel numara yayınlamak istenmedi. İletişim e-posta üzerinden.
-    Aynı risk: eksik sayılabilir. İş için ayrı bir numara alınırsa buraya.
-  */
-  phone: "",
+  /* PayTR canli onay (2026-09-20): sitede telefon yayinlaniyor. */
+  phone: "0553 824 0230",
   email: "cortexplus@cortexplus.app",
   taxOffice: "Bafra",
   /*
@@ -73,18 +67,13 @@ export const SELLER: SellerInfo = {
 /** Doldurulmamış zorunlu alanlar. Boş dizi = hukuki metinler yayına hazır. */
 export function missingSellerFields(seller: SellerInfo = SELLER): string[] {
   /*
-    Telefon ve vergi numarası BİLEREK bu listede değil: ikisi de yukarıda
-    açıklanan gerekçeyle yayınlanmıyor ve bu bir ürün kararı, eksiklik değil.
-    Listede kalsalardı hukuki sayfalarda sürekli kırmızı uyarı dururdu ve
-    uyarı anlamını yitirirdi — her zaman yanan bir lamba bilgi vermiyor.
-
-    Kararın kendisi kaybolmasın diye `ACCEPTED_OMISSIONS` altında duruyor ve
-    yönetim panelinde ayrı bir satır olarak görünüyor.
-  */
+    Vergi numarasi bilerek listede degil (TCKN gizliligi). Telefon PayTR istegiyle yayinlaniyor.
+    */
   const required: { key: keyof SellerInfo; label: string }[] = [
     { key: "legalName", label: "Ad soyad / ünvan" },
     { key: "address", label: "Açık adres" },
     { key: "email", label: "E-posta" },
+    { key: "phone", label: "Telefon" },
     { key: "taxOffice", label: "Vergi dairesi" },
   ];
   return required.filter((f) => !seller[f.key]?.trim()).map((f) => f.label);
@@ -107,12 +96,7 @@ export function sellerField(key: keyof SellerInfo, seller: SellerInfo = SELLER):
  * "kimse fark etmedi" arasındaki fark, yazılı olup olmamasıdır.
  */
 export const ACCEPTED_OMISSIONS: { label: string; reason: string }[] = [
-  {
-    label: "Telefon",
-    reason:
-      "Kişisel numara yayınlanmak istenmedi; iletişim e-posta ve destek sayfası üzerinden.",
-  },
-  {
+{
     label: "Vergi kimlik numarası",
     reason:
       "Şahıs işletmesinde bu numara T.C. kimlik numarası; gizlilik riski nedeniyle yayınlanmıyor, vergi dairesi gösteriliyor.",
