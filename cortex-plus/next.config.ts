@@ -12,6 +12,15 @@ import { cspHeaderName, cspHeaderValue } from "./src/lib/security/csp";
 const REPORT_ONLY = true;
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/hakkinda",
+        destination: "/hakkimizda",
+        permanent: true,
+      },
+    ];
+  },
   /*
     Yerel ikili taşıyan paketler webpack'e girmemeli.
 

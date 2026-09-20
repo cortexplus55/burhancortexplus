@@ -29,7 +29,7 @@ export function ParitySiteHeader() {
 
         <nav
           className="hidden items-center gap-6 text-sm text-[var(--mk-muted)] md:flex"
-          aria-label="Ana menü"
+          aria-label="Ana menÃ¼"
         >
           {MARKETING_NAV.map((item) => (
             <Link
@@ -64,19 +64,19 @@ export function ParitySiteHeader() {
           </Link>
           <Link
             href={MARKETING_AUTH.signupHref}
-            className={cn("mk-btn-primary hidden px-4 py-2 text-sm sm:inline-flex", navFocus)}
+            className={cn("mk-btn-primary hidden min-h-[44px] items-center px-4 py-2.5 text-sm sm:inline-flex", navFocus)}
           >
             {MARKETING_AUTH.signupLabel}
           </Link>
           <button
             type="button"
             className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--mk-border)] text-[var(--mk-text)] md:hidden",
+              "inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-[var(--mk-border)] text-[var(--mk-text)] md:hidden",
               navFocus,
             )}
             aria-expanded={open}
             aria-controls="cs-mobile-nav"
-            aria-label={open ? "Menüyü kapat" : "Menüyü aç"}
+            aria-label={open ? "MenÃ¼yÃ¼ kapat" : "MenÃ¼yÃ¼ aÃ§"}
             onClick={() => setOpen((value) => !value)}
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -88,7 +88,7 @@ export function ParitySiteHeader() {
         <nav
           id="cs-mobile-nav"
           className="border-t border-[var(--mk-border)] bg-[var(--mk-bg)] px-4 py-3 md:hidden"
-          aria-label="Mobil menü"
+          aria-label="Mobil menÃ¼"
         >
           <ul className="flex flex-col gap-1 text-sm">
             {MARKETING_NAV.map((item) => (
@@ -115,14 +115,14 @@ export function ParitySiteHeader() {
                 onClick={() => setOpen(false)}
               >
                 <Sparkles className="h-4 w-4" aria-hidden />
-                Plus planları
+                Plus planlarÄ±
               </Link>
             </li>
             <li className="mt-3 flex gap-2">
               <Link
                 href={MARKETING_AUTH.loginHref}
                 className={cn(
-                  "flex flex-1 items-center justify-center rounded-full border border-[var(--mk-border)] py-2.5 text-sm font-medium text-[var(--mk-text)]",
+                  "flex min-h-[44px] flex-1 items-center justify-center rounded-full border border-[var(--mk-border)] py-2.5 text-sm font-medium text-[var(--mk-text)]",
                   navFocus,
                 )}
                 onClick={() => setOpen(false)}
@@ -132,7 +132,7 @@ export function ParitySiteHeader() {
               <Link
                 href={MARKETING_AUTH.signupHref}
                 className={cn(
-                  "mk-btn-primary flex flex-1 items-center justify-center py-2.5 text-sm",
+                  "mk-btn-primary flex min-h-[44px] flex-1 items-center justify-center py-2.5 text-sm",
                   navFocus,
                 )}
                 onClick={() => setOpen(false)}

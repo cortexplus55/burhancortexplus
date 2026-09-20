@@ -20,6 +20,7 @@
 }
 
 .cs-marketing .mk-btn-primary {
+  min-height: 44px;
   background: linear-gradient(135deg, #f0b84d 0%, #c9851f 100%);
   color: #0c0a06;
   border-radius: 9999px;

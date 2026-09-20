@@ -89,10 +89,18 @@
   margin: 0 0 1.5rem;
   padding: 0 0 0.4rem;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
 }
 
 .dm-rail-item {
   display: inline-flex;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  min-height: 44px;
   align-items: center;
   gap: 0.5rem;
   border: 1px solid var(--pm-line);

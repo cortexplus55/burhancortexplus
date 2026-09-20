@@ -18,7 +18,7 @@ export function SiteHeader() {
           Cortex Plus
         </Link>
 
-        <nav className="hidden items-center gap-6 text-sm md:flex" aria-label="Ana menü">
+        <nav className="hidden items-center gap-6 text-sm md:flex" aria-label="Ana menÃ¼">
           {MARKETING_NAV.map((item) => (
             <Link key={item.href} href={item.href} className="hover:text-primary">
               {item.label}
@@ -42,10 +42,10 @@ export function SiteHeader() {
           </Link>
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border md:hidden"
+            className="inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-md border md:hidden"
             aria-expanded={open}
             aria-controls="site-mobile-nav"
-            aria-label={open ? "Menüyü kapat" : "Menüyü aç"}
+            aria-label={open ? "MenÃ¼yÃ¼ kapat" : "MenÃ¼yÃ¼ aÃ§"}
             onClick={() => setOpen((value) => !value)}
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -57,7 +57,7 @@ export function SiteHeader() {
         <nav
           id="site-mobile-nav"
           className="border-t bg-background px-4 py-3 md:hidden"
-          aria-label="Mobil menü"
+          aria-label="Mobil menÃ¼"
         >
           <ul className="flex flex-col gap-1 text-sm">
             {MARKETING_NAV.map((item) => (

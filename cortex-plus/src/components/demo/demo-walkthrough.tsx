@@ -185,6 +185,11 @@ export function DemoWalkthrough({
   oral: { prompt: string; hint?: string }[];
 }) {
   const [step, setStep] = useState(0);
+  const railRef = useRef<HTMLOListElement | null>(null);
+  useEffect(() => {
+    const active = railRef.current?.querySelector<HTMLElement>("[aria-current='step']");
+    active?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [step]);
   const current = STEPS[step];
 
   // Not bırakılana kadar sonraki adımlar kapalı: bu akışın vitrinden farkı
@@ -219,7 +224,7 @@ export function DemoWalkthrough({
         </span>
       </header>
 
-      <ol className="dm-rail" aria-label="Adımlar">
+      <ol ref={railRef} className="dm-rail" aria-label="Adımlar">
         {STEPS.map((s, i) => (
           <li key={s.id}>
             <button
