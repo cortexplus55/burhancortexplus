@@ -173,6 +173,13 @@
   line-height: 1;
 }
 
+.ug-aside-blurb {
+  margin: 0.45rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: #a8a29e;
+}
+
 .ug-aside-title {
   margin: 0.7rem 0 0;
   font-size: 0.9375rem;

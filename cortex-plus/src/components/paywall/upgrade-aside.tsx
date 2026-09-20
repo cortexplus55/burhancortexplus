@@ -4,11 +4,9 @@ import { CortexMark } from "@/components/brand/cortex-mark";
 import "@/styles/upgrade-gate.css";
 
 /**
- * Sohbet kutusunun yanında duran kalıcı yükseltme kartı — yalnızca ücretsiz.
- *
- * Yazı alanının içine değil yanına konuyor: öğrencinin yazacağı yeri
- * daraltmayan, ama her açtığında gördüğü bir yer. Dar ekranda kutunun altına
- * iniyor, yan yana durursa yazı alanı kullanılamayacak kadar daralıyor.
+ * CONVERSION_PACK_UPGRADE
+ * Sohbet yanındaki kalıcı yükseltme karti — yalnızca ücretsiz.
+ * Fiyat sayfasıyla aynı dil: tek CTA, kısa fayda.
  */
 export function UpgradeAside({ returnPath }: { returnPath?: string }) {
   const href = returnPath
@@ -24,9 +22,12 @@ export function UpgradeAside({ returnPath }: { returnPath?: string }) {
           +
         </span>
       </div>
-      <p className="ug-aside-title">Cortex Plus&apos;a yükselt</p>
+      <p className="ug-aside-title">Plus'a yükselt</p>
+      <p className="ug-aside-blurb">
+        Daha yüksek kullanım hakkı ve premium özellikler.
+      </p>
       <Link href={href} className="ug-aside-cta">
-        Daha hızlı öğren
+        Plus'a geç
         <ArrowRight className="h-3.5 w-3.5" aria-hidden />
       </Link>
     </aside>

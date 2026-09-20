@@ -11,6 +11,7 @@ import { PremiumPlanHero } from "@/components/marketing/premium-plan-hero";
 import { billingPeriodOf } from "@/lib/payments/subscription";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
+import { TrustStrip } from "@/components/parity/trust-strip";
 
 type Plan = {
   id: string;
@@ -455,12 +456,13 @@ export function SubscriptionCards({
         )}
       >
         {plusOwned ? null : (
-        <article className="cs-pay-card cs-pay-card--premium p-5">
+        <article className="cs-pay-card cs-pay-card--premium cs-pay-card--recommended p-5">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
               <Plus className="h-6 w-6" />
             </span>
             <div className="flex-1">
+              <span className="cs-pay-recommended-badge">Önerilen</span>
               <h2 className="text-lg font-semibold">Plus</h2>
               <p className="text-sm text-[var(--cs-muted)]">
                 Günlük öğrenme için
@@ -476,6 +478,11 @@ export function SubscriptionCards({
               <p className="text-xs text-[var(--cs-muted)]">
                 {billingNoteFor(plusPlan)}
               </p>
+              {yearly && plusSaving ? (
+                <p className="cs-pay-save-callout">
+                  Yıllıkta %{plusSaving} daha uygun
+                </p>
+              ) : null}
               <button
                 type="button"
                 disabled={!checkoutEnabled || plusOwned || loadingId === plusPlan?.id}
@@ -719,6 +726,8 @@ export function SubscriptionCards({
             </span>
           </label>
         )}
+
+                <TrustStrip />
 
         <p className="text-center text-xs text-[var(--cs-muted)]">
           Notunda olmayanı uydurmaz. Cevaplayamadığı soruda kredin düşmez.
