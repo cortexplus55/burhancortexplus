@@ -130,8 +130,7 @@ export function ParityExamPrep({
       <div className="cp-exam-section-head">
         {/* Sayfanın h1'i yoktu; görsel başlık zaten buydu. */}
         <h1 className="cp-exam-section-title">
-          Sınav hazırlıklarım
-          <span aria-hidden> ›</span>
+          Sınav
         </h1>
         <Link href="/deneme-sinavlari/olustur" className="cp-exam-create">
           + Oluştur
@@ -196,15 +195,23 @@ export function ParityExamPrep({
           <p className="cp-exam-search-empty">Bu aramaya uyan hazırlık yok.</p>
         ) : null
       ) : !prep ? (
-        <article className="cp-exam-active-card">
-          <h2 className="cp-exam-active-title">İlk sınav hazırlığını oluştur</h2>
+        <article className="cp-exam-active-card cp-exam-discover">
+          <p className="cp-exam-discover-kicker">Henüz hazırlık yok</p>
+          <h2 className="cp-exam-active-title">İlk sınav yolunu kur</h2>
           <p className="mt-2 text-sm text-[var(--cp-muted)]">
-            Sınavında neler var söyle; konuları sohbetle topla, tarihi seç, yolda ilerle.
+            Hedef sınavını söyle, konuları topla, kısa tanı testiyle seviyeni ölç — günlük yol otomatik açılır.
           </p>
+          <ol className="cp-exam-discover-steps" aria-label="Nasıl başlanır">
+            <li><strong>1</strong><span>Sınavı anlat</span></li>
+            <li><strong>2</strong><span>Konu seç + tanı</span></li>
+            <li><strong>3</strong><span>Yolda ilerle</span></li>
+          </ol>
           <div className="cp-exam-active-footer">
-            <span />
-            <Link href="/deneme-sinavlari/olustur" className="cp-exam-continue">
-              Oluştur
+            <button type="button" className="cp-exam-how cp-exam-how--ghost" onClick={() => setHowOpen(true)}>
+              Nasıl çalışır?
+            </button>
+            <Link href="/deneme-sinavlari/olustur" className="cp-exam-continue cp-exam-continue--primary">
+              Hazırlık oluştur
             </Link>
           </div>
         </article>

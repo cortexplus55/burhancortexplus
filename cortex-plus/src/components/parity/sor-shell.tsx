@@ -166,6 +166,7 @@ export function ParitySorShell({
                 key={tab.id}
                 href={tab.href}
                 className={cn("cp-sor-topnav-link", active && "cp-sor-topnav-link--active")}
+                aria-current={active ? "page" : undefined}
               >
                 {tab.label}
               </Link>

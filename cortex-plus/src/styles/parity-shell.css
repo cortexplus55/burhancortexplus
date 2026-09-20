@@ -7219,3 +7219,155 @@
   font-weight: 700;
   color: #4ade80;
 }
+
+/* NAV_TABS_PACK */
+.cp-sor-topnav {
+  gap: 0.2rem;
+  padding: 0.2rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+.cp-sor-topnav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  min-width: 4.25rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.cp-sor-topnav-link--active {
+  background: linear-gradient(135deg, rgba(244, 174, 11, 0.22), rgba(139, 92, 246, 0.18));
+  color: var(--cp-text);
+  box-shadow: inset 0 0 0 1px rgba(244, 174, 11, 0.35);
+}
+@media (max-width: 899px) {
+  .cp-sor-topnav-link {
+    min-height: 44px;
+    flex: 1 1 0;
+  }
+}
+
+/* NAV_EXAM_TOOLS_PACK */
+.cp-exam-discover-kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cp-gold);
+}
+.cp-exam-discover-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cp-exam-discover-steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--cp-border);
+  background: rgba(255, 255, 255, 0.03);
+}
+.cp-exam-discover-steps strong {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(244, 174, 11, 0.18);
+  color: var(--cp-gold);
+  font-size: 0.75rem;
+}
+.cp-exam-discover-steps span {
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+  line-height: 1.3;
+}
+.cp-exam-how--ghost {
+  border: none;
+  background: transparent;
+  color: var(--cp-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.5rem 0.25rem;
+  min-height: 44px;
+}
+.cp-exam-how--ghost:hover { color: var(--cp-text); }
+.cp-exam-empty--discover {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.25rem 1.1rem;
+  border-radius: 1rem;
+  border: 1px dashed var(--cp-border);
+  background: rgba(255, 255, 255, 0.02);
+}
+.cp-exam-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+@media (max-width: 560px) {
+  .cp-exam-discover-steps {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tools-bar {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 5;
+  padding: 0.65rem 0.75rem;
+  margin: 0 -0.25rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border);
+  background: color-mix(in srgb, var(--cp-bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+}
+.tools-section h2 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+.tool-card {
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+}
+.tool-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+.tool-kind {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+}
+.tool-kind.is-hesap {
+  background: rgba(244, 174, 11, 0.16);
+  color: var(--cp-gold);
+}
+.tool-kind.is-shortcut {
+  background: var(--cp-surface-2);
+  color: var(--cp-muted);
+}
+.tool-card.is-shortcut {
+  opacity: 0.95;
+}
+.tool-subject {
+  font-size: 0.6875rem;
+  color: var(--cp-muted);
+}

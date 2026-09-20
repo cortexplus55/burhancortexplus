@@ -39,7 +39,7 @@ export const studentBottomTabs: StudentNavItem[] = [
   {
     id: "sinavlar",
     href: "/deneme-sinavlari",
-    label: "Sınavlar",
+    label: "Sınav",
     icon: Target,
     match: (p) => p.startsWith("/deneme-sinavlari"),
   },
@@ -63,7 +63,7 @@ export const studentTopTabs: StudentNavItem[] = [
   {
     id: "sinav",
     href: "/deneme-sinavlari",
-    label: "Sınav hazırlığı",
+    label: "Sınav",
     icon: Target,
     match: (p) => p.startsWith("/deneme-sinavlari") || p.startsWith("/sinav-hazirligi"),
   },

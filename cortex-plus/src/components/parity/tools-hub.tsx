@@ -75,7 +75,7 @@ export function ToolsHub() {
       <header className="tools-hero">
         <h1>Araçlar</h1>
         <p>
-          Hesaplayıcılar burada açılır; kısayollar seni ilgili bölüme götürür.
+          Hesaplayıcılar bu sayfada açılır. Kısayollar ise sohbet, deneme veya plan gibi ilgili bölüme gider.
         </p>
       </header>
 
@@ -162,7 +162,12 @@ function ToolCard({ tool }: { tool: Tool }) {
         </span>
         <span className="tool-blurb">{tool.blurb}</span>
       </span>
-      <span className="tool-subject">{tool.subject}</span>
+      <span className="tool-meta">
+        <span className={cn("tool-kind", isShortcut ? "is-shortcut" : "is-hesap")}>
+          {isShortcut ? "Kısayol" : "Hesap"}
+        </span>
+        <span className="tool-subject">{tool.subject}</span>
+      </span>
     </Link>
   );
 }

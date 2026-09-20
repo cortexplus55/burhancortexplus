@@ -411,16 +411,23 @@ export function ExamPrepHome({
       ) : null}
 
       {!nodes.length ? (
-        <div className="cp-exam-empty" role="status">
+        <div className="cp-exam-empty cp-exam-empty--discover" role="status">
           <p>
-            <strong>Henüz çalışma yolu yok</strong>
+            <strong>Çalışma yolu henüz kurulmadı</strong>
           </p>
           <p className="text-sm text-[var(--cp-muted)]">
-            Konu seçip tanı ölçümünü tamamladığında günlük yol burada görünür.
+            Bir konu seçip kısa tanı ölçümünü bitir; podcast, alıştırma ve deneme sırası burada açılsın.
           </p>
-          <Link href={startHref} className="cp-exam-continue cp-exam-continue--primary">
-            İlk adımı aç
-          </Link>
+          <div className="cp-exam-empty-actions">
+            <Link href={startHref} className="cp-exam-continue cp-exam-continue--primary">
+              Konu seç ve başla
+            </Link>
+            {introPending ? (
+              <Link href={examPrepIntroHref(prepId)} className="cp-exam-continue">
+                Önce tanı ölçümü
+              </Link>
+            ) : null}
+          </div>
         </div>
       ) : uiV2 && view === "yol" ? (
         // Yol tarihsiz: öğrenci neyi ne zaman çalışacağına kendi karar
