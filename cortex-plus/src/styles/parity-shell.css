@@ -6009,6 +6009,8 @@
 }
 
 .tools-chip {
+  /* TOOLS_CHIP_TAP */
+  min-height: 44px;
   padding: 0.4rem 0.85rem;
   border-radius: 999px;
   border: 1px solid var(--cp-border);
