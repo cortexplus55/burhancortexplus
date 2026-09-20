@@ -42,7 +42,7 @@ export function ParitySiteFooter() {
         </div>
         <div className="mk-footer-links flex flex-col gap-2">
           <Link href="/iletisim">Bize ulaşın</Link>
-          <Link href="/hakkimizda">Künye</Link>
+          <Link href="/kunye">Künye</Link>
         </div>
       </div>
     </footer>
