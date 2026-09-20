@@ -797,3 +797,22 @@
     min-height: 3.8rem;
   }
 }
+
+/* MOBILE_AUDIT_POLISH */
+@media (max-width: 520px) {
+  .cp-plan-tab {
+    min-height: 44px;
+    padding: 0.55rem 0.65rem;
+  }
+
+  .cp-plan-tab span {
+    font-size: 0.72rem;
+  }
+
+  .cp-plan-week-grid,
+  .cp-plan-month-grid {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+

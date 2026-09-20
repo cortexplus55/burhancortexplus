@@ -277,3 +277,11 @@
   border-color: rgba(244, 174, 11, 0.5);
   background: rgba(244, 174, 11, 0.08);
 }
+
+/* MOBILE_AUDIT_POLISH: sabit composer altinda kart mesajlari orter */
+@media (max-width: 640px) {
+  .cp-sor-composer-zone .ug-aside {
+    display: none !important;
+  }
+}
+

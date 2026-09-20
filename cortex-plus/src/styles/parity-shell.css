@@ -7091,3 +7091,69 @@
   font-size: 0.78rem;
   color: #444;
 }
+
+/* MOBILE_AUDIT_POLISH
+   Ucretsiz planda sabit composer altina binen Plus karti, dar ekranda
+   ders secici + onerileri/mesajlari eziyordu. Mobilde karti composer'dan
+   tamamen cikariyoruz (bos ekranda hero icindeki kopya kalir; sohbette
+   ustteki Satin al yeterli).
+*/
+@media (max-width: 640px) {
+  .cp-sor-composer-zone--aside {
+    flex-direction: column;
+    width: min(calc(100% - 1.25rem), 42rem);
+  }
+
+  .cp-sor-composer-zone--aside .cp-sor-composer-upgrade,
+  .cp-sor-composer-zone--aside .ug-aside {
+    display: none !important;
+  }
+
+  .cp-sor-messages {
+    padding-bottom: calc(10.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .cp-sor-buy,
+  .cp-sor-more,
+  .cp-sor-streak {
+    min-height: 44px;
+    min-width: 44px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cp-sor-buy {
+    padding: 0.55rem 1rem;
+  }
+
+  .tools-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tools-chip {
+    min-height: 44px;
+    padding: 0.55rem 0.95rem;
+  }
+
+  .tool-card {
+    min-height: 44px;
+  }
+
+  .cp-more-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cp-mk-key,
+  .cp-mk-ctrl {
+    min-height: 44px;
+  }
+
+  .cp-exam-hub-tools {
+    flex-wrap: wrap;
+  }
+
+  .cp-exam-search {
+    flex: 1 1 100%;
+  }
+}
+
