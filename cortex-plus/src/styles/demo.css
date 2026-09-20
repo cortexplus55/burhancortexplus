@@ -895,3 +895,23 @@
   line-height: 1.55;
   opacity: 0.66;
 }
+
+/* ORNEK_MOBILE_RAIL: yatay ray mobilde 3. adımı kesiyor + scrollbar üretiyor */
+@media (max-width: 640px) {
+  .dm-rail {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    overflow-x: visible;
+    scroll-snap-type: none;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .dm-rail-item {
+    width: 100%;
+    justify-content: flex-start;
+    min-height: 44px;
+    white-space: normal;
+  }
+}

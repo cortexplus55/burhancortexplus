@@ -412,14 +412,14 @@ export function SubscriptionCards({
           <div
             role="tablist"
             aria-label="Fatura dönemi"
-            className="mx-auto flex max-w-xs rounded-full bg-[var(--cs-bg)] p-1 text-xs"
+            className="mx-auto flex max-w-xs rounded-full bg-[var(--cs-bg)] p-1 text-sm"
           >
             <button
               type="button"
               role="tab"
               aria-selected={yearly}
               className={cn(
-                "flex-1 rounded-full py-2 font-medium transition-colors",
+                "flex-1 min-h-[44px] rounded-full px-3 py-2.5 font-medium transition-colors",
                 yearly ? "cs-nav-active text-white" : "text-[var(--cs-muted)]",
               )}
               onClick={() => setYearly(true)}
@@ -432,7 +432,7 @@ export function SubscriptionCards({
               role="tab"
               aria-selected={!yearly}
               className={cn(
-                "flex-1 rounded-full py-2 font-medium transition-colors",
+                "flex-1 min-h-[44px] rounded-full px-3 py-2.5 font-medium transition-colors",
                 !yearly ? "cs-nav-active text-white" : "text-[var(--cs-muted)]",
               )}
               onClick={() => setYearly(false)}
