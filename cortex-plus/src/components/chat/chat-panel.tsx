@@ -787,13 +787,22 @@ export function ChatPanel({
               <h1 className="cp-sor-hero-title">
                 {greetingLine ?? "Merhaba!"}
               </h1>
+              {greetingSubline ? (
+                <p className="cp-sor-hero-sub">{greetingSubline}</p>
+              ) : null}
               <button
                 type="button"
                 className="cp-sor-start"
                 disabled={loading}
-                onClick={() => setStartHubOpen(true)}
+                onClick={() => {
+                  if (startPrompt) {
+                    void send(startPrompt);
+                    return;
+                  }
+                  setStartHubOpen(true);
+                }}
               >
-                + {startLabel}
+                {startPrompt ? startLabel : "+ " + startLabel}
               </button>
 
               {/* Boş ekranda "ne sorabilirim" sorusunun cevabı. Öneriler

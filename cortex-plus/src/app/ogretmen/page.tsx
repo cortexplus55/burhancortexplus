@@ -12,7 +12,11 @@ import { parseTutorStyle, tutorStyleLabel } from "@/lib/learning/tutor-style";
 import { messageFeedbackEnabled } from "@/lib/learning/message-feedback";
 import { countMistakes } from "@/lib/learning/mistake-notebook";
 import { turkishLower } from "@/lib/text/turkish";
-import { firstPrompts } from "@/lib/student/first-prompts";
+import {
+  defaultStartPrompt,
+  firstPrompts,
+  greetingSubline as buildGreetingSubline,
+} from "@/lib/student/first-prompts";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
 
@@ -124,6 +128,17 @@ export default async function OgretmenPage({
   // `toLowerCase()` burada "İ"yi "i" + ayrı bir nokta işaretine çeviriyordu:
   // ekranda "i̇yi günler" diye çift noktalı görünüyordu.
   const greetingLine = `${firstName}, ${turkishLower(timeGreeting)}!${moon}`;
+  const goalText = goal?.goal_text ?? null;
+  const subline = buildGreetingSubline({
+    grade: profile?.grade_level,
+    subject: profile?.focus_subject,
+    goal: goalText,
+  });
+  const bootPrompt = defaultStartPrompt({
+    grade: profile?.grade_level,
+    subject: profile?.focus_subject,
+    goal: goalText,
+  });
   const style = parseTutorStyle(profile?.tutor_style);
   const avatar = profile?.avatar_url as string | null | undefined;
 
@@ -144,6 +159,8 @@ export default async function OgretmenPage({
         composerMode="parity"
         feedbackEnabled={feedbackOn}
         greetingLine={greetingLine}
+        greetingSubline={subline}
+        startPrompt={bootPrompt}
         showEmptyStarter
         startLabel="Başla"
         showSubjectPicker
