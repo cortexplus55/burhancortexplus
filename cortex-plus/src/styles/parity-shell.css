@@ -7372,88 +7372,49 @@
   color: var(--cp-muted);
 }
 
-/* THEME_CINEMATIC_PREMIUM_PACK */
+/* SHELL_THEME_CINEMATIC_PACK */
 
-:root {
-  --cx-gold: #f4ae0b;
-  --cx-gold-hover: #ffc233;
-  --cx-gold-glow: rgba(244, 174, 11, 0.35);
-  --font-display: "DM Serif Display", Georgia, serif;
-  --font-ui: "Figtree", var(--font-geist-sans), system-ui, sans-serif;
-}
-
-.dark {
-  --background: 0 0% 2%;
-  --foreground: 40 20% 98%;
-  --card: 0 0% 6%;
-  --card-foreground: 40 20% 98%;
-  --popover: 0 0% 6%;
-  --popover-foreground: 40 20% 98%;
-  --primary: 42 91% 51%;
-  --primary-foreground: 30 10% 6%;
-  --secondary: 0 0% 10%;
-  --secondary-foreground: 40 20% 98%;
-  --muted: 0 0% 12%;
-  --muted-foreground: 0 0% 64%;
-  --accent: 38 45% 12%;
-  --accent-foreground: 38 92% 88%;
-  --destructive: 0 62% 45%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 14%;
-  --input: 0 0% 14%;
-  --ring: 42 92% 54%;
-
-  /* Bridge tokens used across shells */
-  --mk-bg: #050505;
-  --mk-text: #fafafa;
-  --mk-muted: #a3a3a3;
-  --mk-border: rgba(255, 255, 255, 0.08);
-  --mk-primary: #f4ae0b;
+.cp-sor-root {
   --cp-bg: #050505;
   --cp-surface: #121212;
   --cp-surface-2: #1a1a1a;
   --cp-border: rgba(255, 255, 255, 0.08);
-  --cp-text: #fafafa;
-  --cp-muted: #a3a3a3;
   --cp-gold: #f4ae0b;
-}
-
-.dark body {
+  --cs-primary: #f4ae0b;
+  --cs-primary-hover: #ffc233;
   background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(244, 174, 11, 0.07), transparent 55%),
-    hsl(var(--background));
-  color: hsl(var(--foreground));
+    radial-gradient(ellipse 70% 40% at 80% -10%, rgba(244, 174, 11, 0.08), transparent 50%),
+    radial-gradient(ellipse 50% 35% at 0% 100%, rgba(99, 70, 220, 0.06), transparent 45%),
+    var(--cp-bg);
 }
 
-.dark ::selection {
-  background: rgba(244, 174, 11, 0.35);
-  color: #fff8e8;
+.cp-sor-top {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  background: rgba(5, 5, 5, 0.72);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
 }
 
-.dark :focus-visible {
-  outline: 2px solid rgba(244, 174, 11, 0.75);
-  outline-offset: 2px;
+.cp-sor-topnav-link--active,
+.cp-sor-nav-link--active {
+  color: #ffc857 !important;
+  box-shadow: inset 0 -2px 0 #f4ae0b;
 }
 
-/* Premium scrollbars (Chromium/WebKit) */
-.dark * {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(244, 174, 11, 0.35) transparent;
+.cp-sor-composer,
+.cp-sor-panel,
+.cp-card-premium {
+  border-color: rgba(232, 168, 56, 0.16);
+  background: rgba(18, 18, 20, 0.72);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 18px 48px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
 }
 
-.dark *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-.dark *::-webkit-scrollbar-thumb {
-  background: rgba(244, 174, 11, 0.28);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-.dark *::-webkit-scrollbar-thumb:hover {
-  background: rgba(244, 174, 11, 0.45);
-  background-clip: padding-box;
+.cp-plus-limit-banner {
+  background: linear-gradient(135deg, #ffc857 0%, #f4ae0b 45%, #c9851f 100%);
+  box-shadow:
+    0 12px 36px rgba(244, 174, 11, 0.32),
+    0 0 24px rgba(244, 174, 11, 0.18);
 }
