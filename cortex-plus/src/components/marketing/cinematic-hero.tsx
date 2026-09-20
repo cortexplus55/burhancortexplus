@@ -1,17 +1,92 @@
 "use client";
 
-import Link from "next/link";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
-import { Play, Sparkles, CheckCircle2, Zap } from "lucide-react";
+import {
+  Play,
+  Sparkles,
+  CheckCircle2,
+  Command,
+  ArrowUpRight,
+} from "lucide-react";
+import {
+  PremiumPrimaryCta,
+  PremiumGhostCta,
+} from "@/components/marketing/premium-cta";
+
+const TOPICS = [
+  {
+    id: "olasilik",
+    label: "Olasılık",
+    weak: 34,
+    tip: "Bu hafta 3 kısa olasılık seti: kombinasyon → koşullu → deneme tipi.",
+  },
+  {
+    id: "fonksiyon",
+    label: "Fonksiyon",
+    weak: 41,
+    tip: "Grafik okuma + ters fonksiyon; yarım saatlik mikro testlerle kilidi aç.",
+  },
+  {
+    id: "problem",
+    label: "Problemler",
+    weak: 48,
+    tip: "İşçi-havuz yerine hız-zaman yoğunluğu: 12 soruluk sprint önerilir.",
+  },
+  {
+    id: "turev",
+    label: "Türev",
+    weak: 55,
+    tip: "Zincir kuralı eksik; 20 dakikalık flash + 8 soruluk kontrol.",
+  },
+] as const;
+
+function greetingForNow(d = new Date()) {
+  const h = d.getHours();
+  if (h < 6) return "Gece çalışması";
+  if (h < 12) return "Günaydın, odak zamanı";
+  if (h < 18) return "Öğleden sonra sprinti";
+  return "Akşam mesaisi";
+}
 
 /**
- * Misafir hero — film jeneriği seviyesinde agresif sahne.
- * Düz webp yok; cam ürün UI + ışık huzmeleri + net sonuç vaadi.
+ * Misafir hero — etkileşimli widget’lı premium sahne.
+ * Konu chip’leri koç notunu ve net halkasını günceller.
  */
 export function CinematicHero() {
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
+  const [active, setActive] = useState<(typeof TOPICS)[number]["id"]>("olasilik");
+  const [greet, setGreet] = useState("Odak zamanı");
+  const [ring, setRing] = useState(0);
+
+  const topic = useMemo(
+    () => TOPICS.find((t) => t.id === active) ?? TOPICS[0],
+    [active],
+  );
+
+  useEffect(() => {
+    setGreet(greetingForNow());
+  }, []);
+
+  useEffect(() => {
+    const target = topic.weak;
+    let frame = 0;
+    const start = ring;
+    const t0 = performance.now();
+    const dur = 500;
+    let raf = 0;
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setRing(Math.round(start + (target - start) * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      frame++;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- animate from previous visual value
+  }, [topic.weak]);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -24,7 +99,7 @@ export function CinematicHero() {
   }
 
   return (
-    <section className="mk-film-hero relative flex min-h-[min(100dvh,920px)] flex-col justify-center overflow-hidden pb-16 pt-24 md:pb-24 md:pt-28">
+    <section className="mk-film-hero mk-studio-hero relative flex min-h-[min(100dvh,960px)] flex-col justify-center overflow-hidden pb-16 pt-24 md:pb-24 md:pt-28">
       <div className="mk-film-hero-fx" aria-hidden>
         <span className="mk-film-beam mk-film-beam--a" />
         <span className="mk-film-beam mk-film-beam--b" />
@@ -36,46 +111,74 @@ export function CinematicHero() {
         <span className="mk-film-scan" />
       </div>
 
-      <div className="relative z-10 mx-auto grid w-full max-w-6xl items-center gap-12 px-4 lg:grid-cols-[1.08fr_0.92fr] lg:gap-10">
+      <div className="relative z-10 mx-auto grid w-full max-w-6xl items-center gap-10 px-4 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
         <div className="text-center lg:text-left">
           <p className="mk-film-kicker mk-section-reveal">
-            <Zap className="h-3.5 w-3.5" aria-hidden />
-            TYT · AYT · LGS — film gibi çalışan AI öğretmen
+            <Sparkles className="h-3.5 w-3.5" aria-hidden />
+            {greet} · TYT · AYT · LGS
           </p>
           <h1 className="mk-film-title mk-section-reveal mk-section-reveal-delay-1 mt-5">
-            Zayıf konunu gör.
-            <span className="mk-film-title-line">Netini patlat.</span>
+            Zayıf konunu seç.
+            <span className="mk-film-title-line">Planı izle.</span>
           </h1>
           <p className="mk-section-reveal mx-auto mt-5 max-w-xl text-base leading-relaxed text-[var(--mk-muted)] md:mx-0 md:text-lg">
-            Fotoğraftan çözüm, deneme analizi, kişisel plan — dağınık PDF değil;
-            sahne sahne yükselten öğretmen.
+            Aşağıdaki chip’lere dokun — koç notu ve net halkası anında değişir.
+            Kayıt olunca aynı zekâ senin denemene bağlanır.
           </p>
+
+          <div
+            className="mk-section-reveal mk-section-reveal-delay-2 mk-topic-chip-row mx-auto mt-7 lg:mx-0"
+            role="listbox"
+            aria-label="Zayıf konu seç"
+          >
+            {TOPICS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="option"
+                aria-selected={active === t.id}
+                className={
+                  active === t.id
+                    ? "mk-topic-chip mk-topic-chip--on"
+                    : "mk-topic-chip"
+                }
+                onClick={() => setActive(t.id)}
+              >
+                {t.label}
+                <em>%{t.weak}</em>
+              </button>
+            ))}
+          </div>
 
           <form
             onSubmit={onSubmit}
-            className="mk-section-reveal mk-section-reveal-delay-2 mx-auto mt-8 max-w-xl lg:mx-0"
+            className="mk-section-reveal mk-section-reveal-delay-2 mx-auto mt-7 max-w-xl lg:mx-0"
           >
             <label htmlFor="hero-prompt" className="sr-only">
-              AI öğretmene sor
+              AI öğretmene komut
             </label>
-            <div className="mk-prompt-bar mk-prompt-bar--film">
+            <div className="mk-command-bar">
+              <Command className="mk-command-bar-ico" aria-hidden />
               <input
                 id="hero-prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Örn. Trigonometride bu hafta nerede kaybediyorum?"
+                placeholder={`${topic.label} için bu hafta ne yapmalıyım?`}
                 autoComplete="off"
               />
-              <button type="submit" className="mk-prompt-submit">
-                Sahneyi aç
+              <kbd className="mk-command-kbd" aria-hidden>
+                ⌘↵
+              </kbd>
+              <button type="submit" className="mk-command-go" aria-label="Gönder">
+                <ArrowUpRight className="h-4 w-4" />
               </button>
             </div>
           </form>
 
           <ul className="mk-section-reveal mk-section-reveal-delay-2 mx-auto mt-5 flex max-w-xl flex-col gap-2 text-sm text-[var(--mk-muted)] lg:mx-0">
             {[
-              "Kart yok — hemen başla",
-              "Soru → analiz → plan tek film",
+              "Kart gerekmez — hemen başla",
+              "Seçtiğin konu kayda taşınır",
               "Plus ile daha derin model",
             ].map((item) => (
               <li
@@ -92,91 +195,62 @@ export function CinematicHero() {
           </ul>
 
           <div className="mk-section-reveal mk-section-reveal-delay-2 mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
-            <Link href="/kayit" className="mk-btn-play mk-btn-play--film">
-              <span className="mk-btn-play-icon" aria-hidden>
-                <Play className="h-4 w-4 fill-current" />
-              </span>
+            <PremiumPrimaryCta
+              href="/kayit"
+              icon={<Play className="h-4 w-4 fill-current" />}
+            >
               Ücretsiz dene
-            </Link>
-            <Link href="/ornek" className="mk-btn-ghost">
-              Canlı örneği izle
-            </Link>
+            </PremiumPrimaryCta>
+            <PremiumGhostCta href="/ornek">Canlı örneği aç</PremiumGhostCta>
           </div>
         </div>
 
-        <div className="mk-section-reveal mk-section-reveal-delay-2 mk-film-stage mx-auto w-full max-w-lg lg:mx-0 lg:max-w-none">
-          <div className="mk-film-stage-glow" aria-hidden />
-          <div className="mk-film-ticket" aria-hidden>
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Net</span>
-            <strong>28 → 42</strong>
-          </div>
-          <div className="mk-hero-window mk-film-window">
-            <div className="mk-hero-window-chrome" aria-hidden>
-              <span />
-              <span />
-              <span />
-              <p>Konu analizi · canlı</p>
+        <div className="mk-section-reveal mk-section-reveal-delay-2 mk-studio-stack mx-auto w-full max-w-lg lg:mx-0 lg:max-w-none">
+          <div className="mk-studio-stack-glow" aria-hidden />
+
+          <article className="mk-glass-widget mk-glass-widget--ring">
+            <div className="mk-net-ring" style={{ ["--p" as string]: String(ring) }}>
+              <strong>%{ring}</strong>
+              <span>hazırlık</span>
             </div>
-            <div className="mk-hero-ui">
-              <aside className="mk-hero-ui-nav" aria-hidden>
-                <p className="mk-hero-ui-brand">cortex+</p>
-                <ul>
-                  <li className="is-active">Konu analizi</li>
-                  <li>Soru çöz</li>
-                  <li>Deneme</li>
-                  <li>Plan</li>
-                </ul>
-              </aside>
-              <div className="mk-hero-ui-main">
-                <div className="mk-hero-ui-head">
-                  <div>
-                    <p className="mk-hero-ui-label">Matematik · Bu hafta</p>
-                    <h2>Zayıf konuların</h2>
-                  </div>
-                  <div className="mk-hero-ui-ring" aria-hidden>
-                    <strong>%62</strong>
-                    <span>hazır</span>
-                  </div>
-                </div>
-                <ul className="mk-hero-ui-list">
-                  {[
-                    { t: "İstatistik & olasılık", m: "Net %34 · öncelik" },
-                    { t: "Fonksiyonlar", m: "Net %41 · tekrar" },
-                    { t: "Problemler", m: "Net %48 · güçlendir" },
-                  ].map((row) => (
-                    <li key={row.t}>
-                      <div>
-                        <strong>{row.t}</strong>
-                        <span>{row.m}</span>
-                      </div>
-                      <em>Çalış</em>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mk-hero-ui-note">
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                  <p>
-                    AI koç: Bu hafta olasılık + fonksiyon 90 dk — deneme netin
-                    +4–6 artabilir.
-                  </p>
-                </div>
-              </div>
+            <div>
+              <p className="mk-glass-widget-kicker">Canlı net tahmini</p>
+              <h2>{topic.label}</h2>
+              <p>
+                Seçiminle güncellenir. Kayıt sonrası deneme verine bağlanır —
+                tahmin değil, senin eğrin.
+              </p>
             </div>
-          </div>
-          <div className="mk-film-phone" aria-hidden>
-            <div className="mk-film-phone-chrome">
+          </article>
+
+          <article className="mk-glass-widget mk-glass-widget--coach">
+            <p className="mk-glass-widget-kicker">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              AI koç notu
+            </p>
+            <p className="mk-coach-tip">{topic.tip}</p>
+            <div className="mk-widget-actions">
+              <PremiumPrimaryCta href={`/kayit?topic=${topic.id}`}>
+                Bu planla başla
+              </PremiumPrimaryCta>
+              <PremiumGhostCta href="/ornek">Önce izle</PremiumGhostCta>
+            </div>
+          </article>
+
+          <article className="mk-glass-widget mk-glass-widget--mini" aria-hidden>
+            <div className="mk-mini-chrome">
+              <span />
+              <span />
               <span />
               <em>Soru çözücü</em>
             </div>
-            <p className="mk-film-phone-q">log₂(x) + log₂(x−2) = 3</p>
+            <p className="mk-mini-q">log₂(x) + log₂(x−2) = 3</p>
             <ol>
               <li>Tanım: x &gt; 2</li>
               <li>log₂[x(x−2)] = 3</li>
-              <li>x² − 2x − 8 = 0 → x = 4</li>
+              <li>x = 4 ✓</li>
             </ol>
-          </div>
-          <p className="mk-hero-stage-caption">Ürün arayüzü önizlemesi</p>
+          </article>
         </div>
       </div>
     </section>

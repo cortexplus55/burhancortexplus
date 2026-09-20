@@ -2,11 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import { Camera, Brain, Rocket } from "lucide-react";
+import {
+  PremiumPrimaryCta,
+  PremiumGhostCta,
+} from "@/components/marketing/premium-cta";
 
-/**
- * Film scroll hikâyesi — sticky pin + scrub.
- * Üç perde: Çek → Anla → Yüksel.
- */
 const ACTS = [
   {
     id: "cek",
@@ -21,6 +21,7 @@ const ACTS = [
       "Görüntü net · güven %97",
       "Konu: ikinci dereceden denklem",
     ],
+    widget: { label: "Güven", value: "%97" },
   },
   {
     id: "anla",
@@ -35,6 +36,7 @@ const ACTS = [
       "x = (5±1)/4 → 1.5 ve 1",
       "Anlama skoru %94",
     ],
+    widget: { label: "Anlama", value: "%94" },
   },
   {
     id: "yuksel",
@@ -45,6 +47,7 @@ const ACTS = [
     icon: Rocket,
     panelTitle: "Dönüşüm",
     lines: ["Önce: 28 net", "Sonra: 42 net", "Öncelik konuları kapandı"],
+    widget: { label: "Net", value: "+14" },
   },
 ] as const;
 
@@ -71,6 +74,7 @@ export function FilmScrollStory() {
       const pin = root.querySelector<HTMLElement>("[data-film-pin]");
       const acts = gsap.utils.toArray<HTMLElement>("[data-film-act]");
       const progress = root.querySelector<HTMLElement>("[data-film-progress]");
+      const markers = gsap.utils.toArray<HTMLElement>("[data-film-marker]");
       if (!pin || acts.length < 2) return;
 
       acts.forEach((el, i) => {
@@ -80,15 +84,25 @@ export function FilmScrollStory() {
           scale: i === 0 ? 1 : 0.97,
         });
       });
+      markers.forEach((el, i) => {
+        el.classList.toggle("is-on", i === 0);
+      });
 
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: root,
           start: "top top",
-          end: () => `+=${Math.round(window.innerHeight * 2.4)}`,
-          pin: pin,
+          end: () => `+=${Math.round(window.innerHeight * 2.6)}`,
+          pin,
           scrub: 0.65,
           anticipatePin: 1,
+          onUpdate: (self) => {
+            const idx = Math.min(
+              acts.length - 1,
+              Math.floor(self.progress * acts.length),
+            );
+            markers.forEach((el, i) => el.classList.toggle("is-on", i === idx));
+          },
         },
       });
 
@@ -97,17 +111,30 @@ export function FilmScrollStory() {
         const prev = acts[i - 1];
         tl.to(
           prev,
-          { autoAlpha: 0, y: -28, scale: 0.96, duration: 0.45, ease: "power2.inOut" },
+          {
+            autoAlpha: 0,
+            y: -28,
+            scale: 0.96,
+            duration: 0.45,
+            ease: "power2.inOut",
+          },
           i - 0.55,
         );
         tl.to(
           el,
-          { autoAlpha: 1, y: 0, scale: 1, duration: 0.55, ease: "power2.out" },
+          {
+            autoAlpha: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.55,
+            ease: "power2.out",
+          },
           i - 0.35,
         );
       });
 
       if (progress) {
+        gsap.set(progress, { scaleX: 0, transformOrigin: "left center" });
         tl.to(
           progress,
           { scaleX: 1, ease: "none", duration: acts.length - 1 },
@@ -139,6 +166,14 @@ export function FilmScrollStory() {
           <h2 id="film-story-heading" className="mk-film-story-title">
             Üç hareket. Büyük dönüşüm.
           </h2>
+          <ol className="mk-film-markers" aria-label="Film perdeleri">
+            {ACTS.map((a) => (
+              <li key={a.id} data-film-marker>
+                <span>{a.n}</span>
+                {a.title}
+              </li>
+            ))}
+          </ol>
           <div className="mk-film-progress" aria-hidden>
             <span data-film-progress />
           </div>
@@ -161,13 +196,21 @@ export function FilmScrollStory() {
                   </p>
                   <h3>{act.line}</h3>
                   <p>{act.body}</p>
+                  <div className="mk-film-act-cta">
+                    <PremiumPrimaryCta href="/kayit">Bu sahneyi dene</PremiumPrimaryCta>
+                    <PremiumGhostCta href="/ornek">Örneği aç</PremiumGhostCta>
+                  </div>
                 </div>
-                <div className="mk-film-act-panel" aria-hidden>
-                  <div className="mk-film-act-chrome">
+                <div className="mk-film-act-panel">
+                  <div className="mk-film-act-chrome" aria-hidden>
                     <span />
                     <span />
                     <span />
                     <em>{act.panelTitle}</em>
+                  </div>
+                  <div className="mk-act-stat" aria-hidden>
+                    <span>{act.widget.label}</span>
+                    <strong>{act.widget.value}</strong>
                   </div>
                   <ol>
                     {act.lines.map((line) => (
@@ -175,7 +218,7 @@ export function FilmScrollStory() {
                     ))}
                   </ol>
                   {act.id === "yuksel" ? (
-                    <div className="mk-film-net-burst">
+                    <div className="mk-film-net-burst" aria-hidden>
                       <span>28</span>
                       <i>→</i>
                       <strong>42 NET</strong>
