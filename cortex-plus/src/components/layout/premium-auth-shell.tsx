@@ -1,4 +1,4 @@
-import { CortexMark } from "@/components/brand/cortex-mark";
+﻿import { CortexMark } from "@/components/brand/cortex-mark";
 import Link from "next/link";
 import "@/styles/cortex-premium.css";
 
@@ -14,7 +14,7 @@ export function PremiumAuthShell({
   return (
     <div className="cortex-premium-auth">
       <div className="cortex-premium-auth__grid">
-        <aside className="cortex-premium-auth__hero" aria-hidden={false}>
+        <aside className="cortex-premium-auth__hero" aria-hidden={true}>
           <div className="cortex-premium-auth__hero-inner">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--cx-gold)]">
               Cortex Plus

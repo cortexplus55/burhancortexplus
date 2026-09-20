@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Figtree:ital,wght@0,400..800;1,400..800&display=swap");
+﻿@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Figtree:ital,wght@0,400..800;1,400..800&display=swap");
 
 /* Cortex Plus — ultra premium (referans üründen esinlenmiş, gold cinematic) */
 .cortex-premium,
@@ -473,4 +473,68 @@
   color: var(--cs-primary);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+/* ============================================================ AUTH A11Y P1
+   Tek h1 PremiumAuthShell''de; odak halkas�� gold ring; mobil min 44px.
+   ============================================================ */
+.cortex-premium-input {
+  min-height: 2.75rem; /* 44px */
+}
+
+.cortex-premium-input:focus {
+  outline: none;
+}
+
+.cortex-premium-input:focus-visible {
+  border-color: var(--cx-gold, #f4ae0b);
+  box-shadow:
+    0 0 0 2px rgba(12, 10, 6, 0.95),
+    0 0 0 4px rgba(244, 174, 11, 0.85);
+}
+
+.cortex-premium-btn-primary,
+.cortex-premium-btn-ghost {
+  min-height: 2.75rem;
+}
+
+.cortex-premium-btn-primary:focus {
+  outline: none;
+}
+
+.cortex-premium-btn-primary:focus-visible {
+  box-shadow:
+    0 0 0 2px #0c0a06,
+    0 0 0 4px rgba(244, 174, 11, 0.95),
+    0 12px 32px rgba(0, 0, 0, 0.4),
+    0 0 32px var(--cx-gold-glow, rgba(244, 174, 11, 0.35));
+}
+
+.cortex-premium-btn-ghost:focus {
+  outline: none;
+}
+
+.cortex-premium-btn-ghost:focus-visible {
+  border-color: var(--cx-gold, #f4ae0b);
+  box-shadow:
+    0 0 0 2px #0c0a06,
+    0 0 0 4px rgba(244, 174, 11, 0.75);
+}
+
+.cortex-premium-auth a:focus-visible {
+  outline: 2px solid var(--cx-gold, #f4ae0b);
+  outline-offset: 3px;
+  border-radius: 0.25rem;
+}
+
+@media (max-width: 640px) {
+  .cortex-premium-auth__title {
+    font-size: 1.5rem;
+    line-height: 1.25;
+  }
+
+  .cortex-premium-input,
+  .cortex-premium-btn-primary,
+  .cortex-premium-btn-ghost {
+    font-size: 1rem; /* iOS zoom ��nleyici */
+  }
 }

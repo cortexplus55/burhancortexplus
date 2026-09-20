@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Premium tasarım sistemi — "pm-" öneki.
  *
  * Referans ürünün vitrinini inceledikten sonra kuruldu (bkz. commit mesajı).
@@ -298,4 +298,18 @@
   .pm-stagger {
     animation: none;
   }
+}
+/* ============================================================ TOKEN BRIDGE P1
+   --cp-* = ǬrǬn kabuu011fu (parity). --pm-* = vitrin/premium yǬzeyler.
+   Payla��lan zemin/alt��n de��erleri --cp kayna����na ba����lan��r; bǬylece
+   iki sistem ayn�� koyu tema + #f4ae0b alt��n�� konu��ur. Bile��en s��n��flar��
+   (.pm-*) ayn�� kal��r.
+   ============================================================ */
+:root {
+  --pm-surface: var(--cp-surface, #1a1a1a);
+  --pm-surface-2: var(--cp-surface-2, #242424);
+  --pm-line: var(--cp-border, #2e2e2e);
+  --pm-amber-500: var(--cp-gold, #f4ae0b);
+  --pm-amber-400: #ffc233;
+  --pm-amber-600: #d4920a;
 }

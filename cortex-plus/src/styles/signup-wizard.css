@@ -1,4 +1,4 @@
-/* Kayıt sihirbazı — sinematik adımlar */
+﻿/* Kayıt sihirbazı — sinematik adımlar */
 .signup-wizard {
   background: #050505;
   position: relative;
@@ -133,4 +133,23 @@
   .signup-wizard .signup-continue:hover:not(:disabled) {
     transform: none;
   }
+}
+/* SIGNUP A11Y P1 */
+.signup-step-title {
+  line-height: 1.25;
+}
+
+.signup-wizard input:focus-visible,
+.signup-wizard button:focus-visible,
+.signup-wizard [role="button"]:focus-visible,
+.signup-wizard a:focus-visible {
+  outline: 2px solid #f4ae0b;
+  outline-offset: 3px;
+}
+
+.signup-wizard input[type="text"],
+.signup-wizard input[type="email"],
+.signup-wizard input[type="password"],
+.signup-wizard button {
+  min-height: 2.75rem;
 }
