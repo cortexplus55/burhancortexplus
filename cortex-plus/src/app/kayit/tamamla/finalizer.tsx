@@ -32,7 +32,9 @@ export function SignupFinalizer() {
     }
 
     if (!payload) {
-      router.replace("/ogretmen");
+      // Draft may be missing when email is confirmed on another device.
+      // Resume via onboarding; middleware sends unauthenticated users to /giris.
+      router.replace("/onboarding");
       return;
     }
 
