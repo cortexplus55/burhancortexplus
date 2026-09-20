@@ -1,16 +1,22 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { LifeBuoy, ListChecks, Mail, ShieldCheck } from "lucide-react";
 import { MarketingPage } from "@/components/layout/marketing-page";
 import { SellerWarning } from "@/components/layout/seller-warning";
 import { SELLER, sellerField } from "@/lib/legal/seller";
 
 const SELLER_ROWS = [
-  { label: "Ad soyad / ünvan", value: sellerField("legalName") },
+  { label: "Ad soyad / Ünvan", value: sellerField("legalName") },
   { label: "Adres", value: sellerField("address") },
-  { label: "Telefon", value: sellerField("phone") },
+  // Telefon ve vergi no bilerek yayında değil (ACCEPTED_OMISSIONS) —
+  // boşken "[doldurulacak]" göstermemek için satır eklenmiyor.
+  ...(SELLER.phone.trim()
+    ? [{ label: "Telefon", value: sellerField("phone") }]
+    : []),
   { label: "E-posta", value: sellerField("email") },
   { label: "Vergi dairesi", value: sellerField("taxOffice") },
-  { label: "Vergi numarası", value: sellerField("taxNumber") },
+  ...(SELLER.taxNumber.trim()
+    ? [{ label: "Vergi numarası", value: sellerField("taxNumber") }]
+    : []),
   { label: "İnternet sitesi", value: SELLER.website },
 ];
 
