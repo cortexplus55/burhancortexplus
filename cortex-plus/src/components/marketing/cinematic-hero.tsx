@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
@@ -42,7 +42,7 @@ export function CinematicHero() {
           </Link>
         </div>
 
-        <div className="mk-section-reveal mk-section-reveal-delay-2 mk-device-stage mt-16 w-full max-w-[720px]">
+        <div className="mk-device-stage mt-16 w-full max-w-[720px]">
           <div className="mk-device-stage-glow" aria-hidden />
           <div className="mk-device-stage-floor" aria-hidden />
 
