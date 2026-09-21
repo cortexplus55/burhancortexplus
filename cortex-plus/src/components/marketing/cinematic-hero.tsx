@@ -5,7 +5,7 @@ import { Sparkles } from "lucide-react";
 
 /**
  * Misafir hero — Astra iskeleti: trust → headline → alt → 2 CTA → laptop + telefon.
- * Kilit metin: Kaybettiğin netleri geri al. / Ücretsiz dene / Cortex Plus al
+ * Kilit metin: Bilgiye hükmet. / Ücretsiz dene / Cortex Plus al
  */
 export function CinematicHero() {
   return (
@@ -25,7 +25,7 @@ export function CinematicHero() {
         </p>
 
         <h1 className="mk-hero-title mk-hero-title--astra mk-section-reveal mk-section-reveal-delay-1 mt-5">
-          Kaybettiğin netleri geri al.
+          Bilgiye hükmet.
         </h1>
 
         <p className="mk-section-reveal mx-auto mt-4 max-w-xl text-base leading-relaxed text-[color:var(--mk-muted,#a1a1aa)] md:text-lg">
