@@ -54,13 +54,30 @@ describe("pageSourceBlock", () => {
   });
 
   it("returns nothing when the topic has no readable page", () => {
-    // Çağıran taraf benzerlik aramasına düşer; kaynaksız ders üretilmez.
+    // Saf biçimlendirici boş listeyi biçimlendirmez; gerekli sayfaların
+    // eksikliği veritabanı okuyucusunda SourceUnavailableError üretir.
     expect(pageSourceBlock("zemin.pdf", [], true)).toBe("");
   });
 
   it("keeps a long page from eating the whole prompt", () => {
     const long = [{ pageNumber: 1, text: "a".repeat(9000), formulas: [] }];
     expect(pageSourceBlock("uzun.pdf", long, true).length).toBeLessThan(3000);
+  });
+
+  it("does not present clipped pages as the full topic text", () => {
+    const block = pageSourceBlock("uzun.pdf", [
+      { pageNumber: 3, text: "a".repeat(2200) + "Sayfa sonundaki ayrı kavram.", formulas: [] },
+    ], true);
+    expect(block).not.toContain("Sayfa sonundaki ayrı kavram");
+    expect(block).toContain("[Sayfa metni kısaltıldı.]");
+    expect(block).toContain("devamı bu bağlamda yok");
+    expect(block).not.toContain("TAM metni");
+  });
+
+  it("does not mark a fully included short page as clipped", () => {
+    const block = pageSourceBlock("zemin.pdf", pages, true);
+    expect(block).not.toContain("[Sayfa metni kısaltıldı.]");
+    expect(block).toContain("fiziksel PDF sayfalarından");
   });
 });
 

@@ -5,6 +5,7 @@ import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import type { PageAnalysis } from "@/lib/documents/page-analysis";
 import {
   draftFromLlmTopic,
+  type TopicDraft,
   type TopicMapBuildResult,
 } from "@/lib/documents/topic-map";
 import {
@@ -89,6 +90,51 @@ export function topicForHeadings<T extends { title: string }>(
     }
   }
   return null;
+}
+
+/**
+ * Atlanan sayfaları ait oldukları konuya bağla, sonra kaynak özetini yenile.
+ * Modelden sonra geri eklenen bölüm listenin sonunda olabilir. Önceki konuyu
+ * dizi sırasından seçmek, örneğin 18. sayfayı 15 yerine 7. sayfaya bağlardı.
+ */
+export function completeTopicPageLinks(
+  topics: TopicDraft[],
+  pages: PageAnalysis[],
+): TopicDraft[] {
+  if (!topics.length) return [];
+  const ordered = topics
+    .map((topic) => ({ ...topic, pageNumbers: [...topic.pageNumbers].sort((a, b) => a - b) }))
+    .sort((a, b) => (a.pageNumbers[0] ?? Infinity) - (b.pageNumbers[0] ?? Infinity));
+  const linked = new Set(ordered.flatMap((topic) => topic.pageNumbers));
+  const contentPages = pages
+    .filter((page) => page.pageKind === "content" || page.pageKind === "uncertain")
+    .sort((a, b) => a.pageNumber - b.pageNumber);
+
+  for (const page of contentPages) {
+    if (linked.has(page.pageNumber)) continue;
+    let host = topicForHeadings(ordered, page.headings ?? []);
+    if (!host) {
+      host = ordered[0];
+      let closestStart = Number.NEGATIVE_INFINITY;
+      for (const topic of ordered) {
+        const start = topic.pageNumbers[0] ?? Infinity;
+        if (start <= page.pageNumber && start > closestStart) {
+          host = topic;
+          closestStart = start;
+        }
+      }
+    }
+    host.pageNumbers = [...new Set([...host.pageNumbers, page.pageNumber])].sort((a, b) => a - b);
+    linked.add(page.pageNumber);
+  }
+
+  return ordered
+    .sort((a, b) => (a.pageNumbers[0] ?? Infinity) - (b.pageNumbers[0] ?? Infinity))
+    .map((topic, index) => ({
+      ...draftFromLlmTopic(topic.title, topic.learningObjective, topic.pageNumbers, pages, index),
+      prerequisites: topic.prerequisites,
+      mergeKey: topic.mergeKey,
+    }));
 }
 
 export async function buildTopicMapLLM(
@@ -249,27 +295,5 @@ ${pageDigest(contentPages)}`,
   // sızdırıyordu: zemin belgesinin 12. sayfası "6. Yük Altında Gerilme
   // Dağılımı" başlığını taşıdığı hâlde 5. bölümün konusuna eklendi, ders
   // de iki bölümü komşu konudan anlattı.
-  const linked = new Set<number>();
-  for (const topic of topics) for (const n of topic.pageNumbers) linked.add(n);
-  for (const page of contentPages) {
-    if (linked.has(page.pageNumber)) continue;
-
-    // Sayfanın başlıklarından biri bir konu başlığını işaret ediyor mu?
-    let host = topicForHeadings(topics, page.headings ?? []);
-
-    if (!host) {
-      // İşaret yoksa eski ölçü: en yakın önceki konu.
-      host = topics[0];
-      for (const topic of topics) {
-        if ((topic.pageNumbers[0] ?? Infinity) <= page.pageNumber) host = topic;
-      }
-    }
-    host.pageNumbers = [...new Set([...host.pageNumbers, page.pageNumber])].sort(
-      (a, b) => a - b,
-    );
-  }
-
-  topics.sort((a, b) => (a.pageNumbers[0] ?? 0) - (b.pageNumbers[0] ?? 0));
-
-  return { topics, mergedTitles: [] };
+  return { topics: completeTopicPageLinks(topics, pages), mergedTitles: [] };
 }

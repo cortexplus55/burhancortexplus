@@ -88,11 +88,11 @@ export async function loadSourceContext(
   };
 }
 
-/** Sayfa başına ayrılan yer — benzerlik parçasından geniş, sayfa bütün. */
+/** Sayfa metnine ayrılan üst sınır; aşılırsa kısaltıldığı belirtilir. */
 const MAX_CHARS_PER_PAGE = 2200;
 
 /**
- * Bütün sayfaların toplam sınırı.
+ * Sayfa metinlerinin toplam sınırı; etiketler ve formüller buna dahil değil.
  *
  * Sayfa başına sınır vardı, toplama sınır yoktu. "Yük Altında Gerilme
  * Dağılımı" beş sayfaya yayılıyor: blok 11 bin karaktere çıktı ve ders
@@ -114,8 +114,9 @@ const MAX_CHARS_TOTAL = 6000;
  * Planın her düğümü hangi sayfaları işlediğini zaten biliyor
  * (session_meta.sourcePages). Arayacağımıza okuyoruz.
  *
- * Sayfa okunamazsa boş dönüyor ve çağıran taraf benzerlik aramasına
- * düşüyor — kaynaksız ders üretilmiyor.
+ * Sayfa listesi olmayan eski planlar benzerlik aramasını kullanabilir.
+ * Sayfaları belli bir konunun tek sayfası bile okunamazsa durulur: başka
+ * parçalarla sessizce devam etmek, eksik sayfayı okunmuş gibi göstermesin.
  */
 export async function loadPageSourceContext(
   service: SupabaseClient,
@@ -125,20 +126,30 @@ export async function loadPageSourceContext(
 ): Promise<SourceContext> {
   if (!documentId || !pageNumbers?.length) return EMPTY_SOURCE_CONTEXT;
 
-  const [{ data: doc }, { data: pages }] = await Promise.all([
+  if (pageNumbers.some((number) => !Number.isInteger(number) || number < 1)) {
+    throw new SourceUnavailableError();
+  }
+  const requiredPages = [...new Set(pageNumbers)].sort((a, b) => a - b);
+  const [{ data: doc, error: docError }, { data: pages, error: pagesError }] = await Promise.all([
     service.from("documents").select("file_name").eq("id", documentId).maybeSingle(),
     service
       .from("document_pages")
-      .select("page_number, text_content, formulas")
+      .select("page_number, text_content, formulas, extraction_ok, page_kind")
       .eq("document_id", documentId)
-      .in("page_number", pageNumbers)
+      .in("page_number", requiredPages)
       .order("page_number", { ascending: true }),
   ]);
 
+  if (docError || pagesError || !doc) throw new SourceUnavailableError();
   const usable = (pages ?? []).filter(
-    (page) => ((page.text_content as string | null) ?? "").trim().length > 0,
+    (page) => requiredPages.includes(page.page_number as number) &&
+      page.extraction_ok !== false && page.page_kind !== "unreadable" &&
+      ((page.text_content as string | null) ?? "").trim().length > 0,
   );
-  if (!usable.length) return EMPTY_SOURCE_CONTEXT;
+  const loadedNumbers = new Set(usable.map((page) => page.page_number as number));
+  if (requiredPages.some((number) => !loadedNumbers.has(number))) {
+    throw new SourceUnavailableError();
+  }
 
   const documentName = (doc?.file_name as string | null) ?? "kaynak";
   const formulas = usable.flatMap(
@@ -174,18 +185,23 @@ export function pageSourceBlock(
     MAX_CHARS_PER_PAGE,
     Math.floor(MAX_CHARS_TOTAL / pages.length),
   );
+  const clipped = pages.some((page) => page.text.length > perPage);
   const body = pages
     .map((page) => {
       const formulas = (page.formulas ?? []).slice(0, 8);
       return (
         `[s.${page.pageNumber}] ${documentName}: ${page.text.slice(0, perPage)}` +
+        (page.text.length > perPage ? "\n[Sayfa metni kısaltıldı.]" : "") +
         (formulas.length ? `\nBu sayfadaki formüller: ${formulas.join(" | ")}` : "")
       );
     })
     .join("\n\n");
 
   const guidance =
-    "\n\nBu sayfalar konunun TAM metni; alıntı değil. " +
+    "\n\nMetinler belirtilen fiziksel PDF sayfalarından alınmıştır. " +
+    (clipped
+      ? "Kısaltılan sayfaların devamı bu bağlamda yok; konunun tamamının verildiğini varsayma. "
+      : "") +
     // Ders formülü hatırladığı gibi yazıyordu; sayfada duran hâliyle
     // karşılaştırmıyordu.
     "FORMÜLLERİ SAYFADAKİ HÂLİYLE YAZ: sembolleri, üsleri ve katsayıları " +

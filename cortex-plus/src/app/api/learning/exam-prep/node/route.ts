@@ -627,7 +627,8 @@ export async function POST(request: Request) {
   try {
     // Konunun kendi sayfaları varsa onları okuyoruz; benzerlik araması
     // o sayfaların prompta girdiğini garanti etmiyordu ve ders kaynakta
-    // duran formülü yanlış yazabiliyordu. Sayfa okunamazsa aramaya düşer.
+    // duran formülü yanlış yazabiliyordu. İstenen sayfa okunamazsa üretim
+    // durur; yalnızca sayfa listesi olmayan eski planlar aramayı kullanır.
     const pageSource =
       teachingV2 && !voiceSession
         ? await loadPageSourceContext(
