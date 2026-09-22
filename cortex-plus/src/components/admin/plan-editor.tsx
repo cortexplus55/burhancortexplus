@@ -3,12 +3,14 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { updatePlan } from "@/app/admin/actions";
+import { kurusToTry, tryToKurus } from "@/lib/format";
 
 /**
  * Paket satırı düzenleyici.
  *
- * Değerler değişmeden "Kaydet" düğmesi açılmıyor: yanlışlıkla aynı değeri
- * tekrar yazmak bir kayıt oluşturuyor ve işlem geçmişini gereksiz şişiriyordu.
+ * DB `price_try` kuruş tutar. Giriş alanı TL gösterir; kayıtta kuruşa çevrilir.
+ * Eski hâl ham kuruşu "₺" etiketiyle gösteriyordu — 59900 yazıp 599 sanmak
+ * mümkün değildi; 599 yazmak ise ₺5,99'a düşürüyordu.
  */
 export function PlanEditor({
   planId,
@@ -17,31 +19,39 @@ export function PlanEditor({
   active,
 }: {
   planId: string;
+  /** Kuruş (DB). */
   price: number;
   credits: number;
   active: boolean;
 }) {
-  const [nextPrice, setNextPrice] = useState(String(price));
+  const [nextPriceTl, setNextPriceTl] = useState(String(kurusToTry(price)));
   const [nextCredits, setNextCredits] = useState(String(credits));
   const [nextActive, setNextActive] = useState(active);
   const [pending, startTransition] = useTransition();
 
-  const priceNum = Number(nextPrice);
+  const priceTl = Number(nextPriceTl);
   const creditsNum = Number(nextCredits);
+  const priceKurus = Number.isFinite(priceTl) ? tryToKurus(priceTl) : NaN;
   const valid =
-    Number.isInteger(priceNum) && priceNum >= 0 && Number.isInteger(creditsNum) && creditsNum >= 0;
+    Number.isFinite(priceTl) &&
+    priceTl >= 0 &&
+    Number.isInteger(priceKurus) &&
+    priceKurus >= 0 &&
+    Number.isInteger(creditsNum) &&
+    creditsNum >= 0;
   const changed =
-    priceNum !== price || creditsNum !== credits || nextActive !== active;
+    priceKurus !== price || creditsNum !== credits || nextActive !== active;
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       <label className="flex items-center gap-1 text-xs text-[var(--adm-muted)]">
-        ₺
+        TL
         <input
           type="number"
           min={0}
-          value={nextPrice}
-          onChange={(event) => setNextPrice(event.target.value)}
+          step={1}
+          value={nextPriceTl}
+          onChange={(event) => setNextPriceTl(event.target.value)}
           aria-label="Fiyat (TL)"
           className="adm-input w-24"
         />
@@ -76,7 +86,7 @@ export function PlanEditor({
           startTransition(async () => {
             const result = await updatePlan({
               planId,
-              priceTry: priceNum,
+              priceTry: priceKurus,
               creditAmount: creditsNum,
               active: nextActive,
             });

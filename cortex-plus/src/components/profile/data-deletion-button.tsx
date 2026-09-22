@@ -40,8 +40,9 @@ export function DataDeletionButton({
           parity ? "text-sm text-[var(--cs-muted)]" : "text-sm text-muted-foreground"
         }
       >
-        Talebi onaylarsan hesabındaki içerikler silinmek üzere sıraya alınır. Bu
-        işlem geri alınamaz. Bağlı çocuk hesapları silinmez.
+        Talebi onaylarsan profilin, belgelerin, sohbetlerin, sınav ve quiz
+        kayıtların silinir; oturumun kapanır. Ödeme ve fatura kayıtları yasal
+        zorunluluk nedeniyle saklanır. Bu işlem geri alınamaz.
       </p>
       <div className="flex gap-2">
         {parity ? (
@@ -53,8 +54,10 @@ export function DataDeletionButton({
               onClick={() =>
                 startTransition(async () => {
                   const result = await requestDataDeletion();
-                  if (result.ok) toast.success("Talebin alındı.");
-                  else toast.error("Talep oluşturulamadı.");
+                  if (result.ok) {
+                    toast.success("Hesabın silindi. Güle güle.");
+                    window.location.href = "/";
+                  } else toast.error("Silme tamamlanamadı.");
                   setConfirming(false);
                 })
               }
@@ -78,8 +81,10 @@ export function DataDeletionButton({
               onClick={() =>
                 startTransition(async () => {
                   const result = await requestDataDeletion();
-                  if (result.ok) toast.success("Talebin alındı.");
-                  else toast.error("Talep oluşturulamadı.");
+                  if (result.ok) {
+                    toast.success("Hesabın silindi. Güle güle.");
+                    window.location.href = "/";
+                  } else toast.error("Silme tamamlanamadı.");
                   setConfirming(false);
                 })
               }

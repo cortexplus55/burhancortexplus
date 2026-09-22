@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { DocumentUpload } from "@/components/documents/document-upload";
 import { DocumentRetryButton } from "@/components/documents/document-retry-button";
+import { DocumentDeleteButton } from "@/components/documents/document-delete-button";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
 import { requireUser } from "@/lib/auth/session";
 import { getCreditCost } from "@/lib/credits/rules";
@@ -23,6 +24,13 @@ const statusLabels: Record<string, string> = {
   failed: "Başarısız",
 };
 
+const processingHints: Record<string, string> = {
+  pending: "Dosyan yükleniyor",
+  processing: "Belgen okunuyor",
+  completed: "Belgen hazır",
+  failed: "İşlem başarısız",
+};
+
 const topicMapLabels: Record<string, string> = {
   none: "Harita yok",
   pending: "Harita çıkarılıyor",
@@ -41,8 +49,31 @@ const topicMapErrorLabels: Record<string, string> = {
   document_status_update_failed: "Kaydedilemedi — tekrar dene",
 };
 
+const processErrorLabels: Record<string, string> = {
+  download_failed: "Dosya depodan okunamadı — tekrar dene",
+  processing_failed: "Belge işlenemedi — tekrar dene",
+  encrypted_pdf: "Bu PDF şifreli olduğu için okunamıyor.",
+  password_protected: "Bu PDF şifreli olduğu için okunamıyor.",
+  too_large: "Bu dosya izin verilen maksimum boyuttan büyük.",
+  unsupported_type: "Bu dosya türü desteklenmiyor. PDF veya görsel yükle.",
+  unreadable_document: "Belgenin bazı sayfalarında okunabilir metin bulunamadı.",
+  no_text: "Belgenin bazı sayfalarında okunabilir metin bulunamadı.",
+  openai_missing: "Metin hazırlama servisi şu an kapalı — biraz sonra dene",
+  embed_failed: "İçerik hazırlanamadı — tekrar dene",
+};
+
 function topicMapErrorLabel(code: string) {
   return topicMapErrorLabels[code] ?? "Belge işlenemedi — tekrar dene";
+}
+
+function processErrorLabel(code: string | null) {
+  if (!code) return null;
+  if (processErrorLabels[code]) return processErrorLabels[code];
+  // Ham İngilizce kod sızmasın.
+  if (/^[a-z_]+$/i.test(code) && !code.includes(" ")) {
+    return "Belge işlenemedi — tekrar dene";
+  }
+  return code;
 }
 
 function statusClass(status: string) {
@@ -100,7 +131,12 @@ export default async function DokumanlarPage() {
                   <p className="text-xs text-[var(--cs-muted)]">
                     {Math.round(document.size_bytes / 1024)} KB ·{" "}
                     {formatDate(document.created_at)}
-                    {document.error_message ? ` · ${document.error_message}` : ""}
+                    {document.status !== "completed"
+                      ? ` · ${processingHints[document.status] ?? statusLabels[document.status]}`
+                      : ""}
+                    {processErrorLabel(document.error_message)
+                      ? ` · ${processErrorLabel(document.error_message)}`
+                      : ""}
                     {pdfLearningV2 && document.topic_map_status
                       ? ` · ${topicMapLabels[document.topic_map_status] ?? `harita: ${document.topic_map_status}`}`
                       : ""}
@@ -142,6 +178,7 @@ export default async function DokumanlarPage() {
                   document.status === "pending" ? (
                     <DocumentRetryButton documentId={document.id} />
                   ) : null}
+                  <DocumentDeleteButton documentId={document.id} />
                   <span
                     className={cn(
                       "rounded-full px-2.5 py-0.5 text-[11px] font-medium",

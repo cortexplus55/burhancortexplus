@@ -77,6 +77,7 @@ import {
   findResumableAttempt,
   saveAnswersRpc,
   upsertGenerationJob,
+  writtenExamDeadline,
 } from "@/lib/learning/attempt-lifecycle-persist";
 
 const bodySchema = z.object({
@@ -861,12 +862,13 @@ export async function POST(request: Request) {
         total,
         status: "active",
         updated_at: new Date().toISOString(),
+        ...(kind === "written_exam" ? writtenExamDeadline() : {}),
       })
       .eq("id", creatingAttemptId)
       .eq("generation_id", generationId)
       .eq("status", "creating")
       .select(
-        "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode",
+        "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at",
       )
       .maybeSingle();
 
@@ -923,6 +925,7 @@ export async function POST(request: Request) {
     payload,
     total,
     status: "active",
+    ...(kind === "written_exam" ? writtenExamDeadline() : {}),
   };
 
   let { data: attempt, error } = await service

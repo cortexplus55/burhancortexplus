@@ -202,11 +202,14 @@ export function ChatPanel({
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
   const [useDocuments, setUseDocuments] = useState(false);
+  /** true = Yalnızca Belgem (varsayılan); false = Belgem + Genel Bilgi */
+  const [documentsOnly, setDocumentsOnly] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
   const conversationId = useRef<string | undefined>(initialConversationId);
   const activeDocumentId = useRef<string | undefined>(initialDocumentId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [subject, setSubject] = useState("Matematik");
@@ -541,15 +544,21 @@ export function ChatPanel({
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: prefixed }]);
 
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           message: prefixed,
           actionCode: advanced ? "AI_CHAT_ADVANCED" : "AI_CHAT_STANDARD",
           conversationId: conversationId.current,
           useDocuments,
+          documentsOnly: useDocuments ? documentsOnly : true,
           audience,
           imageDocumentId: activeDocumentId.current,
           prepId,
@@ -590,10 +599,17 @@ export function ChatPanel({
       } catch {
         sourceDoc = "";
       }
+      const sourcePage = res.headers.get("X-Source-Page");
+      const citation =
+        sourceDoc && sourcePage
+          ? `${sourceDoc} · s.${sourcePage}`
+          : sourceDoc || (sourceCount ? `${sourceCount} kaynak` : "");
       const sourceLabel = sourceCount
-        ? ` · notundan: ${sourceDoc || `${sourceCount} kaynak`}`
+        ? ` · Kaynak: ${citation}`
         : useDocuments
-          ? " · genel bilgi"
+          ? documentsOnly
+            ? " · belgede yok"
+            : " · genel bilgi"
           : "";
       setStatus(
         `${res.headers.get("X-Model") ?? ""} · ${credits ?? "0"} kredi${sourceLabel}`,
@@ -634,10 +650,28 @@ export function ChatPanel({
         localStorage.setItem("cortex-streak-days", "1");
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.role === "assistant" && !last.content) {
+            return [
+              ...prev.slice(0, -1),
+              { role: "assistant", content: "(Yanıt durduruldu.)" },
+            ];
+          }
+          return prev;
+        });
+        return;
+      }
       pushAssistantError(error);
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setLoading(false);
     }
+  }
+
+  function stopGeneration() {
+    abortRef.current?.abort();
   }
 
   const showMinimalEmpty = isMinimalSor && messages.length === 0 && !loading;
@@ -1236,13 +1270,37 @@ export function ChatPanel({
         ) : null}
 
         {hasDocuments && !isParity ? (
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox
-              checked={useDocuments}
-              onCheckedChange={(value) => setUseDocuments(value === true)}
-            />
-            Yüklediğim dokümanları kaynak olarak kullan
-          </label>
+          <div className="flex flex-col gap-2 text-sm">
+            <label className="flex items-center gap-2">
+              <Checkbox
+                checked={useDocuments}
+                onCheckedChange={(value) => setUseDocuments(value === true)}
+              />
+              Yüklediğim dokümanları kaynak olarak kullan
+            </label>
+            {useDocuments ? (
+              <fieldset className="ml-6 flex flex-wrap gap-3 text-xs text-[var(--cs-muted)]">
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="doc-mode"
+                    checked={documentsOnly}
+                    onChange={() => setDocumentsOnly(true)}
+                  />
+                  Yalnızca belgem
+                </label>
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="doc-mode"
+                    checked={!documentsOnly}
+                    onChange={() => setDocumentsOnly(false)}
+                  />
+                  Belgem + genel bilgi
+                </label>
+              </fieldset>
+            ) : null}
+          </div>
         ) : null}
 
         {isParity && !isMinimalSor && messages.length === 0 ? (
@@ -1480,14 +1538,25 @@ export function ChatPanel({
                     }
                   }}
                 />
-                <button
-                  type="submit"
-                  disabled={loading || !input.trim()}
-                  className={cn("cs-sor-send", loading && "cs-sor-send--loading")}
-                  aria-label={loading ? "Gönderiliyor" : "Gönder"}
-                >
-                  ↑
-                </button>
+                {loading ? (
+                  <button
+                    type="button"
+                    className="cs-sor-send"
+                    aria-label="Durdur"
+                    onClick={stopGeneration}
+                  >
+                    ■
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!input.trim()}
+                    className="cs-sor-send"
+                    aria-label="Gönder"
+                  >
+                    ↑
+                  </button>
+                )}
               </form>
             </div>
           ) : (
@@ -1668,6 +1737,11 @@ export function ChatPanel({
             <Button type="submit" disabled={loading || !input.trim()}>
               Gönder
             </Button>
+            {loading ? (
+              <Button type="button" variant="outline" onClick={stopGeneration}>
+                Durdur
+              </Button>
+            ) : null}
           </form>
         )}
       </div>

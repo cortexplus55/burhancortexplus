@@ -118,3 +118,28 @@ export function cursorIndexFromMeta(
   );
   return Math.max(0, max);
 }
+
+/** Yazılı sınav süresi (saniye). */
+export const WRITTEN_EXAM_DURATION_SEC = 15 * 60;
+
+export function writtenExamDeadline(from = new Date()): {
+  started_at: string;
+  expires_at: string;
+} {
+  const started = from;
+  const expires = new Date(started.getTime() + WRITTEN_EXAM_DURATION_SEC * 1000);
+  return {
+    started_at: started.toISOString(),
+    expires_at: expires.toISOString(),
+  };
+}
+
+export function remainingSeconds(
+  expiresAt: string | null | undefined,
+  now = Date.now(),
+): number {
+  if (!expiresAt) return WRITTEN_EXAM_DURATION_SEC;
+  const end = new Date(expiresAt).getTime();
+  if (Number.isNaN(end)) return WRITTEN_EXAM_DURATION_SEC;
+  return Math.max(0, Math.floor((end - now) / 1000));
+}

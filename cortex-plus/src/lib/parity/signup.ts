@@ -71,8 +71,11 @@ export const SUBJECT_OPTIONS = [
 export const GOAL_OPTIONS = [
   { label: "YKS hazırlık", body: "TYT / AYT odaklı çalışma" },
   { label: "LGS hazırlık", body: "Liseye geçiş sınavı" },
+  { label: "KPSS hazırlık", body: "Kamu personeli seçme" },
+  { label: "ALES hazırlık", body: "Akademik lisansüstü sınav" },
+  { label: "TUS hazırlık", body: "Tıpta uzmanlık" },
   { label: "Okul sınavları", body: "Yazılılar ve sözlüler" },
-  { label: "Konu pekiştirme", body: "Eksiklerimi kapatmak" },
+  { label: "Diğer / konu pekiştirme", body: "Eksiklerimi kapatmak" },
 ];
 
 export const AVATAR_OPTIONS = [

@@ -1,5 +1,12 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  PHOTO_PAGE_LIMITS,
+  planTier as resolvePlanTier,
+  type PlanTier,
+} from "@/lib/billing/entitlements";
+
+export { PHOTO_PAGE_LIMITS, type PlanTier };
 
 /**
  * Fotoğraf sayfası kotası — kredinin yanında, ondan ayrı.
@@ -10,41 +17,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *
  * Sayılar ürün sahibinin kararı (18 Eylül 2026). Ücretsiz taraf bilerek dar:
  * iki fotoğraf ürünü görmeye yeter, üçüncüsü abonelik konusudur.
- */
-export const PHOTO_PAGE_LIMITS = {
-  free: 2,
-  plus: 300,
-  sigma: 1000,
-} as const;
-
-export type PlanTier = keyof typeof PHOTO_PAGE_LIMITS;
-
-/**
- * Kullanıcının kademesi.
  *
- * `is_premium` yetmiyor: Plus ile Sigma'nın kotası farklı. Tanınmayan bir
- * kademe `plus` sayılıyor — abone olduğu kesin olan bir öğrenciyi ücretsiz
- * kotaya düşürmek, ödediği şeyi geri almak olurdu.
+ * Kademe kararı `@/lib/billing/entitlements` üzerinden — tek kaynak.
  */
+
 export async function planTier(
   service: SupabaseClient,
   userId: string,
 ): Promise<PlanTier> {
-  const { data } = await service
-    .from("subscriptions")
-    .select("status, current_period_end, plans(is_premium, tier)")
-    .eq("user_id", userId)
-    .eq("status", "active")
-    .maybeSingle();
-
-  if (data?.current_period_end) {
-    const end = new Date(data.current_period_end);
-    if (!Number.isNaN(end.getTime()) && end.getTime() <= Date.now()) return "free";
-  }
-
-  const plan = data?.plans as { is_premium?: boolean; tier?: string } | null;
-  if (!plan?.is_premium) return "free";
-  return plan.tier === "sigma" ? "sigma" : "plus";
+  return resolvePlanTier(service, userId);
 }
 
 export function photoPageLimit(tier: PlanTier): number {

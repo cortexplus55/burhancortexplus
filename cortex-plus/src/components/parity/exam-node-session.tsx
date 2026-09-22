@@ -205,6 +205,14 @@ export function ExamNodeSession({
     return () => clearInterval(interval);
   }, [stage, isTimedExam]);
 
+  useEffect(() => {
+    if (stage !== "play" || !isTimedExam || timeLeft > 0) return;
+    toast.message("Süre doldu — cevapların gönderiliyor.");
+    void finish();
+    // finish her render'da yeni; yalnızca süre 0'a inince bir kez.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, stage, isTimedExam]);
+
   function storageKey() {
     return `exam-node-req:${prepId}:${nodeId}`;
   }
@@ -232,6 +240,8 @@ export function ExamNodeSession({
     answers?: Record<string, unknown>;
     cursorIndex?: number;
     voiceMode?: boolean;
+    expiresAt?: string | null;
+    timeLeftSec?: number;
   }) {
     setPayload(data.payload ?? {});
     setAttemptId(data.attemptId ?? null);
@@ -246,6 +256,14 @@ export function ExamNodeSession({
     }
     if (typeof data.cursorIndex === "number") setIndex(data.cursorIndex);
     if (typeof data.voiceMode === "boolean") setVoiceMode(data.voiceMode);
+    if (typeof data.timeLeftSec === "number") {
+      setTimeLeft(data.timeLeftSec);
+    } else if (data.expiresAt) {
+      const end = new Date(data.expiresAt).getTime();
+      if (!Number.isNaN(end)) {
+        setTimeLeft(Math.max(0, Math.floor((end - Date.now()) / 1000)));
+      }
+    }
   }
 
   function scheduleSave(nextAnswers: Record<string, unknown>, cursor: number) {

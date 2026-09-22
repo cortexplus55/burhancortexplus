@@ -2,6 +2,7 @@ import {
   isOptionalPhoneValid,
   type ParentRelation,
 } from "@/lib/parity/signup";
+import { formatTry } from "@/lib/format";
 
 export type ParentProfileUpdate = {
   fullName: string;
@@ -54,7 +55,7 @@ export const PARENT_PAYMENT_STATUS: Record<string, string> = {
   refunded: "İade edildi",
 };
 
-/** Plus kartlarıyla aynı: amount_try lira olarak gösterilir. */
-export function formatParentPaymentAmount(amountTry: number) {
-  return `₺${Number(amountTry).toLocaleString("tr-TR")}`;
+/** Parent ödeme tutarı — `amount_try` kuruş (plans ile aynı birim). */
+export function formatParentPaymentAmount(amountKurus: number) {
+  return formatTry(amountKurus);
 }

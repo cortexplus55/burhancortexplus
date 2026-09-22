@@ -133,7 +133,37 @@ export async function requestDataDeletion() {
   const { error } = await supabase.from("data_deletion_requests").insert({
     user_id: user.id,
   });
+  if (error) {
+    revalidatePath("/ayarlar");
+    return { ok: false };
+  }
+
+  // Talebi kuyruğa aldıktan sonra hemen işle — "sıra var ama kimse işlemiyor"
+  // durumunu kapatır. Başarısız olursa cron tekrar dener.
+  try {
+    const { createServiceClient } = await import("@/lib/supabase/server");
+    const { purgeUserData } = await import("@/lib/privacy/account-deletion");
+    const service = createServiceClient();
+    const result = await purgeUserData(service, user.id);
+    if (result.ok) {
+      await service
+        .from("data_deletion_requests")
+        .update({ processed_at: new Date().toISOString() })
+        .eq("user_id", user.id)
+        .is("processed_at", null);
+    } else {
+      console.error("data_deletion_immediate_failed", {
+        userId: user.id,
+        error: result.error,
+      });
+    }
+  } catch (err) {
+    console.error("data_deletion_immediate_failed", {
+      userId: user.id,
+      message: err instanceof Error ? err.message : "unknown",
+    });
+  }
 
   revalidatePath("/ayarlar");
-  return { ok: !error };
+  return { ok: true };
 }

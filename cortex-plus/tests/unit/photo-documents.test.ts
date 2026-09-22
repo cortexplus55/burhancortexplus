@@ -180,7 +180,10 @@ describe("fotoğraf sayfası kotası", () => {
 
   it("sigma kendi kotasını alıyor", async () => {
     const tier = await planTier(
-      subscription({ plans: { is_premium: true, tier: "sigma" } }),
+      subscription({
+        status: "active",
+        plans: { is_premium: true, tier: "sigma" },
+      }),
       "u",
     );
     expect(tier).toBe("sigma");
@@ -190,7 +193,10 @@ describe("fotoğraf sayfası kotası", () => {
      şeyi geri almak olurdu. */
   it("tanınmayan kademe Plus sayılıyor", async () => {
     const tier = await planTier(
-      subscription({ plans: { is_premium: true, tier: "yeni-paket" } }),
+      subscription({
+        status: "active",
+        plans: { is_premium: true, tier: "yeni-paket" },
+      }),
       "u",
     );
     expect(tier).toBe("plus");
@@ -199,6 +205,7 @@ describe("fotoğraf sayfası kotası", () => {
   it("süresi geçmiş abonelik ücretsiz", async () => {
     const tier = await planTier(
       subscription({
+        status: "active",
         current_period_end: "2020-01-01T00:00:00Z",
         plans: { is_premium: true, tier: "plus" },
       }),

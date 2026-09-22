@@ -6,7 +6,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   creditIdempotencyKeyForStart,
   cursorIndexFromMeta,
+  remainingSeconds,
   toPublicAttemptState,
+} from "@/lib/learning/attempt-lifecycle";
+
+export {
+  remainingSeconds,
+  writtenExamDeadline,
+  WRITTEN_EXAM_DURATION_SEC,
 } from "@/lib/learning/attempt-lifecycle";
 
 export type AttemptRow = {
@@ -24,7 +31,12 @@ export type AttemptRow = {
   updated_at?: string | null;
   difficulty?: string;
   voice_mode?: boolean;
+  started_at?: string | null;
+  expires_at?: string | null;
 };
+
+const ATTEMPT_SELECT =
+  "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at";
 
 export async function findAttemptByClientRequest(
   service: SupabaseClient,
@@ -32,9 +44,7 @@ export async function findAttemptByClientRequest(
 ): Promise<AttemptRow | null> {
   const { data } = await service
     .from("exam_prep_node_attempts")
-    .select(
-      "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode",
-    )
+    .select(ATTEMPT_SELECT)
     .eq("user_id", input.userId)
     .eq("node_id", input.nodeId)
     .eq("client_request_id", input.clientRequestId)
@@ -48,9 +58,7 @@ export async function findResumableAttempt(
 ): Promise<AttemptRow | null> {
   const { data } = await service
     .from("exam_prep_node_attempts")
-    .select(
-      "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode",
-    )
+    .select(ATTEMPT_SELECT)
     .eq("user_id", input.userId)
     .eq("exam_prep_id", input.prepId)
     .eq("node_id", input.nodeId)
@@ -88,6 +96,9 @@ export function attemptStartResponse(
     score: attempt.score,
     total: attempt.total,
     resumed: extras.resumed ?? false,
+    startedAt: attempt.started_at ?? null,
+    expiresAt: attempt.expires_at ?? null,
+    timeLeftSec: remainingSeconds(attempt.expires_at),
   };
 }
 

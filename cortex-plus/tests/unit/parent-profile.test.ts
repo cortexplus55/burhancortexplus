@@ -41,7 +41,7 @@ describe("veli profil kaydı", () => {
     ).toBe(false);
   });
 
-  it("ödeme tutarını lira olarak yazar", () => {
-    expect(formatParentPaymentAmount(770)).toBe("₺770");
+  it("ödeme tutarını kuruştan TL olarak yazar", () => {
+    expect(formatParentPaymentAmount(77000)).toBe("₺770,00");
   });
 });

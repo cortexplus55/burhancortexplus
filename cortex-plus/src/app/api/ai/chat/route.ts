@@ -44,6 +44,8 @@ const bodySchema = z.object({
     .default("AI_CHAT_STANDARD"),
   conversationId: z.string().uuid().optional(),
   useDocuments: z.boolean().default(false),
+  /** true = Yalnızca Belgem; false = Belgem + Genel Bilgi. useDocuments false ise yok sayılır. */
+  documentsOnly: z.boolean().default(true),
   audience: z.enum(["student"]).default("student"),
   imageDocumentId: z.string().uuid().optional(),
   /** Sohbet bir sınav hazırlığının içinden açıldıysa o hazırlığın kimliği. */
@@ -57,7 +59,7 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
-  const { message, useDocuments } = parsed.data;
+  const { message, useDocuments, documentsOnly } = parsed.data;
 
   let imageUrl: string | null = null;
   let attachmentContext = "";
@@ -272,10 +274,37 @@ export async function POST(request: Request) {
   let sources: DocumentMatch[] = [];
   if (useDocuments) {
     try {
-      sources = await searchDocumentChunks(service, userId, message, 4);
+      sources = await searchDocumentChunks(service, userId, message, 4, {
+        minSimilarity: documentsOnly ? 0.32 : undefined,
+      });
     } catch {
       sources = [];
     }
+  }
+
+  // Yalnızca Belgem + retrieval boş → modele gitmeden sabit cevap (kredi iade).
+  if (useDocuments && documentsOnly && sources.length === 0 && !attachmentContext) {
+    await undoSpend();
+    const noSource =
+      "Bu bilgi yüklediğin belgede yer almıyor. Başka bir belge ekleyebilir veya Belgem + Genel Bilgi moduna geçebilirsin.";
+    if (conversationId) {
+      await service.from("messages").insert({
+        conversation_id: conversationId,
+        user_id: userId,
+        role: "assistant",
+        content: noSource,
+      });
+    }
+    return new Response(noSource, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-Conversation-Id": conversationId ?? "",
+        "X-Message-Id": "",
+        "X-Credits-Used": "0",
+        "X-Sources": "0",
+        "X-Documents-Only": "1",
+      },
+    });
   }
 
   const history: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
@@ -300,7 +329,11 @@ export async function POST(request: Request) {
   // Eski blok yalnızca "kullandığın alıntıları belirt" diyordu; kaynak
   // kapsamayan bir soruda model hiçbir uyarı vermeden genel bilgiyle
   // cevaplıyor ve öğrenci cevabın nereden geldiğini anlayamıyordu.
-  const contextBlock = attachmentContext || chatSourceBlock(sources);
+  const contextBlock =
+    attachmentContext ||
+    chatSourceBlock(sources, {
+      documentsOnly: useDocuments && documentsOnly,
+    });
 
   // Sınavın içinden açılan sohbet nerede olduğunu bilsin: hangi hazırlık,
   // kaç gün kaldı, en son hangi ders okundu. Bu olmadan öğrenci derste
@@ -530,6 +563,9 @@ export async function POST(request: Request) {
         // Hangi not kullanıldığı "3 kaynak"tan daha anlamlı. Başlıklar ASCII
         // olmak zorunda; Türkçe dosya adları için yüzde kodlaması.
         "X-Source-Doc": encodeURIComponent(sources[0]?.documentName ?? ""),
+        "X-Source-Page":
+          sources[0]?.pageNumber != null ? String(sources[0].pageNumber) : "",
+        "X-Documents-Only": useDocuments && documentsOnly ? "1" : "0",
       },
     });
   } catch {

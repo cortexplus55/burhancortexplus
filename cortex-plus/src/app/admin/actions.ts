@@ -180,35 +180,27 @@ export async function grantCredits(userId: string, amount: number) {
   if (!parsed.success) return { ok: false, error: "Geçersiz değer." };
 
   const service = createServiceClient();
-  const { data: wallet } = await service
-    .from("credit_wallets")
-    .select("balance")
-    .eq("user_id", parsed.data.userId)
-    .maybeSingle();
-
-  if (!wallet) return { ok: false, error: "Cüzdan bulunamadı." };
-
-  const newBalance = wallet.balance + parsed.data.amount;
-  await service
-    .from("credit_wallets")
-    .update({ balance: newBalance, updated_at: new Date().toISOString() })
-    .eq("user_id", parsed.data.userId);
-
-  await service.from("credit_ledger").insert({
-    user_id: parsed.data.userId,
-    delta: parsed.data.amount,
-    balance_after: newBalance,
-    entry_type: "grant",
-    idempotency_key: `grant_${actorId}_${Date.now()}`,
-    metadata: { granted_by: actorId },
+  const { data, error } = await service.rpc("credit_adjust_balance", {
+    p_user_id: parsed.data.userId,
+    p_delta: parsed.data.amount,
+    p_idempotency_key: `grant_${actorId}_${parsed.data.userId}_${parsed.data.amount}_${Date.now()}`,
+    p_entry_type: "grant",
+    p_reason: `admin:${actorId}`,
   });
+
+  if (error) {
+    if (error.message.includes("wallet_not_found")) {
+      return { ok: false, error: "Cüzdan bulunamadı." };
+    }
+    return { ok: false, error: "Kredi verilemedi." };
+  }
 
   await auditLog(service, {
     actorId,
     action: "credits.granted",
     entityType: "profile",
     entityId: parsed.data.userId,
-    metadata: { amount: parsed.data.amount },
+    metadata: { amount: parsed.data.amount, balance_after: data },
   });
 
   revalidatePath("/admin/kullanicilar");
@@ -357,37 +349,25 @@ export async function adjustCredits(input: {
   if (!parsed.success) return { ok: false, error: "Geçersiz değer." };
 
   const service = createServiceClient();
-  const { data: wallet } = await service
-    .from("credit_wallets")
-    .select("balance")
-    .eq("user_id", parsed.data.userId)
-    .maybeSingle();
+  const { data, error } = await service.rpc("credit_adjust_balance", {
+    p_user_id: parsed.data.userId,
+    p_delta: parsed.data.delta,
+    p_idempotency_key: `adm_${actorId}_${parsed.data.userId}_${parsed.data.delta}_${Date.now()}`,
+    p_entry_type: parsed.data.delta > 0 ? "grant" : "adjustment",
+    p_reason: parsed.data.reason ?? `admin:${actorId}`,
+  });
 
-  if (!wallet) return { ok: false, error: "Bu hesabın kredi cüzdanı yok." };
-
-  const newBalance = wallet.balance + parsed.data.delta;
-  if (newBalance < 0) {
-    return {
-      ok: false,
-      error: `Bakiye eksiye düşemez. Mevcut kredi: ${wallet.balance}.`,
-    };
+  if (error) {
+    if (error.message.includes("wallet_not_found")) {
+      return { ok: false, error: "Bu hesabın kredi cüzdanı yok." };
+    }
+    if (error.message.includes("insufficient_balance")) {
+      return { ok: false, error: "Bakiye eksiye düşemez." };
+    }
+    return { ok: false, error: "Kredi güncellenemedi." };
   }
 
-  const { error } = await service
-    .from("credit_wallets")
-    .update({ balance: newBalance, updated_at: new Date().toISOString() })
-    .eq("user_id", parsed.data.userId);
-
-  if (error) return { ok: false, error: "Kredi güncellenemedi." };
-
-  await service.from("credit_ledger").insert({
-    user_id: parsed.data.userId,
-    delta: parsed.data.delta,
-    balance_after: newBalance,
-    entry_type: parsed.data.delta > 0 ? "grant" : "adjustment",
-    idempotency_key: `adm_${actorId}_${Date.now()}`,
-    metadata: { by: actorId, reason: parsed.data.reason ?? null },
-  });
+  const newBalance = data as number;
 
   await auditLog(service, {
     actorId,
@@ -437,17 +417,19 @@ export async function markPaymentRefunded(paymentId: string) {
   }
 
   const merchantOid = payment.merchant_oid as string | null;
-  const amountTry = payment.amount_try as number | null;
-  if (!merchantOid || amountTry == null || !(amountTry > 0)) {
+  /** DB `amount_try` kolonu kuruş tutar; PayTR iade API'si TL (lira) ister. */
+  const amountKurus = payment.amount_try as number | null;
+  if (!merchantOid || amountKurus == null || !(amountKurus > 0)) {
     return {
       ok: false,
       error: "Ödeme kaydında PayTR sipariş no veya tutar eksik; iade yapılamadı.",
     };
   }
+  const returnAmountTry = amountKurus / 100;
 
   const paytr = await requestPaytrRefund({
     merchantOid,
-    returnAmountTry: amountTry,
+    returnAmountTry,
     referenceNo: `admin-${parsed.data.slice(0, 8)}`,
   });
 
@@ -519,7 +501,8 @@ export async function markPaymentRefunded(paymentId: string) {
       paytr: {
         status: paytr.status,
         merchantOid,
-        returnAmountTry: amountTry,
+        returnAmountTry,
+        amountKurus,
         raw: paytr.raw,
       },
     },

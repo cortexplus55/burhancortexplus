@@ -543,20 +543,4 @@ export async function generateJson<T>(
   }
 }
 
-export async function isPremiumUser(
-  service: SupabaseClient,
-  userId: string,
-): Promise<boolean> {
-  const { data } = await service
-    .from("subscriptions")
-    .select("status, current_period_end, plans(is_premium)")
-    .eq("user_id", userId)
-    .eq("status", "active")
-    .maybeSingle();
-
-  if (data?.current_period_end) {
-    const end = new Date(data.current_period_end);
-    if (!Number.isNaN(end.getTime()) && end.getTime() <= Date.now()) return false;
-  }
-  return Boolean((data?.plans as { is_premium?: boolean } | null)?.is_premium);
-}
+export { isPremiumUser } from "@/lib/billing/entitlements";

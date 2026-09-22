@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { Label } from "@/components/ui/label";
@@ -23,9 +23,29 @@ import { toast } from "sonner";
 import "@/styles/parity-marketing.css";
 
 const STEPS = 3;
+const DRAFT_KEY = "cortex-onboarding-draft";
+
+type Draft = {
+  step: number;
+  grade: string;
+  subject: string;
+  goal: string;
+  tutorStyle: TutorStyle;
+};
+
+function readDraft(): Draft | null {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as Draft;
+  } catch {
+    return null;
+  }
+}
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const [hydrated, setHydrated] = useState(false);
   const [step, setStep] = useState(1);
   const [grade, setGrade] = useState("");
   const [subject, setSubject] = useState("");
@@ -33,7 +53,38 @@ export default function OnboardingPage() {
   const [tutorStyle, setTutorStyle] = useState<TutorStyle>(DEFAULT_TUTOR_STYLE);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    const draft = readDraft();
+    if (draft) {
+      setStep(Math.min(Math.max(draft.step || 1, 1), STEPS));
+      setGrade(draft.grade || "");
+      setSubject(draft.subject || "");
+      setGoal(draft.goal || "");
+      if (draft.tutorStyle) setTutorStyle(draft.tutorStyle);
+    }
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      sessionStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ step, grade, subject, goal, tutorStyle } satisfies Draft),
+      );
+    } catch {
+      /* private mode */
+    }
+  }, [hydrated, step, grade, subject, goal, tutorStyle]);
+
   async function finish() {
+    if (!goal) {
+      toast.error("Hedefini seç", {
+        description: "Hangi sınava hazırlandığını seçmen gerekiyor.",
+      });
+      setStep(2);
+      return;
+    }
     setSaving(true);
     try {
       const supabase = createClient();
@@ -76,7 +127,6 @@ export default function OnboardingPage() {
         return;
       }
 
-      // Hedef ikincil: kaydedilemezse akışı durdurmuyoruz, profil zaten hazır.
       if (goal) {
         const { data: goals } = await supabase
           .from("learning_goals")
@@ -91,6 +141,12 @@ export default function OnboardingPage() {
         }
       }
 
+      try {
+        sessionStorage.removeItem(DRAFT_KEY);
+      } catch {
+        /* ignore */
+      }
+
       toast.success("Profilin hazır!");
       router.push(homePathForRole(existing?.primary_role));
     } finally {
@@ -98,11 +154,25 @@ export default function OnboardingPage() {
     }
   }
 
+  if (!hydrated) {
+    return (
+      <ParityMarketingPage
+        variant="auth"
+        title="Hoş geldin"
+        description="Profilin yükleniyor…"
+      >
+        <p className="text-sm text-[var(--mk-muted)]" role="status">
+          Kaydedilmiş adımların açılıyor…
+        </p>
+      </ParityMarketingPage>
+    );
+  }
+
   return (
     <ParityMarketingPage
       variant="auth"
       title="Hoş geldin"
-      description="Üç kısa adımda profilin hazır — sınıf, odak ve öğretmen stilin."
+      description="Sınav hedefini seç — sınıf, odak ve öğretmen stilin."
     >
       <OnboardingShell
         step={step}
@@ -143,29 +213,12 @@ export default function OnboardingPage() {
 
         {step === 2 ? (
           <>
-            <p className="onboarding-kicker">Odak</p>
-            <h2 className="signup-step-title">Odak ders ve hedef</h2>
+            <p className="onboarding-kicker">Sınav</p>
+            <h2 className="signup-step-title">Ne için hazırlanıyorsun?</h2>
             <p className="mt-2 text-sm text-[var(--mk-muted)]">
-              İstersen sonra ayarlardan değiştirebilirsin.
+              Hedefin planı ve içerik tonunu belirler. İstersen sonra değiştirirsin.
             </p>
             <div className="mk-card mt-6 space-y-5 p-5">
-              <div className="space-y-3">
-                <Label>Odak ders</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {SUBJECT_OPTIONS.map((s) => (
-                    <OnboardingChoice
-                      key={s.label}
-                      selected={subject === s.label}
-                      onClick={() => setSubject(s.label)}
-                      ariaLabel={s.label}
-                      className="flex items-center gap-2 p-3 text-sm"
-                    >
-                      <span aria-hidden>{s.emoji}</span>
-                      {s.label}
-                    </OnboardingChoice>
-                  ))}
-                </div>
-              </div>
               <div className="space-y-3">
                 <Label>Hedefin</Label>
                 <div className="space-y-2">
@@ -185,8 +238,29 @@ export default function OnboardingPage() {
                   ))}
                 </div>
               </div>
+              <div className="space-y-3">
+                <Label>Odak ders (isteğe bağlı)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {SUBJECT_OPTIONS.map((s) => (
+                    <OnboardingChoice
+                      key={s.label}
+                      selected={subject === s.label}
+                      onClick={() => setSubject(s.label)}
+                      ariaLabel={s.label}
+                      className="flex items-center gap-2 p-3 text-sm"
+                    >
+                      <span aria-hidden>{s.emoji}</span>
+                      {s.label}
+                    </OnboardingChoice>
+                  ))}
+                </div>
+              </div>
             </div>
-            <OnboardingContinue onClick={() => setStep(3)} />
+            <OnboardingContinue
+              disabled={!goal}
+              label="Planımı oluştur"
+              onClick={() => setStep(3)}
+            />
           </>
         ) : null}
 

@@ -346,9 +346,13 @@ export async function processDocument(
 export const MIN_CHUNK_SIMILARITY = 0.25;
 
 export type DocumentMatch = {
+  chunkId: string;
+  documentId: string;
   content: string;
   documentName: string;
   similarity: number;
+  pageNumber: number | null;
+  chunkIndex: number | null;
 };
 
 export async function searchDocumentChunks(
@@ -370,10 +374,22 @@ export async function searchDocumentChunks(
   });
 
   return (data ?? []).map(
-    (row: { content: string; file_name: string; similarity: number }) => ({
+    (row: {
+      chunk_id: string;
+      document_id: string;
+      content: string;
+      file_name: string;
+      similarity: number;
+      page_number?: number | null;
+      chunk_index?: number | null;
+    }) => ({
+      chunkId: row.chunk_id,
+      documentId: row.document_id,
       content: row.content,
       documentName: row.file_name,
       similarity: Number(row.similarity ?? 0),
+      pageNumber: row.page_number ?? null,
+      chunkIndex: row.chunk_index ?? null,
     }),
   );
 }
