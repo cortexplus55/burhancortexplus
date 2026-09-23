@@ -17,7 +17,7 @@ const SCENES = [
       lines: [
         "Üçgende |AB|=16, |BC|=12 iken |AC|?",
         "16² + 12² = 400 → √400 = 20",
-        "Anlama skoru %94",
+        "Anlama skoru yükseliyor",
       ],
     },
   },

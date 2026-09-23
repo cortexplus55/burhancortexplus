@@ -13,7 +13,7 @@ import { PlusLimitBanner } from "@/components/paywall/plus-limit-banner";
 import { PromoBanner, type PromoCampaign } from "@/components/paywall/promo-banner";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
-import { studentTopTabs } from "@/components/parity/student-shell-nav";
+import { studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
 import { formatNumber } from "@/lib/format";
 import "@/styles/parity-shell.css";
 
@@ -150,7 +150,7 @@ export function ParitySorShell({
     <StudentShellProvider account={account}>
       <div className={cn("cp-sor-root", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio")}>
       <header className="cp-sor-top">
-        <Link href="/ogretmen" className="cp-sor-logo" aria-label="Cortex Plus">
+        <Link href="/dashboard" className="cp-sor-logo" aria-label="Cortex Plus Ana Sayfa">
           <CortexMark size={20} />
           <span className="cp-sor-logo-word">cortex</span>
           {isPremium ? (
@@ -226,6 +226,24 @@ export function ParitySorShell({
       {promo && !isPremium ? <PromoBanner campaign={promo} /> : null}
 
       <main className="cp-sor-main">{children}</main>
+
+      <nav className="cp-sor-bottomnav" aria-label="Ana gezinme">
+        {studentBottomTabs.map((tab) => {
+          const Icon = tab.icon;
+          const active = tab.match(pathname);
+          return (
+            <Link
+              key={tab.id}
+              href={tab.href}
+              className={cn("cp-sor-bottomnav-link", active && "cp-sor-bottomnav-link--active")}
+              aria-current={active ? "page" : undefined}
+            >
+              <Icon className="h-5 w-5" aria-hidden />
+              <span>{tab.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
 
       {menuOpen ? (
         <div

@@ -62,7 +62,7 @@ export const TOOLS: Tool[] = [
   // --- Kısayollar -----------------------------------------------------
   {
     id: "soru-coz",
-    title: "Fotoğraftan çöz",
+    title: "Fotoğraftan Çözüm",
     blurb: "Sorunun fotoğrafını çek, adım adım çözümü al.",
     subject: "Genel",
     kind: "kisayol",
@@ -70,7 +70,7 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "flashcard",
-    title: "Flashcard stüdyo",
+    title: "Flashcard",
     blurb: "Konudan kart üret, aralıklı tekrarla çalış.",
     subject: "Genel",
     kind: "kisayol",
@@ -78,7 +78,7 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "quiz",
-    title: "Quiz oluştur",
+    title: "Quiz",
     blurb: "Herhangi bir konudan kendine test hazırla.",
     subject: "Genel",
     kind: "kisayol",
@@ -86,7 +86,7 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "calisma-plani",
-    title: "Çalışma planı",
+    title: "Çalışma Planı",
     blurb: "Sınav tarihine göre günlük plan çıkar.",
     subject: "Genel",
     kind: "kisayol",
@@ -94,7 +94,7 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "deneme",
-    title: "Deneme sınavı",
+    title: "Deneme Sınavı",
     blurb: "Gerçek sınav düzeninde dene, sonucunu analiz et.",
     subject: "Genel",
     kind: "kisayol",
@@ -102,7 +102,7 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "dokuman",
-    title: "Doküman asistanı",
+    title: "Kendi Belgemden Çalış",
     blurb: "Kendi notlarını yükle, üzerinden çalış.",
     subject: "Genel",
     kind: "kisayol",
@@ -110,7 +110,7 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "ilerleme",
-    title: "İlerleme panosu",
+    title: "İlerleme Analizi",
     blurb: "Neyi ne kadar çalıştığını gör.",
     subject: "Genel",
     kind: "kisayol",
@@ -126,11 +126,27 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "yanlislarim",
-    title: "Yanlış defteri",
+    title: "Yanlışlar Defteri",
     blurb: "Yanlış yaptığın sorular burada birikir, doğru yapana kadar sorar.",
     subject: "Genel",
     kind: "kisayol",
     href: "/yanlislarim",
+  },
+  {
+    id: "podcast",
+    title: "Podcast",
+    blurb: "Ders notlarını dinleyerek tekrar et.",
+    subject: "Genel",
+    kind: "kisayol",
+    href: "/studio/podcast",
+  },
+  {
+    id: "sozlu",
+    title: "Sözlü Sınav",
+    blurb: "Sesli veya yazılı anlat, anında geri bildirim al.",
+    subject: "Genel",
+    kind: "kisayol",
+    href: "/studio/sozlu",
   },
   {
     id: "anlat",

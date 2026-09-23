@@ -14,6 +14,8 @@ const resultSchema = z.object({
   steps: z.array(z.string().min(1)).min(1),
   answer: z.string().min(1),
   tip: z.string().optional().default(""),
+  unreadable: z.boolean().optional(),
+  similar: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -69,10 +71,10 @@ export async function POST(request: Request) {
     hasImage: true,
     imageUrls: [dataUrl],
     schemaHint:
-      'Yalnızca şu JSON şemasını döndür: {"problem": string, "steps": string[], "answer": string, "tip": string}. Matematiksel ifadelerde LaTeX kullanabilirsin.',
+      'Yalnızca şu JSON şemasını döndür: {"problem": string, "steps": string[], "answer": string, "tip": string, "unreadable"?: boolean, "similar"?: string}. Görsel okunaksızsa problem="okunamadi", steps=["Yeniden çek"], answer="-", unreadable=true yaz; uydurma çözüm üretme. Matematiksel ifadelerde LaTeX kullanabilirsin.',
     userPrompt: note
-      ? `Görseldeki soruyu adım adım çöz. Öğrencinin notu: ${note}`
-      : "Görseldeki soruyu adım adım çöz ve sonucu açıkla.",
+      ? `Görseldeki soruyu adım adım çöz. Okunaksızsa unreadable:true dön, çözüm uydurma. Öğrencinin notu: ${note}`
+      : "Görseldeki soruyu adım adım çöz. Okunaksız veya bulanıksa unreadable:true dön ve çözüm uydurma.",
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       return result.success ? result.data : null;
@@ -80,6 +82,20 @@ export async function POST(request: Request) {
   });
 
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
+
+  if (
+    outcome.data.unreadable ||
+    /okunamadi|okunamadı|okunmiyor|okunmuyor/i.test(outcome.data.problem)
+  ) {
+    return NextResponse.json(
+      {
+        error: "unreadable",
+        message:
+          "Fotoğrafın bir kısmı okunmuyor. Daha net bir fotoğraf çek.",
+      },
+      { status: 422 },
+    );
+  }
 
   return NextResponse.json({
     ...outcome.data,

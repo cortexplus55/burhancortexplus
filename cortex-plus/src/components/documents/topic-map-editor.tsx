@@ -31,6 +31,8 @@ type Props = {
   coverage: Coverage | null;
   /** Konu haritasının çıkarıldığı an; eski kuralla kurulmuşsa uyarılır. */
   mapUpdatedAt?: string | null;
+  /** Plan CTA yalnızca harita ready/reviewed iken. */
+  mapReady?: boolean;
 };
 
 /**
@@ -47,6 +49,7 @@ export function TopicMapEditor({
   initialStatus,
   coverage,
   mapUpdatedAt = null,
+  mapReady = false,
 }: Props) {
   const router = useRouter();
   const [topics, setTopics] = useState(initialTopics);
@@ -325,12 +328,21 @@ export function TopicMapEditor({
         >
           Haritayı yeniden oluştur
         </button>
-        <a
-          href={`/deneme-sinavlari/olustur?documentId=${documentId}`}
-          className="rounded-full border border-[var(--cs-primary)]/40 px-4 py-2 text-sm font-medium text-[var(--cs-primary)]"
-        >
-          Bu haritayla sınav hazırlığı başlat →
-        </a>
+        {mapReady ? (
+          <a
+            href={`/deneme-sinavlari/olustur?documentId=${documentId}`}
+            className="rounded-full border border-[var(--cs-primary)]/40 px-4 py-2 text-sm font-medium text-[var(--cs-primary)]"
+          >
+            Çalışma planımı oluştur →
+          </a>
+        ) : (
+          <span
+            className="rounded-full border border-white/10 px-4 py-2 text-sm text-[var(--cs-muted)] opacity-60"
+            title="Harita hazır olunca açılır"
+          >
+            Çalışma planı (harita bekleniyor)
+          </span>
+        )}
       </div>
     </div>
   );

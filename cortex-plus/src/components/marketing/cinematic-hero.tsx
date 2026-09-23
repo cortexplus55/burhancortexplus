@@ -21,7 +21,7 @@ export function CinematicHero() {
       <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center px-4 text-center">
         <p className="mk-hero-kicker mk-section-reveal">
           <Sparkles className="h-3.5 w-3.5" aria-hidden />
-          YKS · KPSS · ALES · 4.9★
+          YKS · KPSS · ALES
         </p>
 
         <h1 className="mk-hero-title mk-hero-title--astra mk-section-reveal mk-section-reveal-delay-1 mt-5">

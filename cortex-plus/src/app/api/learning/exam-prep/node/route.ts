@@ -29,6 +29,8 @@ import {
   normalizeQuizQuestion,
   publicQuizQuestion,
   scoreQuizAnswers,
+  selectedOptions,
+  sameOptionSet,
   type QuizQuestion,
 } from "@/lib/learning/exam-quiz";
 import {
@@ -65,6 +67,8 @@ import {
   recordLearningTrackingAfterComplete,
   stripAnswerMeta,
 } from "@/lib/learning/learning-tracking-persist";
+import { recordMistakes } from "@/lib/learning/mistake-notebook";
+import { recordUserActivity } from "@/lib/streak/record-activity";
 import {
   creditIdempotencyKeyForStart,
   isCreatingStale,
@@ -488,6 +492,20 @@ export async function POST(request: Request) {
           });
         }
       }
+    }
+
+    // Quiz / TF yanlışlarını Yanlışlar Defteri'ne yaz; streak gerçek çalışmayla artsın.
+    try {
+      const drafts = mistakeDraftsFromAttempt(
+        attempt.id as string,
+        attempt.payload,
+        mergedAnswers,
+        topicLabel,
+      );
+      if (drafts.length) await recordMistakes(service, userId, drafts);
+      await recordUserActivity(service, userId, `exam_prep_${kind}`);
+    } catch {
+      // Notebook / streak must not roll back a completed node.
     }
 
     return NextResponse.json({
@@ -1618,6 +1636,71 @@ function scoreAttempt(
     return { score, total: questions.length || 1 };
   }
   return { score: 1, total: 1 };
+}
+
+/** Exam-prep quiz/TF yanlışlarını mistake_entries şemasına çevirir. */
+function mistakeDraftsFromAttempt(
+  attemptId: string,
+  payload: unknown,
+  answers: Record<string, unknown>,
+  topicLabel: string | null,
+) {
+  const data = (payload ?? {}) as Record<string, unknown>;
+  const drafts: {
+    source: "quiz";
+    sourceQuestionId: string;
+    topicLabel: string | null;
+    questionText: string;
+    options: string[] | null;
+    correctAnswer: string | null;
+    wrongAnswer: string | null;
+    explanation: string | null;
+  }[] = [];
+
+  if (data.type === "quiz") {
+    const questions = ((data.questions as Parameters<typeof normalizeQuizQuestion>[0][]) ?? [])
+      .map(normalizeQuizQuestion)
+      .filter((question): question is QuizQuestion => question !== null);
+    questions.forEach((question, index) => {
+      const selected = selectedOptions(answers[String(index)]);
+      if (!selected.length) return;
+      if (sameOptionSet(selected, question.correct)) return;
+      drafts.push({
+        source: "quiz",
+        sourceQuestionId: `${attemptId}:q:${index}`,
+        topicLabel,
+        questionText: question.text,
+        options: question.options,
+        correctAnswer: question.correct[0] ?? null,
+        wrongAnswer: selected[0] ?? null,
+        explanation: question.explanation ?? null,
+      });
+    });
+  }
+
+  if (data.type === "true_false") {
+    const items =
+      (data.items as { statement?: string; text?: string; correct: boolean; explanation?: string }[]) ??
+      [];
+    items.forEach((item, index) => {
+      const value = answers[String(index)];
+      if (value == null || value === "") return;
+      const ok = value === item.correct || value === String(item.correct);
+      if (ok) return;
+      drafts.push({
+        source: "quiz",
+        sourceQuestionId: `${attemptId}:tf:${index}`,
+        topicLabel,
+        questionText: item.statement ?? item.text ?? `Doğru/Yanlış #${index + 1}`,
+        options: ["Doğru", "Yanlış"],
+        correctAnswer: item.correct ? "Doğru" : "Yanlış",
+        wrongAnswer: String(value) === "true" || value === true ? "Doğru" : "Yanlış",
+        explanation: item.explanation ?? null,
+      });
+    });
+  }
+
+  return drafts;
 }
 
 function preferencePromptHint(raw: unknown): string {

@@ -11,6 +11,7 @@ import { CONTENT_STYLE, SYSTEM_GUARDRAIL } from "@/lib/ai/generate";
 const schema = z.object({
   topic: z.string().min(3).max(500),
   count: z.number().int().min(4).max(10).optional(),
+  difficulty: z.enum(["easy", "medium", "hard", "mixed"]).optional(),
 });
 
 export async function POST(request: Request) {
@@ -29,8 +30,16 @@ export async function POST(request: Request) {
   if (!parsedBody.success) {
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
-  const { topic, count } = parsedBody.data;
+  const { topic, count, difficulty } = parsedBody.data;
   const questionCount = count ?? 5;
+  const difficultyHint =
+    difficulty === "easy"
+      ? "Sorular kolay seviyede olsun."
+      : difficulty === "hard"
+        ? "Sorular zor seviyede olsun."
+        : difficulty === "mixed"
+          ? "Kolay, orta ve zor karışık olsun."
+          : "Sorular orta seviyede olsun.";
 
   const { data: roleRows } = await service
     .from("user_roles")
@@ -74,7 +83,7 @@ export async function POST(request: Request) {
             "Şıklar birbirinden ayırt edilebilir olsun; 'hepsi' ya da 'hiçbiri' yazma. " +
             "correct alanı, options dizisindeki metnin birebir aynısı olmalı.",
         },
-        { role: "user", content: `Konu: ${topic}. ${questionCount} soruluk quiz üret.` },
+        { role: "user", content: `Konu: ${topic}. ${questionCount} soruluk quiz üret. ${difficultyHint}` },
       ],
       response_format: { type: "json_object" },
     });

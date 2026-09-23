@@ -25,8 +25,9 @@ type AudioLine = {
   durationMs: number;
 };
 
-// Referans ürün da 15 saniye atliyor; 10 saniye bir cumleyi bile geri almiyordu.
-const SKIP_MS = 15_000;
+// Plan: 10 sn atlama; 15 sn bir cümleyi atlıyordu.
+const SKIP_MS = 10_000;
+const SPEEDS = [1, 1.25, 1.5, 2] as const;
 
 export function ExamPodcastPlayer({
   title,
@@ -58,6 +59,7 @@ export function ExamPodcastPlayer({
   const [playing, setPlaying] = useState(false);
   const [positionMs, setPositionMs] = useState(0);
   const [heard, setHeard] = useState(false);
+  const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
 
   const elementRef = useRef<HTMLAudioElement | null>(null);
   const preloadRef = useRef<HTMLAudioElement | null>(null);
@@ -163,6 +165,7 @@ export function ExamPodcastPlayer({
       }
       element.pause();
       element.src = line.url;
+      element.playbackRate = speed;
       element.currentTime = Math.max(0, offsetMs) / 1000;
 
       element.ontimeupdate = () => {
@@ -195,8 +198,12 @@ export function ExamPodcastPlayer({
         preloadRef.current = pre;
       }
     },
-    [audio, timeline, totalMs],
+    [audio, timeline, totalMs, speed],
   );
+
+  useEffect(() => {
+    if (elementRef.current) elementRef.current.playbackRate = speed;
+  }, [speed]);
 
   function seekTo(ms: number) {
     if (!audio) return;
@@ -257,10 +264,10 @@ export function ExamPodcastPlayer({
             className="cp-pod-skip"
             onClick={() => seekTo(positionMs - SKIP_MS)}
             disabled={status !== "ready"}
-            aria-label="15 saniye geri"
+            aria-label="10 saniye geri"
           >
             <RotateCcw className="h-5 w-5" aria-hidden />
-            <em>15</em>
+            <em>10</em>
           </button>
 
           <button
@@ -282,12 +289,32 @@ export function ExamPodcastPlayer({
             className="cp-pod-skip"
             onClick={() => seekTo(positionMs + SKIP_MS)}
             disabled={status !== "ready"}
-            aria-label="15 saniye ileri"
+            aria-label="10 saniye ileri"
           >
             <RotateCw className="h-5 w-5" aria-hidden />
-            <em>15</em>
+            <em>10</em>
           </button>
         </div>
+
+        {status === "ready" ? (
+          <div className="mt-2 flex flex-wrap justify-center gap-1.5" role="group" aria-label="Oynatma hızı">
+            {SPEEDS.map((rate) => (
+              <button
+                key={rate}
+                type="button"
+                className={cn(
+                  "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                  speed === rate
+                    ? "border-amber-500/50 bg-amber-500/15 text-amber-100"
+                    : "border-white/15 text-[var(--cp-muted)]",
+                )}
+                onClick={() => setSpeed(rate)}
+              >
+                {rate}x
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         {status === "loading" ? (
           <p className="cp-pod-state">Ses hazırlanıyor…</p>

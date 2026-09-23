@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { recordUserActivity } from "@/lib/streak/record-activity";
 
 const bodySchema = z.object({
   title: z.string().min(1).max(200),
@@ -20,6 +21,8 @@ const resultSchema = z.object({
   score: z.number().int().min(0).max(100),
   verdict: z.string().min(1),
   feedback: z.string().min(8),
+  missingPoints: z.array(z.string()).optional().default([]),
+  suggestedAnswer: z.string().optional().default(""),
 });
 
 export async function POST(request: Request) {
@@ -40,7 +43,7 @@ export async function POST(request: Request) {
     actionCode: "PRACTICE_EXAM_GRADE",
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
-      'Yalnızca şu JSON: {"score":number,"verdict":string,"feedback":string}. score 0-100. feedback 2-4 cümle Türkçe.',
+      'Yalnızca şu JSON: {"score":number,"verdict":string,"feedback":string,"missingPoints":string[],"suggestedAnswer":string}. score 0-100. feedback puanı neden verdiğini açıklasın.',
     userPrompt: `Sözlü: ${parsedBody.data.title}. Öğrenci cevaplarını değerlendir.\n\n${lines}`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
@@ -49,6 +52,12 @@ export async function POST(request: Request) {
   });
 
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
+
+  try {
+    await recordUserActivity(service, userId, "oral");
+  } catch {
+    // streak additive
+  }
 
   return NextResponse.json(outcome.data);
 }

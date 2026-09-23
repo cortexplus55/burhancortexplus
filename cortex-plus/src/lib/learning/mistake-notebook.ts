@@ -273,6 +273,7 @@ export type ReviewOutcome = {
    */
   correctAnswer: string | null;
   explanation: string | null;
+  firstWrongAnswer: string | null;
 };
 
 /**
@@ -291,7 +292,7 @@ export async function reviewMistake(
   const { data } = await supabase
     .from("mistake_entries")
     .select(
-      "id, correct_answer, explanation, correct_streak, review_count, wrong_count",
+      "id, correct_answer, explanation, first_wrong_answer, correct_streak, review_count, wrong_count",
     )
     .eq("id", entryId)
     .eq("user_id", userId)
@@ -331,5 +332,6 @@ export async function reviewMistake(
     mastered: next.masteredAt !== null,
     correctAnswer: (data.correct_answer as string | null) ?? null,
     explanation: (data.explanation as string | null) ?? null,
+    firstWrongAnswer: (data.first_wrong_answer as string | null) ?? null,
   };
 }

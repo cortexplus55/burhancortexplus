@@ -1,185 +1,169 @@
 import Link from "next/link";
-import {
-  BookOpen,
-  Camera,
-  FileUp,
-  MessageCircle,
-  Sparkles,
-} from "lucide-react";
-import { AppShell } from "@/components/layout/app-shell";
-import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
-import { requireUser } from "@/lib/auth/session";
-import { onboardingPathForRole } from "@/lib/auth/onboarding-path";
-import { formatDate } from "@/lib/format";
+import { Flame } from "lucide-react";
+import { ParitySorShell } from "@/components/parity/sor-shell";
+import { requireStudentArea } from "@/lib/auth/session";
+import { loadParityShellProps } from "@/lib/student/parity-shell-props";
+import { loadLearningHub } from "@/lib/learning/learning-hub";
 
-export const metadata = { title: "Panel" };
-
-const shortcuts = [
-  {
-    href: "/ogretmen",
-    label: "Yeni ders sohbeti",
-    body: "Takıldığın soruyu adım adım çöz.",
-    icon: MessageCircle,
-  },
-  {
-    href: "/soru-coz",
-    label: "Fotoğraftan çöz",
-    body: "Sorunun fotoğrafını yükle.",
-    icon: Camera,
-  },
-  {
-    href: "/dokumanlar",
-    label: "Doküman yükle",
-    body: "Kendi notlarından çalış.",
-    icon: FileUp,
-  },
-  {
-    href: "/deneme-sinavlari",
-    label: "Deneme çöz",
-    body: "Eksiklerini ortaya çıkar.",
-    icon: BookOpen,
-  },
-];
+export const metadata = { title: "Ana Sayfa" };
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireStudentArea();
+  const [shell, hub] = await Promise.all([
+    loadParityShellProps(supabase, user.id, user.email),
+    loadLearningHub(supabase, user.id, user.email),
+  ]);
 
-  const [{ data: profile }, { data: wallet }, { data: conversations }, { data: tasks }] =
-    await Promise.all([
-      supabase
-        .from("profiles")
-        .select("full_name, onboarding_completed_at, primary_role")
-        .eq("id", user.id)
-        .maybeSingle(),
-      supabase
-        .from("credit_wallets")
-        .select("balance, free_allowance_remaining")
-        .eq("user_id", user.id)
-        .maybeSingle(),
-      supabase
-        .from("conversations")
-        .select("id, title, updated_at")
-        .eq("user_id", user.id)
-        .is("deleted_at", null)
-        .order("updated_at", { ascending: false })
-        .limit(5),
-      supabase
-        .from("study_plan_tasks")
-        .select("id, title, due_date, completed, study_plans!inner(user_id)")
-        .eq("study_plans.user_id", user.id)
-        .eq("completed", false)
-        .order("due_date")
-        .limit(5),
-    ]);
-
-  const firstName = (profile?.full_name ?? "").split(" ")[0];
-  const finishProfileHref = !profile?.onboarding_completed_at
-    ? onboardingPathForRole(profile?.primary_role as string | undefined)
-    : null;
+  const countdownCta =
+    hub.countdown.state === "missing" || hub.countdown.state === "past"
+      ? hub.countdown.addHref
+      : null;
 
   return (
-    <AppShell title="Panel">
-      <div className="space-y-6">
-        <div>
-          <h2 className="font-[family-name:var(--font-display)] text-2xl font-normal tracking-tight text-[var(--cs-text)]">
-            {firstName ? `Merhaba ${firstName}` : "Merhaba"}
-          </h2>
-          <p className="mt-1 text-sm text-[var(--cs-muted)]">
-            {wallet
-              ? `${wallet.balance} kredin ve ${wallet.free_allowance_remaining} ücretsiz hakkın var.`
-              : "Kredi bilgin yükleniyor."}
+    <ParitySorShell {...shell}>
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6 pb-24">
+        <header className="space-y-1">
+          <p className="text-sm text-[var(--cs-muted)]">
+            {hub.firstName ? `Merhaba ${hub.firstName}` : "Merhaba"}
           </p>
-          {finishProfileHref ? (
+          {countdownCta ? (
             <Link
-              href={finishProfileHref}
-              className="mt-2 inline-block text-sm font-medium text-[var(--cs-primary)] underline-offset-2 hover:underline"
+              href={countdownCta}
+              className="block font-[family-name:var(--font-display)] text-2xl font-normal tracking-tight text-[var(--cs-text)] underline-offset-4 hover:underline"
             >
-              Profilini tamamla
+              {hub.countdown.label}
             </Link>
+          ) : (
+            <h1 className="font-[family-name:var(--font-display)] text-2xl font-normal tracking-tight text-[var(--cs-text)]">
+              {hub.countdown.label}
+            </h1>
+          )}
+          <p
+            className="text-base text-[var(--cs-text)]"
+            title={hub.readiness.explanation}
+          >
+            Hazırlık seviyesi %{hub.readiness.pct}
+            <span className="ml-2 text-sm text-[var(--cs-muted)]">
+              · Bugünkü çalışma: {hub.totalMinutes} dakika
+            </span>
+          </p>
+          <p className="text-xs text-[var(--cs-muted)]">{hub.readiness.explanation}</p>
+        </header>
+
+        <Link
+          href={hub.nextBestAction.href}
+          className="inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-500 px-6 py-3 text-base font-bold text-black transition-colors hover:bg-amber-400"
+        >
+          {hub.nextBestAction.label}
+        </Link>
+        <p className=" -mt-4 text-center text-xs text-[var(--cs-muted)]">
+          {hub.nextBestAction.reason}
+        </p>
+
+        <section aria-labelledby="today-plan-heading" className="space-y-3">
+          <h2
+            id="today-plan-heading"
+            className="text-sm font-semibold uppercase tracking-wide text-[var(--cs-muted)]"
+          >
+            Bugünün görevleri
+          </h2>
+          <ol className="space-y-2">
+            {hub.todaysTasks.map((task, index) => (
+              <li key={task.id}>
+                <Link
+                  href={task.href}
+                  className="flex min-h-[48px] items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 transition-colors hover:bg-white/[0.06]"
+                >
+                  <span className="text-sm text-[var(--cs-text)]">
+                    <span className="mr-2 text-[var(--cs-muted)]">{index + 1}.</span>
+                    {task.title}
+                  </span>
+                  <span className="shrink-0 text-xs text-[var(--cs-muted)]">
+                    {task.minutes} dk
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        {hub.weakTopics.length > 0 ? (
+          <section aria-labelledby="weak-heading" className="space-y-3">
+            <h2
+              id="weak-heading"
+              className="text-sm font-semibold text-[var(--cs-text)]"
+            >
+              En çok çalışman gereken konular
+            </h2>
+            <ul className="space-y-2">
+              {hub.weakTopics.map((topic, i) => (
+                <li
+                  key={topic.topicLabel}
+                  className="flex items-center justify-between gap-3 rounded-xl px-1 py-1"
+                >
+                  <span className="text-sm text-[var(--cs-text)]">
+                    {i + 1}. {topic.topicLabel}
+                    <span className="ml-2 text-xs text-[var(--cs-muted)]">
+                      {topic.reason}
+                    </span>
+                  </span>
+                  <Link
+                    href={topic.studyHref}
+                    className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-[var(--cs-text)] hover:border-amber-500/50"
+                  >
+                    Çalış
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--cs-muted)]">
+          {hub.streak > 0 ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/15 px-3 py-1 text-orange-200">
+              <Flame className="h-3.5 w-3.5" aria-hidden />
+              {hub.streak} gündür çalışıyorsun
+            </span>
           ) : null}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          {shortcuts.map((shortcut) => {
-            const Icon = shortcut.icon;
-            return (
-              <Link
-                key={shortcut.href}
-                href={shortcut.href}
-                className="cs-pay-card group block p-4 transition-transform hover:scale-[1.01]"
-              >
-                <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/15 text-[var(--cs-primary)] transition-colors group-hover:bg-amber-500/25">
-                  <Icon className="h-4 w-4" aria-hidden />
-                </span>
-                <p className="font-semibold text-[var(--cs-text)]">{shortcut.label}</p>
-                <p className="mt-1 text-sm text-[var(--cs-muted)]">{shortcut.body}</p>
-              </Link>
-            );
-          })}
-        </div>
+        {hub.recentDocuments.length > 0 ? (
+          <section aria-labelledby="docs-heading" className="space-y-2">
+            <h2 id="docs-heading" className="text-sm font-semibold text-[var(--cs-muted)]">
+              Son belgeler
+            </h2>
+            <ul className="space-y-1">
+              {hub.recentDocuments.map((doc) => (
+                <li key={doc.id}>
+                  <Link
+                    href={`/dokumanlar/${doc.id}`}
+                    className="block truncate text-sm text-[var(--cs-text)] underline-offset-2 hover:underline"
+                  >
+                    {doc.fileName}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <SectionCard variant="parity" title="Kaldığın yerden devam et">
-            {conversations?.length ? (
-              <ul className="space-y-2">
-                {conversations.map((conversation) => (
-                  <li key={conversation.id}>
-                    <Link
-                      href={`/ogretmen?sohbet=${conversation.id}`}
-                      className="flex min-h-[44px] items-center justify-between gap-3 rounded-xl px-2 py-2 text-sm transition-colors hover:bg-[var(--cs-pill)]"
-                    >
-                      <span className="truncate font-medium text-[var(--cs-text)]">
-                        {conversation.title ?? "Başlıksız sohbet"}
-                      </span>
-                      <span className="shrink-0 text-xs text-[var(--cs-muted)]">
-                        {formatDate(conversation.updated_at)}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <EmptyState
-                variant="parity"
-                icon={Sparkles}
-                title="Henüz sohbetin yok"
-                description="İlk sorunu Sor ekranından yazarak başla."
-                actionHref="/ogretmen"
-                actionLabel="Sohbet başlat"
-              />
-            )}
-          </SectionCard>
-
-          <SectionCard variant="parity" title="Yaklaşan görevlerin">
-            {tasks?.length ? (
-              <ul className="space-y-2">
-                {tasks.map((task) => (
-                  <li key={task.id}>
-                    <Link
-                      href="/calisma-plani"
-                      className="flex min-h-[44px] items-center justify-between gap-3 rounded-xl px-2 py-2 text-sm transition-colors hover:bg-[var(--cs-pill)]"
-                    >
-                      <span className="truncate text-[var(--cs-text)]">{task.title}</span>
-                      <span className="shrink-0 text-xs text-[var(--cs-muted)]">
-                        {task.due_date ?? "—"}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <EmptyState
-                variant="parity"
-                icon={BookOpen}
-                title="Aktif görevin yok"
-                description="Hedefini yazarak haftalık görevler oluştur."
-                actionHref="/calisma-plani"
-                actionLabel="Plan oluştur"
-              />
-            )}
-          </SectionCard>
-        </div>
+        <nav
+          aria-label="Diğer bölümler"
+          className="flex flex-wrap gap-2 border-t border-white/10 pt-4"
+        >
+          {hub.secondary.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-[var(--cs-muted)] transition-colors hover:border-white/25 hover:text-[var(--cs-text)]"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
       </div>
-    </AppShell>
+    </ParitySorShell>
   );
 }

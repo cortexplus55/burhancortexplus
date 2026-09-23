@@ -1,97 +1,254 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { AppShell } from "@/components/layout/app-shell";
+import { notFound } from "next/navigation";
+import { ParitySorShell } from "@/components/parity/sor-shell";
 import { TopicMapEditor } from "@/components/documents/topic-map-editor";
-import { requireUser } from "@/lib/auth/session";
+import { DocumentDeleteButton } from "@/components/documents/document-delete-button";
+import { requireStudentArea } from "@/lib/auth/session";
+import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import {
   isFeatureEnabled,
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
 import { loadTopicMapSnapshot } from "@/lib/documents/pdf-learning-v2";
 import { createServiceClient } from "@/lib/supabase/server";
+import { formatDate } from "@/lib/format";
 
-export const metadata = { title: "Konu haritası" };
+export const metadata = { title: "Belge" };
 export const dynamic = "force-dynamic";
 
 type PageProps = { params: Promise<{ documentId: string }> };
 
-export default async function DocumentTopicMapPage({ params }: PageProps) {
-  const { documentId } = await params;
-  const { user } = await requireUser();
-  const service = createServiceClient();
+const statusLabels: Record<string, string> = {
+  pending: "Bekliyor",
+  processing: "İşleniyor",
+  completed: "Hazır",
+  failed: "Başarısız",
+};
 
-  if (!(await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG))) {
-    redirect("/dokumanlar");
-  }
+export default async function DocumentDetailPage({ params }: PageProps) {
+  const { documentId } = await params;
+  const { supabase, user } = await requireStudentArea();
+  const shell = await loadParityShellProps(supabase, user.id, user.email);
+  const service = createServiceClient();
+  const pdfLearningV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
 
   const { data: doc } = await service
     .from("documents")
-    .select("id, user_id, file_name, status, deleted_at")
+    .select(
+      "id, user_id, file_name, status, page_count, created_at, updated_at, topic_map_status, topic_map_updated_at, deleted_at",
+    )
     .eq("id", documentId)
     .maybeSingle();
 
   if (!doc || doc.deleted_at || doc.user_id !== user.id) notFound();
 
-  const snapshot = await loadTopicMapSnapshot(service, documentId);
+  const completed = doc.status === "completed";
+  const mapReady =
+    doc.topic_map_status === "ready" || doc.topic_map_status === "reviewed";
+  const canGenerate = completed && (!pdfLearningV2 || mapReady);
 
-  // Harita ne zaman çıkarıldı? Kurallar 11 Eylül 2026'da değişti (başlık
-  // kapsamı ve bölüm omurgası); ondan önce çıkarılmış haritalar eski
-  // kuralla kurulu ve yenilenmedikçe öyle kalıyor.
-  const { data: mapMeta } = await service
-    .from("documents")
-    .select("topic_map_updated_at")
-    .eq("id", documentId)
-    .maybeSingle();
-  if (!snapshot) notFound();
+  const snapshot =
+    pdfLearningV2 && completed
+      ? await loadTopicMapSnapshot(service, documentId)
+      : null;
+
+  const topicCount = snapshot?.topics.length ?? 0;
+  const estMinutes = Math.max(30, topicCount * 22);
+  const estHours = Math.floor(estMinutes / 60);
+  const estRem = estMinutes % 60;
+  const estLabel =
+    estHours > 0
+      ? `${estHours} saat${estRem ? ` ${estRem} dakika` : ""}`
+      : `${estMinutes} dakika`;
+
+  const { data: quizzes } = await supabase
+    .from("quizzes")
+    .select("id, title, created_at")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(5);
 
   return (
-    <AppShell
-      title="Konu haritası"
-      creditHint="PDF öğrenme v2 — kapsam ve kaynak sınırı."
-    >
-      <div className="mb-4 space-y-1">
-        <Link
-          href="/dokumanlar"
-          className="text-xs text-[var(--cs-muted)] underline"
-        >
-          ← Dokümanlar
-        </Link>
-        <h1 className="truncate text-lg font-semibold text-[var(--cs-text)]">
-          {doc.file_name}
-        </h1>
-        <p className="text-sm text-[var(--cs-muted)]">
-          Belge durumu: {doc.status}. Okunamayan sayfalar genel bilgiyle
-          doldurulmaz — aşağıdaki raporda görünür.
-        </p>
-      </div>
+    <ParitySorShell {...shell}>
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 pb-24">
+        <div className="space-y-1">
+          <Link
+            href="/dokumanlar"
+            className="text-xs text-[var(--cs-muted)] underline"
+          >
+            ← Belgeler
+          </Link>
+          <h1 className="truncate text-xl font-semibold text-[var(--cs-text)]">
+            {doc.file_name}
+          </h1>
+          <p className="text-sm text-[var(--cs-muted)]">
+            {statusLabels[doc.status] ?? doc.status}
+            {doc.page_count ? ` · ${doc.page_count} sayfa` : ""}
+            {doc.updated_at ? ` · Son işlem ${formatDate(doc.updated_at)}` : ""}
+          </p>
+        </div>
 
-      <TopicMapEditor
-        documentId={documentId}
-        initialTopics={snapshot.topics.map((topic) => ({
-          id: topic.id,
-          title: topic.title,
-          learningObjective: topic.learningObjective,
-          studentNotes: topic.studentNotes,
-          pageNumbers: topic.pageNumbers,
-          isStudentEdited: topic.isStudentEdited,
-        }))}
-        initialBoundary={snapshot.sourceBoundaryMode}
-        initialStatus={snapshot.topicMapStatus}
-        mapUpdatedAt={(mapMeta?.topic_map_updated_at as string | null) ?? null}
-        coverage={
-          snapshot.coverage
-            ? {
-                status: snapshot.coverage.status,
-                summary: snapshot.coverage.summary,
-                contentPages: snapshot.coverage.contentPages,
-                coveredPages: snapshot.coverage.coveredPages,
-                skippedPages: snapshot.coverage.skippedPages,
-                unreadablePages: snapshot.coverage.unreadablePages,
-                uncoveredContentPages: snapshot.coverage.uncoveredContentPages,
+        {completed ? (
+          <section className="cs-pay-card space-y-3 p-5">
+            <p className="text-lg font-semibold text-[var(--cs-text)]">
+              Belgen hazır.
+            </p>
+            {topicCount > 0 ? (
+              <p className="text-sm text-[var(--cs-muted)]">
+                {topicCount} konu bulduk. Yaklaşık çalışma süresi: {estLabel}.
+              </p>
+            ) : (
+              <p className="text-sm text-[var(--cs-muted)]">
+                Konu haritası hazırlanınca çalışma planını oluşturabilirsin.
+              </p>
+            )}
+            {canGenerate ? (
+              <Link
+                href={`/deneme-sinavlari/olustur?documentId=${documentId}`}
+                className="inline-flex min-h-[48px] w-full items-center justify-center rounded-2xl bg-amber-500 px-5 py-3 text-sm font-bold text-black hover:bg-amber-400 sm:w-auto"
+              >
+                Çalışma planımı oluştur
+              </Link>
+            ) : (
+              <p className="text-sm text-[var(--cs-muted)]">
+                Üretim araçları konu haritası hazır olunca açılır.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2 pt-1">
+              <ActionChip
+                href={`/ogretmen?belge=${documentId}`}
+                label="Belgeye soru sor"
+                enabled={completed}
+              />
+              <ActionChip
+                href={`/studio/quiz?documentId=${documentId}`}
+                label="Quiz"
+                enabled={canGenerate}
+              />
+              <ActionChip
+                href={`/studio/flashcard?documentId=${documentId}`}
+                label="Flashcard"
+                enabled={canGenerate}
+              />
+              <ActionChip
+                href={`/studio/podcast?documentId=${documentId}`}
+                label="Podcast"
+                enabled={canGenerate}
+              />
+              <ActionChip
+                href={`/deneme-sinavlari/olustur?documentId=${documentId}`}
+                label="Çalışmaya başla"
+                enabled={canGenerate}
+              />
+            </div>
+          </section>
+        ) : (
+          <section className="cs-pay-card p-5 text-sm text-[var(--cs-muted)]">
+            Belge hâlâ işleniyor. Quiz, podcast ve plan butonları hazır olunca
+            açılacak.
+          </section>
+        )}
+
+        {snapshot?.topics?.length ? (
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold text-[var(--cs-text)]">
+              Çıkarılan konular
+            </h2>
+            <ul className="space-y-1 text-sm text-[var(--cs-muted)]">
+              {snapshot.topics.slice(0, 12).map((t) => (
+                <li key={t.id}>· {t.title}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {quizzes?.length ? (
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold text-[var(--cs-muted)]">
+              Son üretilenler
+            </h2>
+            <ul className="space-y-1 text-sm">
+              {quizzes.map((q) => (
+                <li key={q.id} className="text-[var(--cs-text)]">
+                  Quiz · {q.title}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        <div className="flex items-center gap-3">
+          <DocumentDeleteButton documentId={documentId} />
+        </div>
+
+        {pdfLearningV2 && snapshot ? (
+          <section className="space-y-3 border-t border-white/10 pt-6">
+            <h2 className="text-sm font-semibold text-[var(--cs-text)]">
+              Konu haritası
+            </h2>
+            <TopicMapEditor
+              documentId={documentId}
+              initialTopics={snapshot.topics.map((topic) => ({
+                id: topic.id,
+                title: topic.title,
+                learningObjective: topic.learningObjective,
+                studentNotes: topic.studentNotes,
+                pageNumbers: topic.pageNumbers,
+                isStudentEdited: topic.isStudentEdited,
+              }))}
+              initialBoundary={snapshot.sourceBoundaryMode}
+              initialStatus={snapshot.topicMapStatus}
+              mapUpdatedAt={
+                (doc.topic_map_updated_at as string | null) ?? null
               }
-            : null
-        }
-      />
-    </AppShell>
+              mapReady={mapReady}
+              coverage={
+                snapshot.coverage
+                  ? {
+                      status: snapshot.coverage.status,
+                      summary: snapshot.coverage.summary,
+                      contentPages: snapshot.coverage.contentPages,
+                      coveredPages: snapshot.coverage.coveredPages,
+                      skippedPages: snapshot.coverage.skippedPages,
+                      unreadablePages: snapshot.coverage.unreadablePages,
+                      uncoveredContentPages:
+                        snapshot.coverage.uncoveredContentPages,
+                    }
+                  : null
+              }
+            />
+          </section>
+        ) : null}
+      </div>
+    </ParitySorShell>
+  );
+}
+
+function ActionChip({
+  href,
+  label,
+  enabled,
+}: {
+  href: string;
+  label: string;
+  enabled: boolean;
+}) {
+  if (!enabled) {
+    return (
+      <span
+        className="cursor-not-allowed rounded-full border border-white/10 px-3 py-1.5 text-xs text-[var(--cs-muted)] opacity-50"
+        title="Belge hazır değil"
+      >
+        {label}
+      </span>
+    );
+  }
+  return (
+    <Link
+      href={href}
+      className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-[var(--cs-text)] hover:border-amber-500/40"
+    >
+      {label}
+    </Link>
   );
 }

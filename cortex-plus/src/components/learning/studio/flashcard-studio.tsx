@@ -29,6 +29,7 @@ export function FlashcardStudio({
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [known, setKnown] = useState(0);
+  const [again, setAgain] = useState(0);
   const [paywall, setPaywall] = useState(false);
 
   const card = cards[index];
@@ -55,11 +56,13 @@ export function FlashcardStudio({
     setIndex(0);
     setFlipped(false);
     setKnown(0);
+    setAgain(0);
     setPhase("play");
   }
 
   function mark(knew: boolean) {
     if (knew) setKnown((n) => n + 1);
+    else setAgain((n) => n + 1);
     if (index + 1 >= cards.length) {
       setPhase("results");
       return;
@@ -101,12 +104,16 @@ export function FlashcardStudio({
             <div className={cn("ls-flash-inner", flipped && "is-flipped")}>
               <div className="ls-flash-face">
                 <span className="ls-flash-kicker">Soru</span>
-                <p className="ls-flash-text">{card.front}</p>
+                <p className="ls-flash-text break-words [overflow-wrap:anywhere]">
+                  {card.front}
+                </p>
                 <span className="ls-credit">Çevirmek için dokun</span>
               </div>
               <div className="ls-flash-face ls-flash-face--back">
                 <span className="ls-flash-kicker">Cevap</span>
-                <p className="ls-flash-text">{card.back}</p>
+                <p className="ls-flash-text break-words [overflow-wrap:anywhere]">
+                  {card.back}
+                </p>
                 <span className="ls-credit">Kartı değerlendirebilirsin</span>
               </div>
             </div>
@@ -126,13 +133,14 @@ export function FlashcardStudio({
         <StudioResults
           tool="flash"
           topic={topic}
-          scoreLabel={`${known}/${cards.length}`}
+          scoreLabel={`${index + 1} / ${cards.length}`}
           title="Deste kapandı."
-          lead={`${known} kartı sahiplendin. Diğerlerini bir tur daha çevir.`}
+          lead={`Öğrenildi: ${known} · Tekrar edilecek: ${again}`}
           onAgain={() => {
             setIndex(0);
             setFlipped(false);
             setKnown(0);
+            setAgain(0);
             setPhase("play");
           }}
           onNew={() => setPhase("entry")}

@@ -25,7 +25,7 @@ const PUBLIC_ROUTES: [string, string][] = [
   ["/kayit", "Hangi sınıftasın?"],
   ["/sifremi-unuttum", "Şifremi unuttum"],
   ["/email-dogrula", "E-posta doğrulama"],
-  ["/mobil-uygulama", "Mobil uygulama"],
+  ["/mobil-uygulama", "Telefondan Cortex"],
   ["/yaratici-program", "Yaratıcı program"],
 ];
 

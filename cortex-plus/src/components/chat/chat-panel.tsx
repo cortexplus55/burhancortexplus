@@ -674,6 +674,23 @@ export function ChatPanel({
     abortRef.current?.abort();
   }
 
+  function regenerateLast() {
+    if (loading) return;
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    if (!lastUser?.content) return;
+    setMessages((prev) => {
+      const next = [...prev];
+      while (next.length && next[next.length - 1]?.role === "assistant") {
+        next.pop();
+      }
+      if (next.length && next[next.length - 1]?.role === "user") {
+        next.pop();
+      }
+      return next;
+    });
+    void send(lastUser.content);
+  }
+
   const showMinimalEmpty = isMinimalSor && messages.length === 0 && !loading;
   const showMinimalMessages = isMinimalSor && (messages.length > 0 || loading);
   const showParityEmpty = isParitySor && messages.length === 0 && !loading;
@@ -903,6 +920,11 @@ export function ChatPanel({
                           messageId={feedbackEnabled ? message.id : undefined}
                           rating={message.rating ?? null}
                           onRated={(next) => setRating(index, next)}
+                          onRegenerate={
+                            index === messages.length - 1 && !loading
+                              ? regenerateLast
+                              : undefined
+                          }
                         />
                       ) : null}
                     </>
@@ -1300,6 +1322,54 @@ export function ChatPanel({
                 </label>
               </fieldset>
             ) : null}
+          </div>
+        ) : null}
+
+        {hasDocuments && isParity ? (
+          <div
+            className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs"
+            role="group"
+            aria-label="Kaynak modu"
+          >
+            <button
+              type="button"
+              className={
+                useDocuments && documentsOnly
+                  ? "rounded-full bg-amber-500/20 px-3 py-1 font-semibold text-amber-100"
+                  : "rounded-full px-3 py-1 text-[var(--cs-muted)]"
+              }
+              onClick={() => {
+                setUseDocuments(true);
+                setDocumentsOnly(true);
+              }}
+            >
+              🔒 Yalnızca belgem
+            </button>
+            <button
+              type="button"
+              className={
+                useDocuments && !documentsOnly
+                  ? "rounded-full bg-amber-500/20 px-3 py-1 font-semibold text-amber-100"
+                  : "rounded-full px-3 py-1 text-[var(--cs-muted)]"
+              }
+              onClick={() => {
+                setUseDocuments(true);
+                setDocumentsOnly(false);
+              }}
+            >
+              🌐 Belgem + genel bilgi
+            </button>
+            <button
+              type="button"
+              className={
+                !useDocuments
+                  ? "rounded-full bg-white/10 px-3 py-1 font-semibold text-[var(--cs-text)]"
+                  : "rounded-full px-3 py-1 text-[var(--cs-muted)]"
+              }
+              onClick={() => setUseDocuments(false)}
+            >
+              Genel sohbet
+            </button>
           </div>
         ) : null}
 

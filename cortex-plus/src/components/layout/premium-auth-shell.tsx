@@ -25,7 +25,7 @@ export function PremiumAuthShell({
               kaldığı için görünüm değişmiyor.
             */}
             <p className="cortex-premium-auth__hero-title">
-              Sınav hazırlığında 2 kat hızlı öğren
+              Sınav hazırlığını adım adım ilerlet
             </p>
             <p className="cortex-premium-auth__hero-lead">
               Kişisel AI öğretmenin, deneme analizi ve çalışma planı — tek uygulamada,

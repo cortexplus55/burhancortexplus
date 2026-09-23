@@ -15,7 +15,7 @@ import {
 } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
 
-export const metadata = { title: "Dokümanlar" };
+export const metadata = { title: "Belgeler" };
 
 const statusLabels: Record<string, string> = {
   pending: "Bekliyor",
@@ -39,11 +39,6 @@ const topicMapLabels: Record<string, string> = {
   failed: "Harita başarısız",
 };
 
-/**
- * Hata kodu öğrenciye ham gösterilmemeli — "topic_map_unavailable"
- * kimseye ne yapacağını söylemiyor. Bilinmeyen kod da sızmasın diye
- * eşleşmeyen her şey tek bir genel cümleye düşüyor.
- */
 const topicMapErrorLabels: Record<string, string> = {
   topic_map_unavailable: "Konular çıkarılamadı — belgeyi tekrar yüklemeyi dene",
   document_status_update_failed: "Kaydedilemedi — tekrar dene",
@@ -69,7 +64,6 @@ function topicMapErrorLabel(code: string) {
 function processErrorLabel(code: string | null) {
   if (!code) return null;
   if (processErrorLabels[code]) return processErrorLabels[code];
-  // Ham İngilizce kod sızmasın.
   if (/^[a-z_]+$/i.test(code) && !code.includes(" ")) {
     return "Belge işlenemedi — tekrar dene";
   }
@@ -83,6 +77,10 @@ function statusClass(status: string) {
   return "bg-white/5 text-[var(--cs-muted)]";
 }
 
+function mapReady(status: string | null | undefined) {
+  return status === "ready" || status === "reviewed";
+}
+
 export default async function DokumanlarPage() {
   const { supabase, user } = await requireUser();
   const cost = await getCreditCost("DOCUMENT_PAGE_PROCESS");
@@ -92,7 +90,7 @@ export default async function DokumanlarPage() {
   const { data: documents } = await supabase
     .from("documents")
     .select(
-      "id, file_name, status, size_bytes, created_at, error_message, topic_map_status, topic_map_error",
+      "id, file_name, status, size_bytes, created_at, error_message, topic_map_status, topic_map_error, page_count",
     )
     .eq("user_id", user.id)
     .is("deleted_at", null)
@@ -101,14 +99,14 @@ export default async function DokumanlarPage() {
 
   return (
     <AppShell
-      title="Dokümanlar"
+      title="Belgeler"
       creditHint={`PDF işleme: sayfa başına ${cost} kredi.`}
     >
       <div className="space-y-6">
         <SectionCard
           variant="parity"
-          title="Doküman yükle"
-          description="Yüklediğin kaynaklar yalnızca senin hesabına bağlıdır ve özel depolamada tutulur."
+          title="Belge yükle"
+          description="Yüklediğin kaynaklar yalnızca senin hesabına bağlıdır."
         >
           <DocumentUpload
             creditCost={cost}
@@ -118,87 +116,127 @@ export default async function DokumanlarPage() {
         </SectionCard>
 
         {documents?.length ? (
-          <ul className="space-y-2">
-            {documents.map((document) => (
-              <li
-                key={document.id}
-                className="cs-pay-card flex flex-wrap items-center justify-between gap-3 px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[var(--cs-text)]">
-                    {document.file_name}
-                  </p>
-                  <p className="text-xs text-[var(--cs-muted)]">
-                    {Math.round(document.size_bytes / 1024)} KB ·{" "}
-                    {formatDate(document.created_at)}
-                    {document.status !== "completed"
-                      ? ` · ${processingHints[document.status] ?? statusLabels[document.status]}`
-                      : ""}
-                    {processErrorLabel(document.error_message)
-                      ? ` · ${processErrorLabel(document.error_message)}`
-                      : ""}
-                    {pdfLearningV2 && document.topic_map_status
-                      ? ` · ${topicMapLabels[document.topic_map_status] ?? `harita: ${document.topic_map_status}`}`
-                      : ""}
-                    {pdfLearningV2 && document.topic_map_error
-                      ? ` · ${topicMapErrorLabel(document.topic_map_error)}`
-                      : ""}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  {document.status === "completed" ? (
-                    <Link
-                      href={`/ogretmen?belge=${document.id}`}
-                      className="text-xs underline"
-                    >
-                      Bu belgeyle sohbet et
-                    </Link>
+          <ul className="space-y-4">
+            {documents.map((document) => {
+              const ready =
+                document.status === "completed" &&
+                (!pdfLearningV2 || mapReady(document.topic_map_status));
+              const completed = document.status === "completed";
+
+              return (
+                <li key={document.id} className="cs-pay-card space-y-3 px-4 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-[var(--cs-text)]">
+                        {document.file_name}
+                      </p>
+                      <p className="text-xs text-[var(--cs-muted)]">
+                        {document.page_count
+                          ? `${document.page_count} sayfa · `
+                          : `${Math.round((document.size_bytes ?? 0) / 1024)} KB · `}
+                        {formatDate(document.created_at)}
+                        {document.status !== "completed"
+                          ? ` · ${processingHints[document.status] ?? statusLabels[document.status]}`
+                          : " · Belgen hazır"}
+                        {processErrorLabel(document.error_message)
+                          ? ` · ${processErrorLabel(document.error_message)}`
+                          : ""}
+                        {pdfLearningV2 && document.topic_map_status
+                          ? ` · ${topicMapLabels[document.topic_map_status] ?? document.topic_map_status}`
+                          : ""}
+                        {pdfLearningV2 && document.topic_map_error
+                          ? ` · ${topicMapErrorLabel(document.topic_map_error)}`
+                          : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {document.status === "processing" ||
+                      document.status === "failed" ||
+                      document.status === "pending" ? (
+                        <DocumentRetryButton documentId={document.id} />
+                      ) : null}
+                      <DocumentDeleteButton documentId={document.id} />
+                      <span
+                        className={cn(
+                          "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                          statusClass(document.status),
+                        )}
+                      >
+                        {statusLabels[document.status] ?? document.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  {ready ? (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                      <Link
+                        href={`/deneme-sinavlari/olustur?documentId=${document.id}`}
+                        className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-black hover:bg-amber-400"
+                      >
+                        Çalışma planımı oluştur
+                      </Link>
+                      <Link
+                        href={`/dokumanlar/${document.id}`}
+                        className="text-xs font-medium text-[var(--cs-muted)] underline underline-offset-2"
+                      >
+                        Belge detayı
+                      </Link>
+                      <Link
+                        href={`/ogretmen?belge=${document.id}`}
+                        className="text-xs text-[var(--cs-muted)] underline underline-offset-2"
+                      >
+                        Belgeye soru sor
+                      </Link>
+                      <Link
+                        href={`/studio/podcast?documentId=${document.id}`}
+                        className="text-xs text-[var(--cs-muted)] underline underline-offset-2"
+                      >
+                        Podcast oluştur
+                      </Link>
+                      <Link
+                        href={`/studio/flashcard?documentId=${document.id}`}
+                        className="text-xs text-[var(--cs-muted)] underline underline-offset-2"
+                      >
+                        Flashcard oluştur
+                      </Link>
+                      <Link
+                        href={`/studio/quiz?documentId=${document.id}`}
+                        className="text-xs text-[var(--cs-muted)] underline underline-offset-2"
+                      >
+                        Quiz oluştur
+                      </Link>
+                    </div>
+                  ) : completed ? (
+                    <div className="flex flex-wrap gap-3">
+                      <Link
+                        href={`/dokumanlar/${document.id}`}
+                        className="text-xs font-medium underline"
+                      >
+                        Konu haritasını aç
+                      </Link>
+                      <Link
+                        href={`/ogretmen?belge=${document.id}`}
+                        className="text-xs underline text-[var(--cs-muted)]"
+                      >
+                        Belgeye soru sor
+                      </Link>
+                      <span className="text-xs text-[var(--cs-muted)]">
+                        Quiz / podcast / plan için konu haritası hazır olmalı
+                      </span>
+                    </div>
                   ) : null}
-                  {pdfLearningV2 && document.status === "completed" ? (
-                    <Link
-                      href={`/dokumanlar/${document.id}`}
-                      className="text-xs underline"
-                    >
-                      Konu haritası
-                    </Link>
-                  ) : null}
-                  {pdfLearningV2 &&
-                  document.status === "completed" &&
-                  (document.topic_map_status === "ready" ||
-                    document.topic_map_status === "reviewed") ? (
-                    <Link
-                      href={`/deneme-sinavlari/olustur?documentId=${document.id}`}
-                      className="text-xs font-medium underline"
-                    >
-                      Sınav hazırlığı başlat
-                    </Link>
-                  ) : null}
-                  {document.status === "processing" ||
-                  document.status === "failed" ||
-                  document.status === "pending" ? (
-                    <DocumentRetryButton documentId={document.id} />
-                  ) : null}
-                  <DocumentDeleteButton documentId={document.id} />
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
-                      statusClass(document.status),
-                    )}
-                  >
-                    {statusLabels[document.status] ?? document.status}
-                  </span>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <EmptyState
             variant="parity"
             icon={FileText}
-            title="Henüz doküman yüklemedin"
-            description="Ders notunu yükle, AI öğretmen yanıtlarında kaynak olarak kullansın."
-            actionHref="/ogretmen"
-            actionLabel="Sor ekranına git"
+            title="Henüz bir belgen yok."
+            description="Ders notunu yükle; konular çıkınca çalışma planın oluşsun."
+            actionHref="/dokumanlar"
+            actionLabel="Belge yükle"
           />
         )}
       </div>

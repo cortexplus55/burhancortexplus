@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy, Square, ThumbsDown, ThumbsUp, Volume2 } from "lucide-react";
+import { Check, Copy, RefreshCw, Square, ThumbsDown, ThumbsUp, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
 
@@ -37,11 +37,13 @@ export function MessageActions({
   messageId,
   rating: initialRating = null,
   onRated,
+  onRegenerate,
 }: {
   content: string;
   messageId?: string;
   rating?: Rating;
   onRated?: (rating: Rating) => void;
+  onRegenerate?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -161,6 +163,18 @@ export function MessageActions({
           <Copy className="h-3.5 w-3.5" aria-hidden />
         )}
       </button>
+
+      {onRegenerate ? (
+        <button
+          type="button"
+          className="cp-msg-action"
+          onClick={onRegenerate}
+          aria-label="Yeniden üret"
+          title="Yeniden üret"
+        >
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      ) : null}
 
       {messageId ? (
         <>

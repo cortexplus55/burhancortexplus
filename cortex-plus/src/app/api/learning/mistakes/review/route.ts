@@ -3,6 +3,8 @@ import { z } from "zod";
 import { withUser } from "@/lib/api/guards";
 import { reviewMistake } from "@/lib/learning/mistake-notebook";
 import { recordDrillAnswer } from "@/lib/learning/daily-drill";
+import { recordUserActivity } from "@/lib/streak/record-activity";
+import { createServiceClient } from "@/lib/supabase/server";
 
 /**
  * Defterden sorulan bir soruya verilen yanıt.
@@ -59,6 +61,13 @@ export async function POST(request: Request) {
       outcome.correct,
       drillTotal,
     );
+  }
+
+  try {
+    const service = createServiceClient();
+    await recordUserActivity(service, user.id, "mistake_review");
+  } catch {
+    // Streak is additive.
   }
 
   return NextResponse.json(outcome);

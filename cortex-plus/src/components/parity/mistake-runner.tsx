@@ -1,23 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight, Check, X } from "lucide-react";
 import type { MistakeQuestion } from "@/lib/learning/mistake-notebook";
-
-/**
- * Bir soruyu sorup yanıtı sunucuya doğrulatan ekran.
- *
- * Hem yanlış defteri hem günün turu bunu kullanıyor. İki yerde ayrı yazılsaydı
- * biri düzeltilip diğeri unutulurdu — özellikle "doğru yanıt istemcide yok"
- * kuralı, ki o bu ekranın var oluş biçimini belirliyor: seçenek işaretlenip
- * sunucuya gidiliyor, doğru hangisiydi yanıt dönünce öğreniliyor.
- */
 
 export type RunnerFeedback = {
   correct: boolean;
   mastered: boolean;
   correctAnswer: string | null;
   explanation: string | null;
+  firstWrongAnswer?: string | null;
 };
 
 export function MistakeRunner({
@@ -41,6 +34,14 @@ export function MistakeRunner({
   const [feedback, setFeedback] = useState<RunnerFeedback | null>(null);
   const [sending, setSending] = useState(false);
 
+  const topic = question.topicLabel?.trim();
+  const topicHref = topic
+    ? `/studio/anlat?topic=${encodeURIComponent(topic)}`
+    : "/studio/anlat";
+  const similarHref = topic
+    ? `/studio/quiz?topic=${encodeURIComponent(topic)}`
+    : "/studio/quiz";
+
   async function check() {
     if (picked === null || sending) return;
     setSending(true);
@@ -61,6 +62,7 @@ export function MistakeRunner({
           correctAnswer: null,
           explanation:
             "Yanıtın kaydedilemedi. Bağlantını kontrol edip tekrar dene.",
+          firstWrongAnswer: null,
         });
         return;
       }
@@ -96,7 +98,8 @@ export function MistakeRunner({
           {question.options.map((option) => {
             const isPicked = picked === option;
             const isAnswer =
-              feedback?.correctAnswer != null && feedback.correctAnswer === option;
+              feedback?.correctAnswer != null &&
+              feedback.correctAnswer === option;
             return (
               <button
                 key={option}
@@ -143,15 +146,53 @@ export function MistakeRunner({
               ) : (
                 <X className="h-4 w-4" aria-hidden="true" />
               )}
-              {feedback.correct ? "Doğru" : "Hâlâ yanlış"}
+              {feedback.correct ? "Doğru" : "Yanlış"}
               {feedback.mastered ? " · bu soru defterden çıktı" : ""}
             </p>
 
-            {feedback.explanation ? (
-              <p className="text-sm leading-relaxed text-[var(--cs-muted)]">
-                {feedback.explanation}
+            {!feedback.correct && feedback.firstWrongAnswer ? (
+              <p className="text-sm text-[var(--cs-muted)]">
+                İlk seçimin:{" "}
+                <span className="text-[var(--cs-text)]">
+                  {feedback.firstWrongAnswer}
+                </span>
               </p>
             ) : null}
+
+            {feedback.correctAnswer ? (
+              <p className="text-sm text-[var(--cs-muted)]">
+                Doğru mantık:{" "}
+                <span className="font-medium text-[var(--cs-text)]">
+                  {feedback.correctAnswer}
+                </span>
+              </p>
+            ) : null}
+
+            {feedback.explanation ? (
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--cs-muted)]">
+                  Neden?
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-[var(--cs-text)]">
+                  {feedback.explanation}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={similarHref}
+                className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-100"
+              >
+                Benzer soru çöz
+              </Link>
+              <Link
+                href={topicHref}
+                className="rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-[var(--cs-muted)]"
+              >
+                Konuya dön
+              </Link>
+            </div>
 
             <button
               type="button"

@@ -113,7 +113,7 @@ export function MistakeNotebookView({
   return (
     <div className="cp-exam-page">
       <div className="cp-page-head">
-        <h1 className="cp-page-title">Yanlış defteri</h1>
+        <h1 className="cp-page-title">Yanlışlar Defteri</h1>
       </div>
 
       <p className="text-sm text-[var(--cs-muted)]">
@@ -125,18 +125,20 @@ export function MistakeNotebookView({
       {openCount === 0 ? (
         <div className="cs-pay-card mt-5 p-6 text-center">
           <p className="text-lg font-semibold text-[var(--cs-text)]">
-            {masteredCount > 0 ? "Defterin şu an boş." : "Defterin henüz boş."}
+            {masteredCount > 0
+              ? "Harika! Tekrar etmen gereken bir yanlış yok."
+              : "Harika! Henüz tekrar etmen gereken bir yanlış yok."}
           </p>
           <p className="mt-2 text-sm text-[var(--cs-muted)]">
             {masteredCount > 0
-              ? `Bekleyen soru kalmadı. Bugüne kadar ${masteredCount} soruyu defterden çıkardın.`
-              : "Bir deneme sınavı ya da quiz çözdüğünde yanlışların buraya kendiliğinden düşecek."}
+              ? `Bugüne kadar ${masteredCount} soruyu defterden çıkardın.`
+              : "Quiz veya deneme çözdüğünde yanlışların buraya düşer."}
           </p>
           <Link
-            href="/deneme-sinavlari"
+            href="/studio/quiz"
             className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black transition-colors hover:bg-amber-400"
           >
-            Deneme çöz
+            Quiz çöz
           </Link>
         </div>
       ) : (

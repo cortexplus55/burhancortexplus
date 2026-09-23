@@ -57,7 +57,7 @@ export function MarketingHero() {
           Tüm dersler için AI öğretmen
         </p>
         <h1 className="mt-4 text-4xl font-bold leading-tight tracking-tight md:text-6xl">
-          Çalışma ve sınav hazırlığında 2 kat hızlı öğren
+          Çalışma ve sınav hazırlığını tek döngüde yönet
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-[var(--mk-muted)]">
           Fotoğraftan soru çözümü, deneme sınavları, sözlü pratik ve onlarca

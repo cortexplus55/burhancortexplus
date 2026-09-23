@@ -125,28 +125,44 @@ export function OralStudio({
       return;
     }
     setPhase("grading");
-    const result = await postStudio<{ score?: number; verdict?: string; feedback?: string }>(
-      "/api/learning/oral/grade",
-      {
-        title,
-        items: questions.map((q, i) => ({
-          prompt: q.prompt,
-          answer: nextAnswers[i] ?? "",
-        })),
-      },
-    );
+    const result = await postStudio<{
+      score?: number;
+      verdict?: string;
+      feedback?: string;
+      missingPoints?: string[];
+      suggestedAnswer?: string;
+    }>("/api/learning/oral/grade", {
+      title,
+      items: questions.map((q, i) => ({
+        prompt: q.prompt,
+        answer: nextAnswers[i] ?? "",
+      })),
+    });
     if ("paywall" in result) {
       setPaywall(true);
       setPhase("play");
       return;
     }
     if (!result.ok) {
-      toast.error(result.error);
+      toast.error(
+        result.error || "Değerlendirme yapılamadı. Kredin düşmedi.",
+      );
       setPhase("play");
       return;
     }
     setScore(result.data.score ?? 0);
-    setFeedback(result.data.feedback ?? result.data.verdict ?? "Değerlendirme hazır.");
+    const missing = (result.data.missingPoints ?? []).filter(Boolean);
+    const suggested = result.data.suggestedAnswer?.trim();
+    const parts = [
+      result.data.feedback ?? result.data.verdict ?? "Değerlendirme hazır.",
+    ];
+    if (missing.length) {
+      parts.push(`Eksik noktalar: ${missing.join("; ")}`);
+    }
+    if (suggested) {
+      parts.push(`Önerilen cevap: ${suggested}`);
+    }
+    setFeedback(parts.join("\n\n"));
     setPhase("results");
   }
 

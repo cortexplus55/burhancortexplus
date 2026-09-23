@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { MessageCircle, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { MessageCircle, Pencil, Search, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { EmptyState } from "@/components/ui-kit/empty-state";
 
 export type ConversationRow = {
@@ -27,12 +29,14 @@ function groupLabel(iso: string, now: number) {
 }
 
 export function SohbetlerList({ items }: { items: ConversationRow[] }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
+  const [rows, setRows] = useState(items);
   const now = Date.now();
 
   const grouped = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr");
-    const filtered = items.filter((item) =>
+    const filtered = rows.filter((item) =>
       (item.title ?? "Başlıksız sohbet").toLocaleLowerCase("tr").includes(q),
     );
     const buckets: { label: string; rows: ConversationRow[] }[] = [];
@@ -43,12 +47,55 @@ export function SohbetlerList({ items }: { items: ConversationRow[] }) {
       else buckets.push({ label, rows: [item] });
     }
     return buckets;
-  }, [items, query, now]);
+  }, [rows, query, now]);
+
+  async function rename(id: string, current: string | null) {
+    const next = window.prompt("Sohbet adı", current ?? "Yeni sohbet");
+    if (next == null) return;
+    const title = next.trim();
+    if (!title) return;
+    const res = await fetch("/api/ai/conversations", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId: id, title }),
+    });
+    if (!res.ok) {
+      toast.error("Ad değiştirilemedi. Tekrar deneyebilirsin.");
+      return;
+    }
+    setRows((list) =>
+      list.map((row) => (row.id === id ? { ...row, title } : row)),
+    );
+    router.refresh();
+  }
+
+  async function remove(id: string) {
+    if (!window.confirm("Bu sohbeti silmek istiyor musun?")) return;
+    const res = await fetch("/api/ai/conversations", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId: id, deleted: true }),
+    });
+    if (!res.ok) {
+      toast.error("Sohbet silinemedi. Tekrar deneyebilirsin.");
+      return;
+    }
+    setRows((list) => list.filter((row) => row.id !== id));
+    router.refresh();
+  }
 
   return (
     <div className="cp-exam-page">
-      <h1 className="mb-5 text-xl font-semibold">Geçmiş konuşmalar</h1>
-      {items.length ? (
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">Geçmiş konuşmalar</h1>
+        <Link
+          href="/ogretmen"
+          className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-black"
+        >
+          Yeni sohbet
+        </Link>
+      </div>
+      {rows.length ? (
         <>
           <label className="cp-search">
             <Search className="h-4 w-4 opacity-70" aria-hidden />
@@ -65,28 +112,43 @@ export function SohbetlerList({ items }: { items: ConversationRow[] }) {
                 <h2>{group.label}</h2>
                 <ul>
                   {group.rows.map((conversation) => (
-                    <li key={conversation.id}>
+                    <li
+                      key={conversation.id}
+                      className="cs-pay-card mb-2 flex min-h-[52px] items-center gap-2 px-3 py-2"
+                    >
                       <Link
                         href={`/ogretmen?sohbet=${conversation.id}`}
-                        className="cs-pay-card flex min-h-[52px] items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-[var(--cs-pill)]"
+                        className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--cs-text)]"
                       >
-                        <span className="truncate text-sm font-medium text-[var(--cs-text)]">
-                          {conversation.title ?? "Başlıksız sohbet"}
-                        </span>
-                        <span className="shrink-0 text-xs text-[var(--cs-muted)]">
-                          {new Intl.DateTimeFormat("tr-TR", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }).format(new Date(conversation.updatedAt))}
-                        </span>
+                        {conversation.title ?? "Başlıksız sohbet"}
                       </Link>
+                      <button
+                        type="button"
+                        className="rounded-lg p-2 text-[var(--cs-muted)] hover:bg-white/5"
+                        aria-label="Yeniden adlandır"
+                        onClick={() =>
+                          void rename(conversation.id, conversation.title)
+                        }
+                      >
+                        <Pencil className="h-4 w-4" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-lg p-2 text-[var(--cs-muted)] hover:bg-white/5"
+                        aria-label="Sohbeti sil"
+                        onClick={() => void remove(conversation.id)}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                      </button>
                     </li>
                   ))}
                 </ul>
               </section>
             ))
           ) : (
-            <p className="mt-6 text-sm text-[var(--cs-muted)]">Eşleşen sohbet yok.</p>
+            <p className="mt-6 text-sm text-[var(--cs-muted)]">
+              Aramanla eşleşen sohbet yok.
+            </p>
           )}
         </>
       ) : (
@@ -94,9 +156,9 @@ export function SohbetlerList({ items }: { items: ConversationRow[] }) {
           variant="parity"
           icon={MessageCircle}
           title="Henüz sohbetin yok"
-          description="AI öğretmenle ilk sorunu sorduğunda burada listelenir."
+          description="AI Öğretmen ile ilk sorununu sor."
           actionHref="/ogretmen"
-          actionLabel="Sohbet başlat"
+          actionLabel="Yeni sohbet"
         />
       )}
     </div>

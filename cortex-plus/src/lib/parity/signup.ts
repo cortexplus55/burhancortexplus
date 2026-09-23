@@ -119,7 +119,7 @@ export function searchSchools(query: string): string[] {
 
 export function homePathForRole(role: string | null | undefined): string {
   if (role === "admin") return "/admin";
-  return "/ogretmen";
+  return "/dashboard";
 }
 
 export const STUDENT_SIGNUP_STEPS = [
