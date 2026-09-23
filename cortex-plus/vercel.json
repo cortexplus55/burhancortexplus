@@ -15,10 +15,6 @@
     {
       "path": "/api/cron/study-reminders",
       "schedule": "0 16 * * *"
-    },
-    {
-      "path": "/api/cron/data-deletion",
-      "schedule": "30 * * * *"
     }
   ]
 }

@@ -45,6 +45,7 @@ import { UploadModal } from "@/components/parity/upload-modal";
 import { MathKeyboard } from "@/components/parity/math-keyboard";
 import { UpgradeAside } from "@/components/paywall/upgrade-aside";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
+import { formatSourceSections } from "@/lib/ai/source-sections";
 import "@/styles/parity-sor.css";
 import "@/styles/parity-shell.css";
 
@@ -940,7 +941,7 @@ export function ChatPanel({
                     message.content
                   ) : message.content ? (
                     <>
-                      <Markdown content={message.content} variant="parity" />
+                      <Markdown content={formatSourceSections(message.content)} variant="parity" />
                       {!message.isError ? (
                         <MessageActions
                           content={message.content}
@@ -1474,7 +1475,7 @@ export function ChatPanel({
                     {message.role === "user" ? (
                       message.content
                     ) : message.content ? (
-                      <Markdown content={message.content} variant="parity" />
+                      <Markdown content={formatSourceSections(message.content)} variant="parity" />
                     ) : null}
                   </div>
                 ))}
@@ -1520,7 +1521,7 @@ export function ChatPanel({
                 message.content
               ) : (
                 <Markdown
-                  content={message.content}
+                  content={formatSourceSections(message.content)}
                   variant={isParity ? "parity" : "default"}
                 />
               )}

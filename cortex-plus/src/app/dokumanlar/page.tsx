@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { DocumentUpload } from "@/components/documents/document-upload";
 import { DocumentRetryButton } from "@/components/documents/document-retry-button";
 import { DocumentDeleteButton } from "@/components/documents/document-delete-button";
+import { DocumentStatusPoller } from "@/components/documents/document-status-poller";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
 import { requireUser } from "@/lib/auth/session";
 import { getCreditCost } from "@/lib/credits/rules";
@@ -97,11 +98,19 @@ export default async function DokumanlarPage() {
     .order("created_at", { ascending: false })
     .limit(30);
 
+  const anyProcessing = (documents ?? []).some(
+    (d) =>
+      d.status === "processing" ||
+      d.status === "pending" ||
+      (pdfLearningV2 && d.status === "completed" && d.topic_map_status === "pending"),
+  );
+
   return (
     <AppShell
       title="Belgeler"
       creditHint={`PDF işleme: sayfa başına ${cost} kredi.`}
     >
+      <DocumentStatusPoller active={anyProcessing} />
       <div className="space-y-6">
         <SectionCard
           variant="parity"

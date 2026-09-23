@@ -5,6 +5,7 @@ import { auditLog } from "@/lib/audit";
 import {
   billingPeriodOf,
   daysUntil,
+  hasExpired,
   isSubscriptionPlan,
 } from "@/lib/payments/subscription";
 
@@ -49,7 +50,8 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     subscription: {
-      status: sub.status,
+      // Cron henüz `inactive` yazmamış olsa da dönem bitmişse UI aktif göstermez.
+      status: hasExpired(sub) ? "expired" : sub.status,
       billingPeriod: sub.billing_period ?? billingPeriodOf(plan),
       currentPeriodStart: sub.current_period_start,
       currentPeriodEnd: sub.current_period_end,

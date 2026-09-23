@@ -8,6 +8,9 @@ import {
   periodLabel,
   type BillingPeriod,
 } from "@/lib/payments/subscription";
+import { processPendingDeletionRequests } from "@/lib/privacy/account-deletion";
+import { processPendingDocumentDeletions } from "@/lib/privacy/document-deletion";
+import { logOpsEvent } from "@/lib/observability/ops-log";
 
 export const dynamic = "force-dynamic";
 
@@ -135,10 +138,30 @@ export async function GET(request: Request) {
       .in("id", expired);
   }
 
+  /*
+    Veri silme kuyruğu da bu günlük işte akar.
+
+    Vercel Hobby planı en fazla İKİ cron'a ve her birinde günde bir çalışmaya
+    izin veriyor. 23 Eylül 2026'da üçüncü, saatlik bir `data-deletion` cron'u
+    eklendi ve o andan itibaren HER production deploy sessizce reddedildi
+    (GitHub statüsü "Deployment failed", Vercel'de kayıt yok). Kuyruk yedek
+    bir tarayıcıdır — self-serve silme zaten anında purge deniyor — o yüzden
+    günde bir tur yeterli. `/api/cron/data-deletion` elle tetikleme için duruyor.
+  */
+  let deletion: { processed: number; documents: number } | null = null;
+  try {
+    const documents = await processPendingDocumentDeletions(service);
+    const processed = await processPendingDeletionRequests(service);
+    deletion = { processed, documents };
+  } catch {
+    logOpsEvent("subscription_sync_failed", { stage: "deletion_queue" });
+  }
+
   return NextResponse.json({
     scanned: rows.length,
     reminded: reminded.length,
     expired: expired.length,
     notified: notices.length,
+    deletion,
   });
 }

@@ -168,7 +168,9 @@ describe("fotoğraf sayfası kotası", () => {
       from: () => ({
         select: () => ({
           eq: () => ({
-            eq: () => ({ maybeSingle: () => Promise.resolve({ data: row }) }),
+            eq: () => ({
+              or: () => ({ maybeSingle: () => Promise.resolve({ data: row }) }),
+            }),
           }),
         }),
       }),

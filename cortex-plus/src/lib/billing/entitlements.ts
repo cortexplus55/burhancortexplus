@@ -167,6 +167,9 @@ export async function getUserEntitlements(
     )
     .eq("user_id", userId)
     .eq("status", "active")
+    // Cron `inactive` yazmadan önce de süresi dolan abonelik SQL'de düşer;
+    // TS tarafındaki `periodStillValid` ikinci savunma hattı olarak kalır.
+    .or(`current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`)
     .maybeSingle();
 
   return entitlementsFromSubscriptionRow(

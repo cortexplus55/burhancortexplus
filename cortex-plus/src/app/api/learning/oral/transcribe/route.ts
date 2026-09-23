@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { errorResponse, withUser } from "@/lib/api/guards";
-import { isPremiumUser } from "@/lib/ai/generate";
+import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { transcribeAudio } from "@/lib/ai/speech";
 import { env } from "@/lib/env";
 import { recordUsage } from "@/lib/credits/service";
@@ -23,7 +23,8 @@ export async function POST(request: Request) {
   if (!guard.ok) return guard.response;
 
   // Sunucu sesi premium. Ucretsiz kullanici tarayici sesiyle devam ediyor.
-  if (!(await isPremiumUser(guard.ctx.service, guard.ctx.userId))) {
+  const entitlements = await getUserEntitlements(guard.ctx.service, guard.ctx.userId);
+  if (!requireFeature(entitlements, "oral_transcribe")) {
     return errorResponse(402, "premium_required");
   }
 
