@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   NO_SOURCE_MARKER,
+  NO_SOURCE_MESSAGE,
   documentInstruction,
   saidNoSource,
   stripNoSourceMarker,
@@ -65,6 +66,11 @@ describe("kaynağa bağlılık talimatı", () => {
 });
 
 describe("kaynakta yok işareti", () => {
+  it("recognizes the exact unmarked refusal without truncating it", () => {
+    expect(saidNoSource(NO_SOURCE_MESSAGE)).toBe(true);
+    expect(stripNoSourceMarker(NO_SOURCE_MESSAGE)).toBe(NO_SOURCE_MESSAGE);
+    expect(saidNoSource(`${NO_SOURCE_MESSAGE}\nHere is a paid general explanation.`)).toBe(false);
+  });
   it("işaretli cevabı tanıyor", () => {
     expect(saidNoSource(`${NO_SOURCE_MARKER} Bu konu notunda geçmiyor.`)).toBe(true);
     expect(saidNoSource("  " + NO_SOURCE_MARKER + " boşlukla da")).toBe(true);

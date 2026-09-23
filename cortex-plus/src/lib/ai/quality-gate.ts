@@ -83,6 +83,7 @@ export async function verifyEducationalContent(input: {
   independent?: (content: string) => IndependentValidationInput;
   /** v2: if reviewer throws / unavailable, fail closed (default true when independent set). */
   failClosedOnUnavailable?: boolean;
+  signal?: AbortSignal;
 }): Promise<VerifyEducationalResult> {
   let content = input.draft;
   let tokensIn = 0;
@@ -162,7 +163,7 @@ export async function verifyEducationalContent(input: {
             },
           ],
         },
-        { timeout: 45000, maxRetries: 0 },
+        { timeout: 45000, maxRetries: 0, signal: input.signal },
       );
       tokensIn += response.usage?.prompt_tokens ?? 0;
       tokensOut += response.usage?.completion_tokens ?? 0;
@@ -182,10 +183,10 @@ export async function verifyEducationalContent(input: {
         // sağlayıcının ne dediği hiçbir yerde yoktu.
         console.error("ai_validator_unavailable", {
           model: env.OPENAI_ADVANCED_MODEL,
-          format: input.format,
           contextChars: (input.context ?? "").length,
           draftChars: content.length,
-          message: error instanceof Error ? error.message : String(error),
+          status: error instanceof OpenAI.APIError ? error.status : undefined,
+          kind: error instanceof OpenAI.APIError ? "provider_error" : "validation_error",
         });
         throw new EducationalVerificationError(
           "validator_unavailable",

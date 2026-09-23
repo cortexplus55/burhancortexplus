@@ -4,13 +4,16 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { parseParentProfileUpdate } from "@/lib/parent/profile";
+import { isAccountActive } from "@/lib/auth/active-account";
 
 async function currentUser() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  return { supabase, user };
+  if (!user) return { supabase, user: null };
+  const active = await isAccountActive(supabase).catch(() => false);
+  return { supabase, user: active ? user : null };
 }
 
 export async function togglePlanTask(taskId: string, completed: boolean) {
@@ -140,30 +143,33 @@ export async function requestDataDeletion() {
 
   // Talebi kuyruğa aldıktan sonra hemen işle — "sıra var ama kimse işlemiyor"
   // durumunu kapatır. Başarısız olursa cron tekrar dener.
+  let completed = false;
   try {
     const { createServiceClient } = await import("@/lib/supabase/server");
     const { purgeUserData } = await import("@/lib/privacy/account-deletion");
     const service = createServiceClient();
     const result = await purgeUserData(service, user.id);
     if (result.ok) {
-      await service
+      const { error: receiptError } = await service
         .from("data_deletion_requests")
-        .update({ processed_at: new Date().toISOString() })
+        .update({ processed_at: new Date().toISOString(), status: "completed" })
         .eq("user_id", user.id)
         .is("processed_at", null);
+      completed = !receiptError;
     } else {
       console.error("data_deletion_immediate_failed", {
         userId: user.id,
         error: result.error,
       });
     }
-  } catch (err) {
+  } catch {
     console.error("data_deletion_immediate_failed", {
       userId: user.id,
-      message: err instanceof Error ? err.message : "unknown",
+      step: "immediate_processing",
     });
   }
 
+  await supabase.auth.signOut();
   revalidatePath("/ayarlar");
-  return { ok: true };
+  return { ok: true, status: completed ? "completed" as const : "pending" as const };
 }

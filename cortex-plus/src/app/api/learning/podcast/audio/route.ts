@@ -4,6 +4,9 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { synthesizeCharged } from "@/lib/learning/audio-cache";
 import { flattenLines, normalizeChapters } from "@/lib/learning/podcast-script";
+import { MAX_PODCAST_AUDIO_CHARS, MAX_PODCAST_AUDIO_LINES, MAX_SPEECH_LINE_CHARS } from "@/lib/learning/podcast-audio-contract";
+
+export const maxDuration = 300;
 
 /**
  * Podcast seslendirme.
@@ -24,7 +27,6 @@ import { flattenLines, normalizeChapters } from "@/lib/learning/podcast-script";
  */
 
 /** Tek istekte üretilecek en fazla cümle; kaçak bir senaryo faturayı şişirmesin. */
-const MAX_LINES = 60;
 
 const bodySchema = z.object({
   chapters: z.array(z.unknown()).min(1).max(8),
@@ -38,13 +40,18 @@ export async function POST(request: Request) {
     return errorResponse(402, "premium_required");
   }
 
-  const parsed = bodySchema.safeParse(await request.json());
+  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
   const chapters = normalizeChapters(parsed.data.chapters);
   if (!chapters.length) return errorResponse(400, "invalid_input");
 
-  const lines = flattenLines(chapters).slice(0, MAX_LINES);
+  const lines = flattenLines(chapters);
+  if (lines.length > MAX_PODCAST_AUDIO_LINES ||
+      lines.some((line) => line.text.length > MAX_SPEECH_LINE_CHARS) ||
+      lines.reduce((sum, line) => sum + line.text.length, 0) > MAX_PODCAST_AUDIO_CHARS) {
+    return errorResponse(400, "invalid_input");
+  }
   const result = await synthesizeCharged(
     guard.ctx.service,
     guard.ctx.userId,

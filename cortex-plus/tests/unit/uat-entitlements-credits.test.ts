@@ -12,6 +12,11 @@ import {
 import { chatSourceBlock } from "@/lib/learning/chat-source-block";
 
 describe("canonical entitlements", () => {
+  it("bozuk dönem tarihi premium erişim açmaz", () => {
+    const e = entitlementsFromSubscriptionRow({ status: "active", current_period_end: "invalid", plans: { is_premium: true, tier: "sigma" } });
+    expect(e.isPremium).toBe(false);
+    expect(e.plan).toBe("free");
+  });
   it("ücretsiz kullanıcıya premium özellik vermez", () => {
     const e = entitlementsFromSubscriptionRow(null);
     expect(e.plan).toBe("free");

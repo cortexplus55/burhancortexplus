@@ -144,6 +144,12 @@ export async function withUser(
     };
   }
 
+  const service = createServiceClient();
+  const { data: account, error: accountError } = await service.from("profiles")
+    .select("id, deleted_at").eq("id", user.id).maybeSingle();
+  if (accountError) return { ok: false, response: NextResponse.json({ error: "Hesabın şu an doğrulanamıyor. Yeniden dene." }, { status: 503 }) };
+  if (!account || account.deleted_at) return { ok: false, response: unauthorizedResponse() };
+
   // 2) Asıl sınır kişiye bağlı.
   const perMinute = await rateLimit(userKey(user.id, scope), limit, windowSeconds);
   if (!perMinute.allowed) {
@@ -207,7 +213,7 @@ export async function withUser(
     ctx: {
       userId: user.id,
       email: user.email ?? null,
-      service: createServiceClient(),
+      service,
       supabase,
     },
   };
@@ -251,6 +257,8 @@ export function errorResponse(status: number, code: string) {
     parent_coach_exhausted:
       "Ücretsiz Destek hakkın doldu. Plus gerekmez; kota yenilenince tekrar yazabilirsin.",
     invalid_action: "Geçersiz işlem tanımı.",
+    operation_in_progress: "Bu işlem hâlâ hazırlanıyor. Biraz sonra yeniden dene; ikinci kez kredi düşmedi.",
+    operation_completed: "Bu işlem zaten tamamlandı. Kaydedilmiş sonucu açabilirsin; tekrar kredi düşmedi.",
     ai_not_configured: "AI servisi henüz yapılandırılmadı.",
     invalid_ai_response: "Yapay zekâ yanıtı işlenemedi. Tekrar dener misin?",
     generation_failed: "İçerik üretilemedi. Lütfen tekrar deneyin.",

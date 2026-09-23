@@ -16,6 +16,7 @@ import {
   type TimedLine,
 } from "@/lib/learning/podcast-script";
 import { cn } from "@/lib/utils";
+import { validatePodcastAudio } from "@/lib/learning/podcast-audio-contract";
 
 type AudioLine = {
   chapterIndex: number;
@@ -90,15 +91,24 @@ export function ExamPodcastPlayer({
   // Ses üretimi bir defalık: aynı cümleler sunucuda önbellekli olduğu için
   // ikinci açılışta anında geliyor.
   useEffect(() => {
+    tokenRef.current += 1;
+    elementRef.current?.pause();
+    setAudio(null);
+    setPlaying(false);
+    setPositionMs(0);
+    setHeard(false);
+    setStatus("loading");
     if (!normalized.length) {
       setStatus("fallback");
       return;
     }
     let alive = true;
+    const controller = new AbortController();
     void fetch("/api/learning/podcast/audio", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chapters: normalized }),
+      signal: controller.signal,
     })
       .then(async (res) => {
         // 402 iki ayrı sebeple geliyor ve ikisi de arıza değil: aboneliği
@@ -118,8 +128,9 @@ export function ExamPodcastPlayer({
       })
       .then((data: { lines?: AudioLine[] }) => {
         if (!alive) return;
-        if (!data.lines?.length) throw new Error("unavailable");
-        setAudio(data.lines);
+        const verified = validatePodcastAudio(normalized, data.lines);
+        if (!verified) throw new Error("unavailable");
+        setAudio(verified);
         setStatus("ready");
       })
       .catch((error: Error) => {
@@ -134,6 +145,9 @@ export function ExamPodcastPlayer({
       });
     return () => {
       alive = false;
+      controller.abort();
+      tokenRef.current += 1;
+      elementRef.current?.pause();
     };
   }, [normalized]);
 

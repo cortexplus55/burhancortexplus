@@ -169,6 +169,36 @@ describe("yalnızca gerçekten üretilecek karakter sayılıyor", () => {
 });
 
 describe("ücretli seslendirme yolu", () => {
+  it("112 satırı tek rezervasyonla, sınırlı eşzamanlılıkla eksiksiz üretir", async () => {
+    let active = 0;
+    let peak = 0;
+    mocks.synthesizeLine.mockImplementation(async (text: string) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      active -= 1;
+      return { audio: Buffer.from("mp3"), durationMs: 1234, chars: text.length };
+    });
+    const lines = Array.from({ length: 112 }, (_, i) => line(`Cümle ${i}.`));
+    const result = await synthesizeCharged(asService(fakeService()), "user-1", lines);
+    expect(result.ok && result.tracks.length).toBe(112);
+    expect(peak).toBeLessThanOrEqual(8);
+    expect(mocks.reserveCredits).toHaveBeenCalledTimes(1);
+    expect(mocks.reserveCredits.mock.calls[0][4]).toBe(audioCreditUnits(lines.reduce((s, l) => s + l.text.length, 0)));
+    expect(mocks.commitCredits).toHaveBeenCalledTimes(1);
+  });
+
+  it("geç bir parçadaki ağ hatası tüm ses rezervasyonunu iade eder", async () => {
+    mocks.synthesizeLine.mockImplementation(async (text: string) => {
+      if (text === "Cümle 70.") throw new Error("network");
+      return { audio: Buffer.from("mp3"), durationMs: 1234, chars: text.length };
+    });
+    const result = await synthesizeCharged(asService(fakeService()), "user-1",
+      Array.from({ length: 112 }, (_, i) => line(`Cümle ${i}.`)));
+    expect(result).toEqual({ ok: false, reason: "audio_unavailable" });
+    expect(mocks.refundCredits).toHaveBeenCalledTimes(1);
+    expect(mocks.commitCredits).not.toHaveBeenCalled();
+  });
   it("her şey önbellekten geliyorsa cüzdana hiç dokunmuyor", async () => {
     const service = fakeService({ cachedTexts: ["A", "B"] });
     const result = await synthesizeCharged(asService(service), "user-1", [

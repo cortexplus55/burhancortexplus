@@ -28,13 +28,18 @@ import { runPdfLearningV2 } from "@/lib/documents/pdf-learning-v2";
 export const EMBEDDING_MODEL = "text-embedding-3-small";
 
 export async function embedTexts(texts: string[]): Promise<number[][]> {
-  if (!env.OPENAI_API_KEY || texts.length === 0) return [];
+  if (texts.length === 0) return [];
+  if (!env.OPENAI_API_KEY) throw new Error("embedding_unavailable");
   const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
   const response = await openai.embeddings.create({
     model: EMBEDDING_MODEL,
     input: texts,
   });
-  return response.data.map((item) => item.embedding);
+  const ordered = [...response.data].sort((a, b) => a.index - b.index);
+  if (ordered.length !== texts.length || ordered.some((item, index) => item.index !== index || !item.embedding?.length || item.embedding.some((n) => !Number.isFinite(n)))) {
+    throw new Error("embedding_incomplete");
+  }
+  return ordered.map((item) => item.embedding);
 }
 
 export async function processDocument(
@@ -52,6 +57,7 @@ export async function processDocument(
     .from("documents")
     .select("id, user_id, storage_path, mime_type")
     .eq("id", documentId)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (!doc) return { ok: false, chunks: 0, error: "not_found" };
@@ -365,13 +371,14 @@ export async function searchDocumentChunks(
   const [embedding] = await embedTexts([query]);
   if (!embedding) return [];
 
-  const { data } = await service.rpc("match_document_chunks", {
+  const { data, error } = await service.rpc("match_document_chunks", {
     p_user_id: userId,
     p_query_embedding: embedding as unknown as string,
     p_match_count: limit,
     p_min_similarity: options.minSimilarity ?? MIN_CHUNK_SIMILARITY,
     p_document_id: options.documentId ?? null,
   });
+  if (error) throw new Error("retrieval_unavailable");
 
   return (data ?? []).map(
     (row: {

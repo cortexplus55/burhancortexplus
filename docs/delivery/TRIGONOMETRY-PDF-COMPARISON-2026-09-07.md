@@ -103,3 +103,50 @@ Kalite hedef tarihi **21 Eylül 2026**. O tarihe kadar iki günde bir yükleme, 
 - Yükleme/işleme, fiziksel sayfa atıfları, yalnızca belgeye dayanma, matematik doğruluğu, kavramsal anlatım, üç kademeli soru, aşamalı ipucu ve takip bağlamı için bu turda yeni içerik testi yok. Önceki sonuçlar geçerli; yeni kod bunları otomatik olarak geçmiş saydırmaz. Yanıt süresi ölçülmedi.
 - Chrome yeniden bağlı ve doğru Supabase projesinin SQL Editor sekmesi mevcut görünüyor. Bu, giriş engelinin yeniden kontrol edilebileceğini gösterir; fonksiyonun uygulanmış olduğu veya SQL çalıştırma yetkisi bu izleme turunda doğrulanmadı. Önceki “giriş yap” gereksinimi otomatik tekrarlanmadı.
 - Anlamlı yeni bulgu: eski trigonometri hazırlığında konu sayısı tutarsızlığı. 21 Eylül son karşılaştırma hedefi korunuyor; tam kalite eşdeğerliği sonucu yok.
+
+## Son hedef değerlendirmesi — 21 Eylül 2026
+
+**Sonuç: kalite hedefi karşılanmış olarak kabul edilemiyor.** PDF'nin işlenmiş kaydı sağlam; ancak kaynak kapsamı, yenilemede öğrenme kanıtının korunması ve podcast bütünlüğündeki bilinen açıkların düzeltmeleri main'e alınmamış. Yeni, eşit koşullu Astra/Cortex içerik karşılaştırması için iki uygulamanın oturumu da yeniden açılmalı. “Eksiksiz”, “sorunsuz” veya “Astra ile aynı kalite” sonucu çıkarılmadı.
+
+### Bugün gerçekten doğrulanan durum
+
+- İncelenen main ve origin/main: `b5486dabb33a34150f92767d6ddf3b51491adf1e`; çalışma ağacı inceleme başlangıcında temizdi. GitHub'da bu commitin Vercel durumu başarılı: [dağıtım kaydı](https://vercel.com/cortexplus55/burhancortexplus-app/FHb8jGwsaa5vzAhKcHY7wVgcSF21). Canlı ana sayfa ve giriş sayfası HTTP 200; istemci paketinde doğru Supabase ref'i `dgjfyewgrukglsehyntc` bulundu. Bu, korumalı öğrenci akışının çalıştığının kanıtı değildir.
+- Aynı commitin [CI çalışmasında](https://github.com/cortexplus55/burhancortexplus/actions/runs/35562421561) build ve birim test işleri başarılı; e2e işi 37 başarılı/2 başarısız. İlk test eski “Nerede zorlandığını gör” başlığını bekliyor, sayfa yeni “Bilgiye hükmet.” başlığını veriyor: bu bir eski test beklentisi. İkinci test mobilde Plus başlığını bulamıyor; görünürlük/semantik nedeninin ayrıca ayrıştırılması gerekiyor. Bunlar PDF öğretiminin bozuk olduğunu tek başına kanıtlamaz; yine de tüm kontrollerin geçtiği söylenemez.
+- Ayrıntılı PDF `71cd76fd-3ea2-4c4e-b6a0-d90b344ec937`: canlı kayıt `completed`, 20 sayfa, 37 metin parçası; sayfa kayıtlarında extraction_ok=false veya unreadable yok. Yerel gerçek PDF çıkarımı da bugün 20/20 dolu sayfa verdi. Yeni yükleme yapılmadı; mevcut kayıt ve dosya kontrol edildi.
+- Hazırlık `db9b08dd-0efa-4457-ae36-aef40fbd2942`: 10 konu, 14 tamamlanmış düğüm. Bu eski düğümlerin hiçbirinde topicTitle veya sourcePages yok. `exam_prep_lessons` kaydı 0. Etkinlik tamamlanması, konu başına öğrenme veya tüm belge kapsamı olarak yorumlanmadı.
+- Uygulama içi tarayıcıda Cortex hazırlığı giriş formuna, Astra hazırlığı da `/tr-TR/login` adresine yönlendi. Bugün oturumlu ekranların tasarımı, yeni ders/soru üretimi ve yeni takip konuşması doğrulanamadı. Oturumsuz HTTP süreleri model yanıt süresi olarak raporlanmadı.
+
+### Öğretim ölçütlerinin kapanış durumu
+
+| Ölçüt | 21 Eylül sonucu ve kanıt sınırı |
+|---|---|
+| Yükleme ve işleme | Önceden yüklenen ayrıntılı PDF'nin tamamlanmış kaydı ve 20/20 çıkarımı sağlam. Yeni yükleme/işleme turu yapılmadı. |
+| Fiziksel sayfa atıfları | 7 Eylül'deki doğru örnekler geçerli tarihsel kanıt. Bugünkü eski planın düğümlerinde fiziksel sayfa bağı yok; tam kaynak/konu kapsamı kabulü verilemez. |
+| Yalnızca belgeye dayanma | Main kısmi sayfa sorgusunu kabul edebiliyor; kısaltılmış metne “TAM metni” diyor. Eksik kaynağa karşı düzeltme saklı çalışma içinde, yayında değil. |
+| Matematik doğruluğu | Önceki doğru örnekler ve daha eski genelleme hatası raporda duruyor. Bugün yeni karşılıklı üretim yok; genel doğruluk veya eşdeğerlik kanıtlanmadı. |
+| Kavramsal anlatım | Ders/pedagoji doğrulayıcıları mevcut; ancak bu hazırlıkta ölçülecek yeni yapılandırılmış ders kaydı yok. Konu haritasında devam sayfasını yanlış komşuya bağlama riski sürüyor. |
+| Üç kademeli soru | 7 Eylül'de iki üründe örneklenmişti. Bugünkü sürüm için aynı istemle yeniden ölçülmedi. |
+| Yanlışa aşamalı ipucu | Önceki canlı bölge → işaret → referans açı örneği olumlu. Main'de ipucu/eğitmen yardımının yenilemeden sonra bağımsız başarıya karışması riski hâlâ var. |
+| Takip bağlamı | Önceki açık sohbet testi olumlu. Yeni oturumda ve yenilemede ders/quiz kanıtının korunması bugün kabul edilmedi; somut istemci durumu açıkları aşağıda. |
+| Yanıt süresi | Yeni içerik için eşit koşullu süre ölçümü yok. Hız üstünlüğü veya hedef gecikme iddiası yok. |
+
+### Yayımlanmamış çalışma ve açık maddeler
+
+16–17 Eylül'de hazırlanan düzeltmeler kaybolmamış: `stash@{0}` — `PR60 merge oncesi: ilgisiz sinav hazirligi/podcast isi (v2)`, sabit kimlik `04fcd6476c6413c8e278d75fd7a0d4009713b712`. 35 dosyalık çalışma ve yeni testler burada saklı. Daha eski kopya `stash@{1}` içinde. Bunlar commit/deploy veya tamamlanmış teslim değildir. Bu son izleme turunda stash uygulanmadı, ürün kodu ve veritabanı değiştirilmedi.
+
+1. **Kaynak ve konu kapsamı:** `source-context.ts` istenen sayfaların yalnız bir kısmı dönse de ilerliyor. Metin 2.200 karakter/sayfa ve 6.000 toplam metin bütçesiyle kesiliyor; etiket ve formüller bu bütçeye ayrıca ekleniyor. `topic-map-llm.ts` sonradan eklenen konuları sıralamadan önceki konu seçebiliyor, sonradan eklenen sayfanın kavramları yeniden çıkarılmıyor. Bunların onarımları stash'te.
+2. **İlerleme ve geri bildirim:** ders adımı/yanlış tekrar kuyruğu, quiz çözümünün görülmüş olması, doğru-yanlış açıklaması ve ipucu/yardım kanıtı yenilemede korunmuyor. Öğrenci çözümü gördükten sonra ilk cevabı değiştirebiliyor. Bunları yakalayan yeni yenileme testleri main'de değil.
+3. **Konu gezinmesi ve tasarım:** eski planda gerçek konulara rağmen sıfır konu gösterimi mümkün. Konu seçimi eşleşme bulamazsa ilgisiz hazır etkinliğe düşebiliyor. Eski `/calis` dersinde `onFinish` bağlanmamış; “Dersi bitir” etkisiz. Erişilebilir sekmeler, gerçek konu envanteri, bitmiş yolun değerlendirmeye açılması ve taşmayı azaltan tasarım düzeltmeleri de stash'te.
+4. **Podcast:** ses rotası ilk 60 satırı alıyor; içerik şeması 112 satıra izin veriyor ve oynatıcı kısmi ses listesini kabul ediyor. Dersten türetilen podcast'te `allowIndependentAccept: true`; anlamsal ret sonrası sezgisel kabul mümkün. Tam ses gruplama ve zorunlu anlamsal inceleme düzeltmeleri yayında değil.
+5. **Doğrulama araçları:** main coverage probe'u kaldırılmış `buildTopicMap` çağrısında bugün başarısız oldu. Aynı hazırlıkla çalışan kalite probe'u “Ölçülen ders: 0”dan sonra altı yeşil işaret verdi. Bu sıfır örnek sonucu **başarı sayılmadı**. Hata/eksik kanıt/ölçülemedi ayrımı yapan düzeltmeler stash'te.
+
+Bugünkü mevcut kodda kaynak/konu grubunun 39 testi ve geri bildirimle ilişkili grubun 22 testi geçti; bu testler yukarıdaki ek regresyon senaryolarının tamamını kapsamıyor. 17 Eylül'de saklanan değişiklikler için alınan 55 kaynak testi ve 24 podcast/probe testi sonucu, bugünkü main'in başarısı olarak aktarılmadı.
+
+### Teslim için kalan somut sıra
+
+1. Saklanan değişiklikleri güncel main'e seçerek birleştir. Özellikle main'deki yeni `synthesizeCharged` ses ücretlendirmesi ve `insufficient_credits` ayrımı korunmalı; eski ses rotası körlemesine geri yüklenmemeli.
+2. Ek regresyon testleri, tam birim test paketi, tür kontrolü, üretim derlemesi ve başarısız iki e2e kontrolü tamamlanmalı. Eski raporun yeşil işaretleri kabul ölçütü olarak kullanılmamalı.
+3. Tek doğru GitHub/Vercel hedefinde yayımla; gerçek öğrenci ekranını masaüstü ve mobilde kontrol et. Commit veya Vercel build başarısı tek başına akış kabulü değil.
+4. Cortex ve Astra oturumları yeniden açıldıktan sonra aynı PDF, aynı konu, aynı üç kademeli sorular ve aynı yanlış cevapla yeni karşılaştırma yap. Kaynak atıflarını PDF'den, soru/çözüm doğruluğunu içerikten kontrol et; ilk cevap ve takip cevabının sürelerini ayrı ölç.
+
+21 Eylül'e bağlı periyodik izleme bu son değerlendirmeyle sona eriyor. İzlemenin bitmesi ürün işinin tamamlandığı anlamına gelmiyor; yukarıdaki teslim maddeleri açık.

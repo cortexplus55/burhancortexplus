@@ -61,10 +61,11 @@ export async function countNewAudioChars(
   if (!lines.length) return 0;
 
   const hashes = lines.map((line) => audioHash(line.text, line.speaker));
-  const { data } = await service
+  const { data, error } = await service
     .from("lesson_audio")
     .select("hash")
     .in("hash", [...new Set(hashes)]);
+  if (error) throw new Error("audio_cache_read_failed");
 
   const cached = new Set((data ?? []).map((row) => row.hash as string));
   const counted = new Set<string>();
@@ -140,10 +141,11 @@ async function ensureAudio(
   const hashes = lines.map((line) => audioHash(line.text, line.speaker));
   const unique = [...new Set(hashes)];
 
-  const { data: cachedRows } = await service
+  const { data: cachedRows, error: cacheError } = await service
     .from("lesson_audio")
     .select("hash, storage_path, duration_ms")
     .in("hash", unique);
+  if (cacheError) return null;
 
   const cache = new Map<string, { path: string; durationMs: number }>();
   for (const row of cachedRows ?? []) {
@@ -161,9 +163,11 @@ async function ensureAudio(
       return all.findIndex((other) => other.hash === item.hash) === i;
     });
 
-  if (missing.length) {
+  // One reservation covers the whole script. Bound provider concurrency without
+  // splitting billing into separately charged client requests.
+  for (let offset = 0; offset < missing.length; offset += 8) {
     const produced = await Promise.all(
-      missing.map(async ({ line, hash }) => {
+      missing.slice(offset, offset + 8).map(async ({ line, hash }) => {
         const result = await synthesizeLine(line.text, line.speaker);
         if (!result) return null;
 
@@ -188,7 +192,7 @@ async function ensureAudio(
 
     const rows = produced.filter((row) => row !== null);
     if (rows.length) {
-      await service.from("lesson_audio").upsert(
+      const { error: writeError } = await service.from("lesson_audio").upsert(
         rows.map((row) => ({
           hash: row.hash,
           storage_path: row.path,
@@ -199,6 +203,7 @@ async function ensureAudio(
         })),
         { onConflict: "hash" },
       );
+      if (writeError) return null;
       for (const row of rows) {
         cache.set(row.hash, { path: row.path, durationMs: row.durationMs });
       }
@@ -216,10 +221,11 @@ async function ensureAudio(
         });
       }
     }
+    if (rows.length !== produced.length) return null;
   }
 
   const resolved = hashes.map((hash) => cache.get(hash));
-  if (resolved.some((entry) => !entry)) return null;
+  if (resolved.some((entry) => !entry || !Number.isFinite(entry.durationMs) || entry.durationMs <= 0)) return null;
 
   const paths = [...new Set(resolved.map((entry) => entry!.path))];
   const { data: signed, error } = await service.storage
@@ -268,7 +274,12 @@ export async function synthesizeCharged(
   userId: string,
   lines: AudioRequest[],
 ): Promise<ChargedAudio> {
-  const units = audioCreditUnits(await countNewAudioChars(service, lines));
+  let units: number;
+  try {
+    units = audioCreditUnits(await countNewAudioChars(service, lines));
+  } catch {
+    return { ok: false, reason: "audio_unavailable" };
+  }
 
   let reservationId: string | null = null;
   if (units > 0) {
@@ -283,11 +294,20 @@ export async function synthesizeCharged(
     // tarafımızın arızası; öğrenciye ücretsiz ses vermektense isteği
     // reddetmek doğru — sessizce bedavaya geçen bir yol, ölçmediğimiz bir
     // maliyet demek.
-    if (!reservation.ok) return { ok: false, reason: "insufficient_credits" };
+    if (!reservation.ok) return {
+      ok: false,
+      reason: reservation.reason === "insufficient_credits" ? "insufficient_credits" : "audio_unavailable",
+    };
     reservationId = reservation.reservationId;
   }
 
-  const tracks = await ensureAudio(service, lines, userId);
+  let tracks: AudioTrack[] | null;
+  try {
+    tracks = await ensureAudio(service, lines, userId);
+  } catch {
+    // Network exceptions must release the same reservation as ordinary failures.
+    tracks = null;
+  }
 
   if (!tracks) {
     if (reservationId) await refundCredits(service, reservationId);

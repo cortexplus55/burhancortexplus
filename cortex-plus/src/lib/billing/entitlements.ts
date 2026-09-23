@@ -98,7 +98,7 @@ function resolveTier(plan: {
 function periodStillValid(periodEnd: string | null | undefined): boolean {
   if (!periodEnd) return true;
   const end = new Date(periodEnd);
-  if (Number.isNaN(end.getTime())) return true;
+  if (Number.isNaN(end.getTime())) return false;
   return end.getTime() > Date.now();
 }
 

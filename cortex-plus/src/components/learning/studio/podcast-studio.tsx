@@ -18,6 +18,7 @@ import {
   type PodcastChapter,
 } from "@/lib/learning/podcast-script";
 import { cn } from "@/lib/utils";
+import { validatePodcastAudio } from "@/lib/learning/podcast-audio-contract";
 
 /**
  * Podcast stüdyosu.
@@ -135,7 +136,9 @@ export function PodcastStudio({
     } else if (!audio.ok || !audio.data.lines?.length) {
       setAudioNote("Ses şu an üretilemedi. Senaryoyu aşağıdan okuyabilirsin.");
     } else {
-      setTracks(audio.data.lines);
+      const verified = validatePodcastAudio(normalized, audio.data.lines);
+      if (verified) setTracks(verified);
+      else setAudioNote("Sesin tamamı doğrulanamadı. Senaryoyu aşağıdan okuyabilirsin.");
     }
 
     setPhase("play");

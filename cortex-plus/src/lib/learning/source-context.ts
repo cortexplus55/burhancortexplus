@@ -123,6 +123,7 @@ const MAX_CHARS_TOTAL = 6000;
  */
 export async function loadPageSourceContext(
   service: SupabaseClient,
+  userId: string,
   documentId: string | null | undefined,
   pageNumbers: number[] | undefined,
   options: { sourceBoundaryMode?: "documents_only" | "allow_supporting" | null } = {},
@@ -133,15 +134,15 @@ export async function loadPageSourceContext(
     throw new SourceUnavailableError();
   }
   const requiredPages = [...new Set(pageNumbers)].sort((a, b) => a - b);
-  const [{ data: doc, error: docError }, { data: pages, error: pagesError }] = await Promise.all([
-    service.from("documents").select("file_name").eq("id", documentId).maybeSingle(),
-    service
+  const { data: doc, error: docError } = await service.from("documents")
+    .select("file_name").eq("id", documentId).eq("user_id", userId).is("deleted_at", null).maybeSingle();
+  if (docError || !doc) throw new SourceUnavailableError();
+  const { data: pages, error: pagesError } = await service
       .from("document_pages")
       .select("page_number, text_content, formulas, extraction_ok, page_kind")
       .eq("document_id", documentId)
       .in("page_number", requiredPages)
-      .order("page_number", { ascending: true }),
-  ]);
+      .order("page_number", { ascending: true });
 
   if (docError || pagesError || !doc) throw new SourceUnavailableError();
   const usable = (pages ?? []).filter(

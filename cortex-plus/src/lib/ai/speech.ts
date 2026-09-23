@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { env } from "@/lib/env";
 import { mp3DurationMs } from "@/lib/audio/mp3-duration";
 import type { SpeakerId } from "@/lib/learning/podcast-script";
+import { MAX_SPEECH_LINE_CHARS } from "@/lib/learning/podcast-audio-contract";
 
 /**
  * Sunucu tarafı ses: podcast için seslendirme, sözlü sınav için çözümleme.
@@ -46,9 +47,9 @@ export async function synthesizeLine(
 ): Promise<SynthResult | null> {
   if (!env.OPENAI_API_KEY) return null;
   const clean = text.trim();
-  if (!clean) return null;
+  if (!clean || clean.length > MAX_SPEECH_LINE_CHARS) return null;
 
-  const input = clean.slice(0, 1200);
+  const input = clean;
 
   try {
     const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });

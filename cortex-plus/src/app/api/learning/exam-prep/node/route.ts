@@ -652,6 +652,7 @@ export async function POST(request: Request) {
       teachingV2 && !voiceSession
         ? await loadPageSourceContext(
             service,
+            userId,
             prepSource.document_id,
             sessionMeta?.sourcePages,
             { sourceBoundaryMode },
@@ -1374,6 +1375,7 @@ async function generateNodePayload(input: {
       // rejected mini drafts too often in Stage 5 browser checks.
       difficulty: input.teachingV2 ? "hard" : undefined,
       ...v2Common,
+      allowIndependentAccept: false,
       buildIndependent: input.teachingV2
         ? (_c, parsed) => {
             const data = schema.safeParse(parsed).data;
@@ -1383,6 +1385,8 @@ async function generateNodePayload(input: {
                 : ["Podcast şeması geçersiz."],
               minItems: 4,
               ...sourceIndependent,
+              sourceExcerpt: lessonBrief || input.sourceBlock,
+              requireSourceSupport: Boolean(lessonBrief || input.sourceBlock),
             };
           }
         : undefined,

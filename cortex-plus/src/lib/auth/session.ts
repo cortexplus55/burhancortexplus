@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { homePathForRole } from "@/lib/parity/signup";
+import { isAccountActive } from "@/lib/auth/active-account";
 
 export async function requireUser() {
   const supabase = await createClient();
@@ -8,6 +9,7 @@ export async function requireUser() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/giris");
+  if (!(await isAccountActive(supabase))) redirect("/giris");
   return { supabase, user };
 }
 

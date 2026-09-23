@@ -44,6 +44,7 @@ describe("exam activity with an incomplete physical page source", () => {
         const builder = {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
+          is: vi.fn().mockReturnThis(),
           in: pageFilter,
           order: vi.fn().mockResolvedValue({ data: [
             { page_number: 3, text_content: "Derece ve radyan açı ölçüleridir.", formulas: ["180° = π rad"], extraction_ok: true, page_kind: "content" },

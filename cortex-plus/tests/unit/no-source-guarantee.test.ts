@@ -51,16 +51,15 @@ describe("kredi güvencesi rotada bağlı", () => {
     expect(route).toContain("const noSource =");
   });
 
-  /* Asıl şart: işaret varsa tahsil değil iade. */
+  /* Asıl şart: işaret varsa tahsil değil iade — atomic RPC p_charge ile. */
   it("işaret varsa kredi iade ediliyor, yoksa tahsil", () => {
     const block = route.slice(route.indexOf("if (noSource) {"));
-    const decision = block.slice(0, block.indexOf("recordUsage"));
-    expect(decision).toContain("undoSpend()");
-    expect(decision).toContain("commitCredits");
-    // İade dalı tahsilden önce gelmeli; sıra bozulursa her cevap tahsil edilir.
-    expect(decision.indexOf("undoSpend()")).toBeLessThan(
-      decision.indexOf("commitCredits"),
-    );
+    expect(block).toContain("charge = false");
+    expect(route).toContain("complete_chat_operation");
+    expect(route).toContain("p_charge: charge");
+    // noSource dalı charge=false set eder; RPC charge=false → credit_refund.
+    const noSourceIdx = block.indexOf("charge = false");
+    expect(noSourceIdx).toBeGreaterThanOrEqual(0);
   });
 
   /*
@@ -69,8 +68,12 @@ describe("kredi güvencesi rotada bağlı", () => {
     kendi muhasebemizi kör eder.
   */
   it("iade edilse de kullanım kaydı yazılıyor", () => {
-    const block = route.slice(route.indexOf("if (noSource) {"));
-    expect(block.slice(0, 400)).toContain("recordUsage");
+    // recordUsage, noSource kararından ÖNCE (generation + verify) çalışır.
+    const beforeDecision = route.slice(
+      0,
+      route.indexOf("const noSource ="),
+    );
+    expect(beforeDecision).toContain("recordUsage");
   });
 });
 

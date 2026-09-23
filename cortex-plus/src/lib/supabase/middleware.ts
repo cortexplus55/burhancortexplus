@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { homePathForRole } from "@/lib/parity/signup";
 import { onboardingPathForRole } from "@/lib/auth/onboarding-path";
+import { isAccountActive } from "@/lib/auth/active-account";
 
 /** Legacy veli/öğretmen URL’leri — öğrenci-only ürün. */
 const RETIRED_PREFIXES = [
@@ -123,11 +124,40 @@ export async function updateSession(request: NextRequest) {
     isProtected || path === "/" || path === "/giris" || path === "/kayit";
   if (!needsRole) return supabaseResponse;
 
+  let active: boolean;
+  try {
+    active = await isAccountActive(supabase);
+  } catch {
+    return new NextResponse("Hesabına şu an erişilemiyor. Lütfen biraz sonra yeniden dene.", {
+      status: 503,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Retry-After": "30", "Cache-Control": "no-store" },
+    });
+  }
+  if (!active) {
+    await supabase.auth.signOut({ scope: "local" });
+    const url = request.nextUrl.clone();
+    url.pathname = "/giris";
+    url.search = "";
+    const response = NextResponse.redirect(url);
+    for (const cookie of supabaseResponse.cookies.getAll()) response.cookies.set(cookie);
+    return response;
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
-    .select("primary_role, onboarding_completed_at")
+    .select("primary_role, onboarding_completed_at, deleted_at")
     .eq("id", user.id)
     .maybeSingle();
+
+  if (profile?.deleted_at) {
+    await supabase.auth.signOut({ scope: "local" });
+    const url = request.nextUrl.clone();
+    url.pathname = "/giris";
+    url.search = "";
+    const response = NextResponse.redirect(url);
+    for (const cookie of supabaseResponse.cookies.getAll()) response.cookies.set(cookie);
+    return response;
+  }
 
   const role = (profile?.primary_role as string | undefined) ?? "student";
   const home = homePathForRole(role);

@@ -133,7 +133,7 @@ export async function generatePodcastFromLesson(input: {
     difficulty: "hard",
     validationProfile: "v2",
     maxDraftAttempts: 2,
-    allowIndependentAccept: true,
+    allowIndependentAccept: false,
     activityKind: "podcast",
     idempotencyKey: input.idempotencyKey,
     buildIndependent: (_c, parsed) => {
@@ -146,7 +146,7 @@ export async function generatePodcastFromLesson(input: {
         ? validatePodcastPedagogy(data)
         : [`Podcast şeması geçersiz. ${describeDraft(parsed)}`];
       if (issues.length) input.onReject?.(issues);
-      return { pedagogyIssues: issues, minItems: 4 };
+      return { pedagogyIssues: issues, minItems: 4, sourceExcerpt: brief, requireSourceSupport: true };
     },
     schemaHint:
       'JSON: {"title":string,"objective":string,"sourcePoints":string[],"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +

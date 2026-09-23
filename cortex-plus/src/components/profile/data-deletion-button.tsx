@@ -55,7 +55,7 @@ export function DataDeletionButton({
                 startTransition(async () => {
                   const result = await requestDataDeletion();
                   if (result.ok) {
-                    toast.success("Hesabın silindi. Güle güle.");
+                    toast.success(result.status === "completed" ? "Hesabın silindi." : "Silme talebin alındı. Temizlik arka planda devam edecek.");
                     window.location.href = "/";
                   } else toast.error("Silme tamamlanamadı.");
                   setConfirming(false);
@@ -82,7 +82,7 @@ export function DataDeletionButton({
                 startTransition(async () => {
                   const result = await requestDataDeletion();
                   if (result.ok) {
-                    toast.success("Hesabın silindi. Güle güle.");
+                    toast.success(result.status === "completed" ? "Hesabın silindi." : "Silme talebin alındı. Temizlik arka planda devam edecek.");
                     window.location.href = "/";
                   } else toast.error("Silme tamamlanamadı.");
                   setConfirming(false);

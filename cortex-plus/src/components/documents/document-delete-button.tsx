@@ -22,13 +22,15 @@ export function DocumentDeleteButton({ documentId }: { documentId: string }) {
   }
 
   return (
-    <span className="flex items-center gap-2 text-xs">
+    <span className="flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Belge silme onayı">
+      <span className="basis-full text-red-200">Belge ve bu belgeye bağlı çalışma planları ile etkinlikler kalıcı olarak silinecek.</span>
       <button
         type="button"
         disabled={pending}
         className="rounded-full bg-red-500/20 px-2.5 py-1 text-red-200 disabled:opacity-60"
         onClick={() =>
           startTransition(async () => {
+            try {
             const res = await fetch(`/api/documents/${documentId}`, {
               method: "DELETE",
             });
@@ -38,8 +40,14 @@ export function DocumentDeleteButton({ documentId }: { documentId: string }) {
               setConfirming(false);
               return;
             }
-            toast.success("Belge silindi.");
+            const body = await res.json();
+            toast.success(body.status === "pending"
+              ? "Belge erişime kapatıldı. Dosya temizliği arka planda tamamlanacak."
+              : "Belge ve bağlı çalışma içerikleri silindi.");
             router.refresh();
+            } catch {
+              toast.error("Bağlantı kurulamadı. Silme işlemini yeniden deneyebilirsin.");
+            }
           })
         }
       >
@@ -48,6 +56,7 @@ export function DocumentDeleteButton({ documentId }: { documentId: string }) {
       <button
         type="button"
         className="text-[var(--cs-muted)] underline"
+        disabled={pending}
         onClick={() => setConfirming(false)}
       >
         Vazgeç

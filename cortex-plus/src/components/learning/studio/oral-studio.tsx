@@ -106,11 +106,28 @@ export function OralStudio({
       const text = last?.[0]?.transcript ?? "";
       if (text) setAnswer(text);
     };
-    rec.onerror = () => setListening(false);
+    rec.onerror = (event) => {
+      setListening(false);
+      const code = event?.error ?? "";
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        toast.error("Mikrofon izni yok", {
+          description: "İzni açabilir veya cevabı yazabilirsin.",
+        });
+      } else if (code === "no-speech") {
+        toast.message("Ses algılanamadı", {
+          description: "Yeniden dene veya cevabı yaz.",
+        });
+      }
+    };
     rec.onend = () => setListening(false);
     recRef.current = rec;
-    rec.start();
-    setListening(true);
+    try {
+      rec.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+      toast.error("Mikrofon açılamadı. Cevabı yazabilirsin.");
+    }
   }
 
   async function submitTurn() {

@@ -4,6 +4,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { synthesizeCharged } from "@/lib/learning/audio-cache";
 import { splitSentences, SPEAKERS } from "@/lib/learning/podcast-script";
+import { MAX_SPEECH_LINE_CHARS } from "@/lib/learning/podcast-audio-contract";
 
 /**
  * Tek konuşma parçasını seslendirir — sözlü sınavda eğitmenin sesi buradan
@@ -31,11 +32,13 @@ export async function POST(request: Request) {
     return errorResponse(402, "premium_required");
   }
 
-  const parsed = bodySchema.safeParse(await request.json());
+  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
-  const sentences = splitSentences(parsed.data.text).slice(0, MAX_SENTENCES);
-  if (!sentences.length) return errorResponse(400, "invalid_input");
+  const sentences = splitSentences(parsed.data.text);
+  if (!sentences.length || sentences.length > MAX_SENTENCES || sentences.some((text) => text.length > MAX_SPEECH_LINE_CHARS)) {
+    return errorResponse(400, "invalid_input");
+  }
 
   const result = await synthesizeCharged(
     guard.ctx.service,
