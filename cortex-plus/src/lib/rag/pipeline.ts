@@ -24,6 +24,8 @@ import {
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
 import { runPdfLearningV2 } from "@/lib/documents/pdf-learning-v2";
+import { logOpsEvent } from "@/lib/observability/ops-log";
+import { mapExtractFailure, userMessageForProcessError } from "@/lib/documents/process-user-message";
 
 export const EMBEDDING_MODEL = "text-embedding-3-small";
 
@@ -62,7 +64,9 @@ export async function processDocument(
 
   if (!doc) return { ok: false, chunks: 0, error: "not_found" };
 
-  const fail = async (message: string) => {
+  const fail = async (code: string) => {
+    const message = userMessageForProcessError(code);
+    logOpsEvent("document_parse_failed", { documentId, code });
     await service
       .from("documents")
       .update({ status: "failed", error_message: message })
@@ -176,7 +180,14 @@ export async function processDocument(
     }
     pages = read.pages;
   } else {
-    const extracted = await extractText(buffer, doc.mime_type);
+    let extracted;
+    try {
+      extracted = await extractText(buffer, doc.mime_type);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === "encrypted_pdf") return fail("encrypted_pdf");
+      return fail(mapExtractFailure(msg));
+    }
 
     if (extracted.ok && extracted.pages.length) {
       pages = extracted.pages;

@@ -22,7 +22,7 @@ import { DEFAULT_TUTOR_STYLE, type TutorStyle } from "@/lib/learning/tutor-style
 import { toast } from "sonner";
 import "@/styles/parity-marketing.css";
 
-const STEPS = 3;
+const STEPS = 4;
 const DRAFT_KEY = "cortex-onboarding-draft";
 
 type Draft = {
@@ -30,6 +30,8 @@ type Draft = {
   grade: string;
   subject: string;
   goal: string;
+  examDate: string;
+  hasDocument: "yes" | "no" | "";
   tutorStyle: TutorStyle;
 };
 
@@ -50,6 +52,8 @@ export default function OnboardingPage() {
   const [grade, setGrade] = useState("");
   const [subject, setSubject] = useState("");
   const [goal, setGoal] = useState("");
+  const [examDate, setExamDate] = useState("");
+  const [hasDocument, setHasDocument] = useState<"yes" | "no" | "">("");
   const [tutorStyle, setTutorStyle] = useState<TutorStyle>(DEFAULT_TUTOR_STYLE);
   const [saving, setSaving] = useState(false);
 
@@ -60,6 +64,8 @@ export default function OnboardingPage() {
       setGrade(draft.grade || "");
       setSubject(draft.subject || "");
       setGoal(draft.goal || "");
+      setExamDate(draft.examDate || "");
+      setHasDocument(draft.hasDocument || "");
       if (draft.tutorStyle) setTutorStyle(draft.tutorStyle);
     }
     setHydrated(true);
@@ -70,12 +76,14 @@ export default function OnboardingPage() {
     try {
       sessionStorage.setItem(
         DRAFT_KEY,
-        JSON.stringify({ step, grade, subject, goal, tutorStyle } satisfies Draft),
+        JSON.stringify({ step, grade, subject, goal, examDate, hasDocument, tutorStyle } satisfies Draft),
       );
     } catch {
       /* private mode */
     }
-  }, [hydrated, step, grade, subject, goal, tutorStyle]);
+  }, [hydrated, step, grade, subject, goal, examDate, hasDocument, tutorStyle]);
+
+  const todayIso = new Date().toISOString().slice(0, 10);
 
   async function finish() {
     if (!goal) {
@@ -83,6 +91,16 @@ export default function OnboardingPage() {
         description: "Hangi sınava hazırlandığını seçmen gerekiyor.",
       });
       setStep(2);
+      return;
+    }
+    if (examDate && examDate < todayIso) {
+      toast.error("Geçmiş bir sınav tarihi seçemezsin.");
+      setStep(2);
+      return;
+    }
+    if (!hasDocument) {
+      toast.error("Belgen var mı?", { description: "Bir seçenek işaretle." });
+      setStep(3);
       return;
     }
     setSaving(true);
@@ -133,11 +151,18 @@ export default function OnboardingPage() {
           .select("id")
           .eq("user_id", user.id)
           .limit(1);
+        const payload = {
+          user_id: user.id,
+          goal_text: goal,
+          target_date: examDate || null,
+        };
         if (!goals?.length) {
-          await supabase.from("learning_goals").insert({
-            user_id: user.id,
-            goal_text: goal,
-          });
+          await supabase.from("learning_goals").insert(payload);
+        } else if (examDate) {
+          await supabase
+            .from("learning_goals")
+            .update({ target_date: examDate, goal_text: goal })
+            .eq("id", goals[0].id);
         }
       }
 
@@ -148,7 +173,11 @@ export default function OnboardingPage() {
       }
 
       toast.success("Profilin hazır!");
-      router.push(homePathForRole(existing?.primary_role));
+      router.push(
+        hasDocument === "yes"
+          ? "/dokumanlar"
+          : homePathForRole(existing?.primary_role),
+      );
     } finally {
       setSaving(false);
     }
@@ -255,16 +284,66 @@ export default function OnboardingPage() {
                   ))}
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="exam-date">Sınav tarihi (isteğe bağlı)</Label>
+                <input
+                  id="exam-date"
+                  type="date"
+                  min={todayIso}
+                  value={examDate}
+                  onChange={(e) => setExamDate(e.target.value)}
+                  className="w-full rounded-xl border border-[var(--mk-border)] bg-[var(--mk-surface)] px-3 py-2 text-sm"
+                />
+              </div>
             </div>
             <OnboardingContinue
               disabled={!goal}
-              label="Planımı oluştur"
+              label="Devam"
               onClick={() => setStep(3)}
             />
           </>
         ) : null}
 
         {step === 3 ? (
+          <>
+            <p className="onboarding-kicker">Belge</p>
+            <h2 className="signup-step-title">Çalışma belgen var mı?</h2>
+            <p className="mt-2 text-sm text-[var(--mk-muted)]">
+              PDF veya fotoğraf yükleyerek yalnızca kendi belgenden öğrenebilirsin.
+            </p>
+            <div className="mk-card mt-6 space-y-2 p-4">
+              <OnboardingChoice
+                selected={hasDocument === "yes"}
+                onClick={() => setHasDocument("yes")}
+                ariaLabel="Belgem var"
+                className="block p-4"
+              >
+                <span className="block font-semibold">Belgem var</span>
+                <span className="block text-sm text-[var(--mk-muted)]">
+                  Bitince belge yükleme ekranına gideceksin.
+                </span>
+              </OnboardingChoice>
+              <OnboardingChoice
+                selected={hasDocument === "no"}
+                onClick={() => setHasDocument("no")}
+                ariaLabel="Belgem yok"
+                className="block p-4"
+              >
+                <span className="block font-semibold">Belgem yok</span>
+                <span className="block text-sm text-[var(--mk-muted)]">
+                  Sonra istediğin zaman belge ekleyebilirsin.
+                </span>
+              </OnboardingChoice>
+            </div>
+            <OnboardingContinue
+              disabled={!hasDocument}
+              label="Devam"
+              onClick={() => setStep(4)}
+            />
+          </>
+        ) : null}
+
+        {step === 4 ? (
           <>
             <p className="onboarding-kicker">Öğretmen</p>
             <h2 className="signup-step-title">AI öğretmen stili</h2>

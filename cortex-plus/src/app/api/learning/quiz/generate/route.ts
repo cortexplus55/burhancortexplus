@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import OpenAI from "openai";
 import { verifyEducationalContent } from "@/lib/ai/quality-gate";
-import { recordUsage } from "@/lib/credits/service";
-import { withUser } from "@/lib/api/guards";
+import {
+  commitCredits,
+  recordUsage,
+  refundCredits,
+  reserveCredits,
+} from "@/lib/credits/service";
+import { errorResponse, withUser } from "@/lib/api/guards";
 import { env } from "@/lib/env";
 import { getTeacherEntitlements, incrementTeacherUsage } from "@/lib/teacher/entitlements";
 import { CONTENT_STYLE, SYSTEM_GUARDRAIL } from "@/lib/ai/generate";
@@ -12,6 +17,7 @@ const schema = z.object({
   topic: z.string().min(3).max(500),
   count: z.number().int().min(4).max(10).optional(),
   difficulty: z.enum(["easy", "medium", "hard", "mixed"]).optional(),
+  operationId: z.string().uuid().optional(),
 });
 
 export async function POST(request: Request) {
@@ -58,16 +64,22 @@ export async function POST(request: Request) {
     }
   }
 
-  const idempotencyKey = `quiz_${user.id}_${Date.now()}`;
-
-  const { data: resId, error: reserveError } = await service.rpc("credit_reserve", {
-    p_user_id: user.id,
-    p_action_code: "QUIZ_GENERATE",
-    p_idempotency_key: idempotencyKey,
-  });
-  if (reserveError) {
-    return NextResponse.json({ error: "insufficient_credits" }, { status: 402 });
+  const operationId = parsedBody.data.operationId ?? crypto.randomUUID();
+  const idempotencyKey = `quiz:${operationId}`;
+  const reserve = await reserveCredits(service, user.id, "QUIZ_GENERATE", idempotencyKey);
+  if (!reserve.ok) {
+    if (reserve.reason === "insufficient_credits") {
+      return NextResponse.json({ error: "insufficient_credits" }, { status: 402 });
+    }
+    if (reserve.reason === "operation_in_progress") {
+      return errorResponse(409, "operation_in_progress");
+    }
+    if (reserve.reason === "operation_completed") {
+      return errorResponse(409, "operation_completed");
+    }
+    return NextResponse.json({ error: "reserve_failed" }, { status: 503 });
   }
+  const resId = reserve.reservationId;
 
   try {
     if (!env.OPENAI_API_KEY) throw new Error("no_openai");
@@ -124,7 +136,7 @@ export async function POST(request: Request) {
           .order("sort_order")
       : { data: null };
 
-    await service.rpc("credit_commit", { p_reservation_id: resId });
+    await commitCredits(service, resId);
 
     if (isTeacher) {
       const entitlements = await getTeacherEntitlements(service, user.id, roles);
@@ -154,7 +166,7 @@ export async function POST(request: Request) {
             })),
     });
   } catch {
-    await service.rpc("credit_refund", { p_reservation_id: resId });
+    await refundCredits(service, resId);
     return NextResponse.json({ error: "generate_failed" }, { status: 500 });
   }
 }

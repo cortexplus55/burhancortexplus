@@ -50,7 +50,7 @@ export function DocumentUpload({
     }
 
     setStage("uploading");
-    setStatusDetail("Dosya hesabına yükleniyor…");
+    setStatusDetail("Dosyan yükleniyor…");
     try {
       const form = new FormData();
       form.append("file", file);
@@ -69,8 +69,8 @@ export function DocumentUpload({
       setStage("processing");
       setStatusDetail(
         learningV2
-          ? "Sayfalar okunuyor ve konu haritası çıkarılıyor…"
-          : "Doküman işleniyor…",
+          ? "Belgen okunuyor; metin çıkarılıyor ve konu haritası hazırlanıyor…"
+          : "Belgen okunuyor; metin çıkarılıyor ve içerik hazırlanıyor…",
       );
       const processRes = await fetch("/api/documents/process", {
         method: "POST",

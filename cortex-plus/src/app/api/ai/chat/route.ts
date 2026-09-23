@@ -80,9 +80,9 @@ export async function POST(request: Request) {
         documentAttached = true;
         // Prefer the canonical parsed pages, including OCR, over reparsing every question.
         const { data: pages, error: pagesError } = await service.from("document_pages")
-          .select("id,page_number,raw_text").eq("document_id", rest.imageDocumentId).order("page_number");
+          .select("id,page_number,text_content").eq("document_id", rest.imageDocumentId).order("page_number");
         if (pagesError) throw new Error("source_unavailable");
-        let sourcePages = (pages ?? []).map((p) => ({ page: p.page_number as number, text: p.raw_text as string }));
+        let sourcePages = (pages ?? []).map((p) => ({ page: p.page_number as number, text: p.text_content as string }));
         if (!sourcePages.length) {
           const { data, error: downloadError } = await service.storage.from("documents").download(doc.storage_path);
           if (downloadError || !data) throw new Error("source_unavailable");

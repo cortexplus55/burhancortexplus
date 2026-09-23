@@ -12,11 +12,15 @@ import {
 import { loadTopicMapSnapshot } from "@/lib/documents/pdf-learning-v2";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
+import { DocumentPdfPreview } from "@/components/documents/document-pdf-preview";
 
 export const metadata = { title: "Belge" };
 export const dynamic = "force-dynamic";
 
-type PageProps = { params: Promise<{ documentId: string }> };
+type PageProps = {
+  params: Promise<{ documentId: string }>;
+  searchParams: Promise<{ page?: string }>;
+};
 
 const statusLabels: Record<string, string> = {
   pending: "Bekliyor",
@@ -25,8 +29,10 @@ const statusLabels: Record<string, string> = {
   failed: "Başarısız",
 };
 
-export default async function DocumentDetailPage({ params }: PageProps) {
+export default async function DocumentDetailPage({ params, searchParams }: PageProps) {
   const { documentId } = await params;
+  const { page: pageParam } = await searchParams;
+  const initialPage = Math.max(1, Number(pageParam) || 1);
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
   const service = createServiceClient();
@@ -35,7 +41,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   const { data: doc } = await service
     .from("documents")
     .select(
-      "id, user_id, file_name, status, page_count, created_at, updated_at, topic_map_status, topic_map_updated_at, deleted_at",
+      "id, user_id, file_name, status, page_count, mime_type, storage_path, error_message, created_at, updated_at, topic_map_status, topic_map_updated_at, deleted_at",
     )
     .eq("id", documentId)
     .maybeSingle();
@@ -43,6 +49,14 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   if (!doc || doc.deleted_at || doc.user_id !== user.id) notFound();
 
   const completed = doc.status === "completed";
+  const isPdf = doc.mime_type === "application/pdf";
+  let pdfSignedUrl: string | null = null;
+  if (completed && isPdf && doc.storage_path) {
+    const { data: signed } = await service.storage
+      .from("documents")
+      .createSignedUrl(doc.storage_path as string, 600);
+    pdfSignedUrl = signed?.signedUrl ?? null;
+  }
   const mapReady =
     doc.topic_map_status === "ready" || doc.topic_map_status === "reviewed";
   const canGenerate = completed && (!pdfLearningV2 || mapReady);
@@ -142,12 +156,22 @@ export default async function DocumentDetailPage({ params }: PageProps) {
               />
             </div>
           </section>
+        ) : doc.status === "failed" ? (
+          <section className="cs-pay-card p-5 text-sm text-red-300">
+            {(doc.error_message as string | null) ??
+              "Belge işlenemedi. Tekrar yüklemeyi dene."}
+          </section>
         ) : (
           <section className="cs-pay-card p-5 text-sm text-[var(--cs-muted)]">
-            Belge hâlâ işleniyor. Quiz, podcast ve plan butonları hazır olunca
-            açılacak.
+            {doc.status === "processing"
+              ? "Belgen okunuyor ve içerik hazırlanıyor…"
+              : "Belge bekliyor…"}
           </section>
         )}
+
+        {pdfSignedUrl ? (
+          <DocumentPdfPreview signedUrl={pdfSignedUrl} initialPage={initialPage} />
+        ) : null}
 
         {snapshot?.topics?.length ? (
           <section className="space-y-2">

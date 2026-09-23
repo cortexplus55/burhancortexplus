@@ -210,6 +210,9 @@ export function ChatPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  /** Aynı kullanıcı mesajı yeniden denendiğinde (regenerate) çift ücret olmasın. */
+  const chatOperationIds = useRef<Map<string, string>>(new Map());
+  const [keyboardInset, setKeyboardInset] = useState(0);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [subject, setSubject] = useState("Matematik");
@@ -396,6 +399,22 @@ export function ChatPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant]);
 
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const sync = () => {
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardInset(inset > 48 ? inset : 0);
+    };
+    vv.addEventListener("resize", sync);
+    vv.addEventListener("scroll", sync);
+    sync();
+    return () => {
+      vv.removeEventListener("resize", sync);
+      vv.removeEventListener("scroll", sync);
+    };
+  }, []);
+
   function clearPending() {
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPendingFile(null);
@@ -548,6 +567,13 @@ export function ChatPanel({
     const controller = new AbortController();
     abortRef.current = controller;
 
+    const opKey = prefixed.trim();
+    let operationId = chatOperationIds.current.get(opKey);
+    if (!operationId) {
+      operationId = crypto.randomUUID();
+      chatOperationIds.current.set(opKey, operationId);
+    }
+
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
@@ -555,6 +581,7 @@ export function ChatPanel({
         signal: controller.signal,
         body: JSON.stringify({
           message: prefixed,
+          operationId,
           actionCode: advanced ? "AI_CHAT_ADVANCED" : "AI_CHAT_STANDARD",
           conversationId: conversationId.current,
           useDocuments,
@@ -974,6 +1001,7 @@ export function ChatPanel({
               "cp-sor-composer-zone",
               !isPremium && "cp-sor-composer-zone--aside",
             )}
+            style={keyboardInset ? { paddingBottom: keyboardInset } : undefined}
           >
             <div className="cp-sor-composer-main">
             {showSubjectPicker ? (

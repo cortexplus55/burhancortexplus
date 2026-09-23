@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { AskParentPaymentButton } from "@/components/paywall/ask-parent-payment";
 import { PremiumPlanHero } from "@/components/marketing/premium-plan-hero";
 import { billingPeriodOf } from "@/lib/payments/subscription";
+import { formatTry, formatTryWhole } from "@/lib/format";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import { TrustStrip } from "@/components/parity/trust-strip";
@@ -84,15 +85,11 @@ function tierOf(plan: Plan): Tier | "other" {
   return "other";
 }
 
-/** Kuruş → tam lira. Ondalık göstermiyoruz; fiyatlar zaten tam liralık. */
-function lira(kurus: number): number {
-  return Math.round(kurus / 100);
-}
-
-/** Yıllık planın aylık karşılığı — referans ürün da böyle gösteriyor. */
-function perMonthLira(plan: Plan): number {
-  const total = lira(plan.price_try);
-  return billingPeriodOf(plan) === "yearly" ? Math.round(total / 12) : total;
+/** Yıllık planın aylık karşılığı (kuruş). */
+function perMonthKurus(plan: Plan): number {
+  return billingPeriodOf(plan) === "yearly"
+    ? Math.round(plan.price_try / 12)
+    : plan.price_try;
 }
 
 /** Yıllığın aylığa göre kaç puan ucuz olduğu. Hesaplanamıyorsa null. */
@@ -102,10 +99,6 @@ function savingPercent(tier: TierPlans): number | null {
   if (twelveMonths <= 0) return null;
   const saved = Math.round((1 - tier.yearly.price_try / twelveMonths) * 100);
   return saved > 0 ? saved : null;
-}
-
-function tl(value: number): string {
-  return value.toLocaleString("tr-TR");
 }
 
 export function SubscriptionCards({
@@ -191,8 +184,8 @@ export function SubscriptionCards({
   */
   const plusWeekly = plusTier.weekly;
 
-  const plusPerMonth = plusPlan ? perMonthLira(plusPlan) : null;
-  const sigmaPerMonth = sigmaPlan ? perMonthLira(sigmaPlan) : null;
+  const plusPerMonthLabel = plusPlan ? formatTryWhole(perMonthKurus(plusPlan)) : null;
+  const sigmaPerMonthLabel = sigmaPlan ? formatTryWhole(perMonthKurus(sigmaPlan)) : null;
 
   const plusSaving = savingPercent(plusTier);
   const sigmaSaving = savingPercent(sigmaTier);
@@ -202,7 +195,7 @@ export function SubscriptionCards({
   function billingNoteFor(plan: Plan | undefined): string {
     if (!plan) return yearly ? "yıllık faturalandırılır" : "aylık faturalandırılır";
     if (billingPeriodOf(plan) === "yearly") {
-      return `yıllık faturalandırılır · toplam ₺${tl(lira(plan.price_try))}`;
+      return `yıllık faturalandırılır · toplam ${formatTry(plan.price_try)}`;
     }
     return "aylık faturalandırılır";
   }
@@ -468,8 +461,8 @@ export function SubscriptionCards({
                 Günlük öğrenme için
               </p>
               <p className="mt-4 text-3xl font-bold">
-                {plusPerMonth === null ? "Yapılandırılıyor" : `₺${tl(plusPerMonth)}`}
-                {plusPerMonth === null ? null : (
+                {plusPerMonthLabel === null ? "Yapılandırılıyor" : plusPerMonthLabel}
+                {plusPerMonthLabel === null ? null : (
                   <span className="text-base font-normal text-[var(--cs-muted)]">
                     {" "}/ ay
                   </span>
@@ -526,7 +519,7 @@ export function SubscriptionCards({
                 >
                   {loadingId === plusWeekly.id
                     ? "Hazırlanıyor…"
-                    : `Bir hafta dene · ₺${tl(lira(plusWeekly.price_try))}`}
+                    : `Bir hafta dene · ${formatTryWhole(plusWeekly.price_try)}`}
                 </button>
               ) : null}
               {plusWeekly && !plusOwned && !isParent ? (
@@ -599,7 +592,7 @@ export function SubscriptionCards({
                   Ciddi çalışma için
                 </p>
                 <p className="mt-4 text-3xl font-bold">
-                  ₺{tl(sigmaPerMonth ?? 0)}
+                  {sigmaPerMonthLabel ?? formatTryWhole(0)}
                   <span className="text-base font-normal text-[var(--cs-muted)]">
                     {" "}
                     / ay
@@ -675,7 +668,7 @@ export function SubscriptionCards({
                 <div>
                   <h3 className="font-medium">{plan.name}</h3>
                   <p className="text-sm text-[var(--cs-muted)]">
-                    ₺{tl(lira(plan.price_try))} · {plan.credit_amount} kredi
+                    {formatTryWhole(plan.price_try)} · {plan.credit_amount} kredi
                   </p>
                 </div>
                 <button

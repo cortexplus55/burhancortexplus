@@ -17,7 +17,7 @@
 | Remaining P1 | 3 |
 | Remaining P2 | 2 |
 | Remaining P3 | 1 |
-| Unit tests | 1087 passed / 0 failed (107 files) |
+| Unit tests | 1091 passed / 0 failed (109 files) |
 | E2E | 42 passed / 0 failed |
 | Build | `npm run build` **pass** |
 | Typecheck | **pass** |
@@ -53,7 +53,10 @@
 | Stuck docs “İşleniyor” | Eventually resolve/fail | Observed old stuck rows on live | Fail (P2) | Reprocess UI exists |
 | Live dual-user isolation | Marker not leak | Not re-run live | Open (P1) | RLS + ownership code present |
 | Real PayTR charge | Success + webhook | Not executed | Open (P1) | Buttons live; no card this gate |
-| Deploy UAT WIP | Production = RC | Working tree dirty | Open (P0) | Blocks READY |
+| Deploy UAT RC | Production = RC | RC built locally; push pending | Open (P0) | Blocks READY until Vercel prod |
+| Chat `text_content` attach | Parsed pages in chat | Fixed | Pass | |
+| Quiz credit idempotency | reserve+claim | Fixed | Pass | |
+| PayTR tier-only subscription | No name LIKE trap | Migration added | Pass (apply live) | |
 
 ---
 
@@ -61,7 +64,7 @@
 
 ### P0 BLOCKER
 
-1. **UAT hardening not deployed** — open-redirect fix, chat atomic settlement client path, document deletion helpers, oral mic messaging remain in the working tree. Live app still on prior commit while DB already has new RPCs/tables. Ship only after commit + production deploy + smoke.
+1. **UAT RC not on production** — local RC passes typecheck/tests/build/e2e; ship via `git push origin main` + post-deploy smoke (login, only-document chat, belge PDF citation jump).
 
 ### P1 HIGH
 
@@ -91,8 +94,11 @@
 - Live revoke: `parent_coach_spend` / `parent_coach_refund` from anon+authenticated  
 - E2E public homepage heading + mobile pricing assertions  
 - `LAUNCH_READINESS.md` + this report  
-
-Prior WIP retained and finished where it compiled/tested (credits, deletion, grounding, podcast contracts).
+- Chat `operationId` client idempotency; quiz generate `reserveCredits` parity  
+- `formatTry` on subscription checkout cards; encrypted PDF user message  
+- Document PDF preview + `#belge-onizleme`; onboarding exam date + belge adımı  
+- PayTR `finalize_paytr_payment` tier-only subscription migration  
+- `logOpsEvent` structured server logging helper  
 
 ---
 
@@ -101,7 +107,7 @@ Prior WIP retained and finished where it compiled/tested (credits, deletion, gro
 | Command | Result |
 |---|---|
 | `npm run typecheck` | Pass |
-| `npm test` | 1087 passed |
+| `npm test` | 1091 passed |
 | `npm run build` | Pass |
 | `npm run test:e2e` | **42 passed** |
 

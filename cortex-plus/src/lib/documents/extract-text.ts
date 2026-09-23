@@ -42,6 +42,12 @@ export async function extractText(
       page.cleanup();
     }
     return { pages, ok: pages.some((page) => Boolean(page.trim())) };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/password|PasswordException|encrypted/i.test(msg)) {
+      throw new Error("encrypted_pdf");
+    }
+    throw err;
   } finally {
     await task.destroy();
   }

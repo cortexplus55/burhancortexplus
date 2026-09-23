@@ -19,8 +19,6 @@ import { readFileSync } from "node:fs";
 */
 
 const MIGRATION = "supabase/migrations/20260915090000_credit_packs.sql";
-const CALLBACK = "supabase/migrations/20260906140000_atomic_paytr_callback.sql";
-
 const sql = readFileSync(MIGRATION, "utf8");
 
 /** Migration'daki VALUES satırlarından paketleri çıkar. */
@@ -62,11 +60,13 @@ describe("kredi paketleri", () => {
     }
   });
 
-  it("geri çağrının kararı hâlâ bu üç kelimeye bakıyor", () => {
-    // Kural değişirse yukarıdaki testler anlamını yitirir; o zaman bu test
-    // kızarsın ve buradaki gerekçe yeniden okunsun.
-    const callback = readFileSync(CALLBACK, "utf8");
-    expect(callback).toContain("'%plus%', '%sigma%', '%premium%'");
+  it("PayTR finalize aboneliği isim LIKE ile açmıyor", () => {
+    const tierFix = readFileSync(
+      "supabase/migrations/20260923180000_paytr_subscription_tier_only.sql",
+      "utf8",
+    );
+    expect(tierFix).toContain("IN ('plus', 'sigma')");
+    expect(tierFix).not.toContain("'%plus%', '%sigma%', '%premium%'");
   });
 
   it("her paket tek seferlik", () => {
