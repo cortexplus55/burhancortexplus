@@ -24,6 +24,7 @@ import { recordUserActivity } from "@/lib/streak/record-activity";
 import { loadExamChatContext } from "@/lib/learning/exam-chat-context";
 import { citationHref, type ChatCitation, type ChatEvidence } from "@/lib/ai/chat-citations";
 import { verifyDocumentAnswer } from "@/lib/ai/document-answer-verification";
+import { logOpsEvent } from "@/lib/observability/ops-log";
 import { chatRequestHash, chatResultResponse, prepareChatOperation, type SavedChatResult } from "@/lib/ai/chat-operation";
 
 export const maxDuration = 300;
@@ -191,7 +192,10 @@ export async function POST(request: Request) {
             if (grounded && !imageUrl) {
               const checked = await verifyDocumentAnswer({ client, question: message, answer: content, evidence, strict, signal: request.signal });
               await recordUsage(service, { userId, actionCode, model: env.OPENAI_ADVANCED_MODEL, tokensIn: checked.tokensIn, tokensOut: checked.tokensOut, reservationId });
-              if (!checked.ok) continue;
+              if (!checked.ok) {
+                logOpsEvent("document_answer_rejected", { operationId, attempt, strict, evidence: evidence.length, reasons: checked.reasons });
+                continue;
+              }
               citations = checked.citations;
             }
           }
@@ -199,6 +203,7 @@ export async function POST(request: Request) {
           break;
         } catch (error) {
           if (!(error instanceof EducationalVerificationError)) throw error;
+          logOpsEvent("document_answer_rejected", { operationId, attempt, strict, stage: "educational", reasons: [error.message.slice(0, 200)] });
         }
       }
       if (!accepted) {
