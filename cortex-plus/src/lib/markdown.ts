@@ -8,7 +8,19 @@ function formatText(text: string) {
   return escapeHtml(text)
     .replace(/`([^`]+)`/g, '<code class="rounded bg-muted px-1 py-0.5">$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
+    .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
+    /*
+      Yalnızca site içi göreli bağlantı: `/dokumanlar/…?page=3#belge-onizleme`.
+      Sunucu kaynak listesini bu biçimde üretiyor (chat route → citationHref);
+      23 Eylül 2026'da canlıda ham `[ad](/yol)` metni olarak göründü, öğrenci
+      kaynağa tıklayamıyordu. `//host`, `https:`, `javascript:` bilerek eşleşmez
+      — model çıktısı dış adrese götüremez. Metin zaten escape edilmiş; href
+      içinde `&amp;` tarayıcı tarafından geri çözülür.
+    */
+    .replace(
+      /\[([^\]\n]+)\]\((\/(?!\/)[^\s)]*)\)/g,
+      '<a href="$2" class="underline underline-offset-2 hover:opacity-80">$1</a>',
+    );
 }
 
 /**
@@ -36,9 +48,25 @@ function renderInline(text: string, breaks = false) {
  * Math is the one exception: it is handed to KaTeX with `trust: false`, which
  * emits its own markup and rejects HTML-injecting commands like `\href`.
  */
+const LIST_LINE = /^\s*(?:\d+\.|[-*])\s/;
+
+/*
+  "Kaynaklar:\n- [a](/x)" gibi bloklarda başlık satırı ile liste aynı
+  paragrafta kalıyordu. Liste satırları ayrı bloğa alınır ki liste kuralı
+  yakalasın.
+*/
+function splitTrailingList(block: string): string[] {
+  const lines = block.split("\n");
+  let start = lines.length;
+  while (start > 0 && LIST_LINE.test(lines[start - 1])) start -= 1;
+  if (start === 0 || start === lines.length) return [block];
+  return [lines.slice(0, start).join("\n"), lines.slice(start).join("\n")];
+}
+
 export function renderMarkdownToHtml(content: string): string {
   return content
     .split(/\n{2,}/)
+    .flatMap(splitTrailingList)
     .map((block) => {
       const trimmed = block.trim();
       if (!trimmed) return "";

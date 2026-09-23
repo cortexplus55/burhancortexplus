@@ -20,6 +20,23 @@ describe("markdown sanitization", () => {
     expect(html).toContain("<code");
   });
 
+  it("renders server citation links as same-origin anchors", () => {
+    const html = renderMarkdownToHtml(
+      "Cevap.\n\nKaynaklar:\n- [belge.pdf · s.3](/dokumanlar/abc?page=3#belge-onizleme)",
+    );
+    expect(html).toContain('<a href="/dokumanlar/abc?page=3#belge-onizleme"');
+    expect(html).toContain("belge.pdf · s.3</a>");
+    expect(html).toContain("<ul");
+    expect(html).toContain("<p>Kaynaklar:</p>");
+  });
+
+  it("never links to external or scheme URLs", () => {
+    for (const href of ["https://evil.example", "//evil.example/x", "javascript:alert(1)", "mailto:a@b.c"]) {
+      const html = renderMarkdownToHtml(`[tıkla](${href})`);
+      expect(html).not.toContain("<a ");
+    }
+  });
+
   it("renders ordered lists for numbered steps", () => {
     const html = renderMarkdownToHtml("1. ilk adım\n2. ikinci adım");
     expect(html).toContain("<ol");
