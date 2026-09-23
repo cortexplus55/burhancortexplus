@@ -32,7 +32,8 @@ Use `[x]` only when verified in the current release candidate (code + live as no
 - [x] Document answer verification + server-side citations
 - [x] Atomic chat settlement RPC (`complete_chat_operation`) applied live
 - [x] Chat settlement + stable `operationId` in client (RC built locally)
-- [ ] Chat settlement path verified on production after deploy
+- [x] Chat settlement path verified on production: failed generation → reservation `refunded`, wallet unchanged
+- [ ] Successful only-document answer on production (blocked by OpenAI billing)
 - [ ] Live only-document hallucination probe with controlled PDF on production build
 
 ## Quiz
@@ -71,6 +72,7 @@ Use `[x]` only when verified in the current release candidate (code + live as no
 - [x] E2E landing overflow check
 - [x] Live pricing + hub usable on mobile viewport (browser)
 - [x] Chat composer `visualViewport` keyboard inset (RC)
+- [x] Composer no longer hidden under bottom nav ≤899px (measured 558px: was overlapping 49px)
 - [ ] Full 360–932 matrix + keyboard chat input on live device matrix
 
 ## Security
@@ -80,7 +82,8 @@ Use `[x]` only when verified in the current release candidate (code + live as no
 - [x] Support form posts to real `/api/support` (no fake success)
 - [x] Advisors reviewed; credit RPCs not anon-executable
 - [ ] HaveIBeenPwned leaked-password protection enable in Supabase Auth (advisor WARN)
-- [ ] Production deploy of this RC (`git push main` → Vercel)
+- [x] Production deploy of this RC (`1f0ffa2` READY on cortexplus.app; Hobby cron quota trap removed + guarded)
+- [ ] **OpenAI billing topped up** — chat returns 503 (`429 no credits remaining`) until then; manual, outside repo
 
 ## Legal
 
@@ -106,7 +109,7 @@ Use `[x]` only when verified in the current release candidate (code + live as no
 ## Build gate (local RC)
 
 - [x] `npm run typecheck` pass
-- [x] `npm test` — 1105 passed
+- [x] `npm test` — 1109 passed
 - [x] `npm run build` pass
 - [x] `npm run test:e2e` — 42 passed
 

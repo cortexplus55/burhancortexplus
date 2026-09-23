@@ -17,7 +17,7 @@
 | Remaining P1 | 3 |
 | Remaining P2 | 2 |
 | Remaining P3 | 1 |
-| Unit tests | 1105 passed / 0 failed (110 files) |
+| Unit tests | 1109 passed / 0 failed (110 files) |
 | E2E | 42 passed / 0 failed |
 | Build | `npm run build` **pass** |
 | Typecheck | **pass** |
@@ -53,7 +53,10 @@
 | Stuck docs “İşleniyor” | Eventually resolve/fail | Observed old stuck rows on live | Fail (P2) | Reprocess UI exists |
 | Live dual-user isolation | Marker not leak | Not re-run live | Open (P1) | RLS + ownership code present |
 | Real PayTR charge | Success + webhook | Not executed | Open (P1) | Buttons live; no card this gate |
-| Deploy UAT RC | Production = RC | RC built locally; push pending | Open (P0) | Blocks READY until Vercel prod |
+| Deploy UAT RC | Production = RC | `c3fde16` → `1f0ffa2` READY on cortexplus.app | **Pass** | Root cause of 4 silent non-deploys: 3rd hourly cron over Hobby quota |
+| PDF viewer live | Canvas renders page N | `?page=5#belge-onizleme` → s.5/12 canvas 744×1053 on cortexplus.app | Pass | Needed worker in public/ + no `withCredentials` |
+| Mobile composer vs bottom nav | Gönder clickable ≤899px | Was hidden under nav at 558px (composer bottom 678 > nav top 629); now 620 < 629 | Fixed | CSS `parity-shell.css` |
+| Live chat completion | 200 + answer | **503** — OpenAI `429 You have no credits remaining` | **Fail (P0, external)** | Credits refunded correctly; balance unchanged (201) |
 | Chat `text_content` attach | Parsed pages in chat | Fixed | Pass | |
 | Quiz credit idempotency | reserve+claim | Fixed | Pass | |
 | PayTR tier-only subscription | No name LIKE trap | Migration added | Pass (apply live) | |
@@ -64,7 +67,9 @@
 
 ### P0 BLOCKER
 
-1. **UAT RC not on production** — local RC passes typecheck/tests/build/e2e; ship via `git push origin main` + post-deploy smoke (login, only-document chat, belge PDF citation jump).
+1. **OpenAI account has no credits** — every `/api/ai/chat` (and any other OpenAI-backed feature) returns 503 on production and locally with `429 You have no credits remaining. Add credits to continue using the API`. Credit ledger behaves correctly (reservation → refunded, wallet unchanged), so students are not charged, but the product's core loop is down. **Manual fix:** top up billing at platform.openai.com for the org behind `OPENAI_API_KEY` (Vercel env), then re-run the only-document chat smoke. No code change can fix this. Server log now carries `cause:` so the next outage is diagnosable from Vercel logs.
+
+~~UAT RC not on production~~ — **closed**: `1f0ffa2` is READY on cortexplus.app; the 4 preceding pushes were silently rejected by Vercel because a third, hourly cron exceeded the Hobby plan quota (2 crons, daily). Removed; guard test added.
 
 ### P1 HIGH
 
@@ -110,7 +115,7 @@
 | Command | Result |
 |---|---|
 | `npm run typecheck` | Pass |
-| `npm test` | 1105 passed |
+| `npm test` | 1109 passed |
 | `npm run build` | Pass |
 | `npm run test:e2e` | **42 passed** |
 
@@ -120,6 +125,6 @@
 
 **NOT READY**
 
-**Blocker:** Release-candidate UAT code (especially auth open-redirect fix and chat settlement client path) is not on production. Deploy + post-deploy smoke (login, one document chat only-document question, one PayTR sandbox/live charge) required before opening paid/free students broadly.
+**Blocker:** OpenAI billing exhausted — AI chat returns 503 on production (verified 2026-09-23 19:14 UTC, logged in Vercel as `generation_failed`). Top up the OpenAI org, then repeat: only-document question on `servet-i-funun-edebiyati.pdf` → answer with `Kaynaklar` links → click a citation → PDF viewer lands on the cited page (viewer itself verified live). Deploy blocker is closed.
 
 After deploy clears P0, remaining P1 items (payment proof, dual-user isolation live, HIBP) should be closed or explicitly accepted before marketing launch.

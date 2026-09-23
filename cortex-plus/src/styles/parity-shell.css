@@ -312,6 +312,20 @@
     display: grid;
   }
 
+  /*
+    Alt menü görünürken sabit composer onun üstüne oturmalı. 23 Eylül 2026'da
+    canlıda 558px genişlikte ölçüldü: composer bottom 678px, alt menü top
+    629px — Gönder, Mikrofon ve Mod seç düğmeleri menünün altında kalıyor,
+    öğrenci mesaj gönderemiyordu. 4.6rem ≈ menü yüksekliği (3.9rem) + boşluk.
+  */
+  .cp-sor-composer-zone {
+    bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .cp-sor-messages {
+    padding-bottom: calc(15rem + env(safe-area-inset-bottom, 0px));
+  }
+
   .cp-sor-topnav {
     display: none;
   }
@@ -6555,7 +6569,7 @@
   .cp-sor-hero {
     justify-content: flex-start;
     padding-top: 1.5rem;
-    padding-bottom: calc(9.5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(13.5rem + env(safe-area-inset-bottom, 0px));
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
@@ -6580,7 +6594,9 @@
   }
 
   .cp-sor-composer-zone {
-    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    /* Alt menü (≤899px kuralı) hâlâ görünür; 0.75rem'e indirmek Gönder'i
+       menünün altına sokuyordu. */
+    bottom: calc(4.4rem + env(safe-area-inset-bottom, 0px));
   }
 
   .cp-sor-composer-upgrade--empty-deferred {
@@ -7166,7 +7182,7 @@
   }
 
   .cp-sor-messages {
-    padding-bottom: calc(10.5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(14.5rem + env(safe-area-inset-bottom, 0px));
   }
 
   .cp-sor-buy,

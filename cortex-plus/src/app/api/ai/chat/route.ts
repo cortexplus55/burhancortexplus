@@ -221,9 +221,13 @@ export async function POST(request: Request) {
     reservationId = null;
     await recordUserActivity(service, userId, "chat").catch(() => undefined);
     return chatResultResponse(saved as SavedChatResult, strict);
-  } catch {
+  } catch (err) {
     try { await undoSpend(); } catch { console.error("chat_credit_recovery_required", { operationId }); }
-    console.error("generation_failed", { feature: "chat", operationId, cancelled: request.signal.aborted });
+    // Sebep olmadan bu satır işe yaramaz: 23 Eylül 2026'da canlıda yalnızca
+    // "generation_failed" görünüyor, hata ne diye üç kez sunucu açıldı.
+    // Sağlayıcı gövdesi yok, yalnızca hata adı ve mesajı.
+    const cause = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    console.error("generation_failed", { feature: "chat", operationId, cancelled: request.signal.aborted, cause: cause.slice(0, 300) });
     return NextResponse.json({ error: "Yanıt tamamlanamadı. Aynı soruyu yeniden deneyebilirsin; tamamlanmış işlem tekrar ücretlenmez." }, { status: request.signal.aborted ? 499 : 503 });
   }
 }
