@@ -13,7 +13,29 @@ const reviewSchema = z.object({
     quote: z.string().min(8),
   })).max(80),
 });
-const normalize = (s: string) => s.normalize("NFKC").replace(/\s+/g, " ").trim();
+/*
+  Alıntı denetimi için metin normalizasyonu.
+
+  Kural aynı: denetçinin alıntısı kaynakta GERÇEKTEN geçmeli. Ama PDF'ten
+  çıkan metin düz tırnak, çoklu boşluk ve satır sonu tirelemesi taşır; model
+  ise tipografik tırnak ve düzgün boşlukla yazar. 23 Eylül 2026'da canlıda
+  belgede birebir bulunan bir cevap bu yüzden `quote_not_in_source:9` ile iki
+  kez reddedildi. Tırnak/kesme/tire varyantları, yumuşak tire, satır sonu
+  tirelemesi ve büyük-küçük harf (Türkçe) eşitlenir; kelime içeriği aynen
+  karşılaştırılır.
+*/
+export const normalizeForMatch = (s: string) =>
+  s
+    .normalize("NFKC")
+    .replace(/[\u2018\u2019\u201A\u201B\u2032\u02BC`´]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F\u2033«»]/g, '"')
+    .replace(/[\u2010-\u2015\u2212]/g, "-")
+    .replace(/\u00AD/g, "")
+    .replace(/-\s*\n\s*(?=\p{Ll})/gu, "")
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("tr")
+    .trim();
+const normalize = normalizeForMatch;
 
 /** Semantic review is combined with literal evidence validation. A model cannot
  * approve nonexistent quotes, arbitrary reference IDs or unsupported claims.
