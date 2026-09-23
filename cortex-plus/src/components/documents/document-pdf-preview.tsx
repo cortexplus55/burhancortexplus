@@ -20,6 +20,17 @@ export function DocumentPdfPreview({
       setError(null);
       try {
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+        /*
+          Tarayıcıda pdf.js ayrıştırmayı bir Web Worker'da yapar ve worker
+          dosyasının adresi verilmemişse `getDocument` daha ağ isteği bile
+          atmadan fırlatır. Yerelde build geçti, canlıda "PDF önizlemesi
+          açılamadı" göründü — sebep tam olarak buydu (23 Eylül 2026).
+          Dosyayı `scripts/copy-pdf-worker.mjs` kurulumda public/'e koyar;
+          aynı origin olduğu için CSP `worker-src 'self'` ile uyumlu.
+        */
+        if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+          pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        }
         if (typeof Promise.withResolvers !== "function") {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (Promise as any).withResolvers = function withResolvers<T = unknown>() {
@@ -32,7 +43,10 @@ export function DocumentPdfPreview({
             return { promise, resolve, reject };
           };
         }
-        const task = pdfjs.getDocument({ url: signedUrl, withCredentials: true });
+        // İmzalı URL yetkiyi kendi içinde taşır; `withCredentials` eklenirse
+        // Supabase'in `Access-Control-Allow-Origin: *` cevabı CORS'ta düşer
+        // (istek status 0 ile ölür, hata mesajı boş kalır).
+        const task = pdfjs.getDocument({ url: signedUrl });
         const pdf = await task.promise;
         if (cancelled) {
           await task.destroy();
@@ -51,7 +65,10 @@ export function DocumentPdfPreview({
         canvasHost.current.replaceChildren(canvas);
         pdfPage.cleanup();
         await task.destroy();
-      } catch {
+      } catch (err) {
+        // Kullanıcıya Türkçe tek cümle; konsola gerçek sebep (worker yolu,
+        // CSP, süresi dolan imzalı URL) — aksi hâlde canlıda kör kalıyoruz.
+        console.error("document_pdf_preview_failed", err);
         if (!cancelled) setError("PDF önizlemesi açılamadı.");
       }
     }

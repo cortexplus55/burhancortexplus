@@ -93,6 +93,29 @@ describe("vercel.json cron kotası (Hobby)", () => {
   });
 });
 
+/*
+  Canlıda "PDF önizlemesi açılamadı": pdf.js worker adresi verilmemişti.
+  Worker public/'e postinstall ile kopyalanır; component o yolu kullanır.
+*/
+describe("PDF önizleme worker yolu", () => {
+  const pkg = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
+  const preview = read("src/components/documents/document-pdf-preview.tsx");
+  it("postinstall ve prebuild worker'ı kopyalar", () => {
+    expect(pkg.scripts.postinstall).toContain("copy-pdf-worker");
+    expect(pkg.scripts.prebuild).toContain("copy-pdf-worker");
+  });
+  it("component workerSrc'yi public yoluna bağlar", () => {
+    expect(preview).toContain('GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"');
+  });
+  it("imzalı URL'e withCredentials göndermez (CORS * ile çakışır)", () => {
+    expect(preview).toContain("getDocument({ url: signedUrl })");
+    expect(preview).not.toMatch(/getDocument\([^)]*withCredentials/);
+  });
+  it("kopyalanan worker gitignore'da", () => {
+    expect(read(".gitignore")).toContain("/public/pdf.worker.min.mjs");
+  });
+});
+
 describe("karma modda kaynak bölümleri görsel ayrılır", () => {
   it("Belgeden / Genel bilgiden etiketleri başlığa dönüşür", () => {
     const out = formatSourceSections("Belgeden: Hücre zarı seçici geçirgendir [1].\n\nGenel bilgiden: Bu özellik osmoz için temeldir.");

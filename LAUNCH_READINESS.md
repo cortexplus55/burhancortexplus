@@ -106,7 +106,7 @@ Use `[x]` only when verified in the current release candidate (code + live as no
 ## Build gate (local RC)
 
 - [x] `npm run typecheck` pass
-- [x] `npm test` — 1091 passed
+- [x] `npm test` — 1105 passed
 - [x] `npm run build` pass
 - [x] `npm run test:e2e` — 42 passed
 

@@ -17,7 +17,7 @@
 | Remaining P1 | 3 |
 | Remaining P2 | 2 |
 | Remaining P3 | 1 |
-| Unit tests | 1091 passed / 0 failed (109 files) |
+| Unit tests | 1105 passed / 0 failed (110 files) |
 | E2E | 42 passed / 0 failed |
 | Build | `npm run build` **pass** |
 | Typecheck | **pass** |
@@ -99,6 +99,9 @@
 - Document PDF preview + `#belge-onizleme`; onboarding exam date + belge adımı  
 - PayTR `finalize_paytr_payment` tier-only subscription migration  
 - `logOpsEvent` structured server logging helper  
+- **Deploy blocker root cause:** third hourly cron in `vercel.json` exceeded Vercel Hobby quota (2 crons, daily) → every `main` push since `cb96562` was rejected before a deployment record existed (GitHub status “Deployment failed” → cron pricing doc). Removed; deletion queue folded into daily `subscription-renewal`; guard test enforces quota  
+- `requireFeature` gates on speech / podcast audio / oral transcribe; entitlement query filters expired `current_period_end` in SQL; `/api/payments/subscription` reports `expired`  
+- Mixed-mode answers render `Belgeden` / `Genel bilgiden — kaynak gösterilmez` headings (`source-sections.ts`); `/dokumanlar` auto-refreshes while a document is processing  
 
 ---
 
@@ -107,7 +110,7 @@
 | Command | Result |
 |---|---|
 | `npm run typecheck` | Pass |
-| `npm test` | 1091 passed |
+| `npm test` | 1105 passed |
 | `npm run build` | Pass |
 | `npm run test:e2e` | **42 passed** |
 

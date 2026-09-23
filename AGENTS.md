@@ -181,6 +181,25 @@ sorulduğunda cevap bu satırdır.
 
 ---
 
+## Vercel Hobby: en fazla 2 cron, her biri günde 1 kez — aşarsan HİÇBİR deploy çıkmaz
+
+**23 Eylül 2026'da dört commit main'e gitti, hiçbiri yayına çıkmadı.** Vercel'de
+ne READY ne ERROR kaydı vardı; tek iz GitHub commit statüsündeki "Deployment
+failed" ve `vercel.link` kısaltmasının açıldığı sayfaydı:
+`vercel.com/docs/cron-jobs/usage-and-pricing`. Sebep: `vercel.json`'a üçüncü ve
+**saatlik** bir cron (`/api/cron/data-deletion`, `30 * * * *`) eklenmişti.
+Hobby plan 2 cron ve günde 1 çalışma ile sınırlı; kota aşımında Vercel
+deploy'u **oluşturmadan** reddediyor. Build, typecheck, test ve e2e bunu
+göremez — hepsi yeşildi.
+
+| Yapmayın | Yapın |
+|---|---|
+| `vercel.json` `crons`'a üçüncü giriş eklemek | İşi mevcut günlük cron'un içine bağlayın (veri silme kuyruğu `subscription-renewal` içinde çalışıyor) |
+| Saatlik/dakikalık cron (`*` dakika ya da saat alanında) | Dakika ve saat sabit rakam olsun (`0 6 * * *`) |
+| Push sonrası "deploy oldu" varsaymak | `gh api repos/cortexplus55/burhancortexplus/commits/<sha>/status` — `Vercel` statüsü `failure` ise `target_url`'i takip edin |
+
+Bekçi test: `tests/unit/uat-gate-guards.test.ts` → "vercel.json cron kotası".
+
 ## `npm install` "up to date" derken lockfile bozuk olabilir
 
 **17 Eylül 2026'da CI main'de kırmızıydı** ve üç işin hepsi aynı yerde

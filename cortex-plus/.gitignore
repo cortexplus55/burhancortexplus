@@ -30,6 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# pdf.js worker — scripts/copy-pdf-worker.mjs üretir (postinstall/prebuild)
+/public/pdf.worker.min.mjs
+
 # delivery helpers (may contain secrets)
 scripts/.vercel-env-payload.json
 
