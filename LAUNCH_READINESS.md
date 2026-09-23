@@ -33,7 +33,9 @@ Use `[x]` only when verified in the current release candidate (code + live as no
 - [x] Atomic chat settlement RPC (`complete_chat_operation`) applied live
 - [x] Chat settlement + stable `operationId` in client (RC built locally)
 - [x] Chat settlement path verified on production: failed generation → reservation `refunded`, wallet unchanged
-- [ ] Successful only-document answer on production (blocked by OpenAI billing)
+- [x] Successful only-document answer on production (`f7624f0`, 2026-09-23 20:03 UTC: p.3 and p.9 questions answered, reservations `committed`)
+- [x] Citation `Kaynaklar` link is a clickable same-origin anchor and lands the PDF viewer on the cited page (live: `?page=9` → s.9/12)
+- [x] `document_answer_rejected` ops event with `reasons[]`; quote matching normalizes typographic quotes/hyphenation (live false negative fixed)
 - [ ] Live only-document hallucination probe with controlled PDF on production build
 
 ## Quiz
@@ -82,8 +84,8 @@ Use `[x]` only when verified in the current release candidate (code + live as no
 - [x] Support form posts to real `/api/support` (no fake success)
 - [x] Advisors reviewed; credit RPCs not anon-executable
 - [ ] HaveIBeenPwned leaked-password protection enable in Supabase Auth (advisor WARN)
-- [x] Production deploy of this RC (`1f0ffa2` READY on cortexplus.app; Hobby cron quota trap removed + guarded)
-- [ ] **OpenAI billing topped up** — chat returns 503 (`429 no credits remaining`) until then; manual, outside repo
+- [x] Production deploy of this RC (`f7624f0` READY on cortexplus.app; Hobby cron quota trap removed + guarded)
+- [x] OpenAI billing topped up — chat 200 on production (was 503 `429 no credits remaining`); `generation_failed` now logs `cause`
 
 ## Legal
 
@@ -109,7 +111,7 @@ Use `[x]` only when verified in the current release candidate (code + live as no
 ## Build gate (local RC)
 
 - [x] `npm run typecheck` pass
-- [x] `npm test` — 1109 passed
+- [x] `npm test` — 1115 passed
 - [x] `npm run build` pass
 - [x] `npm run test:e2e` — 42 passed
 

@@ -11,13 +11,13 @@
 
 | Metric | Value |
 |---|---|
-| Issues found (this gate) | 14 |
-| Auto-fixed | 11 |
-| Remaining P0 | 1 |
+| Issues found (this gate) | 17 |
+| Auto-fixed | 14 |
+| Remaining P0 | 0 |
 | Remaining P1 | 3 |
-| Remaining P2 | 2 |
+| Remaining P2 | 3 |
 | Remaining P3 | 1 |
-| Unit tests | 1109 passed / 0 failed (110 files) |
+| Unit tests | 1115 passed / 0 failed (110 files) |
 | E2E | 42 passed / 0 failed |
 | Build | `npm run build` **pass** |
 | Typecheck | **pass** |
@@ -56,7 +56,10 @@
 | Deploy UAT RC | Production = RC | `c3fde16` → `1f0ffa2` READY on cortexplus.app | **Pass** | Root cause of 4 silent non-deploys: 3rd hourly cron over Hobby quota |
 | PDF viewer live | Canvas renders page N | `?page=5#belge-onizleme` → s.5/12 canvas 744×1053 on cortexplus.app | Pass | Needed worker in public/ + no `withCredentials` |
 | Mobile composer vs bottom nav | Gönder clickable ≤899px | Was hidden under nav at 558px (composer bottom 678 > nav top 629); now 620 < 629 | Fixed | CSS `parity-shell.css` |
-| Live chat completion | 200 + answer | **503** — OpenAI `429 You have no credits remaining` | **Fail (P0, external)** | Credits refunded correctly; balance unchanged (201) |
+| Live chat completion | 200 + answer | Was **503** (OpenAI `429 no credits`); after top-up: only-document answer with `s.3` and `s.9` citations | **Pass** | While down, reservations → `refunded`, wallet unchanged; after: `committed`, daily free allowance 6→2, paid balance 201 untouched |
+| Strict document gate false negative | Supported answer accepted | “dil eleştirisi” (p.9) rejected twice with `quote_not_in_source:9` — typographic quotes / hyphenation mismatch | Fixed | `normalizeForMatch` (NFKC, quotes, dashes, soft hyphen, line-break hyphenation, `tr` lowercase); same question now passes live |
+| Citation links clickable | `Kaynaklar` anchor → viewer page N | Rendered as raw `[…](/dokumanlar/…)` text | Fixed | Same-origin-only link rule in `renderMarkdownToHtml`; `https://`, `//`, `javascript:`, `mailto:` never become `<a>` |
+| Citation → PDF page (live, e2e chain) | Click `s.9` → viewer at s.9 | `/dokumanlar/9a07…?page=9#belge-onizleme` → “s.9 / 12”, canvas 744×1053, section in view | **Pass** | Screenshot shows “4. Dil ve Üslup Tartışmaları / 4.2 Dekadanlar Tartışması” |
 | Chat `text_content` attach | Parsed pages in chat | Fixed | Pass | |
 | Quiz credit idempotency | reserve+claim | Fixed | Pass | |
 | PayTR tier-only subscription | No name LIKE trap | Migration added | Pass (apply live) | |
@@ -67,7 +70,9 @@
 
 ### P0 BLOCKER
 
-1. **OpenAI account has no credits** — every `/api/ai/chat` (and any other OpenAI-backed feature) returns 503 on production and locally with `429 You have no credits remaining. Add credits to continue using the API`. Credit ledger behaves correctly (reservation → refunded, wallet unchanged), so students are not charged, but the product's core loop is down. **Manual fix:** top up billing at platform.openai.com for the org behind `OPENAI_API_KEY` (Vercel env), then re-run the only-document chat smoke. No code change can fix this. Server log now carries `cause:` so the next outage is diagnosable from Vercel logs.
+None open.
+
+~~OpenAI account has no credits~~ — **closed 2026-09-23 20:03 UTC**: billing topped up by the product owner; `/api/ai/chat` returns 200 on production, only-document question answered with page citations, credits committed against the daily allowance. While it was down, every reservation was refunded and the wallet stayed at 201, so no student was charged for a failed answer. `generation_failed` log now carries `cause:` (name + message) so the next upstream outage is diagnosable from Vercel logs alone.
 
 ~~UAT RC not on production~~ — **closed**: `1f0ffa2` is READY on cortexplus.app; the 4 preceding pushes were silently rejected by Vercel because a third, hourly cron exceeded the Hobby plan quota (2 crons, daily). Removed; guard test added.
 
@@ -80,7 +85,8 @@
 ### P2 MEDIUM
 
 1. **Stuck document processing rows** on test account (legacy “İşleniyor” / `page_insert_failed`).  
-2. Marketing mobile menu aria text encoding glitch (`MenÃ¼yÃ¼ aÃ§`) observed once in a11y tree — verify charset on marketing shell.
+2. Marketing mobile menu aria text encoding glitch (`MenÃ¼yÃ¼ aÃ§`) observed once in a11y tree — verify charset on marketing shell.  
+3. **No sweeper for stale `pending` credit reservations.** Test account carries a `QUIZ_GENERATE` reservation from 2026-09-10 (before the atomicity migration) that still holds `reserved=2`. New code paths refund on every failure, so this cannot recur for chat/quiz, but a crash between reserve and complete would leave the same orphan. Suggested: `expire_stale_reservations(interval)` RPC run from the daily `subscription-renewal` cron (not a new cron — Hobby quota), plus a one-off refund of the existing row.
 
 ### P3 LOW
 
@@ -107,6 +113,11 @@
 - **Deploy blocker root cause:** third hourly cron in `vercel.json` exceeded Vercel Hobby quota (2 crons, daily) → every `main` push since `cb96562` was rejected before a deployment record existed (GitHub status “Deployment failed” → cron pricing doc). Removed; deletion queue folded into daily `subscription-renewal`; guard test enforces quota  
 - `requireFeature` gates on speech / podcast audio / oral transcribe; entitlement query filters expired `current_period_end` in SQL; `/api/payments/subscription` reports `expired`  
 - Mixed-mode answers render `Belgeden` / `Genel bilgiden — kaynak gösterilmez` headings (`source-sections.ts`); `/dokumanlar` auto-refreshes while a document is processing  
+- PDF preview: pdf.js worker copied to `public/` on install/build, `workerSrc` set, `withCredentials` removed (CORS `*`); guard test  
+- Mobile composer lifted above bottom nav (≤899px / ≤640px) with safe-area padding  
+- `document_answer_rejected` ops event with machine-readable `reasons[]` from `verifyDocumentAnswer`; `generation_failed` carries `cause`  
+- `normalizeForMatch` for quote-in-source checks (typographic quotes, dashes, soft hyphen, line-break hyphenation, `tr` case) — fixed live false negative on p.9  
+- Same-origin markdown link rule + trailing list split so `Kaynaklar:` citations render as clickable `<ul>` anchors  
 
 ---
 
@@ -115,7 +126,7 @@
 | Command | Result |
 |---|---|
 | `npm run typecheck` | Pass |
-| `npm test` | 1109 passed |
+| `npm test` | 1115 passed |
 | `npm run build` | Pass |
 | `npm run test:e2e` | **42 passed** |
 
@@ -123,8 +134,8 @@
 
 ## Production readiness
 
-**NOT READY**
+**READY FOR UAT — no open P0.**
 
-**Blocker:** OpenAI billing exhausted — AI chat returns 503 on production (verified 2026-09-23 19:14 UTC, logged in Vercel as `generation_failed`). Top up the OpenAI org, then repeat: only-document question on `servet-i-funun-edebiyati.pdf` → answer with `Kaynaklar` links → click a citation → PDF viewer lands on the cited page (viewer itself verified live). Deploy blocker is closed.
+Production = `f7624f0` (READY on cortexplus.app). Core loop verified live end-to-end on 2026-09-23 20:03 UTC: only-document question on `servet-i-funun-edebiyati.pdf` → answer with `Kaynaklar` link → click `s.9` → PDF viewer renders page 9 → credit committed against daily allowance, paid balance untouched.
 
-After deploy clears P0, remaining P1 items (payment proof, dual-user isolation live, HIBP) should be closed or explicitly accepted before marketing launch.
+Before **marketing launch** the three P1 items must be closed or explicitly accepted: one real/sandbox PayTR charge with duplicate-webhook replay, live dual-user isolation matrix, Supabase leaked-password protection. P2/P3 are hygiene.
