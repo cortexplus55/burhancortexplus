@@ -41,20 +41,26 @@ export function targetTopicCount(contentPageCount: number): number {
 }
 
 /**
- * Konu sayısı sayfa kotası değildir.
+ * Konu listesinin sert tavanı.
  *
- * `targetTopicCount` yalnızca listenin okunabilir üst sınırıdır.
- * 10 sayfalık bir not 6 konu, 20 sayfalık bir not 8 konu çıkarabilir:
- * artış sayfa sayısına bire bir bağlı değildir, belgedeki ayrı
- * sınanabilir kavram kümelerine bağlıdır.
+ * `targetTopicCount` yaklaşık bir yoğunluk ipucuydu (20 sayfada 7). Canlıda
+ * her kutu ve her sayfa ayrı konu olunca 10 sayfalık not 23 başlık üretiyordu.
+ * Tavan, sayfa sayısından biraz geniş: 10 sayfa en fazla 8, 20 sayfa en fazla
+ * 12. Doldurulacak kota değil; aşılırsa harita birleştirilir.
  */
+export function topicCeiling(pageCount: number): number {
+  if (pageCount <= 1) return 1;
+  if (pageCount <= 6) return pageCount;
+  return Math.min(12, Math.max(8, Math.round(pageCount * 0.6)));
+}
+
 export function topicScopeGuidance(contentPageCount: number): string {
-  const ceiling = targetTopicCount(contentPageCount);
+  const ceiling = topicCeiling(contentPageCount);
   return (
     "Konu sayısı sayfa sayısına bölünerek üretilmez. " +
     "Her konu, belgede tek başına sınanabilecek ayrı bir içerik kümesidir. " +
     "Sayfa sayısı artsa bile yeni konu ancak yeni bir kavram kümesi varsa eklenir. " +
-    `Yaklaşık ${ceiling} okunabilir bir üst sınırdır, doldurulacak kota değil.`
+    `En fazla ${ceiling} konu. Bu bir tavan, doldurulacak kota değil.`
   );
 }
 
@@ -97,9 +103,9 @@ export function topicTitleIssues(title: string): string[] {
   return issues;
 }
 
-/** Üst düzey bölüm numarası: "3." evet, alt başlık "2.3." hayır. */
-const CHAPTER_NUMBER = /^\s*\d+[.)]\s+\S/;
+/** Üst düzey bölüm numarası: "3." evet, "2.3." ve "1)" adımı hayır. */
 const SUB_NUMBER = /^\s*\d+\.\d/;
+const NUMBERED_CHAPTER = /^\s*\d+\.\s+\S/;
 
 /** İçindekiler satırının sonundaki sayfa numarası: "… Dağılımı 14". */
 const TOC_PAGE_TAIL = /\s+\d{1,3}$/;
@@ -117,6 +123,112 @@ function looksLikeQuestionOrSentence(heading: string): boolean {
   if (/[=<>≤≥±×÷√]/.test(heading)) return true;
   const words = heading.split(/\s+/).filter(Boolean).length;
   return words > 9;
+}
+
+function foldKey(text: string): string {
+  return text
+    .toLocaleLowerCase("tr")
+    .replace(/ı/g, "i")
+    .replace(/ş/g, "s")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/â/g, "a")
+    .replace(/î/g, "i")
+    .replace(/û/g, "u")
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Kutu etiketi: uyarı, kendini test, formül kutusu, çözümlü örnek.
+ *
+ * Ders notu her sayfaya aynı kutuyu basıyor. Satır büyük harfle ve kısa
+ * olduğu için başlık sanılıyor, sonra da konu listesine çıkıyordu.
+ * Kalıp kutunun adı; belgenin kavramı değil.
+ */
+const CALLOUT_PATTERNS = [
+  /^vizede dikkat$/,
+  /^kendini test et(me)?$/,
+  /^formul kutusu$/,
+  /^cozumlu ornek(ler)?$/,
+  /^cozum mantigi$/,
+  /^birim (kontrolu|hafizasi|tuzagi)$/,
+  /^(sik hata|fiziksel kontrol|mantik kontrolu)$/,
+  /^(kavram|yorum|kontrol) sorusu$/,
+  /^kisa (kontrol|soru|karar agaci)$/,
+  /^isaret kurali$/,
+  /^gorsel okuma$/,
+  /^faz karari$/,
+  /^sinav stratejisi$/,
+  /^devam calismasi$/,
+  /^temel ayrim$/,
+  /^son( \d+)? kontrol$/,
+  /^son formul seridi$/,
+  /^manometre kisayolu$/,
+  /^hava icin yaklasik$/,
+  /^hizli ezber/,
+  /^hal fonksiyonu$/,
+  /^(guc|pompa|kompresor|kontrol|rijit tank) ornegi$/,
+  /^ornek( \d+)?$/,
+  /^(kontrol|dikkat)$/,
+  /^bolum \d+ ye gecis$/,
+];
+
+export function isCalloutLabel(heading: string): boolean {
+  let folded = foldKey(normalizeTopicTitle(heading));
+  if (!folded) return false;
+  folded = folded.replace(/\b(i{1,3}|iv|vi{0,3}|ix|x|\d+)\b$/g, "").trim();
+  return CALLOUT_PATTERNS.some((pattern) => pattern.test(folded));
+}
+
+/** Koşan başlık ve sayfa numarası: "DERS | NOTLAR | BÖLÜM 2", "Sayfa 21/30". */
+export function isRunningHeader(heading: string): boolean {
+  const text = heading.trim();
+  if (!text) return false;
+  if (text.includes("|")) return true;
+  if (/^sayfa\s+\d+/i.test(text)) return true;
+  if (/^\d+\s*\/\s*\d+$/.test(text)) return true;
+  if (/^b[oö]l[uü]m\s+\d+$/i.test(text)) return true;
+  return false;
+}
+
+/**
+ * Çözümlü örneğin ya da tekrar listesinin adımı: "1) Enerji dengesi".
+ * "3. Dane Boyu" bir bölüm; "1)" bir adım.
+ */
+export function isProcedureStep(heading: string): boolean {
+  return /^\s*\d+\)\s+\S/.test(heading.trim());
+}
+
+/**
+ * Kendi başına konu olmayan bölüm: çözümlü örnek, bölüm sonu tekrarı,
+ * mini vize, formül haritası. Sayfaları ait oldukları kavrama katılır.
+ */
+export function isSatelliteSection(heading: string): boolean {
+  if (isCalloutLabel(heading)) return true;
+  const folded = foldKey(normalizeTopicTitle(heading));
+  if (!folded) return false;
+  return (
+    /cozumlu ornek/.test(folded) ||
+    /butunlesik/.test(folded) ||
+    /mini vize/.test(folded) ||
+    /formul harita/.test(folded) ||
+    /denklem secme/.test(folded) ||
+    /son tekrar/.test(folded) ||
+    /vize oncesi/.test(folded) ||
+    /bolum \d+ tekrar/.test(folded)
+  );
+}
+
+/** "3. Dane Boyu" bölüm, "2.3. …" ve "1) Enerji dengesi" değil. */
+export function isNumberedChapter(heading: string): boolean {
+  const text = heading.trim();
+  if (!NUMBERED_CHAPTER.test(text) || SUB_NUMBER.test(text)) return false;
+  if (looksLikeQuestionOrSentence(text)) return false;
+  return true;
 }
 
 /**
@@ -147,13 +259,30 @@ export function chapterHeadings(
       const heading = (raw ?? "").replace(TOC_PAGE_TAIL, "").trim();
       if (!heading || SUB_NUMBER.test(heading)) continue;
       if (looksLikeQuestionOrSentence(heading)) continue;
+      // Kutu, adım, örnek ve tekrar omurgaya girerse bekçi onları konu
+      // diye geri ekliyor. Sayfa metni durur; konu listesine çıkmaz.
+      if (
+        isCalloutLabel(heading) ||
+        isRunningHeader(heading) ||
+        isProcedureStep(heading) ||
+        isSatelliteSection(heading)
+      ) {
+        continue;
+      }
       if (seenOnPage.has(heading)) continue;
       seenOnPage.add(heading);
       counts.set(heading, (counts.get(heading) ?? 0) + 1);
     }
   }
   return [...counts.entries()]
-    .filter(([heading, count]) => CHAPTER_NUMBER.test(heading) || count >= 2)
+    .filter(([heading, count]) => {
+      if (isNumberedChapter(heading)) return true;
+      if (count < 2) return false;
+      // Neredeyse her sayfada duran numarasız satır koşan başlıktır.
+      // İki sayfaya yayılan slayt başlığı (kısa destede) bölüm olarak kalır.
+      if (pages.length >= 6 && count >= Math.ceil(pages.length * 0.75)) return false;
+      return true;
+    })
     .map(([heading]) => heading);
 }
 

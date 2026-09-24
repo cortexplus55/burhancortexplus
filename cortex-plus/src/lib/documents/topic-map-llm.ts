@@ -9,9 +9,13 @@ import {
   type TopicMapBuildResult,
 } from "@/lib/documents/topic-map";
 import {
-  chapterHeadings,
-  pageCarriesHeading,
+  isCalloutLabel,
+  isProcedureStep,
+  isRunningHeader,
+  isSatelliteSection,
   normalizeTopicTitle,
+  pageCarriesHeading,
+  topicCeiling,
   topicScopeGuidance,
   topicTitleIssues,
   unrepresentedHeadings,
@@ -21,6 +25,12 @@ import {
   polishModelTitle,
   topicMapFromExtractedText,
 } from "@/lib/documents/topic-map-fallback";
+import {
+  consolidateTopics,
+  foldedPageHost,
+  headingsToGuard,
+  preferredHeading,
+} from "@/lib/documents/topic-fold";
 
 /**
  * Model-backed topic map. Reads the document's own pages and returns that
@@ -114,7 +124,8 @@ function pageDigest(pages: PageAnalysis[]): string {
   const limit = pages.length <= 1 ? SINGLE_PAGE_DIGEST_CHARS : MAX_PAGE_CHARS;
   return pages
     .map((page) => {
-      const heading = page.headings[0] ? ` [${page.headings[0]}]` : "";
+      const shown = preferredHeading(page.headings);
+      const heading = shown ? ` [${shown}]` : "";
       // Çok sayfalı PDF özeti aynı kalsın: boşluklar düzleşir, sayfa
       // başına 900 karakter. Tek sayfalık notta paragraflar durur.
       const flat =
@@ -151,6 +162,16 @@ export function topicForHeadings<T extends { title: string }>(
   headings: string[],
 ): T | null {
   for (const heading of headings) {
+    // Kutu, adım ve tekrar bir bölüm adı gibi okununca sayfa yanlış konuya
+    // gider: "3) Enerji denklemi" bütün tekrar sayfasını SFEE'ye taşıyordu.
+    if (
+      isRunningHeader(heading) ||
+      isCalloutLabel(heading) ||
+      isProcedureStep(heading) ||
+      isSatelliteSection(heading)
+    ) {
+      continue;
+    }
     const words = fold(heading)
       .replace(/[^a-z0-9 ]/g, " ")
       .split(/\s+/)
@@ -186,6 +207,9 @@ export function completeTopicPageLinks(
   for (const page of contentPages) {
     if (linked.has(page.pageNumber)) continue;
     let host = topicForHeadings(ordered, page.headings ?? []);
+    // Çözümlü örnek ve tekrar, belgenin sonunda dursa da anlattığı
+    // kavrama gider. "En yakın önceki" o sayfayı komşu bölüme yazıyordu.
+    if (!host) host = foldedPageHost(ordered, page.headings ?? []);
     if (!host) {
       host = ordered[0];
       let closestStart = Number.NEGATIVE_INFINITY;
@@ -224,7 +248,8 @@ export async function buildTopicMapLLM(
 
   const contentNumbers = new Set(contentPages.map((page) => page.pageNumber));
 
-  const backbone = chapterHeadings(contentPages);
+  const backbone = headingsToGuard(contentPages);
+  const ceiling = topicCeiling(contentPages.length);
 
   /**
    * Bekçiye takılan taslaklardan EN İYİSİ.
@@ -271,11 +296,21 @@ export async function buildTopicMapLLM(
       userPrompt: `Aşağıda "${fileName}" adlı ders belgesinin sayfa sayfa metni var. Belgenin konu haritasını çıkar: her ana konu için başlık, öğrenme hedefi ve o konunun geçtiği sayfa numaraları. Sadece bu belgede geçen konuları kullan, dışarıdan konu ekleme.
 
 Bu belgede ${contentPages.length} öğretim sayfası var. ${topicScopeGuidance(contentPages.length)}
+En fazla ${ceiling} konu yaz.
 ${minimumTopicCount(contentPages) === 1 ? "Belge kısa: tek konu yeter. Başlık cümle olmasın; sonuna nokta ya da soru işareti koyma.\n" : ""}
+${
+  backbone.length
+    ? "HİÇBİR ÖĞRETİM BÖLÜMÜ LİSTEDEN KAYBOLMAZ. Sayıyı azaltmanın tek yolu gerçekten aynı kavramı anlatan bölümleri birleştirmektir; birleştirince her iki bölümün adı başlıkta görünür. Bölüm atmak yasak."
+    : "Numaralı kısa bölümlerin her biri ayrı konu değildir. Komşu bölümleri, birlikte çalışılan bir konu olacak şekilde birleştir. Yeni konu ancak yeni bir kavram kümesi varsa açılır."
+}
 
-HİÇBİR ÖĞRETİM BÖLÜMÜ LİSTEDEN KAYBOLMAZ. Sayıyı tutturmak için bölüm atmak yasak. Sayıyı azaltmanın tek yolu birleştirmek, birleştirdiğinde de her iki bölümün adı başlıkta görünür — iki bölümü "ve" ile tek başlıkta topla; öğrenci listeye baktığında belgede öğrendiği hiçbir konuyu arayıp bulamamazlık etmemeli. Tersi de geçerli: tek başına sınanabilecek kadar dolu bir alt başlığı ayrı konuya çıkarabilirsin.
+Konu DEĞİLDİR, ait olduğu konunun sayfasına kat:
+- Uyarı, kendini test, formül kutusu, çözümlü örnek ve benzeri kutu başlıkları
+- Çözümlü örneğin ya da tekrar listesinin numaralı adımları
+- Bölüm sonu tekrarı, mini vize ve formül haritası
+- Aynı kavramın bir kısa bir uzun başlıkla tekrarı
 
-Kapak, içindekiler, önsöz, "öğrenme hedefleri"/"kazanımlar" listesi ve formül kartı gibi ön/arka bölümler konu DEĞİLDİR — bunlar öğretim içeriği taşımaz, konu olarak çıkarma. Bu sayfaları, anlattıkları asıl konuya ait sayfalardan biri say ya da hiç kullanma.
+Kapak, içindekiler, önsöz ve "öğrenme hedefleri"/"kazanımlar" listesi de konu değildir. Bu sayfaları anlattıkları asıl konuya bağla ya da hiç kullanma.
 
 ${pageDigest(contentPages)}`,
       parse: (raw) => {
@@ -366,15 +401,41 @@ ${pageDigest(contentPages)}`,
     topics.push(draftFromLlmTopic(title, null, pageNumbers, pages, topics.length));
   }
 
-  if (topics.length < minimumTopicCount(contentPages)) {
+  // Kutu, adım ve kısa/uzun çift burada elenir. Sayfa metni durur.
+  // Model susup hiçbir bölüm bırakmadıysa ve belgenin kendi numaralı
+  // bölümleri varsa harita onlardan kurulur. Numarasız uzun PDF'te
+  // uydurma müfredat yok: liste boş kalır.
+  const consolidated = consolidateTopics(
+    topics.map((topic) => ({
+      title: topic.title,
+      learningObjective: topic.learningObjective,
+      pageNumbers: topic.pageNumbers,
+      prerequisites: topic.prerequisites,
+    })),
+    contentPages,
+    contentPages.length,
+  );
+
+  if (consolidated.topics.length < minimumTopicCount(contentPages)) {
     // Tek konunun yeterli olduğu kısa belgede model boş döndüyse metin
-    // duruyordur. Başlığı belgeden kur; uzun PDF bu eşiğin altında
-    // kaldığında yine boş döner.
+    // duruyordur. Başlığı belgeden kur; uzun PDF'in numaralı bölümü de
+    // yoksa harita boş kalır.
     if (minimumTopicCount(contentPages) === 1) {
       return topicMapFromExtractedText(contentPages, pages, fileName);
     }
     return null;
   }
+
+  const redrafted = consolidated.topics.map((topic, index) => ({
+    ...draftFromLlmTopic(
+      topic.title,
+      topic.learningObjective,
+      topic.pageNumbers,
+      pages,
+      index,
+    ),
+    prerequisites: topic.prerequisites ?? [],
+  }));
 
   // Modelin bağlamadığı sayfayı bir konuya iliştir ki kapsama %100'e
   // ulaşsın. Ama SAYFANIN KENDİ BAŞLIĞINA bak.
@@ -383,5 +444,8 @@ ${pageDigest(contentPages)}`,
   // sızdırıyordu: zemin belgesinin 12. sayfası "6. Yük Altında Gerilme
   // Dağılımı" başlığını taşıdığı hâlde 5. bölümün konusuna eklendi, ders
   // de iki bölümü komşu konudan anlattı.
-  return { topics: completeTopicPageLinks(topics, pages), mergedTitles: [] };
+  return {
+    topics: completeTopicPageLinks(redrafted, pages),
+    mergedTitles: consolidated.mergedTitles,
+  };
 }
