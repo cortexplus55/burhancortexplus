@@ -15,10 +15,13 @@ import { LESSON_PREP_STEPS } from "@/lib/learning/lesson-chrome";
 
 export function NodeGenerationProgress({
   onClose,
+  title = "Dersin hazırlanıyor...",
 }: {
   /** Çağıran hâlâ geçirebilir; adım metni dosya adını içermez. */
   sourceName?: string | null;
   onClose?: () => void;
+  /** Sözlü deneme aynı adımları kendi başlığıyla gösterir. */
+  title?: string;
 }) {
   const steps = [...LESSON_PREP_STEPS];
 
@@ -56,7 +59,7 @@ export function NodeGenerationProgress({
           />
         ))}
       </div>
-      <h1>Dersin hazırlanıyor...</h1>
+      <h1>{title}</h1>
       <ul className="apg-steps">
         {steps.map((label, index) => {
           const done = index < reached;
