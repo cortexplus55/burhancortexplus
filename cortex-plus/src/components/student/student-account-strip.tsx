@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { periodWord } from "@/lib/credits/period";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 
 export function StudentAccountStrip({
@@ -64,7 +65,7 @@ export function StudentAccountStrip({
         </p>
       ) : account.isPremium ? (
         <p className="mt-1.5 text-xs text-[var(--cs-muted)]">
-          Aylık kotan açık; işlemler kredi harcar.
+          {periodWord(account.periodKind)} kotan açık; işlemler kredi harcar.
         </p>
       ) : null}
     </div>

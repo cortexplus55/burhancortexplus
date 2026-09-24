@@ -13,6 +13,16 @@ const RETIRED_PREFIXES = [
   "/ogretmenler-ve-profesorler-icin",
 ];
 
+/**
+ * Eski kısa adresler. Sayfa yok; kalıcı ürün de yok.
+ * Hedef korumalıysa misafir bir sonraki istekte `/giris?next=` ile düşer.
+ */
+const LEGACY_ALIASES: Record<string, string> = {
+  "/sor": "/soru-coz",
+  "/chat": "/ogretmen",
+  "/podcast": "/studio/podcast",
+};
+
 const PROTECTED_PREFIXES = [
   "/dashboard",
   "/onboarding",
@@ -90,6 +100,14 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/ogretmen";
     url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  const barePath = path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
+  const alias = LEGACY_ALIASES[barePath];
+  if (alias) {
+    const url = request.nextUrl.clone();
+    url.pathname = alias;
     return NextResponse.redirect(url);
   }
 

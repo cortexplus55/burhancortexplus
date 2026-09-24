@@ -48,7 +48,8 @@ describe("ücretsiz hesap", () => {
     );
 
     expect(limits.map((l) => l.key)).toEqual(["photo-pages", "daily-photos"]);
-    expect(limits[0]).toMatchObject({ used: 1, limit: 2 });
+    expect(limits[0]).toMatchObject({ used: 1, limit: 2, label: "Fotoğraf ve PDF sayfa" });
+    expect(limits[0]?.hint).toContain("PDF sayfa: 2");
     expect(limits[1]).toMatchObject({ used: 2, limit: 3 });
   });
 
@@ -135,5 +136,16 @@ describe("limitler sayfası", () => {
      onları açmak, ikisini de yazılabilir hâle getirme riskini doğururdu. */
   it("kapalı tabloları service role ile okuyor", () => {
     expect(page).toContain("createServiceClient()");
+  });
+});
+
+describe("yükleme kromu", () => {
+  it("ücretsiz hesapta PDF sayfa tavanını aynı yerde yazar", () => {
+    const upload = readFileSync("src/components/documents/document-upload.tsx", "utf8");
+    const modal = readFileSync("src/components/parity/upload-modal.tsx", "utf8");
+    expect(upload).toContain("PDF sayfa:");
+    expect(upload).toContain("PHOTO_PAGE_LIMITS.free");
+    expect(modal).toContain("PDF sayfa:");
+    expect(modal).toContain("PHOTO_PAGE_LIMITS.free");
   });
 });

@@ -147,9 +147,11 @@ export function profilePlanView(account: {
   if (account.audience === "guest") return null;
   if (account.audience === "plus" || account.audience === "sigma") {
     const badge = account.audience === "sigma" ? "Sigma" : "Plus";
+    const quotaName =
+      account.periodKind === "weekly" ? "Haftalık kota" : "Aylık kota";
     const end = account.subscriptionPeriodEnd
       ? `Dönem ${formatDate(account.subscriptionPeriodEnd)} bitiyor`
-      : "Aylık kota";
+      : quotaName;
     return {
       label: badge,
       hint: `${end} · ek paket alabilirsin`,

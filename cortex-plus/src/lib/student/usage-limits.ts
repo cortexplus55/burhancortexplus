@@ -67,13 +67,13 @@ export async function loadUsageLimits(
   const photoLimit = photoPageLimit(tier);
   limits.push({
     key: "photo-pages",
-    label: "Fotoğraf belgesi",
+    label: tier === "free" ? "Fotoğraf ve PDF sayfa" : "Fotoğraf belgesi",
     used: Math.min(usedThisMonth(photo.data as Grant, now), photoLimit),
     limit: photoLimit,
     hint:
       tier === "free"
-        ? "Bu ay okunan fotoğraf sayfası. PDF ve metin belgeleri bu sayıya girmiyor."
-        : "Bu ay okunan fotoğraf sayfası. Bir fotoğraf bir sayfa; PDF ve metin belgeleri girmiyor.",
+        ? `PDF sayfa: ${photoLimit}. Bir fotoğraf bir sayfa; taranmış PDF de buradan düşer. Metin katmanı olan PDF ve düz metin girmiyor.`
+        : "Bu ay fotoğraf ve taranmış PDF sayfası. Metin katmanı olan PDF ve düz metin bu sayıya girmiyor.",
   });
 
   if (tier === "free") {

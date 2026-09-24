@@ -73,6 +73,7 @@ export function nextPeriodEnd(
 export function periodLabel(period: BillingPeriod): string {
   if (period === "yearly") return "yıllık";
   if (period === "monthly") return "aylık";
+  if (period === "weekly") return "haftalık";
   return "tek seferlik";
 }
 
