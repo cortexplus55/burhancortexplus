@@ -795,13 +795,84 @@ export function validateLessonV2(
   return issues;
 }
 
+function sectionCheckPublishable(check: SectionCheck): boolean {
+  if (!sectionCheckTeaches(check)) return false;
+  if (check.answerIndex < 0 || check.answerIndex >= check.options.length) return false;
+  const normalized = check.options.map((option) => option.trim().toLocaleLowerCase("tr"));
+  if (new Set(normalized).size !== normalized.length) return false;
+  if (normalized.some((option) => option === "hiçbiri" || option === "hepsi")) return false;
+  if (check.type === "trueFalse" && check.options.length !== 2) return false;
+  return true;
+}
+
+/**
+ * Öğretmeyen ya da şıkkı bozuk kontrol çıkarılır. Ders kalır.
+ * Kalan kontrol sayısı eşiğin altındaysa `lessonPublishIssues` reddeder.
+ */
+export function publishLessonDraft(raw: unknown): LessonV2 | null {
+  const prepared = prepareLessonDraft(raw);
+  if (!prepared) return null;
+  return {
+    ...prepared,
+    sections: prepared.sections.map((section) => {
+      if (!section.check || sectionCheckPublishable(section.check)) return section;
+      const rest = { ...section };
+      delete rest.check;
+      return rest;
+    }),
+  };
+}
+
+/**
+ * Yayına gidecek dersin kapısı. Tek bir zayıf kontrol dersi düşürmez.
+ * Uydurma yapı (şema, LaTeX, bölünmüş üs, örnek gerekçesi) hâlâ düşürür.
+ */
+export function lessonPublishIssues(
+  raw: unknown,
+  options: { minSections?: number } = {},
+): string[] {
+  const published = publishLessonDraft(raw);
+  if (!published) {
+    return ["Ders v2 şemasını karşılamıyor (hedef, bölümler, örnek, yaygın hata, bilgi kontrolü)."];
+  }
+  const issues = validateLessonV2(published, options).filter(
+    (issue) => !issue.includes("kontrolü yok") && !issue.includes("çürütmüyor"),
+  );
+  const teaching = published.sections.filter((section) => section.check).length;
+  const minChecks = published.sections.length >= 3 ? 2 : 1;
+  if (teaching < minChecks) {
+    issues.push(`En az ${minChecks} kontrol sorusu kalmalı; öğretmeyenler çıkarıldı.`);
+  }
+  return issues;
+}
+
+/** Doğrulayıcı kısa tekrarı görmesin. Eksik veya bozuk tekrar dersi reddetmesin. */
+export function lessonDraftForVerifier(draft: string): string {
+  try {
+    const parsed = JSON.parse(draft) as { sections?: unknown };
+    if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.sections)) return draft;
+    for (const section of parsed.sections) {
+      if (!section || typeof section !== "object") continue;
+      const check = (section as { check?: { review?: unknown } }).check;
+      if (check && typeof check === "object") delete check.review;
+    }
+    return JSON.stringify(parsed);
+  } catch {
+    return draft;
+  }
+}
+
 /**
  * Kısa tekrar, ders üretiminin içinde yazılır. Kapıda soru başına
  * ayrı bir model çağrısı yok.
  *
- * Yalnızca kısa bir kök cümle. Şıkları ikinci kez yazdırmak çıktıyı
- * şişirip üretim çağrısını 90 saniyelik sınıra dayıyordu; sıra bizde
- * karışır. Yazılamazsa alan boş kalır, ders yine tamamlanır.
+ * Yalnızca kısa bir kök cümle. Bu cümle doğrulayıcının formatına
+ * girmez: #81'de `"review"?:` şema metnine konunca denetçi eksik ya da
+ * farklı tekrar yüzünden dersin tamamını reddetti. Kural yalnız üretim
+ * isteminde durur; denetçiye giden taslaktan alan silinir.
+ *
+ * Şıkları ikinci kez yazdırmak çıktıyı şişiriyordu. Sıra bizde karışır.
+ * Yazılamazsa alan boş kalır, ders yine tamamlanır.
  */
 export const REVIEW_VARIANT_RULE =
   "check.review isteğe bağlıdır ve yalnızca kısa bir prompt'tur (en fazla 140 karakter). " +
@@ -811,12 +882,11 @@ export const REVIEW_VARIANT_RULE =
 /** İki rotanın ders şeması aynı metin. Diyagram eki rota ekler. */
 export const LESSON_V2_SCHEMA_HINT =
   'JSON: {"title":string,"objective":string,"overview":string,' +
-  '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string,"review"?:{"prompt":string}},"note":{"title":string,"body":string},"cards":[{"title":string,"body":string}]}],' +
+  '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"note":{"title":string,"body":string},"cards":[{"title":string,"body":string}]}],' +
   '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
   '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
   "En az 3 kavram bölümü. Her bölümde check zorunlu: trueFalse ekranda DOĞRU MU YANLIŞ, mcq ekranda HIZLI SINAV. " +
   "explanation yanlış seçeneğin neden çürük olduğunu yazsın. " +
-  `${REVIEW_VARIANT_RULE} ` +
   "example.solution adım adım ve gerekçeli. nextFocus en az bir sonraki çalışma. " +
   "cards isteğe bağlı: kardeş kavram kümesi varsa 2-6 kart; yoksa cards yazma, uydurma kart ekleme. " +
   "Kaynakta olmayan formül veya teorem yazma.";
@@ -1140,6 +1210,40 @@ export function validatePodcastPedagogy(
     );
   }
   return issues;
+}
+
+type PodcastChapterLike = {
+  title?: string;
+  lines?: { text?: string; speaker?: "ada" | "kerem" }[];
+};
+
+/**
+ * Şablon adlı bölüm ve öğüt satırı podcast'in tamamını düşürmesin.
+ * Dört kavram bölümü kalıyorsa onlar yayınlanır. Kalmıyorsa taslak
+ * olduğu gibi döner ve doğrulayıcı reddeder.
+ */
+export function publishablePodcast<T extends { chapters?: PodcastChapterLike[] }>(podcast: T): T {
+  const chapters = (podcast.chapters ?? [])
+    .map((chapter) => ({
+      ...chapter,
+      lines: (chapter.lines ?? []).filter((line) => !emptyMistake(line.text ?? "")),
+    }))
+    .filter(
+      (chapter) => (chapter.lines?.length ?? 0) > 0 && !isScaffoldHeading(chapter.title ?? ""),
+    );
+  if (chapters.length < 4) return podcast;
+  return { ...podcast, chapters };
+}
+
+/** Denetçiye giden podcast taslağı, tek bir şablon bölüm yüzünden düşmesin. */
+export function podcastDraftForVerifier(draft: string): string {
+  try {
+    const parsed = JSON.parse(draft) as { chapters?: PodcastChapterLike[] };
+    if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.chapters)) return draft;
+    return JSON.stringify(publishablePodcast(parsed));
+  } catch {
+    return draft;
+  }
 }
 
 /**
