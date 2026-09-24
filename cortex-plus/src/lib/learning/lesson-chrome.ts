@@ -1,4 +1,8 @@
 import type { SectionCheck } from "@/lib/learning/teaching-standards";
+import {
+  reviewQuestionFor,
+  type MaterialLanguage,
+} from "@/lib/learning/teacher-brain";
 
 /** Ders üretim ekranındaki beş adım — yakalanan yükleme listesi. */
 export const LESSON_PREP_STEPS = [
@@ -38,5 +42,17 @@ export function calloutTone(note: { title: string; tone?: CalloutTone | null }):
 
 export function reviewGateLead(count: number): string {
   const n = Math.max(1, Math.floor(count));
-  return `Bitirmeden önce, yanlış cevapladığın ${n} kontrol sorusunu yeniden sorup tekrar deneyelim.`;
+  return `Bitirmeden önce, yanlış cevapladığın ${n} kontrol sorusunu farklı bir şekilde sorup tekrar deneyelim.`;
+}
+
+/**
+ * Kısa tekrar kapısı. Ders üretilirken saklanan varyant geçerlidir.
+ * Yoksa veya bozuksa şıklar kayar ve köke önek eklenir; olgu uydurulmaz.
+ * Kapıda soru başına yeni bir model çağrısı yapılmaz.
+ */
+export function reviewGateQuestion<T extends SectionCheck>(
+  check: T,
+  language: MaterialLanguage = "tr",
+): T {
+  return reviewQuestionFor(check, language) as T;
 }

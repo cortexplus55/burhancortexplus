@@ -7,6 +7,7 @@ const WRONG_TYPE_LABEL: Record<string, string> = {
   calculation: "Hesap",
   definition: "Tanım",
   procedure: "İşlem",
+  lesson_check_miss: "Kısa tekrar",
   unknown: "Diğer",
 };
 

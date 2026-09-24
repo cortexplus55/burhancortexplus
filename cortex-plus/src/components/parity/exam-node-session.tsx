@@ -832,7 +832,10 @@ export function ExamNodeSession({
           <ExamLessonSteps
             lesson={structuredLesson}
             language={language}
-            onFinish={() => void finish()}
+            onFinish={(missed) => {
+              const indexes = (missed ?? []).filter((index) => Number.isInteger(index));
+              void finish(indexes.length ? { lessonMisses: indexes } : undefined);
+            }}
             onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
           />
         ) : (

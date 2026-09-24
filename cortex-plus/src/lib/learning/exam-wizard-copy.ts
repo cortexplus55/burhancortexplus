@@ -55,14 +55,19 @@ export const WIZARD_COPY = {
 
 export const PREP_HOME_COPY = {
   path: "Çalışma yolu",
+  topics: "Konular",
+  materials: "Materyaller",
   progress: "İlerleme",
   skillTree: "Beceri ağacı",
   allQuestions: "Tüm sorular",
   continue: "Devam et",
+  startLearning: "Hadi öğrenmeye başlayalım",
   noPractice: "Henüz alıştırma yapılmadı.",
   practicedElsewhere: "Çözdüğün sorular çalışma yolundaki düğümlerde.",
   createLesson: "Ders oluştur",
   masterySuffix: "% hakimiyet",
   emptyTree: "Konular kurulunca beceri ağacı burada görünür.",
   skillPractice: "Bu konudaki alıştırmalar çalışma yolundaki düğümlerde.",
+  materialsEmpty: "Bu hazırlığa bağlı belge yok. Belge eklersen dersler ona dayanır.",
+  noTopics: "Konular kurulunca liste burada görünür.",
 } as const;

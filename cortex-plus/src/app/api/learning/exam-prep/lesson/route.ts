@@ -12,6 +12,7 @@ import {
 } from "@/lib/learning/prep-source";
 import {
   LESSON_V2_SCHEMA_HINT,
+  REVIEW_VARIANT_RULE,
   prepareLessonDraft,
   teachingStandardConstraints,
   teachingSessionContext,
@@ -215,7 +216,7 @@ ${standards}
 ${teacherBrief}
 ${depth?.line ?? ""}
 Bu dersin konusu YALNIZCA: ${topic.label}.
-Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.${sourceBlock}${topicBlock}`
+Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu. ${REVIEW_VARIANT_RULE}${sourceBlock}${topicBlock}`
       : `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
 Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
 ${signalLine}

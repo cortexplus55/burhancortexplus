@@ -855,9 +855,11 @@
 /* Sınav hazırlığı — referans ürünün exam-preps ekranı */
 .cp-exam-page {
   width: 100%;
-  max-width: 56rem;
+  max-width: min(56rem, 100%);
   margin: 0 auto;
   padding: 1.5rem 1.25rem 3rem;
+  overflow-x: clip;
+  box-sizing: border-box;
 }
 
 .cp-exam-page--loading {
@@ -3691,20 +3693,58 @@
   background: linear-gradient(90deg, #7c6cf7, #f4ae0b);
 }
 
+.cp-exam-phases {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 1.25rem;
+}
+
+.cp-exam-phase {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cp-exam-phase-head {
+  text-align: center;
+  margin: 0 auto 0.35rem;
+  max-width: min(22rem, 100%);
+}
+
+.cp-exam-phase-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.cp-exam-phase-head p {
+  margin: 0.25rem 0 0;
+  color: var(--cp-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .cp-exam-trail {
   list-style: none;
-  padding: 1.5rem 0 2rem;
+  padding: 0.75rem 0 0.25rem;
   margin: 0 auto;
-  max-width: 22rem;
+  max-width: min(22rem, 100%);
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 1.35rem;
+  box-sizing: border-box;
 }
 
 .cp-exam-trail-item {
   display: flex;
   align-items: center;
   gap: 0.85rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .cp-exam-trail-item--right {
@@ -3755,6 +3795,9 @@
 .cp-exam-trail-item span {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
 }
 
 .cp-exam-trail-item em {
@@ -3773,7 +3816,24 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  align-items: center;
+  align-items: stretch;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.cp-exam-start-card p {
+  margin: 0;
+  text-align: center;
+}
+
+.cp-exam-start-card .cp-exam-continue,
+.cp-exam-start-card .cp-exam-reco-go {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: normal;
+  text-align: center;
 }
 
 .cp-exam-reco {
@@ -4834,8 +4894,20 @@
   }
 
   .cp-exam-trail-item span {
-    max-width: min(100%, 14rem);
+    max-width: 100%;
     overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 420px) {
+  .cp-exam-page {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+
+  .cp-exam-tab {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8125rem;
   }
 }
 
@@ -7077,13 +7149,17 @@
 }
 
 .cp-exam-tabs {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 0.25rem;
   margin-top: 0.85rem;
   padding: 0.25rem;
   border-radius: 9999px;
   background: var(--cp-bg);
   border: 1px solid var(--cp-border);
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .cp-exam-tab {
@@ -7113,7 +7189,14 @@
   color: var(--cp-muted);
 }
 .cp-exam-materials {
-  margin-top: 1.25rem;
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .cp-exam-material {
@@ -7124,6 +7207,10 @@
   border-radius: 1rem;
   border: 1px solid var(--cp-border);
   background: var(--cp-surface);
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .cp-exam-material span {

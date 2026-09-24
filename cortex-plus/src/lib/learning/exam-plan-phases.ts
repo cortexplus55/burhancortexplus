@@ -146,14 +146,21 @@ export function groupNodesByPhase<T extends { kind: PlanNodeKind }>(
   nodes: T[],
 ): { phase: PhaseMeta; nodes: T[] }[] {
   const buckets = new Map<PhaseId, T[]>();
+  let introPlaced = false;
   for (const node of nodes) {
-    const id = phaseForKind(node.kind);
+    // Giriş dersi "Bugün başla"nın altında durur. Sonraki ders düğümleri
+    // öğrenme aşamasında kalır; takvim sırası fazın içinde korunur.
+    let id = phaseForKind(node.kind);
+    if (node.kind === "lesson" && !introPlaced) {
+      id = "start";
+      introPlaced = true;
+    }
     buckets.set(id, [...(buckets.get(id) ?? []), node]);
   }
   return PLAN_PHASES.map((phase) => ({
     phase,
     nodes: buckets.get(phase.id) ?? [],
-  })).filter((group) => group.phase.id === "start" || group.nodes.length > 0);
+  })).filter((group) => group.nodes.length > 0);
 }
 
 /**

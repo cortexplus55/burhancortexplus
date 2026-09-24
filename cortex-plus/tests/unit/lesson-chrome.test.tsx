@@ -7,6 +7,7 @@ import {
   calloutTone,
   checkPresentation,
   reviewGateLead,
+  reviewGateQuestion,
   trueFalseIndexes,
 } from "@/lib/learning/lesson-chrome";
 
@@ -28,6 +29,11 @@ const lesson = {
         options: ["Doğru", "Yanlış"],
         answerIndex: 0,
         explanation: "Metinde sistem ile çevreyi ayıran yüzey sınır olarak adlandırılır.",
+        review: {
+          prompt: "Sistem ile çevre arasındaki yüzeye ne ad verilir?",
+          options: ["Yanlış", "Doğru"],
+          answerIndex: 1,
+        },
       },
       note: {
         title: "Sınırın Hareketliliği",
@@ -80,6 +86,36 @@ describe("lesson chrome helpers", () => {
 
   it("writes the review gate in topic-question counts", () => {
     expect(reviewGateLead(2)).toContain("2 kontrol sorusunu");
+    expect(reviewGateLead(2)).toContain("farklı bir şekilde");
+  });
+
+  it("shows a stored rephrase and otherwise keeps the same correct option", () => {
+    const stored = reviewGateQuestion({
+      type: "mcq",
+      prompt: "Sınırından kütle geçen düzeneğe ne denir?",
+      options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
+      answerIndex: 1,
+      explanation: "Kütle geçişi olan düzenek açık sistemdir.",
+      review: {
+        prompt: "Hem madde hem enerji çıkan türbin hangi sınıftadır?",
+        options: ["Yalıtılmış sistem", "Kapalı sistem", "Açık sistem"],
+        answerIndex: 2,
+      },
+    });
+    expect(stored.prompt).toBe("Hem madde hem enerji çıkan türbin hangi sınıftadır?");
+    expect(stored.prompt).not.toContain("Sınırından kütle");
+    expect(stored.options[stored.answerIndex]).toBe("Açık sistem");
+
+    const fallback = reviewGateQuestion({
+      type: "mcq",
+      prompt: "Sınırından kütle geçen düzeneğe ne denir?",
+      options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
+      answerIndex: 1,
+      explanation: "Kütle geçişi olan düzenek açık sistemdir.",
+    });
+    expect(fallback.prompt).not.toBe("Sınırından kütle geçen düzeneğe ne denir?");
+    expect(fallback.options[fallback.answerIndex]).toBe("Açık sistem");
+    expect(fallback.answerIndex).not.toBe(1);
   });
 });
 
@@ -114,6 +150,17 @@ describe("ExamLessonSteps", () => {
     expect(screen.getByText("TEKRARLA")).toBeTruthy();
     expect(screen.getByText("Bitirmeden önce kısa tekrar")).toBeTruthy();
     expect(screen.getByText(/1 kontrol sorusunu/)).toBeTruthy();
+    expect(screen.getByText(/farklı bir şekilde/)).toBeTruthy();
     expect(onFinish).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    expect(
+      screen.getByText("Sistem ile çevre arasındaki yüzeye ne ad verilir?"),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(
+        "Termodinamikte sistemi çevreden ayıran gerçek veya hayali yüzeye sınır denir.",
+      ),
+    ).toBeNull();
   });
 });
