@@ -13,7 +13,6 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { STUDY_PATH_SKELETON } from "@/lib/learning/exam-plan-phases";
 import type { StudyModality } from "@/lib/learning/exam-prep-ui-path";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { COMMON_SUBJECTS } from "@/lib/learning/subjects";
@@ -27,6 +26,7 @@ type Step =
   | "material"
   | "language"
   | "building"
+  | "shaping"
   | "topics"
   | "modality"
   | "focus"
@@ -39,7 +39,6 @@ const STEP_ORDER: Step[] = [
   "target",
   "material",
   "language",
-  "building",
   "topics",
   "modality",
   "focus",
@@ -149,13 +148,14 @@ export function ExamCreateWizard({
   /** Her konunun dayandığı sayfalar; öğrenci neye dayandığını görsün. */
   const [topicPages, setTopicPages] = useState<number[][]>([]);
   const [focusTopics, setFocusTopics] = useState<string[]>([]);
-  const [newTopic, setNewTopic] = useState("");
   const [title, setTitle] = useState("");
 
   const [starting, setStarting] = useState(false);
   const [planning, setPlanning] = useState(false);
   const [paywall, setPaywall] = useState(false);
   const planTimer = useRef<number | null>(null);
+  const shapeTimer = useRef<number | null>(null);
+  const alive = useRef(true);
 
   useEffect(() => {
     void fetch("/api/documents")
@@ -172,18 +172,27 @@ export function ExamCreateWizard({
 
   useEffect(
     () => () => {
+      alive.current = false;
       if (planTimer.current) window.clearTimeout(planTimer.current);
+      if (shapeTimer.current) window.clearTimeout(shapeTimer.current);
     },
     [],
   );
 
-  const stepIndex = STEP_ORDER.indexOf(step);
+  const progressStep =
+    step === "building" || step === "shaping" ? "language" : step;
+  const stepIndex = Math.max(0, STEP_ORDER.indexOf(progressStep));
   const progress = ((stepIndex + 1) / STEP_ORDER.length) * 100;
 
   function goBack() {
     if (planning) {
       if (planTimer.current) window.clearTimeout(planTimer.current);
       setPlanning(false);
+      return;
+    }
+    if (step === "building" || step === "shaping") {
+      if (shapeTimer.current) window.clearTimeout(shapeTimer.current);
+      setStep("language");
       return;
     }
     const index = STEP_ORDER.indexOf(step);
@@ -223,8 +232,13 @@ export function ExamCreateWizard({
         setTopics([]);
       } finally {
         clearInterval(ticker);
+        if (!alive.current) return;
         setBuildStage(BUILD_STAGES.length - 1);
-        setStep("topics");
+        setStep("shaping");
+        if (shapeTimer.current) window.clearTimeout(shapeTimer.current);
+        shapeTimer.current = window.setTimeout(() => {
+          if (alive.current) setStep("topics");
+        }, 700);
       }
     },
     [subject],
@@ -343,7 +357,7 @@ export function ExamCreateWizard({
         <div className="apw-progress-fill" style={{ width: `${progress}%` }} />
       </div>
 
-      {stepIndex > 0 && step !== "building" ? (
+      {stepIndex > 0 && step !== "building" && step !== "shaping" ? (
         <button type="button" className="apw-back" onClick={goBack}>
           <ChevronLeft className="h-4 w-4" aria-hidden /> Geri
         </button>
@@ -601,7 +615,7 @@ export function ExamCreateWizard({
 
       {step === "language" ? (
         <section className="apw-step">
-          <h1>İçerik dili</h1>
+          <h1>Dil</h1>
           <p className="apw-lead">
             Dersler, sorular ve podcast bu dilde hazırlanır.
           </p>
@@ -655,6 +669,13 @@ export function ExamCreateWizard({
         </section>
       ) : null}
 
+      {step === "shaping" ? (
+        <section className="apw-step apw-step--center">
+          <h1>Konular hazırlanıyor...</h1>
+          <p className="apw-lead">Materyalin kapsamı konu listesine ayrılıyor.</p>
+        </section>
+      ) : null}
+
       {planning ? (
         <section className="apw-step apw-step--center">
           <h1>Sıradaki soruyu hazırlıyor...</h1>
@@ -665,20 +686,16 @@ export function ExamCreateWizard({
       {!planning && step === "topics" ? (
         <section className="apw-step">
           <h1>
-            {topics.length
-              ? `Materyalinde ${topics.length} konu buldum`
-              : "Konuları birlikte yazalım"}
+            {topics.length ? "Konuları düzenle" : "Konuları birlikte yazalım"}
           </h1>
           <p className="apw-lead">
-            Yanlış olanı düzelt, eksik olanı ekle. Bu adım yalnızca düzenleme.
+            Yanlış olanı değiştir, eksik olanı ekle.
           </p>
           <TopicEditor
             topics={topics}
             topicPages={topicPages}
-            newTopic={newTopic}
             onTopics={setTopics}
             onPages={setTopicPages}
-            onNewTopic={setNewTopic}
             onRename={(from, to) =>
               setFocusTopics((prev) =>
                 prev
@@ -779,43 +796,8 @@ export function ExamCreateWizard({
       ) : null}
 
       {!planning && step === "plan" ? (
-        <section className="apw-step">
-          <p className="apw-kicker">Planın {topics.length}</p>
-          <h1>Plan hazır</h1>
-          <p className="apw-lead">
-            Son bir kez düzenleyebilirsin. Çalışma yolu her hazırlıkta aynı
-            iskelet; konu sayısı materyalinin kapsamından gelir.
-          </p>
-          <TopicEditor
-            topics={topics}
-            topicPages={topicPages}
-            newTopic={newTopic}
-            onTopics={setTopics}
-            onPages={setTopicPages}
-            onNewTopic={setNewTopic}
-            onRename={(from, to) =>
-              setFocusTopics((prev) =>
-                prev
-                  .map((item) => (item === from ? to : item))
-                  .filter((item) => item.trim().length > 0),
-              )
-            }
-          />
-          <ol className="apw-phases">
-            {STUDY_PATH_SKELETON.map((phase) => (
-              <li key={phase.title}>
-                <h2>{phase.title}</h2>
-                <ul>
-                  {phase.items.map((item) => (
-                    <li key={item.label}>
-                      {item.label}
-                      {item.hint ? ` (${item.hint})` : ""}
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ol>
+        <section className="apw-step apw-step--center">
+          <h1>Çalışma planın hazır!</h1>
           <button
             type="button"
             className="apw-cta"
@@ -846,43 +828,53 @@ function formatBytes(bytes: number) {
 function TopicEditor({
   topics,
   topicPages,
-  newTopic,
   onTopics,
   onPages,
-  onNewTopic,
   onRename,
 }: {
   topics: string[];
   topicPages: number[][];
-  newTopic: string;
   onTopics: (next: string[]) => void;
   onPages: (next: number[][]) => void;
-  onNewTopic: (value: string) => void;
   onRename: (from: string, to: string) => void;
 }) {
-  function add() {
-    const title = newTopic.trim();
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const original = editIndex == null ? "" : topics[editIndex] ?? "";
+  const changeDirty = draft.trim().length > 0 && draft.trim() !== original.trim();
+  const addDirty = draft.trim().length > 0;
+
+  function close() {
+    setEditIndex(null);
+    setAdding(false);
+    setDraft("");
+  }
+
+  function saveChange() {
+    if (editIndex == null || !changeDirty) return;
+    const next = draft.trim();
+    onRename(original, next);
+    onTopics(topics.map((item, index) => (index === editIndex ? next : item)));
+    close();
+  }
+
+  function saveAdd() {
+    const title = draft.trim();
     if (!title) return;
     onTopics([...topics, title]);
-    onNewTopic("");
+    onPages([...topicPages, []]);
+    close();
   }
 
   return (
     <>
       <ul className="apw-topics">
         {topics.map((topic, index) => (
-          <li key={index}>
+          <li key={`${index}-${topic}`}>
             <span className="apw-topic-field">
-              <input
-                id={`apw-topic-${index}`}
-                value={topic}
-                aria-label={`${index + 1}. konu`}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  onRename(topic, next);
-                  onTopics(topics.map((item, i) => (i === index ? next : item)));
-                }}
-              />
+              <strong>{topic}</strong>
               {topicPages[index]?.length ? (
                 <em>Kaynak: s.{topicPages[index].join(", ")}</em>
               ) : null}
@@ -890,40 +882,70 @@ function TopicEditor({
             <button
               type="button"
               className="apw-topic-edit"
-              onClick={() => document.getElementById(`apw-topic-${index}`)?.focus()}
-            >
-              Konuyu değiştir
-            </button>
-            <button
-              type="button"
-              aria-label={`${topic} konusunu kaldır`}
               onClick={() => {
-                onRename(topic, "");
-                onTopics(topics.filter((_, i) => i !== index));
-                onPages(topicPages.filter((_, i) => i !== index));
+                setAdding(false);
+                setEditIndex(index);
+                setDraft(topic);
               }}
             >
-              <X className="h-4 w-4" aria-hidden />
+              Konuyu değiştir
             </button>
           </li>
         ))}
       </ul>
-      <div className="apw-topic-add">
-        <input
-          value={newTopic}
-          placeholder="Konu ekle"
-          aria-label="Yeni konu"
-          onChange={(e) => onNewTopic(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter") return;
-            e.preventDefault();
-            add();
-          }}
-        />
-        <button type="button" onClick={add}>
-          <Plus className="h-4 w-4" aria-hidden /> Konu ekle
-        </button>
-      </div>
+      <button
+        type="button"
+        className="apw-topic-add-btn"
+        onClick={() => {
+          setEditIndex(null);
+          setAdding(true);
+          setDraft("");
+        }}
+      >
+        <Plus className="h-4 w-4" aria-hidden /> Konu ekle
+      </button>
+
+      {editIndex != null || adding ? (
+        <div className="apw-modal-backdrop" role="presentation" onClick={close}>
+          <div
+            className="apw-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="apw-topic-dialog-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="apw-topic-dialog-title">
+              {adding ? "Konu ekle" : "Konuyu değiştir"}
+            </h2>
+            <input
+              value={draft}
+              aria-label={adding ? "Yeni konu" : "Konu adı"}
+              autoFocus
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") close();
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                if (adding) saveAdd();
+                else saveChange();
+              }}
+            />
+            <div className="apw-modal-actions">
+              <button type="button" className="apw-ghost" onClick={close}>
+                İptal
+              </button>
+              <button
+                type="button"
+                className="apw-cta"
+                disabled={adding ? !addDirty : !changeDirty}
+                onClick={adding ? saveAdd : saveChange}
+              >
+                Kaydet
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

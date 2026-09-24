@@ -477,12 +477,13 @@
 
 .apw-topics li {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
   border-radius: 0.75rem;
   border: 1px solid var(--cp-border);
   background: var(--cp-surface);
-  padding: 0.5rem 0.6rem;
+  padding: 0.7rem 0.8rem;
 }
 
 .apw-topics li input {
@@ -574,6 +575,82 @@
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+.apw-topic-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 0.9rem;
+  font-weight: 650;
+  cursor: pointer;
+  padding: 0.35rem 0.1rem;
+}
+
+.apw-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 1rem;
+}
+
+.apw-modal {
+  width: min(100%, 28rem);
+  border-radius: 1.1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface, #161616);
+  padding: 1.1rem 1.15rem 1.15rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.apw-modal h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.apw-modal input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--cp-border);
+  background: transparent;
+  color: inherit;
+  padding: 0.7rem 0.8rem;
+  font-size: 1rem;
+}
+
+.apw-modal input:focus-visible {
+  outline: 2px solid #7c6cf7;
+  outline-offset: 1px;
+}
+
+.apw-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.apw-modal-actions .apw-ghost,
+.apw-modal-actions .apw-cta {
+  width: auto;
+  margin-top: 0.85rem;
+}
+
+.apw-modal-actions .apw-cta {
+  padding-inline: 1.1rem;
+}
+
+@media (min-width: 640px) {
+  .apw-modal-backdrop {
+    align-items: center;
+  }
 }
 
 /* --- Yol önizlemesi: imza öge --- */

@@ -296,6 +296,7 @@ export default async function ExamPrepDetailPage({
         documentName={sourceDoc?.file_name ?? null}
         topicsDone={topicsMeter.done}
         topicCount={topicsMeter.total}
+        topicLabels={prepTopics.map((topic) => topic.label)}
       />
     </ParitySorShell>
   );

@@ -81,6 +81,7 @@ export function ExamPrepHome({
   documentName = null,
   topicsDone = 0,
   topicCount = 0,
+  topicLabels = [],
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -111,6 +112,8 @@ export function ExamPrepHome({
   /** Konu birimi. Düğüm sayısı buraya yazılmaz. */
   topicsDone?: number;
   topicCount?: number;
+  /** Beceri ağacı. Konu düzenleme burada yok; o yalnızca kurulum sihirbazında. */
+  topicLabels?: string[];
 }) {
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
@@ -120,7 +123,9 @@ export function ExamPrepHome({
   const readinessState = readinessLabel(readiness);
   const [shared, setShared] = useState(initialShared);
   const [sharing, setSharing] = useState(false);
-  const [view, setView] = useState<"yol" | "konular" | "materyaller">("yol");
+  const [view, setView] = useState<"yol" | "ilerleme">("yol");
+  const [progressPane, setProgressPane] = useState<"agac" | "sorular">("agac");
+  const [openSkill, setOpenSkill] = useState<string | null>(null);
   /** Bakım bağlantıları çalışmanın önüne geçmesin diye kapalı başlıyor. */
   const [toolsOpen, setToolsOpen] = useState(false);
   const topicRows = useMemo(() => topicProgressFromNodes(nodes), [nodes]);
@@ -183,9 +188,6 @@ export function ExamPrepHome({
         <p>
           {topicCount > 0 ? `${topicsDone} / ${topicCount} konu` : `${progressPct}%`}
         </p>
-        {topicCount > 0 ? (
-          <p className="cp-exam-plan-count">Planın {topicCount}</p>
-        ) : null}
         <h1>{title}</h1>
         <p className="text-sm text-[var(--cp-muted)]">
           {examType}
@@ -210,20 +212,11 @@ export function ExamPrepHome({
           <button
             type="button"
             role="tab"
-            aria-selected={view === "konular"}
-            className={cn("cp-exam-tab", view === "konular" && "is-active")}
-            onClick={() => setView("konular")}
+            aria-selected={view === "ilerleme"}
+            className={cn("cp-exam-tab", view === "ilerleme" && "is-active")}
+            onClick={() => setView("ilerleme")}
           >
-            Konular <span className="cp-exam-tab-count">{topicCount || topicRows.length}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === "materyaller"}
-            className={cn("cp-exam-tab", view === "materyaller" && "is-active")}
-            onClick={() => setView("materyaller")}
-          >
-            Materyaller
+            İlerleme
           </button>
         </div>
         {activeTopicLabel ? (
@@ -324,48 +317,45 @@ export function ExamPrepHome({
         <ExamPrepSettingsPanel prepId={prepId} initial={settings} />
       ) : null}
 
-      {view === "materyaller" ? (
-        <section className="cp-exam-materials" aria-label="Materyaller">
-          {documentId ? (
-            <Link href={`/dokumanlar/${documentId}`} className="cp-exam-material">
-              <strong>{documentName ?? "Kaynak belge"}</strong>
-              <span>Belgeyi aç</span>
-            </Link>
-          ) : (
-            <div className="cp-exam-empty">
-              <p>
-                <strong>Bu hazırlığa bağlı materyal yok</strong>
-              </p>
-              <Link href="/dokumanlar" className="cp-exam-continue cp-exam-continue--primary">
-                Belge ekle
-              </Link>
-            </div>
-          )}
-        </section>
-      ) : null}
-
-      {view === "konular" ? (
-        <section className="cp-topic-progress" aria-label="Konular">
-          {topicRows.length ? (
-            <ul>
-              {topicRows.map((row) => (
-                <li key={row.title}>
-                  <Link href={`/deneme-sinavlari/${prepId}/konu`}>
-                    <span className="cp-topic-progress-name">{row.title}</span>
-                    <span className="cp-topic-progress-count">
-                      {row.done}/{row.total} tamamlandı
-                    </span>
-                    <span className="cp-topic-progress-bar" aria-hidden>
-                      <span style={{ width: `${row.pct}%` }} />
-                    </span>
-                    <span className="cp-topic-progress-pct">%{row.pct}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+      {view === "ilerleme" ? (
+        <section className="cp-progress-pane" aria-label="İlerleme">
+          <div className="cp-exam-tabs" role="tablist" aria-label="İlerleme görünümü">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={progressPane === "agac"}
+              className={cn("cp-exam-tab", progressPane === "agac" && "is-active")}
+              onClick={() => setProgressPane("agac")}
+            >
+              Beceri ağacı
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={progressPane === "sorular"}
+              className={cn("cp-exam-tab", progressPane === "sorular" && "is-active")}
+              onClick={() => setProgressPane("sorular")}
+            >
+              Tüm sorular
+            </button>
+          </div>
+          {progressPane === "agac" ? (
+            <SkillTree
+              labels={
+                topicLabels.length
+                  ? topicLabels
+                  : topicRows.map((row) => row.title)
+              }
+              rows={topicRows}
+              openSkill={openSkill}
+              onToggle={setOpenSkill}
+              startHref={startHref}
+            />
           ) : (
             <p className="text-sm text-[var(--cp-muted)]">
-              Plan kurulunca konular burada ilerlemeleriyle listelenir.
+              {topicsDone > 0 || nodes.some((node) => node.status === "done")
+                ? "Çözdüğün sorular çalışma yolundaki düğümlerde."
+                : "Henüz alıştırma yapılmadı."}
             </p>
           )}
         </section>
@@ -463,7 +453,7 @@ export function ExamPrepHome({
           </p>
           <div className="cp-exam-empty-actions">
             <Link href={startHref} className="cp-exam-continue cp-exam-continue--primary">
-              Hadi öğrenmeye başlayalım
+              Devam et
             </Link>
             {introPending ? (
               <Link href={examPrepIntroHref(prepId)} className="cp-exam-continue">
@@ -568,10 +558,62 @@ export function ExamPrepHome({
             ? ready
               ? `Sonraki: ${PLAN_NODE_META[ready.kind].title}`
               : "Yola dön"
-            : "Hadi öğrenmeye başlayalım"}
+            : "Devam et"}
         </Link>
       </div>
     </div>
+  );
+}
+
+function SkillTree({
+  labels,
+  rows,
+  openSkill,
+  onToggle,
+  startHref,
+}: {
+  labels: string[];
+  rows: { title: string; pct: number }[];
+  openSkill: string | null;
+  onToggle: (label: string | null) => void;
+  startHref: string;
+}) {
+  if (!labels.length) {
+    return (
+      <p className="text-sm text-[var(--cp-muted)]">
+        Konular kurulunca beceri ağacı burada görünür.
+      </p>
+    );
+  }
+  return (
+    <ul className="cp-skill-tree">
+      {labels.map((label) => {
+        const pct = rows.find((row) => row.title === label)?.pct ?? 0;
+        const open = openSkill === label;
+        return (
+          <li key={label}>
+            <button
+              type="button"
+              aria-expanded={open}
+              onClick={() => onToggle(open ? null : label)}
+            >
+              <strong>{label}</strong>
+              <span>{pct}% hakimiyet</span>
+            </button>
+            {open ? (
+              <div className="cp-skill-detail">
+                <p>
+                  {pct > 0
+                    ? "Bu konudaki alıştırmalar çalışma yolundaki düğümlerde."
+                    : "Henüz alıştırma yapılmadı."}
+                </p>
+                {pct === 0 ? <Link href={startHref}>Ders oluştur</Link> : null}
+              </div>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
