@@ -17,24 +17,42 @@ import {
   unrepresentedHeadings,
   topicTitleRule,
 } from "@/lib/documents/topic-title";
+import {
+  polishModelTitle,
+  topicMapFromExtractedText,
+} from "@/lib/documents/topic-map-fallback";
 
 /**
- * Model-backed topic map. The heuristic in {@link buildTopicMap} only recognises
- * a fixed trigonometry/curriculum fixture set; for any other document it emits
- * coincidental or "Sayfa N" titles. This reads the actual page text and returns
- * the document's own topic structure, the way a real syllabus map would look.
+ * Model-backed topic map. Reads the document's own pages and returns that
+ * document's topic structure.
  *
- * Returns `null` on any failure (no key, insufficient credits, invalid output)
- * so the caller can fall back to the heuristic without surfacing an error.
+ * A short note (one Word page, a short deck) may be a single topic. When the
+ * model returns nothing usable there, the title is taken from the extracted
+ * text. Long PDFs do not get that stand-in: a missing model map stays missing
+ * instead of being replaced by an unrelated curriculum.
  */
+
+const objectiveSchema = z
+  .union([z.string(), z.null()])
+  .optional()
+  .transform((value) => {
+    const text = typeof value === "string" ? value.trim() : "";
+    // Kısa ya da boş hedef taslağı düşürmesin; hedef zaten isteğe bağlı.
+    return text.length >= 4 ? text.slice(0, 240) : null;
+  });
 
 const llmSchema = z.object({
   topics: z
     .array(
       z.object({
         title: z.string().trim().min(2).max(120),
-        learningObjective: z.string().trim().min(4).max(240).nullable(),
-        pageNumbers: z.array(z.number().int().positive()).min(1).max(60),
+        learningObjective: objectiveSchema,
+        // Boş dizi şemayı düşürmesin: tek sayfada numara sonradan konuyor.
+        pageNumbers: z
+          .array(z.number().int().positive())
+          .max(60)
+          .nullish()
+          .transform((value) => value ?? []),
       }),
     )
     .min(1)
@@ -223,9 +241,9 @@ export async function buildTopicMapLLM(
   let bestDraft: z.infer<typeof llmSchema> | null = null;
   let bestMissing = Number.POSITIVE_INFINITY;
 
-  let outcome;
+  let modelData: z.infer<typeof llmSchema> | null = null;
   try {
-    outcome = await generateJson({
+    const generated = await generateJson({
       service,
       userId,
       actionCode: "STUDY_PLAN_GENERATE",
@@ -253,6 +271,7 @@ export async function buildTopicMapLLM(
       userPrompt: `Aşağıda "${fileName}" adlı ders belgesinin sayfa sayfa metni var. Belgenin konu haritasını çıkar: her ana konu için başlık, öğrenme hedefi ve o konunun geçtiği sayfa numaraları. Sadece bu belgede geçen konuları kullan, dışarıdan konu ekleme.
 
 Bu belgede ${contentPages.length} öğretim sayfası var. ${topicScopeGuidance(contentPages.length)}
+${minimumTopicCount(contentPages) === 1 ? "Belge kısa: tek konu yeter. Başlık cümle olmasın; sonuna nokta ya da soru işareti koyma.\n" : ""}
 
 HİÇBİR ÖĞRETİM BÖLÜMÜ LİSTEDEN KAYBOLMAZ. Sayıyı tutturmak için bölüm atmak yasak. Sayıyı azaltmanın tek yolu birleştirmek, birleştirdiğinde de her iki bölümün adı başlıkta görünür — iki bölümü "ve" ile tek başlıkta topla; öğrenci listeye baktığında belgede öğrendiği hiçbir konuyu arayıp bulamamazlık etmemeli. Tersi de geçerli: tek başına sınanabilecek kadar dolu bir alt başlığı ayrı konuya çıkarabilirsin.
 
@@ -274,18 +293,20 @@ ${pageDigest(contentPages)}`,
         return missing ? null : parsed.data;
       },
     });
+    if (generated.ok) modelData = generated.data;
   } catch {
-    return null;
+    // Kredi, zaman aşımı, sağlayıcı. Kısa belgede aşağıda metinden
+    // tek konu kurulur; uzun PDF'te harita boş kalır.
+    modelData = null;
   }
 
   // Bekçi hiçbir taslağı geçirmediyse en az bölüm kaybeden taslakla
   // devam et: belgeden çıkmış eksik bir harita, fikstüre ayarlı sezgisel
   // haritadan her zaman iyi.
-  const data = outcome.ok ? outcome.data : bestDraft;
-  if (!data) return null;
+  const data = modelData ?? bestDraft;
 
   const seen = new Set<string>();
-  const topics = data.topics
+  const topics = (data?.topics ?? [])
     .map((topic) => {
       let pageNumbers = [...new Set(topic.pageNumbers)]
         .filter((n) => contentNumbers.has(n))
@@ -297,8 +318,9 @@ ${pageDigest(contentPages)}`,
       }
       // Numara ve parantezli kısaltmayı burada kesiyoruz: modele
       // söylüyoruz ama söylemek yetmiyor, belgenin kendi başlığı güçlü
-      // bir çekim yaratıyor.
-      return { ...topic, title: normalizeTopicTitle(topic.title), pageNumbers };
+      // bir çekim yaratıyor. Sondaki nokta da aynı: kuralı bozan işaret
+      // silinir, başlığın kendisi durur.
+      return { ...topic, title: polishModelTitle(topic.title), pageNumbers };
     })
     .filter((topic) => {
       if (!topic.pageNumbers.length) return false;
@@ -344,7 +366,15 @@ ${pageDigest(contentPages)}`,
     topics.push(draftFromLlmTopic(title, null, pageNumbers, pages, topics.length));
   }
 
-  if (topics.length < minimumTopicCount(contentPages)) return null;
+  if (topics.length < minimumTopicCount(contentPages)) {
+    // Tek konunun yeterli olduğu kısa belgede model boş döndüyse metin
+    // duruyordur. Başlığı belgeden kur; uzun PDF bu eşiğin altında
+    // kaldığında yine boş döner.
+    if (minimumTopicCount(contentPages) === 1) {
+      return topicMapFromExtractedText(contentPages, pages, fileName);
+    }
+    return null;
+  }
 
   // Modelin bağlamadığı sayfayı bir konuya iliştir ki kapsama %100'e
   // ulaşsın. Ama SAYFANIN KENDİ BAŞLIĞINA bak.

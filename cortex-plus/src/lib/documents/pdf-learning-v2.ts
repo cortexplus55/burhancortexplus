@@ -161,13 +161,12 @@ export async function runPdfLearningV2(
       await persistPageMeta(service, pageId, analysis);
     }
 
-    // Konu haritası modelin belgeyi okumasıyla çıkar. Eskiden model
-    // başarısız olduğunda sezgisel haritaya düşülüyordu; o harita bir
-    // trigonometri fikstürüne ayarlı olduğu için pediatri belgesinde
-    // "Derece ve radyan" ve "Sayfa 4 içeriği" konuları üretti. Yanlış
-    // harita, harita olmamasından kötü: öğrenci çalıştığı konuyu değil
-    // başka bir dersi görüyor ve ürüne güveni bitiyor. Artık yedek yok;
-    // çıkmazsa belge "failed" işaretlenir ve öğrenci tekrar dener.
+    // Konu haritası modelin belgeyi okumasıyla çıkar. Eski sezgisel yedek
+    // bir trigonometri fikstürüne ayarlıydı; pediatri belgesinde "Derece
+    // ve radyan" yazdı. O yedek yok. Kısa belgede model boş dönerse
+    // başlık belgenin kendi metninden kurulur. Uzun PDF'te model susarsa
+    // harita yine başarısız kalır — başka dersin konusu, eksik haritadan
+    // kötü.
     const llmMap = docRow?.user_id
       ? await buildTopicMapLLM(
           service,
