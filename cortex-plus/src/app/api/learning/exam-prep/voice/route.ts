@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { oralTeacherStyleLine } from "@/lib/learning/oral-exam-chrome";
 import { TUTOR_ANSWER_DISCIPLINE } from "@/lib/learning/tutor-style";
 
 const bodySchema = z.object({
@@ -10,6 +11,8 @@ const bodySchema = z.object({
   kind: z.enum(["qa", "oral"]),
   topicLabel: z.string().min(1).max(120),
   difficulty: z.enum(["kolay", "orta", "ileri"]).default("orta"),
+  /** Sözlü kabuktaki öğretmen havası. Yoksa eski sohbet davranışı durur. */
+  teacherStyle: z.enum(["strict", "helpful", "harsh"]).optional(),
   messages: z
     .array(
       z.object({
@@ -49,6 +52,9 @@ export async function POST(request: Request) {
     parsed.data.kind === "oral"
       ? "Sözlü sınav eğitmenisin. Kısa soru sor, öğrencinin cevabını dinle, gerekirse ipucu ver, sonra sonraki soruya geç. 4-5 tur yeter."
       : "Özel ders öğretmenisin. Konuyu adım adım anlat, ara ara soru sor, cevabı bekle. Uzun paragraf yazma; konuşma dili, 2-4 cümle.";
+  const style = parsed.data.teacherStyle
+    ? oralTeacherStyleLine(parsed.data.teacherStyle)
+    : "";
 
   const outcome = await generateJson({
     service,
@@ -59,6 +65,7 @@ export async function POST(request: Request) {
       'JSON: {"reply":string,"done":boolean}. reply sesli okunacak, kısa Türkçe. done true yalnızca oturum doğal bittiyse.',
     userPrompt: `${TUTOR_ANSWER_DISCIPLINE}
 ${mode}
+${style}
 Sınav: ${prep.title} (${prep.exam_type}). Konu: ${parsed.data.topicLabel}. Zorluk: ${parsed.data.difficulty}.
 ${transcript || "Öğrenci henüz konuşmadı; sen merhaba deyip başla."}`,
     parse: (raw) => replySchema.safeParse(raw).data ?? null,

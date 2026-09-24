@@ -34,10 +34,13 @@ function buildSphere(count: number) {
 
 export function NodeGenerationProgress({
   onClose,
+  title = "Dersin hazırlanıyor…",
 }: {
   /** Çağıran hâlâ geçirebilir; adım metni dosya adını içermez. */
   sourceName?: string | null;
   onClose?: () => void;
+  /** Sözlü deneme aynı adımları kendi başlığıyla gösterir. */
+  title?: string;
 }) {
   const steps = [...LESSON_PREP_STEPS];
 
@@ -66,7 +69,7 @@ export function NodeGenerationProgress({
         </button>
       ) : null}
       <div className="apg-head">
-        <h1>Dersin hazırlanıyor…</h1>
+        <h1>{title}</h1>
         <CortexMark size={18} />
       </div>
       <div className="apg-sphere" aria-hidden>
