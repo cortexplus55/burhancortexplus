@@ -818,7 +818,10 @@ export function keyTermsFromTeacherNote(note: string): string[] {
 export const SOURCE_PAGE_FORMULA_RULE =
   "Formül, tanım ve yasa YALNIZCA aşağıdaki kaynak sayfalarının metninde yazıyorsa kullanılır. " +
   "Kaynak sayfada olmayan, ders kitabından bildiğin formülü içeri alma. " +
-  "Öğretmen notu vurgu ve sıradır; notta geçen bir ifade kaynak sayfada yoksa dersin olgusu olmaz.";
+  "Öğretmen notu vurgu ve sıradır; notta geçen bir ifade kaynak sayfada yoksa dersin olgusu olmaz. " +
+  "Çözümlü örnek yalnızca bu düğümün kaynak sayfalarındaki sayı ve formülü kullanır. " +
+  "Basınç hesabında her terimi ayrı yaz: P_abs = P_gage + P_atm ve her terimin kaynak sayfadaki değeri; " +
+  "vakum için P_vakum = P_atm − P_abs. Birim dönüşümünde iki tarafta farklı birim olsun ve arada işlem olmasın.";
 
 const EQUATION_IN_NOTE =
   /[A-Za-zσΔμρ][A-Za-z0-9σΔμρ'’^_]{0,8}\s*=\s*[A-Za-z0-9σΔμρ'’^_\s*/+−\-.]{1,24}/g;

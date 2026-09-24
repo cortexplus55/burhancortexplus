@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import {
   partitionVerifierIssues,
+  settleRejectedLesson,
   validationIssueBlocks,
   issueMessages,
   recheckAfterRepair,
@@ -368,6 +369,23 @@ export async function verifyEducationalContent(input: {
       failureCodes: [],
       issueSeverity: { blocking: [], nonBlocking: nonBlockingLeft },
     };
+  }
+  // Tek onarım yetmediyse uydurulan parça kesilir; sağlam ders kalırsa kabul.
+  if (repairAttempted) {
+    const settled = settleRejectedLesson(content, blockingLeft);
+    if (settled.accepted && settled.removed.length > 0) {
+      return {
+        content: settled.content,
+        tokensIn,
+        tokensOut,
+        repairAttempted: true,
+        recheckPassed: true,
+        stagesMs,
+        failedStage: null,
+        failureCodes: [],
+        issueSeverity: { blocking: [], nonBlocking: nonBlockingLeft },
+      };
+    }
   }
   const failure = new EducationalVerificationError(
     finalBlocking.length ? "independent_failed" : "rejected",

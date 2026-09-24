@@ -1257,15 +1257,16 @@ async function generateNodePayload(input: {
             lesson.sections.map((section) => section.heading),
           ).length
         : 0;
-    // Kaynaktan gelen omurga kaç bölüm diyorsa doğrulayıcı da onu ister.
-    const minSections = useBackbone ? Math.max(3, backbone.length) : 3;
+    // Kaynak kaç alt başlık veriyorsa o kadar bölüm. Dar konuda iki yeter;
+    // sayıyı doldurmak için üçüncü kavram uydurulmaz.
+    const minSections = useBackbone ? Math.max(2, backbone.length) : 2;
     const backbonePrompt = !useBackbone
       ? ""
       : backbone.length >= 3
         ? ` BÖLÜMLER KAYNAĞIN KENDİ ALT BAŞLIKLARI: sırayla ${backbone
             .map((heading, i) => `${i + 1}) ${heading}`)
             .join(" ")}. Bu başlıkları kullan; birini atlama, kendinden yeni bölüm ekleme.`
-        : ` Kaynağın alt başlıkları: ${backbone.join(", ")}. İkisini de kapsa ve kavramları en az 3 bölüme ayır.`;
+        : ` Kaynağın alt başlıkları: ${backbone.join(", ")}. Bu başlıkları kullan; kaynakta olmayan yeni kavram bölümü ekleme.`;
     // Çizim "isteğe bağlı" kaldığı sürece model hiç çizmiyor.
     const keyTerms = [...keyTermsFromTeacherNote(teacherNote), ...backbone];
     const wantsDiagram = needsDiagram(input.topicLabel, ...backbone);
