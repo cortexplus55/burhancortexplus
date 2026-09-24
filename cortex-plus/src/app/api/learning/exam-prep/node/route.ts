@@ -67,6 +67,16 @@ import {
   lessonPodcastBrief,
   podcastNumbersOutsideLesson,
 } from "@/lib/learning/podcast-from-lesson";
+import { loadTeacherBrief } from "@/lib/documents/teacher-analysis-run";
+import {
+  podcastDialogueIssues,
+  podcastNarrationBrief,
+  prepLanguage,
+  shouldRetryLessonWithoutBrief,
+  SINGLE_NARRATOR_SCHEMA,
+  studentLanguageLine,
+  unsupportedQuantities,
+} from "@/lib/learning/teacher-brain";
 import {
   recordLearningTrackingAfterComplete,
   stripAnswerMeta,
@@ -382,7 +392,7 @@ export async function POST(request: Request) {
         schemaHint: teachingV2
           ? `Yalnızca {"correctCount":number,"missingObjectives":string[],"scoreRationale":string} JSON. correctCount 0-${questions.length}. Eşdeğer doğru kabul et; gerekçesiz uzun ilgisiz metin doğru sayma.`
           : `Yalnızca {"correctCount":number} JSON döndür. correctCount 0-${questions.length} arasında tam sayı olmalı. Anlamsız, ilgisiz veya yalnızca genel ifadeler doğru sayılmaz.`,
-        userPrompt: `${topicLabel} sözlü yanıtlarını içerik doğruluğuna göre değerlendir. Her yanıtı ancak soruyu doğru ve yeterli biçimde cevaplıyorsa doğru say.\n\n${answerLines}`,
+        userPrompt: `${topicLabel} sözlü yanıtlarını içerik doğruluğuna göre değerlendir. Her yanıtı ancak soruyu doğru ve yeterli biçimde cevaplıyorsa doğru say. Rubrikte ve beklenen noktalarda olmayan bir doğruyu puanlama; eksik noktayı missingObjectives'e yaz.\n\n${answerLines}`,
         parse: (raw) => oralGradeSchema.safeParse(raw).data ?? null,
       });
       if (!grade.ok) return errorResponse(grade.status, grade.error);
@@ -860,6 +870,10 @@ export async function POST(request: Request) {
                 })
               : [],
           learningPreferences: teachingV2 ? prep.learning_preferences : null,
+          teacherBrief:
+            teachingV2 && prepSource.document_id
+              ? await loadTeacherBrief(service, prepSource.document_id, topicLabel)
+              : "",
           lessonContent:
             kind === "podcast" && teachingV2 && topic?.id
               ? await loadTopicLesson(service, topic.id)
@@ -1104,6 +1118,8 @@ async function generateNodePayload(input: {
   topicId?: string | null;
   /** Kaynağın o sayfalardaki kendi alt başlıkları; boşsa bölümü model seçer. */
   sectionBackbone?: string[];
+  /** Saklı öğretmen analizi. Yoksa boş; üretim bugünkü yoldan sürer. */
+  teacherBrief?: string;
 }) {
   const activity = teachingActivityForKind(input.kind);
   const sessionCtx = input.teachingV2
@@ -1113,12 +1129,15 @@ async function generateNodePayload(input: {
   const prefsHint = input.teachingV2
     ? preferencePromptHint(input.learningPreferences)
     : "";
+  const teacherNote = input.teacherBrief?.trim() ?? "";
   // Aşinalık içeriğin nereden başlayacağını, ruh hali tonunu belirler.
   // Kaynak bloğu sona geliyor: model en son okuduğu talimata daha sadık.
-  const ctx = `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}. Zorluk: ${input.difficulty}. ${sessionSignalsPrompt(
-    input.familiarity,
-    input.mood,
-  )} ${sessionCtx} ${standards}${prefsHint}${input.sourceBlock}${input.topicFenceBlock ?? ""}`;
+  const contextFor = (note: string) =>
+    `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}. Zorluk: ${input.difficulty}. ${sessionSignalsPrompt(
+      input.familiarity,
+      input.mood,
+    )} ${sessionCtx} ${standards}${prefsHint}${note ? `\n${note}` : ""}${input.sourceBlock}${input.topicFenceBlock ?? ""}`;
+  const ctx = contextFor(teacherNote);
 
   const v2Common = input.teachingV2
     ? {
@@ -1167,6 +1186,7 @@ async function generateNodePayload(input: {
     let lastValidLesson: LessonV2 | null = null;
     let lastValidMissing = Number.POSITIVE_INFINITY;
     let lastParseIssues: string[] = [];
+    let rejectedForQuantity = false;
     const backbone = input.sectionBackbone ?? [];
     // Omurga tek başlıksa dayatmıyoruz: tek bölümlük ders, dersin kendisi
     // olmaz. İki ve üzeri gerçek bir iskelettir.
@@ -1204,13 +1224,18 @@ async function generateNodePayload(input: {
         '"x2":300,"y2":170,"arrow":true},{"kind":"text","x":300,"y":182,' +
         '"text":"...","anchor":"end"}]} — koordinatları kendi çizimine göre seç.'
       : "";
-    const outcome = await generateJson({
+    const requestLesson = (note: string, retried: boolean) =>
+      generateJson({
       service: input.service,
       userId: input.userId,
       actionCode: actionForKind(input.kind),
       isPremium: input.isPremium,
       difficulty: "hard",
       ...v2Common,
+      idempotencyKey:
+        retried && input.idempotencyKey
+          ? `${input.idempotencyKey}:no-brief`
+          : input.idempotencyKey,
       allowIndependentAccept: false,
       buildIndependent: (_c, parsed) => {
         const cleaned = prepareLessonDraft(parsed);
@@ -1233,7 +1258,7 @@ async function generateNodePayload(input: {
         "{kind:\"text\",x,y,text,anchor?}. Renk seçme; tone/fill/stroke yalnızca " +
         "ink, muted, accent, surface, line olabilir. Her çizimde en az bir etiket " +
         "ve bir caption olsun. Metinle anlaşılan konuya çizim koyma.",
-      userPrompt: `${ctx}${backbonePrompt}${diagramPrompt} Bu konunun dersini yaz.`,
+      userPrompt: `${contextFor(note)}${backbonePrompt}${diagramPrompt} Bu konunun dersini yaz.`,
       // Bu tur neden reddedildi — modele aynen iletiliyor. Rota kendi
       // kurallarıyla da reddediyor; sebebini söylemezse yeniden üretim
       // "JSON şeman bozuk" gibi yanlış bir yönlendirmeyle gidiyordu.
@@ -1277,6 +1302,21 @@ async function generateNodePayload(input: {
         if (formulIssues.length) {
           lastParseIssues = formulIssues;
           return null;
+        }
+        // Sayfa metni kesildiyse eksik sayı yanlış alarm üretir. Kesilmemiş
+        // kaynakta yüzde ve denklem katsayısı belgede yoksa taslak dönmez.
+        if (input.sourceBlock && !input.sourceBlock.includes("kısaltıldı")) {
+          const lessonText = [
+            parsed.overview,
+            ...parsed.sections.map((section) => section.body),
+            parsed.example.solution,
+          ].join("\n");
+          const gaps = unsupportedQuantities(lessonText, input.sourceBlock);
+          if (gaps.length) {
+            rejectedForQuantity = true;
+            lastParseIssues = [`Kaynakta olmayan nicelik: ${gaps.join(", ")}`];
+            return null;
+          }
         }
         // Kaynakta duran bir bölümü atlayan ders eksik bir derstir:
         // canlıda üretilen zemin dersi "Birleştirilmiş Zemin
@@ -1333,8 +1373,26 @@ async function generateNodePayload(input: {
      * Hiçbiri geçmediyse ders açılmaz ve öğrenci "yeniden dene" görür.
      * Bunun bedeli kabul edildi: yarım bir ders, dersin hiç olmamasından
      * iyi DEĞİL — sınavına çalışan öğrenci yanlış öğrenir ve bunu bilemez.
+     *
+     * Öğretmen notundaki sayı kaynağın bu kesitinde yoksa kapı taslağı
+     * düşürür. O durumda notsuz bir kez daha üretilir; ikinci tur yok.
      */
-    const lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;
+    let outcome = await requestLesson(teacherNote, false);
+    let lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;
+    if (
+      !lesson &&
+      shouldRetryLessonWithoutBrief({
+        brief: teacherNote,
+        rejectedForQuantity,
+        retried: false,
+      })
+    ) {
+      rejectedForQuantity = false;
+      lastValidLesson = null;
+      lastParseIssues = [];
+      outcome = await requestLesson("", true);
+      lesson = outcome.ok ? outcome.data : lastValidLesson;
+    }
     if (!lesson) throw new NodeGenerationError(outcome.ok ? 500 : outcome.status, outcome.ok ? "lesson_missing" : outcome.error);
     // Dersi konuya da yaz: öğrenci sonra geri dönüp okuyabilsin ve ders
     // bitince önerilen podcast bu içerikten türeyebilsin. Yazamamak dersi
@@ -1412,19 +1470,16 @@ async function generateNodePayload(input: {
           }
         : undefined,
       schemaHint: input.teachingV2
-        ? 'JSON: {"title":string,"objective":string,"sourcePoints":string[],"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +
+        ? 'JSON: {"title":string,"objective":string,"sourcePoints":string[],"chapters":[{"title":string,"lines":[{"speaker":"ada","text":string}]}]}. ' +
           "4-8 bölüm. Her bölümün title'ı O BÖLÜMDE KONUŞULAN KAVRAMIN ADI olsun" +
           (chapterExample ? ` (bu dersteki gibi: ${chapterExample})` : "") +
           '; üretim aşamalarının adı ' +
           '("Tanım", "Neden", "Örnek", "Yaygın hata", "Özet") başlık olarak YASAK. ' +
-          "Ada ve Kerem sırayla. Her text TEK cümle, ≤25 kelime. Kaynak dışı iddia yok."
-        : 'JSON: {"title":string,"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +
-          "Ada ve Kerem iki sunucu; sırayla konuşur, birbirine soru sorar. " +
-          "Her text TEK cümle olsun ve 25 kelimeyi geçmesin.",
+          `${SINGLE_NARRATOR_SCHEMA} Kaynak dışı iddia yok.`
+        : 'JSON: {"title":string,"chapters":[{"title":string,"lines":[{"speaker":"ada","text":string}]}]}. ' +
+          `${SINGLE_NARRATOR_SCHEMA}`,
       userPrompt: input.teachingV2
-        ? `${ctx} Ada ve Kerem'in podcast senaryosu. Akış: önce kavramı ` +
-          `tanımlayın, sonra niye önemli olduğunu, sonra sayılarla bir örnek, ` +
-          `sonra öğrencinin gerçekten yaptığı bir yanlış adım, sonunda özet. ` +
+        ? `${podcastNarrationBrief(prepLanguage(input.learningPreferences))} ${ctx} ` +
           (lessonBrief
             ? `\n\n${lessonBrief}\n\nBu podcast yukarıdaki DERSİN sesli hâlidir. ` +
               `Olguyu yeniden çıkarma, aktar: bölümler dersin bölümlerinden gelsin, ` +
@@ -1435,10 +1490,11 @@ async function generateNodePayload(input: {
               `ters çeviren bir cümle en ağır hatadır. Örnekteki her sayıyı sourcePoints'e yaz.`) +
           ` "Yaygın hata" bölümü öğüt değil hata olsun: "X'i göz ardı etmek yanlıştır" ` +
           `bir hata değildir; "LL yerine PI kullanmak" bir hatadır.`
-        : `${ctx} Ada ve Kerem'in sohbet ettiği 4 bölümlük kısa podcast senaryosu.`,
+        : `${podcastNarrationBrief()} ${ctx} Tek öğretmenin anlattığı 4 bölümlük kısa ders.`,
       parse: (raw) => {
         const data = schema.safeParse(raw).data ?? null;
         if (!data) return null;
+        if (podcastDialogueIssues(data.chapters).length) return null;
         if (input.teachingV2) {
           const issues = validatePodcastPedagogy(data);
           if (issues.length) return null;
@@ -1523,7 +1579,7 @@ async function generateNodePayload(input: {
         ? 'JSON: {"cards":[{"front":string,"back":string,"difficulty":"easy"|"medium"|"hard"}]}. Zor kartlar önce. Ön yüz cevabı sızdırmasın. Tek olgu/kart.'
         : 'JSON: {"cards":[{"front":string,"back":string}]}',
       userPrompt: input.teachingV2
-        ? `${ctx} 8 flashcard. difficulty=hard olanlar listenin başında. "Biliyorum" ustalığı iddiası değildir.`
+        ? `${ctx} 8 flashcard. difficulty=hard olanlar listenin başında. "Biliyorum" ustalığı iddiası değildir.${input.kind === "spaced" ? " Aralıklı tekrar: öğretmen notundaki çekirdek tanım ve formül önce gelsin." : ""}`
         : `${ctx} 8 flashcard.`,
       parse: (raw) => {
         const data = schema.safeParse(raw).data ?? null;
@@ -1599,7 +1655,7 @@ async function generateNodePayload(input: {
       input.teachingV2
         ? "multi=true yalnızca gerçekten birden fazla bağımsız doğru varken; aksi halde multi false. Her soruda learningObjective ve explanation yaz."
         : "En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi)."
-    } ${input.kind === "written_exam" ? "Sınav disiplini, ipucu yok." : ""} ${input.kind === "gaps" ? "Zayıf nokta / tuzak sorular." : ""}`,
+    } ${input.kind === "written_exam" ? "Sınav disiplini, ipucu yok." : ""} ${input.kind === "gaps" ? "Zayıf nokta / tuzak sorular. Öğretmen notunda yanılgı varsa onu ölç." : ""}`,
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
   return { type: "quiz", questions: outcome.questions, teachingStandard: activity };
@@ -1748,6 +1804,7 @@ function preferencePromptHint(raw: unknown): string {
   // Bu metni öğrenci yazıyor: veri olarak sunuluyor, talimat olarak değil.
   // Dersin neyi anlatacağını kaynak belirler, bu not yalnızca nasıl
   // anlatılacağına dair bir tercihtir.
+  parts.push(studentLanguageLine(prepLanguage(o)));
   const notes = typeof o.notes === "string" ? o.notes.trim().slice(0, 400) : "";
   if (notes) {
     parts.push(

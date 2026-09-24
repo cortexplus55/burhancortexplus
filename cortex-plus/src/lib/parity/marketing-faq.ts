@@ -20,7 +20,7 @@ export type FaqItem = { q: string; a: string };
 export const MARKETING_FAQ: FaqItem[] = [
   {
     q: "Cortex Plus tam olarak ne yapıyor?",
-    a: "Ders notunu yüklüyorsun; içinden çalışılacak konular çıkarılıyor, her konu için anlatım, iki sunuculu podcast, test ve sözlü pratik üretiliyor. Hepsi senin notundan — genel bir ders anlatımı değil, elindeki materyalin kendisi.",
+    a: "Ders notunu yüklüyorsun; içinden çalışılacak konular çıkarılıyor, her konu için anlatım, öğretmenin anlattığı podcast, test ve sözlü pratik üretiliyor. Hepsi senin notundan — genel bir ders anlatımı değil, elindeki materyalin kendisi.",
   },
   {
     q: "Ücretsiz kullanabilir miyim, kart istiyor musunuz?",

@@ -39,12 +39,14 @@ export function ExamPrepStudySession({
   topics,
   initialTopicId,
   lessonsByTopic,
+  language = "tr",
 }: {
   prepId: string;
   prepTitle: string;
   topics: PrepTopic[];
   initialTopicId: string | null;
   lessonsByTopic: Record<string, TopicLesson>;
+  language?: "tr" | "en";
 }) {
   const router = useRouter();
   const [generating, setGenerating] = useState(false);
@@ -217,7 +219,7 @@ export function ExamPrepStudySession({
               <h2 className="cp-exam-topic-lesson-title">{lesson.title}</h2>
               {/* Yapı varsa adım adım; yoksa (eski dersler) markdown. */}
               {structured ? (
-                <ExamLessonSteps lesson={structured} />
+                <ExamLessonSteps lesson={structured} language={language} />
               ) : (
                 <ExamLessonBody content={lesson.contentMd} />
               )}

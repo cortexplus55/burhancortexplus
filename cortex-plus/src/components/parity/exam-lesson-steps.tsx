@@ -11,6 +11,7 @@ import {
   reviewGateLead,
   trueFalseIndexes,
 } from "@/lib/learning/lesson-chrome";
+import { rephraseSectionCheck, type MaterialLanguage } from "@/lib/learning/teacher-brain";
 import "@/styles/exam-lesson-steps.css";
 
 /**
@@ -102,11 +103,14 @@ function buildSteps(lesson: LessonV2): Step[] {
 
 export function ExamLessonSteps({
   lesson,
+  language = "tr",
   onFinish,
   onClose,
   closeHref,
 }: {
   lesson: LessonV2;
+  /** Hazırlığın dili. Tekrar sorusu bu dilde yeniden kurulur. */
+  language?: MaterialLanguage;
   onFinish?: () => void;
   onClose?: () => void;
   closeHref?: string;
@@ -125,13 +129,17 @@ export function ExamLessonSteps({
       .map((sectionIndex) => {
         const section = lesson.sections[sectionIndex];
         return section?.check
-          ? ({ kind: "retry", heading: section.heading, check: section.check } as Step)
+          ? ({
+              kind: "retry",
+              heading: section.heading,
+              check: rephraseSectionCheck(section.check, language),
+            } as Step)
           : null;
       })
       .filter((s): s is Step => s !== null);
     if (!retries.length) return base;
     return [...base, { kind: "review-gate", count: retries.length } as Step, ...retries];
-  }, [base, missed, lesson]);
+  }, [base, missed, lesson, language]);
 
   const step = steps[Math.min(index, steps.length - 1)];
   const last = index >= steps.length - 1;

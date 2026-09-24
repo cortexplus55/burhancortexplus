@@ -3,6 +3,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { TUTOR_ANSWER_DISCIPLINE } from "@/lib/learning/tutor-style";
+import { teacherPersona } from "@/lib/learning/teacher-brain";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -65,7 +66,8 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     schemaHint: 'JSON: {"reply":string}. Kısa Türkçe, 3-6 cümle. Filler yok.',
     userPrompt: `${TUTOR_ANSWER_DISCIPLINE}
-Öğrenci dersin içinde takıldı. Doğru şıkkı açıkça söyleme.
+${teacherPersona()}
+Öğrenci dersin içinde takıldı. Doğru şıkkı açıkça söyleme. Yanlış denemesinde neyin tutmadığını söyle.
 Sınav: ${prep.title} (${prep.exam_type}). Konu: ${topic?.label ?? prep.title}.
 Üzerindeki madde: ${parsed.data.itemText}
 ${transcript}`,

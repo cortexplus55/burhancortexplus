@@ -10,6 +10,7 @@ import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flag
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 import { topicStatusPct } from "@/lib/learning/oral-exam-chrome";
+import { prepLanguage } from "@/lib/learning/teacher-brain";
 
 export const metadata = { title: "Ders" };
 
@@ -29,7 +30,7 @@ export default async function ExamNodePage({
   const [{ data: prep }, { data: node }] = await Promise.all([
     supabase
       .from("exam_preps")
-      .select("id, title, active_topic_id, intro_completed_at, intro_deferred_at, document_id")
+      .select("id, title, active_topic_id, intro_completed_at, intro_deferred_at, document_id, learning_preferences")
       .eq("id", prepId)
       .eq("user_id", user.id)
       .maybeSingle(),
@@ -114,6 +115,7 @@ export default async function ExamNodePage({
         resumeEnabled={resumeEnabled}
         sourceName={sourceName}
         oralTopics={oralTopics}
+        language={prepLanguage(prep.learning_preferences)}
       />
     </ParitySorShell>
   );

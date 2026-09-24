@@ -4,6 +4,7 @@ import { analyzePages, type PageAnalysis } from "@/lib/documents/page-analysis";
 import { buildCoverageReport, type CoverageReport } from "@/lib/documents/coverage";
 import type { TopicDraft } from "@/lib/documents/topic-map";
 import { buildTopicMapLLM } from "@/lib/documents/topic-map-llm";
+import { runTeacherAnalysis } from "@/lib/documents/teacher-analysis-run";
 
 export type PdfLearningV2Result = {
   ok: boolean;
@@ -144,7 +145,7 @@ export async function runPdfLearningV2(
 
     const { data: docRow } = await service
       .from("documents")
-      .select("user_id, file_name")
+      .select("user_id, file_name, mime_type")
       .eq("id", documentId)
       .maybeSingle();
 
@@ -161,6 +162,19 @@ export async function runPdfLearningV2(
       await persistPageMeta(service, pageId, analysis);
     }
 
+    // Öğretmen analizi haritadan önce gelir ama haritanın ön koşulu
+    // değildir. Model susarsa veya kredi haritayı aç bırakacaksa not
+    // boş kalır; kısa Office yedeği ve uzun PDF yolu aynı durur.
+    let teacherBrief: string | null = null;
+    if (docRow?.user_id) {
+      const brain = await runTeacherAnalysis(service, documentId, {
+        userId: docRow.user_id as string,
+        fileName: (docRow.file_name as string) ?? "belge",
+        mimeType: (docRow.mime_type as string | null) ?? null,
+      });
+      teacherBrief = brain.topicMapBrief;
+    }
+
     // Konu haritası modelin belgeyi okumasıyla çıkar. Eski sezgisel yedek
     // bir trigonometri fikstürüne ayarlıydı; pediatri belgesinde "Derece
     // ve radyan" yazdı. O yedek yok. Kısa belgede model boş dönerse
@@ -174,6 +188,7 @@ export async function runPdfLearningV2(
           docRow.user_id as string,
           (docRow.file_name as string) ?? "belge",
           analyses,
+          teacherBrief,
         )
       : null;
     if (!llmMap) throw new Error("topic_map_unavailable");

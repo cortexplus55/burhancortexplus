@@ -26,6 +26,7 @@ const USER_SCOPED_TABLES = [
   "document_topic_nodes",
   "document_topic_page_links",
   "document_coverage_reports",
+  "document_teacher_analyses",
   "exam_prep_diagnostic_summaries",
   "quizzes",
   "quiz_questions",

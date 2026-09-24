@@ -184,9 +184,11 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
       );
     case "podcast":
       return (
-        "Konu+hedefe bağlı. Kaynak noktalarını önceden seç. Bölüm sırası: Tanım → Neden → Örnek → " +
-        "Yaygın hata → Özet. Formüller konuşulabilir Unicode. Kaynak dışı iddia yok. " +
-        "Her bölüm başlığı ve satırlar TTS öncesi doğrulanabilir kısa cümleler."
+        "Tek öğretmen anlatır; iki kişi diyalog kurmaz. Bölüm sırası: ne olduğu, neden önemli, " +
+        "kaynaktaki somut örnek, öğrencinin gerçekten yaptığı hata, tek cümlelik tekrar. " +
+        "Benzetme açıklamanın yerine geçmez. Sınavda çıkan noktayı vurgula. " +
+        "Formüller konuşulabilir Unicode. Kaynak dışı sayı ve iddia yok. " +
+        "Her satır tek anlatıcıda (ada) ve TTS öncesi doğrulanabilir kısa cümle."
       );
     case "flashcards":
       return (

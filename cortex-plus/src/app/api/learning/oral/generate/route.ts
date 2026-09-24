@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { teacherPersona } from "@/lib/learning/teacher-brain";
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
       'Yalnızca şu JSON: {"title":string,"questions":[{"prompt":string,"hint":string}]}. 5 açık uçlu sözlü sorusu. Kısa, net, Türkçe.',
-    userPrompt: `Konu: ${parsedBody.data.topic}. Gerçek bir sözlü sınav gibi 5 soru yaz.`,
+    userPrompt: `${teacherPersona()} Konu: ${parsedBody.data.topic}. Gerçek bir sözlü sınav gibi 5 soru yaz. Her soru tek kavramı yoklasın.`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       return result.success ? result.data : null;

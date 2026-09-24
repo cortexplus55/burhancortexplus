@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
       'Yalnızca şu JSON: {"title":string,"items":[{"text":string,"correct":boolean,"explanation":string,"correctedStatement":string}]}. 8 kısa Türkçe iddia yaz. Yarısı doğru, yarısı yanlış olsun. ' + TRUE_FALSE_FORMAT,
-    userPrompt: `Konu: ${parsedBody.data.topic}. 8 doğru/yanlış iddiası üret.`,
+    userPrompt: `Konu: ${parsedBody.data.topic}. 8 doğru/yanlış iddiası üret. Yanlış iddia gerçek bir yanılgı olsun.`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       return result.success ? result.data : null;

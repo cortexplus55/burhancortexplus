@@ -3,6 +3,11 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { generateJson } from "@/lib/ai/generate";
+import {
+  podcastDialogueIssues,
+  podcastNarrationBrief,
+  SINGLE_NARRATOR_SCHEMA,
+} from "@/lib/learning/teacher-brain";
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
@@ -57,13 +62,14 @@ export async function POST(request: Request) {
     actionCode: "AI_CHAT_STANDARD",
     isPremium,
     schemaHint:
-      'Yalnızca şu JSON: {"title":string,"tagline":string,"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +
-      "4-5 bölüm. Ada ve Kerem iki sunucu; sırayla konuşur, birbirine soru sorar. " +
-      "Her text TEK cümle olsun ve 25 kelimeyi geçmesin. Konuşma dilinde Türkçe.",
-    userPrompt: `Konu: ${parsedBody.data.topic}. Ada ve Kerem'in sohbet ettiği 5 dakikalık podcast senaryosu yaz.`,
+      'Yalnızca şu JSON: {"title":string,"tagline":string,"chapters":[{"title":string,"lines":[{"speaker":"ada","text":string}]}]}. ' +
+      `4-5 bölüm. ${SINGLE_NARRATOR_SCHEMA} Konuşma dilinde Türkçe.`,
+    userPrompt: `${podcastNarrationBrief()} Konu: ${parsedBody.data.topic}. Tek öğretmenin anlattığı 5 dakikalık ders senaryosu yaz.`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
-      return result.success ? result.data : null;
+      if (!result.success) return null;
+      if (podcastDialogueIssues(result.data.chapters).length) return null;
+      return result.data;
     },
   });
 

@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
       'Yalnızca şu JSON: {"score":number,"verdict":string,"feedback":string,"missingPoints":string[],"suggestedAnswer":string}. score 0-100. feedback puanı neden verdiğini açıklasın.',
-    userPrompt: `Sözlü: ${parsedBody.data.title}. Öğrenci cevaplarını değerlendir.\n\n${lines}`,
+    userPrompt: `Sözlü: ${parsedBody.data.title}. Öğrenci cevaplarını değerlendir. Doğru olanı, eksik olanı ve yanlış olanı ayır. Soruda olmayan bir doğruyu puanlama.\n\n${lines}`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       return result.success ? result.data : null;

@@ -24,6 +24,11 @@ import {
   validatePodcastPedagogy,
   type LessonV2,
 } from "@/lib/learning/teaching-standards";
+import {
+  podcastDialogueIssues,
+  podcastNarrationBrief,
+  SINGLE_NARRATOR_SCHEMA,
+} from "@/lib/learning/teacher-brain";
 
 /**
  * Podcast promptuna giren, dersin sıkıştırılmış hâli.
@@ -143,17 +148,17 @@ export async function generatePodcastFromLesson(input: {
       // toplamazsak dışarıdan "doğrulamadan geçmedi"den başka bir şey
       // görünmüyor.
       const issues = data
-        ? validatePodcastPedagogy(data)
+        ? [...validatePodcastPedagogy(data), ...podcastDialogueIssues(data.chapters)]
         : [`Podcast şeması geçersiz. ${describeDraft(parsed)}`];
       if (issues.length) input.onReject?.(issues);
       return { pedagogyIssues: issues, minItems: 4, sourceExcerpt: brief, requireSourceSupport: true };
     },
     schemaHint:
-      'JSON: {"title":string,"objective":string,"sourcePoints":string[],"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. ' +
+      'JSON: {"title":string,"objective":string,"sourcePoints":string[],"chapters":[{"title":string,"lines":[{"speaker":"ada","text":string}]}]}. ' +
       "4-8 bölüm; dersin bölümlerini izle. Her bölümün title'ı O BÖLÜMDE KONUŞULAN KAVRAMIN ADI olsun; " +
       '"Tanım", "Neden", "Örnek", "Yaygın hata", "Özet" gibi aşama adları başlık olarak YASAK. ' +
-      "Ada ve Kerem sırayla. Her text TEK cümle, ≤25 kelime.",
-    userPrompt: `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}.
+      SINGLE_NARRATOR_SCHEMA,
+    userPrompt: `${podcastNarrationBrief()} Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}.
 
 ${brief}
 
@@ -164,7 +169,7 @@ Bu podcast yukarıdaki DERSİN sesli hâlidir. Öğrenci dersi az önce okudu; �
         input.onReject?.(["Podcast şeması geçersiz."]);
         return null;
       }
-      const issues = validatePodcastPedagogy(data);
+      const issues = [...validatePodcastPedagogy(data), ...podcastDialogueIssues(data.chapters)];
       const strayNumbers = podcastNumbersOutsideLesson(
         JSON.stringify(data.chapters),
         brief,

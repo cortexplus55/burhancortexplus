@@ -19,6 +19,8 @@ import { recordUsage, refundCredits, reserveCredits } from "@/lib/credits/servic
 import { searchDocumentChunks } from "@/lib/rag/pipeline";
 import { NO_SOURCE_CREDIT_NOTE, NO_SOURCE_MESSAGE, saidNoSource, stripNoSourceMarker } from "@/lib/ai/grounding";
 import { chatSourceBlock } from "@/lib/learning/chat-source-block";
+import { loadTeacherBrief } from "@/lib/documents/teacher-analysis-run";
+import { teacherTurnGuidance } from "@/lib/learning/teacher-brain";
 import { extractText } from "@/lib/documents/extract-text";
 import { isOwnedDocumentPath } from "@/lib/documents/storage-path";
 import { recordUserActivity } from "@/lib/streak/record-activity";
@@ -169,11 +171,21 @@ export async function POST(request: Request) {
       const { data: profile } = await service.from("profiles").select("tutor_style").eq("id", userId).maybeSingle();
       const studentInstruction = await loadActivePrompt(service, PROMPT_KEYS.studentChat);
       const examContext = rest.prepId ? await loadExamChatContext(service, userId, rest.prepId) : null;
+      const lastAssistant = [...history].reverse().find((item) => item.role === "assistant");
+      const attachedBrief = !rest.prepId && rest.imageDocumentId
+        ? await loadTeacherBrief(service, rest.imageDocumentId, message.slice(0, 120))
+        : "";
+      const teacherTurn = teacherTurnGuidance({
+        message,
+        lastAssistant: typeof lastAssistant?.content === "string" ? lastAssistant.content : "",
+        language: examContext?.language,
+        hasSource: grounded || Boolean(attachedBrief) || Boolean(examContext?.hasSource),
+      });
       // Full page context is used for an attachment; RAG supplies selected chunks.
       const contextBlock = grounded ? chatSourceBlock(evidence, { documentsOnly: strict, maxCharsPerChunk: documentAttached ? 80000 : 3000 }) : "";
       const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${tutorStylePrompt(parseTutorStyle(profile?.tutor_style))}${examContext?.block ?? ""}${contextBlock}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${tutorStylePrompt(parseTutorStyle(profile?.tutor_style))}${examContext?.block ?? ""}${attachedBrief ? `\n${attachedBrief}` : ""}${contextBlock}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: { url: imageUrl } }] : message },
       ];
