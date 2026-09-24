@@ -4,7 +4,7 @@ import { SectionCard } from "@/components/ui-kit/empty-state";
 import { requireStudentArea } from "@/lib/auth/session";
 import { formatDate, formatNumber } from "@/lib/format";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
-import { formatResetAt, periodLabel, quotaView } from "@/lib/credits/period";
+import { formatResetAt, periodLabel, periodWord, quotaView } from "@/lib/credits/period";
 import { loadReferralSummary } from "@/lib/credits/referral";
 import { loadInviteLink } from "@/lib/credits/invite-code";
 import { ReferralRewardCard } from "@/components/parity/referral-reward-card";
@@ -158,7 +158,7 @@ export default async function KredilerPage() {
           </div>
         ) : (
           <div className="cp-quota-upsell">
-            <p>Aylık kotan dolduysa ek paket alabilirsin.</p>
+            <p>{periodWord(quota.kind)} kotan dolduysa ek paket alabilirsin.</p>
             <Link href="/paketler" className="cp-exam-continue inline-flex">
               Ek paket al
             </Link>

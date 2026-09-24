@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Smartphone, Upload, X } from "lucide-react";
+import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
+import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 
 export function UploadModal({
   open,
@@ -17,6 +19,9 @@ export function UploadModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const onCloseRef = useRef(onClose);
   const onRemoteRef = useRef(onRemote);
+  const account = useStudentShellAccount();
+  const freePdfCap =
+    account?.audience === "free" ? PHOTO_PAGE_LIMITS.free : null;
   const [over, setOver] = useState(false);
   const [uploadUrl, setUploadUrl] = useState<string | null>(null);
   const [qr, setQr] = useState<string | null>(null);
@@ -121,7 +126,10 @@ export function UploadModal({
         >
           <Upload className="h-8 w-8 opacity-70" aria-hidden />
           <p>Dosyalarını buraya bırak</p>
-          <p className="cp-upload-hint">Görseller, PDF</p>
+          <p className="cp-upload-hint">
+            Görseller, PDF
+            {freePdfCap !== null ? ` · PDF sayfa: ${freePdfCap}` : ""}
+          </p>
           <button
             type="button"
             className="cp-upload-pick"

@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
 import { isPhotoQuotaError } from "@/lib/documents/process-errors";
+import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { cn } from "@/lib/utils";
 
 const ALLOWED = [
@@ -31,6 +33,9 @@ export function DocumentUpload({
   learningV2?: boolean;
 }) {
   const router = useRouter();
+  const account = useStudentShellAccount();
+  const freePdfCap =
+    account?.audience === "free" ? PHOTO_PAGE_LIMITS.free : null;
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<"idle" | "uploading" | "processing">("idle");
   const [statusDetail, setStatusDetail] = useState<string | null>(null);
@@ -156,6 +161,7 @@ export function DocumentUpload({
           >
             PDF, TXT ve görsel · en fazla 15 MB
             {creditCost !== null ? ` · işleme ${creditCost} kredi` : ""}
+            {freePdfCap !== null ? ` · PDF sayfa: ${freePdfCap}` : ""}
             {learningV2
               ? " · işlem sonrası konu haritası çıkarılır"
               : ""}

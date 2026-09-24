@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   RENEWAL_REMINDER_DAYS,
+  billingNote,
   billingPeriodOf,
   daysUntil,
   hasExpired,
   isSubscriptionPlan,
   needsRenewalReminder,
   nextPeriodEnd,
+  periodLabel,
   planPeriodDays,
 } from "@/lib/payments/subscription";
 
@@ -21,7 +23,13 @@ describe("billingPeriodOf", () => {
   it("reads the column when it is set", () => {
     expect(billingPeriodOf({ billing_period: "yearly" })).toBe("yearly");
     expect(billingPeriodOf({ billing_period: "monthly" })).toBe("monthly");
+    expect(billingPeriodOf({ billing_period: "weekly" })).toBe("weekly");
     expect(billingPeriodOf({ billing_period: "one_time" })).toBe("one_time");
+  });
+
+  it("haftalık dönemi tek seferlik diye yazmaz", () => {
+    expect(periodLabel("weekly")).toBe("haftalık");
+    expect(billingNote("weekly")).toBe("haftalık faturalandırılır");
   });
 
   it("falls back to the old is_premium rule for rows written before the column", () => {

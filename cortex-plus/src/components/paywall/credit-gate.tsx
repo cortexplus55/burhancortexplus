@@ -2,6 +2,7 @@
 
 import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
 import { CreditLimitToast } from "@/components/paywall/credit-limit-toast";
+import { periodWord } from "@/lib/credits/period";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 
 export function CreditGate({
@@ -32,14 +33,8 @@ export function CreditGate({
 
   // Yenilenme saati kapıya taşınıyor: "abone ol" tek çözüm değil, beklemek de
   // çözüm ve bunu söylemek dürüst olan.
-  const periodWord =
-    account?.periodKind === "monthly"
-      ? "Aylık"
-      : account?.periodKind === "weekly"
-        ? "Haftalık"
-        : "Günlük";
   const resetHint = account?.resetsAtLabel
-    ? `${periodWord} hakkın ${account.resetsAtLabel} tarihinde yenilenir.`
+    ? `${periodWord(account.periodKind)} hakkın ${account.resetsAtLabel} tarihinde yenilenir.`
     : undefined;
 
   return (

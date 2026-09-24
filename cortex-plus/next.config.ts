@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
         destination: "/hakkimizda",
         permanent: true,
       },
+      // Eski kısa adresler. Misafir, hedefin korumasında `/giris?next=` görür.
+      { source: "/sor", destination: "/soru-coz", permanent: false },
+      { source: "/chat", destination: "/ogretmen", permanent: false },
+      { source: "/podcast", destination: "/studio/podcast", permanent: false },
     ];
   },
   /*
