@@ -11,18 +11,22 @@ describe("exam-prep-reschedule-apply helpers", () => {
     const done = completedRefsFromDoneNodes([
       {
         id: "1",
+        kind: "podcast",
         sort_order: 0,
         status: "done",
         session_meta: { calendarDate: "2026-09-08" },
       },
       {
         id: "2",
+        kind: "quiz",
         sort_order: 1,
         status: "ready",
         session_meta: { calendarDate: "2026-09-09" },
       },
     ]);
-    expect(done).toEqual([{ sortOrder: 0, calendarDate: "2026-09-08" }]);
+    expect(done).toEqual([
+      { sortOrder: 0, calendarDate: "2026-09-08", kind: "podcast" },
+    ]);
 
     const schedule: ScheduleBuildResult = {
       sessions: [
@@ -64,6 +68,7 @@ describe("exam-prep-reschedule-apply helpers", () => {
     const insert = sessionsToInsert(schedule, [
       {
         id: "1",
+        kind: "podcast",
         sort_order: 0,
         status: "done",
         session_meta: { calendarDate: "2026-09-08" },
@@ -71,5 +76,16 @@ describe("exam-prep-reschedule-apply helpers", () => {
     ]);
     expect(insert).toHaveLength(1);
     expect(insert[0]?.calendarDate).toBe("2026-09-10");
+
+    const untouched = sessionsToInsert(schedule, [
+      {
+        id: "pod",
+        kind: "podcast",
+        sort_order: 1,
+        status: "done",
+        session_meta: { calendarDate: "2026-09-10" },
+      },
+    ]);
+    expect(untouched.map((session) => session.kind)).toEqual(["podcast", "quiz"]);
   });
 });

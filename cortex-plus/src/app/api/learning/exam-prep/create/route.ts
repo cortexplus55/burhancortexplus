@@ -3,8 +3,13 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { pickMainTopics } from "@/lib/learning/diagnostic";
-import { daysUntilExam, mergeStudyPathTemplate } from "@/lib/learning/exam-prep-plan";
+import {
+  daysUntilExam,
+  mergeStudyPathTemplate,
+  sessionMetaBySortOrder,
+} from "@/lib/learning/exam-prep-plan";
 import { insertExamPrepGraph } from "@/lib/learning/exam-prep-insert";
+import { alignNewSessionSortOrders } from "@/lib/learning/exam-prep-reschedule-apply";
 import {
   buildExamScheduleV2,
   scheduleSessionsToNodeDrafts,
@@ -179,7 +184,11 @@ export async function POST(request: Request) {
               studyDayDates: scheduleSummary.studyDayDates,
               orderedTopicIds: scheduleSummary.orderedTopicIds,
               summary: scheduleSummary.summary,
-              sessions: scheduleSummary.sessions,
+              sessions: alignNewSessionSortOrders(
+                scheduleSummary.sessions,
+                scheduleDrafts ?? [],
+                [],
+              ),
             },
           }
         : {}),
@@ -193,12 +202,13 @@ export async function POST(request: Request) {
       .select("id, sort_order")
       .eq("exam_prep_id", result.prepId)
       .order("sort_order");
+    const metaBySort = sessionMetaBySortOrder(scheduleDrafts ?? []);
     for (const row of nodeRows ?? []) {
-      const draft = scheduleDrafts?.find((d) => d.sortOrder === row.sort_order);
-      if (!draft?.meta) continue;
+      const meta = metaBySort.get(row.sort_order as number);
+      if (!meta) continue;
       await service
         .from("exam_prep_nodes")
-        .update({ session_meta: draft.meta })
+        .update({ session_meta: meta })
         .eq("id", row.id);
     }
   }

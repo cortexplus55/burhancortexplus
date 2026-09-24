@@ -50,7 +50,13 @@ describe("post-PDF wizard order", () => {
     expect(WIZARD_COPY.modalityTitle).toBe("Nasıl çalışmayı seversin?");
     expect(WIZARD_COPY.focusTitle).toBe("En çok neye odaklanalım?");
     expect(WIZARD_COPY.equalFocus).toBe("Tüm konulara eşit odaklan");
+    expect(WIZARD_COPY.planningTitle).toBe("Çalışma planın hazırlanıyor...");
+    expect(WIZARD_COPY.planningLead).toBe("Konular günlere yerleştiriliyor.");
     expect(WIZARD_COPY.planReady).toBe("Çalışma planın hazır!");
+    expect(wizard).toContain("WIZARD_COPY.planningTitle");
+    expect(wizard).toContain("WIZARD_COPY.planningLead");
+    expect(wizard).not.toContain("Sıradaki soruyu");
+    expect(wizard).not.toContain("soruyu hazırlıyor");
     expect(WIZARD_COPY.createCta).toBe("Sınav hazırlığı oluştur");
     expect(wizard).toContain("disabled={adding ? !addDirty : !changeDirty}");
     expect(wizard).not.toContain("zorlanıyorsun");

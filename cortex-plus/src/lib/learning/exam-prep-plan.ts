@@ -12,11 +12,26 @@ export type PlanNodeKind =
 
 export type NodeStatus = "locked" | "ready" | "done";
 
+/**
+ * exam_prep_nodes.session_meta. Takvim kurucusunun yazdığı alanlar;
+ * yeni bir anahtar eklenmez.
+ */
+export type PlanNodeSessionMeta = {
+  topicId?: string;
+  topicTitle?: string;
+  objective?: string;
+  sourcePages?: number[];
+  durationMinutes?: number;
+  role?: "learn" | "practice" | "review" | "mock";
+  calendarDate?: string;
+};
+
 export type PlanNodeDraft = {
   kind: PlanNodeKind;
   title: string;
   dayIndex: number;
   sortOrder: number;
+  meta?: PlanNodeSessionMeta;
 };
 
 export const PLAN_NODE_META: Record<
@@ -133,12 +148,37 @@ export function buildExamPlan(days: number): PlanNodeDraft[] {
 }
 
 /**
+ * Yanındaki gerçek düğümün oturum metası. Konu, hedef, sayfa ve
+ * calendarDate oradan gelir; sayfa listesi kopyalanır ki iki düğüm
+ * aynı diziyi paylaşmasın.
+ */
+function sessionMetaFromAnchor(
+  anchor: PlanNodeDraft | undefined,
+): PlanNodeSessionMeta | undefined {
+  const meta = anchor?.meta;
+  if (!meta) return undefined;
+  const copy: PlanNodeSessionMeta = { ...meta };
+  if (meta.sourcePages) copy.sourcePages = [...meta.sourcePages];
+  return copy;
+}
+
+/**
  * Takvim yerleştirmesi bazı türleri (podcast, sözlü, kart) hiç
  * üretmezse şablondaki eksik türleri birer kez araya koyar.
- * Var olan düğümlerin sırası ve ek alanları durur.
+ * Var olan düğümlerin sırası ve ek alanları durur. Eklenen düğüm,
+ * durduğu yerdeki komşunun session_meta şeklini alır; aksi halde
+ * oluşturma bu düğümü atlar ve bitince takvim değişimi
+ * schedule_metadata_missing verir.
+ *
+ * `alreadyPresent`: yeniden kurulumda korunmuş (bitmiş) türler.
+ * Onlar listede yoktur ama bir kez daha eklenmez.
  */
-export function mergeStudyPathTemplate<T extends PlanNodeDraft>(nodes: T[]): T[] {
-  const present = new Set(nodes.map((node) => node.kind));
+export function mergeStudyPathTemplate<T extends PlanNodeDraft>(
+  nodes: T[],
+  options?: { alreadyPresent?: Iterable<PlanNodeKind> },
+): T[] {
+  const present = new Set<PlanNodeKind>(options?.alreadyPresent ?? []);
+  for (const node of nodes) present.add(node.kind);
   const out = [...nodes];
   for (const kind of CORE_ORDER) {
     if (present.has(kind)) continue;
@@ -146,14 +186,51 @@ export function mergeStudyPathTemplate<T extends PlanNodeDraft>(nodes: T[]): T[]
     const at = out.findIndex((node) => CORE_ORDER.indexOf(node.kind) > slot);
     const idx = at < 0 ? out.length : at;
     const anchor = out[Math.min(idx, Math.max(0, out.length - 1))];
+    const meta = sessionMetaFromAnchor(anchor);
     out.splice(idx, 0, {
       kind,
       title: PLAN_NODE_META[kind].title,
       dayIndex: anchor?.dayIndex ?? 1,
       sortOrder: 0,
+      ...(meta ? { meta } : {}),
     } as T);
   }
   return out.map((node, index) => ({ ...node, sortOrder: index }));
+}
+
+/**
+ * Oluşturma, her taslağın metasını exam_prep_nodes.session_meta olarak
+ * yazar. Metası olmayan düğüm atlanır — şablon düğümleri bu yüzden
+ * komşunun metasını taşımak zorunda.
+ */
+export function sessionMetaBySortOrder(
+  drafts: PlanNodeDraft[],
+): Map<number, PlanNodeSessionMeta> {
+  const bySort = new Map<number, PlanNodeSessionMeta>();
+  for (const draft of drafts) {
+    if (!draft.meta) continue;
+    bySort.set(draft.sortOrder, draft.meta);
+  }
+  return bySort;
+}
+
+/**
+ * Takvim yeniden kurulunca yazılacak düğümler. Oturum taslakları
+ * şablon türleriyle tamamlanır. `sortFloor` korunmuş düğümlerin
+ * sort_order değerinin üstüdür; yeni satırlar onların sırasına girmez.
+ * Korunacak düğüm yoksa şablonun kendi 0..n sırası durur.
+ */
+export function withTemplateFillers<T extends PlanNodeDraft>(
+  nodes: T[],
+  options?: { alreadyPresent?: Iterable<PlanNodeKind>; sortFloor?: number },
+): T[] {
+  if (!nodes.length) return nodes;
+  const merged = mergeStudyPathTemplate(nodes, {
+    alreadyPresent: options?.alreadyPresent,
+  });
+  const floor = options?.sortFloor ?? 0;
+  if (floor <= 0) return merged;
+  return merged.map((node, index) => ({ ...node, sortOrder: floor + index }));
 }
 
 export function nodeProgress(nodes: { status: NodeStatus }[]) {
