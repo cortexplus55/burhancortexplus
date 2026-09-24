@@ -61,6 +61,8 @@ export function ExamVoiceTutor({
   const serverVoice = useRef<boolean | null>(null);
   const stopped = useRef(false);
   const paused = useRef(false);
+  const speechAbort = useRef<AbortController | null>(null);
+  const speakGen = useRef(0);
   const [endOpen, setEndOpen] = useState(false);
 
   useEffect(() => {
@@ -68,6 +70,7 @@ export function ExamVoiceTutor({
     void turn([]);
     return () => {
       stopped.current = true;
+      speechAbort.current?.abort();
       stopSpeech();
       voiceRef.current?.stop();
       browserRecRef.current?.stop();
@@ -135,16 +138,31 @@ export function ExamVoiceTutor({
 
   // Eğitmenin sesi sunucudan geliyor; cihazda Türkçe ses olmaması artık
   // dersi sessiz bırakmıyor. Sunucu sesi premium — gelmezse tarayıcıya düşüyoruz.
+  function speechEnded() {
+    return stopped.current || paused.current;
+  }
+
   async function speak(text: string, onEnd: () => void) {
-    if (stopped.current || paused.current) return;
+    if (speechEnded()) return;
     setPhase("speaking");
     setCaption("Eğitmen konuşuyor…");
 
-    const handle = await speakFromServer(text, "ada", () => {
-      voiceRef.current = null;
-      if (!stopped.current) onEnd();
-    });
-    if (stopped.current) {
+    const gen = ++speakGen.current;
+    speechAbort.current?.abort();
+    const controller = new AbortController();
+    speechAbort.current = controller;
+    const stale = () => speechEnded() || gen !== speakGen.current;
+
+    const handle = await speakFromServer(
+      text,
+      "ada",
+      () => {
+        voiceRef.current = null;
+        if (!stale()) onEnd();
+      },
+      controller.signal,
+    );
+    if (stale()) {
       handle?.stop();
       return;
     }
@@ -158,12 +176,13 @@ export function ExamVoiceTutor({
     }
 
     speakTurkish(text, {
+      cancelled: stale,
       onEnd: () => {
-        if (!stopped.current) onEnd();
+        if (!stale()) onEnd();
       },
       // Konuşamadıysak da akış tıkanmasın; sıradaki adıma geçiyoruz.
       onError: () => {
-        if (!stopped.current) onEnd();
+        if (!stale()) onEnd();
       },
     });
   }
@@ -273,6 +292,7 @@ export function ExamVoiceTutor({
 
   function stopAll() {
     stopped.current = true;
+    speechAbort.current?.abort();
     stopSpeech();
     voiceRef.current?.stop();
     voiceRef.current = null;
@@ -284,7 +304,9 @@ export function ExamVoiceTutor({
   }
 
   function confirmEnd() {
-    paused.current = true;
+    // Bitiş duraklatma değil: sürmekte olan ses isteği de kesilir.
+    stopped.current = true;
+    speechAbort.current?.abort();
     stopSpeech();
     voiceRef.current?.stop();
     voiceRef.current = null;
@@ -341,6 +363,7 @@ export function ExamVoiceTutor({
           <OralEndDialog
             busy={submitting}
             onStay={() => {
+              if (!submitting) stopped.current = false;
               paused.current = false;
               setEndOpen(false);
             }}

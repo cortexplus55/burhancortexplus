@@ -30,6 +30,7 @@ import {
   oralTeacherById,
   EMPTY_ORAL_ANSWER_NOTE,
   oralVoicePercent,
+  oralVoiceTopicLabel,
   oralWrittenPercent,
   reviewItemsFromQuestions,
   reviewItemsFromTranscript,
@@ -569,13 +570,14 @@ export function ExamNodeSession({
     : topicLabel
       ? [{ id: "current", label: topicLabel, pct: 0 }]
       : [{ id: "current", label: prepTitle, pct: 0 }];
-  const oralTopicLabel =
-    oralRows
-      .filter((topic) => oralSelected.includes(topic.id))
-      .map((topic) => topic.label)
-      .join(", ") ||
-    topicLabel ||
-    prepTitle;
+  const selectedOralLabels = oralRows
+    .filter((topic) => oralSelected.includes(topic.id))
+    .map((topic) => topic.label);
+  const oralTopicLabel = selectedOralLabels.join(", ") || topicLabel || prepTitle;
+  const oralVoiceLabel = oralVoiceTopicLabel(
+    isOral ? selectedOralLabels : [topicLabel ?? prepTitle],
+    topicLabel || prepTitle,
+  );
   const oralReviewItems =
     payload.type === "oral"
       ? reviewItemsFromQuestions(questions, answers)
@@ -817,7 +819,7 @@ export function ExamNodeSession({
           prepId={prepId}
           nodeId={nodeId}
           kind={kind === "oral" ? "oral" : "qa"}
-          topicLabel={isOral ? oralTopicLabel : (topicLabel ?? prepTitle)}
+          topicLabel={oralVoiceLabel}
           difficulty={difficulty}
           returnPath={`/deneme-sinavlari/${prepId}`}
           teacherStyle={isOral ? oralMoodId : undefined}

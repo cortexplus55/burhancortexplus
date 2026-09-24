@@ -9,6 +9,9 @@ import type { Mood } from "@/lib/learning/session-signals";
  * isteğe bağlı stile bağlanır.
  */
 
+/** `/api/learning/exam-prep/voice` topicLabel üst sınırı. */
+export const ORAL_VOICE_TOPIC_MAX = 120;
+
 export const ORAL_VOICE_NAME = "Ada";
 export const ORAL_EXPECTED_QUESTIONS = 3;
 export const ORAL_LIMIT_MINUTES = 7;
@@ -79,6 +82,28 @@ export function topicStatusPct(status: string | null | undefined): number {
   if (status === "done") return 100;
   if (status === "in_progress") return 50;
   return 0;
+}
+
+function clampTopicPiece(label: string, max: number): string {
+  const text = label.trim();
+  if (text.length <= max) return text;
+  if (max <= 1) return text.slice(0, Math.max(0, max));
+  return `${text.slice(0, max - 1).trimEnd()}…`;
+}
+
+/**
+ * Sesli tura giden konu satırı. Seçilen adlar 120 karakteri aşarsa
+ * ilk konu kalır ve kalan sayı eklenir; istek `invalid_input` olmaz.
+ * Sonuç kartı tam listeyi ayrıca gösterebilir.
+ */
+export function oralVoiceTopicLabel(labels: string[], fallback = ""): string {
+  const clean = labels.map((label) => label.trim()).filter(Boolean);
+  const full = clean.join(", ") || fallback.trim() || "Sözlü deneme";
+  if (full.length <= ORAL_VOICE_TOPIC_MAX) return full;
+  if (clean.length <= 1) return clampTopicPiece(full, ORAL_VOICE_TOPIC_MAX);
+  const suffix = ` +${clean.length - 1} konu`;
+  const room = Math.max(1, ORAL_VOICE_TOPIC_MAX - suffix.length);
+  return `${clampTopicPiece(clean[0], room)}${suffix}`;
 }
 
 export function formatTopicPct(pct: number): string {

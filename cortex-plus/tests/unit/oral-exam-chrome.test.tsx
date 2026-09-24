@@ -15,7 +15,9 @@ import {
   formatTopicPct,
   letterGrade,
   ORAL_PREFLIGHT,
+  ORAL_VOICE_TOPIC_MAX,
   oralHeadline,
+  oralVoiceTopicLabel,
   oralLiveStatus,
   oralTeacherStyleLine,
   oralVoicePercent,
@@ -33,6 +35,25 @@ const topics = [
 ];
 
 describe("oral exam chrome helpers", () => {
+  it("keeps the voice topic label inside the 120 character cap", () => {
+    const long = "Termodinamik Sistemler ve Temel Kavramlar ile Enerji Analizi";
+    const labels = [long, "Basınç ve Sıcaklık İlkeleri", "Saf Maddelerin Faz Değişimleri"];
+    const joined = labels.join(", ");
+    expect(joined.length).toBeGreaterThan(ORAL_VOICE_TOPIC_MAX);
+
+    const voice = oralVoiceTopicLabel(labels);
+    expect(voice.length).toBeLessThanOrEqual(ORAL_VOICE_TOPIC_MAX);
+    expect(voice.length).toBeGreaterThan(0);
+    expect(voice.startsWith("Termodinamik")).toBe(true);
+    expect(voice.endsWith("+2 konu")).toBe(true);
+
+    const one = oralVoiceTopicLabel([long]);
+    expect(one).toBe(long);
+    expect(oralVoiceTopicLabel([`${long} ${long} ${long}`]).length).toBeLessThanOrEqual(
+      ORAL_VOICE_TOPIC_MAX,
+    );
+  });
+
   it("prints topic progress as %0", () => {
     expect(topicStatusPct("ready")).toBe(0);
     expect(topicStatusPct("done")).toBe(100);
