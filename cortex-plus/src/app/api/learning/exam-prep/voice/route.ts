@@ -4,7 +4,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { oralTeacherStyleLine } from "@/lib/learning/oral-exam-chrome";
 import { TUTOR_ANSWER_DISCIPLINE } from "@/lib/learning/tutor-style";
-import { loadTeacherBrief } from "@/lib/documents/teacher-analysis-run";
+import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 import { prepLanguage, teacherTurnGuidance, voiceReplySchemaHint } from "@/lib/learning/teacher-brain";
 
 const bodySchema = z.object({
@@ -67,11 +67,9 @@ export async function POST(request: Request) {
     ? oralTeacherStyleLine(parsed.data.teacherStyle)
     : "";
 
-  const teacherBrief = await loadTeacherBrief(
-    service,
-    (prep.document_id as string | null) ?? null,
-    parsed.data.topicLabel,
-  );
+  const prepDocs = await loadPrepDocumentIds(service, prep.id as string);
+  const teaching = await loadTopicTeaching(service, prepDocs, parsed.data.topicLabel);
+  const teacherBrief = teaching.brief;
   const lastStudent = [...parsed.data.messages].reverse().find((item) => item.role === "user");
   const lastTeacher = [...parsed.data.messages].reverse().find((item) => item.role === "assistant");
 
@@ -80,6 +78,8 @@ export async function POST(request: Request) {
     userId,
     actionCode: "AI_CHAT_STANDARD",
     isPremium: await isPremiumUser(service, userId),
+    difficulty: teaching.priority ? teaching.depth.difficulty : undefined,
+    maxDraftAttempts: teaching.priority && teaching.priority !== "important" ? 1 : undefined,
     schemaHint: voiceReplySchemaHint(language),
     userPrompt: `${TUTOR_ANSWER_DISCIPLINE}
 ${teacherTurnGuidance({

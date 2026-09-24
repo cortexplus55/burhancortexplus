@@ -252,6 +252,11 @@ describe("akış notu ve tekrar sorusu", () => {
     const brief = teacherBriefForTopic(analysis, "Efektif gerilme ilkesi");
     expect(brief).toContain("Toplam gerilme ile efektif gerilme");
     expect(brief).toContain("Önce σ, sonra u");
+    expect(brief).toContain("Kapsam listesi");
+    expect(brief).toContain("σ' = σ − u");
+    expect(brief).toContain("important");
+    expect(teacherBriefForTopicMap(analysis)).toContain("Efektif Gerilme");
+    expect(teacherBriefForTopicMap(analysis)).not.toContain("Ayrı konu açma");
   });
 
   it("sayfasız formülü ve kısa başlığı nota yazmaz", () => {

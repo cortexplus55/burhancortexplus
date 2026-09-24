@@ -355,6 +355,13 @@ export async function processDocument(
       topics: v2.topics,
       coverageStatus: v2.coverage?.status,
     };
+  } else {
+    console.info(JSON.stringify({
+      event: "teacher_analysis",
+      documentId,
+      status: "not_started",
+      error: "pdf_learning_v2_off",
+    }));
   }
 
   return { ok: true, chunks: allChunks.length, notice, topicMap };

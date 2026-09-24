@@ -13,5 +13,11 @@ export function citationHref(citation: ChatCitation) {
 
 /** Only metadata selected by the server's retrieval layer reaches the UI. */
 export function citationsForReferences(evidence: ChatEvidence[], references: number[]): ChatCitation[] {
-  return evidence.filter((s) => references.includes(s.reference)).map(({ content: _content, ...citation }) => citation);
+  return evidence.filter((s) => references.includes(s.reference)).map((item) => ({
+    reference: item.reference,
+    documentId: item.documentId,
+    documentName: item.documentName,
+    pageNumber: item.pageNumber,
+    chunkId: item.chunkId,
+  }));
 }

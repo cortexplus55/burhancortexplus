@@ -23,7 +23,7 @@ import {
   parseMood,
   sessionSignalsPrompt,
 } from "@/lib/learning/session-signals";
-import { loadTeacherBrief } from "@/lib/documents/teacher-analysis-run";
+import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 import { groundingRules, teacherPersona } from "@/lib/learning/teacher-brain";
 
 const bodySchema = z.object({
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
 
   const { data: topic } = await service
     .from("exam_prep_topics")
-    .select("id, label, lesson_id, status")
+    .select("id, label, lesson_id, status, document_topic_node_id")
     .eq("id", topicId)
     .eq("exam_prep_id", prepId)
     .maybeSingle();
@@ -89,16 +89,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, lessonId: topic.lesson_id, reused: true });
   }
 
+  const prepDocs = teachingV2 ? await loadPrepDocumentIds(service, prepId) : [];
+  let topicDocumentId = (prep.document_id as string | null) ?? prepDocs[0] ?? null;
+  if (teachingV2 && topic.document_topic_node_id) {
+    const { data: node } = await service
+      .from("document_topic_nodes")
+      .select("document_id")
+      .eq("id", topic.document_topic_node_id)
+      .maybeSingle();
+    if (node?.document_id) topicDocumentId = node.document_id as string;
+  }
+  const teaching =
+    teachingV2 && (topicDocumentId || prepDocs.length)
+      ? await loadTopicTeaching(
+          service,
+          topicDocumentId ? [topicDocumentId, ...prepDocs] : prepDocs,
+          topic.label,
+        )
+      : null;
+  const teacherBrief = teaching?.brief ?? "";
+  const depth = teaching?.depth;
+
   let sourceBlock = "";
   // Belge seçili değilse kaynak araması YAPILMAZ. Eskiden aranıyordu ve
   // arama belge filtresiz olduğu için öğrencinin ilgisiz belgelerinden
   // parça çekip derse "yalnızca buna dayan" diyordu.
   let documentBoundary: "documents_only" | "allow_supporting" | null = null;
-  if (teachingV2 && prep.document_id) {
+  if (teachingV2 && (prep.document_id || topicDocumentId)) {
     const { data: doc } = await service
       .from("documents")
       .select("source_boundary_mode")
-      .eq("id", prep.document_id)
+      .eq("id", topicDocumentId ?? prep.document_id)
       .eq("user_id", userId)
       .maybeSingle();
     documentBoundary =
@@ -117,7 +138,7 @@ export async function POST(request: Request) {
         userId,
         `${prep.title ?? ""} ${topic.label}`.trim(),
         {
-          documentId: prep.document_id ?? null,
+          documentId: topicDocumentId ?? prep.document_id ?? null,
           sourceBoundaryMode: sourceMode,
         },
       );
@@ -156,19 +177,15 @@ export async function POST(request: Request) {
     ? teachingSessionContext({ topicTitle: topic.label, objective: `${topic.label} konusunu öğren` }, topic.label)
     : "";
   const standards = teachingV2 ? teachingStandardConstraints("lesson") : "";
-  const teacherBrief =
-    teachingV2 && prep.document_id
-      ? await loadTeacherBrief(service, prep.document_id, topic.label)
-      : "";
 
   const outcome = await generateJson({
     service,
     userId,
     actionCode: "STUDY_PLAN_GENERATE",
     isPremium: await isPremiumUser(service, userId),
-    difficulty: teachingV2 ? "hard" : undefined,
+    difficulty: teachingV2 ? (depth?.difficulty ?? "hard") : undefined,
     validationProfile: teachingV2 ? "v2" : "legacy",
-    maxDraftAttempts: teachingV2 ? 2 : 1,
+    maxDraftAttempts: teachingV2 ? (depth?.maxDraftAttempts ?? 2) : 1,
     allowIndependentAccept: false,
     activityKind: "lesson",
     buildIndependent: teachingV2
@@ -196,6 +213,7 @@ ${sessionCtx}
 ${signalLine}
 ${standards}
 ${teacherBrief}
+${depth?.line ?? ""}
 Bu dersin konusu YALNIZCA: ${topic.label}.
 Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.${sourceBlock}${topicBlock}`
       : `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
@@ -270,7 +288,17 @@ Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${
     });
   }
 
-  return NextResponse.json({ ok: true, lessonId: lesson.id, reused: false });
+  return NextResponse.json({
+    ok: true,
+    lessonId: lesson.id,
+    reused: false,
+    coverage: teaching
+      ? {
+          total: teaching.checklist.length,
+          priority: teaching.priority,
+        }
+      : null,
+  });
 }
 
 const patchSchema = z.object({

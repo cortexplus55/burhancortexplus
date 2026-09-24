@@ -429,8 +429,9 @@ export function teacherAnalysisPrompt(input: {
     userPrompt: `Belge: "${input.fileName}". Parça ${input.part}/${input.parts}.
 Sen bu dersin profesörüsün. Yalnızca aşağıdaki sayfalarda yazanlara dayan.
 Kaynakta olmayan formül, sayı, tanım veya alıntı yazma. Kısa belgede tek konu yeter.
-emphasis: sınavda mutlaka bilinmesi gereken "core", destek "support", üstünden geçilecek "skim".
-Benzetme ve ezber cümlesi ancak gerçek açıklamayı destekliyorsa. Kutu, formül kartı ve örnek adımı ayrı konu değildir.
+emphasis önceliktir, eleme değildir. "core" önemli (önce ve derin), "support" orta, "skim" daha az önemli (sonra ve kısa). "skim" konuyu listeden çıkarma.
+Sınavda çıkabilecek her kavram, formül, tuzak ve örnek tipi bir konuda kalsın. Kenar notu, uyarı kutusu ve örnek adımı ayrı konu olmasın; en yakın konunun örneği ya da tuzağı olarak yaz.
+Benzetme ve ezber cümlesi ancak gerçek açıklamayı destekliyorsa.
 ${langLine}
 
 ${body}`,
@@ -579,9 +580,153 @@ export function teacherBriefForTopicMap(analysis: TeacherAnalysis): string {
       : "";
     return `- ${topic.title} (${topic.emphasis}${prereq}) s.${topic.pageNumbers.join(",") || "?"}`;
   });
-  const skim = analysis.topics.filter((topic) => topic.emphasis === "skim").map((topic) => topic.title);
-  if (skim.length) lines.push(`Üstünden geç: ${skim.join(", ")}. Ayrı konu açma.`);
+  const less = analysis.topics.filter((topic) => topic.emphasis === "skim").map((topic) => topic.title);
+  if (less.length) {
+    lines.push(
+      `Daha az önemli (sonra, kısa ders): ${less.join(", ")}. Plandan çıkarma.`,
+    );
+  }
   return clipBlock(lines.join("\n"), 1200);
+}
+
+export type TeachingPriority = "important" | "medium" | "less";
+export type CoverageKind = "concept" | "formula" | "trap" | "example";
+
+export type CoverageItem = {
+  id: string;
+  kind: CoverageKind;
+  label: string;
+  topicTitle: string;
+  priority: TeachingPriority;
+  documentId: string | null;
+};
+
+export function priorityFromEmphasis(
+  emphasis: "core" | "support" | "skim",
+): TeachingPriority {
+  if (emphasis === "core") return "important";
+  if (emphasis === "skim") return "less";
+  return "medium";
+}
+
+export function schedulePriorityRank(priority: TeachingPriority): number {
+  if (priority === "important") return 1;
+  if (priority === "less") return 5;
+  return 3;
+}
+
+export function findAnalysisTopic(
+  analysis: TeacherAnalysis,
+  topicTitle: string,
+): TeacherAnalysis["topics"][number] | null {
+  return matchTopic(analysis, topicTitle);
+}
+
+function topicByPages(
+  analysis: TeacherAnalysis,
+  pages: number[],
+): TeacherAnalysis["topics"][number] | null {
+  if (!pages.length) return null;
+  let best: TeacherAnalysis["topics"][number] | null = null;
+  let score = 0;
+  for (const topic of analysis.topics) {
+    const overlap = topic.pageNumbers.filter((page) => pages.includes(page)).length;
+    if (overlap > score) {
+      best = topic;
+      score = overlap;
+    }
+  }
+  return best;
+}
+
+function coverageId(kind: CoverageKind, label: string): string {
+  return `${kind}:${foldTr(label).slice(0, 80)}`;
+}
+
+/**
+ * Sınav kapsamı. Eski hazır kayıtlarda ayrı liste yoktur; kavram, formül,
+ * tuzak ve örnek tipinden türetilir. Yeni model çağrısı gerekmez.
+ * Daha az önemli madde de listede kalır.
+ */
+export function coverageChecklist(
+  analysis: TeacherAnalysis,
+  documentId: string | null = null,
+): CoverageItem[] {
+  const items: CoverageItem[] = [];
+  const seen = new Set<string>();
+  const add = (
+    kind: CoverageKind,
+    label: string,
+    topic: TeacherAnalysis["topics"][number],
+  ) => {
+    const text = label.replace(/\s+/g, " ").trim();
+    if (text.length < 2) return;
+    const id = coverageId(kind, text);
+    const key = `${id}|${foldTr(topic.title)}|${documentId ?? ""}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    items.push({
+      id,
+      kind,
+      label: text.slice(0, 220),
+      topicTitle: topic.title,
+      priority: priorityFromEmphasis(topic.emphasis),
+      documentId,
+    });
+  };
+
+  for (const topic of analysis.topics) {
+    add("concept", topic.title, topic);
+    for (const example of topic.strategy.examples) add("example", example, topic);
+    if (topic.strategy.workedExamplePlan) add("example", topic.strategy.workedExamplePlan, topic);
+    for (const question of topic.strategy.checkQuestions) add("trap", question, topic);
+  }
+  for (const formula of analysis.examFocus.keyFormulas) {
+    const topic = topicByPages(analysis, formula.pageNumbers);
+    if (!topic) continue;
+    add("formula", `${formula.expression} (${formula.meaning})`, topic);
+  }
+  for (const definition of analysis.examFocus.keyDefinitions) {
+    const topic = topicByPages(analysis, definition.pageNumbers);
+    if (!topic) continue;
+    add("concept", `${definition.term}: ${definition.definition}`, topic);
+  }
+  for (const trap of analysis.misconceptions) {
+    const topic = topicByPages(analysis, trap.pageNumbers);
+    if (!topic) continue;
+    add("trap", `${trap.mistake} → ${trap.correction}`, topic);
+  }
+  return items;
+}
+
+export function lessonDepth(priority: TeachingPriority | null): {
+  difficulty: "easy" | "medium" | "hard";
+  maxDraftAttempts: 1 | 2;
+  quizItems: number;
+  line: string;
+} {
+  if (priority === "less") {
+    return {
+      difficulty: "easy",
+      maxDraftAttempts: 1,
+      quizItems: 2,
+      line: "Öncelik: daha az önemli. Konuyu yine öğret ama kısa tut: tek tanım, bir tuzak, kısa bir örnek.",
+    };
+  }
+  if (priority === "medium") {
+    return {
+      difficulty: "medium",
+      maxDraftAttempts: 1,
+      quizItems: 3,
+      line: "Öncelik: orta. Tanım, formül ve bir çözümlü örnek yeter.",
+    };
+  }
+  return {
+    difficulty: "hard",
+    maxDraftAttempts: 2,
+    quizItems: 5,
+    line: "Öncelik: önemli. Derin anlat: tanım, formül, tuzak ve çözümlü örnek tipi.",
+  };
 }
 
 /** Ders, quiz, podcast ve sohbet için konu notu. */
@@ -625,7 +770,20 @@ export function teacherBriefForTopic(analysis: TeacherAnalysis, topicTitle: stri
   }
   const core = analysis.objectives.slice(0, 3).map((item) => item.statement);
   if (core.length) lines.push(`Hedef: ${core.join(" ")}`);
-  return clipBlock(lines.join("\n"));
+  if (topic) {
+    const depth = lessonDepth(priorityFromEmphasis(topic.emphasis));
+    const mine = coverageChecklist(analysis).filter(
+      (item) => foldTr(item.topicTitle) === foldTr(topic.title),
+    );
+    lines.push(depth.line);
+    if (mine.length) {
+      lines.push("Kapsam listesi — bu derste hepsi geçecek, atlama:");
+      for (const item of mine.slice(0, 12)) {
+        lines.push(`- (${item.priority}) ${item.kind}: ${item.label}`);
+      }
+    }
+  }
+  return clipBlock(lines.join("\n"), 2200);
 }
 
 export function topicMapTeacherNote(brief: string | null | undefined): string {
@@ -660,13 +818,24 @@ export function teacherPersona(language: MaterialLanguage = "tr"): string {
 export function groundingRules(language: MaterialLanguage = "tr"): string {
   if (language === "en") {
     return (
-      'Stay inside the uploaded material. If a formula, number, or claim is not in the document, say so in one sentence. ' +
-      'Add general knowledge only in a sentence that starts with "Outside the material:". Never invent formulas, numbers, or citations.'
+      'Stay inside the uploaded material. If the question is not covered, say that in one sentence, then write general knowledge in a section that starts exactly with "Outside the material:". ' +
+      "Do not skip that label. Never invent a formula, number, or citation and present it as part of the document."
     );
   }
   return (
-    'Yalnızca yüklenen materyale dayan. Formül, sayı veya iddia belgede yoksa bunu tek cümlede söyle. ' +
-    'Genel bilgi vereceksen cümleye "Materyal dışı:" diye başla. Formül, sayı veya kaynak uydurma.'
+    'Yalnızca yüklenen materyale dayan. Soru belgede yoksa bunu tek cümlede söyle, sonra genel bilgiyi ayrı bir bölümde yaz ve o bölüme tam olarak "Materyal dışı:" diye başla. ' +
+    "Bu etiketi atlama. Belgede olmayan formülü, sayıyı veya alıntıyı belgede yazıyormuş gibi sunma."
+  );
+}
+
+function inDocumentOnlyRules(language: MaterialLanguage): string {
+  if (language === "en") {
+    return (
+      "Answer only from the loaded material. If it is not there, say so and do not fill the gap with general knowledge. Never invent a formula, number, or citation."
+    );
+  }
+  return (
+    "Yalnızca yüklenen materyalden cevap ver. Belgede yoksa bunu söyle ve boşluğu genel bilgiyle doldurma. Formül, sayı veya alıntı uydurma."
   );
 }
 
@@ -708,10 +877,17 @@ export function teacherTurnGuidance(input: {
   language?: MaterialLanguage;
   /** Belge metni, ders veya öğretmen notu gerçekten yüklendiyse. */
   hasSource?: boolean;
+  /**
+   * Katı "yalnızca belgem" kipinde genel bilgi istenmez. Etiket o kipte
+   * yazılırsa denetçi belge iddiası sanıp doğru cevabı da düşürür.
+   */
+  allowOutsideMaterial?: boolean;
 }): string {
   const language = input.language ?? "tr";
   const parts = [teacherPersona(language)];
-  if (input.hasSource) parts.push(groundingRules(language));
+  if (input.hasSource) {
+    parts.push(input.allowOutsideMaterial === false ? inDocumentOnlyRules(language) : groundingRules(language));
+  }
   const intent = intentLine(teachingIntent(input.message), language);
   if (intent) parts.push(intent);
   const last = input.lastAssistant ?? "";

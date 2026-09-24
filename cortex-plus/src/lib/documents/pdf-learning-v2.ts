@@ -179,6 +179,13 @@ export async function runPdfLearningV2(
         mimeType: (docRow.mime_type as string | null) ?? null,
       });
       teacherBrief = brain.topicMapBrief;
+    } else {
+      console.info(JSON.stringify({
+        event: "teacher_analysis",
+        documentId,
+        status: "not_started",
+        error: "missing_user",
+      }));
     }
 
     // Konu haritası modelin belgeyi okumasıyla çıkar. Eski sezgisel yedek
