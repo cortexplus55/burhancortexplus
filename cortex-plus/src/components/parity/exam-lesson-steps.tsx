@@ -11,6 +11,7 @@ import {
   reviewGateLead,
   trueFalseIndexes,
 } from "@/lib/learning/lesson-chrome";
+import { rephraseSectionCheck } from "@/lib/learning/teacher-brain";
 import "@/styles/exam-lesson-steps.css";
 
 /**
@@ -125,7 +126,11 @@ export function ExamLessonSteps({
       .map((sectionIndex) => {
         const section = lesson.sections[sectionIndex];
         return section?.check
-          ? ({ kind: "retry", heading: section.heading, check: section.check } as Step)
+          ? ({
+              kind: "retry",
+              heading: section.heading,
+              check: rephraseSectionCheck(section.check),
+            } as Step)
           : null;
       })
       .filter((s): s is Step => s !== null);

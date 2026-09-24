@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { groundingRules } from "@/lib/learning/teacher-brain";
 import { recordUserActivity } from "@/lib/streak/record-activity";
 
 const bodySchema = z.object({
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
       'Yalnızca şu JSON: {"score":number,"verdict":string,"feedback":string,"missingPoints":string[],"suggestedAnswer":string}. score 0-100. feedback puanı neden verdiğini açıklasın.',
-    userPrompt: `Sözlü: ${parsedBody.data.title}. Öğrenci cevaplarını değerlendir.\n\n${lines}`,
+    userPrompt: `${groundingRules()} Sözlü: ${parsedBody.data.title}. Öğrenci cevaplarını değerlendir. Doğru olanı, eksik olanı ve yanlış olanı ayır. Belgede olmayan bir doğruyu puanlama.\n\n${lines}`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       return result.success ? result.data : null;

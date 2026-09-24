@@ -397,7 +397,14 @@ export function ExamPodcastPlayer({
                 <p key={chapterIndex}>
                   {lines.map(({ line, index }) => (
                     <span key={index}>
-                      <span className="cp-pod-who-sr">{SPEAKER_LABEL[line.speaker]}: </span>
+                      <span className="cp-pod-who-sr">
+                        {chaptersInOrder.every(({ lines: chapterLines }) =>
+                          chapterLines.every((item) => item.line.speaker === "ada"),
+                        )
+                          ? "Öğretmen"
+                          : SPEAKER_LABEL[line.speaker]}
+                        :{" "}
+                      </span>
                       {ready && index === activeIndex && activeWords.length ? (
                         activeWords.map((word, wordIndex) => (
                           <span

@@ -23,6 +23,8 @@ import {
   parseMood,
   sessionSignalsPrompt,
 } from "@/lib/learning/session-signals";
+import { loadTeacherBrief } from "@/lib/documents/teacher-analysis-run";
+import { groundingRules, teacherPersona } from "@/lib/learning/teacher-brain";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -154,6 +156,10 @@ export async function POST(request: Request) {
     ? teachingSessionContext({ topicTitle: topic.label, objective: `${topic.label} konusunu öğren` }, topic.label)
     : "";
   const standards = teachingV2 ? teachingStandardConstraints("lesson") : "";
+  const teacherBrief =
+    teachingV2 && prep.document_id
+      ? await loadTeacherBrief(service, prep.document_id, topic.label)
+      : "";
 
   const outcome = await generateJson({
     service,
@@ -183,11 +189,13 @@ export async function POST(request: Request) {
       ? `${LESSON_V2_SCHEMA_HINT} trueFalse ise options tam olarak ["Doğru","Yanlış"]. Çeldirici gerçek yanılgı olsun; hiçbiri/hepsi yasak. explanation yanlış seçeneği çürütsün ve bölüm metnine bağlansın.`
       : 'Yalnızca JSON: {"title":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"summary":string[],"nextFocus":string[]}',
     userPrompt: teachingV2
-      ? `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
+      ? `${teacherPersona()} ${groundingRules()}
+Öğrenci için tek konuluk sınav hazırlık dersi yaz.
 Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
 ${sessionCtx}
 ${signalLine}
 ${standards}
+${teacherBrief}
 Bu dersin konusu YALNIZCA: ${topic.label}.
 Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.${sourceBlock}${topicBlock}`
       : `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.

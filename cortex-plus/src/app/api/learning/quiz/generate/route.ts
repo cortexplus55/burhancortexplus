@@ -95,7 +95,7 @@ export async function POST(request: Request) {
             "Şıklar birbirinden ayırt edilebilir olsun; 'hepsi' ya da 'hiçbiri' yazma. " +
             "correct alanı, options dizisindeki metnin birebir aynısı olmalı.",
         },
-        { role: "user", content: `Konu: ${topic}. ${questionCount} soruluk quiz üret. ${difficultyHint}` },
+        { role: "user", content: `Konu: ${topic}. ${questionCount} soruluk quiz üret. ${difficultyHint} Çeldiriciler gerçek bir yanılgıdan gelsin. Konuda olmayan formül yazma.` },
       ],
       response_format: { type: "json_object" },
     });

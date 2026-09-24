@@ -4,6 +4,8 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { oralTeacherStyleLine } from "@/lib/learning/oral-exam-chrome";
 import { TUTOR_ANSWER_DISCIPLINE } from "@/lib/learning/tutor-style";
+import { loadTeacherBrief } from "@/lib/documents/teacher-analysis-run";
+import { prepLanguage, teacherTurnGuidance } from "@/lib/learning/teacher-brain";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -38,7 +40,7 @@ export async function POST(request: Request) {
 
   const { data: prep } = await service
     .from("exam_preps")
-    .select("id, title, exam_type")
+    .select("id, title, exam_type, document_id, learning_preferences")
     .eq("id", parsed.data.prepId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -56,6 +58,15 @@ export async function POST(request: Request) {
     ? oralTeacherStyleLine(parsed.data.teacherStyle)
     : "";
 
+  const language = prepLanguage(prep.learning_preferences);
+  const teacherBrief = await loadTeacherBrief(
+    service,
+    (prep.document_id as string | null) ?? null,
+    parsed.data.topicLabel,
+  );
+  const lastStudent = [...parsed.data.messages].reverse().find((item) => item.role === "user");
+  const lastTeacher = [...parsed.data.messages].reverse().find((item) => item.role === "assistant");
+
   const outcome = await generateJson({
     service,
     userId,
@@ -64,9 +75,15 @@ export async function POST(request: Request) {
     schemaHint:
       'JSON: {"reply":string,"done":boolean}. reply sesli okunacak, kısa Türkçe. done true yalnızca oturum doğal bittiyse.',
     userPrompt: `${TUTOR_ANSWER_DISCIPLINE}
+${teacherTurnGuidance({
+  message: lastStudent?.content ?? "",
+  lastAssistant: lastTeacher?.content,
+  language,
+})}
 ${mode}
 ${style}
 Sınav: ${prep.title} (${prep.exam_type}). Konu: ${parsed.data.topicLabel}. Zorluk: ${parsed.data.difficulty}.
+${teacherBrief}
 ${transcript || "Öğrenci henüz konuşmadı; sen merhaba deyip başla."}`,
     parse: (raw) => replySchema.safeParse(raw).data ?? null,
   });

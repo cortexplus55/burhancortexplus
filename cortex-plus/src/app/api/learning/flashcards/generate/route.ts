@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { groundingRules } from "@/lib/learning/teacher-brain";
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
       'Yalnızca şu JSON şemasını döndür: {"title": string, "cards": [{"front": string, "back": string}]}',
-    userPrompt: `Konu: ${parsedBody.data.topic}. ${parsedBody.data.count} adet çift yönlü kart üret. Ön yüz kısa soru/kavram, arka yüz net açıklama olsun.`,
+    userPrompt: `${groundingRules()} Konu: ${parsedBody.data.topic}. ${parsedBody.data.count} adet çift yönlü kart üret. Ön yüz kısa soru/kavram, arka yüz net açıklama olsun. Konuda olmayan formül yazma.`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       return result.success ? result.data : null;
