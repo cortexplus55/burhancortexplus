@@ -26,7 +26,12 @@ import {
   sessionSignalsPrompt,
 } from "@/lib/learning/session-signals";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
-import { groundingRules, teacherPersona } from "@/lib/learning/teacher-brain";
+import {
+  groundingRules,
+  SOURCE_PAGE_FORMULA_RULE,
+  teacherNoteGroundedInSource,
+  teacherPersona,
+} from "@/lib/learning/teacher-brain";
 
 /** Düğüm ucuyla aynı tavan. Kısa tekrar ayrı bir model çağrısı açmaz. */
 export const maxDuration = 300;
@@ -112,7 +117,7 @@ export async function POST(request: Request) {
           topic.label,
         )
       : null;
-  const teacherBrief = teaching?.brief ?? "";
+  const rawTeacherBrief = teaching?.brief ?? "";
   const depth = teaching?.depth;
 
   let sourceBlock = "";
@@ -163,6 +168,7 @@ export async function POST(request: Request) {
           examType: prep.exam_type,
         })
       : "";
+  const teacherBrief = teacherNoteGroundedInSource(rawTeacherBrief, sourceBlock);
 
   const hardTopics = Array.isArray(prep.hard_topics_self)
     ? (prep.hard_topics_self as string[])
@@ -216,7 +222,8 @@ ${standards}
 ${teacherBrief}
 ${depth?.line ?? ""}
 Bu dersin konusu YALNIZCA: ${topic.label}.
-Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.${sourceBlock}${topicBlock}`
+Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.
+${SOURCE_PAGE_FORMULA_RULE}${sourceBlock}${topicBlock}`
       : undefined,
     userPrompt: teachingV2
       ? `${teacherPersona()} ${sourceBlock.trim() || teacherBrief.trim() ? groundingRules() : ""}
@@ -228,7 +235,8 @@ ${standards}
 ${teacherBrief}
 ${depth?.line ?? ""}
 Bu dersin konusu YALNIZCA: ${topic.label}.
-Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu. ${REVIEW_VARIANT_RULE}${sourceBlock}${topicBlock}`
+Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.
+${SOURCE_PAGE_FORMULA_RULE} ${REVIEW_VARIANT_RULE}${sourceBlock}${topicBlock}`
       : `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
 Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
 ${signalLine}

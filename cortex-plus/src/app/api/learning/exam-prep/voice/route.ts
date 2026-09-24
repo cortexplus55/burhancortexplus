@@ -5,7 +5,13 @@ import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { oralTeacherStyleLine } from "@/lib/learning/oral-exam-chrome";
 import { TUTOR_ANSWER_DISCIPLINE } from "@/lib/learning/tutor-style";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
-import { prepLanguage, teacherTurnGuidance, voiceReplySchemaHint } from "@/lib/learning/teacher-brain";
+import {
+  prepLanguage,
+  SOURCE_PAGE_FORMULA_RULE,
+  teacherNoteGroundedInSource,
+  teacherTurnGuidance,
+  voiceReplySchemaHint,
+} from "@/lib/learning/teacher-brain";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -69,7 +75,7 @@ export async function POST(request: Request) {
 
   const prepDocs = await loadPrepDocumentIds(service, prep.id as string);
   const teaching = await loadTopicTeaching(service, prepDocs, parsed.data.topicLabel);
-  const teacherBrief = teaching.brief;
+  const teacherBrief = teacherNoteGroundedInSource(teaching.brief, "");
   const lastStudent = [...parsed.data.messages].reverse().find((item) => item.role === "user");
   const lastTeacher = [...parsed.data.messages].reverse().find((item) => item.role === "assistant");
 
@@ -91,6 +97,7 @@ ${teacherTurnGuidance({
 ${mode}
 ${style}
 Sınav: ${prep.title} (${prep.exam_type}). Konu: ${parsed.data.topicLabel}. Zorluk: ${parsed.data.difficulty}.
+${SOURCE_PAGE_FORMULA_RULE}
 ${teacherBrief}
 ${transcript || (language === "en" ? "The student has not spoken yet. Say hello and begin." : "Öğrenci henüz konuşmadı; sen merhaba deyip başla.")}`,
     parse: (raw) => replySchema.safeParse(raw).data ?? null,

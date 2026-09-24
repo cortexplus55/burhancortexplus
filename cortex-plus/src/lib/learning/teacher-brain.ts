@@ -748,11 +748,13 @@ export function teacherBriefForTopic(analysis: TeacherAnalysis, topicTitle: stri
   }
   // Sayfası boş formül her konuya, eşleşmeyen başlık da bütün formüllere
   // yazılmasın. Ders kapısı o sayıyı kaynakta bulamayınca taslağı düşürür.
+  // Yanılgı ve hedef de belgenin ilk maddeleri değil, bu konunun sayfaları.
+  // #79 notu bütün belgenin ideal gaz yasasını basınç düğümüne taşıyordu.
   const pages = new Set(topic?.pageNumbers ?? []);
+  const onTopicPage = (pageNumbers: number[]) =>
+    pageNumbers.some((page) => pages.has(page));
   const formulas = topic
-    ? analysis.examFocus.keyFormulas.filter((formula) =>
-        formula.pageNumbers.some((page) => pages.has(page)),
-      )
+    ? analysis.examFocus.keyFormulas.filter((formula) => onTopicPage(formula.pageNumbers))
     : [];
   if (formulas.length) {
     lines.push(
@@ -762,13 +764,21 @@ export function teacherBriefForTopic(analysis: TeacherAnalysis, topicTitle: stri
         .join(" | ")}`,
     );
   }
-  const mistakes = analysis.misconceptions.slice(0, 4);
+  const mistakes = (topic
+    ? analysis.misconceptions.filter((item) => onTopicPage(item.pageNumbers))
+    : []
+  ).slice(0, 4);
   if (mistakes.length) {
     lines.push(
       `Sık hata: ${mistakes.map((item) => `${item.mistake} → ${item.correction}`).join(" | ")}`,
     );
   }
-  const core = analysis.objectives.slice(0, 3).map((item) => item.statement);
+  const core = (topic
+    ? analysis.objectives.filter((item) => onTopicPage(item.pageNumbers))
+    : []
+  )
+    .slice(0, 3)
+    .map((item) => item.statement);
   if (core.length) lines.push(`Hedef: ${core.join(" ")}`);
   if (topic) {
     const depth = lessonDepth(priorityFromEmphasis(topic.emphasis));
@@ -784,6 +794,111 @@ export function teacherBriefForTopic(analysis: TeacherAnalysis, topicTitle: stri
     }
   }
   return clipBlock(lines.join("\n"), 2200);
+}
+
+/**
+ * Üreticiye formül yasağı. Öğretmen notu vurgu olabilir; olgu olamaz.
+ * Doğrulayıcı da aynı cümleyi görür, böylece not ile sayfa metni ayrışmaz.
+ */
+export const SOURCE_PAGE_FORMULA_RULE =
+  "Formül, tanım ve yasa YALNIZCA aşağıdaki kaynak sayfalarının metninde yazıyorsa kullanılır. " +
+  "Kaynak sayfada olmayan, ders kitabından bildiğin formülü içeri alma. " +
+  "Öğretmen notu vurgu ve sıradır; notta geçen bir ifade kaynak sayfada yoksa dersin olgusu olmaz.";
+
+const EQUATION_IN_NOTE =
+  /[A-Za-zσΔμρ][A-Za-z0-9σΔμρ'’^_]{0,8}\s*=\s*[A-Za-z0-9σΔμρ'’^_\s*/+−\-.]{1,24}/g;
+
+function compactFormula(text: string): string {
+  return foldTr(text).replace(/\s+/g, "").replace(/[−–]/g, "-");
+}
+
+function equationsAbsentFromSource(part: string, source: string): boolean {
+  const compactSource = compactFormula(source);
+  const equations = part.match(EQUATION_IN_NOTE) ?? [];
+  return equations.some((equation) => !compactSource.includes(compactFormula(equation)));
+}
+
+function namedLawAbsent(part: string, source: string): boolean {
+  const folded = foldTr(part);
+  const src = foldTr(source);
+  const match = folded.match(/([a-z0-9]{3,}(?:\s+[a-z0-9]{3,}){0,3})\s+yasas/);
+  if (!match) return false;
+  return !src.includes(match[1]);
+}
+
+/** nRT, PV gibi kaynakta hiç geçmeyen simge. Gündelik Türkçe kelime sayılmaz. */
+function alienFormulaToken(part: string, source: string): boolean {
+  const src = foldTr(source);
+  const tokens = part.match(/[A-Za-z][A-Za-z0-9]{2,}/g) ?? [];
+  return tokens.some((token) => {
+    if (/[aeıioöuü]/i.test(token) && token.length > 4) return false;
+    if (!/[A-Z]/.test(token) || token.length > 6) return false;
+    return !src.includes(foldTr(token));
+  });
+}
+
+function factPartAbsent(part: string, source: string): boolean {
+  if (!source.trim()) return true;
+  if (unsupportedQuantities(part, source).length) return true;
+  if (equationsAbsentFromSource(part, source)) return true;
+  if (namedLawAbsent(part, source)) return true;
+  return alienFormulaToken(part, source);
+}
+
+const FACT_NOTE_PREFIX =
+  /^(Formüller|Örnek planı|Örnekler|Sık hata|Hedef|Kontrol soruları|Ezber|Benzetme yalnızca destek):\s*/;
+
+/**
+ * Öğretmen notunu düğümün sayfa metnine indirger.
+ *
+ * Analiz belgenin tamamındandır; düğüm yalnızca kendi sayfalarını okur.
+ * Not vurguyu taşır. Sayfa metninde olmayan formül, yasa ve sayı düşer.
+ */
+export function teacherNoteGroundedInSource(brief: string, sourceExcerpt: string): string {
+  const text = brief.trim();
+  if (!text) return "";
+  const source = sourceExcerpt.trim();
+  const kept: string[] = [];
+  const groundedItems: string[] = [];
+  let inChecklist = false;
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("Öğretmen notu")) continue;
+    if (trimmed.startsWith("Kapsam listesi")) {
+      inChecklist = true;
+      continue;
+    }
+    if (inChecklist && trimmed.startsWith("- ")) {
+      if (!factPartAbsent(trimmed, source)) groundedItems.push(trimmed);
+      continue;
+    }
+    inChecklist = false;
+    if (/^(Konu:|Önkoşul:|Öncelik:)/.test(trimmed)) {
+      if (!equationsAbsentFromSource(trimmed, source) && !namedLawAbsent(trimmed, source)) {
+        kept.push(trimmed);
+      }
+      continue;
+    }
+    const prefix = trimmed.match(FACT_NOTE_PREFIX);
+    if (prefix) {
+      const parts = trimmed
+        .slice(prefix[0].length)
+        .split("|")
+        .map((part) => part.trim())
+        .filter((part) => part && !factPartAbsent(part, source));
+      if (parts.length) kept.push(`${prefix[1]}: ${parts.join(" | ")}`);
+      continue;
+    }
+    if (!factPartAbsent(trimmed, source)) kept.push(trimmed);
+  }
+  if (groundedItems.length) {
+    kept.push("Vurgu — kaynak sayfada da geçenler:");
+    kept.push(...groundedItems);
+  }
+  const header =
+    "Öğretmen notu yalnızca vurgu ve sıradır. Formül, tanım ve sayı ancak aşağıdaki kaynak sayfalarında da yazıyorsa kullanılır.";
+  if (!kept.length) return header;
+  return clipBlock(`${header}\n${kept.join("\n")}`, 2200);
 }
 
 export function topicMapTeacherNote(brief: string | null | undefined): string {

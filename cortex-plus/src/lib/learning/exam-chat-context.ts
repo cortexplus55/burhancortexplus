@@ -2,7 +2,12 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { lessonV2Schema } from "@/lib/learning/teaching-standards";
 import { loadPrepDocumentIds, loadTopicTeaching, taughtCoverageLine } from "@/lib/documents/teacher-analysis-run";
-import { prepLanguage, type MaterialLanguage } from "@/lib/learning/teacher-brain";
+import {
+  prepLanguage,
+  SOURCE_PAGE_FORMULA_RULE,
+  teacherNoteGroundedInSource,
+  type MaterialLanguage,
+} from "@/lib/learning/teacher-brain";
 
 /**
  * Sohbetin hangi sınava çalıştığını bilmesi.
@@ -137,12 +142,23 @@ export async function loadExamChatContext(
 
   const prepDocs = await loadPrepDocumentIds(service, prepId);
   const teaching = await loadTopicTeaching(service, prepDocs, lesson?.title ?? prepTitle);
-  const teacherBrief = teaching.brief;
+  const lessonFacts = lesson
+    ? [
+        lesson.overview,
+        lesson.example.prompt,
+        lesson.example.solution,
+        lesson.commonMistake.claim,
+        lesson.commonMistake.correction,
+        ...lesson.sections.map((section) => `${section.heading}\n${section.body}`),
+      ].join("\n")
+    : "";
+  const teacherBrief = teacherNoteGroundedInSource(teaching.brief, lessonFacts);
   const taughtTitles = (topics ?? [])
     .filter((topic) => topic.status === "done" || topic.status === "in_progress" || topic.lesson_id)
     .map((topic) => topic.label as string);
   const coverageLine = taughtCoverageLine(teaching.checklist, taughtTitles);
   if (teacherBrief) lines.push(teacherBrief);
+  if (lesson || teacherBrief) lines.push(SOURCE_PAGE_FORMULA_RULE);
   if (coverageLine) lines.push(coverageLine);
   const hasSource = Boolean(lesson) || Boolean(teacherBrief);
 

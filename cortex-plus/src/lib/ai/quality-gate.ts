@@ -2,6 +2,8 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { env } from "@/lib/env";
 import {
+  isCosmeticReviewerNit,
+  isUnconfirmedMathAllegation,
   issueMessages,
   recheckAfterRepair,
   runIndependentValidation,
@@ -47,6 +49,10 @@ export class EducationalVerificationError extends Error {
     );
     this.name = "EducationalVerificationError";
   }
+
+  /** Başarısız çağrıda da onarımın çalışıp çalışmadığı görünsün. */
+  repairAttempted = false;
+  stagesMs: Partial<Record<ValidationStage, number>> = {};
 }
 
 export type VerifyEducationalResult = {
@@ -62,6 +68,16 @@ export type VerifyEducationalResult = {
 
 function codesFromIssues(issues: ValidationIssue[]): string[] {
   return issues.map((i) => i.code);
+}
+
+function stampError(
+  error: EducationalVerificationError,
+  repairAttempted: boolean,
+  stagesMs: Partial<Record<ValidationStage, number>>,
+): never {
+  error.repairAttempted = repairAttempted;
+  error.stagesMs = { ...stagesMs };
+  throw error;
 }
 
 /**
@@ -93,6 +109,20 @@ export async function verifyEducationalContent(input: {
   let repairAttempted = false;
   const stagesMs: Partial<Record<ValidationStage, number>> = {};
   const failClosed = input.failClosedOnUnavailable ?? Boolean(input.independent);
+
+  function stamp(error: EducationalVerificationError): never {
+    return stampError(error, repairAttempted, stagesMs);
+  }
+
+  const repairedDraft = (raw: unknown): string | null => {
+    if (!raw || typeof raw !== "object") return null;
+    const row = raw as { content?: unknown; sections?: unknown };
+    const body = row.content;
+    if (typeof body === "string" && body.trim()) return body;
+    if (body && typeof body === "object") return JSON.stringify(body);
+    if (Array.isArray(row.sections)) return JSON.stringify(raw);
+    return null;
+  };
 
   const runIndependent = (candidate: string) => {
     if (!input.independent) {
@@ -173,9 +203,9 @@ export async function verifyEducationalContent(input: {
       try {
         return JSON.parse(response.choices[0]?.message?.content ?? "null");
       } catch {
-        throw new EducationalVerificationError("invalid_json", "recheck", [
-          "invalid_json",
-        ]);
+        stamp(
+          new EducationalVerificationError("invalid_json", "recheck", ["invalid_json"]),
+        );
       }
     } catch (error) {
       if (error instanceof EducationalVerificationError) throw error;
@@ -191,10 +221,12 @@ export async function verifyEducationalContent(input: {
           status: error instanceof OpenAI.APIError ? error.status : undefined,
           kind: error instanceof OpenAI.APIError ? "provider_error" : "validation_error",
         });
-        throw new EducationalVerificationError(
-          "validator_unavailable",
-          "recheck",
-          ["validator_unavailable"],
+        stamp(
+          new EducationalVerificationError(
+            "validator_unavailable",
+            "recheck",
+            ["validator_unavailable"],
+          ),
         );
       }
       throw error;
@@ -228,15 +260,21 @@ export async function verifyEducationalContent(input: {
 
     const verdictResult = verdictSchema.safeParse(verdictRaw);
     if (!verdictResult.success) {
-      throw new EducationalVerificationError("invalid_review", "recheck", [
-        "invalid_review",
-      ]);
+      stamp(
+        new EducationalVerificationError("invalid_review", "recheck", ["invalid_review"]),
+      );
     }
     const verdict = verdictResult.data;
     const independent = runIndependent(content);
-    const issues = [...verdict.issues, ...independent.messages];
+    // Kozmetik şikâyet ve doğrulanmayan aritmetik dersi düşürmez.
+    // Kaynakta olmayan formül şikâyeti kalır.
+    const modelIssues = verdict.issues.filter(
+      (issue) =>
+        !isCosmeticReviewerNit(issue) && !isUnconfirmedMathAllegation(issue, content),
+    );
+    const issues = [...modelIssues, ...independent.messages];
     if (issues.length) lastReviewIssues = issues;
-    if (verdict.approved && issues.length === 0) {
+    if (issues.length === 0) {
       return {
         content,
         tokensIn,
@@ -252,20 +290,22 @@ export async function verifyEducationalContent(input: {
 
     repairAttempted = true;
     const repairStarted = Date.now();
-    const repair = z.object({ content: z.string().min(1) }).safeParse(
-      await request(
-        "Eğitim içeriğindeki şu sorunları düzelt: " +
-          JSON.stringify(issues) +
-          ". Görevin kapsamını ve istenen çıktı şemasını koru. Bilmediğini uydurma. JSON döndür: {\"content\":string}; content düzeltilmiş tam taslak metnidir (istenen biçim JSON ise geçerli JSON metni).",
-      ),
+    const repairRaw = await request(
+      "Eğitim içeriğindeki şu sorunları düzelt: " +
+        JSON.stringify(issues) +
+        ". Yalnızca bu maddeleri gider. Kaynak sayfalarda olmayan formül, yasa ve tanımı sil. " +
+        "overview giriş metnidir; ayrı Giriş bölümü ekleme. Anahtar terimleri **iki yıldız** ile işaretle. " +
+        "İstenen JSON şemasını koru. Bilmediğini uydurma. " +
+        'JSON döndür: {"content":string}; content düzeltilmiş tam taslaktır (istenen biçim JSON ise geçerli JSON metni).',
     );
     stagesMs.repair = (stagesMs.repair ?? 0) + (Date.now() - repairStarted);
-    if (!repair.success) {
-      throw new EducationalVerificationError("invalid_repair", "repair", [
-        "invalid_repair",
-      ]);
+    const repaired = repairedDraft(repairRaw);
+    if (!repaired) {
+      stamp(
+        new EducationalVerificationError("invalid_repair", "repair", ["invalid_repair"]),
+      );
     }
-    content = repair.data.content;
+    content = repaired;
 
     // Stage 7 rule: repaired draft is NOT auto-accepted — independent recheck first.
     const recheckStarted = Date.now();
@@ -281,7 +321,8 @@ export async function verifyEducationalContent(input: {
   }
 
   const finalIndependent = runIndependent(content);
-  throw new EducationalVerificationError(
+  stamp(
+    new EducationalVerificationError(
     finalIndependent.ok ? "rejected" : "independent_failed",
     finalIndependent.failedStage ?? "safe_outcome",
     finalIndependent.ok
@@ -292,5 +333,6 @@ export async function verifyEducationalContent(input: {
     finalIndependent.ok
       ? lastReviewIssues
       : [...finalIndependent.issues.map((i) => i.message), ...lastReviewIssues],
+    ),
   );
 }

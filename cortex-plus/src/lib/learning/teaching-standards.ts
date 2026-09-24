@@ -540,10 +540,124 @@ function looseReview(
   };
 }
 
+/** Model JSON'u çit veya sondaki virgülle bozsa da ayrıştır. */
+export function parseModelJson(raw: string): unknown | null {
+  const trimmed = raw.trim();
+  const fenced = trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+  const candidates = [trimmed, fenced, fenced.replace(/,\s*([}\]])/g, "$1")];
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      /* sıradaki aday */
+    }
+  }
+  return null;
+}
+
+function overviewFromBody(body: string): string {
+  const flat = body.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+  const sentence = flat.split(/(?<=[.!?])\s/)[0] ?? flat;
+  const picked = sentence.length >= 20 ? sentence : flat;
+  return picked.slice(0, 380);
+}
+
+/** Başlık gövdede geçiyorsa koyulaştır. Yeni terim uydurmaz. */
+function boldExistingTerm(heading: string, body: string): string {
+  if (/\*\*[^*\n]{2,60}\*\*/.test(body)) return body;
+  const phrase = heading.trim();
+  if (phrase.length >= 2 && phrase.length <= 60) {
+    const idx = body.toLocaleLowerCase("tr").indexOf(phrase.toLocaleLowerCase("tr"));
+    if (idx >= 0) {
+      const found = body.slice(idx, idx + phrase.length);
+      return `${body.slice(0, idx)}**${found}**${body.slice(idx + found.length)}`;
+    }
+  }
+  const lower = body.toLocaleLowerCase("tr");
+  for (const word of phrase.split(/\s+/).filter((item) => item.length >= 4)) {
+    const idx = lower.indexOf(word.toLocaleLowerCase("tr"));
+    if (idx < 0) continue;
+    const found = body.slice(idx, idx + word.length);
+    if (found.length < 2 || found.length > 60) continue;
+    return `${body.slice(0, idx)}**${found}**${body.slice(idx + found.length)}`;
+  }
+  return body;
+}
+
+/**
+ * Eksik giriş, özet ve koyu terim dersin olgusunu değiştirmez.
+ * Kaynakta olmayan örnek veya formül burada üretilmez.
+ */
+export function coerceLessonCosmetics(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const row = { ...(raw as Record<string, unknown>) };
+  const sections = Array.isArray(row.sections)
+    ? row.sections.map((section) => {
+        if (!section || typeof section !== "object" || Array.isArray(section)) return section;
+        const item = { ...(section as Record<string, unknown>) };
+        if (typeof item.heading === "string" && typeof item.body === "string") {
+          item.body = boldExistingTerm(item.heading, item.body);
+        }
+        return item;
+      })
+    : row.sections;
+  row.sections = sections;
+  const firstBody = Array.isArray(sections)
+    ? (sections
+        .map((section) =>
+          section && typeof section === "object"
+            ? String((section as { body?: unknown }).body ?? "")
+            : "",
+        )
+        .find((body) => body.trim().length >= 20) ?? "")
+    : "";
+  const overview = typeof row.overview === "string" ? row.overview.trim() : "";
+  if (overview.length < 20 && firstBody) row.overview = overviewFromBody(firstBody);
+  const objective = typeof row.objective === "string" ? row.objective.trim() : "";
+  const summary = Array.isArray(row.summary)
+    ? row.summary.filter((item) => typeof item === "string" && item.trim().length >= 2)
+    : [];
+  if (summary.length < 2) {
+    const fromOverview = typeof row.overview === "string" ? row.overview.trim().slice(0, 160) : "";
+    if (fromOverview.length >= 2 && objective.length >= 2) row.summary = [fromOverview, objective];
+  }
+  const focus = Array.isArray(row.nextFocus)
+    ? row.nextFocus.filter((item) => typeof item === "string" && item.trim().length >= 2)
+    : [];
+  if (!focus.length && objective.length >= 2) {
+    row.nextFocus = [`${objective.slice(0, 140)} için bir kontrol sorusu çöz.`];
+  }
+  const info = row.infoCheck;
+  const infoOk =
+    info &&
+    typeof info === "object" &&
+    typeof (info as { prompt?: unknown }).prompt === "string" &&
+    (info as { prompt: string }).prompt.trim().length >= 8 &&
+    typeof (info as { answer?: unknown }).answer === "string" &&
+    (info as { answer: string }).answer.trim().length >= 4;
+  if (!infoOk && Array.isArray(sections)) {
+    for (const section of sections) {
+      const check =
+        section && typeof section === "object"
+          ? (section as { check?: { prompt?: string; options?: string[]; answerIndex?: number } }).check
+          : undefined;
+      if (!check?.prompt || check.prompt.trim().length < 8 || !Array.isArray(check.options)) continue;
+      const answer = check.options[check.answerIndex ?? 0] ?? check.options[0];
+      if (typeof answer !== "string" || answer.trim().length < 4) continue;
+      row.infoCheck = {
+        prompt: check.prompt.trim().slice(0, 240),
+        answer: answer.trim().slice(0, 240),
+      };
+      break;
+    }
+  }
+  return row;
+}
+
 /** Şema geçerse şablon başlıklarını ayıkla. Üretim kapısı bundan sonra bakar. */
 export function prepareLessonDraft(raw: unknown): LessonV2 | null {
   try {
-    const { body, reviews } = splitReviews(raw);
+    const { body, reviews } = splitReviews(coerceLessonCosmetics(raw));
     const parsed = lessonV2Schema.safeParse(body).data;
     if (!parsed) return null;
     const withReviews: LessonV2 = {
@@ -836,7 +950,11 @@ export function lessonPublishIssues(
     return ["Ders v2 şemasını karşılamıyor (hedef, bölümler, örnek, yaygın hata, bilgi kontrolü)."];
   }
   const issues = validateLessonV2(published, options).filter(
-    (issue) => !issue.includes("kontrolü yok") && !issue.includes("çürütmüyor"),
+    (issue) =>
+      !issue.includes("kontrolü yok") &&
+      !issue.includes("çürütmüyor") &&
+      !issue.includes("Anahtar terim koyu değil") &&
+      !issue.includes("Anahtar terimler işaretlenmemiş"),
   );
   const teaching = published.sections.filter((section) => section.check).length;
   const minChecks = published.sections.length >= 3 ? 2 : 1;
@@ -849,14 +967,16 @@ export function lessonPublishIssues(
 /** Doğrulayıcı kısa tekrarı görmesin. Eksik veya bozuk tekrar dersi reddetmesin. */
 export function lessonDraftForVerifier(draft: string): string {
   try {
-    const parsed = JSON.parse(draft) as { sections?: unknown };
-    if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.sections)) return draft;
-    for (const section of parsed.sections) {
+    const parsed = parseModelJson(draft);
+    if (!parsed || typeof parsed !== "object") return draft;
+    const coerced = coerceLessonCosmetics(parsed) as { sections?: unknown };
+    if (!coerced || typeof coerced !== "object" || !Array.isArray(coerced.sections)) return draft;
+    for (const section of coerced.sections) {
       if (!section || typeof section !== "object") continue;
       const check = (section as { check?: { review?: unknown } }).check;
       if (check && typeof check === "object") delete check.review;
     }
-    return JSON.stringify(parsed);
+    return JSON.stringify(coerced);
   } catch {
     return draft;
   }
@@ -889,7 +1009,8 @@ export const LESSON_V2_SCHEMA_HINT =
   "explanation yanlış seçeneğin neden çürük olduğunu yazsın. " +
   "example.solution adım adım ve gerekçeli. nextFocus en az bir sonraki çalışma. " +
   "cards isteğe bağlı: kardeş kavram kümesi varsa 2-6 kart; yoksa cards yazma, uydurma kart ekleme. " +
-  "Kaynakta olmayan formül veya teorem yazma.";
+  "overview giriş metnidir; ayrı bir Giriş bölümü açma. " +
+  "Kaynak sayfada yazmayan formül veya teorem yazma.";
 
 /**
  * Yayına asla çıkmaması gereken kusurlar.
