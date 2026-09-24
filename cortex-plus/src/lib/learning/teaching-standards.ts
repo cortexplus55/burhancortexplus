@@ -226,9 +226,13 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
  * bölümün metnine bağlar.
  */
 const reviewVariantSchema = z.object({
-  prompt: z.string().min(8).max(300),
-  options: z.array(z.string().min(1).max(160)).min(2).max(4),
-  answerIndex: z.number().int().min(0).max(3),
+  prompt: z.string().min(8).max(180),
+  /**
+   * Şıklar modelden istenmez. Eski bir taslak yine de kopyaladıysa
+   * kabul kuralı bakar; uymayan dizi dersi düşürmez, alan atılır.
+   */
+  options: z.array(z.string().min(1).max(160)).min(2).max(4).optional(),
+  answerIndex: z.number().int().min(0).max(3).optional(),
 });
 
 export const sectionCheckSchema = z.object({
@@ -479,11 +483,82 @@ export function brokenSuperscript(text: string): boolean {
  * + örnek + yanılgı + kontrol + özet zaten bir ders; tek kavram
  * kalacaksa dokunmuyoruz.
  */
+/**
+ * Tekrarı şemadan ayır.
+ *
+ * Bozuk bir `review` zod'da zaten düşüyor. Yine de üretim kapısı onu
+ * görmeden dersi okusun: dev bir dizi, yanlış tür veya yarım nesne
+ * bölümü de beraberinde götürmesin. Geçerli cümle ayrıştırma bitince geri
+ * konur; uymayanı `sanitizeReviewVariants` atar.
+ */
+function splitReviews(raw: unknown): { body: unknown; reviews: unknown[] } {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { body: raw, reviews: [] };
+  }
+  const lesson = raw as { sections?: unknown };
+  if (!Array.isArray(lesson.sections)) return { body: raw, reviews: [] };
+  const reviews: unknown[] = [];
+  const sections = lesson.sections.map((section) => {
+    if (!section || typeof section !== "object" || Array.isArray(section)) {
+      reviews.push(undefined);
+      return section;
+    }
+    const row = section as { check?: unknown };
+    if (!row.check || typeof row.check !== "object" || Array.isArray(row.check)) {
+      reviews.push(undefined);
+      return section;
+    }
+    const check = { ...(row.check as Record<string, unknown>) };
+    reviews.push(check.review);
+    delete check.review;
+    return { ...(section as Record<string, unknown>), check };
+  });
+  return { body: { ...(raw as Record<string, unknown>), sections }, reviews };
+}
+
+function looseReview(
+  value: unknown,
+): { prompt: string; options?: string[]; answerIndex?: number } | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const row = value as Record<string, unknown>;
+  if (typeof row.prompt !== "string") return undefined;
+  const prompt = row.prompt.trim().slice(0, 180);
+  if (prompt.length < 8) return undefined;
+  const options = Array.isArray(row.options)
+    ? row.options
+        .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        .map((item) => item.trim().slice(0, 160))
+        .slice(0, 4)
+    : undefined;
+  const answerIndex =
+    typeof row.answerIndex === "number" && Number.isInteger(row.answerIndex)
+      ? row.answerIndex
+      : undefined;
+  return {
+    prompt,
+    ...(options && options.length >= 2 ? { options, answerIndex } : {}),
+  };
+}
+
 /** Şema geçerse şablon başlıklarını ayıkla. Üretim kapısı bundan sonra bakar. */
 export function prepareLessonDraft(raw: unknown): LessonV2 | null {
-  const parsed = lessonV2Schema.safeParse(raw).data;
-  if (!parsed) return null;
-  return sanitizeReviewVariants(dropScaffoldSections(parsed));
+  try {
+    const { body, reviews } = splitReviews(raw);
+    const parsed = lessonV2Schema.safeParse(body).data;
+    if (!parsed) return null;
+    const withReviews: LessonV2 = {
+      ...parsed,
+      sections: parsed.sections.map((section, index) => {
+        const review = looseReview(reviews[index]);
+        if (!section.check || !review) return section;
+        return { ...section, check: { ...section.check, review } };
+      }),
+    };
+    return sanitizeReviewVariants(dropScaffoldSections(withReviews));
+  } catch {
+    const parsed = lessonV2Schema.safeParse(raw).data;
+    return parsed ? sanitizeReviewVariants(dropScaffoldSections(parsed)) : null;
+  }
 }
 
 /**
@@ -723,16 +798,20 @@ export function validateLessonV2(
 /**
  * Kısa tekrar, ders üretiminin içinde yazılır. Kapıda soru başına
  * ayrı bir model çağrısı yok.
+ *
+ * Yalnızca kısa bir kök cümle. Şıkları ikinci kez yazdırmak çıktıyı
+ * şişirip üretim çağrısını 90 saniyelik sınıra dayıyordu; sıra bizde
+ * karışır. Yazılamazsa alan boş kalır, ders yine tamamlanır.
  */
 export const REVIEW_VARIANT_RULE =
-  "Her check.review aynı kavramı farklı bir cümleyle sorar; orijinal cümleyi kopyalama. " +
-  "review.options orijinal şıkların aynı yazımıdır, sıra karışıktır. " +
-  "Yeni şık, sayı veya formül yok. Doğru/yanlışta iddianın doğruluk değeri değişmez.";
+  "check.review isteğe bağlıdır ve yalnızca kısa bir prompt'tur (en fazla 140 karakter). " +
+  "Aynı kavramı başka sözcüklerle sor; orijinal cümleyi, yeni sayı, yeni şık veya formül yazma. " +
+  "Şıkları review içine kopyalama. Yazamazsan review alanını boş bırak; bu dersi geçersiz yapmaz.";
 
 /** İki rotanın ders şeması aynı metin. Diyagram eki rota ekler. */
 export const LESSON_V2_SCHEMA_HINT =
   'JSON: {"title":string,"objective":string,"overview":string,' +
-  '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string,"review":{"prompt":string,"options":string[],"answerIndex":number}},"note":{"title":string,"body":string},"cards":[{"title":string,"body":string}]}],' +
+  '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string,"review"?:{"prompt":string}},"note":{"title":string,"body":string},"cards":[{"title":string,"body":string}]}],' +
   '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
   '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
   "En az 3 kavram bölümü. Her bölümde check zorunlu: trueFalse ekranda DOĞRU MU YANLIŞ, mcq ekranda HIZLI SINAV. " +

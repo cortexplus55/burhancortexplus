@@ -408,6 +408,14 @@ describe("akış notu ve tekrar sorusu", () => {
         },
       }),
     ).toBeNull();
+    const promptOnly = acceptReviewVariant({
+      ...check,
+      review: { prompt: "Boşluk basıncı düşünce kalan büyüklük hangisidir?" },
+    });
+    expect(promptOnly?.prompt).toBe("Boşluk basıncı düşünce kalan büyüklük hangisidir?");
+    expect(promptOnly?.options[promptOnly.answerIndex]).toBe("σ − u");
+    expect(promptOnly?.options).not.toEqual(check.options);
+    expect(acceptReviewVariant({ ...check, review: "kopya" as never })).toBeNull();
   });
 
   it("İngilizce dersin tekrarını İngilizce kurar", () => {

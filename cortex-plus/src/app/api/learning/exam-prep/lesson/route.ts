@@ -27,6 +27,9 @@ import {
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 import { groundingRules, teacherPersona } from "@/lib/learning/teacher-brain";
 
+/** Düğüm ucuyla aynı tavan. Kısa tekrar ayrı bir model çağrısı açmaz. */
+export const maxDuration = 300;
+
 const bodySchema = z.object({
   prepId: z.string().uuid(),
   topicId: z.string().uuid(),

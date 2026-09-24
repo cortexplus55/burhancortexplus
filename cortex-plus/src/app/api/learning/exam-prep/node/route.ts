@@ -104,6 +104,13 @@ import {
   writtenExamDeadline,
 } from "@/lib/learning/attempt-lifecycle-persist";
 
+/**
+ * Üretim çağrısı 90 saniyeye, doğrulama turu da buna ekleniyor.
+ * Sohbet ucuyla aynı tavan: platform varsayılanı keserse öğrenci 502 görür
+ * ve kredi iade edilir, ders kayda geçmez.
+ */
+export const maxDuration = 300;
+
 const bodySchema = z.object({
   prepId: z.string().uuid(),
   nodeId: z.string().uuid(),
