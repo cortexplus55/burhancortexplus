@@ -23,8 +23,20 @@ test.describe("responsive layout", () => {
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
       "Fiyatlandırma",
     );
-    // Plan kartları canlı DB'ye bağlı; E2E yer tutucu anahtarla boş gelebilir.
-    // Sayfa yine de yüklenmeli ve yatay taşma olmamalı.
+
+    /*
+      E2E sunucusu sahte Supabase anahtarıyla kalkıyor; `plans` boş dönüyor ve
+      sayfa bilerek "listelenemiyor" kutusunu çiziyor. Plus başlığı yalnızca
+      paket kartları çizildiğinde var. Tutulması gereken söz veri değil:
+      mobilde ziyaretçiye bir şeyin görünür çizilmesi ve yatay taşma olmaması.
+    */
+    await expect(
+      page
+        .getByRole("heading", { name: /Plus/i })
+        .first()
+        .or(page.getByText("Paketler şu an listelenemiyor")),
+    ).toBeVisible();
+
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );

@@ -216,7 +216,7 @@ describe("yükleme yolu", () => {
     const source = readFileSync("src/lib/rag/pipeline.ts", "utf8");
     const branch = source.slice(
       source.indexOf("} else if (isOfficeDocument(doc.mime_type)) {"),
-      source.indexOf("  } else {\n    const extracted = await extractText("),
+      source.indexOf("  } else {\n    let extracted;"),
     );
     expect(branch).toContain("extractOfficeText(buffer, doc.mime_type)");
     expect(branch).not.toContain("claim(");
