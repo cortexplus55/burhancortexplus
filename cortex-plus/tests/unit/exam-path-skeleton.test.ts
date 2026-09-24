@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { STUDY_PATH_SKELETON } from "@/lib/learning/exam-plan-phases";
+import { STUDY_PATH_SKELETON, groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import {
   CORE_ORDER,
   buildExamPlan,
@@ -50,6 +50,27 @@ describe("study path skeleton", () => {
         "Kartlarla son tekrar",
       ]),
     );
+  });
+
+  it("groups the first lesson under Bugün başla and keeps later lessons in learn", () => {
+    const groups = groupNodesByPhase([
+      { kind: "lesson" as const, title: "Giriş" },
+      { kind: "lesson" as const, title: "İkinci ders" },
+      { kind: "podcast" as const, title: "Podcast" },
+      { kind: "spaced" as const, title: "Tekrar" },
+      { kind: "written_exam" as const, title: "Deneme" },
+      { kind: "flashcards" as const, title: "Kart" },
+    ]);
+    expect(groups.map((group) => group.phase.title)).toEqual([
+      "Bugün başla",
+      "Öğren ve Pratik Yap",
+      "Aralıklı Tekrar",
+      "Yazılı Deneme",
+      "Sınav günü",
+    ]);
+    expect(groups[0].nodes.map((node) => node.title)).toEqual(["Giriş"]);
+    expect(groups[1].nodes.map((node) => node.title)).toEqual(["İkinci ders", "Podcast"]);
+    expect(groups.find((group) => group.phase.id === "gaps")).toBeUndefined();
   });
 
   it("inserts missing activity kinds without dropping scheduled nodes", () => {

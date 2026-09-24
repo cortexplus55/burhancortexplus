@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendLessonReviewCards,
+  cardsFromLessonReviews,
   extractMisconceptions,
+  lessonMissDrafts,
+  prepareLessonDraft,
   parseSessionMeta,
   scoreFlashcardsV2,
   teachingActivityForKind,
@@ -400,6 +404,153 @@ describe("teaching standards contract", () => {
     });
     expect(drafts).toHaveLength(1);
     expect(drafts[0].wrongType).toBe("cos_sin_swap");
+  });
+
+  it("queues a missed lesson check as a rephrased variant", () => {
+    const drafts = lessonMissDrafts({
+      topicLabel: "Sistemler",
+      missedSectionIndexes: [0, 0, 9],
+      lesson: {
+        sections: [
+          {
+            heading: "Açık sistem",
+            body: "**Açık sistem** sınırından kütle geçirir.",
+            check: {
+              type: "mcq",
+              prompt: "Sınırından kütle geçen düzeneğe ne denir?",
+              options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
+              answerIndex: 1,
+              explanation: "Kütle geçişi olan düzenek açık sistemdir.",
+              review: {
+                prompt: "Hem madde hem enerji çıkan türbin hangi sınıftadır?",
+                options: ["Yalıtılmış sistem", "Kapalı sistem", "Açık sistem"],
+                answerIndex: 2,
+              },
+            },
+          },
+        ],
+      },
+    });
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0].sourceKind).toBe("lesson_review");
+    expect(drafts[0].wrongType).toBe("lesson_check_miss");
+    expect(drafts[0].questionPreview).toBe(
+      "Hem madde hem enerji çıkan türbin hangi sınıftadır?",
+    );
+    expect(drafts[0].questionPreview).not.toContain("Sınırından kütle");
+    expect(drafts[0].corrected).toContain("Açık sistem");
+  });
+
+  it("drops a review that invents an option or copies the stem", () => {
+    const base = {
+      title: "Sistemler",
+      objective: "Açık ve kapalı sistemi ayırt edebileceksin.",
+      overview: "Sistem, inceleme altına alınan bölgedir ve sınırı vardır.",
+      sections: [
+        {
+          heading: "Açık sistem",
+          body: "**Açık sistem** sınırından kütle de enerji de geçebilir.",
+          check: {
+            type: "mcq" as const,
+            prompt: "Sınırından kütle geçen düzeneğe ne denir?",
+            options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
+            answerIndex: 1,
+            explanation: "Kütle geçişi olan düzenek açık sistemdir.",
+            review: {
+              prompt: "Sınırından kütle geçen düzeneğe ne denir?",
+              options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
+              answerIndex: 1,
+            },
+          },
+        },
+        {
+          heading: "Kapalı sistem",
+          body: "**Kapalı sistem** kütle geçirmez ama enerji geçirebilir.",
+          check: {
+            type: "mcq" as const,
+            prompt: "Kütle geçirmeyen sistem hangisidir?",
+            options: ["Açık sistem", "Kapalı sistem"],
+            answerIndex: 1,
+            explanation: "Kütle geçirmeyen sistem kapalı sistemdir.",
+            review: {
+              prompt: "Enerji geçer ama madde geçmezse sistem nedir?",
+              options: ["Açık sistem", "Kontrol hacmi"],
+              answerIndex: 1,
+            },
+          },
+        },
+      ],
+      example: { prompt: "Türbin hangi sistemdir?", solution: "Açık sisteme örnektir." },
+      commonMistake: {
+        claim: "Kapalı sistem enerji de geçirmez.",
+        correction: "Kapalı sistem enerji geçirebilir.",
+      },
+      infoCheck: { prompt: "Açık sistem nedir?", answer: "Kütle geçiren sistem." },
+      summary: ["Açık sistem kütle geçirir.", "Kapalı sistem kütle geçirmez."],
+      nextFocus: ["Özellikler"],
+    };
+    const cleaned = prepareLessonDraft(base);
+    expect(cleaned?.sections[0].check?.review).toBeUndefined();
+    expect(cleaned?.sections[1].check?.review).toBeUndefined();
+    expect(cleaned?.sections[0].check?.prompt).toContain("kütle geçen");
+  });
+
+  it("keeps a grounded review and appends it after existing cards", () => {
+    const cleaned = prepareLessonDraft({
+      title: "Sistemler",
+      objective: "Açık ve kapalı sistemi ayırt edebileceksin.",
+      overview: "Sistem, inceleme altına alınan bölgedir ve sınırı vardır.",
+      sections: [
+        {
+          heading: "Açık sistem",
+          body: "**Açık sistem** sınırından kütle de enerji de geçebilir.",
+          check: {
+            type: "mcq",
+            prompt: "Sınırından kütle geçen düzeneğe ne denir?",
+            options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
+            answerIndex: 1,
+            explanation: "Kütle geçişi olan düzenek açık sistemdir.",
+            review: {
+              prompt: "Hem madde hem enerji çıkan türbin hangi sınıftadır?",
+              options: ["Yalıtılmış sistem", "Kapalı sistem", "Açık sistem"],
+              answerIndex: 2,
+            },
+          },
+        },
+        {
+          heading: "Kapalı sistem",
+          body: "**Kapalı sistem** kütle geçirmez ama enerji geçirebilir.",
+        },
+      ],
+      example: { prompt: "Türbin hangi sistemdir?", solution: "Açık sisteme örnektir." },
+      commonMistake: {
+        claim: "Kapalı sistem enerji de geçirmez.",
+        correction: "Kapalı sistem enerji geçirebilir.",
+      },
+      infoCheck: { prompt: "Açık sistem nedir?", answer: "Kütle geçiren sistem." },
+      summary: ["Açık sistem kütle geçirir.", "Kapalı sistem kütle geçirmez."],
+      nextFocus: ["Özellikler"],
+    });
+    expect(cleaned?.sections[0].check?.review?.prompt).toContain("türbin");
+    const cards = appendLessonReviewCards(
+      [{ front: "Eski kart", back: "eski" }],
+      cardsFromLessonReviews([
+        {
+          source_kind: "lesson_review",
+          question_preview: "Hem madde hem enerji çıkan türbin hangi sınıftadır?",
+          corrected: "Açık sistem. Kütle geçişi olan düzenek açık sistemdir.",
+        },
+        {
+          source_kind: "quiz_miss",
+          question_preview: "Bu kart karışmasın",
+          corrected: "hayır",
+        },
+      ]),
+    );
+    expect(cards.map((card) => card.front)).toEqual([
+      "Eski kart",
+      "Hem madde hem enerji çıkan türbin hangi sınıftadır?",
+    ]);
   });
 });
 

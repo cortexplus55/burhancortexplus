@@ -10,6 +10,7 @@ import {
   podcastDialogueIssues,
   podcastNarrationBrief,
   prepLanguage,
+  acceptReviewVariant,
   rephraseSectionCheck,
   sanitizeAnalysisAgainstSource,
   selectAnalysisPages,
@@ -357,6 +358,56 @@ describe("akış notu ve tekrar sorusu", () => {
     expect(check.prompt).not.toBe("Aşağıdakilerden hangisi efektif gerilmedir?");
     expect(check.options[check.answerIndex]).toBe("σ − u");
     expect(check.answerIndex).not.toBe(1);
+  });
+
+  it("yeni şık veya yeni sayı taşıyan tekrarı kabul etmez", () => {
+    const check = {
+      type: "mcq" as const,
+      prompt: "Efektif gerilme nasıl bulunur?",
+      options: ["σ", "σ − u", "u"],
+      answerIndex: 1,
+      explanation: "Efektif gerilme toplam gerilmeden boşluk basıncının çıkarılmasıdır.",
+    };
+    expect(
+      acceptReviewVariant({
+        ...check,
+        review: {
+          prompt: "Boşluk basıncı toplam gerilmeden düşünce kalan büyüklük nedir?",
+          options: ["u", "σ", "σ − u"],
+          answerIndex: 2,
+        },
+      })?.options[2],
+    ).toBe("σ − u");
+    expect(
+      acceptReviewVariant({
+        ...check,
+        review: {
+          prompt: "300 kPa boşluk basıncında efektif gerilme nedir?",
+          options: ["u", "σ", "σ − u"],
+          answerIndex: 2,
+        },
+      }),
+    ).toBeNull();
+    expect(
+      acceptReviewVariant({
+        ...check,
+        review: {
+          prompt: "Efektif gerilme nasıl bulunur?",
+          options: ["σ", "σ − u", "u"],
+          answerIndex: 1,
+        },
+      }),
+    ).toBeNull();
+    expect(
+      acceptReviewVariant({
+        ...check,
+        review: {
+          prompt: "Toplam gerilmeden boşluk basıncı çıkınca ne kalır?",
+          options: ["σ", "σ − u", "kontrol hacmi"],
+          answerIndex: 1,
+        },
+      }),
+    ).toBeNull();
   });
 
   it("İngilizce dersin tekrarını İngilizce kurar", () => {

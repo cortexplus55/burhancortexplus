@@ -10,6 +10,11 @@ import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { foldTr } from "@/lib/documents/page-analysis";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import type { PodcastChapter } from "@/lib/learning/podcast-script";
+import {
+  acceptReviewVariant,
+  reviewQuestionFor,
+  type MaterialLanguage,
+} from "@/lib/learning/teacher-brain";
 
 export type TeachingActivity =
   | "intro_qa"
@@ -220,12 +225,23 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
  * yakalanıyor. `answerIndex` seçenek dizisine bakar; `explanation` cevabı
  * bölümün metnine bağlar.
  */
+const reviewVariantSchema = z.object({
+  prompt: z.string().min(8).max(300),
+  options: z.array(z.string().min(1).max(160)).min(2).max(4),
+  answerIndex: z.number().int().min(0).max(3),
+});
+
 export const sectionCheckSchema = z.object({
   type: z.enum(["mcq", "trueFalse"]),
   prompt: z.string().min(8).max(300),
   options: z.array(z.string().min(1).max(160)).min(2).max(4),
   answerIndex: z.number().int().min(0).max(3),
   explanation: z.string().min(8).max(400),
+  /**
+   * Aynı üretim çağrısında yazılan tekrar. Bozuk varyant dersi düşürmez;
+   * ekran o zaman şık kaydırma + önek kullanır.
+   */
+  review: reviewVariantSchema.optional().catch(undefined),
 });
 
 export type SectionCheck = z.infer<typeof sectionCheckSchema>;
@@ -467,7 +483,32 @@ export function brokenSuperscript(text: string): boolean {
 export function prepareLessonDraft(raw: unknown): LessonV2 | null {
   const parsed = lessonV2Schema.safeParse(raw).data;
   if (!parsed) return null;
-  return dropScaffoldSections(parsed);
+  return sanitizeReviewVariants(dropScaffoldSections(parsed));
+}
+
+/**
+ * Geçersiz tekrar varyantını saklama. Yeni şık veya orijinal cümle,
+ * dersin kendisini düşürmeden atılır.
+ */
+export function sanitizeReviewVariants(lesson: LessonV2): LessonV2 {
+  return {
+    ...lesson,
+    sections: lesson.sections.map((section) => {
+      const check = section.check;
+      if (!check?.review) return section;
+      if (acceptReviewVariant(check)) return section;
+      return {
+        ...section,
+        check: {
+          type: check.type,
+          prompt: check.prompt,
+          options: check.options,
+          answerIndex: check.answerIndex,
+          explanation: check.explanation,
+        },
+      };
+    }),
+  };
 }
 
 export function dropScaffoldSections<T extends { sections: { heading: string }[] }>(
@@ -679,14 +720,24 @@ export function validateLessonV2(
   return issues;
 }
 
+/**
+ * Kısa tekrar, ders üretiminin içinde yazılır. Kapıda soru başına
+ * ayrı bir model çağrısı yok.
+ */
+export const REVIEW_VARIANT_RULE =
+  "Her check.review aynı kavramı farklı bir cümleyle sorar; orijinal cümleyi kopyalama. " +
+  "review.options orijinal şıkların aynı yazımıdır, sıra karışıktır. " +
+  "Yeni şık, sayı veya formül yok. Doğru/yanlışta iddianın doğruluk değeri değişmez.";
+
 /** İki rotanın ders şeması aynı metin. Diyagram eki rota ekler. */
 export const LESSON_V2_SCHEMA_HINT =
   'JSON: {"title":string,"objective":string,"overview":string,' +
-  '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"note":{"title":string,"body":string},"cards":[{"title":string,"body":string}]}],' +
+  '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string,"review":{"prompt":string,"options":string[],"answerIndex":number}},"note":{"title":string,"body":string},"cards":[{"title":string,"body":string}]}],' +
   '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
   '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
   "En az 3 kavram bölümü. Her bölümde check zorunlu: trueFalse ekranda DOĞRU MU YANLIŞ, mcq ekranda HIZLI SINAV. " +
   "explanation yanlış seçeneğin neden çürük olduğunu yazsın. " +
+  `${REVIEW_VARIANT_RULE} ` +
   "example.solution adım adım ve gerekçeli. nextFocus en az bir sonraki çalışma. " +
   "cards isteğe bağlı: kardeş kavram kümesi varsa 2-6 kart; yoksa cards yazma, uydurma kart ekleme. " +
   "Kaynakta olmayan formül veya teorem yazma.";
@@ -1075,12 +1126,90 @@ export function scoreFlashcardsV2(
   };
 }
 
+export type LessonReviewCard = { front: string; back: string };
+
+/**
+ * Dersin kısa tekrarında kaçırılan soru, aralıklı tekrara varyantıyla gider.
+ * Soru metni istemciden değil, saklı dersten kurulur.
+ */
+export function lessonMissDrafts(input: {
+  lesson: Pick<LessonV2, "sections">;
+  missedSectionIndexes: number[];
+  topicLabel?: string | null;
+  language?: MaterialLanguage;
+}): MisconceptionDraft[] {
+  const seen = new Set<number>();
+  const out: MisconceptionDraft[] = [];
+  for (const index of input.missedSectionIndexes) {
+    if (!Number.isInteger(index) || seen.has(index)) continue;
+    seen.add(index);
+    const section = input.lesson.sections[index];
+    const check = section?.check;
+    if (!check) continue;
+    const variant = reviewQuestionFor(check, input.language ?? "tr");
+    const correct = variant.options[variant.answerIndex]?.trim();
+    if (!correct || !variant.prompt.trim()) continue;
+    out.push({
+      claim: section.heading,
+      corrected: `${correct}. ${check.explanation}`.slice(0, 400),
+      wrongType: "lesson_check_miss",
+      sourceKind: "lesson_review",
+      topicLabel: input.topicLabel ?? null,
+      questionPreview: variant.prompt.slice(0, 300),
+    });
+  }
+  return out.slice(0, 8);
+}
+
+/** Aralıklı tekrar destesinin sonuna eklenecek kartlar. Aynı yüz iki kez girmez. */
+export function cardsFromLessonReviews(
+  rows: {
+    question_preview?: string | null;
+    questionPreview?: string | null;
+    corrected?: string | null;
+    claim?: string | null;
+    source_kind?: string | null;
+    sourceKind?: string | null;
+  }[],
+): LessonReviewCard[] {
+  const cards: LessonReviewCard[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const kind = row.sourceKind ?? row.source_kind;
+    if (kind && kind !== "lesson_review") continue;
+    const front = (row.questionPreview ?? row.question_preview ?? "").trim();
+    const back = (row.corrected ?? row.claim ?? "").trim();
+    if (front.length < 8 || back.length < 2) continue;
+    const key = front.toLocaleLowerCase("tr");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    cards.push({ front: front.slice(0, 280), back: back.slice(0, 400) });
+  }
+  return cards.slice(0, 8);
+}
+
+/**
+ * Üretilmiş kartların indeksi bozulmasın diye tekrar kartları sona eklenir.
+ * Başa koymak, kayıtlı cevabın başka karta yazılmasına yol açardı.
+ */
+export function appendLessonReviewCards<T extends { front: string }>(
+  cards: T[],
+  extra: LessonReviewCard[],
+): Array<T | (LessonReviewCard & { difficulty: "hard" })> {
+  const seen = new Set(cards.map((card) => card.front.trim().toLocaleLowerCase("tr")));
+  const tail = extra
+    .filter((card) => !seen.has(card.front.trim().toLocaleLowerCase("tr")))
+    .map((card) => ({ ...card, difficulty: "hard" as const }));
+  return [...cards, ...tail];
+}
+
 /** Collect misconception hooks from a completed attempt (cheap Stage 6 prep). */
 export function extractMisconceptions(input: {
   kind: PlanNodeKind;
   payload: unknown;
   answers: Record<string, unknown>;
   topicLabel?: string | null;
+  language?: MaterialLanguage;
 }): MisconceptionDraft[] {
   const data = (input.payload ?? {}) as Record<string, unknown>;
   const out: MisconceptionDraft[] = [];
@@ -1133,6 +1262,24 @@ export function extractMisconceptions(input: {
         questionPreview: question.text.slice(0, 160),
       });
     });
+  }
+
+  if (data.type === "lesson") {
+    const lesson = lessonV2Schema.safeParse(data.lesson).data;
+    if (lesson) {
+      const raw = input.answers.lessonMisses;
+      const indexes = Array.isArray(raw)
+        ? raw.filter((value): value is number => typeof value === "number" && Number.isInteger(value))
+        : [];
+      out.push(
+        ...lessonMissDrafts({
+          lesson,
+          missedSectionIndexes: indexes,
+          topicLabel,
+          language: input.language,
+        }),
+      );
+    }
   }
 
   return out.slice(0, 20);

@@ -975,6 +975,114 @@ function stableShift(prompt: string, optionCount: number): number {
   return (hash % (optionCount - 1)) + 1;
 }
 
+function foldPrompt(text: string): string {
+  return text.trim().toLocaleLowerCase("tr").replace(/\s+/g, " ");
+}
+
+function sameOptionOrder(left: string[], right: string[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((option, index) => option.trim() === right[index]?.trim())
+  );
+}
+
+function sameOptionSet(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) return false;
+  const a = left.map((option) => option.trim()).sort();
+  const b = right.map((option) => option.trim()).sort();
+  return a.every((option, index) => option === b[index]);
+}
+
+/** 3 ve üstü bir sayı kaynakta yoksa varyant yeni bir olgu taşıyor demektir. */
+function hasNovelQuantity(text: string, source: string): boolean {
+  const nums = text.match(/\d+(?:[.,]\d+)?/g) ?? [];
+  for (const raw of nums) {
+    const normalized = raw.replace(",", ".");
+    const value = Number(normalized);
+    if (!Number.isFinite(value) || value < 3) continue;
+    const comma = normalized.replace(".", ",");
+    if (!source.includes(raw) && !source.includes(normalized) && !source.includes(comma)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function shiftOptions<T extends ReviewCheck>(check: T): T {
+  const count = check.options.length;
+  const shift = stableShift(check.prompt, count);
+  if (shift === 0) return check;
+  return {
+    ...check,
+    options: check.options.map((_, index) => check.options[(index + shift) % count]),
+    answerIndex: (check.answerIndex - shift + count) % count,
+  };
+}
+
+export type StoredReview = {
+  prompt: string;
+  options: string[];
+  answerIndex: number;
+};
+
+/**
+ * Ders üretilirken aynı çağrıda yazılan tekrar.
+ * Şık metinleri orijinalin aynısı olmalı; yeni sayı veya orijinal cümle yok.
+ * Tutmazsa null — ekran önekli yedeğe düşer, olgu uydurmaz.
+ */
+export function acceptReviewVariant(
+  check: ReviewCheck & { review?: StoredReview | null },
+): ReviewCheck | null {
+  const review = check.review;
+  if (!review) return null;
+  const prompt = review.prompt.trim();
+  const original = foldPrompt(check.prompt);
+  const next = foldPrompt(prompt);
+  if (next.length < 8 || next === original || next.includes(original)) return null;
+  if (!sameOptionSet(check.options, review.options)) return null;
+  const correct = check.options[check.answerIndex]?.trim();
+  const picked = review.options[review.answerIndex]?.trim();
+  if (!correct || picked !== correct) return null;
+  const source = [check.prompt, check.explanation, ...check.options].join("\n");
+  if (hasNovelQuantity(prompt, source)) return null;
+  const accepted: ReviewCheck = {
+    type: check.type,
+    prompt: prompt.slice(0, 300),
+    options: review.options.map((option) => option.trim()),
+    answerIndex: review.answerIndex,
+    explanation: check.explanation,
+  };
+  return sameOptionOrder(check.options, accepted.options) ? shiftOptions(accepted) : accepted;
+}
+
+/**
+ * Kısa tekrar kapısının sorusu.
+ * Saklı varyant geçerliyse o gelir; değilse şıklar kayar ve köke önek eklenir.
+ * Orijinal cümle olduğu gibi geri dönmez.
+ */
+export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredReview | null }>(
+  check: T,
+  language: MaterialLanguage = "tr",
+): T {
+  const accepted = acceptReviewVariant(check);
+  const next = accepted ?? rephraseSectionCheck(check, language);
+  if (foldPrompt(next.prompt) === foldPrompt(check.prompt)) {
+    const fallback = rephraseSectionCheck(check, language);
+    return {
+      ...check,
+      prompt: fallback.prompt,
+      options: fallback.options,
+      answerIndex: fallback.answerIndex,
+    };
+  }
+  return {
+    ...check,
+    prompt: next.prompt,
+    options: next.options,
+    answerIndex: next.answerIndex,
+  };
+}
+
 /** Ders sonu tekrarı aynı cümleyi ve aynı şık yerini geri getirmez. */
 export function rephraseReviewPrompt(prompt: string, language: MaterialLanguage = "tr"): string {
   const trimmed = prompt.trim();

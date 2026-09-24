@@ -9,9 +9,10 @@ import {
   calloutTone,
   checkPresentation,
   reviewGateLead,
+  reviewGateQuestion,
   trueFalseIndexes,
 } from "@/lib/learning/lesson-chrome";
-import { rephraseSectionCheck, type MaterialLanguage } from "@/lib/learning/teacher-brain";
+import type { MaterialLanguage } from "@/lib/learning/teacher-brain";
 import "@/styles/exam-lesson-steps.css";
 
 /**
@@ -111,7 +112,8 @@ export function ExamLessonSteps({
   lesson: LessonV2;
   /** Hazırlığın dili. Tekrar sorusu bu dilde yeniden kurulur. */
   language?: MaterialLanguage;
-  onFinish?: () => void;
+  /** Kaçırılan bölüm indeksleri. Metin sunucuda dersin kendisinden kurulur. */
+  onFinish?: (missedSectionIndexes?: number[]) => void;
   onClose?: () => void;
   closeHref?: string;
 }) {
@@ -132,7 +134,7 @@ export function ExamLessonSteps({
           ? ({
               kind: "retry",
               heading: section.heading,
-              check: rephraseSectionCheck(section.check, language),
+              check: reviewGateQuestion(section.check, language),
             } as Step)
           : null;
       })
@@ -164,7 +166,7 @@ export function ExamLessonSteps({
 
   function next() {
     if (last) {
-      onFinish?.();
+      onFinish?.(missed);
       return;
     }
     go(index + 1);

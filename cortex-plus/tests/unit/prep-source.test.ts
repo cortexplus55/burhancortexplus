@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   TOPIC_ONLY_NOTICE,
+  materialKindLabel,
+  prepSourceDocumentIds,
   resolvePrepSourceMode,
   shouldSearchSources,
   topicFence,
@@ -160,4 +162,34 @@ describe("rotalar kaynak kararını tek yerden alıyor", () => {
       expect(src).not.toContain('sourceBoundaryMode ?? "documents_only"');
     });
   }
+});
+
+describe("hazırlık belgeleri", () => {
+  it("dolu dizi varsa onu kullanır, boşsa tek belgeye düşer", () => {
+    expect(
+      prepSourceDocumentIds({
+        documentId: "legacy",
+        sourceDocumentIds: ["a", "b", "a"],
+      }),
+    ).toEqual(["a", "b"]);
+    expect(
+      prepSourceDocumentIds({ documentId: "legacy", sourceDocumentIds: [] }),
+    ).toEqual(["legacy"]);
+    expect(prepSourceDocumentIds({ documentId: null, sourceDocumentIds: null })).toEqual(
+      [],
+    );
+  });
+
+  it("tür ve sayfa sayısını tek satırda yazar", () => {
+    expect(materialKindLabel({ mimeType: "application/pdf", pageCount: 10 })).toBe(
+      "PDF · 10 sayfa",
+    );
+    expect(materialKindLabel({ mimeType: "application/pdf", pageCount: null })).toBe("PDF");
+    expect(
+      materialKindLabel({
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        pageCount: 0,
+      }),
+    ).toBe("Word");
+  });
 });

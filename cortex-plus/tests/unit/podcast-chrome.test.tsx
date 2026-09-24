@@ -87,6 +87,6 @@ describe("konu seç ve yol", () => {
     expect(home).toContain("ÖNERİLEN DERS");
     expect(home).toContain('ready?.kind === "podcast"');
     expect(home).toContain("cp-exam-trail-node--podcast");
-    expect(home).not.toContain("Materyaller");
+    expect(home).toContain("PREP_HOME_COPY.materials");
   });
 });

@@ -37,6 +37,8 @@ import {
   type QuizQuestion,
 } from "@/lib/learning/exam-quiz";
 import {
+  appendLessonReviewCards,
+  cardsFromLessonReviews,
   extractMisconceptions,
   flashcardV2Schema,
   oralV2Schema,
@@ -54,6 +56,8 @@ import {
   prepareLessonDraft,
   lessonV2Schema,
   LESSON_V2_SCHEMA_HINT,
+  REVIEW_VARIANT_RULE,
+  type LessonReviewCard,
   type LessonV2,
   type SessionTeachingMeta,
 } from "@/lib/learning/teaching-standards";
@@ -226,6 +230,8 @@ export async function POST(request: Request) {
   const familiarity = parseFamiliarity(parsed.data.familiarity);
   const mood = parseMood(parsed.data.mood);
   const title = PLAN_NODE_META[kind]?.setupLabel ?? node.title;
+  const lessonReviewCards =
+    kind === "spaced" ? await loadLessonReviewCards(service, userId, prepId) : [];
 
   // --- Stage 8: resume in-progress attempt (flag ON) ---
   if (action === "resume") {
@@ -245,6 +251,7 @@ export async function POST(request: Request) {
         topicLabel,
         publicPayload: publicNodePayload(
           attempt.payload as Record<string, unknown>,
+          lessonReviewCards,
         ),
         resumed: true,
       }),
@@ -456,10 +463,12 @@ export async function POST(request: Request) {
         payload: payloadForEvidence,
         answers: answersForRpc,
         topicLabel,
+        language: prepLanguage(prep.learning_preferences),
       });
-      if (drafts.length) {
+      const fresh = await unseenLessonReviews(service, userId, prepId, drafts);
+      if (fresh.length) {
         await service.from("exam_prep_misconceptions").insert(
-          drafts.map((d) => ({
+          fresh.map((d) => ({
             user_id: userId,
             exam_prep_id: prepId,
             node_id: nodeId,
@@ -560,6 +569,7 @@ export async function POST(request: Request) {
           topicLabel,
           publicPayload: publicNodePayload(
             existingForKey.payload as Record<string, unknown>,
+            lessonReviewCards,
           ),
           resumed: true,
         }),
@@ -584,6 +594,7 @@ export async function POST(request: Request) {
             topicLabel,
             publicPayload: publicNodePayload(
               existingForKey.payload as Record<string, unknown>,
+              lessonReviewCards,
             ),
             resumed: true,
           },
@@ -610,6 +621,7 @@ export async function POST(request: Request) {
           topicLabel,
           publicPayload: publicNodePayload(
             resumable.payload as Record<string, unknown>,
+            lessonReviewCards,
           ),
           resumed: true,
         }),
@@ -803,6 +815,7 @@ export async function POST(request: Request) {
               topicLabel,
               publicPayload: publicNodePayload(
                 raced.payload as Record<string, unknown>,
+                lessonReviewCards,
               ),
               resumed: true,
             }),
@@ -990,7 +1003,7 @@ export async function POST(request: Request) {
         kind,
         title,
         topicLabel,
-        publicPayload: publicNodePayload(payload),
+        publicPayload: publicNodePayload(payload, lessonReviewCards),
         resumed: false,
       }),
     );
@@ -1054,7 +1067,7 @@ export async function POST(request: Request) {
     title,
     topicLabel,
     voiceMode,
-    payload: publicNodePayload(payload),
+    payload: publicNodePayload(payload, lessonReviewCards),
   });
 }
 
@@ -1287,7 +1300,7 @@ async function generateNodePayload(input: {
         "{kind:\"text\",x,y,text,anchor?}. Renk seçme; tone/fill/stroke yalnızca " +
         "ink, muted, accent, surface, line olabilir. Her çizimde en az bir etiket " +
         "ve bir caption olsun. Metinle anlaşılan konuya çizim koyma.",
-      userPrompt: `${contextFor(note)}${backbonePrompt}${diagramPrompt} Bu konunun dersini yaz.`,
+      userPrompt: `${contextFor(note)}${backbonePrompt}${diagramPrompt} Bu konunun dersini yaz. ${REVIEW_VARIANT_RULE}`,
       // Bu tur neden reddedildi — modele aynen iletiliyor. Rota kendi
       // kurallarıyla da reddediyor; sebebini söylemezse yeniden üretim
       // "JSON şeman bozuk" gibi yanlış bir yönlendirmeyle gidiyordu.
@@ -1690,10 +1703,64 @@ async function generateNodePayload(input: {
   return { type: "quiz", questions: outcome.questions, teachingStandard: activity };
 }
 
-function publicNodePayload(payload: Record<string, unknown>) {
-  if (payload.type !== "quiz") return payload;
-  const questions = ((payload.questions as QuizQuestion[]) ?? []).map(publicQuizQuestion);
-  return { ...payload, questions };
+async function loadLessonReviewCards(
+  service: SupabaseClient,
+  userId: string,
+  prepId: string,
+): Promise<LessonReviewCard[]> {
+  const { data, error } = await service
+    .from("exam_prep_misconceptions")
+    .select("question_preview, corrected, claim, source_kind")
+    .eq("user_id", userId)
+    .eq("exam_prep_id", prepId)
+    .eq("source_kind", "lesson_review")
+    .order("created_at", { ascending: false })
+    .limit(12);
+  if (error || !data) return [];
+  return cardsFromLessonReviews(data);
+}
+
+async function unseenLessonReviews<
+  T extends { sourceKind: string; questionPreview: string | null },
+>(service: SupabaseClient, userId: string, prepId: string, drafts: T[]): Promise<T[]> {
+  const lesson = drafts.filter((draft) => draft.sourceKind === "lesson_review");
+  const rest = drafts.filter((draft) => draft.sourceKind !== "lesson_review");
+  const previews = lesson
+    .map((draft) => draft.questionPreview)
+    .filter((preview): preview is string => Boolean(preview));
+  if (!previews.length) return drafts;
+  const { data, error } = await service
+    .from("exam_prep_misconceptions")
+    .select("question_preview")
+    .eq("user_id", userId)
+    .eq("exam_prep_id", prepId)
+    .eq("source_kind", "lesson_review")
+    .in("question_preview", previews);
+  if (error) return drafts;
+  const seen = new Set((data ?? []).map((row) => row.question_preview as string));
+  return [
+    ...rest,
+    ...lesson.filter((draft) => !draft.questionPreview || !seen.has(draft.questionPreview)),
+  ];
+}
+
+function withLessonReviewCards(
+  payload: Record<string, unknown>,
+  reviewCards: LessonReviewCard[],
+) {
+  if (payload.type !== "cards" || !reviewCards.length) return payload;
+  const cards = Array.isArray(payload.cards) ? (payload.cards as { front: string }[]) : [];
+  return { ...payload, cards: appendLessonReviewCards(cards, reviewCards) };
+}
+
+function publicNodePayload(
+  payload: Record<string, unknown>,
+  reviewCards: LessonReviewCard[] = [],
+) {
+  const decorated = withLessonReviewCards(payload, reviewCards);
+  if (decorated.type !== "quiz") return decorated;
+  const questions = ((decorated.questions as QuizQuestion[]) ?? []).map(publicQuizQuestion);
+  return { ...decorated, questions };
 }
 
 function countTotal(kind: PlanNodeKind, payload: Record<string, unknown>) {
