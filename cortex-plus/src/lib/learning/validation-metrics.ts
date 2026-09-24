@@ -3,7 +3,11 @@
  */
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ValidationMetrics, ValidationStage } from "@/lib/learning/validation-pipeline";
+import type {
+  IssueSeverityReport,
+  ValidationMetrics,
+  ValidationStage,
+} from "@/lib/learning/validation-pipeline";
 
 export type ValidationEventInput = {
   userId: string;
@@ -11,6 +15,8 @@ export type ValidationEventInput = {
   activityKind?: string | null;
   metrics: ValidationMetrics;
   reservationId?: string | null;
+  /** Konsol kaydı. Tabloya yazılmaz. */
+  issueSeverity?: IssueSeverityReport | null;
 };
 
 /** Structured log always; DB insert best-effort (never throws to callers). */
@@ -35,6 +41,7 @@ export async function recordValidationEvent(
   console.error("ai_validation_event", {
     userIdHash: hashUser(input.userId),
     ...payload,
+    issue_severity: input.issueSeverity ?? null,
   });
 
   if (!service) return;

@@ -800,6 +800,21 @@ export function teacherBriefForTopic(analysis: TeacherAnalysis, topicTitle: stri
  * Üreticiye formül yasağı. Öğretmen notu vurgu olabilir; olgu olamaz.
  * Doğrulayıcı da aynı cümleyi görür, böylece not ile sayfa metni ayrışmaz.
  */
+/**
+ * Öğretmen notundaki kavram adları. Ders bunları gövdede geçiyorsa koyulaştırır.
+ * Notta olmayan bir terim üretilmez.
+ */
+export function keyTermsFromTeacherNote(note: string): string[] {
+  const terms: string[] = [];
+  for (const line of note.split("\n")) {
+    const match = line.match(/concept:\s*([^:\n]{2,80})/i);
+    if (!match) continue;
+    const term = match[1].replace(/\s+/g, " ").trim();
+    if (term.length >= 3 && term.length <= 60) terms.push(term);
+  }
+  return [...new Set(terms)].slice(0, 24);
+}
+
 export const SOURCE_PAGE_FORMULA_RULE =
   "Formül, tanım ve yasa YALNIZCA aşağıdaki kaynak sayfalarının metninde yazıyorsa kullanılır. " +
   "Kaynak sayfada olmayan, ders kitabından bildiğin formülü içeri alma. " +

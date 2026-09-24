@@ -76,6 +76,7 @@ import {
 } from "@/lib/learning/podcast-from-lesson";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 import {
+  keyTermsFromTeacherNote,
   lessonDepth,
   podcastDialogueIssues,
   podcastNarrationBrief,
@@ -1266,6 +1267,7 @@ async function generateNodePayload(input: {
             .join(" ")}. Bu başlıkları kullan; birini atlama, kendinden yeni bölüm ekleme.`
         : ` Kaynağın alt başlıkları: ${backbone.join(", ")}. İkisini de kapsa ve kavramları en az 3 bölüme ayır.`;
     // Çizim "isteğe bağlı" kaldığı sürece model hiç çizmiyor.
+    const keyTerms = [...keyTermsFromTeacherNote(teacherNote), ...backbone];
     const wantsDiagram = needsDiagram(input.topicLabel, ...backbone);
     // Soyut bir "çizim koy" talimatını model atlıyordu; somut bir örnek
     // atlanmıyor. Ama örnek de aynen kopyalanıyor: canlıda zemin dersine
@@ -1295,9 +1297,9 @@ async function generateNodePayload(input: {
           ? `${input.idempotencyKey}:no-brief`
           : input.idempotencyKey,
       allowIndependentAccept: false,
-      reviewDraft: lessonDraftForVerifier,
+      reviewDraft: (draft) => lessonDraftForVerifier(draft, keyTerms),
       buildIndependent: (_c, parsed) => ({
-        pedagogyIssues: lessonPublishIssues(parsed, { minSections }),
+        pedagogyIssues: lessonPublishIssues(parsed, { minSections, keyTerms }),
         ...sourceIndependent,
       }),
       schemaHint:
@@ -1320,7 +1322,7 @@ async function generateNodePayload(input: {
       describeParseFailure: () => lastParseIssues,
       parse: (raw) => {
         lastParseIssues = [];
-        const raw2 = publishLessonDraft(raw);
+        const raw2 = publishLessonDraft(raw, { keyTerms });
         if (!raw2) return null;
         /**
          * ÖNCE TEMİZLE, SONRA DOĞRULA.
@@ -1338,7 +1340,7 @@ async function generateNodePayload(input: {
          */
         const parsed = raw2;
         const missing = missingSections(parsed);
-        const pedagoji = lessonPublishIssues(raw, { minSections });
+        const pedagoji = lessonPublishIssues(raw, { minSections, keyTerms });
         if (pedagoji.length) {
           lastParseIssues = pedagoji;
           return null;
