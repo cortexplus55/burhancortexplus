@@ -83,8 +83,8 @@ export function describeGenerationFailure(
     case "insufficient_credits":
       return {
         message: resetsAtLabel
-          ? `Günlük hakkın doldu. ${resetsAtLabel} itibarıyla yenilenecek; dilersen paketini yükseltip beklemeden devam edebilirsin.`
-          : "Günlük hakkın doldu. Hakkın yenilenince devam edebilirsin; dilersen paketini yükseltip beklemeden çalışabilirsin.",
+          ? `Hakkın doldu. ${resetsAtLabel} itibarıyla yenilenecek; dilersen paketini yükseltip beklemeden devam edebilirsin.`
+          : "Hakkın doldu. Hakkın yenilenince devam edebilirsin; dilersen paketini yükseltip beklemeden çalışabilirsin.",
         retryMintsNewId: false,
         canRetryNow: false,
         action: { href: "/krediler", label: "Hakkımı gör" },

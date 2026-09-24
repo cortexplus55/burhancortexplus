@@ -39,14 +39,14 @@ export function StudentAccountStrip({
             href="/paketler"
             className="text-xs font-semibold text-[var(--cs-primary)]"
           >
-            Kredi al
+            {account.showsUpgradeChrome ? "Kullanımını artır" : "Ek paket"}
           </Link>
         ) : low ? (
           <Link
             href="/paketler"
             className="text-xs text-[var(--cs-muted)] hover:text-[var(--cs-primary)]"
           >
-            Kredi yükle
+            {account.showsUpgradeChrome ? "Kullanımını artır" : "Ek paket"}
           </Link>
         ) : null}
       </div>
@@ -58,10 +58,13 @@ export function StudentAccountStrip({
           Yeni AI işlemi için kredi veya ücretsiz hak gerekir. Mevcut içeriklerin
           korunur.
         </p>
+      ) : account.audience === "sigma" ? (
+        <p className="mt-1.5 text-xs text-[var(--cs-muted)]">
+          Sigma ile gelişmiş model kullanılır; işlemler yine kredi harcar.
+        </p>
       ) : account.isPremium ? (
         <p className="mt-1.5 text-xs text-[var(--cs-muted)]">
-          {account.subscriptionBadge ?? "Plus"} ile gelişmiş model kullanılır;
-          işlemler yine kredi harcar.
+          Aylık kotan açık; işlemler kredi harcar.
         </p>
       ) : null}
     </div>

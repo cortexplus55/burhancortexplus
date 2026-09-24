@@ -13,6 +13,16 @@ import { formatTry, formatTryWhole } from "@/lib/format";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import { TrustStrip } from "@/components/parity/trust-strip";
+import {
+  BENEFITS_LEAD,
+  parentPlusBenefitLines,
+  parentSigmaBenefitLines,
+  plusBenefitLines,
+  sigmaBenefitLines,
+  tierComparisonRows,
+} from "@/lib/billing/tier-presentation";
+
+export { BENEFITS_LEAD };
 
 type Plan = {
   id: string;
@@ -28,50 +38,11 @@ type Plan = {
 };
 
 /*
-  Bu listeler bir zamanlar satılmayan şeyleri satıyordu: "deneme sınavı",
-  "quiz, flashcard", "dokümanlarından kaynaklı yanıtlar" Plus'a aitmiş gibi
-  yazılıydı, oysa dördü de ücretsiz katmanda açık. Ücretsiz kullanıcı zaten
-  yaptığı bir şey için para istenince ne aldığını anlamıyor.
-
-  Şimdi liste yalnızca kodda gerçekten Plus'a bağlı olanları sayıyor ve
-  başında "ücretsiz plandaki her şey ve" yazıyor — ücretsizde olanı gizlemeye
-  gerek yok, üstüne ne eklendiğini söylemek yeterli.
-
-  Sigma'dan iki madde çıkarıldı: "en gelişmiş model" ve "öncelikli yanıt hızı".
-  Kodda Sigma'yı Plus'tan ayıran tek şey kota; ne ayrı bir model ne de öncelik
-  sırası var. Olmayan şeyi satmıyoruz.
+  Liste "ücretsiz plandaki her şey ve" diye başlar. Podcast, sözlü, quiz
+  ücretsizde açık; onları Plus'a özel yazmak yalan olur. Fark kota, yükleme
+  tavanı, Sigma'da gelişmiş model ve ek paket. Metinler
+  `tier-presentation.ts` içinde, kabukla aynı kaynakta.
 */
-
-/** Listelerin başında duran çerçeve cümlesi. */
-export const BENEFITS_LEAD = "Ücretsiz plandaki her şey ve:";
-
-const PLUS_BENEFITS = [
-  "Günlük hak yerine aylık hak — kat kat fazla kullanım",
-  "Sohbette gelişmiş AI modeli seçeneği",
-  "Deneme sınavlarında gelişmiş model",
-  "Podcast ve ders anlatımında gerçek seslendirme",
-  "Sözlü sınavda sesini tanıma",
-  "Hakkın biterse ek paket alabilme",
-];
-
-const SIGMA_BENEFITS = [
-  "Plus’taki her şey",
-  "Daha yüksek aylık kullanım hakkı",
-  "Yoğun sınav dönemleri için ek kota",
-];
-
-const PARENT_PLUS_BENEFITS = [
-  "Kota çocuğunun hesabına tanımlanır",
-  "Günlük hak yerine aylık hak",
-  "Sohbette ve denemelerde gelişmiş AI modeli",
-  "Podcast ve sözlü sınavda gerçek seslendirme",
-];
-
-const PARENT_SIGMA_BENEFITS = [
-  "Plus’taki her şey çocuğunun hesabında",
-  "Daha yüksek aylık kullanım hakkı",
-  "Yoğun sınav dönemleri için ek kota",
-];
 
 type Tier = "plus" | "sigma";
 type TierPlans = { weekly?: Plan; monthly?: Plan; yearly?: Plan };
@@ -223,8 +194,9 @@ export function SubscriptionCards({
     göndermediği için paketler orada da görünmüyor.
   */
   const showCreditPacks = rest.length > 0 && plusOwned;
-  const plusBenefits = isParent ? PARENT_PLUS_BENEFITS : PLUS_BENEFITS;
-  const sigmaBenefits = isParent ? PARENT_SIGMA_BENEFITS : SIGMA_BENEFITS;
+  const plusBenefits = isParent ? parentPlusBenefitLines() : plusBenefitLines();
+  const sigmaBenefits = isParent ? parentSigmaBenefitLines() : sigmaBenefitLines();
+  const comparison = tierComparisonRows();
 
   async function startCheckout(planId: string) {
     if (!checkoutEnabled) return;
@@ -387,9 +359,11 @@ export function SubscriptionCards({
             eyebrow={currentBadge ?? undefined}
             title={currentBadge ? "Aboneliğin aktif" : undefined}
             description={
-              currentBadge
-                ? `${currentBadge} planınla premium özellikler ve aylık kullanım hakkın açık.`
-                : undefined
+              currentBadge === "Sigma"
+                ? "Sigma planınla gelişmiş model ve yüksek aylık kotan açık."
+                : currentBadge
+                  ? `${currentBadge} planınla yüksek aylık kotan ve yükleme limitin açık.`
+                  : undefined
             }
           />
         )}
@@ -436,6 +410,46 @@ export function SubscriptionCards({
           </div>
         ) : null}
 
+      </div>
+
+      <div className="mx-auto mb-6 max-w-3xl overflow-x-auto">
+        <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
+          <caption className="mb-2 text-left text-xs font-semibold text-[var(--cs-text)]">
+            Misafir, ücretsiz ve premium
+          </caption>
+          <thead>
+            <tr className="text-[var(--cs-muted)]">
+              <th className="px-2 py-2 font-medium" scope="col">
+                Özellik
+              </th>
+              <th className="px-2 py-2 font-medium" scope="col">
+                Misafir
+              </th>
+              <th className="px-2 py-2 font-medium" scope="col">
+                Ücretsiz
+              </th>
+              <th className="px-2 py-2 font-medium" scope="col">
+                Plus
+              </th>
+              <th className="px-2 py-2 font-medium" scope="col">
+                Sigma
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {comparison.map((row) => (
+              <tr key={row.label} className="border-t border-[var(--cs-border)]">
+                <th className="px-2 py-2 font-medium text-[var(--cs-text)]" scope="row">
+                  {row.label}
+                </th>
+                <td className="px-2 py-2 text-[var(--cs-muted)]">{row.guest}</td>
+                <td className="px-2 py-2 text-[var(--cs-muted)]">{row.free}</td>
+                <td className="px-2 py-2 text-[var(--cs-muted)]">{row.plus}</td>
+                <td className="px-2 py-2 text-[var(--cs-muted)]">{row.sigma}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/*

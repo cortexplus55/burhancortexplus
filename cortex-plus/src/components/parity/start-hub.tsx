@@ -13,13 +13,12 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 
 const LESSON_TOOLS = [
   { id: "quiz", href: "/studio/quiz", label: "Quiz", hint: "Çoktan seçmeli", icon: FileQuestion },
   { id: "sozlu", href: "/studio/sozlu", label: "Sözlü deneme", hint: "Sesli pratik", icon: Mic },
   { id: "tf", href: "/studio/dogru-yanlis", label: "Doğru / Yanlış", hint: "Hızlı tur", icon: Check },
-  { id: "podcast", href: "/studio/podcast", label: "Podcast", hint: "Dinleyerek öğren", icon: Headphones, plusOnly: true },
+  { id: "podcast", href: "/studio/podcast", label: "Podcast", hint: "Dinleyerek öğren", icon: Headphones },
   { id: "flash", href: "/studio/flashcard", label: "Flash kartlar", hint: "Kart çalışması", icon: Layers },
   { id: "yazili", href: "/studio/yazili", label: "Yazılı deneme", hint: "Sınav kağıdı", icon: Timer },
 ] as const;
@@ -35,8 +34,6 @@ export function StartHub({
   onScanProblem: () => void;
   examDaysLabel?: string;
 }) {
-  const isPremium = Boolean(useStudentShellAccount()?.isPremium);
-
   if (!open) return null;
 
   return (
@@ -75,13 +72,6 @@ export function StartHub({
         <div className="cp-hub-tools">
           {LESSON_TOOLS.map((tool) => {
             const Icon = tool.icon;
-            /*
-              Kilitli araç listeden ÇIKMIYOR, ipucu değişiyor. Gizlemek
-              öğrenciye ürünün ne yapabildiğini hiç göstermezdi; bağlantı
-              hâlâ stüdyoya gidiyor ve kilidi orada, örnek bölüm bağlantısıyla
-              birlikte açıklıyoruz.
-            */
-            const locked = "plusOnly" in tool && tool.plusOnly && !isPremium;
             return (
               <Link
                 key={tool.id}
@@ -95,9 +85,7 @@ export function StartHub({
                 </span>
                 <span className="cp-hub-tool-copy">
                   <span className="cp-hub-tool-label">{tool.label}</span>
-                  <span className="cp-hub-tool-hint">
-                    {locked ? "Plus'a özel" : tool.hint}
-                  </span>
+                  <span className="cp-hub-tool-hint">{tool.hint}</span>
                 </span>
               </Link>
             );

@@ -6,6 +6,7 @@ import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadProfileDashboard } from "@/lib/student/profile-dashboard";
 import { loadReferralSummary } from "@/lib/credits/referral";
 import { loadInviteLink } from "@/lib/credits/invite-code";
+import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Profil" };
 
@@ -26,6 +27,11 @@ export default async function ProfilPage() {
         email={user.email ?? null}
         isPremium={Boolean(shell.account?.isPremium)}
         subscriptionBadge={shell.account?.subscriptionBadge ?? null}
+        periodEndLabel={
+          shell.account?.subscriptionPeriodEnd
+            ? formatDate(shell.account.subscriptionPeriodEnd)
+            : null
+        }
       >
         <ReferralRewardCard summary={referral} inviteUrl={invite.url} />
       </ProfilePanel>

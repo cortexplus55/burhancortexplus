@@ -9,7 +9,8 @@ import { selectModel } from "@/lib/ai/model-router";
 import { claimHardUpgrade } from "@/lib/ai/model-upgrade";
 import { freeImageAllowed } from "@/lib/ai/image-quota";
 import { assessQuestionDifficulty } from "@/lib/ai/question-difficulty";
-import { SYSTEM_GUARDRAIL, isPremiumUser } from "@/lib/ai/generate";
+import { SYSTEM_GUARDRAIL } from "@/lib/ai/generate";
+import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { moderate } from "@/lib/ai/moderation";
 import { recordAbuse } from "@/lib/abuse/record";
 import { parseTutorStyle, tutorStylePrompt } from "@/lib/learning/tutor-style";
@@ -108,7 +109,8 @@ export async function POST(request: Request) {
     if (verdict.action === "block" || verdict.action === "support") return new Response(verdict.message, {
       headers: { "Content-Type": "text/plain; charset=utf-8", "X-Credits-Used": "0" },
     });
-    const isPremium = await isPremiumUser(service, userId);
+    const entitlements = await getUserEntitlements(service, userId);
+    const isPremium = entitlements.isPremium;
     if (imageUrl && !(await freeImageAllowed(userId, isPremium))) return errorResponse(429, "free_image_limit");
 
     let priorUserTurns = 0;
@@ -119,7 +121,13 @@ export async function POST(request: Request) {
       priorUserTurns = count ?? 0;
     }
     const difficulty = assessQuestionDifficulty({ message, turn: priorUserTurns + 1, hasImage: Boolean(imageUrl) });
-    const routerInput = { actionCode: rest.actionCode as ActionCode, isPremium, hasImage: Boolean(imageUrl), userSelectedAdvanced: rest.actionCode === "AI_CHAT_ADVANCED", documentPages, difficulty: difficulty.level };
+    // Gelişmiş sohbet Sigma. Plus ve ücretsiz istese de standart modele düşer.
+    const advancedChat = requireFeature(entitlements, "advanced_chat");
+    const requestedAdvanced = rest.actionCode === "AI_CHAT_ADVANCED";
+    const chatAction = (requestedAdvanced && !advancedChat
+      ? "AI_CHAT_STANDARD"
+      : rest.actionCode) as ActionCode;
+    const routerInput = { actionCode: chatAction, isPremium, hasImage: Boolean(imageUrl), userSelectedAdvanced: chatAction === "AI_CHAT_ADVANCED", documentPages, difficulty: difficulty.level };
     const routed = selectModel(routerInput);
     const { model, actionCode } = routed.upgrade === "difficulty" && !(await claimHardUpgrade(service, userId))
       ? selectModel({ ...routerInput, hardUpgradeAllowed: false }) : routed;

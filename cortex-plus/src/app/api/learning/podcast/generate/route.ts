@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
-import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
+import { generateJson } from "@/lib/ai/generate";
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
@@ -36,21 +37,16 @@ export async function POST(request: Request) {
   const { userId, service } = guard.ctx;
 
   /*
-    Podcast Plus'a özel (18 Eylül 2026).
-
-    Önceki hâli ücretsiz kullanıcıya 1 kredi karşılığı senaryo üretiyor, sonra
-    onu TARAYICININ ROBOT SESİYLE okutuyordu. Ses zaten premium'a kapalıydı,
-    yani ücretsiz kullanıcı "podcast" diye telefonunun sesini dinliyordu. Bu
-    ürünü tanıtmıyor, kötü gösteriyordu: iki sesli stüdyo anlatımını hiç
-    duymamış bir öğrenci, duyduğu şeyi ürünün kendisi sanıyordu.
-
-    Şimdi kapı burada: ücretsiz kullanıcı senaryoyu da üretemiyor, yerine
-    "Plus'a özel" diyen bir kart görüyor. Ürünü gerçekten duymak isteyen için
-    `/ornek` sayfası duruyor — orada hazır bir bölüm, gerçek sesiyle,
-    girişsiz ve bize maliyetsiz çalıyor.
+    Podcast kayıtlı ücretsizde açık (24 Eylül 2026). Kapı özellik değil kota:
+    senaryo `generateJson` içinde kredi yer, ses ayrı uçta karakter başına
+    ücretlenir. Misafir `withUser` ile 401 AUTH_REQUIRED alır ve modele
+    ulaşmaz. `/ornek` hazır bölümü hâlâ girişsiz ve maliyetsiz duruyor.
   */
-  const isPremium = await isPremiumUser(service, userId);
-  if (!isPremium) return errorResponse(402, "premium_required");
+  const entitlements = await getUserEntitlements(service, userId);
+  if (!requireFeature(entitlements, "podcast")) {
+    return errorResponse(402, "premium_required");
+  }
+  const isPremium = entitlements.isPremium;
 
   const parsedBody = bodySchema.safeParse(await request.json());
   if (!parsedBody.success) return errorResponse(400, "invalid_input");

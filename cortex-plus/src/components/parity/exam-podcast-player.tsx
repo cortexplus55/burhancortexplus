@@ -334,10 +334,10 @@ export function ExamPodcastPlayer({
           <p className="cp-pod-state">Ses hazırlanıyor…</p>
         ) : status === "premium" ? (
           <p className="cp-pod-state">
-            İki sesli stüdyo anlatımı Plus&apos;a özel. Bölümleri aşağıdan
+            Bu seslendirme için hakkın yetmedi. Bölümleri aşağıdan
             okuyabilirsin.{" "}
-            <Link href="/paketler" className="cp-pod-upsell">
-              Plus&apos;a bak
+            <Link href="/krediler" className="cp-pod-upsell">
+              Hakkını gör
             </Link>
           </p>
         ) : status === "credits" ? (

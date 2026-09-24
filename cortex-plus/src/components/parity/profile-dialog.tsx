@@ -165,11 +165,9 @@ export function ProfileDialog({
               <strong>{plan.label}</strong>
               <span>{plan.hint}</span>
             </div>
-            {plan.isPremium ? null : (
-              <a className="cp-profile-plan-cta" href="/paketler">
-                Daha hızlı öğren
-              </a>
-            )}
+            <a className="cp-profile-plan-cta" href="/paketler">
+              {plan.isPremium ? "Ek paket" : "Daha hızlı öğren"}
+            </a>
           </div>
         ) : null}
 

@@ -44,6 +44,7 @@ import { SubjectModal } from "@/components/parity/subject-modal";
 import { UploadModal } from "@/components/parity/upload-modal";
 import { MathKeyboard } from "@/components/parity/math-keyboard";
 import { UpgradeAside } from "@/components/paywall/upgrade-aside";
+import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
 import { formatSourceSections } from "@/lib/ai/source-sections";
 import "@/styles/parity-sor.css";
@@ -198,6 +199,9 @@ export function ChatPanel({
   /** Yanlış defterinde bekleyen soru sayısı. 0 ise günün turu kartı çıkmıyor. */
   dailyDrillCount?: number;
 }) {
+  const shellAccount = useStudentShellAccount();
+  const showUpgrade = shellAccount ? shellAccount.showsUpgradeChrome : !isPremium;
+  const allowAdvanced = shellAccount?.audience === "sigma";
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -583,7 +587,7 @@ export function ChatPanel({
         body: JSON.stringify({
           message: prefixed,
           operationId,
-          actionCode: advanced ? "AI_CHAT_ADVANCED" : "AI_CHAT_STANDARD",
+          actionCode: advanced && allowAdvanced ? "AI_CHAT_ADVANCED" : "AI_CHAT_STANDARD",
           conversationId: conversationId.current,
           useDocuments,
           documentsOnly: useDocuments ? documentsOnly : true,
@@ -823,14 +827,6 @@ export function ChatPanel({
       });
       return;
     }
-    if (!isPremium) {
-      toast.message("Sesle sormak için Plus gerekiyor", {
-        description:
-          "Bu tarayıcıda ses tanıma yok; sunucu çözümlemesi Plus planında.",
-      });
-      return;
-    }
-
     void (async () => {
       const recorder = await startRecording({
         onAutoStop: () => void finishRecording(),
@@ -914,7 +910,7 @@ export function ChatPanel({
                 </Link>
               ) : null}
 
-              {!isPremium ? (
+              {showUpgrade ? (
                 <div className="cp-sor-empty-upgrade">
                   <UpgradeAside returnPath={returnPath} />
                 </div>
@@ -985,7 +981,7 @@ export function ChatPanel({
                   <SorTypingDots label={thinkingLabel} />
                 </div>
               ) : null}
-              {!isPremium && messages.length > 0 ? (
+              {showUpgrade && messages.length > 0 ? (
                 <Link href="/pay" className="cp-upgrade-banner">
                   Daha hızlı öğrenmek için yükselt
                 </Link>
@@ -1000,7 +996,7 @@ export function ChatPanel({
           <div
             className={cn(
               "cp-sor-composer-zone",
-              !isPremium && "cp-sor-composer-zone--aside",
+              showUpgrade && "cp-sor-composer-zone--aside",
             )}
             style={keyboardInset ? { paddingBottom: keyboardInset } : undefined}
           >
@@ -1205,7 +1201,7 @@ export function ChatPanel({
             </form>
             </div>
 
-            {!isPremium ? (
+            {showUpgrade ? (
               <div
                 className={cn(
                   "cp-sor-composer-upgrade",
@@ -1305,7 +1301,7 @@ export function ChatPanel({
       >
         {!isParity ? (
           <div className="flex flex-wrap gap-2">
-            {quickActions.map((action) => (
+            {quickActions.filter((action) => action.advanced !== true || allowAdvanced).map((action) => (
               <Button
                 key={action.id}
                 type="button"
@@ -1667,7 +1663,7 @@ export function ChatPanel({
             ) : chatCreditCost != null ? (
               <p className="text-center text-[11px] text-[var(--cs-muted)]">
                 Her mesaj yaklaşık {chatCreditCost} kredi harcar.
-                {isPremium ? " Plus ile gelişmiş model kullanılır." : ""}
+                {allowAdvanced ? " Sigma ile gelişmiş model kullanılır." : ""}
                 {tutorStyleLabel ? ` · Stil: ${tutorStyleLabel}` : ""}
               </p>
             ) : null}

@@ -39,12 +39,15 @@ export function ProfilePanel({
   email,
   isPremium,
   subscriptionBadge,
+  periodEndLabel = null,
   children,
 }: {
   data: ProfileDashboard;
   email: string | null;
   isPremium: boolean;
   subscriptionBadge: SubscriptionBadge;
+  /** Plus/Sigma dönem bitişi, İstanbul saatiyle. */
+  periodEndLabel?: string | null;
   /** Davet kartı — sunucu tarafında hazırlanıp buraya veriliyor. */
   children?: React.ReactNode;
 }) {
@@ -65,8 +68,8 @@ export function ProfilePanel({
         <h1 className="cp-pp-name">
           {name}
           {isPremium ? (
-            <span className="cp-pp-badge" title="Cortex Plus">
-              +
+            <span className="cp-pp-badge" title={subscriptionBadge ?? "Plus"}>
+              {subscriptionBadge === "Sigma" ? "Σ" : "+"}
             </span>
           ) : null}
         </h1>
@@ -79,14 +82,18 @@ export function ProfilePanel({
       <div className="cp-pp-plan">
         <div>
           <strong>{subscriptionBadge ?? "Temel"}</strong>
-          <span>{isPremium ? "Premium plan" : "Ücretsiz plan"}</span>
+          <span>
+            {isPremium
+              ? `${subscriptionBadge ?? "Plus"} · ${periodEndLabel ? `${periodEndLabel} bitiyor` : "aylık kota"}`
+              : "Ücretsiz plan"}
+          </span>
         </div>
         <Link
-          href={isPremium ? "/odemeler" : "/paketler"}
+          href="/paketler"
           className="cp-pp-upgrade"
         >
           <Sparkles className="h-4 w-4" aria-hidden />
-          {isPremium ? "Aboneliği yönet" : "Daha hızlı öğren"}
+          {isPremium ? "Ek paket" : "Daha hızlı öğren"}
         </Link>
       </div>
 

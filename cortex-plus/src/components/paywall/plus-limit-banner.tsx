@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import "@/styles/parity-shell.css";
 
 export function PlusLimitBanner({
-  message = "Bu ay Plus kotan doldu. Yeni ders üretmek için kredilerine bak veya dönemin yenilenmesini bekle.",
+  message = "Bu ayki kotan doldu. Ek paket alabilir ya da dönemin yenilenmesini bekleyebilirsin.",
   onDismiss,
   variant = "chrome",
 }: {
@@ -26,6 +26,10 @@ export function PlusLimitBanner({
         <p>{message}</p>
         <Link href="/krediler" onClick={onDismiss}>
           Limitleri gör
+        </Link>
+        {" · "}
+        <Link href="/paketler" onClick={onDismiss}>
+          Ek paket al
         </Link>
       </div>
       {onDismiss ? (

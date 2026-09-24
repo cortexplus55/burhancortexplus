@@ -17,11 +17,17 @@ describe("canonical entitlements", () => {
     expect(e.isPremium).toBe(false);
     expect(e.plan).toBe("free");
   });
-  it("ücretsiz kullanıcıya premium özellik vermez", () => {
+  it("kayıtlı ücretsiz stüdyoları açar, gelişmiş sohbeti kapalı tutar", () => {
     const e = entitlementsFromSubscriptionRow(null);
+    expect(e.audience).toBe("free");
     expect(e.plan).toBe("free");
     expect(e.isPremium).toBe(false);
-    expect(requireFeature(e, "podcast")).toBe(false);
+    expect(e.showsUpgradeChrome).toBe(true);
+    expect(requireFeature(e, "podcast")).toBe(true);
+    expect(requireFeature(e, "speech")).toBe(true);
+    expect(requireFeature(e, "oral_transcribe")).toBe(true);
+    expect(requireFeature(e, "advanced_chat")).toBe(false);
+    expect(e.modelTier).toBe("standard");
     expect(e.photoPageLimit).toBe(PHOTO_PAGE_LIMITS.free);
   });
 
@@ -38,10 +44,14 @@ describe("canonical entitlements", () => {
         monthly_allowance: 400,
       },
     });
+    expect(e.audience).toBe("plus");
     expect(e.plan).toBe("plus");
     expect(e.badge).toBe("Plus");
     expect(e.isPaid).toBe(true);
+    expect(e.showsUpgradeChrome).toBe(false);
+    expect(e.modelTier).toBe("standard");
     expect(requireFeature(e, "podcast")).toBe(true);
+    expect(requireFeature(e, "advanced_chat")).toBe(false);
     expect(requireFeature(e, "photo_quota_sigma")).toBe(false);
   });
 
@@ -57,8 +67,12 @@ describe("canonical entitlements", () => {
         monthly_allowance: 1200,
       },
     });
+    expect(e.audience).toBe("sigma");
     expect(e.plan).toBe("sigma");
     expect(e.badge).toBe("Sigma");
+    expect(e.modelTier).toBe("advanced");
+    expect(requireFeature(e, "advanced_chat")).toBe(true);
+    expect(e.showsUpgradeChrome).toBe(false);
     expect(e.photoPageLimit).toBe(PHOTO_PAGE_LIMITS.sigma);
     expect(requireFeature(e, "photo_quota_sigma")).toBe(true);
   });
