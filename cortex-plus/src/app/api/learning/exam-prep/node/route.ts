@@ -82,7 +82,9 @@ import {
   prepLanguage,
   shouldRetryLessonWithoutBrief,
   SINGLE_NARRATOR_SCHEMA,
+  SOURCE_PAGE_FORMULA_RULE,
   studentLanguageLine,
+  teacherNoteGroundedInSource,
   unsupportedQuantities,
   type TeachingPriority,
 } from "@/lib/learning/teacher-brain";
@@ -1179,7 +1181,11 @@ async function generateNodePayload(input: {
   const prefsHint = input.teachingV2
     ? preferencePromptHint(input.learningPreferences)
     : "";
-  const teacherNote = input.teacherBrief?.trim() ?? "";
+  const factSource = [
+    input.sourceBlock,
+    input.lessonContent ? lessonPodcastBrief(input.lessonContent) : "",
+  ].join("\n");
+  const teacherNote = teacherNoteGroundedInSource(input.teacherBrief ?? "", factSource);
   const depth = lessonDepth(input.teachingPriority ?? null);
   const quizCount = depth.quizItems;
   // Aşinalık içeriğin nereden başlayacağını, ruh hali tonunu belirler.
@@ -1188,7 +1194,7 @@ async function generateNodePayload(input: {
     `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}. Zorluk: ${input.difficulty}. ${sessionSignalsPrompt(
       input.familiarity,
       input.mood,
-    )} ${sessionCtx} ${standards}${prefsHint}${note ? `\n${note}` : ""}${input.sourceBlock}${input.topicFenceBlock ?? ""}`;
+    )} ${sessionCtx} ${standards}${prefsHint}${note ? `\n${note}` : ""}\n${SOURCE_PAGE_FORMULA_RULE}${input.sourceBlock}${input.topicFenceBlock ?? ""}`;
   const ctx = contextFor(teacherNote);
 
   const v2Common = input.teachingV2

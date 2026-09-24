@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   checkSimpleMathClaims,
+  checkUnitConversionClaims,
+  isUnconfirmedMathAllegation,
   checkImpossiblePercentClaims,
   recheckAfterRepair,
   runIndependentValidation,
@@ -38,6 +40,21 @@ describe("Stage 7 validation pipeline", () => {
       "Hesap uyuşmazlığı: 2+2≠5",
     );
     expect(checkSimpleMathClaims("3×4=12")).toEqual([]);
+    expect(checkUnitConversionClaims("50000 Pa = 50 kPa")).toEqual([]);
+    expect(checkUnitConversionClaims("1 kPa = 1000 Pa")).toEqual([]);
+    expect(checkUnitConversionClaims("50000 Pa = 5 kPa")).toHaveLength(1);
+    expect(
+      isUnconfirmedMathAllegation(
+        "50000 Pa = 50 kPa dönüşümü yanlış, 50 kPa hatalıdır.",
+        "Örnekte 50000 Pa = 50 kPa yazılır.",
+      ),
+    ).toBe(true);
+    expect(
+      isUnconfirmedMathAllegation(
+        "Kaynakta olmayan formül PV = nRT.",
+        "Örnekte 50000 Pa = 50 kPa yazılır.",
+      ),
+    ).toBe(false);
   });
 
   it("accepts a result rounded to the decimals it shows", () => {

@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type OpenAI from "openai";
 vi.mock("@/lib/env", () => ({ env: { OPENAI_ADVANCED_MODEL: "review-model" } }));
-import { verifyEducationalContent } from "@/lib/ai/quality-gate";
+import {
+  EducationalVerificationError,
+  verifyEducationalContent,
+} from "@/lib/ai/quality-gate";
 
 function fixture(values: unknown[]) {
   const create = vi.fn();
@@ -44,8 +47,76 @@ describe("educational quality gate", () => {
       { content: "hatalı düzeltme" },
       { approved: false, issues: ["hata sürüyor"] },
     ]);
-    await expect(verifyEducationalContent(input)).rejects.toThrow("doğrulanamadı");
+    await expect(verifyEducationalContent(input)).rejects.toMatchObject({
+      repairAttempted: true,
+    });
     expect(create).toHaveBeenCalledTimes(3);
+    const repairCall = create.mock.calls[1]?.[0] as {
+      messages?: { content?: string }[];
+    };
+    expect(repairCall.messages?.[0]?.content).toContain("Kaynak sayfalarda olmayan formül");
+  });
+
+  it("keeps a correct pascal conversion the reviewer calls wrong", async () => {
+    const draft = "Örnekte 50000 Pa = 50 kPa yazılır.";
+    const { input, create } = fixture([
+      {
+        approved: false,
+        issues: [
+          "50000 Pa = 50 kPa dönüşümü yanlış, 50 kPa hatalıdır çünkü 1 kPa = 1000 Pa.",
+        ],
+      },
+    ]);
+    const result = await verifyEducationalContent({ ...input, draft });
+    expect(result.content).toBe(draft);
+    expect(result.repairAttempted).toBe(false);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("still repairs a conversion the arithmetic check confirms is wrong", async () => {
+    const { input, create } = fixture([
+      { approved: false, issues: ["50000 Pa = 5 kPa dönüşümü yanlış."] },
+      { content: "50000 Pa = 50 kPa." },
+      { approved: true, issues: [] },
+    ]);
+    const result = await verifyEducationalContent({
+      ...input,
+      draft: "50000 Pa = 5 kPa yazılmış.",
+    });
+    expect(result.content).toBe("50000 Pa = 50 kPa.");
+    expect(result.repairAttempted).toBe(true);
+    expect(create).toHaveBeenCalledTimes(3);
+  });
+
+  it("ignores a missing intro section and a bold nit", async () => {
+    const draft = '{"overview":"Basınç birim alana gelen kuvvettir."}';
+    const { input, create } = fixture([
+      {
+        approved: false,
+        issues: [
+          "Giriş bölümü eksik, doğrudan kavram bölümleriyle başlamış.",
+          "Anahtar terim koyu değil: Basınç. **iki yıldız** arasına al.",
+        ],
+      },
+    ]);
+    const result = await verifyEducationalContent({ ...input, draft });
+    expect(result.content).toBe(draft);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("records repairAttempted when the repair still fails", async () => {
+    const { input } = fixture([
+      { approved: false, issues: ["Kaynakta olmayan formül: PV = nRT"] },
+      { content: "yine PV = nRT" },
+      { approved: false, issues: ["Kaynakta olmayan formül duruyor"] },
+    ]);
+    try {
+      await verifyEducationalContent(input);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(EducationalVerificationError);
+      expect((error as EducationalVerificationError).repairAttempted).toBe(true);
+    }
   });
 
   it("fails closed on a malformed reviewer response", async () => {

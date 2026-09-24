@@ -20,6 +20,7 @@ import {
   type IndependentValidationInput,
   type ValidationStage,
 } from "@/lib/learning/validation-pipeline";
+import { parseModelJson } from "@/lib/learning/teaching-standards";
 
 export const SYSTEM_GUARDRAIL =
   "Sen Cortex Plus eğitim asistanısın. Türkçe yanıt ver. Yalnızca eğitim amaçlı içerik üret. " +
@@ -114,11 +115,7 @@ type GenerateJsonParams<T> = {
 };
 
 function parseCandidate(raw: string): unknown | null {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  return parseModelJson(raw);
 }
 
 export async function generateJson<T>(
@@ -231,9 +228,10 @@ export async function generateJson<T>(
 
     const schemaValidate = (candidate: string): string[] => {
       try {
-        if (params.parse(JSON.parse(candidate)) !== null) return [];
+        const candidateParsed = parseCandidate(candidate);
+        if (candidateParsed != null && params.parse(candidateParsed) !== null) return [];
       } catch {
-        /* Invalid JSON also needs repair before it can be approved. */
+        /* Bozuk JSON onarım turuna kalsın. */
       }
       return [
         "Çıktı istenen JSON şemasını veya etkinlik kurallarını karşılamıyor. Format alanındaki bütün kuralları uygula.",
@@ -427,6 +425,8 @@ export async function generateJson<T>(
           } catch (error) {
             validationMs += Date.now() - validationStarted;
             if (error instanceof EducationalVerificationError) {
+              repairAttempted = repairAttempted || error.repairAttempted;
+              Object.assign(stagesMs, error.stagesMs);
               lastFailedStage = error.failedStage;
               lastFailureCodes = error.failureCodes.length
                 ? error.failureCodes
@@ -452,7 +452,7 @@ export async function generateJson<T>(
         }
 
         try {
-          parsed = params.parse(JSON.parse(content));
+          parsed = params.parse(parseCandidate(content));
         } catch {
           parsed = null;
         }

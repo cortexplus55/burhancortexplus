@@ -9,6 +9,8 @@
  * call alone is never treated as a correctness guarantee.
  */
 
+import { foldTr } from "@/lib/documents/page-analysis";
+
 export type ValidationStage =
   | "structural"
   | "source"
@@ -142,6 +144,59 @@ export function checkSimpleMathClaims(text: string): string[] {
     }
   }
   return issues;
+}
+
+const UNIT_TO_SI: Record<string, number> = {
+  pa: 1,
+  kpa: 1_000,
+  mpa: 1_000_000,
+  bar: 100_000,
+};
+
+/** "50000 Pa = 50 kPa" doğrudur. Denetçi modeli bunu yanlış sanabiliyor. */
+export function checkUnitConversionClaims(text: string): string[] {
+  const issues: string[] = [];
+  const re = /(\d+(?:[.,]\d+)?)\s*(Pa|kPa|MPa|bar)\s*=\s*(\d+(?:[.,]\d+)?)\s*(Pa|kPa|MPa|bar)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    const leftUnit = match[2].toLowerCase();
+    const rightUnit = match[4].toLowerCase();
+    const leftFactor = UNIT_TO_SI[leftUnit];
+    const rightFactor = UNIT_TO_SI[rightUnit];
+    if (!leftFactor || !rightFactor) continue;
+    const left = Number(match[1].replace(",", ".")) * leftFactor;
+    const right = Number(match[3].replace(",", ".")) * rightFactor;
+    if (!Number.isFinite(left) || !Number.isFinite(right)) continue;
+    const scale = Math.max(Math.abs(left), 1);
+    if (Math.abs(left - right) / scale > 0.02) {
+      issues.push(`Birim dönüşümü tutarsız: ${match[0]}`);
+    }
+  }
+  return issues;
+}
+
+/**
+ * Aritmetik iddiası ancak deterministik kontrol de hata görürse kalır.
+ * Kaynak/formül şikâyeti burada elenmez.
+ */
+export function isUnconfirmedMathAllegation(issue: string, draft: string): boolean {
+  const folded = foldTr(issue);
+  if (/kaynak|belge|materyal|ideal gaz|formul/.test(folded)) return false;
+  const alleges = /\d/.test(issue) && /donus|cevril|hesap|esit degil|birim/.test(folded);
+  if (!alleges) return false;
+  const quotedWrong = checkUnitConversionClaims(issue);
+  if (quotedWrong.length) return false;
+  return (
+    checkSimpleMathClaims(draft).length === 0 &&
+    checkSimpleMathClaims(issue).length === 0 &&
+    checkUnitConversionClaims(draft).length === 0
+  );
+}
+
+/** Koyu terim ve ayrı giriş bölümü kodda tamamlanır; dersi düşürmez. */
+export function isCosmeticReviewerNit(issue: string): boolean {
+  const folded = foldTr(issue);
+  return /giris bolumu eksik|anahtar terim koyu|iki yildiz/.test(folded);
 }
 
 function uniqueOptionsIssues(parsed: unknown): string[] {
@@ -316,6 +371,9 @@ function domainCheck(input: IndependentValidationInput): ValidationIssue[] {
     ? input.draft : assertionTexts(input.parsed).join("\n");
   for (const msg of checkSimpleMathClaims(text)) {
     issues.push(issue("domain", "math_mismatch", msg));
+  }
+  for (const msg of checkUnitConversionClaims(text)) {
+    issues.push(issue("domain", "unit_mismatch", msg));
   }
   for (const msg of uniqueOptionsIssues(input.parsed)) {
     issues.push(issue("domain", "duplicate_options", msg));
