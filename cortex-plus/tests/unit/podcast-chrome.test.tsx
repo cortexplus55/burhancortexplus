@@ -1,5 +1,8 @@
+// @vitest-environment jsdom
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 
 /*
   Sınav hazırlığı podcast kabuğu Astra envanterindeki etiketleri taşır.
@@ -7,7 +10,10 @@ import { describe, expect, it } from "vitest";
   kaybolmamasını tutar. Özellik kilidi eklenmez — kapı kredi/oturumdur.
 */
 
+afterEach(cleanup);
+
 const player = readFileSync("src/components/parity/exam-podcast-player.tsx", "utf8");
+const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
 const generating = readFileSync("src/components/parity/node-generation-progress.tsx", "utf8");
 const topics = readFileSync("src/components/parity/exam-topic-pick.tsx", "utf8");
 const home = readFileSync("src/components/parity/exam-prep-home.tsx", "utf8");
@@ -26,6 +32,39 @@ describe("podcast oynatıcı kabuğu", () => {
   it("oynatma bitmeden de devam edilebiliyor", () => {
     expect(player).toContain("Devam et");
     expect(player).toContain("Dinledim, devam");
+  });
+
+  it("bölüm yokken kapatma hazırlığa döndürüyor", () => {
+    const onClose = vi.fn();
+    render(
+      <ExamPodcastPlayer
+        title="Podcast"
+        chapters={[]}
+        onFinish={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+    expect(screen.getByText("Bu podcast henüz üretilemedi.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Kapat" }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("satırı olmayan bölüm de kapatılabiliyor", () => {
+    const onClose = vi.fn();
+    render(
+      <ExamPodcastPlayer
+        title="Podcast"
+        chapters={[{ title: "Boş", lines: [] }]}
+        onFinish={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Kapat" }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("çalışma çubuğu yalnızca bölümü olan podcast'te gizleniyor", () => {
+    expect(session).toContain("normalizeChapters(chapters).length > 0");
   });
 });
 

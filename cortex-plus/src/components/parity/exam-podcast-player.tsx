@@ -329,10 +329,23 @@ export function ExamPodcastPlayer({
   }
 
   if (!normalized.length) {
+    // Bölüm yoksa Astra oynatıcısı çizilmez. Kapatma yine durur;
+    // oturum da bu durumda çalışma çubuğunu açık bırakır.
     return (
-      <p className="text-sm text-[var(--cp-muted)]">
-        Bu podcast henüz üretilemedi.
-      </p>
+      <section className="cp-pod cp-pod--empty">
+        <header className="cp-pod-top">
+          <span aria-hidden />
+          <p className="cp-pod-kicker">Podcast</p>
+          {onClose ? (
+            <button type="button" className="cp-pod-x" onClick={onClose} aria-label="Kapat">
+              <X className="h-4 w-4" />
+            </button>
+          ) : (
+            <span aria-hidden />
+          )}
+        </header>
+        <p className="cp-pod-state">Bu podcast henüz üretilemedi.</p>
+      </section>
     );
   }
 

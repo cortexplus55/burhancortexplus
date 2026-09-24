@@ -18,6 +18,7 @@ import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { ExamVoiceTutor } from "@/components/parity/exam-voice-tutor";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { normalizeChapters } from "@/lib/learning/podcast-script";
 import {
   DEFAULT_FAMILIARITY,
   DEFAULT_MOOD,
@@ -514,7 +515,10 @@ export function ExamNodeSession({
               : null;
   const cinematicLesson =
     stage === "play" && payload.type === "lesson" && Boolean(structuredLesson);
-  const cinematicPodcast = stage === "play" && payload.type === "podcast";
+  const cinematicPodcast =
+    stage === "play" &&
+    payload.type === "podcast" &&
+    normalizeChapters(chapters).length > 0;
   const cinematicLoading = stage === "setup" && loading;
   const showCoach =
     stage === "play" &&
