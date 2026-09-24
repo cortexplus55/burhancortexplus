@@ -31,6 +31,7 @@ import {
   headingsToGuard,
   preferredHeading,
 } from "@/lib/documents/topic-fold";
+import { topicMapTeacherNote } from "@/lib/learning/teacher-brain";
 
 /**
  * Model-backed topic map. Reads the document's own pages and returns that
@@ -240,6 +241,11 @@ export async function buildTopicMapLLM(
   userId: string,
   fileName: string,
   pages: PageAnalysis[],
+  /**
+   * Öğretmen notu varsa vurgu için eklenir. Konu sayısını ve başlık
+   * kuralını değiştirmez; not yoksa prompt bugünkü metindir.
+   */
+  teacherBrief?: string | null,
 ): Promise<TopicMapBuildResult | null> {
   const contentPages = pagesForTopicMap(pages);
   // İki sayfa şartı Word'ü düşürüyordu: sayfa sonu yoksa belge tek sayfa
@@ -312,7 +318,7 @@ Konu DEĞİLDİR, ait olduğu konunun sayfasına kat:
 
 Kapak, içindekiler, önsöz ve "öğrenme hedefleri"/"kazanımlar" listesi de konu değildir. Bu sayfaları anlattıkları asıl konuya bağla ya da hiç kullanma.
 
-${pageDigest(contentPages)}`,
+${pageDigest(contentPages)}` + topicMapTeacherNote(teacherBrief),
       parse: (raw) => {
         const parsed = llmSchema.safeParse(raw);
         if (!parsed.success) return null;
