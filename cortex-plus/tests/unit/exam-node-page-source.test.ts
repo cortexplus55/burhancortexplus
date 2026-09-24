@@ -44,6 +44,7 @@ describe("exam activity with an incomplete physical page source", () => {
         const builder = {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
+          or: vi.fn().mockReturnThis(),
           is: vi.fn().mockReturnThis(),
           in: pageFilter,
           order: vi.fn().mockResolvedValue({ data: [

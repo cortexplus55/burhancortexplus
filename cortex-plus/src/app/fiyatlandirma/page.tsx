@@ -7,7 +7,7 @@ import { isPaytrConfigured } from "@/lib/payments/paytr";
 export const metadata = {
   title: "Fiyatlandırma",
   description:
-    "Ücretsiz plandaki her şey açık. Plus yüksek aylık kota ekler; Sigma gelişmiş modeli de katar.",
+    "Ücretsiz plandaki her şey ve: Plus yüksek aylık kota ekler; Sigma gelişmiş modeli de katar.",
 };
 
 export const dynamic = "force-dynamic";
@@ -58,7 +58,7 @@ export default async function FiyatlandirmaPage() {
   return (
     <ParityMarketingPage
       title="Fiyatlandırma"
-      description="Ücretsiz plandaki her şey açık. Plus yüksek aylık kota ekler; Sigma gelişmiş modeli de katar."
+      description="Ücretsiz plandaki her şey ve: Plus yüksek aylık kota ekler; Sigma gelişmiş modeli de katar."
     >
       <div data-cinematic-reveal className="space-y-4">
         {!checkoutEnabled ? (
