@@ -165,8 +165,8 @@ export async function runPdfLearningV2(
     // bir trigonometri fikstürüne ayarlıydı; pediatri belgesinde "Derece
     // ve radyan" yazdı. O yedek yok. Kısa belgede model boş dönerse
     // başlık belgenin kendi metninden kurulur. Uzun PDF'te model susarsa
-    // harita yine başarısız kalır — başka dersin konusu, eksik haritadan
-    // kötü.
+    // yalnızca belgenin kendi numaralı bölümleri kullanılır; onlar da
+    // yoksa harita başarısız kalır. Başka dersin konusu yazılmaz.
     const llmMap = docRow?.user_id
       ? await buildTopicMapLLM(
           service,

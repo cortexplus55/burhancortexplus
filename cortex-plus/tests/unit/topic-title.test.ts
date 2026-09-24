@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   chapterHeadings,
   documentTitle,
+  isCalloutLabel,
+  isProcedureStep,
+  isSatelliteSection,
   normalizeTopicTitle,
   sectionHeadings,
   targetTopicCount,
+  topicCeiling,
   topicScopeGuidance,
   topicTitleIssues,
   unrepresentedHeadings,
@@ -27,6 +31,10 @@ describe("targetTopicCount", () => {
     expect(short).toContain("sayfa sayısına bölünerek üretilmez");
     expect(long).toContain("yeni bir kavram kümesi");
     expect(short).not.toBe(long);
+    expect(topicCeiling(10)).toBe(8);
+    expect(topicCeiling(20)).toBe(12);
+    expect(short).toContain("En fazla 8");
+    expect(long).toContain("En fazla 12");
   });
 });
 
@@ -142,6 +150,29 @@ describe("chapterHeadings", () => {
 
   it("ignores pages with no heading", () => {
     expect(chapterHeadings([{ headings: [] }, { headings: [""] }])).toEqual([]);
+  });
+
+  it("does not promote callouts, example steps, or a repeated running header", () => {
+    const banner = "TERMODİNAMİK I | VİZE NOTLARI | BÖLÜM 2";
+    const pages = [
+      { headings: [banner, "20. Açık Sistemlere Geçiş: Kütle Korunumu", "VİZEDE DİKKAT", "KENDİNİ TEST ET"] },
+      { headings: [banner, "21. Sürekli Akış Enerji Denklemi", "FORMÜL KUTUSU", "ÇÖZÜMLÜ ÖRNEK"] },
+      { headings: [banner, "27. Bütünleşik Çözümlü Örnek I - Nozul + Kütle Debisi", "1) Enerji dengesi", "2) Çıkış hızı"] },
+      { headings: [banner, "29. Vize Öncesi Son Tekrar - Denklem Seçme Rehberi", "1) Sistemi seç"] },
+    ];
+    expect(chapterHeadings(pages)).toEqual([
+      "20. Açık Sistemlere Geçiş: Kütle Korunumu",
+      "21. Sürekli Akış Enerji Denklemi",
+    ]);
+    expect(isCalloutLabel("VİZEDE DİKKAT")).toBe(true);
+    expect(isCalloutLabel("FORMÜL KUTUSU")).toBe(true);
+    expect(isCalloutLabel("ÇÖZÜMLÜ ÖRNEK")).toBe(true);
+    expect(isCalloutLabel("KENDİNİ TEST ET")).toBe(true);
+    expect(isProcedureStep("1) Enerji dengesi")).toBe(true);
+    expect(isProcedureStep("20. Açık Sistemlere Geçiş: Kütle Korunumu")).toBe(false);
+    expect(isSatelliteSection("27. Bütünleşik Çözümlü Örnek I - Nozul + Kütle Debisi")).toBe(true);
+    expect(isSatelliteSection("Vize Öncesi Son Tekrar")).toBe(true);
+    expect(isSatelliteSection("Nozul ve Difüzörler")).toBe(false);
   });
 });
 
