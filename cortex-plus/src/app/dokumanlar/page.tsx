@@ -15,6 +15,10 @@ import {
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
+import {
+  DOCUMENT_EMPTY_DESCRIPTION,
+  DOCUMENT_TYPE_REJECTED,
+} from "@/lib/documents/upload-labels";
 
 export const metadata = { title: "Belgeler" };
 
@@ -51,7 +55,7 @@ const processErrorLabels: Record<string, string> = {
   encrypted_pdf: "Bu PDF şifreli olduğu için okunamıyor.",
   password_protected: "Bu PDF şifreli olduğu için okunamıyor.",
   too_large: "Bu dosya izin verilen maksimum boyuttan büyük.",
-  unsupported_type: "Bu dosya türü desteklenmiyor. PDF veya görsel yükle.",
+  unsupported_type: DOCUMENT_TYPE_REJECTED,
   unreadable_document: "Belgenin bazı sayfalarında okunabilir metin bulunamadı.",
   no_text: "Belgenin bazı sayfalarında okunabilir metin bulunamadı.",
   openai_missing: "Metin hazırlama servisi şu an kapalı — biraz sonra dene",
@@ -108,7 +112,7 @@ export default async function DokumanlarPage() {
   return (
     <AppShell
       title="Belgeler"
-      creditHint={`PDF işleme: sayfa başına ${cost} kredi.`}
+      creditHint={`Belge işleme: sayfa başına ${cost} kredi.`}
     >
       <DocumentStatusPoller active={anyProcessing} />
       <div className="space-y-6">
@@ -243,7 +247,7 @@ export default async function DokumanlarPage() {
             variant="parity"
             icon={FileText}
             title="Henüz bir belgen yok."
-            description="Ders notunu yükle; konular çıkınca çalışma planın oluşsun."
+            description={DOCUMENT_EMPTY_DESCRIPTION}
             actionHref="/dokumanlar"
             actionLabel="Belge yükle"
           />

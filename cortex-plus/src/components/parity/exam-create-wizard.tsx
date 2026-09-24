@@ -22,6 +22,11 @@ import {
 } from "@/lib/learning/exam-wizard-copy";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { COMMON_SUBJECTS } from "@/lib/learning/subjects";
+import {
+  DOCUMENT_MATERIAL_HINT,
+  DOCUMENT_PICK_REJECTED,
+  DOCUMENT_UPLOAD_HINT,
+} from "@/lib/documents/upload-labels";
 import "@/styles/exam-create-wizard.css";
 
 type Step =
@@ -232,7 +237,7 @@ export function ExamCreateWizard({
   async function takeFile(file: File | undefined) {
     if (!file) return;
     if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error("PDF, görsel veya TXT yükleyebilirsin.");
+      toast.error(DOCUMENT_PICK_REJECTED);
       return;
     }
     if (file.size > MAX_BYTES) {
@@ -365,7 +370,7 @@ export function ExamCreateWizard({
               <FileText className="h-6 w-6" aria-hidden />
               <span className="apw-pick-title">Ders notum var</span>
               <span className="apw-pick-hint">
-                PDF, görsel ya da metin yükle; her şey senin belgenden üretilsin.
+                {DOCUMENT_MATERIAL_HINT}
               </span>
             </button>
 
@@ -512,7 +517,7 @@ export function ExamCreateWizard({
           >
             <Upload className="h-7 w-7 opacity-70" aria-hidden />
             <p className="apw-drop-title">Dosyanı buraya bırak</p>
-            <p className="apw-drop-hint">PDF, görsel veya TXT · en fazla 15 MB</p>
+            <p className="apw-drop-hint">{DOCUMENT_UPLOAD_HINT}</p>
             <button
               type="button"
               className="apw-drop-pick"

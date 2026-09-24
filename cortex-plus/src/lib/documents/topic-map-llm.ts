@@ -42,13 +42,68 @@ const llmSchema = z.object({
 });
 
 const MAX_PAGE_CHARS = 900;
+/**
+ * Tek sayfalık Word belgesi 900 karakterde kesilirse konu haritası
+ * yalnızca giriş paragrafını görür. Sayfa sonu olmayan notun tamamı
+ * bu bütçeye sığsın.
+ */
+const SINGLE_PAGE_DIGEST_CHARS = 6000;
+
+/**
+ * Haritaya girecek sayfalar.
+ *
+ * Zengin sayfa (öğretim veya belirsiz) varsa yalnızca onlar. PDF yolu
+ * bu yüzden değişmez: kısa bir OCR artığı haritaya karışmaz.
+ *
+ * Hiç zengin sayfa yoksa kısa slaytlar buraya girer. 40 karakterin
+ * altındaki slayt "okunamadı" sayılıyor; metin duruyor, harita ise
+ * boş sayfa sanıp "konular çıkarılamadı" diyordu.
+ */
+export function pagesForTopicMap(pages: PageAnalysis[]): PageAnalysis[] {
+  const rich = pages.filter(
+    (page) => page.pageKind === "content" || page.pageKind === "uncertain",
+  );
+  if (rich.length > 0) return rich;
+
+  return pages.filter((page) => {
+    if (
+      page.pageKind === "blank" ||
+      page.pageKind === "cover" ||
+      page.pageKind === "toc" ||
+      page.pageKind === "answer_key"
+    ) {
+      return false;
+    }
+    const letters = page.textContent.match(/\p{L}/gu)?.length ?? 0;
+    return letters >= 12;
+  });
+}
+
+/**
+ * Kısa belgede tek konu geçerli bir haritadır.
+ *
+ * Word'de elle sayfa sonu yoksa belge tek sayfa kalır; iki slaytlık bir
+ * sunum da tek konuya sığar. Uzun PDF'te tek konu, modelin haritayı
+ * çökerttiği anlamına gelir — o eşik duruyor.
+ */
+export function minimumTopicCount(pages: PageAnalysis[]): number {
+  if (pages.length < 2) return 1;
+  const chars = pages.reduce((sum, page) => sum + page.charCount, 0);
+  return chars < 1600 ? 1 : 2;
+}
 
 function pageDigest(pages: PageAnalysis[]): string {
+  const limit = pages.length <= 1 ? SINGLE_PAGE_DIGEST_CHARS : MAX_PAGE_CHARS;
   return pages
-    .filter((page) => page.pageKind === "content" || page.pageKind === "uncertain")
     .map((page) => {
       const heading = page.headings[0] ? ` [${page.headings[0]}]` : "";
-      const body = page.textContent.replace(/\s+/g, " ").slice(0, MAX_PAGE_CHARS);
+      // Çok sayfalı PDF özeti aynı kalsın: boşluklar düzleşir, sayfa
+      // başına 900 karakter. Tek sayfalık notta paragraflar durur.
+      const flat =
+        pages.length <= 1
+          ? page.textContent.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim()
+          : page.textContent.replace(/\s+/g, " ");
+      const body = flat.slice(0, limit);
       return `--- Sayfa ${page.pageNumber}${heading}\n${body}`;
     })
     .join("\n");
@@ -144,10 +199,10 @@ export async function buildTopicMapLLM(
   fileName: string,
   pages: PageAnalysis[],
 ): Promise<TopicMapBuildResult | null> {
-  const contentPages = pages.filter(
-    (page) => page.pageKind === "content" || page.pageKind === "uncertain",
-  );
-  if (contentPages.length < 2) return null;
+  const contentPages = pagesForTopicMap(pages);
+  // İki sayfa şartı Word'ü düşürüyordu: sayfa sonu yoksa belge tek sayfa
+  // kalıyor, metin çıkmış olsa bile harita hiç kurulmuyordu.
+  if (!contentPages.length) return null;
 
   const contentNumbers = new Set(contentPages.map((page) => page.pageNumber));
 
@@ -232,9 +287,14 @@ ${pageDigest(contentPages)}`,
   const seen = new Set<string>();
   const topics = data.topics
     .map((topic) => {
-      const pageNumbers = [...new Set(topic.pageNumbers)]
+      let pageNumbers = [...new Set(topic.pageNumbers)]
         .filter((n) => contentNumbers.has(n))
         .sort((a, b) => a - b);
+      // Tek sayfalık belgede model bazen numarayı boş bırakıyor ya da
+      // belgede olmayan bir sayfa yazıyor. Metin o sayfada.
+      if (!pageNumbers.length && contentPages.length === 1) {
+        pageNumbers = [contentPages[0].pageNumber];
+      }
       // Numara ve parantezli kısaltmayı burada kesiyoruz: modele
       // söylüyoruz ama söylemek yetmiyor, belgenin kendi başlığı güçlü
       // bir çekim yaratıyor.
@@ -260,8 +320,6 @@ ${pageDigest(contentPages)}`,
       ),
     );
 
-  if (topics.length < 2) return null;
-
   // Modelin hâlâ atladığı bölümü kendimiz ekle.
   //
   // Bekçi bölümü doğru işaretliyordu ama uyarı modele hiç ulaşmıyordu:
@@ -285,6 +343,8 @@ ${pageDigest(contentPages)}`,
     seen.add(title.toLocaleLowerCase("tr").trim());
     topics.push(draftFromLlmTopic(title, null, pageNumbers, pages, topics.length));
   }
+
+  if (topics.length < minimumTopicCount(contentPages)) return null;
 
   // Modelin bağlamadığı sayfayı bir konuya iliştir ki kapsama %100'e
   // ulaşsın. Ama SAYFANIN KENDİ BAŞLIĞINA bak.
