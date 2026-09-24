@@ -514,6 +514,7 @@ export function ExamNodeSession({
               : null;
   const cinematicLesson =
     stage === "play" && payload.type === "lesson" && Boolean(structuredLesson);
+  const cinematicPodcast = stage === "play" && payload.type === "podcast";
   const cinematicLoading = stage === "setup" && loading;
   const showCoach =
     stage === "play" &&
@@ -530,7 +531,7 @@ export function ExamNodeSession({
         <button type="button" className="underline" disabled={pendingSaves > 0}
           onClick={() => { void persistAnswers(answersRef.current, index).catch(() => undefined); }}>Kaydı yeniden dene</button>
       </div> : null}
-      {cinematicLesson || cinematicLoading ? null : (
+      {cinematicLesson || cinematicLoading || cinematicPodcast ? null : (
       <div className="cp-exam-study-bar">
         <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill"
           onClick={(event) => { if (pendingSaves || saveError) { event.preventDefault(); toast.error("Çıkmadan önce cevapların kaydedilmesini bekle."); } }}>
@@ -727,9 +728,10 @@ export function ExamNodeSession({
 
       {stage === "play" && payload.type === "podcast" ? (
         <ExamPodcastPlayer
-          title={payload.title ?? "Podcast"}
+          title={payload.title ?? topicLabel ?? "Podcast"}
           chapters={chapters}
           finishing={loading}
+          onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
           onFinish={() => void finish()}
         />
       ) : null}
@@ -968,7 +970,8 @@ export function ExamNodeSession({
             <ExamPodcastPlayer
               title={lessonPodcast.title}
               chapters={lessonPodcast.chapters}
-              finishing={false}
+              embed
+              onClose={() => setLessonPodcast(null)}
               onFinish={() => setLessonPodcast(null)}
             />
           ) : null}
