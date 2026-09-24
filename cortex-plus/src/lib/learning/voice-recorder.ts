@@ -166,17 +166,20 @@ export async function speakFromServer(
   text: string,
   speaker: "ada" | "kerem",
   onEnd: () => void,
+  signal?: AbortSignal,
 ): Promise<{ stop: () => void } | null> {
+  if (signal?.aborted) return null;
   let parts: { url: string }[];
   try {
     const res = await fetch("/api/learning/speech", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, speaker }),
+      signal,
     });
-    if (!res.ok) return null;
+    if (signal?.aborted || !res.ok) return null;
     const data = (await res.json()) as { parts?: { url: string }[] };
-    if (!data.parts?.length) return null;
+    if (signal?.aborted || !data.parts?.length) return null;
     parts = data.parts;
   } catch {
     return null;
@@ -196,20 +199,27 @@ export async function speakFromServer(
     index += 1;
     element.src = part.url;
     void element.play().catch(() => {
+      if (stopped) return;
       stopped = true;
       onEnd();
     });
   }
 
+  const stop = () => {
+    stopped = true;
+    element.pause();
+    element.src = "";
+  };
+  signal?.addEventListener("abort", stop, { once: true });
+  if (signal?.aborted) {
+    stop();
+    return null;
+  }
+
   element.onended = next;
   next();
 
-  return {
-    stop: () => {
-      stopped = true;
-      element.pause();
-    },
-  };
+  return { stop };
 }
 
 /**

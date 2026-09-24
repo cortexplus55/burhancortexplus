@@ -16,8 +16,30 @@ import { lessonV2Schema } from "@/lib/learning/teaching-standards";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { ExamVoiceTutor } from "@/components/parity/exam-voice-tutor";
+import {
+  OralAnswerReview,
+  OralPreflightDialog,
+  OralResults,
+  OralReviewTimeDialog,
+  OralTeacherCustomize,
+  OralTopicPick,
+  type OralTopicRow,
+} from "@/components/parity/oral-exam-flow";
+import {
+  DEFAULT_ORAL_TEACHER_MOOD,
+  oralTeacherById,
+  EMPTY_ORAL_ANSWER_NOTE,
+  oralVoicePercent,
+  oralVoiceTopicLabel,
+  oralWrittenPercent,
+  reviewItemsFromQuestions,
+  reviewItemsFromTranscript,
+  type OralMessage,
+  type OralTeacherMoodId,
+} from "@/lib/learning/oral-exam-chrome";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { normalizeChapters } from "@/lib/learning/podcast-script";
 import {
   DEFAULT_FAMILIARITY,
   DEFAULT_MOOD,
@@ -49,6 +71,7 @@ type Payload = {
     correct?: string[];
     explanation?: string;
     hint?: string;
+    expectedPoints?: string[];
   }[];
   items?: { text: string; correct: boolean; explanation: string; correctedStatement?: string }[];
   cards?: { front: string; back: string }[];
@@ -65,6 +88,7 @@ export function ExamNodeSession({
   resumeEnabled = false,
   sourceName = null,
   resetsAtLabel = null,
+  oralTopics = [],
 }: {
   prepId: string;
   nodeId: string;
@@ -86,20 +110,38 @@ export function ExamNodeSession({
    * çözüyor ve bunu saklamak doğru olmaz.
    */
   resetsAtLabel?: string | null;
+  /** Sözlü deneme konu listesi. Boşsa düğümün kendi konusu tek satır olur. */
+  oralTopics?: OralTopicRow[];
 }) {
   const router = useRouter();
   const meta = PLAN_NODE_META[kind];
   // Referans üründeki sıra: aşinalık → ruh hali → kurulum. İkisi de zorunlu değil;
   // "setup"tan geri dönülebilsin diye aynı stage makinesinde tutuluyorlar.
+  const isOral = kind === "oral";
   const [stage, setStage] = useState<
-    "familiarity" | "mood" | "setup" | "play" | "result" | "restoring"
-  >(resumeEnabled ? "restoring" : "familiarity");
+    | "familiarity"
+    | "mood"
+    | "setup"
+    | "play"
+    | "result"
+    | "restoring"
+    | "oral-topics"
+    | "oral-customize"
+    | "oral-review-time"
+    | "oral-review"
+  >(resumeEnabled ? "restoring" : isOral ? "oral-topics" : "familiarity");
   const [familiarity, setFamiliarity] = useState<Familiarity>(
     initialFamiliarity ?? DEFAULT_FAMILIARITY,
   );
   const [mood, setMood] = useState<Mood>(DEFAULT_MOOD);
   const [difficulty, setDifficulty] = useState<Difficulty>("orta");
   const [voiceMode, setVoiceMode] = useState(meta.voice);
+  const [oralSelected, setOralSelected] = useState<string[]>([]);
+  const [oralMoodId, setOralMoodId] = useState<OralTeacherMoodId>(DEFAULT_ORAL_TEACHER_MOOD);
+  const [oralPreflight, setOralPreflight] = useState(false);
+  const [oralTranscript, setOralTranscript] = useState<OralMessage[]>([]);
+  const [oralReviewIndex, setOralReviewIndex] = useState(0);
+  const [oralReviewTab, setOralReviewTab] = useState<"ai" | "you">("ai");
   const [loading, setLoading] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   /**
@@ -184,12 +226,12 @@ export function ExamNodeSession({
       } catch {
         // Fall through to normal setup.
       }
-      if (!cancelled) setStage("familiarity");
+      if (!cancelled) setStage(kind === "oral" ? "oral-topics" : "familiarity");
     })();
     return () => {
       cancelled = true;
     };
-  }, [resumeEnabled, prepId, nodeId]);
+  }, [resumeEnabled, prepId, nodeId, kind]);
 
   useEffect(() => {
     if (stage !== "play" || !isTimedExam) return;
@@ -317,7 +359,11 @@ export function ExamNodeSession({
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   }
 
-  async function start() {
+  async function start(overrides?: {
+    difficulty?: Difficulty;
+    voiceMode?: boolean;
+    mood?: Mood;
+  }) {
     if (startInFlight.current || loading) return;
     startInFlight.current = true;
     setGenerationFailure(null);
@@ -333,10 +379,10 @@ export function ExamNodeSession({
           prepId,
           nodeId,
           action: "start",
-          difficulty,
-          voiceMode,
+          difficulty: overrides?.difficulty ?? difficulty,
+          voiceMode: overrides?.voiceMode ?? voiceMode,
           familiarity,
-          mood,
+          mood: overrides?.mood ?? mood,
           ...(reqId ? { clientRequestId: reqId } : {}),
         }),
       });
@@ -417,7 +463,7 @@ export function ExamNodeSession({
       setScore({ score: data.score ?? 0, total: data.total ?? 1 });
       setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
       setFeedback(null);
-      setStage("result");
+      setStage(kind === "oral" ? "oral-review-time" : "result");
     } catch {
       toast.error("Bağlantı hatası.");
     } finally {
@@ -514,7 +560,34 @@ export function ExamNodeSession({
               : null;
   const cinematicLesson =
     stage === "play" && payload.type === "lesson" && Boolean(structuredLesson);
+  const cinematicPodcast =
+    stage === "play" &&
+    payload.type === "podcast" &&
+    normalizeChapters(chapters).length > 0;
   const cinematicLoading = stage === "setup" && loading;
+  const oralRows: OralTopicRow[] = oralTopics.length
+    ? oralTopics
+    : topicLabel
+      ? [{ id: "current", label: topicLabel, pct: 0 }]
+      : [{ id: "current", label: prepTitle, pct: 0 }];
+  const selectedOralLabels = oralRows
+    .filter((topic) => oralSelected.includes(topic.id))
+    .map((topic) => topic.label);
+  const oralTopicLabel = selectedOralLabels.join(", ") || topicLabel || prepTitle;
+  const oralVoiceLabel = oralVoiceTopicLabel(
+    isOral ? selectedOralLabels : [topicLabel ?? prepTitle],
+    topicLabel || prepTitle,
+  );
+  const oralReviewItems =
+    payload.type === "oral"
+      ? reviewItemsFromQuestions(questions, answers)
+      : reviewItemsFromTranscript(oralTranscript);
+  const oralPct =
+    payload.type === "oral"
+      ? oralWrittenPercent(score.score, score.total)
+      : oralVoicePercent(oralTranscript);
+  const oralOwnsChrome =
+    isOral && stage !== "restoring" && !(stage === "play" && payload.type === "oral");
   const showCoach =
     stage === "play" &&
     Boolean(coachItem) &&
@@ -530,7 +603,7 @@ export function ExamNodeSession({
         <button type="button" className="underline" disabled={pendingSaves > 0}
           onClick={() => { void persistAnswers(answersRef.current, index).catch(() => undefined); }}>Kaydı yeniden dene</button>
       </div> : null}
-      {cinematicLesson || cinematicLoading ? null : (
+      {cinematicLesson || cinematicLoading || cinematicPodcast || oralOwnsChrome ? null : (
       <div className="cp-exam-study-bar">
         <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill"
           onClick={(event) => { if (pendingSaves || saveError) { event.preventDefault(); toast.error("Çıkmadan önce cevapların kaydedilmesini bekle."); } }}>
@@ -624,6 +697,56 @@ export function ExamNodeSession({
         </article>
       ) : null}
 
+      {isOral && stage === "oral-topics" ? (
+        <OralTopicPick
+          topics={oralRows}
+          selected={oralSelected}
+          onToggle={(id) =>
+            setOralSelected((current) =>
+              current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+            )
+          }
+          onContinue={() => setStage("oral-customize")}
+          onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
+        />
+      ) : null}
+
+      {isOral && stage === "oral-customize" && loading ? (
+        <NodeGenerationProgress
+          title="Sözlü deneme sınavı oluşturuluyor"
+          onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
+        />
+      ) : null}
+
+      {isOral && stage === "oral-customize" && !loading ? (
+        <>
+          <OralTeacherCustomize
+            moodId={oralMoodId}
+            onMood={setOralMoodId}
+            onBack={() => setStage("oral-topics")}
+            onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
+            onStart={() => setOralPreflight(true)}
+            notice={generationError}
+          />
+          {oralPreflight ? (
+            <OralPreflightDialog
+              onConfirm={() => {
+                const choice = oralTeacherById(oralMoodId);
+                setOralPreflight(false);
+                setMood(choice.mood);
+                setDifficulty(choice.difficulty);
+                setVoiceMode(true);
+                void start({
+                  difficulty: choice.difficulty,
+                  voiceMode: true,
+                  mood: choice.mood,
+                });
+              }}
+            />
+          ) : null}
+        </>
+      ) : null}
+
       {stage === "setup" && loading ? (
         <NodeGenerationProgress
           sourceName={sourceName}
@@ -696,10 +819,13 @@ export function ExamNodeSession({
           prepId={prepId}
           nodeId={nodeId}
           kind={kind === "oral" ? "oral" : "qa"}
-          topicLabel={topicLabel ?? prepTitle}
+          topicLabel={oralVoiceLabel}
           difficulty={difficulty}
           returnPath={`/deneme-sinavlari/${prepId}`}
-          onFinish={(turns) => {
+          teacherStyle={isOral ? oralMoodId : undefined}
+          submitting={loading}
+          onFinish={(turns, transcript) => {
+            if (transcript) setOralTranscript(transcript);
             void finish({ "0": turns > 0 ? "sesli yanıt" : "" });
           }}
         />
@@ -727,9 +853,10 @@ export function ExamNodeSession({
 
       {stage === "play" && payload.type === "podcast" ? (
         <ExamPodcastPlayer
-          title={payload.title ?? "Podcast"}
+          title={payload.title ?? topicLabel ?? "Podcast"}
           chapters={chapters}
           finishing={loading}
+          onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
           onFinish={() => void finish()}
         />
       ) : null}
@@ -906,7 +1033,56 @@ export function ExamNodeSession({
         </section>
       ) : null}
 
-      {stage === "result" ? (
+      {stage === "oral-review-time" ? (
+        <OralReviewTimeDialog onSeeResults={() => setStage("result")} />
+      ) : null}
+
+      {stage === "result" && isOral ? (
+        <OralResults
+          topicLabel={oralTopicLabel}
+          pct={oralPct}
+          onReview={() => {
+            setOralReviewIndex(0);
+            setOralReviewTab("ai");
+            setStage("oral-review");
+          }}
+          onRepeat={() => {
+            setOralTranscript([]);
+            setOralSelected([]);
+            setIndex(0);
+            setAnswers({});
+            answersRef.current = {};
+            setPayload({});
+            setScore({ score: 0, total: 1 });
+            setFeedback(null);
+            setStage("oral-topics");
+          }}
+          nextHref={nextHref}
+        />
+      ) : null}
+
+      {stage === "oral-review" ? (
+        <OralAnswerReview
+          items={
+            oralReviewItems.length
+              ? oralReviewItems
+              : [
+                  {
+                    question: "Sözlü deneme sorusu sesli iletildi.",
+                    answer: "",
+                    solution: `Sesli yanıt kaydedilmedi. ${EMPTY_ORAL_ANSWER_NOTE}`,
+                  },
+                ]
+          }
+          index={oralReviewIndex}
+          tab={oralReviewTab}
+          onTab={setOralReviewTab}
+          onIndex={setOralReviewIndex}
+          onClose={() => setStage("result")}
+        />
+      ) : null}
+
+      {stage === "result" && !isOral ? (
         <section className="cp-exam-node-result">
           <p className="cp-lesson-kicker">Doğru cevaplar</p>
           <p className="cp-exam-score-xl">
@@ -968,7 +1144,8 @@ export function ExamNodeSession({
             <ExamPodcastPlayer
               title={lessonPodcast.title}
               chapters={lessonPodcast.chapters}
-              finishing={false}
+              embed
+              onClose={() => setLessonPodcast(null)}
               onFinish={() => setLessonPodcast(null)}
             />
           ) : null}

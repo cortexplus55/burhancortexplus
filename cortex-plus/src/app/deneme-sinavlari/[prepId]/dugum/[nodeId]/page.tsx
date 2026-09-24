@@ -9,6 +9,7 @@ import type { Familiarity } from "@/lib/learning/session-signals";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
+import { topicStatusPct } from "@/lib/learning/oral-exam-chrome";
 
 export const metadata = { title: "Ders" };
 
@@ -76,6 +77,20 @@ export default async function ExamNodePage({
   // Üretim ekranı "senin notundan çıkıyor" diyebilsin diye kaynak dosya adı.
   // Hazırlık bir belgeye bağlı değilse gösterilmez — olmayan bir güvence
   // vermemek için.
+  let oralTopics: { id: string; label: string; pct: number }[] = [];
+  if (node.kind === "oral") {
+    const { data: topicRows } = await supabase
+      .from("exam_prep_topics")
+      .select("id, label, sort_order, status")
+      .eq("exam_prep_id", prepId)
+      .order("sort_order");
+    oralTopics = (topicRows ?? []).map((topic) => ({
+      id: topic.id,
+      label: topic.label,
+      pct: topicStatusPct(topic.status),
+    }));
+  }
+
   let sourceName: string | null = null;
   if (prep.document_id) {
     const { data: doc } = await supabase
@@ -98,6 +113,7 @@ export default async function ExamNodePage({
         initialFamiliarity={topicFamiliarity}
         resumeEnabled={resumeEnabled}
         sourceName={sourceName}
+        oralTopics={oralTopics}
       />
     </ParitySorShell>
   );

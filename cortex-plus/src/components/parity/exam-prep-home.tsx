@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Check, Share2 } from "lucide-react";
+import { Check, Mic, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   PLAN_NODE_META,
@@ -45,6 +45,13 @@ export type HomeNode = {
     topicTitle?: string;
   } | null;
 };
+
+function trailGlyph(node: HomeNode, index: number) {
+  if (node.status === "done") return "✓";
+  if (node.kind === "podcast") return <Mic className="h-5 w-5" aria-hidden />;
+  if (node.status === "locked") return "🔒";
+  return index + 1;
+}
 
 export type LearningTrackingView = {
   programProgressPct: number;
@@ -119,6 +126,7 @@ export function ExamPrepHome({
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
   const started = hasTopic && !needsIntro;
+  const recommendPodcast = started && ready?.kind === "podcast";
   const daysLeft = examDate ? daysUntilExam(examDate) : null;
   const readiness = readinessScore(nodes);
   const readinessState = readinessLabel(readiness);
@@ -476,7 +484,9 @@ export function ExamPrepHome({
             >
               <button
                 type="button"
-                className={`cp-exam-trail-node cp-exam-trail-node--${node.status}`}
+                className={`cp-exam-trail-node cp-exam-trail-node--${node.status}${
+                  node.kind === "podcast" ? " cp-exam-trail-node--podcast" : ""
+                }`}
                 disabled={node.status === "locked"}
                 aria-label={`${node.title || PLAN_NODE_META[node.kind].title}, ${
                   node.status === "done"
@@ -487,7 +497,7 @@ export function ExamPrepHome({
                 }`}
                 onClick={() => openNode(node)}
               >
-                {node.status === "done" ? "✓" : node.status === "locked" ? "🔒" : index + 1}
+                {trailGlyph(node, index)}
               </button>
               <span>
                 <strong>{node.title || PLAN_NODE_META[node.kind].title}</strong>
@@ -519,7 +529,9 @@ export function ExamPrepHome({
             >
               <button
                 type="button"
-                className={`cp-exam-trail-node cp-exam-trail-node--${node.status}`}
+                className={`cp-exam-trail-node cp-exam-trail-node--${node.status}${
+                  node.kind === "podcast" ? " cp-exam-trail-node--podcast" : ""
+                }`}
                 disabled={node.status === "locked"}
                 aria-label={`${node.title || PLAN_NODE_META[node.kind].title}, ${
                   node.status === "done"
@@ -530,7 +542,7 @@ export function ExamPrepHome({
                 }`}
                 onClick={() => openNode(node)}
               >
-                {node.status === "done" ? "✓" : node.status === "locked" ? "🔒" : index + 1}
+                {trailGlyph(node, index)}
               </button>
               <span>
                 <strong>{node.title || PLAN_NODE_META[node.kind].title}</strong>
@@ -552,15 +564,27 @@ export function ExamPrepHome({
         </ol>
       )}
 
-      <div className="cp-exam-start-card">
-        <p>{started ? "Sıradaki derse geç" : "Başlamaya hazır mısın?"}</p>
-        <Link href={startHref} className="cp-exam-continue cp-exam-continue--primary">
-          {started
-            ? ready
-              ? `Sonraki: ${PLAN_NODE_META[ready.kind].title}`
-              : "Yola dön"
-            : PREP_HOME_COPY.continue}
-        </Link>
+      <div className={cn("cp-exam-start-card", recommendPodcast && "cp-exam-reco")}>
+        {recommendPodcast ? (
+          <>
+            <p className="cp-exam-reco-kicker">ÖNERİLEN DERS</p>
+            <h2>Podcast</h2>
+            <Link href={startHref} className="cp-exam-reco-go">
+              Devam et
+            </Link>
+          </>
+        ) : (
+          <>
+            <p>{started ? "Sıradaki derse geç" : "Başlamaya hazır mısın?"}</p>
+            <Link href={startHref} className="cp-exam-continue cp-exam-continue--primary">
+              {started
+                ? ready
+                  ? `Sonraki: ${PLAN_NODE_META[ready.kind].title}`
+                  : "Yola dön"
+                : PREP_HOME_COPY.continue}
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );

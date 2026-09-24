@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2, X } from "lucide-react";
+import { Check, Info, Loader2, X } from "lucide-react";
+import { CortexMark } from "@/components/brand/cortex-mark";
 import { LESSON_PREP_STEPS } from "@/lib/learning/lesson-chrome";
 
 /**
@@ -13,17 +14,39 @@ import { LESSON_PREP_STEPS } from "@/lib/learning/lesson-chrome";
  * sırayı anlatıyor; son adım gerçekten cevap gelene kadar döner.
  */
 
+const SPHERE_DOTS = buildSphere(168);
+
+function buildSphere(count: number) {
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const dots: { x: number; y: number; z: number }[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const y = 1 - (i / (count - 1)) * 2;
+    const radius = Math.sqrt(Math.max(0, 1 - y * y));
+    const theta = golden * i;
+    dots.push({
+      x: Math.cos(theta) * radius,
+      y,
+      z: Math.sin(theta) * radius,
+    });
+  }
+  return dots;
+}
+
 export function NodeGenerationProgress({
   onClose,
+  title = "Dersin hazırlanıyor…",
 }: {
   /** Çağıran hâlâ geçirebilir; adım metni dosya adını içermez. */
   sourceName?: string | null;
   onClose?: () => void;
+  /** Sözlü deneme aynı adımları kendi başlığıyla gösterir. */
+  title?: string;
 }) {
   const steps = [...LESSON_PREP_STEPS];
 
   const [reached, setReached] = useState(0);
   const [slow, setSlow] = useState(false);
+  const [hint, setHint] = useState(true);
 
   useEffect(() => {
     // Son adım cevabı beklediği için kendiliğinden tamamlanmaz.
@@ -45,18 +68,22 @@ export function NodeGenerationProgress({
           <X className="h-4 w-4" />
         </button>
       ) : null}
+      <div className="apg-head">
+        <h1>{title}</h1>
+        <CortexMark size={18} />
+      </div>
       <div className="apg-sphere" aria-hidden>
-        {Array.from({ length: 42 }, (_, dot) => (
+        {SPHERE_DOTS.map((dot, index) => (
           <span
-            key={dot}
+            key={index}
             style={{
-              transform: `rotate(${dot * 25.7}deg) translateY(${2.1 + (dot % 5) * 0.28}rem)`,
-              animationDelay: `${(dot % 7) * 0.18}s`,
+              transform: `translate3d(${dot.x * 92}px, ${dot.y * 92}px, ${dot.z * 40}px)`,
+              opacity: 0.28 + ((dot.z + 1) / 2) * 0.72,
+              animationDelay: `${(index % 8) * 0.16}s`,
             }}
           />
         ))}
       </div>
-      <h1>Dersin hazırlanıyor...</h1>
       <ul className="apg-steps">
         {steps.map((label, index) => {
           const done = index < reached;
@@ -83,6 +110,15 @@ export function NodeGenerationProgress({
           Beklenenden uzun sürüyor — hâlâ üzerinde çalışıyoruz. Sayfayı kapatsan
           da ders hazırlanmaya devam eder.
         </p>
+      ) : null}
+      {hint ? (
+        <div className="apg-toast">
+          <Info className="h-4 w-4" aria-hidden />
+          <p>Bu işlem birkaç dakika sürebilir.</p>
+          <button type="button" onClick={() => setHint(false)} aria-label="Bildirimi kapat">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
       ) : null}
     </article>
   );

@@ -53,7 +53,12 @@ async function voicesReady(): Promise<void> {
  */
 export function speakTurkish(
   text: string,
-  handlers?: { onEnd?: () => void; onError?: (reason: string) => void },
+  handlers?: {
+    onEnd?: () => void;
+    onError?: (reason: string) => void;
+    /** Ses listesi gecikirse bitmiş sınav yeniden konuşmasın. */
+    cancelled?: () => boolean;
+  },
 ): void {
   if (typeof window === "undefined" || !window.speechSynthesis) {
     handlers?.onError?.("unsupported");
@@ -62,22 +67,28 @@ export function speakTurkish(
 
   const clean = text.replace(/\s+/g, " ").trim().slice(0, 4000);
   if (!clean) {
-    handlers?.onEnd?.();
+    if (!handlers?.cancelled?.()) handlers?.onEnd?.();
     return;
   }
 
   void voicesReady().then(() => {
+    if (handlers?.cancelled?.()) return;
     window.speechSynthesis.cancel();
+    if (handlers?.cancelled?.()) return;
     const utterance = new SpeechSynthesisUtterance(clean);
     utterance.lang = "tr-TR";
     const voice = pickTurkishVoice();
     if (voice) utterance.voice = voice;
     utterance.rate = 1;
-    utterance.onend = () => handlers?.onEnd?.();
+    utterance.onend = () => {
+      if (handlers?.cancelled?.()) return;
+      handlers?.onEnd?.();
+    };
     utterance.onerror = (event) => {
       // Kullanıcı durdurduğunda ya da araya yeni bir metin girdiğinde de bu
       // olay geliyor; bu bir arıza değil, kimseye bildirmiyoruz.
       if (event.error === "interrupted" || event.error === "canceled") return;
+      if (handlers?.cancelled?.()) return;
       handlers?.onError?.(event.error || "failed");
     };
     window.speechSynthesis.speak(utterance);

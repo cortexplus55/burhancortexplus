@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { examCountdownLine } from "@/lib/learning/exam-chat-context";
+import { examChatGreeting, examCountdownLine } from "@/lib/learning/exam-chat-context";
 
 describe("examCountdownLine", () => {
   const prep = "Zemin Mekaniği Temelleri";
@@ -24,5 +24,11 @@ describe("examCountdownLine", () => {
 
   it("stays useful when there is no exam date", () => {
     expect(examCountdownLine(prep, null)).toBe("Zemin Mekaniği Temelleri için buradayım.");
+  });
+
+  it("opens the exam chat with a greeting, not a separate title", () => {
+    expect(examChatGreeting(prep, 7)).toBe(
+      "Selam! Zemin Mekaniği Temelleri için 7 gün kaldı. Neye çalışmak istersin?",
+    );
   });
 });
