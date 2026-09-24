@@ -52,8 +52,11 @@ import {
   validateOralPedagogy,
   validatePodcastPedagogy,
   validateTrueFalsePedagogy,
-  validateLessonV2,
-  prepareLessonDraft,
+  publishLessonDraft,
+  lessonPublishIssues,
+  lessonDraftForVerifier,
+  publishablePodcast,
+  podcastDraftForVerifier,
   lessonV2Schema,
   LESSON_V2_SCHEMA_HINT,
   REVIEW_VARIANT_RULE,
@@ -1286,15 +1289,11 @@ async function generateNodePayload(input: {
           ? `${input.idempotencyKey}:no-brief`
           : input.idempotencyKey,
       allowIndependentAccept: false,
-      buildIndependent: (_c, parsed) => {
-        const cleaned = prepareLessonDraft(parsed);
-        return {
-          pedagogyIssues: cleaned
-            ? validateLessonV2(cleaned, { minSections })
-            : ["Ders v2 şemasını karşılamıyor (hedef, bölümler, örnek, yaygın hata, bilgi kontrolü)."],
-          ...sourceIndependent,
-        };
-      },
+      reviewDraft: lessonDraftForVerifier,
+      buildIndependent: (_c, parsed) => ({
+        pedagogyIssues: lessonPublishIssues(parsed, { minSections }),
+        ...sourceIndependent,
+      }),
       schemaHint:
         LESSON_V2_SCHEMA_HINT +
         " note isteğe bağlı. " +
@@ -1307,6 +1306,7 @@ async function generateNodePayload(input: {
         "{kind:\"text\",x,y,text,anchor?}. Renk seçme; tone/fill/stroke yalnızca " +
         "ink, muted, accent, surface, line olabilir. Her çizimde en az bir etiket " +
         "ve bir caption olsun. Metinle anlaşılan konuya çizim koyma.",
+      verificationContext: `${contextFor(note)}${backbonePrompt}${diagramPrompt} Bu konunun dersini yaz.`,
       userPrompt: `${contextFor(note)}${backbonePrompt}${diagramPrompt} Bu konunun dersini yaz. ${REVIEW_VARIANT_RULE}`,
       // Bu tur neden reddedildi — modele aynen iletiliyor. Rota kendi
       // kurallarıyla da reddediyor; sebebini söylemezse yeniden üretim
@@ -1314,7 +1314,7 @@ async function generateNodePayload(input: {
       describeParseFailure: () => lastParseIssues,
       parse: (raw) => {
         lastParseIssues = [];
-        const raw2 = prepareLessonDraft(raw);
+        const raw2 = publishLessonDraft(raw);
         if (!raw2) return null;
         /**
          * ÖNCE TEMİZLE, SONRA DOĞRULA.
@@ -1332,7 +1332,7 @@ async function generateNodePayload(input: {
          */
         const parsed = raw2;
         const missing = missingSections(parsed);
-        const pedagoji = validateLessonV2(parsed, { minSections });
+        const pedagoji = lessonPublishIssues(raw, { minSections });
         if (pedagoji.length) {
           lastParseIssues = pedagoji;
           return null;
@@ -1504,12 +1504,14 @@ async function generateNodePayload(input: {
       difficulty: input.teachingV2 ? "hard" : undefined,
       ...v2Common,
       allowIndependentAccept: false,
+      reviewDraft: input.teachingV2 ? podcastDraftForVerifier : undefined,
       buildIndependent: input.teachingV2
         ? (_c, parsed) => {
             const data = schema.safeParse(parsed).data;
+            const published = data ? publishablePodcast(data) : null;
             return {
-              pedagogyIssues: data
-                ? validatePodcastPedagogy(data)
+              pedagogyIssues: published
+                ? validatePodcastPedagogy(published)
                 : ["Podcast şeması geçersiz."],
               minItems: 4,
               ...sourceIndependent,
@@ -1543,21 +1545,22 @@ async function generateNodePayload(input: {
       parse: (raw) => {
         const data = schema.safeParse(raw).data ?? null;
         if (!data) return null;
-        if (podcastDialogueIssues(data.chapters).length) return null;
+        const published = input.teachingV2 ? publishablePodcast(data) : data;
+        if (podcastDialogueIssues(published.chapters).length) return null;
         if (input.teachingV2) {
-          const issues = validatePodcastPedagogy(data);
+          const issues = validatePodcastPedagogy(published);
           if (issues.length) return null;
           // Ders varsa podcast onun külliyatıyla sınırlı: geçen her
           // nicelik derste de geçmeli, yoksa uydurulmuştur.
           if (
             lessonBrief &&
-            podcastNumbersOutsideLesson(JSON.stringify(data.chapters), lessonBrief)
+            podcastNumbersOutsideLesson(JSON.stringify(published.chapters), lessonBrief)
               .length
           ) {
             return null;
           }
         }
-        return data;
+        return published;
       },
     });
     if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);

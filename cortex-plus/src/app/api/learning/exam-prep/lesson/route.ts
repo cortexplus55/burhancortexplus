@@ -13,10 +13,11 @@ import {
 import {
   LESSON_V2_SCHEMA_HINT,
   REVIEW_VARIANT_RULE,
-  prepareLessonDraft,
+  lessonDraftForVerifier,
+  lessonPublishIssues,
+  publishLessonDraft,
   teachingStandardConstraints,
   teachingSessionContext,
-  validateLessonV2,
 } from "@/lib/learning/teaching-standards";
 import {
   contentDifficultyLine,
@@ -192,23 +193,31 @@ export async function POST(request: Request) {
     maxDraftAttempts: teachingV2 ? (depth?.maxDraftAttempts ?? 2) : 1,
     allowIndependentAccept: false,
     activityKind: "lesson",
+    reviewDraft: teachingV2 ? lessonDraftForVerifier : undefined,
     buildIndependent: teachingV2
-      ? (_content, parsed) => {
-          const cleaned = prepareLessonDraft(parsed);
-          return {
-            pedagogyIssues: cleaned
-              ? validateLessonV2(cleaned)
-              : ["Ders v2 şemasını karşılamıyor (hedef, bölümler, örnek, yaygın hata, bilgi kontrolü)."],
-            minItems: 3,
-            sourceExcerpt: sourceBlock,
-            requireSourceSupport: shouldSearchSources(sourceMode),
-            subjectHint: "lesson",
-          };
-        }
+      ? (_content, parsed) => ({
+          pedagogyIssues: lessonPublishIssues(parsed),
+          minItems: 3,
+          sourceExcerpt: sourceBlock,
+          requireSourceSupport: shouldSearchSources(sourceMode),
+          subjectHint: "lesson",
+        })
       : undefined,
     schemaHint: teachingV2
       ? `${LESSON_V2_SCHEMA_HINT} trueFalse ise options tam olarak ["Doğru","Yanlış"]. Çeldirici gerçek yanılgı olsun; hiçbiri/hepsi yasak. explanation yanlış seçeneği çürütsün ve bölüm metnine bağlansın.`
       : 'Yalnızca JSON: {"title":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"summary":string[],"nextFocus":string[]}',
+    verificationContext: teachingV2
+      ? `${teacherPersona()} ${sourceBlock.trim() || teacherBrief.trim() ? groundingRules() : ""}
+Öğrenci için tek konuluk sınav hazırlık dersi yaz.
+Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
+${sessionCtx}
+${signalLine}
+${standards}
+${teacherBrief}
+${depth?.line ?? ""}
+Bu dersin konusu YALNIZCA: ${topic.label}.
+Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.${sourceBlock}${topicBlock}`
+      : undefined,
     userPrompt: teachingV2
       ? `${teacherPersona()} ${sourceBlock.trim() || teacherBrief.trim() ? groundingRules() : ""}
 Öğrenci için tek konuluk sınav hazırlık dersi yaz.
@@ -227,8 +236,8 @@ Bu dersin konusu YALNIZCA: ${topic.label}.
 Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${topicBlock}`,
     parse: (raw) => {
       if (teachingV2) {
-        const cleaned = prepareLessonDraft(raw);
-        if (!cleaned || validateLessonV2(cleaned).length) return null;
+        const cleaned = publishLessonDraft(raw);
+        if (!cleaned || lessonPublishIssues(raw).length) return null;
         return cleaned;
       }
       const result = legacyLessonSchema.safeParse(raw);

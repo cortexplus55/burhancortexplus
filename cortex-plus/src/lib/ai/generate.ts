@@ -91,6 +91,14 @@ type GenerateJsonParams<T> = {
   >;
   schemaHint: string;
   userPrompt: string;
+  /**
+   * Denetçinin gördüğü bağlam. Üretim istemindeki isteğe bağlı alan
+   * kuralı (kısa tekrar) burada durmaz; durursa denetçi eksik alanı
+   * dersin tamamını reddetmek için kullanır.
+   */
+  verificationContext?: string;
+  /** Denetçiden önce isteğe bağlı alanları düşür. Taslak bozulursa olduğu gibi kalır. */
+  reviewDraft?: (draft: string) => string;
   imageUrls?: string[];
   parse: (raw: unknown) => T | null;
   /**
@@ -158,6 +166,17 @@ export async function generateJson<T>(
   let lastFailureMessages: string[] = [];
   let lastFailedStage: ValidationStage | null = null;
   let lastOutcome: "rejected" | "validator_unavailable" = "rejected";
+  const logRejection = () => {
+    // Taslak, kaynak ve istem loglanmaz. Sebep cümlesi kısa kesilir.
+    console.error("educational_verification_rejected", {
+      actionCode,
+      activityKind: params.activityKind ?? null,
+      stage: lastFailedStage,
+      reason: lastFailureCodes[0] ?? lastOutcome,
+      codes: lastFailureCodes.slice(0, 8),
+      issues: lastFailureMessages.slice(0, 8).map((message) => message.slice(0, 160)),
+    });
+  };
 
   const recordAndFail = async (error: string, status: number) => {
     await recordValidationEvent(params.service, {
@@ -380,8 +399,8 @@ export async function generateJson<T>(
           try {
             const verified = await verifyEducationalContent({
               client: openai,
-              context: params.userPrompt,
-              draft: raw,
+              context: params.verificationContext ?? params.userPrompt,
+              draft: params.reviewDraft ? params.reviewDraft(raw) : raw,
               format: params.schemaHint,
               imageUrls: params.imageUrls,
               validate: schemaValidate,
@@ -416,6 +435,7 @@ export async function generateJson<T>(
               if (error.failureMessages.length) {
                 lastFailureMessages = error.failureMessages;
               }
+              logRejection();
               lastOutcome =
                 error.reason === "validator_unavailable"
                   ? "validator_unavailable"
@@ -451,6 +471,7 @@ export async function generateJson<T>(
     }
 
     if (!parsed) {
+      if (lastFailureCodes.includes("invalid_ai_response")) logRejection();
       return await recordAndFail(
         lastFailureCodes.includes("invalid_ai_response")
           ? "invalid_ai_response"
