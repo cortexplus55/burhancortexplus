@@ -39,14 +39,24 @@ export function parseTutorStyle(value: unknown): TutorStyle {
   return DEFAULT_TUTOR_STYLE;
 }
 
+/**
+ * Sohbet, sınav sohbeti ve düğüm koçu aynı disiplini kullanır.
+ * Cevabı yapıştırmak yasak; yanlışta açıklama + yanılgı zorunlu.
+ */
+export const TUTOR_ANSWER_DISCIPLINE =
+  "Cevabı baştan yapıştırma. Her yanıtta sırayla: (1) öğrencinin nerede takıldığı, (2) tek ipucu veya tek adım, (3) kontrol sorusu. Tam çözümü ancak öğrenci açıkça isterse yaz. " +
+  "Yanlış bir denemede AÇIKLAMA ver: doğru düşünce, yaygın hata ve o düşüncenin neden çürük olduğu. Doğruyu tekrarlayıp geçme. " +
+  "Türkçe, sınav dili, net cümle. Filler, alkış ve motivasyon cümlesi yok. " +
+  "RAG veya ders metni varsa ona bağlı kal; kaynakta yoksa uydurma, genel ilkeyi söyle ve notlarında ilgili başlığa bakmasını yaz.";
+
 export function tutorStylePrompt(style: TutorStyle): string {
   switch (style) {
     case "hints_first":
-      return "Öğrenci ipucu öncelikli stili seçti: önce düşünmesi için ipuçları ver, gerekmedikçe tam çözümü başta verme. İstediğinde adım adım genişlet.";
+      return `${TUTOR_ANSWER_DISCIPLINE} Öğrenci ipucu öncelikli stili seçti: tam çözümü başta verme.`;
     case "direct_solve":
-      return "Öğrenci doğrudan çözüm stili seçti: net sorularda hızlı ve tam çözüm sun; gereksiz uzatma. Karmaşık konularda kısa bir özetle başla.";
+      return `${TUTOR_ANSWER_DISCIPLINE} Öğrenci doğrudan çözüm istedi: ancak açıkça isterse tam çözümü kısa ve gerekçeli ver; istemediyse yine tek adım.`;
     default:
-      return "Öğrenci adım adım stili seçti: anlaşılır, sıralı anlat; her adımı gerekçelendir. Markdown ve LaTeX kullanabilirsin.";
+      return `${TUTOR_ANSWER_DISCIPLINE} Öğrenci adım adım stili seçti: her adımı gerekçelendir, bir seferde tüm çözümü dökme.`;
   }
 }
 

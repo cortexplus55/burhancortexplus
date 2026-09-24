@@ -14,6 +14,12 @@ import {
   X,
 } from "lucide-react";
 import type { StudyModality } from "@/lib/learning/exam-prep-ui-path";
+import {
+  DOCUMENT_ANALYSIS_STAGES,
+  STUDY_MODALITY_CHOICES,
+  WIZARD_COPY,
+  WIZARD_STEP_ORDER,
+} from "@/lib/learning/exam-wizard-copy";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { COMMON_SUBJECTS } from "@/lib/learning/subjects";
 import "@/styles/exam-create-wizard.css";
@@ -32,32 +38,9 @@ type Step =
   | "focus"
   | "plan";
 
-const STEP_ORDER: Step[] = [
-  "start",
-  "subject",
-  "date",
-  "target",
-  "material",
-  "language",
-  "topics",
-  "modality",
-  "focus",
-  "plan",
-];
-
-const BUILD_STAGES = [
-  "Ekler okunuyor",
-  "Kullanılabilirlik kontrol ediliyor",
-  "Konular düzenleniyor",
-];
-
-const MODALITIES: { id: StudyModality; label: string }[] = [
-  { id: "reading", label: "Okuyarak" },
-  { id: "listening", label: "Dinleyerek" },
-  { id: "watching", label: "İzleyerek" },
-  { id: "practice", label: "Pratik yaparak" },
-  { id: "auto", label: "Sen karar ver" },
-];
+const STEP_ORDER: Step[] = [...WIZARD_STEP_ORDER];
+const BUILD_STAGES = [...DOCUMENT_ANALYSIS_STAGES];
+const MODALITIES: { id: StudyModality; label: string }[] = STUDY_MODALITY_CHOICES;
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -499,7 +482,7 @@ export function ExamCreateWizard({
             className="apw-cta"
             onClick={() => setStep("material")}
           >
-            Devam et
+            {WIZARD_COPY.continue}
           </button>
         </section>
       ) : null}
@@ -605,7 +588,7 @@ export function ExamCreateWizard({
             disabled={!documentId || uploading}
             onClick={() => setStep("language")}
           >
-            Devam et
+            {WIZARD_COPY.continue}
           </button>
           <button type="button" className="apw-ghost" onClick={onUseChat}>
             Materyalim yok — konuşarak kuralım
@@ -615,7 +598,7 @@ export function ExamCreateWizard({
 
       {step === "language" ? (
         <section className="apw-step">
-          <h1>Dil</h1>
+          <h1>{WIZARD_COPY.languageTitle}</h1>
           <p className="apw-lead">
             Dersler, sorular ve podcast bu dilde hazırlanır.
           </p>
@@ -644,14 +627,14 @@ export function ExamCreateWizard({
             className="apw-cta"
             onClick={() => documentId && void runIntake(documentId)}
           >
-            Devam et
+            {WIZARD_COPY.continue}
           </button>
         </section>
       ) : null}
 
       {step === "building" ? (
         <section className="apw-step apw-step--center">
-          <h1>Dosyaların inceleniyor...</h1>
+          <h1>{WIZARD_COPY.analyzing}</h1>
           <p className="apw-lead">Konular materyalinin kapsamından çıkarılıyor.</p>
           <ul className="apw-stages">
             {BUILD_STAGES.map((label, index) => (
@@ -671,8 +654,8 @@ export function ExamCreateWizard({
 
       {step === "shaping" ? (
         <section className="apw-step apw-step--center">
-          <h1>Konular hazırlanıyor...</h1>
-          <p className="apw-lead">Materyalin kapsamı konu listesine ayrılıyor.</p>
+          <h1>{WIZARD_COPY.shapingTitle}</h1>
+          <p className="apw-lead">{WIZARD_COPY.shapingLead}</p>
         </section>
       ) : null}
 
@@ -710,14 +693,14 @@ export function ExamCreateWizard({
             disabled={!topics.length}
             onClick={() => setStep("modality")}
           >
-            Devam et
+            {WIZARD_COPY.continue}
           </button>
         </section>
       ) : null}
 
       {!planning && step === "modality" ? (
         <section className="apw-step">
-          <h1>Nasıl çalışmayı seversin?</h1>
+          <h1>{WIZARD_COPY.modalityTitle}</h1>
           <p className="apw-lead">
             Ders, podcast ve pratik bu tercihe göre sıralanır.
           </p>
@@ -742,14 +725,14 @@ export function ExamCreateWizard({
             className="apw-cta"
             onClick={() => setStep("focus")}
           >
-            Devam et
+            {WIZARD_COPY.continue}
           </button>
         </section>
       ) : null}
 
       {!planning && step === "focus" ? (
         <section className="apw-step">
-          <h1>En çok neye odaklanalım?</h1>
+          <h1>{WIZARD_COPY.focusTitle}</h1>
           <p className="apw-lead">
             Eşit odak tüm konulara aynı yeri ayırır. İstersen birkaçı öne çıksın.
           </p>
@@ -763,7 +746,7 @@ export function ExamCreateWizard({
                 setFocusTopics([]);
               }}
             >
-              Tüm konulara eşit odaklan
+              {WIZARD_COPY.equalFocus}
             </button>
             {topics.map((topic) => {
               const on = !equalFocus && focusTopics.includes(topic);
@@ -790,21 +773,21 @@ export function ExamCreateWizard({
             })}
           </div>
           <button type="button" className="apw-cta" onClick={openPlan}>
-            Devam et
+            {WIZARD_COPY.continue}
           </button>
         </section>
       ) : null}
 
       {!planning && step === "plan" ? (
         <section className="apw-step apw-step--center">
-          <h1>Çalışma planın hazır!</h1>
+          <h1>{WIZARD_COPY.planReady}</h1>
           <button
             type="button"
             className="apw-cta"
             disabled={starting || !topics.length}
             onClick={() => void startPlan()}
           >
-            {starting ? "Kuruluyor…" : "Sınav hazırlığı oluştur"}
+            {starting ? WIZARD_COPY.creating : WIZARD_COPY.createCta}
           </button>
         </section>
       ) : null}
@@ -888,7 +871,7 @@ function TopicEditor({
                 setDraft(topic);
               }}
             >
-              Konuyu değiştir
+              {WIZARD_COPY.editTopic}
             </button>
           </li>
         ))}
@@ -902,7 +885,7 @@ function TopicEditor({
           setDraft("");
         }}
       >
-        <Plus className="h-4 w-4" aria-hidden /> Konu ekle
+        <Plus className="h-4 w-4" aria-hidden /> {WIZARD_COPY.addTopic}
       </button>
 
       {editIndex != null || adding ? (
@@ -915,7 +898,7 @@ function TopicEditor({
             onClick={(event) => event.stopPropagation()}
           >
             <h2 id="apw-topic-dialog-title">
-              {adding ? "Konu ekle" : "Konuyu değiştir"}
+              {adding ? WIZARD_COPY.addTopic : WIZARD_COPY.editTopic}
             </h2>
             <input
               value={draft}
@@ -932,7 +915,7 @@ function TopicEditor({
             />
             <div className="apw-modal-actions">
               <button type="button" className="apw-ghost" onClick={close}>
-                İptal
+                {WIZARD_COPY.cancel}
               </button>
               <button
                 type="button"
@@ -940,7 +923,7 @@ function TopicEditor({
                 disabled={adding ? !addDirty : !changeDirty}
                 onClick={adding ? saveAdd : saveChange}
               >
-                Kaydet
+                {WIZARD_COPY.save}
               </button>
             </div>
           </div>
@@ -1051,7 +1034,7 @@ function DateStep({
       </div>
 
       <button type="button" className="apw-cta" disabled={!value} onClick={onNext}>
-        Devam et
+        {WIZARD_COPY.continue}
       </button>
     </section>
   );

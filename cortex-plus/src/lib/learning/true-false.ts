@@ -26,4 +26,4 @@ export const trueFalseItemsSchema = z.array(trueFalseItemSchema).min(4).max(10).
   }
 });
 
-export const TRUE_FALSE_FORMAT = 'Her text tek, açık ve doğruluğu değerlendirilebilir bir ÖNERME olmalı; "nedir?" gibi açık uçlu soru veya soru işareti içermemeli. Her yanlış önerme için correctedStatement alanında doğru halini yaz. Açıklama doğru halin nedenini anlatsın. Önermeler tekrarlanmasın; hem doğru hem yanlış önermeler bulunsun. Sayısal, tarihsel veya dilsel bağlamı eksik bırakarak belirsizlik yaratma. Belirsiz genellemelerden (her zaman/asla/genelde) kaçın. İsteğe bağlı misconceptionTag ile yanılgı etiketle.';
+export const TRUE_FALSE_FORMAT = 'Her text tek, açık ve doğruluğu değerlendirilebilir bir ÖNERME olmalı; "nedir?" gibi açık uçlu soru veya soru işareti içermemeli. Her yanlış önerme için correctedStatement alanında doğru halini yaz. Açıklama doğru halin nedenini anlatsın ve yanlış iddiayı çürütsün. Önermeler tekrarlanmasın; hem doğru hem yanlış önermeler bulunsun. Sayısal, tarihsel veya dilsel bağlamı eksik bırakarak belirsizlik yaratma. Belirsiz genellemelerden (her zaman/asla/genelde) kaçın. misconceptionTag zorunlu: yanılgının kısa adı.';

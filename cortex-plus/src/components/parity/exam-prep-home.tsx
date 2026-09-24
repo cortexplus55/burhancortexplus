@@ -23,6 +23,7 @@ import {
 } from "@/lib/learning/exam-prep-ui-path";
 import { cn } from "@/lib/utils";
 import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
+import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import {
   ExamPrepSettingsPanel,
   type PrepSettingsInitial,
@@ -207,7 +208,7 @@ export function ExamPrepHome({
             className={cn("cp-exam-tab", view === "yol" && "is-active")}
             onClick={() => setView("yol")}
           >
-            Çalışma yolu
+            {PREP_HOME_COPY.path}
           </button>
           <button
             type="button"
@@ -216,7 +217,7 @@ export function ExamPrepHome({
             className={cn("cp-exam-tab", view === "ilerleme" && "is-active")}
             onClick={() => setView("ilerleme")}
           >
-            İlerleme
+            {PREP_HOME_COPY.progress}
           </button>
         </div>
         {activeTopicLabel ? (
@@ -327,7 +328,7 @@ export function ExamPrepHome({
               className={cn("cp-exam-tab", progressPane === "agac" && "is-active")}
               onClick={() => setProgressPane("agac")}
             >
-              Beceri ağacı
+              {PREP_HOME_COPY.skillTree}
             </button>
             <button
               type="button"
@@ -336,7 +337,7 @@ export function ExamPrepHome({
               className={cn("cp-exam-tab", progressPane === "sorular" && "is-active")}
               onClick={() => setProgressPane("sorular")}
             >
-              Tüm sorular
+              {PREP_HOME_COPY.allQuestions}
             </button>
           </div>
           {progressPane === "agac" ? (
@@ -354,8 +355,8 @@ export function ExamPrepHome({
           ) : (
             <p className="text-sm text-[var(--cp-muted)]">
               {topicsDone > 0 || nodes.some((node) => node.status === "done")
-                ? "Çözdüğün sorular çalışma yolundaki düğümlerde."
-                : "Henüz alıştırma yapılmadı."}
+                ? PREP_HOME_COPY.practicedElsewhere
+                : PREP_HOME_COPY.noPractice}
             </p>
           )}
         </section>
@@ -453,7 +454,7 @@ export function ExamPrepHome({
           </p>
           <div className="cp-exam-empty-actions">
             <Link href={startHref} className="cp-exam-continue cp-exam-continue--primary">
-              Devam et
+              {PREP_HOME_COPY.continue}
             </Link>
             {introPending ? (
               <Link href={examPrepIntroHref(prepId)} className="cp-exam-continue">
@@ -558,7 +559,7 @@ export function ExamPrepHome({
             ? ready
               ? `Sonraki: ${PLAN_NODE_META[ready.kind].title}`
               : "Yola dön"
-            : "Devam et"}
+            : PREP_HOME_COPY.continue}
         </Link>
       </div>
     </div>
@@ -581,7 +582,7 @@ function SkillTree({
   if (!labels.length) {
     return (
       <p className="text-sm text-[var(--cp-muted)]">
-        Konular kurulunca beceri ağacı burada görünür.
+        {PREP_HOME_COPY.emptyTree}
       </p>
     );
   }
@@ -598,16 +599,19 @@ function SkillTree({
               onClick={() => onToggle(open ? null : label)}
             >
               <strong>{label}</strong>
-              <span>{pct}% hakimiyet</span>
+              <span>
+                {pct}
+                {PREP_HOME_COPY.masterySuffix}
+              </span>
             </button>
             {open ? (
               <div className="cp-skill-detail">
                 <p>
-                  {pct > 0
-                    ? "Bu konudaki alıştırmalar çalışma yolundaki düğümlerde."
-                    : "Henüz alıştırma yapılmadı."}
+                  {pct > 0 ? PREP_HOME_COPY.skillPractice : PREP_HOME_COPY.noPractice}
                 </p>
-                {pct === 0 ? <Link href={startHref}>Ders oluştur</Link> : null}
+                {pct === 0 ? (
+                  <Link href={startHref}>{PREP_HOME_COPY.createLesson}</Link>
+                ) : null}
               </div>
             ) : null}
           </li>

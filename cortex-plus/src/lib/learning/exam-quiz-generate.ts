@@ -4,6 +4,12 @@ import { generateJson } from "@/lib/ai/generate";
 import { parseQuizQuestions, type QuizQuestion } from "@/lib/learning/exam-quiz";
 import { validateQuizPedagogy } from "@/lib/learning/teaching-standards";
 
+const QUIZ_GATE = {
+  requireObjective: false,
+  requireMisconceptionTag: true,
+  requireDistractorRefutation: true,
+} as const;
+
 export async function generateExamQuiz(input: {
   service: SupabaseClient;
   userId: string;
@@ -22,7 +28,7 @@ export async function generateExamQuiz(input: {
   idempotencyKey?: string;
 }): Promise<{ ok: true; questions: QuizQuestion[] } | { ok: false; status: number; error: string }> {
   const pedagogyHint = input.teachingV2
-    ? " Her soruda learningObjective (kısa hedef) ve explanation zorunlu. misconceptionTag isteğe bağlı. multi yalnızca birden fazla bağımsız doğru varken."
+    ? " Her soruda learningObjective, explanation ve misconceptionTag zorunlu. explanation en az bir yanlış şıkkın gerçekte ne olduğunu söylesin. multi yalnızca birden fazla bağımsız doğru varken."
     : "";
   const schemaHint =
     'JSON: {"questions":[{"text":string,"options":string[],"correct":string|string[],"multi":boolean,"explanation":string,"learningObjective":string,"misconceptionTag":string}]}. correct, options içinden olmalı. Çoklu doğru şıklarda multi true, correct dizi ve en az iki bağımsız doğru seçenek olmalı; tek doğru varsa multi false olmalı. "Hepsi doğrudur", "hiçbiri" veya başka seçenekleri özetleyen seçenekler kullanma. Doğru seçenek kümesi açıklamayla birebir uyuşmalı. Her soruyu matematiksel ve bilimsel doğruluk açısından ikinci kez kontrol et. explanation: 1-2 cümlelik net Türkçe çözüm gerekçesi.' +
@@ -33,7 +39,7 @@ export async function generateExamQuiz(input: {
     const questions = parseQuizQuestions(raw);
     if (!questions) return null;
     if (input.teachingV2) {
-      const issues = validateQuizPedagogy(questions, { requireObjective: false });
+      const issues = validateQuizPedagogy(questions, QUIZ_GATE);
       if (issues.length) return null;
       const missingObj = questions.every((q) => !q.learningObjective?.trim());
       if (missingObj) return null;
@@ -59,7 +65,7 @@ export async function generateExamQuiz(input: {
           const questions = parsed ? parseQuizQuestions(parsed) : null;
           return {
             pedagogyIssues: questions
-              ? validateQuizPedagogy(questions, { requireObjective: false })
+              ? validateQuizPedagogy(questions, QUIZ_GATE)
               : ["Quiz şeması geçersiz."],
             minItems: 3,
             sourceExcerpt: input.sourceExcerpt,
