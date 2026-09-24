@@ -8,10 +8,13 @@ export function ExamPrepPath({
   prepId,
   topics,
   activeId,
+  onSelect,
 }: {
   prepId: string;
   topics: PrepTopic[];
   activeId?: string | null;
+  /** Adres güncellenmeden önce seçimi gösterir; sayfa Suspense beklemez. */
+  onSelect?: (topicId: string) => void;
 }) {
   const router = useRouter();
 
@@ -41,7 +44,10 @@ export function ExamPrepPath({
               type="button"
               className={cn("cp-topic-path-item", `cp-topic-path-item--${state}`)}
               aria-current={topic.id === activeId ? "page" : undefined}
-              onClick={() => router.push(href, { scroll: false })}
+              onClick={() => {
+                onSelect?.(topic.id);
+                router.push(href, { scroll: false });
+              }}
             >
               <span className="cp-topic-num" aria-hidden>
                 {topic.status === "done" ? "✓" : index + 1}

@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ExamPrepStudySession } from "@/components/parity/exam-prep-study-session";
@@ -8,6 +7,12 @@ import { nextOpenTopic } from "@/lib/learning/exam-prep-progress";
 import { loadOrBackfillTopics, mapLessonsByTopic } from "@/lib/learning/exam-prep-topics";
 
 export const metadata = { title: "Ders oturumu" };
+
+/*
+  Sayfa tümüyle dinamik çiziliyor. Konu adresi sunucudan `initialTopicId`
+  olarak iner. `useSearchParams` için Suspense sınırı bu projede sayfayı
+  boşaltıyor; oturum sayfasında sınır yok.
+*/
 export const dynamic = "force-dynamic";
 
 export default async function ExamPrepCalisPage({
@@ -46,15 +51,13 @@ export default async function ExamPrepCalisPage({
 
   return (
     <ParitySorShell {...shell}>
-      <Suspense fallback={<div className="cp-exam-page cp-exam-page--loading" />}>
-        <ExamPrepStudySession
-          prepId={prep.id}
-          prepTitle={prep.title ?? "Sınav hazırlığı"}
-          topics={topics}
-          initialTopicId={activeTopic?.id ?? null}
-          lessonsByTopic={lessonsByTopic}
-        />
-      </Suspense>
+      <ExamPrepStudySession
+        prepId={prep.id}
+        prepTitle={prep.title ?? "Sınav hazırlığı"}
+        topics={topics}
+        initialTopicId={activeTopic?.id ?? null}
+        lessonsByTopic={lessonsByTopic}
+      />
     </ParitySorShell>
   );
 }

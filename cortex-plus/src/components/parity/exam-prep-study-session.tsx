@@ -1,21 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
+import { LessonOpenChrome, type LessonOpenStep } from "@/components/parity/lesson-open-chrome";
+import { NodeGenerationProgress } from "@/components/parity/node-generation-progress";
 import { lessonV2Schema, type LessonV2 } from "@/lib/learning/teaching-standards";
 import { ExamPrepPath } from "@/components/parity/exam-prep-path";
 import { ExamFinishButton } from "@/components/parity/exam-finish-button";
+import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
 import {
   continueHref,
   nextOpenTopic,
   type PrepTopic,
 } from "@/lib/learning/exam-prep-progress";
 import type { TopicLesson } from "@/lib/learning/exam-prep-topics";
+import {
+  DEFAULT_FAMILIARITY,
+  DEFAULT_MOOD,
+  type Familiarity,
+  type Mood,
+} from "@/lib/learning/session-signals";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import "@/styles/node-generation-progress.css";
 
 /** Yapılandırılmış ders varsa döndürür; şemaya uymuyorsa markdowna düşülür. */
 function structuredLesson(raw: unknown): LessonV2 | null {
@@ -37,21 +47,41 @@ export function ExamPrepStudySession({
   lessonsByTopic: Record<string, TopicLesson>;
 }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   const [paywall, setPaywall] = useState(false);
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const [gate, setGate] = useState<LessonOpenStep>("familiarity");
+  const [familiarity, setFamiliarity] = useState<Familiarity>(DEFAULT_FAMILIARITY);
+  const [mood, setMood] = useState<Mood>(DEFAULT_MOOD);
 
   const activeTopic = useMemo(() => {
-    const fromUrl = searchParams.get("topic");
+    const id = pickedId ?? initialTopicId;
     return (
-      topics.find((topic) => topic.id === fromUrl) ??
-      topics.find((topic) => topic.id === initialTopicId) ??
+      topics.find((topic) => topic.id === id) ??
       nextOpenTopic(topics) ??
       topics[0] ??
       null
     );
-  }, [searchParams, topics, initialTopicId]);
+  }, [pickedId, topics, initialTopicId]);
+
+  const seenInitial = useRef(initialTopicId);
+  useEffect(() => {
+    if (seenInitial.current === initialTopicId) return;
+    seenInitial.current = initialTopicId;
+    setPickedId(null);
+  }, [initialTopicId]);
+
+  const topicKey = activeTopic?.id ?? "";
+  const seenTopic = useRef(topicKey);
+  useEffect(() => {
+    if (seenTopic.current === topicKey) return;
+    seenTopic.current = topicKey;
+    setGate("familiarity");
+    setGenerateError(null);
+    setGenerating(false);
+  }, [topicKey]);
 
   const lesson = activeTopic ? (lessonsByTopic[activeTopic.id] ?? null) : null;
   const structured = useMemo(
@@ -71,7 +101,12 @@ export function ExamPrepStudySession({
       const res = await fetch("/api/learning/exam-prep/lesson", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prepId, topicId: activeTopic.id }),
+        body: JSON.stringify({
+          prepId,
+          topicId: activeTopic.id,
+          familiarity,
+          mood,
+        }),
       });
       if (res.status === 402) {
         setPaywall(true);
@@ -79,12 +114,16 @@ export function ExamPrepStudySession({
       }
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(payload.error ?? "Ders üretilemedi.");
+        const message = payload.error ?? "Ders üretilemedi.";
+        setGenerateError(message);
+        toast.error(message);
         return;
       }
+      setGenerateError(null);
       toast.success("Ders hazır.");
       router.refresh();
     } catch {
+      setGenerateError("Bağlantı kurulamadı. Lütfen yeniden dene.");
       toast.error("Bağlantı hatası.");
     } finally {
       setGenerating(false);
@@ -129,18 +168,26 @@ export function ExamPrepStudySession({
       </div>
 
       <p className="cp-lesson-kicker">Konu seç</p>
-      <ExamPrepPath prepId={prepId} topics={topics} activeId={activeTopic?.id} />
+      <ExamPrepPath
+        prepId={prepId}
+        topics={topics}
+        activeId={activeTopic?.id}
+        onSelect={(topicId) => {
+          setPickedId(topicId);
+          setGate("familiarity");
+        }}
+      />
 
       {activeTopic ? (
         <section className="cp-exam-topic-stage" key={activeTopic.id}>
           <h1>{activeTopic.label}</h1>
-          <p className="text-sm text-[var(--cp-muted)]">
-            {activeTopic.status === "done"
-              ? "Bu konuyu bitirdin. İstersen dersi tekrar oku veya sıradakine geç."
-              : lesson
-                ? "Dersi oku, sonra konuyu tamamla — sonraki açılır."
-                : "Yalnızca bu konunun dersi üretilir. Başka derse veya sohbete düşmezsin."}
-          </p>
+          {lesson || activeTopic.status === "done" ? (
+            <p className="text-sm text-[var(--cp-muted)]">
+              {activeTopic.status === "done"
+                ? "Bu konuyu bitirdin. İstersen dersi tekrar oku veya sıradakine geç."
+                : "Dersi oku, sonra konuyu tamamla — sonraki açılır."}
+            </p>
+          ) : null}
 
           {lesson ? (
             <>
@@ -152,18 +199,30 @@ export function ExamPrepStudySession({
                 <ExamLessonBody content={lesson.contentMd} />
               )}
             </>
+          ) : generating ? (
+            <NodeGenerationProgress
+              onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
+            />
           ) : (
-            <div className="cp-exam-topic-empty">
-              <p>Henüz ders yok.</p>
-              <button
-                type="button"
-                className="cp-exam-continue cp-exam-continue--primary"
-                disabled={generating}
-                onClick={() => void generateLesson()}
-              >
-                {generating ? "Anlatılıyor…" : "Bu konuyu anlat"}
-              </button>
-            </div>
+            <LessonOpenChrome
+              step={gate}
+              familiarity={familiarity}
+              mood={mood}
+              recommendedTitle={PLAN_NODE_META.lesson.setupLabel}
+              blurb={PLAN_NODE_META.lesson.blurb}
+              topicLabel={activeTopic.label}
+              error={generateError}
+              onFamiliarity={(level) => {
+                setFamiliarity(level);
+                setGate("mood");
+              }}
+              onMood={(next) => {
+                setMood(next);
+                setGate("recommend");
+              }}
+              onContinue={() => setGate("create")}
+              onCreate={() => void generateLesson()}
+            />
           )}
         </section>
       ) : (
@@ -185,12 +244,14 @@ export function ExamPrepStudySession({
           <button
             type="button"
             className="cp-exam-continue"
-            onClick={() =>
+            onClick={() => {
+              setPickedId(nextAfter.id);
+              setGate("familiarity");
               router.push(
                 `/deneme-sinavlari/${prepId}/calis?topic=${nextAfter.id}`,
                 { scroll: false },
-              )
-            }
+              );
+            }}
           >
             Sonraki: {nextAfter.label}
           </button>
