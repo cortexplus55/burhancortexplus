@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   createRecognizer,
@@ -65,11 +65,34 @@ export function ExamVoiceTutor({
   const speakGen = useRef(0);
   const [endOpen, setEndOpen] = useState(false);
 
+  const cutSpeech = useCallback(() => {
+    speakGen.current += 1;
+    speechAbort.current?.abort();
+    speechAbort.current = null;
+    stopSpeech();
+    voiceRef.current?.stop();
+    voiceRef.current = null;
+    browserRecRef.current?.stop();
+    browserRecRef.current = null;
+    const recorder = recRef.current;
+    recRef.current = null;
+    recorder?.cancel();
+    setPhase("idle");
+    setCaption("");
+  }, []);
+
+  const openEndDialog = useCallback(() => {
+    paused.current = true;
+    cutSpeech();
+    setEndOpen(true);
+  }, [cutSpeech]);
+
   useEffect(() => {
     stopped.current = false;
     void turn([]);
     return () => {
       stopped.current = true;
+      speakGen.current += 1;
       speechAbort.current?.abort();
       stopSpeech();
       voiceRef.current?.stop();
@@ -81,9 +104,9 @@ export function ExamVoiceTutor({
 
   useEffect(() => {
     if (kind !== "oral") return;
-    const timer = window.setTimeout(() => setEndOpen(true), ORAL_LIMIT_MINUTES * 60 * 1000);
+    const timer = window.setTimeout(() => openEndDialog(), ORAL_LIMIT_MINUTES * 60 * 1000);
     return () => window.clearTimeout(timer);
-  }, [kind]);
+  }, [kind, openEndDialog]);
 
   async function turn(history: Msg[], userLine?: string) {
     if (stopped.current || paused.current) return;
@@ -118,10 +141,12 @@ export function ExamVoiceTutor({
         setPhase("idle");
         return;
       }
-      if (stopped.current || paused.current) return;
+      if (stopped.current) return;
       const reply = String(payload.reply ?? "");
       const withReply = [...nextHistory, { role: "assistant" as const, content: reply }];
       setMessages(withReply);
+      // Bitirme penceresi açıkken yanıt kayda geçer ama ses başlamaz.
+      if (paused.current) return;
       void speak(reply, () => {
         if (payload.done) {
           setPhase("idle");
@@ -292,29 +317,15 @@ export function ExamVoiceTutor({
 
   function stopAll() {
     stopped.current = true;
-    speechAbort.current?.abort();
-    stopSpeech();
-    voiceRef.current?.stop();
-    voiceRef.current = null;
-    browserRecRef.current?.stop();
-    recRef.current?.cancel();
-    recRef.current = null;
-    setPhase("idle");
+    cutSpeech();
     setCaption("Durduruldu.");
   }
 
   function confirmEnd() {
-    // Bitiş duraklatma değil: sürmekte olan ses isteği de kesilir.
+    // Bitiş duraklatma değil. Geç gelen sunucu sesi de onEnd de yok sayılır.
     stopped.current = true;
-    speechAbort.current?.abort();
-    stopSpeech();
-    voiceRef.current?.stop();
-    voiceRef.current = null;
-    browserRecRef.current?.stop();
-    const recorder = recRef.current;
-    recRef.current = null;
-    recorder?.cancel();
-    setPhase("idle");
+    paused.current = true;
+    cutSpeech();
     onFinish(messages.filter((message) => message.role === "user").length, messages);
   }
 
@@ -324,7 +335,7 @@ export function ExamVoiceTutor({
         <header className="cp-oral-bar">
           <span />
           <p>Sözlü Deneme Sınavı</p>
-          <button type="button" className="cp-oral-icon" aria-label="Kapat" onClick={() => setEndOpen(true)}>
+          <button type="button" className="cp-oral-icon" aria-label="Kapat" onClick={openEndDialog}>
             <X className="h-4 w-4" />
           </button>
         </header>
@@ -356,16 +367,22 @@ export function ExamVoiceTutor({
             </button>
           ) : null}
         </div>
-        <button type="button" className="cp-oral-end" onClick={() => setEndOpen(true)}>
+        <button type="button" className="cp-oral-end" onClick={openEndDialog}>
           Sınavı bitir
         </button>
         {endOpen ? (
           <OralEndDialog
             busy={submitting}
             onStay={() => {
-              if (!submitting) stopped.current = false;
+              if (submitting) return;
+              stopped.current = false;
               paused.current = false;
               setEndOpen(false);
+              const last = [...messages].reverse().find((message) => message.role === "assistant");
+              if (!last?.content) return;
+              void speak(last.content, () => {
+                void listen(messages);
+              });
             }}
             onConfirm={confirmEnd}
           />

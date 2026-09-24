@@ -75,11 +75,18 @@ export function ExamPrepStudySession({
 
   const topicKey = activeTopic?.id ?? "";
   const seenTopic = useRef(topicKey);
+  const activeTopicId = useRef(topicKey);
+  activeTopicId.current = topicKey;
+  const lessonToken = useRef(0);
+  const lessonFlight = useRef<{ topicId: string; token: number } | null>(null);
+  const [flightTopicId, setFlightTopicId] = useState<string | null>(null);
   useEffect(() => {
     if (seenTopic.current === topicKey) return;
     seenTopic.current = topicKey;
     setGate("familiarity");
     setGenerateError(null);
+    // Eski isteği burada kesmiyoruz: model çağrısı sunucuda sürer ve kredi
+    // çoktan ayrılmıştır. Kilit, o istek bitene kadar ikinci üretimi tutar.
     setGenerating(false);
   }, [topicKey]);
 
@@ -95,21 +102,32 @@ export function ExamPrepStudySession({
     : nextOpenTopic(topics);
 
   async function generateLesson() {
-    if (!activeTopic) return;
+    if (!activeTopic || lessonFlight.current) return;
+    const topicId = activeTopic.id;
+    const token = ++lessonToken.current;
+    lessonFlight.current = { topicId, token };
+    setFlightTopicId(topicId);
     setGenerating(true);
+    setGenerateError(null);
+    const stillThisTopic = () =>
+      lessonFlight.current?.token === token && activeTopicId.current === topicId;
     try {
       const res = await fetch("/api/learning/exam-prep/lesson", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prepId,
-          topicId: activeTopic.id,
+          topicId,
           familiarity,
           mood,
         }),
       });
       if (res.status === 402) {
         setPaywall(true);
+        return;
+      }
+      if (!stillThisTopic()) {
+        if (res.ok) router.refresh();
         return;
       }
       const payload = await res.json().catch(() => ({}));
@@ -123,10 +141,15 @@ export function ExamPrepStudySession({
       toast.success("Ders hazır.");
       router.refresh();
     } catch {
+      if (!stillThisTopic()) return;
       setGenerateError("Bağlantı kurulamadı. Lütfen yeniden dene.");
       toast.error("Bağlantı hatası.");
     } finally {
-      setGenerating(false);
+      if (lessonFlight.current?.token === token) {
+        lessonFlight.current = null;
+        setFlightTopicId(null);
+        setGenerating(false);
+      }
     }
   }
 
@@ -199,7 +222,7 @@ export function ExamPrepStudySession({
                 <ExamLessonBody content={lesson.contentMd} />
               )}
             </>
-          ) : generating ? (
+          ) : generating && flightTopicId === activeTopic.id ? (
             <NodeGenerationProgress
               onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
             />
@@ -211,6 +234,7 @@ export function ExamPrepStudySession({
               recommendedTitle={PLAN_NODE_META.lesson.setupLabel}
               blurb={PLAN_NODE_META.lesson.blurb}
               topicLabel={activeTopic.label}
+              busy={flightTopicId !== null}
               error={generateError}
               onFamiliarity={(level) => {
                 setFamiliarity(level);
