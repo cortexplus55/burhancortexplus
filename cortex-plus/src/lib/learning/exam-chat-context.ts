@@ -38,6 +38,11 @@ function daysUntil(examDate: string | null): number | null {
   return Math.round((target.getTime() - start.getTime()) / 86_400_000);
 }
 
+/** Karşılama satırı. Ayrı bir başlık yok; konu ve süre bu cümlede. */
+export function examChatGreeting(prepTitle: string, daysLeft: number | null): string {
+  return `Selam! ${examCountdownLine(prepTitle, daysLeft)}`;
+}
+
 export function examCountdownLine(prepTitle: string, daysLeft: number | null): string {
   if (daysLeft === null) return `${prepTitle} için buradayım.`;
   if (daysLeft < 0) return `${prepTitle} sınavı geçti; tekrar için buradayım.`;
