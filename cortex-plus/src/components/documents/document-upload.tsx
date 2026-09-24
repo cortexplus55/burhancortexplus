@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
 import { isPhotoQuotaError } from "@/lib/documents/process-errors";
+import { DOCUMENT_UPLOAD_HINT } from "@/lib/documents/upload-labels";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { cn } from "@/lib/utils";
 
@@ -161,7 +162,7 @@ export function DocumentUpload({
               isParity ? "text-[var(--cs-muted)]" : "text-muted-foreground",
             )}
           >
-            PDF, TXT ve görsel · en fazla 15 MB
+            {DOCUMENT_UPLOAD_HINT}
             {creditCost !== null ? ` · işleme ${creditCost} kredi` : ""}
             {freePdfCap !== null ? ` · PDF sayfa: ${freePdfCap}` : ""}
             {learningV2

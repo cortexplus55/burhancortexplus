@@ -19,6 +19,7 @@ import {
   homePathForRole,
 } from "@/lib/parity/signup";
 import { DEFAULT_TUTOR_STYLE, type TutorStyle } from "@/lib/learning/tutor-style";
+import { DOCUMENT_ONBOARDING_HINT } from "@/lib/documents/upload-labels";
 import { toast } from "sonner";
 import "@/styles/parity-marketing.css";
 
@@ -309,7 +310,7 @@ export default function OnboardingPage() {
             <p className="onboarding-kicker">Belge</p>
             <h2 className="signup-step-title">Çalışma belgen var mı?</h2>
             <p className="mt-2 text-sm text-[var(--mk-muted)]">
-              PDF veya fotoğraf yükleyerek yalnızca kendi belgenden öğrenebilirsin.
+              {DOCUMENT_ONBOARDING_HINT}
             </p>
             <div className="mk-card mt-6 space-y-2 p-4">
               <OnboardingChoice

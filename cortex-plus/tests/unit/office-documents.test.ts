@@ -209,6 +209,15 @@ describe("yükleme yolu", () => {
     const source = readFileSync(file, "utf8");
     expect(source).toContain(".docx,.pptx");
     expect(source).toContain("wordprocessingml.document");
+    expect(source).toContain("DOCUMENT_UPLOAD_HINT");
+  });
+
+  it("yükleme cümlesi Word ve PowerPoint diyor", () => {
+    const labels = readFileSync("src/lib/documents/upload-labels.ts", "utf8");
+    expect(labels).toContain("Word (.docx)");
+    expect(labels).toContain("PowerPoint (.pptx)");
+    expect(labels).toContain("TXT");
+    expect(labels).toContain("görsel");
   });
 
   /* Model çağrısı yok, kota yok: metin dosyanın içinde zaten duruyor. */
