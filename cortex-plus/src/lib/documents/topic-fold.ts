@@ -567,17 +567,21 @@ export function storedTopicsNeedRefold(
 }
 
 /**
- * Öğrencinin onayladığı ya da elle düzenlediği haritaya dokunulmaz.
- * Yalnızca hazır ve hâlâ şişkin/kutu başlıklı harita yeniden katlanır.
+ * Öğrencinin onayladığı, elle düzenlediği ya da bir hazırlığa bağladığı
+ * haritaya dokunulmaz. Yalnızca hazır ve hâlâ şişkin/kutu başlıklı,
+ * henüz kullanılmamış harita yeniden katlanır.
  */
 export function shouldRewriteStoredTopicMap(input: {
   status: string | null;
   studentEdited: boolean;
+  /** Sınav hazırlığı bu belgenin konu düğümlerine bağlı. */
+  inUse?: boolean;
   topics: { title: string }[];
   pages: FoldPage[];
   pageCount?: number;
 }): boolean {
   if (input.studentEdited) return false;
+  if (input.inUse) return false;
   if (input.status !== "ready") return false;
   return storedTopicsNeedRefold(
     input.topics,

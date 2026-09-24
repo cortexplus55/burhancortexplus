@@ -10,6 +10,7 @@ import {
   consolidateTopics,
   type FoldPage,
 } from "@/lib/documents/topic-fold";
+import { replaceTopicNodes } from "@/lib/documents/topic-map-refold";
 
 export type PdfLearningV2Result = {
   ok: boolean;
@@ -265,13 +266,44 @@ export type TopicMapSnapshot = {
 };
 
 /**
+ * Bu belgenin konu düğümleri bir hazırlığa bağlı mı?
+ *
+ * `exam_prep_topics.document_topic_node_id` silmede NULL olur. Ders,
+ * düğüm ilerlemesi ve tanı o kimliğe bakıyor; düğümü silmek hazırlığı
+ * bozar. Quiz, kart ve çalışma planı bu tabloya bağlı değil.
+ */
+async function documentTopicMapIsInUse(
+  service: SupabaseClient,
+  documentId: string,
+  nodeIds: string[],
+): Promise<boolean> {
+  const { data: preps, error: prepError } = await service
+    .from("exam_preps")
+    .select("id")
+    .eq("document_id", documentId)
+    .limit(1);
+  if (prepError) throw new Error("prep_lookup_failed");
+  if (preps?.length) return true;
+  if (!nodeIds.length) return false;
+
+  const { data: linked, error: linkError } = await service
+    .from("exam_prep_topics")
+    .select("id")
+    .in("document_topic_node_id", nodeIds)
+    .limit(1);
+  if (linkError) throw new Error("prep_topic_lookup_failed");
+  return Boolean(linked?.length);
+}
+
+/**
  * Eski kuralda kaydedilmiş şişkin haritayı, belgeyi yeniden modele
  * göndermeden katlar.
  *
  * Aynı dosya ikinci kez yüklenince eski harita kopyalanmıyor; her yükleme
  * yeni bir belge. Burada düzelen şey o belgenin kendi kaydı: kutu ve adım
  * başlıkları hâlâ duruyorsa öğrenciye gösterilmeden önce ait oldukları
- * bölüme katılıyor. Onaylanmış ya da elle düzenlenmiş harita durur.
+ * bölüme katılıyor. Onaylanmış, elle düzenlenmiş ya da bir hazırlıkta
+ * kullanılan harita durur. Eski düğümler, yenileri yazılmadan silinmez.
  */
 export async function refoldTopicMapIfNeeded(
   service: SupabaseClient,
@@ -279,7 +311,7 @@ export async function refoldTopicMapIfNeeded(
 ): Promise<boolean> {
   const { data: doc } = await service
     .from("documents")
-    .select("topic_map_status")
+    .select("topic_map_status, topic_map_updated_at")
     .eq("id", documentId)
     .maybeSingle();
   if (!doc || doc.topic_map_status !== "ready") return false;
@@ -336,10 +368,13 @@ export async function refoldTopicMapIfNeeded(
     prerequisites: (row.prerequisites as string[] | null) ?? [],
   }));
 
+  const nodeIds = topicRows.map((row) => row.id as string);
+  const inUse = await documentTopicMapIsInUse(service, documentId, nodeIds);
   if (
     !shouldRewriteStoredTopicMap({
       status: (doc.topic_map_status as string | null) ?? null,
       studentEdited: topicRows.some((row) => Boolean(row.is_student_edited)),
+      inUse,
       topics: stored,
       pages: foldPages,
       pageCount: content.length || pages.length,
@@ -372,22 +407,107 @@ export async function refoldTopicMapIfNeeded(
   const pageIdByNumber = new Map(
     pages.map((row) => [row.page_number as number, row.id as string]),
   );
-  await clearTopicMap(service, documentId);
-  await persistTopics(service, documentId, linked, pageIdByNumber);
-  await persistCoverage(
-    service,
-    documentId,
-    buildCoverageReport(analyses, linked, consolidated.mergedTitles),
-  );
-  await service
-    .from("documents")
-    .update({
-      topic_map_status: "ready",
-      topic_map_error: null,
-      topic_map_updated_at: new Date().toISOString(),
-    })
-    .eq("id", documentId);
-  return true;
+  const observedAt = (doc.topic_map_updated_at as string | null) ?? null;
+  const createdIds: string[] = [];
+  const coverage = buildCoverageReport(analyses, linked, consolidated.mergedTitles);
+
+  try {
+    const outcome = await replaceTopicNodes(
+      {
+        claim: async (seenAt) => {
+          let query = service
+            .from("documents")
+            .update({ topic_map_updated_at: new Date().toISOString() })
+            .eq("id", documentId)
+            .eq("topic_map_status", "ready");
+          query = seenAt
+            ? query.eq("topic_map_updated_at", seenAt)
+            : query.is("topic_map_updated_at", null);
+          const { data: claimed, error } = await query.select("id");
+          if (error || !claimed?.length) return false;
+          // Hak alındıktan sonra hazırlık açıldıysa eski düğümler durur.
+          return !(await documentTopicMapIsInUse(service, documentId, nodeIds));
+        },
+        insert: async (index) => {
+          const topic = linked[index];
+          if (!topic) throw new Error("topic_insert_failed");
+          const { data, error } = await service
+            .from("document_topic_nodes")
+            .insert({
+              document_id: documentId,
+              parent_id: null,
+              sort_order: index,
+              title: topic.title,
+              learning_objective: topic.learningObjective,
+              prerequisites: topic.prerequisites,
+              key_definitions: topic.keyDefinitions,
+              key_relations: topic.keyRelations,
+              worked_examples: topic.workedExamples,
+              common_mistakes: topic.commonMistakes,
+              source_exercises: topic.sourceExercises,
+            })
+            .select("id")
+            .single();
+          if (error || !data) throw new Error("topic_insert_failed");
+          for (const pageNumber of topic.pageNumbers) {
+            const pageId = pageIdByNumber.get(pageNumber);
+            if (!pageId) continue;
+            const { error: linkError } = await service
+              .from("document_topic_page_links")
+              .insert({
+                document_id: documentId,
+                topic_id: data.id,
+                page_id: pageId,
+                page_number: pageNumber,
+                relevance: "primary",
+              });
+            if (linkError) throw new Error("topic_link_failed");
+          }
+          createdIds.push(data.id as string);
+          return data.id as string;
+        },
+        deleteIds: async (ids) => {
+          if (!ids.length) return;
+          const { error } = await service
+            .from("document_topic_nodes")
+            .delete()
+            .eq("document_id", documentId)
+            .in("id", ids);
+          if (error) throw new Error("topic_delete_failed");
+        },
+        beforeDeleteOld: async () => {
+          // Yazma sırasında hazırlık bağlandıysa, bağlandığı düğüm silinmez.
+          const { data: preps, error: prepError } = await service
+            .from("exam_preps")
+            .select("id")
+            .eq("document_id", documentId)
+            .limit(1);
+          if (prepError) throw new Error("prep_lookup_failed");
+          const watched = [...nodeIds, ...createdIds];
+          const { data: linked, error: linkError } = watched.length
+            ? await service
+                .from("exam_prep_topics")
+                .select("document_topic_node_id")
+                .in("document_topic_node_id", watched)
+            : { data: [], error: null };
+          if (linkError) throw new Error("prep_topic_lookup_failed");
+          const referenced = new Set(
+            (linked ?? []).map((row) => row.document_topic_node_id as string),
+          );
+          if (createdIds.some((id) => referenced.has(id))) return "keep";
+          if (preps?.length || nodeIds.some((id) => referenced.has(id))) return "rollback";
+          return "commit";
+        },
+      },
+      { observedAt, oldIds: nodeIds, count: linked.length },
+    );
+    if (outcome !== "replaced") return false;
+    await persistCoverage(service, documentId, coverage);
+    return true;
+  } catch {
+    // Eski düğümler silinmeden hata olduysa harita duruyor.
+    return false;
+  }
 }
 
 export async function loadTopicMapSnapshot(

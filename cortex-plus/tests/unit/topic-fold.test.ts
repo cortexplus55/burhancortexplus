@@ -356,5 +356,14 @@ describe("stored topic map from before the fold", () => {
         pages: PDF_A_PAGES,
       }),
     ).toBe(false);
+    expect(
+      shouldRewriteStoredTopicMap({
+        status: "ready",
+        studentEdited: false,
+        inUse: true,
+        topics: stored,
+        pages: PDF_A_PAGES,
+      }),
+    ).toBe(false);
   });
 });
