@@ -207,7 +207,7 @@ export function ParityMarketingPage({
     <div className={shellClass}>
       <ParitySiteHeader />
       <CinematicScrollReveal>
-        <main className="flex-1">
+        <main className="min-w-0 flex-1">
           {title && variant === "marketing" ? (
             <CinematicPageHero title={title} description={description} />
           ) : null}

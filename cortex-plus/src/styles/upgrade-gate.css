@@ -285,10 +285,56 @@
   background: rgba(244, 174, 11, 0.08);
 }
 
-/* MOBILE_AUDIT_POLISH: sabit composer altinda kart mesajlari orter */
+/*
+  Mobil boş sohbet: kart sabit yığının içinde, ders çipinin üstünde durur.
+  Sohbet başladıktan sonra kart composer'dan çıkar; üstteki "Satın al" yeter.
+  Kartı tamamen gizlemek, hero kopyasının composer'ın altında kalmasına
+  yol açıyordu — "Plus'a yükselt" ders çipi ve yazı kutusunun altında kalıyordu.
+*/
 @media (max-width: 640px) {
-  .cp-sor-composer-zone .ug-aside {
+  .cp-sor-composer-zone .cp-sor-composer-upgrade:not(.cp-sor-composer-upgrade--empty-deferred) .ug-aside {
     display: none !important;
+  }
+
+  .cp-sor-composer-upgrade--empty-deferred .ug-aside {
+    display: grid !important;
+    flex: none;
+    align-self: stretch;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 0.75rem;
+    row-gap: 0.15rem;
+    align-items: center;
+    padding: 0.75rem 0.9rem;
+  }
+
+  .cp-sor-composer-upgrade--empty-deferred .ug-aside-brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .cp-sor-composer-upgrade--empty-deferred .ug-aside-title {
+    grid-column: 1;
+    grid-row: 2;
+    margin: 0;
+  }
+
+  .cp-sor-composer-upgrade--empty-deferred .ug-aside-blurb {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    margin: 0.2rem 0 0;
+  }
+
+  .cp-sor-composer-upgrade--empty-deferred .ug-aside-cta {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    margin: 0;
+    min-height: 44px;
+    padding: 0.55rem 0.9rem;
+    white-space: nowrap;
   }
 }
 
