@@ -14,6 +14,7 @@ import {
   isScaffoldHeading,
   lessonV2Schema,
   validateLessonPedagogy,
+  validateLessonV2,
   validateOralPedagogy,
   validatePodcastPedagogy,
   validateQuizPedagogy,
@@ -451,6 +452,7 @@ describe("scaffold headings keep leaking", () => {
       "Uygulama",
       "Tanım",
       "Özet",
+      "Bölüm 1",
     ]) {
       expect(isScaffoldHeading(heading)).toBe(true);
     }
@@ -465,6 +467,177 @@ describe("scaffold headings keep leaking", () => {
     ]) {
       expect(isScaffoldHeading(heading)).toBe(false);
     }
+  });
+});
+
+describe("validateLessonV2 is the publish gate", () => {
+  const section = (
+    heading: string,
+    check: {
+      type: "mcq" | "trueFalse";
+      prompt: string;
+      options: string[];
+      answerIndex: number;
+      explanation: string;
+    },
+  ) => ({
+    heading,
+    body: "Açı **derece** veya **radyan** ile ölçülür ve yay uzunluğuna bağlanır.",
+    check,
+  });
+
+  const sound = {
+    title: "Birim çember",
+    objective: "Özel açıların koordinatını çemberden okuyabileceksin.",
+    overview: "Birim çemberin yarıçapı 1'dir; açı, eksenle yaptığı yayı sayar.",
+    sections: [
+      section("Açı Ölçüsü Neyi Sayar", {
+        type: "mcq",
+        prompt: "Radyan neyi ölçer?",
+        options: ["Yay uzunluğunu", "Alan", "Çevre"],
+        answerIndex: 0,
+        explanation: "Alan bir yüzey ölçüsüdür; radyan yay uzunluğunu sayar.",
+      }),
+      section("Koordinat Nasıl Okunur", {
+        type: "trueFalse",
+        prompt: "Önce koordinat, sonra yön okunur.",
+        options: ["Doğru", "Yanlış"],
+        answerIndex: 1,
+        explanation: "Sıra tersidir: önce yön, sonra koordinat okunur.",
+      }),
+      section("Sinüs ve Kosinüsü Ayırt Etmek", {
+        type: "mcq",
+        prompt: "x koordinatı hangisidir?",
+        options: ["cos θ", "sin θ", "tan θ"],
+        answerIndex: 0,
+        explanation: "sin θ y koordinatıdır; x koordinatı cos θ'dır.",
+      }),
+    ],
+    example: {
+      prompt: "90° noktası neresi?",
+      solution: "90° yukarıdadır, bu yüzden x 0 ve y 1 olur.",
+    },
+    commonMistake: {
+      claim: "sin ve cos yer değiştirir",
+      correction: "x = cos θ, y = sin θ",
+    },
+    infoCheck: { prompt: "0° noktası neresidir?", answer: "(1, 0)" },
+    summary: ["Yarıçap 1", "x=cos, y=sin"],
+    nextFocus: ["Özel açılar"],
+  };
+
+  it("accepts a lesson with a check and explanation on every section", () => {
+    expect(validateLessonV2(sound)).toEqual([]);
+  });
+
+  it("rejects a section that has no inline check", () => {
+    const broken = {
+      ...sound,
+      sections: sound.sections.map((item, index) =>
+        index === 2 ? { heading: item.heading, body: item.body } : item,
+      ),
+    };
+    expect(validateLessonV2(broken).some((issue) => issue.includes("kontrolü yok"))).toBe(
+      true,
+    );
+  });
+
+  it("rejects an explanation that only restates the correct option", () => {
+    const broken = {
+      ...sound,
+      sections: [
+        {
+          ...sound.sections[0],
+          check: {
+            ...sound.sections[0].check,
+            explanation: "Doğru yanıt yay uzunluğudur.",
+          },
+        },
+        sound.sections[1],
+        sound.sections[2],
+      ],
+    };
+    expect(
+      validateLessonV2(broken).some((issue) => issue.includes("çürütmüyor")),
+    ).toBe(true);
+  });
+
+  it("rejects a section without a bold exam term and a bare answer", () => {
+    const plain = {
+      ...sound,
+      sections: sound.sections.map((item, index) =>
+        index === 0
+          ? { ...item, body: "Açı derece veya radyan ile ölçülür ve yay uzunluğuna bağlanır." }
+          : item,
+      ),
+      example: { prompt: "90° noktası neresi?", solution: "Sonuç (0, 1) olur." },
+    };
+    const issues = validateLessonV2(plain);
+    expect(issues.some((issue) => issue.includes("koyu değil"))).toBe(true);
+    expect(issues.some((issue) => issue.includes("gerekçeli"))).toBe(true);
+  });
+
+  it("rejects a numbered chapter heading", () => {
+    const numbered = {
+      ...sound,
+      sections: sound.sections.map((item, index) =>
+        index === 2 ? { ...item, heading: "Bölüm 1" } : item,
+      ),
+    };
+    expect(validateLessonV2(numbered).length).toBeGreaterThan(0);
+  });
+});
+
+describe("quiz tag and distractor gate", () => {
+  it("requires a misconception tag and a refutation when the exam gate is on", () => {
+    const question: QuizQuestion = {
+      text: "90° noktasının y koordinatı nedir?",
+      options: ["bir", "sıfır", "eksi"],
+      correct: ["bir"],
+      multi: false,
+      explanation: "90° yukarıdadır. Sıfır yatay eksendedir, y değeri değildir.",
+      learningObjective: "Özel açıyı okumak",
+    };
+    expect(
+      validateQuizPedagogy([question], {
+        requireMisconceptionTag: true,
+        requireDistractorRefutation: true,
+      }).some((issue) => issue.includes("misconceptionTag")),
+    ).toBe(true);
+    expect(
+      validateQuizPedagogy(
+        [{ ...question, misconceptionTag: "sin_cos_swap" }],
+        { requireMisconceptionTag: true, requireDistractorRefutation: true },
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("true/false exam gate", () => {
+  it("requires the tag and an explanation that uses the correction", () => {
+    const weak = {
+      text: "Pi tam olarak 22/7'ye eşittir.",
+      correct: false,
+      explanation: "Bu ifade yanlıştır.",
+      correctedStatement: "Pi yaklaşık 22/7 değerindedir.",
+      misconceptionTag: "pi_fraction",
+    };
+    expect(
+      validateTrueFalsePedagogy([weak], { requireMisconceptionTag: true }).some((issue) =>
+        issue.includes("çürütmüyor"),
+      ),
+    ).toBe(true);
+    expect(
+      validateTrueFalsePedagogy(
+        [
+          {
+            ...weak,
+            explanation: "22/7 bir kesirdir; pi yalnızca yaklaşık o değere yakındır.",
+          },
+        ],
+        { requireMisconceptionTag: true },
+      ),
+    ).toEqual([]);
   });
 });
 

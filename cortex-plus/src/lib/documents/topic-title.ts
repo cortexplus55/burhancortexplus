@@ -41,6 +41,24 @@ export function targetTopicCount(contentPageCount: number): number {
 }
 
 /**
+ * Konu sayısı sayfa kotası değildir.
+ *
+ * `targetTopicCount` yalnızca listenin okunabilir üst sınırıdır.
+ * 10 sayfalık bir not 6 konu, 20 sayfalık bir not 8 konu çıkarabilir:
+ * artış sayfa sayısına bire bir bağlı değildir, belgedeki ayrı
+ * sınanabilir kavram kümelerine bağlıdır.
+ */
+export function topicScopeGuidance(contentPageCount: number): string {
+  const ceiling = targetTopicCount(contentPageCount);
+  return (
+    "Konu sayısı sayfa sayısına bölünerek üretilmez. " +
+    "Her konu, belgede tek başına sınanabilecek ayrı bir içerik kümesidir. " +
+    "Sayfa sayısı artsa bile yeni konu ancak yeni bir kavram kümesi varsa eklenir. " +
+    `Yaklaşık ${ceiling} okunabilir bir üst sınırdır, doldurulacak kota değil.`
+  );
+}
+
+/**
  * Başlığı ev stiline çeker: numara ve sondaki parantezli kısaltma atılır,
  * fazladan boşluk toplanır. Kelimelere dokunmaz — anlamı değiştirmek
  * modelin işi, temizlik bizim.

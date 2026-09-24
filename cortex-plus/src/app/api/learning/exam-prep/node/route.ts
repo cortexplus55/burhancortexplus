@@ -19,12 +19,14 @@ import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import { trueFalseItemsSchema, TRUE_FALSE_FORMAT } from "@/lib/learning/true-false";
 import {
+  contentDifficultyLine,
   parseFamiliarity,
   parseMood,
   sessionSignalsPrompt,
   type Familiarity,
   type Mood,
 } from "@/lib/learning/session-signals";
+import { QA_TEACHER_PROMPT } from "@/lib/learning/tutor-style";
 import {
   normalizeQuizQuestion,
   publicQuizQuestion,
@@ -47,9 +49,10 @@ import {
   validateOralPedagogy,
   validatePodcastPedagogy,
   validateTrueFalsePedagogy,
-  validateLessonPedagogy,
-  dropScaffoldSections,
+  validateLessonV2,
+  prepareLessonDraft,
   lessonV2Schema,
+  LESSON_V2_SCHEMA_HINT,
   type LessonV2,
   type SessionTeachingMeta,
 } from "@/lib/learning/teaching-standards";
@@ -169,7 +172,9 @@ export async function POST(request: Request) {
 
   const { data: prep } = await service
     .from("exam_preps")
-    .select("id, title, exam_type, active_topic_id, target_score, learning_preferences")
+    .select(
+      "id, title, exam_type, active_topic_id, target_score, learning_preferences, hard_topics_self",
+    )
     .eq("id", prepId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -189,12 +194,12 @@ export async function POST(request: Request) {
   const { data: topic } = prep.active_topic_id
     ? await service
         .from("exam_prep_topics")
-        .select("id, label")
+        .select("id, label, measured_level")
         .eq("id", prep.active_topic_id)
         .maybeSingle()
     : await service
         .from("exam_prep_topics")
-        .select("id, label")
+        .select("id, label, measured_level")
         .eq("exam_prep_id", prepId)
         .order("sort_order")
         .limit(1)
@@ -812,7 +817,23 @@ export async function POST(request: Request) {
           kind,
           prepTitle: prep.title ?? "Hazırlık",
           topicLabel,
-          difficulty,
+          difficulty: teachingV2
+            ? contentDifficultyLine({
+                requested: difficulty,
+                familiarity,
+                focusTopic: (Array.isArray(prep.hard_topics_self)
+                  ? (prep.hard_topics_self as string[])
+                  : []
+                ).some(
+                  (label) =>
+                    label.trim().toLocaleLowerCase("tr") ===
+                    topicLabel.trim().toLocaleLowerCase("tr"),
+                ),
+                measuredLevel:
+                  (topic as { measured_level?: string | null } | null)
+                    ?.measured_level ?? null,
+              })
+            : difficulty,
           familiarity,
           mood,
           sourceBlock: source.block,
@@ -1157,12 +1178,14 @@ async function generateNodePayload(input: {
           ).length
         : 0;
     // Kaynaktan gelen omurga kaç bölüm diyorsa doğrulayıcı da onu ister.
-    const minSections = useBackbone ? Math.max(2, backbone.length) : 3;
-    const backbonePrompt = useBackbone
-      ? ` BÖLÜMLER KAYNAĞIN KENDİ ALT BAŞLIKLARI: sırayla ${backbone
-          .map((heading, i) => `${i + 1}) ${heading}`)
-          .join(" ")}. Bu başlıkları kullan; birini atlama, kendinden yeni bölüm ekleme.`
-      : "";
+    const minSections = useBackbone ? Math.max(3, backbone.length) : 3;
+    const backbonePrompt = !useBackbone
+      ? ""
+      : backbone.length >= 3
+        ? ` BÖLÜMLER KAYNAĞIN KENDİ ALT BAŞLIKLARI: sırayla ${backbone
+            .map((heading, i) => `${i + 1}) ${heading}`)
+            .join(" ")}. Bu başlıkları kullan; birini atlama, kendinden yeni bölüm ekleme.`
+        : ` Kaynağın alt başlıkları: ${backbone.join(", ")}. İkisini de kapsa ve kavramları en az 3 bölüme ayır.`;
     // Çizim "isteğe bağlı" kaldığı sürece model hiç çizmiyor.
     const wantsDiagram = needsDiagram(input.topicLabel, ...backbone);
     // Soyut bir "çizim koy" talimatını model atlıyordu; somut bir örnek
@@ -1187,22 +1210,19 @@ async function generateNodePayload(input: {
       isPremium: input.isPremium,
       difficulty: "hard",
       ...v2Common,
-      buildIndependent: (_c, parsed) => ({
-        pedagogyIssues: validateLessonPedagogy(parsed, { minSections }),
-        ...sourceIndependent,
-      }),
+      allowIndependentAccept: false,
+      buildIndependent: (_c, parsed) => {
+        const cleaned = prepareLessonDraft(parsed);
+        return {
+          pedagogyIssues: cleaned
+            ? validateLessonV2(cleaned, { minSections })
+            : ["Ders v2 şemasını karşılamıyor (hedef, bölümler, örnek, yaygın hata, bilgi kontrolü)."],
+          ...sourceIndependent,
+        };
+      },
       schemaHint:
-        'JSON: {"title":string,"objective":string,"overview":string,' +
-        '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"note":{"title":string,"body":string},"diagram":{"caption":string,"shapes":[...]}}],' +
-        '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
-        '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
-        (useBackbone
-          ? `${backbone.length} bölüm (aşağıda sayılan başlıklar). `
-          : "3-6 bölüm; ") +
-        "en az iki bölümde check olsun. note isteğe bağlı: yalnızca " +
-        "karıştırılması kolay bir ayrımın olduğu bölüme koy. " +
-        // Çizimi model tarif ediyor, SVG'yi biz kuruyoruz: modelden gelen
-        // metin hiçbir zaman işaretleme olarak yorumlanmıyor.
+        LESSON_V2_SCHEMA_HINT +
+        " note isteğe bağlı. " +
         (wantsDiagram
           ? "diagram ZORUNLU: en az bir bölüme koy. "
           : "diagram isteğe bağlı ve YALNIZCA şekille anlaşılan konular için: " +
@@ -1219,7 +1239,7 @@ async function generateNodePayload(input: {
       describeParseFailure: () => lastParseIssues,
       parse: (raw) => {
         lastParseIssues = [];
-        const raw2 = lessonV2Schema.safeParse(raw).data ?? null;
+        const raw2 = prepareLessonDraft(raw);
         if (!raw2) return null;
         /**
          * ÖNCE TEMİZLE, SONRA DOĞRULA.
@@ -1235,9 +1255,9 @@ async function generateNodePayload(input: {
          * bir taslağı saklamıyor, TAMAMEN GEÇEN en iyi taslağı saklıyor.
          * Hiçbiri geçmezse ders yayına çıkmaz.
          */
-        const parsed = dropScaffoldSections(raw2);
+        const parsed = raw2;
         const missing = missingSections(parsed);
-        const pedagoji = validateLessonPedagogy(parsed, { minSections });
+        const pedagoji = validateLessonV2(parsed, { minSections });
         if (pedagoji.length) {
           lastParseIssues = pedagoji;
           return null;
@@ -1345,7 +1365,7 @@ async function generateNodePayload(input: {
       sourcePages: input.sessionMeta?.sourcePages,
       idempotencyKey: input.idempotencyKey,
       userPrompt: input.teachingV2
-        ? `${ctx} 5 alıştırma sorusu (intro Q&A standardı). Tek kavramdan başla; en az 1 soruda kademeli ipucu için explanation'da ilk adımı ver. En az 1 multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
+        ? `${QA_TEACHER_PROMPT} ${ctx} 5 alıştırma sorusu. Tek kavramdan başla; en az 1 soruda explanation ilk adımı ipucu olarak versin. multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
         : `${ctx} 5 çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,
     });
     if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
@@ -1535,7 +1555,9 @@ async function generateNodePayload(input: {
             const data = tfSchema.safeParse(parsed).data;
             return {
               pedagogyIssues: data
-                ? validateTrueFalsePedagogy(data.items)
+                ? validateTrueFalsePedagogy(data.items, {
+                    requireMisconceptionTag: input.teachingV2,
+                  })
                 : ["Doğru/yanlış şeması geçersiz."],
               minItems: 5,
               ...sourceIndependent,
@@ -1550,7 +1572,9 @@ async function generateNodePayload(input: {
         const data = tfSchema.safeParse(raw).data ?? null;
         if (!data) return null;
         if (input.teachingV2) {
-          const issues = validateTrueFalsePedagogy(data.items);
+          const issues = validateTrueFalsePedagogy(data.items, {
+            requireMisconceptionTag: input.teachingV2,
+          });
           if (issues.length) return null;
         }
         return data;

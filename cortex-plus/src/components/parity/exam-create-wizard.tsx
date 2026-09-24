@@ -13,18 +13,14 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import type { StudyModality } from "@/lib/learning/exam-prep-ui-path";
 import {
-  buildExamPlan,
-  daysUntilExam,
-  PLAN_NODE_META,
-  type PlanNodeDraft,
-} from "@/lib/learning/exam-prep-plan";
-import {
-  groupNodesByPhase,
-  projectedReadiness,
-} from "@/lib/learning/exam-plan-phases";
+  DOCUMENT_ANALYSIS_STAGES,
+  STUDY_MODALITY_CHOICES,
+  WIZARD_COPY,
+  WIZARD_STEP_ORDER,
+} from "@/lib/learning/exam-wizard-copy";
 import { CreditGate } from "@/components/paywall/credit-gate";
-import { ExamSetupChat } from "@/components/parity/exam-setup-chat";
 import { COMMON_SUBJECTS } from "@/lib/learning/subjects";
 import "@/styles/exam-create-wizard.css";
 
@@ -36,30 +32,15 @@ type Step =
   | "material"
   | "language"
   | "building"
+  | "shaping"
   | "topics"
-  | "setup"
+  | "modality"
+  | "focus"
   | "plan";
 
-const STEP_ORDER: Step[] = [
-  "start",
-  "subject",
-  "date",
-  "target",
-  "material",
-  "language",
-  "building",
-  "topics",
-  "setup",
-  "plan",
-];
-
-
-const BUILD_STAGES = [
-  "Sayfalar okunuyor",
-  "Konular çıkarılıyor",
-  "Seviyene göre sıraya diziliyor",
-  "Materyalinle karşılaştırılıyor",
-];
+const STEP_ORDER: Step[] = [...WIZARD_STEP_ORDER];
+const BUILD_STAGES = [...DOCUMENT_ANALYSIS_STAGES];
+const MODALITIES: { id: StudyModality; label: string }[] = STUDY_MODALITY_CHOICES;
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -133,15 +114,13 @@ export function ExamCreateWizard({
   const [examDate, setExamDate] = useState("");
   const [target, setTarget] = useState(75);
   const [language, setLanguage] = useState<"tr" | "en">("tr");
-  // Belge okunduktan sonra sorulan üç soru. Karşılıkları zaten vardı ama
-  // kimse doldurmuyordu: learning_preferences boş kayıt ediliyor,
-  // source_boundary_mode her belgede documents_only'de kalıyordu.
-  const [prefStyle, setPrefStyle] = useState<"theory" | "examples" | "mixed">("mixed");
-  const [dailyMinutes, setDailyMinutes] = useState(45);
-  const [prefNotes, setPrefNotes] = useState("");
+  const [modality, setModality] = useState<StudyModality>("auto");
+  /** true: tüm konulara eşit. false: focusTopics seçili. */
+  const [equalFocus, setEqualFocus] = useState(true);
 
   const [documentId, setDocumentId] = useState<string | null>(initialDocumentId);
   const [documentName, setDocumentName] = useState<string | null>(null);
+  const [documentBytes, setDocumentBytes] = useState<number | null>(null);
   const [docs, setDocs] = useState<{ id: string; fileName: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -152,19 +131,14 @@ export function ExamCreateWizard({
   /** Her konunun dayandığı sayfalar; öğrenci neye dayandığını görsün. */
   const [topicPages, setTopicPages] = useState<number[][]>([]);
   const [focusTopics, setFocusTopics] = useState<string[]>([]);
-  const [newTopic, setNewTopic] = useState("");
   const [title, setTitle] = useState("");
 
   const [starting, setStarting] = useState(false);
+  const [planning, setPlanning] = useState(false);
   const [paywall, setPaywall] = useState(false);
-
-  const days = examDate ? daysUntilExam(examDate) : 0;
-  const preview: PlanNodeDraft[] = useMemo(
-    () => (days ? buildExamPlan(days) : []),
-    [days],
-  );
-  const phases = useMemo(() => groupNodesByPhase(preview), [preview]);
-  const projected = projectedReadiness(0, target, days);
+  const planTimer = useRef<number | null>(null);
+  const shapeTimer = useRef<number | null>(null);
+  const alive = useRef(true);
 
   useEffect(() => {
     void fetch("/api/documents")
@@ -179,13 +153,43 @@ export function ExamCreateWizard({
       .catch(() => {});
   }, [initialDocumentId]);
 
-  const stepIndex = STEP_ORDER.indexOf(step);
+  useEffect(
+    () => () => {
+      alive.current = false;
+      if (planTimer.current) window.clearTimeout(planTimer.current);
+      if (shapeTimer.current) window.clearTimeout(shapeTimer.current);
+    },
+    [],
+  );
+
+  const progressStep =
+    step === "building" || step === "shaping" ? "language" : step;
+  const stepIndex = Math.max(0, STEP_ORDER.indexOf(progressStep));
   const progress = ((stepIndex + 1) / STEP_ORDER.length) * 100;
 
   function goBack() {
+    if (planning) {
+      if (planTimer.current) window.clearTimeout(planTimer.current);
+      setPlanning(false);
+      return;
+    }
+    if (step === "building" || step === "shaping") {
+      if (shapeTimer.current) window.clearTimeout(shapeTimer.current);
+      setStep("language");
+      return;
+    }
     const index = STEP_ORDER.indexOf(step);
     if (index <= 0) return;
     setStep(STEP_ORDER[index - 1]);
+  }
+
+  function openPlan() {
+    setPlanning(true);
+    if (planTimer.current) window.clearTimeout(planTimer.current);
+    planTimer.current = window.setTimeout(() => {
+      setPlanning(false);
+      setStep("plan");
+    }, 700);
   }
 
   const runIntake = useCallback(
@@ -211,8 +215,13 @@ export function ExamCreateWizard({
         setTopics([]);
       } finally {
         clearInterval(ticker);
+        if (!alive.current) return;
         setBuildStage(BUILD_STAGES.length - 1);
-        setStep("topics");
+        setStep("shaping");
+        if (shapeTimer.current) window.clearTimeout(shapeTimer.current);
+        shapeTimer.current = window.setTimeout(() => {
+          if (alive.current) setStep("topics");
+        }, 700);
       }
     },
     [subject],
@@ -262,6 +271,7 @@ export function ExamCreateWizard({
       }
       setDocumentId(uploaded.documentId);
       setDocumentName(file.name);
+      setDocumentBytes(file.size);
       toast.success("Materyalin hazır.", {
         description: processed.notice ?? undefined,
       });
@@ -286,11 +296,16 @@ export function ExamCreateWizard({
           examDate,
           targetScore: target,
           documentId: documentId ?? undefined,
-          hardTopics: focusTopics,
-          dailyMinutes,
+          hardTopics: equalFocus ? [] : focusTopics,
           learningPreferences: {
-            style: prefStyle,
-            ...(prefNotes ? { notes: prefNotes } : {}),
+            style:
+              modality === "reading"
+                ? "theory"
+                : modality === "practice"
+                  ? "examples"
+                  : "mixed",
+            modality,
+            language,
           },
         }),
       });
@@ -325,7 +340,7 @@ export function ExamCreateWizard({
         <div className="apw-progress-fill" style={{ width: `${progress}%` }} />
       </div>
 
-      {stepIndex > 0 && step !== "building" ? (
+      {stepIndex > 0 && step !== "building" && step !== "shaping" ? (
         <button type="button" className="apw-back" onClick={goBack}>
           <ChevronLeft className="h-4 w-4" aria-hidden /> Geri
         </button>
@@ -467,7 +482,7 @@ export function ExamCreateWizard({
             className="apw-cta"
             onClick={() => setStep("material")}
           >
-            Devam et
+            {WIZARD_COPY.continue}
           </button>
         </section>
       ) : null}
@@ -519,13 +534,18 @@ export function ExamCreateWizard({
           {documentId ? (
             <div className="apw-doc-chip">
               <FileText className="h-4 w-4" aria-hidden />
-              <span>{documentName ?? "Seçili materyal"}</span>
+              <span>
+                {documentName ?? "Seçili materyal"}
+                {documentBytes ? ` · ${formatBytes(documentBytes)}` : ""}
+              </span>
+              <Check className="h-4 w-4 shrink-0" aria-hidden />
               <button
                 type="button"
                 aria-label="Materyali kaldır"
                 onClick={() => {
                   setDocumentId(null);
                   setDocumentName(null);
+                  setDocumentBytes(null);
                 }}
               >
                 <X className="h-4 w-4" aria-hidden />
@@ -568,7 +588,7 @@ export function ExamCreateWizard({
             disabled={!documentId || uploading}
             onClick={() => setStep("language")}
           >
-            Devam et
+            {WIZARD_COPY.continue}
           </button>
           <button type="button" className="apw-ghost" onClick={onUseChat}>
             Materyalim yok — konuşarak kuralım
@@ -578,7 +598,7 @@ export function ExamCreateWizard({
 
       {step === "language" ? (
         <section className="apw-step">
-          <h1>İçerik dili</h1>
+          <h1>{WIZARD_COPY.languageTitle}</h1>
           <p className="apw-lead">
             Dersler, sorular ve podcast bu dilde hazırlanır.
           </p>
@@ -607,15 +627,15 @@ export function ExamCreateWizard({
             className="apw-cta"
             onClick={() => documentId && void runIntake(documentId)}
           >
-            Planı hazırla
+            {WIZARD_COPY.continue}
           </button>
         </section>
       ) : null}
 
       {step === "building" ? (
         <section className="apw-step apw-step--center">
-          <h1>Planın hazırlanıyor</h1>
-          <p className="apw-lead">Bu bir dakika sürebilir.</p>
+          <h1>{WIZARD_COPY.analyzing}</h1>
+          <p className="apw-lead">Konular materyalinin kapsamından çıkarılıyor.</p>
           <ul className="apw-stages">
             {BUILD_STAGES.map((label, index) => (
               <li
@@ -632,179 +652,142 @@ export function ExamCreateWizard({
         </section>
       ) : null}
 
-      {step === "topics" ? (
+      {step === "shaping" ? (
+        <section className="apw-step apw-step--center">
+          <h1>{WIZARD_COPY.shapingTitle}</h1>
+          <p className="apw-lead">{WIZARD_COPY.shapingLead}</p>
+        </section>
+      ) : null}
+
+      {planning ? (
+        <section className="apw-step apw-step--center">
+          <h1>Sıradaki soruyu hazırlıyor...</h1>
+          <p className="apw-lead">Planın {topics.length} konuyla kuruluyor.</p>
+        </section>
+      ) : null}
+
+      {!planning && step === "topics" ? (
         <section className="apw-step">
           <h1>
-            {topics.length
-              ? `Materyalinde ${topics.length} konu buldum — hangisinde zorlanıyorsun?`
-              : "Konuları birlikte yazalım"}
+            {topics.length ? "Konuları düzenle" : "Konuları birlikte yazalım"}
           </h1>
           <p className="apw-lead">
-            İşaretlediklerine plan daha çok yer ayırır. Yanlış olanı düzelt,
-            eksik olanı ekle.
+            Yanlış olanı değiştir, eksik olanı ekle.
           </p>
-          <ul className="apw-topics">
-            {topics.map((topic, index) => (
-              <li key={`${topic}-${index}`}>
-                <button
-                  type="button"
-                  className={
-                    focusTopics.includes(topic)
-                      ? "apw-focus apw-focus--on"
-                      : "apw-focus"
-                  }
-                  aria-pressed={focusTopics.includes(topic)}
-                  aria-label={`${topic} — zorlandığım konu`}
-                  onClick={() =>
-                    setFocusTopics((prev) =>
-                      prev.includes(topic)
-                        ? prev.filter((t) => t !== topic)
-                        : [...prev, topic],
-                    )
-                  }
-                >
-                  {focusTopics.includes(topic) ? "Zor" : "•"}
-                </button>
-                <span className="apw-topic-field">
-                  <input
-                    value={topic}
-                    aria-label={`${index + 1}. konu`}
-                    onChange={(e) =>
-                      setTopics((prev) =>
-                        prev.map((t, i) => (i === index ? e.target.value : t)),
-                      )
-                    }
-                  />
-                  {topicPages[index]?.length ? (
-                    <em>Kaynak: s.{topicPages[index].join(", ")}</em>
-                  ) : null}
-                </span>
-                <button
-                  type="button"
-                  aria-label={`${topic} konusunu kaldır`}
-                  onClick={() =>
-                    setTopics((prev) => prev.filter((_, i) => i !== index))
-                  }
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                </button>
-              </li>
-            ))}
-          </ul>
-          <div className="apw-topic-add">
-            <input
-              value={newTopic}
-              placeholder="Konu ekle"
-              aria-label="Yeni konu"
-              onChange={(e) => setNewTopic(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key !== "Enter") return;
-                e.preventDefault();
-                if (!newTopic.trim()) return;
-                setTopics((prev) => [...prev, newTopic.trim()]);
-                setNewTopic("");
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => {
-                if (!newTopic.trim()) return;
-                setTopics((prev) => [...prev, newTopic.trim()]);
-                setNewTopic("");
-              }}
-            >
-              <Plus className="h-4 w-4" aria-hidden /> Ekle
-            </button>
-          </div>
+          <TopicEditor
+            topics={topics}
+            topicPages={topicPages}
+            onTopics={setTopics}
+            onPages={setTopicPages}
+            onRename={(from, to) =>
+              setFocusTopics((prev) =>
+                prev
+                  .map((item) => (item === from ? to : item))
+                  .filter((item) => item.trim().length > 0),
+              )
+            }
+          />
           <button
             type="button"
             className="apw-cta"
             disabled={!topics.length}
-            onClick={() => setStep("setup")}
+            onClick={() => setStep("modality")}
           >
-            Devam et
+            {WIZARD_COPY.continue}
           </button>
         </section>
       ) : null}
 
-      {step === "setup" ? (
-        <ExamSetupChat
-          onDone={(answers) => {
-            setPrefStyle(answers.style);
-            setDailyMinutes(answers.dailyMinutes);
-            setPrefNotes(answers.notes);
-            // Kaynak sınırı belgenin kendi ayarı; plan kurulmadan yazılıyor
-            // ki ilk ders de bu sınırla üretilsin. Yazılamazsa plan yine
-            // kurulur — sınır varsayılanda (yalnızca belge) kalır.
-            if (documentId) {
-              void fetch(`/api/documents/${documentId}/topic-map`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  sourceBoundaryMode: answers.onlyMyFiles
-                    ? "documents_only"
-                    : "allow_supporting",
-                }),
-              }).catch(() => {});
-            }
-            setStep("plan");
-          }}
-        />
-      ) : null}
-
-      {step === "plan" ? (
+      {!planning && step === "modality" ? (
         <section className="apw-step">
-          <p className="apw-kicker">{longLabel(examDate)} · sınava {days} gün</p>
-          <h1>Sınava kadar yolun</h1>
-
-          <div className="apw-readiness">
-            <div>
-              <span className="apw-readiness-num">%0</span>
-              <span className="apw-readiness-label">bugün</span>
-            </div>
-            <div className="apw-readiness-track" aria-hidden>
-              <div
-                className="apw-readiness-fill"
-                style={{ width: `${projected}%` }}
-              />
-            </div>
-            <div>
-              <span className="apw-readiness-num">%{projected}</span>
-              <span className="apw-readiness-label">sınav günü</span>
-            </div>
-          </div>
-          <p className="apw-readiness-note">
-            Planı tamamlarsan beklenen hazırlık düzeyin. Tahmindir, garanti değil.
+          <h1>{WIZARD_COPY.modalityTitle}</h1>
+          <p className="apw-lead">
+            Ders, podcast ve pratik bu tercihe göre sıralanır.
           </p>
-
-          <ol className="apw-phases">
-            {phases.map(({ phase, nodes }) => (
-              <li key={phase.id}>
-                <h2>{phase.title}</h2>
-                <p>{phase.blurb}</p>
-                {nodes.length ? (
-                  <ul>
-                    {[...new Set(nodes.map((n) => n.kind))].map((kind) => (
-                      <li key={kind}>{PLAN_NODE_META[kind].title}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <ul>
-                    <li>Tanışma testi</li>
-                    <li>Seviyene göre ilk ders</li>
-                  </ul>
-                )}
-              </li>
+          <div className="apw-choices" role="radiogroup" aria-label="Çalışma biçimi">
+            {MODALITIES.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={modality === option.id}
+                className={
+                  modality === option.id ? "apw-choice apw-choice--on" : "apw-choice"
+                }
+                onClick={() => setModality(option.id)}
+              >
+                {option.label}
+              </button>
             ))}
-          </ol>
-
+          </div>
           <button
             type="button"
             className="apw-cta"
-            disabled={starting}
+            onClick={() => setStep("focus")}
+          >
+            {WIZARD_COPY.continue}
+          </button>
+        </section>
+      ) : null}
+
+      {!planning && step === "focus" ? (
+        <section className="apw-step">
+          <h1>{WIZARD_COPY.focusTitle}</h1>
+          <p className="apw-lead">
+            Eşit odak tüm konulara aynı yeri ayırır. İstersen birkaçı öne çıksın.
+          </p>
+          <div className="apw-choices">
+            <button
+              type="button"
+              className={equalFocus ? "apw-choice apw-choice--on" : "apw-choice"}
+              aria-pressed={equalFocus}
+              onClick={() => {
+                setEqualFocus(true);
+                setFocusTopics([]);
+              }}
+            >
+              {WIZARD_COPY.equalFocus}
+            </button>
+            {topics.map((topic) => {
+              const on = !equalFocus && focusTopics.includes(topic);
+              return (
+                <button
+                  key={topic}
+                  type="button"
+                  className={on ? "apw-choice apw-choice--on" : "apw-choice"}
+                  aria-pressed={on}
+                  onClick={() => {
+                    setEqualFocus(false);
+                    setFocusTopics((prev) => {
+                      const next = prev.includes(topic)
+                        ? prev.filter((item) => item !== topic)
+                        : [...prev, topic];
+                      if (!next.length) setEqualFocus(true);
+                      return next;
+                    });
+                  }}
+                >
+                  {topic}
+                </button>
+              );
+            })}
+          </div>
+          <button type="button" className="apw-cta" onClick={openPlan}>
+            {WIZARD_COPY.continue}
+          </button>
+        </section>
+      ) : null}
+
+      {!planning && step === "plan" ? (
+        <section className="apw-step apw-step--center">
+          <h1>{WIZARD_COPY.planReady}</h1>
+          <button
+            type="button"
+            className="apw-cta"
+            disabled={starting || !topics.length}
             onClick={() => void startPlan()}
           >
-            {starting ? "Kuruluyor…" : `${days} günlük planı başlat`}
+            {starting ? WIZARD_COPY.creating : WIZARD_COPY.createCta}
           </button>
         </section>
       ) : null}
@@ -816,6 +799,137 @@ export function ExamCreateWizard({
         returnPath="/deneme-sinavlari/olustur"
       />
     </div>
+  );
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function TopicEditor({
+  topics,
+  topicPages,
+  onTopics,
+  onPages,
+  onRename,
+}: {
+  topics: string[];
+  topicPages: number[][];
+  onTopics: (next: string[]) => void;
+  onPages: (next: number[][]) => void;
+  onRename: (from: string, to: string) => void;
+}) {
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const original = editIndex == null ? "" : topics[editIndex] ?? "";
+  const changeDirty = draft.trim().length > 0 && draft.trim() !== original.trim();
+  const addDirty = draft.trim().length > 0;
+
+  function close() {
+    setEditIndex(null);
+    setAdding(false);
+    setDraft("");
+  }
+
+  function saveChange() {
+    if (editIndex == null || !changeDirty) return;
+    const next = draft.trim();
+    onRename(original, next);
+    onTopics(topics.map((item, index) => (index === editIndex ? next : item)));
+    close();
+  }
+
+  function saveAdd() {
+    const title = draft.trim();
+    if (!title) return;
+    onTopics([...topics, title]);
+    onPages([...topicPages, []]);
+    close();
+  }
+
+  return (
+    <>
+      <ul className="apw-topics">
+        {topics.map((topic, index) => (
+          <li key={`${index}-${topic}`}>
+            <span className="apw-topic-field">
+              <strong>{topic}</strong>
+              {topicPages[index]?.length ? (
+                <em>Kaynak: s.{topicPages[index].join(", ")}</em>
+              ) : null}
+            </span>
+            <button
+              type="button"
+              className="apw-topic-edit"
+              onClick={() => {
+                setAdding(false);
+                setEditIndex(index);
+                setDraft(topic);
+              }}
+            >
+              {WIZARD_COPY.editTopic}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        className="apw-topic-add-btn"
+        onClick={() => {
+          setEditIndex(null);
+          setAdding(true);
+          setDraft("");
+        }}
+      >
+        <Plus className="h-4 w-4" aria-hidden /> {WIZARD_COPY.addTopic}
+      </button>
+
+      {editIndex != null || adding ? (
+        <div className="apw-modal-backdrop" role="presentation" onClick={close}>
+          <div
+            className="apw-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="apw-topic-dialog-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="apw-topic-dialog-title">
+              {adding ? WIZARD_COPY.addTopic : WIZARD_COPY.editTopic}
+            </h2>
+            <input
+              value={draft}
+              aria-label={adding ? "Yeni konu" : "Konu adı"}
+              autoFocus
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") close();
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                if (adding) saveAdd();
+                else saveChange();
+              }}
+            />
+            <div className="apw-modal-actions">
+              <button type="button" className="apw-ghost" onClick={close}>
+                {WIZARD_COPY.cancel}
+              </button>
+              <button
+                type="button"
+                className="apw-cta"
+                disabled={adding ? !addDirty : !changeDirty}
+                onClick={adding ? saveAdd : saveChange}
+              >
+                {WIZARD_COPY.save}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -920,7 +1034,7 @@ function DateStep({
       </div>
 
       <button type="button" className="apw-cta" disabled={!value} onClick={onNext}>
-        Devam et
+        {WIZARD_COPY.continue}
       </button>
     </section>
   );

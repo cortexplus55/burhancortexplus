@@ -118,7 +118,8 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "Soru-cevap öğretimi: tek kavram/problemle başla. Öğrenci düşünmeden cevabı verme. " +
         "Yanlışı sınıflandır (tanım / işlem / kavram yanılgısı). İpuçlarını kademeli ver. " +
         "Doğru sonra kısa kavram kontrolü. Döngüde sıkıştırma: yeterince deneme veya " +
-        "öğrenci isterse çözümü göster. Her soruda learningObjective yaz."
+        "öğrenci isterse çözümü göster. Her soruda learningObjective ve misconceptionTag yaz. " +
+        "Açıklama en az bir yanlış şıkkın gerçekte ne olduğunu söylesin. Filler yok."
       );
     case "lesson":
       return (
@@ -154,12 +155,18 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         // görüyordu. Okunduğu yerde kesilirse hiç yerleşmiyor.
         "TUZAĞI YERİNDE UYAR: bir bölümde karıştırılması kolay bir ayrım varsa o bölüme " +
         "note ekle — kısa başlık ve tek cümle (\"Havanın Ağırlığı: hacmi hesaba dahil, " +
-        "ağırlığı değil\"). Her bölüme değil, gerçekten tuzak olan yere."
+        "ağırlığı değil\"). Her bölüme değil, gerçekten tuzak olan yere. " +
+        "EN AZ 3 kavram bölümü. HER bölümde check zorunlu: type trueFalse ekranda " +
+        "DOĞRU MU YANLIŞ, type mcq ekranda HIZLI SINAV. explanation (AÇIKLAMA) yanlış " +
+        "seçeneğin neden çürük olduğunu yazsın; yalnızca doğruyu tekrarlama. " +
+        "overview 400 karakteri aşmasın. example.solution adım adım ve gerekçeli. " +
+        "nextFocus en az bir sonraki çalışma. Kaynakta olmayan formül veya teorem yazma; " +
+        "emin değilsen materyalde geçtiği hâliyle söyle."
       );
     case "quiz":
       return (
         "Her soruda net learningObjective. Yeterli bilgi ver. correct seçenekleri options içinde birebir. " +
-        "Çeldiriciler gerçek yanılgılardan gelsin (misconceptionTag). Açıklama doğru kümesiyle uyumlu. " +
+        "Çeldiriciler gerçek yanılgılardan gelsin. misconceptionTag her soruda dolu olsun. Açıklama doğru kümesiyle uyumlu. " +
         // Üretilen beş sorunun beşinde de açıklama yalnızca doğruyu
         // tekrarlıyordu. Yanlışı çürütmek zorunda olan bir açıklama
         // ayrıca soruyu denetler: aynı beşlide "90° ve 270°'de tanımsız"
@@ -173,7 +180,7 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
     case "true_false":
       return (
         "Her madde tek iddia. Belirsiz genellemelerden kaçın. Yanlışsa correctedStatement zorunlu. " +
-        "explanation nedeni anlatsın. misconceptionTag ile yanılgı etiketle (Stage 6 için)."
+        "explanation nedeni anlatsın ve yanlış iddiayı çürütsün. misconceptionTag her maddede dolu olsun (Stage 6)."
       );
     case "podcast":
       return (
@@ -410,9 +417,9 @@ const SCAFFOLD_HEADINGS = [
 
 /** Şablon adı mı, yoksa konunun kendi adı mı? */
 export function isScaffoldHeading(heading: string): boolean {
-  return SCAFFOLD_HEADINGS.includes(
-    foldTr(heading).replace(/[^a-z ]/g, "").trim(),
-  );
+  const folded = foldTr(heading).replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+  if (/^bolum\s+\d+\b/.test(folded)) return true;
+  return SCAFFOLD_HEADINGS.includes(folded.replace(/[^a-z ]/g, "").trim());
 }
 
 const SUPERSCRIPTS = "⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁽⁾";
@@ -454,6 +461,13 @@ export function brokenSuperscript(text: string): boolean {
  * + örnek + yanılgı + kontrol + özet zaten bir ders; tek kavram
  * kalacaksa dokunmuyoruz.
  */
+/** Şema geçerse şablon başlıklarını ayıkla. Üretim kapısı bundan sonra bakar. */
+export function prepareLessonDraft(raw: unknown): LessonV2 | null {
+  const parsed = lessonV2Schema.safeParse(raw).data;
+  if (!parsed) return null;
+  return dropScaffoldSections(parsed);
+}
+
 export function dropScaffoldSections<T extends { sections: { heading: string }[] }>(
   lesson: T,
 ): T {
@@ -583,6 +597,98 @@ export function validateLessonPedagogy(
   return [...issues, ...blockingLessonIssues(lesson)];
 }
 
+function solutionIsJustified(solution: string): boolean {
+  const folded = foldTr(solution);
+  if (folded.length < 24) return false;
+  return /cunku|bu yuzden|dolayisiyla|yani|adim|once|sonra/.test(folded);
+}
+
+function sectionCheckTeaches(check: SectionCheck): boolean {
+  const explanation = foldTr(check.explanation);
+  if (explanation.length < 12) return false;
+  if (check.type === "trueFalse") {
+    return explanation !== foldTr(check.prompt);
+  }
+  if (check.answerIndex < 0 || check.answerIndex >= check.options.length) return false;
+  const correctTokens = new Set(
+    foldTr(check.options[check.answerIndex] ?? "")
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean),
+  );
+  return check.options.some((option, index) => {
+    if (index === check.answerIndex) return false;
+    return foldTr(option)
+      .split(/[^a-z0-9]+/)
+      .filter((token) => token.length >= 3 && !correctTokens.has(token))
+      .some((token) => explanation.includes(token));
+  });
+}
+
+/**
+ * Ders üretim kapısı. `validateLessonPedagogy` ayıklanmış iki bölümlük
+ * kalıntıyı da ölçer; burası yayına gidecek dersi ölçer ve atlanamaz:
+ * hedef, en az üç kavram bölümü, her bölümde kontrol + açıklama, örnek,
+ * yaygın hata, nextFocus.
+ */
+export function validateLessonV2(
+  raw: unknown,
+  options: { minSections?: number } = {},
+): string[] {
+  const prepared = prepareLessonDraft(raw) ?? raw;
+  const issues = validateLessonPedagogy(prepared, options);
+  const lesson = lessonV2Schema.safeParse(prepared).data;
+  if (!lesson) return issues;
+  const floor = Math.max(3, options.minSections ?? 3);
+  if (lesson.sections.length < floor && !issues.some((issue) => issue.includes("en az"))) {
+    issues.push(`Ders en az ${floor} kavram bölümü istiyor.`);
+  }
+  if (lesson.overview.trim().length > 400) {
+    issues.push("Genel bakış 400 karakteri aşıyor; konunun özünü kısa yaz.");
+  }
+  if (lesson.example.solution.trim() === lesson.example.prompt.trim()) {
+    issues.push("Çözüm, sorunun tekrarı olamaz; adım ve gerekçe yaz.");
+  } else if (!solutionIsJustified(lesson.example.solution)) {
+    issues.push("Çözüm adım adım ve gerekçeli olmalı; yalnızca sonucu yazma.");
+  }
+  if (foldTr(lesson.infoCheck.answer) === foldTr(lesson.infoCheck.prompt)) {
+    issues.push("Bilgi kontrolünün yanıtı sorunun tekrarı olamaz.");
+  }
+  if (!lesson.nextFocus.some((item) => item.trim().length >= 2)) {
+    issues.push("nextFocus zorunlu.");
+  }
+  for (const section of lesson.sections) {
+    if (!/\*\*[^*\n]{2,60}\*\*/.test(section.body)) {
+      issues.push(
+        `Anahtar terim koyu değil: ${section.heading}. Sınav terimini **iki yıldız** arasına al.`,
+      );
+    }
+    if (!section.check) {
+      issues.push(
+        `Bölümün kontrolü yok: ${section.heading}. DOĞRU MU YANLIŞ veya HIZLI SINAV ekle.`,
+      );
+      continue;
+    }
+    if (!sectionCheckTeaches(section.check)) {
+      issues.push(
+        `Kontrol açıklaması yanlış seçeneği çürütmüyor: ${section.heading}.`,
+      );
+    }
+  }
+  return issues;
+}
+
+/** İki rotanın ders şeması aynı metin. Diyagram eki rota ekler. */
+export const LESSON_V2_SCHEMA_HINT =
+  'JSON: {"title":string,"objective":string,"overview":string,' +
+  '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"note":{"title":string,"body":string},"cards":[{"title":string,"body":string}]}],' +
+  '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
+  '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
+  "En az 3 kavram bölümü. Her bölümde check zorunlu: trueFalse ekranda DOĞRU MU YANLIŞ, mcq ekranda HIZLI SINAV. " +
+  "explanation yanlış seçeneğin neden çürük olduğunu yazsın. " +
+  "example.solution adım adım ve gerekçeli. nextFocus en az bir sonraki çalışma. " +
+  "cards isteğe bağlı: kardeş kavram kümesi varsa 2-6 kart; yoksa cards yazma, uydurma kart ekleme. " +
+  "Kaynakta olmayan formül veya teorem yazma.";
+
 /**
  * Yayına asla çıkmaması gereken kusurlar.
  *
@@ -677,7 +783,11 @@ function explanationRefutesADistractor(q: QuizQuestion): boolean {
 /** Quiz pedagogy beyond basic schema parse. */
 export function validateQuizPedagogy(
   questions: QuizQuestion[],
-  options?: { requireObjective?: boolean },
+  options?: {
+    requireObjective?: boolean;
+    requireMisconceptionTag?: boolean;
+    requireDistractorRefutation?: boolean;
+  },
 ): string[] {
   const issues: string[] = [];
   if (!questions.length) return ["Quiz sorusu yok."];
@@ -711,6 +821,15 @@ export function validateQuizPedagogy(
         issues.push(`${label}: correct options içinde değil.`);
       }
     }
+    if (
+      options?.requireMisconceptionTag &&
+      (q.misconceptionTag?.trim().length ?? 0) < 2
+    ) {
+      issues.push(`${label}: misconceptionTag zorunlu.`);
+    }
+    if (options?.requireDistractorRefutation && !explanationRefutesADistractor(q)) {
+      issues.push(`${label}: açıklama bir çeldiriciyi çürütmüyor.`);
+    }
     const obj = (q as QuizQuestion & { learningObjective?: string }).learningObjective;
     // Prefer objectives, but don't fail the whole set if one item omits it —
     // prompt + quality gate still push for them.
@@ -729,7 +848,7 @@ export function validateQuizPedagogy(
   // öğrenci hiçbir yanlışının nedenini öğrenmiyor. Set kuralı olması
   // ayrıca üretimi tıkamıyor — bugün bunu üç kez pahalıya öğrendik.
   const multiOption = questions.filter((q) => q.options.length >= 3);
-  if (multiOption.length >= 2) {
+  if (!options?.requireDistractorRefutation && multiOption.length >= 2) {
     const refuting = multiOption.filter(explanationRefutesADistractor).length;
     if (refuting * 2 < multiOption.length) {
       issues.push(
@@ -740,13 +859,35 @@ export function validateQuizPedagogy(
   return issues;
 }
 
+function trueFalseExplanationRefutes(item: {
+  text: string;
+  correct: boolean;
+  explanation: string;
+  correctedStatement?: string;
+}): boolean {
+  const explanation = foldTr(item.explanation);
+  const claim = foldTr(item.text);
+  if (!explanation || explanation === claim) return false;
+  if (item.correct) return explanation.length >= 12;
+  const claimTokens = new Set(
+    claim.split(/[^a-z0-9]+/).filter((token) => token.length >= 3),
+  );
+  const distinctive = foldTr(item.correctedStatement ?? "")
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length >= 4 && !claimTokens.has(token));
+  if (distinctive.some((token) => explanation.includes(token))) return true;
+  return explanation.length >= 24 && explanation !== claim;
+}
+
 export function validateTrueFalsePedagogy(
   items: {
     text: string;
     correct: boolean;
     explanation: string;
     correctedStatement?: string;
+    misconceptionTag?: string;
   }[],
+  options?: { requireMisconceptionTag?: boolean },
 ): string[] {
   const issues: string[] = [];
   for (let i = 0; i < items.length; i += 1) {
@@ -764,6 +905,14 @@ export function validateTrueFalsePedagogy(
     }
     if (item.explanation.trim().length < 12) {
       issues.push(`${label}: explanation yetersiz.`);
+    }
+    if (options?.requireMisconceptionTag) {
+      if ((item.misconceptionTag?.trim().length ?? 0) < 2) {
+        issues.push(`${label}: misconceptionTag zorunlu.`);
+      }
+      if (!trueFalseExplanationRefutes(item)) {
+        issues.push(`${label}: explanation iddiayı çürütmüyor.`);
+      }
     }
   }
   return issues;

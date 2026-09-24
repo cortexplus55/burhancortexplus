@@ -11,10 +11,11 @@ import {
   topicFence,
 } from "@/lib/learning/prep-source";
 import {
-  lessonV2Schema,
+  LESSON_V2_SCHEMA_HINT,
+  prepareLessonDraft,
   teachingStandardConstraints,
   teachingSessionContext,
-  validateLessonPedagogy,
+  validateLessonV2,
 } from "@/lib/learning/teaching-standards";
 
 const bodySchema = z.object({
@@ -133,26 +134,24 @@ export async function POST(request: Request) {
     difficulty: teachingV2 ? "hard" : undefined,
     validationProfile: teachingV2 ? "v2" : "legacy",
     maxDraftAttempts: teachingV2 ? 2 : 1,
-    allowIndependentAccept: teachingV2,
+    allowIndependentAccept: false,
     activityKind: "lesson",
     buildIndependent: teachingV2
-      ? (_content, parsed) => ({
-          pedagogyIssues: validateLessonPedagogy(parsed),
-          minItems: 2,
-          sourceExcerpt: sourceBlock,
-          requireSourceSupport: shouldSearchSources(sourceMode),
-          subjectHint: "lesson",
-        })
+      ? (_content, parsed) => {
+          const cleaned = prepareLessonDraft(parsed);
+          return {
+            pedagogyIssues: cleaned
+              ? validateLessonV2(cleaned)
+              : ["Ders v2 şemasını karşılamıyor (hedef, bölümler, örnek, yaygın hata, bilgi kontrolü)."],
+            minItems: 3,
+            sourceExcerpt: sourceBlock,
+            requireSourceSupport: shouldSearchSources(sourceMode),
+            subjectHint: "lesson",
+          };
+        }
       : undefined,
     schemaHint: teachingV2
-      ? 'Yalnızca JSON: {"title":string,"objective":string,"overview":string,"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string}}],"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
-        'heading: o bölümün kendi kavramsal başlığı — "Bölüm 1" gibi genel değil. ' +
-        'check: HER bölüm için zorunlu, bölümün hemen o metnini yoklar. ' +
-        'trueFalse ise options tam olarak ["Doğru","Yanlış"]. ' +
-        'ÇELDİRİCİLER GERÇEK KAVRAM YANILGISI OLMALI: öğrencinin gerçekten yapacağı hatayı yansıtsın ' +
-        '(ör. üssü tabanla çarpmak, negatif üssü sonucu negatif sanmak). ' +
-        '"hiçbiri", "hepsi" ya da konuyla ilgisiz uydurma şık YASAK — elemesi bedava olan şık öğrenciyi ölçmez. ' +
-        'explanation: doğru cevabı bu bölümün metnindeki ifadeye bağla.'
+      ? `${LESSON_V2_SCHEMA_HINT} trueFalse ise options tam olarak ["Doğru","Yanlış"]. Çeldirici gerçek yanılgı olsun; hiçbiri/hepsi yasak. explanation yanlış seçeneği çürütsün ve bölüm metnine bağlansın.`
       : 'Yalnızca JSON: {"title":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"summary":string[],"nextFocus":string[]}',
     userPrompt: teachingV2
       ? `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
@@ -167,8 +166,9 @@ Bu dersin konusu YALNIZCA: ${topic.label}.
 Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${topicBlock}`,
     parse: (raw) => {
       if (teachingV2) {
-        if (validateLessonPedagogy(raw).length) return null;
-        return lessonV2Schema.safeParse(raw).data ?? null;
+        const cleaned = prepareLessonDraft(raw);
+        if (!cleaned || validateLessonV2(cleaned).length) return null;
+        return cleaned;
       }
       const result = legacyLessonSchema.safeParse(raw);
       return result.success ? result.data : null;

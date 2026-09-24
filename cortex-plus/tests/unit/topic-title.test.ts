@@ -5,6 +5,7 @@ import {
   normalizeTopicTitle,
   sectionHeadings,
   targetTopicCount,
+  topicScopeGuidance,
   topicTitleIssues,
   unrepresentedHeadings,
 } from "@/lib/documents/topic-title";
@@ -18,6 +19,14 @@ describe("targetTopicCount", () => {
     expect(targetTopicCount(1)).toBe(4);
     // Ders kitabı: 200 sayfa 66 konuya bölünürse konu listesi gezilemez.
     expect(targetTopicCount(200)).toBe(12);
+  });
+
+  it("treats the count as a ceiling, not a page quota", () => {
+    const short = topicScopeGuidance(10);
+    const long = topicScopeGuidance(20);
+    expect(short).toContain("sayfa sayısına bölünerek üretilmez");
+    expect(long).toContain("yeni bir kavram kümesi");
+    expect(short).not.toBe(long);
   });
 });
 

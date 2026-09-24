@@ -3629,6 +3629,54 @@
   text-align: center;
 }
 
+.cp-skill-tree {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.cp-skill-tree button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+  border-radius: 0.9rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: inherit;
+  padding: 0.8rem 0.95rem;
+  cursor: pointer;
+}
+
+.cp-skill-tree button span {
+  color: var(--cp-muted);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.cp-skill-detail {
+  margin: 0.35rem 0 0.2rem;
+  padding: 0.75rem 0.95rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--cp-border);
+}
+
+.cp-skill-detail p {
+  margin: 0 0 0.45rem;
+  color: var(--cp-muted);
+  font-size: 0.875rem;
+}
+
+.cp-skill-detail a {
+  color: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
 .cp-exam-trail-meter {
   height: 0.28rem;
   border-radius: 999px;

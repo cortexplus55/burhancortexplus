@@ -130,7 +130,8 @@ export async function loadExamChatContext(
       "emin değilsen sor. Hazırlıkta olmayan bir konuyu uydurma. " +
       "DERSİ ÖZETLERKEN DERSTEKİ TANIMLARI KULLAN: bir sembolün ya da " +
       "terimin anlamını kendi bilginle değiştirme, ders ne diyorsa onu " +
-      "söyle. Ders bir şeyi söylemiyorsa söylemediğini belirt.",
+      "söyle. Ders bir şeyi söylemiyorsa söylemediğini belirt. " +
+      "Materyalde yoksa formül uydurma; genel ilkeyi söyle ve notlarında hangi başlığa bakacağını yaz.",
   );
 
   return {

@@ -10,6 +10,10 @@ const prefsSchema = z.object({
   style: z.enum(["examples", "theory", "mixed"]).optional(),
   pace: z.enum(["slow", "normal", "fast"]).optional(),
   notes: z.string().max(400).optional(),
+  modality: z
+    .enum(["reading", "listening", "watching", "practice", "auto"])
+    .optional(),
+  language: z.enum(["tr", "en"]).optional(),
 });
 
 const bodySchema = z.object({

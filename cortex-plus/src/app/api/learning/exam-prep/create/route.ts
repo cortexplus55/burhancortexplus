@@ -3,7 +3,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { pickMainTopics } from "@/lib/learning/diagnostic";
-import { daysUntilExam } from "@/lib/learning/exam-prep-plan";
+import { daysUntilExam, mergeStudyPathTemplate } from "@/lib/learning/exam-prep-plan";
 import { insertExamPrepGraph } from "@/lib/learning/exam-prep-insert";
 import {
   buildExamScheduleV2,
@@ -16,6 +16,10 @@ const prefsSchema = z
     style: z.enum(["examples", "theory", "mixed"]).optional(),
     pace: z.enum(["slow", "normal", "fast"]).optional(),
     notes: z.string().max(400).optional(),
+    modality: z
+      .enum(["reading", "listening", "watching", "practice", "auto"])
+      .optional(),
+    language: z.enum(["tr", "en"]).optional(),
   })
   .optional();
 
@@ -111,6 +115,7 @@ export async function POST(request: Request) {
   );
 
   let scheduleSummary: ReturnType<typeof buildExamScheduleV2> | null = null;
+  let scheduleDrafts: ReturnType<typeof scheduleSessionsToNodeDrafts> | null = null;
   let v2Nodes:
     | {
         kind: import("@/lib/learning/exam-prep-plan").PlanNodeKind;
@@ -131,8 +136,10 @@ export async function POST(request: Request) {
       topics: scheduleTopics,
       targetScore: parsed.data.targetScore,
     });
-    const drafts = scheduleSessionsToNodeDrafts(scheduleSummary.sessions);
-    v2Nodes = drafts.map((d, index) => ({
+    scheduleDrafts = mergeStudyPathTemplate(
+      scheduleSessionsToNodeDrafts(scheduleSummary.sessions),
+    );
+    v2Nodes = scheduleDrafts.map((d, index) => ({
       kind: d.kind,
       title: d.title,
       day_index: d.dayIndex,
@@ -186,10 +193,9 @@ export async function POST(request: Request) {
       .select("id, sort_order")
       .eq("exam_prep_id", result.prepId)
       .order("sort_order");
-    const drafts = scheduleSessionsToNodeDrafts(scheduleSummary.sessions);
     for (const row of nodeRows ?? []) {
-      const draft = drafts.find((d) => d.sortOrder === row.sort_order);
-      if (!draft) continue;
+      const draft = scheduleDrafts?.find((d) => d.sortOrder === row.sort_order);
+      if (!draft?.meta) continue;
       await service
         .from("exam_prep_nodes")
         .update({ session_meta: draft.meta })
