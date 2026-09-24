@@ -43,13 +43,16 @@ import { normalizeChapters } from "@/lib/learning/podcast-script";
 import {
   DEFAULT_FAMILIARITY,
   DEFAULT_MOOD,
-  FAMILIARITY_OPTIONS,
-  MOOD_OPTIONS,
   type Familiarity,
   type Mood,
 } from "@/lib/learning/session-signals";
 import { cn } from "@/lib/utils";
 import { NodeGenerationProgress } from "@/components/parity/node-generation-progress";
+import { LessonOpenChrome } from "@/components/parity/lesson-open-chrome";
+import {
+  difficultyFromFamiliarity,
+  stepAfterMood,
+} from "@/lib/learning/lesson-open";
 import "@/styles/node-generation-progress.css";
 
 type Difficulty = "kolay" | "orta" | "ileri";
@@ -121,6 +124,7 @@ export function ExamNodeSession({
   const [stage, setStage] = useState<
     | "familiarity"
     | "mood"
+    | "recommend"
     | "setup"
     | "play"
     | "result"
@@ -635,66 +639,37 @@ export function ExamNodeSession({
       ) : null}
 
       {stage === "familiarity" || stage === "mood" ? (
-        <article className="cp-signal-card">
-          <div className="cp-signal-steps" aria-hidden>
-            <span className="cp-signal-step cp-signal-step--on" />
-            <span
-              className={cn(
-                "cp-signal-step",
-                stage === "mood" && "cp-signal-step--on",
-              )}
-            />
-          </div>
-          {stage === "familiarity" ? (
-            <>
-              <h1>Bu konuya ne kadar aşinasın?</h1>
-              <p className="cp-signal-lead">
-                Doğru zorluk seviyesini belirlememize yardımcı olur.
-              </p>
-              {FAMILIARITY_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className="cp-signal-option"
-                  aria-pressed={familiarity === option.id}
-                  onClick={() => {
-                    setFamiliarity(option.id);
-                    setStage("mood");
-                  }}
-                >
-                  <span className="cp-signal-emoji" aria-hidden>
-                    {option.emoji}
-                  </span>
-                  <span className="cp-signal-title">{option.title}</span>
-                </button>
-              ))}
-            </>
-          ) : (
-            <>
-              <h1>Bugün ruh halin nasıl?</h1>
-              <p className="cp-signal-lead">
-                Anlatım tonunu buna göre ayarlayacağım.
-              </p>
-              {MOOD_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className="cp-signal-option"
-                  aria-pressed={mood === option.id}
-                  onClick={() => {
-                    setMood(option.id);
-                    setStage("setup");
-                  }}
-                >
-                  <span className="cp-signal-emoji" aria-hidden>
-                    {option.emoji}
-                  </span>
-                  <span className="cp-signal-title">{option.title}</span>
-                </button>
-              ))}
-            </>
-          )}
-        </article>
+        <LessonOpenChrome
+          step={stage}
+          familiarity={familiarity}
+          mood={mood}
+          recommendedTitle={meta.setupLabel}
+          topicLabel={topicLabel}
+          onFamiliarity={(level) => {
+            setFamiliarity(level);
+            setDifficulty(difficultyFromFamiliarity(level));
+            setStage("mood");
+          }}
+          onMood={(next) => {
+            setMood(next);
+            setStage(stepAfterMood(kind));
+          }}
+          onContinue={() => setStage("setup")}
+          onCreate={() => void start()}
+        />
+      ) : null}
+
+      {stage === "recommend" ? (
+        <LessonOpenChrome
+          step="recommend"
+          recommendedTitle={meta.setupLabel}
+          blurb={meta.blurb}
+          topicLabel={topicLabel}
+          onFamiliarity={() => undefined}
+          onMood={() => undefined}
+          onContinue={() => setStage("setup")}
+          onCreate={() => void start()}
+        />
       ) : null}
 
       {isOral && stage === "oral-topics" ? (
@@ -754,7 +729,23 @@ export function ExamNodeSession({
         />
       ) : null}
 
-      {stage === "setup" && !loading ? (
+      {stage === "setup" && !loading && kind === "lesson" ? (
+        <LessonOpenChrome
+          step="create"
+          recommendedTitle={meta.setupLabel}
+          topicLabel={topicLabel}
+          busy={loading}
+          canCreate={!generationFailure || generationFailure.canRetryNow}
+          error={generationError}
+          action={generationFailure?.action ?? null}
+          onFamiliarity={() => undefined}
+          onMood={() => undefined}
+          onContinue={() => setStage("setup")}
+          onCreate={() => void start()}
+        />
+      ) : null}
+
+      {stage === "setup" && !loading && kind !== "lesson" ? (
         <article className="cp-exam-setup-card">
           <p className="cp-lesson-kicker">{prepTitle}</p>
           <h1>{meta.setupLabel}</h1>

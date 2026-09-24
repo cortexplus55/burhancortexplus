@@ -17,11 +17,23 @@ import {
   teachingSessionContext,
   validateLessonV2,
 } from "@/lib/learning/teaching-standards";
+import {
+  contentDifficultyLine,
+  parseFamiliarity,
+  parseMood,
+  sessionSignalsPrompt,
+} from "@/lib/learning/session-signals";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
   topicId: z.string().uuid(),
   force: z.boolean().optional(),
+  familiarity: z
+    .enum(["new", "heard", "basics", "good", "confident"])
+    .optional(),
+  mood: z
+    .enum(["ready", "curious", "calm", "neutral", "low_energy", "stressed"])
+    .optional(),
 });
 
 const legacyLessonSchema = z.object({
@@ -48,11 +60,14 @@ export async function POST(request: Request) {
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
   const { prepId, topicId, force } = parsed.data;
+  const hasSignals = parsed.data.familiarity != null || parsed.data.mood != null;
+  const familiarity = parseFamiliarity(parsed.data.familiarity);
+  const mood = parseMood(parsed.data.mood);
   const teachingV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
 
   const { data: prep } = await service
     .from("exam_preps")
-    .select("id, title, exam_type, document_id")
+    .select("id, title, exam_type, document_id, hard_topics_self")
     .eq("id", prepId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -121,6 +136,20 @@ export async function POST(request: Request) {
         })
       : "";
 
+  const hardTopics = Array.isArray(prep.hard_topics_self)
+    ? (prep.hard_topics_self as string[])
+    : [];
+  const signalLine = hasSignals
+    ? `${sessionSignalsPrompt(familiarity, mood)} ${contentDifficultyLine({
+        requested: "orta",
+        familiarity,
+        focusTopic: hardTopics.some(
+          (label) =>
+            label.trim().toLocaleLowerCase("tr") ===
+            topic.label.trim().toLocaleLowerCase("tr"),
+        ),
+      })}`
+    : "";
   const sessionCtx = teachingV2
     ? teachingSessionContext({ topicTitle: topic.label, objective: `${topic.label} konusunu öğren` }, topic.label)
     : "";
@@ -157,11 +186,13 @@ export async function POST(request: Request) {
       ? `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
 Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
 ${sessionCtx}
+${signalLine}
 ${standards}
 Bu dersin konusu YALNIZCA: ${topic.label}.
 Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.${sourceBlock}${topicBlock}`
       : `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
 Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
+${signalLine}
 Bu dersin konusu YALNIZCA: ${topic.label}.
 Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${topicBlock}`,
     parse: (raw) => {
@@ -218,9 +249,18 @@ Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${
     .update({
       lesson_id: lesson.id,
       status: topic.status === "done" ? "done" : "in_progress",
+      ...(hasSignals ? { familiarity } : {}),
     })
     .eq("id", topicId)
     .eq("exam_prep_id", prepId);
+
+  if (hasSignals) {
+    await service.from("study_session_moods").insert({
+      user_id: userId,
+      exam_prep_id: prepId,
+      mood,
+    });
+  }
 
   return NextResponse.json({ ok: true, lessonId: lesson.id, reused: false });
 }
