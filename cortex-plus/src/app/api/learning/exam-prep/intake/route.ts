@@ -164,7 +164,7 @@ export async function POST(request: Request) {
       ),
     ),
   ];
-  let topicSuggestions: { id: string; title: string; pages: number[] }[] = [];
+  const topicSuggestions: { id: string; title: string; pages: number[] }[] = [];
   let intakeMode: "legacy" | "v2" = "legacy";
   for (const documentId of documentIds.length ? documentIds : [parsed.data.documentId]) {
     const resolved = await resolveTopicSuggestions(service, userId, documentId, v2);

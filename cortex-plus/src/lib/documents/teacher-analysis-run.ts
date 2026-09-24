@@ -243,7 +243,7 @@ export async function runTeacherAnalysis(
       analysis: checked.analysis,
       topicMapBrief: teacherBriefForTopicMap(checked.analysis),
     };
-  } catch (error) {
+  } catch {
     reportAnalysis(documentId, "failed", "crashed");
     return { ...EMPTY, status: "failed" };
   }
