@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, type ComponentProps } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -167,7 +167,7 @@ const SUBJECTS = [
   "Coğrafya",
 ];
 
-export function ChatPanel({
+function ChatPanelSession({
   initialConversationId,
   initialDocumentId,
   initialMessages = [],
@@ -370,9 +370,12 @@ export function ChatPanel({
   }, [attachMenuOpen]);
 
   // Sayfadan çıkılırken mikrofon kapanmalı: açık kalan bir kayıt tarayıcı
-  // sekmesinde "kaydediyor" göstergesini yakılı bırakır.
+  // sekmesinde "kaydediyor" göstergesini yakılı bırakır. Geçmiş satırı
+  // bileşeni baştan kurunca sürmekte olan yanıt da yeni konuşmaya yazılmasın.
   useEffect(() => {
     return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
       recorderRef.current?.cancel();
       recorderRef.current = null;
       recognizerRef.current?.stop();
@@ -2100,4 +2103,13 @@ export function ChatPanel({
       />
     </>
   );
+}
+
+/**
+ * Geçmiş satırı aynı sayfada `?sohbet=` değiştirir. Sunucu yeni mesajları
+ * gönderir; state yalnızca ilk kurulurken okunursa adres çubuğu ile ekran
+ * ayrışır. Konuşma kimliği değişince oturum baştan kurulur.
+ */
+export function ChatPanel(props: ComponentProps<typeof ChatPanelSession>) {
+  return <ChatPanelSession key={props.initialConversationId ?? "new"} {...props} />;
 }

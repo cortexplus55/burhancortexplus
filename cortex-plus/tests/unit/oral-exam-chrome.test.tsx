@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import {
@@ -52,6 +53,15 @@ describe("oral exam chrome helpers", () => {
     expect(oralVoiceTopicLabel([`${long} ${long} ${long}`]).length).toBeLessThanOrEqual(
       ORAL_VOICE_TOPIC_MAX,
     );
+  });
+
+  it("feeds the clamped label to the live voice tutor", () => {
+    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    const start = session.indexOf("<ExamVoiceTutor");
+    const end = session.indexOf("/>", start);
+    const tutor = session.slice(start, end);
+    expect(tutor).toContain("topicLabel={oralVoiceLabel}");
+    expect(tutor).not.toContain("oralTopicLabel");
   });
 
   it("prints topic progress as %0", () => {
