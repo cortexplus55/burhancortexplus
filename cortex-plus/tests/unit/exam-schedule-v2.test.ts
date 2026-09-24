@@ -99,6 +99,8 @@ describe("exam-schedule-v2", () => {
         (s) => !(s.dayIndex === lastDay && s.role === "learn"),
       ),
     ).toBe(true);
+    expect(plan.summary.startsWith("Planın 4")).toBe(true);
+    expect(plan.summary).not.toMatch(/saat|\bdk\b/);
   });
 
   it("spreads new learning over a long plan instead of front-loading it", () => {

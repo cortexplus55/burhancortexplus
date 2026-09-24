@@ -24,7 +24,7 @@ const steps = [
   },
   {
     title: "Planına dön",
-    body: "Eksiklere göre haftalık çalışma planını güncelle ve görevleri işaretle.",
+    body: "Eksiklere göre konu planını güncelle ve görevleri işaretle.",
   },
 ];
 

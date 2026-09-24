@@ -6788,6 +6788,25 @@
   background: var(--cp-surface-2);
   color: var(--cp-muted);
 }
+.cp-exam-materials {
+  margin-top: 1.25rem;
+}
+
+.cp-exam-material {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+}
+
+.cp-exam-material span {
+  color: var(--cp-muted);
+  font-size: 0.8125rem;
+}
+
 .cp-exam-tab.is-active .cp-exam-tab-count {
   background: var(--cp-bg);
 }

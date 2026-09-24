@@ -79,6 +79,8 @@ export function ExamPrepHome({
   settings = null,
   documentId = null,
   documentName = null,
+  topicsDone = 0,
+  topicCount = 0,
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -106,6 +108,9 @@ export function ExamPrepHome({
   uiV2?: boolean;
   openMisconceptions?: number;
   settings?: PrepSettingsInitial | null;
+  /** Konu birimi. Düğüm sayısı buraya yazılmaz. */
+  topicsDone?: number;
+  topicCount?: number;
 }) {
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
@@ -115,7 +120,7 @@ export function ExamPrepHome({
   const readinessState = readinessLabel(readiness);
   const [shared, setShared] = useState(initialShared);
   const [sharing, setSharing] = useState(false);
-  const [view, setView] = useState<"yol" | "konular">("yol");
+  const [view, setView] = useState<"yol" | "konular" | "materyaller">("yol");
   /** Bakım bağlantıları çalışmanın önüne geçmesin diye kapalı başlıyor. */
   const [toolsOpen, setToolsOpen] = useState(false);
   const topicRows = useMemo(() => topicProgressFromNodes(nodes), [nodes]);
@@ -169,9 +174,15 @@ export function ExamPrepHome({
           kaldığını görmek için sayfadan çıkmak zorundaydı. */}
       <header className="cp-exam-trail-head cp-exam-hero">
         <div className="cp-exam-trail-meter" aria-hidden>
-          <span style={{ width: `${progressPct}%` }} />
+          <span
+            style={{
+              width: `${topicCount > 0 ? Math.round((topicsDone / topicCount) * 100) : progressPct}%`,
+            }}
+          />
         </div>
-        <p>{progressPct}%</p>
+        <p>
+          {topicCount > 0 ? `${topicsDone} / ${topicCount} konu` : `${progressPct}%`}
+        </p>
         <h1>{title}</h1>
         <p className="text-sm text-[var(--cp-muted)]">
           {examType}
@@ -200,7 +211,16 @@ export function ExamPrepHome({
             className={cn("cp-exam-tab", view === "konular" && "is-active")}
             onClick={() => setView("konular")}
           >
-            Konular <span className="cp-exam-tab-count">{topicRows.length}</span>
+            Konular <span className="cp-exam-tab-count">{topicCount || topicRows.length}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "materyaller"}
+            className={cn("cp-exam-tab", view === "materyaller" && "is-active")}
+            onClick={() => setView("materyaller")}
+          >
+            Materyaller
           </button>
         </div>
         {activeTopicLabel ? (
@@ -301,7 +321,27 @@ export function ExamPrepHome({
         <ExamPrepSettingsPanel prepId={prepId} initial={settings} />
       ) : null}
 
-      {uiV2 && view === "konular" ? (
+      {view === "materyaller" ? (
+        <section className="cp-exam-materials" aria-label="Materyaller">
+          {documentId ? (
+            <Link href={`/dokumanlar/${documentId}`} className="cp-exam-material">
+              <strong>{documentName ?? "Kaynak belge"}</strong>
+              <span>Belgeyi aç</span>
+            </Link>
+          ) : (
+            <div className="cp-exam-empty">
+              <p>
+                <strong>Bu hazırlığa bağlı materyal yok</strong>
+              </p>
+              <Link href="/dokumanlar" className="cp-exam-continue cp-exam-continue--primary">
+                Belge ekle
+              </Link>
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {view === "konular" ? (
         <section className="cp-topic-progress" aria-label="Konular">
           {topicRows.length ? (
             <ul>
@@ -410,7 +450,7 @@ export function ExamPrepHome({
         </Link>
       ) : null}
 
-      {!nodes.length ? (
+      {view === "yol" && !nodes.length ? (
         <div className="cp-exam-empty cp-exam-empty--discover" role="status">
           <p>
             <strong>Çalışma yolu henüz kurulmadı</strong>
@@ -429,7 +469,7 @@ export function ExamPrepHome({
             ) : null}
           </div>
         </div>
-      ) : uiV2 && view === "yol" ? (
+      ) : view !== "yol" ? null : uiV2 ? (
         // Yol tarihsiz: öğrenci neyi ne zaman çalışacağına kendi karar
         // veriyor. Gün blokları kalktı — "Gün 3" yazan bir başlık,
         // öğrenciyi geri kalmışlık duygusuna sokmaktan başka bir şey

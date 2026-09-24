@@ -66,7 +66,10 @@ export default async function ExamPrepLessonPage({
         />
 
         {structured ? (
-          <ExamLessonSteps lesson={structured} />
+          <ExamLessonSteps
+            lesson={structured}
+            closeHref={`/deneme-sinavlari/${prepId}`}
+          />
         ) : (
           <ExamLessonBody content={content} />
         )}

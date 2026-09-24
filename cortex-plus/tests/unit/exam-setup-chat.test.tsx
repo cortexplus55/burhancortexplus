@@ -29,7 +29,7 @@ describe("ExamSetupChat", () => {
   it("shows one question at a time", () => {
     setup();
     expect(screen.getByText("Dersi nasıl anlatayım?")).toBeTruthy();
-    expect(screen.queryByText("Günde ne kadar vaktin var?")).toBeNull();
+    expect(screen.queryByText("Etkinlikler için günde ne kadar vaktin var?")).toBeNull();
   });
 
   it("walks the three questions and reports the answers", () => {

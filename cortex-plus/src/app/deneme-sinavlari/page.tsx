@@ -2,7 +2,7 @@ import { ParityExamPrep } from "@/components/parity/exam-prep";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
-import { mapPrepTopics, type PrepTopic } from "@/lib/learning/exam-prep-progress";
+import { mapPrepTopics, topicProgress, type PrepTopic } from "@/lib/learning/exam-prep-progress";
 import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
 import { daysUntilExam, nodeProgress } from "@/lib/learning/exam-prep-plan";
 import type { ExamPrepCard } from "@/components/parity/exam-prep";
@@ -28,9 +28,9 @@ function toCard(
   topics: PrepTopic[],
   nodes: { status: "locked" | "ready" | "done" }[],
 ): ExamPrepCard {
-  const progress = nodes.length
-    ? nodeProgress(nodes)
-    : { done: 0, total: topics.length, pct: 0 };
+  // Çubuk ve "X / Y konu" aynı birimi kullanır: konu. Düğüm sayısı
+  // etkinliktir; kartta konu diye yazılmaz.
+  const progress = topics.length ? topicProgress(topics) : nodeProgress(nodes);
   const next = nodes.find((node) => node.status === "ready");
   return {
     id: prep.id,
