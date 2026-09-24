@@ -495,6 +495,86 @@ describe("teaching standards contract", () => {
     expect(cleaned?.sections[0].check?.prompt).toContain("kütle geçen");
   });
 
+  it("keeps the lesson when a review is missing, huge, or the wrong type", () => {
+    const section = (
+      heading: string,
+      review: unknown,
+    ) => ({
+      heading,
+      body: `**${heading}** sınırından geçenleri anlatır ve sınavda ayırt edilir.`,
+      check: {
+        type: "mcq" as const,
+        prompt: `${heading} için hangi tanım doğrudur?`,
+        options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
+        answerIndex: 1,
+        explanation: "Kütle geçişi olan düzenek açık sistemdir.",
+        review,
+      },
+    });
+    const cleaned = prepareLessonDraft({
+      title: "Sistemler",
+      objective: "Açık ve kapalı sistemi ayırt edebileceksin.",
+      overview: "Sistem, inceleme altına alınan bölgedir ve sınırı vardır.",
+      sections: [
+        section("Açık sistem", undefined),
+        section("Kapalı sistem", "bu bir cümle değil"),
+        section("Yalıtılmış sistem", {
+          prompt: "x".repeat(4000),
+          options: Array.from({ length: 30 }, (_, i) => `uydurma-${i}`),
+          answerIndex: 9,
+          extra: { nested: true },
+        }),
+      ],
+      example: { prompt: "Türbin hangi sistemdir?", solution: "Açık sisteme örnektir." },
+      commonMistake: {
+        claim: "Kapalı sistem enerji de geçirmez.",
+        correction: "Kapalı sistem enerji geçirebilir.",
+      },
+      infoCheck: { prompt: "Açık sistem nedir?", answer: "Kütle geçiren sistem." },
+      summary: ["Açık sistem kütle geçirir.", "Kapalı sistem kütle geçirmez."],
+      nextFocus: ["Özellikler"],
+    });
+    expect(cleaned?.sections).toHaveLength(3);
+    expect(cleaned?.sections.every((item) => item.check?.review == null)).toBe(true);
+    expect(cleaned?.title).toBe("Sistemler");
+  });
+
+  it("keeps a short prompt-only review and shuffles the original options later", () => {
+    const cleaned = prepareLessonDraft({
+      title: "Sistemler",
+      objective: "Açık ve kapalı sistemi ayırt edebileceksin.",
+      overview: "Sistem, inceleme altına alınan bölgedir ve sınırı vardır.",
+      sections: [
+        {
+          heading: "Açık sistem",
+          body: "**Açık sistem** sınırından kütle de enerji de geçebilir.",
+          check: {
+            type: "mcq",
+            prompt: "Sınırından kütle geçen düzeneğe ne denir?",
+            options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
+            answerIndex: 1,
+            explanation: "Kütle geçişi olan düzenek açık sistemdir.",
+            review: { prompt: "Hem madde hem enerji çıkan türbin hangi sınıftadır?" },
+          },
+        },
+        {
+          heading: "Kapalı sistem",
+          body: "**Kapalı sistem** kütle geçirmez ama enerji geçirebilir.",
+        },
+      ],
+      example: { prompt: "Türbin hangi sistemdir?", solution: "Açık sisteme örnektir." },
+      commonMistake: {
+        claim: "Kapalı sistem enerji de geçirmez.",
+        correction: "Kapalı sistem enerji geçirebilir.",
+      },
+      infoCheck: { prompt: "Açık sistem nedir?", answer: "Kütle geçiren sistem." },
+      summary: ["Açık sistem kütle geçirir.", "Kapalı sistem kütle geçirmez."],
+      nextFocus: ["Özellikler"],
+    });
+    expect(cleaned?.sections[0].check?.review?.prompt).toContain("türbin");
+    expect(cleaned?.sections[0].check?.review?.options).toBeUndefined();
+  });
+
   it("keeps a grounded review and appends it after existing cards", () => {
     const cleaned = prepareLessonDraft({
       title: "Sistemler",

@@ -1021,8 +1021,9 @@ function shiftOptions<T extends ReviewCheck>(check: T): T {
 
 export type StoredReview = {
   prompt: string;
-  options: string[];
-  answerIndex: number;
+  /** Eski taslaklar şık da yazdı. Yeni üretim yalnızca kök cümle ister. */
+  options?: string[];
+  answerIndex?: number;
 };
 
 /**
@@ -1030,28 +1031,56 @@ export type StoredReview = {
  * Şık metinleri orijinalin aynısı olmalı; yeni sayı veya orijinal cümle yok.
  * Tutmazsa null — ekran önekli yedeğe düşer, olgu uydurmaz.
  */
+function storedReview(value: unknown): StoredReview | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as { prompt?: unknown; options?: unknown; answerIndex?: unknown };
+  if (typeof row.prompt !== "string") return null;
+  const prompt = row.prompt.trim().slice(0, 180);
+  if (prompt.length < 8) return null;
+  const options = Array.isArray(row.options)
+    ? row.options.filter((option): option is string => typeof option === "string").map((option) => option.trim())
+    : undefined;
+  const answerIndex =
+    typeof row.answerIndex === "number" && Number.isInteger(row.answerIndex)
+      ? row.answerIndex
+      : undefined;
+  return { prompt, options, answerIndex };
+}
+
 export function acceptReviewVariant(
   check: ReviewCheck & { review?: StoredReview | null },
 ): ReviewCheck | null {
-  const review = check.review;
+  const review = storedReview(check.review);
   if (!review) return null;
-  const prompt = review.prompt.trim();
   const original = foldPrompt(check.prompt);
-  const next = foldPrompt(prompt);
+  const next = foldPrompt(review.prompt);
   if (next.length < 8 || next === original || next.includes(original)) return null;
-  if (!sameOptionSet(check.options, review.options)) return null;
-  const correct = check.options[check.answerIndex]?.trim();
-  const picked = review.options[review.answerIndex]?.trim();
-  if (!correct || picked !== correct) return null;
   const source = [check.prompt, check.explanation, ...check.options].join("\n");
-  if (hasNovelQuantity(prompt, source)) return null;
-  const accepted: ReviewCheck = {
-    type: check.type,
-    prompt: prompt.slice(0, 300),
-    options: review.options.map((option) => option.trim()),
-    answerIndex: review.answerIndex,
-    explanation: check.explanation,
-  };
+  if (hasNovelQuantity(review.prompt, source)) return null;
+  const copied =
+    review.options &&
+    review.options.length >= 2 &&
+    typeof review.answerIndex === "number" &&
+    sameOptionSet(check.options, review.options);
+  if (review.options && review.options.length >= 2 && !copied) return null;
+  const accepted: ReviewCheck = copied
+    ? {
+        type: check.type,
+        prompt: review.prompt,
+        options: review.options!.map((option) => option.trim()),
+        answerIndex: review.answerIndex!,
+        explanation: check.explanation,
+      }
+    : {
+        type: check.type,
+        prompt: review.prompt,
+        options: check.options,
+        answerIndex: check.answerIndex,
+        explanation: check.explanation,
+      };
+  const correct = check.options[check.answerIndex]?.trim();
+  const picked = accepted.options[accepted.answerIndex]?.trim();
+  if (!correct || picked !== correct) return null;
   return sameOptionOrder(check.options, accepted.options) ? shiftOptions(accepted) : accepted;
 }
 

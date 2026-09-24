@@ -6,7 +6,7 @@ import {
   WIZARD_STEP_ORDER,
 } from "@/lib/learning/exam-wizard-copy";
 import { TUTOR_ANSWER_DISCIPLINE, tutorStylePrompt } from "@/lib/learning/tutor-style";
-import { LESSON_V2_SCHEMA_HINT } from "@/lib/learning/teaching-standards";
+import { LESSON_V2_SCHEMA_HINT, REVIEW_VARIANT_RULE } from "@/lib/learning/teaching-standards";
 
 const wizard = readFileSync("src/components/parity/exam-create-wizard.tsx", "utf8");
 const home = readFileSync("src/components/parity/exam-prep-home.tsx", "utf8");
@@ -116,7 +116,19 @@ describe("post-PDF wizard order", () => {
     expect(LESSON_V2_SCHEMA_HINT).toContain("HIZLI SINAV");
     expect(LESSON_V2_SCHEMA_HINT).toContain("DOĞRU MU YANLIŞ");
     expect(LESSON_V2_SCHEMA_HINT).toContain("check.review");
+    expect(LESSON_V2_SCHEMA_HINT).toContain('"review"?:{"prompt":string}');
+    expect(LESSON_V2_SCHEMA_HINT).not.toContain('"review":{"prompt":string,"options"');
+    expect(REVIEW_VARIANT_RULE).toContain("140 karakter");
+    expect(REVIEW_VARIANT_RULE).not.toContain("review.options");
     expect(lessonRoute).toContain("REVIEW_VARIANT_RULE");
+    expect(lessonRoute).toContain("export const maxDuration = 300");
     expect(lessonApi).toContain("REVIEW_VARIANT_RULE");
+    expect(lessonApi).toContain("export const maxDuration = 300");
+    const podcastStart = lessonRoute.indexOf('if (input.kind === "podcast")');
+    const podcastBlock = lessonRoute.slice(
+      podcastStart,
+      lessonRoute.indexOf('if (input.kind === "oral")', podcastStart),
+    );
+    expect(podcastBlock).not.toContain("REVIEW_VARIANT_RULE");
   });
 });
