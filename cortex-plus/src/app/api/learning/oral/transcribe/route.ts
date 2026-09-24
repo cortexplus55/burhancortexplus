@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "oral-stt", limit: 60 });
   if (!guard.ok) return guard.response;
 
-  // Sunucu sesi premium. Ucretsiz kullanici tarayici sesiyle devam ediyor.
+  // Sözlü çözümleme kayıtlı ücretsizde açık. Misafir withUser'da kalır.
   const entitlements = await getUserEntitlements(guard.ctx.service, guard.ctx.userId);
   if (!requireFeature(entitlements, "oral_transcribe")) {
     return errorResponse(402, "premium_required");

@@ -32,8 +32,14 @@ export function CreditGate({
 
   // Yenilenme saati kapıya taşınıyor: "abone ol" tek çözüm değil, beklemek de
   // çözüm ve bunu söylemek dürüst olan.
+  const periodWord =
+    account?.periodKind === "monthly"
+      ? "Aylık"
+      : account?.periodKind === "weekly"
+        ? "Haftalık"
+        : "Günlük";
   const resetHint = account?.resetsAtLabel
-    ? `${account.periodKind === "monthly" ? "Aylık" : "Günlük"} hakkın ${account.resetsAtLabel} tarihinde yenilenir.`
+    ? `${periodWord} hakkın ${account.resetsAtLabel} tarihinde yenilenir.`
     : undefined;
 
   return (

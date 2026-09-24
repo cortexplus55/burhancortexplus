@@ -1,17 +1,19 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getUserEntitlements, type Audience } from "@/lib/billing/entitlements";
 import { formatResetAt, quotaView, type PeriodKind } from "@/lib/credits/period";
-import {
-  getSubscriptionEntitlement,
-  type SubscriptionBadge,
-} from "@/lib/student/subscription-badge";
+import { type SubscriptionBadge } from "@/lib/student/subscription-badge";
 
 export type StudentAccountContext = {
+  audience: Audience;
   balance: number;
   freeAllowanceRemaining: number;
   isPremium: boolean;
+  /** Ücretsize özel Satın al / bant / sohbet kartı. */
+  showsUpgradeChrome: boolean;
   subscriptionBadge: SubscriptionBadge;
   subscriptionAllowance: number | null;
+  subscriptionPeriodEnd: string | null;
   canSpend: boolean;
   /**
    * "5 Eylül 2026 03:00" — hakkın ne zaman yenileneceği.
@@ -27,7 +29,7 @@ export async function getStudentAccountContext(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<StudentAccountContext> {
-  const [{ data: wallet }, entitlement] = await Promise.all([
+  const [{ data: wallet }, entitlements] = await Promise.all([
     supabase
       .from("credit_wallets")
       .select(
@@ -35,26 +37,29 @@ export async function getStudentAccountContext(
       )
       .eq("user_id", userId)
       .maybeSingle(),
-    getSubscriptionEntitlement(supabase, userId),
+    getUserEntitlements(supabase, userId),
   ]);
 
-  const subscriptionBadge = entitlement?.badge ?? null;
-  const isPremium = subscriptionBadge !== null;
+  const subscriptionBadge = entitlements.badge;
+  const isPremium = entitlements.isPremium;
   const balance = wallet?.balance ?? 0;
   const freeAllowanceRemaining = wallet?.free_allowance_remaining ?? 0;
   const quota = quotaView(
     wallet,
     isPremium,
     new Date(),
-    entitlement?.monthlyAllowance ?? undefined,
+    entitlements.monthlyAllowance ?? undefined,
   );
 
   return {
+    audience: entitlements.audience,
     balance,
     freeAllowanceRemaining,
     isPremium,
+    showsUpgradeChrome: entitlements.showsUpgradeChrome,
     subscriptionBadge,
-    subscriptionAllowance: entitlement?.monthlyAllowance ?? null,
+    subscriptionAllowance: entitlements.monthlyAllowance,
+    subscriptionPeriodEnd: entitlements.subscriptionPeriodEnd,
     canSpend: balance > 0 || freeAllowanceRemaining > 0,
     resetsAtLabel: formatResetAt(quota.resetsAt),
     periodKind: quota.kind,

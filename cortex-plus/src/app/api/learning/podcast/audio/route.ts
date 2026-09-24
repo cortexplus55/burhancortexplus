@@ -11,19 +11,10 @@ export const maxDuration = 300;
 /**
  * Podcast seslendirme.
  *
- * Ses premium özelliği. Ölçüm bunu zorunlu kıldı: bir podcast'in maliyetinin
- * %98,4'ü seslendirme ve günlük bütçesini hep podcasta harcayan bir ücretsiz
- * kullanıcı hiç ödeme yapmadan ayda 108 TL'ye mal oluyordu.
- *
- * Ücretsiz kullanıcı senaryoyu okumaya ve cihazının sesiyle dinlemeye devam
- * ediyor — oynatıcı bu yanıtı alamayınca tarayıcı sesine düşüyor.
- *
- * Premium tarafta ses uzun süre düğümün bedeline dahildi; 18 Eylül 2026'da
- * bu bırakıldı. Sebebi ölçüm: senaryo 1 kredi düşerken beş dakikalık sesi
- * bunun kat kat üzerine mal oluyordu, yani düğümün bedeli sesi hiçbir zaman
- * karşılamıyordu. Artık YALNIZCA gerçekten üretilen karakter faturalanıyor
- * (900 karakter = 1 kredi); önbellekten gelen cümle hâlâ bedava, çünkü bize
- * de bir maliyeti yok.
+ * Kayıtlı her kademe bu ucu çağırabilir. Harcama özellik kilidi değil:
+ * yalnızca gerçekten üretilen karakter faturalanıyor (900 karakter = 1 kredi);
+ * önbellekten gelen cümle bedava, çünkü bize de bir maliyeti yok. Hak bitince
+ * 402 `insufficient_credits`. Misafir `withUser` ile 401 alır.
  */
 
 /** Tek istekte üretilecek en fazla cümle; kaçak bir senaryo faturayı şişirmesin. */

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import {
   EMPTY_SOURCE_CONTEXT,
   loadPageSourceContext,
@@ -604,11 +605,11 @@ export async function POST(request: Request) {
     }
   }
 
-  const premium = await isPremiumUser(service, userId);
-  // Podcast Plus'a özel. Öğrenme adımı artık ders olduğu için ücretsiz
-  // kullanıcı hiçbir şey kaybetmiyor; podcast konuyu bitirdikten sonra
-  // gelen sesli tekrar. Ses üretimi podcast maliyetinin %98,4'ü.
-  if (kind === "podcast" && !premium) {
+  const entitlements = await getUserEntitlements(service, userId);
+  const premium = entitlements.isPremium;
+  // Podcast adımı da kayıtlı ücretsizde açık. Hak bitince üretim
+  // credit_reserve ile 402 döner; özellik kilitli değil.
+  if (kind === "podcast" && !requireFeature(entitlements, "podcast")) {
     return errorResponse(402, "premium_required");
   }
   const voiceSession = voiceMode && (kind === "qa" || kind === "oral");

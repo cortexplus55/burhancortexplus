@@ -448,7 +448,7 @@ export function ExamNodeSession({
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        setPaywallReason("premium");
+        setPaywallReason(data.code === "premium_required" ? "premium" : "credit");
         setPaywall(true);
         return;
       }
@@ -1018,12 +1018,9 @@ export function ExamNodeSession({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        // Podcast kredi bitti diye değil, Plus'a özel olduğu için
-        // kapalı. "Kredin kalmadı" demek öğrenciye yarın gelince
-        // açılacağını söyler; açılmayacak.
         message={
           paywallReason === "premium"
-            ? "Sesli tekrar Plus'a özel."
+            ? "Sesli tekrar için hakkın yetmedi."
             : "Bu ders için kredin kalmadı."
         }
         returnPath={`/deneme-sinavlari/${prepId}`}

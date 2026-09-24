@@ -24,7 +24,7 @@ export function UpgradeAside({ returnPath }: { returnPath?: string }) {
       </div>
       <p className="ug-aside-title">Plus&apos;a yükselt</p>
       <p className="ug-aside-blurb">
-        Daha yüksek kullanım hakkı ve premium özellikler.
+        Günlük hak yerine yüksek aylık kota ve daha yüksek yükleme limiti.
       </p>
       <Link href={href} className="ug-aside-cta">
         Plus&apos;a geç

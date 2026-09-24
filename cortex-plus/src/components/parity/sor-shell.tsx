@@ -15,6 +15,7 @@ import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
 import { studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
 import { formatNumber } from "@/lib/format";
+import { profilePlanView } from "@/lib/billing/tier-presentation";
 import "@/styles/parity-shell.css";
 
 export type RecentConversation = {
@@ -63,30 +64,15 @@ export function ParitySorShell({
   const [menuOpen, setMenuOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
   const [limitDismissed, setLimitDismissed] = useState(false);
-  const showBuy = !account?.isPremium;
   const isPremium = Boolean(account?.isPremium);
+  const showBuy = account?.showsUpgradeChrome === true;
   const planLabel = account?.subscriptionBadge ?? "Plus";
   const showPlusLimit = isPremium && account && !account.canSpend && !limitDismissed;
   /**
-   * Profil penceresindeki paket özeti — YALNIZCA ÜCRETSİZE.
-   *
-   * Referans üründe bu rozet bir bilgi değil, bir satış yüzeyi: ücretsiz hesapta
-   * adın hemen altında "Temel / Ücretsiz plan" ve bir yükseltme düğmesi
-   * duruyor. Abone hesapta o slot BOŞ — ad ve okuldan doğrudan davet
-   * bloğuna geçiyor; paketini görmek isteyen Abonelikler'e giriyor.
-   * Her iki katmanda da girilip doğrulandı.
-   *
-   * Parasını ödemiş kullanıcıya her açılışta paket hatırlatmak, satış
-   * yapılacak kimse yokken yer kaplamaktan başka bir şey yapmıyor.
+   * Profil plan satırı kitleye göre: ücretsiz Temel + yükseltme, Plus/Sigma
+   * rozet + dönem + ek paket. Metin `profilePlanView` tek kaynağından gelir.
    */
-  const planView =
-    account && !account.isPremium
-      ? {
-          label: "Temel",
-          hint: "Ücretsiz plan · günlük hak, " + account.resetsAtLabel + " yenilenir",
-          isPremium: false,
-        }
-      : null;
+  const planView = account ? profilePlanView(account) : null;
   const isStudio = pathname.startsWith("/studio");
 
   const openMenuFromUrl = useCallback(() => setMenuOpen(true), []);
@@ -223,7 +209,7 @@ export function ParitySorShell({
 
       {/* Kampanya bandı yalnızca ücretsiz katmanda: abone olana indirim
           duyurusu göstermek anlamsız. */}
-      {promo && !isPremium ? <PromoBanner campaign={promo} /> : null}
+      {promo && showBuy ? <PromoBanner campaign={promo} /> : null}
 
       <main className="cp-sor-main">{children}</main>
 

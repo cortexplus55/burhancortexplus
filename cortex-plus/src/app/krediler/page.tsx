@@ -158,9 +158,9 @@ export default async function KredilerPage() {
           </div>
         ) : (
           <div className="cp-quota-upsell">
-            <p>Aylık limitin dolduysa paketini erkenden yenileyebilirsin.</p>
-            <Link href="/pay" className="cp-exam-continue inline-flex">
-              Paketi yenile
+            <p>Aylık kotan dolduysa ek paket alabilirsin.</p>
+            <Link href="/paketler" className="cp-exam-continue inline-flex">
+              Ek paket al
             </Link>
           </div>
         )}

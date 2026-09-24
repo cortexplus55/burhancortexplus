@@ -85,10 +85,7 @@ function tooManyResponse(result: RateLimitResult, message?: string) {
 }
 
 function unauthorizedResponse() {
-  return NextResponse.json(
-    { error: "Bu işlem için giriş yapmalısın." },
-    { status: 401 },
-  );
+  return errorResponse(401, "AUTH_REQUIRED");
 }
 
 /** Giriş yapmamış isteğin adres kuyruğu — doğrulama sunucusuna gitmeden önce. */
@@ -274,6 +271,7 @@ export function errorResponse(status: number, code: string) {
       "Seçili belge kaynağı okunamadı. Belgeyi yeniden işle veya başka kaynak seç.",
     no_measurable_topics:
       "Ölçülebilir konu bulunamadı. Konu haritasını kontrol et.",
+    AUTH_REQUIRED: "Bu işlem için giriş yapmalısın.",
     premium_required: "Bu özellik Plus aboneliğine özel.",
     free_image_limit:
       "Ücretsiz hesapta günde 3 fotoğraf çözülebiliyor. Yarın devam edebilir ya da Plus'a geçebilirsin.",

@@ -13,31 +13,28 @@ import { readFileSync } from "node:fs";
 
   Bu dosya dört şeyi tutuyor:
 
-  1. Ücretsiz kullanıcı podcast ÜRETEMEZ (kapı sunucuda, istemcide değil).
+  1. Kayıtlı kullanıcı podcast üretebilir; kapı oturum + kredi, özellik kilidi değil.
   2. Stüdyo GERÇEK sesi çalar — robot ses yolu geri gelmesin.
-  3. Aboneliği olmayana "kredin yetmiyor" denmez; kredi alsa da açılmaz.
+  3. Hak bitince yükseltme duvarı çıkar; "Plus'a özel" denmez.
   4. `/ornek` misafire açık kalır ve hiçbir AI çağrısı yapmaz.
 */
 
 const read = (file: string) => readFileSync(file, "utf8");
 
-describe("üretim ucu Plus'a özel", () => {
+describe("üretim ucu oturum ve özellik bayrağı", () => {
   const source = read("src/app/api/learning/podcast/generate/route.ts");
 
-  it("premium değilse reddediyor", () => {
-    expect(source).toContain('return errorResponse(402, "premium_required")');
+  it("kayıtlı hesapta podcast özelliği üretime izin verir", () => {
+    expect(source).toContain('requireFeature(entitlements, "podcast")');
+    expect(source).toContain("generateJson({");
+    expect(source).not.toContain("isPremiumUser(");
   });
 
-  /* Kapı üretimden sonra olsaydı ücretsiz kullanıcı krediyi de modeli de
-     harcar, sonra 402 yerdi. */
+  /* Kapı üretimden sonra olsaydı reddedilen istek modeli de yakardı. */
   it("kapı üretimden önce", () => {
-    expect(source.indexOf('errorResponse(402, "premium_required")')).toBeLessThan(
+    expect(source.indexOf('requireFeature(entitlements, "podcast")')).toBeLessThan(
       source.indexOf("generateJson({"),
     );
-  });
-
-  it("premium bilgisini iki kez sormuyor", () => {
-    expect(source.match(/isPremiumUser\(/g)).toHaveLength(1);
   });
 });
 
@@ -90,8 +87,9 @@ describe("stüdyo gerçek sesi çalıyor", () => {
     expect(source).toMatch(/Senaryoyu aşağıdan okuyabilirsin/);
   });
 
-  it("aboneliği olmayanı sunucuya hiç göndermiyor", () => {
-    expect(source).toMatch(/if \(!isPremium\) \{\s*\n\s*openPaywall\("premium"\);/);
+  it("ücretsiz hesabı sunucuya göndermeden kesmez", () => {
+    expect(source).not.toMatch(/openPaywall\("premium"\)/);
+    expect(source).toContain('"/api/learning/podcast/generate"');
   });
 });
 
@@ -101,22 +99,20 @@ describe("iki ayrı 402 ayrılıyor", () => {
     expect(source).toContain("return { paywall: true, code: payload.code }");
   });
 
-  /* "Kredin yetmiyor" demek, aboneliği olmayan öğrenciye kredi alırsa
-     açılacağını söyler — açılmaz. */
-  it("stüdyo aboneliği olmayana kredi satmıyor", () => {
+  it("stüdyo hak bitince kota duvarı gösterir", () => {
     const source = read("src/components/learning/studio/podcast-studio.tsx");
-    expect(source).toContain('paywallReason === "premium"');
-    expect(source).toContain("Podcast Plus aboneliğine özel.");
+    expect(source).toContain("Bu podcast için hakkın yetmiyor.");
+    expect(source).not.toContain("Podcast Plus aboneliğine özel.");
   });
 });
 
 describe("araç listesi", () => {
   const source = read("src/components/parity/start-hub.tsx");
 
-  /* Gizlemek öğrenciye ürünün ne yapabildiğini hiç göstermezdi. */
-  it("podcast listeden çıkmıyor, kilitli görünüyor", () => {
+  it("podcast listede açık görünür", () => {
     expect(source).toContain('href: "/studio/podcast"');
-    expect(source).toContain('locked ? "Plus\'a özel" : tool.hint');
+    expect(source).toContain('hint: "Dinleyerek öğren"');
+    expect(source).not.toContain("Plus'a özel");
   });
 });
 
