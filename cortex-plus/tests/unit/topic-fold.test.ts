@@ -4,6 +4,7 @@ import {
   consolidateTopics,
   headingsToGuard,
   outlineSections,
+  shouldRewriteStoredTopicMap,
   type FoldPage,
   type LooseTopic,
 } from "@/lib/documents/topic-fold";
@@ -31,7 +32,13 @@ const PDF_A_PAGES: FoldPage[] = [
     "3) Çıkış yoğunluğu ve debi",
     "ÇÖZÜM MANTIĞI",
   ],
-  ["28. Bütünleşik Çözümlü Örnek II - Türbin Gücü", "1) SFEE", "SIK HATA"],
+  [
+    "28. Bütünleşik Çözümlü Örnek II - Türbin Gücü",
+    "1) Isıyı birim kütleye çevir",
+    "2) Kinetik enerji değişimi",
+    "3) SFEE",
+    "SIK HATA",
+  ],
   [
     "29. Vize Öncesi Son Tekrar - Denklem Seçme Rehberi",
     "1) Sistemi seç",
@@ -256,5 +263,98 @@ describe("consolidateTopics", () => {
     expect(topics.find((item) => item.title.startsWith("Basınç"))?.pageNumbers).toEqual([6]);
     expect(topics.flatMap((item) => item.pageNumbers)).not.toContain(20);
     expect(topics.map((item) => item.title).join(" ")).not.toMatch(/tekrar|manometrik|vize notları/i);
+  });
+});
+
+/**
+ * Canlıda #76 yayına girdikten hemen sonra 10 sayfalık not hâlâ 21 konu
+ * gösterdi. O liste eski kuralın kaydı. Yeni boru hattı bunu yazamaz;
+ * kayıt açılınca aynı birleştirme uygulanır.
+ */
+const STALE_PDF_A_TITLES = [
+  "Açık Sistemlere Geçiş: Kütle Korunumu",
+  "VİZEDE DİKKAT",
+  "KENDİNİ TEST ET",
+  "Sürekli Akış Enerji Denklemi",
+  "FORMÜL KUTUSU",
+  "Nozul ve Difüzörler",
+  "Türbinler",
+  "Kompresör ve Pompa",
+  "Kısılma Vanası ve Isı Değiştirici",
+  "Geçici Kontrol Hacmi",
+  "Bütünleşik Çözümlü Örnek I - Nozul + Kütle Debisi",
+  "Enerji dengesi",
+  "Çıkış hızı",
+  "Çıkış yoğunluğu ve debi",
+  "Bütünleşik Çözümlü Örnek II - Türbin Gücü",
+  "Isıyı birim kütleye çevir",
+  "Kinetik enerji değişimi",
+  "Vize Öncesi Son Tekrar - Denklem Seçme Rehberi",
+  "Sistemi seç",
+  "Özellik modelini seç",
+  "Cihaza göre sadeleştir",
+];
+
+describe("stored topic map from before the fold", () => {
+  const stored = STALE_PDF_A_TITLES.map((title, index) =>
+    topic(title, [Math.min(10, index + 1)]),
+  );
+
+  it("recognizes the 21-title list as something that must be rewritten", () => {
+    expect(STALE_PDF_A_TITLES).toHaveLength(21);
+    expect(
+      shouldRewriteStoredTopicMap({
+        status: "ready",
+        studentEdited: false,
+        topics: stored,
+        pages: PDF_A_PAGES,
+      }),
+    ).toBe(true);
+  });
+
+  it("folds that list back under the ceiling with no callout or step titles", () => {
+    const { topics } = consolidateTopics(stored, PDF_A_PAGES, PDF_A_PAGES.length);
+    const titles = topics.map((item) => item.title);
+    expect(topics.length).toBeLessThanOrEqual(8);
+    expect(topics.length).toBeGreaterThanOrEqual(5);
+    expect(titles).not.toContain("VİZEDE DİKKAT");
+    expect(titles).not.toContain("KENDİNİ TEST ET");
+    expect(titles).not.toContain("FORMÜL KUTUSU");
+    expect(titles).not.toContain("Enerji dengesi");
+    expect(titles).not.toContain("Çıkış hızı");
+    expect(titles).not.toContain("Sistemi seç");
+    expect(titles).not.toContain("Isıyı birim kütleye çevir");
+    expect(titles).not.toContain("Kinetik enerji değişimi");
+    expect(titles.some((title) => /çözümlü örnek|vize öncesi/i.test(title))).toBe(false);
+    expect(titles).toContain("Nozul ve Difüzörler");
+    expect(titles).toContain("Açık Sistemlere Geçiş: Kütle Korunumu");
+  });
+
+  it("leaves a clean in-ceiling map, a reviewed map, and a student edit alone", () => {
+    const clean = CONCEPTS.map((title, index) => topic(title, [index + 1]));
+    expect(
+      shouldRewriteStoredTopicMap({
+        status: "ready",
+        studentEdited: false,
+        topics: clean,
+        pages: PDF_A_PAGES,
+      }),
+    ).toBe(false);
+    expect(
+      shouldRewriteStoredTopicMap({
+        status: "reviewed",
+        studentEdited: false,
+        topics: stored,
+        pages: PDF_A_PAGES,
+      }),
+    ).toBe(false);
+    expect(
+      shouldRewriteStoredTopicMap({
+        status: "ready",
+        studentEdited: true,
+        topics: stored,
+        pages: PDF_A_PAGES,
+      }),
+    ).toBe(false);
   });
 });

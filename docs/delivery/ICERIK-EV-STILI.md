@@ -42,6 +42,11 @@ Elenen başlığın sayfaları silinmez. Çözümlü örnek, adındaki kavrama
 katılır; kutu ve bölüm sonu tekrarı, sayfanın kendi bölümüne ya da
 ondan önceki konuya bağlanır. Kapsama düşmez, harita tümden çöpe gitmez.
 
+Aynı dosya yeniden yüklenince eski harita kopyalanmaz; her yükleme yeni
+bir belgedir. Eski kuralda kaydedilmiş ve hâlâ kutu ya da tavanın üstünde
+başlık taşıyan hazır harita, belge açılınca model çağrılmadan katlanır.
+Öğrencinin onayladığı ya da elle düzenlediği harita olduğu gibi kalır.
+
 ### Konuların sırası belgenin sırasıdır
 
 Kod: `orderTopicsByPrerequisites` · Test: `tests/unit/exam-schedule-v2.test.ts`

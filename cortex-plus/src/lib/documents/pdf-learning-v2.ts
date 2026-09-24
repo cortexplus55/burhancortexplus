@@ -1,10 +1,15 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { analyzePages, type PageAnalysis } from "@/lib/documents/page-analysis";
+import { analyzePage, analyzePages, type PageAnalysis } from "@/lib/documents/page-analysis";
 import { buildCoverageReport, type CoverageReport } from "@/lib/documents/coverage";
-import type { TopicDraft } from "@/lib/documents/topic-map";
-import { buildTopicMapLLM } from "@/lib/documents/topic-map-llm";
+import { draftFromLlmTopic, type TopicDraft } from "@/lib/documents/topic-map";
+import { buildTopicMapLLM, completeTopicPageLinks } from "@/lib/documents/topic-map-llm";
 import { runTeacherAnalysis } from "@/lib/documents/teacher-analysis-run";
+import {
+  shouldRewriteStoredTopicMap,
+  consolidateTopics,
+  type FoldPage,
+} from "@/lib/documents/topic-fold";
 
 export type PdfLearningV2Result = {
   ok: boolean;
@@ -259,10 +264,137 @@ export type TopicMapSnapshot = {
   coverage: CoverageReport | null;
 };
 
+/**
+ * Eski kuralda kaydedilmiş şişkin haritayı, belgeyi yeniden modele
+ * göndermeden katlar.
+ *
+ * Aynı dosya ikinci kez yüklenince eski harita kopyalanmıyor; her yükleme
+ * yeni bir belge. Burada düzelen şey o belgenin kendi kaydı: kutu ve adım
+ * başlıkları hâlâ duruyorsa öğrenciye gösterilmeden önce ait oldukları
+ * bölüme katılıyor. Onaylanmış ya da elle düzenlenmiş harita durur.
+ */
+export async function refoldTopicMapIfNeeded(
+  service: SupabaseClient,
+  documentId: string,
+): Promise<boolean> {
+  const { data: doc } = await service
+    .from("documents")
+    .select("topic_map_status")
+    .eq("id", documentId)
+    .maybeSingle();
+  if (!doc || doc.topic_map_status !== "ready") return false;
+
+  const [{ data: nodes }, { data: linkRows }, { data: pageRows, error: pageError }] =
+    await Promise.all([
+      service
+        .from("document_topic_nodes")
+        .select("id, title, learning_objective, prerequisites, is_student_edited, sort_order")
+        .eq("document_id", documentId)
+        .order("sort_order", { ascending: true }),
+      service
+        .from("document_topic_page_links")
+        .select("topic_id, page_number")
+        .eq("document_id", documentId),
+      service
+        .from("document_pages")
+        .select("id, page_number, text_content, headings, page_kind")
+        .eq("document_id", documentId)
+        .order("page_number", { ascending: true }),
+    ]);
+  if (pageError) return false;
+
+  const topicRows = nodes ?? [];
+  const pages = pageRows ?? [];
+  const pagesByTopic = new Map<string, number[]>();
+  for (const link of linkRows ?? []) {
+    const list = pagesByTopic.get(link.topic_id as string) ?? [];
+    list.push(link.page_number as number);
+    pagesByTopic.set(link.topic_id as string, list);
+  }
+
+  const analyses = pages.map((row) => {
+    const pageNumber = row.page_number as number;
+    const analyzed = analyzePage(pageNumber, (row.text_content as string | null) ?? "");
+    const storedHeadings = Array.isArray(row.headings) ? (row.headings as string[]) : [];
+    if (!analyzed.headings.length && storedHeadings.length) {
+      return { ...analyzed, headings: storedHeadings };
+    }
+    return analyzed;
+  });
+  const content = analyses.filter(
+    (page) => page.pageKind === "content" || page.pageKind === "uncertain",
+  );
+  const foldPages: FoldPage[] = content.map((page) => ({
+    pageNumber: page.pageNumber,
+    headings: page.headings,
+    textContent: page.textContent,
+  }));
+  const stored = topicRows.map((row) => ({
+    title: row.title as string,
+    learningObjective: (row.learning_objective as string | null) ?? null,
+    pageNumbers: [...new Set(pagesByTopic.get(row.id as string) ?? [])].sort((a, b) => a - b),
+    prerequisites: (row.prerequisites as string[] | null) ?? [],
+  }));
+
+  if (
+    !shouldRewriteStoredTopicMap({
+      status: (doc.topic_map_status as string | null) ?? null,
+      studentEdited: topicRows.some((row) => Boolean(row.is_student_edited)),
+      topics: stored,
+      pages: foldPages,
+      pageCount: content.length || pages.length,
+    })
+  ) {
+    return false;
+  }
+
+  const consolidated = consolidateTopics(
+    stored,
+    foldPages,
+    content.length || pages.length,
+  );
+  if (!consolidated.topics.length) return false;
+
+  const linked = completeTopicPageLinks(
+    consolidated.topics.map((topic, index) => ({
+      ...draftFromLlmTopic(
+        topic.title,
+        topic.learningObjective,
+        topic.pageNumbers,
+        analyses,
+        index,
+      ),
+      prerequisites: topic.prerequisites ?? [],
+    })),
+    analyses,
+  );
+
+  const pageIdByNumber = new Map(
+    pages.map((row) => [row.page_number as number, row.id as string]),
+  );
+  await clearTopicMap(service, documentId);
+  await persistTopics(service, documentId, linked, pageIdByNumber);
+  await persistCoverage(
+    service,
+    documentId,
+    buildCoverageReport(analyses, linked, consolidated.mergedTitles),
+  );
+  await service
+    .from("documents")
+    .update({
+      topic_map_status: "ready",
+      topic_map_error: null,
+      topic_map_updated_at: new Date().toISOString(),
+    })
+    .eq("id", documentId);
+  return true;
+}
+
 export async function loadTopicMapSnapshot(
   service: SupabaseClient,
   documentId: string,
 ): Promise<TopicMapSnapshot | null> {
+  await refoldTopicMapIfNeeded(service, documentId);
   const { data: doc } = await service
     .from("documents")
     .select(
