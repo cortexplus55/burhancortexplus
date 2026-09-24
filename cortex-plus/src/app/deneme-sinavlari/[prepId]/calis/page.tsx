@@ -5,6 +5,7 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { nextOpenTopic } from "@/lib/learning/exam-prep-progress";
 import { loadOrBackfillTopics, mapLessonsByTopic } from "@/lib/learning/exam-prep-topics";
+import { prepLanguage } from "@/lib/learning/teacher-brain";
 
 export const metadata = { title: "Ders oturumu" };
 
@@ -29,7 +30,7 @@ export default async function ExamPrepCalisPage({
 
   const { data: prep } = await supabase
     .from("exam_preps")
-    .select("id, title, study_plan_id")
+    .select("id, title, study_plan_id, learning_preferences")
     .eq("id", prepId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -57,6 +58,7 @@ export default async function ExamPrepCalisPage({
         topics={topics}
         initialTopicId={activeTopic?.id ?? null}
         lessonsByTopic={lessonsByTopic}
+        language={prepLanguage(prep.learning_preferences)}
       />
     </ParitySorShell>
   );

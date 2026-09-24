@@ -172,14 +172,15 @@ export async function POST(request: Request) {
       const studentInstruction = await loadActivePrompt(service, PROMPT_KEYS.studentChat);
       const examContext = rest.prepId ? await loadExamChatContext(service, userId, rest.prepId) : null;
       const lastAssistant = [...history].reverse().find((item) => item.role === "assistant");
+      const attachedBrief = !rest.prepId && rest.imageDocumentId
+        ? await loadTeacherBrief(service, rest.imageDocumentId, message.slice(0, 120))
+        : "";
       const teacherTurn = teacherTurnGuidance({
         message,
         lastAssistant: typeof lastAssistant?.content === "string" ? lastAssistant.content : "",
         language: examContext?.language,
+        hasSource: grounded || Boolean(attachedBrief) || Boolean(examContext?.hasSource),
       });
-      const attachedBrief = !rest.prepId && rest.imageDocumentId
-        ? await loadTeacherBrief(service, rest.imageDocumentId, message.slice(0, 120))
-        : "";
       // Full page context is used for an attachment; RAG supplies selected chunks.
       const contextBlock = grounded ? chatSourceBlock(evidence, { documentsOnly: strict, maxCharsPerChunk: documentAttached ? 80000 : 3000 }) : "";
       const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });

@@ -189,7 +189,7 @@ export async function POST(request: Request) {
       ? `${LESSON_V2_SCHEMA_HINT} trueFalse ise options tam olarak ["Doğru","Yanlış"]. Çeldirici gerçek yanılgı olsun; hiçbiri/hepsi yasak. explanation yanlış seçeneği çürütsün ve bölüm metnine bağlansın.`
       : 'Yalnızca JSON: {"title":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"summary":string[],"nextFocus":string[]}',
     userPrompt: teachingV2
-      ? `${teacherPersona()} ${groundingRules()}
+      ? `${teacherPersona()} ${sourceBlock.trim() || teacherBrief.trim() ? groundingRules() : ""}
 Öğrenci için tek konuluk sınav hazırlık dersi yaz.
 Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
 ${sessionCtx}

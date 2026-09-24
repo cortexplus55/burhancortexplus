@@ -464,6 +464,14 @@ export function unsupportedQuantities(generated: string, source: string): string
  * Analizde duran formülü kaynakta yoksa at.
  * Katsayısı 3 ve üstü olan ifade, o sayı belgede yoksa kalmaz.
  */
+function keepSourceBacked(text: string, source: string): string {
+  return unsupportedQuantities(text, source).length ? "" : text;
+}
+
+function keepSourceBackedList(items: string[], source: string): string[] {
+  return items.filter((item) => !unsupportedQuantities(item, source).length);
+}
+
 export function sanitizeAnalysisAgainstSource(
   analysis: TeacherAnalysis,
   source: string,
@@ -471,47 +479,91 @@ export function sanitizeAnalysisAgainstSource(
   if (!source.trim()) return { analysis, droppedFormulas: [] };
   const droppedFormulas: string[] = [];
   const keyFormulas = analysis.examFocus.keyFormulas.filter((formula) => {
-    const gaps = unsupportedQuantities(formula.expression, source);
+    const gaps = unsupportedQuantities(
+      `${formula.expression} ${formula.meaning}`,
+      source,
+    );
     if (!gaps.length) return true;
     droppedFormulas.push(formula.expression);
     return false;
   });
   const keyDefinitions = analysis.examFocus.keyDefinitions.filter((item) => {
     if (item.term.length < 3) return true;
-    return foldTr(source).includes(foldTr(item.term));
+    if (!foldTr(source).includes(foldTr(item.term))) return false;
+    return !unsupportedQuantities(item.definition, source).length;
   });
+  const topics = analysis.topics.map((topic) => ({
+    ...topic,
+    strategy: {
+      examples: keepSourceBackedList(topic.strategy.examples, source),
+      analogies: keepSourceBackedList(topic.strategy.analogies, source),
+      mnemonics: keepSourceBackedList(topic.strategy.mnemonics, source),
+      workedExamplePlan: keepSourceBacked(topic.strategy.workedExamplePlan, source),
+      checkQuestions: keepSourceBackedList(topic.strategy.checkQuestions, source),
+    },
+  }));
+  const misconceptions = analysis.misconceptions.filter(
+    (item) => !unsupportedQuantities(`${item.mistake} ${item.correction}`, source).length,
+  );
+  const objectives = analysis.objectives.filter(
+    (item) => !unsupportedQuantities(item.statement, source).length,
+  );
   const next = parseTeacherAnalysis(
     {
       ...analysis,
+      summary: keepSourceBacked(analysis.summary, source) || analysis.summary,
+      objectives: objectives.length ? objectives : analysis.objectives,
       examFocus: { ...analysis.examFocus, keyFormulas, keyDefinitions },
+      misconceptions,
+      topics,
     },
     analysis.language,
   );
   return { analysis: next ?? analysis, droppedFormulas };
 }
 
+/** Kısa başlık ("Su") daha uzun başlığın ("Su Akışı") içine sızmasın. */
+const MIN_TOPIC_MATCH = 4;
+
 function matchTopic(
   analysis: TeacherAnalysis,
   topicTitle: string,
 ): TeacherAnalysis["topics"][number] | null {
   const want = foldTr(topicTitle);
-  if (!want) return null;
-  for (const topic of analysis.topics) {
-    const have = foldTr(topic.title);
-    if (want.includes(have) || have.includes(want)) return topic;
-  }
+  if (want.length < MIN_TOPIC_MATCH) return null;
+
   let best: TeacherAnalysis["topics"][number] | null = null;
-  let bestScore = 0;
-  const words = want.split(/[^a-z0-9]+/).filter((word) => word.length >= 4);
+  let bestOverlap = 0;
+  let bestGap = Number.POSITIVE_INFINITY;
   for (const topic of analysis.topics) {
     const have = foldTr(topic.title);
-    const score = words.filter((word) => have.includes(word.slice(0, 5))).length;
-    if (score > bestScore) {
+    if (have.length < MIN_TOPIC_MATCH) continue;
+    if (!want.includes(have) && !have.includes(want)) continue;
+    const overlap = Math.min(have.length, want.length);
+    const gap = Math.abs(have.length - want.length);
+    if (overlap > bestOverlap || (overlap === bestOverlap && gap < bestGap)) {
       best = topic;
-      bestScore = score;
+      bestOverlap = overlap;
+      bestGap = gap;
     }
   }
-  return best;
+  if (best) return best;
+
+  let wordBest: TeacherAnalysis["topics"][number] | null = null;
+  let wordScore = 0;
+  let wordLen = 0;
+  const words = want.split(/[^a-z0-9]+/).filter((word) => word.length >= MIN_TOPIC_MATCH);
+  for (const topic of analysis.topics) {
+    const have = foldTr(topic.title);
+    if (have.length < MIN_TOPIC_MATCH) continue;
+    const score = words.filter((word) => have.includes(word)).length;
+    if (score > wordScore || (score === wordScore && score > 0 && have.length > wordLen)) {
+      wordBest = topic;
+      wordScore = score;
+      wordLen = have.length;
+    }
+  }
+  return wordScore > 0 ? wordBest : null;
 }
 
 function clipBlock(text: string, max = 1500): string {
@@ -549,10 +601,14 @@ export function teacherBriefForTopic(analysis: TeacherAnalysis, topicTitle: stri
       lines.push(`Kontrol soruları: ${topic.strategy.checkQuestions.join(" | ")}`);
     }
   }
+  // Sayfası boş formül her konuya, eşleşmeyen başlık da bütün formüllere
+  // yazılmasın. Ders kapısı o sayıyı kaynakta bulamayınca taslağı düşürür.
   const pages = new Set(topic?.pageNumbers ?? []);
-  const formulas = analysis.examFocus.keyFormulas.filter(
-    (formula) => !pages.size || formula.pageNumbers.some((page) => pages.has(page)) || !formula.pageNumbers.length,
-  );
+  const formulas = topic
+    ? analysis.examFocus.keyFormulas.filter((formula) =>
+        formula.pageNumbers.some((page) => pages.has(page)),
+      )
+    : [];
   if (formulas.length) {
     lines.push(
       `Formüller: ${formulas
@@ -587,7 +643,7 @@ export function teacherPersona(language: MaterialLanguage = "tr"): string {
     return (
       "You are this course's professor, not a generic chatbot. " +
       "Diagnose what the student already understands, explain one step, then ask a short check question. " +
-      "When they answer, judge it against the uploaded material: what is right, what is missing or wrong, and why. Then continue. " +
+      "When they answer, say what is right, what is missing or wrong, and why. Then continue. " +
       "Guide. Write the full solution only if they explicitly ask. " +
       "Tie the point to how it appears on the exam. No filler and no applause."
     );
@@ -595,7 +651,7 @@ export function teacherPersona(language: MaterialLanguage = "tr"): string {
   return (
     "Sen bu dersin profesörüsün; genel bir sohbet botu değilsin. " +
     "Önce öğrencinin seviyesini yokla, tek adım anlat, ardından kısa bir kontrol sorusu sor. " +
-    "Öğrenci cevap verince yanıtı belgeye göre değerlendir: ne doğru, ne eksik ya da yanlış, neden. Sonra devam et. " +
+    "Öğrenci cevap verince neyin doğru, neyin eksik ya da yanlış olduğunu ve nedenini söyle. Sonra devam et. " +
     "Yönlendir. Tam çözümü ancak öğrenci açıkça isterse yaz. " +
     "Anlattığın noktayı sınavda nasıl çıktığına bağla. Dolgu, alkış ve motivasyon cümlesi yok."
   );
@@ -650,20 +706,46 @@ export function teacherTurnGuidance(input: {
   message: string;
   lastAssistant?: string;
   language?: MaterialLanguage;
+  /** Belge metni, ders veya öğretmen notu gerçekten yüklendiyse. */
+  hasSource?: boolean;
 }): string {
   const language = input.language ?? "tr";
-  const parts = [teacherPersona(language), groundingRules(language)];
+  const parts = [teacherPersona(language)];
+  if (input.hasSource) parts.push(groundingRules(language));
   const intent = intentLine(teachingIntent(input.message), language);
   if (intent) parts.push(intent);
   const last = input.lastAssistant ?? "";
   if (last.includes("?") && teachingIntent(input.message) === "none") {
     parts.push(
-      language === "en"
-        ? "If this message answers your check question, say what matches the document, what is missing or wrong, and why. If it is a new question, teach that instead."
-        : "Bu mesaj kontrol sorusunun cevabıysa belgede neyin tuttuğunu, neyin eksik ya da yanlış olduğunu ve nedenini söyle. Yeni bir soruysa onu öğret.",
+      input.hasSource
+        ? language === "en"
+          ? "If this message answers your check question, say what matches the document, what is missing or wrong, and why. If it is a new question, teach that instead."
+          : "Bu mesaj kontrol sorusunun cevabıysa belgede neyin tuttuğunu, neyin eksik ya da yanlış olduğunu ve nedenini söyle. Yeni bir soruysa onu öğret."
+        : language === "en"
+          ? "If this message answers your check question, say what is right, what is missing or wrong, and why. If it is a new question, teach that instead."
+          : "Bu mesaj kontrol sorusunun cevabıysa neyin doğru, neyin eksik ya da yanlış olduğunu ve nedenini söyle. Yeni bir soruysa onu öğret.",
     );
   }
   return parts.join("\n");
+}
+
+export function voiceReplySchemaHint(language: MaterialLanguage): string {
+  if (language === "en") {
+    return 'JSON: {"reply":string,"done":boolean}. reply is spoken aloud and is short English. done is true only when the session has naturally ended.';
+  }
+  return 'JSON: {"reply":string,"done":boolean}. reply sesli okunacak, kısa Türkçe. done true yalnızca oturum doğal bittiyse.';
+}
+
+/**
+ * Nicelik kapısı nottaki sayı yüzünden düşerse ders notsuz bir kez daha
+ * üretilir. İkinci tur da düşerse üretim biter; döngü yok.
+ */
+export function shouldRetryLessonWithoutBrief(input: {
+  brief: string | null | undefined;
+  rejectedForQuantity: boolean;
+  retried: boolean;
+}): boolean {
+  return !input.retried && Boolean(input.brief?.trim()) && input.rejectedForQuantity;
 }
 
 export const SINGLE_NARRATOR_SCHEMA =

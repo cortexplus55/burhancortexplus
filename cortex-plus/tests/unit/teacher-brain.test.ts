@@ -13,6 +13,7 @@ import {
   rephraseSectionCheck,
   sanitizeAnalysisAgainstSource,
   selectAnalysisPages,
+  shouldRetryLessonWithoutBrief,
   teacherBriefForTopic,
   teacherBriefForTopicMap,
   teacherPersona,
@@ -20,6 +21,7 @@ import {
   teachingIntent,
   topicMapTeacherNote,
   unsupportedQuantities,
+  voiceReplySchemaHint,
   type TeacherAnalysis,
 } from "@/lib/learning/teacher-brain";
 
@@ -205,6 +207,34 @@ describe("kaynağa bağlama", () => {
       "boşluk basıncı",
     ]);
   });
+
+  it("örnek ve plan metnindeki uydurma sayıyı da atar", () => {
+    const analysis = parseTeacherAnalysis({
+      ...sample,
+      topics: [
+        {
+          ...sample.topics[0],
+          strategy: {
+            ...sample.topics[0].strategy,
+            examples: ["σ = 100 kPa ve u = 40 kPa", "Δσ = 5Q / z² ile hesap"],
+            workedExamplePlan: "Önce σ = 100, sonra uydurma Δσ = 8Q.",
+          },
+        },
+      ],
+    }) as TeacherAnalysis;
+    const checked = sanitizeAnalysisAgainstSource(
+      analysis,
+      "σ' = σ − u. Örnekte σ = 100 kPa ve u = 40 kPa.",
+    );
+    expect(checked.analysis.topics[0].strategy.examples).toEqual([
+      "σ = 100 kPa ve u = 40 kPa",
+    ]);
+    expect(checked.analysis.topics[0].strategy.workedExamplePlan).toBe("");
+    const brief = teacherBriefForTopic(checked.analysis, "Efektif Gerilme");
+    expect(brief).not.toContain("5Q");
+    expect(brief).not.toContain("8Q");
+    expect(brief).toContain("σ' = σ − u");
+  });
 });
 
 describe("akış notu ve tekrar sorusu", () => {
@@ -224,6 +254,93 @@ describe("akış notu ve tekrar sorusu", () => {
     expect(brief).toContain("Önce σ, sonra u");
   });
 
+  it("sayfasız formülü ve kısa başlığı nota yazmaz", () => {
+    const wide = parseTeacherAnalysis({
+      ...sample,
+      examFocus: {
+        ...sample.examFocus,
+        keyFormulas: [
+          { expression: "σ' = σ − u", meaning: "efektif gerilme", pageNumbers: [2] },
+          { expression: "E = 9 kPa", meaning: "sayfasız formül", pageNumbers: [] },
+          { expression: "q = 12 kN", meaning: "başka sayfa", pageNumbers: [9] },
+        ],
+      },
+      topics: [
+        sample.topics[0],
+        {
+          title: "Su",
+          emphasis: "support",
+          prerequisites: [],
+          pageNumbers: [1],
+          strategy: {
+            examples: ["Kısa su notu burada."],
+            analogies: [],
+            mnemonics: [],
+            workedExamplePlan: "",
+            checkQuestions: ["Su nedir bugün?"],
+          },
+        },
+        {
+          title: "Su Akışı",
+          emphasis: "core",
+          prerequisites: [],
+          pageNumbers: [4],
+          strategy: {
+            examples: ["Debi süreklidir ve kütle korunur."],
+            analogies: [],
+            mnemonics: [],
+            workedExamplePlan: "Önce debiyi yaz.",
+            checkQuestions: ["Debi nasıl korunur burada?"],
+          },
+        },
+      ],
+    }) as TeacherAnalysis;
+    const scoped = teacherBriefForTopic(wide, "Efektif gerilme ilkesi");
+    expect(scoped).toContain("σ' = σ − u");
+    expect(scoped).not.toContain("E = 9");
+    expect(scoped).not.toContain("q = 12");
+    const unmatched = teacherBriefForTopic(wide, "Kuantum dolanıklık");
+    expect(unmatched).not.toContain("σ'");
+    expect(unmatched).not.toContain("E = 9");
+    const flow = teacherBriefForTopic(wide, "Su Akışı nedir");
+    expect(flow).toContain("Debi süreklidir");
+    expect(flow).not.toContain("Kısa su notu");
+    const short = teacherBriefForTopic(wide, "Su");
+    expect(short).not.toContain("Kısa su notu");
+    expect(short).not.toContain("Debi süreklidir");
+  });
+
+  it("nicelik reddinde notu bir kez çıkarır, ikinci turda çıkarmaz", () => {
+    expect(
+      shouldRetryLessonWithoutBrief({
+        brief: "ṁ = 0,60 kg/s",
+        rejectedForQuantity: true,
+        retried: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldRetryLessonWithoutBrief({
+        brief: "ṁ = 0,60 kg/s",
+        rejectedForQuantity: true,
+        retried: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldRetryLessonWithoutBrief({
+        brief: "",
+        rejectedForQuantity: true,
+        retried: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldRetryLessonWithoutBrief({
+        brief: "not",
+        rejectedForQuantity: false,
+        retried: false,
+      }),
+    ).toBe(false);
+  });
+
   it("yanlışın tekrarını başka cümle ve başka şık yeriyle sorar", () => {
     const check = rephraseSectionCheck({
       type: "mcq" as const,
@@ -235,6 +352,22 @@ describe("akış notu ve tekrar sorusu", () => {
     expect(check.prompt).not.toBe("Aşağıdakilerden hangisi efektif gerilmedir?");
     expect(check.options[check.answerIndex]).toBe("σ − u");
     expect(check.answerIndex).not.toBe(1);
+  });
+
+  it("İngilizce dersin tekrarını İngilizce kurar", () => {
+    const check = rephraseSectionCheck(
+      {
+        type: "mcq",
+        prompt: "Which quantity is effective stress?",
+        options: ["sigma", "sigma minus u", "pore pressure"],
+        answerIndex: 1,
+        explanation: "Effective stress subtracts pore pressure.",
+      },
+      "en",
+    );
+    expect(check.prompt.startsWith("On the exam")).toBe(true);
+    expect(check.prompt).not.toMatch(/sınavda|aşağıdaki/i);
+    expect(check.options[check.answerIndex]).toBe("sigma minus u");
   });
 });
 
@@ -248,22 +381,36 @@ describe("öğretmen personası", () => {
     expect(teachingIntent("formül neydi")).toBe("none");
   });
 
-  it("cevap turunda belgeye göre değerlendirme ister", () => {
-    const guidance = teacherTurnGuidance({
+  it("belge yüklüyse belgeye göre, değilse personasına göre konuşur", () => {
+    const open = teacherTurnGuidance({
       message: "σ ile u aynı şey",
       lastAssistant: "Efektif gerilme nedir?",
     });
-    expect(guidance).toContain("profesör");
-    expect(guidance).toContain("Materyal dışı:");
-    expect(guidance).toContain("eksik ya da yanlış");
+    expect(open).toContain("profesör");
+    expect(open).not.toContain("Materyal dışı:");
+    expect(open).not.toContain("belgede");
+    const sourced = teacherTurnGuidance({
+      message: "σ ile u aynı şey",
+      lastAssistant: "Efektif gerilme nedir?",
+      hasSource: true,
+    });
+    expect(sourced).toContain("Materyal dışı:");
+    expect(sourced).toContain("belgede");
   });
 
   it("İngilizce hazırlıkta İngilizce persona kullanır", () => {
     expect(prepLanguage({ language: "en" })).toBe("en");
     expect(teacherPersona("en")).toContain("professor");
+    expect(teacherPersona("en")).not.toContain("uploaded material");
     expect(teacherTurnGuidance({ message: "test me", language: "en" })).toContain(
       "exam-style question",
     );
+    expect(teacherTurnGuidance({ message: "test me", language: "en" })).not.toContain(
+      "Outside the material",
+    );
+    expect(voiceReplySchemaHint("en")).toContain("short English");
+    expect(voiceReplySchemaHint("en")).not.toContain("Türkçe");
+    expect(voiceReplySchemaHint("tr")).toContain("Türkçe");
     expect(podcastNarrationBrief("en")).toContain("One expert teacher");
     expect(
       detectMaterialLanguage(

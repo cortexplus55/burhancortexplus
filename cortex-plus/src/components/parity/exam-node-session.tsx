@@ -92,6 +92,7 @@ export function ExamNodeSession({
   sourceName = null,
   resetsAtLabel = null,
   oralTopics = [],
+  language = "tr",
 }: {
   prepId: string;
   nodeId: string;
@@ -115,6 +116,8 @@ export function ExamNodeSession({
   resetsAtLabel?: string | null;
   /** Sözlü deneme konu listesi. Boşsa düğümün kendi konusu tek satır olur. */
   oralTopics?: OralTopicRow[];
+  /** Hazırlık dili — ders sonu tekrarı bu dilde kurulur. */
+  language?: "tr" | "en";
 }) {
   const router = useRouter();
   const meta = PLAN_NODE_META[kind];
@@ -828,6 +831,7 @@ export function ExamNodeSession({
           // biter ve öğrenci cevaplamadan ilerleyemez.
           <ExamLessonSteps
             lesson={structuredLesson}
+            language={language}
             onFinish={() => void finish()}
             onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
           />

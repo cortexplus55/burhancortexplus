@@ -72,6 +72,7 @@ import {
   podcastDialogueIssues,
   podcastNarrationBrief,
   prepLanguage,
+  shouldRetryLessonWithoutBrief,
   SINGLE_NARRATOR_SCHEMA,
   studentLanguageLine,
   unsupportedQuantities,
@@ -391,7 +392,7 @@ export async function POST(request: Request) {
         schemaHint: teachingV2
           ? `Yalnızca {"correctCount":number,"missingObjectives":string[],"scoreRationale":string} JSON. correctCount 0-${questions.length}. Eşdeğer doğru kabul et; gerekçesiz uzun ilgisiz metin doğru sayma.`
           : `Yalnızca {"correctCount":number} JSON döndür. correctCount 0-${questions.length} arasında tam sayı olmalı. Anlamsız, ilgisiz veya yalnızca genel ifadeler doğru sayılmaz.`,
-        userPrompt: `${topicLabel} sözlü yanıtlarını içerik doğruluğuna göre değerlendir. Her yanıtı ancak soruyu doğru ve yeterli biçimde cevaplıyorsa doğru say. Belgede olmayan bir doğruyu puanlama; eksik noktayı missingObjectives'e yaz.\n\n${answerLines}`,
+        userPrompt: `${topicLabel} sözlü yanıtlarını içerik doğruluğuna göre değerlendir. Her yanıtı ancak soruyu doğru ve yeterli biçimde cevaplıyorsa doğru say. Rubrikte ve beklenen noktalarda olmayan bir doğruyu puanlama; eksik noktayı missingObjectives'e yaz.\n\n${answerLines}`,
         parse: (raw) => oralGradeSchema.safeParse(raw).data ?? null,
       });
       if (!grade.ok) return errorResponse(grade.status, grade.error);
@@ -1128,12 +1129,15 @@ async function generateNodePayload(input: {
   const prefsHint = input.teachingV2
     ? preferencePromptHint(input.learningPreferences)
     : "";
+  const teacherNote = input.teacherBrief?.trim() ?? "";
   // Aşinalık içeriğin nereden başlayacağını, ruh hali tonunu belirler.
   // Kaynak bloğu sona geliyor: model en son okuduğu talimata daha sadık.
-  const ctx = `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}. Zorluk: ${input.difficulty}. ${sessionSignalsPrompt(
-    input.familiarity,
-    input.mood,
-  )} ${sessionCtx} ${standards}${prefsHint}${input.teacherBrief ? `\n${input.teacherBrief}` : ""}${input.sourceBlock}${input.topicFenceBlock ?? ""}`;
+  const contextFor = (note: string) =>
+    `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}. Zorluk: ${input.difficulty}. ${sessionSignalsPrompt(
+      input.familiarity,
+      input.mood,
+    )} ${sessionCtx} ${standards}${prefsHint}${note ? `\n${note}` : ""}${input.sourceBlock}${input.topicFenceBlock ?? ""}`;
+  const ctx = contextFor(teacherNote);
 
   const v2Common = input.teachingV2
     ? {
@@ -1182,6 +1186,7 @@ async function generateNodePayload(input: {
     let lastValidLesson: LessonV2 | null = null;
     let lastValidMissing = Number.POSITIVE_INFINITY;
     let lastParseIssues: string[] = [];
+    let rejectedForQuantity = false;
     const backbone = input.sectionBackbone ?? [];
     // Omurga tek başlıksa dayatmıyoruz: tek bölümlük ders, dersin kendisi
     // olmaz. İki ve üzeri gerçek bir iskelettir.
@@ -1219,13 +1224,18 @@ async function generateNodePayload(input: {
         '"x2":300,"y2":170,"arrow":true},{"kind":"text","x":300,"y":182,' +
         '"text":"...","anchor":"end"}]} — koordinatları kendi çizimine göre seç.'
       : "";
-    const outcome = await generateJson({
+    const requestLesson = (note: string, retried: boolean) =>
+      generateJson({
       service: input.service,
       userId: input.userId,
       actionCode: actionForKind(input.kind),
       isPremium: input.isPremium,
       difficulty: "hard",
       ...v2Common,
+      idempotencyKey:
+        retried && input.idempotencyKey
+          ? `${input.idempotencyKey}:no-brief`
+          : input.idempotencyKey,
       allowIndependentAccept: false,
       buildIndependent: (_c, parsed) => {
         const cleaned = prepareLessonDraft(parsed);
@@ -1248,7 +1258,7 @@ async function generateNodePayload(input: {
         "{kind:\"text\",x,y,text,anchor?}. Renk seçme; tone/fill/stroke yalnızca " +
         "ink, muted, accent, surface, line olabilir. Her çizimde en az bir etiket " +
         "ve bir caption olsun. Metinle anlaşılan konuya çizim koyma.",
-      userPrompt: `${ctx}${backbonePrompt}${diagramPrompt} Bu konunun dersini yaz.`,
+      userPrompt: `${contextFor(note)}${backbonePrompt}${diagramPrompt} Bu konunun dersini yaz.`,
       // Bu tur neden reddedildi — modele aynen iletiliyor. Rota kendi
       // kurallarıyla da reddediyor; sebebini söylemezse yeniden üretim
       // "JSON şeman bozuk" gibi yanlış bir yönlendirmeyle gidiyordu.
@@ -1303,6 +1313,7 @@ async function generateNodePayload(input: {
           ].join("\n");
           const gaps = unsupportedQuantities(lessonText, input.sourceBlock);
           if (gaps.length) {
+            rejectedForQuantity = true;
             lastParseIssues = [`Kaynakta olmayan nicelik: ${gaps.join(", ")}`];
             return null;
           }
@@ -1362,8 +1373,26 @@ async function generateNodePayload(input: {
      * Hiçbiri geçmediyse ders açılmaz ve öğrenci "yeniden dene" görür.
      * Bunun bedeli kabul edildi: yarım bir ders, dersin hiç olmamasından
      * iyi DEĞİL — sınavına çalışan öğrenci yanlış öğrenir ve bunu bilemez.
+     *
+     * Öğretmen notundaki sayı kaynağın bu kesitinde yoksa kapı taslağı
+     * düşürür. O durumda notsuz bir kez daha üretilir; ikinci tur yok.
      */
-    const lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;
+    let outcome = await requestLesson(teacherNote, false);
+    let lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;
+    if (
+      !lesson &&
+      shouldRetryLessonWithoutBrief({
+        brief: teacherNote,
+        rejectedForQuantity,
+        retried: false,
+      })
+    ) {
+      rejectedForQuantity = false;
+      lastValidLesson = null;
+      lastParseIssues = [];
+      outcome = await requestLesson("", true);
+      lesson = outcome.ok ? outcome.data : lastValidLesson;
+    }
     if (!lesson) throw new NodeGenerationError(outcome.ok ? 500 : outcome.status, outcome.ok ? "lesson_missing" : outcome.error);
     // Dersi konuya da yaz: öğrenci sonra geri dönüp okuyabilsin ve ders
     // bitince önerilen podcast bu içerikten türeyebilsin. Yazamamak dersi

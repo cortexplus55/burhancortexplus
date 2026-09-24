@@ -7,6 +7,7 @@ import { lessonV2Schema } from "@/lib/learning/teaching-standards";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
+import { prepLanguage } from "@/lib/learning/teacher-brain";
 
 export const metadata = { title: "Ders" };
 
@@ -22,7 +23,7 @@ export default async function ExamPrepLessonPage({
   const [{ data: prep }, { data: lesson }] = await Promise.all([
     supabase
       .from("exam_preps")
-      .select("id, title")
+      .select("id, title, learning_preferences")
       .eq("id", prepId)
       .eq("user_id", user.id)
       .maybeSingle(),
@@ -68,6 +69,7 @@ export default async function ExamPrepLessonPage({
         {structured ? (
           <ExamLessonSteps
             lesson={structured}
+            language={prepLanguage(prep.learning_preferences)}
             closeHref={`/deneme-sinavlari/${prepId}`}
           />
         ) : (

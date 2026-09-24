@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
-import { groundingRules } from "@/lib/learning/teacher-brain";
 import { trueFalseItemsSchema, TRUE_FALSE_FORMAT } from "@/lib/learning/true-false";
 
 const bodySchema = z.object({
@@ -29,7 +28,7 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
       'Yalnızca şu JSON: {"title":string,"items":[{"text":string,"correct":boolean,"explanation":string,"correctedStatement":string}]}. 8 kısa Türkçe iddia yaz. Yarısı doğru, yarısı yanlış olsun. ' + TRUE_FALSE_FORMAT,
-    userPrompt: `${groundingRules()} Konu: ${parsedBody.data.topic}. 8 doğru/yanlış iddiası üret. Yanlış iddia gerçek bir yanılgı olsun.`,
+    userPrompt: `Konu: ${parsedBody.data.topic}. 8 doğru/yanlış iddiası üret. Yanlış iddia gerçek bir yanılgı olsun.`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       return result.success ? result.data : null;
