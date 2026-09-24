@@ -412,44 +412,68 @@ export function SubscriptionCards({
 
       </div>
 
-      <div className="mx-auto mb-6 max-w-3xl overflow-x-auto">
-        <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
-          <caption className="mb-2 text-left text-xs font-semibold text-[var(--cs-text)]">
-            Misafir, ücretsiz ve premium
-          </caption>
-          <thead>
-            <tr className="text-[var(--cs-muted)]">
-              <th className="px-2 py-2 font-medium" scope="col">
-                Özellik
-              </th>
-              <th className="px-2 py-2 font-medium" scope="col">
-                Misafir
-              </th>
-              <th className="px-2 py-2 font-medium" scope="col">
-                Ücretsiz
-              </th>
-              <th className="px-2 py-2 font-medium" scope="col">
-                Plus
-              </th>
-              <th className="px-2 py-2 font-medium" scope="col">
-                Sigma
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {comparison.map((row) => (
-              <tr key={row.label} className="border-t border-[var(--cs-border)]">
-                <th className="px-2 py-2 font-medium text-[var(--cs-text)]" scope="row">
-                  {row.label}
+      <div className="tier-compare mx-auto mb-6 w-full">
+        <p id="tier-compare-title" className="tier-compare-caption">
+          Misafir, ücretsiz ve premium
+        </p>
+        <div className="tier-compare-cards" aria-labelledby="tier-compare-title">
+          {comparison.map((row) => (
+            <section key={row.label} className="tier-compare-card">
+              <h3 className="tier-compare-feature">{row.label}</h3>
+              <dl className="tier-compare-grid">
+                {(
+                  [
+                    ["Misafir", row.guest],
+                    ["Ücretsiz", row.free],
+                    ["Plus", row.plus],
+                    ["Sigma", row.sigma],
+                  ] as const
+                ).map(([plan, value]) => (
+                  <div key={plan}>
+                    <dt>{plan}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ))}
+        </div>
+        <div className="tier-compare-scroll">
+          <table className="tier-compare-table" aria-labelledby="tier-compare-title">
+            <thead>
+              <tr className="text-[var(--cs-muted)]">
+                <th className="font-medium" scope="col">
+                  Özellik
                 </th>
-                <td className="px-2 py-2 text-[var(--cs-muted)]">{row.guest}</td>
-                <td className="px-2 py-2 text-[var(--cs-muted)]">{row.free}</td>
-                <td className="px-2 py-2 text-[var(--cs-muted)]">{row.plus}</td>
-                <td className="px-2 py-2 text-[var(--cs-muted)]">{row.sigma}</td>
+                <th className="font-medium" scope="col">
+                  Misafir
+                </th>
+                <th className="font-medium" scope="col">
+                  Ücretsiz
+                </th>
+                <th className="font-medium" scope="col">
+                  Plus
+                </th>
+                <th className="font-medium" scope="col">
+                  Sigma
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {comparison.map((row) => (
+                <tr key={row.label} className="border-t border-[var(--cs-border)]">
+                  <th className="font-medium text-[var(--cs-text)]" scope="row">
+                    {row.label}
+                  </th>
+                  <td className="text-[var(--cs-muted)]">{row.guest}</td>
+                  <td className="text-[var(--cs-muted)]">{row.free}</td>
+                  <td className="text-[var(--cs-muted)]">{row.plus}</td>
+                  <td className="text-[var(--cs-muted)]">{row.sigma}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/*

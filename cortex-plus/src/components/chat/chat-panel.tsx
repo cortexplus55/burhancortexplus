@@ -1013,12 +1013,6 @@ function ChatPanelSession({
                   </span>
                 </Link>
               ) : null}
-
-              {showUpgrade ? (
-                <div className="cp-sor-empty-upgrade">
-                  <UpgradeAside returnPath={returnPath} />
-                </div>
-              ) : null}
             </div>
           ) : null}
 
