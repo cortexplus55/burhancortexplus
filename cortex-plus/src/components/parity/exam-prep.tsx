@@ -182,6 +182,9 @@ export function ParityExamPrep({
               <span>
                 {visibleActive.topicsDone} / {visibleActive.topicsTotal} konu
               </span>
+              {visibleActive.topicsTotal > 0 ? (
+                <span>Planın {visibleActive.topicsTotal}</span>
+              ) : null}
             </div>
             <Link href={visibleActive.continueHref} className="cp-exam-continue">
               {visibleActive.topicsDone === visibleActive.topicsTotal && visibleActive.topicsTotal > 0

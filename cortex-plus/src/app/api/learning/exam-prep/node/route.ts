@@ -1193,7 +1193,7 @@ async function generateNodePayload(input: {
       }),
       schemaHint:
         'JSON: {"title":string,"objective":string,"overview":string,' +
-        '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"note":{"title":string,"body":string},"diagram":{"caption":string,"shapes":[...]}}],' +
+        '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"note":{"title":string,"body":string},"cards":[{"title":string,"body":string}],"diagram":{"caption":string,"shapes":[...]}}],' +
         '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
         '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
         (useBackbone
@@ -1201,6 +1201,9 @@ async function generateNodePayload(input: {
           : "3-6 bölüm; ") +
         "en az iki bölümde check olsun. note isteğe bağlı: yalnızca " +
         "karıştırılması kolay bir ayrımın olduğu bölüme koy. " +
+        "cards isteğe bağlı: kardeş kavramlar (ör. kapalı sistem / açık sistem) " +
+        "yan yana duruyorsa o bölüme 2-6 kısa kart {title, body}. " +
+        "Böyle bir küme yoksa cards alanını yazma; uydurma kart ekleme. " +
         // Çizimi model tarif ediyor, SVG'yi biz kuruyoruz: modelden gelen
         // metin hiçbir zaman işaretleme olarak yorumlanmıyor.
         (wantsDiagram

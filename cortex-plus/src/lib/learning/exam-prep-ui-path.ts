@@ -63,10 +63,14 @@ export function nodeForTopic(
   return mine.find((node) => node.status !== "done") ?? mine[0];
 }
 
+export type StudyModality = "reading" | "listening" | "watching" | "practice" | "auto";
+
 export type LearningPreferencesView = {
   style?: "examples" | "theory" | "mixed";
   pace?: "slow" | "normal" | "fast";
   notes?: string;
+  modality?: StudyModality;
+  language?: "tr" | "en";
 };
 
 export function parseLearningPreferences(raw: unknown): LearningPreferencesView {
@@ -81,7 +85,16 @@ export function parseLearningPreferences(raw: unknown): LearningPreferencesView 
       ? o.pace
       : undefined;
   const notes = typeof o.notes === "string" ? o.notes.slice(0, 400) : undefined;
-  return { style, pace, notes };
+  const modality =
+    o.modality === "reading" ||
+    o.modality === "listening" ||
+    o.modality === "watching" ||
+    o.modality === "practice" ||
+    o.modality === "auto"
+      ? o.modality
+      : undefined;
+  const language = o.language === "tr" || o.language === "en" ? o.language : undefined;
+  return { style, pace, notes, modality, language };
 }
 
 export type TopicProgress = {

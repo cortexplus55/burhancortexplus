@@ -12,7 +12,7 @@ import {
   chapterHeadings,
   pageCarriesHeading,
   normalizeTopicTitle,
-  targetTopicCount,
+  topicScopeGuidance,
   topicTitleIssues,
   unrepresentedHeadings,
   topicTitleRule,
@@ -151,8 +151,6 @@ export async function buildTopicMapLLM(
 
   const contentNumbers = new Set(contentPages.map((page) => page.pageNumber));
 
-  const target = targetTopicCount(contentPages.length);
-
   const backbone = chapterHeadings(contentPages);
 
   /**
@@ -196,10 +194,10 @@ export async function buildTopicMapLLM(
         `title: belgenin kendi dilinde konu başlığı. ${topicTitleRule(backbone)} ` +
         "learningObjective: o konuda öğrencinin kazanacağı beceri, tek cümle. " +
         "pageNumbers: konunun işlendiği sayfa numaraları. " +
-        `Konular belgedeki sıraya göre; her öğretim sayfası en az bir konuya bağlanmalı; yaklaşık ${target} konu hedefle.`,
+        `Konular belgedeki sıraya göre; her öğretim sayfası en az bir konuya bağlanmalı. ${topicScopeGuidance(contentPages.length)}`,
       userPrompt: `Aşağıda "${fileName}" adlı ders belgesinin sayfa sayfa metni var. Belgenin konu haritasını çıkar: her ana konu için başlık, öğrenme hedefi ve o konunun geçtiği sayfa numaraları. Sadece bu belgede geçen konuları kullan, dışarıdan konu ekleme.
 
-Bu belgede ${contentPages.length} öğretim sayfası var; yaklaşık ${target} konu bekleniyor. Bu bir hedef, kota değil — bir ya da iki fazlası sorun değil.
+Bu belgede ${contentPages.length} öğretim sayfası var. ${topicScopeGuidance(contentPages.length)}
 
 HİÇBİR ÖĞRETİM BÖLÜMÜ LİSTEDEN KAYBOLMAZ. Sayıyı tutturmak için bölüm atmak yasak. Sayıyı azaltmanın tek yolu birleştirmek, birleştirdiğinde de her iki bölümün adı başlıkta görünür — iki bölümü "ve" ile tek başlıkta topla; öğrenci listeye baktığında belgede öğrendiği hiçbir konuyu arayıp bulamamazlık etmemeli. Tersi de geçerli: tek başına sınanabilecek kadar dolu bir alt başlığı ayrı konuya çıkarabilirsin.
 

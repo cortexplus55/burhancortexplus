@@ -145,7 +145,8 @@ export async function POST(request: Request) {
         })
       : undefined,
     schemaHint: teachingV2
-      ? 'Yalnızca JSON: {"title":string,"objective":string,"overview":string,"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string}}],"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
+      ? 'Yalnızca JSON: {"title":string,"objective":string,"overview":string,"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"cards":[{"title":string,"body":string}]}],"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
+        "cards isteğe bağlı: kardeş kavramlar yan yana duruyorsa o bölüme 2-6 kısa kart. Küme yoksa cards yazma; uydurma kart ekleme. " +
         'heading: o bölümün kendi kavramsal başlığı — "Bölüm 1" gibi genel değil. ' +
         'check: HER bölüm için zorunlu, bölümün hemen o metnini yoklar. ' +
         'trueFalse ise options tam olarak ["Doğru","Yanlış"]. ' +

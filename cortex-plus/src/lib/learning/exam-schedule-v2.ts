@@ -521,12 +521,12 @@ export function scheduleSessionsToNodeDrafts(sessions: ScheduleSession[]) {
     kind: s.kind,
     title: `${s.topicTitle} · ${
       s.role === "learn"
-        ? "Öğren"
+        ? "Ders"
         : s.role === "practice"
-          ? "Pratik"
+          ? "Testler ve Doğru/Yanlış"
           : s.role === "review"
-            ? "Tekrar"
-            : "Deneme"
+            ? "Aralıklı tekrar"
+            : "Yazılı deneme"
     }`,
     dayIndex: s.dayIndex,
     sortOrder: s.sortOrder,

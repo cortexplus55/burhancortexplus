@@ -183,6 +183,9 @@ export function ExamPrepHome({
         <p>
           {topicCount > 0 ? `${topicsDone} / ${topicCount} konu` : `${progressPct}%`}
         </p>
+        {topicCount > 0 ? (
+          <p className="cp-exam-plan-count">Planın {topicCount}</p>
+        ) : null}
         <h1>{title}</h1>
         <p className="text-sm text-[var(--cp-muted)]">
           {examType}
@@ -460,7 +463,7 @@ export function ExamPrepHome({
           </p>
           <div className="cp-exam-empty-actions">
             <Link href={startHref} className="cp-exam-continue cp-exam-continue--primary">
-              Konu seç ve başla
+              Hadi öğrenmeye başlayalım
             </Link>
             {introPending ? (
               <Link href={examPrepIntroHref(prepId)} className="cp-exam-continue">
@@ -502,6 +505,9 @@ export function ExamPrepHome({
                       yazınca her satır kendini tekrar ediyordu. Burada
                       yalnızca başlıkta OLMAYAN bilgi kalıyor. */}
                   {PLAN_NODE_META[node.kind].title}
+                  {node.kind === "lesson" && !node.sessionMeta?.durationMinutes
+                    ? " · 5 dk"
+                    : ""}
                   {node.sessionMeta?.durationMinutes
                     ? ` · ${node.sessionMeta.durationMinutes} dk`
                     : ""}
@@ -524,7 +530,13 @@ export function ExamPrepHome({
                 type="button"
                 className={`cp-exam-trail-node cp-exam-trail-node--${node.status}`}
                 disabled={node.status === "locked"}
-                aria-label={`${node.title}, gün ${node.dayIndex}`}
+                aria-label={`${node.title || PLAN_NODE_META[node.kind].title}, ${
+                  node.status === "done"
+                    ? "tamamlandı"
+                    : node.status === "locked"
+                      ? "kilitli"
+                      : "sırada"
+                }`}
                 onClick={() => openNode(node)}
               >
                 {node.status === "done" ? "✓" : node.status === "locked" ? "🔒" : index + 1}
@@ -532,7 +544,10 @@ export function ExamPrepHome({
               <span>
                 <strong>{node.title || PLAN_NODE_META[node.kind].title}</strong>
                 <em>
-                  Gün {node.dayIndex}
+                  {PLAN_NODE_META[node.kind].title}
+                  {node.kind === "lesson" && !node.sessionMeta?.durationMinutes
+                    ? " · 5 dk"
+                    : ""}
                   {node.sessionMeta?.durationMinutes
                     ? ` · ${node.sessionMeta.durationMinutes} dk`
                     : ""}
@@ -553,7 +568,7 @@ export function ExamPrepHome({
             ? ready
               ? `Sonraki: ${PLAN_NODE_META[ready.kind].title}`
               : "Yola dön"
-            : "Hadi başlayalım!"}
+            : "Hadi öğrenmeye başlayalım"}
         </Link>
       </div>
     </div>

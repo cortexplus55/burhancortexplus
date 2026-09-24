@@ -520,6 +520,41 @@
   color: #111;
 }
 
+.apw-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.apw-choice {
+  text-align: left;
+  border-radius: 0.9rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: inherit;
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.apw-choice--on {
+  border-color: #7c6cf7;
+  background: rgba(124, 108, 247, 0.14);
+}
+
+.apw-topic-edit {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: #9b8cff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.25rem 0.15rem;
+}
+
 .apw-topic-add {
   display: flex;
   gap: 0.4rem;

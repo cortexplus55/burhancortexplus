@@ -3629,6 +3629,14 @@
   text-align: center;
 }
 
+.cp-exam-plan-count {
+  margin: 0.15rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--cp-muted);
+}
+
 .cp-exam-trail-meter {
   height: 0.28rem;
   border-radius: 999px;
