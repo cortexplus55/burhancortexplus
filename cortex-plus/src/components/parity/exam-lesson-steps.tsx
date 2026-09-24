@@ -1,32 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, X } from "lucide-react";
+import Link from "next/link";
+import { Check, ChevronLeft, ChevronRight, CornerDownLeft, X } from "lucide-react";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 import { LessonDiagramView } from "@/components/parity/lesson-diagram";
+import {
+  calloutTone,
+  checkPresentation,
+  reviewGateLead,
+  trueFalseIndexes,
+} from "@/lib/learning/lesson-chrome";
 import "@/styles/exam-lesson-steps.css";
 
 /**
  * Dersi adım adım göster.
  *
- * Ders tek bir kaydırma olarak sunuluyordu: öğrenci baştan sona okuyor, anlayıp
- * anlamadığını ancak en sonda öğreniyordu. Bölümlere ayırıp her bölümün sonuna
- * kendi kontrolünü koymak yanlış anlamayı okunduğu yerde yakalıyor.
- *
- * İçerik zaten böyle üretiliyordu; kaybolduğu yer depolamaydı.
+ * Her adım kendi slaytı: anlatım, gömülü doğru/yanlış ya da hızlı sınav,
+ * ardından açıklama. Yanlışlar dersin sonunda bir kez daha sorulur.
  */
 
-/**
- * Anahtar terimleri koyu göster.
- *
- * Ders gövdesi düz paragraftı: sınava iki gün kala geri dönen öğrenci
- * hangi kelimenin sınavda çıkacak terim olduğunu göremiyordu. Referans ürün
- * terimleri metnin içinde koyu veriyor.
- *
- * Metin `**terim**` biçiminde geliyor; HTML'e çevirmiyoruz, parçalayıp
- * <strong> ile basıyoruz — modelden gelen metne innerHTML açmak, ders
- * içeriğini işaretleme kanalına dönüştürürdü.
- */
 function RichBody({ text }: { text: string }) {
   const parts = text.split(/(\*\*[^*\n]{1,80}\*\*)/g);
   return (
@@ -53,10 +46,13 @@ type Step =
       check?: LessonV2["sections"][number]["check"];
       note?: LessonV2["sections"][number]["note"];
       diagram?: LessonV2["sections"][number]["diagram"];
+      cards?: LessonV2["sections"][number]["cards"];
+      sectionIndex: number;
     }
   | { kind: "example"; heading: string; prompt: string; solution: string }
   | { kind: "mistake"; heading: string; claim: string; correction: string }
   | { kind: "summary"; heading: string; points: string[]; next: string[] }
+  | { kind: "review-gate"; count: number }
   | {
       kind: "retry";
       heading: string;
@@ -67,13 +63,15 @@ function buildSteps(lesson: LessonV2): Step[] {
   const steps: Step[] = [
     { kind: "overview", heading: lesson.title, body: lesson.overview },
     ...lesson.sections.map(
-      (s): Step => ({
+      (s, sectionIndex): Step => ({
         kind: "section",
         heading: s.heading,
         body: s.body,
         check: s.check,
         note: s.note,
         diagram: s.diagram,
+        cards: s.cards,
+        sectionIndex,
       }),
     ),
   ];
@@ -105,30 +103,23 @@ function buildSteps(lesson: LessonV2): Step[] {
 export function ExamLessonSteps({
   lesson,
   onFinish,
+  onClose,
+  closeHref,
 }: {
   lesson: LessonV2;
   onFinish?: () => void;
+  onClose?: () => void;
+  closeHref?: string;
 }) {
   const base = useMemo(() => buildSteps(lesson), [lesson]);
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [solutionShown, setSolutionShown] = useState(false);
+  const [cardIndex, setCardIndex] = useState(0);
   /** Yanlış cevaplanan bölümlerin sırası — tekrar kuyruğunu bunlar doğurur. */
   const [missed, setMissed] = useState<number[]>([]);
 
-  /**
-   * Ders özetle bitmiyor.
-   *
-   * Referans üründe bir dersi adım adım geçerken sayaç 6/6 iken 7/7 oldu: özetten
-   * sonra, yanlış cevapladığın bölümün adıyla etiketlenmiş bir hatırlama
-   * sorusu eklendi. Öğrenme okumakla değil, geri çağırmakla oturuyor;
-   * üstelik hangi bölümden geldiği yazılı olduğu için öğrenci nereye
-   * döneceğini biliyor.
-   *
-   * Yeni üretim yok: soru zaten o bölümün kontrolü. Yanlış yaptıysan bir
-   * kez daha karşına çıkıyor, o kadar.
-   */
   const steps = useMemo(() => {
     const retries = missed
       .map((sectionIndex) => {
@@ -138,120 +129,270 @@ export function ExamLessonSteps({
           : null;
       })
       .filter((s): s is Step => s !== null);
-    return [...base, ...retries];
+    if (!retries.length) return base;
+    return [...base, { kind: "review-gate", count: retries.length } as Step, ...retries];
   }, [base, missed, lesson]);
 
-  const step = steps[index];
-  const last = index === steps.length - 1;
+  const step = steps[Math.min(index, steps.length - 1)];
+  const last = index >= steps.length - 1;
   const check =
     step.kind === "section" ? step.check : step.kind === "retry" ? step.check : undefined;
   const mustAnswer = Boolean(check) && !revealed;
+  const presentation = check ? checkPresentation(check) : null;
+  const tf = check && presentation === "trueFalse" ? trueFalseIndexes(check.options) : null;
+  const correct = Boolean(check && revealed && picked === check.answerIndex);
+
+  function resetAnswer() {
+    setPicked(null);
+    setRevealed(false);
+    setSolutionShown(false);
+    setCardIndex(0);
+  }
+
+  function go(nextIndex: number) {
+    setIndex(nextIndex);
+    resetAnswer();
+  }
 
   function next() {
     if (last) {
       onFinish?.();
       return;
     }
-    setIndex((i) => i + 1);
-    setPicked(null);
-    setRevealed(false);
-    setSolutionShown(false);
+    go(index + 1);
   }
+
+  function back() {
+    if (index > 0) {
+      go(index - 1);
+      return;
+    }
+    onClose?.();
+  }
+
+  function pick(optionIndex: number) {
+    if (!check || revealed) return;
+    setPicked(optionIndex);
+    setRevealed(true);
+    if (
+      step.kind === "section" &&
+      optionIndex !== check.answerIndex &&
+      !missed.includes(step.sectionIndex)
+    ) {
+      setMissed((prev) => [...prev, step.sectionIndex]);
+    }
+  }
+
+  const closeControl =
+    onClose ? (
+      <button type="button" className="als-icon" onClick={onClose} aria-label="Kapat">
+        <X className="h-4 w-4" />
+      </button>
+    ) : closeHref ? (
+      <Link href={closeHref} className="als-icon" aria-label="Kapat">
+        <X className="h-4 w-4" />
+      </Link>
+    ) : null;
 
   return (
     <article className="als">
-      <div className="als-progress" aria-hidden>
-        <div
-          className="als-progress-fill"
-          style={{ width: `${((index + 1) / steps.length) * 100}%` }}
-        />
-      </div>
-      <p className="als-count" aria-live="polite">
-        {index + 1} / {steps.length}
-      </p>
-
-      {step.kind === "retry" ? (
-        <p className="als-check-kicker als-retry-kicker">Tekrarla</p>
-      ) : null}
-      <h1 className="als-heading">{step.heading}</h1>
-
-      {step.kind === "overview" || step.kind === "section" ? (
-        <p className="als-body">
-          <RichBody text={step.body} />
+      <header className="als-top">
+        {index > 0 || onClose ? (
+          <button type="button" className="als-icon" onClick={back} aria-label="Geri">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        ) : closeHref ? (
+          <Link href={closeHref} className="als-icon" aria-label="Geri">
+            <ChevronLeft className="h-4 w-4" />
+          </Link>
+        ) : (
+          <span className="als-icon als-icon--ghost" aria-hidden />
+        )}
+        <div className="als-segments" aria-hidden>
+          {steps.map((_, segment) => (
+            <span key={segment} className={segment <= index ? "is-on" : undefined} />
+          ))}
+        </div>
+        <p className="als-count" aria-live="polite">
+          {index + 1} / {steps.length}
         </p>
-      ) : null}
+        {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
+      </header>
 
-      {step.kind === "section" && step.diagram ? (
-        <LessonDiagramView diagram={step.diagram} id={`als-d-${index}`} />
-      ) : null}
-
-      {/* Tuzak, kavramın hemen yanında. Dersin sonunda tek adım olarak
-          durduğunda öğrenci onu beş adım geç görüyordu. */}
-      {step.kind === "section" && step.note ? (
-        <aside className="als-note">
-          <p className="als-note-title">{step.note.title}</p>
-          <p className="als-note-body">
-            <RichBody text={step.note.body} />
-          </p>
-        </aside>
-      ) : null}
-
-      {step.kind === "example" ? (
-        <>
-          <p className="als-body">{step.prompt}</p>
-          {solutionShown ? (
-            <div className="als-solution">
-              <span className="als-tag">Çözüm</span>
-              <p>{step.solution}</p>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="als-secondary"
-              onClick={() => setSolutionShown(true)}
-            >
-              Çözümü göster
-            </button>
-          )}
-        </>
-      ) : null}
-
-      {step.kind === "mistake" ? (
-        <div className="als-mistake">
-          <p className="als-mistake-claim">
-            <span className="als-tag als-tag--warn">Yanlış</span>
-            {step.claim}
-          </p>
-          <p className="als-mistake-fix">
-            <span className="als-tag als-tag--ok">Doğrusu</span>
-            {step.correction}
-          </p>
+      {step.kind === "review-gate" ? (
+        <div className="als-slide">
+          <p className="als-kicker">TEKRARLA</p>
+          <h1 className="als-heading">Bitirmeden önce kısa tekrar</h1>
+          <p className="als-body">{reviewGateLead(step.count)}</p>
         </div>
       ) : null}
 
-      {step.kind === "summary" ? (
-        <>
-          <ul className="als-list">
-            {step.points.map((point) => (
-              <li key={point}>{point}</li>
-            ))}
-          </ul>
-          {step.next.length ? (
-            <>
-              <h2 className="als-subhead">Sırada ne var</h2>
-              <ul className="als-list als-list--muted">
-                {step.next.map((item) => (
-                  <li key={item}>{item}</li>
+      {step.kind === "retry" ? <p className="als-kicker">TEKRARLA</p> : null}
+
+      {step.kind !== "review-gate" ? (
+        <div className={step.kind === "overview" || step.kind === "section" ? "als-slide" : undefined}>
+          <h1 className="als-heading">{step.heading}</h1>
+
+          {step.kind === "overview" || step.kind === "section" ? (
+            <p className="als-body">
+              <RichBody text={step.body} />
+            </p>
+          ) : null}
+
+          {step.kind === "section" && step.cards && step.cards.length >= 2 ? (
+            <div className="als-carousel">
+              <div className="als-carousel-row">
+                {step.cards.slice(cardIndex, cardIndex + 2).map((card) => (
+                  <article key={card.title} className="als-card">
+                    <h2>{card.title}</h2>
+                    <p>{card.body}</p>
+                  </article>
                 ))}
-              </ul>
+                {step.cards[cardIndex + 2] ? (
+                  <article className="als-card als-card--peek" aria-hidden>
+                    <h2>{step.cards[cardIndex + 2].title}</h2>
+                  </article>
+                ) : null}
+              </div>
+              <div className="als-carousel-nav">
+                <button
+                  type="button"
+                  className="als-icon"
+                  aria-label="Önceki kart"
+                  disabled={cardIndex === 0}
+                  onClick={() => setCardIndex((value) => Math.max(0, value - 1))}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  className="als-icon"
+                  aria-label="Sonraki kart"
+                  disabled={cardIndex >= step.cards.length - 2}
+                  onClick={() =>
+                    setCardIndex((value) =>
+                      Math.min(step.cards!.length - 2, value + 1),
+                    )
+                  }
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {step.kind === "section" && step.diagram ? (
+            <LessonDiagramView diagram={step.diagram} id={`als-d-${index}`} />
+          ) : null}
+
+          {step.kind === "section" && step.note ? (
+            <aside className={`als-note als-note--${calloutTone(step.note)}`}>
+              <p className="als-note-title">{step.note.title}</p>
+              <p className="als-note-body">
+                <RichBody text={step.note.body} />
+              </p>
+            </aside>
+          ) : null}
+
+          {step.kind === "example" ? (
+            <>
+              <p className="als-body">{step.prompt}</p>
+              {solutionShown ? (
+                <div className="als-solution">
+                  <span className="als-tag">Çözüm</span>
+                  <p>{step.solution}</p>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="als-secondary"
+                  onClick={() => setSolutionShown(true)}
+                >
+                  Çözümü göster
+                </button>
+              )}
             </>
           ) : null}
-        </>
+
+          {step.kind === "mistake" ? (
+            <div className="als-mistake">
+              <p className="als-mistake-claim">
+                <span className="als-tag als-tag--warn">Yanlış</span>
+                {step.claim}
+              </p>
+              <p className="als-mistake-fix">
+                <span className="als-tag als-tag--ok">Doğrusu</span>
+                {step.correction}
+              </p>
+            </div>
+          ) : null}
+
+          {step.kind === "summary" ? (
+            <>
+              <ul className="als-list">
+                {step.points.map((point) => (
+                  <li key={point}>{point}</li>
+                ))}
+              </ul>
+              {step.next.length ? (
+                <>
+                  <h2 className="als-subhead">Sırada ne var</h2>
+                  <ul className="als-list als-list--muted">
+                    {step.next.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+            </>
+          ) : null}
+        </div>
       ) : null}
 
-      {check ? (
-        <section className="als-check" aria-label="Bölüm kontrolü">
-          <p className="als-check-kicker">Kısa kontrol</p>
+      {check && presentation === "trueFalse" ? (
+        <section
+          className={[
+            "als-check",
+            revealed ? (correct ? "is-right" : "is-wrong") : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          aria-label="Doğru mu yanlış mı"
+        >
+          <p className="als-kicker">DOĞRU MU YANLIŞ MI?</p>
+          <p className="als-check-prompt">{check.prompt}</p>
+          {!revealed ? (
+            <div className="als-tf">
+              {tf ? (
+                <>
+                  <button type="button" className="als-tf-btn" onClick={() => pick(tf.wrong)}>
+                    Yanlış
+                  </button>
+                  <button type="button" className="als-tf-btn" onClick={() => pick(tf.right)}>
+                    Doğru
+                  </button>
+                </>
+              ) : (
+                check.options.map((option, optionIndex) => (
+                  <button
+                    key={option}
+                    type="button"
+                    className="als-tf-btn"
+                    onClick={() => pick(optionIndex)}
+                  >
+                    {option}
+                  </button>
+                ))
+              )}
+            </div>
+          ) : null}
+          {revealed ? <Explanation check={check} picked={picked} revisit={step.kind === "section"} /> : null}
+        </section>
+      ) : null}
+
+      {check && presentation === "quickQuiz" ? (
+        <section className="als-check" aria-label="Hızlı sınav">
+          <p className="als-kicker">HIZLI SINAV</p>
           <p className="als-check-prompt">{check.prompt}</p>
           <div className="als-options">
             {check.options.map((option, optionIndex) => {
@@ -273,51 +414,61 @@ export function ExamLessonSteps({
                   className={["als-option", state].filter(Boolean).join(" ")}
                   disabled={revealed}
                   aria-pressed={isPicked}
-                  onClick={() => {
-                    setPicked(optionIndex);
-                    setRevealed(true);
-                    // Yanlış cevaplanan bölüm özetten sonra bir kez daha
-                    // sorulur. Tekrar adımında tekrar yanlış yapmak yeni
-                    // bir adım doğurmaz; kuyruk sonsuza gitmemeli.
-                    if (
-                      step.kind === "section" &&
-                      optionIndex !== check.answerIndex &&
-                      !missed.includes(index - 1)
-                    ) {
-                      setMissed((prev) => [...prev, index - 1]);
-                    }
-                  }}
+                  onClick={() => pick(optionIndex)}
                 >
+                  <span className="als-option-num" aria-hidden>
+                    {optionIndex + 1}
+                  </span>
                   <span>{option}</span>
                   {revealed && isAnswer ? (
                     <Check className="h-4 w-4 shrink-0" aria-hidden />
-                  ) : null}
-                  {revealed && isPicked && !isAnswer ? (
+                  ) : revealed && isPicked && !isAnswer ? (
                     <X className="h-4 w-4 shrink-0" aria-hidden />
-                  ) : null}
+                  ) : (
+                    <span className="als-radio" aria-hidden />
+                  )}
                 </button>
               );
             })}
           </div>
-          {revealed ? (
-            <div className="als-explain" role="status">
-              <strong>
-                {picked === check.answerIndex ? "Doğru." : "Doğrusu şu:"}
-              </strong>{" "}
-              {check.explanation}
-            </div>
-          ) : null}
+          {revealed ? <Explanation check={check} picked={picked} revisit={step.kind === "section"} /> : null}
         </section>
       ) : null}
 
-      <button
-        type="button"
-        className="als-cta"
-        disabled={mustAnswer}
-        onClick={next}
-      >
-        {mustAnswer ? "Önce soruyu yanıtla" : last ? "Dersi bitir" : "Devam et"}
-      </button>
+      {revealed && check ? (
+        <div className={correct ? "als-feedback is-right" : "als-feedback is-wrong"} role="status">
+          <span>{correct ? "🎉 Doğru" : "🤔 Yanlış"}</span>
+          <button type="button" className="als-cta als-cta--inline" onClick={next}>
+            Devam et <CornerDownLeft className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+      ) : mustAnswer ? null : (
+        <button type="button" className="als-cta" onClick={next}>
+          {last ? "Dersi bitir" : "Devam et"}
+          <CornerDownLeft className="h-4 w-4" aria-hidden />
+        </button>
+      )}
     </article>
+  );
+}
+
+function Explanation({
+  check,
+  picked,
+  revisit,
+}: {
+  check: NonNullable<LessonV2["sections"][number]["check"]>;
+  picked: number | null;
+  revisit: boolean;
+}) {
+  const wrong = picked !== check.answerIndex;
+  return (
+    <div className="als-explain">
+      <p className="als-explain-kicker">AÇIKLAMA</p>
+      <p>{check.explanation}</p>
+      {wrong && revisit ? (
+        <p className="als-revisit">Dersin sonunda buna geri döneceğiz.</p>
+      ) : null}
+    </div>
   );
 }

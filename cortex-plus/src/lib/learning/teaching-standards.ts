@@ -233,6 +233,8 @@ export type SectionCheck = z.infer<typeof sectionCheckSchema>;
 export const sectionNoteSchema = z.object({
   title: z.string().min(3).max(80),
   body: z.string().min(10).max(400),
+  /** warn = kırmızı uyarı, info = altın bilgi, unit = turuncu birim. */
+  tone: z.enum(["warn", "info", "unit"]).optional().catch(undefined),
 });
 
 export type SectionNote = z.infer<typeof sectionNoteSchema>;
@@ -259,6 +261,19 @@ export const lessonV2Schema = z.object({
         // bozmaz, bozuğu da bozmamalı. `.catch` bozuk olanı düşürüyor,
         // dersin geri kalanı ayakta kalıyor.
         note: sectionNoteSchema.optional().catch(undefined),
+        // Kardeş kavramlar (Kapalı sistem / Açık sistem) yatay kart olarak
+        // gelir. Bozuk dizi dersi düşürmez.
+        cards: z
+          .array(
+            z.object({
+              title: z.string().min(2).max(80),
+              body: z.string().min(4).max(320),
+            }),
+          )
+          .min(2)
+          .max(6)
+          .optional()
+          .catch(undefined),
         // Şekille anlaşılan konularda çizim; model tarifini veriyor,
         // SVG'yi biz kuruyoruz (bkz. lesson-diagram.ts).
         diagram: lessonDiagramSchema.optional().catch(undefined),

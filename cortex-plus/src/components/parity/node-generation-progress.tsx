@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
+import { LESSON_PREP_STEPS } from "@/lib/learning/lesson-chrome";
 
 /**
  * Ders üretilirken ne olduğunu göstermek.
@@ -12,22 +13,14 @@ import { Check, Loader2 } from "lucide-react";
  * sırayı anlatıyor; son adım gerçekten cevap gelene kadar döner.
  */
 
-const BASE_STEPS = [
-  "Konu okunuyor",
-  "Bildiklerin gözden geçiriliyor",
-  "Zorluk sana göre ayarlanıyor",
-  "Sorular seçiliyor",
-];
-
 export function NodeGenerationProgress({
-  sourceName,
+  onClose,
 }: {
-  /** Hazırlık bir belgeye bağlıysa dosya adı; değilse son adım gösterilmez. */
+  /** Çağıran hâlâ geçirebilir; adım metni dosya adını içermez. */
   sourceName?: string | null;
+  onClose?: () => void;
 }) {
-  const steps = sourceName
-    ? [...BASE_STEPS, `“${sourceName}” ile karşılaştırılıyor`]
-    : BASE_STEPS;
+  const steps = [...LESSON_PREP_STEPS];
 
   const [reached, setReached] = useState(0);
   const [slow, setSlow] = useState(false);
@@ -47,9 +40,23 @@ export function NodeGenerationProgress({
 
   return (
     <article className="apg" role="status" aria-live="polite">
-      <div className="apg-orb" aria-hidden />
-      <h1>Dersin hazırlanıyor</h1>
-      <p className="apg-lead">Bir dakika kadar sürebilir.</p>
+      {onClose ? (
+        <button type="button" className="apg-close" onClick={onClose} aria-label="Kapat">
+          <X className="h-4 w-4" />
+        </button>
+      ) : null}
+      <div className="apg-sphere" aria-hidden>
+        {Array.from({ length: 42 }, (_, dot) => (
+          <span
+            key={dot}
+            style={{
+              transform: `rotate(${dot * 25.7}deg) translateY(${2.1 + (dot % 5) * 0.28}rem)`,
+              animationDelay: `${(dot % 7) * 0.18}s`,
+            }}
+          />
+        ))}
+      </div>
+      <h1>Dersin hazırlanıyor...</h1>
       <ul className="apg-steps">
         {steps.map((label, index) => {
           const done = index < reached;

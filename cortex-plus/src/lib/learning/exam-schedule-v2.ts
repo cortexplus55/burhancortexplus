@@ -422,10 +422,11 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     }
   }
 
+  // Planın birimi konu. Günlük dakika yalnızca etkinliklerin güne
+  // sığması için içeride kalır; özette saat kotası yok.
   const summary = fits
-    ? `${loads.length} konu · ${studyDayDates.length} çalışma günü × ${daily} dk`
-    : `${loads.length} konu planda, ama süre dar: ~${required} dk gerekir, ` +
-      `${studyDayDates.length} çalışma gününde ${availableMinutes} dk var`;
+    ? `Planın ${kept.length}`
+    : `Planın ${kept.length} konu; süre dar, etkinlikler kısaltıldı`;
 
   return {
     sessions: sessions.sort(

@@ -151,7 +151,10 @@ export function ExamPrepSettingsPanel({
             />
           </label>
           <label className="cp-field">
-            <span>Günde kaç dakika?</span>
+            <span>Günlük süre üst sınırı (dakika)</span>
+            <em className="text-xs text-[var(--cp-muted)]">
+              Plan konu sayılır. Bu sayı yalnızca etkinliklerin güne sığması içindir.
+            </em>
             <input
               type="number"
               min={5}

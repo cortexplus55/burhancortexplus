@@ -4,6 +4,7 @@ import { ExamPrepHome } from "@/components/parity/exam-prep-home";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
+import { topicProgress } from "@/lib/learning/exam-prep-progress";
 import { ensurePrepNodes } from "@/lib/learning/exam-prep-insert";
 import {
   daysUntilExam,
@@ -79,7 +80,8 @@ export default async function ExamPrepDetailPage({
     supabase.from("exam_preps").select("visibility").eq("id", prepId).maybeSingle(),
   ]);
 
-  await loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id);
+  const prepTopics = await loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id);
+  const topicsMeter = topicProgress(prepTopics);
   await ensurePrepNodes(supabase, prep);
 
   const { data: nodeRows } = await supabase
@@ -292,6 +294,8 @@ export default async function ExamPrepDetailPage({
         settings={settings}
         documentId={sourceDoc?.id ?? null}
         documentName={sourceDoc?.file_name ?? null}
+        topicsDone={topicsMeter.done}
+        topicCount={topicsMeter.total}
       />
     </ParitySorShell>
   );

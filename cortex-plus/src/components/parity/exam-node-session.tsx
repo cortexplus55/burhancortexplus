@@ -512,11 +512,15 @@ export function ExamNodeSession({
             : payload.type === "lesson"
               ? payload.title
               : null;
+  const cinematicLesson =
+    stage === "play" && payload.type === "lesson" && Boolean(structuredLesson);
+  const cinematicLoading = stage === "setup" && loading;
   const showCoach =
     stage === "play" &&
     Boolean(coachItem) &&
     payload.type !== "voice" &&
-    payload.type !== "podcast";
+    payload.type !== "podcast" &&
+    !cinematicLesson;
 
   return (
     <div className="cp-exam-page cp-exam-node">
@@ -526,6 +530,7 @@ export function ExamNodeSession({
         <button type="button" className="underline" disabled={pendingSaves > 0}
           onClick={() => { void persistAnswers(answersRef.current, index).catch(() => undefined); }}>Kaydı yeniden dene</button>
       </div> : null}
+      {cinematicLesson || cinematicLoading ? null : (
       <div className="cp-exam-study-bar">
         <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill"
           onClick={(event) => { if (pendingSaves || saveError) { event.preventDefault(); toast.error("Çıkmadan önce cevapların kaydedilmesini bekle."); } }}>
@@ -540,6 +545,7 @@ export function ExamNodeSession({
           ×
         </button>
       </div>
+      )}
 
       {stage === "restoring" ? (
         <section className="cp-exam-setup" aria-busy="true" aria-live="polite">
@@ -619,7 +625,10 @@ export function ExamNodeSession({
       ) : null}
 
       {stage === "setup" && loading ? (
-        <NodeGenerationProgress sourceName={sourceName} />
+        <NodeGenerationProgress
+          sourceName={sourceName}
+          onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
+        />
       ) : null}
 
       {stage === "setup" && !loading ? (
@@ -700,7 +709,11 @@ export function ExamNodeSession({
         structuredLesson ? (
           // Yapısal ders adım adım gelir: her bölüm kendi kontrolüyle
           // biter ve öğrenci cevaplamadan ilerleyemez.
-          <ExamLessonSteps lesson={structuredLesson} onFinish={() => void finish()} />
+          <ExamLessonSteps
+            lesson={structuredLesson}
+            onFinish={() => void finish()}
+            onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
+          />
         ) : (
           <section>
             <h1>{payload.title}</h1>
