@@ -382,11 +382,25 @@
   font-size: 0.875rem;
 }
 
-.apw-doc-chip span {
+.apw-doc-chip span,
+.apw-doc-main {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.apw-doc-main strong,
+.apw-doc-main small {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.apw-doc-main small {
+  color: var(--cp-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .apw-doc-chip button,
@@ -420,6 +434,72 @@
 .apw-doc-row--on {
   border-color: #7c6cf7;
   background: rgba(124, 108, 247, 0.12);
+}
+
+.apw-materials {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+  min-width: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apw-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.apw-file-actions .apw-drop-pick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 0;
+  flex: 1 1 10rem;
+}
+
+.apw-phone {
+  margin-top: 0.85rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  padding: 0.9rem;
+  min-width: 0;
+}
+
+.apw-phone-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+
+.apw-phone-qr img {
+  width: 168px;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.6rem;
+  background: #fff;
+}
+
+.apw-topic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.45rem;
+  max-width: 100%;
+}
+
+.apw-modal-error {
+  margin: 0.55rem 0 0;
+  color: #ff8f8f;
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }
 
 .apw-lang {
@@ -554,6 +634,11 @@
   font-weight: 700;
   cursor: pointer;
   padding: 0.25rem 0.15rem;
+}
+
+.apw-topic-edit:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .apw-topic-add {
@@ -759,10 +844,26 @@
 }
 
 @media (max-width: 32rem) {
+  .apw {
+    width: 100%;
+    max-width: 100%;
+  }
+
   .apw-grid,
   .apw-quick,
   .apw-lang {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .apw-file-actions .apw-drop-pick {
+    flex-basis: 100%;
+  }
+
+  .apw-doc-chip,
+  .apw-topic-actions,
+  .apw-modal,
+  .apw-phone {
+    max-width: 100%;
   }
 }
 

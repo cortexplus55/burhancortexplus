@@ -8,6 +8,8 @@ import { pickMainTopics } from "@/lib/learning/diagnostic";
 import { buildExamPlan, daysUntilExam } from "@/lib/learning/exam-prep-plan";
 import { refoldTopicMapIfNeeded } from "@/lib/documents/pdf-learning-v2";
 import { documentTitle } from "@/lib/documents/topic-title";
+import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
+import { mergeTopicDrafts, PREP_TOPIC_CAP } from "@/lib/learning/prep-topic-list";
 
 const bodySchema = z.object({
   messages: z
@@ -154,33 +156,35 @@ export async function POST(request: Request) {
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
   const v2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
-  if (v2 && parsed.data.documentId) {
-    await refoldTopicMapIfNeeded(service, parsed.data.documentId);
+  const documentIds = orderedSourceDocumentIds({
+    documentId: parsed.data.documentId,
+    documentIds: parsed.data.documentIds,
+  });
+  // Katlamak model çağırmaz. Hazır öğretmen analizi de yeniden üretilmez;
+  // konu listesi saklı haritadan okunur.
+  if (v2) {
+    for (const documentId of documentIds) {
+      await refoldTopicMapIfNeeded(service, documentId);
+    }
   }
-  const documentIds = [
-    ...new Set(
-      [parsed.data.documentId, ...(parsed.data.documentIds ?? [])].filter(
-        (id): id is string => Boolean(id),
-      ),
-    ),
-  ];
-  const topicSuggestions: { id: string; title: string; pages: number[] }[] = [];
+  const groups: { id: string; title: string; pages: number[] }[][] = [];
   let intakeMode: "legacy" | "v2" = "legacy";
   for (const documentId of documentIds.length ? documentIds : [parsed.data.documentId]) {
     const resolved = await resolveTopicSuggestions(service, userId, documentId, v2);
     if (resolved.intakeMode === "v2") intakeMode = "v2";
-    for (const topic of resolved.topicSuggestions) {
-      if (topicSuggestions.some((have) => have.id === topic.id)) continue;
-      topicSuggestions.push(topic);
-    }
+    groups.push(resolved.topicSuggestions);
   }
+  const merged = mergeTopicDrafts(groups);
+  const topicSuggestions = groups.flat().filter(
+    (topic, index, all) => all.findIndex((item) => item.id === topic.id) === index,
+  );
 
   if (parsed.data.probeOnly) {
     return NextResponse.json({
       ok: true,
       intakeMode,
       topicSuggestions,
-      draft: topicSuggestions.length
+      draft: merged.topics.length
         ? {
             // Hazırlığın adı belgeden gelir; boş kalırsa sihirbaz
             // "${ders} sınav hazırlığı" diyordu ve aynı dersten yüklenen
@@ -188,14 +192,14 @@ export async function POST(request: Request) {
             title: await probeDocumentTitle(
               service,
               userId,
-              parsed.data.documentId,
-              topicSuggestions.map((t) => t.title),
+              documentIds[0] ?? parsed.data.documentId,
+              merged.topics,
             ),
             examType: "Serbest",
-            topics: topicSuggestions.map((t) => t.title).slice(0, 16),
-            topicPages: topicSuggestions
-              .slice(0, 16)
-              .map((t) => t.pages.slice(0, 6)),
+            topics: merged.topics.slice(0, PREP_TOPIC_CAP),
+            topicPages: merged.topicPages
+              .slice(0, PREP_TOPIC_CAP)
+              .map((pages) => pages.slice(0, 6)),
           }
         : null,
     });
@@ -227,8 +231,8 @@ ${transcript}`,
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
 
   const draft = outcome.data;
-  if (intakeMode === "v2" && topicSuggestions.length) {
-    draft.topics = topicSuggestions.map((t) => t.title).slice(0, 16);
+  if (intakeMode === "v2" && merged.topics.length) {
+    draft.topics = merged.topics.slice(0, PREP_TOPIC_CAP);
   }
 
   const examDate = parsed.data.examDate;

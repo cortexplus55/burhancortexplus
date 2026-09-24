@@ -4,7 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import "@/styles/parity-shell.css";
 
-export function PhoneUploadClient({ token }: { token: string }) {
+export function PhoneUploadClient({
+  token,
+  purpose = "odev",
+}: {
+  token: string;
+  purpose?: "odev" | "hazirlik";
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "used" | "expired" | "error">(
     "loading",
@@ -60,7 +66,7 @@ export function PhoneUploadClient({ token }: { token: string }) {
     <div className="cp-phone-page">
       <div className="cp-phone-card">
         <p className="cp-phone-brand">cortex Plus</p>
-        <h1>Ödev resmini yükle</h1>
+        <h1>{purpose === "hazirlik" ? "Ders notunu yükle" : "Ödev resmini yükle"}</h1>
         {status === "loading" ? <p>Bağlantı kontrol ediliyor…</p> : null}
         {status === "expired" ? (
           <p>Bu kodun süresi doldu. Bilgisayardan yeniden aç.</p>
@@ -68,14 +74,20 @@ export function PhoneUploadClient({ token }: { token: string }) {
         {status === "error" ? <p>Yükleme bağlantısı geçersiz.</p> : null}
         {status === "used" ? (
           <p>
-            {doneName
-              ? `${doneName} gönderildi. Bilgisayarındaki sohbette görünecek.`
+              {doneName
+              ? purpose === "hazirlik"
+                ? `${doneName} gönderildi. Bilgisayarındaki hazırlıkta görünecek.`
+                : `${doneName} gönderildi. Bilgisayarındaki sohbette görünecek.`
               : "Bu kod zaten kullanıldı."}
           </p>
         ) : null}
         {status === "ready" ? (
           <>
-            <p>Kameradan veya galeriden görseli seç; masaüstündeki sohbete düşer.</p>
+            <p>
+              {purpose === "hazirlik"
+                ? "PDF, Word, PowerPoint veya görsel seç; bilgisayardaki hazırlığa eklenir."
+                : "Kameradan veya galeriden görseli seç; masaüstündeki sohbete düşer."}
+            </p>
             <button
               type="button"
               className="cp-upload-pick"
@@ -91,7 +103,7 @@ export function PhoneUploadClient({ token }: { token: string }) {
           ref={inputRef}
           type="file"
           className="hidden"
-          accept="image/jpeg,image/png,image/webp,application/pdf,text/plain"
+          accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,.docx,.pptx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation"
           onChange={(event) => {
             const file = event.target.files?.[0];
             event.target.value = "";

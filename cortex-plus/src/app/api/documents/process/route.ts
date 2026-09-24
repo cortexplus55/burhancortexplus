@@ -30,7 +30,16 @@ export async function POST(request: Request) {
   if (!doc) return errorResponse(404, "not_found");
   if (doc.user_id !== userId) return errorResponse(403, "forbidden");
   if (doc.status === "completed") {
-    return NextResponse.json({ documentId: doc.id, status: "completed" });
+    const { data: meta } = await service
+      .from("documents")
+      .select("page_count")
+      .eq("id", doc.id)
+      .maybeSingle();
+    return NextResponse.json({
+      documentId: doc.id,
+      status: "completed",
+      pageCount: typeof meta?.page_count === "number" ? meta.page_count : null,
+    });
   }
 
   /*
@@ -91,6 +100,7 @@ export async function POST(request: Request) {
     // Hata değil ama söylenmesi gereken şey — örn. uzun tarama kesildi.
     notice: result.notice ?? null,
     topicMap: result.topicMap ?? null,
+    pageCount: result.pageCount ?? null,
   });
 }
 
