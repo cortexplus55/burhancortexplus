@@ -544,3 +544,48 @@ export function consolidateTopics(
     mergedTitles: merges,
   };
 }
+
+/**
+ * Kayıtlı harita hâlâ kutu, adım veya tavanın üstünde mi?
+ *
+ * Yeni yükleme bu listeyi yazmaz. Eski kuralda yazılmış bir belge
+ * açılınca, model bir daha çağrılmadan aynı birleştirme uygulanır.
+ */
+export function storedTopicsNeedRefold(
+  topics: { title: string }[],
+  pages: FoldPage[],
+  pageCount = pages.length,
+): boolean {
+  if (!topics.length) return false;
+  if (topics.length > topicCeiling(Math.max(pageCount, 1))) return true;
+  const outline = outlineSections(pages);
+  const outlineKeys = new Set(outline.map((section) => foldKey(section.title)));
+  const stepTitles = collectStepTitles(pages);
+  return topics.some((topic) =>
+    isJunkTitle(topic.title, stepTitles, outlineKeys, outline.length > 0),
+  );
+}
+
+/**
+ * Öğrencinin onayladığı, elle düzenlediği ya da bir hazırlığa bağladığı
+ * haritaya dokunulmaz. Yalnızca hazır ve hâlâ şişkin/kutu başlıklı,
+ * henüz kullanılmamış harita yeniden katlanır.
+ */
+export function shouldRewriteStoredTopicMap(input: {
+  status: string | null;
+  studentEdited: boolean;
+  /** Sınav hazırlığı bu belgenin konu düğümlerine bağlı. */
+  inUse?: boolean;
+  topics: { title: string }[];
+  pages: FoldPage[];
+  pageCount?: number;
+}): boolean {
+  if (input.studentEdited) return false;
+  if (input.inUse) return false;
+  if (input.status !== "ready") return false;
+  return storedTopicsNeedRefold(
+    input.topics,
+    input.pages,
+    input.pageCount ?? input.pages.length,
+  );
+}

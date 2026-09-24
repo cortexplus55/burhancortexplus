@@ -6,6 +6,7 @@ import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { pickMainTopics } from "@/lib/learning/diagnostic";
 import { buildExamPlan, daysUntilExam } from "@/lib/learning/exam-prep-plan";
+import { refoldTopicMapIfNeeded } from "@/lib/documents/pdf-learning-v2";
 import { documentTitle } from "@/lib/documents/topic-title";
 
 const bodySchema = z.object({
@@ -152,6 +153,9 @@ export async function POST(request: Request) {
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
   const v2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
+  if (v2 && parsed.data.documentId) {
+    await refoldTopicMapIfNeeded(service, parsed.data.documentId);
+  }
   const { topicSuggestions, intakeMode } = await resolveTopicSuggestions(
     service,
     userId,
