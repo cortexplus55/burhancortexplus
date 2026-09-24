@@ -100,6 +100,7 @@ export function ExamPrepHome({
   topicCount = 0,
   topicLabels = [],
   materials = [],
+  readinessClaim = null,
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -134,6 +135,8 @@ export function ExamPrepHome({
   topicLabels?: string[];
   /** Materyaller sekmesi. Birden fazla belge varsa hepsi; yoksa eski tek belge. */
   materials?: PrepMaterial[];
+  /** Ölçülen veri hazır diyorsa true. Bilinmiyorsa null; uydurma yok. */
+  readinessClaim?: boolean | null;
 }) {
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
@@ -522,7 +525,7 @@ export function ExamPrepHome({
           </div>
         </div>
       ) : view === "yol" ? (
-        <StudyPath nodes={nodes} onOpen={openNode} />
+        <StudyPath nodes={nodes} onOpen={openNode} readinessClaim={readinessClaim} />
       ) : null}
 
       {view === "yol" ? (
@@ -552,9 +555,11 @@ export function ExamPrepHome({
 function StudyPath({
   nodes,
   onOpen,
+  readinessClaim,
 }: {
   nodes: HomeNode[];
   onOpen: (node: HomeNode) => void;
+  readinessClaim: boolean | null;
 }) {
   const groups = useMemo(() => {
     let cursor = 0;
@@ -613,6 +618,13 @@ function StudyPath({
                       : ""}
                     {node.sessionMeta?.sourcePages?.length
                       ? ` · s.${node.sessionMeta.sourcePages.slice(0, 4).join(",")}`
+                      : ""}
+                    {node.kind === "written_exam" ? " · yardım yok" : ""}
+                    {node.kind === "readiness" && readinessClaim === true
+                      ? " · ölçülen verilere göre hazırsın"
+                      : ""}
+                    {node.kind === "readiness" && readinessClaim === false
+                      ? " · eksikler bu ekranda"
                       : ""}
                   </em>
                 </span>

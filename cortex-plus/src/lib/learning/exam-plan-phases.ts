@@ -43,7 +43,7 @@ export const STUDY_PATH_SKELETON: PathSkeletonPhase[] = [
     title: "Bilgi boşluklarını kapat",
     items: [
       { label: "Zayıf nokta", kind: "gaps" },
-      { label: "Odaklı pratik" },
+      { label: "Odaklı pratik", kind: "focused" },
     ],
   },
   {
@@ -60,8 +60,8 @@ export const STUDY_PATH_SKELETON: PathSkeletonPhase[] = [
     title: "Sınav günü",
     items: [
       { label: "Kartlarla son tekrar", kind: "flashcards" },
-      { label: "Son zayıf nokta" },
-      { label: "Hazırsın" },
+      { label: "Son kontrol", kind: "final_check" },
+      { label: "Hazırsın", kind: "readiness" },
     ],
   },
 ];
@@ -112,8 +112,8 @@ export const PLAN_PHASES: PhaseMeta[] = [
   {
     id: "gaps",
     title: "Bilgi boşluklarını kapat",
-    blurb: "Zayıf nokta tespiti ve odaklı pratik.",
-    kinds: ["gaps"],
+    blurb: "Zayıf nokta tespiti, sonra odaklı pratik.",
+    kinds: ["gaps", "focused"],
   },
   {
     id: "mock",
@@ -124,8 +124,8 @@ export const PLAN_PHASES: PhaseMeta[] = [
   {
     id: "exam_day",
     title: "Sınav günü",
-    blurb: "Kartlarla son tekrar, sonra hazırsın.",
-    kinds: ["flashcards"],
+    blurb: "Kartlar, son kontrol, sonra kayıtlı verilere göre hazırlık.",
+    kinds: ["flashcards", "final_check", "readiness"],
   },
 ];
 
