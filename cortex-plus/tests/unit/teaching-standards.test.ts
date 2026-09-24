@@ -452,6 +452,7 @@ describe("scaffold headings keep leaking", () => {
       "Uygulama",
       "Tanım",
       "Özet",
+      "Bölüm 1",
     ]) {
       expect(isScaffoldHeading(heading)).toBe(true);
     }
@@ -560,6 +561,31 @@ describe("validateLessonV2 is the publish gate", () => {
       validateLessonV2(broken).some((issue) => issue.includes("çürütmüyor")),
     ).toBe(true);
   });
+
+  it("rejects a section without a bold exam term and a bare answer", () => {
+    const plain = {
+      ...sound,
+      sections: sound.sections.map((item, index) =>
+        index === 0
+          ? { ...item, body: "Açı derece veya radyan ile ölçülür ve yay uzunluğuna bağlanır." }
+          : item,
+      ),
+      example: { prompt: "90° noktası neresi?", solution: "Sonuç (0, 1) olur." },
+    };
+    const issues = validateLessonV2(plain);
+    expect(issues.some((issue) => issue.includes("koyu değil"))).toBe(true);
+    expect(issues.some((issue) => issue.includes("gerekçeli"))).toBe(true);
+  });
+
+  it("rejects a numbered chapter heading", () => {
+    const numbered = {
+      ...sound,
+      sections: sound.sections.map((item, index) =>
+        index === 2 ? { ...item, heading: "Bölüm 1" } : item,
+      ),
+    };
+    expect(validateLessonV2(numbered).length).toBeGreaterThan(0);
+  });
 });
 
 describe("quiz tag and distractor gate", () => {
@@ -582,6 +608,34 @@ describe("quiz tag and distractor gate", () => {
       validateQuizPedagogy(
         [{ ...question, misconceptionTag: "sin_cos_swap" }],
         { requireMisconceptionTag: true, requireDistractorRefutation: true },
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("true/false exam gate", () => {
+  it("requires the tag and an explanation that uses the correction", () => {
+    const weak = {
+      text: "Pi tam olarak 22/7'ye eşittir.",
+      correct: false,
+      explanation: "Bu ifade yanlıştır.",
+      correctedStatement: "Pi yaklaşık 22/7 değerindedir.",
+      misconceptionTag: "pi_fraction",
+    };
+    expect(
+      validateTrueFalsePedagogy([weak], { requireMisconceptionTag: true }).some((issue) =>
+        issue.includes("çürütmüyor"),
+      ),
+    ).toBe(true);
+    expect(
+      validateTrueFalsePedagogy(
+        [
+          {
+            ...weak,
+            explanation: "22/7 bir kesirdir; pi yalnızca yaklaşık o değere yakındır.",
+          },
+        ],
+        { requireMisconceptionTag: true },
       ),
     ).toEqual([]);
   });

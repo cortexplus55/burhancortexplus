@@ -19,12 +19,14 @@ import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import { trueFalseItemsSchema, TRUE_FALSE_FORMAT } from "@/lib/learning/true-false";
 import {
+  contentDifficultyLine,
   parseFamiliarity,
   parseMood,
   sessionSignalsPrompt,
   type Familiarity,
   type Mood,
 } from "@/lib/learning/session-signals";
+import { QA_TEACHER_PROMPT } from "@/lib/learning/tutor-style";
 import {
   normalizeQuizQuestion,
   publicQuizQuestion,
@@ -170,7 +172,9 @@ export async function POST(request: Request) {
 
   const { data: prep } = await service
     .from("exam_preps")
-    .select("id, title, exam_type, active_topic_id, target_score, learning_preferences")
+    .select(
+      "id, title, exam_type, active_topic_id, target_score, learning_preferences, hard_topics_self",
+    )
     .eq("id", prepId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -190,12 +194,12 @@ export async function POST(request: Request) {
   const { data: topic } = prep.active_topic_id
     ? await service
         .from("exam_prep_topics")
-        .select("id, label")
+        .select("id, label, measured_level")
         .eq("id", prep.active_topic_id)
         .maybeSingle()
     : await service
         .from("exam_prep_topics")
-        .select("id, label")
+        .select("id, label, measured_level")
         .eq("exam_prep_id", prepId)
         .order("sort_order")
         .limit(1)
@@ -813,7 +817,23 @@ export async function POST(request: Request) {
           kind,
           prepTitle: prep.title ?? "Hazırlık",
           topicLabel,
-          difficulty,
+          difficulty: teachingV2
+            ? contentDifficultyLine({
+                requested: difficulty,
+                familiarity,
+                focusTopic: (Array.isArray(prep.hard_topics_self)
+                  ? (prep.hard_topics_self as string[])
+                  : []
+                ).some(
+                  (label) =>
+                    label.trim().toLocaleLowerCase("tr") ===
+                    topicLabel.trim().toLocaleLowerCase("tr"),
+                ),
+                measuredLevel:
+                  (topic as { measured_level?: string | null } | null)
+                    ?.measured_level ?? null,
+              })
+            : difficulty,
           familiarity,
           mood,
           sourceBlock: source.block,
@@ -1345,7 +1365,7 @@ async function generateNodePayload(input: {
       sourcePages: input.sessionMeta?.sourcePages,
       idempotencyKey: input.idempotencyKey,
       userPrompt: input.teachingV2
-        ? `${ctx} 5 alıştırma sorusu (intro Q&A standardı). Tek kavramdan başla; en az 1 soruda kademeli ipucu için explanation'da ilk adımı ver. En az 1 multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
+        ? `${QA_TEACHER_PROMPT} ${ctx} 5 alıştırma sorusu. Tek kavramdan başla; en az 1 soruda explanation ilk adımı ipucu olarak versin. multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
         : `${ctx} 5 çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,
     });
     if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);

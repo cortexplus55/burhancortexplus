@@ -43,6 +43,11 @@ export function parseTutorStyle(value: unknown): TutorStyle {
  * Sohbet, sınav sohbeti ve düğüm koçu aynı disiplini kullanır.
  * Cevabı yapıştırmak yasak; yanlışta açıklama + yanılgı zorunlu.
  */
+/** Soru-cevap düğümü quiz üretir; sohbet disiplininin soru hâli. */
+export const QA_TEACHER_PROMPT =
+  "Soru-cevap öğretimi: explanation cevabı ilk kelimede yapıştırmaz. Sıra: takılacağı yer, bir ipucu, sonra neden. " +
+  "Yanlış şık bir yanılgıdır; misconceptionTag dolu olur ve açıklama o şıkkı çürütür. Filler yok. Kaynak varsa ona bağlı kal.";
+
 export const TUTOR_ANSWER_DISCIPLINE =
   "Cevabı baştan yapıştırma. Her yanıtta sırayla: (1) öğrencinin nerede takıldığı, (2) tek ipucu veya tek adım, (3) kontrol sorusu. Tam çözümü ancak öğrenci açıkça isterse yaz. " +
   "Yanlış bir denemede AÇIKLAMA ver: doğru düşünce, yaygın hata ve o düşüncenin neden çürük olduğu. Doğruyu tekrarlayıp geçme. " +

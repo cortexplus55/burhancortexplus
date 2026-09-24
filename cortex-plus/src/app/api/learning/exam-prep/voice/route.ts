@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { TUTOR_ANSWER_DISCIPLINE } from "@/lib/learning/tutor-style";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -56,7 +57,8 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
       'JSON: {"reply":string,"done":boolean}. reply sesli okunacak, kısa Türkçe. done true yalnızca oturum doğal bittiyse.',
-    userPrompt: `${mode}
+    userPrompt: `${TUTOR_ANSWER_DISCIPLINE}
+${mode}
 Sınav: ${prep.title} (${prep.exam_type}). Konu: ${parsed.data.topicLabel}. Zorluk: ${parsed.data.difficulty}.
 ${transcript || "Öğrenci henüz konuşmadı; sen merhaba deyip başla."}`,
     parse: (raw) => replySchema.safeParse(raw).data ?? null,

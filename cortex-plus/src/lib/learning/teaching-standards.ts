@@ -417,9 +417,9 @@ const SCAFFOLD_HEADINGS = [
 
 /** Şablon adı mı, yoksa konunun kendi adı mı? */
 export function isScaffoldHeading(heading: string): boolean {
-  return SCAFFOLD_HEADINGS.includes(
-    foldTr(heading).replace(/[^a-z ]/g, "").trim(),
-  );
+  const folded = foldTr(heading).replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+  if (/^bolum\s+\d+\b/.test(folded)) return true;
+  return SCAFFOLD_HEADINGS.includes(folded.replace(/[^a-z ]/g, "").trim());
 }
 
 const SUPERSCRIPTS = "⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁽⁾";
@@ -597,6 +597,12 @@ export function validateLessonPedagogy(
   return [...issues, ...blockingLessonIssues(lesson)];
 }
 
+function solutionIsJustified(solution: string): boolean {
+  const folded = foldTr(solution);
+  if (folded.length < 24) return false;
+  return /cunku|bu yuzden|dolayisiyla|yani|adim|once|sonra/.test(folded);
+}
+
 function sectionCheckTeaches(check: SectionCheck): boolean {
   const explanation = foldTr(check.explanation);
   if (explanation.length < 12) return false;
@@ -641,11 +647,21 @@ export function validateLessonV2(
   }
   if (lesson.example.solution.trim() === lesson.example.prompt.trim()) {
     issues.push("Çözüm, sorunun tekrarı olamaz; adım ve gerekçe yaz.");
+  } else if (!solutionIsJustified(lesson.example.solution)) {
+    issues.push("Çözüm adım adım ve gerekçeli olmalı; yalnızca sonucu yazma.");
+  }
+  if (foldTr(lesson.infoCheck.answer) === foldTr(lesson.infoCheck.prompt)) {
+    issues.push("Bilgi kontrolünün yanıtı sorunun tekrarı olamaz.");
   }
   if (!lesson.nextFocus.some((item) => item.trim().length >= 2)) {
     issues.push("nextFocus zorunlu.");
   }
   for (const section of lesson.sections) {
+    if (!/\*\*[^*\n]{2,60}\*\*/.test(section.body)) {
+      issues.push(
+        `Anahtar terim koyu değil: ${section.heading}. Sınav terimini **iki yıldız** arasına al.`,
+      );
+    }
     if (!section.check) {
       issues.push(
         `Bölümün kontrolü yok: ${section.heading}. DOĞRU MU YANLIŞ veya HIZLI SINAV ekle.`,
@@ -843,6 +859,26 @@ export function validateQuizPedagogy(
   return issues;
 }
 
+function trueFalseExplanationRefutes(item: {
+  text: string;
+  correct: boolean;
+  explanation: string;
+  correctedStatement?: string;
+}): boolean {
+  const explanation = foldTr(item.explanation);
+  const claim = foldTr(item.text);
+  if (!explanation || explanation === claim) return false;
+  if (item.correct) return explanation.length >= 12;
+  const claimTokens = new Set(
+    claim.split(/[^a-z0-9]+/).filter((token) => token.length >= 3),
+  );
+  const distinctive = foldTr(item.correctedStatement ?? "")
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length >= 4 && !claimTokens.has(token));
+  if (distinctive.some((token) => explanation.includes(token))) return true;
+  return explanation.length >= 24 && explanation !== claim;
+}
+
 export function validateTrueFalsePedagogy(
   items: {
     text: string;
@@ -870,11 +906,13 @@ export function validateTrueFalsePedagogy(
     if (item.explanation.trim().length < 12) {
       issues.push(`${label}: explanation yetersiz.`);
     }
-    if (
-      options?.requireMisconceptionTag &&
-      (item.misconceptionTag?.trim().length ?? 0) < 2
-    ) {
-      issues.push(`${label}: misconceptionTag zorunlu.`);
+    if (options?.requireMisconceptionTag) {
+      if ((item.misconceptionTag?.trim().length ?? 0) < 2) {
+        issues.push(`${label}: misconceptionTag zorunlu.`);
+      }
+      if (!trueFalseExplanationRefutes(item)) {
+        issues.push(`${label}: explanation iddiayı çürütmüyor.`);
+      }
     }
   }
   return issues;

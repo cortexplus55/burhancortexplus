@@ -58,7 +58,7 @@ export async function generateExamQuiz(input: {
     validationProfile: input.teachingV2 ? "v2" : "legacy",
     idempotencyKey: input.idempotencyKey,
     maxDraftAttempts: input.teachingV2 ? 2 : 1,
-    allowIndependentAccept: input.teachingV2 && input.verificationMode !== "schema",
+    allowIndependentAccept: false,
     activityKind: "quiz",
     buildIndependent: input.teachingV2
       ? (_content, parsed) => {
