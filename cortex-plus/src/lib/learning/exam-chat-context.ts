@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { lessonV2Schema } from "@/lib/learning/teaching-standards";
-import { loadTeacherBrief } from "@/lib/documents/teacher-analysis-run";
+import { loadPrepDocumentIds, loadTopicTeaching, taughtCoverageLine } from "@/lib/documents/teacher-analysis-run";
 import { prepLanguage, type MaterialLanguage } from "@/lib/learning/teacher-brain";
 
 /**
@@ -88,7 +88,7 @@ export async function loadExamChatContext(
   // olmadan tahmin yürütmesin diye ölçüm durumu da veriliyor.
   const { data: topics } = await service
     .from("exam_prep_topics")
-    .select("label, status, measured_level")
+    .select("label, status, measured_level, lesson_id")
     .eq("exam_prep_id", prepId)
     .order("sort_order");
 
@@ -135,12 +135,15 @@ export async function loadExamChatContext(
     );
   }
 
-  const teacherBrief = await loadTeacherBrief(
-    service,
-    (prep.document_id as string | null) ?? null,
-    lesson?.title ?? prepTitle,
-  );
+  const prepDocs = await loadPrepDocumentIds(service, prepId);
+  const teaching = await loadTopicTeaching(service, prepDocs, lesson?.title ?? prepTitle);
+  const teacherBrief = teaching.brief;
+  const taughtTitles = (topics ?? [])
+    .filter((topic) => topic.status === "done" || topic.status === "in_progress" || topic.lesson_id)
+    .map((topic) => topic.label as string);
+  const coverageLine = taughtCoverageLine(teaching.checklist, taughtTitles);
   if (teacherBrief) lines.push(teacherBrief);
+  if (coverageLine) lines.push(coverageLine);
   const hasSource = Boolean(lesson) || Boolean(teacherBrief);
 
   lines.push(
@@ -153,7 +156,7 @@ export async function loadExamChatContext(
       "DERSİ ÖZETLERKEN DERSTEKİ TANIMLARI KULLAN: bir sembolün ya da " +
         "terimin anlamını kendi bilginle değiştirme, ders ne diyorsa onu " +
         "söyle. Ders bir şeyi söylemiyorsa söylemediğini belirt. " +
-        "Materyalde yoksa formül uydurma. Genel bilgi vereceksen cümleye \"Materyal dışı:\" diye başla ve notlarında hangi başlığa bakacağını yaz.",
+        "Materyalde yoksa formül uydurma. Belgede olmayan bir soruda önce bunun belgede olmadığını söyle, sonra genel bilgi bölümüne tam olarak \"Materyal dışı:\" diye başla. Bu etiketi atlama. Notlarında hangi başlığa bakacağını da yaz.",
     );
   }
 

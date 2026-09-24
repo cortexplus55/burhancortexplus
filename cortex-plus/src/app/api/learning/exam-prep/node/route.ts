@@ -67,8 +67,9 @@ import {
   lessonPodcastBrief,
   podcastNumbersOutsideLesson,
 } from "@/lib/learning/podcast-from-lesson";
-import { loadTeacherBrief } from "@/lib/documents/teacher-analysis-run";
+import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 import {
+  lessonDepth,
   podcastDialogueIssues,
   podcastNarrationBrief,
   prepLanguage,
@@ -76,6 +77,7 @@ import {
   SINGLE_NARRATOR_SCHEMA,
   studentLanguageLine,
   unsupportedQuantities,
+  type TeachingPriority,
 } from "@/lib/learning/teacher-brain";
 import {
   recordLearningTrackingAfterComplete,
@@ -638,6 +640,32 @@ export async function POST(request: Request) {
 
   if (sourceLookupError || !prepSource) return errorResponse(503, "source_unavailable");
 
+  const prepDocs = teachingV2 ? await loadPrepDocumentIds(service, prepId) : [];
+  const topicNodeId = (topic as { document_topic_node_id?: string | null } | null)
+    ?.document_topic_node_id;
+  if (topicNodeId) {
+    const { data: node } = await service
+      .from("document_topic_nodes")
+      .select("document_id")
+      .eq("id", topicNodeId)
+      .maybeSingle();
+    if (node?.document_id) prepSource.document_id = node.document_id as string;
+  }
+  const teachingPlan = teachingV2
+    ? await loadTopicTeaching(
+        service,
+        prepSource.document_id
+          ? [prepSource.document_id as string, ...prepDocs]
+          : prepDocs,
+        topicLabel,
+      )
+    : {
+        brief: "",
+        priority: null as TeachingPriority | null,
+        checklist: [],
+        depth: { difficulty: "hard" as const, maxDraftAttempts: 2 as const, quizItems: 5, line: "" },
+      };
+
   let sourceBoundaryMode: "documents_only" | "allow_supporting" | null = null;
   if (teachingV2 && prepSource.document_id) {
     const { data: doc } = await service
@@ -870,10 +898,8 @@ export async function POST(request: Request) {
                 })
               : [],
           learningPreferences: teachingV2 ? prep.learning_preferences : null,
-          teacherBrief:
-            teachingV2 && prepSource.document_id
-              ? await loadTeacherBrief(service, prepSource.document_id, topicLabel)
-              : "",
+          teacherBrief: teachingV2 ? teachingPlan.brief : "",
+          teachingPriority: teachingV2 ? teachingPlan.priority : null,
           lessonContent:
             kind === "podcast" && teachingV2 && topic?.id
               ? await loadTopicLesson(service, topic.id)
@@ -1120,6 +1146,7 @@ async function generateNodePayload(input: {
   sectionBackbone?: string[];
   /** Saklı öğretmen analizi. Yoksa boş; üretim bugünkü yoldan sürer. */
   teacherBrief?: string;
+  teachingPriority?: TeachingPriority | null;
 }) {
   const activity = teachingActivityForKind(input.kind);
   const sessionCtx = input.teachingV2
@@ -1130,6 +1157,8 @@ async function generateNodePayload(input: {
     ? preferencePromptHint(input.learningPreferences)
     : "";
   const teacherNote = input.teacherBrief?.trim() ?? "";
+  const depth = lessonDepth(input.teachingPriority ?? null);
+  const quizCount = depth.quizItems;
   // Aşinalık içeriğin nereden başlayacağını, ruh hali tonunu belirler.
   // Kaynak bloğu sona geliyor: model en son okuduğu talimata daha sadık.
   const contextFor = (note: string) =>
@@ -1157,7 +1186,7 @@ async function generateNodePayload(input: {
          * söylenmesindeydi. Süre bütçesi gerçek bir sınır: iki tur güvenli
          * kalıyor.
          */
-        maxDraftAttempts: 2 as const,
+        maxDraftAttempts: depth.maxDraftAttempts,
         allowIndependentAccept: true,
         activityKind: activity,
         idempotencyKey: input.idempotencyKey,
@@ -1230,7 +1259,7 @@ async function generateNodePayload(input: {
       userId: input.userId,
       actionCode: actionForKind(input.kind),
       isPremium: input.isPremium,
-      difficulty: "hard",
+      difficulty: depth.difficulty,
       ...v2Common,
       idempotencyKey:
         retried && input.idempotencyKey
@@ -1424,8 +1453,8 @@ async function generateNodePayload(input: {
       sourcePages: input.sessionMeta?.sourcePages,
       idempotencyKey: input.idempotencyKey,
       userPrompt: input.teachingV2
-        ? `${QA_TEACHER_PROMPT} ${ctx} 5 alıştırma sorusu. Tek kavramdan başla; en az 1 soruda explanation ilk adımı ipucu olarak versin. multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
-        : `${ctx} 5 çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,
+        ? `${QA_TEACHER_PROMPT} ${ctx} ${quizCount} alıştırma sorusu. Tek kavramdan başla; en az 1 soruda explanation ilk adımı ipucu olarak versin. multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
+        : `${ctx} ${quizCount} çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,
     });
     if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
     return { type: "quiz", questions: outcome.questions, teachingStandard: activity };
@@ -1539,8 +1568,8 @@ async function generateNodePayload(input: {
         ? 'JSON: {"questions":[{"prompt":string,"hint":string,"learningObjective":string,"rubricCriteria":string[],"expectedPoints":string[]}]}'
         : 'JSON: {"questions":[{"prompt":string,"hint":string}]}',
       userPrompt: input.teachingV2
-        ? `${ctx} 5 sözlü soru; her birinde rubrik ve beklenen noktalar. Sınav kipinde yardım sınırlı — hint kısa tut veya boş bırak.`
-        : `${ctx} 5 sözlü soru.`,
+        ? `${ctx} ${quizCount} sözlü soru; her birinde rubrik ve beklenen noktalar. Sınav kipinde yardım sınırlı — hint kısa tut veya boş bırak.`
+        : `${ctx} ${quizCount} sözlü soru.`,
       parse: (raw) => {
         const data = schema.safeParse(raw).data ?? null;
         if (!data) return null;
@@ -1651,7 +1680,7 @@ async function generateNodePayload(input: {
     requireSourceSupport: input.requireSourceSupport,
     sourcePages: input.sessionMeta?.sourcePages,
     idempotencyKey: input.idempotencyKey,
-    userPrompt: `${ctx} 5 çoktan seçmeli soru. ${
+    userPrompt: `${ctx} ${quizCount} çoktan seçmeli soru. ${
       input.teachingV2
         ? "multi=true yalnızca gerçekten birden fazla bağımsız doğru varken; aksi halde multi false. Her soruda learningObjective ve explanation yaz."
         : "En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi)."

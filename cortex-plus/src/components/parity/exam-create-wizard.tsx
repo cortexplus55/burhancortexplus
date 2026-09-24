@@ -126,6 +126,9 @@ export function ExamCreateWizard({
   const [equalFocus, setEqualFocus] = useState(true);
 
   const [documentId, setDocumentId] = useState<string | null>(initialDocumentId);
+  const [documentIds, setDocumentIds] = useState<string[]>(
+    initialDocumentId ? [initialDocumentId] : [],
+  );
   const [documentName, setDocumentName] = useState<string | null>(null);
   const [documentBytes, setDocumentBytes] = useState<number | null>(null);
   const [docs, setDocs] = useState<{ id: string; fileName: string }[]>([]);
@@ -211,7 +214,11 @@ export function ExamCreateWizard({
         const res = await fetch("/api/learning/exam-prep/intake", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ documentId: docId, probeOnly: true }),
+          body: JSON.stringify({
+            documentId: docId,
+            documentIds: documentIds.length ? documentIds : [docId],
+            probeOnly: true,
+          }),
         });
         const payload = await res.json().catch(() => ({}));
         const found: string[] = payload?.draft?.topics ?? [];
@@ -231,7 +238,7 @@ export function ExamCreateWizard({
         }, 700);
       }
     },
-    [subject],
+    [documentIds, subject],
   );
 
   async function takeFile(file: File | undefined) {
@@ -277,6 +284,9 @@ export function ExamCreateWizard({
         return;
       }
       setDocumentId(uploaded.documentId);
+      setDocumentIds((current) =>
+        current.includes(uploaded.documentId) ? current : [...current, uploaded.documentId],
+      );
       setDocumentName(file.name);
       setDocumentBytes(file.size);
       toast.success("Materyalin hazır.", {
@@ -303,6 +313,7 @@ export function ExamCreateWizard({
           examDate,
           targetScore: target,
           documentId: documentId ?? undefined,
+          documentIds: documentIds.length ? documentIds : undefined,
           hardTopics: equalFocus ? [] : focusTopics,
           learningPreferences: {
             style:
@@ -551,6 +562,7 @@ export function ExamCreateWizard({
                 aria-label="Materyali kaldır"
                 onClick={() => {
                   setDocumentId(null);
+                  setDocumentIds([]);
                   setDocumentName(null);
                   setDocumentBytes(null);
                 }}
@@ -569,18 +581,24 @@ export function ExamCreateWizard({
                     key={doc.id}
                     type="button"
                     className={
-                      documentId === doc.id
+                      documentIds.includes(doc.id)
                         ? "apw-doc-row apw-doc-row--on"
                         : "apw-doc-row"
                     }
                     onClick={() => {
-                      setDocumentId(doc.id);
+                      setDocumentIds((current) => {
+                        const next = current.includes(doc.id)
+                          ? current.filter((id) => id !== doc.id)
+                          : [...current, doc.id];
+                        setDocumentId(next[0] ?? null);
+                        return next;
+                      });
                       setDocumentName(doc.fileName);
                     }}
                   >
                     <FileText className="h-4 w-4 shrink-0" aria-hidden />
                     <span className="truncate">{doc.fileName}</span>
-                    {documentId === doc.id ? (
+                    {documentIds.includes(doc.id) ? (
                       <Check className="h-4 w-4 shrink-0" aria-hidden />
                     ) : null}
                   </button>
@@ -592,7 +610,7 @@ export function ExamCreateWizard({
           <button
             type="button"
             className="apw-cta"
-            disabled={!documentId || uploading}
+            disabled={!documentIds.length || uploading}
             onClick={() => setStep("language")}
           >
             {WIZARD_COPY.continue}

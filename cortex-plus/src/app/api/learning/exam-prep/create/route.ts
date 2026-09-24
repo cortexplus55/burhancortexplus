@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
-import { pickMainTopics } from "@/lib/learning/diagnostic";
 import {
   daysUntilExam,
   mergeStudyPathTemplate,
@@ -15,6 +14,7 @@ import {
   scheduleSessionsToNodeDrafts,
   type ScheduleTopicInput,
 } from "@/lib/learning/exam-schedule-v2";
+import { loadScheduleTopics } from "@/lib/learning/prep-schedule-topics";
 
 const prefsSchema = z
   .object({
@@ -36,6 +36,7 @@ const bodySchema = z.object({
   examDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   note: z.string().max(500).optional(),
   documentId: z.string().uuid().optional(),
+  documentIds: z.array(z.string().uuid()).max(8).optional(),
   dailyMinutes: z.number().int().min(5).max(480).optional(),
   studyDays: z.array(z.number().int().min(1).max(7)).max(7).optional(),
   hardTopics: z.array(z.string().min(1).max(120)).max(24).optional(),
@@ -57,61 +58,23 @@ export async function POST(request: Request) {
   let topicNodeIds: (string | null)[] = topics.map(() => null);
   let scheduleTopics: ScheduleTopicInput[] = [];
 
-  if (v2 && parsed.data.documentId) {
-    const { data: nodes } = await service
-      .from("document_topic_nodes")
-      .select(
-        "id, title, parent_id, sort_order, learning_objective, prerequisites",
-      )
-      .eq("document_id", parsed.data.documentId)
-      .order("sort_order");
-    const mains = pickMainTopics(
-      (nodes ?? []).map((n) => ({
-        id: n.id as string,
-        title: n.title as string,
-        parentId: (n.parent_id as string | null) ?? null,
-      })),
+  const documentIds = [
+    ...new Set(
+      [parsed.data.documentId, ...(parsed.data.documentIds ?? [])].filter(
+        (id): id is string => Boolean(id),
+      ),
+    ),
+  ];
+  if (v2 && documentIds.length) {
+    const loaded = await loadScheduleTopics(
+      service,
+      documentIds,
+      parsed.data.hardTopics ?? [],
     );
-    if (mains.length) {
-      topics = mains.map((n) => n.title);
-      topicNodeIds = mains.map((n) => n.id);
-      const mainRows = (nodes ?? []).filter((n) =>
-        mains.some((m) => m.id === n.id),
-      );
-      const { data: links } = await service
-        .from("document_topic_page_links")
-        .select("topic_id, page_number")
-        .eq("document_id", parsed.data.documentId)
-        .in(
-          "topic_id",
-          mainRows.map((n) => n.id as string),
-        );
-      const pagesByTopic = new Map<string, number[]>();
-      for (const link of links ?? []) {
-        const list = pagesByTopic.get(link.topic_id as string) ?? [];
-        list.push(link.page_number as number);
-        pagesByTopic.set(link.topic_id as string, list);
-      }
-      const hardSet = new Set(
-        (parsed.data.hardTopics ?? []).map((t) =>
-          t.trim().toLocaleLowerCase("tr"),
-        ),
-      );
-      scheduleTopics = mainRows.map((n) => ({
-        id: n.id as string,
-        title: n.title as string,
-        objective: (n.learning_objective as string | null) ?? null,
-        prerequisites: Array.isArray(n.prerequisites)
-          ? (n.prerequisites as string[])
-          : [],
-        pageNumbers: [...new Set(pagesByTopic.get(n.id as string) ?? [])].sort(
-          (a, b) => a - b,
-        ),
-        measuredLevel: "unknown" as const,
-        selfHard: hardSet.has(
-          String(n.title).trim().toLocaleLowerCase("tr"),
-        ),
-      }));
+    if (loaded.titles.length) {
+      topics = loaded.titles;
+      topicNodeIds = loaded.nodeIds;
+      scheduleTopics = loaded.scheduleTopics;
     }
   }
 
@@ -195,6 +158,14 @@ export async function POST(request: Request) {
     })
     .eq("id", result.prepId)
     .eq("user_id", userId);
+
+  if (documentIds.length) {
+    await service
+      .from("exam_preps")
+      .update({ source_document_ids: documentIds })
+      .eq("id", result.prepId)
+      .eq("user_id", userId);
+  }
 
   if (scheduleSummary) {
     const { data: nodeRows } = await service

@@ -40,6 +40,7 @@ const healthy = () =>
       model_upgrade_grants: {},
       document_page_grants: {},
       referral_tiers: { multiplier: 10 },
+      document_teacher_analyses: {},
     },
   });
 
@@ -90,7 +91,8 @@ describe("diğer göç dosyaları", () => {
   it("hepsi yerindeyse hiçbir satır kırmızı değil", async () => {
     const checks = await probeSchema(healthy());
     expect(checks.every((check) => check.ok)).toBe(true);
-    expect(checks).toHaveLength(6);
+    expect(checks).toHaveLength(7);
+    expect(find(checks, "Öğretmen analizi").ok).toBe(true);
   });
 
   it("eksik tabloyu ve eski çarpanı yakalıyor", async () => {

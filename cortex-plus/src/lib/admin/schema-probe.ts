@@ -68,7 +68,11 @@ async function hasTable(
 export async function probeSchema(
   service: SupabaseClient,
 ): Promise<SchemaCheck[]> {
-  const [reserve, audio, exam, upgrade, pages, referral] = await Promise.all([
+  const teacherAnalysis = service
+    .from("document_teacher_analyses")
+    .select("document_id")
+    .limit(1);
+  const [reserve, audio, exam, upgrade, pages, referral, analysisTable] = await Promise.all([
     probeCreditReserve(service),
     service
       .from("credit_rules")
@@ -87,6 +91,7 @@ export async function probeSchema(
       .select("multiplier")
       .eq("status", "subscribed")
       .maybeSingle(),
+    teacherAnalysis,
   ]);
 
   const referralMultiplier = referral.data?.multiplier as number | undefined;
@@ -134,6 +139,14 @@ export async function probeSchema(
         typeof referralMultiplier === "number"
           ? `${referralMultiplier} kat`
           : "Okunamadı (20260918130000).",
+    },
+    {
+      name: "Öğretmen analizi kaydı",
+      ok: !analysisTable.error,
+      critical: false,
+      detail: analysisTable.error
+        ? "document_teacher_analyses yok — yeni yükleme analiz satırı yazamıyor (20260924200000)."
+        : "document_teacher_analyses yerinde. Hazır satır yüklemede bir kez yazılır.",
     },
   ];
 }

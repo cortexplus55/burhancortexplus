@@ -26,7 +26,14 @@ import { isOwnedDocumentPath } from "@/lib/documents/storage-path";
 import { recordUserActivity } from "@/lib/streak/record-activity";
 import { loadExamChatContext } from "@/lib/learning/exam-chat-context";
 import { citationHref, type ChatCitation, type ChatEvidence } from "@/lib/ai/chat-citations";
-import { verifyDocumentAnswer } from "@/lib/ai/document-answer-verification";
+import {
+  isAcceptableOutsideAnswer,
+  isClearlyOffDocument,
+  outsideMaterialReviewNote,
+  paidChatAttempts,
+  presentOutsideMaterialAnswer,
+  verifyDocumentAnswer,
+} from "@/lib/ai/document-answer-verification";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { chatRequestHash, chatResultResponse, prepareChatOperation, type SavedChatResult } from "@/lib/ai/chat-operation";
 
@@ -180,6 +187,7 @@ export async function POST(request: Request) {
         lastAssistant: typeof lastAssistant?.content === "string" ? lastAssistant.content : "",
         language: examContext?.language,
         hasSource: grounded || Boolean(attachedBrief) || Boolean(examContext?.hasSource),
+        allowOutsideMaterial: !strict,
       });
       // Full page context is used for an attachment; RAG supplies selected chunks.
       const contextBlock = grounded ? chatSourceBlock(evidence, { documentsOnly: strict, maxCharsPerChunk: documentAttached ? 80000 : 3000 }) : "";
@@ -189,42 +197,69 @@ export async function POST(request: Request) {
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: { url: imageUrl } }] : message },
       ];
+      const sourceText = [contextBlock, examContext?.block ?? "", attachedBrief].join("\n");
+      const offDocument = isClearlyOffDocument(message, sourceText);
       let accepted = false;
-      for (let attempt = 0; attempt < 2; attempt++) {
+      const attemptLimit = paidChatAttempts(offDocument);
+      for (let attempt = 0; attempt < attemptLimit; attempt++) {
         const generationModel = attempt && isPremium ? env.OPENAI_ADVANCED_MODEL : model;
         const response = await client.chat.completions.create({ model: generationModel, messages: requestMessages }, { signal: request.signal, timeout: 60_000, maxRetries: 0 });
         tokensIn += response.usage?.prompt_tokens ?? 0;
         tokensOut += response.usage?.completion_tokens ?? 0;
         await recordUsage(service, { userId, actionCode, model: generationModel, tokensIn: response.usage?.prompt_tokens ?? 0, tokensOut: response.usage?.completion_tokens ?? 0, reservationId });
+        const rawDraft = response.choices[0]?.message?.content ?? "";
+        const draft = strict
+          ? rawDraft
+          : presentOutsideMaterialAnswer({
+              question: message,
+              answer: rawDraft,
+              sourceText,
+              language: examContext?.language,
+            });
+        let checkedContent = "";
         try {
           const verified = await verifyEducationalContent({ client,
-            context: JSON.stringify({ history, message, contextBlock }), draft: response.choices[0]?.message?.content ?? "",
+            context: JSON.stringify({ history, message, contextBlock, sourceExcerpt: sourceText.slice(0, 8000) }),
+            draft,
             format: "Öğrenciye gösterilecek sohbet yanıtı. Metin ve matematik biçimlendirmesini koru.",
+            reviewerAddendum: outsideMaterialReviewNote(),
             imageUrls: imageUrl ? [imageUrl] : [], failClosedOnUnavailable: true, signal: request.signal,
           });
           await recordUsage(service, { userId, actionCode, model: env.OPENAI_ADVANCED_MODEL, tokensIn: verified.tokensIn, tokensOut: verified.tokensOut, reservationId });
-          const noSource = strict && saidNoSource(verified.content);
-          if (noSource) {
-            content = stripNoSourceMarker(verified.content) + NO_SOURCE_CREDIT_NOTE;
-            charge = false;
-          } else {
-            content = verified.content;
-            if (grounded && !imageUrl) {
-              const checked = await verifyDocumentAnswer({ client, question: message, answer: content, evidence, strict, signal: request.signal });
-              await recordUsage(service, { userId, actionCode, model: env.OPENAI_ADVANCED_MODEL, tokensIn: checked.tokensIn, tokensOut: checked.tokensOut, reservationId });
-              if (!checked.ok) {
-                logOpsEvent("document_answer_rejected", { operationId, attempt, strict, evidence: evidence.length, reasons: checked.reasons });
-                continue;
-              }
-              citations = checked.citations;
-            }
-          }
-          accepted = true;
-          break;
+          checkedContent = verified.content;
         } catch (error) {
           if (!(error instanceof EducationalVerificationError)) throw error;
-          logOpsEvent("document_answer_rejected", { operationId, attempt, strict, stage: "educational", reasons: [error.message.slice(0, 200)] });
+          if (!strict && offDocument && isAcceptableOutsideAnswer(draft)) {
+            logOpsEvent("document_answer_rejected", { operationId, attempt, strict, stage: "educational_outside_kept", reasons: error.failureMessages.slice(0, 3) });
+            checkedContent = draft;
+          } else {
+            logOpsEvent("document_answer_rejected", { operationId, attempt, strict, stage: "educational", reasons: [error.message.slice(0, 200)] });
+            continue;
+          }
         }
+        const noSource = strict && saidNoSource(checkedContent);
+        if (noSource) {
+          content = stripNoSourceMarker(checkedContent) + NO_SOURCE_CREDIT_NOTE;
+          charge = false;
+        } else {
+          content = checkedContent;
+          if (grounded && !imageUrl) {
+            const checked = await verifyDocumentAnswer({ client, question: message, answer: content, evidence, strict, signal: request.signal });
+            await recordUsage(service, { userId, actionCode, model: env.OPENAI_ADVANCED_MODEL, tokensIn: checked.tokensIn, tokensOut: checked.tokensOut, reservationId });
+            if (!checked.ok) {
+              logOpsEvent("document_answer_rejected", { operationId, attempt, strict, evidence: evidence.length, reasons: checked.reasons });
+              if (!strict && offDocument && isAcceptableOutsideAnswer(content)) {
+                citations = [];
+                accepted = true;
+                break;
+              }
+              continue;
+            }
+            citations = checked.citations;
+          }
+        }
+        accepted = true;
+        break;
       }
       if (!accepted) {
         content = strict ? "Belgedeki bilgilerle bu soruya güvenilir bir yanıt oluşturamadım. Soruyu daraltabilir veya başka bir belge ekleyebilirsin.\n\n_Kredin harcanmadı._" : chatFallbackMessage({ isPremium, difficulty: difficulty.level });

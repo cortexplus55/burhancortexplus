@@ -25,6 +25,7 @@ const bodySchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   documentId: z.string().uuid().optional(),
+  documentIds: z.array(z.string().uuid()).max(8).optional(),
   /** Flag+topic-map check only — no AI / no credits. */
   probeOnly: z.boolean().optional(),
   dailyMinutes: z.number().int().min(5).max(480).optional(),
@@ -156,12 +157,23 @@ export async function POST(request: Request) {
   if (v2 && parsed.data.documentId) {
     await refoldTopicMapIfNeeded(service, parsed.data.documentId);
   }
-  const { topicSuggestions, intakeMode } = await resolveTopicSuggestions(
-    service,
-    userId,
-    parsed.data.documentId,
-    v2,
-  );
+  const documentIds = [
+    ...new Set(
+      [parsed.data.documentId, ...(parsed.data.documentIds ?? [])].filter(
+        (id): id is string => Boolean(id),
+      ),
+    ),
+  ];
+  let topicSuggestions: { id: string; title: string; pages: number[] }[] = [];
+  let intakeMode: "legacy" | "v2" = "legacy";
+  for (const documentId of documentIds.length ? documentIds : [parsed.data.documentId]) {
+    const resolved = await resolveTopicSuggestions(service, userId, documentId, v2);
+    if (resolved.intakeMode === "v2") intakeMode = "v2";
+    for (const topic of resolved.topicSuggestions) {
+      if (topicSuggestions.some((have) => have.id === topic.id)) continue;
+      topicSuggestions.push(topic);
+    }
+  }
 
   if (parsed.data.probeOnly) {
     return NextResponse.json({
