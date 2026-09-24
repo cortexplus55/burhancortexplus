@@ -661,8 +661,8 @@ export function ExamCreateWizard({
 
       {planning ? (
         <section className="apw-step apw-step--center">
-          <h1>Sıradaki soruyu hazırlıyor...</h1>
-          <p className="apw-lead">Planın {topics.length} konuyla kuruluyor.</p>
+          <h1>{WIZARD_COPY.planningTitle}</h1>
+          <p className="apw-lead">{WIZARD_COPY.planningLead}</p>
         </section>
       ) : null}
 

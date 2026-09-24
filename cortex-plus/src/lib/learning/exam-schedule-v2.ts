@@ -446,6 +446,8 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
 export type CompletedSessionRef = {
   sortOrder: number;
   calendarDate: string;
+  /** When set, only a session of this kind counts as the same work. */
+  kind?: PlanNodeKind;
 };
 
 /**
@@ -462,14 +464,21 @@ export function redistributeRemainingSchedule(input: {
   topics: ScheduleTopicInput[];
 }): ScheduleBuildResult {
   const completedKeys = new Set(
-    input.completed.map((c) => `${c.calendarDate}:${c.sortOrder}`),
+    input.completed.map((c) =>
+      c.kind
+        ? `${c.calendarDate}:${c.sortOrder}:${c.kind}`
+        : `${c.calendarDate}:${c.sortOrder}`,
+    ),
   );
-  const keptCompleted = input.previous.sessions.filter((s) =>
-    completedKeys.has(`${s.calendarDate}:${s.sortOrder}`),
-  );
+  const sessionDone = (session: ScheduleSession) =>
+    completedKeys.has(
+      `${session.calendarDate}:${session.sortOrder}:${session.kind}`,
+    ) ||
+    completedKeys.has(`${session.calendarDate}:${session.sortOrder}`);
+  const keptCompleted = input.previous.sessions.filter(sessionDone);
   const remainingTopicIds = new Set(
     input.previous.sessions
-      .filter((s) => !completedKeys.has(`${s.calendarDate}:${s.sortOrder}`))
+      .filter((session) => !sessionDone(session))
       .map((s) => s.topicId),
   );
   const topics = input.topics.filter((t) => remainingTopicIds.has(t.id));

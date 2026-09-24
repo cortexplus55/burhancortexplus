@@ -46,6 +46,8 @@ export const WIZARD_COPY = {
   modalityTitle: "Nasıl çalışmayı seversin?",
   focusTitle: "En çok neye odaklanalım?",
   equalFocus: "Tüm konulara eşit odaklan",
+  planningTitle: "Çalışma planın hazırlanıyor...",
+  planningLead: "Konular günlere yerleştiriliyor.",
   planReady: "Çalışma planın hazır!",
   createCta: "Sınav hazırlığı oluştur",
   creating: "Kuruluyor…",
