@@ -184,6 +184,38 @@ describe("educational quality gate", () => {
     expect(create).toHaveBeenCalledTimes(3);
   });
 
+  it("accepts a lesson the reviewer only nits for style", async () => {
+    const cosmetic = [
+      "Çıktı geçerli JSON değil.",
+      "Basınç formülünde semboller LaTeX formatına yanlış çevrildi.",
+      "mutlak basınç gibi terimler ** ile işaretlenmeli.",
+      "Çözüm adım adım ve gerekçeli olmalı; yalnızca sonucu yazma.",
+      "En az 2 kontrol sorusu kalmalı; öğretmeyenler çıkarıldı.",
+    ];
+    const { input, create } = fixture([{ approved: false, issues: cosmetic }]);
+    const result = await verifyEducationalContent(input);
+    expect(result.content).toBe("ilk taslak");
+    expect(result.repairAttempted).toBe(false);
+    expect(result.recheckPassed).toBeNull();
+    expect(result.issueSeverity.blocking).toEqual([]);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a source error after one repair and records recheck_passed false", async () => {
+    const { input } = fixture([
+      { approved: false, issues: ["Kaynakta olmayan formül PV = nRT."] },
+      { content: "hâlâ PV = nRT" },
+      { approved: false, issues: ["İdeal gaz yasası (PV = nRT) dokümanda yer almıyor."] },
+    ]);
+    await expect(verifyEducationalContent(input)).rejects.toMatchObject({
+      repairAttempted: true,
+      recheckPassed: false,
+      issueSeverity: {
+        blocking: expect.arrayContaining([expect.stringMatching(/PV = nRT|İdeal gaz/)]),
+      },
+    });
+  });
+
   it("fails closed when the reviewer is unavailable", async () => {
     const create = vi.fn().mockRejectedValue(new Error("network down"));
     const client = { chat: { completions: { create } } } as unknown as OpenAI;

@@ -193,10 +193,122 @@ export function isUnconfirmedMathAllegation(issue: string, draft: string): boole
   );
 }
 
-/** Koyu terim ve ayrı giriş bölümü kodda tamamlanır; dersi düşürmez. */
+export type IssueSeverity = "blocking" | "non_blocking";
+
+export type IssueSeverityReport = {
+  blocking: string[];
+  nonBlocking: string[];
+};
+
+/**
+ * Doğrulayıcı cümlesinin dersi düşürüp düşürmeyeceği.
+ *
+ * BLOCKING: kaynakta olmayan olgu, yanlış formül veya sayı, uydurma,
+ * doldurulamayan zorunlu alan, güvensiz içerik.
+ * NON-BLOCKING: LaTeX / düz yazım, koyu terim, başlık sözcüğü, "daha
+ * anlamlı olsun", birim açıklaması (değer doğruysa), şema nezaketi.
+ *
+ * "Çıktı geçerli JSON değil" cümlesi tek başına kanıt değildir. Ayrıştırıcı
+ * gerçekten okuyamazsa red `invalid_json` KODUYLA gelir; bu cümle, modelin
+ * üslup notlarıyla aynı listeye karıştığı için burada üsluptur.
+ */
+export function classifyVerifierIssue(message: string, draft = ""): IssueSeverity {
+  const text = message.replace(/^\[[a-z_]+\]\s*/i, "").trim();
+  if (!text) return "non_blocking";
+  if (isUnconfirmedMathAllegation(text, draft)) return "non_blocking";
+  const folded = foldTr(text);
+  if (isSourceOrFactualIssue(folded)) return "blocking";
+  if (isStyleIssue(folded)) return "non_blocking";
+  return "blocking";
+}
+
+function isSourceOrFactualIssue(folded: string): boolean {
+  return (
+    /kaynakta olmayan/.test(folded) ||
+    /kaynakta yok/.test(folded) ||
+    /kaynakta (acikca )?belirtilmemis/.test(folded) ||
+    /belirtilmeyen bilgiler/.test(folded) ||
+    /dokumanda yer almiyor/.test(folded) ||
+    /belgede (yok|yer almiyor)/.test(folded) ||
+    /kaynakla uyumsuz/.test(folded) ||
+    /bilgi yokken/.test(folded) ||
+    /ideal gaz/.test(folded) ||
+    /pv\s*=\s*nrt/.test(folded) ||
+    /\buydur/.test(folded) ||
+    /yanlis terminoloji/.test(folded) ||
+    /yanlis kavram/.test(folded) ||
+    /yanlis adim/.test(folded) ||
+    /yanlistir/.test(folded) ||
+    /hesap uyusmaz/.test(folded) ||
+    /birim donusumu tutarsiz/.test(folded) ||
+    /ders v2 semasini karsilamiyor/.test(folded) ||
+    /bos alan:/.test(folded) ||
+    /ogrenme hedefi zorunlu/.test(folded)
+  );
+}
+
+function isStyleIssue(folded: string): boolean {
+  return (
+    /latex/.test(folded) ||
+    /format hatasi|formatinda hata|formatina yanlis|json format/.test(folded) ||
+    /cikti gecerli json degil/.test(folded) ||
+    /cikti istenen json semasini/.test(folded) ||
+    /daha anlamli/.test(folded) ||
+    /birimlerin aciklan/.test(folded) ||
+    /birimlerin kontrol/.test(folded) ||
+    /kontrol edilmesi gerekiyor/.test(folded) ||
+    /ile isaretlen/.test(folded) ||
+    /koyu degil/.test(folded) ||
+    /iki yildiz/.test(folded) ||
+    /baslik/.test(folded) ||
+    /adim adim ve gerekceli/.test(folded) ||
+    /en az 2 kontrol sorusu|en az iki kontrol sorusu/.test(folded) ||
+    /kaynakla uyumunu kontrol/.test(folded) ||
+    /genel ve yuzeysel/.test(folded) ||
+    /giris bolumu eksik/.test(folded) ||
+    /cizim talimat/.test(folded) ||
+    /ozumsen/.test(folded) ||
+    /ek kart/.test(folded) ||
+    /daha net olabilir/.test(folded) ||
+    /tam uyumlu degil/.test(folded) ||
+    /formulasyonu degistiril/.test(folded) ||
+    /tekrar eden ifade/.test(folded) ||
+    /uygun dusmeyebilir/.test(folded) ||
+    /ham latex/.test(folded) ||
+    /anahtar terim/.test(folded)
+  );
+}
+
+/** Üslup listesi dersi düşürmez. Bir olgu hatası düşürür. */
+export function verifierIssuesRejectLesson(issues: string[], draft = ""): boolean {
+  return issues.some((issue) => classifyVerifierIssue(issue, draft) === "blocking");
+}
+
+export function partitionVerifierIssues(issues: string[], draft = ""): IssueSeverityReport {
+  const blocking: string[] = [];
+  const nonBlocking: string[] = [];
+  for (const issue of issues) {
+    if (classifyVerifierIssue(issue, draft) === "blocking") blocking.push(issue);
+    else nonBlocking.push(issue);
+  }
+  return { blocking, nonBlocking };
+}
+
+/**
+ * Bağımsız kapıdaki madde. `invalid_json` yalnız ayrıştırıcı kodudur;
+ * pedagoji cümlesi üslupsa dersi düşürmez.
+ */
+export function validationIssueBlocks(item: ValidationIssue, draft = ""): boolean {
+  if (item.code === "invalid_json" || item.code === "not_object") return true;
+  if (item.stage === "domain" || item.stage === "source" || item.stage === "structural") {
+    return true;
+  }
+  return classifyVerifierIssue(item.message, draft) === "blocking";
+}
+
+/** Koyu terim, LaTeX ve başlık sözcüğü kodda tamamlanır; dersi düşürmez. */
 export function isCosmeticReviewerNit(issue: string): boolean {
-  const folded = foldTr(issue);
-  return /giris bolumu eksik|anahtar terim koyu|iki yildiz/.test(folded);
+  return classifyVerifierIssue(issue) === "non_blocking";
 }
 
 function uniqueOptionsIssues(parsed: unknown): string[] {

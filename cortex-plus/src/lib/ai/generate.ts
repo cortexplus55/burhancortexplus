@@ -18,6 +18,7 @@ import { recordValidationEvent, metricsFromFailure } from "@/lib/learning/valida
 import {
   runIndependentValidation,
   type IndependentValidationInput,
+  type IssueSeverityReport,
   type ValidationStage,
 } from "@/lib/learning/validation-pipeline";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
@@ -158,6 +159,7 @@ export async function generateJson<T>(
   const stagesMs: Partial<Record<ValidationStage, number>> = {};
   let repairAttempted = false;
   let recheckPassed: boolean | null = null;
+  let lastSeverity: IssueSeverityReport | null = null;
   let lastFailureCodes: string[] = [];
   // Doğrulayıcının kendi cümleleri; yeniden üretim istemine bunlar gider.
   let lastFailureMessages: string[] = [];
@@ -172,6 +174,8 @@ export async function generateJson<T>(
       reason: lastFailureCodes[0] ?? lastOutcome,
       codes: lastFailureCodes.slice(0, 8),
       issues: lastFailureMessages.slice(0, 8).map((message) => message.slice(0, 160)),
+      recheck_passed: recheckPassed,
+      issue_severity: lastSeverity,
     });
   };
 
@@ -181,6 +185,7 @@ export async function generateJson<T>(
       actionCode,
       activityKind: params.activityKind,
       reservationId: reservation.reservationId,
+      issueSeverity: lastSeverity,
       metrics: metricsFromFailure({
         generationMs: Date.now() - generationStarted - validationMs,
         validationMs,
@@ -420,12 +425,17 @@ export async function generateJson<T>(
             reviewTokensOut += verified.tokensOut;
             repairAttempted = repairAttempted || verified.repairAttempted;
             recheckPassed = verified.recheckPassed;
+            lastSeverity = verified.issueSeverity;
             Object.assign(stagesMs, verified.stagesMs);
             validationMs += Date.now() - validationStarted;
           } catch (error) {
             validationMs += Date.now() - validationStarted;
             if (error instanceof EducationalVerificationError) {
               repairAttempted = repairAttempted || error.repairAttempted;
+              if (error.repairAttempted) recheckPassed = error.recheckPassed;
+              if (error.issueSeverity.blocking.length || error.issueSeverity.nonBlocking.length) {
+                lastSeverity = error.issueSeverity;
+              }
               Object.assign(stagesMs, error.stagesMs);
               lastFailedStage = error.failedStage;
               lastFailureCodes = error.failureCodes.length
@@ -506,6 +516,7 @@ export async function generateJson<T>(
       actionCode,
       activityKind: params.activityKind,
       reservationId: reservation.reservationId,
+      issueSeverity: lastSeverity,
       metrics: metricsFromFailure({
         generationMs: Date.now() - generationStarted - validationMs,
         validationMs,

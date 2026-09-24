@@ -540,12 +540,92 @@ function looseReview(
   };
 }
 
-/** Model JSON'u çit veya sondaki virgülle bozsa da ayrıştır. */
-export function parseModelJson(raw: string): unknown | null {
-  const trimmed = raw.trim();
+/**
+ * JSON kaçışına çarpan LaTeX komutları.
+ * `\frac` içindeki `\f` geçerli bir kaçıştır; ayrıştırıcı formülü bozar
+ * ya da `\(` yüzünden tüm metni geçersiz sayar. İkisi de `invalid_json` değil.
+ */
+const LATEX_COMMANDS = new Set([
+  "frac", "forall", "flat", "beta", "bar", "begin", "binom", "boxed",
+  "boldsymbol", "text", "textbf", "textit", "textrm", "times", "theta",
+  "tau", "tan", "tilde", "neq", "nabla", "nu", "not", "newline", "rho",
+  "right", "rightarrow", "vec", "hat", "sqrt", "sum", "sin", "cos", "ln",
+  "log", "left", "leq", "geq", "infty", "alpha", "gamma", "delta", "Delta",
+  "cdot", "pm", "div", "pi", "sigma", "omega", "phi", "partial", "mu",
+  "lambda", "quad", "qquad", "mathrm", "mathbf", "operatorname", "overline",
+  "underline", "circ", "approx", "subset", "int", "lim", "to",
+]);
+
+function escapeLatexInJson(input: string): string {
+  let out = "";
+  let i = 0;
+  while (i < input.length) {
+    if (input[i] !== "\\") {
+      out += input[i];
+      i += 1;
+      continue;
+    }
+    const next = input[i + 1];
+    if (next === "\\") {
+      out += "\\\\";
+      i += 2;
+      continue;
+    }
+    const name = /^[A-Za-z]+/.exec(input.slice(i + 1))?.[0] ?? "";
+    if (name && LATEX_COMMANDS.has(name)) {
+      out += "\\\\";
+      i += 1;
+      continue;
+    }
+    if (!next || !"\"\\/bfnrtu".includes(next)) {
+      out += "\\\\";
+      i += 1;
+      continue;
+    }
+    if (next === "u" && !/^[0-9a-fA-F]{4}/.test(input.slice(i + 2, i + 6))) {
+      out += "\\\\";
+      i += 1;
+      continue;
+    }
+    out += `\\${next}`;
+    i += 2;
+  }
+  return out;
+}
+
+function jsonHasLatexEscapes(input: string): boolean {
+  if (/\\[()[\]]/.test(input)) return true;
+  for (const name of LATEX_COMMANDS) {
+    if (input.includes(`\\${name}`)) return true;
+  }
+  return false;
+}
+
+function jsonCandidates(raw: string): string[] {
+  const trimmed = raw.trim().replace(/^\uFEFF/, "");
   const fenced = trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
-  const candidates = [trimmed, fenced, fenced.replace(/,\s*([}\]])/g, "$1")];
-  for (const candidate of candidates) {
+  const seeds = trimmed === fenced ? [trimmed] : [trimmed, fenced];
+  const candidates: string[] = [];
+  for (const seed of seeds) {
+    const repaired = escapeLatexInJson(seed);
+    const loose = (value: string) => value.replace(/,\s*([}\]])/g, "$1");
+    const ordered = jsonHasLatexEscapes(seed)
+      ? [repaired, loose(repaired), seed, loose(seed)]
+      : [seed, loose(seed), repaired, loose(repaired)];
+    for (const candidate of ordered) {
+      if (!candidates.includes(candidate)) candidates.push(candidate);
+    }
+  }
+  return candidates;
+}
+
+/**
+ * Model JSON'unu ayrıştır.
+ * Çit, sondaki virgül ve LaTeX ters bölüleri onarılır. Ancak onarım da
+ * okuyamazsa null döner; çağıran bunu `invalid_json` sayabilir.
+ */
+export function parseModelJson(raw: string): unknown | null {
+  for (const candidate of jsonCandidates(raw)) {
     try {
       return JSON.parse(candidate);
     } catch {
@@ -555,6 +635,60 @@ export function parseModelJson(raw: string): unknown | null {
   return null;
 }
 
+const SUBSCRIPTS = "₀₁₂₃₄₅₆₇₈₉";
+const SUPERSCRIPT_DIGITS = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+
+const LATEX_SYMBOLS: Record<string, string> = {
+  alpha: "α",
+  beta: "β",
+  gamma: "γ",
+  delta: "δ",
+  Delta: "Δ",
+  epsilon: "ε",
+  theta: "θ",
+  lambda: "λ",
+  mu: "μ",
+  nu: "ν",
+  pi: "π",
+  rho: "ρ",
+  sigma: "σ",
+  tau: "τ",
+  phi: "φ",
+  omega: "ω",
+  cdot: "·",
+  times: "×",
+  div: "÷",
+  pm: "±",
+  geq: "≥",
+  leq: "≤",
+  neq: "≠",
+  infty: "∞",
+  rightarrow: "→",
+  to: "→",
+  partial: "∂",
+  approx: "≈",
+  circ: "°",
+};
+
+function toDigitScript(value: string, table: string): string {
+  return value.replace(/\d/g, (digit) => table[Number(digit)] ?? digit);
+}
+
+/** Ham LaTeX'i öğrencinin okuduğu düz yazıma çevirir. Yeni olgu eklemez. */
+export function normalizeMathNotation(text: string): string {
+  let out = text;
+  out = out.replace(/\\frac\s*\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)");
+  out = out.replace(/_\{([^{}]+)\}/g, (_match, inner: string) => toDigitScript(inner, SUBSCRIPTS));
+  out = out.replace(/\^\{([^{}]+)\}/g, (_match, inner: string) =>
+    toDigitScript(inner, SUPERSCRIPT_DIGITS),
+  );
+  out = out.replace(/_(\d)/g, (_match, digit: string) => SUBSCRIPTS[Number(digit)] ?? digit);
+  out = out.replace(/\^(\d)/g, (_match, digit: string) => SUPERSCRIPT_DIGITS[Number(digit)] ?? digit);
+  out = out.replace(/\\([A-Za-z]+)/g, (full, name: string) => LATEX_SYMBOLS[name] ?? full);
+  out = out.replace(/\\\(|\\\)|\\\[|\\\]|\$\$|\$/g, "");
+  return out;
+}
+
 function overviewFromBody(body: string): string {
   const flat = body.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
   const sentence = flat.split(/(?<=[.!?])\s/)[0] ?? flat;
@@ -562,41 +696,84 @@ function overviewFromBody(body: string): string {
   return picked.slice(0, 380);
 }
 
-/** Başlık gövdede geçiyorsa koyulaştır. Yeni terim uydurmaz. */
-function boldExistingTerm(heading: string, body: string): string {
-  if (/\*\*[^*\n]{2,60}\*\*/.test(body)) return body;
-  const phrase = heading.trim();
-  if (phrase.length >= 2 && phrase.length <= 60) {
-    const idx = body.toLocaleLowerCase("tr").indexOf(phrase.toLocaleLowerCase("tr"));
-    if (idx >= 0) {
-      const found = body.slice(idx, idx + phrase.length);
-      return `${body.slice(0, idx)}**${found}**${body.slice(idx + found.length)}`;
+function isTermEdge(text: string, index: number): boolean {
+  const ch = text[index];
+  return !ch || !/[\p{L}\p{N}]/u.test(ch);
+}
+
+/**
+ * Listelenen terimi gövdede bir kez koyulaştırır.
+ * Yeni terim yazmaz; metinde geçmeyen adı eklemez.
+ */
+export function emphasizeTerms(text: string, terms: string[]): string {
+  let out = text;
+  const ordered = [...new Set(terms.map((term) => term.trim()))]
+    .filter((term) => term.length >= 3 && term.length <= 60)
+    .sort((a, b) => b.length - a.length);
+  for (const term of ordered) {
+    const lower = out.toLocaleLowerCase("tr");
+    const needle = term.toLocaleLowerCase("tr");
+    let from = 0;
+    while (from < lower.length) {
+      const idx = lower.indexOf(needle, from);
+      if (idx < 0) break;
+      const end = idx + needle.length;
+      if (!isTermEdge(lower, idx - 1) || !isTermEdge(lower, end)) {
+        from = end;
+        continue;
+      }
+      if (out.slice(Math.max(0, idx - 2), idx) === "**" || out.slice(end, end + 2) === "**") {
+        from = end;
+        continue;
+      }
+      const found = out.slice(idx, end);
+      out = `${out.slice(0, idx)}**${found}**${out.slice(end)}`;
+      break;
     }
   }
-  const lower = body.toLocaleLowerCase("tr");
-  for (const word of phrase.split(/\s+/).filter((item) => item.length >= 4)) {
-    const idx = lower.indexOf(word.toLocaleLowerCase("tr"));
-    if (idx < 0) continue;
-    const found = body.slice(idx, idx + word.length);
-    if (found.length < 2 || found.length > 60) continue;
-    return `${body.slice(0, idx)}**${found}**${body.slice(idx + found.length)}`;
-  }
-  return body;
+  return out;
+}
+
+/** Başlık ve anahtar terim listesi gövdede geçiyorsa koyulaştır. Yeni terim uydurmaz. */
+function boldExistingTerm(heading: string, body: string, keyTerms: string[] = []): string {
+  const words = heading.split(/\s+/).filter((word) => word.length >= 5);
+  return emphasizeTerms(body, [heading, ...words, ...keyTerms]);
 }
 
 /**
  * Eksik giriş, özet ve koyu terim dersin olgusunu değiştirmez.
  * Kaynakta olmayan örnek veya formül burada üretilmez.
  */
-export function coerceLessonCosmetics(raw: unknown): unknown {
+function normalizeLessonField(value: unknown): unknown {
+  return typeof value === "string" ? normalizeMathNotation(value) : value;
+}
+
+export function coerceLessonCosmetics(raw: unknown, keyTerms: string[] = []): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
   const row = { ...(raw as Record<string, unknown>) };
+  for (const key of ["title", "objective", "overview"] as const) {
+    row[key] = normalizeLessonField(row[key]);
+  }
+  if (row.example && typeof row.example === "object" && !Array.isArray(row.example)) {
+    const example = { ...(row.example as Record<string, unknown>) };
+    example.prompt = normalizeLessonField(example.prompt);
+    example.solution = normalizeLessonField(example.solution);
+    row.example = example;
+  }
+  if (row.commonMistake && typeof row.commonMistake === "object" && !Array.isArray(row.commonMistake)) {
+    const mistake = { ...(row.commonMistake as Record<string, unknown>) };
+    mistake.claim = normalizeLessonField(mistake.claim);
+    mistake.correction = normalizeLessonField(mistake.correction);
+    row.commonMistake = mistake;
+  }
   const sections = Array.isArray(row.sections)
     ? row.sections.map((section) => {
         if (!section || typeof section !== "object" || Array.isArray(section)) return section;
         const item = { ...(section as Record<string, unknown>) };
+        if (typeof item.heading === "string") item.heading = normalizeMathNotation(item.heading);
+        if (typeof item.body === "string") item.body = normalizeMathNotation(item.body);
         if (typeof item.heading === "string" && typeof item.body === "string") {
-          item.body = boldExistingTerm(item.heading, item.body);
+          item.body = boldExistingTerm(item.heading, item.body, keyTerms);
         }
         return item;
       })
@@ -655,9 +832,9 @@ export function coerceLessonCosmetics(raw: unknown): unknown {
 }
 
 /** Şema geçerse şablon başlıklarını ayıkla. Üretim kapısı bundan sonra bakar. */
-export function prepareLessonDraft(raw: unknown): LessonV2 | null {
+export function prepareLessonDraft(raw: unknown, keyTerms: string[] = []): LessonV2 | null {
   try {
-    const { body, reviews } = splitReviews(coerceLessonCosmetics(raw));
+    const { body, reviews } = splitReviews(coerceLessonCosmetics(raw, keyTerms));
     const parsed = lessonV2Schema.safeParse(body).data;
     if (!parsed) return null;
     const withReviews: LessonV2 = {
@@ -923,29 +1100,39 @@ function sectionCheckPublishable(check: SectionCheck): boolean {
  * Öğretmeyen ya da şıkkı bozuk kontrol çıkarılır. Ders kalır.
  * Kalan kontrol sayısı eşiğin altındaysa `lessonPublishIssues` reddeder.
  */
-export function publishLessonDraft(raw: unknown): LessonV2 | null {
-  const prepared = prepareLessonDraft(raw);
+export function publishLessonDraft(
+  raw: unknown,
+  options: { keyTerms?: string[] } = {},
+): LessonV2 | null {
+  const prepared = prepareLessonDraft(raw, options.keyTerms ?? []);
   if (!prepared) return null;
-  return {
-    ...prepared,
-    sections: prepared.sections.map((section) => {
-      if (!section.check || sectionCheckPublishable(section.check)) return section;
-      const rest = { ...section };
-      delete rest.check;
-      return rest;
-    }),
-  };
+  const sections = prepared.sections.map((section) => {
+    if (!section.check || sectionCheckPublishable(section.check)) return section;
+    const rest = { ...section };
+    delete rest.check;
+    return rest;
+  });
+  // Zayıf kontroller düşer. Hepsi düşerse birini geri koy: sıfır kontrol
+  // dersi boşaltır, tek kontrol dersi düşürmez.
+  if (sections.some((section) => section.check)) return { ...prepared, sections };
+  const fallback = prepared.sections.findIndex((section) => section.check);
+  if (fallback < 0) return { ...prepared, sections };
+  const restored = sections.slice();
+  restored[fallback] = prepared.sections[fallback];
+  return { ...prepared, sections: restored };
 }
 
 /**
- * Yayına gidecek dersin kapısı. Tek bir zayıf kontrol dersi düşürmez.
- * Uydurma yapı (şema, LaTeX, bölünmüş üs, örnek gerekçesi) hâlâ düşürür.
+ * Yayına gidecek dersin kapısı. Tek bir zayıf kontrol dersi düşürmez;
+ * ikincisi zorunlu değildir, en az bir kontrol kalır.
+ * LaTeX düz yazıma çevrilir, çözümü tek cümle olan örnek dersi düşürmez.
+ * Şema, bölünmüş üs ve doldurulamayan zorunlu alan hâlâ düşürür.
  */
 export function lessonPublishIssues(
   raw: unknown,
-  options: { minSections?: number } = {},
+  options: { minSections?: number; keyTerms?: string[] } = {},
 ): string[] {
-  const published = publishLessonDraft(raw);
+  const published = publishLessonDraft(raw, { keyTerms: options.keyTerms });
   if (!published) {
     return ["Ders v2 şemasını karşılamıyor (hedef, bölümler, örnek, yaygın hata, bilgi kontrolü)."];
   }
@@ -954,22 +1141,23 @@ export function lessonPublishIssues(
       !issue.includes("kontrolü yok") &&
       !issue.includes("çürütmüyor") &&
       !issue.includes("Anahtar terim koyu değil") &&
-      !issue.includes("Anahtar terimler işaretlenmemiş"),
+      !issue.includes("Anahtar terimler işaretlenmemiş") &&
+      !issue.includes("adım adım ve gerekçeli") &&
+      !issue.includes("Ham LaTeX"),
   );
   const teaching = published.sections.filter((section) => section.check).length;
-  const minChecks = published.sections.length >= 3 ? 2 : 1;
-  if (teaching < minChecks) {
-    issues.push(`En az ${minChecks} kontrol sorusu kalmalı; öğretmeyenler çıkarıldı.`);
+  if (teaching < 1) {
+    issues.push("En az 1 kontrol sorusu kalmalı; öğretmeyenler çıkarıldı.");
   }
   return issues;
 }
 
 /** Doğrulayıcı kısa tekrarı görmesin. Eksik veya bozuk tekrar dersi reddetmesin. */
-export function lessonDraftForVerifier(draft: string): string {
+export function lessonDraftForVerifier(draft: string, keyTerms: string[] = []): string {
   try {
     const parsed = parseModelJson(draft);
     if (!parsed || typeof parsed !== "object") return draft;
-    const coerced = coerceLessonCosmetics(parsed) as { sections?: unknown };
+    const coerced = coerceLessonCosmetics(parsed, keyTerms) as { sections?: unknown };
     if (!coerced || typeof coerced !== "object" || !Array.isArray(coerced.sections)) return draft;
     for (const section of coerced.sections) {
       if (!section || typeof section !== "object") continue;

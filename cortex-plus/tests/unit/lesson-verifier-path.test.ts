@@ -141,7 +141,7 @@ describe("lesson verifier path", () => {
     expect(verdict.failedStage).toBe("pedagogy");
   });
 
-  it("fails the lesson when too few teaching checks remain", () => {
+  it("keeps one weak check instead of rejecting for a second question", () => {
     const thin = {
       ...lesson,
       sections: lesson.sections.map((item) => ({
@@ -153,6 +153,18 @@ describe("lesson verifier path", () => {
       })),
     };
     expect(lessonPublishIssues(thin).some((issue) => issue.includes("kontrol sorusu"))).toBe(
+      false,
+    );
+    const published = publishLessonDraft(thin);
+    expect(published?.sections.filter((section) => section.check).length).toBe(1);
+  });
+
+  it("still rejects a lesson that has no check question left to keep", () => {
+    const empty = {
+      ...lesson,
+      sections: lesson.sections.map(({ check: _check, ...section }) => section),
+    };
+    expect(lessonPublishIssues(empty).some((issue) => issue.includes("kontrol sorusu"))).toBe(
       true,
     );
   });
