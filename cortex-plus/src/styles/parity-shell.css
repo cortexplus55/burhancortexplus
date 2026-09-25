@@ -8470,6 +8470,15 @@
   border-radius: 999px;
 }
 
+.cp-exam-credit {
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.62);
+  padding-right: 0.15rem;
+  white-space: nowrap;
+}
+
 .cp-exam-talk {
   display: inline-flex;
   align-items: center;

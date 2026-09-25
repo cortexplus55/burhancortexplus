@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { summaryLineProblem } from "@/lib/learning/lesson-grounding";
 import { missingFormulaCoverage } from "@/lib/learning/lesson-claims";
 import {
+  announcedExampleGap,
   auditLearnerLesson,
+  exampleIsComplete,
   isIncompleteExample,
   repairLearnerLesson,
 } from "@/lib/learning/lesson-repair";
@@ -89,6 +91,16 @@ describe("ideal gaz dersinin yayın kapıları", () => {
     expect(summaryLineProblem("0 ≤ x ≤ 1")).toBeNull();
     expect(isIncompleteExample(INCOMPLETE)).toBe(true);
     expect(isIncompleteExample("ΔU = 2 × 0.718 × (450 − 300) = 215.4 kJ")).toBe(false);
+    expect(isIncompleteExample("ΔU = m c_v ΔT bağıntısıyla hesaplanır.")).toBe(false);
+    expect(exampleIsComplete("n = m/M = 36 g / 18 g/mol = 2 mol")).toBe(true);
+    expect(exampleIsComplete("N = 0,25 × 6,02 × 10²³")).toBe(false);
+    const hollow =
+      "Uygulamalı Örnek: H₂SO₄ Hesaplaması. 0,25 mol H₂SO₄'nin gram cinsinden kütlesini bulmak için m = n × M formülünü kullanırız. H atom sayısını bulmak için önce tanecik sayısı hesaplanır: N = 0,25 × 6,02 × 10²³.";
+    expect(announcedExampleGap(hollow)).toMatch(/Örnek yarım/);
+    const finished =
+      "Uygulamalı Örnek: H₂SO₄ Hesaplaması. 0,25 mol H₂SO₄ için kütlesini bulmak üzere m = n × M = 0,25 mol × 98 g/mol = 24,5 g. Tanecik sayısı N = 0,25 × 6,02 × 10²³ = 1,505 × 10²³. H atom sayısı 2 × 1,505 × 10²³ = 3,01 × 10²³.";
+    expect(announcedExampleGap(finished)).toBeNull();
+    expect(exampleIsComplete(finished)).toBe(true);
   });
 
   it("does not publish one question, the junk summary, or the unfinished example", async () => {

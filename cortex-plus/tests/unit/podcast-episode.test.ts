@@ -13,6 +13,8 @@ import {
   readPodcastCache,
   repairPodcastEpisode,
   speakFormulas,
+  unfinishedExampleGaps,
+  withoutUnfinishedExamples,
   turkishDecimalComma,
   writePodcastCache,
   type PodcastEpisode,
@@ -67,6 +69,34 @@ describe("podcast episode", () => {
     const repaired = repairPodcastEpisode(episode, source);
     expect(podcastScriptText(repaired)).toContain("0,5");
     expect(podcastScriptText(repaired)).not.toContain("0,6");
+  });
+
+  it("shows powers as symbols and speaks them as üzeri", () => {
+    const episode = coercePodcastDraft(
+      {
+        title: "Mol kavramı",
+        chapters: [
+          { title: "Sayı", lines: lines(["Mol 6,02 × 10²³ tanecik içerir.", "Formül CO2 ile yazılır."]) },
+          { title: "Kütle", lines: lines(["Mol kütlesi elementin atomik kütlesi ile aynıdır.", "Birim g/mol diye okunur."]) },
+          { title: "Tekrar", lines: lines(["Sayı 10²³ ile anılır.", "Formül CO2 olarak kalır."]) },
+        ],
+      },
+      { length: "ozet", topicLabel: "Mol kavramı" },
+    );
+    expect(episode).not.toBeNull();
+    const script = podcastScriptText(episode!);
+    expect(script).toContain("10²³");
+    expect(script).toContain("CO₂");
+    expect(script).not.toMatch(/kare küp/);
+    const spoken = episode!.chapters.flatMap((chapter) => chapter.lines).map((line) => line.spoken ?? "").join(" ");
+    expect(spoken).toMatch(/on üzeri yirmi üç/);
+    expect(spoken).toMatch(/C O iki/);
+    const repaired = repairPodcastEpisode(episode!, "Mol 6,02 × 10²³ tanecik içerir. Formül CO2.");
+    expect(podcastScriptText(repaired)).toContain("g/mol");
+    expect(podcastScriptText(repaired)).not.toMatch(/atomik kütlesi ile aynıdır/);
+    expect(repaired.chapters.flatMap((chapter) => chapter.lines)).toHaveLength(
+      episode!.chapters.flatMap((chapter) => chapter.lines).length,
+    );
   });
 
   it("speaks formulas in Turkish and keeps the decimal comma", () => {
@@ -159,6 +189,125 @@ describe("podcast episode", () => {
     if (!outcome.ok) return;
     expect(podcastScriptText(outcome.data)).not.toContain("99");
     expect(mocks.generateJson).toHaveBeenCalled();
+  });
+
+  it("flags a worked example that never reaches its result and keeps a finished one", () => {
+    const hollow: PodcastEpisode = {
+      title: "Mol kavramı",
+      length: "ozet",
+      chapters: [
+        {
+          title: "Uygulamalı Örnek: H₂SO₄ Hesaplaması",
+          lines: lines([
+            "0,25 mol H₂SO₄'nin gram cinsinden kütlesini bulmak için m = n × M formülünü kullanırız.",
+            "H atom sayısını bulmak için önce tanecik sayısı hesaplanır: N = 0,25 × 6,02 × 10²³.",
+            "Molekül başına düşen atom sayısı ile molekül sayısı çarpılır.",
+          ]),
+        },
+      ],
+    };
+    expect(unfinishedExampleGaps(hollow).join(" ")).toMatch(/Örnek yarım/);
+    const finished: PodcastEpisode = {
+      ...hollow,
+      chapters: [
+        {
+          title: "Uygulamalı Örnek: H₂SO₄ Hesaplaması",
+          lines: lines([
+            "0,25 mol H₂SO₄ için kütlesini bulmak üzere m = n × M = 0,25 mol × 98 g/mol = 24,5 g.",
+            "Tanecik sayısı N = 0,25 × 6,02 × 10²³ = 1,505 × 10²³.",
+            "H atom sayısı 2 × 1,505 × 10²³ = 3,01 × 10²³.",
+          ]),
+        },
+      ],
+    };
+    expect(unfinishedExampleGaps(finished)).toEqual([]);
+    const weight: PodcastEpisode = {
+      title: "Mol kavramı",
+      length: "ozet",
+      chapters: [
+        {
+          title: "Yanılgı",
+          lines: lines([
+            "Mol kütlesi sadece 1 mol maddenin gram cinsinden ağırlığıdır, tanecik sayısını içermez.",
+            "Sayı ile kütle ayrı büyüklüktür.",
+          ]),
+        },
+      ],
+    };
+    const repaired = repairPodcastEpisode(weight, "Mol kütlesi gram cinsinden kütledir.");
+    const script = podcastScriptText(repaired);
+    expect(script).toContain("kütlesidir");
+    expect(script).toContain("tanecik sayısını içermez");
+    expect(script).not.toMatch(/ağırlığ/);
+  });
+
+  it("drops the unfinished example on the retry and does not invent the missing mass", async () => {
+    const hollowChapter = {
+      title: "Uygulamalı Örnek: H₂SO₄ Hesaplaması",
+      lines: lines([
+        "0,25 mol H₂SO₄'nin gram cinsinden kütlesini bulmak için m = n × M formülünü kullanırız.",
+        "H atom sayısını bulmak için önce tanecik sayısı hesaplanır: N = 0,25 × 6,02 × 10²³.",
+        "Molekül başına düşen atom sayısı ile molekül sayısı çarpılır.",
+      ]),
+    };
+    const kept = [
+      { title: "Tanım", lines: lines(["Mol, tanecik sayısıdır.", "Avogadro sayısı bunu bağlar."]) },
+      {
+        title: "Yanılgı",
+        lines: lines([
+          "Mol kütlesi sadece 1 mol maddenin gram cinsinden ağırlığıdır, tanecik sayısını içermez.",
+          "Sayı ile kütle ayrı büyüklüktür.",
+        ]),
+      },
+      { title: "Tekrar", lines: lines(["Mol sayı birimidir.", "Kütle gram ile ölçülür.", "Tanecik sayısı ayrıdır."]) },
+    ];
+    const draft = { title: "Mol kavramı", chapters: [hollowChapter, ...kept] };
+    mocks.generateJson.mockImplementation(async (input: { parse: (raw: unknown) => unknown }) => {
+      let data = input.parse(draft);
+      if (!data) data = input.parse(draft);
+      if (!data) return { ok: false, status: 422, error: "invalid_ai_response" };
+      return { ok: true, data };
+    });
+
+    const outcome = await generatePodcastEpisode({
+      service: {} as never,
+      userId: "user",
+      isPremium: true,
+      prepTitle: "Kimya",
+      topicLabel: "Mol kavramı",
+      sourceBlock: "Mol, tanecik sayısıdır. Avogadro sayısı bunu bağlar. Mol kütlesi gram cinsinden kütledir.",
+      length: "ozet",
+      requestId: "req-podcast-example",
+      rederive: async () => ({ ok: true, note: "" }),
+    });
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    const script = podcastScriptText(outcome.data);
+    expect(script).not.toMatch(/H₂SO₄|n × M|98/);
+    expect(script).toContain("kütlesidir");
+    expect(script).toContain("tanecik sayısını içermez");
+    expect(withoutUnfinishedExamples(outcome.data)).not.toBeNull();
+
+    const tooShort = { title: "Mol kavramı", chapters: [hollowChapter, kept[0], kept[1]] };
+    mocks.generateJson.mockImplementation(async (input: { parse: (raw: unknown) => unknown }) => {
+      let data = input.parse(tooShort);
+      if (!data) data = input.parse(tooShort);
+      if (!data) return { ok: false, status: 422, error: "invalid_ai_response" };
+      return { ok: true, data };
+    });
+    const dropped = await generatePodcastEpisode({
+      service: {} as never,
+      userId: "user",
+      isPremium: true,
+      prepTitle: "Kimya",
+      topicLabel: "Mol kavramı",
+      sourceBlock: "Mol, tanecik sayısıdır.",
+      length: "ozet",
+      requestId: "req-podcast-example-short",
+      rederive: async () => ({ ok: true, note: "" }),
+    });
+    expect(dropped.ok).toBe(false);
   });
 });
 
