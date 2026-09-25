@@ -149,7 +149,7 @@ export default async function KredilerPage() {
           </p>
         </div>
 
-        {!isPremium ? (
+        {shell.account?.isAdmin ? null : !isPremium ? (
           <div className="cp-quota-upsell">
             <p>Daha fazlasına mı ihtiyacın var?</p>
             <Link href="/pay" className="cp-exam-continue inline-flex">

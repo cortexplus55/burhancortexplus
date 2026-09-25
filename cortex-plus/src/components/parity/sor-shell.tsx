@@ -14,7 +14,7 @@ import { PromoBanner, type PromoCampaign } from "@/components/paywall/promo-bann
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
 import { studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
-import { formatNumber } from "@/lib/format";
+import { creditChipLabel } from "@/lib/credits/chip-label";
 import { profilePlanView } from "@/lib/billing/tier-presentation";
 import { ExamChatMenu } from "@/components/parity/exam-chat-menu";
 import type { RecentConversation } from "@/lib/student/conversation-time";
@@ -88,15 +88,17 @@ export function ParitySorShell({
     window.addEventListener("cortex-balance", onBalance);
     return () => window.removeEventListener("cortex-balance", onBalance);
   }, []);
+  const isAdmin = Boolean(account?.isAdmin);
   const isPremium = Boolean(account?.isPremium);
-  const showBuy = account?.showsUpgradeChrome === true;
+  const showBuy = !isAdmin && account?.showsUpgradeChrome === true;
   const planLabel = account?.subscriptionBadge ?? "Plus";
-  const showPlusLimit = isPremium && account && !account.canSpend && !limitDismissed;
+  const showPlusLimit =
+    !isAdmin && isPremium && Boolean(account) && !account?.canSpend && !limitDismissed;
   /**
    * Profil plan satırı kitleye göre: ücretsiz Temel + yükseltme, Plus/Sigma
    * rozet + dönem + ek paket. Metin `profilePlanView` tek kaynağından gelir.
    */
-  const planView = account ? profilePlanView(account) : null;
+  const planView = account && !isAdmin ? profilePlanView(account) : null;
   const isStudio = pathname.startsWith("/studio");
   const examChrome = chrome === "exam";
   const openConversation = (id: string) =>
@@ -199,13 +201,17 @@ export function ParitySorShell({
         )}
 
         <div className="cp-sor-top-actions">
-          {examChrome ? null : showBuy ? (
+          {examChrome ? null : isAdmin && account ? (
+            <span className="cp-sor-credit-chip">
+              {creditChipLabel({ isAdmin: true, planLabel, balance })}
+            </span>
+          ) : showBuy ? (
             <Link href="/pay" className="cp-sor-buy">
               Satın al +
             </Link>
           ) : account ? (
             <Link href="/krediler" className="cp-sor-credit-chip">
-              {planLabel} · {formatNumber(balance)} kr
+              {creditChipLabel({ planLabel, balance })}
             </Link>
           ) : null}
           <button type="button" className="cp-sor-streak" aria-label="Seri">

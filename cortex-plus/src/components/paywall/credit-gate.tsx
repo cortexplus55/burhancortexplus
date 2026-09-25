@@ -19,6 +19,7 @@ export function CreditGate({
   isPremium?: boolean;
 }) {
   const account = useStudentShellAccount();
+  if (account?.isAdmin) return null;
   const isPremium = isPremiumProp ?? account?.isPremium ?? false;
 
   if (isPremium) {

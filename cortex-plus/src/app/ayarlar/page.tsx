@@ -42,17 +42,21 @@ export default async function AyarlarPage() {
         <SectionCard
           title="Plan"
           description={
-            account.isPremium
-              ? "Plus aboneliğin aktif. Kota ve ödemeleri krediler sayfasından takip edebilirsin."
-              : "Ücretsiz plandasın. Plus ile gelişmiş model ve daha yüksek limit açılır."
+            account.isAdmin
+              ? "Kurucu hesabı. Kredi sınırı yok."
+              : account.isPremium
+                ? "Plus aboneliğin aktif. Kota ve ödemeleri krediler sayfasından takip edebilirsin."
+                : "Ücretsiz plandasın. Plus ile gelişmiş model ve daha yüksek limit açılır."
           }
         >
-          <Link
-            href={account.isPremium ? "/krediler" : "/pay"}
-            className="text-sm font-medium underline"
-          >
-            {account.isPremium ? "Krediler" : "Plus’a yükselt"}
-          </Link>
+          {account.isAdmin ? null : (
+            <Link
+              href={account.isPremium ? "/krediler" : "/pay"}
+              className="text-sm font-medium underline"
+            >
+              {account.isPremium ? "Krediler" : "Plus’a yükselt"}
+            </Link>
+          )}
         </SectionCard>
 
         <SectionCard

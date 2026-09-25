@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 const db = new PGlite();
 const user = "11111111-1111-4111-8111-111111111111";
+const admin = "33333333-3333-4333-8333-333333333333";
 beforeAll(async () => {
   const initial = readFileSync("supabase/migrations/20250825120000_init.sql", "utf8");
   const tables = initial.slice(initial.indexOf("CREATE TABLE public.credit_wallets"), initial.indexOf("CREATE TABLE public.payments"))
@@ -13,15 +14,23 @@ beforeAll(async () => {
       ADD COLUMN period_allowance integer DEFAULT 6, ADD COLUMN period_kind text DEFAULT 'daily';
     CREATE TABLE plans(id uuid, monthly_allowance integer, billing_period text, is_premium boolean);
     CREATE TABLE subscriptions(user_id uuid, plan_id uuid, status text, current_period_end timestamptz);
+    CREATE TABLE user_roles(user_id uuid NOT NULL, role text NOT NULL, revoked_at timestamptz);
     CREATE FUNCTION account_verified(uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;
     CREATE FUNCTION referral_multiplier(uuid) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;
     CREATE FUNCTION unverified_allowance() RETURNS integer LANGUAGE sql AS $$ SELECT 2 $$;
+    CREATE FUNCTION is_admin(uid uuid) RETURNS boolean LANGUAGE sql STABLE AS $$
+      SELECT EXISTS (
+        SELECT 1 FROM user_roles ur
+        WHERE ur.user_id = uid AND ur.role = 'admin' AND ur.revoked_at IS NULL
+      );
+    $$;
     INSERT INTO credit_rules(action_code, credit_cost) VALUES ('TEST',5);
   `);
   await db.exec(readFileSync("supabase/migrations/20260923120001_uat_credit_atomicity.sql", "utf8"));
+  await db.exec(readFileSync("supabase/migrations/20260925180000_admin_credit_bypass.sql", "utf8"));
 }, 30_000);
 beforeEach(async () => {
-  await db.exec(`TRUNCATE credit_wallets, credit_reservations, credit_ledger;
+  await db.exec(`TRUNCATE credit_wallets, credit_reservations, credit_ledger, user_roles;
     INSERT INTO credit_wallets(user_id,balance,free_allowance_remaining) VALUES ('${user}',3,3);`);
 });
 afterAll(() => db.close());
@@ -101,6 +110,46 @@ describe("actual PostgreSQL credit functions", () => {
     expect(rows[0].balance_before).toBe(3);
     expect(rows[0].balance_after).toBe(1);
     expect(rows[0].metadata.free_spent).toBe(3);
+  });
+  it("does not debit an admin and keeps a zero ledger row", async () => {
+    await db.exec(`INSERT INTO user_roles(user_id, role) VALUES ('${admin}', 'admin');
+      INSERT INTO credit_wallets(user_id, balance, free_allowance_remaining) VALUES ('${admin}', 0, 0);`);
+    const id = (await db.query<{ id: string }>("SELECT credit_reserve($1,'TEST','admin-op') AS id", [admin])).rows[0].id;
+    const adminWallet = async () => (await db.query<{ balance: number; free_allowance_remaining: number; reserved: number }>("SELECT balance, free_allowance_remaining, reserved FROM credit_wallets WHERE user_id=$1", [admin])).rows[0];
+    expect(await adminWallet()).toEqual({ balance: 0, free_allowance_remaining: 0, reserved: 0 });
+    const { rows } = await db.query<{ delta: number; entry_type: string; metadata: { admin_bypass?: boolean; nominal_cost?: number } }>("SELECT delta, entry_type, metadata FROM credit_ledger WHERE user_id=$1", [admin]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].delta).toBe(0);
+    expect(rows[0].entry_type).toBe("reserve");
+    expect(rows[0].metadata.admin_bypass).toBe(true);
+    expect(rows[0].metadata.nominal_cost).toBe(5);
+    await db.query("SELECT credit_commit($1)", [id]);
+    await db.query("SELECT credit_refund($1)", [id]);
+    expect(await adminWallet()).toEqual({ balance: 0, free_allowance_remaining: 0, reserved: 0 });
+  });
+  it("debits a non-admin the same way", async () => {
+    await reserve();
+    expect(await wallet()).toEqual({ balance: 1, free_allowance_remaining: 0, reserved: 5 });
+    const { rows } = await db.query<{ metadata: { admin_bypass?: boolean } }>("SELECT metadata FROM credit_ledger WHERE entry_type='reserve'");
+    expect(rows[0].metadata.admin_bypass).toBeUndefined();
+  });
+  it("blocks a non-admin with an empty wallet", async () => {
+    await db.exec("UPDATE credit_wallets SET balance=0, free_allowance_remaining=0");
+    await expect(reserve("empty")).rejects.toThrow("insufficient_credits");
+    expect(await wallet()).toEqual({ balance: 0, free_allowance_remaining: 0, reserved: 0 });
+  });
+  it("debits a revoked admin like a normal user", async () => {
+    await db.exec(`INSERT INTO user_roles(user_id, role, revoked_at) VALUES ('${admin}', 'admin', now());
+      INSERT INTO credit_wallets(user_id, balance, free_allowance_remaining) VALUES ('${admin}', 3, 3);`);
+    await db.query("SELECT credit_reserve($1,'TEST','revoked-op')", [admin]);
+    const row = (await db.query<{ balance: number; free_allowance_remaining: number; reserved: number }>("SELECT balance, free_allowance_remaining, reserved FROM credit_wallets WHERE user_id=$1", [admin])).rows[0];
+    expect(row).toEqual({ balance: 1, free_allowance_remaining: 0, reserved: 5 });
+  });
+  it("grant adjustment increases balance and writes a grant row", async () => {
+    await db.query("SELECT credit_adjust_balance($1, 10, 'grant-key', 'grant', 'admin:actor')", [user]);
+    expect((await wallet()).balance).toBe(13);
+    const { rows } = await db.query<{ delta: number; entry_type: string }>("SELECT delta, entry_type FROM credit_ledger WHERE idempotency_key='grant-key'");
+    expect(rows[0]).toEqual({ delta: 10, entry_type: "grant" });
   });
   it("untrusted API roles cannot execute wallet mutations", async () => {
     const { rows } = await db.query<{ allowed: boolean }>("SELECT has_function_privilege('authenticated','credit_reserve(uuid,text,text,integer)','EXECUTE') AS allowed");

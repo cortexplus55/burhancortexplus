@@ -223,10 +223,9 @@ describe("yükleme yolu", () => {
   /* Model çağrısı yok, kota yok: metin dosyanın içinde zaten duruyor. */
   it("boru hattı kota istemiyor", () => {
     const source = readFileSync("src/lib/rag/pipeline.ts", "utf8");
-    const branch = source.slice(
-      source.indexOf("} else if (isOfficeDocument(doc.mime_type)) {"),
-      source.indexOf("  } else {\n    let extracted;"),
-    );
+    const start = source.indexOf("} else if (isOfficeDocument(doc.mime_type)) {");
+    const end = source.search(/\}\s*else\s*\{\s*let extracted;/);
+    const branch = source.slice(start, end);
     expect(branch).toContain("extractOfficeText(buffer, doc.mime_type)");
     expect(branch).not.toContain("claim(");
   });

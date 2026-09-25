@@ -16,6 +16,11 @@ export type StudentAccountContext = {
   subscriptionPeriodEnd: string | null;
   canSpend: boolean;
   /**
+   * `user_roles` içinde iptal edilmemiş `admin` satırı.
+   * İstemciden gelmez; sunucu okur. Kredi engeli ve satın alma uyarıları buna bakar.
+   */
+  isAdmin: boolean;
+  /**
    * "5 Eylül 2026 03:00" — hakkın ne zaman yenileneceği.
    *
    * Yükseltme kapısında gösteriliyor: hakkı dolan öğrenciye yalnızca "abone
@@ -29,7 +34,7 @@ export async function getStudentAccountContext(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<StudentAccountContext> {
-  const [{ data: wallet }, entitlements] = await Promise.all([
+  const [{ data: wallet }, entitlements, adminRole] = await Promise.all([
     supabase
       .from("credit_wallets")
       .select(
@@ -38,12 +43,21 @@ export async function getStudentAccountContext(
       .eq("user_id", userId)
       .maybeSingle(),
     getUserEntitlements(supabase, userId),
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .is("revoked_at", null)
+      .maybeSingle(),
   ]);
 
   const subscriptionBadge = entitlements.badge;
   const isPremium = entitlements.isPremium;
   const balance = wallet?.balance ?? 0;
   const freeAllowanceRemaining = wallet?.free_allowance_remaining ?? 0;
+  // Sorgu hata verirse yönetici sayma: kredi muafiyeti kapalı kalsın.
+  const isAdmin = !adminRole.error && Boolean(adminRole.data);
   const quota = quotaView(
     wallet,
     isPremium,
@@ -56,11 +70,12 @@ export async function getStudentAccountContext(
     balance,
     freeAllowanceRemaining,
     isPremium,
-    showsUpgradeChrome: entitlements.showsUpgradeChrome,
+    showsUpgradeChrome: !isAdmin && entitlements.showsUpgradeChrome,
     subscriptionBadge,
     subscriptionAllowance: entitlements.monthlyAllowance,
     subscriptionPeriodEnd: entitlements.subscriptionPeriodEnd,
-    canSpend: balance > 0 || freeAllowanceRemaining > 0,
+    canSpend: isAdmin || balance > 0 || freeAllowanceRemaining > 0,
+    isAdmin,
     resetsAtLabel: formatResetAt(quota.resetsAt),
     periodKind: quota.kind,
   };
