@@ -71,7 +71,7 @@ import {
   unrepresentedHeadings,
 } from "@/lib/documents/topic-title";
 import { diagramIssues, needsDiagram } from "@/lib/learning/lesson-diagram";
-import { formulaFidelityIssues } from "@/lib/learning/formula-fidelity";
+import { formulaMismatches, withoutMismatchedFormulas } from "@/lib/learning/formula-fidelity";
 import {
   lessonPodcastBrief,
   podcastNumbersOutsideLesson,
@@ -89,10 +89,10 @@ import {
   studentLanguageLine,
   teacherNoteGroundedInSource,
   unsupportedQuantities,
+  withoutUnsupportedQuantities,
   type TeachingPriority,
 } from "@/lib/learning/teacher-brain";
 import {
-  collectLearnerVisibleText,
   groundLearnerLesson,
   upcomingTopicsAfter,
   groundLessonDraft,
@@ -1212,6 +1212,14 @@ export async function POST(request: Request) {
           practiceTopics,
         });
   } catch (error) {
+    if (kind === "lesson") {
+      console.error("lesson_generation_failed", {
+        code: error instanceof NodeGenerationError ? error.code : "generation_failed",
+        status: error instanceof NodeGenerationError ? error.status : 502,
+        reasons:
+          error instanceof NodeGenerationError ? error.reasons.slice(0, 6) : [],
+      });
+    }
     if (teachingV2 && creatingAttemptId && generationId && clientRequestId) {
       await service
         .from("exam_prep_node_attempts")
@@ -1384,9 +1392,39 @@ async function loadTopicLesson(
 }
 
 class NodeGenerationError extends Error {
-  constructor(public readonly status: number, public readonly code: string) {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+    public readonly reasons: string[] = [],
+  ) {
     super(code);
   }
+}
+
+/**
+ * Formül uyuşmazlığı ve kaynakta olmayan sayı dersi düşürmez.
+ * Cümle çıkarılır; bölümün metni kalmazsa bölüm de çıkar.
+ */
+function softenLearnerField(
+  text: string,
+  formulas: string[],
+  source: string,
+  checkQuantities: boolean,
+): { text: string; reasons: string[] } {
+  const reasons: string[] = [];
+  const hadFormula = formulaMismatches([text], formulas).length > 0;
+  let next = hadFormula ? withoutMismatchedFormulas(text, formulas) : text;
+  if (hadFormula && formulaMismatches([next], formulas).length) next = "";
+  if (hadFormula && next.trim() !== text.trim()) reasons.push("formula_mismatch_dropped");
+  if (checkQuantities && next.trim()) {
+    const before = next;
+    if (unsupportedQuantities(before, source).length) {
+      const cleaned = withoutUnsupportedQuantities(before, source);
+      next = unsupportedQuantities(cleaned, source).length ? "" : cleaned;
+      if (next.trim() !== before.trim()) reasons.push("quantity_dropped");
+    }
+  }
+  return { text: next.trim(), reasons };
 }
 
 /**
@@ -1545,6 +1583,7 @@ async function generateNodePayload(input: {
     let lastValidLesson: LessonV2 | null = null;
     let lastValidMissing = Number.POSITIVE_INFINITY;
     let lastParseIssues: string[] = [];
+    let degradeReasons: string[] = [];
     let rejectedForQuantity = false;
     const backbone = input.sectionBackbone ?? [];
     // Omurga tek başlıksa dayatmıyoruz: tek bölümlük ders, dersin kendisi
@@ -1622,6 +1661,7 @@ async function generateNodePayload(input: {
       describeParseFailure: () => lastParseIssues,
       parse: (raw) => {
         lastParseIssues = [];
+        degradeReasons = [];
         const published = publishLessonDraft(raw, { keyTerms });
         if (!published) return null;
         const grounded = groundLearnerLesson(
@@ -1652,44 +1692,59 @@ async function generateNodePayload(input: {
          * Hiçbiri geçmezse ders yayına çıkmaz.
          */
         const parsed = raw2;
-        const missingList = useBackbone
-          ? unrepresentedHeadings(
-              backbone,
-              parsed.sections.map((section) => section.heading),
-            )
-          : [];
-        const missing = missingList.length;
         const pedagoji = lessonPublishIssues(raw, { minSections, keyTerms });
         if (pedagoji.length) {
           lastParseIssues = pedagoji;
           return null;
         }
-        // Formül kaynakla tutmuyorsa taslak yeniden çizdiriliyor. Canlıda
-        // Boussinesq formülünü tamamen uyduran bir ders yayına gitmişti;
-        // başlık kaynaktan geliyordu ama içi modelin genel bilgisindendi.
-        const formulIssues = formulaFidelityIssues(
-          [
-            parsed.overview ?? "",
-            ...parsed.sections.map((section) => section.body),
-            parsed.example?.solution ?? "",
-          ],
-          input.sourceFormulas ?? [],
+        /**
+         * Formül uyuşmazlığı ve kaynakta olmayan sayı dersi düşürmez.
+         * Cümle silinir. Öğreten bölüm kalırsa ders yayına çıkar.
+         * Boussinesq gibi yapısal katsayı hâlâ silinir; sayısal örnekle
+         * sembolik bağıntı (`v = v_f + x v_fg`) uyuşmaz sayılmaz.
+         */
+        const reasons: string[] = [];
+        const formulas = input.sourceFormulas ?? [];
+        const checkQuantities = Boolean(
+          input.sourceBlock && !input.sourceBlock.includes("kısaltıldı"),
         );
-        if (formulIssues.length) {
-          lastParseIssues = formulIssues;
+        const take = (text: string) => {
+          const softened = softenLearnerField(text, formulas, input.sourceBlock, checkQuantities);
+          for (const reason of softened.reasons) {
+            if (!reasons.includes(reason)) reasons.push(reason);
+          }
+          return softened.text;
+        };
+        const overview = take(parsed.overview ?? "");
+        const sections = parsed.sections.flatMap((section) => {
+          const body = take(section.body);
+          if (body.length < 20) return [];
+          return [{ ...section, body }];
+        });
+        const lesson: LessonV2 = { ...parsed, sections };
+        if (overview) lesson.overview = overview;
+        else delete lesson.overview;
+        if (parsed.example) {
+          const solution = take(parsed.example.solution);
+          if (solution.length >= 8) lesson.example = { ...parsed.example, solution };
+          else delete lesson.example;
+        }
+        if (!lessonHasTeachingCore(lesson)) {
+          if (reasons.includes("quantity_dropped")) rejectedForQuantity = true;
+          lastParseIssues = [
+            reasons.includes("quantity_dropped")
+              ? "Kaynakta olmayan nicelik çıktıktan sonra öğreten bölüm kalmadı."
+              : "Kaynakla bağlanamayan parçalar çıktıktan sonra öğreten bölüm kalmadı.",
+          ];
           return null;
         }
-        // Sayfa metni kesildiyse eksik sayı yanlış alarm üretir. Kesilmemiş
-        // kaynakta yüzde ve denklem katsayısı belgede yoksa taslak dönmez.
-        if (input.sourceBlock && !input.sourceBlock.includes("kısaltıldı")) {
-          const lessonText = collectLearnerVisibleText(parsed);
-          const gaps = unsupportedQuantities(lessonText, input.sourceBlock);
-          if (gaps.length) {
-            rejectedForQuantity = true;
-            lastParseIssues = [`Kaynakta olmayan nicelik: ${gaps.join(", ")}`];
-            return null;
-          }
-        }
+        const missingList = useBackbone
+          ? unrepresentedHeadings(
+              backbone,
+              lesson.sections.map((section) => section.heading),
+            )
+          : [];
+        const missing = missingList.length;
         // Kaynakta duran bir bölümü atlayan ders eksik bir derstir:
         // canlıda üretilen zemin dersi "Birleştirilmiş Zemin
         // Sınıflandırması"nı hiç anlatmadı ve öğrenci bunu bilemedi.
@@ -1701,37 +1756,33 @@ async function generateNodePayload(input: {
           ];
           return null;
         }
-        // ÇİZİM İSTEMİ DOĞRULAMAYA BAĞLI, YOKSA HİÇ ÇİZİLMİYOR.
-        //
-        // İstem "diagram ZORUNLU" diyordu ve model yine çizmedi: canlıda
-        // üretilen "Üç Fazlı Sistem" dersinde — şekilsiz anlatılamayacak
-        // bir konu — tek çizim yoktu. Bu projede modelin yapması gereken
-        // her şey bir doğrulayıcıya bağlı; çizim istemin kibarlığına
-        // kalmış tek şeydi. Etiketsiz çizim de sayılmaz.
+        /**
+         * Çizim isteniyor ama yoksa ya da okunamıyorsa ders durmaz.
+         * Şema da bunu söylüyor: bozuk çizim düşer, ders kalır.
+         * İstem çizimi istemeye devam eder; kapı artık dersi kesmez.
+         */
         if (wantsDiagram) {
-          const drawn = parsed.sections
-            .map((section) => section.diagram)
-            .filter((diagram) => diagram != null);
-          if (!drawn.length) {
-            lastParseIssues = [
-              "Bu konu şekille anlaşılıyor ama derste hiç diagram yok: bir bölüme diagram ekle.",
-            ];
-            return null;
-          }
-          const cizimSorunlari = drawn.flatMap((diagram) => diagramIssues(diagram));
-          if (cizimSorunlari.length) {
-            lastParseIssues = cizimSorunlari;
-            return null;
-          }
+          let readable = false;
+          let unreadable = false;
+          lesson.sections = lesson.sections.map((section) => {
+            if (!section.diagram) return section;
+            if (!diagramIssues(section.diagram).length) {
+              readable = true;
+              return section;
+            }
+            unreadable = true;
+            const rest = { ...section };
+            delete rest.diagram;
+            return rest;
+          });
+          if (!readable) reasons.push(unreadable ? "diagram_unreadable" : "diagram_missing");
         }
-        // Buraya gelen taslak temizlenmiş VE bütün kuralları geçmiş
-        // demektir. En iyisini sakla: doğrulayıcının son turu başka bir
-        // sebeple düşerse öğrenciye giden ders yine kusursuz olsun.
+        degradeReasons = reasons;
         if (missing < lastValidMissing) {
           lastValidMissing = missing;
-          lastValidLesson = parsed;
+          lastValidLesson = lesson;
         }
-        return parsed;
+        return lesson;
       },
     });
     /**
@@ -1764,7 +1815,16 @@ async function generateNodePayload(input: {
       outcome = await requestLesson("", true);
       lesson = outcome.ok ? outcome.data : lastValidLesson;
     }
-    if (!lesson) throw new NodeGenerationError(outcome.ok ? 500 : outcome.status, outcome.ok ? "lesson_missing" : outcome.error);
+    if (!lesson) {
+      throw new NodeGenerationError(
+        outcome.ok ? 500 : outcome.status,
+        outcome.ok ? "lesson_missing" : outcome.error,
+        lastParseIssues.slice(0, 6),
+      );
+    }
+    if (degradeReasons.length) {
+      console.error("lesson_generation_degraded", { reasons: degradeReasons.slice(0, 6) });
+    }
     // Dersi konuya da yaz: öğrenci sonra geri dönüp okuyabilsin ve ders
     // bitince önerilen podcast bu içerikten türeyebilsin. Yazamamak dersi
     // bozmaz — öğrenci ekranda zaten okuyor.

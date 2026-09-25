@@ -451,7 +451,9 @@ export function unsupportedQuantities(generated: string, source: string): string
   for (const match of generated.match(/%\s*\d+(?:[.,]\d+)?/g) ?? []) {
     if (!sourceHasNumber(source, match)) issues.push(match.replace(/\s/g, ""));
   }
-  for (const sentence of generated.split(/[\n.]+/)) {
+  // Ondalık nokta cümle sınırı değildir: `1.337` iki parçaya bölününce
+  // 337 eşitliğin dışında kalıyor ve uydurma sonuç derste duruyordu.
+  for (const sentence of generated.split(/\n+|(?<!\d)\.(?!\d)/)) {
     if (!/=/.test(sentence)) continue;
     for (const num of sentence.match(/\d+/g) ?? []) {
       if (Number(num) < 3) continue;
@@ -459,6 +461,18 @@ export function unsupportedQuantities(generated: string, source: string): string
     }
   }
   return [...new Set(issues)].slice(0, 6);
+}
+
+/** Kaynakta olmayan niceliğin cümlesini düşürür. Kalan metin kalır. */
+export function withoutUnsupportedQuantities(text: string, source: string): string {
+  if (!text.trim() || !unsupportedQuantities(text, source).length) return text;
+  const parts = text.split(/\n+|(?<=[.!?])\s+(?=[A-ZÇĞİÖŞÜ“"])/);
+  const kept = parts
+    .map((part) => part.trim())
+    .filter((part) => part && unsupportedQuantities(part, source).length === 0);
+  const joined = kept.join(" ").replace(/\s+/g, " ").trim();
+  if (unsupportedQuantities(joined, source).length) return "";
+  return joined;
 }
 
 /**

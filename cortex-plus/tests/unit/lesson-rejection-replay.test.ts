@@ -419,6 +419,27 @@ const PAGE_TEXT =
   "P_vakum = 101 kPa - 20 kPa = 81 kPa. " +
   "25 °C = 298 K. P = 1000 × 9.81 × 2 = 19620 Pa. Toplam 3000 kJ.";
 
+const PV_TOPIC = "P-v ve T-v Diyagramları";
+
+const PV_PAGE_TEXT =
+  "P-v ve T-v diyagramında doymuş sıvı eğrisi ile doymuş buhar eğrisi kritik noktada birleşir. " +
+  "Doymuş sıvı eğrisi x = 0 olan sınırdır. " +
+  "Doymuş buhar eğrisi x = 1 sınırıdır. " +
+  "Kritik noktada Tc = 374.14 °C ve Pc = 22.09 MPa değerleri okunur. " +
+  "Karışımın hacmi v = v_f + x * v_fg şeklinde hesaplanabilir. " +
+  "İç enerji u = u_f + x * u_fg bağıntısıyla yazılır. " +
+  "Entalpi h = h_f + x * h_fg aynı kuruluk derecesiyle okunur. " +
+  "Bir karışımda v_f = 0.001 m3/kg, v_fg = 1.67 m3/kg ve x = 0.80 ise özgül hacim bu bağıntıyla bulunur.";
+
+const PV_FORMULAS = [
+  "v = v_f + x*v_fg = 0.001 + 0.80×1.67",
+  "u = u_f + x*u_fg",
+  "h = h_f + x*h_fg",
+];
+
+/** Canlı konu başlığı ve sayfa metni. Null iken basınç dersi durur. */
+let routeTopic: string | null = null;
+
 function tableResult(table: string, op: string) {
   if (table === "feature_flags") return { data: { enabled: true }, error: null };
   if (table === "subscriptions") return { data: null, error: null };
@@ -447,7 +468,7 @@ function tableResult(table: string, op: string) {
         status: "ready",
         sort_order: 1,
         session_meta: {
-          topicTitle: "Basınç ve Sıcaklık Kavramları",
+          topicTitle: routeTopic ?? "Basınç ve Sıcaklık Kavramları",
           sourcePages: [3],
         },
       },
@@ -457,7 +478,7 @@ function tableResult(table: string, op: string) {
   if (table === "exam_prep_topics") {
     if (op === "list") return { data: [], error: null };
     return {
-      data: { id: TOPIC, label: "Basınç ve Sıcaklık Kavramları", measured_level: null },
+      data: { id: TOPIC, label: routeTopic ?? "Basınç ve Sıcaklık Kavramları", measured_level: null },
       error: null,
     };
   }
@@ -472,8 +493,8 @@ function tableResult(table: string, op: string) {
       data: [
         {
           page_number: 3,
-          text_content: PAGE_TEXT,
-          formulas: [],
+          text_content: routeTopic === PV_TOPIC ? PV_PAGE_TEXT : PAGE_TEXT,
+          formulas: routeTopic === PV_TOPIC ? PV_FORMULAS : [],
           extraction_ok: true,
           page_kind: "content",
           headings: [],
@@ -548,8 +569,69 @@ function supabase() {
   return { from, rpc: vi.fn(async () => ({ data: null, error: null })) };
 }
 
+function pvDiagramLesson() {
+  return {
+    title: PV_TOPIC,
+    objective: "Doymuş sıvı ve doymuş buhar eğrilerini diyagramda ayırt edebileceksin.",
+    overview:
+      "P-v ve T-v diyagramında doymuş sıvı eğrisi ile doymuş buhar eğrisi kritik noktada birleşir.",
+    sections: [
+      {
+        heading: "Doymuş sıvı eğrisi",
+        body:
+          "**Doymuş sıvı eğrisi**, x = 0 olan sınırdır. Karışımın hacmi v = v_f + x·v_fg bağıntısıyla yazılır.",
+        check: {
+          type: "trueFalse" as const,
+          prompt: "Doymuş sıvı eğrisinde kuruluk derecesi sıfırdır.",
+          options: ["Doğru", "Yanlış"],
+          answerIndex: 0,
+          explanation: "Yanlış seçenek buhar eğrisini anlatır; sıvı eğrisinde kuruluk sıfırdır.",
+        },
+      },
+      {
+        heading: "Doymuş buhar eğrisi",
+        body:
+          "**Doymuş buhar eğrisi** x = 1 sınırıdır. İç enerji u = u_f + x·u_fg ve entalpi h = h_f + x·h_fg aynı kurulukla okunur.",
+        check: {
+          type: "mcq" as const,
+          prompt: "Doymuş buhar eğrisinde kuruluk derecesi kaçtır?",
+          options: ["Sıfır", "Bir", "Yarım"],
+          answerIndex: 1,
+          explanation: "Sıfır doymuş sıvıdır; buhar eğrisinde kuruluk birdir.",
+        },
+      },
+      {
+        heading: "Kritik nokta",
+        body:
+          "**Kritik nokta** iki eğrinin birleştiği yerdir. Su için Tc = 374.14 °C ve Pc = 22.09 MPa değerleri bu noktayı belirler. " +
+          "Tamamlanan hesap v = 1.337 m3/kg sonucunu verir.",
+      },
+    ],
+    example: {
+      prompt:
+        "Bir karışımda v_f = 0.001 m3/kg, v_fg = 1.67 m3/kg ve x = 0.80 ise özgül hacim hangi bağıntıyla bulunur?",
+      solution:
+        "Özgül hacim v = v_f + x·v_fg bağıntısıyla bulunur çünkü kuruluk doymuş sıvı ile buhar hacmini tartar.",
+    },
+    commonMistake: {
+      claim: "Kritik noktanın üzerinde sıvı ve buhar eğrileri ayrı durur.",
+      correction: "Kritik noktada doymuş sıvı eğrisi ile doymuş buhar eğrisi birleşir.",
+    },
+    infoCheck: {
+      prompt: "Kritik sıcaklık kaç derecedir?",
+      answer: "374.14 °C",
+    },
+    summary: [
+      "Bu sayfadaki formüller: Doymuş sıvı eğrisi | v = v_f + x*v_fg | u = u_f + x*u_fg | h = h_f + x*h_fg | v = 0.001 + 0.80×1.67 =",
+      "P-v ve T-v Diyagramları konusunu anlayarak uygulayabilmek.",
+    ],
+    nextFocus: ["Uydurma konu"],
+  };
+}
+
 describe("exam-prep lesson route", () => {
   beforeEach(() => {
+    routeTopic = null;
     pipelineMocks.create.mockReset();
     pipelineMocks.reserve.mockClear();
     pipelineMocks.commit.mockClear();
@@ -651,6 +733,63 @@ describe("exam-prep lesson route", () => {
     expect(JSON.stringify(body.payload.lesson)).not.toMatch(/PV\s*=\s*nRT/);
     expect(pipelineMocks.commit).toHaveBeenCalledTimes(1);
     expect(pipelineMocks.refund).not.toHaveBeenCalled();
+  });
+
+  it("publishes a P-v / T-v lesson when the diagram, summary and formula index are imperfect", async () => {
+    routeTopic = PV_TOPIC;
+    const lesson = pvDiagramLesson();
+    const raw = JSON.stringify(lesson);
+    const logs: unknown[][] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      logs.push(args);
+    });
+    pipelineMocks.create.mockImplementation(async (args: { messages?: { content?: unknown }[] }) => {
+      const system = String(args?.messages?.[0]?.content ?? "");
+      if (system.includes("denetçisisin")) {
+        return completion(JSON.stringify({ approved: true, issues: [] }));
+      }
+      if (system.includes("sorunları düzelt")) {
+        return completion(JSON.stringify({ content: raw }));
+      }
+      return completion(raw);
+    });
+    const service = supabase();
+    pipelineMocks.guard.mockResolvedValue({ ok: true, ctx: { userId: "student-1", service } });
+
+    const response = await POST(
+      new Request("https://cortexplus.app/api/learning/exam-prep/node", {
+        method: "POST",
+        body: JSON.stringify({
+          prepId: PREP,
+          nodeId: NODE,
+          clientRequestId: REQ,
+          action: "start",
+        }),
+      }),
+    );
+    const body = await response.json();
+    spy.mockRestore();
+
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.ok).toBe(true);
+    const published = body.payload.lesson as {
+      sections: { heading: string; body: string; diagram?: unknown }[];
+      summary?: string[];
+    };
+    expect(published.sections.length).toBeGreaterThanOrEqual(1);
+    expect(published.sections.some((section) => /doymuş sıvı eğrisi/i.test(section.body))).toBe(true);
+    expect(JSON.stringify(published)).toMatch(/v(?:_f|\s*f)/);
+    expect(JSON.stringify(published)).not.toMatch(/Bu sayfadaki formüller/);
+    expect(JSON.stringify(published)).not.toMatch(/anlayarak uygulayabilmek/);
+    expect(JSON.stringify(published)).not.toMatch(/1\.337/);
+    expect(published.summary?.some((line) => /[=+×]\s*$/.test(line))).toBeFalsy();
+    expect(published.summary?.some((line) => line.includes("|"))).toBeFalsy();
+    expect(pipelineMocks.reserve).toHaveBeenCalledTimes(1);
+    expect(pipelineMocks.commit).toHaveBeenCalledTimes(1);
+    expect(pipelineMocks.refund).not.toHaveBeenCalled();
+    expect(logs.some((args) => args[0] === "lesson_generation_degraded")).toBe(true);
+    const degraded = logs.find((args) => args[0] === "lesson_generation_degraded");
+    expect(JSON.stringify(degraded?.[1])).toMatch(/diagram_missing/);
   });
 });
 

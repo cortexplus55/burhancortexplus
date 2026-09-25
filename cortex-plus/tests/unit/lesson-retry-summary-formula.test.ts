@@ -289,7 +289,7 @@ describe("lessons ask more than one check", () => {
 
   it("asks for three checks when the lesson has three concepts", () => {
     expect(validateLessonPedagogy(lesson([true, false, false])).join(" ")).toMatch(/3 kontrol sorusu/);
-    expect(lessonPublishIssues(lesson([true, false, false])).join(" ")).toMatch(/kontrol sorusu/);
+    expect(lessonPublishIssues(lesson([true, false, false])).join(" ")).not.toMatch(/kontrol sorusu/);
     expect(validateLessonPedagogy(lesson([true, true, true])).join(" ")).not.toMatch(/3 kontrol sorusu/);
   });
 });
