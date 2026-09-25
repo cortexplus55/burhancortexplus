@@ -17,6 +17,7 @@ import {
   examPrepAssessmentHref,
   examPrepIntroHref,
   examPrepNodeHref,
+  examPrepPodcastHref,
   examPrepReviewsHref,
 } from "@/lib/learning/exam-prep-hrefs";
 import {
@@ -31,7 +32,6 @@ import {
   ExamPrepSettingsPanel,
   type PrepSettingsInitial,
 } from "@/components/parity/exam-prep-settings-panel";
-import { PrepStudioEntry, type PrepTopicOption } from "@/components/parity/prep-studio-entry";
 
 export type HomeNode = {
   id: string;
@@ -101,7 +101,6 @@ export function ExamPrepHome({
   topicsDone = 0,
   topicCount = 0,
   topicLabels = [],
-  topicOptions = [],
   materials = [],
   readinessClaim = null,
   topicWarnings = {},
@@ -137,8 +136,6 @@ export function ExamPrepHome({
   topicCount?: number;
   /** Beceri ağacı. Konu düzenleme burada yok; o yalnızca kurulum sihirbazında. */
   topicLabels?: string[];
-  /** Yoldan bağımsız podcast ve ders. Kimlikler konu seçicide durur. */
-  topicOptions?: PrepTopicOption[];
   /** Materyaller sekmesi. Birden fazla belge varsa hepsi; yoksa eski tek belge. */
   materials?: PrepMaterial[];
   /** Ölçülen veri hazır diyorsa true. Bilinmiyorsa null; uydurma yok. */
@@ -317,7 +314,11 @@ export function ExamPrepHome({
         </p>
       ) : null}
 
-      {topicOptions.length ? <PrepStudioEntry prepId={prepId} topics={topicOptions} /> : null}
+      <p>
+        <Link href={examPrepPodcastHref(prepId)} className="cp-back-pill">
+          Podcast oluştur
+        </Link>
+      </p>
 
       {uiV2 ? (
         <nav className="cp-exam-v2-links" aria-label="Öğrenme ekranları">

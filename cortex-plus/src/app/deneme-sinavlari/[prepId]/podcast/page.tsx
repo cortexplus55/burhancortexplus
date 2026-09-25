@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { PrepPodcastSession } from "@/components/parity/prep-podcast-session";
+import { PrepPodcastPicker } from "@/components/parity/prep-studio-entry";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 
@@ -28,7 +29,25 @@ export default async function PrepPodcastPage({
     .eq("id", prepId)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!prep || !query.topicId) notFound();
+  if (!prep) notFound();
+
+  if (!query.topicId) {
+    const { data: topics } = await supabase
+      .from("exam_prep_topics")
+      .select("id, label")
+      .eq("exam_prep_id", prepId)
+      .order("sort_order");
+    return (
+      <ParitySorShell {...shell}>
+        <PrepPodcastPicker
+          prepId={prepId}
+          topics={(topics ?? [])
+            .filter((topic) => topic.id && topic.label)
+            .map((topic) => ({ id: topic.id, label: topic.label }))}
+        />
+      </ParitySorShell>
+    );
+  }
 
   const { data: topic } = await supabase
     .from("exam_prep_topics")

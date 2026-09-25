@@ -6,11 +6,15 @@ vi.mock("@/lib/ai/generate", () => ({ generateJson: mocks.generateJson }));
 import {
   coercePodcastDraft,
   generatePodcastEpisode,
+  mergePodcastSource,
   podcastQuantIssues,
   podcastScriptText,
+  podcastSyllabusLines,
+  readPodcastCache,
   repairPodcastEpisode,
   speakFormulas,
   turkishDecimalComma,
+  writePodcastCache,
   type PodcastEpisode,
 } from "@/lib/learning/podcast-episode";
 import {
@@ -155,6 +159,59 @@ describe("podcast episode", () => {
     if (!outcome.ok) return;
     expect(podcastScriptText(outcome.data)).not.toContain("99");
     expect(mocks.generateJson).toHaveBeenCalled();
+  });
+});
+
+describe("prep-wide podcast grounding", () => {
+  it("names exam weight and exclusions from the shared syllabus reader", () => {
+    const lines = podcastSyllabusLines("Mol kavramı", {
+      weighted: [
+        { topic: "Mol kavramı", documentName: "not.pdf", note: "ağırlık 30", weight: 30 },
+      ],
+      excluded: [
+        {
+          topic: "Organik adlandırma",
+          quote: "Organik adlandırma sınav kapsamı dışındadır",
+          documentName: "not.pdf",
+          pageNumber: 2,
+        },
+      ],
+    });
+    expect(lines).toContain("bu konu sınavda ağırlıklı");
+    expect(lines).toContain("Organik adlandırma");
+  });
+
+  it("keeps the page source and adds the other document's excerpt", () => {
+    const merged = mergePodcastSource(
+      "Sayfa 4: mol tanımı.",
+      "[kimya-2.pdf · s.2] sınırlayıcı bileşen",
+    );
+    expect(merged).toContain("Sayfa 4");
+    expect(merged).toContain("kimya-2.pdf");
+  });
+
+  it("does not throw when the cache table is not created yet", async () => {
+    const builder = {
+      select: () => builder,
+      eq: () => builder,
+      maybeSingle: async () => ({
+        data: null,
+        error: { code: "PGRST205", message: "exam_prep_podcasts schema cache" },
+      }),
+      upsert: async () => ({
+        error: { code: "42P01", message: "relation exam_prep_podcasts does not exist" },
+      }),
+    };
+    const service = { from: () => builder } as never;
+    await expect(readPodcastCache(service, "prep", "Mol", "standart")).resolves.toBeNull();
+    await expect(
+      writePodcastCache(service, {
+        prepId: "prep",
+        userId: "user",
+        topicLabel: "Mol",
+        episode: { title: "Mol", length: "ozet", chapters: [] },
+      }),
+    ).resolves.toBeUndefined();
   });
 });
 

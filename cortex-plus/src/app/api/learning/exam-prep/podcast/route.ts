@@ -8,6 +8,8 @@ import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-
 import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
 import {
   generatePodcastEpisode,
+  loadPodcastCorpus,
+  mergePodcastSource,
   parsePodcastLength,
   podcastScopeBrief,
   readPodcastCache,
@@ -133,10 +135,13 @@ export async function POST(request: Request) {
       topic: topic.label,
       code: error instanceof SourceUnavailableError ? "source_unavailable" : "source_failed",
     });
-    return errorResponse(503, "source_unavailable");
+    source = EMPTY_SOURCE_CONTEXT;
   }
 
-  if (topicDocumentId && !source.block.trim()) {
+  const corpus = await loadPodcastCorpus(service, userId, prepId, topic.label);
+  source = { ...source, block: mergePodcastSource(source.block, corpus.excerpts) };
+
+  if ((topicDocumentId || prepDocs.length) && !source.block.trim()) {
     console.error("podcast_source_unavailable", { requestId, topic: topic.label, code: "empty" });
     return errorResponse(503, "source_unavailable");
   }
@@ -170,9 +175,14 @@ export async function POST(request: Request) {
     teacherBrief: teaching?.brief ?? "",
     lessonBrief,
     length,
-    grounding: teachingV2
-      ? await podcastScopeBrief(service, prepDocs, topic.label, teaching?.priority ?? null)
-      : "",
+    grounding: [
+      teachingV2
+        ? await podcastScopeBrief(service, prepDocs, topic.label, teaching?.priority ?? null)
+        : "",
+      corpus.syllabus,
+    ]
+      .filter(Boolean)
+      .join("\n"),
     idempotencyKey: `podcast:${userId}:${prepId}:${topicId}:${length}:${requestId ?? crypto.randomUUID()}`,
     requestId,
   });

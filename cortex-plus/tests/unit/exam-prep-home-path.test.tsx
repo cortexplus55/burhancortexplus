@@ -85,18 +85,12 @@ describe("exam prep home path", () => {
     expect(screen.queryByRole("heading", { name: "Bugün başla" })).toBeNull();
   });
 
-  it("keeps a locked podcast node locked and still offers an off-path studio", () => {
-    renderHome({
-      topicOptions: [
-        { id: "topic-1", label: "Sistemler" },
-        { id: "topic-2", label: "Enerji" },
-      ],
-    });
+  it("keeps a locked podcast node locked and links to the podcast route", () => {
+    renderHome();
     const locked = screen.getByRole("button", { name: /Podcast Dinle/ });
     expect((locked as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: "Podcast / Ders oluştur" }));
-    expect(screen.getByRole("option", { name: "Sistemler" })).toBeTruthy();
-    expect(screen.getByText("Özet · ~1 dk")).toBeTruthy();
+    const entry = screen.getByRole("link", { name: "Podcast oluştur" });
+    expect(entry.getAttribute("href")).toBe("/deneme-sinavlari/prep-1/podcast");
     expect((screen.getByRole("button", { name: /Podcast Dinle/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 

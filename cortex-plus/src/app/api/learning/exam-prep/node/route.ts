@@ -77,6 +77,8 @@ import { formulaMismatches, withoutMismatchedFormulas } from "@/lib/learning/for
 import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
 import {
   generatePodcastEpisode,
+  loadPodcastCorpus,
+  mergePodcastSource,
   parsePodcastLength,
   podcastScopeBrief,
   readPodcastCache,
@@ -1061,6 +1063,15 @@ export async function POST(request: Request) {
     return errorResponse(503, "source_unavailable");
   }
 
+  // Podcast, sayfa kaynağı duruyorsa hazırlıktaki diğer belgelere de bakar.
+  // Sayfa listesi okunamadıysa buraya gelinmez; o durumda arama yedeği yok.
+  let podcastSyllabus = "";
+  if (kind === "podcast" && teachingV2 && !voiceSession && source.block.trim()) {
+    const corpus = await loadPodcastCorpus(service, userId, prepId, topicLabel);
+    podcastSyllabus = corpus.syllabus;
+    source = { ...source, block: mergePodcastSource(source.block, corpus.excerpts) };
+  }
+
   // v2 + bound document: empty source must fail closed (no silent general-knowledge fill).
   if (
     teachingV2 &&
@@ -1265,7 +1276,12 @@ export async function POST(request: Request) {
           requestId: clientRequestId ?? parsed.data.clientRequestId ?? null,
           grounding:
             kind === "podcast" && teachingV2
-              ? await podcastScopeBrief(service, prepDocs, topicLabel, teachingPlan.priority)
+              ? [
+                  await podcastScopeBrief(service, prepDocs, topicLabel, teachingPlan.priority),
+                  podcastSyllabus,
+                ]
+                  .filter(Boolean)
+                  .join("\n")
               : "",
         });
   } catch (error) {

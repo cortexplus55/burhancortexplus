@@ -19,7 +19,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { env } from "@/lib/env";
 import { generateJson } from "@/lib/ai/generate";
+import { foldTr } from "@/lib/documents/page-analysis";
 import { loadTeacherAnalysis } from "@/lib/documents/teacher-analysis-run";
+import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
+import { contentTokens, type SyllabusScope } from "@/lib/learning/prep-corpus";
 import { emptyMistake, isScaffoldHeading } from "@/lib/learning/teaching-standards";
 import {
   findAnalysisTopic,
@@ -344,6 +347,79 @@ export async function podcastScopeBrief(
   });
 }
 
+function sameTopic(left: string, right: string): boolean {
+  const a = foldTr(left);
+  const b = foldTr(right);
+  if (a.length < 3 || b.length < 3) return false;
+  if (a === b || a.includes(b) || b.includes(a)) return true;
+  const tokens = contentTokens(right);
+  return tokens.length > 0 && tokens.every((token) => a.includes(token));
+}
+
+/**
+ * Müfredat okuması sohbetle aynı korpustan gelir. Ağırlık veya kapsam
+ * cümlesi yoksa boş döner; podcast o zaman kapsam uydurmaz.
+ */
+export function podcastSyllabusLines(topicLabel: string, scope: SyllabusScope): string {
+  const lines: string[] = [];
+  const weighted = scope.weighted.find((hit) => sameTopic(hit.topic, topicLabel));
+  if (weighted) {
+    const note = weighted.note.trim();
+    lines.push(
+      `Bu konu sınavda ağırlıklı${note ? ` (${note})` : ""}. Bunu bir cümlede açıkça söyle: "bu konu sınavda ağırlıklı".`,
+    );
+  }
+  const selfExcluded = scope.excluded.find((hit) => sameTopic(hit.topic, topicLabel));
+  if (selfExcluded) {
+    lines.push(`Bu konu kaynakta kapsam dışı geçiyor: "${selfExcluded.quote.trim()}". Bunu söyle.`);
+  }
+  const excluded = scope.excluded
+    .filter((hit) => !sameTopic(hit.topic, topicLabel))
+    .slice(0, 4)
+    .map((hit) => hit.topic);
+  if (excluded.length) {
+    lines.push(
+      `Sınav kapsamında olmayan konular: ${excluded.join(", ")}. ` +
+        "Yalnızca bu liste duruyorsa bir cümlede kapsam dışı olduklarını söyle. Liste boşken kapsam uydurma.",
+    );
+  }
+  return lines.join("\n");
+}
+
+/** Sayfa kaynağının yanına hazırlıktaki diğer belgelerin pasajını ekler. */
+export function mergePodcastSource(pageBlock: string, excerpts: string): string {
+  const extra = excerpts.trim();
+  if (!extra) return pageBlock;
+  const head = extra.slice(0, 80);
+  if (head && pageBlock.includes(head)) return pageBlock;
+  const page = pageBlock.trim();
+  return page ? `${page}\n\nHazırlıktaki belgeler:\n${extra}` : extra;
+}
+
+/**
+ * Sohbetin hazırlık korpusu: her belgede arama ve müfredat kapsamı.
+ * Arama düşerse boş döner; üretim sayfa kaynağıyla devam eder.
+ */
+export async function loadPodcastCorpus(
+  service: SupabaseClient,
+  userId: string,
+  prepId: string,
+  topicLabel: string,
+): Promise<{ excerpts: string; syllabus: string }> {
+  try {
+    const grounding = await loadPrepChatGrounding(service, userId, prepId, topicLabel);
+    return {
+      excerpts: grounding.excerpts,
+      syllabus: podcastSyllabusLines(topicLabel, grounding.scope),
+    };
+  } catch (error) {
+    console.error("podcast_corpus_unavailable", {
+      code: error instanceof Error ? error.name : "unknown",
+    });
+    return { excerpts: "", syllabus: "" };
+  }
+}
+
 export function podcastGroundingBrief(input: {
   priority: TeachingPriority | null;
   examples: string[];
@@ -524,20 +600,50 @@ export async function generatePodcastEpisode(input: {
   return { ok: true, data: episode };
 }
 
+function cacheRelationMissing(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+  return (
+    code === "42P01" ||
+    code === "PGRST205" ||
+    code === "PGRST204" ||
+    message.includes("exam_prep_podcasts") ||
+    message.includes("schema cache")
+  );
+}
+
 export async function readPodcastCache(
   service: SupabaseClient,
   prepId: string,
   topicLabel: string,
   length: PodcastLength,
 ): Promise<PodcastEpisode | null> {
-  const { data, error } = await service
-    .from("exam_prep_podcasts")
-    .select("title, chapters, length")
-    .eq("exam_prep_id", prepId)
-    .eq("topic_key", podcastTopicKey(topicLabel))
-    .eq("length", length)
-    .maybeSingle();
-  if (error || !data) return null;
+  let data: { title?: string; chapters?: unknown; length?: string } | null = null;
+  let error: { code?: string; message?: string } | null = null;
+  try {
+    const result = await service
+      .from("exam_prep_podcasts")
+      .select("title, chapters, length")
+      .eq("exam_prep_id", prepId)
+      .eq("topic_key", podcastTopicKey(topicLabel))
+      .eq("length", length)
+      .maybeSingle();
+    data = result.data;
+    error = result.error;
+  } catch (caught) {
+    console.error("podcast_cache_skipped", {
+      code: caught instanceof Error ? caught.name : "throw",
+    });
+    return null;
+  }
+  if (error) {
+    console.error(cacheRelationMissing(error) ? "podcast_cache_skipped" : "podcast_cache_read_failed", {
+      code: error.code ?? "unknown",
+    });
+    return null;
+  }
+  if (!data) return null;
   const chapters = Array.isArray(data.chapters) ? (data.chapters as PodcastChapter[]) : [];
   if (!chapters.length || typeof data.title !== "string") return null;
   return { title: data.title, chapters, length: parsePodcastLength(data.length) };
@@ -547,19 +653,27 @@ export async function writePodcastCache(
   service: SupabaseClient,
   input: { prepId: string; userId: string; topicLabel: string; episode: PodcastEpisode },
 ): Promise<void> {
-  const { error } = await service.from("exam_prep_podcasts").upsert(
-    {
-      exam_prep_id: input.prepId,
-      user_id: input.userId,
-      topic_key: podcastTopicKey(input.topicLabel),
-      topic_label: input.topicLabel.trim(),
-      length: input.episode.length,
-      title: input.episode.title,
-      chapters: input.episode.chapters,
-    },
-    { onConflict: "exam_prep_id,topic_key,length" },
-  );
-  if (error) {
-    console.error("podcast_cache_write_failed", { code: error.code ?? "unknown" });
+  try {
+    const { error } = await service.from("exam_prep_podcasts").upsert(
+      {
+        exam_prep_id: input.prepId,
+        user_id: input.userId,
+        topic_key: podcastTopicKey(input.topicLabel),
+        topic_label: input.topicLabel.trim(),
+        length: input.episode.length,
+        title: input.episode.title,
+        chapters: input.episode.chapters,
+      },
+      { onConflict: "exam_prep_id,topic_key,length" },
+    );
+    if (error) {
+      console.error(cacheRelationMissing(error) ? "podcast_cache_skipped" : "podcast_cache_write_failed", {
+        code: error.code ?? "unknown",
+      });
+    }
+  } catch (caught) {
+    console.error("podcast_cache_skipped", {
+      code: caught instanceof Error ? caught.name : "throw",
+    });
   }
 }
