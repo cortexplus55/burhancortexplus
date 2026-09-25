@@ -58,7 +58,10 @@ sırası. Ölçülmüş bir zayıflık yoksa o sıra korunur; ölçülmüş zay�
 
 ## 2. Ders adımları
 
-Kod: `src/lib/learning/teaching-standards.ts` (`validateLessonPedagogy`)
+Kod: `src/lib/learning/teaching-standards.ts` (`validateLessonPedagogy`),
+`src/lib/learning/learner-fluency.ts` (`repairTurkishSurface`),
+`src/lib/learning/quantitative-audit.ts` (`auditQuantitative`),
+`src/lib/learning/absolute-claims.ts` (`unsupportedAbsoluteClaims`)
 
 Astra'nın dersi baştan sona gezildi. İskelet şu:
 

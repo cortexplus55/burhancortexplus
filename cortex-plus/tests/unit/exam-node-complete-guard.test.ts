@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ guard: vi.fn(), source: vi.fn(), generate: vi.fn() }));
 vi.mock("@/lib/api/guards", () => ({ withUser: mocks.guard, errorResponse: (status: number, error: string) => Response.json({ error }, { status }) }));
 vi.mock("@/lib/ai/generate", () => ({ generateJson: mocks.generate, isPremiumUser: vi.fn() }));
-vi.mock("@/lib/learning/source-context", () => ({ EMPTY_SOURCE_CONTEXT: {}, loadSourceContext: mocks.source }));
+vi.mock("@/lib/learning/source-context", () => ({ EMPTY_SOURCE_CONTEXT: {}, loadSourceContext: mocks.source, loadMergedTopicContext: mocks.source }));
 vi.mock("@/lib/learning/exam-quiz-generate", () => ({ generateExamQuiz: vi.fn() }));
 import { POST } from "@/app/api/learning/exam-prep/node/route";
 

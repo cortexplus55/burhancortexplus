@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { searchDocumentChunks, type DocumentMatch } from "@/lib/rag/pipeline";
+import { MIN_CHUNK_SIMILARITY, searchDocumentChunks, type DocumentMatch } from "@/lib/rag/pipeline";
 
 /**
  * Ders içeriğini öğrencinin kendi kaynağına bağlar.
@@ -220,6 +220,97 @@ export function pageSourceBlock(
     body +
     guidance
   );
+}
+
+const MAX_RELATED_CHARS = 2000;
+
+/**
+ * Sayfa bağlı kaynağa, aynı konuyu işleyen diğer belgelerin parçalarını ekler.
+ *
+ * Hazırlık tek dosyaya bağlıdır; konu bir fotoğrafta da bir PDF'te de olabilir.
+ * Aynı dosyanın parçası ve eşiğin altındaki alakasız eşleşme dışarıda kalır.
+ * Ek arama başarısızsa sayfa bağlı blok olduğu gibi döner.
+ */
+export function mergeTopicSources(
+  pageBound: SourceContext,
+  related: DocumentMatch[],
+  options: { excludeDocumentName?: string | null; maxChars?: number } = {},
+): SourceContext {
+  const excluded = options.excludeDocumentName ?? pageBound.documentName;
+  const room = Math.max(0, MAX_CHARS_TOTAL - pageBound.block.length);
+  const maxChars = Math.min(options.maxChars ?? MAX_RELATED_CHARS, room);
+  const seen = new Set<string>();
+  const extras: string[] = [];
+  let used = 0;
+  for (const match of related) {
+    const content = match.content.trim();
+    if (!content) continue;
+    if (match.similarity < MIN_CHUNK_SIMILARITY) continue;
+    if (excluded && match.documentName === excluded) continue;
+    if (pageBound.block.includes(content.slice(0, 80))) continue;
+    const key = `${match.documentId}:${match.chunkId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const page = match.pageNumber != null ? ` · s.${match.pageNumber}` : "";
+    const line = `[${match.documentName}${page}]: ${content.slice(0, MAX_CHARS_PER_CHUNK)}`;
+    if (used + line.length > maxChars) break;
+    used += line.length;
+    extras.push(line);
+  }
+  if (!extras.length) return pageBound;
+  return {
+    ...pageBound,
+    matches: [...pageBound.matches, ...related.filter((match) => seen.has(`${match.documentId}:${match.chunkId}`))],
+    block:
+      pageBound.block +
+      "\n\nAynı konunun diğer yüklenen belgelerinden ilgili parçalar:\n" +
+      extras.join("\n"),
+  };
+}
+
+/**
+ * Sayfa listesi varsa onu okur; yoksa benzerlik araması.
+ * Ardından kullanıcının diğer belgelerinden konuya uyan parçaları ekler.
+ * Belgesiz hazırlıkta arama yapılmaz.
+ */
+export async function loadMergedTopicContext(
+  service: SupabaseClient,
+  userId: string,
+  query: string,
+  options: {
+    documentId?: string | null;
+    pageNumbers?: number[];
+    sourceBoundaryMode?: "documents_only" | "allow_supporting" | null;
+    allowSearch: boolean;
+  },
+): Promise<SourceContext> {
+  if (!options.allowSearch) return EMPTY_SOURCE_CONTEXT;
+
+  let base = EMPTY_SOURCE_CONTEXT;
+  if (options.pageNumbers?.length) {
+    base = await loadPageSourceContext(
+      service,
+      userId,
+      options.documentId,
+      options.pageNumbers,
+      { sourceBoundaryMode: options.sourceBoundaryMode },
+    );
+  }
+  if (!base.block) {
+    base = await loadSourceContext(service, userId, query, {
+      documentId: options.documentId,
+      sourceBoundaryMode: options.sourceBoundaryMode,
+    });
+  }
+
+  try {
+    const related = await searchDocumentChunks(service, userId, query, 4, {
+      documentId: null,
+    });
+    return mergeTopicSources(base, related);
+  } catch {
+    return base;
+  }
 }
 
 /**

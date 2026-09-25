@@ -12,6 +12,8 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { env } from "@/lib/env";
 import { getTeacherEntitlements, incrementTeacherUsage } from "@/lib/teacher/entitlements";
 import { CONTENT_STYLE, SYSTEM_GUARDRAIL } from "@/lib/ai/generate";
+import { validateQuizPedagogy } from "@/lib/learning/teaching-standards";
+import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 
 const schema = z.object({
   topic: z.string().min(3).max(500),
@@ -91,24 +93,41 @@ export async function POST(request: Request) {
           role: "system",
           content:
             `${SYSTEM_GUARDRAIL}\n${CONTENT_STYLE}\n` +
-            "JSON döndür: { title, questions: [{ question, options: string[4], correct }] }. " +
+            "JSON döndür: { title, questions: [{ question, options: string[4], correct, explanation }] }. " +
             "Şıklar birbirinden ayırt edilebilir olsun; 'hepsi' ya da 'hiçbiri' yazma. " +
-            "correct alanı, options dizisindeki metnin birebir aynısı olmalı.",
+            "correct alanı, options dizisindeki metnin birebir aynısı olmalı. " +
+            "explanation: doğru şıkkın neden doğru olduğunu 1-2 cümlede anlatan Türkçe açıklama.",
         },
         { role: "user", content: `Konu: ${topic}. ${questionCount} soruluk quiz üret. ${difficultyHint}` },
       ],
       response_format: { type: "json_object" },
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
-    const verified = await verifyEducationalContent({ client: openai, context: `Konu: ${topic}. ${questionCount} soruluk quiz üret.`, draft: raw, format: 'JSON: {title:string,questions:[{question:string,options:string[],correct:string}]}. correct bir seçenek metni olmalı.' });
+    const verified = await verifyEducationalContent({ client: openai, context: `Konu: ${topic}. ${questionCount} soruluk quiz üret.`, draft: raw, format: 'JSON: {title:string,questions:[{question:string,options:string[],correct:string,explanation?:string}]}. correct bir seçenek metni olmalı.' });
     await recordUsage(service, { userId, actionCode: "QUIZ_GENERATE", model: env.OPENAI_ADVANCED_MODEL, tokensIn: verified.tokensIn, tokensOut: verified.tokensOut, reservationId: resId });
     const parsed = z.object({
       title: z.string().min(1),
-      questions: z.array(z.object({ question: z.string().min(1), options: z.array(z.string()).length(4), correct: z.string() }).refine(q => q.options.includes(q.correct))).length(questionCount),
-    }).parse(JSON.parse(verified.content)) as {
-      title?: string;
-      questions?: { question: string; options: string[]; correct: string }[];
-    };
+      questions: z.array(z.object({
+        question: z.string().min(1),
+        options: z.array(z.string()).length(4),
+        correct: z.string(),
+        explanation: z.string().max(600).optional(),
+      }).refine(q => q.options.includes(q.correct))).length(questionCount),
+    }).parse(JSON.parse(verified.content));
+    const pedagogy = validateQuizPedagogy(
+      parsed.questions.map(
+        (q): QuizQuestion => ({
+          text: q.question,
+          options: q.options,
+          correct: [q.correct],
+          multi: false,
+          explanation: q.explanation,
+        }),
+      ),
+    );
+    if (pedagogy.length) {
+      throw new Error(`pedagogy_rejected: ${pedagogy[0]}`);
+    }
 
     const { data: quiz } = await service
       .from("quizzes")

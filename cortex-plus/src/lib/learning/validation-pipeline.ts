@@ -9,6 +9,11 @@
  * call alone is never treated as a correctness guarantee.
  */
 
+import { absoluteClaimIssues } from "@/lib/learning/absolute-claims";
+import { auditQuantitative } from "@/lib/learning/quantitative-audit";
+
+export { checkSimpleMathClaims } from "@/lib/learning/quantitative-audit";
+
 export type ValidationStage =
   | "structural"
   | "source"
@@ -90,58 +95,6 @@ function emptyish(value: unknown): boolean {
   if (typeof value === "string") return value.trim().length === 0;
   if (Array.isArray(value)) return value.length === 0;
   return false;
-}
-
-/**
- * Ucuz aritmetik denetimi: "2+2=4", "3×4=12" gibi parçalar.
- *
- * DENETÇİ İKİ KEZ DOĞRU DERSİ REDDETTİ; ikisi de burada düzeltildi.
- *
- * 1. YUVARLAMA. Ders "0,54 / 1,54 = 0,351" yazdı. Doğrusu 0,35064…; üç
- *    basamağa yuvarlanmış hâli tam olarak 0,351. Denetim 1e-6 mutlak fark
- *    istediği için bunu hata saydı. Oysa ders kitabı da yuvarlar. Hoşgörü
- *    artık iddianın YAZILDIĞI basamağa göre: üç basamak yazılmışsa yarım
- *    birim sapma kabul, dördüncü basamakta değil.
- *
- * 2. ZİNCİR. Ders "3,24 × 9,81 / 1,54 = 20,64" yazdı. Denetim zincirin
- *    ortasından "9,81 / 1,54"ü koparıp sonuçla karşılaştırdı ve tutmadı.
- *    Üç terimli bir işlemin son iki terimi tek başına sonucu vermez.
- *    Eşleşmenin solunda bir işleç varsa parça bir zincirin ortasıdır ve
- *    tek başına denetlenemez.
- *
- * Yanlış alarmın bedeli görünmez ve ağır: taslak reddedilir, üç deneme de
- * düşerse ders yedek yoldan — daha kötü hâliyle — öğrenciye gider.
- */
-export function checkSimpleMathClaims(text: string): string[] {
-  const issues: string[] = [];
-  const eq = /(?<![\d.,\w])([−-]?\d+(?:[.,]\d+)?)\s*([+\-−×x*÷/])\s*([−-]?\d+(?:[.,]\d+)?)\s*=\s*([−-]?\d+(?:[.,]\d+)?)(?![\d.,/])/gi;
-  let match: RegExpExecArray | null;
-  while ((match = eq.exec(text)) !== null) {
-    // Zincirin ortası mı? Solunda bir işleç varsa evet.
-    const before = text.slice(0, match.index).trimEnd();
-    if (/[+\-−×x*÷/]$/i.test(before)) continue;
-
-    const number = (value: string) => Number(value.replace("−", "-").replace(",", "."));
-    const a = number(match[1]);
-    const op = match[2];
-    const b = number(match[3]);
-    const claimedText = match[4];
-    const claimed = number(claimedText);
-    if (![a, b, claimed].every((n) => Number.isFinite(n))) continue;
-    let expected: number | null = null;
-    if (op === "+" || op === "-" || op === "−") expected = op === "+" ? a + b : a - b;
-    else if (op === "×" || op === "x" || op === "*") expected = a * b;
-    else if (op === "÷" || op === "/") expected = b === 0 ? null : a / b;
-    if (expected == null) continue;
-
-    // Yazılan basamak kadar hoşgörü: "0,351" için yarım binde bir.
-    const decimals = claimedText.split(/[.,]/)[1]?.length ?? 0;
-    const tolerance = decimals > 0 ? 0.5 * 10 ** -decimals : 1e-6;
-    if (Math.abs(expected - claimed) > tolerance) {
-      issues.push(`Hesap uyuşmazlığı: ${a}${op}${b}≠${claimed}`);
-    }
-  }
-  return issues;
 }
 
 function uniqueOptionsIssues(parsed: unknown): string[] {
@@ -274,6 +227,11 @@ function sourceCheck(input: IndependentValidationInput): ValidationIssue[] {
       }
     }
   }
+  if (input.sourceExcerpt?.trim() && input.parsed) {
+    for (const message of absoluteClaimIssues(input.parsed, input.sourceExcerpt)) {
+      issues.push(issue("source", "unsupported_absolute", message));
+    }
+  }
   return issues;
 }
 
@@ -309,25 +267,48 @@ function assertionTexts(value: unknown): string[] {
   });
 }
 
+function lessonQuantitativeInput(parsed: unknown): {
+  example: { prompt: string; solution: string } | null;
+  sections: string[];
+} | null {
+  const row = asRecord(parsed);
+  if (!row) return null;
+  const exampleRow = asRecord(row.example);
+  const sections = Array.isArray(row.sections)
+    ? row.sections
+        .map((section) => {
+          const body = asRecord(section);
+          return typeof body?.body === "string" ? body.body : "";
+        })
+        .filter(Boolean)
+    : [];
+  if (!exampleRow && !sections.length) return null;
+  const example =
+    exampleRow && typeof exampleRow.prompt === "string" && typeof exampleRow.solution === "string"
+      ? { prompt: exampleRow.prompt, solution: exampleRow.solution }
+      : null;
+  return { example, sections };
+}
+
 function domainCheck(input: IndependentValidationInput): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   // A non-JSON draft is used by standalone diagnostic callers.
   const text = typeof input.draft === "string" && !/^[\s]*[\[{]/.test(input.draft)
     ? input.draft : assertionTexts(input.parsed).join("\n");
-  for (const msg of checkSimpleMathClaims(text)) {
-    issues.push(issue("domain", "math_mismatch", msg));
+  const lesson = lessonQuantitativeInput(input.parsed);
+  const quantitative = lesson
+    ? auditQuantitative({ text, example: lesson.example, sections: lesson.sections })
+    : auditQuantitative(text);
+  for (const msg of quantitative) {
+    const code = msg.startsWith("Hesap uyuşmazlığı")
+      ? "math_mismatch"
+      : msg.startsWith("Birim")
+        ? "unit_mismatch"
+        : "quantitative";
+    issues.push(issue("domain", code, msg));
   }
   for (const msg of uniqueOptionsIssues(input.parsed)) {
     issues.push(issue("domain", "duplicate_options", msg));
-  }
-  // Lightweight unit clash: "5 kg = 5 g" / "1 mol = 1 g" style nonsense
-  if (
-    /\b(\d+)\s*kg\s*=\s*\1\s*g\b/i.test(text) ||
-    /\b(\d+)\s*g\s*=\s*\1\s*kg\b/i.test(text) ||
-    /\b(\d+)\s*mol\s*=\s*\1\s*g\b/i.test(text) ||
-    /\b(\d+)\s*g\s*=\s*\1\s*mol\b/i.test(text)
-  ) {
-    issues.push(issue("domain", "unit_mismatch", "Birim dönüşümü tutarsız."));
   }
   for (const msg of checkImpossiblePercentClaims(text)) {
     issues.push(issue("domain", "impossible_percent", msg));

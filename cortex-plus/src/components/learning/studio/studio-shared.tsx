@@ -11,6 +11,7 @@ import { STUDIO_NEXT, studioHref, type StudioToolId } from "@/lib/learning/studi
 import { playPlusTone } from "@/lib/learning/studio-sound";
 import { downloadStudioCard } from "@/lib/learning/studio-share-card";
 import { cn } from "@/lib/utils";
+import { onGenerationSucceeded } from "@/lib/credits/spendable";
 import "@/styles/learning-studio.css";
 
 export type { StudioToolId };
@@ -41,6 +42,7 @@ export async function postStudio<T>(
     */
     if (res.status === 402) return { paywall: true, code: payload.code };
     if (!res.ok) return { ok: false, error: payload.error ?? "İşlem tamamlanamadı." };
+    onGenerationSucceeded();
     return { ok: true, data: payload };
   } catch {
     return { ok: false, error: "Bağlantı hatası." };

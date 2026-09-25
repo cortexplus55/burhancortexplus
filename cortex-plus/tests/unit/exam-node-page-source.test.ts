@@ -16,7 +16,10 @@ vi.mock("@/lib/ai/generate", () => ({
 }));
 // Keep the actual page reader and route; only external retrieval/model calls
 // are mocked, so a missing export or a bypassed reader cannot pass this test.
-vi.mock("@/lib/rag/pipeline", () => ({ searchDocumentChunks: mocks.search }));
+vi.mock("@/lib/rag/pipeline", () => ({
+  searchDocumentChunks: mocks.search,
+  MIN_CHUNK_SIMILARITY: 0.25,
+}));
 vi.mock("@/lib/learning/exam-quiz-generate", () => ({ generateExamQuiz: mocks.quiz }));
 vi.mock("@/lib/admin/feature-flags", () => ({
   PDF_LEARNING_V2_FLAG: "pdf_learning_v2",

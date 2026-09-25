@@ -15,6 +15,7 @@ import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
 import { studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
 import { formatNumber } from "@/lib/format";
+import { ACCOUNT_REFRESH_EVENT, spendableCredits } from "@/lib/credits/spendable";
 import "@/styles/parity-shell.css";
 
 export type RecentConversation = {
@@ -60,6 +61,11 @@ export function ParitySorShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  useEffect(() => {
+    const refresh = () => router.refresh();
+    window.addEventListener(ACCOUNT_REFRESH_EVENT, refresh);
+    return () => window.removeEventListener(ACCOUNT_REFRESH_EVENT, refresh);
+  }, [router]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
   const [limitDismissed, setLimitDismissed] = useState(false);
@@ -181,7 +187,7 @@ export function ParitySorShell({
             </Link>
           ) : account ? (
             <Link href="/krediler" className="cp-sor-credit-chip">
-              {planLabel} · {formatNumber(account.balance)} kr
+              {planLabel} · {formatNumber(spendableCredits(account))} kr
             </Link>
           ) : null}
           <button type="button" className="cp-sor-streak" aria-label="Seri">

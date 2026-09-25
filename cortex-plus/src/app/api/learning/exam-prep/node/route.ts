@@ -6,8 +6,7 @@ import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flag
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import {
   EMPTY_SOURCE_CONTEXT,
-  loadPageSourceContext,
-  loadSourceContext,
+  loadMergedTopicContext,
 } from "@/lib/learning/source-context";
 import {
   resolvePrepSourceMode,
@@ -59,6 +58,7 @@ import {
 } from "@/lib/documents/topic-title";
 import { diagramIssues, needsDiagram } from "@/lib/learning/lesson-diagram";
 import { formulaFidelityIssues } from "@/lib/learning/formula-fidelity";
+import { repairLessonSurface } from "@/lib/learning/learner-fluency";
 import {
   lessonPodcastBrief,
   podcastNumbersOutsideLesson,
@@ -648,29 +648,20 @@ export async function POST(request: Request) {
     // o sayfaların prompta girdiğini garanti etmiyordu ve ders kaynakta
     // duran formülü yanlış yazabiliyordu. İstenen sayfa okunamazsa üretim
     // durur; yalnızca sayfa listesi olmayan eski planlar aramayı kullanır.
-    const pageSource =
-      teachingV2 && !voiceSession
-        ? await loadPageSourceContext(
+    source =
+      voiceSession || !shouldSearchSources(sourceMode)
+        ? EMPTY_SOURCE_CONTEXT
+        : await loadMergedTopicContext(
             service,
             userId,
-            prepSource.document_id,
-            sessionMeta?.sourcePages,
-            { sourceBoundaryMode },
-          )
-        : EMPTY_SOURCE_CONTEXT;
-    source = pageSource.block
-      ? pageSource
-      : voiceSession || !shouldSearchSources(sourceMode)
-      ? EMPTY_SOURCE_CONTEXT
-      : await loadSourceContext(
-          service,
-          userId,
-          `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim(),
-          {
-            documentId: prepSource?.document_id ?? null,
-            sourceBoundaryMode: teachingV2 ? sourceMode : null,
-          },
-        );
+            `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim(),
+            {
+              documentId: prepSource?.document_id ?? null,
+              pageNumbers: teachingV2 ? sessionMeta?.sourcePages : undefined,
+              sourceBoundaryMode: teachingV2 ? sourceMode : null,
+              allowSearch: true,
+            },
+          );
   } catch {
     return errorResponse(503, "source_unavailable");
   }
@@ -1188,14 +1179,18 @@ async function generateNodePayload(input: {
       difficulty: "hard",
       ...v2Common,
       buildIndependent: (_c, parsed) => ({
-        pedagogyIssues: validateLessonPedagogy(parsed, { minSections }),
+        pedagogyIssues: validateLessonPedagogy(parsed, {
+          minSections,
+          sourceExcerpt: input.sourceBlock,
+        }),
         ...sourceIndependent,
       }),
       schemaHint:
         'JSON: {"title":string,"objective":string,"overview":string,' +
-        '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"note":{"title":string,"body":string},"diagram":{"caption":string,"shapes":[...]}}],' +
-        '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
-        '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
+        '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse"|"numerical"|"explain"|"findError","prompt":string,"options":string[],"answerIndex":number,"explanation":string,"answer":string,"expectedPoints":string[],"faultyText":string},"note":{"title":string,"body":string},"diagram":{"caption":string,"shapes":[...]}}],' +
+        '"example":{"prompt":string,"solution":string,"givens":string[],"unknown":string,"steps":string[],"result":string},"commonMistake":{"claim":string,"correction":string},' +
+        '"findError":{"prompt":string,"faultyText":string,"options":string[],"answerIndex":number,"explanation":string},' +
+        '"infoCheck":{"prompt":string,"answer":string},"numericalCheck":{"prompt":string,"answer":string,"explanation":string},"summary":string[],"nextFocus":string[]}. ' +
         (useBackbone
           ? `${backbone.length} bölüm (aşağıda sayılan başlıklar). `
           : "3-6 bölüm; ") +
@@ -1235,9 +1230,12 @@ async function generateNodePayload(input: {
          * bir taslağı saklamıyor, TAMAMEN GEÇEN en iyi taslağı saklıyor.
          * Hiçbiri geçmezse ders yayına çıkmaz.
          */
-        const parsed = dropScaffoldSections(raw2);
+        const parsed = repairLessonSurface(dropScaffoldSections(raw2));
         const missing = missingSections(parsed);
-        const pedagoji = validateLessonPedagogy(parsed, { minSections });
+        const pedagoji = validateLessonPedagogy(parsed, {
+          minSections,
+          sourceExcerpt: input.sourceBlock,
+        });
         if (pedagoji.length) {
           lastParseIssues = pedagoji;
           return null;

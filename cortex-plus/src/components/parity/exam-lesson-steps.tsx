@@ -27,6 +27,10 @@ import "@/styles/exam-lesson-steps.css";
  * <strong> ile basıyoruz — modelden gelen metne innerHTML açmak, ders
  * içeriğini işaretleme kanalına dönüştürürdü.
  */
+function normalizeAnswer(value: string): string {
+  return value.replace(/\s+/g, "").replace(",", ".").toLocaleLowerCase("tr-TR");
+}
+
 function RichBody({ text }: { text: string }) {
   const parts = text.split(/(\*\*[^*\n]{1,80}\*\*)/g);
   return (
@@ -54,7 +58,16 @@ type Step =
       note?: LessonV2["sections"][number]["note"];
       diagram?: LessonV2["sections"][number]["diagram"];
     }
-  | { kind: "example"; heading: string; prompt: string; solution: string }
+  | {
+      kind: "example";
+      heading: string;
+      prompt: string;
+      solution: string;
+      givens?: string[];
+      unknown?: string;
+      steps?: string[];
+      result?: string;
+    }
   | { kind: "mistake"; heading: string; claim: string; correction: string }
   | { kind: "summary"; heading: string; points: string[]; next: string[] }
   | {
@@ -83,6 +96,51 @@ function buildSteps(lesson: LessonV2): Step[] {
       heading: "Örnek",
       prompt: lesson.example.prompt,
       solution: lesson.example.solution,
+      givens: lesson.example.givens,
+      unknown: lesson.example.unknown,
+      steps: lesson.example.steps,
+      result: lesson.example.result,
+    });
+  }
+  if (lesson.infoCheck?.prompt.trim()) {
+    steps.push({
+      kind: "section",
+      heading: "Kendi cümlelerinle",
+      body: "Aşağıdaki soruyu kendi cümlelerinle yanıtla.",
+      check: {
+        type: "explain",
+        prompt: lesson.infoCheck.prompt,
+        explanation: lesson.infoCheck.answer,
+        expectedPoints: [lesson.infoCheck.answer],
+      },
+    });
+  }
+  if (lesson.numericalCheck?.prompt.trim()) {
+    steps.push({
+      kind: "section",
+      heading: "Hesap",
+      body: "Formülü ve verilenleri kullanarak hesapla.",
+      check: {
+        type: "numerical",
+        prompt: lesson.numericalCheck.prompt,
+        answer: lesson.numericalCheck.answer,
+        explanation: lesson.numericalCheck.explanation,
+      },
+    });
+  }
+  if (lesson.findError?.prompt.trim()) {
+    steps.push({
+      kind: "section",
+      heading: "Hatayı bul",
+      body: lesson.findError.faultyText,
+      check: {
+        type: "findError",
+        prompt: lesson.findError.prompt,
+        faultyText: lesson.findError.faultyText,
+        options: lesson.findError.options,
+        answerIndex: lesson.findError.answerIndex,
+        explanation: lesson.findError.explanation,
+      },
     });
   }
   if (lesson.commonMistake.claim.trim()) {
@@ -114,6 +172,7 @@ export function ExamLessonSteps({
   const [picked, setPicked] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [solutionShown, setSolutionShown] = useState(false);
+  const [written, setWritten] = useState("");
   /** Yanlış cevaplanan bölümlerin sırası — tekrar kuyruğunu bunlar doğurur. */
   const [missed, setMissed] = useState<number[]>([]);
 
@@ -156,6 +215,7 @@ export function ExamLessonSteps({
     setPicked(null);
     setRevealed(false);
     setSolutionShown(false);
+    setWritten("");
   }
 
   return (
@@ -198,11 +258,42 @@ export function ExamLessonSteps({
 
       {step.kind === "example" ? (
         <>
-          <p className="als-body">{step.prompt}</p>
+          {step.givens?.length ? (
+            <>
+              <h2 className="als-subhead">Verilenler</h2>
+              <ul className="als-list">
+                {step.givens.map((given) => (
+                  <li key={given}>{given}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="als-body">{step.prompt}</p>
+          )}
+          {step.unknown ? (
+            <>
+              <h2 className="als-subhead">İstenen</h2>
+              <p className="als-body">{step.unknown}</p>
+            </>
+          ) : null}
           {solutionShown ? (
             <div className="als-solution">
               <span className="als-tag">Çözüm</span>
-              <p>{step.solution}</p>
+              {step.steps?.length ? (
+                <ol className="als-list">
+                  {step.steps.map((item, stepIndex) => (
+                    <li key={item}>{stepIndex + 1}. {item}</li>
+                  ))}
+                </ol>
+              ) : (
+                <p>{step.solution}</p>
+              )}
+              {step.result ? (
+                <p>
+                  <strong>Sonuç: </strong>
+                  {step.result}
+                </p>
+              ) : null}
             </div>
           ) : (
             <button
@@ -253,9 +344,44 @@ export function ExamLessonSteps({
         <section className="als-check" aria-label="Bölüm kontrolü">
           <p className="als-check-kicker">Kısa kontrol</p>
           <p className="als-check-prompt">{check.prompt}</p>
+          {check.type === "numerical" || check.type === "explain" ? (
+            <form
+              className="als-options"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!written.trim()) return;
+                setRevealed(true);
+              }}
+            >
+              {check.type === "numerical" ? (
+                <input
+                  className="als-write"
+                  value={written}
+                  onChange={(event) => setWritten(event.target.value)}
+                  disabled={revealed}
+                  inputMode="decimal"
+                  aria-label="Sayısal yanıt"
+                />
+              ) : (
+                <textarea
+                  className="als-write"
+                  value={written}
+                  onChange={(event) => setWritten(event.target.value)}
+                  disabled={revealed}
+                  rows={3}
+                  aria-label="Kendi cümlen"
+                />
+              )}
+              {!revealed ? (
+                <button type="submit" className="als-secondary">
+                  Yanıtı kontrol et
+                </button>
+              ) : null}
+            </form>
+          ) : (
           <div className="als-options">
-            {check.options.map((option, optionIndex) => {
-              const isAnswer = optionIndex === check.answerIndex;
+            {(check.options ?? []).map((option, optionIndex) => {
+              const isAnswer = optionIndex === (check.answerIndex ?? -1);
               const isPicked = picked === optionIndex;
               const state = !revealed
                 ? isPicked
@@ -281,7 +407,7 @@ export function ExamLessonSteps({
                     // bir adım doğurmaz; kuyruk sonsuza gitmemeli.
                     if (
                       step.kind === "section" &&
-                      optionIndex !== check.answerIndex &&
+                      optionIndex !== (check.answerIndex ?? -1) &&
                       !missed.includes(index - 1)
                     ) {
                       setMissed((prev) => [...prev, index - 1]);
@@ -299,12 +425,35 @@ export function ExamLessonSteps({
               );
             })}
           </div>
+          )}
           {revealed ? (
             <div className="als-explain" role="status">
-              <strong>
-                {picked === check.answerIndex ? "Doğru." : "Doğrusu şu:"}
-              </strong>{" "}
-              {check.explanation}
+              {check.type === "numerical" ? (
+                <p>
+                  <strong>
+                    {normalizeAnswer(written) === normalizeAnswer(check.answer ?? "")
+                      ? "Doğru."
+                      : "Doğrusu şu:"}
+                  </strong>{" "}
+                  {check.answer} {check.explanation}
+                </p>
+              ) : check.type === "explain" ? (
+                <>
+                  <strong>Beklenen noktalar</strong>
+                  <ul className="als-list">
+                    {(check.expectedPoints ?? [check.explanation]).map((point) => (
+                      <li key={point}>{point}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <>
+                  <strong>
+                    {picked === (check.answerIndex ?? -1) ? "Doğru." : "Doğrusu şu:"}
+                  </strong>{" "}
+                  {check.explanation}
+                </>
+              )}
             </div>
           ) : null}
         </section>

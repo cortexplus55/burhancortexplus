@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 const search = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/rag/pipeline", () => ({ searchDocumentChunks: search }));
-import { chatSourceBlock, loadSourceContext, SourceUnavailableError } from "@/lib/learning/source-context";
+vi.mock("@/lib/rag/pipeline", () => ({ searchDocumentChunks: search, MIN_CHUNK_SIMILARITY: 0.25 }));
+import { chatSourceBlock, loadSourceContext, mergeTopicSources, SourceUnavailableError } from "@/lib/learning/source-context";
 import type { DocumentMatch } from "@/lib/rag/pipeline";
 
 function match(over: Partial<DocumentMatch> = {}): DocumentMatch {
@@ -97,5 +97,43 @@ describe("chatSourceBlock", () => {
   it("yalnızca belgem boş retrieval'da red mesajı verir", () => {
     const block = chatSourceBlock([], { documentsOnly: true });
     expect(block).toContain("Bu bilgi yüklediğin belgede yer almıyor");
+  });
+});
+
+describe("mergeTopicSources", () => {
+  const pageBound = {
+    block: "\n\n[s.1] foto.jpg: Ohm yasası V = I R.",
+    matches: [],
+    documentName: "foto.jpg",
+  };
+
+  it("aynı konunun diğer belgesini ekler, aynı dosyayı ve alakasızı eklemez", () => {
+    const merged = mergeTopicSources(pageBound, [
+      match({
+        chunkId: "pdf",
+        documentId: "pdf-doc",
+        documentName: "fizik.pdf",
+        content: "Direnç iletkenin uzunluğuna ve kesitine bağlıdır.",
+        similarity: 0.62,
+      }),
+      match({
+        chunkId: "same",
+        documentId: "photo",
+        documentName: "foto.jpg",
+        content: "Bu parça zaten seçili fotoğrafta.",
+        similarity: 0.9,
+      }),
+      match({
+        chunkId: "weak",
+        documentId: "tarih",
+        documentName: "tarih.pdf",
+        content: "1830 ayaklanmaları başka bir konudur.",
+        similarity: 0.1,
+      }),
+    ]);
+    expect(merged.block).toContain("fizik.pdf");
+    expect(merged.block).toContain("Direnç iletkenin uzunluğuna");
+    expect(merged.block).not.toContain("seçili fotoğrafta");
+    expect(merged.block).not.toContain("ayaklanmaları");
   });
 });

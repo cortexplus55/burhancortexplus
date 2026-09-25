@@ -4,7 +4,8 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { formatStructuredLesson } from "@/lib/learning/exam-lesson";
-import { loadSourceContext } from "@/lib/learning/source-context";
+import { loadMergedTopicContext } from "@/lib/learning/source-context";
+import { repairLessonSurface } from "@/lib/learning/learner-fluency";
 import {
   resolvePrepSourceMode,
   shouldSearchSources,
@@ -94,13 +95,14 @@ export async function POST(request: Request) {
 
   if (teachingV2 && shouldSearchSources(sourceMode)) {
     try {
-      const source = await loadSourceContext(
+      const source = await loadMergedTopicContext(
         service,
         userId,
         `${prep.title ?? ""} ${topic.label}`.trim(),
         {
           documentId: prep.document_id ?? null,
           sourceBoundaryMode: sourceMode,
+          allowSearch: true,
         },
       );
       sourceBlock = source.block;
@@ -137,7 +139,7 @@ export async function POST(request: Request) {
     activityKind: "lesson",
     buildIndependent: teachingV2
       ? (_content, parsed) => ({
-          pedagogyIssues: validateLessonPedagogy(parsed),
+          pedagogyIssues: validateLessonPedagogy(parsed, { sourceExcerpt: sourceBlock }),
           minItems: 2,
           sourceExcerpt: sourceBlock,
           requireSourceSupport: shouldSearchSources(sourceMode),
@@ -145,7 +147,7 @@ export async function POST(request: Request) {
         })
       : undefined,
     schemaHint: teachingV2
-      ? 'Yalnızca JSON: {"title":string,"objective":string,"overview":string,"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string}}],"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
+      ? 'Yalnızca JSON: {"title":string,"objective":string,"overview":string,"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse"|"numerical"|"explain"|"findError","prompt":string,"options":string[],"answerIndex":number,"explanation":string,"answer":string,"expectedPoints":string[],"faultyText":string}}],"example":{"prompt":string,"solution":string,"givens":string[],"unknown":string,"steps":string[],"result":string},"commonMistake":{"claim":string,"correction":string},"infoCheck":{"prompt":string,"answer":string},"numericalCheck":{"prompt":string,"answer":string,"explanation":string},"findError":{"prompt":string,"faultyText":string,"options":string[],"answerIndex":number,"explanation":string},"summary":string[],"nextFocus":string[]}. ' +
         'heading: o bölümün kendi kavramsal başlığı — "Bölüm 1" gibi genel değil. ' +
         'check: HER bölüm için zorunlu, bölümün hemen o metnini yoklar. ' +
         'trueFalse ise options tam olarak ["Doğru","Yanlış"]. ' +
@@ -167,8 +169,9 @@ Bu dersin konusu YALNIZCA: ${topic.label}.
 Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${topicBlock}`,
     parse: (raw) => {
       if (teachingV2) {
-        if (validateLessonPedagogy(raw).length) return null;
-        return lessonV2Schema.safeParse(raw).data ?? null;
+        const repaired = repairLessonSurface(raw);
+        if (validateLessonPedagogy(repaired, { sourceExcerpt: sourceBlock }).length) return null;
+        return lessonV2Schema.safeParse(repaired).data ?? null;
       }
       const result = legacyLessonSchema.safeParse(raw);
       return result.success ? result.data : null;

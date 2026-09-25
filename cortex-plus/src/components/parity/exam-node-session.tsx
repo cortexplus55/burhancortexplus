@@ -27,6 +27,7 @@ import {
   type Mood,
 } from "@/lib/learning/session-signals";
 import { cn } from "@/lib/utils";
+import { onGenerationSucceeded } from "@/lib/credits/spendable";
 import { NodeGenerationProgress } from "@/components/parity/node-generation-progress";
 import "@/styles/node-generation-progress.css";
 
@@ -362,6 +363,7 @@ export function ExamNodeSession({
       }
       applyStartPayload(data);
       setStage("play");
+      onGenerationSucceeded(() => router.refresh());
     } catch {
       setGenerationError("Bağlantı kurulamadı. Lütfen yeniden dene.");
     } finally {
