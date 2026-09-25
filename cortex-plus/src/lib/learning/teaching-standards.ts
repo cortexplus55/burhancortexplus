@@ -163,6 +163,9 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "Bağıntı satırına cümle ekleme ve satır sonuna noktalı virgül koyma. " +
         "Kontrol sorusu bölüm cümlesini tekrar etmesin: öğrenciden dönüşümü, yönü veya " +
         "başka bir kaynak sayısını uygulamasını iste. " +
+        "Cümleyi 'Bu ifade doğru mudur?' diye uzatma. Doğru/yanlış yargısı kendi başına " +
+        "anlaşılsın; 'Bu sayı', 'Böylece' gibi göndereni olmayan sözcükle başlama. " +
+        "Yanlışın açıklaması nedeni, yanılgının adını ve bir ipucunu söylesin. " +
         // Yanılgı dersin sonunda tek adımdı; öğrenci onu beş adım sonra
         // görüyordu. Okunduğu yerde kesilirse hiç yerleşmiyor.
         "TUZAĞI YERİNDE UYAR: bir bölümde karıştırılması kolay bir ayrım varsa o bölüme " +
@@ -260,6 +263,14 @@ export const sectionCheckSchema = z.object({
     (value) => (typeof value === "string" ? value.slice(0, 600) : ""),
     z.string().max(600),
   ),
+  /** Doğru cevapta kısa gerekçe. Yoksa explanation gösterilir. */
+  whyRight: z.string().max(300).optional().catch(undefined),
+  /** Yanlış cevapta neden. Yoksa explanation gösterilir. */
+  whyWrong: z.string().max(300).optional().catch(undefined),
+  /** Yanlışın adı. Öğrenciye "yanılgı" olarak yazılır. */
+  misconception: z.string().max(140).optional().catch(undefined),
+  /** Yanlıştan sonra tek ipucu. Çözümü vermez. */
+  hint: z.string().max(200).optional().catch(undefined),
   /**
    * Aynı üretim çağrısında yazılan tekrar. Bozuk varyant dersi düşürmez;
    * ekran o zaman şık kaydırma + önek kullanır.
@@ -1671,6 +1682,8 @@ export const LESSON_V2_SCHEMA_HINT =
   "Anahtarlar İngilizce: objective, sections, example, commonMistake, infoCheck. Türkçe anahtar kullanma. " +
   "example, commonMistake, objective veya infoCheck yoksa alanı yazma; uydurma. " +
   "trueFalse ekranda DOĞRU MU YANLIŞ, mcq ekranda HIZLI SINAV. " +
+  "Doğru/yanlış yargısını cümlenin sonuna 'Bu ifade doğru mudur?' ekleyerek kurma. " +
+  "Göstereni olmayan 'Bu sayı', 'Böylece', 'Örnek 2' bırakma. Örnek, adımı ve sonucuyla tam olsun. " +
   "explanation yanlış seçeneğin neden çürük olduğunu yazsın. " +
   "cards isteğe bağlı: kardeş kavram kümesi varsa 2-6 kart; yoksa cards yazma, uydurma kart ekleme. " +
   "overview giriş metnidir; ayrı bir Giriş bölümü açma. " +

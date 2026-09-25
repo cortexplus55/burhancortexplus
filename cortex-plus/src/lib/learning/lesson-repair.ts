@@ -32,6 +32,14 @@ import {
   summaryQuantityMismatch,
 } from "@/lib/learning/lesson-claims";
 import { diagramIssues, lessonDiagramSchema, needsDiagram } from "@/lib/learning/lesson-diagram";
+import {
+  announcesIncompleteExample,
+  clippedContrastDefinition,
+  conceptCheck,
+  danglingOpener,
+  publishCoherentLesson,
+  retainAnchoredSentences,
+} from "@/lib/learning/lesson-coherence";
 import { groundLearnerLesson, normalizeSummaryText, summaryLineProblem } from "@/lib/learning/lesson-grounding";
 import type { LessonDiagram } from "@/lib/learning/lesson-diagram";
 import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
@@ -813,7 +821,7 @@ function cleanSentences(text: string, source: string, quotes: string[] = [], con
     const published = publishSentence(current, source, quotes, context);
     if (published) kept.push(published);
   }
-  return alignBounds(kept.join(" "), source).replace(/\s+/g, " ").trim();
+  return alignBounds(retainAnchoredSentences(kept).join(" "), source).replace(/\s+/g, " ").trim();
 }
 
 function validCheck(value: unknown): SectionCheck | null {
@@ -828,13 +836,20 @@ function validCheck(value: unknown): SectionCheck | null {
   if (stemLacksSubject(row.prompt)) return null;
   const options = row.options.map((option) => String(option).trim()).filter(Boolean);
   if (new Set(options.map((option) => option.toLocaleLowerCase("tr"))).size !== options.length) return null;
-  return {
+  const check: SectionCheck = {
     type: row.type === "trueFalse" ? "trueFalse" : "mcq",
     prompt: row.prompt.trim(),
     options,
     answerIndex: row.answerIndex,
     explanation: row.explanation.trim(),
   };
+  if (typeof row.whyRight === "string" && row.whyRight.trim()) check.whyRight = row.whyRight.trim();
+  if (typeof row.whyWrong === "string" && row.whyWrong.trim()) check.whyWrong = row.whyWrong.trim();
+  if (typeof row.misconception === "string" && row.misconception.trim()) {
+    check.misconception = row.misconception.trim();
+  }
+  if (typeof row.hint === "string" && row.hint.trim()) check.hint = row.hint.trim();
+  return check;
 }
 
 function validDiagram(value: unknown): LessonDiagram | null {
@@ -1164,6 +1179,7 @@ export function lessonRepairPrompt(
     "Özet 3 ile 5 bildiren cümle olsun. Her cümle nokta ile bitsin. Başlık, öğrenme hedefi, etiket zinciri, Soru:, Cevap:, ifade doğrudur, doğru cevap, seçenek, diğerleri, yanlış ve çünkü ile biten satır yazma.",
     "Bağıntının harf büyüklüğünü ve katsayısını kaynaktaki gibi koru. Kaynak söylemediği sayısal varsayımı sonuç diye yazma.",
     "Kontrol sorularının en fazla biri doğru/yanlış olsun. Diğerleri dört şıklı çoktan seçmeli olsun.",
+    "Doğru/yanlış yargısının sonuna 'Bu ifade doğru mudur?' ekleme. Göstereni olmayan cümle yazma.",
     "Tek cümlelik tekrar yazma. Verileni ve işlemi aynı sayıda göster: sonuç = bağıntı = verilen − sıfır.",
     "Adım 1 / Sonucu hesapla gibi yer tutucu yazma.",
     "Özetteki sayı, örneğin ve kaynağın sayısıyla aynı olsun.",
@@ -1658,17 +1674,16 @@ export function ensureThreeChecks(lesson: LessonV2, source = ""): LessonV2 {
   }
   for (const sentence of statements) {
     if (!needed()) break;
-    const prompt = `${sentence.replace(/[.!?]+$/g, "")} Bu ifade doğru mudur?`.slice(0, 300);
-    if (prompt.length < 12 || used.has(foldTr(prompt)) || stemLacksSubject(prompt)) continue;
-    const check = validCheck({
-      type: "trueFalse",
-      prompt,
-      options: ["Doğru", "Yanlış"],
-      answerIndex: 0,
-      explanation: sentence.slice(0, 580),
-    });
-    if (!check) continue;
-    used.add(foldTr(prompt));
+    if (
+      danglingOpener(sentence) ||
+      clippedContrastDefinition(sentence) ||
+      announcesIncompleteExample(sentence)
+    ) {
+      continue;
+    }
+    const check = validCheck(conceptCheck(sentence));
+    if (!check || used.has(foldTr(check.prompt)) || stemLacksSubject(check.prompt)) continue;
+    used.add(foldTr(check.prompt));
     queue.push(check);
   }
   for (const section of next.sections) {
@@ -2350,7 +2365,7 @@ function withCalculatedExample(lesson: LessonV2, source: string): LessonV2 {
 
 export async function repairLearnerLesson(
   lesson: LessonV2,
-  input: { source: string; topicLabel: string },
+  input: { source: string; topicLabel: string; targetMinutes?: number },
   complete: (prompt: string) => Promise<unknown>,
   verify?: (prompt: string) => Promise<unknown>,
 ): Promise<{
@@ -2396,13 +2411,19 @@ export async function repairLearnerLesson(
     audit.push({ code: "claim_wrong", detail: quotes[0].slice(0, 160) });
   }
   const requested = [...new Set(audit.map((issue) => issue.code))];
+  const coherent = (candidate: LessonV2) =>
+    publishCoherentLesson(candidate, topicSource, input.topicLabel, {
+      targetMinutes: input.targetMinutes,
+    });
   if (!requested.length) {
     const counted = prepared.sections.filter((section) => section.check).length;
-    if (counted >= 3) return { lesson: prepared, requested, succeeded: [], dropped: [], verifyMs };
+    if (counted >= 3) {
+      return { lesson: coherent(prepared), requested, succeeded: [], dropped: [], verifyMs };
+    }
     const summary = filledSummary(prepared, topicSource);
     const drafted = summary.length ? { ...prepared, summary } : prepared;
     return {
-      lesson: ensureThreeChecks(scopeLessonToTopic(drafted, input.source, input.topicLabel), topicSource),
+      lesson: coherent(ensureThreeChecks(scopeLessonToTopic(drafted, input.source, input.topicLabel), topicSource)),
       requested,
       succeeded: [],
       dropped: [],
@@ -2426,7 +2447,9 @@ export async function repairLearnerLesson(
   const covered = coverSourceRelations(finalized.lesson, topicSource);
   const summary = filledSummary(covered, topicSource);
   const drafted = summary.length ? { ...covered, summary } : covered;
-  const published = ensureThreeChecks(scopeLessonToTopic(drafted, input.source, input.topicLabel), topicSource);
+  const published = coherent(
+    ensureThreeChecks(scopeLessonToTopic(drafted, input.source, input.topicLabel), topicSource),
+  );
   const remaining = new Set(auditLearnerLesson(published, scoped).map((issue) => issue.code));
   const removed = new Set(finalized.dropped);
   const succeeded = requested.filter((code) => !remaining.has(code) && !removed.has(code));

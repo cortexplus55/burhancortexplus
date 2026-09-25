@@ -177,6 +177,46 @@
   line-height: 1.55;
 }
 
+.als-minutes {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--cp-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.als-recall {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.als-recall-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.als-recall-input {
+  width: 100%;
+  min-height: 5.5rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: inherit;
+  padding: 0.75rem 0.9rem;
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.als-recall-input:focus-visible {
+  outline: 2px solid var(--cp-accent, #6d8cff);
+  outline-offset: 2px;
+}
+
 .als-secondary {
   align-self: flex-start;
   margin-top: 0.9rem;

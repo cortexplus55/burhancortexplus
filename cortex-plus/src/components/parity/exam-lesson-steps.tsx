@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronLeft, ChevronRight, CornerDownLeft, X } from "lucide-react";
+import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 import { LessonDiagramView } from "@/components/parity/lesson-diagram";
 import {
@@ -104,6 +105,7 @@ type Step =
       sectionIndex: number;
     }
   | { kind: "example"; heading: string; prompt: string; solution: string }
+  | { kind: "recall"; heading: string; prompt: string; solution: string }
   | { kind: "mistake"; heading: string; claim: string; correction: string }
   | { kind: "summary"; heading: string; points: string[]; next: string[] }
   | { kind: "review-gate"; count: number }
@@ -156,7 +158,7 @@ function buildSteps(lesson: LessonV2): Step[] {
     );
     if (!duplicated) {
       steps.push({
-        kind: "example",
+        kind: "recall",
         heading: "Bilgi kontrolü",
         prompt: lesson.infoCheck.prompt,
         solution: lesson.infoCheck.answer,
@@ -210,6 +212,7 @@ export function ExamLessonSteps({
   const [picked, setPicked] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [solutionShown, setSolutionShown] = useState(false);
+  const [recallDraft, setRecallDraft] = useState("");
   const [cardIndex, setCardIndex] = useState(0);
   /** Yanlış cevaplanan bölümlerin sırası — tekrar kuyruğunu bunlar doğurur. */
   const [missed, setMissed] = useState<number[]>([]);
@@ -244,6 +247,7 @@ export function ExamLessonSteps({
     setPicked(null);
     setRevealed(false);
     setSolutionShown(false);
+    setRecallDraft("");
     setCardIndex(0);
   }
 
@@ -315,13 +319,16 @@ export function ExamLessonSteps({
           ))}
         </div>
         <p className="als-count" aria-live="polite">
-          {progressLabel(
-            index,
-            base.length,
-            step,
-            index - base.length,
-            Math.max(0, steps.length - base.length - 1),
-          )}
+          <span>
+            {progressLabel(
+              index,
+              base.length,
+              step,
+              index - base.length,
+              Math.max(0, steps.length - base.length - 1),
+            )}
+          </span>
+          <span className="als-minutes">yaklaşık {honestReadingMinutes(lesson)} dk</span>
         </p>
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
       </header>
@@ -419,6 +426,38 @@ export function ExamLessonSteps({
                 </button>
               )}
             </>
+          ) : null}
+
+          {step.kind === "recall" ? (
+            <div className="als-recall">
+              <p className="als-body">
+                <RichBody text={step.prompt} />
+              </p>
+              <label className="als-recall-label" htmlFor={`als-recall-${index}`}>
+                Önce kendin yaz
+              </label>
+              <textarea
+                id={`als-recall-${index}`}
+                className="als-recall-input"
+                value={recallDraft}
+                placeholder="Cevabını düşün, sonra çözümü aç."
+                onChange={(event) => setRecallDraft(event.target.value)}
+              />
+              {solutionShown ? (
+                <div className="als-solution">
+                  <span className="als-tag">Çözüm</span>
+                  <BoardBody text={step.solution} className="als-solution-body" />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="als-secondary"
+                  onClick={() => setSolutionShown(true)}
+                >
+                  Çözümü göster
+                </button>
+              )}
+            </div>
           ) : null}
 
           {step.kind === "mistake" ? (
@@ -579,16 +618,33 @@ function Explanation({
   revisit: boolean;
 }) {
   const wrong = picked !== check.answerIndex;
+  const whyRight = check.whyRight?.trim() ?? "";
+  const whyWrong = check.whyWrong?.trim() ?? "";
+  const structured = Boolean(whyRight || whyWrong || check.misconception || check.hint);
   return (
     <div className="als-explain">
-      {check.explanation.trim() ? (
+      <p className="als-explain-kicker">AÇIKLAMA</p>
+      {wrong ? (
         <>
-          <p className="als-explain-kicker">AÇIKLAMA</p>
           <p>
-            <RichBody text={check.explanation} />
+            <RichBody text={whyWrong || check.explanation} />
           </p>
+          {check.misconception?.trim() ? (
+            <p>
+              <span className="als-tag als-tag--warn">Yanılgı</span> {check.misconception.trim()}
+            </p>
+          ) : null}
+          {check.hint?.trim() ? (
+            <p>
+              <span className="als-tag">İpucu</span> {check.hint.trim()}
+            </p>
+          ) : null}
         </>
-      ) : null}
+      ) : (
+        <p>
+          <RichBody text={structured && whyRight ? whyRight : check.explanation} />
+        </p>
+      )}
       {wrong && revisit ? (
         <p className="als-revisit">Dersin sonunda buna geri döneceğiz.</p>
       ) : null}
