@@ -7,19 +7,21 @@ import {
   STUDY_PATH_HINT,
   STUDY_TOOLS,
   resolveStudyToolNode,
+  studyPodcastHref,
   studyToolHref,
   type StudyNodeRef,
 } from "@/lib/learning/study-tools";
 
 /**
  * Hazırlık düzeyinde "Ders oluştur".
- * Podcast karosu da aynı listedeki bir düğümdür; podcast üretimine
- * burada dokunulmaz. Başka bir akış o düğümü açar.
+ * Podcast karosu hazırlığın podcast rotasına gider; konu ve süre
+ * seçici oradadır. Burada ikinci bir üretim akışı yok.
  */
 export function StudyToolsHub({
   prepId,
   nodes,
   topics,
+  topicOptions = [],
   topicLabel,
   onTopic,
   onClose,
@@ -27,6 +29,8 @@ export function StudyToolsHub({
   prepId: string;
   nodes: StudyNodeRef[];
   topics: string[];
+  /** exam_prep_topics kimliği. Yoksa podcast seçicisi kendi listesini açar. */
+  topicOptions?: { id: string; label: string }[];
   topicLabel: string | null;
   onTopic: (label: string | null) => void;
   onClose: () => void;
@@ -69,8 +73,13 @@ export function StudyToolsHub({
         )}
         <ul className="cp-study-hub-grid">
           {STUDY_TOOLS.map((tool) => {
-            const node = resolveStudyToolNode(nodes, tool.id, { label: topicLabel });
-            const href = node ? studyToolHref(prepId, node.id) : null;
+            const href =
+              tool.id === "podcast"
+                ? studyPodcastHref(prepId, topicLabel, topicOptions)
+                : (() => {
+                    const node = resolveStudyToolNode(nodes, tool.id, { label: topicLabel });
+                    return node ? studyToolHref(prepId, node.id) : null;
+                  })();
             return (
               <li key={tool.id}>
                 {href ? (

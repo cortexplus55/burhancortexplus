@@ -92,6 +92,9 @@ describe("study tools hub regression", () => {
     fireEvent.change(screen.getByLabelText("Konu seç"), { target: { value: "Gazlar" } });
     const oral = screen.getByRole("link", { name: "Sözlü deneme" });
     expect(oral.getAttribute("href")).toBe("/deneme-sinavlari/prep-1/dugum/oral-gaz");
+    expect(screen.getByRole("link", { name: "Podcast" }).getAttribute("href")).toBe(
+      "/deneme-sinavlari/prep-1/podcast",
+    );
     expect(screen.getAllByText("Bu konuda bu etkinlik yok").length).toBeGreaterThan(0);
   });
 
@@ -105,6 +108,9 @@ describe("study tools hub regression", () => {
     const oral = screen.getByRole("link", { name: "Sözlü deneme" });
     expect(oral.getAttribute("href")).toBe(studyToolHref("prep-1", "oral-ana"));
     expect(resolveStudyToolNode(lawNodes, "podcast", { label: "Anayasa" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Podcast" }).getAttribute("href")).toBe(
+      "/deneme-sinavlari/prep-1/podcast",
+    );
     expect(screen.getAllByText("Bu konuda bu etkinlik yok").length).toBeGreaterThan(0);
   });
 });

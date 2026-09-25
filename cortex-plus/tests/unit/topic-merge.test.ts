@@ -115,6 +115,19 @@ describe("prerequisite order", () => {
     ]);
   });
 
+  it("puts a heavier ready topic ahead of a lighter one", () => {
+    const weighted = [
+      { title: "Temel kanunlar", prerequisites: [] as string[], priority: 4 },
+      { title: "Stokiyometri", prerequisites: ["Mol kavramı"], priority: 1 },
+      { title: "Mol kavramı", prerequisites: [] as string[], priority: 1 },
+    ];
+    expect(orderTopicsForPath(weighted, { manualOrder: false }).map((topic) => topic.title)).toEqual([
+      "Mol kavramı",
+      "Stokiyometri",
+      "Temel kanunlar",
+    ]);
+  });
+
   it("keeps the student's order after they moved a topic", () => {
     expect(orderTopicsForPath(topics, { manualOrder: true }).map((topic) => topic.title)).toEqual([
       "Hal değişimi",

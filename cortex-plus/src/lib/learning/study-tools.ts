@@ -1,5 +1,5 @@
 import type { NodeStatus, PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { examPrepNodeHref } from "@/lib/learning/exam-prep-hrefs";
+import { examPrepNodeHref, examPrepPodcastHref } from "@/lib/learning/exam-prep-hrefs";
 
 /**
  * Çalışma yolu bir öneridir. Kilit, önceki adım bitmeden sonrakini
@@ -94,6 +94,24 @@ export function resolveStudyToolNode<T extends StudyNodeRef>(
 
 export function studyToolHref(prepId: string, nodeId: string): string {
   return examPrepNodeHref(prepId, nodeId);
+}
+
+/**
+ * Podcast karosu yoldaki düğümü açmaz. Konu ve süre seçici
+ * `/deneme-sinavlari/[prepId]/podcast` rotasındadır.
+ * Konu kimliği hazırlığın konu kaydıysa sorguya yazılır; etiket
+ * eşleşmezse seçici açılır.
+ */
+export function studyPodcastHref(
+  prepId: string,
+  topicLabel: string | null,
+  topics: { id: string; label: string }[] = [],
+): string {
+  const wanted = (topicLabel ?? "").trim().toLocaleLowerCase("tr-TR");
+  const match = wanted
+    ? topics.find((topic) => topic.label.trim().toLocaleLowerCase("tr-TR") === wanted && topic.id.trim())
+    : undefined;
+  return examPrepPodcastHref(prepId, match?.id);
 }
 
 /**

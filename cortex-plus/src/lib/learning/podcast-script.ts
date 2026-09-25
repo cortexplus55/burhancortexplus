@@ -19,7 +19,8 @@ export const SPEAKER_LABEL: Record<SpeakerId, string> = {
   kerem: "Kerem",
 };
 
-export type PodcastLine = { speaker: SpeakerId; text: string };
+export type PodcastBeat = "ask" | "reveal";
+export type PodcastLine = { speaker: SpeakerId; text: string; beat?: PodcastBeat };
 export type PodcastChapter = { title: string; lines: PodcastLine[] };
 
 /** Zamanlama eklenmiş, oynatıcının üzerinde yürüdüğü birim. */
@@ -118,8 +119,9 @@ export function normalizeChapters(raw: unknown): PodcastChapter[] {
         const text = typeof line.text === "string" ? line.text : "";
         const speaker = asSpeaker(line.speaker, previous);
         previous = speaker;
+        const beat = line.beat === "ask" || line.beat === "reveal" ? line.beat : undefined;
         for (const sentence of splitSentences(text)) {
-          lines.push({ speaker, text: sentence });
+          lines.push(beat ? { speaker, text: sentence, beat } : { speaker, text: sentence });
         }
       }
     } else if (typeof row.script === "string") {
@@ -138,17 +140,24 @@ export function normalizeChapters(raw: unknown): PodcastChapter[] {
 /** Ses üretimi ve depolama için sıralı düz liste. */
 export function flattenLines(
   chapters: PodcastChapter[],
-): { chapterIndex: number; index: number; speaker: SpeakerId; text: string }[] {
+): { chapterIndex: number; index: number; speaker: SpeakerId; text: string; beat?: PodcastBeat }[] {
   const out: {
     chapterIndex: number;
     index: number;
     speaker: SpeakerId;
     text: string;
+    beat?: PodcastBeat;
   }[] = [];
   let index = 0;
   chapters.forEach((chapter, chapterIndex) => {
     for (const line of chapter.lines) {
-      out.push({ chapterIndex, index, speaker: line.speaker, text: line.text });
+      out.push({
+        chapterIndex,
+        index,
+        speaker: line.speaker,
+        text: line.text,
+        ...(line.beat ? { beat: line.beat } : {}),
+      });
       index += 1;
     }
   });

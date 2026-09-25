@@ -85,6 +85,25 @@ describe("exam prep home path", () => {
     expect(screen.queryByRole("heading", { name: "Bugün başla" })).toBeNull();
   });
 
+  it("opens a locked podcast from the path and starts a new one from the hub", () => {
+    renderHome({
+      topicOptions: [
+        { id: "topic-sistemler", label: "Sistemler" },
+        { id: "topic-enerji", label: "Enerji" },
+      ],
+    });
+    const locked = screen.getByRole("button", { name: /Podcast Dinle/ });
+    expect((locked as HTMLButtonElement).disabled).toBe(false);
+    expect(locked.getAttribute("aria-label")).toMatch(/önerilen sırada/);
+    expect(screen.queryByRole("link", { name: "Podcast oluştur" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Ders oluştur" }));
+    fireEvent.change(screen.getByLabelText("Konu seç"), { target: { value: "Sistemler" } });
+    const podcast = screen.getByRole("link", { name: "Podcast" });
+    expect(podcast.getAttribute("href")).toBe(
+      "/deneme-sinavlari/prep-1/podcast?topicId=topic-sistemler",
+    );
+  });
+
   it("lists topics without leaving the prep", () => {
     renderHome();
     fireEvent.click(screen.getByRole("tab", { name: "Konular" }));

@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { isPhotoQuotaError } from "@/lib/documents/process-errors";
 import {
+  PROCESS_RETRY_MESSAGE,
+  postDocumentProcess,
+  requestDocumentProcessing,
+} from "@/lib/documents/process-session";
+import {
   Check,
   ChevronLeft,
   FileText,
@@ -21,8 +26,10 @@ import {
   STUDY_MODALITY_CHOICES,
   WIZARD_COPY,
   WIZARD_STEP_ORDER,
+  sourceCountLabel,
 } from "@/lib/learning/exam-wizard-copy";
 import { freeMaterialLimitLine, materialDetailLine } from "@/lib/learning/prep-material-copy";
+import { filesAcceptedFromSelection } from "@/lib/learning/prep-file-cap";
 import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
 import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
@@ -60,6 +67,29 @@ type WizardMaterial = {
   sizeBytes: number | null;
   pageCount: number | null;
 };
+
+type TopicMeta = {
+  sourceCount: number;
+  examHeavy: boolean;
+  important: boolean;
+  sections: string[];
+};
+
+type ExcludedNote = { title: string; reason: string };
+type MissingTopic = { title: string; weightPercent: number | null; examHeavy: boolean };
+
+const EMPTY_META: TopicMeta = { sourceCount: 0, examHeavy: false, important: false, sections: [] };
+
+function formatSyllabusDate(iso: string): string {
+  const [year, month, day] = iso.split("-");
+  const names = [
+    "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+    "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
+  ];
+  const name = names[Number(month) - 1];
+  if (!name || !day || !year) return iso;
+  return `${Number(day)} ${name} ${year}`;
+}
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -151,11 +181,20 @@ export function ExamCreateWizard({
   /** true: tüm konulara eşit. false: focusTopics seçili. */
   const [equalFocus, setEqualFocus] = useState(true);
 
-  const [materials, setMaterials] = useState<WizardMaterial[]>(
+  const [materials, setMaterialsState] = useState<WizardMaterial[]>(
     initialDocumentId
       ? [{ id: initialDocumentId, fileName: "Seçili materyal", sizeBytes: null, pageCount: null }]
       : [],
   );
+  const materialsRef = useRef(materials);
+  const reservedSlots = useRef(0);
+  function setMaterials(
+    next: WizardMaterial[] | ((current: WizardMaterial[]) => WizardMaterial[]),
+  ) {
+    const resolved = typeof next === "function" ? next(materialsRef.current) : next;
+    materialsRef.current = resolved;
+    setMaterialsState(resolved);
+  }
   const [docs, setDocs] = useState<WizardMaterial[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -169,6 +208,10 @@ export function ExamCreateWizard({
   const [topicPages, setTopicPages] = useState<number[][]>([]);
   const [topicFiles, setTopicFiles] = useState<string[][]>([]);
   const [topicWarnings, setTopicWarnings] = useState<string[]>([]);
+  const [topicMeta, setTopicMeta] = useState<TopicMeta[]>([]);
+  const [excludedTopics, setExcludedTopics] = useState<ExcludedNote[]>([]);
+  const [missingTopics, setMissingTopics] = useState<MissingTopic[]>([]);
+  const [suggestedExamDate, setSuggestedExamDate] = useState<string | null>(null);
   /** Öğrenci oklarla sırayı değiştirdiyse önkoşul sırası ezilmez. */
   const [orderEdited, setOrderEdited] = useState(false);
   const [focusTopics, setFocusTopics] = useState<string[]>([]);
@@ -272,6 +315,64 @@ export function ExamCreateWizard({
         setTopicWarnings(
           Array.isArray(payload?.draft?.topicWarnings) ? payload.draft.topicWarnings : [],
         );
+        const counts: unknown[] = Array.isArray(payload?.draft?.topicSourceCounts)
+          ? payload.draft.topicSourceCounts
+          : [];
+        const heavy: unknown[] = Array.isArray(payload?.draft?.topicHeavy)
+          ? payload.draft.topicHeavy
+          : [];
+        const important: unknown[] = Array.isArray(payload?.draft?.topicImportant)
+          ? payload.draft.topicImportant
+          : [];
+        const sections: unknown[] = Array.isArray(payload?.draft?.topicSections)
+          ? payload.draft.topicSections
+          : [];
+        setTopicMeta(
+          found.map((_, index) => ({
+            sourceCount: typeof counts[index] === "number" ? counts[index] : 0,
+            examHeavy: heavy[index] === true,
+            important: important[index] === true && heavy[index] !== true,
+            sections: Array.isArray(sections[index])
+              ? sections[index].filter((item: unknown) => typeof item === "string")
+              : [],
+          })),
+        );
+        setExcludedTopics(
+          Array.isArray(payload?.draft?.excluded)
+            ? payload.draft.excluded.flatMap((item: unknown) => {
+                if (!item || typeof item !== "object") return [];
+                const row = item as { title?: unknown; reason?: unknown };
+                if (typeof row.title !== "string" || typeof row.reason !== "string") return [];
+                return [{ title: row.title, reason: row.reason }];
+              })
+            : [],
+        );
+        setMissingTopics(
+          Array.isArray(payload?.draft?.missingTopics)
+            ? payload.draft.missingTopics.flatMap((item: unknown) => {
+                if (!item || typeof item !== "object") return [];
+                const row = item as {
+                  title?: unknown;
+                  weightPercent?: unknown;
+                  examHeavy?: unknown;
+                };
+                if (typeof row.title !== "string") return [];
+                return [
+                  {
+                    title: row.title,
+                    weightPercent: typeof row.weightPercent === "number" ? row.weightPercent : null,
+                    examHeavy: row.examHeavy === true,
+                  },
+                ];
+              })
+            : [],
+        );
+        const suggested =
+          typeof payload?.draft?.suggestedExamDate === "string"
+            ? payload.draft.suggestedExamDate
+            : null;
+        setSuggestedExamDate(suggested);
+        if (suggested) setExamDate((current) => current || suggested);
         setOrderEdited(false);
         setTitle(payload?.draft?.title || `${subject} sınav hazırlığı`);
       } catch {
@@ -291,17 +392,19 @@ export function ExamCreateWizard({
   );
 
   function rememberMaterial(material: WizardMaterial) {
-    let stored = false;
-    setMaterials((current) => {
-      if (current.some((item) => item.id === material.id)) {
-        stored = true;
-        return current.map((item) => (item.id === material.id ? { ...item, ...material } : item));
-      }
-      if (current.length >= PREP_SOURCE_DOCUMENT_CAP) return current;
-      stored = true;
-      return [...current, material];
+    const current = materialsRef.current;
+    if (current.some((item) => item.id === material.id)) {
+      setMaterials(current.map((item) => (item.id === material.id ? { ...item, ...material } : item)));
+      return true;
+    }
+    const { accepted } = filesAcceptedFromSelection({
+      committedCount: current.length,
+      selectedCount: 1,
+      cap: PREP_SOURCE_DOCUMENT_CAP,
     });
-    return stored;
+    if (accepted < 1) return false;
+    setMaterials([...current, material]);
+    return true;
   }
 
   async function processAndRemember(input: {
@@ -309,27 +412,30 @@ export function ExamCreateWizard({
     fileName: string;
     sizeBytes: number | null;
   }): Promise<boolean> {
-    const processRes = await fetch("/api/documents/process", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentId: input.documentId }),
+    const result = await requestDocumentProcessing({
+      documentId: input.documentId,
+      post: postDocumentProcess,
     });
-    const processed = await processRes.json().catch(() => ({}));
-    if (processRes.status === 402) {
+    const processed = result.body;
+    if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
+    if (result.status === 402) {
       if (isPhotoQuotaError(processed)) {
-        toast.error(processed.error ?? "Bu ayki fotoğraf hakkın doldu.", {
-          description:
-            freePdfCap !== null
-              ? `Plus ile daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.plus} sayfa).`
-              : undefined,
-        });
+        toast.error(
+          typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.",
+          {
+            description:
+              freePdfCap !== null
+                ? `Plus ile daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.plus} sayfa).`
+                : undefined,
+          },
+        );
         return false;
       }
       setPaywall(true);
       return false;
     }
-    if (!processRes.ok) {
-      toast.error(processed.error ?? "Dosya işlenemedi.");
+    if (!result.ok) {
+      toast.error(typeof processed.error === "string" ? processed.error : "Dosya işlenemedi.");
       return false;
     }
     const stored = rememberMaterial({
@@ -343,16 +449,23 @@ export function ExamCreateWizard({
       return false;
     }
     toast.success("Materyalin hazır.", {
-      description: processed.notice ?? undefined,
+      description: typeof processed.notice === "string" ? processed.notice : undefined,
     });
     return true;
   }
 
   async function takeFile(file: File | undefined, enforceCap = true): Promise<boolean> {
     if (!file) return false;
-    if (enforceCap && materials.length >= PREP_SOURCE_DOCUMENT_CAP) {
-      toast.error(WIZARD_COPY.fileCap);
-      return false;
+    if (enforceCap) {
+      const { accepted } = filesAcceptedFromSelection({
+        committedCount: materialsRef.current.length + reservedSlots.current,
+        selectedCount: 1,
+        cap: PREP_SOURCE_DOCUMENT_CAP,
+      });
+      if (accepted < 1) {
+        toast.error(WIZARD_COPY.fileCap);
+        return false;
+      }
     }
     if (!acceptedUpload(file)) {
       toast.error(DOCUMENT_PICK_REJECTED);
@@ -390,15 +503,25 @@ export function ExamCreateWizard({
 
   async function takeFiles(list: FileList | File[] | undefined) {
     const files = list ? [...list] : [];
-    let room = PREP_SOURCE_DOCUMENT_CAP - materials.length;
-    for (const file of files) {
-      if (room <= 0) {
-        toast.error(WIZARD_COPY.fileCap);
-        break;
+    if (!files.length) return;
+    const { accepted, overflow } = filesAcceptedFromSelection({
+      committedCount: materialsRef.current.length + reservedSlots.current,
+      selectedCount: files.length,
+      cap: PREP_SOURCE_DOCUMENT_CAP,
+    });
+    if (accepted === 0) {
+      toast.error(WIZARD_COPY.fileCap);
+      return;
+    }
+    if (overflow > 0) toast.error(WIZARD_COPY.fileCap);
+    reservedSlots.current += accepted;
+    try {
+      for (const file of files.slice(0, accepted)) {
+        const added = await takeFile(file, false);
+        if (!added) break;
       }
-      const added = await takeFile(file, false);
-      if (!added) break;
-      room -= 1;
+    } finally {
+      reservedSlots.current = Math.max(0, reservedSlots.current - accepted);
     }
   }
 
@@ -737,7 +860,12 @@ export function ExamCreateWizard({
                           setMaterials((current) => current.filter((item) => item.id !== doc.id));
                           return;
                         }
-                        if (materials.length >= PREP_SOURCE_DOCUMENT_CAP) {
+                        const { accepted } = filesAcceptedFromSelection({
+                          committedCount: materialsRef.current.length,
+                          selectedCount: 1,
+                          cap: PREP_SOURCE_DOCUMENT_CAP,
+                        });
+                        if (accepted < 1) {
                           toast.error(WIZARD_COPY.fileCap);
                           return;
                         }
@@ -852,16 +980,29 @@ export function ExamCreateWizard({
           <p className="apw-lead">
             Yanlış olanı değiştir, eksik olanı ekle.
           </p>
+          {suggestedExamDate && suggestedExamDate !== examDate ? (
+            <p className="apw-syllabus-date">
+              Müfredatta sınav tarihi {formatSyllabusDate(suggestedExamDate)}.
+              <button type="button" onClick={() => setExamDate(suggestedExamDate)}>
+                {WIZARD_COPY.useSyllabusDate}
+              </button>
+            </p>
+          ) : null}
           <TopicEditor
             topics={topics}
             topicPages={topicPages}
             topicFiles={topicFiles}
             topicWarnings={topicWarnings}
+            topicMeta={topicMeta}
+            excluded={excludedTopics}
+            missing={missingTopics}
             documentIds={documentIds}
             onTopics={setTopics}
             onPages={setTopicPages}
             onFiles={setTopicFiles}
             onWarnings={setTopicWarnings}
+            onMeta={setTopicMeta}
+            onMissing={setMissingTopics}
             onOrderEdited={() => setOrderEdited(true)}
             onRename={(from, to) =>
               setFocusTopics((prev) =>
@@ -974,11 +1115,16 @@ export function ExamCreateWizard({
             topicPages={topicPages}
             topicFiles={topicFiles}
             topicWarnings={topicWarnings}
+            topicMeta={topicMeta}
+            excluded={excludedTopics}
+            missing={missingTopics}
             documentIds={documentIds}
             onTopics={setTopics}
             onPages={setTopicPages}
             onFiles={setTopicFiles}
             onWarnings={setTopicWarnings}
+            onMeta={setTopicMeta}
+            onMissing={setMissingTopics}
             onOrderEdited={() => setOrderEdited(true)}
             onRename={(from, to) =>
               setFocusTopics((prev) =>
@@ -1017,11 +1163,16 @@ function TopicEditor({
   topicPages,
   topicFiles,
   topicWarnings,
+  topicMeta,
+  excluded,
+  missing,
   documentIds,
   onTopics,
   onPages,
   onFiles,
   onWarnings,
+  onMeta,
+  onMissing,
   onOrderEdited,
   onRename,
   onRemove,
@@ -1030,11 +1181,16 @@ function TopicEditor({
   topicPages: number[][];
   topicFiles: string[][];
   topicWarnings: string[];
+  topicMeta: TopicMeta[];
+  excluded: ExcludedNote[];
+  missing: MissingTopic[];
   documentIds: string[];
   onTopics: (next: string[]) => void;
   onPages: (next: number[][]) => void;
   onFiles: (next: string[][]) => void;
   onWarnings: (next: string[]) => void;
+  onMeta: (next: TopicMeta[]) => void;
+  onMissing: (next: MissingTopic[]) => void;
   onOrderEdited: () => void;
   onRename: (from: string, to: string) => void;
   onRemove: (title: string) => void;
@@ -1135,7 +1291,33 @@ function TopicEditor({
     onPages([...topicPages, result.pageNumbers]);
     onFiles([...topicFiles, []]);
     onWarnings([...topicWarnings, ""]);
+    onMeta([...topicMeta, { ...EMPTY_META }]);
+    onMissing(missing.filter((item) => item.title !== title));
     close();
+  }
+
+  async function addMissing(item: MissingTopic) {
+    if (checking) return;
+    if (duplicate(item.title, null)) {
+      onMissing(missing.filter((row) => row.title !== item.title));
+      return;
+    }
+    setChecking(true);
+    const result = await ground(item.title);
+    setChecking(false);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    onTopics([...topics, item.title]);
+    onPages([...topicPages, result.pageNumbers]);
+    onFiles([...topicFiles, []]);
+    onWarnings([...topicWarnings, ""]);
+    onMeta([
+      ...topicMeta,
+      { sourceCount: 0, examHeavy: item.examHeavy, important: false, sections: [] },
+    ]);
+    onMissing(missing.filter((row) => row.title !== item.title));
   }
 
   function removeAt(index: number) {
@@ -1146,6 +1328,7 @@ function TopicEditor({
     onPages(topicPages.filter((_, item) => item !== index));
     onFiles(topicFiles.filter((_, item) => item !== index));
     onWarnings(topicWarnings.filter((_, item) => item !== index));
+    onMeta(topicMeta.filter((_, item) => item !== index));
   }
 
   function move(index: number, delta: number) {
@@ -1163,20 +1346,42 @@ function TopicEditor({
     const warnings = [...topicWarnings];
     const [warning] = warnings.splice(index, 1);
     warnings.splice(next, 0, warning ?? "");
+    const meta = [...topicMeta];
+    const [metaRow] = meta.splice(index, 1);
+    meta.splice(next, 0, metaRow ?? { ...EMPTY_META });
     onTopics(reordered);
     onPages(pages);
     onFiles(files);
     onWarnings(warnings);
+    onMeta(meta);
     onOrderEdited();
   }
 
   return (
     <>
+      {excluded.length ? (
+        <ul className="apw-excluded">
+          {excluded.map((note) => (
+            <li key={note.title}>
+              <strong>{note.title}</strong>
+              <em className="apw-topic-warning">{note.reason}</em>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <ul className="apw-topics">
-        {topics.map((topic, index) => (
+        {topics.map((topic, index) => {
+          const meta = topicMeta[index] ?? EMPTY_META;
+          return (
           <li key={`${index}-${topic}`}>
             <span className="apw-topic-field">
               <strong>{topic}</strong>
+              {meta.examHeavy ? <em className="apw-topic-heavy">{WIZARD_COPY.examHeavy}</em> : null}
+              {meta.important && !meta.examHeavy ? (
+                <em className="apw-topic-important">{WIZARD_COPY.important}</em>
+              ) : null}
+              {meta.sourceCount > 0 ? <em>{sourceCountLabel(meta.sourceCount)}</em> : null}
+              {meta.sections.length ? <em>{meta.sections.join(" · ")}</em> : null}
               {topicFiles[index]?.length ? (
                 <em>Kaynak: {topicFiles[index].join(", ")}</em>
               ) : topicPages[index]?.length ? (
@@ -1227,8 +1432,25 @@ function TopicEditor({
               </button>
             </span>
           </li>
-        ))}
+          );
+        })}
       </ul>
+      {missing.length ? (
+        <ul className="apw-missing">
+          {missing.map((item) => (
+            <li key={item.title}>
+              <span>
+                <strong>{item.title}</strong>
+                <em>{WIZARD_COPY.missingMaterial}</em>
+                {item.examHeavy ? <em className="apw-topic-heavy">{WIZARD_COPY.examHeavy}</em> : null}
+              </span>
+              <button type="button" disabled={checking} onClick={() => void addMissing(item)}>
+                {WIZARD_COPY.addMissing}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <button
         type="button"
         className="apw-topic-add-btn"

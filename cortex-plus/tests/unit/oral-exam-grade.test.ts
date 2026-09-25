@@ -114,6 +114,51 @@ describe("oral exam grading is grounded for every subject", () => {
     expect(report.items[0]?.modelAnswer).not.toContain("%41");
   });
 
+  it("repairs a model equation and rejects a wrong arithmetic claim", () => {
+    const report = gradeOralExam(
+      [
+        {
+          prompt: "İki ile ikiyi topla.",
+          learningObjective: "Toplama",
+          expectedPoints: ["2 + 2 = 5", "mol katsayı oranına bakılarak bulunur"],
+        },
+      ],
+      { "0": "2 + 2 = 5 ve mol katsayı oranına bakılarak bulunur." },
+      "Toplam 2 + 2 = 4. Mol sayısı stokiyometrik katsayıya bölünür.",
+    );
+    expect(report.items[0]?.modelAnswer).toContain("2 + 2 = 4");
+    expect(report.items[0]?.modelAnswer).not.toContain("= 5");
+    expect(report.items[0]?.ratio).toBe(0);
+    expect(report.items[0]?.numericIssue).toMatch(/5|hesap/i);
+  });
+
+  it("cites the corpus passage when the question has no stamped file", () => {
+    const report = gradeOralExam(
+      [
+        {
+          prompt: "İrade sakatlığı halleri nelerdir?",
+          expectedPoints: ["hata, hile ve ikrah"],
+        },
+      ],
+      { "0": "Hata, hile ve ikrah." },
+      lawSource,
+      [
+        {
+          documentName: "anayasa.pptx",
+          pageNumber: 2,
+          slide: true,
+          content: "Yasama organı meclistir.",
+        },
+        {
+          documentName: "borclar.pdf",
+          pageNumber: 9,
+          content: "İrade sakatlığı hata, hile ve ikrahtır.",
+        },
+      ],
+    );
+    expect(report.items[0]?.citation).toBe("borclar.pdf · s.9");
+  });
+
   it("asks one follow-up and hides the hint unless the teacher is helpful", () => {
     const partial = visibleProbe({
       answer: "18",
@@ -208,5 +253,8 @@ describe("study path lock is a recommendation", () => {
     expect(route).toContain("studyNodeOpenable");
     expect(route).not.toContain('node.status === "locked"');
     expect(route).toContain("gradeOralExam");
+    expect(route).toContain("loadPrepChatGrounding");
+    expect(route).toContain("rememberMisconceptions");
+    expect(route).not.toContain("needsQuantModelCheck");
   });
 });

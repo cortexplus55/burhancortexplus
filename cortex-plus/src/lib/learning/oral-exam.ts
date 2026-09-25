@@ -1,5 +1,10 @@
 import { unsupportedQuantities } from "@/lib/learning/teacher-brain";
 import type { OralTeacherMoodId } from "@/lib/learning/oral-exam-chrome";
+import {
+  auditQuantitative,
+  gradeStudentClaim,
+  repairQuantitative,
+} from "@/lib/learning/tutor-quant";
 
 /**
  * Sözlü denemenin notu, takip sorusu ve kaynak bağı.
@@ -33,6 +38,14 @@ export type OralQuestionDraft = {
 export type OralCitation = {
   file: string | null;
   pages: number[];
+};
+
+/** Korpus pasajı. Sunucu `loadPrepChatGrounding` ile doldurur. */
+export type OralGroundingPassage = {
+  documentName: string;
+  pageNumber: number | null;
+  slide?: boolean;
+  content: string;
 };
 
 export type OralItemGrade = {
@@ -148,6 +161,47 @@ export function citationLabel(
   return null;
 }
 
+function passageWhere(passage: OralGroundingPassage): string | null {
+  if (!passage.pageNumber || passage.pageNumber < 1) return null;
+  return passage.slide ? `slayt ${passage.pageNumber}` : `s.${passage.pageNumber}`;
+}
+
+/** Damgalı kaynak duruyorsa o kalır. Yoksa soruyla örtüşen pasaj. */
+export function citationFromPassages(
+  question: OralQuestionDraft,
+  passages: OralGroundingPassage[],
+): string | null {
+  const stamped = citationLabel(question.sourceFile, question.sourcePage);
+  if (stamped) return stamped;
+  const needles = tokens(`${question.prompt ?? ""} ${(question.expectedPoints ?? []).join(" ")}`);
+  let best: OralGroundingPassage | null = null;
+  let bestScore = 0;
+  for (const passage of passages) {
+    const hay = fold(passage.content);
+    const score = needles.filter((token) => hay.includes(token)).length;
+    if (score > bestScore) {
+      best = passage;
+      bestScore = score;
+    }
+  }
+  if (!best || bestScore === 0) return null;
+  return citationLabel(best.documentName, passageWhere(best));
+}
+
+/**
+ * Model cümlesindeki sayıyı kaynağa karşı düzeltir.
+ * Düzeltme kaynakta olmayan nicelik taşıyorsa cümle olduğu gibi kalır.
+ * Ayrıştırılamayan örnek için ikinci model çağrısı yok.
+ */
+function repairModelAnswer(text: string, source: string): string {
+  const audit = auditQuantitative(text, source);
+  if (audit.ok || !audit.issues.length) return text;
+  const repaired = repairQuantitative(text, audit).trim();
+  if (!repaired) return text;
+  if (source.trim() && unsupportedQuantities(repaired, source).length) return text;
+  return repaired;
+}
+
 export function stampOralQuestions<T extends OralQuestionDraft>(
   questions: T[],
   citation: OralCitation | null | undefined,
@@ -242,11 +296,24 @@ function supportedPoint(point: string, source: string): string | null {
   return text;
 }
 
+/** Önce kaynağa uyan cümle. Uymuyorsa sayı denetimi düzeltir; o da uymuyorsa düşer. */
+function groundedPoint(point: string, source: string): string | null {
+  const direct = supportedPoint(point, source);
+  if (direct) {
+    const repaired = repairModelAnswer(direct, source);
+    return supportedPoint(repaired, source) ?? direct;
+  }
+  const repaired = repairModelAnswer(point, source);
+  if (!repaired || repaired === point.trim()) return null;
+  return supportedPoint(repaired, source);
+}
+
 export function gradeOralAnswer(
   question: OralQuestionDraft,
   answerRaw: string,
   source: string,
   index: number,
+  passages: OralGroundingPassage[] = [],
 ): OralItemGrade {
   const answer = answerRaw.trim();
   const prompt = question.prompt?.trim() || `Soru ${index + 1}`;
@@ -256,13 +323,30 @@ export function gradeOralAnswer(
   const numeric = !dontKnow && answer ? unsupportedQuantities(answer, ground) : [];
   const covered = dontKnow ? [] : points.filter((point) => answerCoversPoint(answer, point));
   const missing = dontKnow ? points : points.filter((point) => !covered.includes(point));
-  const ratio = !points.length || dontKnow ? 0 : covered.length / points.length;
+  let ratio = !points.length || dontKnow ? 0 : covered.length / points.length;
   const modelPoints = points
-    .map((point) => supportedPoint(point, source))
+    .map((point) => groundedPoint(point, source))
     .filter((point): point is string => Boolean(point));
-  const modelAnswer = modelPoints.length
+  let modelAnswer = modelPoints.length
     ? modelPoints.join(" ")
     : "Kaynakta bu soru için doğrulanmış bir çözüm cümlesi yok.";
+  const studentAudit = !dontKnow && answer ? auditQuantitative(answer, source) : null;
+  const claim = !dontKnow && answer ? gradeStudentClaim({ student: answer, context: ground }) : null;
+  if (studentAudit && !studentAudit.ok) ratio = Math.min(ratio, 0.5);
+  if (claim?.verdict === "kismen") ratio = Math.min(ratio, 0.5);
+  if (claim?.verdict === "yanlis") ratio = 0;
+  if (claim && claim.verdict !== "dogru" && claim.conclusion.trim()) {
+    const conclusion = claim.conclusion.trim();
+    const backed = !source.trim() || unsupportedQuantities(conclusion, source).length === 0;
+    if (backed && !fold(modelAnswer).includes(fold(conclusion).slice(0, 48))) {
+      modelAnswer = modelAnswer.startsWith("Kaynakta") ? conclusion : `${modelAnswer} ${conclusion}`;
+    }
+  }
+  const quantNotes = [
+    ...numeric,
+    ...(studentAudit?.issues.map((issue) => issue.detail) ?? []),
+    ...(claim && claim.verdict !== "dogru" ? claim.wrongParts : []),
+  ];
   const objective = question.learningObjective?.trim() || prompt;
   return {
     index,
@@ -271,9 +355,9 @@ export function gradeOralAnswer(
     ratio: numeric.length ? Math.min(ratio, 0.5) : ratio,
     missing,
     modelAnswer,
-    citation: citationLabel(question.sourceFile, question.sourcePage),
+    citation: citationFromPassages(question, passages),
     dontKnow,
-    numericIssue: numeric.length ? numeric.join(", ") : null,
+    numericIssue: quantNotes.length ? [...new Set(quantNotes)].join(", ") : null,
     objective,
   };
 }
@@ -282,9 +366,16 @@ export function gradeOralExam(
   questions: OralQuestionDraft[],
   answers: Record<string, unknown>,
   source = "",
+  passages: OralGroundingPassage[] = [],
 ): OralExamReport {
   const items = questions.map((question, index) =>
-    gradeOralAnswer(question, String(answers[String(index)] ?? ""), source, index),
+    gradeOralAnswer(
+      question,
+      String(answers[String(index)] ?? ""),
+      source,
+      index,
+      passages,
+    ),
   );
   const total = items.length || 1;
   const fullCount = items.filter((item) => item.ratio >= 0.99).length;

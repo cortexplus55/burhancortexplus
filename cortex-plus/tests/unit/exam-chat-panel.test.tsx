@@ -146,4 +146,19 @@ describe("exam chat chrome", () => {
       screen.getByRole("button", { name: "Konuyu ne kadar iyi anladığımı test et" }),
     ).toBeTruthy();
   });
+
+  it("renders an outside badge and follow-up chips instead of a raw heading", () => {
+    renderExam([
+      {
+        role: "assistant",
+        content:
+          "Bu, belgede yok.\n\nMateryal dışı: Kısa not.\n\n[[chip:Benzer bir soru ver|Benzer bir soru ver]]\n[[kaynak:Notlar.pdf|4|sayfa|/dokumanlar/abc]]",
+      },
+    ]);
+    expect(screen.getByText("Materyal dışı")).toBeTruthy();
+    expect(screen.queryByText(/####/)).toBeNull();
+    expect(screen.getByRole("link", { name: /Notlar\.pdf/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Benzer bir soru ver" }));
+    expect(screen.getAllByText("Benzer bir soru ver").length).toBeGreaterThan(0);
+  });
 });

@@ -15,8 +15,10 @@ import {
   readContradictionDocuments,
 } from "@/lib/learning/prep-contradiction-read";
 import { orderTopicsForPath } from "@/lib/learning/topic-order";
-import { remapPrerequisites, mergeTopicGroups, type MergeTopicInput } from "@/lib/learning/topic-merge";
+import { remapPrerequisites, mergeTopicGroups, type MergeTopicInput, type MergedTopic } from "@/lib/learning/topic-merge";
+import type { ConsolidatedTopic } from "@/lib/learning/cross-material-topics";
 import { resolveAmbiguousMerges } from "@/lib/learning/topic-merge-model";
+import { consolidatePrepDocuments } from "@/lib/learning/consolidate-documents";
 import { formatContradictions } from "@/lib/learning/source-contradictions";
 
 const bodySchema = z.object({
@@ -193,28 +195,53 @@ export async function POST(request: Request) {
   }
   const groups: MergeTopicInput[][] = [];
   let intakeMode: "legacy" | "v2" = "legacy";
-  for (const documentId of documentIds.length ? documentIds : [parsed.data.documentId]) {
-    const resolved = await resolveTopicSuggestions(service, userId, documentId, v2);
-    if (resolved.intakeMode === "v2") intakeMode = "v2";
-    groups.push(resolved.topicSuggestions);
-  }
-  const firstPass = mergeTopicGroups(groups);
-  let mergedTopics = remapPrerequisites(firstPass.topics);
-  if (firstPass.ambiguous.length) {
-    try {
-      mergedTopics = remapPrerequisites(
-        await resolveAmbiguousMerges(service, userId, mergedTopics, firstPass.ambiguous),
-      );
-    } catch {
-      // Model yoksa iki başlık ayrı kalır. Konu düşmez.
+  const consolidated = documentIds.length
+    ? await consolidatePrepDocuments(service, userId, documentIds, { allowModel: true })
+    : null;
+  let mergedTopics: Array<ConsolidatedTopic | MergedTopic> = consolidated?.topics ?? [];
+  if (mergedTopics.length) {
+    intakeMode = "v2";
+  } else {
+    for (const documentId of documentIds.length ? documentIds : [parsed.data.documentId]) {
+      const resolved = await resolveTopicSuggestions(service, userId, documentId, v2);
+      if (resolved.intakeMode === "v2") intakeMode = "v2";
+      groups.push(resolved.topicSuggestions);
     }
+    const firstPass = mergeTopicGroups(groups);
+    mergedTopics = remapPrerequisites(firstPass.topics);
+    if (firstPass.ambiguous.length) {
+      try {
+        mergedTopics = remapPrerequisites(
+          await resolveAmbiguousMerges(service, userId, mergedTopics, firstPass.ambiguous),
+        );
+      } catch {
+        // Model yoksa iki başlık ayrı kalır. Konu düşmez.
+      }
+    }
+    mergedTopics = orderTopicsForPath(mergedTopics, { manualOrder: false });
   }
-  mergedTopics = orderTopicsForPath(mergedTopics, { manualOrder: false }).slice(0, PREP_TOPIC_CAP);
+  mergedTopics = mergedTopics.slice(0, PREP_TOPIC_CAP);
   const merged = {
     topics: mergedTopics.map((topic) => topic.title),
     topicPages: mergedTopics.map((topic) => topic.pages),
     topicFiles: mergedTopics.map((topic) =>
       [...new Set(topic.sources.map((source) => source.fileName).filter(Boolean))],
+    ),
+    topicSourceCounts: mergedTopics.map((topic) =>
+      "sourceCount" in topic ? topic.sourceCount : topic.sources.length,
+    ),
+    topicHeavy: mergedTopics.map((topic) => ("examHeavy" in topic ? topic.examHeavy : false)),
+    topicImportant: mergedTopics.map((topic) =>
+      "importance" in topic ? topic.importance === "important" && !topic.examHeavy : false,
+    ),
+    topicWeights: mergedTopics.map((topic) =>
+      "weightPercent" in topic ? topic.weightPercent : null,
+    ),
+    topicSections: mergedTopics.map((topic) =>
+      "sections" in topic ? topic.sections.map((section) => section.title) : [],
+    ),
+    topicScopeNotes: mergedTopics.map((topic) =>
+      "scopeNote" in topic ? topic.scopeNote : null,
     ),
   };
   const contradictionDocs = await readContradictionDocuments(service, documentIds).catch(() => []);
@@ -228,9 +255,11 @@ export async function POST(request: Request) {
     })),
     contradictionDocs,
   );
-  const topicWarnings = mergedTopics.map((topic) =>
-    formatContradictions(contradictionMap.get(topic.title) ?? []),
-  );
+  const topicWarnings = mergedTopics.map((topic, index) => {
+    const scope = merged.topicScopeNotes[index];
+    const contradiction = formatContradictions(contradictionMap.get(topic.title) ?? []);
+    return [scope, contradiction].filter(Boolean).join(" ");
+  });
   const topicSuggestions = groups.flat().filter(
     (topic, index, all) => all.findIndex((item) => item.id === topic.id) === index,
   );
@@ -258,6 +287,14 @@ export async function POST(request: Request) {
               .map((pages) => pages.slice(0, 6)),
             topicFiles: merged.topicFiles.slice(0, PREP_TOPIC_CAP),
             topicWarnings: topicWarnings.slice(0, PREP_TOPIC_CAP),
+            topicSourceCounts: merged.topicSourceCounts.slice(0, PREP_TOPIC_CAP),
+            topicHeavy: merged.topicHeavy.slice(0, PREP_TOPIC_CAP),
+            topicImportant: merged.topicImportant.slice(0, PREP_TOPIC_CAP),
+            topicWeights: merged.topicWeights.slice(0, PREP_TOPIC_CAP),
+            topicSections: merged.topicSections.slice(0, PREP_TOPIC_CAP),
+            excluded: consolidated?.excluded ?? [],
+            missingTopics: consolidated?.missingFromMaterials ?? [],
+            suggestedExamDate: consolidated?.suggestedExamDate ?? null,
           }
         : null,
     });

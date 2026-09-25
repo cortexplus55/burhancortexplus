@@ -102,6 +102,7 @@ export function ExamPrepHome({
   topicsDone = 0,
   topicCount = 0,
   topicLabels = [],
+  topicOptions = [],
   materials = [],
   readinessClaim = null,
   topicWarnings = {},
@@ -137,6 +138,8 @@ export function ExamPrepHome({
   topicCount?: number;
   /** Beceri ağacı. Konu düzenleme burada yok; o yalnızca kurulum sihirbazında. */
   topicLabels?: string[];
+  /** Podcast rotasının konu kimliği. Etiket listesinden ayrıdır. */
+  topicOptions?: { id: string; label: string }[];
   /** Materyaller sekmesi. Birden fazla belge varsa hepsi; yoksa eski tek belge. */
   materials?: PrepMaterial[];
   /** Ölçülen veri hazır diyorsa true. Bilinmiyorsa null; uydurma yok. */
@@ -585,6 +588,7 @@ export function ExamPrepHome({
           prepId={prepId}
           nodes={nodes}
           topics={topicLabels.length ? topicLabels : topicRows.map((row) => row.title)}
+          topicOptions={topicOptions}
           topicLabel={hubTopic}
           onTopic={setHubTopic}
           onClose={() => setHubTopic(undefined)}

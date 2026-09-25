@@ -5613,11 +5613,138 @@
     0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
+.cp-pod-orb {
+  position: relative;
+}
+
+.cp-pod-orb-ring {
+  position: absolute;
+  inset: -0.7rem;
+  border-radius: 50%;
+  border: 1px solid rgba(99, 132, 255, 0.35);
+  opacity: 0;
+}
+
 .cp-pod-orb.is-on {
+  animation: cp-pod-pulse 2.6s ease-in-out infinite;
   box-shadow:
     inset 0 -16px 28px rgba(0, 0, 0, 0.45),
     inset 0 8px 16px rgba(255, 255, 255, 0.35),
-    0 0 36px rgba(63, 81, 229, 0.28);
+    0 0 42px rgba(63, 81, 229, 0.45);
+}
+
+.cp-pod-orb.is-on .cp-pod-orb-ring {
+  opacity: 1;
+  animation: cp-pod-ring 2.6s ease-out infinite;
+}
+
+@keyframes cp-pod-pulse {
+  0%,
+  100% { transform: scale(1); }
+  50% { transform: scale(1.045); }
+}
+
+@keyframes cp-pod-ring {
+  0% { transform: scale(0.92); opacity: 0.55; }
+  100% { transform: scale(1.18); opacity: 0; }
+}
+
+.cp-pod-beat {
+  margin: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: #9eb0ff;
+}
+
+.cp-pod-chapters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  max-width: 28rem;
+}
+
+.cp-pod-chapter,
+.cp-pod-chapter-jump,
+.cp-pod-line-jump {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.cp-pod-chapter {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 0.28rem 0.7rem;
+  font-size: 0.75rem;
+  color: #c9d0dc;
+}
+
+.cp-pod-chapter.is-on {
+  border-color: rgba(99, 132, 255, 0.7);
+  color: #fff;
+  background: rgba(63, 81, 229, 0.28);
+}
+
+.cp-pod-chapter:disabled,
+.cp-pod-chapter-jump:disabled,
+.cp-pod-line-jump:disabled {
+  cursor: default;
+}
+
+.cp-pod-tools {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.cp-pod-script h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.cp-pod-line-jump {
+  display: inline;
+  padding: 0;
+}
+
+.cp-pod-lengths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+  margin: 0.75rem 0;
+  border: 0;
+  padding: 0;
+}
+
+.cp-pod-lengths legend {
+  width: 100%;
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.cp-pod-lengths label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.cp-studio {
+  margin: 0.85rem 0 0.25rem;
+}
+
+.cp-studio-panel {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
 }
 
 .cp-pod-excerpt {
@@ -5667,7 +5794,8 @@
   line-height: 1.7;
 }
 
-.cp-pod-script p {
+.cp-pod-script p,
+.cp-pod-script-lines {
   margin: 0 0 1rem;
 }
 
@@ -5705,12 +5833,12 @@
 }
 
 .cp-pod-play {
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 4.25rem;
+  height: 4.25rem;
   border-radius: 9999px;
   background: #3f51e5;
   color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(63, 81, 229, 0.9);
+  box-shadow: 0 12px 28px -8px rgba(63, 81, 229, 0.95);
 }
 
 .cp-pod-play:disabled,
@@ -8514,4 +8642,60 @@
   max-height: min(58dvh, 28rem);
   overflow-y: auto;
   padding-right: 0.15rem;
+}
+
+.cp-tutor-badge {
+  display: inline-flex;
+  margin: 0 0 0.45rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.16);
+  color: #f6d48a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.cp-tutor-steps {
+  margin-top: 0.45rem;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.35rem 0.7rem 0.5rem;
+}
+
+.cp-tutor-steps summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: #c9d0dc;
+}
+
+.cp-tutor-cites,
+.cp-tutor-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.cp-tutor-cite,
+.cp-tutor-chip,
+.cp-tutor-scope {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: #d5dbe6;
+  font-size: 0.75rem;
+  padding: 0.28rem 0.7rem;
+  text-decoration: none;
+}
+
+.cp-tutor-scope {
+  margin-top: 0.55rem;
+  color: #fff;
+  border-color: rgba(246, 212, 138, 0.45);
+}
+
+.cp-tutor-chip:disabled,
+.cp-tutor-scope:disabled {
+  opacity: 0.5;
 }

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { synthesizeCharged } from "@/lib/learning/audio-cache";
+import { speakFormulas, turkishDecimalComma } from "@/lib/learning/podcast-episode";
 import { flattenLines, normalizeChapters } from "@/lib/learning/podcast-script";
 import { MAX_PODCAST_AUDIO_CHARS, MAX_PODCAST_AUDIO_LINES, MAX_SPEECH_LINE_CHARS } from "@/lib/learning/podcast-audio-contract";
 
@@ -47,7 +48,10 @@ export async function POST(request: Request) {
   const result = await synthesizeCharged(
     guard.ctx.service,
     guard.ctx.userId,
-    lines.map((line) => ({ text: line.text, speaker: line.speaker })),
+    lines.map((line) => ({
+      text: speakFormulas(turkishDecimalComma(line.text)),
+      speaker: line.speaker,
+    })),
   );
 
   // Kredisi yetmeyen öğrenci senaryoyu okumaya ve tarayıcı sesiyle

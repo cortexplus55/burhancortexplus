@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { createSerialTaskQueue } from "@/lib/learning/serial-task-queue";
 import {
   describeGenerationFailure,
+  generationFailureCode,
   type GenerationFailure,
 } from "@/lib/learning/generation-failure";
 import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
@@ -79,6 +80,7 @@ type Payload = {
   // Podcast senaryosu satır bazlı; biçim lib/learning/podcast-script.ts
   // tarafından normalleştiriliyor, eski script biçimi de kabul ediliyor.
   chapters?: unknown[];
+  length?: string;
   questions?: {
     text?: string;
     prompt?: string;
@@ -162,6 +164,7 @@ export function ExamNodeSession({
   );
   const [mood, setMood] = useState<Mood>(DEFAULT_MOOD);
   const [difficulty, setDifficulty] = useState<Difficulty>("orta");
+  const [podcastLength, setPodcastLength] = useState<"ozet" | "standart" | "derin">("standart");
   const [voiceMode, setVoiceMode] = useState(meta.voice);
   const [oralSelected, setOralSelected] = useState<string[]>([]);
   const [oralMoodId, setOralMoodId] = useState<OralTeacherMoodId>(DEFAULT_ORAL_TEACHER_MOOD);
@@ -455,6 +458,7 @@ export function ExamNodeSession({
                 ).slice(0, 400),
               }
             : {}),
+          ...(kind === "podcast" ? { podcastLength } : {}),
           ...(reqId ? { clientRequestId: reqId } : {}),
         }),
       });
@@ -472,7 +476,11 @@ export function ExamNodeSession({
         //
         // Üretim hâlâ sürüyorsa yenilenmiyor: yenilemek ikinci bir üretim
         // başlatır ve öğrenci iki kez ödeyebilir.
-        const failure = describeGenerationFailure(data.error, resetsAtLabel ?? undefined);
+        const failure = describeGenerationFailure(
+          generationFailureCode(data),
+          resetsAtLabel ?? undefined,
+          kind,
+        );
         if (failure.retryMintsNewId) clearClientRequestId();
         setGenerationFailure(failure);
         setGenerationError(failure.message);
@@ -870,6 +878,28 @@ export function ExamNodeSession({
               }}
             />
           </label>
+          {kind === "podcast" ? (
+            <fieldset className="cp-pod-lengths">
+              <legend>Süre</legend>
+              {(
+                [
+                  ["ozet", "Özet · ~1 dk"],
+                  ["standart", "Standart · ~5 dk"],
+                  ["derin", "Derinlemesine · ~10 dk"],
+                ] as const
+              ).map(([value, label]) => (
+                <label key={value}>
+                  <input
+                    type="radio"
+                    name="podcast-length"
+                    checked={podcastLength === value}
+                    onChange={() => setPodcastLength(value)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
+          ) : null}
           {meta.voice ? (
             <label className="cp-exam-voice-row">
               <span>
@@ -890,7 +920,7 @@ export function ExamNodeSession({
               disabled={loading}
               onClick={() => void start()}
             >
-              {loading ? "Hazırlanıyor…" : "Ders oluştur"}
+              {loading ? "Hazırlanıyor…" : kind === "podcast" ? "Podcast oluştur" : "Ders oluştur"}
             </button>
           )}
           {generationError ? (
@@ -955,6 +985,7 @@ export function ExamNodeSession({
           title={payload.title ?? topicLabel ?? "Podcast"}
           chapters={chapters}
           finishing={loading}
+          resumeKey={`${prepId}:${nodeId}:${payload.length ?? podcastLength}`}
           onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
           onFinish={() => void finish()}
         />
