@@ -366,7 +366,7 @@ export function ParityExamPrep({
               </li>
               <li>
                 <strong>Yolda ilerle</strong>
-                <span>Podcast, alıştırma, quiz, sözlü ve deneme sırayla açılır. Kilitli düğümler önceki bitince çözülür.</span>
+                <span>Podcast, alıştırma, quiz, sözlü ve deneme önerilen sıradadır. İstediğin etkinliği istediğin zaman açabilirsin.</span>
               </li>
               <li>
                 <strong>Ders bitince</strong>

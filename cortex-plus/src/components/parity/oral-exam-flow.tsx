@@ -13,6 +13,7 @@ import {
   type OralReviewItem,
   type OralTeacherMoodId,
 } from "@/lib/learning/oral-exam-chrome";
+import { ORAL_ALL_TOPICS, ORAL_LENGTH_OPTIONS, type OralLength } from "@/lib/learning/oral-exam";
 import "@/styles/oral-exam-chrome.css";
 
 export type OralTopicRow = { id: string; label: string; pct: number };
@@ -57,6 +58,19 @@ export function OralTopicPick({
       <h1>Konuları seç</h1>
       {topics.length ? (
         <ul className="cp-oral-topics">
+          <li>
+            <button
+              type="button"
+              className="cp-oral-topic"
+              aria-pressed={selected.includes(ORAL_ALL_TOPICS)}
+              onClick={() => onToggle(ORAL_ALL_TOPICS)}
+            >
+              <span className="cp-oral-check" aria-hidden>
+                {selected.includes(ORAL_ALL_TOPICS) ? <Check className="h-3 w-3" /> : null}
+              </span>
+              <span className="cp-oral-topic-label">Tüm sınav</span>
+            </button>
+          </li>
           {topics.map((topic) => {
             const on = selected.includes(topic.id);
             return (
@@ -92,6 +106,8 @@ export function OralTopicPick({
 export function OralTeacherCustomize({
   moodId,
   onMood,
+  length = 3,
+  onLength,
   onBack,
   onClose,
   onStart,
@@ -99,6 +115,8 @@ export function OralTeacherCustomize({
 }: {
   moodId: OralTeacherMoodId;
   onMood: (id: OralTeacherMoodId) => void;
+  length?: OralLength;
+  onLength?: (length: OralLength) => void;
   onBack: () => void;
   onClose: () => void;
   onStart: () => void;
@@ -140,6 +158,27 @@ export function OralTeacherCustomize({
             onChange={() => undefined}
           />
         </div>
+      </div>
+      <h2 className="cp-oral-section-title">Soru sayısı</h2>
+      <div className="cp-oral-lengths" role="listbox" aria-label="Soru sayısı">
+        {ORAL_LENGTH_OPTIONS.map((option) => {
+          const on = option.questions === length;
+          return (
+            <button
+              key={option.questions}
+              type="button"
+              role="option"
+              aria-selected={on}
+              className={on ? "cp-oral-mood is-on" : "cp-oral-mood"}
+              onClick={() => onLength?.(option.questions)}
+            >
+              <span>
+                <strong>{option.questions} soru</strong>
+                <em>{option.minutes} dakika</em>
+              </span>
+            </button>
+          );
+        })}
       </div>
       <h2 className="cp-oral-section-title">Öğretmen havasını seç</h2>
       <div className="cp-oral-moods" role="listbox" aria-label="Öğretmen havasını seç">
@@ -192,16 +231,18 @@ export function OralTeacherCustomize({
 
 export function OralPreflightDialog({
   onConfirm,
+  copy = ORAL_PREFLIGHT,
 }: {
   onConfirm: () => void;
+  copy?: { title: string; body: string; items: readonly string[]; confirm: string };
 }) {
   return (
     <div className="cp-oral-modal-back">
       <div className="cp-oral-modal" role="dialog" aria-modal="true" aria-labelledby="oral-preflight-title">
-        <h2 id="oral-preflight-title">{ORAL_PREFLIGHT.title}</h2>
-        <p>{ORAL_PREFLIGHT.body}</p>
+        <h2 id="oral-preflight-title">{copy.title}</h2>
+        <p>{copy.body}</p>
         <ul className="cp-oral-checks">
-          {ORAL_PREFLIGHT.items.map((item) => (
+          {copy.items.map((item) => (
             <li key={item}>
               <CircleCheck className="h-4 w-4" aria-hidden />
               {item}
@@ -209,7 +250,7 @@ export function OralPreflightDialog({
           ))}
         </ul>
         <button type="button" className="cp-oral-cta" onClick={onConfirm}>
-          {ORAL_PREFLIGHT.confirm}
+          {copy.confirm}
         </button>
       </div>
     </div>
@@ -266,12 +307,20 @@ export function OralResults({
   onReview,
   onRepeat,
   nextHref,
+  strengths = [],
+  weaknesses = [],
+  practiceHref,
+  practiceLabel,
 }: {
   topicLabel: string;
   pct: number;
   onReview: () => void;
   onRepeat: () => void;
   nextHref: string;
+  strengths?: string[];
+  weaknesses?: string[];
+  practiceHref?: string | null;
+  practiceLabel?: string | null;
 }) {
   const letter = letterGrade(pct);
   return (
@@ -299,6 +348,31 @@ export function OralResults({
         Cevaplarımı gözden geçir
       </button>
       <p className="cp-oral-summary">{oralSummary(pct)}</p>
+      {strengths.length ? (
+        <section aria-label="Güçlü yanlar">
+          <h2>Güçlü yanlar</h2>
+          <ul>
+            {strengths.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {weaknesses.length ? (
+        <section aria-label="Eksikler">
+          <h2>Eksikler</h2>
+          <ul>
+            {weaknesses.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {practiceHref ? (
+        <Link className="cp-oral-review-link" href={practiceHref}>
+          {practiceLabel || "Eksik konuda pratik"}
+        </Link>
+      ) : null}
       <div className="cp-oral-result-actions">
         <button type="button" className="cp-oral-ghost" onClick={onRepeat}>
           Tekrarla
@@ -327,7 +401,7 @@ export function OralAnswerReview({
   onClose: () => void;
 }) {
   const item = items[index] ?? items[0];
-  const pctLabel = item && item.answer ? "Yanıt alındı" : "%0 puan";
+  const pctLabel = item?.scoreLabel ?? (item && item.answer ? "Yanıt alındı" : "%0 puan");
   return (
     <section className="cp-oral">
       <header className="cp-oral-bar">
@@ -359,6 +433,8 @@ export function OralAnswerReview({
             <p>
               <SolutionText text={item.solution} />
             </p>
+            {item.missing ? <p className="cp-oral-miss">Eksik: {item.missing}</p> : null}
+            {item.citation ? <p>Kaynak: {item.citation}</p> : null}
           </article>
         ) : (
           <div>

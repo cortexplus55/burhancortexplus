@@ -164,7 +164,7 @@ describe("oral exam chrome screens", () => {
     expect(screen.getByText("Ada")).toBeTruthy();
     expect(screen.getByText("Sıkı sınav görevlisi")).toBeTruthy();
     expect(screen.getByText("Yardımcı öğretmen")).toBeTruthy();
-    expect(screen.getByText("Acımasız öğretmen")).toBeTruthy();
+    expect(screen.getByText("Zorlayıcı öğretmen")).toBeTruthy();
     const start = screen.getByRole("button", { name: "Sözlü Deneme Sınavını Başlat" }) as HTMLButtonElement;
     expect(start.disabled).toBe(false);
     expect(

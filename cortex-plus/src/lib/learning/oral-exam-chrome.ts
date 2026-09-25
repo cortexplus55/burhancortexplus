@@ -49,8 +49,8 @@ export const ORAL_TEACHER_MOODS: {
   {
     id: "harsh",
     badge: "ÖNERİLMEZ",
-    title: "Acımasız öğretmen",
-    blurb: "Filtresiz, acımasız",
+    title: "Zorlayıcı öğretmen",
+    blurb: "Daha derin sorar; saygılı ve net kalır",
     mood: "stressed",
     difficulty: "ileri",
   },
@@ -60,7 +60,7 @@ export const DEFAULT_ORAL_TEACHER_MOOD: OralTeacherMoodId = "helpful";
 
 export const ORAL_PREFLIGHT = {
   title: "Başlamadan önce",
-  body: "Bu sesli bir sözlü deneme sınavı. Öğretmenin sesli olarak sorular soracak, sen de cevaplarını sesli söyleyeceksin.",
+  body: "Öğretmen soruyu sesli sorar ve soru ekranda da yazılır. Cevabı konuşarak veya yazarak verebilirsin. Mikrofon kapalıysa yazmak yeterli.",
   items: [
     "Rahatça konuşabileceğin sessiz bir yer bul",
     `${ORAL_EXPECTED_QUESTIONS} soru bekle`,
@@ -76,6 +76,9 @@ export type OralReviewItem = {
   question: string;
   answer: string;
   solution: string;
+  scoreLabel?: string;
+  citation?: string | null;
+  missing?: string;
 };
 
 export function topicStatusPct(status: string | null | undefined): number {
@@ -121,7 +124,7 @@ export function oralTeacherStyleLine(id: OralTeacherMoodId): string {
     case "strict":
       return "Sıkı sınav görevlisi gibi sor: ipucu verme, cevabı söyleme, kısa ve resmi kal.";
     case "harsh":
-      return "Sert ve net ol; yanlışta düzelt. Aşağılama veya hakaret etme.";
+      return "Zorlayıcı ol: eksik cevapta bir kez gerekçe iste. Aşağılama veya hakaret etme. İpucu verme.";
     default:
       return "Yardımcı öğretmen gibi sor: takıldığında kısa ipucu ver, cevabı doğrudan söyleme.";
   }

@@ -22,6 +22,8 @@ import {
 import {
   topicProgressFromNodes,
 } from "@/lib/learning/exam-prep-ui-path";
+import { STUDY_PATH_HINT, studyNodeAria } from "@/lib/learning/study-tools";
+import { StudyToolsHub } from "@/components/parity/study-tools-hub";
 import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
 import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
@@ -45,6 +47,7 @@ export type HomeNode = {
     durationMinutes?: number;
     role?: string;
     calendarDate?: string;
+    topicId?: string;
     topicTitle?: string;
   } | null;
 };
@@ -52,7 +55,6 @@ export type HomeNode = {
 function trailGlyph(node: HomeNode, index: number) {
   if (node.status === "done") return "✓";
   if (node.kind === "podcast") return <Mic className="h-5 w-5" aria-hidden />;
-  if (node.status === "locked") return "🔒";
   return index + 1;
 }
 
@@ -164,6 +166,7 @@ export function ExamPrepHome({
   const [openSkill, setOpenSkill] = useState<string | null>(null);
   /** Bakım bağlantıları çalışmanın önüne geçmesin diye kapalı başlıyor. */
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [hubTopic, setHubTopic] = useState<string | null | undefined>(undefined);
   const topicRows = useMemo(() => topicProgressFromNodes(nodes), [nodes]);
   const showTracking = Boolean(learningTracking);
 
@@ -285,6 +288,9 @@ export function ExamPrepHome({
             </Link>
           </div>
         ) : null}
+        <button type="button" className="cp-back-pill cp-back-pill--accent" onClick={() => setHubTopic(null)}>
+          Ders oluştur
+        </button>
         {canShare ? (
           <button
             type="button"
@@ -346,6 +352,9 @@ export function ExamPrepHome({
 
       {uiV2 && toolsOpen ? (
         <div className="cp-exam-tools">
+          <button type="button" className="cp-back-pill" onClick={() => setHubTopic(null)}>
+            Ders oluştur
+          </button>
           <Link href={examPrepAssessmentHref(prepId)} className="cp-back-pill">
             Sınav öncesi değerlendirme
           </Link>
@@ -506,6 +515,7 @@ export function ExamPrepHome({
           labels={topicLabels.length ? topicLabels : topicRows.map((row) => row.title)}
           rows={topicRows}
           warnings={topicWarnings}
+          onCreate={(label) => setHubTopic(label)}
         />
       ) : null}
 
@@ -544,7 +554,10 @@ export function ExamPrepHome({
           </div>
         </div>
       ) : view === "yol" ? (
-        <StudyPath nodes={nodes} onOpen={openNode} readinessClaim={readinessClaim} />
+        <>
+          <p className="cp-study-hub-hint">{STUDY_PATH_HINT}</p>
+          <StudyPath nodes={nodes} onOpen={openNode} readinessClaim={readinessClaim} />
+        </>
       ) : null}
 
       {view === "yol" ? (
@@ -566,6 +579,16 @@ export function ExamPrepHome({
             </>
           )}
         </div>
+      ) : null}
+      {hubTopic !== undefined ? (
+        <StudyToolsHub
+          prepId={prepId}
+          nodes={nodes}
+          topics={topicLabels.length ? topicLabels : topicRows.map((row) => row.title)}
+          topicLabel={hubTopic}
+          onTopic={setHubTopic}
+          onClose={() => setHubTopic(undefined)}
+        />
       ) : null}
     </div>
   );
@@ -615,14 +638,7 @@ function StudyPath({
                   className={`cp-exam-trail-node cp-exam-trail-node--${node.status}${
                     node.kind === "podcast" ? " cp-exam-trail-node--podcast" : ""
                   }`}
-                  disabled={node.status === "locked"}
-                  aria-label={`${node.title || PLAN_NODE_META[node.kind].title}, ${
-                    node.status === "done"
-                      ? "tamamlandı"
-                      : node.status === "locked"
-                        ? "kilitli"
-                        : "sırada"
-                  }`}
+                  aria-label={`${node.title || PLAN_NODE_META[node.kind].title}, ${studyNodeAria(node.status)}`}
                   onClick={() => onOpen(node)}
                 >
                   {trailGlyph(node, index)}
@@ -638,6 +654,7 @@ function StudyPath({
                     {node.sessionMeta?.sourcePages?.length
                       ? ` · s.${node.sessionMeta.sourcePages.slice(0, 4).join(",")}`
                       : ""}
+                    {node.status === "locked" ? " · önerilen sırada" : ""}
                     {node.kind === "written_exam" ? " · yardım yok" : ""}
                     {node.kind === "readiness" && readinessClaim === true
                       ? " · ölçülen verilere göre hazırsın"
@@ -661,11 +678,13 @@ function TopicList({
   labels,
   rows,
   warnings,
+  onCreate,
 }: {
   prepId: string;
   labels: string[];
   rows: { title: string; pct: number; done: number; total: number }[];
   warnings: Record<string, string>;
+  onCreate?: (label: string) => void;
 }) {
   if (!labels.length) {
     return <p className="text-sm text-[var(--cp-muted)]">{PREP_HOME_COPY.noTopics}</p>;
@@ -696,6 +715,11 @@ function TopicList({
                   <span className="cp-topic-warning">{warnings[label]}</span>
                 ) : null}
               </Link>
+              {onCreate ? (
+                <button type="button" className="cp-back-pill" onClick={() => onCreate(label)}>
+                  {label} için ders oluştur
+                </button>
+              ) : null}
             </li>
           );
         })}

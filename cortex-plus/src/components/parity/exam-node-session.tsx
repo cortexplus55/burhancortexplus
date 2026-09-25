@@ -20,6 +20,7 @@ import { ExamWrittenReview } from "@/components/parity/exam-written-review";
 import type { ReadinessScreen } from "@/lib/learning/readiness-screen";
 import type { WrittenExamReview } from "@/lib/learning/written-exam-review";
 import { ExamVoiceTutor } from "@/components/parity/exam-voice-tutor";
+import { OralAnswerDesk } from "@/components/parity/oral-answer-desk";
 import {
   OralAnswerReview,
   OralPreflightDialog,
@@ -33,6 +34,7 @@ import {
   DEFAULT_ORAL_TEACHER_MOOD,
   oralTeacherById,
   EMPTY_ORAL_ANSWER_NOTE,
+  ORAL_PREFLIGHT,
   oralVoicePercent,
   oralVoiceTopicLabel,
   oralWrittenPercent,
@@ -41,6 +43,13 @@ import {
   type OralMessage,
   type OralTeacherMoodId,
 } from "@/lib/learning/oral-exam-chrome";
+import {
+  minutesForOralLength,
+  ORAL_ALL_TOPICS,
+  type OralExamReport,
+  type OralLength,
+  type OralProbeKind,
+} from "@/lib/learning/oral-exam";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { normalizeChapters } from "@/lib/learning/podcast-script";
@@ -79,6 +88,7 @@ type Payload = {
     explanation?: string;
     hint?: string;
     expectedPoints?: string[];
+    probeKind?: OralProbeKind;
   }[];
   items?: { text: string; correct: boolean; explanation: string; correctedStatement?: string }[];
   cards?: { front: string; back: string }[];
@@ -155,6 +165,8 @@ export function ExamNodeSession({
   const [voiceMode, setVoiceMode] = useState(meta.voice);
   const [oralSelected, setOralSelected] = useState<string[]>([]);
   const [oralMoodId, setOralMoodId] = useState<OralTeacherMoodId>(DEFAULT_ORAL_TEACHER_MOOD);
+  const [oralLength, setOralLength] = useState<OralLength>(3);
+  const [oralReport, setOralReport] = useState<OralExamReport | null>(null);
   const [oralPreflight, setOralPreflight] = useState(false);
   const [oralTranscript, setOralTranscript] = useState<OralMessage[]>([]);
   const [oralReviewIndex, setOralReviewIndex] = useState(0);
@@ -196,7 +208,7 @@ export function ExamNodeSession({
     chapters: unknown[];
   } | null>(null);
   /** Stage 6: which question indices showed a hint before submit. */
-  const [hintsUsed, setHintsUsed] = useState<Record<string, boolean>>({});
+  const hintsUsed: Record<string, boolean> = {};
   const startInFlight = useRef(false);
   const completeInFlight = useRef(false);
   const completeRequestIdRef = useRef<string | null>(null);
@@ -428,6 +440,21 @@ export function ExamNodeSession({
           voiceMode: overrides?.voiceMode ?? voiceMode,
           familiarity,
           mood: overrides?.mood ?? mood,
+          ...(isOral
+            ? {
+                oralQuestionCount: oralLength,
+                oralScope: oralSelected.includes(ORAL_ALL_TOPICS) ? "all" : "topic",
+                oralTopicLabel: (oralSelected.includes(ORAL_ALL_TOPICS)
+                  ? (oralTopics.length ? oralTopics : [{ label: topicLabel || prepTitle }])
+                      .map((topic) => topic.label)
+                      .join(", ")
+                  : oralTopics
+                      .filter((topic) => oralSelected.includes(topic.id))
+                      .map((topic) => topic.label)
+                      .join(", ") || topicLabel || prepTitle
+                ).slice(0, 400),
+              }
+            : {}),
           ...(reqId ? { clientRequestId: reqId } : {}),
         }),
       });
@@ -507,6 +534,7 @@ export function ExamNodeSession({
       completeRequestIdRef.current = null;
       setScore({ score: data.score ?? 0, total: data.total ?? 1, retried: data.retried ?? 0 });
       if (data.review) setWrittenReview(data.review);
+      if (data.oralReview) setOralReport(data.oralReview as OralExamReport);
       setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
       setFeedback(null);
       setStage(kind === "oral" ? "oral-review-time" : "result");
@@ -523,10 +551,6 @@ export function ExamNodeSession({
     answersRef.current = next;
     setAnswers(next);
     scheduleSave(next, Number(key) || index);
-  }
-
-  function markHint(index: number) {
-    setHintsUsed((prev) => ({ ...prev, [String(index)]: true }));
   }
 
   async function loadLessonPodcast() {
@@ -624,14 +648,29 @@ export function ExamNodeSession({
     isOral ? selectedOralLabels : [topicLabel ?? prepTitle],
     topicLabel || prepTitle,
   );
-  const oralReviewItems =
-    payload.type === "oral"
+  const oralReviewItems = oralReport?.items?.length
+    ? oralReport.items.map((item) => ({
+        question: item.question,
+        answer: item.answer,
+        solution: item.dontKnow
+          ? `${item.modelAnswer} ${EMPTY_ORAL_ANSWER_NOTE}`
+          : item.numericIssue
+            ? `${item.modelAnswer} Hatanız şuradaydı: kaynakta olmayan sayı (${item.numericIssue}).`
+            : item.missing.length
+              ? `${item.modelAnswer} Hatanız şuradaydı: ${item.missing.join(" ")}`
+              : item.modelAnswer,
+        scoreLabel: `%${Math.round(item.ratio * 100)} puan`,
+        citation: item.citation,
+        missing: item.missing.join("; "),
+      }))
+    : payload.type === "oral"
       ? reviewItemsFromQuestions(questions, answers)
       : reviewItemsFromTranscript(oralTranscript);
   const oralPct =
-    payload.type === "oral"
+    oralReport?.pct ??
+    (payload.type === "oral"
       ? oralWrittenPercent(score.score, score.total)
-      : oralVoicePercent(oralTranscript);
+      : oralVoicePercent(oralTranscript));
   const oralOwnsChrome =
     isOral && stage !== "restoring" && !(stage === "play" && payload.type === "oral");
   const showCoach =
@@ -720,9 +759,13 @@ export function ExamNodeSession({
           topics={oralRows}
           selected={oralSelected}
           onToggle={(id) =>
-            setOralSelected((current) =>
-              current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-            )
+            setOralSelected((current) => {
+              if (id === ORAL_ALL_TOPICS) {
+                return current.includes(ORAL_ALL_TOPICS) ? [] : [ORAL_ALL_TOPICS];
+              }
+              const rest = current.filter((item) => item !== ORAL_ALL_TOPICS);
+              return rest.includes(id) ? rest.filter((item) => item !== id) : [...rest, id];
+            })
           }
           onContinue={() => setStage("oral-customize")}
           onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
@@ -741,6 +784,8 @@ export function ExamNodeSession({
           <OralTeacherCustomize
             moodId={oralMoodId}
             onMood={setOralMoodId}
+            length={oralLength}
+            onLength={setOralLength}
             onBack={() => setStage("oral-topics")}
             onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
             onStart={() => setOralPreflight(true)}
@@ -748,15 +793,24 @@ export function ExamNodeSession({
           />
           {oralPreflight ? (
             <OralPreflightDialog
+              copy={{
+                ...ORAL_PREFLIGHT,
+                items: [
+                  "Rahatça konuşabileceğin sessiz bir yer bul, ya da yazarak cevapla",
+                  `${oralLength} soru bekle`,
+                  "İstediğin zaman bitir, yine de geri bildirim alacaksın",
+                  `${minutesForOralLength(oralLength)} dakika ile sınırlı`,
+                ],
+              }}
               onConfirm={() => {
                 const choice = oralTeacherById(oralMoodId);
                 setOralPreflight(false);
                 setMood(choice.mood);
                 setDifficulty(choice.difficulty);
-                setVoiceMode(true);
+                setVoiceMode(false);
                 void start({
                   difficulty: choice.difficulty,
-                  voiceMode: true,
+                  voiceMode: false,
                   mood: choice.mood,
                 });
               }}
@@ -1081,44 +1135,27 @@ export function ExamNodeSession({
       ) : null}
 
       {stage === "play" && payload.type === "oral" && questions[index] ? (
-        <section>
-          <p className="cp-lesson-kicker">
-            {index + 1}/{questions.length}
-          </p>
-          <h1>{questions[index].prompt}</h1>
-          {questions[index].hint ? (
-            hintsUsed[String(index)] ? (
-              <p className="text-sm text-[var(--cp-muted)]">İpucu: {questions[index].hint}</p>
-            ) : (
-              <button
-                type="button"
-                className="text-sm text-[var(--cp-muted)] underline"
-                onClick={() => markHint(index)}
-              >
-                İpucu göster
-              </button>
-            )
-          ) : null}
-          <textarea
-            className="cp-exam-oral-input"
-            rows={4}
-            placeholder={voiceMode ? "Konuşarak veya yazarak yanıtla" : "Yanıtın"}
-            value={String(answers[String(index)] ?? "")}
-            onChange={(event) =>
-              updateAnswer(String(index), event.target.value)
-            }
-          />
-          <button
-            type="button"
-            className="cp-exam-continue cp-exam-continue--primary"
-            onClick={() => {
-              if (index + 1 < questions.length) setIndex(index + 1);
-              else void finish();
-            }}
-          >
-            {index + 1 < questions.length ? "Sonraki soru" : "Bitir"}
-          </button>
-        </section>
+        <OralAnswerDesk
+          index={index}
+          total={questions.length}
+          prompt={questions[index].prompt ?? ""}
+          probeKind={(questions[index].probeKind as OralProbeKind | undefined) ?? "detail"}
+          hint={oralMoodId === "helpful" ? questions[index].hint : null}
+          persona={oralMoodId}
+          minutes={minutesForOralLength(questions.length)}
+          value={String(answers[String(index)] ?? "")}
+          busy={loading}
+          onChange={(text) => updateAnswer(String(index), text)}
+          onAdvance={(answer) => {
+            updateAnswer(String(index), answer);
+            setIndex(index + 1);
+          }}
+          onFinish={(answer) => {
+            const next = { ...answersRef.current, [String(index)]: answer };
+            updateAnswer(String(index), answer);
+            void finish(next);
+          }}
+        />
       ) : null}
 
       {stage === "oral-review-time" ? (
@@ -1134,8 +1171,13 @@ export function ExamNodeSession({
             setOralReviewTab("ai");
             setStage("oral-review");
           }}
+          strengths={oralReport?.strengths ?? []}
+          weaknesses={oralReport?.weaknesses ?? []}
+          practiceHref={oralReport?.nextStep?.href}
+          practiceLabel={oralReport?.nextStep?.label}
           onRepeat={() => {
             setOralTranscript([]);
+            setOralReport(null);
             setOralSelected([]);
             setIndex(0);
             setAnswers({});

@@ -181,6 +181,7 @@ export default async function ExamPrepDetailPage({
             durationMinutes?: number;
             role?: string;
             calendarDate?: string;
+            topicId?: string;
             topicTitle?: string;
           })
         : null,
