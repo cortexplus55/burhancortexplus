@@ -1,4 +1,8 @@
-import { unsupportedQuantities } from "@/lib/learning/teacher-brain";
+import {
+  quantityClaimGrounded,
+  sourceContainsNumber,
+  unsupportedQuantities,
+} from "@/lib/learning/teacher-brain";
 import type { OralTeacherMoodId } from "@/lib/learning/oral-exam-chrome";
 import {
   auditQuantitative,
@@ -422,6 +426,80 @@ export function oralMisconceptionDrafts(report: OralExamReport): OralMisconcepti
       wrongType: item.dontKnow ? "oral_blank" : item.numericIssue ? "oral_quantity" : "oral_miss",
       questionPreview: item.question.slice(0, 160),
     }));
+}
+
+function pointText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+const BINARY_EQUATION =
+  /(?<![\d.,\w])([−-]?\d+(?:[.,]\d+)?)\s*([+\-−×x*÷/])\s*([−-]?\d+(?:[.,]\d+)?)\s*=\s*([−-]?\d+(?:[.,]\d+)?)(?![\d.,/])/g;
+
+function keepOralPoint(point: string, source: string): boolean {
+  if (point.length < 2) return false;
+  if (!source.trim()) return true;
+  if (unsupportedQuantities(point, source).length && !quantityClaimGrounded(point, source)) {
+    return false;
+  }
+  const residue = point.replace(BINARY_EQUATION, " ");
+  for (const raw of residue.match(/\d+(?:[.,]\d+)?/g) ?? []) {
+    const value = Number(raw.replace("−", "-").replace(",", "."));
+    if (!Number.isFinite(value) || value < 3) continue;
+    if (!sourceContainsNumber(source, raw)) return false;
+  }
+  return true;
+}
+
+/**
+ * Reddedilen sözlü taslağı bir kez yerinde düzeltir.
+ * Eksik rubrik ve beklenen nokta sorunun kendisinden kurulur.
+ * Kaynakta durmayan sayı düşer; doğru işlemin sonucu kalır.
+ * İstenen sayı kurulamazsa null döner ve üretim bir kez daha denenir.
+ */
+export function publishOralQuestions(
+  raw: unknown,
+  asked: number,
+  source = "",
+): {
+  prompt: string;
+  hint?: string;
+  learningObjective?: string;
+  rubricCriteria: string[];
+  expectedPoints: string[];
+}[] | null {
+  const row = raw && typeof raw === "object" ? (raw as { questions?: unknown }) : null;
+  const list = Array.isArray(row?.questions) ? row.questions : null;
+  if (!list) return null;
+  const questions = list.flatMap((item) => {
+    const record = item && typeof item === "object" ? (item as Record<string, unknown>) : null;
+    const prompt = pointText(record?.prompt);
+    if (prompt.length < 8) return [];
+    if (source.trim() && !keepOralPoint(prompt, source) && unsupportedQuantities(prompt, source).length) {
+      return [];
+    }
+    const given = (Array.isArray(record?.expectedPoints) ? record.expectedPoints : [])
+      .map(pointText)
+      .filter((point) => keepOralPoint(point, source));
+    const bare = prompt.replace(/\d+(?:[.,]\d+)?/g, " ").replace(/\s+/g, " ").trim();
+    const points = (given.length ? given : bare.length >= 8 ? [bare.slice(0, 180)] : []).slice(0, 6);
+    if (!points.length) return [];
+    const givenRubric = (Array.isArray(record?.rubricCriteria) ? record.rubricCriteria : [])
+      .map(pointText)
+      .filter((line) => line.length >= 2 && keepOralPoint(line, source));
+    const rubric = (givenRubric.length ? givenRubric : points.map((point) => point.slice(0, 120))).slice(0, 5);
+    const objective = pointText(record?.learningObjective);
+    const hint = pointText(record?.hint);
+    return [
+      {
+        prompt,
+        ...(hint ? { hint } : {}),
+        ...(objective.length >= 8 ? { learningObjective: objective.slice(0, 200) } : {}),
+        rubricCriteria: rubric,
+        expectedPoints: points,
+      },
+    ];
+  });
+  return fitOralCount(questions, asked);
 }
 
 export function fitOralCount<T>(questions: T[], count: number): T[] | null {

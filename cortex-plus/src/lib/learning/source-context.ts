@@ -28,6 +28,16 @@ export type SourceContext = {
   formulas?: string[];
 };
 
+/** Kaynak bloğundaki `[s.N]` ve `· s.N` işaretleri. Atıf denetimi bunları kabul eder. */
+export function pagesMarkedInSource(block: string): number[] {
+  const found = new Set<number>();
+  for (const match of block.matchAll(/\[s\.(\d+)\]|·\s*s\.(\d+)\b/g)) {
+    const page = Number(match[1] ?? match[2]);
+    if (Number.isInteger(page) && page > 0 && page < 5000) found.add(page);
+  }
+  return [...found];
+}
+
 export const EMPTY_SOURCE_CONTEXT: SourceContext = {
   block: "",
   matches: [],

@@ -410,9 +410,9 @@ export const oralV2Schema = z.object({
       z.object({
         prompt: z.string().min(8),
         hint: z.string().optional(),
-        learningObjective: z.string().min(8).optional(),
-        rubricCriteria: z.array(z.string().min(2)).min(1).max(5).optional(),
-        expectedPoints: z.array(z.string().min(2)).min(1).max(6).optional(),
+        learningObjective: z.string().min(8).max(200).optional().catch(undefined),
+        rubricCriteria: z.array(z.string().min(2)).min(1).max(5).optional().catch(undefined),
+        expectedPoints: z.array(z.string().min(2)).min(1).max(6).optional().catch(undefined),
       }),
     )
     .min(3)
@@ -1779,22 +1779,62 @@ export function blockingLessonIssues(raw: unknown): string[] {
  * cevaplı işaretlenmişti. "Sec neden yanlış?" yazmak zorunda olan bir
  * açıklama bunu yazamazdı.
  */
-function explanationRefutesADistractor(q: QuizQuestion): boolean {
-  const explanation = foldTr(q.explanation ?? "");
-  if (!explanation.trim()) return false;
+function distractorTokens(q: QuizQuestion): string[][] {
   const correctTokens = new Set(
     q.correct.flatMap((c) => foldTr(c).split(/[^a-z0-9]+/).filter(Boolean)),
   );
+  const groups: string[][] = [];
   for (const option of q.options) {
     if (q.correct.includes(option)) continue;
-    // Yanlış şıkkı ayırt eden parça: doğru şıkta geçmeyen bir kelime
-    // ya da sayı. "270" doğru cevapta da geçiyorsa ayırt etmiyor.
-    const distinctive = foldTr(option)
-      .split(/[^a-z0-9]+/)
-      .filter((t) => t.length >= 2 && !correctTokens.has(t));
-    if (distinctive.some((t) => explanation.includes(t))) return true;
+    groups.push(
+      foldTr(option)
+        .split(/[^a-z0-9]+/)
+        .filter((t) => t.length >= 2 && !correctTokens.has(t)),
+    );
   }
-  return false;
+  return groups;
+}
+
+function explanationRefutesADistractor(q: QuizQuestion): boolean {
+  const explanation = foldTr(q.explanation ?? "");
+  if (!explanation.trim()) return false;
+  const groups = distractorTokens(q);
+  const distinctive = groups.filter((tokens) => tokens.length > 0);
+  // Ayırt eden kelimesi olmayan şık (doğru cevabın alt kümesi) adlandırılamaz.
+  if (!distinctive.length) return true;
+  return distinctive.some((tokens) => tokens.some((token) => explanation.includes(token)));
+}
+
+/**
+ * Şeması tutan quiz, eksik hedef ya da çeldirici cümlesi yüzünden
+ * "biçim uymadı" diye düşmesin. Yeni olgu eklenmez: hedef soru cümlesidir,
+ * etiket yanlış şıktır, çürütme o şıkkın adını taşır.
+ */
+export function repairQuizPedagogy(questions: QuizQuestion[]): QuizQuestion[] {
+  return questions.map((question) => {
+    const next: QuizQuestion = { ...question };
+    const stem = next.text.trim();
+    if ((next.learningObjective?.trim().length ?? 0) < 8) {
+      const objective = stem.length >= 8 ? stem : `${stem} konusunu ayırt etmek`;
+      next.learningObjective = objective.slice(0, 200);
+    }
+    const wrong = next.options.find((option) => !next.correct.includes(option));
+    if ((next.misconceptionTag?.trim().length ?? 0) < 2) {
+      const tag = wrong && wrong.trim().length >= 2 ? wrong.trim() : "celdirici";
+      next.misconceptionTag = tag.slice(0, 80);
+    }
+    if (!next.explanation || next.explanation.trim().length < 8) {
+      const right = next.correct[0]?.trim() || "işaretli seçenek";
+      next.explanation = `Doğru seçenek: ${right}.`.slice(0, 500);
+    }
+    if (wrong && !explanationRefutesADistractor(next)) {
+      next.explanation = `${next.explanation.trim()} «${wrong.trim()}» bu sorunun cevabı değildir.`.slice(
+        0,
+        500,
+      );
+    }
+    return next;
+  });
 }
 
 /** Quiz pedagogy beyond basic schema parse. */

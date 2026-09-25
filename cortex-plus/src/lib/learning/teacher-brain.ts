@@ -444,6 +444,11 @@ function sourceHasNumber(source: string, raw: string): boolean {
   return normalized.includes(digits) || source.includes(raw.replace(/\s/g, ""));
 }
 
+/** Kaynakta bu sayı, virgül ya da nokta yazımıyla duruyor mu? */
+export function sourceContainsNumber(source: string, raw: string): boolean {
+  return sourceHasNumber(source, raw);
+}
+
 /** Kaynakta geçmeyen yüzde ve denklem katsayısı. Küçük sıra sayıları sayılmaz. */
 export function unsupportedQuantities(generated: string, source: string): string[] {
   if (!source.trim() || !generated.trim()) return [];
@@ -461,6 +466,40 @@ export function unsupportedQuantities(generated: string, source: string): string
     }
   }
   return [...new Set(issues)].slice(0, 6);
+}
+
+/**
+ * Kaynakta yazmayan sonuç, işlem doğruysa ve girdiler kaynakta duruyorsa
+ * uydurma değildir. "0,25 × 98 = 24,5" kaynakta 24,5 geçmese de tutulur.
+ * Yanlış sonuç ve kaynaksız yüzde tutulmaz.
+ */
+export function quantityClaimGrounded(text: string, source: string): boolean {
+  if (!source.trim() || !text.trim()) return true;
+  if (!unsupportedQuantities(text, source).length) return true;
+  if (!/=/.test(text)) return false;
+  const eq =
+    /(?<![\d.,\w])([−-]?\d+(?:[.,]\d+)?)\s*([+\-−×x*÷/])\s*([−-]?\d+(?:[.,]\d+)?)\s*=\s*([−-]?\d+(?:[.,]\d+)?)(?![\d.,/])/g;
+  let saw = false;
+  for (const match of text.matchAll(eq)) {
+    saw = true;
+    const number = (value: string) => Number(value.replace("−", "-").replace(",", "."));
+    const a = number(match[1]);
+    const b = number(match[3]);
+    const claimedText = match[4];
+    const claimed = number(claimedText);
+    const op = match[2];
+    let expected: number | null = null;
+    if (op === "+") expected = a + b;
+    else if (op === "-" || op === "−") expected = a - b;
+    else if (op === "×" || op === "x" || op === "*") expected = a * b;
+    else if (op === "÷" || op === "/") expected = b === 0 ? null : a / b;
+    if (expected == null || ![a, b, claimed].every((n) => Number.isFinite(n))) return false;
+    const decimals = claimedText.split(/[.,]/)[1]?.length ?? 0;
+    const tolerance = decimals > 0 ? 0.5 * 10 ** -decimals : 1e-6;
+    if (Math.abs(expected - claimed) > tolerance) return false;
+    if (!sourceHasNumber(source, match[1]) || !sourceHasNumber(source, match[3])) return false;
+  }
+  return saw;
 }
 
 /** Kaynakta olmayan niceliğin cümlesini düşürür. Kalan metin kalır. */

@@ -81,6 +81,45 @@ function codesFromIssues(issues: ValidationIssue[]): string[] {
   return issues.map((i) => i.code);
 }
 
+export type ActivityDraftShape = "questions" | "cards" | "chapters" | "items" | "lesson" | "prose";
+
+/** Taslağın JSON şekli. Onarım bunu derse çevirirse quiz ve sözlü okunamaz. */
+export function activityDraftShape(draft: string): ActivityDraftShape {
+  try {
+    const parsed = JSON.parse(draft) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "prose";
+    if (Array.isArray(parsed.questions)) return "questions";
+    if (Array.isArray(parsed.cards)) return "cards";
+    if (Array.isArray(parsed.chapters)) return "chapters";
+    if (Array.isArray(parsed.items)) return "items";
+    if (Array.isArray(parsed.sections)) return "lesson";
+  } catch {
+    /* Düz metin. */
+  }
+  return "prose";
+}
+
+const SHAPE_BROKEN =
+  "Çıktının JSON şekli değişti. questions, cards, chapters veya items dizisini koru; bunu ders bölümüne çevirme.";
+
+export function repairInstruction(draft: string, blocking: string[]): string {
+  const shape = activityDraftShape(draft);
+  const keep =
+    shape === "lesson" || shape === "prose"
+      ? "JSON anahtarları İngilizce kalsın: objective, sections, example, commonMistake, infoCheck. " +
+        "example, commonMistake veya objective uydurma; yazamıyorsan alanı atla. " +
+        "En az bir kavram bölümü ve yanıtlı bir kontrol sorusu kalsın. "
+      : `Bu çıktı bir derse çevrilmez. JSON şekli ${shape} olarak kalır; sections, example veya infoCheck ekleme. `;
+  return (
+    "Eğitim içeriğindeki şu sorunları düzelt. Liste, eksik veya bozuk alanların tam adını taşır: " +
+    JSON.stringify(blocking) +
+    ". Yalnızca bu maddeleri gider. Üslup, LaTeX, koyu yazım ve başlık sözcüğünü değiştirme. " +
+    "Kaynak sayfalarda olmayan formül, yasa ve tanımı sil. " +
+    keep +
+    'JSON döndür: {"content":string}; content düzeltilmiş tam taslaktır (istenen biçim JSON ise geçerli JSON metni).'
+  );
+}
+
 function stampError(
   error: EducationalVerificationError,
   repairAttempted: boolean,
@@ -127,6 +166,11 @@ export async function verifyEducationalContent(input: {
   trustIndependent?: boolean;
 }): Promise<VerifyEducationalResult> {
   let content = input.draft;
+  const originalShape = activityDraftShape(input.draft);
+  const shapeKept = () => {
+    if (originalShape === "prose" || originalShape === "lesson") return true;
+    return activityDraftShape(content) === originalShape;
+  };
   let tokensIn = 0;
   let tokensOut = 0;
   let repairAttempted = false;
@@ -330,7 +374,7 @@ export async function verifyEducationalContent(input: {
     ];
     const severity = { blocking, nonBlocking };
     if (blocking.length) lastReviewIssues = blocking;
-    if (blocking.length === 0) {
+    if (blocking.length === 0 && shapeKept()) {
       return {
         content,
         tokensIn,
@@ -344,20 +388,14 @@ export async function verifyEducationalContent(input: {
         modelCalls,
       };
     }
+    if (blocking.length === 0 && !shapeKept()) {
+      lastReviewIssues = [SHAPE_BROKEN];
+    }
     if (attempt === 1) break;
 
     repairAttempted = true;
     const repairStarted = Date.now();
-    const repairRaw = await request(
-      "Eğitim içeriğindeki şu sorunları düzelt. Liste, eksik veya bozuk alanların tam adını taşır: " +
-        JSON.stringify(blocking) +
-        ". Yalnızca bu maddeleri gider. Üslup, LaTeX, koyu yazım ve başlık sözcüğünü değiştirme. " +
-        "Kaynak sayfalarda olmayan formül, yasa ve tanımı sil. " +
-        "JSON anahtarları İngilizce kalsın: objective, sections, example, commonMistake, infoCheck. " +
-        "example, commonMistake veya objective uydurma; yazamıyorsan alanı atla. " +
-        "En az bir kavram bölümü ve yanıtlı bir kontrol sorusu kalsın. " +
-        'JSON döndür: {"content":string}; content düzeltilmiş tam taslaktır (istenen biçim JSON ise geçerli JSON metni).',
-    );
+    const repairRaw = await request(repairInstruction(content, blocking.length ? blocking : lastReviewIssues));
     stagesMs.repair = (stagesMs.repair ?? 0) + (Date.now() - repairStarted);
     const repaired = repairedDraft(repairRaw);
     if (!repaired) {
@@ -398,7 +436,9 @@ export async function verifyEducationalContent(input: {
     ...finalModel.nonBlocking,
   ];
   // Onarımdan sonra bloklayan madde kalmadıysa üslup dersi düşürmez.
-  if (blockingLeft.length === 0) {
+  // Quiz veya sözlü ders şekline çevrildiyse kabul edilmez: ayrıştırıcı
+  // bunu "biçim uymadı" diye öğrenciye yazıyordu.
+  if (blockingLeft.length === 0 && shapeKept()) {
     return {
       content,
       tokensIn,
@@ -412,8 +452,11 @@ export async function verifyEducationalContent(input: {
       modelCalls,
     };
   }
+  if (!shapeKept() && !blockingLeft.includes(SHAPE_BROKEN)) {
+    blockingLeft.unshift(SHAPE_BROKEN);
+  }
   // Tek onarım yetmediyse uydurulan parça kesilir; sağlam ders kalırsa kabul.
-  if (repairAttempted) {
+  if (repairAttempted && shapeKept()) {
     const settled = settleRejectedLesson(content, blockingLeft);
     if (settled.accepted && settled.removed.length > 0) {
       return {
