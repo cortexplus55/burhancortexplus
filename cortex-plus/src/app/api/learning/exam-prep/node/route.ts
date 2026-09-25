@@ -21,6 +21,18 @@ import {
 } from "@/lib/learning/prep-source";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
+import { pickPracticeNodeId, practiceHref, studyNodeOpenable } from "@/lib/learning/study-tools";
+import {
+  fitOralCount,
+  gradeOralExam,
+  isOralLength,
+  stampOralQuestions,
+  syllabusWeightLineFromChecklist,
+  type OralExamReport,
+  type OralGroundingPassage,
+  type OralQuestionDraft,
+} from "@/lib/learning/oral-exam";
+import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import { trueFalseItemsSchema, TRUE_FALSE_FORMAT } from "@/lib/learning/true-false";
 import {
@@ -166,6 +178,10 @@ const bodySchema = z.object({
   generationId: z.string().uuid().optional(),
   contentVersion: z.number().int().positive().optional(),
   cursorIndex: z.number().int().min(0).optional(),
+  /** Sözlü deneme: 3, 5 veya 8 soru. Yoksa derinlik ayarı durur. */
+  oralQuestionCount: z.union([z.literal(3), z.literal(5), z.literal(8)]).optional(),
+  oralTopicLabel: z.string().max(400).optional(),
+  oralScope: z.enum(["topic", "all"]).optional(),
   podcastLength: z.enum(["ozet", "standart", "derin"]).optional(),
 });
 
@@ -178,13 +194,7 @@ const cardsSchema = z.object({
 });
 
 const oralSchema = z.object({
-  questions: z.array(z.object({ prompt: z.string().min(8), hint: z.string().optional() })).min(3).max(6),
-});
-
-const oralGradeSchema = z.object({
-  correctCount: z.number().int().min(0),
-  missingObjectives: z.array(z.string()).max(6).optional(),
-  scoreRationale: z.string().max(400).optional(),
+  questions: z.array(z.object({ prompt: z.string().min(8), hint: z.string().optional() })).min(3).max(8),
 });
 
 function actionForKind(kind: PlanNodeKind) {
@@ -229,6 +239,52 @@ async function reviewSourceBlock(
     return source.block;
   } catch {
     return "";
+  }
+}
+
+/**
+ * Sözlü notu, hazırlığın korpusuna da bakar. Okuma düşerse düğümün
+ * kendi sayfa metni yeter; ikinci bir model çağrısı yok.
+ */
+async function oralCorpus(
+  service: SupabaseClient,
+  userId: string,
+  prepId: string,
+  questions: OralQuestionDraft[],
+  topicLabel: string,
+): Promise<{ corpus: string; passages: OralGroundingPassage[] }> {
+  try {
+    const message =
+      questions.map((question) => question.prompt ?? "").filter(Boolean).join("\n") || topicLabel;
+    const grounded = await loadPrepChatGrounding(service, userId, prepId, message);
+    return {
+      corpus: grounded.corpus,
+      passages: grounded.passages.map((passage) => ({
+        documentName: passage.documentName,
+        pageNumber: passage.pageNumber,
+        slide: passage.slide,
+        content: passage.content,
+      })),
+    };
+  } catch {
+    return { corpus: "", passages: [] };
+  }
+}
+
+/** Tablo yoksa veya yazma düşerse deneme yine tamamlanır. */
+async function rememberMisconceptions(
+  service: SupabaseClient,
+  rows: Record<string, unknown>[],
+) {
+  if (!rows.length) return;
+  try {
+    const { error } = await service.from("exam_prep_misconceptions").insert(rows);
+    if (error) console.error("exam_prep_misconceptions_skipped", error.message);
+  } catch (error) {
+    console.error(
+      "exam_prep_misconceptions_skipped",
+      error instanceof Error ? error.message : "insert_failed",
+    );
   }
 }
 
@@ -339,7 +395,8 @@ export async function POST(request: Request) {
     .eq("exam_prep_id", prepId)
     .maybeSingle();
   if (!node) return errorResponse(404, "not_found");
-  if (node.status === "locked") return errorResponse(403, "forbidden");
+  // Sıra bir öneridir. Kredi ve plan sınırı üretimde durur.
+  if (!studyNodeOpenable(node.status)) return errorResponse(403, "forbidden");
 
   const sessionMeta = teachingV2 ? parseSessionMeta(node.session_meta) : null;
   const topicLookupId = sessionMeta?.topicId ?? prep.active_topic_id;
@@ -379,9 +436,22 @@ export async function POST(request: Request) {
     }
   }
 
-  const topicLabel =
-    sessionMeta?.topicTitle?.trim() || topic?.label || prep.title || "Konu";
   const kind = node.kind as PlanNodeKind;
+  let topicLabel =
+    sessionMeta?.topicTitle?.trim() || topic?.label || prep.title || "Konu";
+  const oralCount = isOralLength(parsed.data.oralQuestionCount ?? 0)
+    ? parsed.data.oralQuestionCount
+    : undefined;
+  if (kind === "oral" && parsed.data.oralTopicLabel?.trim()) {
+    topicLabel = parsed.data.oralTopicLabel.trim().slice(0, 400);
+  }
+  const oralWiden =
+    kind === "oral" &&
+    (parsed.data.oralScope === "all" ||
+      Boolean(
+        parsed.data.oralTopicLabel?.trim() &&
+          parsed.data.oralTopicLabel.trim() !== (sessionMeta?.topicTitle ?? "").trim(),
+      ));
   const difficulty = parsed.data.difficulty ?? "orta";
   const voiceMode = parsed.data.voiceMode ?? false;
   const familiarity = parseFamiliarity(parsed.data.familiarity);
@@ -552,6 +622,7 @@ export async function POST(request: Request) {
         state: "completed",
         idempotent: true,
         review,
+        oralReview: oralReviewFromPayload(attempt.payload),
       });
     }
 
@@ -591,6 +662,7 @@ export async function POST(request: Request) {
         state: "completed",
         idempotent: true,
         review,
+        oralReview: oralReviewFromPayload(attempt.payload),
       });
     }
 
@@ -602,43 +674,45 @@ export async function POST(request: Request) {
       : (parsed.data.answers ?? {});
 
     let scored = scoreAttempt(kind, attempt?.payload, mergedAnswers, teachingV2);
-    let oralExtras: { missingObjectives?: string[]; scoreRationale?: string } = {};
+    let oralExtras: OralExamReport | null = null;
     if (kind === "oral" && attempt?.payload && attempt.status !== "completed") {
-      const questions = ((attempt.payload as {
-        questions?: {
-          prompt?: string;
-          learningObjective?: string;
-          expectedPoints?: string[];
-          rubricCriteria?: string[];
-        }[];
-      }).questions ?? []);
-      const answerLines = questions
-        .map((question, index) =>
-          `${index + 1}. Soru: ${question.prompt ?? ""}\nHedef: ${question.learningObjective ?? "-"}\nRubrik: ${(question.rubricCriteria ?? []).join("; ")}\nBeklenen: ${(question.expectedPoints ?? []).join("; ")}\nÖğrenci yanıtı: ${String(mergedAnswers[String(index)] ?? "")}`,
-        )
-        .join("\n\n");
-      const grade = await generateJson({
-        service,
-        userId,
-        actionCode: "PRACTICE_EXAM_GRADE",
-        isPremium: await isPremiumUser(service, userId),
-        schemaHint: teachingV2
-          ? `Yalnızca {"correctCount":number,"missingObjectives":string[],"scoreRationale":string} JSON. correctCount 0-${questions.length}. Eşdeğer doğru kabul et; gerekçesiz uzun ilgisiz metin doğru sayma.`
-          : `Yalnızca {"correctCount":number} JSON döndür. correctCount 0-${questions.length} arasında tam sayı olmalı. Anlamsız, ilgisiz veya yalnızca genel ifadeler doğru sayılmaz.`,
-        userPrompt: `${topicLabel} sözlü yanıtlarını içerik doğruluğuna göre değerlendir. Her yanıtı ancak soruyu doğru ve yeterli biçimde cevaplıyorsa doğru say. Rubrikte ve beklenen noktalarda olmayan bir doğruyu puanlama; eksik noktayı missingObjectives'e yaz.\n\n${answerLines}`,
-        parse: (raw) => oralGradeSchema.safeParse(raw).data ?? null,
-      });
-      if (!grade.ok) return errorResponse(grade.status, grade.error);
-      if (grade.ok) {
-        scored = {
-          score: Math.min(questions.length, grade.data.correctCount),
-          total: questions.length || 1,
-          retried: 0,
+      const questions = ((attempt.payload as { questions?: OralQuestionDraft[] }).questions ?? []);
+      const hasRubric = questions.some((question) => (question.expectedPoints ?? []).length > 0);
+      if (hasRubric) {
+        const source = await reviewSourceBlock(service, userId, prepId, nodeId);
+        const grounding = await oralCorpus(service, userId, prepId, questions, topicLabel);
+        const report = gradeOralExam(
+          questions,
+          mergedAnswers,
+          [source, grounding.corpus].filter((part) => part.trim()).join("\n\n"),
+          grounding.passages,
+        );
+        const { data: practiceNodes } = await service
+          .from("exam_prep_nodes")
+          .select("id, kind, sort_order, session_meta")
+          .eq("exam_prep_id", prepId);
+        const practiceTopic = parsed.data.oralScope === "all" ? null : topicLabel;
+        report.nextStep = {
+          label: report.weaknesses.length ? "Eksik konuda pratik" : "Çalışma yoluna dön",
+          href: practiceHref(
+            prepId,
+            pickPracticeNodeId(
+              (practiceNodes ?? []).map((row) => ({
+                id: row.id as string,
+                kind: row.kind as string,
+                sortOrder: (row.sort_order as number) ?? 0,
+                status: "ready",
+                sessionMeta:
+                  row.session_meta && typeof row.session_meta === "object"
+                    ? (row.session_meta as { topicId?: string; topicTitle?: string })
+                    : null,
+              })),
+              practiceTopic,
+            ),
+          ),
         };
-        oralExtras = {
-          missingObjectives: grade.data.missingObjectives,
-          scoreRationale: grade.data.scoreRationale,
-        };
+        scored = { score: report.fullCount, total: report.total, retried: 0 };
+        oralExtras = report;
       }
     }
     const answersForRpc = teachingV2 ? stripAnswerMeta(mergedAnswers) : mergedAnswers;
@@ -665,6 +739,41 @@ export async function POST(request: Request) {
         .is("complete_request_id", null);
     }
 
+    if (!teachingV2 && oralExtras) {
+      const payloadForEvidence = {
+        ...((attempt.payload as object) ?? {}),
+        gradeMeta: oralExtras,
+      };
+      await service
+        .from("exam_prep_node_attempts")
+        .update({ payload: payloadForEvidence })
+        .eq("id", attempt.id);
+      const drafts = extractMisconceptions({
+        kind,
+        payload: payloadForEvidence,
+        answers: answersForRpc,
+        topicLabel,
+        language: prepLanguage(prep.learning_preferences),
+      }).filter((draft) => draft.sourceKind === "oral");
+      if (drafts.length) {
+        await rememberMisconceptions(
+          service,
+          drafts.map((d) => ({
+            user_id: userId,
+            exam_prep_id: prepId,
+            node_id: nodeId,
+            attempt_id: attempt.id,
+            topic_label: d.topicLabel,
+            claim: d.claim,
+            corrected: d.corrected,
+            wrong_type: d.wrongType,
+            source_kind: d.sourceKind,
+            question_preview: d.questionPreview,
+          })),
+        );
+      }
+    }
+
     let nextHref = completed.nextId
       ? `/deneme-sinavlari/${prepId}/dugum/${completed.nextId}`
       : `/deneme-sinavlari/${prepId}`;
@@ -672,7 +781,7 @@ export async function POST(request: Request) {
 
     if (teachingV2) {
       let payloadForEvidence = attempt.payload;
-      if (Object.keys(oralExtras).length) {
+      if (oralExtras) {
         payloadForEvidence = {
           ...((attempt.payload as object) ?? {}),
           gradeMeta: oralExtras,
@@ -692,7 +801,8 @@ export async function POST(request: Request) {
       });
       const fresh = await unseenLessonReviews(service, userId, prepId, drafts);
       if (fresh.length) {
-        await service.from("exam_prep_misconceptions").insert(
+        await rememberMisconceptions(
+          service,
           fresh.map((d) => ({
             user_id: userId,
             exam_prep_id: prepId,
@@ -783,6 +893,7 @@ export async function POST(request: Request) {
       learningTracking,
       state: "completed",
       review,
+      oralReview: oralExtras ?? oralReviewFromPayload(attempt.payload),
     });
   }
 
@@ -1001,7 +1112,7 @@ export async function POST(request: Request) {
     // o sayfaların prompta girdiğini garanti etmiyordu ve ders kaynakta
     // duran formülü yanlış yazabiliyordu. İstenen sayfa okunamazsa üretim
     // durur; yalnızca sayfa listesi olmayan eski planlar aramayı kullanır.
-    const mappedPages = sessionMeta?.sourcePages;
+    const mappedPages = oralWiden ? undefined : sessionMeta?.sourcePages;
     const pageDocumentIds = [
       topicDocumentId,
       prepSource.document_id as string | null,
@@ -1272,6 +1383,21 @@ export async function POST(request: Request) {
           prepId,
           topicId: topic?.id ?? null,
           practiceTopics,
+          oralQuestionCount: kind === "oral" ? oralCount : undefined,
+          oralCitation:
+            kind === "oral"
+              ? {
+                  file: source.documentName,
+                  pages:
+                    sessionMeta?.sourcePages?.length
+                      ? sessionMeta.sourcePages
+                      : source.matches
+                          .map((match) => match.pageNumber)
+                          .filter((page): page is number => typeof page === "number"),
+                }
+              : null,
+          syllabusLine:
+            kind === "oral" ? syllabusWeightLineFromChecklist(teachingPlan.checklist) : "",
           podcastLength: parsePodcastLength(parsed.data.podcastLength),
           requestId: clientRequestId ?? parsed.data.clientRequestId ?? null,
           grounding:
@@ -1583,6 +1709,9 @@ async function generateNodePayload(input: {
   upcomingTopics?: string[] | null;
   /** Odaklı pratikte kayıtlı soru yetmezse tek üretim bu konulara bağlı kalır. */
   practiceTopics?: string[];
+  oralQuestionCount?: 3 | 5 | 8;
+  oralCitation?: { file: string | null; pages: number[] } | null;
+  syllabusLine?: string;
   podcastLength?: PodcastLength;
   requestId?: string | null;
   grounding?: string;
@@ -2075,6 +2204,10 @@ async function generateNodePayload(input: {
 
   if (input.kind === "oral") {
     const schema = input.teachingV2 ? oralV2Schema : oralSchema;
+    const asked = input.oralQuestionCount ?? Math.min(8, Math.max(3, quizCount));
+    const weight = input.syllabusLine?.trim()
+      ? input.syllabusLine
+      : "Yalnızca verilen kaynak sayfalarındaki olguları sor. Kaynakta olmayan konu yazma.";
     const outcome = await generateJson({
       service: input.service,
       userId: input.userId,
@@ -2084,11 +2217,12 @@ async function generateNodePayload(input: {
       buildIndependent: input.teachingV2
         ? (_c, parsed) => {
             const data = schema.safeParse(parsed).data;
+            const fitted = data ? fitOralCount(data.questions, asked) : null;
             return {
-              pedagogyIssues: data
-                ? validateOralPedagogy(data.questions)
+              pedagogyIssues: fitted
+                ? validateOralPedagogy(fitted)
                 : ["Sözlü şema geçersiz."],
-              minItems: 3,
+              minItems: asked,
               ...sourceIndependent,
             };
           }
@@ -2097,20 +2231,26 @@ async function generateNodePayload(input: {
         ? 'JSON: {"questions":[{"prompt":string,"hint":string,"learningObjective":string,"rubricCriteria":string[],"expectedPoints":string[]}]}'
         : 'JSON: {"questions":[{"prompt":string,"hint":string}]}',
       userPrompt: input.teachingV2
-        ? `${ctx} ${quizCount} sözlü soru; her birinde rubrik ve beklenen noktalar. Sınav kipinde yardım sınırlı — hint kısa tut veya boş bırak.`
-        : `${ctx} ${quizCount} sözlü soru.`,
+        ? `${ctx} Tam ${asked} sözlü soru; her birinde rubrik ve beklenen noktalar. ${weight} Beklenen noktalar yalnızca kaynakta duran olgu olsun; sayı ve birim uydurma. Sınav kipinde yardım sınırlı — hint kısa tut veya boş bırak.`
+        : `${ctx} Tam ${asked} sözlü soru. ${weight}`,
       parse: (raw) => {
         const data = schema.safeParse(raw).data ?? null;
         if (!data) return null;
+        const fitted = fitOralCount(data.questions, asked);
+        if (!fitted) return null;
         if (input.teachingV2) {
-          const issues = validateOralPedagogy(data.questions);
+          const issues = validateOralPedagogy(fitted);
           if (issues.length) return null;
         }
-        return data;
+        return { questions: fitted };
       },
     });
     if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
-    return { type: "oral", questions: outcome.data.questions, teachingStandard: activity };
+    return {
+      type: "oral",
+      questions: stampOralQuestions(outcome.data.questions, input.oralCitation),
+      teachingStandard: activity,
+    };
   }
 
   if (input.kind === "flashcards" || input.kind === "spaced") {
@@ -2277,12 +2417,30 @@ function withLessonReviewCards(
   return { ...payload, cards: appendLessonReviewCards(cards, reviewCards) };
 }
 
+function oralReviewFromPayload(payload: unknown): OralExamReport | null {
+  if (!payload || typeof payload !== "object") return null;
+  const meta = (payload as { gradeMeta?: unknown }).gradeMeta;
+  if (!meta || typeof meta !== "object") return null;
+  const report = meta as OralExamReport;
+  return Array.isArray(report.items) ? report : null;
+}
+
 function publicNodePayload(
   payload: Record<string, unknown>,
   reviewCards: LessonReviewCard[] = [],
   nodeKind?: PlanNodeKind,
 ) {
   const decorated = withLessonReviewCards(payload, reviewCards);
+  if (decorated.type === "oral") {
+    const questions = ((decorated.questions as OralQuestionDraft[]) ?? []).map((question) => {
+      const { expectedPoints, rubricCriteria, learningObjective, ...visible } = question;
+      void expectedPoints;
+      void rubricCriteria;
+      void learningObjective;
+      return visible;
+    });
+    return { ...decorated, questions };
+  }
   if (decorated.type !== "quiz") return decorated;
   const seal = nodeKind === "written_exam";
   const questions = ((decorated.questions as QuizQuestion[]) ?? []).map((question) =>

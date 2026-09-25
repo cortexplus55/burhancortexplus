@@ -16,6 +16,7 @@ import {
   reviewQuestionFor,
   type MaterialLanguage,
 } from "@/lib/learning/teacher-brain";
+import { gradeOralExam, oralMisconceptionDrafts } from "@/lib/learning/oral-exam";
 
 export type TeachingActivity =
   | "intro_qa"
@@ -389,7 +390,7 @@ export const oralV2Schema = z.object({
       }),
     )
     .min(3)
-    .max(6),
+    .max(8),
 });
 
 export const podcastV2Schema = z.object({
@@ -2229,6 +2230,32 @@ export function extractMisconceptions(input: {
         questionPreview: question.text.slice(0, 160),
       });
     });
+  }
+
+  if (data.type === "oral") {
+    const questions =
+      (data.questions as {
+        prompt?: string;
+        expectedPoints?: string[];
+        learningObjective?: string;
+        sourceFile?: string | null;
+        sourcePage?: string | null;
+      }[]) ?? [];
+    const stored = data.gradeMeta as { items?: unknown } | undefined;
+    const report =
+      stored && Array.isArray(stored.items)
+        ? (stored as ReturnType<typeof gradeOralExam>)
+        : gradeOralExam(questions, input.answers);
+    for (const draft of oralMisconceptionDrafts(report)) {
+      out.push({
+        claim: draft.claim,
+        corrected: draft.corrected,
+        wrongType: draft.wrongType,
+        sourceKind: "oral",
+        topicLabel,
+        questionPreview: draft.questionPreview,
+      });
+    }
   }
 
   if (data.type === "lesson") {
