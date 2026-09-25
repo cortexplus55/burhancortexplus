@@ -177,6 +177,26 @@ describe("öğretmen analizi kaydı", () => {
     expect(gate.calls).toBe(0);
   });
 
+  it("yöneticinin bakiyesi düşmediği için bütçe ön kontrolü onu atlatmaz", async () => {
+    const state: State = {
+      existing: null,
+      pages: [{ page_number: 1, text_content: "Hücre zarı seçici geçirgendir ve madde alışverişini protein kanallarıyla düzenler." }],
+      wallet: { balance: 0, reserved: 0 },
+      saved: null,
+    };
+    const admin = Object.assign(client(state), {
+      rpc: async (fn: string) => (fn === "is_admin" ? { data: true, error: null } : { data: null, error: null }),
+    }) as unknown as SupabaseClient;
+    const result = await runTeacherAnalysis(admin, "doc-admin", {
+      userId: "admin-1",
+      fileName: "biyoloji.pdf",
+      mimeType: "application/pdf",
+    });
+    expect(state.saved?.error).not.toBe("credit_budget");
+    expect(result.status).toBe("ready");
+    expect(gate.calls).toBeGreaterThan(0);
+  });
+
   it("model çökerse yükleme fonksiyonu da çökmez", async () => {
     gate.blow = true;
     const state: State = {

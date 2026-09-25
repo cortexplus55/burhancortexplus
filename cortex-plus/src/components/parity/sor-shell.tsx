@@ -15,6 +15,7 @@ import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
 import { studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
 import { creditChipLabel } from "@/lib/credits/chip-label";
+import { FounderChip } from "@/components/student/founder-chip";
 import { profilePlanView } from "@/lib/billing/tier-presentation";
 import { ExamChatMenu } from "@/components/parity/exam-chat-menu";
 import type { RecentConversation } from "@/lib/student/conversation-time";
@@ -202,9 +203,7 @@ export function ParitySorShell({
 
         <div className="cp-sor-top-actions">
           {examChrome ? null : isAdmin && account ? (
-            <span className="cp-sor-credit-chip">
-              {creditChipLabel({ isAdmin: true, planLabel, balance })}
-            </span>
+            <FounderChip />
           ) : showBuy ? (
             <Link href="/pay" className="cp-sor-buy">
               Satın al +

@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getUserEntitlements, type Audience } from "@/lib/billing/entitlements";
 import { formatResetAt, quotaView, type PeriodKind } from "@/lib/credits/period";
 import { type SubscriptionBadge } from "@/lib/student/subscription-badge";
+import { isAdminUser } from "@/lib/auth/roles";
 
 export type StudentAccountContext = {
   audience: Audience;
@@ -34,7 +35,7 @@ export async function getStudentAccountContext(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<StudentAccountContext> {
-  const [{ data: wallet }, entitlements, adminRole] = await Promise.all([
+  const [{ data: wallet }, entitlements, isAdmin] = await Promise.all([
     supabase
       .from("credit_wallets")
       .select(
@@ -43,21 +44,13 @@ export async function getStudentAccountContext(
       .eq("user_id", userId)
       .maybeSingle(),
     getUserEntitlements(supabase, userId),
-    supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .is("revoked_at", null)
-      .maybeSingle(),
+    isAdminUser(supabase, userId),
   ]);
 
   const subscriptionBadge = entitlements.badge;
   const isPremium = entitlements.isPremium;
   const balance = wallet?.balance ?? 0;
   const freeAllowanceRemaining = wallet?.free_allowance_remaining ?? 0;
-  // Sorgu hata verirse yönetici sayma: kredi muafiyeti kapalı kalsın.
-  const isAdmin = !adminRole.error && Boolean(adminRole.data);
   const quota = quotaView(
     wallet,
     isPremium,

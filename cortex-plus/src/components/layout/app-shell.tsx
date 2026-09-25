@@ -42,7 +42,10 @@ export async function AppShell({
         {title ? (
           <div className="cp-page-head">
             <h1 className="cp-page-title">{title}</h1>
-            {creditHint ? <p className="cp-page-hint">{creditHint}</p> : null}
+            {/* Kurucuda işlem bedeli yazmıyor: hiçbir işlem kredi düşürmüyor. */}
+            {creditHint && !shell.account.isAdmin ? (
+              <p className="cp-page-hint">{creditHint}</p>
+            ) : null}
           </div>
         ) : null}
         {children}

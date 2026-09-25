@@ -4,7 +4,29 @@
 -- Rezervasyon tutarı 0 olabilsin: nominal tutarı yazıp cüzdanı düşmemek,
 -- iade sırasında bakiyeye kredi ekler. 0 tutarlı satır commit/refund'da
 -- cüzdanı oynatmaz. Defter kaydı durur ki kullanım sayılsın, harcama toplamına girmesin.
+--
+-- Tekrar çalıştırılabilir: her nesne CREATE OR REPLACE ya da IF EXISTS ile.
 
+-- 1) Rol kontrolü. Tanım 20250825120000_init.sql ile aynı; burada yalnızca
+--    arama yolu ve yetkiler tek yerde yeniden sabitleniyor.
+CREATE OR REPLACE FUNCTION public.is_admin(uid uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id = uid AND ur.role = 'admin' AND ur.revoked_at IS NULL
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.is_admin(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.is_admin(uuid) TO authenticated, service_role;
+
+-- 2) Sıfır tutarlı rezervasyon. Yönetici olmayan için tutar kuralın bedeli;
+--    0 ancak kural gerçekten ücretsizse oluşur.
 ALTER TABLE public.credit_reservations
   DROP CONSTRAINT IF EXISTS credit_reservations_amount_check;
 
@@ -78,7 +100,12 @@ BEGIN
         p_action_code,
         v_ledger_key,
         v_res_id,
-        jsonb_build_object('admin_bypass', true, 'nominal_cost', v_cost, 'attempt', v_attempt)
+        jsonb_build_object(
+          'admin_bypass', true,
+          'nominal_cost', v_cost,
+          'action_code', p_action_code,
+          'attempt', v_attempt
+        )
       );
 
     RETURN v_res_id;
@@ -179,3 +206,39 @@ $BODY$ LANGUAGE plpgsql SECURITY DEFINER;
 ALTER FUNCTION public.credit_reserve(uuid, text, text, integer) SET search_path = public, pg_temp;
 REVOKE ALL ON FUNCTION public.credit_reserve(uuid, text, text, integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.credit_reserve(uuid, text, text, integer) TO service_role;
+
+-- 3) İade. Gövde 20260923120001_uat_credit_atomicity.sql ile aynı; tek fark
+--    sıfır tutarlı rezervasyon. Onda geri verilecek bir şey yok: cüzdana
+--    dokunulmuyor, deftere satır yazılmıyor. Durum yine 'refunded' oluyor —
+--    `credit_reserve` aynı anahtarla yeniden denemeyi buna bakarak açıyor;
+--    durum 'pending' kalsaydı başarısız bir üretimin tekrarı "işlem sürüyor"
+--    hatasına takılırdı.
+CREATE OR REPLACE FUNCTION public.credit_refund(p_reservation_id uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE r public.credit_reservations%ROWTYPE; w public.credit_wallets%ROWTYPE; paid integer; free integer;
+BEGIN
+  SELECT * INTO r FROM public.credit_reservations WHERE id = p_reservation_id;
+  IF NOT FOUND THEN RETURN; END IF;
+  -- All settlement paths use wallet -> reservation order.
+  SELECT * INTO w FROM public.credit_wallets WHERE user_id = r.user_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'wallet_not_found'; END IF;
+  SELECT * INTO r FROM public.credit_reservations WHERE id = p_reservation_id FOR UPDATE;
+  IF r.status <> 'pending' THEN RETURN; END IF;
+  IF r.amount = 0 THEN
+    UPDATE public.credit_reservations SET status = 'refunded' WHERE id = r.id;
+    RETURN;
+  END IF;
+  paid := r.amount - r.free_spent;
+  -- Expired allowance cannot inflate the next period or become paid credits.
+  free := CASE WHEN r.allowance_period_end = w.period_ends_at AND now() < w.period_ends_at THEN r.free_spent ELSE 0 END;
+  UPDATE public.credit_reservations SET status = 'refunded' WHERE id = r.id;
+  UPDATE public.credit_wallets SET balance = balance + paid,
+    free_allowance_remaining = free_allowance_remaining + free,
+    reserved = reserved - r.amount, updated_at = now() WHERE user_id = r.user_id;
+  INSERT INTO public.credit_ledger(user_id, delta, balance_before, balance_after, entry_type, action_code, reference_id, metadata)
+    VALUES (r.user_id, paid + free, w.balance, w.balance + paid, 'refund', r.action_code, r.id,
+      jsonb_build_object('free_restored', free, 'paid_restored', paid, 'expired_free', r.free_spent - free));
+END;
+$$;
+REVOKE ALL ON FUNCTION public.credit_refund(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.credit_refund(uuid) TO service_role;

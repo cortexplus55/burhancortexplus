@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { periodWord } from "@/lib/credits/period";
 import type { StudentAccountContext } from "@/lib/student/account-context";
+import { FounderChip } from "@/components/student/founder-chip";
 
 export function StudentAccountStrip({
   account,
@@ -11,6 +12,19 @@ export function StudentAccountStrip({
   creditHint?: string;
   className?: string;
 }) {
+  // Kurucuda bakiye, paket bağlantısı ve maliyet ipucu yok: hiçbiri ona bir
+  // şey söylemiyor, işlemler kredi düşürmüyor.
+  if (account.isAdmin) {
+    return (
+      <div
+        className={`cs-pay-card cortex-premium-account-strip mb-4 rounded-2xl border px-4 py-3 text-sm ${className ?? ""}`}
+      >
+        <FounderChip />
+        <p className="cp-founder-note">Kurucu hesabı: işlemler kredinden düşmez.</p>
+      </div>
+    );
+  }
+
   const low =
     !account.canSpend ||
     (account.balance < 5 && account.freeAllowanceRemaining < 3);

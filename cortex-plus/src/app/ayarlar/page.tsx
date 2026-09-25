@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { requireUser } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
 import { getStudentAccountContext } from "@/lib/student/account-context";
+import { FounderBadge } from "@/components/student/founder-chip";
 
 export const metadata = { title: "Ayarlar" };
 
@@ -39,25 +40,32 @@ export default async function AyarlarPage() {
         <Link href="/ogretmen?dialog=profile" className="cp-exam-continue inline-flex">
           Hızlı ayarlar paneli
         </Link>
-        <SectionCard
-          title="Plan"
-          description={
-            account.isAdmin
-              ? "Kurucu hesabı. Kredi sınırı yok."
-              : account.isPremium
+        {account.isAdmin ? (
+          // Kurucuda abonelik yükseltme ya da iptal düğmesi yok.
+          <SectionCard title="Hesap">
+            <div className="cp-founder-row">
+              <span className="text-sm text-[var(--cp-text)]">Hesap türü</span>
+              <FounderBadge />
+            </div>
+            <p className="cp-founder-note">Kurucu hesabı. Kredi sınırı yok.</p>
+          </SectionCard>
+        ) : (
+          <SectionCard
+            title="Plan"
+            description={
+              account.isPremium
                 ? "Plus aboneliğin aktif. Kota ve ödemeleri krediler sayfasından takip edebilirsin."
                 : "Ücretsiz plandasın. Plus ile gelişmiş model ve daha yüksek limit açılır."
-          }
-        >
-          {account.isAdmin ? null : (
+            }
+          >
             <Link
               href={account.isPremium ? "/krediler" : "/pay"}
               className="text-sm font-medium underline"
             >
               {account.isPremium ? "Krediler" : "Plus’a yükselt"}
             </Link>
-          )}
-        </SectionCard>
+          </SectionCard>
+        )}
 
         <SectionCard
           title="Öğrenme tercihleri"
@@ -100,9 +108,11 @@ export default async function AyarlarPage() {
             <Link href="/kullanim-kosullari" className="underline">
               Kullanım koşulları
             </Link>
-            <Link href="/paketler" className="underline">
-              Paketler
-            </Link>
+            {account.isAdmin ? null : (
+              <Link href="/paketler" className="underline">
+                Paketler
+              </Link>
+            )}
           </div>
         </SectionCard>
 

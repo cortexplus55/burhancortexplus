@@ -44,8 +44,10 @@ export function DocumentUpload({
 }) {
   const router = useRouter();
   const account = useStudentShellAccount();
+  // Kurucuda ne işlem bedeli ne sayfa tavanı var; ikisi de sunucuda sayılmıyor.
+  const founder = account?.isAdmin === true;
   const freePdfCap =
-    account?.audience === "free" ? PHOTO_PAGE_LIMITS.free : null;
+    !founder && account?.audience === "free" ? PHOTO_PAGE_LIMITS.free : null;
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<"idle" | "uploading" | "processing">("idle");
   const [statusDetail, setStatusDetail] = useState<string | null>(null);
@@ -170,7 +172,7 @@ export function DocumentUpload({
             )}
           >
             {DOCUMENT_UPLOAD_HINT}
-            {creditCost !== null ? ` · işleme ${creditCost} kredi` : ""}
+            {creditCost !== null && !founder ? ` · işleme ${creditCost} kredi` : ""}
             {freePdfCap !== null ? ` · PDF sayfa: ${freePdfCap}` : ""}
             {learningV2
               ? " · işlem sonrası konu haritası çıkarılır"

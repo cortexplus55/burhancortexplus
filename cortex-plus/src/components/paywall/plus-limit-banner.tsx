@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { AlertCircle, X } from "lucide-react";
 import { periodWord } from "@/lib/credits/period";
-import { useStudentShellAccount } from "@/lib/student/student-shell-context";
+import { useIsFounder, useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { cn } from "@/lib/utils";
 import "@/styles/parity-shell.css";
 
@@ -17,6 +17,8 @@ export function PlusLimitBanner({
   variant?: "chrome" | "toast";
 }) {
   const account = useStudentShellAccount();
+  const founder = useIsFounder();
+  if (founder) return null;
   const weekly = account?.periodKind === "weekly";
   const title = `${periodWord(weekly ? "weekly" : "monthly")} limitine ulaştın`;
   const body =
