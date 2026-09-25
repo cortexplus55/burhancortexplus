@@ -32,9 +32,108 @@ const SUP_DIGIT: Record<string, string> = {
   "9": "⁹",
 };
 
+/** Latin harfin kendi alt simgesi. Eksik harf başka harfe dönmez; alt çizgi kalır. */
+const LETTER_TO_SUB: Record<string, string> = {
+  a: "ₐ",
+  e: "ₑ",
+  h: "ₕ",
+  i: "ᵢ",
+  j: "ⱼ",
+  k: "ₖ",
+  l: "ₗ",
+  m: "ₘ",
+  n: "ₙ",
+  o: "ₒ",
+  p: "ₚ",
+  r: "ᵣ",
+  s: "ₛ",
+  t: "ₜ",
+  u: "ᵤ",
+  v: "ᵥ",
+  x: "ₓ",
+};
+
+const SUB_TO_LETTER: Record<string, string> = Object.fromEntries(
+  Object.entries(LETTER_TO_SUB).map(([letter, sub]) => [sub, letter]),
+);
+
+const SUB_CHARS = Object.values(LETTER_TO_SUB).join("");
+
+function subOf(letter: string): string {
+  return LETTER_TO_SUB[letter.toLowerCase()] ?? `_${letter}`;
+}
+
+/** `R_u` ve `R_{u}` aynı harfin alt simgesi olur. Harf değişmez. */
+export function preserveSubscriptLetters(text: string): string {
+  return text
+    .replace(/_\{([A-Za-z])\}/g, (_match, letter: string) => subOf(letter))
+    .replace(/_([A-Za-z])(?![A-Za-z0-9])/g, (_match, letter: string) => subOf(letter));
+}
+
+function subscriptPairs(text: string): Map<string, Set<string>> {
+  const found = new Map<string, Set<string>>();
+  const add = (base: string, letter: string) => {
+    const key = base.toLowerCase();
+    const set = found.get(key) ?? new Set<string>();
+    set.add(letter.toLowerCase());
+    found.set(key, set);
+  };
+  for (const match of text.matchAll(/([A-Za-zΔδ])_\{?([A-Za-z])\}?(?![A-Za-z0-9])/g)) {
+    add(match[1], match[2]);
+  }
+  const sub = new RegExp(`([A-Za-zΔδ])([${SUB_CHARS}])`, "g");
+  for (const match of text.matchAll(sub)) {
+    const letter = SUB_TO_LETTER[match[2]];
+    if (letter) add(match[1], letter);
+  }
+  return found;
+}
+
+/**
+ * Dersteki alt simge, kaynağın aynı tabanındaki harften farklıysa
+ * kaynağın harfine döner. Kaynakta tek alt simge yoksa metin durur.
+ */
+export function alignSymbolSubscripts(text: string, source: string): string {
+  const allowed = subscriptPairs(source);
+  const swap = (base: string, letter: string, original: string) => {
+    const set = allowed.get(base.toLowerCase());
+    if (!set || set.size !== 1) return original;
+    const wanted = [...set][0];
+    if (!wanted || wanted === letter.toLowerCase()) return original;
+    return `${base}${subOf(wanted)}`;
+  };
+  return preserveSubscriptLetters(text)
+    .replace(/([A-Za-zΔδ])_\{?([A-Za-z])\}?(?![A-Za-z0-9])/g, (full, base: string, letter: string) =>
+      swap(base, letter, full),
+    )
+    .replace(new RegExp(`([A-Za-zΔδ])([${SUB_CHARS}])`, "g"), (full, base: string, sub: string) => {
+      const letter = SUB_TO_LETTER[sub];
+      return letter ? swap(base, letter, full) : full;
+    });
+}
+
+/** Koyu işaret öğrenci metninde ya kalın ya da düz yazıdır; yıldız görünmez. */
+export function studentTextParts(text: string): { bold: boolean; text: string }[] {
+  const parts = text.split(/(\*\*[^*\n]{1,80}\*\*)/g);
+  return parts
+    .map((part) => {
+      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+        return { bold: true, text: part.slice(2, -2) };
+      }
+      return { bold: false, text: part.replace(/\*\*/g, "") };
+    })
+    .filter((part) => part.text.length > 0);
+}
+
+export function studentVisibleText(text: string): string {
+  return studentTextParts(text)
+    .map((part) => part.text)
+    .join("");
+}
+
 /** "P r" ve "∫ 1 2" alt simge ile integral sınırına döner. */
 export function restoreMathNotation(text: string): string {
-  return text
+  return preserveSubscriptLetters(text)
     .replace(/∫\s*_?\s*([0-9])\s*\^\s*([0-9])/g, (_, lower: string, upper: string) => {
       return `∫${SUB_DIGIT[lower] ?? lower}${SUP_DIGIT[upper] ?? upper}`;
     })
@@ -186,6 +285,20 @@ function rejoinLines(lines: string[]): string[] {
 const TRAILING_FORMULA_PHRASE =
   /\s+((?:şeklinde|seklinde)\s+(?:hesaplanabilir|yazılır|yazilir|bulunur|tanımlanır|tanimlanir)|olarak\s+(?:ifade\s+edilir|yazılır|yazilir|hesaplanır|hesaplanir)|ile\s+(?:bulunur|hesaplanır|hesaplanir|ifade\s+edilir))\.?$/i;
 
+function verbEnding(text: string): boolean {
+  return /(?:yazılır|yazilir|hesaplanır|hesaplanir|bulunur|denir|olur|eder|gösterilir|gosterilir|kurulur|eşittir|esittir)$/i.test(
+    text.trim(),
+  );
+}
+
+/** Formülden hemen önceki eksik cümle, iki nokta ve bir yüklemle biter. */
+function introduceFormula(lead: string): string {
+  const trimmed = lead.replace(/[.:;\s]+$/g, "").trim();
+  if (!trimmed) return lead;
+  if (verbEnding(trimmed)) return `${trimmed}:`;
+  return `${trimmed} şöyle hesaplanır:`;
+}
+
 function phraseBeforeFormula(phrase: string, lead: string): string {
   const core = phrase.replace(/\.$/, "").trim();
   if (/^(?:şeklinde|seklinde)\s+/i.test(core)) {
@@ -282,5 +395,11 @@ export function layoutBoard(text: string): BoardLine[] {
         text: formula ? cleanPiece(line).replace(/\.$/, "").replace(/(?<!\*)\*(?!\*)/g, "·") : line,
       };
     })
-    .filter((line) => line.kind !== "formula" || !incompleteFormulaLine(line.text));
+    .filter((line) => line.kind !== "formula" || !incompleteFormulaLine(line.text))
+    .map((line, index, lines) => {
+      const next = lines[index + 1];
+      if (line.kind !== "prose" || next?.kind !== "formula") return line;
+      if (/[:.!?]$/.test(line.text.trim())) return line;
+      return { ...line, text: introduceFormula(line.text) };
+    });
 }

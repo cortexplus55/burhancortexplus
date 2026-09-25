@@ -8,6 +8,7 @@ import { z } from "zod";
 import { diagramIssues, lessonDiagramSchema } from "@/lib/learning/lesson-diagram";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { foldTr } from "@/lib/documents/page-analysis";
+import { preserveSubscriptLetters } from "@/lib/learning/lesson-board";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import type { PodcastChapter } from "@/lib/learning/podcast-script";
 import {
@@ -707,7 +708,7 @@ function toDigitScript(value: string, table: string): string {
 
 /** Ham LaTeX'i öğrencinin okuduğu düz yazıma çevirir. Yeni olgu eklemez. */
 export function normalizeMathNotation(text: string): string {
-  let out = text;
+  let out = preserveSubscriptLetters(text);
   out = out.replace(/\\frac\s*\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)");
   out = out.replace(/_\{([^{}]+)\}/g, (_match, inner: string) => toDigitScript(inner, SUBSCRIPTS));
   out = out.replace(/\^\{([^{}]+)\}/g, (_match, inner: string) =>

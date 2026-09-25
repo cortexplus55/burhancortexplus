@@ -1503,6 +1503,25 @@ function restateBinaryPrompt(prompt: string): string {
 }
 
 /**
+ * Çoktan seçmeli tekrar, kök aynı kaldıysa aynı olguyu başka bir açıdan sorar.
+ * "başka sözcüklerle" kalıbı kullanılmaz; normalize edilmiş kök eşit kalamaz.
+ */
+function meaningfulRetryStem(prompt: string): string {
+  const trimmed = prompt.replace(/\s+/g, " ").trim();
+  let next = trimmed
+    .replace(/(.+?)\s+aşağıdakilerden hangisi için doğrudur\??$/i, "$1 hangi durumda geçerlidir?")
+    .replace(/aşağıdakilerden hangisi/gi, "hangi seçenek")
+    .replace(/hangisi doğrudur\??/gi, "hangi ifade geçerlidir?")
+    .replace(/ne denir\??/gi, "hangi adla anılır?")
+    .replace(/nedir\??/gi, "ne ile bilinir?");
+  if (foldPrompt(next) === foldPrompt(trimmed)) {
+    const core = trimmed.replace(/[?.!\s]+$/g, "");
+    next = `${core} için geçerli ifade hangisidir?`;
+  }
+  return next.replace(/\s+/g, " ").trim().slice(0, 300);
+}
+
+/**
  * Kısa tekrar kapısının sorusu.
  * Saklı varyant gerçekten farklıysa o gelir.
  * Değilse tanım tersinden, doğru/yanlış başka bir kaynaktan sorulur.
@@ -1531,6 +1550,10 @@ export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredRevie
   if (check.options.length >= 3) {
     const rephrased = rephraseMultipleChoice(check);
     if (rephrased && foldPrompt(rephrased.prompt) !== foldPrompt(check.prompt)) return rephrased;
+    const prompt = meaningfulRetryStem(check.prompt);
+    if (foldPrompt(prompt) !== foldPrompt(check.prompt) && !retryStemBroken(prompt, check.explanation)) {
+      return shiftOptions({ ...check, prompt });
+    }
     const shifted = shiftOptions(check);
     return {
       ...check,

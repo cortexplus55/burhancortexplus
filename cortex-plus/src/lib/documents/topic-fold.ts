@@ -193,9 +193,20 @@ export function outlineSections(
  * sekiz bölüm gibi). Her sayfası ayrı numaralı kısa bölüm olan notta
  * omurga boştur; onları tek tek konu yapmak listeyi şişiriyordu.
  */
+/**
+ * Kısa notta numaralı bölümler tavanın üstündeyse her biri kendi konusu olur.
+ * Uzun, sayfa başına bir başlıklı not bu kurala girmez; sayfa tavanı durur.
+ */
+function mapCeiling(pageCount: number, pages: { headings: string[] }[]): number {
+  const ceiling = topicCeiling(pageCount);
+  const numbered = chapterHeadings(pages).filter((heading) => isNumberedChapter(heading)).length;
+  if (pageCount <= 6 && numbered >= 2 && numbered <= 8 && numbered > ceiling) return numbered;
+  return ceiling;
+}
+
 export function headingsToGuard(pages: { headings: string[] }[]): string[] {
   const chapters = chapterHeadings(pages);
-  if (chapters.length <= topicCeiling(pages.length)) return chapters;
+  if (chapters.length <= mapCeiling(pages.length, pages)) return chapters;
   const spans = new Map<string, number>();
   for (const page of pages) {
     const seen = new Set<string>();
@@ -473,7 +484,7 @@ export function consolidateTopics(
   pages: FoldPage[],
   pageCount = pages.length,
 ): { topics: LooseTopic[]; mergedTitles: FoldMerge[] } {
-  const ceiling = topicCeiling(pageCount);
+  const ceiling = mapCeiling(pageCount, pages);
   const outline = outlineSections(pages);
   topics = topics.map((topic) => {
     const title = normalizeTopicTitle(topic.title).replace(/[.!?…:;]+$/u, "").trim();
@@ -533,6 +544,13 @@ export function consolidateTopics(
   const floor = Math.min(ceiling, Math.max(4, Math.ceil(pageCount / 3)));
   if (result.length === 0 && outline.length) {
     result = packOutline(outline, ceiling, merges);
+  } else if (
+    pageCount <= 6 &&
+    outline.length >= 2 &&
+    outline.length <= ceiling &&
+    result.length < outline.length
+  ) {
+    result = packOutline(outline, ceiling, merges);
   } else if (outline.length > ceiling && result.length < floor) {
     result = packOutline(outline, ceiling, merges);
   } else if (result.length > ceiling) {
@@ -557,8 +575,13 @@ export function storedTopicsNeedRefold(
   pageCount = pages.length,
 ): boolean {
   if (!topics.length) return false;
-  if (topics.length > topicCeiling(Math.max(pageCount, 1))) return true;
+  const pagesCounted = Math.max(pageCount, 1);
+  const ceiling = mapCeiling(pagesCounted, pages);
+  if (topics.length > ceiling) return true;
   const outline = outlineSections(pages);
+  if (pagesCounted <= 6 && outline.length >= 2 && outline.length <= ceiling && topics.length < outline.length) {
+    return true;
+  }
   const outlineKeys = new Set(outline.map((section) => foldKey(section.title)));
   const stepTitles = collectStepTitles(pages);
   return topics.some((topic) =>

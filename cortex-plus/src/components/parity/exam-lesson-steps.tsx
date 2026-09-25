@@ -13,7 +13,12 @@ import {
   trueFalseIndexes,
 } from "@/lib/learning/lesson-chrome";
 import type { MaterialLanguage } from "@/lib/learning/teacher-brain";
-import { layoutBoard, overviewDuplicatesSection, type BoardLine } from "@/lib/learning/lesson-board";
+import {
+  layoutBoard,
+  overviewDuplicatesSection,
+  studentTextParts,
+  type BoardLine,
+} from "@/lib/learning/lesson-board";
 import "@/styles/exam-lesson-steps.css";
 
 /**
@@ -70,16 +75,16 @@ function BoardBody({ text, className }: { text: string; className?: string }) {
 }
 
 function RichBody({ text }: { text: string }) {
-  const parts = text.split(/(\*\*[^*\n]{1,80}\*\*)/g);
+  const parts = studentTextParts(text);
   return (
     <>
       {parts.map((part, i) =>
-        part.startsWith("**") && part.endsWith("**") && part.length > 4 ? (
+        part.bold ? (
           <strong key={i} className="als-term">
-            {part.slice(2, -2)}
+            {part.text}
           </strong>
         ) : (
-          part
+          part.text
         ),
       )}
     </>
@@ -396,7 +401,9 @@ export function ExamLessonSteps({
 
           {step.kind === "example" ? (
             <>
-              <p className="als-body">{step.prompt}</p>
+              <p className="als-body">
+                <RichBody text={step.prompt} />
+              </p>
               {solutionShown ? (
                 <div className="als-solution">
                   <span className="als-tag">Çözüm</span>
@@ -418,11 +425,11 @@ export function ExamLessonSteps({
             <div className="als-mistake">
               <p className="als-mistake-claim">
                 <span className="als-tag als-tag--warn">Yanlış</span>
-                {step.claim}
+                <RichBody text={step.claim} />
               </p>
               <p className="als-mistake-fix">
                 <span className="als-tag als-tag--ok">Doğrusu</span>
-                {step.correction}
+                <RichBody text={step.correction} />
               </p>
             </div>
           ) : null}
@@ -431,7 +438,9 @@ export function ExamLessonSteps({
             <>
               <ul className="als-list">
                 {step.points.map((point) => (
-                  <li key={point}>{point}</li>
+                  <li key={point}>
+                    <RichBody text={point} />
+                  </li>
                 ))}
               </ul>
               {step.next.length ? (
@@ -439,7 +448,9 @@ export function ExamLessonSteps({
                   <h2 className="als-subhead">Sırada ne var</h2>
                   <ul className="als-list als-list--muted">
                     {step.next.map((item) => (
-                      <li key={item}>{item}</li>
+                      <li key={item}>
+                        <RichBody text={item} />
+                      </li>
                     ))}
                   </ul>
                 </>
@@ -460,7 +471,9 @@ export function ExamLessonSteps({
           aria-label="Doğru mu yanlış mı"
         >
           <p className="als-kicker">DOĞRU MU YANLIŞ MI?</p>
-          <p className="als-check-prompt">{check.prompt}</p>
+          <p className="als-check-prompt">
+            <RichBody text={check.prompt} />
+          </p>
           {!revealed ? (
             <div className="als-tf">
               {tf ? (
@@ -493,7 +506,9 @@ export function ExamLessonSteps({
       {check && presentation === "quickQuiz" ? (
         <section className="als-check" aria-label="Hızlı sınav">
           <p className="als-kicker">HIZLI SINAV</p>
-          <p className="als-check-prompt">{check.prompt}</p>
+          <p className="als-check-prompt">
+            <RichBody text={check.prompt} />
+          </p>
           <div className="als-options">
             {check.options.map((option, optionIndex) => {
               const isAnswer = optionIndex === check.answerIndex;
@@ -519,7 +534,9 @@ export function ExamLessonSteps({
                   <span className="als-option-num" aria-hidden>
                     {optionIndex + 1}
                   </span>
-                  <span>{option}</span>
+                  <span>
+                    <RichBody text={option} />
+                  </span>
                   {revealed && isAnswer ? (
                     <Check className="h-4 w-4 shrink-0" aria-hidden />
                   ) : revealed && isPicked && !isAnswer ? (
@@ -567,7 +584,9 @@ function Explanation({
       {check.explanation.trim() ? (
         <>
           <p className="als-explain-kicker">AÇIKLAMA</p>
-          <p>{check.explanation}</p>
+          <p>
+            <RichBody text={check.explanation} />
+          </p>
         </>
       ) : null}
       {wrong && revisit ? (
