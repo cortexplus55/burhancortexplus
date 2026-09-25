@@ -122,6 +122,10 @@ export function ExamNodeSession({
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [flipped, setFlipped] = useState(false);
   const [score, setScore] = useState({ score: 0, total: 1 });
+  const [oralGrade, setOralGrade] = useState<{
+    items: { index: number; correct: boolean; gap: string | null }[];
+    scoreRationale?: string;
+  } | null>(null);
   const [nextHref, setNextHref] = useState(`/deneme-sinavlari/${prepId}`);
   const [feedback, setFeedback] = useState<{
     headline: string;
@@ -417,6 +421,14 @@ export function ExamNodeSession({
       setSaveError(null);
       completeRequestIdRef.current = null;
       setScore({ score: data.score ?? 0, total: data.total ?? 1 });
+      setOralGrade(
+        data.oralGrade && Array.isArray(data.oralGrade.items)
+          ? {
+              items: data.oralGrade.items,
+              scoreRationale: data.oralGrade.scoreRationale,
+            }
+          : null,
+      );
       setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
       setFeedback(null);
       setStage("result");
@@ -906,6 +918,18 @@ export function ExamNodeSession({
             Doğruluk {Math.round((score.score / Math.max(1, score.total)) * 100)}%
             {" · "}Bu oturum skoru program ilerlemesinden ve sınava hazırlık tahmininden ayrıdır.
           </p>
+          {oralGrade?.items?.some((item) => !item.correct && item.gap) ? (
+            <ul className="mt-2 space-y-1 text-sm">
+              {oralGrade.items
+                .filter((item) => !item.correct && item.gap)
+                .map((item) => (
+                  <li key={item.index}>
+                    <span className="text-[var(--cp-muted)]">Eksik: </span>
+                    {item.gap}
+                  </li>
+                ))}
+            </ul>
+          ) : null}
           {resumeEnabled ? (
             <p className="text-sm">
               <Link

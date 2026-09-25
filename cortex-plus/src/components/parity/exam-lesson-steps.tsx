@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Check, X } from "lucide-react";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
+import { displaySolution, isPromptEcho } from "@/lib/learning/oral-review";
 import { LessonDiagramView } from "@/components/parity/lesson-diagram";
 import "@/styles/exam-lesson-steps.css";
 
@@ -277,24 +278,41 @@ export function ExamLessonSteps({
             </>
           ) : null}
           {solutionShown ? (
-            <div className="als-solution">
-              <span className="als-tag">Çözüm</span>
-              {step.steps?.length ? (
-                <ol className="als-list">
-                  {step.steps.map((item, stepIndex) => (
-                    <li key={item}>{stepIndex + 1}. {item}</li>
-                  ))}
-                </ol>
-              ) : (
-                <p>{step.solution}</p>
-              )}
-              {step.result ? (
-                <p>
-                  <strong>Sonuç: </strong>
-                  {step.result}
-                </p>
-              ) : null}
-            </div>
+            (() => {
+              const stepTexts = (step.steps ?? []).filter(
+                (item) => !isPromptEcho(item, step.prompt),
+              );
+              const shown = displaySolution(step.solution, step.prompt);
+              if (!shown && !stepTexts.length && !step.result) {
+                return (
+                  <p className="text-sm text-[var(--cp-muted)]">
+                    Bu örnek için ayrı bir çözüm metni yok.
+                  </p>
+                );
+              }
+              return (
+                <div className="als-solution">
+                  <span className="als-tag">Çözüm</span>
+                  {stepTexts.length ? (
+                    <ol className="als-list">
+                      {stepTexts.map((item, stepIndex) => (
+                        <li key={item}>
+                          {stepIndex + 1}. {item}
+                        </li>
+                      ))}
+                    </ol>
+                  ) : shown ? (
+                    <p>{shown}</p>
+                  ) : null}
+                  {step.result ? (
+                    <p>
+                      <strong>Sonuç: </strong>
+                      {step.result}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })()
           ) : (
             <button
               type="button"

@@ -12,11 +12,29 @@ import { contentStems, stemsOverlap } from "@/lib/learning/learner-fluency";
 const MARKER =
   /\b(hiçbir zaman|her zaman|yalnızca|sadece|kesinlikle|mutlaka|asla)\b/i;
 
+/** Kaynağa bağlı olmadan doğru kabul edilmemesi gereken karşılaştırmalı mutlaklar. */
+const COMPARATIVE_ABSOLUTE =
+  /(?:yalnızca|sadece)\s+bir.{0,40}(?:olabilir|olmalıdır|vardır|mümkündür)|hepsi\s+birlikte\s+tüken|artan\s+(?:madde\s+)?yok|artan\s+madde\s+olmaz/i;
+
 const FAMILY: Record<string, string[]> = {
   exclusive: ["sadece", "yalnızca", "yalnizca", "bir tek", "tek başına", "tek basina"],
   always: ["her zaman", "daima", "kesinlikle", "mutlaka"],
   never: ["asla", "hiçbir zaman", "hicbir zaman", "hiçbir", "hicbir"],
 };
+
+/**
+ * "Yalnızca bir sınırlayıcı olabilir" / "hepsi birlikte tükenir, artan yok"
+ * — kaynak aynı iddiayı kurmuyorsa doğru cevap sayılmaz.
+ * Kaynak verilmezse (sözlü rubrik uzlaştırması) varsayılan: desteklenmiyor.
+ */
+export function isUnsupportedComparativeAbsolute(
+  text: string,
+  source?: string | null,
+): boolean {
+  if (!COMPARATIVE_ABSOLUTE.test(text)) return false;
+  if (!source?.trim()) return true;
+  return unsupportedAbsoluteClaims(text, source).length > 0;
+}
 
 function fold(text: string): string {
   return text.toLocaleLowerCase("tr-TR");
@@ -51,6 +69,17 @@ export function unsupportedAbsoluteClaims(text: string, source: string | undefin
   const sourceSentences = sentences(source);
 
   for (const sentence of sentences(text).flatMap((part) => part.split(/[,;]/))) {
+    if (COMPARATIVE_ABSOLUTE.test(sentence)) {
+      const foldedSource = fold(source);
+      const supported =
+        /(?:yalnızca|sadece)\s+bir/.test(foldedSource) ||
+        /hepsi\s+birlikte\s+tüken/.test(foldedSource) ||
+        /artan\s+(?:madde\s+)?yok/.test(foldedSource);
+      if (!supported) {
+        issues.push(`Kaynakta desteklenmeyen kesin iddia: ${sentence.slice(0, 140)}`);
+      }
+      continue;
+    }
     const marker = sentence.match(MARKER);
     if (!marker || marker.index == null || isDenial(sentence, marker.index)) continue;
     const family = FAMILY[familyOf(marker[1])];

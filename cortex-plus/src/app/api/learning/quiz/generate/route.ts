@@ -12,6 +12,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { env } from "@/lib/env";
 import { getTeacherEntitlements, incrementTeacherUsage } from "@/lib/teacher/entitlements";
 import { CONTENT_STYLE, SYSTEM_GUARDRAIL } from "@/lib/ai/generate";
+import { loadDocumentGenerationContext } from "@/lib/documents/generation-context";
 import { validateQuizPedagogy } from "@/lib/learning/teaching-standards";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 
@@ -20,6 +21,8 @@ const schema = z.object({
   count: z.number().int().min(4).max(10).optional(),
   difficulty: z.enum(["easy", "medium", "hard", "mixed"]).optional(),
   operationId: z.string().uuid().optional(),
+  /** "Belgem" modu: sorular yalnızca bu belgenin parçalarından üretilir. */
+  documentId: z.string().uuid().optional(),
 });
 
 export async function POST(request: Request) {
@@ -38,8 +41,17 @@ export async function POST(request: Request) {
   if (!parsedBody.success) {
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
-  const { topic, count, difficulty } = parsedBody.data;
+  const { topic, count, difficulty, documentId } = parsedBody.data;
   const questionCount = count ?? 5;
+
+  // Belge modu: kredi ayırmadan önce belgenin hazır ve dolu olduğunu doğrula;
+  // yoksa öğrenci hem kredi kaybetmez hem de net bir sebep görür.
+  const docContext = documentId
+    ? await loadDocumentGenerationContext(service, userId, documentId, topic)
+    : null;
+  if (documentId && !docContext) {
+    return NextResponse.json({ error: "document_not_ready" }, { status: 409 });
+  }
   const difficultyHint =
     difficulty === "easy"
       ? "Sorular kolay seviyede olsun."
@@ -86,52 +98,120 @@ export async function POST(request: Request) {
   try {
     if (!env.OPENAI_API_KEY) throw new Error("no_openai");
     const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
-    const completion = await openai.chat.completions.create({
-      model: env.OPENAI_STANDARD_MODEL,
-      messages: [
-        {
-          role: "system",
-          content:
-            `${SYSTEM_GUARDRAIL}\n${CONTENT_STYLE}\n` +
-            "JSON döndür: { title, questions: [{ question, options: string[4], correct, explanation }] }. " +
-            "Şıklar birbirinden ayırt edilebilir olsun; 'hepsi' ya da 'hiçbiri' yazma. " +
-            "correct alanı, options dizisindeki metnin birebir aynısı olmalı. " +
-            "explanation: doğru şıkkın neden doğru olduğunu 1-2 cümlede anlatan Türkçe açıklama.",
-        },
-        { role: "user", content: `Konu: ${topic}. ${questionCount} soruluk quiz üret. ${difficultyHint}` },
-      ],
-      response_format: { type: "json_object" },
+    const systemContent =
+      `${SYSTEM_GUARDRAIL}\n${CONTENT_STYLE}\n` +
+      "JSON döndür: { title, questions: [{ question, options: string[4], correct, explanation, optionReasons }] }. " +
+      "Şıklar birbirinden ayırt edilebilir olsun; 'hepsi' ya da 'hiçbiri' yazma. " +
+      "correct alanı, options dizisindeki metnin birebir aynısı olmalı. " +
+      "explanation: doğru şıkkın neden doğru olduğunu 1-2 cümlede anlatan Türkçe açıklama; aritmetik doğru şıkla tutarlı olsun. " +
+      "optionReasons: her yanlış şık metnini anahtar yap; değerde O ŞIKKA özgü hata nedeni yaz (aynı cümleyi tekrarlama)." +
+      (docContext
+        ? " Soruları YALNIZCA verilen belge alıntısındaki bilgiden üret; alıntıda olmayan bilgiyi sorma."
+        : "");
+    const userContent = docContext
+      ? `Belge: ${docContext.fileName}. Konu: ${topic}. ${questionCount} soruluk quiz üret. ${difficultyHint}\n\nBelge alıntısı:\n${docContext.excerpt}`
+      : `Konu: ${topic}. ${questionCount} soruluk quiz üret. ${difficultyHint}`;
+
+    const questionSchema = z.object({
+      question: z.string().min(1),
+      options: z.array(z.string()).length(4),
+      correct: z.string(),
+      explanation: z.string().max(600).optional(),
+      optionReasons: z.record(z.string(), z.string()).optional(),
+    }).refine((q) => q.options.includes(q.correct));
+
+    async function draftOnce(repairNote?: string) {
+      const completion = await openai.chat.completions.create({
+        model: env.OPENAI_STANDARD_MODEL,
+        messages: [
+          { role: "system", content: systemContent },
+          {
+            role: "user",
+            content: repairNote ? `${userContent}\n\nDüzeltme: ${repairNote}` : userContent,
+          },
+        ],
+        response_format: { type: "json_object" },
+      });
+      const raw = completion.choices[0]?.message?.content ?? "{}";
+      const verified = await verifyEducationalContent({
+        client: openai,
+        context: `Konu: ${topic}. ${questionCount} soruluk quiz üret.`,
+        draft: raw,
+        format:
+          'JSON: {title:string,questions:[{question:string,options:string[],correct:string,explanation?:string,optionReasons?:object}]}. correct bir seçenek metni olmalı.',
+      });
+      await recordUsage(service, {
+        userId,
+        actionCode: "QUIZ_GENERATE",
+        model: env.OPENAI_ADVANCED_MODEL,
+        tokensIn: verified.tokensIn,
+        tokensOut: verified.tokensOut,
+        reservationId: resId,
+      });
+      return z
+        .object({
+          title: z.string().min(1),
+          questions: z
+            .array(questionSchema)
+            .min(Math.max(1, Math.ceil(questionCount / 2))),
+        })
+        .parse(JSON.parse(verified.content));
+    }
+
+    let parsedRaw = await draftOnce();
+    let mapped = parsedRaw.questions.map(
+      (q): QuizQuestion => ({
+        text: q.question,
+        options: q.options,
+        correct: [q.correct],
+        multi: false,
+        explanation: q.explanation,
+        optionReasons: q.optionReasons,
+      }),
+    );
+    let pedagogy = validateQuizPedagogy(mapped, {
+      sourceExcerpt: docContext?.excerpt,
+      requireOptionReasons: true,
     });
-    const raw = completion.choices[0]?.message?.content ?? "{}";
-    const verified = await verifyEducationalContent({ client: openai, context: `Konu: ${topic}. ${questionCount} soruluk quiz üret.`, draft: raw, format: 'JSON: {title:string,questions:[{question:string,options:string[],correct:string,explanation?:string}]}. correct bir seçenek metni olmalı.' });
-    await recordUsage(service, { userId, actionCode: "QUIZ_GENERATE", model: env.OPENAI_ADVANCED_MODEL, tokensIn: verified.tokensIn, tokensOut: verified.tokensOut, reservationId: resId });
-    const parsed = z.object({
-      title: z.string().min(1),
-      questions: z.array(z.object({
-        question: z.string().min(1),
-        options: z.array(z.string()).length(4),
-        correct: z.string(),
-        explanation: z.string().max(600).optional(),
-      }).refine(q => q.options.includes(q.correct))).length(questionCount),
-    }).parse(JSON.parse(verified.content));
-    const pedagogy = validateQuizPedagogy(
-      parsed.questions.map(
+    if (pedagogy.length) {
+      // Tek yeniden deneme — ikinci çağrı yalnızca ilk taslak tutmazsa.
+      parsedRaw = await draftOnce(pedagogy[0]);
+      mapped = parsedRaw.questions.map(
         (q): QuizQuestion => ({
           text: q.question,
           options: q.options,
           correct: [q.correct],
           multi: false,
           explanation: q.explanation,
+          optionReasons: q.optionReasons,
         }),
-      ),
-    );
-    if (pedagogy.length) {
-      throw new Error(`pedagogy_rejected: ${pedagogy[0]}`);
+      );
+      pedagogy = validateQuizPedagogy(mapped, {
+        sourceExcerpt: docContext?.excerpt,
+        requireOptionReasons: true,
+      });
+      if (pedagogy.length) {
+        throw new Error(`pedagogy_rejected: ${pedagogy[0]}`);
+      }
     }
+    const parsed: {
+      title?: string;
+      questions?: {
+        question: string;
+        options: string[];
+        correct: string;
+        explanation?: string;
+        optionReasons?: Record<string, string>;
+      }[];
+    } = { title: parsedRaw.title, questions: parsedRaw.questions.slice(0, questionCount) };
 
     const { data: quiz } = await service
       .from("quizzes")
-      .insert({ user_id: user.id, title: parsed.title ?? topic })
+      .insert({
+        user_id: user.id,
+        title: parsed.title ?? topic,
+        ...(documentId ? { document_id: documentId } : {}),
+      })
       .select("id")
       .single();
 
@@ -142,6 +222,7 @@ export async function POST(request: Request) {
           question_text: q.question,
           options: q.options,
           correct_answer: q.correct,
+          explanation: q.explanation?.trim() || null,
           sort_order: i,
         })),
       );
@@ -150,7 +231,7 @@ export async function POST(request: Request) {
     const { data: rows } = quiz
       ? await service
           .from("quiz_questions")
-          .select("id, question_text, options, correct_answer, sort_order")
+          .select("id, question_text, options, correct_answer, explanation, sort_order")
           .eq("quiz_id", quiz.id)
           .order("sort_order")
       : { data: null };
@@ -169,11 +250,15 @@ export async function POST(request: Request) {
       text: q.question_text as string,
       options: Array.isArray(q.options) ? (q.options as string[]) : [],
       correct: (q.correct_answer as string) ?? "",
+      explanation: (q.explanation as string | null) ?? null,
     }));
 
     return NextResponse.json({
       quizId: quiz?.id,
       title: parsed.title ?? topic,
+      source: docContext
+        ? { kind: "document", documentId, fileName: docContext.fileName }
+        : { kind: "topic" },
       questions:
         questions.length > 0
           ? questions
@@ -182,9 +267,17 @@ export async function POST(request: Request) {
               text: q.question,
               options: q.options,
               correct: q.correct,
+              explanation: q.explanation ?? null,
             })),
     });
-  } catch {
+  } catch (error) {
+    // Sessiz 500 teşhis edilemiyordu: sebep sunucu günlüğüne düşsün,
+    // öğrenciye yine tek dost mesaj gitsin.
+    console.error("[quiz/generate] failed", {
+      userId,
+      documentId: documentId ?? null,
+      message: error instanceof Error ? error.message.slice(0, 500) : String(error),
+    });
     await refundCredits(service, resId);
     return NextResponse.json({ error: "generate_failed" }, { status: 500 });
   }

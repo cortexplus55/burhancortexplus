@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   absoluteClaimIssues,
+  isUnsupportedComparativeAbsolute,
   unsupportedAbsoluteClaims,
 } from "@/lib/learning/absolute-claims";
 import { validateTrueFalsePedagogy } from "@/lib/learning/teaching-standards";
@@ -46,15 +47,30 @@ describe("unsupported absolute claims", () => {
     expect(absoluteClaimIssues(parsed, ohmSource)).toEqual([]);
   });
 
-  it("doğru işaretli kesin iddiayı kaynak yokken reddeder", () => {
+  it("fizikte kaynaksız yalnızca bir olabilir iddiasını düşürür", () => {
     expect(
-      validateTrueFalsePedagogy([
-        {
-          text: "Direnç her zaman yalnızca gerilime bağlıdır.",
-          correct: true,
-          explanation: "Bu ifade kaynağın kurduğu bağıntıdan daha dar.",
-        },
-      ]).some((issue) => issue.includes("kesin iddia")),
+      isUnsupportedComparativeAbsolute(
+        "Yalnızca bir sınırlayıcı kuvvet olabilir.",
+      ),
     ).toBe(true);
+  });
+
+  it("tarihte kaynaksız hepsi birlikte tükenir iddiasını düşürür", () => {
+    expect(
+      isUnsupportedComparativeAbsolute(
+        "Karşılaşmada hepsi birlikte tükenir, artan madde yok.",
+      ),
+    ).toBe(true);
+  });
+
+  it("kaynak aynı karşılaştırmalı iddiayı kurmuşsa geçer", () => {
+    const source =
+      "Bu tepkimede hepsi birlikte tükenir; artan madde yok der kaynak.";
+    expect(
+      isUnsupportedComparativeAbsolute(
+        "Hepsi birlikte tükenir, artan madde yok.",
+        source,
+      ),
+    ).toBe(false);
   });
 });

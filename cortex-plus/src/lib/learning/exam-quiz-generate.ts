@@ -22,10 +22,10 @@ export async function generateExamQuiz(input: {
   idempotencyKey?: string;
 }): Promise<{ ok: true; questions: QuizQuestion[] } | { ok: false; status: number; error: string }> {
   const pedagogyHint = input.teachingV2
-    ? " Her soruda learningObjective (kısa hedef) ve explanation zorunlu. misconceptionTag isteğe bağlı. multi yalnızca birden fazla bağımsız doğru varken."
+    ? " Her soruda learningObjective (kısa hedef) ve explanation zorunlu. misconceptionTag isteğe bağlı. multi yalnızca birden fazla bağımsız doğru varken. Her yanlış şık için optionReasons[şıkMetni] alanında O ŞIKKA özgü hata nedeni yaz (hangi yanlış hesap o sayıyı verir); aynı cümleyi tekrarlama."
     : "";
   const schemaHint =
-    'JSON: {"questions":[{"text":string,"options":string[],"correct":string|string[],"multi":boolean,"explanation":string,"learningObjective":string,"misconceptionTag":string}]}. correct, options içinden olmalı. Çoklu doğru şıklarda multi true, correct dizi ve en az iki bağımsız doğru seçenek olmalı; tek doğru varsa multi false olmalı. "Hepsi doğrudur", "hiçbiri" veya başka seçenekleri özetleyen seçenekler kullanma. Doğru seçenek kümesi açıklamayla birebir uyuşmalı. Her soruyu matematiksel ve bilimsel doğruluk açısından ikinci kez kontrol et. explanation: 1-2 cümlelik net Türkçe çözüm gerekçesi.' +
+    'JSON: {"questions":[{"text":string,"options":string[],"correct":string|string[],"multi":boolean,"explanation":string,"learningObjective":string,"misconceptionTag":string,"optionReasons":{"yanlışŞık":"neden"}}]}. correct, options içinden olmalı. Çoklu doğru şıklarda multi true, correct dizi ve en az iki bağımsız doğru seçenek olmalı; tek doğru varsa multi false olmalı. "Hepsi doğrudur", "hiçbiri" veya başka seçenekleri özetleyen seçenekler kullanma. Doğru seçenek kümesi açıklamayla birebir uyuşmalı. Açıklamadaki aritmetik doğru şıkla tutarlı olsun (ör. 1,5×32=48). Her soruyu matematiksel ve bilimsel doğruluk açısından ikinci kez kontrol et. explanation: 1-2 cümlelik net Türkçe çözüm gerekçesi. optionReasons: her yanlış şık için ayrı gerekçe.' +
     pedagogyHint +
     (input.schemaHintExtra ? ` ${input.schemaHintExtra}` : "");
 
@@ -33,7 +33,11 @@ export async function generateExamQuiz(input: {
     const questions = parseQuizQuestions(raw);
     if (!questions) return null;
     if (input.teachingV2) {
-      const issues = validateQuizPedagogy(questions, { requireObjective: false });
+      const issues = validateQuizPedagogy(questions, {
+        requireObjective: false,
+        requireOptionReasons: true,
+        sourceExcerpt: input.sourceExcerpt,
+      });
       if (issues.length) return null;
       const missingObj = questions.every((q) => !q.learningObjective?.trim());
       if (missingObj) return null;
@@ -59,7 +63,11 @@ export async function generateExamQuiz(input: {
           const questions = parsed ? parseQuizQuestions(parsed) : null;
           return {
             pedagogyIssues: questions
-              ? validateQuizPedagogy(questions, { requireObjective: false })
+              ? validateQuizPedagogy(questions, {
+                  requireObjective: false,
+                  requireOptionReasons: true,
+                  sourceExcerpt: input.sourceExcerpt,
+                })
               : ["Quiz şeması geçersiz."],
             minItems: 3,
             sourceExcerpt: input.sourceExcerpt,

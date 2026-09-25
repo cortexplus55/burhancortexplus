@@ -10,7 +10,7 @@ import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { foldTr } from "@/lib/documents/page-analysis";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import type { PodcastChapter } from "@/lib/learning/podcast-script";
-import { unsupportedAbsoluteClaims } from "@/lib/learning/absolute-claims";
+import { isUnsupportedComparativeAbsolute, unsupportedAbsoluteClaims } from "@/lib/learning/absolute-claims";
 import {
   contentStems,
   isContextlessFragment,
@@ -19,6 +19,7 @@ import {
   stemsOverlap,
   turkishSurfaceIssues,
 } from "@/lib/learning/learner-fluency";
+import { isPromptEcho, sanitizeGap, verifyOralPrompt } from "@/lib/learning/oral-review";
 import { auditQuantitative, isQuantitativeContext } from "@/lib/learning/quantitative-audit";
 
 export type TeachingActivity =
@@ -186,6 +187,8 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "AÇIKLAMA YANLIŞI DA ÇÜRÜTSÜN: en az bir çeldiricinin gerçekte ne olduğunu yaz " +
         "(\"Sin 90°'de 1'dir, tanımsız değildir\"). Bir çeldiriciyi çürütemiyorsan o şık " +
         "aslında doğrudur — soruyu düzelt. " +
+        "Her yanlış şık için optionReasons[şık] alanında o şıkka özgü hata nedeni yaz; aynı cümleyi kopyalama. " +
+        "Açıklamadaki aritmetik doğru şıkla tutarlı olsun. " +
         "Eşdeğer tekrar şık yok. Seviyeye uygun. multi=true yalnızca birden fazla bağımsız doğru varken; " +
         "'hepsi/hiçbiri' şıkkı yok. " +
         "Kaynakta olmayan kesin iddiayı (sadece, her zaman, asla) doğru cevap yapma. " +
@@ -612,6 +615,9 @@ export function validateLessonPedagogy(
   if (lesson.commonMistake.claim === lesson.commonMistake.correction) {
     issues.push("Yaygın hata ile düzeltme aynı olamaz.");
   }
+  if (isPromptEcho(lesson.example.solution, lesson.example.prompt)) {
+    issues.push("Çözümlü örnek çözüm kutusu sorunun kopyası / kırpığı.");
+  }
   if (!lesson.objective.trim()) {
     issues.push("Öğrenme hedefi zorunlu.");
   }
@@ -812,10 +818,96 @@ function explanationRefutesADistractor(q: QuizQuestion): boolean {
   return false;
 }
 
+/** "48 g", "1,5 mol", "24g" gibi sayı+birim parçaları. */
+function quantityMentions(text: string): { value: number; unit: string }[] {
+  const out: { value: number; unit: string }[] = [];
+  const re =
+    /(?<![\d.,])(\d+(?:[.,]\d+)?)\s*(g|kg|mg|mol|mmol|L|mL|m|cm|km|N|J|W|V|A|Ω|ohm|°C|Pa|kPa)\b/gi;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    const value = Number(match[1].replace(",", "."));
+    if (!Number.isFinite(value)) continue;
+    out.push({ value, unit: match[2].toLowerCase() });
+  }
+  return out;
+}
+
+/**
+ * Açıklamadaki sonuç niceliği doğru şıktakiyle çelişiyor mu?
+ * "1,5 mol = 24 g" yazıp doğru şık 48 g ise düşer.
+ */
+export function explanationConflictsWithCorrect(q: QuizQuestion): string | null {
+  const explanation = q.explanation ?? "";
+  if (!explanation.trim()) return null;
+  const correctBlob = q.correct.join(" ");
+  const correctQty = quantityMentions(correctBlob);
+  if (!correctQty.length) return null;
+  const explained = quantityMentions(explanation);
+  for (const c of correctQty) {
+    const sameUnit = explained.filter((e) => e.unit === c.unit);
+    if (!sameUnit.length) continue;
+    // Açıklama aynı birimde farklı bir sonuç iddia ediyorsa (doğru şıktaki
+    // değer hiç geçmiyorsa) tutarsızdır.
+    const mentionsCorrect = sameUnit.some((e) => Math.abs(e.value - c.value) < 1e-6);
+    const mentionsOther = sameUnit.some((e) => Math.abs(e.value - c.value) > 1e-6);
+    if (mentionsOther && !mentionsCorrect) {
+      return `Açıklama ${sameUnit[0].value} ${c.unit} diyor; doğru şık ${c.value} ${c.unit}.`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Her yanlış şıkkın gerekçesi o şıkka özgü olmalı; şablon tekrar düşer.
+ * optionReasons yoksa (eski taslak) bu kural sessizce geçer — üretim
+ * şeması reasons ister; gelince tekrar ve eksik denetlenir.
+ */
+export function optionReasonIssues(q: QuizQuestion): string[] {
+  const issues: string[] = [];
+  const reasons = q.optionReasons;
+  if (!reasons || !Object.keys(reasons).length) return issues;
+  const wrong = q.options.filter((option) => !q.correct.includes(option));
+  if (wrong.length < 2) return issues;
+  const resolved: string[] = [];
+  for (const option of wrong) {
+    const reason =
+      reasons[option] ??
+      Object.entries(reasons).find(([key]) => normalizeOption(key) === normalizeOption(option))?.[1];
+    if (!reason?.trim()) {
+      issues.push(`Yanlış şık gerekçesi yok: ${option.slice(0, 40)}`);
+      continue;
+    }
+    const foldedReason = foldTr(reason);
+    const foldedOption = foldTr(option);
+    const distinctive = foldedOption
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t.length >= 1);
+    const mentionsOption = distinctive.some((t) => foldedReason.includes(t));
+    if (!mentionsOption && !/\d/.test(option)) {
+      issues.push(`Gerekçe şıkka özgü değil: ${option.slice(0, 40)}`);
+    }
+    let body = foldedReason;
+    for (const token of distinctive) {
+      body = body.split(token).join(" ");
+    }
+    body = body.replace(/\s+/g, " ").trim();
+    resolved.push(body);
+  }
+  const uniqueBodies = new Set(resolved.filter((b) => b.length >= 12));
+  if (resolved.length >= 2 && uniqueBodies.size < Math.ceil(resolved.length * 0.5)) {
+    issues.push("Yanlış şık gerekçeleri aynı şablonu tekrarlıyor.");
+  }
+  return issues;
+}
+
 /** Quiz pedagogy beyond basic schema parse. */
 export function validateQuizPedagogy(
   questions: QuizQuestion[],
-  options?: { requireObjective?: boolean; sourceExcerpt?: string },
+  options?: {
+    requireObjective?: boolean;
+    sourceExcerpt?: string;
+    requireOptionReasons?: boolean;
+  },
 ): string[] {
   const issues: string[] = [];
   if (!questions.length) return ["Quiz sorusu yok."];
@@ -832,6 +924,20 @@ export function validateQuizPedagogy(
       for (const message of turkishSurfaceIssues(q.explanation)) {
         issues.push(`${label}: ${message}`);
       }
+      for (const message of auditQuantitative(q.explanation)) {
+        issues.push(`${label}: ${message}`);
+      }
+      const conflict = explanationConflictsWithCorrect(q);
+      if (conflict) issues.push(`${label}: ${conflict}`);
+    }
+    if (options?.requireOptionReasons) {
+      const wrong = q.options.filter((option) => !q.correct.includes(option));
+      if (wrong.length >= 2 && (!q.optionReasons || !Object.keys(q.optionReasons).length)) {
+        issues.push(`${label}: her yanlış şık için optionReasons zorunlu.`);
+      }
+    }
+    for (const message of optionReasonIssues(q)) {
+      issues.push(`${label}: ${message}`);
     }
     if (options?.sourceExcerpt) {
       for (const message of unsupportedAbsoluteClaims(
@@ -839,6 +945,13 @@ export function validateQuizPedagogy(
         options.sourceExcerpt,
       )) {
         issues.push(`${label}: ${message}`);
+      }
+    } else {
+      // Kaynak yokken de karşılaştırmalı mutlak doğru cevap olmasın.
+      for (const text of [q.explanation ?? "", ...q.correct]) {
+        if (isUnsupportedComparativeAbsolute(text)) {
+          issues.push(`${label}: kaynaksız mutlak iddia doğru cevap olamaz.`);
+        }
       }
     }
     if (q.multi && q.correct.length < 2) {
@@ -1065,12 +1178,18 @@ export function validateOralPedagogy(
     const q = questions[i];
     const label = `Sözlü ${i + 1}`;
     if (q.prompt.trim().length < 8) issues.push(`${label}: soru kısa.`);
+    for (const message of verifyOralPrompt(q.prompt)) {
+      issues.push(`${label}: ${message}`);
+    }
     for (const message of turkishSurfaceIssues(q.prompt)) {
       issues.push(`${label}: ${message}`);
     }
     for (const point of q.expectedPoints ?? []) {
       for (const message of turkishSurfaceIssues(point)) {
         issues.push(`${label}: ${message}`);
+      }
+      if (isPromptEcho(point, q.prompt)) {
+        issues.push(`${label}: expectedPoints soru metninin kopyası.`);
       }
     }
     if (!q.rubricCriteria?.length) {
@@ -1113,6 +1232,41 @@ export function extractMisconceptions(input: {
   const data = (input.payload ?? {}) as Record<string, unknown>;
   const out: MisconceptionDraft[] = [];
   const topicLabel = input.topicLabel ?? null;
+
+  if (data.type === "oral") {
+    const questions =
+      (data.questions as {
+        prompt?: string;
+        expectedPoints?: string[];
+        learningObjective?: string;
+      }[]) ?? [];
+    const gradeMeta = data.gradeMeta as
+      | {
+          correctIndices?: number[];
+          items?: { index: number; correct: boolean; gap?: string | null }[];
+        }
+      | undefined;
+    const correctSet = new Set(gradeMeta?.correctIndices ?? []);
+    const gapByIndex = new Map(
+      (gradeMeta?.items ?? []).map((item) => [item.index, item.gap ?? null]),
+    );
+    questions.forEach((question, index) => {
+      if (correctSet.has(index)) return;
+      // Without per-item grades, do not invent oral misconceptions from prompts.
+      if (!gradeMeta?.correctIndices && !gradeMeta?.items) return;
+      const prompt = question.prompt ?? "";
+      const gap = sanitizeGap(gapByIndex.get(index), prompt);
+      if (!gap) return;
+      out.push({
+        claim: gap,
+        corrected: (question.expectedPoints ?? []).join("; ") || null,
+        wrongType: "oral_miss",
+        sourceKind: "oral",
+        topicLabel,
+        questionPreview: prompt.slice(0, 160) || null,
+      });
+    });
+  }
 
   if (data.type === "true_false") {
     const items =

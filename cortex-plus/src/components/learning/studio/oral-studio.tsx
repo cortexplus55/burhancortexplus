@@ -176,7 +176,8 @@ export function OralStudio({
     if (missing.length) {
       parts.push(`Eksik noktalar: ${missing.join("; ")}`);
     }
-    if (suggested) {
+    // Önerilen cevap sorunun kopyasıysa gösterme (sunucu da temizler).
+    if (suggested && !questions.some((q) => suggested.includes(q.prompt.slice(0, 24)))) {
       parts.push(`Önerilen cevap: ${suggested}`);
     }
     setFeedback(parts.join("\n\n"));

@@ -16,6 +16,7 @@ import {
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
+import { reconcileOralGrade } from "@/lib/learning/oral-review";
 import { trueFalseItemsSchema, TRUE_FALSE_FORMAT } from "@/lib/learning/true-false";
 import {
   parseFamiliarity,
@@ -120,9 +121,19 @@ const oralSchema = z.object({
 });
 
 const oralGradeSchema = z.object({
-  correctCount: z.number().int().min(0),
+  correctCount: z.number().int().min(0).optional(),
   missingObjectives: z.array(z.string()).max(6).optional(),
   scoreRationale: z.string().max(400).optional(),
+  items: z
+    .array(
+      z.object({
+        index: z.number().int().min(0),
+        correct: z.boolean(),
+        gap: z.string().max(400).optional().nullable(),
+      }),
+    )
+    .max(8)
+    .optional(),
 });
 
 // Satır bazlı iki sesli biçim: her satır tek cümle, konuşmacı etiketli.
@@ -353,7 +364,13 @@ export async function POST(request: Request) {
       : (parsed.data.answers ?? {});
 
     let scored = scoreAttempt(kind, attempt?.payload, mergedAnswers, teachingV2);
-    let oralExtras: { missingObjectives?: string[]; scoreRationale?: string } = {};
+    let oralExtras: {
+      missingObjectives?: string[];
+      scoreRationale?: string;
+      correctIndices?: number[];
+      correctCount?: number;
+      items?: { index: number; correct: boolean; gap: string | null }[];
+    } = {};
     if (kind === "oral" && attempt?.payload && attempt.status !== "completed") {
       const questions = ((attempt.payload as {
         questions?: {
@@ -365,7 +382,7 @@ export async function POST(request: Request) {
       }).questions ?? []);
       const answerLines = questions
         .map((question, index) =>
-          `${index + 1}. Soru: ${question.prompt ?? ""}\nHedef: ${question.learningObjective ?? "-"}\nRubrik: ${(question.rubricCriteria ?? []).join("; ")}\nBeklenen: ${(question.expectedPoints ?? []).join("; ")}\nÖğrenci yanıtı: ${String(mergedAnswers[String(index)] ?? "")}`,
+          `${index + 1}. index=${index}\nSoru: ${question.prompt ?? ""}\nHedef: ${question.learningObjective ?? "-"}\nRubrik: ${(question.rubricCriteria ?? []).join("; ")}\nBeklenen: ${(question.expectedPoints ?? []).join("; ")}\nÖğrenci yanıtı: ${String(mergedAnswers[String(index)] ?? "")}`,
         )
         .join("\n\n");
       const grade = await generateJson({
@@ -374,20 +391,33 @@ export async function POST(request: Request) {
         actionCode: "PRACTICE_EXAM_GRADE",
         isPremium: await isPremiumUser(service, userId),
         schemaHint: teachingV2
-          ? `Yalnızca {"correctCount":number,"missingObjectives":string[],"scoreRationale":string} JSON. correctCount 0-${questions.length}. Eşdeğer doğru kabul et; gerekçesiz uzun ilgisiz metin doğru sayma.`
-          : `Yalnızca {"correctCount":number} JSON döndür. correctCount 0-${questions.length} arasında tam sayı olmalı. Anlamsız, ilgisiz veya yalnızca genel ifadeler doğru sayılmaz.`,
+          ? `Yalnızca {"items":[{"index":number,"correct":boolean,"gap":string|null}],"correctCount":number,"missingObjectives":string[],"scoreRationale":string} JSON. Her soru için bir items satırı (index 0-${Math.max(0, questions.length - 1)}). Eşdeğer doğru kabul et. Kaynakta hazır çözüm cümlesi yok diye 0 verme — rubrik ve beklenen noktalara göre değerlendir. gap alanına soru metnini yazma; yalnızca cevaptaki gerçek eksiği yaz veya null bırak. Gerekçesiz uzun ilgisiz metin doğru sayma.`
+          : `Yalnızca {"items":[{"index":number,"correct":boolean}],"correctCount":number} JSON döndür. correctCount 0-${questions.length} arasında tam sayı olmalı. Anlamsız, ilgisiz veya yalnızca genel ifadeler doğru sayılmaz.`,
         userPrompt: `${topicLabel} sözlü yanıtlarını içerik doğruluğuna göre değerlendir. Her yanıtı ancak soruyu doğru ve yeterli biçimde cevaplıyorsa doğru say.\n\n${answerLines}`,
         parse: (raw) => oralGradeSchema.safeParse(raw).data ?? null,
       });
       if (!grade.ok) return errorResponse(grade.status, grade.error);
       if (grade.ok) {
+        const reconciled = reconcileOralGrade({
+          questions: questions.map((q) => ({
+            prompt: q.prompt ?? "",
+            expectedPoints: q.expectedPoints,
+            learningObjective: q.learningObjective,
+          })),
+          answers: mergedAnswers,
+          modelItems: grade.data.items ?? null,
+          modelCorrectCount: grade.data.correctCount ?? null,
+        });
         scored = {
-          score: Math.min(questions.length, grade.data.correctCount),
+          score: reconciled.correctCount,
           total: questions.length || 1,
         };
         oralExtras = {
           missingObjectives: grade.data.missingObjectives,
           scoreRationale: grade.data.scoreRationale,
+          correctIndices: reconciled.correctIndices,
+          correctCount: reconciled.correctCount,
+          items: reconciled.items,
         };
       }
     }
@@ -515,6 +545,15 @@ export async function POST(request: Request) {
       nextHref,
       learningTracking,
       state: "completed",
+      ...(Object.keys(oralExtras).length
+        ? {
+            oralGrade: {
+              correctIndices: oralExtras.correctIndices ?? [],
+              items: oralExtras.items ?? [],
+              scoreRationale: oralExtras.scoreRationale,
+            },
+          }
+        : {}),
     });
   }
 
