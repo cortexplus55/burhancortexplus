@@ -132,8 +132,9 @@ import {
 } from "@/lib/learning/attempt-lifecycle-persist";
 
 /**
- * Üretim çağrısı 90 saniyeye, doğrulama turu da buna ekleniyor.
- * Sohbet ucuyla aynı tavan: platform varsayılanı keserse öğrenci 502 görür
+ * Üretim çağrısı 90 saniye, doğrulama ve geçici 5xx yeniden denemesi buna eklenir.
+ * Tavan 300 saniye: bir zaman aşımı, kısa bekleme ve tek yeniden deneme
+ * fonksiyon kesilmeden biter. Platform varsayılanı keserse öğrenci 502 görür
  * ve kredi iade edilir, ders kayda geçmez.
  */
 export const maxDuration = 300;

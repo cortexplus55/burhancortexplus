@@ -1369,11 +1369,19 @@ function factStems(text: string): string[] {
   return out;
 }
 
+function plainFact(text: string): string {
+  return text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+}
+
+function awkwardFact(text: string): boolean {
+  return /bulundugu\s+\S+\s+(kutle\s+)?oran/.test(foldTr(text));
+}
+
 function factSentences(text: string): string[] {
   return text
-    .split(/\n+|(?<=[.!?])\s+(?=[A-ZÇĞİÖŞÜ“"])/)
-    .map((part) => part.replace(/\s+/g, " ").trim())
-    .filter((part) => part.length >= 20 && part.length <= 240);
+    .split(/\n+|(?<=[.!?])\s+(?=\*{0,2}[A-ZÇĞİÖŞÜ“"])/)
+    .map((part) => plainFact(part))
+    .filter((part) => part.length >= 20 && part.length <= 200 && !part.includes("|"));
 }
 
 /**
@@ -1389,7 +1397,9 @@ function groundedFactRetry<T extends ReviewCheck>(check: T, source: string): T |
     .trim();
   const claimFold = foldTr(claim);
   if (claimFold.length < 12) return null;
-  const sentences = factSentences(source);
+  const sentences = factSentences(source).filter(
+    (sentence) => !foldTr(sentence).includes("bu sayfadaki formuller"),
+  );
   const alreadySource = sentences.some((sentence) => {
     const folded = foldTr(sentence);
     return folded.length >= 20 && (claimFold.includes(folded) || folded.includes(claimFold));
@@ -1401,6 +1411,7 @@ function groundedFactRetry<T extends ReviewCheck>(check: T, source: string): T |
   const correctFold = foldTr(check.options[check.answerIndex] ?? "");
   const corpus = [source, check.explanation, check.prompt, ...check.options].join("\n");
   let best: { score: number; text: string } | null = null;
+  let awkwardBest: { score: number; text: string } | null = null;
   for (const sentence of sentences) {
     if (sentence.includes("?")) continue;
     const folded = foldTr(sentence);
@@ -1414,11 +1425,19 @@ function groundedFactRetry<T extends ReviewCheck>(check: T, source: string): T |
     );
     if (!shared.length) continue;
     if (!isTrueFalse && (correctFold.length < 4 || !folded.includes(correctFold))) continue;
-    const score = shared.length * 3 + Math.min(stems.length, 6);
+    const promptLength = `${sentence.replace(/[.!?;\s]+$/g, "")}. Doğru mu, yanlış mı?`.length;
+    if (promptLength > 300) continue;
+    const score = shared.length * 8 - Math.round(sentence.length / 25);
+    const slot = awkwardFact(sentence) ? "awkward" : "clean";
+    if (slot === "awkward") {
+      if (!awkwardBest || score > awkwardBest.score) awkwardBest = { score, text: sentence };
+      continue;
+    }
     if (!best || score > best.score) best = { score, text: sentence };
   }
+  best = best ?? awkwardBest;
   if (!best) return null;
-  const prompt = `${best.text.replace(/[.!?;\s]+$/g, "")}. DOĞRU MU YANLIŞ?`.slice(0, 300);
+  const prompt = `${best.text.replace(/[.!?;\s]+$/g, "")}. Doğru mu, yanlış mı?`;
   if (foldPrompt(prompt) === foldPrompt(check.prompt)) return null;
   if (isTrueFalse) {
     const right = trueFalseRightIndex(check.options);

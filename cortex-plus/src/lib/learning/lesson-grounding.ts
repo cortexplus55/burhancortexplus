@@ -167,6 +167,72 @@ function clip(text: string, max: number): string {
   return trimmed.length <= max ? trimmed : trimmed.slice(0, max).trim();
 }
 
+const SUMMARY_MAX = 240;
+
+/**
+ * Sayfa bloğunun başındaki "[s.4] dosya:" öğrenciye ait değil.
+ * Formül dizini ve yönerge cümlesi de değil: "Bu sayfadaki formüller: a | b".
+ */
+function stripSourceChrome(text: string): string {
+  return text
+    .replace(/\[Sayfa metni kısaltıldı\.\]/gi, "")
+    .replace(/\[s\.\d+\]\s*[^:\n]{0,120}:\s*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeSummaryText(text: string): string {
+  return text
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b([mhuvsypxt])\s+(fg|sat|f|g)\b/gi, "$1_$2")
+    .replace(/\b([mhuvsypxt](?:_(?:fg|sat|f|g))?)\s*\/\s*([mhuvsypxt])\b/gi, "$1/$2")
+    .replace(/(?<!\*)\*(?!\*)/g, "·")
+    .replace(/[;]+\s*$/g, "")
+    .trim();
+}
+
+function objectiveFiller(text: string): boolean {
+  const folded = foldTr(text);
+  if (/\bkonusu(nu|n)?\b/.test(folded) && /(anlayarak|uygulayabil|ogren)/.test(folded)) return true;
+  return /(ogrenmek|ogrenmeyi)\s*$/.test(folded);
+}
+
+function metadataDump(text: string): boolean {
+  if (text.includes("|")) return true;
+  const folded = foldTr(text);
+  return (
+    folded.includes("bu sayfadaki formuller") ||
+    folded.includes("formulleri sayfadaki") ||
+    folded.includes("ogrencinin kendi kaynagindan") ||
+    folded.includes("fiziksel pdf sayfa") ||
+    folded.includes("bu sayfalarda olmayan") ||
+    folded.includes("kisaltilan sayfalar")
+  );
+}
+
+function danglingTail(text: string): boolean {
+  return /[=+×*/\-−]\s*$/.test(text.trim());
+}
+
+function workedExampleFragment(text: string): boolean {
+  return /\d+(?:[.,]\d+)?(?:\s*[A-Za-z°µ/%]+)?\s*[+×*·\-−]\s*\d/.test(text);
+}
+
+/**
+ * Özet satırı tek, bitmiş, okunur bir cümle olmalı.
+ * Formül dizini, kesik hesap ve öğrenme hedefi kalıbı düşer.
+ * 240 karakteri aşan cümle ortadan kesilmez; satır olmaz.
+ */
+function cleanSummarySentence(text: string, min = 8): string | null {
+  const normalized = normalizeSummaryText(stripSourceChrome(text));
+  if (normalized.length < min || normalized.length > SUMMARY_MAX) return null;
+  if (objectiveFiller(normalized) || metadataDump(normalized) || danglingTail(normalized)) return null;
+  if (workedExampleFragment(normalized)) return null;
+  if (definitionalInversionIssues(normalized).length) return null;
+  return normalized;
+}
+
 const SUMMARY_STOP = new Set([
   "bir",
   "bu",
@@ -253,21 +319,39 @@ function attachRelation(sentences: string[]): string[] {
   return out;
 }
 
+/** Kaynak gövdesinden özet olabilecek bitmiş cümleler. Dizin ve kesik hesap yok. */
+function summaryCandidates(source: string): string[] {
+  const raw = sentencesOf(source)
+    .map((sentence) => stripSourceChrome(sentence))
+    .filter((sentence) => sentence.length >= 8 && !metadataDump(sentence) && !objectiveFiller(sentence));
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const sentence of attachRelation(raw)) {
+    const clean = cleanSummarySentence(sentence);
+    if (!clean) continue;
+    const key = foldTr(clean);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(clean);
+  }
+  return out;
+}
+
 /**
  * Özet, kaynağın niteleyicisini veya bağıntının yarısını düşürdüyse
  * kaynağın kendi cümlesi (ve aynı simgeli kardeş bağıntı) gelir.
+ * Formül dizini ve yarım kalan hesap adayı değildir.
  */
 function preciseSummaryLines(item: string, source: string): string[] | null {
   if (!source.trim() || truncated(source) || definitionalInversionIssues(item).length) return null;
-  const packed = attachRelation(sentencesOf(source).filter((sentence) => sentence.length >= 8));
+  const packed = summaryCandidates(source);
   const itemStems = summaryStems(item);
   if (itemStems.length < 2) return null;
   const itemHasEq = /=/.test(item);
-  const itemKey = foldTr(item);
+  const itemKey = foldTr(normalizeSummaryText(item));
+  if (packed.some((sentence) => foldTr(sentence) === itemKey)) return null;
   let best: { text: string; score: number } | null = null;
   for (const sentence of packed) {
-    if (definitionalInversionIssues(sentence).length) continue;
-    if (foldTr(sentence) === itemKey) return null;
     const sentenceStems = summaryStems(sentence);
     const shared = stemOverlap(itemStems, sentenceStems);
     const extras = sentenceStems.filter((stem) => !itemStems.some((other) => stemsClose(stem, other)));
@@ -291,17 +375,16 @@ function preciseSummaryLines(item: string, source: string): string[] | null {
     const symbol = equationSymbol(best.text);
     if (extras.length < 2 && symbol && symbolIn(item, symbol)) return null;
   }
-  const lines = [clip(best.text.replace(/[;]+\s*$/g, ""), 240)];
+  const lines = [best.text];
   const symbol = equationSymbol(best.text);
   if (symbol && !itemHasEq) {
-    for (const sentence of sentencesOf(source)) {
-      if (!/=/.test(sentence) || definitionalInversionIssues(sentence).length) continue;
+    for (const sentence of packed) {
+      if (!/=/.test(sentence)) continue;
       if (!symbolIn(sentence, symbol)) continue;
-      const text = clip(sentence.replace(/[;]+\s*$/g, ""), 240);
-      if (lines.some((line) => foldTr(line).includes(foldTr(text)) || foldTr(text).includes(foldTr(line)))) {
+      if (lines.some((line) => foldTr(line).includes(foldTr(sentence)) || foldTr(sentence).includes(foldTr(line)))) {
         continue;
       }
-      lines.push(text);
+      lines.push(sentence);
       if (lines.length >= 2) break;
     }
   }
@@ -364,9 +447,11 @@ function sourceSentenceFor(topic: string, source: string): string | null {
   if (!needles.length) return null;
   let best: { score: number; text: string } | null = null;
   for (const sentence of sentencesOf(source)) {
-    if (sentence.length < 20) continue;
-    if (definitionalInversionIssues(sentence).length) continue;
-    const folded = foldTr(sentence);
+    const visible = stripSourceChrome(sentence);
+    if (visible.length < 20) continue;
+    if (metadataDump(visible) || objectiveFiller(visible) || danglingTail(visible)) continue;
+    if (definitionalInversionIssues(visible).length) continue;
+    const folded = foldTr(visible);
     let score = 0;
     for (const needle of needles) {
       if (folded.includes(needle)) score += 1;
@@ -375,7 +460,7 @@ function sourceSentenceFor(topic: string, source: string): string | null {
     if (/karsilastir|faz karar/.test(topicFold) && /t[_ ]?sat|tsat|p[_ ]?sat|psat|doyma/.test(folded)) {
       score += 2;
     }
-    if (score > 0 && (!best || score > best.score)) best = { score, text: sentence };
+    if (score > 0 && (!best || score > best.score)) best = { score, text: visible };
   }
   return best?.text ?? null;
 }
@@ -590,15 +675,20 @@ export function groundLearnerLesson(
     };
     for (const item of next.summary) {
       if (typeof item !== "string") continue;
+      if (objectiveFiller(item) || metadataDump(item) || danglingTail(item) || workedExampleFragment(item)) {
+        removed.push("summary");
+        continue;
+      }
       const failing = fieldFails(item, source);
       if (failing) {
         const replacement = sourceSentenceFor(item, source);
-        if (!replacement) {
+        const clean = replacement ? cleanSummarySentence(replacement) : null;
+        if (!clean) {
           removed.push("summary");
           continue;
         }
         removed.push("summary:replaced");
-        pushSummary(clip(replacement, 240));
+        pushSummary(clean);
         continue;
       }
       const precise = preciseSummaryLines(item, source);
@@ -607,7 +697,23 @@ export function groundLearnerLesson(
         for (const line of precise) pushSummary(line);
         continue;
       }
-      pushSummary(item);
+      const clean = cleanSummarySentence(item, 2);
+      if (!clean) {
+        removed.push("summary");
+        continue;
+      }
+      if (clean !== item.trim()) removed.push("summary:normalized");
+      pushSummary(clean);
+    }
+    if (kept.length < 3 && source.trim() && !truncated(source)) {
+      let added = false;
+      for (const sentence of summaryCandidates(source)) {
+        if (kept.length >= 5) break;
+        const before = kept.length;
+        pushSummary(sentence);
+        if (kept.length > before) added = true;
+      }
+      if (added) removed.push("summary:backfill");
     }
     if (kept.length) next.summary = kept;
     else delete next.summary;
