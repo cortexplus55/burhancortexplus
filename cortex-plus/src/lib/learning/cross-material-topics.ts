@@ -27,6 +27,11 @@ export type MaterialCandidate = {
   keyTerms?: string[];
   commonMistakes?: string[];
   practiceItems?: string[];
+  /**
+   * Öğretmen analizindeki sınav olasılığı. Müfredat yokken öncelik buradan
+   * gelir. "Sınavda ağırlıklı" rozeti üretmez.
+   */
+  emphasis?: "core" | "support" | "skim" | null;
 };
 
 export type MaterialDocument = {
@@ -52,8 +57,13 @@ export type ConsolidatedTopic = {
   prerequisites: string[];
   /** Müfredattaki pay. Müfredat yoksa null. */
   weightPercent: number | null;
-  /** "Sınavda ağırlıklı" rozeti. */
+  /** "Sınavda ağırlıklı" rozeti. Yalnızca müfredat böyle dediyse. */
   examHeavy: boolean;
+  /**
+   * Öğretmen analizinin önem sırası. Müfredat payı yokken süre ve rozet
+   * buradan okunur. core → important ("Önemli"), support → medium, skim → less.
+   */
+  importance: TopicImportance | null;
   /** Dar kapsam notu: konu durur, içindeki bir parça sınav dışıdır. */
   scopeNote: string | null;
   commonMistakes: string[];
@@ -92,6 +102,8 @@ export type ConsolidationResult = {
   /** Konu olmayan bölümler. Test ve iz için. */
   foldedNonTopics: string[];
 };
+
+export type TopicImportance = "important" | "medium" | "less";
 
 export type SyllabusRow = {
   index: number;
@@ -414,6 +426,7 @@ type Bucket = {
   scopeNotes: string[];
   syllabusIndex: number | null;
   memberIds: string[];
+  emphasis: "core" | "support" | "skim" | null;
 };
 
 function blankBucket(title: string): Bucket {
@@ -432,7 +445,39 @@ function blankBucket(title: string): Bucket {
     scopeNotes: [],
     syllabusIndex: null,
     memberIds: [],
+    emphasis: null,
   };
+}
+
+const EMPHASIS_RANK = { skim: 1, support: 2, core: 3 } as const;
+
+function strongerEmphasis(
+  left: "core" | "support" | "skim" | null,
+  right: "core" | "support" | "skim" | null,
+): "core" | "support" | "skim" | null {
+  if (!left) return right;
+  if (!right) return left;
+  return EMPHASIS_RANK[left] >= EMPHASIS_RANK[right] ? left : right;
+}
+
+function importanceFromEmphasis(
+  emphasis: "core" | "support" | "skim" | null,
+): TopicImportance | null {
+  if (emphasis === "core") return "important";
+  if (emphasis === "support") return "medium";
+  if (emphasis === "skim") return "less";
+  return null;
+}
+
+const IMPORTANCE_RANK: Record<TopicImportance, number> = { less: 1, medium: 2, important: 3 };
+
+export function strongerImportance(
+  left: TopicImportance | null | undefined,
+  right: TopicImportance | null | undefined,
+): TopicImportance | null {
+  if (!left) return right ?? null;
+  if (!right) return left;
+  return IMPORTANCE_RANK[left] >= IMPORTANCE_RANK[right] ? left : right;
 }
 
 function absorbCandidate(bucket: Bucket, candidate: MaterialCandidate, asSection: boolean) {
@@ -454,6 +499,7 @@ function absorbCandidate(bucket: Bucket, candidate: MaterialCandidate, asSection
   if (nodeId) bucket.nodeIds.push(nodeId);
   bucket.memberIds.push(candidate.id);
   if (candidate.summary?.trim()) bucket.summaryParts.push(candidate.summary.trim());
+  bucket.emphasis = strongerEmphasis(bucket.emphasis, candidate.emphasis ?? null);
   if (!asSection) return;
   const key = topicMatchKey(candidate.title);
   const existing = bucket.sections.find((section) => topicMatchKey(section.title) === key);
@@ -487,6 +533,7 @@ function finishBucket(bucket: Bucket): ConsolidatedTopic {
     prerequisites: uniqueLines(bucket.prerequisites),
     weightPercent: bucket.weightPercent,
     examHeavy: bucket.examHeavy,
+    importance: importanceFromEmphasis(bucket.emphasis),
     scopeNote: uniqueLines(bucket.scopeNotes).join(" ") || null,
     commonMistakes: uniqueLines(bucket.mistakes),
     practiceItems: uniqueLines(bucket.practice),
@@ -563,6 +610,16 @@ function foldIntoBest(bucket: Bucket[], candidate: MaterialCandidate) {
   target.mistakes.push(...(candidate.commonMistakes ?? []));
   target.practice.push(...(candidate.practiceItems ?? []));
   if (candidate.summary?.trim()) target.practice.push(candidate.summary.trim());
+  const title = candidate.title.trim();
+  if (!title) return;
+  const key = topicMatchKey(title);
+  if (target.sections.some((section) => topicMatchKey(section.title) === key)) return;
+  const nodeId = nodeIdOf(candidate);
+  target.sections.push({
+    title,
+    pages: uniquePages(candidate.pages ?? []),
+    sources: [sourceOf(candidate, nodeId)],
+  });
 }
 
 function jaccard(left: string[], right: string[]): number {
@@ -616,28 +673,300 @@ function clusterCandidates(candidates: MaterialCandidate[], multiFile: boolean):
   return [...groups.values()];
 }
 
+function leadOf(title: string): string | null {
+  return tokensOf(title)[0] ?? null;
+}
+
+function leadsMatch(left: string, right: string): boolean {
+  if (left === right && left.length >= 3) return true;
+  return sameStem(left, right);
+}
+
+function tokenFrequency(candidates: MaterialCandidate[]): Map<string, number> {
+  const freq = new Map<string, number>();
+  const add = (token: string) => {
+    for (const key of freq.keys()) {
+      if (!sameStem(key, token)) continue;
+      freq.set(key, (freq.get(key) ?? 0) + 1);
+      return;
+    }
+    freq.set(token, 1);
+  };
+  for (const candidate of candidates) {
+    for (const token of new Set(tokensOf(candidate.title))) add(token);
+  }
+  return freq;
+}
+
+function frequencyOf(freq: Map<string, number>, token: string): number {
+  let best = 0;
+  for (const [key, count] of freq) {
+    if (sameStem(key, token)) best = Math.max(best, count);
+  }
+  return best;
+}
+
+/**
+ * Aynı ilk kelime, iki ayrı konunun adıysa birleştirme.
+ * "Osmanlı kuruluş" ile "Osmanlı yükselme" ikisi de "Osmanlı" ile başlar;
+ * devamı başka bir başlığın konusuysa aynı konu değildir.
+ */
+function equalLeadConflict(
+  left: MaterialCandidate,
+  right: MaterialCandidate,
+  knownLeads: string[],
+): boolean {
+  const lead = leadOf(left.title);
+  if (!lead || !leadsMatch(lead, leadOf(right.title) ?? "")) return true;
+  const rivals = (title: string) =>
+    tokensOf(title).filter(
+      (token) =>
+        token.length >= 5 &&
+        !sameStem(token, lead) &&
+        knownLeads.some((item) => sameStem(item, token)),
+    );
+  const leftRivals = rivals(left.title);
+  const rightRivals = rivals(right.title);
+  if (!leftRivals.length || !rightRivals.length) return false;
+  const disjoint = (one: string[], other: string[]) =>
+    one.every((token) => !other.some((item) => sameStem(item, token)));
+  return disjoint(leftRivals, rightRivals) && disjoint(rightRivals, leftRivals);
+}
+
+function sharesBesidesLead(left: MaterialCandidate, right: MaterialCandidate): boolean {
+  const lead = leadOf(left.title);
+  return sharedStems(tokensOf(left.title), tokensOf(right.title)).some(
+    (token) => token.length >= 4 && (!lead || !sameStem(token, lead)),
+  );
+}
+
+/**
+ * Müfredat yokken dosyalar arası ön birleştirme.
+ *
+ * Aynı dosyadaki ayrı bölümler durur. Dosyalar arasında aynı konunun
+ * tekrarı (aynı ilk kelime, ya da iki uzun ortak kelime) katlanır.
+ * Köprü başlık ("Kuruluş ve yükselme") yalnızca kendi ilk kelimesinin
+ * kümesine girer; iki dönemi birbirine yapıştırmaz.
+ */
+function clusterWithoutSyllabus(candidates: MaterialCandidate[]): MaterialCandidate[][] {
+  if (!candidates.length) return [];
+  const multiFile = new Set(candidates.map((item) => item.documentId).filter(Boolean)).size > 1;
+  const freq = tokenFrequency(candidates);
+  const knownLeads = candidates
+    .map((item) => leadOf(item.title))
+    .filter((token): token is string => Boolean(token));
+  const parent = candidates.map((_, index) => index);
+  const find = (index: number): number => {
+    if (parent[index] !== index) parent[index] = find(parent[index]);
+    return parent[index];
+  };
+  const unite = (left: number, right: number) => {
+    const rootLeft = find(left);
+    const rootRight = find(right);
+    if (rootLeft !== rootRight) parent[rootRight] = rootLeft;
+  };
+  const cap = Math.max(4, Math.ceil(candidates.length * 0.34));
+
+  for (let left = 0; left < candidates.length; left += 1) {
+    for (let right = left + 1; right < candidates.length; right += 1) {
+      const a = candidates[left];
+      const b = candidates[right];
+      if (topicMatchKey(a.title) && topicMatchKey(a.title) === topicMatchKey(b.title)) {
+        unite(left, right);
+        continue;
+      }
+      const leftTitle = tokensOf(a.title);
+      const rightTitle = tokensOf(b.title);
+      const shorter = fold(a.title).length <= fold(b.title).length ? fold(a.title) : fold(b.title);
+      const longer = fold(a.title).length <= fold(b.title).length ? fold(b.title) : fold(a.title);
+      if (shorter.length >= 12 && (longer === shorter || longer.startsWith(`${shorter} `))) {
+        unite(left, right);
+        continue;
+      }
+      if (
+        jaccard(leftTitle, rightTitle) >= 0.5 &&
+        sharedStems(leftTitle, rightTitle).some((token) => token.length >= 4)
+      ) {
+        unite(left, right);
+        continue;
+      }
+      const leftLead = leadOf(a.title);
+      const rightLead = leadOf(b.title);
+      const crossFile = Boolean(a.documentId && b.documentId && a.documentId !== b.documentId);
+      if (
+        leftLead &&
+        rightLead &&
+        leadsMatch(leftLead, rightLead) &&
+        !equalLeadConflict(a, b, knownLeads) &&
+        (crossFile || sharesBesidesLead(a, b))
+      ) {
+        unite(left, right);
+        continue;
+      }
+      if (!multiFile) continue;
+      const shared = sharedStems(leftTitle, rightTitle).filter((token) => {
+        const leadsOne =
+          (leftLead && sameStem(token, leftLead)) || (rightLead && sameStem(token, rightLead));
+        return token.length >= 5 || (token.length >= 3 && Boolean(leadsOne));
+      });
+      if (shared.length < 2) continue;
+      if (!shared.some((token) => frequencyOf(freq, token) <= cap)) continue;
+      unite(left, right);
+    }
+  }
+
+  const grouped = new Map<number, MaterialCandidate[]>();
+  candidates.forEach((candidate, index) => {
+    const root = find(index);
+    const list = grouped.get(root) ?? [];
+    list.push(candidate);
+    grouped.set(root, list);
+  });
+  let groups = [...grouped.values()];
+  groups = mergeByContainedLead(groups);
+  groups = absorbSatellites(groups, freq);
+  return orderGroups(groups, candidates);
+}
+
+function clusterLead(group: MaterialCandidate[]): string | null {
+  return leadOf(titleForCluster(group));
+}
+
+function leadCoverage(group: MaterialCandidate[], token: string): number {
+  if (!group.length) return 0;
+  const hits = group.filter((item) => tokensOf(item.title).some((piece) => sameStem(piece, token))).length;
+  return hits / group.length;
+}
+
+/**
+ * Kümenin ilk kelimesi başka kümenin başlıklarının çoğunda geçiyorsa
+ * o küme alt başlıktır. Köprü başlık azınlıkta kaldığı için iki dönemi
+ * birleştirmez.
+ */
+function mergeByContainedLead(groups: MaterialCandidate[][]): MaterialCandidate[][] {
+  const current = groups.map((group) => [...group]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let guest = 0; guest < current.length; guest += 1) {
+      const lead = clusterLead(current[guest]);
+      if (!lead || lead.length < 4) continue;
+      let host = -1;
+      let best = 0;
+      for (let other = 0; other < current.length; other += 1) {
+        if (other === guest) continue;
+        const coverage = leadCoverage(current[other], lead);
+        if (coverage < 0.5 || coverage <= best) continue;
+        const back = clusterLead(current[other]);
+        if (back && leadCoverage(current[guest], back) >= 0.5) continue;
+        host = other;
+        best = coverage;
+      }
+      if (host < 0) continue;
+      current[host] = [...current[host], ...current[guest]];
+      current.splice(guest, 1);
+      changed = true;
+      break;
+    }
+  }
+  return current;
+}
+
+/**
+ * Tek kalan başlık, aynı dosyadaki büyük kümeyle bir uzun kelime paylaşıyorsa
+ * oraya katılır. Kendi adı başka dosyada da geçen ayrı bir kavramsa durur
+ * ("Nötralleşme" tepkime kümesine yapışmaz).
+ */
+function absorbSatellites(
+  groups: MaterialCandidate[][],
+  freq: Map<string, number>,
+): MaterialCandidate[][] {
+  const hosts = groups.filter((group) => group.length > 1);
+  const singles = groups.filter((group) => group.length === 1);
+  const left: MaterialCandidate[][] = [];
+  for (const single of singles) {
+    const candidate = single[0];
+    const lead = leadOf(candidate.title);
+    let bestHost: MaterialCandidate[] | null = null;
+    let bestScore = 0;
+    for (const host of hosts) {
+      if (!host.some((item) => item.documentId === candidate.documentId)) continue;
+      const shared = sharedStems(
+        tokensOf(candidate.title),
+        host.flatMap((item) => tokensOf(item.title)),
+      ).filter((token) => token.length >= 5);
+      if (!shared.length) continue;
+      const blocked =
+        Boolean(lead) &&
+        (lead?.length ?? 0) >= 8 &&
+        frequencyOf(freq, lead ?? "") >= 2 &&
+        !shared.some((token) => sameStem(token, lead ?? ""));
+      if (blocked) continue;
+      const score = shared.reduce((sum, token) => sum + token.length, 0);
+      if (score <= bestScore) continue;
+      bestScore = score;
+      bestHost = host;
+    }
+    if (bestHost) bestHost.push(candidate);
+    else left.push(single);
+  }
+  return [...hosts, ...left];
+}
+
+function orderGroups(
+  groups: MaterialCandidate[][],
+  original: MaterialCandidate[],
+): MaterialCandidate[][] {
+  const index = new Map(original.map((candidate, position) => [candidate.id, position]));
+  return [...groups].sort((left, right) => {
+    const leftAt = Math.min(...left.map((item) => index.get(item.id) ?? 0));
+    const rightAt = Math.min(...right.map((item) => index.get(item.id) ?? 0));
+    return leftAt - rightAt;
+  });
+}
+
 function titleForCluster(group: MaterialCandidate[]): string {
-  const counts = new Map<string, { title: string; count: number }>();
+  const counts = new Map<string, { title: string; count: number; order: number }>();
   for (const candidate of group) {
     const key = topicMatchKey(candidate.title) || fold(candidate.title);
     const have = counts.get(key);
     if (have) have.count += 1;
-    else counts.set(key, { title: candidate.title.trim(), count: 1 });
+    else counts.set(key, { title: candidate.title.trim(), count: 1, order: counts.size });
   }
-  return [...counts.values()].sort(
-    (a, b) => b.count - a.count || b.title.length - a.title.length,
-  )[0]?.title ?? group[0].title;
+  // Beraberlikte belgenin kendi sırası. En uzun başlık kartın adı olmaz.
+  return [...counts.values()].sort((a, b) => b.count - a.count || a.order - b.order)[0]?.title ??
+    group[0].title;
 }
 
+function headOf(group: MaterialCandidate[]): MaterialCandidate {
+  const title = titleForCluster(group);
+  return group.find((item) => item.title.trim() === title) ?? group[0];
+}
+
+/**
+ * Deterministik birleştirmenin emin olamadığı çiftler. Tek model çağrısı
+ * bunlara bakar. Özet, başlıkta olmayan bir kelimeyle iki kümeyi
+ * yaklaştırıyorsa çift listeye girer; aynı dosyanın ilgisiz bölümleri girmez.
+ */
 function ambiguousPairs(groups: MaterialCandidate[][]): AmbiguousClusterPair[] {
-  const heads = groups.map((group) => group[0]);
+  const heads = groups.map(headOf);
   const pairs: AmbiguousClusterPair[] = [];
   for (let left = 0; left < heads.length; left += 1) {
     for (let right = left + 1; right < heads.length; right += 1) {
       const leftTitle = tokensOf(heads[left].title);
       const rightTitle = tokensOf(heads[right].title);
       const score = jaccard(leftTitle, rightTitle);
-      if (score >= 0.34 && score < 0.5 && sharedStems(leftTitle, rightTitle).length >= 1) {
+      const shared = sharedStems(leftTitle, rightTitle);
+      const summaryShared = sharedStems(
+        tokensOf(heads[left].summary ?? ""),
+        tokensOf(`${heads[right].title} ${heads[right].summary ?? ""}`),
+      ).filter((token) => token.length >= 6);
+      const summaryHint =
+        score < 0.34 &&
+        summaryShared.length >= 1 &&
+        Boolean(heads[left].summary?.trim()) &&
+        fold(heads[left].summary ?? "") !== fold(heads[left].title);
+      if ((score >= 0.34 && score < 0.5 && shared.length >= 1) || summaryHint) {
         pairs.push({
           leftId: heads[left].id,
           rightId: heads[right].id,
@@ -777,10 +1106,13 @@ export function consolidateMaterials(input: {
       buckets.push(bucket);
     }
   } else {
-    for (const group of clusterCandidates(kept, multiFile)) {
+    for (const group of clusterWithoutSyllabus(kept)) {
       const bucket = blankBucket(titleForCluster(group));
-      group.forEach((candidate, index) => {
-        absorbCandidate(bucket, candidate, index > 0 && topicMatchKey(candidate.title) !== topicMatchKey(bucket.title));
+      group.forEach((candidate) => {
+        const same =
+          topicMatchKey(candidate.title) &&
+          topicMatchKey(candidate.title) === topicMatchKey(bucket.title);
+        absorbCandidate(bucket, candidate, !same);
       });
       buckets.push(bucket);
     }
@@ -809,7 +1141,7 @@ export function consolidateMaterials(input: {
     ),
   }));
 
-  const ambiguous = rows.length ? [] : ambiguousPairs(clusterCandidates(kept, multiFile));
+  const ambiguous = rows.length ? [] : ambiguousPairs(clusterWithoutSyllabus(kept));
 
   return {
     topics,
@@ -907,21 +1239,51 @@ export function applyClusterMerges(
       have.weightPercent = topic.weightPercent;
     }
     have.examHeavy = have.examHeavy || topic.examHeavy;
+    have.importance = strongerImportance(have.importance, topic.importance);
   });
   return [...merged.values()];
 }
 
 /** Ağır konu daha çok pratik alır. Kısa sürede ekstra pratik eklenmez. */
 export function extraPracticeForTopic(
-  topic: { weightPercent?: number | null; examHeavy?: boolean },
+  topic: {
+    weightPercent?: number | null;
+    examHeavy?: boolean;
+    importance?: TopicImportance | null;
+  },
   daysToExam: number,
 ): number {
   if (daysToExam < 10) return 0;
-  const heavy = Boolean(topic.examHeavy) || (topic.weightPercent ?? 0) >= 20;
+  const heavy =
+    Boolean(topic.examHeavy) ||
+    (topic.weightPercent ?? 0) >= 20 ||
+    topic.importance === "important";
   const medium = (topic.weightPercent ?? 0) >= 15;
   if (!heavy && !medium) return 0;
   if (daysToExam >= 21 && heavy) return 2;
   return 1;
+}
+
+/**
+ * Rozet kaynağı. Müfredat "sınavda ağırlıklı" demediyse o yazılmaz.
+ * Öğretmen analizi core dediyse "Önemli". Kaynak yoksa rozet yok.
+ */
+export function topicBadge(
+  topic: { examHeavy?: boolean; importance?: TopicImportance | null },
+): "exam-heavy" | "important" | null {
+  if (topic.examHeavy) return "exam-heavy";
+  if (topic.importance === "important") return "important";
+  return null;
+}
+
+/** 1 en yüksek. Öğretmen analizi yoksa null. */
+export function priorityFromImportance(
+  importance: TopicImportance | null | undefined,
+): number | null {
+  if (importance === "important") return 1;
+  if (importance === "medium") return 3;
+  if (importance === "less") return 5;
+  return null;
 }
 
 /** 1 en yüksek öncelik. Müfredat payı yoksa null — çağıran kendi önceliğini korur. */

@@ -26,6 +26,8 @@ export type ScheduleTopicInput = {
   weightPercent?: number | null;
   /** Müfredat "sınavda ağırlıklı" diyorsa. */
   examHeavy?: boolean;
+  /** Öğretmen analizinin önem sırası. Müfredat payı yokken süreye girer. */
+  importance?: "important" | "medium" | "less" | null;
   /** Birleşmiş konunun dayandığı dosyalar. Takvim bunu okumaz. */
   sourceRefs?: TopicSourceRef[];
 };
@@ -159,7 +161,7 @@ export function estimateTopicMinutes(topic: ScheduleTopicInput): number {
     topic.weightPercent == null
       ? 1
       : 0.8 + Math.min(40, topic.weightPercent) / 50;
-  const heavyBoost = topic.examHeavy ? 1.15 : 1;
+  const heavyBoost = topic.examHeavy || topic.importance === "important" ? 1.15 : 1;
   const priority =
     topic.priority && topic.priority >= 1 && topic.priority <= 5
       ? 1.25 - (topic.priority - 1) * 0.05

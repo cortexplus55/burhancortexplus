@@ -10,6 +10,7 @@ import {
   type MaterialCandidate,
   type MaterialDocument,
 } from "@/lib/learning/cross-material-topics";
+import { findAnalysisTopic, parseTeacherAnalysis } from "@/lib/learning/teacher-brain";
 
 const TEXT_CAP = 14_000;
 
@@ -94,6 +95,20 @@ export async function consolidatePrepDocuments(
     }
   }
 
+  const analysisByDoc = new Map<string, NonNullable<ReturnType<typeof parseTeacherAnalysis>>>();
+  const { data: analyses, error: analysisError } = await service
+    .from("document_teacher_analyses")
+    .select("document_id, status, analysis")
+    .in("document_id", documentIds);
+  if (!analysisError) {
+    for (const row of analyses ?? []) {
+      if (row.status !== "ready") continue;
+      const analysis = parseTeacherAnalysis(row.analysis);
+      if (!analysis) continue;
+      analysisByDoc.set(row.document_id as string, analysis);
+    }
+  }
+
   const candidates: MaterialCandidate[] = [];
   for (const documentId of documentIds) {
     const rows = (nodes ?? []).filter((node) => node.document_id === documentId);
@@ -113,6 +128,8 @@ export async function consolidatePrepDocuments(
       const definitions = asStrings(node.key_definitions).slice(0, 4);
       const mistakes = asStrings(node.common_mistakes).slice(0, 6);
       const practice = asStrings(node.source_exercises).slice(0, 6);
+      const analysis = analysisByDoc.get(documentId);
+      const matched = analysis ? findAnalysisTopic(analysis, String(node.title ?? "")) : null;
       candidates.push({
         id,
         title: String(node.title ?? ""),
@@ -125,6 +142,7 @@ export async function consolidatePrepDocuments(
         prerequisites: asStrings(node.prerequisites),
         commonMistakes: mistakes,
         practiceItems: practice,
+        emphasis: matched?.emphasis ?? null,
       });
     }
   }

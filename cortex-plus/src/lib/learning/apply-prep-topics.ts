@@ -20,6 +20,7 @@ export type LoadedPrepTopic = {
   priority?: number | null;
   weightPercent?: number | null;
   examHeavy?: boolean;
+  importance?: "important" | "medium" | "less" | null;
 };
 
 export type LoadedPrepTopics = {

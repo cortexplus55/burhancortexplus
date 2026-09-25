@@ -68,6 +68,7 @@ export const WIZARD_COPY = {
   topicCheckFailed: "Konu şu an doğrulanamadı. Tekrar dene.",
   fileCap: "Bir hazırlığa en fazla 8 dosya ekleyebilirsin.",
   examHeavy: "Sınavda ağırlıklı",
+  important: "Önemli",
   missingMaterial: "materyalde yok",
   addMissing: "Ekle",
   useSyllabusDate: "Müfredattaki tarihi kullan",

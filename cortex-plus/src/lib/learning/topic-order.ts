@@ -15,6 +15,7 @@ export function orderTopicsForPath<
     priority?: number | null;
     weightPercent?: number | null;
     examHeavy?: boolean;
+    importance?: "important" | "medium" | "less" | null;
     selfHard?: boolean;
     measuredLevel?: ScheduleTopicInput["measuredLevel"];
   },
@@ -27,6 +28,7 @@ export function orderTopicsForPath<
     priority: topic.priority ?? priorityFromWeight(topic),
     weightPercent: topic.weightPercent,
     examHeavy: topic.examHeavy,
+    importance: topic.importance,
     selfHard: topic.selfHard,
     measuredLevel: topic.measuredLevel,
   }));

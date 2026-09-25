@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { schedulePriorityForTopic } from "@/lib/learning/exam-coverage";
 import type { ScheduleTopicInput } from "@/lib/learning/exam-schedule-v2";
 import { consolidatePrepDocuments } from "@/lib/learning/consolidate-documents";
-import { priorityFromWeight } from "@/lib/learning/cross-material-topics";
+import { priorityFromImportance, priorityFromWeight } from "@/lib/learning/cross-material-topics";
 import { orderTopicsForPath } from "@/lib/learning/topic-order";
 import { parseTeacherAnalysis, type TeacherAnalysis } from "@/lib/learning/teacher-brain";
 
@@ -46,7 +46,10 @@ export async function loadScheduleTopics(
   });
   const weighted = consolidated.topics.map((topic) => ({
     ...topic,
-    priority: priorityFromWeight(topic) ?? schedulePriorityForTopic(groups, topic.title),
+    priority:
+      priorityFromWeight(topic) ??
+      priorityFromImportance(topic.importance) ??
+      schedulePriorityForTopic(groups, topic.title),
   }));
   const ordered = orderTopicsForPath(weighted, { manualOrder: false });
   const titles = ordered.map((topic) => topic.title);
@@ -66,6 +69,7 @@ export async function loadScheduleTopics(
     priority: topic.priority,
     weightPercent: topic.weightPercent,
     examHeavy: topic.examHeavy,
+    importance: topic.importance,
     sourceRefs: topic.sources,
   }));
 

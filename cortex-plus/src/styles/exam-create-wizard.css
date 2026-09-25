@@ -1126,7 +1126,8 @@
   line-height: 1.4;
 }
 
-.apw-topic-heavy {
+.apw-topic-heavy,
+.apw-topic-important {
   display: inline-flex;
   width: fit-content;
   font-size: 0.72rem;

@@ -231,6 +231,9 @@ export async function POST(request: Request) {
       "sourceCount" in topic ? topic.sourceCount : topic.sources.length,
     ),
     topicHeavy: mergedTopics.map((topic) => ("examHeavy" in topic ? topic.examHeavy : false)),
+    topicImportant: mergedTopics.map((topic) =>
+      "importance" in topic ? topic.importance === "important" && !topic.examHeavy : false,
+    ),
     topicWeights: mergedTopics.map((topic) =>
       "weightPercent" in topic ? topic.weightPercent : null,
     ),
@@ -286,6 +289,7 @@ export async function POST(request: Request) {
             topicWarnings: topicWarnings.slice(0, PREP_TOPIC_CAP),
             topicSourceCounts: merged.topicSourceCounts.slice(0, PREP_TOPIC_CAP),
             topicHeavy: merged.topicHeavy.slice(0, PREP_TOPIC_CAP),
+            topicImportant: merged.topicImportant.slice(0, PREP_TOPIC_CAP),
             topicWeights: merged.topicWeights.slice(0, PREP_TOPIC_CAP),
             topicSections: merged.topicSections.slice(0, PREP_TOPIC_CAP),
             excluded: consolidated?.excluded ?? [],

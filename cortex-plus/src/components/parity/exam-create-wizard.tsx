@@ -71,13 +71,14 @@ type WizardMaterial = {
 type TopicMeta = {
   sourceCount: number;
   examHeavy: boolean;
+  important: boolean;
   sections: string[];
 };
 
 type ExcludedNote = { title: string; reason: string };
 type MissingTopic = { title: string; weightPercent: number | null; examHeavy: boolean };
 
-const EMPTY_META: TopicMeta = { sourceCount: 0, examHeavy: false, sections: [] };
+const EMPTY_META: TopicMeta = { sourceCount: 0, examHeavy: false, important: false, sections: [] };
 
 function formatSyllabusDate(iso: string): string {
   const [year, month, day] = iso.split("-");
@@ -320,6 +321,9 @@ export function ExamCreateWizard({
         const heavy: unknown[] = Array.isArray(payload?.draft?.topicHeavy)
           ? payload.draft.topicHeavy
           : [];
+        const important: unknown[] = Array.isArray(payload?.draft?.topicImportant)
+          ? payload.draft.topicImportant
+          : [];
         const sections: unknown[] = Array.isArray(payload?.draft?.topicSections)
           ? payload.draft.topicSections
           : [];
@@ -327,6 +331,7 @@ export function ExamCreateWizard({
           found.map((_, index) => ({
             sourceCount: typeof counts[index] === "number" ? counts[index] : 0,
             examHeavy: heavy[index] === true,
+            important: important[index] === true && heavy[index] !== true,
             sections: Array.isArray(sections[index])
               ? sections[index].filter((item: unknown) => typeof item === "string")
               : [],
@@ -1310,7 +1315,7 @@ function TopicEditor({
     onWarnings([...topicWarnings, ""]);
     onMeta([
       ...topicMeta,
-      { sourceCount: 0, examHeavy: item.examHeavy, sections: [] },
+      { sourceCount: 0, examHeavy: item.examHeavy, important: false, sections: [] },
     ]);
     onMissing(missing.filter((row) => row.title !== item.title));
   }
@@ -1372,6 +1377,9 @@ function TopicEditor({
             <span className="apw-topic-field">
               <strong>{topic}</strong>
               {meta.examHeavy ? <em className="apw-topic-heavy">{WIZARD_COPY.examHeavy}</em> : null}
+              {meta.important && !meta.examHeavy ? (
+                <em className="apw-topic-important">{WIZARD_COPY.important}</em>
+              ) : null}
               {meta.sourceCount > 0 ? <em>{sourceCountLabel(meta.sourceCount)}</em> : null}
               {meta.sections.length ? <em>{meta.sections.join(" · ")}</em> : null}
               {topicFiles[index]?.length ? (
