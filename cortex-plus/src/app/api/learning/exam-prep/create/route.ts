@@ -14,6 +14,10 @@ import {
   scheduleSessionsToNodeDrafts,
   type ScheduleTopicInput,
 } from "@/lib/learning/exam-schedule-v2";
+import { applyStudentTopicList } from "@/lib/learning/apply-prep-topics";
+import { groundPrepTopics } from "@/lib/learning/ground-prep-topics";
+import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
+import { PREP_TOPIC_CAP } from "@/lib/learning/prep-topic-list";
 import { loadScheduleTopics } from "@/lib/learning/prep-schedule-topics";
 
 const prefsSchema = z
@@ -32,14 +36,14 @@ const bodySchema = z.object({
   title: z.string().min(2).max(120),
   examType: z.string().min(2).max(40).default("okul"),
   targetScore: z.number().int().min(1).max(100).optional(),
-  topics: z.array(z.string().min(1).max(120)).min(1).max(24),
+  topics: z.array(z.string().min(1).max(120)).min(1).max(PREP_TOPIC_CAP),
   examDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   note: z.string().max(500).optional(),
   documentId: z.string().uuid().optional(),
   documentIds: z.array(z.string().uuid()).max(8).optional(),
   dailyMinutes: z.number().int().min(5).max(480).optional(),
   studyDays: z.array(z.number().int().min(1).max(7)).max(7).optional(),
-  hardTopics: z.array(z.string().min(1).max(120)).max(24).optional(),
+  hardTopics: z.array(z.string().min(1).max(120)).max(PREP_TOPIC_CAP).optional(),
   learningPreferences: prefsSchema,
 });
 
@@ -58,23 +62,40 @@ export async function POST(request: Request) {
   let topicNodeIds: (string | null)[] = topics.map(() => null);
   let scheduleTopics: ScheduleTopicInput[] = [];
 
-  const documentIds = [
-    ...new Set(
-      [parsed.data.documentId, ...(parsed.data.documentIds ?? [])].filter(
-        (id): id is string => Boolean(id),
-      ),
-    ),
-  ];
-  if (v2 && documentIds.length) {
-    const loaded = await loadScheduleTopics(
-      service,
-      documentIds,
-      parsed.data.hardTopics ?? [],
-    );
-    if (loaded.titles.length) {
-      topics = loaded.titles;
-      topicNodeIds = loaded.nodeIds;
-      scheduleTopics = loaded.scheduleTopics;
+  const documentIds = orderedSourceDocumentIds({
+    documentId: parsed.data.documentId,
+    documentIds: parsed.data.documentIds,
+  });
+  // Öğrencinin son listesi yolu kurar. Otomatik birleştirme konu silmez;
+  // öğrenci kaldırdıysa o başlık burada yoktur. Belgede olmayan başlık
+  // reddedilir. Hazır analiz yeniden üretilmez.
+  if (documentIds.length) {
+    const grounded = await groundPrepTopics(service, userId, documentIds, topics);
+    if (!grounded.ok) {
+      return NextResponse.json({ error: grounded.message }, { status: 400 });
+    }
+    if (v2) {
+      const loaded = await loadScheduleTopics(
+        service,
+        documentIds,
+        parsed.data.hardTopics ?? [],
+      );
+      if (loaded.titles.length || grounded.matches.length) {
+        const applied = applyStudentTopicList({
+          requested: grounded.titles.map((title, index) => ({
+            title,
+            linkedTitle: grounded.matches[index]?.linkedTitle ?? null,
+            pageNumbers: grounded.matches[index]?.pageNumbers ?? [],
+          })),
+          loaded,
+          hardTopics: parsed.data.hardTopics ?? [],
+        });
+        if (applied.titles.length) {
+          topics = applied.titles;
+          topicNodeIds = applied.nodeIds;
+          scheduleTopics = applied.scheduleTopics;
+        }
+      }
     }
   }
 
@@ -123,7 +144,7 @@ export async function POST(request: Request) {
     topics,
     examDate: parsed.data.examDate,
     targetScore: parsed.data.targetScore,
-    documentId: parsed.data.documentId ?? null,
+    documentId: documentIds[0] ?? null,
     nodes: v2Nodes,
   });
 

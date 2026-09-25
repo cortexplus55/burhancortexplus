@@ -58,7 +58,16 @@ describe("post-PDF wizard order", () => {
     expect(wizard).not.toContain("Sıradaki soruyu");
     expect(wizard).not.toContain("soruyu hazırlıyor");
     expect(WIZARD_COPY.createCta).toBe("Sınav hazırlığı oluştur");
-    expect(wizard).toContain("disabled={adding ? !addDirty : !changeDirty}");
+    expect(WIZARD_COPY.addMore).toBe("Daha fazla ekle");
+    expect(WIZARD_COPY.uploadFromPhone).toBe("Telefonundan yükle");
+    expect(wizard).toContain("WIZARD_COPY.addMore");
+    expect(wizard).toContain("WIZARD_COPY.uploadFromPhone");
+    expect(wizard).toContain("PREP_HOME_COPY.startLearning");
+    expect(wizard).toContain("WIZARD_COPY.removeTopic");
+    expect(wizard).toContain("exam-prep/ground-topic");
+    expect(wizard).toContain("freeMaterialLimitLine");
+    expect(wizard).toContain("multiple");
+    expect(wizard).toContain("disabled={checking || (adding ? !addDirty : !changeDirty)}");
     expect(wizard).not.toContain("zorlanıyorsun");
     expect(wizard).not.toContain("günlük planı başlat");
     expect(wizard).not.toContain("ExamSetupChat");

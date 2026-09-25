@@ -7,8 +7,11 @@ export type PlanNodeKind =
   | "oral"
   | "spaced"
   | "gaps"
+  | "focused"
   | "flashcards"
-  | "written_exam";
+  | "written_exam"
+  | "final_check"
+  | "readiness";
 
 export type NodeStatus = "locked" | "ready" | "done";
 
@@ -82,8 +85,14 @@ export const PLAN_NODE_META: Record<
   },
   gaps: {
     title: "Zayıf nokta",
-    blurb: "Zayıf nokta tespiti ve odaklı pratik.",
+    blurb: "Zayıf nokta tespiti.",
     setupLabel: "Zayıf nokta",
+    voice: false,
+  },
+  focused: {
+    title: "Odaklı pratik",
+    blurb: "Yanlışların ve zayıf konuların kayıtlı soruları.",
+    setupLabel: "Odaklı pratik",
     voice: false,
   },
   flashcards: {
@@ -98,14 +107,26 @@ export const PLAN_NODE_META: Record<
     setupLabel: "Yazılı deneme",
     voice: false,
   },
+  final_check: {
+    title: "Son kontrol",
+    blurb: "Sınav günü kısa kontrol. Yeni konu üretilmez.",
+    setupLabel: "Son kontrol",
+    voice: false,
+  },
+  readiness: {
+    title: "Hazırsın",
+    blurb: "Kayıtlı ilerlemeden hazırlık durumu.",
+    setupLabel: "Hazırlık durumu",
+    voice: false,
+  },
 };
 
 /**
  * Çalışma yolu şablonu. PDF uzasa da türler değişmez; konu sayısı
  * belgenin kapsamından gelir, buradan değil.
  *
- * Sıra: açılış dersi → öğrenme ve pratik → tekrar → boşluk → yazılı
- * deneme → sınav günü kartları.
+ * Sıra: açılış dersi → öğrenme ve pratik → tekrar → boşluk → odaklı
+ * pratik → yazılı deneme → sınav günü kartları, son kontrol, hazırlık.
  */
 export const CORE_ORDER: PlanNodeKind[] = [
   "lesson",
@@ -116,8 +137,11 @@ export const CORE_ORDER: PlanNodeKind[] = [
   "oral",
   "spaced",
   "gaps",
+  "focused",
   "written_exam",
   "flashcards",
+  "final_check",
+  "readiness",
 ];
 
 export function daysUntilExam(examDate: string, from = new Date()): number {
@@ -254,8 +278,11 @@ const READINESS_WEIGHT: Record<PlanNodeKind, number> = {
   qa: 2,
   true_false: 2,
   gaps: 2,
+  focused: 2,
+  final_check: 2,
   spaced: 1,
   flashcards: 1,
+  readiness: 1,
   // Ders ve podcast okuma/dinleme; bitirmek konuyu bildiğini göstermez.
   lesson: 1,
   podcast: 1,

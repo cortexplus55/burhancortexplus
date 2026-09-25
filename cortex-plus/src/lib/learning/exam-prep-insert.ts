@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildExamPlan, daysUntilExam, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { planPathBackfill, type BackfillNode } from "@/lib/learning/exam-path-backfill";
 
 export type ExamPrepNodeInsert = {
   kind: PlanNodeKind;
@@ -90,6 +91,57 @@ export async function ensurePrepNodes(
       status: index === 0 ? "ready" : "locked",
     })),
   );
+}
+
+/**
+ * Açılmış hazırlıklara odaklı pratik, son kontrol ve hazırlık düğümünü ekler.
+ * Aynı tür varsa ikinci kez yazılmaz. Sayfa her açılışta bunu çağırır;
+ * SQL dosyası bütün hazırlıkları bir seferde doldurur.
+ */
+export async function ensurePathSkeletonNodes(service: SupabaseClient, prepId: string) {
+  const { data, error } = await service
+    .from("exam_prep_nodes")
+    .select("id, kind, title, day_index, sort_order, status, session_meta")
+    .eq("exam_prep_id", prepId)
+    .order("sort_order");
+  if (error || !data?.length) return;
+
+  const plan = planPathBackfill(
+    data.map((row) => ({
+      id: row.id as string,
+      kind: row.kind as string,
+      title: row.title as string,
+      dayIndex: row.day_index as number,
+      sortOrder: row.sort_order as number,
+      status: row.status as BackfillNode["status"],
+      sessionMeta:
+        row.session_meta && typeof row.session_meta === "object"
+          ? (row.session_meta as Record<string, unknown>)
+          : null,
+    })),
+  );
+  if (!plan.inserts.length && !plan.sortUpdates.length) return;
+
+  for (const update of plan.sortUpdates) {
+    await service
+      .from("exam_prep_nodes")
+      .update({ sort_order: update.sortOrder })
+      .eq("id", update.id)
+      .eq("exam_prep_id", prepId);
+  }
+  if (plan.inserts.length) {
+    await service.from("exam_prep_nodes").insert(
+      plan.inserts.map((node) => ({
+        exam_prep_id: prepId,
+        kind: node.kind,
+        title: node.title,
+        day_index: node.dayIndex,
+        sort_order: node.sortOrder,
+        status: node.status,
+        session_meta: node.sessionMeta,
+      })),
+    );
+  }
 }
 
 export type PrepNodeRow = {

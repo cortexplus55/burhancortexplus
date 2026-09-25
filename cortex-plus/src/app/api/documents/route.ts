@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 
   const { data } = await supabase
     .from("documents")
-    .select("id, file_name, created_at")
+    .select("id, file_name, created_at, size_bytes, page_count")
     .eq("user_id", user.id)
     .eq("status", "completed")
     .is("deleted_at", null)
@@ -31,6 +31,8 @@ export async function GET(request: Request) {
     documents: (data ?? []).map((row) => ({
       id: row.id as string,
       fileName: row.file_name as string,
+      sizeBytes: typeof row.size_bytes === "number" ? row.size_bytes : null,
+      pageCount: typeof row.page_count === "number" ? row.page_count : null,
     })),
   });
 }

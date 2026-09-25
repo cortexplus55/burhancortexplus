@@ -31,6 +31,7 @@ import { QA_TEACHER_PROMPT } from "@/lib/learning/tutor-style";
 import {
   normalizeQuizQuestion,
   publicQuizQuestion,
+  sealedQuizQuestion,
   scoreQuizAnswers,
   selectedOptions,
   sameOptionSet,
@@ -108,6 +109,19 @@ import {
   mergeAnswersForScoring,
   shouldReuseExistingStart,
 } from "@/lib/learning/attempt-lifecycle";
+import { buildLocalSessionPayload } from "@/lib/learning/exam-local-session";
+import {
+  acceptFilledExplanations,
+  buildWrittenExamReview,
+  groundWrittenReview,
+  explanationFillAttempted,
+  explanationFillPrompt,
+  missingExplanationIndexes,
+  questionsFromQuizPayload,
+  readExplanationCache,
+  readStoredReview,
+  withCachedExplanations,
+} from "@/lib/learning/written-exam-review";
 import {
   attemptStartResponse,
   findAttemptByClientRequest,
@@ -128,7 +142,7 @@ const bodySchema = z.object({
   prepId: z.string().uuid(),
   nodeId: z.string().uuid(),
   attemptId: z.string().uuid().optional(),
-  action: z.enum(["start", "complete", "save", "resume"]).default("start"),
+  action: z.enum(["start", "complete", "save", "resume", "review"]).default("start"),
   difficulty: z.enum(["kolay", "orta", "ileri"]).optional(),
   voiceMode: z.boolean().optional(),
   // Ders başında sorulan iki sinyal: konuya aşinalık ve o anki ruh hali.
@@ -190,10 +204,126 @@ const podcastSchema = z.object({
 
 function actionForKind(kind: PlanNodeKind) {
   if (kind === "flashcards" || kind === "spaced") return "FLASHCARD_GENERATE" as const;
-  if (kind === "lesson" || kind === "podcast" || kind === "oral") {
+  if (kind === "lesson" || kind === "podcast" || kind === "oral" || kind === "readiness") {
     return "STUDY_PLAN_GENERATE" as const;
   }
   return "QUIZ_GENERATE" as const;
+}
+
+async function knownTopicLabels(service: SupabaseClient, prepId: string) {
+  const { data } = await service
+    .from("exam_prep_topics")
+    .select("label")
+    .eq("exam_prep_id", prepId);
+  return (data ?? []).map((row) => String(row.label ?? "").trim()).filter(Boolean);
+}
+
+/** Deneme sonucu için kaynak sayfaları. Okunamazsa tanım denetimi boş kaynakla sürer. */
+async function reviewSourceBlock(
+  service: SupabaseClient,
+  userId: string,
+  prepId: string,
+  nodeId: string,
+): Promise<string> {
+  try {
+    const { data: node } = await service
+      .from("exam_prep_nodes")
+      .select("session_meta")
+      .eq("id", nodeId)
+      .eq("exam_prep_id", prepId)
+      .maybeSingle();
+    const pages = parseSessionMeta(node?.session_meta)?.sourcePages;
+    const { data: prep } = await service
+      .from("exam_preps")
+      .select("document_id")
+      .eq("id", prepId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!prep?.document_id || !pages?.length) return "";
+    const source = await loadPageSourceContext(service, userId, prep.document_id as string, pages);
+    return source.block;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Yazılı deneme sonucu. Açıklama yoksa en fazla bir çağrı; bayrak denemeye yazılır,
+ * aynı deneme yeniden açılınca model bir daha çalışmaz.
+ */
+async function writtenReviewForPayload(
+  service: SupabaseClient,
+  input: {
+    userId: string;
+    prepId: string;
+    attemptId: string;
+    nodeId: string;
+    payload: unknown;
+    answers: Record<string, unknown>;
+    topicLabel: string;
+    allowFill: boolean;
+  },
+) {
+  const source = await reviewSourceBlock(service, input.userId, input.prepId, input.nodeId);
+  const stored = readStoredReview(input.payload);
+  if (stored) return groundWrittenReview(stored, source);
+  const questions = questionsFromQuizPayload(input.payload);
+  if (!questions.length) return null;
+  let cache = readExplanationCache(input.payload);
+  let working = withCachedExplanations(questions, cache);
+  const missing = missingExplanationIndexes(working);
+  if (input.allowFill && missing.length && !explanationFillAttempted(input.payload)) {
+    const base =
+      input.payload && typeof input.payload === "object"
+        ? (input.payload as Record<string, unknown>)
+        : {};
+    await service
+      .from("exam_prep_node_attempts")
+      .update({ payload: { ...base, explanationFillAttempted: true } })
+      .eq("id", input.attemptId);
+    const outcome = await generateJson({
+      service,
+      userId: input.userId,
+      actionCode: "AI_CHAT_STANDARD",
+      isPremium: await isPremiumUser(service, input.userId),
+      schemaHint: 'JSON: {"explanations":[{"index":number,"text":string}]}',
+      userPrompt: explanationFillPrompt(working, missing),
+      parse: (raw) => raw,
+    });
+    if (outcome.ok) {
+      cache = { ...cache, ...acceptFilledExplanations(working, outcome.data, source) };
+      working = withCachedExplanations(questions, cache);
+    }
+  } else if (!input.allowFill) {
+    const knownTopics = await knownTopicLabels(service, input.prepId);
+    return buildWrittenExamReview(working, input.answers, {
+      fallbackTopic: input.topicLabel,
+      knownTopics,
+      source,
+    });
+  }
+  const knownTopics = await knownTopicLabels(service, input.prepId);
+  const review = buildWrittenExamReview(working, input.answers, {
+    fallbackTopic: input.topicLabel,
+    knownTopics,
+    source,
+  });
+  const base =
+    input.payload && typeof input.payload === "object"
+      ? (input.payload as Record<string, unknown>)
+      : {};
+  await service
+    .from("exam_prep_node_attempts")
+    .update({
+      payload: {
+        ...base,
+        explanationCache: cache,
+        explanationFillAttempted: true,
+        writtenReview: review,
+      },
+    })
+    .eq("id", input.attemptId);
+  return review;
 }
 
 export async function POST(request: Request) {
@@ -253,6 +383,37 @@ export async function POST(request: Request) {
   const lessonReviewCards =
     kind === "spaced" ? await loadLessonReviewCards(service, userId, prepId) : [];
 
+  if (action === "review") {
+    if (kind !== "written_exam") return errorResponse(400, "invalid_input");
+    const { data: done } = await service
+      .from("exam_prep_node_attempts")
+      .select("id, payload, answers, score, total")
+      .eq("node_id", nodeId)
+      .eq("user_id", userId)
+      .eq("exam_prep_id", prepId)
+      .eq("status", "completed")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!done) return NextResponse.json({ ok: true, review: null });
+    const review = await writtenReviewForPayload(service, {
+      userId,
+      prepId,
+      attemptId: done.id as string,
+      nodeId,
+      payload: done.payload,
+      answers: (done.answers as Record<string, unknown> | null) ?? {},
+      topicLabel,
+      allowFill: false,
+    });
+    return NextResponse.json({
+      ok: true,
+      review,
+      score: done.score ?? review?.score ?? 0,
+      total: done.total ?? review?.total ?? 1,
+    });
+  }
+
   // --- Stage 8: resume in-progress attempt (flag ON) ---
   if (action === "resume") {
     if (!teachingV2) return errorResponse(400, "invalid_input");
@@ -271,7 +432,7 @@ export async function POST(request: Request) {
         topicLabel,
         publicPayload: publicNodePayload(
           attempt.payload as Record<string, unknown>,
-          lessonReviewCards,
+          lessonReviewCards, kind,
         ),
         resumed: true,
       }),
@@ -357,6 +518,16 @@ export async function POST(request: Request) {
         .order("sort_order")
         .limit(1)
         .maybeSingle();
+      const review = await writtenReviewForPayload(service, {
+        userId,
+        prepId,
+        attemptId: attempt.id as string,
+        nodeId,
+        payload: attempt.payload,
+        answers: (attempt.answers as Record<string, unknown> | null) ?? {},
+        topicLabel,
+        allowFill: false,
+      }).catch(() => null);
       return NextResponse.json({
         ok: true,
         score: attempt.score ?? 0,
@@ -366,6 +537,7 @@ export async function POST(request: Request) {
           : `/deneme-sinavlari/${prepId}`,
         state: "completed",
         idempotent: true,
+        review,
       });
     }
 
@@ -378,6 +550,16 @@ export async function POST(request: Request) {
         .order("sort_order")
         .limit(1)
         .maybeSingle();
+      const review = await writtenReviewForPayload(service, {
+        userId,
+        prepId,
+        attemptId: attempt.id as string,
+        nodeId,
+        payload: attempt.payload,
+        answers: (attempt.answers as Record<string, unknown> | null) ?? {},
+        topicLabel,
+        allowFill: false,
+      }).catch(() => null);
       return NextResponse.json({
         ok: true,
         score: attempt.score ?? 0,
@@ -387,6 +569,7 @@ export async function POST(request: Request) {
           : `/deneme-sinavlari/${prepId}`,
         state: "completed",
         idempotent: true,
+        review,
       });
     }
 
@@ -555,6 +738,20 @@ export async function POST(request: Request) {
       // Notebook / streak must not roll back a completed node.
     }
 
+    let review = null;
+    if (kind === "written_exam") {
+      review = await writtenReviewForPayload(service, {
+        userId,
+        prepId,
+        attemptId: attempt.id as string,
+        nodeId,
+        payload: attempt.payload,
+        answers: answersForRpc,
+        topicLabel,
+        allowFill: true,
+      }).catch(() => null);
+    }
+
     return NextResponse.json({
       ok: true,
       score: completed.score,
@@ -562,6 +759,7 @@ export async function POST(request: Request) {
       nextHref,
       learningTracking,
       state: "completed",
+      review,
     });
   }
 
@@ -589,7 +787,7 @@ export async function POST(request: Request) {
           topicLabel,
           publicPayload: publicNodePayload(
             existingForKey.payload as Record<string, unknown>,
-            lessonReviewCards,
+            lessonReviewCards, kind,
           ),
           resumed: true,
         }),
@@ -614,7 +812,7 @@ export async function POST(request: Request) {
             topicLabel,
             publicPayload: publicNodePayload(
               existingForKey.payload as Record<string, unknown>,
-              lessonReviewCards,
+              lessonReviewCards, kind,
             ),
             resumed: true,
           },
@@ -641,12 +839,77 @@ export async function POST(request: Request) {
           topicLabel,
           publicPayload: publicNodePayload(
             resumable.payload as Record<string, unknown>,
-            lessonReviewCards,
+            lessonReviewCards, kind,
           ),
           resumed: true,
         }),
       );
     }
+  }
+
+  let practiceTopics: string[] | undefined;
+  if (kind === "focused" || kind === "final_check" || kind === "readiness") {
+    let local: Awaited<ReturnType<typeof buildLocalSessionPayload>>;
+    try {
+      local = await buildLocalSessionPayload(service, {
+        userId,
+        prepId,
+        kind,
+        prepTitle: prep.title ?? "Hazırlık",
+        targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
+        learningPreferences: prep.learning_preferences,
+      });
+    } catch {
+      return errorResponse(503, "generation_failed");
+    }
+    if (local.action === "serve") {
+      const questions = (local.payload.questions as unknown[] | undefined) ?? [];
+      const total = local.payload.type === "quiz" ? Math.max(1, questions.length) : 1;
+      const row = {
+        node_id: nodeId,
+        exam_prep_id: prepId,
+        user_id: userId,
+        topic_id: topic?.id ?? null,
+        difficulty,
+        voice_mode: false,
+        payload: local.payload,
+        total,
+        status: "active" as const,
+        familiarity,
+        mood,
+        ...(clientRequestId ? { client_request_id: clientRequestId } : {}),
+      };
+      let { data: created, error: insertError } = await service
+        .from("exam_prep_node_attempts")
+        .insert(row)
+        .select("id")
+        .single();
+      if (insertError && clientRequestId) {
+        const raced = await findAttemptByClientRequest(service, {
+          userId,
+          nodeId,
+          clientRequestId,
+        });
+        if (raced?.id) {
+          created = { id: raced.id };
+          insertError = null;
+        }
+      }
+      if (insertError || !created) return errorResponse(500, "generation_failed");
+      if (node.status !== "done") {
+        await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
+      }
+      return NextResponse.json({
+        ok: true,
+        attemptId: created.id,
+        kind,
+        title,
+        topicLabel,
+        voiceMode: false,
+        payload: publicNodePayload(local.payload, lessonReviewCards, kind),
+      });
+    }
+    practiceTopics = local.topics;
   }
 
   const entitlements = await getUserEntitlements(service, userId);
@@ -835,7 +1098,7 @@ export async function POST(request: Request) {
               topicLabel,
               publicPayload: publicNodePayload(
                 raced.payload as Record<string, unknown>,
-                lessonReviewCards,
+                lessonReviewCards, kind,
               ),
               resumed: true,
             }),
@@ -945,6 +1208,7 @@ export async function POST(request: Request) {
               : null,
           prepId,
           topicId: topic?.id ?? null,
+          practiceTopics,
         });
   } catch (error) {
     if (teachingV2 && creatingAttemptId && generationId && clientRequestId) {
@@ -1029,7 +1293,7 @@ export async function POST(request: Request) {
         kind,
         title,
         topicLabel,
-        publicPayload: publicNodePayload(payload, lessonReviewCards),
+        publicPayload: publicNodePayload(payload, lessonReviewCards, kind),
         resumed: false,
       }),
     );
@@ -1093,7 +1357,7 @@ export async function POST(request: Request) {
     title,
     topicLabel,
     voiceMode,
-    payload: publicNodePayload(payload, lessonReviewCards),
+    payload: publicNodePayload(payload, lessonReviewCards, kind),
   });
 }
 
@@ -1206,6 +1470,8 @@ async function generateNodePayload(input: {
   teachingPriority?: TeachingPriority | null;
   /** null: konu listesi yok, nextFocus'a dokunma. Dizi: sıradaki gerçek konular. */
   upcomingTopics?: string[] | null;
+  /** Odaklı pratikte kayıtlı soru yetmezse tek üretim bu konulara bağlı kalır. */
+  practiceTopics?: string[];
 }) {
   const activity = teachingActivityForKind(input.kind);
   const sessionCtx = input.teachingV2
@@ -1758,11 +2024,19 @@ async function generateNodePayload(input: {
     requireSourceSupport: input.requireSourceSupport,
     sourcePages: input.sessionMeta?.sourcePages,
     idempotencyKey: input.idempotencyKey,
-    userPrompt: `${ctx} ${quizCount} çoktan seçmeli soru. ${
+    schemaHintExtra:
+      input.kind === "written_exam"
+        ? 'İsteğe bağlı "topic" yalnızca hazırlığın konu adıdır. explanation zorunlu. İpucu yazma.'
+        : undefined,
+    userPrompt: `${ctx} ${input.kind === "final_check" ? Math.min(4, quizCount) : input.kind === "focused" ? Math.min(5, quizCount) : quizCount} çoktan seçmeli soru. ${
       input.teachingV2
         ? "multi=true yalnızca gerçekten birden fazla bağımsız doğru varken; aksi halde multi false. Her soruda learningObjective ve explanation yaz."
         : "En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi)."
-    } ${input.kind === "written_exam" ? "Sınav disiplini, ipucu yok." : ""} ${input.kind === "gaps" ? "Zayıf nokta / tuzak sorular. Öğretmen notunda yanılgı varsa onu ölç." : ""}`,
+    } ${input.kind === "written_exam" ? "Sınav disiplini: ipucu yok, her soruda explanation yaz, doğru cevabı soru metnine koyma." : ""} ${input.kind === "gaps" ? "Zayıf nokta / tuzak sorular. Öğretmen notunda yanılgı varsa onu ölç." : ""} ${
+      input.practiceTopics?.length
+        ? `Yalnızca şu zayıf konular: ${input.practiceTopics.join(", ")}. Listede olmayan konu yazma.`
+        : ""
+    }`,
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
   return { type: "quiz", questions: outcome.questions, teachingStandard: activity };
@@ -1821,10 +2095,14 @@ function withLessonReviewCards(
 function publicNodePayload(
   payload: Record<string, unknown>,
   reviewCards: LessonReviewCard[] = [],
+  nodeKind?: PlanNodeKind,
 ) {
   const decorated = withLessonReviewCards(payload, reviewCards);
   if (decorated.type !== "quiz") return decorated;
-  const questions = ((decorated.questions as QuizQuestion[]) ?? []).map(publicQuizQuestion);
+  const seal = nodeKind === "written_exam";
+  const questions = ((decorated.questions as QuizQuestion[]) ?? []).map((question) =>
+    seal ? sealedQuizQuestion(question) : publicQuizQuestion(question),
+  );
   return { ...decorated, questions };
 }
 

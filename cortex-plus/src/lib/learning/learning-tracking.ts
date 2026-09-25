@@ -118,8 +118,9 @@ export function extractAnswerEvidence(input: {
         question.correct ?? [],
       );
       const hintAssisted = Boolean(hints[String(index)]);
+      const questionTopic = (question as { topic?: string }).topic;
       out.push({
-        topicKey,
+        topicKey: normalizeTopicKey(questionTopic || input.topicLabel),
         learningObjective:
           question.learningObjective?.trim() ||
           input.sessionObjective?.trim() ||
@@ -623,7 +624,14 @@ export function preferNextNodeForTracking<
   }
 
   const weak = new Set(opts.weakOrStaleTopicKeys.map(normalizeTopicKey));
-  const reviewKinds = new Set<PlanNodeKind>(["gaps", "spaced", "flashcards", "quiz"]);
+  const reviewKinds = new Set<PlanNodeKind>([
+    "gaps",
+    "focused",
+    "final_check",
+    "spaced",
+    "flashcards",
+    "quiz",
+  ]);
 
   if (opts.openMisconceptions > 0 || weak.size > 0) {
     const biased = ready.find((n) => {
