@@ -397,12 +397,140 @@ function exampleFromSource(source: string, hint = ""): { prompt: string; solutio
   if (!window) return null;
   const solution = verifyQuantitative(window, source);
   if (!solution || !hasWorkedSteps(solution)) return null;
-  const given = solution.match(/\d+(?:[.,]\d+)?\s*[A-Za-z°µ%³²/]+/)?.[0] ?? "";
+  const stepped = formatWorkedSteps(solution);
+  const shown = verifyQuantitative(stepped, source) ?? solution;
+  const given = shown.match(/\d+(?:[.,]\d+)?\s*[A-Za-z°µ%³²/]+/)?.[0] ?? "";
   const prompt = given
     ? finishSentence(`${given} verildiğine göre sonuç nedir?`).replace(/\.$/, "?")
     : "Verilenlere göre sonuç nedir?";
   if (!prompt.endsWith("?")) return null;
-  return { prompt: prompt.slice(0, 300), solution: solution.slice(0, 1500) };
+  return { prompt: prompt.slice(0, 300), solution: shown.slice(0, 1500) };
+}
+
+type GlossaryEntry = { term: string; sentence: string };
+
+function definitionEntries(text: string): GlossaryEntry[] {
+  const found: GlossaryEntry[] = [];
+  for (const sentence of retainAnchoredSentences(splitTeachingSentences(text))) {
+    if (danglingOpener(sentence) || clippedContrastDefinition(sentence) || announcesIncompleteExample(sentence)) {
+      continue;
+    }
+    const match = sentence.match(/^([A-ZÇĞİÖŞÜ][^,]{1,48}),\s+\S/);
+    if (!match) continue;
+    const folded = foldTr(sentence);
+    if (!/denir|tanimlan|sayisidir|kutlesidir|birimidir|birimdir|anlamina gelir/.test(folded)) continue;
+    const term = match[1].trim();
+    if (term.length < 2 || term.length > 60) continue;
+    if (found.some((item) => foldTr(item.term) === foldTr(term))) continue;
+    found.push({ term, sentence: finishSentence(sentence) });
+  }
+  return found;
+}
+
+/**
+ * "Çekirdek: genetik bilgiyi taşır." gibi kardeş maddeler kart olur.
+ * Kaynakta bu kalıp yoksa kart üretilmez.
+ */
+export function parallelCards(text: string): { title: string; body: string }[] | null {
+  const found: { title: string; body: string }[] = [];
+  for (const sentence of splitTeachingSentences(text)) {
+    const match = sentence.match(/^([A-ZÇĞİÖŞÜ][^:]{1,40}):\s+(.{8,220})/);
+    if (!match) continue;
+    const title = match[1].trim();
+    const body = finishSentence(match[2]);
+    if (foldTr(title) === "kaynak" || /^ornek\b/.test(foldTr(title))) continue;
+    if (title.length < 2 || found.some((card) => foldTr(card.title) === foldTr(title))) continue;
+    found.push({ title: title.slice(0, 80), body: body.slice(0, 320) });
+  }
+  if (found.length < 2 || found.length > 6) return null;
+  return found;
+}
+
+/** Çözüm, verilen / bağıntı / yerine koyma / sonuç satırlarına ayrılır. Sayılar değişmez. */
+export function formatWorkedSteps(solution: string): string {
+  if (/verilen\s*:|yerine koyma\s*:|ad[ıi]m\s*1/i.test(solution)) return solution;
+  if (!hasWorkedSteps(solution)) return solution;
+  const symbolic = solution.match(
+    /([A-Za-zΔδ][A-Za-z0-9_Δδ]*)\s*=\s*([A-Za-z0-9_Δδ\s×*/÷+().]+?)(?=\s*=\s*\d)/,
+  );
+  const numeric = solution.match(
+    /(\d+(?:[.,]\d+)?(?:\s*[×xX*/÷+\-−]\s*\d+(?:[.,]\d+)?)+)\s*=\s*(\d+(?:[.,]\d+)?(?:\s*[A-Za-z°µ%/³²]+)?)/,
+  );
+  if (!numeric) return solution;
+  const given = solution.match(/(\d+(?:[.,]\d+)?\s*[A-Za-z°µ%³²/]+(?:\s+[A-Za-z0-9₀-₉]+){0,3})/);
+  const lines = [
+    given ? `Verilen: ${given[1].trim()}.` : "",
+    symbolic ? `Bağıntı: ${symbolic[0].replace(/\s+/g, " ").trim()}.` : "",
+    `Yerine koyma: ${numeric[1].replace(/\s+/g, " ")} = ${numeric[2].trim()}.`,
+    `Sonuç: ${numeric[2].trim()}.`,
+  ].filter(Boolean);
+  return lines.join("\n");
+}
+
+function glossaryScore(option: string, entry: GlossaryEntry): number {
+  return overlap(stemSet(option), stemSet(`${entry.term} ${entry.sentence}`));
+}
+
+function withOptionReasons(check: SectionCheck, glossary: GlossaryEntry[]): SectionCheck {
+  if (check.type !== "mcq" || check.options.length < 3) return check;
+  if (check.optionWhy && check.optionWhy.length === check.options.length) return check;
+  const answer = glossary.slice().sort(
+    (left, right) => glossaryScore(check.options[check.answerIndex] ?? "", right) - glossaryScore(check.options[check.answerIndex] ?? "", left),
+  )[0];
+  const why = check.options.map((option, index) => {
+    if (index === check.answerIndex) {
+      const reason = answer && glossaryScore(option, answer) > 0 ? answer.sentence : check.whyRight;
+      return (reason || "Bu seçenek kaynağın tanımına uyar.").slice(0, 200);
+    }
+    const ranked = glossary
+      .filter((entry) => !answer || foldTr(entry.term) !== foldTr(answer.term))
+      .slice()
+      .sort((left, right) => glossaryScore(option, right) - glossaryScore(option, left));
+    const hit = ranked[0] && glossaryScore(option, ranked[0]) > 0 ? ranked[0] : null;
+    if (hit) return `${hit.term} başka bir tanımdır. ${hit.sentence}`.slice(0, 200);
+    return `${option} sorulan tanıma uymaz.`.slice(0, 200);
+  });
+  if (why.some((line) => line.length < 8)) return check;
+  const wrongs = why.filter((_, index) => index !== check.answerIndex).join(" ");
+  return {
+    ...check,
+    optionWhy: why,
+    explanation: wrongs.length >= 12 ? wrongs.slice(0, 600) : check.explanation,
+  };
+}
+
+function enrichTeachingShape(lesson: LessonV2, source: string): LessonV2 {
+  const glossary = definitionEntries(
+    [source, ...lesson.sections.map((section) => section.body)].join("\n"),
+  );
+  const sections = lesson.sections.map((section) => {
+    const next = { ...section };
+    const defined = definitionEntries(section.body)[0];
+    if (defined && !next.note) {
+      next.note = {
+        title: defined.term.slice(0, 80),
+        body: defined.sentence.slice(0, 400),
+        tone: "info",
+      };
+    }
+    if (!next.note) {
+      const formula = formulaNote(section.body);
+      if (formula) next.note = formula;
+    }
+    if (!next.cards) {
+      const cards = parallelCards(section.body);
+      if (cards) next.cards = cards;
+    }
+    if (next.check) next.check = withOptionReasons(next.check, glossary);
+    return next;
+  });
+  const next: LessonV2 = { ...lesson, sections };
+  if (next.example?.solution) {
+    const stepped = formatWorkedSteps(next.example.solution);
+    const verified = verifyQuantitative(stepped, source || next.example.solution);
+    if (verified && hasWorkedSteps(verified)) next.example = { ...next.example, solution: verified };
+  }
+  return next;
 }
 
 function firstDefinition(text: string): string | null {
@@ -588,10 +716,16 @@ export function publishCoherentLesson(
   }
 
   if (!drafted.overview || bodyCoherenceIssue(drafted.overview, lessonBlob(drafted))) {
-    const openerSentence = units
-      .flatMap((unit) => splitTeachingSentences(unit.text))
-      .find((sentence) => !danglingOpener(sentence) && !announcesIncompleteExample(sentence) && !clippedContrastDefinition(sentence));
-    if (openerSentence) drafted.overview = finishSentence(openerSentence).slice(0, 1500);
+    const opening = (units[0] ? splitTeachingSentences(units[0].text) : [])
+      .filter(
+        (sentence) =>
+          !danglingOpener(sentence) &&
+          !announcesIncompleteExample(sentence) &&
+          !clippedContrastDefinition(sentence),
+      )
+      .slice(0, 2)
+      .map((sentence) => finishSentence(sentence));
+    if (opening.length) drafted.overview = opening.join(" ").slice(0, 1500);
     else delete drafted.overview;
   }
 
@@ -613,7 +747,7 @@ export function publishCoherentLesson(
     }
   }
 
-  if (drafted.sections.length) return drafted;
+  if (drafted.sections.length) return enrichTeachingShape(drafted, source);
   const kept = lesson.sections.filter((section) => !bodyCoherenceIssue(section.body, lessonBlob(lesson)));
-  return { ...lesson, sections: kept };
+  return enrichTeachingShape({ ...lesson, sections: kept }, source);
 }

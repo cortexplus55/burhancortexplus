@@ -432,14 +432,11 @@
   border-color: #2e9e4f;
 }
 
-.als-carousel {
-  margin-top: 1rem;
-}
-
-.als-carousel-row {
-  display: flex;
+.als-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   gap: 0.75rem;
-  overflow: hidden;
+  margin-top: 1rem;
 }
 
 .als-card {

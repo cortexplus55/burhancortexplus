@@ -4,6 +4,7 @@ import {
   conceptCheck,
   danglingOpener,
   honestReadingMinutes,
+  parallelCards,
   publishCoherentLesson,
   retainAnchoredSentences,
   shouldReplacePlannedMinutes,
@@ -242,6 +243,16 @@ describe("lesson coherence gate", () => {
         }
       }
     }
+    expect(published.overview).toMatch(/Mol/);
+    expect(published.overview?.startsWith("Bu sayı")).toBe(false);
+    expect(published.sections.some((section) => /düzine/.test(section.body))).toBe(true);
+    expect(
+      published.sections.some((section) => section.note && /mol|avogadro|bağıntı/i.test(section.note.title)),
+    ).toBe(true);
+    const mcq = published.sections.map((section) => section.check).find((check) => check?.type === "mcq");
+    expect(mcq?.optionWhy?.length).toBe(mcq?.options.length);
+    expect(published.example?.solution).toMatch(/Verilen:/);
+    expect(published.example?.solution).toMatch(/Yerine koyma:/);
     expect(published.example?.solution).toMatch(/0,25\s*×\s*98\s*=\s*24,5/);
     expect(auditQuantitative(published.example?.solution ?? "", MOL_SOURCE).ok).toBe(true);
     expect(published.summary?.join(" ")).not.toMatch(/Bu sayı atom veya molekül sayısını ifade eder\./);
@@ -303,5 +314,30 @@ describe("lesson coherence gate", () => {
     const concept = conceptCheck("Kabahat, kanunun karşılığında idari yaptırım öngördüğü haksızlık olarak tanımlanır.");
     expect(concept?.prompt).not.toMatch(/Bu ifade doğru mudur/);
     expect(concept?.explanation).not.toBe(concept?.prompt);
+  });
+
+  it("turns sibling source lines into full cards and does not invent a calculation", () => {
+    const source = [
+      "[s.1] hucre.pdf: Hücre, canlıların yapı ve işlev birimidir.",
+      "Çekirdek: genetik bilgiyi taşır.",
+      "Mitokondri: enerji dönüşümünü yürütür.",
+      "Zar: hücreyi dış ortamdan ayırır.",
+    ].join(" ");
+    expect(parallelCards(source)?.map((card) => card.title)).toEqual(["Çekirdek", "Mitokondri", "Zar"]);
+    const rebuilt = publishCoherentLesson(
+      {
+        title: "Hücre",
+        sections: [{ heading: "Organeller", body: "Böylece enerji üretilir. Örnek 2: hesaplayalım." }],
+      },
+      source,
+      "Hücre",
+    );
+    expect(rebuilt.sections.some((section) => section.cards?.some((card) => card.title === "Mitokondri"))).toBe(true);
+    expect(
+      rebuilt.sections.every((section) => !section.cards || section.cards.every((card) => card.body.length >= 8)),
+    ).toBe(true);
+    expect(rebuilt.example).toBeUndefined();
+    expect(JSON.stringify(rebuilt)).toMatch(/Kaynak: hucre\.pdf, s\.1/);
+    expect(coherenceFailures(rebuilt)).toEqual([]);
   });
 });

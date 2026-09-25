@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronLeft, ChevronRight, CornerDownLeft, X } from "lucide-react";
+import { Check, ChevronLeft, CornerDownLeft, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 import { LessonDiagramView } from "@/components/parity/lesson-diagram";
@@ -213,7 +213,6 @@ export function ExamLessonSteps({
   const [revealed, setRevealed] = useState(false);
   const [solutionShown, setSolutionShown] = useState(false);
   const [recallDraft, setRecallDraft] = useState("");
-  const [cardIndex, setCardIndex] = useState(0);
   /** Yanlış cevaplanan bölümlerin sırası — tekrar kuyruğunu bunlar doğurur. */
   const [missed, setMissed] = useState<number[]>([]);
 
@@ -248,7 +247,6 @@ export function ExamLessonSteps({
     setRevealed(false);
     setSolutionShown(false);
     setRecallDraft("");
-    setCardIndex(0);
   }
 
   function go(nextIndex: number) {
@@ -352,44 +350,13 @@ export function ExamLessonSteps({
           ) : null}
 
           {step.kind === "section" && step.cards && step.cards.length >= 2 ? (
-            <div className="als-carousel">
-              <div className="als-carousel-row">
-                {step.cards.slice(cardIndex, cardIndex + 2).map((card) => (
-                  <article key={card.title} className="als-card">
-                    <h2>{card.title}</h2>
-                    <p>{card.body}</p>
-                  </article>
-                ))}
-                {step.cards[cardIndex + 2] ? (
-                  <article className="als-card als-card--peek" aria-hidden>
-                    <h2>{step.cards[cardIndex + 2].title}</h2>
-                  </article>
-                ) : null}
-              </div>
-              <div className="als-carousel-nav">
-                <button
-                  type="button"
-                  className="als-icon"
-                  aria-label="Önceki kart"
-                  disabled={cardIndex === 0}
-                  onClick={() => setCardIndex((value) => Math.max(0, value - 1))}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  className="als-icon"
-                  aria-label="Sonraki kart"
-                  disabled={cardIndex >= step.cards.length - 2}
-                  onClick={() =>
-                    setCardIndex((value) =>
-                      Math.min(step.cards!.length - 2, value + 1),
-                    )
-                  }
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
+            <div className="als-card-grid">
+              {step.cards.map((card) => (
+                <article key={card.title} className="als-card">
+                  <h2>{card.title}</h2>
+                  <p>{card.body}</p>
+                </article>
+              ))}
             </div>
           ) : null}
 
@@ -620,15 +587,30 @@ function Explanation({
   const wrong = picked !== check.answerIndex;
   const whyRight = check.whyRight?.trim() ?? "";
   const whyWrong = check.whyWrong?.trim() ?? "";
-  const structured = Boolean(whyRight || whyWrong || check.misconception || check.hint);
+  const optionWhy = check.optionWhy ?? [];
+  const pickedWhy = picked != null ? optionWhy[picked]?.trim() ?? "" : "";
+  const answerWhy = optionWhy[check.answerIndex]?.trim() ?? "";
+  const structured = Boolean(whyRight || whyWrong || check.misconception || check.hint || optionWhy.length);
   return (
     <div className="als-explain">
       <p className="als-explain-kicker">AÇIKLAMA</p>
       {wrong ? (
         <>
           <p>
-            <RichBody text={whyWrong || check.explanation} />
+            <RichBody text={pickedWhy || whyWrong || check.explanation} />
           </p>
+          {optionWhy.length > 1
+            ? check.options.map((option, optionIndex) => {
+                if (optionIndex === check.answerIndex || optionIndex === picked) return null;
+                const reason = optionWhy[optionIndex]?.trim();
+                if (!reason) return null;
+                return (
+                  <p key={option}>
+                    <span className="als-tag">{option}</span> {reason}
+                  </p>
+                );
+              })
+            : null}
           {check.misconception?.trim() ? (
             <p>
               <span className="als-tag als-tag--warn">Yanılgı</span> {check.misconception.trim()}
@@ -642,7 +624,7 @@ function Explanation({
         </>
       ) : (
         <p>
-          <RichBody text={structured && whyRight ? whyRight : check.explanation} />
+          <RichBody text={answerWhy || (structured && whyRight ? whyRight : check.explanation)} />
         </p>
       )}
       {wrong && revisit ? (

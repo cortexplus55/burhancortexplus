@@ -849,6 +849,10 @@ function validCheck(value: unknown): SectionCheck | null {
     check.misconception = row.misconception.trim();
   }
   if (typeof row.hint === "string" && row.hint.trim()) check.hint = row.hint.trim();
+  if (Array.isArray(row.optionWhy) && row.optionWhy.length === options.length) {
+    const notes = row.optionWhy.map((item) => String(item).trim());
+    if (notes.every((item) => item.length >= 8 && item.length <= 200)) check.optionWhy = notes;
+  }
   return check;
 }
 

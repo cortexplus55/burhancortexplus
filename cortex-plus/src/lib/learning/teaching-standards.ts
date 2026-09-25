@@ -166,6 +166,16 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "Cümleyi 'Bu ifade doğru mudur?' diye uzatma. Doğru/yanlış yargısı kendi başına " +
         "anlaşılsın; 'Bu sayı', 'Böylece' gibi göndereni olmayan sözcükle başlama. " +
         "Yanlışın açıklaması nedeni, yanılgının adını ve bir ipucunu söylesin. " +
+        "overview, konunun neden işe yaradığını söyleyen bir gerekçe olsun. " +
+        "Kaynakta günlük bir benzetme varsa onu koru; kaynakta yoksa benzetme uydurma. " +
+        "Tanım cümlesini note kutusuna yaz; başlık terimin kendi adı olsun, 'Tanım' yazma. " +
+        "Kaynakta bağıntı veya madde listesi varsa onu ayrı bir note olarak yaz. " +
+        "Sayısal örnekte verilen, bağıntı, yerine koyma ve sonuç ayrı satır olsun. " +
+        "Sözel konuda kaynağın olayını, belgesini veya hükmünü somut bir vaka olarak yaz. " +
+        "Çoktan seçmeli çeldiriciler aynı kaynaktaki başka terimler veya yanılgılar olsun. " +
+        "optionWhy her şık için bir cümle taşısın: doğru şıkta gerekçe, diğerlerinde o şıkkın neden uymadığı. " +
+        "Kaynak satırı [s.N] ile işaretliyse bölümün sonuna Kaynak: dosya, s.N yaz. " +
+        "Özet, bölüm cümlelerini yeniden sıralamasın; tanımı, gerekçeyi ve uygulamayı birleştirsin. " +
         // Yanılgı dersin sonunda tek adımdı; öğrenci onu beş adım sonra
         // görüyordu. Okunduğu yerde kesilirse hiç yerleşmiyor.
         "TUZAĞI YERİNDE UYAR: bir bölümde karıştırılması kolay bir ayrım varsa o bölüme " +
@@ -271,6 +281,11 @@ export const sectionCheckSchema = z.object({
   misconception: z.string().max(140).optional().catch(undefined),
   /** Yanlıştan sonra tek ipucu. Çözümü vermez. */
   hint: z.string().max(200).optional().catch(undefined),
+  /**
+   * Her şık için bir cümle. Doğru şık gerekçeyi, çeldirici ise o yanılgının
+   * neden uymaz olduğunu söyler. Uzunluk seçeneklerle aynı olmalıdır.
+   */
+  optionWhy: z.array(z.string().max(200)).max(6).optional().catch(undefined),
   /**
    * Aynı üretim çağrısında yazılan tekrar. Bozuk varyant dersi düşürmez;
    * ekran o zaman şık kaydırma + önek kullanır.
@@ -1685,6 +1700,8 @@ export const LESSON_V2_SCHEMA_HINT =
   "Doğru/yanlış yargısını cümlenin sonuna 'Bu ifade doğru mudur?' ekleyerek kurma. " +
   "Göstereni olmayan 'Bu sayı', 'Böylece', 'Örnek 2' bırakma. Örnek, adımı ve sonucuyla tam olsun. " +
   "explanation yanlış seçeneğin neden çürük olduğunu yazsın. " +
+  "mcq için optionWhy, her şıkka bir cümle; yazamazsan alanı boş bırak. " +
+  "Kaynak [s.N] dosya biçimindeyse bölüm sonuna Kaynak: dosya, s.N yaz. " +
   "cards isteğe bağlı: kardeş kavram kümesi varsa 2-6 kart; yoksa cards yazma, uydurma kart ekleme. " +
   "overview giriş metnidir; ayrı bir Giriş bölümü açma. " +
   "Kaynak sayfada yazmayan formül veya teorem yazma.";

@@ -1374,8 +1374,22 @@ export function ExamNodeSession({
               ) : null}
             </article>
           ) : null}
+          {payload.type === "lesson" ? (
+            structuredLesson?.nextFocus?.length ? (
+              <>
+                <p className="cp-exam-debrief-label">Sıradaki adım</p>
+                <ul>
+                  {structuredLesson.nextFocus.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="text-sm text-[var(--cp-muted)]">Sıradaki adım, hazırlığın bir sonraki çalışmasıdır.</p>
+            )
+          ) : null}
           <Link href={nextHref} className="cp-exam-continue cp-exam-continue--primary">
-            Devam et
+            {payload.type === "lesson" ? "Sıradaki adıma geç" : "Devam et"}
           </Link>
         </section>
       ) : null}
