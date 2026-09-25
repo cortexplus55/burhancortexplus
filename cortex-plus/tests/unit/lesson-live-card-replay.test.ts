@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { consolidateTopics, storedTopicsNeedRefold, type FoldPage } from "@/lib/documents/topic-fold";
-import { layoutBoard, studentVisibleText, alignSymbolSubscripts } from "@/lib/learning/lesson-board";
+import { sliceNumberedSection } from "@/lib/documents/topic-title";
+import { layoutBoard, studentVisibleText, alignSymbolSubscripts, preserveSubscriptLetters } from "@/lib/learning/lesson-board";
 import { trueFalseIndexes } from "@/lib/learning/lesson-chrome";
-import { repairLearnerLesson, scopeLessonToTopic } from "@/lib/learning/lesson-repair";
+import { ensureThreeChecks, numbersMatchSource, repairLearnerLesson, scopeLessonToTopic } from "@/lib/learning/lesson-repair";
 import { reviewQuestionFor } from "@/lib/learning/teacher-brain";
 import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
 
@@ -203,6 +204,8 @@ describe("live lesson card replay", () => {
     expect(example?.prompt).not.toMatch(/(?<![A-Za-z])h\s*=/);
     expect(example?.prompt).not.toMatch(/(?<![A-Za-z])P\s*=/);
     expect(example?.prompt).toMatch(/kJ\/\(kg·K\)|kJ\/kg·K/);
+    expect(example?.prompt).toMatch(/(?<![A-Za-z])m\s*=\s*0\.5/);
+    expect(example?.prompt).not.toMatch(/(?<![A-Za-z])M\s*=\s*0\.5/);
     expect(example?.solution).toMatch(/P\s*=\s*mRT\/V/);
     expect(example?.solution).toMatch(/0\.5\s*kg|0\.5 kg/);
     expect(example?.solution).toMatch(/107\.6\s*kPa/);
@@ -218,6 +221,12 @@ describe("live lesson card replay", () => {
       "ideal gaz denklemi aşağıdakilerden hangisi için doğrudur?",
     );
     expect(retry.prompt).not.toContain("başka sözcüklerle");
+    for (const section of lesson.sections) {
+      const item = section.check;
+      if (!item || item.type === "trueFalse") continue;
+      expect(item.prompt).not.toMatch(/kullanılır hangisidir|olarak hesaplanır hangisidir/i);
+      expect(item.options.join(" ")).not.toMatch(/[−-]\s*\(/);
+    }
   });
 
   it("repairs a chemistry example, a leaking stem, and truncated duplicate options", () => {
@@ -280,6 +289,12 @@ describe("live lesson card replay", () => {
     const retry = reviewQuestionFor(original!, "tr");
     expect(retry.prompt.toLocaleLowerCase("tr")).not.toBe(original?.prompt.toLocaleLowerCase("tr"));
     expect(retry.options[retry.answerIndex]).toBe(original?.options[original.answerIndex]);
+    for (const section of lesson.sections) {
+      const prompt = section.check?.prompt ?? "";
+      if (!prompt) continue;
+      expect(prompt).not.toMatch(/kullanılır hangisidir|,\d/);
+      expect(prompt.endsWith("?")).toBe(true);
+    }
   });
 
   it("does not collapse a short numbered note into one topic", () => {
@@ -303,5 +318,133 @@ describe("live lesson card replay", () => {
     expect(topics.map((topic) => topic.title).join(" ")).toMatch(/Sabit Oranlar/);
     expect(storedTopicsNeedRefold([{ title: CHEMISTRY }], pages, 1)).toBe(true);
     expect(alignSymbolSubscripts("Rₐ = 8.314", "Evrensel gaz sabiti R_u ile gösterilir.")).toBe("Rᵤ = 8.314");
+    expect(preserveSubscriptLetters("N_A")).toBe("N_A");
+    expect(preserveSubscriptLetters("R_u")).toBe("Rᵤ");
+    expect(alignSymbolSubscripts("Nₐ ile gösterilir", "Avogadro sayısı N_A ile gösterilir.")).toBe("N_A ile gösterilir");
+    const joined = layoutBoard("Bağıntı şöyle olarak hesaplanır\nn = V / 22,4").map((line) => line.text).join("\n");
+    expect(joined).not.toMatch(/şöyle olarak/);
+    expect(joined).toMatch(/şöyle hesaplanır:/);
+  });
+});
+
+const MOL_NOTE = [
+  "Kimya Dersi Notları: Mol Kavramı ve Kimyasal Hesaplamalar",
+  "1. Mol Kavramı",
+  "Mol, madde miktarının SI birimidir. Bir mol madde, 6,02 × 10^23 tane tanecik içerir. Bu sayıya Avogadro sayısı denir ve N_A ile gösterilir.",
+  "Tanecik sayısı ile mol sayısı arasındaki bağıntı N = n × N_A şeklindedir.",
+  "2. Mol Kütlesi",
+  "Bir maddenin bir molünün gram cinsinden kütlesine mol kütlesi denir. Mol kütlesi M ile gösterilir ve birimi g/mol'dür.",
+  "Suyun mol kütlesi 18 g/mol, karbondioksitin mol kütlesi 44 g/mol'dür.",
+  "Mol sayısı, kütle ve mol kütlesi arasındaki bağıntı n = m / M şeklindedir.",
+  "Örnek: 36 g su kaç moldür? n = m / M = 36 g / 18 g/mol = 2 mol.",
+  "3. Gazlarda Mol Hacmi",
+  "Normal koşullarda bir mol ideal gaz 22,4 litre hacim kaplar.",
+  "Gaz hacmi ile mol sayısı arasındaki bağıntı n = V / 22,4 şeklindedir.",
+  "4. Kütlenin Korunumu Kanunu",
+  "Lavoisier'e göre kimyasal bir tepkimede giren maddelerin toplam kütlesi ürünlerin toplam kütlesine eşittir.",
+  "5. Sabit Oranlar Kanunu",
+  "Proust'a göre bir bileşiği oluşturan elementlerin kütleleri arasında sabit bir oran vardır.",
+].join("\n");
+
+describe("clicked topic slice", () => {
+  it("keeps one numbered section, the symbol case, and faithful numbers", () => {
+    const slice = sliceNumberedSection(MOL_NOTE, "Mol Kütlesi");
+    expect(slice).toMatch(/Mol Kütlesi/);
+    expect(slice).not.toMatch(/22,4|Lavoisier|N_A|Proust/);
+    expect(numbersMatchSource("n = V / 22", "n = V / 22,4 şeklindedir")).toBe(false);
+    expect(numbersMatchSource("n = V / 22,4", "n = V / 22,4 şeklindedir")).toBe(true);
+
+    const drafted: LessonV2 = {
+      title: "Mol Kavramı ve Kimyasal Hesaplamalar",
+      overview: "Mol kavramı, mol kütlesi ve gaz hacmi birlikte anlatılır.",
+      infoCheck: {
+        prompt: "Mol sayısı kütle ve mol kütlesinden nasıl bulunur?",
+        answer: "Kütle mol kütlesine bölünür.",
+      },
+      sections: [
+        {
+          heading: "Mol Kavramı",
+          body: "Bir mol madde, 6,02 × 10^23 tane taneçik içerir. Bu sayıya Avogadro sayısı denir ve N_A ile gösterilir. Tanecik sayısı ile mol sayısı arasındaki bağıntı N = n × N_A şeklindedir.",
+        },
+        {
+          heading: "Mol Kütlesi",
+          body: "Bir maddenin bir molünün gram cinsinden kütlesine mol kütlesi denir. Mol kütlesi M ile gösterilir ve birimi g/mol'dür. Mol sayısı, kütle ve mol kütlesi arasındaki bağıntı n = m / M şeklindedir.",
+          check: check({
+            prompt: "Mol sayısını kütle ile mol kütlesi arasından hesaplamak için formülü kullanılır hangisidir?",
+            options: ["n = m / M", "n = −(m / M)", "n = V / 22"],
+            answerIndex: 0,
+          }),
+        },
+        {
+          heading: "Gaz hacmi",
+          body: "Normal koşullarda bir mol ideal gaz 22,4 litre hacim kaplar. Gaz hacmi ile mol sayısı arasındaki bağıntı n = V / 22,4 şeklindedir.",
+          check: check({
+            prompt: "Gaz hacmi V ile mol sayısı n arasındaki bağıntı ,4 olarak hesaplanır hangisidir?",
+            options: ["n = V / 22", "n = m / M", "n = −(V / 22)", "n = 22 / V"],
+            answerIndex: 0,
+          }),
+        },
+        {
+          heading: "Korunum",
+          body: "Lavoisier'e göre kimyasal bir tepkimede giren maddelerin toplam kütlesi ürünlerin toplam kütlesine eşittir.",
+        },
+      ],
+      example: {
+        prompt: "M = 36 g verildiğine göre n kaçtır?",
+        solution: "n = m / M = 36 g / 18 g/mol = 2 mol",
+      },
+      summary: [
+        "Bir maddenin bir molünün gram cinsinden kütlesine mol kütlesi denir.",
+        "Bir maddenin bir molünün gram cinsinden kütlesine mol kütlesi denir.",
+        "Mol kütlesi M ile gösterilir ve birimi g/mol'dür.",
+        "Lavoisier'e göre tepkimede kütle korunur ve ürünlerin toplamı eşittir.",
+        "Normal koşullarda bir mol ideal gaz 22,4 litre hacim kaplar.",
+      ],
+    };
+
+    const lesson = ensureThreeChecks(scopeLessonToTopic(drafted, MOL_NOTE, "Mol Kütlesi"), slice);
+    expect(lesson.title).toBe("Mol Kütlesi");
+    const blob = JSON.stringify(lesson);
+    expect(blob).not.toMatch(/22,4|Lavoisier|Proust|N_A|taneçik|Avogadro/);
+    expect(lesson.example?.prompt).toMatch(/(?<![A-Za-z])m\s*=\s*36/);
+    expect(lesson.example?.prompt).toMatch(/\bsu\b/);
+    expect(lesson.example?.prompt).toMatch(/18\s*g\/mol/);
+    expect(lesson.example?.prompt).not.toMatch(/(?<![A-Za-z])M\s*=\s*36/);
+    expect(lesson.example?.solution).toMatch(/n\s*=\s*m\s*\/\s*M/);
+    expect(lesson.infoCheck?.answer).toMatch(/n\s*=\s*m\s*\/\s*M/);
+    const mcqs = lesson.sections.map((section) => section.check).filter((item) => item && item.type !== "trueFalse");
+    expect(mcqs.length).toBeGreaterThan(0);
+    for (const item of mcqs) {
+      if (!item) continue;
+      expect(item.options).toHaveLength(4);
+      expect(item.options.join(" ")).not.toMatch(/[−-]\s*\(/);
+      expect(item.prompt).not.toMatch(/kullanılır hangisidir|olarak hesaplanır hangisidir|,\s*4/);
+      expect(item.prompt.endsWith("?")).toBe(true);
+      for (const option of item.options) expect(numbersMatchSource(option, slice)).toBe(true);
+    }
+    const meanings = (lesson.summary ?? []).map((line) =>
+      studentVisibleText(line).toLocaleLowerCase("tr").replace(/[^a-zçğıöşü0-9 ]/g, "").replace(/\s+/g, " ").trim(),
+    );
+    expect(new Set(meanings).size).toBe(meanings.length);
+    expect((lesson.summary ?? []).join(" ")).not.toMatch(/Lavoisier|22,4|Proust/);
+  });
+
+  it("restores a misspelled source word and keeps an uppercase subscript", () => {
+    const drafted: LessonV2 = {
+      title: "Mol Kavramı",
+      sections: [
+        {
+          heading: "Mol Kavramı",
+          body: "Bir mol madde, 6,02 × 10^23 tane taneçik içerir. Bu sayıya Avogadro sayısı denir ve N_A ile gösterilir. Tanecik sayısı ile mol sayısı arasındaki bağıntı N = n × N_A şeklindedir.",
+        },
+      ],
+    };
+    const lesson = scopeLessonToTopic(drafted, MOL_NOTE, "Mol Kavramı");
+    const blob = JSON.stringify(lesson);
+    expect(blob).not.toMatch(/taneçik/);
+    expect(blob).toMatch(/tanecik/);
+    expect(blob).toMatch(/N_A/);
+    expect(blob).not.toMatch(/Nₐ/);
+    expect(blob).not.toMatch(/22,4|Lavoisier|Proust/);
   });
 });

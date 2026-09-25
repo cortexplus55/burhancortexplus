@@ -79,8 +79,12 @@ function coefficientsOf(formula: string): Set<string> {
   const numbers =
     normalize(formula)
       .replace(/['′]\d+/g, " ")
-      .match(/\d+/g) ?? [];
-  return new Set(numbers.filter((n) => Number(n) >= 3));
+      .match(/\d+(?:[.,]\d+)?/g) ?? [];
+  return new Set(
+    numbers
+      .map((n) => n.replace(",", "."))
+      .filter((n) => Number(n) >= 3),
+  );
 }
 
 /**
@@ -101,8 +105,10 @@ function sameSubject(a: string, b: string): boolean {
   // Ders formülü çoğu zaman cümlenin içinde geçiyor ("… etkisini verir.
   // Δσz = …"). Eşitliğin solundaki CÜMLE değil, büyüklüğün kendisi
   // aranıyor: son ayıraçtan sonrası.
-  const left = (text: string) =>
-    (normalize(text).split("=")[0] ?? "").split(/[.:,]/).pop() ?? "";
+  const left = (text: string) => {
+    const head = (normalize(text).split("=")[0] ?? "").replace(/(\d)[.,](\d)/g, "$1#$2");
+    return (head.split(/[.:,]/).pop() ?? "").replace(/#/g, ".");
+  };
   const la = left(a);
   const lb = left(b);
   if (!la || !lb) return false;

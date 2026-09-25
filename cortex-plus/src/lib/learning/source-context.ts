@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { sliceNumberedSection } from "@/lib/documents/topic-title";
 import { conceptInText, conceptsWorthWidening } from "@/lib/learning/lesson-claims";
 import { searchDocumentChunks, type DocumentMatch } from "@/lib/rag/pipeline";
 
@@ -165,12 +166,19 @@ export async function widenSourcePages(
  * Sayfaları belli bir konunun tek sayfası bile okunamazsa durulur: başka
  * parçalarla sessizce devam etmek, eksik sayfayı okunmuş gibi göstermesin.
  */
+function formulaFitsSlice(formula: string, slice: string): boolean {
+  const numbers = [...formula.matchAll(/\d+(?:[.,]\d+)?/g)].map((match) => match[0].replace(",", "."));
+  if (!numbers.length) return slice.includes(formula.trim());
+  const have = new Set([...slice.matchAll(/\d+(?:[.,]\d+)?/g)].map((match) => match[0].replace(",", ".")));
+  return numbers.every((number) => have.has(number));
+}
+
 export async function loadPageSourceContext(
   service: SupabaseClient,
   userId: string,
   documentId: string | null | undefined,
   pageNumbers: number[] | undefined,
-  options: { sourceBoundaryMode?: "documents_only" | "allow_supporting" | null } = {},
+  options: { sourceBoundaryMode?: "documents_only" | "allow_supporting" | null; topicLabel?: string } = {},
 ): Promise<SourceContext> {
   if (!documentId || !pageNumbers?.length) return EMPTY_SOURCE_CONTEXT;
 
@@ -200,20 +208,30 @@ export async function loadPageSourceContext(
   }
 
   const documentName = (doc?.file_name as string | null) ?? "kaynak";
-  const formulas = usable.flatMap(
-    (page) => ((page.formulas as string[] | null) ?? []).slice(0, 8),
-  );
+  const loaded = usable.map((page) => {
+    const text = (page.text_content as string | null) ?? "";
+    const sliced = options.topicLabel ? sliceNumberedSection(text, options.topicLabel) : text;
+    return {
+      pageNumber: page.page_number as number,
+      text,
+      sliced,
+      formulas: ((page.formulas as string[] | null) ?? []).slice(0, 8),
+    };
+  });
+  const hits = loaded.filter((page) => page.sliced.length < page.text.trim().length - 20);
+  const topicPages = (hits.length ? hits : loaded).map((page) => ({
+    pageNumber: page.pageNumber,
+    text: hits.length ? page.sliced : page.text,
+    formulas: (hits.length ? page.formulas.filter((formula) => formulaFitsSlice(formula, page.sliced)) : page.formulas),
+  }));
+  const formulas = topicPages.flatMap((page) => page.formulas);
   return {
     matches: [],
     documentName,
     formulas,
     block: pageSourceBlock(
       documentName,
-      usable.map((page) => ({
-        pageNumber: page.page_number as number,
-        text: (page.text_content as string | null) ?? "",
-        formulas: (page.formulas as string[] | null) ?? [],
-      })),
+      topicPages,
       options.sourceBoundaryMode !== "allow_supporting",
     ),
   };

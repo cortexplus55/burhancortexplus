@@ -6,6 +6,7 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
+import { sliceNumberedSection } from "@/lib/documents/topic-title";
 import {
   alignSymbolSubscripts,
   incompleteFormulaLine,
@@ -961,13 +962,20 @@ function filledSummary(lesson: LessonV2, source: string): string[] {
     const cleaned = acceptSummaryLine(line, source, example);
     if (!cleaned) continue;
     rememberLine(summary, cleaned);
-    if (summary.length >= 5) return summary;
+    if (summary.length >= 5) break;
   }
   for (const sentence of teachingSentences(lesson, source)) {
     if (summary.length >= 5) break;
     rememberLine(summary, sentence);
   }
-  return summary;
+  return publishSummary(summary, lesson.sections.map((section) => section.body));
+}
+
+/** Kartta duran cümlenin aynısı özette kalmaz. Üçten az satır kalacaksa tekrar durur. */
+function publishSummary(lines: string[], bodies: string[]): string[] {
+  const novel = lines.filter((line) => !bodies.some((body) => sameMeaning(line, body)));
+  const chosen = novel.length >= 3 ? novel : lines;
+  return chosen.slice(0, 5);
 }
 
 function teachingSentences(lesson: LessonV2, source: string): string[] {
@@ -1272,8 +1280,28 @@ function formulaToken(token: string): boolean {
   return bare.length <= 2 && /^[A-Za-zΔδ]+$/.test(bare);
 }
 
+/** `22,4` ve `22.4` tek sayıdır; virgül ya da nokta cümle sonu sayılmaz. */
+function shieldDecimals(text: string): string {
+  return text.replace(/(\d),(\d)/g, "$1\uE000$2").replace(/(\d)\.(\d)/g, "$1\uE001$2");
+}
+
+function restoreDecimals(text: string): string {
+  return text.replace(/\uE000/g, ",").replace(/\uE001/g, ".");
+}
+
+export function decimalNumberKeys(text: string): string[] {
+  return [...text.matchAll(/\d+(?:[.,]\d+)?/g)].map((match) => match[0].replace(",", "."));
+}
+
+/** Formüldeki her sayı kaynakta aynı basamaklarla durmuyorsa formül kesilmiştir. */
+export function numbersMatchSource(text: string, source: string): boolean {
+  if (!source.trim()) return true;
+  const have = new Set(decimalNumberKeys(source));
+  return decimalNumberKeys(text).every((number) => have.has(number));
+}
+
 function trimFormula(raw: string): string {
-  let equation = raw.replace(/\s+/g, " ").trim();
+  let equation = shieldDecimals(raw.replace(/\s+/g, " ").trim());
   equation = equation
     .replace(/[,.;:].*$/, "")
     .replace(
@@ -1283,20 +1311,23 @@ function trimFormula(raw: string): string {
     .replace(/[,\s]+$/g, "")
     .trim();
   const eq = equation.indexOf("=");
-  if (eq < 0) return equation;
+  if (eq < 0) return restoreDecimals(equation);
   const words = equation
     .slice(eq + 1)
     .trim()
     .split(/\s+/)
     .filter(Boolean);
-  while (words.length && !formulaToken(words[words.length - 1])) words.pop();
-  return `${equation.slice(0, eq).trim()} = ${words.join(" ")}`.replace(/\s+/g, " ").trim();
+  while (words.length && !formulaToken(restoreDecimals(words[words.length - 1]))) words.pop();
+  return restoreDecimals(`${equation.slice(0, eq).trim()} = ${words.join(" ")}`.replace(/\s+/g, " ").trim());
 }
 
-/** Sayı ve birimden oluşan sağ taraf bir bağıntı değil, bir tanımdır. */
+/** Sayı, birim ya da sayıya uygulanan fonksiyon bir bağıntı değildir. */
 function measuredConstant(equation: string): boolean {
   const right = equation.split("=").slice(1).join("=");
-  const stripped = right.replace(new RegExp(MEASURE, "gi"), "").replace(/[\d.,\s]/g, "");
+  const stripped = right
+    .replace(/\b(?:ln|log|exp)(?=\d|\s*\()/gi, "")
+    .replace(new RegExp(MEASURE, "gi"), "")
+    .replace(/[\d.,\s×*·+\-−/()≈^]/g, "");
   return stripped.length === 0;
 }
 
@@ -1349,6 +1380,15 @@ function tidyJoins(text: string): string {
     .trim();
 }
 
+/** Bildirim cümlesine yapışmış 'hangisidir' ya da baştaki virgül soru değildir. */
+function stemBroken(prompt: string): boolean {
+  const text = tidyJoins(prompt);
+  if (/^[,.;:]/.test(text) || /(?:^|\s),\d/.test(text)) return true;
+  return /(?:kullanılır|kullanilir|hesaplanır|hesaplanir|yazılır|yazilir|bulunur|denir|olur|şeklindedir|seklinde|eşittir|esittir|gösterilir|gosterilir|olarak)\s+hangisidir\??$/i.test(
+    text,
+  );
+}
+
 /** Kök, doğru şıkkın sağ tarafını veya onun simgelerini söylüyorsa yanıtı vermiş olur. */
 function leaksAnswer(prompt: string, equation: string): boolean {
   const rhs = equation.split("=").slice(1).join("=").trim();
@@ -1366,7 +1406,7 @@ function conceptQuestion(sentence: string, equation: string): string | null {
     .split("=")
     .map((part) => escapeReg(part.trim()))
     .join("\\s*=\\s*");
-  const rest = sentence
+  let rest = sentence
     .replace(new RegExp(flexible, "i"), " ")
     .replace(
       /(?:^|\s)(şeklindedir|şeklinde yazılır|olarak yazılır|ile verilir|ile bulunur|eşitliğiyle yazılır|eşitliği geçerlidir|bağıntısıyla yazılır|bağıntısıyla hesaplanır|bağıntısıyla bulunur)[.!]*/gi,
@@ -1376,9 +1416,18 @@ function conceptQuestion(sentence: string, equation: string): string | null {
     .replace(/\s+/g, " ")
     .trim();
   if (rest.length < 8 || leaksAnswer(rest, equation)) return null;
-  if (/\?$/.test(rest)) return rest.slice(0, 300);
+  rest = rest
+    .replace(/\s+için\s+(?:formülü|formül|bağıntısı|eşitliği)\s+(?:kullanılır|yazılır|hesaplanır|bulunur)\.?$/i, "")
+    .replace(/\s+(?:şöyle\s+)?olarak\s+hesaplan\w*/gi, "")
+    .replace(/hesaplamak$/i, "hesaplayan bağıntı")
+    .replace(/[,\s]+$/g, "")
+    .trim();
+  if (rest.length < 8 || leaksAnswer(rest, equation) || /^[,.;:]/.test(rest)) return null;
+  if (/\?$/.test(rest)) return stemBroken(rest) ? null : rest.slice(0, 300);
   if (!/bağıntı|eşitlik|formül|ifade/i.test(rest)) return null;
-  return `${rest} hangisidir?`.replace(/\s+/g, " ").slice(0, 300);
+  const question = `${rest} hangisidir?`.replace(/\s+/g, " ");
+  if (stemBroken(question) || leaksAnswer(question, equation)) return null;
+  return question.slice(0, 300);
 }
 
 function wordsBeforeEquation(sentence: string, equation: string): string {
@@ -1397,6 +1446,7 @@ function wordsBeforeEquation(sentence: string, equation: string): string {
     .replace(/[.:;=]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  if (/^[,.]/.test(cleaned) || /,\d/.test(cleaned)) return "";
   return cleaned.split(" ").filter((word) => word.length >= 2).slice(-3).join(" ");
 }
 
@@ -1410,7 +1460,7 @@ function promptForEquation(equation: string, sentence = ""): string | null {
       : null;
   const candidates = [conceptQuestion(sentence, equation), flavored, `${left} için doğru bağıntı hangisidir?`];
   for (const prompt of candidates) {
-    if (!prompt || leaksAnswer(prompt, equation) || /hangi bağıntıyla/i.test(prompt)) continue;
+    if (!prompt || stemBroken(prompt) || leaksAnswer(prompt, equation) || /hangi bağıntıyla/i.test(prompt)) continue;
     if (ambiguousRelationQuestion(prompt, []) || stemLacksSubject(prompt)) continue;
     return prompt.slice(0, 300);
   }
@@ -1419,6 +1469,10 @@ function promptForEquation(equation: string, sentence = ""): string | null {
 
 function equationPrompt(equation: string, sentence = ""): string | null {
   return promptForEquation(equation, sentence);
+}
+
+function symbolPiece(text: string): boolean {
+  return /^(?:Δ|δ)?[A-Za-z](?:_[A-Za-z0-9]+|[₀-₉¹²³ᵤᵣₐₑₕᵢⱼₖₗₘₙₒₚₛₜᵥₓ])?$/.test(text.trim());
 }
 
 function mutateEquation(equation: string): string[] {
@@ -1432,18 +1486,40 @@ function mutateEquation(equation: string): string[] {
     if (alts.some((item) => foldTr(item) === foldTr(cleaned))) return;
     alts.push(cleaned);
   };
-  if (/[−-]/.test(rhs)) push(rhs.replace(/[−-]/, "+"));
+  const full: string[] = [];
+  const add = (next: string) => {
+    const cleaned = next.replace(/\s+/g, " ").trim();
+    if (!cleaned || foldTr(cleaned) === foldTr(equation)) return;
+    if (full.some((item) => foldTr(item) === foldTr(cleaned))) return;
+    full.push(cleaned);
+  };
+  if (/[−-]/.test(rhs) && !/^[−-]\s*\(/.test(rhs)) push(rhs.replace(/[−-]/, "+"));
   if (/\+/.test(rhs)) push(rhs.replace("+", "−"));
-  if (rhs.includes("/")) push(rhs.split("/").reverse().join("/"));
-  push(`−(${rhs})`);
+  if (rhs.includes("/")) {
+    const [left, right] = rhs.split("/").map((part) => part.trim());
+    push([right, left].filter(Boolean).join("/"));
+    push(rhs.replace("/", "×"));
+    push(rhs.replace("/", "−"));
+    if (left && right && symbolPiece(left) && symbolPiece(right)) {
+      add(`${left} = ${lhs} × ${right}`);
+      add(`${right} = ${left} / ${lhs}`);
+    }
+  }
   const factors = rhs.split(/\s*[×·*]\s*/).map((item) => item.trim()).filter(Boolean);
-  if (factors.length >= 2) push([...factors].reverse().join(" × "));
+  if (factors.length >= 2) {
+    push([...factors].reverse().join(" × "));
+    if (factors.every(symbolPiece)) {
+      for (const factor of factors) add(`${lhs} = ${factor}`);
+      add(`${factors[0]} = ${lhs} / ${factors[1]}`);
+      add(`${factors[1]} = ${lhs} / ${factors[0]}`);
+    }
+  }
   const tokens = rhs.split(/\s+/).filter(Boolean);
   if (tokens.length >= 2) {
     push(`${tokens[tokens.length - 1]} ${tokens.slice(0, -1).join(" ")}`);
     push([...tokens].reverse().join(" "));
   }
-  return alts.map((item) => `${lhs} = ${item}`.replace(/\s+/g, " ").trim());
+  return [...alts.map((item) => `${lhs} = ${item}`.replace(/\s+/g, " ").trim()), ...full];
 }
 
 function closeOption(option: string): string {
@@ -1473,7 +1549,12 @@ function optionIdentity(option: string): string {
   return `${lhs}=${body}`;
 }
 
-function uniqueOptions(options: string[], extras: string[]): string[] {
+function artificialSignWrap(option: string): boolean {
+  const rhs = option.split("=").slice(1).join("=").trim();
+  return /^[−-]\s*\(/.test(rhs);
+}
+
+function uniqueOptions(options: string[], extras: string[], source = ""): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   const push = (option: string) => {
@@ -1482,6 +1563,8 @@ function uniqueOptions(options: string[], extras: string[]): string[] {
     const openCount = (cleaned.match(/\(/g) ?? []).length;
     const closeCount = (cleaned.match(/\)/g) ?? []).length;
     if (!cleaned || !key || seen.has(key) || openCount !== closeCount || /[/×*·+\-−]\s*$/.test(cleaned)) return;
+    if (artificialSignWrap(cleaned)) return;
+    if (source && !numbersMatchSource(cleaned, source)) return;
     seen.add(key);
     out.push(cleaned);
   };
@@ -1493,11 +1576,11 @@ function uniqueOptions(options: string[], extras: string[]): string[] {
   return out.slice(0, 4);
 }
 
-function optionsForEquation(equation: string, equations: { equation: string }[]): string[] {
+function optionsForEquation(equation: string, equations: { equation: string }[], source = ""): string[] {
   const others = equations
     .map((row) => row.equation)
     .filter((item) => foldTr(item.replace(/\s+/g, "")) !== foldTr(equation.replace(/\s+/g, "")));
-  return uniqueOptions([equation], [...others, ...mutateEquation(equation)]);
+  return uniqueOptions([equation], [...others, ...mutateEquation(equation)], source);
 }
 
 function isBinaryCheck(check: SectionCheck): boolean {
@@ -1510,12 +1593,14 @@ function isBinaryCheck(check: SectionCheck): boolean {
 function equationCheck(
   item: { equation: string; sentence: string },
   equations: { equation: string }[],
+  source = "",
 ): SectionCheck | null {
   const prompt = equationPrompt(item.equation, item.sentence);
-  if (!prompt || prompt.length < 12 || stemLacksSubject(prompt)) return null;
+  if (!prompt || prompt.length < 12 || stemLacksSubject(prompt) || stemBroken(prompt)) return null;
   if (ambiguousRelationQuestion(prompt, [])) return null;
-  const options = [...optionsForEquation(item.equation, equations)];
-  if (options.length < 2 || ambiguousRelationQuestion(prompt, options)) return null;
+  const options = [...optionsForEquation(item.equation, equations, source)];
+  if (options.length < 4 || ambiguousRelationQuestion(prompt, options)) return null;
+  if (!options.some((option) => optionIdentity(option) === optionIdentity(item.equation))) return null;
   const explanation =
     item.sentence.length >= 12 ? item.sentence.slice(0, 580) : `${item.equation} dersin anlatımında verilir.`;
   return validCheck({
@@ -1531,7 +1616,7 @@ function equationCheck(
  * Model üçüncü soruyu yazmadıysa dersin kendi cümlelerinden kurulur.
  * Yeni bir model çağrısı yok. Çeldirici, dersteki başka bağıntı ya da aynı bağıntının değişimidir.
  */
-export function ensureThreeChecks(lesson: LessonV2): LessonV2 {
+export function ensureThreeChecks(lesson: LessonV2, source = ""): LessonV2 {
   const next: LessonV2 = {
     ...lesson,
     sections: lesson.sections.map((section) => ({ ...section })),
@@ -1566,7 +1651,7 @@ export function ensureThreeChecks(lesson: LessonV2): LessonV2 {
   const needed = () => checkCount(next) + queue.length < 3;
   for (const item of equations) {
     if (!needed()) break;
-    const check = equationCheck(item, equations);
+    const check = equationCheck(item, equations, source);
     if (!check || used.has(foldTr(check.prompt))) continue;
     used.add(foldTr(check.prompt));
     queue.push(check);
@@ -1604,7 +1689,7 @@ export function ensureThreeChecks(lesson: LessonV2): LessonV2 {
   }
   const spare: SectionCheck[] = [];
   for (const item of equations) {
-    const check = equationCheck(item, equations);
+    const check = equationCheck(item, equations, source);
     if (!check || used.has(foldTr(check.prompt))) continue;
     if (spare.some((row) => foldTr(row.prompt) === foldTr(check.prompt))) continue;
     spare.push(check);
@@ -1676,10 +1761,96 @@ function finishHeading(heading: string, topicLabel: string, discardedTitle = "")
   return trimmed;
 }
 
+/** Formüldeki sayı kaynakta aynı basamaklarla yoksa cümle kesilmiş bir bağıntı taşır. */
+function missesSourceEquation(sentence: string, source: string): boolean {
+  if (!source.trim()) return false;
+  const equations = sentencesOf(sentence).flatMap((item) => symbolicEquations(item));
+  if (!equations.length) return false;
+  return equations.some((equation) => !numbersMatchSource(equation, source));
+}
+
+/**
+ * Numaralı notta başka bölümün sayısı ya da uzun sözcüğü bu cümlede duruyorsa
+ * cümle tıklanan konunun değildir.
+ */
+function mentionsOtherSection(sentence: string, source: string, topicLabel: string): boolean {
+  const topic = sliceNumberedSection(source, topicLabel);
+  if (topic.length >= source.trim().length - 20) return false;
+  const topicNumbers = new Set(decimalNumberKeys(topic));
+  if (decimalNumberKeys(sentence).some((number) => !topicNumbers.has(number))) return true;
+  const topicFold = foldTr(topic);
+  const foreign = new Set<string>();
+  for (const match of source.matchAll(/[A-Za-zÇĞİÖŞÜçğıöşü]{7,}/g)) {
+    const key = foldTr(match[0]);
+    if (key.length >= 7 && !topicFold.includes(key)) foreign.add(key);
+  }
+  for (const match of sentence.matchAll(/[A-Za-zÇĞİÖŞÜçğıöşü]{7,}/g)) {
+    if (foreign.has(foldTr(match[0]))) return true;
+  }
+  return false;
+}
+
+function sourceSpellings(source: string): Map<string, string> {
+  const found = new Map<string, string>();
+  const blocked = new Set<string>();
+  for (const match of source.matchAll(/[A-Za-zÇĞİÖŞÜçğıöşü]{5,}/g)) {
+    const word = match[0];
+    const key = foldTr(word);
+    if (blocked.has(key)) continue;
+    const existing = found.get(key);
+    if (!existing) {
+      found.set(key, word);
+      continue;
+    }
+    if (existing.toLocaleLowerCase("tr") !== word.toLocaleLowerCase("tr")) {
+      found.delete(key);
+      blocked.add(key);
+    }
+  }
+  return found;
+}
+
+function hamming(left: string, right: string): number {
+  if (left.length !== right.length) return 99;
+  let distance = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) distance += 1;
+  }
+  return distance;
+}
+
+function applyWordCase(sourceWord: string, original: string): string {
+  const first = original.charAt(0);
+  if (first !== first.toLocaleLowerCase("tr")) {
+    return sourceWord.charAt(0).toLocaleUpperCase("tr") + sourceWord.slice(1);
+  }
+  return sourceWord;
+}
+
+/** Kaynak sözcüğünden bir harf sapmış üretimi, kaynağın yazımına çeker. */
+function correctSpellings(text: string, source: string): string {
+  const dict = sourceSpellings(source);
+  const keys = [...dict.keys()];
+  return text.replace(/[A-Za-zÇĞİÖŞÜçğıöşü]{5,}/g, (word) => {
+    const key = foldTr(word);
+    const exact = dict.get(key);
+    if (exact) {
+      if (word.toLocaleLowerCase("tr") === exact.toLocaleLowerCase("tr")) return word;
+      return applyWordCase(exact, word);
+    }
+    const hits = keys.filter((item) => hamming(item, key) === 1);
+    if (hits.length !== 1) return word;
+    const surface = dict.get(hits[0]);
+    return surface ? applyWordCase(surface, word) : word;
+  });
+}
+
 function keepTopicSentence(sentence: string, source: string, topicLabel: string): string | null {
   const gapped = repairGappedFrame(restoreMathNotation(sentence));
   if (!gapped) return null;
-  if (realGasPrecisionIssue(gapped, source) || foreignToTopic(gapped, source, topicLabel)) return null;
+  const topicSource = sliceNumberedSection(source, topicLabel);
+  if (missesSourceEquation(gapped, topicSource) || mentionsOtherSection(gapped, source, topicLabel)) return null;
+  if (realGasPrecisionIssue(gapped, topicSource) || foreignToTopic(gapped, source, topicLabel)) return null;
   const plain = gapped.replace(/\*\*/g, "").trim();
   if (ambiguousRelationQuestion(plain, [])) return null;
   const folded = foldTr(plain);
@@ -1688,6 +1859,7 @@ function keepTopicSentence(sentence: string, source: string, topicLabel: string)
 }
 
 function cleanTopicText(text: string, source: string, topicLabel: string): string {
+  const topicSource = sliceNumberedSection(source, topicLabel);
   const parts = text
     .split(/\n+|(?<=[.!?])\s+(?=[A-ZÇĞİÖŞÜ“"])/)
     .map((part) => part.trim())
@@ -1695,13 +1867,24 @@ function cleanTopicText(text: string, source: string, topicLabel: string): strin
   const kept = parts
     .map((part) => (part.length < 8 ? restoreMathNotation(part) : keepTopicSentence(part, source, topicLabel)))
     .filter((part): part is string => Boolean(part));
-  return alignSymbolSubscripts(separateRunOnFormulas(kept.join(" ").replace(/\s+/g, " ").trim()), source);
+  return correctSpellings(
+    alignSymbolSubscripts(separateRunOnFormulas(kept.join(" ").replace(/\s+/g, " ").trim()), topicSource),
+    topicSource,
+  );
 }
 
 function repairPublishedCheck(check: SectionCheck, corpus: string, source: string): SectionCheck | undefined {
   const open = (option: string) => (option.match(/\(/g) ?? []).length > (option.match(/\)/g) ?? []).length;
   const identities = check.options.map((option) => optionIdentity(option));
-  const broken = check.options.some(open) || new Set(identities).size !== identities.length;
+  const equationOptions = check.options.some((option) => /=/.test(option));
+  const broken =
+    check.options.some(open) ||
+    new Set(identities).size !== identities.length ||
+    check.options.some((option) => artificialSignWrap(option)) ||
+    (source.trim().length > 0 &&
+      check.options.some((option) => /=/.test(option) && !numbersMatchSource(option, source))) ||
+    (equationOptions && check.options.length < 4) ||
+    stemBroken(check.prompt);
   let next = check;
   if (broken) {
     const equations = [...new Set(sentencesOf(corpus).flatMap((sentence) => symbolicEquations(sentence)))].map(
@@ -1713,25 +1896,39 @@ function repairPublishedCheck(check: SectionCheck, corpus: string, source: strin
       ...equations.flatMap((equation) => mutateEquation(equation)),
       ...(/=/.test(correct) ? mutateEquation(correct) : []),
     ];
-    const options = uniqueOptions(check.options, extras);
+    const options = uniqueOptions(check.options, extras, source);
     if (options.length < 2) return undefined;
+    if (equationOptions && options.length < 4) return undefined;
     const answerIndex = Math.max(
       0,
       options.findIndex((item) => optionIdentity(item) === optionIdentity(correct)),
     );
+    if (equationOptions && optionIdentity(options[answerIndex] ?? "") !== optionIdentity(correct)) return undefined;
     next = { ...check, options, answerIndex };
   }
   const correct = next.options[next.answerIndex] ?? "";
-  if (/=/.test(correct) && leaksAnswer(next.prompt, correct)) {
+  if ((/=/.test(correct) && leaksAnswer(next.prompt, correct)) || stemBroken(next.prompt)) {
     const compact = foldTr(correct).replace(/\s+/g, "");
     const sentence =
       sentencesOf(corpus).find((item) => foldTr(item).replace(/\s+/g, "").includes(compact)) ?? "";
-    const prompt = promptForEquation(correct, sentence);
+    const prompt = /=/.test(correct) ? promptForEquation(correct, sentence) : null;
     if (!prompt) return undefined;
     next = { ...next, prompt };
   }
-  next = { ...next, prompt: tidyJoins(next.prompt) };
-  if (ambiguousRelationQuestion(next.prompt, next.options) || /hangi bağıntıyla/i.test(next.prompt)) {
+  next = {
+    ...next,
+    prompt: correctSpellings(tidyJoins(next.prompt), source),
+    explanation: correctSpellings(next.explanation, source),
+    options: next.options.map((option) => correctSpellings(option, source)),
+  };
+  if (
+    ambiguousRelationQuestion(next.prompt, next.options) ||
+    /hangi bağıntıyla/i.test(next.prompt) ||
+    stemBroken(next.prompt)
+  ) {
+    return undefined;
+  }
+  if (next.type !== "trueFalse" && next.options.some((option) => /=/.test(option)) && next.options.length < 4) {
     return undefined;
   }
   return next;
@@ -1813,7 +2010,27 @@ function withBoundaryExample(lesson: LessonV2, source: string): LessonV2 {
  * Başlık uymuyorsa istenen ad gelir. Kapsam dışı cümle ve soru düşer.
  * Yeni bir model çağrısı yok.
  */
+function withInfoFormula(lesson: LessonV2, source: string): LessonV2 {
+  const info = lesson.infoCheck;
+  if (!info?.answer.trim() || /=/.test(info.answer)) return lesson;
+  const equations = [...new Set(sentencesOf(source).flatMap((sentence) => symbolicEquations(sentence)))];
+  if (!equations.length) return lesson;
+  const blob = `${info.prompt} ${info.answer}`;
+  const named = equations.find((equation) => {
+    const left = formulaLhs(equation);
+    if (!left) return false;
+    return new RegExp(`(?<![A-Za-zΔδ0-9_])${escapeReg(left)}(?![A-Za-z0-9_])`).test(blob);
+  });
+  const hit = named ?? (equations.length === 1 ? equations[0] : "");
+  if (!hit) return lesson;
+  const compact = foldTr(hit).replace(/\s+/g, "");
+  if (foldTr(info.answer).replace(/\s+/g, "").includes(compact)) return lesson;
+  const answer = `${info.answer.replace(/[.]+$/g, "").trim()}: ${hit}.`.replace(/\s+/g, " ").slice(0, 400);
+  return { ...lesson, infoCheck: { ...info, answer } };
+}
+
 export function scopeLessonToTopic(lesson: LessonV2, source: string, topicLabel: string): LessonV2 {
+  const topicSource = sliceNumberedSection(source, topicLabel);
   const clean = (text: string) => cleanTopicText(text, source, topicLabel);
   const next: LessonV2 = {
     ...lesson,
@@ -1838,16 +2055,16 @@ export function scopeLessonToTopic(lesson: LessonV2, source: string, topicLabel:
     if (offTopicSection(heading, body, source, topicLabel)) return [];
     let check = section.check;
     if (check && !vagueYesNo(check.prompt)) {
-      const corpus = [source, body, check.explanation, check.prompt].join("\n");
+      const corpus = [topicSource, body, check.explanation, check.prompt].join("\n");
       check = repairPublishedCheck(
         {
           ...check,
-          prompt: alignSymbolSubscripts(restoreMathNotation(check.prompt), source),
-          explanation: alignSymbolSubscripts(restoreMathNotation(check.explanation), source),
-          options: check.options.map((option) => alignSymbolSubscripts(restoreMathNotation(option), source)),
+          prompt: alignSymbolSubscripts(restoreMathNotation(check.prompt), topicSource),
+          explanation: alignSymbolSubscripts(restoreMathNotation(check.explanation), topicSource),
+          options: check.options.map((option) => alignSymbolSubscripts(restoreMathNotation(option), topicSource)),
         },
         corpus,
-        source,
+        topicSource,
       );
     } else if (check && vagueYesNo(check.prompt)) {
       check = undefined;
@@ -1862,7 +2079,7 @@ export function scopeLessonToTopic(lesson: LessonV2, source: string, topicLabel:
   });
   if (lesson.commonMistake) {
     const correction = clean(lesson.commonMistake.correction);
-    if (correction && !foreignToTopic(correction, source, topicLabel) && !realGasPrecisionIssue(correction, source)) {
+    if (correction && !foreignToTopic(correction, source, topicLabel) && !realGasPrecisionIssue(correction, topicSource)) {
       next.commonMistake = {
         claim: restoreMathNotation(lesson.commonMistake.claim),
         correction,
@@ -1876,11 +2093,13 @@ export function scopeLessonToTopic(lesson: LessonV2, source: string, topicLabel:
       if (cleaned.length < 8 || summaryLineProblem(cleaned)) continue;
       rememberLine(summary, cleaned);
     }
-    if (summary.length) next.summary = summary;
+    if (summary.length) {
+      next.summary = publishSummary(summary, next.sections.map((section) => section.body));
+    }
   }
   if (lesson.example) {
-    const prompt = alignSymbolSubscripts(restoreMathNotation(lesson.example.prompt), source);
-    const solution = alignSymbolSubscripts(restoreMathNotation(lesson.example.solution), source);
+    const prompt = correctSpellings(alignSymbolSubscripts(restoreMathNotation(lesson.example.prompt), topicSource), topicSource);
+    const solution = correctSpellings(alignSymbolSubscripts(restoreMathNotation(lesson.example.solution), topicSource), topicSource);
     const blob = `${prompt}\n${solution}`;
     if (prompt && solution && !foreignToTopic(blob, source, topicLabel) && !realGasPrecisionIssue(blob, source)) {
       if (!expectsCalculation(blob)) {
@@ -1892,7 +2111,7 @@ export function scopeLessonToTopic(lesson: LessonV2, source: string, topicLabel:
       }
     }
   }
-  return withCalculatedExample(withBoundaryExample(next, source), source);
+  return withInfoFormula(withCalculatedExample(withBoundaryExample(next, topicSource), topicSource), topicSource);
 }
 
 const GIVEN_SYMBOL = `(?<![A-Za-zΔδ0-9_])(${SYMBOL})`;
@@ -1921,42 +2140,122 @@ function isResultGiven(raw: string, unit: string, solution: string): boolean {
   return foldTr(unit) === foldTr(last[2]);
 }
 
+const NOUN_STOP = new Set([
+  "ve",
+  "ile",
+  "icin",
+  "olarak",
+  "kadar",
+  "ise",
+  "olan",
+  "bir",
+  "bu",
+  "kac",
+  "nedir",
+  "olur",
+  "denir",
+  "gore",
+  "hangi",
+  "sonuc",
+  "mol",
+  "gram",
+]);
+
+function loneSymbol(text: string): string | null {
+  const trimmed = text.trim();
+  if (/^(?:Δ|δ)?[A-Za-z](?:_[A-Za-z0-9]+|[₀-₉¹²³ᵤᵣₐₑₕᵢⱼₖₗₘₙₒₚₛₜᵥₓ])?$/.test(trimmed)) return trimmed;
+  return null;
+}
+
+function splitFormulaFactors(text: string, op: "/" | "×"): string[] {
+  const re = op === "/" ? /\s+\/\s+/ : /\s+[×*·]\s+/;
+  return text.split(re).map((part) => part.trim()).filter(Boolean);
+}
+
+/** Formülün sağındaki simge, yerine koymadaki aynı sıradaki miktarla eşlenir. */
+function pairedGivens(solution: string): { symbol: string; raw: string; unit: string }[] {
+  const parts = solution.split("=").map((part) => part.trim());
+  if (parts.length < 3 || /\d/.test(parts[1] ?? "")) return [];
+  const formulaRhs = parts[1];
+  const valueRhs = parts[2].replace(/[.;]+$/g, "").trim();
+  const amount = `(\\d+(?:[.,]\\d+)?)\\s*(${MEASURE})`;
+  const op = /\s+\/\s+/.test(formulaRhs) ? "/" : /\s+[×*·]\s+/.test(formulaRhs) ? "×" : "";
+  if (!op) {
+    const symbol = loneSymbol(formulaRhs);
+    const match = valueRhs.match(new RegExp(`^${amount}$`, "i"));
+    if (!symbol || !match) return [];
+    return [{ symbol, raw: match[1], unit: match[2] }];
+  }
+  const symbols = splitFormulaFactors(formulaRhs, op);
+  const amounts = splitFormulaFactors(valueRhs, op);
+  if (symbols.length < 2 || symbols.length !== amounts.length) return [];
+  const out: { symbol: string; raw: string; unit: string }[] = [];
+  for (let index = 0; index < symbols.length; index += 1) {
+    const symbol = loneSymbol(symbols[index] ?? "");
+    const match = (amounts[index] ?? "").match(new RegExp(`^${amount}$`, "i"));
+    if (!symbol || !match) return [];
+    out.push({ symbol, raw: match[1], unit: match[2] });
+  }
+  return out;
+}
+
+function nounAfterAmount(context: string, raw: string, unit: string): string {
+  const re = new RegExp(`${escapeReg(raw)}\\s*${escapeReg(unit)}\\s+([\\p{L}]{2,})`, "giu");
+  const words: string[] = [];
+  for (const match of context.matchAll(re)) {
+    const word = match[1];
+    if (!word || NOUN_STOP.has(foldTr(word))) continue;
+    words.push(word);
+  }
+  words.sort((left, right) => left.length - right.length);
+  return words[0] ?? "";
+}
+
+function precededByOperator(text: string, index: number): boolean {
+  return /[/×*·]$/.test(text.slice(0, index).trimEnd());
+}
+
 /** Örnek kökü, çözümde kullanılan kaynak verilenlerinden kurulur. Soru kökü yapıştırılmaz. */
 function exampleQuestion(solution: string, context: string): string {
   const formula = formulaClause(solution);
   const asked = askedLhs(solution);
   const defs: string[] = [];
   const seen = new Map<string, number>();
-  const re = new RegExp(`${GIVEN_SYMBOL}\\s*=\\s*(\\d+(?:[.,]\\d+)?)\\s*(${MEASURE})`, "gi");
-  for (const match of context.matchAll(re)) {
-    const symbol = match[1];
-    const raw = match[2];
-    const unit = match[3];
-    if (asked && sameSymbol(symbol, asked)) continue;
+  const push = (symbol: string, raw: string, unit: string) => {
+    if (asked && sameSymbol(symbol, asked)) return;
     const related = formula
       ? [formula]
       : formulasIn(context).filter((item) => sameSymbol(formulaLhs(item), asked));
-    if (related.length && !related.some((item) => formulaUsesSymbol(item, symbol))) continue;
+    if (related.length && !related.some((item) => formulaUsesSymbol(item, symbol))) return;
     const visible = preserveSubscriptLetters(solution);
     const visibleSymbol = preserveSubscriptLetters(symbol);
     if (
       !related.length &&
       !new RegExp(`(?<![A-Za-zΔδ0-9_])${escapeReg(visibleSymbol)}(?![A-Za-z0-9_])`).test(visible)
     ) {
-      continue;
+      return;
     }
-    if (!numberUsed(solution, raw)) continue;
-    if (isResultGiven(raw, unit, solution)) continue;
-    const clause = `${symbol} = ${raw} ${unit}`;
-    const key = `${foldTr(preserveSubscriptLetters(symbol))}:${readNumber(raw)}`;
+    if (!numberUsed(solution, raw)) return;
+    if (isResultGiven(raw, unit, solution)) return;
+    const symbolKey = `${symbol}:${readNumber(raw)}`;
+    if ([...seen.keys()].some((key) => key.startsWith(`${symbol}:`) && key !== symbolKey)) return;
+    const noun = nounAfterAmount(context, raw, unit);
+    const clause = noun ? `${symbol} = ${raw} ${unit} ${noun}` : `${symbol} = ${raw} ${unit}`;
+    const key = `${symbol}:${readNumber(raw)}`;
     const previous = seen.get(key);
     if (previous != null) {
       const previousUnit = defs[previous]?.match(new RegExp(MEASURE, "i"))?.[0] ?? "";
       if (unit.length >= previousUnit.length) defs[previous] = clause;
-      continue;
+      return;
     }
     seen.set(key, defs.length);
     defs.push(clause);
+  };
+  for (const given of pairedGivens(solution)) push(given.symbol, given.raw, given.unit);
+  const re = new RegExp(`${GIVEN_SYMBOL}\\s*=\\s*(\\d+(?:[.,]\\d+)?)\\s*(${MEASURE})`, "g");
+  for (const match of context.matchAll(re)) {
+    if (precededByOperator(context, match.index ?? 0)) continue;
+    push(match[1], match[2], match[3]);
   }
   const askedBit = asked ? `${asked} kaçtır?` : "sonuç kaçtır?";
   if (defs.length) {
@@ -2061,11 +2360,13 @@ export async function repairLearnerLesson(
   dropped: LessonCheckCode[];
   verifyMs: number;
 }> {
+  const topicSource = sliceNumberedSection(input.source, input.topicLabel);
+  const scoped = { source: topicSource, topicLabel: input.topicLabel };
   const bounded = applyBoundFix(
-    coverSourceRelations(scopeLessonToTopic(lesson, input.source, input.topicLabel), input.source),
-    input.source,
+    coverSourceRelations(scopeLessonToTopic(lesson, input.source, input.topicLabel), topicSource),
+    topicSource,
   );
-  const filled = filledSummary(bounded, input.source);
+  const filled = filledSummary(bounded, topicSource);
   const prepared: LessonV2 = filled.length ? { ...bounded, summary: filled } : bounded;
   /**
    * Regex kapısı temiz olsa da her ders kaynağa karşı bir kez denetlenir.
@@ -2073,17 +2374,17 @@ export async function repairLearnerLesson(
    */
   const verifyStarted = Date.now();
   const verifyTask = (async (): Promise<string[]> => {
-    if (!verify || !input.source.trim()) return [];
+    if (!verify || !topicSource.trim()) return [];
     try {
       return claimsFromVerify(
-        await verify(claimVerifyPrompt(prepared, input.source, input.topicLabel)),
+        await verify(claimVerifyPrompt(prepared, topicSource, input.topicLabel)),
         prepared,
       );
     } catch {
       return [];
     }
   })();
-  const audit = auditLearnerLesson(prepared, input);
+  const audit = auditLearnerLesson(prepared, scoped);
   let quotes: string[] = [];
   let verifyMs = 0;
   try {
@@ -2098,10 +2399,10 @@ export async function repairLearnerLesson(
   if (!requested.length) {
     const counted = prepared.sections.filter((section) => section.check).length;
     if (counted >= 3) return { lesson: prepared, requested, succeeded: [], dropped: [], verifyMs };
-    const summary = filledSummary(prepared, input.source);
+    const summary = filledSummary(prepared, topicSource);
     const drafted = summary.length ? { ...prepared, summary } : prepared;
     return {
-      lesson: ensureThreeChecks(scopeLessonToTopic(drafted, input.source, input.topicLabel)),
+      lesson: ensureThreeChecks(scopeLessonToTopic(drafted, input.source, input.topicLabel), topicSource),
       requested,
       succeeded: [],
       dropped: [],
@@ -2112,21 +2413,21 @@ export async function repairLearnerLesson(
   const needsModel = requested.some((code) => MODEL_CODES.has(code));
   if (needsModel) {
     try {
-      const patch = await complete(lessonRepairPrompt(prepared, audit, input.source, quotes));
+      const patch = await complete(lessonRepairPrompt(prepared, audit, topicSource, quotes));
       if (patch) {
-        const patched = mergeLessonRepair(prepared, patch, input.source);
-        merged = groundLearnerLesson(patched, input.source).lesson as LessonV2;
+        const patched = mergeLessonRepair(prepared, patch, topicSource);
+        merged = groundLearnerLesson(patched, topicSource).lesson as LessonV2;
       }
     } catch {
       merged = prepared;
     }
   }
-  const finalized = dropUnresolvedLesson(applyBoundFix(merged, input.source), input.source, quotes);
-  const covered = coverSourceRelations(finalized.lesson, input.source);
-  const summary = filledSummary(covered, input.source);
+  const finalized = dropUnresolvedLesson(applyBoundFix(merged, topicSource), topicSource, quotes);
+  const covered = coverSourceRelations(finalized.lesson, topicSource);
+  const summary = filledSummary(covered, topicSource);
   const drafted = summary.length ? { ...covered, summary } : covered;
-  const published = ensureThreeChecks(scopeLessonToTopic(drafted, input.source, input.topicLabel));
-  const remaining = new Set(auditLearnerLesson(published, input).map((issue) => issue.code));
+  const published = ensureThreeChecks(scopeLessonToTopic(drafted, input.source, input.topicLabel), topicSource);
+  const remaining = new Set(auditLearnerLesson(published, scoped).map((issue) => issue.code));
   const removed = new Set(finalized.dropped);
   const succeeded = requested.filter((code) => !remaining.has(code) && !removed.has(code));
   const dropped = [...new Set([...finalized.dropped, ...remaining])];

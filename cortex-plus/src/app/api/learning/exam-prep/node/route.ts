@@ -1017,7 +1017,7 @@ export async function POST(request: Request) {
             userId,
             prepSource.document_id,
             mappedPages,
-            { sourceBoundaryMode },
+            { sourceBoundaryMode, topicLabel },
           )
         : EMPTY_SOURCE_CONTEXT;
     if (
@@ -1040,7 +1040,7 @@ export async function POST(request: Request) {
           userId,
           prepSource.document_id,
           widened,
-          { sourceBoundaryMode },
+          { sourceBoundaryMode, topicLabel },
         );
       }
     }
@@ -1240,9 +1240,14 @@ export async function POST(request: Request) {
           // Dersin bölümleri kaynağın kendi alt başlıkları olsun.
           sectionBackbone:
             kind === "lesson" && teachingV2
-              ? await loadSectionBackbone(service, {
-                  documentId: prepSource.document_id,
-                  pageNumbers: sessionMeta?.sourcePages,
+              ? (
+                  await loadSectionBackbone(service, {
+                    documentId: prepSource.document_id,
+                    pageNumbers: sessionMeta?.sourcePages,
+                  })
+                ).filter((heading) => {
+                  const title = heading.replace(/^\s*\d+(?:\.\d+)*\.?\s+/, "").trim().toLocaleLowerCase("tr");
+                  return title.length >= 3 && source.block.toLocaleLowerCase("tr").includes(title);
                 })
               : [],
           learningPreferences: teachingV2 ? prep.learning_preferences : null,
