@@ -67,6 +67,13 @@ const lesson = {
       answerIndex: 0,
       explanation: "Doğru yanıt birinci sütundur.",
     }),
+    section("Kelvin Dönüşümü", {
+      type: "trueFalse",
+      prompt: "Mutlak sıcaklık santigratın kendisidir.",
+      options: ["Doğru", "Yanlış"],
+      answerIndex: 1,
+      explanation: "Santigrata 273 eklenir; iki ölçek aynı sayı değildir.",
+    }),
   ],
   example: {
     prompt: "Genişleyen pistonun basıncı nasıl okunur?",
@@ -141,10 +148,10 @@ describe("lesson verifier path", () => {
     expect(verdict.failedStage).toBe("pedagogy");
   });
 
-  it("keeps one weak check instead of rejecting for a second question", () => {
+  it("keeps one weak check on a short lesson instead of rejecting for a second question", () => {
     const thin = {
       ...lesson,
-      sections: lesson.sections.map((item) => ({
+      sections: lesson.sections.slice(0, 2).map((item) => ({
         ...item,
         check: {
           ...item.check,
@@ -157,6 +164,20 @@ describe("lesson verifier path", () => {
     );
     const published = publishLessonDraft(thin);
     expect(published?.sections.filter((section) => section.check).length).toBe(1);
+
+    const wide = {
+      ...lesson,
+      sections: lesson.sections.slice(0, 3).map((item) => ({
+        ...item,
+        check: {
+          ...item.check,
+          explanation: "Doğru yanıt budur.",
+        },
+      })),
+    };
+    expect(lessonPublishIssues(wide).some((issue) => issue.includes("3 kontrol sorusu"))).toBe(
+      true,
+    );
   });
 
   it("still rejects a lesson that has no check question left to keep", () => {
@@ -170,13 +191,20 @@ describe("lesson verifier path", () => {
     );
   });
 
-  it("accepts a lesson whose only answered question is the info check", () => {
+  it("accepts a short lesson whose only answered question is the info check", () => {
     const onlyInfo = {
       ...lesson,
-      sections: lesson.sections.map(({ check: _check, ...section }) => section),
+      sections: lesson.sections.slice(0, 2).map(({ check: _check, ...section }) => section),
     };
     expect(lessonPublishIssues(onlyInfo).some((issue) => issue.includes("kontrol sorusu"))).toBe(
       false,
+    );
+    const wide = {
+      ...lesson,
+      sections: lesson.sections.map(({ check: _check, ...section }) => section),
+    };
+    expect(lessonPublishIssues(wide).some((issue) => issue.includes("3 kontrol sorusu"))).toBe(
+      true,
     );
   });
 });

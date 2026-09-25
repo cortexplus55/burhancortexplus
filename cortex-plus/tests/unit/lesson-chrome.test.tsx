@@ -268,4 +268,51 @@ describe("ExamLessonSteps", () => {
     ).toBeNull();
     expect(screen.getByRole("button", { name: "Doymuş sıvı" })).toBeTruthy();
   });
+
+  it("retries a missed true/false from the source sentence and keeps prose off the formula line", () => {
+    const body = [
+      "P = F/A. **Basınç** SI birimi Pascal (Pa) olarak tanımlanır",
+      "genelde kPa veya MPa cinsinden ifade edilir.",
+      "Sıcaklık, bir sistemin ısıl durumunu gösteren bir özelliktir.",
+    ].join("\n");
+    render(
+      <ExamLessonSteps
+        lesson={{
+          title: "Basınç ve Sıcaklık",
+          sections: [
+            {
+              heading: "Sıcaklık",
+              body,
+              check: {
+                type: "trueFalse",
+                prompt: "Sıcaklık enerji birimidir, bu nedenle ısıl durumu gösterir. DOĞRU MU YANLIŞ?",
+                options: ["Yanlış", "Doğru"],
+                answerIndex: 0,
+                explanation: "Sıcaklık enerji birimi değildir.",
+              },
+            },
+          ],
+        }}
+        onFinish={vi.fn()}
+        closeHref="/deneme"
+      />,
+    );
+
+    const formula = screen.getByText("P = F/A");
+    expect(formula.className).toContain("als-formula");
+    expect(formula.textContent).not.toMatch(/Pascal/);
+    expect(screen.getByText(/Pascal \(Pa\) olarak tanımlanır genelde kPa/)).toBeTruthy();
+    expect(screen.getByText(/Pascal \(Pa\) olarak tanımlanır genelde kPa/).className).not.toContain(
+      "als-formula",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Doğru" }));
+    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    expect(screen.getByText("Tekrar 1 / 1")).toBeTruthy();
+    expect(screen.getByText(/ısıl durumunu gösteren bir özelliktir/)).toBeTruthy();
+    expect(
+      screen.queryByText("Sıcaklık enerji birimidir, bu nedenle ısıl durumu gösterir. DOĞRU MU YANLIŞ?"),
+    ).toBeNull();
+  });
 });

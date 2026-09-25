@@ -158,6 +158,7 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "değil, terimi işaretle. Her terim ders boyunca bir kez koyulaşır; her cümlenin " +
         "ilk sözcüğünü koyulaştırma. " +
         "Formülü ve çözülmüş örneğin her adımını kendi satırına yaz; tek paragrafta yığma. " +
+        "Bağıntı satırına cümle ekleme ve satır sonuna noktalı virgül koyma. " +
         "Kontrol sorusu bölüm cümlesini tekrar etmesin: öğrenciden dönüşümü, yönü veya " +
         "başka bir kaynak sayısını uygulamasını iste. " +
         // Yanılgı dersin sonunda tek adımdı; öğrenci onu beş adım sonra
@@ -166,7 +167,14 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "note ekle — kısa başlık ve tek cümle (\"Havanın Ağırlığı: hacmi hesaba dahil, " +
         "ağırlığı değil\"). Her bölüme değil, gerçekten tuzak olan yere. " +
         "Kaynak kaç kavram veriyorsa o kadar bölüm; en az bir kavram bölümü. " +
-        "Sırf sayıyı doldurmak için yeni bölüm uydurma. En az bir bölümde yanıtlı check olsun: " +
+        "Sırf sayıyı doldurmak için yeni bölüm uydurma. " +
+        "Kaynak en az üç kavram veriyorsa 3 ile 5 yanıtlı check yaz: her kavram bölümüne bir tane, beşi geçme. " +
+        "Dar kaynakta en az bir check yeter. " +
+        "Özet maddesi niteleyiciyi ve tam bağıntıyı düşürmesin. " +
+        "Basınç için yüzeye dik kuvvet ve P = F/A birlikte kalsın; " +
+        "mutlak basınç için P_mutlak = P_atm + P_man ve vakumda P_mutlak = P_atm - P_vakum yazılsın. Yarım cümle yazma. " +
+        "nextFocus yalnızca verilen sonraki konu başlıkları olsun; liste yoksa nextFocus yazma. " +
+        "En az bir bölümde yanıtlı check olsun: " +
         "type trueFalse ekranda DOĞRU MU YANLIŞ, type mcq ekranda HIZLI SINAV. " +
         "explanation (AÇIKLAMA) yanlış seçeneğin neden çürük olduğunu yazsın; yalnızca doğruyu tekrarlama. " +
         "JSON anahtarları İngilizce kalır: objective, sections, example, commonMistake, infoCheck. " +
@@ -1368,12 +1376,12 @@ export function validateLessonPedagogy(
     issues.push("Genel bakış dersi tarif ediyor; konunun özünü bir cümlede ver.");
   }
 
-  // Tek kontrol dersin sonunda kalıyordu; okunan yerde yoklanmalı.
-  if (lesson.sections.length >= 4) {
-    const checks = lesson.sections.filter((s) => s.check).length;
-    if (checks < 2) {
-      issues.push("En az iki bölümün kendi kontrolü olmalı.");
-    }
+  // Tek soruluk ders kavramı yoklamıyor. Üç kavram varsa en az üç kontrol.
+  // Aynı üretim çağrısının ikinci taslağı bunu düzeltir; yeni bir ücret yok.
+  const conceptCount = lesson.sections.filter((section) => !isScaffoldHeading(section.heading)).length;
+  const checks = lesson.sections.filter((section) => section.check).length;
+  if (conceptCount >= 3 && checks < 3) {
+    issues.push("En az 3 kontrol sorusu olmalı; her kavram kendi sorusunu taşısın.");
   }
 
   // Anahtar terim işaretlenmemiş ders, sınav öncesi taranamıyor. Kural
@@ -1635,8 +1643,9 @@ export function lessonDraftForVerifier(draft: string, keyTerms: string[] = []): 
  */
 export const REVIEW_VARIANT_RULE =
   "check.review isteğe bağlıdır ve yalnızca kısa bir prompt'tur (en fazla 140 karakter). " +
-  "Aynı kavramı başka bir açıdan sor. Doğru/yanlışta kaynakta duran başka bir sayı " +
-  "(örneğin 0 °C = 273.15 K), yönün tersi veya kısa bir uygulama olsun. " +
+  "Aynı kavramı başka bir açıdan sor. Doğru/yanlışta yanlış iddiayı olduğu gibi sorma: " +
+  "kaynağın doğru cümlesini yeni bir doğru/yanlış sorusu yap. " +
+  "Kaynakta duran başka bir sayı (örneğin 0 °C = 273.15 K), yönün tersi veya kısa bir uygulama da olur. " +
   "Orijinal cümleyi kopyalama. 'başka sözcüklerle' yazma. Kaynakta olmayan sayı uydurma. " +
   "Şıkları review içine kopyalama. Yazamazsan review alanını boş bırak; bu dersi geçersiz yapmaz.";
 
@@ -1646,7 +1655,9 @@ export const LESSON_V2_SCHEMA_HINT =
   '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"note":{"title":string,"body":string},"cards":[{"title":string,"body":string}]}],' +
   '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
   '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
-  "Kaynak kaç kavram veriyorsa o kadar bölüm; en az bir kavram bölümü ve en az bir yanıtlı check. Yeni bölüm uydurma. " +
+  "Kaynak kaç kavram veriyorsa o kadar bölüm; en az bir kavram bölümü. " +
+  "Kaynak en az üç kavram veriyorsa 3 ile 5 yanıtlı check yaz, beşi geçme. Dar kaynakta en az bir yanıtlı check yeter. Yeni bölüm uydurma. " +
+  "Özet tam bağıntıyı ve niteleyiciyi korusun. nextFocus yalnızca verilen sonraki konular; yoksa yazma. " +
   "Anahtarlar İngilizce: objective, sections, example, commonMistake, infoCheck. Türkçe anahtar kullanma. " +
   "example, commonMistake, objective veya infoCheck yoksa alanı yazma; uydurma. " +
   "trueFalse ekranda DOĞRU MU YANLIŞ, mcq ekranda HIZLI SINAV. " +
