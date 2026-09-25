@@ -114,6 +114,12 @@ type GenerateJsonParams<T> = {
    * söylesin.
    */
   describeParseFailure?: () => string[];
+  /**
+   * Bu çağrının modeli. Kredi eylem kodu `selectModel` sonucudur;
+   * ders taslağı daha güçlü bir modele geçse de rezervasyon aynı kalır.
+   * Boşsa seçilen model kullanılır. Denetçi kendi modelinde kalır.
+   */
+  modelOverride?: string;
 };
 
 function parseCandidate(raw: string): unknown | null {
@@ -123,12 +129,14 @@ function parseCandidate(raw: string): unknown | null {
 export async function generateJson<T>(
   params: GenerateJsonParams<T>,
 ): Promise<GenerationOutcome<T>> {
-  const { model, actionCode } = selectModel({
+  const selected = selectModel({
     actionCode: params.actionCode,
     isPremium: params.isPremium,
     hasImage: params.hasImage ?? false,
     difficulty: params.difficulty,
   });
+  const actionCode = selected.actionCode;
+  const model = params.modelOverride?.trim() || selected.model;
 
   const v2 = params.validationProfile === "v2";
   const maxDraftAttempts = Math.max(

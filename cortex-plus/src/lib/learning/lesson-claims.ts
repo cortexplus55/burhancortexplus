@@ -172,6 +172,52 @@ export function checklistConcepts(note: string): string[] {
   return out;
 }
 
+function compactRelation(text: string): string {
+  return foldTr(text).replace(/[\s_]/g, "").replace(/[−–]/g, "-");
+}
+
+const NAMED_RELATIONS: { label: string; pattern: RegExp }[] = [
+  { label: "c_p − c_v = R", pattern: /cp-cv=r/ },
+  { label: "k = c_p/c_v", pattern: /k=cp\/cv/ },
+];
+
+/** "Formüller:" satırındaki kısa bağıntılar. Gövdedeki her eşitlik değil. */
+function listedFormulas(source: string): string[] {
+  const out: string[] = [];
+  for (const line of source.split("\n")) {
+    const folded = foldTr(line);
+    if (!/formuller\s*:/.test(folded) && !folded.includes("bu sayfadaki formuller")) continue;
+    const after = line.split(":").slice(1).join(":");
+    for (const part of after.split("|")) {
+      const formula = part.replace(/\s+/g, " ").trim();
+      if (!/=/.test(formula) || formula.length < 3 || formula.length > 80) continue;
+      out.push(formula);
+    }
+  }
+  return out;
+}
+
+/**
+ * Kaynakta duran c_p − c_v = R ve k = c_p/c_v, bir de formül listesindeki
+ * kısa satırlar. Sayfa gövdesindeki her eşitlik burada aranmaz.
+ */
+export function missingFormulaCoverage(lessonText: string, source: string): string[] {
+  const sourceKey = compactRelation(source);
+  const lessonKey = compactRelation(lessonText);
+  const missing: string[] = [];
+  for (const relation of NAMED_RELATIONS) {
+    if (!relation.pattern.test(sourceKey) || relation.pattern.test(lessonKey)) continue;
+    missing.push(relation.label);
+  }
+  for (const formula of listedFormulas(source)) {
+    const key = compactRelation(formula);
+    if (lessonKey.includes(key)) continue;
+    if (missing.some((item) => compactRelation(item) === key)) continue;
+    missing.push(formula);
+  }
+  return missing;
+}
+
 export function missingCoverage(
   lessonText: string,
   source: string,
@@ -184,6 +230,10 @@ export function missingCoverage(
     if (conceptInText(concept, lessonText)) continue;
     if (missing.some((item) => foldTr(item) === foldTr(concept))) continue;
     missing.push(concept);
+  }
+  for (const formula of missingFormulaCoverage(lessonText, source)) {
+    if (missing.some((item) => foldTr(item) === foldTr(formula))) continue;
+    missing.push(formula);
   }
   return missing;
 }

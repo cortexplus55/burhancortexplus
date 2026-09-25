@@ -181,11 +181,12 @@ function stripSourceChrome(text: string): string {
     .trim();
 }
 
-function normalizeSummaryText(text: string): string {
+export function normalizeSummaryText(text: string): string {
   return text
     .replace(/\s+/g, " ")
     .trim()
     .replace(/\b([mhuvsypxt])\s+(fg|sat|f|g)\b/gi, "$1_$2")
+    .replace(/\bc\s*_?\s*([vp])\b/gi, "c_$1")
     .replace(/\b([mhuvsypxt](?:_(?:fg|sat|f|g))?)\s*\/\s*([mhuvsypxt])\b/gi, "$1/$2")
     .replace(/(?<!\*)\*(?!\*)/g, "·")
     .replace(/[;]+\s*$/g, "")
@@ -198,20 +199,53 @@ function hasFiniteVerb(folded: string): boolean {
   );
 }
 
+function truncatedEnding(text: string): boolean {
+  const trimmed = text.trim();
+  if (/[,:]\s*$/.test(trimmed)) return true;
+  const folded = foldTr(trimmed).replace(/[.?!]+\s*$/g, "");
+  return /\b(cunku|ve|ile|veya)\s*$/.test(folded);
+}
+
+function hasCopula(folded: string): boolean {
+  return folded.split(/[^a-z0-9]+/).some(
+    (word) => word.length >= 5 && /(?:dir|dur|tir|tur|yor|mistir|mustur)$/.test(word),
+  );
+}
+
+/** Virgülle dizilmiş başlık. Eşitlik ve yüklem yoksa cümle değildir. */
+function bareTitle(text: string): boolean {
+  if (/[=≤≥]/.test(text)) return false;
+  const folded = foldTr(text);
+  if (hasCopula(folded)) return false;
+  const words = text.replace(/[.,:;!?()]/g, " ").split(/\s+/).filter((word) => word.length > 2);
+  const capped = words.filter((word) => /^[A-ZÇĞİÖŞÜ]/.test(word));
+  if (capped.length >= 3) return true;
+  return !/[.!?]\s*$/.test(text) && !hasFiniteVerb(folded);
+}
+
 /**
  * Özet satırı bir olgu cümlesi değilse nedeni.
- * Başlık, öğrenme hedefi (-me/-ma) ve beş sözcükten kısa parça yayımlanmaz.
+ * Başlık, öğrenme hedefi, etiket zinciri, kesik cümle ve beş sözcükten
+ * kısa parça yayımlanmaz. Tek iki nokta üst üste, formülün önünde durabilir.
  */
-export function summaryLineProblem(text: string): "fragment" | "heading" | "objective" | "flashcard" | null {
+export function summaryLineProblem(
+  text: string,
+): "fragment" | "heading" | "objective" | "flashcard" | "truncated" | "vague" | null {
   const folded = foldTr(text);
   if (/^\s*soru\s*:/i.test(text) || /\bcevap\s*:/i.test(text) || /\?:/.test(text)) return "flashcard";
+  if (/\bornek\s*:/i.test(text) && !/=\s*\d/.test(text)) return "fragment";
+  if (/gibi parametrelerle belirlenen|belirlenen sistemlerdir/.test(folded)) return "vague";
+  if (/\b(ogren|ogrenin|kavra|kavrayin)\b/.test(folded)) return "objective";
   if (/(gerceklestirme|uygulayabilmek|gorsellestirme|ogrenmek|anlayabilmek|kullanabilmek)\s*\.?$/.test(folded)) {
     return "objective";
   }
   if (/(?:me|ma|mek|mak)\s*\.?$/.test(folded) && !hasFiniteVerb(folded)) return "objective";
+  if (truncatedEnding(text)) return "truncated";
+  if ((text.match(/:/g) ?? []).length >= 2) return "heading";
   if (/\s[-–—]\s/.test(text) && !hasFiniteVerb(folded) && !/[=≤≥]/.test(text)) return "heading";
   const words = text.trim().split(/\s+/).filter(Boolean);
   if (words.length < 5 && !/[=≤≥]/.test(text)) return "fragment";
+  if (bareTitle(text)) return "heading";
   return null;
 }
 
@@ -255,6 +289,11 @@ function cleanSummarySentence(text: string, min = 8): string | null {
   if (summaryLineProblem(normalized)) return null;
   if (workedExampleFragment(normalized)) return null;
   if (definitionalInversionIssues(normalized).length) return null;
+  if (!/[.!?]\s*$/.test(normalized) && !/[=≤≥]/.test(normalized)) {
+    const finished = `${normalized}.`;
+    if (finished.length > SUMMARY_MAX) return null;
+    return finished;
+  }
   return normalized;
 }
 
@@ -593,6 +632,23 @@ export function groundLessonDraft(draft: string, source: string): string {
   }
 }
 
+/** Özet havuzu: genel bakış, bölüm gövdesi, açıklama ve çözülmüş örnek. */
+function explanationProse(lesson: Record<string, unknown>): string {
+  const parts: string[] = [];
+  if (typeof lesson.overview === "string") parts.push(lesson.overview);
+  const sections = Array.isArray(lesson.sections) ? lesson.sections : [];
+  for (const section of sections) {
+    const item = asRecord(section);
+    if (!item) continue;
+    if (typeof item.body === "string") parts.push(item.body);
+    const check = asRecord(item.check);
+    if (check && typeof check.explanation === "string") parts.push(check.explanation);
+  }
+  const example = asRecord(lesson.example);
+  if (typeof example?.solution === "string") parts.push(example.solution);
+  return parts.filter((part) => part.trim()).join("\n");
+}
+
 export function groundLearnerLesson(
   lesson: unknown,
   source: string,
@@ -698,6 +754,9 @@ export function groundLearnerLesson(
       seen.add(key);
       kept.push(text);
     };
+    // Özet, öğretmen notundan ve ham sayfa satırından kurulmaz.
+    // Yalnızca bu dersin kendi anlatım cümleleri adaydır.
+    const prose = explanationProse(next);
     for (const item of next.summary) {
       if (typeof item !== "string") continue;
       if (objectiveFiller(item) || metadataDump(item) || danglingTail(item) || workedExampleFragment(item)) {
@@ -706,7 +765,7 @@ export function groundLearnerLesson(
       }
       const failing = fieldFails(item, source);
       if (failing) {
-        const replacement = sourceSentenceFor(item, source);
+        const replacement = sourceSentenceFor(item, prose);
         const clean = replacement ? cleanSummarySentence(replacement) : null;
         if (!clean) {
           removed.push("summary");
@@ -716,7 +775,7 @@ export function groundLearnerLesson(
         pushSummary(clean);
         continue;
       }
-      const precise = preciseSummaryLines(item, source);
+      const precise = preciseSummaryLines(item, prose);
       if (precise) {
         removed.push("summary:replaced");
         for (const line of precise) pushSummary(line);
@@ -730,9 +789,9 @@ export function groundLearnerLesson(
       if (clean !== item.trim()) removed.push("summary:normalized");
       pushSummary(clean);
     }
-    if (kept.length < 3 && source.trim() && !truncated(source)) {
+    if (kept.length < 3 && prose.trim()) {
       let added = false;
-      for (const sentence of summaryCandidates(source)) {
+      for (const sentence of summaryCandidates(prose)) {
         if (kept.length >= 5) break;
         const before = kept.length;
         pushSummary(sentence);
@@ -740,7 +799,7 @@ export function groundLearnerLesson(
       }
       if (added) removed.push("summary:backfill");
     }
-    if (kept.length) next.summary = kept;
+    if (kept.length) next.summary = kept.slice(0, 5);
     else delete next.summary;
   }
 

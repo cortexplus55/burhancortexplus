@@ -4,6 +4,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { env } from "@/lib/env";
 import { completeLessonPartRepair } from "@/lib/ai/lesson-part-repair";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import {
@@ -1674,6 +1675,7 @@ async function generateNodePayload(input: {
       actionCode: actionForKind(input.kind),
       isPremium: input.isPremium,
       difficulty: depth.difficulty,
+      modelOverride: env.OPENAI_LESSON_MODEL,
       ...v2Common,
       idempotencyKey:
         retried && input.idempotencyKey
@@ -1886,6 +1888,10 @@ async function generateNodePayload(input: {
       repairSource.trim() ? (prompt) => repairCall(prompt, 700) : undefined,
     );
     lesson = repair.lesson;
+    const publishedChecks = lesson.sections.filter((section) => section.check).length;
+    if (publishedChecks < 3) {
+      throw new NodeGenerationError(500, "lesson_missing", ["En az 3 kontrol sorusu yazılamadı."]);
+    }
     if (repair.requested.length) {
       console.error("lesson_generation_repaired", {
         checks: repair.requested,
