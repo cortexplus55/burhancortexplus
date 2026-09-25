@@ -42,4 +42,16 @@ describe("markdown sanitization", () => {
     expect(html).toContain("<ol");
     expect(html).toContain("<li>ilk adım</li>");
   });
+
+  it("ayrışmış numaralı adımları yapışık metinden listeye çevirir", () => {
+    const html = renderMarkdownToHtml(
+      "Belirlenmesi için:1. Mol sayısını hesaplayın.2. Katsayıya bölün.3. Küçük oranı seçin. Sonra sor.",
+    );
+    expect(html).toContain("<ol");
+    expect(html).toContain("<li>Mol sayısını hesaplayın.</li>");
+    expect(html).toContain("<li>Katsayıya bölün.</li>");
+    expect(html).toContain("<li>Küçük oranı seçin.</li>");
+    expect(html).toContain("<p>Sonra sor.</p>");
+    expect(html).not.toContain("için:1.");
+  });
 });

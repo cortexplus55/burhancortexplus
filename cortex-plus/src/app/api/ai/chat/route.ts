@@ -38,6 +38,7 @@ import {
   parseQuantSelfCheck,
   quantSelfCheckPrompt,
   repairQuantitative,
+  settleQuantReply,
   type GradedClaim,
 } from "@/lib/learning/tutor-quant";
 import { citationMarker, examTutorAddendum, finalizeTutorReply } from "@/lib/learning/tutor-reply";
@@ -243,44 +244,62 @@ export async function POST(request: Request) {
         : isClearlyOffDocument(message, sourceText);
       async function polishPrep(text: string): Promise<string> {
         if (!rest.prepId || !prepGrounding) return text;
+        const grounding = prepGrounding;
         let next = text;
-        const audit = auditQuantitative(next, prepGrounding.corpus);
-        if (!audit.ok) next = repairQuantitative(next, audit);
-        else if (needsQuantModelCheck(next, audit)) {
-          try {
-            const prompt = quantSelfCheckPrompt(next);
-            const review = await client.chat.completions.create({
-              model: env.OPENAI_STANDARD_MODEL,
-              temperature: 0,
-              max_tokens: 180,
-              response_format: { type: "json_object" },
-              messages: [
-                { role: "system", content: prompt.system },
-                { role: "user", content: prompt.user },
-              ],
-            }, { signal: request.signal, timeout: 20_000, maxRetries: 0 });
-            tokensIn += review.usage?.prompt_tokens ?? 0;
-            tokensOut += review.usage?.completion_tokens ?? 0;
-            await recordUsage(service, {
-              userId,
-              actionCode,
-              model: env.OPENAI_STANDARD_MODEL,
-              tokensIn: review.usage?.prompt_tokens ?? 0,
-              tokensOut: review.usage?.completion_tokens ?? 0,
-              reservationId,
-            });
-            const verdict = parseQuantSelfCheck(review.choices[0]?.message?.content ?? "");
-            if (verdict && !verdict.ok) next = dropUnverifiedExample(next);
-          } catch {
-            // Küçük denetim düşerse deterministik sonuç durur.
+        let settledGrade = studentGrade;
+        const applySettle = (draft: string) => {
+          const settled = settleQuantReply({
+            student: message,
+            context: `${historyText}\n${grounding.corpus}`,
+            draft,
+          });
+          settledGrade = settled.grade ?? settledGrade;
+          return settled;
+        };
+        const settled = applySettle(next);
+        if (settled.replaced) {
+          next = settled.text;
+        } else {
+          const audit = auditQuantitative(next, grounding.corpus);
+          if (!audit.ok) next = repairQuantitative(next, audit);
+          else if (needsQuantModelCheck(next, audit)) {
+            try {
+              const prompt = quantSelfCheckPrompt(next);
+              const review = await client.chat.completions.create({
+                model: env.OPENAI_STANDARD_MODEL,
+                temperature: 0,
+                max_tokens: 180,
+                response_format: { type: "json_object" },
+                messages: [
+                  { role: "system", content: prompt.system },
+                  { role: "user", content: prompt.user },
+                ],
+              }, { signal: request.signal, timeout: 20_000, maxRetries: 0 });
+              tokensIn += review.usage?.prompt_tokens ?? 0;
+              tokensOut += review.usage?.completion_tokens ?? 0;
+              await recordUsage(service, {
+                userId,
+                actionCode,
+                model: env.OPENAI_STANDARD_MODEL,
+                tokensIn: review.usage?.prompt_tokens ?? 0,
+                tokensOut: review.usage?.completion_tokens ?? 0,
+                reservationId,
+              });
+              const verdict = parseQuantSelfCheck(review.choices[0]?.message?.content ?? "");
+              if (verdict && !verdict.ok) next = dropUnverifiedExample(next);
+            } catch {
+              // Küçük denetim düşerse deterministik sonuç durur.
+            }
           }
+          const again = applySettle(next);
+          if (again.replaced) next = again.text;
         }
         const finalized = finalizeTutorReply({
           message,
           draft: next,
-          decision: prepGrounding.decision,
-          scope: prepGrounding.scope,
-          grade: studentGrade,
+          decision: grounding.decision,
+          scope: grounding.scope,
+          grade: settledGrade,
           language: examContext?.language,
         });
         gradedForStore = finalized.misconception;
