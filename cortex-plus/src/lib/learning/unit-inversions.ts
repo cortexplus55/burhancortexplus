@@ -318,6 +318,72 @@ function conceptPairHits(text: string): InversionHit[] {
   return hits;
 }
 
+function comparesSaturation(clause: string, variable: "t" | "p", direction: "gt" | "lt"): boolean {
+  const op = direction === "gt" ? ">" : "<";
+  const pattern =
+    variable === "t"
+      ? new RegExp(`(?<![a-z])t\\s*${op}=?\\s*t[_ ]?sat`)
+      : new RegExp(`(?<![a-z])p\\s*${op}=?\\s*p[_ ]?sat`);
+  return pattern.test(clause);
+}
+
+function phaseChangeHits(text: string): InversionHit[] {
+  const hits: InversionHit[] = [];
+  for (const statement of statementsOf(text)) {
+    const folded = foldTr(statement);
+    if (
+      /doymus sivi/.test(folded) &&
+      /doymus buhar/.test(folded) &&
+      /karisim\w{0,8}\s+(?:belirler|belirlenir|tanimlar|tanimlanir)/.test(folded) &&
+      !/kuruluk|(?<![a-z])x(?![a-z])/.test(folded)
+    ) {
+      hits.push(hit("Belirsiz fizik", statement));
+    }
+    if (
+      (/sicaklik ve basinc arasinda/.test(folded) ||
+        /sicaklik ile basinc\w{0,4}\s+karsilastir/.test(folded) ||
+        /basinc ile sicaklik\w{0,4}\s+karsilastir/.test(folded)) &&
+      !/t[_ ]?sat|p[_ ]?sat|doyma sicak|doyma basinc/.test(folded)
+    ) {
+      hits.push(hit("Belirsiz fizik", statement));
+    }
+    if (
+      /doymus sivi/.test(folded) &&
+      /yogus/.test(folded) &&
+      !/kayna/.test(folded)
+    ) {
+      hits.push(hit("Tanım ters çevrilmiş (faz)", statement));
+    }
+    if (
+      /doymus buhar/.test(folded) &&
+      /kaynama basla|kaynamak uzere|kaynamaya basla/.test(folded) &&
+      !/yogus/.test(folded)
+    ) {
+      hits.push(hit("Tanım ters çevrilmiş (faz)", statement));
+    }
+
+    for (const clause of clausesOfStatement(folded)) {
+      const compressed = /sikistirilmis sivi|sogutulmus sivi|compressed liquid/.test(clause);
+      const superheated = /kizgin buhar|superheated/.test(clause);
+      if (compressed && (comparesSaturation(clause, "t", "gt") || comparesSaturation(clause, "p", "lt"))) {
+        hits.push(hit("Tanım ters çevrilmiş (faz)", statement));
+      }
+      if (superheated && (comparesSaturation(clause, "t", "lt") || comparesSaturation(clause, "p", "gt"))) {
+        hits.push(hit("Tanım ters çevrilmiş (faz)", statement));
+      }
+      const namesQuality = /kuruluk|(?<![a-z])x\s*=/.test(clause);
+      if (
+        namesQuality &&
+        (compressed || superheated) &&
+        !/tanimsiz|kullanilmaz|yoktur|gecerli degil/.test(clause)
+      ) {
+        hits.push(hit("Tanım ters çevrilmiş (faz)", statement));
+      }
+    }
+  }
+  return hits;
+}
+
 function vaguePhysicsHits(text: string): InversionHit[] {
   const hits: InversionHit[] = [];
   for (const statement of statementsOf(text)) {
@@ -339,6 +405,7 @@ export function definitionalInversionHits(text: string): InversionHit[] {
     ...senseHits(text),
     ...pressureEquationHits(text),
     ...conceptPairHits(text),
+    ...phaseChangeHits(text),
     ...vaguePhysicsHits(text),
   ];
   const seen = new Set<string>();
@@ -370,6 +437,19 @@ function repairsConcept(claim: string, correction: string): boolean {
       /bagli/.test(corrFold) &&
       !endStatesIndependent(corrFold)
     );
+  }
+  if (
+    (/sicaklik ve basinc arasinda/.test(claimFold) || /sicaklik ile basinc/.test(claimFold)) &&
+    /t[_ ]?sat|tsat|p[_ ]?sat|psat|doyma sicak|doyma basinc/.test(corrFold)
+  ) {
+    return true;
+  }
+  if (
+    /karisim/.test(claimFold) &&
+    /belirler|belirlenir|tanimlar/.test(claimFold) &&
+    /kuruluk|(?<![a-z])x(?![a-z])/.test(corrFold)
+  ) {
+    return true;
   }
   return false;
 }

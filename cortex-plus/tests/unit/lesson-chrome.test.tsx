@@ -224,4 +224,48 @@ describe("ExamLessonSteps", () => {
     expect(screen.queryByText("Değişim hal fonksiyonu, başlangıç ve son halden bağımsızdır.")).toBeNull();
     expect(screen.getByText(/başlangıç ve son hale bağlıdır/)).toBeTruthy();
   });
+
+  it("asks a missed definition from the other direction and isolates saturation relations", () => {
+    render(
+      <ExamLessonSteps
+        lesson={{
+          title: "Saf Maddeler ve Fazlar",
+          sections: [
+            {
+              heading: "Saf Maddeler ve Fazlar",
+              body: "Doymuş sıvı belirli bir basınçta kaynama başlamak üzere olan sıvıdır. Sıkıştırılmış sıvı T < T_sat(P) ve kızgın buhar T > T_sat(P) koşuluyla tanımlanır.",
+              check: {
+                type: "mcq",
+                prompt: "Aşağıdakilerden hangisi doymuş sıvının tanımına uygundur?",
+                options: [
+                  "Kaynama başlamak üzere olan sıvı",
+                  "Yoğuşmak üzere olan buhar",
+                  "Kızgın buhar",
+                  "Sıvı-buhar karışımı",
+                ],
+                answerIndex: 0,
+                explanation: "Doymuş sıvı kaynama başlamak üzere olan sıvıdır.",
+              },
+            },
+          ],
+        }}
+        onFinish={vi.fn()}
+        closeHref="/deneme"
+      />,
+    );
+
+    const relation = screen.getByText("T < T_sat(P)");
+    expect(relation.className).toContain("als-formula");
+    expect(screen.getByText("T > T_sat(P)").className).toContain("als-formula");
+    fireEvent.click(screen.getByRole("button", { name: "Kızgın buhar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    expect(screen.getByText("Tekrar")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    expect(screen.getByText("Tekrar 1 / 1")).toBeTruthy();
+    expect(screen.getByText("Kaynama başlamak üzere olan sıvıya ne ad verilir?")).toBeTruthy();
+    expect(
+      screen.queryByText("Aşağıdakilerden hangisi doymuş sıvının tanımına uygundur?"),
+    ).toBeNull();
+    expect(screen.getByRole("button", { name: "Doymuş sıvı" })).toBeTruthy();
+  });
 });
