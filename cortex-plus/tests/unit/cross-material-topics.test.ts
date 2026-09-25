@@ -311,6 +311,152 @@ describe("chemistry consolidation", () => {
   });
 });
 
+/**
+ * Canlı Cortex hazırlığının konu ekranı (cortex-SETUP). 26 başlık,
+ * dosya başına çıkarılmış ve yalnızca hafifçe birleştirilmiş liste.
+ * Özet uydurulmaz: birleştirme başlık ve müfredat metniyle yürür.
+ */
+const OBSERVED_TOPICS: { title: string; files: [string, string][] }[] = [
+  { title: "Mol Kavramı ve Mol Kütlesi", files: [["foto-1.jpg", "foto-1"]] },
+  { title: "Gazlar - Molar Hacim ve İdeal Gaz Denklemi", files: [["foto-2.jpg", "foto-2"]] },
+  { title: "Stokiyometri ve Sınırlayıcı Bileşen", files: [["foto-3.jpg", "foto-3"]] },
+  {
+    title: "Kimyasal Tepkimeler ve Denkleştirme",
+    files: [
+      ["slayt-1-tepkimeler.pptx", "slayt-1"],
+      ["pdf-16-sayfa.pdf", "pdf-16"],
+    ],
+  },
+  { title: "Fiziksel ve Kimyasal Değişim", files: [["slayt-1-tepkimeler.pptx", "slayt-1"]] },
+  { title: "Denkleştirmenin Altın Kuralları", files: [["slayt-1-tepkimeler.pptx", "slayt-1"]] },
+  { title: "Tepkime Türleri: Yanma, Sentez, Analiz", files: [["slayt-1-tepkimeler.pptx", "slayt-1"]] },
+  { title: "Tepkime Türleri: Asit–Baz, Çökelme, Yer Değiştirme", files: [["slayt-1-tepkimeler.pptx", "slayt-1"]] },
+  { title: "Stokiyometri ve Kütle Korunumu", files: [["slayt-1-tepkimeler.pptx", "slayt-1"]] },
+  { title: "Özet ve Sık Yapılan Hatalar", files: [["slayt-1-tepkimeler.pptx", "slayt-1"]] },
+  {
+    title: "Çözeltiler ve Derişim",
+    files: [
+      ["slayt-2-cozeltiler.pptx", "slayt-2"],
+      ["pdf-16-sayfa.pdf", "pdf-16"],
+    ],
+  },
+  {
+    title: "Asitler ve Bazlar",
+    files: [
+      ["slayt-2-cozeltiler.pptx", "slayt-2"],
+      ["pdf-16-sayfa.pdf", "pdf-16"],
+    ],
+  },
+  {
+    title: "pH ve pOH",
+    files: [
+      ["slayt-2-cozeltiler.pptx", "slayt-2"],
+      ["pdf-16-sayfa.pdf", "pdf-16"],
+    ],
+  },
+  { title: "Nötralleşme", files: [["slayt-2-cozeltiler.pptx", "slayt-2"]] },
+  { title: "Mol Kavramı ve Avogadro Sayısı", files: [["pdf-12-sayfa.pdf", "pdf-12"]] },
+  { title: "Atomik Kütle Birimi ve Mol Kütlesi", files: [["pdf-12-sayfa.pdf", "pdf-12"]] },
+  { title: "Gazlarda Molar Hacim", files: [["pdf-12-sayfa.pdf", "pdf-12"]] },
+  { title: "Gaz Yasaları ve İdeal Gaz Denklemi", files: [["pdf-12-sayfa.pdf", "pdf-12"]] },
+  { title: "Kimyanın Temel Kanunları", files: [["pdf-12-sayfa.pdf", "pdf-12"]] },
+  { title: "Genel Tekrar ve Karma Örnekler", files: [["pdf-12-sayfa.pdf", "pdf-12"]] },
+  { title: "Mol Hesapları", files: [["pdf-16-sayfa.pdf", "pdf-16"]] },
+  { title: "Kimyasal Tepkimeler ve Tepkime Denklemleri", files: [["pdf-16-sayfa.pdf", "pdf-16"]] },
+  { title: "Tepkime Türleri", files: [["pdf-16-sayfa.pdf", "pdf-16"]] },
+  { title: "Stokiyometri: Denklemden Nicel Bilgi", files: [["pdf-16-sayfa.pdf", "pdf-16"]] },
+  { title: "Nötralleşme Tepkimeleri", files: [["pdf-16-sayfa.pdf", "pdf-16"]] },
+  { title: "Ara Sınav", files: [["ders-konulari.docx", "syllabus"]] },
+];
+
+describe("observed Cortex topic list", () => {
+  const result = consolidateMaterials({
+    candidates: OBSERVED_TOPICS.flatMap((topic, index) =>
+      topic.files.map(([fileName, documentId], fileIndex) =>
+        candidate({
+          id: `obs-${index}-${fileIndex}`,
+          title: topic.title,
+          documentId,
+          fileName,
+          summary: topic.title,
+        }),
+      ),
+    ),
+    documents: [
+      ...["foto-1", "foto-2", "foto-3", "slayt-1", "slayt-2", "pdf-12", "pdf-16"].map((id) => ({
+        documentId: id,
+        fileName: id,
+        text: "Ders notu.",
+      })),
+      { documentId: "syllabus", fileName: "ders-konulari.docx", text: SYLLABUS },
+    ],
+  });
+
+  it("collapses the 26 live titles onto the syllabus and keeps their sections", () => {
+    expect(result.topics).toHaveLength(8);
+    expect(result.topics.map((topic) => topic.title)).toEqual([
+      "Mol kavramı ve Avogadro sayısı",
+      "Mol kütlesi ve kütle-mol hesapları",
+      "Gazlarda molar hacim ve ideal gaz denklemi",
+      "Kimyanın temel kanunları",
+      "Kimyasal tepkimeler, denkleştirme ve tepkime türleri",
+      "Stokiyometri: sınırlayıcı bileşen ve verim",
+      "Çözeltiler",
+      "Asitler ve bazlar (temel düzey)",
+    ]);
+    expect(result.topics.map((topic) => topic.weightPercent)).toEqual([10, 15, 10, 5, 10, 25, 15, 10]);
+    expect(result.topics.filter((topic) => topic.examHeavy).map((topic) => topic.weightPercent)).toEqual([
+      10, 15, 25,
+    ]);
+    const sections = (pattern: RegExp) =>
+      result.topics.find((topic) => pattern.test(topic.title))?.sections.map((section) => section.title).join(" ") ?? "";
+    expect(sections(/tepkimeler/i)).toMatch(/Fiziksel ve Kimyasal Değişim/);
+    expect(sections(/tepkimeler/i)).toMatch(/Denkleştirmenin Altın Kuralları/);
+    expect(sections(/tepkimeler/i)).not.toMatch(/Nötralleşme Tepkimeleri/);
+    expect(sections(/asitler/i)).toMatch(/pH ve pOH/);
+    expect(sections(/asitler/i)).toMatch(/Nötralleşme Tepkimeleri/);
+    expect(sections(/stokiyometri/i)).toMatch(/Sınırlayıcı Bileşen/);
+    expect(sections(/stokiyometri/i)).toMatch(/Denklemden Nicel Bilgi/);
+    expect(result.topics.map((topic) => topic.title).join(" ")).not.toMatch(/Özet|Genel Tekrar|Ara Sınav|Katlı oranlar/);
+    expect(result.foldedNonTopics).toEqual(
+      expect.arrayContaining(["Özet ve Sık Yapılan Hatalar", "Genel Tekrar ve Karma Örnekler"]),
+    );
+    expect(result.topics.find((topic) => /temel kanun/i.test(topic.title))?.scopeNote ?? "").toMatch(/katlı oranlar/i);
+    expect(result.topics.find((topic) => /çözelti/i.test(topic.title))?.sourceCount).toBeGreaterThanOrEqual(2);
+    expect(result.topics.find((topic) => /stokiyometri/i.test(topic.title))?.sourceCount).toBeGreaterThanOrEqual(3);
+  });
+
+  it("builds one learn step per topic, mol before stoichiometry, and far fewer than 74 activities", () => {
+    const plan = buildExamScheduleV2({
+      daysToExam: 23,
+      dailyMinutes: 45,
+      studyDays: [1, 2, 3, 4, 5, 6, 7],
+      fromDate: new Date("2026-09-25T12:00:00"),
+      topics: result.topics.map((topic) => ({
+        id: topic.title,
+        title: topic.title,
+        prerequisites: topic.prerequisites,
+        weightPercent: topic.weightPercent,
+        examHeavy: topic.examHeavy,
+        priority: priorityFromWeight(topic),
+      })),
+    });
+    const learns = plan.sessions.filter((session) => session.role === "learn").map((session) => session.topicTitle);
+    expect(learns).toHaveLength(result.topics.length);
+    expect(new Set(learns).size).toBe(learns.length);
+    expect(learns.findIndex((title) => /mol kavramı/i.test(title))).toBeLessThan(
+      learns.findIndex((title) => /stokiyometri/i.test(title)),
+    );
+    const practice = (pattern: RegExp) =>
+      plan.sessions.filter((session) => pattern.test(session.topicTitle) && session.role === "practice").length;
+    expect(practice(/stokiyometri/i)).toBeGreaterThan(practice(/temel kanun/i));
+    expect(plan.sessions.length).toBeLessThan(40);
+    expect(plan.sessions.some((session) => /ara sınav|özet ve sık|genel tekrar/i.test(session.topicTitle))).toBe(
+      false,
+    );
+  });
+});
+
 describe("law syllabus — not a chemistry special case", () => {
   const notes: MaterialCandidate[] = [
     candidate({

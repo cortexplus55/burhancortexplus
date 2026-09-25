@@ -487,7 +487,7 @@ function finishBucket(bucket: Bucket): ConsolidatedTopic {
     prerequisites: uniqueLines(bucket.prerequisites),
     weightPercent: bucket.weightPercent,
     examHeavy: bucket.examHeavy,
-    scopeNote: bucket.scopeNotes[0] ?? null,
+    scopeNote: uniqueLines(bucket.scopeNotes).join(" ") || null,
     commonMistakes: uniqueLines(bucket.mistakes),
     practiceItems: uniqueLines(bucket.practice),
     nodeIds: [...new Set(bucket.nodeIds)],
@@ -495,7 +495,11 @@ function finishBucket(bucket: Bucket): ConsolidatedTopic {
   };
 }
 
-function assignmentScore(candidate: MaterialCandidate, row: SyllabusRow): number {
+function assignmentScore(
+  candidate: MaterialCandidate,
+  row: SyllabusRow,
+  rows: SyllabusRow[],
+): number {
   const titleShared = sharedStems(tokensOf(candidate.title), tokensOf(row.title));
   const blob = `${candidate.title} ${candidate.summary ?? ""} ${(candidate.keyTerms ?? []).join(" ")}`;
   const rowBlob = `${row.title} ${row.description}`;
@@ -508,7 +512,17 @@ function assignmentScore(candidate: MaterialCandidate, row: SyllabusRow): number
   // Başlığın kendisi satırın açıklamasında geçiyorsa o satırındır.
   const phrase = fold(candidate.title);
   const phraseHit = phrase.length >= 8 && fold(rowBlob).includes(phrase) ? 8 : 0;
-  return titleShared.length * 3 + long * 2 + shared.length + titleInRow.length * 3 + phraseHit;
+  // Yalnızca bu satırda geçen başlık kelimesi (pH, nötralleşme) o satıra aittir.
+  const rowTokens = tokensOf(rowBlob);
+  const distinctive = tokensOf(candidate.title).filter((token) => {
+    if (!rowTokens.some((item) => sameStem(item, token))) return false;
+    const owners = rows.filter((item) =>
+      tokensOf(`${item.title} ${item.description}`).some((piece) => sameStem(piece, token)),
+    );
+    return owners.length === 1;
+  });
+  const distinctiveBonus = distinctive.reduce((sum, token) => sum + token.length * 2, 0);
+  return titleShared.length * 3 + long * 2 + shared.length + titleInRow.length * 3 + phraseHit + distinctiveBonus;
 }
 
 function bestRow(
@@ -517,7 +531,7 @@ function bestRow(
 ): { row: SyllabusRow; score: number } | null {
   let best: { row: SyllabusRow; score: number } | null = null;
   for (const row of rows) {
-    const score = assignmentScore(candidate, row);
+    const score = assignmentScore(candidate, row, rows);
     if (!best || score > best.score || (score === best.score && row.index < best.row.index)) {
       best = { row, score };
     }
@@ -734,7 +748,9 @@ export function consolidateMaterials(input: {
       bucket.syllabusIndex = row.index;
       if (row.description.trim()) bucket.summaryParts.push(row.description.trim());
       for (const phrase of phrases) {
-        if (matchExclusion(phrase, row.title) === "narrow") {
+        const hit = matchExclusion(phrase, row.title);
+        const namedInRow = fold(phrase).length >= 6 && fold(row.description).includes(fold(phrase));
+        if (hit === "narrow" || (namedInRow && hit !== "drop")) {
           bucket.scopeNotes.push(exclusionReason(phrase));
         }
       }
