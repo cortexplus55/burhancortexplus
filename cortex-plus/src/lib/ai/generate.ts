@@ -141,6 +141,14 @@ type GenerateJsonParams<T> = {
   modelOverride?: string;
   /** Bağımsız kapı temizse ders denetiminde ileri model çağrılmaz. */
   trustIndependent?: boolean;
+  /**
+   * Ayrıştırılamayan soru için aynı rezervasyonda tek çözüm çağrısı.
+   * Null dönerse taslak yeniden yazılır; yeni kredi ayrılmaz.
+   */
+  refineParsed?: (
+    value: T,
+    ask: (system: string, user: string) => Promise<string | null>,
+  ) => Promise<T | null>;
 };
 
 function parseCandidate(raw: string): unknown | null {
@@ -526,6 +534,29 @@ export async function generateJson<T>(
           parsed = params.parse(parseCandidate(content));
         } catch {
           parsed = null;
+        }
+        if (parsed && params.refineParsed) {
+          try {
+            const refined = await params.refineParsed(parsed, async (system, user) => {
+              modelCalls += 1;
+              const completion = await openai.chat.completions.create({
+                model,
+                response_format: { type: "json_object" },
+                messages: [
+                  { role: "system", content: system.slice(0, 2000) },
+                  { role: "user", content: user.slice(0, 8000) },
+                ],
+              });
+              completionUsage = {
+                prompt_tokens: completionUsage.prompt_tokens + (completion.usage?.prompt_tokens ?? 0),
+                completion_tokens: completionUsage.completion_tokens + (completion.usage?.completion_tokens ?? 0),
+              };
+              return completion.choices[0]?.message?.content ?? null;
+            });
+            parsed = refined;
+          } catch {
+            parsed = null;
+          }
         }
         if (parsed) break outer;
 

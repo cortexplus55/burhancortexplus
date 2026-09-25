@@ -1,14 +1,22 @@
+import { z } from "zod";
 import {
   quantityClaimGrounded,
   sourceContainsNumber,
   unsupportedQuantities,
 } from "@/lib/learning/teacher-brain";
-import type { OralTeacherMoodId } from "@/lib/learning/oral-exam-chrome";
+import type { OralReviewItem, OralTeacherMoodId } from "@/lib/learning/oral-exam-chrome";
+import { fluencyIssues } from "@/lib/learning/learner-fluency";
 import {
   auditQuantitative,
   gradeStudentClaim,
   repairQuantitative,
 } from "@/lib/learning/tutor-quant";
+import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
+import {
+  isScoreLabel,
+  polishLearnerText,
+  verifyOralPrompt,
+} from "@/lib/learning/question-verifier";
 
 /**
  * Sözlü denemenin notu, takip sorusu ve kaynak bağı.
@@ -52,12 +60,19 @@ export type OralGroundingPassage = {
   content: string;
 };
 
+export type OralVerdict = "dogru" | "kismen" | "yanlis" | "bos";
+
 export type OralItemGrade = {
   index: number;
   question: string;
   answer: string;
-  /** 0 ile 1 arası. Beklenen noktaların kaçının karşılandığı. */
+  /** 0 ile 1 arası. Doğru sayısal cevap 1'dir. */
   ratio: number;
+  verdict: OralVerdict;
+  /** Öğrencinin tutan kısmı. Boş kalabilir. */
+  right: string;
+  /** Eksik ya da yanlış olanın kısa gerekçesi. Puan etiketi değildir. */
+  gap: string;
   missing: string[];
   modelAnswer: string;
   citation: string | null;
@@ -170,26 +185,32 @@ function passageWhere(passage: OralGroundingPassage): string | null {
   return passage.slide ? `slayt ${passage.pageNumber}` : `s.${passage.pageNumber}`;
 }
 
-/** Damgalı kaynak duruyorsa o kalır. Yoksa soruyla örtüşen pasaj. */
+/**
+ * Kaynak, soruyla örtüşen pasajdır. Her soruya yapıştırılmış ilk sayfa
+ * damgası, pasaj örtüşmezse gösterilmez.
+ */
 export function citationFromPassages(
   question: OralQuestionDraft,
   passages: OralGroundingPassage[],
 ): string | null {
-  const stamped = citationLabel(question.sourceFile, question.sourcePage);
-  if (stamped) return stamped;
-  const needles = tokens(`${question.prompt ?? ""} ${(question.expectedPoints ?? []).join(" ")}`);
-  let best: OralGroundingPassage | null = null;
-  let bestScore = 0;
-  for (const passage of passages) {
-    const hay = fold(passage.content);
-    const score = needles.filter((token) => hay.includes(token)).length;
-    if (score > bestScore) {
-      best = passage;
-      bestScore = score;
+  const needles = tokens(`${question.prompt ?? ""} ${(question.expectedPoints ?? []).join(" ")}`).filter(
+    (token) => !isScoreLabel(token),
+  );
+  if (passages.length && needles.length) {
+    let best: OralGroundingPassage | null = null;
+    let bestScore = 0;
+    for (const passage of passages) {
+      const hay = fold(passage.content);
+      const score = needles.filter((token) => hay.includes(token)).length;
+      if (score > bestScore) {
+        best = passage;
+        bestScore = score;
+      }
     }
+    if (best && bestScore > 0) return citationLabel(best.documentName, passageWhere(best));
+    return null;
   }
-  if (!best || bestScore === 0) return null;
-  return citationLabel(best.documentName, passageWhere(best));
+  return citationLabel(question.sourceFile, question.sourcePage);
 }
 
 /**
@@ -266,12 +287,32 @@ export function syllabusWeightLineFromChecklist(
  * Tek takip. İpucu yalnızca yardımcı kişide ve soruda hazır ipucu varsa.
  * Yeni olgu üretilmez.
  */
+/** Yardımcı öğretmenin bir kez soracağı eksik cevap. Tam hesap probe açmaz. */
+export function answerLooksIncomplete(question: string, answer: string): boolean {
+  const foldedAnswer = fold(answer);
+  const foldedQuestion = fold(question);
+  if (
+    /\b(hesaplamadim|hesaplayamadim|emin degilim|tam bilmiyorum|oranini ayrica|adimi atladim|eksik biraktim)\b/.test(
+      foldedAnswer,
+    )
+  ) {
+    return true;
+  }
+  const asksQuantity = /(kac|hesapla|calculate|how many|how much)/.test(foldedQuestion);
+  if (asksQuantity && numbersIn(answer).length === 0) return true;
+  const asksReason = /(neden|nicin|why|hangi|hangisi|acikla)/.test(foldedQuestion);
+  const hasReason = /(cunku|dolayi|icin|nedeni|oran|bolun|katsay)/.test(foldedAnswer);
+  if (asksReason && !hasReason && answer.trim().length < 160) return true;
+  return false;
+}
+
 export function visibleProbe(input: {
   answer: string;
   probeKind: OralProbeKind;
   persona: OralTeacherMoodId;
   alreadyProbed: boolean;
   hint?: string | null;
+  question?: string | null;
 }): { question: string; hint: string | null } | null {
   if (input.alreadyProbed) return null;
   const answer = input.answer.trim();
@@ -282,10 +323,15 @@ export function visibleProbe(input: {
     question = "Birimi ne?";
   } else if (input.probeKind === "why" && thin) {
     question = "Neden?";
-  } else if (input.probeKind === "detail" && answer.length < 40) {
+  } else if (input.probeKind === "detail" && answer.length < 40 && !/=/.test(answer)) {
     question = "Biraz açar mısın?";
   } else if (thin && numbersIn(answer).length > 0 && !hasUnit(answer)) {
     question = "Birimi ne?";
+  } else if (
+    input.persona === "helpful" &&
+    answerLooksIncomplete(input.question ?? "", answer)
+  ) {
+    question = numbersIn(answer).length > 0 && !hasUnit(answer) ? "Birimi ne?" : "Eksik kalan adımı da yazar mısın?";
   }
   if (!question) return null;
   const hint =
@@ -312,6 +358,10 @@ function groundedPoint(point: string, source: string): string | null {
   return supportedPoint(repaired, source);
 }
 
+function asksQuantity(prompt: string): boolean {
+  return /(kac|hesapla|calculate|how many|how much)/.test(fold(prompt));
+}
+
 export function gradeOralAnswer(
   question: OralQuestionDraft,
   answerRaw: string,
@@ -320,46 +370,91 @@ export function gradeOralAnswer(
   passages: OralGroundingPassage[] = [],
 ): OralItemGrade {
   const answer = answerRaw.trim();
-  const prompt = question.prompt?.trim() || `Soru ${index + 1}`;
-  const points = (question.expectedPoints ?? []).map((point) => point.trim()).filter(Boolean);
+  const prompt = polishLearnerText(question.prompt?.trim() || `Soru ${index + 1}`);
+  const points = (question.expectedPoints ?? [])
+    .map((point) => point.trim())
+    .filter((point) => point.length >= 2 && !isScoreLabel(point));
   const ground = [source, prompt, ...points].filter(Boolean).join("\n");
   const dontKnow = isDontKnow(answer);
-  const numeric = !dontKnow && answer ? unsupportedQuantities(answer, ground) : [];
+  const studentAudit = !dontKnow && answer ? auditQuantitative(answer, source) : null;
+  const sound = Boolean(studentAudit?.checked && studentAudit.ok);
+  const hollowGap = !dontKnow && answer ? announcedExampleGap(answer) : null;
+  const hollow = Boolean(hollowGap);
+  const completeWork = Boolean(answer && exampleIsComplete(answer) && studentAudit?.ok && !hollow);
+  const claim = !dontKnow && answer ? gradeStudentClaim({ student: answer, context: ground }) : null;
+  const numeric = !dontKnow && answer && !sound ? unsupportedQuantities(answer, ground) : [];
   const covered = dontKnow ? [] : points.filter((point) => answerCoversPoint(answer, point));
-  const missing = dontKnow ? points : points.filter((point) => !covered.includes(point));
+  const missed = dontKnow ? points : points.filter((point) => !covered.includes(point));
   let ratio = !points.length || dontKnow ? 0 : covered.length / points.length;
+  if (claim?.verdict === "yanlis") ratio = 0;
+  else if (claim?.verdict === "kismen") ratio = Math.min(Math.max(ratio, 0.5), 0.5);
+  else if (
+    claim?.verdict === "dogru" ||
+    ((sound || completeWork) && (asksQuantity(prompt) || points.length === 0))
+  ) {
+    ratio = 1;
+  } else {
+    if (studentAudit && !studentAudit.ok) ratio = Math.min(ratio, 0.5);
+    if (numeric.length) ratio = Math.min(ratio, 0.5);
+  }
+  if (hollow && ratio >= 0.99) ratio = 0.5;
+  const readable = (text: string) =>
+    Boolean(text.trim()) && !announcedExampleGap(text) && fluencyIssues(text).length === 0;
   const modelPoints = points
     .map((point) => groundedPoint(point, source))
-    .filter((point): point is string => Boolean(point));
+    .filter((point): point is string => typeof point === "string" && !isScoreLabel(point) && readable(point));
   let modelAnswer = modelPoints.length
     ? modelPoints.join(" ")
     : "Kaynakta bu soru için doğrulanmış bir çözüm cümlesi yok.";
-  const studentAudit = !dontKnow && answer ? auditQuantitative(answer, source) : null;
-  const claim = !dontKnow && answer ? gradeStudentClaim({ student: answer, context: ground }) : null;
-  if (studentAudit && !studentAudit.ok) ratio = Math.min(ratio, 0.5);
-  if (claim?.verdict === "kismen") ratio = Math.min(ratio, 0.5);
-  if (claim?.verdict === "yanlis") ratio = 0;
   if (claim && claim.verdict !== "dogru" && claim.conclusion.trim()) {
     const conclusion = claim.conclusion.trim();
     const backed = !source.trim() || unsupportedQuantities(conclusion, source).length === 0;
     if (backed && !fold(modelAnswer).includes(fold(conclusion).slice(0, 48))) {
       modelAnswer = modelAnswer.startsWith("Kaynakta") ? conclusion : `${modelAnswer} ${conclusion}`;
     }
+  } else if (ratio >= 0.99 && !modelPoints.length) {
+    modelAnswer = claim?.conclusion?.trim() || answer.slice(0, 240);
+  }
+  if (isScoreLabel(modelAnswer) || !readable(modelAnswer)) {
+    const conclusion = claim?.conclusion?.trim() ?? "";
+    modelAnswer = conclusion && readable(conclusion)
+      ? conclusion
+      : "Kaynakta bu soru için doğrulanmış bir çözüm cümlesi yok.";
   }
   const quantNotes = [
     ...numeric,
-    ...(studentAudit?.issues.map((issue) => issue.detail) ?? []),
+    ...(sound ? [] : studentAudit?.issues.map((issue) => issue.detail) ?? []),
     ...(claim && claim.verdict !== "dogru" ? claim.wrongParts : []),
   ];
+  const gap = ratio >= 0.99
+    ? ""
+    : (claim?.wrongParts.find((part) => !isScoreLabel(part)) ||
+      numeric.find((part) => !isScoreLabel(part)) ||
+      missed.find((part) => !isScoreLabel(part)) ||
+      hollowGap ||
+      "");
+  const right = ratio >= 0.99
+    ? (claim?.rightParts[0] || covered[0] || answer.slice(0, 180))
+    : (claim?.rightParts[0] || covered[0] || "");
+  const verdict: OralVerdict = dontKnow || !answer
+    ? "bos"
+    : ratio >= 0.99
+      ? "dogru"
+      : ratio >= 0.5
+        ? "kismen"
+        : "yanlis";
   const objective = question.learningObjective?.trim() || prompt;
   return {
     index,
     question: prompt,
     answer,
-    ratio: numeric.length ? Math.min(ratio, 0.5) : ratio,
-    missing,
+    ratio,
+    verdict,
+    right: isScoreLabel(right) ? "" : right,
+    gap: isScoreLabel(gap) ? "" : gap,
+    missing: missed.filter((point) => !isScoreLabel(point)),
     modelAnswer,
-    citation: citationFromPassages(question, passages),
+    citation: citationFromPassages({ ...question, prompt, expectedPoints: points }, passages),
     dontKnow,
     numericIssue: quantNotes.length ? [...new Set(quantNotes)].join(", ") : null,
     objective,
@@ -402,7 +497,11 @@ export function gradeOralExam(
     strengths,
     weaknesses,
     missingObjectives: [
-      ...new Set(items.flatMap((item) => item.missing.map((point) => point.slice(0, 180)))),
+      ...new Set(
+        items.flatMap((item) =>
+          item.missing.filter((point) => !isScoreLabel(point)).map((point) => point.slice(0, 180)),
+        ),
+      ),
     ].slice(0, 8),
     correctIndices: items.filter((item) => item.ratio >= 0.99).map((item) => item.index),
     nextStep: null,
@@ -416,16 +515,86 @@ export type OralMisconceptionDraft = {
   questionPreview: string;
 };
 
-/** Eksik veya yanlış sözlü cevap, tekrar kuyruğuna gidecek taslak. */
+const UNVERIFIED_ANSWER = /doğrulanamadı|doğrulanmış bir çözüm cümlesi yok/i;
+
+/** Yalnızca gerçekten kaçırılan cevap. Doğru not ve puan etiketi kuyruğa girmez. */
 export function oralMisconceptionDrafts(report: OralExamReport): OralMisconceptionDraft[] {
   return report.items
-    .filter((item) => item.ratio < 0.99)
+    .filter((item) => item.ratio < 0.99 && item.verdict !== "dogru")
+    .filter((item) => !isScoreLabel(item.modelAnswer) && !UNVERIFIED_ANSWER.test(item.modelAnswer))
     .map((item) => ({
       claim: item.dontKnow ? "Bilmiyorum" : item.answer.slice(0, 240) || "(boş)",
       corrected: item.modelAnswer,
       wrongType: item.dontKnow ? "oral_blank" : item.numericIssue ? "oral_quantity" : "oral_miss",
       questionPreview: item.question.slice(0, 160),
     }));
+}
+
+export const ORAL_REVIEW_FALLBACK = "Bu cevap için ayrıntılı inceleme kurulamadı.";
+
+const oralReviewSchema = z.object({
+  verdict: z.enum(["dogru", "kismen", "yanlis", "bos"]),
+  score: z.number().min(0).max(1),
+  modelAnswer: z.string().min(8).max(500),
+  gap: z.string().max(400),
+  right: z.string().max(400),
+});
+
+/** Çözüm metninin her parçası puan etiketiyse kart çizilmez. */
+export function reviewLooksGarbled(solution: string, missing = ""): boolean {
+  const bits = `${solution}\n${missing}`
+    .split(/Hatanız şuradaydı:|Eksik:|\n+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return bits.length > 0 && bits.every((part) => isScoreLabel(part));
+}
+
+export function presentOralReview(item: OralReviewItem): OralReviewItem {
+  if (!reviewLooksGarbled(item.solution, item.missing ?? "")) return item;
+  return {
+    ...item,
+    solution: ORAL_REVIEW_FALLBACK,
+    missing: undefined,
+    citation: null,
+    scoreLabel: item.scoreLabel && isScoreLabel(item.scoreLabel) ? undefined : item.scoreLabel,
+  };
+}
+
+/** Şema tutmazsa veya metin puan etiketiyse öğrenciye o kart çizilmez. */
+export function oralReviewItemFromGrade(item: OralItemGrade): OralReviewItem {
+  const model = isScoreLabel(item.modelAnswer) ? "" : item.modelAnswer.trim();
+  const gap = item.gap && !isScoreLabel(item.gap) ? item.gap.trim() : "";
+  const right = item.right && !isScoreLabel(item.right) ? item.right.trim() : "";
+  const parsed = oralReviewSchema.safeParse({
+    verdict: item.verdict,
+    score: item.ratio,
+    modelAnswer: model.slice(0, 500),
+    gap: gap.slice(0, 400),
+    right: right.slice(0, 400),
+  });
+  const scoreLabel = `%${Math.round(item.ratio * 100)} puan`;
+  if (!parsed.success || reviewLooksGarbled(model, gap)) {
+    return {
+      question: item.question,
+      answer: item.answer,
+      solution: ORAL_REVIEW_FALLBACK,
+      scoreLabel,
+      citation: null,
+      verdict: item.verdict,
+    };
+  }
+  const solution = [right && right !== model ? right : "", model, gap ? `Hatanız şuradaydı: ${gap}` : ""]
+    .filter(Boolean)
+    .join(" ");
+  return presentOralReview({
+    question: item.question,
+    answer: item.answer,
+    solution,
+    scoreLabel,
+    citation: item.citation,
+    missing: gap || undefined,
+    verdict: item.verdict,
+  });
 }
 
 function pointText(value: unknown): string {
@@ -479,23 +648,27 @@ export function publishOralQuestions(
     }
     const given = (Array.isArray(record?.expectedPoints) ? record.expectedPoints : [])
       .map(pointText)
-      .filter((point) => keepOralPoint(point, source));
+      .filter((point) => !isScoreLabel(point) && keepOralPoint(point, source));
     const bare = prompt.replace(/\d+(?:[.,]\d+)?/g, " ").replace(/\s+/g, " ").trim();
     const points = (given.length ? given : bare.length >= 8 ? [bare.slice(0, 180)] : []).slice(0, 6);
     if (!points.length) return [];
+    const verified = verifyOralPrompt(prompt, points, source);
+    if (!verified) return [];
     const givenRubric = (Array.isArray(record?.rubricCriteria) ? record.rubricCriteria : [])
       .map(pointText)
-      .filter((line) => line.length >= 2 && keepOralPoint(line, source));
-    const rubric = (givenRubric.length ? givenRubric : points.map((point) => point.slice(0, 120))).slice(0, 5);
+      .filter((line) => line.length >= 2 && !isScoreLabel(line) && keepOralPoint(line, source));
+    const rubric = (
+      givenRubric.length ? givenRubric : verified.expectedPoints.map((point) => point.slice(0, 120))
+    ).slice(0, 5);
     const objective = pointText(record?.learningObjective);
     const hint = pointText(record?.hint);
     return [
       {
-        prompt,
+        prompt: verified.prompt,
         ...(hint ? { hint } : {}),
         ...(objective.length >= 8 ? { learningObjective: objective.slice(0, 200) } : {}),
-        rubricCriteria: rubric,
-        expectedPoints: points,
+        rubricCriteria: rubric.length ? rubric : [verified.prompt.slice(0, 120)],
+        expectedPoints: verified.expectedPoints,
       },
     ];
   });

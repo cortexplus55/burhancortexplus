@@ -10,8 +10,12 @@ export type QuizQuestion = {
   learningObjective?: string;
   /** Stage 5/6 — dominant misconception this item targets. */
   misconceptionTag?: string;
+  /** Aynı üretim çağrısında, her şık için bir cümle. */
+  optionWhy?: string[];
   /** Hazırlıktaki konu adı. Bilinmeyen ad sınav sonunda gösterilmez. */
   topic?: string;
+  /** İkinci çözücü bunu görür. Öğrenciye gitmez. */
+  needsSolver?: boolean;
 };
 
 export type PublicQuizQuestion = {
@@ -20,6 +24,8 @@ export type PublicQuizQuestion = {
   multi: boolean;
   correct?: string[];
   explanation?: string;
+  optionWhy?: string[];
+  misconceptionTag?: string;
 };
 
 const correctValueSchema = z.union([z.string(), z.number()]);
@@ -89,6 +95,7 @@ export function normalizeQuizQuestion(raw: {
   explanation?: string;
   learningObjective?: string;
   misconceptionTag?: string;
+  optionWhy?: string[];
   topic?: string;
 }): QuizQuestion | null {
   const options = [...new Set(raw.options.map((item) => item.trim()).filter(Boolean))];
@@ -102,6 +109,9 @@ export function normalizeQuizQuestion(raw: {
     explanation: raw.explanation?.trim() || undefined,
     learningObjective: raw.learningObjective?.trim() || undefined,
     misconceptionTag: raw.misconceptionTag?.trim() || undefined,
+    optionWhy: Array.isArray(raw.optionWhy)
+      ? raw.optionWhy.map((line) => line.trim()).filter((line) => line.length >= 8)
+      : undefined,
     topic: raw.topic?.trim() || undefined,
   };
 }
@@ -122,6 +132,8 @@ export function publicQuizQuestion(question: QuizQuestion): PublicQuizQuestion {
     multi: question.multi,
     correct: question.correct,
     explanation: question.explanation,
+    optionWhy: question.optionWhy,
+    misconceptionTag: question.misconceptionTag,
   };
 }
 
@@ -152,9 +164,42 @@ export function scoreQuizAnswers(
 
 export function parseQuizQuestions(raw: unknown): QuizQuestion[] | null {
   const parsed = quizPayloadSchema.safeParse(raw);
-  if (!parsed.success) return null;
+  if (!parsed.success) return coerceQuizQuestions(raw);
   const questions = parsed.data.questions
     .map(normalizeQuizQuestion)
     .filter((question): question is QuizQuestion => question !== null);
-  return questions.length ? questions : null;
+  return questions.length >= 3 ? questions : coerceQuizQuestions(raw);
+}
+
+/** Tek bozuk soru seti düşürmez. En az üç sağlam soru kalırsa üretim sürer. */
+export function coerceQuizQuestions(raw: unknown): QuizQuestion[] | null {
+  const row = raw && typeof raw === "object" ? (raw as { questions?: unknown }) : null;
+  const list = Array.isArray(row?.questions) ? row.questions : null;
+  if (!list) return null;
+  const questions = list.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const record = item as Record<string, unknown>;
+    const text = typeof record.text === "string"
+      ? record.text
+      : typeof record.question === "string"
+        ? record.question
+        : "";
+    const options = Array.isArray(record.options) ? record.options.map((option) => String(option)) : [];
+    const optionWhy = Array.isArray(record.optionWhy)
+      ? record.optionWhy.filter((line): line is string => typeof line === "string")
+      : undefined;
+    const normalized = normalizeQuizQuestion({
+      text,
+      options,
+      correct: (record.correct ?? record.answer ?? record.answerIndex) as string | number | (string | number)[],
+      multi: record.multi === true,
+      explanation: typeof record.explanation === "string" ? record.explanation : undefined,
+      learningObjective: typeof record.learningObjective === "string" ? record.learningObjective : undefined,
+      misconceptionTag: typeof record.misconceptionTag === "string" ? record.misconceptionTag : undefined,
+      optionWhy,
+      topic: typeof record.topic === "string" ? record.topic : undefined,
+    });
+    return normalized ? [normalized] : [];
+  });
+  return questions.length >= 3 ? questions.slice(0, 8) : null;
 }

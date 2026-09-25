@@ -1,10 +1,13 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { fluencyIssues } from "@/lib/learning/lesson-teach";
 import { extractMisconceptions } from "@/lib/learning/teaching-standards";
 import {
   dontKnowNote,
   gradeOralExam,
   isDontKnow,
+  oralReviewItemFromGrade,
+  presentOralReview,
   syllabusWeightLine,
   visibleProbe,
 } from "@/lib/learning/oral-exam";
@@ -210,6 +213,184 @@ describe("oral exam grading is grounded for every subject", () => {
     expect(chemistry).toMatch(/olmayan konu/);
     expect(law).toContain("Borçlar Hukuku");
     expect(law).toContain("Anayasa");
+  });
+
+  it("gives full marks to a correct typed calculation and never prints a score label", () => {
+    const report = gradeOralExam(
+      [
+        {
+          prompt: "88 gram karbondioksit kaç moldür?",
+          learningObjective: "Mol hesabı",
+          expectedPoints: ["Tam 2"],
+          sourceFile: "foto-1.jpg",
+          sourcePage: "s.1",
+        },
+        {
+          prompt: "1 mol su kaç gramdır?",
+          expectedPoints: ["Tam 2", "2 puan"],
+        },
+      ],
+      {
+        "0": "n = m/M = 88 g / 44 g·mol⁻¹ = 2 mol CO₂",
+        "1": "M = 2×1 + 16 = 18 g/mol, yani 1 mol H₂O 18 g",
+      },
+      "Mol kütlesi CO₂ için 44 g/mol, H₂O için 18 g/mol.",
+    );
+    expect(report.pct).toBe(100);
+    expect(report.fullCount).toBe(2);
+    expect(report.items.every((item) => item.verdict === "dogru")).toBe(true);
+    for (const item of report.items) {
+      const review = oralReviewItemFromGrade(item);
+      expect(review.solution).not.toMatch(/Tam 2/);
+      expect(review.solution.length).toBeGreaterThan(8);
+      expect(review.missing ?? "").not.toMatch(/Tam 2/);
+    }
+  });
+
+  it("caps a hollow announced example and still credits a finished equality", () => {
+    const hollow = gradeOralExam(
+      [{ prompt: "İki artı iki kaç eder?", expectedPoints: ["Tam 2"] }],
+      { "0": "Örnek: 2 + 2 = 4." },
+      "Toplama işlemi kaynakta anlatılır.",
+    );
+    expect(hollow.items[0]?.ratio).toBe(0.5);
+    expect(hollow.items[0]?.verdict).toBe("kismen");
+    expect(hollow.items[0]?.gap).toMatch(/Örnek yarım/);
+    const finished = gradeOralExam(
+      [{ prompt: "0,25 mol kaç gramdır?", expectedPoints: ["Tam 2"] }],
+      { "0": "m = n × M = 0,25 mol × 98 g/mol = 24,5 g." },
+      "Mol kütlesi 98 g/mol.",
+    );
+    expect(finished.pct).toBe(100);
+    expect(finished.items[0]?.gap).toBe("");
+  });
+
+  it("does not publish a model answer that fails the fluency gate", () => {
+    const report = gradeOralExam(
+      [
+        {
+          prompt: "Mol hesabı neye bağlanır?",
+          expectedPoints: ["Mol hesabında kullanılan kütle ve verilen miktar arasındaki bağlantı yalnızca sayı."],
+        },
+      ],
+      { "0": "" },
+      "Mol hesabı anlatılır.",
+    );
+    expect(report.items[0]?.modelAnswer).not.toMatch(/yalnızca sayı/);
+    expect(fluencyIssues(report.items[0]?.modelAnswer ?? "")).toEqual([]);
+  });
+
+  it("explains a wrong arithmetic answer instead of repeating a rubric label", () => {
+    const report = gradeOralExam(
+      [
+        {
+          prompt: "Dört artı bir kaç eder?",
+          learningObjective: "Toplama",
+          expectedPoints: ["Tam 2"],
+        },
+      ],
+      { "0": "4 + 1 = 6" },
+      "Toplama işlemi kaynakta anlatılır.",
+    );
+    const item = report.items[0];
+    expect(item?.ratio).toBe(0);
+    expect(item?.verdict).toBe("yanlis");
+    expect(item?.gap || item?.modelAnswer || item?.numericIssue).toMatch(/6|5/);
+    const review = oralReviewItemFromGrade(item!);
+    expect(review.solution).not.toMatch(/Tam 2/);
+    expect(review.solution).toMatch(/5|hesap|6/);
+  });
+
+  it("does not render a garbled review string", () => {
+    const shown = presentOralReview({
+      question: "Soru 2",
+      answer: "88 g / 44 = 2",
+      solution: "Tam 2 Hatanız şuradaydı: Tam 2",
+      missing: "Tam 2",
+      citation: "foto-1.jpg · s.1",
+      scoreLabel: "%0 puan",
+    });
+    expect(shown.solution).toBe("Bu cevap için ayrıntılı inceleme kurulamadı.");
+    expect(shown.solution).not.toMatch(/Tam 2/);
+    expect(shown.missing).toBeUndefined();
+    expect(shown.citation).toBeNull();
+  });
+
+  it("asks the helpful teacher once when the answer skips the step", () => {
+    const hedge = visibleProbe({
+      answer: "Mol oranını ayrıca hesaplamadım; bu adımı boş bıraktım ve sonra döneceğim.",
+      question: "Hangisi sınırlayıcı bileşendir?",
+      probeKind: "detail",
+      persona: "helpful",
+      alreadyProbed: false,
+      hint: "Katsayıya böl.",
+    });
+    expect(hedge?.question).toBe("Eksik kalan adımı da yazar mısın?");
+    expect(hedge?.hint).toBe("Katsayıya böl.");
+    const complete = visibleProbe({
+      answer: "n = m/M = 88 g / 44 g·mol⁻¹ = 2 mol CO₂",
+      question: "88 gram karbondioksit kaç moldür?",
+      probeKind: "detail",
+      persona: "helpful",
+      alreadyProbed: false,
+      hint: "Mol kütlesi 44.",
+    });
+    expect(complete).toBeNull();
+    expect(
+      visibleProbe({
+        answer: "Mol oranını ayrıca hesaplamadım",
+        question: "Hangisi sınırlayıcı bileşendir?",
+        probeKind: "detail",
+        persona: "strict",
+        alreadyProbed: false,
+        hint: "Katsayıya böl.",
+      })?.hint,
+    ).toBeNull();
+  });
+
+  it("files only a real miss under the topic that was tested", () => {
+    const report = gradeOralExam(
+      [
+        {
+          prompt: "88 gram karbondioksit kaç moldür?",
+          expectedPoints: ["Tam 2"],
+        },
+        {
+          prompt: "İrade sakatlığı halleri nelerdir?",
+          learningObjective: "İrade sakatlığı",
+          expectedPoints: ["hata, hile ve ikrah"],
+        },
+      ],
+      {
+        "0": "n = m/M = 88 g / 44 g·mol⁻¹ = 2 mol CO₂",
+        "1": "Yalnızca hata.",
+      },
+      `${chemistrySource}\n${lawSource}`,
+    );
+    const drafts = extractMisconceptions({
+      kind: "oral",
+      topicLabel: "Mol kavramı ve Avogadro sayısı",
+      payload: {
+        type: "oral",
+        testedTopic: "Stokiyometri: sınırlayıcı bileşen ve verim",
+        questions: [
+          { prompt: "88 gram karbondioksit kaç moldür?", expectedPoints: ["Tam 2"] },
+          {
+            prompt: "İrade sakatlığı halleri nelerdir?",
+            expectedPoints: ["hata, hile ve ikrah"],
+          },
+        ],
+        gradeMeta: report,
+      },
+      answers: {
+        "0": "n = m/M = 88 g / 44 g·mol⁻¹ = 2 mol CO₂",
+        "1": "Yalnızca hata.",
+      },
+    });
+    expect(drafts.some((draft) => draft.claim.includes("88"))).toBe(false);
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]?.topicLabel).toBe("Stokiyometri: sınırlayıcı bileşen ve verim");
+    expect(drafts[0]?.wrongType).toBe("oral_miss");
   });
 
   it("writes a misconception draft the review queue can store", () => {
