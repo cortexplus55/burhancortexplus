@@ -10,6 +10,7 @@
 import { foldTr } from "@/lib/documents/page-analysis";
 import { restoreMathNotation } from "@/lib/learning/lesson-board";
 import { unsupportedQuantities } from "@/lib/learning/teacher-brain";
+import { retainAnchoredSentences } from "@/lib/learning/lesson-coherence";
 import {
   definitionalInversionIssues,
   mistakeTeachesInversion,
@@ -91,7 +92,10 @@ function cleanProse(text: string, source: string, removed: string[], field: stri
     removed.push(`${field}:${reason}`);
     return false;
   });
-  return kept.join(" ").replace(/\s+/g, " ").trim();
+  // Silinen cümlenin göndereni gidince "Bu sayı" / "Böylece" de düşer.
+  const anchored = retainAnchoredSentences(kept);
+  if (anchored.length < kept.length) removed.push(`${field}:dangling`);
+  return anchored.join(" ").replace(/\s+/g, " ").trim();
 }
 
 /**

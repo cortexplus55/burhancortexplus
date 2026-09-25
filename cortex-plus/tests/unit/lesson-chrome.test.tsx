@@ -152,6 +152,11 @@ describe("ExamLessonSteps", () => {
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     expect(screen.getByText("Sınır nedir?")).toBeTruthy();
+    expect(screen.getByLabelText("Önce kendin yaz")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Önce kendin yaz"), { target: { value: "yüzey" } });
+    expect(screen.queryByText("Sistemi çevreden ayıran yüzey.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Çözümü göster" }));
+    expect(screen.getByText("Sistemi çevreden ayıran yüzey.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     expect(screen.getByText("Tekrar")).toBeTruthy();

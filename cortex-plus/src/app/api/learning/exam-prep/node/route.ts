@@ -84,6 +84,10 @@ import {
 } from "@/lib/documents/topic-title";
 import { diagramIssues, needsDiagram } from "@/lib/learning/lesson-diagram";
 import { scoreLessonChecks } from "@/lib/learning/lesson-claims";
+import {
+  honestReadingMinutes,
+  shouldReplacePlannedMinutes,
+} from "@/lib/learning/lesson-coherence";
 import { repairLearnerLesson, scopeLessonToTopic, type LessonCheckCode } from "@/lib/learning/lesson-repair";
 import { formulaMismatches, withoutMismatchedFormulas } from "@/lib/learning/formula-fidelity";
 import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
@@ -1445,6 +1449,22 @@ export async function POST(request: Request) {
 
   const total = countTotal(kind, payload);
 
+  if (kind === "lesson" && payload.type === "lesson" && payload.lesson && typeof payload.lesson === "object") {
+    const honest = honestReadingMinutes(payload.lesson as LessonV2);
+    const planned = sessionMeta?.durationMinutes;
+    if (typeof planned === "number" && shouldReplacePlannedMinutes(planned, honest)) {
+      const meta =
+        node.session_meta && typeof node.session_meta === "object" && !Array.isArray(node.session_meta)
+          ? { ...(node.session_meta as Record<string, unknown>) }
+          : {};
+      await service
+        .from("exam_prep_nodes")
+        .update({ session_meta: { ...meta, durationMinutes: honest } })
+        .eq("id", nodeId)
+        .then(undefined, () => undefined);
+    }
+  }
+
   if (teachingV2 && creatingAttemptId && generationId && clientRequestId) {
     const { data: readyAttempt, error: readyErr } = await service
       .from("exam_prep_node_attempts")
@@ -2078,7 +2098,11 @@ async function generateNodePayload(input: {
     const repairStarted = Date.now();
     const repair = await repairLearnerLesson(
       lesson,
-      { source: repairSource, topicLabel: input.topicLabel },
+      {
+        source: repairSource,
+        topicLabel: input.topicLabel,
+        targetMinutes: input.sessionMeta?.durationMinutes,
+      },
       (prompt) => repairCall(prompt, 1500),
       repairSource.trim() ? (prompt) => repairCall(prompt, 400) : undefined,
     );
