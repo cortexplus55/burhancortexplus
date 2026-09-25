@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formulaFidelityIssues,
   formulaMismatches,
+  withoutMismatchedFormulas,
 } from "@/lib/learning/formula-fidelity";
 
 /**
@@ -81,6 +82,22 @@ describe("formulaMismatches", () => {
     const kaynak = ["σ' 1 = σ' 3 + 40"];
     const ders = ["σ' 1 = σ' 3 + 40"];
     expect(formulaMismatches(ders, kaynak)).toEqual([]);
+  });
+
+  it("does not treat a symbolic quality relation as a mismatch against its numeric example", () => {
+    const kaynak = ["v = v_f + x*v_fg = 0.001 + 0.80×1.67"];
+    const ders = ["Karışımın hacmi v = v_f + x·v_fg bağıntısıyla yazılır."];
+    expect(formulaMismatches(ders, kaynak)).toEqual([]);
+  });
+
+  it("still drops a structural coefficient the lesson left out", () => {
+    const text =
+      "Derinlikteki artış ayrı bir konudur. Δσ z = (Q/π) × (1/(1 + (z/R)²)) burada Q yüzeydeki yüktür. " +
+      "Boşluk oranı e = Vv / Vs olarak tanımlanır.";
+    const kept = withoutMismatchedFormulas(text, zeminSayfa12);
+    expect(kept).not.toMatch(/Δσ/);
+    expect(kept).toMatch(/Boşluk oranı/);
+    expect(formulaMismatches([kept], zeminSayfa12)).toEqual([]);
   });
 
   it("tells the model both versions so it can fix itself", () => {
