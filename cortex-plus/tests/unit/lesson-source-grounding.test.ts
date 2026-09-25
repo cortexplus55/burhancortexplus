@@ -106,7 +106,8 @@ describe("teacher note versus node pages", () => {
       expect(source).toContain("SOURCE_PAGE_FORMULA_RULE");
     }
     const podcast = node.slice(node.indexOf('input.kind === "podcast"'));
-    expect(podcast).toContain("podcastDraftForVerifier");
+    expect(podcast).toContain("generatePodcastEpisode");
+    expect(readFileSync("src/lib/learning/podcast-episode.ts", "utf8")).toContain("auditQuantitative");
     expect(node.indexOf("teacherNoteGroundedInSource")).toBeLessThan(
       node.indexOf('input.kind === "podcast"'),
     );

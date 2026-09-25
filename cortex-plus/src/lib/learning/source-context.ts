@@ -173,6 +173,38 @@ function formulaFitsSlice(formula: string, slice: string): boolean {
   return numbers.every((number) => have.has(number));
 }
 
+/**
+ * Aynı sayfa listesini hazırlıktaki belgelerde sırayla dener.
+ *
+ * Çok belgeli hazırlıkta düğümün sayfaları prep.document_id'de durmayabilir.
+ * İlk belgede sayfa yok diye üretimi kesmek, doğru belgedeki metni hiç okumamak olur.
+ */
+export async function loadPageSourceAcrossDocuments(
+  service: SupabaseClient,
+  userId: string,
+  documentIds: Array<string | null | undefined>,
+  pageNumbers: number[] | undefined,
+  options: { sourceBoundaryMode?: "documents_only" | "allow_supporting" | null; topicLabel?: string } = {},
+): Promise<SourceContext> {
+  const ids = [...new Set(documentIds.filter((id): id is string => Boolean(id)))];
+  if (!ids.length || !pageNumbers?.length) return EMPTY_SOURCE_CONTEXT;
+  let missing = false;
+  for (const documentId of ids) {
+    try {
+      const source = await loadPageSourceContext(service, userId, documentId, pageNumbers, options);
+      if (source.block.trim()) return source;
+    } catch (error) {
+      if (error instanceof SourceUnavailableError) {
+        missing = true;
+        continue;
+      }
+      throw error;
+    }
+  }
+  if (missing) throw new SourceUnavailableError();
+  return EMPTY_SOURCE_CONTEXT;
+}
+
 export async function loadPageSourceContext(
   service: SupabaseClient,
   userId: string,

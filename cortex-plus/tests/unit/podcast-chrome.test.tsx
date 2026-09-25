@@ -27,6 +27,9 @@ describe("podcast oynatıcı kabuğu", () => {
     expect(player).toContain("const SKIP_MS = 15_000");
     expect(player).toContain("const SPEEDS = [1, 1.25, 1.5, 2]");
     expect(player).toContain("cycleSpeed");
+    expect(player).toContain("İndir");
+    expect(player).toContain("mediaSession");
+    expect(player).toContain("resumeKey");
   });
 
   it("oynatma bitmeden de devam edilebiliyor", () => {

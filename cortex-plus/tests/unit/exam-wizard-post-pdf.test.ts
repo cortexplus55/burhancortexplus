@@ -142,6 +142,9 @@ describe("post-PDF wizard order", () => {
       lessonRoute.indexOf('if (input.kind === "oral")', podcastStart),
     );
     expect(podcastBlock).not.toContain("REVIEW_VARIANT_RULE");
-    expect(podcastBlock).toContain("podcastDraftForVerifier");
+    expect(podcastBlock).toContain("generatePodcastEpisode");
+    const episode = readFileSync("src/lib/learning/podcast-episode.ts", "utf8");
+    expect(episode).toContain("auditQuantitative");
+    expect(episode).toContain("podcastNumbersOutsideLesson");
   });
 });

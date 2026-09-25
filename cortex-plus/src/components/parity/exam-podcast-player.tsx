@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AlignLeft, ChevronLeft, Pause, Play, SkipBack, X } from "lucide-react";
+import { AlignLeft, ChevronLeft, Download, Pause, Play, SkipBack, X } from "lucide-react";
 import {
   SPEAKER_LABEL,
   buildTimeline,
@@ -82,6 +82,7 @@ export function ExamPodcastPlayer({
   onClose,
   finishing,
   embed = false,
+  resumeKey,
 }: {
   title: string;
   chapters: unknown[];
@@ -91,6 +92,8 @@ export function ExamPodcastPlayer({
   finishing?: boolean;
   /** Sonuç ekranındaki "Şimdi dinle" — tam sayfa yüksekliği zorlamasın. */
   embed?: boolean;
+  /** Aynı hazırlık ve konuda kaldığı yerden devam. */
+  resumeKey?: string;
 }) {
   const normalized = useMemo(() => normalizeChapters(chapters), [chapters]);
   const [audio, setAudio] = useState<AudioLine[] | null>(null);
@@ -242,6 +245,8 @@ export function ExamPodcastPlayer({
       element.pause();
       element.src = line.url;
       element.playbackRate = speed;
+      element.preload = "auto";
+      element.setAttribute("playsinline", "true");
       element.currentTime = Math.max(0, offsetMs) / 1000;
 
       element.ontimeupdate = () => {
@@ -255,6 +260,14 @@ export function ExamPodcastPlayer({
           setPlaying(false);
           setHeard(true);
           setPositionMs(totalMs);
+          return;
+        }
+        const hold = timeline[index]?.beat === "ask" ? 4_000 : 0;
+        if (hold) {
+          window.setTimeout(() => {
+            if (token !== tokenRef.current) return;
+            playFromLine(index + 1);
+          }, hold);
           return;
         }
         playFromLine(index + 1);
@@ -280,6 +293,27 @@ export function ExamPodcastPlayer({
   useEffect(() => {
     if (elementRef.current) elementRef.current.playbackRate = speed;
   }, [speed]);
+
+  const resumeStorageKey = resumeKey ? `cp-pod-pos:${resumeKey}` : null;
+  const resumedRef = useRef(false);
+  const savedSecondRef = useRef(-1);
+
+  useEffect(() => {
+    if (!resumeStorageKey || status !== "ready" || resumedRef.current) return;
+    resumedRef.current = true;
+    const saved = Number(window.localStorage.getItem(resumeStorageKey));
+    if (Number.isFinite(saved) && saved > 800 && saved < totalMs - 800) {
+      setPositionMs(saved);
+    }
+  }, [resumeStorageKey, status, totalMs]);
+
+  useEffect(() => {
+    if (!resumeStorageKey || positionMs < 800) return;
+    const second = Math.floor(positionMs / 1000);
+    if (savedSecondRef.current === second) return;
+    savedSecondRef.current = second;
+    window.localStorage.setItem(resumeStorageKey, String(Math.round(positionMs)));
+  }, [resumeStorageKey, positionMs]);
 
   function seekTo(ms: number) {
     if (!audio) return;
@@ -326,6 +360,78 @@ export function ExamPodcastPlayer({
   function cycleSpeed() {
     const index = SPEEDS.indexOf(speed);
     setSpeed(SPEEDS[(index + 1) % SPEEDS.length]);
+  }
+
+  const controlsRef = useRef({ toggle, seekTo, cycleSpeed });
+  controlsRef.current = { toggle, seekTo, cycleSpeed };
+  const positionRef = useRef(0);
+  positionRef.current = positionMs;
+  const playingRef = useRef(false);
+  playingRef.current = playing;
+
+  useEffect(() => {
+    if (status !== "ready" || typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    const session = navigator.mediaSession;
+    session.metadata = new MediaMetadata({
+      title,
+      artist: "Cortex Plus",
+      album: "Podcast",
+    });
+    const bind = (action: MediaSessionAction, run: MediaSessionActionHandler | null) => {
+      try {
+        session.setActionHandler(action, run);
+      } catch {
+        // Bu tarayıcı eylemi tanımıyor.
+      }
+    };
+    bind("play", () => {
+      if (!playingRef.current) controlsRef.current.toggle();
+    });
+    bind("pause", () => {
+      if (!playingRef.current) return;
+      tokenRef.current += 1;
+      elementRef.current?.pause();
+      setPlaying(false);
+    });
+    bind("seekbackward", () => controlsRef.current.seekTo(positionRef.current - SKIP_MS));
+    bind("seekforward", () => controlsRef.current.seekTo(positionRef.current + SKIP_MS));
+    return () => {
+      bind("play", null);
+      bind("pause", null);
+      bind("seekbackward", null);
+      bind("seekforward", null);
+    };
+  }, [status, title]);
+
+  async function downloadEpisode() {
+    const transcriptText = normalized
+      .map((chapter) => `${chapter.title}\n${chapter.lines.map((line) => line.text).join("\n")}`)
+      .join("\n\n");
+    const save = (blob: Blob, name: string) => {
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = name;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    };
+    const safeName = title.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "podcast";
+    if (audio?.length) {
+      try {
+        const blobs = await Promise.all(
+          audio.map(async (line) => {
+            const res = await fetch(line.url);
+            if (!res.ok) throw new Error("audio");
+            return res.blob();
+          }),
+        );
+        save(new Blob(blobs, { type: "audio/mpeg" }), `${safeName}.mp3`);
+        return;
+      } catch {
+        // Ses dosyası tarayıcıdan birleşmezse transkript iner.
+      }
+    }
+    save(new Blob([transcriptText], { type: "text/plain;charset=utf-8" }), `${safeName}.txt`);
   }
 
   if (!normalized.length) {
@@ -393,8 +499,19 @@ export function ExamPodcastPlayer({
           <article className="cp-pod-script-col">
             <h1 className="cp-pod-script-title">{heading}</h1>
             <div className="cp-pod-script" ref={scriptRef}>
-              {chaptersInOrder.map(({ lines }, chapterIndex) => (
-                <p key={chapterIndex}>
+              {chaptersInOrder.map(({ chapter, lines }, chapterIndex) => (
+                <section key={chapterIndex}>
+                  <h2>
+                    <button
+                      type="button"
+                      className="cp-pod-chapter-jump"
+                      disabled={!ready}
+                      onClick={() => seekTo(lines[0]?.line.startMs ?? 0)}
+                    >
+                      {chapter.title}
+                    </button>
+                  </h2>
+                  <div className="cp-pod-script-lines">
                   {lines.map(({ line, index }) => (
                     <span key={index}>
                       <span className="cp-pod-who-sr">
@@ -405,6 +522,12 @@ export function ExamPodcastPlayer({
                           : SPEAKER_LABEL[line.speaker]}
                         :{" "}
                       </span>
+                      <button
+                        type="button"
+                        className="cp-pod-line-jump"
+                        disabled={!ready}
+                        onClick={() => seekTo(line.startMs)}
+                      >
                       {ready && index === activeIndex && activeWords.length ? (
                         activeWords.map((word, wordIndex) => (
                           <span
@@ -428,24 +551,53 @@ export function ExamPodcastPlayer({
                           {line.text}{" "}
                         </span>
                       )}
+                      </button>
                     </span>
                   ))}
-                </p>
+                  </div>
+                </section>
               ))}
             </div>
           </article>
         ) : (
           <>
-            <div className={cn("cp-pod-orb", playing && "is-on")} aria-hidden />
+            <div className={cn("cp-pod-orb", playing && "is-on")} aria-hidden>
+              <span className="cp-pod-orb-ring" />
+            </div>
+            {activeLine?.beat === "ask" ? <p className="cp-pod-beat">Dur ve düşün</p> : null}
             <p className="cp-pod-excerpt">{excerpt}</p>
-            <button
-              type="button"
-              className="cp-pod-script-btn"
-              onClick={() => setTranscript(true)}
-            >
-              <AlignLeft className="h-3.5 w-3.5" aria-hidden />
-              Tam transkript
-            </button>
+            <nav className="cp-pod-chapters" aria-label="Bölümler">
+              {normalized.map((chapter, chapterIndex) => {
+                const start =
+                  timeline.find((line) => line.chapterIndex === chapterIndex)?.startMs ?? 0;
+                const current = (timeline[activeIndex]?.chapterIndex ?? 0) === chapterIndex;
+                return (
+                  <button
+                    key={chapter.title + chapterIndex}
+                    type="button"
+                    className={cn("cp-pod-chapter", current && "is-on")}
+                    disabled={!ready}
+                    onClick={() => seekTo(start)}
+                  >
+                    {chapter.title}
+                  </button>
+                );
+              })}
+            </nav>
+            <div className="cp-pod-tools">
+              <button
+                type="button"
+                className="cp-pod-script-btn"
+                onClick={() => setTranscript(true)}
+              >
+                <AlignLeft className="h-3.5 w-3.5" aria-hidden />
+                Tam transkript
+              </button>
+              <button type="button" className="cp-pod-script-btn" onClick={() => void downloadEpisode()}>
+                <Download className="h-3.5 w-3.5" aria-hidden />
+                İndir
+              </button>
+            </div>
           </>
         )}
       </div>
