@@ -5,6 +5,7 @@
 
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import type { MeasuredLevel } from "@/lib/learning/diagnostic";
+import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 
 export type ScheduleSessionRole = "learn" | "practice" | "review" | "mock";
 
@@ -20,6 +21,8 @@ export type ScheduleTopicInput = {
   selfHard?: boolean;
   /** Explicit priority 1 (high) .. 5 (low). */
   priority?: number | null;
+  /** Birleşmiş konunun dayandığı dosyalar. Takvim bunu okumaz. */
+  sourceRefs?: TopicSourceRef[];
 };
 
 export type ScheduleBuildInput = {

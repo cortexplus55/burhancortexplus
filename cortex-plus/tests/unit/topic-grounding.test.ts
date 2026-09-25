@@ -75,8 +75,9 @@ describe("mergeTopicDrafts", () => {
         { id: "d", title: "Solunum", pages: [4] },
       ],
     ]);
-    expect(merged.topics).toEqual(["Fotosentez", "Hücre zarı", "Fotosentez (3)", "Solunum"]);
-    expect(merged.topicPages).toEqual([[1], [2], [3], [4]]);
+    expect(merged.topics).toEqual(["Fotosentez", "Hücre zarı", "Solunum"]);
+    expect(merged.topicPages).toEqual([[1, 3], [2], [4]]);
+    expect(merged.sources[0]?.map((source) => source.nodeId)).toEqual(["a", "c"]);
   });
 });
 
@@ -149,7 +150,7 @@ describe("prep create keeps stored analysis", () => {
     expect(create).toContain("applyStudentTopicList");
     expect(create).not.toContain("topics = loaded.titles");
     expect(create).not.toContain("runTeacherAnalysis");
-    expect(intake).toContain("mergeTopicDrafts");
+    expect(intake).toContain("mergeTopicGroups");
     expect(intake).not.toContain("runTeacherAnalysis");
   });
 });

@@ -33,6 +33,7 @@ import {
   DOCUMENT_PICK_REJECTED,
   DOCUMENT_UPLOAD_HINT,
 } from "@/lib/documents/upload-labels";
+import { PhoneUploadPanel } from "@/components/parity/phone-upload-panel";
 import "@/styles/exam-create-wizard.css";
 
 type Step =
@@ -65,10 +66,20 @@ const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
+  "image/heic",
+  "image/heif",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "text/plain",
 ];
+
+const FILE_EXTENSIONS = [".pdf", ".txt", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".docx", ".pptx"];
+
+function acceptedUpload(file: File): boolean {
+  if (ALLOWED_TYPES.includes(file.type)) return true;
+  const name = file.name.toLowerCase();
+  return FILE_EXTENSIONS.some((extension) => name.endsWith(extension));
+}
 const MAX_BYTES = 15 * 1024 * 1024;
 
 const WEEKDAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
@@ -156,6 +167,10 @@ export function ExamCreateWizard({
   const [topics, setTopics] = useState<string[]>([]);
   /** Her konunun dayandığı sayfalar; öğrenci neye dayandığını görsün. */
   const [topicPages, setTopicPages] = useState<number[][]>([]);
+  const [topicFiles, setTopicFiles] = useState<string[][]>([]);
+  const [topicWarnings, setTopicWarnings] = useState<string[]>([]);
+  /** Öğrenci oklarla sırayı değiştirdiyse önkoşul sırası ezilmez. */
+  const [orderEdited, setOrderEdited] = useState(false);
   const [focusTopics, setFocusTopics] = useState<string[]>([]);
   const [title, setTitle] = useState("");
 
@@ -253,6 +268,11 @@ export function ExamCreateWizard({
         const found: string[] = payload?.draft?.topics ?? [];
         setTopics(found);
         setTopicPages(payload?.draft?.topicPages ?? []);
+        setTopicFiles(Array.isArray(payload?.draft?.topicFiles) ? payload.draft.topicFiles : []);
+        setTopicWarnings(
+          Array.isArray(payload?.draft?.topicWarnings) ? payload.draft.topicWarnings : [],
+        );
+        setOrderEdited(false);
         setTitle(payload?.draft?.title || `${subject} sınav hazırlığı`);
       } catch {
         setTopics([]);
@@ -334,7 +354,7 @@ export function ExamCreateWizard({
       toast.error(WIZARD_COPY.fileCap);
       return false;
     }
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    if (!acceptedUpload(file)) {
       toast.error(DOCUMENT_PICK_REJECTED);
       return false;
     }
@@ -397,6 +417,7 @@ export function ExamCreateWizard({
           targetScore: target,
           documentId: documentIds[0],
           documentIds,
+          topicOrderManual: orderEdited,
           hardTopics: equalFocus ? [] : focusTopics,
           learningPreferences: {
             style:
@@ -592,8 +613,9 @@ export function ExamCreateWizard({
         <section className="apw-step">
           <h1>Neyden çalışacaksın?</h1>
           <p className="apw-lead">
-            Ders notunu yükle; konular, sorular ve podcast senin materyalinden
-            çıkar.
+            PDF, Word, slayt ya da fotoğraf yükle. El yazısı not, basılı sayfa
+            ve slayt fotoğrafı (JPG, PNG, HEIC) de olur. Konular senin
+            materyalinden çıkar.
           </p>
 
           <div
@@ -628,7 +650,7 @@ export function ExamCreateWizard({
               type="file"
               multiple
               className="hidden"
-              accept=".pdf,.txt,.png,.jpg,.jpeg,.webp,.docx,.pptx"
+              accept=".pdf,.txt,.png,.jpg,.jpeg,.webp,.heic,.heif,.docx,.pptx,image/heic,image/heif"
               onChange={(e) => {
                 void takeFiles(e.target.files ?? undefined);
                 e.target.value = "";
@@ -833,9 +855,14 @@ export function ExamCreateWizard({
           <TopicEditor
             topics={topics}
             topicPages={topicPages}
+            topicFiles={topicFiles}
+            topicWarnings={topicWarnings}
             documentIds={documentIds}
             onTopics={setTopics}
             onPages={setTopicPages}
+            onFiles={setTopicFiles}
+            onWarnings={setTopicWarnings}
+            onOrderEdited={() => setOrderEdited(true)}
             onRename={(from, to) =>
               setFocusTopics((prev) =>
                 prev
@@ -945,9 +972,14 @@ export function ExamCreateWizard({
           <TopicEditor
             topics={topics}
             topicPages={topicPages}
+            topicFiles={topicFiles}
+            topicWarnings={topicWarnings}
             documentIds={documentIds}
             onTopics={setTopics}
             onPages={setTopicPages}
+            onFiles={setTopicFiles}
+            onWarnings={setTopicWarnings}
+            onOrderEdited={() => setOrderEdited(true)}
             onRename={(from, to) =>
               setFocusTopics((prev) =>
                 prev
@@ -983,17 +1015,27 @@ export function ExamCreateWizard({
 function TopicEditor({
   topics,
   topicPages,
+  topicFiles,
+  topicWarnings,
   documentIds,
   onTopics,
   onPages,
+  onFiles,
+  onWarnings,
+  onOrderEdited,
   onRename,
   onRemove,
 }: {
   topics: string[];
   topicPages: number[][];
+  topicFiles: string[][];
+  topicWarnings: string[];
   documentIds: string[];
   onTopics: (next: string[]) => void;
   onPages: (next: number[][]) => void;
+  onFiles: (next: string[][]) => void;
+  onWarnings: (next: string[]) => void;
+  onOrderEdited: () => void;
   onRename: (from: string, to: string) => void;
   onRemove: (title: string) => void;
 }) {
@@ -1091,6 +1133,8 @@ function TopicEditor({
     }
     onTopics([...topics, title]);
     onPages([...topicPages, result.pageNumbers]);
+    onFiles([...topicFiles, []]);
+    onWarnings([...topicWarnings, ""]);
     close();
   }
 
@@ -1100,6 +1144,8 @@ function TopicEditor({
     onRemove(title);
     onTopics(topics.filter((_, item) => item !== index));
     onPages(topicPages.filter((_, item) => item !== index));
+    onFiles(topicFiles.filter((_, item) => item !== index));
+    onWarnings(topicWarnings.filter((_, item) => item !== index));
   }
 
   function move(index: number, delta: number) {
@@ -1111,8 +1157,17 @@ function TopicEditor({
     const pages = [...topicPages];
     const [page] = pages.splice(index, 1);
     pages.splice(next, 0, page ?? []);
+    const files = [...topicFiles];
+    const [file] = files.splice(index, 1);
+    files.splice(next, 0, file ?? []);
+    const warnings = [...topicWarnings];
+    const [warning] = warnings.splice(index, 1);
+    warnings.splice(next, 0, warning ?? "");
     onTopics(reordered);
     onPages(pages);
+    onFiles(files);
+    onWarnings(warnings);
+    onOrderEdited();
   }
 
   return (
@@ -1122,8 +1177,13 @@ function TopicEditor({
           <li key={`${index}-${topic}`}>
             <span className="apw-topic-field">
               <strong>{topic}</strong>
-              {topicPages[index]?.length ? (
+              {topicFiles[index]?.length ? (
+                <em>Kaynak: {topicFiles[index].join(", ")}</em>
+              ) : topicPages[index]?.length ? (
                 <em>Kaynak: s.{topicPages[index].join(", ")}</em>
+              ) : null}
+              {topicWarnings[index] ? (
+                <em className="apw-topic-warning">{topicWarnings[index]}</em>
               ) : null}
             </span>
             <span className="apw-topic-actions">
@@ -1232,94 +1292,6 @@ function TopicEditor({
         </div>
       ) : null}
     </>
-  );
-}
-
-function PhoneUploadPanel({
-  onClose,
-  onReady,
-}: {
-  onClose: () => void;
-  onReady: (doc: { documentId: string; fileName: string }) => void;
-}) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [qr, setQr] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const onReadyRef = useRef(onReady);
-  onReadyRef.current = onReady;
-
-  useEffect(() => {
-    let cancelled = false;
-    let poll: ReturnType<typeof setInterval> | undefined;
-
-    fetch("/api/uploads/phone-session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ purpose: "hazirlik" }),
-    })
-      .then(async (res) => {
-        const payload = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(payload.error ?? "session");
-        if (cancelled) return;
-        setUrl(payload.uploadUrl as string);
-        setQr((payload.qr as string) ?? null);
-        const token = payload.token as string;
-        poll = setInterval(async () => {
-          const statusRes = await fetch(`/api/uploads/phone-session/${token}`);
-          const status = await statusRes.json().catch(() => ({}));
-          if (!statusRes.ok || cancelled) return;
-          if (status.expired) {
-            setError(WIZARD_COPY.phoneExpired);
-            if (poll) clearInterval(poll);
-            return;
-          }
-          if (status.ready && status.documentId) {
-            if (poll) clearInterval(poll);
-            onReadyRef.current({
-              documentId: status.documentId as string,
-              fileName: (status.fileName as string) ?? "Telefon yüklemesi",
-            });
-          }
-        }, 2000);
-      })
-      .catch(() => {
-        if (!cancelled) setError(WIZARD_COPY.phoneFailed);
-      });
-
-    return () => {
-      cancelled = true;
-      if (poll) clearInterval(poll);
-    };
-  }, []);
-
-  return (
-    <div className="apw-phone">
-      <p className="apw-drop-hint">{WIZARD_COPY.phoneLead}</p>
-      {url && qr ? (
-        <div className="apw-phone-qr">
-          {/* Sunucuda üretilen data URI — token dış servise gitmez. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qr} alt="Yükleme QR kodu" width={168} height={168} />
-          <button
-            type="button"
-            className="apw-drop-pick"
-            onClick={() =>
-              void navigator.clipboard.writeText(url).then(
-                () => toast.success("Bağlantı kopyalandı."),
-                () => toast.error("Bağlantı kopyalanamadı."),
-              )
-            }
-          >
-            {WIZARD_COPY.phoneCopy}
-          </button>
-        </div>
-      ) : (
-        <p className="apw-drop-hint">{error ?? WIZARD_COPY.phonePreparing}</p>
-      )}
-      <button type="button" className="apw-ghost" onClick={onClose}>
-        {WIZARD_COPY.phoneClose}
-      </button>
-    </div>
   );
 }
 

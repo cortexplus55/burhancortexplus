@@ -85,7 +85,7 @@ export function PhoneUploadClient({
           <>
             <p>
               {purpose === "hazirlik"
-                ? "PDF, Word, PowerPoint veya görsel seç; bilgisayardaki hazırlığa eklenir."
+                ? "PDF, Word, PowerPoint, JPG, PNG veya HEIC seç; bilgisayardaki hazırlığa eklenir."
                 : "Kameradan veya galeriden görseli seç; masaüstündeki sohbete düşer."}
             </p>
             <button
@@ -103,7 +103,7 @@ export function PhoneUploadClient({
           ref={inputRef}
           type="file"
           className="hidden"
-          accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,.docx,.pptx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.heic,.heif,application/pdf,text/plain,.docx,.pptx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation"
           onChange={(event) => {
             const file = event.target.files?.[0];
             event.target.value = "";

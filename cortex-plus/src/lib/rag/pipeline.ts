@@ -5,6 +5,7 @@ import {
   extractImageText,
   isImageDocument,
 } from "@/lib/documents/extract-image-text";
+import { visionReadyImage } from "@/lib/documents/vision-image";
 import { renderPdfPages } from "@/lib/documents/render-pdf-pages";
 import {
   extractOfficeText,
@@ -172,7 +173,9 @@ export async function processDocument(
   if (isImageDocument(doc.mime_type)) {
     if (!(await claim(1))) return fail("photo_quota_exhausted");
 
-    const read = await extractImageText(buffer, doc.mime_type);
+    const prepared = await visionReadyImage(buffer, doc.mime_type);
+    if (!prepared) return failAndRelease("image_unreadable");
+    const read = await extractImageText(prepared.buffer, prepared.mimeType);
     recordVision(read.tokensIn, read.tokensOut, read.model);
 
     if (read.reason === "blocked") {

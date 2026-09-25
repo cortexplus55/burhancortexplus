@@ -33,9 +33,15 @@ const nextConfig: NextConfig = {
     bırakılınca çalışma anında `require` ediliyor. `outputFileTracingIncludes`
     zaten ikiliyi dağıtıma kopyalıyor.
   */
-  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
+  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas", "heic-convert", "heic-decode", "libheif-js"],
   outputFileTracingIncludes: {
-    "/api/documents/process": ["./node_modules/pdfjs-dist/**/*", "./node_modules/@napi-rs/canvas*/**/*"],
+    "/api/documents/process": [
+      "./node_modules/pdfjs-dist/**/*",
+      "./node_modules/@napi-rs/canvas*/**/*",
+      "./node_modules/heic-convert/**/*",
+      "./node_modules/heic-decode/**/*",
+      "./node_modules/libheif-js/**/*",
+    ],
     "/api/ai/chat": ["./node_modules/pdfjs-dist/**/*", "./node_modules/@napi-rs/canvas*/**/*"],
   },
   /*
