@@ -141,6 +141,7 @@ export function OralAnswerDesk({
       persona,
       alreadyProbed: false,
       hint,
+      question: prompt,
     });
     if (next) {
       mainAnswer.current = value.trim();

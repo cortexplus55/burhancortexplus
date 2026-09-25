@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { refineVerifiedChoices, verifyPracticeQuestions } from "@/lib/learning/question-verifier";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -69,7 +70,48 @@ export async function POST(request: Request) {
       const result = resultSchema.safeParse(raw);
       if (!result.success) return null;
       const valid = result.data.questions.filter((q) => q.options.includes(q.correct));
-      return valid.length ? { questions: valid } : null;
+      const verified = verifyPracticeQuestions(
+        valid.map((question) => ({
+          question: question.text,
+          options: question.options,
+          correct: question.correct,
+          multi: question.multi,
+        })),
+      );
+      if (!verified) return null;
+      return {
+        questions: verified.map((question) => ({
+          text: question.question,
+          options: question.options,
+          correct: question.correct,
+          multi: question.multi,
+          needsSolver: question.needsSolver,
+        })),
+      };
+    },
+    refineParsed: async (value, ask) => {
+      const refined = await refineVerifiedChoices(
+        value.questions.map((question) => ({
+          text: question.text,
+          options: question.options,
+          correct: [question.correct],
+          multi: Boolean(question.multi),
+          needsSolver: question.needsSolver,
+        })),
+        ask,
+        "",
+        1,
+      );
+      if (!refined) return null;
+      return {
+        questions: refined.map((question) => ({
+          text: question.text,
+          options: question.options,
+          correct: question.correct[0] ?? question.options[0] ?? "",
+          multi: question.multi,
+          needsSolver: false,
+        })),
+      };
     },
   });
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { verifyFlashcard } from "@/lib/learning/question-verifier";
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
@@ -33,7 +34,12 @@ export async function POST(request: Request) {
     userPrompt: `Konu: ${parsedBody.data.topic}. ${parsedBody.data.count} adet çift yönlü kart üret. Ön yüz kısa soru/kavram, arka yüz net açıklama olsun.`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
-      return result.success ? result.data : null;
+      if (!result.success) return null;
+      const cards = result.data.cards.flatMap((card) => {
+        const checked = verifyFlashcard(card.front, card.back);
+        return checked ? [checked] : [];
+      });
+      return cards.length >= 4 ? { ...result.data, cards } : null;
     },
   });
 

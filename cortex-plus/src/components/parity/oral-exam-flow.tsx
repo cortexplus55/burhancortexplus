@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Check, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Flame, Info, MessageCircle, Sparkles, X } from "lucide-react";
+import { presentOralReview } from "@/lib/learning/oral-exam";
 import {
   formatTopicPct,
   letterGrade,
@@ -400,8 +401,10 @@ export function OralAnswerReview({
   onIndex: (index: number) => void;
   onClose: () => void;
 }) {
-  const item = items[index] ?? items[0];
-  const pctLabel = item?.scoreLabel ?? (item && item.answer ? "Yanıt alındı" : "%0 puan");
+  const raw = items[index] ?? items[0];
+  const item = raw ? presentOralReview(raw) : undefined;
+  const pctLabel = item?.scoreLabel ?? (item?.answer ? "Yanıt alındı" : "%0 puan");
+  const missed = item?.verdict === "yanlis" || item?.verdict === "bos";
   return (
     <section className="cp-oral">
       <header className="cp-oral-bar">
@@ -427,7 +430,7 @@ export function OralAnswerReview({
           <article className="cp-oral-review-card">
             <p className="cp-oral-review-kicker">CEVAP İNCELEMESİ</p>
             <h2>
-              <CircleCheck className="h-5 w-5" aria-hidden />
+              {missed ? <X className="h-5 w-5" aria-hidden /> : <CircleCheck className="h-5 w-5" aria-hidden />}
               Çözüm
             </h2>
             <p>

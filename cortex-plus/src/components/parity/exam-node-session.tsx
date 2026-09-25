@@ -47,6 +47,7 @@ import {
 import {
   minutesForOralLength,
   ORAL_ALL_TOPICS,
+  oralReviewItemFromGrade,
   type OralExamReport,
   type OralLength,
   type OralProbeKind,
@@ -89,6 +90,8 @@ type Payload = {
     multi?: boolean;
     correct?: string[];
     explanation?: string;
+    optionWhy?: string[];
+    misconceptionTag?: string;
     hint?: string;
     expectedPoints?: string[];
     probeKind?: OralProbeKind;
@@ -496,6 +499,9 @@ export function ExamNodeSession({
         return;
       }
       applyStartPayload(data);
+      if (typeof data.balance === "number") {
+        window.dispatchEvent(new CustomEvent("cortex-balance", { detail: data.balance }));
+      }
       setStage("play");
     } catch {
       setGenerationError("Bağlantı kurulamadı. Lütfen yeniden dene.");
@@ -666,20 +672,7 @@ export function ExamNodeSession({
     topicLabel || prepTitle,
   );
   const oralReviewItems = oralReport?.items?.length
-    ? oralReport.items.map((item) => ({
-        question: item.question,
-        answer: item.answer,
-        solution: item.dontKnow
-          ? `${item.modelAnswer} ${EMPTY_ORAL_ANSWER_NOTE}`
-          : item.numericIssue
-            ? `${item.modelAnswer} Hatanız şuradaydı: kaynakta olmayan sayı (${item.numericIssue}).`
-            : item.missing.length
-              ? `${item.modelAnswer} Hatanız şuradaydı: ${item.missing.join(" ")}`
-              : item.modelAnswer,
-        scoreLabel: `%${Math.round(item.ratio * 100)} puan`,
-        citation: item.citation,
-        missing: item.missing.join("; "),
-      }))
+    ? oralReport.items.map((item) => oralReviewItemFromGrade(item))
     : payload.type === "oral"
       ? reviewItemsFromQuestions(questions, answers)
       : reviewItemsFromTranscript(oralTranscript);
@@ -1021,6 +1014,8 @@ export function ExamNodeSession({
               multi: Boolean(question.multi),
               correct: isTimedExam ? undefined : question.correct,
               explanation: isTimedExam ? undefined : question.explanation,
+              optionWhy: isTimedExam ? undefined : question.optionWhy,
+              misconceptionTag: isTimedExam ? undefined : question.misconceptionTag,
             }))}
             index={index}
             value={answers[String(index)]}

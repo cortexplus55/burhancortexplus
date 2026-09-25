@@ -38,6 +38,7 @@ import {
 } from "@/lib/learning/oral-exam";
 import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
+import { verifyFlashcard } from "@/lib/learning/question-verifier";
 import { trueFalseItemsSchema, TRUE_FALSE_FORMAT } from "@/lib/learning/true-false";
 import {
   contentDifficultyLine,
@@ -1055,6 +1056,7 @@ export async function POST(request: Request) {
         topicLabel,
         voiceMode: false,
         payload: publicNodePayload(local.payload, lessonReviewCards, kind),
+        ...(await readWalletBalance(service, userId)),
       });
     }
     practiceTopics = local.topics;
@@ -1549,15 +1551,16 @@ export async function POST(request: Request) {
       await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
     }
 
-    return NextResponse.json(
-      attemptStartResponse(readyAttempt, {
+    return NextResponse.json({
+      ...attemptStartResponse(readyAttempt, {
         kind,
         title,
         topicLabel,
         publicPayload: publicNodePayload(payload, lessonReviewCards, kind),
         resumed: false,
       }),
-    );
+      ...(await readWalletBalance(service, userId)),
+    });
   }
 
   const baseAttempt = {
@@ -1619,6 +1622,7 @@ export async function POST(request: Request) {
     topicLabel,
     voiceMode,
     payload: publicNodePayload(payload, lessonReviewCards, kind),
+    ...(await readWalletBalance(service, userId)),
   });
 }
 
@@ -2299,7 +2303,7 @@ async function generateNodePayload(input: {
         ? 'JSON: {"questions":[{"prompt":string,"hint":string,"learningObjective":string,"rubricCriteria":string[],"expectedPoints":string[]}]}'
         : 'JSON: {"questions":[{"prompt":string,"hint":string}]}',
       userPrompt: input.teachingV2
-        ? `${ctx} Tam ${asked} sözlü soru; her birinde rubrik ve beklenen noktalar. ${weight} Beklenen noktalar yalnızca kaynakta duran olgu olsun; sayı ve birim uydurma. Doğru işlemin sonucu kaynakta ayrıca yazmıyorsa da yaz. Sınav kipinde yardım sınırlı — hint kısa tut veya boş bırak.`
+        ? `${ctx} Tam ${asked} sözlü soru; her birinde rubrik ve beklenen noktalar. ${weight} Beklenen noktalar öğrencinin kuracağı olgu ya da işlem sonucudur; puan etiketi (Tam 2, 2 puan) yazma. Sayı ve birim uydurma. Doğru işlemin sonucu kaynakta ayrıca yazmıyorsa da yaz. Tek doğru cevabı olmayan soru yazma. Sınav kipinde yardım sınırlı — hint kısa tut veya boş bırak.`
         : `${ctx} Tam ${asked} sözlü soru. ${weight}`,
       parse: (raw) => {
         if (!input.teachingV2) {
@@ -2326,6 +2330,7 @@ async function generateNodePayload(input: {
     if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
     return {
       type: "oral",
+      testedTopic: input.topicLabel,
       questions: stampOralQuestions(outcome.data.questions, input.oralCitation),
       teachingStandard: activity,
     };
@@ -2360,11 +2365,17 @@ async function generateNodePayload(input: {
       parse: (raw) => {
         const data = schema.safeParse(raw).data ?? null;
         if (!data) return null;
+        const cards = data.cards.flatMap((card) => {
+          const checked = verifyFlashcard(card.front, card.back, input.sourceBlock);
+          if (!checked) return [];
+          return [{ ...card, front: checked.front, back: checked.back }];
+        });
+        if (cards.length < 4) return null;
         if (input.teachingV2) {
-          const issues = validateFlashcardPedagogy(data.cards);
+          const issues = validateFlashcardPedagogy(cards);
           if (issues.length) return null;
         }
-        return data;
+        return { ...data, cards };
       },
     });
     if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
@@ -2493,6 +2504,19 @@ function withLessonReviewCards(
   if (payload.type !== "cards" || !reviewCards.length) return payload;
   const cards = Array.isArray(payload.cards) ? (payload.cards as { front: string }[]) : [];
   return { ...payload, cards: appendLessonReviewCards(cards, reviewCards) };
+}
+
+/** Başarılı üretimden sonra cüzdan. Açılışta ayrı ücret yok. */
+async function readWalletBalance(
+  service: SupabaseClient,
+  userId: string,
+): Promise<{ balance?: number }> {
+  const { data } = await service
+    .from("credit_wallets")
+    .select("balance")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return typeof data?.balance === "number" ? { balance: data.balance } : {};
 }
 
 function oralReviewFromPayload(payload: unknown): OralExamReport | null {

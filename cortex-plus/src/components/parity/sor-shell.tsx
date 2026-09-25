@@ -76,6 +76,18 @@ export function ParitySorShell({
   const [menuOpen, setMenuOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
   const [limitDismissed, setLimitDismissed] = useState(false);
+  const [balance, setBalance] = useState(account?.balance ?? 0);
+  useEffect(() => {
+    if (typeof account?.balance === "number") setBalance(account.balance);
+  }, [account?.balance]);
+  useEffect(() => {
+    const onBalance = (event: Event) => {
+      const value = (event as CustomEvent<number>).detail;
+      if (typeof value === "number") setBalance(value);
+    };
+    window.addEventListener("cortex-balance", onBalance);
+    return () => window.removeEventListener("cortex-balance", onBalance);
+  }, []);
   const isPremium = Boolean(account?.isPremium);
   const showBuy = account?.showsUpgradeChrome === true;
   const planLabel = account?.subscriptionBadge ?? "Plus";
@@ -193,7 +205,7 @@ export function ParitySorShell({
             </Link>
           ) : account ? (
             <Link href="/krediler" className="cp-sor-credit-chip">
-              {planLabel} · {formatNumber(account.balance)} kr
+              {planLabel} · {formatNumber(balance)} kr
             </Link>
           ) : null}
           <button type="button" className="cp-sor-streak" aria-label="Seri">

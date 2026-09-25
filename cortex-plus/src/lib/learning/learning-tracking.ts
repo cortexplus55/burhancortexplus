@@ -177,6 +177,8 @@ export function extractAnswerEvidence(input: {
     const gradeMeta = data.gradeMeta as
       | { correctIndices?: number[]; correctCount?: number }
       | undefined;
+    const testedTopic = typeof data.testedTopic === "string" ? data.testedTopic : "";
+    const oralTopic = normalizeTopicKey(testedTopic || input.topicLabel);
     questions.forEach((question, index) => {
       const hasAnswer = String(input.answers[String(index)] ?? "").trim().length > 8;
       // Without per-item grades, credit length-checked answers as provisional.
@@ -190,7 +192,7 @@ export function extractAnswerEvidence(input: {
       const hintAssisted =
         Boolean(hints[String(index)]);
       out.push({
-        topicKey,
+        topicKey: oralTopic,
         learningObjective:
           question.learningObjective?.trim() ||
           input.sessionObjective?.trim() ||

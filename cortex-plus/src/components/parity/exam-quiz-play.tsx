@@ -186,6 +186,20 @@ export function ExamQuizPlay({
               {question.explanation}
             </p>
           ) : null}
+          {question.misconceptionTag ? (
+            <p className="text-xs text-zinc-400">Tuzak: {question.misconceptionTag}</p>
+          ) : null}
+          {question.optionWhy?.length ? (
+            <ul className="space-y-1 text-xs text-zinc-300">
+              {question.options.map((option, optionIndex) =>
+                question.optionWhy?.[optionIndex] ? (
+                  <li key={option}>
+                    <span className="text-zinc-100">{option}:</span> {question.optionWhy[optionIndex]}
+                  </li>
+                ) : null,
+              )}
+            </ul>
+          ) : null}
         </div>
       ) : null}
 

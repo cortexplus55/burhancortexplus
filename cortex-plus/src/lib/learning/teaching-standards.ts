@@ -2251,7 +2251,8 @@ export function extractMisconceptions(input: {
 }): MisconceptionDraft[] {
   const data = (input.payload ?? {}) as Record<string, unknown>;
   const out: MisconceptionDraft[] = [];
-  const topicLabel = input.topicLabel ?? null;
+  const stamped = typeof data.testedTopic === "string" ? data.testedTopic.trim() : "";
+  const topicLabel = stamped || input.topicLabel || null;
 
   if (data.type === "true_false") {
     const items =

@@ -79,6 +79,7 @@ export type OralReviewItem = {
   scoreLabel?: string;
   citation?: string | null;
   missing?: string;
+  verdict?: "dogru" | "kismen" | "yanlis" | "bos";
 };
 
 export function topicStatusPct(status: string | null | undefined): number {

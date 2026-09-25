@@ -97,7 +97,9 @@ function stripMeasureUnits(expr: string): string {
 }
 
 const POW10 = String.raw`(?:\s*[×x·]\s*10(?:\^\s*[+-]?\d+|[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+))`;
-const ARITH_NUM = String.raw`\d+(?:[.,]\d+)?(?:\s*${MEASURE}(?![A-Za-zÇĞİÖŞÜçğıöşü]))?(?:${POW10})?`;
+/** `g·mol⁻¹` gibi bileşik birim. Çarpı işareti buraya girmez; birim ölçünün ardından gelir. */
+const COMPOUND_UNIT = String.raw`(?:\s*[·∙]\s*[A-Za-z]+(?:[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+|[⁻\-]\d+)?)?`;
+const ARITH_NUM = String.raw`\d+(?:[.,]\d+)?(?:\s*${MEASURE}(?![A-Za-zÇĞİÖŞÜçğıöşü]))?${COMPOUND_UNIT}(?:${POW10})?`;
 const ARITH_RE = new RegExp(
   `((?:${ARITH_NUM}(?:\\s*[+×÷*/\\-−–]\\s*${ARITH_NUM})+))\\s*(≈|~|=)\\s*(${ARITH_NUM})`,
   "g",
