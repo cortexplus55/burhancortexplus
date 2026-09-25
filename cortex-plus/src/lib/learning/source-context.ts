@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sliceNumberedSection } from "@/lib/documents/topic-title";
 import { conceptInText, conceptsWorthWidening } from "@/lib/learning/lesson-claims";
+import { topicTitlesAlign } from "@/lib/learning/lesson-teach";
 import { searchDocumentChunks, type DocumentMatch } from "@/lib/rag/pipeline";
 
 /**
@@ -324,6 +325,93 @@ export function pageSourceBlock(
     body +
     guidance
   );
+}
+
+/**
+ * Konu haritasının kendi dosya ve sayfaları.
+ *
+ * Sayfa numarası dosyalar arasında ortak değildir. "s.4" tepkime slaytında
+ * denkleştirme, mol kütlesi notunda ise hesap olabilir. Eşleşen başlığın
+ * sayfaları okunur; aynı numara başka dosyadan tamamlanmaz.
+ */
+export async function loadTopicSpanContext(
+  service: SupabaseClient,
+  userId: string,
+  documentIds: Array<string | null | undefined>,
+  topicLabel: string,
+  options: {
+    sourceBoundaryMode?: "documents_only" | "allow_supporting" | null;
+    preferredNodeId?: string | null;
+  } = {},
+): Promise<SourceContext | null> {
+  const ids = [...new Set(documentIds.filter((id): id is string => Boolean(id)))];
+  if (!ids.length || topicLabel.trim().length < 3) return null;
+  try {
+    const { data: nodes, error } = await service
+      .from("document_topic_nodes")
+      .select("id, document_id, title")
+      .in("document_id", ids);
+    if (error || !nodes?.length) return null;
+    const aligned = nodes.filter((node) => topicTitlesAlign(topicLabel, String(node.title ?? "")));
+    const chosen = aligned.length
+      ? aligned
+      : nodes.filter((node) => options.preferredNodeId && node.id === options.preferredNodeId);
+    if (!chosen.length) return null;
+    const { data: links, error: linkError } = await service
+      .from("document_topic_page_links")
+      .select("document_id, page_number, topic_id")
+      .in(
+        "topic_id",
+        chosen.map((node) => node.id as string),
+      );
+    if (linkError || !links?.length) return null;
+    const pagesByDoc = new Map<string, number[]>();
+    for (const link of links) {
+      const documentId = link.document_id as string;
+      const page = link.page_number as number;
+      if (!Number.isInteger(page) || page < 1) continue;
+      const list = pagesByDoc.get(documentId) ?? [];
+      if (!list.includes(page)) list.push(page);
+      pagesByDoc.set(documentId, list);
+    }
+    const parts: string[] = [];
+    const formulas: string[] = [];
+    let documentName: string | null = null;
+    for (const [documentId, pages] of pagesByDoc) {
+      const { data: existing } = await service
+        .from("document_pages")
+        .select("page_number")
+        .eq("document_id", documentId)
+        .in("page_number", pages);
+      const usable = [...new Set((existing ?? []).map((row) => row.page_number as number))].filter(
+        (page) => Number.isInteger(page) && page > 0,
+      );
+      if (!usable.length) continue;
+      try {
+        const loaded = await loadPageSourceContext(service, userId, documentId, usable, {
+          sourceBoundaryMode: options.sourceBoundaryMode,
+          topicLabel,
+        });
+        if (!loaded.block.trim()) continue;
+        if (!documentName) documentName = loaded.documentName;
+        parts.push(loaded.block);
+        formulas.push(...(loaded.formulas ?? []));
+      } catch (error) {
+        if (error instanceof SourceUnavailableError) continue;
+        throw error;
+      }
+    }
+    if (!parts.length) return null;
+    return {
+      matches: [],
+      documentName,
+      formulas,
+      block: parts.join("\n\n"),
+    };
+  } catch (error) {
+    if (error instanceof SourceUnavailableError) return null;
+    return null;
+  }
 }
 
 /**

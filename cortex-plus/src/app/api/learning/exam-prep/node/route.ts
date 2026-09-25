@@ -13,6 +13,7 @@ import {
   loadPageSourceContext,
   loadSourceContext,
   pagesMarkedInSource,
+  loadTopicSpanContext,
   widenSourcePages,
 } from "@/lib/learning/source-context";
 import {
@@ -90,6 +91,11 @@ import {
   shouldReplacePlannedMinutes,
 } from "@/lib/learning/lesson-coherence";
 import { repairLearnerLesson, scopeLessonToTopic, type LessonCheckCode } from "@/lib/learning/lesson-repair";
+import {
+  criticalTeachingFailures,
+  finishTaughtLesson,
+  LESSON_TEACH_RULE,
+} from "@/lib/learning/lesson-teach";
 import { formulaMismatches, withoutMismatchedFormulas } from "@/lib/learning/formula-fidelity";
 import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
 import {
@@ -107,7 +113,6 @@ import {
   keyTermsFromTeacherNote,
   lessonDepth,
   prepLanguage,
-  shouldRetryLessonWithoutBrief,
   SOURCE_PAGE_FORMULA_RULE,
   studentLanguageLine,
   teacherNoteGroundedInSource,
@@ -423,6 +428,7 @@ export async function POST(request: Request) {
         .maybeSingle();
 
   let topicDocumentId: string | null = null;
+  let topicNodeId: string | null = null;
   if (topic?.id) {
     const linked = await service
       .from("exam_prep_topics")
@@ -433,6 +439,7 @@ export async function POST(request: Request) {
       !linked.error && typeof linked.data?.document_topic_node_id === "string"
         ? linked.data.document_topic_node_id
         : null;
+    topicNodeId = nodeIdForTopic;
     if (nodeIdForTopic) {
       const { data: topicNode } = await service
         .from("document_topic_nodes")
@@ -1124,17 +1131,27 @@ export async function POST(request: Request) {
       prepSource.document_id as string | null,
       ...prepDocs,
     ];
-    let pageSource =
-      teachingV2 && !voiceSession
+    const lessonSpans =
+      kind === "lesson" && teachingV2 && !voiceSession
+        ? await loadTopicSpanContext(service, userId, pageDocumentIds, topicLabel, {
+            sourceBoundaryMode,
+            preferredNodeId: topicNodeId,
+          })
+        : null;
+    let pageSource = lessonSpans?.block.trim()
+      ? lessonSpans
+      : teachingV2 && !voiceSession
         ? await loadPageSourceAcrossDocuments(
             service,
             userId,
-            pageDocumentIds,
+            kind === "lesson" && topicDocumentId ? [topicDocumentId] : pageDocumentIds,
             mappedPages,
             { sourceBoundaryMode, topicLabel },
           )
         : EMPTY_SOURCE_CONTEXT;
     if (
+      !lessonSpans?.block.trim() &&
+      kind !== "lesson" &&
       teachingV2 &&
       !voiceSession &&
       prepSource.document_id &&
@@ -1824,7 +1841,6 @@ async function generateNodePayload(input: {
     let lastValidMissing = Number.POSITIVE_INFINITY;
     let lastParseIssues: string[] = [];
     let degradeReasons: string[] = [];
-    let rejectedForQuantity = false;
     const backbone = input.sectionBackbone ?? [];
     // Omurga tek başlıksa dayatmıyoruz: tek bölümlük ders, dersin kendisi
     // olmaz. İki ve üzeri gerçek bir iskelettir.
@@ -1881,6 +1897,8 @@ async function generateNodePayload(input: {
       difficulty: depth.difficulty,
       modelOverride: env.OPENAI_LESSON_MODEL,
       ...v2Common,
+      maxDraftAttempts: 1,
+      verificationMode: "schema",
       idempotencyKey:
         retried && input.idempotencyKey
           ? `${input.idempotencyKey}:no-brief`
@@ -1910,8 +1928,8 @@ async function generateNodePayload(input: {
         "{kind:\"text\",x,y,text,anchor?}. Renk seçme; tone/fill/stroke yalnızca " +
         "ink, muted, accent, surface, line olabilir. Her çizimde en az bir etiket " +
         "ve bir caption olsun. Metinle anlaşılan konuya çizim koyma.",
-      verificationContext: `${contextFor(note)}${backbonePrompt}${diagramPrompt}${upcomingPrompt} Bu konunun dersini yaz.`,
-      userPrompt: `${contextFor(note)}${backbonePrompt}${diagramPrompt}${upcomingPrompt} Bu konunun dersini yaz. ${REVIEW_VARIANT_RULE}`,
+      verificationContext: `${contextFor(note)}${backbonePrompt}${diagramPrompt}${upcomingPrompt} ${LESSON_TEACH_RULE} Bu konunun dersini yaz.`,
+      userPrompt: `${contextFor(note)}${backbonePrompt}${diagramPrompt}${upcomingPrompt} ${LESSON_TEACH_RULE} Bu konunun dersini yaz. ${REVIEW_VARIANT_RULE}`,
       // Bu tur neden reddedildi — modele aynen iletiliyor. Rota kendi
       // kurallarıyla da reddediyor; sebebini söylemezse yeniden üretim
       // "JSON şeman bozuk" gibi yanlış bir yönlendirmeyle gidiyordu.
@@ -1988,7 +2006,6 @@ async function generateNodePayload(input: {
           else delete lesson.example;
         }
         if (!lessonHasTeachingCore(lesson)) {
-          if (reasons.includes("quantity_dropped")) rejectedForQuantity = true;
           lastParseIssues = [
             reasons.includes("quantity_dropped")
               ? "Kaynakta olmayan nicelik çıktıktan sonra öğreten bölüm kalmadı."
@@ -2057,32 +2074,13 @@ async function generateNodePayload(input: {
      * Öğretmen notundaki sayı kaynağın bu kesitinde yoksa kapı taslağı
      * düşürür. O durumda notsuz bir kez daha üretilir; ikinci tur yok.
      */
-    let outcome = await requestLesson(teacherNote, false);
+    const outcome = await requestLesson(teacherNote, false);
     if (outcome.ok) {
       lessonModelCalls += outcome.modelCalls;
       draftMs += outcome.draftMs;
       reviewMs += outcome.reviewMs;
     }
-    let lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;
-    if (
-      !lesson &&
-      shouldRetryLessonWithoutBrief({
-        brief: teacherNote,
-        rejectedForQuantity,
-        retried: false,
-      })
-    ) {
-      rejectedForQuantity = false;
-      lastValidLesson = null;
-      lastParseIssues = [];
-      outcome = await requestLesson("", true);
-      if (outcome.ok) {
-        lessonModelCalls += outcome.modelCalls;
-        draftMs += outcome.draftMs;
-        reviewMs += outcome.reviewMs;
-      }
-      lesson = outcome.ok ? outcome.data : lastValidLesson;
-    }
+    const lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;
     if (!lesson) {
       console.error("lesson_model_calls", {
         calls: lessonModelCalls,
@@ -2098,8 +2096,10 @@ async function generateNodePayload(input: {
       );
     }
     /**
-     * Düşürmek yerine bir kez onar. Çağrı dersin rezervasyonuna
-     * dokunmaz; parça hâlâ bozuksa o parça düşer, ders kalır.
+     * Bilinen yapı bozuklukları (işaret, yarım formül, eksik kontrol)
+     * önce yerinde onarılır. Öğretim kapısı ardından bakar: başlıkla
+     * gövde uyuşmuyorsa, cümle kırıkça, kontrol yankıysa ya da nicel
+     * örnek doğrulanamıyorsa ders yayına çıkmaz.
      */
     const repairSource = [input.sourceBlock, teacherNote].filter((part) => part.trim()).join("\n");
     const repairCall = (prompt: string, maxTokens: number) => {
@@ -2122,8 +2122,12 @@ async function generateNodePayload(input: {
       (prompt) => repairCall(prompt, 1500),
       repairSource.trim() ? (prompt) => repairCall(prompt, 400) : undefined,
     );
-    lesson = repair.lesson;
-    const publishedChecks = lesson.sections.filter((section) => section.check).length;
+    const taught = await finishTaughtLesson(repair.lesson, {
+      source: repairSource,
+      topicLabel: input.topicLabel,
+    });
+    const taughtLesson = taught.lesson;
+    const critical = criticalTeachingFailures(taught.failures);
     const repairWallMs = Date.now() - repairStarted;
     const verifyMs = repair.verifyMs;
     console.error("lesson_model_calls", {
@@ -2133,6 +2137,17 @@ async function generateNodePayload(input: {
       repairMs: Math.max(0, repairWallMs - verifyMs),
       verifyMs,
     });
+    if (critical.length) {
+      console.error("lesson_generation_blocked", {
+        failures: critical.slice(0, 8).map((failure) => `${failure.unit}:${failure.problem}`),
+      });
+      throw new NodeGenerationError(
+        500,
+        "lesson_missing",
+        critical.slice(0, 6).map((failure) => `${failure.unit}: ${failure.problem}`),
+      );
+    }
+    const publishedChecks = taughtLesson.sections.filter((section) => section.check).length;
     if (publishedChecks < 3) {
       throw new NodeGenerationError(500, "lesson_missing", ["En az 3 kontrol sorusu yazılamadı."]);
     }
@@ -2142,7 +2157,7 @@ async function generateNodePayload(input: {
         succeeded: repair.succeeded,
       });
     }
-    const diagramReady = lesson.sections.some(
+    const diagramReady = taughtLesson.sections.some(
       (section) => section.diagram && diagramIssues(section.diagram).length === 0,
     );
     const reasons = [
@@ -2164,13 +2179,13 @@ async function generateNodePayload(input: {
         .insert({
           exam_prep_id: input.prepId,
           topic_id: input.topicId,
-          title: lesson.title,
-          content_md: lesson.overview ?? lesson.sections[0]?.body ?? lesson.title,
-          content_json: lesson,
+          title: taughtLesson.title,
+          content_md: taughtLesson.overview ?? taughtLesson.sections[0]?.body ?? taughtLesson.title,
+          content_json: taughtLesson,
         })
         .then(undefined, () => undefined);
     }
-    return { type: "lesson", lesson, title: lesson.title, teachingStandard: activity };
+    return { type: "lesson", lesson: taughtLesson, title: taughtLesson.title, teachingStandard: activity };
   }
 
   if (input.kind === "qa") {

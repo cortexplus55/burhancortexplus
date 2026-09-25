@@ -307,12 +307,28 @@ function limitingIssues(text: string): QuantIssue[] {
   return [];
 }
 
+/** Soldaki ifadeyi hesaplar. İşlem sırası çarpma ve bölmeyi önce alır. */
+export function evaluateArithmetic(expr: string): number | null {
+  return evalArith(expr);
+}
+
 function evalArith(expr: string): number | null {
-  const normalized = expandPowersOfTen(stripMeasureUnits(expr))
+  let normalized = expandPowersOfTen(stripMeasureUnits(expr))
     .replace(/×/g, "*")
     .replace(/÷/g, "/")
     .replace(/[−–]/g, "-");
-  const tokens = normalized.match(/\d+(?:[.,]\d+)?(?:e[+-]?\d+)?|[+\-*/]/gi);
+  for (let depth = 0; depth < 6; depth += 1) {
+    const inner = normalized.match(/\(([^()]*)\)/);
+    if (!inner) break;
+    const value = evalFlat(inner[1] ?? "");
+    if (value == null) return null;
+    normalized = normalized.replace(inner[0], String(value));
+  }
+  return evalFlat(normalized);
+}
+
+function evalFlat(expr: string): number | null {
+  const tokens = expr.match(/\d+(?:[.,]\d+)?(?:e[+-]?\d+)?|[+\-*/]/gi);
   if (!tokens || tokens.length < 3) return null;
   const values: number[] = [];
   const ops: string[] = [];
@@ -345,9 +361,21 @@ function evalArith(expr: string): number | null {
   return acc;
 }
 
+function expandNumericParens(text: string): string {
+  let next = text;
+  for (let depth = 0; depth < 6; depth += 1) {
+    const inner = next.match(/\(([^()]*)\)/);
+    if (!inner) break;
+    const value = evalArith(inner[1] ?? "");
+    if (value == null) break;
+    next = next.replace(inner[0], String(Math.round(value * 1000) / 1000));
+  }
+  return next;
+}
+
 function arithmeticIssues(text: string): QuantIssue[] {
   const issues: QuantIssue[] = [];
-  for (const match of text.matchAll(new RegExp(ARITH_RE.source, "g"))) {
+  for (const match of expandNumericParens(text).matchAll(new RegExp(ARITH_RE.source, "g"))) {
     const actual = evalArith(match[1]);
     const stated = readAuditedNumber(match[3]);
     if (actual == null || !Number.isFinite(stated)) continue;
