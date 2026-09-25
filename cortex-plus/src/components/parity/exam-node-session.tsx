@@ -507,6 +507,9 @@ export function ExamNodeSession({
       }
       setStage("play");
       router.refresh();
+      if (typeof data.balance === "number") {
+        window.dispatchEvent(new CustomEvent("cortex-balance", { detail: data.balance }));
+      }
     } catch {
       setGenerationError("Bağlantı kurulamadı. Lütfen yeniden dene.");
     } finally {
@@ -559,12 +562,19 @@ export function ExamNodeSession({
       clearClientRequestId();
       setSaveError(null);
       completeRequestIdRef.current = null;
+      if (typeof data.balance === "number") {
+        window.dispatchEvent(new CustomEvent("cortex-balance", { detail: data.balance }));
+      }
       setScore({ score: data.score ?? 0, total: data.total ?? 1, retried: data.retried ?? 0 });
       if (data.review) setWrittenReview(data.review);
       if (data.oralReview) setOralReport(data.oralReview as OralExamReport);
       setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
       setFeedback(null);
       setStage(kind === "oral" ? "oral-review-time" : "result");
+      router.refresh();
+      if (typeof data.balance === "number") {
+        window.dispatchEvent(new CustomEvent("cortex-balance", { detail: data.balance }));
+      }
     } catch {
       toast.error("Bağlantı hatası.");
     } finally {

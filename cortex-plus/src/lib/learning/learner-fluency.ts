@@ -103,6 +103,83 @@ const TYPO_RULES: { pattern: RegExp; replacement: string }[] = [
   },
 ];
 
+const DATIVE_LICENSE = new Set([
+  "gore",
+  "bagli",
+  "kadar",
+  "ragmen",
+  "karsin",
+  "dogru",
+  "ait",
+  "nazaran",
+  "iliskin",
+  "yonelik",
+  "dair",
+]);
+
+const BAD_FOLLOWER = new Set([
+  "ile",
+  "arasindaki",
+  "arasinda",
+  "hesaplanir",
+  "bulunur",
+  "belirlenir",
+  "olculur",
+  "karsilastirilir",
+  "oranlanir",
+]);
+
+function possessiveVowel(stem: string): string {
+  const vowels = [...stem.toLocaleLowerCase("tr-TR")].filter((char) => "aeıioöuü".includes(char));
+  const last = vowels[vowels.length - 1] ?? "a";
+  if ("aı".includes(last)) return "ı";
+  if ("ei".includes(last)) return "i";
+  if ("ou".includes(last)) return "u";
+  return "ü";
+}
+
+/**
+ * İsim tamlamasında yönelme eki, tamlayan iyelik eki olmalıdır.
+ * "miktara göre" durur; "miktara ile" "miktarı ile" olur.
+ * Kök, sondaki ünsüzden önce en az dört harf taşır; "sonra" değişmez.
+ */
+function repairNounPhrase(text: string): string {
+  return text.replace(
+    /(^|[^A-Za-zÇĞİÖŞÜçğıöşü])([A-Za-zÇĞİÖŞÜçğıöşü]{3,})\s+([A-Za-zÇĞİÖŞÜçğıöşü]{4,}[bcçdfgğhjklmnprsştvyzBCÇDFGĞHJKLMNPRSŞTVYZ])([ae])\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)/g,
+    (match, lead: string, noun: string, stem: string, _vowel: string, follower: string) => {
+      const foldedFollower = foldTr(follower);
+      if (DATIVE_LICENSE.has(foldedFollower) || !BAD_FOLLOWER.has(foldedFollower)) return match;
+      if (/[dt][ae]$/i.test(`${stem}${_vowel}`)) return match;
+      const before = stem.slice(0, -1);
+      if (before.length < 4) return match;
+      if (foldTr(stem.slice(-1)) === "n" && /[aeıioöuü]$/i.test(before)) return match;
+      return `${lead}${noun} ${stem}${possessiveVowel(stem)} ${follower}`;
+    },
+  );
+}
+
+function repairEnglishAmount(text: string): string {
+  return text.replace(
+    /\b(amount|number|quantity|ratio|value|volume|mass|rate|level) to (the|a|an)\b/gi,
+    (match, noun: string, article: string) => {
+      const first = match.charAt(0);
+      const head = first === first.toLocaleUpperCase("en") && first !== first.toLocaleLowerCase("en")
+        ? noun.charAt(0).toLocaleUpperCase("en") + noun.slice(1)
+        : noun;
+      return `${head} of ${article}`;
+    },
+  );
+}
+
+function splicedFeedback(text: string): boolean {
+  const folded = foldTr(text);
+  return (
+    /ters cevrilirse cumle/.test(folded) ||
+    /cumlede kuruldugu anlama uyuyor/.test(folded) ||
+    /yuklem terimi baska bir buyukluge/.test(folded)
+  );
+}
+
 function applyCase(sample: string, replacement: string): string {
   const first = sample.charAt(0);
   const upper = first.toLocaleUpperCase("tr-TR");
@@ -118,6 +195,8 @@ export function repairTurkishSurface(text: string): string {
   for (const rule of TYPO_RULES) {
     next = next.replace(rule.pattern, (match) => applyCase(match, rule.replacement));
   }
+  next = repairNounPhrase(next);
+  next = repairEnglishAmount(next);
   return next;
 }
 
@@ -129,6 +208,7 @@ export function fluencyIssues(text: string): string[] {
   if (brokenProduct(text)) issues.push("broken_arithmetic");
   if (midSentenceCapital(text)) issues.push("mid_capital");
   if (sentences(text).some((sentence) => !hasPredicate(sentence))) issues.push("no_predicate");
+  if (splicedFeedback(text)) issues.push("spliced");
   if (repairTurkishSurface(text) !== text) issues.push("typo");
   return issues;
 }

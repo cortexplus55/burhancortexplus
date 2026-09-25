@@ -1574,12 +1574,21 @@ function restateBinaryPrompt(prompt: string): string {
   }
   const stripped = trimmed
     .replace(/\s*(?:doğru mu,?\s*yanlış(?:\s*mı)?\??|DOĞRU MU YANLIŞ\??)\s*$/i, "")
+    .replace(/\s*yargısı doğru mudur\??\s*$/i, "")
     .replace(/[?.!\s]+$/g, "")
     .trim();
   const core = stripped.length >= 8 ? stripped : trimmed.replace(/[?.!\s]+$/g, "");
-  const next = `${core} yargısı doğru mudur?`;
-  if (foldPrompt(next) !== foldPrompt(trimmed)) return next.slice(0, 300);
-  return `Tekrar sorusu: ${core}?`.slice(0, 300);
+  const purpose = core.match(/^(.{8,90}?)\s+için\s+(.{6,90})$/i);
+  if (purpose) {
+    const asked = `${purpose[2].replace(/[?.!\s]+$/g, "")} ne için yapılır?`;
+    if (foldPrompt(asked) !== foldPrompt(trimmed)) return asked.slice(0, 300);
+  }
+  const head = core.split(/[,:;]/)[0]?.trim() || core;
+  const angled = `${head} hangi durumda geçerlidir?`;
+  if (foldPrompt(angled) !== foldPrompt(trimmed) && !/yargısı doğru mudur/i.test(angled)) {
+    return angled.slice(0, 300);
+  }
+  return "Bu yargının tersi hangi durumda doğrudur?";
 }
 
 /**
@@ -1666,6 +1675,7 @@ export function retryStemBroken(prompt: string, explanation = ""): boolean {
   if (/=\s*hangisi/i.test(text)) return true;
   if (/[=+×*/\-−]\s*\??$/.test(text)) return true;
   if (/diğer seçenek/i.test(text) || /diger secenek/.test(foldTr(text))) return true;
+  if (/yargısı doğru mudur/i.test(text)) return true;
   const exp = explanation.replace(/\s+/g, " ").trim().replace(/[.?!]+$/g, "");
   const stem = text.replace(/[.?!]+$/g, "").trim();
   if (exp.length >= 24 && (stem.includes(exp) || foldTr(stem).includes(foldTr(exp)))) return true;

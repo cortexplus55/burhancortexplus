@@ -518,8 +518,8 @@ export async function POST(request: Request) {
     if (!attempt?.payload) {
       return NextResponse.json({ ok: true, resumed: false });
     }
-    return NextResponse.json(
-      attemptStartResponse(attempt, {
+    return NextResponse.json({
+      ...attemptStartResponse(attempt, {
         kind,
         title,
         topicLabel,
@@ -529,7 +529,8 @@ export async function POST(request: Request) {
         ),
         resumed: true,
       }),
-    );
+      ...(await readWalletBalance(service, userId)),
+    });
   }
 
   // --- Stage 8: mid-session answer save (flag ON) ---
@@ -639,6 +640,7 @@ export async function POST(request: Request) {
         idempotent: true,
         review,
         oralReview: oralReviewFromPayload(attempt.payload),
+        ...(await readWalletBalance(service, userId)),
       });
     }
 
@@ -679,6 +681,7 @@ export async function POST(request: Request) {
         idempotent: true,
         review,
         oralReview: oralReviewFromPayload(attempt.payload),
+        ...(await readWalletBalance(service, userId)),
       });
     }
 
@@ -910,6 +913,7 @@ export async function POST(request: Request) {
       state: "completed",
       review,
       oralReview: oralExtras ?? oralReviewFromPayload(attempt.payload),
+      ...(await readWalletBalance(service, userId)),
     });
   }
 
@@ -930,8 +934,8 @@ export async function POST(request: Request) {
       hasPayload: Boolean(existingForKey.payload),
     });
     if (reuse === "return_ready" && existingForKey.payload) {
-      return NextResponse.json(
-        attemptStartResponse(existingForKey, {
+      return NextResponse.json({
+        ...attemptStartResponse(existingForKey, {
           kind,
           title,
           topicLabel,
@@ -941,7 +945,8 @@ export async function POST(request: Request) {
           ),
           resumed: true,
         }),
-      );
+        ...(await readWalletBalance(service, userId)),
+      });
     }
     if (reuse === "reject_failed") {
       // Client must mint a new request id after a failed generation.
@@ -953,8 +958,8 @@ export async function POST(request: Request) {
       !isCreatingStale(existingForKey.updated_at)
     ) {
       // Rare: payload landed but status not flipped — treat as ready.
-      return NextResponse.json(
-        attemptStartResponse(
+      return NextResponse.json({
+        ...attemptStartResponse(
           { ...existingForKey, status: "active" },
           {
             kind,
@@ -967,7 +972,8 @@ export async function POST(request: Request) {
             resumed: true,
           },
         ),
-      );
+        ...(await readWalletBalance(service, userId)),
+      });
     }
     if (reuse === "resume_creating" && !isCreatingStale(existingForKey.updated_at)) {
       return errorResponse(409, "generation_in_progress");
@@ -982,8 +988,8 @@ export async function POST(request: Request) {
       nodeId,
     });
     if (resumable?.payload) {
-      return NextResponse.json(
-        attemptStartResponse(resumable, {
+      return NextResponse.json({
+        ...attemptStartResponse(resumable, {
           kind,
           title,
           topicLabel,
@@ -993,7 +999,8 @@ export async function POST(request: Request) {
           ),
           resumed: true,
         }),
-      );
+        ...(await readWalletBalance(service, userId)),
+      });
     }
   }
 

@@ -78,12 +78,39 @@ export function ParitySorShell({
   const [limitDismissed, setLimitDismissed] = useState(false);
   const [balance, setBalance] = useState(account?.balance ?? 0);
   useEffect(() => {
-    if (typeof account?.balance === "number") setBalance(account.balance);
+    if (typeof account?.balance !== "number") return;
+    try {
+      const raw = sessionStorage.getItem("cortex-balance-announced");
+      if (raw) {
+        const saved = JSON.parse(raw) as { value?: number; at?: number };
+        if (
+          typeof saved.value === "number" &&
+          typeof saved.at === "number" &&
+          Date.now() - saved.at < 20_000 &&
+          saved.value < account.balance
+        ) {
+          setBalance(saved.value);
+          return;
+        }
+      }
+    } catch {
+      /* eski duyuru okunamazsa sunucu bakiyesi geçer */
+    }
+    setBalance(account.balance);
   }, [account?.balance]);
   useEffect(() => {
     const onBalance = (event: Event) => {
       const value = (event as CustomEvent<number>).detail;
-      if (typeof value === "number") setBalance(value);
+      if (typeof value !== "number") return;
+      setBalance(value);
+      try {
+        sessionStorage.setItem(
+          "cortex-balance-announced",
+          JSON.stringify({ value, at: Date.now() }),
+        );
+      } catch {
+        /* depolama kapalıysa çip yine bu oturumda güncellenir */
+      }
     };
     window.addEventListener("cortex-balance", onBalance);
     return () => window.removeEventListener("cortex-balance", onBalance);
