@@ -23,6 +23,22 @@ export function examPrepAssessmentHref(prepId: string) {
 }
 
 /**
+ * Yoldan bağımsız podcast. Ders oluşturma merkezi bu adrese bağlanır.
+ * Konu ve süre verilmezse sayfa konu seçiciyi açar.
+ */
+export function examPrepPodcastHref(
+  prepId: string,
+  topicId?: string,
+  length?: "ozet" | "standart" | "derin",
+) {
+  const params = new URLSearchParams();
+  if (topicId) params.set("topicId", topicId);
+  if (length && length !== "standart") params.set("length", length);
+  const query = params.toString();
+  return `/deneme-sinavlari/${prepId}/podcast${query ? `?${query}` : ""}`;
+}
+
+/**
  * Tanışma testi hangi durumda zorunlu.
  *
  * Test tüm içeriği kilitliyordu: hiçbir düğüm açılmadan önce 8 soru

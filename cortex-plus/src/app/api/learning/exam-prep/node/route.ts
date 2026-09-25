@@ -9,6 +9,7 @@ import { completeLessonPartRepair } from "@/lib/ai/lesson-part-repair";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import {
   EMPTY_SOURCE_CONTEXT,
+  loadPageSourceAcrossDocuments,
   loadPageSourceContext,
   loadSourceContext,
   widenSourcePages,
@@ -47,21 +48,17 @@ import {
   flashcardV2Schema,
   oralV2Schema,
   parseSessionMeta,
-  podcastV2Schema,
   scoreFlashcardsV2,
   teachingActivityForKind,
   teachingSessionContext,
   teachingStandardConstraints,
   validateFlashcardPedagogy,
   validateOralPedagogy,
-  validatePodcastPedagogy,
   validateTrueFalsePedagogy,
   publishLessonDraft,
   lessonPublishIssues,
   lessonDraftForVerifier,
   lessonHasTeachingCore,
-  publishablePodcast,
-  podcastDraftForVerifier,
   lessonV2Schema,
   LESSON_V2_SCHEMA_HINT,
   REVIEW_VARIANT_RULE,
@@ -77,19 +74,23 @@ import { diagramIssues, needsDiagram } from "@/lib/learning/lesson-diagram";
 import { scoreLessonChecks } from "@/lib/learning/lesson-claims";
 import { repairLearnerLesson, scopeLessonToTopic, type LessonCheckCode } from "@/lib/learning/lesson-repair";
 import { formulaMismatches, withoutMismatchedFormulas } from "@/lib/learning/formula-fidelity";
+import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
 import {
-  lessonPodcastBrief,
-  podcastNumbersOutsideLesson,
-} from "@/lib/learning/podcast-from-lesson";
+  generatePodcastEpisode,
+  loadPodcastCorpus,
+  mergePodcastSource,
+  parsePodcastLength,
+  podcastScopeBrief,
+  readPodcastCache,
+  writePodcastCache,
+  type PodcastLength,
+} from "@/lib/learning/podcast-episode";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 import {
   keyTermsFromTeacherNote,
   lessonDepth,
-  podcastDialogueIssues,
-  podcastNarrationBrief,
   prepLanguage,
   shouldRetryLessonWithoutBrief,
-  SINGLE_NARRATOR_SCHEMA,
   SOURCE_PAGE_FORMULA_RULE,
   studentLanguageLine,
   teacherNoteGroundedInSource,
@@ -165,6 +166,7 @@ const bodySchema = z.object({
   generationId: z.string().uuid().optional(),
   contentVersion: z.number().int().positive().optional(),
   cursorIndex: z.number().int().min(0).optional(),
+  podcastLength: z.enum(["ozet", "standart", "derin"]).optional(),
 });
 
 const tfSchema = z.object({
@@ -183,29 +185,6 @@ const oralGradeSchema = z.object({
   correctCount: z.number().int().min(0),
   missingObjectives: z.array(z.string()).max(6).optional(),
   scoreRationale: z.string().max(400).optional(),
-});
-
-// Satır bazlı iki sesli biçim: her satır tek cümle, konuşmacı etiketli.
-// Ses cümle başına üretildiği için senkron tahmine değil ölçüme dayanıyor.
-const podcastSchema = z.object({
-  title: z.string().min(1),
-  chapters: z
-    .array(
-      z.object({
-        title: z.string().min(1),
-        lines: z
-          .array(
-            z.object({
-              speaker: z.enum(["ada", "kerem"]),
-              text: z.string().min(4),
-            }),
-          )
-          .min(2)
-          .max(14),
-      }),
-    )
-    .min(3)
-    .max(5),
 });
 
 function actionForKind(kind: PlanNodeKind) {
@@ -363,12 +342,13 @@ export async function POST(request: Request) {
   if (node.status === "locked") return errorResponse(403, "forbidden");
 
   const sessionMeta = teachingV2 ? parseSessionMeta(node.session_meta) : null;
+  const topicLookupId = sessionMeta?.topicId ?? prep.active_topic_id;
 
-  const { data: topic } = prep.active_topic_id
+  const { data: topic } = topicLookupId
     ? await service
         .from("exam_prep_topics")
         .select("id, label, measured_level")
-        .eq("id", prep.active_topic_id)
+        .eq("id", topicLookupId)
         .maybeSingle()
     : await service
         .from("exam_prep_topics")
@@ -377,6 +357,27 @@ export async function POST(request: Request) {
         .order("sort_order")
         .limit(1)
         .maybeSingle();
+
+  let topicDocumentId: string | null = null;
+  if (topic?.id) {
+    const linked = await service
+      .from("exam_prep_topics")
+      .select("document_topic_node_id")
+      .eq("id", topic.id)
+      .maybeSingle();
+    const nodeIdForTopic =
+      !linked.error && typeof linked.data?.document_topic_node_id === "string"
+        ? linked.data.document_topic_node_id
+        : null;
+    if (nodeIdForTopic) {
+      const { data: topicNode } = await service
+        .from("document_topic_nodes")
+        .select("document_id")
+        .eq("id", nodeIdForTopic)
+        .maybeSingle();
+      if (topicNode?.document_id) topicDocumentId = topicNode.document_id as string;
+    }
+  }
 
   const topicLabel =
     sessionMeta?.topicTitle?.trim() || topic?.label || prep.title || "Konu";
@@ -958,16 +959,7 @@ export async function POST(request: Request) {
   if (sourceLookupError || !prepSource) return errorResponse(503, "source_unavailable");
 
   const prepDocs = teachingV2 ? await loadPrepDocumentIds(service, prepId) : [];
-  const topicNodeId = (topic as { document_topic_node_id?: string | null } | null)
-    ?.document_topic_node_id;
-  if (topicNodeId) {
-    const { data: node } = await service
-      .from("document_topic_nodes")
-      .select("document_id")
-      .eq("id", topicNodeId)
-      .maybeSingle();
-    if (node?.document_id) prepSource.document_id = node.document_id as string;
-  }
+  if (topicDocumentId) prepSource.document_id = topicDocumentId;
   const teachingPlan = teachingV2
     ? await loadTopicTeaching(
         service,
@@ -1010,12 +1002,17 @@ export async function POST(request: Request) {
     // duran formülü yanlış yazabiliyordu. İstenen sayfa okunamazsa üretim
     // durur; yalnızca sayfa listesi olmayan eski planlar aramayı kullanır.
     const mappedPages = sessionMeta?.sourcePages;
+    const pageDocumentIds = [
+      topicDocumentId,
+      prepSource.document_id as string | null,
+      ...prepDocs,
+    ];
     let pageSource =
       teachingV2 && !voiceSession
-        ? await loadPageSourceContext(
+        ? await loadPageSourceAcrossDocuments(
             service,
             userId,
-            prepSource.document_id,
+            pageDocumentIds,
             mappedPages,
             { sourceBoundaryMode, topicLabel },
           )
@@ -1058,7 +1055,21 @@ export async function POST(request: Request) {
           },
         );
   } catch {
+    console.error("node_source_unavailable", {
+      kind,
+      requestId: parsed.data.clientRequestId ?? null,
+      topic: topicLabel,
+    });
     return errorResponse(503, "source_unavailable");
+  }
+
+  // Podcast, sayfa kaynağı duruyorsa hazırlıktaki diğer belgelere de bakar.
+  // Sayfa listesi okunamadıysa buraya gelinmez; o durumda arama yedeği yok.
+  let podcastSyllabus = "";
+  if (kind === "podcast" && teachingV2 && !voiceSession && source.block.trim()) {
+    const corpus = await loadPodcastCorpus(service, userId, prepId, topicLabel);
+    podcastSyllabus = corpus.syllabus;
+    source = { ...source, block: mergePodcastSource(source.block, corpus.excerpts) };
   }
 
   // v2 + bound document: empty source must fail closed (no silent general-knowledge fill).
@@ -1261,16 +1272,26 @@ export async function POST(request: Request) {
           prepId,
           topicId: topic?.id ?? null,
           practiceTopics,
+          podcastLength: parsePodcastLength(parsed.data.podcastLength),
+          requestId: clientRequestId ?? parsed.data.clientRequestId ?? null,
+          grounding:
+            kind === "podcast" && teachingV2
+              ? [
+                  await podcastScopeBrief(service, prepDocs, topicLabel, teachingPlan.priority),
+                  podcastSyllabus,
+                ]
+                  .filter(Boolean)
+                  .join("\n")
+              : "",
         });
   } catch (error) {
-    if (kind === "lesson") {
-      console.error("lesson_generation_failed", {
-        code: error instanceof NodeGenerationError ? error.code : "generation_failed",
-        status: error instanceof NodeGenerationError ? error.status : 502,
-        reasons:
-          error instanceof NodeGenerationError ? error.reasons.slice(0, 6) : [],
-      });
-    }
+    console.error("node_generation_failed", {
+      kind,
+      requestId: clientRequestId ?? parsed.data.clientRequestId ?? null,
+      code: error instanceof NodeGenerationError ? error.code : "generation_failed",
+      status: error instanceof NodeGenerationError ? error.status : 502,
+      reasons: error instanceof NodeGenerationError ? error.reasons.slice(0, 6) : [],
+    });
     if (teachingV2 && creatingAttemptId && generationId && clientRequestId) {
       await service
         .from("exam_prep_node_attempts")
@@ -1562,6 +1583,9 @@ async function generateNodePayload(input: {
   upcomingTopics?: string[] | null;
   /** Odaklı pratikte kayıtlı soru yetmezse tek üretim bu konulara bağlı kalır. */
   practiceTopics?: string[];
+  podcastLength?: PodcastLength;
+  requestId?: string | null;
+  grounding?: string;
 }) {
   const activity = teachingActivityForKind(input.kind);
   const sessionCtx = input.teachingV2
@@ -2000,90 +2024,53 @@ async function generateNodePayload(input: {
   }
 
   if (input.kind === "podcast") {
-    const schema = input.teachingV2 ? podcastV2Schema : podcastSchema;
-    // Ders varsa podcast onun sesli hâli; yoksa eskisi gibi kaynaktan.
+    const length = input.podcastLength ?? "standart";
+    if (input.prepId) {
+      const cached = await readPodcastCache(input.service, input.prepId, input.topicLabel, length);
+      if (cached) {
+        return {
+          type: "podcast",
+          title: cached.title,
+          chapters: cached.chapters,
+          length,
+          reused: true,
+          teachingStandard: activity,
+        };
+      }
+    }
     const lesson = input.teachingV2 ? input.lessonContent ?? null : null;
-    const lessonBrief = lesson ? lessonPodcastBrief(lesson) : "";
-    // Bölüm adı örneği dersin KENDİ kavramlarından geliyor. Eskiden burada
-    // zemin mekaniği örnekleri sabitti ve biyoloji podcast'ine de onlar
-    // gidiyordu; kural, örneklere benzemeyen belgede zayıf çalışıyordu.
-    const chapterExample = lesson
-      ? lesson.sections
-          .slice(0, 2)
-          .map((section) => `"${section.heading}"`)
-          .join(", ")
-      : "";
-    const outcome = await generateJson({
+    const outcome = await generatePodcastEpisode({
       service: input.service,
       userId: input.userId,
-      actionCode: actionForKind(input.kind),
       isPremium: input.isPremium,
-      // Hard difficulty uses the advanced model — podcast pedagogy + review
-      // rejected mini drafts too often in Stage 5 browser checks.
-      difficulty: input.teachingV2 ? "hard" : undefined,
-      ...v2Common,
-      allowIndependentAccept: false,
-      reviewDraft: input.teachingV2 ? podcastDraftForVerifier : undefined,
-      buildIndependent: input.teachingV2
-        ? (_c, parsed) => {
-            const data = schema.safeParse(parsed).data;
-            const published = data ? publishablePodcast(data) : null;
-            return {
-              pedagogyIssues: published
-                ? validatePodcastPedagogy(published)
-                : ["Podcast şeması geçersiz."],
-              minItems: 4,
-              ...sourceIndependent,
-              sourceExcerpt: lessonBrief || input.sourceBlock,
-              requireSourceSupport: Boolean(lessonBrief || input.sourceBlock),
-            };
-          }
-        : undefined,
-      schemaHint: input.teachingV2
-        ? 'JSON: {"title":string,"objective":string,"sourcePoints":string[],"chapters":[{"title":string,"lines":[{"speaker":"ada","text":string}]}]}. ' +
-          "4-8 bölüm. Her bölümün title'ı O BÖLÜMDE KONUŞULAN KAVRAMIN ADI olsun" +
-          (chapterExample ? ` (bu dersteki gibi: ${chapterExample})` : "") +
-          '; üretim aşamalarının adı ' +
-          '("Tanım", "Neden", "Örnek", "Yaygın hata", "Özet") başlık olarak YASAK. ' +
-          `${SINGLE_NARRATOR_SCHEMA} Kaynak dışı iddia yok.`
-        : 'JSON: {"title":string,"chapters":[{"title":string,"lines":[{"speaker":"ada","text":string}]}]}. ' +
-          `${SINGLE_NARRATOR_SCHEMA}`,
-      userPrompt: input.teachingV2
-        ? `${podcastNarrationBrief(prepLanguage(input.learningPreferences))} ${ctx} ` +
-          (lessonBrief
-            ? `\n\n${lessonBrief}\n\nBu podcast yukarıdaki DERSİN sesli hâlidir. ` +
-              `Olguyu yeniden çıkarma, aktar: bölümler dersin bölümlerinden gelsin, ` +
-              `örnek dersin çözümlü örneği olsun, yaygın hata dersinki olsun. ` +
-              `Derste geçmeyen bir sayı kullanma — nicelik uyduramazsın.`
-            : `SAYISAL SONUÇ VE SINIFLANDIRMA KARARLARI: eşik, yön ve sonuç kaynakta ne ` +
-              `diyorsa aynen o olmalı — "%8 geçiyorsa ince daneli" gibi kaynağın kuralını ` +
-              `ters çeviren bir cümle en ağır hatadır. Örnekteki her sayıyı sourcePoints'e yaz.`) +
-          ` "Yaygın hata" bölümü öğüt değil hata olsun: "X'i göz ardı etmek yanlıştır" ` +
-          `bir hata değildir; "LL yerine PI kullanmak" bir hatadır.`
-        : `${podcastNarrationBrief()} ${ctx} Tek öğretmenin anlattığı 4 bölümlük kısa ders.`,
-      parse: (raw) => {
-        const data = schema.safeParse(raw).data ?? null;
-        if (!data) return null;
-        const published = input.teachingV2 ? publishablePodcast(data) : data;
-        if (podcastDialogueIssues(published.chapters).length) return null;
-        if (input.teachingV2) {
-          const issues = validatePodcastPedagogy(published);
-          if (issues.length) return null;
-          // Ders varsa podcast onun külliyatıyla sınırlı: geçen her
-          // nicelik derste de geçmeli, yoksa uydurulmuştur.
-          if (
-            lessonBrief &&
-            podcastNumbersOutsideLesson(JSON.stringify(published.chapters), lessonBrief)
-              .length
-          ) {
-            return null;
-          }
-        }
-        return published;
-      },
+      prepTitle: input.prepTitle,
+      topicLabel: input.topicLabel,
+      sourceBlock: input.sourceBlock,
+      teacherBrief: input.teacherBrief,
+      lessonBrief: lesson ? lessonPodcastBrief(lesson) : "",
+      length,
+      grounding: input.grounding,
+      idempotencyKey: input.idempotencyKey,
+      requestId: input.requestId,
     });
-    if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
-    return { type: "podcast", ...outcome.data, teachingStandard: activity };
+    if (!outcome.ok) {
+      throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+    }
+    if (input.prepId && input.userId) {
+      await writePodcastCache(input.service, {
+        prepId: input.prepId,
+        userId: input.userId,
+        topicLabel: input.topicLabel,
+        episode: outcome.data,
+      });
+    }
+    return {
+      type: "podcast",
+      title: outcome.data.title,
+      chapters: outcome.data.chapters,
+      length,
+      teachingStandard: activity,
+    };
   }
 
   if (input.kind === "oral") {

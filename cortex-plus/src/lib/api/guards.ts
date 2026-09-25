@@ -258,6 +258,8 @@ export function errorResponse(status: number, code: string) {
     operation_completed: "Bu işlem zaten tamamlandı. Kaydedilmiş sonucu açabilirsin; tekrar kredi düşmedi.",
     ai_not_configured: "AI servisi henüz yapılandırılmadı.",
     invalid_ai_response: "Yapay zekâ yanıtı işlenemedi. Tekrar dener misin?",
+    podcast_script_rejected:
+      "Podcast metni doğrulanamadı. Tutmayan sayı yayınlanmadı; yeniden deneyebilirsin.",
     generation_failed: "İçerik üretilemedi. Lütfen tekrar deneyin.",
     invalid_input: "Gönderilen bilgiler geçersiz.",
     not_found: "Kayıt bulunamadı.",

@@ -17,6 +17,7 @@ import {
   examPrepAssessmentHref,
   examPrepIntroHref,
   examPrepNodeHref,
+  examPrepPodcastHref,
   examPrepReviewsHref,
 } from "@/lib/learning/exam-prep-hrefs";
 import {
@@ -312,6 +313,12 @@ export function ExamPrepHome({
           Plan: {scheduleSummary}
         </p>
       ) : null}
+
+      <p>
+        <Link href={examPrepPodcastHref(prepId)} className="cp-back-pill">
+          Podcast oluştur
+        </Link>
+      </p>
 
       {uiV2 ? (
         <nav className="cp-exam-v2-links" aria-label="Öğrenme ekranları">

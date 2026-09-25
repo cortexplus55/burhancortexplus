@@ -85,6 +85,15 @@ describe("exam prep home path", () => {
     expect(screen.queryByRole("heading", { name: "Bugün başla" })).toBeNull();
   });
 
+  it("keeps a locked podcast node locked and links to the podcast route", () => {
+    renderHome();
+    const locked = screen.getByRole("button", { name: /Podcast Dinle/ });
+    expect((locked as HTMLButtonElement).disabled).toBe(true);
+    const entry = screen.getByRole("link", { name: "Podcast oluştur" });
+    expect(entry.getAttribute("href")).toBe("/deneme-sinavlari/prep-1/podcast");
+    expect((screen.getByRole("button", { name: /Podcast Dinle/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it("lists topics without leaving the prep", () => {
     renderHome();
     fireEvent.click(screen.getByRole("tab", { name: "Konular" }));
