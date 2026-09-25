@@ -170,9 +170,7 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "Sırf sayıyı doldurmak için yeni bölüm uydurma. " +
         "Kaynak en az üç kavram veriyorsa 3 ile 5 yanıtlı check yaz: her kavram bölümüne bir tane, beşi geçme. " +
         "Dar kaynakta en az bir check yeter. " +
-        "Özet maddesi niteleyiciyi ve tam bağıntıyı düşürmesin. " +
-        "Basınç için yüzeye dik kuvvet ve P = F/A birlikte kalsın; " +
-        "mutlak basınç için P_mutlak = P_atm + P_man ve vakumda P_mutlak = P_atm - P_vakum yazılsın. Yarım cümle yazma. " +
+        "Özet maddesi niteleyiciyi ve tam bağıntıyı düşürmesin. Yarım cümle yazma. " +
         "nextFocus yalnızca verilen sonraki konu başlıkları olsun; liste yoksa nextFocus yazma. " +
         "En az bir bölümde yanıtlı check olsun: " +
         "type trueFalse ekranda DOĞRU MU YANLIŞ, type mcq ekranda HIZLI SINAV. " +
@@ -180,14 +178,9 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "JSON anahtarları İngilizce kalır: objective, sections, example, commonMistake, infoCheck. " +
         "example, commonMistake veya objective yazamıyorsan alanı atla; uydurma. " +
         "commonMistake bu dersin kendi konusundan ve kaynak sayfalarından gelsin. " +
-        "claim yanlış inanç, correction kaynağın doğrusu olsun. Basınç dersine kJ veya kJ/kg hatası yazma. " +
-        "Hal fonksiyonu yalnızca başlangıç ve son hale bağlıdır, yoldan bağımsızdır; ısı ve iş yol fonksiyonudur. " +
-        "Çevrimde ΔU = ΔH = ΔE = 0, genel bir proseste değildir. Adyabatik ile izotermal, kapalı ile açık sistem, " +
-        "yeğin ile yaygın özelliği karıştırma. \"ortam koşullarına göre değişebilir\" yazma. " +
+        "claim yanlış inanç, correction kaynağın doğrusu olsun. " +
         "Düzeltmeyi kaynak cümlesiyle yaz; yazamıyorsan commonMistake alanını atla. " +
-        "Fazda sıcaklığı basınçla değil T_sat(P) ile, basıncı P_sat(T) ile karşılaştır. " +
-        "Karışımın bileşimi kuruluk derecesi x'tir. Doymuş sıvı ile doymuş buhar karışımı belirler diye yazma. " +
-        "Kaynakta olmayan formül veya teorem yazma; emin değilsen materyalde geçtiği hâliyle söyle."
+        "Kaynakta olmayan formül, birim veya sayı yazma; emin değilsen materyalde geçtiği hâliyle söyle."
       );
     case "quiz":
       return (
@@ -1446,6 +1439,10 @@ function solutionIsJustified(solution: string): boolean {
   return /cunku|bu yuzden|dolayisiyla|yani|adim|once|sonra/.test(folded);
 }
 
+function quantityOption(option: string): boolean {
+  return /^-?\d+(?:[.,]\d+)?(?:\s*[A-Za-z°µ/%³²·.]+)?$/.test(option.trim());
+}
+
 function sectionCheckTeaches(check: SectionCheck): boolean {
   const explanation = foldTr(check.explanation);
   if (explanation.length < 12) return false;
@@ -1453,6 +1450,12 @@ function sectionCheckTeaches(check: SectionCheck): boolean {
     return explanation !== foldTr(check.prompt);
   }
   if (check.answerIndex < 0 || check.answerIndex >= check.options.length) return false;
+  // "-6 kJ" gibi kısa sayı şıklarında çeldirici sözcük yoktur.
+  // Açıklama doğru değeri hesaplıyorsa soru öğretir.
+  if (check.options.length >= 3 && check.options.every(quantityOption)) {
+    const digits = (check.options[check.answerIndex] ?? "").replace(/\D/g, "");
+    if (digits.length >= 1 && explanation.replace(/\D/g, "").includes(digits)) return true;
+  }
   const correctTokens = new Set(
     foldTr(check.options[check.answerIndex] ?? "")
       .split(/[^a-z0-9]+/)

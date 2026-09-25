@@ -221,7 +221,9 @@ describe("iç enerji lesson claims", () => {
     expect(published).not.toMatch(/artış gösterir/);
     expect(result.lesson.example).toBeUndefined();
     expect(result.dropped).toContain("claim_wrong");
-    expect(result.dropped).toContain("coverage_gap");
+    expect(published).toMatch(/entalpi/i);
+    expect(published).toMatch(/özgül ısı/i);
+    expect(result.dropped).not.toContain("coverage_gap");
     expect(claimsFromVerify({ bad: [{ quote: "Isı kaybı her zaman iç enerjiyi azaltır.", reason: "wrong" }] }, energyLesson())).toEqual(
       [],
     );
@@ -246,10 +248,10 @@ describe("iç enerji lesson claims", () => {
     expect(body).toMatch(/özgül ısı/i);
     expect(result.lesson.summary?.join(" ")).not.toMatch(/Soru:|25 kJ|\?:/);
     expect(result.succeeded).toContain("claim_wrong");
-    expect(result.succeeded).toContain("coverage_gap");
+    expect(result.dropped).not.toContain("coverage_gap");
   });
 
-  it("verifies a clean lesson once and does not repair it", async () => {
+  it("still runs one fact check when the lesson is already clean", async () => {
     const lesson = energyLesson();
     lesson.sections[0].body =
       "Kapalı sistemde toplam enerji E = U + KE + PE bağıntısıyla yazılır. Entalpi h = u + Pv bağıntısıyla yazılır. Özgül ısılar Δu = c_v ΔT bağıntısıyla bulunur. Özgül ısılar arasındaki fark c_p − c_v = R bağıntısına eşittir ve k = c_p / c_v olarak yazılır.";
@@ -269,6 +271,78 @@ describe("iç enerji lesson claims", () => {
     expect(verify).toHaveBeenCalledTimes(1);
     expect(complete).not.toHaveBeenCalled();
     expect(result.requested).toEqual([]);
+    expect(typeof result.verifyMs).toBe("number");
+  });
+
+  it("drops a source-contradicting claim that every regex gate missed", async () => {
+    const topicLabel = "İzokorik süreç";
+    const wrong = "İzokorik süreçte hareketli sınır işi pozitiftir.";
+    const source = [
+      "İzokorik süreçte hacim sabittir ve hareketli sınır işi sıfırdır.",
+      "İzokorik süreçte elektrik veya karıştırıcı işi olabilir.",
+      "Sabit hacimde enerji değişimi ΔU = m c_v ΔT bağıntısıyla yazılır.",
+      "1 kg hava 300 K değerinden 400 K değerine çıkar ve ΔU = 1 × 0.718 × (400 − 300) = 71.8 kJ olur.",
+      "Kompresör verimi bu sayfanın dışında kalır ve derse girmez.",
+    ].join(" ");
+    const lesson: LessonV2 = {
+      title: topicLabel,
+      overview: "İzokorik süreçte hacim sabittir ve hareketli sınır işi sıfırdır.",
+      sections: [
+        {
+          heading: "Sınır işi",
+          body: `İzokorik süreçte hacim sabittir ve hareketli sınır işi sıfırdır. ${wrong}`,
+          check: check(
+            "İzokorik süreçte hareketli sınır işi sıfır mıdır?",
+            "Hacim sabit olduğu için hareketli sınır işi sıfırdır.",
+          ),
+        },
+        {
+          heading: "Enerji değişimi",
+          body: "Sabit hacimde enerji değişimi ΔU = m c_v ΔT bağıntısıyla yazılır.",
+          check: check(
+            "Sabit hacimde enerji değişimi hangi bağıntıyla yazılır?",
+            "Enerji değişimi ΔU = m c_v ΔT bağıntısıyla yazılır.",
+          ),
+        },
+        {
+          heading: "Diğer işler",
+          body: "İzokorik süreçte elektrik veya karıştırıcı işi olabilir.",
+          check: check(
+            "İzokorik süreçte elektrik işi olabilir mi?",
+            "Elektrik veya karıştırıcı işi hacim sabitken de olabilir.",
+          ),
+        },
+      ],
+      example: {
+        prompt: "1 kg hava 300 K değerinden 400 K değerine çıkarsa enerji değişimi nedir?",
+        solution: "ΔU = m c_v ΔT = 1 × 0.718 × (400 − 300) = 71.8 kJ",
+      },
+      summary: [
+        "İzokorik süreçte hacim sabittir ve hareketli sınır işi sıfırdır.",
+        "İzokorik süreçte elektrik veya karıştırıcı işi olabilir.",
+        "Sabit hacimde enerji değişimi ΔU = m c_v ΔT bağıntısıyla yazılır.",
+      ],
+    };
+    const input = { source, topicLabel };
+    expect(auditLearnerLesson(lesson, input).map((issue) => issue.code)).not.toContain("claim_wrong");
+
+    const cleanVerify = vi.fn(async () => ({ bad: [] }));
+    const untouched = await repairLearnerLesson(lesson, input, async () => null, cleanVerify);
+    expect(cleanVerify).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(untouched.lesson)).toContain(wrong);
+
+    const verify = vi.fn(async (_prompt: string) => ({ bad: [{ quote: wrong, reason: "wrong" }] }));
+    const complete = vi.fn(async () => null);
+    const result = await repairLearnerLesson(lesson, input, complete, verify);
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(result.requested).toContain("claim_wrong");
+    const published = JSON.stringify(result.lesson);
+    expect(published).not.toContain("hareketli sınır işi pozitiftir");
+    expect(published).toContain("hareketli sınır işi sıfırdır");
+    const prompt = String(verify.mock.calls[0]?.[0] ?? "");
+    expect(prompt).toContain("hareketli sınır işi sıfırdır");
+    expect(prompt).not.toContain("Kompresör verimi");
   });
 });
 

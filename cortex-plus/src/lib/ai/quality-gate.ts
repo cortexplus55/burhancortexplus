@@ -119,6 +119,12 @@ export async function verifyEducationalContent(input: {
    * 300 saniyelik tavana sığmazsa yapılmaz.
    */
   startedAt?: number;
+  /**
+   * Bağımsız kapı temizse ileri model turu açılmaz.
+   * Dersin 110 saniyelik bekleyişi taslak, denetim ve iddia turunun
+   * art arda gitmesindendi.
+   */
+  trustIndependent?: boolean;
 }): Promise<VerifyEducationalResult> {
   let content = input.draft;
   let tokensIn = 0;
@@ -261,6 +267,21 @@ export async function verifyEducationalContent(input: {
   // Pre-check: independent stages before spending a review call when clearly broken.
   {
     const pre = runIndependent(content);
+    const blockingIndependent = pre.issues.filter((item) => validationIssueBlocks(item, content));
+    if (input.trustIndependent && blockingIndependent.length === 0) {
+      return {
+        content,
+        tokensIn,
+        tokensOut,
+        repairAttempted,
+        recheckPassed: null,
+        stagesMs,
+        failedStage: null,
+        failureCodes: [],
+        issueSeverity: { blocking: [], nonBlocking: [] },
+        modelCalls,
+      };
+    }
     if (!pre.ok && input.independent) {
       // Still allow one repair attempt via the loop below — seed issues for repair.
       // If model is unavailable we fail closed; if model approves despite issues, we still reject.

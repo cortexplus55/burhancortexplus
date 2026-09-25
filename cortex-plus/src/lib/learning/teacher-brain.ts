@@ -834,10 +834,10 @@ export const SOURCE_PAGE_FORMULA_RULE =
   "Kaynak sayfada olmayan, ders kitabından bildiğin formülü içeri alma. " +
   "Öğretmen notu vurgu ve sıradır; notta geçen bir ifade kaynak sayfada yoksa dersin olgusu olmaz. " +
   "Çözümlü örnek yalnızca bu düğümün kaynak sayfalarındaki sayı ve formülü kullanır. " +
-  "Basınç hesabında her terimi ayrı yaz: P_abs = P_gage + P_atm ve her terimin kaynak sayfadaki değeri; " +
-  "vakum için P_vakum = P_atm − P_abs. Birim dönüşümünde iki tarafta farklı birim olsun ve arada işlem olmasın. " +
+  "Sayısal örnekte formül, birimli yerine koyma ve sonuç ayrı yazılır. " +
+  "Birim dönüşümünde iki tarafta farklı birim olsun ve arada işlem olmasın. " +
   "commonMistake yalnız bu konunun kaynak sayfalarından gelsin: claim öğrencinin yanlış inancı, correction kaynağın doğrusudur. " +
-  "Basınç veya sıcaklık dersine enerji birimi (kJ, kJ/kg) hatası yazma.";
+  "Kaynakta olmayan birimi veya formülü hata diye de yazma.";
 
 const EQUATION_IN_NOTE =
   /[A-Za-zσΔμρ][A-Za-z0-9σΔμρ'’^_]{0,8}\s*=\s*[A-Za-z0-9σΔμρ'’^_\s*/+−\-.]{1,24}/g;
@@ -1206,6 +1206,7 @@ export function acceptReviewVariant(
   const next = foldPrompt(review.prompt);
   if (next.length < 8 || next === original || next.includes(original)) return null;
   if (/başka sözcüklerle|baska sozcuklerle/i.test(review.prompt)) return null;
+  if (retryStemBroken(review.prompt, check.explanation)) return null;
   const corpus = [check.prompt, check.explanation, ...check.options, source].join("\n");
   if (hasNovelQuantity(review.prompt, corpus)) return null;
   const copied =
@@ -1546,14 +1547,75 @@ export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredRevie
 }
 
 /**
+ * Tekrar kökü çözüm adımını veya şık açıklamasını taşıyorsa yayınlanmaz.
+ * "= hangisi", sondaki "=", "diğer seçenek" ve bildiren cümlenin sonuna
+ * yapışmış soru işareti bu kapıdadır.
+ */
+/** Soru sözcüğü Türkçe harfle biter; ASCII sözcük sınırı "kaç"ı kaçırır. */
+function asksQuestion(text: string): boolean {
+  const folded = foldTr(text);
+  return /(^|[^a-z0-9])(midir|mudur|hangisi|hangi|kac|nedir|neden|nasil|mi|mu)(?![a-z0-9])/.test(folded);
+}
+
+export function retryStemBroken(prompt: string, explanation = ""): boolean {
+  const text = prompt.replace(/\s+/g, " ").trim();
+  if (!text) return true;
+  if (/=\s*hangisi/i.test(text)) return true;
+  if (/[=+×*/\-−]\s*\??$/.test(text)) return true;
+  if (/diğer seçenek/i.test(text) || /diger secenek/.test(foldTr(text))) return true;
+  const exp = explanation.replace(/\s+/g, " ").trim().replace(/[.?!]+$/g, "");
+  const stem = text.replace(/[.?!]+$/g, "").trim();
+  if (exp.length >= 24 && (stem.includes(exp) || foldTr(stem).includes(foldTr(exp)))) return true;
+  if (/\?\s*$/.test(text) && !asksQuestion(text) && /\b(dır|dir|dur|dür|tır|tir|olur|eder|sağlar)\b/i.test(text)) {
+    return true;
+  }
+  return false;
+}
+
+/** Sayısal soru, çözüm yazılmadan verilenler ve sorulan büyüklükle yeniden kurulur. */
+function quantityRetry<T extends ReviewCheck>(check: T): T | null {
+  const explanation = plainFact(check.explanation);
+  const explanationIsSolution =
+    explanation.length > 90 || /diğer seçenek/i.test(explanation) || /=\s*-?\d/.test(explanation);
+  if (!explanationIsSolution) return null;
+  const quantities = [
+    ...check.prompt.matchAll(/(\d+(?:[.,]\d+)?)\s*(kJ|kPa|MPa|Pa|kg|g|mol|m³|m3|L|mL|%|K)\b/gi),
+  ];
+  if (quantities.length < 2) return null;
+  const before = check.prompt.split(/____|kaç|nedir/i)[0] ?? "";
+  const asked =
+    before
+      .trim()
+      .split(/\s+/)
+      .filter((word) => /^[A-Za-zÇĞİÖŞÜçğıöşü]+$/.test(word))
+      .slice(-3)
+      .join(" ") || "sonuç";
+  const unit =
+    (check.options[check.answerIndex] ?? "").match(/(kJ|kPa|MPa|Pa|kg|g|mol|m³|m3|L|mL|%|K)\b/i)?.[1] ??
+    quantities[0]?.[2] ??
+    "";
+  const givens = quantities.map((match) => `${match[1]} ${match[2]}`).join(" ve ");
+  const prompt = `${givens} verildiğinde ${asked.replace(/\s+/g, " ")} kaç ${unit} olur?`
+    .replace(/\s+/g, " ")
+    .trim();
+  if (foldPrompt(prompt) === foldPrompt(check.prompt) || retryStemBroken(prompt, check.explanation)) return null;
+  return shiftOptions({ ...check, prompt });
+}
+
+/**
  * Çoktan seçmeli tekrar aynı kökü geri sormaz.
  * Açıklamadaki doğru olgu yeni kısa soruya döner; şıkların sırası değişir.
+ * Açıklamanın kendisi köke yapıştırılmaz.
  */
 function rephraseMultipleChoice<T extends ReviewCheck>(check: T): T | null {
+  const energy = quantityRetry(check);
+  if (energy) return energy;
   const correct = (check.options[check.answerIndex] ?? "").trim();
   const explanation = plainFact(check.explanation);
   let prompt = "";
-  if (explanation && correct) {
+  const explanationIsSolution =
+    explanation.length > 90 || /diğer seçenek/i.test(explanation) || /=\s*-?\d/.test(explanation);
+  if (explanation && correct && !explanationIsSolution) {
     const foldedExplanation = foldTr(explanation);
     const stem = foldTr(correct).replace(/[.?!]+$/g, "");
     if (stem.length >= 4 && foldedExplanation.includes(stem)) {
@@ -1566,14 +1628,7 @@ function rephraseMultipleChoice<T extends ReviewCheck>(check: T): T | null {
       if (next.length >= 12) prompt = `${next}?`;
     }
   }
-  if (!prompt || foldPrompt(prompt) === foldPrompt(check.prompt)) {
-    if (
-      explanation.length >= 20 &&
-      foldPrompt(explanation) !== foldPrompt(check.prompt)
-    ) {
-      prompt = `${explanation.replace(/[.!\s]+$/g, "")}. Buna göre hangisi doğrudur?`;
-    }
-  }
+  if (prompt && retryStemBroken(prompt, check.explanation)) prompt = "";
   if (!prompt || foldPrompt(prompt) === foldPrompt(check.prompt)) {
     prompt = check.prompt
       .replace(/ne denir\??/i, "hangi adı taşır?")
@@ -1581,7 +1636,9 @@ function rephraseMultipleChoice<T extends ReviewCheck>(check: T): T | null {
       .replace(/nedir\??/i, "hangi addır?");
   }
   prompt = prompt.replace(/\s+/g, " ").trim().slice(0, 300);
-  if (!prompt || foldPrompt(prompt) === foldPrompt(check.prompt)) return null;
+  if (!prompt || foldPrompt(prompt) === foldPrompt(check.prompt) || retryStemBroken(prompt, check.explanation)) {
+    return null;
+  }
   return shiftOptions({ ...check, prompt });
 }
 

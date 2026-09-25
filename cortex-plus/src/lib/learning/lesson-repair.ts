@@ -16,15 +16,17 @@ import {
   ambiguousEnergyClaim,
   claimsFromVerify,
   claimVerifyPrompt,
-  conceptInText,
   foreignToTopic,
   missingCoverage,
+  missingFormulaCoverage,
+  offTopicSection,
   overgeneralCorrection,
+  MEASURE,
   realGasPrecisionIssue,
+  statedRelations,
   rewriteSignFlip,
   signConventionFlip,
   summaryQuantityMismatch,
-  titleConcepts,
 } from "@/lib/learning/lesson-claims";
 import { diagramIssues, lessonDiagramSchema, needsDiagram } from "@/lib/learning/lesson-diagram";
 import { groundLearnerLesson, normalizeSummaryText, summaryLineProblem } from "@/lib/learning/lesson-grounding";
@@ -119,70 +121,255 @@ function placeholderWork(text: string): boolean {
   return /adim\s*\d+/.test(folded) && /sonucu hesapla/.test(folded);
 }
 
-/** Verilen, yerine koyma ve sayısal sonuç yoksa örnek yarım kalmıştır. */
+function measureUnit(text: string, raw: string): string {
+  const re = new RegExp(`(?<!\\d)${escapeReg(raw)}(?!\\d)\\s*(${MEASURE})`, "i");
+  return text.match(re)?.[1] ?? "";
+}
+
+function readNumber(raw: string): number {
+  return Number(raw.replace(",", "."));
+}
+
+function nearly(left: number, right: number, tolerance: number): boolean {
+  return Number.isFinite(left) && Number.isFinite(right) && Math.abs(left - right) <= tolerance;
+}
+
+function hasSymbolicRelation(text: string): boolean {
+  if (symbolicEquations(text).length > 0) return true;
+  return /[A-Za-zΔδ][A-Za-z0-9_Δδ]*\s*=\s*[^0-9.;]{0,60}[A-Za-zΔδ∫]/.test(text);
+}
+
+/** Verilen, yerine koyma ve sayısal sonuç yoksa hesap yarım kalmıştır. */
 export function exampleIsComplete(text: string): boolean {
   if (!text.trim() || placeholderWork(text)) return false;
-  const given = /\d+(?:[.,]\d+)?\s*(?:kg|kj|kpa|mpa|pa|°\s*c|m3\/kg|%)/i.test(text);
-  const substituted = /\d+(?:[.,]\d+)?(?:\s*[A-Za-z°µ/%³²]+)?\s*[/×*·+\-−]\s*\d/.test(text);
-  const result = /=\s*\d+(?:[.,]\d+)?\b/.test(text);
+  if (workedExampleNeedsFormula(text)) return false;
+  const given = new RegExp(`\\d+(?:[.,]\\d+)?\\s*${MEASURE}`, "i").test(text);
+  const substituted =
+    /\d+(?:[.,]\d+)?(?:\s*[A-Za-z°µ/%³²·]+)?\s*[/×*·+\-−]\s*\d/.test(text) ||
+    /\(\d+(?:[.,]\d+)?\s*[^)]+\)\s*\(/.test(text);
+  const result = /(?:=|≈)\s*\d+(?:[.,]\d+)?\b/.test(text);
   return given && substituted && result;
 }
 
-function energyFormulaSymbol(sentence: string, context: string): "ΔE" | "ΔU" | null {
-  const blob = `${context}\n${sentence}`;
-  const hasE = /ΔE\s*=\s*Q\s*[−–-]\s*W/i.test(blob);
-  const hasU = /ΔU\s*=\s*Q\s*[−–-]\s*W/i.test(blob);
-  const equivalent = /ΔE\s*=\s*ΔU|ΔU\s*=\s*ΔE/i.test(blob);
-  const mentionsU = /iç enerji|ΔU/i.test(sentence);
-  const mentionsE = /ΔE|toplam enerji/i.test(sentence);
-  if (mentionsU && hasU) return "ΔU";
-  if (mentionsU && hasE && equivalent) return "ΔU";
-  if (mentionsE && hasE) return "ΔE";
-  if (mentionsE && hasU && equivalent) return "ΔE";
-  if (hasE) return "ΔE";
-  if (hasU) return "ΔU";
-  return null;
+function bareDifference(text: string): boolean {
+  const compact = text.replace(/\s+/g, " ");
+  if (/[×x*/]/.test(compact) || hasSymbolicRelation(text)) return false;
+  return /=\s*\d+(?:[.,]\d+)?\s*[-−]\s*\d+(?:[.,]\d+)?\s*=\s*\d/.test(compact);
 }
 
-/** Sayı var, formül → yerine koyma → sonuç yok. Tam zincir ve basınç hesabı burada değildir. */
-export function workedExampleNeedsFormula(text: string): boolean {
-  if (/Q\s*[−–-]\s*W\s*=\s*\d/i.test(text)) return false;
-  if (/(?:Δ[EU]|sonuç|sonuc)\s*=\s*\d+(?:[.,]\d+)?\s*[-−]\s*\d+(?:[.,]\d+)?\s*=\s*\d/i.test(text)) {
-    return true;
-  }
-  const folded = foldTr(text);
-  const amounts = text.match(/\d+(?:[.,]\d+)?\s*kJ/gi) ?? [];
-  return amounts.length >= 2 && /isi/.test(folded) && /\bis\b/.test(folded);
+function bareQuotient(text: string): boolean {
+  if (hasSymbolicRelation(text)) return false;
+  return /\d+(?:[.,]\d+)?\s*\/\s*\d+(?:[.,]\d+)?\s*=\s*\d/.test(text);
 }
 
-function heatWorkTriple(text: string): { q: string; w: string; result: string; unit: string } | null {
-  const heat = text.match(/(\d+(?:[.,]\d+)?)\s*kJ\s+ısı/i);
-  const work = text.match(/(\d+(?:[.,]\d+)?)\s*kJ\s+iş/i);
-  const gained =
-    text.match(/iç enerji(?:si)?\s+(\d+(?:[.,]\d+)?)\s*kJ/i) ??
-    text.match(/(\d+(?:[.,]\d+)?)\s*kJ\s+art/i);
-  if (heat && work && gained) return { q: heat[1], w: work[1], result: gained[1], unit: "kJ" };
-  const bare = text.match(
-    /(\d+(?:[.,]\d+)?)\s*[-−]\s*(\d+(?:[.,]\d+)?)\s*=\s*(\d+(?:[.,]\d+)?)\s*(kJ|kPa|Pa)?/i,
+function bareFunctionProduct(text: string): boolean {
+  if (hasSymbolicRelation(text)) return false;
+  if (!/(?:ln|log|exp)\s*\(?\s*\d/i.test(text)) return false;
+  return /(?:≈|=)\s*\d+(?:[.,]\d+)?/.test(text);
+}
+
+function proseCombination(text: string): boolean {
+  if (/[=≈]/.test(text) || hasSymbolicRelation(text)) return false;
+  const amounts = [
+    ...text.matchAll(new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(${MEASURE})`, "gi")),
+  ].map((match) => readNumber(match[1]));
+  if (amounts.length < 3) return false;
+  const result = amounts[amounts.length - 1];
+  const inputs = amounts.slice(0, -1);
+  return inputs.some((left, index) =>
+    inputs.slice(index + 1).some((right) =>
+      nearly(left - right, result, 0.051) ||
+      nearly(left + right, result, 0.051) ||
+      (right !== 0 && nearly(left / right, result, 0.051)),
+    ),
   );
-  if (!bare) return null;
-  return { q: bare[1], w: bare[2], result: bare[3], unit: bare[4] ?? "kJ" };
 }
 
-function differenceMatches(q: string, w: string, result: string): boolean {
-  const left = Number(q.replace(",", "."));
-  const right = Number(w.replace(",", "."));
-  const total = Number(result.replace(",", "."));
-  return [left, right, total].every((value) => Number.isFinite(value)) && Math.abs(left - right - total) < 0.051;
+/**
+ * Sol taraf adlandırılmış, işlemdeki iki sayı da birimiyle duruyorsa
+ * satır kendi sonucunu kurmuştur. Birimsiz sayı zinciri formül bekler.
+ */
+function namesItsCalculation(text: string): boolean {
+  if (/(?:^|[^A-Za-zÇĞİÖŞÜçğıöşü])(sonuç|sonuc|cevap)(?:$|[^A-Za-zÇĞİÖŞÜçğıöşü])/i.test(text)) return false;
+  const named =
+    /[A-Za-zΔδ][A-Za-z0-9_Δδ]*\s*=\s*\d+(?:[.,]\d+)?\s*[/×*·+\-−]\s*\d+(?:[.,]\d+)?\s*(?:=|≈)\s*\d/.test(text);
+  if (!named) return false;
+  const ops = text.match(/(\d+(?:[.,]\d+)?)\s*[/×*·+\-−]\s*(\d+(?:[.,]\d+)?)/);
+  if (!ops) return false;
+  const withUnit = (raw: string) => new RegExp(`(?<!\\d)${escapeReg(raw)}(?!\\d)\\s*${MEASURE}`, "i").test(text);
+  return withUnit(ops[1]) && withUnit(ops[2]);
+}
+
+/** Sayısal hesap formülü yazmıyorsa tamamlanmalıdır. Formülü olan zincir burada değildir. */
+export function workedExampleNeedsFormula(text: string): boolean {
+  if (hasSymbolicRelation(text) || namesItsCalculation(text)) return false;
+  return bareDifference(text) || bareQuotient(text) || bareFunctionProduct(text) || proseCombination(text);
+}
+
+function formulasIn(context: string): string[] {
+  const found: string[] = [];
+  for (const sentence of sentencesOf(context)) {
+    for (const equation of symbolicEquations(sentence)) {
+      const key = foldTr(equation).replace(/\s+/g, "");
+      if (found.some((item) => foldTr(item).replace(/\s+/g, "") === key)) continue;
+      found.push(equation.replace(/\s+-\s+/g, " − ").replace(/\s+/g, " ").trim());
+    }
+  }
+  return found;
+}
+
+function formulaLhs(formula: string): string {
+  return formula.split("=")[0]?.trim() ?? "";
+}
+
+function rhsShape(formula: string): "function" | "quotient" | "difference" | "other" {
+  const rhs = formula.split("=").slice(1).join("=");
+  if (/(?:ln|log|exp)/i.test(rhs)) return "function";
+  if (/\//.test(rhs)) return "quotient";
+  if (/[−–-]/.test(rhs)) return "difference";
+  return "other";
+}
+
+function calculationShape(text: string): "function" | "quotient" | "difference" | "other" {
+  if (/(?:ln|log|exp)\s*\(?\s*\d/i.test(text)) return "function";
+  if (/\d+(?:[.,]\d+)?\s*\/\s*\d/.test(text)) return "quotient";
+  if (/\d+(?:[.,]\d+)?\s*[-−]\s*\d/.test(text) || proseCombination(text)) return "difference";
+  return "other";
+}
+
+function sameFormula(formulas: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const formula of formulas) {
+    const key = foldTr(formula).replace(/\s+/g, "").replace(/[−–]/g, "-");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(formula);
+  }
+  return out;
+}
+
+function pickFormula(text: string, context: string, formulas: string[]): string | null {
+  const named = formulas.filter((formula) => {
+    const lhs = formulaLhs(formula);
+    if (!lhs) return false;
+    return new RegExp(`(?:^|[^A-Za-zΔδ])${escapeReg(lhs)}(?:$|[^A-Za-zΔδ0-9_])`).test(text);
+  });
+  if (named.length === 1) return named[0];
+  const shapedNamed = sameFormula(named.filter((formula) => rhsShape(formula) === calculationShape(text)));
+  if (shapedNamed.length === 1) return shapedNamed[0];
+  const foldedText = foldTr(text);
+  const byPhrase = formulas.filter((formula) => {
+    const lhs = formulaLhs(formula);
+    const at = context.indexOf(lhs);
+    if (at < 0) return false;
+    const phrase = context
+      .slice(0, at)
+      .trim()
+      .split(/\s+/)
+      .slice(-2)
+      .join(" ");
+    return phrase.length >= 3 && foldedText.includes(foldTr(phrase));
+  });
+  if (byPhrase.length === 1) return byPhrase[0];
+  const wantsFunction = /(?:ln|log|exp)\s*\(?\s*\d/i.test(text);
+  const shaped = formulas.filter((formula) => {
+    const rhs = formula.split("=").slice(1).join("=");
+    return wantsFunction ? /(?:ln|log|exp)/i.test(rhs) : /[−–+\-/]/.test(rhs) && !/(?:ln|log|exp)/i.test(rhs);
+  });
+  return shaped.length === 1 ? shaped[0] : null;
+}
+
+function polishDifference(text: string, context: string, formula: string): string | null {
+  const inline = text.match(
+    /(\d+(?:[.,]\d+)?)\s*[-−]\s*(\d+(?:[.,]\d+)?)\s*=\s*(\d+(?:[.,]\d+)?)\s*([A-Za-zµ°%³/]+)?/,
+  );
+  let left = "";
+  let right = "";
+  let result = "";
+  let unit = "";
+  if (inline && !/[×x*/]/.test(text)) {
+    left = inline[1];
+    right = inline[2];
+    result = inline[3];
+    unit = inline[4] ?? measureUnit(text, result);
+  } else if (proseCombination(text)) {
+    const amounts = [...text.matchAll(new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(${MEASURE})`, "gi"))];
+    const last = amounts[amounts.length - 1];
+    const prior = amounts.slice(0, -1);
+    const total = readNumber(last?.[1] ?? "");
+    const pair = prior.find((item, index) =>
+      prior.slice(index + 1).some((other) => nearly(readNumber(item[1]) - readNumber(other[1]), total, 0.051)),
+    );
+    const other = pair
+      ? prior.find((item) => item !== pair && nearly(readNumber(pair[1]) - readNumber(item[1]), total, 0.051))
+      : undefined;
+    if (!pair || !other || !last) return null;
+    left = pair[1];
+    right = other[1];
+    result = last[1];
+    unit = last[2];
+  } else {
+    return null;
+  }
+  if (!nearly(readNumber(left) - readNumber(right), readNumber(result), 0.051)) return null;
+  const dressed = unit ? ` ${unit}` : "";
+  return `${formula} = ${left}${dressed} − ${right}${dressed} = ${result}${dressed}`.replace(/\s+/g, " ").trim();
+}
+
+function polishQuotient(text: string, context: string, formula: string): string | null {
+  if (!/\//.test(formula.split("=").slice(1).join("="))) return null;
+  const match = text.match(/(\d+(?:[.,]\d+)?)\s*\/\s*(\d+(?:[.,]\d+)?)\s*=\s*(\d+(?:[.,]\d+)?)/);
+  if (!match || !nearly(readNumber(match[1]) / readNumber(match[2]), readNumber(match[3]), 0.051)) return null;
+  const leftUnit = measureUnit(`${context}\n${text}`, match[1]);
+  const rightUnit = measureUnit(`${context}\n${text}`, match[2]);
+  const resultUnit = measureUnit(`${context}\n${text}`, match[3]);
+  const dress = (raw: string, unit: string) => (unit ? `${raw} ${unit}` : raw);
+  return `${formula} = ${dress(match[1], leftUnit)} / ${dress(match[2], rightUnit)} = ${dress(match[3], resultUnit)}`
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function polishProduct(text: string, context: string, formula: string): string | null {
+  if (!/(?:ln|log|exp)\s*\(?\s*\d/i.test(text)) return null;
+  const marks = [...text.matchAll(/(≈|=)\s*(\d+(?:[.,]\d+)?)\s*([A-Za-zµ°%³/]+)?/g)];
+  const claimed = marks[marks.length - 1];
+  if (!claimed || claimed.index == null) return null;
+  const head = text.slice(0, claimed.index).replace(/^[^×x*\d]*?(?:ln|log|exp|\d)/i, (token) => token);
+  const body = head.replace(/^[^×x*\n]*?=\s*/, "");
+  const tokens = body.split(/\s*[×x*]\s*/).map((token) => token.trim()).filter(Boolean);
+  if (tokens.length < 2) return null;
+  let value = 1;
+  const rendered: string[] = [];
+  for (const token of tokens) {
+    const fn = token.match(/^(ln|log|exp)\s*\(?\s*(\d+(?:[.,]\d+)?)\s*\)?$/i);
+    if (fn) {
+      const argument = readNumber(fn[2]);
+      const fnName = fn[1].toLowerCase();
+      value *= fnName === "ln" ? Math.log(argument) : fnName === "log" ? Math.log10(argument) : Math.exp(argument);
+      rendered.push(`${fnName} ${fn[2]}`);
+      continue;
+    }
+    const num = token.match(/(\d+(?:[.,]\d+)?)/);
+    if (!num) return null;
+    value *= readNumber(num[1]);
+    const unit = measureUnit(`${context}\n${text}`, num[1]);
+    rendered.push(unit ? `(${num[1]} ${unit})` : num[1]);
+  }
+  if (!nearly(value, readNumber(claimed[2]), 0.15)) return null;
+  const chain = rendered.join("").replace(/\)(?=(?:ln|log|exp)\b)/i, ") ");
+  const mark = claimed[1] === "≈" ? "≈" : "=";
+  const unit = claimed[3] ? ` ${claimed[3]}` : "";
+  return `${formula} = ${chain} ${mark} ${claimed[2]}${unit}`.replace(/\s+/g, " ").trim();
 }
 
 /** Verilen ve sonuç duruyorsa satır, dersteki formülden kurulur. Formül yoksa satır düşer. */
 export function polishWorkedExample(text: string, context: string): string | null {
   if (!workedExampleNeedsFormula(text)) return text;
-  const symbol = energyFormulaSymbol(text, context);
-  const nums = heatWorkTriple(text);
-  if (!symbol || !nums || !differenceMatches(nums.q, nums.w, nums.result)) return null;
-  return `${symbol} = Q − W = ${nums.q} ${nums.unit} − ${nums.w} ${nums.unit} = ${nums.result} ${nums.unit}`;
+  const formulas = formulasIn(context);
+  const formula = formulas.length ? pickFormula(text, context, formulas) : null;
+  if (!formula) return null;
+  return polishProduct(text, context, formula) ?? polishQuotient(text, context, formula) ?? polishDifference(text, context, formula);
 }
 
 function escapeReg(value: string): string {
@@ -191,7 +378,7 @@ function escapeReg(value: string): string {
 
 function completeDanglingFormula(sentence: string, context: string): string | null {
   if (!incompleteFormulaLine(sentence)) return sentence;
-  const left = sentence.match(/((?:Δ[EU]|[A-Za-z][A-Za-z0-9_]*))\s*=\s*$/);
+  const left = sentence.match(/((?:Δ|δ)?[A-Za-z][A-Za-z0-9_]*)\s*=\s*$/);
   if (!left) return null;
   const symbol = left[1];
   const re = new RegExp(`${escapeReg(symbol)}\\s*=\\s*([^\\n.;]{1,80})`, "gi");
@@ -247,6 +434,15 @@ export function isIncompleteExample(text: string): boolean {
   return /hesaplanarak/.test(folded) && /\d/.test(text) && /\bbulunur\b/.test(folded);
 }
 
+function expectsCalculation(text: string): boolean {
+  return (
+    workedExampleNeedsFormula(text) ||
+    isIncompleteExample(text) ||
+    workedCalculation(text) ||
+    /\d+(?:[.,]\d+)?\s*[/×*·+\-−]\s*\d/.test(text)
+  );
+}
+
 function workedCalculation(text: string): boolean {
   return (
     /\d+(?:[.,]\d+)?(?:\s*[A-Za-z°µ/%³²]+)?\s*[/×*·+\-−]\s*\d/.test(text) &&
@@ -256,20 +452,22 @@ function workedCalculation(text: string): boolean {
 
 /** Kaynak sabiti birimiyle duruyorsa örnekte de birimiyle durur. */
 function withConstantUnits(text: string, source: string): string {
-  const normalizedSource = source.replace(/\bc\s*_?\s*([vp])\b/gi, "c_$1");
+  const normalizedSource = source.replace(/\bc\s*_?\s*([A-Za-z])\b/gi, "c_$1");
   let next = text;
-  for (const symbol of ["c_v", "c_p"] as const) {
-    const match = normalizedSource.match(
-      new RegExp(`${symbol}\\s*=\\s*(\\d+(?:[.,]\\d+)?)\\s*kJ\\s*/\\s*kg\\s*[·.]?\\s*K`, "i"),
-    );
-    if (!match) continue;
-    const value = match[1].replace(",", ".");
-    const comma = value.replace(".", ",");
-    if (!next.includes(value) && !next.includes(comma)) continue;
-    if (new RegExp(`${symbol}\\s*=\\s*${value.replace(".", "[.,]")}\\s*kJ\\s*/\\s*kg`, "i").test(next)) {
-      continue;
-    }
-    next = `${next.replace(/[.\s]+$/g, "")}. ${symbol} = ${value} kJ/kg·K.`;
+  const defs = normalizedSource.matchAll(
+    new RegExp(
+      `([A-Za-zΔδ][A-Za-z0-9_Δδ]*)\\s*=\\s*(\\d+(?:[.,]\\d+)?)\\s*(${MEASURE})\\b`,
+      "gi",
+    ),
+  );
+  for (const match of defs) {
+    const symbol = match[1];
+    const value = match[2].replace(",", ".");
+    const unit = match[3];
+    if (!next.includes(value) && !next.includes(value.replace(".", ","))) continue;
+    if (new RegExp(`${escapeReg(symbol)}\\s*=\\s*${value.replace(".", "[.,]")}`, "i").test(next)) continue;
+    if (new RegExp(`${value.replace(".", "[.,]")}\\s*${escapeReg(unit)}`, "i").test(next)) continue;
+    next = `${next.replace(/[.\s]+$/g, "")}. ${symbol} = ${value} ${unit}.`;
   }
   return next.replace(/\s+/g, " ").trim();
 }
@@ -358,7 +556,7 @@ export function auditLearnerLesson(
   const sectionExample = lesson.sections.map((section) => section.body).join("\n");
   const incompleteInSection = sentencesOf(sectionExample).some((sentence) => isIncompleteExample(sentence));
   if (
-    (lesson.example && !exampleIsComplete(exampleText)) ||
+    (lesson.example && expectsCalculation(exampleText) && !exampleIsComplete(exampleText)) ||
     restatedResult(exampleText) ||
     restatedResult(sectionExample) ||
     incompleteInSection ||
@@ -463,7 +661,7 @@ function cleanSentences(text: string, source: string, quotes: string[] = [], con
       /\d/.test(current) &&
       /\d/.test(following) &&
       workedExampleNeedsFormula(pair) &&
-      !/Δ[EU]\s*=\s*Q\s*[−–-]\s*W/i.test(current)
+      !hasSymbolicRelation(current)
     ) {
       const line = polishWorkedExample(pair, context);
       if (line && !workedExampleNeedsFormula(line)) {
@@ -683,8 +881,14 @@ export function dropUnresolvedLesson(
   next.sections = next.sections.flatMap((section) => {
     const body = stripField(section.body);
     if (body.length < 20) return [];
-    const check = section.check && stemLacksSubject(section.check.prompt) ? undefined : section.check;
+    let check = section.check && stemLacksSubject(section.check.prompt) ? undefined : section.check;
     if (section.check && !check) mark("stem_grammar");
+    if (check && quoteHits(check.explanation, quotes)) {
+      const explanation = cleanSentences(check.explanation, source, quotes, formulaContext);
+      mark("claim_wrong");
+      if (explanation) check = { ...check, explanation };
+      else check = undefined;
+    }
     let diagram = section.diagram;
     if (diagram && diagramIssues(diagram).length) {
       diagram = undefined;
@@ -696,35 +900,44 @@ export function dropUnresolvedLesson(
     const combined = `${next.example.prompt}\n${next.example.solution}`;
     let prompt = next.example.prompt;
     let solution = next.example.solution;
-    if (workedExampleNeedsFormula(combined)) {
-      const lines = [prompt, solution]
-        .map((part) => polishWorkedExample(part, formulaContext))
-        .filter((line): line is string => {
-          if (!line) return false;
-          return !workedExampleNeedsFormula(line) && exampleIsComplete(line);
-        });
-      const unique = [...new Set(lines)];
-      if (unique.length) {
-        solution = unique.join(" ");
-        if (workedExampleNeedsFormula(prompt)) prompt = "Isı ve iş verildiğinde enerji değişimi nedir?";
+    if (!expectsCalculation(combined)) {
+      if (restatedResult(combined) || isIncompleteExample(combined)) {
+        delete next.example;
+        mark("example_incomplete");
       } else {
-        prompt = "";
-        solution = "";
+        next.example = { prompt, solution };
       }
-    }
-    const exampleText = `${prompt}\n${solution}`;
-    if (
-      !prompt ||
-      !solution ||
-      !exampleIsComplete(exampleText) ||
-      restatedResult(exampleText) ||
-      isIncompleteExample(exampleText) ||
-      workedExampleNeedsFormula(exampleText)
-    ) {
-      delete next.example;
-      mark("example_incomplete");
     } else {
-      next.example = { prompt, solution: withConstantUnits(solution, source) };
+      if (workedExampleNeedsFormula(combined)) {
+        const lines = [prompt, solution]
+          .map((part) => polishWorkedExample(part, formulaContext))
+          .filter((line): line is string => {
+            if (!line) return false;
+            return !workedExampleNeedsFormula(line) && exampleIsComplete(line);
+          });
+        const unique = [...new Set(lines)];
+        if (unique.length) {
+          solution = unique.join(" ");
+          if (workedExampleNeedsFormula(prompt)) prompt = "Verilenlerle sonuç nedir?";
+        } else {
+          prompt = "";
+          solution = "";
+        }
+      }
+      const exampleText = `${prompt}\n${solution}`;
+      if (
+        !prompt ||
+        !solution ||
+        !exampleIsComplete(exampleText) ||
+        restatedResult(exampleText) ||
+        isIncompleteExample(exampleText) ||
+        workedExampleNeedsFormula(exampleText)
+      ) {
+        delete next.example;
+        mark("example_incomplete");
+      } else {
+        next.example = { prompt, solution: withConstantUnits(solution, source) };
+      }
     }
   } else if (strippedPlaceholder) {
     mark("example_incomplete");
@@ -744,6 +957,12 @@ export function dropUnresolvedLesson(
     } else {
       next.commonMistake = { ...next.commonMistake, correction };
     }
+  }
+  if (next.summary?.length && quotes.length) {
+    const kept = next.summary.filter((line) => !quoteHits(line, quotes));
+    if (kept.length !== next.summary.length) mark("claim_wrong");
+    if (kept.length) next.summary = kept;
+    else delete next.summary;
   }
   const summary = filledSummary(next, source);
   const previous = (lesson.summary ?? []).filter((line) => acceptSummaryLine(line, source)).length;
@@ -767,16 +986,16 @@ export function lessonRepairPrompt(
     "Her kontrol sorusunun kökü öznesi olan bitmiş bir cümle olsun.",
     "Kontrol sorusu üçten azsa, dersteki bağıntılardan kaynakta duran sorular ekle. Üçten az soruyla bitirme.",
     "Örnek ya tam olsun (verilen, yerine koyma, sayısal sonuç, sabitin birimi) ya da null. Her örnek bloğu için geçerli.",
-    "Örnekte sıra formül, yerine koyma, sonuç olsun: ΔU = Q − W = 80 kJ − 30 kJ = 50 kJ. Formül dersin içinde yoksa örneği sil.",
-    "Sağ tarafı boş formül yazma. ΔE = gibi satır ya tamamlanır ya da silinir.",
-    "Q − (−W) = Q + W yazma. W negatifse ΔE = Q − W = Q + |W| yaz.",
+    "Sayısal örnekte sıra formül, birimli yerine koyma, sonuç olsun. Formül dersin içinde yoksa örneği sil. Hesap yoksa sayısal örnek uydurma.",
+    "Sağ tarafı boş formül yazma. Sol tarafı yazıp sağını boş bırakma.",
+    "Aynı simgeyi bir eşitlikte hem işaretli değer hem büyüklük yapma. −(−X) ancak |X| ile yazılır.",
     "Özet 3 ile 5 bildiren cümle olsun. Her cümle nokta ile bitsin. Başlık, öğrenme hedefi, etiket zinciri, Soru:, Cevap:, ifade doğrudur, doğru cevap, seçenek, diğerleri, yanlış ve çünkü ile biten satır yazma.",
-    "Pv = ZRT özgül hacim kullanır. Toplam hacimde PV = mZRT yaz. Kaynak söylemiyorsa Z = 1.03 varsayımı bozmaz deme.",
+    "Bağıntının harf büyüklüğünü ve katsayısını kaynaktaki gibi koru. Kaynak söylemediği sayısal varsayımı sonuç diye yazma.",
     "Kontrol sorularının en fazla biri doğru/yanlış olsun. Diğerleri dört şıklı çoktan seçmeli olsun.",
     "Tek cümlelik tekrar yazma. Verileni ve işlemi aynı sayıda göster: sonuç = bağıntı = verilen − sıfır.",
     "Adım 1 / Sonucu hesapla gibi yer tutucu yazma.",
     "Özetteki sayı, örneğin ve kaynağın sayısıyla aynı olsun.",
-    "Sık yapılan hatanın doğrusu kaynak cümlesiyle desteklensin. Isı alımı da iç enerjiyi değiştirir. Destekleyemiyorsan commonMistake yazma.",
+    "Sık yapılan hatanın doğrusu kaynak cümlesiyle desteklensin. Destekleyemiyorsan commonMistake yazma.",
     "Başlıkta olup kaynakta duran her kavram bir bölümde geçsin. Kaynakta yoksa ekleme.",
     "Çizim gerekiyorsa diagram koy: en az iki etiket, en az iki şekil.",
     `Düzeltilecek kodlar: ${codes.join(", ")}.`,
@@ -807,7 +1026,6 @@ export function lessonRepairPrompt(
 const MODEL_CODES = new Set<LessonCheckCode>([
   "source_contradiction",
   "stem_grammar",
-  "check_count",
   "example_incomplete",
   "summary_weak",
   "vacuous",
@@ -817,20 +1035,22 @@ const MODEL_CODES = new Set<LessonCheckCode>([
   "coverage_gap",
 ]);
 
-const RELATION_SENTENCE: { pattern: RegExp }[] = [
-  { pattern: /c_?p\s*[−–-]\s*c_?v\s*=\s*r/i },
-  { pattern: /k\s*=\s*c_?p\s*\/\s*c_?v/i },
-];
+function relationKey(text: string): string {
+  return foldTr(text).replace(/[\s_]/g, "").replace(/[−–]/g, "-");
+}
 
-/** Kaynak cümlesinde duran iki bağıntı derste yoksa o cümle eklenir. */
+/** Kaynakta tanıtılıp derste durmayan bağıntının cümlesi eklenir. Sayısal örnek eklenmez. */
 function coverSourceRelations(lesson: LessonV2, source: string): LessonV2 {
   let next = lesson;
   const blob = () =>
     [next.overview ?? "", ...next.sections.map((section) => section.body)].join("\n");
-  for (const relation of RELATION_SENTENCE) {
-    if (!relation.pattern.test(source) || relation.pattern.test(blob())) continue;
-    const sentence = sentencesOf(source).find((item) => relation.pattern.test(item));
-    if (!sentence || sentence.length < 20) continue;
+  let pending = missingFormulaCoverage(blob(), source).map(relationKey);
+  if (!pending.length) return next;
+  for (const sentence of sentencesOf(source)) {
+    if (!pending.length) break;
+    if (summaryLineProblem(sentence) || sentence.length < 20) continue;
+    const hit = statedRelations(sentence).some((formula) => pending.includes(relationKey(formula)));
+    if (!hit) continue;
     const host = next.sections[next.sections.length - 1];
     if (!host) continue;
     const combined = `${host.body} ${sentence}`.replace(/\s+/g, " ").trim();
@@ -841,13 +1061,16 @@ function coverSourceRelations(lesson: LessonV2, source: string): LessonV2 {
           index === next.sections.length - 1 ? { ...section, body: combined } : section,
         ),
       };
+    } else if (next.sections.length < 8) {
+      next = {
+        ...next,
+        sections: [...next.sections, { heading: "Bağıntı", body: sentence.slice(0, 2400) }],
+      };
+    } else {
       continue;
     }
-    if (next.sections.length >= 8) continue;
-    next = {
-      ...next,
-      sections: [...next.sections, { heading: "Özgül ısı bağıntısı", body: sentence.slice(0, 2400) }],
-    };
+    const covered = new Set(statedRelations(sentence).map(relationKey));
+    pending = pending.filter((key) => !covered.has(key));
   }
   return next;
 }
@@ -881,6 +1104,7 @@ function formulaToken(token: string): boolean {
   const bare = token.replace(/^[.(]+|[.,;:)]+$/g, "");
   if (!bare || FORMULA_STOP.has(foldTr(bare))) return false;
   if (/^d[A-Za-z]$/.test(bare)) return true;
+  if (/[A-Z]/.test(bare.slice(1)) || /^ln$/i.test(bare)) return true;
   return bare.length <= 2 && /^[A-Za-zΔδ]+$/.test(bare);
 }
 
@@ -945,44 +1169,54 @@ export function ambiguousRelationQuestion(prompt: string, options: string[]): bo
   return letters.length <= 2 || hits.length > 1;
 }
 
-function equationPrompt(equation: string): string | null {
-  const left = equation.split("=")[0]?.trim() || "";
-  if (!left) return null;
-  let prompt = `${left} hangi bağıntıyla hesaplanır?`;
-  if (ambiguousRelationQuestion(prompt, [])) return null;
-  if (prompt.replace(/[?.!]/g, "").split(/\s+/).filter(Boolean).length < 4) {
-    prompt = `${left} büyüklüğü hangi bağıntıyla hesaplanır?`;
-  }
-  if (ambiguousRelationQuestion(prompt, [])) return null;
-  if (stemLacksSubject(prompt)) prompt = `${left} için doğru bağıntı hangisidir?`;
-  if (ambiguousRelationQuestion(prompt, []) || stemLacksSubject(prompt)) return null;
-  return prompt.slice(0, 300);
+function distinctiveRhs(equation: string): string {
+  const rhs = equation.split("=").slice(1).join("=").trim();
+  const token = rhs.split(/\s+/).find((part) => part.length >= 2 && !/^[A-Za-zΔδ]$/.test(part));
+  return (token ?? rhs).slice(0, 24);
 }
 
-function safeRelationPrompt(equation: string): string | null {
-  if (/W\s*=\s*P\s*\(\s*V/i.test(equation)) return "Sabit basınçta sınır işi hangi eşitlikle yazılır?";
-  if (/W\s*=\s*∫/.test(equation)) return "Sınır işinin genel tanımı hangi eşitliktir?";
+function equationPrompt(equation: string, siblings: string[]): string | null {
+  const left = equation.split("=")[0]?.trim() || "";
+  if (!left) return null;
+  const shared = siblings.filter((item) => formulaLhs(item) === left);
+  const candidates =
+    shared.length > 1
+      ? [`${left} için ${distinctiveRhs(equation)} içeren bağıntı hangisidir?`]
+      : [
+          `${left} hangi bağıntıyla hesaplanır?`,
+          `${left} büyüklüğü hangi bağıntıyla hesaplanır?`,
+          `${left} için doğru bağıntı hangisidir?`,
+        ];
+  for (const prompt of candidates) {
+    if (ambiguousRelationQuestion(prompt, []) || stemLacksSubject(prompt)) continue;
+    return prompt.slice(0, 300);
+  }
   return null;
 }
 
-function boundaryDistractors(equation: string): string[] {
-  if (!/W\s*=/.test(equation) || !/dV|V\s*[₂2]|∫/.test(equation)) return [];
-  return ["W = V(P₂ − P₁)", "W = P(V₂ + V₁)", "W = P / (V₂ − V₁)"];
-}
-
-function heatSwap(equation: string): string | null {
-  if (!/c_[vp]/i.test(equation)) return null;
-  const swapped = equation.replace(/c_v/gi, "\u0000").replace(/c_p/gi, "c_v").replace(/\u0000/g, "c_p");
-  return foldTr(swapped) === foldTr(equation) ? null : swapped;
-}
-
-function signDistractors(equation: string): string[] {
-  if (!/Q\s*[−–-]\s*W/i.test(equation)) return [];
-  return [
-    equation.replace(/Q\s*[−–-]\s*W/i, "Q + W"),
-    equation.replace(/Q\s*[−–-]\s*W/i, "W − Q"),
-    equation.replace(/Q\s*[−–-]\s*W/i, "−Q − W"),
-  ];
+function mutateEquation(equation: string): string[] {
+  const lhs = formulaLhs(equation);
+  const rhs = equation.split("=").slice(1).join("=").trim();
+  if (!lhs || !rhs) return [];
+  const alts: string[] = [];
+  const push = (next: string) => {
+    const cleaned = next.replace(/\s+/g, " ").trim();
+    if (!cleaned || foldTr(cleaned) === foldTr(rhs)) return;
+    if (alts.some((item) => foldTr(item) === foldTr(cleaned))) return;
+    alts.push(cleaned);
+  };
+  if (/[−-]/.test(rhs)) push(rhs.replace(/[−-]/, "+"));
+  if (/\+/.test(rhs)) push(rhs.replace("+", "−"));
+  if (rhs.includes("/")) push(rhs.split("/").reverse().join("/"));
+  push(`−(${rhs})`);
+  const factors = rhs.split(/\s*[×·*]\s*/).map((item) => item.trim()).filter(Boolean);
+  if (factors.length >= 2) push([...factors].reverse().join(" × "));
+  const tokens = rhs.split(/\s+/).filter(Boolean);
+  if (tokens.length >= 2) {
+    push(`${tokens[tokens.length - 1]} ${tokens.slice(0, -1).join(" ")}`);
+    push([...tokens].reverse().join(" "));
+  }
+  return alts.map((item) => `${lhs} = ${item}`.replace(/\s+/g, " ").trim());
 }
 
 function optionsForEquation(equation: string, equations: { equation: string }[]): string[] {
@@ -990,15 +1224,11 @@ function optionsForEquation(equation: string, equations: { equation: string }[])
   const others = equations
     .map((row) => row.equation)
     .filter((item) => foldTr(item.replace(/\s+/g, "")) !== foldTr(equation.replace(/\s+/g, "")));
-  for (const alt of [...others, ...signDistractors(equation)]) {
+  for (const alt of [...others, ...mutateEquation(equation)]) {
     if (options.length >= 4) break;
     const key = foldTr(alt.replace(/\s+/g, ""));
     if (options.some((item) => foldTr(item.replace(/\s+/g, "")) === key)) continue;
     options.push(alt);
-  }
-  const swapped = heatSwap(equation);
-  if (swapped && options.length < 4 && !options.some((item) => foldTr(item) === foldTr(swapped))) {
-    options.push(swapped);
   }
   return options;
 }
@@ -1014,15 +1244,13 @@ function equationCheck(
   item: { equation: string; sentence: string },
   equations: { equation: string }[],
 ): SectionCheck | null {
-  const prompt = equationPrompt(item.equation) ?? safeRelationPrompt(item.equation);
+  const prompt = equationPrompt(
+    item.equation,
+    equations.map((row) => row.equation),
+  );
   if (!prompt || prompt.length < 12 || stemLacksSubject(prompt)) return null;
   if (ambiguousRelationQuestion(prompt, [])) return null;
   const options = [...optionsForEquation(item.equation, equations)];
-  for (const alt of boundaryDistractors(item.equation)) {
-    if (options.length >= 4) break;
-    if (options.some((itemOption) => foldTr(itemOption) === foldTr(alt))) continue;
-    options.push(alt);
-  }
   if (options.length < 2 || ambiguousRelationQuestion(prompt, options)) return null;
   const explanation =
     item.sentence.length >= 12 ? item.sentence.slice(0, 580) : `${item.equation} dersin anlatımında verilir.`;
@@ -1037,7 +1265,7 @@ function equationCheck(
 
 /**
  * Model üçüncü soruyu yazmadıysa dersin kendi cümlelerinden kurulur.
- * Yeni bir model çağrısı yok. Çeldirici, dersteki başka bağıntı ya da c_v/c_p değişimidir.
+ * Yeni bir model çağrısı yok. Çeldirici, dersteki başka bağıntı ya da aynı bağıntının değişimidir.
  */
 export function ensureThreeChecks(lesson: LessonV2): LessonV2 {
   const next: LessonV2 = {
@@ -1054,7 +1282,12 @@ export function ensureThreeChecks(lesson: LessonV2): LessonV2 {
   for (const text of pool) {
     for (const sentence of sentencesOf(text)) {
       if (isIncompleteExample(sentence) || vacuousSentence(sentence)) continue;
-      if (sentence.length >= 24 && sentence.length <= 220 && !summaryLineProblem(sentence)) {
+      if (
+        sentence.length >= 24 &&
+        sentence.length <= 220 &&
+        !summaryLineProblem(sentence) &&
+        concreteStatement(sentence)
+      ) {
         statements.push(sentence.replace(/\s+/g, " ").trim());
       }
       for (const equation of symbolicEquations(sentence)) {
@@ -1098,7 +1331,7 @@ export function ensureThreeChecks(lesson: LessonV2): LessonV2 {
     const check = queue.shift();
     if (!check) break;
     const body = check.explanation.length >= 20 ? check.explanation : `${check.explanation} Bu bağıntı dersin anlatımındadır.`;
-    const heading = check.prompt.replace(/[?]/g, "").split(/\s+/).slice(0, 4).join(" ").slice(0, 80);
+    const heading = addedHeading(check.prompt, next.title);
     next.sections.push({
       heading: heading.length >= 2 ? heading : "Bağıntı",
       body: body.slice(0, 2400),
@@ -1128,17 +1361,65 @@ export function ensureThreeChecks(lesson: LessonV2): LessonV2 {
 }
 
 function alignedTopicTitle(title: string, topicLabel: string): string {
-  const concepts = titleConcepts(topicLabel);
-  if (!concepts.length) return title || topicLabel;
-  const longest = concepts.reduce((best, item) => (item.length > best.length ? item : best));
-  if (title && conceptInText(longest, title)) return title;
-  return topicLabel;
+  const wanted = topicLabel.trim();
+  if (wanted.length >= 3) return wanted;
+  return title || wanted;
+}
+
+/** "Bu formüller…" gibi göstereni olmayan evet/hayır kökü soru değildir. */
+function vagueYesNo(prompt: string): boolean {
+  const folded = foldTr(prompt);
+  if (!/(dogru mudur|dogru mu)/.test(folded)) return false;
+  return /^(bu formuller|bu ifade|bu yontem|bu baginti)/.test(folded);
+}
+
+function concreteStatement(sentence: string): boolean {
+  const folded = foldTr(sentence);
+  return !/^(bu formuller|bu ifade|bu yontem|bu baginti)/.test(folded);
+}
+
+function headingIsCut(heading: string): boolean {
+  const folded = foldTr(heading).replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+  const last = folded.split(" ").pop() ?? "";
+  if (/^(ve|ile|icin|olan|olarak|gore|kadar|turune|turu)$/.test(last)) return true;
+  return /^(bu formuller|bu ifade|bu yontem)\b/.test(folded) && folded.split(" ").length <= 6;
+}
+
+function addedHeading(prompt: string, title: string): string {
+  const cleaned = prompt.replace(/[?]/g, "").replace(/\s+/g, " ").trim();
+  if (
+    cleaned &&
+    !headingIsCut(cleaned) &&
+    cleaned.split(/\s+/).length <= 6 &&
+    !/^(bu|şu)\b/i.test(cleaned)
+  ) {
+    return cleaned.slice(0, 80);
+  }
+  return title.trim() || "Bağıntı";
+}
+
+function finishHeading(heading: string, topicLabel: string, discardedTitle = ""): string {
+  const trimmed = heading.replace(/\s+/g, " ").trim();
+  if (!trimmed) return topicLabel.trim() || trimmed;
+  if (headingIsCut(trimmed)) return topicLabel.trim() || trimmed;
+  if (
+    discardedTitle &&
+    foldTr(trimmed) === foldTr(discardedTitle) &&
+    foldTr(trimmed) !== foldTr(topicLabel)
+  ) {
+    return topicLabel.trim() || trimmed;
+  }
+  return trimmed;
 }
 
 function keepTopicSentence(sentence: string, source: string, topicLabel: string): string | null {
   const gapped = repairGappedFrame(restoreMathNotation(sentence));
   if (!gapped) return null;
   if (realGasPrecisionIssue(gapped, source) || foreignToTopic(gapped, source, topicLabel)) return null;
+  const plain = gapped.replace(/\*\*/g, "").trim();
+  if (ambiguousRelationQuestion(plain, [])) return null;
+  const folded = foldTr(plain);
+  if (/^(bu formuller|bu yontem|bu ifade)\b/.test(folded) && !/=/.test(plain)) return null;
   return gapped;
 }
 
@@ -1159,32 +1440,68 @@ function checkLeavesTopic(check: SectionCheck, source: string, topicLabel: strin
   return foreignToTopic(blob, source, topicLabel) || realGasPrecisionIssue(blob, source);
 }
 
+const SYMBOL = "[A-Za-zΔδ](?:_[A-Za-z0-9]+|[₀-₉¹²³])*";
+
+function sourceAssignments(source: string): Map<string, { raw: string; unit: string; value: number }> {
+  const found = new Map<string, { raw: string; unit: string; value: number }>();
+  const re = new RegExp(`(${SYMBOL})\\s*=\\s*(\\d+(?:[.,]\\d+)?)\\s*(${MEASURE})?`, "gi");
+  for (const match of source.matchAll(re)) {
+    found.set(match[1], { raw: match[2], unit: match[3] ?? "", value: readNumber(match[2]) });
+  }
+  return found;
+}
+
+function statedResult(source: string): { raw: string; unit: string; value: number } | null {
+  const match = source.match(new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(${MEASURE})\\s+(?:olur|eder|bulunur)`, "i"));
+  if (!match) return null;
+  return { raw: match[1], unit: match[2], value: readNumber(match[1]) };
+}
+
+/** Kaynak değeri ve sonucu yazıyorsa, dersteki formüle o değerler konur. */
 function withBoundaryExample(lesson: LessonV2, source: string): LessonV2 {
   const existing = `${lesson.example?.prompt ?? ""}\n${lesson.example?.solution ?? ""}`;
-  if (lesson.example && exampleIsComplete(existing)) return lesson;
+  if (lesson.example && (exampleIsComplete(existing) || !expectsCalculation(existing))) return lesson;
   const blob = [lesson.overview ?? "", ...lesson.sections.map((section) => section.body)].join("\n");
-  if (!/W\s*=\s*P\s*\(\s*V\s*(?:₂|2|_2)\s*[−–-]\s*V\s*(?:₁|1|_1)\s*\)/i.test(blob)) return lesson;
-  const pressure = source.match(/P\s*=\s*(\d+(?:[.,]\d+)?)\s*kPa/i);
-  const start = source.match(/V\s*(?:₁|1|_1)\s*=\s*(\d+(?:[.,]\d+)?)\s*m/i);
-  const end = source.match(/V\s*(?:₂|2|_2)\s*=\s*(\d+(?:[.,]\d+)?)\s*m/i);
-  if (!pressure || !start || !end) return lesson;
-  const read = (raw: string) => Number(raw.replace(",", "."));
-  const p = read(pressure[1]);
-  const v1 = read(start[1]);
-  const v2 = read(end[1]);
-  const work = p * (v2 - v1);
-  if (![p, v1, v2, work].every((value) => Number.isFinite(value))) return lesson;
-  const shown = Math.abs(work - Math.round(work)) < 0.051 ? String(Math.round(work)) : work.toFixed(1);
-  if (Math.abs(work - Number(shown)) > 0.051) return lesson;
-  const solution = `W = P(V₂ − V₁) = ${pressure[1]} kPa × (${end[1]} − ${start[1]}) m³ = ${shown} kJ.`;
-  if (!exampleIsComplete(solution)) return lesson;
-  return {
-    ...lesson,
-    example: {
-      prompt: `Sabit ${pressure[1]} kPa basınçta hacim ${start[1]} m³ değerinden ${end[1]} m³ değerine değişirse sınır işi nedir?`,
-      solution,
-    },
-  };
+  const values = sourceAssignments(source);
+  const result = statedResult(source);
+  if (!result || !values.size) return lesson;
+  const symbol = `(${SYMBOL})`;
+  for (const formula of formulasIn(blob)) {
+    const rhs = formula.split("=").slice(1).join("=").trim();
+    const product = rhs.match(new RegExp(`^${symbol}\\(${symbol}\\s*[−–-]\\s*${symbol}\\)$`));
+    const quotient = rhs.match(new RegExp(`^${symbol}\\s*/\\s*${symbol}$`));
+    const difference = rhs.match(new RegExp(`^${symbol}\\s*[−–-]\\s*${symbol}$`));
+    let solution = "";
+    if (product) {
+      const factor = values.get(product[1]);
+      const left = values.get(product[2]);
+      const right = values.get(product[3]);
+      if (!factor || !left || !right) continue;
+      if (!nearly(factor.value * (left.value - right.value), result.value, 0.051)) continue;
+      solution = `${formula} = ${factor.raw} ${factor.unit} × (${left.raw} − ${right.raw}) ${left.unit} = ${result.raw} ${result.unit}`.replace(/\s+/g, " ");
+    } else if (quotient) {
+      const left = values.get(quotient[1]);
+      const right = values.get(quotient[2]);
+      if (!left || !right || right.value === 0) continue;
+      if (!nearly(left.value / right.value, result.value, 0.051)) continue;
+      solution = `${formula} = ${left.raw} ${left.unit} / ${right.raw} ${right.unit} = ${result.raw} ${result.unit}`.replace(/\s+/g, " ");
+    } else if (difference) {
+      const left = values.get(difference[1]);
+      const right = values.get(difference[2]);
+      if (!left || !right) continue;
+      if (!nearly(left.value - right.value, result.value, 0.051)) continue;
+      solution = `${formula} = ${left.raw} ${left.unit} − ${right.raw} ${right.unit} = ${result.raw} ${result.unit}`.replace(/\s+/g, " ");
+    }
+    if (!solution || !exampleIsComplete(solution)) continue;
+    return {
+      ...lesson,
+      example: {
+        prompt: "Kaynaktaki verilenlerle sonuç nedir?",
+        solution,
+      },
+    };
+  }
+  return lesson;
 }
 
 /**
@@ -1209,9 +1526,11 @@ export function scopeLessonToTopic(lesson: LessonV2, source: string, topicLabel:
   }
   next.sections = lesson.sections.flatMap((section) => {
     const body = clean(section.body);
+    const heading = finishHeading(restoreMathNotation(section.heading), topicLabel, lesson.title);
     if (body.length < 20) return [];
+    if (offTopicSection(heading, body, source, topicLabel)) return [];
     let check = section.check;
-    if (check && checkLeavesTopic(check, source, topicLabel)) check = undefined;
+    if (check && (checkLeavesTopic(check, source, topicLabel) || vagueYesNo(check.prompt))) check = undefined;
     else if (check) {
       check = {
         ...check,
@@ -1221,7 +1540,12 @@ export function scopeLessonToTopic(lesson: LessonV2, source: string, topicLabel:
       };
       if (ambiguousRelationQuestion(check.prompt, check.options)) check = undefined;
     }
-    return [{ ...section, heading: restoreMathNotation(section.heading), body, check }];
+    return [{
+      ...section,
+      heading,
+      body,
+      check,
+    }];
   });
   if (lesson.commonMistake) {
     const correction = clean(lesson.commonMistake.correction);
@@ -1243,10 +1567,59 @@ export function scopeLessonToTopic(lesson: LessonV2, source: string, topicLabel:
     const solution = clean(lesson.example.solution);
     const blob = `${prompt}\n${solution}`;
     if (prompt && solution && !foreignToTopic(blob, source, topicLabel) && !realGasPrecisionIssue(blob, source)) {
-      next.example = { prompt, solution };
+      if (!expectsCalculation(blob)) {
+        if (!restatedResult(blob) && !isIncompleteExample(blob)) next.example = { prompt, solution };
+      } else {
+        const lessonBlob = [next.overview ?? "", ...next.sections.map((section) => section.body), prompt, source].join("\n");
+        const polished = polishWorkedExample(solution, lessonBlob);
+        if (polished && exampleIsComplete(polished)) {
+          let given = prompt;
+          const polishedPrompt = polishWorkedExample(prompt, lessonBlob);
+          if (
+            polishedPrompt &&
+            polishedPrompt !== prompt &&
+            !workedExampleNeedsFormula(polishedPrompt) &&
+            exampleIsComplete(polishedPrompt)
+          ) {
+            given = polishedPrompt;
+          } else if (workedExampleNeedsFormula(given)) {
+            given = "Verilenlerle sonuç nedir?";
+          }
+          given = attachKnownUnits(given, polished, lessonBlob);
+          next.example = { prompt: given, solution: polished };
+        }
+      }
     }
   }
-  return withBoundaryExample(next, source);
+  return withCalculatedExample(withBoundaryExample(next, source));
+}
+
+function attachKnownUnits(prompt: string, solution: string, context: string): string {
+  let given = prompt;
+  const defs = context.matchAll(new RegExp(`(${SYMBOL})\\s*=\\s*(\\d+(?:[.,]\\d+)?)\\s*(${MEASURE})`, "gi"));
+  for (const match of defs) {
+    if (!solution.includes(match[2]) || !solution.includes(match[3])) continue;
+    const clause = `${match[1]} = ${match[2]} ${match[3]}`;
+    if (given.includes(clause) || given.includes(`${match[2]} ${match[3]}`)) continue;
+    given = `${given.replace(/[.\s]+$/g, "")}. ${clause}.`;
+  }
+  return given.replace(/\s+/g, " ").trim();
+}
+
+/** Kaynak dışı örnek düşünce, bölümdeki tamamlanmış hesap örneğin yerini alır. */
+function withCalculatedExample(lesson: LessonV2): LessonV2 {
+  const existing = `${lesson.example?.prompt ?? ""}\n${lesson.example?.solution ?? ""}`;
+  if (lesson.example && exampleIsComplete(existing) && !workedExampleNeedsFormula(existing)) return lesson;
+  for (const section of lesson.sections) {
+    const solution = sentencesOf(section.body).find((sentence) => exampleIsComplete(sentence) && !workedExampleNeedsFormula(sentence));
+    if (!solution) continue;
+    const prompt =
+      section.check?.prompt && !vagueYesNo(section.check.prompt)
+        ? section.check.prompt
+        : "Bu hesap hangi sonucu verir?";
+    return { ...lesson, example: { prompt, solution } };
+  }
+  return lesson;
 }
 
 export async function repairLearnerLesson(
@@ -1254,25 +1627,59 @@ export async function repairLearnerLesson(
   input: { source: string; topicLabel: string },
   complete: (prompt: string) => Promise<unknown>,
   verify?: (prompt: string) => Promise<unknown>,
-): Promise<{ lesson: LessonV2; requested: LessonCheckCode[]; succeeded: LessonCheckCode[]; dropped: LessonCheckCode[] }> {
-  const bounded = applyBoundFix(scopeLessonToTopic(lesson, input.source, input.topicLabel), input.source);
+): Promise<{
+  lesson: LessonV2;
+  requested: LessonCheckCode[];
+  succeeded: LessonCheckCode[];
+  dropped: LessonCheckCode[];
+  verifyMs: number;
+}> {
+  const bounded = applyBoundFix(
+    coverSourceRelations(scopeLessonToTopic(lesson, input.source, input.topicLabel), input.source),
+    input.source,
+  );
   const filled = filledSummary(bounded, input.source);
   const prepared: LessonV2 = filled.length ? { ...bounded, summary: filled } : bounded;
-  let quotes: string[] = [];
-  if (verify && input.source.trim()) {
+  /**
+   * Regex kapısı temiz olsa da her ders kaynağa karşı bir kez denetlenir.
+   * Denetim, yerel tarama ile aynı anda başlar. Onarım yalnız işaret varsa açılır.
+   */
+  const verifyStarted = Date.now();
+  const verifyTask = (async (): Promise<string[]> => {
+    if (!verify || !input.source.trim()) return [];
     try {
-      quotes = claimsFromVerify(await verify(claimVerifyPrompt(prepared, input.source)), prepared);
+      return claimsFromVerify(
+        await verify(claimVerifyPrompt(prepared, input.source, input.topicLabel)),
+        prepared,
+      );
     } catch {
-      quotes = [];
+      return [];
     }
-  }
+  })();
   const audit = auditLearnerLesson(prepared, input);
+  let quotes: string[] = [];
+  let verifyMs = 0;
+  try {
+    quotes = await verifyTask;
+  } finally {
+    verifyMs = Date.now() - verifyStarted;
+  }
   if (quotes.length && !audit.some((issue) => issue.code === "claim_wrong")) {
     audit.push({ code: "claim_wrong", detail: quotes[0].slice(0, 160) });
   }
   const requested = [...new Set(audit.map((issue) => issue.code))];
   if (!requested.length) {
-    return { lesson: prepared, requested, succeeded: [], dropped: [] };
+    const counted = prepared.sections.filter((section) => section.check).length;
+    if (counted >= 3) return { lesson: prepared, requested, succeeded: [], dropped: [], verifyMs };
+    const summary = filledSummary(prepared, input.source);
+    const drafted = summary.length ? { ...prepared, summary } : prepared;
+    return {
+      lesson: ensureThreeChecks(scopeLessonToTopic(drafted, input.source, input.topicLabel)),
+      requested,
+      succeeded: [],
+      dropped: [],
+      verifyMs,
+    };
   }
   let merged = prepared;
   const needsModel = requested.some((code) => MODEL_CODES.has(code));
@@ -1288,15 +1695,15 @@ export async function repairLearnerLesson(
     }
   }
   const finalized = dropUnresolvedLesson(applyBoundFix(merged, input.source), input.source, quotes);
-  const covered = ensureThreeChecks(coverSourceRelations(finalized.lesson, input.source));
+  const covered = coverSourceRelations(finalized.lesson, input.source);
   const summary = filledSummary(covered, input.source);
   const drafted = summary.length ? { ...covered, summary } : covered;
-  const published = scopeLessonToTopic(drafted, input.source, input.topicLabel);
+  const published = ensureThreeChecks(scopeLessonToTopic(drafted, input.source, input.topicLabel));
   const remaining = new Set(auditLearnerLesson(published, input).map((issue) => issue.code));
   const removed = new Set(finalized.dropped);
   const succeeded = requested.filter((code) => !remaining.has(code) && !removed.has(code));
   const dropped = [...new Set([...finalized.dropped, ...remaining])];
-  return { lesson: published, requested, succeeded, dropped };
+  return { lesson: published, requested, succeeded, dropped, verifyMs };
 }
 
 function applyBoundFix(lesson: LessonV2, source: string): LessonV2 {
