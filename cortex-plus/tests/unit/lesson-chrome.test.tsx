@@ -113,7 +113,8 @@ describe("lesson chrome helpers", () => {
       answerIndex: 1,
       explanation: "Kütle geçişi olan düzenek açık sistemdir.",
     });
-    expect(fallback.prompt).not.toBe("Sınırından kütle geçen düzeneğe ne denir?");
+    expect(fallback.prompt).toBe("Sınırından kütle geçen düzeneğe ne denir?");
+    expect(fallback.prompt).not.toContain("başka sözcüklerle");
     expect(fallback.options[fallback.answerIndex]).toBe("Açık sistem");
     expect(fallback.answerIndex).not.toBe(1);
   });
@@ -133,6 +134,8 @@ describe("ExamLessonSteps", () => {
     expect(screen.getByText("Kapalı Sistem")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Yanlış" }));
 
+    expect(screen.getByText("2 / 7")).toBeTruthy();
+    expect(screen.queryByText(/\/ 9/)).toBeNull();
     expect(screen.getByText("AÇIKLAMA")).toBeTruthy();
     expect(screen.getByText("Dersin sonunda buna geri döneceğiz.")).toBeTruthy();
     expect(screen.getByText("🤔 Yanlış")).toBeTruthy();
@@ -149,6 +152,7 @@ describe("ExamLessonSteps", () => {
     expect(screen.getByText("Sınır nedir?")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    expect(screen.getByText("Tekrar")).toBeTruthy();
     expect(screen.getByText("TEKRARLA")).toBeTruthy();
     expect(screen.getByText("Bitirmeden önce kısa tekrar")).toBeTruthy();
     expect(screen.getByText(/1 kontrol sorusunu/)).toBeTruthy();
@@ -156,6 +160,7 @@ describe("ExamLessonSteps", () => {
     expect(onFinish).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    expect(screen.getByText("Tekrar 1 / 1")).toBeTruthy();
     expect(
       screen.getByText("Sistem ile çevre arasındaki yüzeye ne ad verilir?"),
     ).toBeTruthy();
