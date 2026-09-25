@@ -1558,8 +1558,9 @@ describe("exam-prep lesson route", () => {
     }
     const numeric = checks.find((check) => check?.prompt === numericPrompt);
     expect(numeric?.options[numeric.answerIndex]).toBe("-6 kJ");
-    const isothermal = checks.find((check) => /ideal gaz işi hangi eşitlik/i.test(check?.prompt ?? ""));
-    expect(isothermal?.options[isothermal.answerIndex ?? 0]).toMatch(/mRT ln\(V₂\/V₁\)/);
+    const isothermal = checks.find((check) => /mRT ln\(V₂\/V₁\)/.test(check?.options[check.answerIndex] ?? ""));
+    expect(isothermal?.prompt).toMatch(/bağıntı|eşitlik|hangi/i);
+    expect(isothermal?.options).toHaveLength(4);
     const retry = reviewQuestionFor(
       {
         type: "mcq",
@@ -1570,9 +1571,7 @@ describe("exam-prep lesson route", () => {
       },
       "tr",
     );
-    expect(retry.prompt).toBe(
-      "Bir sistem 10 kJ ısı kaybederken üzerine 4 kJ iş yapılıyor. Sistemin enerji değişimi kaç kJ olur?",
-    );
+    expect(retry.prompt).toBe("10 kJ ve 4 kJ verildiğinde net enerji değişimi kaç kJ olur?");
     expect(retry.prompt).not.toMatch(/=\s*hangisi|diğer seçenek|ΔE = -10 - \(-4\)/i);
     expect(retry.options[retry.answerIndex]).toBe("-6 kJ");
     expect(retry.options).not.toEqual(["-6 kJ", "14 kJ", "-14 kJ", "6 kJ"]);

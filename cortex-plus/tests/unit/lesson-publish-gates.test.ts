@@ -127,13 +127,16 @@ describe("ideal gaz dersinin yayın kapıları", () => {
     );
   });
 
-  it("asks for the two heat relations only when the source contains them", () => {
+  it("asks for source equations the lesson never states", () => {
     const lesson = "İdeal gazda ΔU = m c_v ΔT yazılır.";
     const withRelations = `${lesson} c_p − c_v = R ve k = c_p / c_v.`;
-    expect(missingFormulaCoverage(lesson, SOURCE)).toEqual(
-      expect.arrayContaining(["c_p − c_v = R", "k = c_p/c_v"]),
-    );
-    expect(missingFormulaCoverage(withRelations, SOURCE)).toEqual([]);
-    expect(missingFormulaCoverage(lesson, "Basınç P = F/A ile tanımlanır.")).toEqual([]);
+    const missing = missingFormulaCoverage(lesson, SOURCE).map((item) => item.replace(/\s+/g, ""));
+    expect(missing).toEqual(expect.arrayContaining(["c_p−c_v=R", "k=c_p/c_v"]));
+    const covered = missingFormulaCoverage(withRelations, SOURCE).map((item) => item.replace(/\s+/g, ""));
+    expect(covered).not.toEqual(expect.arrayContaining(["c_p−c_v=R", "k=c_p/c_v"]));
+    expect(missingFormulaCoverage(lesson, "Basınç P = F/A bağıntısıyla tanımlanır.")).toEqual(["P = F/A"]);
+    expect(
+      missingFormulaCoverage("Basınç P = F/A bağıntısıyla tanımlanır.", "Basınç P = F/A bağıntısıyla tanımlanır."),
+    ).toEqual([]);
   });
 });

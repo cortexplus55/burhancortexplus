@@ -18,7 +18,8 @@ const LEAKED =
   "Net enerji değişimi ΔE = Q - W ile hesaplanır. Q = -10 kJ (ısı kaybı), W = -4 kJ (iş girişi), ΔE = -10 - (-4) = hangisi olur. Diğer seçenekler işaret kuralı hatasıdır?";
 const BARE = "W=1×0.287×300×ln2 ≈ 59.7 kJ";
 const POLISHED = "W = mRT ln(V₂/V₁) = (1 kg)(0.287 kJ/kg·K)(300 K) ln 2 ≈ 59.7 kJ";
-const FORMULA = "İzotermal ideal gaz işi W = mRT ln(V₂/V₁) eşitliğiyle yazılır.";
+const FORMULA =
+  "İzotermal ideal gaz işi W = mRT ln(V₂/V₁) eşitliğiyle yazılır. R = 0.287 kJ/kg·K. Kütle 1 kg. Sıcaklık 300 K.";
 const OPTIONS = ["-6 kJ", "14 kJ", "-14 kJ", "6 kJ"];
 
 describe("heat and work retry stem", () => {
@@ -44,9 +45,7 @@ describe("heat and work retry stem", () => {
       },
       "tr",
     );
-    expect(retry.prompt).toBe(
-      "Bir sistem 10 kJ ısı kaybederken üzerine 4 kJ iş yapılıyor. Sistemin enerji değişimi kaç kJ olur?",
-    );
+    expect(retry.prompt).toBe("10 kJ ve 4 kJ verildiğinde net enerji değişimi kaç kJ olur?");
     expect(retry.prompt).not.toMatch(/=\s*hangisi|diğer seçenek|ΔE = -10/);
     expect(retry.options[retry.answerIndex]).toBe("-6 kJ");
     expect(retry.options).not.toEqual(OPTIONS);
@@ -125,7 +124,11 @@ describe("scoped heat and work lesson", () => {
     expect(scoped.example?.prompt).toContain("R = 0.287 kJ/kg·K");
     const filled = ensureThreeChecks(scoped);
     const prompts = filled.sections.map((section) => section.check?.prompt ?? "");
-    expect(prompts.some((prompt) => /ideal gaz işi hangi eşitlik/i.test(prompt))).toBe(true);
+    const formula = filled.sections
+      .map((section) => section.check)
+      .find((check) => /mRT ln\(V₂\/V₁\)/.test(check?.options.join(" ") ?? ""));
+    expect(formula?.prompt).toMatch(/bağıntı|eşitlik|hangi/i);
+    expect(formula?.options).toHaveLength(4);
     expect(prompts.some((prompt) => /bu ifade doğru mudur/i.test(prompt))).toBe(false);
   });
 });

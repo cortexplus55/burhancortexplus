@@ -6,6 +6,7 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
+import { summaryLineProblem } from "@/lib/learning/lesson-grounding";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 
 const GENERIC = new Set([
@@ -27,8 +28,7 @@ const GENERIC = new Set([
 
 /**
  * En uzun kavram eşlenen sayfalarda duruyorsa kısa kalan sözcük
- * ("Prosesler") başka bölümü içeri almaz.
- * "Özgül Isılar" eksikse entalpi sayfası yine eklenir.
+ * başka bölümü içeri almaz. Uzun kavram eksikse o kavramın sayfası eklenir.
  */
 export function conceptsWorthWidening(title: string, mappedText: string): string[] {
   const concepts = titleConcepts(title);
@@ -58,47 +58,134 @@ export function topicSpan(source: string, topicLabel: string): string | null {
   return hits.join(" ");
 }
 
-const FOREIGN_TOPIC: { hit: (text: string) => boolean }[] = [
-  {
-    hit: (text) => /P\s*v\s*=\s*Z\s*R\s*T|Pv\s*=\s*ZRT|PV\s*=\s*Z\s*R\s*T|PV\s*=\s*ZRT/i.test(text),
-  },
-  {
-    hit: (text) =>
-      /gerçek gaz|sıkıştırılabilirlik/i.test(text) ||
-      /gercek gaz|sikistirilabilirlik/.test(foldTr(text)),
-  },
-  {
-    hit: (text) =>
-      /\b[PT]\s+r\b/.test(text) ||
-      /[PT]ᵣ/.test(text) ||
-      /\b[PT]\s+cr\b/.test(text) ||
-      /\b[PT]_cr\b/.test(text) ||
-      /\b[PT]cr\b/.test(text),
-  },
-  { hit: (text) => /Z\s*=\s*1[.,]0\d/.test(text) },
-];
+const LETTER = "A-Za-zÇĞİÖŞÜçğıöşü";
 
-/** Kapsamda olmayan gerçek gaz bağıntısı bu konunun cümlesi değildir. */
-export function foreignToTopic(text: string, source: string, topicLabel: string): boolean {
-  const span = topicSpan(source, topicLabel);
-  if (!span) return false;
-  return FOREIGN_TOPIC.some((item) => item.hit(text) && !item.hit(span));
+/** Sayıdan sonra gelen ölçü birimi. Uzun birim, kısa birimden önce durur. */
+export const MEASURE =
+  "(?:kJ\\/kg·K|kJ\\/kg|kJ\\/mol|g\\/mol|mol\\/L|m³\\/kg|m3\\/kg|kJ|kcal|kPa|MPa|Pa|kg|mol|°C|K|m³|m3|mL|L|g|%)";
+
+function withoutMeasuredUnits(text: string): string {
+  return text.replace(new RegExp(`(\\d|\\))\\s*${MEASURE}(?![${LETTER}])`, "g"), "$1 ");
 }
 
 /**
- * Pv = ZRT özgül hacimdir. Toplam hacim PV = mZRT biçimindedir.
- * Kaynak söylemiyorsa Z ≈ 1 iddiası da düşer.
+ * Formülün sonundaki düz yazı anahtara girmez.
+ * Küçük harfli sözcük kesilir; ZRT gibi simge kümesi durur.
  */
-export function realGasPrecisionIssue(sentence: string, source: string): boolean {
-  const specific = /P\s*v\s*=\s*Z\s*R\s*T|Pv\s*=\s*ZRT/i.test(sentence);
-  const total = /PV\s*=\s*Z\s*R\s*T|PV\s*=\s*ZRT/.test(sentence);
-  if (specific && /hacim\s+V\b/.test(sentence)) return true;
-  if (total && !/(?:m|n)\s*Z\s*R\s*T|mZRT|nZRT|\bm\s*R\s*T|\bn\s*R\s*T/i.test(sentence)) return true;
+function formulaStem(fragment: string): string {
+  const symbolic = fragment.split(/\s*=\s*\d/)[0] ?? fragment;
+  const kept: string[] = [];
+  for (const part of symbolic.split(/\s+/)) {
+    const letters = part.replace(/[^A-Za-zÇĞİÖŞÜçğıöşü]/g, "");
+    if (letters.replace(/[^a-zçğıöşü]/g, "").length >= 3) break;
+    kept.push(part);
+  }
+  return kept.join(" ").replace(/[.,;:]+$/g, "").trim();
+}
+
+function equationKey(fragment: string): string {
+  return foldTr(formulaStem(fragment)).replace(/[^a-z0-9=+\-*/()]/g, "");
+}
+
+function equationBody(raw: string): string {
+  return formulaStem(raw);
+}
+
+function shapeKey(equation: string): string {
+  return foldTr(equation).replace(/[^a-z0-9=+\-*/()]/g, "");
+}
+
+function compactEquation(text: string): string[] {
+  const found: string[] = [];
+  const re = /[A-Za-zΔδ][A-Za-z0-9_Δδ]*\s*=\s*[^.;\n]{1,80}/g;
+  for (const match of text.matchAll(re)) {
+    const body = equationBody(match[0]);
+    if (/^[A-Za-zΔδ][A-Za-z0-9_Δδ]*\s*=\s*\d/.test(body)) continue;
+    const key = equationKey(match[0]);
+    if (key.includes("=") && key.length >= 3 && !found.includes(key)) found.push(key);
+  }
+  return found;
+}
+
+function mentionsTopic(text: string, topicLabel: string): boolean {
+  return titleConcepts(topicLabel).some((concept) => conceptInText(concept, text));
+}
+
+function topicEquationKeys(source: string, topicLabel: string): { inside: string[]; outside: string[] } {
+  const sentences = topicSentences(source);
+  return {
+    inside: compactEquation(sentences.filter((sentence) => mentionsTopic(sentence, topicLabel)).join(" ")),
+    outside: compactEquation(sentences.filter((sentence) => !mentionsTopic(sentence, topicLabel)).join(" ")),
+  };
+}
+
+/**
+ * Bağıntı, başlıktaki kavramların geçtiği cümlelerde yoksa ve kaynağın
+ * başka cümlesinde duruyorsa bu konunun cümlesi değildir.
+ * Kapsam daraltılamıyorsa hiçbir cümle bu yüzden düşmez.
+ */
+export function foreignToTopic(text: string, source: string, topicLabel: string): boolean {
+  if (!topicSpan(source, topicLabel)) return false;
+  const { inside, outside } = topicEquationKeys(source, topicLabel);
+  if (!outside.length) return false;
+  return compactEquation(text).some((equation) => outside.includes(equation) && !inside.includes(equation));
+}
+
+/**
+ * Başlıkta konu yok, bölümdeki bağıntı da konunun cümlelerinde yoksa bölüm düşer.
+ * Anlatı bölümü ve konunun kendi bağıntısı durur.
+ */
+export function offTopicSection(heading: string, body: string, source: string, topicLabel: string): boolean {
+  if (!topicSpan(source, topicLabel)) return false;
+  const blob = `${heading}\n${body}`;
+  if (mentionsTopic(blob, topicLabel)) return false;
+  const equations = compactEquation(blob);
+  if (!equations.length) return false;
+  const { inside } = topicEquationKeys(source, topicLabel);
+  if (equations.some((equation) => inside.includes(equation))) return false;
+  const topicSymbols = new Set(inside.join("").match(/[a-z]/g) ?? []);
+  return equations.every((equation) => (equation.match(/[a-z]/g) ?? []).some((symbol) => !topicSymbols.has(symbol)));
+}
+
+/**
+ * Bağıntıdaki harf cümlenin geri kalanında ters büyüklükte duruyorsa,
+ * kaynakta aynı bağıntı başka harf büyüklüğüyle duruyorsa,
+ * ya da kaynakta olmayan "bozmaz" iddiası varsa.
+ */
+export function formulaPrecisionIssue(sentence: string, source: string): boolean {
+  const equations = sentence.match(/[A-Za-zΔδ][A-Za-z0-9_Δδ]*\s*=\s*[^.;\n]{1,40}/g) ?? [];
+  const sourceEquations = source.match(/[A-Za-zΔδ][A-Za-z0-9_Δδ]*\s*=\s*[^.;\n]{1,80}/g) ?? [];
+  let prose = sentence;
+  for (const raw of equations) prose = prose.replace(equationBody(raw), " ");
+  prose = withoutMeasuredUnits(prose);
+  for (const raw of equations) {
+    const original = equationBody(raw);
+    const letters = withoutMeasuredUnits(original).match(/[A-Za-z]/g) ?? [];
+    for (const letter of letters) {
+      const other = letter === letter.toLowerCase() ? letter.toUpperCase() : letter.toLowerCase();
+      if (other === letter) continue;
+      if (new RegExp(`(?:^|[^${LETTER}])${other}(?:$|[^${LETTER}])`).test(prose)) return true;
+    }
+    const shape = shapeKey(original);
+    if (shape.length < 3) continue;
+    for (const sourceRaw of sourceEquations) {
+      const sourceEq = equationBody(sourceRaw);
+      if (shapeKey(sourceEq) !== shape) continue;
+      const left = original.replace(/[^A-Za-z]/g, "");
+      const right = sourceEq.replace(/[^A-Za-z]/g, "");
+      if (left && left.length === right.length && left !== right) return true;
+    }
+  }
   const folded = foldTr(sentence);
-  if (/bozmaz/.test(folded) && /ideal gaz/.test(folded) && /z\s*=\s*1/.test(folded)) {
-    return !/bozmaz/.test(foldTr(source));
+  if (/(bozmaz|degistirmez|etkilemez)/.test(folded) && /=\s*1/.test(folded)) {
+    return !/(bozmaz|degistirmez|etkilemez)/.test(foldTr(source));
   }
   return false;
+}
+
+/** Eski ad. Kapı artık konuya özel değildir. */
+export function realGasPrecisionIssue(sentence: string, source: string): boolean {
+  return formulaPrecisionIssue(sentence, source);
 }
 
 /** "İç Enerji, Entalpi ve Özgül Isılar" → iç enerji, entalpi, özgül ısılar. */
@@ -224,12 +311,12 @@ export function signConventionFlip(text: string): boolean {
   return false;
 }
 
-/** W negatifken zincir ΔE = Q − W = Q + |W| olur. Düzelmezse cümle yayımlanmaz. */
+/** İşaretli simge aynı eşitlikte büyüklük olmuşsa |simge| ile yazılır. */
 export function rewriteSignFlip(sentence: string): string | null {
   if (!signConventionFlip(sentence)) return sentence;
   const next = sentence.replace(
-    /Q\s*[−–-]\s*\(\s*[−–-]\s*W\s*\)\s*=\s*Q\s*\+\s*W/gi,
-    "Q − W = Q + |W|",
+    /([A-Za-zΔδ][A-Za-z0-9_Δδ]*)\s*[−–-]\s*\(\s*[−–-]\s*([A-Za-zΔδ][A-Za-z0-9_Δδ]*)\s*\)\s*=\s*\1\s*\+\s*\2/gi,
+    (_match, left: string, symbol: string) => `${left} − ${symbol} = ${left} + |${symbol}|`,
   );
   return signConventionFlip(next) ? null : next;
 }
@@ -285,10 +372,53 @@ function compactRelation(text: string): string {
   return foldTr(text).replace(/[\s_]/g, "").replace(/[−–]/g, "-");
 }
 
-const NAMED_RELATIONS: { label: string; pattern: RegExp }[] = [
-  { label: "c_p − c_v = R", pattern: /cp-cv=r/ },
-  { label: "k = c_p/c_v", pattern: /k=cp\/cv/ },
-];
+const RELATION_START =
+  /(?:(?:Δ|δ)?[A-Za-z][A-Za-z0-9_]*\s*[-−–+]\s*)?(?:Δ|δ)?[A-Za-z][A-Za-z0-9_]*\s*=\s*/g;
+
+function displayRelation(fragment: string): string {
+  let equation = fragment.replace(/\s+/g, " ").trim();
+  equation = equation
+    .replace(/[,.;:].*$/, "")
+    .replace(
+      /\s+(?:formül\w*|formul\w*|ba[gğ]ınt\w*|ba[gğ]lant\w*|şeklinde|seklinde|yazılır|yazilir|bulunur|hesaplanır|hesaplanir|olarak|eşitli\w*|esitli\w*|tanımlan\w*|tanimlan\w*|ile)\b.*$/i,
+      "",
+    )
+    .trim();
+  if ((equation.match(/=/g) ?? []).length !== 1) return "";
+  if (/\d/.test(equation)) return "";
+  const right = equation.split("=").slice(1).join("=").trim();
+  if (!/[A-Za-zΔδ]/.test(right) || equation.length < 5 || equation.length > 80) return "";
+  return equation
+    .replace(/\s*\/\s*/g, "/")
+    .replace(/\s*([=+])\s*/g, " $1 ")
+    .replace(/\s*[−–-]\s*/g, " − ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * "bağıntı", "eşitlik", "yazılır" diye tanıtılan simgesel eşitlik.
+ * Sayısal yerine koyma ve özet artığı burada değildir.
+ */
+export function statedRelations(text: string): string[] {
+  const out: string[] = [];
+  for (const sentence of text.split(/\n+|(?<=[.!?])\s+/)) {
+    if (!/(baginti|esit|yazilir|tanimlan|hesaplan)/.test(foldTr(sentence))) continue;
+    if (summaryLineProblem(sentence)) continue;
+    const normalized = sentence.replace(/\bc\s*_?\s*([vp])\b/gi, "c_$1");
+    const starts = [...normalized.matchAll(RELATION_START)];
+    for (let index = 0; index < starts.length; index += 1) {
+      const begin = starts[index]?.index ?? 0;
+      const end = starts[index + 1]?.index ?? normalized.length;
+      const shown = displayRelation(normalized.slice(begin, end));
+      if (!shown) continue;
+      const key = compactRelation(shown);
+      if (out.some((item) => compactRelation(item) === key)) continue;
+      out.push(shown);
+    }
+  }
+  return out;
+}
 
 /** "Formüller:" satırındaki kısa bağıntılar. Gövdedeki her eşitlik değil. */
 function listedFormulas(source: string): string[] {
@@ -307,19 +437,15 @@ function listedFormulas(source: string): string[] {
 }
 
 /**
- * Kaynakta duran c_p − c_v = R ve k = c_p/c_v, bir de formül listesindeki
- * kısa satırlar. Sayfa gövdesindeki her eşitlik burada aranmaz.
+ * Kaynakta bağıntı diye tanıtılıp derste hiç yazılmayan eşitlik.
+ * Sayfa gövdesindeki her sayısal eşitlik burada aranmaz.
  */
 export function missingFormulaCoverage(lessonText: string, source: string): string[] {
-  const sourceKey = compactRelation(source);
   const lessonKey = compactRelation(lessonText);
   const missing: string[] = [];
-  for (const relation of NAMED_RELATIONS) {
-    if (!relation.pattern.test(sourceKey) || relation.pattern.test(lessonKey)) continue;
-    missing.push(relation.label);
-  }
-  for (const formula of listedFormulas(source)) {
+  for (const formula of [...statedRelations(source), ...listedFormulas(source)]) {
     const key = compactRelation(formula);
+    if (!key.includes("=") || key.length < 3) continue;
     if (lessonKey.includes(key)) continue;
     if (missing.some((item) => compactRelation(item) === key)) continue;
     missing.push(formula);
@@ -387,9 +513,9 @@ export function claimVerifyPrompt(lesson: LessonV2, source: string, topicLabel =
     "İddiaları kaynağa karşı denetle.",
     "Yalnızca yanlış, kaynakta desteği olmayan veya işareti belirsiz cümleleri döndür.",
     "Sık yapılan hatanın yanlış inancı yanlış kalabilir; onun düzeltmesi doğru olmalıdır.",
-    "Isı alımı da iç enerjiyi değiştirir. ΔU = Q − W bağıntısında işareti söylemeyen cümle belirsizdir.",
-    "Formülün içindeki işaret ve cebir hatasını da wrong say. Q − (−W) = Q + W aynı simgeyi hem negatif değer hem büyüklük yapar. Doğru zincir ΔE = Q − W = Q + |W| biçimidir.",
-    "Pv = ZRT bağıntısında v özgül hacimdir. Toplam hacim için PV = mZRT yazılır. Kaynak söylemiyorsa Z = 1.03 ideal gaz varsayımını bozmaz deme.",
+    "İşaret belirtilmeden yön iddia eden cümle belirsizdir.",
+    "Formülün içindeki işaret ve cebir hatasını da wrong say. Aynı simgeyi hem negatif değer hem büyüklük yapmak wrong'dur. Büyüklük |simge| ile yazılır.",
+    "Bağıntının harf büyüklüğü ve katsayısı kaynaktaki gibi olsun. Kaynak söylemiyorsa bir sayının varsayımı bozmadığını yazma.",
     'JSON: {"bad":[{"quote":"dersteki aynen cümle","reason":"wrong"}]}',
     "reason yalnız wrong, unsupported veya ambiguous olsun. Uyan iddia yoksa bad boş dizi olsun.",
     `Kaynak:\n${sourceForChecker(source, topicLabel)}`,

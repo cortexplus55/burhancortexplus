@@ -16,6 +16,7 @@ const SOURCE = [
   "Sınır işi bir prosesin yoluna bağlıdır.",
   "Sabit basınçta sınır işi W = P(V₂ − V₁) eşitliğiyle yazılır.",
   "P = 100 kPa. V₁ = 0.2 m³. V₂ = 0.5 m³. Sonuç 30 kJ olur.",
+  "Gerçek gazlar başka bölümde Pv = ZRT ile yazılır.",
 ].join(" ");
 
 describe("topic span", () => {
@@ -150,8 +151,6 @@ describe("scoped boundary-work lesson", () => {
       expect(check?.type).toBe("mcq");
       expect(check?.options).toHaveLength(4);
     }
-    expect(checks.some((check) => /Sınır işinin genel tanımı|Sabit basınçta sınır işi/.test(check?.prompt ?? ""))).toBe(
-      true,
-    );
+    expect(checks.some((check) => /bağıntı hangisi|hangi bağıntıyla/.test(check?.prompt ?? ""))).toBe(true);
   });
 });

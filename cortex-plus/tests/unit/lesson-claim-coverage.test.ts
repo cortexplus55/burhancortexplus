@@ -221,7 +221,9 @@ describe("iç enerji lesson claims", () => {
     expect(published).not.toMatch(/artış gösterir/);
     expect(result.lesson.example).toBeUndefined();
     expect(result.dropped).toContain("claim_wrong");
-    expect(result.dropped).toContain("coverage_gap");
+    expect(published).toMatch(/entalpi/i);
+    expect(published).toMatch(/özgül ısı/i);
+    expect(result.dropped).not.toContain("coverage_gap");
     expect(claimsFromVerify({ bad: [{ quote: "Isı kaybı her zaman iç enerjiyi azaltır.", reason: "wrong" }] }, energyLesson())).toEqual(
       [],
     );
@@ -246,7 +248,7 @@ describe("iç enerji lesson claims", () => {
     expect(body).toMatch(/özgül ısı/i);
     expect(result.lesson.summary?.join(" ")).not.toMatch(/Soru:|25 kJ|\?:/);
     expect(result.succeeded).toContain("claim_wrong");
-    expect(result.succeeded).toContain("coverage_gap");
+    expect(result.dropped).not.toContain("coverage_gap");
   });
 
   it("still runs one fact check when the lesson is already clean", async () => {

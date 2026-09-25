@@ -834,10 +834,10 @@ export const SOURCE_PAGE_FORMULA_RULE =
   "Kaynak sayfada olmayan, ders kitabından bildiğin formülü içeri alma. " +
   "Öğretmen notu vurgu ve sıradır; notta geçen bir ifade kaynak sayfada yoksa dersin olgusu olmaz. " +
   "Çözümlü örnek yalnızca bu düğümün kaynak sayfalarındaki sayı ve formülü kullanır. " +
-  "Basınç hesabında her terimi ayrı yaz: P_abs = P_gage + P_atm ve her terimin kaynak sayfadaki değeri; " +
-  "vakum için P_vakum = P_atm − P_abs. Birim dönüşümünde iki tarafta farklı birim olsun ve arada işlem olmasın. " +
+  "Sayısal örnekte formül, birimli yerine koyma ve sonuç ayrı yazılır. " +
+  "Birim dönüşümünde iki tarafta farklı birim olsun ve arada işlem olmasın. " +
   "commonMistake yalnız bu konunun kaynak sayfalarından gelsin: claim öğrencinin yanlış inancı, correction kaynağın doğrusudur. " +
-  "Basınç veya sıcaklık dersine enerji birimi (kJ, kJ/kg) hatası yazma.";
+  "Kaynakta olmayan birimi veya formülü hata diye de yazma.";
 
 const EQUATION_IN_NOTE =
   /[A-Za-zσΔμρ][A-Za-z0-9σΔμρ'’^_]{0,8}\s*=\s*[A-Za-z0-9σΔμρ'’^_\s*/+−\-.]{1,24}/g;
@@ -1572,12 +1572,32 @@ export function retryStemBroken(prompt: string, explanation = ""): boolean {
   return false;
 }
 
-/** Isı kaybı ve iş girişi, çözüm yazılmadan başka cümleyle sorulur. */
-function energyChangeRetry<T extends ReviewCheck>(check: T): T | null {
-  const heat = check.prompt.match(/(\d+(?:[.,]\d+)?)\s*kJ\s+ısı\s+kayb/i);
-  const work = check.prompt.match(/(\d+(?:[.,]\d+)?)\s*kJ\s+iş\s+(?:girdisi|girişi|alır|alırs)/i);
-  if (!heat || !work) return null;
-  const prompt = `Bir sistem ${heat[1]} kJ ısı kaybederken üzerine ${work[1]} kJ iş yapılıyor. Sistemin enerji değişimi kaç kJ olur?`;
+/** Sayısal soru, çözüm yazılmadan verilenler ve sorulan büyüklükle yeniden kurulur. */
+function quantityRetry<T extends ReviewCheck>(check: T): T | null {
+  const explanation = plainFact(check.explanation);
+  const explanationIsSolution =
+    explanation.length > 90 || /diğer seçenek/i.test(explanation) || /=\s*-?\d/.test(explanation);
+  if (!explanationIsSolution) return null;
+  const quantities = [
+    ...check.prompt.matchAll(/(\d+(?:[.,]\d+)?)\s*(kJ|kPa|MPa|Pa|kg|g|mol|m³|m3|L|mL|%|K)\b/gi),
+  ];
+  if (quantities.length < 2) return null;
+  const before = check.prompt.split(/____|kaç|nedir/i)[0] ?? "";
+  const asked =
+    before
+      .trim()
+      .split(/\s+/)
+      .filter((word) => /^[A-Za-zÇĞİÖŞÜçğıöşü]+$/.test(word))
+      .slice(-3)
+      .join(" ") || "sonuç";
+  const unit =
+    (check.options[check.answerIndex] ?? "").match(/(kJ|kPa|MPa|Pa|kg|g|mol|m³|m3|L|mL|%|K)\b/i)?.[1] ??
+    quantities[0]?.[2] ??
+    "";
+  const givens = quantities.map((match) => `${match[1]} ${match[2]}`).join(" ve ");
+  const prompt = `${givens} verildiğinde ${asked.replace(/\s+/g, " ")} kaç ${unit} olur?`
+    .replace(/\s+/g, " ")
+    .trim();
   if (foldPrompt(prompt) === foldPrompt(check.prompt) || retryStemBroken(prompt, check.explanation)) return null;
   return shiftOptions({ ...check, prompt });
 }
@@ -1588,7 +1608,7 @@ function energyChangeRetry<T extends ReviewCheck>(check: T): T | null {
  * Açıklamanın kendisi köke yapıştırılmaz.
  */
 function rephraseMultipleChoice<T extends ReviewCheck>(check: T): T | null {
-  const energy = energyChangeRetry(check);
+  const energy = quantityRetry(check);
   if (energy) return energy;
   const correct = (check.options[check.answerIndex] ?? "").trim();
   const explanation = plainFact(check.explanation);
