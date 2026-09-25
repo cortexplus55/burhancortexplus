@@ -6,8 +6,7 @@
  * çağrıyı açmaz. Kimya, fizik, tarih, hukuk ve biyoloji aynı kapıdan geçer.
  */
 
-import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
-import { fluencyIssues } from "@/lib/learning/lesson-teach";
+import { fluencyIssues } from "@/lib/learning/learner-fluency";
 import {
   auditQuantitative,
   gradeStudentClaim,
@@ -15,6 +14,7 @@ import {
   repairQuantitative,
   type GradedClaim,
 } from "@/lib/learning/tutor-quant";
+import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
 
 const SUB: Record<string, string> = {
   "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4",

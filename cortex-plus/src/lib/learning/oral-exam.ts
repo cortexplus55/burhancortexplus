@@ -5,13 +5,13 @@ import {
   unsupportedQuantities,
 } from "@/lib/learning/teacher-brain";
 import type { OralReviewItem, OralTeacherMoodId } from "@/lib/learning/oral-exam-chrome";
-import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
-import { fluencyIssues } from "@/lib/learning/lesson-teach";
+import { fluencyIssues } from "@/lib/learning/learner-fluency";
 import {
   auditQuantitative,
   gradeStudentClaim,
   repairQuantitative,
 } from "@/lib/learning/tutor-quant";
+import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
 import {
   isScoreLabel,
   polishLearnerText,
