@@ -1,9 +1,9 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { foldTr } from "@/lib/documents/page-analysis";
 import { pickMainTopics } from "@/lib/learning/diagnostic";
 import { schedulePriorityForTopic } from "@/lib/learning/exam-coverage";
 import type { ScheduleTopicInput } from "@/lib/learning/exam-schedule-v2";
+import { disambiguateTitle } from "@/lib/learning/prep-topic-list";
 import { parseTeacherAnalysis, type TeacherAnalysis } from "@/lib/learning/teacher-brain";
 
 export type PrepScheduleTopics = {
@@ -70,9 +70,7 @@ export async function loadScheduleTopics(
     }
     for (const node of mainRows) {
       const rawTitle = String(node.title);
-      const folded = foldTr(rawTitle);
-      const title = usedTitles.has(folded) ? `${rawTitle} (${titles.length + 1})` : rawTitle;
-      usedTitles.add(foldTr(title));
+      const title = disambiguateTitle(rawTitle, usedTitles, titles.length + 1);
       titles.push(title);
       nodeIds.push(node.id as string);
       const priority = schedulePriorityForTopic(groups, rawTitle);
