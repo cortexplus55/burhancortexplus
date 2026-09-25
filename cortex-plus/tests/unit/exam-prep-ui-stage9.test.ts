@@ -41,6 +41,8 @@ describe("exam-prep-reschedule-apply helpers", () => {
           role: "learn",
           kind: "podcast",
           sortOrder: 0,
+          practiceVariant: null,
+          sourceLabel: null,
         },
         {
           dayIndex: 2,
@@ -53,6 +55,8 @@ describe("exam-prep-reschedule-apply helpers", () => {
           role: "practice",
           kind: "quiz",
           sortOrder: 1,
+          practiceVariant: 0,
+          sourceLabel: null,
         },
       ],
       availableMinutes: 100,
