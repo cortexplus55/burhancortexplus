@@ -17,10 +17,14 @@ export const metadata = { title: "Ders" };
 
 export default async function ExamNodePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ prepId: string; nodeId: string }>;
+  searchParams: Promise<{ konu?: string }>;
 }) {
   const { prepId, nodeId } = await params;
+  const { konu } = await searchParams;
+  const requestedTopic = typeof konu === "string" ? konu.trim().slice(0, 400) : "";
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
   const resumeEnabled = await isFeatureEnabled(
@@ -75,6 +79,7 @@ export default async function ExamNodePage({
     // Bu konuya daha önce girildiyse beyan edilen seviye varsayılan olur.
     topicFamiliarity = (topic?.familiarity as Familiarity | null) ?? null;
   }
+  if (requestedTopic) topicLabel = requestedTopic;
 
   // Üretim ekranı "senin notundan çıkıyor" diyebilsin diye kaynak dosya adı.
   // Hazırlık bir belgeye bağlı değilse gösterilmez — olmayan bir güvence
@@ -111,6 +116,7 @@ export default async function ExamNodePage({
         kind={node.kind as PlanNodeKind}
         prepTitle={prep.title ?? "Sınav hazırlığı"}
         topicLabel={topicLabel}
+        requestedTopic={requestedTopic || null}
         topicId={topicId ?? null}
         initialFamiliarity={topicFamiliarity}
         resumeEnabled={resumeEnabled}

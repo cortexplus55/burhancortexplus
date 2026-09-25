@@ -64,6 +64,22 @@ function fold(text: string | null | undefined): string {
 }
 
 /**
+ * "Stokiyometri" ile "Stokiyometri: sınırlayıcı bileşen" aynı konudur.
+ * Başka bir konu başlığı (Gazlar) eşleşmez.
+ */
+export function topicLabelsMatch(left: string | null | undefined, right: string | null | undefined): boolean {
+  const a = fold(left);
+  const b = fold(right);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length <= b.length ? b : a;
+  if (!longer.startsWith(shorter)) return false;
+  const next = longer[shorter.length] ?? "";
+  return /[\s:–—\-,|/]/.test(next);
+}
+
+/**
  * Seçilen konuda bu etkinliğin düğümü.
  * Başka konunun düğümüne düşmez: yanlış ders açmak, kapalı düğümden kötüdür.
  * Konu seçilmemişse o türün bitmemiş ilk düğümü gelir.
@@ -83,17 +99,60 @@ export function resolveStudyToolNode<T extends StudyNodeRef>(
   if (!topicId && !label) {
     return pool.find((node) => node.status !== "done") ?? pool[0];
   }
-  const mine = pool.filter((node) => {
+  const exact = pool.filter((node) => {
     const metaId = node.sessionMeta?.topicId?.trim();
     if (topicId && metaId && metaId === topicId) return true;
     return label ? fold(node.sessionMeta?.topicTitle) === label : false;
   });
+  const mine = exact.length
+    ? exact
+    : pool.filter((node) => (label ? topicLabelsMatch(label, node.sessionMeta?.topicTitle) : false));
   if (!mine.length) return null;
   return mine.find((node) => node.status !== "done") ?? mine[0];
 }
 
+/**
+ * Konunun kendi düğümü varsa o açılır. Yoksa bu türün hazırlıktaki
+ * düğümü açılır ve seçilen konu sorguyla gider. Türün hiç düğümü yoksa
+ * karo kapalı kalır: olmayan bir etkinlik uydurulmaz.
+ */
+export function openStudyActivity<T extends StudyNodeRef>(
+  nodes: T[],
+  tool: StudyToolId,
+  topic?: { id?: string | null; label?: string | null },
+): { node: T; topicQuery: string | null } | null {
+  const label = topic?.label?.trim() || null;
+  const matched = resolveStudyToolNode(nodes, tool, topic);
+  if (matched) {
+    const same = !label || topicLabelsMatch(label, matched.sessionMeta?.topicTitle);
+    return { node: matched, topicQuery: same ? null : label };
+  }
+  if (!label) return null;
+  const kind = studyToolById(tool).kind;
+  const pool = nodes
+    .filter((node) => node.kind === kind)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  if (!pool.length) return null;
+  return {
+    node: pool.find((node) => node.status !== "done") ?? pool[0],
+    topicQuery: label,
+  };
+}
+
 export function studyToolHref(prepId: string, nodeId: string): string {
   return examPrepNodeHref(prepId, nodeId);
+}
+
+/** Seçilen konu düğümün konusu değilse üretim o konuyu okur. */
+export function studyActivityHref(
+  prepId: string,
+  nodeId: string,
+  topicLabel?: string | null,
+): string {
+  const href = studyToolHref(prepId, nodeId);
+  const topic = topicLabel?.trim();
+  if (!topic) return href;
+  return `${href}?konu=${encodeURIComponent(topic)}`;
 }
 
 /**

@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateJson } from "@/lib/ai/generate";
 import { parseQuizQuestions, type QuizQuestion } from "@/lib/learning/exam-quiz";
-import { validateQuizPedagogy } from "@/lib/learning/teaching-standards";
+import { repairQuizPedagogy, validateQuizPedagogy } from "@/lib/learning/teaching-standards";
 
 const QUIZ_GATE = {
   requireObjective: false,
@@ -35,15 +35,27 @@ export async function generateExamQuiz(input: {
     pedagogyHint +
     (input.schemaHintExtra ? ` ${input.schemaHintExtra}` : "");
 
+  let lastIssues: string[] = [];
+  const questionsFrom = (raw: unknown): QuizQuestion[] | null => {
+    const parsed = parseQuizQuestions(raw);
+    if (!parsed) return null;
+    return input.teachingV2 ? repairQuizPedagogy(parsed) : parsed;
+  };
+
   const parse = (raw: unknown) => {
-    const questions = parseQuizQuestions(raw);
-    if (!questions) return null;
+    const questions = questionsFrom(raw);
+    if (!questions) {
+      lastIssues = ["Quiz şeması geçersiz."];
+      return null;
+    }
     if (input.teachingV2) {
       const issues = validateQuizPedagogy(questions, QUIZ_GATE);
-      if (issues.length) return null;
-      const missingObj = questions.every((q) => !q.learningObjective?.trim());
-      if (missingObj) return null;
+      if (issues.length) {
+        lastIssues = issues;
+        return null;
+      }
     }
+    lastIssues = [];
     return { questions };
   };
 
@@ -60,9 +72,26 @@ export async function generateExamQuiz(input: {
     maxDraftAttempts: input.teachingV2 ? 2 : 1,
     allowIndependentAccept: false,
     activityKind: "quiz",
+    /**
+     * Bağımsız kapı temizse ileri denetçi açılmaz. Denetçi, doğru stokiyometri
+     * sonucunu kaynakta yazmıyor diye reddedip taslağı ders şekline çeviriyordu;
+     * ayrıştırıcı da bunu biçim hatası diye öğrenciye yazıyordu.
+     */
+    trustIndependent: input.teachingV2 ? true : undefined,
+    reviewDraft: input.teachingV2
+      ? (draft) => {
+          try {
+            const questions = questionsFrom(JSON.parse(draft));
+            return questions ? JSON.stringify({ questions }) : draft;
+          } catch {
+            return draft;
+          }
+        }
+      : undefined,
+    describeParseFailure: () => lastIssues,
     buildIndependent: input.teachingV2
       ? (_content, parsed) => {
-          const questions = parsed ? parseQuizQuestions(parsed) : null;
+          const questions = parsed ? questionsFrom(parsed) : null;
           return {
             pedagogyIssues: questions
               ? validateQuizPedagogy(questions, QUIZ_GATE)

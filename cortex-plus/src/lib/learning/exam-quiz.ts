@@ -30,8 +30,8 @@ export const quizQuestionSchema = z.object({
   correct: z.union([correctValueSchema, z.array(correctValueSchema).min(1)]),
   multi: z.boolean().optional(),
   explanation: z.string().optional(),
-  learningObjective: z.string().min(8).max(200).optional(),
-  misconceptionTag: z.string().min(2).max(80).optional(),
+  learningObjective: z.string().min(8).max(200).optional().catch(undefined),
+  misconceptionTag: z.string().min(2).max(80).optional().catch(undefined),
   topic: z.string().min(2).max(80).optional(),
 });
 

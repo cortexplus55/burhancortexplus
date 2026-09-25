@@ -6,9 +6,9 @@ import "@/styles/oral-exam-chrome.css";
 import {
   STUDY_PATH_HINT,
   STUDY_TOOLS,
-  resolveStudyToolNode,
+  openStudyActivity,
+  studyActivityHref,
   studyPodcastHref,
-  studyToolHref,
   type StudyNodeRef,
 } from "@/lib/learning/study-tools";
 
@@ -77,8 +77,10 @@ export function StudyToolsHub({
               tool.id === "podcast"
                 ? studyPodcastHref(prepId, topicLabel, topicOptions)
                 : (() => {
-                    const node = resolveStudyToolNode(nodes, tool.id, { label: topicLabel });
-                    return node ? studyToolHref(prepId, node.id) : null;
+                    const target = openStudyActivity(nodes, tool.id, { label: topicLabel });
+                    return target
+                      ? studyActivityHref(prepId, target.node.id, target.topicQuery)
+                      : null;
                   })();
             return (
               <li key={tool.id}>

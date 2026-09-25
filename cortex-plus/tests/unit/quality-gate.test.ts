@@ -3,6 +3,7 @@ import type OpenAI from "openai";
 vi.mock("@/lib/env", () => ({ env: { OPENAI_ADVANCED_MODEL: "review-model" } }));
 import {
   EducationalVerificationError,
+  repairInstruction,
   verifyEducationalContent,
 } from "@/lib/ai/quality-gate";
 
@@ -219,6 +220,37 @@ describe("educational quality gate", () => {
         blocking: expect.arrayContaining([expect.stringMatching(/PV = nRT|İdeal gaz/)]),
       },
     });
+  });
+
+  it("does not accept a quiz rewritten into a lesson", async () => {
+    const quiz = JSON.stringify({
+      questions: [
+        {
+          text: "0,25 mol H2SO4 kaç gramdır?",
+          options: ["24,5 g", "98 g", "0,25 g"],
+          correct: "24,5 g",
+          explanation: "Kütle 24,5 gramdır.",
+        },
+      ],
+    });
+    const lesson = JSON.stringify({
+      title: "Stokiyometri",
+      sections: [{ heading: "Kütle", body: "0,25 mol 24,5 gramdır ve bu bir örnektir." }],
+    });
+    const { input } = fixture([
+      { approved: false, issues: ["Kaynakta olmayan sayı: 24,5 g."] },
+      { content: lesson },
+      { approved: true, issues: [] },
+    ]);
+    await expect(
+      verifyEducationalContent({ ...input, draft: quiz }),
+    ).rejects.toMatchObject({
+      failureMessages: expect.arrayContaining([expect.stringMatching(/JSON şekli/)]),
+    });
+    const instruction = repairInstruction(quiz, ["Kaynakta olmayan sayı: 24,5 g."]);
+    expect(instruction).toContain("derse çevrilmez");
+    expect(instruction).toContain("questions");
+    expect(instruction).not.toContain("En az bir kavram bölümü");
   });
 
   it("fails closed when the reviewer is unavailable", async () => {

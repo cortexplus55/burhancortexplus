@@ -53,6 +53,7 @@ import {
 } from "@/lib/learning/oral-exam";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { topicLabelsMatch } from "@/lib/learning/study-tools";
 import { normalizeChapters } from "@/lib/learning/podcast-script";
 import {
   DEFAULT_FAMILIARITY,
@@ -107,6 +108,7 @@ export function ExamNodeSession({
   kind,
   prepTitle,
   topicLabel,
+  requestedTopic = null,
   topicId = null,
   initialFamiliarity,
   resumeEnabled = false,
@@ -120,6 +122,8 @@ export function ExamNodeSession({
   kind: PlanNodeKind;
   prepTitle: string;
   topicLabel: string | null;
+  /** Ders oluşturma merkezinden gelen konu. Üretim bu etiketi kullanır. */
+  requestedTopic?: string | null;
   /** Sesli tekrar bu konunun dersinden türetiliyor. */
   topicId?: string | null;
   /** Konuya daha önce girildiyse beyan edilen aşinalık — varsayılan olarak gelir. */
@@ -166,7 +170,11 @@ export function ExamNodeSession({
   const [difficulty, setDifficulty] = useState<Difficulty>("orta");
   const [podcastLength, setPodcastLength] = useState<"ozet" | "standart" | "derin">("standart");
   const [voiceMode, setVoiceMode] = useState(meta.voice);
-  const [oralSelected, setOralSelected] = useState<string[]>([]);
+  const [oralSelected, setOralSelected] = useState<string[]>(() => {
+    if (!requestedTopic) return [];
+    const hit = oralTopics.find((topic) => topicLabelsMatch(requestedTopic, topic.label));
+    return hit ? [hit.id] : [];
+  });
   const [oralMoodId, setOralMoodId] = useState<OralTeacherMoodId>(DEFAULT_ORAL_TEACHER_MOOD);
   const [oralLength, setOralLength] = useState<OralLength>(3);
   const [oralReport, setOralReport] = useState<OralExamReport | null>(null);
@@ -458,6 +466,7 @@ export function ExamNodeSession({
                 ).slice(0, 400),
               }
             : {}),
+          ...(requestedTopic ? { activityTopicLabel: requestedTopic.slice(0, 400) } : {}),
           ...(kind === "podcast" ? { podcastLength } : {}),
           ...(reqId ? { clientRequestId: reqId } : {}),
         }),
