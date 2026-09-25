@@ -759,11 +759,28 @@ function limitingUniqueness(sentence: string): boolean {
   return false;
 }
 
+/** "yalnızca bir / tek bir olabilir / birden fazla değildir" kesin dışlama. */
+function exclusivityClaim(sentence: string): boolean {
+  const folded = foldTr(sentence);
+  if (/\b(sadece|yalnizca|only)\b/.test(folded) && /\b(bir|tek|one)\b/.test(folded)) return true;
+  if (/\btek bir\b/.test(folded) && /\b(olabilir|olamaz|degildir|gecerli degil|must)\b/.test(folded)) {
+    return true;
+  }
+  if (/\bbirden fazla\b/.test(folded) && /\b(degildir|olamaz|gecerli degildir)\b/.test(folded)) return true;
+  if (/\bhicbir\b/.test(folded) && /\b(olmaz|degildir|yoktur|edilmez|yapilmaz|kalmaz|artmaz)\b/.test(folded)) {
+    return true;
+  }
+  return false;
+}
+
 function absoluteMarker(sentence: string): string | null {
   const folded = foldTr(sentence);
-  if (/\bmutlaka\b/.test(folded) && !/her zaman|asla|hicbir zaman/.test(folded)) return null;
-  const marker = folded.match(/\bher zaman\b|\basla\b|\bhicbir zaman\b/);
-  return marker?.[0] ?? null;
+  const timed = folded.match(/\bher zaman\b|\balways\b|\basla\b|\bnever\b|\bhicbir zaman\b/);
+  if (timed) return timed[0];
+  if (/\bmutlaka\b/.test(folded)) return null;
+  if (!exclusivityClaim(sentence)) return null;
+  const marker = folded.match(/\b(sadece|yalnizca|only|tek bir|birden fazla|hicbir)\b/);
+  return marker?.[0] ?? "kesin";
 }
 
 function sourceStatesAbsolute(sentence: string, source: string): boolean {
@@ -772,7 +789,27 @@ function sourceStatesAbsolute(sentence: string, source: string): boolean {
   if (!marker) return false;
   const src = foldTr(source);
   if (!src.includes(marker)) return false;
-  const skip = new Set(["zaman", "asla", "hicbir", "olur", "olmalidir", "vardir", "deildir"]);
+  const skip = new Set([
+    "zaman",
+    "asla",
+    "hicbir",
+    "olur",
+    "olmalidir",
+    "vardir",
+    "deildir",
+    "sadece",
+    "yalnizca",
+    "always",
+    "never",
+    "only",
+    "birden",
+    "fazla",
+    "olabilir",
+    "olamaz",
+    "degildir",
+    "gecerli",
+    "must",
+  ]);
   const tokens = foldTr(sentence)
     .split(/[^a-z0-9]+/)
     .filter((word) => word.length >= 5 && !skip.has(word) && word !== marker.replace(/\s+/g, ""));
@@ -782,7 +819,9 @@ function sourceStatesAbsolute(sentence: string, source: string): boolean {
 function softenAbsolute(sentence: string): string {
   const next = sentence
     .replace(/\bher zaman\b/gi, "")
+    .replace(/\balways\b/gi, "")
     .replace(/\bhiçbir zaman\b/gi, "")
+    .replace(/\bnever\b/gi, "")
     .replace(/\basla\b/gi, "")
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([,.;:!?])/g, "$1")
@@ -810,6 +849,15 @@ function absoluteIssues(text: string, source: string, general: boolean): QuantIs
     }
     if (!general || !absoluteMarker(sentence) || sourceStatesAbsolute(sentence, source)) continue;
     if (assertsIdentity(sentence)) continue;
+    if (exclusivityClaim(sentence)) {
+      issues.push({
+        kind: "absolute",
+        detail: "Kaynakta olmayan kesin hüküm çıkarıldı.",
+        repair: "",
+        span: sentence,
+      });
+      continue;
+    }
     const repair = softenAbsolute(sentence);
     if (!repair || repair === sentence) continue;
     issues.push({
@@ -882,14 +930,14 @@ export function repairQuantitative(text: string, audit: QuantAudit): string {
     } else if (issue.kind === "arithmetic") {
       next = next.replace(new RegExp(arithRegex().source, "i"), issue.repair);
     } else if ((issue.kind === "identity" || issue.kind === "wording" || issue.kind === "absolute") && issue.span && next.includes(issue.span)) {
-      next = next.replace(issue.span, issue.repair);
+      next = issue.repair ? next.replace(issue.span, issue.repair) : next.replace(issue.span, " ");
     } else if (issue.kind === "identity" || issue.kind === "wording" || issue.kind === "absolute") {
       continue;
     } else if (!next.includes(issue.repair)) {
       next = `${next.trim()}\n\n${issue.repair}`;
     }
   }
-  return next;
+  return next.replace(/[ \t]{2,}/g, " ").replace(/\s+([,.;:!?])/g, "$1").trim();
 }
 
 function replaceLimitingSentence(text: string, repair: string): string {

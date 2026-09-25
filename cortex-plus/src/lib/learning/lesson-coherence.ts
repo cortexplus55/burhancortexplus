@@ -275,11 +275,8 @@ export function conceptCheck(statement: string): SectionCheck | null {
   }
   const words = prompt.replace(/[?.!]/g, "").split(/\s+/).filter(Boolean);
   if (words.length < 4) return null;
-  const clause = prompt.split(/[,:]/)[0]?.trim() || "Bu terim";
-  const termWords = clause.replace(/[.!?]+$/g, "").split(/\s+/).slice(0, 4);
-  const term = (termWords.join(" ") || "Bu terim").slice(0, 48);
-  const whyRight = `${term} cümlede kurulduğu anlama uyuyor; yüklem terimi başka bir büyüklüğe kaydırmıyor.`;
-  const whyWrong = `${term} ters çevrilirse cümle, kaynağın kurduğu tanımdan kopar.`;
+  const whyRight = "Bu yargı kaynağın kurduğu tanımla uyumludur.";
+  const whyWrong = "Bu yargı kaynağın kurduğu tanımla çelişir.";
   const misconception = "Tanımı başka bir büyüklüğe bağlamak hatadır";
   const hint = "Özneyi ve yüklemi ayrı ayrı oku.";
   return {

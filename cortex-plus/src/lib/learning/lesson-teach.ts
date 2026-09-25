@@ -16,6 +16,7 @@ import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
 import { fluencyIssues, repairTurkishSurface, sentences } from "@/lib/learning/learner-fluency";
 import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
 import { auditQuantitative, evaluateArithmetic, repairQuantitative } from "@/lib/learning/tutor-quant";
+import { groundProseCalculations, workedExampleIssues } from "@/lib/learning/worked-example";
 import { topicMatchKey } from "@/lib/learning/topic-merge";
 import {
   lessonV2Schema,
@@ -30,10 +31,13 @@ export const LESSON_TEACH_RULE = [
   "Konunun kendi terimi için note tanım kutusudur: {title, body, tone:\"info\"}.",
   "Kaynakta eşitlik varsa formülü eksiksiz yaz. Parantez kapanır. Aritmetik tamdır: 12 + 2 × 16 = 44 g/mol gibi, yarım çarpım yazılmaz.",
   "commonMistake yanlış inancı ve gerekçeli düzeltmeyi taşır.",
-  "Nicel konuda example tam çözülmüş örnektir. solution satırları: Verilen: … İstenen: … Bağıntı: … Yerine koyma: … Sonuç: … birimle. Kaynakta örnek varsa onu kullan. Yoksa kaynaktaki sabitlerle bir örnek kur; ara sonucu kendin hesapla, uydurma sonuç yazma. Sözel konuda sayı uydurma; kaynağın olayını, kararını veya maddesini anlat.",
-  "Kontrol, konunun becerisini ölçer. Nicel konuda en az bir mcq hesap sorar. Çeldirici gerçek işlem hatasıdır: çarpma yerine bölme, ters bölme, verilen sayıyı sonuç sanma. optionWhy her şıkka bir cümledir. explanation gerekçeyi söyler, soru cümlesini ve 'kendi anlamına bağlıyor' kalıbını tekrarlamaz. Doğru/yanlış yalnızca iki taraf da anlamlıysa.",
-  "check.review aynı fikri başka açıdan sorar. Başka bir terimin tanımını sormaz.",
-  "summary üç maddedir. Her madde fikir, neden ve nasıl uygulanacağını söyler. Bölüm cümlesini olduğu gibi kopyalama.",
+  "Nicel konuda example tam çözülmüş örnektir. solution satırları: Verilen: … İstenen: … Bağıntı: … Yerine koyma: … Sonuç: … birimle. Çözümdeki her sayı verilenlerde ya da önceki adımda durur. Kaynakta örnek varsa onu kullan. Yoksa kaynaktaki sabitlerle bir örnek kur; ara sonucu kendin hesapla, uydurma sonuç yazma. Sözel konuda sayı uydurma; kaynağın olayını adım adım analiz et.",
+  "Hesabı yazmadan önce veriyi söyle. Verisi söylenmemiş eşitlik yazma.",
+  "sadece, asla, her zaman, tek bir, hiçbir, only, never, always gibi kesin hüküm ancak kaynak aynı sözü kuruyorsa yazılır.",
+  "Kontrol, konunun becerisini ölçer ve ders cümlesini tekrar etmez. Kaynak zenginse en az beş çeşitli kontrol yaz: mcq, doğru/yanlış, sayısal, öğrencinin kendisinin yazdığı. Nicel konuda en az bir mcq hesap sorar. Çeldirici gerçek işlem hatasıdır: çarpma yerine bölme, ters bölme, verilen sayıyı sonuç sanma. optionWhy her şıkka tek başına okunan bir cümledir. explanation gerekçeyi söyler, soru cümlesini ve 'kendi anlamına bağlıyor' kalıbını tekrarlamaz. Doğru/yanlış yalnızca iki taraf da anlamlıysa.",
+  "check.review aynı fikri başka açıdan sorar. Cümlenin sonuna 'yargısı doğru mudur?' eklemek tekrar değildir.",
+  "summary üç maddedir: kural, sık hata, uygulama. Bölüm cümlesini kopyalama. 'Diğer' ya da zamirle başlayan bağlamsız madde yazma.",
+  "Aynı konuyu işleyen her kaynak parçası kullanılır. Tek dosyaya sıkışma.",
   "Kaynak [s.N] dosya biçimindeyse bölümün sonuna Kaynak: dosya, s.N yaz.",
   "Cümle yüklemle biter. Cümle ortasında sıradan ad büyük harfle başlamaz.",
   "Anlatım yaklaşık 5 dakikalık okuma olsun. Aynı cümleyi tekrarlayarak uzatma.",
@@ -46,6 +50,7 @@ const CRITICAL = new Set([
   "missing_example",
   "invented_number",
   "identity",
+  "absolute_check",
 ]);
 
 export { fluencyIssues } from "@/lib/learning/learner-fluency";
@@ -213,23 +218,40 @@ export function sectionMissesTitle(heading: string, body: string, topic: string,
   return false;
 }
 
-function firstSentence(text: string): string {
-  return sentences(text)[0] ?? "";
+function nearCopy(left: string, right: string): boolean {
+  const a = left.replace(/[^a-z0-9]+/g, " ").trim();
+  const b = right.replace(/[^a-z0-9]+/g, " ").trim();
+  if (a.length < 24 || b.length < 24) return false;
+  if (a.includes(b) || b.includes(a)) return true;
+  const window = 40;
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length <= b.length ? b : a;
+  if (shorter.length < window) return false;
+  for (let index = 0; index + window <= shorter.length; index += 4) {
+    if (longer.includes(shorter.slice(index, index + window))) return true;
+  }
+  return false;
+}
+
+function lessonSentences(lesson: LessonV2): string[] {
+  return [
+    lesson.overview ?? "",
+    ...lesson.sections.flatMap((section) => [section.body, section.note?.body ?? ""]),
+  ].flatMap((text) => sentences(text));
 }
 
 export function checkEchoes(check: SectionCheck, lesson: LessonV2, sectionBody: string): boolean {
   const explanation = foldTr(`${check.explanation} ${check.whyRight ?? ""}`);
   if (/kendi anlamina bagliyor/.test(explanation)) return true;
   const prompt = foldTr(check.prompt)
+    .replace(/\s*yargisi dogru mudur.*$/, "")
     .replace(/\s*dogru mu.*$/, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
   const explained = foldTr(check.explanation).replace(/[^a-z0-9]+/g, " ").trim();
   if (prompt.length >= 20 && (explained === prompt || explained.includes(prompt))) return true;
-  if (check.type !== "trueFalse") return false;
-  const opening = foldTr(firstSentence(sectionBody) || firstSentence(lesson.overview ?? ""));
-  if (opening.length < 20) return false;
-  return prompt.includes(opening) || opening.includes(prompt);
+  const corpus = [...lessonSentences(lesson), ...sentences(sectionBody)];
+  return corpus.some((sentence) => nearCopy(prompt, foldTr(sentence)));
 }
 
 function identityCorpus(lesson: LessonV2): string {
@@ -275,7 +297,8 @@ function inventedNumbers(text: string, source: string): string[] {
 function exampleReady(text: string, source: string): boolean {
   if (!exampleIsComplete(text)) return false;
   if (announcedExampleGap(text)) return false;
-  return auditQuantitative(text, source || text).ok;
+  if (!auditQuantitative(text, source || text).ok) return false;
+  return workedExampleIssues("", text, source || text, true).length === 0;
 }
 
 function identityLeft(text: string, source: string): boolean {
@@ -293,7 +316,7 @@ function settleTaught(text: string, source: string): string {
   const issues = audit.issues.filter((issue) => TAUGHT_REPAIR.has(issue.kind));
   if (!issues.length) return surfaced;
   const settled = repairQuantitative(surfaced, { ok: false, checked: true, issues });
-  return settled.trim() ? settled : surfaced;
+  return settled.replace(/\s+/g, " ").trim();
 }
 
 function hasCalcMcq(lesson: LessonV2): boolean {
@@ -305,15 +328,39 @@ function hasCalcMcq(lesson: LessonV2): boolean {
   });
 }
 
+const DANGLING_ANAPHOR = /^(diğer|diger|bu|şu|su|o|they|this|other|it)\b/i;
+
 function summaryEchoes(lesson: LessonV2): boolean {
   const lines = lesson.summary ?? [];
-  if (lines.length < 3) return false;
-  const bodies = lesson.sections.map((section) => foldTr(section.body));
-  const copies = lines.filter((line) => {
+  if (!lines.length) return false;
+  return lines.some((line) => {
+    if (DANGLING_ANAPHOR.test(line.trim())) return true;
     const folded = foldTr(line);
-    return folded.length >= 20 && bodies.some((body) => body.includes(folded));
+    return lessonSentences(lesson).some((sentence) => nearCopy(folded, foldTr(sentence)));
   });
-  return copies.length >= Math.min(3, lines.length);
+}
+
+function richSource(source: string): boolean {
+  const blocks = sourceBlocks(source);
+  if (blocks.length >= 2) return true;
+  return source.trim().length >= 700;
+}
+
+function groundedCheckCount(lesson: LessonV2): number {
+  const checks = lesson.sections.filter((section) => section.check).length;
+  return checks + (lesson.infoCheck?.answer ? 1 : 0);
+}
+
+function checkHasAbsolute(check: SectionCheck, source: string): boolean {
+  const blob = [
+    check.prompt,
+    check.explanation,
+    check.whyRight ?? "",
+    check.whyWrong ?? "",
+    ...check.options,
+    ...(check.optionWhy ?? []),
+  ].join("\n");
+  return auditQuantitative(blob, source).issues.some((issue) => issue.kind === "absolute");
 }
 
 export function teachingFailures(lesson: LessonV2, source: string, topicLabel: string): TeachingFailure[] {
@@ -341,7 +388,10 @@ export function teachingFailures(lesson: LessonV2, source: string, topicLabel: s
     if (section.note && fluencyIssues(section.note.body).length) push(unit, "fluency");
     if (sectionMissesTitle(section.heading, section.body, topicLabel, source)) push(unit, "off_title");
     if (section.check && checkEchoes(section.check, lesson, section.body)) push(unit, "echo_check");
-    if (section.check && fluencyIssues(section.check.prompt).length) push(unit, "fluency");
+    if (section.check && fluencyIssues(`${section.check.prompt} ${section.check.explanation}`).length) {
+      push(unit, "fluency");
+    }
+    if (section.check && checkHasAbsolute(section.check, source)) push(unit, "absolute_check");
   });
   if (quantitative) {
     const exampleBlob = `${lesson.example?.prompt ?? ""}\n${lesson.example?.solution ?? ""}`;
@@ -354,7 +404,15 @@ export function teachingFailures(lesson: LessonV2, source: string, topicLabel: s
       push("example", "missing_example");
     } else if (gap) {
       push("example", "missing_example");
-    } else if (exampleBlob.trim() && hasCompletedChain(exampleBlob) && !auditQuantitative(exampleBlob, source).ok) {
+    } else if (exampleBlob.trim() && hasCompletedChain(exampleBlob) && !exampleReady(exampleBlob, source)) {
+      push("example", "missing_example");
+    } else if (
+      exampleBlob.trim() &&
+      !hasCompletedChain(exampleBlob) &&
+      workedExampleIssues(lesson.example?.prompt ?? "", lesson.example?.solution ?? "", source, true).some(
+        (issue) => issue === "dangling" || issue.startsWith("n ") || issue.includes("büyüklüğ"),
+      )
+    ) {
       push("example", "missing_example");
     }
     if (!hasCalcMcq(lesson)) push("check", "calc_check");
@@ -371,6 +429,7 @@ export function teachingFailures(lesson: LessonV2, source: string, topicLabel: s
   const outside = prose.replace(verified, " ");
   if (inventedNumbers(outside, source).length) push("lesson", "invented_number");
   if (summaryEchoes(lesson)) push("summary", "summary_echo");
+  if (richSource(source) && groundedCheckCount(lesson) < 5) push("check", "thin_checks");
   if (!lesson.sections.some((section) => section.note) && titleConcepts(topicLabel).length) {
     push("note", "missing_definition");
   }
@@ -529,7 +588,6 @@ function chainFromWindow(window: string, source: string): { prompt: string; solu
   const given = numbers
     .slice(0, -1)
     .map((item) => `${item[1]}${item[2] ?? ""}`.trim())
-    .slice(0, 4)
     .join(", ");
   const last = numbers[numbers.length - 1];
   const result = last ? `${last[1]}${last[2] ?? ""}`.trim() : "";
@@ -623,14 +681,24 @@ function withCalculationCheck(lesson: LessonV2, source: string): LessonV2 {
 
 function readableSummary(lesson: LessonV2, topic: string): string[] {
   const name = topic.trim() || lesson.title;
-  const lines = [
-    `${name} konusunda sonuç, bağıntıya konulan veriden çıkar.`,
-    "Uygulama, verileni bağıntıda yerine koyup birimiyle okumaktır.",
-    lesson.commonMistake?.correction
-      ? `Sık hata, ${lesson.commonMistake.correction.replace(/\s+/g, " ").trim().slice(0, 140)}`
-      : "Sık hata, verilen büyüklüğü işlemin sonucu sanmaktır.",
-  ];
-  return lines.filter((line) => line.length >= 12 && line.length <= 240).slice(0, 5);
+  const formula = symbolicFormula(lessonProse(lesson));
+  const trap = lesson.commonMistake?.correction
+    ? `Sık hata, ${lesson.commonMistake.correction.replace(/\s+/g, " ").trim().slice(0, 140)}`
+    : "Sık hata, tanımı başka bir olaya ya da büyüklüğe kaydırmaktır.";
+  const lines = formula
+    ? [
+        `${name} konusunda sonuç, ${formula} bağıntısına konulan veriden çıkar.`,
+        "Uygulama, verileni bağıntıda yerine koyup birimiyle okumaktır.",
+        trap,
+      ]
+    : [
+        `${name} konusunda kural, kaynaktaki tanıma ve şarta bağlıdır.`,
+        trap,
+        "Uygulama, kaynaktaki olayı verilen şartla ayırt etmektir.",
+      ];
+  return lines
+    .filter((line) => line.length >= 12 && line.length <= 240 && !DANGLING_ANAPHOR.test(line.trim()))
+    .slice(0, 5);
 }
 
 function softenSummary(lesson: LessonV2, topic: string): LessonV2 {
@@ -691,33 +759,79 @@ function scrubInventedNumbers(lesson: LessonV2, source: string): LessonV2 {
   };
 }
 
+function plainLine(text: string, source: string, fallback: string): string {
+  const next = settleTaught(text, source);
+  if (next && !fluencyIssues(next).length) return next;
+  return fallback;
+}
+
+function readableCheck(check: SectionCheck, source: string): SectionCheck {
+  const prompt = settleTaught(check.prompt, source);
+  return {
+    ...check,
+    prompt: prompt && !fluencyIssues(prompt).length ? prompt : check.prompt,
+    explanation: plainLine(check.explanation, source, "Bu yargı kaynağın kurduğu tanımla çelişir."),
+    ...(check.whyRight
+      ? { whyRight: plainLine(check.whyRight, source, "Bu yargı kaynağın kurduğu tanımla uyumludur.") }
+      : {}),
+    ...(check.whyWrong
+      ? { whyWrong: plainLine(check.whyWrong, source, "Bu yargı kaynağın kurduğu tanımla çelişir.") }
+      : {}),
+    ...(check.optionWhy
+      ? {
+          optionWhy: check.optionWhy.map((line, index) =>
+            plainLine(
+              line,
+              source,
+              index === check.answerIndex
+                ? "Bu şık, kaynağın kuralına uyuyor."
+                : "Bu şık, kaynağın kuralıyla uyuşmuyor.",
+            ),
+          ),
+        }
+      : {}),
+  };
+}
+
+function keepProse(text: string, source: string): string {
+  const settled = settleTaught(text, source);
+  const grounded = groundProseCalculations(settled, source);
+  return (grounded.trim() || settled).trim();
+}
+
 function applyIdentity(lesson: LessonV2, source: string): LessonV2 {
   const keep = (text: string) => settleTaught(text, source);
   return {
     ...lesson,
-    overview: lesson.overview ? keep(lesson.overview) : lesson.overview,
-    sections: lesson.sections.map((section) => ({
-      ...section,
-      body: keep(section.body),
-      ...(section.note ? { note: { ...section.note, body: keep(section.note.body) } } : {}),
-      ...(section.check
-        ? {
-            check: {
-              ...section.check,
-              prompt: keep(section.check.prompt),
-              explanation: keep(section.check.explanation),
-              ...(section.check.optionWhy
-                ? { optionWhy: section.check.optionWhy.map((line) => keep(line)) }
-                : {}),
-            },
-          }
-        : {}),
-    })),
+    overview: lesson.overview
+      ? keepProse(lesson.overview, source) || lesson.overview
+      : lesson.overview,
+    sections: lesson.sections.map((section) => {
+      const body = keepProse(section.body, source);
+      const next: LessonV2["sections"][number] = {
+        ...section,
+        body: body.length >= 20 ? body : section.body,
+      };
+      if (section.note) {
+        const noteBody = keepProse(section.note.body, source);
+        next.note = {
+          ...section.note,
+          body: noteBody.length >= 10 ? noteBody : section.note.body,
+        };
+      }
+      if (!section.check) return next;
+      if (checkHasAbsolute(section.check, source)) {
+        delete next.check;
+        return next;
+      }
+      next.check = readableCheck(section.check, source);
+      return next;
+    }),
     ...(lesson.example
       ? {
           example: {
             prompt: keep(lesson.example.prompt),
-            solution: keep(lesson.example.solution),
+            solution: keepProse(lesson.example.solution, source),
           },
         }
       : {}),
@@ -733,7 +847,76 @@ function applyIdentity(lesson: LessonV2, source: string): LessonV2 {
   };
 }
 
+function lessonLooksEnglish(lesson: LessonV2): boolean {
+  const blob = foldTr(lessonProse(lesson));
+  const english = (blob.match(/\b(the|and|of|to|is|are|with|when)\b/g) ?? []).length;
+  const turkish = (blob.match(/\b(ve|bir|ile|icin|olan|bu)\b/g) ?? []).length;
+  return english >= 3 && english > turkish;
+}
+
+function withInfoCheck(lesson: LessonV2, source: string): LessonV2 {
+  if (lesson.infoCheck?.answer || !topicIsQuantitative(source)) return lesson;
+  const formula = symbolicFormula(lessonProse(lesson)) ?? symbolicFormula(source);
+  if (!formula) return lesson;
+  const english = lessonLooksEnglish(lesson);
+  return {
+    ...lesson,
+    infoCheck: {
+      prompt: english
+        ? "Write the relation and substitute the givens yourself."
+        : "Bağıntıyı ve yerine koymayı kendin yaz.",
+      answer: formula.slice(0, 200),
+    },
+  };
+}
+
+function weaveUnusedSources(lesson: LessonV2, source: string, topic: string): LessonV2 {
+  const blocks = sourceBlocks(source);
+  if (blocks.length < 2 || !lesson.sections.length) return lesson;
+  const cited = foldTr(lesson.sections.map((section) => section.body).join("\n"));
+  const unused = blocks.filter((block) => block.file && !cited.includes(foldTr(block.file)));
+  if (!unused.length) return lesson;
+  const want = stems(`${topic} ${lesson.title} ${lesson.sections.map((section) => section.heading).join(" ")}`);
+  const picked = unused
+    .map((block) => ({ block, score: overlapCount(want, stems(block.text)) }))
+    .filter((item) => item.score >= 1)
+    .sort((left, right) => right.score - left.score)[0]?.block;
+  if (!picked) return lesson;
+  const sentence = sentences(picked.text).find(
+    (line) =>
+      line.length >= 40 &&
+      line.length <= 240 &&
+      !hasCompletedChain(line) &&
+      !announcedExampleGap(line) &&
+      fluencyIssues(line).length === 0 &&
+      !identityLeft(line, source),
+  );
+  if (!sentence) return lesson;
+  const index = lesson.sections.length - 1;
+  return {
+    ...lesson,
+    sections: lesson.sections.map((section, at) => {
+      if (at !== index) return section;
+      if (foldTr(section.body).includes(foldTr(sentence).slice(0, 24))) return section;
+      const body = `${section.body.trim()} ${sentence} Kaynak: ${picked.file}, s.${picked.page}.`
+        .replace(/\s+/g, " ")
+        .trim();
+      if (body.length > 2400 || body.length < 20) return section;
+      return { ...section, body };
+    }),
+  };
+}
+
+function withoutExample(lesson: LessonV2): LessonV2 {
+  const next = { ...lesson };
+  delete next.example;
+  return next;
+}
+
 function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): LessonV2 {
+  const checksBefore = lesson.sections.filter((section) => section.check).length;
+  const sentencesBefore = sentences(lessonProse(lesson)).length;
+  const hadExample = Boolean(lesson.example);
   const named = applyIdentity(lesson, source);
   const grounded = groundLearnerLesson(scrubInventedNumbers(named, source), source, {}).lesson;
   const parsed = lessonV2Schema.safeParse(grounded).data ?? lesson;
@@ -749,8 +932,24 @@ function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): Le
   next = attachCitations(next, source);
   next = withSourceExample(next, source);
   next = withCalculationCheck(next, source);
+  next = withInfoCheck(next, source);
+  next = weaveUnusedSources(next, source, topicLabel);
   next = softenSummary(next, topicLabel);
-  return scrubInventedNumbers(next, source);
+  if (next.example && topicIsQuantitative(source)) {
+    const blob = `${next.example.prompt}\n${next.example.solution}`;
+    if (!exampleReady(blob, source)) next = withoutExample(next);
+  }
+  next = scrubInventedNumbers(next, source);
+  const dropped =
+    next.sections.filter((section) => section.check).length < checksBefore ||
+    sentences(lessonProse(next)).length < sentencesBefore ||
+    (hadExample && !next.example);
+  if (!dropped || next.overview?.includes(REMOVED_FLAG)) return next;
+  const overview = `${next.overview ?? ""} ${REMOVED_FLAG}`.trim();
+  return {
+    ...next,
+    overview: fluencyIssues(overview).length ? REMOVED_FLAG : overview.slice(0, 1500),
+  };
 }
 
 export function teachingRepairPrompt(
@@ -974,6 +1173,7 @@ export function salvageTaughtLesson(
     if (
       next.check &&
       (checkEchoes(next.check, lesson, body) ||
+        checkHasAbsolute(next.check, source) ||
         fluencyIssues(next.check.prompt).length ||
         fluencyIssues(next.check.explanation).length)
     ) {
@@ -1057,7 +1257,7 @@ function salvageStripRemaining(
       return [];
     }
     let next = section;
-    if (next.check && checkEchoes(next.check, lesson, next.body)) {
+    if (next.check && (checkEchoes(next.check, lesson, next.body) || checkHasAbsolute(next.check, source))) {
       removed.push(`check:${section.heading}`);
       next = withoutCheck(next);
     }

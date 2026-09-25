@@ -1692,7 +1692,12 @@ export const LESSON_V2_SCHEMA_HINT =
   '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
   '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
   "Kaynak kaç kavram veriyorsa o kadar bölüm; en az bir kavram bölümü. " +
-  "Kaynak en az üç kavram veriyorsa 3 ile 5 yanıtlı check yaz, beşi geçme. Dar kaynakta en az bir yanıtlı check yeter. Yeni bölüm uydurma. " +
+  "Kaynak en az üç kavram veriyorsa en az 5 çeşitli yanıtlı check yaz: çoktan seçmeli, doğru/yanlış, sayısal ve öğrencinin kendisinin yazdığı. Beşi geçme. Dar kaynakta en az bir yanıtlı check yeter. Yeni bölüm uydurma. " +
+  "Tanım, neden önemli olduğu, adım adım yöntem, tam çözümlü örnek, öğrencinin çözeceği benzer örnek ve kaynaktaki sık hata aynı dersin içinde durur. " +
+  "Aynı konuyu işleyen her kaynak parçası kullanılır. " +
+  "Kesin hüküm (sadece, asla, her zaman, tek, hiçbir, only, never, always) kaynakta yoksa yazılmaz. " +
+  "Çözümlü örnekte her sayı verilenlerde ya da önceki adımda durur. Sarkan eşitlik yazılmaz. " +
+  "Kontrol, ders cümlesini tekrar etmez. Özet kopya değildir: kural, tuzak ve uygulama. " +
   "Özet tam bağıntıyı ve niteleyiciyi korusun. nextFocus yalnızca verilen sonraki konular; yoksa yazma. " +
   "Anahtarlar İngilizce: objective, sections, example, commonMistake, infoCheck. Türkçe anahtar kullanma. " +
   "example, commonMistake, objective veya infoCheck yoksa alanı yazma; uydurma. " +
