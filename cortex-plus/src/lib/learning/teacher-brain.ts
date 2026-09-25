@@ -821,7 +821,9 @@ export const SOURCE_PAGE_FORMULA_RULE =
   "Öğretmen notu vurgu ve sıradır; notta geçen bir ifade kaynak sayfada yoksa dersin olgusu olmaz. " +
   "Çözümlü örnek yalnızca bu düğümün kaynak sayfalarındaki sayı ve formülü kullanır. " +
   "Basınç hesabında her terimi ayrı yaz: P_abs = P_gage + P_atm ve her terimin kaynak sayfadaki değeri; " +
-  "vakum için P_vakum = P_atm − P_abs. Birim dönüşümünde iki tarafta farklı birim olsun ve arada işlem olmasın.";
+  "vakum için P_vakum = P_atm − P_abs. Birim dönüşümünde iki tarafta farklı birim olsun ve arada işlem olmasın. " +
+  "commonMistake yalnız bu konunun kaynak sayfalarından gelsin: claim öğrencinin yanlış inancı, correction kaynağın doğrusudur. " +
+  "Basınç veya sıcaklık dersine enerji birimi (kJ, kJ/kg) hatası yazma.";
 
 const EQUATION_IN_NOTE =
   /[A-Za-zσΔμρ][A-Za-z0-9σΔμρ'’^_]{0,8}\s*=\s*[A-Za-z0-9σΔμρ'’^_\s*/+−\-.]{1,24}/g;
@@ -1162,7 +1164,7 @@ export type StoredReview = {
 /**
  * Ders üretilirken aynı çağrıda yazılan tekrar.
  * Şık metinleri orijinalin aynısı olmalı; yeni sayı veya orijinal cümle yok.
- * Tutmazsa null — ekran önekli yedeğe düşer, olgu uydurmaz.
+ * Tutmazsa null — ekran önek uydurmaz, orijinal soruyu bırakır.
  */
 function storedReview(value: unknown): StoredReview | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -1182,20 +1184,22 @@ function storedReview(value: unknown): StoredReview | null {
 
 export function acceptReviewVariant(
   check: ReviewCheck & { review?: StoredReview | null },
+  source = "",
 ): ReviewCheck | null {
   const review = storedReview(check.review);
   if (!review) return null;
   const original = foldPrompt(check.prompt);
   const next = foldPrompt(review.prompt);
   if (next.length < 8 || next === original || next.includes(original)) return null;
-  const source = [check.prompt, check.explanation, ...check.options].join("\n");
-  if (hasNovelQuantity(review.prompt, source)) return null;
+  if (/başka sözcüklerle|baska sozcuklerle/i.test(review.prompt)) return null;
+  const corpus = [check.prompt, check.explanation, ...check.options, source].join("\n");
+  if (hasNovelQuantity(review.prompt, corpus)) return null;
   const copied =
     review.options &&
     review.options.length >= 2 &&
     typeof review.answerIndex === "number" &&
     sameOptionSet(check.options, review.options);
-  if (review.options && review.options.length >= 2 && !copied) return null;
+  if (review.options && !copied) return null;
   const accepted: ReviewCheck = copied
     ? {
         type: check.type,
@@ -1217,32 +1221,68 @@ export function acceptReviewVariant(
   return sameOptionOrder(check.options, accepted.options) ? shiftOptions(accepted) : accepted;
 }
 
+function trueFalseRightIndex(options: string[]): number {
+  return options.findIndex((option) => option.trim().toLocaleLowerCase("tr") === "doğru");
+}
+
+/**
+ * Doğru/yanlış tekrarı aynı cümleyi öneklemez.
+ * Kaynakta 273 varsa başka bir sıcaklık sorar; yoksa orijinal kalır.
+ */
+function groundedTrueFalseRetry<T extends ReviewCheck>(check: T, source: string): T | null {
+  const right = trueFalseRightIndex(check.options);
+  const wrong = check.options.findIndex((option) => option.trim().toLocaleLowerCase("tr") === "yanlış");
+  if (right < 0 || wrong < 0) return null;
+  const corpus = [source, check.explanation, check.prompt].join("\n");
+  const aboutTemperature = /°\s*c|kelvin|santigrat/i.test(`${check.prompt}\n${check.explanation}`);
+  if (aboutTemperature && /273/.test(corpus)) {
+    const prompt = /0\s*°\s*c/i.test(check.prompt)
+      ? "273.15 K, 0 °C eder. DOĞRU MU YANLIŞ?"
+      : "0 °C, 273.15 K eder. DOĞRU MU YANLIŞ?";
+    if (foldPrompt(prompt) === foldPrompt(check.prompt)) return null;
+    return { ...check, prompt, answerIndex: right };
+  }
+  if (/kullanılmalıdır|kullanilmalidir/i.test(check.prompt) && check.answerIndex === right) {
+    const flipped = check.prompt.replace(/kullanılmalıdır|kullanilmalidir/gi, "kullanılmamalıdır");
+    if (flipped !== check.prompt) {
+      return { ...check, prompt: flipped, answerIndex: wrong };
+    }
+  }
+  return null;
+}
+
 /**
  * Kısa tekrar kapısının sorusu.
- * Saklı varyant geçerliyse o gelir; değilse şıklar kayar ve köke önek eklenir.
- * Orijinal cümle olduğu gibi geri dönmez.
+ * Saklı varyant gerçekten farklıysa o gelir.
+ * Değilse aynı kavram başka bir sayı veya yönden sorulur.
+ * İkisi de yoksa orijinal soru, öneksiz, gösterilir.
  */
 export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredReview | null }>(
   check: T,
   language: MaterialLanguage = "tr",
+  source = "",
 ): T {
-  const accepted = acceptReviewVariant(check);
-  const next = accepted ?? rephraseSectionCheck(check, language);
-  if (foldPrompt(next.prompt) === foldPrompt(check.prompt)) {
-    const fallback = rephraseSectionCheck(check, language);
+  const accepted = acceptReviewVariant(check, source);
+  if (accepted && foldPrompt(accepted.prompt) !== foldPrompt(check.prompt)) {
     return {
       ...check,
-      prompt: fallback.prompt,
-      options: fallback.options,
-      answerIndex: fallback.answerIndex,
+      prompt: accepted.prompt,
+      options: accepted.options,
+      answerIndex: accepted.answerIndex,
     };
   }
-  return {
-    ...check,
-    prompt: next.prompt,
-    options: next.options,
-    answerIndex: next.answerIndex,
-  };
+  const grounded = language === "tr" ? groundedTrueFalseRetry(check, source) : null;
+  if (grounded && foldPrompt(grounded.prompt) !== foldPrompt(check.prompt)) return grounded;
+  if (check.options.length >= 3) {
+    const shifted = shiftOptions(check);
+    return {
+      ...check,
+      prompt: check.prompt,
+      options: shifted.options,
+      answerIndex: shifted.answerIndex,
+    };
+  }
+  return check;
 }
 
 /** Ders sonu tekrarı aynı cümleyi ve aynı şık yerini geri getirmez. */

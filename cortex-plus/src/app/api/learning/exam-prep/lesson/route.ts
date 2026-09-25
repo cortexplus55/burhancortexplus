@@ -14,6 +14,7 @@ import {
   LESSON_V2_SCHEMA_HINT,
   REVIEW_VARIANT_RULE,
   lessonDraftForVerifier,
+  lessonHasTeachingCore,
   lessonPublishIssues,
   publishLessonDraft,
   teachingStandardConstraints,
@@ -32,6 +33,7 @@ import {
   teacherNoteGroundedInSource,
   teacherPersona,
 } from "@/lib/learning/teacher-brain";
+import { groundLearnerLesson, groundLessonDraft } from "@/lib/learning/lesson-grounding";
 
 /** Düğüm ucuyla aynı tavan. Kısa tekrar ayrı bir model çağrısı açmaz. */
 export const maxDuration = 300;
@@ -199,7 +201,9 @@ export async function POST(request: Request) {
     maxDraftAttempts: teachingV2 ? (depth?.maxDraftAttempts ?? 2) : 1,
     allowIndependentAccept: false,
     activityKind: "lesson",
-    reviewDraft: teachingV2 ? lessonDraftForVerifier : undefined,
+    reviewDraft: teachingV2
+      ? (draft: string) => lessonDraftForVerifier(groundLessonDraft(draft, sourceBlock))
+      : undefined,
     buildIndependent: teachingV2
       ? (_content, parsed) => ({
           pedagogyIssues: lessonPublishIssues(parsed),
@@ -246,7 +250,12 @@ Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${
       if (teachingV2) {
         const cleaned = publishLessonDraft(raw);
         if (!cleaned || lessonPublishIssues(raw).length) return null;
-        return cleaned;
+        const grounded = groundLearnerLesson(cleaned, sourceBlock);
+        if (grounded.removed.length) {
+          console.error("removed_for_source", { removed: grounded.removed });
+        }
+        if (!lessonHasTeachingCore(grounded.lesson)) return null;
+        return grounded.lesson as NonNullable<typeof cleaned>;
       }
       const result = legacyLessonSchema.safeParse(raw);
       return result.success ? result.data : null;

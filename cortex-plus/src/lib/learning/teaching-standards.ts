@@ -155,7 +155,11 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         // neye bakacağını çıkaramıyordu.
         "ANAHTAR TERİMLERİ İŞARETLE: sınavda çıkacak terim ve tanımları bölüm metninde " +
         "**iki yıldız** arasına al (**boşluk oranı**, **likit limit**). Cümlenin tamamını " +
-        "değil, terimi işaretle; ders başına en az iki tane. " +
+        "değil, terimi işaretle. Her terim ders boyunca bir kez koyulaşır; her cümlenin " +
+        "ilk sözcüğünü koyulaştırma. " +
+        "Formülü ve çözülmüş örneğin her adımını kendi satırına yaz; tek paragrafta yığma. " +
+        "Kontrol sorusu bölüm cümlesini tekrar etmesin: öğrenciden dönüşümü, yönü veya " +
+        "başka bir kaynak sayısını uygulamasını iste. " +
         // Yanılgı dersin sonunda tek adımdı; öğrenci onu beş adım sonra
         // görüyordu. Okunduğu yerde kesilirse hiç yerleşmiyor.
         "TUZAĞI YERİNDE UYAR: bir bölümde karıştırılması kolay bir ayrım varsa o bölüme " +
@@ -167,6 +171,8 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "explanation (AÇIKLAMA) yanlış seçeneğin neden çürük olduğunu yazsın; yalnızca doğruyu tekrarlama. " +
         "JSON anahtarları İngilizce kalır: objective, sections, example, commonMistake, infoCheck. " +
         "example, commonMistake veya objective yazamıyorsan alanı atla; uydurma. " +
+        "commonMistake bu dersin kendi konusundan ve kaynak sayfalarından gelsin. " +
+        "claim yanlış inanç, correction kaynağın doğrusu olsun. Basınç dersine kJ veya kJ/kg hatası yazma. " +
         "Kaynakta olmayan formül veya teorem yazma; emin değilsen materyalde geçtiği hâliyle söyle."
       );
     case "quiz":
@@ -431,6 +437,7 @@ const SCAFFOLD_HEADINGS = [
   "kaynaga dayali ornek",
   "ornek",
   "yaygin hata",
+  "yaygin hatalar",
   "bilgi kontrolu",
   "orta bilgi kontrolu",
   // Pediatri dersinde bu çıktı: dört başlığın üçü kavramdı, dördüncüsü
@@ -751,10 +758,20 @@ export function emphasizeTerms(text: string, terms: string[]): string {
   return out;
 }
 
-/** Başlık ve anahtar terim listesi gövdede geçiyorsa koyulaştır. Yeni terim uydurmaz. */
+/** Aynı terimin ikinci koyu yazımı düz yazıya iner. İlki kalır. */
+function collapseRepeatedBold(text: string): string {
+  const seen = new Set<string>();
+  return text.replace(/\*\*([^*\n]{1,80})\*\*/g, (full, inner: string) => {
+    const key = inner.trim().toLocaleLowerCase("tr");
+    if (!key || seen.has(key)) return inner;
+    seen.add(key);
+    return full;
+  });
+}
+
+/** Başlık tam ifadesi ve anahtar terim listesi gövdede geçiyorsa bir kez koyulaşır. */
 function boldExistingTerm(heading: string, body: string, keyTerms: string[] = []): string {
-  const words = heading.split(/\s+/).filter((word) => word.length >= 5);
-  return emphasizeTerms(body, [heading, ...words, ...keyTerms]);
+  return collapseRepeatedBold(emphasizeTerms(body, [heading, ...keyTerms]));
 }
 
 /**
@@ -1577,7 +1594,7 @@ export function lessonPublishIssues(
   return issues.filter(publishIssueBlocks);
 }
 
-/** Doğrulayıcı kısa tekrarı görmesin. Eksik veya bozuk tekrar dersi reddetmesin. */
+/** Bozuk tekrar doğrulayıcıya gitmez. Kaynakla uyumlu farklı tekrar kalır. */
 export function lessonDraftForVerifier(draft: string, keyTerms: string[] = []): string {
   try {
     const parsed = parseModelJson(draft);
@@ -1586,8 +1603,11 @@ export function lessonDraftForVerifier(draft: string, keyTerms: string[] = []): 
     if (!coerced || typeof coerced !== "object" || !Array.isArray(coerced.sections)) return draft;
     for (const section of coerced.sections) {
       if (!section || typeof section !== "object") continue;
-      const check = (section as { check?: { review?: unknown } }).check;
-      if (check && typeof check === "object") delete check.review;
+      const check = (section as { check?: { review?: unknown; prompt?: string } }).check;
+      if (!check || typeof check !== "object" || !("review" in check)) continue;
+      // Bozuk veya kopya tekrar doğrulayıcıya ve kayda gitmez.
+      // Gerçekten farklı, kaynakla uyumlu tekrar aynı çağrıda kalır.
+      if (!acceptReviewVariant(check as never)) delete check.review;
     }
     return JSON.stringify(coerced);
   } catch {
@@ -1609,7 +1629,9 @@ export function lessonDraftForVerifier(draft: string, keyTerms: string[] = []): 
  */
 export const REVIEW_VARIANT_RULE =
   "check.review isteğe bağlıdır ve yalnızca kısa bir prompt'tur (en fazla 140 karakter). " +
-  "Aynı kavramı başka sözcüklerle sor; orijinal cümleyi, yeni sayı, yeni şık veya formül yazma. " +
+  "Aynı kavramı başka bir açıdan sor. Doğru/yanlışta kaynakta duran başka bir sayı " +
+  "(örneğin 0 °C = 273.15 K), yönün tersi veya kısa bir uygulama olsun. " +
+  "Orijinal cümleyi kopyalama. 'başka sözcüklerle' yazma. Kaynakta olmayan sayı uydurma. " +
   "Şıkları review içine kopyalama. Yazamazsan review alanını boş bırak; bu dersi geçersiz yapmaz.";
 
 /** İki rotanın ders şeması aynı metin. Diyagram eki rota ekler. */
@@ -2065,7 +2087,7 @@ export function lessonMissDrafts(input: {
     const section = input.lesson.sections[index];
     const check = section?.check;
     if (!check) continue;
-    const variant = reviewQuestionFor(check, input.language ?? "tr");
+    const variant = reviewQuestionFor(check, input.language ?? "tr", section.body);
     const correct = variant.options[variant.answerIndex]?.trim();
     if (!correct || !variant.prompt.trim()) continue;
     out.push({

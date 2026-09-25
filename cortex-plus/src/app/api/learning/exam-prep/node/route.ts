@@ -55,6 +55,7 @@ import {
   publishLessonDraft,
   lessonPublishIssues,
   lessonDraftForVerifier,
+  lessonHasTeachingCore,
   publishablePodcast,
   podcastDraftForVerifier,
   lessonV2Schema,
@@ -89,6 +90,11 @@ import {
   unsupportedQuantities,
   type TeachingPriority,
 } from "@/lib/learning/teacher-brain";
+import {
+  collectLearnerVisibleText,
+  groundLearnerLesson,
+  groundLessonDraft,
+} from "@/lib/learning/lesson-grounding";
 import {
   recordLearningTrackingAfterComplete,
   stripAnswerMeta,
@@ -1291,7 +1297,8 @@ async function generateNodePayload(input: {
           ? `${input.idempotencyKey}:no-brief`
           : input.idempotencyKey,
       allowIndependentAccept: false,
-      reviewDraft: (draft) => lessonDraftForVerifier(draft, keyTerms),
+      reviewDraft: (draft) =>
+        lessonDraftForVerifier(groundLessonDraft(draft, input.sourceBlock), keyTerms),
       buildIndependent: (_c, parsed) => ({
         pedagogyIssues: lessonPublishIssues(parsed, { minSections, keyTerms }),
         ...sourceIndependent,
@@ -1316,8 +1323,17 @@ async function generateNodePayload(input: {
       describeParseFailure: () => lastParseIssues,
       parse: (raw) => {
         lastParseIssues = [];
-        const raw2 = publishLessonDraft(raw, { keyTerms });
-        if (!raw2) return null;
+        const published = publishLessonDraft(raw, { keyTerms });
+        if (!published) return null;
+        const grounded = groundLearnerLesson(published, input.sourceBlock);
+        if (grounded.removed.length) {
+          console.error("removed_for_source", { removed: grounded.removed });
+        }
+        const raw2 = grounded.lesson as LessonV2;
+        if (!lessonHasTeachingCore(raw2)) {
+          lastParseIssues = ["Kaynakla bağlanamayan parçalar çıktıktan sonra öğreten bölüm kalmadı."];
+          return null;
+        }
         /**
          * ÖNCE TEMİZLE, SONRA DOĞRULA.
          *
@@ -1363,11 +1379,7 @@ async function generateNodePayload(input: {
         // Sayfa metni kesildiyse eksik sayı yanlış alarm üretir. Kesilmemiş
         // kaynakta yüzde ve denklem katsayısı belgede yoksa taslak dönmez.
         if (input.sourceBlock && !input.sourceBlock.includes("kısaltıldı")) {
-          const lessonText = [
-            parsed.overview ?? "",
-            ...parsed.sections.map((section) => section.body),
-            parsed.example?.solution ?? "",
-          ].join("\n");
+          const lessonText = collectLearnerVisibleText(parsed);
           const gaps = unsupportedQuantities(lessonText, input.sourceBlock);
           if (gaps.length) {
             rejectedForQuantity = true;

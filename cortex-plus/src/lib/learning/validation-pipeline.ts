@@ -10,6 +10,11 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
+import {
+  calculationMismatchIssues,
+  uncertainCalculationIssues,
+} from "@/lib/learning/arithmetic-claims";
+import { inversionIssuesInValue } from "@/lib/learning/unit-inversions";
 import { lessonHasTeachingCore, lessonPublishIssues, publishLessonDraft } from "@/lib/learning/teaching-standards";
 
 export type ValidationStage =
@@ -381,118 +386,18 @@ export function checkUnitConversionClaims(text: string): string[] {
     .map((item) => `Birim dönüşümü tutarsız: ${item.raw}`);
 }
 
-type ChainOp = "+" | "-" | "*" | "/";
-
-function opOf(raw: string): ChainOp | null {
-  if (raw === "+" ) return "+";
-  if (raw === "-" || raw === "−" || raw === "–") return "-";
-  if (raw === "*" || raw === "×" || raw === "x" || raw === "X") return "*";
-  if (raw === "/" || raw === "÷") return "/";
-  return null;
-}
-
 /**
- * "49.05 kPa + 95 kPa = 144.1 kPa" ve "101 kPa − 20 kPa = 81 kPa".
+ * Parantez, çarpma ve bölme dahil tam ifade.
+ * Emin olunmayan veya ara değer yanlış birime yapışmışsa uyarıdır.
+ * Blok, ifadenin tamamı güvenle ayrışıp sonuç payın dışındaysa gelir.
  * İki terimli birimsiz işlem `checkSimpleMathClaims`'e kalır.
- * Ayrıştırılamayan zincir hata değildir.
  */
 export function checkCalculationChains(text: string): string[] {
-  const issues: string[] = [];
-  const re = new RegExp(
-    `(?<![\\d.,])(${NUM_TOKEN}(?:\\s*${UNIT_TOKEN})?(?:\\s*${OP_TOKEN}\\s*${NUM_TOKEN}(?:\\s*${UNIT_TOKEN})?)+)\\s*=\\s*(${NUM_TOKEN})(?:\\s*(${UNIT_TOKEN}))?(?![\\d.,A-Za-z])`,
-    "gi",
-  );
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(text)) !== null) {
-    if (precededByOperator(text, match.index)) continue;
-    const verdict = evaluateChain(match[1], match[2], match[3]);
-    if (verdict === "mismatch") issues.push(`Hesap uyuşmazlığı: ${match[0]}`);
-  }
-  return issues;
+  return calculationMismatchIssues(text);
 }
 
-function evaluateChain(
-  expr: string,
-  claimedRaw: string,
-  claimedUnitRaw: string | undefined,
-): "ok" | "mismatch" | "uncertain" {
-  const pieces = expr
-    .split(new RegExp(`(${OP_TOKEN})`))
-    .map((piece) => piece.trim())
-    .filter(Boolean);
-  if (pieces.length < 3 || pieces.length % 2 === 0) return "uncertain";
-  const values: number[] = [];
-  const units: Array<ParsedUnit | null> = [];
-  const ops: ChainOp[] = [];
-  for (let index = 0; index < pieces.length; index += 1) {
-    const piece = pieces[index];
-    if (index % 2 === 1) {
-      const op = opOf(piece);
-      if (!op) return "uncertain";
-      ops.push(op);
-      continue;
-    }
-    const term = piece.match(new RegExp(`^(${NUM_TOKEN})(?:\\s*(${UNIT_TOKEN}))?$`, "i"));
-    if (!term) return "uncertain";
-    const value = parseDecimal(term[1]);
-    if (!Number.isFinite(value)) return "uncertain";
-    const unit = term[2] ? parseUnitToken(term[2]) : null;
-    if (term[2] && !unit) return "uncertain";
-    values.push(value);
-    units.push(unit);
-  }
-  const claimed = parseDecimal(claimedRaw);
-  const claimedUnit = claimedUnitRaw ? parseUnitToken(claimedUnitRaw) : null;
-  if (!Number.isFinite(claimed) || (claimedUnitRaw && !claimedUnit)) return "uncertain";
-  const hasUnit = units.some(Boolean) || Boolean(claimedUnit);
-  if (!hasUnit && ops.length === 1) return "uncertain";
-
-  const families = new Set(
-    [...units, claimedUnit].filter((unit): unit is ParsedUnit => Boolean(unit)).map((unit) => unit.family),
-  );
-  if (families.size > 1) return "uncertain";
-  const family = [...families][0] ?? null;
-  const additive = ops.every((op) => op === "+" || op === "-");
-  let expected = Number.NaN;
-  const expectedRaw = claimedRaw;
-  if (additive && family === "pressure" && units.every(Boolean) && claimedUnit) {
-    const baseValues = values.map((value, index) => units[index]!.toBase(value));
-    expected = claimedUnit.fromBase(evalLeftToRight(baseValues, ops));
-  } else if (additive && family === "temperature") {
-    return "uncertain";
-  } else if (units.every((unit) => !unit)) {
-    expected = evalLeftToRight(values, ops);
-  } else if (units.every((unit) => !unit || unit.key === units.find(Boolean)?.key)) {
-    expected = evalLeftToRight(values, ops);
-  } else {
-    return "uncertain";
-  }
-  if (!Number.isFinite(expected)) return "uncertain";
-  return closeEnough(expected, expectedRaw, claimed) ? "ok" : "mismatch";
-}
-
-function evalLeftToRight(values: number[], ops: ChainOp[]): number {
-  const next = values.slice();
-  const pending = ops.slice();
-  for (let index = 0; index < pending.length; ) {
-    if (pending[index] !== "*" && pending[index] !== "/") {
-      index += 1;
-      continue;
-    }
-    const combined =
-      pending[index] === "*"
-        ? next[index] * next[index + 1]
-        : next[index + 1] === 0
-          ? Number.NaN
-          : next[index] / next[index + 1];
-    next.splice(index, 2, combined);
-    pending.splice(index, 1);
-  }
-  let acc = next[0] ?? Number.NaN;
-  for (let index = 0; index < pending.length; index += 1) {
-    acc = pending[index] === "+" ? acc + next[index + 1] : acc - next[index + 1];
-  }
-  return acc;
+export function checkUncertainCalculationClaims(text: string): string[] {
+  return uncertainCalculationIssues(text);
 }
 
 /** Emin olunamayan eşitlik uyarıdır. Ders bu yüzden düşmez. */
@@ -829,7 +734,7 @@ export function settleRejectedLesson(draft: string, issues: string[]): SettledLe
     pedagogyIssues: pedagogy,
   });
   const hard = recheck.issues.filter(
-    (item) => item.code !== "unit_uncertain" && validationIssueBlocks(item, content),
+    (item) => !domainIssueIsSoft(item.code) && validationIssueBlocks(item, content),
   );
   if (hard.length || !published || !lessonHasTeachingCore(published)) {
     return { accepted: false, content: draft, removed: [], ...split };
@@ -849,8 +754,12 @@ export function settleRejectedLesson(draft: string, issues: string[]): SettledLe
  * Ayrıştırılamayan birim eşitliği uyarıdır. Pedagoji cümlesi allowlist
  * dışındaysa dersi düşürmez.
  */
+function domainIssueIsSoft(code: string): boolean {
+  return code === "unit_uncertain" || code === "math_uncertain";
+}
+
 export function validationIssueBlocks(item: ValidationIssue, draft = ""): boolean {
-  if (item.code === "unit_uncertain") return false;
+  if (domainIssueIsSoft(item.code)) return false;
   if (item.code === "invalid_json" || item.code === "not_object") return true;
   if (item.stage === "domain" || item.stage === "source" || item.stage === "structural") {
     return true;
@@ -1045,6 +954,12 @@ function domainCheck(input: IndependentValidationInput): ValidationIssue[] {
   for (const msg of checkUncertainUnitClaims(text)) {
     issues.push(issue("domain", "unit_uncertain", msg));
   }
+  for (const msg of checkUncertainCalculationClaims(text)) {
+    issues.push(issue("domain", "math_uncertain", msg));
+  }
+  for (const msg of inversionIssuesInValue(input.parsed ?? text)) {
+    issues.push(issue("domain", "definition_inversion", msg));
+  }
   for (const msg of uniqueOptionsIssues(input.parsed)) {
     issues.push(issue("domain", "duplicate_options", msg));
   }
@@ -1096,7 +1011,7 @@ export function runIndependentValidation(
     const started = Date.now();
     const stageIssues = STAGE_RUNNERS[stage](input);
     stagesMs[stage] = Date.now() - started;
-    const hard = stageIssues.filter((item) => item.code !== "unit_uncertain");
+    const hard = stageIssues.filter((item) => !domainIssueIsSoft(item.code));
     if (stageIssues.length) issues.push(...stageIssues);
     if (hard.length) {
       failedStage = stage;
