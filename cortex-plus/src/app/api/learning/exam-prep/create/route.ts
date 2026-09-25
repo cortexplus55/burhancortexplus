@@ -89,6 +89,7 @@ export async function POST(request: Request) {
         service,
         documentIds,
         parsed.data.hardTopics ?? [],
+        userId,
       );
       if (loaded.titles.length || grounded.matches.length) {
         const applied = applyStudentTopicList({

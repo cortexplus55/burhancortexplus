@@ -8,6 +8,11 @@ import { PhoneUploadPanel } from "@/components/parity/phone-upload-panel";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
 import { isPhotoQuotaError } from "@/lib/documents/process-errors";
+import {
+  PROCESS_RETRY_MESSAGE,
+  postDocumentProcess,
+  requestDocumentProcessing,
+} from "@/lib/documents/process-session";
 import { PREP_HOME_COPY, WIZARD_COPY } from "@/lib/learning/exam-wizard-copy";
 import { freeMaterialLimitLine } from "@/lib/learning/prep-material-copy";
 import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
@@ -65,15 +70,15 @@ export function PrepMaterialAdder({
   }
 
   async function processThenAttach(documentId: string) {
-    const processRes = await fetch("/api/documents/process", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentId }),
+    const result = await requestDocumentProcessing({
+      documentId,
+      post: postDocumentProcess,
     });
-    const processed = await processRes.json().catch(() => ({}));
-    if (processRes.status === 402) {
+    const processed = result.body;
+    if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
+    if (result.status === 402) {
       if (isPhotoQuotaError(processed)) {
-        toast.error(processed.error ?? "Bu ayki fotoğraf hakkın doldu.", {
+        toast.error(typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.", {
           description: freeCap !== null ? freeMaterialLimitLine() : undefined,
         });
         return;
@@ -81,8 +86,8 @@ export function PrepMaterialAdder({
       setPaywall(true);
       return;
     }
-    if (!processRes.ok) {
-      toast.error(processed.error ?? "Dosya işlenemedi.");
+    if (!result.ok) {
+      toast.error(typeof processed.error === "string" ? processed.error : "Dosya işlenemedi.");
       return;
     }
     await attach(documentId);
