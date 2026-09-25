@@ -3,14 +3,11 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { commitCredits, refundCredits } from "@/lib/credits/service";
 import { completeLessonPartRepair } from "@/lib/ai/lesson-part-repair";
 import { formatStructuredLesson } from "@/lib/learning/exam-lesson";
 import { loadSourceContext, loadTopicSpanContext } from "@/lib/learning/source-context";
-import {
-  criticalTeachingFailures,
-  finishTaughtLesson,
-  LESSON_TEACH_RULE,
-} from "@/lib/learning/lesson-teach";
+import { finishTaughtLesson, LESSON_TEACH_RULE } from "@/lib/learning/lesson-teach";
 import {
   resolvePrepSourceMode,
   shouldSearchSources,
@@ -231,6 +228,7 @@ export async function POST(request: Request) {
     validationProfile: teachingV2 ? "v2" : "legacy",
     maxDraftAttempts: 1,
     verificationMode: teachingV2 ? "schema" : undefined,
+    deferCommit: Boolean(teachingV2),
     allowIndependentAccept: false,
     activityKind: "lesson",
     reviewDraft: teachingV2
@@ -300,26 +298,33 @@ Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${
     },
   });
 
-  // Legacy: soft placeholder so older UI does not hard-fail.
-  // v2: fail closed — do not store ungated placeholder content.
+  // Model düşerse rezervasyon generateJson içinde iade edilir.
+  // Ayrıştırılan ders, kapı dolu kalsa da kayda geçer.
   if (!outcome.ok) {
     if (teachingV2) return errorResponse(outcome.status, outcome.error);
   }
 
   let published = outcome.ok ? outcome.data : null;
+  const heldReservationId = outcome.ok && teachingV2 ? outcome.reservationId : undefined;
   if (outcome.ok && teachingV2) {
-    const finished = await finishTaughtLesson(
-      outcome.data,
-      { source: sourceBlock, topicLabel: topic.label },
-      (prompt) => completeLessonPartRepair({ service, userId, prompt, maxTokens: 1200 }),
-    );
-    if (criticalTeachingFailures(finished.failures).length) {
-      return errorResponse(500, "lesson_missing");
+    try {
+      const finished = await finishTaughtLesson(
+        outcome.data,
+        { source: sourceBlock, topicLabel: topic.label },
+        (prompt) => completeLessonPartRepair({ service, userId, prompt, maxTokens: 1200 }),
+      );
+      if (finished.salvaged) {
+        console.error("lesson_generation_salvaged", {
+          failures: finished.failures.slice(0, 8).map((failure) => `${failure.unit}:${failure.problem}`),
+        });
+      }
+      published = finished.lesson;
+    } catch (error) {
+      if (heldReservationId) {
+        await refundCredits(service, heldReservationId).catch(() => undefined);
+      }
+      throw error;
     }
-    if (finished.lesson.sections.filter((section) => section.check).length < 3) {
-      return errorResponse(500, "lesson_missing");
-    }
-    published = finished.lesson;
   }
 
   const contentMd = published
@@ -352,7 +357,20 @@ Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${
       .single());
   }
 
-  if (lessonError || !lesson) return errorResponse(500, "generation_failed");
+  if (lessonError || !lesson) {
+    if (heldReservationId) {
+      await refundCredits(service, heldReservationId).catch(() => undefined);
+    }
+    return errorResponse(500, "generation_failed");
+  }
+  if (heldReservationId) {
+    try {
+      await commitCredits(service, heldReservationId);
+    } catch (error) {
+      await refundCredits(service, heldReservationId).catch(() => undefined);
+      throw error;
+    }
+  }
 
   await service
     .from("exam_prep_topics")

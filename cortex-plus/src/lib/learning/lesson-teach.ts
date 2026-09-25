@@ -4,7 +4,9 @@
  * Model tek yapılandırılmış ders yazar. Burada kaynak yalnızca konunun
  * kendi sayfalarına indirilir. Örnek tamlığı `exampleIsComplete` ve
  * `announcedExampleGap` ile, özdeşlik ise `auditQuantitative` ile bakılır;
- * bu kurallar podcast ile ortaktır. Bozuk parça silinmez.
+ * bu kurallar podcast ile ortaktır. Tek onarımdan sonra kapı hâlâ
+ * doluysa ders silinmez: doğrulanamayan cümle çıkarılır ya da işaretlenir
+ * ve elde kalan ders açılır. Model çağrısı düşmediyse öğrenci boş ekran görmez.
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
@@ -950,15 +952,209 @@ export function mergeTeachingRepair(lesson: LessonV2, patch: unknown): LessonV2 
   return lessonV2Schema.safeParse(next).data ?? lesson;
 }
 
+const REMOVED_FLAG = "Doğrulanamayan cümleler çıkarıldı.";
+
+function sentenceVerifiable(sentence: string, source: string): boolean {
+  if (!sentence.trim()) return false;
+  if (fluencyIssues(sentence).length) return false;
+  if (source.trim() && inventedNumbers(sentence, source).length) return false;
+  if (identityLeft(sentence, source)) return false;
+  return true;
+}
+
+function cleanProse(text: string, source: string): string {
+  const parts = sentences(text);
+  if (!parts.length) return sentenceVerifiable(text, source) ? text.trim() : "";
+  return parts.filter((part) => sentenceVerifiable(part, source)).join(" ");
+}
+
+function sourceBackedBody(heading: string, topic: string, source: string): string {
+  const blocks = sourceBlocks(source);
+  if (!blocks.length) return "";
+  const want = stems(`${heading} ${topic}`);
+  let best: CiteBlock | null = null;
+  let score = 0;
+  for (const block of blocks) {
+    const next = overlapCount(want, stems(block.text));
+    if (next > score) {
+      score = next;
+      best = block;
+    }
+  }
+  if (!best || score < 1) return "";
+  const kept = cleanProse(best.text, source);
+  if (kept.length < 20) return "";
+  const cited = /kaynak\s*:/i.test(kept) ? kept : `${kept} Kaynak: ${best.file}, s.${best.page}.`;
+  return cited.slice(0, 2400);
+}
+
+function withoutCheck(section: LessonV2["sections"][number]): LessonV2["sections"][number] {
+  const next = { ...section };
+  delete next.check;
+  return next;
+}
+
+function withoutNote(section: LessonV2["sections"][number]): LessonV2["sections"][number] {
+  const next = { ...section };
+  delete next.note;
+  return next;
+}
+
+/**
+ * Kapı dolu kaldığında yayınlanacak en iyi doğrulanmış ders.
+ * Doğrulanamayan cümle, yanlış dosyanın sayfası, yankı kontrol ve
+ * yarım örnek düşer. Geriye en az bir okunur bölüm kalır.
+ */
+export function salvageTaughtLesson(
+  lesson: LessonV2,
+  input: { source: string; topicLabel: string },
+): { lesson: LessonV2; removed: string[] } {
+  const source = input.source;
+  const topic = input.topicLabel;
+  const removed: string[] = [];
+  const noteRemoval = (label: string) => {
+    if (!removed.includes(label)) removed.push(label);
+  };
+
+  const overview = lesson.overview ? cleanProse(lesson.overview, source) : "";
+  if (lesson.overview && overview !== lesson.overview.trim()) noteRemoval("overview");
+
+  const sections = lesson.sections.flatMap((section) => {
+    let body = cleanProse(section.body, source);
+    if (body !== section.body.trim()) noteRemoval(`section:${section.heading}`);
+    if (body.length < 20 || sectionMissesTitle(section.heading, body, topic, source)) {
+      const backed = sourceBackedBody(section.heading, topic, source);
+      if (backed.length >= 20 && !sectionMissesTitle(section.heading, backed, topic, source)) {
+        noteRemoval(`section:${section.heading}`);
+        body = backed;
+      } else {
+        noteRemoval(`section:${section.heading}`);
+        return [];
+      }
+    }
+    let next: LessonV2["sections"][number] = { ...section, body };
+    if (
+      next.check &&
+      (checkEchoes(next.check, lesson, body) ||
+        fluencyIssues(next.check.prompt).length ||
+        fluencyIssues(next.check.explanation).length)
+    ) {
+      noteRemoval(`check:${section.heading}`);
+      next = withoutCheck(next);
+    }
+    if (next.note && !sentenceVerifiable(next.note.body, source)) {
+      noteRemoval(`note:${section.heading}`);
+      next = withoutNote(next);
+    }
+    return [next];
+  });
+
+  let next: LessonV2 = {
+    ...lesson,
+    ...(overview ? { overview } : {}),
+    sections,
+  };
+  if (!overview) delete next.overview;
+  const exampleBlob = `${next.example?.prompt ?? ""}\n${next.example?.solution ?? ""}`;
+  if (next.example && !exampleReady(exampleBlob, source)) {
+    noteRemoval("example");
+    delete next.example;
+  }
+  if (next.commonMistake && !sentenceVerifiable(next.commonMistake.correction, source)) {
+    noteRemoval("commonMistake");
+    delete next.commonMistake;
+  }
+  if (next.summary?.length) {
+    const summary = next.summary
+      .map((line) => cleanProse(line, source))
+      .filter((line) => line.length >= 8);
+    if (summary.length !== next.summary.length) noteRemoval("summary");
+    if (summary.length) next.summary = summary;
+    else delete next.summary;
+  }
+
+  if (!next.sections.length) {
+    const backed = sourceBackedBody(topic, topic, source);
+    const pool = [lesson.overview ?? "", ...lesson.sections.map((section) => section.body)]
+      .map((text) => cleanProse(text, source))
+      .filter((text) => text.length >= 20)
+      .sort((left, right) => right.length - left.length);
+    const body = (backed || pool[0] || `${topic} konusunda kaynaktaki ifade bu bölümde durur.`).slice(0, 2400);
+    noteRemoval("sections");
+    next = {
+      ...next,
+      sections: [{ heading: (topic || lesson.title).slice(0, 140), body }],
+    };
+  }
+
+  if (removed.length) {
+    const flagged = next.overview?.includes(REMOVED_FLAG)
+      ? next.overview
+      : `${next.overview ?? ""} ${REMOVED_FLAG}`.trim();
+    next = {
+      ...next,
+      overview: fluencyIssues(flagged).length ? REMOVED_FLAG : flagged.slice(0, 1500),
+    };
+  }
+
+  const parsed = lessonV2Schema.safeParse(next).data;
+  const prepared = prepareTaught(parsed ?? next, source, topic);
+  const still = criticalTeachingFailures(teachingFailures(prepared, source, topic));
+  if (!still.length) return { lesson: prepared, removed };
+
+  const stripped = salvageStripRemaining(prepared, source, topic, removed);
+  const finalParsed = lessonV2Schema.safeParse(stripped).data ?? stripped;
+  return { lesson: finalParsed, removed };
+}
+
+function salvageStripRemaining(
+  lesson: LessonV2,
+  source: string,
+  topic: string,
+  removed: string[],
+): LessonV2 {
+  const sections = lesson.sections.flatMap((section) => {
+    if (fluencyIssues(section.body).length || sectionMissesTitle(section.heading, section.body, topic, source)) {
+      removed.push(`section:${section.heading}`);
+      return [];
+    }
+    let next = section;
+    if (next.check && checkEchoes(next.check, lesson, next.body)) {
+      removed.push(`check:${section.heading}`);
+      next = withoutCheck(next);
+    }
+    return [next];
+  });
+  const exampleBlob = `${lesson.example?.prompt ?? ""}\n${lesson.example?.solution ?? ""}`;
+  const keepExample = Boolean(lesson.example && exampleReady(exampleBlob, source));
+  if (lesson.example && !keepExample) removed.push("example");
+  const body = sourceBackedBody(topic, topic, source);
+  const kept = sections.length
+    ? sections
+    : [{ heading: (topic || lesson.title).slice(0, 140), body: body.length >= 20 ? body : `${topic} konusunda kaynaktaki ifade bu bölümde durur.`.slice(0, 2400) }];
+  const overview = lesson.overview?.includes(REMOVED_FLAG)
+    ? lesson.overview
+    : `${lesson.overview ?? ""} ${REMOVED_FLAG}`.trim();
+  const rest: LessonV2 = { ...lesson };
+  delete rest.example;
+  return {
+    ...rest,
+    overview: fluencyIssues(overview).length ? REMOVED_FLAG : overview.slice(0, 1500),
+    sections: kept,
+    ...(keepExample && lesson.example ? { example: lesson.example } : {}),
+  };
+}
+
 /**
  * Kaynağa indir, doğrula, bozuksa tek onarım çağrısına izin ver.
- * Onarım verilmezse ders olduğu gibi kapıdan döner.
+ * Onarım kapıyı kapatamazsa ders yine açılır: doğrulanamayan cümle
+ * çıkarılmış ya da işaretlenmiş hâl budur.
  */
 export async function finishTaughtLesson(
   lesson: LessonV2,
   input: { source: string; topicLabel: string },
   repair?: (prompt: string) => Promise<unknown>,
-): Promise<{ lesson: LessonV2; failures: TeachingFailure[] }> {
+): Promise<{ lesson: LessonV2; failures: TeachingFailure[]; salvaged: boolean }> {
   let current = prepareTaught(lesson, input.source, input.topicLabel);
   let failures = teachingFailures(current, input.source, input.topicLabel);
   if (criticalTeachingFailures(failures).length && repair) {
@@ -978,5 +1174,13 @@ export async function finishTaughtLesson(
     }
     failures = teachingFailures(current, input.source, input.topicLabel);
   }
-  return { lesson: current, failures };
+  if (!criticalTeachingFailures(failures).length) {
+    return { lesson: current, failures, salvaged: false };
+  }
+  const salvaged = salvageTaughtLesson(current, input);
+  return {
+    lesson: salvaged.lesson,
+    failures: teachingFailures(salvaged.lesson, input.source, input.topicLabel),
+    salvaged: true,
+  };
 }
