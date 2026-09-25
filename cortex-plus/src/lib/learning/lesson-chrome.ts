@@ -25,9 +25,15 @@ export function checkPresentation(check: Pick<SectionCheck, "type">): "trueFalse
  * seçeneğin kendi yazısı kalır.
  */
 export function trueFalseIndexes(options: string[]): { wrong: number; right: number } | null {
-  const norm = (value: string) => value.trim().toLocaleLowerCase("tr");
-  const wrong = options.findIndex((option) => norm(option) === "yanlış");
-  const right = options.findIndex((option) => norm(option) === "doğru");
+  const norm = (value: string) =>
+    value
+      .trim()
+      .toLocaleLowerCase("tr")
+      .replace(/[?!.]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  const wrong = options.findIndex((option) => /^(yanlış|yanlis)( mi| mı)?$/.test(norm(option)));
+  const right = options.findIndex((option) => /^(doğru|dogru)( mu)?$/.test(norm(option)));
   if (wrong < 0 || right < 0 || wrong === right) return null;
   return { wrong, right };
 }

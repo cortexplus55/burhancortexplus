@@ -1079,10 +1079,10 @@ describe("exam-prep lesson route", () => {
     expect(published).not.toContain("hesaplanarak");
     expect(published).toMatch(/2\s*[×x]\s*0[.,]718/);
     expect(published).toContain("215.4");
-    expect(published).toMatch(/c_v = 0[.,]718 kJ\/kg·K/);
-    expect(published).toMatch(/c_p\s*[−-]\s*c_v\s*=\s*R/);
+    expect(published).toMatch(/c(?:_v|ᵥ) = 0[.,]718 kJ\/kg·K/);
+    expect(published).toMatch(/c(?:_p|ₚ)\s*[−-]\s*c(?:_v|ᵥ)\s*=\s*R/);
     expect(lesson.summary?.length).toBeGreaterThanOrEqual(3);
-    expect(lesson.commonMistake?.correction).toMatch(/c_v/);
+    expect(lesson.commonMistake?.correction).toMatch(/c(?:_v|ᵥ)/);
     expect(pipelineMocks.reserve).toHaveBeenCalledTimes(1);
     const reserveArgs = pipelineMocks.reserve.mock.calls[0] as unknown[] | undefined;
     expect(reserveArgs?.[2]).toBe("STUDY_PLAN_GENERATE");

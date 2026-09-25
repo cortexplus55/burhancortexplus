@@ -1,3 +1,4 @@
+import { studentTextParts } from "@/lib/learning/lesson-board";
 import { renderMath, splitMath } from "@/lib/learning/math-text";
 
 /**
@@ -19,12 +20,13 @@ function renderInline(text: string) {
         />
       );
     }
-    return segment.value.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return <strong key={`${segIndex}-${index}`}>{part.slice(2, -2)}</strong>;
-      }
-      return <span key={`${segIndex}-${index}`}>{part}</span>;
-    });
+    return studentTextParts(segment.value).map((part, index) =>
+      part.bold ? (
+        <strong key={`${segIndex}-${index}`}>{part.text}</strong>
+      ) : (
+        <span key={`${segIndex}-${index}`}>{part.text}</span>
+      ),
+    );
   });
 }
 

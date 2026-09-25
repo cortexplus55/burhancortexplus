@@ -62,7 +62,7 @@ const LETTER = "A-Za-zÇĞİÖŞÜçğıöşü";
 
 /** Sayıdan sonra gelen ölçü birimi. Uzun birim, kısa birimden önce durur. */
 export const MEASURE =
-  "(?:kJ\\/kg·K|kJ\\/kg|kJ\\/mol|g\\/mol|mol\\/L|m³\\/kg|m3\\/kg|kJ|kcal|kPa|MPa|Pa|kg|mol|°C|K|m³|m3|mL|L|g|%)";
+  "(?:kJ\\s*\\/\\s*\\(\\s*kg\\s*·\\s*K\\s*\\)|kJ\\/\\(kg·K\\)|kJ\\/kg·K|kJ\\/kg|kJ\\/mol|g\\/mol|mol\\/L|m³\\/kg|m3\\/kg|kJ|kcal|kPa|MPa|Pa|kg|mol|°C|K|m³|m3|mL|L|g|%)";
 
 function withoutMeasuredUnits(text: string): string {
   return text.replace(new RegExp(`(\\d|\\))\\s*${MEASURE}(?![${LETTER}])`, "g"), "$1 ");

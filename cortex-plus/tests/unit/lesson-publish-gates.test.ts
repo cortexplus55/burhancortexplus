@@ -117,10 +117,10 @@ describe("ideal gaz dersinin yayın kapıları", () => {
     expect(published).not.toMatch(/\böğren\b/i);
     expect(published).toMatch(/2\s*[×x]\s*0[.,]718/);
     expect(published).toContain("215.4");
-    expect(published).toMatch(/c_v = 0[.,]718 kJ\/kg·K/);
-    expect(published).toMatch(/c_p\s*[−-]\s*c_v\s*=\s*R/);
-    expect(published).toMatch(/k\s*=\s*c_p\s*\/\s*c_v/);
-    expect(lesson.commonMistake?.correction).toMatch(/ΔU = m c_v ΔT/);
+    expect(published).toMatch(/c(?:_v|ᵥ) = 0[.,]718 kJ\/kg·K/);
+    expect(published).toMatch(/c(?:_p|ₚ)\s*[−-]\s*c(?:_v|ᵥ)\s*=\s*R/);
+    expect(published).toMatch(/k\s*=\s*c(?:_p|ₚ)\s*\/\s*c(?:_v|ᵥ)/);
+    expect(lesson.commonMistake?.correction).toMatch(/ΔU = m c(?:_v|ᵥ) ΔT/);
     expect(summary.every((line) => /[.!?]$/.test(line) || /[=≤≥]/.test(line))).toBe(true);
     expect(auditLearnerLesson(lesson, { source: SOURCE, topicLabel: TOPIC }).map((issue) => issue.code)).not.toContain(
       "check_count",

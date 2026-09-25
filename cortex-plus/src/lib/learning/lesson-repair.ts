@@ -7,7 +7,9 @@
 
 import { foldTr } from "@/lib/documents/page-analysis";
 import {
+  alignSymbolSubscripts,
   incompleteFormulaLine,
+  preserveSubscriptLetters,
   repairGappedFrame,
   restoreMathNotation,
   separateRunOnFormulas,
@@ -49,6 +51,34 @@ export type LessonCheckCode =
 export type LessonCheck = { code: LessonCheckCode; detail: string };
 
 const NEGATION = /\b(olamaz|bulunamaz|gerceklesemez|imkansiz|mumkun degildir)\b/;
+
+function polishCalculations(text: string, source: string): string {
+  const parts = sentencesOf(text);
+  const kept: string[] = [];
+  const context = `${text}\n${source}`;
+  for (let index = 0; index < parts.length; index += 1) {
+    const current = parts[index] ?? "";
+    const following = parts[index + 1] ?? "";
+    const pair = following ? `${current} ${following}` : "";
+    const currentLine = polishWorkedExample(current, context);
+    const currentReady = Boolean(currentLine) && !workedExampleNeedsFormula(currentLine ?? "");
+    if (
+      pair &&
+      !currentReady &&
+      (workedExampleNeedsFormula(current) || bareNumericChain(current)) &&
+      (workedExampleNeedsFormula(pair) || bareNumericChain(pair))
+    ) {
+      const line = polishWorkedExample(pair, context);
+      if (line && !workedExampleNeedsFormula(line)) {
+        kept.push(line);
+        index += 1;
+        continue;
+      }
+    }
+    kept.push(currentReady && currentLine ? currentLine : current);
+  }
+  return kept.join(" ").replace(/\s+/g, " ").trim();
+}
 
 function sentencesOf(text: string): string[] {
   return text
@@ -200,7 +230,13 @@ function namesItsCalculation(text: string): boolean {
   return withUnit(ops[1]) && withUnit(ops[2]);
 }
 
-/** Sayısal hesap formülü yazmıyorsa tamamlanmalıdır. Formülü olan zincir burada değildir. */
+/** Simge yazılmadan sayıların çarpıldığı, bölündüğü veya çıkarıldığı satır. */
+function bareNumericChain(text: string): boolean {
+  if (hasSymbolicRelation(text)) return false;
+  return /\d+(?:[.,]\d+)?(?:\s*[A-Za-z°µ/%³²·()]+)?\s*[/×*·+\-−]\s*\d/.test(text) && /[=≈]/.test(text);
+}
+
+/** Sayısal hesap formülü yazmıyorsa tamamlanmalıdır. Adı ve sonucu duran zincir ayrıca yükseltilir. */
 export function workedExampleNeedsFormula(text: string): boolean {
   if (hasSymbolicRelation(text) || namesItsCalculation(text)) return false;
   return bareDifference(text) || bareQuotient(text) || bareFunctionProduct(text) || proseCombination(text);
@@ -222,19 +258,21 @@ function formulaLhs(formula: string): string {
   return formula.split("=")[0]?.trim() ?? "";
 }
 
-function rhsShape(formula: string): "function" | "quotient" | "difference" | "other" {
+function formulaFitsCalculation(formula: string, text: string): boolean {
   const rhs = formula.split("=").slice(1).join("=");
-  if (/(?:ln|log|exp)/i.test(rhs)) return "function";
-  if (/\//.test(rhs)) return "quotient";
-  if (/[−–-]/.test(rhs)) return "difference";
-  return "other";
-}
-
-function calculationShape(text: string): "function" | "quotient" | "difference" | "other" {
-  if (/(?:ln|log|exp)\s*\(?\s*\d/i.test(text)) return "function";
-  if (/\d+(?:[.,]\d+)?\s*\/\s*\d/.test(text)) return "quotient";
-  if (/\d+(?:[.,]\d+)?\s*[-−]\s*\d/.test(text) || proseCombination(text)) return "difference";
-  return "other";
+  const product = /[×*·]/.test(text);
+  const quotient = /\d+(?:[.,]\d+)?\s*\/\s*\d/.test(text);
+  const difference = /\d+(?:[.,]\d+)?\s*[-−]\s*\d/.test(text);
+  const formFn = /(?:ln|log|exp)/i.test(rhs);
+  const formDiv = /\//.test(rhs);
+  const formDiff = /[−–-]/.test(rhs);
+  if (/(?:ln|log|exp)\s*\(?\s*\d/i.test(text)) return formFn;
+  const parenDiff = /\([^)]*\d+(?:[.,]\d+)?\s*[-−]\s*\d+(?:[.,]\d+)?[^)]*\)/.test(text);
+  if (product && difference && !parenDiff && !(formDiff && (formDiv || /[×*·]/.test(rhs)))) return false;
+  if (difference && !product && !quotient) return formDiff && !formFn;
+  if (quotient && !product) return formDiv;
+  if (product || quotient) return formDiv || /[A-Za-zΔδ]\s*[A-Za-zΔδ]/.test(rhs);
+  return true;
 }
 
 function sameFormula(formulas: string[]): string[] {
@@ -255,8 +293,8 @@ function pickFormula(text: string, context: string, formulas: string[]): string 
     if (!lhs) return false;
     return new RegExp(`(?:^|[^A-Za-zΔδ])${escapeReg(lhs)}(?:$|[^A-Za-zΔδ0-9_])`).test(text);
   });
-  if (named.length === 1) return named[0];
-  const shapedNamed = sameFormula(named.filter((formula) => rhsShape(formula) === calculationShape(text)));
+  if (named.length === 1 && formulaFitsCalculation(named[0], text)) return named[0];
+  const shapedNamed = sameFormula(named.filter((formula) => formulaFitsCalculation(formula, text)));
   if (shapedNamed.length === 1) return shapedNamed[0];
   const foldedText = foldTr(text);
   const byPhrase = formulas.filter((formula) => {
@@ -271,12 +309,8 @@ function pickFormula(text: string, context: string, formulas: string[]): string 
       .join(" ");
     return phrase.length >= 3 && foldedText.includes(foldTr(phrase));
   });
-  if (byPhrase.length === 1) return byPhrase[0];
-  const wantsFunction = /(?:ln|log|exp)\s*\(?\s*\d/i.test(text);
-  const shaped = formulas.filter((formula) => {
-    const rhs = formula.split("=").slice(1).join("=");
-    return wantsFunction ? /(?:ln|log|exp)/i.test(rhs) : /[−–+\-/]/.test(rhs) && !/(?:ln|log|exp)/i.test(rhs);
-  });
+  if (byPhrase.length === 1 && formulaFitsCalculation(byPhrase[0], text)) return byPhrase[0];
+  const shaped = formulas.filter((formula) => formulaFitsCalculation(formula, text));
   return shaped.length === 1 ? shaped[0] : null;
 }
 
@@ -363,13 +397,117 @@ function polishProduct(text: string, context: string, formula: string): string |
   return `${formula} = ${chain} ${mark} ${claimed[2]}${unit}`.replace(/\s+/g, " ").trim();
 }
 
+function sameSymbol(left: string, right: string): boolean {
+  const key = (value: string) => preserveSubscriptLetters(value).replace(/\s+/g, "");
+  return key(left) === key(right);
+}
+
+function formulaUsesSymbol(formula: string, symbol: string): boolean {
+  const rhs = preserveSubscriptLetters(formula.split("=").slice(1).join("="));
+  const key = preserveSubscriptLetters(symbol);
+  if (key.length > 1) return rhs.includes(key);
+  return new RegExp(escapeReg(key)).test(rhs);
+}
+
+function unitOnToken(token: string, raw: string): string {
+  const inline = token.match(new RegExp(`^${escapeReg(raw)}\\s*(${MEASURE})`, "i"));
+  return inline?.[1] ?? "";
+}
+
+function unitForValue(context: string, raw: string, formula: string): string {
+  const re = new RegExp(
+    `(?<![A-Za-zΔδ0-9_])([A-Za-zΔδ](?:_[A-Za-z0-9]+|[₀-₉¹²³ᵤᵣₐₑₕᵢⱼₖₗₘₙₒₚₛₜᵥₓ])*)\\s*=\\s*${escapeReg(raw)}(?!\\d)\\s*(${MEASURE})`,
+    "gi",
+  );
+  for (const match of context.matchAll(re)) {
+    if (formulaUsesSymbol(formula, match[1])) return match[2] ?? "";
+  }
+  return "";
+}
+
+/** a × b / c gibi karışık sayı zinciri, formül ve birimle yazılır. */
+function polishArithmetic(text: string, context: string, formula: string): string | null {
+  const marks = [...text.matchAll(/(≈|=)\s*(\d+(?:[.,]\d+)?)\s*([^\n.;]{0,32})?/g)];
+  const claimed = marks[marks.length - 1];
+  if (!claimed || claimed.index == null) return null;
+  const head = text.slice(0, claimed.index);
+  const chain = head.match(
+    new RegExp(
+      `(\\d+(?:[.,]\\d+)?(?:\\s*${MEASURE})?(?:\\s*[/×*·+\\-−]\\s*\\d+(?:[.,]\\d+)?(?:\\s*${MEASURE})?){1,})`,
+      "i",
+    ),
+  );
+  if (!chain) return null;
+  const pieces = chain[1].split(/\s*([/×*·+\-−])\s*/).map((part) => part.trim()).filter(Boolean);
+  if (pieces.length < 3) return null;
+  let value = Number.NaN;
+  const rendered: string[] = [];
+  for (const piece of pieces) {
+    if (/^[/×*·+\-−]$/.test(piece)) {
+      rendered.push(piece === "*" || piece === "·" ? "×" : piece === "-" ? "−" : piece);
+      continue;
+    }
+    const num = piece.match(/(\d+(?:[.,]\d+)?)/);
+    if (!num) return null;
+    const next = readNumber(num[1]);
+    const op = rendered[rendered.length - 1];
+    if (!Number.isFinite(value)) value = next;
+    else if (op === "×") value *= next;
+    else if (op === "/") value /= next;
+    else if (op === "+") value += next;
+    else if (op === "−") value -= next;
+    else return null;
+    const unit = unitOnToken(piece, num[1]) || unitForValue(`${context}\n${text}`, num[1], formula);
+    rendered.push(unit ? `(${num[1]} ${unit})` : num[1]);
+  }
+  const target = readNumber(claimed[2]);
+  if (!nearly(value, target, Math.max(0.15, Math.abs(target) * 0.005))) return null;
+  const resultUnit = (claimed[3] ?? "").match(new RegExp(MEASURE, "i"))?.[0] ?? "";
+  const shown = rendered.join(" ").replace(/\s+/g, " ").trim();
+  const mark = claimed[1] === "≈" ? "≈" : "=";
+  return `${formula} = ${shown} ${mark} ${claimed[2]}${resultUnit ? ` ${resultUnit}` : ""}`.replace(/\s+/g, " ").trim();
+}
+
+function upgradeNamedCalculation(text: string, context: string): string {
+  const formulas = formulasIn(context);
+  const formula = formulas.length ? pickFormula(text, context, formulas) : null;
+  if (!formula) return text;
+  return (
+    polishQuotient(text, context, formula) ??
+    polishDifference(text, context, formula) ??
+    polishArithmetic(text, context, formula) ??
+    text
+  );
+}
+
+function finishedNumericChain(text: string): boolean {
+  return /(?:≈|=)\s*\d+(?:[.,]\d+)?\s*(?:[A-Za-zµ°%³]|kJ|kPa|mol)/.test(text);
+}
+
 /** Verilen ve sonuç duruyorsa satır, dersteki formülden kurulur. Formül yoksa satır düşer. */
 export function polishWorkedExample(text: string, context: string): string | null {
-  if (!workedExampleNeedsFormula(text)) return text;
+  if (
+    (namesItsCalculation(text) || (bareNumericChain(text) && !bareFunctionProduct(text))) &&
+    !hasSymbolicRelation(text)
+  ) {
+    const upgraded = upgradeNamedCalculation(text, context);
+    if (upgraded !== text) return upgraded;
+    if (!workedExampleNeedsFormula(text) && (namesItsCalculation(text) || finishedNumericChain(text))) {
+      return text;
+    }
+    if (!workedExampleNeedsFormula(text)) return null;
+  } else if (!workedExampleNeedsFormula(text)) {
+    return text;
+  }
   const formulas = formulasIn(context);
   const formula = formulas.length ? pickFormula(text, context, formulas) : null;
   if (!formula) return null;
-  return polishProduct(text, context, formula) ?? polishQuotient(text, context, formula) ?? polishDifference(text, context, formula);
+  return (
+    polishProduct(text, context, formula) ??
+    polishQuotient(text, context, formula) ??
+    polishDifference(text, context, formula) ??
+    polishArithmetic(text, context, formula)
+  );
 }
 
 function escapeReg(value: string): string {
@@ -464,6 +602,7 @@ function withConstantUnits(text: string, source: string): string {
     const symbol = match[1];
     const value = match[2].replace(",", ".");
     const unit = match[3];
+    if (!new RegExp(`(?<![A-Za-zΔδ0-9_])${escapeReg(symbol)}(?![A-Za-z0-9_])`).test(next)) continue;
     if (!next.includes(value) && !next.includes(value.replace(".", ","))) continue;
     if (new RegExp(`${escapeReg(symbol)}\\s*=\\s*${value.replace(".", "[.,]")}`, "i").test(next)) continue;
     if (new RegExp(`${value.replace(".", "[.,]")}\\s*${escapeReg(unit)}`, "i").test(next)) continue;
@@ -783,25 +922,50 @@ export function mergeLessonRepair(lesson: LessonV2, patch: unknown, source: stri
   return next;
 }
 
+function meaningKey(text: string): string {
+  return foldTr(text)
+    .replace(/\*/g, "")
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function stemWord(word: string): string {
+  return word.replace(/(lar|ler|den|dan|dir|dır|dur|dür|nin|nın|nun|nün|in|ın|un|ün|si|sı|ne|na|ye|ya)$/g, "");
+}
+
+/** Aynı cümle, biri diğerinin içindeyse ya da kökleri büyük ölçüde ortaksı özet tekrarıdır. */
+function sameMeaning(leftText: string, rightText: string): boolean {
+  const left = meaningKey(leftText);
+  const right = meaningKey(rightText);
+  if (!left || !right) return false;
+  if (left === right || left.includes(right) || right.includes(left)) return true;
+  const words = (text: string) => [...new Set(text.split(" ").map(stemWord).filter((word) => word.length >= 4))];
+  const leftWords = words(left);
+  const rightWords = words(right);
+  if (leftWords.length < 3 || rightWords.length < 3) return false;
+  const rightSet = new Set(rightWords);
+  const overlap = leftWords.filter((word) => rightSet.has(word)).length;
+  return overlap / Math.min(leftWords.length, rightWords.length) >= 0.9;
+}
+
+function rememberLine(lines: string[], line: string): void {
+  if (lines.some((item) => sameMeaning(item, line))) return;
+  lines.push(line);
+}
+
 function filledSummary(lesson: LessonV2, source: string): string[] {
-  const seen = new Set<string>();
   const summary: string[] = [];
   const example = examplePool(lesson);
   for (const line of lesson.summary ?? []) {
     const cleaned = acceptSummaryLine(line, source, example);
     if (!cleaned) continue;
-    const key = foldTr(cleaned);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    summary.push(cleaned);
+    rememberLine(summary, cleaned);
     if (summary.length >= 5) return summary;
   }
   for (const sentence of teachingSentences(lesson, source)) {
     if (summary.length >= 5) break;
-    const key = foldTr(sentence);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    summary.push(sentence);
+    rememberLine(summary, sentence);
   }
   return summary;
 }
@@ -1129,6 +1293,13 @@ function trimFormula(raw: string): string {
   return `${equation.slice(0, eq).trim()} = ${words.join(" ")}`.replace(/\s+/g, " ").trim();
 }
 
+/** Sayı ve birimden oluşan sağ taraf bir bağıntı değil, bir tanımdır. */
+function measuredConstant(equation: string): boolean {
+  const right = equation.split("=").slice(1).join("=");
+  const stripped = right.replace(new RegExp(MEASURE, "gi"), "").replace(/[\d.,\s]/g, "");
+  return stripped.length === 0;
+}
+
 function symbolicEquations(sentence: string): string[] {
   const normalized = sentence.replace(/\bc\s*_?\s*([vp])\b/gi, "c_$1");
   const start =
@@ -1142,9 +1313,10 @@ function symbolicEquations(sentence: string): string[] {
     for (const piece of trimFormula(normalized.slice(begin, end)).split(/\s+ve\s+/i)) {
       const trimmed = trimFormula(piece);
       if (!trimmed || (trimmed.match(/=/g) ?? []).length !== 1) continue;
-      if (/\d|[|]/.test(trimmed)) continue;
+      if (/\|/.test(trimmed)) continue;
       const right = trimmed.split("=").slice(1).join("=");
       if (!/[A-Za-zΔδ∫]/.test(right) || trimmed.length < 5 || trimmed.length > 120) continue;
+      if (measuredConstant(trimmed)) continue;
       out.push(trimmed);
     }
   }
@@ -1169,29 +1341,84 @@ export function ambiguousRelationQuestion(prompt: string, options: string[]): bo
   return letters.length <= 2 || hits.length > 1;
 }
 
-function distinctiveRhs(equation: string): string {
-  const rhs = equation.split("=").slice(1).join("=").trim();
-  const token = rhs.split(/\s+/).find((part) => part.length >= 2 && !/^[A-Za-zΔδ]$/.test(part));
-  return (token ?? rhs).slice(0, 24);
+function tidyJoins(text: string): string {
+  return text
+    .replace(/\?\s*\./g, "?")
+    .replace(/\.\s+\./g, ".")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-function equationPrompt(equation: string, siblings: string[]): string | null {
-  const left = equation.split("=")[0]?.trim() || "";
+/** Kök, doğru şıkkın sağ tarafını veya onun simgelerini söylüyorsa yanıtı vermiş olur. */
+function leaksAnswer(prompt: string, equation: string): boolean {
+  const rhs = equation.split("=").slice(1).join("=").trim();
+  if (!rhs) return false;
+  const compactPrompt = foldTr(prompt).replace(/\s+/g, "");
+  const compactRhs = foldTr(rhs).replace(/\s+/g, "");
+  if (compactRhs.length >= 2 && compactPrompt.includes(compactRhs)) return true;
+  const tokens = rhs.match(/[A-Za-zΔδ](?:[A-Za-z0-9_]|[ₐₑₕᵢⱼₖₗₘₙₒₚᵣₛₜᵤᵥₓ])*/g) ?? [];
+  return tokens.some((token) => token.length >= 2 && foldTr(prompt).includes(foldTr(token)));
+}
+
+function conceptQuestion(sentence: string, equation: string): string | null {
+  if (!sentence.trim() || !equation.includes("=")) return null;
+  const flexible = equation
+    .split("=")
+    .map((part) => escapeReg(part.trim()))
+    .join("\\s*=\\s*");
+  const rest = sentence
+    .replace(new RegExp(flexible, "i"), " ")
+    .replace(
+      /(?:^|\s)(şeklindedir|şeklinde yazılır|olarak yazılır|ile verilir|ile bulunur|eşitliğiyle yazılır|eşitliği geçerlidir|bağıntısıyla yazılır|bağıntısıyla hesaplanır|bağıntısıyla bulunur)[.!]*/gi,
+      " ",
+    )
+    .replace(/[.:;]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (rest.length < 8 || leaksAnswer(rest, equation)) return null;
+  if (/\?$/.test(rest)) return rest.slice(0, 300);
+  if (!/bağıntı|eşitlik|formül|ifade/i.test(rest)) return null;
+  return `${rest} hangisidir?`.replace(/\s+/g, " ").slice(0, 300);
+}
+
+function wordsBeforeEquation(sentence: string, equation: string): string {
+  if (!sentence.trim() || !equation.includes("=")) return "";
+  const flexible = equation
+    .split("=")
+    .map((part) => escapeReg(part.trim()))
+    .join("\\s*=\\s*");
+  const match = sentence.match(new RegExp(`([\\s\\S]{0,120})${flexible}`, "i"));
+  if (!match) return "";
+  const cleaned = match[1]
+    .replace(
+      /(?:^|\s)(şeklindedir|şeklinde yazılır|olarak yazılır|ile verilir|ile bulunur|eşitliğiyle yazılır|eşitliği geçerlidir|bağıntısıyla yazılır|bağıntısıyla hesaplanır|bağıntısıyla bulunur)[.!]*/gi,
+      " ",
+    )
+    .replace(/[.:;=]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned.split(" ").filter((word) => word.length >= 2).slice(-3).join(" ");
+}
+
+function promptForEquation(equation: string, sentence = ""): string | null {
+  const left = formulaLhs(equation);
   if (!left) return null;
-  const shared = siblings.filter((item) => formulaLhs(item) === left);
-  const candidates =
-    shared.length > 1
-      ? [`${left} için ${distinctiveRhs(equation)} içeren bağıntı hangisidir?`]
-      : [
-          `${left} hangi bağıntıyla hesaplanır?`,
-          `${left} büyüklüğü hangi bağıntıyla hesaplanır?`,
-          `${left} için doğru bağıntı hangisidir?`,
-        ];
+  const lead = wordsBeforeEquation(sentence, equation);
+  const flavored =
+    lead.length >= 8 && !leaksAnswer(`${lead} ${left}`, equation)
+      ? `${lead} ${left} için doğru bağıntı hangisidir?`
+      : null;
+  const candidates = [conceptQuestion(sentence, equation), flavored, `${left} için doğru bağıntı hangisidir?`];
   for (const prompt of candidates) {
+    if (!prompt || leaksAnswer(prompt, equation) || /hangi bağıntıyla/i.test(prompt)) continue;
     if (ambiguousRelationQuestion(prompt, []) || stemLacksSubject(prompt)) continue;
     return prompt.slice(0, 300);
   }
   return null;
+}
+
+function equationPrompt(equation: string, sentence = ""): string | null {
+  return promptForEquation(equation, sentence);
 }
 
 function mutateEquation(equation: string): string[] {
@@ -1219,18 +1446,58 @@ function mutateEquation(equation: string): string[] {
   return alts.map((item) => `${lhs} = ${item}`.replace(/\s+/g, " ").trim());
 }
 
+function closeOption(option: string): string {
+  let next = option.trim();
+  while ((next.match(/\(/g) ?? []).length > (next.match(/\)/g) ?? []).length) {
+    const cut = next.lastIndexOf("(");
+    if (cut < 0) break;
+    next = next.slice(0, cut).trim();
+  }
+  return next;
+}
+
+function optionIdentity(option: string): string {
+  const closed = closeOption(option)
+    .replace(/\s*\((?![^)]*[0-9₀-₉+\-−×*/=])[^)]{1,40}\)?/g, " ");
+  const folded = foldTr(closed).replace(/[−–]/g, "-");
+  const eq = folded.indexOf("=");
+  if (eq < 0) return folded.replace(/[^a-z0-9-]/g, "");
+  const lhs = folded.slice(0, eq).replace(/[^a-z0-9-]/g, "");
+  const rhs = folded.slice(eq + 1);
+  const factors = rhs
+    .split(/\s*[×·*]\s*/)
+    .map((item) => item.replace(/[^a-z0-9-]/g, ""))
+    .filter(Boolean);
+  const product = factors.length >= 2 && !/[+\-/()]/.test(rhs);
+  const body = product ? [...factors].sort().join("×") : rhs.replace(/[^a-z0-9-]/g, "");
+  return `${lhs}=${body}`;
+}
+
+function uniqueOptions(options: string[], extras: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (option: string) => {
+    const cleaned = closeOption(option);
+    const key = optionIdentity(cleaned);
+    const openCount = (cleaned.match(/\(/g) ?? []).length;
+    const closeCount = (cleaned.match(/\)/g) ?? []).length;
+    if (!cleaned || !key || seen.has(key) || openCount !== closeCount || /[/×*·+\-−]\s*$/.test(cleaned)) return;
+    seen.add(key);
+    out.push(cleaned);
+  };
+  for (const option of options) push(option);
+  for (const extra of extras) {
+    if (out.length >= 4) break;
+    push(extra);
+  }
+  return out.slice(0, 4);
+}
+
 function optionsForEquation(equation: string, equations: { equation: string }[]): string[] {
-  const options = [equation];
   const others = equations
     .map((row) => row.equation)
     .filter((item) => foldTr(item.replace(/\s+/g, "")) !== foldTr(equation.replace(/\s+/g, "")));
-  for (const alt of [...others, ...mutateEquation(equation)]) {
-    if (options.length >= 4) break;
-    const key = foldTr(alt.replace(/\s+/g, ""));
-    if (options.some((item) => foldTr(item.replace(/\s+/g, "")) === key)) continue;
-    options.push(alt);
-  }
-  return options;
+  return uniqueOptions([equation], [...others, ...mutateEquation(equation)]);
 }
 
 function isBinaryCheck(check: SectionCheck): boolean {
@@ -1244,10 +1511,7 @@ function equationCheck(
   item: { equation: string; sentence: string },
   equations: { equation: string }[],
 ): SectionCheck | null {
-  const prompt = equationPrompt(
-    item.equation,
-    equations.map((row) => row.equation),
-  );
+  const prompt = equationPrompt(item.equation, item.sentence);
   if (!prompt || prompt.length < 12 || stemLacksSubject(prompt)) return null;
   if (ambiguousRelationQuestion(prompt, [])) return null;
   const options = [...optionsForEquation(item.equation, equations)];
@@ -1431,16 +1695,56 @@ function cleanTopicText(text: string, source: string, topicLabel: string): strin
   const kept = parts
     .map((part) => (part.length < 8 ? restoreMathNotation(part) : keepTopicSentence(part, source, topicLabel)))
     .filter((part): part is string => Boolean(part));
-  return separateRunOnFormulas(kept.join(" ").replace(/\s+/g, " ").trim());
+  return alignSymbolSubscripts(separateRunOnFormulas(kept.join(" ").replace(/\s+/g, " ").trim()), source);
+}
+
+function repairPublishedCheck(check: SectionCheck, corpus: string, source: string): SectionCheck | undefined {
+  const open = (option: string) => (option.match(/\(/g) ?? []).length > (option.match(/\)/g) ?? []).length;
+  const identities = check.options.map((option) => optionIdentity(option));
+  const broken = check.options.some(open) || new Set(identities).size !== identities.length;
+  let next = check;
+  if (broken) {
+    const equations = [...new Set(sentencesOf(corpus).flatMap((sentence) => symbolicEquations(sentence)))].map(
+      (equation) => alignSymbolSubscripts(equation, source),
+    );
+    const correct = check.options[check.answerIndex] ?? "";
+    const extras = [
+      ...equations,
+      ...equations.flatMap((equation) => mutateEquation(equation)),
+      ...(/=/.test(correct) ? mutateEquation(correct) : []),
+    ];
+    const options = uniqueOptions(check.options, extras);
+    if (options.length < 2) return undefined;
+    const answerIndex = Math.max(
+      0,
+      options.findIndex((item) => optionIdentity(item) === optionIdentity(correct)),
+    );
+    next = { ...check, options, answerIndex };
+  }
+  const correct = next.options[next.answerIndex] ?? "";
+  if (/=/.test(correct) && leaksAnswer(next.prompt, correct)) {
+    const compact = foldTr(correct).replace(/\s+/g, "");
+    const sentence =
+      sentencesOf(corpus).find((item) => foldTr(item).replace(/\s+/g, "").includes(compact)) ?? "";
+    const prompt = promptForEquation(correct, sentence);
+    if (!prompt) return undefined;
+    next = { ...next, prompt };
+  }
+  next = { ...next, prompt: tidyJoins(next.prompt) };
+  if (ambiguousRelationQuestion(next.prompt, next.options) || /hangi bağıntıyla/i.test(next.prompt)) {
+    return undefined;
+  }
+  return next;
 }
 
 function checkLeavesTopic(check: SectionCheck, source: string, topicLabel: string): boolean {
   if (ambiguousRelationQuestion(check.prompt, check.options)) return true;
   const blob = [check.prompt, check.explanation, ...check.options].join(" ");
-  return foreignToTopic(blob, source, topicLabel) || realGasPrecisionIssue(blob, source);
+  const prose = `${check.prompt} ${check.explanation}`;
+  return foreignToTopic(blob, source, topicLabel) || realGasPrecisionIssue(prose, source);
 }
 
-const SYMBOL = "[A-Za-zΔδ](?:_[A-Za-z0-9]+|[₀-₉¹²³])*";
+const SYMBOL = "(?:Δ|δ)?[A-Za-z](?:[A-Za-z0-9_]|[₀-₉¹²³ᵤᵣₐₑₕᵢⱼₖₗₘₙₒₚₛₜᵥₓ])*";
 
 function sourceAssignments(source: string): Map<string, { raw: string; unit: string; value: number }> {
   const found = new Map<string, { raw: string; unit: string; value: number }>();
@@ -1525,21 +1829,30 @@ export function scopeLessonToTopic(lesson: LessonV2, source: string, topicLabel:
     if (overview) next.overview = overview;
   }
   next.sections = lesson.sections.flatMap((section) => {
-    const body = clean(section.body);
-    const heading = finishHeading(restoreMathNotation(section.heading), topicLabel, lesson.title);
+    const body = polishCalculations(clean(section.body), source);
+    const heading = alignSymbolSubscripts(
+      finishHeading(restoreMathNotation(section.heading), topicLabel, lesson.title),
+      source,
+    );
     if (body.length < 20) return [];
     if (offTopicSection(heading, body, source, topicLabel)) return [];
     let check = section.check;
-    if (check && (checkLeavesTopic(check, source, topicLabel) || vagueYesNo(check.prompt))) check = undefined;
-    else if (check) {
-      check = {
-        ...check,
-        prompt: restoreMathNotation(check.prompt),
-        explanation: restoreMathNotation(check.explanation),
-        options: check.options.map((option) => restoreMathNotation(option)),
-      };
-      if (ambiguousRelationQuestion(check.prompt, check.options)) check = undefined;
+    if (check && !vagueYesNo(check.prompt)) {
+      const corpus = [source, body, check.explanation, check.prompt].join("\n");
+      check = repairPublishedCheck(
+        {
+          ...check,
+          prompt: alignSymbolSubscripts(restoreMathNotation(check.prompt), source),
+          explanation: alignSymbolSubscripts(restoreMathNotation(check.explanation), source),
+          options: check.options.map((option) => alignSymbolSubscripts(restoreMathNotation(option), source)),
+        },
+        corpus,
+        source,
+      );
+    } else if (check && vagueYesNo(check.prompt)) {
+      check = undefined;
     }
+    if (check && checkLeavesTopic(check, source, topicLabel)) check = undefined;
     return [{
       ...section,
       heading,
@@ -1557,69 +1870,183 @@ export function scopeLessonToTopic(lesson: LessonV2, source: string, topicLabel:
     }
   }
   if (lesson.summary?.length) {
-    const summary = lesson.summary
-      .map((line) => clean(line))
-      .filter((line) => line.length >= 8 && !summaryLineProblem(line));
+    const summary: string[] = [];
+    for (const line of lesson.summary) {
+      const cleaned = clean(line);
+      if (cleaned.length < 8 || summaryLineProblem(cleaned)) continue;
+      rememberLine(summary, cleaned);
+    }
     if (summary.length) next.summary = summary;
   }
   if (lesson.example) {
-    const prompt = clean(lesson.example.prompt);
-    const solution = clean(lesson.example.solution);
+    const prompt = alignSymbolSubscripts(restoreMathNotation(lesson.example.prompt), source);
+    const solution = alignSymbolSubscripts(restoreMathNotation(lesson.example.solution), source);
     const blob = `${prompt}\n${solution}`;
     if (prompt && solution && !foreignToTopic(blob, source, topicLabel) && !realGasPrecisionIssue(blob, source)) {
       if (!expectsCalculation(blob)) {
-        if (!restatedResult(blob) && !isIncompleteExample(blob)) next.example = { prompt, solution };
-      } else {
-        const lessonBlob = [next.overview ?? "", ...next.sections.map((section) => section.body), prompt, source].join("\n");
-        const polished = polishWorkedExample(solution, lessonBlob);
-        if (polished && exampleIsComplete(polished)) {
-          let given = prompt;
-          const polishedPrompt = polishWorkedExample(prompt, lessonBlob);
-          if (
-            polishedPrompt &&
-            polishedPrompt !== prompt &&
-            !workedExampleNeedsFormula(polishedPrompt) &&
-            exampleIsComplete(polishedPrompt)
-          ) {
-            given = polishedPrompt;
-          } else if (workedExampleNeedsFormula(given)) {
-            given = "Verilenlerle sonuç nedir?";
-          }
-          given = attachKnownUnits(given, polished, lessonBlob);
-          next.example = { prompt: given, solution: polished };
+        if (!restatedResult(blob) && !isIncompleteExample(blob)) {
+          next.example = { prompt: tidyJoins(prompt), solution };
         }
+      } else {
+        next.example = { prompt, solution };
       }
     }
   }
-  return withCalculatedExample(withBoundaryExample(next, source));
+  return withCalculatedExample(withBoundaryExample(next, source), source);
 }
 
-function attachKnownUnits(prompt: string, solution: string, context: string): string {
-  let given = prompt;
-  const defs = context.matchAll(new RegExp(`(${SYMBOL})\\s*=\\s*(\\d+(?:[.,]\\d+)?)\\s*(${MEASURE})`, "gi"));
-  for (const match of defs) {
-    if (!solution.includes(match[2]) || !solution.includes(match[3])) continue;
-    const clause = `${match[1]} = ${match[2]} ${match[3]}`;
-    if (given.includes(clause) || given.includes(`${match[2]} ${match[3]}`)) continue;
-    given = `${given.replace(/[.\s]+$/g, "")}. ${clause}.`;
+const GIVEN_SYMBOL = `(?<![A-Za-zΔδ0-9_])(${SYMBOL})`;
+
+function askedLhs(solution: string): string {
+  const match = solution.match(new RegExp(`^\\s*(${SYMBOL})\\s*=`));
+  return match?.[1] ?? "";
+}
+
+function formulaClause(solution: string): string {
+  const parts = solution.split("=").map((part) => part.trim());
+  if (parts.length < 3 || /\d/.test(parts[1] ?? "")) return "";
+  return `${parts[0]} = ${parts[1]}`;
+}
+
+function numberUsed(solution: string, raw: string): boolean {
+  const value = readNumber(raw);
+  return [...solution.matchAll(/\d+(?:[.,]\d+)?/g)].some((match) => nearly(readNumber(match[0]), value, 1e-6));
+}
+
+function isResultGiven(raw: string, unit: string, solution: string): boolean {
+  const marks = [...solution.matchAll(new RegExp(`(?:≈|=)\\s*(\\d+(?:[.,]\\d+)?)\\s*(${MEASURE})?`, "gi"))];
+  const last = marks[marks.length - 1];
+  if (!last || !nearly(readNumber(last[1]), readNumber(raw), 1e-6)) return false;
+  if (!unit || !last[2]) return true;
+  return foldTr(unit) === foldTr(last[2]);
+}
+
+/** Örnek kökü, çözümde kullanılan kaynak verilenlerinden kurulur. Soru kökü yapıştırılmaz. */
+function exampleQuestion(solution: string, context: string): string {
+  const formula = formulaClause(solution);
+  const asked = askedLhs(solution);
+  const defs: string[] = [];
+  const seen = new Map<string, number>();
+  const re = new RegExp(`${GIVEN_SYMBOL}\\s*=\\s*(\\d+(?:[.,]\\d+)?)\\s*(${MEASURE})`, "gi");
+  for (const match of context.matchAll(re)) {
+    const symbol = match[1];
+    const raw = match[2];
+    const unit = match[3];
+    if (asked && sameSymbol(symbol, asked)) continue;
+    const related = formula
+      ? [formula]
+      : formulasIn(context).filter((item) => sameSymbol(formulaLhs(item), asked));
+    if (related.length && !related.some((item) => formulaUsesSymbol(item, symbol))) continue;
+    const visible = preserveSubscriptLetters(solution);
+    const visibleSymbol = preserveSubscriptLetters(symbol);
+    if (
+      !related.length &&
+      !new RegExp(`(?<![A-Za-zΔδ0-9_])${escapeReg(visibleSymbol)}(?![A-Za-z0-9_])`).test(visible)
+    ) {
+      continue;
+    }
+    if (!numberUsed(solution, raw)) continue;
+    if (isResultGiven(raw, unit, solution)) continue;
+    const clause = `${symbol} = ${raw} ${unit}`;
+    const key = `${foldTr(preserveSubscriptLetters(symbol))}:${readNumber(raw)}`;
+    const previous = seen.get(key);
+    if (previous != null) {
+      const previousUnit = defs[previous]?.match(new RegExp(MEASURE, "i"))?.[0] ?? "";
+      if (unit.length >= previousUnit.length) defs[previous] = clause;
+      continue;
+    }
+    seen.set(key, defs.length);
+    defs.push(clause);
   }
-  return given.replace(/\s+/g, " ").trim();
+  const askedBit = asked ? `${asked} kaçtır?` : "sonuç kaçtır?";
+  if (defs.length) {
+    const list = defs.length === 1 ? defs[0] : `${defs.slice(0, -1).join(", ")} ve ${defs[defs.length - 1]}`;
+    return tidyJoins(`${list} verildiğine göre ${askedBit}`);
+  }
+  const amounts = [
+    ...solution.matchAll(new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(${MEASURE})`, "gi")),
+  ]
+    .filter((match) => !isResultGiven(match[1], match[2], solution))
+    .map((match) => `${match[1]} ${match[2]}`);
+  const unique = [...new Set(amounts)];
+  if (!unique.length || !asked) return "";
+  const list = unique.length === 1 ? unique[0] : `${unique.slice(0, -1).join(", ")} ve ${unique[unique.length - 1]}`;
+  const unit =
+    [...solution.matchAll(new RegExp(`(?:≈|=)\\s*\\d+(?:[.,]\\d+)?\\s*(${MEASURE})`, "gi"))].pop()?.[1] ?? "";
+  return tidyJoins(`${list} verildiğine göre ${asked} kaç ${unit}?`);
 }
 
-/** Kaynak dışı örnek düşünce, bölümdeki tamamlanmış hesap örneğin yerini alır. */
-function withCalculatedExample(lesson: LessonV2): LessonV2 {
-  const existing = `${lesson.example?.prompt ?? ""}\n${lesson.example?.solution ?? ""}`;
-  if (lesson.example && exampleIsComplete(existing) && !workedExampleNeedsFormula(existing)) return lesson;
-  for (const section of lesson.sections) {
-    const solution = sentencesOf(section.body).find((sentence) => exampleIsComplete(sentence) && !workedExampleNeedsFormula(sentence));
+function repeatsSectionWork(solution: string, bodies: string): boolean {
+  const needle = foldTr(solution).replace(/[^a-z0-9]/g, "");
+  if (needle.length < 8) return false;
+  return foldTr(bodies).replace(/[^a-z0-9]/g, "").includes(needle);
+}
+
+/**
+ * Örnek kartı, bölümdeki hesabın kopyasıysa düşer.
+ * Kalan kart, kullanılan verilenlerden yazılmış bir soru olur.
+ */
+/** Kaynak dışı örnek düşünce, bölümdeki tamamlanmış hesap bir kez karta alınır. */
+function promoteSectionExample(lesson: LessonV2, source: string): LessonV2 {
+  if (lesson.example) return lesson;
+  const sections = lesson.sections.map((section) => ({ ...section }));
+  for (let index = 0; index < sections.length; index += 1) {
+    const section = sections[index];
+    const sentences = sentencesOf(section.body);
+    const solution = sentences.find(
+      (sentence) => exampleIsComplete(sentence) && !workedExampleNeedsFormula(sentence),
+    );
     if (!solution) continue;
-    const prompt =
-      section.check?.prompt && !vagueYesNo(section.check.prompt)
-        ? section.check.prompt
-        : "Bu hesap hangi sonucu verir?";
-    return { ...lesson, example: { prompt, solution } };
+    const remaining = sentences.filter((sentence) => sentence !== solution).join(" ");
+    if (remaining.length < 20) continue;
+    const context = [lesson.overview ?? "", ...sections.map((item) => item.body), source].join("\n");
+    const asked = askedLhs(solution);
+    const prompt = exampleQuestion(solution, context) || (asked ? `${asked} kaçtır?` : "");
+    if (!prompt.endsWith("?")) continue;
+    sections[index] = { ...section, body: remaining };
+    return { ...lesson, sections, example: { prompt, solution } };
   }
   return lesson;
+}
+
+function usablePrompt(prompt: string): string {
+  const tidy = tidyJoins(prompt);
+  if (!/[?？]\s*$/.test(tidy)) return "";
+  return tidy;
+}
+
+function withCalculatedExample(lesson: LessonV2, source: string): LessonV2 {
+  if (!lesson.example) return promoteSectionExample(lesson, source);
+  const promptText = lesson.example.prompt;
+  const solutionText = lesson.example.solution;
+  const blob = `${promptText}\n${solutionText}`;
+  if (!expectsCalculation(blob) && !workedExampleNeedsFormula(solutionText)) {
+    return { ...lesson, example: { prompt: tidyJoins(promptText), solution: solutionText } };
+  }
+  const bodies = lesson.sections.map((section) => section.body).join("\n");
+  const context = [lesson.overview ?? "", bodies, promptText, source].join("\n");
+  const polished = polishWorkedExample(solutionText, context);
+  const solution =
+    polished && (exampleIsComplete(polished) || !workedExampleNeedsFormula(polished)) ? polished : solutionText;
+  if (workedExampleNeedsFormula(solution)) {
+    const next = { ...lesson };
+    delete next.example;
+    return next;
+  }
+  if (repeatsSectionWork(solution, bodies)) {
+    const next = { ...lesson };
+    delete next.example;
+    return next;
+  }
+  const asked = askedLhs(solution);
+  const prompt =
+    exampleQuestion(solution, context) || (asked ? `${asked} kaçtır?` : "") || usablePrompt(promptText);
+  if (!prompt || !prompt.endsWith("?")) {
+    const next = { ...lesson };
+    delete next.example;
+    return next;
+  }
+  return { ...lesson, example: { prompt, solution } };
 }
 
 export async function repairLearnerLesson(
