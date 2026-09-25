@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/learning/exam-prep/node/route";
-import { lessonPublishIssues } from "@/lib/learning/teaching-standards";
+import {
+  describeLessonShapeGaps,
+  lessonHasTeachingCore,
+  lessonPublishIssues,
+  publishLessonDraft,
+} from "@/lib/learning/teaching-standards";
 import {
   classifyVerifierIssue,
   settleRejectedLesson,
@@ -180,6 +185,36 @@ describe("live rejection replay", () => {
     const rejected = settleRejectedLesson(JSON.stringify(onlyGas), issue);
     expect(rejected.accepted).toBe(false);
     expect(rejected.removed).toEqual([]);
+  });
+
+  it("accepts after a section is removed when one section and an info check remain", () => {
+    const lesson = pressureLesson();
+    lesson.overview = "Basınç, birim alana dik gelen kuvvettir.";
+    lesson.sections = [
+      {
+        heading: "Sıcaklık Kavramı ve Dönüşüm",
+        body: "Sıcaklık farkında 1 K = 1 °C yazılır ve mutlak ölçek ayrı okunur.",
+        check: pressureCheck,
+      },
+      {
+        heading: "Basınç Tanımı",
+        body: "Basınç, birim alana dik olarak etki eden kuvvetin alana oranıdır.",
+      },
+    ];
+    const settled = settleRejectedLesson(JSON.stringify(lesson), [
+      "Kaynakta olmayan bilgi: 'Sıcaklık farkında 1 K = 1 °C yazılır' cümlesi sayfada yok.",
+    ]);
+    expect(settled.accepted).toBe(true);
+    expect(settled.removed).toContain("section:Sıcaklık Kavramı ve Dönüşüm");
+    const published = JSON.parse(settled.content) as {
+      sections: { heading: string }[];
+      infoCheck?: { prompt: string; answer: string };
+    };
+    expect(published.sections.map((section) => section.heading)).toEqual(["Basınç Tanımı"]);
+    expect(published.infoCheck?.answer.length).toBeGreaterThanOrEqual(2);
+    expect(lessonHasTeachingCore(published)).toBe(true);
+    expect(lessonPublishIssues(published)).toEqual([]);
+    expect(settled.content).not.toMatch(/1 K = 1 °C/);
   });
 });
 
@@ -516,5 +551,76 @@ describe("exam-prep lesson route", () => {
     expect(pipelineMocks.reserve).toHaveBeenCalledTimes(1);
     expect(pipelineMocks.commit).toHaveBeenCalledTimes(1);
     expect(pipelineMocks.refund).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 for a Turkish shape variant that states 1 K = 1 °C", async () => {
+    const variant = {
+      ders: {
+        başlık: "Basınç ve Sıcaklık Kavramları",
+        hedef: "Gösterge basıncından mutlak basıncı hesaplayabileceksin.",
+        bölümler: {
+          başlık: "Sıcaklık Kavramı ve Dönüşüm",
+          metin:
+            "Sıcaklık farkında **1 K = 1 °C** yazılır. Oda sıcaklığı **25 °C = 298.15 K** " +
+            "olarak da okunur. Gösterge basıncına atmosfer eklenince mutlak basınç bulunur.",
+          kontrol: {
+            soru: "Bir kelvinlik değişim kaç santigrat derecedir?",
+            seçenekler: ["1 °C", "273 °C", "1.8 °C"],
+            cevap: "1 °C",
+            açıklama: "273 eklemek mutlak dönüşümdür; aralıkta 1 K ile 1 °C aynıdır.",
+          },
+        },
+      },
+    };
+    expect(lessonHasTeachingCore(variant)).toBe(true);
+    expect(lessonPublishIssues(variant)).toEqual([]);
+    const published = publishLessonDraft(variant);
+    expect(published?.sections[0]?.body).toMatch(/1 K = 1 °C/);
+    expect(JSON.stringify(published)).not.toMatch(/PV\s*=\s*nRT/);
+
+    const raw = JSON.stringify(variant);
+    const review = {
+      approved: false,
+      issues: [
+        "Ders v2 şemasını karşılamıyor (hedef, bölümler, örnek, yaygın hata, bilgi kontrolü).",
+        "Birim dönüşümü tutarsız: 1 K = 1 °C",
+      ],
+    };
+    pipelineMocks.create
+      .mockResolvedValueOnce(completion(raw))
+      .mockResolvedValueOnce(completion(JSON.stringify(review)))
+      .mockResolvedValueOnce(completion(JSON.stringify({ content: raw })))
+      .mockResolvedValueOnce(completion(JSON.stringify(review)));
+    const service = supabase();
+    pipelineMocks.guard.mockResolvedValue({ ok: true, ctx: { userId: "student-1", service } });
+
+    const response = await POST(
+      new Request("https://cortexplus.app/api/learning/exam-prep/node", {
+        method: "POST",
+        body: JSON.stringify({
+          prepId: PREP,
+          nodeId: NODE,
+          clientRequestId: REQ,
+          action: "start",
+        }),
+      }),
+    );
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.payload.lesson.sections.length).toBeGreaterThanOrEqual(1);
+    expect(JSON.stringify(body.payload.lesson)).toMatch(/1 K = 1 °C/);
+    expect(JSON.stringify(body.payload.lesson)).not.toMatch(/PV\s*=\s*nRT/);
+    expect(pipelineMocks.commit).toHaveBeenCalledTimes(1);
+    expect(pipelineMocks.refund).not.toHaveBeenCalled();
+  });
+});
+
+describe("lesson shape variants", () => {
+  it("names the missing core fields and does not invent an example", () => {
+    const gaps = describeLessonShapeGaps({ title: "Boş" });
+    expect(gaps.some((gap) => gap.core && gap.field === "sections")).toBe(true);
+    expect(gaps.some((gap) => gap.field === "example" && gap.core === false)).toBe(true);
+    expect(lessonPublishIssues({ title: "Boş" }).join(" ")).toMatch(/sections/);
+    expect(lessonPublishIssues({ title: "Boş" }).join(" ")).not.toMatch(/PV = nRT/);
   });
 });

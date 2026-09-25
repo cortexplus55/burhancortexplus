@@ -1250,13 +1250,6 @@ async function generateNodePayload(input: {
     // Omurga tek başlıksa dayatmıyoruz: tek bölümlük ders, dersin kendisi
     // olmaz. İki ve üzeri gerçek bir iskelettir.
     const useBackbone = backbone.length >= 2;
-    const missingSections = (lesson: LessonV2) =>
-      useBackbone
-        ? unrepresentedHeadings(
-            backbone,
-            lesson.sections.map((section) => section.heading),
-          ).length
-        : 0;
     // Kaynak kaç alt başlık veriyorsa o kadar bölüm. Dar konuda iki yeter;
     // sayıyı doldurmak için üçüncü kavram uydurulmaz.
     const minSections = useBackbone ? Math.max(2, backbone.length) : 2;
@@ -1340,7 +1333,13 @@ async function generateNodePayload(input: {
          * Hiçbiri geçmezse ders yayına çıkmaz.
          */
         const parsed = raw2;
-        const missing = missingSections(parsed);
+        const missingList = useBackbone
+          ? unrepresentedHeadings(
+              backbone,
+              parsed.sections.map((section) => section.heading),
+            )
+          : [];
+        const missing = missingList.length;
         const pedagoji = lessonPublishIssues(raw, { minSections, keyTerms });
         if (pedagoji.length) {
           lastParseIssues = pedagoji;
@@ -1351,9 +1350,9 @@ async function generateNodePayload(input: {
         // başlık kaynaktan geliyordu ama içi modelin genel bilgisindendi.
         const formulIssues = formulaFidelityIssues(
           [
-            parsed.overview,
+            parsed.overview ?? "",
             ...parsed.sections.map((section) => section.body),
-            parsed.example.solution,
+            parsed.example?.solution ?? "",
           ],
           input.sourceFormulas ?? [],
         );
@@ -1365,9 +1364,9 @@ async function generateNodePayload(input: {
         // kaynakta yüzde ve denklem katsayısı belgede yoksa taslak dönmez.
         if (input.sourceBlock && !input.sourceBlock.includes("kısaltıldı")) {
           const lessonText = [
-            parsed.overview,
+            parsed.overview ?? "",
             ...parsed.sections.map((section) => section.body),
-            parsed.example.solution,
+            parsed.example?.solution ?? "",
           ].join("\n");
           const gaps = unsupportedQuantities(lessonText, input.sourceBlock);
           if (gaps.length) {
@@ -1379,12 +1378,11 @@ async function generateNodePayload(input: {
         // Kaynakta duran bir bölümü atlayan ders eksik bir derstir:
         // canlıda üretilen zemin dersi "Birleştirilmiş Zemin
         // Sınıflandırması"nı hiç anlatmadı ve öğrenci bunu bilemedi.
-        if (missing) {
+        // Kaynağın bütün başlıkları düşmüşse yeniden iste. Bir başlık
+        // cerrahi kesimden sonra duruyorsa çekirdek ders yayına çıkar.
+        if (useBackbone && missingList.length === backbone.length) {
           lastParseIssues = [
-            `Kaynağın şu alt başlıkları derste yok: ${unrepresentedHeadings(
-              backbone,
-              parsed.sections.map((section) => section.heading),
-            ).join(", ")}. Her birine bir bölüm yaz.`,
+            `Kaynağın şu alt başlıkları derste yok: ${missingList.join(", ")}. Her birine bir bölüm yaz.`,
           ];
           return null;
         }
@@ -1462,7 +1460,7 @@ async function generateNodePayload(input: {
           exam_prep_id: input.prepId,
           topic_id: input.topicId,
           title: lesson.title,
-          content_md: lesson.overview,
+          content_md: lesson.overview ?? lesson.sections[0]?.body ?? lesson.title,
           content_json: lesson,
         })
         .then(undefined, () => undefined);

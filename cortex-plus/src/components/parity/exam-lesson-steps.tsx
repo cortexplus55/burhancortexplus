@@ -62,8 +62,11 @@ type Step =
     };
 
 function buildSteps(lesson: LessonV2): Step[] {
-  const steps: Step[] = [
-    { kind: "overview", heading: lesson.title, body: lesson.overview },
+  const steps: Step[] = [];
+  if ((lesson.overview ?? "").trim()) {
+    steps.push({ kind: "overview", heading: lesson.title, body: lesson.overview ?? "" });
+  }
+  steps.push(
     ...lesson.sections.map(
       (s, sectionIndex): Step => ({
         kind: "section",
@@ -76,8 +79,8 @@ function buildSteps(lesson: LessonV2): Step[] {
         sectionIndex,
       }),
     ),
-  ];
-  if (lesson.example.prompt.trim()) {
+  );
+  if (lesson.example?.prompt.trim()) {
     steps.push({
       kind: "example",
       heading: "Örnek",
@@ -85,7 +88,7 @@ function buildSteps(lesson: LessonV2): Step[] {
       solution: lesson.example.solution,
     });
   }
-  if (lesson.commonMistake.claim.trim()) {
+  if (lesson.commonMistake?.claim.trim()) {
     steps.push({
       kind: "mistake",
       heading: "Sık yapılan hata",
@@ -93,12 +96,30 @@ function buildSteps(lesson: LessonV2): Step[] {
       correction: lesson.commonMistake.correction,
     });
   }
-  steps.push({
-    kind: "summary",
-    heading: "Özet",
-    points: lesson.summary,
-    next: lesson.nextFocus,
-  });
+  if (lesson.infoCheck?.prompt.trim() && lesson.infoCheck.answer.trim()) {
+    const duplicated = lesson.sections.some(
+      (section) => section.check?.prompt.trim() === lesson.infoCheck?.prompt.trim(),
+    );
+    if (!duplicated) {
+      steps.push({
+        kind: "example",
+        heading: "Bilgi kontrolü",
+        prompt: lesson.infoCheck.prompt,
+        solution: lesson.infoCheck.answer,
+      });
+    }
+  }
+  if ((lesson.summary?.length ?? 0) > 0 || (lesson.nextFocus?.length ?? 0) > 0) {
+    steps.push({
+      kind: "summary",
+      heading: "Özet",
+      points: lesson.summary ?? [],
+      next: lesson.nextFocus ?? [],
+    });
+  }
+  if (!steps.length) {
+    steps.push({ kind: "overview", heading: lesson.title, body: lesson.sections[0]?.body ?? "" });
+  }
   return steps;
 }
 
@@ -474,8 +495,12 @@ function Explanation({
   const wrong = picked !== check.answerIndex;
   return (
     <div className="als-explain">
-      <p className="als-explain-kicker">AÇIKLAMA</p>
-      <p>{check.explanation}</p>
+      {check.explanation.trim() ? (
+        <>
+          <p className="als-explain-kicker">AÇIKLAMA</p>
+          <p>{check.explanation}</p>
+        </>
+      ) : null}
       {wrong && revisit ? (
         <p className="als-revisit">Dersin sonunda buna geri döneceğiz.</p>
       ) : null}

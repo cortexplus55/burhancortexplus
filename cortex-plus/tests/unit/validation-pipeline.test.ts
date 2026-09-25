@@ -197,6 +197,73 @@ describe("pressure and temperature claims", () => {
     ]);
     expect(checkCalculationChains("49.05 kPa + 95 kPa = 200 kPa")).toHaveLength(1);
     expect(checkUnitConversionClaims("25 °C = 250 K")).toHaveLength(1);
+    expect(checkUnitConversionClaims("0 °C = 0 K")).toHaveLength(1);
+  });
+
+  it("accepts temperature intervals and absolute conversions, and only warns when unsure", () => {
+    const accepted = [
+      "1 K = 1 °C",
+      "1°C = 1 K",
+      "ΔT için 1 K = 1 °C yazılır",
+      "1.8 °F = 1 °C",
+      "1 °C = 1.8 °F",
+      "9 °F = 5 °C",
+      "1 °F = 1 °R",
+      "1 K = 1.8 °R",
+      "25 °C = 298.15 K",
+      "25 °C = 298 K",
+      "0 °C = 273.15 K",
+      "0 °C = 273 K",
+      "100 °C = 373 K",
+      "32 °F = 0 °C",
+      "212 °F = 100 °C",
+      "0 K = -273.15 °C",
+      "0 °R = -459.67 °F",
+      "491.67 °R = 0 °C",
+    ];
+    for (const line of accepted) {
+      expect(checkUnitConversionClaims(line), line).toEqual([]);
+      expect(checkUncertainUnitClaims(line), line).toEqual([]);
+    }
+    expect(checkUnitConversionClaims("25 °C = 300 K")).toEqual([]);
+    expect(checkUncertainUnitClaims("25 °C = 300 K")).toHaveLength(1);
+    expect(checkUnitConversionClaims("1 °C = 2 °F")).toEqual([]);
+    expect(checkUncertainUnitClaims("1 °C = 2 °F")).toHaveLength(1);
+    expect(checkUnitConversionClaims("100 °C = 212 K")).toHaveLength(1);
+
+    const realistic = [
+      "P_g = 150 kPa, P_atm = 101.325 kPa ise P_abs = 150 kPa + 101.325 kPa = 251.325 kPa",
+      "P_vakum = 101.3 kPa − 40 kPa = 61.3 kPa",
+      "ρgh = 1000 × 9.81 × 0.5 = 4905 Pa",
+      "ρgh = 13600 × 9.81 × 0.76 = 101396 Pa",
+      "1 bar = 100 kPa",
+      "1 atm = 101.325 kPa",
+      "1 atm = 760 mmHg",
+      "1 bar = 750 mmHg",
+      "760 mmHg = 101.325 kPa",
+      "1 mmHg = 133.3 Pa",
+      "50 kPa = 0.5 bar",
+      "0.001 m³/kg = 1 L/kg",
+      "1 m³/kg = 1000 cm³/g",
+      "1 kJ/kg = 1000 J/kg",
+      "1 kJ/kg = 1 J/g",
+      "300 kJ/kg = 0.3 MJ/kg",
+      "Sıcaklık farkında 1 K = 1 °C, oda sıcaklığı 25 °C = 298 K",
+    ];
+    for (const line of realistic) {
+      expect(checkUnitConversionClaims(line), line).toEqual([]);
+      expect(checkCalculationChains(line), line).toEqual([]);
+    }
+    expect(checkUnitConversionClaims("50 kPa = 500 mmHg")).toHaveLength(1);
+    expect(checkUnitConversionClaims("1 m³/kg = 1 cm³/g")).toHaveLength(1);
+    expect(checkUnitConversionClaims("300 kJ/kg = 300 J/kg")).toHaveLength(1);
+
+    const pipeline = runIndependentValidation({
+      draft: "Aralık olarak 1 K = 1 °C. 25 °C = 298.15 K.",
+      parsed: { note: "Aralık olarak 1 K = 1 °C. 25 °C = 298.15 K." },
+    });
+    expect(pipeline.failedStage).toBeNull();
+    expect(pipeline.issues.some((issue) => issue.code === "unit_mismatch")).toBe(false);
   });
 
   it("does not fail the pipeline on an uncertain same-unit equality", () => {
