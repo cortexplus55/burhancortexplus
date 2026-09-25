@@ -61,11 +61,17 @@ const SENSES: Sense[] = [
   },
 ];
 
-function clausesOf(text: string): string[] {
+/** `22,4` tek sayıdır; virgül cümle veya yan cümle ayıracı sayılmaz. */
+function splitClauses(text: string): string[] {
   return text
+    .replace(/(\d),(\d)/g, "$1\uE000$2")
     .split(/[,;]|\s+ve\s+/i)
-    .map((part) => part.trim())
+    .map((part) => part.replace(/\uE000/g, ",").trim())
     .filter((part) => part.length >= 8);
+}
+
+function clausesOf(text: string): string[] {
+  return splitClauses(text);
 }
 
 function withoutIntensiveNames(text: string): string {
@@ -161,10 +167,7 @@ function statementsOf(text: string): string[] {
 }
 
 function clausesOfStatement(folded: string): string[] {
-  const parts = folded
-    .split(/[,;]|\s+ve\s+/)
-    .map((part) => part.trim())
-    .filter((part) => part.length >= 8);
+  const parts = splitClauses(folded);
   return parts.length ? parts : [folded];
 }
 

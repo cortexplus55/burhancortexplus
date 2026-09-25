@@ -60,7 +60,8 @@ const SUB_TO_LETTER: Record<string, string> = Object.fromEntries(
 const SUB_CHARS = Object.values(LETTER_TO_SUB).join("");
 
 function subOf(letter: string): string {
-  return LETTER_TO_SUB[letter.toLowerCase()] ?? `_${letter}`;
+  if (letter !== letter.toLocaleLowerCase("tr")) return `_${letter}`;
+  return LETTER_TO_SUB[letter] ?? `_${letter}`;
 }
 
 /** `R_u` ve `R_{u}` aynı harfin alt simgesi olur. Harf değişmez. */
@@ -75,7 +76,7 @@ function subscriptPairs(text: string): Map<string, Set<string>> {
   const add = (base: string, letter: string) => {
     const key = base.toLowerCase();
     const set = found.get(key) ?? new Set<string>();
-    set.add(letter.toLowerCase());
+    set.add(letter);
     found.set(key, set);
   };
   for (const match of text.matchAll(/([A-Za-zΔδ])_\{?([A-Za-z])\}?(?![A-Za-z0-9])/g)) {
@@ -99,7 +100,7 @@ export function alignSymbolSubscripts(text: string, source: string): string {
     const set = allowed.get(base.toLowerCase());
     if (!set || set.size !== 1) return original;
     const wanted = [...set][0];
-    if (!wanted || wanted === letter.toLowerCase()) return original;
+    if (!wanted || wanted === letter) return original;
     return `${base}${subOf(wanted)}`;
   };
   return preserveSubscriptLetters(text)
@@ -273,6 +274,10 @@ function rejoinLines(lines: string[]): string[] {
     const prevClosed = /[.!?:;]$/.test(prevPlain);
     const lowerCont = /^[a-zçğıöşü]/.test(nextPlain);
     const equalsCont = /^=/.test(nextPlain);
+    if (/=/.test(nextPlain) && verbEnding(plain(prev))) {
+      out.push(line);
+      continue;
+    }
     if (equalsCont || (!prevClosed && lowerCont)) {
       out[out.length - 1] = `${prev} ${line}`.replace(/\s+/g, " ").trim();
       continue;
@@ -291,9 +296,18 @@ function verbEnding(text: string): boolean {
   );
 }
 
+/** "şöyle olarak hesaplanır" çarpışması tek yükleme iner. */
+function calmFormulaLead(lead: string): string {
+  return lead
+    .replace(/\s+şöyle\s+olarak\s+(hesaplan\w*)/gi, " şöyle $1")
+    .replace(/\s+olarak\s+(hesaplan\w*)/gi, " şöyle $1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Formülden hemen önceki eksik cümle, iki nokta ve bir yüklemle biter. */
 function introduceFormula(lead: string): string {
-  const trimmed = lead.replace(/[.:;\s]+$/g, "").trim();
+  const trimmed = calmFormulaLead(lead.replace(/[.:;\s]+$/g, ""));
   if (!trimmed) return lead;
   if (verbEnding(trimmed)) return `${trimmed}:`;
   return `${trimmed} şöyle hesaplanır:`;
@@ -306,7 +320,9 @@ function phraseBeforeFormula(phrase: string, lead: string): string {
     return lead ? `${lead} şu şekilde ${rest}:` : `Şu şekilde ${rest}:`;
   }
   if (/^olarak\s+/i.test(core)) {
-    return lead ? `${lead} şöyle ${core}:` : `Şöyle ${core}:`;
+    const rest = core.replace(/^olarak\s+/i, "");
+    const joined = calmFormulaLead(`${lead} ${rest}`.trim());
+    return verbEnding(joined) ? `${joined}:` : `${joined} şöyle hesaplanır:`;
   }
   if (/^ile\s+/i.test(core)) {
     if (!lead || /\b(?:ise|ile)\s*$/i.test(lead)) return "";
@@ -379,6 +395,7 @@ function splitBlock(block: string): string[] {
 
 export function layoutBoard(text: string): BoardLine[] {
   const normalized = restoreMathNotation(text)
+    .replace(/şöyle\s+olarak\s+(hesaplan\w*)/gi, "şöyle $1")
     .replace(/\r\n/g, "\n")
     .replace(/\s+(?=Veri\s*:)/gi, "\n")
     .replace(/\s+(?=Adım\s*\d+\s*:)/gi, "\n")

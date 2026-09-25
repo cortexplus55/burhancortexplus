@@ -223,6 +223,27 @@ export function isSatelliteSection(heading: string): boolean {
   );
 }
 
+/**
+ * Kısa nottaki numaralı bölüm, tıklanan konunun kaynağıdır.
+ * Başlık konuya birebir uymazsa metin bölünmez; uzun belge tavanı durur.
+ */
+export function sliceNumberedSection(text: string, topicLabel: string): string {
+  const wanted = foldKey(topicLabel);
+  if (wanted.length < 3 || !text.trim()) return text;
+  const found: { start: number; title: string }[] = [];
+  for (const match of text.matchAll(/(?:^|\n)\s*(\d+\.\s+[^\n]+)/g)) {
+    const heading = match[1]?.trim() ?? "";
+    if (!isNumberedChapter(heading)) continue;
+    const title = heading.replace(/^\d+\.\s+/, "").trim();
+    found.push({ start: match.index ?? 0, title });
+  }
+  if (found.length < 2) return text;
+  const hit = found.find((item) => foldKey(item.title) === wanted);
+  if (!hit) return text;
+  const next = found.find((item) => item.start > hit.start);
+  return text.slice(hit.start, next ? next.start : text.length).trim();
+}
+
 /** "3. Dane Boyu" bölüm, "2.3. …" ve "1) Enerji dengesi" değil. */
 export function isNumberedChapter(heading: string): boolean {
   const text = heading.trim();
