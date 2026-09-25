@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { conceptInText, titleConcepts } from "@/lib/learning/lesson-claims";
 import { searchDocumentChunks, type DocumentMatch } from "@/lib/rag/pipeline";
 
 /**
@@ -103,6 +104,51 @@ const MAX_CHARS_PER_PAGE = 2200;
  * istisna değil — kitaptan yüklenen her belgede olacak.
  */
 const MAX_CHARS_TOTAL = 6000;
+
+/**
+ * Başlıktaki kavram eşlenen sayfalarda yoksa aynı belgede o sayfaları arar.
+ * Gömme çağrısı yok. Sorgu kurulamazsa eşlenen sayfalar durur.
+ * Eşlenen sayfalar zaten okunmuş olmalı; bu fonksiyon onları yeniden sorgulamaz.
+ */
+export async function widenSourcePages(
+  service: SupabaseClient,
+  documentId: string,
+  title: string,
+  mappedPages: number[],
+  mappedText: string,
+): Promise<number[]> {
+  try {
+    const concepts = titleConcepts(title);
+    if (!documentId || !mappedPages.length || !concepts.length) return mappedPages;
+    const missing = concepts.filter((concept) => !conceptInText(concept, mappedText));
+    if (!missing.length) return mappedPages;
+    const extra: number[] = [];
+    for (const concept of missing) {
+      if (extra.length >= 4) break;
+      const needle = concept.replace(/[%_\\]/g, "").slice(0, 48);
+      if (needle.length < 3) continue;
+      const { data } = await service
+        .from("document_pages")
+        .select("page_number, text_content")
+        .eq("document_id", documentId)
+        .ilike("text_content", `%${needle}%`)
+        .limit(2);
+      let added = 0;
+      for (const row of data ?? []) {
+        const pageNumber = row.page_number as number;
+        const text = String(row.text_content ?? "");
+        if (!conceptInText(concept, text)) continue;
+        if (mappedPages.includes(pageNumber) || extra.includes(pageNumber)) continue;
+        extra.push(pageNumber);
+        added += 1;
+        if (added >= 2 || extra.length >= 4) break;
+      }
+    }
+    return [...mappedPages, ...extra];
+  } catch {
+    return mappedPages;
+  }
+}
 
 /**
  * Konunun KENDİ sayfalarından kaynak bloğu.
