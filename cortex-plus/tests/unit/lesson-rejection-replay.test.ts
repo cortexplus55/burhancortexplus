@@ -186,6 +186,36 @@ describe("live rejection replay", () => {
     expect(rejected.accepted).toBe(false);
     expect(rejected.removed).toEqual([]);
   });
+
+  it("accepts after a section is removed when one section and an info check remain", () => {
+    const lesson = pressureLesson();
+    lesson.overview = "Basınç, birim alana dik gelen kuvvettir.";
+    lesson.sections = [
+      {
+        heading: "Sıcaklık Kavramı ve Dönüşüm",
+        body: "Sıcaklık farkında 1 K = 1 °C yazılır ve mutlak ölçek ayrı okunur.",
+        check: pressureCheck,
+      },
+      {
+        heading: "Basınç Tanımı",
+        body: "Basınç, birim alana dik olarak etki eden kuvvetin alana oranıdır.",
+      },
+    ];
+    const settled = settleRejectedLesson(JSON.stringify(lesson), [
+      "Kaynakta olmayan bilgi: 'Sıcaklık farkında 1 K = 1 °C yazılır' cümlesi sayfada yok.",
+    ]);
+    expect(settled.accepted).toBe(true);
+    expect(settled.removed).toContain("section:Sıcaklık Kavramı ve Dönüşüm");
+    const published = JSON.parse(settled.content) as {
+      sections: { heading: string }[];
+      infoCheck?: { prompt: string; answer: string };
+    };
+    expect(published.sections.map((section) => section.heading)).toEqual(["Basınç Tanımı"]);
+    expect(published.infoCheck?.answer.length).toBeGreaterThanOrEqual(2);
+    expect(lessonHasTeachingCore(published)).toBe(true);
+    expect(lessonPublishIssues(published)).toEqual([]);
+    expect(settled.content).not.toMatch(/1 K = 1 °C/);
+  });
 });
 
 const pipelineMocks = vi.hoisted(() => ({

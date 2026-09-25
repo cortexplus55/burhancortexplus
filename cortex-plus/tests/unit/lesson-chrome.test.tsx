@@ -124,7 +124,7 @@ describe("ExamLessonSteps", () => {
     const onFinish = vi.fn();
     render(<ExamLessonSteps lesson={lesson} onFinish={onFinish} closeHref="/deneme-sinavlari/p" />);
 
-    expect(screen.getByText("1 / 6")).toBeTruthy();
+    expect(screen.getByText("1 / 7")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Devam et" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
 
@@ -142,9 +142,11 @@ describe("ExamLessonSteps", () => {
     fireEvent.click(screen.getByRole("button", { name: /Kapalı Sistem/ }));
     expect(screen.getByText("🎉 Doğru")).toBeTruthy();
 
-    // Kalan slaytlar: örnek, hata, özet, tekrar kapısı.
+    // Kalan slaytlar: örnek, hata, bilgi kontrolü, özet, tekrar kapısı.
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    expect(screen.getByText("Sınır nedir?")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     expect(screen.getByText("TEKRARLA")).toBeTruthy();

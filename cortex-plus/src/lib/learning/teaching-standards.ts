@@ -956,13 +956,15 @@ function normalizeCheck(value: unknown): Record<string, unknown> | undefined {
     return undefined;
   }
   const explanation = clipText(named.explanation, 600) ?? "";
-  return {
+  const check: Record<string, unknown> = {
     type: normalizeCheckType(named.type, options),
     prompt,
     options: options.slice(0, 6),
     answerIndex,
     explanation,
   };
+  if (named.review != null) check.review = named.review;
+  return check;
 }
 
 function normalizePair(

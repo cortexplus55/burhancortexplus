@@ -159,10 +159,10 @@ describe("cosmetic lesson shape", () => {
       },
     };
     const published = publishLessonDraft(raw);
-    expect(published?.overview.toLocaleLowerCase("tr")).toContain("basınç");
+    expect(published?.overview?.toLocaleLowerCase("tr")).toContain("basınç");
     expect(published?.sections[0].body).toContain("**Basınç**");
-    expect(published?.infoCheck.answer).toContain("Kuvvet");
-    expect(published?.summary.length).toBeGreaterThanOrEqual(2);
+    expect(published?.infoCheck?.answer).toContain("Kuvvet");
+    expect(published?.summary?.length).toBeGreaterThanOrEqual(2);
     expect(lessonPublishIssues(raw).some((issue) => issue.includes("koyu"))).toBe(false);
     expect(lessonPublishIssues(raw).some((issue) => issue.includes("şemasını"))).toBe(false);
   });

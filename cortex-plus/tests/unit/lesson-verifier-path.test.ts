@@ -162,10 +162,21 @@ describe("lesson verifier path", () => {
   it("still rejects a lesson that has no check question left to keep", () => {
     const empty = {
       ...lesson,
+      infoCheck: undefined,
       sections: lesson.sections.map(({ check: _check, ...section }) => section),
     };
     expect(lessonPublishIssues(empty).some((issue) => issue.includes("kontrol sorusu"))).toBe(
       true,
+    );
+  });
+
+  it("accepts a lesson whose only answered question is the info check", () => {
+    const onlyInfo = {
+      ...lesson,
+      sections: lesson.sections.map(({ check: _check, ...section }) => section),
+    };
+    expect(lessonPublishIssues(onlyInfo).some((issue) => issue.includes("kontrol sorusu"))).toBe(
+      false,
     );
   });
 });

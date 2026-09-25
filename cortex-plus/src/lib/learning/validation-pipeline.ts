@@ -708,11 +708,7 @@ function textHasNeedle(haystack: string, needles: string[]): boolean {
 }
 
 function lessonIsSound(lesson: LooseLesson): boolean {
-  const sections = (lesson.sections ?? []).filter(
-    (section) => (section.heading ?? "").trim().length >= 2 && (section.body ?? "").trim().length >= 20,
-  );
-  if (!sections.length) return false;
-  return sections.some((section) => (section.check?.prompt ?? "").trim().length >= 8);
+  return lessonHasTeachingCore(lesson);
 }
 
 function replacementExample(section: LooseSection): { prompt: string; solution: string } | null {
