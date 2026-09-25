@@ -22,6 +22,7 @@ import {
   type ValidationStage,
 } from "@/lib/learning/validation-pipeline";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
+import { withTransientRetry } from "@/lib/ai/transient-retry";
 
 export const SYSTEM_GUARDRAIL =
   "Sen Cortex Plus eğitim asistanısın. Türkçe yanıt ver. Yalnızca eğitim amaçlı içerik üret. " +
@@ -211,8 +212,10 @@ export async function generateJson<T>(
     // yazmak 45 saniyeden uzun sürebiliyor ve tek bir zaman aşımı dersin
     // tamamını çöpe atıyor.
     //
-    // 90 saniye hâlâ fonksiyon bütçesinin içinde: en kötü durumda iki
-    // taslak ve doğrulama turları 5 dakikayı doldurmuyor.
+    // 90 saniye hâlâ fonksiyon bütçesinin içinde. Sağlayıcı 5xx ya da
+    // zaman aşımında aynı rezervasyonla bir kez daha denenir; deneme
+    // ancak 270 saniyenin içinde bitecekse yapılır. SDK yeniden denemez
+    // (`maxRetries: 0`) — sınırsız tekrar 300 saniyelik tavanı aşar.
     const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 90_000, maxRetries: 0 });
 
     const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
@@ -323,7 +326,9 @@ export async function generateJson<T>(
 
     outer: for (const mode of modes) {
       for (let draftAttempt = 0; draftAttempt < maxDraftAttempts; draftAttempt += 1) {
-        const completion = await openai.chat.completions.create({
+        const completion = await withTransientRetry(
+          () =>
+            openai.chat.completions.create({
           model,
           response_format: { type: "json_object" },
           messages: [
@@ -371,7 +376,9 @@ export async function generateJson<T>(
                     ],
             },
           ],
-        });
+            }),
+          { startedAt: generationStarted, callTimeoutMs: 90_000 },
+        );
 
         completionUsage = {
           prompt_tokens:
@@ -402,6 +409,7 @@ export async function generateJson<T>(
           try {
             const verified = await verifyEducationalContent({
               client: openai,
+              startedAt: generationStarted,
               context: params.verificationContext ?? params.userPrompt,
               draft: params.reviewDraft ? params.reviewDraft(raw) : raw,
               format: params.schemaHint,

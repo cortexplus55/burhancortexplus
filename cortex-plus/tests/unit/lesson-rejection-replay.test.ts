@@ -310,6 +310,45 @@ describe("lesson generation pipeline", () => {
     expect(pipelineMocks.refund).not.toHaveBeenCalled();
   });
 
+  it("retries one upstream 503 on the same reservation", async () => {
+    const { generateJson } = await import("@/lib/ai/generate");
+    const lesson = pressureLesson();
+    const raw = JSON.stringify(lesson);
+    const review = {
+      approved: false,
+      issues: case1AfterRepair,
+    };
+    pipelineMocks.create
+      .mockRejectedValueOnce(Object.assign(new Error("upstream"), { status: 503 }))
+      .mockResolvedValueOnce(completion(raw))
+      .mockResolvedValueOnce(completion(JSON.stringify(review)))
+      .mockResolvedValueOnce(completion(JSON.stringify({ content: raw })))
+      .mockResolvedValueOnce(completion(JSON.stringify(review)));
+
+    const result = await generateJson({
+      service: {} as never,
+      userId: "student-1",
+      actionCode: "STUDY_PLAN_GENERATE",
+      isPremium: true,
+      validationProfile: "v2",
+      activityKind: "lesson",
+      maxDraftAttempts: 1,
+      allowIndependentAccept: false,
+      schemaHint: "lesson",
+      userPrompt: "Basınç ve Sıcaklık Kavramları dersini yaz.",
+      buildIndependent: (_content, parsed) => ({
+        pedagogyIssues: lessonPublishIssues(parsed, { minSections: 2 }),
+      }),
+      parse: (parsed) => (lessonPublishIssues(parsed, { minSections: 2 }).length ? null : parsed),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(pipelineMocks.reserve).toHaveBeenCalledTimes(1);
+    expect(pipelineMocks.commit).toHaveBeenCalledTimes(1);
+    expect(pipelineMocks.refund).not.toHaveBeenCalled();
+    expect(pipelineMocks.create).toHaveBeenCalledTimes(5);
+  });
+
   it("refunds the single reservation when nothing sound remains", async () => {
     const { generateJson } = await import("@/lib/ai/generate");
     const onlyGas = pressureLesson();

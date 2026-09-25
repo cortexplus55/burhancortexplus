@@ -29,6 +29,15 @@ const ALIEN_TOKENS: Alien[] = [
 
 export type GroundedLesson = { lesson: unknown; removed: string[] };
 
+export type GroundLessonOptions = {
+  /**
+   * Konu haritasında bu konudan sonrakiler.
+   * Dizi verilirse "Sırada ne var" yalnızca bunlardır; boş dizi listeyi siler.
+   * Alan yoksa dersin kendi nextFocus'u durur.
+   */
+  upcomingTopics?: string[];
+};
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
@@ -158,6 +167,266 @@ function clip(text: string, max: number): string {
   return trimmed.length <= max ? trimmed : trimmed.slice(0, max).trim();
 }
 
+const SUMMARY_MAX = 240;
+
+/**
+ * Sayfa bloğunun başındaki "[s.4] dosya:" öğrenciye ait değil.
+ * Formül dizini ve yönerge cümlesi de değil: "Bu sayfadaki formüller: a | b".
+ */
+function stripSourceChrome(text: string): string {
+  return text
+    .replace(/\[Sayfa metni kısaltıldı\.\]/gi, "")
+    .replace(/\[s\.\d+\]\s*[^:\n]{0,120}:\s*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeSummaryText(text: string): string {
+  return text
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b([mhuvsypxt])\s+(fg|sat|f|g)\b/gi, "$1_$2")
+    .replace(/\b([mhuvsypxt](?:_(?:fg|sat|f|g))?)\s*\/\s*([mhuvsypxt])\b/gi, "$1/$2")
+    .replace(/(?<!\*)\*(?!\*)/g, "·")
+    .replace(/[;]+\s*$/g, "")
+    .trim();
+}
+
+function objectiveFiller(text: string): boolean {
+  const folded = foldTr(text);
+  if (/\bkonusu(nu|n)?\b/.test(folded) && /(anlayarak|uygulayabil|ogren)/.test(folded)) return true;
+  return /(ogrenmek|ogrenmeyi)\s*$/.test(folded);
+}
+
+function metadataDump(text: string): boolean {
+  if (text.includes("|")) return true;
+  const folded = foldTr(text);
+  return (
+    folded.includes("bu sayfadaki formuller") ||
+    folded.includes("formulleri sayfadaki") ||
+    folded.includes("ogrencinin kendi kaynagindan") ||
+    folded.includes("fiziksel pdf sayfa") ||
+    folded.includes("bu sayfalarda olmayan") ||
+    folded.includes("kisaltilan sayfalar")
+  );
+}
+
+function danglingTail(text: string): boolean {
+  return /[=+×*/\-−]\s*$/.test(text.trim());
+}
+
+function workedExampleFragment(text: string): boolean {
+  return /\d+(?:[.,]\d+)?(?:\s*[A-Za-z°µ/%]+)?\s*[+×*·\-−]\s*\d/.test(text);
+}
+
+/**
+ * Özet satırı tek, bitmiş, okunur bir cümle olmalı.
+ * Formül dizini, kesik hesap ve öğrenme hedefi kalıbı düşer.
+ * 240 karakteri aşan cümle ortadan kesilmez; satır olmaz.
+ */
+function cleanSummarySentence(text: string, min = 8): string | null {
+  const normalized = normalizeSummaryText(stripSourceChrome(text));
+  if (normalized.length < min || normalized.length > SUMMARY_MAX) return null;
+  if (objectiveFiller(normalized) || metadataDump(normalized) || danglingTail(normalized)) return null;
+  if (workedExampleFragment(normalized)) return null;
+  if (definitionalInversionIssues(normalized).length) return null;
+  return normalized;
+}
+
+const SUMMARY_STOP = new Set([
+  "bir",
+  "bu",
+  "su",
+  "ile",
+  "icin",
+  "olan",
+  "olarak",
+  "gibi",
+  "daha",
+  "ise",
+  "veya",
+  "her",
+  "hem",
+  "gore",
+  "sonra",
+  "once",
+  "kadar",
+  "cok",
+  "degil",
+  "eden",
+  "diye",
+  "uzere",
+  "yani",
+  "icin",
+]);
+
+function summaryStems(text: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const word of foldTr(text).split(/[^a-z0-9]+/)) {
+    if (word.length < 3 || SUMMARY_STOP.has(word)) continue;
+    const stem = word.length >= 5 ? word.slice(0, 5) : word;
+    if (seen.has(stem)) continue;
+    seen.add(stem);
+    out.push(stem);
+  }
+  return out;
+}
+
+function stemsClose(left: string, right: string): boolean {
+  if (left === right) return true;
+  if (left.length < 4 || right.length < 4) return false;
+  return left.slice(0, 4) === right.slice(0, 4);
+}
+
+function stemOverlap(left: string[], right: string[]): number {
+  return left.filter((stem) => right.some((other) => stemsClose(stem, other))).length;
+}
+
+function equationSymbol(text: string): string | null {
+  const match = text.match(/([A-Za-z][A-Za-z0-9_]*)\s*=/);
+  if (!match) return null;
+  const symbol = foldTr(match[1]).replace(/[^a-z0-9]/g, "");
+  return symbol.length >= 4 ? symbol : null;
+}
+
+function symbolIn(text: string, symbol: string): boolean {
+  const folded = foldTr(text).replace(/[^a-z0-9]/g, "");
+  if (folded.includes(symbol)) return true;
+  const tail = symbol.replace(/^[a-z]/, "");
+  return tail.length >= 5 && folded.includes(tail);
+}
+
+/** Kısa bağıntı, hemen önceki tanım cümlesine yapışır: "…oranıdır. P = F/A." */
+function attachRelation(sentences: string[]): string[] {
+  const out: string[] = [];
+  for (let index = 0; index < sentences.length; index += 1) {
+    const current = sentences[index] ?? "";
+    const next = sentences[index + 1];
+    if (
+      next &&
+      !/=/.test(current) &&
+      /=/.test(next) &&
+      next.length <= 80 &&
+      summaryStems(next).length <= 4
+    ) {
+      out.push(`${current.replace(/[.:;\s]+$/g, "")}: ${next.replace(/[.;\s]+$/g, "")}`);
+      index += 1;
+      continue;
+    }
+    out.push(current);
+  }
+  return out;
+}
+
+/** Kaynak gövdesinden özet olabilecek bitmiş cümleler. Dizin ve kesik hesap yok. */
+function summaryCandidates(source: string): string[] {
+  const raw = sentencesOf(source)
+    .map((sentence) => stripSourceChrome(sentence))
+    .filter((sentence) => sentence.length >= 8 && !metadataDump(sentence) && !objectiveFiller(sentence));
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const sentence of attachRelation(raw)) {
+    const clean = cleanSummarySentence(sentence);
+    if (!clean) continue;
+    const key = foldTr(clean);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(clean);
+  }
+  return out;
+}
+
+/**
+ * Özet, kaynağın niteleyicisini veya bağıntının yarısını düşürdüyse
+ * kaynağın kendi cümlesi (ve aynı simgeli kardeş bağıntı) gelir.
+ * Formül dizini ve yarım kalan hesap adayı değildir.
+ */
+function preciseSummaryLines(item: string, source: string): string[] | null {
+  if (!source.trim() || truncated(source) || definitionalInversionIssues(item).length) return null;
+  const packed = summaryCandidates(source);
+  const itemStems = summaryStems(item);
+  if (itemStems.length < 2) return null;
+  const itemHasEq = /=/.test(item);
+  const itemKey = foldTr(normalizeSummaryText(item));
+  if (packed.some((sentence) => foldTr(sentence) === itemKey)) return null;
+  let best: { text: string; score: number } | null = null;
+  for (const sentence of packed) {
+    const sentenceStems = summaryStems(sentence);
+    const shared = stemOverlap(itemStems, sentenceStems);
+    const extras = sentenceStems.filter((stem) => !itemStems.some((other) => stemsClose(stem, other)));
+    const missingEq = !itemHasEq && /=/.test(sentence);
+    const coverage = shared / itemStems.length;
+    const symbol = equationSymbol(sentence);
+    const symbolHit = Boolean(symbol && symbolIn(item, symbol));
+    if (missingEq) {
+      if (coverage < 0.5 && !symbolHit) continue;
+    } else if (extras.length < 2 || coverage < 0.5) {
+      continue;
+    }
+    const score = shared * 2 + extras.length + (missingEq ? 12 : 0) + (symbolHit ? 4 : 0);
+    if (!best || score > best.score) best = { text: sentence, score };
+  }
+  if (!best) return null;
+  if (itemHasEq && /=/.test(best.text)) {
+    const extras = summaryStems(best.text).filter(
+      (stem) => !itemStems.some((other) => stemsClose(stem, other)),
+    );
+    const symbol = equationSymbol(best.text);
+    if (extras.length < 2 && symbol && symbolIn(item, symbol)) return null;
+  }
+  const lines = [best.text];
+  const symbol = equationSymbol(best.text);
+  if (symbol && !itemHasEq) {
+    for (const sentence of packed) {
+      if (!/=/.test(sentence)) continue;
+      if (!symbolIn(sentence, symbol)) continue;
+      if (lines.some((line) => foldTr(line).includes(foldTr(sentence)) || foldTr(sentence).includes(foldTr(line)))) {
+        continue;
+      }
+      lines.push(sentence);
+      if (lines.length >= 2) break;
+    }
+  }
+  if (lines.length === 1 && foldTr(lines[0] ?? "") === itemKey) return null;
+  return lines;
+}
+
+/** Konu sırasında bu başlıktan sonrakiler. Eşleşme yoksa null. */
+export function upcomingTopicsAfter(
+  currentTitle: string,
+  titles: string[],
+  limit = 3,
+): string[] | null {
+  const current = foldTr(currentTitle).replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  if (!current) return null;
+  const folded = titles.map((title) => ({
+    title: title.trim(),
+    key: foldTr(title).replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim(),
+  }));
+  let index = folded.findIndex((row) => row.key === current);
+  if (index < 0) {
+    let bestLen = 0;
+    folded.forEach((row, rowIndex) => {
+      if (row.key.length < 8) return;
+      const hit = row.key.includes(current) || current.includes(row.key);
+      if (!hit || row.key.length <= bestLen) return;
+      index = rowIndex;
+      bestLen = row.key.length;
+    });
+  }
+  if (index < 0) return null;
+  const seen = new Set<string>();
+  const next: string[] = [];
+  for (const row of folded.slice(index + 1)) {
+    if (row.title.length < 2 || !row.key || seen.has(row.key)) continue;
+    seen.add(row.key);
+    next.push(row.title.slice(0, 200));
+    if (next.length >= limit) break;
+  }
+  return next;
+}
+
 function optionKey(value: unknown): string {
   return foldTr(String(value ?? "")).replace(/[^a-z]/g, "");
 }
@@ -178,9 +447,11 @@ function sourceSentenceFor(topic: string, source: string): string | null {
   if (!needles.length) return null;
   let best: { score: number; text: string } | null = null;
   for (const sentence of sentencesOf(source)) {
-    if (sentence.length < 20) continue;
-    if (definitionalInversionIssues(sentence).length) continue;
-    const folded = foldTr(sentence);
+    const visible = stripSourceChrome(sentence);
+    if (visible.length < 20) continue;
+    if (metadataDump(visible) || objectiveFiller(visible) || danglingTail(visible)) continue;
+    if (definitionalInversionIssues(visible).length) continue;
+    const folded = foldTr(visible);
     let score = 0;
     for (const needle of needles) {
       if (folded.includes(needle)) score += 1;
@@ -189,7 +460,7 @@ function sourceSentenceFor(topic: string, source: string): string | null {
     if (/karsilastir|faz karar/.test(topicFold) && /t[_ ]?sat|tsat|p[_ ]?sat|psat|doyma/.test(folded)) {
       score += 2;
     }
-    if (score > 0 && (!best || score > best.score)) best = { score, text: sentence };
+    if (score > 0 && (!best || score > best.score)) best = { score, text: visible };
   }
   return best?.text ?? null;
 }
@@ -297,7 +568,11 @@ export function groundLessonDraft(draft: string, source: string): string {
   }
 }
 
-export function groundLearnerLesson(lesson: unknown, source: string): GroundedLesson {
+export function groundLearnerLesson(
+  lesson: unknown,
+  source: string,
+  options: GroundLessonOptions = {},
+): GroundedLesson {
   const removed: string[] = [];
   const row = asRecord(lesson);
   if (!row) return { lesson, removed };
@@ -392,23 +667,73 @@ export function groundLearnerLesson(lesson: unknown, source: string): GroundedLe
   if (Array.isArray(next.summary)) {
     const kept: string[] = [];
     const seen = new Set<string>();
+    const pushSummary = (text: string) => {
+      const key = foldTr(text);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      kept.push(text);
+    };
     for (const item of next.summary) {
       if (typeof item !== "string") continue;
-      const failing = fieldFails(item, source);
-      const replacement = failing ? sourceSentenceFor(item, source) : null;
-      const text = replacement ? clip(replacement, 240) : item;
-      if (failing && !replacement) {
+      if (objectiveFiller(item) || metadataDump(item) || danglingTail(item) || workedExampleFragment(item)) {
         removed.push("summary");
         continue;
       }
-      if (failing && replacement) removed.push("summary:replaced");
-      const key = foldTr(text);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      kept.push(text);
+      const failing = fieldFails(item, source);
+      if (failing) {
+        const replacement = sourceSentenceFor(item, source);
+        const clean = replacement ? cleanSummarySentence(replacement) : null;
+        if (!clean) {
+          removed.push("summary");
+          continue;
+        }
+        removed.push("summary:replaced");
+        pushSummary(clean);
+        continue;
+      }
+      const precise = preciseSummaryLines(item, source);
+      if (precise) {
+        removed.push("summary:replaced");
+        for (const line of precise) pushSummary(line);
+        continue;
+      }
+      const clean = cleanSummarySentence(item, 2);
+      if (!clean) {
+        removed.push("summary");
+        continue;
+      }
+      if (clean !== item.trim()) removed.push("summary:normalized");
+      pushSummary(clean);
+    }
+    if (kept.length < 3 && source.trim() && !truncated(source)) {
+      let added = false;
+      for (const sentence of summaryCandidates(source)) {
+        if (kept.length >= 5) break;
+        const before = kept.length;
+        pushSummary(sentence);
+        if (kept.length > before) added = true;
+      }
+      if (added) removed.push("summary:backfill");
     }
     if (kept.length) next.summary = kept;
     else delete next.summary;
+  }
+
+  if (options.upcomingTopics) {
+    const upcoming = options.upcomingTopics
+      .map((item) => item.trim())
+      .filter((item) => item.length >= 2)
+      .slice(0, 4);
+    const current = Array.isArray(next.nextFocus)
+      ? next.nextFocus.filter((item): item is string => typeof item === "string").map((item) => item.trim())
+      : [];
+    const same =
+      current.length === upcoming.length && current.every((item, index) => item === upcoming[index]);
+    if (!same) {
+      removed.push(upcoming.length ? "nextFocus:replaced" : "nextFocus");
+      if (upcoming.length) next.nextFocus = upcoming;
+      else delete next.nextFocus;
+    }
   }
 
   return { lesson: next, removed };

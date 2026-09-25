@@ -33,9 +33,12 @@ import {
   teacherNoteGroundedInSource,
   teacherPersona,
 } from "@/lib/learning/teacher-brain";
-import { groundLearnerLesson, groundLessonDraft } from "@/lib/learning/lesson-grounding";
+import { groundLearnerLesson, groundLessonDraft, upcomingTopicsAfter } from "@/lib/learning/lesson-grounding";
 
-/** Düğüm ucuyla aynı tavan. Kısa tekrar ayrı bir model çağrısı açmaz. */
+/**
+ * Düğüm ucuyla aynı tavan. Kısa tekrar ayrı bir model çağrısı açmaz.
+ * 300 saniye, 90 saniyelik üretim, doğrulama ve tek geçici yeniden denemeyi alır.
+ */
 export const maxDuration = 300;
 
 const bodySchema = z.object({
@@ -190,6 +193,20 @@ export async function POST(request: Request) {
     ? teachingSessionContext({ topicTitle: topic.label, objective: `${topic.label} konusunu öğren` }, topic.label)
     : "";
   const standards = teachingV2 ? teachingStandardConstraints("lesson") : "";
+  const { data: topicRows } = await service
+    .from("exam_prep_topics")
+    .select("label, sort_order")
+    .eq("exam_prep_id", prepId)
+    .order("sort_order");
+  const upcomingTopics = upcomingTopicsAfter(
+    topic.label,
+    (topicRows ?? []).map((row) => String(row.label ?? "")),
+  );
+  const upcomingPrompt = !Array.isArray(upcomingTopics)
+    ? ""
+    : upcomingTopics.length
+      ? ` SIRADA NE VAR yalnızca şu sonraki konu başlıkları: ${upcomingTopics.join(" | ")}. Başka konu uydurma.`
+      : " Bu konudan sonra listede konu yok; nextFocus yazma.";
 
   const outcome = await generateJson({
     service,
@@ -227,6 +244,7 @@ ${teacherBrief}
 ${depth?.line ?? ""}
 Bu dersin konusu YALNIZCA: ${topic.label}.
 Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.
+${upcomingPrompt}
 ${SOURCE_PAGE_FORMULA_RULE}${sourceBlock}${topicBlock}`
       : undefined,
     userPrompt: teachingV2
@@ -240,6 +258,7 @@ ${teacherBrief}
 ${depth?.line ?? ""}
 Bu dersin konusu YALNIZCA: ${topic.label}.
 Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.
+${upcomingPrompt}
 ${SOURCE_PAGE_FORMULA_RULE} ${REVIEW_VARIANT_RULE}${sourceBlock}${topicBlock}`
       : `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
 Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
@@ -250,7 +269,11 @@ Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${
       if (teachingV2) {
         const cleaned = publishLessonDraft(raw);
         if (!cleaned || lessonPublishIssues(raw).length) return null;
-        const grounded = groundLearnerLesson(cleaned, sourceBlock);
+        const grounded = groundLearnerLesson(
+          cleaned,
+          sourceBlock,
+          Array.isArray(upcomingTopics) ? { upcomingTopics } : {},
+        );
         if (grounded.removed.length) {
           console.error("removed_for_source", { removed: grounded.removed });
         }
