@@ -205,6 +205,45 @@ export function examTutorAddendum(input: {
   return lines.join("\n");
 }
 
+const VERDICT_START = /^(?:doğru|yanlış|kısmen)\b/i;
+const RULING_LINE = /^hük(?:üm|mü)\s*:/i;
+const GENERIC_CHECK = /hesaplamalar[ıi]n[ıi] yapabilir misin\s*\??/i;
+
+function isProcedure(block: string): boolean {
+  const fold = block.toLocaleLowerCase("tr");
+  return /önce/.test(fold) && /böl|katsay|mol/.test(fold);
+}
+
+/**
+ * Hükmü iki kez yazma, kuralı tekrarlama, sonda tek kontrol sorusu bırak.
+ * "her maddeni mol" gibi düşmüş iyelik ekini de burada toplar.
+ */
+export function polishTutorSurface(text: string): string {
+  const grammar = text.replace(
+    /\bher (\p{L}+?)([aeıioöuü])ni\b/giu,
+    (_all, stem: string, vowel: string) => {
+      const v = vowel.toLocaleLowerCase("tr");
+      const gen = v === "e" || v === "i" ? "nin" : v === "a" || v === "ı" ? "nın" : v === "o" || v === "u" ? "nun" : "nün";
+      return `her ${stem}${vowel}${gen}`;
+    },
+  );
+  const blocks = grammar.split(/\n+/).map((block) => block.trim()).filter(Boolean);
+  const hasVerdict = blocks.some((block) => VERDICT_START.test(block));
+  let kept = blocks.filter((block) => !(hasVerdict && RULING_LINE.test(block)));
+  const questions = kept.filter((block) => block.includes("?"));
+  if (questions.length > 1) {
+    kept = kept.filter((block) => !(GENERIC_CHECK.test(block) && questions.some((other) => other !== block)));
+  }
+  let seenProcedure = false;
+  kept = kept.filter((block) => {
+    if (!isProcedure(block)) return true;
+    if (seenProcedure && /^önce\b/i.test(block.trim())) return false;
+    seenProcedure = true;
+    return true;
+  });
+  return kept.join("\n\n").trim();
+}
+
 function ensureGrade(text: string, grade: GradedClaim): string {
   let next = text.trim();
   if (grade.verdict !== "kismen") {
@@ -289,7 +328,7 @@ export function finalizeTutorReply(input: {
   else if (input.decision === "in") text = stripOutsideLabel(text);
   if (input.grade) text = ensureGrade(text, input.grade);
   if (requestsAnswerOnly(input.message)) text = shapeAnswerOnly(text);
-  if ((input.language ?? "tr") === "tr") text = fixTurkishQuestionOrder(turkishDecimals(text));
+  if ((input.language ?? "tr") === "tr") text = polishTutorSurface(fixTurkishQuestionOrder(turkishDecimals(text)));
   const chips = followUpChips({
     answerOnly: requestsAnswerOnly(input.message),
     graded: Boolean(input.grade),

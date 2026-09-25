@@ -11,6 +11,8 @@
  * uydurmak olurdu.
  */
 
+import { splitDisplaySpoken } from "@/lib/learning/speech-normalizer";
+
 export const SPEAKERS = ["ada", "kerem"] as const;
 export type SpeakerId = (typeof SPEAKERS)[number];
 
@@ -20,7 +22,8 @@ export const SPEAKER_LABEL: Record<SpeakerId, string> = {
 };
 
 export type PodcastBeat = "ask" | "reveal";
-export type PodcastLine = { speaker: SpeakerId; text: string; beat?: PodcastBeat };
+/** `text` ekranda simgedir. `spoken` sese gider; yoksa `text` okunur. */
+export type PodcastLine = { speaker: SpeakerId; text: string; beat?: PodcastBeat; spoken?: string };
 export type PodcastChapter = { title: string; lines: PodcastLine[] };
 
 /** Zamanlama eklenmiş, oynatıcının üzerinde yürüdüğü birim. */
@@ -120,14 +123,26 @@ export function normalizeChapters(raw: unknown): PodcastChapter[] {
         const speaker = asSpeaker(line.speaker, previous);
         previous = speaker;
         const beat = line.beat === "ask" || line.beat === "reveal" ? line.beat : undefined;
-        for (const sentence of splitSentences(text)) {
-          lines.push(beat ? { speaker, text: sentence, beat } : { speaker, text: sentence });
+        const storedSpoken = typeof line.spoken === "string" ? line.spoken.trim() : "";
+        const sentences = splitSentences(text);
+        for (const sentence of sentences) {
+          const split = splitDisplaySpoken(
+            sentence,
+            sentences.length === 1 ? storedSpoken || undefined : undefined,
+          );
+          const next: PodcastLine = { speaker, text: split.text };
+          if (beat) next.beat = beat;
+          if (split.spoken !== split.text) next.spoken = split.spoken;
+          lines.push(next);
         }
       }
     } else if (typeof row.script === "string") {
       // Eski biçim: tek anlatıcı.
       for (const sentence of splitSentences(row.script)) {
-        lines.push({ speaker: "ada", text: sentence });
+        const split = splitDisplaySpoken(sentence);
+        const next: PodcastLine = { speaker: "ada", text: split.text };
+        if (split.spoken !== split.text) next.spoken = split.spoken;
+        lines.push(next);
       }
     }
 
@@ -140,12 +155,13 @@ export function normalizeChapters(raw: unknown): PodcastChapter[] {
 /** Ses üretimi ve depolama için sıralı düz liste. */
 export function flattenLines(
   chapters: PodcastChapter[],
-): { chapterIndex: number; index: number; speaker: SpeakerId; text: string; beat?: PodcastBeat }[] {
+): { chapterIndex: number; index: number; speaker: SpeakerId; text: string; spoken?: string; beat?: PodcastBeat }[] {
   const out: {
     chapterIndex: number;
     index: number;
     speaker: SpeakerId;
     text: string;
+    spoken?: string;
     beat?: PodcastBeat;
   }[] = [];
   let index = 0;
@@ -156,6 +172,7 @@ export function flattenLines(
         index,
         speaker: line.speaker,
         text: line.text,
+        ...(line.spoken ? { spoken: line.spoken } : {}),
         ...(line.beat ? { beat: line.beat } : {}),
       });
       index += 1;

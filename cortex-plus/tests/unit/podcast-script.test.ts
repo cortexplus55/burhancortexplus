@@ -97,6 +97,15 @@ describe("normalizeChapters", () => {
     expect(normalizeChapters([null, 5, "x"])).toEqual([]);
   });
 
+  it("eski konuşma satırında ekranı simgeye çeker, sesi olduğu gibi bırakır", () => {
+    const chapters = normalizeChapters([
+      { title: "Mol", lines: [{ speaker: "ada", text: "Mol, 6,02 × 10 kare küp tanecik içerir." }] },
+    ]);
+    expect(chapters[0].lines[0].text).toContain("10²³");
+    expect(chapters[0].lines[0].text).not.toMatch(/kare küp/);
+    expect(chapters[0].lines[0].spoken).toContain("10 kare küp");
+  });
+
   it("başlıksız bölüme ad verir", () => {
     const chapters = normalizeChapters([{ lines: [{ speaker: "ada", text: "Bir." }] }]);
     expect(chapters[0].title).toBe("Bölüm");

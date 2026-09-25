@@ -96,7 +96,8 @@ export function ExamPodcastPlayer({
   resumeKey?: string;
 }) {
   const normalized = useMemo(() => normalizeChapters(chapters), [chapters]);
-  const [audio, setAudio] = useState<AudioLine[] | null>(null);
+  const [audio, setAudio] = useState<(AudioLine | null)[] | null>(null);
+  const [progress, setProgress] = useState({ ready: 0, total: 0 });
   /*
     Üç "ses yok" hâli ayrı tutuluyor; hepsinde senaryo okunabilir kalıyor ama
     öğrenciye söylenen cümle farklı. Herkese "sunucu sesi şu an yok" demek
@@ -122,9 +123,16 @@ export function ExamPodcastPlayer({
   const indexRef = useRef(0);
   const tokenRef = useRef(0);
   const scriptRef = useRef<HTMLDivElement | null>(null);
+  const linesRef = useRef<(AudioLine | null)[]>([]);
+  const expectedRef = useRef(0);
+  const completeRef = useRef(false);
+  const waitingRef = useRef(false);
+  const playRef = useRef<(index: number, offsetMs?: number) => void>(() => {});
+  const timelineRef = useRef<TimedLine[]>([]);
+  const totalRef = useRef(0);
 
   const timeline: TimedLine[] = useMemo(
-    () => buildTimeline(normalized, (audio ?? []).map((line) => line.durationMs)),
+    () => buildTimeline(normalized, (audio ?? []).map((line) => line?.durationMs ?? 0)),
     [normalized, audio],
   );
   const totalMs = totalDurationMs(timeline);
@@ -144,6 +152,8 @@ export function ExamPodcastPlayer({
   const activeWordIndex = activeLine
     ? wordAt(activeWords, positionMs - activeLine.startMs)
     : -1;
+  timelineRef.current = timeline;
+  totalRef.current = totalMs;
 
   // Ses üretimi bir defalık: aynı cümleler sunucuda önbellekli olduğu için
   // ikinci açılışta anında geliyor.
@@ -151,6 +161,11 @@ export function ExamPodcastPlayer({
     tokenRef.current += 1;
     elementRef.current?.pause();
     setAudio(null);
+    setProgress({ ready: 0, total: 0 });
+    linesRef.current = [];
+    expectedRef.current = 0;
+    completeRef.current = false;
+    waitingRef.current = false;
     setPlaying(false);
     setPositionMs(0);
     setHeard(false);
@@ -160,11 +175,32 @@ export function ExamPodcastPlayer({
       return;
     }
     let alive = true;
+    let started = false;
     const controller = new AbortController();
+    const place = (index: number, line: AudioLine, total: number) => {
+      if (!alive || index < 0) return;
+      const next = linesRef.current.slice();
+      if (next.length < total) next.length = total;
+      next[index] = line;
+      linesRef.current = next;
+      expectedRef.current = total;
+      const ready = next.filter(Boolean).length;
+      setAudio(next);
+      setProgress({ ready, total });
+      if (!started && index === 0) {
+        started = true;
+        setStatus("ready");
+        const saved = resumeKey ? Number(window.localStorage.getItem(`cp-pod-pos:${resumeKey}`)) : 0;
+        if (!(Number.isFinite(saved) && saved > 800)) playRef.current(0);
+      } else if (waitingRef.current && index === indexRef.current) {
+        waitingRef.current = false;
+        playRef.current(index);
+      }
+    };
     void fetch("/api/learning/podcast/audio", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chapters: normalized }),
+      body: JSON.stringify({ chapters: normalized, stream: true }),
       signal: controller.signal,
     })
       .then(async (res) => {
@@ -181,19 +217,72 @@ export function ExamPodcastPlayer({
           );
         }
         if (!res.ok) throw new Error("unavailable");
-        return res.json();
-      })
-      .then((data: { lines?: AudioLine[] }) => {
-        if (!alive) return;
-        const verified = validatePodcastAudio(normalized, data.lines);
-        if (!verified) throw new Error("unavailable");
-        setAudio(verified);
-        setStatus("ready");
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error("unavailable");
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (alive) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          buffer += decoder.decode(chunk.value, { stream: true });
+          const parts = buffer.split("\n");
+          buffer = parts.pop() ?? "";
+          for (const part of parts) {
+            if (!part.trim()) continue;
+            const event = JSON.parse(part) as {
+              type?: string;
+              code?: string;
+              index?: number;
+              total?: number;
+              chapterIndex?: number;
+              speaker?: AudioLine["speaker"];
+              text?: string;
+              url?: string;
+              durationMs?: number;
+              lines?: AudioLine[];
+            };
+            if (event.type === "error") {
+              throw new Error(event.code === "insufficient_credits" ? "credits" : "unavailable");
+            }
+            if (event.type === "line" && event.url && event.durationMs && event.speaker && event.text != null && event.index != null) {
+              place(event.index, {
+                chapterIndex: event.chapterIndex ?? 0,
+                speaker: event.speaker,
+                text: event.text,
+                url: event.url,
+                durationMs: event.durationMs,
+              }, event.total ?? expectedRef.current);
+            }
+            if (event.type === "done" && event.lines) {
+              const verified = validatePodcastAudio(normalized, event.lines);
+              if (!verified) throw new Error("unavailable");
+              linesRef.current = verified;
+              expectedRef.current = verified.length;
+              completeRef.current = true;
+              setAudio(verified);
+              setProgress({ ready: verified.length, total: verified.length });
+              if (!started && verified[0]) {
+                started = true;
+                setStatus("ready");
+                playRef.current(0);
+              }
+            }
+          }
+        }
+        if (alive && !completeRef.current && !linesRef.current.some(Boolean)) {
+          throw new Error("unavailable");
+        }
+        completeRef.current = true;
       })
       .catch((error: Error) => {
         // Hangi sebep olursa olsun ders sessiz kalmasın diye senaryo
         // açık kalıyor; zaman çizelgesi olmadığı için senkron kapanıyor.
         if (!alive) return;
+        if (linesRef.current.some(Boolean) && error.message !== "credits" && error.message !== "premium") {
+          completeRef.current = true;
+          setStatus("ready");
+          return;
+        }
         setStatus(
           error.message === "premium" || error.message === "credits"
             ? error.message
@@ -206,7 +295,7 @@ export function ExamPodcastPlayer({
       tokenRef.current += 1;
       elementRef.current?.pause();
     };
-  }, [normalized]);
+  }, [normalized, resumeKey]);
 
   useEffect(() => {
     return () => {
@@ -225,17 +314,20 @@ export function ExamPodcastPlayer({
 
   const playFromLine = useCallback(
     (index: number, offsetMs = 0) => {
-      const lines = audio;
-      if (!lines) return;
-      const line = lines[index];
+      const line = linesRef.current[index];
       if (!line) {
-        setPlaying(false);
-        setHeard(true);
+        waitingRef.current = true;
+        indexRef.current = index;
+        if (completeRef.current) {
+          setPlaying(false);
+          setHeard(true);
+        }
         return;
       }
 
       const token = ++tokenRef.current;
       indexRef.current = index;
+      waitingRef.current = false;
 
       let element = elementRef.current;
       if (!element) {
@@ -247,30 +339,54 @@ export function ExamPodcastPlayer({
       element.playbackRate = speed;
       element.preload = "auto";
       element.setAttribute("playsinline", "true");
-      element.currentTime = Math.max(0, offsetMs) / 1000;
+      const startAt = Math.max(0, offsetMs) / 1000;
+      const arm = () => {
+        if (token !== tokenRef.current) return;
+        if (Number.isFinite(element!.duration) && startAt < element!.duration) {
+          element!.currentTime = startAt;
+        }
+      };
+      element.onloadedmetadata = arm;
+      if (element.readyState >= 1) arm();
 
       element.ontimeupdate = () => {
         if (token !== tokenRef.current) return;
-        const start = timeline[index]?.startMs ?? 0;
+        const start = timelineRef.current[index]?.startMs ?? 0;
         setPositionMs(start + element!.currentTime * 1000);
       };
       element.onended = () => {
         if (token !== tokenRef.current) return;
-        if (index + 1 >= lines.length) {
+        const total = expectedRef.current || linesRef.current.length;
+        const nextLine = linesRef.current[index + 1];
+        if (index + 1 >= total && completeRef.current) {
           setPlaying(false);
           setHeard(true);
-          setPositionMs(totalMs);
+          setPositionMs(totalRef.current);
           return;
         }
-        const hold = timeline[index]?.beat === "ask" ? 4_000 : 0;
+        const hold = timelineRef.current[index]?.beat === "ask" ? 4_000 : 0;
+        const advance = () => {
+          if (token !== tokenRef.current) return;
+          if (!linesRef.current[index + 1]) {
+            waitingRef.current = true;
+            indexRef.current = index + 1;
+            if (completeRef.current) {
+              setPlaying(false);
+              setHeard(true);
+            }
+            return;
+          }
+          playRef.current(index + 1);
+        };
         if (hold) {
-          window.setTimeout(() => {
-            if (token !== tokenRef.current) return;
-            playFromLine(index + 1);
-          }, hold);
+          window.setTimeout(advance, hold);
           return;
         }
-        playFromLine(index + 1);
+        if (!nextLine) {
+          advance();
+          return;
+        }
+        playRef.current(index + 1);
       };
 
       void element.play().then(
@@ -278,8 +394,7 @@ export function ExamPodcastPlayer({
         () => setPlaying(false),
       );
 
-      // Sonraki cümleyi önden yükle ki cümleler arası boşluk duyulmasın.
-      const next = lines[index + 1];
+      const next = linesRef.current[index + 1];
       if (next) {
         const pre = preloadRef.current ?? new Audio();
         pre.preload = "auto";
@@ -287,8 +402,9 @@ export function ExamPodcastPlayer({
         preloadRef.current = pre;
       }
     },
-    [audio, timeline, totalMs, speed],
+    [speed],
   );
+  playRef.current = playFromLine;
 
   useEffect(() => {
     if (elementRef.current) elementRef.current.playbackRate = speed;
@@ -299,13 +415,13 @@ export function ExamPodcastPlayer({
   const savedSecondRef = useRef(-1);
 
   useEffect(() => {
-    if (!resumeStorageKey || status !== "ready" || resumedRef.current) return;
+    if (!resumeStorageKey || status !== "ready" || progress.total === 0 || progress.ready < progress.total || resumedRef.current) return;
     resumedRef.current = true;
     const saved = Number(window.localStorage.getItem(resumeStorageKey));
     if (Number.isFinite(saved) && saved > 800 && saved < totalMs - 800) {
       setPositionMs(saved);
     }
-  }, [resumeStorageKey, status, totalMs]);
+  }, [resumeStorageKey, status, totalMs, progress.ready, progress.total]);
 
   useEffect(() => {
     if (!resumeStorageKey || positionMs < 800) return;
@@ -416,11 +532,11 @@ export function ExamPodcastPlayer({
       URL.revokeObjectURL(url);
     };
     const safeName = title.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "podcast";
-    if (audio?.length) {
+    if (audio?.length && audio.every((line) => line?.url)) {
       try {
         const blobs = await Promise.all(
           audio.map(async (line) => {
-            const res = await fetch(line.url);
+            const res = await fetch(line!.url);
             if (!res.ok) throw new Error("audio");
             return res.blob();
           }),
@@ -603,8 +719,10 @@ export function ExamPodcastPlayer({
       </div>
 
       <footer className="cp-pod-dock">
-        {status === "loading" ? (
-          <p className="cp-pod-state">Ses hazırlanıyor…</p>
+        {status === "loading" || (status === "ready" && progress.total > progress.ready) ? (
+          <p className="cp-pod-state">
+            Ses hazırlanıyor…{progress.total > 0 ? ` ${progress.ready}/${progress.total}` : ""}
+          </p>
         ) : status === "premium" ? (
           <p className="cp-pod-state">
             Bu seslendirme için hakkın yetmedi. Bölümleri transkriptten

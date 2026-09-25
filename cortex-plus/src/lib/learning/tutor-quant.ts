@@ -15,7 +15,7 @@ const SUB: Record<string, string> = {
 };
 
 export type QuantIssue = {
-  kind: "limiting" | "arithmetic" | "date";
+  kind: "limiting" | "arithmetic" | "date" | "identity";
   detail: string;
   /** Yanlış cümlenin yerine konacak kısa düzeltme. */
   repair: string;
@@ -335,12 +335,77 @@ function dateIssues(reply: string, source: string): QuantIssue[] {
   return issues;
 }
 
+const IDENTITY_PAIRS: { left: RegExp; right: RegExp; repair: string }[] = [
+  {
+    left: /mol kutles/,
+    right: /atomik kutle|bagil atom kutle/,
+    repair: "Mol kütlesi g/mol, atomik kütle akb (u) cinsindendir. Sayıları eşit olabilir; büyüklükler aynı değildir.",
+  },
+  {
+    left: /\bkutle\b/,
+    right: /\bagirlik\b/,
+    repair: "Kütle kilogram, ağırlık newton cinsindendir. İkisi aynı büyüklük değildir.",
+  },
+  {
+    left: /\bisi\b/,
+    right: /\bsicaklik\b/,
+    repair: "Isı enerji aktarımıdır, sıcaklık bir ölçüdür. İkisi aynı büyüklük değildir.",
+  },
+  {
+    left: /\bhiz\b/,
+    right: /\bivme\b/,
+    repair: "Hız m/s, ivme m/s² cinsindendir. İkisi aynı büyüklük değildir.",
+  },
+  {
+    left: /\bguc\b/,
+    right: /\benerji\b/,
+    repair: "Güç watt, enerji joule cinsindendir. İkisi aynı büyüklük değildir.",
+  },
+  {
+    left: /\bkuvvet\b/,
+    right: /\bbasinc\b/,
+    repair: "Kuvvet newton, basınç pascal cinsindendir. İkisi aynı büyüklük değildir.",
+  },
+  {
+    left: /gerilim|potansiyel fark/,
+    right: /\bakim\b/,
+    repair: "Gerilim volt, akım amper cinsindendir. İkisi aynı büyüklük değildir.",
+  },
+];
+
+function assertsIdentity(sentence: string): boolean {
+  const folded = foldTr(sentence);
+  if (/degil|sayisal|sayica|deger olarak|sayilari esit/.test(folded)) return false;
+  return /ile ayni|aynidir|ayni seydir|aynisi/.test(folded);
+}
+
+/** İki ayrı büyüklüğü "aynıdır" diye özdeşleyen cümle. Sayısal eşitlik ayrı kapıdadır. */
+function identityIssues(text: string): QuantIssue[] {
+  const issues: QuantIssue[] = [];
+  for (const sentence of sentencesOf(text)) {
+    if (!assertsIdentity(sentence)) continue;
+    const folded = foldTr(sentence);
+    for (const pair of IDENTITY_PAIRS) {
+      if (!pair.left.test(folded) || !pair.right.test(folded)) continue;
+      issues.push({
+        kind: "identity",
+        detail: "İki ayrı büyüklük aynı diye yazılmış.",
+        repair: pair.repair,
+        span: sentence,
+      });
+      break;
+    }
+  }
+  return issues;
+}
+
 /** Çözümlü örnek ve eşitlikleri kaynak metne karşı denetler. */
 export function auditQuantitative(text: string, source = ""): QuantAudit {
   const limiting = limitingIssues(text);
   const arithmetic = arithmeticIssues(text);
   const dates = dateIssues(text, source);
-  const issues = [...limiting, ...arithmetic, ...dates];
+  const identity = identityIssues(text);
+  const issues = [...limiting, ...arithmetic, ...dates, ...identity];
   const checked = limiting.length > 0 || arithmetic.length > 0 || dates.length > 0
     || Boolean(parseReaction(text) && claimedLimiter(text, parseReaction(text) ?? []))
     || arithmeticPatternSeen(text)
@@ -369,6 +434,10 @@ export function repairQuantitative(text: string, audit: QuantAudit): string {
         /((?:\d+(?:[.,]\d+)?(?:\s*[+×÷*/\-−–]\s*\d+(?:[.,]\d+)?)+))\s*(≈|~|=)\s*(\d+(?:[.,]\d+)?)/,
         issue.repair,
       );
+    } else if (issue.kind === "identity" && issue.span && next.includes(issue.span)) {
+      next = next.replace(issue.span, issue.repair);
+    } else if (issue.kind === "identity") {
+      continue;
     } else if (!next.includes(issue.repair)) {
       next = `${next.trim()}\n\n${issue.repair}`;
     }

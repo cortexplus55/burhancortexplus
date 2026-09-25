@@ -20,8 +20,8 @@ const VOICE: Record<SpeakerId, string> = {
 };
 
 const SPEAKER_STYLE: Record<SpeakerId, string> = {
-  ada: "Sıcak, meraklı ve anlaşılır bir öğretmen tonu. Doğal hızda konuş.",
-  kerem: "Sakin, açıklayıcı ve arkadaşça bir ton. Doğal hızda konuş.",
+  ada: "Sıcak, meraklı ve anlaşılır bir öğretmen tonu. Doğal hızda konuş. Ses yüksekliğini sabit tut.",
+  kerem: "Sakin, açıklayıcı ve arkadaşça bir ton. Doğal hızda konuş. Ses yüksekliğini sabit tut.",
 };
 
 export function voiceFor(speaker: SpeakerId): string {

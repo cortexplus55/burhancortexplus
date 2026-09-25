@@ -69,6 +69,34 @@ describe("podcast episode", () => {
     expect(podcastScriptText(repaired)).not.toContain("0,6");
   });
 
+  it("shows powers as symbols and speaks them as üzeri", () => {
+    const episode = coercePodcastDraft(
+      {
+        title: "Mol kavramı",
+        chapters: [
+          { title: "Sayı", lines: lines(["Mol 6,02 × 10²³ tanecik içerir.", "Formül CO2 ile yazılır."]) },
+          { title: "Kütle", lines: lines(["Mol kütlesi elementin atomik kütlesi ile aynıdır.", "Birim g/mol diye okunur."]) },
+          { title: "Tekrar", lines: lines(["Sayı 10²³ ile anılır.", "Formül CO2 olarak kalır."]) },
+        ],
+      },
+      { length: "ozet", topicLabel: "Mol kavramı" },
+    );
+    expect(episode).not.toBeNull();
+    const script = podcastScriptText(episode!);
+    expect(script).toContain("10²³");
+    expect(script).toContain("CO₂");
+    expect(script).not.toMatch(/kare küp/);
+    const spoken = episode!.chapters.flatMap((chapter) => chapter.lines).map((line) => line.spoken ?? "").join(" ");
+    expect(spoken).toMatch(/on üzeri yirmi üç/);
+    expect(spoken).toMatch(/C O iki/);
+    const repaired = repairPodcastEpisode(episode!, "Mol 6,02 × 10²³ tanecik içerir. Formül CO2.");
+    expect(podcastScriptText(repaired)).toContain("g/mol");
+    expect(podcastScriptText(repaired)).not.toMatch(/atomik kütlesi ile aynıdır/);
+    expect(repaired.chapters.flatMap((chapter) => chapter.lines)).toHaveLength(
+      episode!.chapters.flatMap((chapter) => chapter.lines).length,
+    );
+  });
+
   it("speaks formulas in Turkish and keeps the decimal comma", () => {
     const spoken = speakFormulas("Su H2O, karbondioksit CO2.");
     expect(spoken).toContain("H iki O");

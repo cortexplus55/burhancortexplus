@@ -1412,11 +1412,20 @@ function ChatPanelSession({
                       <AudioLines className="h-3.5 w-3.5" aria-hidden />
                     </button>
                   ) : null}
+                  {showExamSend && chatCreditCost != null && chatCreditCost > 0 ? (
+                    <span className="cp-exam-credit">{chatCreditCost} kr</span>
+                  ) : null}
                   {showExamSend ? (
                     <button
                       type="submit"
                       className="cp-send"
-                      aria-label={loading ? "Yanıt hazırlanıyor" : "Gönder"}
+                      aria-label={
+                        loading
+                          ? "Yanıt hazırlanıyor"
+                          : chatCreditCost != null && chatCreditCost > 0
+                            ? `Gönder, ${chatCreditCost} kr`
+                            : "Gönder"
+                      }
                       disabled={loading || !hasComposerPayload}
                     >
                       {loading ? (

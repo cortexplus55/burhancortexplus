@@ -35,6 +35,7 @@ import { diagramIssues, lessonDiagramSchema, needsDiagram } from "@/lib/learning
 import { groundLearnerLesson, normalizeSummaryText, summaryLineProblem } from "@/lib/learning/lesson-grounding";
 import type { LessonDiagram } from "@/lib/learning/lesson-diagram";
 import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
+import { auditQuantitative } from "@/lib/learning/tutor-quant";
 
 export type LessonCheckCode =
   | "source_contradiction"
@@ -664,6 +665,9 @@ export function auditLearnerLesson(
     for (const sentence of contradictorySentences(text, input.source)) {
       issues.push({ code: "source_contradiction", detail: sentence.slice(0, 160) });
     }
+    for (const issue of auditQuantitative(text).issues) {
+      if (issue.kind === "identity") issues.push({ code: "claim_wrong", detail: issue.span?.slice(0, 160) || issue.detail });
+    }
     for (const sentence of sentencesOf(text)) {
       if (vacuousSentence(sentence)) issues.push({ code: "vacuous", detail: sentence.slice(0, 160) });
       if (signConventionFlip(sentence) || realGasPrecisionIssue(sentence, input.source)) {
@@ -761,6 +765,8 @@ function quoteHits(sentence: string, quotes: string[]): boolean {
 function publishSentence(sentence: string, source: string, quotes: string[], context: string): string | null {
   let next = rewriteSignFlip(sentence);
   if (!next || signConventionFlip(next)) return null;
+  const identity = auditQuantitative(next).issues.find((issue) => issue.kind === "identity");
+  if (identity) next = identity.repair;
   if (incompleteFormulaLine(next)) {
     const completed = completeDanglingFormula(next, context);
     if (!completed) return null;

@@ -38,6 +38,7 @@ import {
   type PodcastChapter,
   type PodcastLine,
 } from "@/lib/learning/podcast-script";
+import { speakVerified, toDisplay } from "@/lib/learning/speech-normalizer";
 import {
   auditQuantitative,
   dropUnverifiedExample,
@@ -54,32 +55,6 @@ export type PodcastEpisode = {
   title: string;
   chapters: PodcastChapter[];
   length: PodcastLength;
-};
-
-const COUNT_WORD = [
-  "",
-  "bir",
-  "iki",
-  "üç",
-  "dört",
-  "beş",
-  "altı",
-  "yedi",
-  "sekiz",
-  "dokuz",
-];
-
-const SUBSCRIPT_DIGIT: Record<string, string> = {
-  "₀": "0",
-  "₁": "1",
-  "₂": "2",
-  "₃": "3",
-  "₄": "4",
-  "₅": "5",
-  "₆": "6",
-  "₇": "7",
-  "₈": "8",
-  "₉": "9",
 };
 
 export function parsePodcastLength(value: unknown): PodcastLength {
@@ -124,48 +99,13 @@ export function podcastLengthSpec(length: PodcastLength): {
   };
 }
 
-function countWord(n: number): string {
-  if (n > 0 && n < 10) return COUNT_WORD[n];
-  if (n === 10) return "on";
-  if (n > 10 && n < 20) return `on ${COUNT_WORD[n - 10]}`;
-  return String(n);
-}
-
 /**
- * Formülü Türkçe konuşmaya çevirir. H₂O → "H iki O".
- * Zaten konuşulmuş metin ("H iki O") rakam taşımadığı için ikinci kez değişmez.
+ * Formülü Türkçe konuşmaya çevirir. H₂O → "H iki O", 10²³ → "on üzeri yirmi üç".
+ * "kare" ve "küp" yalnız bir değişkenin 2 ve 3. üssüdür.
+ * Zaten konuşulmuş metin ("H iki O") ikinci kez değişmez.
  */
 export function speakFormulas(text: string): string {
-  const supers = text
-    .replace(/²/g, " kare")
-    .replace(/³/g, " küp")
-    .replace(/[⁰¹⁴-⁹ⁿ]/g, (ch) => {
-      const map: Record<string, string> = {
-        "⁰": "0",
-        "¹": "1",
-        "⁴": "4",
-        "⁵": "5",
-        "⁶": "6",
-        "⁷": "7",
-        "⁸": "8",
-        "⁹": "9",
-        "ⁿ": "n",
-      };
-      const digit = map[ch];
-      if (!digit || digit === "n") return " üssü n";
-      return ` üssü ${countWord(Number(digit))}`;
-    });
-  return supers.replace(/([A-Z][a-z]?)([0-9₀-₉]+)/g, (all: string, element: string, raw: string, offset: number, source: string) => {
-    const digits = raw.replace(/[₀-₉]/g, (ch) => SUBSCRIPT_DIGIT[ch] ?? ch);
-    const n = Number(digits);
-    if (!Number.isFinite(n) || n <= 1) return element;
-    const prev = offset > 0 ? source[offset - 1] : "";
-    const next = source[offset + all.length] ?? "";
-    const letter = /[A-Za-zÇĞİÖŞÜçğıöşü]/;
-    const lead = letter.test(prev) ? " " : "";
-    const gap = letter.test(next) ? " " : "";
-    return `${lead}${element} ${countWord(n)}${gap}`;
-  });
+  return speakVerified(text);
 }
 
 /** Türkçe ondalık: 0.5 → 0,5. "9. sınıf" boşluklu olduğu için durur. */
@@ -196,8 +136,10 @@ function conceptTitle(title: string, sample: string, topicLabel: string): string
   return topicLabel.trim().slice(0, 80) || "Konu";
 }
 
-function spokenLine(text: string): string {
-  return turkishDecimalComma(speakFormulas(text.replace(/\s+/g, " ").trim()));
+/** Ekran simgeyi korur; sese giden metin ayrı durur. */
+function notationLine(text: string): { text: string; spoken: string } {
+  const display = toDisplay(text.replace(/\s+/g, " ").trim());
+  return { text: display, spoken: speakVerified(display) };
 }
 
 export function coercePodcastDraft(
@@ -224,9 +166,12 @@ export function coercePodcastDraft(
       const marked = stripBeatMarker(original);
       if (!marked.text || emptyMistake(marked.text)) continue;
       for (const sentence of splitSentences(marked.text)) {
-        const text = spokenLine(sentence);
-        if (text.length < 4) continue;
-        lines.push(marked.beat ? { speaker: "ada", text, beat: marked.beat } : { speaker: "ada", text });
+        const shown = notationLine(sentence);
+        if (shown.text.length < 4) continue;
+        const line: PodcastLine = { speaker: "ada", text: shown.text };
+        if (shown.spoken !== shown.text) line.spoken = shown.spoken;
+        if (marked.beat) line.beat = marked.beat;
+        lines.push(line);
       }
     }
     if (!lines.length) continue;
@@ -251,7 +196,7 @@ export function coercePodcastDraft(
   const ready = merged.filter((chapter) => chapter.lines.length >= 2);
   if (ready.length < spec.minChapters) return null;
   if (podcastDialogueIssues(ready).length) return null;
-  return { title: spokenLine(title).slice(0, 120), chapters: ready, length: input.length };
+  return { title: toDisplay(title).slice(0, 120), chapters: ready, length: input.length };
 }
 
 export function podcastScriptText(episode: PodcastEpisode): string {
@@ -311,9 +256,13 @@ export function repairPodcastEpisode(episode: PodcastEpisode, source: string): P
     chapters: episode.chapters.map((chapter) => ({
       ...chapter,
       lines: chapter.lines.map((line) => {
-        const next = spokenLine(rewritten[cursor] ?? line.text);
+        const next = notationLine(rewritten[cursor] ?? line.text);
         cursor += 1;
-        return { ...line, text: next };
+        return {
+          ...line,
+          text: next.text,
+          ...(next.spoken !== next.text ? { spoken: next.spoken } : { spoken: undefined }),
+        };
       }),
     })),
   };
@@ -519,7 +468,8 @@ export async function generatePodcastEpisode(input: {
       "Başlık o bölümde konuşulan kavramın adı olsun. Tanım, Neden, Örnek, Özet, Yaygın hata başlık olmasın. " +
       SINGLE_NARRATOR_SCHEMA +
       ' Bir veya iki satırın başına "Dur ve düşün:" koy; hemen sonraki satır "Cevap:" ile başlasın. ' +
-      "Son bölüm üç kısa tekrar maddesi olsun. Ondalık virgül kullan. Formülü konuşulur yaz: H₂O yerine H iki O.",
+      "Son bölüm üç kısa tekrar maddesi olsun. Ondalık virgül kullan. Formülü ve üssü simgeyle yaz: H₂O, CO₂, 10²³, n = m/M. Konuşma diline çevirme. " +
+      "İki ayrı büyüklüğü aynıdır diye yazma (mol kütlesi ile atomik kütle, kütle ile ağırlık, ısı ile sıcaklık). Sayıları eşit olabilir; birimleri farklıdır.",
     userPrompt: [
       podcastNarrationBrief(),
       spec.brief,
