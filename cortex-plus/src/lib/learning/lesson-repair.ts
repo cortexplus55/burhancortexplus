@@ -887,7 +887,7 @@ function formulaToken(token: string): boolean {
 function trimFormula(raw: string): string {
   let equation = raw.replace(/\s+/g, " ").trim();
   equation = equation
-    .replace(/[,.;:].*$/s, "")
+    .replace(/[,.;:].*$/, "")
     .replace(
       /\s+(?:formül\w*|formul\w*|ba[gğ]lant[ıi]\w*|ba[gğ]ınt[ıi]\w*|şeklinde|seklinde|yazılır|yazilir|bulunur|hesaplanır|hesaplanir|ile|olarak|eşitliği|esitligi|eşitliğe|esitlige).*$/i,
       "",
