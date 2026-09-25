@@ -177,6 +177,8 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "Çevrimde ΔU = ΔH = ΔE = 0, genel bir proseste değildir. Adyabatik ile izotermal, kapalı ile açık sistem, " +
         "yeğin ile yaygın özelliği karıştırma. \"ortam koşullarına göre değişebilir\" yazma. " +
         "Düzeltmeyi kaynak cümlesiyle yaz; yazamıyorsan commonMistake alanını atla. " +
+        "Fazda sıcaklığı basınçla değil T_sat(P) ile, basıncı P_sat(T) ile karşılaştır. " +
+        "Karışımın bileşimi kuruluk derecesi x'tir. Doymuş sıvı ile doymuş buhar karışımı belirler diye yazma. " +
         "Kaynakta olmayan formül veya teorem yazma; emin değilsen materyalde geçtiği hâliyle söyle."
       );
     case "quiz":

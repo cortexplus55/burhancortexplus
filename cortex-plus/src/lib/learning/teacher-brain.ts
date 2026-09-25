@@ -1251,10 +1251,85 @@ function groundedTrueFalseRetry<T extends ReviewCheck>(check: T, source: string)
   return null;
 }
 
+const PHASE_NAMES = [
+  "Doymuş sıvı",
+  "Sıkıştırılmış sıvı",
+  "Soğutulmuş sıvı",
+  "Doymuş buhar",
+  "Kızgın buhar",
+  "Sıvı-buhar karışımı",
+];
+
+function stripPossessive(phrase: string): string {
+  const words = phrase.trim().replace(/[?.!]+$/g, "").split(/\s+/);
+  const last = words[words.length - 1] ?? "";
+  const stripped = last.replace(/(?:n[ıiuü]n|[ıiuü]n)$/i, "");
+  if (stripped.length >= 2 && stripped !== last) words[words.length - 1] = stripped;
+  return words.join(" ").trim();
+}
+
+function definedTerm(prompt: string): string | null {
+  const match = prompt.match(
+    /hangisi\s+(.+?)\s+tan[ıi]m[ıi]na\s+uygun|hangisi\s+(.+?)\s+tan[ıi]m[ıi]d[ıi]r/i,
+  );
+  const raw = (match?.[1] ?? match?.[2] ?? "").trim();
+  if (raw.length < 3) return null;
+  return stripPossessive(raw);
+}
+
+function dativePhrase(phrase: string): string {
+  const words = phrase.trim().replace(/[?.!]+$/g, "").split(/\s+/);
+  const last = words[words.length - 1] ?? phrase;
+  const vowels = [...last.toLocaleLowerCase("tr")].filter((char) => "aeıioöuü".includes(char));
+  const lastVowel = vowels[vowels.length - 1] ?? "a";
+  const back = "aıou".includes(lastVowel);
+  const endsWithVowel = /[aeıioöuü]$/i.test(last);
+  words[words.length - 1] = `${last}${endsWithVowel ? "y" : ""}${back ? "a" : "e"}`;
+  return words.join(" ");
+}
+
+function corpusHasName(corpus: string, name: string): boolean {
+  const folded = foldTr(corpus);
+  const needle = foldTr(name);
+  if (folded.includes(needle)) return true;
+  const stem = needle.replace(/[aeiou]$/g, "");
+  return stem.length >= 6 && folded.includes(stem);
+}
+
+/**
+ * Tanım çoktan seçmelisi tersinden sorulur.
+ * "Hangisi doymuş sıvının tanımı" → "Kaynama… sıvıya ne ad verilir?"
+ * Şıklar kaynakta geçen faz adlarıdır. Kaynakta kardeş terim yoksa null.
+ */
+function groundedDefinitionRetry<T extends ReviewCheck>(check: T, source: string): T | null {
+  if (trueFalseRightIndex(check.options) >= 0) return null;
+  const term = definedTerm(check.prompt);
+  const correctOption = check.options[check.answerIndex]?.trim();
+  if (!term || !correctOption || correctOption.length < 4) return null;
+  const corpus = [source, check.explanation, check.prompt, ...check.options].join("\n");
+  const canonical =
+    PHASE_NAMES.find((name) => foldTr(name) === foldTr(term)) ??
+    term.charAt(0).toLocaleUpperCase("tr") + term.slice(1);
+  if (!corpusHasName(corpus, canonical)) return null;
+  const distractors = PHASE_NAMES.filter(
+    (name) => foldTr(name) !== foldTr(canonical) && corpusHasName(corpus, name),
+  );
+  if (!distractors.length) return null;
+  const options = [canonical, ...distractors].slice(0, Math.max(check.options.length, 2));
+  const prompt = `${dativePhrase(correctOption)} ne ad verilir?`.slice(0, 300);
+  if (foldPrompt(prompt) === foldPrompt(check.prompt)) return null;
+  return shiftOptions({
+    ...check,
+    prompt,
+    options,
+    answerIndex: 0,
+  });
+}
+
 /**
  * Kısa tekrar kapısının sorusu.
  * Saklı varyant gerçekten farklıysa o gelir.
- * Değilse aynı kavram başka bir sayı veya yönden sorulur.
+ * Değilse tanım sorusu tersinden, doğru/yanlış başka bir sayıdan sorulur.
  * İkisi de yoksa orijinal soru, öneksiz, gösterilir.
  */
 export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredReview | null }>(
@@ -1273,6 +1348,8 @@ export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredRevie
   }
   const grounded = language === "tr" ? groundedTrueFalseRetry(check, source) : null;
   if (grounded && foldPrompt(grounded.prompt) !== foldPrompt(check.prompt)) return grounded;
+  const reversed = language === "tr" ? groundedDefinitionRetry(check, source) : null;
+  if (reversed && foldPrompt(reversed.prompt) !== foldPrompt(check.prompt)) return reversed;
   if (check.options.length >= 3) {
     const shifted = shiftOptions(check);
     return {
