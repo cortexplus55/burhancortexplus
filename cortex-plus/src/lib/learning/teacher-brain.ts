@@ -1493,6 +1493,8 @@ export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredRevie
   const fact = language === "tr" ? groundedFactRetry(check, source) : null;
   if (fact && foldPrompt(fact.prompt) !== foldPrompt(check.prompt)) return fact;
   if (check.options.length >= 3) {
+    const rephrased = rephraseMultipleChoice(check);
+    if (rephrased && foldPrompt(rephrased.prompt) !== foldPrompt(check.prompt)) return rephrased;
     const shifted = shiftOptions(check);
     return {
       ...check,
@@ -1502,6 +1504,46 @@ export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredRevie
     };
   }
   return check;
+}
+
+/**
+ * Çoktan seçmeli tekrar aynı kökü geri sormaz.
+ * Açıklamadaki doğru olgu yeni kısa soruya döner; şıkların sırası değişir.
+ */
+function rephraseMultipleChoice<T extends ReviewCheck>(check: T): T | null {
+  const correct = (check.options[check.answerIndex] ?? "").trim();
+  const explanation = plainFact(check.explanation);
+  let prompt = "";
+  if (explanation && correct) {
+    const foldedExplanation = foldTr(explanation);
+    const stem = foldTr(correct).replace(/[.?!]+$/g, "");
+    if (stem.length >= 4 && foldedExplanation.includes(stem)) {
+      const index = foldedExplanation.indexOf(stem);
+      const replaced =
+        explanation.slice(0, index) +
+        "hangisi" +
+        explanation.slice(index + stem.length).replace(/^(?:dir|dır|dur|dür|tir|tır)/i, "");
+      const next = replaced.replace(/[.!\s]+$/g, "").trim();
+      if (next.length >= 12) prompt = `${next}?`;
+    }
+  }
+  if (!prompt || foldPrompt(prompt) === foldPrompt(check.prompt)) {
+    if (
+      explanation.length >= 20 &&
+      foldPrompt(explanation) !== foldPrompt(check.prompt)
+    ) {
+      prompt = `${explanation.replace(/[.!\s]+$/g, "")}. Buna göre hangisi doğrudur?`;
+    }
+  }
+  if (!prompt || foldPrompt(prompt) === foldPrompt(check.prompt)) {
+    prompt = check.prompt
+      .replace(/ne denir\??/i, "hangi adı taşır?")
+      .replace(/hangisi doğrudur\??/i, "hangi ifade doğrudur?")
+      .replace(/nedir\??/i, "hangi addır?");
+  }
+  prompt = prompt.replace(/\s+/g, " ").trim().slice(0, 300);
+  if (!prompt || foldPrompt(prompt) === foldPrompt(check.prompt)) return null;
+  return shiftOptions({ ...check, prompt });
 }
 
 /** Ders sonu tekrarı aynı cümleyi ve aynı şık yerini geri getirmez. */

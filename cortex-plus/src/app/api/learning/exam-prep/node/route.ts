@@ -4,6 +4,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { completeLessonPartRepair } from "@/lib/ai/lesson-part-repair";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import {
   EMPTY_SOURCE_CONTEXT,
@@ -71,6 +72,7 @@ import {
   unrepresentedHeadings,
 } from "@/lib/documents/topic-title";
 import { diagramIssues, needsDiagram } from "@/lib/learning/lesson-diagram";
+import { repairLearnerLesson, type LessonCheckCode } from "@/lib/learning/lesson-repair";
 import { formulaMismatches, withoutMismatchedFormulas } from "@/lib/learning/formula-fidelity";
 import {
   lessonPodcastBrief,
@@ -1822,8 +1824,40 @@ async function generateNodePayload(input: {
         lastParseIssues.slice(0, 6),
       );
     }
-    if (degradeReasons.length) {
-      console.error("lesson_generation_degraded", { reasons: degradeReasons.slice(0, 6) });
+    /**
+     * Düşürmek yerine bir kez onar. Çağrı dersin rezervasyonuna
+     * dokunmaz; parça hâlâ bozuksa o parça düşer, ders kalır.
+     */
+    const repairSource = [input.sourceBlock, teacherNote].filter((part) => part.trim()).join("\n");
+    const repair = await repairLearnerLesson(
+      lesson,
+      { source: repairSource, topicLabel: input.topicLabel },
+      (prompt) =>
+        completeLessonPartRepair({
+          service: input.service,
+          userId: input.userId,
+          prompt,
+        }),
+    );
+    lesson = repair.lesson;
+    if (repair.requested.length) {
+      console.error("lesson_generation_repaired", {
+        checks: repair.requested,
+        succeeded: repair.succeeded,
+      });
+    }
+    const diagramReady = lesson.sections.some(
+      (section) => section.diagram && diagramIssues(section.diagram).length === 0,
+    );
+    const reasons = [
+      ...degradeReasons.filter((reason) => {
+        if (diagramReady && (reason === "diagram_missing" || reason === "diagram_unreadable")) return false;
+        return !repair.succeeded.includes(reason as LessonCheckCode);
+      }),
+      ...repair.dropped,
+    ].filter((reason, index, all) => all.indexOf(reason) === index);
+    if (reasons.length) {
+      console.error("lesson_generation_degraded", { reasons: reasons.slice(0, 8) });
     }
     // Dersi konuya da yaz: öğrenci sonra geri dönüp okuyabilsin ve ders
     // bitince önerilen podcast bu içerikten türeyebilsin. Yazamamak dersi

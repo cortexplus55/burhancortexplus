@@ -192,8 +192,31 @@ function normalizeSummaryText(text: string): string {
     .trim();
 }
 
+function hasFiniteVerb(folded: string): boolean {
+  return folded.split(/[^a-z0-9]+/).some(
+    (word) => word.length >= 5 && /(?:ir|ur|ar|er|yor|dir|dur|tir|tur|mis|mus)$/.test(word),
+  );
+}
+
+/**
+ * Özet satırı bir olgu cümlesi değilse nedeni.
+ * Başlık, öğrenme hedefi (-me/-ma) ve beş sözcükten kısa parça yayımlanmaz.
+ */
+export function summaryLineProblem(text: string): "fragment" | "heading" | "objective" | null {
+  const folded = foldTr(text);
+  if (/(gerceklestirme|uygulayabilmek|gorsellestirme|ogrenmek|anlayabilmek|kullanabilmek)\s*\.?$/.test(folded)) {
+    return "objective";
+  }
+  if (/(?:me|ma|mek|mak)\s*\.?$/.test(folded) && !hasFiniteVerb(folded)) return "objective";
+  if (/\s[-–—]\s/.test(text) && !hasFiniteVerb(folded) && !/[=≤≥]/.test(text)) return "heading";
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length < 5 && !/[=≤≥]/.test(text)) return "fragment";
+  return null;
+}
+
 function objectiveFiller(text: string): boolean {
   const folded = foldTr(text);
+  if (summaryLineProblem(text) === "objective") return true;
   if (/\bkonusu(nu|n)?\b/.test(folded) && /(anlayarak|uygulayabil|ogren)/.test(folded)) return true;
   return /(ogrenmek|ogrenmeyi)\s*$/.test(folded);
 }
@@ -228,6 +251,7 @@ function cleanSummarySentence(text: string, min = 8): string | null {
   const normalized = normalizeSummaryText(stripSourceChrome(text));
   if (normalized.length < min || normalized.length > SUMMARY_MAX) return null;
   if (objectiveFiller(normalized) || metadataDump(normalized) || danglingTail(normalized)) return null;
+  if (summaryLineProblem(normalized)) return null;
   if (workedExampleFragment(normalized)) return null;
   if (definitionalInversionIssues(normalized).length) return null;
   return normalized;

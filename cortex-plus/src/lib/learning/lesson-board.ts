@@ -186,7 +186,11 @@ function splitBlock(block: string): string[] {
 }
 
 export function layoutBoard(text: string): BoardLine[] {
-  const normalized = text.replace(/\r\n/g, "\n").trim();
+  const normalized = text
+    .replace(/\r\n/g, "\n")
+    .replace(/\s+(?=Veri\s*:)/gi, "\n")
+    .replace(/\s+(?=Adım\s*\d+\s*:)/gi, "\n")
+    .trim();
   if (!normalized) return [];
   return rejoinLines(normalized.split(/\n+/))
     .flatMap((block) => splitBlock(block))
