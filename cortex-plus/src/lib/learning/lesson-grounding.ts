@@ -202,8 +202,9 @@ function hasFiniteVerb(folded: string): boolean {
  * Özet satırı bir olgu cümlesi değilse nedeni.
  * Başlık, öğrenme hedefi (-me/-ma) ve beş sözcükten kısa parça yayımlanmaz.
  */
-export function summaryLineProblem(text: string): "fragment" | "heading" | "objective" | null {
+export function summaryLineProblem(text: string): "fragment" | "heading" | "objective" | "flashcard" | null {
   const folded = foldTr(text);
+  if (/^\s*soru\s*:/i.test(text) || /\bcevap\s*:/i.test(text) || /\?:/.test(text)) return "flashcard";
   if (/(gerceklestirme|uygulayabilmek|gorsellestirme|ogrenmek|anlayabilmek|kullanabilmek)\s*\.?$/.test(folded)) {
     return "objective";
   }

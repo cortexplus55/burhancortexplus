@@ -15,6 +15,7 @@ export async function completeLessonPartRepair(input: {
   service: SupabaseClient;
   userId: string;
   prompt: string;
+  maxTokens?: number;
 }): Promise<unknown> {
   if (!env.OPENAI_API_KEY) return null;
   try {
@@ -26,7 +27,7 @@ export async function completeLessonPartRepair(input: {
     const response = await openai.chat.completions.create({
       model: env.OPENAI_STANDARD_MODEL,
       temperature: 0.2,
-      max_tokens: 1500,
+      max_tokens: input.maxTokens ?? 1500,
       response_format: { type: "json_object" },
       messages: [
         {

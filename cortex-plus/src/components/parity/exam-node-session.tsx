@@ -179,7 +179,7 @@ export function ExamNodeSession({
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [flipped, setFlipped] = useState(false);
-  const [score, setScore] = useState({ score: 0, total: 1 });
+  const [score, setScore] = useState({ score: 0, total: 1, retried: 0 });
   const [writtenReview, setWrittenReview] = useState<WrittenExamReview | null>(null);
   const [nextHref, setNextHref] = useState(`/deneme-sinavlari/${prepId}`);
   const [feedback, setFeedback] = useState<{
@@ -253,6 +253,7 @@ export function ExamNodeSession({
             setScore({
               score: reviewData.score ?? reviewData.review.score ?? 0,
               total: reviewData.total ?? reviewData.review.total ?? 1,
+              retried: reviewData.retried ?? 0,
             });
             setStage("result");
             return;
@@ -504,7 +505,7 @@ export function ExamNodeSession({
       clearClientRequestId();
       setSaveError(null);
       completeRequestIdRef.current = null;
-      setScore({ score: data.score ?? 0, total: data.total ?? 1 });
+      setScore({ score: data.score ?? 0, total: data.total ?? 1, retried: data.retried ?? 0 });
       if (data.review) setWrittenReview(data.review);
       setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
       setFeedback(null);
@@ -1140,7 +1141,7 @@ export function ExamNodeSession({
             setAnswers({});
             answersRef.current = {};
             setPayload({});
-            setScore({ score: 0, total: 1 });
+            setScore({ score: 0, total: 1, retried: 0 });
             setFeedback(null);
             setStage("oral-topics");
           }}
@@ -1179,7 +1180,7 @@ export function ExamNodeSession({
             setAnswers({});
             answersRef.current = {};
             setPayload({});
-            setScore({ score: 0, total: 1 });
+            setScore({ score: 0, total: 1, retried: 0 });
             setStage("familiarity");
           }}
         />
@@ -1206,6 +1207,13 @@ export function ExamNodeSession({
             {score.score}/{score.total}
           </p>
           <p>{score.total && score.score / score.total >= 0.7 ? "Güzel gidiyor" : "Biraz daha gelişebilirsin"}</p>
+          {score.retried > 0 ? (
+            <p className="text-sm text-[var(--cp-muted)]">
+              {score.retried === 1
+                ? "1 soru ilk denemede yanlıştı. Tekrar ayrı durur ve bu sayıya eklenmez."
+                : `${score.retried} soru ilk denemede yanlıştı. Tekrarlar ayrı durur ve bu sayıya eklenmez.`}
+            </p>
+          ) : null}
           <p className="text-sm text-[var(--cp-muted)]">
             Doğruluk {Math.round((score.score / Math.max(1, score.total)) * 100)}%
             {" · "}Bu oturum skoru program ilerlemesinden ve sınava hazırlık tahmininden ayrıdır.
@@ -1227,7 +1235,7 @@ export function ExamNodeSession({
               </Link>
             </p>
           ) : null}
-          <div className="flex flex-wrap gap-2">
+          <div className="cp-exam-node-actions">
             <button type="button" className="cp-exam-continue" onClick={() => {
               setStage("setup");
               setIndex(0);
