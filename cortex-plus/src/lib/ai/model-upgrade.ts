@@ -1,5 +1,6 @@
 import "server-only";
 import type { createServiceClient } from "@/lib/supabase/server";
+import { isAdminUser } from "@/lib/auth/roles";
 
 /**
  * Zor soru yükseltmesinin aylık tavanı.
@@ -29,6 +30,8 @@ export async function claimHardUpgrade(
   service: Service,
   userId: string,
 ): Promise<boolean> {
+  // Yönetici tavana hiç yazılmıyor: kurucunun testleri aylık hakkı tüketmesin.
+  if (await isAdminUser(service, userId)) return true;
   const { data, error } = await service.rpc("claim_model_upgrade", {
     p_user_id: userId,
     p_limit: HARD_UPGRADE_MONTHLY_LIMIT,

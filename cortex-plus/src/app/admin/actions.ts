@@ -332,7 +332,7 @@ export async function adjustCredits(input: {
   reason?: string;
 }) {
   const actorId = await requireAdminActor();
-  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+  if (!actorId) return { ok: false, status: 403, error: "Yetkisiz işlem." };
 
   const parsed = z
     .object({
@@ -362,7 +362,7 @@ export async function adjustCredits(input: {
       return { ok: false, error: "Bu hesabın kredi cüzdanı yok." };
     }
     if (error.message.includes("insufficient_balance")) {
-      return { ok: false, error: "Bakiye eksiye düşemez." };
+      return { ok: false, error: "Bakiye sıfırın altına inemez." };
     }
     return { ok: false, error: "Kredi güncellenemedi." };
   }

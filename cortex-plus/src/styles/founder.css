@@ -1,0 +1,326 @@
+/*
+  Kurucu (yönetici) hesabının yüzeyleri: üst çubuk çipi, kredi sayfası kartı,
+  ayarlardaki rozet. Yeni renk yok; altın `--cp-gold`, zeminler aynı altının
+  saydam tonları (mevcut kredi çipiyle aynı aile).
+*/
+
+.cp-founder-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(244, 174, 11, 0.35);
+  background: rgba(244, 174, 11, 0.12);
+  color: var(--cp-gold);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background-color 150ms var(--pm-ease, ease),
+    transform 150ms var(--pm-ease, ease);
+}
+
+.cp-founder-chip:hover {
+  background: rgba(244, 174, 11, 0.18);
+}
+
+.cp-founder-chip:active {
+  transform: scale(0.98);
+}
+
+.cp-founder-chip:focus-visible {
+  outline: 2px solid var(--cp-gold);
+  outline-offset: 2px;
+}
+
+.cp-founder-chip__icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.cp-founder-chip__short {
+  display: none;
+}
+
+/* Masaüstü ipucu: 300 ms gecikmeyle, yalnızca fareli cihazlarda. */
+@media (hover: hover) and (pointer: fine) {
+  .cp-founder-chip[data-tip]::after {
+    content: attr(data-tip);
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 40;
+    width: max-content;
+    max-width: 240px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--cp-border);
+    background: var(--cp-surface-2);
+    color: var(--cp-text);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: normal;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms var(--pm-ease, ease) 0ms;
+  }
+
+  .cp-founder-chip[data-tip]:hover::after,
+  .cp-founder-chip[data-tip]:focus-visible::after {
+    opacity: 1;
+    transition-delay: 300ms;
+  }
+}
+
+/*
+  Dar ekran: yalnız taç ve "Sınırsız". Çip 28 px kalıyor; görünmez bir halka
+  dokunma alanını 44 px'e çıkarıyor, böylece yanındaki 🔥 ve avatarı itmiyor.
+*/
+@media (max-width: 430px) {
+  .cp-founder-chip__full {
+    display: none;
+  }
+
+  .cp-founder-chip__short {
+    display: inline;
+  }
+
+  .cp-founder-chip::before {
+    content: "";
+    position: absolute;
+    inset: -8px -4px;
+  }
+}
+
+/* Kredi sayfası: kurucu görünümü */
+
+/* Kabuk `--font-display`'i kendi başlık yazısına bağlıyor; başlık onu izliyor. */
+.cp-founder-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--cp-text);
+}
+
+.cp-founder-note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--cp-muted);
+}
+
+.cp-founder-card {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 24px;
+  border-radius: 20px;
+  border: 1px solid rgba(244, 174, 11, 0.35);
+  box-shadow: var(--pm-glow-amber, none);
+}
+
+.cp-founder-card__badge {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: var(--cp-gold);
+  color: var(--cp-bg);
+}
+
+.cp-founder-card__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--cp-text);
+}
+
+.cp-founder-card__body {
+  margin: 4px 0 0;
+  max-width: 680px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--cp-muted);
+}
+
+.cp-founder-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.cp-founder-stat {
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+}
+
+.cp-founder-stat__label {
+  margin: 0;
+  font-size: 12px;
+  color: var(--cp-muted);
+}
+
+.cp-founder-stat__value {
+  margin: 4px 0 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--cp-text);
+}
+
+.cp-founder-ledger {
+  margin-top: 24px;
+}
+
+.cp-founder-ledger__title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--cp-text);
+}
+
+.cp-founder-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.cp-founder-table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cp-muted);
+  border-bottom: 1px solid var(--cp-border);
+}
+
+.cp-founder-table td {
+  height: 44px;
+  padding: 0 12px;
+  color: var(--cp-text);
+  border-bottom: 1px solid var(--cp-border);
+}
+
+.cp-founder-table .cp-founder-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tablo hücresinin metin rengini ezmesi için hücreyle aynı özgüllükte. */
+.cp-founder-zero,
+.cp-founder-table td.cp-founder-zero {
+  color: var(--pm-success);
+  font-weight: 600;
+}
+
+.cp-founder-cards {
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-founder-cards li {
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+}
+
+.cp-founder-cards li + li {
+  margin-top: 8px;
+}
+
+.cp-founder-cards__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--cp-text);
+}
+
+.cp-founder-cards__head time {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--cp-muted);
+}
+
+.cp-founder-cards__cost {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--cp-muted);
+}
+
+.cp-founder-empty,
+.cp-founder-error {
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  font-size: 14px;
+  color: var(--cp-muted);
+}
+
+.cp-founder-error a {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  margin-top: 12px;
+  padding: 0 20px;
+  border-radius: 12px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface-2);
+  color: var(--cp-text);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cp-founder-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .cp-founder-card {
+    padding: 20px;
+  }
+
+  .cp-founder-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .cp-founder-table {
+    display: none;
+  }
+
+  .cp-founder-cards {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-founder-chip,
+  .cp-founder-chip[data-tip]::after {
+    transition: none;
+  }
+
+  .cp-founder-chip:active {
+    transform: none;
+  }
+}

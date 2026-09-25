@@ -81,9 +81,15 @@ describe("yönlendirici yükseltmeyi görünür kılıyor", () => {
 });
 
 describe("hak isteme", () => {
+  // `is_admin` ayrı cevaplanıyor: yönetici tavana yazılmıyor (bkz.
+  // admin-bypass-server.test.ts), buradaki senaryolar normal öğrenci.
   const fakeService = (response: { data?: unknown; error?: unknown }) =>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ({ rpc: vi.fn().mockResolvedValue(response) }) as any;
+    ({
+      rpc: vi.fn(async (fn: string) =>
+        fn === "is_admin" ? { data: false, error: null } : response,
+      ),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }) as any;
 
   it("tavanı tek yerden gönderiyor", async () => {
     const service = fakeService({ data: true, error: null });
@@ -227,7 +233,9 @@ describe("ücretsiz hesapta günlük fotoğraf tavanı", () => {
     "src/app/api/ai/solve-image/route.ts",
   ])("%s tavanı uyguluyor", (file) => {
     const source = readFileSync(file, "utf8");
-    expect(source).toContain("freeImageAllowed(userId, isPremium)");
+    // Yönetici bayrağı istek gövdesinden değil, `withUser` bağlamından geliyor.
+    expect(source).toContain("freeImageAllowed(userId, isPremium, isAdmin)");
+    expect(source).toMatch(/const \{[^}]*\bisAdmin\b[^}]*\} = guard\.ctx/);
     expect(source).toContain('errorResponse(429, "free_image_limit")');
   });
 
@@ -239,8 +247,8 @@ describe("ücretsiz hesapta günlük fotoğraf tavanı", () => {
     "src/app/api/ai/solve-image/route.ts",
   ])("%s tavanı denetimden sonra soruyor", (file) => {
     const source = readFileSync(file, "utf8");
-    expect(source.indexOf("await moderate(")).toBeLessThan(
-      source.indexOf("freeImageAllowed(userId, isPremium)"),
-    );
+    const cap = source.indexOf("freeImageAllowed(userId, isPremium, isAdmin)");
+    expect(cap).toBeGreaterThan(-1);
+    expect(source.indexOf("await moderate(")).toBeLessThan(cap);
   });
 });

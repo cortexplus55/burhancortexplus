@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Markdown } from "@/components/markdown";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { useIsFounder } from "@/lib/student/student-shell-context";
 
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
@@ -30,6 +31,7 @@ const ERROR_LABELS: Record<string, string> = {
 };
 
 export function ImageSolver({ creditCost }: { creditCost: number | null }) {
+  const founder = useIsFounder();
   const [file, setFile] = useState<File | null>(null);
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
@@ -171,7 +173,7 @@ export function ImageSolver({ creditCost }: { creditCost: number | null }) {
           className="min-h-[48px] w-full rounded-xl bg-amber-500 font-bold text-black hover:bg-amber-400"
         >
           {loading ? "Çözülüyor…" : "Çöz"}
-          {creditCost != null ? ` · ${creditCost} kredi` : ""}
+          {creditCost != null && !founder ? ` · ${creditCost} kredi` : ""}
         </Button>
       </form>
 

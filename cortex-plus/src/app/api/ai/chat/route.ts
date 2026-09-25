@@ -70,7 +70,7 @@ const bodySchema = z.object({
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "chat", limit: 40, trackSharing: true });
   if (!guard.ok) return guard.response;
-  const { userId, service } = guard.ctx;
+  const { userId, service, isAdmin } = guard.ctx;
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");
   const { message, useDocuments, documentsOnly, operationId: providedId, ...rest } = parsed.data;
@@ -137,7 +137,7 @@ export async function POST(request: Request) {
     });
     const entitlements = await getUserEntitlements(service, userId);
     const isPremium = entitlements.isPremium;
-    if (imageUrl && !(await freeImageAllowed(userId, isPremium))) return errorResponse(429, "free_image_limit");
+    if (imageUrl && !(await freeImageAllowed(userId, isPremium, isAdmin))) return errorResponse(429, "free_image_limit");
 
     let priorUserTurns = 0;
     if (rest.conversationId) {

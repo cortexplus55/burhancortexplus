@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getUserEntitlements, type Audience } from "@/lib/billing/entitlements";
 import { formatResetAt, quotaView, type PeriodKind } from "@/lib/credits/period";
 import { type SubscriptionBadge } from "@/lib/student/subscription-badge";
+import { isAdminUser } from "@/lib/auth/roles";
 
 export type StudentAccountContext = {
   audience: Audience;
@@ -15,6 +16,11 @@ export type StudentAccountContext = {
   subscriptionAllowance: number | null;
   subscriptionPeriodEnd: string | null;
   canSpend: boolean;
+  /**
+   * `user_roles` içinde iptal edilmemiş `admin` satırı.
+   * İstemciden gelmez; sunucu okur. Kredi engeli ve satın alma uyarıları buna bakar.
+   */
+  isAdmin: boolean;
   /**
    * "5 Eylül 2026 03:00" — hakkın ne zaman yenileneceği.
    *
@@ -29,7 +35,7 @@ export async function getStudentAccountContext(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<StudentAccountContext> {
-  const [{ data: wallet }, entitlements] = await Promise.all([
+  const [{ data: wallet }, entitlements, isAdmin] = await Promise.all([
     supabase
       .from("credit_wallets")
       .select(
@@ -38,6 +44,7 @@ export async function getStudentAccountContext(
       .eq("user_id", userId)
       .maybeSingle(),
     getUserEntitlements(supabase, userId),
+    isAdminUser(supabase, userId),
   ]);
 
   const subscriptionBadge = entitlements.badge;
@@ -56,11 +63,12 @@ export async function getStudentAccountContext(
     balance,
     freeAllowanceRemaining,
     isPremium,
-    showsUpgradeChrome: entitlements.showsUpgradeChrome,
+    showsUpgradeChrome: !isAdmin && entitlements.showsUpgradeChrome,
     subscriptionBadge,
     subscriptionAllowance: entitlements.monthlyAllowance,
     subscriptionPeriodEnd: entitlements.subscriptionPeriodEnd,
-    canSpend: balance > 0 || freeAllowanceRemaining > 0,
+    canSpend: isAdmin || balance > 0 || freeAllowanceRemaining > 0,
+    isAdmin,
     resetsAtLabel: formatResetAt(quota.resetsAt),
     periodKind: quota.kind,
   };

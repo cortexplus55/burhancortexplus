@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, Hourglass } from "lucide-react";
+import { useIsFounder } from "@/lib/student/student-shell-context";
 import "@/styles/upgrade-gate.css";
 
 export type PromoCampaign = {
@@ -35,6 +36,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
  * dakika" kimseye bir şey anlatmıyor.
  */
 export function PromoBanner({ campaign }: { campaign: PromoCampaign }) {
+  const founder = useIsFounder();
   const endsAt = new Date(campaign.endsAt).getTime();
   const [now, setNow] = useState<number | null>(null);
 
@@ -46,6 +48,7 @@ export function PromoBanner({ campaign }: { campaign: PromoCampaign }) {
     return () => window.clearInterval(timer);
   }, []);
 
+  if (founder) return null;
   if (now !== null && now >= endsAt) return null;
 
   const left = now === null ? null : parts(endsAt - now);

@@ -235,6 +235,8 @@ function ChatPanelSession({
   examChrome?: boolean;
 }) {
   const shellAccount = useStudentShellAccount();
+  // Kurucuda kota ve mesaj başı maliyet satırı yok: hiçbir mesaj kredi düşürmüyor.
+  const founder = shellAccount?.isAdmin === true;
   const showUpgrade =
     !examChrome && (shellAccount ? shellAccount.showsUpgradeChrome : !isPremium);
   const allowAdvanced = shellAccount?.audience === "sigma";
@@ -1412,7 +1414,7 @@ function ChatPanelSession({
                       <AudioLines className="h-3.5 w-3.5" aria-hidden />
                     </button>
                   ) : null}
-                  {showExamSend && chatCreditCost != null && chatCreditCost > 0 ? (
+                  {showExamSend && !founder && chatCreditCost != null && chatCreditCost > 0 ? (
                     <span className="cp-exam-credit">{chatCreditCost} kr</span>
                   ) : null}
                   {showExamSend ? (
@@ -1422,7 +1424,7 @@ function ChatPanelSession({
                       aria-label={
                         loading
                           ? "Yanıt hazırlanıyor"
-                          : chatCreditCost != null && chatCreditCost > 0
+                          : !founder && chatCreditCost != null && chatCreditCost > 0
                             ? `Gönder, ${chatCreditCost} kr`
                             : "Gönder"
                       }
@@ -1923,7 +1925,7 @@ function ChatPanelSession({
             </div>
           ) : (
           <div className="sticky bottom-0 space-y-2 pb-1">
-            {quotaHint ? (
+            {founder ? null : quotaHint ? (
               <p className="text-center text-[11px] text-[var(--cs-muted)]">
                 {quotaHint}
               </p>

@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { getActionCost } from "@/lib/credits/service";
 import { planTier } from "@/lib/billing/entitlements";
+import { isAdminUser } from "@/lib/auth/roles";
 import {
   coverageStatusLine,
   mergeCoverage,
@@ -169,7 +170,10 @@ export async function runTeacherAnalysis(
       0,
       Number(wallet?.balance ?? 0) - Number(wallet?.reserved ?? 0),
     );
-    if (!analysisCreditOk(available, cost ?? 0, chunks.length)) {
+    // Yöneticinin bakiyesi hiç düşmediği için ön kontrol ona bakmıyor; aksi
+    // hâlde boş cüzdanlı kurucu hesabında analiz sessizce atlanırdı.
+    const exempt = await isAdminUser(service, input.userId);
+    if (!exempt && !analysisCreditOk(available, cost ?? 0, chunks.length)) {
       await save(service, documentId, { status: "skipped", error: "credit_budget" });
       reportAnalysis(documentId, "skipped", "credit_budget");
       return EMPTY;

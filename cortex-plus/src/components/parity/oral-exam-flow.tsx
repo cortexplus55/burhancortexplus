@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Check, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Flame, Info, MessageCircle, Sparkles, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Crown, Flame, Info, MessageCircle, Sparkles, X } from "lucide-react";
+import { useIsFounder } from "@/lib/student/student-shell-context";
 import { presentOralReview } from "@/lib/learning/oral-exam";
 import {
   formatTopicPct,
@@ -123,6 +124,7 @@ export function OralTeacherCustomize({
   onStart: () => void;
   notice?: string | null;
 }) {
+  const founder = useIsFounder();
   return (
     <section className="cp-oral">
       <header className="cp-oral-bar">
@@ -216,10 +218,17 @@ export function OralTeacherCustomize({
         <button type="button" className="cp-oral-cta" onClick={onStart}>
           Sözlü Deneme Sınavını Başlat
         </button>
-        <p className="cp-oral-note">
-          <Info className="h-3.5 w-3.5" aria-hidden />
-          Sesli oturum mevcut çalışma hakkını kullanır
-        </p>
+        {founder ? (
+          <p className="cp-oral-note">
+            <Crown className="h-3 w-3" style={{ color: "var(--cp-gold)" }} aria-hidden />
+            Kurucu hesabı: bu oturum kredinden düşmez.
+          </p>
+        ) : (
+          <p className="cp-oral-note">
+            <Info className="h-3.5 w-3.5" aria-hidden />
+            Sesli oturum mevcut çalışma hakkını kullanır
+          </p>
+        )}
         {notice ? (
           <p role="alert" className="cp-oral-note">
             {notice}

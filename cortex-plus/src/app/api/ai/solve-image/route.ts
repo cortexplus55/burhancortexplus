@@ -21,7 +21,7 @@ const resultSchema = z.object({
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "solve-image", limit: 8, trackSharing: true });
   if (!guard.ok) return guard.response;
-  const { userId, service } = guard.ctx;
+  const { userId, service, isAdmin } = guard.ctx;
 
   const form = await request.formData();
   const file = form.get("file");
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
   // Sohbet ucundaki tavanın aynısı; iki giriş de aynı sayacı kullanıyor ki
   // biri kapanıp diğeri açık kalmasın. Gerekçe: `image-quota.ts`.
-  if (!(await freeImageAllowed(userId, isPremium))) {
+  if (!(await freeImageAllowed(userId, isPremium, isAdmin))) {
     return errorResponse(429, "free_image_limit");
   }
 

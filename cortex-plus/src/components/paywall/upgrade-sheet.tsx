@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { Sparkles, Unlock, Users, X } from "lucide-react";
+import { useIsFounder } from "@/lib/student/student-shell-context";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import "@/styles/upgrade-gate.css";
@@ -32,6 +33,7 @@ export function UpgradeSheet({
   returnPath?: string;
   resetHint?: string;
 }) {
+  const founder = useIsFounder();
   // Escape ile kapanmalı: tam ekran bir kapı, çıkışı kolay olmalı.
   useEffect(() => {
     if (!open) return;
@@ -42,7 +44,7 @@ export function UpgradeSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onOpenChange]);
 
-  if (!open) return null;
+  if (!open || founder) return null;
 
   const href = returnPath
     ? `/pay?returnTo=${encodeURIComponent(returnPath)}`

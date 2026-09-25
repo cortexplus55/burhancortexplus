@@ -11,10 +11,13 @@ import {
   type RateLimitResult,
 } from "@/lib/rate-limit";
 import { hashIp, recordAbuse, requestIp } from "@/lib/abuse/record";
+import { isAdminUser } from "@/lib/auth/roles";
 
 export type ApiContext = {
   userId: string;
   email: string | null;
+  /** Sunucuda `user_roles`'tan okunur; istek gövdesi ya da çerez bunu değiştiremez. */
+  isAdmin: boolean;
   service: ReturnType<typeof createServiceClient>;
   /**
    * Kullanıcının kendi istemcisi — satır güvenliği kuralları geçerli.
@@ -67,6 +70,18 @@ const SHARING_THRESHOLD = 8;
 const ANON_LIMIT = 20;
 const ANON_WINDOW = 60;
 
+/**
+ * Yöneticinin istek sınırı çarpanı.
+ *
+ * Sınır kaldırılmıyor: hesap ele geçirilirse maliyet yine bir tavana çarpsın.
+ * On kat, kurucunun gün boyu uçtan uca test yaparken takılmayacağı bir pay.
+ */
+export const ADMIN_RATE_MULTIPLIER = 10;
+
+/** Yönetici sınıra takılınca kredi ya da satın alma dili kullanılmıyor. */
+export const ADMIN_RATE_MESSAGE =
+  "Çok hızlı istek gönderildi. Birkaç saniye sonra yeniden dene.";
+
 function hasAuthCookie(request: Request): boolean {
   return (request.headers.get("cookie") ?? "").includes("sb-");
 }
@@ -111,9 +126,9 @@ export async function withUser(
   options: GuardOptions,
 ): Promise<{ ok: true; ctx: ApiContext } | { ok: false; response: NextResponse }> {
   const { scope } = options;
-  const limit = options.limit ?? 30;
+  const baseLimit = options.limit ?? 30;
   const windowSeconds = options.windowSeconds ?? 60;
-  const dailyLimit = options.dailyLimit ?? Math.max(100, limit * 20);
+  const baseDailyLimit = options.dailyLimit ?? Math.max(100, baseLimit * 20);
 
   // 1) Oturum çerezi yoksa sonuç zaten 401. Doğrulama sunucusuna gitmeden
   //    kesiyoruz; yoksa giriş yapmamış bir sel, her istekte bize bir ağ turu
@@ -142,10 +157,16 @@ export async function withUser(
   }
 
   const service = createServiceClient();
-  const { data: account, error: accountError } = await service.from("profiles")
-    .select("id, deleted_at").eq("id", user.id).maybeSingle();
+  const [{ data: account, error: accountError }, isAdmin] = await Promise.all([
+    service.from("profiles").select("id, deleted_at").eq("id", user.id).maybeSingle(),
+    isAdminUser(service, user.id),
+  ]);
   if (accountError) return { ok: false, response: NextResponse.json({ error: "Hesabın şu an doğrulanamıyor. Yeniden dene." }, { status: 503 }) };
   if (!account || account.deleted_at) return { ok: false, response: unauthorizedResponse() };
+
+  const multiplier = isAdmin ? ADMIN_RATE_MULTIPLIER : 1;
+  const limit = baseLimit * multiplier;
+  const dailyLimit = baseDailyLimit * multiplier;
 
   // 2) Asıl sınır kişiye bağlı.
   const perMinute = await rateLimit(userKey(user.id, scope), limit, windowSeconds);
@@ -155,9 +176,12 @@ export async function withUser(
       scope,
       userId: user.id,
       request,
-      metadata: { limit, windowSeconds },
+      metadata: { limit, windowSeconds, admin: isAdmin },
     });
-    return { ok: false, response: tooManyResponse(perMinute) };
+    return {
+      ok: false,
+      response: tooManyResponse(perMinute, isAdmin ? ADMIN_RATE_MESSAGE : undefined),
+    };
   }
 
   // 3) Günlük tavan. Dakikalık sınıra takılan istek buraya hiç gelmiyor:
@@ -210,6 +234,7 @@ export async function withUser(
     ctx: {
       userId: user.id,
       email: user.email ?? null,
+      isAdmin,
       service,
       supabase,
     },
