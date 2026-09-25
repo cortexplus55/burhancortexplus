@@ -1206,6 +1206,7 @@ export function acceptReviewVariant(
   const next = foldPrompt(review.prompt);
   if (next.length < 8 || next === original || next.includes(original)) return null;
   if (/başka sözcüklerle|baska sozcuklerle/i.test(review.prompt)) return null;
+  if (retryStemBroken(review.prompt, check.explanation)) return null;
   const corpus = [check.prompt, check.explanation, ...check.options, source].join("\n");
   if (hasNovelQuantity(review.prompt, corpus)) return null;
   const copied =
@@ -1546,14 +1547,55 @@ export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredRevie
 }
 
 /**
+ * Tekrar kökü çözüm adımını veya şık açıklamasını taşıyorsa yayınlanmaz.
+ * "= hangisi", sondaki "=", "diğer seçenek" ve bildiren cümlenin sonuna
+ * yapışmış soru işareti bu kapıdadır.
+ */
+/** Soru sözcüğü Türkçe harfle biter; ASCII sözcük sınırı "kaç"ı kaçırır. */
+function asksQuestion(text: string): boolean {
+  const folded = foldTr(text);
+  return /(^|[^a-z0-9])(midir|mudur|hangisi|hangi|kac|nedir|neden|nasil|mi|mu)(?![a-z0-9])/.test(folded);
+}
+
+export function retryStemBroken(prompt: string, explanation = ""): boolean {
+  const text = prompt.replace(/\s+/g, " ").trim();
+  if (!text) return true;
+  if (/=\s*hangisi/i.test(text)) return true;
+  if (/[=+×*/\-−]\s*\??$/.test(text)) return true;
+  if (/diğer seçenek/i.test(text) || /diger secenek/.test(foldTr(text))) return true;
+  const exp = explanation.replace(/\s+/g, " ").trim().replace(/[.?!]+$/g, "");
+  const stem = text.replace(/[.?!]+$/g, "").trim();
+  if (exp.length >= 24 && (stem.includes(exp) || foldTr(stem).includes(foldTr(exp)))) return true;
+  if (/\?\s*$/.test(text) && !asksQuestion(text) && /\b(dır|dir|dur|dür|tır|tir|olur|eder|sağlar)\b/i.test(text)) {
+    return true;
+  }
+  return false;
+}
+
+/** Isı kaybı ve iş girişi, çözüm yazılmadan başka cümleyle sorulur. */
+function energyChangeRetry<T extends ReviewCheck>(check: T): T | null {
+  const heat = check.prompt.match(/(\d+(?:[.,]\d+)?)\s*kJ\s+ısı\s+kayb/i);
+  const work = check.prompt.match(/(\d+(?:[.,]\d+)?)\s*kJ\s+iş\s+(?:girdisi|girişi|alır|alırs)/i);
+  if (!heat || !work) return null;
+  const prompt = `Bir sistem ${heat[1]} kJ ısı kaybederken üzerine ${work[1]} kJ iş yapılıyor. Sistemin enerji değişimi kaç kJ olur?`;
+  if (foldPrompt(prompt) === foldPrompt(check.prompt) || retryStemBroken(prompt, check.explanation)) return null;
+  return shiftOptions({ ...check, prompt });
+}
+
+/**
  * Çoktan seçmeli tekrar aynı kökü geri sormaz.
  * Açıklamadaki doğru olgu yeni kısa soruya döner; şıkların sırası değişir.
+ * Açıklamanın kendisi köke yapıştırılmaz.
  */
 function rephraseMultipleChoice<T extends ReviewCheck>(check: T): T | null {
+  const energy = energyChangeRetry(check);
+  if (energy) return energy;
   const correct = (check.options[check.answerIndex] ?? "").trim();
   const explanation = plainFact(check.explanation);
   let prompt = "";
-  if (explanation && correct) {
+  const explanationIsSolution =
+    explanation.length > 90 || /diğer seçenek/i.test(explanation) || /=\s*-?\d/.test(explanation);
+  if (explanation && correct && !explanationIsSolution) {
     const foldedExplanation = foldTr(explanation);
     const stem = foldTr(correct).replace(/[.?!]+$/g, "");
     if (stem.length >= 4 && foldedExplanation.includes(stem)) {
@@ -1566,14 +1608,7 @@ function rephraseMultipleChoice<T extends ReviewCheck>(check: T): T | null {
       if (next.length >= 12) prompt = `${next}?`;
     }
   }
-  if (!prompt || foldPrompt(prompt) === foldPrompt(check.prompt)) {
-    if (
-      explanation.length >= 20 &&
-      foldPrompt(explanation) !== foldPrompt(check.prompt)
-    ) {
-      prompt = `${explanation.replace(/[.!\s]+$/g, "")}. Buna göre hangisi doğrudur?`;
-    }
-  }
+  if (prompt && retryStemBroken(prompt, check.explanation)) prompt = "";
   if (!prompt || foldPrompt(prompt) === foldPrompt(check.prompt)) {
     prompt = check.prompt
       .replace(/ne denir\??/i, "hangi adı taşır?")
@@ -1581,7 +1616,9 @@ function rephraseMultipleChoice<T extends ReviewCheck>(check: T): T | null {
       .replace(/nedir\??/i, "hangi addır?");
   }
   prompt = prompt.replace(/\s+/g, " ").trim().slice(0, 300);
-  if (!prompt || foldPrompt(prompt) === foldPrompt(check.prompt)) return null;
+  if (!prompt || foldPrompt(prompt) === foldPrompt(check.prompt) || retryStemBroken(prompt, check.explanation)) {
+    return null;
+  }
   return shiftOptions({ ...check, prompt });
 }
 

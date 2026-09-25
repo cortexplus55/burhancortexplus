@@ -249,7 +249,7 @@ describe("iç enerji lesson claims", () => {
     expect(result.succeeded).toContain("coverage_gap");
   });
 
-  it("verifies a clean lesson once and does not repair it", async () => {
+  it("does not spend a verifier call when the lesson is already clean", async () => {
     const lesson = energyLesson();
     lesson.sections[0].body =
       "Kapalı sistemde toplam enerji E = U + KE + PE bağıntısıyla yazılır. Entalpi h = u + Pv bağıntısıyla yazılır. Özgül ısılar Δu = c_v ΔT bağıntısıyla bulunur. Özgül ısılar arasındaki fark c_p − c_v = R bağıntısına eşittir ve k = c_p / c_v olarak yazılır.";
@@ -266,7 +266,7 @@ describe("iç enerji lesson claims", () => {
     const verify = vi.fn(async () => ({ bad: [] }));
     const complete = vi.fn(async () => goodPatch);
     const result = await repairLearnerLesson(lesson, { source: SOURCE, topicLabel: TOPIC }, complete, verify);
-    expect(verify).toHaveBeenCalledTimes(1);
+    expect(verify).not.toHaveBeenCalled();
     expect(complete).not.toHaveBeenCalled();
     expect(result.requested).toEqual([]);
   });

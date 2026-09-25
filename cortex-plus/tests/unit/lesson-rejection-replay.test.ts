@@ -1415,6 +1415,190 @@ describe("exam-prep lesson route", () => {
     expect(calls).toBeGreaterThanOrEqual(1);
     expect(calls).toBeLessThanOrEqual(4);
   });
+
+  it("publishes the heat-and-work lesson with a clean retry, a real formula question, and one draft", async () => {
+    const topic = "Isı ve İş Etkileşimleri";
+    routeTopic = topic;
+    const modelTitle = "Enerji Transferi: Isı ve İşin Tanımı ile İşaret Kuralı";
+    const numericPrompt = "Bir sistem 10 kJ ısı kaybedip 4 kJ iş girdisi alırsa net enerji değişimi ____ olur.";
+    const explanation =
+      "Net enerji değişimi ΔE = Q - W ile hesaplanır. Q = -10 kJ (ısı kaybı), W = -4 kJ (iş girişi), ΔE = -10 - (-4) = -6 kJ olur. Diğer seçenekler işaret kuralı hatasıdır.";
+    const vague = "Bu formüller, işlem türüne uygun iş hesabı yapmayı sağlar Bu ifade doğru mudur?";
+    const cut = "Bu formüller, işlem türüne";
+    const bare = "W=1×0.287×300×ln2 ≈ 59.7 kJ";
+    const formula = "İzotermal ideal gaz işi W = mRT ln(V₂/V₁) eşitliğiyle yazılır.";
+    routePageText = [
+      "Isı ve iş etkileşimleri sınırdan geçen enerji türleridir.",
+      "Isı ve iş etkileşimleri sistemin enerjisini değiştirir.",
+      "Bir sistem 10 kJ ısı kaybedip 4 kJ iş girdisi alırsa değişim 6 kJ olur.",
+      formula,
+      "R = 0.287 kJ/kg·K ve sıcaklık 300 K iken iş yaklaşık 59.7 kJ olur.",
+      "kJ birimi enerjiyi ölçer. kJ/kg özgül enerji birimidir.",
+      "İzokorik süreçte sınır işi sıfırdır. Elektrik veya karıştırıcı işi olabilir.",
+    ].join(" ");
+    const bad = {
+      title: modelTitle,
+      objective: "Isı ve iş işaretini kullanarak enerji değişimini hesaplayabileceksin.",
+      overview: "Isı ve iş, sınırdan geçen enerji türleridir ve sistemin enerjisini değiştirir.",
+      sections: [
+        {
+          heading: modelTitle,
+          body: "Isı, sıcaklık farkından dolayı sınırdan geçen enerjidir. İş, sınırdaki kuvvetin enerji aktarımıdır. Sisteme giren ısı pozitif, sistemden çıkan ısı negatiftir.",
+          check: {
+            type: "mcq" as const,
+            prompt: numericPrompt,
+            options: ["-6 kJ", "14 kJ", "-14 kJ", "6 kJ"],
+            answerIndex: 0,
+            explanation,
+          },
+        },
+        {
+          heading: cut,
+          body: `Bu formüller, işlem türüne uygun iş hesabı yapmayı sağlar. ${formula}`,
+          check: {
+            type: "trueFalse" as const,
+            prompt: vague,
+            options: ["Doğru", "Yanlış"],
+            answerIndex: 0,
+            explanation: "Bu formüller, işlem türüne uygun iş hesabı yapmayı sağlar.",
+          },
+        },
+        {
+          heading: "İzokorik süreç",
+          body: "İzokorik süreçte hacim sabittir ve sınır işi sıfırdır. Elektrik veya karıştırıcı işi bu süreçte de olabilir.",
+          check: {
+            type: "mcq" as const,
+            prompt: "İzokorik bir süreçte sınır işi için hangisi doğrudur?",
+            options: [
+              "Hacim sabit olduğu için sınır işi sıfırdır.",
+              "Sınır işi sıcaklık farkına eşittir.",
+              "Sınır işi her zaman elektrik işine eşittir.",
+              "Sınır işi kütleyle doğru orantılıdır.",
+            ],
+            answerIndex: 0,
+            explanation: "İzokorik süreçte sınır işi sıfırdır; elektrik veya karıştırıcı işi olabilir.",
+          },
+        },
+      ],
+      example: {
+        prompt: "1 kg ideal gaz 300 K sıcaklıkta izotermal olarak hacmi iki katına çıkıyor.",
+        solution: bare,
+      },
+      commonMistake: {
+        claim: "İzokorik süreçte hiçbir enerji geçişi olmaz.",
+        correction: "İzokorik süreçte sınır işi sıfırdır; elektrik veya karıştırıcı işi olabilir.",
+      },
+      summary: [
+        "Isı ve iş sınırdan geçen enerji türleridir.",
+        "İzokorik süreçte sınır işi sıfırdır.",
+        formula,
+      ],
+    };
+    const raw = JSON.stringify(bad);
+    const logs: unknown[][] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      logs.push(args);
+    });
+    pipelineMocks.create.mockImplementation(async (args: { model?: string; messages?: { content?: unknown }[] }) => {
+      const messages = args?.messages ?? [];
+      const blob = messages.map((message) => String(message.content ?? "")).join("\n");
+      if (blob.includes("İddiaları kaynağa karşı denetle")) return completion(JSON.stringify({ bad: [] }));
+      if (blob.includes("Yalnızca bozuk parçaları")) return completion(JSON.stringify({}));
+      const system = String(messages[0]?.content ?? "");
+      if (system.includes("denetçisisin")) return completion(JSON.stringify({ approved: true, issues: [] }));
+      if (system.includes("sorunları düzelt")) return completion(JSON.stringify({ content: raw }));
+      return completion(raw);
+    });
+    const service = supabase();
+    pipelineMocks.guard.mockResolvedValue({ ok: true, ctx: { userId: "student-1", service } });
+
+    const response = await POST(
+      new Request("https://cortexplus.app/api/learning/exam-prep/node", {
+        method: "POST",
+        body: JSON.stringify({
+          prepId: PREP,
+          nodeId: NODE,
+          clientRequestId: REQ,
+          action: "start",
+        }),
+      }),
+    );
+    spy.mockRestore();
+    const payload = await response.json();
+    expect(response.status, JSON.stringify(payload)).toBe(200);
+    const lesson = payload.payload.lesson as {
+      title: string;
+      sections: {
+        heading: string;
+        check?: { type?: string; prompt: string; options: string[]; answerIndex: number; explanation: string };
+      }[];
+      summary?: string[];
+      example?: { prompt: string; solution: string };
+      commonMistake?: { correction: string };
+    };
+    const published = JSON.stringify(lesson);
+    expect(lesson.title).toBe(topic);
+    expect(lesson.sections.map((section) => section.heading)).not.toContain(cut);
+    expect(published).not.toContain(modelTitle);
+    expect(published).not.toContain("Bu ifade doğru mudur");
+    expect(published).not.toMatch(/hangi bağıntıyla/i);
+    expect(lesson.example?.solution).toMatch(/W = mRT ln\(V₂\/V₁\)/);
+    expect(lesson.example?.solution).toContain("(1 kg)(0.287 kJ/kg·K)(300 K)");
+    expect(lesson.example?.solution).toContain("≈ 59.7 kJ");
+    expect(lesson.example?.prompt).toContain("R = 0.287 kJ/kg·K");
+    expect(lesson.example?.solution).not.toContain(bare);
+    expect(lesson.commonMistake?.correction).toMatch(/sınır işi sıfır/);
+    expect(lesson.commonMistake?.correction).toMatch(/karıştırıcı/);
+    expect(lesson.summary?.join(" ") ?? "").not.toMatch(/diğer seçenek|ifade doğrudur/i);
+    const checks = lesson.sections.map((section) => section.check).filter((check) => check);
+    expect(checks.length).toBeGreaterThanOrEqual(3);
+    for (const check of checks) {
+      expect(check?.options.length).toBe(4);
+      expect(check?.type === "trueFalse" ? "trueFalse" : "mcq").toBe("mcq");
+    }
+    const numeric = checks.find((check) => check?.prompt === numericPrompt);
+    expect(numeric?.options[numeric.answerIndex]).toBe("-6 kJ");
+    const isothermal = checks.find((check) => /ideal gaz işi hangi eşitlik/i.test(check?.prompt ?? ""));
+    expect(isothermal?.options[isothermal.answerIndex ?? 0]).toMatch(/mRT ln\(V₂\/V₁\)/);
+    const retry = reviewQuestionFor(
+      {
+        type: "mcq",
+        prompt: numericPrompt,
+        options: ["-6 kJ", "14 kJ", "-14 kJ", "6 kJ"],
+        answerIndex: 0,
+        explanation,
+      },
+      "tr",
+    );
+    expect(retry.prompt).toBe(
+      "Bir sistem 10 kJ ısı kaybederken üzerine 4 kJ iş yapılıyor. Sistemin enerji değişimi kaç kJ olur?",
+    );
+    expect(retry.prompt).not.toMatch(/=\s*hangisi|diğer seçenek|ΔE = -10 - \(-4\)/i);
+    expect(retry.options[retry.answerIndex]).toBe("-6 kJ");
+    expect(retry.options).not.toEqual(["-6 kJ", "14 kJ", "-14 kJ", "6 kJ"]);
+    expect(pipelineMocks.reserve).toHaveBeenCalledTimes(1);
+    const reserveArgs = pipelineMocks.reserve.mock.calls[0] as unknown[] | undefined;
+    expect(reserveArgs?.[2]).toBe("STUDY_PLAN_GENERATE");
+    expect(pipelineMocks.commit).toHaveBeenCalledTimes(1);
+    expect(pipelineMocks.refund).not.toHaveBeenCalled();
+    const draftCalls = pipelineMocks.create.mock.calls.filter((call) => {
+      const blob = JSON.stringify(call[0]?.messages ?? []);
+      return call[0]?.model === "gpt-4.1-mini" && blob.includes("Bu konunun dersini yaz");
+    });
+    expect(draftCalls.length).toBe(1);
+    const advanced = pipelineMocks.create.mock.calls.filter((call) => call[0]?.model === "adv");
+    expect(advanced.length).toBe(0);
+    const verifyCalls = pipelineMocks.create.mock.calls.filter((call) =>
+      JSON.stringify(call[0]?.messages ?? []).includes("İddiaları kaynağa karşı denetle"),
+    );
+    expect(verifyCalls.length).toBe(0);
+    const callLog = logs.find((args) => args[0] === "lesson_model_calls");
+    const timing = callLog?.[1] as { calls?: number; draftMs?: number; reviewMs?: number; repairMs?: number } | undefined;
+    expect(timing?.calls).toBeLessThanOrEqual(2);
+    expect(typeof timing?.draftMs).toBe("number");
+    expect(typeof timing?.reviewMs).toBe("number");
+    expect(typeof timing?.repairMs).toBe("number");
+  });
 });
 
 describe("lesson shape variants", () => {

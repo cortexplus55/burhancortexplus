@@ -1446,6 +1446,10 @@ function solutionIsJustified(solution: string): boolean {
   return /cunku|bu yuzden|dolayisiyla|yani|adim|once|sonra/.test(folded);
 }
 
+function quantityOption(option: string): boolean {
+  return /^-?\d+(?:[.,]\d+)?(?:\s*[A-Za-z°µ/%³²·.]+)?$/.test(option.trim());
+}
+
 function sectionCheckTeaches(check: SectionCheck): boolean {
   const explanation = foldTr(check.explanation);
   if (explanation.length < 12) return false;
@@ -1453,6 +1457,12 @@ function sectionCheckTeaches(check: SectionCheck): boolean {
     return explanation !== foldTr(check.prompt);
   }
   if (check.answerIndex < 0 || check.answerIndex >= check.options.length) return false;
+  // "-6 kJ" gibi kısa sayı şıklarında çeldirici sözcük yoktur.
+  // Açıklama doğru değeri hesaplıyorsa soru öğretir.
+  if (check.options.length >= 3 && check.options.every(quantityOption)) {
+    const digits = (check.options[check.answerIndex] ?? "").replace(/\D/g, "");
+    if (digits.length >= 1 && explanation.replace(/\D/g, "").includes(digits)) return true;
+  }
   const correctTokens = new Set(
     foldTr(check.options[check.answerIndex] ?? "")
       .split(/[^a-z0-9]+/)

@@ -55,7 +55,15 @@ export const CONTENT_STYLE =
   "Metni sade tut: gereksiz giriş cümlesi, özür ya da 'işte cevabınız' gibi kalıplar yok.";
 
 export type GenerationOutcome<T> =
-  | { ok: true; data: T; model: string; cost: number; modelCalls: number }
+  | {
+      ok: true;
+      data: T;
+      model: string;
+      cost: number;
+      modelCalls: number;
+      draftMs: number;
+      reviewMs: number;
+    }
   | { ok: false; status: number; error: string };
 
 type GenerateJsonParams<T> = {
@@ -120,6 +128,8 @@ type GenerateJsonParams<T> = {
    * Boşsa seçilen model kullanılır. Denetçi kendi modelinde kalır.
    */
   modelOverride?: string;
+  /** Bağımsız kapı temizse ders denetiminde ileri model çağrılmaz. */
+  trustIndependent?: boolean;
 };
 
 function parseCandidate(raw: string): unknown | null {
@@ -165,6 +175,8 @@ export async function generateJson<T>(
 
   const generationStarted = Date.now();
   let modelCalls = 0;
+  let draftMs = 0;
+  let reviewMs = 0;
   let validationMs = 0;
   const stagesMs: Partial<Record<ValidationStage, number>> = {};
   let repairAttempted = false;
@@ -335,6 +347,7 @@ export async function generateJson<T>(
 
     outer: for (const mode of modes) {
       for (let draftAttempt = 0; draftAttempt < maxDraftAttempts; draftAttempt += 1) {
+        const draftStarted = Date.now();
         const completion = await withTransientRetry(
           () => {
             modelCalls += 1;
@@ -390,6 +403,7 @@ export async function generateJson<T>(
           },
           { startedAt: generationStarted, callTimeoutMs: 90_000 },
         );
+        draftMs += Date.now() - draftStarted;
 
         completionUsage = {
           prompt_tokens:
@@ -438,9 +452,11 @@ export async function generateJson<T>(
                   }
                 : undefined,
               failClosedOnUnavailable: v2,
+              trustIndependent: params.trustIndependent,
             });
             content = verified.content;
             modelCalls += verified.modelCalls;
+            reviewMs += verified.stagesMs.recheck ?? 0;
             reviewTokensIn += verified.tokensIn;
             reviewTokensOut += verified.tokensOut;
             repairAttempted = repairAttempted || verified.repairAttempted;
@@ -550,7 +566,7 @@ export async function generateJson<T>(
       }),
     });
 
-    return { ok: true, data: parsed, model, cost: reservation.cost, modelCalls };
+    return { ok: true, data: parsed, model, cost: reservation.cost, modelCalls, draftMs, reviewMs };
   } catch (error) {
     // No prompts, answers, provider messages, document text or keys in logs.
     console.error("educational_generation_failed", {

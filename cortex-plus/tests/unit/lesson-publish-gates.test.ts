@@ -100,7 +100,7 @@ describe("ideal gaz dersinin yayın kapıları", () => {
       complete,
       verify,
     );
-    expect(verify).toHaveBeenCalledTimes(1);
+    expect(verify).not.toHaveBeenCalled();
     expect(complete).toHaveBeenCalledTimes(1);
     const lesson = result.lesson;
     expect(lesson.sections.filter((section) => section.check).length).toBeGreaterThanOrEqual(3);
