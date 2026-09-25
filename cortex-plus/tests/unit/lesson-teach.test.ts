@@ -14,7 +14,7 @@ import {
   teachingFailures,
   topicIsQuantitative,
 } from "@/lib/learning/lesson-teach";
-import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
+import { lessonV2Schema, type LessonV2, type SectionCheck } from "@/lib/learning/teaching-standards";
 
 const MOL = "Mol kütlesi ve kütle-mol hesapları";
 
@@ -364,6 +364,7 @@ describe("worked example and calculation check", () => {
 describe("subject lessons", () => {
   it("publishes a chemistry lesson with a verified example and no echo", async () => {
     const finished = await finishTaughtLesson(goodMolLesson(), { source: MOL_SOURCE, topicLabel: MOL });
+    expect(finished.salvaged).toBe(false);
     expect(criticalTeachingFailures(finished.failures)).toEqual([]);
     expect(finished.lesson.example?.solution).toMatch(/88 \/ 44 = 2/);
     expect(auditQuantitative(finished.lesson.example?.solution ?? "", MOL_SOURCE).ok).toBe(true);
@@ -477,5 +478,100 @@ describe("missed-question retry", () => {
     expect(retry.prompt.toLocaleLowerCase("tr")).toMatch(/avogadro/);
     expect(retry.prompt).not.toMatch(/^Mol, belirli/);
     expect(retry.explanation.toLocaleLowerCase("tr")).toMatch(/avogadro/);
+  });
+});
+
+describe("mixed-file prep with the same page number", () => {
+  const topic = "Stokiyometri: sınırlayıcı bileşen ve verim";
+  const mixed = [
+    "[s.4] foto-tezgah.jpg: Laboratuvar tezgahının fotoğrafı. Cam malzeme ve bir beher görünüyor.",
+    "[s.4] slayt-1-tepkimeler.pptx: Denkleştirmenin altın kuralları şunlardır. Her elementin atom sayısı iki tarafta eşit olmalıdır. Alt indisler asla değiştirilmez. Yalnızca katsayılar değiştirilir.",
+    "[s.4] stokiyometri.pdf: Sınırlayıcı bileşen, tepkimede ilk tükenen maddedir. Yüzde verim, gerçek ürünün kuramsal ürüne oranıdır. Bağıntı n = m / M şeklindedir. Örnek: 12 g gerçek ürün ve 15 g kuramsal ürün için 12 / 15 = 0,8 mol olur.",
+    "[s.4] notlar.docx: Mol kavramı 12 g karbon üzerinden tanımlanır. Bu sayfa verim hesabını anlatmaz.",
+  ].join("\n");
+  const spans = [{ fileName: "stokiyometri.pdf", pages: [4] }];
+
+  it("keeps the pdf page and drops the photo, slide and docx that share page 4", () => {
+    const scoped = filterSourceToSpans(mixed, spans);
+    expect(scoped).toMatch(/stokiyometri\.pdf/);
+    expect(scoped).toMatch(/sınırlayıcı bileşen/i);
+    expect(scoped).not.toMatch(/foto-tezgah|tepkimeler|notlar\.docx|Denkleştirme/);
+  });
+
+  it("publishes a lesson when the draft copies the wrong file and fails the strict gate", async () => {
+    const source = filterSourceToSpans(mixed, spans);
+    const failuresBefore = criticalTeachingFailures(
+      teachingFailures(
+        {
+          title: topic,
+          overview: "Verim, elde edilen ürünün kuramsal ürüne oranıdır ve sınırlayıcı bileşen bitince tepkime durur.",
+          sections: [
+            {
+              heading: "Çözümlü örnek",
+              body: "Denkleştirmenin altın kuralları şunlardır. Alt indisler asla değiştirilmez ve yalnızca katsayılar değiştirilir.",
+            },
+            {
+              heading: "Sınırlayıcı bileşen",
+              body: "Sınırlayıcı bileşen, tepkimede ilk tükenen maddedir. (parantez kapanmaz Kütlesi burada cümlenin ortasında durur.",
+              check: check({
+                type: "trueFalse",
+                prompt: "Sınırlayıcı bileşen, tepkimede ilk tükenen maddedir. Doğru mu?",
+                options: ["Doğru", "Yanlış"],
+                answerIndex: 0,
+                explanation: "Sınırlayıcı bileşen, tepkimede ilk tükenen maddedir.",
+              }),
+            },
+          ],
+          example: {
+            prompt: "Örnek: verimi hesaplayalım.",
+            solution: "Örnek: verimi bulmak için formül kullanılır.",
+          },
+        },
+        source,
+        topic,
+      ),
+    );
+    expect(failuresBefore.length).toBeGreaterThan(0);
+    expect(failuresBefore.map((failure) => failure.problem)).toContain("off_title");
+
+    const finished = await finishTaughtLesson(
+      {
+        title: topic,
+        overview: "Verim, elde edilen ürünün kuramsal ürüne oranıdır ve sınırlayıcı bileşen bitince tepkime durur.",
+        sections: [
+          {
+            heading: "Çözümlü örnek",
+            body: "Denkleştirmenin altın kuralları şunlardır. Alt indisler asla değiştirilmez ve yalnızca katsayılar değiştirilir.",
+          },
+          {
+            heading: "Sınırlayıcı bileşen",
+            body: "Sınırlayıcı bileşen, tepkimede ilk tükenen maddedir. (parantez kapanmaz Kütlesi burada cümlenin ortasında durur.",
+            check: check({
+              type: "trueFalse",
+              prompt: "Sınırlayıcı bileşen, tepkimede ilk tükenen maddedir. Doğru mu?",
+              options: ["Doğru", "Yanlış"],
+              answerIndex: 0,
+              explanation: "Sınırlayıcı bileşen, tepkimede ilk tükenen maddedir.",
+            }),
+          },
+        ],
+        example: {
+          prompt: "Örnek: verimi hesaplayalım.",
+          solution: "Örnek: verimi bulmak için formül kullanılır.",
+        },
+      },
+      { source, topicLabel: topic },
+    );
+
+    expect(finished.salvaged).toBe(true);
+    expect(lessonV2Schema.safeParse(finished.lesson).success).toBe(true);
+    expect(finished.lesson.sections.length).toBeGreaterThan(0);
+    expect(finished.lesson.sections.filter((section) => section.check).length).toBeLessThan(3);
+    const blob = JSON.stringify(finished.lesson);
+    expect(blob).toMatch(/Doğrulanamayan cümleler çıkarıldı/);
+    expect(blob).toMatch(/sınırlayıcı bileşen/i);
+    expect(blob).not.toMatch(/Denkleştirme|tepkimeler|foto-tezgah|notlar\.docx/);
+    expect(blob).not.toMatch(/parantez kapanmaz/);
+    expect(blob).not.toMatch(/kendi anlamına bağlıyor/);
   });
 });

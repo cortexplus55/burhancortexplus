@@ -63,6 +63,11 @@ export type GenerationOutcome<T> =
       modelCalls: number;
       draftMs: number;
       reviewMs: number;
+      /**
+       * Yalnızca `deferCommit` iken dolu. Rezervasyon hâlâ pending'dir;
+       * ders dönünce commit, ders dönmeden hata olursa refund.
+       */
+      reservationId?: string;
     }
   | { ok: false; status: number; error: string };
 
@@ -87,6 +92,12 @@ type GenerateJsonParams<T> = {
   validationProfile?: "legacy" | "v2";
   /** Same user operation retries must reuse this key to avoid double-charge. */
   idempotencyKey?: string;
+  /**
+   * Başarılı ayrıştırmada krediyi hemen kesinleştirme.
+   * Ders kapısı commit'ten sonra reddedilirse öğrenci dersi görmeden öder.
+   * Rota dersi döndürünce `commitCredits`, dönmeden hata olursa `refundCredits`.
+   */
+  deferCommit?: boolean;
   /** Extra draft regenerations under the same reservation (v2 default 2). */
   maxDraftAttempts?: number;
   /**
@@ -540,7 +551,9 @@ export async function generateJson<T>(
       );
     }
 
-    await commitCredits(params.service, reservation.reservationId);
+    if (!params.deferCommit) {
+      await commitCredits(params.service, reservation.reservationId);
+    }
     await recordUsage(params.service, {
       userId: params.userId,
       actionCode,
@@ -579,7 +592,16 @@ export async function generateJson<T>(
       }),
     });
 
-    return { ok: true, data: parsed, model, cost: reservation.cost, modelCalls, draftMs, reviewMs };
+    return {
+      ok: true,
+      data: parsed,
+      model,
+      cost: reservation.cost,
+      modelCalls,
+      draftMs,
+      reviewMs,
+      reservationId: params.deferCommit ? reservation.reservationId : undefined,
+    };
   } catch (error) {
     // No prompts, answers, provider messages, document text or keys in logs.
     console.error("educational_generation_failed", {

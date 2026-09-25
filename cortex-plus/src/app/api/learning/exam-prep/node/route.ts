@@ -4,6 +4,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { commitCredits, refundCredits } from "@/lib/credits/service";
 import { env } from "@/lib/env";
 import { completeLessonPartRepair } from "@/lib/ai/lesson-part-repair";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
@@ -1899,6 +1900,7 @@ async function generateNodePayload(input: {
       ...v2Common,
       maxDraftAttempts: 1,
       verificationMode: "schema",
+      deferCommit: true,
       idempotencyKey:
         retried && input.idempotencyKey
           ? `${input.idempotencyKey}:no-brief`
@@ -2061,15 +2063,9 @@ async function generateNodePayload(input: {
       },
     });
     /**
-     * KUSURLU DERS ÖĞRENCİYE GİTMEZ.
-     *
-     * `lastValidLesson` artık "kusurlu ama var" taslağı değil: yukarıda
-     * yalnızca temizlenmiş VE bütün kuralları geçmiş taslak oraya konuyor.
-     * Yani burada ne gelirse gelsin doğrulanmış bir derstir.
-     *
-     * Hiçbiri geçmediyse ders açılmaz ve öğrenci "yeniden dene" görür.
-     * Bunun bedeli kabul edildi: yarım bir ders, dersin hiç olmamasından
-     * iyi DEĞİL — sınavına çalışan öğrenci yanlış öğrenir ve bunu bilemez.
+     * Model çağrısı düşerse ders yoktur ve rezervasyon iade edilir.
+     * Ayrıştırılan ders kapıyı geçemese de açılır: tek onarımdan sonra
+     * doğrulanamayan cümle çıkarılır. Kredi, ders dönünce kesinleşir.
      *
      * Öğretmen notundaki sayı kaynağın bu kesitinde yoksa kapı taslağı
      * düşürür. O durumda notsuz bir kez daha üretilir; ikinci tur yok.
@@ -2097,10 +2093,13 @@ async function generateNodePayload(input: {
     }
     /**
      * Bilinen yapı bozuklukları (işaret, yarım formül, eksik kontrol)
-     * önce yerinde onarılır. Öğretim kapısı ardından bakar: başlıkla
-     * gövde uyuşmuyorsa, cümle kırıkça, kontrol yankıysa ya da nicel
-     * örnek doğrulanamıyorsa ders yayına çıkmaz.
+     * önce yerinde onarılır. Kapı ardından bakar. Tek onarım yetmezse
+     * doğrulanamayan cümle çıkarılır ve kalan ders açılır. Üçten az
+     * kontrol de dersi düşürmez. Modelin kendisi düşmediyse boş ekran yok.
      */
+    const heldReservationId = outcome.ok ? outcome.reservationId : undefined;
+    let settled = false;
+    try {
     const repairSource = [input.sourceBlock, teacherNote].filter((part) => part.trim()).join("\n");
     const repairCall = (prompt: string, maxTokens: number) => {
       lessonModelCalls += 1;
@@ -2137,19 +2136,10 @@ async function generateNodePayload(input: {
       repairMs: Math.max(0, repairWallMs - verifyMs),
       verifyMs,
     });
-    if (critical.length) {
-      console.error("lesson_generation_blocked", {
+    if (taught.salvaged || critical.length) {
+      console.error("lesson_generation_salvaged", {
         failures: critical.slice(0, 8).map((failure) => `${failure.unit}:${failure.problem}`),
       });
-      throw new NodeGenerationError(
-        500,
-        "lesson_missing",
-        critical.slice(0, 6).map((failure) => `${failure.unit}: ${failure.problem}`),
-      );
-    }
-    const publishedChecks = taughtLesson.sections.filter((section) => section.check).length;
-    if (publishedChecks < 3) {
-      throw new NodeGenerationError(500, "lesson_missing", ["En az 3 kontrol sorusu yazılamadı."]);
     }
     if (repair.requested.length) {
       console.error("lesson_generation_repaired", {
@@ -2185,7 +2175,17 @@ async function generateNodePayload(input: {
         })
         .then(undefined, () => undefined);
     }
+    if (heldReservationId) {
+      await commitCredits(input.service, heldReservationId);
+      settled = true;
+    }
     return { type: "lesson", lesson: taughtLesson, title: taughtLesson.title, teachingStandard: activity };
+    } catch (error) {
+      if (heldReservationId && !settled) {
+        await refundCredits(input.service, heldReservationId).catch(() => undefined);
+      }
+      throw error;
+    }
   }
 
   if (input.kind === "qa") {
