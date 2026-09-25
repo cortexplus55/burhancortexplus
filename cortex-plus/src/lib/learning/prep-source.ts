@@ -104,6 +104,23 @@ export function prepSourceDocumentIds(input: {
   return input.documentId ? [input.documentId] : [];
 }
 
+/**
+ * Sihirbazın gönderdiği sıra.
+ * Dolu dizi geçerlidir; boşsa eski tek `documentId` okunur.
+ * Kayıtta `document_id` bu listenin ilkidir.
+ */
+export function orderedSourceDocumentIds(input: {
+  documentId?: string | null;
+  documentIds?: readonly string[] | null;
+}): string[] {
+  const listed = (input.documentIds ?? []).filter(
+    (id): id is string => typeof id === "string" && id.trim().length > 0,
+  );
+  const unique = [...new Set(listed)];
+  if (unique.length) return unique;
+  return input.documentId ? [input.documentId] : [];
+}
+
 /** Materyaller sekmesindeki tür satırı. Sayfa sayısı yoksa yalnızca tür. */
 export function materialKindLabel(input: {
   mimeType?: string | null;

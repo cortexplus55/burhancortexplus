@@ -58,6 +58,7 @@ export async function processDocument(
   /** Öğrenciye söylenecek, hata olmayan durum — örn. uzun belge kesildi. */
   notice?: string;
   topicMap?: { ok: boolean; topics: number; coverageStatus?: string };
+  pageCount?: number;
 }> {
   const { data: doc } = await service
     .from("documents")
@@ -364,7 +365,7 @@ export async function processDocument(
     }));
   }
 
-  return { ok: true, chunks: allChunks.length, notice, topicMap };
+  return { ok: true, chunks: allChunks.length, notice, topicMap, pageCount: pages.length };
   } catch (error) {
     console.error("document processing failed", {
       name: error instanceof Error ? error.name : "UnknownError",

@@ -11,6 +11,9 @@ export async function POST(request: Request) {
   if (!guard.ok) return guard.response;
   const { userId, service } = guard.ctx;
 
+  const body = await request.json().catch(() => ({}));
+  const forPrep = body && typeof body === "object" && (body as { purpose?: string }).purpose === "hazirlik";
+
   const token = randomBytes(16).toString("hex");
   const expiresAt = new Date(Date.now() + TTL_MS).toISOString();
 
@@ -27,7 +30,9 @@ export async function POST(request: Request) {
   const origin =
     request.headers.get("origin")?.replace(/\/$/, "") ||
     (forwardedHost ? `${forwardedProto}://${forwardedHost}` : appOrigin());
-  const uploadUrl = `${origin}/yukle/${token}`;
+  const uploadUrl = forPrep
+    ? `${origin}/yukle/${token}?amac=hazirlik`
+    : `${origin}/yukle/${token}`;
 
   // QR sunucuda üretilir; token hiçbir dış servise gitmez.
   const qr = await qrDataUri(uploadUrl, 168);

@@ -49,8 +49,24 @@ export const WIZARD_COPY = {
   planningTitle: "Çalışma planın hazırlanıyor...",
   planningLead: "Konular günlere yerleştiriliyor.",
   planReady: "Çalışma planın hazır!",
+  planLead:
+    "Yanlış olanı değiştir, eksik olanı ekle, istemediğini kaldır. Yol bu listeyle kurulur.",
   createCta: "Sınav hazırlığı oluştur",
   creating: "Kuruluyor…",
+  addMore: "Daha fazla ekle",
+  uploadFromPhone: "Telefonundan yükle",
+  phoneLead: "QR’ı telefonunla tara ya da bağlantıyı aç. Dosya bu hazırlığa eklenir.",
+  phoneCopy: "Bağlantıyı kopyala",
+  phonePreparing: "QR hazırlanıyor…",
+  phoneFailed: "QR şu an oluşturulamadı. Dosyayı buradan seçebilirsin.",
+  phoneExpired: "Kodun süresi doldu. Kapatıp yeniden aç.",
+  phoneClose: "Kapat",
+  removeTopic: "Konuyu kaldır",
+  moveUp: "Yukarı taşı",
+  moveDown: "Aşağı taşı",
+  topicDuplicate: "Bu konu listede zaten var.",
+  topicCheckFailed: "Konu şu an doğrulanamadı. Tekrar dene.",
+  fileCap: "Bir hazırlığa en fazla 8 dosya ekleyebilirsin.",
 } as const;
 
 export const PREP_HOME_COPY = {

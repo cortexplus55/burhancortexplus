@@ -10,16 +10,22 @@ import {
   FileText,
   MessageSquare,
   Plus,
+  Smartphone,
   Upload,
   X,
 } from "lucide-react";
 import type { StudyModality } from "@/lib/learning/exam-prep-ui-path";
 import {
   DOCUMENT_ANALYSIS_STAGES,
+  PREP_HOME_COPY,
   STUDY_MODALITY_CHOICES,
   WIZARD_COPY,
   WIZARD_STEP_ORDER,
 } from "@/lib/learning/exam-wizard-copy";
+import { freeMaterialLimitLine, materialDetailLine } from "@/lib/learning/prep-material-copy";
+import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
+import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
+import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { COMMON_SUBJECTS } from "@/lib/learning/subjects";
 import {
@@ -46,6 +52,13 @@ type Step =
 const STEP_ORDER: Step[] = [...WIZARD_STEP_ORDER];
 const BUILD_STAGES = [...DOCUMENT_ANALYSIS_STAGES];
 const MODALITIES: { id: StudyModality; label: string }[] = STUDY_MODALITY_CHOICES;
+
+type WizardMaterial = {
+  id: string;
+  fileName: string;
+  sizeBytes: number | null;
+  pageCount: number | null;
+};
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -108,6 +121,8 @@ export function ExamCreateWizard({
   onUseChat: () => void;
 }) {
   const router = useRouter();
+  const account = useStudentShellAccount();
+  const freePdfCap = account?.audience === "free" ? PHOTO_PAGE_LIMITS.free : null;
   // İlk soru "materyalin var mı?" — elinde dosya olmayan öğrenci eskiden üç
   // adım yürüyüp materyal adımının altındaki ince yazıyı bulmak zorundaydı.
   // Belgeyle gelen öğrenci (deep link) o adımı atlar.
@@ -125,16 +140,17 @@ export function ExamCreateWizard({
   /** true: tüm konulara eşit. false: focusTopics seçili. */
   const [equalFocus, setEqualFocus] = useState(true);
 
-  const [documentId, setDocumentId] = useState<string | null>(initialDocumentId);
-  const [documentIds, setDocumentIds] = useState<string[]>(
-    initialDocumentId ? [initialDocumentId] : [],
+  const [materials, setMaterials] = useState<WizardMaterial[]>(
+    initialDocumentId
+      ? [{ id: initialDocumentId, fileName: "Seçili materyal", sizeBytes: null, pageCount: null }]
+      : [],
   );
-  const [documentName, setDocumentName] = useState<string | null>(null);
-  const [documentBytes, setDocumentBytes] = useState<number | null>(null);
-  const [docs, setDocs] = useState<{ id: string; fileName: string }[]>([]);
+  const [docs, setDocs] = useState<WizardMaterial[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const documentIds = materials.map((item) => item.id);
 
   const [buildStage, setBuildStage] = useState(0);
   const [topics, setTopics] = useState<string[]>([]);
@@ -153,11 +169,21 @@ export function ExamCreateWizard({
   useEffect(() => {
     void fetch("/api/documents")
       .then((res) => (res.ok ? res.json() : { documents: [] }))
-      .then((data: { documents?: { id: string; fileName: string }[] }) => {
-        setDocs(data.documents ?? []);
+      .then((data: { documents?: WizardMaterial[] }) => {
+        const listed = (data.documents ?? []).map((doc) => ({
+          id: doc.id,
+          fileName: doc.fileName,
+          sizeBytes: doc.sizeBytes ?? null,
+          pageCount: doc.pageCount ?? null,
+        }));
+        setDocs(listed);
         if (initialDocumentId) {
-          const hit = (data.documents ?? []).find((d) => d.id === initialDocumentId);
-          if (hit) setDocumentName(hit.fileName);
+          const hit = listed.find((doc) => doc.id === initialDocumentId);
+          if (hit) {
+            setMaterials((current) =>
+              current.map((item) => (item.id === hit.id ? { ...item, ...hit } : item)),
+            );
+          }
         }
       })
       .catch(() => {});
@@ -203,7 +229,10 @@ export function ExamCreateWizard({
   }
 
   const runIntake = useCallback(
-    async (docId: string) => {
+    async () => {
+      const ids = materials.map((item) => item.id);
+      const primary = ids[0];
+      if (!primary) return;
       setStep("building");
       setBuildStage(0);
       const ticker = setInterval(
@@ -215,8 +244,8 @@ export function ExamCreateWizard({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            documentId: docId,
-            documentIds: documentIds.length ? documentIds : [docId],
+            documentId: primary,
+            documentIds: ids,
             probeOnly: true,
           }),
         });
@@ -238,18 +267,80 @@ export function ExamCreateWizard({
         }, 700);
       }
     },
-    [documentIds, subject],
+    [materials, subject],
   );
 
-  async function takeFile(file: File | undefined) {
-    if (!file) return;
+  function rememberMaterial(material: WizardMaterial) {
+    let stored = false;
+    setMaterials((current) => {
+      if (current.some((item) => item.id === material.id)) {
+        stored = true;
+        return current.map((item) => (item.id === material.id ? { ...item, ...material } : item));
+      }
+      if (current.length >= PREP_SOURCE_DOCUMENT_CAP) return current;
+      stored = true;
+      return [...current, material];
+    });
+    return stored;
+  }
+
+  async function processAndRemember(input: {
+    documentId: string;
+    fileName: string;
+    sizeBytes: number | null;
+  }): Promise<boolean> {
+    const processRes = await fetch("/api/documents/process", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentId: input.documentId }),
+    });
+    const processed = await processRes.json().catch(() => ({}));
+    if (processRes.status === 402) {
+      if (isPhotoQuotaError(processed)) {
+        toast.error(processed.error ?? "Bu ayki fotoğraf hakkın doldu.", {
+          description:
+            freePdfCap !== null
+              ? `Plus ile daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.plus} sayfa).`
+              : undefined,
+        });
+        return false;
+      }
+      setPaywall(true);
+      return false;
+    }
+    if (!processRes.ok) {
+      toast.error(processed.error ?? "Dosya işlenemedi.");
+      return false;
+    }
+    const stored = rememberMaterial({
+      id: input.documentId,
+      fileName: input.fileName,
+      sizeBytes: input.sizeBytes,
+      pageCount: typeof processed.pageCount === "number" ? processed.pageCount : null,
+    });
+    if (!stored) {
+      toast.error(WIZARD_COPY.fileCap);
+      return false;
+    }
+    toast.success("Materyalin hazır.", {
+      description: processed.notice ?? undefined,
+    });
+    return true;
+  }
+
+  async function takeFile(file: File | undefined, enforceCap = true): Promise<boolean> {
+    if (!file) return false;
+    if (enforceCap && materials.length >= PREP_SOURCE_DOCUMENT_CAP) {
+      toast.error(WIZARD_COPY.fileCap);
+      return false;
+    }
     if (!ALLOWED_TYPES.includes(file.type)) {
       toast.error(DOCUMENT_PICK_REJECTED);
-      return;
+      return false;
     }
     if (file.size > MAX_BYTES) {
       toast.error("Dosya en fazla 15 MB olabilir.");
-      return;
+      return false;
     }
     setUploading(true);
     try {
@@ -262,40 +353,32 @@ export function ExamCreateWizard({
       const uploaded = await uploadRes.json().catch(() => ({}));
       if (!uploadRes.ok) {
         toast.error(uploaded.error ?? "Yükleme başarısız.");
-        return;
+        return false;
       }
-      const processRes = await fetch("/api/documents/process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: uploaded.documentId }),
-      });
-      const processed = await processRes.json().catch(() => ({}));
-      if (processRes.status === 402) {
-        // Fotoğraf kotası bittiyse kredi satın almak işe yaramıyor.
-        if (isPhotoQuotaError(processed)) {
-          toast.error(processed.error ?? "Bu ayki fotoğraf hakkın doldu.");
-          return;
-        }
-        setPaywall(true);
-        return;
-      }
-      if (!processRes.ok) {
-        toast.error(processed.error ?? "Dosya işlenemedi.");
-        return;
-      }
-      setDocumentId(uploaded.documentId);
-      setDocumentIds((current) =>
-        current.includes(uploaded.documentId) ? current : [...current, uploaded.documentId],
-      );
-      setDocumentName(file.name);
-      setDocumentBytes(file.size);
-      toast.success("Materyalin hazır.", {
-        description: processed.notice ?? undefined,
+      return await processAndRemember({
+        documentId: uploaded.documentId,
+        fileName: file.name,
+        sizeBytes: file.size,
       });
     } catch {
       toast.error("Bağlantı hatası.");
+      return false;
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function takeFiles(list: FileList | File[] | undefined) {
+    const files = list ? [...list] : [];
+    let room = PREP_SOURCE_DOCUMENT_CAP - materials.length;
+    for (const file of files) {
+      if (room <= 0) {
+        toast.error(WIZARD_COPY.fileCap);
+        break;
+      }
+      const added = await takeFile(file, false);
+      if (!added) break;
+      room -= 1;
     }
   }
 
@@ -312,8 +395,8 @@ export function ExamCreateWizard({
           topics,
           examDate,
           targetScore: target,
-          documentId: documentId ?? undefined,
-          documentIds: documentIds.length ? documentIds : undefined,
+          documentId: documentIds[0],
+          documentIds,
           hardTopics: equalFocus ? [] : focusTopics,
           learningPreferences: {
             style:
@@ -523,12 +606,15 @@ export function ExamCreateWizard({
             onDrop={(e) => {
               e.preventDefault();
               setDragOver(false);
-              void takeFile(e.dataTransfer.files?.[0]);
+              void takeFiles(e.dataTransfer.files);
             }}
           >
             <Upload className="h-7 w-7 opacity-70" aria-hidden />
             <p className="apw-drop-title">Dosyanı buraya bırak</p>
             <p className="apw-drop-hint">{DOCUMENT_UPLOAD_HINT}</p>
+            {freePdfCap !== null ? (
+              <p className="apw-drop-hint">{freeMaterialLimitLine()}</p>
+            ) : null}
             <button
               type="button"
               className="apw-drop-pick"
@@ -540,69 +626,113 @@ export function ExamCreateWizard({
             <input
               ref={fileRef}
               type="file"
+              multiple
               className="hidden"
               accept=".pdf,.txt,.png,.jpg,.jpeg,.webp,.docx,.pptx"
               onChange={(e) => {
-                void takeFile(e.target.files?.[0]);
+                void takeFiles(e.target.files ?? undefined);
                 e.target.value = "";
               }}
             />
           </div>
 
-          {documentId ? (
-            <div className="apw-doc-chip">
-              <FileText className="h-4 w-4" aria-hidden />
-              <span>
-                {documentName ?? "Seçili materyal"}
-                {documentBytes ? ` · ${formatBytes(documentBytes)}` : ""}
-              </span>
-              <Check className="h-4 w-4 shrink-0" aria-hidden />
+          {materials.length ? (
+            <ul className="apw-materials">
+              {materials.map((material) => {
+                const detail = materialDetailLine(material);
+                return (
+                  <li key={material.id} className="apw-doc-chip">
+                    <FileText className="h-4 w-4 shrink-0" aria-hidden />
+                    <span className="apw-doc-main">
+                      <strong>{material.fileName}</strong>
+                      {detail ? <small>{detail}</small> : null}
+                    </span>
+                    <Check className="h-4 w-4 shrink-0" aria-hidden />
+                    <button
+                      type="button"
+                      aria-label="Materyali kaldır"
+                      onClick={() =>
+                        setMaterials((current) => current.filter((item) => item.id !== material.id))
+                      }
+                    >
+                      <X className="h-4 w-4" aria-hidden />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+
+          <div className="apw-file-actions">
+            {materials.length ? (
               <button
                 type="button"
-                aria-label="Materyali kaldır"
-                onClick={() => {
-                  setDocumentId(null);
-                  setDocumentIds([]);
-                  setDocumentName(null);
-                  setDocumentBytes(null);
-                }}
+                className="apw-drop-pick"
+                disabled={uploading || materials.length >= PREP_SOURCE_DOCUMENT_CAP}
+                onClick={() => fileRef.current?.click()}
               >
-                <X className="h-4 w-4" aria-hidden />
+                {WIZARD_COPY.addMore}
               </button>
-            </div>
+            ) : null}
+            <button
+              type="button"
+              className="apw-drop-pick"
+              disabled={uploading || materials.length >= PREP_SOURCE_DOCUMENT_CAP}
+              onClick={() => setPhoneOpen(true)}
+            >
+              <Smartphone className="h-4 w-4" aria-hidden />
+              {WIZARD_COPY.uploadFromPhone}
+            </button>
+          </div>
+
+          {phoneOpen ? (
+            <PhoneUploadPanel
+              onClose={() => setPhoneOpen(false)}
+              onReady={(remote) => {
+                setPhoneOpen(false);
+                void processAndRemember({
+                  documentId: remote.documentId,
+                  fileName: remote.fileName,
+                  sizeBytes: null,
+                });
+              }}
+            />
           ) : null}
 
           {docs.length ? (
             <>
               <h2 className="apw-group">Daha önce yüklediklerin</h2>
               <div className="apw-doc-list">
-                {docs.map((doc) => (
-                  <button
-                    key={doc.id}
-                    type="button"
-                    className={
-                      documentIds.includes(doc.id)
-                        ? "apw-doc-row apw-doc-row--on"
-                        : "apw-doc-row"
-                    }
-                    onClick={() => {
-                      setDocumentIds((current) => {
-                        const next = current.includes(doc.id)
-                          ? current.filter((id) => id !== doc.id)
-                          : [...current, doc.id];
-                        setDocumentId(next[0] ?? null);
-                        return next;
-                      });
-                      setDocumentName(doc.fileName);
-                    }}
-                  >
-                    <FileText className="h-4 w-4 shrink-0" aria-hidden />
-                    <span className="truncate">{doc.fileName}</span>
-                    {documentIds.includes(doc.id) ? (
-                      <Check className="h-4 w-4 shrink-0" aria-hidden />
-                    ) : null}
-                  </button>
-                ))}
+                {docs.map((doc) => {
+                  const selected = documentIds.includes(doc.id);
+                  return (
+                    <button
+                      key={doc.id}
+                      type="button"
+                      className={selected ? "apw-doc-row apw-doc-row--on" : "apw-doc-row"}
+                      onClick={() => {
+                        if (selected) {
+                          setMaterials((current) => current.filter((item) => item.id !== doc.id));
+                          return;
+                        }
+                        if (materials.length >= PREP_SOURCE_DOCUMENT_CAP) {
+                          toast.error(WIZARD_COPY.fileCap);
+                          return;
+                        }
+                        rememberMaterial({
+                          id: doc.id,
+                          fileName: doc.fileName,
+                          sizeBytes: doc.sizeBytes,
+                          pageCount: doc.pageCount,
+                        });
+                      }}
+                    >
+                      <FileText className="h-4 w-4 shrink-0" aria-hidden />
+                      <span className="truncate">{doc.fileName}</span>
+                      {selected ? <Check className="h-4 w-4 shrink-0" aria-hidden /> : null}
+                    </button>
+                  );
+                })}
               </div>
             </>
           ) : null}
@@ -650,7 +780,8 @@ export function ExamCreateWizard({
           <button
             type="button"
             className="apw-cta"
-            onClick={() => documentId && void runIntake(documentId)}
+            onClick={() => void runIntake()}
+            disabled={!documentIds.length}
           >
             {WIZARD_COPY.continue}
           </button>
@@ -702,6 +833,7 @@ export function ExamCreateWizard({
           <TopicEditor
             topics={topics}
             topicPages={topicPages}
+            documentIds={documentIds}
             onTopics={setTopics}
             onPages={setTopicPages}
             onRename={(from, to) =>
@@ -710,6 +842,9 @@ export function ExamCreateWizard({
                   .map((item) => (item === from ? to : item))
                   .filter((item) => item.trim().length > 0),
               )
+            }
+            onRemove={(title) =>
+              setFocusTopics((prev) => prev.filter((item) => item !== title))
             }
           />
           <button
@@ -804,15 +939,33 @@ export function ExamCreateWizard({
       ) : null}
 
       {!planning && step === "plan" ? (
-        <section className="apw-step apw-step--center">
+        <section className="apw-step">
           <h1>{WIZARD_COPY.planReady}</h1>
+          <p className="apw-lead">{WIZARD_COPY.planLead}</p>
+          <TopicEditor
+            topics={topics}
+            topicPages={topicPages}
+            documentIds={documentIds}
+            onTopics={setTopics}
+            onPages={setTopicPages}
+            onRename={(from, to) =>
+              setFocusTopics((prev) =>
+                prev
+                  .map((item) => (item === from ? to : item))
+                  .filter((item) => item.trim().length > 0),
+              )
+            }
+            onRemove={(title) =>
+              setFocusTopics((prev) => prev.filter((item) => item !== title))
+            }
+          />
           <button
             type="button"
             className="apw-cta"
             disabled={starting || !topics.length}
             onClick={() => void startPlan()}
           >
-            {starting ? WIZARD_COPY.creating : WIZARD_COPY.createCta}
+            {starting ? WIZARD_COPY.creating : PREP_HOME_COPY.startLearning}
           </button>
         </section>
       ) : null}
@@ -827,28 +980,28 @@ export function ExamCreateWizard({
   );
 }
 
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 function TopicEditor({
   topics,
   topicPages,
+  documentIds,
   onTopics,
   onPages,
   onRename,
+  onRemove,
 }: {
   topics: string[];
   topicPages: number[][];
+  documentIds: string[];
   onTopics: (next: string[]) => void;
   onPages: (next: number[][]) => void;
   onRename: (from: string, to: string) => void;
+  onRemove: (title: string) => void;
 }) {
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const original = editIndex == null ? "" : topics[editIndex] ?? "";
   const changeDirty = draft.trim().length > 0 && draft.trim() !== original.trim();
@@ -858,22 +1011,108 @@ function TopicEditor({
     setEditIndex(null);
     setAdding(false);
     setDraft("");
+    setError(null);
+    setChecking(false);
   }
 
-  function saveChange() {
-    if (editIndex == null || !changeDirty) return;
+  function duplicate(title: string, ignore: number | null) {
+    const key = title.toLocaleLowerCase("tr");
+    return topics.some(
+      (item, index) => index !== ignore && item.toLocaleLowerCase("tr") === key,
+    );
+  }
+
+  async function ground(title: string) {
+    if (!documentIds.length) {
+      return { ok: false as const, message: WIZARD_COPY.topicCheckFailed, pageNumbers: [] as number[] };
+    }
+    try {
+      const res = await fetch("/api/learning/exam-prep/ground-topic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentIds, title }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return {
+          ok: false as const,
+          message: (payload.error as string | undefined) ?? WIZARD_COPY.topicCheckFailed,
+          pageNumbers: [] as number[],
+        };
+      }
+      const pageNumbers = Array.isArray(payload.pageNumbers)
+        ? payload.pageNumbers.filter((page: unknown) => typeof page === "number")
+        : [];
+      return { ok: true as const, message: "", pageNumbers };
+    } catch {
+      return { ok: false as const, message: WIZARD_COPY.topicCheckFailed, pageNumbers: [] as number[] };
+    }
+  }
+
+  async function saveChange() {
+    if (editIndex == null || !changeDirty || checking) return;
     const next = draft.trim();
+    if (duplicate(next, editIndex)) {
+      setError(WIZARD_COPY.topicDuplicate);
+      return;
+    }
+    setChecking(true);
+    setError(null);
+    const result = await ground(next);
+    setChecking(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
     onRename(original, next);
     onTopics(topics.map((item, index) => (index === editIndex ? next : item)));
+    onPages(
+      topicPages.map((pages, index) =>
+        index === editIndex ? (result.pageNumbers.length ? result.pageNumbers : pages) : pages,
+      ),
+    );
     close();
   }
 
-  function saveAdd() {
+  async function saveAdd() {
     const title = draft.trim();
-    if (!title) return;
+    if (!title || checking) return;
+    if (duplicate(title, null)) {
+      setError(WIZARD_COPY.topicDuplicate);
+      return;
+    }
+    setChecking(true);
+    setError(null);
+    const result = await ground(title);
+    setChecking(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
     onTopics([...topics, title]);
-    onPages([...topicPages, []]);
+    onPages([...topicPages, result.pageNumbers]);
     close();
+  }
+
+  function removeAt(index: number) {
+    const title = topics[index];
+    if (!title) return;
+    onRemove(title);
+    onTopics(topics.filter((_, item) => item !== index));
+    onPages(topicPages.filter((_, item) => item !== index));
+  }
+
+  function move(index: number, delta: number) {
+    const next = index + delta;
+    if (next < 0 || next >= topics.length) return;
+    const reordered = [...topics];
+    const [title] = reordered.splice(index, 1);
+    reordered.splice(next, 0, title);
+    const pages = [...topicPages];
+    const [page] = pages.splice(index, 1);
+    pages.splice(next, 0, page ?? []);
+    onTopics(reordered);
+    onPages(pages);
   }
 
   return (
@@ -887,17 +1126,46 @@ function TopicEditor({
                 <em>Kaynak: s.{topicPages[index].join(", ")}</em>
               ) : null}
             </span>
-            <button
-              type="button"
-              className="apw-topic-edit"
-              onClick={() => {
-                setAdding(false);
-                setEditIndex(index);
-                setDraft(topic);
-              }}
-            >
-              {WIZARD_COPY.editTopic}
-            </button>
+            <span className="apw-topic-actions">
+              <button
+                type="button"
+                className="apw-topic-edit"
+                aria-label={WIZARD_COPY.moveUp}
+                disabled={index === 0}
+                onClick={() => move(index, -1)}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                className="apw-topic-edit"
+                aria-label={WIZARD_COPY.moveDown}
+                disabled={index === topics.length - 1}
+                onClick={() => move(index, 1)}
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                className="apw-topic-edit"
+                onClick={() => {
+                  setAdding(false);
+                  setError(null);
+                  setEditIndex(index);
+                  setDraft(topic);
+                }}
+              >
+                {WIZARD_COPY.editTopic}
+              </button>
+              <button
+                type="button"
+                className="apw-topic-edit"
+                aria-label={WIZARD_COPY.removeTopic}
+                onClick={() => removeAt(index)}
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </span>
           </li>
         ))}
       </ul>
@@ -906,6 +1174,7 @@ function TopicEditor({
         className="apw-topic-add-btn"
         onClick={() => {
           setEditIndex(null);
+          setError(null);
           setAdding(true);
           setDraft("");
         }}
@@ -929,15 +1198,23 @@ function TopicEditor({
               value={draft}
               aria-label={adding ? "Yeni konu" : "Konu adı"}
               autoFocus
-              onChange={(event) => setDraft(event.target.value)}
+              onChange={(event) => {
+                setDraft(event.target.value);
+                setError(null);
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Escape") close();
                 if (event.key !== "Enter") return;
                 event.preventDefault();
-                if (adding) saveAdd();
-                else saveChange();
+                if (adding) void saveAdd();
+                else void saveChange();
               }}
             />
+            {error ? (
+              <p className="apw-modal-error" role="alert">
+                {error}
+              </p>
+            ) : null}
             <div className="apw-modal-actions">
               <button type="button" className="apw-ghost" onClick={close}>
                 {WIZARD_COPY.cancel}
@@ -945,16 +1222,104 @@ function TopicEditor({
               <button
                 type="button"
                 className="apw-cta"
-                disabled={adding ? !addDirty : !changeDirty}
-                onClick={adding ? saveAdd : saveChange}
+                disabled={checking || (adding ? !addDirty : !changeDirty)}
+                onClick={() => void (adding ? saveAdd() : saveChange())}
               >
-                {WIZARD_COPY.save}
+                {checking ? "Bakılıyor…" : WIZARD_COPY.save}
               </button>
             </div>
           </div>
         </div>
       ) : null}
     </>
+  );
+}
+
+function PhoneUploadPanel({
+  onClose,
+  onReady,
+}: {
+  onClose: () => void;
+  onReady: (doc: { documentId: string; fileName: string }) => void;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
+
+  useEffect(() => {
+    let cancelled = false;
+    let poll: ReturnType<typeof setInterval> | undefined;
+
+    fetch("/api/uploads/phone-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ purpose: "hazirlik" }),
+    })
+      .then(async (res) => {
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(payload.error ?? "session");
+        if (cancelled) return;
+        setUrl(payload.uploadUrl as string);
+        setQr((payload.qr as string) ?? null);
+        const token = payload.token as string;
+        poll = setInterval(async () => {
+          const statusRes = await fetch(`/api/uploads/phone-session/${token}`);
+          const status = await statusRes.json().catch(() => ({}));
+          if (!statusRes.ok || cancelled) return;
+          if (status.expired) {
+            setError(WIZARD_COPY.phoneExpired);
+            if (poll) clearInterval(poll);
+            return;
+          }
+          if (status.ready && status.documentId) {
+            if (poll) clearInterval(poll);
+            onReadyRef.current({
+              documentId: status.documentId as string,
+              fileName: (status.fileName as string) ?? "Telefon yüklemesi",
+            });
+          }
+        }, 2000);
+      })
+      .catch(() => {
+        if (!cancelled) setError(WIZARD_COPY.phoneFailed);
+      });
+
+    return () => {
+      cancelled = true;
+      if (poll) clearInterval(poll);
+    };
+  }, []);
+
+  return (
+    <div className="apw-phone">
+      <p className="apw-drop-hint">{WIZARD_COPY.phoneLead}</p>
+      {url && qr ? (
+        <div className="apw-phone-qr">
+          {/* Sunucuda üretilen data URI — token dış servise gitmez. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={qr} alt="Yükleme QR kodu" width={168} height={168} />
+          <button
+            type="button"
+            className="apw-drop-pick"
+            onClick={() =>
+              void navigator.clipboard.writeText(url).then(
+                () => toast.success("Bağlantı kopyalandı."),
+                () => toast.error("Bağlantı kopyalanamadı."),
+              )
+            }
+          >
+            {WIZARD_COPY.phoneCopy}
+          </button>
+        </div>
+      ) : (
+        <p className="apw-drop-hint">{error ?? WIZARD_COPY.phonePreparing}</p>
+      )}
+      <button type="button" className="apw-ghost" onClick={onClose}>
+        {WIZARD_COPY.phoneClose}
+      </button>
+    </div>
   );
 }
 
