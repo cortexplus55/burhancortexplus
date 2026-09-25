@@ -6,6 +6,8 @@
  * çağrıyı açmaz. Kimya, fizik, tarih, hukuk ve biyoloji aynı kapıdan geçer.
  */
 
+import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
+import { fluencyIssues } from "@/lib/learning/lesson-teach";
 import {
   auditQuantitative,
   gradeStudentClaim,
@@ -359,6 +361,16 @@ export function repairStoichiometryClaims(text: string): string {
     .join(" ");
 }
 
+/** Öğrenciye kalacak cümle: sayı denetimi, akıcılık ve duyurulmuş örnek kapısı. */
+function shownExplanationOk(text: string, source: string): boolean {
+  const clean = text.trim();
+  if (clean.length < 2) return false;
+  if (!auditQuantitative(clean, source).ok) return false;
+  if (fluencyIssues(clean).length) return false;
+  if (announcedExampleGap(clean)) return false;
+  return true;
+}
+
 export function settleExplanation(text: string, source = ""): string {
   let next = polishLearnerText(text).trim();
   next = repairStoichiometryClaims(next);
@@ -373,7 +385,18 @@ export function settleExplanation(text: string, source = ""): string {
       next = kept.join(" ").trim();
     }
   }
-  return next;
+  if (!next) return next;
+  const gap = announcedExampleGap(next);
+  if (!gap && fluencyIssues(next).length === 0) return next;
+  const kept = next
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => {
+      if (!shownExplanationOk(sentence, source)) return false;
+      if (gap && /\d/.test(sentence) && !exampleIsComplete(sentence)) return false;
+      return true;
+    });
+  return kept.join(" ").trim();
 }
 
 function limitingContext(question: VerifiedChoice): string {
@@ -637,12 +660,12 @@ export function verifyOralPrompt(
 ): { prompt: string; expectedPoints: string[] } | null {
   const polished = polishLearnerText(prompt).trim();
   const text = balanceIntent(polished) ? polished : balanceSpan(polished);
-  if (text.length < 8) return null;
+  if (text.length < 8 || announcedExampleGap(text)) return null;
   const points = expectedPoints.map((point) => point.trim()).filter((point) => point.length >= 2 && !isScoreLabel(point));
   if (!(isLimitingQuestion(text) && limitingSetup(`${text}\n${points.join("\n")}`))) {
     const settled = points.flatMap((point) => {
       const next = settleExplanation(point, source).trim();
-      if (next.length < 2 || isScoreLabel(next) || !auditQuantitative(next, source).ok) return [];
+      if (!shownExplanationOk(next, source) || isScoreLabel(next)) return [];
       return [next];
     });
     const next = settled.length ? settled : points.length ? [] : [text.slice(0, 180)];
@@ -740,8 +763,7 @@ export function verifyPracticeQuestions(
 export function verifyFlashcard(front: string, back: string, source = ""): { front: string; back: string } | null {
   const face = polishLearnerText(front).trim();
   const settled = settleExplanation(back, source);
-  if (face.length < 4 || settled.length < 2) return null;
-  if (!auditQuantitative(settled, source).ok) return null;
+  if (face.length < 4 || !shownExplanationOk(settled, source)) return null;
   return { front: face, back: settled };
 }
 

@@ -143,6 +143,29 @@ describe("question verifier is subject-agnostic", () => {
     const kept = verifyFlashcard("Mitoz nedir?", "Mitoz aynı iki yavru hücre oluşturur.", subjects.biology);
     expect(kept?.back).toMatch(/aynı/);
   });
+
+  it("drops a hollow announced example and a broken sentence, and keeps a short fact", () => {
+    const hollow =
+      "Uygulamalı Örnek: H₂SO₄ Hesaplaması. 0,25 mol H₂SO₄'nin gram cinsinden kütlesini bulmak için m = n × M formülünü kullanırız.";
+    expect(settleExplanation(hollow)).not.toMatch(/Örnek yarım|formülünü kullanırız/);
+    expect(
+      verifyOralPrompt(hollow, ["0,25 mol için kütle hesaplanır."], subjects.chemistry),
+    ).toBeNull();
+    const kept = verifyOralPrompt(
+      "Sınırlayıcı bileşen nasıl bulunur?",
+      ["mol sayısı stokiyometrik katsayıya bölünür"],
+      subjects.chemistry,
+    );
+    expect(kept?.expectedPoints.join(" ")).toMatch(/katsayıya/);
+    expect(verifyFlashcard("Kütle", hollow, subjects.chemistry)).toBeNull();
+    expect(
+      verifyFlashcard(
+        "Bağlantı",
+        "Mol hesabında kullanılan kütle ve verilen miktar arasındaki bağlantı yalnızca sayı.",
+        subjects.chemistry,
+      ),
+    ).toBeNull();
+  });
 });
 
 describe("repeats page does not spend credits", () => {

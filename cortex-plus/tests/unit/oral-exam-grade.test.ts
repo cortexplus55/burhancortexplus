@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { fluencyIssues } from "@/lib/learning/lesson-teach";
 import { extractMisconceptions } from "@/lib/learning/teaching-standards";
 import {
   dontKnowNote,
@@ -244,6 +245,39 @@ describe("oral exam grading is grounded for every subject", () => {
       expect(review.solution.length).toBeGreaterThan(8);
       expect(review.missing ?? "").not.toMatch(/Tam 2/);
     }
+  });
+
+  it("caps a hollow announced example and still credits a finished equality", () => {
+    const hollow = gradeOralExam(
+      [{ prompt: "İki artı iki kaç eder?", expectedPoints: ["Tam 2"] }],
+      { "0": "Örnek: 2 + 2 = 4." },
+      "Toplama işlemi kaynakta anlatılır.",
+    );
+    expect(hollow.items[0]?.ratio).toBe(0.5);
+    expect(hollow.items[0]?.verdict).toBe("kismen");
+    expect(hollow.items[0]?.gap).toMatch(/Örnek yarım/);
+    const finished = gradeOralExam(
+      [{ prompt: "0,25 mol kaç gramdır?", expectedPoints: ["Tam 2"] }],
+      { "0": "m = n × M = 0,25 mol × 98 g/mol = 24,5 g." },
+      "Mol kütlesi 98 g/mol.",
+    );
+    expect(finished.pct).toBe(100);
+    expect(finished.items[0]?.gap).toBe("");
+  });
+
+  it("does not publish a model answer that fails the fluency gate", () => {
+    const report = gradeOralExam(
+      [
+        {
+          prompt: "Mol hesabı neye bağlanır?",
+          expectedPoints: ["Mol hesabında kullanılan kütle ve verilen miktar arasındaki bağlantı yalnızca sayı."],
+        },
+      ],
+      { "0": "" },
+      "Mol hesabı anlatılır.",
+    );
+    expect(report.items[0]?.modelAnswer).not.toMatch(/yalnızca sayı/);
+    expect(fluencyIssues(report.items[0]?.modelAnswer ?? "")).toEqual([]);
   });
 
   it("explains a wrong arithmetic answer instead of repeating a rubric label", () => {

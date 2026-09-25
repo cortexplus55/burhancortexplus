@@ -5,6 +5,8 @@ import {
   unsupportedQuantities,
 } from "@/lib/learning/teacher-brain";
 import type { OralReviewItem, OralTeacherMoodId } from "@/lib/learning/oral-exam-chrome";
+import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
+import { fluencyIssues } from "@/lib/learning/lesson-teach";
 import {
   auditQuantitative,
   gradeStudentClaim,
@@ -376,6 +378,9 @@ export function gradeOralAnswer(
   const dontKnow = isDontKnow(answer);
   const studentAudit = !dontKnow && answer ? auditQuantitative(answer, source) : null;
   const sound = Boolean(studentAudit?.checked && studentAudit.ok);
+  const hollowGap = !dontKnow && answer ? announcedExampleGap(answer) : null;
+  const hollow = Boolean(hollowGap);
+  const completeWork = Boolean(answer && exampleIsComplete(answer) && studentAudit?.ok && !hollow);
   const claim = !dontKnow && answer ? gradeStudentClaim({ student: answer, context: ground }) : null;
   const numeric = !dontKnow && answer && !sound ? unsupportedQuantities(answer, ground) : [];
   const covered = dontKnow ? [] : points.filter((point) => answerCoversPoint(answer, point));
@@ -383,14 +388,21 @@ export function gradeOralAnswer(
   let ratio = !points.length || dontKnow ? 0 : covered.length / points.length;
   if (claim?.verdict === "yanlis") ratio = 0;
   else if (claim?.verdict === "kismen") ratio = Math.min(Math.max(ratio, 0.5), 0.5);
-  else if (claim?.verdict === "dogru" || (sound && (asksQuantity(prompt) || points.length === 0))) ratio = 1;
-  else {
+  else if (
+    claim?.verdict === "dogru" ||
+    ((sound || completeWork) && (asksQuantity(prompt) || points.length === 0))
+  ) {
+    ratio = 1;
+  } else {
     if (studentAudit && !studentAudit.ok) ratio = Math.min(ratio, 0.5);
     if (numeric.length) ratio = Math.min(ratio, 0.5);
   }
+  if (hollow && ratio >= 0.99) ratio = 0.5;
+  const readable = (text: string) =>
+    Boolean(text.trim()) && !announcedExampleGap(text) && fluencyIssues(text).length === 0;
   const modelPoints = points
     .map((point) => groundedPoint(point, source))
-    .filter((point): point is string => typeof point === "string" && !isScoreLabel(point));
+    .filter((point): point is string => typeof point === "string" && !isScoreLabel(point) && readable(point));
   let modelAnswer = modelPoints.length
     ? modelPoints.join(" ")
     : "Kaynakta bu soru için doğrulanmış bir çözüm cümlesi yok.";
@@ -403,8 +415,11 @@ export function gradeOralAnswer(
   } else if (ratio >= 0.99 && !modelPoints.length) {
     modelAnswer = claim?.conclusion?.trim() || answer.slice(0, 240);
   }
-  if (isScoreLabel(modelAnswer)) {
-    modelAnswer = claim?.conclusion?.trim() || "Kaynakta bu soru için doğrulanmış bir çözüm cümlesi yok.";
+  if (isScoreLabel(modelAnswer) || !readable(modelAnswer)) {
+    const conclusion = claim?.conclusion?.trim() ?? "";
+    modelAnswer = conclusion && readable(conclusion)
+      ? conclusion
+      : "Kaynakta bu soru için doğrulanmış bir çözüm cümlesi yok.";
   }
   const quantNotes = [
     ...numeric,
@@ -416,6 +431,7 @@ export function gradeOralAnswer(
     : (claim?.wrongParts.find((part) => !isScoreLabel(part)) ||
       numeric.find((part) => !isScoreLabel(part)) ||
       missed.find((part) => !isScoreLabel(part)) ||
+      hollowGap ||
       "");
   const right = ratio >= 0.99
     ? (claim?.rightParts[0] || covered[0] || answer.slice(0, 180))
