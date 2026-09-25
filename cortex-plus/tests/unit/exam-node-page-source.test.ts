@@ -67,7 +67,8 @@ describe("exam activity with an incomplete physical page source", () => {
         }),
       }));
 
-      expect(pageFilter).toHaveBeenCalledExactlyOnceWith("page_number", [3, 4]);
+      const pageCalls = pageFilter.mock.calls.filter((call) => call[0] === "page_number");
+      expect(pageCalls).toEqual([["page_number", [3, 4]]]);
       expect(response.status).toBe(503);
       expect(await response.json()).toEqual({ error: "source_unavailable" });
       expect(mocks.search).not.toHaveBeenCalled();

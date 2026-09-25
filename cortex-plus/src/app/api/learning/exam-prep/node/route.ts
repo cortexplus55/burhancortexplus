@@ -2074,7 +2074,7 @@ async function generateNodePayload(input: {
      * Öğretmen notundaki sayı kaynağın bu kesitinde yoksa kapı taslağı
      * düşürür. O durumda notsuz bir kez daha üretilir; ikinci tur yok.
      */
-    let outcome = await requestLesson(teacherNote, false);
+    const outcome = await requestLesson(teacherNote, false);
     if (outcome.ok) {
       lessonModelCalls += outcome.modelCalls;
       draftMs += outcome.draftMs;
