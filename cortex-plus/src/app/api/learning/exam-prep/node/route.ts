@@ -94,6 +94,7 @@ import {
 import {
   collectLearnerVisibleText,
   groundLearnerLesson,
+  upcomingTopicsAfter,
   groundLessonDraft,
 } from "@/lib/learning/lesson-grounding";
 import {
@@ -1140,6 +1141,11 @@ export async function POST(request: Request) {
     });
   }
 
+  const upcomingTopics =
+    !voiceSession && kind === "lesson"
+      ? await loadUpcomingTopicTitles(service, prepId, topicLabel)
+      : null;
+
   let payload: Record<string, unknown>;
   try {
     payload = voiceSession
@@ -1195,6 +1201,7 @@ export async function POST(request: Request) {
           learningPreferences: teachingV2 ? prep.learning_preferences : null,
           teacherBrief: teachingV2 ? teachingPlan.brief : "",
           teachingPriority: teachingV2 ? teachingPlan.priority : null,
+          upcomingTopics,
           lessonContent:
             kind === "podcast" && teachingV2 && topic?.id
               ? await loadTopicLesson(service, topic.id)
@@ -1404,6 +1411,24 @@ async function loadSectionBackbone(
   );
 }
 
+/** Konu sırasında bu başlıktan sonrakiler. Eşleşme yoksa null; son konuysa boş dizi. */
+async function loadUpcomingTopicTitles(
+  service: SupabaseClient,
+  prepId: string,
+  currentLabel: string,
+): Promise<string[] | null> {
+  const { data, error } = await service
+    .from("exam_prep_topics")
+    .select("label, sort_order")
+    .eq("exam_prep_id", prepId)
+    .order("sort_order");
+  if (error || !data) return null;
+  return upcomingTopicsAfter(
+    currentLabel,
+    data.map((row) => String(row.label ?? "")),
+  );
+}
+
 async function generateNodePayload(input: {
   service: Parameters<typeof generateJson>[0]["service"];
   userId: string;
@@ -1443,6 +1468,8 @@ async function generateNodePayload(input: {
   /** Saklı öğretmen analizi. Yoksa boş; üretim bugünkü yoldan sürer. */
   teacherBrief?: string;
   teachingPriority?: TeachingPriority | null;
+  /** null: konu listesi yok, nextFocus'a dokunma. Dizi: sıradaki gerçek konular. */
+  upcomingTopics?: string[] | null;
   /** Odaklı pratikte kayıtlı soru yetmezse tek üretim bu konulara bağlı kalır. */
   practiceTopics?: string[];
 }) {
@@ -1550,6 +1577,11 @@ async function generateNodePayload(input: {
         '"x2":300,"y2":170,"arrow":true},{"kind":"text","x":300,"y":182,' +
         '"text":"...","anchor":"end"}]} — koordinatları kendi çizimine göre seç.'
       : "";
+    const upcomingPrompt = !Array.isArray(input.upcomingTopics)
+      ? ""
+      : input.upcomingTopics.length
+        ? ` SIRADA NE VAR yalnızca şu sonraki konu başlıkları: ${input.upcomingTopics.join(" | ")}. Başka konu uydurma.`
+        : " Bu konudan sonra listede konu yok; nextFocus yazma.";
     const requestLesson = (note: string, retried: boolean) =>
       generateJson({
       service: input.service,
@@ -1581,8 +1613,8 @@ async function generateNodePayload(input: {
         "{kind:\"text\",x,y,text,anchor?}. Renk seçme; tone/fill/stroke yalnızca " +
         "ink, muted, accent, surface, line olabilir. Her çizimde en az bir etiket " +
         "ve bir caption olsun. Metinle anlaşılan konuya çizim koyma.",
-      verificationContext: `${contextFor(note)}${backbonePrompt}${diagramPrompt} Bu konunun dersini yaz.`,
-      userPrompt: `${contextFor(note)}${backbonePrompt}${diagramPrompt} Bu konunun dersini yaz. ${REVIEW_VARIANT_RULE}`,
+      verificationContext: `${contextFor(note)}${backbonePrompt}${diagramPrompt}${upcomingPrompt} Bu konunun dersini yaz.`,
+      userPrompt: `${contextFor(note)}${backbonePrompt}${diagramPrompt}${upcomingPrompt} Bu konunun dersini yaz. ${REVIEW_VARIANT_RULE}`,
       // Bu tur neden reddedildi — modele aynen iletiliyor. Rota kendi
       // kurallarıyla da reddediyor; sebebini söylemezse yeniden üretim
       // "JSON şeman bozuk" gibi yanlış bir yönlendirmeyle gidiyordu.
@@ -1591,7 +1623,11 @@ async function generateNodePayload(input: {
         lastParseIssues = [];
         const published = publishLessonDraft(raw, { keyTerms });
         if (!published) return null;
-        const grounded = groundLearnerLesson(published, input.sourceBlock);
+        const grounded = groundLearnerLesson(
+          published,
+          input.sourceBlock,
+          Array.isArray(input.upcomingTopics) ? { upcomingTopics: input.upcomingTopics } : {},
+        );
         if (grounded.removed.length) {
           console.error("removed_for_source", { removed: grounded.removed });
         }

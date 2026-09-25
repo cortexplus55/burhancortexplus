@@ -29,6 +29,15 @@ const ALIEN_TOKENS: Alien[] = [
 
 export type GroundedLesson = { lesson: unknown; removed: string[] };
 
+export type GroundLessonOptions = {
+  /**
+   * Konu haritasında bu konudan sonrakiler.
+   * Dizi verilirse "Sırada ne var" yalnızca bunlardır; boş dizi listeyi siler.
+   * Alan yoksa dersin kendi nextFocus'u durur.
+   */
+  upcomingTopics?: string[];
+};
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
@@ -156,6 +165,183 @@ const CONCEPT_NEEDLES = [
 function clip(text: string, max: number): string {
   const trimmed = text.replace(/\s+/g, " ").trim();
   return trimmed.length <= max ? trimmed : trimmed.slice(0, max).trim();
+}
+
+const SUMMARY_STOP = new Set([
+  "bir",
+  "bu",
+  "su",
+  "ile",
+  "icin",
+  "olan",
+  "olarak",
+  "gibi",
+  "daha",
+  "ise",
+  "veya",
+  "her",
+  "hem",
+  "gore",
+  "sonra",
+  "once",
+  "kadar",
+  "cok",
+  "degil",
+  "eden",
+  "diye",
+  "uzere",
+  "yani",
+  "icin",
+]);
+
+function summaryStems(text: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const word of foldTr(text).split(/[^a-z0-9]+/)) {
+    if (word.length < 3 || SUMMARY_STOP.has(word)) continue;
+    const stem = word.length >= 5 ? word.slice(0, 5) : word;
+    if (seen.has(stem)) continue;
+    seen.add(stem);
+    out.push(stem);
+  }
+  return out;
+}
+
+function stemsClose(left: string, right: string): boolean {
+  if (left === right) return true;
+  if (left.length < 4 || right.length < 4) return false;
+  return left.slice(0, 4) === right.slice(0, 4);
+}
+
+function stemOverlap(left: string[], right: string[]): number {
+  return left.filter((stem) => right.some((other) => stemsClose(stem, other))).length;
+}
+
+function equationSymbol(text: string): string | null {
+  const match = text.match(/([A-Za-z][A-Za-z0-9_]*)\s*=/);
+  if (!match) return null;
+  const symbol = foldTr(match[1]).replace(/[^a-z0-9]/g, "");
+  return symbol.length >= 4 ? symbol : null;
+}
+
+function symbolIn(text: string, symbol: string): boolean {
+  const folded = foldTr(text).replace(/[^a-z0-9]/g, "");
+  if (folded.includes(symbol)) return true;
+  const tail = symbol.replace(/^[a-z]/, "");
+  return tail.length >= 5 && folded.includes(tail);
+}
+
+/** Kısa bağıntı, hemen önceki tanım cümlesine yapışır: "…oranıdır. P = F/A." */
+function attachRelation(sentences: string[]): string[] {
+  const out: string[] = [];
+  for (let index = 0; index < sentences.length; index += 1) {
+    const current = sentences[index] ?? "";
+    const next = sentences[index + 1];
+    if (
+      next &&
+      !/=/.test(current) &&
+      /=/.test(next) &&
+      next.length <= 80 &&
+      summaryStems(next).length <= 4
+    ) {
+      out.push(`${current.replace(/[.:;\s]+$/g, "")}: ${next.replace(/[.;\s]+$/g, "")}`);
+      index += 1;
+      continue;
+    }
+    out.push(current);
+  }
+  return out;
+}
+
+/**
+ * Özet, kaynağın niteleyicisini veya bağıntının yarısını düşürdüyse
+ * kaynağın kendi cümlesi (ve aynı simgeli kardeş bağıntı) gelir.
+ */
+function preciseSummaryLines(item: string, source: string): string[] | null {
+  if (!source.trim() || truncated(source) || definitionalInversionIssues(item).length) return null;
+  const packed = attachRelation(sentencesOf(source).filter((sentence) => sentence.length >= 8));
+  const itemStems = summaryStems(item);
+  if (itemStems.length < 2) return null;
+  const itemHasEq = /=/.test(item);
+  const itemKey = foldTr(item);
+  let best: { text: string; score: number } | null = null;
+  for (const sentence of packed) {
+    if (definitionalInversionIssues(sentence).length) continue;
+    if (foldTr(sentence) === itemKey) return null;
+    const sentenceStems = summaryStems(sentence);
+    const shared = stemOverlap(itemStems, sentenceStems);
+    const extras = sentenceStems.filter((stem) => !itemStems.some((other) => stemsClose(stem, other)));
+    const missingEq = !itemHasEq && /=/.test(sentence);
+    const coverage = shared / itemStems.length;
+    const symbol = equationSymbol(sentence);
+    const symbolHit = Boolean(symbol && symbolIn(item, symbol));
+    if (missingEq) {
+      if (coverage < 0.5 && !symbolHit) continue;
+    } else if (extras.length < 2 || coverage < 0.5) {
+      continue;
+    }
+    const score = shared * 2 + extras.length + (missingEq ? 12 : 0) + (symbolHit ? 4 : 0);
+    if (!best || score > best.score) best = { text: sentence, score };
+  }
+  if (!best) return null;
+  if (itemHasEq && /=/.test(best.text)) {
+    const extras = summaryStems(best.text).filter(
+      (stem) => !itemStems.some((other) => stemsClose(stem, other)),
+    );
+    const symbol = equationSymbol(best.text);
+    if (extras.length < 2 && symbol && symbolIn(item, symbol)) return null;
+  }
+  const lines = [clip(best.text.replace(/[;]+\s*$/g, ""), 240)];
+  const symbol = equationSymbol(best.text);
+  if (symbol && !itemHasEq) {
+    for (const sentence of sentencesOf(source)) {
+      if (!/=/.test(sentence) || definitionalInversionIssues(sentence).length) continue;
+      if (!symbolIn(sentence, symbol)) continue;
+      const text = clip(sentence.replace(/[;]+\s*$/g, ""), 240);
+      if (lines.some((line) => foldTr(line).includes(foldTr(text)) || foldTr(text).includes(foldTr(line)))) {
+        continue;
+      }
+      lines.push(text);
+      if (lines.length >= 2) break;
+    }
+  }
+  if (lines.length === 1 && foldTr(lines[0] ?? "") === itemKey) return null;
+  return lines;
+}
+
+/** Konu sırasında bu başlıktan sonrakiler. Eşleşme yoksa null. */
+export function upcomingTopicsAfter(
+  currentTitle: string,
+  titles: string[],
+  limit = 3,
+): string[] | null {
+  const current = foldTr(currentTitle).replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  if (!current) return null;
+  const folded = titles.map((title) => ({
+    title: title.trim(),
+    key: foldTr(title).replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim(),
+  }));
+  let index = folded.findIndex((row) => row.key === current);
+  if (index < 0) {
+    let bestLen = 0;
+    folded.forEach((row, rowIndex) => {
+      if (row.key.length < 8) return;
+      const hit = row.key.includes(current) || current.includes(row.key);
+      if (!hit || row.key.length <= bestLen) return;
+      index = rowIndex;
+      bestLen = row.key.length;
+    });
+  }
+  if (index < 0) return null;
+  const seen = new Set<string>();
+  const next: string[] = [];
+  for (const row of folded.slice(index + 1)) {
+    if (row.title.length < 2 || !row.key || seen.has(row.key)) continue;
+    seen.add(row.key);
+    next.push(row.title.slice(0, 200));
+    if (next.length >= limit) break;
+  }
+  return next;
 }
 
 function optionKey(value: unknown): string {
@@ -297,7 +483,11 @@ export function groundLessonDraft(draft: string, source: string): string {
   }
 }
 
-export function groundLearnerLesson(lesson: unknown, source: string): GroundedLesson {
+export function groundLearnerLesson(
+  lesson: unknown,
+  source: string,
+  options: GroundLessonOptions = {},
+): GroundedLesson {
   const removed: string[] = [];
   const row = asRecord(lesson);
   if (!row) return { lesson, removed };
@@ -392,23 +582,52 @@ export function groundLearnerLesson(lesson: unknown, source: string): GroundedLe
   if (Array.isArray(next.summary)) {
     const kept: string[] = [];
     const seen = new Set<string>();
+    const pushSummary = (text: string) => {
+      const key = foldTr(text);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      kept.push(text);
+    };
     for (const item of next.summary) {
       if (typeof item !== "string") continue;
       const failing = fieldFails(item, source);
-      const replacement = failing ? sourceSentenceFor(item, source) : null;
-      const text = replacement ? clip(replacement, 240) : item;
-      if (failing && !replacement) {
-        removed.push("summary");
+      if (failing) {
+        const replacement = sourceSentenceFor(item, source);
+        if (!replacement) {
+          removed.push("summary");
+          continue;
+        }
+        removed.push("summary:replaced");
+        pushSummary(clip(replacement, 240));
         continue;
       }
-      if (failing && replacement) removed.push("summary:replaced");
-      const key = foldTr(text);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      kept.push(text);
+      const precise = preciseSummaryLines(item, source);
+      if (precise) {
+        removed.push("summary:replaced");
+        for (const line of precise) pushSummary(line);
+        continue;
+      }
+      pushSummary(item);
     }
     if (kept.length) next.summary = kept;
     else delete next.summary;
+  }
+
+  if (options.upcomingTopics) {
+    const upcoming = options.upcomingTopics
+      .map((item) => item.trim())
+      .filter((item) => item.length >= 2)
+      .slice(0, 4);
+    const current = Array.isArray(next.nextFocus)
+      ? next.nextFocus.filter((item): item is string => typeof item === "string").map((item) => item.trim())
+      : [];
+    const same =
+      current.length === upcoming.length && current.every((item, index) => item === upcoming[index]);
+    if (!same) {
+      removed.push(upcoming.length ? "nextFocus:replaced" : "nextFocus");
+      if (upcoming.length) next.nextFocus = upcoming;
+      else delete next.nextFocus;
+    }
   }
 
   return { lesson: next, removed };

@@ -1326,11 +1326,118 @@ function groundedDefinitionRetry<T extends ReviewCheck>(check: T, source: string
   });
 }
 
+const FACT_STOP = new Set([
+  "bir",
+  "bu",
+  "su",
+  "ile",
+  "icin",
+  "olan",
+  "olarak",
+  "gibi",
+  "daha",
+  "ise",
+  "veya",
+  "her",
+  "hem",
+  "gore",
+  "sonra",
+  "once",
+  "kadar",
+  "cok",
+  "degil",
+  "eden",
+  "diye",
+  "uzere",
+  "nedenle",
+  "boyle",
+  "yani",
+  "midir",
+  "mudur",
+]);
+
+function factStems(text: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const word of foldTr(text).split(/[^a-z0-9]+/)) {
+    if (word.length < 5 || FACT_STOP.has(word)) continue;
+    const stem = word.slice(0, 6);
+    if (seen.has(stem)) continue;
+    seen.add(stem);
+    out.push(stem);
+  }
+  return out;
+}
+
+function factSentences(text: string): string[] {
+  return text
+    .split(/\n+|(?<=[.!?])\s+(?=[A-ZÇĞİÖŞÜ“"])/)
+    .map((part) => part.replace(/\s+/g, " ").trim())
+    .filter((part) => part.length >= 20 && part.length <= 240);
+}
+
+/**
+ * Kaçırılan soru aynı cümleyi geri sormaz.
+ * Kaynakta aynı kavramı söyleyen başka bir doğru cümle, doğru/yanlış olarak sorulur.
+ * Çoktan seçmelide doğru şık o cümlede geçmiyorsa null — şık kayması yerinde kalır.
+ */
+function groundedFactRetry<T extends ReviewCheck>(check: T, source: string): T | null {
+  if (!source.trim()) return null;
+  const claim = check.prompt
+    .replace(/\s*doğru mu yanlış\??/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const claimFold = foldTr(claim);
+  if (claimFold.length < 12) return null;
+  const sentences = factSentences(source);
+  const alreadySource = sentences.some((sentence) => {
+    const folded = foldTr(sentence);
+    return folded.length >= 20 && (claimFold.includes(folded) || folded.includes(claimFold));
+  });
+  if (alreadySource) return null;
+  const claimStems = factStems(claim);
+  if (!claimStems.length) return null;
+  const isTrueFalse = trueFalseRightIndex(check.options) >= 0;
+  const correctFold = foldTr(check.options[check.answerIndex] ?? "");
+  const corpus = [source, check.explanation, check.prompt, ...check.options].join("\n");
+  let best: { score: number; text: string } | null = null;
+  for (const sentence of sentences) {
+    if (sentence.includes("?")) continue;
+    const folded = foldTr(sentence);
+    if (folded.includes(claimFold) || claimFold.includes(folded)) continue;
+    if (hasNovelQuantity(sentence, corpus)) continue;
+    const stems = factStems(sentence);
+    const shared = claimStems.filter((stem) =>
+      stems.some(
+        (other) => other.slice(0, 5) === stem.slice(0, 5) || other.startsWith(stem) || stem.startsWith(other),
+      ),
+    );
+    if (!shared.length) continue;
+    if (!isTrueFalse && (correctFold.length < 4 || !folded.includes(correctFold))) continue;
+    const score = shared.length * 3 + Math.min(stems.length, 6);
+    if (!best || score > best.score) best = { score, text: sentence };
+  }
+  if (!best) return null;
+  const prompt = `${best.text.replace(/[.!?;\s]+$/g, "")}. DOĞRU MU YANLIŞ?`.slice(0, 300);
+  if (foldPrompt(prompt) === foldPrompt(check.prompt)) return null;
+  if (isTrueFalse) {
+    const right = trueFalseRightIndex(check.options);
+    if (right < 0) return null;
+    return { ...check, prompt, answerIndex: right };
+  }
+  return {
+    ...check,
+    type: "trueFalse",
+    prompt,
+    options: ["Yanlış", "Doğru"],
+    answerIndex: 1,
+  };
+}
+
 /**
  * Kısa tekrar kapısının sorusu.
  * Saklı varyant gerçekten farklıysa o gelir.
- * Değilse tanım sorusu tersinden, doğru/yanlış başka bir sayıdan sorulur.
- * İkisi de yoksa orijinal soru, öneksiz, gösterilir.
+ * Değilse tanım tersinden, doğru/yanlış başka bir kaynaktan, yoksa orijinal sorulur.
  */
 export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredReview | null }>(
   check: T,
@@ -1350,6 +1457,8 @@ export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredRevie
   if (grounded && foldPrompt(grounded.prompt) !== foldPrompt(check.prompt)) return grounded;
   const reversed = language === "tr" ? groundedDefinitionRetry(check, source) : null;
   if (reversed && foldPrompt(reversed.prompt) !== foldPrompt(check.prompt)) return reversed;
+  const fact = language === "tr" ? groundedFactRetry(check, source) : null;
+  if (fact && foldPrompt(fact.prompt) !== foldPrompt(check.prompt)) return fact;
   if (check.options.length >= 3) {
     const shifted = shiftOptions(check);
     return {
