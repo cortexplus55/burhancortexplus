@@ -91,5 +91,13 @@ describe("kredi fiyat tablosu", () => {
     expect(audioRoute).not.toMatch(/\bensureAudio\s*\(/);
     expect(audioRoute.match(/synthesizeCharged\(/g)?.length).toBeGreaterThan(0);
     expect(audioRoute).toContain('errorResponse(402, "insufficient_credits")');
+    const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
+    expect(session).toContain("CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits");
+    expect(session).toContain("AUDIO_CHARS_PER_CREDIT_PRICE");
+    expect(session).toContain("router.refresh()");
+    const player = readFileSync("src/components/parity/exam-podcast-player.tsx", "utf8");
+    expect(player).toContain("creditsSpent");
+    const lessonRepair = readFileSync("src/lib/learning/lesson-repair.ts", "utf8");
+    expect(lessonRepair).toContain("repairTurkishSurface");
   });
 });

@@ -6,7 +6,7 @@
  * çağrıyı açmaz. Kimya, fizik, tarih, hukuk ve biyoloji aynı kapıdan geçer.
  */
 
-import { fluencyIssues } from "@/lib/learning/learner-fluency";
+import { fluencyIssues, repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import {
   auditQuantitative,
   gradeStudentClaim,
@@ -63,7 +63,7 @@ function expandSub(text: string): string {
 
 /** Modelin İngilizce "full" kırpıntısı. Konuya özel değil. */
 export function polishLearnerText(text: string): string {
-  return text
+  return repairTurkishSurface(text)
     .replace(/\bful olarak\b/gi, "tam olarak")
     .replace(/yarısı kadar,?\s*yani/gi, "katsayı oranına göre");
 }

@@ -3,11 +3,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateJson } from "@/lib/ai/generate";
 import { coerceQuizQuestions, parseQuizQuestions, type QuizQuestion } from "@/lib/learning/exam-quiz";
 import { repairQuizPedagogy, validateQuizPedagogy } from "@/lib/learning/teaching-standards";
+import { repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import {
   refineVerifiedChoices,
   verifyChoiceSet,
   type VerifiedChoice,
 } from "@/lib/learning/question-verifier";
+import { quizClaimIssues } from "@/lib/learning/tutor-quant";
 
 const QUIZ_GATE = {
   requireObjective: false,
@@ -72,7 +74,20 @@ export async function generateExamQuiz(input: {
   const questionsFrom = (raw: unknown): QuizQuestion[] | null => {
     const parsed = parseQuizQuestions(raw) ?? coerceQuizQuestions(raw);
     if (!parsed) return null;
-    const repaired = input.teachingV2 ? repairQuizPedagogy(parsed) : parsed;
+    const surfaced = parsed.map((question) => ({
+      ...question,
+      text: repairTurkishSurface(question.text),
+      ...(question.explanation ? { explanation: repairTurkishSurface(question.explanation) } : {}),
+      options: question.options.map((option) => repairTurkishSurface(option)),
+      correct: question.correct.map((option) => repairTurkishSurface(option)),
+      ...(question.learningObjective
+        ? { learningObjective: repairTurkishSurface(question.learningObjective) }
+        : {}),
+      ...(question.optionWhy
+        ? { optionWhy: question.optionWhy.map((line) => repairTurkishSurface(line)) }
+        : {}),
+    }));
+    const repaired = input.teachingV2 ? repairQuizPedagogy(surfaced) : surfaced;
     const verified = verifyChoiceSet(asChoices(repaired), input.sourceExcerpt ?? "", 3);
     if (!verified) {
       lastIssues = ["Bağımsız doğrulama soruyu tutmadı. Tek doğru cevabı olan yeni soru yaz."];
@@ -89,7 +104,10 @@ export async function generateExamQuiz(input: {
       return null;
     }
     if (input.teachingV2) {
-      const issues = validateQuizPedagogy(questions, QUIZ_GATE);
+      const issues = [
+        ...validateQuizPedagogy(questions, QUIZ_GATE),
+        ...quizClaimIssues(questions, input.sourceExcerpt ?? ""),
+      ];
       if (issues.length) {
         lastIssues = issues;
         return null;
@@ -134,7 +152,10 @@ export async function generateExamQuiz(input: {
           const questions = parsed ? questionsFrom(parsed) : null;
           return {
             pedagogyIssues: questions
-              ? validateQuizPedagogy(questions, QUIZ_GATE)
+              ? [
+                  ...validateQuizPedagogy(questions, QUIZ_GATE),
+                  ...quizClaimIssues(questions, input.sourceExcerpt ?? ""),
+                ]
               : ["Quiz şeması geçersiz."],
             minItems: 3,
             sourceExcerpt: input.sourceExcerpt,
@@ -163,7 +184,10 @@ export async function generateExamQuiz(input: {
       });
       if (ready.length < 3) return null;
       if (input.teachingV2) {
-        const issues = validateQuizPedagogy(ready, QUIZ_GATE);
+        const issues = [
+          ...validateQuizPedagogy(ready, QUIZ_GATE),
+          ...quizClaimIssues(ready, input.sourceExcerpt ?? ""),
+        ];
         if (issues.length) {
           lastIssues = issues;
           return null;

@@ -5,7 +5,7 @@ import {
   unsupportedQuantities,
 } from "@/lib/learning/teacher-brain";
 import type { OralReviewItem, OralTeacherMoodId } from "@/lib/learning/oral-exam-chrome";
-import { fluencyIssues } from "@/lib/learning/learner-fluency";
+import { fluencyIssues, repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import {
   auditQuantitative,
   gradeStudentClaim,
@@ -219,11 +219,13 @@ export function citationFromPassages(
  * Ayrıştırılamayan örnek için ikinci model çağrısı yok.
  */
 function repairModelAnswer(text: string, source: string): string {
-  const audit = auditQuantitative(text, source);
-  if (audit.ok || !audit.issues.length) return text;
-  const repaired = repairQuantitative(text, audit).trim();
-  if (!repaired) return text;
-  if (source.trim() && unsupportedQuantities(repaired, source).length) return text;
+  const surfaced = repairTurkishSurface(text);
+  const audit = auditQuantitative(surfaced, source);
+  if (audit.ok || !audit.issues.length) return surfaced;
+  const repaired = repairQuantitative(surfaced, audit).trim();
+  if (!repaired) return surfaced;
+  const mustShip = audit.issues.some((issue) => issue.kind === "arithmetic" || issue.kind === "absolute");
+  if (!mustShip && source.trim() && unsupportedQuantities(repaired, source).length) return surfaced;
   return repaired;
 }
 
@@ -641,27 +643,28 @@ export function publishOralQuestions(
   if (!list) return null;
   const questions = list.flatMap((item) => {
     const record = item && typeof item === "object" ? (item as Record<string, unknown>) : null;
-    const prompt = pointText(record?.prompt);
+    const prompt = repairModelAnswer(pointText(record?.prompt), source);
     if (prompt.length < 8) return [];
+    if (auditQuantitative(prompt, source).issues.some((issue) => issue.kind === "arithmetic")) return [];
     if (source.trim() && !keepOralPoint(prompt, source) && unsupportedQuantities(prompt, source).length) {
       return [];
     }
     const given = (Array.isArray(record?.expectedPoints) ? record.expectedPoints : [])
-      .map(pointText)
-      .filter((point) => !isScoreLabel(point) && keepOralPoint(point, source));
+      .map((point) => repairModelAnswer(pointText(point), source))
+      .filter((point) => !isScoreLabel(point) && keepOralPoint(point, source) && !auditQuantitative(point, source).issues.some((issue) => issue.kind === "arithmetic"));
     const bare = prompt.replace(/\d+(?:[.,]\d+)?/g, " ").replace(/\s+/g, " ").trim();
     const points = (given.length ? given : bare.length >= 8 ? [bare.slice(0, 180)] : []).slice(0, 6);
     if (!points.length) return [];
     const verified = verifyOralPrompt(prompt, points, source);
     if (!verified) return [];
     const givenRubric = (Array.isArray(record?.rubricCriteria) ? record.rubricCriteria : [])
-      .map(pointText)
+      .map((line) => repairModelAnswer(pointText(line), source))
       .filter((line) => line.length >= 2 && !isScoreLabel(line) && keepOralPoint(line, source));
     const rubric = (
       givenRubric.length ? givenRubric : verified.expectedPoints.map((point) => point.slice(0, 120))
     ).slice(0, 5);
-    const objective = pointText(record?.learningObjective);
-    const hint = pointText(record?.hint);
+    const objective = repairModelAnswer(pointText(record?.learningObjective), source);
+    const hint = repairModelAnswer(pointText(record?.hint), source);
     return [
       {
         prompt: verified.prompt,
