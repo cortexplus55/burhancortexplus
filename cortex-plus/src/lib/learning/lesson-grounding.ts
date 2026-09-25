@@ -8,6 +8,7 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
+import { restoreMathNotation } from "@/lib/learning/lesson-board";
 import { unsupportedQuantities } from "@/lib/learning/teacher-brain";
 import {
   definitionalInversionIssues,
@@ -182,7 +183,7 @@ function stripSourceChrome(text: string): string {
 }
 
 export function normalizeSummaryText(text: string): string {
-  return text
+  return restoreMathNotation(text)
     .replace(/\s+/g, " ")
     .trim()
     .replace(/\b([mhuvsypxt])\s+(fg|sat|f|g)\b/gi, "$1_$2")
@@ -233,7 +234,14 @@ export function summaryLineProblem(
 ): "fragment" | "heading" | "objective" | "flashcard" | "truncated" | "vague" | null {
   const folded = foldTr(text);
   if (/^\s*soru\s*:/i.test(text) || /\bcevap\s*:/i.test(text) || /\?:/.test(text)) return "flashcard";
-  if (/ifade\s+(dogru|yanlis)/.test(folded) || /dogru cevap/.test(folded) || /secenek/.test(folded)) {
+  if (
+    /ifade\s+(dogru|yanlis)/.test(folded) ||
+    /dogru cevap/.test(folded) ||
+    /secenek/.test(folded) ||
+    /digerleri/.test(folded) ||
+    /diger secenek/.test(folded) ||
+    /\byanlis\b/.test(folded)
+  ) {
     return "flashcard";
   }
   if (/\bornek\s*:/i.test(text) && !/=\s*\d/.test(text)) return "fragment";

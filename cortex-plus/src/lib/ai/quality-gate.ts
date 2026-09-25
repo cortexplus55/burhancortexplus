@@ -58,6 +58,8 @@ export class EducationalVerificationError extends Error {
   repairAttempted = false;
   /** Onarım olduysa true/false. Onarım yoksa null. */
   recheckPassed: boolean | null = null;
+  /** Bu denetimde giden model çağrısı. Taslak çağrısı burada sayılmaz. */
+  modelCalls = 0;
   issueSeverity: IssueSeverityReport = { blocking: [], nonBlocking: [] };
   stagesMs: Partial<Record<ValidationStage, number>> = {};
 }
@@ -72,6 +74,7 @@ export type VerifyEducationalResult = {
   failedStage: ValidationStage | null;
   failureCodes: string[];
   issueSeverity: IssueSeverityReport;
+  modelCalls: number;
 };
 
 function codesFromIssues(issues: ValidationIssue[]): string[] {
@@ -121,10 +124,12 @@ export async function verifyEducationalContent(input: {
   let tokensIn = 0;
   let tokensOut = 0;
   let repairAttempted = false;
+  let modelCalls = 0;
   const stagesMs: Partial<Record<ValidationStage, number>> = {};
   const failClosed = input.failClosedOnUnavailable ?? Boolean(input.independent);
 
   function stamp(error: EducationalVerificationError): never {
+    error.modelCalls = modelCalls;
     return stampError(error, repairAttempted, stagesMs);
   }
 
@@ -180,8 +185,9 @@ export async function verifyEducationalContent(input: {
   const request = async (instruction: string) => {
     try {
       const response = await withTransientRetry(
-        () =>
-          input.client.chat.completions.create(
+        () => {
+          modelCalls += 1;
+          return input.client.chat.completions.create(
         {
           model: env.OPENAI_ADVANCED_MODEL,
           response_format: { type: "json_object" },
@@ -213,7 +219,8 @@ export async function verifyEducationalContent(input: {
           ],
         },
         { timeout: 45000, maxRetries: 0, signal: input.signal },
-          ),
+          );
+        },
         { startedAt: input.startedAt ?? Date.now(), callTimeoutMs: 45_000 },
       );
       tokensIn += response.usage?.prompt_tokens ?? 0;
@@ -313,6 +320,7 @@ export async function verifyEducationalContent(input: {
         failedStage: null,
         failureCodes: [],
         issueSeverity: severity,
+        modelCalls,
       };
     }
     if (attempt === 1) break;
@@ -380,6 +388,7 @@ export async function verifyEducationalContent(input: {
       failedStage: null,
       failureCodes: [],
       issueSeverity: { blocking: [], nonBlocking: nonBlockingLeft },
+      modelCalls,
     };
   }
   // Tek onarım yetmediyse uydurulan parça kesilir; sağlam ders kalırsa kabul.
@@ -396,6 +405,7 @@ export async function verifyEducationalContent(input: {
         failedStage: null,
         failureCodes: [],
         issueSeverity: { blocking: [], nonBlocking: nonBlockingLeft },
+        modelCalls,
       };
     }
   }

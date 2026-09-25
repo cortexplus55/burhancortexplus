@@ -6,16 +6,25 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
-import { incompleteFormulaLine } from "@/lib/learning/lesson-board";
+import {
+  incompleteFormulaLine,
+  repairGappedFrame,
+  restoreMathNotation,
+  separateRunOnFormulas,
+} from "@/lib/learning/lesson-board";
 import {
   ambiguousEnergyClaim,
   claimsFromVerify,
   claimVerifyPrompt,
+  conceptInText,
+  foreignToTopic,
   missingCoverage,
   overgeneralCorrection,
+  realGasPrecisionIssue,
   rewriteSignFlip,
   signConventionFlip,
   summaryQuantityMismatch,
+  titleConcepts,
 } from "@/lib/learning/lesson-claims";
 import { diagramIssues, lessonDiagramSchema, needsDiagram } from "@/lib/learning/lesson-diagram";
 import { groundLearnerLesson, normalizeSummaryText, summaryLineProblem } from "@/lib/learning/lesson-grounding";
@@ -319,7 +328,9 @@ export function auditLearnerLesson(
     }
     for (const sentence of sentencesOf(text)) {
       if (vacuousSentence(sentence)) issues.push({ code: "vacuous", detail: sentence.slice(0, 160) });
-      if (signConventionFlip(sentence)) issues.push({ code: "claim_wrong", detail: sentence.slice(0, 160) });
+      if (signConventionFlip(sentence) || realGasPrecisionIssue(sentence, input.source)) {
+        issues.push({ code: "claim_wrong", detail: sentence.slice(0, 160) });
+      }
       if (incompleteFormulaLine(sentence) || workedExampleNeedsFormula(sentence)) {
         issues.push({ code: "example_incomplete", detail: sentence.slice(0, 160) });
       }
@@ -373,7 +384,8 @@ export function auditLearnerLesson(
       if (
         ambiguousEnergyClaim(sentence, input.source) ||
         overgeneralCorrection(sentence, input.source) ||
-        signConventionFlip(sentence)
+        signConventionFlip(sentence) ||
+        realGasPrecisionIssue(sentence, input.source)
       ) {
         issues.push({ code: "claim_wrong", detail: sentence.slice(0, 160) });
       }
@@ -422,6 +434,10 @@ function publishSentence(sentence: string, source: string, quotes: string[], con
   if (vacuousSentence(next)) return null;
   if (placeholderWork(next) || restatedResult(next) || isIncompleteExample(next)) return null;
   if (ambiguousEnergyClaim(next, source) || overgeneralCorrection(next, source)) return null;
+  if (realGasPrecisionIssue(next, source)) return null;
+  const repairedGap = repairGappedFrame(next);
+  if (!repairedGap) return null;
+  next = repairedGap;
   if (quoteHits(next, quotes)) return null;
   if (/veri\s*:/i.test(next) && /ad[ıi]m\s*\d+/i.test(next) && !exampleIsComplete(next)) return null;
   if (workedExampleNeedsFormula(next)) {
@@ -754,7 +770,8 @@ export function lessonRepairPrompt(
     "Örnekte sıra formül, yerine koyma, sonuç olsun: ΔU = Q − W = 80 kJ − 30 kJ = 50 kJ. Formül dersin içinde yoksa örneği sil.",
     "Sağ tarafı boş formül yazma. ΔE = gibi satır ya tamamlanır ya da silinir.",
     "Q − (−W) = Q + W yazma. W negatifse ΔE = Q − W = Q + |W| yaz.",
-    "Özet 3 ile 5 bildiren cümle olsun. Her cümle nokta ile bitsin. Başlık, öğrenme hedefi, etiket zinciri, Soru:, Cevap:, ifade doğrudur, doğru cevap, seçenek ve çünkü ile biten satır yazma.",
+    "Özet 3 ile 5 bildiren cümle olsun. Her cümle nokta ile bitsin. Başlık, öğrenme hedefi, etiket zinciri, Soru:, Cevap:, ifade doğrudur, doğru cevap, seçenek, diğerleri, yanlış ve çünkü ile biten satır yazma.",
+    "Pv = ZRT özgül hacim kullanır. Toplam hacimde PV = mZRT yaz. Kaynak söylemiyorsa Z = 1.03 varsayımı bozmaz deme.",
     "Kontrol sorularının en fazla biri doğru/yanlış olsun. Diğerleri dört şıklı çoktan seçmeli olsun.",
     "Tek cümlelik tekrar yazma. Verileni ve işlemi aynı sayıda göster: sonuç = bağıntı = verilen − sıfır.",
     "Adım 1 / Sonucu hesapla gibi yer tutucu yazma.",
@@ -835,42 +852,122 @@ function coverSourceRelations(lesson: LessonV2, source: string): LessonV2 {
   return next;
 }
 
+const FORMULA_STOP = new Set([
+  "ve",
+  "ic",
+  "ile",
+  "bir",
+  "bu",
+  "su",
+  "da",
+  "de",
+  "ki",
+  "mi",
+  "mu",
+  "her",
+  "ya",
+  "ise",
+  "veya",
+  "icin",
+  "olan",
+  "olarak",
+  "is",
+  "isi",
+  "gibi",
+]);
+
+function formulaToken(token: string): boolean {
+  if (/[∫Δδ()[\]+\-−–×*/^₀-₉⁰-⁹0-9_]/.test(token)) return true;
+  const bare = token.replace(/^[.(]+|[.,;:)]+$/g, "");
+  if (!bare || FORMULA_STOP.has(foldTr(bare))) return false;
+  if (/^d[A-Za-z]$/.test(bare)) return true;
+  return bare.length <= 2 && /^[A-Za-zΔδ]+$/.test(bare);
+}
+
+function trimFormula(raw: string): string {
+  let equation = raw.replace(/\s+/g, " ").trim();
+  equation = equation
+    .replace(/[,.;:].*$/s, "")
+    .replace(
+      /\s+(?:formül\w*|formul\w*|ba[gğ]lant[ıi]\w*|ba[gğ]ınt[ıi]\w*|şeklinde|seklinde|yazılır|yazilir|bulunur|hesaplanır|hesaplanir|ile|olarak|eşitliği|esitligi|eşitliğe|esitlige).*$/i,
+      "",
+    )
+    .replace(/[,\s]+$/g, "")
+    .trim();
+  const eq = equation.indexOf("=");
+  if (eq < 0) return equation;
+  const words = equation
+    .slice(eq + 1)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  while (words.length && !formulaToken(words[words.length - 1])) words.pop();
+  return `${equation.slice(0, eq).trim()} = ${words.join(" ")}`.replace(/\s+/g, " ").trim();
+}
+
 function symbolicEquations(sentence: string): string[] {
   const normalized = sentence.replace(/\bc\s*_?\s*([vp])\b/gi, "c_$1");
-  const pattern =
-    /((?:Δ|δ)?[A-Za-z][A-Za-z0-9_]*(?:\s*[-−–]\s*(?:Δ|δ)?[A-Za-z][A-Za-z0-9_]*)?\s*=\s*[^,.;:\n]{1,80})/g;
+  const start =
+    /(?:(?:Δ|δ)?[A-Za-z][A-Za-z0-9_]*\s*[-−–+]\s*)?(?:Δ|δ)?[A-Za-z][A-Za-z0-9_]*\s*=\s*/g;
+  const starts = [...normalized.matchAll(start)];
   const out: string[] = [];
-  for (const match of normalized.matchAll(pattern)) {
-    let equation = match[1].replace(/\s+/g, " ").trim();
-    equation = equation
-      .replace(
-        /\s+(?:formül\w*|formul\w*|ba[gğ]lant[ıi]\w*|şeklinde|seklinde|yazılır|yazilir|bulunur|hesaplanır|hesaplanir|ile|olarak|eşitliği|esitligi|eşitliğe|esitlige).*$/i,
-        "",
-      )
-      .replace(/[,\s]+$/g, "")
-      .trim();
-    if (equation.length < 5 || equation.length > 160) continue;
-    for (const piece of equation.split(/\s+ve\s+/i)) {
-      const formulas = [...piece.matchAll(/((?:Δ|δ)?[A-Za-z][A-Za-z0-9_]*)\s*=\s*[^,.;]+/g)];
-      const trimmed = formulas[formulas.length - 1]?.[0]?.replace(/\s+/g, " ").trim() ?? "";
+  for (let index = 0; index < starts.length; index += 1) {
+    const match = starts[index];
+    const begin = match?.index ?? 0;
+    const end = starts[index + 1]?.index ?? normalized.length;
+    for (const piece of trimFormula(normalized.slice(begin, end)).split(/\s+ve\s+/i)) {
+      const trimmed = trimFormula(piece);
       if (!trimmed || (trimmed.match(/=/g) ?? []).length !== 1) continue;
       if (/\d|[|]/.test(trimmed)) continue;
       const right = trimmed.split("=").slice(1).join("=");
-      if (!/[A-Za-zΔδ]/.test(right) || trimmed.length < 5 || trimmed.length > 120) continue;
+      if (!/[A-Za-zΔδ∫]/.test(right) || trimmed.length < 5 || trimmed.length > 120) continue;
       out.push(trimmed);
     }
   }
   return out;
 }
 
-function equationPrompt(equation: string): string {
-  const left = equation.split("=")[0]?.trim() || "Bu büyüklük";
+/** Kısa ya da birden fazla şıkkın solundaki simge soru kökü olamaz. */
+export function ambiguousRelationQuestion(prompt: string, options: string[]): boolean {
+  const match = prompt.match(/^(.{1,16}?)\s+(?:büyüklüğü\s+)?hangi bağıntıyla\s+hesaplanır/i);
+  if (!match) return false;
+  const symbol = match[1].trim();
+  const letters = symbol.replace(/[^A-Za-zΔδ]/g, "");
+  const short =
+    letters.length <= 1 ||
+    (letters.length <= 2 && !symbol.includes("Δ") && !symbol.includes("δ") && !symbol.includes("_"));
+  if (!short) return false;
+  const stem = foldTr(symbol).replace(/[^a-z0-9]/g, "");
+  const hits = options.filter((option) => {
+    const side = foldTr((option.split("=")[0] ?? "").trim()).replace(/[^a-z0-9]/g, "");
+    return side.length > 0 && side === stem;
+  });
+  return letters.length <= 2 || hits.length > 1;
+}
+
+function equationPrompt(equation: string): string | null {
+  const left = equation.split("=")[0]?.trim() || "";
+  if (!left) return null;
   let prompt = `${left} hangi bağıntıyla hesaplanır?`;
+  if (ambiguousRelationQuestion(prompt, [])) return null;
   if (prompt.replace(/[?.!]/g, "").split(/\s+/).filter(Boolean).length < 4) {
     prompt = `${left} büyüklüğü hangi bağıntıyla hesaplanır?`;
   }
+  if (ambiguousRelationQuestion(prompt, [])) return null;
   if (stemLacksSubject(prompt)) prompt = `${left} için doğru bağıntı hangisidir?`;
+  if (ambiguousRelationQuestion(prompt, []) || stemLacksSubject(prompt)) return null;
   return prompt.slice(0, 300);
+}
+
+function safeRelationPrompt(equation: string): string | null {
+  if (/W\s*=\s*P\s*\(\s*V/i.test(equation)) return "Sabit basınçta sınır işi hangi eşitlikle yazılır?";
+  if (/W\s*=\s*∫/.test(equation)) return "Sınır işinin genel tanımı hangi eşitliktir?";
+  return null;
+}
+
+function boundaryDistractors(equation: string): string[] {
+  if (!/W\s*=/.test(equation) || !/dV|V\s*[₂2]|∫/.test(equation)) return [];
+  return ["W = V(P₂ − P₁)", "W = P(V₂ + V₁)", "W = P / (V₂ − V₁)"];
 }
 
 function heatSwap(equation: string): string | null {
@@ -917,10 +1014,16 @@ function equationCheck(
   item: { equation: string; sentence: string },
   equations: { equation: string }[],
 ): SectionCheck | null {
-  const prompt = equationPrompt(item.equation);
-  if (prompt.length < 12 || stemLacksSubject(prompt)) return null;
-  const options = optionsForEquation(item.equation, equations);
-  if (options.length < 2) return null;
+  const prompt = equationPrompt(item.equation) ?? safeRelationPrompt(item.equation);
+  if (!prompt || prompt.length < 12 || stemLacksSubject(prompt)) return null;
+  if (ambiguousRelationQuestion(prompt, [])) return null;
+  const options = [...optionsForEquation(item.equation, equations)];
+  for (const alt of boundaryDistractors(item.equation)) {
+    if (options.length >= 4) break;
+    if (options.some((itemOption) => foldTr(itemOption) === foldTr(alt))) continue;
+    options.push(alt);
+  }
+  if (options.length < 2 || ambiguousRelationQuestion(prompt, options)) return null;
   const explanation =
     item.sentence.length >= 12 ? item.sentence.slice(0, 580) : `${item.equation} dersin anlatımında verilir.`;
   return validCheck({
@@ -1024,13 +1127,135 @@ export function ensureThreeChecks(lesson: LessonV2): LessonV2 {
   return next;
 }
 
+function alignedTopicTitle(title: string, topicLabel: string): string {
+  const concepts = titleConcepts(topicLabel);
+  if (!concepts.length) return title || topicLabel;
+  const longest = concepts.reduce((best, item) => (item.length > best.length ? item : best));
+  if (title && conceptInText(longest, title)) return title;
+  return topicLabel;
+}
+
+function keepTopicSentence(sentence: string, source: string, topicLabel: string): string | null {
+  const gapped = repairGappedFrame(restoreMathNotation(sentence));
+  if (!gapped) return null;
+  if (realGasPrecisionIssue(gapped, source) || foreignToTopic(gapped, source, topicLabel)) return null;
+  return gapped;
+}
+
+function cleanTopicText(text: string, source: string, topicLabel: string): string {
+  const parts = text
+    .split(/\n+|(?<=[.!?])\s+(?=[A-ZÇĞİÖŞÜ“"])/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const kept = parts
+    .map((part) => (part.length < 8 ? restoreMathNotation(part) : keepTopicSentence(part, source, topicLabel)))
+    .filter((part): part is string => Boolean(part));
+  return separateRunOnFormulas(kept.join(" ").replace(/\s+/g, " ").trim());
+}
+
+function checkLeavesTopic(check: SectionCheck, source: string, topicLabel: string): boolean {
+  if (ambiguousRelationQuestion(check.prompt, check.options)) return true;
+  const blob = [check.prompt, check.explanation, ...check.options].join(" ");
+  return foreignToTopic(blob, source, topicLabel) || realGasPrecisionIssue(blob, source);
+}
+
+function withBoundaryExample(lesson: LessonV2, source: string): LessonV2 {
+  const existing = `${lesson.example?.prompt ?? ""}\n${lesson.example?.solution ?? ""}`;
+  if (lesson.example && exampleIsComplete(existing)) return lesson;
+  const blob = [lesson.overview ?? "", ...lesson.sections.map((section) => section.body)].join("\n");
+  if (!/W\s*=\s*P\s*\(\s*V\s*(?:₂|2|_2)\s*[−–-]\s*V\s*(?:₁|1|_1)\s*\)/i.test(blob)) return lesson;
+  const pressure = source.match(/P\s*=\s*(\d+(?:[.,]\d+)?)\s*kPa/i);
+  const start = source.match(/V\s*(?:₁|1|_1)\s*=\s*(\d+(?:[.,]\d+)?)\s*m/i);
+  const end = source.match(/V\s*(?:₂|2|_2)\s*=\s*(\d+(?:[.,]\d+)?)\s*m/i);
+  if (!pressure || !start || !end) return lesson;
+  const read = (raw: string) => Number(raw.replace(",", "."));
+  const p = read(pressure[1]);
+  const v1 = read(start[1]);
+  const v2 = read(end[1]);
+  const work = p * (v2 - v1);
+  if (![p, v1, v2, work].every((value) => Number.isFinite(value))) return lesson;
+  const shown = Math.abs(work - Math.round(work)) < 0.051 ? String(Math.round(work)) : work.toFixed(1);
+  if (Math.abs(work - Number(shown)) > 0.051) return lesson;
+  const solution = `W = P(V₂ − V₁) = ${pressure[1]} kPa × (${end[1]} − ${start[1]}) m³ = ${shown} kJ.`;
+  if (!exampleIsComplete(solution)) return lesson;
+  return {
+    ...lesson,
+    example: {
+      prompt: `Sabit ${pressure[1]} kPa basınçta hacim ${start[1]} m³ değerinden ${end[1]} m³ değerine değişirse sınır işi nedir?`,
+      solution,
+    },
+  };
+}
+
+/**
+ * Ders, tıklanan konunun kendi sayfalarında kalır.
+ * Başlık uymuyorsa istenen ad gelir. Kapsam dışı cümle ve soru düşer.
+ * Yeni bir model çağrısı yok.
+ */
+export function scopeLessonToTopic(lesson: LessonV2, source: string, topicLabel: string): LessonV2 {
+  const clean = (text: string) => cleanTopicText(text, source, topicLabel);
+  const next: LessonV2 = {
+    ...lesson,
+    title: alignedTopicTitle(lesson.title, topicLabel),
+    sections: [],
+  };
+  delete next.overview;
+  delete next.summary;
+  delete next.example;
+  delete next.commonMistake;
+  if (lesson.overview) {
+    const overview = clean(lesson.overview);
+    if (overview) next.overview = overview;
+  }
+  next.sections = lesson.sections.flatMap((section) => {
+    const body = clean(section.body);
+    if (body.length < 20) return [];
+    let check = section.check;
+    if (check && checkLeavesTopic(check, source, topicLabel)) check = undefined;
+    else if (check) {
+      check = {
+        ...check,
+        prompt: restoreMathNotation(check.prompt),
+        explanation: restoreMathNotation(check.explanation),
+        options: check.options.map((option) => restoreMathNotation(option)),
+      };
+      if (ambiguousRelationQuestion(check.prompt, check.options)) check = undefined;
+    }
+    return [{ ...section, heading: restoreMathNotation(section.heading), body, check }];
+  });
+  if (lesson.commonMistake) {
+    const correction = clean(lesson.commonMistake.correction);
+    if (correction && !foreignToTopic(correction, source, topicLabel) && !realGasPrecisionIssue(correction, source)) {
+      next.commonMistake = {
+        claim: restoreMathNotation(lesson.commonMistake.claim),
+        correction,
+      };
+    }
+  }
+  if (lesson.summary?.length) {
+    const summary = lesson.summary
+      .map((line) => clean(line))
+      .filter((line) => line.length >= 8 && !summaryLineProblem(line));
+    if (summary.length) next.summary = summary;
+  }
+  if (lesson.example) {
+    const prompt = clean(lesson.example.prompt);
+    const solution = clean(lesson.example.solution);
+    const blob = `${prompt}\n${solution}`;
+    if (prompt && solution && !foreignToTopic(blob, source, topicLabel) && !realGasPrecisionIssue(blob, source)) {
+      next.example = { prompt, solution };
+    }
+  }
+  return withBoundaryExample(next, source);
+}
+
 export async function repairLearnerLesson(
   lesson: LessonV2,
   input: { source: string; topicLabel: string },
   complete: (prompt: string) => Promise<unknown>,
   verify?: (prompt: string) => Promise<unknown>,
 ): Promise<{ lesson: LessonV2; requested: LessonCheckCode[]; succeeded: LessonCheckCode[]; dropped: LessonCheckCode[] }> {
-  const bounded = applyBoundFix(lesson, input.source);
+  const bounded = applyBoundFix(scopeLessonToTopic(lesson, input.source, input.topicLabel), input.source);
   const filled = filledSummary(bounded, input.source);
   const prepared: LessonV2 = filled.length ? { ...bounded, summary: filled } : bounded;
   let quotes: string[] = [];
@@ -1065,7 +1290,8 @@ export async function repairLearnerLesson(
   const finalized = dropUnresolvedLesson(applyBoundFix(merged, input.source), input.source, quotes);
   const covered = ensureThreeChecks(coverSourceRelations(finalized.lesson, input.source));
   const summary = filledSummary(covered, input.source);
-  const published = summary.length ? { ...covered, summary } : covered;
+  const drafted = summary.length ? { ...covered, summary } : covered;
+  const published = scopeLessonToTopic(drafted, input.source, input.topicLabel);
   const remaining = new Set(auditLearnerLesson(published, input).map((issue) => issue.code));
   const removed = new Set(finalized.dropped);
   const succeeded = requested.filter((code) => !remaining.has(code) && !removed.has(code));

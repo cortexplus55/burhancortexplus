@@ -25,6 +25,82 @@ const GENERIC = new Set([
   "veya",
 ]);
 
+/**
+ * En uzun kavram eşlenen sayfalarda duruyorsa kısa kalan sözcük
+ * ("Prosesler") başka bölümü içeri almaz.
+ * "Özgül Isılar" eksikse entalpi sayfası yine eklenir.
+ */
+export function conceptsWorthWidening(title: string, mappedText: string): string[] {
+  const concepts = titleConcepts(title);
+  if (!concepts.length) return [];
+  const longest = concepts.reduce((best, item) => (item.length > best.length ? item : best));
+  if (conceptInText(longest, mappedText)) return [];
+  return concepts.filter((concept) => !conceptInText(concept, mappedText));
+}
+
+function topicSentences(text: string): string[] {
+  return text
+    .split(/\n+|(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 12);
+}
+
+/**
+ * İstenen konunun kendi cümleleri. İki cümleden azsa kapsam dar sayılmaz
+ * ve dersin tamamı bu yüzden silinmez.
+ */
+export function topicSpan(source: string, topicLabel: string): string | null {
+  const concepts = titleConcepts(topicLabel);
+  if (!concepts.length || !source.trim()) return null;
+  const longest = concepts.reduce((best, item) => (item.length > best.length ? item : best));
+  const hits = topicSentences(source).filter((sentence) => conceptInText(longest, sentence));
+  if (hits.length < 2) return null;
+  return hits.join(" ");
+}
+
+const FOREIGN_TOPIC: { hit: (text: string) => boolean }[] = [
+  {
+    hit: (text) => /P\s*v\s*=\s*Z\s*R\s*T|Pv\s*=\s*ZRT|PV\s*=\s*Z\s*R\s*T|PV\s*=\s*ZRT/i.test(text),
+  },
+  {
+    hit: (text) =>
+      /gerçek gaz|sıkıştırılabilirlik/i.test(text) ||
+      /gercek gaz|sikistirilabilirlik/.test(foldTr(text)),
+  },
+  {
+    hit: (text) =>
+      /\b[PT]\s+r\b/.test(text) ||
+      /[PT]ᵣ/.test(text) ||
+      /\b[PT]\s+cr\b/.test(text) ||
+      /\b[PT]_cr\b/.test(text) ||
+      /\b[PT]cr\b/.test(text),
+  },
+  { hit: (text) => /Z\s*=\s*1[.,]0\d/.test(text) },
+];
+
+/** Kapsamda olmayan gerçek gaz bağıntısı bu konunun cümlesi değildir. */
+export function foreignToTopic(text: string, source: string, topicLabel: string): boolean {
+  const span = topicSpan(source, topicLabel);
+  if (!span) return false;
+  return FOREIGN_TOPIC.some((item) => item.hit(text) && !item.hit(span));
+}
+
+/**
+ * Pv = ZRT özgül hacimdir. Toplam hacim PV = mZRT biçimindedir.
+ * Kaynak söylemiyorsa Z ≈ 1 iddiası da düşer.
+ */
+export function realGasPrecisionIssue(sentence: string, source: string): boolean {
+  const specific = /P\s*v\s*=\s*Z\s*R\s*T|Pv\s*=\s*ZRT/i.test(sentence);
+  const total = /PV\s*=\s*Z\s*R\s*T|PV\s*=\s*ZRT/.test(sentence);
+  if (specific && /hacim\s+V\b/.test(sentence)) return true;
+  if (total && !/(?:m|n)\s*Z\s*R\s*T|mZRT|nZRT|\bm\s*R\s*T|\bn\s*R\s*T/i.test(sentence)) return true;
+  const folded = foldTr(sentence);
+  if (/bozmaz/.test(folded) && /ideal gaz/.test(folded) && /z\s*=\s*1/.test(folded)) {
+    return !/bozmaz/.test(foldTr(source));
+  }
+  return false;
+}
+
 /** "İç Enerji, Entalpi ve Özgül Isılar" → iç enerji, entalpi, özgül ısılar. */
 export function titleConcepts(title: string): string[] {
   const parts = title.split(/\s*(?:,| ve )\s*/i);
@@ -69,8 +145,7 @@ export function selectPagesForTitle(
     .map((page) => page.text)
     .join("\n");
   const extra: number[] = [];
-  for (const concept of titleConcepts(title)) {
-    if (conceptInText(concept, mappedText)) continue;
+  for (const concept of conceptsWorthWidening(title, mappedText)) {
     let added = 0;
     for (const page of catalog) {
       if (mapped.has(page.pageNumber) || extra.includes(page.pageNumber)) continue;
@@ -305,6 +380,7 @@ export function claimVerifyPrompt(lesson: LessonV2, source: string): string {
     "Sık yapılan hatanın yanlış inancı yanlış kalabilir; onun düzeltmesi doğru olmalıdır.",
     "Isı alımı da iç enerjiyi değiştirir. ΔU = Q − W bağıntısında işareti söylemeyen cümle belirsizdir.",
     "Formülün içindeki işaret ve cebir hatasını da wrong say. Q − (−W) = Q + W aynı simgeyi hem negatif değer hem büyüklük yapar. Doğru zincir ΔE = Q − W = Q + |W| biçimidir.",
+    "Pv = ZRT bağıntısında v özgül hacimdir. Toplam hacim için PV = mZRT yazılır. Kaynak söylemiyorsa Z = 1.03 ideal gaz varsayımını bozmaz deme.",
     'JSON: {"bad":[{"quote":"dersteki aynen cümle","reason":"wrong"}]}',
     "reason yalnız wrong, unsupported veya ambiguous olsun. Uyan iddia yoksa bad boş dizi olsun.",
     `Kaynak:\n${source.slice(0, 4000)}`,

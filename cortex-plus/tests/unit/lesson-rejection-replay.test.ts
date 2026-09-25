@@ -1248,6 +1248,173 @@ describe("exam-prep lesson route", () => {
     expect(pipelineMocks.commit).toHaveBeenCalledTimes(1);
     expect(pipelineMocks.refund).not.toHaveBeenCalled();
   });
+
+  it("publishes boundary work for the clicked topic and does not spend a second draft", async () => {
+    const topic = "Sınır İşi ve Prosesler";
+    routeTopic = topic;
+    const gap = "Toplam iş ise ile bulunur:";
+    const integral = "W = ∫ 1 2 P dV";
+    const pressureFormula = "W = P(V₂ − V₁)";
+    const leak =
+      "∫ P dV genel sınır işi tanımı, diğerleri yanlış veya özel durumları belirtir.";
+    const vague = "Düşük sapma (Z=1.03) ideal gaz varsayımını bozmaz.";
+    const volumeMix = "Pv = ZRT bağıntısında hacim V kullanılır.";
+    routePageText = [
+      "Sınır işi, hareketli sınırı olan sistemlerde basınç-hacim eğrisinin altında kalan alan olarak tanımlanır.",
+      "Sınır işi bir prosesin yoluna bağlıdır ve aynı hali sağlayan farklı yollarda farklı iş yapılır.",
+      "Sabit basınçta sınır işi W = P(V₂ − V₁) eşitliğiyle yazılır.",
+      "Rijit tankta hacim sabittir, dV = 0 olduğundan sınır işi sıfırdır.",
+      "P = 100 kPa. V₁ = 0.2 m³. V₂ = 0.5 m³. Bu sabit basınç örneğinde sınır işi 30 kJ olur.",
+      "kJ birimi işi ölçer.",
+    ].join(" ");
+    const pathCheck = {
+      type: "mcq" as const,
+      prompt: "Aynı hali sağlayan farklı yollarda sınır işi aynı mıdır?",
+      options: [
+        "Hayır, iş yola bağlıdır ve yollar farklı iş üretir.",
+        "Evet, iş yalnızca ilk ve son hale bağlıdır.",
+        "Evet, rijit tank dışında iş her yolda sıfırdır.",
+        "Hayır, iş yalnız sıcaklık farkıyla belirlenir.",
+      ],
+      answerIndex: 0,
+      explanation: "Sınır işi yola bağlıdır ve farklı yollarda farklı iş yapılır.",
+    };
+    const rigidCheck = {
+      type: "mcq" as const,
+      prompt: "Rijit bir tankta sınır işi neden sıfırdır?",
+      options: [
+        "Hacim sabit olduğu için dV sıfırdır.",
+        "Basınç sıfır olduğu için iş sıfırdır.",
+        "Sıcaklık sabit olduğu için iş sıfırdır.",
+        "Kütle değiştiği için iş sıfırdır.",
+      ],
+      answerIndex: 0,
+      explanation: "Rijit tankta hacim sabittir ve dV = 0 olduğundan sınır işi sıfırdır.",
+    };
+    const bad = {
+      title: "Gerçek Gazlar ve Sıkıştırılabilirlik Faktörü",
+      objective: "Sınır işini proses yoluna göre hesaplayabileceksin.",
+      overview:
+        "Sınır işi, hareketli sınırı olan sistemlerde basınç-hacim eğrisinin altında kalan alan olarak tanımlanır.",
+      sections: [
+        {
+          heading: "Sınır işi",
+          body: `Sınır işi, hareketli sınırda tanımlanır. ${gap} ${integral} Sabit basınçta ${pressureFormula} eşitliği geçerlidir. Sınır işi bir prosesin yoluna bağlıdır.`,
+          check: pathCheck,
+        },
+        {
+          heading: "Rijit tank",
+          body: "Rijit tankta hacim sabittir ve dV = 0 olduğundan sınır işi sıfırdır. Sınır işi bu proses için yapılmaz.",
+          check: rigidCheck,
+        },
+        {
+          heading: "Gerçek gazlar",
+          body: `Pv = ZRT bağıntısı gerçek gazlar için yazılır. P r = P/P cr ve T r = T/T cr. ${volumeMix} ${vague}`,
+          check: {
+            type: "mcq" as const,
+            prompt: "Pv hangi bağıntıyla hesaplanır?",
+            options: ["Pv = ZRT bağıntısı", "r = P/P cr", "r = T/T cr", "W = P(V₂ − V₁)"],
+            answerIndex: 0,
+            explanation: volumeMix,
+          },
+        },
+        {
+          heading: "İndirgenmiş basınç",
+          body: "r hangi bağıntıyla hesaplanır sorusu P r ve T r simgelerinden artakalan bir köktür.",
+          check: {
+            type: "mcq" as const,
+            prompt: "r hangi bağıntıyla hesaplanır?",
+            options: ["r = P/P cr", "r = T/T cr", "r = V/V cr", "r = ZRT"],
+            answerIndex: 0,
+            explanation: "P r = P/P cr ve T r = T/T cr aynı harfe indirgenmiş gibi durur.",
+          },
+        },
+      ],
+      commonMistake: {
+        claim: "Rijit tankta sınır işi hacim değişimine eşittir.",
+        correction: "Rijit tankta hacim sabittir ve dV = 0 olduğundan sınır işi sıfırdır.",
+      },
+      summary: [
+        leak,
+        "Sınır işi, hareketli sınırda basınç-hacim eğrisinin altında kalan alandır.",
+        "Rijit tankta hacim sabit olduğu için sınır işi sıfırdır.",
+        "Sabit basınçta sınır işi W = P(V₂ − V₁) eşitliğiyle yazılır.",
+      ],
+    };
+    const raw = JSON.stringify(bad);
+    const logs: unknown[][] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      logs.push(args);
+    });
+    pipelineMocks.create.mockImplementation(async (args: { model?: string; messages?: { content?: unknown }[] }) => {
+      const messages = args?.messages ?? [];
+      const blob = messages.map((message) => String(message.content ?? "")).join("\n");
+      if (blob.includes("İddiaları kaynağa karşı denetle")) return completion(JSON.stringify({ bad: [] }));
+      if (blob.includes("Yalnızca bozuk parçaları")) return completion(JSON.stringify({}));
+      const system = String(messages[0]?.content ?? "");
+      if (system.includes("denetçisisin")) return completion(JSON.stringify({ approved: true, issues: [] }));
+      if (system.includes("sorunları düzelt")) return completion(JSON.stringify({ content: raw }));
+      return completion(raw);
+    });
+    const service = supabase();
+    pipelineMocks.guard.mockResolvedValue({ ok: true, ctx: { userId: "student-1", service } });
+
+    const response = await POST(
+      new Request("https://cortexplus.app/api/learning/exam-prep/node", {
+        method: "POST",
+        body: JSON.stringify({
+          prepId: PREP,
+          nodeId: NODE,
+          clientRequestId: REQ,
+          action: "start",
+        }),
+      }),
+    );
+    spy.mockRestore();
+    const payload = await response.json();
+    expect(response.status, JSON.stringify(payload)).toBe(200);
+    const lesson = payload.payload.lesson as {
+      title: string;
+      sections: { check?: { type?: string; prompt: string; options: string[] } }[];
+      summary?: string[];
+      example?: { prompt: string; solution: string };
+      commonMistake?: { correction: string };
+    };
+    const published = JSON.stringify(lesson);
+    expect(lesson.title).toBe(topic);
+    expect(published).not.toMatch(/Gerçek Gazlar|Sıkıştırılabilirlik|ZRT|Z\s*=\s*1[.,]03/i);
+    expect(published).not.toMatch(/hangi bağıntıyla hesaplanır/i);
+    expect(published).not.toContain(gap);
+    expect(published).not.toMatch(/ise ile bulunur/);
+    expect(published).toMatch(/∫₁²/);
+    expect(published).not.toMatch(/∫\s+1\s+2/);
+    expect(lesson.summary?.join(" ") ?? "").not.toMatch(/diğerleri|diğer seçenek|yanlış|doğru cevap|seçenek|ifade doğrudur/i);
+    expect(lesson.commonMistake?.correction).toMatch(/dV\s*=\s*0/);
+    expect(lesson.example?.solution).toMatch(/W\s*=\s*P\(V₂\s*−\s*V₁\)/);
+    expect(lesson.example?.solution).toMatch(/100 kPa/);
+    expect(lesson.example?.solution).toMatch(/30 kJ/);
+    const checks = lesson.sections.map((section) => section.check).filter((check) => check);
+    expect(checks.length).toBeGreaterThanOrEqual(3);
+    for (const check of checks) {
+      expect(check?.type === "trueFalse" ? "trueFalse" : "mcq").toBe("mcq");
+      expect(check?.options.length).toBe(4);
+    }
+    expect(pipelineMocks.reserve).toHaveBeenCalledTimes(1);
+    const reserveArgs = pipelineMocks.reserve.mock.calls[0] as unknown[] | undefined;
+    expect(reserveArgs?.[2]).toBe("STUDY_PLAN_GENERATE");
+    expect(pipelineMocks.commit).toHaveBeenCalledTimes(1);
+    expect(pipelineMocks.refund).not.toHaveBeenCalled();
+    const draftCalls = pipelineMocks.create.mock.calls.filter((call) => {
+      const blob = JSON.stringify(call[0]?.messages ?? []);
+      return call[0]?.model === "gpt-4.1-mini" && blob.includes("Bu konunun dersini yaz");
+    });
+    expect(draftCalls.length).toBe(1);
+    expect(draftCalls[0]?.[0]?.model).toBe("gpt-4.1-mini");
+    const callLog = logs.find((args) => args[0] === "lesson_model_calls");
+    const calls = (callLog?.[1] as { calls?: number } | undefined)?.calls ?? 99;
+    expect(calls).toBeGreaterThanOrEqual(1);
+    expect(calls).toBeLessThanOrEqual(4);
+  });
 });
 
 describe("lesson shape variants", () => {

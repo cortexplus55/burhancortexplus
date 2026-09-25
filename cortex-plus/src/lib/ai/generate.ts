@@ -55,7 +55,7 @@ export const CONTENT_STYLE =
   "Metni sade tut: gereksiz giriş cümlesi, özür ya da 'işte cevabınız' gibi kalıplar yok.";
 
 export type GenerationOutcome<T> =
-  | { ok: true; data: T; model: string; cost: number }
+  | { ok: true; data: T; model: string; cost: number; modelCalls: number }
   | { ok: false; status: number; error: string };
 
 type GenerateJsonParams<T> = {
@@ -164,6 +164,7 @@ export async function generateJson<T>(
   }
 
   const generationStarted = Date.now();
+  let modelCalls = 0;
   let validationMs = 0;
   const stagesMs: Partial<Record<ValidationStage, number>> = {};
   let repairAttempted = false;
@@ -335,8 +336,9 @@ export async function generateJson<T>(
     outer: for (const mode of modes) {
       for (let draftAttempt = 0; draftAttempt < maxDraftAttempts; draftAttempt += 1) {
         const completion = await withTransientRetry(
-          () =>
-            openai.chat.completions.create({
+          () => {
+            modelCalls += 1;
+            return openai.chat.completions.create({
           model,
           response_format: { type: "json_object" },
           messages: [
@@ -384,7 +386,8 @@ export async function generateJson<T>(
                     ],
             },
           ],
-            }),
+            });
+          },
           { startedAt: generationStarted, callTimeoutMs: 90_000 },
         );
 
@@ -437,6 +440,7 @@ export async function generateJson<T>(
               failClosedOnUnavailable: v2,
             });
             content = verified.content;
+            modelCalls += verified.modelCalls;
             reviewTokensIn += verified.tokensIn;
             reviewTokensOut += verified.tokensOut;
             repairAttempted = repairAttempted || verified.repairAttempted;
@@ -447,6 +451,7 @@ export async function generateJson<T>(
           } catch (error) {
             validationMs += Date.now() - validationStarted;
             if (error instanceof EducationalVerificationError) {
+              modelCalls += error.modelCalls;
               repairAttempted = repairAttempted || error.repairAttempted;
               if (error.repairAttempted) recheckPassed = error.recheckPassed;
               if (error.issueSeverity.blocking.length || error.issueSeverity.nonBlocking.length) {
@@ -545,7 +550,7 @@ export async function generateJson<T>(
       }),
     });
 
-    return { ok: true, data: parsed, model, cost: reservation.cost };
+    return { ok: true, data: parsed, model, cost: reservation.cost, modelCalls };
   } catch (error) {
     // No prompts, answers, provider messages, document text or keys in logs.
     console.error("educational_generation_failed", {

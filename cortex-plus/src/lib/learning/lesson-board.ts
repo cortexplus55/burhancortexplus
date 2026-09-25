@@ -3,7 +3,76 @@
  * Saklanan metin değişmez; öğrenci okurken cümle yığını açılır.
  */
 
+import { foldTr } from "@/lib/documents/page-analysis";
+
 export type BoardLine = { kind: "prose" | "formula"; text: string };
+
+const SUB_DIGIT: Record<string, string> = {
+  "0": "₀",
+  "1": "₁",
+  "2": "₂",
+  "3": "₃",
+  "4": "₄",
+  "5": "₅",
+  "6": "₆",
+  "7": "₇",
+  "8": "₈",
+  "9": "₉",
+};
+const SUP_DIGIT: Record<string, string> = {
+  "0": "⁰",
+  "1": "¹",
+  "2": "²",
+  "3": "³",
+  "4": "⁴",
+  "5": "⁵",
+  "6": "⁶",
+  "7": "⁷",
+  "8": "⁸",
+  "9": "⁹",
+};
+
+/** "P r" ve "∫ 1 2" alt simge ile integral sınırına döner. */
+export function restoreMathNotation(text: string): string {
+  return text
+    .replace(/∫\s*_?\s*([0-9])\s*\^\s*([0-9])/g, (_, lower: string, upper: string) => {
+      return `∫${SUB_DIGIT[lower] ?? lower}${SUP_DIGIT[upper] ?? upper}`;
+    })
+    .replace(/∫\s*([0-9])\s*([0-9])(?=\s|[A-Za-zΔ]|$)/g, (_, lower: string, upper: string) => {
+      return `∫${SUB_DIGIT[lower] ?? lower}${SUP_DIGIT[upper] ?? upper}`;
+    })
+    .replace(/\b([PT])\s+cr\b/g, "$1_cr")
+    .replace(/\b([PT])cr\b/g, "$1_cr")
+    .replace(/\b([PT])\s+r\b/g, "$1ᵣ");
+}
+
+/** Formül cümleden ayrılınca "ise ile bulunur" boşluğu kalmışsa cümle bozuktur. */
+export function gappedFormulaFrame(text: string): boolean {
+  return /\bise\s+ile\s+(bulunur|hesaplanir|ifade edilir)/.test(foldTr(text));
+}
+
+/** Çerçeve düşer; formül duruyorsa cümlede kalır. */
+export function repairGappedFrame(sentence: string): string | null {
+  if (!gappedFormulaFrame(sentence)) return sentence;
+  const kept = sentence
+    .replace(/toplam\s+iş\s+ise\s+ile\s+bulunur\s*:?/gi, "")
+    .replace(/\bise\s+ile\s+(?:bulunur|hesaplanır|hesaplanir|ifade\s+edilir)\s*:?/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (kept.length < 8 || gappedFormulaFrame(kept)) return null;
+  return kept;
+}
+
+/**
+ * İki bağıntı araya nokta konmadan yapışırsa cümle bölünür.
+ * "W = ∫₁² P dV Sabit basınçta W = …" okunur hâle gelir.
+ */
+export function separateRunOnFormulas(text: string): string {
+  return text.replace(
+    /(=)\s*((?:[^,.;=\n])+?)\s+(?=[A-ZÇĞİÖŞÜ][A-Za-zÇĞİÖŞÜçğıöşü]{3,}\s)/g,
+    (_match, eq: string, right: string) => `${eq} ${right.trim()}. `,
+  );
+}
 
 function plain(text: string): string {
   return text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
@@ -127,7 +196,8 @@ function phraseBeforeFormula(phrase: string, lead: string): string {
     return lead ? `${lead} şöyle ${core}:` : `Şöyle ${core}:`;
   }
   if (/^ile\s+/i.test(core)) {
-    return lead ? `${lead} ${core}:` : `Bağıntı ${core}:`;
+    if (!lead || /\b(?:ise|ile)\s*$/i.test(lead)) return "";
+    return `${lead} ${core}:`;
   }
   return lead ? `${lead} ${core}:` : `${core}:`;
 }
@@ -149,7 +219,7 @@ function detachTrailingFormulaPhrase(sentence: string): string[] | null {
   if (!/[=<>≤≥]/.test(head)) return null;
   const { lead, relation } = splitLeadAndRelation(head);
   if (!relation || !/[=<>≤≥]/.test(relation)) return null;
-  return [phraseBeforeFormula(match[1], lead), relation];
+  return [phraseBeforeFormula(match[1], lead), relation].filter((part) => part.trim().length > 0);
 }
 
 function peelFormulas(sentence: string): string[] {
@@ -195,7 +265,7 @@ function splitBlock(block: string): string[] {
 }
 
 export function layoutBoard(text: string): BoardLine[] {
-  const normalized = text
+  const normalized = restoreMathNotation(text)
     .replace(/\r\n/g, "\n")
     .replace(/\s+(?=Veri\s*:)/gi, "\n")
     .replace(/\s+(?=Adım\s*\d+\s*:)/gi, "\n")

@@ -75,7 +75,7 @@ import {
 } from "@/lib/documents/topic-title";
 import { diagramIssues, needsDiagram } from "@/lib/learning/lesson-diagram";
 import { scoreLessonChecks } from "@/lib/learning/lesson-claims";
-import { repairLearnerLesson, type LessonCheckCode } from "@/lib/learning/lesson-repair";
+import { repairLearnerLesson, scopeLessonToTopic, type LessonCheckCode } from "@/lib/learning/lesson-repair";
 import { formulaMismatches, withoutMismatchedFormulas } from "@/lib/learning/formula-fidelity";
 import {
   lessonPodcastBrief,
@@ -1668,6 +1668,13 @@ async function generateNodePayload(input: {
       : input.upcomingTopics.length
         ? ` SIRADA NE VAR yalnızca şu sonraki konu başlıkları: ${input.upcomingTopics.join(" | ")}. Başka konu uydurma.`
         : " Bu konudan sonra listede konu yok; nextFocus yazma.";
+    /**
+     * Canlıda bir ders yaklaşık beş dakika sürdü. Sebep ikinci bir üretim
+     * değil, kaynağa karışan başka bölümün denetçi onarımını uzatmasıydı.
+     * Kapsam taslağı denetçiden önce daraltır; daraltma yeni model çağrısı
+     * açmaz. `lesson_model_calls` taslak, denetim ve parça onarımını sayar.
+     */
+    let lessonModelCalls = 0;
     const requestLesson = (note: string, retried: boolean) =>
       generateJson({
       service: input.service,
@@ -1682,8 +1689,13 @@ async function generateNodePayload(input: {
           ? `${input.idempotencyKey}:no-brief`
           : input.idempotencyKey,
       allowIndependentAccept: false,
-      reviewDraft: (draft) =>
-        lessonDraftForVerifier(groundLessonDraft(draft, input.sourceBlock), keyTerms),
+      reviewDraft: (draft) => {
+        const published = publishLessonDraft(draft, { keyTerms });
+        const scoped = published
+          ? JSON.stringify(scopeLessonToTopic(published, input.sourceBlock, input.topicLabel))
+          : draft;
+        return lessonDraftForVerifier(groundLessonDraft(scoped, input.sourceBlock), keyTerms);
+      },
       buildIndependent: (_c, parsed) => ({
         pedagogyIssues: lessonPublishIssues(parsed, { minSections, keyTerms }),
         ...sourceIndependent,
@@ -1711,8 +1723,9 @@ async function generateNodePayload(input: {
         degradeReasons = [];
         const published = publishLessonDraft(raw, { keyTerms });
         if (!published) return null;
+        const scoped = scopeLessonToTopic(published, input.sourceBlock, input.topicLabel);
         const grounded = groundLearnerLesson(
-          published,
+          scoped,
           input.sourceBlock,
           Array.isArray(input.upcomingTopics) ? { upcomingTopics: input.upcomingTopics } : {},
         );
@@ -1847,6 +1860,7 @@ async function generateNodePayload(input: {
      * düşürür. O durumda notsuz bir kez daha üretilir; ikinci tur yok.
      */
     let outcome = await requestLesson(teacherNote, false);
+    if (outcome.ok) lessonModelCalls += outcome.modelCalls;
     let lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;
     if (
       !lesson &&
@@ -1860,9 +1874,11 @@ async function generateNodePayload(input: {
       lastValidLesson = null;
       lastParseIssues = [];
       outcome = await requestLesson("", true);
+      if (outcome.ok) lessonModelCalls += outcome.modelCalls;
       lesson = outcome.ok ? outcome.data : lastValidLesson;
     }
     if (!lesson) {
+      console.error("lesson_model_calls", { calls: lessonModelCalls });
       throw new NodeGenerationError(
         outcome.ok ? 500 : outcome.status,
         outcome.ok ? "lesson_missing" : outcome.error,
@@ -1874,13 +1890,15 @@ async function generateNodePayload(input: {
      * dokunmaz; parça hâlâ bozuksa o parça düşer, ders kalır.
      */
     const repairSource = [input.sourceBlock, teacherNote].filter((part) => part.trim()).join("\n");
-    const repairCall = (prompt: string, maxTokens: number) =>
-      completeLessonPartRepair({
+    const repairCall = (prompt: string, maxTokens: number) => {
+      lessonModelCalls += 1;
+      return completeLessonPartRepair({
         service: input.service,
         userId: input.userId,
         prompt,
         maxTokens,
       });
+    };
     const repair = await repairLearnerLesson(
       lesson,
       { source: repairSource, topicLabel: input.topicLabel },
@@ -1889,6 +1907,7 @@ async function generateNodePayload(input: {
     );
     lesson = repair.lesson;
     const publishedChecks = lesson.sections.filter((section) => section.check).length;
+    console.error("lesson_model_calls", { calls: lessonModelCalls });
     if (publishedChecks < 3) {
       throw new NodeGenerationError(500, "lesson_missing", ["En az 3 kontrol sorusu yazılamadı."]);
     }
