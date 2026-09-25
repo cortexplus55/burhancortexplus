@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/learning/exam-prep/node/route";
+import { reviewQuestionFor } from "@/lib/learning/teacher-brain";
 import {
   describeLessonShapeGaps,
   lessonHasTeachingCore,
@@ -1098,6 +1099,154 @@ describe("exam-prep lesson route", () => {
     });
     expect(repairCalls.length).toBeGreaterThanOrEqual(1);
     expect(repairCalls.every((call) => call[0]?.model === "std")).toBe(true);
+  });
+
+  it("publishes the first-law lesson without the sign chain, empty formula, or copied retry", async () => {
+    const topic = "Birinci Yasa: Kapalı Sistem Enerji Dengesi";
+    routeTopic = topic;
+    const sign =
+      "ΔE = Q - W formülüne göre, Q pozitif ve W negatif ise ΔE = Q - (-W) = Q + W şeklinde artar.";
+    const yesNo = "Isı ve iş sınırdan geçen enerji türleri midir?";
+    const leaked = "Kinetik ve potansiyel enerji ihmal edilirse ΔE = ΔU olduğundan ifade doğrudur.";
+    const bareResult = "Sonuç = ΔE = 20 - 5 = 15 kJ.";
+    const proseExample = "Sistem 80 kJ ısı alıyor ve 30 kJ iş yapıyor, bu yüzden iç enerji 50 kJ artmıştır.";
+    const law = "Kapalı sistemde enerji değişimi ΔE = Q - W ve iç enerji ΔU = Q − W ile yazılır.";
+    routePageText = [
+      `${topic} kapalı sistemde ısı ve iş ile kurulur.`,
+      law,
+      "Kinetik ve potansiyel enerji ihmal edilirse ΔE = ΔU olur.",
+      "Isı ve iş sınırdan geçen enerji türleridir.",
+      "W sistem üzerinde yapılıyorsa negatiftir ve enerji artar.",
+      "Bir sistem 80 kJ ısı alır ve 30 kJ iş yaparsa iç enerji 50 kJ artar.",
+      "Başka bir durumda 20 kJ ısı ve 5 kJ iş için değişim 15 kJ olur.",
+      "kJ birimi enerjiyi ölçer.",
+    ].join(" ");
+    const yesCheck = (prompt: string) => ({
+      type: "trueFalse" as const,
+      prompt,
+      options: ["Doğru", "Yanlış"],
+      answerIndex: 0,
+      explanation: "Isı ve iş sınırdan geçen enerji türleridir.",
+    });
+    const bad = {
+      title: topic,
+      overview: `${topic} kapalı sistemde ısı ve iş dengesini anlatır. ${law}`,
+      sections: [
+        {
+          heading: "Enerji dengesi",
+          body: `${law} ${sign} Kapalı sistem enerji dengesi şöyle yazılır: ΔE =`,
+          check: yesCheck(yesNo),
+        },
+        {
+          heading: "Sınırdan geçen enerji",
+          body: "Isı ve iş sınırdan geçen enerji türleridir. Kapalı sistemde kütle geçmez, enerji geçer.",
+          check: yesCheck("Kapalı sistemde kütle geçer mi?"),
+        },
+        {
+          heading: "Sayısal denge",
+          body: `${proseExample} ${bareResult}`,
+          check: yesCheck("Enerji dengesi ısı ve iş ile yazılır mı?"),
+        },
+      ],
+      example: {
+        prompt: proseExample,
+        solution: bareResult,
+      },
+      commonMistake: {
+        claim: "Isı alınınca iç enerji hiç değişmez.",
+        correction: "Kapalı sistemde ısı alınca iç enerji ΔU = Q − W bağıntısına göre değişir.",
+      },
+      summary: [
+        leaked,
+        "Kapalı sistemde kütle geçmez.",
+        "Isı ve iş sınırdan geçen enerji türleridir.",
+      ],
+    };
+    const raw = JSON.stringify(bad);
+    pipelineMocks.create.mockImplementation(async (args: { messages?: { content?: unknown }[] }) => {
+      const messages = args?.messages ?? [];
+      const blob = messages.map((message) => String(message.content ?? "")).join("\n");
+      if (blob.includes("İddiaları kaynağa karşı denetle")) return completion(JSON.stringify({ bad: [] }));
+      if (blob.includes("Yalnızca bozuk parçaları")) return completion(JSON.stringify({}));
+      const system = String(messages[0]?.content ?? "");
+      if (system.includes("denetçisisin")) return completion(JSON.stringify({ approved: true, issues: [] }));
+      if (system.includes("sorunları düzelt")) return completion(JSON.stringify({ content: raw }));
+      return completion(raw);
+    });
+    const service = supabase();
+    pipelineMocks.guard.mockResolvedValue({ ok: true, ctx: { userId: "student-1", service } });
+
+    const response = await POST(
+      new Request("https://cortexplus.app/api/learning/exam-prep/node", {
+        method: "POST",
+        body: JSON.stringify({
+          prepId: PREP,
+          nodeId: NODE,
+          clientRequestId: REQ,
+          action: "start",
+        }),
+      }),
+    );
+    const payload = await response.json();
+    expect(response.status, JSON.stringify(payload)).toBe(200);
+    const lesson = payload.payload.lesson as {
+      sections: { check?: { type?: string; prompt: string; options: string[]; answerIndex: number; explanation: string } }[];
+      summary?: string[];
+      example?: { solution: string };
+    };
+    const published = JSON.stringify(lesson);
+    expect(published).not.toContain("(-W)");
+    expect(published).not.toContain("Q + W şeklinde");
+    expect(published).toContain("|W|");
+    expect(published).not.toMatch(/ΔE\s*=(?!\s*\S)/);
+    expect(lesson.summary?.join(" ") ?? "").not.toMatch(/ifade doğrudur|doğru cevap|seçenek/i);
+    expect(published).not.toContain(bareResult);
+    expect(published).not.toContain("80 kJ ısı alıyor ve 30 kJ iş yapıyor");
+    expect(published).toMatch(/ΔU = Q − W = 80 kJ − 30 kJ = 50 kJ/);
+    expect(published).toMatch(/ΔE = Q − W = 20 kJ − 5 kJ = 15 kJ/);
+    const checks = lesson.sections.map((section) => section.check).filter((check) => check);
+    expect(checks.length).toBeGreaterThanOrEqual(3);
+    const binary = checks.filter(
+      (check) =>
+        check?.type === "trueFalse" ||
+        (check?.options.length === 2 &&
+          check.options.some((option) => option.toLocaleLowerCase("tr") === "doğru")),
+    );
+    expect(binary.length).toBeLessThanOrEqual(1);
+    const retry = reviewQuestionFor(
+      {
+        type: "trueFalse",
+        prompt: yesNo,
+        options: ["Doğru", "Yanlış"],
+        answerIndex: 0,
+        explanation: "Isı ve iş sınırdan geçen enerji türleridir.",
+      },
+      "tr",
+      routePageText,
+    );
+    expect(retry.prompt).not.toBe(yesNo);
+    expect(retry.prompt).not.toContain("başka sözcüklerle");
+    expect(retry.options[retry.answerIndex]).toBe("Doğru");
+    for (const check of checks) {
+      if (!check) continue;
+      const again = reviewQuestionFor(
+        {
+          type: check.type === "trueFalse" ? "trueFalse" : "mcq",
+          prompt: check.prompt,
+          options: check.options,
+          answerIndex: check.answerIndex,
+          explanation: check.explanation,
+        },
+        "tr",
+        routePageText,
+      );
+      expect(again.prompt).not.toBe(check.prompt);
+    }
+    expect(pipelineMocks.reserve).toHaveBeenCalledTimes(1);
+    const reserveArgs = pipelineMocks.reserve.mock.calls[0] as unknown[] | undefined;
+    expect(reserveArgs?.[2]).toBe("STUDY_PLAN_GENERATE");
+    expect(pipelineMocks.commit).toHaveBeenCalledTimes(1);
+    expect(pipelineMocks.refund).not.toHaveBeenCalled();
   });
 });
 

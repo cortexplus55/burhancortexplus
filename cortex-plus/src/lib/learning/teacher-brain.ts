@@ -1467,10 +1467,45 @@ function groundedFactRetry<T extends ReviewCheck>(check: T, source: string): T |
   };
 }
 
+function copula(word: string): string {
+  const vowels = [...word.toLocaleLowerCase("tr")].filter((char) => "aeıioöuü".includes(char));
+  const last = vowels[vowels.length - 1] ?? "e";
+  return "aıou".includes(last) ? "dır" : "dir";
+}
+
+function isBinaryReview(check: ReviewCheck): boolean {
+  if (check.type === "trueFalse") return true;
+  if (check.options.length > 2) return false;
+  const options = check.options.map((option) => option.trim().toLocaleLowerCase("tr"));
+  if (options.includes("doğru") && options.includes("yanlış")) return true;
+  return /\bm[ıi]d[ıi]r\s*\??$/i.test(check.prompt.trim());
+}
+
+/** Doğru/yanlış tekrarı aynı kökü geri sormaz. Evet/hayır cümlesi bildiren yargıya döner. */
+function restateBinaryPrompt(prompt: string): string {
+  const trimmed = prompt.replace(/\s+/g, " ").trim();
+  const yesNo = trimmed.match(/^(.*\S)\s+(m[ıi]d[ıi]r|mudur|müdür)\s*\??$/i);
+  if (yesNo) {
+    const stem = yesNo[1].trim();
+    const last = stem.split(/\s+/).pop() ?? stem;
+    const next = `${stem}${copula(last)}. Doğru mu, yanlış mı?`;
+    if (foldPrompt(next) !== foldPrompt(trimmed)) return next.slice(0, 300);
+  }
+  const stripped = trimmed
+    .replace(/\s*(?:doğru mu,?\s*yanlış(?:\s*mı)?\??|DOĞRU MU YANLIŞ\??)\s*$/i, "")
+    .replace(/[?.!\s]+$/g, "")
+    .trim();
+  const core = stripped.length >= 8 ? stripped : trimmed.replace(/[?.!\s]+$/g, "");
+  const next = `${core} yargısı doğru mudur?`;
+  if (foldPrompt(next) !== foldPrompt(trimmed)) return next.slice(0, 300);
+  return `Tekrar sorusu: ${core}?`.slice(0, 300);
+}
+
 /**
  * Kısa tekrar kapısının sorusu.
  * Saklı varyant gerçekten farklıysa o gelir.
- * Değilse tanım tersinden, doğru/yanlış başka bir kaynaktan, yoksa orijinal sorulur.
+ * Değilse tanım tersinden, doğru/yanlış başka bir kaynaktan sorulur.
+ * Kalan doğru/yanlış kökü de sözcüğü sözcüğüne tekrar etmez.
  */
 export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredReview | null }>(
   check: T,
@@ -1502,6 +1537,10 @@ export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredRevie
       options: shifted.options,
       answerIndex: shifted.answerIndex,
     };
+  }
+  if (isBinaryReview(check)) {
+    const prompt = restateBinaryPrompt(check.prompt);
+    if (foldPrompt(prompt) !== foldPrompt(check.prompt)) return { ...check, prompt };
   }
   return check;
 }

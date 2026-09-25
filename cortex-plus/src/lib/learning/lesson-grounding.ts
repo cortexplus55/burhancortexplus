@@ -233,6 +233,9 @@ export function summaryLineProblem(
 ): "fragment" | "heading" | "objective" | "flashcard" | "truncated" | "vague" | null {
   const folded = foldTr(text);
   if (/^\s*soru\s*:/i.test(text) || /\bcevap\s*:/i.test(text) || /\?:/.test(text)) return "flashcard";
+  if (/ifade\s+(dogru|yanlis)/.test(folded) || /dogru cevap/.test(folded) || /secenek/.test(folded)) {
+    return "flashcard";
+  }
   if (/\bornek\s*:/i.test(text) && !/=\s*\d/.test(text)) return "fragment";
   if (/gibi parametrelerle belirlenen|belirlenen sistemlerdir/.test(folded)) return "vague";
   if (/\b(ogren|ogrenin|kavra|kavrayin)\b/.test(folded)) return "objective";

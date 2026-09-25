@@ -18,6 +18,15 @@ export function overviewDuplicatesSection(overview: string, body: string): boole
   return left.startsWith(head) && head.length >= 40;
 }
 
+/** Sağ tarafı boş ya da işlemle biten satır formül diye basılmaz. */
+export function incompleteFormulaLine(text: string): boolean {
+  const compact = plain(text).replace(/\.$/, "").trim();
+  if (!/=/.test(compact)) return false;
+  if (/[=+×*/\-−]\s*$/.test(compact)) return true;
+  const right = compact.split("=").pop()?.trim() ?? "";
+  return !right || /^[+×*/\-−]+$/.test(right);
+}
+
 function formulaLike(text: string): boolean {
   const compact = plain(text).replace(/\.$/, "");
   if (compact.length > 180) return false;
@@ -202,5 +211,6 @@ export function layoutBoard(text: string): BoardLine[] {
         kind: formula ? ("formula" as const) : ("prose" as const),
         text: formula ? cleanPiece(line).replace(/\.$/, "").replace(/(?<!\*)\*(?!\*)/g, "·") : line,
       };
-    });
+    })
+    .filter((line) => line.kind !== "formula" || !incompleteFormulaLine(line.text));
 }

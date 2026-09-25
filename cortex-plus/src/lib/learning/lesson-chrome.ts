@@ -48,7 +48,7 @@ export function reviewGateLead(count: number): string {
 /**
  * Kısa tekrar kapısı. Dersle aynı çağrıda yazılan varyant geçerlidir.
  * Yoksa aynı kavram başka sayı veya yönden sorulur.
- * O da yoksa orijinal soru öneksiz gösterilir. Kapıda yeni model çağrısı yok.
+ * Kalan doğru/yanlış kökü de başka cümleyle sorulur. Kapıda yeni model çağrısı yok.
  */
 export function reviewGateQuestion<T extends SectionCheck>(
   check: T,
