@@ -69,8 +69,11 @@ describe("phase-change lesson", () => {
       "tr",
       "Kapalı sistem kütle geçirmez.",
     );
-    expect(untouched.prompt).toBe("Sınırından kütle geçen düzeneğe ne denir?");
+    expect(untouched.prompt).not.toBe("Sınırından kütle geçen düzeneğe ne denir?");
+    expect(untouched.prompt).toMatch(/hangisi/i);
+    expect(untouched.prompt).not.toContain("başka sözcüklerle");
     expect(untouched.options[untouched.answerIndex]).toBe("Açık sistem");
+    expect(untouched.options).not.toEqual(["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"]);
   });
 
   it("flags the live summary sentences and keeps the saturation rules", () => {

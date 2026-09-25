@@ -114,7 +114,8 @@ describe("lesson chrome helpers", () => {
       answerIndex: 1,
       explanation: "Kütle geçişi olan düzenek açık sistemdir.",
     });
-    expect(fallback.prompt).toBe("Sınırından kütle geçen düzeneğe ne denir?");
+    expect(fallback.prompt).not.toBe("Sınırından kütle geçen düzeneğe ne denir?");
+    expect(fallback.prompt).toMatch(/hangisi/i);
     expect(fallback.prompt).not.toContain("başka sözcüklerle");
     expect(fallback.options[fallback.answerIndex]).toBe("Açık sistem");
     expect(fallback.answerIndex).not.toBe(1);
@@ -314,5 +315,29 @@ describe("ExamLessonSteps", () => {
     expect(
       screen.queryByText("Sıcaklık enerji birimidir, bu nedenle ısıl durumu gösterir. DOĞRU MU YANLIŞ?"),
     ).toBeNull();
+  });
+
+  it("renders Veri and Adım lines as a list instead of one paragraph", () => {
+    render(
+      <ExamLessonSteps
+        lesson={{
+          title: "Kalite",
+          sections: [
+            {
+              heading: "Hesaplama ve Örnek",
+              body:
+                "Kalite, doymuş buharın toplam kütleye oranıdır. Veri: m_buhar = 2 kg Adım 1: Kalite hesaplama Adım 2: x = 2/4 = 0,5 sonucudur.",
+            },
+          ],
+        }}
+        onFinish={() => {}}
+        closeHref="/deneme"
+      />,
+    );
+    const list = document.querySelector("ol.als-steps");
+    expect(list).toBeTruthy();
+    expect(list?.querySelectorAll("li").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/m_buhar = 2 kg/)).toBeTruthy();
+    expect(screen.getByText(/Kalite hesaplama/)).toBeTruthy();
   });
 });

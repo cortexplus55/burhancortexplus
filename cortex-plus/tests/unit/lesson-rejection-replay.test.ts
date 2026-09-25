@@ -439,6 +439,7 @@ const PV_FORMULAS = [
 
 /** Canlı konu başlığı ve sayfa metni. Null iken basınç dersi durur. */
 let routeTopic: string | null = null;
+let routePageText: string | null = null;
 
 function tableResult(table: string, op: string) {
   if (table === "feature_flags") return { data: { enabled: true }, error: null };
@@ -493,7 +494,7 @@ function tableResult(table: string, op: string) {
       data: [
         {
           page_number: 3,
-          text_content: routeTopic === PV_TOPIC ? PV_PAGE_TEXT : PAGE_TEXT,
+          text_content: routePageText ?? (routeTopic === PV_TOPIC ? PV_PAGE_TEXT : PAGE_TEXT),
           formulas: routeTopic === PV_TOPIC ? PV_FORMULAS : [],
           extraction_ok: true,
           page_kind: "content",
@@ -632,6 +633,7 @@ function pvDiagramLesson() {
 describe("exam-prep lesson route", () => {
   beforeEach(() => {
     routeTopic = null;
+    routePageText = null;
     pipelineMocks.create.mockReset();
     pipelineMocks.reserve.mockClear();
     pipelineMocks.commit.mockClear();
@@ -790,6 +792,185 @@ describe("exam-prep lesson route", () => {
     expect(logs.some((args) => args[0] === "lesson_generation_degraded")).toBe(true);
     const degraded = logs.find((args) => args[0] === "lesson_generation_degraded");
     expect(JSON.stringify(degraded?.[1])).toMatch(/diagram_missing/);
+  });
+
+  it("repairs a contradictory P-v lesson instead of publishing the broken parts", async () => {
+    routeTopic = PV_TOPIC;
+    routePageText = [
+      "P-v ve T-v diyagramında doymuş sıvı eğrisi ile doymuş buhar eğrisi kritik noktada birleşir.",
+      "İki faz bölgesinde doymuş sıvı ve doymuş buhar birlikte dengede bulunur; bu bölgeye ıslak buhar denir.",
+      "Üçlü noktada katı, sıvı ve buhar fazları dengededir.",
+      "Kalite x = m_buhar / m_toplam bağıntısıyla yazılır ve 0 ≤ x ≤ 1 aralığındadır.",
+      "Bir kapta m_buhar = 2 kg ve m_toplam = 4 kg ise x = 2/4 = 0,5 olur.",
+      "İki faz bölgesinde basınç ve sıcaklık birbirine bağımlıdır.",
+      "Sabit basınçta sıvı ısıtıldığında özgül hacim önce az değişir, kaynama sırasında ise büyük artış gösterir.",
+      "Diyagramlar, tablo seçimini ve proses yönünü görselleştirir.",
+    ].join(" ");
+    const bad = {
+      title: PV_TOPIC,
+      objective: "İki faz bölgesinde kaliteyi diyagramdan okuyabileceksin.",
+      overview: "P-v ve T-v diyagramında doymuş sıvı eğrisi ile doymuş buhar eğrisi kritik noktada birleşir.",
+      sections: [
+        {
+          heading: "İki faz bölgesi",
+          body:
+            "Sıvı ve buhar birlikte dengede olamaz. Üçlü noktada katı, sıvı ve buhar fazları dengededir.",
+          check: {
+            type: "mcq",
+            prompt: "T-v diyagramında bağımsız iki özellik değildir. Aşağıdakilerden hangisi doğrudur?",
+            options: [
+              "Basınç ve sıcaklık birbirine bağımlıdır.",
+              "Basınç ve sıcaklık bağımsızdır.",
+              "Sadece sıcaklık belirleyicidir.",
+              "Özgül hacim her durumda sabittir.",
+            ],
+            answerIndex: 0,
+            explanation: "İki faz bölgesinde basınç ve sıcaklık birbirine bağımlıdır.",
+          },
+        },
+        {
+          heading: "Hesaplama ve Örnek",
+          body:
+            "Kalite, doymuş buharın toplam kütleye oranıdır. Veri: m_buhar = 2 kg Adım 1: Kalite hesaplama Adım 2: Sonucu hesapla Bu durumda kalite, doymuş buharın toplam kütleye oranıdır. Sonuç, iki faz arasında belirgin bir yön gösterir. Aralık 0 < x < 1.",
+        },
+      ],
+      summary: [
+        "Sabit basınçta sıvı ısıtıldığında özgül hacim önce az değişir, kaynama sırasında ise büyük artış gösterir.",
+        "P-v ve T-v Diyagramlarını kullanarak faz durumu ve özellikle iki faz bölgesinde kalite hesaplamalarını gerçekleştirme.",
+        "P-v, T-v Diyagramları - Kritik ve Üçlü Nokta",
+        "Diyagramlar, tablo seçimini ve proses yönünü görselleştirir.",
+        "iki faz bölgesi",
+      ],
+    };
+    const patch = {
+      sections: [
+        {
+          index: 0,
+          body: "İki faz bölgesinde doymuş sıvı ve doymuş buhar birlikte dengede bulunur. Bu bölgeye ıslak buhar denir. Üçlü noktada katı, sıvı ve buhar fazları dengededir.",
+          check: {
+            type: "mcq",
+            prompt: "İki faz bölgesinde basınç ve sıcaklık birbirine bağımlı mıdır?",
+            options: [
+              "Basınç ve sıcaklık birbirine bağımlıdır.",
+              "Basınç ve sıcaklık bağımsızdır.",
+              "Yalnızca sıcaklık belirleyicidir.",
+            ],
+            answerIndex: 0,
+            explanation: "İki faz bölgesinde basınç ve sıcaklık birbirine bağımlıdır.",
+          },
+        },
+        {
+          index: 1,
+          body: "Kalite, doymuş buharın toplam kütleye oranıdır ve x = m_buhar / m_toplam bağıntısıyla yazılır. Aralık 0 ≤ x ≤ 1 olarak okunur.",
+          check: {
+            type: "trueFalse",
+            prompt: "Doymuş sıvı ile doymuş buhar iki faz bölgesinde birlikte dengede bulunur.",
+            options: ["Doğru", "Yanlış"],
+            answerIndex: 0,
+            explanation: "Islak buhar bölgesinde doymuş sıvı ve doymuş buhar birlikte dengede bulunur.",
+          },
+        },
+      ],
+      addedSections: [
+        {
+          heading: "Üçlü nokta",
+          body: "Üçlü noktada katı, sıvı ve buhar fazları dengededir. P-v ve T-v diyagramında bu nokta üç fazın bir arada durduğu yerdir.",
+          check: {
+            type: "mcq",
+            prompt: "Üçlü noktada katı, sıvı ve buhar bir arada dengede midir?",
+            options: ["Yalnızca sıvı dengededir.", "Üç faz bir arada dengededir.", "Buhar hiç bulunmaz."],
+            answerIndex: 1,
+            explanation: "Üçlü noktada katı, sıvı ve buhar fazları dengededir.",
+          },
+        },
+      ],
+      example: {
+        prompt: "Bir kapta doymuş buhar kütlesi 2 kg ve toplam kütle 4 kg ise kalite kaçtır?",
+        solution: "Veri: m_buhar = 2 kg ve m_toplam = 4 kg. Adım 1: x = m_buhar / m_toplam = 2/4 yazılır. Adım 2: x = 0,5 olur.",
+      },
+      summary: [
+        "İki faz bölgesinde doymuş sıvı ve doymuş buhar birlikte dengede bulunur.",
+        "Kalite, doymuş buhar kütlesinin toplam kütleye oranıdır ve 0 ≤ x ≤ 1 aralığındadır.",
+        "Üçlü noktada katı, sıvı ve buhar fazları dengededir.",
+        "İki faz bölgesinde basınç ve sıcaklık birbirine bağımlıdır.",
+      ],
+      diagram: {
+        caption: "P-v diyagramındaki eğriler",
+        shapes: [
+          { kind: "line", x1: 40, y1: 160, x2: 150, y2: 40 },
+          { kind: "line", x1: 150, y1: 40, x2: 280, y2: 160 },
+          { kind: "text", x: 70, y: 120, text: "Sıvı eğrisi" },
+          { kind: "text", x: 190, y: 120, text: "Buhar eğrisi" },
+        ],
+      },
+    };
+    const raw = JSON.stringify(bad);
+    const logs: unknown[][] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      logs.push(args);
+    });
+    pipelineMocks.create.mockImplementation(async (args: { messages?: { content?: unknown }[] }) => {
+      const messages = args?.messages ?? [];
+      const blob = messages.map((message) => String(message.content ?? "")).join("\n");
+      if (blob.includes("Yalnızca bozuk parçaları")) return completion(JSON.stringify(patch));
+      const system = String(messages[0]?.content ?? "");
+      if (system.includes("denetçisisin")) return completion(JSON.stringify({ approved: true, issues: [] }));
+      if (system.includes("sorunları düzelt")) return completion(JSON.stringify({ content: raw }));
+      return completion(raw);
+    });
+    const service = supabase();
+    pipelineMocks.guard.mockResolvedValue({ ok: true, ctx: { userId: "student-1", service } });
+
+    const response = await POST(
+      new Request("https://cortexplus.app/api/learning/exam-prep/node", {
+        method: "POST",
+        body: JSON.stringify({
+          prepId: PREP,
+          nodeId: NODE,
+          clientRequestId: REQ,
+          action: "start",
+        }),
+      }),
+    );
+    const body = await response.json();
+    spy.mockRestore();
+
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    const published = JSON.stringify(body.payload.lesson);
+    expect(published).not.toMatch(/olamaz/i);
+    expect(published).not.toMatch(/Sonucu hesapla/);
+    expect(published).not.toMatch(/belirgin bir yön/);
+    expect(published).not.toMatch(/gerçekleştirme/);
+    expect(published).not.toMatch(/0\s*<\s*x\s*<\s*1/);
+    const lesson = body.payload.lesson as {
+      sections: { check?: { prompt: string; options: string[] }; diagram?: { caption: string } }[];
+      summary?: string[];
+      example?: { prompt: string; solution: string };
+    };
+    const checks = lesson.sections.map((section) => section.check).filter(Boolean);
+    expect(checks.length).toBeGreaterThanOrEqual(3);
+    for (const check of checks) {
+      expect(check?.prompt.length).toBeGreaterThanOrEqual(12);
+      expect(check?.prompt).toMatch(/\?|dır|dir|değildir|bulunur|midir/i);
+    }
+    expect(lesson.example?.solution).toMatch(/2\s*\/\s*4/);
+    expect(lesson.example?.solution).toMatch(/0,5|0\.5/);
+    expect(lesson.summary?.length).toBeGreaterThanOrEqual(3);
+    expect(lesson.summary?.length).toBeLessThanOrEqual(5);
+    expect(lesson.summary?.some((line) => line.trim().toLocaleLowerCase("tr") === "iki faz bölgesi")).toBe(false);
+    expect(lesson.summary?.some((line) => /\s[-–—]\s/.test(line) && !/[.?!]/.test(line))).toBe(false);
+    expect(lesson.sections.some((section) => section.diagram?.caption)).toBe(true);
+    expect(pipelineMocks.reserve).toHaveBeenCalledTimes(1);
+    expect(pipelineMocks.commit).toHaveBeenCalledTimes(1);
+    expect(pipelineMocks.refund).not.toHaveBeenCalled();
+    const repaired = logs.find((args) => args[0] === "lesson_generation_repaired");
+    const report = repaired?.[1] as { checks?: string[]; succeeded?: string[] };
+    expect(report?.checks).toEqual(
+      expect.arrayContaining(["source_contradiction", "stem_grammar", "check_count", "example_incomplete", "vacuous", "diagram_missing"]),
+    );
+    expect(report?.succeeded).toEqual(
+      expect.arrayContaining(["source_contradiction", "stem_grammar", "check_count", "example_incomplete", "vacuous", "diagram_missing"]),
+    );
   });
 });
 
