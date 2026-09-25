@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { conceptInText, titleConcepts } from "@/lib/learning/lesson-claims";
+import { conceptInText, conceptsWorthWidening } from "@/lib/learning/lesson-claims";
 import { searchDocumentChunks, type DocumentMatch } from "@/lib/rag/pipeline";
 
 /**
@@ -118,10 +118,8 @@ export async function widenSourcePages(
   mappedText: string,
 ): Promise<number[]> {
   try {
-    const concepts = titleConcepts(title);
-    if (!documentId || !mappedPages.length || !concepts.length) return mappedPages;
-    const missing = concepts.filter((concept) => !conceptInText(concept, mappedText));
-    if (!missing.length) return mappedPages;
+    const missing = conceptsWorthWidening(title, mappedText);
+    if (!documentId || !mappedPages.length || !missing.length) return mappedPages;
     const extra: number[] = [];
     for (const concept of missing) {
       if (extra.length >= 4) break;
