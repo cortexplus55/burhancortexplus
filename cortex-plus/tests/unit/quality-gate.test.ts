@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type OpenAI from "openai";
 vi.mock("@/lib/env", () => ({ env: { OPENAI_ADVANCED_MODEL: "review-model" } }));
-import { verifyEducationalContent } from "@/lib/ai/quality-gate";
+import {
+  EducationalVerificationError,
+  verifyEducationalContent,
+} from "@/lib/ai/quality-gate";
 
 function fixture(values: unknown[]) {
   const create = vi.fn();
@@ -30,7 +33,7 @@ describe("educational quality gate", () => {
 
   it("rechecks a correction instead of trusting the repair", async () => {
     const { input, create } = fixture([
-      { approved: false, issues: ["tarih yanlış"] },
+      { approved: false, issues: ["Kaynakta olmayan tarih: İstanbul 1453'te fethedilmedi."] },
       { content: "düzeltilmiş" },
       { approved: true, issues: [] },
     ]);
@@ -40,12 +43,80 @@ describe("educational quality gate", () => {
 
   it("never returns a draft rejected twice", async () => {
     const { input, create } = fixture([
-      { approved: false, issues: ["hata"] },
+      { approved: false, issues: ["Kaynakta olmayan formül PV = nRT."] },
       { content: "hatalı düzeltme" },
-      { approved: false, issues: ["hata sürüyor"] },
+      { approved: false, issues: ["Kaynakta olmayan formül PV = nRT duruyor."] },
     ]);
-    await expect(verifyEducationalContent(input)).rejects.toThrow("doğrulanamadı");
+    await expect(verifyEducationalContent(input)).rejects.toMatchObject({
+      repairAttempted: true,
+    });
     expect(create).toHaveBeenCalledTimes(3);
+    const repairCall = create.mock.calls[1]?.[0] as {
+      messages?: { content?: string }[];
+    };
+    expect(repairCall.messages?.[0]?.content).toContain("Kaynak sayfalarda olmayan formül");
+  });
+
+  it("keeps a correct pascal conversion the reviewer calls wrong", async () => {
+    const draft = "Örnekte 50000 Pa = 50 kPa yazılır.";
+    const { input, create } = fixture([
+      {
+        approved: false,
+        issues: [
+          "50000 Pa = 50 kPa dönüşümü yanlış, 50 kPa hatalıdır çünkü 1 kPa = 1000 Pa.",
+        ],
+      },
+    ]);
+    const result = await verifyEducationalContent({ ...input, draft });
+    expect(result.content).toBe(draft);
+    expect(result.repairAttempted).toBe(false);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("still repairs a conversion the arithmetic check confirms is wrong", async () => {
+    const { input, create } = fixture([
+      { approved: false, issues: ["50000 Pa = 5 kPa dönüşümü yanlış."] },
+      { content: "50000 Pa = 50 kPa." },
+      { approved: true, issues: [] },
+    ]);
+    const result = await verifyEducationalContent({
+      ...input,
+      draft: "50000 Pa = 5 kPa yazılmış.",
+    });
+    expect(result.content).toBe("50000 Pa = 50 kPa.");
+    expect(result.repairAttempted).toBe(true);
+    expect(create).toHaveBeenCalledTimes(3);
+  });
+
+  it("ignores a missing intro section and a bold nit", async () => {
+    const draft = '{"overview":"Basınç birim alana gelen kuvvettir."}';
+    const { input, create } = fixture([
+      {
+        approved: false,
+        issues: [
+          "Giriş bölümü eksik, doğrudan kavram bölümleriyle başlamış.",
+          "Anahtar terim koyu değil: Basınç. **iki yıldız** arasına al.",
+        ],
+      },
+    ]);
+    const result = await verifyEducationalContent({ ...input, draft });
+    expect(result.content).toBe(draft);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("records repairAttempted when the repair still fails", async () => {
+    const { input } = fixture([
+      { approved: false, issues: ["Kaynakta olmayan formül: PV = nRT"] },
+      { content: "yine PV = nRT" },
+      { approved: false, issues: ["Kaynakta olmayan formül duruyor"] },
+    ]);
+    try {
+      await verifyEducationalContent(input);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(EducationalVerificationError);
+      expect((error as EducationalVerificationError).repairAttempted).toBe(true);
+    }
   });
 
   it("fails closed on a malformed reviewer response", async () => {
@@ -60,7 +131,9 @@ describe("educational quality gate", () => {
       { approved: true, issues: [] },
     ]);
     const validate = (content: string) =>
-      content === "geçerli önerme" ? [] : ["Açık uçlu soru doğru/yanlış önermesi değildir."];
+      content === "geçerli önerme"
+        ? []
+        : ["Kaynakta olmayan önerme: Açık uçlu soru doğru/yanlış önermesi değildir."];
     expect((await verifyEducationalContent({ ...input, validate })).content).toBe(
       "geçerli önerme",
     );
@@ -75,13 +148,16 @@ describe("educational quality gate", () => {
       { approved: true, issues: [] },
     ]);
     await expect(
-      verifyEducationalContent({ ...input, validate: () => ["format yanlış"] }),
+      verifyEducationalContent({
+        ...input,
+        validate: () => ["Kaynakta olmayan formül PV = nRT."],
+      }),
     ).rejects.toThrow("doğrulanamadı");
   });
 
   it("does not auto-accept a repair that fails independent recheck", async () => {
     const { input, create } = fixture([
-      { approved: false, issues: ["yapı"] },
+      { approved: false, issues: ["Kaynakta olmayan formül PV = nRT."] },
       { content: '{"questions":[]}' },
       { approved: true, issues: [] },
     ]);
@@ -111,6 +187,38 @@ describe("educational quality gate", () => {
       }),
     ).rejects.toThrow();
     expect(create).toHaveBeenCalledTimes(3);
+  });
+
+  it("accepts a lesson the reviewer only nits for style", async () => {
+    const cosmetic = [
+      "Çıktı geçerli JSON değil.",
+      "Basınç formülünde semboller LaTeX formatına yanlış çevrildi.",
+      "mutlak basınç gibi terimler ** ile işaretlenmeli.",
+      "Çözüm adım adım ve gerekçeli olmalı; yalnızca sonucu yazma.",
+      "En az 2 kontrol sorusu kalmalı; öğretmeyenler çıkarıldı.",
+    ];
+    const { input, create } = fixture([{ approved: false, issues: cosmetic }]);
+    const result = await verifyEducationalContent(input);
+    expect(result.content).toBe("ilk taslak");
+    expect(result.repairAttempted).toBe(false);
+    expect(result.recheckPassed).toBeNull();
+    expect(result.issueSeverity.blocking).toEqual([]);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a source error after one repair and records recheck_passed false", async () => {
+    const { input } = fixture([
+      { approved: false, issues: ["Kaynakta olmayan formül PV = nRT."] },
+      { content: "hâlâ PV = nRT" },
+      { approved: false, issues: ["İdeal gaz yasası (PV = nRT) dokümanda yer almıyor."] },
+    ]);
+    await expect(verifyEducationalContent(input)).rejects.toMatchObject({
+      repairAttempted: true,
+      recheckPassed: false,
+      issueSeverity: {
+        blocking: expect.arrayContaining([expect.stringMatching(/PV = nRT|İdeal gaz/)]),
+      },
+    });
   });
 
   it("fails closed when the reviewer is unavailable", async () => {

@@ -13,10 +13,12 @@ import {
 import {
   LESSON_V2_SCHEMA_HINT,
   REVIEW_VARIANT_RULE,
-  prepareLessonDraft,
+  lessonDraftForVerifier,
+  lessonHasTeachingCore,
+  lessonPublishIssues,
+  publishLessonDraft,
   teachingStandardConstraints,
   teachingSessionContext,
-  validateLessonV2,
 } from "@/lib/learning/teaching-standards";
 import {
   contentDifficultyLine,
@@ -25,7 +27,13 @@ import {
   sessionSignalsPrompt,
 } from "@/lib/learning/session-signals";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
-import { groundingRules, teacherPersona } from "@/lib/learning/teacher-brain";
+import {
+  groundingRules,
+  SOURCE_PAGE_FORMULA_RULE,
+  teacherNoteGroundedInSource,
+  teacherPersona,
+} from "@/lib/learning/teacher-brain";
+import { groundLearnerLesson, groundLessonDraft } from "@/lib/learning/lesson-grounding";
 
 /** Düğüm ucuyla aynı tavan. Kısa tekrar ayrı bir model çağrısı açmaz. */
 export const maxDuration = 300;
@@ -111,7 +119,7 @@ export async function POST(request: Request) {
           topic.label,
         )
       : null;
-  const teacherBrief = teaching?.brief ?? "";
+  const rawTeacherBrief = teaching?.brief ?? "";
   const depth = teaching?.depth;
 
   let sourceBlock = "";
@@ -162,6 +170,7 @@ export async function POST(request: Request) {
           examType: prep.exam_type,
         })
       : "";
+  const teacherBrief = teacherNoteGroundedInSource(rawTeacherBrief, sourceBlock);
 
   const hardTopics = Array.isArray(prep.hard_topics_self)
     ? (prep.hard_topics_self as string[])
@@ -192,23 +201,34 @@ export async function POST(request: Request) {
     maxDraftAttempts: teachingV2 ? (depth?.maxDraftAttempts ?? 2) : 1,
     allowIndependentAccept: false,
     activityKind: "lesson",
+    reviewDraft: teachingV2
+      ? (draft: string) => lessonDraftForVerifier(groundLessonDraft(draft, sourceBlock))
+      : undefined,
     buildIndependent: teachingV2
-      ? (_content, parsed) => {
-          const cleaned = prepareLessonDraft(parsed);
-          return {
-            pedagogyIssues: cleaned
-              ? validateLessonV2(cleaned)
-              : ["Ders v2 şemasını karşılamıyor (hedef, bölümler, örnek, yaygın hata, bilgi kontrolü)."],
-            minItems: 3,
-            sourceExcerpt: sourceBlock,
-            requireSourceSupport: shouldSearchSources(sourceMode),
-            subjectHint: "lesson",
-          };
-        }
+      ? (_content, parsed) => ({
+          pedagogyIssues: lessonPublishIssues(parsed),
+          minItems: 3,
+          sourceExcerpt: sourceBlock,
+          requireSourceSupport: shouldSearchSources(sourceMode),
+          subjectHint: "lesson",
+        })
       : undefined,
     schemaHint: teachingV2
       ? `${LESSON_V2_SCHEMA_HINT} trueFalse ise options tam olarak ["Doğru","Yanlış"]. Çeldirici gerçek yanılgı olsun; hiçbiri/hepsi yasak. explanation yanlış seçeneği çürütsün ve bölüm metnine bağlansın.`
       : 'Yalnızca JSON: {"title":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"summary":string[],"nextFocus":string[]}',
+    verificationContext: teachingV2
+      ? `${teacherPersona()} ${sourceBlock.trim() || teacherBrief.trim() ? groundingRules() : ""}
+Öğrenci için tek konuluk sınav hazırlık dersi yaz.
+Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
+${sessionCtx}
+${signalLine}
+${standards}
+${teacherBrief}
+${depth?.line ?? ""}
+Bu dersin konusu YALNIZCA: ${topic.label}.
+Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.
+${SOURCE_PAGE_FORMULA_RULE}${sourceBlock}${topicBlock}`
+      : undefined,
     userPrompt: teachingV2
       ? `${teacherPersona()} ${sourceBlock.trim() || teacherBrief.trim() ? groundingRules() : ""}
 Öğrenci için tek konuluk sınav hazırlık dersi yaz.
@@ -219,7 +239,8 @@ ${standards}
 ${teacherBrief}
 ${depth?.line ?? ""}
 Bu dersin konusu YALNIZCA: ${topic.label}.
-Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu. ${REVIEW_VARIANT_RULE}${sourceBlock}${topicBlock}`
+Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.
+${SOURCE_PAGE_FORMULA_RULE} ${REVIEW_VARIANT_RULE}${sourceBlock}${topicBlock}`
       : `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
 Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
 ${signalLine}
@@ -227,9 +248,14 @@ Bu dersin konusu YALNIZCA: ${topic.label}.
 Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${topicBlock}`,
     parse: (raw) => {
       if (teachingV2) {
-        const cleaned = prepareLessonDraft(raw);
-        if (!cleaned || validateLessonV2(cleaned).length) return null;
-        return cleaned;
+        const cleaned = publishLessonDraft(raw);
+        if (!cleaned || lessonPublishIssues(raw).length) return null;
+        const grounded = groundLearnerLesson(cleaned, sourceBlock);
+        if (grounded.removed.length) {
+          console.error("removed_for_source", { removed: grounded.removed });
+        }
+        if (!lessonHasTeachingCore(grounded.lesson)) return null;
+        return grounded.lesson as NonNullable<typeof cleaned>;
       }
       const result = legacyLessonSchema.safeParse(raw);
       return result.success ? result.data : null;

@@ -92,9 +92,12 @@ describe("post-PDF wizard order", () => {
       start,
       lessonRoute.indexOf('if (input.kind === "qa")', start),
     );
-    expect(lessonBlock).toContain("validateLessonV2");
+    expect(lessonBlock).toContain("lessonPublishIssues");
+    expect(lessonBlock).toContain("lessonDraftForVerifier");
+    expect(lessonBlock).toContain("verificationContext");
     expect(lessonBlock).toContain("allowIndependentAccept: false");
-    expect(lessonApi).toContain("validateLessonV2");
+    expect(lessonApi).toContain("lessonPublishIssues");
+    expect(lessonApi).toContain("lessonDraftForVerifier");
     expect(lessonApi).toContain("allowIndependentAccept: false");
   });
 
@@ -115,8 +118,8 @@ describe("post-PDF wizard order", () => {
     expect(LESSON_V2_SCHEMA_HINT).toContain("uydurma kart ekleme");
     expect(LESSON_V2_SCHEMA_HINT).toContain("HIZLI SINAV");
     expect(LESSON_V2_SCHEMA_HINT).toContain("DOĞRU MU YANLIŞ");
-    expect(LESSON_V2_SCHEMA_HINT).toContain("check.review");
-    expect(LESSON_V2_SCHEMA_HINT).toContain('"review"?:{"prompt":string}');
+    expect(LESSON_V2_SCHEMA_HINT).not.toContain("check.review");
+    expect(LESSON_V2_SCHEMA_HINT).not.toContain('"review"?:');
     expect(LESSON_V2_SCHEMA_HINT).not.toContain('"review":{"prompt":string,"options"');
     expect(REVIEW_VARIANT_RULE).toContain("140 karakter");
     expect(REVIEW_VARIANT_RULE).not.toContain("review.options");
@@ -130,5 +133,6 @@ describe("post-PDF wizard order", () => {
       lessonRoute.indexOf('if (input.kind === "oral")', podcastStart),
     );
     expect(podcastBlock).not.toContain("REVIEW_VARIANT_RULE");
+    expect(podcastBlock).toContain("podcastDraftForVerifier");
   });
 });

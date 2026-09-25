@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
+import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
 import {
   calloutTone,
   checkPresentation,
@@ -113,7 +114,8 @@ describe("lesson chrome helpers", () => {
       answerIndex: 1,
       explanation: "Kütle geçişi olan düzenek açık sistemdir.",
     });
-    expect(fallback.prompt).not.toBe("Sınırından kütle geçen düzeneğe ne denir?");
+    expect(fallback.prompt).toBe("Sınırından kütle geçen düzeneğe ne denir?");
+    expect(fallback.prompt).not.toContain("başka sözcüklerle");
     expect(fallback.options[fallback.answerIndex]).toBe("Açık sistem");
     expect(fallback.answerIndex).not.toBe(1);
   });
@@ -124,7 +126,7 @@ describe("ExamLessonSteps", () => {
     const onFinish = vi.fn();
     render(<ExamLessonSteps lesson={lesson} onFinish={onFinish} closeHref="/deneme-sinavlari/p" />);
 
-    expect(screen.getByText("1 / 6")).toBeTruthy();
+    expect(screen.getByText("1 / 7")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Devam et" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
 
@@ -133,6 +135,8 @@ describe("ExamLessonSteps", () => {
     expect(screen.getByText("Kapalı Sistem")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Yanlış" }));
 
+    expect(screen.getByText("2 / 7")).toBeTruthy();
+    expect(screen.queryByText(/\/ 9/)).toBeNull();
     expect(screen.getByText("AÇIKLAMA")).toBeTruthy();
     expect(screen.getByText("Dersin sonunda buna geri döneceğiz.")).toBeTruthy();
     expect(screen.getByText("🤔 Yanlış")).toBeTruthy();
@@ -142,11 +146,14 @@ describe("ExamLessonSteps", () => {
     fireEvent.click(screen.getByRole("button", { name: /Kapalı Sistem/ }));
     expect(screen.getByText("🎉 Doğru")).toBeTruthy();
 
-    // Kalan slaytlar: örnek, hata, özet, tekrar kapısı.
+    // Kalan slaytlar: örnek, hata, bilgi kontrolü, özet, tekrar kapısı.
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    expect(screen.getByText("Sınır nedir?")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    expect(screen.getByText("Tekrar")).toBeTruthy();
     expect(screen.getByText("TEKRARLA")).toBeTruthy();
     expect(screen.getByText("Bitirmeden önce kısa tekrar")).toBeTruthy();
     expect(screen.getByText(/1 kontrol sorusunu/)).toBeTruthy();
@@ -154,6 +161,7 @@ describe("ExamLessonSteps", () => {
     expect(onFinish).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    expect(screen.getByText("Tekrar 1 / 1")).toBeTruthy();
     expect(
       screen.getByText("Sistem ile çevre arasındaki yüzeye ne ad verilir?"),
     ).toBeTruthy();
@@ -162,5 +170,58 @@ describe("ExamLessonSteps", () => {
         "Termodinamikte sistemi çevreden ayıran gerçek veya hayali yüzeye sınır denir.",
       ),
     ).toBeNull();
+  });
+
+  it("shows the source sentence after a wrong state-function answer and still opens Tekrar", () => {
+    const source =
+      "Hal fonksiyonunun değişimi yalnızca başlangıç ve son hale bağlıdır ve yoldan bağımsızdır. Isı ve iş yol fonksiyonudur.";
+    const grounded = groundLearnerLesson(
+      {
+        title: "Denge, Proses ve Çevrim",
+        sections: [
+          {
+            heading: "Hal ve yol fonksiyonu",
+            body: source,
+            check: {
+              type: "trueFalse" as const,
+              prompt:
+                "Bir sistem yalnızca başlangıç ve son haline göre tanımlanıyorsa, değişim hal fonksiyonu olarak adlandırılır.",
+              options: ["Doğru", "Yanlış"],
+              answerIndex: 0,
+              explanation: "Değişim hal fonksiyonu, başlangıç ve son halden bağımsızdır.",
+            },
+          },
+        ],
+        commonMistake: {
+          claim: "Bir proses sırasında net enerji değişimi sıfırdır.",
+          correction:
+            "Bir proses sırasında enerji değişimi hal özelliklerine bağlıdır, net değişim ortam koşullarına göre değişebilir.",
+        },
+      },
+      source,
+    ).lesson as LessonV2;
+
+    expect(grounded.commonMistake).toBeUndefined();
+    render(<ExamLessonSteps lesson={grounded} onFinish={vi.fn()} closeHref="/deneme" />);
+
+    expect(screen.getByText("1 / 1")).toBeTruthy();
+    expect(screen.queryByText("Değişim hal fonksiyonu, başlangıç ve son halden bağımsızdır.")).toBeNull();
+    expect(screen.queryByText(/ortam koşullarına/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Yanlış" }));
+
+    expect(screen.getByText("AÇIKLAMA")).toBeTruthy();
+    expect(screen.getByText("🤔 Yanlış")).toBeTruthy();
+    expect(screen.getAllByText(/başlangıç ve son hale bağlıdır/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Değişim hal fonksiyonu, başlangıç ve son halden bağımsızdır.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+
+    expect(screen.getByText("Tekrar")).toBeTruthy();
+    expect(screen.getByText("TEKRARLA")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+
+    expect(screen.getByText("Tekrar 1 / 1")).toBeTruthy();
+    expect(screen.queryByText(/başka sözcüklerle/)).toBeNull();
+    expect(screen.queryByText("Değişim hal fonksiyonu, başlangıç ve son halden bağımsızdır.")).toBeNull();
+    expect(screen.getByText(/başlangıç ve son hale bağlıdır/)).toBeTruthy();
   });
 });

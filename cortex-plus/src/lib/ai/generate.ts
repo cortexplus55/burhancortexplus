@@ -18,8 +18,10 @@ import { recordValidationEvent, metricsFromFailure } from "@/lib/learning/valida
 import {
   runIndependentValidation,
   type IndependentValidationInput,
+  type IssueSeverityReport,
   type ValidationStage,
 } from "@/lib/learning/validation-pipeline";
+import { parseModelJson } from "@/lib/learning/teaching-standards";
 
 export const SYSTEM_GUARDRAIL =
   "Sen Cortex Plus eğitim asistanısın. Türkçe yanıt ver. Yalnızca eğitim amaçlı içerik üret. " +
@@ -91,6 +93,14 @@ type GenerateJsonParams<T> = {
   >;
   schemaHint: string;
   userPrompt: string;
+  /**
+   * Denetçinin gördüğü bağlam. Üretim istemindeki isteğe bağlı alan
+   * kuralı (kısa tekrar) burada durmaz; durursa denetçi eksik alanı
+   * dersin tamamını reddetmek için kullanır.
+   */
+  verificationContext?: string;
+  /** Denetçiden önce isteğe bağlı alanları düşür. Taslak bozulursa olduğu gibi kalır. */
+  reviewDraft?: (draft: string) => string;
   imageUrls?: string[];
   parse: (raw: unknown) => T | null;
   /**
@@ -106,11 +116,7 @@ type GenerateJsonParams<T> = {
 };
 
 function parseCandidate(raw: string): unknown | null {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  return parseModelJson(raw);
 }
 
 export async function generateJson<T>(
@@ -153,11 +159,25 @@ export async function generateJson<T>(
   const stagesMs: Partial<Record<ValidationStage, number>> = {};
   let repairAttempted = false;
   let recheckPassed: boolean | null = null;
+  let lastSeverity: IssueSeverityReport | null = null;
   let lastFailureCodes: string[] = [];
   // Doğrulayıcının kendi cümleleri; yeniden üretim istemine bunlar gider.
   let lastFailureMessages: string[] = [];
   let lastFailedStage: ValidationStage | null = null;
   let lastOutcome: "rejected" | "validator_unavailable" = "rejected";
+  const logRejection = () => {
+    // Taslak, kaynak ve istem loglanmaz. Sebep cümlesi kısa kesilir.
+    console.error("educational_verification_rejected", {
+      actionCode,
+      activityKind: params.activityKind ?? null,
+      stage: lastFailedStage,
+      reason: lastFailureCodes[0] ?? lastOutcome,
+      codes: lastFailureCodes.slice(0, 8),
+      issues: lastFailureMessages.slice(0, 8).map((message) => message.slice(0, 160)),
+      recheck_passed: recheckPassed,
+      issue_severity: lastSeverity,
+    });
+  };
 
   const recordAndFail = async (error: string, status: number) => {
     await recordValidationEvent(params.service, {
@@ -165,6 +185,7 @@ export async function generateJson<T>(
       actionCode,
       activityKind: params.activityKind,
       reservationId: reservation.reservationId,
+      issueSeverity: lastSeverity,
       metrics: metricsFromFailure({
         generationMs: Date.now() - generationStarted - validationMs,
         validationMs,
@@ -212,9 +233,10 @@ export async function generateJson<T>(
 
     const schemaValidate = (candidate: string): string[] => {
       try {
-        if (params.parse(JSON.parse(candidate)) !== null) return [];
+        const candidateParsed = parseCandidate(candidate);
+        if (candidateParsed != null && params.parse(candidateParsed) !== null) return [];
       } catch {
-        /* Invalid JSON also needs repair before it can be approved. */
+        /* Bozuk JSON onarım turuna kalsın. */
       }
       return [
         "Çıktı istenen JSON şemasını veya etkinlik kurallarını karşılamıyor. Format alanındaki bütün kuralları uygula.",
@@ -380,8 +402,8 @@ export async function generateJson<T>(
           try {
             const verified = await verifyEducationalContent({
               client: openai,
-              context: params.userPrompt,
-              draft: raw,
+              context: params.verificationContext ?? params.userPrompt,
+              draft: params.reviewDraft ? params.reviewDraft(raw) : raw,
               format: params.schemaHint,
               imageUrls: params.imageUrls,
               validate: schemaValidate,
@@ -403,11 +425,18 @@ export async function generateJson<T>(
             reviewTokensOut += verified.tokensOut;
             repairAttempted = repairAttempted || verified.repairAttempted;
             recheckPassed = verified.recheckPassed;
+            lastSeverity = verified.issueSeverity;
             Object.assign(stagesMs, verified.stagesMs);
             validationMs += Date.now() - validationStarted;
           } catch (error) {
             validationMs += Date.now() - validationStarted;
             if (error instanceof EducationalVerificationError) {
+              repairAttempted = repairAttempted || error.repairAttempted;
+              if (error.repairAttempted) recheckPassed = error.recheckPassed;
+              if (error.issueSeverity.blocking.length || error.issueSeverity.nonBlocking.length) {
+                lastSeverity = error.issueSeverity;
+              }
+              Object.assign(stagesMs, error.stagesMs);
               lastFailedStage = error.failedStage;
               lastFailureCodes = error.failureCodes.length
                 ? error.failureCodes
@@ -416,6 +445,7 @@ export async function generateJson<T>(
               if (error.failureMessages.length) {
                 lastFailureMessages = error.failureMessages;
               }
+              logRejection();
               lastOutcome =
                 error.reason === "validator_unavailable"
                   ? "validator_unavailable"
@@ -432,7 +462,7 @@ export async function generateJson<T>(
         }
 
         try {
-          parsed = params.parse(JSON.parse(content));
+          parsed = params.parse(parseCandidate(content));
         } catch {
           parsed = null;
         }
@@ -451,6 +481,7 @@ export async function generateJson<T>(
     }
 
     if (!parsed) {
+      if (lastFailureCodes.includes("invalid_ai_response")) logRejection();
       return await recordAndFail(
         lastFailureCodes.includes("invalid_ai_response")
           ? "invalid_ai_response"
@@ -485,6 +516,7 @@ export async function generateJson<T>(
       actionCode,
       activityKind: params.activityKind,
       reservationId: reservation.reservationId,
+      issueSeverity: lastSeverity,
       metrics: metricsFromFailure({
         generationMs: Date.now() - generationStarted - validationMs,
         validationMs,

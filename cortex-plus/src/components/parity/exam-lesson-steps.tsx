@@ -13,6 +13,7 @@ import {
   trueFalseIndexes,
 } from "@/lib/learning/lesson-chrome";
 import type { MaterialLanguage } from "@/lib/learning/teacher-brain";
+import { layoutBoard, overviewDuplicatesSection, type BoardLine } from "@/lib/learning/lesson-board";
 import "@/styles/exam-lesson-steps.css";
 
 /**
@@ -21,6 +22,26 @@ import "@/styles/exam-lesson-steps.css";
  * Her adım kendi slaytı: anlatım, gömülü doğru/yanlış ya da hızlı sınav,
  * ardından açıklama. Yanlışlar dersin sonunda bir kez daha sorulur.
  */
+
+function BoardBody({ text, className }: { text: string; className?: string }) {
+  const lines = layoutBoard(text);
+  const rendered: BoardLine[] = lines.length ? lines : [{ kind: "prose", text }];
+  return (
+    <div className={className ?? "als-body"}>
+      {rendered.map((line, i) =>
+        line.kind === "formula" ? (
+          <p key={i} className="als-formula">
+            <RichBody text={line.text} />
+          </p>
+        ) : (
+          <p key={i}>
+            <RichBody text={line.text} />
+          </p>
+        ),
+      )}
+    </div>
+  );
+}
 
 function RichBody({ text }: { text: string }) {
   const parts = text.split(/(\*\*[^*\n]{1,80}\*\*)/g);
@@ -62,8 +83,13 @@ type Step =
     };
 
 function buildSteps(lesson: LessonV2): Step[] {
-  const steps: Step[] = [
-    { kind: "overview", heading: lesson.title, body: lesson.overview },
+  const steps: Step[] = [];
+  const overview = (lesson.overview ?? "").trim();
+  const firstBody = lesson.sections[0]?.body ?? "";
+  if (overview && !overviewDuplicatesSection(overview, firstBody)) {
+    steps.push({ kind: "overview", heading: lesson.title, body: overview });
+  }
+  steps.push(
     ...lesson.sections.map(
       (s, sectionIndex): Step => ({
         kind: "section",
@@ -76,8 +102,8 @@ function buildSteps(lesson: LessonV2): Step[] {
         sectionIndex,
       }),
     ),
-  ];
-  if (lesson.example.prompt.trim()) {
+  );
+  if (lesson.example?.prompt.trim()) {
     steps.push({
       kind: "example",
       heading: "Örnek",
@@ -85,7 +111,7 @@ function buildSteps(lesson: LessonV2): Step[] {
       solution: lesson.example.solution,
     });
   }
-  if (lesson.commonMistake.claim.trim()) {
+  if (lesson.commonMistake?.claim.trim()) {
     steps.push({
       kind: "mistake",
       heading: "Sık yapılan hata",
@@ -93,13 +119,44 @@ function buildSteps(lesson: LessonV2): Step[] {
       correction: lesson.commonMistake.correction,
     });
   }
-  steps.push({
-    kind: "summary",
-    heading: "Özet",
-    points: lesson.summary,
-    next: lesson.nextFocus,
-  });
+  if (lesson.infoCheck?.prompt.trim() && lesson.infoCheck.answer.trim()) {
+    const duplicated = lesson.sections.some(
+      (section) => section.check?.prompt.trim() === lesson.infoCheck?.prompt.trim(),
+    );
+    if (!duplicated) {
+      steps.push({
+        kind: "example",
+        heading: "Bilgi kontrolü",
+        prompt: lesson.infoCheck.prompt,
+        solution: lesson.infoCheck.answer,
+      });
+    }
+  }
+  if ((lesson.summary?.length ?? 0) > 0 || (lesson.nextFocus?.length ?? 0) > 0) {
+    steps.push({
+      kind: "summary",
+      heading: "Özet",
+      points: lesson.summary ?? [],
+      next: lesson.nextFocus ?? [],
+    });
+  }
+  if (!steps.length) {
+    steps.push({ kind: "overview", heading: lesson.title, body: lesson.sections[0]?.body ?? "" });
+  }
   return steps;
+}
+
+function progressLabel(
+  index: number,
+  lessonCount: number,
+  step: Step,
+  retryOrdinal = 0,
+  retryTotal = 0,
+): string {
+  if (step.kind === "review-gate") return "Tekrar";
+  if (step.kind === "retry") return `Tekrar ${retryOrdinal} / ${Math.max(1, retryTotal)}`;
+  const total = Math.max(1, lessonCount);
+  return `${Math.min(index + 1, total)} / ${total}`;
 }
 
 export function ExamLessonSteps({
@@ -134,7 +191,7 @@ export function ExamLessonSteps({
           ? ({
               kind: "retry",
               heading: section.heading,
-              check: reviewGateQuestion(section.check, language),
+              check: reviewGateQuestion(section.check, language, section.body),
             } as Step)
           : null;
       })
@@ -219,12 +276,21 @@ export function ExamLessonSteps({
           <span className="als-icon als-icon--ghost" aria-hidden />
         )}
         <div className="als-segments" aria-hidden>
-          {steps.map((_, segment) => (
-            <span key={segment} className={segment <= index ? "is-on" : undefined} />
+          {base.map((_, segment) => (
+            <span
+              key={segment}
+              className={segment <= Math.min(index, base.length - 1) ? "is-on" : undefined}
+            />
           ))}
         </div>
         <p className="als-count" aria-live="polite">
-          {index + 1} / {steps.length}
+          {progressLabel(
+            index,
+            base.length,
+            step,
+            index - base.length,
+            Math.max(0, steps.length - base.length - 1),
+          )}
         </p>
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
       </header>
@@ -244,9 +310,7 @@ export function ExamLessonSteps({
           <h1 className="als-heading">{step.heading}</h1>
 
           {step.kind === "overview" || step.kind === "section" ? (
-            <p className="als-body">
-              <RichBody text={step.body} />
-            </p>
+            <BoardBody text={step.body} />
           ) : null}
 
           {step.kind === "section" && step.cards && step.cards.length >= 2 ? (
@@ -310,7 +374,7 @@ export function ExamLessonSteps({
               {solutionShown ? (
                 <div className="als-solution">
                   <span className="als-tag">Çözüm</span>
-                  <p>{step.solution}</p>
+                  <BoardBody text={step.solution} className="als-solution-body" />
                 </div>
               ) : (
                 <button
@@ -474,8 +538,12 @@ function Explanation({
   const wrong = picked !== check.answerIndex;
   return (
     <div className="als-explain">
-      <p className="als-explain-kicker">AÇIKLAMA</p>
-      <p>{check.explanation}</p>
+      {check.explanation.trim() ? (
+        <>
+          <p className="als-explain-kicker">AÇIKLAMA</p>
+          <p>{check.explanation}</p>
+        </>
+      ) : null}
       {wrong && revisit ? (
         <p className="als-revisit">Dersin sonunda buna geri döneceğiz.</p>
       ) : null}

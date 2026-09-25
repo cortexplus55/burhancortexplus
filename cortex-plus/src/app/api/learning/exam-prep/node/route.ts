@@ -53,8 +53,12 @@ import {
   validateOralPedagogy,
   validatePodcastPedagogy,
   validateTrueFalsePedagogy,
-  validateLessonV2,
-  prepareLessonDraft,
+  publishLessonDraft,
+  lessonPublishIssues,
+  lessonDraftForVerifier,
+  lessonHasTeachingCore,
+  publishablePodcast,
+  podcastDraftForVerifier,
   lessonV2Schema,
   LESSON_V2_SCHEMA_HINT,
   REVIEW_VARIANT_RULE,
@@ -74,16 +78,24 @@ import {
 } from "@/lib/learning/podcast-from-lesson";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 import {
+  keyTermsFromTeacherNote,
   lessonDepth,
   podcastDialogueIssues,
   podcastNarrationBrief,
   prepLanguage,
   shouldRetryLessonWithoutBrief,
   SINGLE_NARRATOR_SCHEMA,
+  SOURCE_PAGE_FORMULA_RULE,
   studentLanguageLine,
+  teacherNoteGroundedInSource,
   unsupportedQuantities,
   type TeachingPriority,
 } from "@/lib/learning/teacher-brain";
+import {
+  collectLearnerVisibleText,
+  groundLearnerLesson,
+  groundLessonDraft,
+} from "@/lib/learning/lesson-grounding";
 import {
   recordLearningTrackingAfterComplete,
   stripAnswerMeta,
@@ -1404,7 +1416,11 @@ async function generateNodePayload(input: {
   const prefsHint = input.teachingV2
     ? preferencePromptHint(input.learningPreferences)
     : "";
-  const teacherNote = input.teacherBrief?.trim() ?? "";
+  const factSource = [
+    input.sourceBlock,
+    input.lessonContent ? lessonPodcastBrief(input.lessonContent) : "",
+  ].join("\n");
+  const teacherNote = teacherNoteGroundedInSource(input.teacherBrief ?? "", factSource);
   const depth = lessonDepth(input.teachingPriority ?? null);
   const quizCount = depth.quizItems;
   // Aşinalık içeriğin nereden başlayacağını, ruh hali tonunu belirler.
@@ -1413,7 +1429,7 @@ async function generateNodePayload(input: {
     `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}. Zorluk: ${input.difficulty}. ${sessionSignalsPrompt(
       input.familiarity,
       input.mood,
-    )} ${sessionCtx} ${standards}${prefsHint}${note ? `\n${note}` : ""}${input.sourceBlock}${input.topicFenceBlock ?? ""}`;
+    )} ${sessionCtx} ${standards}${prefsHint}${note ? `\n${note}` : ""}\n${SOURCE_PAGE_FORMULA_RULE}${input.sourceBlock}${input.topicFenceBlock ?? ""}`;
   const ctx = contextFor(teacherNote);
 
   const v2Common = input.teachingV2
@@ -1468,23 +1484,18 @@ async function generateNodePayload(input: {
     // Omurga tek başlıksa dayatmıyoruz: tek bölümlük ders, dersin kendisi
     // olmaz. İki ve üzeri gerçek bir iskelettir.
     const useBackbone = backbone.length >= 2;
-    const missingSections = (lesson: LessonV2) =>
-      useBackbone
-        ? unrepresentedHeadings(
-            backbone,
-            lesson.sections.map((section) => section.heading),
-          ).length
-        : 0;
-    // Kaynaktan gelen omurga kaç bölüm diyorsa doğrulayıcı da onu ister.
-    const minSections = useBackbone ? Math.max(3, backbone.length) : 3;
+    // Kaynak kaç alt başlık veriyorsa o kadar bölüm. Dar konuda iki yeter;
+    // sayıyı doldurmak için üçüncü kavram uydurulmaz.
+    const minSections = useBackbone ? Math.max(2, backbone.length) : 2;
     const backbonePrompt = !useBackbone
       ? ""
       : backbone.length >= 3
         ? ` BÖLÜMLER KAYNAĞIN KENDİ ALT BAŞLIKLARI: sırayla ${backbone
             .map((heading, i) => `${i + 1}) ${heading}`)
             .join(" ")}. Bu başlıkları kullan; birini atlama, kendinden yeni bölüm ekleme.`
-        : ` Kaynağın alt başlıkları: ${backbone.join(", ")}. İkisini de kapsa ve kavramları en az 3 bölüme ayır.`;
+        : ` Kaynağın alt başlıkları: ${backbone.join(", ")}. Bu başlıkları kullan; kaynakta olmayan yeni kavram bölümü ekleme.`;
     // Çizim "isteğe bağlı" kaldığı sürece model hiç çizmiyor.
+    const keyTerms = [...keyTermsFromTeacherNote(teacherNote), ...backbone];
     const wantsDiagram = needsDiagram(input.topicLabel, ...backbone);
     // Soyut bir "çizim koy" talimatını model atlıyordu; somut bir örnek
     // atlanmıyor. Ama örnek de aynen kopyalanıyor: canlıda zemin dersine
@@ -1514,15 +1525,12 @@ async function generateNodePayload(input: {
           ? `${input.idempotencyKey}:no-brief`
           : input.idempotencyKey,
       allowIndependentAccept: false,
-      buildIndependent: (_c, parsed) => {
-        const cleaned = prepareLessonDraft(parsed);
-        return {
-          pedagogyIssues: cleaned
-            ? validateLessonV2(cleaned, { minSections })
-            : ["Ders v2 şemasını karşılamıyor (hedef, bölümler, örnek, yaygın hata, bilgi kontrolü)."],
-          ...sourceIndependent,
-        };
-      },
+      reviewDraft: (draft) =>
+        lessonDraftForVerifier(groundLessonDraft(draft, input.sourceBlock), keyTerms),
+      buildIndependent: (_c, parsed) => ({
+        pedagogyIssues: lessonPublishIssues(parsed, { minSections, keyTerms }),
+        ...sourceIndependent,
+      }),
       schemaHint:
         LESSON_V2_SCHEMA_HINT +
         " note isteğe bağlı. " +
@@ -1535,6 +1543,7 @@ async function generateNodePayload(input: {
         "{kind:\"text\",x,y,text,anchor?}. Renk seçme; tone/fill/stroke yalnızca " +
         "ink, muted, accent, surface, line olabilir. Her çizimde en az bir etiket " +
         "ve bir caption olsun. Metinle anlaşılan konuya çizim koyma.",
+      verificationContext: `${contextFor(note)}${backbonePrompt}${diagramPrompt} Bu konunun dersini yaz.`,
       userPrompt: `${contextFor(note)}${backbonePrompt}${diagramPrompt} Bu konunun dersini yaz. ${REVIEW_VARIANT_RULE}`,
       // Bu tur neden reddedildi — modele aynen iletiliyor. Rota kendi
       // kurallarıyla da reddediyor; sebebini söylemezse yeniden üretim
@@ -1542,8 +1551,17 @@ async function generateNodePayload(input: {
       describeParseFailure: () => lastParseIssues,
       parse: (raw) => {
         lastParseIssues = [];
-        const raw2 = prepareLessonDraft(raw);
-        if (!raw2) return null;
+        const published = publishLessonDraft(raw, { keyTerms });
+        if (!published) return null;
+        const grounded = groundLearnerLesson(published, input.sourceBlock);
+        if (grounded.removed.length) {
+          console.error("removed_for_source", { removed: grounded.removed });
+        }
+        const raw2 = grounded.lesson as LessonV2;
+        if (!lessonHasTeachingCore(raw2)) {
+          lastParseIssues = ["Kaynakla bağlanamayan parçalar çıktıktan sonra öğreten bölüm kalmadı."];
+          return null;
+        }
         /**
          * ÖNCE TEMİZLE, SONRA DOĞRULA.
          *
@@ -1559,8 +1577,14 @@ async function generateNodePayload(input: {
          * Hiçbiri geçmezse ders yayına çıkmaz.
          */
         const parsed = raw2;
-        const missing = missingSections(parsed);
-        const pedagoji = validateLessonV2(parsed, { minSections });
+        const missingList = useBackbone
+          ? unrepresentedHeadings(
+              backbone,
+              parsed.sections.map((section) => section.heading),
+            )
+          : [];
+        const missing = missingList.length;
+        const pedagoji = lessonPublishIssues(raw, { minSections, keyTerms });
         if (pedagoji.length) {
           lastParseIssues = pedagoji;
           return null;
@@ -1570,9 +1594,9 @@ async function generateNodePayload(input: {
         // başlık kaynaktan geliyordu ama içi modelin genel bilgisindendi.
         const formulIssues = formulaFidelityIssues(
           [
-            parsed.overview,
+            parsed.overview ?? "",
             ...parsed.sections.map((section) => section.body),
-            parsed.example.solution,
+            parsed.example?.solution ?? "",
           ],
           input.sourceFormulas ?? [],
         );
@@ -1583,11 +1607,7 @@ async function generateNodePayload(input: {
         // Sayfa metni kesildiyse eksik sayı yanlış alarm üretir. Kesilmemiş
         // kaynakta yüzde ve denklem katsayısı belgede yoksa taslak dönmez.
         if (input.sourceBlock && !input.sourceBlock.includes("kısaltıldı")) {
-          const lessonText = [
-            parsed.overview,
-            ...parsed.sections.map((section) => section.body),
-            parsed.example.solution,
-          ].join("\n");
+          const lessonText = collectLearnerVisibleText(parsed);
           const gaps = unsupportedQuantities(lessonText, input.sourceBlock);
           if (gaps.length) {
             rejectedForQuantity = true;
@@ -1598,12 +1618,11 @@ async function generateNodePayload(input: {
         // Kaynakta duran bir bölümü atlayan ders eksik bir derstir:
         // canlıda üretilen zemin dersi "Birleştirilmiş Zemin
         // Sınıflandırması"nı hiç anlatmadı ve öğrenci bunu bilemedi.
-        if (missing) {
+        // Kaynağın bütün başlıkları düşmüşse yeniden iste. Bir başlık
+        // cerrahi kesimden sonra duruyorsa çekirdek ders yayına çıkar.
+        if (useBackbone && missingList.length === backbone.length) {
           lastParseIssues = [
-            `Kaynağın şu alt başlıkları derste yok: ${unrepresentedHeadings(
-              backbone,
-              parsed.sections.map((section) => section.heading),
-            ).join(", ")}. Her birine bir bölüm yaz.`,
+            `Kaynağın şu alt başlıkları derste yok: ${missingList.join(", ")}. Her birine bir bölüm yaz.`,
           ];
           return null;
         }
@@ -1681,7 +1700,7 @@ async function generateNodePayload(input: {
           exam_prep_id: input.prepId,
           topic_id: input.topicId,
           title: lesson.title,
-          content_md: lesson.overview,
+          content_md: lesson.overview ?? lesson.sections[0]?.body ?? lesson.title,
           content_json: lesson,
         })
         .then(undefined, () => undefined);
@@ -1732,12 +1751,14 @@ async function generateNodePayload(input: {
       difficulty: input.teachingV2 ? "hard" : undefined,
       ...v2Common,
       allowIndependentAccept: false,
+      reviewDraft: input.teachingV2 ? podcastDraftForVerifier : undefined,
       buildIndependent: input.teachingV2
         ? (_c, parsed) => {
             const data = schema.safeParse(parsed).data;
+            const published = data ? publishablePodcast(data) : null;
             return {
-              pedagogyIssues: data
-                ? validatePodcastPedagogy(data)
+              pedagogyIssues: published
+                ? validatePodcastPedagogy(published)
                 : ["Podcast şeması geçersiz."],
               minItems: 4,
               ...sourceIndependent,
@@ -1771,21 +1792,22 @@ async function generateNodePayload(input: {
       parse: (raw) => {
         const data = schema.safeParse(raw).data ?? null;
         if (!data) return null;
-        if (podcastDialogueIssues(data.chapters).length) return null;
+        const published = input.teachingV2 ? publishablePodcast(data) : data;
+        if (podcastDialogueIssues(published.chapters).length) return null;
         if (input.teachingV2) {
-          const issues = validatePodcastPedagogy(data);
+          const issues = validatePodcastPedagogy(published);
           if (issues.length) return null;
           // Ders varsa podcast onun külliyatıyla sınırlı: geçen her
           // nicelik derste de geçmeli, yoksa uydurulmuştur.
           if (
             lessonBrief &&
-            podcastNumbersOutsideLesson(JSON.stringify(data.chapters), lessonBrief)
+            podcastNumbersOutsideLesson(JSON.stringify(published.chapters), lessonBrief)
               .length
           ) {
             return null;
           }
         }
-        return data;
+        return published;
       },
     });
     if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
