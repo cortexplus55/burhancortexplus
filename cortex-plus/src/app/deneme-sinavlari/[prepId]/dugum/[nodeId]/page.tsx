@@ -10,6 +10,7 @@ import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flag
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 import { topicStatusPct } from "@/lib/learning/oral-exam-chrome";
+import { studyNodeOpenable } from "@/lib/learning/study-tools";
 import { prepLanguage } from "@/lib/learning/teacher-brain";
 
 export const metadata = { title: "Ders" };
@@ -42,7 +43,7 @@ export default async function ExamNodePage({
       .maybeSingle(),
   ]);
 
-  if (!prep || !node || node.status === "locked") notFound();
+  if (!prep || !node || !studyNodeOpenable(node.status)) notFound();
 
   const { data: nodeRows } = await supabase
     .from("exam_prep_nodes")

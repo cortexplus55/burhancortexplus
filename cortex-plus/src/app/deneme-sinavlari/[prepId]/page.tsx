@@ -181,6 +181,7 @@ export default async function ExamPrepDetailPage({
             durationMinutes?: number;
             role?: string;
             calendarDate?: string;
+            topicId?: string;
             topicTitle?: string;
           })
         : null,
@@ -373,6 +374,9 @@ export default async function ExamPrepDetailPage({
         topicsDone={topicsMeter.done}
         topicCount={topicsMeter.total}
         topicLabels={prepTopics.map((topic) => topic.label)}
+        topicOptions={prepTopics
+          .filter((topic) => topic.id && topic.label)
+          .map((topic) => ({ id: topic.id, label: topic.label }))}
         materials={materials}
         readinessClaim={learningTrackingView?.claimFullyReady ?? null}
         topicWarnings={await loadTopicWarnings(supabase, prepId)}

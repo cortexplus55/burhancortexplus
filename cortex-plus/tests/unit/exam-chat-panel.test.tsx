@@ -161,4 +161,29 @@ describe("exam chat chrome", () => {
     fireEvent.click(screen.getByRole("button", { name: "Benzer bir soru ver" }));
     expect(screen.getAllByText("Benzer bir soru ver").length).toBeGreaterThan(0);
   });
+
+  it("renders a syllabus quote card and a real numbered list", () => {
+    renderExam([
+      {
+        role: "assistant",
+        content: [
+          "Bu konu sınav kapsamı dışındadır.",
+          "[[alinti:Katlı oranlar kanunu sınav kapsamı dışındadır.|ders-konulari.docx]]",
+          "Kısa özet cümlesi burada durur.",
+          "Belirlenmesi için:1. Mol sayısını hesaplayın.2. Katsayıya bölün.3. Küçük oranı seçin.",
+          "[[chip:Yine de detaylı anlat|Katlı oranlar konusunu yine de ayrıntılı anlat.]]",
+          "[[chip:Sınav konusuna dön (Stokiyometri)|Stokiyometri konusuna dönelim.]]",
+        ].join("\n\n"),
+      },
+    ]);
+    const quote = document.querySelector(".cp-tutor-quote");
+    expect(quote?.textContent).toMatch(/Katlı oranlar kanunu sınav kapsamı dışındadır/);
+    expect(quote?.textContent).toMatch(/ders-konulari\.docx/);
+    expect(screen.queryByText(/^>/)).toBeNull();
+    expect(document.querySelectorAll(".cp-tutor-quote")).toHaveLength(1);
+    expect(document.querySelector("ol")).toBeTruthy();
+    expect(document.querySelectorAll("ol li")).toHaveLength(3);
+    expect(screen.getByRole("button", { name: "Yine de detaylı anlat" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Sınav konusuna dön (Stokiyometri)" })).toBeTruthy();
+  });
 });

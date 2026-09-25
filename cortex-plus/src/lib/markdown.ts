@@ -55,6 +55,23 @@ const LIST_LINE = /^\s*(?:\d+\.|[-*])\s/;
   paragrafta kalıyordu. Liste satırları ayrı bloğa alınır ki liste kuralı
   yakalasın.
 */
+/**
+ * "için:1. hesaplayın.2. bölün.3. seçin" gibi yapışık adımları gerçek listeye ayırır.
+ * Liste, satır başında `1.` ile başlayan bloklardan üretiliyor; arada satır sonu yoksa
+ * hepsi tek paragrafta kalıyordu.
+ */
+function expandGluedLists(content: string): string {
+  return content.replace(
+    /([:.])[ \t]*(1[.)][ \t]*\S[\s\S]*?)(?=\n\s*\n|$)/g,
+    (full, punct: string, listBody: string) => {
+      if (!/[.!?]\s*2[.)][ \t]*\S/.test(listBody) && !/\S2[.)][ \t]/.test(listBody)) return full;
+      let list = listBody.replace(/([.!?])[ \t]*(?=[2-9]\d?[.)][ \t]*\S)/g, "$1\n");
+      list = list.replace(/^(\d+[.)][^\n]*[.!?])[ \t]*([A-ZÇĞİÖŞÜ])/gm, "$1\n\n$2");
+      return `${punct}\n\n${list}`;
+    },
+  );
+}
+
 function splitTrailingList(block: string): string[] {
   const lines = block.split("\n");
   let start = lines.length;
@@ -64,7 +81,7 @@ function splitTrailingList(block: string): string[] {
 }
 
 export function renderMarkdownToHtml(content: string): string {
-  return content
+  return expandGluedLists(content)
     .split(/\n{2,}/)
     .flatMap(splitTrailingList)
     .map((block) => {
