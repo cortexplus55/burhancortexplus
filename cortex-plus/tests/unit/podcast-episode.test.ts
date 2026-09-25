@@ -71,6 +71,64 @@ describe("podcast episode", () => {
     expect(podcastScriptText(repaired)).not.toContain("0,6");
   });
 
+  it("keeps every line when a false sum sits next to a limiting definition", () => {
+    const episode: PodcastEpisode = {
+      title: "Sınırlayıcı bileşen",
+      length: "standart",
+      chapters: [
+        {
+          title: "Sınırlayıcı Bileşen Nedir?",
+          lines: lines([
+            "Sınırlayıcı bileşen, tepkimde tamamen tükenen ve ürün miktarını belirleyen maddedir.",
+            "Notlardaki örnekten: 14 g N₂ (0,5 mol) ve 4 g H₂ (2 mol) verildi.",
+            "Tepkime: N₂ + 3H₂ → 2NH₃, 0,5 mol N₂ için gereken H₂ = 3 × 0,5 = 1,5 mol.",
+            "H₂ 2 mol olduğundan H₂ artar, N₂ ise sınırlayıcı bileşen olur.",
+            "Hayır, sınırlayıcı bileşen tepkimde tamamen tükenen tek bir maddedir.",
+          ]),
+        },
+        {
+          title: "Stokiyometrik Hesaplama ve Örnek",
+          lines: lines([
+            "Tepkimelerde mol ve kütle ilişkisi hesaplanır; örneğin oluşan ürün miktarını belirleyiz.",
+            "Örneğin, 0,5 mol N₂ tepkimede yer alırsa, oluşan NH₃ molü 2 × 0,5 = 1 mol olur.",
+            "NH₃ kütlesi, mol × mol kütlesi ile bulunur: 1 mol × 17 g/mol = 17 g.",
+            "Kütlenin korunumu kontrolü: 14 g + 4 g = 17 g + 18 g uyuyor.",
+          ]),
+        },
+        {
+          title: "Alüminyum Klorür Tepkimesinde Sınırlayıcı Bileşen",
+          lines: lines([
+            "Alüminyum klorür tepkimesinde sınırlayıcı bileşeni belirlemek için mol sayıları karşılaştırılır.",
+            "Sınavda bu konu ağırlıklı ve mutlaka mol ilişkileri iyi bilinmelidir.",
+            "Birden fazla maddeyi sınırlayıcı zannetmek yanlış sonuç verir.",
+          ]),
+        },
+        {
+          title: "Kısa Tekrar",
+          lines: lines([
+            "Sınırlayıcı bileşen, tepkimde tamamen tükenen ve ürün miktarını belirleyendir.",
+            "Tepkime verimi, teorik hesap ile gerçek deney ürünü arasındaki oranla bulunur.",
+            "Sınavda bu konu ağırlıklı; mol/katsayı oranını kullanarak sınırlayıcıyı kesin belirleyin.",
+          ]),
+        },
+      ],
+    };
+    const repaired = repairPodcastEpisode(episode, "14 g N₂ ve 4 g H₂. N₂ + 3H₂ → 2NH₃.");
+    const script = podcastScriptText(repaired);
+    expect(repaired.chapters.flatMap((chapter) => chapter.lines)).toHaveLength(
+      episode.chapters.flatMap((chapter) => chapter.lines).length,
+    );
+    expect(script).toContain("toplamı 18 g");
+    expect(script).toContain("toplamı 35 g");
+    expect(script).not.toMatch(/17 g \+ 18 g uyuyor/);
+    expect(script).not.toMatch(/tepkimde\b/);
+    expect(script).toContain("belirleriz");
+    expect(script).toMatch(/stokiyometrik orandaysa/);
+    expect(script).not.toMatch(/tek bir maddedir/);
+    expect(script).toContain("konu ağırlıklıdır");
+    expect(unfinishedExampleGaps(repaired).join(" ")).toMatch(/ürün miktarı|Sayı yoksa/);
+  });
+
   it("shows powers as symbols and speaks them as üzeri", () => {
     const episode = coercePodcastDraft(
       {

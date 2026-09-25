@@ -4,6 +4,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 import { commitCredits, refundCredits } from "@/lib/credits/service";
 import { env } from "@/lib/env";
 import { completeLessonPartRepair } from "@/lib/ai/lesson-part-repair";
@@ -2222,6 +2223,7 @@ async function generateNodePayload(input: {
           chapters: cached.chapters,
           length,
           reused: true,
+          scriptCredits: 0,
           teachingStandard: activity,
         };
       }
@@ -2257,6 +2259,7 @@ async function generateNodePayload(input: {
       title: outcome.data.title,
       chapters: outcome.data.chapters,
       length,
+      scriptCredits: CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits,
       teachingStandard: activity,
     };
   }

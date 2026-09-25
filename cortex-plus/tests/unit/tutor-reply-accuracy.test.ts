@@ -9,13 +9,16 @@ import {
 import {
   auditQuantitative,
   dropUnverifiedExample,
+  evaluateArithmetic,
   gradeStudentClaim,
   needsQuantModelCheck,
   parseQuantSelfCheck,
   repairQuantitative,
+  quizClaimIssues,
   settleQuantReply,
 } from "@/lib/learning/tutor-quant";
 import { chatMisconceptionRow, finalizeTutorReply, fixTurkishQuestionOrder, requestsAnswerOnly, splitTutorChrome } from "@/lib/learning/tutor-reply";
+import { repairTurkishSurface } from "@/lib/learning/learner-fluency";
 
 const SYLLABUS = {
   documentName: "Sınav programı.docx",
@@ -323,6 +326,99 @@ describe("canlı yol — hüküm taslağı ezer", () => {
     const settled = settleQuantReply({ student: LIVE_STUDENT, context: LIVE_PREP, draft });
     expect(settled.replaced).toBe(false);
     expect(settled.text).toBe(draft);
+  });
+
+  it("iki taraflı yanlış kütle eşitliğini 18 ve 35 diye ayırır", () => {
+    // #112 sağ tarafı tek sayı sanıyordu: `= 17 g` hesapla 18'e çekiliyor,
+    // `+ 18 g uyuyor` duruyor, 18 ile 35 hiç karşılaştırılmıyordu.
+    const line = "Kütlenin korunumu kontrolü: 14 g + 4 g = 17 g + 18 g uyuyor.";
+    const audit = auditQuantitative(line);
+    expect(audit.ok).toBe(false);
+    expect(audit.issues.some((issue) => issue.kind === "arithmetic")).toBe(true);
+    const fixed = repairQuantitative(line, audit);
+    expect(fixed).toContain("toplamı 18 g");
+    expect(fixed).toContain("toplamı 35 g");
+    expect(fixed).toMatch(/eşit değil/);
+    expect(fixed).not.toMatch(/uyuyor/);
+    expect(fixed).not.toMatch(/=\s*18 g/);
+    expect(auditQuantitative("0,80 × 17 = 13,6 g NH₃.").ok).toBe(true);
+    expect(auditQuantitative("3 × 0,5 = 1,5 mol.").ok).toBe(true);
+    expect(auditQuantitative("1 mol × 17 g/mol = 17 g.").ok).toBe(true);
+    expect(auditQuantitative("80% = 0,8.").ok).toBe(true);
+    expect(auditQuantitative("50% = 40%.").ok).toBe(false);
+    expect(auditQuantitative("0 °C = 273 K.").ok).toBe(true);
+    expect(auditQuantitative("25 °C = 298 K.").ok).toBe(true);
+    expect(repairQuantitative("100 °C = 273 K.", auditQuantitative("100 °C = 273 K."))).toMatch(/373,15 K/);
+    expect(auditQuantitative("1 mol = 22,4 L.").ok).toBe(true);
+    expect(auditQuantitative("100 kPa = 200 kPa.").ok).toBe(false);
+    expect(evaluateArithmetic("(12 + 2) × 16")).toBe(224);
+    expect(evaluateArithmetic("12 + 2 × 16")).toBe(44);
+    const parenthesized = repairQuantitative(
+      "12 + (2 × 16) = 50 g/mol.",
+      auditQuantitative("12 + (2 × 16) = 50 g/mol."),
+    );
+    expect(parenthesized).toMatch(/44/);
+    expect(parenthesized).not.toMatch(/=\s*50/);
+  });
+
+  it("sınırlayıcıyı tek madde diye kilitleyen hükmü ve kaynaksız kesinliği düzeltir", () => {
+    const onlyOne = "Hayır, sınırlayıcı bileşen tepkimede tamamen tükenen tek bir maddedir.";
+    const several = "Birden fazla maddeyi sınırlayıcı zannetmek yanlış sonuç verir.";
+    for (const line of [onlyOne, several]) {
+      const fixed = repairQuantitative(line, auditQuantitative(line));
+      expect(fixed).toMatch(/stokiyometrik orandaysa/);
+      expect(fixed).not.toMatch(/tek bir madde|yanlış sonuç verir/);
+    }
+    const definition = "Sınırlayıcı bileşen, tepkimede tamamen tükenen ve ürün miktarını belirleyen maddedir. N₂ + 3H₂ → 2NH₃. 0,5 mol N₂ ve 2 mol H₂ var. N₂ sınırlayıcıdır.";
+    expect(auditQuantitative(definition).issues.filter((issue) => issue.kind === "limiting")).toEqual([]);
+    const heat = "Isı her zaman sıcaklığa eşittir.";
+    expect(auditQuantitative(heat).issues.some((issue) => issue.kind === "identity")).toBe(true);
+    expect(repairQuantitative(heat, auditQuantitative(heat))).toMatch(/aynı büyüklük değildir/);
+    const cases = [
+      ["Her devrim her zaman başarılı olur.", "Her devrim her zaman başarılı olur."],
+      ["Her sözleşme her zaman yazılı olmalıdır.", "Her sözleşme her zaman yazılı olmalıdır."],
+      ["Her mutasyon her zaman zararlıdır.", "Her mutasyon her zaman zararlıdır."],
+    ] as const;
+    for (const [line, source] of cases) {
+      expect(repairQuantitative(line, auditQuantitative(line, ""))).not.toMatch(/her zaman/);
+      expect(repairQuantitative(line, auditQuantitative(line, source))).toBe(line);
+    }
+    expect(auditQuantitative("Sınavda bu konu mutlaka bilinmelidir.").issues.filter((issue) => issue.kind === "absolute")).toEqual([]);
+  });
+
+  it("yazım ve yarım sınav cümlesini dersle ortak kapıdan düzeltir", () => {
+    const raw = "Sınırlayıcı bileşen tepkimde belirlenir. Ürün miktarını belirleyiz. Mol sayısı / katsayı oranı küçüğüne bakılır. Sınavda bu konu ağırlıklı.";
+    const fixed = repairTurkishSurface(raw);
+    expect(fixed).toContain("tepkimede");
+    expect(fixed).not.toMatch(/tepkimde\b/);
+    expect(fixed).toContain("belirleriz");
+    expect(fixed).toContain("oranın en küçüğüne");
+    expect(fixed).toContain("konu ağırlıklıdır");
+    expect(repairTurkishSurface("bu konu sınavda ağırlıklı")).toBe("bu konu sınavda ağırlıklı");
+    expect(repairTurkishSurface("ağırlıklı konu")).toBe("ağırlıklı konu");
+    expect(repairTurkishSurface("Herşey birşey değildir.")).toBe("Her şey bir şey değildir.");
+  });
+
+  it("quiz sınırlayıcı tekliğini kaynaksız da yakalar, her zamanı ancak kaynakla yakalar", () => {
+    const uniqueness = quizClaimIssues([
+      {
+        text: "Sınırlayıcı bileşen tepkimede tamamen tükenen tek bir maddedir.",
+        correct: ["Yalnızca biri tükenir"],
+        explanation: "Sınırlayıcı bileşen tepkimede tamamen tükenen tek bir maddedir. Birlikte tükenirler seçeneği yanlıştır.",
+      },
+    ]);
+    expect(uniqueness.some((issue) => /tek madde/.test(issue))).toBe(true);
+    const mutation = {
+      text: "Her mutasyon her zaman zararlıdır yargısı doğru mudur?",
+      explanation: "Kaynak böyle bir kesinlik kurmaz ve evet seçeneği bu yüzden yanlıştır.",
+      correct: ["Hayır"],
+    };
+    expect(quizClaimIssues([mutation]).some((issue) => /kesin hüküm/.test(issue))).toBe(false);
+    expect(
+      quizClaimIssues([mutation], "Mutasyonlar DNA dizisindeki değişimlerdir.").some((issue) =>
+        /kesin hüküm/.test(issue),
+      ),
+    ).toBe(true);
   });
 });
 

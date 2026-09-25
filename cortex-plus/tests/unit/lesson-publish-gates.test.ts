@@ -101,6 +101,16 @@ describe("ideal gaz dersinin yayın kapıları", () => {
       "Uygulamalı Örnek: H₂SO₄ Hesaplaması. 0,25 mol H₂SO₄ için kütlesini bulmak üzere m = n × M = 0,25 mol × 98 g/mol = 24,5 g. Tanecik sayısı N = 0,25 × 6,02 × 10²³ = 1,505 × 10²³. H atom sayısı 2 × 1,505 × 10²³ = 3,01 × 10²³.";
     expect(announcedExampleGap(finished)).toBeNull();
     expect(exampleIsComplete(finished)).toBe(true);
+    const firstExample =
+      "Sınırlayıcı Bileşen Nedir? Notlardaki örnekten: 14 g N₂ (0,5 mol) ve 4 g H₂ (2 mol) verildi. Tepkime: N₂ + 3H₂ → 2NH₃, 0,5 mol N₂ için gereken H₂ = 3 × 0,5 = 1,5 mol. H₂ 2 mol olduğundan H₂ artar, N₂ ise sınırlayıcı bileşen olur.";
+    expect(announcedExampleGap(firstExample)).toMatch(/ürün miktarı/);
+    const aluminum =
+      "Alüminyum Klorür Tepkimesinde Sınırlayıcı Bileşen. Alüminyum klorür tepkimesinde sınırlayıcı bileşeni belirlemek için mol sayıları karşılaştırılır. Mol sayısı / katsayı oranı en küçük olan madde sınırlayıcıdır.";
+    expect(announcedExampleGap(aluminum)).toMatch(/Sayı yoksa/);
+    const productExample =
+      "Stokiyometrik Hesaplama ve Örnek. Örneğin, 0,5 mol N₂ tepkimede yer alırsa, oluşan NH₃ molü 2 × 0,5 = 1 mol olur. NH₃ kütlesi 1 mol × 17 g/mol = 17 g.";
+    expect(announcedExampleGap(productExample)).toBeNull();
+    expect(announcedExampleGap("Tepkimelerde mol ilişkisi hesaplanır; örneğin oluşan ürün miktarını belirleriz.")).toBeNull();
   });
 
   it("does not publish one question, the junk summary, or the unfinished example", async () => {

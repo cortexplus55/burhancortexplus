@@ -3,8 +3,9 @@
  *
  * Model tek yapılandırılmış ders yazar. Burada kaynak yalnızca konunun
  * kendi sayfalarına indirilir. Örnek tamlığı `exampleIsComplete` ve
- * `announcedExampleGap` ile, özdeşlik ise `auditQuantitative` ile bakılır;
- * bu kurallar podcast ile ortaktır. Tek onarımdan sonra kapı hâlâ
+ * `announcedExampleGap` ile, eşitlik ve kesin hüküm `auditQuantitative`
+ * ile bakılır. Yazım `fluencyIssues` sözlüğüyle onarılır; podcast, quiz
+ * ve sözlü aynı kapıları kullanır. Tek onarımdan sonra kapı hâlâ
  * doluysa ders silinmez: doğrulanamayan cümle çıkarılır ya da işaretlenir
  * ve elde kalan ders açılır. Model çağrısı düşmediyse öğrenci boş ekran görmez.
  */
@@ -12,7 +13,7 @@
 import { foldTr } from "@/lib/documents/page-analysis";
 import { titleConcepts } from "@/lib/learning/lesson-claims";
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
-import { fluencyIssues, sentences } from "@/lib/learning/learner-fluency";
+import { fluencyIssues, repairTurkishSurface, sentences } from "@/lib/learning/learner-fluency";
 import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
 import { auditQuantitative, evaluateArithmetic, repairQuantitative } from "@/lib/learning/tutor-quant";
 import { topicMatchKey } from "@/lib/learning/topic-merge";
@@ -279,18 +280,20 @@ function exampleReady(text: string, source: string): boolean {
 
 function identityLeft(text: string, source: string): boolean {
   return auditQuantitative(text, source).issues.some(
-    (issue) => issue.kind === "identity" || issue.kind === "wording",
+    (issue) => issue.kind === "identity" || issue.kind === "wording" || issue.kind === "absolute",
   );
 }
 
-function settleIdentity(text: string, source: string): string {
-  if (!identityLeft(text, source)) return text;
-  const audit = auditQuantitative(text, source);
-  const settled = repairQuantitative(text, {
-    ...audit,
-    issues: audit.issues.filter((issue) => issue.kind === "identity" || issue.kind === "wording"),
-  });
-  return settled.trim() ? settled : text;
+const TAUGHT_REPAIR = new Set(["identity", "wording", "absolute", "arithmetic"]);
+
+/** Yazım, eşitlik ve kesin hüküm ders metninde de onarılır. */
+function settleTaught(text: string, source: string): string {
+  const surfaced = repairTurkishSurface(text);
+  const audit = auditQuantitative(surfaced, source);
+  const issues = audit.issues.filter((issue) => TAUGHT_REPAIR.has(issue.kind));
+  if (!issues.length) return surfaced;
+  const settled = repairQuantitative(surfaced, { ok: false, checked: true, issues });
+  return settled.trim() ? settled : surfaced;
 }
 
 function hasCalcMcq(lesson: LessonV2): boolean {
@@ -689,7 +692,7 @@ function scrubInventedNumbers(lesson: LessonV2, source: string): LessonV2 {
 }
 
 function applyIdentity(lesson: LessonV2, source: string): LessonV2 {
-  const keep = (text: string) => settleIdentity(text, source);
+  const keep = (text: string) => settleTaught(text, source);
   return {
     ...lesson,
     overview: lesson.overview ? keep(lesson.overview) : lesson.overview,
@@ -698,7 +701,16 @@ function applyIdentity(lesson: LessonV2, source: string): LessonV2 {
       body: keep(section.body),
       ...(section.note ? { note: { ...section.note, body: keep(section.note.body) } } : {}),
       ...(section.check
-        ? { check: { ...section.check, explanation: keep(section.check.explanation) } }
+        ? {
+            check: {
+              ...section.check,
+              prompt: keep(section.check.prompt),
+              explanation: keep(section.check.explanation),
+              ...(section.check.optionWhy
+                ? { optionWhy: section.check.optionWhy.map((line) => keep(line)) }
+                : {}),
+            },
+          }
         : {}),
     })),
     ...(lesson.example
@@ -768,6 +780,13 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+/** Yazım onarılır; kalan kırık Türkçe yama olarak alınmaz. */
+function fluentPatch(text: string): string | null {
+  const next = repairTurkishSurface(text.trim());
+  if (!next || fluencyIssues(next).length) return null;
+  return next;
+}
+
 export function mergeTeachingRepair(lesson: LessonV2, patch: unknown): LessonV2 {
   const row = asRecord(patch);
   if (!row) return lesson;
@@ -775,26 +794,29 @@ export function mergeTeachingRepair(lesson: LessonV2, patch: unknown): LessonV2 
     ...lesson,
     sections: lesson.sections.map((section) => ({ ...section })),
   };
-  if (typeof row.overview === "string" && row.overview.trim().length >= 40 && !fluencyIssues(row.overview).length) {
-    next.overview = row.overview.trim().slice(0, 1500);
+  const overview = typeof row.overview === "string" ? fluentPatch(row.overview) : null;
+  if (overview && overview.length >= 40) {
+    next.overview = overview.slice(0, 1500);
   }
   const incoming = Array.isArray(row.sections) ? row.sections : [];
   for (const item of incoming) {
     const section = asRecord(item);
     if (!section || typeof section.heading !== "string" || typeof section.body !== "string") continue;
-    if (section.body.trim().length < 20 || fluencyIssues(section.body).length) continue;
+    const body = fluentPatch(section.body);
+    if (!body || body.length < 20) continue;
     const heading = section.heading.trim();
     const index = next.sections.findIndex((current) => foldTr(current.heading) === foldTr(heading));
     const note = asRecord(section.note);
     const check = asRecord(section.check);
     const built: LessonV2["sections"][number] = {
       heading: heading.slice(0, 160),
-      body: section.body.trim().slice(0, 2400),
+      body: body.slice(0, 2400),
     };
-    if (note && typeof note.title === "string" && typeof note.body === "string" && !fluencyIssues(note.body).length) {
+    const noteBody = note && typeof note.body === "string" ? fluentPatch(note.body) : null;
+    if (note && typeof note.title === "string" && noteBody) {
       built.note = {
         title: note.title.trim().slice(0, 80),
-        body: note.body.trim().slice(0, 400),
+        body: noteBody.slice(0, 400),
         tone: note.tone === "warn" || note.tone === "unit" ? note.tone : "info",
       };
     }
@@ -836,26 +858,33 @@ export function mergeTeachingRepair(lesson: LessonV2, patch: unknown): LessonV2 
   }
   const example = asRecord(row.example);
   if (example && typeof example.prompt === "string" && typeof example.solution === "string") {
-    if (!fluencyIssues(example.solution).length && example.solution.trim().length >= 8) {
+    const solution = fluentPatch(example.solution);
+    const prompt = repairTurkishSurface(example.prompt.trim());
+    if (solution && solution.length >= 8) {
       next.example = {
-        prompt: example.prompt.trim().slice(0, 800),
-        solution: example.solution.trim().slice(0, 1500),
+        prompt: prompt.slice(0, 800),
+        solution: solution.slice(0, 1500),
       };
     }
   }
   const mistake = asRecord(row.commonMistake);
   if (mistake && typeof mistake.claim === "string" && typeof mistake.correction === "string") {
-    if (!fluencyIssues(mistake.correction).length) {
+    const correction = fluentPatch(mistake.correction);
+    if (correction) {
       next.commonMistake = {
-        claim: mistake.claim.trim().slice(0, 400),
-        correction: mistake.correction.trim().slice(0, 400),
+        claim: repairTurkishSurface(mistake.claim.trim()).slice(0, 400),
+        correction: correction.slice(0, 400),
       };
     }
   }
   if (Array.isArray(row.summary)) {
-    const summary = row.summary.filter((line): line is string => typeof line === "string" && line.trim().length >= 8);
-    if (summary.length >= 3 && summary.every((line) => !fluencyIssues(line).length)) {
-      next.summary = summary.map((line) => line.trim().slice(0, 240)).slice(0, 8);
+    const summary = row.summary.flatMap((line) => {
+      if (typeof line !== "string") return [];
+      const nextLine = fluentPatch(line);
+      return nextLine && nextLine.length >= 8 ? [nextLine] : [];
+    });
+    if (summary.length >= 3) {
+      next.summary = summary.map((line) => line.slice(0, 240)).slice(0, 8);
     }
   }
   return lessonV2Schema.safeParse(next).data ?? lesson;

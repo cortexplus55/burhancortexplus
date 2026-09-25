@@ -178,6 +178,31 @@ describe("quiz and oral after the lesson pipeline", () => {
     expect(oral![0].expectedPoints.join(" ")).toContain("24,5");
     expect(oral![0].rubricCriteria.length).toBeGreaterThan(0);
     expect(oral!.some((q) => q.expectedPoints.some((p) => p.includes("30")))).toBe(false);
+    const shared = publishOralQuestions(
+      {
+        questions: [
+          {
+            prompt: "Kütle korunumu tepkimde nasıl kontrol edilir?",
+            expectedPoints: ["14 g + 4 g = 17 g + 18 g uyuyor."],
+          },
+          {
+            prompt: "Sınırlayıcı bileşen kaç madde olabilir?",
+            expectedPoints: ["Hayır, sınırlayıcı bileşen tepkimde tamamen tükenen tek bir maddedir."],
+          },
+          {
+            prompt: "Verim hangi oranla okunur?",
+            expectedPoints: ["Gerçekleşen ürün kuramsal ürüne bölünür."],
+          },
+        ],
+      },
+      3,
+      "Sınırlayıcı bileşen mol oranıyla bulunur. Verim, gerçekleşen ürünün kuramsal ürüne bölünmesidir.",
+    );
+    expect(shared).not.toBeNull();
+    const sharedText = shared!.map((q) => `${q.prompt} ${q.expectedPoints.join(" ")}`).join("\n");
+    expect(sharedText).not.toMatch(/\btepkimde\b/);
+    expect(sharedText).not.toMatch(/17 g \+ 18 g uyuyor/);
+    expect(sharedText).toMatch(/stokiyometrik orandaysa/);
     expect(validateOralPedagogy(oral!)).toEqual([]);
     const independent = runIndependentValidation({
       draft: JSON.stringify({ questions: oral }),

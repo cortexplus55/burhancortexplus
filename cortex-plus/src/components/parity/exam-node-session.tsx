@@ -15,6 +15,7 @@ import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
 import { lessonV2Schema } from "@/lib/learning/teaching-standards";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
+import { AUDIO_CHARS_PER_CREDIT_PRICE, CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { ExamReadinessScreen } from "@/components/parity/exam-readiness-screen";
 import { ExamWrittenReview } from "@/components/parity/exam-written-review";
@@ -100,6 +101,8 @@ type Payload = {
   cards?: { front: string; back: string }[];
   practice?: string;
   reused?: boolean;
+  /** Senaryo üretiminde düşen kredi. Önbellek 0, yeni senaryo fiyat tablosundaki değer. */
+  scriptCredits?: number;
   uncoveredTopics?: string[];
   message?: string;
   screen?: ReadinessScreen;
@@ -503,6 +506,7 @@ export function ExamNodeSession({
         window.dispatchEvent(new CustomEvent("cortex-balance", { detail: data.balance }));
       }
       setStage("play");
+      router.refresh();
     } catch {
       setGenerationError("Bağlantı kurulamadı. Lütfen yeniden dene.");
     } finally {
@@ -915,6 +919,12 @@ export function ExamNodeSession({
               />
             </label>
           ) : null}
+          {kind === "podcast" ? (
+            <p className="text-sm text-[var(--cp-muted)]">
+              Senaryo {CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits} kr. Ses, önbellekte olmayan her{" "}
+              {AUDIO_CHARS_PER_CREDIT_PRICE} karakter için {CREDIT_PRICE_TABLE.AUDIO_SYNTHESIZE.credits} kr.
+            </p>
+          ) : null}
           {generationFailure && !generationFailure.canRetryNow ? null : (
             <button
               type="button"
@@ -988,6 +998,16 @@ export function ExamNodeSession({
           chapters={chapters}
           finishing={loading}
           resumeKey={`${prepId}:${nodeId}:${payload.length ?? podcastLength}`}
+          scriptNote={
+            typeof payload.scriptCredits === "number"
+              ? payload.scriptCredits === 0
+                ? "Senaryo önbellekten geldi; bu açılışta senaryo için kredi düşülmedi."
+                : `Senaryo için ${payload.scriptCredits} kr düşüldü.`
+              : undefined
+          }
+          onCreditsSpent={(spent) => {
+            if (spent > 0) router.refresh();
+          }}
           onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
           onFinish={() => void finish()}
         />

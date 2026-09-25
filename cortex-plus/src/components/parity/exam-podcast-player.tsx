@@ -83,6 +83,8 @@ export function ExamPodcastPlayer({
   finishing,
   embed = false,
   resumeKey,
+  scriptNote,
+  onCreditsSpent,
 }: {
   title: string;
   chapters: unknown[];
@@ -94,6 +96,10 @@ export function ExamPodcastPlayer({
   embed?: boolean;
   /** Aynı hazırlık ve konuda kaldığı yerden devam. */
   resumeKey?: string;
+  /** Senaryo kredisinin ne zaman düştüğü. */
+  scriptNote?: string;
+  /** Ses üretimi bitince düşen kredi. 0 önbellektir. */
+  onCreditsSpent?: (credits: number) => void;
 }) {
   const normalized = useMemo(() => normalizeChapters(chapters), [chapters]);
   const [audio, setAudio] = useState<(AudioLine | null)[] | null>(null);
@@ -112,6 +118,9 @@ export function ExamPodcastPlayer({
   const [status, setStatus] = useState<
     "loading" | "ready" | "fallback" | "premium" | "credits"
   >("loading");
+  const [audioCredits, setAudioCredits] = useState<number | null>(null);
+  const onCreditsSpentRef = useRef(onCreditsSpent);
+  onCreditsSpentRef.current = onCreditsSpent;
   const [playing, setPlaying] = useState(false);
   const [positionMs, setPositionMs] = useState(0);
   const [heard, setHeard] = useState(false);
@@ -240,6 +249,7 @@ export function ExamPodcastPlayer({
               url?: string;
               durationMs?: number;
               lines?: AudioLine[];
+              creditsSpent?: number;
             };
             if (event.type === "error") {
               throw new Error(event.code === "insufficient_credits" ? "credits" : "unavailable");
@@ -254,6 +264,10 @@ export function ExamPodcastPlayer({
               }, event.total ?? expectedRef.current);
             }
             if (event.type === "done" && event.lines) {
+              if (typeof event.creditsSpent === "number") {
+                setAudioCredits(event.creditsSpent);
+                onCreditsSpentRef.current?.(event.creditsSpent);
+              }
               const verified = validatePodcastAudio(normalized, event.lines);
               if (!verified) throw new Error("unavailable");
               linesRef.current = verified;
@@ -609,6 +623,13 @@ export function ExamPodcastPlayer({
           <span aria-hidden />
         )}
       </header>
+      {scriptNote || (audioCredits != null && audioCredits > 0) ? (
+        <p className="text-sm text-[var(--cp-muted)]">
+          {scriptNote}
+          {scriptNote && audioCredits != null && audioCredits > 0 ? " " : null}
+          {audioCredits != null && audioCredits > 0 ? `Ses için ${audioCredits} kr düşüldü.` : null}
+        </p>
+      ) : null}
 
       <div className="cp-pod-body">
         {transcript ? (

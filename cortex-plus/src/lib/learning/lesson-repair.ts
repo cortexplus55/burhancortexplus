@@ -43,7 +43,8 @@ import {
 import { groundLearnerLesson, normalizeSummaryText, summaryLineProblem } from "@/lib/learning/lesson-grounding";
 import type { LessonDiagram } from "@/lib/learning/lesson-diagram";
 import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
-import { auditQuantitative } from "@/lib/learning/tutor-quant";
+import { repairTurkishSurface } from "@/lib/learning/learner-fluency";
+import { auditQuantitative, repairQuantitative } from "@/lib/learning/tutor-quant";
 
 export type LessonCheckCode =
   | "source_contradiction"
@@ -606,21 +607,56 @@ function hasCountResult(text: string): boolean {
   return /(?:=|≈)\s*\d+(?:[.,]\d+)?\s*[×x·]\s*10(?:\^\s*[+-]?\d+|[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)(?!\s*[/×*·+\-−])/.test(text);
 }
 
+function namedExample(folded: string): boolean {
+  return (
+    /\bornekten\b|\bornekte\b|\bornek\s*:/.test(folded) ||
+    /uygulamali ornek/.test(folded)
+  );
+}
+
+/** Ürün miktarı: sayı, birim ve ürün aynı cümlede. Ara adım (`= 1,5 mol H₂`) sayılmaz. */
+function hasProductAmount(text: string): boolean {
+  const folded = foldTr(text);
+  return /urun[^.\n]{0,50}\d+(?:[.,]\d+)?\s*(?:g|mol|kg)/.test(folded)
+    || /\d+(?:[.,]\d+)?\s*(?:g|mol|kg)[^.\n]{0,40}urun/.test(folded)
+    || /=\s*\d+(?:[.,]\d+)?\s*(?:g|mol|kg)[^.\n]{0,40}(?:nh3|urun)/.test(folded);
+}
+
+/**
+ * Sınırlayıcı örnek tepkime ve reaktif miktarını verip ürünü sonraki
+ * bölüme bırakıyorsa örnek bitmemiştir.
+ */
+function limitingExampleMissingProduct(text: string, folded: string): boolean {
+  if (!namedExample(folded) || !/sinirlay/.test(folded)) return false;
+  if (!/→|->|=>/.test(text)) return false;
+  const amounts = text.match(/\d+(?:[.,]\d+)?\s*(?:mol|g)(?![A-Za-z])/gi) ?? [];
+  if (amounts.length < 2) return false;
+  return !hasProductAmount(text);
+}
+
 /**
  * Duyurulmuş örnek: verilen, formül, yerine koyma ve bitmiş sonuç.
  * Başlıkta "Örnek:" yetiyor; gövde "bulmak için" diye açılmış hesap da öyle.
+ * "örneğin" duyuru değildir. Sayı vermeden "belirlemek için" diyen
+ * sınırlayıcı bölümü de yarım örnektir.
  */
 export function announcedExampleGap(text: string): string | null {
   const folded = foldTr(text);
+  if (/sinirlay/.test(folded) && /belirlemek icin/.test(folded) && !/\d/.test(text)) {
+    return "Örnek yarım: verilen, adımlar ve birimli sonuç aynı bölümde yazılacak. Sayı yoksa başlık kalkacak.";
+  }
   const announced =
-    /\bornek\s*:/.test(folded) ||
-    (/\buygulamali\b/.test(folded) && /\bornek\b|\bhesap/.test(folded)) ||
+    namedExample(folded) ||
+    (/\buygulamali\b/.test(folded) && /\bhesap/.test(folded)) ||
     (/bulmak icin|hesaplanarak|hesaplayalim|hesaplayin/.test(folded) &&
       /formul|=\s*[A-Za-z]/.test(folded) &&
       new RegExp(`\\d+(?:[.,]\\d+)?\\s*${MEASURE}`, "i").test(text));
   if (!announced) return null;
   if (!exampleIsComplete(text)) {
     return "Örnek yarım: verilen, formül, yerine koyma ve sonuç yazılacak. Sonuç yoksa örnek konmayacak.";
+  }
+  if (limitingExampleMissingProduct(text, folded)) {
+    return "Örnek yarım: sınırlayıcı bulunduktan sonra ürün miktarı da aynı bölümde, birimiyle yazılacak.";
   }
   if (asksMeasuredResult(text, "mass") && !hasMassResult(text)) {
     return "Kütle sorulmuş örnekte sonuç gram, kilogram ya da g/mol ile yazılacak.";
@@ -833,10 +869,18 @@ function quoteHits(sentence: string, quotes: string[]): boolean {
 }
 
 function publishSentence(sentence: string, source: string, quotes: string[], context: string): string | null {
-  let next = rewriteSignFlip(sentence);
-  if (!next || signConventionFlip(next)) return null;
-  const precision = auditQuantitative(next).issues.find((issue) => issue.kind === "identity" || issue.kind === "wording");
-  if (precision) next = precision.repair;
+  const rewritten = rewriteSignFlip(sentence);
+  if (!rewritten || signConventionFlip(rewritten)) return null;
+  if (ambiguousEnergyClaim(rewritten, source) || overgeneralCorrection(rewritten, source)) return null;
+  let next = repairTurkishSurface(rewritten);
+  const audit = auditQuantitative(next, source);
+  const fixable = audit.issues.filter((issue) =>
+    issue.kind === "identity" || issue.kind === "wording" || issue.kind === "arithmetic" || issue.kind === "absolute",
+  );
+  if (fixable.length) {
+    next = repairQuantitative(next, { ok: false, checked: true, issues: fixable });
+  }
+  if (auditQuantitative(next, source).issues.some((issue) => issue.kind === "arithmetic")) return null;
   if (incompleteFormulaLine(next)) {
     const completed = completeDanglingFormula(next, context);
     if (!completed) return null;

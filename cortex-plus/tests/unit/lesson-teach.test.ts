@@ -334,6 +334,7 @@ describe("fluency, title match, and echo checks", () => {
     expect(
       fluencyIssues("Mol kütlesi, bir mol maddenin gram cinsinden kütlesidir."),
     ).toEqual([]);
+    expect(fluencyIssues("Sınırlayıcı bileşen tepkimde belirlenir.")).toContain("typo");
     expect(
       sectionMissesTitle(
         "Mol kütlesi",
@@ -362,6 +363,22 @@ describe("worked example and calculation check", () => {
 });
 
 describe("subject lessons", () => {
+  it("repairs a typo, a false equality and an absolute claim before the lesson is taught", async () => {
+    const draft = goodMolLesson();
+    draft.overview =
+      "Atomlar tek tek tartılamayacak kadar küçüktür. Sınırlayıcı bileşen tepkimde her zaman tek bir maddedir ve kimyacılar mol denen paketlerle sayar.";
+    draft.sections[0] = {
+      ...draft.sections[0],
+      body: "Mol kütlesi, bir mol maddenin gram cinsinden kütlesidir. Karbondioksitte toplam 12 + 2 × 16 = 50 g/mol olur ve bu değer mol kütlesini verir.",
+    };
+    const finished = await finishTaughtLesson(draft, { source: MOL_SOURCE, topicLabel: MOL });
+    const blob = `${finished.lesson.overview ?? ""} ${finished.lesson.sections.map((section) => section.body).join(" ")}`;
+    expect(blob).not.toMatch(/\btepkimde\b/);
+    expect(blob).not.toMatch(/=\s*50/);
+    expect(blob).toMatch(/44/);
+    expect(blob).toMatch(/stokiyometrik orandaysa/);
+  });
+
   it("publishes a chemistry lesson with a verified example and no echo", async () => {
     const finished = await finishTaughtLesson(goodMolLesson(), { source: MOL_SOURCE, topicLabel: MOL });
     expect(finished.salvaged).toBe(false);

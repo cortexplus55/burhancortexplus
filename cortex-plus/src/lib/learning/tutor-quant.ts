@@ -16,7 +16,7 @@ const SUB: Record<string, string> = {
 };
 
 export type QuantIssue = {
-  kind: "limiting" | "arithmetic" | "date" | "identity" | "wording";
+  kind: "limiting" | "arithmetic" | "date" | "identity" | "wording" | "absolute";
   detail: string;
   /** Yanlış cümlenin yerine konacak kısa düzeltme. */
   repair: string;
@@ -99,11 +99,23 @@ function stripMeasureUnits(expr: string): string {
 const POW10 = String.raw`(?:\s*[×x·]\s*10(?:\^\s*[+-]?\d+|[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+))`;
 /** `g·mol⁻¹` gibi bileşik birim. Çarpı işareti buraya girmez; birim ölçünün ardından gelir. */
 const COMPOUND_UNIT = String.raw`(?:\s*[·∙]\s*[A-Za-z]+(?:[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+|[⁻\-]\d+)?)?`;
-const ARITH_NUM = String.raw`\d+(?:[.,]\d+)?(?:\s*${MEASURE}(?![A-Za-zÇĞİÖŞÜçğıöşü]))?${COMPOUND_UNIT}(?:${POW10})?`;
-const ARITH_RE = new RegExp(
-  `((?:${ARITH_NUM}(?:\\s*[+×÷*/\\-−–]\\s*${ARITH_NUM})+))\\s*(≈|~|=)\\s*(${ARITH_NUM})`,
-  "g",
-);
+const ARITH_OP = String.raw`(?:[+÷*/\-−–]|[×x·](?!\s*10(?:\^\s*[+-]?\d+|[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)))`;
+
+/**
+ * Ölçü birimi ders modülü bitmeden okunursa `undefined` kalır.
+ * Desen ilk denetimde kurulur; o sırada birim listesi hazırdır.
+ * #112 sağ tarafı tek sayı sanıyordu: `14 g + 4 g = 17 g + 18 g` içinde
+ * yalnızca `= 17 g` denetleniyor, `17 + 18` hiç toplanmıyordu.
+ */
+function arithNum(): string {
+  return String.raw`\d+(?:[.,]\d+)?(?:\s*${MEASURE}(?![A-Za-zÇĞİÖŞÜçğıöşü]))?${COMPOUND_UNIT}(?:${POW10})?`;
+}
+
+function arithRegex(): RegExp {
+  const num = arithNum();
+  const expr = String.raw`(?:${num}(?:\s*${ARITH_OP}\s*${num})+)`;
+  return new RegExp(`(${expr})\\s*(≈|~|=)\\s*(${expr}|${num})`, "g");
+}
 
 /** Sonuç `× 10ⁿ` ise onarım da aynı üsle yazılır. */
 function formatLike(n: number, sample: string): string {
@@ -218,7 +230,13 @@ function parseAmounts(text: string): Map<string, number> {
 
 function claimedLimiter(text: string, reactants: Reactant[]): { kind: "none" | "species"; species?: string; display?: string } | null {
   const folded = foldTr(text);
-  if (/(hicbiri|ikisi de|neither|both fully|tamamen tuken)/.test(folded) && /(sinirlay|limiting|tuken)/.test(folded)) {
+  // "tamamen tükenen" tanımın kendisidir; "hiçbiri sınırlayıcı değil" değildir.
+  // `tamamen tuken` öneki "tükenen"i de yutuyordu ve doğru N₂ hükmünü
+  // "hiçbiri sınırlayıcı değil" diye bozuyordu.
+  if (
+    /hicbiri sinirlayici|ikisi de tamamen tuken|neither is limiting|both fully/.test(folded) &&
+    /(sinirlay|limiting|tuken)/.test(folded)
+  ) {
     return { kind: "none" };
   }
   const re = /([A-Za-z][A-Za-z0-9₀-₉]*)\s*,?\s*(?:sınırlayıcı(?:d[ıi]r|dır)?|limiting)(?!\s*değil)/gi;
@@ -375,24 +393,215 @@ function expandNumericParens(text: string): string {
   return next;
 }
 
+function closeEnough(actual: number, stated: number, approx: boolean): boolean {
+  const diff = Math.abs(actual - stated);
+  const tol = approx ? Math.max(0.02, Math.abs(actual) * 0.02) : Math.max(0.005, Math.abs(actual) * 0.005);
+  return diff <= tol;
+}
+
+function agreementSpan(text: string, match: RegExpMatchArray): string {
+  const start = match.index ?? 0;
+  const end = start + match[0].length;
+  const tail = text.slice(end).match(/^\s*(?:uyuyor|tutuyor|doğru|sağlıyor)\b[.]?/i);
+  return text.slice(start, end + (tail?.[0].length ?? 0));
+}
+
+function sharedUnit(expr: string): string {
+  const units = [...expr.matchAll(new RegExp(`${MEASURE}(?![A-Za-zÇĞİÖŞÜçğıöşü])`, "gi"))].map((item) => item[0]);
+  if (!units.length) return "";
+  const key = (unit: string) => unit.replace(/\s+/g, "").toLocaleLowerCase("tr-TR");
+  const first = key(units[0]);
+  return units.every((unit) => key(unit) === first) ? units[0] : "";
+}
+
+function withUnit(value: number, unit: string): string {
+  return `${formatTr(value)}${unit ? ` ${unit}` : ""}`;
+}
+
+function sideLabel(expr: string): string {
+  const hasAdd = /[+−–-]/.test(expr);
+  const hasMul = /[×x÷*/]/.test(expr);
+  if (hasAdd && !hasMul) return "toplamı";
+  return "değeri";
+}
+
+/** İki taraf da işlemse sonucu tek sayıya indirgeme; iki tarafı ayrı yaz. */
+function bothSidesRepair(left: string, leftValue: number, right: string, rightValue: number): string {
+  const leftText = withUnit(leftValue, sharedUnit(left));
+  const rightText = withUnit(rightValue, sharedUnit(right));
+  return `${left.replace(/\s+/g, " ").trim()} ${sideLabel(left)} ${leftText}; ${right.replace(/\s+/g, " ").trim()} ${sideLabel(right)} ${rightText}. İki taraf eşit değil.`;
+}
+
+const CONV_UNIT = "°C|°F|km|kg|mg|mL|min|m|g|L|K|s|h";
+const CONV_RE = new RegExp(
+  `(?<![+×÷*/\\-−–]\\s{0,4})(?<![\\d])(\\d+(?:[.,]\\d+)?)\\s*(${CONV_UNIT})(?![A-Za-zÇĞİÖŞÜçğıöşü/])\\s*(≈|~|=)\\s*(\\d+(?:[.,]\\d+)?)\\s*(${CONV_UNIT})(?![A-Za-zÇĞİÖŞÜçğıöşü/])`,
+  "g",
+);
+const PERCENT_RE = /(?<![+×÷*/\-−–]\s{0,4})(?<![\d])(\d+(?:[.,]\d+)?)\s*%\s*(≈|~|=)\s*(\d+(?:[.,]\d+)?)(\s*%)?/g;
+
+function canonUnit(raw: string): string {
+  const unit = raw.replace(/\s+/g, "");
+  if (unit === "°C") return "C";
+  if (unit === "°F") return "F";
+  if (unit.toLowerCase() === "ml") return "mL";
+  return unit;
+}
+
+/** Yalnızca ölçülen tek sayı. `1 mol = 22,4 L` evrensel çevrim değildir. */
+function convertUnit(value: number, from: string, to: string): number | null {
+  const left = canonUnit(from);
+  const right = canonUnit(to);
+  if (left === right) return value;
+  const table: Record<string, (n: number) => number> = {
+    "C>K": (n) => n + 273.15,
+    "K>C": (n) => n - 273.15,
+    "C>F": (n) => (n * 9) / 5 + 32,
+    "F>C": (n) => ((n - 32) * 5) / 9,
+    "km>m": (n) => n * 1000,
+    "m>km": (n) => n / 1000,
+    "kg>g": (n) => n * 1000,
+    "g>kg": (n) => n / 1000,
+    "g>mg": (n) => n * 1000,
+    "mg>g": (n) => n / 1000,
+    "L>mL": (n) => n * 1000,
+    "mL>L": (n) => n / 1000,
+    "min>s": (n) => n * 60,
+    "s>min": (n) => n / 60,
+    "h>min": (n) => n * 60,
+    "min>h": (n) => n / 60,
+  };
+  return table[`${left}>${right}`]?.(value) ?? null;
+}
+
+function overlaps(start: number, end: number, spans: { start: number; end: number }[]): boolean {
+  return spans.some((span) => start < span.end && end > span.start);
+}
+
+/** Parantez açılınca değişen eşitliğin onarımı özgün cümleye yazılır. */
+function spanForRepair(original: string, expanded: string, expandedSpan: string): string {
+  if (original.includes(expandedSpan)) return expandedSpan;
+  const pieces = original.split(/(?<=[.!?\n])\s*/);
+  for (const piece of pieces) {
+    const trimmed = piece.trim();
+    if (!trimmed.includes("(")) continue;
+    if (expandNumericParens(trimmed).includes(expandedSpan)) return trimmed;
+  }
+  return expanded === original ? expandedSpan : original.trim();
+}
+
 function arithmeticIssues(text: string): QuantIssue[] {
   const issues: QuantIssue[] = [];
-  for (const match of expandNumericParens(text).matchAll(new RegExp(ARITH_RE.source, "g"))) {
-    const actual = evalArith(match[1]);
-    const stated = readAuditedNumber(match[3]);
-    if (actual == null || !Number.isFinite(stated)) continue;
+  const covered: { start: number; end: number }[] = [];
+  const expanded = expandNumericParens(text);
+  const locate = (span: string) => spanForRepair(text, expanded, span);
+  for (const match of expanded.matchAll(arithRegex())) {
+    const start = match.index ?? 0;
+    const leftValue = evalArith(match[1]);
+    const rightValue = evalArith(match[3]);
+    const stated = rightValue ?? readAuditedNumber(match[3]);
+    if (leftValue == null || !Number.isFinite(stated)) continue;
+    const span = locate(agreementSpan(expanded, match));
+    covered.push({ start, end: start + agreementSpan(expanded, match).length });
     const approx = match[2] !== "=";
-    const diff = Math.abs(actual - stated);
-    const tol = approx ? Math.max(0.02, Math.abs(actual) * 0.02) : Math.max(0.005, Math.abs(actual) * 0.005);
-    if (diff <= tol) continue;
+    if (closeEnough(leftValue, stated, approx)) continue;
+    if (rightValue != null) {
+      issues.push({
+        kind: "arithmetic",
+        detail: `İki taraf eşit değil: ${formatTr(leftValue)} ve ${formatTr(stated)}.`,
+        repair: bothSidesRepair(match[1], leftValue, match[3], rightValue),
+        span,
+      });
+      continue;
+    }
     const unit = match[3].match(new RegExp(`${MEASURE}(?![A-Za-zÇĞİÖŞÜçğıöşü])`, "i"))?.[0] ?? "";
-    const written = formatLike(actual, match[3]);
+    const written = formatLike(leftValue, match[3]);
     const repair = `${match[1].replace(/\s+/g, " ")} = ${written}${unit ? ` ${unit}` : ""}`;
     issues.push({
       kind: "arithmetic",
       detail: `Yazılan sonuç ${match[3]}; hesap ${written}.`,
       repair,
-      span: match[0],
+      span,
+    });
+  }
+
+  for (const match of expanded.matchAll(new RegExp(PERCENT_RE.source, "g"))) {
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+    if (overlaps(start, end, covered)) continue;
+    const left = parseNumber(match[1]);
+    const right = parseNumber(match[3]);
+    const bothPercent = Boolean(match[4]);
+    const actual = bothPercent ? left : left / 100;
+    const stated = bothPercent ? right : right;
+    if (!Number.isFinite(actual) || !Number.isFinite(stated)) continue;
+    covered.push({ start, end });
+    if (closeEnough(actual, stated, match[2] !== "=")) continue;
+    const repair = bothPercent
+      ? `${formatTr(left)}% ile ${formatTr(right)}% eşit değil.`
+      : `${formatTr(left)}% = ${formatTr(left / 100)}`;
+    issues.push({
+      kind: "arithmetic",
+      detail: bothPercent
+        ? `Yüzdeler eşit değil: ${formatTr(left)} ve ${formatTr(right)}.`
+        : `Yüzde karşılığı ${formatTr(left / 100)}; yazılan ${formatTr(right)}.`,
+      repair,
+      span: locate(agreementSpan(expanded, match)),
+    });
+  }
+
+  for (const match of expanded.matchAll(new RegExp(CONV_RE.source, "g"))) {
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+    if (overlaps(start, end, covered)) continue;
+    const left = parseNumber(match[1]);
+    const right = parseNumber(match[4]);
+    covered.push({ start, end });
+    const actual = convertUnit(left, match[2], match[5]);
+    if (actual == null || !Number.isFinite(right)) continue;
+    if (closeEnough(actual, right, match[3] !== "=")) continue;
+    const same = canonUnit(match[2]) === canonUnit(match[5]);
+    const repair = same
+      ? `${formatTr(left)} ${match[2]} ile ${formatTr(right)} ${match[5]} eşit değil.`
+      : `${formatTr(left)} ${match[2]} = ${withUnit(actual, match[5])}`;
+    issues.push({
+      kind: "arithmetic",
+      detail: `Çevrim tutmuyor: ${formatTr(left)} ${match[2]} → ${withUnit(actual, match[5])}.`,
+      repair,
+      span: locate(agreementSpan(expanded, match)),
+    });
+  }
+
+  const singleEq = new RegExp(
+    `(?<![+×÷*/\\-−–]\\s{0,4})(${arithNum()})\\s*(≈|~|=)\\s*(${arithNum()})(?!\\s*[+×÷*/\\-−–])`,
+    "g",
+  );
+  for (const match of expanded.matchAll(singleEq)) {
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+    if (overlaps(start, end, covered)) continue;
+    if (/%/.test(match[0])) continue;
+    const leftUnit = match[1].match(new RegExp(`${MEASURE}(?![A-Za-zÇĞİÖŞÜçğıöşü])`, "i"))?.[0] ?? "";
+    const rightUnit = match[3].match(new RegExp(`${MEASURE}(?![A-Za-zÇĞİÖŞÜçğıöşü])`, "i"))?.[0] ?? "";
+    const left = readAuditedNumber(match[1]);
+    const right = readAuditedNumber(match[3]);
+    if (!Number.isFinite(left) || !Number.isFinite(right)) continue;
+    let actual = left;
+    if (leftUnit && rightUnit && canonUnit(leftUnit) !== canonUnit(rightUnit)) {
+      const converted = convertUnit(left, leftUnit, rightUnit);
+      if (converted == null) continue;
+      actual = converted;
+    } else if (Boolean(leftUnit) !== Boolean(rightUnit)) {
+      continue;
+    }
+    if (closeEnough(actual, right, match[2] !== "=")) continue;
+    const repair = leftUnit && rightUnit && canonUnit(leftUnit) !== canonUnit(rightUnit)
+      ? `${formatTr(left)} ${leftUnit} = ${withUnit(actual, rightUnit)}`
+      : `${match[1].trim()} ile ${match[3].trim()} eşit değil.`;
+    issues.push({
+      kind: "arithmetic",
+      detail: `Yazılan eşitlik tutmuyor: ${formatTr(actual)} ve ${formatTr(right)}.`,
+      repair,
+      span: locate(agreementSpan(expanded, match)),
     });
   }
   return issues;
@@ -447,7 +656,7 @@ const IDENTITY_PAIRS: { left: RegExp; right: RegExp; repair: string }[] = [
   },
   {
     left: /\bisi\b/,
-    right: /\bsicaklik\b/,
+    right: /sicakli[kg]/,
     repair: "Isı enerji aktarımıdır, sıcaklık bir ölçüdür. İkisi aynı büyüklük değildir.",
   },
   {
@@ -475,7 +684,7 @@ const IDENTITY_PAIRS: { left: RegExp; right: RegExp; repair: string }[] = [
 function assertsIdentity(sentence: string): boolean {
   const folded = foldTr(sentence);
   if (/degil|sayisal|sayica|deger olarak|sayilari esit/.test(folded)) return false;
-  return /ile ayni|aynidir|ayni seydir|aynisi/.test(folded);
+  return /ile ayni|aynidir|ayni seydir|aynisi|\besittir\b/.test(folded);
 }
 
 /** İki ayrı büyüklüğü "aynıdır" diye özdeşleyen cümle. Sayısal eşitlik ayrı kapıdadır. */
@@ -536,23 +745,126 @@ function wordingIssues(text: string): QuantIssue[] {
   return issues;
 }
 
+const LIMITING_EXCEPTION =
+  "Reaktifler stokiyometrik orandaysa hepsi birlikte tükenir; hiçbiri fazla kalmaz. Oranlar eşit değilse küçük oran sınırlayıcıdır.";
+
+/** "Tek bir madde" / "birden fazla olamaz" stokiyometri kuralıyla çelişir. */
+function limitingUniqueness(sentence: string): boolean {
+  const folded = foldTr(sentence);
+  if (!/sinirlay/.test(folded)) return false;
+  if (/stokiyometrik oran|birlikte tuken|hicbiri fazla/.test(folded)) return false;
+  if (/tek bir madde|yalnizca bir madde|sadece bir madde/.test(folded)) return true;
+  if (/birden fazla/.test(folded) && /yanlis|olamaz|sanma|zannet/.test(folded)) return true;
+  if (/^hayir\b/.test(folded) && /\btek\b/.test(folded)) return true;
+  return false;
+}
+
+function absoluteMarker(sentence: string): string | null {
+  const folded = foldTr(sentence);
+  if (/\bmutlaka\b/.test(folded) && !/her zaman|asla|hicbir zaman/.test(folded)) return null;
+  const marker = folded.match(/\bher zaman\b|\basla\b|\bhicbir zaman\b/);
+  return marker?.[0] ?? null;
+}
+
+function sourceStatesAbsolute(sentence: string, source: string): boolean {
+  if (!source.trim()) return false;
+  const marker = absoluteMarker(sentence);
+  if (!marker) return false;
+  const src = foldTr(source);
+  if (!src.includes(marker)) return false;
+  const skip = new Set(["zaman", "asla", "hicbir", "olur", "olmalidir", "vardir", "deildir"]);
+  const tokens = foldTr(sentence)
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 5 && !skip.has(word) && word !== marker.replace(/\s+/g, ""));
+  return tokens.some((token) => src.includes(token));
+}
+
+function softenAbsolute(sentence: string): string {
+  const next = sentence
+    .replace(/\bher zaman\b/gi, "")
+    .replace(/\bhiçbir zaman\b/gi, "")
+    .replace(/\basla\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .trim();
+  return next;
+}
+
+/**
+ * Kaynağın söylemediği "her zaman / asla / yalnızca bir" hükmü.
+ * Sınırlayıcı tekliği kaynak susunca da düzeltilir; diğerleri kaynak
+ * verilmişse ve kaynakta yoksa yumuşatılır. `general` false ise
+ * (quiz, kaynak yok) yalnızca sınırlayıcı tekliği kalır.
+ */
+function absoluteIssues(text: string, source: string, general: boolean): QuantIssue[] {
+  const issues: QuantIssue[] = [];
+  for (const sentence of sentencesOf(text)) {
+    if (limitingUniqueness(sentence)) {
+      issues.push({
+        kind: "absolute",
+        detail: "Sınırlayıcı her zaman tek madde değildir.",
+        repair: LIMITING_EXCEPTION,
+        span: sentence,
+      });
+      continue;
+    }
+    if (!general || !absoluteMarker(sentence) || sourceStatesAbsolute(sentence, source)) continue;
+    if (assertsIdentity(sentence)) continue;
+    const repair = softenAbsolute(sentence);
+    if (!repair || repair === sentence) continue;
+    issues.push({
+      kind: "absolute",
+      detail: "Kaynakta olmayan kesin hüküm yumuşatıldı.",
+      repair,
+      span: sentence,
+    });
+  }
+  return issues;
+}
+
 /** Çözümlü örnek ve eşitlikleri kaynak metne karşı denetler. */
-export function auditQuantitative(text: string, source = ""): QuantAudit {
+export function auditQuantitative(
+  text: string,
+  source = "",
+  options?: { generalAbsolutes?: boolean },
+): QuantAudit {
   const limiting = limitingIssues(text);
   const arithmetic = arithmeticIssues(text);
   const dates = dateIssues(text, source);
   const wording = wordingIssues(text);
   const identity = identityIssues(text);
-  const issues = [...limiting, ...arithmetic, ...dates, ...wording, ...identity];
+  const absolute = absoluteIssues(text, source, options?.generalAbsolutes !== false);
+  const issues = [...limiting, ...arithmetic, ...dates, ...wording, ...identity, ...absolute];
   const checked = limiting.length > 0 || arithmetic.length > 0 || dates.length > 0
+    || absolute.length > 0
     || Boolean(parseReaction(text) && claimedLimiter(text, parseReaction(text) ?? []))
     || arithmeticPatternSeen(text)
     || (Boolean(source) && /\b(1[0-9]{3}|20[0-9]{2})\b/.test(text));
   return { ok: issues.length === 0, checked, issues };
 }
 
+const QUANT_KINDS = new Set<QuantIssue["kind"]>(["arithmetic", "absolute", "identity", "limiting"]);
+
+/** Quiz kökü, doğru şık ve açıklama aynı sayı ve kesinlik kapısından geçer. */
+export function quizClaimIssues(
+  questions: { text?: string; explanation?: string; correct?: string[] }[],
+  source = "",
+): string[] {
+  const issues: string[] = [];
+  questions.forEach((question, index) => {
+    const text = [question.text, question.explanation, ...(question.correct ?? [])].filter(Boolean).join("\n");
+    const audit = auditQuantitative(text, source, { generalAbsolutes: Boolean(source.trim()) });
+    for (const issue of audit.issues) {
+      if (!QUANT_KINDS.has(issue.kind)) continue;
+      issues.push(`Soru ${index + 1}: ${issue.detail}`);
+    }
+  });
+  return issues;
+}
+
 function arithmeticPatternSeen(text: string): boolean {
-  return new RegExp(ARITH_RE.source, "i").test(text);
+  const expanded = expandNumericParens(text);
+  return arithRegex().test(expanded) || arithRegex().test(text);
 }
 
 /**
@@ -568,10 +880,10 @@ export function repairQuantitative(text: string, audit: QuantAudit): string {
     } else if (issue.kind === "arithmetic" && issue.span) {
       next = next.replace(issue.span, issue.repair);
     } else if (issue.kind === "arithmetic") {
-      next = next.replace(new RegExp(ARITH_RE.source, "i"), issue.repair);
-    } else if ((issue.kind === "identity" || issue.kind === "wording") && issue.span && next.includes(issue.span)) {
+      next = next.replace(new RegExp(arithRegex().source, "i"), issue.repair);
+    } else if ((issue.kind === "identity" || issue.kind === "wording" || issue.kind === "absolute") && issue.span && next.includes(issue.span)) {
       next = next.replace(issue.span, issue.repair);
-    } else if (issue.kind === "identity" || issue.kind === "wording") {
+    } else if (issue.kind === "identity" || issue.kind === "wording" || issue.kind === "absolute") {
       continue;
     } else if (!next.includes(issue.repair)) {
       next = `${next.trim()}\n\n${issue.repair}`;
@@ -581,17 +893,22 @@ export function repairQuantitative(text: string, audit: QuantAudit): string {
 }
 
 function replaceLimitingSentence(text: string, repair: string): string {
-  const parts = text.split(/(?<=[.!?])\s+|\n+/);
+  const lines = text.split("\n");
   let replaced = false;
-  const next = parts.map((part) => {
-    if (replaced) return part;
-    if (/(sınırlayıcı|sinirlayici|limiting)/i.test(part)) {
-      replaced = true;
-      return repair;
-    }
-    return part;
+  const next = lines.map((line) => {
+    if (replaced) return line;
+    const parts = line.split(/(?<=[.!?])\s+/);
+    const rewritten = parts.map((part) => {
+      if (replaced) return part;
+      if (/(sınırlayıcı|sinirlayici|limiting)/i.test(part)) {
+        replaced = true;
+        return repair;
+      }
+      return part;
+    });
+    return rewritten.join(" ");
   });
-  if (replaced) return next.join(" ").replace(/\s+\n/g, "\n").trim();
+  if (replaced) return next.join("\n").trim();
   return `${text.trim()}\n\n${repair}`;
 }
 

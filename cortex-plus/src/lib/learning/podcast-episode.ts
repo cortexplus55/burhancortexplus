@@ -40,6 +40,7 @@ import {
   type PodcastLine,
 } from "@/lib/learning/podcast-script";
 import { speakVerified, toDisplay } from "@/lib/learning/speech-normalizer";
+import { repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import {
   auditQuantitative,
   dropUnverifiedExample,
@@ -273,20 +274,25 @@ export function withoutUnfinishedExamples(episode: PodcastEpisode): PodcastEpiso
   return { ...episode, chapters };
 }
 
+function repairPodcastLine(text: string, source: string): string {
+  const surfaced = repairTurkishSurface(text);
+  return repairQuantitative(surfaced, auditQuantitative(surfaced, source));
+}
+
+/**
+ * Satır satır onarılır. Tüm metin birleştirilip satır sayısı değişince
+ * onarımın tamamı düşülüyordu: sınırlayıcı cümlesi 13 satırı tek satıra
+ * indiriyor, `14 g + 4 g = 17 g + 18 g` olduğu gibi yayına çıkıyordu.
+ */
 export function repairPodcastEpisode(episode: PodcastEpisode, source: string): PodcastEpisode {
-  const text = repairQuantitative(podcastScriptText(episode), auditQuantitative(podcastScriptText(episode), source));
-  if (text === podcastScriptText(episode)) return episode;
-  const lines = episode.chapters.flatMap((chapter) => chapter.lines);
-  const rewritten = text.split("\n").map((line) => line.trim()).filter(Boolean);
-  if (rewritten.length !== lines.length) return episode;
-  let cursor = 0;
   return {
     ...episode,
     chapters: episode.chapters.map((chapter) => ({
       ...chapter,
       lines: chapter.lines.map((line) => {
-        const next = notationLine(rewritten[cursor] ?? line.text);
-        cursor += 1;
+        const repaired = repairPodcastLine(line.text, source);
+        if (repaired === line.text) return line;
+        const next = notationLine(repaired);
         return {
           ...line,
           text: next.text,
@@ -295,6 +301,12 @@ export function repairPodcastEpisode(episode: PodcastEpisode, source: string): P
       }),
     })),
   };
+}
+
+function lineStillBlocked(text: string, source: string): boolean {
+  return auditQuantitative(text, source).issues.some((issue) =>
+    issue.kind === "arithmetic" || issue.kind === "absolute" || issue.kind === "identity",
+  );
 }
 
 export async function podcastScopeBrief(
@@ -500,7 +512,10 @@ export async function generatePodcastEpisode(input: {
       "Son bölüm üç kısa tekrar maddesi olsun. Ondalık virgül kullan. Formülü ve üssü simgeyle yaz: H₂O, CO₂, 10²³, n = m/M. Konuşma diline çevirme. " +
       "İki ayrı büyüklüğü aynıdır diye yazma (mol kütlesi ile atomik kütle, kütle ile ağırlık, ısı ile sıcaklık). Sayıları eşit olabilir; birimleri farklıdır. " +
       "Mol kütlesi gram cinsinden kütledir; ağırlık deme. " +
-      "Uygulamalı örnek açarsan verileni, formülü, yerine koymayı ve birimli sonucu yaz. Sonuç yoksa örneği koyma.",
+      "Uygulamalı örnek açarsan verileni, formülü, yerine koymayı ve birimli sonucu aynı bölümde yaz. Sonuç yoksa örneği koyma. " +
+      "Eşitliğin iki tarafını hesapla; tutmuyorsa eşitlik yazma ve uyuyor deme. " +
+      "Sınırlayıcı her zaman tek madde değildir: stokiyometrik oranda reaktifler birlikte tükenir. " +
+      "tepkimede ve belirleriz yaz. Yarım cümle bırakma.",
     userPrompt: [
       podcastNarrationBrief(),
       spec.brief,
@@ -554,7 +569,19 @@ export async function generatePodcastEpisode(input: {
           reasons.splice(0, reasons.length, ...issues);
           return null;
         }
-        episode = stripped;
+        const cleared = dropLines(stripped, (text) => lineStillBlocked(text, source));
+        if (!cleared) {
+          reasons.splice(0, reasons.length, ...issues);
+          return null;
+        }
+        const blocked = auditQuantitative(podcastScriptText(cleared), source).issues.filter((issue) =>
+          issue.kind === "arithmetic" || issue.kind === "absolute" || issue.kind === "limiting",
+        );
+        if (blocked.length) {
+          reasons.splice(0, reasons.length, ...blocked.map((issue) => issue.detail));
+          return null;
+        }
+        episode = cleared;
       }
       return episode;
     },
