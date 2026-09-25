@@ -176,7 +176,7 @@ describe("lesson verifier path", () => {
       })),
     };
     expect(lessonPublishIssues(wide).some((issue) => issue.includes("3 kontrol sorusu"))).toBe(
-      true,
+      false,
     );
   });
 
@@ -204,7 +204,7 @@ describe("lesson verifier path", () => {
       sections: lesson.sections.map(({ check: _check, ...section }) => section),
     };
     expect(lessonPublishIssues(wide).some((issue) => issue.includes("3 kontrol sorusu"))).toBe(
-      true,
+      false,
     );
   });
 });

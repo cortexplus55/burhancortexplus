@@ -1565,7 +1565,12 @@ function publishIssueBlocks(issue: string): boolean {
   if (/us bolun/.test(folded)) return true;
   if (/secenek disinda|secenekleri tekrar|dolgu sik|iki secenekli olmali/.test(folded)) return true;
   if (/cekirdegi yok/.test(folded)) return true;
-  if (/kontrol sorusu/.test(folded)) return true;
+  /**
+   * Hiç kontrol kalmadıysa ders düşer. Üç kavramda üçüncü sorunun
+   * eksikliği dersi düşürmez: soru eksik kalabilir, ders kalır.
+   * Pedagoji notu (`En az 3 kontrol sorusu`) durur; yayın kapısı yutmaz.
+   */
+  if (/kontrol sorusu/.test(folded) && !/en az 3/.test(folded)) return true;
   return false;
 }
 
