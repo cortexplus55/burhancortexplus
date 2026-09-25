@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Markdown } from "@/components/markdown";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { CortexMark } from "@/components/brand/cortex-mark";
 
@@ -52,7 +51,7 @@ import { MathKeyboard } from "@/components/parity/math-keyboard";
 import { UpgradeAside } from "@/components/paywall/upgrade-aside";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
-import { formatSourceSections } from "@/lib/ai/source-sections";
+import { TutorReplyView } from "@/components/chat/tutor-reply-view";
 import "@/styles/parity-sor.css";
 import "@/styles/parity-shell.css";
 
@@ -1026,7 +1025,12 @@ function ChatPanelSession({
               {messages.map((message, index) => {
                 const assistantBody = message.content ? (
                   <>
-                    <Markdown content={formatSourceSections(message.content)} variant="parity" />
+                    <TutorReplyView
+                      content={message.content}
+                      variant="parity"
+                      disabled={loading}
+                      onPrompt={(prompt) => void send(prompt)}
+                    />
                     {!message.isError ? (
                       <MessageActions
                         content={message.content}
@@ -1718,7 +1722,12 @@ function ChatPanelSession({
                     {message.role === "user" ? (
                       message.content
                     ) : message.content ? (
-                      <Markdown content={formatSourceSections(message.content)} variant="parity" />
+                      <TutorReplyView
+                        content={message.content}
+                        variant="parity"
+                        disabled={loading}
+                        onPrompt={(prompt) => void send(prompt)}
+                      />
                     ) : null}
                   </div>
                 ))}
@@ -1763,9 +1772,11 @@ function ChatPanelSession({
               {message.role === "user" ? (
                 message.content
               ) : (
-                <Markdown
-                  content={formatSourceSections(message.content)}
+                <TutorReplyView
+                  content={message.content}
                   variant={isParity ? "parity" : "default"}
+                  disabled={loading}
+                  onPrompt={(prompt) => void send(prompt)}
                 />
               )}
             </div>
