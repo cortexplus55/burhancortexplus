@@ -2,7 +2,12 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { lessonV2Schema } from "@/lib/learning/teaching-standards";
 import { loadPrepDocumentIds, loadTopicTeaching, taughtCoverageLine } from "@/lib/documents/teacher-analysis-run";
-import { prepLanguage, type MaterialLanguage } from "@/lib/learning/teacher-brain";
+import {
+  prepLanguage,
+  SOURCE_PAGE_FORMULA_RULE,
+  teacherNoteGroundedInSource,
+  type MaterialLanguage,
+} from "@/lib/learning/teacher-brain";
 
 /**
  * Sohbetin hangi sınava çalıştığını bilmesi.
@@ -127,22 +132,39 @@ export async function loadExamChatContext(
       .map((s) => `- ${s.heading}: ${s.body.slice(0, MAX_SECTION_CHARS)}`)
       .join("\n");
     lines.push(
-      `En son okuduğu ders: "${lesson.title}".`,
-      `Dersin hedefi: ${lesson.objective}`,
-      `Dersin bölümleri ve anlattıkları:\n${sections}`,
-      `Dersteki çözümlü örnek: ${lesson.example.prompt} → ${lesson.example.solution}`,
-      `Dersin verdiği yaygın hata: ${lesson.commonMistake.claim} → ${lesson.commonMistake.correction}`,
+      ...[
+        `En son okuduğu ders: "${lesson.title}".`,
+        lesson.objective ? `Dersin hedefi: ${lesson.objective}` : "",
+        `Dersin bölümleri ve anlattıkları:\n${sections}`,
+        lesson.example
+          ? `Dersteki çözümlü örnek: ${lesson.example.prompt} → ${lesson.example.solution}`
+          : "",
+        lesson.commonMistake
+          ? `Dersin verdiği yaygın hata: ${lesson.commonMistake.claim} → ${lesson.commonMistake.correction}`
+          : "",
+      ].filter(Boolean),
     );
   }
 
   const prepDocs = await loadPrepDocumentIds(service, prepId);
   const teaching = await loadTopicTeaching(service, prepDocs, lesson?.title ?? prepTitle);
-  const teacherBrief = teaching.brief;
+  const lessonFacts = lesson
+    ? [
+        lesson.overview ?? "",
+        lesson.example?.prompt ?? "",
+        lesson.example?.solution ?? "",
+        lesson.commonMistake?.claim ?? "",
+        lesson.commonMistake?.correction ?? "",
+        ...lesson.sections.map((section) => `${section.heading}\n${section.body}`),
+      ].join("\n")
+    : "";
+  const teacherBrief = teacherNoteGroundedInSource(teaching.brief, lessonFacts);
   const taughtTitles = (topics ?? [])
     .filter((topic) => topic.status === "done" || topic.status === "in_progress" || topic.lesson_id)
     .map((topic) => topic.label as string);
   const coverageLine = taughtCoverageLine(teaching.checklist, taughtTitles);
   if (teacherBrief) lines.push(teacherBrief);
+  if (lesson || teacherBrief) lines.push(SOURCE_PAGE_FORMULA_RULE);
   if (coverageLine) lines.push(coverageLine);
   const hasSource = Boolean(lesson) || Boolean(teacherBrief);
 

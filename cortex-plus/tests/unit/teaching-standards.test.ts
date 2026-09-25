@@ -16,6 +16,7 @@ import {
   dropScaffoldSections,
   emptyMistake,
   isScaffoldHeading,
+  lessonPublishIssues,
   lessonV2Schema,
   validateLessonPedagogy,
   validateLessonV2,
@@ -808,14 +809,17 @@ describe("validateLessonV2 is the publish gate", () => {
     expect(issues.some((issue) => issue.includes("gerekçeli"))).toBe(true);
   });
 
-  it("rejects a numbered chapter heading", () => {
+  it("drops a numbered chapter heading and keeps the two real concepts", () => {
     const numbered = {
       ...sound,
       sections: sound.sections.map((item, index) =>
         index === 2 ? { ...item, heading: "Bölüm 1" } : item,
       ),
     };
-    expect(validateLessonV2(numbered).length).toBeGreaterThan(0);
+    const prepared = prepareLessonDraft(numbered);
+    expect(prepared?.sections.map((section) => section.heading)).not.toContain("Bölüm 1");
+    expect(prepared?.sections).toHaveLength(2);
+    expect(validateLessonV2(numbered)).toEqual([]);
   });
 });
 
@@ -1108,7 +1112,7 @@ describe("dropScaffoldSections", () => {
   });
 });
 
-describe("the schema tolerates two sections, the validator does not", () => {
+describe("two concept sections are a complete lesson", () => {
   const twoSectionLesson = {
     title: "Dane Boyu Dağılımı",
     objective: "Elek ve hidrometre analizini ayırt edip derecelenmeyi okuyabilmek",
@@ -1136,12 +1140,14 @@ describe("the schema tolerates two sections, the validator does not", () => {
     expect(lessonV2Schema.safeParse(twoSectionLesson).success).toBe(true);
   });
 
-  it("is still rejected as a draft, so the model keeps writing three", () => {
+  it("accepts two concept sections and does not reject on count alone", () => {
     expect(
-      validateLessonPedagogy(twoSectionLesson).some((i) =>
-        i.includes("en az 3 bölüm"),
-      ),
-    ).toBe(true);
+      validateLessonPedagogy(twoSectionLesson).some((i) => i.includes("en az 3 bölüm")),
+    ).toBe(false);
+    expect(validateLessonPedagogy(twoSectionLesson)).toEqual([]);
+    expect(
+      lessonPublishIssues(twoSectionLesson).some((issue) => /en az \d+/.test(issue) && /bölüm/.test(issue)),
+    ).toBe(false);
   });
 
   it("follows the source backbone when it asks for fewer", () => {

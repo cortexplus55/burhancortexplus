@@ -748,11 +748,13 @@ export function teacherBriefForTopic(analysis: TeacherAnalysis, topicTitle: stri
   }
   // Sayfası boş formül her konuya, eşleşmeyen başlık da bütün formüllere
   // yazılmasın. Ders kapısı o sayıyı kaynakta bulamayınca taslağı düşürür.
+  // Yanılgı ve hedef de belgenin ilk maddeleri değil, bu konunun sayfaları.
+  // #79 notu bütün belgenin ideal gaz yasasını basınç düğümüne taşıyordu.
   const pages = new Set(topic?.pageNumbers ?? []);
+  const onTopicPage = (pageNumbers: number[]) =>
+    pageNumbers.some((page) => pages.has(page));
   const formulas = topic
-    ? analysis.examFocus.keyFormulas.filter((formula) =>
-        formula.pageNumbers.some((page) => pages.has(page)),
-      )
+    ? analysis.examFocus.keyFormulas.filter((formula) => onTopicPage(formula.pageNumbers))
     : [];
   if (formulas.length) {
     lines.push(
@@ -762,13 +764,21 @@ export function teacherBriefForTopic(analysis: TeacherAnalysis, topicTitle: stri
         .join(" | ")}`,
     );
   }
-  const mistakes = analysis.misconceptions.slice(0, 4);
+  const mistakes = (topic
+    ? analysis.misconceptions.filter((item) => onTopicPage(item.pageNumbers))
+    : []
+  ).slice(0, 4);
   if (mistakes.length) {
     lines.push(
       `Sık hata: ${mistakes.map((item) => `${item.mistake} → ${item.correction}`).join(" | ")}`,
     );
   }
-  const core = analysis.objectives.slice(0, 3).map((item) => item.statement);
+  const core = (topic
+    ? analysis.objectives.filter((item) => onTopicPage(item.pageNumbers))
+    : []
+  )
+    .slice(0, 3)
+    .map((item) => item.statement);
   if (core.length) lines.push(`Hedef: ${core.join(" ")}`);
   if (topic) {
     const depth = lessonDepth(priorityFromEmphasis(topic.emphasis));
@@ -784,6 +794,131 @@ export function teacherBriefForTopic(analysis: TeacherAnalysis, topicTitle: stri
     }
   }
   return clipBlock(lines.join("\n"), 2200);
+}
+
+/**
+ * Üreticiye formül yasağı. Öğretmen notu vurgu olabilir; olgu olamaz.
+ * Doğrulayıcı da aynı cümleyi görür, böylece not ile sayfa metni ayrışmaz.
+ */
+/**
+ * Öğretmen notundaki kavram adları. Ders bunları gövdede geçiyorsa koyulaştırır.
+ * Notta olmayan bir terim üretilmez.
+ */
+export function keyTermsFromTeacherNote(note: string): string[] {
+  const terms: string[] = [];
+  for (const line of note.split("\n")) {
+    const match = line.match(/concept:\s*([^:\n]{2,80})/i);
+    if (!match) continue;
+    const term = match[1].replace(/\s+/g, " ").trim();
+    if (term.length >= 3 && term.length <= 60) terms.push(term);
+  }
+  return [...new Set(terms)].slice(0, 24);
+}
+
+export const SOURCE_PAGE_FORMULA_RULE =
+  "Formül, tanım ve yasa YALNIZCA aşağıdaki kaynak sayfalarının metninde yazıyorsa kullanılır. " +
+  "Kaynak sayfada olmayan, ders kitabından bildiğin formülü içeri alma. " +
+  "Öğretmen notu vurgu ve sıradır; notta geçen bir ifade kaynak sayfada yoksa dersin olgusu olmaz. " +
+  "Çözümlü örnek yalnızca bu düğümün kaynak sayfalarındaki sayı ve formülü kullanır. " +
+  "Basınç hesabında her terimi ayrı yaz: P_abs = P_gage + P_atm ve her terimin kaynak sayfadaki değeri; " +
+  "vakum için P_vakum = P_atm − P_abs. Birim dönüşümünde iki tarafta farklı birim olsun ve arada işlem olmasın. " +
+  "commonMistake yalnız bu konunun kaynak sayfalarından gelsin: claim öğrencinin yanlış inancı, correction kaynağın doğrusudur. " +
+  "Basınç veya sıcaklık dersine enerji birimi (kJ, kJ/kg) hatası yazma.";
+
+const EQUATION_IN_NOTE =
+  /[A-Za-zσΔμρ][A-Za-z0-9σΔμρ'’^_]{0,8}\s*=\s*[A-Za-z0-9σΔμρ'’^_\s*/+−\-.]{1,24}/g;
+
+function compactFormula(text: string): string {
+  return foldTr(text).replace(/\s+/g, "").replace(/[−–]/g, "-");
+}
+
+function equationsAbsentFromSource(part: string, source: string): boolean {
+  const compactSource = compactFormula(source);
+  const equations = part.match(EQUATION_IN_NOTE) ?? [];
+  return equations.some((equation) => !compactSource.includes(compactFormula(equation)));
+}
+
+function namedLawAbsent(part: string, source: string): boolean {
+  const folded = foldTr(part);
+  const src = foldTr(source);
+  const match = folded.match(/([a-z0-9]{3,}(?:\s+[a-z0-9]{3,}){0,3})\s+yasas/);
+  if (!match) return false;
+  return !src.includes(match[1]);
+}
+
+/** nRT, PV gibi kaynakta hiç geçmeyen simge. Gündelik Türkçe kelime sayılmaz. */
+function alienFormulaToken(part: string, source: string): boolean {
+  const src = foldTr(source);
+  const tokens = part.match(/[A-Za-z][A-Za-z0-9]{2,}/g) ?? [];
+  return tokens.some((token) => {
+    if (/[aeıioöuü]/i.test(token) && token.length > 4) return false;
+    if (!/[A-Z]/.test(token) || token.length > 6) return false;
+    return !src.includes(foldTr(token));
+  });
+}
+
+function factPartAbsent(part: string, source: string): boolean {
+  if (!source.trim()) return true;
+  if (unsupportedQuantities(part, source).length) return true;
+  if (equationsAbsentFromSource(part, source)) return true;
+  if (namedLawAbsent(part, source)) return true;
+  return alienFormulaToken(part, source);
+}
+
+const FACT_NOTE_PREFIX =
+  /^(Formüller|Örnek planı|Örnekler|Sık hata|Hedef|Kontrol soruları|Ezber|Benzetme yalnızca destek):\s*/;
+
+/**
+ * Öğretmen notunu düğümün sayfa metnine indirger.
+ *
+ * Analiz belgenin tamamındandır; düğüm yalnızca kendi sayfalarını okur.
+ * Not vurguyu taşır. Sayfa metninde olmayan formül, yasa ve sayı düşer.
+ */
+export function teacherNoteGroundedInSource(brief: string, sourceExcerpt: string): string {
+  const text = brief.trim();
+  if (!text) return "";
+  const source = sourceExcerpt.trim();
+  const kept: string[] = [];
+  const groundedItems: string[] = [];
+  let inChecklist = false;
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("Öğretmen notu")) continue;
+    if (trimmed.startsWith("Kapsam listesi")) {
+      inChecklist = true;
+      continue;
+    }
+    if (inChecklist && trimmed.startsWith("- ")) {
+      if (!factPartAbsent(trimmed, source)) groundedItems.push(trimmed);
+      continue;
+    }
+    inChecklist = false;
+    if (/^(Konu:|Önkoşul:|Öncelik:)/.test(trimmed)) {
+      if (!equationsAbsentFromSource(trimmed, source) && !namedLawAbsent(trimmed, source)) {
+        kept.push(trimmed);
+      }
+      continue;
+    }
+    const prefix = trimmed.match(FACT_NOTE_PREFIX);
+    if (prefix) {
+      const parts = trimmed
+        .slice(prefix[0].length)
+        .split("|")
+        .map((part) => part.trim())
+        .filter((part) => part && !factPartAbsent(part, source));
+      if (parts.length) kept.push(`${prefix[1]}: ${parts.join(" | ")}`);
+      continue;
+    }
+    if (!factPartAbsent(trimmed, source)) kept.push(trimmed);
+  }
+  if (groundedItems.length) {
+    kept.push("Vurgu — kaynak sayfada da geçenler:");
+    kept.push(...groundedItems);
+  }
+  const header =
+    "Öğretmen notu yalnızca vurgu ve sıradır. Formül, tanım ve sayı ancak aşağıdaki kaynak sayfalarında da yazıyorsa kullanılır.";
+  if (!kept.length) return header;
+  return clipBlock(`${header}\n${kept.join("\n")}`, 2200);
 }
 
 export function topicMapTeacherNote(brief: string | null | undefined): string {
@@ -1029,7 +1164,7 @@ export type StoredReview = {
 /**
  * Ders üretilirken aynı çağrıda yazılan tekrar.
  * Şık metinleri orijinalin aynısı olmalı; yeni sayı veya orijinal cümle yok.
- * Tutmazsa null — ekran önekli yedeğe düşer, olgu uydurmaz.
+ * Tutmazsa null — ekran önek uydurmaz, orijinal soruyu bırakır.
  */
 function storedReview(value: unknown): StoredReview | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -1049,20 +1184,22 @@ function storedReview(value: unknown): StoredReview | null {
 
 export function acceptReviewVariant(
   check: ReviewCheck & { review?: StoredReview | null },
+  source = "",
 ): ReviewCheck | null {
   const review = storedReview(check.review);
   if (!review) return null;
   const original = foldPrompt(check.prompt);
   const next = foldPrompt(review.prompt);
   if (next.length < 8 || next === original || next.includes(original)) return null;
-  const source = [check.prompt, check.explanation, ...check.options].join("\n");
-  if (hasNovelQuantity(review.prompt, source)) return null;
+  if (/başka sözcüklerle|baska sozcuklerle/i.test(review.prompt)) return null;
+  const corpus = [check.prompt, check.explanation, ...check.options, source].join("\n");
+  if (hasNovelQuantity(review.prompt, corpus)) return null;
   const copied =
     review.options &&
     review.options.length >= 2 &&
     typeof review.answerIndex === "number" &&
     sameOptionSet(check.options, review.options);
-  if (review.options && review.options.length >= 2 && !copied) return null;
+  if (review.options && !copied) return null;
   const accepted: ReviewCheck = copied
     ? {
         type: check.type,
@@ -1084,32 +1221,68 @@ export function acceptReviewVariant(
   return sameOptionOrder(check.options, accepted.options) ? shiftOptions(accepted) : accepted;
 }
 
+function trueFalseRightIndex(options: string[]): number {
+  return options.findIndex((option) => option.trim().toLocaleLowerCase("tr") === "doğru");
+}
+
+/**
+ * Doğru/yanlış tekrarı aynı cümleyi öneklemez.
+ * Kaynakta 273 varsa başka bir sıcaklık sorar; yoksa orijinal kalır.
+ */
+function groundedTrueFalseRetry<T extends ReviewCheck>(check: T, source: string): T | null {
+  const right = trueFalseRightIndex(check.options);
+  const wrong = check.options.findIndex((option) => option.trim().toLocaleLowerCase("tr") === "yanlış");
+  if (right < 0 || wrong < 0) return null;
+  const corpus = [source, check.explanation, check.prompt].join("\n");
+  const aboutTemperature = /°\s*c|kelvin|santigrat/i.test(`${check.prompt}\n${check.explanation}`);
+  if (aboutTemperature && /273/.test(corpus)) {
+    const prompt = /0\s*°\s*c/i.test(check.prompt)
+      ? "273.15 K, 0 °C eder. DOĞRU MU YANLIŞ?"
+      : "0 °C, 273.15 K eder. DOĞRU MU YANLIŞ?";
+    if (foldPrompt(prompt) === foldPrompt(check.prompt)) return null;
+    return { ...check, prompt, answerIndex: right };
+  }
+  if (/kullanılmalıdır|kullanilmalidir/i.test(check.prompt) && check.answerIndex === right) {
+    const flipped = check.prompt.replace(/kullanılmalıdır|kullanilmalidir/gi, "kullanılmamalıdır");
+    if (flipped !== check.prompt) {
+      return { ...check, prompt: flipped, answerIndex: wrong };
+    }
+  }
+  return null;
+}
+
 /**
  * Kısa tekrar kapısının sorusu.
- * Saklı varyant geçerliyse o gelir; değilse şıklar kayar ve köke önek eklenir.
- * Orijinal cümle olduğu gibi geri dönmez.
+ * Saklı varyant gerçekten farklıysa o gelir.
+ * Değilse aynı kavram başka bir sayı veya yönden sorulur.
+ * İkisi de yoksa orijinal soru, öneksiz, gösterilir.
  */
 export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredReview | null }>(
   check: T,
   language: MaterialLanguage = "tr",
+  source = "",
 ): T {
-  const accepted = acceptReviewVariant(check);
-  const next = accepted ?? rephraseSectionCheck(check, language);
-  if (foldPrompt(next.prompt) === foldPrompt(check.prompt)) {
-    const fallback = rephraseSectionCheck(check, language);
+  const accepted = acceptReviewVariant(check, source);
+  if (accepted && foldPrompt(accepted.prompt) !== foldPrompt(check.prompt)) {
     return {
       ...check,
-      prompt: fallback.prompt,
-      options: fallback.options,
-      answerIndex: fallback.answerIndex,
+      prompt: accepted.prompt,
+      options: accepted.options,
+      answerIndex: accepted.answerIndex,
     };
   }
-  return {
-    ...check,
-    prompt: next.prompt,
-    options: next.options,
-    answerIndex: next.answerIndex,
-  };
+  const grounded = language === "tr" ? groundedTrueFalseRetry(check, source) : null;
+  if (grounded && foldPrompt(grounded.prompt) !== foldPrompt(check.prompt)) return grounded;
+  if (check.options.length >= 3) {
+    const shifted = shiftOptions(check);
+    return {
+      ...check,
+      prompt: check.prompt,
+      options: shifted.options,
+      answerIndex: shifted.answerIndex,
+    };
+  }
+  return check;
 }
 
 /** Ders sonu tekrarı aynı cümleyi ve aynı şık yerini geri getirmez. */

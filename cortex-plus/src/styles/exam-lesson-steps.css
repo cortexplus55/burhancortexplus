@@ -98,11 +98,27 @@
   font-weight: 700;
 }
 
-.als-body {
+.als-body,
+.als-solution-body {
   margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
   font-size: 1rem;
   line-height: 1.65;
   color: #dcdcdc;
+}
+
+.als-body p,
+.als-solution-body p {
+  margin: 0;
+}
+
+.als-formula {
+  margin: 0;
+  padding: 0.15rem 0 0.15rem 0.75rem;
+  border-left: 3px solid #5b7cfa;
+  font-variant-numeric: tabular-nums;
 }
 
 .als-list {
