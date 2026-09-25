@@ -4,6 +4,7 @@ import {
   acceptFilledExplanation,
   acceptFilledExplanations,
   buildWrittenExamReview,
+  groundWrittenReview,
   explanationFillAttempted,
   missingExplanationIndexes,
   readStoredReview,
@@ -61,6 +62,52 @@ describe("written exam review", () => {
         ],
       })["0"],
     ).toBe("Doğru şık kuvvetin alana oranıdır.");
+  });
+
+  it("drops a stored explanation that inverts a definition or leaves the source", () => {
+    const source = "Basınç, kuvvetin yüzeye dik uygulanan kuvvetin alana bölümüdür.";
+    const mixed = buildWrittenExamReview(
+      [
+        {
+          ...question,
+          explanation: "kJ/kg toplam enerjidir. Basınç, kuvvetin alana bölümüdür.",
+        },
+      ],
+      { "0": question.correct[0] },
+      { fallbackTopic: "Basınç", source },
+    );
+    expect(mixed.items[0].explanation).toBe("Basınç, kuvvetin alana bölümüdür.");
+
+    const inverted = buildWrittenExamReview(
+      [{ ...question, explanation: "Isı bir hal fonksiyonudur." }],
+      { "0": "Yalnızca kuvvet" },
+      { fallbackTopic: "Basınç", source },
+    );
+    expect(inverted.items[0].explanation).toBeNull();
+
+    const cached = groundWrittenReview(
+      {
+        score: 0,
+        total: 1,
+        items: [
+          {
+            index: 0,
+            prompt: question.text,
+            selected: ["Yalnızca kuvvet"],
+            correct: question.correct,
+            ok: false,
+            explanation: "Isı bir hal fonksiyonudur.",
+            topic: "Basınç",
+          },
+        ],
+        byTopic: [],
+      },
+      source,
+    );
+    expect(cached.items[0].explanation).toBeNull();
+    expect(
+      acceptFilledExplanation(question, "Isı bir hal fonksiyonudur ve doğru şık budur.", source),
+    ).toBeNull();
   });
 
   it("reads a cached review so a later open does not need another fill", () => {

@@ -6,6 +6,7 @@ import {
   selectedOptions,
   type QuizQuestion,
 } from "@/lib/learning/exam-quiz";
+import { groundLearnerText } from "@/lib/learning/lesson-grounding";
 import { normalizeTopicKey } from "@/lib/learning/learning-tracking";
 import { unsupportedQuantities } from "@/lib/learning/teacher-brain";
 
@@ -104,14 +105,21 @@ function addsNovelNumber(text: string, source: string): boolean {
   return false;
 }
 
-/** Kayıtlı soruda olmayan sayı veya formül açıklamaya girmez. */
-export function acceptFilledExplanation(question: QuizQuestion, text: string): string | null {
+/**
+ * Kayıtlı soruda olmayan sayı veya formül açıklamaya girmez.
+ * Kalan metin dersle aynı kaynak ve tanım denetiminden geçer.
+ */
+export function acceptFilledExplanation(
+  question: QuizQuestion,
+  text: string,
+  source = "",
+): string | null {
   const trimmed = text.trim();
   if (trimmed.length < 8 || trimmed.length > 400) return null;
   const ground = groundFor(question);
   if (unsupportedQuantities(trimmed, ground).length) return null;
   if (addsNovelNumber(trimmed, ground)) return null;
-  return trimmed;
+  return groundLearnerText(trimmed, source);
 }
 
 /**
@@ -120,6 +128,7 @@ export function acceptFilledExplanation(question: QuizQuestion, text: string): s
 export function acceptFilledExplanations(
   questions: QuizQuestion[],
   raw: unknown,
+  source = "",
 ): Record<string, string> {
   const parsed = fillSchema.safeParse(raw);
   if (!parsed.success) return {};
@@ -127,10 +136,27 @@ export function acceptFilledExplanations(
   for (const row of parsed.data.explanations) {
     const question = questions[row.index];
     if (!question || question.explanation?.trim()) continue;
-    const accepted = acceptFilledExplanation(question, row.text);
+    const accepted = acceptFilledExplanation(question, row.text, source);
     if (accepted) out[String(row.index)] = accepted;
   }
   return out;
+}
+
+function visibleExplanation(text: string | null | undefined, source: string): string | null {
+  const trimmed = text?.trim();
+  if (!trimmed) return null;
+  return groundLearnerText(trimmed, source);
+}
+
+/** Önbellekteki sonuç da gösterilmeden önce aynı denetimden geçer. */
+export function groundWrittenReview(review: WrittenExamReview, source = ""): WrittenExamReview {
+  return {
+    ...review,
+    items: review.items.map((item) => ({
+      ...item,
+      explanation: visibleExplanation(item.explanation, source),
+    })),
+  };
 }
 
 export function missingExplanationIndexes(questions: QuizQuestion[]): number[] {
@@ -164,9 +190,10 @@ export function explanationFillPrompt(questions: QuizQuestion[], indexes: number
 export function buildWrittenExamReview(
   questions: QuizQuestion[],
   answers: Record<string, unknown>,
-  input: { fallbackTopic: string; knownTopics?: string[] },
+  input: { fallbackTopic: string; knownTopics?: string[]; source?: string },
 ): WrittenExamReview {
   const known = input.knownTopics ?? [];
+  const source = input.source ?? "";
   const scored = scoreQuizAnswers(questions, answers);
   const items: WrittenReviewItem[] = questions.map((question, index) => {
     const selected = selectedOptions(answers[String(index)]);
@@ -177,7 +204,7 @@ export function buildWrittenExamReview(
       selected,
       correct: question.correct,
       ok,
-      explanation: question.explanation?.trim() || null,
+      explanation: visibleExplanation(question.explanation, source),
       topic: topicForQuestion(question, known, input.fallbackTopic),
     };
   });

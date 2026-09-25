@@ -112,6 +112,7 @@ import { buildLocalSessionPayload } from "@/lib/learning/exam-local-session";
 import {
   acceptFilledExplanations,
   buildWrittenExamReview,
+  groundWrittenReview,
   explanationFillAttempted,
   explanationFillPrompt,
   missingExplanationIndexes,
@@ -216,6 +217,35 @@ async function knownTopicLabels(service: SupabaseClient, prepId: string) {
   return (data ?? []).map((row) => String(row.label ?? "").trim()).filter(Boolean);
 }
 
+/** Deneme sonucu için kaynak sayfaları. Okunamazsa tanım denetimi boş kaynakla sürer. */
+async function reviewSourceBlock(
+  service: SupabaseClient,
+  userId: string,
+  prepId: string,
+  nodeId: string,
+): Promise<string> {
+  try {
+    const { data: node } = await service
+      .from("exam_prep_nodes")
+      .select("session_meta")
+      .eq("id", nodeId)
+      .eq("exam_prep_id", prepId)
+      .maybeSingle();
+    const pages = parseSessionMeta(node?.session_meta)?.sourcePages;
+    const { data: prep } = await service
+      .from("exam_preps")
+      .select("document_id")
+      .eq("id", prepId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!prep?.document_id || !pages?.length) return "";
+    const source = await loadPageSourceContext(service, userId, prep.document_id as string, pages);
+    return source.block;
+  } catch {
+    return "";
+  }
+}
+
 /**
  * Yazılı deneme sonucu. Açıklama yoksa en fazla bir çağrı; bayrak denemeye yazılır,
  * aynı deneme yeniden açılınca model bir daha çalışmaz.
@@ -226,14 +256,16 @@ async function writtenReviewForPayload(
     userId: string;
     prepId: string;
     attemptId: string;
+    nodeId: string;
     payload: unknown;
     answers: Record<string, unknown>;
     topicLabel: string;
     allowFill: boolean;
   },
 ) {
+  const source = await reviewSourceBlock(service, input.userId, input.prepId, input.nodeId);
   const stored = readStoredReview(input.payload);
-  if (stored) return stored;
+  if (stored) return groundWrittenReview(stored, source);
   const questions = questionsFromQuizPayload(input.payload);
   if (!questions.length) return null;
   let cache = readExplanationCache(input.payload);
@@ -258,7 +290,7 @@ async function writtenReviewForPayload(
       parse: (raw) => raw,
     });
     if (outcome.ok) {
-      cache = { ...cache, ...acceptFilledExplanations(working, outcome.data) };
+      cache = { ...cache, ...acceptFilledExplanations(working, outcome.data, source) };
       working = withCachedExplanations(questions, cache);
     }
   } else if (!input.allowFill) {
@@ -266,12 +298,14 @@ async function writtenReviewForPayload(
     return buildWrittenExamReview(working, input.answers, {
       fallbackTopic: input.topicLabel,
       knownTopics,
+      source,
     });
   }
   const knownTopics = await knownTopicLabels(service, input.prepId);
   const review = buildWrittenExamReview(working, input.answers, {
     fallbackTopic: input.topicLabel,
     knownTopics,
+    source,
   });
   const base =
     input.payload && typeof input.payload === "object"
@@ -365,6 +399,7 @@ export async function POST(request: Request) {
       userId,
       prepId,
       attemptId: done.id as string,
+      nodeId,
       payload: done.payload,
       answers: (done.answers as Record<string, unknown> | null) ?? {},
       topicLabel,
@@ -486,6 +521,7 @@ export async function POST(request: Request) {
         userId,
         prepId,
         attemptId: attempt.id as string,
+        nodeId,
         payload: attempt.payload,
         answers: (attempt.answers as Record<string, unknown> | null) ?? {},
         topicLabel,
@@ -517,6 +553,7 @@ export async function POST(request: Request) {
         userId,
         prepId,
         attemptId: attempt.id as string,
+        nodeId,
         payload: attempt.payload,
         answers: (attempt.answers as Record<string, unknown> | null) ?? {},
         topicLabel,
@@ -706,6 +743,7 @@ export async function POST(request: Request) {
         userId,
         prepId,
         attemptId: attempt.id as string,
+        nodeId,
         payload: attempt.payload,
         answers: answersForRpc,
         topicLabel,
