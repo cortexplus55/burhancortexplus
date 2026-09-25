@@ -10,6 +10,7 @@ import {
   EMPTY_SOURCE_CONTEXT,
   loadPageSourceContext,
   loadSourceContext,
+  widenSourcePages,
 } from "@/lib/learning/source-context";
 import {
   resolvePrepSourceMode,
@@ -72,6 +73,7 @@ import {
   unrepresentedHeadings,
 } from "@/lib/documents/topic-title";
 import { diagramIssues, needsDiagram } from "@/lib/learning/lesson-diagram";
+import { scoreLessonChecks } from "@/lib/learning/lesson-claims";
 import { repairLearnerLesson, type LessonCheckCode } from "@/lib/learning/lesson-repair";
 import { formulaMismatches, withoutMismatchedFormulas } from "@/lib/learning/formula-fidelity";
 import {
@@ -531,10 +533,17 @@ export async function POST(request: Request) {
         topicLabel,
         allowFill: false,
       }).catch(() => null);
+      const stored = lessonScoreForClient(
+        attempt.payload,
+        (attempt.answers as Record<string, unknown> | null) ?? {},
+        attempt.score ?? 0,
+        attempt.total ?? 1,
+      );
       return NextResponse.json({
         ok: true,
-        score: attempt.score ?? 0,
-        total: attempt.total ?? 1,
+        score: stored.score,
+        total: stored.total,
+        retried: stored.retried,
         nextHref: nextRow?.id
           ? `/deneme-sinavlari/${prepId}/dugum/${nextRow.id}`
           : `/deneme-sinavlari/${prepId}`,
@@ -563,10 +572,17 @@ export async function POST(request: Request) {
         topicLabel,
         allowFill: false,
       }).catch(() => null);
+      const stored = lessonScoreForClient(
+        attempt.payload,
+        (attempt.answers as Record<string, unknown> | null) ?? {},
+        attempt.score ?? 0,
+        attempt.total ?? 1,
+      );
       return NextResponse.json({
         ok: true,
-        score: attempt.score ?? 0,
-        total: attempt.total ?? 1,
+        score: stored.score,
+        total: stored.total,
+        retried: stored.retried,
         nextHref: nextRow?.id
           ? `/deneme-sinavlari/${prepId}/dugum/${nextRow.id}`
           : `/deneme-sinavlari/${prepId}`,
@@ -615,6 +631,7 @@ export async function POST(request: Request) {
         scored = {
           score: Math.min(questions.length, grade.data.correctCount),
           total: questions.length || 1,
+          retried: 0,
         };
         oralExtras = {
           missingObjectives: grade.data.missingObjectives,
@@ -759,6 +776,7 @@ export async function POST(request: Request) {
       ok: true,
       score: completed.score,
       total: completed.total,
+      retried: scored.retried,
       nextHref,
       learningTracking,
       state: "completed",
@@ -990,16 +1008,41 @@ export async function POST(request: Request) {
     // o sayfaların prompta girdiğini garanti etmiyordu ve ders kaynakta
     // duran formülü yanlış yazabiliyordu. İstenen sayfa okunamazsa üretim
     // durur; yalnızca sayfa listesi olmayan eski planlar aramayı kullanır.
-    const pageSource =
+    const mappedPages = sessionMeta?.sourcePages;
+    let pageSource =
       teachingV2 && !voiceSession
         ? await loadPageSourceContext(
             service,
             userId,
             prepSource.document_id,
-            sessionMeta?.sourcePages,
+            mappedPages,
             { sourceBoundaryMode },
           )
         : EMPTY_SOURCE_CONTEXT;
+    if (
+      teachingV2 &&
+      !voiceSession &&
+      prepSource.document_id &&
+      mappedPages?.length &&
+      pageSource.block.trim()
+    ) {
+      const widened = await widenSourcePages(
+        service,
+        prepSource.document_id as string,
+        topicLabel,
+        mappedPages,
+        pageSource.block,
+      );
+      if (widened.some((page) => !mappedPages.includes(page))) {
+        pageSource = await loadPageSourceContext(
+          service,
+          userId,
+          prepSource.document_id,
+          widened,
+          { sourceBoundaryMode },
+        );
+      }
+    }
     source = pageSource.block
       ? pageSource
       : voiceSession || !shouldSearchSources(sourceMode)
@@ -1829,15 +1872,18 @@ async function generateNodePayload(input: {
      * dokunmaz; parça hâlâ bozuksa o parça düşer, ders kalır.
      */
     const repairSource = [input.sourceBlock, teacherNote].filter((part) => part.trim()).join("\n");
+    const repairCall = (prompt: string, maxTokens: number) =>
+      completeLessonPartRepair({
+        service: input.service,
+        userId: input.userId,
+        prompt,
+        maxTokens,
+      });
     const repair = await repairLearnerLesson(
       lesson,
       { source: repairSource, topicLabel: input.topicLabel },
-      (prompt) =>
-        completeLessonPartRepair({
-          service: input.service,
-          userId: input.userId,
-          prompt,
-        }),
+      (prompt) => repairCall(prompt, 1500),
+      repairSource.trim() ? (prompt) => repairCall(prompt, 700) : undefined,
     );
     lesson = repair.lesson;
     if (repair.requested.length) {
@@ -2224,7 +2270,7 @@ function scoreAttempt(
     const questions = ((data.questions as Parameters<typeof normalizeQuizQuestion>[0][]) ?? [])
       .map(normalizeQuizQuestion)
       .filter((question): question is QuizQuestion => question !== null);
-    return scoreQuizAnswers(questions, answers);
+    return { ...scoreQuizAnswers(questions, answers), retried: 0 };
   }
   if (data.type === "true_false") {
     const items = (data.items as { correct: boolean }[]) ?? [];
@@ -2233,18 +2279,18 @@ function scoreAttempt(
       const value = answers[String(index)];
       if (value === item.correct || value === String(item.correct)) score += 1;
     });
-    return { score, total: items.length || 1 };
+    return { score, total: items.length || 1, retried: 0 };
   }
   if (data.type === "cards") {
     const cards = (data.cards as unknown[]) ?? [];
     if (teachingV2 || data.masteryClaim === false) {
-      return scoreFlashcardsV2(cards.length, answers);
+      return { ...scoreFlashcardsV2(cards.length, answers), retried: 0 };
     }
     let score = 0;
     cards.forEach((_, index) => {
       if (answers[String(index)] === true || answers[String(index)] === "true") score += 1;
     });
-    return { score, total: cards.length || 1 };
+    return { score, total: cards.length || 1, retried: 0 };
   }
   if (data.type === "oral") {
     const questions = (data.questions as unknown[]) ?? [];
@@ -2252,9 +2298,26 @@ function scoreAttempt(
     questions.forEach((_, index) => {
       if (String(answers[String(index)] ?? "").trim().length > 8) score += 1;
     });
-    return { score, total: questions.length || 1 };
+    return { score, total: questions.length || 1, retried: 0 };
   }
-  return { score: 1, total: 1 };
+  if (data.type === "lesson") {
+    return scoreLessonChecks(
+      (data.lesson as { sections?: { check?: unknown }[] } | null) ?? { sections: [] },
+      answers,
+    );
+  }
+  return { score: 1, total: 1, retried: 0 };
+}
+
+function lessonScoreForClient(
+  payload: unknown,
+  answers: Record<string, unknown>,
+  fallbackScore: number,
+  fallbackTotal: number,
+) {
+  const data = (payload ?? {}) as { type?: string; lesson?: { sections?: { check?: unknown }[] } };
+  if (data.type === "lesson") return scoreLessonChecks(data.lesson, answers);
+  return { score: fallbackScore, total: fallbackTotal, retried: 0 };
 }
 
 /** Exam-prep quiz/TF yanlışlarını mistake_entries şemasına çevirir. */

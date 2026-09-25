@@ -6,6 +6,14 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
+import {
+  ambiguousEnergyClaim,
+  claimsFromVerify,
+  claimVerifyPrompt,
+  missingCoverage,
+  overgeneralCorrection,
+  summaryQuantityMismatch,
+} from "@/lib/learning/lesson-claims";
 import { diagramIssues, lessonDiagramSchema, needsDiagram } from "@/lib/learning/lesson-diagram";
 import { groundLearnerLesson, summaryLineProblem } from "@/lib/learning/lesson-grounding";
 import type { LessonDiagram } from "@/lib/learning/lesson-diagram";
@@ -20,7 +28,9 @@ export type LessonCheckCode =
   | "vacuous"
   | "bound_mismatch"
   | "diagram_missing"
-  | "diagram_unreadable";
+  | "diagram_unreadable"
+  | "claim_wrong"
+  | "coverage_gap";
 
 export type LessonCheck = { code: LessonCheckCode; detail: string };
 
@@ -106,13 +116,37 @@ export function exampleIsComplete(text: string): boolean {
   return given && substituted && result;
 }
 
-function usableSummaryLine(text: string, source: string): boolean {
+/**
+ * "30 kJ ısı alıyorsa ΔU = 30 kJ olur" verileni sonuç diye tekrar eder.
+ * 25 °C = 298 K ve içinde işlem olan eşitlik burada yakalanmaz.
+ */
+export function restatedResult(text: string): boolean {
+  if (exampleIsComplete(text)) return false;
+  return sentencesOf(text).some((sentence) => {
+    if (!/\bolur\b/i.test(sentence) || exampleIsComplete(sentence)) return false;
+    const result = sentence.match(/=\s*(\d+(?:[.,]\d+)?)\s*(?:kJ|kPa|MPa|Pa|kg|°\s*C|K|m3\/kg)/i);
+    if (!result) return false;
+    const value = result[1];
+    const mentioned = [
+      ...sentence.matchAll(/(\d+(?:[.,]\d+)?)\s*(?:kJ|kPa|MPa|Pa|kg|°\s*C|K|m3\/kg)/gi),
+    ].map((match) => match[1]);
+    if (!mentioned.includes(value)) return false;
+    return !/\d+(?:[.,]\d+)?(?:\s*[A-Za-z°µ/%³²]+)?\s*[/×*·+\-−]\s*\d/.test(sentence);
+  });
+}
+
+function examplePool(lesson: LessonV2): string {
+  return `${lesson.example?.prompt ?? ""}\n${lesson.example?.solution ?? ""}`;
+}
+
+function usableSummaryLine(text: string, source: string, example = ""): boolean {
   const cleaned = alignBounds(text.trim(), source);
   if (cleaned.length < 8 || cleaned.length > 240) return false;
   if (summaryLineProblem(cleaned) || vacuousSentence(cleaned)) return false;
   if (cleaned.includes("|") || foldTr(cleaned).includes("bu sayfadaki formuller")) return false;
   if (/[=+×*/\-−]\s*$/.test(cleaned)) return false;
   if (contradictorySentences(cleaned, source).length || placeholderWork(cleaned)) return false;
+  if (summaryQuantityMismatch(cleaned, example, source)) return false;
   return true;
 }
 
@@ -163,17 +197,46 @@ export function auditLearnerLesson(
   if (checkCount(lesson) < 3) {
     issues.push({ code: "check_count", detail: String(checkCount(lesson)) });
   }
-  const exampleText = `${lesson.example?.prompt ?? ""}\n${lesson.example?.solution ?? ""}`;
+  const exampleText = examplePool(lesson);
   const sectionExample = lesson.sections.map((section) => section.body).join("\n");
   if (
     (lesson.example && !exampleIsComplete(exampleText)) ||
+    restatedResult(exampleText) ||
+    restatedResult(sectionExample) ||
     placeholderWork(sectionExample) ||
     (/veri\s*:/i.test(sectionExample) && /ad[ıi]m\s*\d+/i.test(sectionExample) && !exampleIsComplete(sectionExample))
   ) {
     issues.push({ code: "example_incomplete", detail: "example" });
   }
+  const claim = foldTr(lesson.commonMistake?.claim ?? "");
+  const claimTexts = [
+    lesson.commonMistake?.correction ?? "",
+    lesson.overview ?? "",
+    ...lesson.sections.map((section) => section.body),
+    ...lesson.sections.map((section) => section.check?.explanation ?? ""),
+    ...(lesson.summary ?? []),
+  ];
+  for (const text of claimTexts) {
+    if (text && text === lesson.commonMistake?.correction && overgeneralCorrection(text, input.source)) {
+      issues.push({ code: "claim_wrong", detail: text.slice(0, 160) });
+    }
+    for (const sentence of sentencesOf(text)) {
+      if (claim && foldTr(sentence) === claim) continue;
+      if (ambiguousEnergyClaim(sentence, input.source) || overgeneralCorrection(sentence, input.source)) {
+        issues.push({ code: "claim_wrong", detail: sentence.slice(0, 160) });
+      }
+    }
+  }
+  const covered = [
+    lesson.overview ?? "",
+    ...lesson.sections.map((section) => `${section.heading} ${section.body}`),
+    exampleText,
+  ].join("\n");
+  for (const concept of missingCoverage(covered, input.source, input.topicLabel)) {
+    issues.push({ code: "coverage_gap", detail: concept });
+  }
   const summary = lesson.summary ?? [];
-  const weak = summary.filter((line) => !usableSummaryLine(line, input.source));
+  const weak = summary.filter((line) => !usableSummaryLine(line, input.source, exampleText));
   if (weak.length || summary.length < 3 || summary.length > 5) {
     issues.push({ code: "summary_weak", detail: String(weak.length || summary.length) });
   }
@@ -185,11 +248,21 @@ export function auditLearnerLesson(
   return issues;
 }
 
-function cleanSentences(text: string, source: string): string {
+function quoteHits(sentence: string, quotes: string[]): boolean {
+  const folded = foldTr(sentence);
+  return quotes.some((quote) => {
+    const needle = foldTr(quote);
+    return needle.length >= 12 && (sentence.includes(quote) || folded.includes(needle));
+  });
+}
+
+function cleanSentences(text: string, source: string, quotes: string[] = []): string {
   const kept = sentencesOf(text).filter((sentence) => {
     if (contradictorySentences(sentence, source).length) return false;
     if (vacuousSentence(sentence)) return false;
-    if (placeholderWork(sentence)) return false;
+    if (placeholderWork(sentence) || restatedResult(sentence)) return false;
+    if (ambiguousEnergyClaim(sentence, source) || overgeneralCorrection(sentence, source)) return false;
+    if (quoteHits(sentence, quotes)) return false;
     if (/veri\s*:/i.test(sentence) && /ad[ıi]m\s*\d+/i.test(sentence) && !exampleIsComplete(sentence)) {
       return false;
     }
@@ -275,11 +348,26 @@ export function mergeLessonRepair(lesson: LessonV2, patch: unknown, source: stri
       next.example = { prompt, solution: alignBounds(solution, source) };
     }
   }
+  const mistake = asRecord(row.commonMistake);
+  if (row.commonMistake === null) {
+    delete next.commonMistake;
+  } else if (mistake) {
+    const claim = typeof mistake.claim === "string" ? mistake.claim.trim() : next.commonMistake?.claim ?? "";
+    const correction = typeof mistake.correction === "string" ? mistake.correction.trim() : "";
+    if (
+      claim.length >= 8 &&
+      correction.length >= 8 &&
+      !overgeneralCorrection(correction, source) &&
+      !ambiguousEnergyClaim(correction, source)
+    ) {
+      next.commonMistake = { claim, correction: alignBounds(correction, source) };
+    }
+  }
   if (Array.isArray(row.summary)) {
     const lines = row.summary
       .filter((item): item is string => typeof item === "string")
       .map((item) => alignBounds(item.trim(), source))
-      .filter((item) => usableSummaryLine(item, source));
+      .filter((item) => usableSummaryLine(item, source, examplePool(next)));
     if (lines.length) next.summary = lines.slice(0, 5);
   }
   const diagram = validDiagram(row.diagram);
@@ -293,9 +381,10 @@ export function mergeLessonRepair(lesson: LessonV2, patch: unknown, source: stri
 function filledSummary(lesson: LessonV2, source: string): string[] {
   const seen = new Set<string>();
   const summary: string[] = [];
+  const example = examplePool(lesson);
   for (const line of lesson.summary ?? []) {
     const cleaned = alignBounds(line, source);
-    if (!usableSummaryLine(cleaned, source)) continue;
+    if (!usableSummaryLine(cleaned, source, example)) continue;
     const key = foldTr(cleaned);
     if (seen.has(key)) continue;
     seen.add(key);
@@ -305,7 +394,7 @@ function filledSummary(lesson: LessonV2, source: string): string[] {
   for (const sentence of teachingSentences(lesson, source)) {
     if (summary.length >= 5) break;
     const key = foldTr(sentence);
-    if (seen.has(key) || !usableSummaryLine(sentence, source)) continue;
+    if (seen.has(key) || !usableSummaryLine(sentence, source, example)) continue;
     seen.add(key);
     summary.push(sentence);
   }
@@ -321,7 +410,9 @@ function teachingSentences(lesson: LessonV2, source: string): string[] {
       const cleaned = alignBounds(sentence, source);
       if (summaryLineProblem(cleaned) || vacuousSentence(cleaned)) continue;
       if (contradictorySentences(cleaned, source).length) continue;
-      if (placeholderWork(cleaned)) continue;
+      if (placeholderWork(cleaned) || restatedResult(cleaned)) continue;
+      if (ambiguousEnergyClaim(cleaned, source) || overgeneralCorrection(cleaned, source)) continue;
+      if (summaryQuantityMismatch(cleaned, examplePool(lesson), source)) continue;
       const key = foldTr(cleaned);
       if (seen.has(key)) continue;
       seen.add(key);
@@ -336,6 +427,7 @@ function teachingSentences(lesson: LessonV2, source: string): string[] {
 export function dropUnresolvedLesson(
   lesson: LessonV2,
   source: string,
+  quotes: string[] = [],
 ): { lesson: LessonV2; dropped: LessonCheckCode[] } {
   const dropped: LessonCheckCode[] = [];
   const next: LessonV2 = {
@@ -352,10 +444,20 @@ export function dropUnresolvedLesson(
       mark("source_contradiction");
     }
     if (parts.some((sentence) => vacuousSentence(sentence))) mark("vacuous");
-    if (parts.some((sentence) => placeholderWork(sentence) || (/veri\s*:/i.test(sentence) && /ad[ıi]m\s*\d+/i.test(sentence)))) {
+    if (
+      parts.some(
+        (sentence) =>
+          placeholderWork(sentence) ||
+          restatedResult(sentence) ||
+          (/veri\s*:/i.test(sentence) && /ad[ıi]m\s*\d+/i.test(sentence)),
+      )
+    ) {
       strippedPlaceholder = true;
     }
-    return cleanSentences(text, source);
+    if (parts.some((sentence) => ambiguousEnergyClaim(sentence, source) || overgeneralCorrection(sentence, source) || quoteHits(sentence, quotes))) {
+      mark("claim_wrong");
+    }
+    return cleanSentences(text, source, quotes);
   };
   if (next.overview) {
     const overview = stripField(next.overview);
@@ -375,11 +477,22 @@ export function dropUnresolvedLesson(
     return [{ ...section, body, check, diagram }];
   });
   const exampleText = `${next.example?.prompt ?? ""}\n${next.example?.solution ?? ""}`;
-  if (next.example && !exampleIsComplete(exampleText)) {
+  if (next.example && (!exampleIsComplete(exampleText) || restatedResult(exampleText))) {
     delete next.example;
     mark("example_incomplete");
   } else if (strippedPlaceholder && !exampleIsComplete(exampleText)) {
     mark("example_incomplete");
+  }
+  if (next.commonMistake) {
+    const correction = next.commonMistake.correction;
+    const correctionBad =
+      overgeneralCorrection(correction, source) ||
+      ambiguousEnergyClaim(correction, source) ||
+      quoteHits(correction, quotes);
+    if (correctionBad) {
+      delete next.commonMistake;
+      mark("claim_wrong");
+    }
   }
   const summary = filledSummary(next, source);
   const previous = (lesson.summary ?? []).filter((line) => usableSummaryLine(line, source)).length;
@@ -389,17 +502,33 @@ export function dropUnresolvedLesson(
   return { lesson: next, dropped };
 }
 
-export function lessonRepairPrompt(lesson: LessonV2, issues: LessonCheck[], source: string): string {
+export function lessonRepairPrompt(
+  lesson: LessonV2,
+  issues: LessonCheck[],
+  source: string,
+  quotes: string[] = [],
+): string {
   const codes = [...new Set(issues.map((issue) => issue.code))];
+  const gaps = issues.filter((issue) => issue.code === "coverage_gap").map((issue) => issue.detail);
   return [
     "Yalnızca bozuk parçaları yeniden yaz. Dersin tamamını yazma.",
     "Kaynakta olmayan sayı, tanım ve formül uydurma. Türkçe, tam cümle.",
     "Her kontrol sorusunun kökü öznesi olan bitmiş bir cümle olsun.",
     "Örnek ya tam olsun (verilen, yerine koyma, sayısal sonuç) ya da null.",
+    "Tek cümlelik tekrar yazma. Verileni ve işlemi aynı sayıda göster: sonuç = bağıntı = verilen − sıfır.",
     "Adım 1 / Sonucu hesapla gibi yer tutucu yazma.",
-    "Özet 3 ile 5 madde olsun. Her madde bir olgu cümlesi olsun; başlık ve -me/-ma hedefi yazma.",
+    "Özet 3 ile 5 madde olsun. Her madde bildiren bir cümle olsun. Soru:, Cevap: ve ?: yazma.",
+    "Özetteki sayı, örneğin ve kaynağın sayısıyla aynı olsun.",
+    "Sık yapılan hatanın doğrusu kaynak cümlesiyle desteklensin. Isı alımı da iç enerjiyi değiştirir. Destekleyemiyorsan commonMistake yazma.",
+    "Başlıkta olup kaynakta duran her kavram bir bölümde geçsin. Kaynakta yoksa ekleme.",
     "Çizim gerekiyorsa diagram koy: en az iki etiket, en az iki şekil.",
     `Düzeltilecek kodlar: ${codes.join(", ")}.`,
+    gaps.length ? `Eksik kavramlar: ${gaps.join(", ")}.` : "",
+    quotes.length ? `Kaynağa uymayan cümleler: ${quotes.join(" | ")}` : "",
+    `Ayrıntı: ${issues
+      .map((issue) => `${issue.code}: ${issue.detail}`)
+      .slice(0, 8)
+      .join(" | ")}`,
     "JSON: {\"sections\":[{\"index\":0,\"body\":\"...\",\"check\":{\"type\":\"mcq\",\"prompt\":\"...\",\"options\":[\"...\"],\"answerIndex\":0,\"explanation\":\"...\"},\"diagram\":{\"caption\":\"...\",\"shapes\":[]}}],\"addedSections\":[],\"example\":{\"prompt\":\"...\",\"solution\":\"...\"},\"summary\":[\"...\"],\"diagram\":null}",
     `Kaynak:\n${source.slice(0, 6000)}`,
     `Mevcut ders:\n${JSON.stringify({
@@ -413,7 +542,9 @@ export function lessonRepairPrompt(lesson: LessonV2, issues: LessonCheck[], sour
       example: lesson.example ?? null,
       summary: lesson.summary ?? [],
     }).slice(0, 8000)}`,
-  ].join("\n\n");
+  ]
+    .filter((line) => line.trim().length > 0)
+    .join("\n\n");
 }
 
 const MODEL_CODES = new Set<LessonCheckCode>([
@@ -425,17 +556,32 @@ const MODEL_CODES = new Set<LessonCheckCode>([
   "vacuous",
   "diagram_missing",
   "diagram_unreadable",
+  "claim_wrong",
+  "coverage_gap",
 ]);
 
 export async function repairLearnerLesson(
   lesson: LessonV2,
   input: { source: string; topicLabel: string },
   complete: (prompt: string) => Promise<unknown>,
+  verify?: (prompt: string) => Promise<unknown>,
 ): Promise<{ lesson: LessonV2; requested: LessonCheckCode[]; succeeded: LessonCheckCode[]; dropped: LessonCheckCode[] }> {
   const bounded = applyBoundFix(lesson, input.source);
   const filled = filledSummary(bounded, input.source);
   const prepared: LessonV2 = filled.length ? { ...bounded, summary: filled } : bounded;
-  const requested = [...new Set(auditLearnerLesson(prepared, input).map((issue) => issue.code))];
+  let quotes: string[] = [];
+  if (verify && input.source.trim()) {
+    try {
+      quotes = claimsFromVerify(await verify(claimVerifyPrompt(prepared, input.source)), prepared);
+    } catch {
+      quotes = [];
+    }
+  }
+  const audit = auditLearnerLesson(prepared, input);
+  if (quotes.length && !audit.some((issue) => issue.code === "claim_wrong")) {
+    audit.push({ code: "claim_wrong", detail: quotes[0].slice(0, 160) });
+  }
+  const requested = [...new Set(audit.map((issue) => issue.code))];
   if (!requested.length) {
     return { lesson: prepared, requested, succeeded: [], dropped: [] };
   }
@@ -443,7 +589,7 @@ export async function repairLearnerLesson(
   const needsModel = requested.some((code) => MODEL_CODES.has(code));
   if (needsModel) {
     try {
-      const patch = await complete(lessonRepairPrompt(prepared, auditLearnerLesson(prepared, input), input.source));
+      const patch = await complete(lessonRepairPrompt(prepared, audit, input.source, quotes));
       if (patch) {
         const patched = mergeLessonRepair(prepared, patch, input.source);
         merged = groundLearnerLesson(patched, input.source).lesson as LessonV2;
@@ -452,7 +598,7 @@ export async function repairLearnerLesson(
       merged = prepared;
     }
   }
-  const finalized = dropUnresolvedLesson(applyBoundFix(merged, input.source), input.source);
+  const finalized = dropUnresolvedLesson(applyBoundFix(merged, input.source), input.source, quotes);
   const remaining = new Set(auditLearnerLesson(finalized.lesson, input).map((issue) => issue.code));
   const removed = new Set(finalized.dropped);
   const succeeded = requested.filter((code) => !remaining.has(code) && !removed.has(code));
