@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { env } from "@/lib/env";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
+import { withTransientRetry } from "@/lib/ai/transient-retry";
 import {
   partitionVerifierIssues,
   settleRejectedLesson,
@@ -110,6 +111,11 @@ export async function verifyEducationalContent(input: {
   /** Sohbetin belge dışı bölümü için ek denetim kuralı. Ders üretimi bunu geçmez. */
   reviewerAddendum?: string;
   signal?: AbortSignal;
+  /**
+   * Üretim fonksiyonunun başlangıcı. Geçici 5xx yeniden denemesi
+   * 300 saniyelik tavana sığmazsa yapılmaz.
+   */
+  startedAt?: number;
 }): Promise<VerifyEducationalResult> {
   let content = input.draft;
   let tokensIn = 0;
@@ -173,7 +179,9 @@ export async function verifyEducationalContent(input: {
 
   const request = async (instruction: string) => {
     try {
-      const response = await input.client.chat.completions.create(
+      const response = await withTransientRetry(
+        () =>
+          input.client.chat.completions.create(
         {
           model: env.OPENAI_ADVANCED_MODEL,
           response_format: { type: "json_object" },
@@ -205,6 +213,8 @@ export async function verifyEducationalContent(input: {
           ],
         },
         { timeout: 45000, maxRetries: 0, signal: input.signal },
+          ),
+        { startedAt: input.startedAt ?? Date.now(), callTimeoutMs: 45_000 },
       );
       tokensIn += response.usage?.prompt_tokens ?? 0;
       tokensOut += response.usage?.completion_tokens ?? 0;

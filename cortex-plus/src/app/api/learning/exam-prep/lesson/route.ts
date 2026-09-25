@@ -35,7 +35,10 @@ import {
 } from "@/lib/learning/teacher-brain";
 import { groundLearnerLesson, groundLessonDraft, upcomingTopicsAfter } from "@/lib/learning/lesson-grounding";
 
-/** Düğüm ucuyla aynı tavan. Kısa tekrar ayrı bir model çağrısı açmaz. */
+/**
+ * Düğüm ucuyla aynı tavan. Kısa tekrar ayrı bir model çağrısı açmaz.
+ * 300 saniye, 90 saniyelik üretim, doğrulama ve tek geçici yeniden denemeyi alır.
+ */
 export const maxDuration = 300;
 
 const bodySchema = z.object({

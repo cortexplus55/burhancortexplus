@@ -33,7 +33,8 @@ describe("missed questions change angle", () => {
     );
     expect(retry.prompt).not.toBe(LIVE_PROMPT);
     expect(retry.prompt).toContain("ısıl durumunu gösteren bir özelliktir");
-    expect(retry.prompt.toLocaleLowerCase("tr")).toContain("doğru mu yanlış");
+    expect(retry.prompt).toMatch(/Doğru mu, yanlış mı\?$/);
+    expect(retry.prompt).not.toMatch(/\*\*/);
     expect(retry.prompt).not.toContain("enerji birimidir");
     expect(retry.options[retry.answerIndex]).toBe("Doğru");
     expect(retry.prompt).not.toContain("başka sözcüklerle");
@@ -123,6 +124,54 @@ describe("summary keeps the full relation", () => {
   });
 });
 
+const LIVE_FORMULA_INDEX =
+  "Bu sayfadaki formüller: Kalite tanımı | İki fazlı karışımda kalite, buhar kütle oranıdır: x = m g /m. 0 ile 1 arasındadır. x = 0 doymuş sıvı, x = 1 | Bir doymuş karışımda h f =500 kJ/kg, h fg =2200 kJ/kg ve x=0.80 ise h = 500 + 0.80×2200 =";
+
+const QUALITY_BODY = [
+  "[s.4] Doymuş Su Tabloları: İki fazlı karışımda kalite, buhar kütle oranıdır: x = m g / m.",
+  "Kalite 0 ile 1 arasındadır; 0 ≤ x ≤ 1.",
+  "x = 0 doymuş sıvı, x = 1 doymuş buhardır.",
+  "Bir özellik y = y f + x * y fg şeklinde hesaplanabilir.",
+  LIVE_FORMULA_INDEX,
+].join("\n");
+
+describe("summary ignores the formula index", () => {
+  it("drops the live dump and the objective filler, then keeps clean relations", () => {
+    const grounded = groundLearnerLesson(
+      {
+        title: "Doymuş Su Tabloları ve Kalite",
+        sections: [{ heading: "Kalite", body: "İki fazlı karışımda kalite buhar kütle oranıdır." }],
+        summary: [LIVE_FORMULA_INDEX, "Doymuş Su Tabloları ve Kalite konusunu anlayarak uygulayabilmek."],
+      },
+      QUALITY_BODY,
+    );
+    const lesson = grounded.lesson as { summary?: string[] };
+    const summary = lesson.summary ?? [];
+    const text = summary.join(" ");
+    expect(summary.length).toBeGreaterThanOrEqual(3);
+    expect(summary.length).toBeLessThanOrEqual(5);
+    expect(text).not.toContain("Bu sayfadaki formüller");
+    expect(text).not.toContain("|");
+    expect(text).not.toMatch(/[=+×]\s*$/);
+    expect(text).not.toContain("anlayarak uygulayabilmek");
+    expect(text).not.toContain("2200");
+    expect(text).not.toMatch(/\bm g\b/);
+    expect(text).not.toMatch(/\bh f\b/);
+    expect(text).not.toMatch(/\bh fg\b/);
+    expect(text).toContain("m_g/m");
+    expect(text).toContain("0 ≤ x ≤ 1");
+    expect(text).toMatch(/x = 0 doymuş sıvı/);
+    expect(text).toMatch(/x = 1 doymuş buhar/);
+    expect(text).toContain("y_f");
+    expect(text).toContain("y_fg");
+    expect(text).toContain("·");
+    expect(text).not.toContain("*");
+
+    const again = groundLearnerLesson(lesson, QUALITY_BODY);
+    expect(again.removed).toEqual([]);
+  });
+});
+
 describe("formula lines stay relations", () => {
   it("puts prose back, rejoins a wrapped sentence, and drops list marks", () => {
     const lines = layoutBoard(
@@ -154,6 +203,20 @@ describe("formula lines stay relations", () => {
     expect(lines.some((line) => line.text.startsWith("1.") || line.text.startsWith("2."))).toBe(false);
   });
 
+  it("moves the trailing phrase off the relation and prints a middot", () => {
+    const lines = layoutBoard("y = y_f + x * y_fg şeklinde hesaplanabilir");
+    const formulas = lines.filter((line) => line.kind === "formula").map((line) => line.text);
+    const prose = lines.filter((line) => line.kind === "prose").map((line) => line.text);
+    expect(formulas).toEqual(["y = y_f + x · y_fg"]);
+    expect(prose).toEqual(["Şu şekilde hesaplanabilir:"]);
+
+    const withSubject = layoutBoard("Özellik y = y_f + x * y_fg şeklinde hesaplanabilir");
+    expect(withSubject.find((line) => line.kind === "formula")?.text).toBe("y = y_f + x · y_fg");
+    expect(withSubject.find((line) => line.kind === "prose")?.text).toBe(
+      "Özellik şu şekilde hesaplanabilir:",
+    );
+  });
+
   it("splits an inline numbered formula list", () => {
     const formulas = layoutBoard(
       "1. P = F/A 2. 1 kPa = 1000 Pa 3. P_mutlak = P_atm + P_man;",
@@ -161,6 +224,36 @@ describe("formula lines stay relations", () => {
       .filter((line) => line.kind === "formula")
       .map((line) => line.text);
     expect(formulas).toEqual(["P = F/A", "1 kPa = 1000 Pa", "P_mutlak = P_atm + P_man"]);
+  });
+});
+
+describe("true/false retry is one sentence", () => {
+  const QUALITY_SOURCE = [
+    "Doymuş karışım, hem sıvı hem de buhar fazlarının var olduğu bir durumu ifade eder.",
+    "**Kalite** ise bu karışımda bulunduğu **buhar kütle oranı**dır ve 0 ile 1 arasında bir değere sahiptir.",
+    "Kalite (x), doymuş karışımdaki buharın kütlesinin toplam kütleye oranıdır.",
+  ].join(" ");
+
+  it("asks the short source sentence without bold", () => {
+    const retry = reviewQuestionFor(
+      {
+        type: "trueFalse",
+        prompt: "Kalite sıvı kütle oranıdır. DOĞRU MU YANLIŞ?",
+        options: ["Yanlış", "Doğru"],
+        answerIndex: 0,
+        explanation: "Kalite buhar oranıdır.",
+      },
+      "tr",
+      QUALITY_SOURCE,
+    );
+    expect(retry.prompt).toBe(
+      "Kalite (x), doymuş karışımdaki buharın kütlesinin toplam kütleye oranıdır. Doğru mu, yanlış mı?",
+    );
+    expect(retry.prompt).not.toMatch(/\*\*/);
+    expect(retry.prompt).not.toContain("hem sıvı hem de");
+    expect(retry.prompt).not.toContain("bulunduğu");
+    expect(retry.prompt).not.toContain("DOĞRU MU YANLIŞ");
+    expect(retry.options[retry.answerIndex]).toBe("Doğru");
   });
 });
 

@@ -105,7 +105,47 @@ function rejoinLines(lines: string[]): string[] {
   return out;
 }
 
+const TRAILING_FORMULA_PHRASE =
+  /\s+((?:şeklinde|seklinde)\s+(?:hesaplanabilir|yazılır|yazilir|bulunur|tanımlanır|tanimlanir)|olarak\s+(?:ifade\s+edilir|yazılır|yazilir|hesaplanır|hesaplanir)|ile\s+(?:bulunur|hesaplanır|hesaplanir|ifade\s+edilir))\.?$/i;
+
+function phraseBeforeFormula(phrase: string, lead: string): string {
+  const core = phrase.replace(/\.$/, "").trim();
+  if (/^(?:şeklinde|seklinde)\s+/i.test(core)) {
+    const rest = core.replace(/^(?:şeklinde|seklinde)\s+/i, "");
+    return lead ? `${lead} şu şekilde ${rest}:` : `Şu şekilde ${rest}:`;
+  }
+  if (/^olarak\s+/i.test(core)) {
+    return lead ? `${lead} şöyle ${core}:` : `Şöyle ${core}:`;
+  }
+  if (/^ile\s+/i.test(core)) {
+    return lead ? `${lead} ${core}:` : `Bağıntı ${core}:`;
+  }
+  return lead ? `${lead} ${core}:` : `${core}:`;
+}
+
+function splitLeadAndRelation(head: string): { lead: string; relation: string } {
+  const match = head.match(/^(.*?)((?:[A-Za-zρΔμP_][A-Za-z0-9_]*|\d|\()\s*[=<>≤≥].*)$/);
+  if (!match) return { lead: "", relation: head.trim() };
+  const lead = match[1].replace(/[.:;\s]+$/g, "").trim();
+  const relation = match[2].trim();
+  if (lead.length < 2) return { lead: "", relation: head.trim() };
+  return { lead, relation };
+}
+
+/** "y = y_f + x * y_fg şeklinde hesaplanabilir" — kalıp formül satırından çıkar. */
+function detachTrailingFormulaPhrase(sentence: string): string[] | null {
+  const match = sentence.match(TRAILING_FORMULA_PHRASE);
+  if (!match || match.index == null) return null;
+  const head = sentence.slice(0, match.index).trim();
+  if (!/[=<>≤≥]/.test(head)) return null;
+  const { lead, relation } = splitLeadAndRelation(head);
+  if (!relation || !/[=<>≤≥]/.test(relation)) return null;
+  return [phraseBeforeFormula(match[1], lead), relation];
+}
+
 function peelFormulas(sentence: string): string[] {
+  const detached = detachTrailingFormulaPhrase(sentence);
+  if (detached) return detached.flatMap((part) => peelFormulas(part));
   const colon = sentence.match(/^(.*?):\s*((?:[A-Za-zρΔμP_][A-Za-z0-9_]*|\d|\().*)$/);
   if (colon && /[=<>≤≥]/.test(colon[2]) && colon[1].trim().length >= 8 && !/=/.test(colon[1])) {
     return [cleanPiece(colon[1]), ...peelFormulas(colon[2])];
@@ -156,7 +196,7 @@ export function layoutBoard(text: string): BoardLine[] {
       const formula = formulaLike(line);
       return {
         kind: formula ? ("formula" as const) : ("prose" as const),
-        text: formula ? cleanPiece(line).replace(/\.$/, "") : line,
+        text: formula ? cleanPiece(line).replace(/\.$/, "").replace(/(?<!\*)\*(?!\*)/g, "·") : line,
       };
     });
 }
