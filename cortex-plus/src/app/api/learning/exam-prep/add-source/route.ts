@@ -5,7 +5,7 @@ import { runTeacherAnalysis } from "@/lib/documents/teacher-analysis-run";
 import { missingColumn } from "@/lib/learning/missing-column";
 import { planAddedMaterial } from "@/lib/learning/prep-add-material";
 import {
-  contradictionsByTopicTitle,
+  contradictionsByTopicTitleResolved,
   readContradictionDocuments,
 } from "@/lib/learning/prep-contradiction-read";
 import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
@@ -125,7 +125,9 @@ export async function POST(request: Request) {
     prerequisites: topic.prerequisites ?? [],
     nodeIds: topic.sourceRefs?.map((source) => source.nodeId).filter((id): id is string => Boolean(id)) ?? [],
   }));
-  const contradictionMap = contradictionsByTopicTitle(
+  const contradictionMap = await contradictionsByTopicTitleResolved(
+    service,
+    userId,
     [
       ...(topicRows ?? []).map((row) => ({
         title: String(row.label),

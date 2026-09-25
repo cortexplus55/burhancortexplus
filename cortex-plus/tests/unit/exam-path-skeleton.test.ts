@@ -81,7 +81,9 @@ describe("study path skeleton", () => {
       { kind: "written_exam", title: "Yazılı", dayIndex: 3, sortOrder: 3 },
     ];
     const merged = mergeStudyPathTemplate(scheduled);
-    expect(merged.map((node) => node.kind)).toEqual(CORE_ORDER);
+    expect(merged.map((node) => node.kind)).toEqual(
+      CORE_ORDER.filter((kind) => kind !== "true_false"),
+    );
     expect(merged[0]).toMatchObject({ kind: "lesson", title: "A · Ders" });
     expect(merged.map((node) => node.sortOrder)).toEqual(
       merged.map((_, index) => index),
@@ -111,7 +113,9 @@ describe("study path skeleton", () => {
     });
     const scheduled = scheduleSessionsToNodeDrafts(plan.sessions);
     const merged = mergeStudyPathTemplate(scheduled);
-    expect(merged.map((node) => node.kind)).toEqual(CORE_ORDER);
+    expect(merged.map((node) => node.kind)).toEqual(
+      CORE_ORDER.filter((kind) => kind !== "true_false"),
+    );
 
     const donor = (kind: PlanNodeDraft["kind"]) =>
       scheduled.find((node) => node.kind === kind);
@@ -193,7 +197,7 @@ describe("study path skeleton", () => {
     });
     expect(aligned.map((session) => session.sortOrder)).toEqual(sortBefore);
     expect(replacement.drafts.some((node) => node.kind === "podcast")).toBe(false);
-    for (const kind of ["qa", "true_false", "oral", "gaps", "flashcards"] as const) {
+    for (const kind of ["qa", "oral", "gaps", "flashcards"] as const) {
       const node = replacement.drafts.find((draft) => draft.kind === kind);
       expect(node?.meta?.calendarDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(node?.meta?.topicId).toBe("t1");

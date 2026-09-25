@@ -26,6 +26,7 @@ import {
   STUDY_MODALITY_CHOICES,
   WIZARD_COPY,
   WIZARD_STEP_ORDER,
+  fileProgressLine,
   sourceCountLabel,
 } from "@/lib/learning/exam-wizard-copy";
 import { freeMaterialLimitLine, materialDetailLine } from "@/lib/learning/prep-material-copy";
@@ -197,6 +198,11 @@ export function ExamCreateWizard({
   }
   const [docs, setDocs] = useState<WizardMaterial[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [fileProgress, setFileProgress] = useState<{
+    done: number;
+    total: number;
+    current: string | null;
+  } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -515,12 +521,18 @@ export function ExamCreateWizard({
     }
     if (overflow > 0) toast.error(WIZARD_COPY.fileCap);
     reservedSlots.current += accepted;
+    setFileProgress({ done: 0, total: accepted, current: null });
     try {
+      let done = 0;
       for (const file of files.slice(0, accepted)) {
+        setFileProgress({ done, total: accepted, current: file.name });
         const added = await takeFile(file, false);
         if (!added) break;
+        done += 1;
+        setFileProgress({ done, total: accepted, current: null });
       }
     } finally {
+      setFileProgress(null);
       reservedSlots.current = Math.max(0, reservedSlots.current - accepted);
     }
   }
@@ -757,6 +769,11 @@ export function ExamCreateWizard({
             <Upload className="h-7 w-7 opacity-70" aria-hidden />
             <p className="apw-drop-title">Dosyanı buraya bırak</p>
             <p className="apw-drop-hint">{DOCUMENT_UPLOAD_HINT}</p>
+            {fileProgress ? (
+              <p className="apw-drop-hint" role="status" aria-live="polite">
+                {fileProgressLine(fileProgress.done, fileProgress.total, fileProgress.current)}
+              </p>
+            ) : null}
             {freePdfCap !== null ? (
               <p className="apw-drop-hint">{freeMaterialLimitLine()}</p>
             ) : null}

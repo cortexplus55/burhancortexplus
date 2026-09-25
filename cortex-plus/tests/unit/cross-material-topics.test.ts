@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyClusterMerges,
   consolidateMaterials,
+  dedupeStudentNotes,
   extraPracticeForTopic,
   isNonContentSection,
   isSyllabusText,
@@ -423,7 +424,9 @@ describe("observed Cortex topic list", () => {
     expect(result.foldedNonTopics).toEqual(
       expect.arrayContaining(["Özet ve Sık Yapılan Hatalar", "Genel Tekrar ve Karma Örnekler"]),
     );
-    expect(result.topics.find((topic) => /temel kanun/i.test(topic.title))?.scopeNote ?? "").toMatch(/katlı oranlar/i);
+    const scopeNote = result.topics.find((topic) => /temel kanun/i.test(topic.title))?.scopeNote ?? "";
+    expect(scopeNote).toMatch(/katlı oranlar/i);
+    expect(scopeNote.match(/katlı oranlar/gi) ?? []).toHaveLength(1);
     expect(result.topics.find((topic) => /çözelti/i.test(topic.title))?.sourceCount).toBeGreaterThanOrEqual(2);
     expect(result.topics.find((topic) => /stokiyometri/i.test(topic.title))?.sourceCount).toBeGreaterThanOrEqual(3);
     expect(result.topics.filter((topic) => topic.examHeavy).every((topic) => topicBadge(topic) === "exam-heavy")).toBe(
@@ -771,5 +774,16 @@ describe("history files overlap without a syllabus", () => {
     expect(priorityFromImportance("important")).toBe(1);
     expect(priorityFromImportance("less")).toBe(5);
     expect(priorityFromImportance(null)).toBeNull();
+  });
+});
+
+describe("student note dedupe", () => {
+  it("keeps one scope note when the second is the same phrase with a suffix", () => {
+    const notes = dedupeStudentNotes([
+      "Müfredat bunu sınav kapsamı dışında bırakıyor: Katlı oranlar kanunu.",
+      "Müfredat bunu sınav kapsamı dışında bırakıyor: katlı oranlar.",
+    ]);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatch(/Katlı oranlar kanunu/);
   });
 });
