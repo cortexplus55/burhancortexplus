@@ -23,19 +23,45 @@ import "@/styles/exam-lesson-steps.css";
  * ardından açıklama. Yanlışlar dersin sonunda bir kez daha sorulur.
  */
 
+function stepLine(text: string): boolean {
+  return /^(?:Veri|Adım\s*\d+)\s*:/i.test(text.trim());
+}
+
 function BoardBody({ text, className }: { text: string; className?: string }) {
   const lines = layoutBoard(text);
   const rendered: BoardLine[] = lines.length ? lines : [{ kind: "prose", text }];
+  const blocks: Array<{ kind: "line"; line: BoardLine; index: number } | { kind: "steps"; lines: BoardLine[]; index: number }> = [];
+  for (let index = 0; index < rendered.length; index += 1) {
+    const line = rendered[index];
+    const previous = blocks[blocks.length - 1];
+    if (stepLine(line.text) && previous?.kind === "steps") {
+      previous.lines.push(line);
+      continue;
+    }
+    if (stepLine(line.text)) {
+      blocks.push({ kind: "steps", lines: [line], index });
+      continue;
+    }
+    blocks.push({ kind: "line", line, index });
+  }
   return (
     <div className={className ?? "als-body"}>
-      {rendered.map((line, i) =>
-        line.kind === "formula" ? (
-          <p key={i} className="als-formula">
-            <RichBody text={line.text} />
+      {blocks.map((block) =>
+        block.kind === "steps" ? (
+          <ol key={block.index} className="als-steps">
+            {block.lines.map((line, index) => (
+              <li key={index}>
+                <RichBody text={line.text} />
+              </li>
+            ))}
+          </ol>
+        ) : block.line.kind === "formula" ? (
+          <p key={block.index} className="als-formula">
+            <RichBody text={block.line.text} />
           </p>
         ) : (
-          <p key={i}>
-            <RichBody text={line.text} />
+          <p key={block.index}>
+            <RichBody text={block.line.text} />
           </p>
         ),
       )}
