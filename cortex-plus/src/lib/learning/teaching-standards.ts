@@ -161,7 +161,8 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "TUZAĞI YERİNDE UYAR: bir bölümde karıştırılması kolay bir ayrım varsa o bölüme " +
         "note ekle — kısa başlık ve tek cümle (\"Havanın Ağırlığı: hacmi hesaba dahil, " +
         "ağırlığı değil\"). Her bölüme değil, gerçekten tuzak olan yere. " +
-        "EN AZ 3 kavram bölümü. HER bölümde check zorunlu: type trueFalse ekranda " +
+        "En az 2 kavram bölümü; kaynak daha fazla alt başlık veriyorsa onları da kapsa, " +
+        "sırf sayıyı doldurmak için yeni bölüm uydurma. HER bölümde check zorunlu: type trueFalse ekranda " +
         "DOĞRU MU YANLIŞ, type mcq ekranda HIZLI SINAV. explanation (AÇIKLAMA) yanlış " +
         "seçeneğin neden çürük olduğunu yazsın; yalnızca doğruyu tekrarlama. " +
         "overview 400 karakteri aşmasın. example.solution adım adım ve gerekçeli. " +
@@ -308,12 +309,10 @@ export const lessonV2Schema = z.object({
         diagram: lessonDiagramSchema.optional().catch(undefined),
       }),
     )
-    // Alt sınır ikide: şablon adlı bölüm ayıklanınca (dropScaffoldSections)
-    // geriye iki kavram bölümü kalabiliyor ve bu nesne hem sunucuda hem
-    // tarayıcıda yeniden bu şemadan geçiyor. Üçte kalsaydı ayıklanmış ders
-    // ekranda hiç çizilmezdi. Modelden üç bölüm istemeyi şema değil
-    // validateLessonPedagogy sürdürüyor.
-    .min(2)
+    // Alt sınır bir: dar kaynak iki kavram da taşımayabilir ve uydurulan
+    // örnek kesilince geriye tek sağlam bölüm kalabilir. İki bölüm hâlâ
+    // istenen hedeftir; sayı tek başına dersi düşürmez.
+    .min(1)
     .max(6),
   example: z.object({
     prompt: z.string().min(8),
@@ -900,13 +899,9 @@ export function validateLessonPedagogy(
   if (wallOfText(lesson.overview)) {
     issues.push("Genel bakış çok uzun; kısa tut.");
   }
-  // Şema ikiye iniyor ama modelden istenen hâlâ üç: iki bölüm yalnızca
-  // ayıklama sonrası kabul edilebilir bir kalıntı, taslak hedefi değil.
-  //
-  // Alt sınır dışarıdan verilebiliyor: kaynaktan gelen bölüm omurgası iki
-  // başlıksa prompt iki bölüm istiyor, burada üç dayatmak her taslağı
-  // reddediyordu ve ders hiç üretilmiyordu.
-  const minSections = options.minSections ?? 3;
+  // İstenen alt sınır ikidir; kaynak omurgası daha uzunsa o kadar.
+  // Tek başına bölüm sayısı dersi düşürmez — yayım kapısı bu cümleyi eler.
+  const minSections = options.minSections ?? 2;
   if (lesson.sections.length < minSections) {
     issues.push(
       `Ders en az ${minSections} bölüm istiyor; konunun kavramlarını ayır.`,
@@ -1006,6 +1001,11 @@ export function validateLessonPedagogy(
   return [...issues, ...blockingLessonIssues(lesson)];
 }
 
+function isSectionCountIssue(issue: string): boolean {
+  const folded = foldTr(issue);
+  return /en az \d+/.test(folded) && /bolum/.test(folded);
+}
+
 function solutionIsJustified(solution: string): boolean {
   const folded = foldTr(solution);
   if (folded.length < 24) return false;
@@ -1034,10 +1034,8 @@ function sectionCheckTeaches(check: SectionCheck): boolean {
 }
 
 /**
- * Ders üretim kapısı. `validateLessonPedagogy` ayıklanmış iki bölümlük
- * kalıntıyı da ölçer; burası yayına gidecek dersi ölçer ve atlanamaz:
- * hedef, en az üç kavram bölümü, her bölümde kontrol + açıklama, örnek,
- * yaygın hata, nextFocus.
+ * Ders üretim kapısı. İstenen hedef en az iki kavram bölümüdür; kaynak
+ * daha uzunsa o kadar. Bölüm sayısı tek başına reddetmez.
  */
 export function validateLessonV2(
   raw: unknown,
@@ -1047,7 +1045,7 @@ export function validateLessonV2(
   const issues = validateLessonPedagogy(prepared, options);
   const lesson = lessonV2Schema.safeParse(prepared).data;
   if (!lesson) return issues;
-  const floor = Math.max(3, options.minSections ?? 3);
+  const floor = options.minSections ?? 2;
   if (lesson.sections.length < floor && !issues.some((issue) => issue.includes("en az"))) {
     issues.push(`Ders en az ${floor} kavram bölümü istiyor.`);
   }
@@ -1143,7 +1141,8 @@ export function lessonPublishIssues(
       !issue.includes("Anahtar terim koyu değil") &&
       !issue.includes("Anahtar terimler işaretlenmemiş") &&
       !issue.includes("adım adım ve gerekçeli") &&
-      !issue.includes("Ham LaTeX"),
+      !issue.includes("Ham LaTeX") &&
+      !isSectionCountIssue(issue),
   );
   const teaching = published.sections.filter((section) => section.check).length;
   if (teaching < 1) {
@@ -1193,7 +1192,7 @@ export const LESSON_V2_SCHEMA_HINT =
   '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"note":{"title":string,"body":string},"cards":[{"title":string,"body":string}]}],' +
   '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
   '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
-  "En az 3 kavram bölümü. Her bölümde check zorunlu: trueFalse ekranda DOĞRU MU YANLIŞ, mcq ekranda HIZLI SINAV. " +
+  "En az 2 kavram bölümü; kaynak kaç kavram veriyorsa o kadar, yeni bölüm uydurma. Her bölümde check zorunlu: trueFalse ekranda DOĞRU MU YANLIŞ, mcq ekranda HIZLI SINAV. " +
   "explanation yanlış seçeneğin neden çürük olduğunu yazsın. " +
   "example.solution adım adım ve gerekçeli. nextFocus en az bir sonraki çalışma. " +
   "cards isteğe bağlı: kardeş kavram kümesi varsa 2-6 kart; yoksa cards yazma, uydurma kart ekleme. " +

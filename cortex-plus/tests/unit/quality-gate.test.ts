@@ -33,7 +33,7 @@ describe("educational quality gate", () => {
 
   it("rechecks a correction instead of trusting the repair", async () => {
     const { input, create } = fixture([
-      { approved: false, issues: ["tarih yanlış"] },
+      { approved: false, issues: ["Kaynakta olmayan tarih: İstanbul 1453'te fethedilmedi."] },
       { content: "düzeltilmiş" },
       { approved: true, issues: [] },
     ]);
@@ -43,9 +43,9 @@ describe("educational quality gate", () => {
 
   it("never returns a draft rejected twice", async () => {
     const { input, create } = fixture([
-      { approved: false, issues: ["hata"] },
+      { approved: false, issues: ["Kaynakta olmayan formül PV = nRT."] },
       { content: "hatalı düzeltme" },
-      { approved: false, issues: ["hata sürüyor"] },
+      { approved: false, issues: ["Kaynakta olmayan formül PV = nRT duruyor."] },
     ]);
     await expect(verifyEducationalContent(input)).rejects.toMatchObject({
       repairAttempted: true,
@@ -131,7 +131,9 @@ describe("educational quality gate", () => {
       { approved: true, issues: [] },
     ]);
     const validate = (content: string) =>
-      content === "geçerli önerme" ? [] : ["Açık uçlu soru doğru/yanlış önermesi değildir."];
+      content === "geçerli önerme"
+        ? []
+        : ["Kaynakta olmayan önerme: Açık uçlu soru doğru/yanlış önermesi değildir."];
     expect((await verifyEducationalContent({ ...input, validate })).content).toBe(
       "geçerli önerme",
     );
@@ -146,13 +148,16 @@ describe("educational quality gate", () => {
       { approved: true, issues: [] },
     ]);
     await expect(
-      verifyEducationalContent({ ...input, validate: () => ["format yanlış"] }),
+      verifyEducationalContent({
+        ...input,
+        validate: () => ["Kaynakta olmayan formül PV = nRT."],
+      }),
     ).rejects.toThrow("doğrulanamadı");
   });
 
   it("does not auto-accept a repair that fails independent recheck", async () => {
     const { input, create } = fixture([
-      { approved: false, issues: ["yapı"] },
+      { approved: false, issues: ["Kaynakta olmayan formül PV = nRT."] },
       { content: '{"questions":[]}' },
       { approved: true, issues: [] },
     ]);

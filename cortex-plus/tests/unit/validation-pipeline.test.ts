@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   checkSimpleMathClaims,
+  checkCalculationChains,
   checkUnitConversionClaims,
+  checkUncertainUnitClaims,
   isUnconfirmedMathAllegation,
   checkImpossiblePercentClaims,
   recheckAfterRepair,
   runIndependentValidation,
+  validationIssueBlocks,
 } from "@/lib/learning/validation-pipeline";
 
 describe("Stage 7 validation pipeline", () => {
@@ -43,6 +46,11 @@ describe("Stage 7 validation pipeline", () => {
     expect(checkUnitConversionClaims("50000 Pa = 50 kPa")).toEqual([]);
     expect(checkUnitConversionClaims("1 kPa = 1000 Pa")).toEqual([]);
     expect(checkUnitConversionClaims("50000 Pa = 5 kPa")).toHaveLength(1);
+    expect(checkUnitConversionClaims("50 kPa = 5000 Pa")).toHaveLength(1);
+    expect(checkUnitConversionClaims("49.05 kPa = 144.1 kPa")).toEqual([]);
+    expect(checkUnitConversionClaims("20 kPa = 81 kPa")).toEqual([]);
+    expect(checkUncertainUnitClaims("49.05 kPa = 144.1 kPa")).toHaveLength(1);
+    expect(checkUncertainUnitClaims("20 kPa = 81 kPa")).toHaveLength(1);
     expect(
       isUnconfirmedMathAllegation(
         "50000 Pa = 50 kPa dönüşümü yanlış, 50 kPa hatalıdır.",
@@ -159,5 +167,47 @@ describe("Stage 7 validation pipeline", () => {
     });
     expect(result.failedStage).toBe("pedagogy");
     expect(result.issues[0]?.message).toContain("Explanation");
+  });
+});
+
+describe("pressure and temperature claims", () => {
+  it("follows gage, vacuum, hydrostatic and temperature chains", () => {
+    const gage = "P_abs = P_gage + P_atm = 49.05 kPa + 95 kPa = 144.1 kPa";
+    const vacuum = "P_vakum = P_atm − P_abs = 101 kPa − 20 kPa = 81 kPa";
+    const hydro = "ρgh = 1000 × 9.81 × 2 = 19620 Pa";
+    const hydroDeep = "P = 1000 × 9,81 × 5 = 49050 Pa";
+    for (const sample of [gage, vacuum, hydro, hydroDeep]) {
+      expect(checkUnitConversionClaims(sample)).toEqual([]);
+      expect(checkCalculationChains(sample)).toEqual([]);
+      expect(checkUncertainUnitClaims(sample)).toEqual([]);
+    }
+    expect(checkUnitConversionClaims("25 °C = 298 K")).toEqual([]);
+    expect(checkUnitConversionClaims("0 °C = 273 K")).toEqual([]);
+    expect(checkUnitConversionClaims("100 °C = 373 K")).toEqual([]);
+    expect(checkUnitConversionClaims("1 atm = 101.325 kPa")).toEqual([]);
+    expect(checkUnitConversionClaims("1 bar = 100 kPa")).toEqual([]);
+    expect(checkUnitConversionClaims("1 atm = 1.01325 bar")).toEqual([]);
+    expect(checkUnitConversionClaims("101325 Pa = 1 atm")).toEqual([]);
+    expect(checkUnitConversionClaims("101 kPa = 1 atm")).toEqual([]);
+  });
+
+  it("still blocks a real wrong conversion and a wrong pressure sum", () => {
+    expect(checkUnitConversionClaims("50 kPa = 5000 Pa")).toEqual([
+      "Birim dönüşümü tutarsız: 50 kPa = 5000 Pa",
+    ]);
+    expect(checkCalculationChains("49.05 kPa + 95 kPa = 200 kPa")).toHaveLength(1);
+    expect(checkUnitConversionClaims("25 °C = 250 K")).toHaveLength(1);
+  });
+
+  it("does not fail the pipeline on an uncertain same-unit equality", () => {
+    const result = runIndependentValidation({
+      draft: "P_abs = 49.05 kPa = 144.1 kPa diye yazıldı.",
+      parsed: { note: "P_abs = 49.05 kPa = 144.1 kPa diye yazıldı." },
+    });
+    expect(result.failedStage).toBeNull();
+    expect(result.ok).toBe(true);
+    const warning = result.issues.find((issue) => issue.code === "unit_uncertain");
+    expect(warning).toBeTruthy();
+    expect(validationIssueBlocks(warning!, result.issues.join(" "))).toBe(false);
   });
 });
