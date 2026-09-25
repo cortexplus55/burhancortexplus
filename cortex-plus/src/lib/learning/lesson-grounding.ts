@@ -116,6 +116,54 @@ function restatedConversion(prompt: string, body: string): boolean {
   return host.includes(claim);
 }
 
+const CONCEPT_NEEDLES = [
+  "hal fonksiyon",
+  "yol fonksiyon",
+  "cevrim",
+  "adyabatik",
+  "izotermal",
+  "kapali sistem",
+  "acik sistem",
+  "yegin",
+  "yaygin ozellik",
+  "yari deng",
+  "enerji degis",
+];
+
+function clip(text: string, max: number): string {
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  return trimmed.length <= max ? trimmed : trimmed.slice(0, max).trim();
+}
+
+function optionKey(value: unknown): string {
+  return foldTr(String(value ?? "")).replace(/[^a-z]/g, "");
+}
+
+function keyedLabel(check: Record<string, unknown>): string {
+  if (!Array.isArray(check.options) || typeof check.answerIndex !== "number") return "";
+  return optionKey(check.options[check.answerIndex]);
+}
+
+/** Kaynakta aynı kavramı söyleyen, ters tanımsız cümle. */
+function sourceSentenceFor(topic: string, source: string): string | null {
+  if (!source.trim() || truncated(source)) return null;
+  const topicFold = foldTr(topic);
+  const needles = CONCEPT_NEEDLES.filter((needle) => topicFold.includes(needle));
+  if (!needles.length) return null;
+  let best: { score: number; text: string } | null = null;
+  for (const sentence of sentencesOf(source)) {
+    if (sentence.length < 20) continue;
+    if (definitionalInversionIssues(sentence).length) continue;
+    const folded = foldTr(sentence);
+    let score = 0;
+    for (const needle of needles) {
+      if (folded.includes(needle)) score += 1;
+    }
+    if (score > 0 && (!best || score > best.score)) best = { score, text: sentence };
+  }
+  return best?.text ?? null;
+}
+
 function sharpenCheck(check: Record<string, unknown>, source: string, body: string): Record<string, unknown> {
   if (!isTrueFalse(check) || typeof check.prompt !== "string") return check;
   if (!restatedConversion(check.prompt, body)) return check;
@@ -147,22 +195,40 @@ function cleanCheck(
   }
   const prompt = String(sharpened.prompt ?? "");
   const explanation = typeof sharpened.explanation === "string" ? sharpened.explanation : "";
-  if (fieldFails(explanation, source) || definitionalInversionIssues(explanation).length) {
-    removed.push(`${field}:check`);
-    return undefined;
-  }
-  if (
-    definitionalInversionIssues(prompt).length &&
-    definitionalInversionIssues(explanation).length
-  ) {
-    removed.push(`${field}:check`);
-    return undefined;
-  }
-  const review = asRecord(sharpened.review);
+  const promptFails = fieldFails(prompt, source) || definitionalInversionIssues(prompt).length > 0;
+  const explanationFails =
+    fieldFails(explanation, source) || definitionalInversionIssues(explanation).length > 0;
+  const taughtTrue = keyedLabel(sharpened) === "dogru";
+  const taughtFalse = keyedLabel(sharpened) === "yanlis";
   let next = sharpened;
+  if (explanationFails || (promptFails && taughtTrue)) {
+    const fallback = sourceSentenceFor(`${prompt}\n${explanation}`, source);
+    if (!fallback) {
+      removed.push(`${field}:check`);
+      return undefined;
+    }
+    if (explanationFails) {
+      next = { ...next, explanation: clip(fallback, 600) };
+      removed.push(`${field}:explanation_replaced`);
+    }
+    if (promptFails && taughtTrue) {
+      const options = Array.isArray(next.options) ? next.options : [];
+      const dogru = options.findIndex((option) => optionKey(option) === "dogru");
+      next = {
+        ...next,
+        prompt: clip(fallback, 300),
+        answerIndex: dogru >= 0 ? dogru : next.answerIndex,
+      };
+      removed.push(`${field}:prompt_replaced`);
+    }
+  } else if (promptFails && !taughtFalse) {
+    removed.push(`${field}:check`);
+    return undefined;
+  }
+  const review = asRecord(next.review);
   if (review && typeof review.prompt === "string" && fieldFails(review.prompt, source)) {
     removed.push(`${field}:review`);
-    next = { ...sharpened };
+    next = { ...next };
     delete next.review;
   }
   return next;

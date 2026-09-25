@@ -173,6 +173,10 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "example, commonMistake veya objective yazamıyorsan alanı atla; uydurma. " +
         "commonMistake bu dersin kendi konusundan ve kaynak sayfalarından gelsin. " +
         "claim yanlış inanç, correction kaynağın doğrusu olsun. Basınç dersine kJ veya kJ/kg hatası yazma. " +
+        "Hal fonksiyonu yalnızca başlangıç ve son hale bağlıdır, yoldan bağımsızdır; ısı ve iş yol fonksiyonudur. " +
+        "Çevrimde ΔU = ΔH = ΔE = 0, genel bir proseste değildir. Adyabatik ile izotermal, kapalı ile açık sistem, " +
+        "yeğin ile yaygın özelliği karıştırma. \"ortam koşullarına göre değişebilir\" yazma. " +
+        "Düzeltmeyi kaynak cümlesiyle yaz; yazamıyorsan commonMistake alanını atla. " +
         "Kaynakta olmayan formül veya teorem yazma; emin değilsen materyalde geçtiği hâliyle söyle."
       );
     case "quiz":

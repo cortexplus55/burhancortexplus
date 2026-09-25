@@ -152,19 +152,226 @@ function pressureEquationHits(text: string): InversionHit[] {
   return hits;
 }
 
+function statementsOf(text: string): string[] {
+  const parts = text
+    .split(/\n+|(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 12);
+  return parts.length ? parts : text.trim() ? [text.trim()] : [];
+}
+
+function clausesOfStatement(folded: string): string[] {
+  const parts = folded
+    .split(/[,;]|\s+ve\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 8);
+  return parts.length ? parts : [folded];
+}
+
+function hit(kind: string, snippet: string): InversionHit {
+  const compact = snippet.replace(/\s+/g, " ").trim().slice(0, 180);
+  return { message: `${kind}: "${compact}"`, snippet: compact };
+}
+
+function mentionsState(folded: string): boolean {
+  return /hal fonksiyon|state function|hal ozellik/.test(folded);
+}
+
+function mentionsPath(folded: string): boolean {
+  return /yol fonksiyon|path function/.test(folded);
+}
+
+function mentionsCycle(folded: string): boolean {
+  return /(?<![a-z])(?:cevrim|cycle)/.test(folded);
+}
+
+function mentionsProcess(folded: string): boolean {
+  return /(?<![a-z])(?:proses|surec|process)/.test(folded);
+}
+
+function heatOrWork(folded: string): boolean {
+  if (/(?<![a-z])(?:isi|heat|work)(?![a-z])/.test(folded)) return true;
+  // "iş" katlanmış hâli "is". İngilizce fiil "is" tek başına iş sayılmaz.
+  return /(?<![a-z])is(?![a-z])/.test(folded) && /(?<![a-z])(?:isi|hal|yol)(?![a-z])/.test(folded);
+}
+
+function endStatesIndependent(folded: string): boolean {
+  return /baslangic ve son hal\w{0,12}\s+bagimsiz/.test(folded) && !/bagimsiz\w{0,8}\s+degil/.test(folded);
+}
+
+function pathDependent(folded: string): boolean {
+  return /(?<![a-z])yola bagli/.test(folded) && !/yola bagli\w{0,8}\s+degil/.test(folded);
+}
+
+function pathIndependent(folded: string): boolean {
+  return /yoldan bagimsiz/.test(folded) && !/yoldan bagimsiz\w{0,8}\s+degil/.test(folded);
+}
+
+/** Proses için söylenen sıfır değişim. Çevrim cümlesi buraya girmez. */
+function processClaimsZero(folded: string, original: string): boolean {
+  if (mentionsCycle(folded)) return false;
+  if (!mentionsProcess(folded)) return false;
+  if (/(?:net )?enerji degisimi sifir(?!\w*\s+degil)/.test(folded)) return true;
+  if (/net degisim sifir(?!\w*\s+degil)/.test(folded)) return true;
+  if (/degildir|yalnizca cevrim/.test(folded)) return false;
+  return /Δ\s*[UHEuhe]\s*=\s*0/.test(original);
+}
+
+function conceptPairHits(text: string): InversionHit[] {
+  const hits: InversionHit[] = [];
+  for (const statement of statementsOf(text)) {
+    const folded = foldTr(statement);
+    if (mentionsState(folded) && endStatesIndependent(folded)) {
+      hits.push(hit("Tanım ters çevrilmiş (hal fonksiyonu)", statement));
+    }
+    if (
+      mentionsState(folded) &&
+      pathDependent(folded) &&
+      !heatOrWork(folded) &&
+      !mentionsPath(folded)
+    ) {
+      hits.push(hit("Tanım ters çevrilmiş (hal fonksiyonu)", statement));
+    }
+    if (mentionsPath(folded) && pathIndependent(folded) && !pathDependent(folded)) {
+      hits.push(hit("Tanım ters çevrilmiş (yol fonksiyonu)", statement));
+    }
+    if (
+      mentionsPath(folded) &&
+      /yalnizca baslangic ve son hal/.test(folded) &&
+      !/degil/.test(folded)
+    ) {
+      hits.push(hit("Tanım ters çevrilmiş (yol fonksiyonu)", statement));
+    }
+    if (
+      heatOrWork(folded) &&
+      /hal fonksiyon|state function/.test(folded) &&
+      !/hal fonksiyon\w{0,6}\s+degil|not a state function|state function is not/.test(folded)
+    ) {
+      hits.push(hit("Tanım ters çevrilmiş (yol fonksiyonu)", statement));
+    }
+    if (
+      /hal fonksiyon\w{0,4} olarak adlandir/.test(folded) &&
+      (/degisim/.test(folded) || /sistem yalnizca baslangic/.test(folded))
+    ) {
+      hits.push(hit("Tanım ters çevrilmiş (hal fonksiyonu)", statement));
+    }
+    if (processClaimsZero(folded, statement) && !/degildir|yalnizca cevrim/.test(folded)) {
+      hits.push(hit("Tanım ters çevrilmiş (çevrim)", statement));
+    }
+    if (
+      mentionsCycle(folded) &&
+      !mentionsProcess(folded) &&
+      /enerji degisimi sifir degil|net degisim sifir degil|sifirdan farkli/.test(folded)
+    ) {
+      hits.push(hit("Tanım ters çevrilmiş (çevrim)", statement));
+    }
+
+    for (const clause of clausesOfStatement(folded)) {
+      const intensiveThing =
+        /(?<![a-z])(?:sicaklik|basinc|yogunluk|temperature|pressure|density)(?![a-z])/.test(clause) ||
+        /ozgul hacim|specific volume|ozgul entalpi|specific enthalpy/.test(clause);
+      const extensiveSide = clause
+        .replace(/ozgul hacim|specific volume|ozgul entalpi|specific enthalpy|ozgul enerji|specific energy/g, " ");
+      const extensiveThing =
+        /(?<![a-z])(?:kutle|hacim|entalpi|mass|volume|enthalpy)(?![a-z])/.test(extensiveSide) ||
+        /toplam enerji|total energy/.test(clause);
+      const calledExtensive = /yaygin (?:bir )?ozellik|extensive/.test(clause);
+      const calledIntensive = /yegin (?:bir )?ozellik|intensive/.test(clause);
+      if (intensiveThing && calledExtensive && !calledIntensive) {
+        hits.push(hit("Tanım ters çevrilmiş (yeğin/yaygın)", statement));
+      }
+      if (extensiveThing && calledIntensive && !calledExtensive) {
+        hits.push(hit("Tanım ters çevrilmiş (yeğin/yaygın)", statement));
+      }
+
+      const closed = /kapali sistem|closed system/.test(clause);
+      const open = /(?<![a-z])acik sistem|open system/.test(clause);
+      const mass = /kutle gec|mass (?:cross|transfer|exchang)/.test(clause);
+      const none = /olmaz|yoktur|gecmez|gecirmez|gecirilmez|does not|no mass/.test(clause);
+      const some = /(?<![a-z])olur|gecer|gecirir|gecebilir|exchanges mass|mass crosses/.test(clause);
+      if (mass && closed && some && !none) {
+        hits.push(hit("Tanım ters çevrilmiş (kapalı sistem)", statement));
+      }
+      if (mass && open && none && !some) {
+        hits.push(hit("Tanım ters çevrilmiş (açık sistem)", statement));
+      }
+
+      const adiabatic = /adyabatik|adiabatic/.test(clause);
+      const isothermal = /izotermal|isothermal/.test(clause);
+      const tempFixed = /sicaklik sabit/.test(clause);
+      const noHeat = /isi gec\w{0,8}\s+(?:yoktur|yok|olmaz|sifirdir|sifir)|q\s*=\s*0/.test(clause);
+      const excused = /degil|zorunda degil/.test(clause);
+      if (adiabatic && tempFixed && !excused) {
+        hits.push(hit("Tanım ters çevrilmiş (adyabatik)", statement));
+      }
+      if (isothermal && noHeat && !excused) {
+        hits.push(hit("Tanım ters çevrilmiş (izotermal)", statement));
+      }
+    }
+
+    if (/yari deng|quasi-equilibrium|quasi equilibrium|kuasi/.test(folded)) {
+      if (/dengeden uzak(?:tir|dir)/.test(folded) || /sonlu fark/.test(folded) || /surtunmeli/.test(folded)) {
+        hits.push(hit("Tanım ters çevrilmiş (yarı dengeli)", statement));
+      }
+    }
+  }
+  return hits;
+}
+
+function vaguePhysicsHits(text: string): InversionHit[] {
+  const hits: InversionHit[] = [];
+  for (const statement of statementsOf(text)) {
+    const folded = foldTr(statement);
+    if (
+      /ortam kosullarina gore degisebilir|cevre kosullarina gore degisebilir|kosullara gore degisebilir/.test(
+        folded,
+      )
+    ) {
+      hits.push(hit("Belirsiz fizik", statement));
+    }
+  }
+  return hits;
+}
+
 export function definitionalInversionHits(text: string): InversionHit[] {
   if (!text.trim()) return [];
-  const hits = [...senseHits(text), ...pressureEquationHits(text)];
+  const hits = [
+    ...senseHits(text),
+    ...pressureEquationHits(text),
+    ...conceptPairHits(text),
+    ...vaguePhysicsHits(text),
+  ];
   const seen = new Set<string>();
-  return hits.filter((hit) => {
-    if (seen.has(hit.snippet)) return false;
-    seen.add(hit.snippet);
+  return hits.filter((item) => {
+    if (seen.has(item.message)) return false;
+    seen.add(item.message);
     return true;
   });
 }
 
 export function definitionalInversionIssues(text: string): string[] {
   return definitionalInversionHits(text).map((hit) => hit.message);
+}
+
+function repairsConcept(claim: string, correction: string): boolean {
+  const claimFold = foldTr(claim);
+  const corrFold = foldTr(correction);
+  if (processClaimsZero(claimFold, claim)) {
+    const cycleZero = mentionsCycle(corrFold) && /sifir/.test(corrFold);
+    const endState =
+      /baslangic ve son|uc hal/.test(corrFold) &&
+      /bagli/.test(corrFold) &&
+      !/baslangic ve son hal\w{0,12}\s+bagimsiz/.test(corrFold);
+    if (cycleZero || endState) return true;
+  }
+  if (/hal fonksiyon|state function/.test(claimFold) && endStatesIndependent(claimFold)) {
+    return (
+      /hal fonksiyon|state function|uc hal|baslangic ve son/.test(corrFold) &&
+      /bagli/.test(corrFold) &&
+      !endStatesIndependent(corrFold)
+    );
+  }
+  return false;
 }
 
 function correctionRepairs(claim: string, correction: string): boolean {
@@ -178,9 +385,8 @@ function correctionRepairs(claim: string, correction: string): boolean {
   if (/(?<![\w/])(?:kW|MW)(?![\w/])/i.test(claim) && /enerji/i.test(claim)) {
     return /(?:kW|MW)/i.test(correction) && /güç|guc|power/i.test(correction);
   }
-  return definitionalInversionIssues(claim).length > 0 && definitionalInversionIssues(correction).length === 0
-    ? false
-    : definitionalInversionIssues(claim).length === 0;
+  if (repairsConcept(claim, correction)) return true;
+  return definitionalInversionIssues(claim).length === 0;
 }
 
 /** Yanlış inanç claim'de durabilir; düzeltme onu onarmıyorsa ikisi de düşer. */
@@ -188,6 +394,11 @@ export function mistakeTeachesInversion(claim: string, correction: string): bool
   if (definitionalInversionIssues(correction).length) return true;
   if (!definitionalInversionIssues(claim).length) return false;
   return !correctionRepairs(claim, correction);
+}
+
+function keyedOption(sibling: Record<string, unknown> | null): string {
+  if (!sibling || !Array.isArray(sibling.options) || typeof sibling.answerIndex !== "number") return "";
+  return foldTr(String(sibling.options[sibling.answerIndex] ?? "")).replace(/[^a-z]/g, "");
 }
 
 function walk(value: unknown, key: string | null, sibling: Record<string, unknown> | null): string[] {
@@ -198,7 +409,9 @@ function walk(value: unknown, key: string | null, sibling: Record<string, unknow
     if (key === "prompt" && sibling && typeof sibling.explanation === "string") {
       const hits = definitionalInversionIssues(value);
       if (!hits.length) return [];
-      // Soru yanlış inancı soruyor, açıklama onu düzeltiyorsa ders düşmez.
+      // Doğru diye işaretlenen önerme dersin kendisidir.
+      if (keyedOption(sibling) === "dogru") return hits;
+      // Yanlış inanç soruluyorsa ve açıklama onu düzeltiyorsa ders düşmez.
       if (!definitionalInversionIssues(sibling.explanation).length) return [];
       return hits;
     }
