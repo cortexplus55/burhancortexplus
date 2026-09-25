@@ -178,7 +178,7 @@ export async function loadExamChatContext(
       "DERSİ ÖZETLERKEN DERSTEKİ TANIMLARI KULLAN: bir sembolün ya da " +
         "terimin anlamını kendi bilginle değiştirme, ders ne diyorsa onu " +
         "söyle. Ders bir şeyi söylemiyorsa söylemediğini belirt. " +
-        "Materyalde yoksa formül uydurma. Belgede olmayan bir soruda önce bunun belgede olmadığını söyle, sonra genel bilgi bölümüne tam olarak \"Materyal dışı:\" diye başla. Bu etiketi atlama. Notlarında hangi başlığa bakacağını da yaz.",
+        "Materyalde yoksa formül uydurma. Soru hazırlıktaki belgelerin hiçbirinde yoksa önce bunun belgede olmadığını söyle, sonra genel bilgi bölümüne tam olarak \"Materyal dışı:\" diye başla. Belgede veya alıntıda geçen bir konuya bu etiketi koyma. Notlarında hangi başlığa bakacağını da yaz.",
     );
   }
 
