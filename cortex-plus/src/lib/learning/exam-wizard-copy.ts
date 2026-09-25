@@ -78,6 +78,16 @@ export function sourceCountLabel(count: number): string {
   return count === 1 ? "1 kaynak" : `${count} kaynak`;
 }
 
+/** Yükleme sırasında hangi dosyanın okunduğu. */
+export function fileProgressLine(
+  done: number,
+  total: number,
+  current: string | null,
+): string {
+  const ready = `${done}/${total} dosya hazır`;
+  return current ? `${ready} · ${current} okunuyor` : ready;
+}
+
 export const PREP_HOME_COPY = {
   path: "Çalışma yolu",
   topics: "Konular",

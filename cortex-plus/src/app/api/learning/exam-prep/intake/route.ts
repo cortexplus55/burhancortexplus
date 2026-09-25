@@ -11,7 +11,7 @@ import { documentTitle } from "@/lib/documents/topic-title";
 import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
 import { PREP_TOPIC_CAP } from "@/lib/learning/prep-topic-list";
 import {
-  contradictionsByTopicTitle,
+  contradictionsByTopicTitleResolved,
   readContradictionDocuments,
 } from "@/lib/learning/prep-contradiction-read";
 import { orderTopicsForPath } from "@/lib/learning/topic-order";
@@ -245,7 +245,9 @@ export async function POST(request: Request) {
     ),
   };
   const contradictionDocs = await readContradictionDocuments(service, documentIds).catch(() => []);
-  const contradictionMap = contradictionsByTopicTitle(
+  const contradictionMap = await contradictionsByTopicTitleResolved(
+    service,
+    userId,
     mergedTopics.map((topic) => ({
       title: topic.title,
       sources: topic.sources.map((source) => ({

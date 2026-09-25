@@ -18,7 +18,7 @@ import { applyStudentTopicList } from "@/lib/learning/apply-prep-topics";
 import { groundPrepTopics } from "@/lib/learning/ground-prep-topics";
 import { missingColumn } from "@/lib/learning/missing-column";
 import {
-  contradictionsByTopicTitle,
+  contradictionsByTopicTitleResolved,
   readContradictionDocuments,
 } from "@/lib/learning/prep-contradiction-read";
 import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
@@ -217,7 +217,9 @@ export async function POST(request: Request) {
   }
 
   const contradictionDocs = await readContradictionDocuments(service, documentIds).catch(() => []);
-  const contradictionMap = contradictionsByTopicTitle(
+  const contradictionMap = await contradictionsByTopicTitleResolved(
+    service,
+    userId,
     scheduleTopics.map((topic) => ({
       title: topic.title,
       sources: (topic.sourceRefs ?? []).map((source) => ({

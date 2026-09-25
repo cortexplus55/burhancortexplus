@@ -1,7 +1,9 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { missingColumn } from "@/lib/learning/missing-column";
+import { judgeEquivalence } from "@/lib/learning/claim-equivalence";
 import {
+  applyEquivalenceVerdicts,
   assignContradictions,
   type ContradictionDocument,
   type TopicContradiction,
@@ -51,4 +53,20 @@ export function contradictionsByTopicTitle(
   documents: ContradictionDocument[],
 ): Map<string, TopicContradiction[]> {
   return assignContradictions(topics, documents).byTitle;
+}
+
+/**
+ * Kesin çelişkiler durur. Adaylar yalnızca model "bağdaşmıyor" derse yazılır.
+ * Model yoksa veya emin değilse aday gösterilmez.
+ */
+export async function contradictionsByTopicTitleResolved(
+  service: SupabaseClient,
+  userId: string,
+  topics: { title: string; sources: { documentId: string; pages: number[] }[] }[],
+  documents: ContradictionDocument[],
+): Promise<Map<string, TopicContradiction[]>> {
+  const assignment = assignContradictions(topics, documents);
+  if (!assignment.candidates.length) return assignment.byTitle;
+  const verdicts = await judgeEquivalence(service, userId, assignment.candidates);
+  return applyEquivalenceVerdicts(assignment, verdicts).byTitle;
 }

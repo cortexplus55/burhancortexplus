@@ -186,6 +186,37 @@ function sessionMetaFromAnchor(
   return copy;
 }
 
+const TOPIC_TIED_KINDS = new Set<PlanNodeKind>([
+  "lesson",
+  "podcast",
+  "qa",
+  "quiz",
+  "true_false",
+  "oral",
+  "spaced",
+]);
+
+const PREP_WIDE_KINDS = new Set<PlanNodeKind>([
+  "gaps",
+  "focused",
+  "written_exam",
+  "flashcards",
+  "final_check",
+  "readiness",
+]);
+
+/** Şablon düğümünün başlığı konuyu ya da hazırlığın bütününü söyler. */
+export function studyPathItemTitle(
+  kind: PlanNodeKind,
+  meta?: PlanNodeSessionMeta,
+): string {
+  const base = PLAN_NODE_META[kind].title;
+  const topic = meta?.topicTitle?.trim();
+  if (topic && TOPIC_TIED_KINDS.has(kind)) return `${topic} · ${base}`;
+  if (PREP_WIDE_KINDS.has(kind)) return `${base} · Tüm konular`;
+  return base;
+}
+
 /**
  * Takvim yerleştirmesi bazı türleri (podcast, sözlü, kart) hiç
  * üretmezse şablondaki eksik türleri birer kez araya koyar.
@@ -206,6 +237,9 @@ export function mergeStudyPathTemplate<T extends PlanNodeDraft>(
   const out = [...nodes];
   for (const kind of CORE_ORDER) {
     if (present.has(kind)) continue;
+    // Test zaten doğru/yanlış içerir. Aynı konu için ikinci bir
+    // "Doğru/Yanlış" düğümü aynı işi bir daha yazar.
+    if (kind === "true_false" && present.has("quiz")) continue;
     const slot = CORE_ORDER.indexOf(kind);
     const at = out.findIndex((node) => CORE_ORDER.indexOf(node.kind) > slot);
     const idx = at < 0 ? out.length : at;
@@ -213,7 +247,7 @@ export function mergeStudyPathTemplate<T extends PlanNodeDraft>(
     const meta = sessionMetaFromAnchor(anchor);
     out.splice(idx, 0, {
       kind,
-      title: PLAN_NODE_META[kind].title,
+      title: studyPathItemTitle(kind, meta),
       dayIndex: anchor?.dayIndex ?? 1,
       sortOrder: 0,
       ...(meta ? { meta } : {}),

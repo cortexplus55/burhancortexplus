@@ -4,6 +4,7 @@ import {
   PREP_HOME_COPY,
   WIZARD_COPY,
   WIZARD_STEP_ORDER,
+  fileProgressLine,
 } from "@/lib/learning/exam-wizard-copy";
 import { TUTOR_ANSWER_DISCIPLINE, tutorStylePrompt } from "@/lib/learning/tutor-style";
 import { LESSON_V2_SCHEMA_HINT, REVIEW_VARIANT_RULE } from "@/lib/learning/teaching-standards";
@@ -67,6 +68,12 @@ describe("post-PDF wizard order", () => {
     expect(wizard).toContain("exam-prep/ground-topic");
     expect(wizard).toContain("freeMaterialLimitLine");
     expect(wizard).toContain("multiple");
+    expect(wizard).toContain('role="status"');
+    expect(wizard).toContain("fileProgressLine");
+    expect(fileProgressLine(2, 8, "pdf-12-sayfa.pdf")).toBe(
+      "2/8 dosya hazır · pdf-12-sayfa.pdf okunuyor",
+    );
+    expect(fileProgressLine(8, 8, null)).toBe("8/8 dosya hazır");
     expect(wizard).toContain("disabled={checking || (adding ? !addDirty : !changeDirty)}");
     expect(wizard).not.toContain("zorlanıyorsun");
     expect(wizard).not.toContain("günlük planı başlat");

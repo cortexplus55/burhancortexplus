@@ -218,6 +218,47 @@ function uniqueLines(items: string[]): string[] {
   return out;
 }
 
+const NOTE_TRAILING =
+  /(?:\s+(?:kanunu|yasasi|ilkesi|kurali|kurami|konusu|kavrami|kavram))+$/;
+
+/** Karşılaştırma anahtarı: büyük/küçük harf, noktalama ve sonda kalan ek. */
+function noteCompareKey(text: string): string {
+  const folded = fold(text)
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const subject = folded.includes(":") ? folded.slice(folded.lastIndexOf(":") + 1).trim() : folded;
+  return subject.replace(NOTE_TRAILING, "").trim();
+}
+
+/**
+ * Aynı notu iki kez gösterme.
+ * "Katlı oranlar kanunu" ile "katlı oranlar" aynı uyarıdır; kısa olan düşer.
+ */
+export function dedupeStudentNotes(items: string[]): string[] {
+  const notes = uniqueLines(items).map((text) => ({ text, key: noteCompareKey(text) }));
+  const drop = new Set<number>();
+  for (let i = 0; i < notes.length; i += 1) {
+    if (!notes[i].key) drop.add(i);
+  }
+  for (let i = 0; i < notes.length; i += 1) {
+    if (drop.has(i)) continue;
+    for (let j = i + 1; j < notes.length; j += 1) {
+      if (drop.has(j)) continue;
+      const a = notes[i].key;
+      const b = notes[j].key;
+      if (!a || !b) continue;
+      if (a === b) {
+        drop.add(notes[i].text.length >= notes[j].text.length ? j : i);
+        continue;
+      }
+      if (a.length >= 6 && b.includes(a)) drop.add(i);
+      else if (b.length >= 6 && a.includes(b)) drop.add(j);
+    }
+  }
+  return notes.filter((_, index) => !drop.has(index)).map((note) => note.text);
+}
+
 export function isNonContentSection(title: string): boolean {
   const folded = fold(title).replace(/^\d+\s+/, "");
   if (!folded) return false;
@@ -534,7 +575,7 @@ function finishBucket(bucket: Bucket): ConsolidatedTopic {
     weightPercent: bucket.weightPercent,
     examHeavy: bucket.examHeavy,
     importance: importanceFromEmphasis(bucket.emphasis),
-    scopeNote: uniqueLines(bucket.scopeNotes).join(" ") || null,
+    scopeNote: dedupeStudentNotes(bucket.scopeNotes).join(" ") || null,
     commonMistakes: uniqueLines(bucket.mistakes),
     practiceItems: uniqueLines(bucket.practice),
     nodeIds: [...new Set(bucket.nodeIds)],
