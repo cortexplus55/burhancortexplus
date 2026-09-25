@@ -23,6 +23,7 @@ import { foldTr } from "@/lib/documents/page-analysis";
 import { loadTeacherAnalysis } from "@/lib/documents/teacher-analysis-run";
 import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
 import { contentTokens, type SyllabusScope } from "@/lib/learning/prep-corpus";
+import { announcedExampleGap, isIncompleteExample } from "@/lib/learning/lesson-repair";
 import { emptyMistake, isScaffoldHeading } from "@/lib/learning/teaching-standards";
 import {
   findAnalysisTopic,
@@ -241,7 +242,35 @@ export function podcastQuantIssues(episode: PodcastEpisode, source: string): str
   if (last && last.lines.length < 3 && episode.length !== "ozet") {
     issues.push("Son bölüm üç maddelik tekrar olsun; her madde ayrı satır.");
   }
+  for (const gap of unfinishedExampleGaps(episode)) issues.push(gap);
   return issues;
+}
+
+function chapterBlob(chapter: PodcastChapter): string {
+  return `${chapter.title}. ${chapter.lines.map((line) => line.text).join(" ")}`;
+}
+
+/** Duyurulmuş örnek, dersle aynı kapıdan geçmeden yayına çıkmaz. */
+export function unfinishedExampleGaps(episode: PodcastEpisode): string[] {
+  const gaps: string[] = [];
+  for (const chapter of episode.chapters) {
+    const blob = chapterBlob(chapter);
+    const gap = announcedExampleGap(blob) ?? chapter.lines.map((line) => announcedExampleGap(line.text)).find(Boolean);
+    if (gap) gaps.push(gap);
+  }
+  return gaps;
+}
+
+export function withoutUnfinishedExamples(episode: PodcastEpisode): PodcastEpisode | null {
+  const chapters = episode.chapters.filter((chapter) => {
+    if (announcedExampleGap(chapterBlob(chapter))) return false;
+    if (chapter.lines.some((line) => isIncompleteExample(line.text))) return false;
+    return true;
+  });
+  const spec = podcastLengthSpec(episode.length);
+  if (chapters.length < spec.minChapters) return null;
+  if (chapters.some((chapter) => chapter.lines.length < 2)) return null;
+  return { ...episode, chapters };
 }
 
 export function repairPodcastEpisode(episode: PodcastEpisode, source: string): PodcastEpisode {
@@ -469,7 +498,9 @@ export async function generatePodcastEpisode(input: {
       SINGLE_NARRATOR_SCHEMA +
       ' Bir veya iki satırın başına "Dur ve düşün:" koy; hemen sonraki satır "Cevap:" ile başlasın. ' +
       "Son bölüm üç kısa tekrar maddesi olsun. Ondalık virgül kullan. Formülü ve üssü simgeyle yaz: H₂O, CO₂, 10²³, n = m/M. Konuşma diline çevirme. " +
-      "İki ayrı büyüklüğü aynıdır diye yazma (mol kütlesi ile atomik kütle, kütle ile ağırlık, ısı ile sıcaklık). Sayıları eşit olabilir; birimleri farklıdır.",
+      "İki ayrı büyüklüğü aynıdır diye yazma (mol kütlesi ile atomik kütle, kütle ile ağırlık, ısı ile sıcaklık). Sayıları eşit olabilir; birimleri farklıdır. " +
+      "Mol kütlesi gram cinsinden kütledir; ağırlık deme. " +
+      "Uygulamalı örnek açarsan verileni, formülü, yerine koymayı ve birimli sonucu yaz. Sonuç yoksa örneği koyma.",
     userPrompt: [
       podcastNarrationBrief(),
       spec.brief,
@@ -505,6 +536,14 @@ export async function generatePodcastEpisode(input: {
       if (issues.length && parses < 2) {
         reasons.splice(0, reasons.length, ...issues);
         return null;
+      }
+      if (unfinishedExampleGaps(episode).length) {
+        const dropped = withoutUnfinishedExamples(episode);
+        if (!dropped) {
+          reasons.splice(0, reasons.length, ...unfinishedExampleGaps(episode));
+          return null;
+        }
+        episode = dropped;
       }
       if (issues.length) {
         const stray = issues.find((issue) => issue.startsWith("Kaynakta olmayan sayı"));

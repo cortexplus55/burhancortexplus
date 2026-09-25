@@ -66,6 +66,34 @@ describe("sayısal doğrulama", () => {
     expect(repairQuantitative(reply, audit)).toMatch(/10 × 4 = 40/);
   });
 
+  it("10 üzeri çarpımı ve birimli kütle hesabını denetler", () => {
+    const wrong = "N = 0,25 × 6,02 × 10²³ = 9 × 10²³.";
+    const audit = auditQuantitative(wrong);
+    expect(audit.ok).toBe(false);
+    expect(audit.issues[0]?.kind).toBe("arithmetic");
+    expect(repairQuantitative(wrong, audit)).toMatch(/1,505 × 10²³/);
+    expect(auditQuantitative("N = 0,25 × 6,02 × 10²³ = 1,505 × 10²³.").ok).toBe(true);
+    expect(auditQuantitative("m = 0,25 × 98 = 24,5 g.").ok).toBe(true);
+    const mass = auditQuantitative("m = 0,25 mol × 98 g/mol = 25 g.");
+    expect(mass.ok).toBe(false);
+    expect(repairQuantitative("m = 0,25 mol × 98 g/mol = 25 g.", mass)).toMatch(/24,5 g/);
+  });
+
+  it("gram cinsinden ağırlığı kütle diye düzeltir, sınav ağırlığını ve newtonu bırakır", () => {
+    const line = "Mol kütlesi sadece 1 mol maddenin gram cinsinden ağırlığıdır, tanecik sayısını içermez.";
+    const audit = auditQuantitative(line);
+    expect(audit.issues.some((issue) => issue.kind === "wording")).toBe(true);
+    const fixed = repairQuantitative(line, audit);
+    expect(fixed).toContain("kütlesidir");
+    expect(fixed).toContain("tanecik sayısını içermez");
+    expect(fixed).not.toMatch(/ağırlığ/);
+    expect(auditQuantitative("Sınavda ağırlıklı konu stokiyometridir.").issues).toEqual([]);
+    const weight = "Kütle kilogram, ağırlık newton cinsindendir.";
+    expect(repairQuantitative(weight, auditQuantitative(weight))).toBe(weight);
+    const distinct = "Kütle ile ağırlık aynı değildir.";
+    expect(repairQuantitative(distinct, auditQuantitative(distinct))).toBe(distinct);
+  });
+
   it("tarih kaynağındaki yılı yanıtla çelişince işaretler", () => {
     const source = "İstanbul'un fethi 1453 yılında tamamlandı.";
     const reply = "İstanbul 1452'de fethedildi.";

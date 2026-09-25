@@ -171,6 +171,24 @@ function hasSymbolicRelation(text: string): boolean {
   return /[A-Za-zΔδ][A-Za-z0-9_Δδ]*\s*=\s*[^0-9.;]{0,60}[A-Za-zΔδ∫]/.test(text);
 }
 
+/**
+ * Bitmiş sonuç. `N = 0,25 × 6,02 × 10²³` burada sonuç değildir:
+ * eşittirin sağı işlemle devam ediyor. `= 1,505 × 10²³` sonuçtur.
+ * Sayı ortadan bölünmez: `= 0,2` diye `0,25` içinden sonuç çıkmaz.
+ */
+function hasFinishedResult(text: string): boolean {
+  const result = new RegExp(
+    `(?:=|≈)\\s*\\d+(?:[.,]\\d+)?(?![.,\\d])(?:\\s*[×x·]\\s*10(?:\\^\\s*[+-]?\\d+|[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)?)?(?:\\s*(?:${MEASURE})(?![A-Za-zÇĞİÖŞÜçğıöşü]))?`,
+    "gi",
+  );
+  for (const match of text.matchAll(result)) {
+    const after = text.slice((match.index ?? 0) + match[0].length);
+    if (/^\s*[/×*·+\-−]/.test(after)) continue;
+    return true;
+  }
+  return false;
+}
+
 /** Verilen, yerine koyma ve sayısal sonuç yoksa hesap yarım kalmıştır. */
 export function exampleIsComplete(text: string): boolean {
   if (!text.trim() || placeholderWork(text)) return false;
@@ -179,8 +197,7 @@ export function exampleIsComplete(text: string): boolean {
   const substituted =
     /\d+(?:[.,]\d+)?(?:\s*[A-Za-z°µ/%³²·]+)?\s*[/×*·+\-−]\s*\d/.test(text) ||
     /\(\d+(?:[.,]\d+)?\s*[^)]+\)\s*\(/.test(text);
-  const result = /(?:=|≈)\s*\d+(?:[.,]\d+)?\b/.test(text);
-  return given && substituted && result;
+  return given && substituted && hasFinishedResult(text);
 }
 
 function bareDifference(text: string): boolean {
@@ -563,12 +580,57 @@ function examplePool(lesson: LessonV2): string {
   return `${lesson.example?.prompt ?? ""}\n${lesson.example?.solution ?? ""}`;
 }
 
+function asksMeasuredResult(text: string, kind: "mass" | "count"): boolean {
+  const folded = foldTr(text);
+  if (kind === "mass") return /kutlesini bul|gram cinsinden kutle|kac g\b|kac gram/.test(folded);
+  return /tanecik say|atom say|molekul say/.test(folded);
+}
+
+function hasMassResult(text: string): boolean {
+  return new RegExp(
+    `(?:=|≈)\\s*\\d+(?:[.,]\\d+)?(?:\\s*[×x·]\\s*10(?:\\^\\s*[+-]?\\d+|[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)?)?\\s*(?:g\\/mol|miligram|kilogram|mg|kg|gram|g)(?![A-Za-zÇĞİÖŞÜçğıöşü])(?!\\s*[/×*·+\\-−])`,
+    "i",
+  ).test(text);
+}
+
+/** Sonuç `= 1,505 × 10²³` olmalı. `= 0,25 × 6,02 × 10²³` yerine koyma, sonuç değil. */
+function hasCountResult(text: string): boolean {
+  return /(?:=|≈)\s*\d+(?:[.,]\d+)?\s*[×x·]\s*10(?:\^\s*[+-]?\d+|[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)(?!\s*[/×*·+\-−])/.test(text);
+}
+
+/**
+ * Duyurulmuş örnek: verilen, formül, yerine koyma ve bitmiş sonuç.
+ * Başlıkta "Örnek:" yetiyor; gövde "bulmak için" diye açılmış hesap da öyle.
+ */
+export function announcedExampleGap(text: string): string | null {
+  const folded = foldTr(text);
+  const announced =
+    /\bornek\s*:/.test(folded) ||
+    (/\buygulamali\b/.test(folded) && /\bornek\b|\bhesap/.test(folded)) ||
+    (/bulmak icin|hesaplanarak|hesaplayalim|hesaplayin/.test(folded) &&
+      /formul|=\s*[A-Za-z]/.test(folded) &&
+      new RegExp(`\\d+(?:[.,]\\d+)?\\s*${MEASURE}`, "i").test(text));
+  if (!announced) return null;
+  if (!exampleIsComplete(text)) {
+    return "Örnek yarım: verilen, formül, yerine koyma ve sonuç yazılacak. Sonuç yoksa örnek konmayacak.";
+  }
+  if (asksMeasuredResult(text, "mass") && !hasMassResult(text)) {
+    return "Kütle sorulmuş örnekte sonuç gram, kilogram ya da g/mol ile yazılacak.";
+  }
+  if (asksMeasuredResult(text, "count") && !hasCountResult(text)) {
+    return "Tanecik ya da atom sayısı sorulmuş örnekte sonuç 10 üzeri biçiminde yazılacak.";
+  }
+  return null;
+}
+
 /**
  * "Örnek:" bloğu ya da hesaplanıp bulunur denilen senaryo,
  * yerine koyma ve sonuç taşımıyorsa örnek değildir.
  */
 export function isIncompleteExample(text: string): boolean {
-  if (!text.trim() || exampleIsComplete(text)) return false;
+  if (!text.trim() || placeholderWork(text)) return false;
+  if (announcedExampleGap(text)) return true;
+  if (exampleIsComplete(text)) return false;
   const folded = foldTr(text);
   if (/\bornek\s*:/.test(folded)) return true;
   return /hesaplanarak/.test(folded) && /\d/.test(text) && /\bbulunur\b/.test(folded);
@@ -765,8 +827,8 @@ function quoteHits(sentence: string, quotes: string[]): boolean {
 function publishSentence(sentence: string, source: string, quotes: string[], context: string): string | null {
   let next = rewriteSignFlip(sentence);
   if (!next || signConventionFlip(next)) return null;
-  const identity = auditQuantitative(next).issues.find((issue) => issue.kind === "identity");
-  if (identity) next = identity.repair;
+  const precision = auditQuantitative(next).issues.find((issue) => issue.kind === "identity" || issue.kind === "wording");
+  if (precision) next = precision.repair;
   if (incompleteFormulaLine(next)) {
     const completed = completeDanglingFormula(next, context);
     if (!completed) return null;

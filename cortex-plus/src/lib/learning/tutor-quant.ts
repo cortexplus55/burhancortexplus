@@ -8,6 +8,7 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
+import { MEASURE } from "@/lib/learning/lesson-claims";
 
 const SUB: Record<string, string> = {
   "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4",
@@ -15,7 +16,7 @@ const SUB: Record<string, string> = {
 };
 
 export type QuantIssue = {
-  kind: "limiting" | "arithmetic" | "date" | "identity";
+  kind: "limiting" | "arithmetic" | "date" | "identity" | "wording";
   detail: string;
   /** Yanlış cümlenin yerine konacak kısa düzeltme. */
   repair: string;
@@ -57,6 +58,70 @@ function parseNumber(raw: string): number {
 function formatTr(n: number): string {
   const rounded = Math.round(n * 1000) / 1000;
   return String(rounded).replace(".", ",");
+}
+
+const SUP_DIGIT = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+const SUP_VALUE: Record<string, string> = {
+  "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4",
+  "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9", "⁻": "-",
+};
+
+function readSuperscript(raw: string): number | null {
+  const digits = [...raw].map((ch) => SUP_VALUE[ch] ?? "").join("");
+  if (!/^-?\d+$/.test(digits)) return null;
+  return Number(digits);
+}
+
+function toSuperscript(exp: number): string {
+  return [...String(exp)].map((ch) => (ch === "-" ? "⁻" : SUP_DIGIT[Number(ch)] ?? ch)).join("");
+}
+
+/** `6,02 × 10²³` tek sayıya iner. Düz `10 × 4` burada durur. */
+function expandPowersOfTen(expr: string): string {
+  return expr.replace(
+    /(\d+(?:[.,]\d+)?)\s*[×x·]\s*10(?:\^\s*([+-]?\d+)|([⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+))/g,
+    (full, base: string, ascii: string | undefined, sup: string | undefined) => {
+      const exp = ascii ? Number(ascii) : readSuperscript(sup ?? "");
+      if (exp == null || !Number.isFinite(exp)) return full;
+      const value = parseNumber(base) * 10 ** exp;
+      return Number.isFinite(value) ? value.toExponential(12) : full;
+    },
+  );
+}
+
+function stripMeasureUnits(expr: string): string {
+  return expr.replace(
+    new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*${MEASURE}(?![A-Za-zÇĞİÖŞÜçğıöşü])`, "gi"),
+    "$1",
+  );
+}
+
+const POW10 = String.raw`(?:\s*[×x·]\s*10(?:\^\s*[+-]?\d+|[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+))`;
+const ARITH_NUM = String.raw`\d+(?:[.,]\d+)?(?:\s*${MEASURE}(?![A-Za-zÇĞİÖŞÜçğıöşü]))?(?:${POW10})?`;
+const ARITH_RE = new RegExp(
+  `((?:${ARITH_NUM}(?:\\s*[+×÷*/\\-−–]\\s*${ARITH_NUM})+))\\s*(≈|~|=)\\s*(${ARITH_NUM})`,
+  "g",
+);
+
+/** Sonuç `× 10ⁿ` ise onarım da aynı üsle yazılır. */
+function formatLike(n: number, sample: string): string {
+  const sci = sample.match(/[×x·]\s*10(?:\^\s*([+-]?\d+)|([⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+))/);
+  if (!sci) return formatTr(n);
+  const exp = sci[1] ? Number(sci[1]) : readSuperscript(sci[2] ?? "");
+  if (exp == null || !Number.isFinite(exp) || !Number.isFinite(n)) return formatTr(n);
+  const mantissa = n / 10 ** exp;
+  if (!Number.isFinite(mantissa)) return formatTr(n);
+  const written = formatTr(mantissa);
+  return sci[2] ? `${written} × 10${toSuperscript(exp)}` : `${written} × 10^${exp}`;
+}
+
+function readAuditedNumber(raw: string): number {
+  const expanded = expandPowersOfTen(stripMeasureUnits(raw));
+  if (/[×x·*/÷+\-−–]/.test(expanded.replace(/e[+-]/gi, ""))) {
+    return evalArith(expanded) ?? Number.NaN;
+  }
+  const token = expanded.match(/\d+(?:[.,]\d+)?(?:e[+-]?\d+)?/i);
+  return token ? parseNumber(token[0]) : Number.NaN;
 }
 
 const COEFF_SRC = String.raw`(?:\d+\s*/\s*\d+|\d+(?:[.,]\d+)?)`;
@@ -243,8 +308,11 @@ function limitingIssues(text: string): QuantIssue[] {
 }
 
 function evalArith(expr: string): number | null {
-  const normalized = expr.replace(/×/g, "*").replace(/÷/g, "/").replace(/[−–]/g, "-");
-  const tokens = normalized.match(/\d+(?:[.,]\d+)?|[+\-*/]/g);
+  const normalized = expandPowersOfTen(stripMeasureUnits(expr))
+    .replace(/×/g, "*")
+    .replace(/÷/g, "/")
+    .replace(/[−–]/g, "-");
+  const tokens = normalized.match(/\d+(?:[.,]\d+)?(?:e[+-]?\d+)?|[+\-*/]/gi);
   if (!tokens || tokens.length < 3) return null;
   const values: number[] = [];
   const ops: string[] = [];
@@ -279,19 +347,20 @@ function evalArith(expr: string): number | null {
 
 function arithmeticIssues(text: string): QuantIssue[] {
   const issues: QuantIssue[] = [];
-  const pattern = /((?:\d+(?:[.,]\d+)?(?:\s*[+×÷*/\-−–]\s*\d+(?:[.,]\d+)?)+))\s*(≈|~|=)\s*(\d+(?:[.,]\d+)?)/g;
-  for (const match of text.matchAll(pattern)) {
+  for (const match of text.matchAll(new RegExp(ARITH_RE.source, "g"))) {
     const actual = evalArith(match[1]);
-    const stated = parseNumber(match[3]);
+    const stated = readAuditedNumber(match[3]);
     if (actual == null || !Number.isFinite(stated)) continue;
     const approx = match[2] !== "=";
     const diff = Math.abs(actual - stated);
     const tol = approx ? Math.max(0.02, Math.abs(actual) * 0.02) : Math.max(0.005, Math.abs(actual) * 0.005);
     if (diff <= tol) continue;
-    const repair = `${match[1].replace(/\s+/g, " ")} = ${formatTr(actual)}`;
+    const unit = match[3].match(new RegExp(`${MEASURE}(?![A-Za-zÇĞİÖŞÜçğıöşü])`, "i"))?.[0] ?? "";
+    const written = formatLike(actual, match[3]);
+    const repair = `${match[1].replace(/\s+/g, " ")} = ${written}${unit ? ` ${unit}` : ""}`;
     issues.push({
       kind: "arithmetic",
-      detail: `Yazılan sonuç ${match[3]}; hesap ${formatTr(actual)}.`,
+      detail: `Yazılan sonuç ${match[3]}; hesap ${written}.`,
       repair,
       span: match[0],
     });
@@ -399,13 +468,52 @@ function identityIssues(text: string): QuantIssue[] {
   return issues;
 }
 
+/**
+ * Gram ya da mol kütlesi "ağırlık" diye adlandırılmışsa kütledir.
+ * Sınav ağırlığı, newton cinsinden ağırlık ve "kütle ile ağırlık farklıdır" durur.
+ */
+function wordingIssues(text: string): QuantIssue[] {
+  const issues: QuantIssue[] = [];
+  for (const sentence of sentencesOf(text)) {
+    const folded = foldTr(sentence);
+    if (assertsIdentity(sentence)) continue;
+    if (/agirlikli|agirlik ver|agirligi yuksek/.test(folded)) continue;
+    if (/newton|yercekimi|yer cekim|kuvvet olarak/.test(folded)) continue;
+    if (/kutle ile agirlik|agirlik ile kutle|ayni degil|farkli buyukluk|buyuklukler ayni degil/.test(folded)) continue;
+    const massContext = /mol kutle|atom kutle|molekul kutle|formul kutle|gram cinsinden|g\/mol|\bkg\b|(?:^|[^a-z])g(?:[^a-z]|$)|kutles/.test(folded);
+    if (!massContext) continue;
+    const match = sentence.match(/ağırlığıdır|ağırlıktır|ağırlığı|ağırlık(?!l)/i);
+    if (!match || match.index == null) continue;
+    const token = match[0];
+    const lower = token.toLocaleLowerCase("tr");
+    const mapped =
+      lower === "ağırlığıdır" ? "kütlesidir" :
+      lower === "ağırlıktır" ? "kütledir" :
+      lower === "ağırlığı" ? "kütlesi" :
+      "kütle";
+    const replacement = token[0] === token[0].toLocaleUpperCase("tr")
+      ? mapped[0].toLocaleUpperCase("tr") + mapped.slice(1)
+      : mapped;
+    const repair = `${sentence.slice(0, match.index)}${replacement}${sentence.slice(match.index + token.length)}`;
+    if (repair === sentence) continue;
+    issues.push({
+      kind: "wording",
+      detail: "Kütle, gram cinsinden ağırlık diye yazılmış.",
+      repair,
+      span: sentence,
+    });
+  }
+  return issues;
+}
+
 /** Çözümlü örnek ve eşitlikleri kaynak metne karşı denetler. */
 export function auditQuantitative(text: string, source = ""): QuantAudit {
   const limiting = limitingIssues(text);
   const arithmetic = arithmeticIssues(text);
   const dates = dateIssues(text, source);
+  const wording = wordingIssues(text);
   const identity = identityIssues(text);
-  const issues = [...limiting, ...arithmetic, ...dates, ...identity];
+  const issues = [...limiting, ...arithmetic, ...dates, ...wording, ...identity];
   const checked = limiting.length > 0 || arithmetic.length > 0 || dates.length > 0
     || Boolean(parseReaction(text) && claimedLimiter(text, parseReaction(text) ?? []))
     || arithmeticPatternSeen(text)
@@ -414,7 +522,7 @@ export function auditQuantitative(text: string, source = ""): QuantAudit {
 }
 
 function arithmeticPatternSeen(text: string): boolean {
-  return /((?:\d+(?:[.,]\d+)?(?:\s*[+×÷*/\-−–]\s*\d+(?:[.,]\d+)?)+))\s*(≈|~|=)\s*(\d+(?:[.,]\d+)?)/.test(text);
+  return new RegExp(ARITH_RE.source, "i").test(text);
 }
 
 /**
@@ -430,13 +538,10 @@ export function repairQuantitative(text: string, audit: QuantAudit): string {
     } else if (issue.kind === "arithmetic" && issue.span) {
       next = next.replace(issue.span, issue.repair);
     } else if (issue.kind === "arithmetic") {
-      next = next.replace(
-        /((?:\d+(?:[.,]\d+)?(?:\s*[+×÷*/\-−–]\s*\d+(?:[.,]\d+)?)+))\s*(≈|~|=)\s*(\d+(?:[.,]\d+)?)/,
-        issue.repair,
-      );
-    } else if (issue.kind === "identity" && issue.span && next.includes(issue.span)) {
+      next = next.replace(new RegExp(ARITH_RE.source, "i"), issue.repair);
+    } else if ((issue.kind === "identity" || issue.kind === "wording") && issue.span && next.includes(issue.span)) {
       next = next.replace(issue.span, issue.repair);
-    } else if (issue.kind === "identity") {
+    } else if (issue.kind === "identity" || issue.kind === "wording") {
       continue;
     } else if (!next.includes(issue.repair)) {
       next = `${next.trim()}\n\n${issue.repair}`;
