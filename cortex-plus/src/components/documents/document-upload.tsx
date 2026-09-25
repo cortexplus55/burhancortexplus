@@ -18,6 +18,8 @@ const ALLOWED = [
   "image/jpeg",
   "image/png",
   "image/webp",
+  "image/heic",
+  "image/heif",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "text/plain",
@@ -48,7 +50,8 @@ export function DocumentUpload({
     event.preventDefault();
     if (!file) return;
 
-    if (!ALLOWED.includes(file.type)) {
+    const extensionOk = /\.(heic|heif|jpe?g|png|webp)$/i.test(file.name);
+    if (!ALLOWED.includes(file.type) && !extensionOk) {
       toast.error("Desteklenmeyen dosya türü.");
       return;
     }
@@ -147,7 +150,7 @@ export function DocumentUpload({
           <Input
             id="document-file"
             type="file"
-            accept=".pdf,.txt,.png,.jpg,.jpeg,.webp,.docx,.pptx"
+            accept=".pdf,.txt,.png,.jpg,.jpeg,.webp,.heic,.heif,.docx,.pptx,image/heic,image/heif"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             required
             className={

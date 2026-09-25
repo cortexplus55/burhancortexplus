@@ -7309,6 +7309,24 @@
   background: var(--cp-surface-2);
   color: var(--cp-muted);
 }
+.cp-topic-warning,
+.apw-topic-warning {
+  display: block;
+  margin-top: 0.35rem;
+  color: #b45309;
+  font-size: 0.85rem;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+.cp-exam-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  align-items: center;
+}
+
 .cp-exam-materials {
   list-style: none;
   margin: 1.25rem 0 0;

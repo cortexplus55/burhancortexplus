@@ -86,4 +86,7 @@ export const PREP_HOME_COPY = {
   skillPractice: "Bu konudaki alıştırmalar çalışma yolundaki düğümlerde.",
   materialsEmpty: "Bu hazırlığa bağlı belge yok. Belge eklersen dersler ona dayanır.",
   noTopics: "Konular kurulunca liste burada görünür.",
+  addFile: "Dosya ekle",
+  challenge: "Zor sorular",
+  challengeLead: "Kaynaklarından daha zor uygulama soruları. İlerleme ve hazırlık puanı durur.",
 } as const;

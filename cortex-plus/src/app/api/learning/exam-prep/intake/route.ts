@@ -9,7 +9,15 @@ import { buildExamPlan, daysUntilExam } from "@/lib/learning/exam-prep-plan";
 import { refoldTopicMapIfNeeded } from "@/lib/documents/pdf-learning-v2";
 import { documentTitle } from "@/lib/documents/topic-title";
 import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
-import { mergeTopicDrafts, PREP_TOPIC_CAP } from "@/lib/learning/prep-topic-list";
+import { PREP_TOPIC_CAP } from "@/lib/learning/prep-topic-list";
+import {
+  contradictionsByTopicTitle,
+  readContradictionDocuments,
+} from "@/lib/learning/prep-contradiction-read";
+import { orderTopicsForPath } from "@/lib/learning/topic-order";
+import { remapPrerequisites, mergeTopicGroups, type MergeTopicInput } from "@/lib/learning/topic-merge";
+import { resolveAmbiguousMerges } from "@/lib/learning/topic-merge-model";
+import { formatContradictions } from "@/lib/learning/source-contradictions";
 
 const bodySchema = z.object({
   messages: z
@@ -61,7 +69,7 @@ async function resolveTopicSuggestions(
   documentId: string | undefined,
   v2: boolean,
 ) {
-  let topicSuggestions: { id: string; title: string; pages: number[] }[] = [];
+  let topicSuggestions: MergeTopicInput[] = [];
   let intakeMode: "legacy" | "v2" = "legacy";
   if (!v2 || !documentId) return { topicSuggestions, intakeMode };
 
@@ -74,15 +82,22 @@ async function resolveTopicSuggestions(
   if (doc?.topic_map_status === "ready" || doc?.topic_map_status === "reviewed") {
     const { data: nodes } = await service
       .from("document_topic_nodes")
-      .select("id, title, parent_id, sort_order")
+      .select("id, title, parent_id, sort_order, prerequisites")
       .eq("document_id", doc.id)
       .order("sort_order");
+    const nodeRows = nodes ?? [];
     const mains = pickMainTopics(
-      (nodes ?? []).map((n) => ({
+      nodeRows.map((n) => ({
         id: n.id as string,
         title: n.title as string,
         parentId: (n.parent_id as string | null) ?? null,
       })),
+    );
+    const prereqById = new Map(
+      nodeRows.map((node) => [
+        node.id as string,
+        Array.isArray(node.prerequisites) ? (node.prerequisites as string[]) : [],
+      ]),
     );
     // Konunun hangi sayfalara dayandığı. Referans ürünün konu kartında "1 kaynak"
     // yazıyor; bizde belge zaten tek, o yüzden sayı değil SAYFA
@@ -98,10 +113,19 @@ async function resolveTopicSuggestions(
       list.push(link.page_number as number);
       pagesByTopic.set(link.topic_id as string, list);
     }
+    const { data: docName } = await service
+      .from("documents")
+      .select("file_name")
+      .eq("id", doc.id)
+      .maybeSingle();
+    const fileName = (docName?.file_name as string | null) ?? "";
     topicSuggestions = mains.map((n) => ({
       id: n.id,
       title: n.title,
       pages: [...new Set(pagesByTopic.get(n.id) ?? [])].sort((a, b) => a - b),
+      documentId,
+      fileName,
+      prerequisites: prereqById.get(n.id) ?? [],
     }));
     if (topicSuggestions.length) intakeMode = "v2";
   }
@@ -167,14 +191,46 @@ export async function POST(request: Request) {
       await refoldTopicMapIfNeeded(service, documentId);
     }
   }
-  const groups: { id: string; title: string; pages: number[] }[][] = [];
+  const groups: MergeTopicInput[][] = [];
   let intakeMode: "legacy" | "v2" = "legacy";
   for (const documentId of documentIds.length ? documentIds : [parsed.data.documentId]) {
     const resolved = await resolveTopicSuggestions(service, userId, documentId, v2);
     if (resolved.intakeMode === "v2") intakeMode = "v2";
     groups.push(resolved.topicSuggestions);
   }
-  const merged = mergeTopicDrafts(groups);
+  const firstPass = mergeTopicGroups(groups);
+  let mergedTopics = remapPrerequisites(firstPass.topics);
+  if (firstPass.ambiguous.length) {
+    try {
+      mergedTopics = remapPrerequisites(
+        await resolveAmbiguousMerges(service, userId, mergedTopics, firstPass.ambiguous),
+      );
+    } catch {
+      // Model yoksa iki başlık ayrı kalır. Konu düşmez.
+    }
+  }
+  mergedTopics = orderTopicsForPath(mergedTopics, { manualOrder: false }).slice(0, PREP_TOPIC_CAP);
+  const merged = {
+    topics: mergedTopics.map((topic) => topic.title),
+    topicPages: mergedTopics.map((topic) => topic.pages),
+    topicFiles: mergedTopics.map((topic) =>
+      [...new Set(topic.sources.map((source) => source.fileName).filter(Boolean))],
+    ),
+  };
+  const contradictionDocs = await readContradictionDocuments(service, documentIds).catch(() => []);
+  const contradictionMap = contradictionsByTopicTitle(
+    mergedTopics.map((topic) => ({
+      title: topic.title,
+      sources: topic.sources.map((source) => ({
+        documentId: source.documentId,
+        pages: source.pages,
+      })),
+    })),
+    contradictionDocs,
+  );
+  const topicWarnings = mergedTopics.map((topic) =>
+    formatContradictions(contradictionMap.get(topic.title) ?? []),
+  );
   const topicSuggestions = groups.flat().filter(
     (topic, index, all) => all.findIndex((item) => item.id === topic.id) === index,
   );
@@ -200,6 +256,8 @@ export async function POST(request: Request) {
             topicPages: merged.topicPages
               .slice(0, PREP_TOPIC_CAP)
               .map((pages) => pages.slice(0, 6)),
+            topicFiles: merged.topicFiles.slice(0, PREP_TOPIC_CAP),
+            topicWarnings: topicWarnings.slice(0, PREP_TOPIC_CAP),
           }
         : null,
     });

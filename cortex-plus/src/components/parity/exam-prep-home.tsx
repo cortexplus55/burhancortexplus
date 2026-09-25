@@ -26,6 +26,7 @@ import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
 import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
+import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
 import {
   ExamPrepSettingsPanel,
   type PrepSettingsInitial,
@@ -101,6 +102,7 @@ export function ExamPrepHome({
   topicLabels = [],
   materials = [],
   readinessClaim = null,
+  topicWarnings = {},
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -137,6 +139,8 @@ export function ExamPrepHome({
   materials?: PrepMaterial[];
   /** Ölçülen veri hazır diyorsa true. Bilinmiyorsa null; uydurma yok. */
   readinessClaim?: boolean | null;
+  /** Konu başlığı → kaynaklar çelişiyorsa Türkçe uyarı. */
+  topicWarnings?: Record<string, string>;
 }) {
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
@@ -320,6 +324,9 @@ export function ExamPrepHome({
           >
             Bu sınav için sor
           </Link>
+          <Link href={`/deneme-sinavlari/${prepId}/zor-sorular`} className="cp-back-pill">
+            {PREP_HOME_COPY.challenge}
+          </Link>
           <Link href={examPrepReviewsHref(prepId)} className="cp-back-pill">
             Yanlışlar
             {openMisconceptions > 0 ? ` (${openMisconceptions})` : ""}
@@ -498,11 +505,23 @@ export function ExamPrepHome({
           prepId={prepId}
           labels={topicLabels.length ? topicLabels : topicRows.map((row) => row.title)}
           rows={topicRows}
+          warnings={topicWarnings}
         />
       ) : null}
 
       {view === "materyaller" ? (
-        <MaterialsList materials={materials} />
+        <>
+          <MaterialsList materials={materials} />
+          <PrepMaterialAdder prepId={prepId} count={materials.length} />
+        </>
+      ) : null}
+
+      {view === "yol" && !uiV2 ? (
+        <p>
+          <Link href={`/deneme-sinavlari/${prepId}/zor-sorular`} className="cp-back-pill">
+            {PREP_HOME_COPY.challenge}
+          </Link>
+        </p>
       ) : null}
 
       {view === "yol" && !nodes.length ? (
@@ -641,10 +660,12 @@ function TopicList({
   prepId,
   labels,
   rows,
+  warnings,
 }: {
   prepId: string;
   labels: string[];
   rows: { title: string; pct: number; done: number; total: number }[];
+  warnings: Record<string, string>;
 }) {
   if (!labels.length) {
     return <p className="text-sm text-[var(--cp-muted)]">{PREP_HOME_COPY.noTopics}</p>;
@@ -671,6 +692,9 @@ function TopicList({
                     ? `${row.done} / ${row.total} etkinlik`
                     : PREP_HOME_COPY.noPractice}
                 </span>
+                {warnings[label] ? (
+                  <span className="cp-topic-warning">{warnings[label]}</span>
+                ) : null}
               </Link>
             </li>
           );

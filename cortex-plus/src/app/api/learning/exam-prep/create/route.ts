@@ -16,9 +16,17 @@ import {
 } from "@/lib/learning/exam-schedule-v2";
 import { applyStudentTopicList } from "@/lib/learning/apply-prep-topics";
 import { groundPrepTopics } from "@/lib/learning/ground-prep-topics";
+import { missingColumn } from "@/lib/learning/missing-column";
+import {
+  contradictionsByTopicTitle,
+  readContradictionDocuments,
+} from "@/lib/learning/prep-contradiction-read";
 import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
 import { PREP_TOPIC_CAP } from "@/lib/learning/prep-topic-list";
 import { loadScheduleTopics } from "@/lib/learning/prep-schedule-topics";
+import type { TopicContradiction } from "@/lib/learning/source-contradictions";
+import type { TopicSourceRef } from "@/lib/learning/topic-merge";
+import { orderTopicsForPath } from "@/lib/learning/topic-order";
 
 const prefsSchema = z
   .object({
@@ -45,6 +53,8 @@ const bodySchema = z.object({
   studyDays: z.array(z.number().int().min(1).max(7)).max(7).optional(),
   hardTopics: z.array(z.string().min(1).max(120)).max(PREP_TOPIC_CAP).optional(),
   learningPreferences: prefsSchema,
+  /** Öğrenci konu oklarıyla sırayı değiştirdiyse otomatik önkoşul sırası yazılmaz. */
+  topicOrderManual: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -91,9 +101,17 @@ export async function POST(request: Request) {
           hardTopics: parsed.data.hardTopics ?? [],
         });
         if (applied.titles.length) {
-          topics = applied.titles;
-          topicNodeIds = applied.nodeIds;
-          scheduleTopics = applied.scheduleTopics;
+          const paired = applied.scheduleTopics.map((topic, index) => ({
+            ...topic,
+            title: applied.titles[index] ?? topic.title,
+            nodeId: applied.nodeIds[index],
+          }));
+          const ordered = orderTopicsForPath(paired, {
+            manualOrder: parsed.data.topicOrderManual === true,
+          });
+          topics = ordered.map((topic) => topic.title);
+          topicNodeIds = ordered.map((topic) => topic.nodeId ?? null);
+          scheduleTopics = ordered;
         }
       }
     }
@@ -188,6 +206,27 @@ export async function POST(request: Request) {
       .eq("user_id", userId);
   }
 
+  const orderWrite = await service
+    .from("exam_preps")
+    .update({ topic_order_manual: parsed.data.topicOrderManual === true })
+    .eq("id", result.prepId)
+    .eq("user_id", userId);
+  if (orderWrite.error && !missingColumn(orderWrite.error)) {
+    console.error("topic order flag", orderWrite.error.message);
+  }
+
+  const contradictionDocs = await readContradictionDocuments(service, documentIds).catch(() => []);
+  const contradictionMap = contradictionsByTopicTitle(
+    scheduleTopics.map((topic) => ({
+      title: topic.title,
+      sources: (topic.sourceRefs ?? []).map((source) => ({
+        documentId: source.documentId,
+        pages: source.pages,
+      })),
+    })),
+    contradictionDocs,
+  );
+
   if (scheduleSummary) {
     const { data: nodeRows } = await service
       .from("exam_prep_nodes")
@@ -224,6 +263,18 @@ export async function POST(request: Request) {
         diagnostic_status: "unmeasured",
       })
       .eq("id", topic.id);
+    const schedule = scheduleTopics[topic.sort_order as number];
+    const extras: {
+      source_refs?: TopicSourceRef[];
+      contradictions?: TopicContradiction[];
+    } = {
+      source_refs: schedule?.sourceRefs ?? [],
+      contradictions: contradictionMap.get(String(topic.label)) ?? [],
+    };
+    const extraWrite = await service.from("exam_prep_topics").update(extras).eq("id", topic.id);
+    if (extraWrite.error && !missingColumn(extraWrite.error)) {
+      console.error("topic sources", extraWrite.error.message);
+    }
   }
 
   return NextResponse.json({

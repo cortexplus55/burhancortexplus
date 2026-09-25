@@ -32,9 +32,44 @@ import {
 } from "@/lib/learning/learning-tracking";
 import { parseLearningPreferences } from "@/lib/learning/exam-prep-ui-path";
 import { materialKindLabel, prepSourceDocumentIds } from "@/lib/learning/prep-source";
+import {
+  formatContradictions,
+  type TopicContradiction,
+} from "@/lib/learning/source-contradictions";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const metadata = { title: "Sınav hazırlığı" };
 export const dynamic = "force-dynamic";
+
+async function loadTopicWarnings(
+  supabase: SupabaseClient,
+  prepId: string,
+): Promise<Record<string, string>> {
+  const { data, error } = await supabase
+    .from("exam_prep_topics")
+    .select("label, contradictions")
+    .eq("exam_prep_id", prepId);
+  if (error || !data) return {};
+  const warnings: Record<string, string> = {};
+  for (const row of data as { label?: string; contradictions?: unknown }[]) {
+    const label = String(row.label ?? "").trim();
+    const items = Array.isArray(row.contradictions)
+      ? row.contradictions.flatMap((item) => {
+          if (!item || typeof item !== "object") return [];
+          const concept = String((item as TopicContradiction).concept ?? "").trim();
+          const claims = Array.isArray((item as TopicContradiction).claims)
+            ? (item as TopicContradiction).claims.filter(
+                (claim) => claim && typeof claim.value === "string",
+              )
+            : [];
+          return concept && claims.length ? [{ concept, claims }] : [];
+        })
+      : [];
+    const text = formatContradictions(items);
+    if (label && text) warnings[label] = text;
+  }
+  return warnings;
+}
 
 export default async function ExamPrepDetailPage({
   params,
@@ -340,6 +375,7 @@ export default async function ExamPrepDetailPage({
         topicLabels={prepTopics.map((topic) => topic.label)}
         materials={materials}
         readinessClaim={learningTrackingView?.claimFullyReady ?? null}
+        topicWarnings={await loadTopicWarnings(supabase, prepId)}
       />
     </ParitySorShell>
   );

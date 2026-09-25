@@ -1120,6 +1120,12 @@
   padding-left: 0.3rem;
 }
 
+.apw-topic-field em.apw-topic-warning {
+  color: #b45309;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
 /* --- Başlangıç adımı: materyalin var mı? --- */
 
 .apw-picks {
