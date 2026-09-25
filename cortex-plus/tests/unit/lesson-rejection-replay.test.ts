@@ -231,6 +231,7 @@ vi.mock("@/lib/env", () => ({
   env: {
     OPENAI_API_KEY: "test-key",
     OPENAI_STANDARD_MODEL: "std",
+    OPENAI_LESSON_MODEL: "gpt-4.1-mini",
     OPENAI_ADVANCED_MODEL: "adv",
   },
 }));
@@ -971,6 +972,132 @@ describe("exam-prep lesson route", () => {
     expect(report?.succeeded).toEqual(
       expect.arrayContaining(["source_contradiction", "stem_grammar", "check_count", "example_incomplete", "vacuous", "diagram_missing"]),
     );
+  });
+
+  it("publishes the ideal-gas lesson with three checks, a clean summary and no unfinished example", async () => {
+    const topic = "İdeal Gazlarda Enerji Değişimi";
+    routeTopic = topic;
+    const teacherOnly = "Akış işi entalpiyi açık sistemde doğal biçimde ortaya çıkarır.";
+    const incomplete =
+      "Örnek: 1 kg hava, 300 K’den 400 K’ye ısıtıldığında, W hesaplanarak ve Q = ΔU + W denklemi ile toplam ısı miktarı bulunur.";
+    const body = [
+      "İdeal gazda sabit hacimde iç enerji değişimi ΔU = m c_v ΔT bağıntısıyla hesaplanır.",
+      "Sabit basınçta entalpi değişimi ΔH = m c_p ΔT bağıntısıyla hesaplanır.",
+      "Özgül entalpi h = u + Pv bağıntısıyla yazılır.",
+      "Sınır işi W = P(V₂ − V₁) bağıntısıyla bulunur.",
+      "Birinci yasa Q = ΔU + W şeklinde yazılır.",
+    ].join(" ");
+    routePageText = [
+      `${topic} konusunda ideal gazın enerjisi anlatılır.`,
+      body,
+      "Özgül ısılar arasındaki fark c_p − c_v = R bağıntısına eşittir ve k = c_p / c_v olarak yazılır.",
+      "c_v = 0.718 kJ/kg·K.",
+      "2 kg hava 300 K sıcaklıktan 450 K sıcaklığa ısıtılır ve ΔU = 215.4 kJ olur.",
+      "400 K için de aynı sabit kullanılır.",
+      teacherOnly,
+      "İdeal gazlar, sıcaklık ve basınç gibi parametrelerle belirlenen sistemlerdir.",
+      "Kapalı sistem: İdeal gaz enerji: Δu=c v ΔT, Δh=c p ΔT",
+      "İç Enerji, Entalpi ve Özgül Isılar",
+      "u ve h değişimlerini sıcaklıkla bağlayan temel malzeme bağıntılarını öğren: H = U + PV, özgül olarak h = u + Pv",
+      "Entalpi özellikle akışlı sistemlerde doğal biçimde ortaya çıkar çünkü",
+    ].join("\n");
+    const bad = {
+      title: topic,
+      overview: "İdeal gazda sabit hacimde iç enerji değişimi ΔU = m c_v ΔT bağıntısıyla hesaplanır.",
+      sections: [
+        {
+          heading: "İç enerji",
+          body: `${body} ${incomplete}`,
+          check: {
+            type: "mcq",
+            prompt: "İdeal gazda iç enerji değişimi ΔU nasıl hesaplanır?",
+            options: ["ΔU = m c_v ΔT", "ΔU = m c_p ΔT", "ΔU = mRT", "ΔU = PV"],
+            answerIndex: 0,
+            explanation: "Sabit hacimde iç enerji değişimi ΔU = m c_v ΔT bağıntısıyla hesaplanır.",
+          },
+        },
+      ],
+      example: {
+        prompt: "2 kg hava 300 K sıcaklıktan 450 K sıcaklığa sabit hacimde ısıtılıyor. İç enerji değişimi nedir?",
+        solution: "ΔU = 2 × 0.718 × (450 − 300) = 215.4 kJ",
+      },
+      commonMistake: {
+        claim: "İç enerji hem sıcaklığa hem hacme her zaman bağlıdır.",
+        correction: "İdeal gazda iç enerji değişimi sıcaklığa bağlıdır ve ΔU = m c_v ΔT bağıntısıyla yazılır.",
+      },
+      summary: [
+        "İdeal gazlar, sıcaklık ve basınç gibi parametrelerle belirlenen sistemlerdir.",
+        "Kapalı sistem: İdeal gaz enerji: Δu=c v ΔT, Δh=c p ΔT",
+        "İç Enerji, Entalpi ve Özgül Isılar",
+        "u ve h değişimlerini sıcaklıkla bağlayan temel malzeme bağıntılarını öğren: H = U + PV, özgül olarak h = u + Pv",
+        "Entalpi özellikle akışlı sistemlerde doğal biçimde ortaya çıkar çünkü",
+      ],
+    };
+    const raw = JSON.stringify(bad);
+    pipelineMocks.create.mockImplementation(async (args: { model?: string; messages?: { content?: unknown }[] }) => {
+      const messages = args?.messages ?? [];
+      const blob = messages.map((message) => String(message.content ?? "")).join("\n");
+      if (blob.includes("İddiaları kaynağa karşı denetle")) return completion(JSON.stringify({ bad: [] }));
+      if (blob.includes("Yalnızca bozuk parçaları")) return completion(JSON.stringify({}));
+      const system = String(messages[0]?.content ?? "");
+      if (system.includes("denetçisisin")) return completion(JSON.stringify({ approved: true, issues: [] }));
+      if (system.includes("sorunları düzelt")) return completion(JSON.stringify({ content: raw }));
+      return completion(raw);
+    });
+    const service = supabase();
+    pipelineMocks.guard.mockResolvedValue({ ok: true, ctx: { userId: "student-1", service } });
+
+    const response = await POST(
+      new Request("https://cortexplus.app/api/learning/exam-prep/node", {
+        method: "POST",
+        body: JSON.stringify({
+          prepId: PREP,
+          nodeId: NODE,
+          clientRequestId: REQ,
+          action: "start",
+        }),
+      }),
+    );
+    const payload = await response.json();
+    expect(response.status, JSON.stringify(payload)).toBe(200);
+    const lesson = payload.payload.lesson as {
+      sections: { check?: { prompt: string } }[];
+      summary?: string[];
+      example?: { solution: string };
+      commonMistake?: { correction: string };
+    };
+    expect(lesson.sections.filter((section) => section.check).length).toBeGreaterThanOrEqual(3);
+    const published = JSON.stringify(lesson);
+    expect(published).not.toContain("belirlenen sistemlerdir");
+    expect(published).not.toContain("Kapalı sistem: İdeal gaz enerji:");
+    expect(published).not.toContain("İç Enerji, Entalpi ve Özgül Isılar");
+    expect(published).not.toMatch(/\böğren\b/i);
+    expect(published).not.toContain("ortaya çıkar çünkü");
+    expect(published).not.toContain(teacherOnly);
+    expect(published).not.toContain("1 kg hava");
+    expect(published).not.toContain("hesaplanarak");
+    expect(published).toMatch(/2\s*[×x]\s*0[.,]718/);
+    expect(published).toContain("215.4");
+    expect(published).toMatch(/c_v = 0[.,]718 kJ\/kg·K/);
+    expect(published).toMatch(/c_p\s*[−-]\s*c_v\s*=\s*R/);
+    expect(lesson.summary?.length).toBeGreaterThanOrEqual(3);
+    expect(lesson.commonMistake?.correction).toMatch(/c_v/);
+    expect(pipelineMocks.reserve).toHaveBeenCalledTimes(1);
+    const reserveArgs = pipelineMocks.reserve.mock.calls[0] as unknown[] | undefined;
+    expect(reserveArgs?.[2]).toBe("STUDY_PLAN_GENERATE");
+    expect(pipelineMocks.commit).toHaveBeenCalledTimes(1);
+    expect(pipelineMocks.refund).not.toHaveBeenCalled();
+    const draftCall = pipelineMocks.create.mock.calls.find((call) => {
+      const blob = JSON.stringify(call[0]?.messages ?? []);
+      return blob.includes("Bu konunun dersini yaz");
+    });
+    expect(draftCall?.[0]?.model).toBe("gpt-4.1-mini");
+    const repairCalls = pipelineMocks.create.mock.calls.filter((call) => {
+      const blob = JSON.stringify(call[0]?.messages ?? []);
+      return blob.includes("İddiaları kaynağa karşı denetle") || blob.includes("Yalnızca bozuk parçaları");
+    });
+    expect(repairCalls.length).toBeGreaterThanOrEqual(1);
+    expect(repairCalls.every((call) => call[0]?.model === "std")).toBe(true);
   });
 });
 

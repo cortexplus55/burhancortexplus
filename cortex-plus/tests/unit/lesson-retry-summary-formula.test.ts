@@ -140,7 +140,7 @@ describe("summary ignores the formula index", () => {
     const grounded = groundLearnerLesson(
       {
         title: "Doymuş Su Tabloları ve Kalite",
-        sections: [{ heading: "Kalite", body: "İki fazlı karışımda kalite buhar kütle oranıdır." }],
+        sections: [{ heading: "Kalite", body: QUALITY_BODY }],
         summary: [LIVE_FORMULA_INDEX, "Doymuş Su Tabloları ve Kalite konusunu anlayarak uygulayabilmek."],
       },
       QUALITY_BODY,

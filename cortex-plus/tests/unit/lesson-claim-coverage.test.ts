@@ -110,7 +110,7 @@ const goodPatch = {
       heading: "Entalpi ve özgül ısı",
       body:
         "Entalpi h = u + Pv bağıntısıyla yazılır. İdeal gazda özgül ısılar Δu = c_v ΔT ve Δh = c_p ΔT bağıntılarıyla bulunur. " +
-        "Özgül ısılar arasındaki fark c_p − c_v = R bağıntısına eşittir.",
+        "Özgül ısılar arasındaki fark c_p − c_v = R bağıntısına eşittir ve k = c_p / c_v olarak yazılır.",
       check: check(
         "Entalpi iç enerji ile akış işinin toplamı mıdır?",
         "Entalpi h = u + Pv bağıntısıyla yazılır.",
@@ -252,7 +252,7 @@ describe("iç enerji lesson claims", () => {
   it("verifies a clean lesson once and does not repair it", async () => {
     const lesson = energyLesson();
     lesson.sections[0].body =
-      "Kapalı sistemde toplam enerji E = U + KE + PE bağıntısıyla yazılır. Entalpi h = u + Pv bağıntısıyla yazılır. Özgül ısılar Δu = c_v ΔT bağıntısıyla bulunur.";
+      "Kapalı sistemde toplam enerji E = U + KE + PE bağıntısıyla yazılır. Entalpi h = u + Pv bağıntısıyla yazılır. Özgül ısılar Δu = c_v ΔT bağıntısıyla bulunur. Özgül ısılar arasındaki fark c_p − c_v = R bağıntısına eşittir ve k = c_p / c_v olarak yazılır.";
     lesson.example = {
       prompt: "Rijit bir tank 30 kJ ısı alıyorsa ve iş etkileşimi yoksa iç enerji değişimi nedir?",
       solution: "Veri: Q = 30 kJ ve W = 0. ΔU = Q − W = 30 kJ − 0 = 30 kJ olur.",

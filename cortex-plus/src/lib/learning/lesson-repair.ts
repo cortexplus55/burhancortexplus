@@ -15,7 +15,7 @@ import {
   summaryQuantityMismatch,
 } from "@/lib/learning/lesson-claims";
 import { diagramIssues, lessonDiagramSchema, needsDiagram } from "@/lib/learning/lesson-diagram";
-import { groundLearnerLesson, summaryLineProblem } from "@/lib/learning/lesson-grounding";
+import { groundLearnerLesson, normalizeSummaryText, summaryLineProblem } from "@/lib/learning/lesson-grounding";
 import type { LessonDiagram } from "@/lib/learning/lesson-diagram";
 import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
 
@@ -139,15 +139,60 @@ function examplePool(lesson: LessonV2): string {
   return `${lesson.example?.prompt ?? ""}\n${lesson.example?.solution ?? ""}`;
 }
 
-function usableSummaryLine(text: string, source: string, example = ""): boolean {
-  const cleaned = alignBounds(text.trim(), source);
-  if (cleaned.length < 8 || cleaned.length > 240) return false;
-  if (summaryLineProblem(cleaned) || vacuousSentence(cleaned)) return false;
-  if (cleaned.includes("|") || foldTr(cleaned).includes("bu sayfadaki formuller")) return false;
-  if (/[=+×*/\-−]\s*$/.test(cleaned)) return false;
-  if (contradictorySentences(cleaned, source).length || placeholderWork(cleaned)) return false;
-  if (summaryQuantityMismatch(cleaned, example, source)) return false;
-  return true;
+/**
+ * "Örnek:" bloğu ya da hesaplanıp bulunur denilen senaryo,
+ * yerine koyma ve sonuç taşımıyorsa örnek değildir.
+ */
+export function isIncompleteExample(text: string): boolean {
+  if (!text.trim() || exampleIsComplete(text)) return false;
+  const folded = foldTr(text);
+  if (/\bornek\s*:/.test(folded)) return true;
+  return /hesaplanarak/.test(folded) && /\d/.test(text) && /\bbulunur\b/.test(folded);
+}
+
+function workedCalculation(text: string): boolean {
+  return (
+    /\d+(?:[.,]\d+)?(?:\s*[A-Za-z°µ/%³²]+)?\s*[/×*·+\-−]\s*\d/.test(text) &&
+    /=\s*\d/.test(text)
+  );
+}
+
+/** Kaynak sabiti birimiyle duruyorsa örnekte de birimiyle durur. */
+function withConstantUnits(text: string, source: string): string {
+  const normalizedSource = source.replace(/\bc\s*_?\s*([vp])\b/gi, "c_$1");
+  let next = text;
+  for (const symbol of ["c_v", "c_p"] as const) {
+    const match = normalizedSource.match(
+      new RegExp(`${symbol}\\s*=\\s*(\\d+(?:[.,]\\d+)?)\\s*kJ\\s*/\\s*kg\\s*[·.]?\\s*K`, "i"),
+    );
+    if (!match) continue;
+    const value = match[1].replace(",", ".");
+    const comma = value.replace(".", ",");
+    if (!next.includes(value) && !next.includes(comma)) continue;
+    if (new RegExp(`${symbol}\\s*=\\s*${value.replace(".", "[.,]")}\\s*kJ\\s*/\\s*kg`, "i").test(next)) {
+      continue;
+    }
+    next = `${next.replace(/[.\s]+$/g, "")}. ${symbol} = ${value} kJ/kg·K.`;
+  }
+  return next.replace(/\s+/g, " ").trim();
+}
+
+/** Özet satırı kabul ediliyorsa alt simgeleri ve kapanış noktasını da taşır. */
+function acceptSummaryLine(text: string, source: string, example = ""): string | null {
+  let cleaned = alignBounds(normalizeSummaryText(text.trim()), source);
+  if (cleaned.length < 8 || cleaned.length > 240) return null;
+  if (summaryLineProblem(cleaned) || vacuousSentence(cleaned)) return null;
+  if (cleaned.includes("|") || foldTr(cleaned).includes("bu sayfadaki formuller")) return null;
+  if (/[=+×*/\-−]\s*$/.test(cleaned)) return null;
+  if (contradictorySentences(cleaned, source).length || placeholderWork(cleaned)) return null;
+  if (ambiguousEnergyClaim(cleaned, source) || overgeneralCorrection(cleaned, source)) return null;
+  if (summaryQuantityMismatch(cleaned, example, source)) return null;
+  if (isIncompleteExample(cleaned) || workedCalculation(cleaned)) return null;
+  if (!/[.!?]\s*$/.test(cleaned) && !/[=≤≥]/.test(cleaned)) {
+    cleaned = `${cleaned}.`;
+    if (cleaned.length > 240) return null;
+  }
+  return cleaned;
 }
 
 function alignBounds(text: string, source: string): string {
@@ -199,10 +244,12 @@ export function auditLearnerLesson(
   }
   const exampleText = examplePool(lesson);
   const sectionExample = lesson.sections.map((section) => section.body).join("\n");
+  const incompleteInSection = sentencesOf(sectionExample).some((sentence) => isIncompleteExample(sentence));
   if (
     (lesson.example && !exampleIsComplete(exampleText)) ||
     restatedResult(exampleText) ||
     restatedResult(sectionExample) ||
+    incompleteInSection ||
     placeholderWork(sectionExample) ||
     (/veri\s*:/i.test(sectionExample) && /ad[ıi]m\s*\d+/i.test(sectionExample) && !exampleIsComplete(sectionExample))
   ) {
@@ -236,7 +283,7 @@ export function auditLearnerLesson(
     issues.push({ code: "coverage_gap", detail: concept });
   }
   const summary = lesson.summary ?? [];
-  const weak = summary.filter((line) => !usableSummaryLine(line, input.source, exampleText));
+  const weak = summary.filter((line) => !acceptSummaryLine(line, input.source, exampleText));
   if (weak.length || summary.length < 3 || summary.length > 5) {
     issues.push({ code: "summary_weak", detail: String(weak.length || summary.length) });
   }
@@ -257,16 +304,17 @@ function quoteHits(sentence: string, quotes: string[]): boolean {
 }
 
 function cleanSentences(text: string, source: string, quotes: string[] = []): string {
-  const kept = sentencesOf(text).filter((sentence) => {
-    if (contradictorySentences(sentence, source).length) return false;
-    if (vacuousSentence(sentence)) return false;
-    if (placeholderWork(sentence) || restatedResult(sentence)) return false;
-    if (ambiguousEnergyClaim(sentence, source) || overgeneralCorrection(sentence, source)) return false;
-    if (quoteHits(sentence, quotes)) return false;
+  const kept = sentencesOf(text).flatMap((sentence) => {
+    if (contradictorySentences(sentence, source).length) return [];
+    if (vacuousSentence(sentence)) return [];
+    if (placeholderWork(sentence) || restatedResult(sentence) || isIncompleteExample(sentence)) return [];
+    if (ambiguousEnergyClaim(sentence, source) || overgeneralCorrection(sentence, source)) return [];
+    if (quoteHits(sentence, quotes)) return [];
     if (/veri\s*:/i.test(sentence) && /ad[ıi]m\s*\d+/i.test(sentence) && !exampleIsComplete(sentence)) {
-      return false;
+      return [];
     }
-    return true;
+    const polished = exampleIsComplete(sentence) ? withConstantUnits(sentence, source) : sentence;
+    return [polished];
   });
   return alignBounds(kept.join(" "), source).replace(/\s+/g, " ").trim();
 }
@@ -366,8 +414,8 @@ export function mergeLessonRepair(lesson: LessonV2, patch: unknown, source: stri
   if (Array.isArray(row.summary)) {
     const lines = row.summary
       .filter((item): item is string => typeof item === "string")
-      .map((item) => alignBounds(item.trim(), source))
-      .filter((item) => usableSummaryLine(item, source, examplePool(next)));
+      .map((item) => acceptSummaryLine(item, source, examplePool(next)))
+      .filter((item): item is string => Boolean(item));
     if (lines.length) next.summary = lines.slice(0, 5);
   }
   const diagram = validDiagram(row.diagram);
@@ -383,8 +431,8 @@ function filledSummary(lesson: LessonV2, source: string): string[] {
   const summary: string[] = [];
   const example = examplePool(lesson);
   for (const line of lesson.summary ?? []) {
-    const cleaned = alignBounds(line, source);
-    if (!usableSummaryLine(cleaned, source, example)) continue;
+    const cleaned = acceptSummaryLine(line, source, example);
+    if (!cleaned) continue;
     const key = foldTr(cleaned);
     if (seen.has(key)) continue;
     seen.add(key);
@@ -394,7 +442,7 @@ function filledSummary(lesson: LessonV2, source: string): string[] {
   for (const sentence of teachingSentences(lesson, source)) {
     if (summary.length >= 5) break;
     const key = foldTr(sentence);
-    if (seen.has(key) || !usableSummaryLine(sentence, source, example)) continue;
+    if (seen.has(key)) continue;
     seen.add(key);
     summary.push(sentence);
   }
@@ -402,17 +450,19 @@ function filledSummary(lesson: LessonV2, source: string): string[] {
 }
 
 function teachingSentences(lesson: LessonV2, source: string): string[] {
-  const pool = [lesson.overview ?? "", ...lesson.sections.map((section) => section.body), source];
+  const pool = [
+    lesson.overview ?? "",
+    ...lesson.sections.map((section) => section.body),
+    ...lesson.sections.map((section) => section.check?.explanation ?? ""),
+    lesson.example?.solution ?? "",
+  ];
   const seen = new Set<string>();
   const out: string[] = [];
+  const example = examplePool(lesson);
   for (const text of pool) {
     for (const sentence of sentencesOf(text)) {
-      const cleaned = alignBounds(sentence, source);
-      if (summaryLineProblem(cleaned) || vacuousSentence(cleaned)) continue;
-      if (contradictorySentences(cleaned, source).length) continue;
-      if (placeholderWork(cleaned) || restatedResult(cleaned)) continue;
-      if (ambiguousEnergyClaim(cleaned, source) || overgeneralCorrection(cleaned, source)) continue;
-      if (summaryQuantityMismatch(cleaned, examplePool(lesson), source)) continue;
+      const cleaned = acceptSummaryLine(sentence, source, example);
+      if (!cleaned) continue;
       const key = foldTr(cleaned);
       if (seen.has(key)) continue;
       seen.add(key);
@@ -423,7 +473,7 @@ function teachingSentences(lesson: LessonV2, source: string): string[] {
   return out;
 }
 
-/** Onarımdan sonra hâlâ bozuk olan parça düşer. Soru uydurulmaz. */
+/** Onarımdan sonra hâlâ bozuk olan parça düşer. Eksik soru ayrıca tamamlanır. */
 export function dropUnresolvedLesson(
   lesson: LessonV2,
   source: string,
@@ -449,6 +499,7 @@ export function dropUnresolvedLesson(
         (sentence) =>
           placeholderWork(sentence) ||
           restatedResult(sentence) ||
+          isIncompleteExample(sentence) ||
           (/veri\s*:/i.test(sentence) && /ad[ıi]m\s*\d+/i.test(sentence)),
       )
     ) {
@@ -477,10 +528,15 @@ export function dropUnresolvedLesson(
     return [{ ...section, body, check, diagram }];
   });
   const exampleText = `${next.example?.prompt ?? ""}\n${next.example?.solution ?? ""}`;
-  if (next.example && (!exampleIsComplete(exampleText) || restatedResult(exampleText))) {
+  if (next.example && (!exampleIsComplete(exampleText) || restatedResult(exampleText) || isIncompleteExample(exampleText))) {
     delete next.example;
     mark("example_incomplete");
-  } else if (strippedPlaceholder && !exampleIsComplete(exampleText)) {
+  } else if (next.example) {
+    next.example = {
+      prompt: next.example.prompt,
+      solution: withConstantUnits(next.example.solution, source),
+    };
+  } else if (strippedPlaceholder) {
     mark("example_incomplete");
   }
   if (next.commonMistake) {
@@ -495,7 +551,7 @@ export function dropUnresolvedLesson(
     }
   }
   const summary = filledSummary(next, source);
-  const previous = (lesson.summary ?? []).filter((line) => usableSummaryLine(line, source)).length;
+  const previous = (lesson.summary ?? []).filter((line) => acceptSummaryLine(line, source)).length;
   if (summary.length) next.summary = summary;
   else delete next.summary;
   if (summary.length < 3 && previous < 3) mark("summary_weak");
@@ -514,10 +570,11 @@ export function lessonRepairPrompt(
     "Yalnızca bozuk parçaları yeniden yaz. Dersin tamamını yazma.",
     "Kaynakta olmayan sayı, tanım ve formül uydurma. Türkçe, tam cümle.",
     "Her kontrol sorusunun kökü öznesi olan bitmiş bir cümle olsun.",
-    "Örnek ya tam olsun (verilen, yerine koyma, sayısal sonuç) ya da null.",
+    "Kontrol sorusu üçten azsa, dersteki bağıntılardan kaynakta duran sorular ekle. Üçten az soruyla bitirme.",
+    "Örnek ya tam olsun (verilen, yerine koyma, sayısal sonuç, sabitin birimi) ya da null. Her örnek bloğu için geçerli.",
+    "Özet 3 ile 5 bildiren cümle olsun. Her cümle nokta ile bitsin. Başlık, öğrenme hedefi, etiket zinciri, Soru:, Cevap: ve çünkü ile biten satır yazma.",
     "Tek cümlelik tekrar yazma. Verileni ve işlemi aynı sayıda göster: sonuç = bağıntı = verilen − sıfır.",
     "Adım 1 / Sonucu hesapla gibi yer tutucu yazma.",
-    "Özet 3 ile 5 madde olsun. Her madde bildiren bir cümle olsun. Soru:, Cevap: ve ?: yazma.",
     "Özetteki sayı, örneğin ve kaynağın sayısıyla aynı olsun.",
     "Sık yapılan hatanın doğrusu kaynak cümlesiyle desteklensin. Isı alımı da iç enerjiyi değiştirir. Destekleyemiyorsan commonMistake yazma.",
     "Başlıkta olup kaynakta duran her kavram bir bölümde geçsin. Kaynakta yoksa ekleme.",
@@ -560,6 +617,174 @@ const MODEL_CODES = new Set<LessonCheckCode>([
   "coverage_gap",
 ]);
 
+const RELATION_SENTENCE: { pattern: RegExp }[] = [
+  { pattern: /c_?p\s*[−–-]\s*c_?v\s*=\s*r/i },
+  { pattern: /k\s*=\s*c_?p\s*\/\s*c_?v/i },
+];
+
+/** Kaynak cümlesinde duran iki bağıntı derste yoksa o cümle eklenir. */
+function coverSourceRelations(lesson: LessonV2, source: string): LessonV2 {
+  let next = lesson;
+  const blob = () =>
+    [next.overview ?? "", ...next.sections.map((section) => section.body)].join("\n");
+  for (const relation of RELATION_SENTENCE) {
+    if (!relation.pattern.test(source) || relation.pattern.test(blob())) continue;
+    const sentence = sentencesOf(source).find((item) => relation.pattern.test(item));
+    if (!sentence || sentence.length < 20) continue;
+    const host = next.sections[next.sections.length - 1];
+    if (!host) continue;
+    const combined = `${host.body} ${sentence}`.replace(/\s+/g, " ").trim();
+    if (combined.length <= 2400) {
+      next = {
+        ...next,
+        sections: next.sections.map((section, index) =>
+          index === next.sections.length - 1 ? { ...section, body: combined } : section,
+        ),
+      };
+      continue;
+    }
+    if (next.sections.length >= 8) continue;
+    next = {
+      ...next,
+      sections: [...next.sections, { heading: "Özgül ısı bağıntısı", body: sentence.slice(0, 2400) }],
+    };
+  }
+  return next;
+}
+
+function symbolicEquations(sentence: string): string[] {
+  const normalized = sentence.replace(/\bc\s*_?\s*([vp])\b/gi, "c_$1");
+  const pattern =
+    /((?:Δ|δ)?[A-Za-z][A-Za-z0-9_]*(?:\s*[-−–]\s*(?:Δ|δ)?[A-Za-z][A-Za-z0-9_]*)?\s*=\s*[^,.;:\n]{1,80})/g;
+  const out: string[] = [];
+  for (const match of normalized.matchAll(pattern)) {
+    let equation = match[1].replace(/\s+/g, " ").trim();
+    equation = equation
+      .replace(
+        /\s+(?:ba[gğ]lant[ıi]\w*|şeklinde|seklinde|yazılır|yazilir|bulunur|hesaplanır|hesaplanir|ile|olarak|eşitliği|esitligi|eşitliğe|esitlige).*$/i,
+        "",
+      )
+      .replace(/[,\s]+$/g, "")
+      .trim();
+    if (equation.length < 5 || equation.length > 120) continue;
+    const right = equation.split("=").slice(1).join("=");
+    if (!/[A-Za-zΔδ]/.test(right)) continue;
+    out.push(equation);
+  }
+  return out;
+}
+
+function equationPrompt(equation: string): string {
+  const left = equation.split("=")[0]?.trim() || "Bu büyüklük";
+  let prompt = `${left} hangi bağıntıyla hesaplanır?`;
+  if (prompt.replace(/[?.!]/g, "").split(/\s+/).filter(Boolean).length < 4) {
+    prompt = `${left} büyüklüğü hangi bağıntıyla hesaplanır?`;
+  }
+  if (stemLacksSubject(prompt)) prompt = `${left} için doğru bağıntı hangisidir?`;
+  return prompt.slice(0, 300);
+}
+
+function heatSwap(equation: string): string | null {
+  if (!/c_[vp]/i.test(equation)) return null;
+  const swapped = equation.replace(/c_v/gi, "\u0000").replace(/c_p/gi, "c_v").replace(/\u0000/g, "c_p");
+  return foldTr(swapped) === foldTr(equation) ? null : swapped;
+}
+
+/**
+ * Model üçüncü soruyu yazmadıysa dersin kendi cümlelerinden kurulur.
+ * Yeni bir model çağrısı yok. Çeldirici, dersteki başka bağıntı ya da c_v/c_p değişimidir.
+ */
+export function ensureThreeChecks(lesson: LessonV2): LessonV2 {
+  const next: LessonV2 = {
+    ...lesson,
+    sections: lesson.sections.map((section) => ({ ...section })),
+  };
+  const used = new Set(
+    next.sections.map((section) => foldTr(section.check?.prompt ?? "")).filter(Boolean),
+  );
+  const pool = [next.overview ?? "", ...next.sections.map((section) => section.body)];
+  const equations: { equation: string; sentence: string }[] = [];
+  const seenEq = new Set<string>();
+  const statements: string[] = [];
+  for (const text of pool) {
+    for (const sentence of sentencesOf(text)) {
+      if (isIncompleteExample(sentence) || vacuousSentence(sentence)) continue;
+      if (sentence.length >= 24 && sentence.length <= 220 && !summaryLineProblem(sentence)) {
+        statements.push(sentence.replace(/\s+/g, " ").trim());
+      }
+      for (const equation of symbolicEquations(sentence)) {
+        const key = foldTr(equation).replace(/\s+/g, "");
+        if (seenEq.has(key)) continue;
+        seenEq.add(key);
+        equations.push({ equation, sentence });
+      }
+    }
+  }
+  const queue: SectionCheck[] = [];
+  const needed = () => checkCount(next) + queue.length < 3;
+  for (const item of equations) {
+    if (!needed()) break;
+    const prompt = equationPrompt(item.equation);
+    if (prompt.length < 12 || used.has(foldTr(prompt)) || stemLacksSubject(prompt)) continue;
+    const others = equations
+      .map((row) => row.equation)
+      .filter((equation) => foldTr(equation) !== foldTr(item.equation));
+    const options = [item.equation];
+    for (const other of others) {
+      if (options.length >= 3) break;
+      options.push(other);
+    }
+    const swapped = heatSwap(item.equation);
+    if (swapped && options.length < 4 && !options.some((option) => foldTr(option) === foldTr(swapped))) {
+      options.push(swapped);
+    }
+    if (options.length < 2) continue;
+    const explanation = item.sentence.length >= 12 ? item.sentence.slice(0, 580) : `${item.equation} dersin anlatımında verilir.`;
+    const check = validCheck({
+      type: "mcq",
+      prompt,
+      options,
+      answerIndex: 0,
+      explanation,
+    });
+    if (!check) continue;
+    used.add(foldTr(prompt));
+    queue.push(check);
+  }
+  for (const sentence of statements) {
+    if (!needed()) break;
+    const prompt = `${sentence.replace(/[.!?]+$/g, "")} Bu ifade doğru mudur?`.slice(0, 300);
+    if (prompt.length < 12 || used.has(foldTr(prompt)) || stemLacksSubject(prompt)) continue;
+    const check = validCheck({
+      type: "trueFalse",
+      prompt,
+      options: ["Doğru", "Yanlış"],
+      answerIndex: 0,
+      explanation: sentence.slice(0, 580),
+    });
+    if (!check) continue;
+    used.add(foldTr(prompt));
+    queue.push(check);
+  }
+  for (const section of next.sections) {
+    if (!queue.length) break;
+    if (section.check) continue;
+    section.check = queue.shift();
+  }
+  while (queue.length && checkCount(next) < 3 && next.sections.length < 8) {
+    const check = queue.shift();
+    if (!check) break;
+    const body = check.explanation.length >= 20 ? check.explanation : `${check.explanation} Bu bağıntı dersin anlatımındadır.`;
+    const heading = check.prompt.replace(/[?]/g, "").split(/\s+/).slice(0, 4).join(" ").slice(0, 80);
+    next.sections.push({
+      heading: heading.length >= 2 ? heading : "Bağıntı",
+      body: body.slice(0, 2400),
+      check,
+    });
+  }
+  return next;
+}
+
 export async function repairLearnerLesson(
   lesson: LessonV2,
   input: { source: string; topicLabel: string },
@@ -599,11 +824,14 @@ export async function repairLearnerLesson(
     }
   }
   const finalized = dropUnresolvedLesson(applyBoundFix(merged, input.source), input.source, quotes);
-  const remaining = new Set(auditLearnerLesson(finalized.lesson, input).map((issue) => issue.code));
+  const covered = ensureThreeChecks(coverSourceRelations(finalized.lesson, input.source));
+  const summary = filledSummary(covered, input.source);
+  const published = summary.length ? { ...covered, summary } : covered;
+  const remaining = new Set(auditLearnerLesson(published, input).map((issue) => issue.code));
   const removed = new Set(finalized.dropped);
   const succeeded = requested.filter((code) => !remaining.has(code) && !removed.has(code));
   const dropped = [...new Set([...finalized.dropped, ...remaining])];
-  return { lesson: finalized.lesson, requested, succeeded, dropped };
+  return { lesson: published, requested, succeeded, dropped };
 }
 
 function applyBoundFix(lesson: LessonV2, source: string): LessonV2 {
