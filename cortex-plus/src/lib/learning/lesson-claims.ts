@@ -125,6 +125,40 @@ export function ambiguousEnergyClaim(sentence: string, source: string): boolean 
   return false;
 }
 
+const SIGN_SYMBOL = "[A-Za-zΔδ][A-Za-z0-9_]*";
+
+/**
+ * Q − (−W) = Q + W aynı simgeyi hem işaretli değer hem büyüklük yapar.
+ * Q − (−|W|) = Q + |W|, ΔE = Q − W = Q + |W| ve −(−3) = 3 yakalanmaz.
+ */
+export function signConventionFlip(text: string): boolean {
+  const normalized = text.replace(/[−–]/g, "-").replace(/\s+/g, " ");
+  const re = new RegExp(`-\\s*\\(\\s*-\\s*(?!\\|)(${SIGN_SYMBOL})\\s*\\)`, "g");
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(normalized))) {
+    const symbol = match[1];
+    const tail = normalized.slice((match.index ?? 0) + match[0].length);
+    const chain = (tail.split(/[.;]/)[0] ?? "").split("=");
+    const bare = new RegExp(`(?:^|\\+)\\s*${symbol}\\b`, "i");
+    const wrapped = new RegExp(`\\|\\s*${symbol}\\s*\\|`, "i");
+    for (const piece of chain) {
+      if (wrapped.test(piece)) continue;
+      if (bare.test(piece)) return true;
+    }
+  }
+  return false;
+}
+
+/** W negatifken zincir ΔE = Q − W = Q + |W| olur. Düzelmezse cümle yayımlanmaz. */
+export function rewriteSignFlip(sentence: string): string | null {
+  if (!signConventionFlip(sentence)) return sentence;
+  const next = sentence.replace(
+    /Q\s*[−–-]\s*\(\s*[−–-]\s*W\s*\)\s*=\s*Q\s*\+\s*W/gi,
+    "Q − W = Q + |W|",
+  );
+  return signConventionFlip(next) ? null : next;
+}
+
 const QUANTITY =
   /(\d+(?:[.,]\d+)?)\s*(kJ\/kg|m3\/kg|kJ|kPa|MPa|Pa|kg|°\s*C|K)\b/gi;
 
@@ -270,6 +304,7 @@ export function claimVerifyPrompt(lesson: LessonV2, source: string): string {
     "Yalnızca yanlış, kaynakta desteği olmayan veya işareti belirsiz cümleleri döndür.",
     "Sık yapılan hatanın yanlış inancı yanlış kalabilir; onun düzeltmesi doğru olmalıdır.",
     "Isı alımı da iç enerjiyi değiştirir. ΔU = Q − W bağıntısında işareti söylemeyen cümle belirsizdir.",
+    "Formülün içindeki işaret ve cebir hatasını da wrong say. Q − (−W) = Q + W aynı simgeyi hem negatif değer hem büyüklük yapar. Doğru zincir ΔE = Q − W = Q + |W| biçimidir.",
     'JSON: {"bad":[{"quote":"dersteki aynen cümle","reason":"wrong"}]}',
     "reason yalnız wrong, unsupported veya ambiguous olsun. Uyan iddia yoksa bad boş dizi olsun.",
     `Kaynak:\n${source.slice(0, 4000)}`,

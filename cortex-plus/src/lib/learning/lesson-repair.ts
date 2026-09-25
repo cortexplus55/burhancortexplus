@@ -6,12 +6,15 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
+import { incompleteFormulaLine } from "@/lib/learning/lesson-board";
 import {
   ambiguousEnergyClaim,
   claimsFromVerify,
   claimVerifyPrompt,
   missingCoverage,
   overgeneralCorrection,
+  rewriteSignFlip,
+  signConventionFlip,
   summaryQuantityMismatch,
 } from "@/lib/learning/lesson-claims";
 import { diagramIssues, lessonDiagramSchema, needsDiagram } from "@/lib/learning/lesson-diagram";
@@ -116,6 +119,91 @@ export function exampleIsComplete(text: string): boolean {
   return given && substituted && result;
 }
 
+function energyFormulaSymbol(sentence: string, context: string): "ΔE" | "ΔU" | null {
+  const blob = `${context}\n${sentence}`;
+  const hasE = /ΔE\s*=\s*Q\s*[−–-]\s*W/i.test(blob);
+  const hasU = /ΔU\s*=\s*Q\s*[−–-]\s*W/i.test(blob);
+  const equivalent = /ΔE\s*=\s*ΔU|ΔU\s*=\s*ΔE/i.test(blob);
+  const mentionsU = /iç enerji|ΔU/i.test(sentence);
+  const mentionsE = /ΔE|toplam enerji/i.test(sentence);
+  if (mentionsU && hasU) return "ΔU";
+  if (mentionsU && hasE && equivalent) return "ΔU";
+  if (mentionsE && hasE) return "ΔE";
+  if (mentionsE && hasU && equivalent) return "ΔE";
+  if (hasE) return "ΔE";
+  if (hasU) return "ΔU";
+  return null;
+}
+
+/** Sayı var, formül → yerine koyma → sonuç yok. Tam zincir ve basınç hesabı burada değildir. */
+export function workedExampleNeedsFormula(text: string): boolean {
+  if (/Q\s*[−–-]\s*W\s*=\s*\d/i.test(text)) return false;
+  if (/(?:Δ[EU]|sonuç|sonuc)\s*=\s*\d+(?:[.,]\d+)?\s*[-−]\s*\d+(?:[.,]\d+)?\s*=\s*\d/i.test(text)) {
+    return true;
+  }
+  const folded = foldTr(text);
+  const amounts = text.match(/\d+(?:[.,]\d+)?\s*kJ/gi) ?? [];
+  return amounts.length >= 2 && /isi/.test(folded) && /\bis\b/.test(folded);
+}
+
+function heatWorkTriple(text: string): { q: string; w: string; result: string; unit: string } | null {
+  const heat = text.match(/(\d+(?:[.,]\d+)?)\s*kJ\s+ısı/i);
+  const work = text.match(/(\d+(?:[.,]\d+)?)\s*kJ\s+iş/i);
+  const gained =
+    text.match(/iç enerji(?:si)?\s+(\d+(?:[.,]\d+)?)\s*kJ/i) ??
+    text.match(/(\d+(?:[.,]\d+)?)\s*kJ\s+art/i);
+  if (heat && work && gained) return { q: heat[1], w: work[1], result: gained[1], unit: "kJ" };
+  const bare = text.match(
+    /(\d+(?:[.,]\d+)?)\s*[-−]\s*(\d+(?:[.,]\d+)?)\s*=\s*(\d+(?:[.,]\d+)?)\s*(kJ|kPa|Pa)?/i,
+  );
+  if (!bare) return null;
+  return { q: bare[1], w: bare[2], result: bare[3], unit: bare[4] ?? "kJ" };
+}
+
+function differenceMatches(q: string, w: string, result: string): boolean {
+  const left = Number(q.replace(",", "."));
+  const right = Number(w.replace(",", "."));
+  const total = Number(result.replace(",", "."));
+  return [left, right, total].every((value) => Number.isFinite(value)) && Math.abs(left - right - total) < 0.051;
+}
+
+/** Verilen ve sonuç duruyorsa satır, dersteki formülden kurulur. Formül yoksa satır düşer. */
+export function polishWorkedExample(text: string, context: string): string | null {
+  if (!workedExampleNeedsFormula(text)) return text;
+  const symbol = energyFormulaSymbol(text, context);
+  const nums = heatWorkTriple(text);
+  if (!symbol || !nums || !differenceMatches(nums.q, nums.w, nums.result)) return null;
+  return `${symbol} = Q − W = ${nums.q} ${nums.unit} − ${nums.w} ${nums.unit} = ${nums.result} ${nums.unit}`;
+}
+
+function escapeReg(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function completeDanglingFormula(sentence: string, context: string): string | null {
+  if (!incompleteFormulaLine(sentence)) return sentence;
+  const left = sentence.match(/((?:Δ[EU]|[A-Za-z][A-Za-z0-9_]*))\s*=\s*$/);
+  if (!left) return null;
+  const symbol = left[1];
+  const re = new RegExp(`${escapeReg(symbol)}\\s*=\\s*([^\\n.;]{1,80})`, "gi");
+  let found: RegExpExecArray | null;
+  while ((found = re.exec(context))) {
+    const right = found[1]
+      .trim()
+      .replace(
+        /\s+(?:formülü|formulu|formülüne|formulune|bağıntısı|bagintisi|şeklinde|seklinde|ile|olarak)\b.*/i,
+        "",
+      )
+      .trim();
+    const formula = `${symbol} = ${right}`.replace(/\s+/g, " ").trim();
+    if (!right || incompleteFormulaLine(formula) || signConventionFlip(formula)) continue;
+    if (new RegExp(`^${escapeReg(symbol)}\\s*=\\s*$`).test(sentence.trim())) return formula;
+    const replaced = sentence.replace(new RegExp(`${escapeReg(symbol)}\\s*=\\s*$`), formula);
+    if (!incompleteFormulaLine(replaced) && !signConventionFlip(replaced)) return replaced;
+  }
+  return null;
+}
+
 /**
  * "30 kJ ısı alıyorsa ΔU = 30 kJ olur" verileni sonuç diye tekrar eder.
  * 25 °C = 298 K ve içinde işlem olan eşitlik burada yakalanmaz.
@@ -179,15 +267,18 @@ function withConstantUnits(text: string, source: string): string {
 
 /** Özet satırı kabul ediliyorsa alt simgeleri ve kapanış noktasını da taşır. */
 function acceptSummaryLine(text: string, source: string, example = ""): string | null {
-  let cleaned = alignBounds(normalizeSummaryText(text.trim()), source);
+  const rewritten = rewriteSignFlip(text.trim());
+  if (!rewritten) return null;
+  let cleaned = alignBounds(normalizeSummaryText(rewritten), source);
   if (cleaned.length < 8 || cleaned.length > 240) return null;
-  if (summaryLineProblem(cleaned) || vacuousSentence(cleaned)) return null;
+  if (summaryLineProblem(cleaned) || vacuousSentence(cleaned) || signConventionFlip(cleaned)) return null;
   if (cleaned.includes("|") || foldTr(cleaned).includes("bu sayfadaki formuller")) return null;
   if (/[=+×*/\-−]\s*$/.test(cleaned)) return null;
   if (contradictorySentences(cleaned, source).length || placeholderWork(cleaned)) return null;
   if (ambiguousEnergyClaim(cleaned, source) || overgeneralCorrection(cleaned, source)) return null;
   if (summaryQuantityMismatch(cleaned, example, source)) return null;
-  if (isIncompleteExample(cleaned) || workedCalculation(cleaned)) return null;
+  if (isIncompleteExample(cleaned) || workedCalculation(cleaned) || workedExampleNeedsFormula(cleaned)) return null;
+  if (incompleteFormulaLine(cleaned)) return null;
   if (!/[.!?]\s*$/.test(cleaned) && !/[=≤≥]/.test(cleaned)) {
     cleaned = `${cleaned}.`;
     if (cleaned.length > 240) return null;
@@ -228,6 +319,16 @@ export function auditLearnerLesson(
     }
     for (const sentence of sentencesOf(text)) {
       if (vacuousSentence(sentence)) issues.push({ code: "vacuous", detail: sentence.slice(0, 160) });
+      if (signConventionFlip(sentence)) issues.push({ code: "claim_wrong", detail: sentence.slice(0, 160) });
+      if (incompleteFormulaLine(sentence) || workedExampleNeedsFormula(sentence)) {
+        issues.push({ code: "example_incomplete", detail: sentence.slice(0, 160) });
+      }
+    }
+    for (const line of text.split(/\n+/)) {
+      const trimmed = line.trim();
+      if (trimmed.length >= 2 && trimmed.length < 8 && incompleteFormulaLine(trimmed)) {
+        issues.push({ code: "example_incomplete", detail: trimmed });
+      }
     }
   }
   if (/0\s*<\s*x\s*<\s*1/.test(blobs.join("\n")) && /0\s*(?:≤|<=)\s*x\s*(?:≤|<=)\s*1/.test(input.source)) {
@@ -269,7 +370,11 @@ export function auditLearnerLesson(
     }
     for (const sentence of sentencesOf(text)) {
       if (claim && foldTr(sentence) === claim) continue;
-      if (ambiguousEnergyClaim(sentence, input.source) || overgeneralCorrection(sentence, input.source)) {
+      if (
+        ambiguousEnergyClaim(sentence, input.source) ||
+        overgeneralCorrection(sentence, input.source) ||
+        signConventionFlip(sentence)
+      ) {
         issues.push({ code: "claim_wrong", detail: sentence.slice(0, 160) });
       }
     }
@@ -303,19 +408,57 @@ function quoteHits(sentence: string, quotes: string[]): boolean {
   });
 }
 
-function cleanSentences(text: string, source: string, quotes: string[] = []): string {
-  const kept = sentencesOf(text).flatMap((sentence) => {
-    if (contradictorySentences(sentence, source).length) return [];
-    if (vacuousSentence(sentence)) return [];
-    if (placeholderWork(sentence) || restatedResult(sentence) || isIncompleteExample(sentence)) return [];
-    if (ambiguousEnergyClaim(sentence, source) || overgeneralCorrection(sentence, source)) return [];
-    if (quoteHits(sentence, quotes)) return [];
-    if (/veri\s*:/i.test(sentence) && /ad[ıi]m\s*\d+/i.test(sentence) && !exampleIsComplete(sentence)) {
-      return [];
+function publishSentence(sentence: string, source: string, quotes: string[], context: string): string | null {
+  let next = rewriteSignFlip(sentence);
+  if (!next || signConventionFlip(next)) return null;
+  if (incompleteFormulaLine(next)) {
+    const completed = completeDanglingFormula(next, context);
+    if (!completed) return null;
+    const fixed = rewriteSignFlip(completed);
+    if (!fixed || signConventionFlip(fixed) || incompleteFormulaLine(fixed)) return null;
+    next = fixed;
+  }
+  if (contradictorySentences(next, source).length) return null;
+  if (vacuousSentence(next)) return null;
+  if (placeholderWork(next) || restatedResult(next) || isIncompleteExample(next)) return null;
+  if (ambiguousEnergyClaim(next, source) || overgeneralCorrection(next, source)) return null;
+  if (quoteHits(next, quotes)) return null;
+  if (/veri\s*:/i.test(next) && /ad[ıi]m\s*\d+/i.test(next) && !exampleIsComplete(next)) return null;
+  if (workedExampleNeedsFormula(next)) {
+    const polished = polishWorkedExample(next, context);
+    if (!polished || workedExampleNeedsFormula(polished)) return null;
+    next = polished;
+  }
+  if (incompleteFormulaLine(next) || signConventionFlip(next)) return null;
+  return exampleIsComplete(next) ? withConstantUnits(next, source) : next;
+}
+
+function cleanSentences(text: string, source: string, quotes: string[] = [], context = text): string {
+  const parts = sentencesOf(text);
+  const kept: string[] = [];
+  for (let index = 0; index < parts.length; index += 1) {
+    const current = parts[index] ?? "";
+    const following = parts[index + 1] ?? "";
+    const pair = following ? `${current} ${following}` : "";
+    const currentLine = polishWorkedExample(current, context);
+    if (
+      pair &&
+      !currentLine &&
+      /\d/.test(current) &&
+      /\d/.test(following) &&
+      workedExampleNeedsFormula(pair) &&
+      !/Δ[EU]\s*=\s*Q\s*[−–-]\s*W/i.test(current)
+    ) {
+      const line = polishWorkedExample(pair, context);
+      if (line && !workedExampleNeedsFormula(line)) {
+        kept.push(line);
+        index += 1;
+        continue;
+      }
     }
-    const polished = exampleIsComplete(sentence) ? withConstantUnits(sentence, source) : sentence;
-    return [polished];
-  });
+    const published = publishSentence(current, source, quotes, context);
+    if (published) kept.push(published);
+  }
   return alignBounds(kept.join(" "), source).replace(/\s+/g, " ").trim();
 }
 
@@ -488,6 +631,12 @@ export function dropUnresolvedLesson(
     if (!dropped.includes(code)) dropped.push(code);
   };
   let strippedPlaceholder = false;
+  const formulaContext = [
+    next.overview ?? "",
+    ...next.sections.map((section) => section.body),
+    next.example?.prompt ?? "",
+    next.example?.solution ?? "",
+  ].join("\n");
   const stripField = (text: string) => {
     const parts = sentencesOf(text);
     if (parts.some((sentence) => contradictorySentences(sentence, source).length)) {
@@ -508,7 +657,7 @@ export function dropUnresolvedLesson(
     if (parts.some((sentence) => ambiguousEnergyClaim(sentence, source) || overgeneralCorrection(sentence, source) || quoteHits(sentence, quotes))) {
       mark("claim_wrong");
     }
-    return cleanSentences(text, source, quotes);
+    return cleanSentences(text, source, quotes, formulaContext);
   };
   if (next.overview) {
     const overview = stripField(next.overview);
@@ -527,27 +676,57 @@ export function dropUnresolvedLesson(
     }
     return [{ ...section, body, check, diagram }];
   });
-  const exampleText = `${next.example?.prompt ?? ""}\n${next.example?.solution ?? ""}`;
-  if (next.example && (!exampleIsComplete(exampleText) || restatedResult(exampleText) || isIncompleteExample(exampleText))) {
-    delete next.example;
-    mark("example_incomplete");
-  } else if (next.example) {
-    next.example = {
-      prompt: next.example.prompt,
-      solution: withConstantUnits(next.example.solution, source),
-    };
+  if (next.example) {
+    const combined = `${next.example.prompt}\n${next.example.solution}`;
+    let prompt = next.example.prompt;
+    let solution = next.example.solution;
+    if (workedExampleNeedsFormula(combined)) {
+      const lines = [prompt, solution]
+        .map((part) => polishWorkedExample(part, formulaContext))
+        .filter((line): line is string => {
+          if (!line) return false;
+          return !workedExampleNeedsFormula(line) && exampleIsComplete(line);
+        });
+      const unique = [...new Set(lines)];
+      if (unique.length) {
+        solution = unique.join(" ");
+        if (workedExampleNeedsFormula(prompt)) prompt = "Isı ve iş verildiğinde enerji değişimi nedir?";
+      } else {
+        prompt = "";
+        solution = "";
+      }
+    }
+    const exampleText = `${prompt}\n${solution}`;
+    if (
+      !prompt ||
+      !solution ||
+      !exampleIsComplete(exampleText) ||
+      restatedResult(exampleText) ||
+      isIncompleteExample(exampleText) ||
+      workedExampleNeedsFormula(exampleText)
+    ) {
+      delete next.example;
+      mark("example_incomplete");
+    } else {
+      next.example = { prompt, solution: withConstantUnits(solution, source) };
+    }
   } else if (strippedPlaceholder) {
     mark("example_incomplete");
   }
   if (next.commonMistake) {
-    const correction = next.commonMistake.correction;
+    const rewritten = rewriteSignFlip(next.commonMistake.correction);
+    const correction = rewritten ?? "";
     const correctionBad =
+      !rewritten ||
+      signConventionFlip(correction) ||
       overgeneralCorrection(correction, source) ||
       ambiguousEnergyClaim(correction, source) ||
       quoteHits(correction, quotes);
     if (correctionBad) {
       delete next.commonMistake;
       mark("claim_wrong");
+    } else {
+      next.commonMistake = { ...next.commonMistake, correction };
     }
   }
   const summary = filledSummary(next, source);
@@ -572,7 +751,11 @@ export function lessonRepairPrompt(
     "Her kontrol sorusunun kökü öznesi olan bitmiş bir cümle olsun.",
     "Kontrol sorusu üçten azsa, dersteki bağıntılardan kaynakta duran sorular ekle. Üçten az soruyla bitirme.",
     "Örnek ya tam olsun (verilen, yerine koyma, sayısal sonuç, sabitin birimi) ya da null. Her örnek bloğu için geçerli.",
-    "Özet 3 ile 5 bildiren cümle olsun. Her cümle nokta ile bitsin. Başlık, öğrenme hedefi, etiket zinciri, Soru:, Cevap: ve çünkü ile biten satır yazma.",
+    "Örnekte sıra formül, yerine koyma, sonuç olsun: ΔU = Q − W = 80 kJ − 30 kJ = 50 kJ. Formül dersin içinde yoksa örneği sil.",
+    "Sağ tarafı boş formül yazma. ΔE = gibi satır ya tamamlanır ya da silinir.",
+    "Q − (−W) = Q + W yazma. W negatifse ΔE = Q − W = Q + |W| yaz.",
+    "Özet 3 ile 5 bildiren cümle olsun. Her cümle nokta ile bitsin. Başlık, öğrenme hedefi, etiket zinciri, Soru:, Cevap:, ifade doğrudur, doğru cevap, seçenek ve çünkü ile biten satır yazma.",
+    "Kontrol sorularının en fazla biri doğru/yanlış olsun. Diğerleri dört şıklı çoktan seçmeli olsun.",
     "Tek cümlelik tekrar yazma. Verileni ve işlemi aynı sayıda göster: sonuç = bağıntı = verilen − sıfır.",
     "Adım 1 / Sonucu hesapla gibi yer tutucu yazma.",
     "Özetteki sayı, örneğin ve kaynağın sayısıyla aynı olsun.",
@@ -661,15 +844,21 @@ function symbolicEquations(sentence: string): string[] {
     let equation = match[1].replace(/\s+/g, " ").trim();
     equation = equation
       .replace(
-        /\s+(?:ba[gğ]lant[ıi]\w*|şeklinde|seklinde|yazılır|yazilir|bulunur|hesaplanır|hesaplanir|ile|olarak|eşitliği|esitligi|eşitliğe|esitlige).*$/i,
+        /\s+(?:formül\w*|formul\w*|ba[gğ]lant[ıi]\w*|şeklinde|seklinde|yazılır|yazilir|bulunur|hesaplanır|hesaplanir|ile|olarak|eşitliği|esitligi|eşitliğe|esitlige).*$/i,
         "",
       )
       .replace(/[,\s]+$/g, "")
       .trim();
-    if (equation.length < 5 || equation.length > 120) continue;
-    const right = equation.split("=").slice(1).join("=");
-    if (!/[A-Za-zΔδ]/.test(right)) continue;
-    out.push(equation);
+    if (equation.length < 5 || equation.length > 160) continue;
+    for (const piece of equation.split(/\s+ve\s+/i)) {
+      const formulas = [...piece.matchAll(/((?:Δ|δ)?[A-Za-z][A-Za-z0-9_]*)\s*=\s*[^,.;]+/g)];
+      const trimmed = formulas[formulas.length - 1]?.[0]?.replace(/\s+/g, " ").trim() ?? "";
+      if (!trimmed || (trimmed.match(/=/g) ?? []).length !== 1) continue;
+      if (/\d|[|]/.test(trimmed)) continue;
+      const right = trimmed.split("=").slice(1).join("=");
+      if (!/[A-Za-zΔδ]/.test(right) || trimmed.length < 5 || trimmed.length > 120) continue;
+      out.push(trimmed);
+    }
   }
   return out;
 }
@@ -688,6 +877,59 @@ function heatSwap(equation: string): string | null {
   if (!/c_[vp]/i.test(equation)) return null;
   const swapped = equation.replace(/c_v/gi, "\u0000").replace(/c_p/gi, "c_v").replace(/\u0000/g, "c_p");
   return foldTr(swapped) === foldTr(equation) ? null : swapped;
+}
+
+function signDistractors(equation: string): string[] {
+  if (!/Q\s*[−–-]\s*W/i.test(equation)) return [];
+  return [
+    equation.replace(/Q\s*[−–-]\s*W/i, "Q + W"),
+    equation.replace(/Q\s*[−–-]\s*W/i, "W − Q"),
+    equation.replace(/Q\s*[−–-]\s*W/i, "−Q − W"),
+  ];
+}
+
+function optionsForEquation(equation: string, equations: { equation: string }[]): string[] {
+  const options = [equation];
+  const others = equations
+    .map((row) => row.equation)
+    .filter((item) => foldTr(item.replace(/\s+/g, "")) !== foldTr(equation.replace(/\s+/g, "")));
+  for (const alt of [...others, ...signDistractors(equation)]) {
+    if (options.length >= 4) break;
+    const key = foldTr(alt.replace(/\s+/g, ""));
+    if (options.some((item) => foldTr(item.replace(/\s+/g, "")) === key)) continue;
+    options.push(alt);
+  }
+  const swapped = heatSwap(equation);
+  if (swapped && options.length < 4 && !options.some((item) => foldTr(item) === foldTr(swapped))) {
+    options.push(swapped);
+  }
+  return options;
+}
+
+function isBinaryCheck(check: SectionCheck): boolean {
+  if (check.type === "trueFalse") return true;
+  const options = check.options.map((option) => option.trim().toLocaleLowerCase("tr"));
+  if (options.length <= 2 && options.includes("doğru") && options.includes("yanlış")) return true;
+  return options.length <= 2 && /\bm[ıi]d[ıi]r\s*\??$/i.test(check.prompt.trim());
+}
+
+function equationCheck(
+  item: { equation: string; sentence: string },
+  equations: { equation: string }[],
+): SectionCheck | null {
+  const prompt = equationPrompt(item.equation);
+  if (prompt.length < 12 || stemLacksSubject(prompt)) return null;
+  const options = optionsForEquation(item.equation, equations);
+  if (options.length < 2) return null;
+  const explanation =
+    item.sentence.length >= 12 ? item.sentence.slice(0, 580) : `${item.equation} dersin anlatımında verilir.`;
+  return validCheck({
+    type: "mcq",
+    prompt,
+    options,
+    answerIndex: 0,
+    explanation,
+  });
 }
 
 /**
@@ -724,31 +966,9 @@ export function ensureThreeChecks(lesson: LessonV2): LessonV2 {
   const needed = () => checkCount(next) + queue.length < 3;
   for (const item of equations) {
     if (!needed()) break;
-    const prompt = equationPrompt(item.equation);
-    if (prompt.length < 12 || used.has(foldTr(prompt)) || stemLacksSubject(prompt)) continue;
-    const others = equations
-      .map((row) => row.equation)
-      .filter((equation) => foldTr(equation) !== foldTr(item.equation));
-    const options = [item.equation];
-    for (const other of others) {
-      if (options.length >= 3) break;
-      options.push(other);
-    }
-    const swapped = heatSwap(item.equation);
-    if (swapped && options.length < 4 && !options.some((option) => foldTr(option) === foldTr(swapped))) {
-      options.push(swapped);
-    }
-    if (options.length < 2) continue;
-    const explanation = item.sentence.length >= 12 ? item.sentence.slice(0, 580) : `${item.equation} dersin anlatımında verilir.`;
-    const check = validCheck({
-      type: "mcq",
-      prompt,
-      options,
-      answerIndex: 0,
-      explanation,
-    });
-    if (!check) continue;
-    used.add(foldTr(prompt));
+    const check = equationCheck(item, equations);
+    if (!check || used.has(foldTr(check.prompt))) continue;
+    used.add(foldTr(check.prompt));
     queue.push(check);
   }
   for (const sentence of statements) {
@@ -781,6 +1001,25 @@ export function ensureThreeChecks(lesson: LessonV2): LessonV2 {
       body: body.slice(0, 2400),
       check,
     });
+  }
+  const spare: SectionCheck[] = [];
+  for (const item of equations) {
+    const check = equationCheck(item, equations);
+    if (!check || used.has(foldTr(check.prompt))) continue;
+    if (spare.some((row) => foldTr(row.prompt) === foldTr(check.prompt))) continue;
+    spare.push(check);
+  }
+  let keptBinary = 0;
+  for (const section of next.sections) {
+    if (!section.check || !isBinaryCheck(section.check)) continue;
+    if (keptBinary < 1) {
+      keptBinary += 1;
+      continue;
+    }
+    const replacement = spare.shift();
+    if (!replacement) break;
+    used.add(foldTr(replacement.prompt));
+    section.check = replacement;
   }
   return next;
 }
