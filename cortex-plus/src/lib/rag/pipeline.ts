@@ -52,6 +52,7 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
 export async function processDocument(
   service: SupabaseClient,
   documentId: string,
+  options?: { deferTopicMap?: boolean },
 ): Promise<{
   ok: boolean;
   chunks: number;
@@ -60,6 +61,8 @@ export async function processDocument(
   notice?: string;
   topicMap?: { ok: boolean; topics: number; coverageStatus?: string };
   pageCount?: number;
+  /** Konu haritası bu istekte çalışmadı; sonraki tur sürdürür. */
+  deferred?: boolean;
 }> {
   const { data: doc } = await service
     .from("documents")
@@ -311,7 +314,13 @@ export async function processDocument(
 
   if (!allChunks.length) return failAndRelease("empty_content");
 
-  const embeddings = await embedTexts(allChunks.map((c) => c.content));
+  // Tek seferde gömmek uzun belgede isteği zaman aşımına bırakıyordu.
+  const EMBED_BATCH = 24;
+  const embeddings: number[][] = [];
+  for (let offset = 0; offset < allChunks.length; offset += EMBED_BATCH) {
+    const slice = allChunks.slice(offset, offset + EMBED_BATCH).map((chunk) => chunk.content);
+    embeddings.push(...(await embedTexts(slice)));
+  }
 
   for (const [index, chunk] of allChunks.entries()) {
     const { data: inserted, error: chunkError } = await service
@@ -336,6 +345,25 @@ export async function processDocument(
       });
       if (embeddingError) return failAndRelease("embedding_insert_failed");
     }
+  }
+
+  if (options?.deferTopicMap) {
+    const { error: deferError } = await service
+      .from("documents")
+      .update({ status: "processing", error_message: null, page_count: pages.length })
+      .eq("id", documentId);
+    if (deferError) return failAndRelease("completion_update_failed");
+    await service
+      .from("processing_jobs")
+      .update({ status: "processing", progress: 40, error_message: null })
+      .eq("document_id", documentId);
+    return {
+      ok: true,
+      chunks: allChunks.length,
+      notice,
+      pageCount: pages.length,
+      deferred: true,
+    };
   }
 
   const { error: completedError } = await service

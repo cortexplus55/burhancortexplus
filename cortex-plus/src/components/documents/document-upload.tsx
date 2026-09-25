@@ -9,6 +9,11 @@ import { Label } from "@/components/ui/label";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
 import { isPhotoQuotaError } from "@/lib/documents/process-errors";
+import {
+  PROCESS_RETRY_MESSAGE,
+  postDocumentProcess,
+  requestDocumentProcessing,
+} from "@/lib/documents/process-session";
 import { DOCUMENT_UPLOAD_HINT } from "@/lib/documents/upload-labels";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { cn } from "@/lib/utils";
@@ -83,28 +88,27 @@ export function DocumentUpload({
           ? "Belgen okunuyor; metin çıkarılıyor ve konu haritası hazırlanıyor…"
           : "Belgen okunuyor; metin çıkarılıyor ve içerik hazırlanıyor…",
       );
-      const processRes = await fetch("/api/documents/process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: uploaded.documentId }),
+      const result = await requestDocumentProcessing({
+        documentId: uploaded.documentId,
+        post: postDocumentProcess,
       });
+      const processed = result.body;
+      if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
 
-      const processed = await processRes.json().catch(() => ({}));
-
-      if (processRes.status === 402) {
+      if (result.status === 402) {
         setStatusDetail(null);
         // Fotoğraf kotası bittiyse kredi satın almak işe yaramıyor; kapı
         // yerine ne olduğunu söyleyen cümle çıkıyor.
         if (isPhotoQuotaError(processed)) {
-          toast.error(processed.error ?? "Bu ayki fotoğraf hakkın doldu.");
+          toast.error(typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.");
           return;
         }
         setPaywall(true);
         return;
       }
 
-      if (!processRes.ok) {
-        toast.error(processed.error ?? "Doküman işlenemedi.");
+      if (!result.ok) {
+        toast.error(typeof processed.error === "string" ? processed.error : "Doküman işlenemedi.");
         setStatusDetail(null);
         return;
       }
@@ -121,7 +125,7 @@ export function DocumentUpload({
       // Uzun bir tarama kesildiyse bunu söylemek zorundayız: öğrenci
       // belgenin tamamının okunduğunu sanıp eksik kaynakla çalışmasın.
       toast.success("Doküman hazır. AI öğretmende kaynak olarak kullanabilirsin.", {
-        description: processed.notice ?? undefined,
+        description: typeof processed.notice === "string" ? processed.notice : undefined,
       });
       setFile(null);
       router.refresh();
