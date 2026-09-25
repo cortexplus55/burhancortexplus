@@ -2,15 +2,16 @@
  * Ders üretiminin öğretim kapısı.
  *
  * Model tek yapılandırılmış ders yazar. Burada kaynak yalnızca konunun
- * kendi sayfalarına indirilir; aritmetik, akıcılık ve başlık-gövde uyumu
- * kodla denetlenir. Bozuk parça silinmez: onarım istemi yalnızca o parçayı
- * yeniden yazdırır.
+ * kendi sayfalarına indirilir. Örnek tamlığı `exampleIsComplete` ve
+ * `announcedExampleGap` ile, özdeşlik ise `auditQuantitative` ile bakılır;
+ * bu kurallar podcast ile ortaktır. Bozuk parça silinmez.
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
 import { titleConcepts } from "@/lib/learning/lesson-claims";
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
-import { auditQuantitative, evaluateArithmetic } from "@/lib/learning/tutor-quant";
+import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
+import { auditQuantitative, evaluateArithmetic, repairQuantitative } from "@/lib/learning/tutor-quant";
 import { topicMatchKey } from "@/lib/learning/topic-merge";
 import {
   lessonV2Schema,
@@ -40,6 +41,7 @@ const CRITICAL = new Set([
   "echo_check",
   "missing_example",
   "invented_number",
+  "identity",
 ]);
 
 const COMMON_CAPITAL = new Set([
@@ -287,8 +289,10 @@ function bodyGroundedInSource(body: string, source: string): boolean {
 }
 
 export function sectionMissesTitle(heading: string, body: string, topic: string, source = ""): boolean {
+  const blob = `${heading}. ${body}`;
+  if (announcedExampleGap(blob)) return true;
   const head = foldTr(heading);
-  if (/ornek|cozum/.test(head) && !hasCompletedChain(body) && !bodyGroundedInSource(body, source)) {
+  if (/ornek|cozum/.test(head) && !exampleIsComplete(body) && !bodyGroundedInSource(body, source)) {
     return true;
   }
   if (topic && topicTitlesAlign(heading, topic)) return false;
@@ -316,6 +320,19 @@ export function checkEchoes(check: SectionCheck, lesson: LessonV2, sectionBody: 
   return prompt.includes(opening) || opening.includes(prompt);
 }
 
+function identityCorpus(lesson: LessonV2): string {
+  return [
+    lesson.overview ?? "",
+    ...lesson.sections.map(
+      (section) => `${section.body} ${section.note?.body ?? ""} ${section.check?.explanation ?? ""}`,
+    ),
+    lesson.example?.prompt ?? "",
+    lesson.example?.solution ?? "",
+    lesson.commonMistake?.correction ?? "",
+    ...(lesson.summary ?? []),
+  ].join("\n");
+}
+
 function lessonProse(lesson: LessonV2): string {
   return [
     lesson.overview ?? "",
@@ -337,15 +354,32 @@ function inventedNumbers(text: string, source: string): string[] {
   return [...new Set(numberKeys(text).filter((key) => Number(key) >= 3 && !have.has(key)))];
 }
 
-function exampleComplete(solution: string, source: string): boolean {
-  const folded = foldTr(solution);
-  if (!folded.includes("verilen:")) return false;
-  if (!folded.includes("istenen:")) return false;
-  if (!folded.includes("baginti:") && !folded.includes("=")) return false;
-  if (!folded.includes("yerine koy")) return false;
-  if (!folded.includes("sonuc:")) return false;
-  const audit = auditQuantitative(solution, source || solution);
-  return audit.ok && hasWorked(solution);
+/**
+ * Tamamlanmış örnek, podcast ile aynı kapıdadır: verilen, yerine koyma,
+ * birimli sonuç (`exampleIsComplete`) ve duyurulmuş örnek boşluğu
+ * (`announcedExampleGap`). Sayı denetimi `auditQuantitative` içindeki
+ * özdeşlik ve aritmetik kurallarıdır; burada ikinci bir liste yoktur.
+ */
+function exampleReady(text: string, source: string): boolean {
+  if (!exampleIsComplete(text)) return false;
+  if (announcedExampleGap(text)) return false;
+  return auditQuantitative(text, source || text).ok;
+}
+
+function identityLeft(text: string, source: string): boolean {
+  return auditQuantitative(text, source).issues.some(
+    (issue) => issue.kind === "identity" || issue.kind === "wording",
+  );
+}
+
+function settleIdentity(text: string, source: string): string {
+  if (!identityLeft(text, source)) return text;
+  const audit = auditQuantitative(text, source);
+  const settled = repairQuantitative(text, {
+    ...audit,
+    issues: audit.issues.filter((issue) => issue.kind === "identity" || issue.kind === "wording"),
+  });
+  return settled.trim() ? settled : text;
 }
 
 function hasCalcMcq(lesson: LessonV2): boolean {
@@ -396,11 +430,17 @@ export function teachingFailures(lesson: LessonV2, source: string, topicLabel: s
     if (section.check && fluencyIssues(section.check.prompt).length) push(unit, "fluency");
   });
   if (quantitative) {
-    const solution = lesson.example?.solution ?? "";
-    const sourceHasChain = hasCompletedChain(source);
-    if (sourceHasChain && (!lesson.example || !exampleComplete(solution, source))) {
+    const exampleBlob = `${lesson.example?.prompt ?? ""}\n${lesson.example?.solution ?? ""}`;
+    const announced = [
+      exampleBlob,
+      ...lesson.sections.map((section) => `${section.heading}. ${section.body}`),
+    ];
+    const gap = announced.some((text) => Boolean(announcedExampleGap(text)));
+    if (hasCompletedChain(source) && exampleIsComplete(source) && !exampleReady(exampleBlob, source)) {
       push("example", "missing_example");
-    } else if (solution && hasCompletedChain(solution) && !auditQuantitative(solution, source).ok) {
+    } else if (gap) {
+      push("example", "missing_example");
+    } else if (exampleBlob.trim() && hasCompletedChain(exampleBlob) && !auditQuantitative(exampleBlob, source).ok) {
       push("example", "missing_example");
     }
     if (!hasCalcMcq(lesson)) push("check", "calc_check");
@@ -413,7 +453,7 @@ export function teachingFailures(lesson: LessonV2, source: string, topicLabel: s
     lesson.commonMistake?.correction ?? "",
     ...(lesson.summary ?? []),
   ].join("\n");
-  const verified = lesson.example && exampleComplete(lesson.example.solution, source) ? lesson.example.solution : "";
+  const verified = lesson.example && exampleReady(lesson.example.solution, source) ? lesson.example.solution : "";
   const outside = prose.replace(verified, " ");
   if (inventedNumbers(outside, source).length) push("lesson", "invented_number");
   if (summaryEchoes(lesson)) push("summary", "summary_echo");
@@ -421,6 +461,7 @@ export function teachingFailures(lesson: LessonV2, source: string, topicLabel: s
     push("note", "missing_definition");
   }
   if (topicIsQuantitative(source) && !/=/.test(lessonProse(lesson))) push("formula", "missing_formula");
+  if (identityLeft(identityCorpus(lesson), source)) push("lesson", "identity");
   const blocks = sourceBlocks(source);
   if (
     blocks.length &&
@@ -468,7 +509,7 @@ export function calculationCheckFromExample(example: {
   prompt: string;
   solution: string;
 }): SectionCheck | null {
-  if (!exampleComplete(example.solution, example.solution) && !hasWorked(example.solution)) return null;
+  if (!exampleReady(example.solution, example.solution) && !hasWorked(example.solution)) return null;
   if (!auditQuantitative(example.solution, example.solution).ok) return null;
   const hits = [...example.solution.matchAll(ARITH_EQUALITY)].flatMap((match) => {
     const actual = evaluateArithmetic(match[1]);
@@ -550,9 +591,20 @@ function chainExample(source: string): { prompt: string; solution: string } | nu
   return null;
 }
 
+/** Harf = harf bağıntısı. `m = 0,5` verilen sayıdır, formül değildir. */
+function symbolicFormula(text: string): string | null {
+  const matches = text.matchAll(/[A-Za-zΔδ][A-Za-z0-9_Δδ]*\s*=\s*[^.\n]{0,48}/g);
+  for (const match of matches) {
+    const line = match[0].replace(/\s+/g, " ").trim();
+    const right = line.split("=")[1] ?? "";
+    if (/[A-Za-zΔδ]/.test(right)) return line.replace(/[^A-Za-z0-9Δδ_/\s=+×*−-]+$/g, "").trim();
+  }
+  return null;
+}
+
 function chainScore(text: string): number {
   const example = foldTr(text).includes("ornek") ? 4 : 0;
-  const ops = (text.match(/[×xX*/+]/g) ?? []).length;
+  const ops = (text.match(/\d(?:[.,]\d+)?\s*[×xX*+]\s*\d|\d(?:[.,]\d+)?\s*\/\s*\d/g) ?? []).length;
   return example + ops;
 }
 
@@ -567,15 +619,15 @@ function chainFromWindow(window: string, source: string): { prompt: string; solu
     .join(", ");
   const last = numbers[numbers.length - 1];
   const result = last ? `${last[1]}${last[2] ?? ""}`.trim() : "";
-  const relation = raw.match(/[A-Za-zΔδ][A-Za-z0-9_Δδ]*\s*=\s*[\d\s.,×xX*/+\-=−–]{0,80}/);
+  const relation = symbolicFormula(source) ?? symbolicFormula(raw);
   const solution = [
     given ? `Verilen: ${given}.` : "Verilen: kaynaktaki sayılar.",
     "İstenen: işlemin sonucu, birimiyle.",
-    relation ? `Bağıntı: ${relation[0].trim()}.` : "Bağıntı: kaynaktaki eşitlik.",
+    relation ? `Bağıntı: ${relation}.` : "Bağıntı: kaynaktaki eşitlik.",
     `Yerine koyma: ${raw}.`,
     result ? `Sonuç: ${result}.` : `Sonuç: ${raw}.`,
   ].join("\n");
-  if (!exampleComplete(solution, source)) return null;
+  if (!exampleReady(solution, source)) return null;
   const lead = given || result || "verilen";
   return {
     prompt: `${lead} için sonuç nedir?`.slice(0, 300),
@@ -626,14 +678,14 @@ function withStepLabels(solution: string): string {
 
 function withSourceExample(lesson: LessonV2, source: string): LessonV2 {
   if (!topicIsQuantitative(source)) return lesson;
-  if (lesson.example && exampleComplete(lesson.example.solution, source)) return lesson;
+  if (lesson.example && exampleReady(`${lesson.example.prompt}\n${lesson.example.solution}`, source)) return lesson;
   if (
     lesson.example &&
     hasWorked(lesson.example.solution) &&
     auditQuantitative(lesson.example.solution, source).ok
   ) {
     const wrapped = withStepLabels(lesson.example.solution);
-    if (exampleComplete(wrapped, source)) {
+    if (exampleReady(wrapped, source)) {
       return { ...lesson, example: { ...lesson.example, solution: wrapped } };
     }
   }
@@ -725,15 +777,49 @@ function scrubInventedNumbers(lesson: LessonV2, source: string): LessonV2 {
   };
 }
 
+function applyIdentity(lesson: LessonV2, source: string): LessonV2 {
+  const keep = (text: string) => settleIdentity(text, source);
+  return {
+    ...lesson,
+    overview: lesson.overview ? keep(lesson.overview) : lesson.overview,
+    sections: lesson.sections.map((section) => ({
+      ...section,
+      body: keep(section.body),
+      ...(section.note ? { note: { ...section.note, body: keep(section.note.body) } } : {}),
+      ...(section.check
+        ? { check: { ...section.check, explanation: keep(section.check.explanation) } }
+        : {}),
+    })),
+    ...(lesson.example
+      ? {
+          example: {
+            prompt: keep(lesson.example.prompt),
+            solution: keep(lesson.example.solution),
+          },
+        }
+      : {}),
+    ...(lesson.commonMistake
+      ? {
+          commonMistake: {
+            claim: lesson.commonMistake.claim,
+            correction: keep(lesson.commonMistake.correction),
+          },
+        }
+      : {}),
+    ...(lesson.summary ? { summary: lesson.summary.map((line) => keep(line)) } : {}),
+  };
+}
+
 function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): LessonV2 {
-  const grounded = groundLearnerLesson(scrubInventedNumbers(lesson, source), source, {}).lesson;
+  const named = applyIdentity(lesson, source);
+  const grounded = groundLearnerLesson(scrubInventedNumbers(named, source), source, {}).lesson;
   const parsed = lessonV2Schema.safeParse(grounded).data ?? lesson;
   const saved = lesson.example;
   let next = parsed;
   if (
     saved &&
-    (!next.example || !exampleComplete(next.example.solution, source)) &&
-    exampleComplete(saved.solution, source)
+    (!next.example || !exampleReady(next.example.solution, source)) &&
+    exampleReady(saved.solution, source)
   ) {
     next = { ...next, example: saved };
   }

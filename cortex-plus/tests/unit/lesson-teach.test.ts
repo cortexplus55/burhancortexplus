@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { exampleIsComplete } from "@/lib/learning/lesson-repair";
 import { auditQuantitative } from "@/lib/learning/tutor-quant";
 import { reviewQuestionFor, retrySharesSubject } from "@/lib/learning/teacher-brain";
 import {
@@ -415,6 +416,40 @@ describe("subject lessons", () => {
     expect(law.lesson.commonMistake?.correction).toMatch(/sayılmaz/);
     expect(biology.lesson.sections[0]?.body).toMatch(/Mitokondri/);
     expect(biology.lesson.sections[0]?.cards?.some((card) => card.title === "Mitokondri")).toBe(true);
+  });
+});
+
+describe("shared number audit and example gate", () => {
+  it("rewrites an identity claim with the shared audit and keeps a complete example", async () => {
+    const lesson = goodMolLesson();
+    lesson.sections[0] = {
+      ...lesson.sections[0],
+      body: `${lesson.sections[0]?.body ?? ""} Mol kütlesi atomik kütle ile aynıdır.`,
+    };
+    const finished = await finishTaughtLesson(lesson, { source: MOL_SOURCE, topicLabel: MOL });
+    const blob = JSON.stringify(finished.lesson);
+    expect(blob).toMatch(/akb \(u\)/);
+    expect(blob).not.toMatch(/atomik kütle ile aynıdır/);
+    expect(exampleIsComplete(finished.lesson.example?.solution ?? "")).toBe(true);
+    expect(criticalTeachingFailures(finished.failures).map((failure) => failure.problem)).not.toContain(
+      "identity",
+    );
+  });
+
+  it("replaces a hollow announced example with the source example that passes the shared gate", async () => {
+    const lesson = goodMolLesson();
+    lesson.example = {
+      prompt: "Örnek: 88 g karbondioksit.",
+      solution: "Örnek: molü bulmak için n = m / M formülü kullanılır.",
+    };
+    const finished = await finishTaughtLesson(lesson, { source: MOL_SOURCE, topicLabel: MOL });
+    const solution = finished.lesson.example?.solution ?? "";
+    expect(exampleIsComplete(solution)).toBe(true);
+    expect(solution).toMatch(/88/);
+    expect(solution).not.toMatch(/formülü kullanılır/);
+    expect(criticalTeachingFailures(finished.failures).map((failure) => failure.problem)).not.toContain(
+      "missing_example",
+    );
   });
 });
 
