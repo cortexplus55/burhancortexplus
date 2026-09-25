@@ -55,20 +55,22 @@ export function lessonPodcastBrief(lesson: LessonV2): string {
   return [
     `DERSİN KENDİSİ (bu podcast onun sesli hâli):`,
     `Başlık: ${lesson.title}`,
-    `Hedef: ${lesson.objective}`,
-    `Konunun özü: ${lesson.overview}`,
+    lesson.objective ? `Hedef: ${lesson.objective}` : "",
+    lesson.overview ? `Konunun özü: ${lesson.overview}` : "",
     ``,
     `Dersin bölümleri:`,
     sections,
     ``,
-    `Kaynaktaki çözümlü soru: ${lesson.example.prompt}`,
-    `Çözümü: ${lesson.example.solution}`,
-    ``,
-    `Öğrencinin düştüğü yanılgı: ${lesson.commonMistake.claim}`,
-    `Doğrusu: ${lesson.commonMistake.correction}`,
-    ``,
-    `Dersin kapanışında söylenenler: ${lesson.summary.join(" ")}`,
-  ].join("\n");
+    lesson.example
+      ? `Kaynaktaki çözümlü soru: ${lesson.example.prompt}\nÇözümü: ${lesson.example.solution}`
+      : "",
+    lesson.commonMistake
+      ? `Öğrencinin düştüğü yanılgı: ${lesson.commonMistake.claim}\nDoğrusu: ${lesson.commonMistake.correction}`
+      : "",
+    lesson.summary?.length ? `Dersin kapanışında söylenenler: ${lesson.summary.join(" ")}` : "",
+  ]
+    .filter((line) => line !== "")
+    .join("\n");
 }
 
 /**

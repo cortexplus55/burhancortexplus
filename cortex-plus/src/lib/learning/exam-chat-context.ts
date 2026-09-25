@@ -132,11 +132,17 @@ export async function loadExamChatContext(
       .map((s) => `- ${s.heading}: ${s.body.slice(0, MAX_SECTION_CHARS)}`)
       .join("\n");
     lines.push(
-      `En son okuduğu ders: "${lesson.title}".`,
-      `Dersin hedefi: ${lesson.objective}`,
-      `Dersin bölümleri ve anlattıkları:\n${sections}`,
-      `Dersteki çözümlü örnek: ${lesson.example.prompt} → ${lesson.example.solution}`,
-      `Dersin verdiği yaygın hata: ${lesson.commonMistake.claim} → ${lesson.commonMistake.correction}`,
+      ...[
+        `En son okuduğu ders: "${lesson.title}".`,
+        lesson.objective ? `Dersin hedefi: ${lesson.objective}` : "",
+        `Dersin bölümleri ve anlattıkları:\n${sections}`,
+        lesson.example
+          ? `Dersteki çözümlü örnek: ${lesson.example.prompt} → ${lesson.example.solution}`
+          : "",
+        lesson.commonMistake
+          ? `Dersin verdiği yaygın hata: ${lesson.commonMistake.claim} → ${lesson.commonMistake.correction}`
+          : "",
+      ].filter(Boolean),
     );
   }
 
@@ -144,11 +150,11 @@ export async function loadExamChatContext(
   const teaching = await loadTopicTeaching(service, prepDocs, lesson?.title ?? prepTitle);
   const lessonFacts = lesson
     ? [
-        lesson.overview,
-        lesson.example.prompt,
-        lesson.example.solution,
-        lesson.commonMistake.claim,
-        lesson.commonMistake.correction,
+        lesson.overview ?? "",
+        lesson.example?.prompt ?? "",
+        lesson.example?.solution ?? "",
+        lesson.commonMistake?.claim ?? "",
+        lesson.commonMistake?.correction ?? "",
         ...lesson.sections.map((section) => `${section.heading}\n${section.body}`),
       ].join("\n")
     : "";

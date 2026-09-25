@@ -310,11 +310,13 @@ export async function verifyEducationalContent(input: {
     repairAttempted = true;
     const repairStarted = Date.now();
     const repairRaw = await request(
-      "Eğitim içeriğindeki şu sorunları düzelt: " +
+      "Eğitim içeriğindeki şu sorunları düzelt. Liste, eksik veya bozuk alanların tam adını taşır: " +
         JSON.stringify(blocking) +
         ". Yalnızca bu maddeleri gider. Üslup, LaTeX, koyu yazım ve başlık sözcüğünü değiştirme. " +
         "Kaynak sayfalarda olmayan formül, yasa ve tanımı sil. " +
-        "İstenen JSON şemasını koru. Bilmediğini uydurma. " +
+        "JSON anahtarları İngilizce kalsın: objective, sections, example, commonMistake, infoCheck. " +
+        "example, commonMistake veya objective uydurma; yazamıyorsan alanı atla. " +
+        "En az bir kavram bölümü ve yanıtlı bir kontrol sorusu kalsın. " +
         'JSON döndür: {"content":string}; content düzeltilmiş tam taslaktır (istenen biçim JSON ise geçerli JSON metni).',
     );
     stagesMs.repair = (stagesMs.repair ?? 0) + (Date.now() - repairStarted);

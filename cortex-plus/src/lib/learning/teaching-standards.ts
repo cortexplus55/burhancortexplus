@@ -161,13 +161,13 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "TUZAĞI YERİNDE UYAR: bir bölümde karıştırılması kolay bir ayrım varsa o bölüme " +
         "note ekle — kısa başlık ve tek cümle (\"Havanın Ağırlığı: hacmi hesaba dahil, " +
         "ağırlığı değil\"). Her bölüme değil, gerçekten tuzak olan yere. " +
-        "En az 2 kavram bölümü; kaynak daha fazla alt başlık veriyorsa onları da kapsa, " +
-        "sırf sayıyı doldurmak için yeni bölüm uydurma. HER bölümde check zorunlu: type trueFalse ekranda " +
-        "DOĞRU MU YANLIŞ, type mcq ekranda HIZLI SINAV. explanation (AÇIKLAMA) yanlış " +
-        "seçeneğin neden çürük olduğunu yazsın; yalnızca doğruyu tekrarlama. " +
-        "overview 400 karakteri aşmasın. example.solution adım adım ve gerekçeli. " +
-        "nextFocus en az bir sonraki çalışma. Kaynakta olmayan formül veya teorem yazma; " +
-        "emin değilsen materyalde geçtiği hâliyle söyle."
+        "Kaynak kaç kavram veriyorsa o kadar bölüm; en az bir kavram bölümü. " +
+        "Sırf sayıyı doldurmak için yeni bölüm uydurma. En az bir bölümde yanıtlı check olsun: " +
+        "type trueFalse ekranda DOĞRU MU YANLIŞ, type mcq ekranda HIZLI SINAV. " +
+        "explanation (AÇIKLAMA) yanlış seçeneğin neden çürük olduğunu yazsın; yalnızca doğruyu tekrarlama. " +
+        "JSON anahtarları İngilizce kalır: objective, sections, example, commonMistake, infoCheck. " +
+        "example, commonMistake veya objective yazamıyorsan alanı atla; uydurma. " +
+        "Kaynakta olmayan formül veya teorem yazma; emin değilsen materyalde geçtiği hâliyle söyle."
       );
     case "quiz":
       return (
@@ -239,9 +239,12 @@ const reviewVariantSchema = z.object({
 export const sectionCheckSchema = z.object({
   type: z.enum(["mcq", "trueFalse"]),
   prompt: z.string().min(8).max(300),
-  options: z.array(z.string().min(1).max(160)).min(2).max(4),
-  answerIndex: z.number().int().min(0).max(3),
-  explanation: z.string().min(8).max(400),
+  options: z.array(z.string().min(1).max(200)).min(2).max(6),
+  answerIndex: z.number().int().min(0).max(5),
+  explanation: z.preprocess(
+    (value) => (typeof value === "string" ? value.slice(0, 600) : ""),
+    z.string().max(600),
+  ),
   /**
    * Aynı üretim çağrısında yazılan tekrar. Bozuk varyant dersi düşürmez;
    * ekran o zaman şık kaydırma + önek kullanır.
@@ -269,19 +272,25 @@ export const sectionNoteSchema = z.object({
 
 export type SectionNote = z.infer<typeof sectionNoteSchema>;
 
+const looseText = (max: number) =>
+  z.preprocess(
+    (value) => (typeof value === "string" && value.trim() ? value.trim().slice(0, max) : undefined),
+    z.string().max(max).optional().catch(undefined),
+  );
+
 export const lessonV2Schema = z.object({
-  title: z.string().min(2).max(120),
-  objective: z.string().min(12).max(240),
-  overview: z.string().min(20).max(600),
+  title: z.string().min(2).max(160),
+  objective: looseText(400),
+  overview: looseText(1500),
   sections: z
     .array(
       z.object({
-        heading: z.string().min(2),
+        heading: z.string().min(2).max(160),
         // Anahtar terimler **iki yıldız** arasında gelir; ekranda koyu
         // görünür. Sınava iki gün kala dersi yeniden okuyan öğrenci neye
         // bakacağını düz paragraftan çıkaramıyordu.
-        body: z.string().min(20).max(900),
-        check: sectionCheckSchema.optional(),
+        body: z.string().min(20).max(2500),
+        check: sectionCheckSchema.optional().catch(undefined),
         // Süs alanlar dersi düşürmemeli.
         //
         // diagram eklenince ders üretimi tamamen durdu: model kurala
@@ -313,21 +322,30 @@ export const lessonV2Schema = z.object({
     // örnek kesilince geriye tek sağlam bölüm kalabilir. İki bölüm hâlâ
     // istenen hedeftir; sayı tek başına dersi düşürmez.
     .min(1)
-    .max(6),
-  example: z.object({
-    prompt: z.string().min(8),
-    solution: z.string().min(8),
-  }),
-  commonMistake: z.object({
-    claim: z.string().min(8),
-    correction: z.string().min(8),
-  }),
-  infoCheck: z.object({
-    prompt: z.string().min(8),
-    answer: z.string().min(4),
-  }),
-  summary: z.array(z.string().min(2)).min(2).max(6),
-  nextFocus: z.array(z.string().min(2)).min(1).max(4),
+    .max(8),
+  example: z
+    .object({
+      prompt: z.string().min(8).max(800),
+      solution: z.string().min(8).max(1500),
+    })
+    .optional()
+    .catch(undefined),
+  commonMistake: z
+    .object({
+      claim: z.string().min(8).max(400),
+      correction: z.string().min(8).max(400),
+    })
+    .optional()
+    .catch(undefined),
+  infoCheck: z
+    .object({
+      prompt: z.string().min(8).max(400),
+      answer: z.string().min(2).max(400),
+    })
+    .optional()
+    .catch(undefined),
+  summary: z.array(z.string().min(2).max(240)).max(8).optional().catch(undefined),
+  nextFocus: z.array(z.string().min(2).max(200)).max(6).optional().catch(undefined),
 });
 
 export type LessonV2 = z.infer<typeof lessonV2Schema>;
@@ -747,9 +765,391 @@ function normalizeLessonField(value: unknown): unknown {
   return typeof value === "string" ? normalizeMathNotation(value) : value;
 }
 
+function asLessonRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function foldedKey(key: string): string {
+  return foldTr(key).replace(/[^a-z0-9]/g, "");
+}
+
+function renameFields(
+  row: Record<string, unknown>,
+  aliases: Record<string, string>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const next = aliases[foldedKey(key)] ?? key;
+    if (out[next] == null) out[next] = value;
+  }
+  return out;
+}
+
+const LESSON_KEY_ALIASES: Record<string, string> = {
+  title: "title",
+  baslik: "title",
+  objective: "objective",
+  hedef: "objective",
+  amac: "objective",
+  ogrenmehedefi: "objective",
+  learningobjective: "objective",
+  goal: "objective",
+  overview: "overview",
+  giris: "overview",
+  introduction: "overview",
+  sections: "sections",
+  bolumler: "sections",
+  chapters: "sections",
+  example: "example",
+  ornek: "example",
+  workedexample: "example",
+  cozumluornek: "example",
+  commonmistake: "commonMistake",
+  yayginhata: "commonMistake",
+  misconception: "commonMistake",
+  yanilgi: "commonMistake",
+  infocheck: "infoCheck",
+  bilgikontrolu: "infoCheck",
+  bilgikontrol: "infoCheck",
+  knowledgecheck: "infoCheck",
+  summary: "summary",
+  ozet: "summary",
+  nextfocus: "nextFocus",
+  sonraki: "nextFocus",
+  sonrakiadim: "nextFocus",
+  nextstep: "nextFocus",
+};
+
+const SECTION_KEY_ALIASES: Record<string, string> = {
+  heading: "heading",
+  baslik: "heading",
+  title: "heading",
+  body: "body",
+  metin: "body",
+  content: "body",
+  anlatim: "body",
+  text: "body",
+  check: "check",
+  kontrol: "check",
+  soru: "check",
+  quiz: "check",
+  note: "note",
+  not: "note",
+  cards: "cards",
+  kartlar: "cards",
+  diagram: "diagram",
+  cizim: "diagram",
+};
+
+const PAIR_KEY_ALIASES: Record<string, string> = {
+  prompt: "prompt",
+  soru: "prompt",
+  question: "prompt",
+  problem: "prompt",
+  solution: "solution",
+  cozum: "solution",
+  answer: "answer",
+  cevap: "answer",
+  correct: "answer",
+  dogru: "answer",
+  claim: "claim",
+  iddia: "claim",
+  yanlis: "claim",
+  mistake: "claim",
+  correction: "correction",
+  duzeltme: "correction",
+  explanation: "explanation",
+  aciklama: "explanation",
+  options: "options",
+  siklar: "options",
+  secenekler: "options",
+  choices: "options",
+  answerindex: "answerIndex",
+  dogruindeks: "answerIndex",
+  correctindex: "answerIndex",
+  type: "type",
+  tur: "type",
+};
+
+function clipText(value: unknown, max: number): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return trimmed.slice(0, max);
+}
+
+function stringList(value: unknown, maxItems: number, maxLen: number): string[] | undefined {
+  if (typeof value === "string") {
+    const parts = value
+      .split(/\n+|;\s+/)
+      .map((item) => item.trim())
+      .filter((item) => item.length >= 2);
+    const list = (parts.length ? parts : [value.trim()]).filter((item) => item.length >= 2);
+    return list.length ? list.slice(0, maxItems).map((item) => item.slice(0, maxLen)) : undefined;
+  }
+  if (!Array.isArray(value)) return undefined;
+  const list = value
+    .map((item) => (typeof item === "string" ? item.trim().slice(0, maxLen) : ""))
+    .filter((item) => item.length >= 2);
+  return list.length ? list.slice(0, maxItems) : undefined;
+}
+
+function toArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  const row = asLessonRecord(value);
+  if (!row) return [];
+  const values = Object.values(row);
+  if (values.length && values.every((item) => item && typeof item === "object")) return values;
+  return [row];
+}
+
+function normalizeCheckType(value: unknown, options: string[]): "mcq" | "trueFalse" {
+  const folded = foldTr(String(value ?? ""));
+  if (/truefalse|true_false|dogruyanlis|^dy$|^tf$/.test(folded.replace(/[^a-z_]/g, ""))) {
+    return "trueFalse";
+  }
+  const foldedOptions = options.map((option) => foldTr(option));
+  if (
+    foldedOptions.length === 2 &&
+    foldedOptions.includes("dogru") &&
+    foldedOptions.includes("yanlis")
+  ) {
+    return "trueFalse";
+  }
+  return "mcq";
+}
+
+function normalizeCheck(value: unknown): Record<string, unknown> | undefined {
+  const row = asLessonRecord(value);
+  if (!row) return undefined;
+  const named = renameFields(row, PAIR_KEY_ALIASES);
+  const prompt = clipText(named.prompt ?? named.text, 400);
+  if (!prompt || prompt.length < 8) return undefined;
+  let options = Array.isArray(named.options)
+    ? named.options
+        .map((option) => (typeof option === "string" ? option.trim().slice(0, 200) : ""))
+        .filter((option) => option.length >= 1)
+    : [];
+  let answerIndex = typeof named.answerIndex === "number" ? named.answerIndex : undefined;
+  const answer = named.answer;
+  if (typeof answer === "string" && answer.trim()) {
+    const folded = foldTr(answer);
+    const found = options.findIndex((option) => foldTr(option) === folded);
+    if (found >= 0) answerIndex = found;
+  }
+  if (typeof answer === "boolean" && options.length >= 2) {
+    const yes = options.findIndex((option) => foldTr(option) === "dogru");
+    const no = options.findIndex((option) => foldTr(option) === "yanlis");
+    if (yes >= 0 && no >= 0) answerIndex = answer ? yes : no;
+  }
+  if (options.length < 2 && (foldTr(prompt).includes("dogru") || named.type)) {
+    if (foldTr(String(answer ?? "")) === "yanlis" || answer === false) {
+      options = ["Doğru", "Yanlış"];
+      answerIndex = 1;
+    } else if (foldTr(String(answer ?? "")) === "dogru" || answer === true) {
+      options = ["Doğru", "Yanlış"];
+      answerIndex = 0;
+    }
+  }
+  if (options.length < 2 || answerIndex == null || answerIndex < 0 || answerIndex >= options.length) {
+    return undefined;
+  }
+  const explanation = clipText(named.explanation, 600) ?? "";
+  return {
+    type: normalizeCheckType(named.type, options),
+    prompt,
+    options: options.slice(0, 6),
+    answerIndex,
+    explanation,
+  };
+}
+
+function normalizePair(
+  value: unknown,
+  left: "prompt" | "claim",
+  right: "solution" | "correction" | "answer",
+): Record<string, unknown> | undefined {
+  if (typeof value === "string") {
+    const split = value.split(/\s+(?:doğrusu|cozum|çözüm|çünkü)\s*:\s*/i);
+    if (split.length >= 2 && split[0].trim().length >= 8 && split[1].trim().length >= 4) {
+      return { [left]: split[0].trim().slice(0, 700), [right]: split[1].trim().slice(0, 700) };
+    }
+    return undefined;
+  }
+  const row = asLessonRecord(value);
+  if (!row) return undefined;
+  const named = renameFields(row, PAIR_KEY_ALIASES);
+  const a = clipText(named[left] ?? named.prompt ?? named.claim, 800);
+  const b = clipText(named[right] ?? named.solution ?? named.correction ?? named.answer, 1500);
+  if (!a || !b || a.length < 8 || b.length < (right === "answer" ? 2 : 8)) return undefined;
+  if (foldTr(a) === foldTr(b)) return undefined;
+  return { [left]: a, [right]: b };
+}
+
+function unwrapLesson(raw: unknown): Record<string, unknown> | null {
+  const row = asLessonRecord(raw);
+  if (!row) return null;
+  const named = renameFields(row, LESSON_KEY_ALIASES);
+  if (named.sections) return named;
+  for (const key of ["lesson", "ders", "content", "data", "result"]) {
+    const inner = unwrapLesson(row[key] ?? named[key]);
+    if (inner?.sections) return inner;
+  }
+  return named;
+}
+
+function normalizeSection(value: unknown): Record<string, unknown> | undefined {
+  const row = asLessonRecord(value);
+  if (!row) return undefined;
+  const named = renameFields(row, SECTION_KEY_ALIASES);
+  const heading = clipText(named.heading, 160);
+  const body = clipText(named.body, 2500);
+  if (!heading || heading.length < 2 || !body || body.length < 20) return undefined;
+  const check = normalizeCheck(named.check);
+  const section: Record<string, unknown> = { heading, body };
+  if (check) section.check = check;
+  else {
+    const namedCheck = renameFields(asLessonRecord(named.check) ?? {}, PAIR_KEY_ALIASES);
+    const prompt = clipText(namedCheck.prompt ?? namedCheck.text, 400);
+    const answer = clipText(namedCheck.answer, 400);
+    if (prompt && answer && prompt.length >= 8 && answer.length >= 2 && foldTr(prompt) !== foldTr(answer)) {
+      section.freeCheck = { prompt, answer };
+    }
+  }
+  if (named.note) section.note = named.note;
+  if (named.cards) section.cards = named.cards;
+  if (named.diagram) section.diagram = named.diagram;
+  return section;
+}
+
+export type LessonShapeGap = {
+  field: string;
+  problem: string;
+  core: boolean;
+};
+
+/**
+ * Modelin sık yazdığı şekil varyantlarını v2 alanlarına çevirir.
+ * Türkçe anahtar, tek nesne, bir seviye iç içe sarmalama, cevap
+ * metni. Yeni olgu yazılmaz; eşlenemeyen isteğe bağlı alan düşer.
+ */
+export function normalizeLessonShape(raw: unknown): unknown {
+  const named = unwrapLesson(raw);
+  if (!named) return raw;
+  const sections = toArray(named.sections).map(normalizeSection).filter(Boolean);
+  const example = normalizePair(named.example, "prompt", "solution");
+  const commonMistake = normalizePair(named.commonMistake, "claim", "correction");
+  let infoCheck = normalizePair(named.infoCheck, "prompt", "answer");
+  if (!infoCheck) {
+    const donor = sections.find((section) => section?.check) as
+      | { check?: { prompt?: string; options?: string[]; answerIndex?: number }; freeCheck?: { prompt: string; answer: string } }
+      | undefined;
+    const free = sections.find((section) => section?.freeCheck) as
+      | { freeCheck?: { prompt: string; answer: string } }
+      | undefined;
+    const check = donor?.check;
+    const answer = check?.options?.[check.answerIndex ?? -1];
+    if (check?.prompt && typeof answer === "string" && answer.trim().length >= 2) {
+      infoCheck = { prompt: check.prompt.slice(0, 400), answer: answer.trim().slice(0, 400) };
+    } else if (free?.freeCheck) {
+      infoCheck = free.freeCheck;
+    }
+  }
+  for (const section of sections) {
+    if (section && "freeCheck" in section) delete section.freeCheck;
+  }
+  const objective = clipText(named.objective, 400);
+  const firstHeading = sections.find((section) => typeof section?.heading === "string")?.heading;
+  const title = clipText(named.title, 160) ?? clipText(firstHeading, 160);
+  const overview = clipText(named.overview, 1500);
+  const summary = stringList(named.summary, 8, 240);
+  const nextFocus = stringList(named.nextFocus, 6, 200);
+  const lesson: Record<string, unknown> = {
+    ...(title ? { title } : {}),
+    ...(objective ? { objective } : {}),
+    ...(overview ? { overview } : {}),
+    sections,
+  };
+  if (example) lesson.example = example;
+  if (commonMistake) lesson.commonMistake = commonMistake;
+  if (infoCheck) lesson.infoCheck = infoCheck;
+  if (summary?.length) lesson.summary = summary;
+  if (nextFocus?.length) lesson.nextFocus = nextFocus;
+  return lesson;
+}
+
+function sectionHasAnswer(section: Record<string, unknown> | undefined): boolean {
+  const check = asLessonRecord(section?.check);
+  if (!check) return false;
+  const prompt = typeof check.prompt === "string" ? check.prompt.trim() : "";
+  if (prompt.length < 8) return false;
+  const options = Array.isArray(check.options) ? check.options : [];
+  const index = check.answerIndex;
+  if (typeof index === "number" && typeof options[index] === "string" && String(options[index]).trim()) {
+    return true;
+  }
+  return typeof check.answer === "string" && check.answer.trim().length >= 2;
+}
+
+/** En az bir kavram bölümü ve yanıtlı bir kontrol. İsteğe bağlı alanlar sayılmaz. */
+export function lessonHasTeachingCore(raw: unknown): boolean {
+  const named = asLessonRecord(normalizeLessonShape(raw));
+  if (!named || !Array.isArray(named.sections)) return false;
+  const sections = named.sections.filter((section) => {
+    const row = asLessonRecord(section);
+    const body = typeof row?.body === "string" ? row.body.trim() : "";
+    const heading = typeof row?.heading === "string" ? row.heading.trim() : "";
+    return heading.length >= 2 && body.length >= 20;
+  }) as Record<string, unknown>[];
+  if (!sections.length) return false;
+  if (sections.some(sectionHasAnswer)) return true;
+  const info = asLessonRecord(named.infoCheck);
+  const prompt = typeof info?.prompt === "string" ? info.prompt.trim() : "";
+  const answer = typeof info?.answer === "string" ? info.answer.trim() : "";
+  return prompt.length >= 8 && answer.length >= 2 && foldTr(prompt) !== foldTr(answer);
+}
+
+/** Hangi alanın eksik ya da bozuk olduğunu söyler. Çekirdek olanlar dersi düşürür. */
+export function describeLessonShapeGaps(raw: unknown): LessonShapeGap[] {
+  const named = asLessonRecord(normalizeLessonShape(raw));
+  const gaps: LessonShapeGap[] = [];
+  if (!named) {
+    return [{ field: "lesson", problem: "JSON nesnesi değil", core: true }];
+  }
+  if (typeof named.title !== "string" || named.title.trim().length < 2) {
+    gaps.push({ field: "title", problem: "başlık yok", core: false });
+  }
+  const sections = Array.isArray(named.sections) ? named.sections : [];
+  const real = sections.filter((section) => {
+    const row = asLessonRecord(section);
+    return typeof row?.body === "string" && row.body.trim().length >= 20;
+  });
+  if (!real.length) {
+    gaps.push({ field: "sections", problem: "metinli kavram bölümü yok", core: true });
+  }
+  const hasQuestion = lessonHasTeachingCore({ ...named, sections: real.length ? real : sections });
+  if (!hasQuestion) {
+    gaps.push({
+      field: "sections.check",
+      problem: "yanıtlı kontrol sorusu yok (prompt + answerIndex veya infoCheck.answer)",
+      core: true,
+    });
+  }
+  if (!named.objective) gaps.push({ field: "objective", problem: "öğrenme hedefi yok", core: false });
+  if (!named.overview) gaps.push({ field: "overview", problem: "genel bakış yok", core: false });
+  if (!named.example) gaps.push({ field: "example", problem: "çözümlü örnek yok", core: false });
+  if (!named.commonMistake) {
+    gaps.push({ field: "commonMistake", problem: "yaygın hata yok", core: false });
+  }
+  if (!named.infoCheck) gaps.push({ field: "infoCheck", problem: "bilgi kontrolü yok", core: false });
+  return gaps;
+}
+
 export function coerceLessonCosmetics(raw: unknown, keyTerms: string[] = []): unknown {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-  const row = { ...(raw as Record<string, unknown>) };
+  const shaped = normalizeLessonShape(raw);
+  if (!shaped || typeof shaped !== "object" || Array.isArray(shaped)) return shaped;
+  const row = { ...(shaped as Record<string, unknown>) };
   for (const key of ["title", "objective", "overview"] as const) {
     row[key] = normalizeLessonField(row[key]);
   }
@@ -772,7 +1172,7 @@ export function coerceLessonCosmetics(raw: unknown, keyTerms: string[] = []): un
         if (typeof item.heading === "string") item.heading = normalizeMathNotation(item.heading);
         if (typeof item.body === "string") item.body = normalizeMathNotation(item.body);
         if (typeof item.heading === "string" && typeof item.body === "string") {
-          item.body = boldExistingTerm(item.heading, item.body, keyTerms);
+          item.body = boldExistingTerm(item.heading, item.body, keyTerms).slice(0, 2500);
         }
         return item;
       })
@@ -801,7 +1201,7 @@ export function coerceLessonCosmetics(raw: unknown, keyTerms: string[] = []): un
     ? row.nextFocus.filter((item) => typeof item === "string" && item.trim().length >= 2)
     : [];
   if (!focus.length && objective.length >= 2) {
-    row.nextFocus = [`${objective.slice(0, 140)} için bir kontrol sorusu çöz.`];
+    row.nextFocus = [objective.slice(0, 180)];
   }
   const info = row.infoCheck;
   const infoOk =
@@ -896,7 +1296,7 @@ export function validateLessonPedagogy(
   }
   const lesson = parsed.data;
   const issues: string[] = [];
-  if (wallOfText(lesson.overview)) {
+  if (lesson.overview && wallOfText(lesson.overview)) {
     issues.push("Genel bakış çok uzun; kısa tut.");
   }
   // İstenen alt sınır ikidir; kaynak omurgası daha uzunsa o kadar.
@@ -917,8 +1317,8 @@ export function validateLessonPedagogy(
 
   // "X konusunu öğren." bir hedef değil, başlığın kopyası.
   const titleFolded = foldTr(lesson.title);
-  const objectiveFolded = foldTr(lesson.objective);
-  if (objectiveFolded.includes(titleFolded)) {
+  const objectiveFolded = foldTr(lesson.objective ?? "");
+  if (lesson.objective && objectiveFolded.includes(titleFolded)) {
     // Başlık çıkınca geriye kalan: gerçek bir hedef mi, yoksa "…konusunu
     // öğren" gibi kalıp mı?
     const rest = objectiveFolded.replace(titleFolded, "").trim();
@@ -935,6 +1335,7 @@ export function validateLessonPedagogy(
   // "Bu derste aşı takvimini yaşa göre okumayı öğreneceksin" iyi bir
   // genel bakış ve o da eleniyordu.
   if (
+    lesson.overview &&
     /(aciklanacak|anlatilacak|ele alinacak|pekistirilecek|incelenecek|islenecek)/.test(
       foldTr(lesson.overview),
     )
@@ -973,11 +1374,11 @@ export function validateLessonPedagogy(
   }
 
   const mathTexts = [
-    lesson.overview,
+    lesson.overview ?? "",
     ...lesson.sections.map((s) => s.body),
-    lesson.example.prompt,
-    lesson.example.solution,
-    lesson.commonMistake.correction,
+    lesson.example?.prompt ?? "",
+    lesson.example?.solution ?? "",
+    lesson.commonMistake?.correction ?? "",
   ];
   if (mathTexts.some(brokenSuperscript)) {
     issues.push(
@@ -992,11 +1393,11 @@ export function validateLessonPedagogy(
     // Kontrolün bütünlüğü (dolgu şık, cevap indeksi, tekrar) artık
     // blockingLessonIssues'ta; oradan aşağıda ekleniyor.
   }
-  if (lesson.commonMistake.claim === lesson.commonMistake.correction) {
+  if (
+    lesson.commonMistake &&
+    lesson.commonMistake.claim === lesson.commonMistake.correction
+  ) {
     issues.push("Yaygın hata ile düzeltme aynı olamaz.");
-  }
-  if (!lesson.objective.trim()) {
-    issues.push("Öğrenme hedefi zorunlu.");
   }
   return [...issues, ...blockingLessonIssues(lesson)];
 }
@@ -1049,19 +1450,19 @@ export function validateLessonV2(
   if (lesson.sections.length < floor && !issues.some((issue) => issue.includes("en az"))) {
     issues.push(`Ders en az ${floor} kavram bölümü istiyor.`);
   }
-  if (lesson.overview.trim().length > 400) {
+  if ((lesson.overview ?? "").trim().length > 400) {
     issues.push("Genel bakış 400 karakteri aşıyor; konunun özünü kısa yaz.");
   }
-  if (lesson.example.solution.trim() === lesson.example.prompt.trim()) {
+  if (lesson.example && lesson.example.solution.trim() === lesson.example.prompt.trim()) {
     issues.push("Çözüm, sorunun tekrarı olamaz; adım ve gerekçe yaz.");
-  } else if (!solutionIsJustified(lesson.example.solution)) {
+  } else if (lesson.example && !solutionIsJustified(lesson.example.solution)) {
     issues.push("Çözüm adım adım ve gerekçeli olmalı; yalnızca sonucu yazma.");
   }
-  if (foldTr(lesson.infoCheck.answer) === foldTr(lesson.infoCheck.prompt)) {
+  if (
+    lesson.infoCheck &&
+    foldTr(lesson.infoCheck.answer) === foldTr(lesson.infoCheck.prompt)
+  ) {
     issues.push("Bilgi kontrolünün yanıtı sorunun tekrarı olamaz.");
-  }
-  if (!lesson.nextFocus.some((item) => item.trim().length >= 2)) {
-    issues.push("nextFocus zorunlu.");
   }
   for (const section of lesson.sections) {
     if (!/\*\*[^*\n]{2,60}\*\*/.test(section.body)) {
@@ -1126,13 +1527,34 @@ export function publishLessonDraft(
  * LaTeX düz yazıma çevrilir, çözümü tek cümle olan örnek dersi düşürmez.
  * Şema, bölünmüş üs ve doldurulamayan zorunlu alan hâlâ düşürür.
  */
+function publishIssueBlocks(issue: string): boolean {
+  const folded = foldTr(issue);
+  if (/us bolun/.test(folded)) return true;
+  if (/secenek disinda|secenekleri tekrar|dolgu sik|iki secenekli olmali/.test(folded)) return true;
+  if (/cekirdegi yok/.test(folded)) return true;
+  if (/kontrol sorusu/.test(folded)) return true;
+  return false;
+}
+
+function formatShapeGaps(gaps: LessonShapeGap[], coreOnly: boolean): string {
+  const picked = coreOnly ? gaps.filter((gap) => gap.core) : gaps;
+  return picked.map((gap) => `${gap.field} (${gap.problem})`).join("; ");
+}
+
 export function lessonPublishIssues(
   raw: unknown,
   options: { minSections?: number; keyTerms?: string[] } = {},
 ): string[] {
   const published = publishLessonDraft(raw, { keyTerms: options.keyTerms });
   if (!published) {
-    return ["Ders v2 şemasını karşılamıyor (hedef, bölümler, örnek, yaygın hata, bilgi kontrolü)."];
+    const gaps = describeLessonShapeGaps(raw);
+    console.error("lesson_schema_gaps", {
+      missing: gaps.map((gap) => `${gap.field}: ${gap.problem}`),
+    });
+    const core = formatShapeGaps(gaps, true);
+    if (core) return [`Ders v2 çekirdeği yok: ${core}.`];
+    const all = formatShapeGaps(gaps, false);
+    return [`Ders v2 çekirdeği yok: ${all || "bölüm metni ve yanıtlı soru yok"}.`];
   }
   const issues = validateLessonV2(published, options).filter(
     (issue) =>
@@ -1144,11 +1566,13 @@ export function lessonPublishIssues(
       !issue.includes("Ham LaTeX") &&
       !isSectionCountIssue(issue),
   );
-  const teaching = published.sections.filter((section) => section.check).length;
+  const teaching =
+    published.sections.filter((section) => section.check).length +
+    (published.infoCheck?.prompt && published.infoCheck.answer ? 1 : 0);
   if (teaching < 1) {
-    issues.push("En az 1 kontrol sorusu kalmalı; öğretmeyenler çıkarıldı.");
+    issues.push("En az 1 kontrol sorusu ve yanıtı kalmalı; öğretmeyenler çıkarıldı.");
   }
-  return issues;
+  return issues.filter(publishIssueBlocks);
 }
 
 /** Doğrulayıcı kısa tekrarı görmesin. Eksik veya bozuk tekrar dersi reddetmesin. */
@@ -1192,9 +1616,11 @@ export const LESSON_V2_SCHEMA_HINT =
   '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse","prompt":string,"options":string[],"answerIndex":number,"explanation":string},"note":{"title":string,"body":string},"cards":[{"title":string,"body":string}]}],' +
   '"example":{"prompt":string,"solution":string},"commonMistake":{"claim":string,"correction":string},' +
   '"infoCheck":{"prompt":string,"answer":string},"summary":string[],"nextFocus":string[]}. ' +
-  "En az 2 kavram bölümü; kaynak kaç kavram veriyorsa o kadar, yeni bölüm uydurma. Her bölümde check zorunlu: trueFalse ekranda DOĞRU MU YANLIŞ, mcq ekranda HIZLI SINAV. " +
+  "Kaynak kaç kavram veriyorsa o kadar bölüm; en az bir kavram bölümü ve en az bir yanıtlı check. Yeni bölüm uydurma. " +
+  "Anahtarlar İngilizce: objective, sections, example, commonMistake, infoCheck. Türkçe anahtar kullanma. " +
+  "example, commonMistake, objective veya infoCheck yoksa alanı yazma; uydurma. " +
+  "trueFalse ekranda DOĞRU MU YANLIŞ, mcq ekranda HIZLI SINAV. " +
   "explanation yanlış seçeneğin neden çürük olduğunu yazsın. " +
-  "example.solution adım adım ve gerekçeli. nextFocus en az bir sonraki çalışma. " +
   "cards isteğe bağlı: kardeş kavram kümesi varsa 2-6 kart; yoksa cards yazma, uydurma kart ekleme. " +
   "overview giriş metnidir; ayrı bir Giriş bölümü açma. " +
   "Kaynak sayfada yazmayan formül veya teorem yazma.";
@@ -1226,10 +1652,10 @@ export function blockingLessonIssues(raw: unknown): string[] {
   const texts = [
     lesson.overview,
     ...lesson.sections.map((s) => s.body),
-    lesson.example.prompt,
-    lesson.example.solution,
-    lesson.commonMistake.correction,
-  ];
+    lesson.example?.prompt,
+    lesson.example?.solution,
+    lesson.commonMistake?.correction,
+  ].filter((item): item is string => typeof item === "string" && item.length > 0);
   if (texts.some((t) => /\\\(|\\\[|\\frac|\\geq|\\leq|\\cdot|\$\$/.test(t))) {
     issues.push("Ham LaTeX var; formülleri konuşulabilir Unicode ile yaz.");
   }

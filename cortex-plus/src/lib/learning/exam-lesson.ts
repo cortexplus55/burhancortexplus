@@ -19,18 +19,18 @@ export function formatStructuredLesson(lesson: StructuredLesson | LessonV2): str
     .map((s) => `## ${s.heading.trim()}\n\n${s.body.trim()}`)
     .join("\n\n");
 
-  const summary = lesson.summary
+  const summary = (lesson.summary ?? [])
     .map((item) => `- ${item.trim()}`)
     .filter((item) => item.length > 2)
     .join("\n");
 
-  const next = lesson.nextFocus
+  const next = (lesson.nextFocus ?? [])
     .map((item) => `- ${item.trim()}`)
     .filter((item) => item.length > 2)
     .join("\n");
 
   const example =
-    lesson.example.prompt.trim() || lesson.example.solution.trim()
+    lesson.example && (lesson.example.prompt.trim() || lesson.example.solution.trim())
       ? `## Örnek\n\n${lesson.example.prompt.trim()}\n\n**Çözüm:** ${lesson.example.solution.trim()}`
       : "";
 
@@ -51,7 +51,7 @@ export function formatStructuredLesson(lesson: StructuredLesson | LessonV2): str
 
   return [
     objective,
-    lesson.overview.trim(),
+    (lesson.overview ?? "").trim(),
     sections,
     example,
     mistake,
