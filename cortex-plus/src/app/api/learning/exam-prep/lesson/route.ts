@@ -3,8 +3,14 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { completeLessonPartRepair } from "@/lib/ai/lesson-part-repair";
 import { formatStructuredLesson } from "@/lib/learning/exam-lesson";
-import { loadSourceContext } from "@/lib/learning/source-context";
+import { loadSourceContext, loadTopicSpanContext } from "@/lib/learning/source-context";
+import {
+  criticalTeachingFailures,
+  finishTaughtLesson,
+  LESSON_TEACH_RULE,
+} from "@/lib/learning/lesson-teach";
 import {
   resolvePrepSourceMode,
   shouldSearchSources,
@@ -148,15 +154,23 @@ export async function POST(request: Request) {
 
   if (teachingV2 && shouldSearchSources(sourceMode)) {
     try {
-      const source = await loadSourceContext(
-        service,
-        userId,
-        `${prep.title ?? ""} ${topic.label}`.trim(),
-        {
-          documentId: topicDocumentId ?? prep.document_id ?? null,
-          sourceBoundaryMode: sourceMode,
-        },
-      );
+      const spanIds = [topicDocumentId, prep.document_id as string | null, ...prepDocs];
+      const spanned = await loadTopicSpanContext(service, userId, spanIds, topic.label, {
+        sourceBoundaryMode: sourceMode,
+        preferredNodeId:
+          typeof topic.document_topic_node_id === "string" ? topic.document_topic_node_id : null,
+      });
+      const source = spanned?.block.trim()
+        ? spanned
+        : await loadSourceContext(
+            service,
+            userId,
+            `${prep.title ?? ""} ${topic.label}`.trim(),
+            {
+              documentId: topicDocumentId ?? prep.document_id ?? null,
+              sourceBoundaryMode: sourceMode,
+            },
+          );
       sourceBlock = source.block;
       if (!sourceBlock.trim()) return errorResponse(503, "source_unavailable");
     } catch {
@@ -215,7 +229,8 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     difficulty: teachingV2 ? (depth?.difficulty ?? "hard") : undefined,
     validationProfile: teachingV2 ? "v2" : "legacy",
-    maxDraftAttempts: teachingV2 ? (depth?.maxDraftAttempts ?? 2) : 1,
+    maxDraftAttempts: 1,
+    verificationMode: teachingV2 ? "schema" : undefined,
     allowIndependentAccept: false,
     activityKind: "lesson",
     reviewDraft: teachingV2
@@ -243,7 +258,7 @@ ${standards}
 ${teacherBrief}
 ${depth?.line ?? ""}
 Bu dersin konusu YALNIZCA: ${topic.label}.
-Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.
+Başka konulara sapma. ${LESSON_TEACH_RULE}
 ${upcomingPrompt}
 ${SOURCE_PAGE_FORMULA_RULE}${sourceBlock}${topicBlock}`
       : undefined,
@@ -257,7 +272,7 @@ ${standards}
 ${teacherBrief}
 ${depth?.line ?? ""}
 Bu dersin konusu YALNIZCA: ${topic.label}.
-Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.
+Başka konulara sapma. ${LESSON_TEACH_RULE}
 ${upcomingPrompt}
 ${SOURCE_PAGE_FORMULA_RULE} ${REVIEW_VARIANT_RULE}${sourceBlock}${topicBlock}`
       : `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
@@ -291,10 +306,26 @@ Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${
     if (teachingV2) return errorResponse(outcome.status, outcome.error);
   }
 
-  const contentMd = outcome.ok
-    ? formatStructuredLesson(outcome.data)
+  let published = outcome.ok ? outcome.data : null;
+  if (outcome.ok && teachingV2) {
+    const finished = await finishTaughtLesson(
+      outcome.data,
+      { source: sourceBlock, topicLabel: topic.label },
+      (prompt) => completeLessonPartRepair({ service, userId, prompt, maxTokens: 1200 }),
+    );
+    if (criticalTeachingFailures(finished.failures).length) {
+      return errorResponse(500, "lesson_missing");
+    }
+    if (finished.lesson.sections.filter((section) => section.check).length < 3) {
+      return errorResponse(500, "lesson_missing");
+    }
+    published = finished.lesson;
+  }
+
+  const contentMd = published
+    ? formatStructuredLesson(published)
     : `## ${topic.label}\n\nBu konu için anlatım henüz üretilemedi. Tekrar dene.`;
-  const title = outcome.ok ? outcome.data.title : topic.label;
+  const title = published ? published.title : topic.label;
 
   const baseLesson = {
     exam_prep_id: prepId,
@@ -306,7 +337,7 @@ Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${
   // Yapıyı da sakla ki ders adım adım gösterilebilsin; markdown yedek kalır.
   let { data: lesson, error: lessonError } = await service
     .from("exam_prep_lessons")
-    .insert({ ...baseLesson, content_json: outcome.ok ? outcome.data : null })
+    .insert({ ...baseLesson, content_json: published })
     .select("id")
     .single();
 

@@ -166,6 +166,9 @@ export function checkCoherenceIssue(check: SectionCheck): string | null {
   if (clippedContrastDefinition(check.prompt)) return "clipped_definition";
   if (announcesIncompleteExample(check.prompt)) return "incomplete_example";
   if (explanationRepeats(check)) return "repeated_feedback";
+  if (/kendi anlamina bagliyor/.test(foldTr(`${check.explanation} ${check.whyRight ?? ""}`))) {
+    return "echo_feedback";
+  }
   return null;
 }
 
@@ -272,9 +275,12 @@ export function conceptCheck(statement: string): SectionCheck | null {
   }
   const words = prompt.replace(/[?.!]/g, "").split(/\s+/).filter(Boolean);
   if (words.length < 4) return null;
-  const whyRight = "Doğru, çünkü yargı terimi kendi anlamına bağlıyor.";
-  const whyWrong = "Bu yargı ters çevrilirse terim, cümlede kurulduğu anlamdan kopar.";
-  const misconception = "Tanımı başka bir büyüklüğe bağlamak";
+  const clause = prompt.split(/[,:]/)[0]?.trim() || "Bu terim";
+  const termWords = clause.replace(/[.!?]+$/g, "").split(/\s+/).slice(0, 4);
+  const term = (termWords.join(" ") || "Bu terim").slice(0, 48);
+  const whyRight = `${term} cümlede kurulduğu anlama uyuyor; yüklem terimi başka bir büyüklüğe kaydırmıyor.`;
+  const whyWrong = `${term} ters çevrilirse cümle, kaynağın kurduğu tanımdan kopar.`;
+  const misconception = "Tanımı başka bir büyüklüğe bağlamak hatadır";
   const hint = "Özneyi ve yüklemi ayrı ayrı oku.";
   return {
     type: "trueFalse",
@@ -460,6 +466,7 @@ export function formatWorkedSteps(solution: string): string {
   const given = solution.match(/(\d+(?:[.,]\d+)?\s*[A-Za-z°µ%³²/]+(?:\s+[A-Za-z0-9₀-₉]+){0,3})/);
   const lines = [
     given ? `Verilen: ${given[1].trim()}.` : "",
+    "İstenen: işlemin sonucu, birimiyle.",
     symbolic ? `Bağıntı: ${symbolic[0].replace(/\s+/g, " ").trim()}.` : "",
     `Yerine koyma: ${numeric[1].replace(/\s+/g, " ")} = ${numeric[2].trim()}.`,
     `Sonuç: ${numeric[2].trim()}.`,
@@ -624,8 +631,11 @@ export function publishCoherentLesson(
         bestIndex = index;
       }
     }
-    const chosen = bestIndex >= 0 ? bestIndex : units.findIndex((_, index) => !used.has(index));
-    if (chosen < 0) return null;
+    if (bestIndex < 0 || bestScore < 1) return null;
+    const candidate = units[bestIndex];
+    const headingStems = stemSet(`${heading} ${topicLabel}`);
+    if (!candidate || overlap(headingStems, stemSet(candidate.text)) < 1) return null;
+    const chosen = bestIndex;
     used.add(chosen);
     return units[chosen] ?? null;
   };

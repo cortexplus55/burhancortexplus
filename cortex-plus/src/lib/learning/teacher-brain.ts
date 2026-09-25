@@ -1410,6 +1410,39 @@ const FACT_STOP = new Set([
   "mudur",
 ]);
 
+const GENERIC_SUBJECT = new Set([
+  "madde",
+  "sayi",
+  "sayisi",
+  "birim",
+  "birimi",
+  "kavram",
+  "kavrami",
+  "hesap",
+  "ifade",
+  "yargi",
+  "dogru",
+  "yanli",
+  "molun",
+  "molu",
+  "tanec",
+]);
+
+/** Tekrar, sorunun ayırt edici öznesini taşımalı. "Mol" gibi genel sözcük yetmez. */
+export function retrySubjectStem(text: string): string | null {
+  for (const word of foldTr(text).split(/[^a-z0-9]+/)) {
+    if (word.length < 5 || FACT_STOP.has(word) || GENERIC_SUBJECT.has(word)) continue;
+    return word.slice(0, 6);
+  }
+  return null;
+}
+
+export function retrySharesSubject(original: string, next: string): boolean {
+  const subject = retrySubjectStem(original);
+  if (!subject) return true;
+  return foldTr(next).includes(subject);
+}
+
 function factStems(text: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -1471,6 +1504,8 @@ function groundedFactRetry<T extends ReviewCheck>(check: T, source: string): T |
     const folded = foldTr(sentence);
     if (folded.includes(claimFold) || claimFold.includes(folded)) continue;
     if (hasNovelQuantity(sentence, corpus)) continue;
+    const subject = retrySubjectStem(claim);
+    if (subject && !folded.includes(subject)) continue;
     const stems = factStems(sentence);
     const shared = claimStems.filter((stem) =>
       stems.some(
@@ -1493,10 +1528,15 @@ function groundedFactRetry<T extends ReviewCheck>(check: T, source: string): T |
   if (!best) return null;
   const prompt = `${best.text.replace(/[.!?;\s]+$/g, "")}. Doğru mu, yanlış mı?`;
   if (foldPrompt(prompt) === foldPrompt(check.prompt)) return null;
+  const subject = retrySubjectStem(claim);
+  const explanation =
+    subject && !foldTr(check.explanation).includes(subject)
+      ? "Yanıt, sorudaki kavramın kaynağındaki tanımına uyar; başka bir terimin tanımı bu soruyu karşılamaz."
+      : check.explanation;
   if (isTrueFalse) {
     const right = trueFalseRightIndex(check.options);
     if (right < 0) return null;
-    return { ...check, prompt, answerIndex: right };
+    return { ...check, prompt, answerIndex: right, explanation };
   }
   return {
     ...check,
@@ -1504,6 +1544,7 @@ function groundedFactRetry<T extends ReviewCheck>(check: T, source: string): T |
     prompt,
     options: ["Yanlış", "Doğru"],
     answerIndex: 1,
+    explanation,
   };
 }
 
