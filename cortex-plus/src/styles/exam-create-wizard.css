@@ -1126,6 +1126,54 @@
   line-height: 1.4;
 }
 
+.apw-topic-heavy {
+  display: inline-flex;
+  width: fit-content;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 650;
+  border: 1px solid color-mix(in srgb, var(--cp-text) 35%, transparent);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  color: var(--cp-text);
+}
+
+.apw-excluded,
+.apw-missing {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apw-excluded li,
+.apw-missing li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.6rem;
+  align-items: center;
+}
+
+.apw-missing button,
+.apw-syllabus-date button {
+  font: inherit;
+  font-size: 0.8125rem;
+  background: transparent;
+  border: 0;
+  color: var(--cp-text);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.apw-syllabus-date {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  align-items: center;
+  margin: 0.5rem 0 0.75rem;
+}
+
 /* --- Başlangıç adımı: materyalin var mı? --- */
 
 .apw-picks {

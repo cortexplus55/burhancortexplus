@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
+import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { processDocument } from "@/lib/rag/pipeline";
+import { runPdfLearningV2 } from "@/lib/documents/pdf-learning-v2";
+import { pickProcessPhase } from "@/lib/documents/process-session";
 import {
   commitCredits,
   refundCredits,
@@ -11,7 +14,7 @@ import { PHOTO_QUOTA_CODE } from "@/lib/documents/process-errors";
 import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
 
 const bodySchema = z.object({ documentId: z.string().uuid() });
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "doc-process", limit: 12 });
@@ -23,22 +26,54 @@ export async function POST(request: Request) {
 
   const { data: doc } = await service
     .from("documents")
-    .select("id, user_id, status, mime_type")
+    .select("id, user_id, status, mime_type, topic_map_status, page_count")
     .eq("id", parsed.data.documentId)
     .maybeSingle();
 
   if (!doc) return errorResponse(404, "not_found");
   if (doc.user_id !== userId) return errorResponse(403, "forbidden");
-  if (doc.status === "completed") {
-    const { data: meta } = await service
-      .from("documents")
-      .select("page_count")
-      .eq("id", doc.id)
-      .maybeSingle();
+
+  const learningV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
+  const { count: chunkCount } = await service
+    .from("document_chunks")
+    .select("id", { count: "exact", head: true })
+    .eq("document_id", doc.id);
+  const phase = pickProcessPhase({
+    status: (doc.status as string | null) ?? null,
+    chunkCount: chunkCount ?? 0,
+    topicMapStatus: (doc.topic_map_status as string | null) ?? null,
+    learningV2,
+  });
+  if (phase === "done") {
     return NextResponse.json({
       documentId: doc.id,
       status: "completed",
-      pageCount: typeof meta?.page_count === "number" ? meta.page_count : null,
+      pageCount: typeof doc.page_count === "number" ? doc.page_count : null,
+    });
+  }
+
+  if (phase === "map") {
+    const mapped = await runPdfLearningV2(service, doc.id);
+    if (!mapped.ok) {
+      return NextResponse.json(
+        { error: "Konu haritası bu turda tamamlanamadı. Yeniden denenebilir." },
+        { status: 422 },
+      );
+    }
+    await service
+      .from("documents")
+      .update({ status: "completed", error_message: null })
+      .eq("id", doc.id);
+    await service
+      .from("processing_jobs")
+      .update({ status: "completed", progress: 100 })
+      .eq("document_id", doc.id);
+    return NextResponse.json({
+      documentId: doc.id,
+      status: "completed",
+      pageCount: typeof doc.page_count === "number" ? doc.page_count : null,
+      topicMap: { ok: true, topics: mapped.topics, coverageStatus: mapped.coverage?.status },
+      notice: null,
     });
   }
 
@@ -66,7 +101,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await processDocument(service, doc.id);
+  const result = await processDocument(service, doc.id, {
+    deferTopicMap: learningV2,
+  });
 
   if (!result.ok) {
     await refundCredits(service, reservation.reservationId);
@@ -91,6 +128,20 @@ export async function POST(request: Request) {
   }
 
   await commitCredits(service, reservation.reservationId);
+
+  if (result.deferred) {
+    return NextResponse.json(
+      {
+        documentId: doc.id,
+        status: "processing",
+        phase: "map",
+        chunks: result.chunks,
+        pageCount: result.pageCount ?? null,
+        notice: result.notice ?? null,
+      },
+      { status: 202 },
+    );
+  }
 
   return NextResponse.json({
     documentId: doc.id,

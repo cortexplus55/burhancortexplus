@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import {
+  PROCESS_RETRY_MESSAGE,
+  postDocumentProcess,
+  requestDocumentProcessing,
+} from "@/lib/documents/process-session";
 
 export function DocumentRetryButton({ documentId }: { documentId: string }) {
   const router = useRouter();
@@ -11,14 +16,15 @@ export function DocumentRetryButton({ documentId }: { documentId: string }) {
   async function retry() {
     setPending(true);
     try {
-      const response = await fetch("/api/documents/process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId }),
+      const result = await requestDocumentProcessing({
+        documentId,
+        post: postDocumentProcess,
       });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        toast.error(result.error ?? "Doküman yeniden işlenemedi.");
+      if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
+      if (!result.ok) {
+        toast.error(
+          typeof result.body.error === "string" ? result.body.error : "Doküman yeniden işlenemedi.",
+        );
         return;
       }
       toast.success("Doküman hazır.");

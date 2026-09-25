@@ -18,6 +18,8 @@ export type LoadedPrepTopic = {
   measuredLevel?: "unknown" | "weak" | "emerging" | "solid" | null;
   selfHard?: boolean;
   priority?: number | null;
+  weightPercent?: number | null;
+  examHeavy?: boolean;
 };
 
 export type LoadedPrepTopics = {

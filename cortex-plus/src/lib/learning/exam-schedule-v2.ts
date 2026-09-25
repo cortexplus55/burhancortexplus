@@ -5,6 +5,7 @@
 
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import type { MeasuredLevel } from "@/lib/learning/diagnostic";
+import { extraPracticeForTopic } from "@/lib/learning/cross-material-topics";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 
 export type ScheduleSessionRole = "learn" | "practice" | "review" | "mock";
@@ -21,6 +22,10 @@ export type ScheduleTopicInput = {
   selfHard?: boolean;
   /** Explicit priority 1 (high) .. 5 (low). */
   priority?: number | null;
+  /** Müfredattaki pay. Yoksa süre formülü değişmez. */
+  weightPercent?: number | null;
+  /** Müfredat "sınavda ağırlıklı" diyorsa. */
+  examHeavy?: boolean;
   /** Birleşmiş konunun dayandığı dosyalar. Takvim bunu okumaz. */
   sourceRefs?: TopicSourceRef[];
 };
@@ -150,11 +155,16 @@ export function estimateTopicMinutes(topic: ScheduleTopicInput): number {
   const base = 25 + Math.min(40, pages * 4);
   const level = topic.measuredLevel ?? "unknown";
   const hardBoost = topic.selfHard ? 1.2 : 1;
+  const weightBoost =
+    topic.weightPercent == null
+      ? 1
+      : 0.8 + Math.min(40, topic.weightPercent) / 50;
+  const heavyBoost = topic.examHeavy ? 1.15 : 1;
   const priority =
     topic.priority && topic.priority >= 1 && topic.priority <= 5
       ? 1.25 - (topic.priority - 1) * 0.05
       : 1;
-  return Math.round(base * LEVEL_LOAD[level] * hardBoost * priority);
+  return Math.round(base * LEVEL_LOAD[level] * hardBoost * heavyBoost * weightBoost * priority);
 }
 
 /**
@@ -394,8 +404,20 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     }
 
     const practiceStart = Math.max(0, learnDay);
-    for (let d = practiceStart; d < lastIdx; d += 1) {
-      if (place(d, topic, "practice", practiceM)) break;
+    const practiceGoal = 1 + extraPracticeForTopic(topic, input.daysToExam);
+    let practiceCursor = practiceStart;
+    let placedPractice = 0;
+    while (placedPractice < practiceGoal && practiceCursor < lastIdx) {
+      let placed = false;
+      for (let d = practiceCursor; d < lastIdx; d += 1) {
+        if (place(d, topic, "practice", practiceM)) {
+          placedPractice += 1;
+          practiceCursor = d + 1;
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) break;
     }
 
     // Reviews prefer later days but not only last if we need mock room.

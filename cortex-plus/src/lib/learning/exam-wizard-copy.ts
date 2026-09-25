@@ -67,7 +67,15 @@ export const WIZARD_COPY = {
   topicDuplicate: "Bu konu listede zaten var.",
   topicCheckFailed: "Konu şu an doğrulanamadı. Tekrar dene.",
   fileCap: "Bir hazırlığa en fazla 8 dosya ekleyebilirsin.",
+  examHeavy: "Sınavda ağırlıklı",
+  missingMaterial: "materyalde yok",
+  addMissing: "Ekle",
+  useSyllabusDate: "Müfredattaki tarihi kullan",
 } as const;
+
+export function sourceCountLabel(count: number): string {
+  return count === 1 ? "1 kaynak" : `${count} kaynak`;
+}
 
 export const PREP_HOME_COPY = {
   path: "Çalışma yolu",
