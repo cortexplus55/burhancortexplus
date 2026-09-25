@@ -10,6 +10,8 @@ export type QuizQuestion = {
   learningObjective?: string;
   /** Stage 5/6 — dominant misconception this item targets. */
   misconceptionTag?: string;
+  /** Hazırlıktaki konu adı. Bilinmeyen ad sınav sonunda gösterilmez. */
+  topic?: string;
 };
 
 export type PublicQuizQuestion = {
@@ -30,6 +32,7 @@ export const quizQuestionSchema = z.object({
   explanation: z.string().optional(),
   learningObjective: z.string().min(8).max(200).optional(),
   misconceptionTag: z.string().min(2).max(80).optional(),
+  topic: z.string().min(2).max(80).optional(),
 });
 
 export const quizPayloadSchema = z.object({
@@ -86,6 +89,7 @@ export function normalizeQuizQuestion(raw: {
   explanation?: string;
   learningObjective?: string;
   misconceptionTag?: string;
+  topic?: string;
 }): QuizQuestion | null {
   const options = [...new Set(raw.options.map((item) => item.trim()).filter(Boolean))];
   const corrects = resolveCorrects(options, raw.correct);
@@ -98,6 +102,16 @@ export function normalizeQuizQuestion(raw: {
     explanation: raw.explanation?.trim() || undefined,
     learningObjective: raw.learningObjective?.trim() || undefined,
     misconceptionTag: raw.misconceptionTag?.trim() || undefined,
+    topic: raw.topic?.trim() || undefined,
+  };
+}
+
+/** Yazılı deneme sırasında istemciye giden soru. Doğru şık ve açıklama yok. */
+export function sealedQuizQuestion(question: QuizQuestion): PublicQuizQuestion {
+  return {
+    text: question.text,
+    options: question.options,
+    multi: question.multi,
   };
 }
 

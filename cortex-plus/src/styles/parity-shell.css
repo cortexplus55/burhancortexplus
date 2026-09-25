@@ -4249,6 +4249,89 @@
   background: rgba(244, 174, 11, 0.08);
 }
 
+.cp-exam-silence,
+.cp-written-review,
+.cp-readiness,
+.cp-practice-empty {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+}
+
+.cp-exam-silence {
+  margin: 0 0 0.85rem;
+  font-size: 0.85rem;
+  color: var(--cp-muted);
+}
+
+.cp-written-review h1,
+.cp-readiness h1,
+.cp-practice-empty h1 {
+  margin: 0.2rem 0 0.6rem;
+  font-size: 1.45rem;
+  overflow-wrap: anywhere;
+}
+
+.cp-written-review h2,
+.cp-readiness h2 {
+  margin: 1rem 0 0.4rem;
+  font-size: 1rem;
+}
+
+.cp-written-review ol,
+.cp-written-review ul,
+.cp-readiness ul,
+.cp-practice-empty p {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  max-width: 100%;
+}
+
+.cp-readiness ul,
+.cp-written-review ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.cp-written-review li,
+.cp-readiness li {
+  margin: 0.45rem 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--cp-border);
+  background: #161616;
+  overflow-wrap: anywhere;
+}
+
+.cp-readiness li span,
+.cp-written-review li p {
+  display: block;
+  margin: 0.2rem 0 0;
+  color: var(--cp-muted);
+  font-size: 0.85rem;
+}
+
+.cp-written-review-actions,
+.cp-readiness-actions,
+.cp-practice-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+}
+
+.cp-written-review-actions a,
+.cp-readiness-actions a,
+.cp-practice-empty button,
+.cp-written-review-actions button {
+  max-width: 100%;
+  text-align: center;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .cp-exam-debrief {
   margin-top: 0.5rem;
   padding: 1rem 1.1rem;

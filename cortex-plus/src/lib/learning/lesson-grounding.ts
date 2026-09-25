@@ -84,6 +84,19 @@ function cleanProse(text: string, source: string, removed: string[], field: stri
   return kept.join(" ").replace(/\s+/g, " ").trim();
 }
 
+/**
+ * Öğrenciye giden tek metin. Ters tanım, kaynakta olmayan birim ve sayı düşer.
+ * Kalan cümle yoksa null. Kaynak boşsa yalnız tanım denetimi çalışır.
+ */
+export function groundLearnerText(text: string, source: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  const removed: string[] = [];
+  const cleaned = cleanProse(trimmed, source, removed, "text");
+  if (!removed.length) return trimmed;
+  return cleaned.length >= 8 ? cleaned : null;
+}
+
 function fieldFails(text: string, source: string): boolean {
   return sentencesOf(text).some((sentence) => sentenceReason(sentence, source) != null) ||
     definitionalInversionIssues(text).length > 0;

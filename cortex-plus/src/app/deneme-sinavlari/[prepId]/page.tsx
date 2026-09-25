@@ -5,7 +5,7 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
 import { topicProgress } from "@/lib/learning/exam-prep-progress";
-import { ensurePrepNodes } from "@/lib/learning/exam-prep-insert";
+import { ensurePathSkeletonNodes, ensurePrepNodes } from "@/lib/learning/exam-prep-insert";
 import {
   daysUntilExam,
   nodeProgress,
@@ -123,6 +123,7 @@ export default async function ExamPrepDetailPage({
   const prepTopics = await loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id);
   const topicsMeter = topicProgress(prepTopics);
   await ensurePrepNodes(supabase, prep);
+  await ensurePathSkeletonNodes(supabase, prep.id);
 
   const { data: nodeRows } = await supabase
     .from("exam_prep_nodes")
@@ -338,6 +339,7 @@ export default async function ExamPrepDetailPage({
         topicCount={topicsMeter.total}
         topicLabels={prepTopics.map((topic) => topic.label)}
         materials={materials}
+        readinessClaim={learningTrackingView?.claimFullyReady ?? null}
       />
     </ParitySorShell>
   );

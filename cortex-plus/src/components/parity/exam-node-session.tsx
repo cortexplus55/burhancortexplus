@@ -15,6 +15,10 @@ import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
 import { lessonV2Schema } from "@/lib/learning/teaching-standards";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
+import { ExamReadinessScreen } from "@/components/parity/exam-readiness-screen";
+import { ExamWrittenReview } from "@/components/parity/exam-written-review";
+import type { ReadinessScreen } from "@/lib/learning/readiness-screen";
+import type { WrittenExamReview } from "@/lib/learning/written-exam-review";
 import { ExamVoiceTutor } from "@/components/parity/exam-voice-tutor";
 import {
   OralAnswerReview,
@@ -78,6 +82,11 @@ type Payload = {
   }[];
   items?: { text: string; correct: boolean; explanation: string; correctedStatement?: string }[];
   cards?: { front: string; back: string }[];
+  practice?: string;
+  reused?: boolean;
+  uncoveredTopics?: string[];
+  message?: string;
+  screen?: ReadinessScreen;
 };
 
 export function ExamNodeSession({
@@ -124,6 +133,7 @@ export function ExamNodeSession({
   // Referans üründeki sıra: aşinalık → ruh hali → kurulum. İkisi de zorunlu değil;
   // "setup"tan geri dönülebilsin diye aynı stage makinesinde tutuluyorlar.
   const isOral = kind === "oral";
+  const opensReadiness = kind === "readiness";
   const [stage, setStage] = useState<
     | "familiarity"
     | "mood"
@@ -136,7 +146,7 @@ export function ExamNodeSession({
     | "oral-customize"
     | "oral-review-time"
     | "oral-review"
-  >(resumeEnabled ? "restoring" : isOral ? "oral-topics" : "familiarity");
+  >(resumeEnabled ? "restoring" : opensReadiness ? "setup" : isOral ? "oral-topics" : "familiarity");
   const [familiarity, setFamiliarity] = useState<Familiarity>(
     initialFamiliarity ?? DEFAULT_FAMILIARITY,
   );
@@ -170,6 +180,7 @@ export function ExamNodeSession({
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [flipped, setFlipped] = useState(false);
   const [score, setScore] = useState({ score: 0, total: 1 });
+  const [writtenReview, setWrittenReview] = useState<WrittenExamReview | null>(null);
   const [nextHref, setNextHref] = useState(`/deneme-sinavlari/${prepId}`);
   const [feedback, setFeedback] = useState<{
     headline: string;
@@ -230,15 +241,41 @@ export function ExamNodeSession({
           setStage("play");
           return;
         }
+        if (kind === "written_exam") {
+          const reviewRes = await fetch("/api/learning/exam-prep/node", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prepId, nodeId, action: "review" }),
+          });
+          const reviewData = await reviewRes.json().catch(() => ({}));
+          if (!cancelled && reviewRes.ok && reviewData.review) {
+            setWrittenReview(reviewData.review);
+            setScore({
+              score: reviewData.score ?? reviewData.review.score ?? 0,
+              total: reviewData.total ?? reviewData.review.total ?? 1,
+            });
+            setStage("result");
+            return;
+          }
+        }
       } catch {
         // Fall through to normal setup.
       }
-      if (!cancelled) setStage(kind === "oral" ? "oral-topics" : "familiarity");
+      if (!cancelled) {
+        setStage(kind === "oral" ? "oral-topics" : kind === "readiness" ? "setup" : "familiarity");
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [resumeEnabled, prepId, nodeId, kind]);
+
+  useEffect(() => {
+    if (kind !== "readiness" || stage !== "setup" || startInFlight.current) return;
+    void start();
+    // start her render'da yeni; yalnız hazırlık ekranı kuruluma düşünce bir kez.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, stage]);
 
   useEffect(() => {
     if (stage !== "play" || !isTimedExam) return;
@@ -468,6 +505,7 @@ export function ExamNodeSession({
       setSaveError(null);
       completeRequestIdRef.current = null;
       setScore({ score: data.score ?? 0, total: data.total ?? 1 });
+      if (data.review) setWrittenReview(data.review);
       setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
       setFeedback(null);
       setStage(kind === "oral" ? "oral-review-time" : "result");
@@ -571,7 +609,7 @@ export function ExamNodeSession({
     stage === "play" &&
     payload.type === "podcast" &&
     normalizeChapters(chapters).length > 0;
-  const cinematicLoading = stage === "setup" && loading;
+  const cinematicLoading = stage === "setup" && loading && kind !== "readiness";
   const oralRows: OralTopicRow[] = oralTopics.length
     ? oralTopics
     : topicLabel
@@ -598,6 +636,7 @@ export function ExamNodeSession({
   const showCoach =
     stage === "play" &&
     Boolean(coachItem) &&
+    !isTimedExam &&
     payload.type !== "voice" &&
     payload.type !== "podcast" &&
     !cinematicLesson;
@@ -725,11 +764,18 @@ export function ExamNodeSession({
         </>
       ) : null}
 
-      {stage === "setup" && loading ? (
+      {stage === "setup" && loading && kind !== "readiness" ? (
         <NodeGenerationProgress
           sourceName={sourceName}
           onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
         />
+      ) : null}
+
+      {stage === "setup" && loading && kind === "readiness" ? (
+        <section className="cp-readiness" aria-busy="true">
+          <h1>Hazırlık durumun hesaplanıyor</h1>
+          <p>Kayıtlı ilerlemeden okunuyor. Yeni soru üretilmiyor.</p>
+        </section>
       ) : null}
 
       {stage === "setup" && !loading && kind === "lesson" ? (
@@ -860,23 +906,66 @@ export function ExamNodeSession({
       ) : null}
 
       {stage === "play" && payload.type === "quiz" && questions[index] ? (
-        <ExamQuizPlay
-          questions={questions.map((question) => ({
-            text: question.text ?? "",
-            options: question.options ?? [],
-            multi: Boolean(question.multi),
-            correct: question.correct,
-            explanation: question.explanation,
-          }))}
-          index={index}
-          value={answers[String(index)]}
-          onChange={(value) => updateAnswer(String(index), value)}
-          onContinue={() => {
-            if (index + 1 < questions.length) setIndex(index + 1);
-            else void finish();
-          }}
-          continueLabel={index + 1 < questions.length ? "İleri" : "Bitir"}
-          disabled={loading}
+        <div className="cp-written-review">
+          {isTimedExam ? (
+            <p className="cp-exam-silence">
+              Yardım kapalı. Süre bitince cevapların gider. Açıklama sınav sonunda.
+            </p>
+          ) : payload.reused ? (
+            <p className="cp-exam-silence">
+              Kayıtlı sorulardan. Yeni üretim yok.
+              {payload.uncoveredTopics?.length
+                ? ` Şu konular için elde soru yok: ${payload.uncoveredTopics.join(", ")}.`
+                : ""}
+            </p>
+          ) : null}
+          <ExamQuizPlay
+            questions={questions.map((question) => ({
+              text: question.text ?? "",
+              options: question.options ?? [],
+              multi: Boolean(question.multi),
+              correct: isTimedExam ? undefined : question.correct,
+              explanation: isTimedExam ? undefined : question.explanation,
+            }))}
+            index={index}
+            value={answers[String(index)]}
+            onChange={(value) => updateAnswer(String(index), value)}
+            onContinue={() => {
+              if (index + 1 < questions.length) setIndex(index + 1);
+              else void finish();
+            }}
+            continueLabel={
+              index + 1 < questions.length
+                ? "Sonraki soru"
+                : isTimedExam
+                  ? "Sınavı bitir"
+                  : "Bitir"
+            }
+            disabled={loading}
+            examMode={isTimedExam}
+          />
+        </div>
+      ) : null}
+
+      {stage === "play" && payload.type === "practice_empty" ? (
+        <section className="cp-practice-empty">
+          <p className="cp-lesson-kicker">{meta.setupLabel}</p>
+          <h1>Kayıtlı soru yok</h1>
+          <p>{payload.message}</p>
+          <button type="button" className="cp-exam-continue" onClick={() => router.push(`/deneme-sinavlari/${prepId}`)}>
+            Çalışma yoluna dön
+          </button>
+          <button type="button" className="cp-exam-continue cp-exam-continue--primary" disabled={loading} onClick={() => void finish()}>
+            Bu adımı tamamla
+          </button>
+        </section>
+      ) : null}
+
+      {stage === "play" && payload.type === "readiness" && payload.screen ? (
+        <ExamReadinessScreen
+          screen={payload.screen}
+          continuing={loading}
+          onContinue={() => void finish()}
         />
       ) : null}
 
@@ -1080,7 +1169,37 @@ export function ExamNodeSession({
         />
       ) : null}
 
-      {stage === "result" && !isOral ? (
+      {stage === "result" && isTimedExam && writtenReview ? (
+        <ExamWrittenReview
+          review={writtenReview}
+          nextHref={nextHref}
+          onRetry={() => {
+            setWrittenReview(null);
+            setIndex(0);
+            setAnswers({});
+            answersRef.current = {};
+            setPayload({});
+            setScore({ score: 0, total: 1 });
+            setStage("familiarity");
+          }}
+        />
+      ) : null}
+
+      {stage === "result" && payload.type === "readiness" && payload.screen ? (
+        <ExamReadinessScreen screen={payload.screen} nextHref={nextHref} />
+      ) : null}
+
+      {stage === "result" && payload.type === "practice_empty" ? (
+        <section className="cp-practice-empty">
+          <h1>Bu adım kaydedildi</h1>
+          <p>{payload.message}</p>
+          <a href={nextHref} className="cp-exam-continue cp-exam-continue--primary">
+            Devam et
+          </a>
+        </section>
+      ) : null}
+
+      {stage === "result" && !isOral && !isTimedExam && payload.type !== "readiness" && payload.type !== "practice_empty" ? (
         <section className="cp-exam-node-result">
           <p className="cp-lesson-kicker">Doğru cevaplar</p>
           <p className="cp-exam-score-xl">
