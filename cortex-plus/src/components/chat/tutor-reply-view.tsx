@@ -3,7 +3,34 @@
 import { useMemo } from "react";
 import { Markdown } from "@/components/markdown";
 import { formatSourceSections } from "@/lib/ai/source-sections";
-import { splitTutorChrome } from "@/lib/learning/tutor-reply";
+import { splitTutorChrome, type ReplyQuote } from "@/lib/learning/tutor-reply";
+
+function TutorBody({
+  body,
+  quote,
+  variant,
+}: {
+  body: string;
+  quote: ReplyQuote | null;
+  variant: "default" | "parity";
+}) {
+  if (!body && !quote) return null;
+  const parts = body.split("[[QUOTE]]");
+  if (!quote || parts.length < 2) {
+    return body ? <Markdown content={body} variant={variant} /> : null;
+  }
+  const [before, after] = parts;
+  return (
+    <>
+      {before?.trim() ? <Markdown content={before.trim()} variant={variant} /> : null}
+      <blockquote className="cp-tutor-quote">
+        <p>{quote.text}</p>
+        <footer>— {quote.source}</footer>
+      </blockquote>
+      {after?.trim() ? <Markdown content={after.trim()} variant={variant} /> : null}
+    </>
+  );
+}
 
 /**
  * Sohbet yanıtı: materyal rozeti, katlanır işlem, kaynak çipi, takip önerisi.
@@ -28,7 +55,7 @@ export function TutorReplyView({
   return (
     <>
       {view.badge ? <p className="cp-tutor-badge">{view.badge}</p> : null}
-      {view.body ? <Markdown content={view.body} variant={variant} /> : null}
+      <TutorBody body={view.body} quote={view.quote} variant={variant} />
       {view.steps ? (
         <details className="cp-tutor-steps">
           <summary>İşlemi göster</summary>

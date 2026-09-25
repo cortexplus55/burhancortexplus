@@ -8516,6 +8516,27 @@
   padding-right: 0.15rem;
 }
 
+.cp-tutor-quote {
+  margin: 0.65rem 0;
+  padding: 0.7rem 0.9rem;
+  border-left: 3px solid rgba(246, 212, 138, 0.85);
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e7ebf3;
+}
+
+.cp-tutor-quote p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.cp-tutor-quote footer {
+  margin: 0.35rem 0 0;
+  color: #9aa3b5;
+  font-size: 0.75rem;
+}
+
 .cp-tutor-badge {
   display: inline-flex;
   margin: 0 0 0.45rem;

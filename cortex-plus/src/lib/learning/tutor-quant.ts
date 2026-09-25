@@ -59,6 +59,37 @@ function formatTr(n: number): string {
   return String(rounded).replace(".", ",");
 }
 
+const COEFF_SRC = String.raw`(?:\d+\s*/\s*\d+|\d+(?:[.,]\d+)?)`;
+const SPECIES_SRC = String.raw`[A-Za-z][A-Za-z0-9₀-₉]*`;
+const TERM_SRC = String.raw`(?:${COEFF_SRC}\s*)?${SPECIES_SRC}`;
+const REACTION_RE = new RegExp(String.raw`(${TERM_SRC}(?:\s*\+\s*${TERM_SRC})+)\s*(?:→|->|=>)`, "g");
+
+/** ½ ve 1⁄2 aynı sayıya iner. Denklem seçimi bundan sonra yapılır. */
+function normalizeFractions(text: string): string {
+  return text
+    .replace(/½/g, "1/2")
+    .replace(/⅓/g, "1/3")
+    .replace(/⅔/g, "2/3")
+    .replace(/¼/g, "1/4")
+    .replace(/¾/g, "3/4")
+    .replace(/⅛/g, "1/8")
+    .replace(/⅜/g, "3/8")
+    .replace(/⅝/g, "5/8")
+    .replace(/⅞/g, "7/8")
+    .replace(/(\d)\s*⁄\s*(\d)/g, "$1/$2");
+}
+
+function parseCoeff(raw: string | undefined): number {
+  if (!raw) return 1;
+  const slash = raw.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (slash) {
+    const den = Number(slash[2]);
+    if (!den) return Number.NaN;
+    return Number(slash[1]) / den;
+  }
+  return parseNumber(raw);
+}
+
 function cleanEquationSide(side: string): string {
   return side
     .replace(/\((?:g|s|l|aq|k)\)/gi, "")
@@ -68,26 +99,38 @@ function cleanEquationSide(side: string): string {
 
 function parseSide(side: string): Reactant[] {
   const out: Reactant[] = [];
+  const tokenRe = new RegExp(`^(${COEFF_SRC})?\\s*(${SPECIES_SRC})$`);
   for (const part of cleanEquationSide(side).split(/\s*\+\s*/)) {
     const token = part.trim();
-    const match = token.match(/^(\d+(?:[.,]\d+)?)?\s*([A-Za-z][A-Za-z0-9₀-₉]*)$/);
+    const match = token.match(tokenRe);
     if (!match) continue;
-    const coefficient = match[1] ? parseNumber(match[1]) : 1;
+    const coefficient = parseCoeff(match[1]);
     if (!(coefficient > 0)) continue;
     out.push({ species: normFormula(match[2]), display: match[2], coefficient });
   }
   return out;
 }
 
+/** Metindeki her tepkime. İlki her zaman öğrencinin maddesi olmayabilir. */
+export function parseReactions(text: string): Reactant[][] {
+  const cleaned = normalizeFractions(text).replace(/\((?:g|s|l|aq|k)\)/gi, "");
+  const out: Reactant[][] = [];
+  for (const match of cleaned.matchAll(REACTION_RE)) {
+    const reactants = parseSide(match[1]);
+    if (reactants.length >= 2) out.push(reactants);
+  }
+  return out;
+}
+
 export function parseReaction(text: string): Reactant[] | null {
-  const cleaned = text.replace(/\((?:g|s|l|aq|k)\)/gi, "");
-  const match = cleaned.match(
-    /((?:\d+(?:[.,]\d+)?)?\s*[A-Za-z][A-Za-z0-9₀-₉]*(?:\s*\+\s*(?:\d+(?:[.,]\d+)?)?\s*[A-Za-z][A-Za-z0-9₀-₉]*)+)\s*(?:→|->|=>)/,
-  );
-  if (!match) return null;
-  const reactants = parseSide(match[1]);
-  if (reactants.length < 2) return null;
-  return reactants;
+  return parseReactions(text)[0] ?? null;
+}
+
+function acceptSpecies(raw: string): boolean {
+  const key = normFormula(raw);
+  if (!key || /^(ve|ile|icin|olan|bir|bu|var|de|da|the|and|mol|elimizde|varsa|icin|g|kg)$/.test(key)) return false;
+  if (key.length > 6 && !/\d/.test(key)) return false;
+  return /\d/.test(key) || /^[a-z]{1,4}$/.test(key);
 }
 
 function parseAmounts(text: string): Map<string, number> {
@@ -95,9 +138,11 @@ function parseAmounts(text: string): Map<string, number> {
   const forward = /(\d+(?:[.,]\d+)?)\s*mol\s+([A-Za-z][A-Za-z0-9₀-₉]*)/gi;
   const reverse = /([A-Za-z][A-Za-z0-9₀-₉]*)\s+(\d+(?:[.,]\d+)?)\s*mol/gi;
   for (const match of text.matchAll(forward)) {
+    if (!acceptSpecies(match[2])) continue;
     amounts.set(normFormula(match[2]), parseNumber(match[1]));
   }
   for (const match of text.matchAll(reverse)) {
+    if (!acceptSpecies(match[1])) continue;
     const key = normFormula(match[1]);
     if (!amounts.has(key)) amounts.set(key, parseNumber(match[2]));
   }
@@ -109,12 +154,14 @@ function claimedLimiter(text: string, reactants: Reactant[]): { kind: "none" | "
   if (/(hicbiri|ikisi de|neither|both fully|tamamen tuken)/.test(folded) && /(sinirlay|limiting|tuken)/.test(folded)) {
     return { kind: "none" };
   }
-  const match = text.match(/([A-Za-z][A-Za-z0-9₀-₉]*)\s*,?\s*(?:sınırlayıcı(?:d[ıi]r|dır)?|limiting)/i);
-  if (!match) return null;
-  const species = normFormula(match[1]);
-  const known = reactants.find((item) => item.species === species);
-  if (!known) return null;
-  return { kind: "species", species, display: known.display };
+  const re = /([A-Za-z][A-Za-z0-9₀-₉]*)\s*,?\s*(?:sınırlayıcı(?:d[ıi]r|dır)?|limiting)(?!\s*değil)/gi;
+  for (const match of text.matchAll(re)) {
+    const species = normFormula(match[1]);
+    const known = reactants.find((item) => item.species === species);
+    if (!known) continue;
+    return { kind: "species", species, display: known.display };
+  }
+  return null;
 }
 
 type RatioRow = Reactant & { moles: number; ratio: number };
@@ -144,20 +191,51 @@ function ratioSentence(rows: RatioRow[], result: { none: boolean; species: Ratio
   return `Oranlar: ${bits.join("; ")}. Küçük oran ${name} için; sınırlayıcı ${name}.`;
 }
 
-function limitingIssues(text: string): QuantIssue[] {
-  const reactants = parseReaction(text);
-  if (!reactants) return [];
-  const amounts = parseAmounts(text);
-  const rows = ratiosFor(reactants, amounts);
-  if (!rows) return [];
-  const claim = claimedLimiter(text, reactants);
-  if (!claim) return [];
+function covers(reactants: Reactant[], amounts: Map<string, number>): boolean {
+  if (reactants.length < 2) return false;
+  return reactants.every((item) => amounts.has(item.species));
+}
+
+function limiterSignature(rows: RatioRow[]): string {
   const result = limitingOf(rows);
-  const repair = ratioSentence(rows, result);
-  if (claim.kind === "none") {
+  if (result.none) return "none";
+  return result.species.map((row) => row.species).sort().join("+");
+}
+
+/**
+ * Öğrencinin saydığı maddeleri kapsayan tepkime.
+ * Birden fazla aday varsa hepsi aynı sınırlayıcıyı vermeli; ilki kazanmaz.
+ */
+function chooseReaction(reactions: Reactant[][], amounts: Map<string, number>): Reactant[] | null {
+  const viable = reactions.filter((reaction) => covers(reaction, amounts));
+  if (!viable.length) return null;
+  const signatures = new Set(viable.map((reaction) => {
+    const rows = ratiosFor(reaction, amounts);
+    return rows ? limiterSignature(rows) : "na";
+  }));
+  if (signatures.size !== 1 || signatures.has("na")) return null;
+  const fractionPenalty = (reaction: Reactant[]) => reaction.some((item) => !Number.isInteger(item.coefficient)) ? 1 : 0;
+  return [...viable].sort((a, b) => fractionPenalty(a) - fractionPenalty(b) || a.length - b.length)[0];
+}
+
+function limitingFrom(text: string, amounts: Map<string, number>): { rows: RatioRow[]; claim: NonNullable<ReturnType<typeof claimedLimiter>> } | null {
+  const reactants = chooseReaction(parseReactions(text), amounts);
+  if (!reactants) return null;
+  const rows = ratiosFor(reactants, amounts);
+  const claim = claimedLimiter(text, reactants);
+  if (!rows || !claim) return null;
+  return { rows, claim };
+}
+
+function limitingIssues(text: string): QuantIssue[] {
+  const found = limitingFrom(text, parseAmounts(text));
+  if (!found) return [];
+  const result = limitingOf(found.rows);
+  const repair = ratioSentence(found.rows, result);
+  if (found.claim.kind === "none") {
     return result.none ? [] : [{ kind: "limiting", detail: repair, repair }];
   }
-  const claimedIsLimiting = !result.none && result.species.some((row) => row.species === claim.species);
+  const claimedIsLimiting = !result.none && result.species.some((row) => row.species === found.claim.species);
   if (result.none || !claimedIsLimiting) {
     return [{ kind: "limiting", detail: repair, repair }];
   }
@@ -364,6 +442,81 @@ function gramMisconception(text: string): boolean {
   return GRAM_RULE.test(text) || /daha az gram|gramsa|az gram/.test(folded) || (/gram/.test(folded) && /sinirlay/.test(folded));
 }
 
+/** Öğrencinin kendi sayıları durur. Bağlam ancak ikiden az sayı varsa tamamlar. */
+function amountsForClaim(student: string, context: string): Map<string, number> {
+  const amounts = parseAmounts(student);
+  if (amounts.size >= 2) return amounts;
+  for (const [key, value] of parseAmounts(context)) {
+    if (!amounts.has(key)) amounts.set(key, value);
+  }
+  return amounts;
+}
+
+function gradeLimiting(student: string, rows: RatioRow[], claim: NonNullable<ReturnType<typeof claimedLimiter>>): GradedClaim {
+  const result = limitingOf(rows);
+  const repair = ratioSentence(rows, result);
+  const statedMoles = rows.map((row) => `${formatTr(row.moles)} mol ${row.display}`).join(", ");
+  if (claim.kind === "none") {
+    if (result.none) {
+      return {
+        verdict: "dogru",
+        verdictLine: "Doğru: hiçbiri sınırlayıcı değil; ikisi de tamamen tükenir.",
+        rightParts: ["Oranlar eşit.", `Mol sayıları: ${statedMoles}.`],
+        wrongParts: [],
+        conclusion: repair,
+        wrongType: "",
+        topicLabel: "Sınırlayıcı bileşen",
+      };
+    }
+    return {
+      verdict: "yanlis",
+      verdictLine: `Yanlış: sınırlayıcı ${result.species.map((row) => row.display).join(", ")}.`,
+      rightParts: [],
+      wrongParts: ["Eşit oran yok; küçük oran sınırlayıcıyı verir."],
+      conclusion: repair,
+      wrongType: "sinirlayici_oran",
+      topicLabel: "Sınırlayıcı bileşen",
+    };
+  }
+  const rightSpecies = !result.none && result.species.some((row) => row.species === claim.species);
+  if (result.none || !rightSpecies) {
+    const line = result.none
+      ? "Yanlış: hiçbiri sınırlayıcı değil; ikisi de tamamen tükenir."
+      : `Yanlış: sınırlayıcı ${result.species.map((row) => row.display).join(", ")}.`;
+    return {
+      verdict: "yanlis",
+      verdictLine: line,
+      rightParts: [`Mol sayıları hesaba katıldı (${statedMoles}).`],
+      wrongParts: result.none
+        ? ["Az olan mol, sınırlayıcı demek değildir; katsayıya bölününce oranlar eşit."]
+        : [`${claim.display ?? "Bu madde"} sınırlayıcı değil.`],
+      conclusion: repair,
+      wrongType: gramMisconception(student) ? "gram_karsilastirma" : "sinirlayici_oran",
+      topicLabel: "Sınırlayıcı bileşen",
+    };
+  }
+  if (gramMisconception(student)) {
+    return {
+      verdict: "kismen",
+      verdictLine: `Kısmen doğru: sınırlayıcı ${claim.display}; gerekçe yanlış.`,
+      rightParts: [`Sınırlayıcı madde ${claim.display}.`],
+      wrongParts: ["Gramı az olan sınırlayıcı değildir. Karar mol / katsayı oranına bakar."],
+      conclusion: repair,
+      wrongType: "gram_karsilastirma",
+      topicLabel: "Sınırlayıcı bileşen",
+    };
+  }
+  return {
+    verdict: "dogru",
+    verdictLine: `Doğru: sınırlayıcı ${claim.display}.`,
+    rightParts: [repair],
+    wrongParts: [],
+    conclusion: repair,
+    wrongType: "",
+    topicLabel: "Sınırlayıcı bileşen",
+  };
+}
+
 /**
  * Öğrencinin iddiasını, önce doğru sonucu hesaplayarak hükümler.
  * Eşit oran "kısmen doğru" değildir: hüküm yanlış, sonuç "hiçbiri sınırlayıcı değil".
@@ -372,75 +525,12 @@ export function gradeStudentClaim(input: { student: string; context?: string }):
   const student = input.student.trim();
   if (!student) return null;
   const context = input.context ?? "";
-  const reactants = parseReaction(student) ?? parseReaction(context);
-  const amounts = parseAmounts(`${student}\n${context}`);
-  if (reactants && amounts.size) {
-    const rows = ratiosFor(reactants, amounts);
-    const claim = claimedLimiter(student, reactants);
-    if (rows && claim) {
-      const result = limitingOf(rows);
-      const repair = ratioSentence(rows, result);
-      const statedMoles = rows.map((row) => `${formatTr(row.moles)} mol ${row.display}`).join(", ");
-      if (claim.kind === "none") {
-        if (result.none) {
-          return {
-            verdict: "dogru",
-            verdictLine: "Doğru: hiçbiri sınırlayıcı değil; ikisi de tamamen tükenir.",
-            rightParts: ["Oranlar eşit.", `Mol sayıları: ${statedMoles}.`],
-            wrongParts: [],
-            conclusion: repair,
-            wrongType: "",
-            topicLabel: "Sınırlayıcı bileşen",
-          };
-        }
-        return {
-          verdict: "yanlis",
-          verdictLine: `Yanlış: sınırlayıcı ${result.species.map((row) => row.display).join(", ")}.`,
-          rightParts: [],
-          wrongParts: ["Eşit oran yok; küçük oran sınırlayıcıyı verir."],
-          conclusion: repair,
-          wrongType: "sinirlayici_oran",
-          topicLabel: "Sınırlayıcı bileşen",
-        };
-      }
-      const rightSpecies = !result.none && result.species.some((row) => row.species === claim.species);
-      if (result.none || !rightSpecies) {
-        const line = result.none
-          ? "Yanlış: hiçbiri sınırlayıcı değil; ikisi de tamamen tükenir."
-          : `Yanlış: sınırlayıcı ${result.species.map((row) => row.display).join(", ")}.`;
-        return {
-          verdict: "yanlis",
-          verdictLine: line,
-          rightParts: [`Mol sayıları hesaba katıldı (${statedMoles}).`],
-          wrongParts: result.none
-            ? ["Az olan mol, sınırlayıcı demek değildir; katsayıya bölününce oranlar eşit."]
-            : [`${claim.display ?? "Bu madde"} sınırlayıcı değil.`],
-          conclusion: repair,
-          wrongType: gramMisconception(student) ? "gram_karsilastirma" : "sinirlayici_oran",
-          topicLabel: "Sınırlayıcı bileşen",
-        };
-      }
-      if (gramMisconception(student)) {
-        return {
-          verdict: "kismen",
-          verdictLine: `Kısmen doğru: sınırlayıcı ${claim.display}; gerekçe yanlış.`,
-          rightParts: [`Sınırlayıcı madde ${claim.display}.`],
-          wrongParts: ["Gramı az olan sınırlayıcı değildir. Karar mol / katsayı oranına bakar."],
-          conclusion: repair,
-          wrongType: "gram_karsilastirma",
-          topicLabel: "Sınırlayıcı bileşen",
-        };
-      }
-      return {
-        verdict: "dogru",
-        verdictLine: `Doğru: sınırlayıcı ${claim.display}.`,
-        rightParts: [repair],
-        wrongParts: [],
-        conclusion: repair,
-        wrongType: "",
-        topicLabel: "Sınırlayıcı bileşen",
-      };
-    }
+  const amounts = amountsForClaim(student, context);
+  const chosen = chooseReaction([...parseReactions(student), ...parseReactions(context)], amounts);
+  if (chosen) {
+    const rows = ratiosFor(chosen, amounts);
+    const claim = claimedLimiter(student, chosen);
+    if (rows && claim) return gradeLimiting(student, rows, claim);
   }
 
   if (gramMisconception(student) && /(sınırlayıcı|limiting)/i.test(student)) {
@@ -469,4 +559,222 @@ export function gradeStudentClaim(input: { student: string; context?: string }):
   }
 
   return null;
+}
+
+const ERROR_WORD = /hata(?:\s+var|lı|sı|si)?|hatalı|yanlış\s+hesap|hesab\w{0,8}\s+(?:bir\s+)?hata|incorrect|mistake/i;
+const SPECIES_WORD = /^(mol|icin|ile|var|olan|bir|bu|ve|sonra|kadar|icin|g|kg|the|and|for)$/;
+
+type EqualityHit = { expr: string; value: number; stated: number; span: string; ok: boolean };
+
+function equalityHits(text: string): EqualityHit[] {
+  const out: EqualityHit[] = [];
+  const pattern = /((?:\d+(?:[.,]\d+)?(?:\s*[+×÷*/\-−–]\s*\d+(?:[.,]\d+)?)+))\s*(≈|~|=)\s*(\d+(?:[.,]\d+)?)/g;
+  for (const match of text.matchAll(pattern)) {
+    const actual = evalArith(match[1]);
+    const stated = parseNumber(match[3]);
+    if (actual == null || !Number.isFinite(stated)) continue;
+    const approx = match[2] !== "=";
+    const tol = approx ? Math.max(0.02, Math.abs(actual) * 0.02) : Math.max(0.005, Math.abs(actual) * 0.005);
+    out.push({
+      expr: match[1].replace(/\s+/g, " "),
+      value: actual,
+      stated,
+      span: match[0],
+      ok: Math.abs(actual - stated) <= tol,
+    });
+  }
+  return out;
+}
+
+function looksLikeSpecies(species: string): boolean {
+  if (SPECIES_WORD.test(species) || /oran|kucuk|buyuk|madde|bilesen|hicbir|kisi/.test(species)) return false;
+  return /\d/.test(species) || /^[a-z]{1,3}$/.test(species);
+}
+
+function computedMoles(text: string): Map<string, number> {
+  const map = new Map<string, number>();
+  const re = /n\s*\(\s*([A-Za-z][A-Za-z0-9₀-₉]*)\s*\)\s*=\s*([^,\n]{0,48}?)\s*=\s*(\d+(?:[.,]\d+)?)/gi;
+  for (const match of text.matchAll(re)) {
+    const actual = evalArith(match[2]);
+    const stated = parseNumber(match[3]);
+    const value = actual != null && Number.isFinite(stated) && Math.abs(actual - stated) <= Math.max(0.02, Math.abs(actual) * 0.02)
+      ? actual
+      : stated;
+    if (Number.isFinite(value)) map.set(normFormula(match[1]), value);
+  }
+  for (const [key, value] of parseAmounts(text)) {
+    if (!map.has(key)) map.set(key, value);
+  }
+  return map;
+}
+
+/** Taslak, öğrencinin doğru çıkan değerine "hata" diyorsa. */
+function falseErrorTargets(student: string, draft: string): string[] {
+  if (!ERROR_WORD.test(draft)) return [];
+  const stated = parseAmounts(student);
+  if (!stated.size) return [];
+  const computed = computedMoles(draft);
+  const sentences = draft.split(/(?<=[.!?])\s+|\n+/);
+  const hit = new Set<string>();
+  for (let i = 0; i < sentences.length; i += 1) {
+    if (!ERROR_WORD.test(sentences[i])) continue;
+    const window = `${sentences[i]} ${sentences[i + 1] ?? ""}`;
+    const named = new Set([...window.matchAll(/[A-Za-z][A-Za-z0-9₀-₉]*/g)].map((item) => normFormula(item[0])));
+    for (const [species, value] of stated) {
+      if (!named.has(species)) continue;
+      const got = computed.get(species);
+      if (got != null && Math.abs(got - value) <= 1e-6) hit.add(species);
+    }
+  }
+  return [...hit];
+}
+
+function mentionsInText(text: string): Array<{ species: string; coefficient: number }> {
+  const normalized = normalizeFractions(text);
+  const out: Array<{ species: string; coefficient: number }> = [];
+  const speciesRe = /[A-Za-z][A-Za-z0-9₀-₉]*/g;
+  for (const match of normalized.matchAll(speciesRe)) {
+    const species = normFormula(match[0]);
+    if (!looksLikeSpecies(species)) continue;
+    const window = normalized.slice(match.index ?? 0, (match.index ?? 0) + 72);
+    const after = window.match(/katsay[ıi][^\d/]{0,14}(\d+\s*\/\s*\d+|\d+(?:[.,]\d+)?)/i);
+    const before = window.match(/(\d+\s*\/\s*\d+|\d+(?:[.,]\d+)?)['’](?:nin|nın|nun|nün|in|ın|un|ün)\s+katsay/i);
+    const raw = after?.[1] ?? before?.[1];
+    if (!raw) continue;
+    const coefficient = parseCoeff(raw);
+    if (!(coefficient > 0)) continue;
+    out.push({ species, coefficient });
+  }
+  return out;
+}
+
+function coefficientSets(text: string): Array<Map<string, number>> {
+  const sets: Array<Map<string, number>> = parseReactions(text)
+    .filter((reaction) => reaction.length >= 2)
+    .map((reaction) => new Map(reaction.map((item) => [item.species, item.coefficient])));
+  let current = new Map<string, number>();
+  const flush = () => {
+    if (current.size >= 2) sets.push(current);
+    current = new Map();
+  };
+  for (const mention of mentionsInText(text)) {
+    const prev = current.get(mention.species);
+    if (prev != null && Math.abs(prev - mention.coefficient) > 1e-6) flush();
+    current.set(mention.species, mention.coefficient);
+  }
+  flush();
+  return sets;
+}
+
+function setsAreProportional(left: Map<string, number>, right: Map<string, number>): boolean {
+  const shared = [...left.keys()].filter((key) => right.has(key));
+  if (shared.length < 2) return true;
+  const ratios = shared.map((key) => (left.get(key) as number) / (right.get(key) as number));
+  if (ratios.some((ratio) => !Number.isFinite(ratio))) return false;
+  return ratios.every((ratio) => Math.abs(ratio - ratios[0]) <= 1e-6 * Math.max(1, Math.abs(ratios[0])));
+}
+
+/** Aynı maddeler için orantılı olmayan iki katsayı kümesi. */
+export function hasInconsistentCoefficients(text: string): boolean {
+  const sets = coefficientSets(text);
+  for (let i = 0; i < sets.length; i += 1) {
+    for (let j = i + 1; j < sets.length; j += 1) {
+      const shared = [...sets[i].keys()].filter((key) => sets[j].has(key));
+      if (shared.length < 2) continue;
+      if (!setsAreProportional(sets[i], sets[j])) return true;
+    }
+  }
+  return false;
+}
+
+function saysNone(text: string): boolean {
+  const folded = foldTr(text);
+  return /hicbiri sinirlayici degil|ikisi de tamamen tuken/.test(folded);
+}
+
+function firstPositiveLimiter(text: string): string | null {
+  const re = /([A-Za-z][A-Za-z0-9₀-₉]*)\s*,?\s*(?:sınırlayıcı(?:d[ıi]r|dır)?|limiting)(?!\s*değil)/gi;
+  for (const match of text.matchAll(re)) {
+    const species = normFormula(match[1]);
+    if (looksLikeSpecies(species)) return species;
+  }
+  return null;
+}
+
+function affirmedEquality(student: string, draft: string): GradedClaim | null {
+  if (!ERROR_WORD.test(draft)) return null;
+  const studentOk = equalityHits(student).filter((item) => item.ok);
+  const draftOk = equalityHits(draft).filter((item) => item.ok);
+  const shared = studentOk.find((item) => draftOk.some((other) => other.expr === item.expr && Math.abs(other.value - item.value) <= 1e-6));
+  if (!shared) return null;
+  const shown = `${shared.expr} = ${formatTr(shared.value)}`;
+  return {
+    verdict: "dogru",
+    verdictLine: `Doğru: ${shown}.`,
+    rightParts: [`${shown}.`],
+    wrongParts: ["Doğru çıkan sonuca hata denmiş."],
+    conclusion: `${shown}.`,
+    wrongType: "yanlis_hata",
+    topicLabel: "Hesap",
+  };
+}
+
+function draftConflicts(draft: string, grade: GradedClaim, student: string): boolean {
+  if (falseErrorTargets(student, draft).length > 0) return true;
+  if (hasInconsistentCoefficients(draft)) return true;
+  if (grade.verdict === "dogru" && ERROR_WORD.test(draft)) return true;
+  if (grade.wrongType === "aritmetik" && arithmeticIssues(draft).length > 0) return true;
+  if (grade.topicLabel !== "Sınırlayıcı bileşen") return false;
+  const gradeNone = /hiçbiri sınırlayıcı değil/i.test(grade.verdictLine);
+  const named = firstPositiveLimiter(draft);
+  if (gradeNone) {
+    if (named && !saysNone(draft)) return true;
+    if (!saysNone(draft) && /^\s*(?:\*\*)?kısmen doğru/i.test(draft)) return true;
+    return false;
+  }
+  if (saysNone(draft)) return true;
+  if (named && !foldTr(grade.verdictLine).includes(named)) return true;
+  if (grade.verdict !== "kismen" && /^\s*(?:\*\*)?kısmen doğru/i.test(draft)) return true;
+  if (grade.verdict === "dogru" && /^\s*(?:\*\*)?yanlış/i.test(draft)) return true;
+  return false;
+}
+
+export function renderVerifiedAnswer(grade: GradedClaim): string {
+  const lines = [grade.verdictLine];
+  if (grade.rightParts.length) lines.push(`Doğru kısım: ${grade.rightParts.join(" ")}`);
+  if (grade.wrongParts.length) lines.push(`Yanlış kısım: ${grade.wrongParts.join(" ")}`);
+  const conclusionFold = grade.conclusion.toLocaleLowerCase("tr").slice(0, 18);
+  if (grade.conclusion && !lines.join("\n").toLocaleLowerCase("tr").includes(conclusionFold)) {
+    lines.push(grade.conclusion);
+  }
+  return lines.join("\n\n");
+}
+
+const SAFE_COEFFICIENT =
+  "Bu yanıt aynı nicelik için birbiriyle orantılı olmayan iki katsayı kullanıyor. O yüzden buradan bir sonuç ilan etmiyorum. Her miktarı kendi katsayısına böl; küçük oran sınırlayıcıdır, oranlar eşitse hiçbiri sınırlayıcı değildir.";
+
+function studentMakesNumericClaim(student: string): boolean {
+  return /\d/.test(student) && /(sınırlay|limiting|=|mol|oran)/i.test(student);
+}
+
+/**
+ * Taslağı gizlenmiş çözüme vurur.
+ * Çözüm ile taslak çelişirse ya da taslak kendi içinde çelişirse
+ * uzun metin düşer; yerine kısa, denetlenen hüküm gelir.
+ */
+export function settleQuantReply(input: {
+  student: string;
+  context: string;
+  draft: string;
+}): { text: string; grade: GradedClaim | null; replaced: boolean } {
+  const grade = gradeStudentClaim({ student: input.student, context: input.context })
+    ?? gradeStudentClaim({ student: input.student, context: input.draft })
+    ?? affirmedEquality(input.student, input.draft);
+  if (grade && draftConflicts(input.draft, grade, input.student)) {
+    return { text: renderVerifiedAnswer(grade), grade, replaced: true };
+  }
+  if (!grade && studentMakesNumericClaim(input.student) && hasInconsistentCoefficients(input.draft)) {
+    return { text: SAFE_COEFFICIENT, grade: null, replaced: true };
+  }
+  return { text: input.draft, grade, replaced: false };
 }
