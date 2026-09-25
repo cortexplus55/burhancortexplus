@@ -29,6 +29,18 @@ import { extractText } from "@/lib/documents/extract-text";
 import { isOwnedDocumentPath } from "@/lib/documents/storage-path";
 import { recordUserActivity } from "@/lib/streak/record-activity";
 import { loadExamChatContext } from "@/lib/learning/exam-chat-context";
+import { loadPrepChatGrounding, recordChatMisconception } from "@/lib/learning/prep-chat-grounding";
+import {
+  auditQuantitative,
+  dropUnverifiedExample,
+  gradeStudentClaim,
+  needsQuantModelCheck,
+  parseQuantSelfCheck,
+  quantSelfCheckPrompt,
+  repairQuantitative,
+  type GradedClaim,
+} from "@/lib/learning/tutor-quant";
+import { citationMarker, examTutorAddendum, finalizeTutorReply } from "@/lib/learning/tutor-reply";
 import { citationHref, type ChatCitation, type ChatEvidence } from "@/lib/ai/chat-citations";
 import {
   isAcceptableOutsideAnswer,
@@ -175,6 +187,8 @@ export async function POST(request: Request) {
     let citations: ChatCitation[] = [];
     let tokensIn = 0;
     let tokensOut = 0;
+    let gradedForStore: GradedClaim | null = null;
+    let prepGrounding: Awaited<ReturnType<typeof loadPrepChatGrounding>> | null = null;
     if (strict && !evidence.length && !imageUrl) {
       content = NO_SOURCE_MESSAGE + NO_SOURCE_CREDIT_NOTE;
       charge = false;
@@ -182,7 +196,19 @@ export async function POST(request: Request) {
       const { data: profile } = await service.from("profiles").select("tutor_style").eq("id", userId).maybeSingle();
       const studentInstruction = await loadActivePrompt(service, PROMPT_KEYS.studentChat);
       const examContext = rest.prepId ? await loadExamChatContext(service, userId, rest.prepId) : null;
+      if (rest.prepId) {
+        try {
+          prepGrounding = await loadPrepChatGrounding(service, userId, rest.prepId, message);
+        } catch (error) {
+          const cause = error instanceof Error ? error.message : String(error);
+          console.error("prep_grounding_failed", { operationId, cause: cause.slice(0, 200) });
+        }
+      }
       const lastAssistant = [...history].reverse().find((item) => item.role === "assistant");
+      const historyText = history.map((item) => (typeof item.content === "string" ? item.content : "")).join("\n");
+      const studentGrade = prepGrounding
+        ? gradeStudentClaim({ student: message, context: `${historyText}\n${prepGrounding.corpus}` })
+        : gradeStudentClaim({ student: message, context: historyText });
       // Full page context is used for an attachment; RAG supplies selected chunks.
       const contextBlock = grounded ? chatSourceBlock(evidence, { documentsOnly: strict, maxCharsPerChunk: documentAttached ? 80000 : 3000 }) : "";
       const attachedRaw = !rest.prepId && rest.imageDocumentId
@@ -197,13 +223,69 @@ export async function POST(request: Request) {
         allowOutsideMaterial: !strict,
       });
       const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+      const tutorAddendum = prepGrounding
+        ? examTutorAddendum({
+            message,
+            grade: studentGrade,
+            decision: prepGrounding.decision,
+            scope: prepGrounding.scope,
+            excerpts: prepGrounding.excerpts,
+          })
+        : "";
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${tutorStylePrompt(parseTutorStyle(profile?.tutor_style))}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${tutorStylePrompt(parseTutorStyle(profile?.tutor_style))}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: { url: imageUrl } }] : message },
       ];
-      const sourceText = [contextBlock, examContext?.block ?? "", attachedBrief].join("\n");
-      const offDocument = isClearlyOffDocument(message, sourceText);
+      const sourceText = [contextBlock, examContext?.block ?? "", attachedBrief, prepGrounding?.corpus ?? ""].join("\n");
+      const offDocument = prepGrounding
+        ? prepGrounding.decision === "out"
+        : isClearlyOffDocument(message, sourceText);
+      async function polishPrep(text: string): Promise<string> {
+        if (!rest.prepId || !prepGrounding) return text;
+        let next = text;
+        const audit = auditQuantitative(next, prepGrounding.corpus);
+        if (!audit.ok) next = repairQuantitative(next, audit);
+        else if (needsQuantModelCheck(next, audit)) {
+          try {
+            const prompt = quantSelfCheckPrompt(next);
+            const review = await client.chat.completions.create({
+              model: env.OPENAI_STANDARD_MODEL,
+              temperature: 0,
+              max_tokens: 180,
+              response_format: { type: "json_object" },
+              messages: [
+                { role: "system", content: prompt.system },
+                { role: "user", content: prompt.user },
+              ],
+            }, { signal: request.signal, timeout: 20_000, maxRetries: 0 });
+            tokensIn += review.usage?.prompt_tokens ?? 0;
+            tokensOut += review.usage?.completion_tokens ?? 0;
+            await recordUsage(service, {
+              userId,
+              actionCode,
+              model: env.OPENAI_STANDARD_MODEL,
+              tokensIn: review.usage?.prompt_tokens ?? 0,
+              tokensOut: review.usage?.completion_tokens ?? 0,
+              reservationId,
+            });
+            const verdict = parseQuantSelfCheck(review.choices[0]?.message?.content ?? "");
+            if (verdict && !verdict.ok) next = dropUnverifiedExample(next);
+          } catch {
+            // Küçük denetim düşerse deterministik sonuç durur.
+          }
+        }
+        const finalized = finalizeTutorReply({
+          message,
+          draft: next,
+          decision: prepGrounding.decision,
+          scope: prepGrounding.scope,
+          grade: studentGrade,
+          language: examContext?.language,
+        });
+        gradedForStore = finalized.misconception;
+        return finalized.content;
+      }
       let accepted = false;
       const attemptLimit = paidChatAttempts(offDocument);
       for (let attempt = 0; attempt < attemptLimit; attempt++) {
@@ -213,14 +295,15 @@ export async function POST(request: Request) {
         tokensOut += response.usage?.completion_tokens ?? 0;
         await recordUsage(service, { userId, actionCode, model: generationModel, tokensIn: response.usage?.prompt_tokens ?? 0, tokensOut: response.usage?.completion_tokens ?? 0, reservationId });
         const rawDraft = response.choices[0]?.message?.content ?? "";
-        const draft = strict
-          ? rawDraft
-          : presentOutsideMaterialAnswer({
+        const stampOutside = !strict && (!prepGrounding || prepGrounding.decision === "out");
+        const draft = stampOutside
+          ? presentOutsideMaterialAnswer({
               question: message,
               answer: rawDraft,
               sourceText,
               language: examContext?.language,
-            });
+            })
+          : rawDraft;
         let checkedContent = "";
         try {
           const verified = await verifyEducationalContent({ client,
@@ -255,6 +338,7 @@ export async function POST(request: Request) {
               logOpsEvent("document_answer_rejected", { operationId, attempt, strict, evidence: evidence.length, reasons: checked.reasons });
               if (!strict && offDocument && isAcceptableOutsideAnswer(content)) {
                 citations = [];
+                content = await polishPrep(content);
                 accepted = true;
                 break;
               }
@@ -263,6 +347,7 @@ export async function POST(request: Request) {
             citations = checked.citations;
           }
         }
+        if (!noSource) content = await polishPrep(content);
         accepted = true;
         break;
       }
@@ -273,7 +358,24 @@ export async function POST(request: Request) {
       }
     }
     // Only server-verified metadata becomes a navigable source, never model URLs.
-    if (citations.length) content += "\n\nKaynaklar:\n" + citations.map((c) =>
+    if (rest.prepId && prepGrounding && charge) {
+      const markers = citations.length
+        ? citations.map((item) => citationMarker({
+          documentName: item.documentName,
+          pageNumber: item.pageNumber,
+          slide: false,
+          href: citationHref(item),
+        }))
+        : prepGrounding.decision === "in"
+          ? prepGrounding.passages.slice(0, 2).map((item) => citationMarker({
+            documentName: item.documentName,
+            pageNumber: item.pageNumber,
+            slide: item.slide,
+            href: item.href,
+          }))
+          : [];
+      if (markers.length) content += `\n${markers.join("\n")}`;
+    } else if (citations.length) content += "\n\nKaynaklar:\n" + citations.map((c) =>
       `- [${c.documentName.replace(/[\\[\]()*<>]/g, "")} ${c.pageNumber ? `· s.${c.pageNumber}` : ""}](${citationHref(c)})`).join("\n");
     if (request.signal.aborted) throw new Error("request_cancelled");
     const { data: saved, error: saveError } = await service.rpc("complete_chat_operation", {
@@ -284,6 +386,14 @@ export async function POST(request: Request) {
     if (saveError || !saved) throw new Error("chat_settlement_failed");
     // The RPC is atomic: on an ambiguous network failure, retry reads its result.
     reservationId = null;
+    if (rest.prepId && gradedForStore) {
+      await recordChatMisconception(service, {
+        userId,
+        prepId: rest.prepId,
+        grade: gradedForStore,
+        question: message,
+      }).catch(() => undefined);
+    }
     await recordUserActivity(service, userId, "chat").catch(() => undefined);
     return chatResultResponse(saved as SavedChatResult, strict);
   } catch (err) {

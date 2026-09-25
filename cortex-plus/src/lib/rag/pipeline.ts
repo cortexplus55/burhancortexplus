@@ -444,24 +444,62 @@ export async function searchDocumentChunks(
   });
   if (error) throw new Error("retrieval_unavailable");
 
-  return (data ?? []).map(
-    (row: {
-      chunk_id: string;
-      document_id: string;
-      content: string;
-      file_name: string;
-      similarity: number;
-      page_number?: number | null;
-      chunk_index?: number | null;
-    }) => ({
-      chunkId: row.chunk_id,
-      documentId: row.document_id,
-      content: row.content,
-      documentName: row.file_name,
-      similarity: Number(row.similarity ?? 0),
-      pageNumber: row.page_number ?? null,
-      chunkIndex: row.chunk_index ?? null,
-    }),
-  );
+  return (data ?? []).map(mapChunkRow);
+}
+
+type ChunkRow = {
+  chunk_id: string;
+  document_id: string;
+  content: string;
+  file_name: string;
+  similarity: number;
+  page_number?: number | null;
+  chunk_index?: number | null;
+};
+
+function mapChunkRow(row: ChunkRow): DocumentMatch {
+  return {
+    chunkId: row.chunk_id,
+    documentId: row.document_id,
+    content: row.content,
+    documentName: row.file_name,
+    similarity: Number(row.similarity ?? 0),
+    pageNumber: row.page_number ?? null,
+    chunkIndex: row.chunk_index ?? null,
+  };
+}
+
+/**
+ * Bir gömme, hazırlıktaki her belge. Tek belgede aramak çok dosyalı
+ * hazırlıkta ilgili notu kaçırıyordu.
+ */
+export async function searchDocumentChunksAcross(
+  service: SupabaseClient,
+  userId: string,
+  query: string,
+  documentIds: string[],
+  options: { limit?: number; minSimilarity?: number; perDocument?: number } = {},
+): Promise<DocumentMatch[]> {
+  const ids = [...new Set(documentIds.filter(Boolean))].slice(0, 12);
+  if (!ids.length) return [];
+  const [embedding] = await embedTexts([query]);
+  if (!embedding) return [];
+  const perDocument = options.perDocument ?? 2;
+  const minSimilarity = options.minSimilarity ?? MIN_CHUNK_SIMILARITY;
+  const batches = await Promise.all(ids.map(async (documentId) => {
+    const { data, error } = await service.rpc("match_document_chunks", {
+      p_user_id: userId,
+      p_query_embedding: embedding as unknown as string,
+      p_match_count: perDocument,
+      p_min_similarity: minSimilarity,
+      p_document_id: documentId,
+    });
+    if (error) return [] as DocumentMatch[];
+    return ((data ?? []) as ChunkRow[]).map(mapChunkRow);
+  }));
+  return batches
+    .flat()
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, options.limit ?? 8);
 }
 

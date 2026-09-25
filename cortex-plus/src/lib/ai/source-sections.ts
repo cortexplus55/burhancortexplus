@@ -17,24 +17,30 @@ const OUTSIDE_EN_INLINE = /^\s*(?:\*\*)?Outside the material\s*:(?:\*\*)?\s*(?=\
 
 export const DOC_HEADING = "#### Belgeden";
 export const GENERAL_HEADING = "#### Genel bilgiden — kaynak gösterilmez";
-export const OUTSIDE_HEADING = "#### Materyal dışı";
+/** Düz `####` başlık cümleye yapışınca ekranda ham markdown kalıyordu. */
+export const OUTSIDE_HEADING = "[[rozet:Materyal dışı]]";
+export const OUTSIDE_HEADING_EN = "[[rozet:Outside the material]]";
 
 export function hasSourceSections(content: string): boolean {
   return /Belgeden\s*:/i.test(content)
     || /Genel bilgiden\s*:/i.test(content)
     || /Materyal dışı\s*:/i.test(content)
-    || /Outside the material\s*:/i.test(content);
+    || /Outside the material\s*:/i.test(content)
+    || /#{1,6}\s*Materyal dışı/i.test(content)
+    || /#{1,6}\s*Outside the material/i.test(content);
 }
 
 export function formatSourceSections(content: string): string {
   if (!hasSourceSections(content)) return content;
   return content
+    .replace(/#{1,6}\s*Materyal dışı/gi, OUTSIDE_HEADING)
+    .replace(/#{1,6}\s*Outside the material/gi, OUTSIDE_HEADING_EN)
     .replace(DOC_LABEL, DOC_HEADING)
     .replace(GENERAL_LABEL, GENERAL_HEADING)
     .replace(OUTSIDE_LABEL, OUTSIDE_HEADING)
-    .replace(OUTSIDE_EN_LABEL, OUTSIDE_HEADING)
+    .replace(OUTSIDE_EN_LABEL, OUTSIDE_HEADING_EN)
     .replace(DOC_INLINE, `${DOC_HEADING}\n\n`)
     .replace(GENERAL_INLINE, `${GENERAL_HEADING}\n\n`)
-    .replace(OUTSIDE_INLINE, `${OUTSIDE_HEADING}\n\n`)
-    .replace(OUTSIDE_EN_INLINE, `${OUTSIDE_HEADING}\n\n`);
+    .replace(OUTSIDE_INLINE, `\n\n${OUTSIDE_HEADING}\n\n`)
+    .replace(OUTSIDE_EN_INLINE, `\n\n${OUTSIDE_HEADING_EN}\n\n`);
 }
