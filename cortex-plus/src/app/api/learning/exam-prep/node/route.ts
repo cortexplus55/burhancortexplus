@@ -1669,9 +1669,11 @@ async function generateNodePayload(input: {
         ? ` SIRADA NE VAR yalnızca şu sonraki konu başlıkları: ${input.upcomingTopics.join(" | ")}. Başka konu uydurma.`
         : " Bu konudan sonra listede konu yok; nextFocus yazma.";
     /**
-     * Canlıda 110 saniye: taslak, ileri denetim ve iddia turu art arda
-     * gidiyordu. Temiz taslak ileri denetimi açmaz. İddia kapısı bozuksa
-     * doğrulayıcı bir kez çalışır. `lesson_model_calls` süreyi de yazar.
+     * Canlıda 110 saniye taslak, ileri denetim ve iddia turunun art arda
+     * gitmesinden geliyordu. Temiz taslak ileri denetimi açmaz. Her ders
+     * için ucuz modelde kaynağa karşı bir iddia denetimi yine çalışır.
+     * Onarım yalnız o denetim ya da kapı bir bozukluk işaretlerse açılır.
+     * `lesson_model_calls` draftMs, reviewMs, repairMs ve verifyMs yazar.
      */
     let lessonModelCalls = 0;
     let draftMs = 0;
@@ -1888,7 +1890,13 @@ async function generateNodePayload(input: {
       lesson = outcome.ok ? outcome.data : lastValidLesson;
     }
     if (!lesson) {
-      console.error("lesson_model_calls", { calls: lessonModelCalls, draftMs, reviewMs, repairMs: 0 });
+      console.error("lesson_model_calls", {
+        calls: lessonModelCalls,
+        draftMs,
+        reviewMs,
+        repairMs: 0,
+        verifyMs: 0,
+      });
       throw new NodeGenerationError(
         outcome.ok ? 500 : outcome.status,
         outcome.ok ? "lesson_missing" : outcome.error,
@@ -1914,15 +1922,18 @@ async function generateNodePayload(input: {
       lesson,
       { source: repairSource, topicLabel: input.topicLabel },
       (prompt) => repairCall(prompt, 1500),
-      repairSource.trim() ? (prompt) => repairCall(prompt, 700) : undefined,
+      repairSource.trim() ? (prompt) => repairCall(prompt, 400) : undefined,
     );
     lesson = repair.lesson;
     const publishedChecks = lesson.sections.filter((section) => section.check).length;
+    const repairWallMs = Date.now() - repairStarted;
+    const verifyMs = repair.verifyMs;
     console.error("lesson_model_calls", {
       calls: lessonModelCalls,
       draftMs,
       reviewMs,
-      repairMs: Date.now() - repairStarted,
+      repairMs: Math.max(0, repairWallMs - verifyMs),
+      verifyMs,
     });
     if (publishedChecks < 3) {
       throw new NodeGenerationError(500, "lesson_missing", ["En az 3 kontrol sorusu yazılamadı."]);

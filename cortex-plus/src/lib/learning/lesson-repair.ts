@@ -715,8 +715,14 @@ export function dropUnresolvedLesson(
   next.sections = next.sections.flatMap((section) => {
     const body = stripField(section.body);
     if (body.length < 20) return [];
-    const check = section.check && stemLacksSubject(section.check.prompt) ? undefined : section.check;
+    let check = section.check && stemLacksSubject(section.check.prompt) ? undefined : section.check;
     if (section.check && !check) mark("stem_grammar");
+    if (check && quoteHits(check.explanation, quotes)) {
+      const explanation = cleanSentences(check.explanation, source, quotes, formulaContext);
+      mark("claim_wrong");
+      if (explanation) check = { ...check, explanation };
+      else check = undefined;
+    }
     let diagram = section.diagram;
     if (diagram && diagramIssues(diagram).length) {
       diagram = undefined;
@@ -776,6 +782,12 @@ export function dropUnresolvedLesson(
     } else {
       next.commonMistake = { ...next.commonMistake, correction };
     }
+  }
+  if (next.summary?.length && quotes.length) {
+    const kept = next.summary.filter((line) => !quoteHits(line, quotes));
+    if (kept.length !== next.summary.length) mark("claim_wrong");
+    if (kept.length) next.summary = kept;
+    else delete next.summary;
   }
   const summary = filledSummary(next, source);
   const previous = (lesson.summary ?? []).filter((line) => acceptSummaryLine(line, source)).length;
@@ -1386,19 +1398,39 @@ export async function repairLearnerLesson(
   input: { source: string; topicLabel: string },
   complete: (prompt: string) => Promise<unknown>,
   verify?: (prompt: string) => Promise<unknown>,
-): Promise<{ lesson: LessonV2; requested: LessonCheckCode[]; succeeded: LessonCheckCode[]; dropped: LessonCheckCode[] }> {
+): Promise<{
+  lesson: LessonV2;
+  requested: LessonCheckCode[];
+  succeeded: LessonCheckCode[];
+  dropped: LessonCheckCode[];
+  verifyMs: number;
+}> {
   const bounded = applyBoundFix(scopeLessonToTopic(lesson, input.source, input.topicLabel), input.source);
   const filled = filledSummary(bounded, input.source);
   const prepared: LessonV2 = filled.length ? { ...bounded, summary: filled } : bounded;
+  /**
+   * Regex kapısı temiz olsa da her ders kaynağa karşı bir kez denetlenir.
+   * Denetim, yerel tarama ile aynı anda başlar. Onarım yalnız işaret varsa açılır.
+   */
+  const verifyStarted = Date.now();
+  const verifyTask = (async (): Promise<string[]> => {
+    if (!verify || !input.source.trim()) return [];
+    try {
+      return claimsFromVerify(
+        await verify(claimVerifyPrompt(prepared, input.source, input.topicLabel)),
+        prepared,
+      );
+    } catch {
+      return [];
+    }
+  })();
   const audit = auditLearnerLesson(prepared, input);
   let quotes: string[] = [];
-  // İddia kapısı temizse doğrulayıcıya ikinci bir tur açılmaz.
-  if (verify && input.source.trim() && audit.some((issue) => issue.code === "claim_wrong")) {
-    try {
-      quotes = claimsFromVerify(await verify(claimVerifyPrompt(prepared, input.source)), prepared);
-    } catch {
-      quotes = [];
-    }
+  let verifyMs = 0;
+  try {
+    quotes = await verifyTask;
+  } finally {
+    verifyMs = Date.now() - verifyStarted;
   }
   if (quotes.length && !audit.some((issue) => issue.code === "claim_wrong")) {
     audit.push({ code: "claim_wrong", detail: quotes[0].slice(0, 160) });
@@ -1406,7 +1438,7 @@ export async function repairLearnerLesson(
   const requested = [...new Set(audit.map((issue) => issue.code))];
   if (!requested.length) {
     const counted = prepared.sections.filter((section) => section.check).length;
-    if (counted >= 3) return { lesson: prepared, requested, succeeded: [], dropped: [] };
+    if (counted >= 3) return { lesson: prepared, requested, succeeded: [], dropped: [], verifyMs };
     const covered = ensureThreeChecks(prepared);
     const summary = filledSummary(covered, input.source);
     const drafted = summary.length ? { ...covered, summary } : covered;
@@ -1415,6 +1447,7 @@ export async function repairLearnerLesson(
       requested,
       succeeded: [],
       dropped: [],
+      verifyMs,
     };
   }
   let merged = prepared;
@@ -1439,7 +1472,7 @@ export async function repairLearnerLesson(
   const removed = new Set(finalized.dropped);
   const succeeded = requested.filter((code) => !remaining.has(code) && !removed.has(code));
   const dropped = [...new Set([...finalized.dropped, ...remaining])];
-  return { lesson: published, requested, succeeded, dropped };
+  return { lesson: published, requested, succeeded, dropped, verifyMs };
 }
 
 function applyBoundFix(lesson: LessonV2, source: string): LessonV2 {

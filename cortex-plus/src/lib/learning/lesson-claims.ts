@@ -359,8 +359,17 @@ function lessonBlob(lesson: LessonV2): string {
   ].join("\n");
 }
 
+/** Doğrulayıcıya giden kaynak: konunun kendi cümleleri, en fazla bir sayfa. */
+const CHECKER_SOURCE_CAP = 2200;
+
+function sourceForChecker(source: string, topicLabel: string): string {
+  const span = topicLabel.trim() ? topicSpan(source, topicLabel) : null;
+  const grounded = span && span.length >= 80 ? span : source;
+  return grounded.slice(0, CHECKER_SOURCE_CAP);
+}
+
 /** Doğrulayıcıya giden iddia listesi. Yanlış inanç olgu diye yazılmaz. */
-export function claimVerifyPrompt(lesson: LessonV2, source: string): string {
+export function claimVerifyPrompt(lesson: LessonV2, source: string, topicLabel = ""): string {
   const claims = [
     lesson.commonMistake?.correction
       ? `Doğrusu: ${lesson.commonMistake.correction}`
@@ -383,7 +392,7 @@ export function claimVerifyPrompt(lesson: LessonV2, source: string): string {
     "Pv = ZRT bağıntısında v özgül hacimdir. Toplam hacim için PV = mZRT yazılır. Kaynak söylemiyorsa Z = 1.03 ideal gaz varsayımını bozmaz deme.",
     'JSON: {"bad":[{"quote":"dersteki aynen cümle","reason":"wrong"}]}',
     "reason yalnız wrong, unsupported veya ambiguous olsun. Uyan iddia yoksa bad boş dizi olsun.",
-    `Kaynak:\n${source.slice(0, 4000)}`,
+    `Kaynak:\n${sourceForChecker(source, topicLabel)}`,
     `İddialar:\n${claims.join("\n")}`,
   ].join("\n\n");
 }

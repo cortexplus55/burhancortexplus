@@ -1591,13 +1591,18 @@ describe("exam-prep lesson route", () => {
     const verifyCalls = pipelineMocks.create.mock.calls.filter((call) =>
       JSON.stringify(call[0]?.messages ?? []).includes("İddiaları kaynağa karşı denetle"),
     );
-    expect(verifyCalls.length).toBe(0);
+    expect(verifyCalls.length).toBe(1);
+    expect(verifyCalls[0]?.[0]?.model).toBe("std");
+    expect(verifyCalls[0]?.[0]?.max_tokens).toBe(400);
     const callLog = logs.find((args) => args[0] === "lesson_model_calls");
-    const timing = callLog?.[1] as { calls?: number; draftMs?: number; reviewMs?: number; repairMs?: number } | undefined;
+    const timing = callLog?.[1] as
+      | { calls?: number; draftMs?: number; reviewMs?: number; repairMs?: number; verifyMs?: number }
+      | undefined;
     expect(timing?.calls).toBeLessThanOrEqual(2);
     expect(typeof timing?.draftMs).toBe("number");
     expect(typeof timing?.reviewMs).toBe("number");
     expect(typeof timing?.repairMs).toBe("number");
+    expect(typeof timing?.verifyMs).toBe("number");
   });
 });
 
