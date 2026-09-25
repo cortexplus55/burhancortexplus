@@ -128,6 +128,16 @@ const CONCEPT_NEEDLES = [
   "yaygin ozellik",
   "yari deng",
   "enerji degis",
+  "doymus sivi",
+  "doymus buhar",
+  "kizgin buhar",
+  "sikistirilmis",
+  "sivi-buhar",
+  "kuruluk",
+  "t_sat",
+  "tsat",
+  "p_sat",
+  "psat",
 ];
 
 function clip(text: string, max: number): string {
@@ -148,7 +158,10 @@ function keyedLabel(check: Record<string, unknown>): string {
 function sourceSentenceFor(topic: string, source: string): string | null {
   if (!source.trim() || truncated(source)) return null;
   const topicFold = foldTr(topic);
-  const needles = CONCEPT_NEEDLES.filter((needle) => topicFold.includes(needle));
+  let needles = CONCEPT_NEEDLES.filter((needle) => topicFold.includes(needle));
+  if (!needles.length && /faz|sicaklik|basinc|karisim|doymus|kizgin|sikistir/.test(topicFold)) {
+    needles = ["t_sat", "tsat", "p_sat", "psat", "kuruluk", "doymus sivi", "doyma"];
+  }
   if (!needles.length) return null;
   let best: { score: number; text: string } | null = null;
   for (const sentence of sentencesOf(source)) {
@@ -158,6 +171,10 @@ function sourceSentenceFor(topic: string, source: string): string | null {
     let score = 0;
     for (const needle of needles) {
       if (folded.includes(needle)) score += 1;
+    }
+    if (/karisim/.test(topicFold) && /kuruluk|(?<![a-z])x(?![a-z])/.test(folded)) score += 2;
+    if (/karsilastir|faz karar/.test(topicFold) && /t[_ ]?sat|tsat|p[_ ]?sat|psat|doyma/.test(folded)) {
+      score += 2;
     }
     if (score > 0 && (!best || score > best.score)) best = { score, text: sentence };
   }
@@ -360,12 +377,24 @@ export function groundLearnerLesson(lesson: unknown, source: string): GroundedLe
   }
 
   if (Array.isArray(next.summary)) {
-    const summary = next.summary.filter((item) => {
-      if (typeof item !== "string" || !fieldFails(item, source)) return true;
-      removed.push("summary");
-      return false;
-    });
-    if (summary.length) next.summary = summary;
+    const kept: string[] = [];
+    const seen = new Set<string>();
+    for (const item of next.summary) {
+      if (typeof item !== "string") continue;
+      const failing = fieldFails(item, source);
+      const replacement = failing ? sourceSentenceFor(item, source) : null;
+      const text = replacement ? clip(replacement, 240) : item;
+      if (failing && !replacement) {
+        removed.push("summary");
+        continue;
+      }
+      if (failing && replacement) removed.push("summary:replaced");
+      const key = foldTr(text);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      kept.push(text);
+    }
+    if (kept.length) next.summary = kept;
     else delete next.summary;
   }
 
