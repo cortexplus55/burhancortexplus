@@ -15,6 +15,9 @@ const USER_CONTENT_TABLES = [
   "teacher_applications", "teacher_verifications", "teacher_usage",
   "support_requests", "email_events", "ai_usage_events", "ai_validation_events",
   "document_page_grants", "model_upgrade_grants", "abuse_events", "user_roles",
+  "adaptive_jev_decisions", "adaptive_learning_events", "adaptive_learning_sessions",
+  "adaptive_scheduled_reviews", "adaptive_daily_plan_items", "adaptive_daily_plans",
+  "adaptive_master_plans",
 ] as const;
 
 /** Every step is checked and repeatable by the deletion worker. */

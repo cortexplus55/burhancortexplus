@@ -106,7 +106,17 @@ export async function refundCredits(
  * onlari olculmesi en gerekli yer yapiyor. `ai_usage_events.action_code`
  * serbest metin oldugu icin sema degisikligi gerekmiyor.
  */
-export type UsageCode = ActionCode | "TTS_SYNTHESIZE" | "STT_TRANSCRIBE";
+export type UsageCode =
+  | ActionCode
+  | "TTS_SYNTHESIZE"
+  | "STT_TRANSCRIBE"
+  /** Adaptive Learning Engine — orchestration (0 student credits). */
+  | "ADAPTIVE_JEV"
+  | "ADAPTIVE_DECISION"
+  | "ADAPTIVE_DECISION_ESCALATION"
+  | "ADAPTIVE_DECISION_FALLBACK"
+  | "ADAPTIVE_ACTION_CONTENT"
+  | "ADAPTIVE_ANSWER_EVAL";
 
 export async function recordUsage(
   service: SupabaseClient,

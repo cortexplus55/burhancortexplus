@@ -14,6 +14,7 @@
     "test:db": "node scripts/test-reschedule-transaction.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test --grep @smoke",
     "test:e2e:ui": "playwright test --ui",
     "eval:grounding": "tsx tests/eval/run-grounding.ts"
   },

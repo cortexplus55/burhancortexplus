@@ -1,6 +1,16 @@
 import { z } from "zod";
 
-const envSchema = z.object({
+export type DecisionProviderMode = "auto" | "jev" | "openai";
+
+/** Missing or unknown values stay on auto so startup never requires a Jev key. */
+export function decisionProviderFromEnv(
+  value: string | undefined,
+): DecisionProviderMode {
+  if (value === "jev" || value === "openai") return value;
+  return "auto";
+}
+
+export const envSchema = z.object({
   NEXT_PUBLIC_APP_NAME: z.string().default("Cortex Plus"),
   NEXT_PUBLIC_APP_URL: z.string().optional(),
   NEXT_PUBLIC_SUPABASE_URL: z.string().optional(),
@@ -17,6 +27,26 @@ const envSchema = z.object({
   OPENAI_ADVANCED_MODEL: z.string().default("gpt-4o"),
   OPENAI_TTS_MODEL: z.string().default("gpt-4o-mini-tts"),
   OPENAI_STT_MODEL: z.string().default("gpt-4o-mini-transcribe"),
+  /** TypeSafe Jev decision engine (server-only; never expose to client). */
+  TYPESAFE_API_KEY: z.string().optional(),
+  JEV_MODEL: z.string().optional(),
+  JEV_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v !== "false" && v !== "0"),
+  JEV_TIMEOUT_MS: z.coerce.number().int().positive().default(1500),
+  JEV_FALLBACK_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v !== "false" && v !== "0"),
+  /**
+   * auto: Jev when enabled and a TypeSafe key exists, otherwise OpenAI primary.
+   * openai: never call Jev. jev: prefer Jev; missing key still starts the app.
+   */
+  DECISION_PROVIDER: z
+    .string()
+    .optional()
+    .transform((v) => decisionProviderFromEnv(v)),
 });
 
 const parsed = envSchema.safeParse({
@@ -33,6 +63,12 @@ const parsed = envSchema.safeParse({
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,
   OPENAI_TTS_MODEL: process.env.OPENAI_TTS_MODEL,
   OPENAI_STT_MODEL: process.env.OPENAI_STT_MODEL,
+  TYPESAFE_API_KEY: process.env.TYPESAFE_API_KEY,
+  JEV_MODEL: process.env.JEV_MODEL,
+  JEV_ENABLED: process.env.JEV_ENABLED,
+  JEV_TIMEOUT_MS: process.env.JEV_TIMEOUT_MS,
+  JEV_FALLBACK_ENABLED: process.env.JEV_FALLBACK_ENABLED,
+  DECISION_PROVIDER: process.env.DECISION_PROVIDER,
 });
 
 export const env = parsed.success

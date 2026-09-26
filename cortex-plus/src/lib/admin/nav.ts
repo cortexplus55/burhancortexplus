@@ -109,6 +109,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         blurb: "Hangi işlem ne sıklıkla çalışmış, ne kadar metin işlenmiş.",
       },
       {
+        href: "/admin/adaptive",
+        label: "Adaptive debug",
+        icon: Activity,
+        blurb: "Öğrenci bazında Jev kararları, fallback oranı, oturum ve plan sürümü.",
+      },
+      {
         href: "/admin/maliyetler",
         label: "Giderler",
         icon: TrendingUp,
