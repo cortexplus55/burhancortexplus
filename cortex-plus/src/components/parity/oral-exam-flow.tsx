@@ -1,33 +1,43 @@
 "use client";
 
 import Link from "next/link";
-import { Check, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Crown, Flame, Info, MessageCircle, Sparkles, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Crown, Flame, Info, MessageCircle, Sparkles, Target, ThumbsUp, X } from "lucide-react";
 import { useIsFounder } from "@/lib/student/student-shell-context";
 import { presentOralReview } from "@/lib/learning/oral-exam";
 import {
   formatTopicPct,
-  letterGrade,
-  ORAL_PREFLIGHT,
   ORAL_TEACHER_MOODS,
   ORAL_VOICE_NAME,
   oralHeadline,
+  oralPreflightCopy,
   oralSummary,
   type OralReviewItem,
   type OralTeacherMoodId,
 } from "@/lib/learning/oral-exam-chrome";
 import { ORAL_ALL_TOPICS, ORAL_LENGTH_OPTIONS, type OralLength } from "@/lib/learning/oral-exam";
+import { ProgressRing } from "@/components/ui/progress-ring";
 import "@/styles/oral-exam-chrome.css";
 
 export type OralTopicRow = { id: string; label: string; pct: number };
 
 function SolutionText({ text }: { text: string }) {
-  const marker = "Hatanız şuradaydı:";
-  const at = text.indexOf(marker);
-  if (at < 0) return text;
+  const markers = ["Eksik kalan:", "Doğru kısım:", "Örnek çözüm:"];
+  let earliest = -1;
+  let marker = "";
+  for (const item of markers) {
+    const at = text.indexOf(item);
+    if (at >= 0 && (earliest < 0 || at < earliest)) {
+      earliest = at;
+      marker = item;
+    }
+  }
+  if (earliest < 0) return text;
   return (
     <>
-      {text.slice(0, at)}
-      <span className="cp-oral-miss">{text.slice(at)}</span>
+      {text.slice(0, earliest)}
+      <span className={marker === "Eksik kalan:" ? "cp-oral-miss" : "cp-oral-right"}>
+        {text.slice(earliest)}
+      </span>
     </>
   );
 }
@@ -241,27 +251,40 @@ export function OralTeacherCustomize({
 
 export function OralPreflightDialog({
   onConfirm,
-  copy = ORAL_PREFLIGHT,
+  onCancel,
+  questionCount = 3,
+  minutes = 7,
+  copy,
 }: {
   onConfirm: () => void;
+  onCancel?: () => void;
+  questionCount?: number;
+  minutes?: number;
   copy?: { title: string; body: string; items: readonly string[]; confirm: string };
 }) {
+  const resolved = copy ?? oralPreflightCopy(questionCount, minutes);
   return (
     <div className="cp-oral-modal-back">
       <div className="cp-oral-modal" role="dialog" aria-modal="true" aria-labelledby="oral-preflight-title">
-        <h2 id="oral-preflight-title">{copy.title}</h2>
-        <p>{copy.body}</p>
+        <h2 id="oral-preflight-title">{resolved.title}</h2>
         <ul className="cp-oral-checks">
-          {copy.items.map((item) => (
+          {resolved.items.map((item) => (
             <li key={item}>
               <CircleCheck className="h-4 w-4" aria-hidden />
               {item}
             </li>
           ))}
         </ul>
-        <button type="button" className="cp-oral-cta" onClick={onConfirm}>
-          {copy.confirm}
-        </button>
+        <div className="cp-oral-modal-actions">
+          {onCancel ? (
+            <button type="button" className="cp-oral-ghost" onClick={onCancel}>
+              Vazgeç
+            </button>
+          ) : null}
+          <button type="button" className="cp-oral-cta" onClick={onConfirm}>
+            {resolved.confirm}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -269,24 +292,30 @@ export function OralPreflightDialog({
 
 export function OralEndDialog({
   busy,
+  answered = 0,
+  total = 0,
   onStay,
   onConfirm,
 }: {
   busy?: boolean;
+  answered?: number;
+  total?: number;
   onStay: () => void;
   onConfirm: () => void;
 }) {
   return (
     <div className="cp-oral-modal-back">
       <div className="cp-oral-modal" role="dialog" aria-modal="true" aria-labelledby="oral-end-title">
-        <h2 id="oral-end-title">Test değerlendirme için gönderilsin mi?</h2>
-        <p>Testi bitirip cevaplarını değerlendirmeye göndermek üzeresin.</p>
+        <h2 id="oral-end-title">Sınav değerlendirmeye gönderilsin mi?</h2>
+        <p>
+          {answered}/{total || "?"} soruyu cevapladın.
+        </p>
         <div className="cp-oral-modal-actions">
           <button type="button" className="cp-oral-ghost" onClick={onStay} disabled={busy}>
-            Kal
+            Sınava dön
           </button>
           <button type="button" className="cp-oral-cta" onClick={onConfirm} disabled={busy}>
-            {busy ? "Gönderiliyor…" : "Evet"}
+            {busy ? "Gönderiliyor…" : "Evet, gönder"}
           </button>
         </div>
       </div>
@@ -299,10 +328,7 @@ export function OralReviewTimeDialog({ onSeeResults }: { onSeeResults: () => voi
     <div className="cp-oral-modal-back">
       <div className="cp-oral-modal" role="dialog" aria-modal="true" aria-labelledby="oral-review-time-title">
         <h2 id="oral-review-time-title">İnceleme zamanı!</h2>
-        <p>
-          Öğretmenin yanıtlarını gözden geçirip geri bildirim verecek ve bundan sonra
-          neye odaklanman gerektiğini gösterecek.
-        </p>
+        <p>Cevapların değerlendiriliyor…</p>
         <button type="button" className="cp-oral-cta" onClick={onSeeResults}>
           Sonuçlarımı gör
         </button>
@@ -321,6 +347,9 @@ export function OralResults({
   weaknesses = [],
   practiceHref,
   practiceLabel,
+  fullCount,
+  total,
+  minutesSpent,
 }: {
   topicLabel: string;
   pct: number;
@@ -331,53 +360,73 @@ export function OralResults({
   weaknesses?: string[];
   practiceHref?: string | null;
   practiceLabel?: string | null;
+  fullCount?: number;
+  total?: number;
+  minutesSpent?: number;
 }) {
-  const letter = letterGrade(pct);
   return (
     <section className="cp-oral cp-oral-results">
-      <p className="cp-oral-results-kicker">Sınav simülasyonu sonuçları</p>
-      <div className="cp-oral-books" aria-hidden>
-        📚
+      <h1 className="cp-oral-results-title">Sözlü deneme sonucu</h1>
+      <div className="cp-oral-ring-wrap">
+        <ProgressRing value={pct} size={140} strokeWidth={10}>
+          <span className="cp-oral-ring-pct">{formatTopicPct(pct)}</span>
+          <span className="cp-oral-ring-headline">{oralHeadline(pct)}</span>
+        </ProgressRing>
       </div>
-      <h1>{oralHeadline(pct)}</h1>
-      <article className="cp-oral-scorecard">
-        <p className="cp-oral-scorecard-topic">{topicLabel}</p>
-        <div className="cp-oral-score-row">
-          <div className="cp-oral-score-pill">
-            <span>DENEME</span>
-            <strong>{letter}</strong>
-          </div>
-          <div className="cp-oral-score-pill is-pct">
-            <span>NOT</span>
-            <strong>{formatTopicPct(pct)}</strong>
-          </div>
-        </div>
-      </article>
+      <p className="cp-oral-scorecard-topic">{topicLabel}</p>
+      <div className="cp-oral-stat-row" aria-label="Oturum özeti">
+        <article>
+          <span>Harcanan zaman</span>
+          <strong>{minutesSpent ?? 1} dk</strong>
+        </article>
+        <article>
+          <span>Tam doğru</span>
+          <strong>
+            {fullCount ?? "—"}/{total ?? "—"}
+          </strong>
+        </article>
+        <article>
+          <span>Önceki deneme</span>
+          <strong>İlk deneme</strong>
+        </article>
+      </div>
       <button type="button" className="cp-oral-review-link" onClick={onReview}>
         <Sparkles className="h-4 w-4" aria-hidden />
         Cevaplarımı gözden geçir
       </button>
       <p className="cp-oral-summary">{oralSummary(pct)}</p>
-      {strengths.length ? (
-        <section aria-label="Güçlü yanlar">
-          <h2>Güçlü yanlar</h2>
-          <ul>
-            {strengths.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
+      <div className="cp-oral-split">
+        <section aria-label="Güçlü yanlar" className="cp-oral-side-card">
+          <h2>
+            <ThumbsUp className="h-4 w-4" aria-hidden />
+            Güçlü yanlar
+          </h2>
+          {strengths.length ? (
+            <ul>
+              {strengths.slice(0, 4).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>Bu denemede belirgin bir güçlü yan listelenmedi.</p>
+          )}
         </section>
-      ) : null}
-      {weaknesses.length ? (
-        <section aria-label="Eksikler">
-          <h2>Eksikler</h2>
-          <ul>
-            {weaknesses.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
+        <section aria-label="Eksikler" className="cp-oral-side-card">
+          <h2>
+            <Target className="h-4 w-4" aria-hidden />
+            Eksikler
+          </h2>
+          {weaknesses.length ? (
+            <ul>
+              {weaknesses.slice(0, 4).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>Bu denemede belirgin bir eksik görünmüyor.</p>
+          )}
         </section>
-      ) : null}
+      </div>
       {practiceHref ? (
         <Link className="cp-oral-review-link" href={practiceHref}>
           {practiceLabel || "Eksik konuda pratik"}

@@ -2046,7 +2046,7 @@ export function repairQuizPedagogy(questions: QuizQuestion[]): QuizQuestion[] {
       next.explanation = `Doğru seçenek: ${right}.`.slice(0, 500);
     }
     if (wrong && !explanationRefutesADistractor(next)) {
-      next.explanation = `${next.explanation.trim()} «${wrong.trim()}» bu sorunun cevabı değildir.`.slice(
+      next.explanation = `${next.explanation.trim()} «${wrong.trim()}» farklı bir olay veya hatalı hesaptır.`.slice(
         0,
         500,
       );
@@ -2491,6 +2491,7 @@ export function validateOralPedagogy(
     learningObjective?: string;
     rubricCriteria?: string[];
     expectedPoints?: string[];
+    modelAnswer?: string;
   }[],
 ): string[] {
   const issues: string[] = [];
@@ -2517,6 +2518,11 @@ export function validateOralPedagogy(
     }
     if (!q.expectedPoints?.length) {
       issues.push(`${label}: expectedPoints zorunlu.`);
+    }
+    if (!q.modelAnswer?.trim() || q.modelAnswer.trim().length < 8) {
+      issues.push(`${label}: modelAnswer zorunlu.`);
+    } else if (isPromptEcho(q.modelAnswer, q.prompt)) {
+      issues.push(`${label}: modelAnswer soru metninin kopyası.`);
     }
   }
   return issues;

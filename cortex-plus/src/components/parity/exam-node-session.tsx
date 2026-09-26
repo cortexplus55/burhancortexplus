@@ -42,7 +42,6 @@ import {
   DEFAULT_ORAL_TEACHER_MOOD,
   oralTeacherById,
   EMPTY_ORAL_ANSWER_NOTE,
-  ORAL_PREFLIGHT,
   oralVoicePercent,
   oralVoiceTopicLabel,
   oralWrittenPercent,
@@ -837,15 +836,9 @@ export function ExamNodeSession({
           />
           {oralPreflight ? (
             <OralPreflightDialog
-              copy={{
-                ...ORAL_PREFLIGHT,
-                items: [
-                  "Rahatça konuşabileceğin sessiz bir yer bul, ya da yazarak cevapla",
-                  `${oralLength} soru bekle`,
-                  "İstediğin zaman bitir, yine de geri bildirim alacaksın",
-                  `${minutesForOralLength(oralLength)} dakika ile sınırlı`,
-                ],
-              }}
+              questionCount={oralLength}
+              minutes={minutesForOralLength(oralLength)}
+              onCancel={() => setOralPreflight(false)}
               onConfirm={() => {
                 const choice = oralTeacherById(oralMoodId);
                 setOralPreflight(false);
@@ -1110,7 +1103,7 @@ export function ExamNodeSession({
                 ? "Sonraki soru"
                 : isTimedExam
                   ? "Sınavı bitir"
-                  : "Bitir"
+                  : "Testi bitir"
             }
             disabled={loading}
             examMode={isTimedExam}
@@ -1282,6 +1275,12 @@ export function ExamNodeSession({
         <OralResults
           topicLabel={oralTopicLabel}
           pct={oralPct}
+          fullCount={oralReport?.fullCount}
+          total={oralReport?.total ?? questions.length}
+          minutesSpent={Math.max(
+            1,
+            Math.round((Date.now() - (playStartedAt ?? Date.now())) / 60000),
+          )}
           onReview={() => {
             setOralReviewIndex(0);
             setOralReviewTab("ai");

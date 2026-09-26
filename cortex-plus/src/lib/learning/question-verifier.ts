@@ -15,6 +15,13 @@ import {
   type GradedClaim,
 } from "@/lib/learning/tutor-quant";
 import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
+import { optionWhyUniqueIssues } from "@/lib/learning/lesson-play";
+import {
+  isPromptEcho,
+  oralPremiseGrounded,
+  verifyOralPrompt as oralPromptPedagogyIssues,
+} from "@/lib/learning/oral-review";
+import type { SectionCheck } from "@/lib/learning/teaching-standards";
 
 const SUB: Record<string, string> = {
   "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4",
@@ -522,19 +529,74 @@ function asksQuantity(text: string): boolean {
   return /(kaç|hesapla|calculate|how many|how much|kaçtır|kaçtir)/i.test(text);
 }
 
-function fillOptionWhy(question: VerifiedChoice): VerifiedChoice {
-  if (question.optionWhy && question.optionWhy.length === question.options.length && question.optionWhy.every((line) => line.trim().length >= 8)) {
-    return question;
+const OPTION_WHY_FILLER = /bu sorunun cevabı değil/i;
+
+function trapBodies(optionWhy: string[]): string[] {
+  return optionWhy
+    .map((line) => {
+      const match = line.match(/tuzak:\s*(.+)$/i);
+      return (match?.[1] ?? "").trim().toLocaleLowerCase("tr-TR");
+    })
+    .filter(Boolean);
+}
+
+/** Şık gerekçeleri özgün mü; dolgu kalıbı ve tekrarlayan tuzak yok. */
+export function optionWhyQualityIssues(optionWhy: string[], options: string[]): string[] {
+  const issues: string[] = [];
+  if (optionWhy.length !== options.length) {
+    issues.push("optionWhy her şık için zorunlu.");
+    return issues;
   }
-  const trap = question.misconceptionTag?.trim() || "yanlış eşleme";
-  const optionWhy = question.options.map((option) => {
-    if (question.correct.includes(option)) {
-      const why = question.explanation?.split(/(?<=[.!?])\s+/)[0]?.trim();
-      return (why && why.length >= 8 ? why : `${option} sorunun doğrulanmış sonucudur.`).slice(0, 200);
-    }
-    return `${option} bu sorunun cevabı değil; tuzak: ${trap}.`.slice(0, 200);
+  if (optionWhy.some((line) => line.trim().length < 8)) {
+    issues.push("optionWhy satırları çok kısa.");
+  }
+  if (optionWhy.some((line) => OPTION_WHY_FILLER.test(line))) {
+    issues.push("optionWhy dolgu kalıbı yasak.");
+  }
+  const traps = trapBodies(optionWhy);
+  if (traps.length >= 2 && new Set(traps).size < traps.length) {
+    issues.push("optionWhy tuzak metni tekrarlanıyor.");
+  }
+  const unique = optionWhyUniqueIssues({
+    type: "mcq",
+    prompt: "x",
+    options,
+    answerIndex: 0,
+    optionWhy,
+  } as SectionCheck);
+  issues.push(...unique);
+  return [...new Set(issues)];
+}
+
+/**
+ * Eksik optionWhy doldurulmaz — dolgu kalıbı kaldırıldı.
+ * Kaliteli satırlar yoksa soru drop edilir.
+ */
+function settleOptionWhy(question: VerifiedChoice, source: string): VerifiedChoice | null {
+  const optionWhy = (question.optionWhy ?? []).map((line) => polishLearnerText(line).trim());
+  if (optionWhyQualityIssues(optionWhy, question.options).length) return null;
+  const audited = optionWhy.map((line) => {
+    const audit = auditQuantitative(line, source);
+    if (audit.ok) return line;
+    const repaired = repairQuantitative(line, audit).trim();
+    if (repaired && auditQuantitative(repaired, source).ok) return repaired;
+    return null;
   });
-  return { ...question, optionWhy };
+  if (audited.some((line) => line == null)) return null;
+  return { ...question, optionWhy: audited as string[] };
+}
+
+function explanationMatchesCorrect(explanation: string, correct: string[]): boolean {
+  if (!correct.length) return true;
+  const audit = auditQuantitative(explanation);
+  if (!audit.ok && audit.issues.some((issue) => issue.kind === "arithmetic")) return false;
+  // Sayısal doğru şık: açıklamadaki son sayısal sonuç şıkla uyumlu olmalı.
+  const correctNums = correct.flatMap((item) => item.match(/\d+(?:[.,]\d+)?/g) ?? []);
+  if (!correctNums.length) return true;
+  const explained = explanation.match(/\d+(?:[.,]\d+)?/g) ?? [];
+  if (!explained.length) return true;
+  const last = explained[explained.length - 1]?.replace(",", ".");
+  return correctNums.some((num) => num.replace(",", ".") === last || explanation.includes(num));
 }
 
 function balanceQuestion(question: VerifiedChoice): VerifiedChoice | null {
@@ -581,13 +643,25 @@ export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCh
   if (next.multi && next.correct.length < 2) return { status: "drop", question: next };
   if (!next.correct.every((item) => next.options.includes(item))) return { status: "drop", question: next };
   const explanation = settleExplanation(next.explanation ?? "", `${source}\n${next.text}`);
+  if (!explanation || !explanationMatchesCorrect(explanation, next.correct)) {
+    return { status: "drop", question: next };
+  }
   next = {
     ...next,
-    explanation: explanation || `Doğru seçenek: ${next.correct[0]}.`,
+    explanation,
     misconceptionTag: next.misconceptionTag?.trim() || "yanlış eşleme",
   };
-  next = fillOptionWhy(next);
-  const blob = `${next.text}\n${next.explanation ?? ""}`;
+  const withWhy = settleOptionWhy(next, source);
+  if (!withWhy) return { status: "drop", question: next };
+  next = withWhy;
+  const blob = `${next.text}\n${next.explanation ?? ""}\n${(next.optionWhy ?? []).join("\n")}`;
+  if (!auditQuantitative(blob, source).ok) {
+    const repairedExpl = settleExplanation(next.explanation ?? "", source);
+    if (!repairedExpl || !auditQuantitative(`${repairedExpl}\n${(next.optionWhy ?? []).join("\n")}`, source).ok) {
+      return { status: "drop", question: next };
+    }
+    next = { ...next, explanation: repairedExpl };
+  }
   const quantitative = asksQuantity(next.text) || Boolean(parseEquation(blob)) || (isLimitingQuestion(next.text) && molesIn(blob).size >= 2);
   const settled = next.needsSolver === false
     || computedResult(blob) != null
@@ -663,18 +737,20 @@ export function verifyOralPrompt(
   const polished = polishLearnerText(prompt).trim();
   const text = balanceIntent(polished) ? polished : balanceSpan(polished);
   if (text.length < 8 || announcedExampleGap(text)) return null;
-  const points = expectedPoints.map((point) => point.trim()).filter((point) => point.length >= 2 && !isScoreLabel(point));
+  if (oralPromptPedagogyIssues(text).length) return null;
+  if (source.trim() && !oralPremiseGrounded(text, source)) return null;
+  const points = expectedPoints
+    .map((point) => point.trim())
+    .filter((point) => point.length >= 2 && !isScoreLabel(point) && !isPromptEcho(point, text));
+  if (!points.length) return null;
   if (!(isLimitingQuestion(text) && limitingSetup(`${text}\n${points.join("\n")}`))) {
     const settled = points.flatMap((point) => {
       const next = settleExplanation(point, source).trim();
-      if (!shownExplanationOk(next, source) || isScoreLabel(next)) return [];
+      if (!shownExplanationOk(next, source) || isScoreLabel(next) || isPromptEcho(next, text)) return [];
       return [next];
     });
-    const next = settled.length ? settled : points.length ? [] : [text.slice(0, 180)];
-    if (!next.length) {
-      return { prompt: text, expectedPoints: [text.slice(0, 180)] };
-    }
-    return { prompt: text, expectedPoints: next.slice(0, 6) };
+    if (!settled.length) return null;
+    return { prompt: text, expectedPoints: settled.slice(0, 6) };
   }
   const probe = verifyChoiceQuestion(
     {
@@ -683,12 +759,22 @@ export function verifyOralPrompt(
       correct: [points[0] ?? "kaynakla uyumlu"],
       multi: false,
       explanation: points.join(" "),
+      optionWhy: points.length >= 2
+        ? points.slice(0, 4).map((point, index) =>
+            index === 0
+              ? `${point} sorunun doğrulanmış sonucudur.`
+              : `${point}: yanlış taraf veya hatalı oran seçilmiş.`,
+          )
+        : [
+            "kaynakla uyumlu sorunun doğrulanmış sonucudur.",
+            "kaynakla uyumsuz: ilişki kaynakta kurulmuyor.",
+          ],
     },
     source,
   );
   if (probe.status === "drop") return null;
   const solved = probe.question.explanation?.trim();
-  const nextPoints = solved && solved.length >= 8 ? [solved] : points;
+  const nextPoints = solved && solved.length >= 8 && !isPromptEcho(solved, text) ? [solved] : points;
   if (!nextPoints.length) return null;
   if (isLimitingQuestion(text) && limitingSetup(`${text}\n${points.join(" ")}`) && probe.status !== "keep") {
     return null;

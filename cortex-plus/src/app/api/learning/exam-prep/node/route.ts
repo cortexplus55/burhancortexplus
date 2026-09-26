@@ -37,6 +37,7 @@ import {
   type OralExamReport,
   type OralGroundingPassage,
   type OralQuestionDraft,
+  type OralSemanticItem,
 } from "@/lib/learning/oral-exam";
 import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
@@ -739,11 +740,21 @@ export async function POST(request: Request) {
       if (hasRubric) {
         const source = await reviewSourceBlock(service, userId, prepId, nodeId);
         const grounding = await oralCorpus(service, userId, prepId, questions, topicLabel);
+        const sourceBlob = [source, grounding.corpus].filter((part) => part.trim()).join("\n\n");
+        const semantics = await gradeOralSemantics({
+          service,
+          userId,
+          isPremium: await isPremiumUser(service, userId),
+          questions,
+          answers: mergedAnswers,
+          source: sourceBlob,
+        });
         const report = gradeOralExam(
           questions,
           mergedAnswers,
-          [source, grounding.corpus].filter((part) => part.trim()).join("\n\n"),
+          sourceBlob,
           grounding.passages,
+          semantics,
         );
         const { data: practiceNodes } = await service
           .from("exam_prep_nodes")
@@ -2349,8 +2360,9 @@ async function generateNodePayload(input: {
       ? input.syllabusLine
       : "Yalnızca verilen kaynak sayfalarındaki olguları sor. Kaynakta olmayan konu yazma.";
     let lastOralIssues: string[] = [];
+    let oralAllowPartial = false;
     const oralFrom = (raw: unknown) =>
-      publishOralQuestions(raw, asked, input.sourceBlock);
+      publishOralQuestions(raw, asked, input.sourceBlock, oralAllowPartial);
     const outcome = await generateJson({
       service: input.service,
       userId: input.userId,
@@ -2376,33 +2388,38 @@ async function generateNodePayload(input: {
               pedagogyIssues: fitted
                 ? validateOralPedagogy(fitted)
                 : ["Sözlü şema geçersiz."],
-              minItems: asked,
+              minItems: oralAllowPartial ? 1 : asked,
               ...sourceIndependent,
             };
           }
         : undefined,
       schemaHint: input.teachingV2
-        ? 'JSON: {"questions":[{"prompt":string,"hint":string,"learningObjective":string,"rubricCriteria":string[],"expectedPoints":string[]}]}'
+        ? 'JSON: {"questions":[{"prompt":string,"hint":string,"learningObjective":string,"rubricCriteria":string[],"expectedPoints":string[],"modelAnswer":string}]}'
         : 'JSON: {"questions":[{"prompt":string,"hint":string}]}',
       userPrompt: input.teachingV2
-        ? `${ctx} Tam ${asked} sözlü soru; her birinde rubrik ve beklenen noktalar. ${weight} Beklenen noktalar öğrencinin kuracağı olgu ya da işlem sonucudur; puan etiketi (Tam 2, 2 puan) yazma. Sayı ve birim uydurma. Doğru işlemin sonucu kaynakta ayrıca yazmıyorsa da yaz. Tek doğru cevabı olmayan soru yazma. Sınav kipinde yardım sınırlı — hint kısa tut veya boş bırak.`
+        ? `${ctx} Tam ${asked} sözlü soru; her birinde rubrik, beklenen noktalar ve 2–5 cümlelik örnek çözüm (modelAnswer). ${weight} Beklenen noktalar öğrencinin kuracağı olgu ya da işlem sonucudur; puan etiketi (Tam 2, 2 puan) yazma. Sayı ve birim uydurma. Doğru işlemin sonucu kaynakta ayrıca yazmıyorsa da yaz. Tek doğru cevabı olmayan soru yazma. Sınav kipinde yardım sınırlı — hint kısa tut veya boş bırak. Sorunun varsaydığı ilişki kaynakta kurulmalı.`
         : `${ctx} Tam ${asked} sözlü soru. ${weight}`,
       parse: (raw) => {
         if (!input.teachingV2) {
           const data = oralSchema.safeParse(raw).data ?? null;
           if (!data) return null;
-          const fitted = fitOralCount(data.questions, asked);
-          if (!fitted) return null;
+          const fitted = fitOralCount(data.questions, asked, oralAllowPartial);
+          if (!fitted) {
+            oralAllowPartial = true;
+            return null;
+          }
           return { questions: fitted };
         }
         const fitted = oralFrom(raw);
         if (!fitted) {
           lastOralIssues = ["Sözlü sorular kurulamadı."];
+          oralAllowPartial = true;
           return null;
         }
         const issues = validateOralPedagogy(fitted);
         if (issues.length) {
           lastOralIssues = issues;
+          oralAllowPartial = true;
           return null;
         }
         lastOralIssues = [];
@@ -2601,6 +2618,60 @@ async function readWalletBalance(
   return typeof data?.balance === "number" ? { balance: data.balance } : {};
 }
 
+const oralSemanticSchema = z.object({
+  items: z.array(
+    z.object({
+      index: z.number().int().min(0),
+      points: z.array(
+        z.object({
+          point: z.string().min(1).max(240),
+          status: z.enum(["covered", "partial", "missing"]),
+          quote: z.string().max(240),
+        }),
+      ),
+    }),
+  ),
+});
+
+/** Sınav sonunda tek anlam çağrısı. Başarısızsa null → kelime örtüşmesi yedeği. */
+async function gradeOralSemantics(input: {
+  service: SupabaseClient;
+  userId: string;
+  isPremium: boolean;
+  questions: OralQuestionDraft[];
+  answers: Record<string, unknown>;
+  source: string;
+}): Promise<OralSemanticItem[] | null> {
+  const lines = input.questions
+    .map((question, index) => {
+      const answer = String(input.answers[String(index)] ?? "").trim();
+      const points = (question.expectedPoints ?? []).join(" | ");
+      return [
+        `Soru ${index} index=${index}`,
+        `Soru: ${question.prompt ?? ""}`,
+        `Beklenen: ${points}`,
+        `Örnek çözüm: ${question.modelAnswer ?? ""}`,
+        `Cevap: ${answer || "(boş)"}`,
+      ].join("\n");
+    })
+    .join("\n\n");
+  const outcome = await generateJson({
+    service: input.service,
+    userId: input.userId,
+    actionCode: "PRACTICE_EXAM_GRADE",
+    isPremium: input.isPremium,
+    schemaHint:
+      'Yalnızca JSON: {"items":[{"index":number,"points":[{"point":string,"status":"covered"|"partial"|"missing","quote":string}]}]}. Her nokta için öğrencinin cevabından birebir alıntı (quote) ver; alıntı yoksa status missing. Soru metnini gap veya quote yapma.',
+    userPrompt: `Sözlü deneme anlam değerlendirmesi. Kaynak özeti:\n${input.source.slice(0, 4000)}\n\n${lines}`,
+    parse: (raw) => oralSemanticSchema.safeParse(raw).data ?? null,
+  });
+  if (!outcome.ok || !outcome.data?.items?.length) return null;
+  return outcome.data.items.map((item) => ({
+    index: item.index,
+    points: item.points,
+  }));
+}
+
 function oralReviewFromPayload(payload: unknown): OralExamReport | null {
   if (!payload || typeof payload !== "object") return null;
   const meta = (payload as { gradeMeta?: unknown }).gradeMeta;
@@ -2769,8 +2840,8 @@ function mistakeDraftsFromAttempt(
         topicLabel,
         questionText: question.text,
         options: question.options,
-        correctAnswer: question.correct[0] ?? null,
-        wrongAnswer: selected[0] ?? null,
+        correctAnswer: question.correct.join(" · ") || null,
+        wrongAnswer: selected.join(" · ") || null,
         explanation: question.explanation ?? null,
       });
     });

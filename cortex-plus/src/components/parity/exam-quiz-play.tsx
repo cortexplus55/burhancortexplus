@@ -59,32 +59,49 @@ export function ExamQuizPlay({
   }
 
   const showFeedback = !examMode && revealed && hasCorrect;
+  const progress = ((index + (revealed ? 1 : 0)) / Math.max(1, questions.length)) * 100;
+  const finishLabel =
+    continueLabel.toLocaleLowerCase("tr-TR").includes("bitir") || index + 1 >= questions.length
+      ? index + 1 >= questions.length && revealed
+        ? "Testi bitir"
+        : continueLabel
+      : continueLabel;
 
   return (
     <div className="space-y-6">
-      {/* Header Info */}
       <div className="flex items-center justify-between gap-3">
-        <span className="px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/25 text-xs font-bold text-violet-300">
+        <span className="px-3 py-1 rounded-full border border-[var(--cp-border)] bg-[var(--cp-surface)] text-xs font-semibold text-[var(--cp-text)]">
           Soru {index + 1} / {questions.length}
         </span>
         {question.multi ? (
-          <span className="px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/25 text-[11px] font-semibold text-amber-300">
-            Birden fazla yanıt seçilebilir
+          <span className="px-2.5 py-1 rounded-full bg-[rgba(96,165,250,.14)] text-[11px] font-semibold text-[var(--cp-text)]">
+            Birden fazla yanıt seçebilirsin
           </span>
         ) : null}
       </div>
+      <div
+        className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--cp-surface-2)]"
+        role="progressbar"
+        aria-valuenow={Math.round(progress)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div
+          className="h-full rounded-full bg-[var(--cp-action,#3d5afe)] transition-[width] duration-300"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
 
-      {/* Question Prompt */}
-      <h2 className="text-lg sm:text-xl md:text-2xl font-medium text-white leading-relaxed">
+      <h2 className="text-lg sm:text-xl font-semibold text-white leading-relaxed">
         {question.text}
       </h2>
 
-      {/* Options List */}
-      <div className="space-y-3">
+      <div className="space-y-3" role={question.multi ? "group" : "radiogroup"}>
         {question.options.map((option, optionIndex) => {
           const selectedThis = isOn(option);
           const isThisCorrect = hasCorrect && question.correct!.includes(option);
-          const showGreen = showFeedback && isThisCorrect;
+          const missedCorrect = showFeedback && isThisCorrect && !selectedThis && question.multi;
+          const showGreen = showFeedback && isThisCorrect && selectedThis;
           const showRed = showFeedback && selectedThis && !isThisCorrect;
           const letter = String.fromCharCode(65 + optionIndex);
 
@@ -95,123 +112,200 @@ export function ExamQuizPlay({
               disabled={!examMode && revealed}
               onClick={() => pick(option)}
               className={cn(
-                "group w-full flex items-center gap-4 p-4 sm:p-5 rounded-2xl text-left transition-all duration-200 relative overflow-hidden border",
+                "group w-full flex items-center gap-4 p-4 sm:p-5 rounded-2xl text-left transition-all duration-150 relative overflow-hidden border",
                 showGreen
-                  ? "bg-emerald-950/40 border-emerald-500 text-emerald-100 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                  ? "bg-[rgba(34,197,94,.14)] border-[var(--pm-success,#22c55e)] text-emerald-100"
                   : showRed
-                    ? "bg-rose-950/40 border-rose-500 text-rose-100 shadow-[0_0_20px_rgba(244,63,94,0.2)]"
-                    : selectedThis
-                      ? "bg-gradient-to-r from-violet-600/20 to-indigo-600/15 border-violet-500 shadow-[0_0_20px_rgba(124,108,247,0.25)] text-white"
-                      : "bg-[#13141d]/80 hover:bg-[#191a26]/90 border-white/10 hover:border-violet-500/40 text-zinc-200 hover:text-white",
+                    ? "bg-[rgba(239,68,68,.14)] border-[var(--pm-danger,#ef4444)] text-rose-100"
+                    : missedCorrect
+                      ? "bg-[rgba(245,158,11,.14)] border-[var(--c-warning,#f59e0b)] text-amber-100"
+                      : selectedThis
+                        ? "bg-[rgba(61,90,254,.16)] border-[var(--cp-action,#3d5afe)] text-white"
+                        : "bg-[var(--cp-surface)] hover:bg-[var(--cp-surface-2)] border-[var(--cp-border)] text-zinc-200",
               )}
             >
-              {/* Option Letter Keycap */}
               <div
                 className={cn(
-                  "flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all duration-200",
+                  "flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-bold text-sm",
+                  question.multi && !showFeedback ? "rounded-md" : "",
                   showGreen
-                    ? "bg-emerald-500 text-black shadow-md"
+                    ? "bg-[var(--pm-success,#22c55e)] text-black"
                     : showRed
-                      ? "bg-rose-500 text-white shadow-md"
-                      : selectedThis
-                        ? "bg-violet-600 text-white shadow-md shadow-violet-500/40"
-                        : "bg-zinc-800/90 text-zinc-400 group-hover:text-zinc-200 border border-white/5",
+                      ? "bg-[var(--pm-danger,#ef4444)] text-white"
+                      : missedCorrect
+                        ? "bg-[var(--c-warning,#f59e0b)] text-black"
+                        : selectedThis
+                          ? "bg-[var(--cp-action,#3d5afe)] text-white"
+                          : "bg-zinc-800/90 text-zinc-400 border border-white/5",
                 )}
               >
-                {showGreen ? (
-                  <Check className="h-4 w-4 stroke-[3]" />
+                {showGreen || missedCorrect ? (
+                  <Check className="h-4 w-4 stroke-[3]" aria-label={missedCorrect ? "Kaçırılan doğru" : "Doğru"} />
                 ) : showRed ? (
-                  <X className="h-4 w-4 stroke-[3]" />
+                  <X className="h-4 w-4 stroke-[3]" aria-label="Yanlış" />
                 ) : (
                   letter
                 )}
               </div>
 
-              {/* Option Text */}
               <span className="flex-1 text-sm sm:text-base font-normal leading-snug">
                 {option}
               </span>
-
-              {/* Status Dot / Checkmark */}
-              <div
-                className={cn(
-                  "flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all border",
-                  showGreen
-                    ? "bg-emerald-500 border-emerald-400 text-black"
-                    : showRed
-                      ? "bg-rose-500 border-rose-400 text-white"
-                      : selectedThis
-                        ? "bg-violet-600 border-violet-400 text-white"
-                        : "border-zinc-700 bg-zinc-800/50 opacity-40 group-hover:opacity-70",
-                )}
-              >
-                {showGreen ? (
-                  <Check className="w-3.5 h-3.5 stroke-[3]" />
-                ) : showRed ? (
-                  <X className="w-3.5 h-3.5 stroke-[3]" />
-                ) : selectedThis ? (
-                  <Check className="w-3.5 h-3.5 stroke-[3]" />
-                ) : null}
-              </div>
             </button>
           );
         })}
       </div>
 
-      {/* Instant Feedback Callout */}
       {showFeedback ? (
         <div
-          className={cn(
-            "p-5 rounded-2xl border backdrop-blur-md space-y-2 animate-in fade-in zoom-in-95 duration-200",
-            isCorrect
-              ? "bg-emerald-950/30 border-emerald-500/40 text-emerald-200"
-              : "bg-rose-950/30 border-rose-500/40 text-rose-200",
-          )}
+          className="p-5 rounded-2xl border border-[var(--cp-border)] bg-[var(--cp-surface)] space-y-3"
+          aria-live="polite"
         >
-          <div className="flex items-center gap-2 font-bold text-sm">
+          <p className="text-xs font-semibold tracking-wide text-[var(--cp-muted)]">Açıklama</p>
+          <div className="flex items-center gap-2 font-semibold text-sm">
             {isCorrect ? (
               <>
-                <Check className="h-4 w-4 stroke-[3] text-emerald-400" />
-                <span className="text-emerald-300">Harika! Doğru yanıt.</span>
+                <Check className="h-4 w-4 stroke-[3] text-[var(--pm-success,#22c55e)]" />
+                <span>Doğru</span>
               </>
             ) : (
               <>
-                <X className="h-4 w-4 stroke-[3] text-rose-400" />
-                <span className="text-rose-300">Yanlış yanıt.</span>
+                <X className="h-4 w-4 stroke-[3] text-[var(--pm-danger,#ef4444)]" />
+                <span>Yanlış</span>
               </>
             )}
           </div>
           {question.explanation ? (
-            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed pt-1">
-              {question.explanation}
-            </p>
-          ) : null}
-          {question.misconceptionTag ? (
-            <p className="text-xs text-zinc-400">Tuzak: {question.misconceptionTag}</p>
+            <p className="text-sm text-zinc-300 leading-relaxed">{question.explanation}</p>
           ) : null}
           {question.optionWhy?.length ? (
-            <ul className="space-y-1 text-xs text-zinc-300">
-              {question.options.map((option, optionIndex) =>
-                question.optionWhy?.[optionIndex] ? (
+            <ul className="space-y-1.5 text-sm text-zinc-300">
+              {question.options.map((option, optionIndex) => {
+                if (question.correct?.includes(option)) return null;
+                const why = question.optionWhy?.[optionIndex];
+                if (!why) return null;
+                const letter = String.fromCharCode(65 + optionIndex);
+                return (
                   <li key={option}>
-                    <span className="text-zinc-100">{option}:</span> {question.optionWhy[optionIndex]}
+                    <span className="text-zinc-100">
+                      {letter} · {option}:
+                    </span>{" "}
+                    {why}
                   </li>
-                ) : null,
-              )}
+                );
+              })}
             </ul>
           ) : null}
         </div>
       ) : null}
 
-      {/* Action CTA */}
       <button
         type="button"
         disabled={disabled || selected.length === 0}
         onClick={handleAction}
-        className="w-full inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl text-sm font-bold bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-600/30 hover:shadow-violet-600/50 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+        className="cp-exam-continue cp-exam-continue--primary w-full inline-flex items-center justify-center gap-2 min-h-11"
       >
-        <span>{!examMode && hasCorrect && !revealed ? "Yanıtı Kontrol Et" : continueLabel}</span>
+        <span>
+          {!examMode && hasCorrect && !revealed
+            ? "Kontrol et"
+            : revealed && index + 1 >= questions.length
+              ? "Testi bitir"
+              : revealed
+                ? "Devam et"
+                : finishLabel}
+        </span>
       </button>
     </div>
+  );
+}
+
+/** Quiz sonuç özeti — soru bazında inceleme ve zayıf konular. */
+export function ExamQuizResults({
+  score,
+  total,
+  secondsSpent,
+  reviews,
+  weakTopics,
+  onReview,
+  nextHref,
+  lessonHref,
+}: {
+  score: number;
+  total: number;
+  secondsSpent: number;
+  reviews: { text: string; correct: boolean; explanation?: string | null }[];
+  weakTopics: string[];
+  onReview?: (index: number) => void;
+  nextHref: string;
+  lessonHref?: string | null;
+}) {
+  const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+  const tone =
+    pct >= 70 ? "text-[var(--pm-success,#22c55e)]" : pct >= 40 ? "text-[var(--c-warning,#f59e0b)]" : "text-[var(--pm-danger,#ef4444)]";
+  const message =
+    pct >= 85 ? "🥳 Harika iş çıkardın!" : pct >= 60 ? "👏 Güzel gidiyor" : "💪 Biraz daha gelişebilirsin";
+  const minutes = Math.max(1, Math.round(secondsSpent / 60));
+
+  return (
+    <section className="space-y-6">
+      <p className="text-sm text-[var(--cp-muted)]">Doğru cevaplar</p>
+      <p className={cn("text-5xl font-extrabold", tone)}>
+        {score}/{total}
+      </p>
+      <p className="text-lg">{message}</p>
+      <p className="text-sm text-[var(--cp-muted)]">
+        Doğruluk %{pct} · Harcanan zaman {minutes} dk
+      </p>
+      {reviews.length ? (
+        <div>
+          <h2 className="text-base font-semibold mb-2">Soru soru inceleme</h2>
+          <ul className="space-y-2">
+            {reviews.map((item, i) => (
+              <li key={`${item.text}-${i}`}>
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between gap-3 rounded-xl border border-[var(--cp-border)] bg-[var(--cp-surface)] px-4 py-3 text-left text-sm"
+                  onClick={() => onReview?.(i)}
+                >
+                  <span className="line-clamp-2">{item.text.slice(0, 80)}</span>
+                  {item.correct ? (
+                    <Check className="h-4 w-4 text-[var(--pm-success,#22c55e)]" aria-label="Doğru" />
+                  ) : (
+                    <X className="h-4 w-4 text-[var(--pm-danger,#ef4444)]" aria-label="Yanlış" />
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {weakTopics.length ? (
+        <div className="rounded-xl border border-[var(--cp-border)] bg-[var(--cp-surface)] p-4 space-y-2">
+          <h2 className="text-base font-semibold">Zayıf konular</h2>
+          <div className="flex flex-wrap gap-2">
+            {weakTopics.slice(0, 3).map((topic) => (
+              <span key={topic} className="pm-chip text-xs">
+                {topic}
+              </span>
+            ))}
+          </div>
+          {lessonHref ? (
+            <a href={lessonHref} className="text-sm text-[var(--cp-muted)] underline">
+              Bu konularda odaklı pratik
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="flex flex-col gap-3">
+        {lessonHref ? (
+          <a href={lessonHref} className="cp-exam-continue text-center">
+            Dersi tekrarla
+          </a>
+        ) : null}
+        <a href={nextHref} className="cp-exam-continue cp-exam-continue--primary text-center">
+          Devam et
+        </a>
+      </div>
+    </section>
   );
 }

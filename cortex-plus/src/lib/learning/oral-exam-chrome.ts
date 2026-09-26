@@ -17,7 +17,7 @@ export const ORAL_EXPECTED_QUESTIONS = 3;
 export const ORAL_LIMIT_MINUTES = 7;
 
 export const EMPTY_ORAL_ANSWER_NOTE =
-  "Hatanız şuradaydı: Herhangi bir cevap verilmediği için konu içeriği değerlendirilememiştir.";
+  "Cevap vermediğin için bu soru boş sayıldı. Eksik kalan: konunun beklenen noktaları.";
 
 export type OralTeacherMoodId = "strict" | "helpful" | "harsh";
 export type OralDifficulty = "kolay" | "orta" | "ileri";
@@ -58,17 +58,22 @@ export const ORAL_TEACHER_MOODS: {
 
 export const DEFAULT_ORAL_TEACHER_MOOD: OralTeacherMoodId = "helpful";
 
-export const ORAL_PREFLIGHT = {
-  title: "Başlamadan önce",
-  body: "Öğretmen soruyu sesli sorar ve soru ekranda da yazılır. Cevabı konuşarak veya yazarak verebilirsin. Mikrofon kapalıysa yazmak yeterli.",
-  items: [
-    "Rahatça konuşabileceğin sessiz bir yer bul",
-    `${ORAL_EXPECTED_QUESTIONS} soru bekle`,
-    "İstediğin zaman bitir, yine de geri bildirim alacaksın",
-    `${ORAL_LIMIT_MINUTES} dakika ile sınırlı`,
-  ],
-  confirm: "Hazırım",
-} as const;
+export function oralPreflightCopy(questions = ORAL_EXPECTED_QUESTIONS, minutes = ORAL_LIMIT_MINUTES) {
+  return {
+    title: "Başlamadan önce",
+    body: "Öğretmen soruyu sesli sorar ve soru ekranda da yazılır. Cevabı konuşarak veya yazarak verebilirsin. Mikrofon kapalıysa yazmak yeterli.",
+    items: [
+      "Rahatça konuşabileceğin sessiz bir yer bul",
+      `${questions} soru bekle`,
+      "İstediğin zaman bitir, yine de geri bildirim alacaksın",
+      `${minutes} dakika ile sınırlı`,
+      "Mikrofon yoksa yazarak da cevap verebilirsin",
+    ],
+    confirm: "Hazırım",
+  } as const;
+}
+
+export const ORAL_PREFLIGHT = oralPreflightCopy();
 
 export type OralMessage = { role: "user" | "assistant"; content: string };
 
@@ -131,6 +136,7 @@ export function oralTeacherStyleLine(id: OralTeacherMoodId): string {
   }
 }
 
+/** @deprecated Harf notu gösterilmez; yüzde ve sözel sonuç kullanılır. */
 export function letterGrade(pct: number): "A" | "B" | "C" | "D" | "F" {
   if (pct >= 85) return "A";
   if (pct >= 70) return "B";
@@ -150,14 +156,26 @@ export function oralSummary(pct: number): string {
   return "Bu konuda biraz daha pratik iyi gelir";
 }
 
+/**
+ * Sesli yüzdesi: cevaplanan/beklenen değil, soru bazında doğruluk.
+ * Transkriptten çıkan her cevap için beklenen nokta yoksa yalnızca
+ * dolu cevap oranı değil; çağıran `gradeOralExam` sonucunu tercih etmeli.
+ * Bu yardımcı, grade yokken yaklaşık skor üretir (dolu cevap ≠ doğru).
+ */
 export function oralVoicePercent(
   messages: OralMessage[],
   expected = ORAL_EXPECTED_QUESTIONS,
+  gradedRatios?: number[],
 ): number {
-  const answered = reviewItemsFromTranscript(messages).filter((item) => item.answer.length > 0)
-    .length;
-  if (expected <= 0) return 0;
-  return Math.max(0, Math.min(100, Math.round((answered / expected) * 100)));
+  if (gradedRatios?.length) {
+    const avg = gradedRatios.reduce((sum, ratio) => sum + ratio, 0) / gradedRatios.length;
+    return Math.max(0, Math.min(100, Math.round(avg * 100)));
+  }
+  const items = reviewItemsFromTranscript(messages);
+  const answered = items.filter((item) => item.answer.length > 0);
+  if (!answered.length || expected <= 0) return 0;
+  // Grade yoksa tamamlanma oranı değil 0 — yanlış %100 göstermemek için.
+  return 0;
 }
 
 export function oralWrittenPercent(score: number, total: number): number {
@@ -178,7 +196,7 @@ export function reviewItemsFromTranscript(messages: OralMessage[]): OralReviewIt
       question,
       answer,
       solution: answer
-        ? "Öğretmen soruyu sesli sordu. Yanıtın kayda geçti; soru bazında ayrı bir puan üretilmedi, genel not üstteki yüzdedir."
+        ? "Yanıtın kayda geçti. Not, soru bazında değerlendirilir."
         : `Sesli yanıt kaydedilmedi. ${EMPTY_ORAL_ANSWER_NOTE}`,
     });
     if (next?.role === "user") i += 1;

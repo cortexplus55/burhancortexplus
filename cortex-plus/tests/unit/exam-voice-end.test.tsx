@@ -87,7 +87,7 @@ describe("oral exam end stops speech", () => {
     expect(h.speakTurkish).not.toHaveBeenCalled();
     expect(h.stopSpeech).toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Evet" }));
+    fireEvent.click(screen.getByRole("button", { name: "Evet, gönder" }));
     expect(onFinish).toHaveBeenCalled();
     audioEnded?.();
     expect(screen.queryByText("Öğretmen dinliyor")).toBeNull();
@@ -104,6 +104,6 @@ describe("oral exam end stops speech", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sınavı bitir" }));
     await waitFor(() => expect(stop).toHaveBeenCalled());
     expect(screen.queryByText("Öğretmen konuşuyor…")).toBeNull();
-    expect(screen.getByRole("dialog", { name: "Test değerlendirme için gönderilsin mi?" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Sınav değerlendirmeye gönderilsin mi?" })).toBeTruthy();
   });
 });
