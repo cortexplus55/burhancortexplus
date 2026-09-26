@@ -134,7 +134,7 @@ export default async function ExamPrepSonucPage({
       <ParitySorShell {...shell}>
         <div className="mx-auto max-w-xl px-4 py-16 text-center">
           <p className="text-[color:var(--cp-muted)]">Bu deneme bulunamadı.</p>
-          <Link href={`/deneme-sinavlari/${prepId}`} className="mt-4 inline-block text-sm text-[#3d5afe]">
+          <Link href={`/deneme-sinavlari/${prepId}`} className="mt-4 inline-block text-sm text-action">
             ← Çalışma yoluna dön
           </Link>
         </div>
@@ -196,7 +196,7 @@ export default async function ExamPrepSonucPage({
 
           <p className="mt-4 text-sm text-[color:var(--cp-muted)]">
             {target == null ? (
-              <Link href={`/deneme-sinavlari/${prepId}/tanisma`} className="text-[#3d5afe]">
+              <Link href={`/deneme-sinavlari/${prepId}/tanisma`} className="text-action">
                 Hedef puan belirle
               </Link>
             ) : (
@@ -275,7 +275,7 @@ export default async function ExamPrepSonucPage({
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm">
               {nextSteps.map((step) => (
                 <li key={step.label}>
-                  <Link href={step.href} className="text-[#3d5afe] hover:underline">
+                  <Link href={step.href} className="text-action hover:underline">
                     {step.label}
                   </Link>
                 </li>

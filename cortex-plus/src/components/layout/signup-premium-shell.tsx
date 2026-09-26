@@ -18,6 +18,7 @@ export function SignupPremiumShell({
       <div
         className="signup-progress-track cortex-premium-signup__progress w-full"
         role="progressbar"
+        aria-label={stepLabel || "Kayıt ilerlemesi"}
         aria-valuenow={progress}
         aria-valuemin={0}
         aria-valuemax={100}

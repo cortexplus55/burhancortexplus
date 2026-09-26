@@ -269,19 +269,16 @@
   padding-inline: 1.4rem;
   border: 0;
   border-radius: 9999px;
-  background: linear-gradient(135deg, #ffc857 0%, #d4922a 100%);
-  color: #140f05;
+  background: var(--c-action);
+  color: var(--c-on-action);
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow:
-    0 0 0 1px rgba(255, 220, 150, 0.28),
-    0 14px 36px rgba(0, 0, 0, 0.35),
-    0 0 42px var(--ls-gold-soft);
+  box-shadow: var(--glow-action);
 }
 
 .ls-cta:hover:not(:disabled) {
-  background: linear-gradient(135deg, #ffd36a 0%, #e8a838 100%);
+  background: var(--c-action-hover);
 }
 
 .ls-cta:disabled {

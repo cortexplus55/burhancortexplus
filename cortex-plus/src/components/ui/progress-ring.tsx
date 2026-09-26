@@ -12,8 +12,9 @@ export function ProgressRing({
   value,
   size = 88,
   strokeWidth = 8,
-  color = "var(--pm-amber-500)",
-  trackColor = "var(--pm-ring-track)",
+  color = "var(--c-action)",
+  trackColor = "var(--c-surface-3)",
+  animateCount = true,
   children,
 }: {
   /** 0-100 arası. */
@@ -23,11 +24,16 @@ export function ProgressRing({
   color?: string;
   trackColor?: string;
   children?: React.ReactNode;
+  /** Sayı animasyonu; azaltılmış harekette kapanır. */
+  animateCount?: boolean;
 }) {
   const clamped = Math.max(0, Math.min(100, value));
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - clamped / 100);
+  const transition = animateCount
+    ? "stroke-dashoffset var(--dur-count) var(--ease-out)"
+    : "none";
 
   return (
     <div
@@ -58,6 +64,7 @@ export function ProgressRing({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
+          style={{ transition }}
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </svg>

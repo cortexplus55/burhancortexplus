@@ -117,7 +117,7 @@ export default async function ExamQuestionReviewPage({
           {wrongCount > 0 ? (
             <Link
               href="/yanlislarim"
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black transition-colors hover:bg-amber-400"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-action px-5 py-2.5 text-sm font-bold text-action-foreground transition-colors hover:bg-action-hover"
             >
               {wrongCount} yanlışın deftere düştü — tekrar et
             </Link>

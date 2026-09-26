@@ -107,15 +107,15 @@
   margin-top: 1.5rem;
   padding: 0.95rem 1.5rem;
   border-radius: 9999px;
-  background: linear-gradient(135deg, #f0b84d 0%, #c9851f 100%);
-  color: #0c0a06;
+  background: var(--c-action);
+  color: var(--c-on-action);
   font-size: 1rem;
   font-weight: 800;
   text-decoration: none;
-  box-shadow: 0 0 32px rgba(232, 168, 56, 0.25);
+  box-shadow: var(--glow-action);
 }
 
-.ug-cta:hover { background: linear-gradient(135deg, #ffc857 0%, #e8a838 100%); }
+.ug-cta:hover { background: var(--c-action-hover); }
 
 .ug-reset {
   margin: 1rem 0 0;
@@ -195,14 +195,14 @@
   margin-top: 0.9rem;
   padding: 0.65rem 1rem;
   border-radius: 9999px;
-  background: linear-gradient(135deg, #f0b84d 0%, #c9851f 100%);
-  color: #0c0a06;
+  background: var(--c-action);
+  color: var(--c-on-action);
   font-size: 0.875rem;
   font-weight: 800;
   text-decoration: none;
 }
 
-.ug-aside-cta:hover { background: linear-gradient(135deg, #ffc857 0%, #e8a838 100%); }
+.ug-aside-cta:hover { background: var(--c-action-hover); }
 
 /* ---------------------------------------------------------------------------
    Kampanya bandı

@@ -1,0 +1,252 @@
+/**
+ * Cortex Plus — tek token kaynağı (Prompt 7).
+ * Eski --cp-*, --pm-*, --cs-*, --mk-*, --als-*, --cx-* köprüleri burada.
+ * Bileşenler ve ekranlar doğrudan --c-* kullanmalı.
+ */
+
+:root {
+  /* --- Renkler (açık tema varsayılan; .dark override eder) --- */
+  --c-bg: #fafafa;
+  --c-surface-1: #ffffff;
+  --c-surface-2: #f4f4f5;
+  --c-surface-3: #e4e4e7;
+  --c-border: rgba(0, 0, 0, 0.08);
+  --c-border-strong: rgba(0, 0, 0, 0.16);
+  --c-text: #0a0a0a;
+  --c-text-muted: #525252;
+  --c-text-subtle: #737373;
+
+  --c-brand: #f4ae0b;
+  --c-brand-hover: #ffc233;
+  --c-brand-soft: rgba(244, 174, 11, 0.12);
+  --c-on-brand: #050505;
+
+  --c-action: #3d5afe;
+  --c-action-hover: #5470ff;
+  --c-action-pressed: #2f47d9;
+  --c-action-soft: rgba(61, 90, 254, 0.16);
+  --c-on-action: #ffffff;
+
+  --c-ai: #8b8ef7;
+  --c-ai-soft: rgba(139, 142, 247, 0.14);
+
+  --c-success: #22c55e;
+  --c-success-soft: rgba(34, 197, 94, 0.14);
+  --c-danger: #ef4444;
+  --c-danger-soft: rgba(239, 68, 68, 0.14);
+  --c-warning: #f59e0b;
+  --c-warning-soft: rgba(245, 158, 11, 0.14);
+  --c-info: #60a5fa;
+  --c-info-soft: rgba(96, 165, 250, 0.14);
+  --c-focus: #f4ae0b;
+
+  /* --- Yazı --- */
+  --font-display: "DM Serif Display", Georgia, serif;
+  --font-ui: "Figtree", system-ui, sans-serif;
+  --fs-12: 0.75rem;
+  --fs-14: 0.875rem;
+  --fs-16: 1rem;
+  --fs-18: 1.125rem;
+  --fs-22: 1.375rem;
+  --fs-28: 1.75rem;
+  --fs-36: 2.25rem;
+  --fs-48: 3rem;
+  --lh-tight: 1.2;
+  --lh-body: 1.6;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-heavy: 800;
+
+  /* --- Boşluk --- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* --- Köşe --- */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-2xl: 24px;
+  --r-pill: 999px;
+
+  /* --- Gölge --- */
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sh-2: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --sh-3: 0 20px 48px rgba(0, 0, 0, 0.55);
+  --glow-brand: 0 0 0 1px rgba(244, 174, 11, 0.35), 0 8px 32px rgba(244, 174, 11, 0.18);
+  --glow-action: 0 8px 24px rgba(61, 90, 254, 0.28);
+
+  /* --- Hareket --- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 150ms;
+  --dur-base: 260ms;
+  --dur-slow: 420ms;
+  --dur-count: 600ms;
+
+  /* --- Katman --- */
+  --z-bar: 40;
+  --z-sheet: 50;
+  --z-modal: 60;
+  --z-toast: 70;
+
+  /* --- shadcn HSL (açık) — primary = eylem mavisi --- */
+  --background: 0 0% 98%;
+  --foreground: 0 0% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 4%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 4%;
+  --primary: 230 99% 62%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 32%;
+  --accent: 0 0% 96%;
+  --accent-foreground: 0 0% 9%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 90%;
+  --input: 0 0% 90%;
+  --ring: 42 91% 51%;
+  --radius: 0.625rem;
+  --brand: 42 91% 51%;
+  --brand-foreground: 0 0% 2%;
+
+  /* --- Köprüler: eski prefix → --c-* --- */
+  --cx-gold: var(--c-brand);
+  --cx-gold-hover: var(--c-brand-hover);
+  --cx-gold-glow: rgba(244, 174, 11, 0.35);
+
+  --mk-bg: var(--c-bg);
+  --mk-text: var(--c-text);
+  --mk-muted: var(--c-text-muted);
+  --mk-border: var(--c-border);
+  --mk-primary: var(--c-brand);
+
+  --cp-bg: var(--c-bg);
+  --cp-surface: var(--c-surface-1);
+  --cp-surface-2: var(--c-surface-2);
+  --cp-surface-3: var(--c-surface-3);
+  --cp-border: var(--c-border);
+  --cp-border-strong: var(--c-border-strong);
+  --cp-text: var(--c-text);
+  --cp-muted: var(--c-text-muted);
+  --cp-gold: var(--c-brand);
+  --cp-action: var(--c-action);
+  --cp-action-hover: var(--c-action-hover);
+  --cp-ai: var(--c-ai);
+  --cp-subject: var(--c-action);
+  --cp-success: var(--c-success);
+  --cp-danger: var(--c-danger);
+  --cp-warning: var(--c-warning);
+  --cp-info: var(--c-info);
+
+  --cs-bg: var(--c-bg);
+  --cs-surface: var(--c-surface-1);
+  --cs-surface-elevated: var(--c-surface-2);
+  --cs-border: var(--c-border);
+  --cs-text: var(--c-text);
+  --cs-muted: var(--c-text-muted);
+  --cs-primary: var(--c-brand);
+  --cs-primary-hover: var(--c-brand-hover);
+  --cs-pill: var(--c-surface-2);
+
+  --pm-amber-300: #f6c987;
+  --pm-amber-400: var(--c-brand-hover);
+  --pm-amber-500: var(--c-brand);
+  --pm-amber-600: #d4920a;
+  --pm-amber-700: #8f5710;
+  --pm-violet-300: #c7cbfb;
+  --pm-violet-400: #a5b4fc;
+  --pm-violet-500: var(--c-ai);
+  --pm-violet-600: #6b6cf0;
+  --pm-success: var(--c-success);
+  --pm-danger: var(--c-danger);
+  --pm-surface: var(--c-surface-1);
+  --pm-surface-2: var(--c-surface-2);
+  --pm-line: var(--c-border);
+  --pm-ring-track: var(--c-surface-3);
+  --pm-radius-sm: var(--r-sm);
+  --pm-radius-md: var(--r-md);
+  --pm-radius-lg: var(--r-lg);
+  --pm-radius-pill: var(--r-pill);
+  --pm-ease: var(--ease-out);
+  --pm-dur-fast: var(--dur-fast);
+  --pm-dur-base: var(--dur-base);
+  --pm-dur-slow: var(--dur-slow);
+  --pm-shadow-sm: var(--sh-1);
+  --pm-shadow-md: var(--sh-2);
+  --pm-shadow-lg: var(--sh-3);
+  --pm-glow-amber: var(--glow-brand);
+  --pm-glow-violet: 0 0 56px -8px rgba(139, 142, 247, 0.55);
+  --pm-subj-matematik: var(--c-action);
+  --pm-subj-fizik: #34d399;
+  --pm-subj-kimya: var(--c-brand);
+  --pm-subj-biyoloji: #a3e635;
+  --pm-subj-turkce: var(--c-danger);
+  --pm-subj-ingilizce: #f472b6;
+  --pm-subj-tarih: var(--c-warning);
+  --pm-subj-cografya: #22d3ee;
+
+  --als-action: var(--c-action);
+  --als-action-hover: var(--c-action-hover);
+  --als-action-pressed: var(--c-action-pressed);
+  --als-right: var(--c-success);
+  --als-wrong: var(--c-danger);
+  --als-ai: var(--c-ai);
+  --als-info: var(--c-info);
+  --als-warning: var(--c-warning);
+}
+
+.dark {
+  --c-bg: #050505;
+  --c-surface-1: #121212;
+  --c-surface-2: #1a1a1a;
+  --c-surface-3: #242424;
+  --c-border: rgba(255, 255, 255, 0.08);
+  --c-border-strong: rgba(255, 255, 255, 0.16);
+  --c-text: #fafafa;
+  --c-text-muted: #a3a3a3;
+  --c-text-subtle: #737373;
+
+  --background: 0 0% 2%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 7%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 7%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 230 99% 62%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 10%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 64%;
+  --accent: 0 0% 12%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 14%;
+  --input: 0 0% 14%;
+  --ring: 42 91% 51%;
+  --brand: 42 91% 51%;
+  --brand-foreground: 0 0% 2%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-base: 150ms;
+    --dur-slow: 150ms;
+    --dur-count: 0ms;
+  }
+}

@@ -46,7 +46,7 @@ const topicMapLabels: Record<string, string> = {
 };
 
 function statusClass(status: string) {
-  if (status === "completed") return "bg-amber-500/20 text-amber-200";
+  if (status === "completed") return "bg-action/20 text-amber-200";
   if (status === "failed") return "bg-red-500/15 text-red-300";
   if (status === "processing") return "bg-white/10 text-[var(--cs-text)]";
   return "bg-white/5 text-[var(--cs-muted)]";
@@ -154,7 +154,7 @@ export default async function DokumanlarPage() {
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                       <Link
                         href={`/deneme-sinavlari/olustur?documentId=${document.id}`}
-                        className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-black hover:bg-amber-400"
+                        className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-action px-4 py-2 text-sm font-bold text-action-foreground hover:bg-action-hover"
                       >
                         Çalışma planımı oluştur
                       </Link>

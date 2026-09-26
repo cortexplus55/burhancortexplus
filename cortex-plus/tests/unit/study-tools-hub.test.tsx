@@ -104,7 +104,7 @@ describe("study tools hub regression", () => {
     expect(screen.getByRole("link", { name: "Podcast" }).getAttribute("href")).toBe(
       "/deneme-sinavlari/prep-1/podcast",
     );
-    expect(screen.queryByText("Bu konuda bu etkinlik yok")).toBeNull();
+    expect(screen.queryByText("Bu konuda yok")).toBeNull();
   });
 
   it("starts the oral exam for a non-science prep from the same hub", () => {
@@ -126,7 +126,7 @@ describe("study tools hub regression", () => {
     expect(screen.getByRole("link", { name: "Podcast" }).getAttribute("href")).toBe(
       "/deneme-sinavlari/prep-1/podcast",
     );
-    expect(screen.getAllByText("Bu konuda bu etkinlik yok").map((node) => node.parentElement?.textContent)).toEqual(
+    expect(screen.getAllByText("Bu konuda yok").map((node) => node.parentElement?.textContent)).toEqual(
       expect.arrayContaining([expect.stringContaining("Yazılı deneme")]),
     );
   });

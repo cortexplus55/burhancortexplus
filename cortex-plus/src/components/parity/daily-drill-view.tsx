@@ -56,7 +56,7 @@ export function DailyDrillView({
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             <Link
               href="/yanlislarim"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black transition-colors hover:bg-amber-400"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-action px-5 py-2.5 text-sm font-bold text-action-foreground transition-colors hover:bg-action-hover"
             >
               Deftere git
             </Link>
@@ -89,7 +89,7 @@ export function DailyDrillView({
         aria-label="Günün turu ilerlemesi"
       >
         <div
-          className="h-full rounded-full bg-amber-500 transition-all"
+          className="h-full rounded-full bg-action transition-all"
           style={{ width: `${total ? (index / total) * 100 : 0}%` }}
         />
       </div>

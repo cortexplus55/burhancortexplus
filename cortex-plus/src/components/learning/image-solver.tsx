@@ -104,7 +104,7 @@ export function ImageSolver({ creditCost }: { creditCost: number | null }) {
         <div className="space-y-2">
           <Label>Soru görseli</Label>
           <div className="flex flex-wrap gap-2">
-            <label className="inline-flex min-h-[44px] cursor-pointer items-center justify-center rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-black">
+            <label className="inline-flex min-h-[44px] cursor-pointer items-center justify-center rounded-xl bg-action px-4 py-2 text-sm font-bold text-action-foreground">
               Fotoğraf çek
               <input
                 type="file"
@@ -170,7 +170,7 @@ export function ImageSolver({ creditCost }: { creditCost: number | null }) {
         <Button
           type="submit"
           disabled={!file || loading}
-          className="min-h-[48px] w-full rounded-xl bg-amber-500 font-bold text-black hover:bg-amber-400"
+          className="min-h-[48px] w-full rounded-xl bg-action font-bold text-action-foreground hover:bg-action-hover"
         >
           {loading ? "Çözülüyor…" : "Çöz"}
           {creditCost != null && !founder ? ` · ${creditCost} kredi` : ""}

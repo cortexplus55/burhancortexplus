@@ -301,7 +301,7 @@ export function ParityExamRunner({
         aria-hidden
       >
         <div
-          className="h-full bg-[#3d5afe] transition-[width] duration-150"
+          className="h-full bg-action transition-[width] duration-150"
           style={{ width: `${(answeredCount / questions.length) * 100}%` }}
         />
       </div>
@@ -389,7 +389,7 @@ export function ParityExamRunner({
                     className={cn(
                       "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center text-xs font-semibold",
                       isMulti ? "rounded-md" : "rounded-full",
-                      on ? "bg-[#3d5afe] text-white" : "bg-white/10 text-[color:var(--cp-muted)]",
+                      on ? "bg-action text-white" : "bg-white/10 text-[color:var(--cp-muted)]",
                     )}
                   >
                     {isMulti ? (on ? "✓" : "") : letter}
@@ -409,7 +409,7 @@ export function ParityExamRunner({
                   className={cn(
                     "w-full rounded-full px-5 py-3 text-[15px] font-semibold transition-colors",
                     on
-                      ? "bg-[#3d5afe] text-white"
+                      ? "bg-action text-white"
                       : "border border-[color:var(--cp-border)] bg-[color:var(--cp-surface-2)]",
                   )}
                   onClick={() => setAnswer(opt)}
@@ -575,7 +575,7 @@ export function ParityExamRunner({
       {timeUp ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" role="alertdialog">
           <div className="rounded-2xl bg-[color:var(--cp-surface)] p-8 text-center">
-            <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-[#3d5afe]" />
+            <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-action" />
             <h2 className="text-xl font-semibold">Süre doldu</h2>
             <p className="mt-2 text-sm text-[color:var(--cp-muted)]">Cevapların gönderiliyor…</p>
           </div>
