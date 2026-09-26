@@ -77,6 +77,11 @@ export function buildTodaysStudyPlan(input: {
   prepNode?: { id: string; title: string; href: string } | null;
   includeOral?: boolean;
   maxTasks?: number;
+  /**
+   * Öğrencinin günlük süre bütçesi (exam_preps.daily_minutes). Verilirse liste
+   * bu tavanı aşmayacak şekilde sondan kırpılır; ilk görev her zaman kalır.
+   */
+  dailyMinutesCap?: number | null;
 }): { tasks: TodaysPlanTask[]; totalMinutes: number } {
   const max = input.maxTasks ?? 4;
   const tasks: TodaysPlanTask[] = [];
@@ -145,6 +150,14 @@ export function buildTodaysStudyPlan(input: {
     });
   }
 
-  const totalMinutes = tasks.reduce((sum, t) => sum + t.minutes, 0);
-  return { tasks, totalMinutes };
+  const cap = input.dailyMinutesCap ?? null;
+  if (cap != null && cap > 0) {
+    while (tasks.length > 1 && sumMinutes(tasks) > cap) tasks.pop();
+  }
+
+  return { tasks, totalMinutes: sumMinutes(tasks) };
+}
+
+function sumMinutes(tasks: TodaysPlanTask[]): number {
+  return tasks.reduce((sum, t) => sum + t.minutes, 0);
 }

@@ -4,6 +4,7 @@ import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadLearningHub } from "@/lib/learning/learning-hub";
+import { formatProgressLine } from "@/lib/learning/progress-line";
 
 export const metadata = { title: "Ana Sayfa" };
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export default async function DashboardPage() {
     hub.countdown.state === "missing" || hub.countdown.state === "past"
       ? hub.countdown.addHref
       : null;
+  const progressLine = formatProgressLine(hub.progress);
 
   return (
     <ParitySorShell {...shell}>
@@ -39,27 +41,32 @@ export default async function DashboardPage() {
               {hub.countdown.label}
             </h1>
           )}
-          <p
-            className="text-base text-[var(--cs-text)]"
-            title={hub.readiness.explanation}
-          >
+          <p className="text-base text-[var(--cs-text)]">
             Hazırlık seviyesi %{hub.readiness.pct}
             <span className="ml-2 text-sm text-[var(--cs-muted)]">
               · Bugünkü çalışma: {hub.totalMinutes} dakika
             </span>
           </p>
-          <p className="text-xs text-[var(--cs-muted)]">{hub.readiness.explanation}</p>
+          <details className="text-xs text-[var(--cs-muted)]">
+            <summary className="cursor-pointer rounded underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400">
+              Bu yüzde nasıl hesaplandı?
+            </summary>
+            <p className="mt-1">{hub.readiness.explanation}</p>
+          </details>
         </header>
 
-        <Link
-          href={hub.nextBestAction.href}
-          className="inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-500 px-6 py-3 text-base font-bold text-black transition-colors hover:bg-amber-400"
-        >
-          {hub.nextBestAction.label}
-        </Link>
-        <p className=" -mt-4 text-center text-xs text-[var(--cs-muted)]">
-          {hub.nextBestAction.reason}
-        </p>
+        <div>
+          <Link
+            href={hub.nextBestAction.href}
+            aria-describedby="nba-reason"
+            className="inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-500 px-6 py-3 text-base font-bold text-black transition-colors hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
+          >
+            {hub.nextBestAction.label}
+          </Link>
+          <p id="nba-reason" className="mt-2 text-center text-xs text-[var(--cs-muted)]">
+            {hub.nextBestAction.reason}
+          </p>
+        </div>
 
         <section aria-labelledby="today-plan-heading" className="space-y-3">
           <h2
@@ -120,14 +127,26 @@ export default async function DashboardPage() {
           </section>
         ) : null}
 
-        <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--cs-muted)]">
-          {hub.streak > 0 ? (
+        {progressLine ? (
+          <section aria-labelledby="progress-heading" className="space-y-1">
+            <h2
+              id="progress-heading"
+              className="text-sm font-semibold text-[var(--cs-muted)]"
+            >
+              Son ilerleme
+            </h2>
+            <p className="text-sm text-[var(--cs-text)]">{progressLine}</p>
+          </section>
+        ) : null}
+
+        {hub.streak > 0 ? (
+          <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--cs-muted)]">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/15 px-3 py-1 text-orange-200">
               <Flame className="h-3.5 w-3.5" aria-hidden />
               {hub.streak} gündür çalışıyorsun
             </span>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         {hub.recentDocuments.length > 0 ? (
           <section aria-labelledby="docs-heading" className="space-y-2">

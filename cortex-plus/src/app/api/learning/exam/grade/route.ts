@@ -4,6 +4,8 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { formatExamAnalysisText } from "@/lib/learning/exam-analysis";
 import { recordMistakes } from "@/lib/learning/mistake-notebook";
+import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
+import { recordUserActivity } from "@/lib/streak/record-activity";
 
 const bodySchema = z.object({
   examId: z.string().uuid(),
@@ -173,6 +175,18 @@ export async function POST(request: Request) {
         source: "practice_exam",
       })),
     );
+  }
+
+  // Deneme gerçek çalışma: streak artar; plan sonuca göre yeniden dağıtılır.
+  // İkisi de best-effort — notu kaydetmiş bir isteği düşürmezler.
+  try {
+    await recordUserActivity(service, userId, "practice_exam");
+    await maybeRescheduleMissedDays(service, userId, {
+      force: true,
+      reason: "exam_graded",
+    });
+  } catch {
+    // ignore
   }
 
   return NextResponse.json({

@@ -4,7 +4,7 @@
  */
 export function safeNextPath(
   raw: string | null | undefined,
-  fallback = "/ogretmen",
+  fallback = "/dashboard",
 ): string {
   if (!raw) return fallback;
   const trimmed = raw.trim();

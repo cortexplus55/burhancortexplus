@@ -17,12 +17,23 @@ function istanbulToday(): string {
   }).format(new Date());
 }
 
+export type ScheduleRefreshReason =
+  | "missed_day"
+  | "exam_graded"
+  | "topic_map_ready"
+  | "mastery_updated";
+
 /**
  * Dashboard load: geçmiş tarihli ve henüz bitmemiş düğüm varsa schedule'ı yeniden dağıt.
+ *
+ * `force` ile çağrıldığında (deneme notu geldi, konu haritası hazır…) kaçırılmış
+ * gün şartı aranmaz; kalan oturumlar bugünden sınava yeniden dağıtılır. Bitmiş
+ * ve başlanmış düğümlere dokunulmaz (rebuildPrepSchedule korur).
  */
 export async function maybeRescheduleMissedDays(
   service: SupabaseClient,
   userId: string,
+  options: { force?: boolean; reason?: ScheduleRefreshReason } = {},
 ): Promise<void> {
   if (!(await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG))) return;
 
@@ -54,7 +65,7 @@ export async function maybeRescheduleMissedDays(
           : null;
       return Boolean(meta?.calendarDate && meta.calendarDate < today);
     });
-    if (!hasPastPending) continue;
+    if (!hasPastPending && !options.force) continue;
 
     const hardSet = new Set(
       (Array.isArray(prep.hard_topics_self)

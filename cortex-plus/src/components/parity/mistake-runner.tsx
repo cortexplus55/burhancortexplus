@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight, Check, X } from "lucide-react";
 import type { MistakeQuestion } from "@/lib/learning/mistake-notebook";
+import { MASTERY_STREAK } from "@/lib/learning/mistake-notebook-rule";
 
 export type RunnerFeedback = {
   correct: boolean;
@@ -11,7 +12,19 @@ export type RunnerFeedback = {
   correctAnswer: string | null;
   explanation: string | null;
   firstWrongAnswer?: string | null;
+  /** Yanıttan sonraki seri — "1/2, bir doğru daha" mesajı için. */
+  correctStreak?: number;
 };
+
+const SOURCE_LABEL: Record<MistakeQuestion["source"], string> = {
+  quiz: "Quiz",
+  deneme: "Deneme",
+};
+
+/** "1/2" — defterden çıkmaya kaç doğru kaldığını tek bakışta gösterir. */
+export function streakLabel(correctStreak: number): string {
+  return `${Math.min(correctStreak, MASTERY_STREAK)}/${MASTERY_STREAK}`;
+}
 
 export function MistakeRunner({
   question,
@@ -82,11 +95,24 @@ export function MistakeRunner({
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-[var(--cs-muted)]">
-        {position} / {total}
-        {question.wrongCount > 1
-          ? ` · bu soruyu ${question.wrongCount} kez yanlış yaptın`
-          : ""}
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--cs-muted)]">
+        <span>
+          {position} / {total}
+        </span>
+        <span aria-hidden>·</span>
+        <span className="rounded-full border border-white/15 px-2 py-0.5 text-[11px] uppercase tracking-wide">
+          {SOURCE_LABEL[question.source]}
+        </span>
+        <span aria-hidden>·</span>
+        <span title="Defterden çıkmak için üst üste iki doğru gerekir">
+          Tekrar {streakLabel(question.correctStreak)}
+        </span>
+        {question.wrongCount > 1 ? (
+          <>
+            <span aria-hidden>·</span>
+            <span>{question.wrongCount} kez yanlış</span>
+          </>
+        ) : null}
       </p>
 
       <div className="cs-pay-card p-5">
@@ -149,6 +175,14 @@ export function MistakeRunner({
               {feedback.correct ? "Doğru" : "Yanlış"}
               {feedback.mastered ? " · bu soru defterden çıktı" : ""}
             </p>
+
+            {!feedback.mastered ? (
+              <p className="text-xs text-[var(--cs-muted)]">
+                {feedback.correct
+                  ? `Tekrar ${streakLabel(feedback.correctStreak ?? 1)} — bir doğru daha yaparsan defterden çıkar.`
+                  : `Seri sıfırlandı (${streakLabel(0)}). Üst üste iki doğru gerekiyor.`}
+              </p>
+            ) : null}
 
             {!feedback.correct && feedback.firstWrongAnswer ? (
               <p className="text-sm text-[var(--cs-muted)]">

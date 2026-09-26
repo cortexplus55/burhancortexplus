@@ -33,6 +33,12 @@ type Props = {
   mapUpdatedAt?: string | null;
   /** Plan CTA yalnızca harita ready/reviewed iken. */
   mapReady?: boolean;
+  /**
+   * Belge sayfasının başında zaten tek ana aksiyon ("Çalışma planımı oluştur"
+   * ya da "Çalışmaya devam et") duruyor; aynı bağlantıyı bir de burada
+   * göstermek iki birinci düğme demek. Sayfa bunu true geçiyor.
+   */
+  hidePlanLink?: boolean;
 };
 
 /**
@@ -50,6 +56,7 @@ export function TopicMapEditor({
   coverage,
   mapUpdatedAt = null,
   mapReady = false,
+  hidePlanLink = false,
 }: Props) {
   const router = useRouter();
   const [topics, setTopics] = useState(initialTopics);
@@ -328,7 +335,7 @@ export function TopicMapEditor({
         >
           Haritayı yeniden oluştur
         </button>
-        {mapReady ? (
+        {hidePlanLink ? null : mapReady ? (
           <a
             href={`/deneme-sinavlari/olustur?documentId=${documentId}`}
             className="rounded-full border border-[var(--cs-primary)]/40 px-4 py-2 text-sm font-medium text-[var(--cs-primary)]"

@@ -128,17 +128,17 @@ export function SubjectGrid() {
 export function FeatureStrip() {
   const items = [
     {
-      title: "Sözlü sınav",
+      title: "Sözlü Sınav",
       body: "Soruları sesli yanıtla, ek soruları yönet, sonunda not al.",
-      href: "/ogretmen",
+      href: "/studio/sozlu",
     },
     {
-      title: "Deneme sınavı",
-      body: "Süre dolmadan yazılı yanıtla; AI notlandırır ve zayıf noktalarını gösterir.",
+      title: "Deneme Sınavı",
+      body: "Süre dolmadan yanıtla; AI notlandırır, yanlışların Yanlışlar Defteri'ne yazılır.",
       href: "/sinav-hazirligi",
     },
     {
-      title: "Fotoğraftan çözüm",
+      title: "Fotoğraftan Çözüm",
       body: "Sorunun fotoğrafını çek; adım adım açıklama al.",
       href: "/soru-coz",
     },

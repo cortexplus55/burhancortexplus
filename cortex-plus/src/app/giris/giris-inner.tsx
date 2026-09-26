@@ -12,7 +12,9 @@ import { useState } from "react";
 export default function GirisPage() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") ?? "/ogretmen";
+  // Giriş sonrası varsayılan ana sayfa öğrenme döngüsü (dashboard); AI sohbet
+  // yalnızca açıkça `next=/ogretmen` istenirse.
+  const next = params.get("next") ?? "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);

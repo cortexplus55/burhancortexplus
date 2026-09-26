@@ -13,7 +13,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * Rakam keyfî değil, tek doğrunun şans olma ihtimalini düşürecek en küçük
  * sayı; daha büyüğü öğrenciyi bildiği soruda oyalardı.
  */
-export const MASTERY_STREAK = 2;
+import { MASTERY_STREAK } from "@/lib/learning/mistake-notebook-rule";
+export { MASTERY_STREAK };
 
 export type MistakeSource = "deneme" | "quiz";
 

@@ -27,33 +27,33 @@ export const metadata = {
 const learning = [
   {
     icon: GraduationCap,
-    title: "AI öğretmen",
+    title: "AI Öğretmen",
     body: "Soruyu yaz, adım adım anlatım al. İpucu iste, daha basit anlatım seç, benzer örnek üret.",
   },
   {
     icon: FileText,
-    title: "Kendi kaynağınla çalış",
-    body: "PDF ve notlarını yükle; yanıtlar senin kaynaklarına atıf vererek gelsin.",
+    title: "Kendi Belgemden Çalış",
+    body: "PDF ve notlarını yükle; yanıtlar senin belgene atıf vererek gelsin.",
   },
   {
     icon: Camera,
-    title: "Fotoğraftan soru çözümü",
+    title: "Fotoğraftan Çözüm",
     body: "Sorunun fotoğrafını yükle, gelişmiş model çözümü adımlarıyla göstersin.",
   },
   {
     icon: Layers,
-    title: "Quiz ve flashcard",
-    body: "Konu başlığından anında test ve tekrar kartları üret, ilerlemeni ölç.",
+    title: "Quiz ve Flashcard",
+    body: "Konu başlığından ya da belgenden anında test ve tekrar kartları üret, ilerlemeni ölç.",
   },
   {
     icon: BookOpenCheck,
-    title: "Deneme sınavı ve analiz",
-    body: "Deneme çöz, puanını gör, eksik konularının listesini çıkar.",
+    title: "Deneme Sınavı ve Yanlışlar Defteri",
+    body: "Deneme çöz, puanını gör; yanlışların deftere yazılsın, üst üste iki doğruyla çıksın.",
   },
   {
     icon: ClipboardList,
-    title: "Çalışma planı",
-    body: "Hedefini yaz; haftalara bölünmüş, işaretlenebilir görev listesi oluşsun.",
+    title: "Çalışma Planı ve İlerleme Analizi",
+    body: "Sınav tarihini yaz; günlük görevler zayıf konularına göre yeniden dizilsin, hazırlık yüzdeni gör.",
   },
 ];
 

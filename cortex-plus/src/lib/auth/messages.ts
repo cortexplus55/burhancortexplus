@@ -35,8 +35,15 @@ export function authErrorMessage(error: AuthError | null | undefined): string {
   if (msg.includes("email not confirmed")) {
     return "E-postanı doğrulaman gerekiyor. Gelen kutunu ve spam klasörünü kontrol et.";
   }
+  if (msg.includes("invalid login credentials") || msg.includes("invalid credentials")) {
+    return "E-posta veya şifre hatalı. Kontrol edip tekrar dene.";
+  }
+  if (msg.includes("expired") || msg.includes("invalid token") || msg.includes("otp")) {
+    return "Bağlantının süresi dolmuş. Yeni bir bağlantı iste.";
+  }
 
-  return error.message;
+  // Tanınmayan hata: Supabase'in İngilizce ham metni ekrana çıkmasın.
+  return "İşlem tamamlanamadı. Bilgilerini kontrol edip tekrar dene; sorun sürerse cortexplus@cortexplus.app adresine yaz.";
 }
 
 export function authCallbackUrl(nextPath: string): string {

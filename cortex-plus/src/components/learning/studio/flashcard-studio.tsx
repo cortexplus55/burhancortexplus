@@ -18,9 +18,12 @@ type Card = { id: string; front: string; back: string };
 export function FlashcardStudio({
   creditCost,
   initialTopic = "",
+  sourceDocument = null,
 }: {
   creditCost: number | null;
   initialTopic?: string;
+  /** Belge sayfasından gelindiyse kartlar yalnızca bu belgeden üretilir. */
+  sourceDocument?: { id: string; fileName: string } | null;
 }) {
   const [phase, setPhase] = useState<"entry" | "loading" | "play" | "results">("entry");
   const [topic, setTopic] = useState(initialTopic);
@@ -39,14 +42,22 @@ export function FlashcardStudio({
     const result = await postStudio<{
       title?: string;
       cards?: Card[];
-    }>("/api/learning/flashcards/generate", { topic, count: 10 });
+    }>("/api/learning/flashcards/generate", {
+      topic,
+      count: 10,
+      ...(sourceDocument ? { documentId: sourceDocument.id } : {}),
+    });
     if ("paywall" in result) {
       setPaywall(true);
       setPhase("entry");
       return;
     }
     if (!result.ok || !result.data.cards?.length) {
-      toast.error(result.ok ? "Kartlar üretilemedi." : result.error);
+      toast.error(
+        !result.ok && result.error === "document_not_ready"
+          ? "Belge henüz hazır değil ya da içi boş. Kredin düşmedi."
+          : "Kartlar üretilemedi. Kredin düşmedi.",
+      );
       setPhase("entry");
       return;
     }
@@ -74,15 +85,24 @@ export function FlashcardStudio({
   return (
     <StudioFrame tool="flash" kicker="Flashcard stüdyosu">
       {phase === "entry" ? (
-        <StudioEntry
-          tool="flash"
-          title="Kartlar sahneye çıkar."
-          placeholder="Örn. Türev kuralları"
-          submitLabel="Desteyi aç"
-          creditCost={creditCost}
-          initialTopic={initialTopic}
-          onSubmit={(next) => void start(next)}
-        />
+        <>
+          {sourceDocument ? (
+            <p className="ls-credit" style={{ marginBottom: "0.5rem" }}>
+              Kaynak: {sourceDocument.fileName} — kartlar yalnızca bu belgeden.
+            </p>
+          ) : null}
+          <StudioEntry
+            tool="flash"
+            title="Kartlar sahneye çıkar."
+            placeholder={
+              sourceDocument ? "Örn. 2. bölüm — hücre zarı" : "Örn. Türev kuralları"
+            }
+            submitLabel="Desteyi aç"
+            creditCost={creditCost}
+            initialTopic={initialTopic}
+            onSubmit={(next) => void start(next)}
+          />
+        </>
       ) : null}
 
       {phase === "loading" ? (
@@ -100,6 +120,7 @@ export function FlashcardStudio({
             className="ls-flash-scene"
             onClick={() => setFlipped((v) => !v)}
             aria-expanded={flipped}
+            aria-label={flipped ? "Kartı soruya çevir" : "Kartı cevaba çevir"}
           >
             <div className={cn("ls-flash-inner", flipped && "is-flipped")}>
               <div className="ls-flash-face">
