@@ -49,6 +49,11 @@ export default async function ExamNodePage({
 
   if (!prep || !node || !studyNodeOpenable(node.status)) notFound();
 
+  // Yazılı deneme tek motor: kurulum → practice_exams.
+  if (node.kind === "written_exam") {
+    redirect(`/deneme-sinavlari/${prepId}/deneme/kurulum`);
+  }
+
   const { data: nodeRows } = await supabase
     .from("exam_prep_nodes")
     .select("status")

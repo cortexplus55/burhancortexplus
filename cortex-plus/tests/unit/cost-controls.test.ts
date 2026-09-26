@@ -175,26 +175,36 @@ describe("sohbet ucu tavanı işletiyor", () => {
 });
 
 describe("deneme üretimi fiyatı", () => {
-  const sql = readFileSync(
+  const bumpSql = readFileSync(
     "supabase/migrations/20260918100000_practice_exam_cost.sql",
     "utf8",
   );
+  const engineSql = readFileSync(
+    "supabase/migrations/20260926160000_practice_exam_mock_engine.sql",
+    "utf8",
+  );
 
-  /* 20 soruya kadar tam deneme, gelişmiş modelle üretilen en uzun çıktı.
-     Tek görsel sorusu 5 kredi iken bunun 4 kredi olması ters duruyordu. */
-  it("5 krediye çıktı", () => {
-    expect(sql).toMatch(/UPDATE public\.credit_rules[\s\S]*SET credit_cost = 5/);
-    expect(sql).toMatch(/WHERE action_code = 'PRACTICE_EXAM_GENERATE'/);
+  /* İlk düzeltme: 4 → 5. Sonra değerlendirme üretimin içine alındı: 8. */
+  it("önce 5 krediye çıktı", () => {
+    expect(bumpSql).toMatch(/UPDATE public\.credit_rules[\s\S]*SET credit_cost = 5/);
+    expect(bumpSql).toMatch(/WHERE action_code = 'PRACTICE_EXAM_GENERATE'/);
   });
 
-  it("görsel çözümünün altında kalmıyor", () => {
+  it("değerlendirme dahil 8 kredi; GRADE 0", () => {
+    expect(engineSql).toMatch(/SET credit_cost = 8/);
+    expect(engineSql).toMatch(/WHERE action_code = 'PRACTICE_EXAM_GENERATE'/);
+    expect(engineSql).toMatch(/SET credit_cost = 0/);
+    expect(engineSql).toMatch(/WHERE action_code = 'PRACTICE_EXAM_GRADE'/);
+  });
+
+  it("görsel çözümünün altında kalmıyor (üretim tabanı)", () => {
     const init = readFileSync(
       "supabase/migrations/20250825120000_init.sql",
       "utf8",
     );
     const image = init.match(/\('IMAGE_SOLUTION',\s*(\d+)/);
     expect(image).not.toBeNull();
-    expect(5).toBeGreaterThanOrEqual(Number(image![1]));
+    expect(8).toBeGreaterThanOrEqual(Number(image![1]));
   });
 });
 

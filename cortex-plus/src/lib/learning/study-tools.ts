@@ -31,7 +31,7 @@ export const STUDY_TOOLS: StudyTool[] = [
   { id: "podcast", kind: "podcast", title: "Podcast", blurb: "Sesli anlatım" },
   { id: "oral", kind: "oral", title: "Sözlü deneme", blurb: "Konuş veya yaz" },
   { id: "written_exam", kind: "written_exam", title: "Yazılı deneme", blurb: "Süre var, yardım yok" },
-  { id: "quiz", kind: "quiz", title: "Test", blurb: "Çoktan seçmeli" },
+  { id: "quiz", kind: "quiz", title: "Konu testi", blurb: "Tek konu, kısa kontrol" },
   { id: "flashcards", kind: "flashcards", title: "Kartlar", blurb: "Kısa tekrar" },
   { id: "qa", kind: "qa", title: "AI öğretmen", blurb: "Soru-cevap" },
 ];

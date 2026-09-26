@@ -23,8 +23,9 @@ export const CREDIT_PRICE_TABLE: Record<ActionCode, CreditPrice> = {
   DOCUMENT_PAGE_PROCESS: { credits: 2, per: "sayfa" },
   QUIZ_GENERATE: { credits: 2, per: "üretim" },
   FLASHCARD_GENERATE: { credits: 2, per: "üretim" },
-  PRACTICE_EXAM_GENERATE: { credits: 5, per: "deneme" },
-  PRACTICE_EXAM_GRADE: { credits: 3, per: "değerlendirme" },
+  /** Üretim + değerlendirme dahil; bitişte ayrı GRADE ücreti yok. */
+  PRACTICE_EXAM_GENERATE: { credits: 8, per: "deneme" },
+  PRACTICE_EXAM_GRADE: { credits: 0, per: "değerlendirme" },
   STUDY_PLAN_GENERATE: { credits: 2, per: "üretim" },
   EXPORT_PDF: { credits: 1, per: "dışa aktarma" },
   AUDIO_SYNTHESIZE: { credits: 1, per: "900 karakter" },
