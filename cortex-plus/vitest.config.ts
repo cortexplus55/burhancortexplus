@@ -6,6 +6,8 @@ export default defineConfig({
   // @vitejs/plugin-react bağımlılıklarda duruyordu ama yapılandırmaya
   // bağlı değildi: JSX içeren bir test dosyası ayrıştırılamıyordu.
   plugins: [react()],
+  // Load cortex-plus/.env.local for live Jev (TYPESAFE_API_KEY) without printing secrets.
+  envDir: path.resolve(__dirname),
   test: {
     environment: "node",
     // Bileşen testleri .tsx; ortam dosya başında @vitest-environment ile seçilir.

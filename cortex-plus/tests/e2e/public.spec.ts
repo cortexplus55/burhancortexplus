@@ -29,7 +29,7 @@ const PUBLIC_ROUTES: [string, string][] = [
   ["/yaratici-program", "Yaratıcı program"],
 ];
 
-test.describe("public pages", () => {
+test.describe("public pages", { tag: ["@public"] }, () => {
   for (const [route, heading] of PUBLIC_ROUTES) {
     test(`${route} renders its heading`, async ({ page }) => {
       const response = await page.goto(route);

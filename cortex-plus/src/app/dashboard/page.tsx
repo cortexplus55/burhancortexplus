@@ -73,7 +73,7 @@ export default async function DashboardPage() {
             id="today-plan-heading"
             className="text-sm font-semibold uppercase tracking-wide text-[var(--cs-muted)]"
           >
-            Bugünün görevleri
+            Bugünkü programın
           </h2>
           <ol className="space-y-2">
             {hub.todaysTasks.map((task, index) => (

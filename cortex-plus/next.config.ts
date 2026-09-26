@@ -12,6 +12,11 @@ import { cspHeaderName, cspHeaderValue } from "./src/lib/security/csp";
 const REPORT_ONLY = true;
 
 const nextConfig: NextConfig = {
+  /*
+    Playwright baseURL `127.0.0.1` kullanıyor; Next varsayılanı `localhost`.
+    İkisi eşleşmeyince dev sunucu cross-origin uyarısı basıyordu.
+  */
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   async redirects() {
     return [
       {

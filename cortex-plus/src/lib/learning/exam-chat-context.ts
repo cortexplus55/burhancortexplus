@@ -268,6 +268,78 @@ export async function loadExamChatContext(
     lines.push(`Hazırlığın konuları: ${labels}.`);
   }
 
+  // Adaptive session awareness (best-effort; never fail chat).
+  try {
+    const { data: activeSession } = await service
+      .from("adaptive_learning_sessions")
+      .select("id, current_topic_key, objective, current_step")
+      .eq("user_id", userId)
+      .eq("exam_prep_id", prepId)
+      .eq("status", "active")
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (activeSession) {
+      lines.push(
+        `Öğrenci şu an uyarlanabilir çalışma oturumunda (adım ${Number(activeSession.current_step ?? 0) + 1}).` +
+          (activeSession.current_topic_key
+            ? ` Aktif konu anahtarı: ${activeSession.current_topic_key}.`
+            : "") +
+          (activeSession.objective
+            ? ` Oturum hedefi: ${String(activeSession.objective).slice(0, 120)}.`
+            : ""),
+      );
+      // Continuous mastery + recent gap for the active topic.
+      if (activeSession.current_topic_key) {
+        const { data: masteryRow } = await service
+          .from("exam_prep_topic_mastery")
+          .select(
+            "mastery, mastery_confidence, status, repeated_error_count, behavior",
+          )
+          .eq("user_id", userId)
+          .eq("exam_prep_id", prepId)
+          .eq("topic_key", activeSession.current_topic_key)
+          .maybeSingle();
+        if (masteryRow) {
+          lines.push(
+            `Aktif konu mastery: ${Number(masteryRow.mastery ?? 0).toFixed(2)}` +
+              ` (güven ${Number(masteryRow.mastery_confidence ?? 0).toFixed(2)},` +
+              ` durum ${String(masteryRow.status ?? "—")},` +
+              ` tekrarlayan hata ${Number(masteryRow.repeated_error_count ?? 0)}).` +
+              ` Öğrenciye hangi dersi çalıştığını sorma — Cortex zaten biliyor.`,
+          );
+        }
+        const { data: recentGap } = await service
+          .from("adaptive_learning_events")
+          .select("payload")
+          .eq("user_id", userId)
+          .eq("exam_prep_id", prepId)
+          .eq("event_type", "misconception_detected")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const gapPayload = (recentGap?.payload ?? {}) as {
+          misconceptionTag?: string;
+          kind?: string;
+        };
+        if (gapPayload.misconceptionTag || gapPayload.kind) {
+          lines.push(
+            `Son hata bağlamı: ${gapPayload.kind ?? "gap"}` +
+              (gapPayload.misconceptionTag
+                ? ` — ${gapPayload.misconceptionTag}`
+                : "") +
+              ".",
+          );
+        }
+      }
+      lines.push(
+        "Sohbet mesajı tek başına mastery değiştirmez; pedagojik kanıt yalnızca oturum evidence akışından gelir.",
+      );
+    }
+  } catch {
+    // ignore
+  }
+
   // En son okunan ders: "az önce anlamadığım şeyi açıkla" dediğinde
   // sohbetin neye baktığı belli olsun.
   const { data: lessonRow } = await service

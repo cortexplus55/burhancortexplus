@@ -245,6 +245,33 @@ export async function POST(request: Request) {
         .update({ session_meta: meta })
         .eq("id", row.id);
     }
+
+    try {
+      const { isFeatureEnabled, ADAPTIVE_LEARNING_FLAG } = await import(
+        "@/lib/admin/feature-flags"
+      );
+      if (await isFeatureEnabled(service, ADAPTIVE_LEARNING_FLAG, userId)) {
+        const { commitMasterPlanVersion } = await import(
+          "@/lib/adaptive/master-plan-engine"
+        );
+        const { data: prepRow } = await service
+          .from("exam_preps")
+          .select("schedule_v2")
+          .eq("id", result.prepId)
+          .maybeSingle();
+        if (prepRow?.schedule_v2) {
+          await commitMasterPlanVersion(service, {
+            userId,
+            examPrepId: result.prepId,
+            trigger: "initial",
+            schedule: prepRow.schedule_v2 as import("@/lib/learning/exam-schedule-v2").ScheduleBuildResult,
+            previousVersion: 0,
+          });
+        }
+      }
+    } catch {
+      // Adaptive snapshot must not break exam prep create.
+    }
   }
 
   const { data: prepTopics } = await service

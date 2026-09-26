@@ -23,7 +23,7 @@ async function openSignupAccountStep(page: Page) {
   await expect(page.getByRole("heading", { name: "Hesabını oluştur" })).toBeVisible();
 }
 
-test.describe("authentication guards", () => {
+test.describe("authentication guards", { tag: ["@auth", "@smoke"] }, () => {
   for (const route of PROTECTED_ROUTES) {
     test(`${route} redirects anonymous visitors to sign in`, async ({ page }) => {
       await page.goto(route);

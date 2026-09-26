@@ -412,7 +412,7 @@ export async function loadLearningHub(
     examDateMissing: countdown.state === "missing" || countdown.state === "past",
   });
 
-  const nextBestAction = !onboardingComplete
+  let nextBestAction = !onboardingComplete
     ? {
         ...nba,
         href: onboardingPathForRole(
@@ -420,6 +420,53 @@ export async function loadLearningHub(
         ),
       }
     : nba;
+
+  let tasksOut = todaysTasks;
+  let minutesOut = totalMinutes;
+
+  // Adaptive Learning Engine overlay (flag OFF = no change).
+  try {
+    const service = createServiceClient();
+    const { isFeatureEnabled, ADAPTIVE_LEARNING_FLAG } = await import(
+      "@/lib/admin/feature-flags"
+    );
+    if (
+      onboardingComplete &&
+      nearestPrep?.id &&
+      (await isFeatureEnabled(service, ADAPTIVE_LEARNING_FLAG, userId))
+    ) {
+      const { ensureCurrentDailyPlan } = await import(
+        "@/lib/adaptive/daily-planner"
+      );
+      const plan = await ensureCurrentDailyPlan(service, {
+        userId,
+        examPrepId: nearestPrep.id as string,
+      });
+      if (plan.items.length) {
+        tasksOut = plan.items.map((item) => ({
+          id: item.id,
+          title: item.title,
+          minutes: item.minutes,
+          href: item.href ?? `/deneme-sinavlari/${nearestPrep.id}/oturum`,
+          kind: "prep_node" as const,
+        }));
+        minutesOut = plan.estimatedMinutes || minutesOut;
+      }
+      if (!resumeHref && !processing) {
+        nextBestAction = {
+          kind: "exam_prep_node",
+          href: `/deneme-sinavlari/${nearestPrep.id}/oturum`,
+          label: "Çalışmaya Başla",
+          reason:
+            plan.rebalanceNotice ||
+            plan.objective ||
+            "Bugünkü programın hazır",
+        };
+      }
+    }
+  } catch {
+    // Adaptive overlay must never break the hub.
+  }
 
   const firstName =
     ((profile?.full_name as string | null) ?? "").split(" ")[0] ||
@@ -431,8 +478,8 @@ export async function loadLearningHub(
     countdown,
     readiness,
     nextBestAction,
-    todaysTasks,
-    totalMinutes,
+    todaysTasks: tasksOut,
+    totalMinutes: minutesOut,
     weakTopics,
     streak,
     recentDocuments: (recentDocs ?? []).map((d) => ({
@@ -441,11 +488,12 @@ export async function loadLearningHub(
       status: d.status as string,
     })),
     secondary: [
-      { href: "/ogretmen", label: "AI Öğretmen" },
-      { href: "/dokumanlar", label: "Belgeler" },
-      { href: "/deneme-sinavlari", label: "Denemeler" },
+      { href: "/dashboard", label: "Bugün" },
+      { href: "/ogretmen", label: "Sohbet" },
+      { href: "/dokumanlar", label: "Kaynaklarım" },
+      { href: "/deneme-sinavlari", label: "Programı Gör" },
+      { href: "/ilerleme", label: "İlerlemem" },
       { href: "/yanlislarim", label: "Yanlışlar" },
-      { href: "/ilerleme", label: "İlerleme" },
     ],
     progress: {
       onTargetTopics: readiness.onTargetTopics,

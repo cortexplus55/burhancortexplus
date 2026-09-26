@@ -207,6 +207,20 @@ export async function POST(request: Request) {
         { onConflict: "exam_prep_id" },
       );
 
+      try {
+        const { isFeatureEnabled, ADAPTIVE_LEARNING_FLAG } = await import(
+          "@/lib/admin/feature-flags"
+        );
+        if (await isFeatureEnabled(service, ADAPTIVE_LEARNING_FLAG, userId)) {
+          const { seedStudentStateFromDiagnostic } = await import(
+            "@/lib/adaptive/diagnostic-seed"
+          );
+          await seedStudentStateFromDiagnostic(service, userId, prepId);
+        }
+      } catch {
+        // Adaptive seed must not break intro completion.
+      }
+
       await service
         .from("exam_preps")
         .update({ intro_completed_at: new Date().toISOString() })

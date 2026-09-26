@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-test.describe("responsive layout", () => {
+test.describe("responsive layout", { tag: ["@public"] }, () => {
   test("landing page has no horizontal overflow on mobile", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
@@ -61,7 +61,7 @@ test.describe("responsive layout", () => {
   });
 });
 
-test.describe("accessibility basics", () => {
+test.describe("accessibility basics", { tag: ["@public"] }, () => {
   test("document language is Turkish", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "tr");
@@ -109,7 +109,7 @@ const PUBLIC_SCREENS = [
   "/kayit",
 ] as const;
 
-test.describe("design system responsive a11y", () => {
+test.describe("design system responsive a11y", { tag: ["@public"] }, () => {
   for (const path of PUBLIC_SCREENS) {
     for (const width of [360, 1280] as const) {
       test(`${path} @ ${width}px: no overflow and no critical axe`, async ({ page }) => {
