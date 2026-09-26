@@ -27,7 +27,7 @@ export default async function ExamPrepDenemePage({
 
   const { data: rows } = await supabase
     .from("practice_exam_questions")
-    .select("id, question_text, options, question_type")
+    .select("id, question_text, options, question_type, points")
     .eq("exam_id", examId)
     .order("sort_order");
 
@@ -36,6 +36,7 @@ export default async function ExamPrepDenemePage({
     text: row.question_text as string,
     options: (row.options as string[]) ?? [],
     question_type: (row.question_type as string) ?? "mcq",
+    points: (row.points as number) ?? 1,
   }));
 
   return (

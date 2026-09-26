@@ -1,20 +1,17 @@
 import Link from "next/link";
-import {
-  ArrowLeft,
-  ArrowRight,
-  BookOpen,
-  ListChecks,
-  RotateCcw,
-  Sparkles,
-  Target,
-  Trophy,
-} from "lucide-react";
+import { notFound } from "next/navigation";
+import { ArrowRight, BookOpen, ListChecks, RotateCcw } from "lucide-react";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
-import { parseExamAnalysis } from "@/lib/learning/exam-analysis";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
+import {
+  buildNextSteps,
+  multiMcqScoringNote,
+  scoreBandLabel,
+  type MockTopicReportRow,
+} from "@/lib/learning/mock-exam";
 
-export const metadata = { title: "Sınav Sonucu · Cortex Plus" };
+export const metadata = { title: "Deneme sonucu · Cortex Plus" };
 
 export default async function ExamPrepSonucPage({
   params,
@@ -28,240 +25,300 @@ export default async function ExamPrepSonucPage({
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
-  const { data: latestLesson } = await supabase
-    .from("exam_prep_lessons")
-    .select("id, title")
-    .eq("exam_prep_id", prepId)
-    .order("created_at", { ascending: false })
-    .limit(1)
+  const { data: prep } = await supabase
+    .from("exam_preps")
+    .select("id, title, target_score")
+    .eq("id", prepId)
+    .eq("user_id", user.id)
     .maybeSingle();
 
-  let analysisRaw = "";
-  let attemptScore: number | null = null;
+  if (!prep) notFound();
+
+  type AttemptRow = {
+    id: string;
+    score: number | null;
+    analysis: string | null;
+    topic_report: unknown;
+    exam_id: string;
+    completed_at?: string | null;
+  };
+
+  let attempt: AttemptRow | null = null;
+
   if (query.examId) {
-    const { data: attempt } = await supabase
+    const { data } = await supabase
       .from("practice_exam_attempts")
-      .select("analysis, score")
+      .select("id, score, analysis, topic_report, exam_id, completed_at")
       .eq("exam_id", query.examId)
       .eq("user_id", user.id)
+      .not("completed_at", "is", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    analysisRaw = (attempt?.analysis as string) ?? "";
-    attemptScore = attempt?.score ?? null;
+    attempt = (data as AttemptRow | null) ?? null;
   }
 
-  const analysis = parseExamAnalysis(analysisRaw);
-  const scoreNum = query.score != null ? parseInt(query.score, 10) : attemptScore;
-  const scoreLabel = scoreNum != null && !isNaN(scoreNum) ? String(scoreNum) : "—";
+  if (!attempt) {
+    const { data } = await supabase
+      .from("practice_exam_attempts")
+      .select("id, score, analysis, topic_report, exam_id, completed_at")
+      .eq("user_id", user.id)
+      .not("completed_at", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    // prep'e bağlı son deneme
+    if (data) {
+      const { data: exam } = await supabase
+        .from("practice_exams")
+        .select("id")
+        .eq("id", data.exam_id)
+        .eq("exam_prep_id", prepId)
+        .maybeSingle();
+      if (exam) attempt = data as AttemptRow;
+    }
+  }
 
-  const getTierInfo = (score: number | null) => {
-    if (score == null || isNaN(score)) {
-      return {
-        label: "Tamamlandı",
-        color: "text-violet-400",
-        badge: "bg-violet-500/15 border-violet-500/30 text-violet-300",
-      };
-    }
-    if (score >= 80) {
-      return {
-        label: "Harika Başarı",
-        color: "text-emerald-400",
-        badge: "bg-emerald-500/15 border-emerald-500/30 text-emerald-300",
-      };
-    }
-    if (score >= 50) {
-      return {
-        label: "İyi Performans",
-        color: "text-amber-400",
-        badge: "bg-amber-500/15 border-amber-500/30 text-amber-300",
-      };
-    }
-    return {
-      label: "Tekrar & Pratik Gerekli",
-      color: "text-rose-400",
-      badge: "bg-rose-500/15 border-rose-500/30 text-rose-300",
-    };
-  };
+  // ?score= yok sayılır — yalnız DB
+  const scoreNum = attempt?.score != null ? Number(attempt.score) : null;
+  const target = prep.target_score != null ? Number(prep.target_score) : null;
+  const band = scoreBandLabel(scoreNum ?? 0, target);
 
-  const tier = getTierInfo(scoreNum);
+  let topicReport: MockTopicReportRow[] = [];
+  if (Array.isArray(attempt?.topic_report)) {
+    topicReport = attempt!.topic_report as MockTopicReportRow[];
+  } else if (attempt?.analysis) {
+    try {
+      const parsed = JSON.parse(attempt.analysis) as { topicReport?: MockTopicReportRow[] };
+      if (Array.isArray(parsed.topicReport)) topicReport = parsed.topicReport;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const { data: examRow } = attempt?.exam_id
+    ? await supabase
+        .from("practice_exams")
+        .select("id, duration_minutes, started_at, deadline_at")
+        .eq("id", attempt.exam_id)
+        .maybeSingle()
+    : { data: null };
+
+  const { count: reviewCount } = attempt
+    ? await supabase
+        .from("practice_exam_item_reviews")
+        .select("id", { count: "exact", head: true })
+        .eq("attempt_id", attempt.id)
+    : { count: 0 };
+
+  const { data: reviews } = attempt
+    ? await supabase
+        .from("practice_exam_item_reviews")
+        .select("is_correct, verdict")
+        .eq("attempt_id", attempt.id)
+    : { data: [] };
+
+  const correct = (reviews ?? []).filter((r) => r.verdict === "dogru" || r.is_correct).length;
+  const blank = (reviews ?? []).filter((r) => r.verdict === "bos").length;
+  const wrong = (reviews ?? []).length - correct - blank;
+
+  const hasMulti = true;
+  const nextSteps = buildNextSteps({
+    prepId,
+    report: topicReport,
+    wrongCount: Math.max(0, wrong),
+  });
+
+  if (!attempt) {
+    return (
+      <ParitySorShell {...shell}>
+        <div className="mx-auto max-w-xl px-4 py-16 text-center">
+          <p className="text-[color:var(--cp-muted)]">Bu deneme bulunamadı.</p>
+          <Link href={`/deneme-sinavlari/${prepId}`} className="mt-4 inline-block text-sm text-[#3d5afe]">
+            ← Çalışma yoluna dön
+          </Link>
+        </div>
+      </ParitySorShell>
+    );
+  }
+
+  const ringColor =
+    band.tone === "success"
+      ? "var(--pm-success,#22c55e)"
+      : band.tone === "warning"
+        ? "#f59e0b"
+        : band.tone === "danger"
+          ? "var(--pm-danger,#ef4444)"
+          : "var(--cp-muted)";
 
   return (
     <ParitySorShell {...shell}>
-      <div className="cp-exam-suite-container max-w-4xl mx-auto px-4 py-8 space-y-8">
-        {/* Top Back Navigation */}
-        <div className="flex items-center justify-between">
-          <Link
-            href={`/deneme-sinavlari/${prepId}`}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all shadow-sm"
+      <div className="mx-auto max-w-[640px] px-4 py-8">
+        <Link
+          href={`/deneme-sinavlari/${prepId}`}
+          className="text-sm text-[color:var(--cp-muted)] hover:text-[color:var(--cp-text)]"
+        >
+          ← Çalışma yoluna dön
+        </Link>
+
+        <section className="pm-card mt-6 rounded-3xl p-8 text-center">
+          <p className="text-xs font-semibold tracking-widest text-[color:var(--cp-gold,#f4ae0b)]">
+            DENEME SONUCU
+          </p>
+          <h1
+            className="mt-2 text-2xl text-[color:var(--cp-text)]"
+            style={{ fontFamily: "var(--font-display, Georgia, serif)" }}
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Konu yoluna dön</span>
+            {prep.title} · yazılı deneme
+          </h1>
+
+          <div className="relative mx-auto mt-8 flex h-40 w-40 items-center justify-center">
+            <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 120 120" aria-hidden>
+              <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="8" />
+              <circle
+                cx="60"
+                cy="60"
+                r="52"
+                fill="none"
+                stroke={ringColor}
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={`${2 * Math.PI * 52}`}
+                strokeDashoffset={`${2 * Math.PI * 52 * (1 - Math.min(100, scoreNum ?? 0) / 100)}`}
+                style={{ transition: "stroke-dashoffset 600ms var(--pm-ease, ease)" }}
+              />
+            </svg>
+            <div>
+              <div className="text-5xl font-extrabold tabular-nums">{scoreNum ?? "—"}</div>
+              <div className="text-sm text-[color:var(--cp-muted)]">/ 100 puan</div>
+            </div>
+          </div>
+
+          <p className="mt-4 text-sm text-[color:var(--cp-muted)]">
+            {target == null ? (
+              <Link href={`/deneme-sinavlari/${prepId}/tanisma`} className="text-[#3d5afe]">
+                Hedef puan belirle
+              </Link>
+            ) : (
+              band.text
+            )}
+          </p>
+        </section>
+
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            ["Doğru", correct],
+            ["Yanlış", wrong],
+            ["Boş", blank],
+            [
+              "Süre",
+              examRow?.duration_minutes != null ? `${examRow.duration_minutes} dk` : "—",
+            ],
+          ].map(([label, value]) => (
+            <div
+              key={String(label)}
+              className="rounded-2xl border border-[color:var(--cp-border)] bg-[color:var(--cp-surface)] p-4 text-center"
+            >
+              <div className="text-xs text-[color:var(--cp-muted)]">{label}</div>
+              <div className="mt-1 text-lg font-semibold tabular-nums">{value}</div>
+            </div>
+          ))}
+        </div>
+
+        {topicReport.length ? (
+          <section className="mt-6 rounded-2xl border border-[color:var(--cp-border)] bg-[color:var(--cp-surface)] p-5">
+            <h2 className="text-base font-semibold">Konu konu karne</h2>
+            <ul className="mt-4 space-y-3">
+              {topicReport.map((row) => {
+                const bar =
+                  row.percent >= 80
+                    ? "var(--pm-success,#22c55e)"
+                    : row.percent >= 50
+                      ? "#f59e0b"
+                      : "var(--pm-danger,#ef4444)";
+                return (
+                  <li key={row.topicLabel}>
+                    <div className="mb-1 flex items-center gap-2 text-sm">
+                      <span className="font-medium">{row.topicLabel}</span>
+                      {row.examHeavy ? (
+                        <span className="rounded-full bg-[color:color-mix(in_srgb,var(--cp-gold)_20%,transparent)] px-2 py-0.5 text-[10px] text-[color:var(--cp-gold)]">
+                          Sınavda ağırlıklı
+                        </span>
+                      ) : null}
+                      <span className="ml-auto tabular-nums text-[color:var(--cp-muted)]">
+                        {row.correct}/{row.total} · %{row.percent}
+                      </span>
+                      <Link
+                        href={`/deneme-sinavlari/${prepId}/deneme/${attempt!.exam_id}/incele?topic=${encodeURIComponent(row.topicLabel)}`}
+                        className="text-[color:var(--cp-muted)]"
+                        aria-label={`${row.topicLabel} incele`}
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-white/5">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${row.percent}%`, background: bar }}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ) : null}
+
+        {nextSteps.length ? (
+          <section className="mt-6 rounded-2xl border border-[color:var(--cp-border)] bg-[color:var(--cp-surface)] p-5">
+            <h2 className="text-base font-semibold">Önerilen sonraki adımlar</h2>
+            <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm">
+              {nextSteps.map((step) => (
+                <li key={step.label}>
+                  <Link href={step.href} className="text-[#3d5afe] hover:underline">
+                    {step.label}
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
+
+        <div className="mt-6 flex flex-col gap-2">
+          <Link
+            href={`/deneme-sinavlari/${prepId}/deneme/${attempt.exam_id}/incele`}
+            className="cp-exam-continue cp-exam-continue--primary inline-flex h-12 items-center justify-center gap-2 rounded-full text-sm font-semibold"
+          >
+            <ListChecks className="h-4 w-4" />
+            Soruları incele
+          </Link>
+          <Link
+            href={`/deneme-sinavlari/${prepId}/deneme/kurulum`}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[color:var(--cp-border)] bg-[color:var(--cp-surface-2)] text-sm font-semibold"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Yeni deneme oluştur
+          </Link>
+          <Link
+            href={`/deneme-sinavlari/${prepId}/degerlendirme`}
+            className="inline-flex h-11 items-center justify-center gap-2 text-sm text-[color:var(--cp-muted)] hover:text-[color:var(--cp-text)]"
+          >
+            <BookOpen className="h-4 w-4" />
+            Hazırlık durumunu gör
           </Link>
         </div>
 
-        {/* Score Hero Banner */}
-        <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-[#181928]/95 to-[#10111a]/95 backdrop-blur-2xl p-8 sm:p-10 shadow-2xl relative overflow-hidden text-center">
-          {/* Ambient Glow */}
-          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-violet-600/15 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 space-y-4 max-w-lg mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/25 text-xs font-bold text-violet-300">
-              <Trophy className="w-4 h-4 text-amber-400" />
-              <span>Sınav Değerlendirmesi</span>
-            </div>
-
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-              Deneme Sınavı Tamamlandı
-            </h1>
-
-            {/* Score Ring / Display */}
-            <div className="py-4">
-              <div className="inline-flex flex-col items-center justify-center w-36 h-36 sm:w-40 sm:h-40 rounded-full bg-zinc-900/90 border-2 border-violet-500/30 shadow-[0_0_35px_rgba(124,108,247,0.3)]">
-                <span className={`text-4xl sm:text-5xl font-black ${tier.color}`}>
-                  {scoreLabel}
-                </span>
-                <span className="text-xs uppercase tracking-widest text-zinc-400 font-semibold mt-1">
-                  Puan
-                </span>
-              </div>
-            </div>
-
-            {/* Tier Status Badge */}
-            <div>
-              <span
-                className={`inline-block px-4 py-1.5 rounded-full border text-xs font-bold uppercase tracking-wider ${tier.badge}`}
-              >
-                {tier.label}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* AI Performance Analysis & Insights Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Summary Box */}
-          <div className="rounded-3xl border border-white/10 bg-zinc-900/80 backdrop-blur-xl p-6 sm:p-7 shadow-xl space-y-4">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-white/5">
-              <div className="w-8 h-8 rounded-xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-violet-300">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-white">Yapay Zeka Özeti</h2>
-                <p className="text-xs text-zinc-400">Performansının detaylı dökümü</p>
-              </div>
-            </div>
-
-            <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
-              {analysis.summary || "Sınav analiziniz başarıyla oluşturuldu."}
-            </p>
-          </div>
-
-          {/* Weak Topics & Focus Areas */}
-          <div className="rounded-3xl border border-white/10 bg-zinc-900/80 backdrop-blur-xl p-6 sm:p-7 shadow-xl space-y-4">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-white/5">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300">
-                <Target className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-white">Odaklanılacak Alanlar</h2>
-                <p className="text-xs text-zinc-400">Geliştirilmesi gereken konular</p>
-              </div>
-            </div>
-
-            {analysis.weakTopics.length ? (
-              <div className="flex flex-wrap gap-2 pt-1">
-                {analysis.weakTopics.map((topic) => (
-                  <span
-                    key={topic}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs font-semibold text-amber-300"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                    {topic}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-zinc-400 italic">
-                Tebrikler! Belirgin bir zayıf nokta tespit edilmedi.
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Next Steps Checklist */}
-        {analysis.nextSteps.length ? (
-          <div className="rounded-3xl border border-white/10 bg-zinc-900/80 backdrop-blur-xl p-6 sm:p-7 shadow-xl space-y-4">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-white/5">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-300">
-                <ListChecks className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-white">Önerilen Sonraki Adımlar</h2>
-                <p className="text-xs text-zinc-400">Hedefine ulaşmak için çalışma planı</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {analysis.nextSteps.map((step, idx) => (
-                <div
-                  key={step}
-                  className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-zinc-800/40 border border-white/5"
-                >
-                  <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">
-                    {idx + 1}
-                  </div>
-                  <span className="text-sm text-zinc-200 leading-snug">{step}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+        {hasMulti ? (
+          <p className="mt-4 text-center text-xs text-[color:var(--cp-muted)]">
+            {multiMcqScoringNote()}
+          </p>
         ) : null}
 
-        {/* Action Buttons Hub */}
-        <div className="rounded-3xl border border-white/10 bg-zinc-900/90 backdrop-blur-xl p-6 shadow-2xl flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-            {query.examId ? (
-              <Link
-                href={`/deneme-sinavlari/${prepId}/deneme/${query.examId}/incele`}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-600/30 active:scale-95 transition-all w-full sm:w-auto"
-              >
-                <ListChecks className="w-4 h-4" />
-                <span>Soruları İncele</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            ) : null}
-
-            {query.examId ? (
-              <Link
-                href={`/deneme-sinavlari/${prepId}/deneme/${query.examId}`}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white border border-white/5 active:scale-95 transition-all w-full sm:w-auto"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>Tekrar Çöz</span>
-              </Link>
-            ) : null}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-            {latestLesson ? (
-              <Link
-                href={`/deneme-sinavlari/${prepId}/ders/${latestLesson.id}`}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white border border-white/5 active:scale-95 transition-all w-full sm:w-auto"
-              >
-                <BookOpen className="w-4 h-4" />
-                <span>Dersi Oku</span>
-              </Link>
-            ) : null}
-
-            <Link
-              href={`/deneme-sinavlari/${prepId}`}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-white/5 active:scale-95 transition-all w-full sm:w-auto"
-            >
-              <span>Konu Yoluna Dön</span>
-            </Link>
-          </div>
-        </div>
+        {reviewCount === 0 ? (
+          <p className="mt-4 text-center text-sm text-[color:var(--cp-muted)]" aria-live="polite">
+            Klasik soruların değerlendiriliyor…
+          </p>
+        ) : null}
       </div>
     </ParitySorShell>
   );
