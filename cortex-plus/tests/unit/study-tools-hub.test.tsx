@@ -119,7 +119,7 @@ describe("study tools hub regression", () => {
     expect(screen.getByRole("link", { name: "Konu anlatımı" }).getAttribute("href")).toBe(
       studyActivityHref("prep-1", "les-law", "Anayasa"),
     );
-    expect(screen.getByRole("link", { name: "Test" }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: "Konu testi" }).getAttribute("href")).toBe(
       studyActivityHref("prep-1", "quiz-law", "Anayasa"),
     );
     expect(resolveStudyToolNode(lawNodes, "podcast", { label: "Anayasa" })).toBeNull();
