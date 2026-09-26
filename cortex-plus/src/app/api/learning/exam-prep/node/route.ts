@@ -41,6 +41,10 @@ import {
 } from "@/lib/learning/oral-exam";
 import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
+import { makeCardKey } from "@/lib/learning/flashcard-model";
+import { cardsFromMistakeEntries, cardsFromMisconceptions } from "@/lib/learning/flashcard-from-mistakes";
+import { loadDueReviews } from "@/lib/learning/flashcard-reviews";
+import { loadOpenMistakes } from "@/lib/learning/mistake-notebook";
 import { verifyFlashcard } from "@/lib/learning/question-verifier";
 import { trueFalseItemsSchema, TRUE_FALSE_FORMAT } from "@/lib/learning/true-false";
 import {
@@ -403,7 +407,7 @@ async function writtenReviewForPayload(
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "exam-prep-node", limit: 16 });
   if (!guard.ok) return guard.response;
-  const { userId, service } = guard.ctx;
+  const { userId, service, supabase } = guard.ctx;
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
@@ -1425,9 +1429,15 @@ export async function POST(request: Request) {
 
   let payload: Record<string, unknown>;
   try {
+    const reusedCards =
+      !voiceSession && (kind === "flashcards" || kind === "spaced")
+        ? await tryReuseDueFlashcards(service, supabase, userId, prepId, topicLabel)
+        : null;
     payload = voiceSession
       ? { type: "voice" }
-      : await generateNodePayload({
+      : reusedCards
+        ? reusedCards
+        : await generateNodePayload({
           service,
           userId,
           isPremium: premium,
@@ -2478,11 +2488,19 @@ async function generateNodePayload(input: {
       },
     });
     if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
+    const stamped = outcome.data.cards.map((card) => ({
+      ...card,
+      cardKey: makeCardKey("node", card.front),
+      cardSource: "node" as const,
+      topicLabel: input.topicLabel,
+      kind: "definition" as const,
+    }));
     return {
       type: "cards",
-      cards: outcome.data.cards,
+      cards: stamped,
       teachingStandard: activity,
       masteryClaim: false,
+      reused: false,
     };
   }
 
@@ -2570,6 +2588,113 @@ async function loadLessonReviewCards(
     .limit(12);
   if (error || !data) return [];
   return cardsFromLessonReviews(data);
+}
+
+/**
+ * Vadesi gelmiş + önceki denemeden içerik eşleşen kartlar varsa ücretsiz sun.
+ * Yanlış defteri / misconception kartları da eklenir.
+ */
+async function tryReuseDueFlashcards(
+  service: SupabaseClient,
+  supabase: SupabaseClient,
+  userId: string,
+  prepId: string,
+  topicLabel: string,
+): Promise<Record<string, unknown> | null> {
+  const due = await loadDueReviews(service, userId, { examPrepId: prepId });
+  const { data: prior } = await service
+    .from("exam_prep_node_attempts")
+    .select("payload")
+    .eq("user_id", userId)
+    .eq("exam_prep_id", prepId)
+    .eq("status", "completed")
+    .order("created_at", { ascending: false })
+    .limit(8);
+
+  const byKey = new Map<string, { front: string; back: string; difficulty?: string }>();
+  for (const row of prior ?? []) {
+    const payload = row.payload as { type?: string; cards?: { front?: string; back?: string; cardKey?: string; difficulty?: string }[] } | null;
+    if (payload?.type !== "cards" || !Array.isArray(payload.cards)) continue;
+    for (const card of payload.cards) {
+      if (!card.front || !card.back) continue;
+      const key = card.cardKey || makeCardKey("node", card.front);
+      if (!byKey.has(key)) byKey.set(key, { front: card.front, back: card.back, difficulty: card.difficulty });
+    }
+  }
+
+  const reused = due
+    .map((row) => {
+      const hit = byKey.get(row.card_key);
+      if (!hit) return null;
+      return {
+        front: hit.front,
+        back: hit.back,
+        difficulty: hit.difficulty ?? "hard",
+        cardKey: row.card_key,
+        cardSource: row.card_source,
+        topicLabel: row.topic_label ?? topicLabel,
+        kind: "definition" as const,
+        fromMistake: row.card_source === "mistake" || row.card_source === "misconception",
+      };
+    })
+    .filter((card): card is NonNullable<typeof card> => Boolean(card));
+
+  const open = await loadOpenMistakes(supabase, userId, 40);
+  const mistakeCards = cardsFromMistakeEntries(
+    open.flatMap((g) => g.entries).map((e) => ({
+      id: e.id,
+      questionText: e.questionText,
+      correctAnswer: e.correctAnswer,
+      explanation: e.explanation,
+      topicLabel: e.topicLabel,
+    })),
+  );
+
+  const { data: mis } = await service
+    .from("exam_prep_misconceptions")
+    .select("id, question_preview, corrected, claim, topic_label, wrong_type, source_kind")
+    .eq("user_id", userId)
+    .eq("exam_prep_id", prepId)
+    .order("created_at", { ascending: false })
+    .limit(16);
+  const misconceptionCards = cardsFromMisconceptions(
+    (mis ?? []).map((row) => ({
+      id: row.id as string,
+      questionPreview: row.question_preview as string | null,
+      corrected: row.corrected as string | null,
+      claim: row.claim as string | null,
+      topicLabel: row.topic_label as string | null,
+      wrongType: row.wrong_type as string | null,
+      sourceKind: row.source_kind as string | null,
+    })),
+  );
+
+  const merged: {
+    front: string;
+    back: string;
+    difficulty?: string;
+    cardKey: string;
+    cardSource: string;
+    topicLabel?: string | null;
+    kind: string;
+    fromMistake?: boolean;
+  }[] = [];
+  const seen = new Set<string>();
+  for (const card of [...reused, ...mistakeCards, ...misconceptionCards]) {
+    if (seen.has(card.cardKey)) continue;
+    seen.add(card.cardKey);
+    merged.push(card);
+    if (merged.length >= 20) break;
+  }
+
+  if (merged.length < 4) return null;
+  return {
+    type: "cards",
+    cards: merged,
+    teachingStandard: "flashcards",
+    masteryClaim: false,
+    reused: true,
+  };
 }
 
 async function unseenLessonReviews<
@@ -2738,9 +2863,7 @@ function countTotal(kind: PlanNodeKind, payload: Record<string, unknown>) {
   if (payload.type === "quiz") return ((payload.questions as unknown[]) ?? []).length;
   if (payload.type === "true_false") return ((payload.items as unknown[]) ?? []).length;
   if (payload.type === "cards") {
-    // v2: participation total stays 1 (masteryClaim false); legacy uses card count.
-    if (payload.masteryClaim === false) return 1;
-    return ((payload.cards as unknown[]) ?? []).length;
+    return ((payload.cards as unknown[]) ?? []).length || 1;
   }
   if (payload.type === "oral") return ((payload.questions as unknown[]) ?? []).length;
   return 1;

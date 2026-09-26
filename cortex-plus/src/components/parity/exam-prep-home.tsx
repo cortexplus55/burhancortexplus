@@ -28,6 +28,7 @@ import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
 import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
+import { trailMetaLine } from "@/lib/learning/path-trail-label";
 import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
 import {
   ExamPrepSettingsPanel,
@@ -559,7 +560,12 @@ export function ExamPrepHome({
       ) : view === "yol" ? (
         <>
           <p className="cp-study-hub-hint">{STUDY_PATH_HINT}</p>
-          <StudyPath nodes={nodes} onOpen={openNode} readinessClaim={readinessClaim} />
+          <StudyPath
+            nodes={nodes}
+            onOpen={openNode}
+            readinessClaim={readinessClaim}
+            topicCount={topicCount}
+          />
         </>
       ) : null}
 
@@ -602,10 +608,12 @@ function StudyPath({
   nodes,
   onOpen,
   readinessClaim,
+  topicCount = 0,
 }: {
   nodes: HomeNode[];
   onOpen: (node: HomeNode) => void;
   readinessClaim: boolean | null;
+  topicCount?: number;
 }) {
   const groups = useMemo(() => {
     let cursor = 0;
@@ -650,22 +658,10 @@ function StudyPath({
                 <span>
                   <strong>{node.title || PLAN_NODE_META[node.kind].title}</strong>
                   <em>
-                    {PLAN_NODE_META[node.kind].title}
-                    {node.kind === "lesson" && !node.sessionMeta?.durationMinutes ? " · 5 dk" : ""}
-                    {node.sessionMeta?.durationMinutes
-                      ? ` · ${node.sessionMeta.durationMinutes} dk`
-                      : ""}
-                    {node.sessionMeta?.sourcePages?.length
-                      ? ` · s.${node.sessionMeta.sourcePages.slice(0, 4).join(",")}`
-                      : ""}
-                    {node.status === "locked" ? " · önerilen sırada" : ""}
-                    {node.kind === "written_exam" ? " · yardım yok" : ""}
-                    {node.kind === "readiness" && readinessClaim === true
-                      ? " · ölçülen verilere göre hazırsın"
-                      : ""}
-                    {node.kind === "readiness" && readinessClaim === false
-                      ? " · eksikler bu ekranda"
-                      : ""}
+                    {trailMetaLine(node, {
+                      topicCount,
+                      readinessClaim,
+                    })}
                   </em>
                 </span>
               </li>

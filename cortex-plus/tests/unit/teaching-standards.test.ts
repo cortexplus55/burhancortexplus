@@ -408,9 +408,21 @@ describe("teaching standards contract", () => {
     ).toEqual([]);
   });
 
-  it("scores flashcards as participation not mastery", () => {
-    const scored = scoreFlashcardsV2(4, { "0": true, "1": true, "2": false, "3": true });
-    expect(scored).toMatchObject({ score: 1, total: 1, knownCount: 3, masteryClaim: false });
+  it("scores flashcards by Bildim ratio without mastery claim", () => {
+    const scored = scoreFlashcardsV2(4, {
+      "0": "knew",
+      "1": "knew",
+      "2": "missed",
+      "3": "hard",
+    });
+    expect(scored).toMatchObject({
+      score: 2,
+      total: 4,
+      knownCount: 2,
+      hardCount: 1,
+      missedCount: 1,
+      masteryClaim: false,
+    });
   });
 
   it("validates podcast phase structure and short lines", () => {

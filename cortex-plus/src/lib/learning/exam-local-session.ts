@@ -199,6 +199,81 @@ export async function buildLocalSessionPayload(
       if (!label) continue;
       missesByTopic.set(label, (missesByTopic.get(label) ?? 0) + 1);
     }
+
+    const { cardMasteryByTopic, countDueCards } = await import("@/lib/learning/flashcard-reviews");
+    const { daysUntilExamDate } = await import("@/lib/learning/spaced-repetition");
+
+    const [prepRes, masteryRows, dueCount] = await Promise.all([
+      service
+        .from("exam_preps")
+        .select("exam_date, schedule_v2")
+        .eq("id", input.prepId)
+        .maybeSingle(),
+      cardMasteryByTopic(service, input.userId, input.prepId),
+      countDueCards(service, input.userId, input.prepId),
+    ]);
+    const prepRow = prepRes.data;
+
+    const examDate = (prepRow?.exam_date as string | null) ?? null;
+    const daysLeft = examDate ? daysUntilExamDate(examDate, new Date()) : null;
+    let examDateLabel: string | null = null;
+    if (examDate) {
+      examDateLabel = new Intl.DateTimeFormat("tr-TR", {
+        day: "numeric",
+        month: "long",
+        weekday: "long",
+        timeZone: "Europe/Istanbul",
+      }).format(new Date(`${examDate.slice(0, 10)}T12:00:00Z`));
+    }
+
+    const topicWeights: { topic: string; weightPercent: number }[] = [];
+    const schedule = prepRow?.schedule_v2 as { topics?: { title?: string; weightPercent?: number }[] } | null;
+    if (Array.isArray(schedule?.topics)) {
+      for (const t of schedule.topics) {
+        if (t.title && typeof t.weightPercent === "number") {
+          topicWeights.push({ topic: t.title, weightPercent: t.weightPercent });
+        }
+      }
+    }
+
+    let mockTopicReport: { topicLabel: string; percent: number }[] = [];
+    const { data: practiceAttempt } = await service
+      .from("practice_exam_attempts")
+      .select("topic_report, score, practice_exams!inner(exam_prep_id)")
+      .eq("user_id", input.userId)
+      .eq("practice_exams.exam_prep_id", input.prepId)
+      .not("completed_at", "is", null)
+      .order("completed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (Array.isArray(practiceAttempt?.topic_report)) {
+      mockTopicReport = (practiceAttempt.topic_report as { topicLabel?: string; percent?: number }[])
+        .filter((r) => r.topicLabel && typeof r.percent === "number")
+        .map((r) => ({ topicLabel: r.topicLabel!, percent: r.percent! }));
+    }
+    if (!mockTopicReport.length) {
+      for (const attempt of attemptsRes.data ?? []) {
+        const node = nodeById.get(String(attempt.node_id));
+        if (node?.kind !== "written_exam") continue;
+        const payload = attempt.payload as {
+          topicReport?: { topicLabel?: string; percent?: number }[];
+          topic_report?: { topicLabel?: string; percent?: number }[];
+        } | null;
+        const report = payload?.topicReport ?? payload?.topic_report;
+        if (Array.isArray(report) && report.length) {
+          mockTopicReport = report
+            .filter((r) => r.topicLabel && typeof r.percent === "number")
+            .map((r) => ({ topicLabel: r.topicLabel!, percent: r.percent! }));
+          break;
+        }
+      }
+    }
+
+    const examTips = misconceptions
+      .map((row) => row.questionPreview?.trim())
+      .filter((text): text is string => Boolean(text && text.length > 8))
+      .slice(0, 3);
+
     const screen = buildReadinessScreen({
       plannedTopics: topicLabels,
       mastery,
@@ -211,7 +286,19 @@ export async function buildLocalSessionPayload(
         written: href("written_exam"),
         quiz: href("quiz"),
         home,
+        cards: href("flashcards") ?? href("spaced"),
       },
+      topicWeights,
+      mockTopicReport,
+      cardMastery: masteryRows.map((row) => ({ topic: row.topic, ratio: row.ratio })),
+      daysLeft,
+      examDateLabel: examDateLabel
+        ? daysLeft != null
+          ? `${examDateLabel} · ${daysLeft} gün kaldı`
+          : examDateLabel
+        : null,
+      dueCardCount: dueCount,
+      examTips,
     });
     return { action: "serve", payload: { type: "readiness", screen } };
   }

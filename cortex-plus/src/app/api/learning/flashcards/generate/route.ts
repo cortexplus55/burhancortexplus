@@ -3,7 +3,19 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { loadDocumentGenerationContext } from "@/lib/documents/generation-context";
+import { makeCardKey, type FlashcardKind } from "@/lib/learning/flashcard-model";
 import { verifyFlashcard } from "@/lib/learning/question-verifier";
+import { validateFlashcardPedagogy } from "@/lib/learning/teaching-standards";
+import { repairTurkishSurface } from "@/lib/learning/learner-fluency";
+
+const KINDS = [
+  "definition",
+  "formula",
+  "fact",
+  "process",
+  "cause_effect",
+  "numeric",
+] as const;
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
@@ -15,9 +27,21 @@ const bodySchema = z.object({
 const resultSchema = z.object({
   title: z.string().min(1),
   cards: z
-    .array(z.object({ front: z.string().min(1), back: z.string().min(1) }))
+    .array(
+      z.object({
+        front: z.string().min(1),
+        back: z.string().min(1),
+        kind: z.enum(KINDS).optional(),
+        difficulty: z.enum(["easy", "medium", "hard"]).optional(),
+      }),
+    )
     .min(1),
 });
+
+function coerceKind(raw: string | undefined): FlashcardKind {
+  if (raw && (KINDS as readonly string[]).includes(raw)) return raw as FlashcardKind;
+  return "definition";
+}
 
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "flashcards", limit: 10 });
@@ -36,27 +60,44 @@ export async function POST(request: Request) {
     : null;
   if (documentId && !docContext) return errorResponse(409, "document_not_ready");
 
+  const sourceBlock = docContext?.excerpt?.trim() ?? "";
+  const grounded = Boolean(sourceBlock);
+
   const outcome = await generateJson({
     service,
     userId,
     actionCode: "FLASHCARD_GENERATE",
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
-      'Yalnızca şu JSON şemasını döndür: {"title": string, "cards": [{"front": string, "back": string}]}' +
-      (docContext
-        ? " Kartları YALNIZCA verilen belge alıntısındaki bilgiden üret."
+      'Yalnızca şu JSON şemasını döndür: {"title": string, "cards": [{"front": string, "back": string, "kind": "definition"|"formula"|"fact"|"process"|"cause_effect"|"numeric", "difficulty": "easy"|"medium"|"hard"}]}' +
+      (grounded
+        ? " Kartları YALNIZCA verilen belge alıntısındaki bilgiden üret. Kaynakta olmayan sayı, tarih veya formül yazma."
         : ""),
-    userPrompt: docContext
-      ? `Belge: ${docContext.fileName}. Konu: ${topic}. ${count} adet çift yönlü kart üret. Ön yüz kısa soru/kavram, arka yüz net açıklama olsun.\n\nBelge alıntısı:\n${docContext.excerpt}`
-      : `Konu: ${topic}. ${count} adet çift yönlü kart üret. Ön yüz kısa soru/kavram, arka yüz net açıklama olsun.`,
+    userPrompt: grounded
+      ? `Belge: ${docContext!.fileName}. Konu: ${topic}. ${count} adet çift yönlü kart üret. Ön yüz kısa soru/kavram (cevabı sızdırma), arka yüz en fazla 40 kelime. kind alanını doldur.\n\nBelge alıntısı:\n${sourceBlock}`
+      : `Konu: ${topic}. ${count} adet çift yönlü kart üret. Ön yüz kısa soru/kavram, arka yüz en fazla 40 kelime. kind alanını doldur.`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       if (!result.success) return null;
       const cards = result.data.cards.flatMap((card) => {
-        const checked = verifyFlashcard(card.front, card.back);
-        return checked ? [checked] : [];
+        const checked = verifyFlashcard(
+          repairTurkishSurface(card.front),
+          repairTurkishSurface(card.back),
+          sourceBlock,
+        );
+        if (!checked) return [];
+        return [
+          {
+            ...checked,
+            kind: coerceKind(card.kind),
+            difficulty: card.difficulty ?? "medium",
+          },
+        ];
       });
-      return cards.length >= 4 ? { ...result.data, cards } : null;
+      if (cards.length < 4) return null;
+      const issues = validateFlashcardPedagogy(cards);
+      if (issues.length) return null;
+      return { ...result.data, cards };
     },
   });
 
@@ -89,18 +130,30 @@ export async function POST(request: Request) {
     .eq("set_id", set.id)
     .order("sort_order");
 
+  const sourceLabel = grounded && docContext ? docContext.fileName : null;
+
   return NextResponse.json({
     setId: set.id,
     title: outcome.data.title,
-    source: docContext
-      ? { kind: "document", documentId, fileName: docContext.fileName }
+    grounded,
+    sourceNote: grounded ? null : "Bu kartlar materyaline dayanmıyor",
+    source: grounded
+      ? { kind: "document", documentId, fileName: docContext!.fileName }
       : { kind: "topic" },
     count: outcome.data.cards.length,
     creditsUsed: outcome.cost,
-    cards: (rows ?? []).map((card) => ({
-      id: card.id,
-      front: card.front_text,
-      back: card.back_text,
-    })),
+    cards: (rows ?? []).map((card, index) => {
+      const meta = outcome.data.cards[index];
+      return {
+        id: card.id,
+        front: card.front_text,
+        back: card.back_text,
+        kind: meta?.kind ?? "definition",
+        difficulty: meta?.difficulty ?? "medium",
+        sourceLabel,
+        cardKey: makeCardKey("studio", card.id as string),
+        cardSource: "studio" as const,
+      };
+    }),
   });
 }

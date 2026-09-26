@@ -24,6 +24,9 @@ import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 import { AUDIO_CHARS_PER_CREDIT_PRICE, CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { ExamReadinessScreen } from "@/components/parity/exam-readiness-screen";
+import { FlashcardSession } from "@/components/learning/flashcard-session";
+import type { CardRating } from "@/lib/learning/spaced-repetition";
+import { makeCardKey } from "@/lib/learning/flashcard-model";
 import { ExamWrittenReview } from "@/components/parity/exam-written-review";
 import type { ReadinessScreen } from "@/lib/learning/readiness-screen";
 import type { WrittenExamReview } from "@/lib/learning/written-exam-review";
@@ -104,7 +107,16 @@ type Payload = {
     probeKind?: OralProbeKind;
   }[];
   items?: { text: string; correct: boolean; explanation: string; correctedStatement?: string }[];
-  cards?: { front: string; back: string }[];
+  cards?: {
+    front: string;
+    back: string;
+    cardKey?: string;
+    cardSource?: "node" | "studio" | "mistake" | "misconception";
+    kind?: "definition" | "formula" | "fact" | "process" | "cause_effect" | "numeric";
+    fromMistake?: boolean;
+    sourceLabel?: string | null;
+    topicLabel?: string | null;
+  }[];
   practice?: string;
   reused?: boolean;
   /** Senaryo üretiminde düşen kredi. Önbellek 0, yeni senaryo fiyat tablosundaki değer. */
@@ -213,7 +225,6 @@ export function ExamNodeSession({
   const [clientRequestId, setClientRequestId] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
-  const [flipped, setFlipped] = useState(false);
   const [score, setScore] = useState({ score: 0, total: 1, retried: 0 });
   const [playStartedAt, setPlayStartedAt] = useState<number | null>(null);
   const [oralGrade, setOralGrade] = useState<{
@@ -318,6 +329,38 @@ export function ExamNodeSession({
     // start her render'da yeni; yalnız hazırlık ekranı kuruluma düşünce bir kez.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, stage]);
+
+  const readinessSilentDone = useRef(false);
+
+  useEffect(() => {
+    if (kind !== "readiness" || stage !== "play" || !payload || payload.type !== "readiness") return;
+    if (readinessSilentDone.current || !attemptId) return;
+    readinessSilentDone.current = true;
+    void (async () => {
+      try {
+        const res = await fetch("/api/learning/exam-prep/node", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prepId,
+            nodeId,
+            action: "complete",
+            attemptId,
+            generationId: generationId ?? undefined,
+            clientRequestId: clientRequestId ?? undefined,
+            answers: { "0": true },
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
+          router.refresh();
+        }
+      } catch {
+        /* sessiz — kullanıcı Devam et ile yeniden dener */
+      }
+    })();
+  }, [kind, stage, payload, attemptId, prepId, nodeId, generationId, clientRequestId, router]);
 
   useEffect(() => {
     if (stage !== "play" || !isTimedExam) return;
@@ -1129,7 +1172,13 @@ export function ExamNodeSession({
         <ExamReadinessScreen
           screen={payload.screen}
           continuing={loading}
-          onContinue={() => void finish()}
+          continueLabel="Sıradaki adıma geç"
+          nextHref={nextHref ?? undefined}
+          onContinue={
+            nextHref
+              ? () => router.push(nextHref)
+              : () => void finish()
+          }
         />
       ) : null}
 
@@ -1202,45 +1251,32 @@ export function ExamNodeSession({
         </section>
       ) : null}
 
-      {stage === "play" && payload.type === "cards" && cards[index] ? (
-        <section className="cp-exam-card-stage">
-          <p className="cp-lesson-kicker">
-            {index + 1}/{cards.length}
-          </p>
-          <button type="button" className="cp-exam-flash" onClick={() => setFlipped((value) => !value)}>
-            {flipped ? cards[index].back : cards[index].front}
-          </button>
-          <p className="text-sm text-[var(--cp-muted)]">Kartı çevirmek için tıkla</p>
-          <p>Cevabı biliyor musun?</p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className="cp-exam-continue"
-              onClick={() => {
-                const nextAnswers = { ...answersRef.current, [String(index)]: false };
-                updateAnswer(String(index), false);
-                setFlipped(false);
-                if (index + 1 < cards.length) setIndex(index + 1);
-                else void finish(nextAnswers);
-              }}
-            >
-              Hayır
-            </button>
-            <button
-              type="button"
-              className="cp-exam-continue cp-exam-continue--primary"
-              onClick={() => {
-                const nextAnswers = { ...answersRef.current, [String(index)]: true };
-                updateAnswer(String(index), true);
-                setFlipped(false);
-                if (index + 1 < cards.length) setIndex(index + 1);
-                else void finish(nextAnswers);
-              }}
-            >
-              Evet
-            </button>
-          </div>
-        </section>
+      {stage === "play" && payload.type === "cards" && cards.length ? (
+        <FlashcardSession
+          mode="node"
+          title="Kartlarla tekrar"
+          examPrepId={prepId}
+          topicLabel={topicLabel}
+          homeHref={`/deneme-sinavlari/${prepId}`}
+          finishLabel="Sıradaki adıma geç"
+          cards={cards.map((card) => ({
+            front: card.front,
+            back: card.back,
+            kind: card.kind ?? "definition",
+            cardKey: card.cardKey || makeCardKey("node", card.front),
+            cardSource: card.cardSource ?? "node",
+            fromMistake: card.fromMistake,
+            sourceLabel: card.sourceLabel,
+            topicLabel: card.topicLabel ?? topicLabel,
+          }))}
+          onFinish={(sessionAnswers) => {
+            const mapped: Record<string, unknown> = {};
+            for (const [key, value] of Object.entries(sessionAnswers)) {
+              mapped[key] = value as CardRating;
+            }
+            void finish(mapped);
+          }}
+        />
       ) : null}
 
       {stage === "play" && payload.type === "oral" && questions[index] ? (
