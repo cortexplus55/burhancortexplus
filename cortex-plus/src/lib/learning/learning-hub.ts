@@ -12,7 +12,11 @@ import {
   readinessFromExamPrep,
   type StudentReadiness,
 } from "@/lib/learning/student-readiness";
-import { rankWeakTopics, type RankedWeakTopic } from "@/lib/learning/weak-topic-rank";
+import {
+  rankWeakTopics,
+  recentMissRateByTopic,
+  type RankedWeakTopic,
+} from "@/lib/learning/weak-topic-rank";
 import {
   buildTodaysStudyPlan,
   rescheduleOverdueTasks,
@@ -23,6 +27,8 @@ import { getUserStreak } from "@/lib/streak/record-activity";
 import { createServiceClient } from "@/lib/supabase/server";
 import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
 import type { TopicMasterySnapshot } from "@/lib/learning/learning-tracking";
+import type { ProgressSummary } from "@/lib/learning/progress-line";
+import { STALE_PROCESSING_MS } from "@/lib/documents/processing-stale";
 
 export type LearningHubSnapshot = {
   firstName: string;
@@ -35,6 +41,8 @@ export type LearningHubSnapshot = {
   streak: number;
   recentDocuments: { id: string; fileName: string; status: string }[];
   secondary: { href: string; label: string }[];
+  /** "Son ilerleme" satırı — tek cümle, ayrı katalog değil. */
+  progress: ProgressSummary;
 };
 
 function istanbulToday(): string {
@@ -92,6 +100,7 @@ export async function loadLearningHub(
   email?: string | null,
 ): Promise<LearningHubSnapshot> {
   const today = istanbulToday();
+  const now = new Date();
 
   // Adaptive: missed calendar days → rebuild schedule (best-effort).
   try {
@@ -113,6 +122,7 @@ export async function loadLearningHub(
     { data: weakRows },
     { data: mistakeRows },
     { data: activeAttempt },
+    { data: lastExamAttempt },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -128,16 +138,20 @@ export async function loadLearningHub(
       .maybeSingle(),
     supabase
       .from("exam_preps")
-      .select("id, title, exam_date, exam_type, learning_tracking")
+      .select("id, title, exam_date, exam_type, learning_tracking, daily_minutes")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(5),
     supabase
       .from("documents")
-      .select("id, file_name")
+      .select("id, file_name, updated_at")
       .eq("user_id", userId)
       .is("deleted_at", null)
       .in("status", ["pending", "processing"])
+      // Takılı kalan belge ana aksiyonu sonsuza dek kilitlemesin: işleme
+      // yarım saatten uzun süredir kımıldamıyorsa NBA onu görmez; öğrenci
+      // belge sayfasında "Yeniden işle"yi görür.
+      .gte("updated_at", new Date(now.getTime() - STALE_PROCESSING_MS).toISOString())
       .order("created_at", { ascending: false })
       .limit(1),
     supabase
@@ -164,10 +178,10 @@ export async function loadLearningHub(
       .limit(20),
     supabase
       .from("weak_topics")
-      .select("topic_label, severity")
+      .select("topic_label, severity, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(20),
+      .limit(60),
     supabase
       .from("mistake_entries")
       .select(
@@ -182,6 +196,14 @@ export async function loadLearningHub(
       .eq("user_id", userId)
       .eq("status", "active")
       .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("practice_exam_attempts")
+      .select("score, completed_at")
+      .eq("user_id", userId)
+      .not("completed_at", "is", null)
+      .order("completed_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
   ]);
@@ -231,6 +253,24 @@ export async function loadLearningHub(
       null,
     goalTargetDate: (goal?.target_date as string | null) ?? null,
   });
+
+  // Son 30 günün quiz/deneme yanlış oranı konu bazında — sıralama tek bir
+  // "kaç kez yanlış" sayısına değil, yakın dönem performansına da baksın.
+  const missRates = recentMissRateByTopic(
+    (weakRows ?? []).map((w) => ({
+      topic_label: (w.topic_label as string | null) ?? null,
+      severity: w.severity == null ? null : Number(w.severity),
+      created_at: (w.created_at as string | null) ?? null,
+    })),
+  );
+  const missRateFor = (label: string) => missRates.get(label) ?? null;
+  const missValues = [...missRates.values()];
+  const recentAccuracyPct =
+    missValues.length > 0
+      ? Math.round(
+          (1 - missValues.reduce((a, b) => a + b, 0) / missValues.length) * 100,
+        )
+      : null;
 
   let readiness: StudentReadiness;
   let examPrepContinueHref: string | null = null;
@@ -299,29 +339,42 @@ export async function loadLearningHub(
       weakTopics: (weakRows ?? []).map((w) => ({
         severity: Number(w.severity ?? 0.5),
       })),
+      recentQuizAccuracy: recentAccuracyPct,
     });
   }
 
   const weakTopics = rankWeakTopics([
-    ...(mistakeRows ?? []).map((m) => ({
-      topicLabel: (m.topic_label as string) || "Konusu belirsiz",
-      wrongCount: Number(m.wrong_count ?? 1),
-      correctStreak: Number(m.correct_streak ?? 0),
-      lastReviewedAt: (m.last_reviewed_at as string | null) ?? null,
-      severity: null as number | null,
-      recentMissRate: null as number | null,
-    })),
-    ...(weakRows ?? []).map((w) => ({
-      topicLabel: (w.topic_label as string) || "Konusu belirsiz",
-      wrongCount: 1,
-      correctStreak: 0,
-      lastReviewedAt: null,
-      severity: Number(w.severity ?? 0.5),
-      recentMissRate: null as number | null,
-    })),
+    ...(mistakeRows ?? []).map((m) => {
+      const topicLabel = (m.topic_label as string) || "Konusu belirsiz";
+      return {
+        topicLabel,
+        wrongCount: Number(m.wrong_count ?? 1),
+        correctStreak: Number(m.correct_streak ?? 0),
+        lastReviewedAt: (m.last_reviewed_at as string | null) ?? null,
+        severity: null as number | null,
+        recentMissRate: missRateFor(topicLabel),
+      };
+    }),
+    ...(weakRows ?? []).map((w) => {
+      const topicLabel = (w.topic_label as string) || "Konusu belirsiz";
+      return {
+        topicLabel,
+        wrongCount: 1,
+        correctStreak: 0,
+        lastReviewedAt: null,
+        severity: Number(w.severity ?? 0.5),
+        recentMissRate: missRateFor(topicLabel),
+      };
+    }),
   ]);
 
+  const dailyMinutesCap =
+    typeof nearestPrep?.daily_minutes === "number" && nearestPrep.daily_minutes > 0
+      ? (nearestPrep.daily_minutes as number)
+      : null;
+
   const { tasks: todaysTasks, totalMinutes } = buildTodaysStudyPlan({
+    dailyMinutesCap,
     studyPlanTasks: todaysPlanRows.slice(0, 2).map((t) => ({
       id: t.id,
       title: t.title,
@@ -394,5 +447,14 @@ export async function loadLearningHub(
       { href: "/yanlislarim", label: "Yanlışlar" },
       { href: "/ilerleme", label: "İlerleme" },
     ],
+    progress: {
+      onTargetTopics: readiness.onTargetTopics,
+      totalTopics: readiness.totalTopics,
+      masteredMistakes: mistakes.mastered,
+      openMistakes: mistakes.open,
+      lastExamScore:
+        lastExamAttempt?.score == null ? null : Math.round(Number(lastExamAttempt.score)),
+      lastExamAt: (lastExamAttempt?.completed_at as string | null) ?? null,
+    },
   };
 }

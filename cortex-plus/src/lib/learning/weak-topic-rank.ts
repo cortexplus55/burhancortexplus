@@ -51,6 +51,31 @@ export function scoreWeakTopic(signal: WeakTopicSignal, now = new Date()): numbe
   );
 }
 
+/**
+ * `weak_topics` satırlarından konu bazında yakın dönem (son 30 gün) yanlış
+ * oranı. Quiz notu `incorrect/total`, deneme notu `(100-score)/100` olarak
+ * severity yazıyor; yani her satır tek bir ölçümün yanlış oranı. Ortalama
+ * alınır, 30 günden eski ölçüm sayılmaz.
+ */
+export function recentMissRateByTopic(
+  rows: { topic_label: string | null; severity: number | null; created_at?: string | null }[],
+  now = new Date(),
+  windowDays = 30,
+): Map<string, number> {
+  const cutoff = now.getTime() - windowDays * 86_400_000;
+  const acc = new Map<string, { sum: number; n: number }>();
+  for (const row of rows) {
+    const label = (row.topic_label ?? "").trim() || "Konusu belirsiz";
+    if (row.created_at && new Date(row.created_at).getTime() < cutoff) continue;
+    const sev = Math.max(0, Math.min(1, Number(row.severity ?? 0)));
+    const prev = acc.get(label) ?? { sum: 0, n: 0 };
+    acc.set(label, { sum: prev.sum + sev, n: prev.n + 1 });
+  }
+  const out = new Map<string, number>();
+  for (const [label, { sum, n }] of acc) out.set(label, n ? sum / n : 0);
+  return out;
+}
+
 export function rankWeakTopics(
   signals: WeakTopicSignal[],
   limit = 3,

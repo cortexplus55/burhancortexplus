@@ -3,15 +3,19 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { pageSourceBlock } from "@/lib/learning/source-context";
 
 /**
- * "Belgem" modu: quiz yalnızca bu belgenin sayfalarından üretilir.
+ * "Belgem" kaynaklı üretim (quiz, flashcard, podcast) için tek bağlam yolu.
  *
  * Belge çok sayfalıysa hepsini tek çağrıya sığdırmaya çalışmak (her sayfaya
- * düşen payı eritir) yerine ilk kırk sayfayla sınırlanır — quiz birkaç
- * sorudan ibarettir, dersin aksine belgenin tamamını sindirmesi gerekmez.
+ * düşen payı eritir) yerine ilk kırk sayfayla sınırlanır — stüdyo birkaç
+ * soru/karttan ibarettir, dersin aksine belgenin tamamını sindirmesi gerekmez.
+ *
+ * Belge tamamlanmamış, silinmiş ya da okunabilir sayfası yoksa `null` —
+ * çağıran uç kredi ayırmadan önce bunu kontrol eder.
  */
 const MAX_PAGES = 40;
 
 export type DocumentGenerationContext = {
+  documentId: string;
   fileName: string;
   excerpt: string;
 };
@@ -21,16 +25,17 @@ export async function loadDocumentGenerationContext(
   userId: string,
   documentId: string,
   topic: string,
+  options: { maxChars?: number } = {},
 ): Promise<DocumentGenerationContext | null> {
   void topic;
   const { data: doc, error: docError } = await service
     .from("documents")
-    .select("file_name")
+    .select("id, file_name, status")
     .eq("id", documentId)
     .eq("user_id", userId)
     .is("deleted_at", null)
     .maybeSingle();
-  if (docError || !doc) return null;
+  if (docError || !doc || doc.status !== "completed") return null;
 
   const { data: pages, error: pagesError } = await service
     .from("document_pages")
@@ -55,7 +60,13 @@ export async function loadDocumentGenerationContext(
   if (!usable.length) return null;
 
   const fileName = (doc.file_name as string | null) ?? "belge";
-  const excerpt = pageSourceBlock(fileName, usable, true);
+  let excerpt = pageSourceBlock(fileName, usable, true);
   if (!excerpt.trim()) return null;
-  return { fileName, excerpt };
+  if (options.maxChars != null) excerpt = excerpt.slice(0, options.maxChars);
+
+  return {
+    documentId,
+    fileName,
+    excerpt,
+  };
 }

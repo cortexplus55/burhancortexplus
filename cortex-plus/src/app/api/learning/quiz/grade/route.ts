@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
   const { data: questions } = await supabase
     .from("quiz_questions")
-    .select("id, question_text, options, correct_answer, sort_order")
+    .select("id, question_text, options, correct_answer, explanation, sort_order")
     .eq("quiz_id", quizId)
     .order("sort_order");
 
@@ -74,25 +74,56 @@ export async function POST(request: Request) {
 
   const topicPerformance = new Map<string, { correct: number; total: number }>();
   const topicLabel = topic?.trim() || (quiz.title as string) || "Quiz";
+  /**
+   * Soru bazında sonuç. Doğru yanıt ve açıklama yalnızca notlandırmadan
+   * SONRA dönüyor — soru paketiyle birlikte gitmiyor (bkz. mistake-notebook).
+   */
+  const items: {
+    questionId: string;
+    status: "correct" | "incorrect" | "blank";
+    correctAnswer: string | null;
+    explanation: string | null;
+  }[] = [];
 
   for (const q of questions) {
     const selected = answerMap.get(q.id as string);
     const right = ((q.correct_answer as string) ?? "").trim();
     const options = Array.isArray(q.options) ? (q.options as string[]) : [];
+    const explanation =
+      ((q.explanation as string | null) ?? "").trim() ||
+      (right ? `Doğru yanıt: ${right}` : null);
     const bucket = topicPerformance.get(topicLabel) ?? { correct: 0, total: 0 };
     bucket.total += 1;
 
     if (selected == null || selected.trim() === "") {
       blank += 1;
       topicPerformance.set(topicLabel, bucket);
+      items.push({
+        questionId: q.id as string,
+        status: "blank",
+        correctAnswer: right || null,
+        explanation,
+      });
       continue;
     }
 
     if (selected.trim() === right) {
       correct += 1;
       bucket.correct += 1;
+      items.push({
+        questionId: q.id as string,
+        status: "correct",
+        correctAnswer: right || null,
+        explanation,
+      });
     } else {
       incorrect += 1;
+      items.push({
+        questionId: q.id as string,
+        status: "incorrect",
+        correctAnswer: right || null,
+        explanation,
+      });
       wrongDrafts.push({
         source: "quiz",
         sourceQuestionId: q.id as string,
@@ -101,7 +132,7 @@ export async function POST(request: Request) {
         options,
         correctAnswer: right || null,
         wrongAnswer: selected,
-        explanation: right ? `Doğru yanıt: ${right}` : null,
+        explanation,
       });
     }
     topicPerformance.set(topicLabel, bucket);
@@ -136,5 +167,6 @@ export async function POST(request: Request) {
     total,
     weakTopics,
     mistakesRecorded: wrongDrafts.length,
+    items,
   });
 }

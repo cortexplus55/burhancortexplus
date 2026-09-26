@@ -9,6 +9,30 @@ test.describe("learning loop surfaces", () => {
   test("marketing feature names stay canonical", async ({ page }) => {
     await page.goto("/ozellikler");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    // Pazarlama ve uygulama aynı adı kullanıyor: "AI Öğretmen", "Kendi
+    // Belgemden Çalış", "Fotoğraftan Çözüm", "Yanlışlar Defteri".
+    for (const name of [
+      "AI Öğretmen",
+      "Kendi Belgemden Çalış",
+      "Fotoğraftan Çözüm",
+      "Quiz ve Flashcard",
+    ]) {
+      await expect(page.getByRole("heading", { name })).toBeVisible();
+    }
+    await expect(page.getByText("Yanlışlar Defteri", { exact: false }).first()).toBeVisible();
+  });
+
+  test("ana sayfa özellik şeridi canonical", async ({ page }) => {
+    await page.goto("/");
+    for (const name of ["Sözlü Sınav", "Deneme Sınavı", "Fotoğraftan Çözüm"]) {
+      await expect(page.getByRole("heading", { name, exact: true }).first()).toBeVisible();
+    }
+  });
+
+  test("girişsiz dashboard girişe yönlenir ve geri döner", async ({ page }) => {
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/giris/);
+    await expect(page).toHaveURL(/next=%2Fdashboard/);
   });
 
   test("telefondan cortex page", async ({ page }) => {

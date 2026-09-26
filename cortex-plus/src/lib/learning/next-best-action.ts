@@ -58,7 +58,7 @@ export function resolveNextBestAction(
   if (input.processingDocumentId) {
     return {
       kind: "document_processing",
-      href: `/dokumanlar`,
+      href: `/dokumanlar/${input.processingDocumentId}`,
       label: "Belge işleniyor",
       reason: input.processingDocumentName
         ? `${input.processingDocumentName} hâlâ hazırlanıyor`

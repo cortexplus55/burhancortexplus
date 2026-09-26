@@ -14,8 +14,9 @@ export default async function QuizlerPage() {
 
   const { data: quizzes } = await supabase
     .from("quizzes")
+    // correct_answer bilerek seçilmiyor: notlandırma sunucuda (quiz/grade).
     .select(
-      "id, title, created_at, quiz_questions(id, question_text, options, correct_answer, sort_order)",
+      "id, title, created_at, quiz_questions(id, question_text, options, sort_order)",
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
@@ -37,6 +38,7 @@ export default async function QuizlerPage() {
             {quizzes.map((quiz) => (
               <QuizRunner
                 key={quiz.id}
+                quizId={quiz.id}
                 title={quiz.title}
                 questions={(quiz.quiz_questions ?? [])
                   .slice()
@@ -47,7 +49,6 @@ export default async function QuizlerPage() {
                     options: Array.isArray(question.options)
                       ? (question.options as string[])
                       : [],
-                    correct: question.correct_answer ?? "",
                   }))}
               />
             ))}

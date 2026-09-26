@@ -127,18 +127,18 @@ export function MistakeNotebookView({
           <p className="text-lg font-semibold text-[var(--cs-text)]">
             {masteredCount > 0
               ? "Harika! Tekrar etmen gereken bir yanlış yok."
-              : "Harika! Henüz tekrar etmen gereken bir yanlış yok."}
+              : "Henüz yanlışın yok."}
           </p>
           <p className="mt-2 text-sm text-[var(--cs-muted)]">
             {masteredCount > 0
               ? `Bugüne kadar ${masteredCount} soruyu defterden çıkardın.`
-              : "Quiz veya deneme çözdüğünde yanlışların buraya düşer."}
+              : "İlk quizini çöz; yanlış yaptığın sorular buraya düşer, üst üste iki doğruyla çıkar."}
           </p>
           <Link
             href="/studio/quiz"
             className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black transition-colors hover:bg-amber-400"
           >
-            Quiz çöz
+            {masteredCount > 0 ? "Quiz çöz" : "İlk quizini çöz"}
           </Link>
         </div>
       ) : (
@@ -181,6 +181,14 @@ export function MistakeNotebookView({
               // anlaşılmamış demektir. Tekrar etmeye devam etmek yerine
               // anlatmaya davet ediyoruz.
               const stuck = group.questions.length >= 3;
+              const almost = group.questions.filter((q) => q.correctStreak > 0).length;
+              const sources = new Set(group.questions.map((q) => q.source));
+              const sourceText = [
+                sources.has("deneme") ? "deneme" : null,
+                sources.has("quiz") ? "quiz" : null,
+              ]
+                .filter(Boolean)
+                .join(" + ");
               return (
                 <div key={group.label} className="cs-pay-card p-4">
                   <button
@@ -194,6 +202,10 @@ export function MistakeNotebookView({
                       </span>
                       <span className="mt-1 block text-xs text-[var(--cs-muted)]">
                         {group.questions.length} soru bekliyor
+                        {sourceText ? ` · ${sourceText}` : ""}
+                        {almost > 0
+                          ? ` · ${almost}'i bir doğru uzakta`
+                          : ""}
                       </span>
                     </span>
                     <span className="inline-flex shrink-0 items-center gap-2 text-xs font-semibold text-amber-400">

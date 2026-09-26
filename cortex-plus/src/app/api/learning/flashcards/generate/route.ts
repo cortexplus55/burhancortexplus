@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { loadDocumentGenerationContext } from "@/lib/documents/generation-context";
 import { verifyFlashcard } from "@/lib/learning/question-verifier";
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
   count: z.number().int().min(4).max(20).default(10),
+  /** "Belgem" kaynağı: kartlar yalnızca bu belgeden. */
+  documentId: z.string().uuid().optional(),
 });
 
 const resultSchema = z.object({
@@ -23,6 +26,15 @@ export async function POST(request: Request) {
 
   const parsedBody = bodySchema.safeParse(await request.json());
   if (!parsedBody.success) return errorResponse(400, "invalid_input");
+  const { topic, count, documentId } = parsedBody.data;
+
+  // Kredi ayrılmadan önce: belge hazır değilse net sebep, kayıp yok.
+  const docContext = documentId
+    ? await loadDocumentGenerationContext(service, userId, documentId, topic, {
+        maxChars: 9_000,
+      })
+    : null;
+  if (documentId && !docContext) return errorResponse(409, "document_not_ready");
 
   const outcome = await generateJson({
     service,
@@ -30,8 +42,13 @@ export async function POST(request: Request) {
     actionCode: "FLASHCARD_GENERATE",
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
-      'Yalnızca şu JSON şemasını döndür: {"title": string, "cards": [{"front": string, "back": string}]}',
-    userPrompt: `Konu: ${parsedBody.data.topic}. ${parsedBody.data.count} adet çift yönlü kart üret. Ön yüz kısa soru/kavram, arka yüz net açıklama olsun.`,
+      'Yalnızca şu JSON şemasını döndür: {"title": string, "cards": [{"front": string, "back": string}]}' +
+      (docContext
+        ? " Kartları YALNIZCA verilen belge alıntısındaki bilgiden üret."
+        : ""),
+    userPrompt: docContext
+      ? `Belge: ${docContext.fileName}. Konu: ${topic}. ${count} adet çift yönlü kart üret. Ön yüz kısa soru/kavram, arka yüz net açıklama olsun.\n\nBelge alıntısı:\n${docContext.excerpt}`
+      : `Konu: ${topic}. ${count} adet çift yönlü kart üret. Ön yüz kısa soru/kavram, arka yüz net açıklama olsun.`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       if (!result.success) return null;
@@ -47,7 +64,11 @@ export async function POST(request: Request) {
 
   const { data: set, error } = await service
     .from("flashcard_sets")
-    .insert({ user_id: userId, title: outcome.data.title })
+    .insert({
+      user_id: userId,
+      title: outcome.data.title,
+      ...(documentId ? { document_id: documentId } : {}),
+    })
     .select("id")
     .single();
 
@@ -71,6 +92,9 @@ export async function POST(request: Request) {
   return NextResponse.json({
     setId: set.id,
     title: outcome.data.title,
+    source: docContext
+      ? { kind: "document", documentId, fileName: docContext.fileName }
+      : { kind: "topic" },
     count: outcome.data.cards.length,
     creditsUsed: outcome.cost,
     cards: (rows ?? []).map((card) => ({

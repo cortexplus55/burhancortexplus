@@ -1,15 +1,36 @@
 import { describe, expect, it } from "vitest";
+import { isProcessingStale } from "@/lib/documents/processing-stale";
+
+describe("isProcessingStale", () => {
+  const now = new Date("2026-09-24T10:00:00Z");
+  it("yarım saatten yeni işleme takılı sayılmaz", () => {
+    expect(isProcessingStale("processing", "2026-09-24T09:45:00Z", now)).toBe(false);
+  });
+  it("yarım saatten eski işleme takılı", () => {
+    expect(isProcessingStale("processing", "2026-08-29T13:39:00Z", now)).toBe(true);
+    expect(isProcessingStale("pending", null, now)).toBe(true);
+  });
+  it("tamamlanmış ya da başarısız belge takılı değildir", () => {
+    expect(isProcessingStale("completed", "2026-08-01T00:00:00Z", now)).toBe(false);
+    expect(isProcessingStale("failed", null, now)).toBe(false);
+  });
+});
 import { resolveNextBestAction } from "@/lib/learning/next-best-action";
 import { resolveExamCountdown, daysUntilDate } from "@/lib/learning/exam-countdown";
 import {
   explainReadiness,
   readinessFromComposite,
 } from "@/lib/learning/student-readiness";
-import { rankWeakTopics, scoreWeakTopic } from "@/lib/learning/weak-topic-rank";
+import {
+  rankWeakTopics,
+  recentMissRateByTopic,
+  scoreWeakTopic,
+} from "@/lib/learning/weak-topic-rank";
 import {
   buildTodaysStudyPlan,
   rescheduleOverdueTasks,
 } from "@/lib/learning/todays-plan";
+import { formatProgressLine } from "@/lib/learning/progress-line";
 
 describe("resolveNextBestAction", () => {
   const base = {
@@ -28,13 +49,29 @@ describe("resolveNextBestAction", () => {
     expect(a.kind).toBe("onboarding");
   });
 
-  it("işlenen belgeyi resume'dan önce gösterir", () => {
+  it("işlenen belgeyi resume'dan önce gösterir ve belgenin kendisine götürür", () => {
     const a = resolveNextBestAction({
       ...base,
       processingDocumentId: "d1",
       resumeHref: "/deneme",
     });
     expect(a.kind).toBe("document_processing");
+    expect(a.href).toBe("/dokumanlar/d1");
+  });
+
+  it("yarım kalan çalışma bugünün görevinden önce gelir", () => {
+    const a = resolveNextBestAction({
+      ...base,
+      resumeHref: "/deneme-sinavlari/p/dugum/n",
+      studyTaskHref: "/calisma-plani",
+    });
+    expect(a.kind).toBe("exam_resume");
+  });
+
+  it("bugünün görevi varsa etiket 'Çalışmaya devam et'", () => {
+    const a = resolveNextBestAction({ ...base, studyTaskHref: "/calisma-plani" });
+    expect(a.kind).toBe("study_task");
+    expect(a.label).toBe("Çalışmaya devam et");
   });
 
   it("yanlış defterini prep'ten önce seçer", () => {
@@ -153,6 +190,64 @@ describe("weak topic rank", () => {
     });
     expect(warm).toBeLessThan(cold);
   });
+
+  it("yakın dönem yanlış oranı sıralamayı değiştirir", () => {
+    const base = {
+      wrongCount: 3,
+      correctStreak: 0,
+      lastReviewedAt: null,
+      severity: 0.5,
+    };
+    const hot = scoreWeakTopic({ ...base, topicLabel: "A", recentMissRate: 0.9 });
+    const cool = scoreWeakTopic({ ...base, topicLabel: "B", recentMissRate: 0.1 });
+    expect(hot).toBeGreaterThan(cool);
+  });
+
+  it("recentMissRateByTopic 30 günden eski ölçümü saymaz", () => {
+    const now = new Date("2026-09-24T09:00:00Z");
+    const old = new Date("2026-06-01T09:00:00Z").toISOString();
+    const fresh = new Date("2026-09-20T09:00:00Z").toISOString();
+    const rates = recentMissRateByTopic(
+      [
+        { topic_label: "Fonksiyonlar", severity: 1, created_at: old },
+        { topic_label: "Fonksiyonlar", severity: 0.5, created_at: fresh },
+        { topic_label: "Fonksiyonlar", severity: 0.1, created_at: fresh },
+        { topic_label: "Paragraf", severity: 0.8, created_at: old },
+      ],
+      now,
+    );
+    expect(rates.get("Fonksiyonlar")).toBeCloseTo(0.3);
+    expect(rates.has("Paragraf")).toBe(false);
+  });
+});
+
+describe("progress line", () => {
+  it("veri yoksa satır yok", () => {
+    expect(
+      formatProgressLine({
+        onTargetTopics: 0,
+        totalTopics: 0,
+        masteredMistakes: 0,
+        openMistakes: 0,
+        lastExamScore: null,
+        lastExamAt: null,
+      }),
+    ).toBeNull();
+  });
+
+  it("konu, defter ve deneme tek cümlede", () => {
+    const line = formatProgressLine({
+      onTargetTopics: 11,
+      totalTopics: 18,
+      masteredMistakes: 4,
+      openMistakes: 2,
+      lastExamScore: 68,
+      lastExamAt: "2026-09-20",
+    });
+    expect(line).toContain("18 konudan 11");
+    expect(line).toContain("4 yanlış defterden çıktı");
+    expect(line).toContain("%68");
+  });
 });
 
 describe("todays plan", () => {
@@ -178,5 +273,26 @@ describe("todays plan", () => {
     expect(tasks.length).toBeGreaterThan(0);
     expect(totalMinutes).toBeGreaterThan(0);
     expect(tasks.some((t) => t.kind === "mistakes")).toBe(true);
+  });
+
+  it("günlük süre tavanı listeyi sondan kırpar, ilk görev kalır", () => {
+    const { tasks, totalMinutes } = buildTodaysStudyPlan({
+      openMistakes: 5,
+      weakTopicLabels: ["Fonksiyonlar", "Olasılık"],
+      includeOral: true,
+      prepNode: { id: "n1", title: "Türev", href: "/x" },
+      dailyMinutesCap: 20,
+    });
+    expect(tasks.length).toBeGreaterThanOrEqual(1);
+    expect(totalMinutes).toBeLessThanOrEqual(20);
+    expect(tasks[0]?.kind).toBe("prep_node");
+  });
+
+  it("tavan tek görevden küçükse görev yine kalır", () => {
+    const { tasks } = buildTodaysStudyPlan({
+      prepNode: { id: "n1", title: "Türev", href: "/x" },
+      dailyMinutesCap: 5,
+    });
+    expect(tasks).toHaveLength(1);
   });
 });

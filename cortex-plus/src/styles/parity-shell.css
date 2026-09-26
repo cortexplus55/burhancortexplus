@@ -333,6 +333,25 @@
   .cp-sor-main {
     padding-bottom: 0.5rem;
   }
+
+  /*
+    Kaynak kilidi (Yalnızca belgem / Belgem + genel bilgi) bestecinin üstüne
+    bir satır ekliyor; sabit besteci o kadar yükseliyor. Altındaki içerik de
+    aynı miktarda yer açmalı — 24 Eylül 2026'da 697px genişlikte çipler
+    "Günün turu" kartının üstüne biniyordu.
+  */
+  .cp-sor-view:has(.cp-sor-source-mode) .cp-sor-messages {
+    padding-bottom: calc(17.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .cp-sor-view:has(.cp-sor-source-mode) .cp-sor-hero {
+    justify-content: flex-start;
+    padding-top: 1.5rem;
+    padding-bottom: calc(16.5rem + env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 .cp-sor-view {

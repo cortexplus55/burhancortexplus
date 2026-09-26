@@ -15,7 +15,13 @@ import { playPlusTone } from "@/lib/learning/studio-sound";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { cn } from "@/lib/utils";
 
-type Question = { id: string; text: string; options: string[]; correct: string };
+type Question = {
+  id: string;
+  text: string;
+  options: string[];
+  correct: string;
+  explanation?: string | null;
+};
 
 const LETTERS = ["A", "B", "C", "D", "E"];
 const DIFFICULTIES = [
@@ -27,12 +33,19 @@ const DIFFICULTIES = [
 
 type DiffId = (typeof DIFFICULTIES)[number]["id"];
 
+export type QuizDocumentOption = { id: string; fileName: string };
+
 export function QuizStudio({
   creditCost,
   initialTopic = "",
+  documents = [],
+  initialDocumentId = null,
 }: {
   creditCost: number | null;
   initialTopic?: string;
+  /** Hazır (parse edilmiş) belgeler — "Belgem" kaynağı için. */
+  documents?: QuizDocumentOption[];
+  initialDocumentId?: string | null;
 }) {
   const [phase, setPhase] = useState<
     "entry" | "loading" | "play" | "reveal" | "results"
@@ -50,14 +63,28 @@ export function QuizStudio({
   const [weakTopics, setWeakTopics] = useState<string[]>([]);
   const [count, setCount] = useState(6);
   const [difficulty, setDifficulty] = useState<DiffId>("medium");
-  const [sourceMode, setSourceMode] = useState<"topic" | "document">("topic");
+  const [sourceMode, setSourceMode] = useState<"topic" | "document">(
+    initialDocumentId ? "document" : "topic",
+  );
+  const [documentId, setDocumentId] = useState<string | null>(
+    initialDocumentId ?? documents[0]?.id ?? null,
+  );
+  const [mistakesRecorded, setMistakesRecorded] = useState(0);
   const [paywall, setPaywall] = useState(false);
   const [grading, setGrading] = useState(false);
   const isPlus = Boolean(useStudentShellAccount()?.isPremium);
 
   const question = questions[index];
+  const activeDocument =
+    sourceMode === "document"
+      ? documents.find((d) => d.id === documentId) ?? null
+      : null;
 
   async function start(nextTopic: string) {
+    if (sourceMode === "document" && !activeDocument) {
+      toast.error("Önce bir belge seç.");
+      return;
+    }
     setPhase("loading");
     const result = await postStudio<{
       quizId?: string;
@@ -67,6 +94,7 @@ export function QuizStudio({
       topic: nextTopic,
       count,
       difficulty,
+      ...(activeDocument ? { documentId: activeDocument.id } : {}),
     });
     if ("paywall" in result) {
       setPaywall(true);
@@ -74,11 +102,11 @@ export function QuizStudio({
       return;
     }
     if (!result.ok || !result.data.questions?.length) {
-      toast.error(
-        result.ok
-          ? "Quiz üretilemedi. Kredin düşmedi."
-          : result.error || "Quiz üretilemedi. Kredin düşmedi.",
-      );
+      const friendly =
+        !result.ok && result.error === "document_not_ready"
+          ? "Belge henüz hazır değil ya da içi boş. Kredin düşmedi."
+          : "Quiz üretilemedi. Kredin düşmedi.";
+      toast.error(friendly);
       setPhase("entry");
       return;
     }
@@ -93,6 +121,7 @@ export function QuizStudio({
     setIncorrect(0);
     setBlank(0);
     setWeakTopics([]);
+    setMistakesRecorded(0);
     setPhase("play");
   }
 
@@ -129,11 +158,13 @@ export function QuizStudio({
             incorrect: number;
             blank: number;
             weakTopics?: string[];
+            mistakesRecorded?: number;
           };
           setScore(data.correct);
           setIncorrect(data.incorrect);
           setBlank(data.blank);
           setWeakTopics(data.weakTopics ?? []);
+          setMistakesRecorded(data.mistakesRecorded ?? 0);
         } else {
           // Client fallback stats if grade API fails.
           setIncorrect(questions.length - score);
@@ -196,13 +227,40 @@ export function QuizStudio({
             </button>
           </div>
           {sourceMode === "document" ? (
-            <p className="text-sm text-[var(--cs-muted)]">
-              Belge seçmek için{" "}
-              <Link href="/dokumanlar" className="underline">
-                Belgeler
-              </Link>
-              &apos;e git; buradan konu ile devam edebilirsin.
-            </p>
+            documents.length ? (
+              <div className="space-y-1">
+                <label
+                  htmlFor="quiz-document"
+                  className="text-xs font-semibold uppercase tracking-wide text-[var(--cs-muted)]"
+                >
+                  Belge
+                </label>
+                <select
+                  id="quiz-document"
+                  value={documentId ?? ""}
+                  onChange={(e) => setDocumentId(e.target.value || null)}
+                  className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-[var(--cs-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+                >
+                  {documents.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.fileName}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-[var(--cs-muted)]">
+                  Sorular yalnızca bu belgeden üretilir. Aşağıya belgenin hangi
+                  bölümüne odaklanmak istediğini yaz.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--cs-muted)]">
+                Henüz hazır bir belgen yok.{" "}
+                <Link href="/dokumanlar" className="underline">
+                  Belge yükle
+                </Link>
+                ; işlenince burada seçebilirsin.
+              </p>
+            )
           ) : null}
           <div className="flex flex-wrap gap-2">
             {[4, 6, 8, 10].map((n) => (
@@ -241,8 +299,14 @@ export function QuizStudio({
           <StudioEntry
             tool="quiz"
             title="Quiz oluştur"
-            placeholder="Örn. Fonksiyonlar"
-            submitLabel="Quiz başlat"
+            placeholder={
+              sourceMode === "document"
+                ? "Örn. 3. bölüm — fonksiyonlar"
+                : "Örn. Fonksiyonlar"
+            }
+            submitLabel={
+              sourceMode === "document" ? "Belgeden quiz başlat" : "Quiz başlat"
+            }
             creditCost={creditCost}
             initialTopic={initialTopic}
             onSubmit={(nextTopic) => void start(nextTopic)}
@@ -292,12 +356,24 @@ export function QuizStudio({
           {phase === "reveal" ? (
             <div className="ls-actions space-y-2">
               {picked !== question.correct ? (
-                <p className="text-sm text-red-300">
+                <p className="text-sm text-red-300" role="status">
                   Yanlış. Doğru: {question.correct}
                 </p>
               ) : (
-                <p className="text-sm text-emerald-300">Doğru.</p>
+                <p className="text-sm text-emerald-300" role="status">
+                  Doğru.
+                </p>
               )}
+              {question.explanation ? (
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--cs-muted)]">
+                    Neden?
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--cs-text)]">
+                    {question.explanation}
+                  </p>
+                </div>
+              ) : null}
               <button
                 type="button"
                 className="ls-cta"
@@ -328,13 +404,28 @@ export function QuizStudio({
               Zayıf konular: {weakTopics.join(", ")}
             </p>
           ) : null}
+          {mistakesRecorded > 0 ? (
+            <p className="text-sm text-[var(--cs-muted)]">
+              {mistakesRecorded} yanlış Yanlışlar Defteri&apos;ne yazıldı — üst
+              üste iki doğru yapınca defterden çıkar.
+            </p>
+          ) : null}
           <div className="flex flex-wrap gap-2">
-            <Link
-              href="/yanlislarim"
-              className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black"
-            >
-              Yanlışlarımı tekrar et
-            </Link>
+            {incorrect > 0 ? (
+              <Link
+                href="/yanlislarim"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
+              >
+                Yanlışlarımı tekrar et
+              </Link>
+            ) : (
+              <Link
+                href="/dashboard"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
+              >
+                Çalışmaya devam et
+              </Link>
+            )}
             <button
               type="button"
               className="rounded-xl border border-white/15 px-5 py-2.5 text-sm font-semibold text-[var(--cs-text)]"

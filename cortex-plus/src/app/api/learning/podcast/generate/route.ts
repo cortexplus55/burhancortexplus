@@ -3,6 +3,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { generateJson } from "@/lib/ai/generate";
+import { loadDocumentGenerationContext } from "@/lib/documents/generation-context";
 import {
   podcastDialogueIssues,
   podcastNarrationBrief,
@@ -11,9 +12,11 @@ import {
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
+  /** "Belgem" kaynağı: senaryo yalnızca bu belgeden. */
+  documentId: z.string().uuid().optional(),
 });
 
-// Satır bazlı iki sesli biçim; ayrıntı için lib/learning/podcast-script.ts.
+// Satır bazlı biçim; ayrıntı için lib/learning/podcast-script.ts.
 const resultSchema = z.object({
   title: z.string().min(1),
   tagline: z.string().min(1),
@@ -55,6 +58,15 @@ export async function POST(request: Request) {
 
   const parsedBody = bodySchema.safeParse(await request.json());
   if (!parsedBody.success) return errorResponse(400, "invalid_input");
+  const { topic, documentId } = parsedBody.data;
+
+  // Kredi ayrılmadan önce: belge hazır değilse net sebep, kayıp yok.
+  const docContext = documentId
+    ? await loadDocumentGenerationContext(service, userId, documentId, topic, {
+        maxChars: 9_000,
+      })
+    : null;
+  if (documentId && !docContext) return errorResponse(409, "document_not_ready");
 
   const outcome = await generateJson({
     service,
@@ -63,8 +75,13 @@ export async function POST(request: Request) {
     isPremium,
     schemaHint:
       'Yalnızca şu JSON: {"title":string,"tagline":string,"chapters":[{"title":string,"lines":[{"speaker":"ada","text":string}]}]}. ' +
-      `4-5 bölüm. ${SINGLE_NARRATOR_SCHEMA} Konuşma dilinde Türkçe.`,
-    userPrompt: `${podcastNarrationBrief()} Konu: ${parsedBody.data.topic}. Tek öğretmenin anlattığı 5 dakikalık ders senaryosu yaz.`,
+      `4-5 bölüm. ${SINGLE_NARRATOR_SCHEMA} Konuşma dilinde Türkçe.` +
+      (docContext
+        ? " İçeriği YALNIZCA verilen belge alıntısındaki bilgiden kur; alıntıda olmayan iddia ekleme."
+        : ""),
+    userPrompt: docContext
+      ? `${podcastNarrationBrief()} Belge: ${docContext.fileName}. Konu: ${topic}. Tek öğretmenin anlattığı 5 dakikalık ders senaryosu yaz.\n\nBelge alıntısı:\n${docContext.excerpt}`
+      : `${podcastNarrationBrief()} Konu: ${topic}. Tek öğretmenin anlattığı 5 dakikalık ders senaryosu yaz.`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       if (!result.success) return null;
@@ -75,5 +92,33 @@ export async function POST(request: Request) {
 
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
 
-  return NextResponse.json(outcome.data);
+  // Senaryo kütüphaneye yazılıyor: ses satırları içerik adresli önbellekte
+  // durduğu için aynı bölümü yeniden dinlemek bedava; saklanan tek şey metin.
+  // Yazma başarısız olsa bile bölüm bu istekte çalınır — best-effort.
+  let podcastId: string | null = null;
+  try {
+    const { data: saved } = await service
+      .from("podcasts")
+      .insert({
+        user_id: userId,
+        document_id: documentId ?? null,
+        topic,
+        title: outcome.data.title,
+        tagline: outcome.data.tagline,
+        chapters: outcome.data.chapters,
+      })
+      .select("id")
+      .single();
+    podcastId = (saved?.id as string | undefined) ?? null;
+  } catch {
+    podcastId = null;
+  }
+
+  return NextResponse.json({
+    ...outcome.data,
+    podcastId,
+    source: docContext
+      ? { kind: "document", documentId, fileName: docContext.fileName }
+      : { kind: "topic" },
+  });
 }

@@ -38,6 +38,20 @@ describe("yanlış defteri — tekrar kuralı", () => {
     expect(afterOneCorrect.masteredAt).toBeNull();
   });
 
+  it("Doğru → Yanlış → Doğru dizisinde son doğru yalnızca 1 sayılır", () => {
+    let s = nextReviewState(state(0), true, NOW);
+    expect(s.correctStreak).toBe(1);
+    s = nextReviewState(s, false, NOW);
+    expect(s.correctStreak).toBe(0);
+    s = nextReviewState(s, true, NOW);
+    expect(s.correctStreak).toBe(1);
+    expect(s.masteredAt).toBeNull();
+    // Bir doğru daha → defterden çıkar.
+    s = nextReviewState(s, true, NOW);
+    expect(s.correctStreak).toBe(MASTERY_STREAK);
+    expect(s.masteredAt).toBe(NOW);
+  });
+
   it("yanlış yanıt yanlış sayacını artırır, doğru yanıt artırmaz", () => {
     expect(nextReviewState(state(0, 0, 3), false, NOW).wrongCount).toBe(4);
     expect(nextReviewState(state(0, 0, 3), true, NOW).wrongCount).toBe(3);

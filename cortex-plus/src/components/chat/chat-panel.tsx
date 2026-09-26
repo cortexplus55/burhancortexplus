@@ -32,6 +32,7 @@ import {
   Smile,
   SlidersHorizontal,
   Brush,
+  Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createRecognizer, speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
@@ -79,10 +80,22 @@ function SorTypingDots({ label }: { label?: string }) {
   );
 }
 
+/**
+ * Hata balonunda öğrenciye ne yazılacağı. Sunucudan gelen kısa Türkçe
+ * mesajlar (ör. "Belgene şu an erişilemiyor.") aynen geçer; teknik görünen
+ * ("fetch failed", "Unexpected token", kod adı) her şey tek dost cümleye
+ * düşer. Ham 500 metni ekrana çıkmıyor.
+ */
+const FRIENDLY_ERROR = "Yanıt alınamadı. Bağlantını kontrol edip tekrar dene.";
+
 function assistantErrorContent(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "Bir hata oluştu. Lütfen tekrar deneyin.";
+  if (!(error instanceof Error) || !error.message) return FRIENDLY_ERROR;
+  const text = error.message.trim();
+  const technical =
+    /(fetch|failed|error|exception|econn|timeout|token|undefined|null|status|_|\{|\})/i.test(text) ||
+    !/[ .]/.test(text) ||
+    text.length > 160;
+  return technical ? FRIENDLY_ERROR : text;
 }
 
 function plainForSpeech(content: string) {
@@ -244,7 +257,10 @@ function ChatPanelSession({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [paywall, setPaywall] = useState(false);
-  const [useDocuments, setUseDocuments] = useState(false);
+  // `?belge=` ile gelen öğrenci belgesinden çalışmak istiyor: belge modu
+  // açık başlar ve kilit görünür. Aksi hâlde konuşma sessizce genel bilgiye
+  // düşerdi ve "belgemi okumadı" şikâyeti gelirdi.
+  const [useDocuments, setUseDocuments] = useState(Boolean(initialDocumentId));
   /** true = Yalnızca Belgem (varsayılan); false = Belgem + Genel Bilgi */
   const [documentsOnly, setDocumentsOnly] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
@@ -736,14 +752,16 @@ function ChatPanelSession({
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
+        // Durdurulan yanıt boş kalmasın: yarım metin varsa duruyor, hiç
+        // gelmediyse (istek daha cevaplanmamışken durduruldu) tek satır ve
+        // "Tekrar dene" — öğrenci soruyu yeniden yazmak zorunda kalmıyor.
         setMessages((prev) => {
           const last = prev[prev.length - 1];
+          const stopped = { role: "assistant" as const, content: "Yanıt durduruldu.", isError: true };
           if (last?.role === "assistant" && !last.content) {
-            return [
-              ...prev.slice(0, -1),
-              { role: "assistant", content: "(Yanıt durduruldu.)" },
-            ];
+            return [...prev.slice(0, -1), stopped];
           }
+          if (last?.role === "user") return [...prev, stopped];
           return prev;
         });
         return;
@@ -920,6 +938,77 @@ function ChatPanelSession({
     })();
   }
 
+  /**
+   * Kaynak kilidi. Öğrencinin hangi bilgiden cevap aldığını her mesajdan
+   * önce görmesi gerekiyor; bu yüzden bestecinin üstünde durur, ayarlarda
+   * değil. Üç durum: yalnızca belgem, belgem + genel bilgi, genel sohbet.
+   */
+  const showSourceMode = hasDocuments || Boolean(initialDocumentId);
+  function renderSourceMode(compact = false) {
+    if (!showSourceMode) return null;
+    const on = "rounded-full bg-amber-500/20 px-3 py-1 font-semibold text-amber-100";
+    const off = "rounded-full px-3 py-1 text-[var(--cs-muted)] hover:text-[var(--cs-text)]";
+    return (
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs",
+          compact ? "cp-sor-source-mode mb-2 justify-center" : "mb-2 gap-2 px-3 py-2",
+        )}
+        role="group"
+        aria-label="Kaynak modu"
+      >
+        <button
+          type="button"
+          className={useDocuments && documentsOnly ? on : off}
+          aria-pressed={useDocuments && documentsOnly}
+          onClick={() => {
+            setUseDocuments(true);
+            setDocumentsOnly(true);
+          }}
+        >
+          🔒 Yalnızca belgem
+        </button>
+        <button
+          type="button"
+          className={useDocuments && !documentsOnly ? on : off}
+          aria-pressed={useDocuments && !documentsOnly}
+          onClick={() => {
+            setUseDocuments(true);
+            setDocumentsOnly(false);
+          }}
+        >
+          🌐 Belgem + genel bilgi
+        </button>
+        <button
+          type="button"
+          className={
+            !useDocuments
+              ? "rounded-full bg-white/10 px-3 py-1 font-semibold text-[var(--cs-text)]"
+              : off
+          }
+          aria-pressed={!useDocuments}
+          onClick={() => setUseDocuments(false)}
+        >
+          Genel sohbet
+        </button>
+      </div>
+    );
+  }
+
+  /** Hata balonunun altındaki tek çıkış: aynı soruyu yeniden gönder. */
+  function renderRetry(index: number) {
+    if (index !== messages.length - 1 || loading) return null;
+    return (
+      <button
+        type="button"
+        className="mt-2 inline-flex min-h-[2.25rem] items-center rounded-full border border-white/15 px-3 text-xs font-semibold text-[var(--cs-text)] hover:border-amber-400/50"
+        onClick={regenerateLast}
+      >
+        Tekrar dene
+      </button>
+    );
+  }
+
   if (isParitySor) {
     return (
       <>
@@ -1027,25 +1116,37 @@ function ChatPanelSession({
               {messages.map((message, index) => {
                 const assistantBody = message.content ? (
                   <>
-                    <TutorReplyView
-                      content={message.content}
-                      variant="parity"
-                      disabled={loading}
-                      onPrompt={(prompt) => void send(prompt)}
-                    />
-                    {!message.isError ? (
-                      <MessageActions
-                        content={message.content}
-                        messageId={feedbackEnabled ? message.id : undefined}
-                        rating={message.rating ?? null}
-                        onRated={(next) => setRating(index, next)}
-                        onRegenerate={
-                          index === messages.length - 1 && !loading
-                            ? regenerateLast
-                            : undefined
-                        }
-                      />
-                    ) : null}
+                    {message.isError ? (
+                      <div role="alert">
+                        <TutorReplyView
+                          content={message.content}
+                          variant="parity"
+                          disabled
+                          onPrompt={() => undefined}
+                        />
+                        {renderRetry(index)}
+                      </div>
+                    ) : (
+                      <>
+                        <TutorReplyView
+                          content={message.content}
+                          variant="parity"
+                          disabled={loading}
+                          onPrompt={(prompt) => void send(prompt)}
+                        />
+                        <MessageActions
+                          content={message.content}
+                          messageId={feedbackEnabled ? message.id : undefined}
+                          rating={message.rating ?? null}
+                          onRated={(next) => setRating(index, next)}
+                          onRegenerate={
+                            index === messages.length - 1 && !loading
+                              ? regenerateLast
+                              : undefined
+                          }
+                        />
+                      </>
+                    )}
                   </>
                 ) : loading && examChrome ? (
                   <SorTypingDots label={thinkingLabel} />
@@ -1156,6 +1257,7 @@ function ChatPanelSession({
             style={keyboardInset ? { paddingBottom: keyboardInset } : undefined}
           >
             <div className="cp-sor-composer-main">
+            {renderSourceMode(true)}
             {showSubjectPicker ? (
               <div className="cp-sor-subject-wrap">
                 <button
@@ -1437,17 +1539,27 @@ function ChatPanelSession({
                       )}
                     </button>
                   ) : null}
-                  {!examChrome && (input.trim() || pendingFile || pendingRemote) ? (
+                  {!examChrome && loading ? (
+                    /* Üretim sürerken gönder düğmesinin yerini durdur alıyor:
+                       yarım kalan yanıt ekranda kalır, kredi bir kez düşer. */
+                    <button
+                      type="button"
+                      className="cp-send"
+                      aria-label="Yanıtı durdur"
+                      onClick={stopGeneration}
+                    >
+                      <Square className="h-3.5 w-3.5" aria-hidden />
+                    </button>
+                  ) : !examChrome && (input.trim() || pendingFile || pendingRemote) ? (
                     <button
                       type="submit"
                       className="cp-send"
                       aria-label="Gönder"
-                      disabled={loading}
                     >
                       <Send className="h-4 w-4" aria-hidden />
                     </button>
                   ) : null}
-                  {!examChrome && !(input.trim() || pendingFile || pendingRemote) ? (
+                  {!examChrome && !loading && !(input.trim() || pendingFile || pendingRemote) ? (
                     <button
                       type="button"
                       className="cp-sor-voice-chip"
@@ -1612,53 +1724,7 @@ function ChatPanelSession({
           </div>
         ) : null}
 
-        {hasDocuments && isParity ? (
-          <div
-            className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs"
-            role="group"
-            aria-label="Kaynak modu"
-          >
-            <button
-              type="button"
-              className={
-                useDocuments && documentsOnly
-                  ? "rounded-full bg-amber-500/20 px-3 py-1 font-semibold text-amber-100"
-                  : "rounded-full px-3 py-1 text-[var(--cs-muted)]"
-              }
-              onClick={() => {
-                setUseDocuments(true);
-                setDocumentsOnly(true);
-              }}
-            >
-              🔒 Yalnızca belgem
-            </button>
-            <button
-              type="button"
-              className={
-                useDocuments && !documentsOnly
-                  ? "rounded-full bg-amber-500/20 px-3 py-1 font-semibold text-amber-100"
-                  : "rounded-full px-3 py-1 text-[var(--cs-muted)]"
-              }
-              onClick={() => {
-                setUseDocuments(true);
-                setDocumentsOnly(false);
-              }}
-            >
-              🌐 Belgem + genel bilgi
-            </button>
-            <button
-              type="button"
-              className={
-                !useDocuments
-                  ? "rounded-full bg-white/10 px-3 py-1 font-semibold text-[var(--cs-text)]"
-                  : "rounded-full px-3 py-1 text-[var(--cs-muted)]"
-              }
-              onClick={() => setUseDocuments(false)}
-            >
-              Genel sohbet
-            </button>
-          </div>
-        ) : null}
+        {isParity ? renderSourceMode() : null}
 
         {isParity && !isMinimalSor && messages.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 py-8 text-center">
@@ -1729,7 +1795,11 @@ function ChatPanelSession({
                 aria-live="polite"
               >
                 {messages.map((message, index) => (
-                  <div key={index} className={bubbleClass(message, index)}>
+                  <div
+                    key={index}
+                    className={bubbleClass(message, index)}
+                    role={message.isError ? "alert" : undefined}
+                  >
                     {message.role === "user" ? (
                       message.content
                     ) : message.content ? (

@@ -79,6 +79,18 @@
   padding: 0.5rem 1.15rem 1.4rem;
 }
 
+/*
+  Alt menü (cp-sor-bottomnav) 900px altında yapışkan ve stüdyonun son
+  satırının üstüne oturuyor: 24 Eylül 2026'da 700px yükseklikte quiz
+  stüdyosunun "Belgeden quiz başlat" düğmesi menünün altında kaldı, tıklanamadı.
+  Menü yüksekliği kadar alt boşluk; composer için kullanılan 4.6rem ile aynı.
+*/
+@media (max-width: 899px) {
+  .ls-studio-body {
+    padding-bottom: calc(5.2rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .ls-world {
   position: relative;
   height: 5.4rem;
@@ -966,6 +978,88 @@
   color: var(--ls-accent);
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* Üretimden önce ne alınacağı: kaynak, süre, kredi. */
+.ls-pod-preflight {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.875rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.8125rem;
+}
+
+.ls-pod-preflight div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ls-pod-preflight dt { color: var(--ls-muted); flex: none; }
+.ls-pod-preflight dd { margin: 0; text-align: right; color: var(--ls-text); }
+
+.ls-pod-library { margin-top: 1rem; }
+.ls-pod-library h2 { margin: 0 0 0.45rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.ls-pod-library ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
+.ls-pod-library .ls-chapter { text-decoration: none; }
+
+/* Oynatıcı: 10 sn geri · ilerleme · 10 sn ileri */
+.ls-pod-transport {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: min(100%, 28rem);
+}
+
+.ls-pod-skip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 2.75rem;
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+}
+
+.ls-pod-progress {
+  position: relative;
+  flex: 1 1 auto;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.ls-pod-progress span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffc857, #d4922a);
+  transition: width 0.25s linear;
+}
+
+.ls-pod-clock { margin: -0.25rem 0 0; }
+
+.ls-pod-speeds {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.ls-chip.is-on {
+  border-color: color-mix(in srgb, var(--ls-accent) 60%, transparent);
+  background: color-mix(in srgb, var(--ls-accent) 14%, transparent);
+  font-weight: 600;
+}
+
+.ls-pod-line { margin: 0 0 0.4rem; }
+.ls-pod-line strong { color: var(--ls-accent); margin-right: 0.35rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ls-pod-progress span { transition: none; }
 }
 
 /* Öneriler sağa yaslı: kullanıcının söyleyebilecekleri, kullanıcının

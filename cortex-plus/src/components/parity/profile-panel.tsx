@@ -31,7 +31,7 @@ const MENU = [
   { href: "/paketler", label: "Abonelikler", icon: CreditCard },
   { href: "/sohbetler", label: "Geçmiş konuşmalar", icon: History },
   { href: "/yardim", label: "Yardım ve destek", icon: HelpCircle },
-  { href: "/mobil-uygulama", label: "Uygulamayı indir", icon: Download },
+  { href: "/mobil-uygulama", label: "Telefondan kullan", icon: Download },
 ];
 
 export function ProfilePanel({

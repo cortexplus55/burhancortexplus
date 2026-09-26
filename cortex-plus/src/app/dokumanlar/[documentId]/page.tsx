@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { TopicMapEditor } from "@/components/documents/topic-map-editor";
 import { DocumentDeleteButton } from "@/components/documents/document-delete-button";
+import { DocumentRetryButton } from "@/components/documents/document-retry-button";
+import { processErrorLabel } from "@/lib/documents/error-labels";
+import { isProcessingStale } from "@/lib/documents/processing-stale";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import {
@@ -75,12 +78,70 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
       ? `${estHours} saat${estRem ? ` ${estRem} dakika` : ""}`
       : `${estMinutes} dakika`;
 
-  const { data: quizzes } = await supabase
-    .from("quizzes")
-    .select("id, title, created_at")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(5);
+  // Bu belgeye bağlı üretilenler ve varsa bu belgeden kurulmuş çalışma planı.
+  const [{ data: quizzes }, { data: sets }, { data: podcasts }, { data: prep }] =
+    await Promise.all([
+      supabase
+        .from("quizzes")
+        .select("id, title, created_at")
+        .eq("user_id", user.id)
+        .eq("document_id", documentId)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      supabase
+        .from("flashcard_sets")
+        .select("id, title, created_at")
+        .eq("user_id", user.id)
+        .eq("document_id", documentId)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      supabase
+        .from("podcasts")
+        .select("id, title, created_at")
+        .eq("user_id", user.id)
+        .eq("document_id", documentId)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      service
+        .from("exam_preps")
+        .select("id, title")
+        .eq("user_id", user.id)
+        .eq("document_id", documentId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+  const artifacts = [
+    ...(quizzes ?? []).map((q) => ({
+      id: `quiz-${q.id}`,
+      label: `Quiz · ${q.title}`,
+      href: "/quizler",
+      at: q.created_at as string,
+    })),
+    ...(sets ?? []).map((s) => ({
+      id: `set-${s.id}`,
+      label: `Flashcard · ${s.title}`,
+      href: "/flashcardlar",
+      at: s.created_at as string,
+    })),
+    ...(podcasts ?? []).map((p) => ({
+      id: `pod-${p.id}`,
+      label: `Podcast · ${p.title}`,
+      href: `/studio/podcast?podcastId=${p.id}`,
+      at: p.created_at as string,
+    })),
+  ]
+    .sort((a, b) => (a.at < b.at ? 1 : -1))
+    .slice(0, 6);
+
+  const planHref = prep
+    ? `/deneme-sinavlari/${prep.id}`
+    : `/deneme-sinavlari/olustur?documentId=${documentId}`;
+  const planLabel = prep ? "Çalışmaya devam et" : "Çalışma planımı oluştur";
+  const failedLabel =
+    processErrorLabel(doc.error_message as string | null) ??
+    "Belge işlenemedi. Yeniden işlemeyi veya tekrar yüklemeyi dene.";
 
   return (
     <ParitySorShell {...shell}>
@@ -118,10 +179,10 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
             )}
             {canGenerate ? (
               <Link
-                href={`/deneme-sinavlari/olustur?documentId=${documentId}`}
-                className="inline-flex min-h-[48px] w-full items-center justify-center rounded-2xl bg-amber-500 px-5 py-3 text-sm font-bold text-black hover:bg-amber-400 sm:w-auto"
+                href={planHref}
+                className="inline-flex min-h-[48px] w-full items-center justify-center rounded-2xl bg-amber-500 px-5 py-3 text-sm font-bold text-black hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 sm:w-auto"
               >
-                Çalışma planımı oluştur
+                {planLabel}
               </Link>
             ) : (
               <p className="text-sm text-[var(--cs-muted)]">
@@ -149,20 +210,40 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                 label="Podcast"
                 enabled={canGenerate}
               />
-              <ActionChip
-                href={`/deneme-sinavlari/olustur?documentId=${documentId}`}
-                label="Çalışmaya başla"
-                enabled={canGenerate}
-              />
             </div>
           </section>
         ) : doc.status === "failed" ? (
-          <section className="cs-pay-card p-5 text-sm text-red-300">
-            {(doc.error_message as string | null) ??
-              "Belge işlenemedi. Tekrar yüklemeyi dene."}
+          <section className="cs-pay-card space-y-3 p-5">
+            <p className="text-sm text-red-300" role="alert">
+              {failedLabel}
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <DocumentRetryButton documentId={documentId} />
+              <Link
+                href="/dokumanlar"
+                className="text-xs text-[var(--cs-muted)] underline underline-offset-2"
+              >
+                Yeni belge yükle
+              </Link>
+            </div>
+          </section>
+        ) : isProcessingStale(doc.status, doc.updated_at as string | null) ? (
+          <section className="cs-pay-card space-y-3 p-5">
+            <p className="text-sm text-amber-200" role="status">
+              İşleme takıldı — belge yarım saatten uzun süredir hazırlanamadı.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <DocumentRetryButton documentId={documentId} />
+              <Link
+                href="/dokumanlar"
+                className="text-xs text-[var(--cs-muted)] underline underline-offset-2"
+              >
+                Yeni belge yükle
+              </Link>
+            </div>
           </section>
         ) : (
-          <section className="cs-pay-card p-5 text-sm text-[var(--cs-muted)]">
+          <section className="cs-pay-card p-5 text-sm text-[var(--cs-muted)]" role="status">
             {doc.status === "processing"
               ? "Belgen okunuyor ve içerik hazırlanıyor…"
               : "Belge bekliyor…"}
@@ -186,15 +267,20 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
           </section>
         ) : null}
 
-        {quizzes?.length ? (
+        {artifacts.length ? (
           <section className="space-y-2">
             <h2 className="text-sm font-semibold text-[var(--cs-muted)]">
-              Son üretilenler
+              Bu belgeden üretilenler
             </h2>
             <ul className="space-y-1 text-sm">
-              {quizzes.map((q) => (
-                <li key={q.id} className="text-[var(--cs-text)]">
-                  Quiz · {q.title}
+              {artifacts.map((a) => (
+                <li key={a.id}>
+                  <Link
+                    href={a.href}
+                    className="text-[var(--cs-text)] underline-offset-2 hover:underline"
+                  >
+                    {a.label}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -226,6 +312,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                 (doc.topic_map_updated_at as string | null) ?? null
               }
               mapReady={mapReady}
+              hidePlanLink
               coverage={
                 snapshot.coverage
                   ? {
@@ -262,8 +349,10 @@ function ActionChip({
       <span
         className="cursor-not-allowed rounded-full border border-white/10 px-3 py-1.5 text-xs text-[var(--cs-muted)] opacity-50"
         title="Belge hazır değil"
+        aria-disabled="true"
       >
         {label}
+        <span className="sr-only"> (belge hazır olunca açılır)</span>
       </span>
     );
   }
