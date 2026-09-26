@@ -77,6 +77,16 @@ describe("renderMath", () => {
     expect(() => renderMath("\\frac{", false)).not.toThrow();
   });
 
+  it("kesir formülünü çizer", () => {
+    const html = renderMath("\\frac{n}{k}", false);
+    expect(html).toContain("katex");
+  });
+
+  it("mhchem \\ce{H2O} çizer", () => {
+    const html = renderMath("\\ce{H2O}", false);
+    expect(html).toContain("katex");
+  });
+
   // trust:false olduğu için \href gibi HTML enjekte eden komutlar geçmemeli.
   it("HTML enjekte eden komutları geçirmez", () => {
     const html = renderMath("\\href{javascript:alert(1)}{tikla}", false);

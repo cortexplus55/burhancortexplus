@@ -58,7 +58,10 @@ describe("sayısal doğrulama", () => {
     });
     expect(shaped.content.toLocaleLowerCase("tr")).not.toMatch(/kısmen doğru/);
     expect(shaped.content.toLocaleLowerCase("tr")).toMatch(/hiçbiri sınırlayıcı değil/);
-    expect(shaped.content).toMatch(/Doğru kısım/);
+    expect(shaped.content).toMatch(/\[\[hukum:yanlis\|Tekrar bakalım\]\]/);
+    expect(shaped.content).not.toMatch(/Doğru kısım:/);
+    expect(shaped.content).not.toMatch(/Yanlış kısım:/);
+    expect(shaped.content).not.toMatch(/Hüküm:/);
   });
 
   it("iktisat hesabındaki yanlış çarpımı düzeltir", () => {
@@ -208,11 +211,13 @@ describe("sadece cevap ve rozet", () => {
     });
     expect(shaped.content.startsWith("**Sadece cevap: 0,1 mol.**")).toBe(true);
     expect(shaped.content).toContain("[[adimlar]]");
+    expect(shaped.content).toContain("[[takip:");
     expect(shaped.content).not.toMatch(/0\.1/);
     expect(shaped.content).not.toMatch(/Materyal dışı/);
     const view = splitTutorChrome(shaped.content);
     expect(view.body.startsWith("**Sadece cevap: 0,1 mol.**")).toBe(true);
     expect(view.steps).toMatch(/0,1 mol/);
+    expect(view.followUp).toMatch(/aynı tipte bir soru/i);
     expect(view.chips.map((chip) => chip.label)).toEqual([
       "Adım adım göster",
       "Benzer bir soru ver",
@@ -278,9 +283,10 @@ describe("canlı yol — hüküm taslağı ezer", () => {
     expect(folded).not.toMatch(/hata var/);
     expect(folded).not.toMatch(/o₂ sınırlayıcı bileşen|o2 sınırlayıcı bileşen/);
     expect(folded).toMatch(/hiçbiri sınırlayıcı değil/);
-    expect(folded).toMatch(/doğru kısım/);
-    expect(folded).toMatch(/yanlış kısım/);
-    expect(shaped.content).toMatch(/1 mol O/);
+    expect(folded).not.toMatch(/doğru kısım:/);
+    expect(folded).not.toMatch(/yanlış kısım:/);
+    expect(shaped.content).toMatch(/\[\[hukum:/);
+    expect(shaped.content.toLocaleLowerCase("tr")).toMatch(/oranlar eşit|hiçbiri sınırlayıcı değil/);
     expect(shaped.content).not.toMatch(/H₂ yeterlidir|yetersizdir/);
 
     const route = readFileSync("src/app/api/ai/chat/route.ts", "utf8");
@@ -298,12 +304,12 @@ describe("canlı yol — hüküm taslağı ezer", () => {
     expect(settled.replaced).toBe(true);
     expect(settled.grade?.verdict).toBe("dogru");
     expect(settled.text).toMatch(/4 × 5 = 20/);
-    expect(settled.text.toLocaleLowerCase("tr")).toMatch(/^doğru/);
+    expect(settled.text.toLocaleLowerCase("tr")).toMatch(/tam isabet/);
     expect(settled.text).not.toMatch(/25/);
     expect(settled.text.toLocaleLowerCase("tr")).not.toMatch(/hata var/);
   });
 
-  it("kısmen doğru hükmü doğru parçayı, yanlış parçayı ve sonucu yazar", () => {
+  it("kısmen doğru hükmü sıcak dil kullanır, etiket yığını yazmaz", () => {
     const student = "2H2 + O2 → 2H2O. 1 mol H2 ve 2 mol O2 var. H2 sınırlayıcı çünkü daha az gram.";
     const grade = gradeStudentClaim({ student });
     expect(grade?.verdict).toBe("kismen");
@@ -314,9 +320,11 @@ describe("canlı yol — hüküm taslağı ezer", () => {
       scope: { excluded: [], weighted: [] },
       grade,
     });
-    expect(shaped.content.toLocaleLowerCase("tr")).toMatch(/kısmen doğru/);
-    expect(shaped.content).toMatch(/Doğru kısım/);
-    expect(shaped.content).toMatch(/Yanlış kısım/);
+    expect(shaped.content).toMatch(/\[\[hukum:kismen\|Neredeyse\]\]/);
+    expect(shaped.content.toLocaleLowerCase("tr")).toMatch(/neredeyse/);
+    expect(shaped.content).not.toMatch(/Doğru kısım:/);
+    expect(shaped.content).not.toMatch(/Yanlış kısım:/);
+    expect(shaped.content).not.toMatch(/Hüküm:/);
     expect(shaped.content.toLocaleLowerCase("tr")).toMatch(/gram/);
     expect(shaped.content.toLocaleLowerCase("tr")).toMatch(/sınırlayıcı h/);
   });
@@ -427,11 +435,11 @@ describe("türkçe soru eki", () => {
     expect(fixTurkishQuestionOrder("Bir örnek üzerinden geçebiliriz mi?")).toBe("Bir örnek üzerinden geçebilir miyiz?");
     expect(fixTurkishQuestionOrder("analiz mi bu?")).toBe("analiz mi bu?");
     const shaped = finalizeTutorReply({
-      message: "Hangisi daha az gramsa o sınırlayıcıdır.",
-      draft: "Yanlış. Doğru sonucu bulmak için bir örnek üzerinden geçebiliriz mi?",
+      message: "Biraz daha anlatır mısın?",
+      draft: "Tabii. Bir örnek üzerinden geçebiliriz mi?",
       decision: "in",
       scope: { excluded: [], weighted: [] },
-      grade: gradeStudentClaim({ student: "Hangisi daha az gramsa o sınırlayıcıdır." }),
+      grade: null,
     });
     expect(shaped.content).toContain("geçebilir miyiz?");
     expect(shaped.content).not.toContain("geçebiliriz mi");

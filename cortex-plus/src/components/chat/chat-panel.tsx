@@ -1027,14 +1027,13 @@ function ChatPanelSession({
           {showParityEmpty && examChrome ? (
             <div className="cp-exam-empty">
               <div className="cp-exam-column">
-                <div className="cp-exam-greet">
-                  <span className="cp-exam-mark" aria-hidden>
-                    <CortexMark size={14} />
-                  </span>
-                  <p>{greetingLine ?? "Selam! Neye çalışmak istersin?"}</p>
+                <div className="cp-exam-empty-hero">
+                  <div className="cp-exam-empty-orb" aria-hidden />
+                  <h2 className="cp-exam-empty-title">Ne öğrenmek istersin?</h2>
+                  <p className="cp-exam-greet-line">{greetingLine ?? "Selam! Neye çalışmak istersin?"}</p>
                 </div>
                 {starterPrompts?.length ? (
-                  <div className="cp-exam-starters" role="group" aria-label="Başlangıç önerileri">
+                  <div className="cp-exam-starter-grid" role="group" aria-label="Başlangıç önerileri">
                     {starterPrompts.map((item) => (
                       <button
                         key={item.label}
@@ -1110,6 +1109,7 @@ function ChatPanelSession({
             <div
               ref={messagesScrollRef}
               className={cn("cp-sor-messages", examChrome && "cp-exam-thread")}
+              role="log"
               aria-live="polite"
             >
               <div className={examChrome ? "cp-exam-column" : undefined}>

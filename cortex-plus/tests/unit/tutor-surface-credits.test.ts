@@ -50,9 +50,12 @@ describe("tutor surface", () => {
     });
     const body = shaped.content.split("[[chip:")[0] ?? "";
     expect(body.match(/Hüküm:/g) ?? []).toHaveLength(0);
-    expect(body.match(/^Yanlış:/m)).not.toBeNull();
+    expect(body).toMatch(/\[\[hukum:yanlis\|Tekrar bakalım\]\]|Tekrar bakalım/);
+    expect(body).not.toMatch(/Doğru kısım:/);
+    expect(body).not.toMatch(/Yanlış kısım:/);
     expect((body.match(/\?/g) ?? []).length).toBe(1);
-    expect(body).toContain("her maddenin mol");
+    // İyelik onarımı ya LIVE_DRAFT'taki Sonuç satırında ya da warmLine'da görünür.
+    expect(body.toLocaleLowerCase("tr")).toMatch(/her madde(?:nin|yi) mol|mollere çevir/);
   });
 });
 

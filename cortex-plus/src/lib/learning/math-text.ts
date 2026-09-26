@@ -1,4 +1,5 @@
 import katex from "katex";
+import "katex/contrib/mhchem";
 
 /**
  * Model çıktısındaki LaTeX'i güvenli HTML'e çevirir.
@@ -10,6 +11,8 @@ import katex from "katex";
  * Güvenlik: metin parçaları çağıran tarafta escape edilir; buradan yalnızca
  * KaTeX'in kendi ürettiği işaretleme döner. `trust: false` ile `\href`,
  * `\htmlClass` gibi HTML enjekte edebilen komutlar kapalıdır.
+ *
+ * mhchem: `\ce{H2O}` kimya formülleri için.
  */
 
 export type MathSegment =
@@ -55,7 +58,7 @@ export function splitMath(input: string): MathSegment[] {
   return segments;
 }
 
-/** Formülü KaTeX ile render eder; hatalı LaTeX çökertmez, kırmızı gösterilir. */
+/** Formülü KaTeX ile render eder; hatalı LaTeX çökertmez, düz metne düşer. */
 export function renderMath(tex: string, display: boolean): string {
   try {
     return katex.renderToString(tex, {
@@ -66,7 +69,6 @@ export function renderMath(tex: string, display: boolean): string {
       output: "html",
     });
   } catch {
-    // KaTeX throwOnError:false ile de nadiren fırlatabiliyor; ham metne düş.
     return escapeHtml(tex);
   }
 }
@@ -86,5 +88,15 @@ export function escapeHtml(text: string): string {
  * köşeli biçimli formüller "matematik yok" sayılıp ham metin olarak geçiyordu.
  */
 export function hasMath(input: string): boolean {
-  return /\$[^$\n]/.test(input) || /\\\[|\\\(/.test(input);
+  return /\$[^$\n]/.test(input) || /\\\[|\\\(/.test(input) || /\\ce\{/.test(input);
+}
+
+/** LaTeX'i okunur düz metne çevirir (kopyala / TTS). */
+export function mathToPlain(tex: string): string {
+  return tex
+    .replace(/\\ce\{([^}]+)\}/g, "$1")
+    .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "($1)/($2)")
+    .replace(/\\[a-zA-Z]+/g, "")
+    .replace(/[{}]/g, "")
+    .trim();
 }
