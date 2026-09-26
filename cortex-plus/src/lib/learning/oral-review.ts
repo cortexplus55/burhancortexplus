@@ -3,7 +3,7 @@
  * kaynak cümlesi yok diye sıfırlamaz, hata/çözüm alanına soru metnini yazmaz.
  */
 
-import { contentStems, stemsOverlap } from "@/lib/learning/learner-fluency";
+import { contentStems, sentences, stemsOverlap } from "@/lib/learning/learner-fluency";
 import { isUnsupportedComparativeAbsolute } from "@/lib/learning/absolute-claims";
 
 function fold(text: string): string {
@@ -15,7 +15,7 @@ function fold(text: string): string {
 
 /** Karşılaştırmalı rol: sınırlayıcı, artan madde, hangisi tükenir, hangisi baskın. */
 const COMPARATIVE_ROLE =
-  /(sınırlayıcı|sinirlayici|artan\s+madde|hangisi\s+tüken|hangisi\s+tuken|hangi\s+(?:bileşen|bilesen|reaktan|madde|kuvvet|taraf)|baskın\s+olan|baskin\s+olan)/i;
+  /(sınırlayıcı|sinirlayici|artan\s+madde|hangisi\s+tüken|hangisi\s+tuken|hangi\s+(?:bileşen|bilesen|reaktan|madde|kuvvet|taraf|ordu)|baskın\s+olan|baskin\s+olan)/i;
 
 /** İki taraf ya da bir denklem: + / → / vs / X ile Y / iki … */
 const TWO_SIDES =
@@ -44,6 +44,47 @@ export function verifyOralPrompt(prompt: string): string[] {
     );
   }
   return issues;
+}
+
+/**
+ * Sorunun varsaydığı varlıklar ve ilişki kaynakta birlikte geçiyor mu?
+ * Derse özgü kelime listesi yok: stem örtüşmesi + karşılaştırmalı rol kuralı.
+ */
+export function oralPremiseGrounded(prompt: string, source: string): boolean {
+  const text = prompt.trim();
+  if (!text) return false;
+  if (verifyOralPrompt(text).length) return false;
+  if (!source.trim()) return true;
+  const promptStems = contentStems(text).filter((stem) => stem.length >= 4);
+  if (promptStems.length < 2) return true;
+  for (const raw of sentences(source)) {
+    const passage = raw.replace(/^\[[^\]]*\]\s*/, "").trim();
+    if (passage.length < 12) continue;
+    const passageStems = contentStems(passage);
+    const hits = promptStems.filter((stem) => stemsOverlap([stem], passageStems));
+    if (hits.length >= Math.min(2, promptStems.length)) return true;
+  }
+  if (COMPARATIVE_ROLE.test(text) || /neden|nasıl|karşılaştır|arasındaki/i.test(text)) {
+    return false;
+  }
+  return promptStems.some((stem) =>
+    sentences(source).some((raw) => stemsOverlap([stem], contentStems(raw))),
+  );
+}
+
+/** İki metin %80+ örtüşüyorsa true (soru metninin çözüm alanına sızmasını yakalar). */
+export function textOverlapsPrompt(candidate: string, prompt: string, threshold = 0.8): boolean {
+  const a = fold(candidate);
+  const b = fold(prompt);
+  if (!a || !b) return false;
+  if (a === b || isPromptEcho(candidate, prompt)) return true;
+  const aTokens = new Set(a.split(/[^a-z0-9%çğıöşü]+/i).filter((t) => t.length >= 3));
+  const bTokens = new Set(b.split(/[^a-z0-9%çğıöşü]+/i).filter((t) => t.length >= 3));
+  if (!aTokens.size || !bTokens.size) return false;
+  let shared = 0;
+  for (const token of aTokens) if (bTokens.has(token)) shared += 1;
+  const union = aTokens.size + bTokens.size - shared;
+  return union > 0 && shared / union >= threshold;
 }
 
 /**
@@ -88,9 +129,12 @@ export function sanitizeGap(
   if (!raw) return null;
   if (NO_VERIFIED_SOLUTION.test(raw)) return null;
   if (isPromptEcho(raw, prompt)) return null;
-  // "Hatanız şuradaydı: <soru>" kalıbı
+  if (textOverlapsPrompt(raw, prompt, 0.8)) return null;
+  // "Hatanız şuradaydı: <soru>" / "Eksik kalan: <soru>" kalıbı
   const afterColon = raw.replace(/^[^:]{0,40}:\s*/u, "").trim();
-  if (afterColon && isPromptEcho(afterColon, prompt)) return null;
+  if (afterColon && (isPromptEcho(afterColon, prompt) || textOverlapsPrompt(afterColon, prompt, 0.8))) {
+    return null;
+  }
   return raw;
 }
 

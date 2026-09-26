@@ -469,6 +469,7 @@ describe("teaching standards contract", () => {
           prompt: "Birim çemberi anlat.",
           rubricCriteria: ["Tanım", "Koordinat"],
           expectedPoints: ["yarıçap 1", "x=cos"],
+          modelAnswer: "Birim çemberin yarıçapı 1'dir; x ekseni cosinus verir.",
         },
       ]),
     ).toEqual([]);

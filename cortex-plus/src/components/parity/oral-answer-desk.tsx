@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Loader2, Mic, Square, Timer, Volume2 } from "lucide-react";
 import { speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
 import {
   isRecordingSupported,
@@ -17,8 +18,8 @@ import {
 import type { OralTeacherMoodId } from "@/lib/learning/oral-exam-chrome";
 
 /**
- * Sözlü soru hem okunur hem söylenir. Cevap yazılır veya konuşulur.
- * Mikrofon reddedilirse yazı kutusu durur.
+ * Sözlü soru ekranı: küre + soru metni + mikrofon + yazılı yedek.
+ * Mikrofon reddedilirse yazılı mod sürer.
  */
 export function OralAnswerDesk({
   index,
@@ -52,18 +53,32 @@ export function OralAnswerDesk({
   const [follow, setFollow] = useState("");
   const [note, setNote] = useState("");
   const [micNote, setMicNote] = useState(
-    isRecordingSupported() ? "" : "Mikrofon yok. Yazarak cevaplayabilirsin.",
+    isRecordingSupported() ? "" : "Mikrofon izni verilmedi. Cevaplarını yazarak verebilirsin.",
   );
   const [recording, setRecording] = useState(false);
+  const [recSec, setRecSec] = useState(0);
+  const [status, setStatus] = useState<"speaking" | "listening" | "thinking">("speaking");
+  const [confirmBlank, setConfirmBlank] = useState(false);
   const recorder = useRef<Recorder | null>(null);
   const mainAnswer = useRef("");
+  const textRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     setProbe(null);
     setFollow("");
     setNote("");
+    setConfirmBlank(false);
+    setStatus("speaking");
     let cancelled = false;
-    speakTurkish(prompt, { cancelled: () => cancelled });
+    speakTurkish(prompt, {
+      cancelled: () => cancelled,
+      onEnd: () => {
+        if (!cancelled) setStatus("listening");
+      },
+      onError: () => {
+        if (!cancelled) setStatus("listening");
+      },
+    });
     return () => {
       cancelled = true;
       stopSpeech();
@@ -81,10 +96,34 @@ export function OralAnswerDesk({
   }, [minutes]);
 
   useEffect(() => {
+    if (!recording) {
+      setRecSec(0);
+      return;
+    }
+    const timer = window.setInterval(() => setRecSec((s) => s + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [recording]);
+
+  useEffect(() => {
     if (left === 0) onFinish(value);
-    // Süre bitince bir kez biter; her tuşta yeniden bağlanmasın.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [left]);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.code === "Space" && document.activeElement !== textRef.current && !recording) {
+        event.preventDefault();
+        void listen();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        submit();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording, value, follow, probe, busy]);
 
   function clock(sec: number) {
     const m = Math.floor(sec / 60);
@@ -94,9 +133,10 @@ export function OralAnswerDesk({
 
   async function listen() {
     setMicNote("");
+    setStatus("listening");
     const next = await startRecording({});
     if (!next) {
-      setMicNote("Mikrofon kapalı. Yazarak cevaplayabilirsin.");
+      setMicNote("Mikrofon izni verilmedi. Cevaplarını yazarak verebilirsin.");
       return;
     }
     recorder.current = next;
@@ -107,22 +147,27 @@ export function OralAnswerDesk({
     const current = recorder.current;
     recorder.current = null;
     setRecording(false);
+    setStatus("thinking");
     if (!current) return;
     const blob = await current.stop();
     if (!blob) {
-      setMicNote("Ses alınamadı. Yazarak cevaplayabilirsin.");
+      setMicNote("Sesini çözemedim. Tekrar konuş ya da yaz.");
+      setStatus("listening");
       return;
     }
     const text = await transcribe(blob);
     if (!text) {
-      setMicNote("Söylediğin yazıya dökülemedi. Yazarak cevaplayabilirsin.");
+      setMicNote("Sesini çözemedim. Tekrar konuş ya da yaz.");
+      setStatus("listening");
       return;
     }
     if (probe) setFollow((prev) => (prev ? `${prev} ${text}` : text));
     else onChange(value ? `${value} ${text}` : text);
+    setStatus("listening");
   }
 
   function submit() {
+    if (busy) return;
     if (probe) {
       const combined = [mainAnswer.current, follow.trim()].filter(Boolean).join("\n");
       if (index + 1 < total) onAdvance(combined);
@@ -147,52 +192,130 @@ export function OralAnswerDesk({
       mainAnswer.current = value.trim();
       setProbe(next);
       setFollow("");
-      speakTurkish(next.question, {});
+      setStatus("speaking");
+      speakTurkish(next.question, {
+        onEnd: () => setStatus("listening"),
+        onError: () => setStatus("listening"),
+      });
       return;
     }
     if (index + 1 < total) onAdvance(value);
     else onFinish(value);
   }
 
+  function markDontKnow() {
+    if (!confirmBlank) {
+      setConfirmBlank(true);
+      return;
+    }
+    onChange("bilmiyorum");
+    if (index + 1 < total) onAdvance("bilmiyorum");
+    else onFinish("bilmiyorum");
+  }
+
+  const currentValue = probe ? follow : value;
+  const statusLabel =
+    status === "speaking"
+      ? "Öğretmen konuşuyor…"
+      : status === "thinking"
+        ? "Öğretmen düşünüyor…"
+        : "Öğretmen dinliyor";
+
   return (
     <section className="cp-oral cp-oral-desk">
-      <p className="cp-lesson-kicker">
-        Soru {index + 1}/{total}
-        <span className="cp-exam-timer"> {clock(left)}</span>
+      <header className="cp-oral-desk-bar">
+        <span className="cp-oral-chip">Soru {index + 1}/{total}</span>
+        <span className={`cp-oral-timer-pill${left <= 60 ? " is-urgent" : ""}`}>
+          <Timer className="h-4 w-4" aria-hidden />
+          {clock(left)}
+        </span>
+        <button
+          type="button"
+          className="cp-oral-end-btn"
+          onClick={() => onFinish(value)}
+        >
+          Sınavı bitir
+        </button>
+      </header>
+
+      <div className={`cp-oral-orb-wrap is-${status}`} aria-hidden>
+        <div className="pm-orb cp-oral-orb" />
+      </div>
+      <p className="cp-oral-status" aria-live="polite">
+        {statusLabel}
       </p>
-      <h1>{prompt}</h1>
-      <p className="cp-oral-status">Soru ekranda. İstersen sesli dinle, cevabı konuş veya yaz.</p>
-      <button type="button" className="cp-oral-textbtn" onClick={() => speakTurkish(probe?.question || prompt, {})}>
-        Soruyu dinle
-      </button>
+
+      <article className="cp-oral-question-card">
+        <h1>{prompt}</h1>
+        <button
+          type="button"
+          className="cp-oral-textbtn"
+          onClick={() => {
+            setStatus("speaking");
+            speakTurkish(probe?.question || prompt, {
+              onEnd: () => setStatus("listening"),
+              onError: () => setStatus("listening"),
+            });
+          }}
+        >
+          <Volume2 className="h-4 w-4" aria-hidden />
+          Soruyu dinle
+        </button>
+      </article>
+
       {probe ? (
         <div className="cp-oral-probe" role="status">
+          <p className="cp-oral-probe-label">Öğretmen soruyor</p>
           <strong>{probe.question}</strong>
           {probe.hint ? <p>İpucu: {probe.hint}</p> : null}
         </div>
       ) : null}
+
       {note ? <p role="status">{note}</p> : null}
-      <textarea
-        className="cp-exam-oral-input"
-        rows={4}
-        aria-label={probe ? "Takip cevabın" : "Cevabın"}
-        placeholder={probe ? "Takip cevabın" : "Konuşarak veya yazarak yanıtla"}
-        value={probe ? follow : value}
-        onChange={(event) => (probe ? setFollow(event.target.value) : onChange(event.target.value))}
-      />
-      {micNote ? <p role="status">{micNote}</p> : null}
-      <div className="cp-oral-result-actions">
-        {recording ? (
-          <button type="button" className="cp-oral-ghost" onClick={() => void stopListen()}>
-            Bitirdim
-          </button>
-        ) : (
-          <button type="button" className="cp-oral-ghost" onClick={() => void listen()}>
-            Konuş
-          </button>
-        )}
-        <button type="button" className="cp-oral-cta" disabled={busy} onClick={submit}>
-          {index + 1 < total ? "Sonraki soru" : "Bitir"}
+      {micNote ? <p role="status" className="cp-oral-mic-banner">{micNote}</p> : null}
+
+      <div className="cp-oral-answer-block">
+        <button
+          type="button"
+          className={`cp-oral-mic-btn${recording ? " is-recording" : ""}`}
+          aria-label={recording ? "Kaydı bitir" : "Konuşarak cevapla"}
+          onClick={() => (recording ? void stopListen() : void listen())}
+        >
+          {recording ? <Square className="h-7 w-7" /> : <Mic className="h-7 w-7" />}
+        </button>
+        <p className="cp-oral-mic-label">
+          {recording ? `Kaydı bitir · ${clock(recSec)}` : "Konuşarak cevapla"}
+        </p>
+        <textarea
+          ref={textRef}
+          className="cp-exam-oral-input"
+          rows={3}
+          aria-label={probe ? "Takip cevabın" : "Cevabın"}
+          placeholder="Konuşarak veya yazarak yanıtla"
+          value={currentValue}
+          onChange={(event) => (probe ? setFollow(event.target.value) : onChange(event.target.value))}
+        />
+      </div>
+
+      <div className="cp-oral-desk-footer">
+        <button type="button" className="cp-oral-ghost" onClick={markDontKnow}>
+          {confirmBlank ? "Emin misin? Boş bırak" : "Bilmiyorum"}
+        </button>
+        <button
+          type="button"
+          className="cp-oral-cta"
+          disabled={busy || (!probe && !value.trim()) || (Boolean(probe) && !follow.trim())}
+          aria-busy={busy}
+          onClick={submit}
+        >
+          {busy ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              Gönderiliyor…
+            </>
+          ) : (
+            "Cevabı gönder"
+          )}
         </button>
       </div>
     </section>

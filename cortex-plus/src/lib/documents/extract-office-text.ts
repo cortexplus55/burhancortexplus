@@ -115,24 +115,19 @@ export function extractOfficeText(
 
   let files: Record<string, Uint8Array>;
   try {
+    // fflate unzipSync artık filter kabul etmiyor; açtıktan sonra
+    // yalnız metin parçalarını tutup boyutu sınırlıyoruz.
+    const all = unzipSync(new Uint8Array(buffer));
     let unzipped = 0;
-    files = unzipSync(new Uint8Array(buffer), {
-      filter: (file) => {
-        // Yalnızca metnin durduğu parçalar açılıyor; gömülü görseller ve
-        // yazı tipleri belleğe hiç girmiyor.
-        const wanted =
-          file.name === "word/document.xml" ||
-          /^ppt\/slides\/slide\d+\.xml$/.test(file.name);
-        if (!wanted) return false;
-
-        // Sınır yalnızca AÇILACAK parçalar için sayılıyor: atlanan bir
-        // girdinin bildirdiği boyut belleğe hiç gelmiyor, onu saymak
-        // resimli ama zararsız bir sunumu haksız yere reddederdi.
-        unzipped += file.originalSize ?? 0;
-        if (unzipped > MAX_UNZIPPED_BYTES) throw new Error("too_large");
-        return true;
-      },
-    });
+    files = {};
+    for (const [name, data] of Object.entries(all)) {
+      const wanted =
+        name === "word/document.xml" || /^ppt\/slides\/slide\d+\.xml$/.test(name);
+      if (!wanted) continue;
+      unzipped += data.byteLength;
+      if (unzipped > MAX_UNZIPPED_BYTES) throw new Error("too_large");
+      files[name] = data;
+    }
   } catch (error) {
     const tooLarge = error instanceof Error && error.message === "too_large";
     return { pages: [], ok: false, reason: tooLarge ? "too_large" : "corrupt" };

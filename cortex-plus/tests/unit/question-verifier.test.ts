@@ -11,15 +11,29 @@ const subjects = {
   biology: "Mitoz, bir hücrenin genetik olarak aynı iki yavru hücre oluşturmasıdır.",
 };
 
+/** Unique trap bodies — fillOptionWhy filler removed. */
+function why(options: string[], correct: string[]): string[] {
+  return options.map((option, index) => {
+    if (correct.includes(option)) {
+      return `${option} doğru seçenektir; kaynakla uyumludur.`;
+    }
+    return `${option} yanlıştır; tuzak: ${["oran", "birim", "ürün", "yıl"][index % 4]} karıştırmak.`;
+  });
+}
+
 describe("question verifier is subject-agnostic", () => {
-  it("repairs an exactly stoichiometric limiting question", () => {
+  it("keeps equal-ratio limiting when options already name neither-limits", () => {
+    const options = ["Al", "Cl₂", "İkisi de tamamen tükenir"];
     const checked = verifyChoiceQuestion({
       text: "2 mol Al ve 3 mol Cl₂ kullanılarak AlCl₃ oluşturulmaktadır. Tepkime 2Al + 3Cl₂ → 2AlCl₃. Sınırlayıcı bileşen hangisidir?",
-      options: ["Al", "Cl₂", "AlCl₃", "H₂"],
-      correct: ["Cl₂"],
+      options,
+      correct: ["İkisi de tamamen tükenir"],
       multi: false,
-      explanation: "2 mol Al için 3 mol Cl₂ gereklidir, ancak sadece 3 mol Cl₂ mevcuttur; bu nedenle Cl₂ sınırlayıcı. Al fazla kalır.",
+      explanation:
+        "2 mol Al / 2 = 1 ve 3 mol Cl₂ / 3 = 1; oranlar eşit olduğundan ikisi de tamamen tükenir.",
       misconceptionTag: "oran",
+      optionWhy: why(options, ["İkisi de tamamen tükenir"]),
+      needsSolver: false,
     });
     expect(checked.status).not.toBe("drop");
     expect(checked.question.correct[0]).toMatch(/tükenir/);
@@ -38,12 +52,15 @@ describe("question verifier is subject-agnostic", () => {
   });
 
   it("balances an equation that is not the thing being asked", () => {
+    const options = ["2H₂ + O₂ → 2H₂O", "CaCO₃ → CaO + CO₂", "N₂ + 3H₂ → 2NH₃", "Zn + HCl → ZnCl₂ + H₂"];
     const checked = verifyChoiceQuestion({
       text: "Aşağıdaki tepkimelerden hangisi hem yanma hem sentez tepkimesidir?",
-      options: ["2H₂ + O₂ → 2H₂O", "CaCO₃ → CaO + CO₂", "N₂ + 3H₂ → 2NH₃", "Zn + HCl → ZnCl₂ + H₂"],
+      options,
       correct: ["2H₂ + O₂ → 2H₂O"],
       multi: false,
       explanation: "Hidrojenin oksijenle birleşmesi hem yanma hem sentezdir.",
+      optionWhy: why(options, ["2H₂ + O₂ → 2H₂O"]),
+      needsSolver: false,
     });
     expect(checked.status).toBe("keep");
     expect(checked.question.options.join(" | ")).toContain("Zn + 2HCl → ZnCl₂ + H₂");
@@ -51,13 +68,15 @@ describe("question verifier is subject-agnostic", () => {
   });
 
   it("polishes broken wording in any subject", () => {
+    const options = ["Tam yürür", "Durur"];
     const checked = verifyChoiceQuestion(
       {
         text: "Tepkime ful olarak yürür. Ürün yarısı kadar, yani katsayıya uyar.",
-        options: ["Tam yürür", "Durur"],
+        options,
         correct: ["Tam yürür"],
         multi: false,
         explanation: "İfade ful olarak kullanılmaz.",
+        optionWhy: why(options, ["Tam yürür"]),
       },
       subjects.chemistry,
     );
@@ -77,13 +96,15 @@ describe("question verifier is subject-agnostic", () => {
   });
 
   it("keeps a physics key that matches F = ma", () => {
+    const options = ["5 N", "6 N", "1,5 N"];
     const checked = verifyChoiceQuestion(
       {
         text: "2 kg kütle 3 m/s² ivmeyle hareket ederse kuvvet kaç newton olur? F = m · a.",
-        options: ["5 N", "6 N", "1,5 N"],
+        options,
         correct: ["5 N"],
         multi: false,
         explanation: "F = 2 × 3 = 6 N.",
+        optionWhy: why(options, ["5 N"]),
       },
       subjects.physics,
     );
@@ -92,13 +113,15 @@ describe("question verifier is subject-agnostic", () => {
   });
 
   it("overrides a history key when only one option is in the source", () => {
+    const options = ["1066", "1215", "1789"];
     const checked = verifyChoiceQuestion(
       {
         text: "Magna Carta hangi yılda imzalandı?",
-        options: ["1066", "1215", "1789"],
+        options,
         correct: ["1789"],
         multi: false,
         explanation: "Belge orta çağda imzalandı.",
+        optionWhy: why(options, ["1789"]),
       },
       subjects.history,
     );
@@ -106,13 +129,15 @@ describe("question verifier is subject-agnostic", () => {
   });
 
   it("keeps a law answer that the source names", () => {
+    const options = ["Hata, hile ve ikrah", "Zamanaşımı", "Sebepsiz zenginleşme"];
     const checked = verifyChoiceQuestion(
       {
         text: "İrade sakatlığı halleri hangileridir?",
-        options: ["Hata, hile ve ikrah", "Zamanaşımı", "Sebepsiz zenginleşme"],
+        options,
         correct: ["Zamanaşımı"],
         multi: false,
         explanation: "Üç hal birden gerekir.",
+        optionWhy: why(options, ["Zamanaşımı"]),
       },
       subjects.law,
     );
@@ -120,19 +145,22 @@ describe("question verifier is subject-agnostic", () => {
     expect(checked.question.correct[0]).toMatch(/hile/);
   });
 
-  it("keeps a biology fact the source states and fills a reason per option", () => {
+  it("keeps a biology fact the source states when optionWhy is unique", () => {
+    const options = ["Genetik olarak aynı iki hücre", "Mayoz bölünür", "Krossing over olur"];
     const checked = verifyChoiceQuestion(
       {
         text: "Mitoz sonunda oluşan yavru hücreler nasıldır?",
-        options: ["Genetik olarak aynı iki hücre", "Mayoz bölünür", "Krossing over olur"],
+        options,
         correct: ["Mayoz bölünür"],
         multi: false,
         explanation: "Mitoz genetik kopya üretir.",
+        optionWhy: why(options, ["Mayoz bölünür"]),
       },
       subjects.biology,
     );
     expect(checked.question.correct[0]).toMatch(/aynı/);
     expect(checked.question.optionWhy).toHaveLength(3);
+    expect(checked.question.optionWhy?.join(" ")).not.toMatch(/bu sorunun cevabı değil/i);
     expect(checked.question.misconceptionTag).toBeTruthy();
   });
 
@@ -152,7 +180,7 @@ describe("question verifier is subject-agnostic", () => {
       verifyOralPrompt(hollow, ["0,25 mol için kütle hesaplanır."], subjects.chemistry),
     ).toBeNull();
     const kept = verifyOralPrompt(
-      "Sınırlayıcı bileşen nasıl bulunur?",
+      "Sınırlayıcı bileşen nedir?",
       ["mol sayısı stokiyometrik katsayıya bölünür"],
       subjects.chemistry,
     );

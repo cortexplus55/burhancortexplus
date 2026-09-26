@@ -70,9 +70,8 @@ describe("oral exam chrome helpers", () => {
     expect(formatTopicPct(0)).toBe("%0");
   });
 
-  it("grades an empty voice transcript as 0 and a full one as 100", () => {
+  it("grades voice from gradedRatios; without them stays 0 (not completion %)", () => {
     expect(oralVoicePercent([])).toBe(0);
-    expect(letterGrade(0)).toBe("F");
     expect(oralHeadline(0)).toBe("Daha fazla pratik yapmalısın");
     const full = reviewItemsFromTranscript([
       { role: "assistant", content: "Soru bir" },
@@ -83,14 +82,21 @@ describe("oral exam chrome helpers", () => {
       { role: "user", content: "Cevap üç" },
     ]);
     expect(full).toHaveLength(3);
-    expect(oralVoicePercent([
-      { role: "assistant", content: "Soru bir" },
-      { role: "user", content: "Cevap bir" },
-      { role: "assistant", content: "Soru iki" },
-      { role: "user", content: "Cevap iki" },
-      { role: "assistant", content: "Soru üç" },
-      { role: "user", content: "Cevap üç" },
-    ])).toBe(100);
+    // Grade yoksa dolu cevap oranı değil 0.
+    expect(
+      oralVoicePercent([
+        { role: "assistant", content: "Soru bir" },
+        { role: "user", content: "Cevap bir" },
+        { role: "assistant", content: "Soru iki" },
+        { role: "user", content: "Cevap iki" },
+        { role: "assistant", content: "Soru üç" },
+        { role: "user", content: "Cevap üç" },
+      ]),
+    ).toBe(0);
+    expect(oralVoicePercent([], 3, [1, 1, 1])).toBe(100);
+    expect(oralVoicePercent([], 3, [1, 0, 0])).toBe(33);
+    // Deprecated helper still maps bands; UI no longer shows letters.
+    expect(letterGrade(0)).toBe("F");
     expect(letterGrade(100)).toBe("A");
     expect(oralWrittenPercent(1, 2)).toBe(50);
   });
@@ -188,14 +194,14 @@ describe("oral exam chrome screens", () => {
     const { rerender } = render(
       <OralEndDialog onStay={() => actions.push("stay")} onConfirm={() => actions.push("yes")} />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Kal" }));
-    fireEvent.click(screen.getByRole("button", { name: "Evet" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sınava dön" }));
+    fireEvent.click(screen.getByRole("button", { name: "Evet, gönder" }));
     rerender(<OralReviewTimeDialog onSeeResults={() => actions.push("results")} />);
     fireEvent.click(screen.getByRole("button", { name: "Sonuçlarımı gör" }));
     expect(actions).toEqual(["stay", "yes", "results"]);
   });
 
-  it("shows a letter, a percent, and the empty-answer review", () => {
+  it("shows a percent and headline without a letter grade, then the empty-answer review", () => {
     const actions: string[] = [];
     const { rerender } = render(
       <OralResults
@@ -207,7 +213,7 @@ describe("oral exam chrome screens", () => {
       />,
     );
     expect(screen.getByText("Daha fazla pratik yapmalısın")).toBeTruthy();
-    expect(screen.getByText("F")).toBeTruthy();
+    expect(screen.queryByText("F")).toBeNull();
     expect(screen.getByText("%0")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Cevaplarımı gözden geçir" }));
 
@@ -229,7 +235,7 @@ describe("oral exam chrome screens", () => {
     );
     expect(screen.getByText("Soru 1")).toBeTruthy();
     expect(screen.getByText("%0 puan")).toBeTruthy();
-    expect(screen.getByText(/Hatanız şuradaydı/)).toBeTruthy();
+    expect(screen.getAllByText(/Eksik kalan|Sesli yanıt kaydedilmedi/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("tab", { name: "Senin cevabın" }));
     expect(actions).toContain("review");
     expect(actions).toContain("tab");

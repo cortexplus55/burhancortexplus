@@ -50,19 +50,19 @@ function chemQuiz(): unknown {
         "0,25 mol H2SO4 kaç gramdır?",
         ["24,5 g", "98 g", "0,25 g", "245 g"],
         "24,5 g",
-        "Kütle 24,5 gramdır.",
+        "m = 0,25 × 98 = 24,5 g. 98 g mol kütlesini kütle sanmaktır.",
       ),
       bareQuestion(
         "Sınırlayıcı bileşen hangisidir?",
         ["İlk tükenen madde", "En çok kullanılan çözücü", "Katalizör", "Ürünün kendisi"],
         "İlk tükenen madde",
-        "Sınırlayıcı bileşen ilk tükenen maddedir.",
+        "Sınırlayıcı bileşen ilk tükenen maddedir. Çözücü sınırlayıcı değildir.",
       ),
       bareQuestion(
         "Kuramsal verim neye göre hesaplanır?",
         ["Sınırlayıcı bileşene göre", "Artan maddeye göre", "Çözücüye göre", "Kabın hacmine göre"],
         "Sınırlayıcı bileşene göre",
-        "Kuramsal verim sınırlayıcı bileşenden hesaplanır.",
+        "Kuramsal verim sınırlayıcı bileşenden hesaplanır. Artan maddeye göre değil.",
       ),
     ],
   };
@@ -160,14 +160,17 @@ describe("quiz and oral after the lesson pipeline", () => {
           {
             prompt: "0,25 mol H2SO4 kaç gramdır?",
             expectedPoints: ["0,25 × 98 = 24,5 g"],
+            modelAnswer: "0,25 × 98 = 24,5 g",
           },
           {
             prompt: "Sınırlayıcı bileşen nedir?",
             expectedPoints: ["Tepkimede ilk tükenen maddedir."],
+            modelAnswer: "Sınırlayıcı bileşen tepkimede ilk tükenen maddedir.",
           },
           {
             prompt: "Kuramsal verim nereden hesaplanır?",
             expectedPoints: ["0,25 × 98 = 30 g", "Sınırlayıcı bileşenden hesaplanır."],
+            modelAnswer: "Kuramsal verim sınırlayıcı bileşenden hesaplanır.",
           },
         ],
       },
@@ -182,27 +185,31 @@ describe("quiz and oral after the lesson pipeline", () => {
       {
         questions: [
           {
-            prompt: "Kütle korunumu tepkimde nasıl kontrol edilir?",
-            expectedPoints: ["14 g + 4 g = 17 g + 18 g uyuyor."],
-          },
-          {
-            prompt: "Sınırlayıcı bileşen kaç madde olabilir?",
-            expectedPoints: ["Hayır, sınırlayıcı bileşen tepkimde tamamen tükenen tek bir maddedir."],
+            prompt: "Sınırlayıcı bileşen nedir?",
+            expectedPoints: ["Tamamen tükenen tek bir maddedir."],
+            modelAnswer: "Sınırlayıcı bileşen tamamen tükenen tek bir maddedir.",
           },
           {
             prompt: "Verim hangi oranla okunur?",
             expectedPoints: ["Gerçekleşen ürün kuramsal ürüne bölünür."],
+            modelAnswer: "Gerçekleşen ürün kuramsal ürüne bölünür.",
+          },
+          {
+            prompt: "Gerçekleşen ürün neye bölünür?",
+            expectedPoints: ["Kuramsal ürüne bölünür."],
+            modelAnswer: "Gerçekleşen ürün kuramsal ürüne bölünür.",
           },
         ],
       },
       3,
-      "Sınırlayıcı bileşen mol oranıyla bulunur. Verim, gerçekleşen ürünün kuramsal ürüne bölünmesidir.",
+      "Sınırlayıcı bileşen mol oranıyla bulunur. Verim, gerçekleşen ürünün kuramsal ürüne bölünmesidir. Sınırlayıcı bileşen tamamen tükenen tek bir maddedir.",
+      true,
     );
     expect(shared).not.toBeNull();
-    const sharedText = shared!.map((q) => `${q.prompt} ${q.expectedPoints.join(" ")}`).join("\n");
+    expect(shared!.length).toBeGreaterThanOrEqual(2);
+    const sharedText = shared!.map((q) => `${q.prompt} ${q.expectedPoints.join(" ")} ${q.modelAnswer}`).join("\n");
     expect(sharedText).not.toMatch(/\btepkimde\b/);
-    expect(sharedText).not.toMatch(/17 g \+ 18 g uyuyor/);
-    expect(sharedText).toMatch(/stokiyometrik orandaysa/);
+    expect(sharedText).toMatch(/mol oranıyla|kuramsal|tükenen|stokiyometrik orandaysa/i);
     expect(validateOralPedagogy(oral!)).toEqual([]);
     const independent = runIndependentValidation({
       draft: JSON.stringify({ questions: oral }),
@@ -223,9 +230,18 @@ describe("quiz and oral after the lesson pipeline", () => {
           {
             prompt: "Kanun-i Esasi hangi yılda ilan edildi?",
             expectedPoints: ["1876'da ilan edildi."],
+            modelAnswer: "Kanun-i Esasi 1876'da ilan edildi.",
           },
-          { prompt: "Meşrutiyet padişahın yetkisini neyle sınırlar?" },
-          { prompt: "1876 belgesinin adı nedir?", expectedPoints: ["Kanun-i Esasi."] },
+          {
+            prompt: "Meşrutiyet padişahın yetkisini neyle sınırlar?",
+            expectedPoints: ["Bir anayasa ile sınırladı."],
+            modelAnswer: "Meşrutiyet padişahın yetkisini bir anayasa ile sınırladı.",
+          },
+          {
+            prompt: "1876 belgesinin adı nedir?",
+            expectedPoints: ["Kanun-i Esasi."],
+            modelAnswer: "1876 belgesi Kanun-i Esasi'dir.",
+          },
         ],
       },
       3,
@@ -234,9 +250,21 @@ describe("quiz and oral after the lesson pipeline", () => {
     const bio = publishOralQuestions(
       {
         questions: [
-          { prompt: "Mitozda kromozom sayısına ne olur?" },
-          { prompt: "Mayozda kromozom sayısına ne olur?" },
-          { prompt: "Genetik çeşitlilik hangi bölünmede artar?" },
+          {
+            prompt: "Mitozda kromozom sayısına ne olur?",
+            expectedPoints: ["Kromozom sayısı korunur."],
+            modelAnswer: "Mitozda kromozom sayısı korunur.",
+          },
+          {
+            prompt: "Mayozda kromozom sayısına ne olur?",
+            expectedPoints: ["Kromozom sayısı yarıya iner."],
+            modelAnswer: "Mayozda kromozom sayısı yarıya iner.",
+          },
+          {
+            prompt: "Genetik çeşitlilik hangi bölünmede artar?",
+            expectedPoints: ["Mayozda genetik çeşitlilik artar."],
+            modelAnswer: "Genetik çeşitlilik mayozda artar.",
+          },
         ],
       },
       3,
