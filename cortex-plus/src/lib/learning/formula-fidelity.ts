@@ -46,6 +46,14 @@ function symbolsOf(formula: string): Set<string> {
 }
 
 /**
+ * Sayfadaki sayısal yerine koyma: `0.001 + 0.80×1.67`.
+ * `1 + (1 + …)` gibi yapısal bir parça bu kalıba girmez; ondalık şart.
+ */
+function workedNumericExample(formula: string): boolean {
+  return /\d+[.,]\d+\s*[+×*·\-−]\s*\d/.test(formula);
+}
+
+/**
  * Formülün ayırt edici sayıları: katsayılar ve üsler.
  *
  * 1 ve 2 neredeyse her formülde geçiyor (kare, birim, "1 +"), o yüzden
@@ -71,8 +79,12 @@ function coefficientsOf(formula: string): Set<string> {
   const numbers =
     normalize(formula)
       .replace(/['′]\d+/g, " ")
-      .match(/\d+/g) ?? [];
-  return new Set(numbers.filter((n) => Number(n) >= 3));
+      .match(/\d+(?:[.,]\d+)?/g) ?? [];
+  return new Set(
+    numbers
+      .map((n) => n.replace(",", "."))
+      .filter((n) => Number(n) >= 3),
+  );
 }
 
 /**
@@ -93,8 +105,10 @@ function sameSubject(a: string, b: string): boolean {
   // Ders formülü çoğu zaman cümlenin içinde geçiyor ("… etkisini verir.
   // Δσz = …"). Eşitliğin solundaki CÜMLE değil, büyüklüğün kendisi
   // aranıyor: son ayıraçtan sonrası.
-  const left = (text: string) =>
-    (normalize(text).split("=")[0] ?? "").split(/[.:,]/).pop() ?? "";
+  const left = (text: string) => {
+    const head = (normalize(text).split("=")[0] ?? "").replace(/(\d)[.,](\d)/g, "$1#$2");
+    return (head.split(/[.:,]/).pop() ?? "").replace(/#/g, ".");
+  };
   const la = left(a);
   const lb = left(b);
   if (!la || !lb) return false;
@@ -157,10 +171,33 @@ export function formulaMismatches(
     if (!expected.size) continue; // ölçülecek ayırt edici sayı yok
     const written = coefficientsOf(lessonFormula);
     if ([...expected].every((number) => written.has(number))) continue;
+    /**
+     * Sayfa, bağıntının sayısal örneğini de yazmış olabilir:
+     * `v = v_f + x*v_fg = 0.001 + 0.80×1.67`. Ders doğru olarak yalnızca
+     * sembolik bağıntıyı yazar. Ondalık işlemin katsayılarını sembolik
+     * satırda aramak dersi reddediyordu. Yapısal katsayı (Boussinesq'in
+     * 3'ü ve 5'i) ondalık bir örnek değildir; o uyuşmazlık durur.
+     */
+    if (workedNumericExample(match) && written.size === 0) continue;
 
     issues.push({ sourceFormula: match, lessonFormula });
   }
   return issues;
+}
+
+/**
+ * Uyuşmayan formülün cümlesini düşürür. Kalan metin yayına gider.
+ * Cümle ayrılamazsa alanın tamamı boşalır; çağıran bölümü atar.
+ */
+export function withoutMismatchedFormulas(text: string, sourceFormulas: string[]): string {
+  if (!text.trim() || !formulaMismatches([text], sourceFormulas).length) return text;
+  const parts = text.split(/\n+|(?<=[.!?])\s+(?=[A-ZÇĞİÖŞÜ“"])/);
+  const kept = parts
+    .map((part) => part.trim())
+    .filter((part) => part && formulaMismatches([part], sourceFormulas).length === 0);
+  const joined = kept.join(" ").replace(/\s+/g, " ").trim();
+  if (formulaMismatches([joined], sourceFormulas).length) return "";
+  return joined;
 }
 
 /** Doğrulayıcının okuyacağı hâli. */

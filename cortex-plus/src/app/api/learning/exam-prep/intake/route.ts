@@ -6,7 +6,20 @@ import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { pickMainTopics } from "@/lib/learning/diagnostic";
 import { buildExamPlan, daysUntilExam } from "@/lib/learning/exam-prep-plan";
+import { refoldTopicMapIfNeeded } from "@/lib/documents/pdf-learning-v2";
 import { documentTitle } from "@/lib/documents/topic-title";
+import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
+import { PREP_TOPIC_CAP } from "@/lib/learning/prep-topic-list";
+import {
+  contradictionsByTopicTitleResolved,
+  readContradictionDocuments,
+} from "@/lib/learning/prep-contradiction-read";
+import { orderTopicsForPath } from "@/lib/learning/topic-order";
+import { remapPrerequisites, mergeTopicGroups, type MergeTopicInput, type MergedTopic } from "@/lib/learning/topic-merge";
+import type { ConsolidatedTopic } from "@/lib/learning/cross-material-topics";
+import { resolveAmbiguousMerges } from "@/lib/learning/topic-merge-model";
+import { consolidatePrepDocuments } from "@/lib/learning/consolidate-documents";
+import { formatContradictions } from "@/lib/learning/source-contradictions";
 
 const bodySchema = z.object({
   messages: z
@@ -24,6 +37,7 @@ const bodySchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   documentId: z.string().uuid().optional(),
+  documentIds: z.array(z.string().uuid()).max(8).optional(),
   /** Flag+topic-map check only — no AI / no credits. */
   probeOnly: z.boolean().optional(),
   dailyMinutes: z.number().int().min(5).max(480).optional(),
@@ -34,6 +48,10 @@ const bodySchema = z.object({
       style: z.enum(["examples", "theory", "mixed"]).optional(),
       pace: z.enum(["slow", "normal", "fast"]).optional(),
       notes: z.string().max(400).optional(),
+      modality: z
+        .enum(["reading", "listening", "watching", "practice", "auto"])
+        .optional(),
+      language: z.enum(["tr", "en"]).optional(),
     })
     .optional(),
 });
@@ -53,7 +71,7 @@ async function resolveTopicSuggestions(
   documentId: string | undefined,
   v2: boolean,
 ) {
-  let topicSuggestions: { id: string; title: string; pages: number[] }[] = [];
+  let topicSuggestions: MergeTopicInput[] = [];
   let intakeMode: "legacy" | "v2" = "legacy";
   if (!v2 || !documentId) return { topicSuggestions, intakeMode };
 
@@ -66,15 +84,22 @@ async function resolveTopicSuggestions(
   if (doc?.topic_map_status === "ready" || doc?.topic_map_status === "reviewed") {
     const { data: nodes } = await service
       .from("document_topic_nodes")
-      .select("id, title, parent_id, sort_order")
+      .select("id, title, parent_id, sort_order, prerequisites")
       .eq("document_id", doc.id)
       .order("sort_order");
+    const nodeRows = nodes ?? [];
     const mains = pickMainTopics(
-      (nodes ?? []).map((n) => ({
+      nodeRows.map((n) => ({
         id: n.id as string,
         title: n.title as string,
         parentId: (n.parent_id as string | null) ?? null,
       })),
+    );
+    const prereqById = new Map(
+      nodeRows.map((node) => [
+        node.id as string,
+        Array.isArray(node.prerequisites) ? (node.prerequisites as string[]) : [],
+      ]),
     );
     // Konunun hangi sayfalara dayandığı. Referans ürünün konu kartında "1 kaynak"
     // yazıyor; bizde belge zaten tek, o yüzden sayı değil SAYFA
@@ -90,10 +115,19 @@ async function resolveTopicSuggestions(
       list.push(link.page_number as number);
       pagesByTopic.set(link.topic_id as string, list);
     }
+    const { data: docName } = await service
+      .from("documents")
+      .select("file_name")
+      .eq("id", doc.id)
+      .maybeSingle();
+    const fileName = (docName?.file_name as string | null) ?? "";
     topicSuggestions = mains.map((n) => ({
       id: n.id,
       title: n.title,
       pages: [...new Set(pagesByTopic.get(n.id) ?? [])].sort((a, b) => a - b),
+      documentId,
+      fileName,
+      prerequisites: prereqById.get(n.id) ?? [],
     }));
     if (topicSuggestions.length) intakeMode = "v2";
   }
@@ -148,11 +182,88 @@ export async function POST(request: Request) {
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
   const v2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
-  const { topicSuggestions, intakeMode } = await resolveTopicSuggestions(
+  const documentIds = orderedSourceDocumentIds({
+    documentId: parsed.data.documentId,
+    documentIds: parsed.data.documentIds,
+  });
+  // Katlamak model çağırmaz. Hazır öğretmen analizi de yeniden üretilmez;
+  // konu listesi saklı haritadan okunur.
+  if (v2) {
+    for (const documentId of documentIds) {
+      await refoldTopicMapIfNeeded(service, documentId);
+    }
+  }
+  const groups: MergeTopicInput[][] = [];
+  let intakeMode: "legacy" | "v2" = "legacy";
+  const consolidated = documentIds.length
+    ? await consolidatePrepDocuments(service, userId, documentIds, { allowModel: true })
+    : null;
+  let mergedTopics: Array<ConsolidatedTopic | MergedTopic> = consolidated?.topics ?? [];
+  if (mergedTopics.length) {
+    intakeMode = "v2";
+  } else {
+    for (const documentId of documentIds.length ? documentIds : [parsed.data.documentId]) {
+      const resolved = await resolveTopicSuggestions(service, userId, documentId, v2);
+      if (resolved.intakeMode === "v2") intakeMode = "v2";
+      groups.push(resolved.topicSuggestions);
+    }
+    const firstPass = mergeTopicGroups(groups);
+    mergedTopics = remapPrerequisites(firstPass.topics);
+    if (firstPass.ambiguous.length) {
+      try {
+        mergedTopics = remapPrerequisites(
+          await resolveAmbiguousMerges(service, userId, mergedTopics, firstPass.ambiguous),
+        );
+      } catch {
+        // Model yoksa iki başlık ayrı kalır. Konu düşmez.
+      }
+    }
+    mergedTopics = orderTopicsForPath(mergedTopics, { manualOrder: false });
+  }
+  mergedTopics = mergedTopics.slice(0, PREP_TOPIC_CAP);
+  const merged = {
+    topics: mergedTopics.map((topic) => topic.title),
+    topicPages: mergedTopics.map((topic) => topic.pages),
+    topicFiles: mergedTopics.map((topic) =>
+      [...new Set(topic.sources.map((source) => source.fileName).filter(Boolean))],
+    ),
+    topicSourceCounts: mergedTopics.map((topic) =>
+      "sourceCount" in topic ? topic.sourceCount : topic.sources.length,
+    ),
+    topicHeavy: mergedTopics.map((topic) => ("examHeavy" in topic ? topic.examHeavy : false)),
+    topicImportant: mergedTopics.map((topic) =>
+      "importance" in topic ? topic.importance === "important" && !topic.examHeavy : false,
+    ),
+    topicWeights: mergedTopics.map((topic) =>
+      "weightPercent" in topic ? topic.weightPercent : null,
+    ),
+    topicSections: mergedTopics.map((topic) =>
+      "sections" in topic ? topic.sections.map((section) => section.title) : [],
+    ),
+    topicScopeNotes: mergedTopics.map((topic) =>
+      "scopeNote" in topic ? topic.scopeNote : null,
+    ),
+  };
+  const contradictionDocs = await readContradictionDocuments(service, documentIds).catch(() => []);
+  const contradictionMap = await contradictionsByTopicTitleResolved(
     service,
     userId,
-    parsed.data.documentId,
-    v2,
+    mergedTopics.map((topic) => ({
+      title: topic.title,
+      sources: topic.sources.map((source) => ({
+        documentId: source.documentId,
+        pages: source.pages,
+      })),
+    })),
+    contradictionDocs,
+  );
+  const topicWarnings = mergedTopics.map((topic, index) => {
+    const scope = merged.topicScopeNotes[index];
+    const contradiction = formatContradictions(contradictionMap.get(topic.title) ?? []);
+    return [scope, contradiction].filter(Boolean).join(" ");
+  });
+  const topicSuggestions = groups.flat().filter(
+    (topic, index, all) => all.findIndex((item) => item.id === topic.id) === index,
   );
 
   if (parsed.data.probeOnly) {
@@ -160,7 +271,7 @@ export async function POST(request: Request) {
       ok: true,
       intakeMode,
       topicSuggestions,
-      draft: topicSuggestions.length
+      draft: merged.topics.length
         ? {
             // Hazırlığın adı belgeden gelir; boş kalırsa sihirbaz
             // "${ders} sınav hazırlığı" diyordu ve aynı dersten yüklenen
@@ -168,14 +279,24 @@ export async function POST(request: Request) {
             title: await probeDocumentTitle(
               service,
               userId,
-              parsed.data.documentId,
-              topicSuggestions.map((t) => t.title),
+              documentIds[0] ?? parsed.data.documentId,
+              merged.topics,
             ),
             examType: "Serbest",
-            topics: topicSuggestions.map((t) => t.title).slice(0, 16),
-            topicPages: topicSuggestions
-              .slice(0, 16)
-              .map((t) => t.pages.slice(0, 6)),
+            topics: merged.topics.slice(0, PREP_TOPIC_CAP),
+            topicPages: merged.topicPages
+              .slice(0, PREP_TOPIC_CAP)
+              .map((pages) => pages.slice(0, 6)),
+            topicFiles: merged.topicFiles.slice(0, PREP_TOPIC_CAP),
+            topicWarnings: topicWarnings.slice(0, PREP_TOPIC_CAP),
+            topicSourceCounts: merged.topicSourceCounts.slice(0, PREP_TOPIC_CAP),
+            topicHeavy: merged.topicHeavy.slice(0, PREP_TOPIC_CAP),
+            topicImportant: merged.topicImportant.slice(0, PREP_TOPIC_CAP),
+            topicWeights: merged.topicWeights.slice(0, PREP_TOPIC_CAP),
+            topicSections: merged.topicSections.slice(0, PREP_TOPIC_CAP),
+            excluded: consolidated?.excluded ?? [],
+            missingTopics: consolidated?.missingFromMaterials ?? [],
+            suggestedExamDate: consolidated?.suggestedExamDate ?? null,
           }
         : null,
     });
@@ -207,8 +328,8 @@ ${transcript}`,
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
 
   const draft = outcome.data;
-  if (intakeMode === "v2" && topicSuggestions.length) {
-    draft.topics = topicSuggestions.map((t) => t.title).slice(0, 16);
+  if (intakeMode === "v2" && merged.topics.length) {
+    draft.topics = merged.topics.slice(0, PREP_TOPIC_CAP);
   }
 
   const examDate = parsed.data.examDate;

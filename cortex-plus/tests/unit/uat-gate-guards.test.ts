@@ -61,6 +61,14 @@ describe("premium API'ler requireFeature ile kapılı", () => {
   }
 });
 
+describe("misafir öğrenme isteği AUTH_REQUIRED", () => {
+  it("401 yanıtı kod taşıyor", () => {
+    const src = read("src/lib/api/guards.ts");
+    expect(src).toContain('AUTH_REQUIRED: "Bu işlem için giriş yapmalısın."');
+    expect(src).toContain('return errorResponse(401, "AUTH_REQUIRED")');
+  });
+});
+
 describe("entitlement sorgusu dönem bitişini SQL'de filtreler", () => {
   it("current_period_end filtresi var", () => {
     const src = read("src/lib/billing/entitlements.ts");

@@ -35,8 +35,10 @@ export const FREE_IMAGE_DAILY_LIMIT = 3;
 export async function freeImageAllowed(
   userId: string,
   isPremium: boolean,
+  /** Sunucudan (`ApiContext.isAdmin`) gelir; yöneticide sayaç hiç artmaz. */
+  isAdmin = false,
 ): Promise<boolean> {
-  if (isPremium) return true;
+  if (isPremium || isAdmin) return true;
   const result = await rateLimit(
     dailyKey(userId, "image-free"),
     FREE_IMAGE_DAILY_LIMIT,

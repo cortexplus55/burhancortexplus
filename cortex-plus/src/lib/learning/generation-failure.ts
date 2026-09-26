@@ -31,16 +31,29 @@ export type GenerationFailure = {
   action?: { href: string; label: string };
 };
 
+/**
+ * API `{ error: türkçe, code: makine }` döner. İstemci uzun süre `error`
+ * alanını koda sandı; "source_unavailable" hiç eşleşmedi ve öğrenci her
+ * sebepten aynı cümleyi gördü.
+ */
+export function generationFailureCode(body: { code?: unknown; error?: unknown }): unknown {
+  if (typeof body.code === "string" && body.code.trim()) return body.code;
+  return body.error;
+}
+
 export function describeGenerationFailure(
   code: unknown,
   /** Hakkın ne zaman yenileneceği — "12 Eylül 2026 03:00". */
   resetsAtLabel?: string,
+  kind?: string,
 ): GenerationFailure {
+  const podcast = kind === "podcast";
   switch (code) {
     case "generation_in_progress":
       return {
-        message:
-          "Dersin hâlâ hazırlanıyor. Biraz bekleyip yeniden dene; ikinci bir üretim başlatılmayacak.",
+        message: podcast
+          ? "Podcast hâlâ hazırlanıyor. Biraz bekleyip yeniden dene; ikinci bir üretim başlatılmayacak."
+          : "Dersin hâlâ hazırlanıyor. Biraz bekleyip yeniden dene; ikinci bir üretim başlatılmayacak.",
         retryMintsNewId: false,
         canRetryNow: false,
       };
@@ -55,8 +68,28 @@ export function describeGenerationFailure(
 
     case "content_verification_failed":
       return {
-        message:
-          "Hazırlanan ders kalite kontrolünden geçemedi; yanlış bilgi göstermemek için yayınlamadık. Yeniden denemek genelde işe yarıyor.",
+        message: podcast
+          ? "Podcast kalite kontrolünden geçemedi; yanlış bilgi yayınlamamak için durduk. Yeniden denemek genelde işe yarıyor."
+          : "Hazırlanan ders kalite kontrolünden geçemedi; yanlış bilgi göstermemek için yayınlamadık. Yeniden denemek genelde işe yarıyor.",
+        retryMintsNewId: true,
+        canRetryNow: true,
+      };
+
+    case "invalid_ai_response":
+    case "podcast_script_rejected":
+      return {
+        message: podcast
+          ? "Podcast metni doğrulanamadı; tutmayan sayı veya biçim yüzünden yayınlamadık. Yeniden deneyebilirsin."
+          : "Hazırlanan metin beklenen biçime uymadı. Yeniden deneyebilirsin.",
+        retryMintsNewId: true,
+        canRetryNow: true,
+      };
+
+    case "generation_failed":
+      return {
+        message: podcast
+          ? "Podcast üretimi sunucuda tamamlanamadı. Yeniden deneyebilirsin."
+          : "Ders şu anda oluşturulamadı. Yeniden deneyebilirsin.",
         retryMintsNewId: true,
         canRetryNow: true,
       };
@@ -83,8 +116,8 @@ export function describeGenerationFailure(
     case "insufficient_credits":
       return {
         message: resetsAtLabel
-          ? `Günlük hakkın doldu. ${resetsAtLabel} itibarıyla yenilenecek; dilersen paketini yükseltip beklemeden devam edebilirsin.`
-          : "Günlük hakkın doldu. Hakkın yenilenince devam edebilirsin; dilersen paketini yükseltip beklemeden çalışabilirsin.",
+          ? `Hakkın doldu. ${resetsAtLabel} itibarıyla yenilenecek; dilersen paketini yükseltip beklemeden devam edebilirsin.`
+          : "Hakkın doldu. Hakkın yenilenince devam edebilirsin; dilersen paketini yükseltip beklemeden çalışabilirsin.",
         retryMintsNewId: false,
         canRetryNow: false,
         action: { href: "/krediler", label: "Hakkımı gör" },
@@ -100,7 +133,9 @@ export function describeGenerationFailure(
 
     default:
       return {
-        message: "Ders şu anda oluşturulamadı. Yeniden deneyebilirsin.",
+        message: podcast
+          ? "Podcast şu anda oluşturulamadı. Yeniden deneyebilirsin."
+          : "Ders şu anda oluşturulamadı. Yeniden deneyebilirsin.",
         retryMintsNewId: true,
         canRetryNow: true,
       };

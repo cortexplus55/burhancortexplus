@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { useIsFounder } from "@/lib/student/student-shell-context";
 import { cn } from "@/lib/utils";
 
 export function GeneratorForm({
@@ -31,6 +32,7 @@ export function GeneratorForm({
   variant?: "default" | "parity";
 }) {
   const router = useRouter();
+  const founder = useIsFounder();
   const [value, setValue] = useState("");
   const [extras, setExtras] = useState<Record<string, string>>(
     Object.fromEntries(
@@ -147,7 +149,7 @@ export function GeneratorForm({
           </div>
         ) : null}
 
-        {creditCost !== null ? (
+        {creditCost !== null && !founder ? (
           <p
             className={cn(
               "text-xs sm:col-span-2",

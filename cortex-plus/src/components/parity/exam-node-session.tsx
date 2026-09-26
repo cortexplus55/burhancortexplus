@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { createSerialTaskQueue } from "@/lib/learning/serial-task-queue";
 import {
   describeGenerationFailure,
+  generationFailureCode,
   type GenerationFailure,
 } from "@/lib/learning/generation-failure";
 import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
@@ -14,21 +15,62 @@ import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
 import { lessonV2Schema } from "@/lib/learning/teaching-standards";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
+import { AUDIO_CHARS_PER_CREDIT_PRICE, CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
+import { ExamReadinessScreen } from "@/components/parity/exam-readiness-screen";
+import { ExamWrittenReview } from "@/components/parity/exam-written-review";
+import type { ReadinessScreen } from "@/lib/learning/readiness-screen";
+import type { WrittenExamReview } from "@/lib/learning/written-exam-review";
 import { ExamVoiceTutor } from "@/components/parity/exam-voice-tutor";
+import { OralAnswerDesk } from "@/components/parity/oral-answer-desk";
+import {
+  OralAnswerReview,
+  OralPreflightDialog,
+  OralResults,
+  OralReviewTimeDialog,
+  OralTeacherCustomize,
+  OralTopicPick,
+  type OralTopicRow,
+} from "@/components/parity/oral-exam-flow";
+import {
+  DEFAULT_ORAL_TEACHER_MOOD,
+  oralTeacherById,
+  EMPTY_ORAL_ANSWER_NOTE,
+  ORAL_PREFLIGHT,
+  oralVoicePercent,
+  oralVoiceTopicLabel,
+  oralWrittenPercent,
+  reviewItemsFromQuestions,
+  reviewItemsFromTranscript,
+  type OralMessage,
+  type OralTeacherMoodId,
+} from "@/lib/learning/oral-exam-chrome";
+import {
+  minutesForOralLength,
+  ORAL_ALL_TOPICS,
+  oralReviewItemFromGrade,
+  type OralExamReport,
+  type OralLength,
+  type OralProbeKind,
+} from "@/lib/learning/oral-exam";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { PLAN_NODE_META, type PlanNodeKind } from "@/lib/learning/exam-prep-plan";
+import { topicLabelsMatch } from "@/lib/learning/study-tools";
+import { normalizeChapters } from "@/lib/learning/podcast-script";
 import {
   DEFAULT_FAMILIARITY,
   DEFAULT_MOOD,
-  FAMILIARITY_OPTIONS,
-  MOOD_OPTIONS,
   type Familiarity,
   type Mood,
 } from "@/lib/learning/session-signals";
 import { cn } from "@/lib/utils";
 import { onGenerationSucceeded } from "@/lib/credits/spendable";
 import { NodeGenerationProgress } from "@/components/parity/node-generation-progress";
+import { LessonOpenChrome } from "@/components/parity/lesson-open-chrome";
+import {
+  difficultyFromFamiliarity,
+  stepAfterMood,
+} from "@/lib/learning/lesson-open";
 import "@/styles/node-generation-progress.css";
 
 type Difficulty = "kolay" | "orta" | "ileri";
@@ -42,6 +84,7 @@ type Payload = {
   // Podcast senaryosu satır bazlı; biçim lib/learning/podcast-script.ts
   // tarafından normalleştiriliyor, eski script biçimi de kabul ediliyor.
   chapters?: unknown[];
+  length?: string;
   questions?: {
     text?: string;
     prompt?: string;
@@ -49,10 +92,21 @@ type Payload = {
     multi?: boolean;
     correct?: string[];
     explanation?: string;
+    optionWhy?: string[];
+    misconceptionTag?: string;
     hint?: string;
+    expectedPoints?: string[];
+    probeKind?: OralProbeKind;
   }[];
   items?: { text: string; correct: boolean; explanation: string; correctedStatement?: string }[];
   cards?: { front: string; back: string }[];
+  practice?: string;
+  reused?: boolean;
+  /** Senaryo üretiminde düşen kredi. Önbellek 0, yeni senaryo fiyat tablosundaki değer. */
+  scriptCredits?: number;
+  uncoveredTopics?: string[];
+  message?: string;
+  screen?: ReadinessScreen;
 };
 
 export function ExamNodeSession({
@@ -61,17 +115,22 @@ export function ExamNodeSession({
   kind,
   prepTitle,
   topicLabel,
+  requestedTopic = null,
   topicId = null,
   initialFamiliarity,
   resumeEnabled = false,
   sourceName = null,
   resetsAtLabel = null,
+  oralTopics = [],
+  language = "tr",
 }: {
   prepId: string;
   nodeId: string;
   kind: PlanNodeKind;
   prepTitle: string;
   topicLabel: string | null;
+  /** Ders oluşturma merkezinden gelen konu. Üretim bu etiketi kullanır. */
+  requestedTopic?: string | null;
   /** Sesli tekrar bu konunun dersinden türetiliyor. */
   topicId?: string | null;
   /** Konuya daha önce girildiyse beyan edilen aşinalık — varsayılan olarak gelir. */
@@ -87,20 +146,49 @@ export function ExamNodeSession({
    * çözüyor ve bunu saklamak doğru olmaz.
    */
   resetsAtLabel?: string | null;
+  /** Sözlü deneme konu listesi. Boşsa düğümün kendi konusu tek satır olur. */
+  oralTopics?: OralTopicRow[];
+  /** Hazırlık dili — ders sonu tekrarı bu dilde kurulur. */
+  language?: "tr" | "en";
 }) {
   const router = useRouter();
   const meta = PLAN_NODE_META[kind];
   // Referans üründeki sıra: aşinalık → ruh hali → kurulum. İkisi de zorunlu değil;
   // "setup"tan geri dönülebilsin diye aynı stage makinesinde tutuluyorlar.
+  const isOral = kind === "oral";
+  const opensReadiness = kind === "readiness";
   const [stage, setStage] = useState<
-    "familiarity" | "mood" | "setup" | "play" | "result" | "restoring"
-  >(resumeEnabled ? "restoring" : "familiarity");
+    | "familiarity"
+    | "mood"
+    | "recommend"
+    | "setup"
+    | "play"
+    | "result"
+    | "restoring"
+    | "oral-topics"
+    | "oral-customize"
+    | "oral-review-time"
+    | "oral-review"
+  >(resumeEnabled ? "restoring" : opensReadiness ? "setup" : isOral ? "oral-topics" : "familiarity");
   const [familiarity, setFamiliarity] = useState<Familiarity>(
     initialFamiliarity ?? DEFAULT_FAMILIARITY,
   );
   const [mood, setMood] = useState<Mood>(DEFAULT_MOOD);
   const [difficulty, setDifficulty] = useState<Difficulty>("orta");
+  const [podcastLength, setPodcastLength] = useState<"ozet" | "standart" | "derin">("standart");
   const [voiceMode, setVoiceMode] = useState(meta.voice);
+  const [oralSelected, setOralSelected] = useState<string[]>(() => {
+    if (!requestedTopic) return [];
+    const hit = oralTopics.find((topic) => topicLabelsMatch(requestedTopic, topic.label));
+    return hit ? [hit.id] : [];
+  });
+  const [oralMoodId, setOralMoodId] = useState<OralTeacherMoodId>(DEFAULT_ORAL_TEACHER_MOOD);
+  const [oralLength, setOralLength] = useState<OralLength>(3);
+  const [oralReport, setOralReport] = useState<OralExamReport | null>(null);
+  const [oralPreflight, setOralPreflight] = useState(false);
+  const [oralTranscript, setOralTranscript] = useState<OralMessage[]>([]);
+  const [oralReviewIndex, setOralReviewIndex] = useState(0);
+  const [oralReviewTab, setOralReviewTab] = useState<"ai" | "you">("ai");
   const [loading, setLoading] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   /**
@@ -121,11 +209,12 @@ export function ExamNodeSession({
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [flipped, setFlipped] = useState(false);
-  const [score, setScore] = useState({ score: 0, total: 1 });
+  const [score, setScore] = useState({ score: 0, total: 1, retried: 0 });
   const [oralGrade, setOralGrade] = useState<{
     items: { index: number; correct: boolean; gap: string | null }[];
     scoreRationale?: string;
   } | null>(null);
+  const [writtenReview, setWrittenReview] = useState<WrittenExamReview | null>(null);
   const [nextHref, setNextHref] = useState(`/deneme-sinavlari/${prepId}`);
   const [feedback, setFeedback] = useState<{
     headline: string;
@@ -141,7 +230,7 @@ export function ExamNodeSession({
     chapters: unknown[];
   } | null>(null);
   /** Stage 6: which question indices showed a hint before submit. */
-  const [hintsUsed, setHintsUsed] = useState<Record<string, boolean>>({});
+  const hintsUsed: Record<string, boolean> = {};
   const startInFlight = useRef(false);
   const completeInFlight = useRef(false);
   const completeRequestIdRef = useRef<string | null>(null);
@@ -186,15 +275,42 @@ export function ExamNodeSession({
           setStage("play");
           return;
         }
+        if (kind === "written_exam") {
+          const reviewRes = await fetch("/api/learning/exam-prep/node", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prepId, nodeId, action: "review" }),
+          });
+          const reviewData = await reviewRes.json().catch(() => ({}));
+          if (!cancelled && reviewRes.ok && reviewData.review) {
+            setWrittenReview(reviewData.review);
+            setScore({
+              score: reviewData.score ?? reviewData.review.score ?? 0,
+              total: reviewData.total ?? reviewData.review.total ?? 1,
+              retried: reviewData.retried ?? 0,
+            });
+            setStage("result");
+            return;
+          }
+        }
       } catch {
         // Fall through to normal setup.
       }
-      if (!cancelled) setStage("familiarity");
+      if (!cancelled) {
+        setStage(kind === "oral" ? "oral-topics" : kind === "readiness" ? "setup" : "familiarity");
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [resumeEnabled, prepId, nodeId]);
+  }, [resumeEnabled, prepId, nodeId, kind]);
+
+  useEffect(() => {
+    if (kind !== "readiness" || stage !== "setup" || startInFlight.current) return;
+    void start();
+    // start her render'da yeni; yalnız hazırlık ekranı kuruluma düşünce bir kez.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, stage]);
 
   useEffect(() => {
     if (stage !== "play" || !isTimedExam) return;
@@ -322,7 +438,11 @@ export function ExamNodeSession({
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   }
 
-  async function start() {
+  async function start(overrides?: {
+    difficulty?: Difficulty;
+    voiceMode?: boolean;
+    mood?: Mood;
+  }) {
     if (startInFlight.current || loading) return;
     startInFlight.current = true;
     setGenerationFailure(null);
@@ -338,10 +458,27 @@ export function ExamNodeSession({
           prepId,
           nodeId,
           action: "start",
-          difficulty,
-          voiceMode,
+          difficulty: overrides?.difficulty ?? difficulty,
+          voiceMode: overrides?.voiceMode ?? voiceMode,
           familiarity,
-          mood,
+          mood: overrides?.mood ?? mood,
+          ...(isOral
+            ? {
+                oralQuestionCount: oralLength,
+                oralScope: oralSelected.includes(ORAL_ALL_TOPICS) ? "all" : "topic",
+                oralTopicLabel: (oralSelected.includes(ORAL_ALL_TOPICS)
+                  ? (oralTopics.length ? oralTopics : [{ label: topicLabel || prepTitle }])
+                      .map((topic) => topic.label)
+                      .join(", ")
+                  : oralTopics
+                      .filter((topic) => oralSelected.includes(topic.id))
+                      .map((topic) => topic.label)
+                      .join(", ") || topicLabel || prepTitle
+                ).slice(0, 400),
+              }
+            : {}),
+          ...(requestedTopic ? { activityTopicLabel: requestedTopic.slice(0, 400) } : {}),
+          ...(kind === "podcast" ? { podcastLength } : {}),
           ...(reqId ? { clientRequestId: reqId } : {}),
         }),
       });
@@ -359,13 +496,20 @@ export function ExamNodeSession({
         //
         // Üretim hâlâ sürüyorsa yenilenmiyor: yenilemek ikinci bir üretim
         // başlatır ve öğrenci iki kez ödeyebilir.
-        const failure = describeGenerationFailure(data.error, resetsAtLabel ?? undefined);
+        const failure = describeGenerationFailure(
+          generationFailureCode(data),
+          resetsAtLabel ?? undefined,
+          kind,
+        );
         if (failure.retryMintsNewId) clearClientRequestId();
         setGenerationFailure(failure);
         setGenerationError(failure.message);
         return;
       }
       applyStartPayload(data);
+      if (typeof data.balance === "number") {
+        window.dispatchEvent(new CustomEvent("cortex-balance", { detail: data.balance }));
+      }
       setStage("play");
       onGenerationSucceeded(() => router.refresh());
     } catch {
@@ -420,7 +564,7 @@ export function ExamNodeSession({
       clearClientRequestId();
       setSaveError(null);
       completeRequestIdRef.current = null;
-      setScore({ score: data.score ?? 0, total: data.total ?? 1 });
+      setScore({ score: data.score ?? 0, total: data.total ?? 1, retried: data.retried ?? 0 });
       setOralGrade(
         data.oralGrade && Array.isArray(data.oralGrade.items)
           ? {
@@ -429,9 +573,15 @@ export function ExamNodeSession({
             }
           : null,
       );
+      if (data.review) setWrittenReview(data.review);
+      if (data.oralReview) setOralReport(data.oralReview as OralExamReport);
       setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
       setFeedback(null);
-      setStage("result");
+      setStage(kind === "oral" ? "oral-review-time" : "result");
+      router.refresh();
+      if (typeof data.balance === "number") {
+        window.dispatchEvent(new CustomEvent("cortex-balance", { detail: data.balance }));
+      }
     } catch {
       toast.error("Bağlantı hatası.");
     } finally {
@@ -447,10 +597,6 @@ export function ExamNodeSession({
     scheduleSave(next, Number(key) || index);
   }
 
-  function markHint(index: number) {
-    setHintsUsed((prev) => ({ ...prev, [String(index)]: true }));
-  }
-
   async function loadLessonPodcast() {
     if (!topicId) return;
     setPodcastLoading(true);
@@ -462,7 +608,7 @@ export function ExamNodeSession({
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        setPaywallReason("premium");
+        setPaywallReason(data.code === "premium_required" ? "premium" : "credit");
         setPaywall(true);
         return;
       }
@@ -526,11 +672,45 @@ export function ExamNodeSession({
             : payload.type === "lesson"
               ? payload.title
               : null;
+  const cinematicLesson =
+    stage === "play" && payload.type === "lesson" && Boolean(structuredLesson);
+  const cinematicPodcast =
+    stage === "play" &&
+    payload.type === "podcast" &&
+    normalizeChapters(chapters).length > 0;
+  const cinematicLoading = stage === "setup" && loading && kind !== "readiness";
+  const oralRows: OralTopicRow[] = oralTopics.length
+    ? oralTopics
+    : topicLabel
+      ? [{ id: "current", label: topicLabel, pct: 0 }]
+      : [{ id: "current", label: prepTitle, pct: 0 }];
+  const selectedOralLabels = oralRows
+    .filter((topic) => oralSelected.includes(topic.id))
+    .map((topic) => topic.label);
+  const oralTopicLabel = selectedOralLabels.join(", ") || topicLabel || prepTitle;
+  const oralVoiceLabel = oralVoiceTopicLabel(
+    isOral ? selectedOralLabels : [topicLabel ?? prepTitle],
+    topicLabel || prepTitle,
+  );
+  const oralReviewItems = oralReport?.items?.length
+    ? oralReport.items.map((item) => oralReviewItemFromGrade(item))
+    : payload.type === "oral"
+      ? reviewItemsFromQuestions(questions, answers)
+      : reviewItemsFromTranscript(oralTranscript);
+  const oralPct =
+    oralReport?.pct ??
+    (payload.type === "oral"
+      ? oralWrittenPercent(score.score, score.total)
+      : oralVoicePercent(oralTranscript));
+  const oralOwnsChrome =
+    isOral && stage !== "restoring" && !(stage === "play" && payload.type === "oral");
   const showCoach =
     stage === "play" &&
     Boolean(coachItem) &&
+    !isTimedExam &&
     payload.type !== "voice" &&
-    payload.type !== "podcast";
+    payload.type !== "podcast" &&
+    !cinematicLesson;
 
   return (
     <div className="cp-exam-page cp-exam-node">
@@ -540,6 +720,7 @@ export function ExamNodeSession({
         <button type="button" className="underline" disabled={pendingSaves > 0}
           onClick={() => { void persistAnswers(answersRef.current, index).catch(() => undefined); }}>Kaydı yeniden dene</button>
       </div> : null}
+      {cinematicLesson || cinematicLoading || cinematicPodcast || oralOwnsChrome ? null : (
       <div className="cp-exam-study-bar">
         <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill"
           onClick={(event) => { if (pendingSaves || saveError) { event.preventDefault(); toast.error("Çıkmadan önce cevapların kaydedilmesini bekle."); } }}>
@@ -554,6 +735,7 @@ export function ExamNodeSession({
           ×
         </button>
       </div>
+      )}
 
       {stage === "restoring" ? (
         <section className="cp-exam-setup" aria-busy="true" aria-live="polite">
@@ -570,73 +752,135 @@ export function ExamNodeSession({
       ) : null}
 
       {stage === "familiarity" || stage === "mood" ? (
-        <article className="cp-signal-card">
-          <div className="cp-signal-steps" aria-hidden>
-            <span className="cp-signal-step cp-signal-step--on" />
-            <span
-              className={cn(
-                "cp-signal-step",
-                stage === "mood" && "cp-signal-step--on",
-              )}
+        <LessonOpenChrome
+          step={stage}
+          familiarity={familiarity}
+          mood={mood}
+          recommendedTitle={meta.setupLabel}
+          topicLabel={topicLabel}
+          onFamiliarity={(level) => {
+            setFamiliarity(level);
+            setDifficulty(difficultyFromFamiliarity(level));
+            setStage("mood");
+          }}
+          onMood={(next) => {
+            setMood(next);
+            setStage(stepAfterMood(kind));
+          }}
+          onContinue={() => setStage("setup")}
+          onCreate={() => void start()}
+        />
+      ) : null}
+
+      {stage === "recommend" ? (
+        <LessonOpenChrome
+          step="recommend"
+          recommendedTitle={meta.setupLabel}
+          blurb={meta.blurb}
+          topicLabel={topicLabel}
+          onFamiliarity={() => undefined}
+          onMood={() => undefined}
+          onContinue={() => setStage("setup")}
+          onCreate={() => void start()}
+        />
+      ) : null}
+
+      {isOral && stage === "oral-topics" ? (
+        <OralTopicPick
+          topics={oralRows}
+          selected={oralSelected}
+          onToggle={(id) =>
+            setOralSelected((current) => {
+              if (id === ORAL_ALL_TOPICS) {
+                return current.includes(ORAL_ALL_TOPICS) ? [] : [ORAL_ALL_TOPICS];
+              }
+              const rest = current.filter((item) => item !== ORAL_ALL_TOPICS);
+              return rest.includes(id) ? rest.filter((item) => item !== id) : [...rest, id];
+            })
+          }
+          onContinue={() => setStage("oral-customize")}
+          onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
+        />
+      ) : null}
+
+      {isOral && stage === "oral-customize" && loading ? (
+        <NodeGenerationProgress
+          title="Sözlü deneme sınavı oluşturuluyor"
+          onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
+        />
+      ) : null}
+
+      {isOral && stage === "oral-customize" && !loading ? (
+        <>
+          <OralTeacherCustomize
+            moodId={oralMoodId}
+            onMood={setOralMoodId}
+            length={oralLength}
+            onLength={setOralLength}
+            onBack={() => setStage("oral-topics")}
+            onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
+            onStart={() => setOralPreflight(true)}
+            notice={generationError}
+          />
+          {oralPreflight ? (
+            <OralPreflightDialog
+              copy={{
+                ...ORAL_PREFLIGHT,
+                items: [
+                  "Rahatça konuşabileceğin sessiz bir yer bul, ya da yazarak cevapla",
+                  `${oralLength} soru bekle`,
+                  "İstediğin zaman bitir, yine de geri bildirim alacaksın",
+                  `${minutesForOralLength(oralLength)} dakika ile sınırlı`,
+                ],
+              }}
+              onConfirm={() => {
+                const choice = oralTeacherById(oralMoodId);
+                setOralPreflight(false);
+                setMood(choice.mood);
+                setDifficulty(choice.difficulty);
+                setVoiceMode(false);
+                void start({
+                  difficulty: choice.difficulty,
+                  voiceMode: false,
+                  mood: choice.mood,
+                });
+              }}
             />
-          </div>
-          {stage === "familiarity" ? (
-            <>
-              <h1>Bu konuya ne kadar aşinasın?</h1>
-              <p className="cp-signal-lead">
-                Doğru zorluk seviyesini belirlememize yardımcı olur.
-              </p>
-              {FAMILIARITY_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className="cp-signal-option"
-                  aria-pressed={familiarity === option.id}
-                  onClick={() => {
-                    setFamiliarity(option.id);
-                    setStage("mood");
-                  }}
-                >
-                  <span className="cp-signal-emoji" aria-hidden>
-                    {option.emoji}
-                  </span>
-                  <span className="cp-signal-title">{option.title}</span>
-                </button>
-              ))}
-            </>
-          ) : (
-            <>
-              <h1>Bugün ruh halin nasıl?</h1>
-              <p className="cp-signal-lead">
-                Anlatım tonunu buna göre ayarlayacağım.
-              </p>
-              {MOOD_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className="cp-signal-option"
-                  aria-pressed={mood === option.id}
-                  onClick={() => {
-                    setMood(option.id);
-                    setStage("setup");
-                  }}
-                >
-                  <span className="cp-signal-emoji" aria-hidden>
-                    {option.emoji}
-                  </span>
-                  <span className="cp-signal-title">{option.title}</span>
-                </button>
-              ))}
-            </>
-          )}
-        </article>
+          ) : null}
+        </>
       ) : null}
 
-      {stage === "setup" && loading ? (
-        <NodeGenerationProgress sourceName={sourceName} />
+      {stage === "setup" && loading && kind !== "readiness" ? (
+        <NodeGenerationProgress
+          sourceName={sourceName}
+          onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
+        />
       ) : null}
 
-      {stage === "setup" && !loading ? (
+      {stage === "setup" && loading && kind === "readiness" ? (
+        <section className="cp-readiness" aria-busy="true">
+          <h1>Hazırlık durumun hesaplanıyor</h1>
+          <p>Kayıtlı ilerlemeden okunuyor. Yeni soru üretilmiyor.</p>
+        </section>
+      ) : null}
+
+      {stage === "setup" && !loading && kind === "lesson" ? (
+        <LessonOpenChrome
+          step="create"
+          recommendedTitle={meta.setupLabel}
+          topicLabel={topicLabel}
+          busy={loading}
+          canCreate={!generationFailure || generationFailure.canRetryNow}
+          error={generationError}
+          action={generationFailure?.action ?? null}
+          onFamiliarity={() => undefined}
+          onMood={() => undefined}
+          onContinue={() => setStage("setup")}
+          onCreate={() => void start()}
+        />
+      ) : null}
+
+      {stage === "setup" && !loading && kind !== "lesson" ? (
         <article className="cp-exam-setup-card">
           <p className="cp-lesson-kicker">{prepTitle}</p>
           <h1>{meta.setupLabel}</h1>
@@ -657,6 +901,28 @@ export function ExamNodeSession({
               }}
             />
           </label>
+          {kind === "podcast" ? (
+            <fieldset className="cp-pod-lengths">
+              <legend>Süre</legend>
+              {(
+                [
+                  ["ozet", "Özet · ~1 dk"],
+                  ["standart", "Standart · ~5 dk"],
+                  ["derin", "Derinlemesine · ~10 dk"],
+                ] as const
+              ).map(([value, label]) => (
+                <label key={value}>
+                  <input
+                    type="radio"
+                    name="podcast-length"
+                    checked={podcastLength === value}
+                    onChange={() => setPodcastLength(value)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
+          ) : null}
           {meta.voice ? (
             <label className="cp-exam-voice-row">
               <span>
@@ -670,6 +936,12 @@ export function ExamNodeSession({
               />
             </label>
           ) : null}
+          {kind === "podcast" ? (
+            <p className="text-sm text-[var(--cp-muted)]">
+              Senaryo {CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits} kr. Ses, önbellekte olmayan her{" "}
+              {AUDIO_CHARS_PER_CREDIT_PRICE} karakter için {CREDIT_PRICE_TABLE.AUDIO_SYNTHESIZE.credits} kr.
+            </p>
+          ) : null}
           {generationFailure && !generationFailure.canRetryNow ? null : (
             <button
               type="button"
@@ -677,7 +949,7 @@ export function ExamNodeSession({
               disabled={loading}
               onClick={() => void start()}
             >
-              {loading ? "Hazırlanıyor…" : "Ders oluştur"}
+              {loading ? "Hazırlanıyor…" : kind === "podcast" ? "Podcast oluştur" : "Ders oluştur"}
             </button>
           )}
           {generationError ? (
@@ -701,10 +973,13 @@ export function ExamNodeSession({
           prepId={prepId}
           nodeId={nodeId}
           kind={kind === "oral" ? "oral" : "qa"}
-          topicLabel={topicLabel ?? prepTitle}
+          topicLabel={oralVoiceLabel}
           difficulty={difficulty}
           returnPath={`/deneme-sinavlari/${prepId}`}
-          onFinish={(turns) => {
+          teacherStyle={isOral ? oralMoodId : undefined}
+          submitting={loading}
+          onFinish={(turns, transcript) => {
+            if (transcript) setOralTranscript(transcript);
             void finish({ "0": turns > 0 ? "sesli yanıt" : "" });
           }}
         />
@@ -714,7 +989,15 @@ export function ExamNodeSession({
         structuredLesson ? (
           // Yapısal ders adım adım gelir: her bölüm kendi kontrolüyle
           // biter ve öğrenci cevaplamadan ilerleyemez.
-          <ExamLessonSteps lesson={structuredLesson} onFinish={() => void finish()} />
+          <ExamLessonSteps
+            lesson={structuredLesson}
+            language={language}
+            onFinish={(missed) => {
+              const indexes = (missed ?? []).filter((index) => Number.isInteger(index));
+              void finish(indexes.length ? { lessonMisses: indexes } : undefined);
+            }}
+            onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
+          />
         ) : (
           <section>
             <h1>{payload.title}</h1>
@@ -728,31 +1011,88 @@ export function ExamNodeSession({
 
       {stage === "play" && payload.type === "podcast" ? (
         <ExamPodcastPlayer
-          title={payload.title ?? "Podcast"}
+          title={payload.title ?? topicLabel ?? "Podcast"}
           chapters={chapters}
           finishing={loading}
+          resumeKey={`${prepId}:${nodeId}:${payload.length ?? podcastLength}`}
+          scriptNote={
+            typeof payload.scriptCredits === "number"
+              ? payload.scriptCredits === 0
+                ? "Senaryo önbellekten geldi; bu açılışta senaryo için kredi düşülmedi."
+                : `Senaryo için ${payload.scriptCredits} kr düşüldü.`
+              : undefined
+          }
+          onCreditsSpent={(spent) => {
+            if (spent > 0) router.refresh();
+          }}
+          onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
           onFinish={() => void finish()}
         />
       ) : null}
 
       {stage === "play" && payload.type === "quiz" && questions[index] ? (
-        <ExamQuizPlay
-          questions={questions.map((question) => ({
-            text: question.text ?? "",
-            options: question.options ?? [],
-            multi: Boolean(question.multi),
-            correct: question.correct,
-            explanation: question.explanation,
-          }))}
-          index={index}
-          value={answers[String(index)]}
-          onChange={(value) => updateAnswer(String(index), value)}
-          onContinue={() => {
-            if (index + 1 < questions.length) setIndex(index + 1);
-            else void finish();
-          }}
-          continueLabel={index + 1 < questions.length ? "İleri" : "Bitir"}
-          disabled={loading}
+        <div className="cp-written-review">
+          {isTimedExam ? (
+            <p className="cp-exam-silence">
+              Yardım kapalı. Süre bitince cevapların gider. Açıklama sınav sonunda.
+            </p>
+          ) : payload.reused ? (
+            <p className="cp-exam-silence">
+              Kayıtlı sorulardan. Yeni üretim yok.
+              {payload.uncoveredTopics?.length
+                ? ` Şu konular için elde soru yok: ${payload.uncoveredTopics.join(", ")}.`
+                : ""}
+            </p>
+          ) : null}
+          <ExamQuizPlay
+            questions={questions.map((question) => ({
+              text: question.text ?? "",
+              options: question.options ?? [],
+              multi: Boolean(question.multi),
+              correct: isTimedExam ? undefined : question.correct,
+              explanation: isTimedExam ? undefined : question.explanation,
+              optionWhy: isTimedExam ? undefined : question.optionWhy,
+              misconceptionTag: isTimedExam ? undefined : question.misconceptionTag,
+            }))}
+            index={index}
+            value={answers[String(index)]}
+            onChange={(value) => updateAnswer(String(index), value)}
+            onContinue={() => {
+              if (index + 1 < questions.length) setIndex(index + 1);
+              else void finish();
+            }}
+            continueLabel={
+              index + 1 < questions.length
+                ? "Sonraki soru"
+                : isTimedExam
+                  ? "Sınavı bitir"
+                  : "Bitir"
+            }
+            disabled={loading}
+            examMode={isTimedExam}
+          />
+        </div>
+      ) : null}
+
+      {stage === "play" && payload.type === "practice_empty" ? (
+        <section className="cp-practice-empty">
+          <p className="cp-lesson-kicker">{meta.setupLabel}</p>
+          <h1>Kayıtlı soru yok</h1>
+          <p>{payload.message}</p>
+          <button type="button" className="cp-exam-continue" onClick={() => router.push(`/deneme-sinavlari/${prepId}`)}>
+            Çalışma yoluna dön
+          </button>
+          <button type="button" className="cp-exam-continue cp-exam-continue--primary" disabled={loading} onClick={() => void finish()}>
+            Bu adımı tamamla
+          </button>
+        </section>
+      ) : null}
+
+      {stage === "play" && payload.type === "readiness" && payload.screen ? (
+        <ExamReadinessScreen
+          screen={payload.screen}
+          continuing={loading}
+          onContinue={() => void finish()}
         />
       ) : null}
 
@@ -867,53 +1207,127 @@ export function ExamNodeSession({
       ) : null}
 
       {stage === "play" && payload.type === "oral" && questions[index] ? (
-        <section>
-          <p className="cp-lesson-kicker">
-            {index + 1}/{questions.length}
-          </p>
-          <h1>{questions[index].prompt}</h1>
-          {questions[index].hint ? (
-            hintsUsed[String(index)] ? (
-              <p className="text-sm text-[var(--cp-muted)]">İpucu: {questions[index].hint}</p>
-            ) : (
-              <button
-                type="button"
-                className="text-sm text-[var(--cp-muted)] underline"
-                onClick={() => markHint(index)}
-              >
-                İpucu göster
-              </button>
-            )
-          ) : null}
-          <textarea
-            className="cp-exam-oral-input"
-            rows={4}
-            placeholder={voiceMode ? "Konuşarak veya yazarak yanıtla" : "Yanıtın"}
-            value={String(answers[String(index)] ?? "")}
-            onChange={(event) =>
-              updateAnswer(String(index), event.target.value)
-            }
-          />
-          <button
-            type="button"
-            className="cp-exam-continue cp-exam-continue--primary"
-            onClick={() => {
-              if (index + 1 < questions.length) setIndex(index + 1);
-              else void finish();
-            }}
-          >
-            {index + 1 < questions.length ? "Sonraki soru" : "Bitir"}
-          </button>
+        <OralAnswerDesk
+          index={index}
+          total={questions.length}
+          prompt={questions[index].prompt ?? ""}
+          probeKind={(questions[index].probeKind as OralProbeKind | undefined) ?? "detail"}
+          hint={oralMoodId === "helpful" ? questions[index].hint : null}
+          persona={oralMoodId}
+          minutes={minutesForOralLength(questions.length)}
+          value={String(answers[String(index)] ?? "")}
+          busy={loading}
+          onChange={(text) => updateAnswer(String(index), text)}
+          onAdvance={(answer) => {
+            updateAnswer(String(index), answer);
+            setIndex(index + 1);
+          }}
+          onFinish={(answer) => {
+            const next = { ...answersRef.current, [String(index)]: answer };
+            updateAnswer(String(index), answer);
+            void finish(next);
+          }}
+        />
+      ) : null}
+
+      {stage === "oral-review-time" ? (
+        <OralReviewTimeDialog onSeeResults={() => setStage("result")} />
+      ) : null}
+
+      {stage === "result" && isOral ? (
+        <OralResults
+          topicLabel={oralTopicLabel}
+          pct={oralPct}
+          onReview={() => {
+            setOralReviewIndex(0);
+            setOralReviewTab("ai");
+            setStage("oral-review");
+          }}
+          strengths={oralReport?.strengths ?? []}
+          weaknesses={oralReport?.weaknesses ?? []}
+          practiceHref={oralReport?.nextStep?.href}
+          practiceLabel={oralReport?.nextStep?.label}
+          onRepeat={() => {
+            setOralTranscript([]);
+            setOralReport(null);
+            setOralSelected([]);
+            setIndex(0);
+            setAnswers({});
+            answersRef.current = {};
+            setPayload({});
+            setScore({ score: 0, total: 1, retried: 0 });
+            setFeedback(null);
+            setStage("oral-topics");
+          }}
+          nextHref={nextHref}
+        />
+      ) : null}
+
+      {stage === "oral-review" ? (
+        <OralAnswerReview
+          items={
+            oralReviewItems.length
+              ? oralReviewItems
+              : [
+                  {
+                    question: "Sözlü deneme sorusu sesli iletildi.",
+                    answer: "",
+                    solution: `Sesli yanıt kaydedilmedi. ${EMPTY_ORAL_ANSWER_NOTE}`,
+                  },
+                ]
+          }
+          index={oralReviewIndex}
+          tab={oralReviewTab}
+          onTab={setOralReviewTab}
+          onIndex={setOralReviewIndex}
+          onClose={() => setStage("result")}
+        />
+      ) : null}
+
+      {stage === "result" && isTimedExam && writtenReview ? (
+        <ExamWrittenReview
+          review={writtenReview}
+          nextHref={nextHref}
+          onRetry={() => {
+            setWrittenReview(null);
+            setIndex(0);
+            setAnswers({});
+            answersRef.current = {};
+            setPayload({});
+            setScore({ score: 0, total: 1, retried: 0 });
+            setStage("familiarity");
+          }}
+        />
+      ) : null}
+
+      {stage === "result" && payload.type === "readiness" && payload.screen ? (
+        <ExamReadinessScreen screen={payload.screen} nextHref={nextHref} />
+      ) : null}
+
+      {stage === "result" && payload.type === "practice_empty" ? (
+        <section className="cp-practice-empty">
+          <h1>Bu adım kaydedildi</h1>
+          <p>{payload.message}</p>
+          <a href={nextHref} className="cp-exam-continue cp-exam-continue--primary">
+            Devam et
+          </a>
         </section>
       ) : null}
 
-      {stage === "result" ? (
+      {stage === "result" && !isOral && !isTimedExam && payload.type !== "readiness" && payload.type !== "practice_empty" ? (
         <section className="cp-exam-node-result">
           <p className="cp-lesson-kicker">Doğru cevaplar</p>
           <p className="cp-exam-score-xl">
             {score.score}/{score.total}
           </p>
           <p>{score.total && score.score / score.total >= 0.7 ? "Güzel gidiyor" : "Biraz daha gelişebilirsin"}</p>
+          {score.retried > 0 ? (
+            <p className="text-sm text-[var(--cp-muted)]">
+              {score.retried === 1
+                ? "1 soru ilk denemede yanlıştı. Tekrar ayrı durur ve bu sayıya eklenmez."
+                : `${score.retried} soru ilk denemede yanlıştı. Tekrarlar ayrı durur ve bu sayıya eklenmez.`}
+            </p>
+          ) : null}
           <p className="text-sm text-[var(--cp-muted)]">
             Doğruluk {Math.round((score.score / Math.max(1, score.total)) * 100)}%
             {" · "}Bu oturum skoru program ilerlemesinden ve sınava hazırlık tahmininden ayrıdır.
@@ -947,7 +1361,7 @@ export function ExamNodeSession({
               </Link>
             </p>
           ) : null}
-          <div className="flex flex-wrap gap-2">
+          <div className="cp-exam-node-actions">
             <button type="button" className="cp-exam-continue" onClick={() => {
               setStage("setup");
               setIndex(0);
@@ -981,7 +1395,8 @@ export function ExamNodeSession({
             <ExamPodcastPlayer
               title={lessonPodcast.title}
               chapters={lessonPodcast.chapters}
-              finishing={false}
+              embed
+              onClose={() => setLessonPodcast(null)}
               onFinish={() => setLessonPodcast(null)}
             />
           ) : null}
@@ -1012,8 +1427,22 @@ export function ExamNodeSession({
               ) : null}
             </article>
           ) : null}
+          {payload.type === "lesson" ? (
+            structuredLesson?.nextFocus?.length ? (
+              <>
+                <p className="cp-exam-debrief-label">Sıradaki adım</p>
+                <ul>
+                  {structuredLesson.nextFocus.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="text-sm text-[var(--cp-muted)]">Sıradaki adım, hazırlığın bir sonraki çalışmasıdır.</p>
+            )
+          ) : null}
           <Link href={nextHref} className="cp-exam-continue cp-exam-continue--primary">
-            Devam et
+            {payload.type === "lesson" ? "Sıradaki adıma geç" : "Devam et"}
           </Link>
         </section>
       ) : null}
@@ -1031,12 +1460,9 @@ export function ExamNodeSession({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        // Podcast kredi bitti diye değil, Plus'a özel olduğu için
-        // kapalı. "Kredin kalmadı" demek öğrenciye yarın gelince
-        // açılacağını söyler; açılmayacak.
         message={
           paywallReason === "premium"
-            ? "Sesli tekrar Plus'a özel."
+            ? "Sesli tekrar için hakkın yetmedi."
             : "Bu ders için kredin kalmadı."
         }
         returnPath={`/deneme-sinavlari/${prepId}`}

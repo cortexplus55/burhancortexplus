@@ -2,20 +2,41 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
-import { pickMainTopics } from "@/lib/learning/diagnostic";
-import { daysUntilExam } from "@/lib/learning/exam-prep-plan";
+import {
+  daysUntilExam,
+  mergeStudyPathTemplate,
+  sessionMetaBySortOrder,
+} from "@/lib/learning/exam-prep-plan";
 import { insertExamPrepGraph } from "@/lib/learning/exam-prep-insert";
+import { alignNewSessionSortOrders } from "@/lib/learning/exam-prep-reschedule-apply";
 import {
   buildExamScheduleV2,
   scheduleSessionsToNodeDrafts,
   type ScheduleTopicInput,
 } from "@/lib/learning/exam-schedule-v2";
+import { applyStudentTopicList } from "@/lib/learning/apply-prep-topics";
+import { groundPrepTopics } from "@/lib/learning/ground-prep-topics";
+import { missingColumn } from "@/lib/learning/missing-column";
+import {
+  contradictionsByTopicTitleResolved,
+  readContradictionDocuments,
+} from "@/lib/learning/prep-contradiction-read";
+import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
+import { PREP_TOPIC_CAP } from "@/lib/learning/prep-topic-list";
+import { loadScheduleTopics } from "@/lib/learning/prep-schedule-topics";
+import type { TopicContradiction } from "@/lib/learning/source-contradictions";
+import type { TopicSourceRef } from "@/lib/learning/topic-merge";
+import { orderTopicsForPath } from "@/lib/learning/topic-order";
 
 const prefsSchema = z
   .object({
     style: z.enum(["examples", "theory", "mixed"]).optional(),
     pace: z.enum(["slow", "normal", "fast"]).optional(),
     notes: z.string().max(400).optional(),
+    modality: z
+      .enum(["reading", "listening", "watching", "practice", "auto"])
+      .optional(),
+    language: z.enum(["tr", "en"]).optional(),
   })
   .optional();
 
@@ -23,14 +44,17 @@ const bodySchema = z.object({
   title: z.string().min(2).max(120),
   examType: z.string().min(2).max(40).default("okul"),
   targetScore: z.number().int().min(1).max(100).optional(),
-  topics: z.array(z.string().min(1).max(120)).min(1).max(24),
+  topics: z.array(z.string().min(1).max(120)).min(1).max(PREP_TOPIC_CAP),
   examDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   note: z.string().max(500).optional(),
   documentId: z.string().uuid().optional(),
+  documentIds: z.array(z.string().uuid()).max(8).optional(),
   dailyMinutes: z.number().int().min(5).max(480).optional(),
   studyDays: z.array(z.number().int().min(1).max(7)).max(7).optional(),
-  hardTopics: z.array(z.string().min(1).max(120)).max(24).optional(),
+  hardTopics: z.array(z.string().min(1).max(120)).max(PREP_TOPIC_CAP).optional(),
   learningPreferences: prefsSchema,
+  /** Öğrenci konu oklarıyla sırayı değiştirdiyse otomatik önkoşul sırası yazılmaz. */
+  topicOrderManual: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -48,61 +72,49 @@ export async function POST(request: Request) {
   let topicNodeIds: (string | null)[] = topics.map(() => null);
   let scheduleTopics: ScheduleTopicInput[] = [];
 
-  if (v2 && parsed.data.documentId) {
-    const { data: nodes } = await service
-      .from("document_topic_nodes")
-      .select(
-        "id, title, parent_id, sort_order, learning_objective, prerequisites",
-      )
-      .eq("document_id", parsed.data.documentId)
-      .order("sort_order");
-    const mains = pickMainTopics(
-      (nodes ?? []).map((n) => ({
-        id: n.id as string,
-        title: n.title as string,
-        parentId: (n.parent_id as string | null) ?? null,
-      })),
-    );
-    if (mains.length) {
-      topics = mains.map((n) => n.title);
-      topicNodeIds = mains.map((n) => n.id);
-      const mainRows = (nodes ?? []).filter((n) =>
-        mains.some((m) => m.id === n.id),
+  const documentIds = orderedSourceDocumentIds({
+    documentId: parsed.data.documentId,
+    documentIds: parsed.data.documentIds,
+  });
+  // Öğrencinin son listesi yolu kurar. Otomatik birleştirme konu silmez;
+  // öğrenci kaldırdıysa o başlık burada yoktur. Belgede olmayan başlık
+  // reddedilir. Hazır analiz yeniden üretilmez.
+  if (documentIds.length) {
+    const grounded = await groundPrepTopics(service, userId, documentIds, topics);
+    if (!grounded.ok) {
+      return NextResponse.json({ error: grounded.message }, { status: 400 });
+    }
+    if (v2) {
+      const loaded = await loadScheduleTopics(
+        service,
+        documentIds,
+        parsed.data.hardTopics ?? [],
+        userId,
       );
-      const { data: links } = await service
-        .from("document_topic_page_links")
-        .select("topic_id, page_number")
-        .eq("document_id", parsed.data.documentId)
-        .in(
-          "topic_id",
-          mainRows.map((n) => n.id as string),
-        );
-      const pagesByTopic = new Map<string, number[]>();
-      for (const link of links ?? []) {
-        const list = pagesByTopic.get(link.topic_id as string) ?? [];
-        list.push(link.page_number as number);
-        pagesByTopic.set(link.topic_id as string, list);
+      if (loaded.titles.length || grounded.matches.length) {
+        const applied = applyStudentTopicList({
+          requested: grounded.titles.map((title, index) => ({
+            title,
+            linkedTitle: grounded.matches[index]?.linkedTitle ?? null,
+            pageNumbers: grounded.matches[index]?.pageNumbers ?? [],
+          })),
+          loaded,
+          hardTopics: parsed.data.hardTopics ?? [],
+        });
+        if (applied.titles.length) {
+          const paired = applied.scheduleTopics.map((topic, index) => ({
+            ...topic,
+            title: applied.titles[index] ?? topic.title,
+            nodeId: applied.nodeIds[index],
+          }));
+          const ordered = orderTopicsForPath(paired, {
+            manualOrder: parsed.data.topicOrderManual === true,
+          });
+          topics = ordered.map((topic) => topic.title);
+          topicNodeIds = ordered.map((topic) => topic.nodeId ?? null);
+          scheduleTopics = ordered;
+        }
       }
-      const hardSet = new Set(
-        (parsed.data.hardTopics ?? []).map((t) =>
-          t.trim().toLocaleLowerCase("tr"),
-        ),
-      );
-      scheduleTopics = mainRows.map((n) => ({
-        id: n.id as string,
-        title: n.title as string,
-        objective: (n.learning_objective as string | null) ?? null,
-        prerequisites: Array.isArray(n.prerequisites)
-          ? (n.prerequisites as string[])
-          : [],
-        pageNumbers: [...new Set(pagesByTopic.get(n.id as string) ?? [])].sort(
-          (a, b) => a - b,
-        ),
-        measuredLevel: "unknown" as const,
-        selfHard: hardSet.has(
-          String(n.title).trim().toLocaleLowerCase("tr"),
-        ),
-      }));
     }
   }
 
@@ -111,6 +123,7 @@ export async function POST(request: Request) {
   );
 
   let scheduleSummary: ReturnType<typeof buildExamScheduleV2> | null = null;
+  let scheduleDrafts: ReturnType<typeof scheduleSessionsToNodeDrafts> | null = null;
   let v2Nodes:
     | {
         kind: import("@/lib/learning/exam-prep-plan").PlanNodeKind;
@@ -131,8 +144,10 @@ export async function POST(request: Request) {
       topics: scheduleTopics,
       targetScore: parsed.data.targetScore,
     });
-    const drafts = scheduleSessionsToNodeDrafts(scheduleSummary.sessions);
-    v2Nodes = drafts.map((d, index) => ({
+    scheduleDrafts = mergeStudyPathTemplate(
+      scheduleSessionsToNodeDrafts(scheduleSummary.sessions),
+    );
+    v2Nodes = scheduleDrafts.map((d, index) => ({
       kind: d.kind,
       title: d.title,
       day_index: d.dayIndex,
@@ -148,7 +163,7 @@ export async function POST(request: Request) {
     topics,
     examDate: parsed.data.examDate,
     targetScore: parsed.data.targetScore,
-    documentId: parsed.data.documentId ?? null,
+    documentId: documentIds[0] ?? null,
     nodes: v2Nodes,
   });
 
@@ -172,7 +187,11 @@ export async function POST(request: Request) {
               studyDayDates: scheduleSummary.studyDayDates,
               orderedTopicIds: scheduleSummary.orderedTopicIds,
               summary: scheduleSummary.summary,
-              sessions: scheduleSummary.sessions,
+              sessions: alignNewSessionSortOrders(
+                scheduleSummary.sessions,
+                scheduleDrafts ?? [],
+                [],
+              ),
             },
           }
         : {}),
@@ -180,19 +199,50 @@ export async function POST(request: Request) {
     .eq("id", result.prepId)
     .eq("user_id", userId);
 
+  if (documentIds.length) {
+    await service
+      .from("exam_preps")
+      .update({ source_document_ids: documentIds })
+      .eq("id", result.prepId)
+      .eq("user_id", userId);
+  }
+
+  const orderWrite = await service
+    .from("exam_preps")
+    .update({ topic_order_manual: parsed.data.topicOrderManual === true })
+    .eq("id", result.prepId)
+    .eq("user_id", userId);
+  if (orderWrite.error && !missingColumn(orderWrite.error)) {
+    console.error("topic order flag", orderWrite.error.message);
+  }
+
+  const contradictionDocs = await readContradictionDocuments(service, documentIds).catch(() => []);
+  const contradictionMap = await contradictionsByTopicTitleResolved(
+    service,
+    userId,
+    scheduleTopics.map((topic) => ({
+      title: topic.title,
+      sources: (topic.sourceRefs ?? []).map((source) => ({
+        documentId: source.documentId,
+        pages: source.pages,
+      })),
+    })),
+    contradictionDocs,
+  );
+
   if (scheduleSummary) {
     const { data: nodeRows } = await service
       .from("exam_prep_nodes")
       .select("id, sort_order")
       .eq("exam_prep_id", result.prepId)
       .order("sort_order");
-    const drafts = scheduleSessionsToNodeDrafts(scheduleSummary.sessions);
+    const metaBySort = sessionMetaBySortOrder(scheduleDrafts ?? []);
     for (const row of nodeRows ?? []) {
-      const draft = drafts.find((d) => d.sortOrder === row.sort_order);
-      if (!draft) continue;
+      const meta = metaBySort.get(row.sort_order as number);
+      if (!meta) continue;
       await service
         .from("exam_prep_nodes")
-        .update({ session_meta: draft.meta })
+        .update({ session_meta: meta })
         .eq("id", row.id);
     }
   }
@@ -216,6 +266,18 @@ export async function POST(request: Request) {
         diagnostic_status: "unmeasured",
       })
       .eq("id", topic.id);
+    const schedule = scheduleTopics[topic.sort_order as number];
+    const extras: {
+      source_refs?: TopicSourceRef[];
+      contradictions?: TopicContradiction[];
+    } = {
+      source_refs: schedule?.sourceRefs ?? [],
+      contradictions: contradictionMap.get(String(topic.label)) ?? [],
+    };
+    const extraWrite = await service.from("exam_prep_topics").update(extras).eq("id", topic.id);
+    if (extraWrite.error && !missingColumn(extraWrite.error)) {
+      console.error("topic sources", extraWrite.error.message);
+    }
   }
 
   return NextResponse.json({

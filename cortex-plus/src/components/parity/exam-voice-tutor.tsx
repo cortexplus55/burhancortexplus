@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   createRecognizer,
@@ -15,6 +15,14 @@ import {
   type Recorder,
 } from "@/lib/learning/voice-recorder";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { OralEndDialog } from "@/components/parity/oral-exam-flow";
+import {
+  ORAL_LIMIT_MINUTES,
+  oralLiveStatus,
+  type OralTeacherMoodId,
+} from "@/lib/learning/oral-exam-chrome";
+import { X } from "lucide-react";
+import { CortexMark } from "@/components/brand/cortex-mark";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -25,6 +33,8 @@ export function ExamVoiceTutor({
   topicLabel,
   difficulty,
   returnPath,
+  teacherStyle,
+  submitting = false,
   onFinish,
 }: {
   prepId: string;
@@ -33,7 +43,10 @@ export function ExamVoiceTutor({
   topicLabel: string;
   difficulty: "kolay" | "orta" | "ileri";
   returnPath: string;
-  onFinish: (turns: number) => void;
+  /** Sözlü kabuktaki hava. Soru-cevap turunda gönderilmez. */
+  teacherStyle?: OralTeacherMoodId;
+  submitting?: boolean;
+  onFinish: (turns: number, messages?: Msg[]) => void;
 }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [phase, setPhase] = useState<"thinking" | "speaking" | "listening" | "idle">(
@@ -47,12 +60,40 @@ export function ExamVoiceTutor({
   // null = henuz bilinmiyor. Ilk seslendirme denemesi belirliyor.
   const serverVoice = useRef<boolean | null>(null);
   const stopped = useRef(false);
+  const paused = useRef(false);
+  const speechAbort = useRef<AbortController | null>(null);
+  const speakGen = useRef(0);
+  const [endOpen, setEndOpen] = useState(false);
+
+  const cutSpeech = useCallback(() => {
+    speakGen.current += 1;
+    speechAbort.current?.abort();
+    speechAbort.current = null;
+    stopSpeech();
+    voiceRef.current?.stop();
+    voiceRef.current = null;
+    browserRecRef.current?.stop();
+    browserRecRef.current = null;
+    const recorder = recRef.current;
+    recRef.current = null;
+    recorder?.cancel();
+    setPhase("idle");
+    setCaption("");
+  }, []);
+
+  const openEndDialog = useCallback(() => {
+    paused.current = true;
+    cutSpeech();
+    setEndOpen(true);
+  }, [cutSpeech]);
 
   useEffect(() => {
     stopped.current = false;
     void turn([]);
     return () => {
       stopped.current = true;
+      speakGen.current += 1;
+      speechAbort.current?.abort();
       stopSpeech();
       voiceRef.current?.stop();
       browserRecRef.current?.stop();
@@ -61,8 +102,14 @@ export function ExamVoiceTutor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (kind !== "oral") return;
+    const timer = window.setTimeout(() => openEndDialog(), ORAL_LIMIT_MINUTES * 60 * 1000);
+    return () => window.clearTimeout(timer);
+  }, [kind, openEndDialog]);
+
   async function turn(history: Msg[], userLine?: string) {
-    if (stopped.current) return;
+    if (stopped.current || paused.current) return;
     const nextHistory = userLine
       ? [...history, { role: "user" as const, content: userLine }]
       : history;
@@ -79,6 +126,7 @@ export function ExamVoiceTutor({
           kind,
           topicLabel,
           difficulty,
+          ...(kind === "oral" && teacherStyle ? { teacherStyle } : {}),
           messages: nextHistory,
         }),
       });
@@ -93,9 +141,12 @@ export function ExamVoiceTutor({
         setPhase("idle");
         return;
       }
+      if (stopped.current) return;
       const reply = String(payload.reply ?? "");
       const withReply = [...nextHistory, { role: "assistant" as const, content: reply }];
       setMessages(withReply);
+      // Bitirme penceresi açıkken yanıt kayda geçer ama ses başlamaz.
+      if (paused.current) return;
       void speak(reply, () => {
         if (payload.done) {
           setPhase("idle");
@@ -112,16 +163,31 @@ export function ExamVoiceTutor({
 
   // Eğitmenin sesi sunucudan geliyor; cihazda Türkçe ses olmaması artık
   // dersi sessiz bırakmıyor. Sunucu sesi premium — gelmezse tarayıcıya düşüyoruz.
+  function speechEnded() {
+    return stopped.current || paused.current;
+  }
+
   async function speak(text: string, onEnd: () => void) {
-    if (stopped.current) return;
+    if (speechEnded()) return;
     setPhase("speaking");
     setCaption("Eğitmen konuşuyor…");
 
-    const handle = await speakFromServer(text, "ada", () => {
-      voiceRef.current = null;
-      if (!stopped.current) onEnd();
-    });
-    if (stopped.current) {
+    const gen = ++speakGen.current;
+    speechAbort.current?.abort();
+    const controller = new AbortController();
+    speechAbort.current = controller;
+    const stale = () => speechEnded() || gen !== speakGen.current;
+
+    const handle = await speakFromServer(
+      text,
+      "ada",
+      () => {
+        voiceRef.current = null;
+        if (!stale()) onEnd();
+      },
+      controller.signal,
+    );
+    if (stale()) {
       handle?.stop();
       return;
     }
@@ -135,12 +201,13 @@ export function ExamVoiceTutor({
     }
 
     speakTurkish(text, {
+      cancelled: stale,
       onEnd: () => {
-        if (!stopped.current) onEnd();
+        if (!stale()) onEnd();
       },
       // Konuşamadıysak da akış tıkanmasın; sıradaki adıma geçiyoruz.
       onError: () => {
-        if (!stopped.current) onEnd();
+        if (!stale()) onEnd();
       },
     });
   }
@@ -187,7 +254,7 @@ export function ExamVoiceTutor({
    * Tarayıcı tanıma API'sinden ayrıldık: o yalnız Chrome'da çalışıyordu.
    */
   async function listen(history: Msg[]) {
-    if (stopped.current) return;
+    if (stopped.current || paused.current) return;
     stopSpeech();
 
     // Sunucu sesi yoksa (ücretsiz kullanıcı) sunucu çözümlemesi de yok.
@@ -214,7 +281,7 @@ export function ExamVoiceTutor({
       setCaption("Mikrofon açılamadı; yazarak da sürebilirsin.");
       return;
     }
-    if (stopped.current) {
+    if (stopped.current || paused.current) {
       recorder.cancel();
       return;
     }
@@ -223,13 +290,13 @@ export function ExamVoiceTutor({
 
   async function finishListening(history: Msg[]) {
     const recorder = recRef.current;
-    if (!recorder || stopped.current) return;
+    if (!recorder || stopped.current || paused.current) return;
     recRef.current = null;
 
     setPhase("thinking");
     setCaption("Anlıyorum…");
     const blob = await recorder.stop();
-    if (stopped.current) return;
+    if (stopped.current || paused.current) return;
     if (!blob) {
       setPhase("idle");
       setCaption("Sesini alamadım. Tekrar dene veya yazarak sür.");
@@ -237,7 +304,7 @@ export function ExamVoiceTutor({
     }
 
     const text = await transcribe(blob);
-    if (stopped.current) return;
+    if (stopped.current || paused.current) return;
     if (!text) {
       setPhase("idle");
       setCaption("Söylediğini çözemedim. Tekrar dene veya yazarak sür.");
@@ -250,14 +317,84 @@ export function ExamVoiceTutor({
 
   function stopAll() {
     stopped.current = true;
-    stopSpeech();
-    voiceRef.current?.stop();
-    voiceRef.current = null;
-    browserRecRef.current?.stop();
-    recRef.current?.cancel();
-    recRef.current = null;
-    setPhase("idle");
+    cutSpeech();
     setCaption("Durduruldu.");
+  }
+
+  function confirmEnd() {
+    // Bitiş duraklatma değil. Geç gelen sunucu sesi de onEnd de yok sayılır.
+    stopped.current = true;
+    paused.current = true;
+    cutSpeech();
+    onFinish(messages.filter((message) => message.role === "user").length, messages);
+  }
+
+  if (kind === "oral") {
+    return (
+      <section className="cp-oral cp-oral-live">
+        <header className="cp-oral-bar">
+          <span />
+          <p>Sözlü Deneme Sınavı</p>
+          <button type="button" className="cp-oral-icon" aria-label="Kapat" onClick={openEndDialog}>
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+        <div className="cp-oral-live-stage">
+          <p className="cp-oral-brand">
+            <CortexMark size={26} />
+            <span>cortex</span>
+          </p>
+          <div
+            className={`cp-tutor-orb cp-oral-orb ${phase === "speaking" ? "is-talk" : ""} ${phase === "listening" ? "is-listen" : ""}`}
+            aria-hidden
+          />
+          <p className="cp-oral-status">{oralLiveStatus(phase, caption)}</p>
+          {phase === "listening" ? (
+            <button type="button" className="cp-oral-textbtn" onClick={() => void finishListening(messages)}>
+              Bitirdim
+            </button>
+          ) : null}
+          {phase === "idle" ? (
+            <button
+              type="button"
+              className="cp-oral-textbtn"
+              onClick={() => {
+                paused.current = false;
+                void listen(messages);
+              }}
+            >
+              Tekrar konuş
+            </button>
+          ) : null}
+        </div>
+        <button type="button" className="cp-oral-end" onClick={openEndDialog}>
+          Sınavı bitir
+        </button>
+        {endOpen ? (
+          <OralEndDialog
+            busy={submitting}
+            onStay={() => {
+              if (submitting) return;
+              stopped.current = false;
+              paused.current = false;
+              setEndOpen(false);
+              const last = [...messages].reverse().find((message) => message.role === "assistant");
+              if (!last?.content) return;
+              void speak(last.content, () => {
+                void listen(messages);
+              });
+            }}
+            onConfirm={confirmEnd}
+          />
+        ) : null}
+        <CreditGate
+          open={paywall}
+          onOpenChange={setPaywall}
+          message="Sesli ders için kredin kalmadı."
+          returnPath={returnPath}
+        />
+      </section>
+    );
   }
 
   return (

@@ -102,6 +102,25 @@ describe("quotaView", () => {
   it("etiketleri döndürür", () => {
     expect(periodLabel("daily")).toBe("Günlük limit");
     expect(periodLabel("monthly")).toBe("Aylık limit");
+    expect(periodLabel("weekly")).toBe("Haftalık limit");
+  });
+
+  it("haftalık abonede dönem dolunca etiket ve pencere haftalık kalır", () => {
+    const view = quotaView(
+      wallet({
+        period_kind: "weekly",
+        period_allowance: 150,
+        free_allowance_remaining: 0,
+        period_ends_at: "2026-09-03T00:00:00.000Z",
+      }),
+      true,
+      NOW,
+      150,
+    );
+    expect(view.pendingRefill).toBe(true);
+    expect(view.kind).toBe("weekly");
+    expect(view.allowance).toBe(150);
+    expect(view.resetsAt.toISOString()).toBe("2026-09-10T00:00:00.000Z");
   });
 
   it("yenilenme saatini ÖĞRENCİNİN saatiyle yazar, sunucununkiyle değil", () => {

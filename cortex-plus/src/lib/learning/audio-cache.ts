@@ -124,6 +124,20 @@ export function audioIdempotencyKey(
  * çağrılabildiği sürece bir uç, farkında olmadan seslendirmeyi bedavaya
  * çevirebilir. Dışarıya açık olan tek yol `synthesizeCharged`.
  */
+type AudioProgress = {
+  /** Bir satırın sesi hazır olur olmaz. Oynatıcı ilk satırdan başlar. */
+  onTrack?: (index: number, track: AudioTrack) => void;
+};
+
+async function signPath(service: Service, path: string): Promise<string | null> {
+  const { data, error } = await service.storage
+    .from(AUDIO_BUCKET)
+    .createSignedUrls([path], SIGNED_URL_SECONDS);
+  const url = data?.[0]?.signedUrl;
+  if (error || !url) return null;
+  return url;
+}
+
 async function ensureAudio(
   service: Service,
   lines: AudioRequest[],
@@ -135,6 +149,7 @@ async function ensureAudio(
    * sisirmek marj hesabini yanlis gosterirdi.
    */
   userId?: string,
+  options?: AudioProgress,
 ): Promise<AudioTrack[] | null> {
   if (!lines.length) return null;
 
@@ -163,66 +178,83 @@ async function ensureAudio(
       return all.findIndex((other) => other.hash === item.hash) === i;
     });
 
-  // One reservation covers the whole script. Bound provider concurrency without
-  // splitting billing into separately charged client requests.
-  for (let offset = 0; offset < missing.length; offset += 8) {
-    const produced = await Promise.all(
-      missing.slice(offset, offset + 8).map(async ({ line, hash }) => {
-        const result = await synthesizeLine(line.text, line.speaker);
-        if (!result) return null;
+  const emitted = new Set<number>();
+  const emit = async (index: number) => {
+    if (!options?.onTrack || emitted.has(index)) return;
+    const entry = cache.get(hashes[index] ?? "");
+    if (!entry) return;
+    const url = await signPath(service, entry.path);
+    if (!url) return;
+    emitted.add(index);
+    options.onTrack(index, { url, durationMs: entry.durationMs });
+  };
 
-        const path = `${hash.slice(0, 2)}/${hash}.mp3`;
-        const { error } = await service.storage
-          .from(AUDIO_BUCKET)
-          .upload(path, result.audio, {
-            contentType: "audio/mpeg",
-            upsert: true,
-          });
-        if (error) return null;
+  for (let index = 0; index < lines.length; index += 1) {
+    if (cache.has(hashes[index] ?? "")) await emit(index);
+  }
 
-        return {
-          hash,
-          path,
-          durationMs: result.durationMs,
-          speaker: line.speaker,
-          chars: result.chars,
-        };
-      }),
-    );
+  // Tek ayırma tüm senaryoyu kapsar. Sağlayıcıya aynı anda en fazla 8 istek
+  // gider; biten satır bekleyenlerin tamamını beklemeden oynatıcıya yazılır.
+  const concurrency = 8;
+  let cursor = 0;
+  let failed = false;
 
-    const rows = produced.filter((row) => row !== null);
-    if (rows.length) {
+  async function produceOne() {
+    while (!failed) {
+      const job = missing[cursor];
+      cursor += 1;
+      if (!job) return;
+      const result = await synthesizeLine(job.line.text, job.line.speaker);
+      if (!result || failed) {
+        failed = true;
+        return;
+      }
+      const path = `${job.hash.slice(0, 2)}/${job.hash}.mp3`;
+      const { error } = await service.storage.from(AUDIO_BUCKET).upload(path, result.audio, {
+        contentType: "audio/mpeg",
+        upsert: true,
+      });
+      if (error || failed) {
+        failed = true;
+        return;
+      }
       const { error: writeError } = await service.from("lesson_audio").upsert(
-        rows.map((row) => ({
-          hash: row.hash,
-          storage_path: row.path,
-          duration_ms: row.durationMs,
-          voice: row.speaker,
-          chars: row.chars,
+        [{
+          hash: job.hash,
+          storage_path: path,
+          duration_ms: result.durationMs,
+          voice: job.line.speaker,
+          chars: result.chars,
           last_used_at: new Date().toISOString(),
-        })),
+        }],
         { onConflict: "hash" },
       );
-      if (writeError) return null;
-      for (const row of rows) {
-        cache.set(row.hash, { path: row.path, durationMs: row.durationMs });
+      if (writeError || failed) {
+        failed = true;
+        return;
       }
-
+      cache.set(job.hash, { path, durationMs: result.durationMs });
       if (userId) {
-        // Tek olay, uretilen karakterlerin toplami. Sesin maliyeti bugune
-        // kadar hicbir yere yazilmiyordu; marji belirleyen kalem olcusuz
-        // duruyordu.
         void recordUsage(service, {
           userId,
           actionCode: "TTS_SYNTHESIZE",
           model: env.OPENAI_TTS_MODEL,
-          tokensIn: rows.reduce((sum, row) => sum + row.chars, 0),
+          tokensIn: result.chars,
           tokensOut: 0,
         });
       }
+      for (let index = 0; index < lines.length; index += 1) {
+        if (hashes[index] === job.hash) await emit(index);
+      }
     }
-    if (rows.length !== produced.length) return null;
   }
+
+  if (missing.length) {
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, missing.length) }, () => produceOne()),
+    );
+  }
+  if (failed) return null;
 
   const resolved = hashes.map((hash) => cache.get(hash));
   if (resolved.some((entry) => !entry || !Number.isFinite(entry.durationMs) || entry.durationMs <= 0)) return null;
@@ -273,6 +305,7 @@ export async function synthesizeCharged(
   service: Service,
   userId: string,
   lines: AudioRequest[],
+  options?: AudioProgress,
 ): Promise<ChargedAudio> {
   let units: number;
   try {
@@ -303,7 +336,7 @@ export async function synthesizeCharged(
 
   let tracks: AudioTrack[] | null;
   try {
-    tracks = await ensureAudio(service, lines, userId);
+    tracks = await ensureAudio(service, lines, userId, options);
   } catch {
     // Network exceptions must release the same reservation as ordinary failures.
     tracks = null;

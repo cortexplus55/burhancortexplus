@@ -87,3 +87,58 @@ export function topicFence(input: {
 /** Öğrenciye gösterilen etiket — içeriğin nereden geldiğini saklamıyoruz. */
 export const TOPIC_ONLY_NOTICE =
   "Bu içerik yüklediğin bir belgeden değil, konunun genel bilgisinden hazırlandı.";
+
+/**
+ * Hazırlığın belgelerini tek listeye indirger.
+ * `source_document_ids` doluysa o liste geçerlidir; boşsa eski tek belge.
+ */
+export function prepSourceDocumentIds(input: {
+  documentId?: string | null;
+  sourceDocumentIds?: readonly string[] | null;
+}): string[] {
+  const listed = (input.sourceDocumentIds ?? []).filter(
+    (id): id is string => typeof id === "string" && id.trim().length > 0,
+  );
+  const unique = [...new Set(listed)];
+  if (unique.length) return unique;
+  return input.documentId ? [input.documentId] : [];
+}
+
+/**
+ * Sihirbazın gönderdiği sıra.
+ * Dolu dizi geçerlidir; boşsa eski tek `documentId` okunur.
+ * Kayıtta `document_id` bu listenin ilkidir.
+ */
+export function orderedSourceDocumentIds(input: {
+  documentId?: string | null;
+  documentIds?: readonly string[] | null;
+}): string[] {
+  const listed = (input.documentIds ?? []).filter(
+    (id): id is string => typeof id === "string" && id.trim().length > 0,
+  );
+  const unique = [...new Set(listed)];
+  if (unique.length) return unique;
+  return input.documentId ? [input.documentId] : [];
+}
+
+/** Materyaller sekmesindeki tür satırı. Sayfa sayısı yoksa yalnızca tür. */
+export function materialKindLabel(input: {
+  mimeType?: string | null;
+  pageCount?: number | null;
+}): string {
+  const mime = (input.mimeType ?? "").toLowerCase();
+  const kind =
+    mime.includes("pdf")
+      ? "PDF"
+      : mime.includes("word") || mime.includes("officedocument.word")
+        ? "Word"
+        : mime.includes("presentation") || mime.includes("powerpoint")
+          ? "Sunum"
+          : mime.startsWith("image/")
+            ? "Görsel"
+            : "Belge";
+  if (typeof input.pageCount === "number" && input.pageCount > 0) {
+    return `${kind} · ${input.pageCount} sayfa`;
+  }
+  return kind;
+}

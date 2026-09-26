@@ -3,6 +3,7 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { verifyOralPrompt } from "@/lib/learning/oral-review";
+import { teacherPersona } from "@/lib/learning/teacher-brain";
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     maxDraftAttempts: 2,
     schemaHint:
       'Yalnızca şu JSON: {"title":string,"questions":[{"prompt":string,"hint":string}]}. 5 açık uçlu sözlü sorusu. Kısa, net, Türkçe. Karşılaştırmalı rol (sınırlayıcı, artan madde) soruyorsan en az iki taraf veya denklem yaz; tek maddeyle sınırlayıcı sorma.',
-    userPrompt: `Konu: ${parsedBody.data.topic}. Gerçek bir sözlü sınav gibi 5 soru yaz.`,
+    userPrompt: `${teacherPersona()} Konu: ${parsedBody.data.topic}. Gerçek bir sözlü sınav gibi 5 soru yaz. Her soru tek kavramı yoklasın.`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       if (!result.success) return null;

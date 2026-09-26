@@ -1,0 +1,735 @@
+/* Sözlü deneme kabuğu. Astra sözlü sınav yerleşimi; marka Cortex. */
+
+.cp-oral svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.cp-oral-check svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.cp-oral-review-card h2 svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.cp-oral {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 40rem);
+  margin: 0 auto;
+  min-height: calc(100dvh - 7.5rem);
+  color: var(--cp-text, #fff);
+}
+
+.cp-oral-bar {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr 2.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+}
+
+.cp-oral-bar p {
+  margin: 0;
+  text-align: center;
+  font-size: 0.95rem;
+  color: #c8c8c8;
+}
+
+.cp-oral-icon,
+.cp-oral-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  border: 1px solid #3a3a3a;
+  background: #1c1c1c;
+  color: #fff;
+  cursor: pointer;
+}
+
+.cp-oral-x {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.cp-oral h1 {
+  margin: 1.25rem 0 1.35rem;
+  text-align: center;
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.cp-oral-topics {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-oral-topic {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  min-height: 3.35rem;
+  padding: 0.8rem 1rem;
+  border-radius: 0.95rem;
+  border: 1px solid #3a3a3a;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-oral-topic:hover {
+  border-color: #4a4a4a;
+}
+
+.cp-oral-topic-label {
+  flex: 1;
+  font-size: 0.95rem;
+}
+
+.cp-oral-topic-pct {
+  color: #9a9a9a;
+  font-size: 0.875rem;
+}
+
+.cp-oral-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  border-radius: 0.28rem;
+  border: 1.5px solid #8d8d8d;
+  color: #fff;
+}
+
+.cp-oral-topic[aria-pressed="true"] .cp-oral-check {
+  border-color: #3b5bfd;
+  background: #3b5bfd;
+}
+
+.cp-oral-footer {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding: 1.25rem 0 0.25rem;
+  background: linear-gradient(to top, var(--cp-bg, #0f0f0f) 72%, transparent);
+}
+
+.cp-oral-cta,
+.cp-oral-end,
+.cp-oral-ghost,
+.cp-oral-textbtn {
+  font: inherit;
+  cursor: pointer;
+}
+
+.cp-oral-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 3rem;
+  border: 0;
+  border-radius: 9999px;
+  background: #3b5bfd;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.cp-oral-cta:disabled {
+  background: #3c4654;
+  color: #c5c9d1;
+  cursor: not-allowed;
+}
+
+.cp-oral-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0.75rem 0 0;
+  color: #b7b7b7;
+  font-size: 0.8rem;
+}
+
+.cp-oral-voice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 1.5rem;
+}
+
+.cp-oral-voice-orb {
+  width: 7.25rem;
+  height: 7.25rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 28%, #fff6dd, #e6b15a 38%, #8a5a16 78%);
+  box-shadow: 0 0 42px rgba(244, 174, 11, 0.35);
+}
+
+.cp-oral-kicker {
+  margin: 0.85rem 0 0;
+  color: #bdbdbd;
+  font-size: 0.95rem;
+}
+
+.cp-oral-voice-name {
+  margin: 0;
+  font-weight: 650;
+}
+
+.cp-oral-slider {
+  position: relative;
+  width: min(100%, 16rem);
+  height: 2.25rem;
+  margin-top: 0.85rem;
+}
+
+.cp-oral-slider input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: default;
+}
+
+.cp-oral-slider-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  background: #3a3a3a;
+}
+
+.cp-oral-slider-grip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.4rem;
+  height: 2.4rem;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  border: 1px solid #3a3a3a;
+  background: #1a1a1a;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.cp-oral-slider-grip span {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: #d0d0d0;
+}
+
+.cp-oral-section-title {
+  margin: 0.5rem 0 0.85rem;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.cp-oral-moods {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cp-oral-mood {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid #3a3a3a;
+  background: #141414;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-oral-mood.is-on {
+  border-color: transparent;
+  background:
+    linear-gradient(#141414, #141414) padding-box,
+    linear-gradient(120deg, #e0b15a, #6b8cff) border-box;
+}
+
+.cp-oral-mood-badge {
+  position: absolute;
+  top: -0.55rem;
+  left: 0.85rem;
+  padding: 0.08rem 0.4rem;
+  border-radius: 0.3rem;
+  background: #2a2418;
+  color: #e7c27a;
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.cp-oral-mood-badge.is-no {
+  background: #2a2a2a;
+  color: #c5c5c5;
+}
+
+.cp-oral-mood-icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  background: #242424;
+  color: #ddd;
+  flex-shrink: 0;
+}
+
+.cp-oral-mood strong {
+  display: block;
+  font-size: 0.98rem;
+}
+
+.cp-oral-mood em {
+  display: block;
+  margin-top: 0.12rem;
+  color: #9a9a9a;
+  font-style: normal;
+  font-size: 0.82rem;
+}
+
+.cp-oral-mood-check {
+  margin-left: auto;
+  color: #d7d7d7;
+}
+
+.cp-oral-modal-back {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(8px);
+}
+
+.cp-oral-modal {
+  width: min(100%, 26rem);
+  padding: 1.35rem 1.25rem 1.15rem;
+  border-radius: 1.15rem;
+  border: 1px solid #2e2e2e;
+  background: #1a1a1a;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.cp-oral-modal h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1.45rem;
+}
+
+.cp-oral-modal p {
+  margin: 0 0 1rem;
+  color: #d5d5d5;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.cp-oral-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin: 0 0 1.15rem;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-oral-checks li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  font-size: 0.95rem;
+}
+
+.cp-oral-checks svg {
+  margin-top: 0.15rem;
+  color: #8ea2ff;
+  flex-shrink: 0;
+}
+
+.cp-oral-modal-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.cp-oral-modal-actions .cp-oral-cta,
+.cp-oral-modal-actions .cp-oral-ghost {
+  flex: 1;
+}
+
+.cp-oral-ghost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  border-radius: 9999px;
+  border: 1px solid #3a3a3a;
+  background: transparent;
+  color: #fff;
+  font-weight: 650;
+}
+
+.cp-oral-live-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  text-align: center;
+  padding: 1.5rem 0 1rem;
+}
+
+.cp-oral-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.85rem;
+  font-size: 1.65rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+
+.cp-oral-live .cp-tutor-orb,
+.cp-oral-orb {
+  width: 11.5rem;
+  height: 11.5rem;
+}
+
+.cp-oral-live .cp-tutor-orb.is-listen,
+.cp-oral-orb.is-listen {
+  background: radial-gradient(circle at 35% 30%, #e7ecff, #7d8cff 40%, #2c3484 78%);
+  box-shadow:
+    0 0 72px -4px rgba(110, 130, 255, 0.55),
+    0 0 20px -2px rgba(110, 130, 255, 0.7);
+}
+
+.cp-oral-status {
+  margin: 0.35rem 0 0;
+  color: #c8c8c8;
+  font-size: 1rem;
+}
+
+.cp-oral-textbtn {
+  border: 0;
+  background: transparent;
+  color: #b7b7b7;
+  text-decoration: underline;
+  text-underline-offset: 0.18rem;
+}
+
+.cp-oral-end {
+  width: 100%;
+  min-height: 3rem;
+  margin-top: auto;
+  border-radius: 9999px;
+  border: 1px solid #3a3a3a;
+  background: transparent;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.cp-oral-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: 0.5rem;
+}
+
+.cp-oral-results-kicker {
+  margin: 0;
+  color: #bdbdbd;
+  font-size: 0.95rem;
+}
+
+.cp-oral-books {
+  margin: 1.15rem 0 0.35rem;
+  font-size: 1.8rem;
+}
+
+.cp-oral-results h1 {
+  margin-top: 0.2rem;
+}
+
+.cp-oral-scorecard {
+  width: min(100%, 22rem);
+  margin-top: 0.4rem;
+  padding: 1rem 0.85rem 0.9rem;
+  border-radius: 1.35rem;
+  border: 1px solid #2e2e2e;
+  background: #161616;
+}
+
+.cp-oral-scorecard-topic {
+  margin: 0 0 0.85rem;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.cp-oral-score-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+}
+
+.cp-oral-score-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.cp-oral-score-pill span {
+  color: #9a9a9a;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+
+.cp-oral-score-pill strong {
+  display: grid;
+  place-items: center;
+  width: 4.4rem;
+  height: 4.4rem;
+  border-radius: 9999px;
+  border: 2px solid #d7d7d7;
+  font-size: 1.85rem;
+}
+
+.cp-oral-score-pill.is-pct strong {
+  border-color: #3a3a3a;
+  color: #d0d0d0;
+  font-size: 1.15rem;
+}
+
+.cp-oral-review-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1.15rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#121212, #121212) padding-box,
+    linear-gradient(120deg, #e0b15a, #6b8cff) border-box;
+  color: #d6e0ff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cp-oral-summary {
+  margin-top: 1.4rem;
+  color: #bdbdbd;
+}
+
+.cp-oral-result-actions {
+  display: flex;
+  gap: 0.7rem;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 1.25rem;
+}
+
+.cp-oral-result-actions .cp-oral-ghost,
+.cp-oral-result-actions .cp-oral-cta {
+  flex: 1;
+  text-decoration: none;
+}
+
+.cp-oral-review-head {
+  text-align: center;
+}
+
+.cp-oral-review-head p {
+  margin: 0.85rem 0 0.15rem;
+  color: #d0d0d0;
+}
+
+.cp-oral-review-head strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: #9a9a9a;
+  font-weight: 500;
+}
+
+.cp-oral-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.35rem;
+  width: fit-content;
+  margin: 1rem auto 1rem;
+  padding: 0.25rem;
+  border-radius: 9999px;
+  background: #2a2a2a;
+}
+
+.cp-oral-tabs button {
+  border: 0;
+  border-radius: 9999px;
+  padding: 0.45rem 0.9rem;
+  background: transparent;
+  color: #cfcfcf;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cp-oral-tabs button[aria-selected="true"] {
+  background: #f4f4f4;
+  color: #111;
+  font-weight: 700;
+}
+
+.cp-oral-review-card {
+  padding: 1rem 1rem 1.1rem;
+  border-radius: 1.1rem;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#141414, #141414) padding-box,
+    linear-gradient(160deg, #e0b15a, #3b5bfd) border-box;
+  text-align: left;
+}
+
+.cp-oral-review-kicker {
+  margin: 0 0 0.7rem;
+  color: #9a9a9a;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+}
+
+.cp-oral-review-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.65rem;
+  font-size: 1.15rem;
+}
+
+.cp-oral-review-card h2 svg {
+  color: #3dd68c;
+}
+
+.cp-oral-review-card--next {
+  margin-top: 0.75rem;
+}
+
+.cp-oral-review-card p {
+  margin: 0;
+  color: #ececec;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+.cp-oral-miss {
+  font-weight: 750;
+}
+
+.cp-oral-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 1.25rem;
+}
+
+.cp-oral-empty {
+  margin: 0;
+  color: #9a9a9a;
+  text-align: center;
+}
+
+.cp-study-hub {
+  width: min(40rem, 100%);
+  text-align: left;
+}
+
+.cp-study-hub-hint {
+  margin: 0.75rem 0;
+  color: #bdbdbd;
+  font-size: 0.9rem;
+}
+
+.cp-study-hub-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-study-hub-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-height: 4.5rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.9rem;
+  border: 1px solid #2e2e2e;
+  background: #161616;
+  color: inherit;
+  text-decoration: none;
+}
+
+.cp-study-hub-tile em {
+  color: #9a9a9a;
+  font-style: normal;
+  font-size: 0.82rem;
+}
+
+.cp-study-hub-tile.is-off {
+  opacity: 0.55;
+}
+
+.cp-oral-lengths {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.cp-oral-desk .cp-exam-oral-input {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.cp-oral-probe {
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.8rem;
+  background: #1a1a1a;
+}

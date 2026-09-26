@@ -15,7 +15,7 @@ describe("selected source is required before generation", () => {
       let selected = "";
       const builder = {
         select: (columns: string) => { selected = columns; return builder; },
-        eq: () => builder, order: () => builder, limit: () => builder, insert,
+        eq: () => builder, or: () => builder, order: () => builder, limit: () => builder, insert,
         maybeSingle: async () => {
           if (table === "exam_preps") return selected === "document_id"
             ? { data: lookupFailure ? null : { document_id: "document" }, error: lookupFailure ? {} : null }
@@ -43,7 +43,7 @@ describe("completion requires a stored active attempt", () => {
         : table === "exam_prep_nodes" ? { data: { id: "node", status: "ready", kind: "quiz" } }
         : table === "exam_prep_node_attempts" ? { data: null, error: failed ? { message: "offline" } : null }
         : { data: null };
-      const builder = { select: () => builder, eq: () => builder, order: () => builder, limit: () => builder, maybeSingle: async () => result, update };
+      const builder = { select: () => builder, eq: () => builder, or: () => builder, order: () => builder, limit: () => builder, maybeSingle: async () => result, update };
       return builder;
     });
     mocks.guard.mockResolvedValue({ ok: true, ctx: { userId: "user", service: { from } } });
@@ -66,7 +66,7 @@ describe("completion transaction", () => {
         : table === "exam_prep_nodes" ? { data: { id: "node", status: "ready", kind: "true_false" } }
         : table === "exam_prep_node_attempts" ? { data: { id: attemptId, status: "active", payload: { type: "true_false", items: [{ correct: true }] } } }
         : { data: null };
-      const builder = { select: () => builder, eq: (key: string, value: unknown) => { if (table === "exam_prep_node_attempts") filters.push([key, value]); return builder; }, order: () => builder, limit: () => builder, maybeSingle: async () => result, update };
+      const builder = { select: () => builder, eq: (key: string, value: unknown) => { if (table === "exam_prep_node_attempts") filters.push([key, value]); return builder; }, or: () => builder, order: () => builder, limit: () => builder, maybeSingle: async () => result, update };
       return builder;
     });
     mocks.guard.mockResolvedValue({ ok: true, ctx: { userId: "user", service: { from, rpc } } });

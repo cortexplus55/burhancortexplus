@@ -9,15 +9,22 @@ import type { Familiarity } from "@/lib/learning/session-signals";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseSessionMeta } from "@/lib/learning/teaching-standards";
+import { topicStatusPct } from "@/lib/learning/oral-exam-chrome";
+import { studyNodeOpenable } from "@/lib/learning/study-tools";
+import { prepLanguage } from "@/lib/learning/teacher-brain";
 
 export const metadata = { title: "Ders" };
 
 export default async function ExamNodePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ prepId: string; nodeId: string }>;
+  searchParams: Promise<{ konu?: string }>;
 }) {
   const { prepId, nodeId } = await params;
+  const { konu } = await searchParams;
+  const requestedTopic = typeof konu === "string" ? konu.trim().slice(0, 400) : "";
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
   const resumeEnabled = await isFeatureEnabled(
@@ -28,7 +35,7 @@ export default async function ExamNodePage({
   const [{ data: prep }, { data: node }] = await Promise.all([
     supabase
       .from("exam_preps")
-      .select("id, title, active_topic_id, intro_completed_at, intro_deferred_at, document_id")
+      .select("id, title, active_topic_id, intro_completed_at, intro_deferred_at, document_id, learning_preferences")
       .eq("id", prepId)
       .eq("user_id", user.id)
       .maybeSingle(),
@@ -40,7 +47,7 @@ export default async function ExamNodePage({
       .maybeSingle(),
   ]);
 
-  if (!prep || !node || node.status === "locked") notFound();
+  if (!prep || !node || !studyNodeOpenable(node.status)) notFound();
 
   const { data: nodeRows } = await supabase
     .from("exam_prep_nodes")
@@ -72,10 +79,25 @@ export default async function ExamNodePage({
     // Bu konuya daha önce girildiyse beyan edilen seviye varsayılan olur.
     topicFamiliarity = (topic?.familiarity as Familiarity | null) ?? null;
   }
+  if (requestedTopic) topicLabel = requestedTopic;
 
   // Üretim ekranı "senin notundan çıkıyor" diyebilsin diye kaynak dosya adı.
   // Hazırlık bir belgeye bağlı değilse gösterilmez — olmayan bir güvence
   // vermemek için.
+  let oralTopics: { id: string; label: string; pct: number }[] = [];
+  if (node.kind === "oral") {
+    const { data: topicRows } = await supabase
+      .from("exam_prep_topics")
+      .select("id, label, sort_order, status")
+      .eq("exam_prep_id", prepId)
+      .order("sort_order");
+    oralTopics = (topicRows ?? []).map((topic) => ({
+      id: topic.id,
+      label: topic.label,
+      pct: topicStatusPct(topic.status),
+    }));
+  }
+
   let sourceName: string | null = null;
   if (prep.document_id) {
     const { data: doc } = await supabase
@@ -94,10 +116,13 @@ export default async function ExamNodePage({
         kind={node.kind as PlanNodeKind}
         prepTitle={prep.title ?? "Sınav hazırlığı"}
         topicLabel={topicLabel}
+        requestedTopic={requestedTopic || null}
         topicId={topicId ?? null}
         initialFamiliarity={topicFamiliarity}
         resumeEnabled={resumeEnabled}
         sourceName={sourceName}
+        oralTopics={oralTopics}
+        language={prepLanguage(prep.learning_preferences)}
       />
     </ParitySorShell>
   );

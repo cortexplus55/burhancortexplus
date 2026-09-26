@@ -109,8 +109,8 @@ export async function POST(request: Request) {
         ? " Soruları YALNIZCA verilen belge alıntısındaki bilgiden üret; alıntıda olmayan bilgiyi sorma."
         : "");
     const userContent = docContext
-      ? `Belge: ${docContext.fileName}. Konu: ${topic}. ${questionCount} soruluk quiz üret. ${difficultyHint}\n\nBelge alıntısı:\n${docContext.excerpt}`
-      : `Konu: ${topic}. ${questionCount} soruluk quiz üret. ${difficultyHint}`;
+      ? `Belge: ${docContext.fileName}. Konu: ${topic}. ${questionCount} soruluk quiz üret. ${difficultyHint} Çeldiriciler gerçek bir yanılgıdan gelsin. Konuda olmayan formül yazma.\n\nBelge alıntısı:\n${docContext.excerpt}`
+      : `Konu: ${topic}. ${questionCount} soruluk quiz üret. ${difficultyHint} Çeldiriciler gerçek bir yanılgıdan gelsin. Konuda olmayan formül yazma.`;
 
     const questionSchema = z.object({
       question: z.string().min(1),

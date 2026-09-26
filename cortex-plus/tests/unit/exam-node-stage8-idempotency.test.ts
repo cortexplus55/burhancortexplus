@@ -44,6 +44,7 @@ function chain(result: { data: unknown; error?: unknown }) {
   const self = () => builder;
   builder.select = self;
   builder.eq = self;
+  builder.or = self;
   builder.gt = self;
   builder.is = self;
   builder.order = self;

@@ -3,31 +3,31 @@ import {
   isContextlessFragment,
   isEchoOfPriorText,
   isWellFormedTurkishSentence,
-  repairTurkishSurface,
+  repairDativePossessive,
   scanFluencyIssues,
   turkishSurfaceIssues,
 } from "@/lib/learning/learner-fluency";
 
-describe("repairTurkishSurface", () => {
+describe("repairDativePossessive", () => {
   it("fizikte izafet yönelmesini iyelik ekine çevirir", () => {
-    expect(repairTurkishSurface("Devrede akım şiddete ile ölçülür.")).toBe(
+    expect(repairDativePossessive("Devrede akım şiddete ile ölçülür.")).toBe(
       "Devrede akım şiddeti ile ölçülür.",
     );
-    expect(repairTurkishSurface("Okula gitti.")).toBe("Okula gitti.");
+    expect(repairDativePossessive("Okula gitti.")).toBe("Okula gitti.");
   });
 
   it("tarihte tamlayan ekinden sonra iyelik bekler", () => {
-    expect(repairTurkishSurface("Fermanın maddeye ile ilan edildi.")).toBe(
+    expect(repairDativePossessive("Fermanın maddeye ile ilan edildi.")).toBe(
       "Fermanın maddesi ile ilan edildi.",
     );
-    expect(repairTurkishSurface("Akım şiddete.")).toBe("Akım şiddeti.");
+    expect(repairDativePossessive("Akım şiddete.")).toBe("Akım şiddeti.");
   });
 
   it("doğru iyelik ve edatları bozmaz", () => {
-    expect(repairTurkishSurface("Yay uzunluğu ile ilişkilidir.")).toBe(
+    expect(repairDativePossessive("Yay uzunluğu ile ilişkilidir.")).toBe(
       "Yay uzunluğu ile ilişkilidir.",
     );
-    expect(repairTurkishSurface("Kısa açıklama ile başlar.")).toBe(
+    expect(repairDativePossessive("Kısa açıklama ile başlar.")).toBe(
       "Kısa açıklama ile başlar.",
     );
   });
@@ -62,7 +62,7 @@ describe("cümle bütünlüğü", () => {
     );
     expect(scanned.issues.length).toBeGreaterThan(0);
     expect(turkishSurfaceIssues("Devrede akım şiddete.").length).toBeGreaterThan(0);
-    expect(turkishSurfaceIssues(repairTurkishSurface("Devrede akım şiddete.")).length).toBe(0);
+    expect(turkishSurfaceIssues(repairDativePossessive("Devrede akım şiddete.")).length).toBe(0);
   });
 });
 

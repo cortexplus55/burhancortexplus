@@ -77,10 +77,38 @@ export function moodPrompt(mood: Mood): string {
     case "low_energy":
       return "Öğrencinin enerjisi düşük: içeriği kısa parçalara böl, cümleleri kısa tut, bilişsel yükü azalt, tek seferde az şey iste.";
     case "stressed":
-      return "Öğrenci stresli: önce kısa bir cümleyle sakinleştir, konuyu küçük ve net adımlara böl, başarabileceğini hatırlat, sınav baskısını vurgulama.";
+      return "Öğrenci stresli: adımları kısa ve net tut, sınav baskısını vurgulama.";
     default:
       return "Öğrenci nötr: dengeli ve net bir tonla anlat.";
   }
+}
+
+/**
+ * Sınav sorusunun zorluğu odak konusu ve tanı seviyesine göre kayar.
+ * İstek ("kolay/orta/ileri") tek başına kalmaz.
+ */
+export function contentDifficultyLine(input: {
+  requested: string;
+  familiarity: Familiarity;
+  focusTopic: boolean;
+  measuredLevel?: string | null;
+}): string {
+  const level = (input.measuredLevel ?? "").trim().toLowerCase();
+  const weak =
+    input.focusTopic ||
+    input.familiarity === "new" ||
+    input.familiarity === "heard" ||
+    level === "weak" ||
+    level === "emerging";
+  const strong =
+    input.familiarity === "confident" || level === "solid";
+  if (weak) {
+    return "Zorluk: odak konusu veya düşük tanı. Tanım ve tek adımlı soru ile başla, sonra bir sınav tuzağı koy.";
+  }
+  if (strong || input.requested === "ileri") {
+    return "Zorluk: tanı yüksek. Doğrudan sınav seviyesinde çeldirici kullan.";
+  }
+  return `Zorluk isteği: ${input.requested}. Temeli kısa geç, uygulamada kal.`;
 }
 
 /** İki sinyali tek bir prompt ekine çevirir. */

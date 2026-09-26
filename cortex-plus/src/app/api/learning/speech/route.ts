@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "speech", limit: 60 });
   if (!guard.ok) return guard.response;
 
-  // Sunucu sesi premium. Ucretsiz kullanici tarayici sesiyle devam ediyor.
+  // Kayıtlı ücretsiz de sunucu sesini kullanır; bedel synthesizeCharged'da.
   const entitlements = await getUserEntitlements(guard.ctx.service, guard.ctx.userId);
   if (!requireFeature(entitlements, "speech")) {
     return errorResponse(402, "premium_required");

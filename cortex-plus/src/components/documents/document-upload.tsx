@@ -7,7 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
 import { isPhotoQuotaError } from "@/lib/documents/process-errors";
+import {
+  PROCESS_RETRY_MESSAGE,
+  postDocumentProcess,
+  requestDocumentProcessing,
+} from "@/lib/documents/process-session";
+import { DOCUMENT_UPLOAD_HINT } from "@/lib/documents/upload-labels";
+import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { cn } from "@/lib/utils";
 
 const ALLOWED = [
@@ -15,6 +23,10 @@ const ALLOWED = [
   "image/jpeg",
   "image/png",
   "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "text/plain",
 ];
 
@@ -31,6 +43,11 @@ export function DocumentUpload({
   learningV2?: boolean;
 }) {
   const router = useRouter();
+  const account = useStudentShellAccount();
+  // Kurucuda ne işlem bedeli ne sayfa tavanı var; ikisi de sunucuda sayılmıyor.
+  const founder = account?.isAdmin === true;
+  const freePdfCap =
+    !founder && account?.audience === "free" ? PHOTO_PAGE_LIMITS.free : null;
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<"idle" | "uploading" | "processing">("idle");
   const [statusDetail, setStatusDetail] = useState<string | null>(null);
@@ -40,7 +57,8 @@ export function DocumentUpload({
     event.preventDefault();
     if (!file) return;
 
-    if (!ALLOWED.includes(file.type)) {
+    const extensionOk = /\.(heic|heif|jpe?g|png|webp)$/i.test(file.name);
+    if (!ALLOWED.includes(file.type) && !extensionOk) {
       toast.error("Desteklenmeyen dosya türü.");
       return;
     }
@@ -72,28 +90,27 @@ export function DocumentUpload({
           ? "Belgen okunuyor; metin çıkarılıyor ve konu haritası hazırlanıyor…"
           : "Belgen okunuyor; metin çıkarılıyor ve içerik hazırlanıyor…",
       );
-      const processRes = await fetch("/api/documents/process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: uploaded.documentId }),
+      const result = await requestDocumentProcessing({
+        documentId: uploaded.documentId,
+        post: postDocumentProcess,
       });
+      const processed = result.body;
+      if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
 
-      const processed = await processRes.json().catch(() => ({}));
-
-      if (processRes.status === 402) {
+      if (result.status === 402) {
         setStatusDetail(null);
         // Fotoğraf kotası bittiyse kredi satın almak işe yaramıyor; kapı
         // yerine ne olduğunu söyleyen cümle çıkıyor.
         if (isPhotoQuotaError(processed)) {
-          toast.error(processed.error ?? "Bu ayki fotoğraf hakkın doldu.");
+          toast.error(typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.");
           return;
         }
         setPaywall(true);
         return;
       }
 
-      if (!processRes.ok) {
-        toast.error(processed.error ?? "Doküman işlenemedi.");
+      if (!result.ok) {
+        toast.error(typeof processed.error === "string" ? processed.error : "Doküman işlenemedi.");
         setStatusDetail(null);
         return;
       }
@@ -110,7 +127,7 @@ export function DocumentUpload({
       // Uzun bir tarama kesildiyse bunu söylemek zorundayız: öğrenci
       // belgenin tamamının okunduğunu sanıp eksik kaynakla çalışmasın.
       toast.success("Doküman hazır. AI öğretmende kaynak olarak kullanabilirsin.", {
-        description: processed.notice ?? undefined,
+        description: typeof processed.notice === "string" ? processed.notice : undefined,
       });
       setFile(null);
       router.refresh();
@@ -139,7 +156,7 @@ export function DocumentUpload({
           <Input
             id="document-file"
             type="file"
-            accept=".pdf,.txt,.png,.jpg,.jpeg,.webp"
+            accept=".pdf,.txt,.png,.jpg,.jpeg,.webp,.heic,.heif,.docx,.pptx,image/heic,image/heif"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             required
             className={
@@ -154,8 +171,9 @@ export function DocumentUpload({
               isParity ? "text-[var(--cs-muted)]" : "text-muted-foreground",
             )}
           >
-            PDF, TXT ve görsel · en fazla 15 MB
-            {creditCost !== null ? ` · işleme ${creditCost} kredi` : ""}
+            {DOCUMENT_UPLOAD_HINT}
+            {creditCost !== null && !founder ? ` · işleme ${creditCost} kredi` : ""}
+            {freePdfCap !== null ? ` · PDF sayfa: ${freePdfCap}` : ""}
             {learningV2
               ? " · işlem sonrası konu haritası çıkarılır"
               : ""}

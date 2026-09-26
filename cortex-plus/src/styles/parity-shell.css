@@ -855,9 +855,11 @@
 /* Sınav hazırlığı — referans ürünün exam-preps ekranı */
 .cp-exam-page {
   width: 100%;
-  max-width: 56rem;
+  max-width: min(56rem, 100%);
   margin: 0 auto;
   padding: 1.5rem 1.25rem 3rem;
+  overflow-x: clip;
+  box-sizing: border-box;
 }
 
 .cp-exam-page--loading {
@@ -3629,6 +3631,54 @@
   text-align: center;
 }
 
+.cp-skill-tree {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.cp-skill-tree button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+  border-radius: 0.9rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: inherit;
+  padding: 0.8rem 0.95rem;
+  cursor: pointer;
+}
+
+.cp-skill-tree button span {
+  color: var(--cp-muted);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.cp-skill-detail {
+  margin: 0.35rem 0 0.2rem;
+  padding: 0.75rem 0.95rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--cp-border);
+}
+
+.cp-skill-detail p {
+  margin: 0 0 0.45rem;
+  color: var(--cp-muted);
+  font-size: 0.875rem;
+}
+
+.cp-skill-detail a {
+  color: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
 .cp-exam-trail-meter {
   height: 0.28rem;
   border-radius: 999px;
@@ -3643,20 +3693,58 @@
   background: linear-gradient(90deg, #7c6cf7, #f4ae0b);
 }
 
+.cp-exam-phases {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 1.25rem;
+}
+
+.cp-exam-phase {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cp-exam-phase-head {
+  text-align: center;
+  margin: 0 auto 0.35rem;
+  max-width: min(22rem, 100%);
+}
+
+.cp-exam-phase-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.cp-exam-phase-head p {
+  margin: 0.25rem 0 0;
+  color: var(--cp-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .cp-exam-trail {
   list-style: none;
-  padding: 1.5rem 0 2rem;
+  padding: 0.75rem 0 0.25rem;
   margin: 0 auto;
-  max-width: 22rem;
+  max-width: min(22rem, 100%);
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 1.35rem;
+  box-sizing: border-box;
 }
 
 .cp-exam-trail-item {
   display: flex;
   align-items: center;
   gap: 0.85rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .cp-exam-trail-item--right {
@@ -3664,6 +3752,9 @@
 }
 
 .cp-exam-trail-node {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 3.6rem;
   height: 3.6rem;
   border-radius: 1rem;
@@ -3673,6 +3764,17 @@
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+}
+
+.cp-exam-trail-node--podcast {
+  border-radius: 9999px;
+}
+
+.cp-exam-trail-node--podcast.cp-exam-trail-node--ready {
+  background: #3f51e5;
+  border-color: #8ea0ff;
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(63, 81, 229, 0.28);
 }
 
 .cp-exam-trail-node--locked {
@@ -3693,6 +3795,9 @@
 .cp-exam-trail-item span {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
 }
 
 .cp-exam-trail-item em {
@@ -3711,35 +3816,184 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  align-items: stretch;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.cp-exam-start-card p {
+  margin: 0;
+  text-align: center;
+}
+
+.cp-exam-start-card .cp-exam-continue,
+.cp-exam-start-card .cp-exam-reco-go {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: normal;
+  text-align: center;
+}
+
+.cp-exam-reco {
+  width: min(100%, 28rem);
+  margin-inline: auto;
+  padding: 1.35rem 1.15rem 1.1rem;
+  text-align: center;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#14141a, #14141a) padding-box,
+    linear-gradient(120deg, rgba(98, 86, 210, 0.85), rgba(224, 177, 90, 0.55)) border-box;
+}
+
+.cp-exam-reco-kicker {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  color: #9aa3b5;
+}
+
+.cp-exam-reco h2 {
+  margin: 0.25rem 0 0.85rem;
+  font-size: 1.75rem;
+  font-weight: 650;
+}
+
+.cp-exam-reco-go {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  padding: 0.85rem 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: #3f51e5;
+  color: #fff;
+  font: inherit;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cp-topic-pick-page {
+  min-height: calc(100dvh - 7.5rem);
+}
+
+.cp-topic-pick-top {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.75rem;
+}
+
+.cp-topic-pick-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+}
+
+.cp-topic-pick-page h1 {
+  margin: 0;
+  text-align: center;
+  font-size: 1.45rem;
+  font-weight: 650;
+}
+
+.cp-topic-pick-lead {
+  max-width: 34rem;
+  margin: 0.55rem auto 0;
+  text-align: center;
+  color: var(--cp-muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
 }
 
 .cp-topic-pick {
   list-style: none;
   padding: 0;
-  margin: 1rem 0 0;
+  margin: 1.5rem auto 0;
+  max-width: 44rem;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.7rem;
+}
+
+.cp-topic-pick li {
+  position: relative;
+}
+
+.cp-topic-pick li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 1.7rem;
+  bottom: -0.7rem;
+  width: 1px;
+  height: 0.7rem;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .cp-topic-pick-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 3.4rem 1fr auto;
   align-items: center;
-  gap: 0.8rem;
   width: 100%;
-  padding: 0.9rem 1rem;
-  border-radius: 1.1rem;
-  border: 1px solid var(--cp-border);
-  background: #1a1a1a;
-  color: inherit;
+  min-height: 4.5rem;
+  padding: 0 1rem 0 0;
+  border-radius: 1.15rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  background: #1c1c1f;
+  overflow: hidden;
+  color: #c8ccd4;
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.cp-topic-pick-item:first-child {
-  border-color: rgba(124, 108, 247, 0.55);
+.cp-topic-pick-item .cp-topic-num {
+  width: auto;
+  height: auto;
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.28);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  color: #b7bcc6;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-topic-pick-item strong {
+  padding: 0 0.9rem;
+  font-weight: 550;
+  line-height: 1.3;
+}
+
+.cp-topic-chevron {
+  color: #9aa1ad;
+  font-size: 1.05rem;
+}
+
+.cp-topic-pick-item.is-hot {
+  color: #fff;
+  border-color: transparent;
+  background:
+    linear-gradient(#141418, #141418) padding-box,
+    linear-gradient(90deg, #2f4de0 0%, #7a68d4 46%, #e0b15a 100%) border-box;
+  box-shadow:
+    0 0 0 1px rgba(47, 77, 224, 0.18),
+    0 0 22px rgba(224, 177, 90, 0.12);
+}
+
+.cp-topic-pick-item:disabled {
+  cursor: progress;
 }
 
 .cp-exam-setup-card {
@@ -3834,6 +4088,44 @@
   font-size: 3rem;
   font-weight: 800;
   color: var(--cp-gold);
+}
+
+.cp-exam-node:has(.cp-exam-node-result) {
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+  min-height: calc(100dvh - 4.5rem);
+}
+
+.cp-exam-node-result {
+  width: min(100%, 32rem);
+  margin: 1.5rem auto;
+  padding: 1.75rem 1.5rem 1.5rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 1.25rem;
+  background: #141414;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  box-sizing: border-box;
+}
+
+.cp-exam-node-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+@media (max-width: 420px) {
+  .cp-exam-node-result {
+    width: 100%;
+    margin: 1rem auto;
+    padding: 1.25rem 1rem;
+  }
 }
 
 .cp-tutor {
@@ -3993,6 +4285,89 @@
 .cp-exam-pod-chapter.is-on {
   border-color: rgba(244, 174, 11, 0.55);
   background: rgba(244, 174, 11, 0.08);
+}
+
+.cp-exam-silence,
+.cp-written-review,
+.cp-readiness,
+.cp-practice-empty {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+}
+
+.cp-exam-silence {
+  margin: 0 0 0.85rem;
+  font-size: 0.85rem;
+  color: var(--cp-muted);
+}
+
+.cp-written-review h1,
+.cp-readiness h1,
+.cp-practice-empty h1 {
+  margin: 0.2rem 0 0.6rem;
+  font-size: 1.45rem;
+  overflow-wrap: anywhere;
+}
+
+.cp-written-review h2,
+.cp-readiness h2 {
+  margin: 1rem 0 0.4rem;
+  font-size: 1rem;
+}
+
+.cp-written-review ol,
+.cp-written-review ul,
+.cp-readiness ul,
+.cp-practice-empty p {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  max-width: 100%;
+}
+
+.cp-readiness ul,
+.cp-written-review ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.cp-written-review li,
+.cp-readiness li {
+  margin: 0.45rem 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--cp-border);
+  background: #161616;
+  overflow-wrap: anywhere;
+}
+
+.cp-readiness li span,
+.cp-written-review li p {
+  display: block;
+  margin: 0.2rem 0 0;
+  color: var(--cp-muted);
+  font-size: 0.85rem;
+}
+
+.cp-written-review-actions,
+.cp-readiness-actions,
+.cp-practice-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+}
+
+.cp-written-review-actions a,
+.cp-readiness-actions a,
+.cp-practice-empty button,
+.cp-written-review-actions button {
+  max-width: 100%;
+  text-align: center;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .cp-exam-debrief {
@@ -4640,8 +5015,20 @@
   }
 
   .cp-exam-trail-item span {
-    max-width: min(100%, 14rem);
+    max-width: 100%;
     overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 420px) {
+  .cp-exam-page {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+
+  .cp-exam-tab {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8125rem;
   }
 }
 
@@ -5134,116 +5521,341 @@
   color: #6ee7b7;
 }
 
-/* Podcast oynatici (Faz 4) */
+/* Podcast oynatıcı — sınav hazırlığı chrome */
 
 .cp-pod {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
-  padding-bottom: 1.5rem;
+  min-height: calc(100dvh - 7.5rem);
+  color: #e8eaef;
 }
 
-.cp-pod-head h1 {
-  margin: 0.35rem 0 0;
-  font-size: 1.35rem;
-  font-weight: 700;
-  line-height: 1.25;
-  text-wrap: balance;
+.cp-pod--embed {
+  min-height: 36rem;
 }
 
-.cp-pod-chapter-now {
-  margin: 0.35rem 0 0;
+.cp-pod-top {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr 2.5rem;
+  align-items: center;
+  min-height: 2.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cp-pod--script .cp-pod-top {
+  border-bottom: none;
+}
+
+.cp-pod-kicker {
+  margin: 0;
+  text-align: center;
   font-size: 0.8125rem;
-  color: var(--cp-muted);
+  color: #8b93a7;
 }
 
-.cp-pod-stage {
+.cp-pod-x,
+.cp-pod-back,
+.cp-pod-prev,
+.cp-pod-skip,
+.cp-pod-play,
+.cp-pod-rate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cp-pod-x,
+.cp-pod-back {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #eee;
+}
+
+.cp-pod-x {
+  justify-self: end;
+}
+
+.cp-pod-back {
+  justify-self: start;
+}
+
+.cp-pod-body {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.1rem;
-  border-radius: 1.5rem;
-  border: 1px solid var(--cp-border);
+  justify-content: center;
+  gap: 1.35rem;
+  padding: 1.75rem 1rem 1rem;
+}
+
+.cp-pod--script .cp-pod-body {
+  justify-content: flex-start;
+  overflow: auto;
+}
+
+.cp-pod-orb {
+  width: 9.25rem;
+  height: 9.25rem;
+  border-radius: 50%;
   background:
-    radial-gradient(ellipse 90% 70% at 50% 0%, rgba(99, 102, 241, 0.18), transparent 60%),
-    var(--cp-surface);
-  padding: 1.6rem 1.25rem 1.4rem;
+    radial-gradient(circle at 32% 28%, #f7f7f8 0%, #c5c8d0 16%, #6e727c 42%, #2a2c32 70%, #121316 100%);
+  box-shadow:
+    inset 0 -16px 28px rgba(0, 0, 0, 0.45),
+    inset 0 8px 16px rgba(255, 255, 255, 0.28),
+    0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
-.cp-pod-wave {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.32rem;
-  height: 2.5rem;
+.cp-pod-orb {
+  position: relative;
 }
 
-.cp-pod-wave span {
-  width: 0.28rem;
-  height: 22%;
-  border-radius: 9999px;
-  background: linear-gradient(180deg, #a5b4fc, #6366f1);
-  opacity: 0.45;
+.cp-pod-orb-ring {
+  position: absolute;
+  inset: -0.7rem;
+  border-radius: 50%;
+  border: 1px solid rgba(99, 132, 255, 0.35);
+  opacity: 0;
 }
 
-.cp-pod-wave.is-on span {
-  animation: cp-pod-bounce 1s ease-in-out infinite;
+.cp-pod-orb.is-on {
+  animation: cp-pod-pulse 2.6s ease-in-out infinite;
+  box-shadow:
+    inset 0 -16px 28px rgba(0, 0, 0, 0.45),
+    inset 0 8px 16px rgba(255, 255, 255, 0.35),
+    0 0 42px rgba(63, 81, 229, 0.45);
+}
+
+.cp-pod-orb.is-on .cp-pod-orb-ring {
   opacity: 1;
+  animation: cp-pod-ring 2.6s ease-out infinite;
 }
 
-@keyframes cp-pod-bounce {
-  0%, 100% { height: 22%; }
-  50% { height: 100%; }
+@keyframes cp-pod-pulse {
+  0%,
+  100% { transform: scale(1); }
+  50% { transform: scale(1.045); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .cp-pod-wave.is-on span {
-    animation: none;
-    height: 60%;
-  }
+@keyframes cp-pod-ring {
+  0% { transform: scale(0.92); opacity: 0.55; }
+  100% { transform: scale(1.18); opacity: 0; }
+}
+
+.cp-pod-beat {
+  margin: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: #9eb0ff;
+}
+
+.cp-pod-chapters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  max-width: 28rem;
+}
+
+.cp-pod-chapter,
+.cp-pod-chapter-jump,
+.cp-pod-line-jump {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.cp-pod-chapter {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 0.28rem 0.7rem;
+  font-size: 0.75rem;
+  color: #c9d0dc;
+}
+
+.cp-pod-chapter.is-on {
+  border-color: rgba(99, 132, 255, 0.7);
+  color: #fff;
+  background: rgba(63, 81, 229, 0.28);
+}
+
+.cp-pod-chapter:disabled,
+.cp-pod-chapter-jump:disabled,
+.cp-pod-line-jump:disabled {
+  cursor: default;
+}
+
+.cp-pod-tools {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.cp-pod-script h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.cp-pod-line-jump {
+  display: inline;
+  padding: 0;
+}
+
+.cp-pod-lengths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+  margin: 0.75rem 0;
+  border: 0;
+  padding: 0;
+}
+
+.cp-pod-lengths legend {
+  width: 100%;
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.cp-pod-lengths label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.cp-studio {
+  margin: 0.85rem 0 0.25rem;
+}
+
+.cp-studio-panel {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.cp-pod-excerpt {
+  max-width: 28rem;
+  margin: 0;
+  text-align: center;
+  color: #8d99ad;
+  font-size: 1.2rem;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cp-pod-script-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: #e4e7ee;
+  padding: 0.42rem 0.9rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.cp-pod-script-col {
+  width: min(26rem, 100%);
+}
+
+.cp-pod-script-title {
+  margin: 0.35rem 0 1.15rem;
+  font-family: var(--font-display, "DM Serif Display", Georgia, serif);
+  font-size: clamp(1.85rem, 4vw, 2.4rem);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-wrap: balance;
+}
+
+.cp-pod-script {
+  color: #8d99ad;
+  font-size: 1.02rem;
+  line-height: 1.7;
+}
+
+.cp-pod-script p,
+.cp-pod-script-lines {
+  margin: 0 0 1rem;
+}
+
+.cp-pod-who-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.cp-pod-dock {
+  width: min(36rem, 100%);
+  margin: 0 auto;
+  padding: 0.35rem 0.15rem 0.85rem;
 }
 
 .cp-pod-controls {
   display: flex;
   align-items: center;
-  gap: 1.35rem;
+  justify-content: center;
+  gap: 0.85rem;
+  margin-top: 0.35rem;
+}
+
+.cp-pod-prev {
+  width: 2.25rem;
+  height: 2.25rem;
+  background: transparent;
+  color: #d5d8e0;
 }
 
 .cp-pod-play {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 3.75rem;
-  height: 3.75rem;
-  border: none;
+  width: 4.25rem;
+  height: 4.25rem;
   border-radius: 9999px;
-  background: linear-gradient(135deg, #6b8cff, #7c6cf7);
+  background: #3f51e5;
   color: #fff;
-  cursor: pointer;
-  box-shadow: 0 10px 28px -12px rgba(108, 124, 247, 0.9);
+  box-shadow: 0 12px 28px -8px rgba(63, 81, 229, 0.95);
 }
 
-.cp-pod-play:disabled {
-  opacity: 0.5;
+.cp-pod-play:disabled,
+.cp-pod-skip:disabled,
+.cp-pod-prev:disabled,
+.cp-pod-rate:disabled {
+  opacity: 0.4;
   cursor: default;
   box-shadow: none;
 }
 
 .cp-pod-skip {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
-  border: none;
   background: transparent;
-  color: var(--cp-muted);
-  cursor: pointer;
-}
-
-.cp-pod-skip:disabled {
-  opacity: 0.4;
-  cursor: default;
+  color: #d7dae2;
 }
 
 .cp-pod-skip em {
@@ -5254,106 +5866,98 @@
   font-variant-numeric: tabular-nums;
 }
 
-.cp-pod-state {
-  margin: 0;
+.cp-pod-rate {
+  min-width: 2.75rem;
+  height: 2rem;
+  padding: 0 0.55rem;
+  border-radius: 999px;
+  background: #2a2a2e;
+  color: #f2f3f5;
   font-size: 0.8125rem;
-  color: var(--cp-muted);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-pod-state {
+  margin: 0 0 0.65rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: #9aa3b5;
 }
 
 .cp-pod-track {
   width: 100%;
+  margin-top: 0.85rem;
 }
 
 .cp-pod-track input[type="range"] {
   width: 100%;
-  height: 0.375rem;
+  height: 2px;
   appearance: none;
   border-radius: 9999px;
   background: linear-gradient(
     to right,
-    #7c6cf7 var(--cp-pod-pos, 0%),
-    var(--cp-surface-2) var(--cp-pod-pos, 0%)
+    #5b6cff var(--cp-pod-pos, 0%),
+    rgba(255, 255, 255, 0.16) var(--cp-pod-pos, 0%)
   );
   cursor: pointer;
 }
 
+.cp-pod-track input[type="range"]:disabled {
+  cursor: default;
+}
+
 .cp-pod-track input[type="range"]::-webkit-slider-thumb {
   appearance: none;
-  width: 0.9rem;
-  height: 0.9rem;
+  width: 0.62rem;
+  height: 0.62rem;
   border-radius: 9999px;
-  background: #fff;
+  background: #5b6cff;
   border: none;
 }
 
 .cp-pod-track input[type="range"]::-moz-range-thumb {
-  width: 0.9rem;
-  height: 0.9rem;
+  width: 0.62rem;
+  height: 0.62rem;
   border: none;
   border-radius: 9999px;
-  background: #fff;
+  background: #5b6cff;
 }
 
 .cp-pod-time {
   display: flex;
   justify-content: space-between;
-  margin-top: 0.4rem;
-  font-size: 0.6875rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--cp-muted);
-}
-
-.cp-pod-transcript {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.cp-pod-chapter-mark {
-  margin: 0.9rem 0 0.45rem;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--cp-muted);
-}
-
-.cp-pod-line {
-  display: flex;
-  gap: 0.55rem;
-  width: 100%;
-  border: none;
-  border-radius: 0.85rem;
-  background: transparent;
-  padding: 0.5rem 0.65rem;
-  text-align: left;
-  color: var(--cp-muted);
-  font-size: 0.875rem;
-  line-height: 1.55;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.cp-pod-line .cp-pod-who {
-  flex: 0 0 auto;
+  margin-top: 0.45rem;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #8b93a7;
 }
 
-.cp-pod-line--ada .cp-pod-who {
-  color: #a5b4fc;
+.cp-pod-finish {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  margin-top: 0.85rem;
+  padding: 0.45rem 0.8rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #9aa3b5;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 650;
+  cursor: pointer;
 }
 
-.cp-pod-line--kerem .cp-pod-who {
-  color: #6ee7b7;
+.cp-pod-finish.is-heard {
+  background: #3f51e5;
+  color: #fff;
+  padding: 0.75rem 1rem;
 }
 
-.cp-pod-line.is-on {
-  background: var(--cp-surface-2);
-  color: var(--cp-text);
+.cp-pod-finish:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .ls-pod-line {
@@ -5703,16 +6307,20 @@
    Cümle sınırları ölçülen ses süresinden; cümle içi dağılım tahmin
    (lib/learning/podcast-script.ts → wordTimings). */
 .cp-pod-word {
-  transition: color 120ms linear, opacity 120ms linear;
+  transition: color 120ms linear;
 }
 
 .cp-pod-word.is-said {
-  opacity: 0.55;
+  color: #d5dbe6;
 }
 
 .cp-pod-word.is-now {
-  color: var(--cp-gold);
-  font-weight: 600;
+  color: #f0b429;
+  font-weight: 650;
+}
+
+.cp-pod-said.is-line {
+  color: #d5dbe6;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -6561,18 +7169,51 @@
 
 
 /*
-  Mobil boş Sor: sabit composer + ders seçici + Plus kartı yukarı şişince
-  ortalanmış öneri çiplerinin üstüne biniyordu (Matematik / Fizik / Beni test et).
-  Boş ekranda Plus kartını hero akışına alıyoruz; composer yalnız yazı alanı.
+  Mobil boş Sor.
+
+  Ücretsiz katmanda Plus kartı hero akışına konunca sabit composer ve ders
+  çipi ("Matematik") kartın üstüne biniyordu: kart sayfanın altında, çip ve
+  yazı kutusu position:fixed olduğu için onun üstünde çiziliyordu.
+
+  Kart artık sabit yığının parçası — ders çipinin üstünde, yazı kutusunun
+  dışında. Hero yalnızca selamlama ve öneriler; alt boşluk yığının
+  yüksekliği kadar ki "Günün turu" kaydırınca çipin altında kalmasın.
 */
 @media (max-width: 640px) {
+  .cp-sor-root:has(.cp-sor-composer-zone--aside) {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
   .cp-sor-hero {
+    min-height: 0;
     justify-content: flex-start;
     padding-top: 1.5rem;
     padding-bottom: calc(13.5rem + env(safe-area-inset-bottom, 0px));
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .cp-sor-view:has(.cp-sor-composer-zone--aside) .cp-sor-hero {
+    padding-top: 0.65rem;
+    padding-bottom: calc(22.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Yığın (kart + çip + kutu) selamlamanın altını kapatmasın. Aralıklar
+     yalnızca ücretsiz boş ekranda daralıyor; dokunma hedefleri 44px kalıyor. */
+  .cp-sor-view:has(.cp-sor-composer-zone--aside) .cp-sor-start {
+    margin-top: 0.7rem;
+  }
+
+  .cp-sor-view:has(.cp-sor-composer-zone--aside) .cp-sor-starters {
+    margin-top: 0.55rem;
+    gap: 0.5rem;
+  }
+
+  .cp-sor-view:has(.cp-sor-composer-zone--aside) .cp-sor-daily {
+    margin-top: 0.65rem;
   }
 
   .cp-sor-starters {
@@ -6599,29 +7240,26 @@
     bottom: calc(4.4rem + env(safe-area-inset-bottom, 0px));
   }
 
+  .cp-sor-view:has(.cp-sor-hero) .cp-sor-composer-zone--aside {
+    background: var(--cp-bg);
+    padding-top: 0.35rem;
+    gap: 0.65rem;
+  }
+
   .cp-sor-composer-upgrade--empty-deferred {
-    display: none !important;
-  }
-
-  .cp-sor-empty-upgrade {
-    display: block;
+    display: block !important;
+    order: -1;
     width: 100%;
-    max-width: 22rem;
-    margin: 1.5rem auto 0;
   }
 }
 
-@media (min-width: 641px) {
-  .cp-sor-empty-upgrade {
-    display: none;
-  }
-}
 /*
   Ücretsiz katmanda sohbet kutusunun yanındaki yükseltme kartı.
 
   Kutu normalde ortalanmış ve 42rem genişliğinde. Kart eklendiğinde alan
   genişliyor ve ikisi yan yana duruyor; kutunun kendi genişliği korunuyor ki
-  ücretsiz kullanıcının yazacak yeri daralmasın. Dar ekranda kart alta iniyor.
+  ücretsiz kullanıcının yazacak yeri daralmasın. 961px altında kart alta
+  iner; 640px ve altında boş ekranda order ile ders çipinin üstüne alınır.
 */
 .cp-sor-composer-zone--aside {
   width: min(calc(100% - 2rem), 60rem);
@@ -6641,6 +7279,13 @@
     flex-direction: column;
     align-items: stretch;
     width: min(calc(100% - 2rem), 42rem);
+  }
+
+  /* Sütun olunca kart DOM'da kutunun ardından geliyor; alta inince
+     alt menünün içine giriyordu. Boş ekranda çipin üstünde dursun. */
+  .cp-sor-composer-upgrade--empty-deferred {
+    order: -1;
+    width: 100%;
   }
 }
 
@@ -6753,13 +7398,17 @@
 }
 
 .cp-exam-tabs {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 0.25rem;
   margin-top: 0.85rem;
   padding: 0.25rem;
   border-radius: 9999px;
   background: var(--cp-bg);
   border: 1px solid var(--cp-border);
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .cp-exam-tab {
@@ -6788,6 +7437,54 @@
   background: var(--cp-surface-2);
   color: var(--cp-muted);
 }
+.cp-topic-warning,
+.apw-topic-warning {
+  display: block;
+  margin-top: 0.35rem;
+  color: #b45309;
+  font-size: 0.85rem;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+.cp-exam-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  align-items: center;
+}
+
+.cp-exam-materials {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.cp-exam-material {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cp-exam-material span {
+  color: var(--cp-muted);
+  font-size: 0.8125rem;
+}
+
 .cp-exam-tab.is-active .cp-exam-tab-count {
   background: var(--cp-bg);
 }
@@ -7165,10 +7862,9 @@
 }
 
 /* MOBILE_AUDIT_POLISH
-   Ucretsiz planda sabit composer altina binen Plus karti, dar ekranda
-   ders secici + onerileri/mesajlari eziyordu. Mobilde karti composer'dan
-   tamamen cikariyoruz (bos ekranda hero icindeki kopya kalir; sohbette
-   ustteki Satin al yeterli).
+   Sohbet açıldıktan sonra Plus kartı composer yığınından çıkar; üstteki
+   "Satın al" yeter, kart mesajların üstüne binmesin. Boş ekranda kart
+   `.cp-sor-composer-upgrade--empty-deferred` ile ders çipinin üstünde kalır.
 */
 @media (max-width: 640px) {
   .cp-sor-composer-zone--aside {
@@ -7176,8 +7872,7 @@
     width: min(calc(100% - 1.25rem), 42rem);
   }
 
-  .cp-sor-composer-zone--aside .cp-sor-composer-upgrade,
-  .cp-sor-composer-zone--aside .ug-aside {
+  .cp-sor-composer-zone--aside .cp-sor-composer-upgrade:not(.cp-sor-composer-upgrade--empty-deferred) {
     display: none !important;
   }
 
@@ -7479,4 +8174,558 @@
   box-shadow:
     0 12px 36px rgba(244, 174, 11, 0.32),
     0 0 24px rgba(244, 174, 11, 0.18);
+}
+
+/* Sınav sohbeti — referans ürünün exam chat kabuğu.
+   Sinema paketinin altın ışıltısı burada yok: zemin düz, oluşturucu
+   koyu kart, karşılama ayrı bir başlık değil. */
+.cp-sor-root.cp-sor-root--exam {
+  --cp-bg: #111112;
+  --cp-surface: #202022;
+  --cp-muted: #9aa3b8;
+  background: #111112;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.cp-sor-root--exam .cp-sor-top {
+  flex-wrap: nowrap;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: 0;
+  padding: 0.7rem 1rem 0.35rem;
+}
+
+.cp-sor-root--exam .cp-sor-top-actions,
+.cp-sor-root--exam .cp-sor-more,
+.cp-sor-root--exam .cp-sor-streak {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.cp-sor-root--exam .cp-sor-streak,
+.cp-sor-root--exam .cp-sor-more {
+  color: #ececef;
+  font-size: 0.875rem;
+}
+
+.cp-sor-root--exam .cp-sor-avatar {
+  width: 2.15rem;
+  height: 2.15rem;
+  background: #8b5a3c;
+  border: 0;
+  color: #fff;
+}
+
+.cp-exam-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.42rem 0.85rem 0.42rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #1c1c1e;
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.cp-exam-chat {
+  min-height: 0;
+}
+
+.cp-exam-empty {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.85rem 0 12.5rem;
+}
+
+.cp-exam-column {
+  width: min(calc(100% - 2rem), 48rem);
+  margin: 0 auto;
+}
+
+.cp-exam-greet {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.cp-exam-greet p {
+  margin: 0.12rem 0 0;
+  max-width: 40rem;
+  font-size: 0.98rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: #fff;
+}
+
+.cp-exam-starters {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.35rem;
+}
+
+.cp-exam-starter {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: #b4bdd0;
+  padding: 0.48rem 0.95rem;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  cursor: pointer;
+  text-align: left;
+}
+
+.cp-exam-starter:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.34);
+  color: #fff;
+}
+
+.cp-exam-starter:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cp-exam-mark {
+  display: grid;
+  width: 1.7rem;
+  height: 1.7rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #1a1a1c;
+}
+
+.cp-sor-root--exam .cp-sor-messages.cp-exam-thread {
+  width: 100%;
+  margin: 0;
+  padding: 1.15rem 0 14rem;
+}
+
+.cp-exam-user {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0.2rem 0 0.9rem;
+}
+
+.cp-exam-user-bubble {
+  max-width: min(78%, 26rem);
+  border-radius: 1.15rem;
+  background: #2c2c2e;
+  color: #fff;
+  padding: 0.65rem 0.95rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.cp-exam-assistant {
+  display: grid;
+  grid-template-columns: 1.7rem minmax(0, 1fr);
+  gap: 0.7rem;
+  margin: 0.15rem 0 1rem;
+}
+
+.cp-exam-msg-body {
+  min-width: 0;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: #f4f4f5;
+}
+
+.cp-exam-msg-body .text-lg,
+.cp-exam-msg-body .text-base.font-semibold,
+.cp-exam-msg-body .text-sm.font-semibold {
+  display: block;
+  margin: 1.15rem 0 0.4rem;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.cp-exam-msg-body .text-lg,
+.cp-exam-msg-body .text-base.font-semibold {
+  font-size: 1.35rem;
+}
+
+.cp-exam-msg-body .text-sm.font-semibold {
+  font-size: 1.12rem;
+}
+
+.cp-exam-msg-body ol,
+.cp-exam-msg-body ul {
+  margin: 0.35rem 0 0.5rem;
+}
+
+.cp-exam-msg-body .katex {
+  font-size: 1.15em;
+  color: #fff;
+}
+
+.cp-exam-msg-body .katex-display {
+  margin: 0.7rem 0;
+  overflow-x: auto;
+}
+
+.cp-exam-msg-body .cp-msg-actions {
+  opacity: 0.4;
+}
+
+.cp-exam-dim {
+  position: fixed;
+  z-index: 35;
+  top: 4.25rem;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.46);
+  cursor: default;
+}
+
+.cp-sor-root--exam .cp-sor-composer-zone {
+  z-index: 45;
+  width: min(calc(100% - 2rem), 48rem);
+  bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.cp-sor-root--exam .cp-sor-composer-box {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.45rem;
+  background: #202022;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.cp-sor-root--exam .cp-sor-composer-box textarea::placeholder {
+  color: #8e97ab;
+}
+
+.cp-exam-quick-wrap {
+  position: relative;
+  margin: 0 0.15rem 0.45rem;
+}
+
+.cp-exam-more-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #1c1c1e;
+  color: #d5d8e0;
+  padding: 0.32rem 0.75rem 0.32rem 0.55rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-exam-more-pill.is-open {
+  color: #fff;
+}
+
+.cp-exam-quick {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 0.4rem);
+  z-index: 2;
+  display: flex;
+  max-width: min(100%, 28rem);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.42rem;
+}
+
+.cp-exam-quick-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  border-radius: 999px;
+  border: 1px solid rgba(129, 140, 248, 0.72);
+  background: linear-gradient(90deg, #1b1b22 0%, #1b1b22 76%, rgba(244, 174, 11, 0.22) 100%);
+  color: #fff;
+  padding: 0.48rem 0.7rem 0.48rem 0.95rem;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-exam-quick-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cp-sor-root--exam .cp-exam-mic {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+
+.cp-exam-credit {
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.62);
+  padding-right: 0.15rem;
+  white-space: nowrap;
+}
+
+.cp-exam-talk {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 2.35rem;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #2a2a2e;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-exam-talk:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.cp-sor-root--exam .cp-send {
+  width: 2.4rem;
+  height: 2.4rem;
+  background: #2f6bff;
+}
+
+.cp-exam-menu {
+  position: relative;
+  width: min(100%, 34rem);
+  max-height: min(82dvh, 42rem);
+  overflow: auto;
+  border-radius: 1.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #1a1a1c;
+  padding: 1rem 1rem 1.15rem;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+.cp-exam-menu--history {
+  width: min(100%, 40rem);
+}
+
+.cp-exam-menu-x {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #2a2a2c;
+  color: #fff;
+  cursor: pointer;
+}
+
+.cp-exam-menu-title {
+  margin: 0.15rem 2.2rem 0.85rem 0.15rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.cp-exam-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+  margin-top: 1.75rem;
+}
+
+.cp-exam-tile {
+  display: flex;
+  min-height: 6.4rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #222226;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cp-exam-history-jump {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: 1.05rem 0.1rem 0.55rem;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cp-exam-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cp-exam-history-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #141416;
+  padding: 0.8rem 0.95rem;
+  color: #fff;
+  text-decoration: none;
+}
+
+.cp-exam-history-card strong {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.cp-exam-history-card span {
+  color: #8b93a7;
+  font-size: 0.78rem;
+}
+
+.cp-exam-history-empty {
+  margin: 0.4rem 0.15rem;
+  color: #8b93a7;
+  font-size: 0.85rem;
+}
+
+.cp-exam-history-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.35rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #141416;
+  padding: 0.7rem 0.95rem;
+  color: #8b93a7;
+}
+
+.cp-exam-history-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.cp-exam-history-search input::placeholder {
+  color: #8b93a7;
+}
+
+.cp-exam-bucket {
+  margin: 0.95rem 0.15rem 0.45rem;
+  color: #8b93a7;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.cp-exam-history-scroll {
+  max-height: min(58dvh, 28rem);
+  overflow-y: auto;
+  padding-right: 0.15rem;
+}
+
+.cp-tutor-quote {
+  margin: 0.65rem 0;
+  padding: 0.7rem 0.9rem;
+  border-left: 3px solid rgba(246, 212, 138, 0.85);
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e7ebf3;
+}
+
+.cp-tutor-quote p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.cp-tutor-quote footer {
+  margin: 0.35rem 0 0;
+  color: #9aa3b5;
+  font-size: 0.75rem;
+}
+
+.cp-tutor-badge {
+  display: inline-flex;
+  margin: 0 0 0.45rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.16);
+  color: #f6d48a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.cp-tutor-steps {
+  margin-top: 0.45rem;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.35rem 0.7rem 0.5rem;
+}
+
+.cp-tutor-steps summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: #c9d0dc;
+}
+
+.cp-tutor-cites,
+.cp-tutor-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.cp-tutor-cite,
+.cp-tutor-chip,
+.cp-tutor-scope {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: #d5dbe6;
+  font-size: 0.75rem;
+  padding: 0.28rem 0.7rem;
+  text-decoration: none;
+}
+
+.cp-tutor-scope {
+  margin-top: 0.55rem;
+  color: #fff;
+  border-color: rgba(246, 212, 138, 0.45);
+}
+
+.cp-tutor-chip:disabled,
+.cp-tutor-scope:disabled {
+  opacity: 0.5;
 }

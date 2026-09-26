@@ -1,6 +1,72 @@
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 
 /**
+ * Çalışma yolunun görünen iskeleti. Aktivite türleri belgenin
+ * uzunluğundan bağımsızdır; konu sayısı ayrıdır (`Planın N`).
+ * Türü olmayan satırlar (tanı, hazır) mevcut ekranlara bağlanır,
+ * yeni bir düğüm türü açmaz.
+ */
+export type PathSkeletonItem = {
+  label: string;
+  hint?: string;
+  kind?: PlanNodeKind;
+};
+
+export type PathSkeletonPhase = {
+  title: string;
+  items: PathSkeletonItem[];
+};
+
+export const STUDY_PATH_SKELETON: PathSkeletonPhase[] = [
+  {
+    title: "Bugün başla",
+    items: [
+      { label: "Yapay zeka ile Çalışma Yolu" },
+      { label: "Giriş Dersi", hint: "5 dk", kind: "lesson" },
+      { label: "Tanı Testi" },
+    ],
+  },
+  {
+    title: "Öğren ve Pratik Yap",
+    items: [
+      { label: "Podcast Dinle", kind: "podcast" },
+      { label: "AI öğretmenle Soru-Cevap", kind: "qa" },
+      { label: "Testler ve Doğru/Yanlış", kind: "quiz" },
+      { label: "AI ile Sözlü Deneme", kind: "oral" },
+    ],
+  },
+  {
+    title: "Aralıklı Tekrar",
+    items: [{ label: "Öğrendiklerini tekrar et", kind: "spaced" }],
+  },
+  {
+    title: "Bilgi boşluklarını kapat",
+    items: [
+      { label: "Zayıf nokta", kind: "gaps" },
+      { label: "Odaklı pratik", kind: "focused" },
+    ],
+  },
+  {
+    title: "Yazılı Deneme",
+    items: [
+      {
+        label: "Yazılı deneme",
+        hint: "Yapay zeka yardımı yok",
+        kind: "written_exam",
+      },
+    ],
+  },
+  {
+    title: "Sınav günü",
+    items: [
+      { label: "Kartlarla son tekrar", kind: "flashcards" },
+      { label: "Son kontrol", kind: "final_check" },
+      { label: "Hazırsın", kind: "readiness" },
+    ],
+  },
+];
+
+/**
  * Çalışma yolunu öğrencinin okuyabileceği aşamalara böler.
  *
  * Düz bir "Gün 1, Gün 2…" listesi planın neden bu sırada olduğunu anlatmıyor.
@@ -28,38 +94,38 @@ export const PLAN_PHASES: PhaseMeta[] = [
   {
     id: "start",
     title: "Bugün başla",
-    blurb: "Seviyeni ölçüyoruz, yolun buna göre kuruluyor.",
+    blurb: "Çalışma yolu, giriş dersi ve tanı testi.",
     kinds: [],
   },
   {
     id: "learn",
-    title: "Öğren ve pratik yap",
-    blurb: "Konuyu dinle, anlat, çöz.",
-    kinds: ["podcast", "qa", "quiz", "true_false", "oral"],
+    title: "Öğren ve Pratik Yap",
+    blurb: "Podcast, soru-cevap, test ve sözlü deneme.",
+    kinds: ["lesson", "podcast", "qa", "quiz", "true_false", "oral"],
   },
   {
     id: "review",
-    title: "Aralıklı tekrar",
-    blurb: "Öğrendiğin unutulmadan geri gelir.",
+    title: "Aralıklı Tekrar",
+    blurb: "Öğrendiklerini tekrar et.",
     kinds: ["spaced"],
   },
   {
     id: "gaps",
-    title: "Eksiklerini kapat",
-    blurb: "Yanlışlarının toplandığı yere odaklanırsın.",
-    kinds: ["gaps"],
+    title: "Bilgi boşluklarını kapat",
+    blurb: "Zayıf nokta tespiti, sonra odaklı pratik.",
+    kinds: ["gaps", "focused"],
   },
   {
     id: "mock",
-    title: "Deneme sınavı",
-    blurb: "Gerçek sınav koşulları, yapay zekâ yardımı kapalı.",
+    title: "Yazılı Deneme",
+    blurb: "Gerçek sınav simülasyonu, yapay zeka yardımı yok.",
     kinds: ["written_exam"],
   },
   {
     id: "exam_day",
     title: "Sınav günü",
-    blurb: "Kısa kartlarla son tur.",
-    kinds: ["flashcards"],
+    blurb: "Kartlar, son kontrol, sonra kayıtlı verilere göre hazırlık.",
+    kinds: ["flashcards", "final_check", "readiness"],
   },
 ];
 
@@ -80,14 +146,21 @@ export function groupNodesByPhase<T extends { kind: PlanNodeKind }>(
   nodes: T[],
 ): { phase: PhaseMeta; nodes: T[] }[] {
   const buckets = new Map<PhaseId, T[]>();
+  let introPlaced = false;
   for (const node of nodes) {
-    const id = phaseForKind(node.kind);
+    // Giriş dersi "Bugün başla"nın altında durur. Sonraki ders düğümleri
+    // öğrenme aşamasında kalır; takvim sırası fazın içinde korunur.
+    let id = phaseForKind(node.kind);
+    if (node.kind === "lesson" && !introPlaced) {
+      id = "start";
+      introPlaced = true;
+    }
     buckets.set(id, [...(buckets.get(id) ?? []), node]);
   }
   return PLAN_PHASES.map((phase) => ({
     phase,
     nodes: buckets.get(phase.id) ?? [],
-  })).filter((group) => group.phase.id === "start" || group.nodes.length > 0);
+  })).filter((group) => group.nodes.length > 0);
 }
 
 /**

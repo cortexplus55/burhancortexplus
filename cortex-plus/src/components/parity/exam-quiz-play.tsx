@@ -13,6 +13,7 @@ export function ExamQuizPlay({
   onContinue,
   continueLabel,
   disabled,
+  examMode = false,
 }: {
   questions: PublicQuizQuestion[];
   index: number;
@@ -21,6 +22,8 @@ export function ExamQuizPlay({
   onContinue: () => void;
   continueLabel: string;
   disabled?: boolean;
+  /** Yazılı deneme: cevap sırasında doğru/yanlış ve açıklama yok. */
+  examMode?: boolean;
 }) {
   const [revealed, setRevealed] = useState(false);
   const question = questions[index];
@@ -37,7 +40,7 @@ export function ExamQuizPlay({
   const isCorrect = hasCorrect ? sameOptionSet(selected, question.correct!) : false;
 
   function pick(option: string) {
-    if (revealed) return;
+    if (!examMode && revealed) return;
     if (question.multi) {
       onChange(
         isOn(option) ? selected.filter((item) => item !== option) : [...selected, option],
@@ -48,12 +51,14 @@ export function ExamQuizPlay({
   }
 
   function handleAction() {
-    if (hasCorrect && !revealed) {
+    if (!examMode && hasCorrect && !revealed) {
       setRevealed(true);
       return;
     }
     onContinue();
   }
+
+  const showFeedback = !examMode && revealed && hasCorrect;
 
   return (
     <div className="space-y-6">
@@ -79,15 +84,15 @@ export function ExamQuizPlay({
         {question.options.map((option, optionIndex) => {
           const selectedThis = isOn(option);
           const isThisCorrect = hasCorrect && question.correct!.includes(option);
-          const showGreen = revealed && isThisCorrect;
-          const showRed = revealed && selectedThis && !isThisCorrect;
+          const showGreen = showFeedback && isThisCorrect;
+          const showRed = showFeedback && selectedThis && !isThisCorrect;
           const letter = String.fromCharCode(65 + optionIndex);
 
           return (
             <button
               key={option}
               type="button"
-              disabled={revealed}
+              disabled={!examMode && revealed}
               onClick={() => pick(option)}
               className={cn(
                 "group w-full flex items-center gap-4 p-4 sm:p-5 rounded-2xl text-left transition-all duration-200 relative overflow-hidden border",
@@ -154,7 +159,7 @@ export function ExamQuizPlay({
       </div>
 
       {/* Instant Feedback Callout */}
-      {revealed && hasCorrect ? (
+      {showFeedback ? (
         <div
           className={cn(
             "p-5 rounded-2xl border backdrop-blur-md space-y-2 animate-in fade-in zoom-in-95 duration-200",
@@ -181,6 +186,20 @@ export function ExamQuizPlay({
               {question.explanation}
             </p>
           ) : null}
+          {question.misconceptionTag ? (
+            <p className="text-xs text-zinc-400">Tuzak: {question.misconceptionTag}</p>
+          ) : null}
+          {question.optionWhy?.length ? (
+            <ul className="space-y-1 text-xs text-zinc-300">
+              {question.options.map((option, optionIndex) =>
+                question.optionWhy?.[optionIndex] ? (
+                  <li key={option}>
+                    <span className="text-zinc-100">{option}:</span> {question.optionWhy[optionIndex]}
+                  </li>
+                ) : null,
+              )}
+            </ul>
+          ) : null}
         </div>
       ) : null}
 
@@ -191,7 +210,7 @@ export function ExamQuizPlay({
         onClick={handleAction}
         className="w-full inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl text-sm font-bold bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-600/30 hover:shadow-violet-600/50 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        <span>{hasCorrect && !revealed ? "Yanıtı Kontrol Et" : continueLabel}</span>
+        <span>{!examMode && hasCorrect && !revealed ? "Yanıtı Kontrol Et" : continueLabel}</span>
       </button>
     </div>
   );

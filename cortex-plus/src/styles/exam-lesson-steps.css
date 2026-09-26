@@ -1,32 +1,87 @@
 /* Adım adım ders (.als-*). Renkler parity-shell.css tokenlarından. */
 
 .als {
-  width: min(38rem, 100%);
+  width: min(42rem, 100%);
   margin: 0 auto;
-  padding: 1.25rem 0 4rem;
+  padding: 0.5rem 0 2rem;
+  min-height: calc(100dvh - 7rem);
   display: flex;
   flex-direction: column;
 }
 
-.als-progress {
-  height: 3px;
-  border-radius: 9999px;
-  background: rgba(124, 108, 247, 0.2);
-  overflow: hidden;
+.als-top {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
 }
 
-.als-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #7c6cf7, #6b8cff);
-  transition: width 0.3s ease;
+.als-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  cursor: pointer;
+}
+
+.als-icon:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.als-icon--ghost {
+  visibility: hidden;
+}
+
+.als-segments {
+  display: flex;
+  gap: 0.2rem;
+  height: 3px;
+}
+
+.als-segments span {
+  flex: 1;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.als-segments span.is-on {
+  background: #4c6fff;
 }
 
 .als-count {
-  margin-top: 0.6rem;
+  margin: 0;
   color: var(--cp-muted);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.als-slide {
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(76, 111, 255, 0.16), transparent 55%),
+    #141414;
+  padding: 1.35rem 1.25rem 1.2rem;
+}
+
+.als-kicker {
+  display: inline-flex;
+  margin: 0 0 0.65rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.2rem 0.55rem;
+  font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
+  color: #c8c8c8;
 }
 
 .als-heading {
@@ -43,11 +98,27 @@
   font-weight: 700;
 }
 
-.als-body {
+.als-body,
+.als-solution-body {
   margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
   font-size: 1rem;
   line-height: 1.65;
   color: #dcdcdc;
+}
+
+.als-body p,
+.als-solution-body p {
+  margin: 0;
+}
+
+.als-formula {
+  margin: 0;
+  padding: 0.15rem 0 0.15rem 0.75rem;
+  border-left: 3px solid #5b7cfa;
+  font-variant-numeric: tabular-nums;
 }
 
 .als-list {
@@ -59,6 +130,15 @@
   list-style: disc;
   font-size: 0.9375rem;
   line-height: 1.55;
+}
+
+.als-steps {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-left: 1.25rem;
+  list-style: decimal;
 }
 
 .als-list--muted {
@@ -95,6 +175,46 @@
   padding: 0.85rem 1rem;
   font-size: 0.9375rem;
   line-height: 1.55;
+}
+
+.als-minutes {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--cp-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.als-recall {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.als-recall-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.als-recall-input {
+  width: 100%;
+  min-height: 5.5rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: inherit;
+  padding: 0.75rem 0.9rem;
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.als-recall-input:focus-visible {
+  outline: 2px solid var(--cp-accent, #6d8cff);
+  outline-offset: 2px;
 }
 
 .als-secondary {
@@ -146,12 +266,8 @@
   padding: 1rem;
 }
 
-.als-check-kicker {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #7c6cf7;
+.als-check .als-kicker {
+  color: #d0d0d0;
 }
 
 .als-check-prompt {
@@ -171,8 +287,7 @@
 .als-option {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.65rem;
   border-radius: 0.75rem;
   border: 1px solid var(--cp-border);
   background: #141414;
@@ -227,27 +342,169 @@
 }
 
 .als-explain {
-  margin-top: 0.75rem;
-  border-radius: 0.75rem;
-  background: var(--cp-surface-2);
-  padding: 0.75rem 0.85rem;
+  margin-top: 0.85rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(76, 111, 255, 0.45);
+  background: rgba(20, 24, 40, 0.9);
+  padding: 0.85rem 1rem;
   font-size: 0.875rem;
   line-height: 1.55;
   color: #dcdcdc;
 }
 
+.als-explain-kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #9eb0ff;
+}
+
+.als-revisit {
+  margin: 0.65rem 0 0;
+  color: var(--cp-muted);
+}
+
+.als-check.is-wrong {
+  border-color: #e05a4f;
+  background: rgba(120, 28, 32, 0.45);
+}
+
+.als-check.is-right {
+  border-color: #2e9e4f;
+  background: rgba(20, 70, 40, 0.45);
+}
+
+.als-tf {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.als-tf-btn {
+  min-width: 7.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: transparent;
+  color: inherit;
+  padding: 0.65rem 1.2rem;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.als-tf-btn:hover {
+  border-color: #4c6fff;
+}
+
+.als-option > span:nth-child(2) {
+  flex: 1;
+}
+
+.als-option-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.als-radio {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  flex-shrink: 0;
+}
+
+.als-feedback {
+  position: sticky;
+  bottom: 0.75rem;
+  margin-top: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-radius: 1rem;
+  padding: 0.7rem 0.7rem 0.7rem 1rem;
+  background: #161616;
+  border: 1px solid var(--cp-border);
+}
+
+.als-feedback.is-wrong {
+  border-color: #e05a4f;
+}
+
+.als-feedback.is-right {
+  border-color: #2e9e4f;
+}
+
+.als-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.als-card {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border);
+  background: #1a1a1a;
+  padding: 0.9rem 1rem;
+}
+
+.als-card h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.als-card p {
+  margin: 0.45rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #d0d0d0;
+}
+
+.als-card--peek {
+  flex: 0 0 4.5rem;
+  overflow: hidden;
+}
+
+.als-carousel-nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
 .als-cta {
   width: 100%;
-  margin-top: 1.75rem;
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
   border: 0;
   border-radius: 9999px;
-  background: linear-gradient(135deg, #6b8cff, #7c6cf7);
+  background: #3d5afe;
   color: #fff;
-  padding: 0.9rem 1.25rem;
+  padding: 0.95rem 1.25rem;
   font-size: 0.9375rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(107, 140, 255, 0.28);
+}
+
+.als-cta--inline {
+  width: auto;
+  margin-top: 0;
+  padding: 0.7rem 1.15rem;
 }
 
 .als-cta:disabled {
@@ -278,14 +535,29 @@
   color: var(--cp-text, #fff);
 }
 
-/* Bölüm içi uyarı kutusu: karıştırılması kolay ayrım, kavramın yanında.
-   Altın şerit ders akışındaki mor kontrolden ayırıyor. */
+/* Bölüm içi uyarı kutusu. Kenar rengi tona göre: kırmızı uyarı,
+   altın bilgi, turuncu birim. */
 .als-note {
   margin-top: 0.9rem;
-  padding: 0.7rem 0.9rem;
-  border-left: 3px solid var(--cp-gold, #f4ae0b);
-  border-radius: 0 10px 10px 0;
-  background: color-mix(in srgb, var(--cp-gold, #f4ae0b) 8%, transparent);
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-gold, #f4ae0b);
+  background: rgba(244, 174, 11, 0.08);
+}
+
+.als-note--warn {
+  border-color: #e05a4f;
+  background: rgba(176, 42, 42, 0.28);
+}
+
+.als-note--unit {
+  border-color: #e07a2f;
+  background: rgba(224, 122, 47, 0.12);
+}
+
+.als-note--info {
+  border-color: #e2b340;
+  background: rgba(226, 179, 64, 0.1);
 }
 
 .als-note-title {

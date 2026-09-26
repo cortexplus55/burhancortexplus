@@ -21,9 +21,14 @@ const COMPARATIVE_ROLE =
 const TWO_SIDES =
   /[+\u2192→]|vs\.?|versus|(^|[^a-zçğıöşü0-9])iki([^a-zçğıöşü0-9]|$)|(\S{1,24}\s+(?:ile|ve)\s+\S{1,24})/i;
 
+/** Düz tanım sorusu: "Sınırlayıcı bileşen nedir?" terimi tanımlar, iki tarafı karşılaştırmaz. */
+const DEFINITIONAL_ASK = /(nedir|ne demektir)\s*\?*\s*$/i;
+
 /**
  * Karşılaştırmalı rol soruluyorsa en az iki taraf veya denklem gerekir.
  * Tek madde ("CO₂ tepkimesinde sınırlayıcı") düşer; kimyaya özel yama yok.
+ * Düz tanım sorusu ("Sınırlayıcı bileşen nedir?") muaf: terimin kendisini
+ * soruyor, iki reaktifi karşılaştırmıyor.
  */
 export function verifyOralPrompt(prompt: string): string[] {
   const issues: string[] = [];
@@ -33,7 +38,7 @@ export function verifyOralPrompt(prompt: string): string[] {
     return issues;
   }
   // Tek madde + sınırlayıcı/artan rol: tepkime/denklem veya ikinci taraf yoksa anlamsız.
-  if (COMPARATIVE_ROLE.test(text) && !TWO_SIDES.test(text)) {
+  if (COMPARATIVE_ROLE.test(text) && !TWO_SIDES.test(text) && !DEFINITIONAL_ASK.test(text)) {
     issues.push(
       "Karşılaştırmalı rol için en az iki taraf veya bir denklem gerekli.",
     );

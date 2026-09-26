@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { X } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export function ExamTopicPick({
   prepId,
@@ -14,6 +16,7 @@ export function ExamTopicPick({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
+  const [hot, setHot] = useState(topics[0]?.id ?? null);
 
   async function pick(topicId: string) {
     setBusy(topicId);
@@ -36,27 +39,40 @@ export function ExamTopicPick({
     }
   }
 
+  const backHref = `/deneme-sinavlari/${prepId}`;
+
   return (
-    <div className="cp-exam-page">
-      <div className="cp-exam-study-bar mb-2">
-        <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill">
+    <div className="cp-exam-page cp-topic-pick-page">
+      <div className="cp-topic-pick-top">
+        <Link href={backHref} className="cp-back-pill">
           ← Geri
+        </Link>
+        <Link href={backHref} className="cp-topic-pick-x" aria-label="Kapat">
+          <X className="h-4 w-4" />
         </Link>
       </div>
       <h1>Konu seç</h1>
-      <p className="cp-wizard-lead">Bu sınavın konularından birini seç; önce 5 soruluk tanışma testi gelir.</p>
+      <p className="cp-topic-pick-lead">
+        Bu sınavın konularından birini seç; önce 5 soruluk tanışma testi gelir.
+      </p>
       <ol className="cp-topic-pick">
         {topics.map((topic, index) => (
           <li key={topic.id}>
             <button
               type="button"
-              className="cp-topic-pick-item"
+              className={cn(
+                "cp-topic-pick-item",
+                (hot === topic.id || busy === topic.id) && "is-hot",
+              )}
               disabled={Boolean(busy)}
+              onFocus={() => setHot(topic.id)}
               onClick={() => void pick(topic.id)}
             >
               <span className="cp-topic-num">{index + 1}</span>
               <strong>{topic.label}</strong>
-              <span aria-hidden>→</span>
+              <span className="cp-topic-chevron" aria-hidden>
+                →
+              </span>
             </button>
           </li>
         ))}

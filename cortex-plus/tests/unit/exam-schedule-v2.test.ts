@@ -99,6 +99,8 @@ describe("exam-schedule-v2", () => {
         (s) => !(s.dayIndex === lastDay && s.role === "learn"),
       ),
     ).toBe(true);
+    expect(plan.summary.startsWith("Planın 4")).toBe(true);
+    expect(plan.summary).not.toMatch(/saat|\bdk\b/);
   });
 
   it("spreads new learning over a long plan instead of front-loading it", () => {
@@ -208,6 +210,35 @@ describe("exam-schedule-v2", () => {
       ),
     ).toBe(true);
     expect(next.summary).toMatch(/Kaçırılan günler|yeniden dağıtıldı/i);
+  });
+
+  it("does not keep a different activity that only shares the finished node's date and sort", () => {
+    const plan = buildExamScheduleV2({
+      daysToExam: 10,
+      dailyMinutes: 50,
+      studyDays: [1, 2, 3, 4, 5],
+      topics: topics(1),
+      fromDate: new Date("2026-09-08T12:00:00"),
+    });
+    const quiz = plan.sessions.find((session) => session.kind === "quiz");
+    expect(quiz).toBeTruthy();
+    const next = redistributeRemainingSchedule({
+      previous: plan,
+      completed: [
+        {
+          sortOrder: quiz!.sortOrder,
+          calendarDate: quiz!.calendarDate,
+          kind: "podcast",
+        },
+      ],
+      dailyMinutes: 50,
+      studyDays: [1, 2, 3, 4, 5],
+      daysToExam: 8,
+      topics: topics(1),
+      fromDate: new Date("2026-09-10T12:00:00"),
+    });
+    expect(next.sessions.includes(quiz!)).toBe(false);
+    expect(next.sessions.some((session) => session.kind === "quiz")).toBe(true);
   });
 
   it("does not hand back a session the student already finished", () => {

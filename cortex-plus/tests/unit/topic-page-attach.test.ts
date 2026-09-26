@@ -85,6 +85,52 @@ describe("completeTopicPageLinks", () => {
     expect(equations.sourceExercises).toContain("1) tan θ değerini bul.");
   });
 
+  it("keeps a chapter review off the section named by one of its steps", () => {
+    const review = [
+      "TERMODİNAMİK I | VİZE NOTLARI | BÖLÜM 2 Sayfa 30/30",
+      "29. Vize Öncesi Son Tekrar - Denklem Seçme Rehberi",
+      "1) Sistemi seç",
+      "3) Enerji denklemi",
+      "4) Cihaza göre sadeleştir",
+      "SON FORMÜL ŞERİDİ",
+    ];
+    const quiz = [
+      "TERMODİNAMİK I | VİZE NOTLARI | BÖLÜM 1 Sayfa 20/30",
+      "19. Bölüm 1 Tekrarı - Mini Vize ve Formül Haritası",
+      "1) Manometrik 40 kPa ve atmosfer 98 kPa ise mutlak basınç? 138 kPa.",
+    ];
+    const example = [
+      "27. Bütünleşik Çözümlü Örnek I - Nozul + Kütle Debisi",
+      "1) Enerji dengesi",
+      "2) Çıkış hızı",
+    ];
+    const notePages = [
+      { ...page(1, "Açık sistemde kütle korunur."), headings: ["20. Açık Sistemlere Geçiş: Kütle Korunumu"], pageKind: "content" as const },
+      { ...page(2, "Sürekli akışta enerji dengesi yazılır."), headings: ["21. Sürekli Akış Enerji Denklemi"], pageKind: "content" as const },
+      { ...page(3, "Nozul akışı hızlandırır."), headings: ["22. Nozul ve Difüzörler"], pageKind: "content" as const },
+      { ...page(7, "Tank dolumu geçici rejimdir."), headings: ["26. Geçici Kontrol Hacmi: Tank Dolumu ve Boşalması"], pageKind: "content" as const },
+      { ...page(8, "Nozul örneği."), headings: example, pageKind: "content" as const },
+      { ...page(10, "Denklem seçme."), headings: review, pageKind: "content" as const },
+      { ...page(6, "Mutlak basınç manometre ile bulunur."), headings: ["5. Basınç, Mutlak Basınç ve Manometre Basıncı"], pageKind: "content" as const },
+      { ...page(19, "İdeal gaz enerjisi."), headings: ["18. İdeal Gazlarda Enerji Değişimi"], pageKind: "content" as const },
+      { ...page(20, "Mini vize."), headings: quiz, pageKind: "content" as const },
+    ];
+    const seededNote = [
+      draftFromLlmTopic("Açık Sistemlere Geçiş: Kütle Korunumu", null, [1], notePages, 0),
+      draftFromLlmTopic("Sürekli Akış Enerji Denklemi", null, [2], notePages, 1),
+      draftFromLlmTopic("Nozul ve Difüzörler", null, [3], notePages, 2),
+      draftFromLlmTopic("Geçici Kontrol Hacmi: Tank Dolumu ve Boşalması", null, [7], notePages, 3),
+      draftFromLlmTopic("Basınç, Mutlak Basınç ve Manometre Basıncı", null, [6], notePages, 4),
+      draftFromLlmTopic("İdeal Gazlarda Enerji Değişimi", null, [19], notePages, 5),
+    ];
+    const result = completeTopicPageLinks(seededNote, notePages);
+    expect(result.find((topic) => topic.title.startsWith("Nozul"))?.pageNumbers).toEqual([3, 8]);
+    expect(result.find((topic) => topic.title.startsWith("Sürekli"))?.pageNumbers).toEqual([2]);
+    expect(result.find((topic) => topic.title.startsWith("Geçici"))?.pageNumbers).toEqual([7, 10]);
+    expect(result.find((topic) => topic.title.startsWith("Basınç"))?.pageNumbers).toEqual([6]);
+    expect(result.find((topic) => topic.title.startsWith("İdeal"))?.pageNumbers).toEqual([19, 20]);
+  });
+
   it("prefers a matching heading over proximity and does not attach structural pages", () => {
     const extraPages = [
       ...pages,

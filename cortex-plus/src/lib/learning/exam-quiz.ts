@@ -12,6 +12,12 @@ export type QuizQuestion = {
   misconceptionTag?: string;
   /** Yanlış şık → o şıkka özgü hata gerekçesi (tekrar eden şablon yasak). */
   optionReasons?: Record<string, string>;
+  /** Aynı üretim çağrısında, her şık için bir cümle. */
+  optionWhy?: string[];
+  /** Hazırlıktaki konu adı. Bilinmeyen ad sınav sonunda gösterilmez. */
+  topic?: string;
+  /** İkinci çözücü bunu görür. Öğrenciye gitmez. */
+  needsSolver?: boolean;
 };
 
 export type PublicQuizQuestion = {
@@ -20,6 +26,8 @@ export type PublicQuizQuestion = {
   multi: boolean;
   correct?: string[];
   explanation?: string;
+  optionWhy?: string[];
+  misconceptionTag?: string;
 };
 
 const correctValueSchema = z.union([z.string(), z.number()]);
@@ -30,9 +38,10 @@ export const quizQuestionSchema = z.object({
   correct: z.union([correctValueSchema, z.array(correctValueSchema).min(1)]),
   multi: z.boolean().optional(),
   explanation: z.string().optional(),
-  learningObjective: z.string().min(8).max(200).optional(),
-  misconceptionTag: z.string().min(2).max(80).optional(),
+  learningObjective: z.string().min(8).max(200).optional().catch(undefined),
+  misconceptionTag: z.string().min(2).max(80).optional().catch(undefined),
   optionReasons: z.record(z.string(), z.string().min(8).max(400)).optional(),
+  topic: z.string().min(2).max(80).optional(),
 });
 
 export const quizPayloadSchema = z.object({
@@ -90,6 +99,8 @@ export function normalizeQuizQuestion(raw: {
   learningObjective?: string;
   misconceptionTag?: string;
   optionReasons?: Record<string, string>;
+  optionWhy?: string[];
+  topic?: string;
 }): QuizQuestion | null {
   const options = [...new Set(raw.options.map((item) => item.trim()).filter(Boolean))];
   const corrects = resolveCorrects(options, raw.correct);
@@ -111,6 +122,19 @@ export function normalizeQuizQuestion(raw: {
     misconceptionTag: raw.misconceptionTag?.trim() || undefined,
     optionReasons:
       optionReasons && Object.keys(optionReasons).length ? optionReasons : undefined,
+    optionWhy: Array.isArray(raw.optionWhy)
+      ? raw.optionWhy.map((line) => line.trim()).filter((line) => line.length >= 8)
+      : undefined,
+    topic: raw.topic?.trim() || undefined,
+  };
+}
+
+/** Yazılı deneme sırasında istemciye giden soru. Doğru şık ve açıklama yok. */
+export function sealedQuizQuestion(question: QuizQuestion): PublicQuizQuestion {
+  return {
+    text: question.text,
+    options: question.options,
+    multi: question.multi,
   };
 }
 
@@ -121,6 +145,8 @@ export function publicQuizQuestion(question: QuizQuestion): PublicQuizQuestion {
     multi: question.multi,
     correct: question.correct,
     explanation: question.explanation,
+    optionWhy: question.optionWhy,
+    misconceptionTag: question.misconceptionTag,
   };
 }
 
@@ -151,9 +177,47 @@ export function scoreQuizAnswers(
 
 export function parseQuizQuestions(raw: unknown): QuizQuestion[] | null {
   const parsed = quizPayloadSchema.safeParse(raw);
-  if (!parsed.success) return null;
+  if (!parsed.success) return coerceQuizQuestions(raw);
   const questions = parsed.data.questions
     .map(normalizeQuizQuestion)
     .filter((question): question is QuizQuestion => question !== null);
-  return questions.length ? questions : null;
+  return questions.length >= 3 ? questions : coerceQuizQuestions(raw);
+}
+
+/** Tek bozuk soru seti düşürmez. En az üç sağlam soru kalırsa üretim sürer. */
+export function coerceQuizQuestions(raw: unknown): QuizQuestion[] | null {
+  const row = raw && typeof raw === "object" ? (raw as { questions?: unknown }) : null;
+  const list = Array.isArray(row?.questions) ? row.questions : null;
+  if (!list) return null;
+  const questions = list.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const record = item as Record<string, unknown>;
+    const text = typeof record.text === "string"
+      ? record.text
+      : typeof record.question === "string"
+        ? record.question
+        : "";
+    const options = Array.isArray(record.options) ? record.options.map((option) => String(option)) : [];
+    const optionWhy = Array.isArray(record.optionWhy)
+      ? record.optionWhy.filter((line): line is string => typeof line === "string")
+      : undefined;
+    const optionReasons =
+      record.optionReasons && typeof record.optionReasons === "object"
+        ? (record.optionReasons as Record<string, string>)
+        : undefined;
+    const normalized = normalizeQuizQuestion({
+      text,
+      options,
+      correct: (record.correct ?? record.answer ?? record.answerIndex) as string | number | (string | number)[],
+      multi: record.multi === true,
+      explanation: typeof record.explanation === "string" ? record.explanation : undefined,
+      learningObjective: typeof record.learningObjective === "string" ? record.learningObjective : undefined,
+      misconceptionTag: typeof record.misconceptionTag === "string" ? record.misconceptionTag : undefined,
+      optionReasons,
+      optionWhy,
+      topic: typeof record.topic === "string" ? record.topic : undefined,
+    });
+    return normalized ? [normalized] : [];
+  });
+  return questions.length >= 3 ? questions.slice(0, 8) : null;
 }

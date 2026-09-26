@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Check, Share2 } from "lucide-react";
+import { Check, Mic, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   PLAN_NODE_META,
@@ -16,13 +16,19 @@ import {
 import {
   examPrepAssessmentHref,
   examPrepIntroHref,
+  examPrepNodeHref,
   examPrepReviewsHref,
 } from "@/lib/learning/exam-prep-hrefs";
 import {
   topicProgressFromNodes,
 } from "@/lib/learning/exam-prep-ui-path";
+import { STUDY_PATH_HINT, studyNodeAria } from "@/lib/learning/study-tools";
+import { StudyToolsHub } from "@/components/parity/study-tools-hub";
+import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
 import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
+import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
+import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
 import {
   ExamPrepSettingsPanel,
   type PrepSettingsInitial,
@@ -41,8 +47,22 @@ export type HomeNode = {
     durationMinutes?: number;
     role?: string;
     calendarDate?: string;
+    topicId?: string;
     topicTitle?: string;
   } | null;
+};
+
+function trailGlyph(node: HomeNode, index: number) {
+  if (node.status === "done") return "✓";
+  if (node.kind === "podcast") return <Mic className="h-5 w-5" aria-hidden />;
+  return index + 1;
+}
+
+export type PrepMaterial = {
+  id: string;
+  name: string;
+  kindLabel: string;
+  href: string;
 };
 
 export type LearningTrackingView = {
@@ -79,6 +99,13 @@ export function ExamPrepHome({
   settings = null,
   documentId = null,
   documentName = null,
+  topicsDone = 0,
+  topicCount = 0,
+  topicLabels = [],
+  topicOptions = [],
+  materials = [],
+  readinessClaim = null,
+  topicWarnings = {},
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -106,18 +133,43 @@ export function ExamPrepHome({
   uiV2?: boolean;
   openMisconceptions?: number;
   settings?: PrepSettingsInitial | null;
+  /** Konu birimi. Düğüm sayısı buraya yazılmaz. */
+  topicsDone?: number;
+  topicCount?: number;
+  /** Beceri ağacı. Konu düzenleme burada yok; o yalnızca kurulum sihirbazında. */
+  topicLabels?: string[];
+  /** Podcast rotasının konu kimliği. Etiket listesinden ayrıdır. */
+  topicOptions?: { id: string; label: string }[];
+  /** Materyaller sekmesi. Birden fazla belge varsa hepsi; yoksa eski tek belge. */
+  materials?: PrepMaterial[];
+  /** Ölçülen veri hazır diyorsa true. Bilinmiyorsa null; uydurma yok. */
+  readinessClaim?: boolean | null;
+  /** Konu başlığı → kaynaklar çelişiyorsa Türkçe uyarı. */
+  topicWarnings?: Record<string, string>;
 }) {
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
   const started = hasTopic && !needsIntro;
+  const hasProgress = nodes.some((node) => node.status === "done");
+  const recommendPodcast = hasProgress && started && ready?.kind === "podcast";
+  const firstPlayable = nodes.find((node) => node.status !== "locked");
+  const beginHref =
+    hasTopic && !needsIntro && firstPlayable
+      ? examPrepNodeHref(prepId, firstPlayable.id)
+      : startHref;
+  const primaryHref = hasProgress ? startHref : beginHref;
+  const primaryLabel = hasProgress ? PREP_HOME_COPY.continue : PREP_HOME_COPY.startLearning;
   const daysLeft = examDate ? daysUntilExam(examDate) : null;
   const readiness = readinessScore(nodes);
   const readinessState = readinessLabel(readiness);
   const [shared, setShared] = useState(initialShared);
   const [sharing, setSharing] = useState(false);
-  const [view, setView] = useState<"yol" | "konular">("yol");
+  const [view, setView] = useState<"yol" | "konular" | "materyaller" | "ilerleme">("yol");
+  const [progressPane, setProgressPane] = useState<"agac" | "sorular">("agac");
+  const [openSkill, setOpenSkill] = useState<string | null>(null);
   /** Bakım bağlantıları çalışmanın önüne geçmesin diye kapalı başlıyor. */
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [hubTopic, setHubTopic] = useState<string | null | undefined>(undefined);
   const topicRows = useMemo(() => topicProgressFromNodes(nodes), [nodes]);
   const showTracking = Boolean(learningTracking);
 
@@ -169,9 +221,15 @@ export function ExamPrepHome({
           kaldığını görmek için sayfadan çıkmak zorundaydı. */}
       <header className="cp-exam-trail-head cp-exam-hero">
         <div className="cp-exam-trail-meter" aria-hidden>
-          <span style={{ width: `${progressPct}%` }} />
+          <span
+            style={{
+              width: `${topicCount > 0 ? Math.round((topicsDone / topicCount) * 100) : progressPct}%`,
+            }}
+          />
         </div>
-        <p>{progressPct}%</p>
+        <p>
+          {topicCount > 0 ? `${topicsDone} / ${topicCount} konu` : `${progressPct}%`}
+        </p>
         <h1>{title}</h1>
         <p className="text-sm text-[var(--cp-muted)]">
           {examType}
@@ -191,7 +249,7 @@ export function ExamPrepHome({
             className={cn("cp-exam-tab", view === "yol" && "is-active")}
             onClick={() => setView("yol")}
           >
-            Çalışma yolu
+            {PREP_HOME_COPY.path}
           </button>
           <button
             type="button"
@@ -200,7 +258,25 @@ export function ExamPrepHome({
             className={cn("cp-exam-tab", view === "konular" && "is-active")}
             onClick={() => setView("konular")}
           >
-            Konular <span className="cp-exam-tab-count">{topicRows.length}</span>
+            {PREP_HOME_COPY.topics}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "materyaller"}
+            className={cn("cp-exam-tab", view === "materyaller" && "is-active")}
+            onClick={() => setView("materyaller")}
+          >
+            {PREP_HOME_COPY.materials}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "ilerleme"}
+            className={cn("cp-exam-tab", view === "ilerleme" && "is-active")}
+            onClick={() => setView("ilerleme")}
+          >
+            {PREP_HOME_COPY.progress}
           </button>
         </div>
         {activeTopicLabel ? (
@@ -215,6 +291,9 @@ export function ExamPrepHome({
             </Link>
           </div>
         ) : null}
+        <button type="button" className="cp-back-pill cp-back-pill--accent" onClick={() => setHubTopic(null)}>
+          Ders oluştur
+        </button>
         {canShare ? (
           <button
             type="button"
@@ -254,6 +333,9 @@ export function ExamPrepHome({
           >
             Bu sınav için sor
           </Link>
+          <Link href={`/deneme-sinavlari/${prepId}/zor-sorular`} className="cp-back-pill">
+            {PREP_HOME_COPY.challenge}
+          </Link>
           <Link href={examPrepReviewsHref(prepId)} className="cp-back-pill">
             Yanlışlar
             {openMisconceptions > 0 ? ` (${openMisconceptions})` : ""}
@@ -273,6 +355,9 @@ export function ExamPrepHome({
 
       {uiV2 && toolsOpen ? (
         <div className="cp-exam-tools">
+          <button type="button" className="cp-back-pill" onClick={() => setHubTopic(null)}>
+            Ders oluştur
+          </button>
           <Link href={examPrepAssessmentHref(prepId)} className="cp-back-pill">
             Sınav öncesi değerlendirme
           </Link>
@@ -301,34 +386,51 @@ export function ExamPrepHome({
         <ExamPrepSettingsPanel prepId={prepId} initial={settings} />
       ) : null}
 
-      {uiV2 && view === "konular" ? (
-        <section className="cp-topic-progress" aria-label="Konular">
-          {topicRows.length ? (
-            <ul>
-              {topicRows.map((row) => (
-                <li key={row.title}>
-                  <Link href={`/deneme-sinavlari/${prepId}/konu`}>
-                    <span className="cp-topic-progress-name">{row.title}</span>
-                    <span className="cp-topic-progress-count">
-                      {row.done}/{row.total} tamamlandı
-                    </span>
-                    <span className="cp-topic-progress-bar" aria-hidden>
-                      <span style={{ width: `${row.pct}%` }} />
-                    </span>
-                    <span className="cp-topic-progress-pct">%{row.pct}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+      {view === "ilerleme" ? (
+        <section className="cp-progress-pane" aria-label="İlerleme">
+          <div className="cp-exam-tabs" role="tablist" aria-label="İlerleme görünümü">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={progressPane === "agac"}
+              className={cn("cp-exam-tab", progressPane === "agac" && "is-active")}
+              onClick={() => setProgressPane("agac")}
+            >
+              {PREP_HOME_COPY.skillTree}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={progressPane === "sorular"}
+              className={cn("cp-exam-tab", progressPane === "sorular" && "is-active")}
+              onClick={() => setProgressPane("sorular")}
+            >
+              {PREP_HOME_COPY.allQuestions}
+            </button>
+          </div>
+          {progressPane === "agac" ? (
+            <SkillTree
+              labels={
+                topicLabels.length
+                  ? topicLabels
+                  : topicRows.map((row) => row.title)
+              }
+              rows={topicRows}
+              openSkill={openSkill}
+              onToggle={setOpenSkill}
+              startHref={startHref}
+            />
           ) : (
             <p className="text-sm text-[var(--cp-muted)]">
-              Plan kurulunca konular burada ilerlemeleriyle listelenir.
+              {topicsDone > 0 || nodes.some((node) => node.status === "done")
+                ? PREP_HOME_COPY.practicedElsewhere
+                : PREP_HOME_COPY.noPractice}
             </p>
           )}
         </section>
       ) : null}
 
-      {daysLeft !== null || showTracking ? (
+      {(view === "yol" || view === "ilerleme") && (daysLeft !== null || showTracking) ? (
         <section
           className={cn(
             "cp-countdown",
@@ -410,7 +512,32 @@ export function ExamPrepHome({
         </Link>
       ) : null}
 
-      {!nodes.length ? (
+      {view === "konular" ? (
+        <TopicList
+          prepId={prepId}
+          labels={topicLabels.length ? topicLabels : topicRows.map((row) => row.title)}
+          rows={topicRows}
+          warnings={topicWarnings}
+          onCreate={(label) => setHubTopic(label)}
+        />
+      ) : null}
+
+      {view === "materyaller" ? (
+        <>
+          <MaterialsList materials={materials} />
+          <PrepMaterialAdder prepId={prepId} count={materials.length} />
+        </>
+      ) : null}
+
+      {view === "yol" && !uiV2 ? (
+        <p>
+          <Link href={`/deneme-sinavlari/${prepId}/zor-sorular`} className="cp-back-pill">
+            {PREP_HOME_COPY.challenge}
+          </Link>
+        </p>
+      ) : null}
+
+      {view === "yol" && !nodes.length ? (
         <div className="cp-exam-empty cp-exam-empty--discover" role="status">
           <p>
             <strong>Çalışma yolu henüz kurulmadı</strong>
@@ -419,8 +546,8 @@ export function ExamPrepHome({
             Bir konu seçip kısa tanı ölçümünü bitir; podcast, alıştırma ve deneme sırası burada açılsın.
           </p>
           <div className="cp-exam-empty-actions">
-            <Link href={startHref} className="cp-exam-continue cp-exam-continue--primary">
-              Konu seç ve başla
+            <Link href={primaryHref} className="cp-exam-continue cp-exam-continue--primary">
+              {primaryLabel}
             </Link>
             {introPending ? (
               <Link href={examPrepIntroHref(prepId)} className="cp-exam-continue">
@@ -429,94 +556,256 @@ export function ExamPrepHome({
             ) : null}
           </div>
         </div>
-      ) : uiV2 && view === "yol" ? (
-        // Yol tarihsiz: öğrenci neyi ne zaman çalışacağına kendi karar
-        // veriyor. Gün blokları kalktı — "Gün 3" yazan bir başlık,
-        // öğrenciyi geri kalmışlık duygusuna sokmaktan başka bir şey
-        // yapmıyordu. Sıra duruyor, kilit duruyor, takvim yok.
-        <ol className="cp-exam-trail" aria-label="Çalışma yolu">
-          {nodes.map((node, index) => (
-            <li
-              key={node.id}
-              className={`cp-exam-trail-item cp-exam-trail-item--${index % 2 === 0 ? "left" : "right"}`}
-            >
-              <button
-                type="button"
-                className={`cp-exam-trail-node cp-exam-trail-node--${node.status}`}
-                disabled={node.status === "locked"}
-                aria-label={`${node.title || PLAN_NODE_META[node.kind].title}, ${
-                  node.status === "done"
-                    ? "tamamlandı"
-                    : node.status === "locked"
-                      ? "kilitli"
-                      : "sırada"
-                }`}
-                onClick={() => openNode(node)}
-              >
-                {node.status === "done" ? "✓" : node.status === "locked" ? "🔒" : index + 1}
-              </button>
-              <span>
-                <strong>{node.title || PLAN_NODE_META[node.kind].title}</strong>
-                <em>
-                  {/* Konu adı başlıkta zaten geçiyor; altında bir daha
-                      yazınca her satır kendini tekrar ediyordu. Burada
-                      yalnızca başlıkta OLMAYAN bilgi kalıyor. */}
-                  {PLAN_NODE_META[node.kind].title}
-                  {node.sessionMeta?.durationMinutes
-                    ? ` · ${node.sessionMeta.durationMinutes} dk`
-                    : ""}
-                  {node.sessionMeta?.sourcePages?.length
-                    ? ` · s.${node.sessionMeta.sourcePages.slice(0, 4).join(",")}`
-                    : ""}
-                </em>
-              </span>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <ol className="cp-exam-trail">
-          {nodes.map((node, index) => (
-            <li
-              key={node.id}
-              className={`cp-exam-trail-item cp-exam-trail-item--${index % 2 === 0 ? "left" : "right"}`}
-            >
-              <button
-                type="button"
-                className={`cp-exam-trail-node cp-exam-trail-node--${node.status}`}
-                disabled={node.status === "locked"}
-                aria-label={`${node.title}, gün ${node.dayIndex}`}
-                onClick={() => openNode(node)}
-              >
-                {node.status === "done" ? "✓" : node.status === "locked" ? "🔒" : index + 1}
-              </button>
-              <span>
-                <strong>{node.title || PLAN_NODE_META[node.kind].title}</strong>
-                <em>
-                  Gün {node.dayIndex}
-                  {node.sessionMeta?.durationMinutes
-                    ? ` · ${node.sessionMeta.durationMinutes} dk`
-                    : ""}
-                  {node.sessionMeta?.sourcePages?.length
-                    ? ` · s.${node.sessionMeta.sourcePages.slice(0, 4).join(",")}`
-                    : ""}
-                </em>
-              </span>
-            </li>
-          ))}
-        </ol>
-      )}
+      ) : view === "yol" ? (
+        <>
+          <p className="cp-study-hub-hint">{STUDY_PATH_HINT}</p>
+          <StudyPath nodes={nodes} onOpen={openNode} readinessClaim={readinessClaim} />
+        </>
+      ) : null}
 
-      <div className="cp-exam-start-card">
-        <p>{started ? "Sıradaki derse geç" : "Başlamaya hazır mısın?"}</p>
-        <Link href={startHref} className="cp-exam-continue cp-exam-continue--primary">
-          {started
-            ? ready
-              ? `Sonraki: ${PLAN_NODE_META[ready.kind].title}`
-              : "Yola dön"
-            : "Hadi başlayalım!"}
-        </Link>
-      </div>
+      {view === "yol" ? (
+        <div className={cn("cp-exam-start-card", recommendPodcast && "cp-exam-reco")}>
+          {recommendPodcast ? (
+            <>
+              <p className="cp-exam-reco-kicker">ÖNERİLEN DERS</p>
+              <h2>Podcast</h2>
+              <Link href={startHref} className="cp-exam-reco-go">
+                {PREP_HOME_COPY.continue}
+              </Link>
+            </>
+          ) : (
+            <>
+              <p>{hasProgress ? "Sıradaki derse geç" : "Başlamaya hazır mısın?"}</p>
+              <Link href={primaryHref} className="cp-exam-continue cp-exam-continue--primary">
+                {primaryLabel}
+              </Link>
+            </>
+          )}
+        </div>
+      ) : null}
+      {hubTopic !== undefined ? (
+        <StudyToolsHub
+          prepId={prepId}
+          nodes={nodes}
+          topics={topicLabels.length ? topicLabels : topicRows.map((row) => row.title)}
+          topicOptions={topicOptions}
+          topicLabel={hubTopic}
+          onTopic={setHubTopic}
+          onClose={() => setHubTopic(undefined)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function StudyPath({
+  nodes,
+  onOpen,
+  readinessClaim,
+}: {
+  nodes: HomeNode[];
+  onOpen: (node: HomeNode) => void;
+  readinessClaim: boolean | null;
+}) {
+  const groups = useMemo(() => {
+    let cursor = 0;
+    return groupNodesByPhase(nodes).map((group) => ({
+      phase: group.phase,
+      items: group.nodes.map((node) => {
+        const index = cursor;
+        cursor += 1;
+        return { node, index };
+      }),
+    }));
+  }, [nodes]);
+
+  return (
+    <div className="cp-exam-phases">
+      {groups.map((group) => (
+        <section
+          key={group.phase.id}
+          className="cp-exam-phase"
+          aria-labelledby={`phase-${group.phase.id}`}
+        >
+          <header className="cp-exam-phase-head">
+            <h2 id={`phase-${group.phase.id}`}>{group.phase.title}</h2>
+            <p>{group.phase.blurb}</p>
+          </header>
+          <ol className="cp-exam-trail" aria-label={group.phase.title}>
+            {group.items.map(({ node, index }) => (
+              <li
+                key={node.id}
+                className={`cp-exam-trail-item cp-exam-trail-item--${index % 2 === 0 ? "left" : "right"}`}
+              >
+                <button
+                  type="button"
+                  className={`cp-exam-trail-node cp-exam-trail-node--${node.status}${
+                    node.kind === "podcast" ? " cp-exam-trail-node--podcast" : ""
+                  }`}
+                  aria-label={`${node.title || PLAN_NODE_META[node.kind].title}, ${studyNodeAria(node.status)}`}
+                  onClick={() => onOpen(node)}
+                >
+                  {trailGlyph(node, index)}
+                </button>
+                <span>
+                  <strong>{node.title || PLAN_NODE_META[node.kind].title}</strong>
+                  <em>
+                    {PLAN_NODE_META[node.kind].title}
+                    {node.kind === "lesson" && !node.sessionMeta?.durationMinutes ? " · 5 dk" : ""}
+                    {node.sessionMeta?.durationMinutes
+                      ? ` · ${node.sessionMeta.durationMinutes} dk`
+                      : ""}
+                    {node.sessionMeta?.sourcePages?.length
+                      ? ` · s.${node.sessionMeta.sourcePages.slice(0, 4).join(",")}`
+                      : ""}
+                    {node.status === "locked" ? " · önerilen sırada" : ""}
+                    {node.kind === "written_exam" ? " · yardım yok" : ""}
+                    {node.kind === "readiness" && readinessClaim === true
+                      ? " · ölçülen verilere göre hazırsın"
+                      : ""}
+                    {node.kind === "readiness" && readinessClaim === false
+                      ? " · eksikler bu ekranda"
+                      : ""}
+                  </em>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function TopicList({
+  prepId,
+  labels,
+  rows,
+  warnings,
+  onCreate,
+}: {
+  prepId: string;
+  labels: string[];
+  rows: { title: string; pct: number; done: number; total: number }[];
+  warnings: Record<string, string>;
+  onCreate?: (label: string) => void;
+}) {
+  if (!labels.length) {
+    return <p className="text-sm text-[var(--cp-muted)]">{PREP_HOME_COPY.noTopics}</p>;
+  }
+  return (
+    <section className="cp-topic-progress" aria-label={PREP_HOME_COPY.topics}>
+      <ul>
+        {labels.map((label) => {
+          const row = rows.find((item) => item.title === label);
+          const pct = row?.pct ?? 0;
+          return (
+            <li key={label}>
+              <Link href={`/deneme-sinavlari/${prepId}/konu`}>
+                <span className="cp-topic-progress-name">{label}</span>
+                <span className="cp-topic-progress-pct">
+                  {pct}
+                  {PREP_HOME_COPY.masterySuffix}
+                </span>
+                <span className="cp-topic-progress-bar" aria-hidden>
+                  <span style={{ width: `${pct}%` }} />
+                </span>
+                <span className="cp-topic-progress-count">
+                  {row && row.total > 0
+                    ? `${row.done} / ${row.total} etkinlik`
+                    : PREP_HOME_COPY.noPractice}
+                </span>
+                {warnings[label] ? (
+                  <span className="cp-topic-warning">{warnings[label]}</span>
+                ) : null}
+              </Link>
+              {onCreate ? (
+                <button type="button" className="cp-back-pill" onClick={() => onCreate(label)}>
+                  {label} için ders oluştur
+                </button>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function MaterialsList({ materials }: { materials: PrepMaterial[] }) {
+  if (!materials.length) {
+    return (
+      <p className="cp-exam-materials text-sm text-[var(--cp-muted)]">
+        {PREP_HOME_COPY.materialsEmpty}
+      </p>
+    );
+  }
+  return (
+    <ul className="cp-exam-materials">
+      {materials.map((material) => (
+        <li key={material.id}>
+          <Link href={material.href} className="cp-exam-material">
+            <strong>{material.name}</strong>
+            <span>{material.kindLabel}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function SkillTree({
+  labels,
+  rows,
+  openSkill,
+  onToggle,
+  startHref,
+}: {
+  labels: string[];
+  rows: { title: string; pct: number }[];
+  openSkill: string | null;
+  onToggle: (label: string | null) => void;
+  startHref: string;
+}) {
+  if (!labels.length) {
+    return (
+      <p className="text-sm text-[var(--cp-muted)]">
+        {PREP_HOME_COPY.emptyTree}
+      </p>
+    );
+  }
+  return (
+    <ul className="cp-skill-tree">
+      {labels.map((label) => {
+        const pct = rows.find((row) => row.title === label)?.pct ?? 0;
+        const open = openSkill === label;
+        return (
+          <li key={label}>
+            <button
+              type="button"
+              aria-expanded={open}
+              onClick={() => onToggle(open ? null : label)}
+            >
+              <strong>{label}</strong>
+              <span>
+                {pct}
+                {PREP_HOME_COPY.masterySuffix}
+              </span>
+            </button>
+            {open ? (
+              <div className="cp-skill-detail">
+                <p>
+                  {pct > 0 ? PREP_HOME_COPY.skillPractice : PREP_HOME_COPY.noPractice}
+                </p>
+                {pct === 0 ? (
+                  <Link href={startHref}>{PREP_HOME_COPY.createLesson}</Link>
+                ) : null}
+              </div>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

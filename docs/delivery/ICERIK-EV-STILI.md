@@ -12,7 +12,7 @@ ayrışırsa kod haklıdır, bu dosya güncellenir.
 
 ## 1. Konu bölme
 
-Kod: `src/lib/documents/topic-title.ts` · Test: `tests/unit/topic-title.test.ts`
+Kod: `src/lib/documents/topic-title.ts`, `src/lib/documents/topic-fold.ts` · Test: `tests/unit/topic-title.test.ts`, `tests/unit/topic-fold.test.ts`
 
 Belgenin içindekiler tablosu bir konu listesi **değildir**. Konu listesi
 öğrencinin yükleme sonrası gördüğü ilk ekran; orada bölüm numarası ve
@@ -20,7 +20,9 @@ parantez içi kısaltma hiçbir şey öğretmiyor.
 
 | Kural | Kod |
 |---|---|
-| Yaklaşık 3 öğretim sayfasına 1 konu, 4–12 arası | `targetTopicCount` |
+| Yaklaşık 3 öğretim sayfasına 1 konu, 4–12 arası (ipucu) | `targetTopicCount` |
+| Sert tavan: 10 sayfada en fazla 8, 20 sayfada en fazla 12 | `topicCeiling` |
+| Kutu, çözümlü örnek adımı, tekrar ve kısa/uzun çift konu değildir | `topic-fold.ts` |
 | Baştaki bölüm numarası ve sondaki parantezli kısaltma atılır | `normalizeTopicTitle` |
 | "Sayfa N", tek kelimelik, cümleye dönmüş başlık elenir | `topicTitleIssues` |
 | Kapsam adı eklenir, önemli alt başlık "ve" ile terfi eder, sınanamayan bölüm komşusuna katılır | `TOPIC_TITLE_RULE` |
@@ -36,8 +38,16 @@ biz:   "1. Zeminin Oluşumu ve Üç Fazlı Sistem"
 Astra: (konu değil — tek başına sınanamıyor, 2'nin açılışı)
 ```
 
-Elenen başlığın sayfaları en yakın konuya bağlanır; kapsama düşmez,
-harita tümden çöpe gitmez.
+Elenen başlığın sayfaları silinmez. Çözümlü örnek, adındaki kavrama
+katılır; kutu ve bölüm sonu tekrarı, sayfanın kendi bölümüne ya da
+ondan önceki konuya bağlanır. Kapsama düşmez, harita tümden çöpe gitmez.
+
+Aynı dosya yeniden yüklenince eski harita kopyalanmaz; her yükleme yeni
+bir belgedir. Eski kuralda kaydedilmiş ve hâlâ kutu ya da tavanın üstünde
+başlık taşıyan hazır harita, belge açılınca model çağrılmadan katlanır.
+Öğrencinin onayladığı, elle düzenlediği ya da bir sınav hazırlığına
+bağladığı harita olduğu gibi kalır. Eski konu düğümleri, yenileri
+yazılmadan silinmez.
 
 ### Konuların sırası belgenin sırasıdır
 

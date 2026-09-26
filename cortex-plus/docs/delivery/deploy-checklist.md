@@ -41,11 +41,20 @@ Kayıt akışı: `/kayit/tamamla` — e-posta doğrulama linkinde `next=/kayit/t
 
 ## 3. Migration’lar
 
-> **`supabase db push` ÇALIŞTIRMAYIN.** Uzak veritabanı ile bu depodaki
-> migration geçmişi ayrışmış durumda: repodaki **25** dosyanın hiçbiri uzakta
-> kayıtlı değil, uzaktaki **34** kayıt ise repoda yok. Şema sağlıklı — panel
-> veya MCP üzerinden kurulmuş, bu dosyalarla değil. `db push` bu durumda
-> 25 migration’ı zaten kurulu şemanın üstüne uygulamayı dener.
+> **`supabase db push`'u ÖNCE LİSTEYE BAKMADAN çalıştırmayın.** Bu uyarı
+> ayrışmış bir geçmişten geliyor: yazıldığı gün repodaki **25** dosyanın
+> hiçbiri uzakta kayıtlı değildi, uzaktaki **34** kayıt ise repoda yoktu.
+> Şema sağlıklıydı — panel veya MCP üzerinden kurulmuştu, bu dosyalarla
+> değil. O hâlde `db push`, zaten kurulu şemanın üstüne 25 migration
+> uygulamayı dener.
+>
+> **19 Eylül 2026 notu.** Yasak mutlak değil, **tarihsel**: geçmiş
+> hizalandıktan sonra Eylül 2026 dosyaları `db push` ile uygulandı ve
+> çalıştı. Karar kuralı şu — `migration list` çıktısında Local ve Remote
+> sütunları beklediğiniz gibiyse `db push` güvenli; beklemediğiniz bir fark
+> varsa DURUN ve dosyaları Supabase SQL editöründen elle uygulayın.
+> `scripts/apply-migrations.ps1` tam olarak bu sırayı dayatıyor: listeyi
+> gösteriyor, okumanızı söylüyor, sonra onay istiyor.
 
 Durumu her zaman önce görün:
 

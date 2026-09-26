@@ -1,5 +1,232 @@
 /**
- * Ortak Türkçe yüzey kontrolü — ders, quiz, sözlü ve podcast aynı kapıyı kullanır.
+ * Kırık Türkçe kapısı. Ders, podcast, quiz, soru doğrulayıcı ve sözlü
+ * aynı fonksiyonu kullanır. Yazım listesi de buradadır; ikinci bir
+ * sözlük yoktur. Ders hattının geri kalanını içeri almaz.
+ *
+ * `repairDativePossessive` / `turkishSurfaceIssues` / `contentStems` gibi
+ * ders kalite kapısına özel fonksiyonlar da burada duruyor — izafet
+ * konumundaki yönelme ekini iyelik ekine çeviren ayrı, morfolojik bir
+ * onarım (`repairTurkishSurface`'ın kelime listesine dayanan
+ * `repairNounPhrase`'inden farklı olarak kök + ünlü uyumuyla çalışır) ve
+ * kök örtüşmesi / yankı / bağlamsız-parça denetimleri. İsim
+ * `repairTurkishSurface` ile çakıştığı için `repairDativePossessive`
+ * olarak ayrıldı; iki fonksiyon da aynı anda kullanılır.
+ */
+
+import { foldTr } from "@/lib/documents/page-analysis";
+
+const COMMON_CAPITAL = new Set([
+  "kutle",
+  "kutlesi",
+  "kutlesinin",
+  "sayi",
+  "sayisi",
+  "atomu",
+  "atomun",
+  "molekul",
+  "formul",
+  "tanecik",
+  "tanecigi",
+  "enerji",
+  "basinc",
+  "hacim",
+  "sicaklik",
+  "kuvvet",
+  "yogunluk",
+  "derisim",
+  "cozelti",
+  "hucre",
+  "cekirdek",
+  "protein",
+  "kanun",
+  "kabahat",
+  "belge",
+  "antlasma",
+]);
+
+export function sentences(text: string): string[] {
+  return text
+    .split(/\n+|(?<=[.!?])\s+(?=[A-ZÇĞİÖŞÜ“"0-9])/)
+    .map((part) => part.replace(/\s+/g, " ").trim())
+    .filter((part) => part.length >= 8);
+}
+
+function bracketsBalanced(text: string): boolean {
+  const open = "([{";
+  const close = ")]}";
+  const stack: string[] = [];
+  for (const char of text) {
+    const openAt = open.indexOf(char);
+    if (openAt >= 0) {
+      stack.push(close[openAt] ?? "");
+      continue;
+    }
+    const closeAt = close.indexOf(char);
+    if (closeAt >= 0 && stack.pop() !== char) return false;
+  }
+  return stack.length === 0;
+}
+
+function brokenProduct(text: string): boolean {
+  return /[×*]\s+(?:toplam[ıi]?|olan|kadar|kullanarak|ederek)\b/i.test(text);
+}
+
+function midSentenceCapital(text: string): boolean {
+  for (const sentence of sentences(text)) {
+    const words = sentence.split(/\s+/);
+    for (const word of words.slice(1)) {
+      const bare = word.replace(/^[“"'(]+|[)”"',.:;]+$/g, "");
+      if (!/^[A-ZÇĞİÖŞÜ][a-zçğıöşü]{3,}$/.test(bare)) continue;
+      if (!COMMON_CAPITAL.has(foldTr(bare))) continue;
+      const previous = words[words.indexOf(word) - 1]?.replace(/^[“"'(]+|[)”"',.:;]+$/g, "") ?? "";
+      if (/^[A-ZÇĞİÖŞÜ]/.test(previous)) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
+function hasPredicate(sentence: string): boolean {
+  if (sentence.split(/\s+/).length < 6) return true;
+  if (/kaynak\s*:/i.test(sentence) || /=/.test(sentence)) return true;
+  const last = foldTr(sentence)
+    .replace(/[.…!?'"]+$/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .pop();
+  if (!last || last.length < 4) return true;
+  return /(?:d[iuü]r|dir|t[iuü]r|tir|yor|m[iuü]s|mis|ecek|acak|meli|mali|maz|mez|en|an|ar|er|ir|ur|di|du|ti|tu)$/.test(last);
+}
+
+const TYPO_RULES: { pattern: RegExp; replacement: string }[] = [
+  { pattern: /\btepkimde\b/gi, replacement: "tepkimede" },
+  { pattern: /\bbelirleyiz\b/gi, replacement: "belirleriz" },
+  { pattern: /\boranı küçüğüne\b/gi, replacement: "oranın en küçüğüne" },
+  { pattern: /\bherşey\b/gi, replacement: "her şey" },
+  { pattern: /\bbirşey\b/gi, replacement: "bir şey" },
+  { pattern: /\bhiçbirşey\b/gi, replacement: "hiçbir şey" },
+  { pattern: /\bdeğilmi\b/gi, replacement: "değil mi" },
+  {
+    pattern: /konu ağırlıklı(?!\s*(?:dır|dir|dur|dür|bir\b))(?![A-Za-zÇĞİÖŞÜçğıöşü])/gi,
+    replacement: "konu ağırlıklıdır",
+  },
+];
+
+const DATIVE_LICENSE = new Set([
+  "gore",
+  "bagli",
+  "kadar",
+  "ragmen",
+  "karsin",
+  "dogru",
+  "ait",
+  "nazaran",
+  "iliskin",
+  "yonelik",
+  "dair",
+]);
+
+const BAD_FOLLOWER = new Set([
+  "ile",
+  "arasindaki",
+  "arasinda",
+  "hesaplanir",
+  "bulunur",
+  "belirlenir",
+  "olculur",
+  "karsilastirilir",
+  "oranlanir",
+]);
+
+function possessiveVowel(stem: string): string {
+  const vowels = [...stem.toLocaleLowerCase("tr-TR")].filter((char) => "aeıioöuü".includes(char));
+  const last = vowels[vowels.length - 1] ?? "a";
+  if ("aı".includes(last)) return "ı";
+  if ("ei".includes(last)) return "i";
+  if ("ou".includes(last)) return "u";
+  return "ü";
+}
+
+/**
+ * İsim tamlamasında yönelme eki, tamlayan iyelik eki olmalıdır.
+ * "miktara göre" durur; "miktara ile" "miktarı ile" olur.
+ * Kök, sondaki ünsüzden önce en az dört harf taşır; "sonra" değişmez.
+ */
+function repairNounPhrase(text: string): string {
+  return text.replace(
+    /(^|[^A-Za-zÇĞİÖŞÜçğıöşü])([A-Za-zÇĞİÖŞÜçğıöşü]{3,})\s+([A-Za-zÇĞİÖŞÜçğıöşü]{4,}[bcçdfgğhjklmnprsştvyzBCÇDFGĞHJKLMNPRSŞTVYZ])([ae])\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)/g,
+    (match, lead: string, noun: string, stem: string, _vowel: string, follower: string) => {
+      const foldedFollower = foldTr(follower);
+      if (DATIVE_LICENSE.has(foldedFollower) || !BAD_FOLLOWER.has(foldedFollower)) return match;
+      if (/[dt][ae]$/i.test(`${stem}${_vowel}`)) return match;
+      const before = stem.slice(0, -1);
+      if (before.length < 4) return match;
+      if (foldTr(stem.slice(-1)) === "n" && /[aeıioöuü]$/i.test(before)) return match;
+      return `${lead}${noun} ${stem}${possessiveVowel(stem)} ${follower}`;
+    },
+  );
+}
+
+function repairEnglishAmount(text: string): string {
+  return text.replace(
+    /\b(amount|number|quantity|ratio|value|volume|mass|rate|level) to (the|a|an)\b/gi,
+    (match, noun: string, article: string) => {
+      const first = match.charAt(0);
+      const head = first === first.toLocaleUpperCase("en") && first !== first.toLocaleLowerCase("en")
+        ? noun.charAt(0).toLocaleUpperCase("en") + noun.slice(1)
+        : noun;
+      return `${head} of ${article}`;
+    },
+  );
+}
+
+function splicedFeedback(text: string): boolean {
+  const folded = foldTr(text);
+  return (
+    /ters cevrilirse cumle/.test(folded) ||
+    /cumlede kuruldugu anlama uyuyor/.test(folded) ||
+    /yuklem terimi baska bir buyukluge/.test(folded)
+  );
+}
+
+function applyCase(sample: string, replacement: string): string {
+  const first = sample.charAt(0);
+  const upper = first.toLocaleUpperCase("tr-TR");
+  if (first === upper && first !== first.toLocaleLowerCase("tr-TR")) {
+    return replacement.charAt(0).toLocaleUpperCase("tr-TR") + replacement.slice(1);
+  }
+  return replacement;
+}
+
+/** Canlıda tekrarlayan yazım. Ders, podcast, quiz ve sözlü bu işlevi çağırır. */
+export function repairTurkishSurface(text: string): string {
+  let next = text;
+  for (const rule of TYPO_RULES) {
+    next = next.replace(rule.pattern, (match) => applyCase(match, rule.replacement));
+  }
+  next = repairNounPhrase(next);
+  next = repairEnglishAmount(next);
+  return next;
+}
+
+/** Yayınlanmayacak kırık Türkçe. Sağlam cümle boş dizi döner. */
+export function fluencyIssues(text: string): string[] {
+  const issues: string[] = [];
+  if (!text.trim()) return issues;
+  if (!bracketsBalanced(text)) issues.push("unbalanced");
+  if (brokenProduct(text)) issues.push("broken_arithmetic");
+  if (midSentenceCapital(text)) issues.push("mid_capital");
+  if (sentences(text).some((sentence) => !hasPredicate(sentence))) issues.push("no_predicate");
+  if (splicedFeedback(text)) issues.push("spliced");
+  if (repairTurkishSurface(text) !== text) issues.push("typo");
+  return issues;
+}
+
+/*
+ * Aşağısı ders kalite kapısına özel: izafet konumundaki yönelme ekini
+ * iyelik ekine çeviren morfolojik onarım, kök örtüşmesi ve yankı/bağlamsız
+ * parça denetimleri. `teaching-standards.ts`, `absolute-claims.ts`,
+ * `oral-review.ts` ve ders/düğüm rotaları burayı kullanır.
  *
  * Kaynak cümlesi kopyalanırken iyelik eki yönelme ekine dönüyor:
  * "ürün miktarı" yerine "ürün miktara". Bu bir kelime listesi değil;
@@ -139,8 +366,12 @@ function tokenize(text: string): Token[] {
  * "ürün miktara ile" → "ürün miktarı ile".
  * "fermanın maddeye" → "fermanın maddesi".
  * "akım şiddete" (cümle sonu) → "akım şiddeti".
+ *
+ * `repairTurkishSurface`'ın kelime-listesi tabanlı `repairNounPhrase`'inden
+ * farklı: kök + ünlü uyumuyla çalıştığı için takipçi kelime olmadan
+ * (cümle sonunda) da doğru sonucu verir.
  */
-export function repairTurkishSurface(text: string): string {
+export function repairDativePossessive(text: string): string {
   const tokens = tokenize(text);
   if (tokens.length < 2) return text;
 
@@ -197,7 +428,7 @@ export function isWellFormedTurkishSentence(text: string): boolean {
 /** Onarılmamış hal eki ve şablon artığı. Onarım kimliği bozmaz. */
 export function turkishSurfaceIssues(text: string): string[] {
   const issues: string[] = [];
-  if (repairTurkishSurface(text) !== text) {
+  if (repairDativePossessive(text) !== text) {
     issues.push("Hal eki bozulmuş; iyelik eki bekleniyor.");
   }
   if (!isWellFormedTurkishSentence(text)) {
@@ -208,7 +439,7 @@ export function turkishSurfaceIssues(text: string): string[] {
 
 /** Onarılabileni onarır; kalan bozukluk issue olarak döner. */
 export function scanFluencyIssues(text: string): { text: string; issues: string[] } {
-  const repaired = repairTurkishSurface(text);
+  const repaired = repairDativePossessive(text);
   const issues: string[] = [];
   if (!isWellFormedTurkishSentence(repaired)) {
     issues.push("Cümle yarım veya şablon artığı.");
@@ -218,7 +449,7 @@ export function scanFluencyIssues(text: string): { text: string; issues: string[
 
 /** Ders ağacındaki her metin alanını aynı onarımdan geçirir. */
 export function repairLessonSurface<T>(value: T): T {
-  if (typeof value === "string") return repairTurkishSurface(value) as T;
+  if (typeof value === "string") return repairDativePossessive(value) as T;
   if (Array.isArray(value)) return value.map((item) => repairLessonSurface(item)) as T;
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};

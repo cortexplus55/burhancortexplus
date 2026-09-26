@@ -80,13 +80,16 @@ function hasUnitClash(text: string): boolean {
   );
 }
 
-const SYMBOL_FAMILY: Record<string, string> = {
-  n: "amount",
-  I: "current",
-  R: "resistance",
-  F: "force",
-  P: "power",
-  t: "time",
+// P fizikte hem güç (Watt) hem basınç (Pascal) için kullanılır; tek aileye
+// sabitlemek "P = 300 kPa" gibi geçerli basınç notasyonunu yanlış pozitif
+// yapar (Basınç ve sıcaklık dersi bunu somut olarak yakaladı).
+const SYMBOL_FAMILY: Record<string, string[]> = {
+  n: ["amount"],
+  I: ["current"],
+  R: ["resistance"],
+  F: ["force"],
+  P: ["power", "pressure"],
+  t: ["time"],
 };
 
 const UNIT_FAMILY: Record<string, string> = {
@@ -147,7 +150,7 @@ function symbolUnitIssues(text: string): string[] {
     const unit = binding[2].replace(/[.,;].*$/, "");
     const expected = SYMBOL_FAMILY[symbol];
     const actual = UNIT_FAMILY[unit];
-    if (expected && actual && expected !== actual) {
+    if (expected && actual && !expected.includes(actual)) {
       issues.push("Birim değişkenle uyuşmuyor.");
       break;
     }

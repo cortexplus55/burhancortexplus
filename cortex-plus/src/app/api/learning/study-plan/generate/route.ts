@@ -6,7 +6,10 @@ import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 const bodySchema = z.object({
   goal: z.string().min(3).max(300),
   weeks: z.number().int().min(1).max(12).default(4),
-  hoursPerWeek: z.number().int().min(1).max(60).default(8),
+  /** Planın ana birimi. Saat kotası kabul edilmez. */
+  topicCount: z.number().int().min(1).max(24).default(6),
+  /** Eski istemciler hâlâ gönderebilir; plana yazılmaz. */
+  hoursPerWeek: z.number().int().min(1).max(60).optional(),
 });
 
 const resultSchema = z.object({
@@ -28,7 +31,7 @@ export async function POST(request: Request) {
 
   const parsedBody = bodySchema.safeParse(await request.json());
   if (!parsedBody.success) return errorResponse(400, "invalid_input");
-  const { goal, weeks, hoursPerWeek } = parsedBody.data;
+  const { goal, weeks, topicCount } = parsedBody.data;
 
   const outcome = await generateJson({
     service,
@@ -36,8 +39,11 @@ export async function POST(request: Request) {
     actionCode: "STUDY_PLAN_GENERATE",
     isPremium: await isPremiumUser(service, userId),
     schemaHint:
-      'Yalnızca şu JSON şemasını döndür: {"title": string, "tasks": [{"title": string, "dayOffset": number}]}. dayOffset bugünden itibaren gün sayısıdır.',
-    userPrompt: `Hedef: ${goal}. Süre: ${weeks} hafta. Haftalık çalışma: ${hoursPerWeek} saat. Gerçekçi, ölçülebilir görevlerden oluşan bir çalışma planı üret.`,
+      'Yalnızca şu JSON şemasını döndür: {"title": string, "tasks": [{"title": string, "dayOffset": number}]}. dayOffset bugünden itibaren gün sayısıdır. Her görev bir konuyu adlandırsın.',
+    userPrompt:
+      `Hedef: ${goal}. Pencere: ${weeks} hafta. Planın ana birimi konu: tam ${topicCount} konu. ` +
+      `Görev başlıkları konu adıdır. Süre yalnızca etkinlik metadata'sı olabilir ` +
+      `(ör. "Giriş dersi (5 dk)"). Haftalık saat kotası kurma.`,
     parse: (raw) => {
       const result = resultSchema.safeParse(raw);
       return result.success ? result.data : null;

@@ -9,7 +9,8 @@ import { selectModel } from "@/lib/ai/model-router";
 import { claimHardUpgrade } from "@/lib/ai/model-upgrade";
 import { freeImageAllowed } from "@/lib/ai/image-quota";
 import { assessQuestionDifficulty } from "@/lib/ai/question-difficulty";
-import { SYSTEM_GUARDRAIL, isPremiumUser } from "@/lib/ai/generate";
+import { SYSTEM_GUARDRAIL } from "@/lib/ai/generate";
+import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { moderate } from "@/lib/ai/moderation";
 import { recordAbuse } from "@/lib/abuse/record";
 import { parseTutorStyle, tutorStylePrompt } from "@/lib/learning/tutor-style";
@@ -18,12 +19,38 @@ import { recordUsage, refundCredits, reserveCredits } from "@/lib/credits/servic
 import { searchDocumentChunks } from "@/lib/rag/pipeline";
 import { NO_SOURCE_CREDIT_NOTE, NO_SOURCE_MESSAGE, saidNoSource, stripNoSourceMarker } from "@/lib/ai/grounding";
 import { chatSourceBlock } from "@/lib/learning/chat-source-block";
+import { loadTeacherBrief } from "@/lib/documents/teacher-analysis-run";
+import {
+  SOURCE_PAGE_FORMULA_RULE,
+  teacherNoteGroundedInSource,
+  teacherTurnGuidance,
+} from "@/lib/learning/teacher-brain";
 import { extractText } from "@/lib/documents/extract-text";
 import { isOwnedDocumentPath } from "@/lib/documents/storage-path";
 import { recordUserActivity } from "@/lib/streak/record-activity";
 import { loadExamChatContext } from "@/lib/learning/exam-chat-context";
+import { loadPrepChatGrounding, recordChatMisconception } from "@/lib/learning/prep-chat-grounding";
+import {
+  auditQuantitative,
+  dropUnverifiedExample,
+  gradeStudentClaim,
+  needsQuantModelCheck,
+  parseQuantSelfCheck,
+  quantSelfCheckPrompt,
+  repairQuantitative,
+  settleQuantReply,
+  type GradedClaim,
+} from "@/lib/learning/tutor-quant";
+import { citationMarker, examTutorAddendum, finalizeTutorReply } from "@/lib/learning/tutor-reply";
 import { citationHref, type ChatCitation, type ChatEvidence } from "@/lib/ai/chat-citations";
-import { verifyDocumentAnswer } from "@/lib/ai/document-answer-verification";
+import {
+  isAcceptableOutsideAnswer,
+  isClearlyOffDocument,
+  outsideMaterialReviewNote,
+  paidChatAttempts,
+  presentOutsideMaterialAnswer,
+  verifyDocumentAnswer,
+} from "@/lib/ai/document-answer-verification";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { chatRequestHash, chatResultResponse, prepareChatOperation, type SavedChatResult } from "@/lib/ai/chat-operation";
 
@@ -43,7 +70,7 @@ const bodySchema = z.object({
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "chat", limit: 40, trackSharing: true });
   if (!guard.ok) return guard.response;
-  const { userId, service } = guard.ctx;
+  const { userId, service, isAdmin } = guard.ctx;
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");
   const { message, useDocuments, documentsOnly, operationId: providedId, ...rest } = parsed.data;
@@ -108,8 +135,9 @@ export async function POST(request: Request) {
     if (verdict.action === "block" || verdict.action === "support") return new Response(verdict.message, {
       headers: { "Content-Type": "text/plain; charset=utf-8", "X-Credits-Used": "0" },
     });
-    const isPremium = await isPremiumUser(service, userId);
-    if (imageUrl && !(await freeImageAllowed(userId, isPremium))) return errorResponse(429, "free_image_limit");
+    const entitlements = await getUserEntitlements(service, userId);
+    const isPremium = entitlements.isPremium;
+    if (imageUrl && !(await freeImageAllowed(userId, isPremium, isAdmin))) return errorResponse(429, "free_image_limit");
 
     let priorUserTurns = 0;
     if (rest.conversationId) {
@@ -119,7 +147,13 @@ export async function POST(request: Request) {
       priorUserTurns = count ?? 0;
     }
     const difficulty = assessQuestionDifficulty({ message, turn: priorUserTurns + 1, hasImage: Boolean(imageUrl) });
-    const routerInput = { actionCode: rest.actionCode as ActionCode, isPremium, hasImage: Boolean(imageUrl), userSelectedAdvanced: rest.actionCode === "AI_CHAT_ADVANCED", documentPages, difficulty: difficulty.level };
+    // Gelişmiş sohbet Sigma. Plus ve ücretsiz istese de standart modele düşer.
+    const advancedChat = requireFeature(entitlements, "advanced_chat");
+    const requestedAdvanced = rest.actionCode === "AI_CHAT_ADVANCED";
+    const chatAction = (requestedAdvanced && !advancedChat
+      ? "AI_CHAT_STANDARD"
+      : rest.actionCode) as ActionCode;
+    const routerInput = { actionCode: chatAction, isPremium, hasImage: Boolean(imageUrl), userSelectedAdvanced: chatAction === "AI_CHAT_ADVANCED", documentPages, difficulty: difficulty.level };
     const routed = selectModel(routerInput);
     const { model, actionCode } = routed.upgrade === "difficulty" && !(await claimHardUpgrade(service, userId))
       ? selectModel({ ...routerInput, hardUpgradeAllowed: false }) : routed;
@@ -154,6 +188,8 @@ export async function POST(request: Request) {
     let citations: ChatCitation[] = [];
     let tokensIn = 0;
     let tokensOut = 0;
+    let gradedForStore: GradedClaim | null = null;
+    let prepGrounding: Awaited<ReturnType<typeof loadPrepChatGrounding>> | null = null;
     if (strict && !evidence.length && !imageUrl) {
       content = NO_SOURCE_MESSAGE + NO_SOURCE_CREDIT_NOTE;
       charge = false;
@@ -161,50 +197,178 @@ export async function POST(request: Request) {
       const { data: profile } = await service.from("profiles").select("tutor_style").eq("id", userId).maybeSingle();
       const studentInstruction = await loadActivePrompt(service, PROMPT_KEYS.studentChat);
       const examContext = rest.prepId ? await loadExamChatContext(service, userId, rest.prepId) : null;
+      if (rest.prepId) {
+        try {
+          prepGrounding = await loadPrepChatGrounding(service, userId, rest.prepId, message);
+        } catch (error) {
+          const cause = error instanceof Error ? error.message : String(error);
+          console.error("prep_grounding_failed", { operationId, cause: cause.slice(0, 200) });
+        }
+      }
+      const lastAssistant = [...history].reverse().find((item) => item.role === "assistant");
+      const historyText = history.map((item) => (typeof item.content === "string" ? item.content : "")).join("\n");
+      const studentGrade = prepGrounding
+        ? gradeStudentClaim({ student: message, context: `${historyText}\n${prepGrounding.corpus}` })
+        : gradeStudentClaim({ student: message, context: historyText });
       // Full page context is used for an attachment; RAG supplies selected chunks.
       const contextBlock = grounded ? chatSourceBlock(evidence, { documentsOnly: strict, maxCharsPerChunk: documentAttached ? 80000 : 3000 }) : "";
+      const attachedRaw = !rest.prepId && rest.imageDocumentId
+        ? await loadTeacherBrief(service, rest.imageDocumentId, message.slice(0, 120))
+        : "";
+      const attachedBrief = teacherNoteGroundedInSource(attachedRaw, contextBlock);
+      const teacherTurn = teacherTurnGuidance({
+        message,
+        lastAssistant: typeof lastAssistant?.content === "string" ? lastAssistant.content : "",
+        language: examContext?.language,
+        hasSource: grounded || Boolean(attachedBrief) || Boolean(examContext?.hasSource),
+        allowOutsideMaterial: !strict,
+      });
       const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+      const tutorAddendum = prepGrounding
+        ? examTutorAddendum({
+            message,
+            grade: studentGrade,
+            decision: prepGrounding.decision,
+            scope: prepGrounding.scope,
+            excerpts: prepGrounding.excerpts,
+          })
+        : "";
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${tutorStylePrompt(parseTutorStyle(profile?.tutor_style))}${examContext?.block ?? ""}${contextBlock}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${tutorStylePrompt(parseTutorStyle(profile?.tutor_style))}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: { url: imageUrl } }] : message },
       ];
+      const sourceText = [contextBlock, examContext?.block ?? "", attachedBrief, prepGrounding?.corpus ?? ""].join("\n");
+      const offDocument = prepGrounding
+        ? prepGrounding.decision === "out"
+        : isClearlyOffDocument(message, sourceText);
+      async function polishPrep(text: string): Promise<string> {
+        if (!rest.prepId || !prepGrounding) return text;
+        const grounding = prepGrounding;
+        let next = text;
+        let settledGrade = studentGrade;
+        const applySettle = (draft: string) => {
+          const settled = settleQuantReply({
+            student: message,
+            context: `${historyText}\n${grounding.corpus}`,
+            draft,
+          });
+          settledGrade = settled.grade ?? settledGrade;
+          return settled;
+        };
+        const settled = applySettle(next);
+        if (settled.replaced) {
+          next = settled.text;
+        } else {
+          const audit = auditQuantitative(next, grounding.corpus);
+          if (!audit.ok) next = repairQuantitative(next, audit);
+          else if (needsQuantModelCheck(next, audit)) {
+            try {
+              const prompt = quantSelfCheckPrompt(next);
+              const review = await client.chat.completions.create({
+                model: env.OPENAI_STANDARD_MODEL,
+                temperature: 0,
+                max_tokens: 180,
+                response_format: { type: "json_object" },
+                messages: [
+                  { role: "system", content: prompt.system },
+                  { role: "user", content: prompt.user },
+                ],
+              }, { signal: request.signal, timeout: 20_000, maxRetries: 0 });
+              tokensIn += review.usage?.prompt_tokens ?? 0;
+              tokensOut += review.usage?.completion_tokens ?? 0;
+              await recordUsage(service, {
+                userId,
+                actionCode,
+                model: env.OPENAI_STANDARD_MODEL,
+                tokensIn: review.usage?.prompt_tokens ?? 0,
+                tokensOut: review.usage?.completion_tokens ?? 0,
+                reservationId,
+              });
+              const verdict = parseQuantSelfCheck(review.choices[0]?.message?.content ?? "");
+              if (verdict && !verdict.ok) next = dropUnverifiedExample(next);
+            } catch {
+              // Küçük denetim düşerse deterministik sonuç durur.
+            }
+          }
+          const again = applySettle(next);
+          if (again.replaced) next = again.text;
+        }
+        const finalized = finalizeTutorReply({
+          message,
+          draft: next,
+          decision: grounding.decision,
+          scope: grounding.scope,
+          grade: settledGrade,
+          language: examContext?.language,
+        });
+        gradedForStore = finalized.misconception;
+        return finalized.content;
+      }
       let accepted = false;
-      for (let attempt = 0; attempt < 2; attempt++) {
+      const attemptLimit = paidChatAttempts(offDocument);
+      for (let attempt = 0; attempt < attemptLimit; attempt++) {
         const generationModel = attempt && isPremium ? env.OPENAI_ADVANCED_MODEL : model;
         const response = await client.chat.completions.create({ model: generationModel, messages: requestMessages }, { signal: request.signal, timeout: 60_000, maxRetries: 0 });
         tokensIn += response.usage?.prompt_tokens ?? 0;
         tokensOut += response.usage?.completion_tokens ?? 0;
         await recordUsage(service, { userId, actionCode, model: generationModel, tokensIn: response.usage?.prompt_tokens ?? 0, tokensOut: response.usage?.completion_tokens ?? 0, reservationId });
+        const rawDraft = response.choices[0]?.message?.content ?? "";
+        const stampOutside = !strict && (!prepGrounding || prepGrounding.decision === "out");
+        const draft = stampOutside
+          ? presentOutsideMaterialAnswer({
+              question: message,
+              answer: rawDraft,
+              sourceText,
+              language: examContext?.language,
+            })
+          : rawDraft;
+        let checkedContent = "";
         try {
           const verified = await verifyEducationalContent({ client,
-            context: JSON.stringify({ history, message, contextBlock }), draft: response.choices[0]?.message?.content ?? "",
+            context: JSON.stringify({ history, message, contextBlock, sourceExcerpt: sourceText.slice(0, 8000) }),
+            draft,
             format: "Öğrenciye gösterilecek sohbet yanıtı. Metin ve matematik biçimlendirmesini koru.",
+            reviewerAddendum: outsideMaterialReviewNote(),
             imageUrls: imageUrl ? [imageUrl] : [], failClosedOnUnavailable: true, signal: request.signal,
           });
           await recordUsage(service, { userId, actionCode, model: env.OPENAI_ADVANCED_MODEL, tokensIn: verified.tokensIn, tokensOut: verified.tokensOut, reservationId });
-          const noSource = strict && saidNoSource(verified.content);
-          if (noSource) {
-            content = stripNoSourceMarker(verified.content) + NO_SOURCE_CREDIT_NOTE;
-            charge = false;
-          } else {
-            content = verified.content;
-            if (grounded && !imageUrl) {
-              const checked = await verifyDocumentAnswer({ client, question: message, answer: content, evidence, strict, signal: request.signal });
-              await recordUsage(service, { userId, actionCode, model: env.OPENAI_ADVANCED_MODEL, tokensIn: checked.tokensIn, tokensOut: checked.tokensOut, reservationId });
-              if (!checked.ok) {
-                logOpsEvent("document_answer_rejected", { operationId, attempt, strict, evidence: evidence.length, reasons: checked.reasons });
-                continue;
-              }
-              citations = checked.citations;
-            }
-          }
-          accepted = true;
-          break;
+          checkedContent = verified.content;
         } catch (error) {
           if (!(error instanceof EducationalVerificationError)) throw error;
-          logOpsEvent("document_answer_rejected", { operationId, attempt, strict, stage: "educational", reasons: [error.message.slice(0, 200)] });
+          if (!strict && offDocument && isAcceptableOutsideAnswer(draft)) {
+            logOpsEvent("document_answer_rejected", { operationId, attempt, strict, stage: "educational_outside_kept", reasons: error.failureMessages.slice(0, 3) });
+            checkedContent = draft;
+          } else {
+            logOpsEvent("document_answer_rejected", { operationId, attempt, strict, stage: "educational", reasons: [error.message.slice(0, 200)] });
+            continue;
+          }
         }
+        const noSource = strict && saidNoSource(checkedContent);
+        if (noSource) {
+          content = stripNoSourceMarker(checkedContent) + NO_SOURCE_CREDIT_NOTE;
+          charge = false;
+        } else {
+          content = checkedContent;
+          if (grounded && !imageUrl) {
+            const checked = await verifyDocumentAnswer({ client, question: message, answer: content, evidence, strict, signal: request.signal });
+            await recordUsage(service, { userId, actionCode, model: env.OPENAI_ADVANCED_MODEL, tokensIn: checked.tokensIn, tokensOut: checked.tokensOut, reservationId });
+            if (!checked.ok) {
+              logOpsEvent("document_answer_rejected", { operationId, attempt, strict, evidence: evidence.length, reasons: checked.reasons });
+              if (!strict && offDocument && isAcceptableOutsideAnswer(content)) {
+                citations = [];
+                content = await polishPrep(content);
+                accepted = true;
+                break;
+              }
+              continue;
+            }
+            citations = checked.citations;
+          }
+        }
+        if (!noSource) content = await polishPrep(content);
+        accepted = true;
+        break;
       }
       if (!accepted) {
         content = strict ? "Belgedeki bilgilerle bu soruya güvenilir bir yanıt oluşturamadım. Soruyu daraltabilir veya başka bir belge ekleyebilirsin.\n\n_Kredin harcanmadı._" : chatFallbackMessage({ isPremium, difficulty: difficulty.level });
@@ -213,7 +377,24 @@ export async function POST(request: Request) {
       }
     }
     // Only server-verified metadata becomes a navigable source, never model URLs.
-    if (citations.length) content += "\n\nKaynaklar:\n" + citations.map((c) =>
+    if (rest.prepId && prepGrounding && charge) {
+      const markers = citations.length
+        ? citations.map((item) => citationMarker({
+          documentName: item.documentName,
+          pageNumber: item.pageNumber,
+          slide: false,
+          href: citationHref(item),
+        }))
+        : prepGrounding.decision === "in"
+          ? prepGrounding.passages.slice(0, 2).map((item) => citationMarker({
+            documentName: item.documentName,
+            pageNumber: item.pageNumber,
+            slide: item.slide,
+            href: item.href,
+          }))
+          : [];
+      if (markers.length) content += `\n${markers.join("\n")}`;
+    } else if (citations.length) content += "\n\nKaynaklar:\n" + citations.map((c) =>
       `- [${c.documentName.replace(/[\\[\]()*<>]/g, "")} ${c.pageNumber ? `· s.${c.pageNumber}` : ""}](${citationHref(c)})`).join("\n");
     if (request.signal.aborted) throw new Error("request_cancelled");
     const { data: saved, error: saveError } = await service.rpc("complete_chat_operation", {
@@ -224,6 +405,14 @@ export async function POST(request: Request) {
     if (saveError || !saved) throw new Error("chat_settlement_failed");
     // The RPC is atomic: on an ambiguous network failure, retry reads its result.
     reservationId = null;
+    if (rest.prepId && gradedForStore) {
+      await recordChatMisconception(service, {
+        userId,
+        prepId: rest.prepId,
+        grade: gradedForStore,
+        question: message,
+      }).catch(() => undefined);
+    }
     await recordUserActivity(service, userId, "chat").catch(() => undefined);
     return chatResultResponse(saved as SavedChatResult, strict);
   } catch (err) {

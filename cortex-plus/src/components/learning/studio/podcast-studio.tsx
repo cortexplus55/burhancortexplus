@@ -11,7 +11,6 @@ import {
   StudioResults,
 } from "@/components/learning/studio/studio-shared";
 import { CreditGate } from "@/components/paywall/credit-gate";
-import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import {
   SPEAKER_LABEL,
   normalizeChapters,
@@ -30,10 +29,9 @@ import { validatePodcastAudio } from "@/lib/learning/podcast-audio-contract";
  * de. İki sesli stüdyo anlatımı yalnızca sınav hazırlığı oynatıcısında vardı.
  * Yani ürünün en cazip özelliğinin kendi sayfası, o özelliği kullanmıyordu.
  *
- * Şimdi: podcast Plus'a özel ve stüdyo gerçek sesi çalıyor. Robot ses yolu
- * tümüyle kalktı — podcast ya gerçek sesiyle vardır ya yoktur. Ücretsiz
- * kullanıcı ürünü `/ornek` sayfasında, hazır bir bölümün gerçek sesinden
- * duyuyor; orada bize maliyeti yok.
+ * Şimdi: podcast kayıtlı her kademede açık ve stüdyo gerçek sesi çalıyor.
+ * Robot ses yolu kalktı. Hak bitince yükseltme duvarı çıkar; özellik
+ * kilitli değildir. `/ornek` hazır bölümü girişsiz ve maliyetsiz duruyor.
  */
 
 type Track = { chapterIndex: number; url: string; durationMs: number };
@@ -45,8 +43,6 @@ export function PodcastStudio({
   creditCost: number | null;
   initialTopic?: string;
 }) {
-  const isPremium = Boolean(useStudentShellAccount()?.isPremium);
-
   const [phase, setPhase] = useState<"entry" | "loading" | "play" | "results">("entry");
   const [topic, setTopic] = useState(initialTopic);
   const [title, setTitle] = useState("");
@@ -58,7 +54,6 @@ export function PodcastStudio({
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [paywall, setPaywall] = useState(false);
-  const [paywallReason, setPaywallReason] = useState<"premium" | "credits">("premium");
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   // Bölüm değiştirince eski zincir susmalı; her oynatma kendi jetonunu taşıyor.
@@ -71,19 +66,11 @@ export function PodcastStudio({
     };
   }, []);
 
-  function openPaywall(reason: "premium" | "credits") {
-    setPaywallReason(reason);
+  function openPaywall() {
     setPaywall(true);
   }
 
   async function start(nextTopic: string) {
-    // Aboneliği olmayan öğrenci isteği hiç göndermiyor: sunucu da reddediyor
-    // ama burada durdurmak ona boş bir bekleme ekranı göstermekten iyi.
-    if (!isPremium) {
-      openPaywall("premium");
-      return;
-    }
-
     setPhase("loading");
     setAudioNote(null);
     setTracks(null);
@@ -95,7 +82,7 @@ export function PodcastStudio({
     }>("/api/learning/podcast/generate", { topic: nextTopic });
 
     if ("paywall" in script) {
-      openPaywall(script.code === "premium_required" ? "premium" : "credits");
+      openPaywall();
       setPhase("entry");
       return;
     }
@@ -131,7 +118,7 @@ export function PodcastStudio({
     );
 
     if ("paywall" in audio) {
-      openPaywall(audio.code === "premium_required" ? "premium" : "credits");
+      openPaywall();
       setAudioNote("Bu bölümün sesi için kredin yetmedi. Senaryoyu aşağıdan okuyabilirsin.");
     } else if (!audio.ok || !audio.data.lines?.length) {
       setAudioNote("Ses şu an üretilemedi. Senaryoyu aşağıdan okuyabilirsin.");
@@ -215,27 +202,16 @@ export function PodcastStudio({
     <StudioFrame tool="podcast" kicker="Podcast stüdyosu">
       {phase === "entry" ? (
         <>
-          {!isPremium ? (
-            /*
-              Kilit görünür duruyor, gizlenmiyor: öğrenci ne olduğunu bilmeli
-              ki isteyebilsin. Yanındaki bağlantı da boş bir vaat değil —
-              `/ornek` hazır bir bölümü GERÇEK sesiyle, girişsiz çalıyor.
-            */
-            <div className="ls-pod-lock">
-              <p>
-                <strong>Podcast Plus&apos;a özel.</strong> Ada ve Kerem&apos;in
-                iki sesli anlatımı — konuyu yürürken dinleyebilesin diye.
-              </p>
-              <a href="/ornek" className="ls-pod-lock-link">
-                Örnek bölümü dinle
-              </a>
-            </div>
-          ) : null}
+          <p className="ls-pod-lock">
+            <a href="/ornek" className="ls-pod-lock-link">
+              Örnek bölümü dinle
+            </a>
+          </p>
           <StudioEntry
             tool="podcast"
             title="Konuyu dinle."
             placeholder="Örn. Hücre bölünmesi"
-            submitLabel={isPremium ? "Yayını hazırla" : "Plus'a geç"}
+            submitLabel="Yayını hazırla"
             creditCost={creditCost}
             initialTopic={initialTopic}
             onSubmit={(next) => void start(next)}
@@ -332,15 +308,7 @@ export function PodcastStudio({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        /*
-          Sebebi ayırmak şart: "kredin yetmiyor" demek, aboneliği olmayan
-          öğrenciye kredi alırsa açılacağını söyler — açılmaz.
-        */
-        message={
-          paywallReason === "premium"
-            ? "Podcast Plus aboneliğine özel."
-            : "Bu podcast için kredin yetmiyor."
-        }
+        message="Bu podcast için hakkın yetmiyor. Yenilenince ya da paketinle devam edebilirsin."
         returnPath="/studio/podcast"
       />
     </StudioFrame>

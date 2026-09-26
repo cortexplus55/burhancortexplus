@@ -1,3 +1,5 @@
+import { DOCUMENT_TYPE_REJECTED } from "@/lib/documents/upload-labels";
+
 /** `documents.error_message` / API için Türkçe, öğrenci dostu metinler. */
 const MESSAGES: Record<string, string> = {
   download_failed: "Belge sunucudan alınamadı. Yeniden yüklemeyi dene.",
@@ -8,7 +10,7 @@ const MESSAGES: Record<string, string> = {
   embedding_unavailable: "İçerik indekslenemedi. Biraz sonra tekrar dene.",
   encrypted_pdf: "Bu PDF şifreli olduğu için okunamıyor.",
   file_too_large: "Bu dosya izin verilen maksimum boyuttan büyük (15 MB).",
-  unsupported_type: "Bu dosya türü desteklenmiyor. PDF, TXT veya görsel yükle.",
+  unsupported_type: DOCUMENT_TYPE_REJECTED,
 };
 
 export function userMessageForProcessError(code: string | null | undefined): string {

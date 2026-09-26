@@ -2,7 +2,8 @@
 
 import { UpgradeSheet } from "@/components/paywall/upgrade-sheet";
 import { CreditLimitToast } from "@/components/paywall/credit-limit-toast";
-import { useStudentShellAccount } from "@/lib/student/student-shell-context";
+import { periodWord } from "@/lib/credits/period";
+import { useIsFounder, useStudentShellAccount } from "@/lib/student/student-shell-context";
 
 export function CreditGate({
   open,
@@ -18,6 +19,8 @@ export function CreditGate({
   isPremium?: boolean;
 }) {
   const account = useStudentShellAccount();
+  const founder = useIsFounder();
+  if (founder) return null;
   const isPremium = isPremiumProp ?? account?.isPremium ?? false;
 
   if (isPremium) {
@@ -33,7 +36,7 @@ export function CreditGate({
   // Yenilenme saati kapıya taşınıyor: "abone ol" tek çözüm değil, beklemek de
   // çözüm ve bunu söylemek dürüst olan.
   const resetHint = account?.resetsAtLabel
-    ? `${account.periodKind === "monthly" ? "Aylık" : "Günlük"} hakkın ${account.resetsAtLabel} tarihinde yenilenir.`
+    ? `${periodWord(account.periodKind)} hakkın ${account.resetsAtLabel} tarihinde yenilenir.`
     : undefined;
 
   return (

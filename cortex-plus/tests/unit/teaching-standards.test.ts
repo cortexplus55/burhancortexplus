@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendLessonReviewCards,
+  cardsFromLessonReviews,
   extractMisconceptions,
+  lessonMissDrafts,
+  prepareLessonDraft,
   parseSessionMeta,
   scoreFlashcardsV2,
   teachingActivityForKind,
@@ -12,8 +16,10 @@ import {
   dropScaffoldSections,
   emptyMistake,
   isScaffoldHeading,
+  lessonPublishIssues,
   lessonV2Schema,
   validateLessonPedagogy,
+  validateLessonV2,
   validateOralPedagogy,
   validatePodcastPedagogy,
   validateQuizPedagogy,
@@ -75,6 +81,13 @@ describe("teaching standards contract", () => {
         {
           heading: "Sinüs ve Kosinüsü Ayırt Etmek",
           body: "Koordinatları (cos θ, sin θ) olarak hatırla ve sonraki alıştırmaya geç.",
+          check: {
+            type: "mcq" as const,
+            prompt: "Birim çemberde y koordinatı hangisidir?",
+            options: ["sin θ", "cos θ", "tan θ"],
+            answerIndex: 0,
+            explanation: "cos θ x koordinatıdır; y koordinatı sin θ'dır.",
+          },
         },
       ],
       example: { prompt: "90° noktası neresi?", solution: "Nokta (0, 1) olur." },
@@ -224,11 +237,11 @@ describe("teaching standards contract", () => {
           heading: "Su Tablası Etkisi",
           body: "**Su tablası** yükselince **efektif gerilme** düşer.",
           check: {
-            type: "mcq" as const,
-            prompt: "Su tablası yükselince efektif gerilme ne olur?",
-            options: ["Düşer", "Artar", "Sabit kalır"],
-            answerIndex: 0,
-            explanation: "Su tablası yükselince efektif gerilme düşer; artmaz.",
+            type: "trueFalse" as const,
+            prompt: "Su tablası yükselince efektif gerilme artar.",
+            options: ["Doğru", "Yanlış"],
+            answerIndex: 1,
+            explanation: "Boşluk suyu basıncı artar, efektif gerilme düşer.",
           },
         },
         {
@@ -236,13 +249,23 @@ describe("teaching standards contract", () => {
           body: "Efektif gerilme toplam gerilme eksi boşluk suyu basıncıdır.",
           check: {
             type: "trueFalse" as const,
-            prompt: "Boşluk suyu basıncı toplam gerilmeye eklenir.",
+            prompt: "Efektif gerilme toplam gerilmenin kendisidir.",
             options: ["Doğru", "Yanlış"],
             answerIndex: 1,
-            explanation: "Eklenmez; efektif gerilme toplam gerilmeden bu basıncı çıkarır.",
+            explanation: "Aradaki fark boşluk suyu basıncıdır.",
           },
         },
-        { heading: "Kaynama Koşulu", body: "Efektif gerilme sıfıra inince zemin kaynar." },
+        {
+          heading: "Kaynama Koşulu",
+          body: "Efektif gerilme sıfıra inince zemin kaynar.",
+          check: {
+            type: "mcq" as const,
+            prompt: "Efektif gerilme sıfıra inince ne olur?",
+            options: ["Zemin kaynar", "Zemin donar", "Değişmez"],
+            answerIndex: 0,
+            explanation: "Kaynama koşulu efektif gerilmenin sıfır olmasıdır; donma ayrı bir olaydır.",
+          },
+        },
       ],
       example: { prompt: "σ = 92, u = 19,62 ise σ'?", solution: "σ' = 72,38 kPa." },
       commonMistake: { claim: "İkisi eşittir", correction: "Fark boşluk suyu basıncıdır." },
@@ -472,6 +495,233 @@ describe("teaching standards contract", () => {
     expect(drafts).toHaveLength(1);
     expect(drafts[0].wrongType).toBe("cos_sin_swap");
   });
+
+  it("queues a missed lesson check as a rephrased variant", () => {
+    const drafts = lessonMissDrafts({
+      topicLabel: "Sistemler",
+      missedSectionIndexes: [0, 0, 9],
+      lesson: {
+        sections: [
+          {
+            heading: "Açık sistem",
+            body: "**Açık sistem** sınırından kütle geçirir.",
+            check: {
+              type: "mcq",
+              prompt: "Sınırından kütle geçen düzeneğe ne denir?",
+              options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
+              answerIndex: 1,
+              explanation: "Kütle geçişi olan düzenek açık sistemdir.",
+              review: {
+                prompt: "Hem madde hem enerji çıkan türbin hangi sınıftadır?",
+                options: ["Yalıtılmış sistem", "Kapalı sistem", "Açık sistem"],
+                answerIndex: 2,
+              },
+            },
+          },
+        ],
+      },
+    });
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0].sourceKind).toBe("lesson_review");
+    expect(drafts[0].wrongType).toBe("lesson_check_miss");
+    expect(drafts[0].questionPreview).toBe(
+      "Hem madde hem enerji çıkan türbin hangi sınıftadır?",
+    );
+    expect(drafts[0].questionPreview).not.toContain("Sınırından kütle");
+    expect(drafts[0].corrected).toContain("Açık sistem");
+  });
+
+  it("drops a review that invents an option or copies the stem", () => {
+    const base = {
+      title: "Sistemler",
+      objective: "Açık ve kapalı sistemi ayırt edebileceksin.",
+      overview: "Sistem, inceleme altına alınan bölgedir ve sınırı vardır.",
+      sections: [
+        {
+          heading: "Açık sistem",
+          body: "**Açık sistem** sınırından kütle de enerji de geçebilir.",
+          check: {
+            type: "mcq" as const,
+            prompt: "Sınırından kütle geçen düzeneğe ne denir?",
+            options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
+            answerIndex: 1,
+            explanation: "Kütle geçişi olan düzenek açık sistemdir.",
+            review: {
+              prompt: "Sınırından kütle geçen düzeneğe ne denir?",
+              options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
+              answerIndex: 1,
+            },
+          },
+        },
+        {
+          heading: "Kapalı sistem",
+          body: "**Kapalı sistem** kütle geçirmez ama enerji geçirebilir.",
+          check: {
+            type: "mcq" as const,
+            prompt: "Kütle geçirmeyen sistem hangisidir?",
+            options: ["Açık sistem", "Kapalı sistem"],
+            answerIndex: 1,
+            explanation: "Kütle geçirmeyen sistem kapalı sistemdir.",
+            review: {
+              prompt: "Enerji geçer ama madde geçmezse sistem nedir?",
+              options: ["Açık sistem", "Kontrol hacmi"],
+              answerIndex: 1,
+            },
+          },
+        },
+      ],
+      example: { prompt: "Türbin hangi sistemdir?", solution: "Açık sisteme örnektir." },
+      commonMistake: {
+        claim: "Kapalı sistem enerji de geçirmez.",
+        correction: "Kapalı sistem enerji geçirebilir.",
+      },
+      infoCheck: { prompt: "Açık sistem nedir?", answer: "Kütle geçiren sistem." },
+      summary: ["Açık sistem kütle geçirir.", "Kapalı sistem kütle geçirmez."],
+      nextFocus: ["Özellikler"],
+    };
+    const cleaned = prepareLessonDraft(base);
+    expect(cleaned?.sections[0].check?.review).toBeUndefined();
+    expect(cleaned?.sections[1].check?.review).toBeUndefined();
+    expect(cleaned?.sections[0].check?.prompt).toContain("kütle geçen");
+  });
+
+  it("keeps the lesson when a review is missing, huge, or the wrong type", () => {
+    const section = (
+      heading: string,
+      review: unknown,
+    ) => ({
+      heading,
+      body: `**${heading}** sınırından geçenleri anlatır ve sınavda ayırt edilir.`,
+      check: {
+        type: "mcq" as const,
+        prompt: `${heading} için hangi tanım doğrudur?`,
+        options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
+        answerIndex: 1,
+        explanation: "Kütle geçişi olan düzenek açık sistemdir.",
+        review,
+      },
+    });
+    const cleaned = prepareLessonDraft({
+      title: "Sistemler",
+      objective: "Açık ve kapalı sistemi ayırt edebileceksin.",
+      overview: "Sistem, inceleme altına alınan bölgedir ve sınırı vardır.",
+      sections: [
+        section("Açık sistem", undefined),
+        section("Kapalı sistem", "bu bir cümle değil"),
+        section("Yalıtılmış sistem", {
+          prompt: "x".repeat(4000),
+          options: Array.from({ length: 30 }, (_, i) => `uydurma-${i}`),
+          answerIndex: 9,
+          extra: { nested: true },
+        }),
+      ],
+      example: { prompt: "Türbin hangi sistemdir?", solution: "Açık sisteme örnektir." },
+      commonMistake: {
+        claim: "Kapalı sistem enerji de geçirmez.",
+        correction: "Kapalı sistem enerji geçirebilir.",
+      },
+      infoCheck: { prompt: "Açık sistem nedir?", answer: "Kütle geçiren sistem." },
+      summary: ["Açık sistem kütle geçirir.", "Kapalı sistem kütle geçirmez."],
+      nextFocus: ["Özellikler"],
+    });
+    expect(cleaned?.sections).toHaveLength(3);
+    expect(cleaned?.sections.every((item) => item.check?.review == null)).toBe(true);
+    expect(cleaned?.title).toBe("Sistemler");
+  });
+
+  it("keeps a short prompt-only review and shuffles the original options later", () => {
+    const cleaned = prepareLessonDraft({
+      title: "Sistemler",
+      objective: "Açık ve kapalı sistemi ayırt edebileceksin.",
+      overview: "Sistem, inceleme altına alınan bölgedir ve sınırı vardır.",
+      sections: [
+        {
+          heading: "Açık sistem",
+          body: "**Açık sistem** sınırından kütle de enerji de geçebilir.",
+          check: {
+            type: "mcq",
+            prompt: "Sınırından kütle geçen düzeneğe ne denir?",
+            options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
+            answerIndex: 1,
+            explanation: "Kütle geçişi olan düzenek açık sistemdir.",
+            review: { prompt: "Hem madde hem enerji çıkan türbin hangi sınıftadır?" },
+          },
+        },
+        {
+          heading: "Kapalı sistem",
+          body: "**Kapalı sistem** kütle geçirmez ama enerji geçirebilir.",
+        },
+      ],
+      example: { prompt: "Türbin hangi sistemdir?", solution: "Açık sisteme örnektir." },
+      commonMistake: {
+        claim: "Kapalı sistem enerji de geçirmez.",
+        correction: "Kapalı sistem enerji geçirebilir.",
+      },
+      infoCheck: { prompt: "Açık sistem nedir?", answer: "Kütle geçiren sistem." },
+      summary: ["Açık sistem kütle geçirir.", "Kapalı sistem kütle geçirmez."],
+      nextFocus: ["Özellikler"],
+    });
+    expect(cleaned?.sections[0].check?.review?.prompt).toContain("türbin");
+    expect(cleaned?.sections[0].check?.review?.options).toBeUndefined();
+  });
+
+  it("keeps a grounded review and appends it after existing cards", () => {
+    const cleaned = prepareLessonDraft({
+      title: "Sistemler",
+      objective: "Açık ve kapalı sistemi ayırt edebileceksin.",
+      overview: "Sistem, inceleme altına alınan bölgedir ve sınırı vardır.",
+      sections: [
+        {
+          heading: "Açık sistem",
+          body: "**Açık sistem** sınırından kütle de enerji de geçebilir.",
+          check: {
+            type: "mcq",
+            prompt: "Sınırından kütle geçen düzeneğe ne denir?",
+            options: ["Kapalı sistem", "Açık sistem", "Yalıtılmış sistem"],
+            answerIndex: 1,
+            explanation: "Kütle geçişi olan düzenek açık sistemdir.",
+            review: {
+              prompt: "Hem madde hem enerji çıkan türbin hangi sınıftadır?",
+              options: ["Yalıtılmış sistem", "Kapalı sistem", "Açık sistem"],
+              answerIndex: 2,
+            },
+          },
+        },
+        {
+          heading: "Kapalı sistem",
+          body: "**Kapalı sistem** kütle geçirmez ama enerji geçirebilir.",
+        },
+      ],
+      example: { prompt: "Türbin hangi sistemdir?", solution: "Açık sisteme örnektir." },
+      commonMistake: {
+        claim: "Kapalı sistem enerji de geçirmez.",
+        correction: "Kapalı sistem enerji geçirebilir.",
+      },
+      infoCheck: { prompt: "Açık sistem nedir?", answer: "Kütle geçiren sistem." },
+      summary: ["Açık sistem kütle geçirir.", "Kapalı sistem kütle geçirmez."],
+      nextFocus: ["Özellikler"],
+    });
+    expect(cleaned?.sections[0].check?.review?.prompt).toContain("türbin");
+    const cards = appendLessonReviewCards(
+      [{ front: "Eski kart", back: "eski" }],
+      cardsFromLessonReviews([
+        {
+          source_kind: "lesson_review",
+          question_preview: "Hem madde hem enerji çıkan türbin hangi sınıftadır?",
+          corrected: "Açık sistem. Kütle geçişi olan düzenek açık sistemdir.",
+        },
+        {
+          source_kind: "quiz_miss",
+          question_preview: "Bu kart karışmasın",
+          corrected: "hayır",
+        },
+      ]),
+    );
+    expect(cards.map((card) => card.front)).toEqual([
+      "Eski kart",
+      "Hem madde hem enerji çıkan türbin hangi sınıftadır?",
+    ]);
+  });
 });
 
 describe("podcast advice tolerance", () => {
@@ -523,6 +773,7 @@ describe("scaffold headings keep leaking", () => {
       "Uygulama",
       "Tanım",
       "Özet",
+      "Bölüm 1",
     ]) {
       expect(isScaffoldHeading(heading)).toBe(true);
     }
@@ -607,6 +858,191 @@ describe("echo, broken feedback, and summary synthesis", () => {
         },
       ]).some((issue) => issue.includes("şablon") || issue.includes("yarım")),
     ).toBe(true);
+  });
+});
+
+describe("validateLessonV2 is the publish gate", () => {
+  const section = (
+    heading: string,
+    check: {
+      type: "mcq" | "trueFalse";
+      prompt: string;
+      options: string[];
+      answerIndex: number;
+      explanation: string;
+    },
+  ) => ({
+    heading,
+    body: "Açı **derece** veya **radyan** ile ölçülür ve yay uzunluğuna bağlanır.",
+    check,
+  });
+
+  const sound = {
+    title: "Birim çember",
+    objective: "Özel açıların koordinatını çemberden okuyabileceksin.",
+    overview: "Birim çemberin yarıçapı 1'dir; açı, eksenle yaptığı yayı sayar.",
+    sections: [
+      section("Açı Ölçüsü Neyi Sayar", {
+        type: "mcq",
+        prompt: "Radyan neyi ölçer?",
+        options: ["Yay uzunluğunu", "Alan", "Çevre"],
+        answerIndex: 0,
+        explanation: "Alan bir yüzey ölçüsüdür; radyan yay uzunluğunu sayar.",
+      }),
+      section("Koordinat Nasıl Okunur", {
+        type: "trueFalse",
+        prompt: "Önce koordinat, sonra yön okunur.",
+        options: ["Doğru", "Yanlış"],
+        answerIndex: 1,
+        explanation: "Sıra tersidir: önce yön, sonra koordinat okunur.",
+      }),
+      section("Sinüs ve Kosinüsü Ayırt Etmek", {
+        type: "mcq",
+        prompt: "x koordinatı hangisidir?",
+        options: ["cos θ", "sin θ", "tan θ"],
+        answerIndex: 0,
+        explanation: "sin θ y koordinatıdır; x koordinatı cos θ'dır.",
+      }),
+    ],
+    example: {
+      prompt: "90° noktası neresi?",
+      solution: "90° yukarıdadır, bu yüzden x 0 ve y 1 olur.",
+    },
+    commonMistake: {
+      claim: "x koordinatı ile y koordinatı yer değiştirir",
+      correction: "x koordinatı cos θ, y koordinatı sin θ'dır.",
+    },
+    infoCheck: { prompt: "0° noktası neresidir?", answer: "(1, 0)" },
+    findError: {
+      prompt: "Hangi ifade yanlıştır?",
+      faultyText: "Birim çemberde x koordinatı sin θ'dır.",
+      options: ["x ve y karıştırılmış", "Yarıçap yanlış yazılmış"],
+      answerIndex: 0,
+      explanation: "x koordinatı cos θ'dır; sin θ y koordinatını verir.",
+    },
+    summary: [
+      "Birim çemberde yarıçap 1'dir.",
+      "x koordinatı cos θ, y koordinatı sin θ'dır.",
+      "Sık hata x ve y koordinatını birbirine karıştırmaktır.",
+    ],
+    nextFocus: ["Özel açılar"],
+  };
+
+  it("accepts a lesson with a check and explanation on every section", () => {
+    expect(validateLessonV2(sound)).toEqual([]);
+  });
+
+  it("rejects a section that has no inline check", () => {
+    const broken = {
+      ...sound,
+      sections: sound.sections.map((item, index) =>
+        index === 2 ? { heading: item.heading, body: item.body } : item,
+      ),
+    };
+    expect(validateLessonV2(broken).some((issue) => issue.includes("kontrolü yok"))).toBe(
+      true,
+    );
+  });
+
+  it("rejects an explanation that only restates the correct option", () => {
+    const broken = {
+      ...sound,
+      sections: [
+        {
+          ...sound.sections[0],
+          check: {
+            ...sound.sections[0].check,
+            explanation: "Doğru yanıt yay uzunluğudur.",
+          },
+        },
+        sound.sections[1],
+        sound.sections[2],
+      ],
+    };
+    expect(
+      validateLessonV2(broken).some((issue) => issue.includes("çürütmüyor")),
+    ).toBe(true);
+  });
+
+  it("rejects a section without a bold exam term and a bare answer", () => {
+    const plain = {
+      ...sound,
+      sections: sound.sections.map((item, index) =>
+        index === 0
+          ? { ...item, body: "Açı derece veya radyan ile ölçülür ve yay uzunluğuna bağlanır." }
+          : item,
+      ),
+      example: { prompt: "90° noktası neresi?", solution: "Sonuç (0, 1) olur." },
+    };
+    const issues = validateLessonV2(plain);
+    expect(issues.some((issue) => issue.includes("koyu değil"))).toBe(true);
+    expect(issues.some((issue) => issue.includes("gerekçeli"))).toBe(true);
+  });
+
+  it("drops a numbered chapter heading and keeps the two real concepts", () => {
+    const numbered = {
+      ...sound,
+      sections: sound.sections.map((item, index) =>
+        index === 2 ? { ...item, heading: "Bölüm 1" } : item,
+      ),
+    };
+    const prepared = prepareLessonDraft(numbered);
+    expect(prepared?.sections.map((section) => section.heading)).not.toContain("Bölüm 1");
+    expect(prepared?.sections).toHaveLength(2);
+    expect(validateLessonV2(numbered)).toEqual([]);
+  });
+});
+
+describe("quiz tag and distractor gate", () => {
+  it("requires a misconception tag and a refutation when the exam gate is on", () => {
+    const question: QuizQuestion = {
+      text: "90° noktasının y koordinatı nedir?",
+      options: ["bir", "sıfır", "eksi"],
+      correct: ["bir"],
+      multi: false,
+      explanation: "90° yukarıdadır. Sıfır yatay eksendedir, y değeri değildir.",
+      learningObjective: "Özel açıyı okumak",
+    };
+    expect(
+      validateQuizPedagogy([question], {
+        requireMisconceptionTag: true,
+        requireDistractorRefutation: true,
+      }).some((issue) => issue.includes("misconceptionTag")),
+    ).toBe(true);
+    expect(
+      validateQuizPedagogy(
+        [{ ...question, misconceptionTag: "sin_cos_swap" }],
+        { requireMisconceptionTag: true, requireDistractorRefutation: true },
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("true/false exam gate", () => {
+  it("requires the tag and an explanation that uses the correction", () => {
+    const weak = {
+      text: "Pi tam olarak 22/7'ye eşittir.",
+      correct: false,
+      explanation: "Bu ifade yanlıştır.",
+      correctedStatement: "Pi yaklaşık 22/7 değerindedir.",
+      misconceptionTag: "pi_fraction",
+    };
+    expect(
+      validateTrueFalsePedagogy([weak], { requireMisconceptionTag: true }).some((issue) =>
+        issue.includes("çürütmüyor"),
+      ),
+    ).toBe(true);
+    expect(
+      validateTrueFalsePedagogy(
+        [
+          {
+            ...weak,
+            explanation: "22/7 bir kesirdir; pi yalnızca yaklaşık o değere yakındır.",
+          },
+        ],
+        { requireMisconceptionTag: true },
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -747,11 +1183,11 @@ describe("key terms and in-place warnings", () => {
           body: "Havanın hacmi hesaba dahildir, ağırlığı değil.",
         },
         check: {
-          type: "mcq" as const,
-          prompt: "Sıvı faz boşluklarda neyi tutar?",
-          options: ["Suyu", "Taneleri", "Havayı"],
-          answerIndex: 0,
-          explanation: "Sıvı faz boşluklardaki sudur; taneler katı fazdır.",
+          type: "trueFalse" as const,
+          prompt: "Sıvı faz mineral taneleridir.",
+          options: ["Doğru", "Yanlış"],
+          answerIndex: 1,
+          explanation: "Mineral taneler katı fazdır; sıvı faz sudur.",
         },
       },
       {
@@ -759,13 +1195,23 @@ describe("key terms and in-place warnings", () => {
         body: "Boşluk hacminin katı hacmine oranıdır.",
         check: {
           type: "trueFalse" as const,
-          prompt: "Boşluk oranı toplam hacme bölünerek bulunur.",
+          prompt: "Boşluk oranı toplam hacme bölünür.",
           options: ["Doğru", "Yanlış"],
           answerIndex: 1,
-          explanation: "Toplam hacme bölünen porozitedir; boşluk oranı katı hacme bölünür.",
+          explanation: "Payda katı hacimdir, toplam hacim değil.",
         },
       },
-      { heading: "Porozite", body: "Boşluk hacminin toplam hacme oranıdır." },
+      {
+        heading: "Porozite",
+        body: "Boşluk hacminin toplam hacme oranıdır.",
+        check: {
+          type: "mcq" as const,
+          prompt: "Porozite hangi hacme bölünerek bulunur?",
+          options: ["Toplam hacim", "Katı hacim", "Sıvı hacim"],
+          answerIndex: 0,
+          explanation: "Boşluk oranı katı hacmi kullanır; porozite toplam hacmi kullanır.",
+        },
+      },
     ],
     example: { prompt: "e = 0,5 ise n nedir?", solution: "n = e/(1+e) = 0,333." },
     commonMistake: { claim: "e ile n aynıdır", correction: "Paydaları farklıdır." },
@@ -874,7 +1320,7 @@ describe("dropScaffoldSections", () => {
   });
 });
 
-describe("the schema tolerates two sections, the validator does not", () => {
+describe("two concept sections are a complete lesson", () => {
   const twoSectionLesson = {
     title: "Dane Boyu Dağılımı",
     objective: "Elek ve hidrometre analizini ayırt edip derecelenmeyi okuyabilmek",
@@ -932,12 +1378,14 @@ describe("the schema tolerates two sections, the validator does not", () => {
     expect(lessonV2Schema.safeParse(twoSectionLesson).success).toBe(true);
   });
 
-  it("is still rejected as a draft, so the model keeps writing three", () => {
+  it("accepts two concept sections and does not reject on count alone", () => {
     expect(
-      validateLessonPedagogy(twoSectionLesson).some((i) =>
-        i.includes("en az 3 bölüm"),
-      ),
-    ).toBe(true);
+      validateLessonPedagogy(twoSectionLesson).some((i) => i.includes("en az 3 bölüm")),
+    ).toBe(false);
+    expect(validateLessonPedagogy(twoSectionLesson)).toEqual([]);
+    expect(
+      lessonPublishIssues(twoSectionLesson).some((issue) => /en az \d+/.test(issue) && /bölüm/.test(issue)),
+    ).toBe(false);
   });
 
   it("follows the source backbone when it asks for fewer", () => {

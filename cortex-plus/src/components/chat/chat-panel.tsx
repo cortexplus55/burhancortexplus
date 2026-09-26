@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, type ComponentProps } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -8,16 +8,20 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Markdown } from "@/components/markdown";
 import { CreditGate } from "@/components/paywall/credit-gate";
+import { CortexMark } from "@/components/brand/cortex-mark";
 
 import {
   ArrowLeft,
   AudioLines,
   Camera,
+  ChevronRight,
+  ChevronUp,
   ChevronsUpDown,
+  EllipsisVertical,
   ImageIcon,
   LayoutGrid,
+  Loader2,
   Mic,
   Paperclip,
   PenLine,
@@ -30,7 +34,8 @@ import {
   Brush,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createRecognizer } from "@/lib/learning/studio-speech";
+import { createRecognizer, speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
+import { EXAM_QUICK_COMMANDS } from "@/lib/learning/exam-chat-chrome";
 import {
   isRecordingSupported,
   mergeTranscript,
@@ -44,8 +49,9 @@ import { SubjectModal } from "@/components/parity/subject-modal";
 import { UploadModal } from "@/components/parity/upload-modal";
 import { MathKeyboard } from "@/components/parity/math-keyboard";
 import { UpgradeAside } from "@/components/paywall/upgrade-aside";
+import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { MessageActions, type Rating } from "@/components/chat/message-actions";
-import { formatSourceSections } from "@/lib/ai/source-sections";
+import { TutorReplyView } from "@/components/chat/tutor-reply-view";
 import "@/styles/parity-sor.css";
 import "@/styles/parity-shell.css";
 
@@ -77,6 +83,30 @@ function assistantErrorContent(error: unknown) {
   return error instanceof Error
     ? error.message
     : "Bir hata oluştu. Lütfen tekrar deneyin.";
+}
+
+function plainForSpeech(content: string) {
+  return content
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/[*_`#>|[\]()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function DrawSquiggle({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M4 15c1.8-5 3.2 4.5 5.2-.2 1.6-3.8 3 4.8 5 .4 1.4-3 2.2-4.2 5.6-.8" />
+    </svg>
+  );
 }
 
 const quickActions = [
@@ -136,7 +166,7 @@ const SUBJECTS = [
   "Coğrafya",
 ];
 
-export function ChatPanel({
+function ChatPanelSession({
   initialConversationId,
   initialDocumentId,
   initialMessages = [],
@@ -161,6 +191,7 @@ export function ChatPanel({
   feedbackEnabled = false,
   dailyDrillCount = 0,
   prepId,
+  examChrome = false,
 }: {
   initialConversationId?: string;
   initialDocumentId?: string;
@@ -197,7 +228,18 @@ export function ChatPanel({
   feedbackEnabled?: boolean;
   /** Yanlış defterinde bekleyen soru sayısı. 0 ise günün turu kartı çıkmıyor. */
   dailyDrillCount?: number;
+  /**
+   * Sınav hazırlığının sohbeti. Karşılama, çipler, oluşturucu ve hızlı
+   * komutlar bu kabuğa göre çizilir. Kota kapısı durur; satış kartı girmez.
+   */
+  examChrome?: boolean;
 }) {
+  const shellAccount = useStudentShellAccount();
+  // Kurucuda kota ve mesaj başı maliyet satırı yok: hiçbir mesaj kredi düşürmüyor.
+  const founder = shellAccount?.isAdmin === true;
+  const showUpgrade =
+    !examChrome && (shellAccount ? shellAccount.showsUpgradeChrome : !isPremium);
+  const allowAdvanced = shellAccount?.audience === "sigma";
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -232,6 +274,8 @@ export function ChatPanel({
     fileName: string;
   } | null>(null);
   const [mathOpen, setMathOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [talking, setTalking] = useState(false);
   const [composerAssistOpen, setComposerAssistOpen] = useState(false);
   const [composerAssist, setComposerAssist] = useState<
     (typeof COMPOSER_MODES)[number]["id"] | null
@@ -259,7 +303,7 @@ export function ChatPanel({
     };
   }, [variant]);
 
-  function openComposerDialog(dialog: "image_upload" | "sketch") {
+  function openComposerDialog(dialog: "image_upload" | "sketch" | "profile") {
     const params = new URLSearchParams(
       typeof window !== "undefined" ? window.location.search : "",
     );
@@ -327,15 +371,28 @@ export function ChatPanel({
   }, [attachMenuOpen]);
 
   // Sayfadan çıkılırken mikrofon kapanmalı: açık kalan bir kayıt tarayıcı
-  // sekmesinde "kaydediyor" göstergesini yakılı bırakır.
+  // sekmesinde "kaydediyor" göstergesini yakılı bırakır. Geçmiş satırı
+  // bileşeni baştan kurunca sürmekte olan yanıt da yeni konuşmaya yazılmasın.
   useEffect(() => {
     return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
       recorderRef.current?.cancel();
       recorderRef.current = null;
       recognizerRef.current?.stop();
       recognizerRef.current = null;
+      stopSpeech();
     };
   }, []);
+
+  useEffect(() => {
+    if (!quickOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setQuickOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [quickOpen]);
 
   function pushAssistantError(error: unknown) {
     const content = assistantErrorContent(error);
@@ -583,7 +640,7 @@ export function ChatPanel({
         body: JSON.stringify({
           message: prefixed,
           operationId,
-          actionCode: advanced ? "AI_CHAT_ADVANCED" : "AI_CHAT_STANDARD",
+          actionCode: advanced && allowAdvanced ? "AI_CHAT_ADVANCED" : "AI_CHAT_STANDARD",
           conversationId: conversationId.current,
           useDocuments,
           documentsOnly: useDocuments ? documentsOnly : true,
@@ -719,6 +776,31 @@ export function ChatPanel({
     void send(lastUser.content);
   }
 
+  function talkLastAnswer() {
+    if (talking) {
+      stopSpeech();
+      setTalking(false);
+      return;
+    }
+    const last = [...messages]
+      .reverse()
+      .find((item) => item.role === "assistant" && !item.isError && item.content.trim());
+    const plain = last ? plainForSpeech(last.content) : "";
+    if (!plain) return;
+    setTalking(true);
+    speakTurkish(plain, {
+      onEnd: () => setTalking(false),
+      onError: () => setTalking(false),
+    });
+  }
+
+  const hasComposerPayload = Boolean(input.trim() || pendingFile || pendingRemote);
+  const canTalk = messages.some(
+    (item) => item.role === "assistant" && !item.isError && item.content.trim().length > 0,
+  );
+  const showExamTalk = examChrome && messages.length > 0 && !hasComposerPayload;
+  const showExamSend = examChrome && (hasComposerPayload || loading);
+
   const showMinimalEmpty = isMinimalSor && messages.length === 0 && !loading;
   const showMinimalMessages = isMinimalSor && (messages.length > 0 || loading);
   const showParityEmpty = isParitySor && messages.length === 0 && !loading;
@@ -823,14 +905,6 @@ export function ChatPanel({
       });
       return;
     }
-    if (!isPremium) {
-      toast.message("Sesle sormak için Plus gerekiyor", {
-        description:
-          "Bu tarayıcıda ses tanıma yok; sunucu çözümlemesi Plus planında.",
-      });
-      return;
-    }
-
     void (async () => {
       const recorder = await startRecording({
         onAutoStop: () => void finishRecording(),
@@ -849,8 +923,8 @@ export function ChatPanel({
   if (isParitySor) {
     return (
       <>
-        <div className="cp-sor-view">
-          {showParityThread ? (
+        <div className={cn("cp-sor-view", examChrome && "cp-exam-chat")}>
+          {showParityThread && !examChrome ? (
             <div className="cp-thread-bar">
               <button type="button" onClick={resetParityThread}>
                 <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -861,7 +935,34 @@ export function ChatPanel({
               </button>
             </div>
           ) : null}
-          {showParityEmpty ? (
+          {showParityEmpty && examChrome ? (
+            <div className="cp-exam-empty">
+              <div className="cp-exam-column">
+                <div className="cp-exam-greet">
+                  <span className="cp-exam-mark" aria-hidden>
+                    <CortexMark size={14} />
+                  </span>
+                  <p>{greetingLine ?? "Selam! Neye çalışmak istersin?"}</p>
+                </div>
+                {starterPrompts?.length ? (
+                  <div className="cp-exam-starters" role="group" aria-label="Başlangıç önerileri">
+                    {starterPrompts.map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        className="cp-exam-starter"
+                        disabled={loading}
+                        onClick={() => void send(item.prompt)}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+          {showParityEmpty && !examChrome ? (
             <div className="cp-sor-hero">
               <h1 className="cp-sor-hero-title">
                 {greetingLine ?? "Merhaba!"}
@@ -913,22 +1014,63 @@ export function ChatPanel({
                   </span>
                 </Link>
               ) : null}
-
-              {!isPremium ? (
-                <div className="cp-sor-empty-upgrade">
-                  <UpgradeAside returnPath={returnPath} />
-                </div>
-              ) : null}
             </div>
           ) : null}
 
           {showParityThread ? (
             <div
               ref={messagesScrollRef}
-              className="cp-sor-messages"
+              className={cn("cp-sor-messages", examChrome && "cp-exam-thread")}
               aria-live="polite"
             >
-              {messages.map((message, index) => (
+              <div className={examChrome ? "cp-exam-column" : undefined}>
+              {messages.map((message, index) => {
+                const assistantBody = message.content ? (
+                  <>
+                    <TutorReplyView
+                      content={message.content}
+                      variant="parity"
+                      disabled={loading}
+                      onPrompt={(prompt) => void send(prompt)}
+                    />
+                    {!message.isError ? (
+                      <MessageActions
+                        content={message.content}
+                        messageId={feedbackEnabled ? message.id : undefined}
+                        rating={message.rating ?? null}
+                        onRated={(next) => setRating(index, next)}
+                        onRegenerate={
+                          index === messages.length - 1 && !loading
+                            ? regenerateLast
+                            : undefined
+                        }
+                      />
+                    ) : null}
+                  </>
+                ) : loading && examChrome ? (
+                  <SorTypingDots label={thinkingLabel} />
+                ) : null;
+
+                if (examChrome) {
+                  if (message.role === "user") {
+                    return (
+                      <div key={index} className="cp-exam-user">
+                        <div className="cp-exam-user-bubble">{message.content}</div>
+                      </div>
+                    );
+                  }
+                  if (!assistantBody) return null;
+                  return (
+                    <div key={index} className="cp-exam-assistant">
+                      <span className="cp-exam-mark" aria-hidden>
+                        <CortexMark size={14} />
+                      </span>
+                      <div className="cp-exam-msg-body">{assistantBody}</div>
+                    </div>
+                  );
+                }
+
+                return (
                 <div
                   key={index}
                   className={
@@ -939,31 +1081,18 @@ export function ChatPanel({
                 >
                   {message.role === "user" ? (
                     message.content
-                  ) : message.content ? (
-                    <>
-                      <Markdown content={formatSourceSections(message.content)} variant="parity" />
-                      {!message.isError ? (
-                        <MessageActions
-                          content={message.content}
-                          messageId={feedbackEnabled ? message.id : undefined}
-                          rating={message.rating ?? null}
-                          onRated={(next) => setRating(index, next)}
-                          onRegenerate={
-                            index === messages.length - 1 && !loading
-                              ? regenerateLast
-                              : undefined
-                          }
-                        />
-                      ) : null}
-                    </>
-                  ) : null}
+                  ) : (
+                    assistantBody
+                  )}
                 </div>
-              ))}
+                );
+              })}
+              </div>
 
               {/* Yanıt bittikten sonra devam önerileri. Öğrenci "peki şimdi ne
                   sorayım" diye kalmasın; bunlar gerçekten çalışan komutlar,
-                  süs değil. */}
-              {!loading && lastIsAnswer ? (
+                  süs değil. Sınav sohbetinde aynı işi hızlı komutlar görür. */}
+              {!examChrome && !loading && lastIsAnswer ? (
                 <div className="cp-followups" role="group" aria-label="Devam önerileri">
                   {FOLLOW_UPS.map((item) => (
                     <button
@@ -977,7 +1106,19 @@ export function ChatPanel({
                   ))}
                 </div>
               ) : null}
-              {loading &&
+              {examChrome && loading && messages[messages.length - 1]?.role === "user" ? (
+                <div className="cp-exam-column">
+                  <div className="cp-exam-assistant">
+                    <span className="cp-exam-mark" aria-hidden>
+                      <CortexMark size={14} />
+                    </span>
+                    <div className="cp-exam-msg-body">
+                      <SorTypingDots label={thinkingLabel} />
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              {!examChrome && loading &&
               (messages.length === 0 ||
                 messages[messages.length - 1]?.role === "user" ||
                 messages[messages.length - 1]?.content === "") ? (
@@ -985,7 +1126,7 @@ export function ChatPanel({
                   <SorTypingDots label={thinkingLabel} />
                 </div>
               ) : null}
-              {!isPremium && messages.length > 0 ? (
+              {showUpgrade && messages.length > 0 ? (
                 <Link href="/pay" className="cp-upgrade-banner">
                   Daha hızlı öğrenmek için yükselt
                 </Link>
@@ -994,13 +1135,23 @@ export function ChatPanel({
             </div>
           ) : null}
 
+          {examChrome && quickOpen ? (
+            <button
+              type="button"
+              className="cp-exam-dim"
+              aria-label="Hızlı komutları kapat"
+              onClick={() => setQuickOpen(false)}
+            />
+          ) : null}
+
           {/* Ücretsiz kullanıcıda yazı alanının yanına kalıcı bir yükseltme
               kartı giriyor. Kutunun içine değil yanına: yazacak yeri
-              daraltmadan her açılışta görünüyor. */}
+              daraltmadan her açılışta görünüyor. Sınav sohbetinde satış
+              kartı yok; kota dolunca mevcut kredi kapısı açılır. */}
           <div
             className={cn(
               "cp-sor-composer-zone",
-              !isPremium && "cp-sor-composer-zone--aside",
+              showUpgrade && "cp-sor-composer-zone--aside",
             )}
             style={keyboardInset ? { paddingBottom: keyboardInset } : undefined}
           >
@@ -1015,6 +1166,43 @@ export function ChatPanel({
                 >
                   {subject}
                   <ChevronsUpDown className="h-3.5 w-3.5 opacity-80" aria-hidden />
+                </button>
+              </div>
+            ) : null}
+
+            {examChrome ? (
+              <div className="cp-exam-quick-wrap">
+                {quickOpen ? (
+                  <div className="cp-exam-quick" role="group" aria-label="Hızlı komutlar">
+                    {EXAM_QUICK_COMMANDS.map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        className="cp-exam-quick-chip"
+                        disabled={loading}
+                        onClick={() => {
+                          setQuickOpen(false);
+                          void send(item.prompt);
+                        }}
+                      >
+                        <span>{item.label}</span>
+                        <ChevronRight className="h-4 w-4 shrink-0" aria-hidden />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                <button
+                  type="button"
+                  className={cn("cp-exam-more-pill", quickOpen && "is-open")}
+                  aria-expanded={quickOpen}
+                  onClick={() => setQuickOpen((open) => !open)}
+                >
+                  {quickOpen ? (
+                    <ChevronUp className="h-4 w-4" aria-hidden />
+                  ) : (
+                    <EllipsisVertical className="h-4 w-4" aria-hidden />
+                  )}
+                  Daha fazla
                 </button>
               </div>
             ) : null}
@@ -1094,8 +1282,13 @@ export function ChatPanel({
                     disabled={loading}
                     onClick={() => openComposerDialog("sketch")}
                   >
-                    <Brush className="h-4 w-4" aria-hidden />
+                    {examChrome ? (
+                      <DrawSquiggle className="h-4 w-4" />
+                    ) : (
+                      <Brush className="h-4 w-4" aria-hidden />
+                    )}
                   </button>
+                  {examChrome ? null : (
                   <button
                     type="button"
                     className={cn("cp-sor-tool", mathOpen && "text-[var(--cp-subject)]")}
@@ -1109,13 +1302,14 @@ export function ChatPanel({
                   >
                     <PenLine className="h-4 w-4" aria-hidden />
                   </button>
+                  )}
                   <button
                     type="button"
                     className={cn(
                       "cp-sor-tool",
                       composerAssistOpen && "text-[var(--cp-subject)]",
                     )}
-                    aria-label="Mod seç"
+                    aria-label={examChrome ? "Araçlar" : "Mod seç"}
                     aria-expanded={composerAssistOpen}
                     disabled={loading}
                     onClick={() => {
@@ -1151,8 +1345,35 @@ export function ChatPanel({
                           </button>
                         );
                       })}
+                      {examChrome ? (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="cp-composer-mode-item"
+                          onClick={() => {
+                            setComposerAssistOpen(false);
+                            setMathOpen(true);
+                          }}
+                        >
+                          <PenLine className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                          <span>
+                            <strong className="block text-sm">Matematik</strong>
+                            <span className="text-xs text-[var(--cp-muted)]">Simge klavyesi</span>
+                          </span>
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
+                  {examChrome ? (
+                    <button
+                      type="button"
+                      className="cp-sor-tool"
+                      aria-label="Ayarlar"
+                      onClick={() => openComposerDialog("profile")}
+                    >
+                      <SlidersHorizontal className="h-4 w-4" aria-hidden />
+                    </button>
+                  ) : (
                   <Link
                     href="/ogretmen?dialog=profile"
                     className="cp-sor-tool"
@@ -1160,12 +1381,14 @@ export function ChatPanel({
                   >
                     <SlidersHorizontal className="h-4 w-4" aria-hidden />
                   </Link>
+                  )}
                 </div>
                 <div className="cp-sor-composer-voice">
                   <button
                     type="button"
                     className={cn(
                       "cp-sor-tool",
+                      examChrome && "cp-exam-mic",
                       listening && "text-[var(--cp-subject)]",
                     )}
                     aria-label={
@@ -1180,7 +1403,41 @@ export function ChatPanel({
                   >
                     <Mic className="h-4 w-4" aria-hidden />
                   </button>
-                  {input.trim() || pendingFile || pendingRemote ? (
+                  {showExamTalk ? (
+                    <button
+                      type="button"
+                      className="cp-exam-talk"
+                      disabled={(loading || transcribing || !canTalk) && !talking}
+                      onClick={talkLastAnswer}
+                    >
+                      {talking ? "Durdur" : "Konuş"}
+                      <AudioLines className="h-3.5 w-3.5" aria-hidden />
+                    </button>
+                  ) : null}
+                  {showExamSend && !founder && chatCreditCost != null && chatCreditCost > 0 ? (
+                    <span className="cp-exam-credit">{chatCreditCost} kr</span>
+                  ) : null}
+                  {showExamSend ? (
+                    <button
+                      type="submit"
+                      className="cp-send"
+                      aria-label={
+                        loading
+                          ? "Yanıt hazırlanıyor"
+                          : !founder && chatCreditCost != null && chatCreditCost > 0
+                            ? `Gönder, ${chatCreditCost} kr`
+                            : "Gönder"
+                      }
+                      disabled={loading || !hasComposerPayload}
+                    >
+                      {loading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      ) : (
+                        <Send className="h-4 w-4" aria-hidden />
+                      )}
+                    </button>
+                  ) : null}
+                  {!examChrome && (input.trim() || pendingFile || pendingRemote) ? (
                     <button
                       type="submit"
                       className="cp-send"
@@ -1189,7 +1446,8 @@ export function ChatPanel({
                     >
                       <Send className="h-4 w-4" aria-hidden />
                     </button>
-                  ) : (
+                  ) : null}
+                  {!examChrome && !(input.trim() || pendingFile || pendingRemote) ? (
                     <button
                       type="button"
                       className="cp-sor-voice-chip"
@@ -1199,13 +1457,13 @@ export function ChatPanel({
                       Cortex Plus ile konuş
                       <AudioLines className="h-3.5 w-3.5 opacity-80" aria-hidden />
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </form>
             </div>
 
-            {!isPremium ? (
+            {showUpgrade ? (
               <div
                 className={cn(
                   "cp-sor-composer-upgrade",
@@ -1305,7 +1563,7 @@ export function ChatPanel({
       >
         {!isParity ? (
           <div className="flex flex-wrap gap-2">
-            {quickActions.map((action) => (
+            {quickActions.filter((action) => action.advanced !== true || allowAdvanced).map((action) => (
               <Button
                 key={action.id}
                 type="button"
@@ -1475,7 +1733,12 @@ export function ChatPanel({
                     {message.role === "user" ? (
                       message.content
                     ) : message.content ? (
-                      <Markdown content={formatSourceSections(message.content)} variant="parity" />
+                      <TutorReplyView
+                        content={message.content}
+                        variant="parity"
+                        disabled={loading}
+                        onPrompt={(prompt) => void send(prompt)}
+                      />
                     ) : null}
                   </div>
                 ))}
@@ -1520,9 +1783,11 @@ export function ChatPanel({
               {message.role === "user" ? (
                 message.content
               ) : (
-                <Markdown
-                  content={formatSourceSections(message.content)}
+                <TutorReplyView
+                  content={message.content}
                   variant={isParity ? "parity" : "default"}
+                  disabled={loading}
+                  onPrompt={(prompt) => void send(prompt)}
                 />
               )}
             </div>
@@ -1660,14 +1925,14 @@ export function ChatPanel({
             </div>
           ) : (
           <div className="sticky bottom-0 space-y-2 pb-1">
-            {quotaHint ? (
+            {founder ? null : quotaHint ? (
               <p className="text-center text-[11px] text-[var(--cs-muted)]">
                 {quotaHint}
               </p>
             ) : chatCreditCost != null ? (
               <p className="text-center text-[11px] text-[var(--cs-muted)]">
                 Her mesaj yaklaşık {chatCreditCost} kredi harcar.
-                {isPremium ? " Plus ile gelişmiş model kullanılır." : ""}
+                {allowAdvanced ? " Sigma ile gelişmiş model kullanılır." : ""}
                 {tutorStyleLabel ? ` · Stil: ${tutorStyleLabel}` : ""}
               </p>
             ) : null}
@@ -1854,4 +2119,13 @@ export function ChatPanel({
       />
     </>
   );
+}
+
+/**
+ * Geçmiş satırı aynı sayfada `?sohbet=` değiştirir. Sunucu yeni mesajları
+ * gönderir; state yalnızca ilk kurulurken okunursa adres çubuğu ile ekran
+ * ayrışır. Konuşma kimliği değişince oturum baştan kurulur.
+ */
+export function ChatPanel(props: ComponentProps<typeof ChatPanelSession>) {
+  return <ChatPanelSession key={props.initialConversationId ?? "new"} {...props} />;
 }

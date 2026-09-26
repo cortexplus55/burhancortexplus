@@ -4,12 +4,17 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { parseLearningPreferences } from "@/lib/learning/exam-prep-ui-path";
 import { rebuildPrepSchedule } from "@/lib/learning/exam-prep-reschedule-apply";
+import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import type { ScheduleBuildResult, ScheduleTopicInput } from "@/lib/learning/exam-schedule-v2";
 
 const prefsSchema = z.object({
   style: z.enum(["examples", "theory", "mixed"]).optional(),
   pace: z.enum(["slow", "normal", "fast"]).optional(),
   notes: z.string().max(400).optional(),
+  modality: z
+    .enum(["reading", "listening", "watching", "practice", "auto"])
+    .optional(),
+  language: z.enum(["tr", "en"]).optional(),
 });
 
 const bodySchema = z.object({
@@ -87,7 +92,7 @@ export async function PATCH(request: Request) {
 
     const { data: nodeRows, error: nodesError } = await service
       .from("exam_prep_nodes")
-      .select("id, sort_order, status, session_meta")
+      .select("id, kind, sort_order, status, session_meta")
       .eq("exam_prep_id", prep.id);
     if (nodesError) return errorResponse(503, "node_lookup_failed");
 
@@ -137,6 +142,7 @@ export async function PATCH(request: Request) {
       settings: { hard_topics_self: nextHard, learning_preferences: nextPrefs },
       nodes: (nodeRows ?? []).map((n) => ({
         id: n.id as string,
+        kind: n.kind as PlanNodeKind,
         sort_order: n.sort_order as number,
         status: n.status as string,
         session_meta: n.session_meta,

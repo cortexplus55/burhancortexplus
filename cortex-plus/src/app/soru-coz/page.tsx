@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { ImageSolver } from "@/components/learning/image-solver";
 import { requireUser } from "@/lib/auth/session";
+import { isAdminUser } from "@/lib/auth/roles";
 import { getCreditCost } from "@/lib/credits/rules";
 import { Camera } from "lucide-react";
 import "@/styles/cortex-premium.css";
@@ -8,8 +9,11 @@ import "@/styles/cortex-premium.css";
 export const metadata = { title: "Soru çöz" };
 
 export default async function SoruCozPage() {
-  await requireUser();
-  const cost = await getCreditCost("IMAGE_SOLUTION");
+  const { supabase, user } = await requireUser();
+  const [cost, founder] = await Promise.all([
+    getCreditCost("IMAGE_SOLUTION"),
+    isAdminUser(supabase, user.id),
+  ]);
 
   return (
     <AppShell title="Soru çöz" creditHint={`Her çözüm: ${cost} kredi.`}>
@@ -29,7 +33,7 @@ export default async function SoruCozPage() {
               </h2>
               <p className="mt-1 text-sm text-[var(--cx-muted)]">
                 Sorunun net bir fotoğrafını yükle; adım adım çözüm alırsın. Gelişmiş
-                model kullanılır ({cost} kredi).
+                model kullanılır{founder ? "." : ` (${cost} kredi).`}
               </p>
             </div>
           </div>

@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { CortexMark } from "@/components/brand/cortex-mark";
+import { useIsFounder } from "@/lib/student/student-shell-context";
 import "@/styles/upgrade-gate.css";
 
 /**
@@ -9,6 +12,8 @@ import "@/styles/upgrade-gate.css";
  * Fiyat sayfasıyla aynı dil: tek CTA, kısa fayda.
  */
 export function UpgradeAside({ returnPath }: { returnPath?: string }) {
+  const founder = useIsFounder();
+  if (founder) return null;
   const href = returnPath
     ? `/pay?returnTo=${encodeURIComponent(returnPath)}`
     : "/pay";
@@ -24,7 +29,7 @@ export function UpgradeAside({ returnPath }: { returnPath?: string }) {
       </div>
       <p className="ug-aside-title">Plus&apos;a yükselt</p>
       <p className="ug-aside-blurb">
-        Daha yüksek kullanım hakkı ve premium özellikler.
+        Günlük hak yerine yüksek aylık kota ve daha yüksek yükleme limiti.
       </p>
       <Link href={href} className="ug-aside-cta">
         Plus&apos;a geç

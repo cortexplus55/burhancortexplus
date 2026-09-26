@@ -9,6 +9,11 @@ const envSchema = z.object({
   APP_SECRET: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_STANDARD_MODEL: z.string().default("gpt-4o-mini"),
+  /**
+   * Ders taslağı. Doğrulama ve parça onarımı standart modelde kalır.
+   * Kredi eylem kodu değişmez; yalnızca bu çağrının modeli değişir.
+   */
+  OPENAI_LESSON_MODEL: z.string().default("gpt-4.1-mini"),
   OPENAI_ADVANCED_MODEL: z.string().default("gpt-4o"),
   OPENAI_TTS_MODEL: z.string().default("gpt-4o-mini-tts"),
   OPENAI_STT_MODEL: z.string().default("gpt-4o-mini-transcribe"),
@@ -24,6 +29,7 @@ const parsed = envSchema.safeParse({
   APP_SECRET: process.env.APP_SECRET,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_STANDARD_MODEL: process.env.OPENAI_STANDARD_MODEL,
+  OPENAI_LESSON_MODEL: process.env.OPENAI_LESSON_MODEL,
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,
   OPENAI_TTS_MODEL: process.env.OPENAI_TTS_MODEL,
   OPENAI_STT_MODEL: process.env.OPENAI_STT_MODEL,

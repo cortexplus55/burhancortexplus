@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
-import { isPremiumUser } from "@/lib/ai/generate";
+import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { generatePodcastFromLesson } from "@/lib/learning/podcast-from-lesson";
 import { lessonV2Schema } from "@/lib/learning/teaching-standards";
 
@@ -36,11 +36,13 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (!prep) return errorResponse(404, "not_found");
 
-  // Ses üretimi podcast maliyetinin %98,4'ü; Plus'a özel. 10 Eylül'de
-  // dersten türeyen içeriği canlıda görebilmek için geçici olarak
-  // kaldırılmıştı, doğrulama bitince geri kondu.
-  const premium = await isPremiumUser(service, userId);
-  if (!premium) return errorResponse(402, "premium_required");
+  // Sesli tekrar kayıtlı ücretsizde açık; üretim kredi yer. Misafir
+  // withUser sayesinde buraya gelemez.
+  const entitlements = await getUserEntitlements(service, userId);
+  if (!requireFeature(entitlements, "podcast")) {
+    return errorResponse(402, "premium_required");
+  }
+  const premium = entitlements.isPremium;
 
   const { data: topic } = await service
     .from("exam_prep_topics")

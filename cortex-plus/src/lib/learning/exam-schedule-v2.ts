@@ -5,6 +5,9 @@
 
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import type { MeasuredLevel } from "@/lib/learning/diagnostic";
+import { extraPracticeForTopic } from "@/lib/learning/cross-material-topics";
+import { sourceCitation } from "@/lib/learning/path-source-label";
+import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 
 export type ScheduleSessionRole = "learn" | "practice" | "review" | "mock";
 
@@ -20,6 +23,14 @@ export type ScheduleTopicInput = {
   selfHard?: boolean;
   /** Explicit priority 1 (high) .. 5 (low). */
   priority?: number | null;
+  /** Müfredattaki pay. Yoksa süre formülü değişmez. */
+  weightPercent?: number | null;
+  /** Müfredat "sınavda ağırlıklı" diyorsa. */
+  examHeavy?: boolean;
+  /** Öğretmen analizinin önem sırası. Müfredat payı yokken süreye girer. */
+  importance?: "important" | "medium" | "less" | null;
+  /** Birleşmiş konunun dayandığı dosyalar. Takvim bunu okumaz. */
+  sourceRefs?: TopicSourceRef[];
 };
 
 export type ScheduleBuildInput = {
@@ -44,6 +55,10 @@ export type ScheduleSession = {
   role: ScheduleSessionRole;
   kind: PlanNodeKind;
   sortOrder: number;
+  /** Aynı konunun ikinci ve üçüncü pratiği farklı iştir. */
+  practiceVariant: number | null;
+  /** Tek dosyada "pdf-12 s.1–3". Birden fazla dosyada boş. */
+  sourceLabel: string | null;
 };
 
 export type ScheduleFitOption =
@@ -147,28 +162,44 @@ export function estimateTopicMinutes(topic: ScheduleTopicInput): number {
   const base = 25 + Math.min(40, pages * 4);
   const level = topic.measuredLevel ?? "unknown";
   const hardBoost = topic.selfHard ? 1.2 : 1;
+  const weightBoost =
+    topic.weightPercent == null
+      ? 1
+      : 0.8 + Math.min(40, topic.weightPercent) / 50;
+  const heavyBoost = topic.examHeavy || topic.importance === "important" ? 1.15 : 1;
   const priority =
     topic.priority && topic.priority >= 1 && topic.priority <= 5
       ? 1.25 - (topic.priority - 1) * 0.05
       : 1;
-  return Math.round(base * LEVEL_LOAD[level] * hardBoost * priority);
+  return Math.round(base * LEVEL_LOAD[level] * hardBoost * heavyBoost * weightBoost * priority);
 }
 
 /**
- * Topological order by prerequisites (titles), then priority / weakness.
+ * Müfredat payı bir konuyu öne alabilir; ön koşulunun önüne geçiremez.
+ * "Önemli" rozeti tek başına sırayı bozmaz — o, süre ve pratik miktarıdır.
+ */
+export function canPromoteForWeight(topic: {
+  examHeavy?: boolean;
+  weightPercent?: number | null;
+}): boolean {
+  return Boolean(topic.examHeavy) || (topic.weightPercent ?? 0) >= 20;
+}
+
+function weaknessRank(topic: ScheduleTopicInput): number {
+  if (topic.measuredLevel === "weak" || topic.selfHard) return 0;
+  if (topic.measuredLevel === "emerging") return 1;
+  return 2;
+}
+
+/**
+ * Ön koşul, sonra ölçülmüş zayıflık, sonra sınav ağırlığı, en son belgenin sırası.
  *
  * Eşitlik bozucu BELGENİN KENDİ SIRASI, alfabe değil.
  *
- * Yeni bir hazırlıkta hiçbir konu ölçülmemiştir: hepsinin puanı aynı çıkar
- * ve sıralamayı yalnızca eşitlik bozucu belirler. Alfabe olduğu sürece
- * sonuç şuydu — canlıdaki zemin mekaniği planı "Dane Boyu" ile başlayıp
- * "Üç Fazlı Sistem" ile bitiyordu; yani kitabın birinci bölümü altıncı
- * sırada öğretiliyordu. Konu haritası sadeleştirilirken ön koşul çıkarımı
- * kaldırılınca alfabe TEK sıralama ölçütü hâline geldi ve bu, plana
- * bakmakla değil ancak canlı veriye bakmakla görülüyordu.
- *
- * Konular buraya belgeden çıktıkları sırayla geliyor: yazarın öğretim
- * sırası. Ölçülmüş bir zayıflık yoksa ona uymak doğru olan.
+ * Yeni bir hazırlıkta hiçbir konu ölçülmemiştir. Konular buraya belgeden
+ * çıktıkları sırayla geliyor: yazarın öğretim sırası. Ölçülmüş bir zayıflık
+ * yoksa ve konu sınavda ayrıca ağır değilse o sıra korunur. Ağır bir konu,
+ * dayandığı konu bittikten sonra daha hafif bağımsız konuların önüne geçebilir.
  */
 export function orderTopicsByPrerequisites(
   topics: ScheduleTopicInput[],
@@ -179,16 +210,6 @@ export function orderTopicsByPrerequisites(
   const documentOrder = new Map(topics.map((t, index) => [t.id, index]));
   const remaining = new Set(topics.map((t) => t.id));
   const ordered: ScheduleTopicInput[] = [];
-  const score = (t: ScheduleTopicInput) => {
-    const pri = t.priority ?? 3;
-    const weak =
-      t.measuredLevel === "weak" || t.selfHard
-        ? 0
-        : t.measuredLevel === "emerging"
-          ? 1
-          : 2;
-    return weak * 10 + pri;
-  };
 
   while (remaining.size) {
     const ready = topics.filter((t) => {
@@ -201,7 +222,8 @@ export function orderTopicsByPrerequisites(
     });
     const pick = (ready.length ? ready : topics.filter((t) => remaining.has(t.id))).sort(
       (a, b) =>
-        score(a) - score(b) ||
+        weaknessRank(a) - weaknessRank(b) ||
+        (canPromoteForWeight(a) ? 0 : 1) - (canPromoteForWeight(b) ? 0 : 1) ||
         (documentOrder.get(a.id) ?? 0) - (documentOrder.get(b.id) ?? 0),
     )[0];
     if (!pick) break;
@@ -209,6 +231,21 @@ export function orderTopicsByPrerequisites(
     ordered.push(pick);
   }
   return ordered;
+}
+
+/** Aynı türün tekrarı, öğrenciye aynı iş gibi görünmesin. */
+export function practiceActivity(variant: number): { label: string; reason: string | null } {
+  if (variant <= 0) return { label: "Testler ve Doğru/Yanlış", reason: null };
+  if (variant === 1) {
+    return {
+      label: "Tekrar testi (karışık)",
+      reason: "Ağırlıklı konu olduğu için karışık bir tekrar.",
+    };
+  }
+  return {
+    label: "Zor sorular",
+    reason: "Sınavda ağırlıklı olduğu için daha zor sorular.",
+  };
 }
 
 function roleMinutes(role: ScheduleSessionRole, topicMinutes: number): number {
@@ -296,26 +333,35 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
   const dayBudget = studyDayDates.map(() => daily);
   const lastIdx = studyDayDates.length - 1;
 
+  const cite = (topic: ScheduleTopicInput) =>
+    sourceCitation(topic.sourceRefs, topic.pageNumbers ?? []);
+
   const place = (
     dayIndex: number,
     topic: ScheduleTopicInput,
     role: ScheduleSessionRole,
     minutes: number,
+    practiceVariant: number | null = null,
   ) => {
     const duration = Math.max(10, Math.min(dayBudget[dayIndex], minutes));
     if (duration < 10 || dayBudget[dayIndex] < 10) return false;
     dayBudget[dayIndex] -= duration;
+    const cited = cite(topic);
+    const reason = practiceVariant == null ? null : practiceActivity(practiceVariant).reason;
+    const objective = objectiveFor(topic, role);
     sessions.push({
       dayIndex: dayIndex + 1,
       calendarDate: studyDayDates[dayIndex],
       topicId: topic.id,
       topicTitle: topic.title,
-      objective: objectiveFor(topic, role),
-      sourcePages: [...(topic.pageNumbers ?? [])],
+      objective: reason ? `${objective} ${reason}` : objective,
+      sourcePages: cited.omitBarePages ? [] : [...(topic.pageNumbers ?? [])],
       durationMinutes: duration,
       role,
       kind: ROLE_KIND[role],
       sortOrder: sortOrder++,
+      practiceVariant,
+      sourceLabel: cited.label,
     });
     return true;
   };
@@ -333,6 +379,10 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
   const spreadStep = kept.length > 0 ? learnWindow / kept.length : 0;
 
   // Place learn+practice across the first stretch; reviews mid/late; mock last.
+  // Sonraki konunun dersi, bir öncekinin dersinden daha erken bir güne
+  // konamaz. Gün doluysa ileri kayar; geriye, henüz öğretilmemiş bir konunun
+  // dersini öne almak için değil.
+  let earliestLearnDay = 0;
   for (const [topicIndex, { topic, minutes }] of kept.entries()) {
     const learnM = roleMinutes("learn", minutes);
     const practiceM = roleMinutes("practice", minutes);
@@ -343,11 +393,9 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     );
 
     let learnDay = -1;
-    // Hedef günden ileri doğru, sonra baştan — böylece hedef gün doluysa konu
-    // kaybolmaz, sadece kayar.
     const learnOrder: number[] = [];
-    for (let d = preferredDay; d < Math.max(0, lastIdx); d += 1) learnOrder.push(d);
-    for (let d = 0; d < preferredDay; d += 1) learnOrder.push(d);
+    const searchFrom = Math.max(preferredDay, earliestLearnDay);
+    for (let d = searchFrom; d < Math.max(0, lastIdx); d += 1) learnOrder.push(d);
 
     for (const d of learnOrder) {
       if (dayBudget[d] >= learnM) {
@@ -366,14 +414,14 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
       }
     }
     if (learnDay < 0) {
-      // Günlük bütçeler tükendi. Konuyu plandan düşürmek yerine en boş güne
-      // taşımayı seçiyoruz: o gün hedeflenen süreyi aşar ama konu sınavda
-      // çıkacağı için planda görünmesi gerekir. `fits` zaten false, öğrenci
-      // planın sıkıştığını görüyor.
-      let target = 0;
-      for (let d = 1; d < Math.max(1, lastIdx); d += 1) {
+      // Günlük bütçeler tükendi. Konuyu plandan düşürmek yerine, önceki
+      // dersin gününden itibaren en boş güne taşıyoruz. O gün hedeflenen
+      // süreyi aşabilir; konu sınavda çıkacağı için planda görünür.
+      let target = Math.min(earliestLearnDay, Math.max(0, lastIdx - 1));
+      for (let d = target + 1; d < Math.max(1, lastIdx); d += 1) {
         if (dayBudget[d] > dayBudget[target]) target = d;
       }
+      const cited = cite(topic);
       dayBudget[target] -= MIN_TOPIC_MINUTES;
       sessions.push({
         dayIndex: target + 1,
@@ -381,18 +429,33 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
         topicId: topic.id,
         topicTitle: topic.title,
         objective: objectiveFor(topic, "learn"),
-        sourcePages: [...(topic.pageNumbers ?? [])],
+        sourcePages: cited.omitBarePages ? [] : [...(topic.pageNumbers ?? [])],
         durationMinutes: MIN_TOPIC_MINUTES,
         role: "learn",
         kind: ROLE_KIND.learn,
         sortOrder: sortOrder++,
+        practiceVariant: null,
+        sourceLabel: cited.label,
       });
       learnDay = target;
     }
+    earliestLearnDay = learnDay;
 
     const practiceStart = Math.max(0, learnDay);
-    for (let d = practiceStart; d < lastIdx; d += 1) {
-      if (place(d, topic, "practice", practiceM)) break;
+    const practiceGoal = 1 + extraPracticeForTopic(topic, input.daysToExam);
+    let practiceCursor = practiceStart;
+    let placedPractice = 0;
+    while (placedPractice < practiceGoal && practiceCursor < lastIdx) {
+      let placed = false;
+      for (let d = practiceCursor; d < lastIdx; d += 1) {
+        if (place(d, topic, "practice", practiceM, placedPractice)) {
+          placedPractice += 1;
+          practiceCursor = d + 1;
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) break;
     }
 
     // Reviews prefer later days but not only last if we need mock room.
@@ -422,15 +485,17 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     }
   }
 
+  // Planın birimi konu. Günlük dakika yalnızca etkinliklerin güne
+  // sığması için içeride kalır; özette saat kotası yok.
   const summary = fits
-    ? `${loads.length} konu · ${studyDayDates.length} çalışma günü × ${daily} dk`
-    : `${loads.length} konu planda, ama süre dar: ~${required} dk gerekir, ` +
-      `${studyDayDates.length} çalışma gününde ${availableMinutes} dk var`;
+    ? `Planın ${kept.length}`
+    : `Planın ${kept.length} konu; süre dar, etkinlikler kısaltıldı`;
 
+  // Takvim günü yolu sıralamaz. Güne göre dizmek, dolu bir günden geriye
+  // kayan sonraki konunun dersini önceki konunun dersinin önüne alıyordu.
+  // Tekrarlar sonraki günlere düşebilir; listedeki sıra öğretim sırasıdır.
   return {
-    sessions: sessions.sort(
-      (a, b) => a.dayIndex - b.dayIndex || a.sortOrder - b.sortOrder,
-    ),
+    sessions,
     availableMinutes,
     requiredMinutes: required,
     fits,
@@ -445,6 +510,8 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
 export type CompletedSessionRef = {
   sortOrder: number;
   calendarDate: string;
+  /** When set, only a session of this kind counts as the same work. */
+  kind?: PlanNodeKind;
 };
 
 /**
@@ -461,14 +528,21 @@ export function redistributeRemainingSchedule(input: {
   topics: ScheduleTopicInput[];
 }): ScheduleBuildResult {
   const completedKeys = new Set(
-    input.completed.map((c) => `${c.calendarDate}:${c.sortOrder}`),
+    input.completed.map((c) =>
+      c.kind
+        ? `${c.calendarDate}:${c.sortOrder}:${c.kind}`
+        : `${c.calendarDate}:${c.sortOrder}`,
+    ),
   );
-  const keptCompleted = input.previous.sessions.filter((s) =>
-    completedKeys.has(`${s.calendarDate}:${s.sortOrder}`),
-  );
+  const sessionDone = (session: ScheduleSession) =>
+    completedKeys.has(
+      `${session.calendarDate}:${session.sortOrder}:${session.kind}`,
+    ) ||
+    completedKeys.has(`${session.calendarDate}:${session.sortOrder}`);
+  const keptCompleted = input.previous.sessions.filter(sessionDone);
   const remainingTopicIds = new Set(
     input.previous.sessions
-      .filter((s) => !completedKeys.has(`${s.calendarDate}:${s.sortOrder}`))
+      .filter((session) => !sessionDone(session))
       .map((s) => s.topicId),
   );
   const topics = input.topics.filter((t) => remainingTopicIds.has(t.id));
@@ -516,27 +590,34 @@ export function redistributeRemainingSchedule(input: {
 
 /** Map schedule sessions to legacy node drafts for create_exam_prep_graph. */
 export function scheduleSessionsToNodeDrafts(sessions: ScheduleSession[]) {
-  return sessions.map((s) => ({
-    kind: s.kind,
-    title: `${s.topicTitle} · ${
+  return sessions.map((s) => {
+    const practice = s.role === "practice" ? practiceActivity(s.practiceVariant ?? 0) : null;
+    const label =
       s.role === "learn"
-        ? "Öğren"
+        ? "Ders"
         : s.role === "practice"
-          ? "Pratik"
+          ? practice!.label
           : s.role === "review"
-            ? "Tekrar"
-            : "Deneme"
-    }`,
-    dayIndex: s.dayIndex,
-    sortOrder: s.sortOrder,
-    meta: {
-      topicId: s.topicId,
-      topicTitle: s.topicTitle,
-      objective: s.objective,
-      sourcePages: s.sourcePages,
-      durationMinutes: s.durationMinutes,
-      role: s.role,
-      calendarDate: s.calendarDate,
-    },
-  }));
+            ? "Aralıklı tekrar"
+            : "Yazılı deneme";
+    const titled =
+      s.role === "mock"
+        ? `${label} · Tüm konular`
+        : `${s.topicTitle} · ${label}`;
+    return {
+      kind: s.kind,
+      title: s.sourceLabel ? `${titled} · ${s.sourceLabel}` : titled,
+      dayIndex: s.dayIndex,
+      sortOrder: s.sortOrder,
+      meta: {
+        topicId: s.topicId,
+        topicTitle: s.topicTitle,
+        objective: s.objective,
+        sourcePages: s.sourcePages,
+        durationMinutes: s.durationMinutes,
+        role: s.role,
+        calendarDate: s.calendarDate,
+      },
+    };
+  });
 }

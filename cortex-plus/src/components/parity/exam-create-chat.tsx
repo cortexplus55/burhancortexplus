@@ -300,7 +300,7 @@ export function ExamCreateChat({
             tanışma testi ölçülen seviyeyi ayrı kaydeder.
           </p>
           <label className="cp-field">
-            <span>Günde kaç dakika?</span>
+            <span>Günlük süre üst sınırı (dakika)</span>
             <input
               type="number"
               min={5}

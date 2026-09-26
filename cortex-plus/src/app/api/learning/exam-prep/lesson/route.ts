@@ -3,25 +3,57 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { commitCredits, refundCredits } from "@/lib/credits/service";
+import { completeLessonPartRepair } from "@/lib/ai/lesson-part-repair";
 import { formatStructuredLesson } from "@/lib/learning/exam-lesson";
-import { loadMergedTopicContext } from "@/lib/learning/source-context";
-import { repairLessonSurface } from "@/lib/learning/learner-fluency";
+import { loadSourceContext, loadTopicSpanContext } from "@/lib/learning/source-context";
+import { finishTaughtLesson, LESSON_TEACH_RULE } from "@/lib/learning/lesson-teach";
 import {
   resolvePrepSourceMode,
   shouldSearchSources,
   topicFence,
 } from "@/lib/learning/prep-source";
 import {
-  lessonV2Schema,
+  LESSON_V2_SCHEMA_HINT,
+  REVIEW_VARIANT_RULE,
+  lessonDraftForVerifier,
+  lessonHasTeachingCore,
+  lessonPublishIssues,
+  publishLessonDraft,
   teachingStandardConstraints,
   teachingSessionContext,
-  validateLessonPedagogy,
 } from "@/lib/learning/teaching-standards";
+import {
+  contentDifficultyLine,
+  parseFamiliarity,
+  parseMood,
+  sessionSignalsPrompt,
+} from "@/lib/learning/session-signals";
+import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
+import {
+  groundingRules,
+  SOURCE_PAGE_FORMULA_RULE,
+  teacherNoteGroundedInSource,
+  teacherPersona,
+} from "@/lib/learning/teacher-brain";
+import { groundLearnerLesson, groundLessonDraft, upcomingTopicsAfter } from "@/lib/learning/lesson-grounding";
+
+/**
+ * Düğüm ucuyla aynı tavan. Kısa tekrar ayrı bir model çağrısı açmaz.
+ * 300 saniye, 90 saniyelik üretim, doğrulama ve tek geçici yeniden denemeyi alır.
+ */
+export const maxDuration = 300;
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
   topicId: z.string().uuid(),
   force: z.boolean().optional(),
+  familiarity: z
+    .enum(["new", "heard", "basics", "good", "confident"])
+    .optional(),
+  mood: z
+    .enum(["ready", "curious", "calm", "neutral", "low_energy", "stressed"])
+    .optional(),
 });
 
 const legacyLessonSchema = z.object({
@@ -48,11 +80,14 @@ export async function POST(request: Request) {
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
   const { prepId, topicId, force } = parsed.data;
+  const hasSignals = parsed.data.familiarity != null || parsed.data.mood != null;
+  const familiarity = parseFamiliarity(parsed.data.familiarity);
+  const mood = parseMood(parsed.data.mood);
   const teachingV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
 
   const { data: prep } = await service
     .from("exam_preps")
-    .select("id, title, exam_type, document_id")
+    .select("id, title, exam_type, document_id, hard_topics_self")
     .eq("id", prepId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -61,7 +96,7 @@ export async function POST(request: Request) {
 
   const { data: topic } = await service
     .from("exam_prep_topics")
-    .select("id, label, lesson_id, status")
+    .select("id, label, lesson_id, status, document_topic_node_id")
     .eq("id", topicId)
     .eq("exam_prep_id", prepId)
     .maybeSingle();
@@ -72,16 +107,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, lessonId: topic.lesson_id, reused: true });
   }
 
+  const prepDocs = teachingV2 ? await loadPrepDocumentIds(service, prepId) : [];
+  let topicDocumentId = (prep.document_id as string | null) ?? prepDocs[0] ?? null;
+  if (teachingV2 && topic.document_topic_node_id) {
+    const { data: node } = await service
+      .from("document_topic_nodes")
+      .select("document_id")
+      .eq("id", topic.document_topic_node_id)
+      .maybeSingle();
+    if (node?.document_id) topicDocumentId = node.document_id as string;
+  }
+  const teaching =
+    teachingV2 && (topicDocumentId || prepDocs.length)
+      ? await loadTopicTeaching(
+          service,
+          topicDocumentId ? [topicDocumentId, ...prepDocs] : prepDocs,
+          topic.label,
+        )
+      : null;
+  const rawTeacherBrief = teaching?.brief ?? "";
+  const depth = teaching?.depth;
+
   let sourceBlock = "";
   // Belge seçili değilse kaynak araması YAPILMAZ. Eskiden aranıyordu ve
   // arama belge filtresiz olduğu için öğrencinin ilgisiz belgelerinden
   // parça çekip derse "yalnızca buna dayan" diyordu.
   let documentBoundary: "documents_only" | "allow_supporting" | null = null;
-  if (teachingV2 && prep.document_id) {
+  if (teachingV2 && (prep.document_id || topicDocumentId)) {
     const { data: doc } = await service
       .from("documents")
       .select("source_boundary_mode")
-      .eq("id", prep.document_id)
+      .eq("id", topicDocumentId ?? prep.document_id)
       .eq("user_id", userId)
       .maybeSingle();
     documentBoundary =
@@ -95,16 +151,23 @@ export async function POST(request: Request) {
 
   if (teachingV2 && shouldSearchSources(sourceMode)) {
     try {
-      const source = await loadMergedTopicContext(
-        service,
-        userId,
-        `${prep.title ?? ""} ${topic.label}`.trim(),
-        {
-          documentId: prep.document_id ?? null,
-          sourceBoundaryMode: sourceMode,
-          allowSearch: true,
-        },
-      );
+      const spanIds = [topicDocumentId, prep.document_id as string | null, ...prepDocs];
+      const spanned = await loadTopicSpanContext(service, userId, spanIds, topic.label, {
+        sourceBoundaryMode: sourceMode,
+        preferredNodeId:
+          typeof topic.document_topic_node_id === "string" ? topic.document_topic_node_id : null,
+      });
+      const source = spanned?.block.trim()
+        ? spanned
+        : await loadSourceContext(
+            service,
+            userId,
+            `${prep.title ?? ""} ${topic.label}`.trim(),
+            {
+              documentId: topicDocumentId ?? prep.document_id ?? null,
+              sourceBoundaryMode: sourceMode,
+            },
+          );
       sourceBlock = source.block;
       if (!sourceBlock.trim()) return errorResponse(503, "source_unavailable");
     } catch {
@@ -121,73 +184,153 @@ export async function POST(request: Request) {
           examType: prep.exam_type,
         })
       : "";
+  const teacherBrief = teacherNoteGroundedInSource(rawTeacherBrief, sourceBlock);
 
+  const hardTopics = Array.isArray(prep.hard_topics_self)
+    ? (prep.hard_topics_self as string[])
+    : [];
+  const signalLine = hasSignals
+    ? `${sessionSignalsPrompt(familiarity, mood)} ${contentDifficultyLine({
+        requested: "orta",
+        familiarity,
+        focusTopic: hardTopics.some(
+          (label) =>
+            label.trim().toLocaleLowerCase("tr") ===
+            topic.label.trim().toLocaleLowerCase("tr"),
+        ),
+      })}`
+    : "";
   const sessionCtx = teachingV2
     ? teachingSessionContext({ topicTitle: topic.label, objective: `${topic.label} konusunu öğren` }, topic.label)
     : "";
   const standards = teachingV2 ? teachingStandardConstraints("lesson") : "";
+  const { data: topicRows } = await service
+    .from("exam_prep_topics")
+    .select("label, sort_order")
+    .eq("exam_prep_id", prepId)
+    .order("sort_order");
+  const upcomingTopics = upcomingTopicsAfter(
+    topic.label,
+    (topicRows ?? []).map((row) => String(row.label ?? "")),
+  );
+  const upcomingPrompt = !Array.isArray(upcomingTopics)
+    ? ""
+    : upcomingTopics.length
+      ? ` SIRADA NE VAR yalnızca şu sonraki konu başlıkları: ${upcomingTopics.join(" | ")}. Başka konu uydurma.`
+      : " Bu konudan sonra listede konu yok; nextFocus yazma.";
 
   const outcome = await generateJson({
     service,
     userId,
     actionCode: "STUDY_PLAN_GENERATE",
     isPremium: await isPremiumUser(service, userId),
-    difficulty: teachingV2 ? "hard" : undefined,
+    difficulty: teachingV2 ? (depth?.difficulty ?? "hard") : undefined,
     validationProfile: teachingV2 ? "v2" : "legacy",
-    maxDraftAttempts: teachingV2 ? 2 : 1,
-    allowIndependentAccept: teachingV2,
+    maxDraftAttempts: 1,
+    verificationMode: teachingV2 ? "schema" : undefined,
+    deferCommit: Boolean(teachingV2),
+    allowIndependentAccept: false,
     activityKind: "lesson",
+    reviewDraft: teachingV2
+      ? (draft: string) => lessonDraftForVerifier(groundLessonDraft(draft, sourceBlock))
+      : undefined,
     buildIndependent: teachingV2
       ? (_content, parsed) => ({
-          pedagogyIssues: validateLessonPedagogy(parsed, { sourceExcerpt: sourceBlock }),
-          minItems: 2,
+          pedagogyIssues: lessonPublishIssues(parsed),
+          minItems: 3,
           sourceExcerpt: sourceBlock,
           requireSourceSupport: shouldSearchSources(sourceMode),
           subjectHint: "lesson",
         })
       : undefined,
     schemaHint: teachingV2
-      ? 'Yalnızca JSON: {"title":string,"objective":string,"overview":string,"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse"|"numerical"|"explain"|"findError","prompt":string,"options":string[],"answerIndex":number,"explanation":string,"answer":string,"expectedPoints":string[],"faultyText":string}}],"example":{"prompt":string,"solution":string,"givens":string[],"unknown":string,"steps":string[],"result":string},"commonMistake":{"claim":string,"correction":string},"infoCheck":{"prompt":string,"answer":string},"numericalCheck":{"prompt":string,"answer":string,"explanation":string},"findError":{"prompt":string,"faultyText":string,"options":string[],"answerIndex":number,"explanation":string},"summary":string[],"nextFocus":string[]}. ' +
-        'heading: o bölümün kendi kavramsal başlığı — "Bölüm 1" gibi genel değil. ' +
-        'check: HER bölüm için zorunlu, bölümün hemen o metnini yoklar. ' +
-        'trueFalse ise options tam olarak ["Doğru","Yanlış"]. ' +
-        'ÇELDİRİCİLER GERÇEK KAVRAM YANILGISI OLMALI: öğrencinin gerçekten yapacağı hatayı yansıtsın ' +
-        '(ör. üssü tabanla çarpmak, negatif üssü sonucu negatif sanmak). ' +
-        '"hiçbiri", "hepsi" ya da konuyla ilgisiz uydurma şık YASAK — elemesi bedava olan şık öğrenciyi ölçmez. ' +
-        'explanation: doğru cevabı bu bölümün metnindeki ifadeye bağla.'
+      ? `${LESSON_V2_SCHEMA_HINT} trueFalse ise options tam olarak ["Doğru","Yanlış"]. ÇELDİRİCİLER GERÇEK KAVRAM YANILGISI OLMALI: öğrencinin gerçekten yapacağı hatayı yansıtsın (ör. üssü tabanla çarpmak, negatif üssü sonucu negatif sanmak). "hiçbiri", "hepsi" ya da konuyla ilgisiz uydurma şık YASAK — elemesi bedava olan şık öğrenciyi ölçmez. explanation yanlış seçeneği çürütsün ve bölüm metnine bağlansın.`
       : 'Yalnızca JSON: {"title":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"summary":string[],"nextFocus":string[]}',
-    userPrompt: teachingV2
-      ? `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
+    verificationContext: teachingV2
+      ? `${teacherPersona()} ${sourceBlock.trim() || teacherBrief.trim() ? groundingRules() : ""}
+Öğrenci için tek konuluk sınav hazırlık dersi yaz.
 Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
 ${sessionCtx}
+${signalLine}
 ${standards}
+${teacherBrief}
+${depth?.line ?? ""}
 Bu dersin konusu YALNIZCA: ${topic.label}.
-Başka konulara sapma. Kaynağa dayalı örnek + yaygın hata + orta bilgi kontrolü zorunlu.${sourceBlock}${topicBlock}`
+Başka konulara sapma. ${LESSON_TEACH_RULE}
+${upcomingPrompt}
+${SOURCE_PAGE_FORMULA_RULE}${sourceBlock}${topicBlock}`
+      : undefined,
+    userPrompt: teachingV2
+      ? `${teacherPersona()} ${sourceBlock.trim() || teacherBrief.trim() ? groundingRules() : ""}
+Öğrenci için tek konuluk sınav hazırlık dersi yaz.
+Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
+${sessionCtx}
+${signalLine}
+${standards}
+${teacherBrief}
+${depth?.line ?? ""}
+Bu dersin konusu YALNIZCA: ${topic.label}.
+Başka konulara sapma. ${LESSON_TEACH_RULE}
+${upcomingPrompt}
+${SOURCE_PAGE_FORMULA_RULE} ${REVIEW_VARIANT_RULE}${sourceBlock}${topicBlock}`
       : `Öğrenci için Türkçe, tek konuluk sınav hazırlık dersi yaz.
 Sınav: ${prep.title ?? "Hazırlık"} (${prep.exam_type ?? ""}).
+${signalLine}
 Bu dersin konusu YALNIZCA: ${topic.label}.
 Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${topicBlock}`,
     parse: (raw) => {
       if (teachingV2) {
-        const repaired = repairLessonSurface(raw);
-        if (validateLessonPedagogy(repaired, { sourceExcerpt: sourceBlock }).length) return null;
-        return lessonV2Schema.safeParse(repaired).data ?? null;
+        const cleaned = publishLessonDraft(raw);
+        if (!cleaned || lessonPublishIssues(raw).length) return null;
+        const grounded = groundLearnerLesson(
+          cleaned,
+          sourceBlock,
+          Array.isArray(upcomingTopics) ? { upcomingTopics } : {},
+        );
+        if (grounded.removed.length) {
+          console.error("removed_for_source", { removed: grounded.removed });
+        }
+        if (!lessonHasTeachingCore(grounded.lesson)) return null;
+        return grounded.lesson as NonNullable<typeof cleaned>;
       }
       const result = legacyLessonSchema.safeParse(raw);
       return result.success ? result.data : null;
     },
   });
 
-  // Legacy: soft placeholder so older UI does not hard-fail.
-  // v2: fail closed — do not store ungated placeholder content.
+  // Model düşerse rezervasyon generateJson içinde iade edilir.
+  // Ayrıştırılan ders, kapı dolu kalsa da kayda geçer.
   if (!outcome.ok) {
     if (teachingV2) return errorResponse(outcome.status, outcome.error);
   }
 
-  const contentMd = outcome.ok
-    ? formatStructuredLesson(outcome.data)
+  let published = outcome.ok ? outcome.data : null;
+  const heldReservationId = outcome.ok && teachingV2 ? outcome.reservationId : undefined;
+  if (outcome.ok && teachingV2) {
+    try {
+      const finished = await finishTaughtLesson(
+        outcome.data,
+        { source: sourceBlock, topicLabel: topic.label },
+        (prompt) => completeLessonPartRepair({ service, userId, prompt, maxTokens: 1200 }),
+      );
+      if (finished.salvaged) {
+        console.error("lesson_generation_salvaged", {
+          failures: finished.failures.slice(0, 8).map((failure) => `${failure.unit}:${failure.problem}`),
+        });
+      }
+      published = finished.lesson;
+    } catch (error) {
+      if (heldReservationId) {
+        await refundCredits(service, heldReservationId).catch(() => undefined);
+      }
+      throw error;
+    }
+  }
+
+  const contentMd = published
+    ? formatStructuredLesson(published)
     : `## ${topic.label}\n\nBu konu için anlatım henüz üretilemedi. Tekrar dene.`;
-  const title = outcome.ok ? outcome.data.title : topic.label;
+  const title = published ? published.title : topic.label;
 
   const baseLesson = {
     exam_prep_id: prepId,
@@ -199,7 +342,7 @@ Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${
   // Yapıyı da sakla ki ders adım adım gösterilebilsin; markdown yedek kalır.
   let { data: lesson, error: lessonError } = await service
     .from("exam_prep_lessons")
-    .insert({ ...baseLesson, content_json: outcome.ok ? outcome.data : null })
+    .insert({ ...baseLesson, content_json: published })
     .select("id")
     .single();
 
@@ -214,18 +357,50 @@ Başka konulara sapma. Anlatım + 1 çözümlü örnek + özet + sonraki odak.${
       .single());
   }
 
-  if (lessonError || !lesson) return errorResponse(500, "generation_failed");
+  if (lessonError || !lesson) {
+    if (heldReservationId) {
+      await refundCredits(service, heldReservationId).catch(() => undefined);
+    }
+    return errorResponse(500, "generation_failed");
+  }
+  if (heldReservationId) {
+    try {
+      await commitCredits(service, heldReservationId);
+    } catch (error) {
+      await refundCredits(service, heldReservationId).catch(() => undefined);
+      throw error;
+    }
+  }
 
   await service
     .from("exam_prep_topics")
     .update({
       lesson_id: lesson.id,
       status: topic.status === "done" ? "done" : "in_progress",
+      ...(hasSignals ? { familiarity } : {}),
     })
     .eq("id", topicId)
     .eq("exam_prep_id", prepId);
 
-  return NextResponse.json({ ok: true, lessonId: lesson.id, reused: false });
+  if (hasSignals) {
+    await service.from("study_session_moods").insert({
+      user_id: userId,
+      exam_prep_id: prepId,
+      mood,
+    });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    lessonId: lesson.id,
+    reused: false,
+    coverage: teaching
+      ? {
+          total: teaching.checklist.length,
+          priority: teaching.priority,
+        }
+      : null,
+  });
 }
 
 const patchSchema = z.object({

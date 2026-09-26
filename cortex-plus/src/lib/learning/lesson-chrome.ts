@@ -1,0 +1,74 @@
+import type { SectionCheck } from "@/lib/learning/teaching-standards";
+import {
+  reviewQuestionFor,
+  type MaterialLanguage,
+} from "@/lib/learning/teacher-brain";
+
+/** Ders üretim ekranındaki beş adım — yakalanan yükleme listesi. */
+export const LESSON_PREP_STEPS = [
+  "Materyallerin okunuyor",
+  "Bilgi seviyen kontrol ediliyor",
+  "Uygun zorluk seviyesi ayarlanıyor",
+  "Sorular seviyene göre seçiliyor",
+  "Materyallerinle karşılaştırılıyor",
+] as const;
+
+export type CalloutTone = "warn" | "info" | "unit";
+
+export function checkPresentation(check: Pick<SectionCheck, "type">): "trueFalse" | "quickQuiz" {
+  return check.type === "trueFalse" ? "trueFalse" : "quickQuiz";
+}
+
+/**
+ * Doğru/yanlış düğmeleri her zaman solda Yanlış, sağda Doğru.
+ * Seçenek metni bu iki etiketten biri değilse eşleme yok; düğmede
+ * seçeneğin kendi yazısı kalır.
+ */
+export function trueFalseIndexes(options: string[]): { wrong: number; right: number } | null {
+  const norm = (value: string) =>
+    value
+      .trim()
+      .toLocaleLowerCase("tr")
+      .replace(/[?!.]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  const wrong = options.findIndex((option) => /^(yanlış|yanlis)( mi| mı)?$/.test(norm(option)));
+  const right = options.findIndex((option) => /^(doğru|dogru)( mu)?$/.test(norm(option)));
+  if (wrong < 0 || right < 0 || wrong === right) return null;
+  return { wrong, right };
+}
+
+export function calloutTone(note: { title: string; tone?: CalloutTone | null }): CalloutTone {
+  if (note.tone === "warn" || note.tone === "info" || note.tone === "unit") return note.tone;
+  const title = note.title.toLocaleLowerCase("tr");
+  if (title.includes("birim")) return "unit";
+  if (/(uyarı|dikkat|hareket|tuzak|yanlış)/.test(title)) return "warn";
+  return "info";
+}
+
+export function reviewGateLead(count: number): string {
+  const n = Math.max(1, Math.floor(count));
+  return `Bitirmeden önce, yanlış cevapladığın ${n} kontrol sorusunu farklı bir şekilde sorup tekrar deneyelim.`;
+}
+
+/**
+ * Kısa tekrar kapısı. Dersle aynı çağrıda yazılan varyant geçerlidir.
+ * Yoksa aynı kavram başka sayı veya yönden sorulur.
+ * Kalan doğru/yanlış kökü de başka cümleyle sorulur. Kapıda yeni model çağrısı yok.
+ */
+export function reviewGateQuestion<T extends SectionCheck>(
+  check: T,
+  language: MaterialLanguage = "tr",
+  source = "",
+): T {
+  // Tekrar varyantı yalnızca çoktan seçmeli/doğru-yanlış şıkları için kurulur;
+  // sayısal/açık uçlu kontrolde şık yok, olduğu gibi geri döner.
+  if ((check.type !== "mcq" && check.type !== "trueFalse") || !check.options || check.answerIndex == null) {
+    return check;
+  }
+  return reviewQuestionFor(
+    { ...check, type: check.type, options: check.options, answerIndex: check.answerIndex },
+    language,
+    source,
+  ) as T;
+}

@@ -39,7 +39,7 @@ const MIN_USEFUL_CHARS = 40;
  */
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
-export const IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
+export const IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 
 export function isImageDocument(mimeType: string | null | undefined): boolean {
   return IMAGE_MIME_TYPES.includes(mimeType ?? "");

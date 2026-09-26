@@ -2,6 +2,16 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { oralTeacherStyleLine } from "@/lib/learning/oral-exam-chrome";
+import { TUTOR_ANSWER_DISCIPLINE } from "@/lib/learning/tutor-style";
+import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
+import {
+  prepLanguage,
+  SOURCE_PAGE_FORMULA_RULE,
+  teacherNoteGroundedInSource,
+  teacherTurnGuidance,
+  voiceReplySchemaHint,
+} from "@/lib/learning/teacher-brain";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -9,6 +19,8 @@ const bodySchema = z.object({
   kind: z.enum(["qa", "oral"]),
   topicLabel: z.string().min(1).max(120),
   difficulty: z.enum(["kolay", "orta", "ileri"]).default("orta"),
+  /** Sözlü kabuktaki öğretmen havası. Yoksa eski sohbet davranışı durur. */
+  teacherStyle: z.enum(["strict", "helpful", "harsh"]).optional(),
   messages: z
     .array(
       z.object({
@@ -34,31 +46,60 @@ export async function POST(request: Request) {
 
   const { data: prep } = await service
     .from("exam_preps")
-    .select("id, title, exam_type")
+    .select("id, title, exam_type, document_id, learning_preferences")
     .eq("id", parsed.data.prepId)
     .eq("user_id", userId)
     .maybeSingle();
   if (!prep) return errorResponse(404, "not_found");
 
+  const language = prepLanguage(prep.learning_preferences);
   const transcript = parsed.data.messages
-    .map((m) => `${m.role === "user" ? "Öğrenci" : "Eğitmen"}: ${m.content}`)
+    .map((m) =>
+      language === "en"
+        ? `${m.role === "user" ? "Student" : "Teacher"}: ${m.content}`
+        : `${m.role === "user" ? "Öğrenci" : "Eğitmen"}: ${m.content}`,
+    )
     .join("\n");
 
   const mode =
-    parsed.data.kind === "oral"
-      ? "Sözlü sınav eğitmenisin. Kısa soru sor, öğrencinin cevabını dinle, gerekirse ipucu ver, sonra sonraki soruya geç. 4-5 tur yeter."
-      : "Özel ders öğretmenisin. Konuyu adım adım anlat, ara ara soru sor, cevabı bekle. Uzun paragraf yazma; konuşma dili, 2-4 cümle.";
+    language === "en"
+      ? parsed.data.kind === "oral"
+        ? "You are an oral-exam teacher. Ask a short question, listen, hint if needed, then move on. Four or five turns is enough."
+        : "You are a private tutor. Explain one step, ask a question, and wait. Spoken language, two to four sentences."
+      : parsed.data.kind === "oral"
+        ? "Sözlü sınav eğitmenisin. Kısa soru sor, öğrencinin cevabını dinle, gerekirse ipucu ver, sonra sonraki soruya geç. 4-5 tur yeter."
+        : "Özel ders öğretmenisin. Konuyu adım adım anlat, ara ara soru sor, cevabı bekle. Uzun paragraf yazma; konuşma dili, 2-4 cümle.";
+  const style = parsed.data.teacherStyle
+    ? oralTeacherStyleLine(parsed.data.teacherStyle)
+    : "";
+
+  const prepDocs = await loadPrepDocumentIds(service, prep.id as string);
+  const teaching = await loadTopicTeaching(service, prepDocs, parsed.data.topicLabel);
+  const teacherBrief = teacherNoteGroundedInSource(teaching.brief, "");
+  const lastStudent = [...parsed.data.messages].reverse().find((item) => item.role === "user");
+  const lastTeacher = [...parsed.data.messages].reverse().find((item) => item.role === "assistant");
 
   const outcome = await generateJson({
     service,
     userId,
     actionCode: "AI_CHAT_STANDARD",
     isPremium: await isPremiumUser(service, userId),
-    schemaHint:
-      'JSON: {"reply":string,"done":boolean}. reply sesli okunacak, kısa Türkçe. done true yalnızca oturum doğal bittiyse.',
-    userPrompt: `${mode}
+    difficulty: teaching.priority ? teaching.depth.difficulty : undefined,
+    maxDraftAttempts: teaching.priority && teaching.priority !== "important" ? 1 : undefined,
+    schemaHint: voiceReplySchemaHint(language),
+    userPrompt: `${TUTOR_ANSWER_DISCIPLINE}
+${teacherTurnGuidance({
+  message: lastStudent?.content ?? "",
+  lastAssistant: lastTeacher?.content,
+  language,
+  hasSource: Boolean(teacherBrief.trim()),
+})}
+${mode}
+${style}
 Sınav: ${prep.title} (${prep.exam_type}). Konu: ${parsed.data.topicLabel}. Zorluk: ${parsed.data.difficulty}.
-${transcript || "Öğrenci henüz konuşmadı; sen merhaba deyip başla."}`,
+${SOURCE_PAGE_FORMULA_RULE}
+${teacherBrief}
+${transcript || (language === "en" ? "The student has not spoken yet. Say hello and begin." : "Öğrenci henüz konuşmadı; sen merhaba deyip başla.")}`,
     parse: (raw) => replySchema.safeParse(raw).data ?? null,
   });
 

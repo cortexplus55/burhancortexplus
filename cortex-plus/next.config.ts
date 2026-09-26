@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
         destination: "/hakkimizda",
         permanent: true,
       },
+      // Eski kısa adresler. Misafir, hedefin korumasında `/giris?next=` görür.
+      { source: "/sor", destination: "/soru-coz", permanent: false },
+      { source: "/chat", destination: "/ogretmen", permanent: false },
+      { source: "/podcast", destination: "/studio/podcast", permanent: false },
     ];
   },
   /*
@@ -29,10 +33,35 @@ const nextConfig: NextConfig = {
     bırakılınca çalışma anında `require` ediliyor. `outputFileTracingIncludes`
     zaten ikiliyi dağıtıma kopyalıyor.
   */
-  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
+  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas", "heic-convert", "heic-decode", "libheif-js"],
   outputFileTracingIncludes: {
-    "/api/documents/process": ["./node_modules/pdfjs-dist/**/*", "./node_modules/@napi-rs/canvas*/**/*"],
+    "/api/documents/process": [
+      "./node_modules/pdfjs-dist/**/*",
+      "./node_modules/@napi-rs/canvas*/**/*",
+      "./node_modules/heic-convert/**/*",
+      "./node_modules/heic-decode/**/*",
+      "./node_modules/libheif-js/**/*",
+    ],
     "/api/ai/chat": ["./node_modules/pdfjs-dist/**/*", "./node_modules/@napi-rs/canvas*/**/*"],
+  },
+  /*
+    `/.well-known/assetlinks.json` bir uç noktadan geliyor.
+
+    Android TWA açılırken bu adresi okuyup uygulamanın imza parmak izini
+    arıyor; bulamazsa uygulamayı adres çubuğuyla gösteriyor. Dosya statik
+    değil çünkü parmak izi Play tarafında üretiliyor ve değişebiliyor —
+    gerekçe `src/app/api/assetlinks/route.ts` içinde.
+
+    Nokta ile başlayan bir klasör App Router'da yol olmuyor, o yüzden
+    yönlendirme.
+  */
+  async rewrites() {
+    return [
+      {
+        source: "/.well-known/assetlinks.json",
+        destination: "/api/assetlinks",
+      },
+    ];
   },
   async headers() {
     return [

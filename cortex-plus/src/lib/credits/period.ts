@@ -40,19 +40,24 @@ export type PeriodKind = "daily" | "weekly" | "monthly";
 const FREE_DAILY_ALLOWANCE = 6;
 const PREMIUM_MONTHLY_ALLOWANCE = 400;
 
-/** Bir sonraki gün başı (UTC) — Türkiye saatiyle 03:00'e denk gelir. */
-function nextDayBoundary(from: Date): Date {
+/**
+ * UTC gün başına `days` ekler. Gün başı Türkiye'de 03:00'dır.
+ * Ücretsiz hak 1 gün, haftalık Plus 7 gün, aylık/yıllık kota 30 gün.
+ */
+function nextUtcDayOffset(from: Date, days: number): Date {
   const d = new Date(from);
   d.setUTCHours(0, 0, 0, 0);
-  d.setUTCDate(d.getUTCDate() + 1);
+  d.setUTCDate(d.getUTCDate() + days);
   return d;
 }
 
-function nextMonthlyBoundary(from: Date): Date {
-  const d = new Date(from);
-  d.setUTCHours(0, 0, 0, 0);
-  d.setUTCDate(d.getUTCDate() + 30);
-  return d;
+/** Dönemi dolmuş premium cüzdanın bir sonraki penceresi. Plan haftalıksa 7 gün kalır. */
+function premiumRefill(wallet: WalletPeriod | null | undefined): {
+  kind: PeriodKind;
+  days: number;
+} {
+  if (wallet?.period_kind === "weekly") return { kind: "weekly", days: 7 };
+  return { kind: "monthly", days: 30 };
 }
 
 export function quotaView(
@@ -70,7 +75,9 @@ export function quotaView(
       remaining: fallbackAllowance,
       allowance: fallbackAllowance,
       usedPercent: 0,
-      resetsAt: isPremium ? nextMonthlyBoundary(now) : nextDayBoundary(now),
+      resetsAt: isPremium
+        ? nextUtcDayOffset(now, 30)
+        : nextUtcDayOffset(now, 1),
       kind: isPremium ? "monthly" : "daily",
       pendingRefill: false,
     };
@@ -81,12 +88,16 @@ export function quotaView(
 
   if (expired) {
     // Yenileme henüz yazılmadı; kullanıcıya bir sonraki işlemde ne olacağını göster.
+    // Haftalık Plus burada aylığa düşmesin: pencere 7 gün, etiket de haftalık.
+    const refill = isPremium
+      ? premiumRefill(wallet)
+      : { kind: "daily" as const, days: 1 };
     return {
       remaining: fallbackAllowance,
       allowance: fallbackAllowance,
       usedPercent: 0,
-      resetsAt: isPremium ? nextMonthlyBoundary(now) : nextDayBoundary(now),
-      kind: isPremium ? "monthly" : "daily",
+      resetsAt: nextUtcDayOffset(now, refill.days),
+      kind: refill.kind,
       pendingRefill: true,
     };
   }
@@ -134,4 +145,11 @@ export function periodLabel(kind: PeriodKind): string {
   if (kind === "monthly") return "Aylık limit";
   if (kind === "weekly") return "Haftalık limit";
   return "Günlük limit";
+}
+
+/** Cümle başı: "Haftalık kotan", "Aylık hakkın". */
+export function periodWord(kind: PeriodKind): string {
+  if (kind === "monthly") return "Aylık";
+  if (kind === "weekly") return "Haftalık";
+  return "Günlük";
 }

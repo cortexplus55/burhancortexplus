@@ -166,3 +166,99 @@
     animation: none;
   }
 }
+
+/*
+  Karşılaştırma tablosu.
+
+  Beş sütun (özellik + misafir + ücretsiz + Plus + Sigma) 36rem genişliğinde
+  sabitlenince ~390px ekranda Sigma kırpılıyor, "Yüksek aylık kota" yarıda
+  kesiliyor ve sayfa yatay kayıyordu. Dar ekranda her özellik bir kart:
+  dört plan da alt alta, metin kırpılmadan. Geniş ekranda (kabuğun
+  max-w-4xl olduğu lg) tablo duruyor.
+*/
+.tier-compare {
+  min-width: 0;
+  max-width: 48rem;
+}
+
+.tier-compare-caption {
+  margin: 0 0 0.65rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cs-text);
+}
+
+.tier-compare-cards {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.tier-compare-card {
+  border: 1px solid var(--cs-border);
+  border-radius: 1rem;
+  background: var(--cs-surface);
+  padding: 0.85rem 0.95rem;
+}
+
+.tier-compare-feature {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--cs-text);
+}
+
+.tier-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem 0.85rem;
+  margin: 0.7rem 0 0;
+}
+
+.tier-compare-grid > div {
+  min-width: 0;
+}
+
+.tier-compare-grid dt {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--cs-muted);
+}
+
+.tier-compare-grid dd {
+  margin: 0.12rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: var(--cs-text);
+  overflow-wrap: anywhere;
+}
+
+.tier-compare-scroll {
+  display: none;
+}
+
+.tier-compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.tier-compare-table th,
+.tier-compare-table td {
+  padding: 0.5rem;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 1024px) {
+  .tier-compare-cards {
+    display: none;
+  }
+
+  .tier-compare-scroll {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+  }
+}

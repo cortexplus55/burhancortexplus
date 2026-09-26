@@ -4,7 +4,7 @@ import { CortexMark } from "@/components/brand/cortex-mark";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { CalendarDays, Flame, Gift, Gauge, LayoutGrid, LineChart, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, Flame, Gift, Gauge, LayoutGrid, LineChart, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/gamification";
 import { GamificationGate } from "@/components/parity/gamification";
@@ -14,15 +14,15 @@ import { PromoBanner, type PromoCampaign } from "@/components/paywall/promo-bann
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
 import { studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
-import { formatNumber } from "@/lib/format";
 import { ACCOUNT_REFRESH_EVENT, spendableCredits } from "@/lib/credits/spendable";
+import { creditChipLabel } from "@/lib/credits/chip-label";
+import { FounderChip } from "@/components/student/founder-chip";
+import { profilePlanView } from "@/lib/billing/tier-presentation";
+import { ExamChatMenu } from "@/components/parity/exam-chat-menu";
+import type { RecentConversation } from "@/lib/student/conversation-time";
 import "@/styles/parity-shell.css";
 
-export type RecentConversation = {
-  id: string;
-  title: string;
-  updatedAt: string;
-};
+export type { RecentConversation };
 
 function relativeTr(iso: string) {
   const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
@@ -50,6 +50,9 @@ export function ParitySorShell({
   account,
   promo = null,
   recentConversations = [],
+  chrome = "app",
+  backHref = "/deneme-sinavlari",
+  conversationBaseHref,
 }: {
   children: React.ReactNode;
   userInitial?: string;
@@ -58,6 +61,17 @@ export function ParitySorShell({
   account?: StudentAccountContext;
   promo?: PromoCampaign | null;
   recentConversations?: RecentConversation[];
+  /**
+   * Sınav sohbeti: logo ve sekme çubuğu yerine geri, seri, menü ve avatar.
+   * Diğer sayfalar `app` kabuğunda kalır.
+   */
+  chrome?: "app" | "exam";
+  backHref?: string;
+  /**
+   * Geçmiş satırı bu adresin `?sohbet=` parametresiyle açılır.
+   * Verilmezse genel öğretmen sohbetine gider.
+   */
+  conversationBaseHref?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -69,31 +83,62 @@ export function ParitySorShell({
   const [menuOpen, setMenuOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
   const [limitDismissed, setLimitDismissed] = useState(false);
-  const showBuy = !account?.isPremium;
-  const isPremium = Boolean(account?.isPremium);
-  const planLabel = account?.subscriptionBadge ?? "Plus";
-  const showPlusLimit = isPremium && account && !account.canSpend && !limitDismissed;
-  /**
-   * Profil penceresindeki paket özeti — YALNIZCA ÜCRETSİZE.
-   *
-   * Referans üründe bu rozet bir bilgi değil, bir satış yüzeyi: ücretsiz hesapta
-   * adın hemen altında "Temel / Ücretsiz plan" ve bir yükseltme düğmesi
-   * duruyor. Abone hesapta o slot BOŞ — ad ve okuldan doğrudan davet
-   * bloğuna geçiyor; paketini görmek isteyen Abonelikler'e giriyor.
-   * Her iki katmanda da girilip doğrulandı.
-   *
-   * Parasını ödemiş kullanıcıya her açılışta paket hatırlatmak, satış
-   * yapılacak kimse yokken yer kaplamaktan başka bir şey yapmıyor.
-   */
-  const planView =
-    account && !account.isPremium
-      ? {
-          label: "Temel",
-          hint: "Ücretsiz plan · günlük hak, " + account.resetsAtLabel + " yenilenir",
-          isPremium: false,
+  const [balance, setBalance] = useState(account?.balance ?? 0);
+  useEffect(() => {
+    if (typeof account?.balance !== "number") return;
+    try {
+      const raw = sessionStorage.getItem("cortex-balance-announced");
+      if (raw) {
+        const saved = JSON.parse(raw) as { value?: number; at?: number };
+        if (
+          typeof saved.value === "number" &&
+          typeof saved.at === "number" &&
+          Date.now() - saved.at < 20_000 &&
+          saved.value < account.balance
+        ) {
+          setBalance(saved.value);
+          return;
         }
-      : null;
+      }
+    } catch {
+      /* eski duyuru okunamazsa sunucu bakiyesi geçer */
+    }
+    setBalance(account.balance);
+  }, [account?.balance]);
+  useEffect(() => {
+    const onBalance = (event: Event) => {
+      const value = (event as CustomEvent<number>).detail;
+      if (typeof value !== "number") return;
+      setBalance(value);
+      try {
+        sessionStorage.setItem(
+          "cortex-balance-announced",
+          JSON.stringify({ value, at: Date.now() }),
+        );
+      } catch {
+        /* depolama kapalıysa çip yine bu oturumda güncellenir */
+      }
+    };
+    window.addEventListener("cortex-balance", onBalance);
+    return () => window.removeEventListener("cortex-balance", onBalance);
+  }, []);
+  const isAdmin = Boolean(account?.isAdmin);
+  const isPremium = Boolean(account?.isPremium);
+  const showBuy = !isAdmin && account?.showsUpgradeChrome === true;
+  const planLabel = account?.subscriptionBadge ?? "Plus";
+  const showPlusLimit =
+    !isAdmin && isPremium && Boolean(account) && !account?.canSpend && !limitDismissed;
+  /**
+   * Profil plan satırı kitleye göre: ücretsiz Temel + yükseltme, Plus/Sigma
+   * rozet + dönem + ek paket. Metin `profilePlanView` tek kaynağından gelir.
+   */
+  const planView = account && !isAdmin ? profilePlanView(account) : null;
   const isStudio = pathname.startsWith("/studio");
+  const examChrome = chrome === "exam";
+  const openConversation = (id: string) =>
+    conversationBaseHref
+      ? `${conversationBaseHref}?sohbet=${encodeURIComponent(id)}`
+      : `/ogretmen?sohbet=${encodeURIComponent(id)}`;
 
   const openMenuFromUrl = useCallback(() => setMenuOpen(true), []);
 
@@ -154,40 +199,57 @@ export function ParitySorShell({
 
   return (
     <StudentShellProvider account={account}>
-      <div className={cn("cp-sor-root", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio")}>
+      <div className={cn("cp-sor-root", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio", examChrome && "cp-sor-root--exam")}>
       <header className="cp-sor-top">
-        <Link href="/dashboard" className="cp-sor-logo" aria-label="Cortex Plus Ana Sayfa">
-          <CortexMark size={20} />
-          <span className="cp-sor-logo-word">cortex</span>
-          {isPremium ? (
-            <span className="cp-sor-logo-badge">{planLabel}</span>
-          ) : null}
-        </Link>
+        {examChrome ? (
+          <Link href={backHref} className="cp-exam-back">
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Geri
+          </Link>
+        ) : (
+          <>
+            <Link href="/dashboard" className="cp-sor-logo" aria-label="Cortex Plus Ana Sayfa">
+              <CortexMark size={20} />
+              <span className="cp-sor-logo-word">cortex</span>
+              {isPremium ? (
+                <span className="cp-sor-logo-badge">{planLabel}</span>
+              ) : null}
+            </Link>
 
-        <nav className="cp-sor-topnav" aria-label="Ana bölümler">
-          {studentTopTabs.map((tab) => {
-            const active = tab.match(pathname);
-            return (
-              <Link
-                key={tab.id}
-                href={tab.href}
-                className={cn("cp-sor-topnav-link", active && "cp-sor-topnav-link--active")}
-                aria-current={active ? "page" : undefined}
-              >
-                {tab.label}
-              </Link>
-            );
-          })}
-        </nav>
+            <nav className="cp-sor-topnav" aria-label="Ana bölümler">
+              {studentTopTabs.map((tab) => {
+                const active = tab.match(pathname);
+                return (
+                  <Link
+                    key={tab.id}
+                    href={tab.href}
+                    className={cn("cp-sor-topnav-link", active && "cp-sor-topnav-link--active")}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {tab.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </>
+        )}
 
         <div className="cp-sor-top-actions">
-          {showBuy ? (
+          {examChrome ? null : isAdmin && account ? (
+            <FounderChip />
+          ) : showBuy ? (
             <Link href="/pay" className="cp-sor-buy">
               Satın al +
             </Link>
           ) : account ? (
             <Link href="/krediler" className="cp-sor-credit-chip">
-              {planLabel} · {formatNumber(spendableCredits(account))} kr
+              {creditChipLabel({
+                planLabel,
+                balance: spendableCredits({
+                  balance,
+                  freeAllowanceRemaining: account.freeAllowanceRemaining,
+                }),
+              })}
             </Link>
           ) : null}
           <button type="button" className="cp-sor-streak" aria-label="Seri">
@@ -229,11 +291,11 @@ export function ParitySorShell({
 
       {/* Kampanya bandı yalnızca ücretsiz katmanda: abone olana indirim
           duyurusu göstermek anlamsız. */}
-      {promo && !isPremium ? <PromoBanner campaign={promo} /> : null}
+      {promo && showBuy && !examChrome ? <PromoBanner campaign={promo} /> : null}
 
       <main className="cp-sor-main">{children}</main>
 
-      <nav className="cp-sor-bottomnav" aria-label="Ana gezinme">
+      {examChrome ? null : <nav className="cp-sor-bottomnav" aria-label="Ana gezinme">
         {studentBottomTabs.map((tab) => {
           const Icon = tab.icon;
           const active = tab.match(pathname);
@@ -249,9 +311,17 @@ export function ParitySorShell({
             </Link>
           );
         })}
-      </nav>
+      </nav>}
 
-      {menuOpen ? (
+      {menuOpen && examChrome ? (
+        <ExamChatMenu
+          conversations={recentConversations}
+          conversationHref={openConversation}
+          onClose={closeMenu}
+        />
+      ) : null}
+
+      {menuOpen && !examChrome ? (
         <div
           className="cp-sor-menu-backdrop"
           role="dialog"

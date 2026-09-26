@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { rebuildPrepSchedule } from "@/lib/learning/exam-prep-reschedule-apply";
+import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import type {
   ScheduleBuildResult,
   ScheduleTopicInput,
@@ -42,7 +43,7 @@ export async function maybeRescheduleMissedDays(
 
     const { data: nodeRows } = await service
       .from("exam_prep_nodes")
-      .select("id, sort_order, status, session_meta")
+      .select("id, kind, sort_order, status, session_meta")
       .eq("exam_prep_id", prep.id);
 
     const hasPastPending = (nodeRows ?? []).some((n) => {
@@ -87,6 +88,7 @@ export async function maybeRescheduleMissedDays(
         previous,
         nodes: (nodeRows ?? []).map((n) => ({
           id: n.id as string,
+          kind: n.kind as PlanNodeKind,
           sort_order: n.sort_order as number,
           status: n.status as string,
           session_meta: n.session_meta,

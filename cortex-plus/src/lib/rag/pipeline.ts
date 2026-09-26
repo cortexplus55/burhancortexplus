@@ -5,7 +5,12 @@ import {
   extractImageText,
   isImageDocument,
 } from "@/lib/documents/extract-image-text";
+import { visionReadyImage } from "@/lib/documents/vision-image";
 import { renderPdfPages } from "@/lib/documents/render-pdf-pages";
+import {
+  extractOfficeText,
+  isOfficeDocument,
+} from "@/lib/documents/extract-office-text";
 import {
   claimPhotoPages,
   planTier,
@@ -47,6 +52,7 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
 export async function processDocument(
   service: SupabaseClient,
   documentId: string,
+  options?: { deferTopicMap?: boolean },
 ): Promise<{
   ok: boolean;
   chunks: number;
@@ -54,6 +60,9 @@ export async function processDocument(
   /** Öğrenciye söylenecek, hata olmayan durum — örn. uzun belge kesildi. */
   notice?: string;
   topicMap?: { ok: boolean; topics: number; coverageStatus?: string };
+  pageCount?: number;
+  /** Konu haritası bu istekte çalışmadı; sonraki tur sürdürür. */
+  deferred?: boolean;
 }> {
   const { data: doc } = await service
     .from("documents")
@@ -167,7 +176,9 @@ export async function processDocument(
   if (isImageDocument(doc.mime_type)) {
     if (!(await claim(1))) return fail("photo_quota_exhausted");
 
-    const read = await extractImageText(buffer, doc.mime_type);
+    const prepared = await visionReadyImage(buffer, doc.mime_type);
+    if (!prepared) return failAndRelease("image_unreadable");
+    const read = await extractImageText(prepared.buffer, prepared.mimeType);
     recordVision(read.tokensIn, read.tokensOut, read.model);
 
     if (read.reason === "blocked") {
@@ -177,6 +188,16 @@ export async function processDocument(
     if (!read.ok || !read.pages.length) {
       if (read.reason === "too_large") return failAndRelease("image_too_large");
       return failAndRelease("image_unreadable");
+    }
+    pages = read.pages;
+  } else if (isOfficeDocument(doc.mime_type)) {
+    /*
+      Slayt ve Word. Model çağrısı yok, kota yok: metin dosyanın içinde zaten
+      duruyor, okunması yeter — PDF'in metin katmanını okumaktan farkı yok.
+    */
+    const read = extractOfficeText(buffer, doc.mime_type);
+    if (!read.ok) {
+      return fail(read.reason === "too_large" ? "office_too_large" : "office_unreadable");
     }
     pages = read.pages;
   } else {
@@ -293,7 +314,13 @@ export async function processDocument(
 
   if (!allChunks.length) return failAndRelease("empty_content");
 
-  const embeddings = await embedTexts(allChunks.map((c) => c.content));
+  // Tek seferde gömmek uzun belgede isteği zaman aşımına bırakıyordu.
+  const EMBED_BATCH = 24;
+  const embeddings: number[][] = [];
+  for (let offset = 0; offset < allChunks.length; offset += EMBED_BATCH) {
+    const slice = allChunks.slice(offset, offset + EMBED_BATCH).map((chunk) => chunk.content);
+    embeddings.push(...(await embedTexts(slice)));
+  }
 
   for (const [index, chunk] of allChunks.entries()) {
     const { data: inserted, error: chunkError } = await service
@@ -320,6 +347,25 @@ export async function processDocument(
     }
   }
 
+  if (options?.deferTopicMap) {
+    const { error: deferError } = await service
+      .from("documents")
+      .update({ status: "processing", error_message: null, page_count: pages.length })
+      .eq("id", documentId);
+    if (deferError) return failAndRelease("completion_update_failed");
+    await service
+      .from("processing_jobs")
+      .update({ status: "processing", progress: 40, error_message: null })
+      .eq("document_id", documentId);
+    return {
+      ok: true,
+      chunks: allChunks.length,
+      notice,
+      pageCount: pages.length,
+      deferred: true,
+    };
+  }
+
   const { error: completedError } = await service
     .from("documents")
     .update({ status: "completed", error_message: null })
@@ -341,9 +387,16 @@ export async function processDocument(
       topics: v2.topics,
       coverageStatus: v2.coverage?.status,
     };
+  } else {
+    console.info(JSON.stringify({
+      event: "teacher_analysis",
+      documentId,
+      status: "not_started",
+      error: "pdf_learning_v2_off",
+    }));
   }
 
-  return { ok: true, chunks: allChunks.length, notice, topicMap };
+  return { ok: true, chunks: allChunks.length, notice, topicMap, pageCount: pages.length };
   } catch (error) {
     console.error("document processing failed", {
       name: error instanceof Error ? error.name : "UnknownError",
@@ -391,24 +444,62 @@ export async function searchDocumentChunks(
   });
   if (error) throw new Error("retrieval_unavailable");
 
-  return (data ?? []).map(
-    (row: {
-      chunk_id: string;
-      document_id: string;
-      content: string;
-      file_name: string;
-      similarity: number;
-      page_number?: number | null;
-      chunk_index?: number | null;
-    }) => ({
-      chunkId: row.chunk_id,
-      documentId: row.document_id,
-      content: row.content,
-      documentName: row.file_name,
-      similarity: Number(row.similarity ?? 0),
-      pageNumber: row.page_number ?? null,
-      chunkIndex: row.chunk_index ?? null,
-    }),
-  );
+  return (data ?? []).map(mapChunkRow);
+}
+
+type ChunkRow = {
+  chunk_id: string;
+  document_id: string;
+  content: string;
+  file_name: string;
+  similarity: number;
+  page_number?: number | null;
+  chunk_index?: number | null;
+};
+
+function mapChunkRow(row: ChunkRow): DocumentMatch {
+  return {
+    chunkId: row.chunk_id,
+    documentId: row.document_id,
+    content: row.content,
+    documentName: row.file_name,
+    similarity: Number(row.similarity ?? 0),
+    pageNumber: row.page_number ?? null,
+    chunkIndex: row.chunk_index ?? null,
+  };
+}
+
+/**
+ * Bir gömme, hazırlıktaki her belge. Tek belgede aramak çok dosyalı
+ * hazırlıkta ilgili notu kaçırıyordu.
+ */
+export async function searchDocumentChunksAcross(
+  service: SupabaseClient,
+  userId: string,
+  query: string,
+  documentIds: string[],
+  options: { limit?: number; minSimilarity?: number; perDocument?: number } = {},
+): Promise<DocumentMatch[]> {
+  const ids = [...new Set(documentIds.filter(Boolean))].slice(0, 12);
+  if (!ids.length) return [];
+  const [embedding] = await embedTexts([query]);
+  if (!embedding) return [];
+  const perDocument = options.perDocument ?? 2;
+  const minSimilarity = options.minSimilarity ?? MIN_CHUNK_SIMILARITY;
+  const batches = await Promise.all(ids.map(async (documentId) => {
+    const { data, error } = await service.rpc("match_document_chunks", {
+      p_user_id: userId,
+      p_query_embedding: embedding as unknown as string,
+      p_match_count: perDocument,
+      p_min_similarity: minSimilarity,
+      p_document_id: documentId,
+    });
+    if (error) return [] as DocumentMatch[];
+    return ((data ?? []) as ChunkRow[]).map(mapChunkRow);
+  }));
+  return batches
+    .flat()
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, options.limit ?? 8);
 }
 

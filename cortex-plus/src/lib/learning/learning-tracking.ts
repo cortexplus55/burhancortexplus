@@ -118,8 +118,9 @@ export function extractAnswerEvidence(input: {
         question.correct ?? [],
       );
       const hintAssisted = Boolean(hints[String(index)]);
+      const questionTopic = (question as { topic?: string }).topic;
       out.push({
-        topicKey,
+        topicKey: normalizeTopicKey(questionTopic || input.topicLabel),
         learningObjective:
           question.learningObjective?.trim() ||
           input.sessionObjective?.trim() ||
@@ -176,6 +177,8 @@ export function extractAnswerEvidence(input: {
     const gradeMeta = data.gradeMeta as
       | { correctIndices?: number[]; correctCount?: number }
       | undefined;
+    const testedTopic = typeof data.testedTopic === "string" ? data.testedTopic : "";
+    const oralTopic = normalizeTopicKey(testedTopic || input.topicLabel);
     questions.forEach((question, index) => {
       const hasAnswer = String(input.answers[String(index)] ?? "").trim().length > 8;
       // Without per-item grades, credit length-checked answers as provisional.
@@ -189,7 +192,7 @@ export function extractAnswerEvidence(input: {
       const hintAssisted =
         Boolean(hints[String(index)]);
       out.push({
-        topicKey,
+        topicKey: oralTopic,
         learningObjective:
           question.learningObjective?.trim() ||
           input.sessionObjective?.trim() ||
@@ -623,7 +626,14 @@ export function preferNextNodeForTracking<
   }
 
   const weak = new Set(opts.weakOrStaleTopicKeys.map(normalizeTopicKey));
-  const reviewKinds = new Set<PlanNodeKind>(["gaps", "spaced", "flashcards", "quiz"]);
+  const reviewKinds = new Set<PlanNodeKind>([
+    "gaps",
+    "focused",
+    "final_check",
+    "spaced",
+    "flashcards",
+    "quiz",
+  ]);
 
   if (opts.openMisconceptions > 0 || weak.size > 0) {
     const biased = ready.find((n) => {

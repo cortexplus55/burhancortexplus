@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { periodWord } from "@/lib/credits/period";
 import type { StudentAccountContext } from "@/lib/student/account-context";
+import { FounderChip } from "@/components/student/founder-chip";
 
 export function StudentAccountStrip({
   account,
@@ -10,6 +12,19 @@ export function StudentAccountStrip({
   creditHint?: string;
   className?: string;
 }) {
+  // Kurucuda bakiye, paket bağlantısı ve maliyet ipucu yok: hiçbiri ona bir
+  // şey söylemiyor, işlemler kredi düşürmüyor.
+  if (account.isAdmin) {
+    return (
+      <div
+        className={`cs-pay-card cortex-premium-account-strip mb-4 rounded-2xl border px-4 py-3 text-sm ${className ?? ""}`}
+      >
+        <FounderChip />
+        <p className="cp-founder-note">Kurucu hesabı: işlemler kredinden düşmez.</p>
+      </div>
+    );
+  }
+
   const low =
     !account.canSpend ||
     (account.balance < 5 && account.freeAllowanceRemaining < 3);
@@ -39,14 +54,14 @@ export function StudentAccountStrip({
             href="/paketler"
             className="text-xs font-semibold text-[var(--cs-primary)]"
           >
-            Kredi al
+            {account.showsUpgradeChrome ? "Kullanımını artır" : "Ek paket"}
           </Link>
         ) : low ? (
           <Link
             href="/paketler"
             className="text-xs text-[var(--cs-muted)] hover:text-[var(--cs-primary)]"
           >
-            Kredi yükle
+            {account.showsUpgradeChrome ? "Kullanımını artır" : "Ek paket"}
           </Link>
         ) : null}
       </div>
@@ -58,10 +73,13 @@ export function StudentAccountStrip({
           Yeni AI işlemi için kredi veya ücretsiz hak gerekir. Mevcut içeriklerin
           korunur.
         </p>
+      ) : account.audience === "sigma" ? (
+        <p className="mt-1.5 text-xs text-[var(--cs-muted)]">
+          Sigma ile gelişmiş model kullanılır; işlemler yine kredi harcar.
+        </p>
       ) : account.isPremium ? (
         <p className="mt-1.5 text-xs text-[var(--cs-muted)]">
-          {account.subscriptionBadge ?? "Plus"} ile gelişmiş model kullanılır;
-          işlemler yine kredi harcar.
+          {periodWord(account.periodKind)} kotan açık; işlemler kredi harcar.
         </p>
       ) : null}
     </div>

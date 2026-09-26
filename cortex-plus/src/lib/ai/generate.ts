@@ -18,8 +18,11 @@ import { recordValidationEvent, metricsFromFailure } from "@/lib/learning/valida
 import {
   runIndependentValidation,
   type IndependentValidationInput,
+  type IssueSeverityReport,
   type ValidationStage,
 } from "@/lib/learning/validation-pipeline";
+import { parseModelJson } from "@/lib/learning/teaching-standards";
+import { withTransientRetry } from "@/lib/ai/transient-retry";
 
 export const SYSTEM_GUARDRAIL =
   "Sen Cortex Plus eğitim asistanısın. Türkçe yanıt ver. Yalnızca eğitim amaçlı içerik üret. " +
@@ -52,7 +55,20 @@ export const CONTENT_STYLE =
   "Metni sade tut: gereksiz giriş cümlesi, özür ya da 'işte cevabınız' gibi kalıplar yok.";
 
 export type GenerationOutcome<T> =
-  | { ok: true; data: T; model: string; cost: number }
+  | {
+      ok: true;
+      data: T;
+      model: string;
+      cost: number;
+      modelCalls: number;
+      draftMs: number;
+      reviewMs: number;
+      /**
+       * Yalnızca `deferCommit` iken dolu. Rezervasyon hâlâ pending'dir;
+       * ders dönünce commit, ders dönmeden hata olursa refund.
+       */
+      reservationId?: string;
+    }
   | { ok: false; status: number; error: string };
 
 type GenerateJsonParams<T> = {
@@ -76,6 +92,12 @@ type GenerateJsonParams<T> = {
   validationProfile?: "legacy" | "v2";
   /** Same user operation retries must reuse this key to avoid double-charge. */
   idempotencyKey?: string;
+  /**
+   * Başarılı ayrıştırmada krediyi hemen kesinleştirme.
+   * Ders kapısı commit'ten sonra reddedilirse öğrenci dersi görmeden öder.
+   * Rota dersi döndürünce `commitCredits`, dönmeden hata olursa `refundCredits`.
+   */
+  deferCommit?: boolean;
   /** Extra draft regenerations under the same reservation (v2 default 2). */
   maxDraftAttempts?: number;
   /**
@@ -91,6 +113,14 @@ type GenerateJsonParams<T> = {
   >;
   schemaHint: string;
   userPrompt: string;
+  /**
+   * Denetçinin gördüğü bağlam. Üretim istemindeki isteğe bağlı alan
+   * kuralı (kısa tekrar) burada durmaz; durursa denetçi eksik alanı
+   * dersin tamamını reddetmek için kullanır.
+   */
+  verificationContext?: string;
+  /** Denetçiden önce isteğe bağlı alanları düşür. Taslak bozulursa olduğu gibi kalır. */
+  reviewDraft?: (draft: string) => string;
   imageUrls?: string[];
   parse: (raw: unknown) => T | null;
   /**
@@ -103,25 +133,39 @@ type GenerateJsonParams<T> = {
    * söylesin.
    */
   describeParseFailure?: () => string[];
+  /**
+   * Bu çağrının modeli. Kredi eylem kodu `selectModel` sonucudur;
+   * ders taslağı daha güçlü bir modele geçse de rezervasyon aynı kalır.
+   * Boşsa seçilen model kullanılır. Denetçi kendi modelinde kalır.
+   */
+  modelOverride?: string;
+  /** Bağımsız kapı temizse ders denetiminde ileri model çağrılmaz. */
+  trustIndependent?: boolean;
+  /**
+   * Ayrıştırılamayan soru için aynı rezervasyonda tek çözüm çağrısı.
+   * Null dönerse taslak yeniden yazılır; yeni kredi ayrılmaz.
+   */
+  refineParsed?: (
+    value: T,
+    ask: (system: string, user: string) => Promise<string | null>,
+  ) => Promise<T | null>;
 };
 
 function parseCandidate(raw: string): unknown | null {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  return parseModelJson(raw);
 }
 
 export async function generateJson<T>(
   params: GenerateJsonParams<T>,
 ): Promise<GenerationOutcome<T>> {
-  const { model, actionCode } = selectModel({
+  const selected = selectModel({
     actionCode: params.actionCode,
     isPremium: params.isPremium,
     hasImage: params.hasImage ?? false,
     difficulty: params.difficulty,
   });
+  const actionCode = selected.actionCode;
+  const model = params.modelOverride?.trim() || selected.model;
 
   const v2 = params.validationProfile === "v2";
   const maxDraftAttempts = Math.max(
@@ -149,15 +193,32 @@ export async function generateJson<T>(
   }
 
   const generationStarted = Date.now();
+  let modelCalls = 0;
+  let draftMs = 0;
+  let reviewMs = 0;
   let validationMs = 0;
   const stagesMs: Partial<Record<ValidationStage, number>> = {};
   let repairAttempted = false;
   let recheckPassed: boolean | null = null;
+  let lastSeverity: IssueSeverityReport | null = null;
   let lastFailureCodes: string[] = [];
   // Doğrulayıcının kendi cümleleri; yeniden üretim istemine bunlar gider.
   let lastFailureMessages: string[] = [];
   let lastFailedStage: ValidationStage | null = null;
   let lastOutcome: "rejected" | "validator_unavailable" = "rejected";
+  const logRejection = () => {
+    // Taslak, kaynak ve istem loglanmaz. Sebep cümlesi kısa kesilir.
+    console.error("educational_verification_rejected", {
+      actionCode,
+      activityKind: params.activityKind ?? null,
+      stage: lastFailedStage,
+      reason: lastFailureCodes[0] ?? lastOutcome,
+      codes: lastFailureCodes.slice(0, 8),
+      issues: lastFailureMessages.slice(0, 8).map((message) => message.slice(0, 160)),
+      recheck_passed: recheckPassed,
+      issue_severity: lastSeverity,
+    });
+  };
 
   const recordAndFail = async (error: string, status: number) => {
     await recordValidationEvent(params.service, {
@@ -165,6 +226,7 @@ export async function generateJson<T>(
       actionCode,
       activityKind: params.activityKind,
       reservationId: reservation.reservationId,
+      issueSeverity: lastSeverity,
       metrics: metricsFromFailure({
         generationMs: Date.now() - generationStarted - validationMs,
         validationMs,
@@ -190,8 +252,10 @@ export async function generateJson<T>(
     // yazmak 45 saniyeden uzun sürebiliyor ve tek bir zaman aşımı dersin
     // tamamını çöpe atıyor.
     //
-    // 90 saniye hâlâ fonksiyon bütçesinin içinde: en kötü durumda iki
-    // taslak ve doğrulama turları 5 dakikayı doldurmuyor.
+    // 90 saniye hâlâ fonksiyon bütçesinin içinde. Sağlayıcı 5xx ya da
+    // zaman aşımında aynı rezervasyonla bir kez daha denenir; deneme
+    // ancak 270 saniyenin içinde bitecekse yapılır. SDK yeniden denemez
+    // (`maxRetries: 0`) — sınırsız tekrar 300 saniyelik tavanı aşar.
     const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 90_000, maxRetries: 0 });
 
     const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
@@ -212,9 +276,10 @@ export async function generateJson<T>(
 
     const schemaValidate = (candidate: string): string[] => {
       try {
-        if (params.parse(JSON.parse(candidate)) !== null) return [];
+        const candidateParsed = parseCandidate(candidate);
+        if (candidateParsed != null && params.parse(candidateParsed) !== null) return [];
       } catch {
-        /* Invalid JSON also needs repair before it can be approved. */
+        /* Bozuk JSON onarım turuna kalsın. */
       }
       return [
         "Çıktı istenen JSON şemasını veya etkinlik kurallarını karşılamıyor. Format alanındaki bütün kuralları uygula.",
@@ -260,6 +325,23 @@ export async function generateJson<T>(
       if (!independentInput) return false;
       const independent = runIndependentValidation(independentInput);
       Object.assign(stagesMs, independent.stagesMs);
+      /**
+       * Ders şema kipinde tanım tersine çevrilmiş ya da yalın bir sayı/hesap
+       * uyuşmazlığı varsa üretimi burada kesme. Kredi bir kez ayrılmışken
+       * 502, onarımın iddiayı düzeltmesine fırsat bırakmıyor ve öğrenciye
+       * giden taslak yine de yazılıyordu. Onarım (`repairLearnerLesson`)
+       * bu kodları sahiplenir — `claim_wrong`/`example_incomplete` olarak
+       * tam bu tür sayı uyuşmazlıklarını (verilende olmayan sayı, hesabın
+       * başlangıç verisi eksik) düzeltiyor. Başka etkinlik ve başka
+       * doğrulama kodu burada kabul edilmez.
+       */
+      const lessonRepairOwnsIssue = (code: string) => code === "definition_inversion" || code === "quantitative";
+      const lessonRepairOwnsInversion =
+        params.verificationMode === "schema" &&
+        params.activityKind === "lesson" &&
+        independent.issues.length > 0 &&
+        independent.issues.every((issue) => lessonRepairOwnsIssue(issue.code));
+      if (lessonRepairOwnsInversion) return true;
       if (!independent.ok) {
         lastFailedStage = independent.failedStage;
         lastFailureCodes = independent.issues.map((i) => i.code);
@@ -301,7 +383,11 @@ export async function generateJson<T>(
 
     outer: for (const mode of modes) {
       for (let draftAttempt = 0; draftAttempt < maxDraftAttempts; draftAttempt += 1) {
-        const completion = await openai.chat.completions.create({
+        const draftStarted = Date.now();
+        const completion = await withTransientRetry(
+          () => {
+            modelCalls += 1;
+            return openai.chat.completions.create({
           model,
           response_format: { type: "json_object" },
           messages: [
@@ -349,7 +435,11 @@ export async function generateJson<T>(
                     ],
             },
           ],
-        });
+            });
+          },
+          { startedAt: generationStarted, callTimeoutMs: 90_000 },
+        );
+        draftMs += Date.now() - draftStarted;
 
         completionUsage = {
           prompt_tokens:
@@ -380,8 +470,9 @@ export async function generateJson<T>(
           try {
             const verified = await verifyEducationalContent({
               client: openai,
-              context: params.userPrompt,
-              draft: raw,
+              startedAt: generationStarted,
+              context: params.verificationContext ?? params.userPrompt,
+              draft: params.reviewDraft ? params.reviewDraft(raw) : raw,
               format: params.schemaHint,
               imageUrls: params.imageUrls,
               validate: schemaValidate,
@@ -397,17 +488,28 @@ export async function generateJson<T>(
                   }
                 : undefined,
               failClosedOnUnavailable: v2,
+              trustIndependent: params.trustIndependent,
             });
             content = verified.content;
+            modelCalls += verified.modelCalls;
+            reviewMs += verified.stagesMs.recheck ?? 0;
             reviewTokensIn += verified.tokensIn;
             reviewTokensOut += verified.tokensOut;
             repairAttempted = repairAttempted || verified.repairAttempted;
             recheckPassed = verified.recheckPassed;
+            lastSeverity = verified.issueSeverity;
             Object.assign(stagesMs, verified.stagesMs);
             validationMs += Date.now() - validationStarted;
           } catch (error) {
             validationMs += Date.now() - validationStarted;
             if (error instanceof EducationalVerificationError) {
+              modelCalls += error.modelCalls;
+              repairAttempted = repairAttempted || error.repairAttempted;
+              if (error.repairAttempted) recheckPassed = error.recheckPassed;
+              if (error.issueSeverity.blocking.length || error.issueSeverity.nonBlocking.length) {
+                lastSeverity = error.issueSeverity;
+              }
+              Object.assign(stagesMs, error.stagesMs);
               lastFailedStage = error.failedStage;
               lastFailureCodes = error.failureCodes.length
                 ? error.failureCodes
@@ -416,6 +518,7 @@ export async function generateJson<T>(
               if (error.failureMessages.length) {
                 lastFailureMessages = error.failureMessages;
               }
+              logRejection();
               lastOutcome =
                 error.reason === "validator_unavailable"
                   ? "validator_unavailable"
@@ -432,9 +535,32 @@ export async function generateJson<T>(
         }
 
         try {
-          parsed = params.parse(JSON.parse(content));
+          parsed = params.parse(parseCandidate(content));
         } catch {
           parsed = null;
+        }
+        if (parsed && params.refineParsed) {
+          try {
+            const refined = await params.refineParsed(parsed, async (system, user) => {
+              modelCalls += 1;
+              const completion = await openai.chat.completions.create({
+                model,
+                response_format: { type: "json_object" },
+                messages: [
+                  { role: "system", content: system.slice(0, 2000) },
+                  { role: "user", content: user.slice(0, 8000) },
+                ],
+              });
+              completionUsage = {
+                prompt_tokens: completionUsage.prompt_tokens + (completion.usage?.prompt_tokens ?? 0),
+                completion_tokens: completionUsage.completion_tokens + (completion.usage?.completion_tokens ?? 0),
+              };
+              return completion.choices[0]?.message?.content ?? null;
+            });
+            parsed = refined;
+          } catch {
+            parsed = null;
+          }
         }
         if (parsed) break outer;
 
@@ -451,6 +577,7 @@ export async function generateJson<T>(
     }
 
     if (!parsed) {
+      if (lastFailureCodes.includes("invalid_ai_response")) logRejection();
       return await recordAndFail(
         lastFailureCodes.includes("invalid_ai_response")
           ? "invalid_ai_response"
@@ -459,7 +586,9 @@ export async function generateJson<T>(
       );
     }
 
-    await commitCredits(params.service, reservation.reservationId);
+    if (!params.deferCommit) {
+      await commitCredits(params.service, reservation.reservationId);
+    }
     await recordUsage(params.service, {
       userId: params.userId,
       actionCode,
@@ -485,6 +614,7 @@ export async function generateJson<T>(
       actionCode,
       activityKind: params.activityKind,
       reservationId: reservation.reservationId,
+      issueSeverity: lastSeverity,
       metrics: metricsFromFailure({
         generationMs: Date.now() - generationStarted - validationMs,
         validationMs,
@@ -497,7 +627,16 @@ export async function generateJson<T>(
       }),
     });
 
-    return { ok: true, data: parsed, model, cost: reservation.cost };
+    return {
+      ok: true,
+      data: parsed,
+      model,
+      cost: reservation.cost,
+      modelCalls,
+      draftMs,
+      reviewMs,
+      reservationId: params.deferCommit ? reservation.reservationId : undefined,
+    };
   } catch (error) {
     // No prompts, answers, provider messages, document text or keys in logs.
     console.error("educational_generation_failed", {

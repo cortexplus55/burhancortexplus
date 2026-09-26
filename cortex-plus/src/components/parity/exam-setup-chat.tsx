@@ -76,8 +76,8 @@ const QUESTIONS: Question[] = [
   {
     id: "minutes",
     short: "Günlük süre",
-    ask: "Günde ne kadar vaktin var?",
-    lead: "Plan buna göre günlere bölünüyor.",
+    ask: "Etkinlikler için günde ne kadar vaktin var?",
+    lead: "Plan konu sayılır. Bu süre yalnızca etkinliklerin güne sığması içindir.",
     choices: [
       { value: "20", label: "20 dk" },
       { value: "30", label: "30 dk" },

@@ -44,18 +44,18 @@ export function StudyPlanGeneratePanel({ creditCost }: { creditCost: number | nu
       variant="parity"
       endpoint="/api/learning/study-plan/generate"
       fieldLabel="Hedef"
-      placeholder="Örn. 4 haftada türev konusunu bitirmek"
+      placeholder="Örn. Termodinamik konularını sınava kadar bitirmek"
       submitLabel="Plan üret"
       creditCost={creditCost}
       returnPath="/calisma-plani"
       extraFields={[
         { name: "weeks", label: "Hafta", type: "number", defaultValue: "4" },
-        { name: "hoursPerWeek", label: "Saat/hafta", type: "number", defaultValue: "8" },
+        { name: "topicCount", label: "Konu sayısı", type: "number", defaultValue: "6" },
       ]}
       buildBody={(goal, extras) => ({
         goal,
         weeks: Number(extras.weeks ?? 4),
-        hoursPerWeek: Number(extras.hoursPerWeek ?? 8),
+        topicCount: Number(extras.topicCount ?? 6),
       })}
     />
   );

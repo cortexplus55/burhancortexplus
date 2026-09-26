@@ -6,9 +6,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * UI kendi başına plan kararı vermez. Sunucu bu modülden üretir; API
  * uçları da aynı sonucu kullanır. Badge / isPremium / planTier ayrışması
  * (isim substring vs. tier kolonu) buradan kapanır.
+ *
+ * Kitle (2026-09-24, Astra hizası): kapı özellikte değil, kullanımda.
+ * Misafir model çağırmaz. Kayıtlı ücretsiz öğrenme stüdyolarına girer ve
+ * kredi yer. Plus / Sigma aynı yüzeyi daha yüksek kotayla kullanır;
+ * gelişmiş model Sigma'dadır.
  */
 
 export type PlanTier = "free" | "plus" | "sigma";
+
+/** Oturumsuz misafir, kayıtlı ücretsiz, ya da ücretli kademe. */
+export type Audience = "guest" | "free" | "plus" | "sigma";
 
 export type SubscriptionStatus =
   | "none"
@@ -25,6 +33,8 @@ export type FeatureKey =
   | "photo_quota_sigma";
 
 export type UserEntitlements = {
+  /** Kayıtsız istek `guest`. Aboneliği olmayan hesap `free`. */
+  audience: Audience;
   plan: PlanTier;
   planSlug: string | null;
   planName: string | null;
@@ -36,6 +46,11 @@ export type UserEntitlements = {
   badge: "Plus" | "Sigma" | null;
   monthlyAllowance: number | null;
   modelTier: "standard" | "advanced";
+  /**
+   * Ücretsize özel yükseltme kromu: Satın al, kampanya bandı, sohbet kartı.
+   * Misafir pazarlama CTA'sı kullanır; Plus/Sigma bu kromu görmez.
+   */
+  showsUpgradeChrome: boolean;
   features: Record<FeatureKey, boolean>;
   photoPageLimit: number;
 };
@@ -46,16 +61,29 @@ export const PHOTO_PAGE_LIMITS: Record<PlanTier, number> = {
   sigma: 1000,
 };
 
-const PREMIUM_FEATURES: FeatureKey[] = [
-  "podcast",
-  "speech",
-  "oral_transcribe",
-  "advanced_chat",
-  "photo_quota_plus",
-];
-
-function emptyEntitlements(): UserEntitlements {
+function featureMap(input: {
+  studios: boolean;
+  advancedChat: boolean;
+  photoPlus: boolean;
+  photoSigma: boolean;
+}): Record<FeatureKey, boolean> {
   return {
+    podcast: input.studios,
+    speech: input.studios,
+    oral_transcribe: input.studios,
+    advanced_chat: input.advancedChat,
+    photo_quota_plus: input.photoPlus,
+    photo_quota_sigma: input.photoSigma,
+  };
+}
+
+/**
+ * Oturum yok. Öğrenme özelliği yok, fotoğraf hakkı yok, yükseltme kromu yok.
+ * Pazarlama ve hazır demo bu nesneyi kullanmaz; API'nin "kimse yok" cevabıdır.
+ */
+export function emptyGuestAudience(): UserEntitlements {
+  return {
+    audience: "guest",
     plan: "free",
     planSlug: null,
     planName: null,
@@ -67,14 +95,39 @@ function emptyEntitlements(): UserEntitlements {
     badge: null,
     monthlyAllowance: null,
     modelTier: "standard",
-    features: {
-      podcast: false,
-      speech: false,
-      oral_transcribe: false,
-      advanced_chat: false,
-      photo_quota_plus: false,
-      photo_quota_sigma: false,
-    },
+    showsUpgradeChrome: false,
+    features: featureMap({
+      studios: false,
+      advancedChat: false,
+      photoPlus: false,
+      photoSigma: false,
+    }),
+    photoPageLimit: 0,
+  };
+}
+
+/** Kayıtlı, aboneliği olmayan hesap. Stüdyolar açık; kota günlük. */
+function registeredFreeEntitlements(): UserEntitlements {
+  return {
+    audience: "free",
+    plan: "free",
+    planSlug: null,
+    planName: null,
+    subscriptionStatus: "none",
+    subscriptionPeriodEnd: null,
+    cancelAtPeriodEnd: false,
+    isPaid: false,
+    isPremium: false,
+    badge: null,
+    monthlyAllowance: null,
+    modelTier: "standard",
+    showsUpgradeChrome: true,
+    features: featureMap({
+      studios: true,
+      advancedChat: false,
+      photoPlus: false,
+      photoSigma: false,
+    }),
     photoPageLimit: PHOTO_PAGE_LIMITS.free,
   };
 }
@@ -104,6 +157,7 @@ function periodStillValid(periodEnd: string | null | undefined): boolean {
 
 /**
  * Abonelik satırından plan kademesini çıkarır (saf; test edilebilir).
+ * Satır yoksa kayıtlı ücretsizdir — misafir buraya düşmez.
  */
 export function entitlementsFromSubscriptionRow(row: {
   status?: string | null;
@@ -117,13 +171,13 @@ export function entitlementsFromSubscriptionRow(row: {
     monthly_allowance?: number | null;
   } | null;
 } | null): UserEntitlements {
-  if (!row?.plans) return emptyEntitlements();
+  if (!row?.plans) return registeredFreeEntitlements();
 
   const activeStatus = row.status === "active";
   const stillValid = periodStillValid(row.current_period_end);
   if (!activeStatus || !stillValid) {
     return {
-      ...emptyEntitlements(),
+      ...registeredFreeEntitlements(),
       subscriptionStatus: stillValid ? "none" : "expired",
       subscriptionPeriodEnd: row.current_period_end ?? null,
       cancelAtPeriodEnd: Boolean(row.cancel_at_period_end),
@@ -132,14 +186,13 @@ export function entitlementsFromSubscriptionRow(row: {
 
   const plan = row.plans;
   const tier = resolveTier(plan);
-  if (tier === "free") return emptyEntitlements();
+  if (tier === "free") return registeredFreeEntitlements();
 
   const cancelAtPeriodEnd = Boolean(row.cancel_at_period_end);
-  const features = emptyEntitlements().features;
-  for (const key of PREMIUM_FEATURES) features[key] = true;
-  features.photo_quota_sigma = tier === "sigma";
+  const sigma = tier === "sigma";
 
   return {
+    audience: tier,
     plan: tier,
     planSlug: plan.slug ?? null,
     planName: plan.name ?? null,
@@ -148,10 +201,16 @@ export function entitlementsFromSubscriptionRow(row: {
     cancelAtPeriodEnd,
     isPaid: true,
     isPremium: true,
-    badge: tier === "sigma" ? "Sigma" : "Plus",
+    badge: sigma ? "Sigma" : "Plus",
     monthlyAllowance: plan.monthly_allowance ?? null,
-    modelTier: tier === "sigma" ? "advanced" : "standard",
-    features,
+    modelTier: sigma ? "advanced" : "standard",
+    showsUpgradeChrome: false,
+    features: featureMap({
+      studios: true,
+      advancedChat: sigma,
+      photoPlus: true,
+      photoSigma: sigma,
+    }),
     photoPageLimit: PHOTO_PAGE_LIMITS[tier],
   };
 }
@@ -177,12 +236,20 @@ export async function getUserEntitlements(
   );
 }
 
-/** Ücretli özellik — UI gizlemesi yetmez; API bunu çağırmalı. */
+/**
+ * Özellik açık mı. Öğrenme stüdyoları kayıtlı ücretsizde de açıktır;
+ * harcama `credit_reserve` ile olur. `advanced_chat` yalnız Sigma.
+ */
 export function requireFeature(
   entitlements: UserEntitlements,
   feature: FeatureKey,
 ): boolean {
   return entitlements.features[feature] === true;
+}
+
+/** Misafir öğrenme API'sine giremez. */
+export function requireSignedIn(entitlements: UserEntitlements): boolean {
+  return entitlements.audience !== "guest";
 }
 
 export async function isPremiumUser(

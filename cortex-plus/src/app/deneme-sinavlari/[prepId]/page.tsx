@@ -4,7 +4,8 @@ import { ExamPrepHome } from "@/components/parity/exam-prep-home";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
-import { ensurePrepNodes } from "@/lib/learning/exam-prep-insert";
+import { topicProgress } from "@/lib/learning/exam-prep-progress";
+import { ensurePathSkeletonNodes, ensurePrepNodes } from "@/lib/learning/exam-prep-insert";
 import {
   daysUntilExam,
   nodeProgress,
@@ -30,9 +31,45 @@ import {
   type TopicMasterySnapshot,
 } from "@/lib/learning/learning-tracking";
 import { parseLearningPreferences } from "@/lib/learning/exam-prep-ui-path";
+import { materialKindLabel, prepSourceDocumentIds } from "@/lib/learning/prep-source";
+import {
+  formatContradictions,
+  type TopicContradiction,
+} from "@/lib/learning/source-contradictions";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const metadata = { title: "Sınav hazırlığı" };
 export const dynamic = "force-dynamic";
+
+async function loadTopicWarnings(
+  supabase: SupabaseClient,
+  prepId: string,
+): Promise<Record<string, string>> {
+  const { data, error } = await supabase
+    .from("exam_prep_topics")
+    .select("label, contradictions")
+    .eq("exam_prep_id", prepId);
+  if (error || !data) return {};
+  const warnings: Record<string, string> = {};
+  for (const row of data as { label?: string; contradictions?: unknown }[]) {
+    const label = String(row.label ?? "").trim();
+    const items = Array.isArray(row.contradictions)
+      ? row.contradictions.flatMap((item) => {
+          if (!item || typeof item !== "object") return [];
+          const concept = String((item as TopicContradiction).concept ?? "").trim();
+          const claims = Array.isArray((item as TopicContradiction).claims)
+            ? (item as TopicContradiction).claims.filter(
+                (claim) => claim && typeof claim.value === "string",
+              )
+            : [];
+          return concept && claims.length ? [{ concept, claims }] : [];
+        })
+      : [];
+    const text = formatContradictions(items);
+    if (label && text) warnings[label] = text;
+  }
+  return warnings;
+}
 
 export default async function ExamPrepDetailPage({
   params,
@@ -58,20 +95,59 @@ export default async function ExamPrepDetailPage({
 
   // Hazırlığın kurulduğu belge. document_id ana select'te değil: kolon
   // migration ile geldi ve ana select'e eklenseydi kod migration'dan önce
-  // dağıtıldığında sayfa 404 verirdi.
-  const { data: prepSource } = await supabase
+  // dağıtıldığında sayfa 404 verirdi. source_document_ids aynı sebeple
+  // ayrı okunur; kolon yoksa tek belgeye düşülür.
+  const richSource = await supabase
     .from("exam_preps")
-    .select("document_id")
+    .select("document_id, source_document_ids")
     .eq("id", prepId)
     .maybeSingle();
-  const { data: sourceDoc } = prepSource?.document_id
+  const prepSource = richSource.error
+    ? (
+        await supabase
+          .from("exam_preps")
+          .select("document_id")
+          .eq("id", prepId)
+          .maybeSingle()
+      ).data
+    : richSource.data;
+  const rawSourceIds = (prepSource as { source_document_ids?: unknown } | null)
+    ?.source_document_ids;
+  const sourceIds = prepSourceDocumentIds({
+    documentId: (prepSource?.document_id as string | null) ?? null,
+    sourceDocumentIds: Array.isArray(rawSourceIds)
+      ? rawSourceIds.filter((id): id is string => typeof id === "string")
+      : [],
+  });
+  const { data: sourceRows } = sourceIds.length
     ? await supabase
         .from("documents")
-        .select("id, file_name")
-        .eq("id", prepSource.document_id)
+        .select("id, file_name, mime_type, page_count")
+        .in("id", sourceIds)
+        .eq("user_id", user.id)
         .is("deleted_at", null)
-        .maybeSingle()
-    : { data: null };
+    : { data: [] as { id: string; file_name: string; mime_type: string | null; page_count: number | null }[] };
+  const sourceById = new Map((sourceRows ?? []).map((row) => [row.id as string, row]));
+  const materials = sourceIds.flatMap((id) => {
+    const row = sourceById.get(id);
+    if (!row) return [];
+    return [
+      {
+        id,
+        name: (row.file_name as string) || "Belge",
+        kindLabel: materialKindLabel({
+          mimeType: row.mime_type as string | null,
+          pageCount: typeof row.page_count === "number" ? row.page_count : null,
+        }),
+        href: `/dokumanlar/${id}`,
+      },
+    ];
+  });
+  const sourceDoc = prepSource?.document_id
+    ? sourceById.get(prepSource.document_id as string) ?? null
+    : materials[0]
+      ? { id: materials[0].id, file_name: materials[0].name }
+      : null;
 
   // Paylaşım kolonları migration ile geliyor; yoksa düğme gizli kalır.
   const [{ data: profile }, { data: shareRow }] = await Promise.all([
@@ -79,8 +155,10 @@ export default async function ExamPrepDetailPage({
     supabase.from("exam_preps").select("visibility").eq("id", prepId).maybeSingle(),
   ]);
 
-  await loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id);
+  const prepTopics = await loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id);
+  const topicsMeter = topicProgress(prepTopics);
   await ensurePrepNodes(supabase, prep);
+  await ensurePathSkeletonNodes(supabase, prep.id);
 
   const { data: nodeRows } = await supabase
     .from("exam_prep_nodes")
@@ -103,6 +181,7 @@ export default async function ExamPrepDetailPage({
             durationMinutes?: number;
             role?: string;
             calendarDate?: string;
+            topicId?: string;
             topicTitle?: string;
           })
         : null,
@@ -292,6 +371,15 @@ export default async function ExamPrepDetailPage({
         settings={settings}
         documentId={sourceDoc?.id ?? null}
         documentName={sourceDoc?.file_name ?? null}
+        topicsDone={topicsMeter.done}
+        topicCount={topicsMeter.total}
+        topicLabels={prepTopics.map((topic) => topic.label)}
+        topicOptions={prepTopics
+          .filter((topic) => topic.id && topic.label)
+          .map((topic) => ({ id: topic.id, label: topic.label }))}
+        materials={materials}
+        readinessClaim={learningTrackingView?.claimFullyReady ?? null}
+        topicWarnings={await loadTopicWarnings(supabase, prepId)}
       />
     </ParitySorShell>
   );

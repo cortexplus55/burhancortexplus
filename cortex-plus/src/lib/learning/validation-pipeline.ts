@@ -11,8 +11,13 @@
 
 import { absoluteClaimIssues } from "@/lib/learning/absolute-claims";
 import { auditQuantitative } from "@/lib/learning/quantitative-audit";
-
-export { checkSimpleMathClaims } from "@/lib/learning/quantitative-audit";
+import { foldTr } from "@/lib/documents/page-analysis";
+import {
+  calculationMismatchIssues,
+  uncertainCalculationIssues,
+} from "@/lib/learning/arithmetic-claims";
+import { inversionIssuesInValue } from "@/lib/learning/unit-inversions";
+import { lessonHasTeachingCore, lessonPublishIssues, publishLessonDraft } from "@/lib/learning/teaching-standards";
 
 export type ValidationStage =
   | "structural"
@@ -95,6 +100,678 @@ function emptyish(value: unknown): boolean {
   if (typeof value === "string") return value.trim().length === 0;
   if (Array.isArray(value)) return value.length === 0;
   return false;
+}
+
+/**
+ * Ucuz aritmetik denetimi: "2+2=4", "3×4=12" gibi parçalar.
+ *
+ * DENETÇİ İKİ KEZ DOĞRU DERSİ REDDETTİ; ikisi de burada düzeltildi.
+ *
+ * 1. YUVARLAMA. Ders "0,54 / 1,54 = 0,351" yazdı. Doğrusu 0,35064…; üç
+ *    basamağa yuvarlanmış hâli tam olarak 0,351. Denetim 1e-6 mutlak fark
+ *    istediği için bunu hata saydı. Oysa ders kitabı da yuvarlar. Hoşgörü
+ *    artık iddianın YAZILDIĞI basamağa göre: üç basamak yazılmışsa yarım
+ *    birim sapma kabul, dördüncü basamakta değil.
+ *
+ * 2. ZİNCİR. Ders "3,24 × 9,81 / 1,54 = 20,64" yazdı. Denetim zincirin
+ *    ortasından "9,81 / 1,54"ü koparıp sonuçla karşılaştırdı ve tutmadı.
+ *    Üç terimli bir işlemin son iki terimi tek başına sonucu vermez.
+ *    Eşleşmenin solunda bir işleç varsa parça bir zincirin ortasıdır ve
+ *    tek başına denetlenemez.
+ *
+ * Yanlış alarmın bedeli görünmez ve ağır: taslak reddedilir, üç deneme de
+ * düşerse ders yedek yoldan — daha kötü hâliyle — öğrenciye gider.
+ */
+export function checkSimpleMathClaims(text: string): string[] {
+  const issues: string[] = [];
+  const eq = /(?<![\d.,\w])([−-]?\d+(?:[.,]\d+)?)\s*([+\-−×x*÷/])\s*([−-]?\d+(?:[.,]\d+)?)\s*=\s*([−-]?\d+(?:[.,]\d+)?)(?![\d.,/])/gi;
+  let match: RegExpExecArray | null;
+  while ((match = eq.exec(text)) !== null) {
+    // Zincirin ortası mı? Solunda bir işleç varsa evet.
+    const before = text.slice(0, match.index).trimEnd();
+    if (/[+\-−×x*÷/]$/i.test(before)) continue;
+
+    const number = (value: string) => Number(value.replace("−", "-").replace(",", "."));
+    const a = number(match[1]);
+    const op = match[2];
+    const b = number(match[3]);
+    const claimedText = match[4];
+    const claimed = number(claimedText);
+    if (![a, b, claimed].every((n) => Number.isFinite(n))) continue;
+    let expected: number | null = null;
+    if (op === "+" || op === "-" || op === "−") expected = op === "+" ? a + b : a - b;
+    else if (op === "×" || op === "x" || op === "*") expected = a * b;
+    else if (op === "÷" || op === "/") expected = b === 0 ? null : a / b;
+    if (expected == null) continue;
+
+    // Yazılan basamak kadar hoşgörü: "0,351" için yarım binde bir.
+    const decimals = claimedText.split(/[.,]/)[1]?.length ?? 0;
+    const tolerance = decimals > 0 ? 0.5 * 10 ** -decimals : 1e-6;
+    if (Math.abs(expected - claimed) > tolerance) {
+      issues.push(`Hesap uyuşmazlığı: ${a}${op}${b}≠${claimed}`);
+    }
+  }
+  return issues;
+}
+
+const PA_PER_MMHG = 101_325 / 760;
+
+const PRESSURE_TO_PA: Record<string, number> = {
+  pa: 1,
+  kpa: 1_000,
+  mpa: 1_000_000,
+  bar: 100_000,
+  atm: 101_325,
+  mmhg: PA_PER_MMHG,
+  torr: PA_PER_MMHG,
+  psi: 6_894.757,
+};
+
+/** m³/kg */
+const SPECIFIC_VOLUME_TO_BASE: Record<string, number> = {
+  "m3/kg": 1,
+  "l/kg": 0.001,
+  "cm3/g": 0.001,
+  "cm3/kg": 1e-6,
+};
+
+/** J/kg */
+const SPECIFIC_ENERGY_TO_BASE: Record<string, number> = {
+  "j/kg": 1,
+  "kj/kg": 1_000,
+  "mj/kg": 1_000_000,
+  "j/g": 1_000,
+  "kj/g": 1_000_000,
+};
+
+type UnitFamily = "pressure" | "temperature" | "specificVolume" | "specificEnergy";
+
+type ParsedUnit = {
+  family: UnitFamily;
+  key: string;
+  toBase: (value: number) => number;
+  fromBase: (value: number) => number;
+  /** Kelvin per degree. Only temperature scales. */
+  intervalKelvin?: number;
+};
+
+/**
+ * Uzun birimler önce. `K` ve `R` sonda: aksi halde `kPa` içindeki k
+ * kelvin sanılır.
+ */
+const UNIT_TOKEN =
+  "(?:mm\\s*Hg|mmHg|torr|m³/kg|m3/kg|cm³/g|cm3/g|cm³/kg|cm3/kg|L/kg|l/kg|kJ/kg|MJ/kg|J/kg|kJ/g|J/g|°\\s*[CFRc]|℃|º\\s*C|MPa|kPa|Pa|bar|atm|psi|K|R)";
+const NUM_TOKEN = "[−-]?\\d+(?:[.,]\\d+)?";
+const OP_TOKEN = "[+−\\-×x*÷/]";
+
+function parseDecimal(raw: string): number {
+  return Number(raw.replace("−", "-").replace(",", "."));
+}
+
+function canonicalUnitKey(raw: string): string {
+  return raw
+    .replace(/\s+/g, "")
+    .replace(/º/g, "°")
+    .replace(/℃/g, "°c")
+    .replace(/³/g, "3")
+    .toLowerCase();
+}
+
+function temperatureUnit(key: "c" | "k" | "f" | "r"): ParsedUnit {
+  if (key === "c") {
+    return {
+      family: "temperature",
+      key,
+      intervalKelvin: 1,
+      toBase: (value) => value + 273.15,
+      fromBase: (value) => value - 273.15,
+    };
+  }
+  if (key === "k") {
+    return {
+      family: "temperature",
+      key,
+      intervalKelvin: 1,
+      toBase: (value) => value,
+      fromBase: (value) => value,
+    };
+  }
+  if (key === "f") {
+    return {
+      family: "temperature",
+      key,
+      intervalKelvin: 5 / 9,
+      toBase: (value) => ((value - 32) * 5) / 9 + 273.15,
+      fromBase: (value) => ((value - 273.15) * 9) / 5 + 32,
+    };
+  }
+  return {
+    family: "temperature",
+    key,
+    intervalKelvin: 5 / 9,
+    toBase: (value) => (value * 5) / 9,
+    fromBase: (value) => (value * 9) / 5,
+  };
+}
+
+function scaledUnit(
+  family: Exclude<UnitFamily, "temperature">,
+  key: string,
+  factor: number,
+): ParsedUnit {
+  return {
+    family,
+    key,
+    toBase: (value) => value * factor,
+    fromBase: (value) => value / factor,
+  };
+}
+
+function parseUnitToken(raw: string | undefined): ParsedUnit | null {
+  if (!raw) return null;
+  const key = canonicalUnitKey(raw);
+  if (key === "°c" || key === "c") return temperatureUnit("c");
+  if (key === "°f" || key === "f") return temperatureUnit("f");
+  if (key === "°r") return temperatureUnit("r");
+  if (key === "k") return temperatureUnit("k");
+  if (key === "r") return temperatureUnit("r");
+  const pressure = PRESSURE_TO_PA[key];
+  if (pressure) return scaledUnit("pressure", key, pressure);
+  const volume = SPECIFIC_VOLUME_TO_BASE[key];
+  if (volume) return scaledUnit("specificVolume", key, volume);
+  const energy = SPECIFIC_ENERGY_TO_BASE[key];
+  if (energy) return scaledUnit("specificEnergy", key, energy);
+  return null;
+}
+
+type TemperatureVerdict = "ok" | "mismatch" | "uncertain";
+
+/**
+ * Sıcaklık eşitliği ya bir aralık ya da mutlak dönüşümdür.
+ * Aralık: 1 K = 1 °C, 1.8 °F = 1 °C. Sıfır aralık her ölçekte
+ * tutar; "0 °C = 0 K" aralık diye kabul edilmez.
+ * Mutlak: T(K) = T(°C) + 273.15, 25 °C ≈ 298 K.
+ * İkisi de tutmuyorsa ama yakınsa uyarı. Uzaksa kesindir.
+ */
+function temperatureEqualityVerdict(
+  left: number,
+  leftUnit: ParsedUnit,
+  right: number,
+  rightUnit: ParsedUnit,
+): TemperatureVerdict {
+  const leftStep = leftUnit.intervalKelvin ?? 1;
+  const rightStep = rightUnit.intervalKelvin ?? 1;
+  const leftInterval = left * leftStep;
+  const rightInterval = right * rightStep;
+  const intervalScale = Math.max(Math.abs(leftInterval), Math.abs(rightInterval), 1e-9);
+  const intervalMeaningful = Math.max(Math.abs(left), Math.abs(right)) >= 0.05;
+  if (intervalMeaningful && Math.abs(leftInterval - rightInterval) / intervalScale <= 0.02) {
+    return "ok";
+  }
+  const leftK = leftUnit.toBase(left);
+  const rightK = rightUnit.toBase(right);
+  const absDiff = Math.abs(leftK - rightK);
+  const absScale = Math.max(Math.abs(leftK), Math.abs(rightK), 1);
+  if (absDiff <= 0.6 || absDiff / absScale <= 0.002) return "ok";
+  const intervalApprox =
+    intervalMeaningful && Math.abs(leftInterval - rightInterval) / intervalScale <= 0.15;
+  const absoluteApprox = absDiff <= 5 || absDiff / absScale <= 0.02;
+  if (intervalApprox || absoluteApprox) return "uncertain";
+  return "mismatch";
+}
+
+function closeEnough(expected: number, claimedRaw: string, claimed: number): boolean {
+  const fraction = claimedRaw.split(/[.,]/)[1];
+  const decimals = fraction?.length ?? 0;
+  const tolerance = decimals > 0 ? 0.5 * 10 ** -decimals : 1e-6;
+  if (Math.abs(expected - claimed) <= tolerance + 1e-9) return true;
+  const scale = Math.max(Math.abs(expected), 1);
+  return Math.abs(expected - claimed) / scale <= 0.005;
+}
+
+function precededByOperator(text: string, index: number): boolean {
+  return new RegExp(`${OP_TOKEN}\\s*$`).test(text.slice(0, index));
+}
+
+type ChainSpan = { start: number; end: number };
+
+type UnitEquality = {
+  raw: string;
+  index: number;
+  verdict: "ok" | "mismatch" | "uncertain";
+};
+
+/**
+ * Aynı nicelik, farklı birim, arada işlem yok.
+ * Blok yalnız matematiksel olarak kesin yanlışta: 50 kPa = 5000 Pa.
+ * Sıcaklıkta aralık (1 K = 1 °C) ve doğru mutlak dönüşüm geçer.
+ * Emin olunamayan eşitlik uyarıdır, dersi düşürmez.
+ */
+function scanUnitEqualities(text: string): UnitEquality[] {
+  const covered = chainSpans(text);
+  const found: UnitEquality[] = [];
+  const re = new RegExp(
+    `(?<![\\d.,])(${NUM_TOKEN})\\s*(${UNIT_TOKEN})\\s*=\\s*(${NUM_TOKEN})\\s*(${UNIT_TOKEN})(?![\\d.,A-Za-z°º])`,
+    "gi",
+  );
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    if (covered.some((span) => match!.index >= span.start && match!.index < span.end)) continue;
+    if (precededByOperator(text, match.index)) continue;
+    const leftUnit = parseUnitToken(match[2]);
+    const rightUnit = parseUnitToken(match[4]);
+    if (!leftUnit || !rightUnit) continue;
+    const left = parseDecimal(match[1]);
+    const right = parseDecimal(match[3]);
+    if (!Number.isFinite(left) || !Number.isFinite(right)) continue;
+    let verdict: UnitEquality["verdict"] = "ok";
+    if (leftUnit.family !== rightUnit.family) {
+      verdict = "uncertain";
+    } else if (leftUnit.key === rightUnit.key) {
+      verdict = closeEnough(left, match[3], right) ? "ok" : "uncertain";
+    } else if (leftUnit.family === "temperature") {
+      verdict = temperatureEqualityVerdict(left, leftUnit, right, rightUnit);
+    } else {
+      const leftBase = leftUnit.toBase(left);
+      const rightBase = rightUnit.toBase(right);
+      const scale = Math.max(Math.abs(leftBase), Math.abs(rightBase), 1);
+      verdict = Math.abs(leftBase - rightBase) / scale <= 0.02 ? "ok" : "mismatch";
+    }
+    found.push({ raw: match[0], index: match.index, verdict });
+  }
+  return found;
+}
+
+export function checkUnitConversionClaims(text: string): string[] {
+  return scanUnitEqualities(text)
+    .filter((item) => item.verdict === "mismatch")
+    .map((item) => `Birim dönüşümü tutarsız: ${item.raw}`);
+}
+
+/**
+ * Parantez, çarpma ve bölme dahil tam ifade.
+ * Emin olunmayan veya ara değer yanlış birime yapışmışsa uyarıdır.
+ * Blok, ifadenin tamamı güvenle ayrışıp sonuç payın dışındaysa gelir.
+ * İki terimli birimsiz işlem `checkSimpleMathClaims`'e kalır.
+ */
+export function checkCalculationChains(text: string): string[] {
+  return calculationMismatchIssues(text);
+}
+
+export function checkUncertainCalculationClaims(text: string): string[] {
+  return uncertainCalculationIssues(text);
+}
+
+/** Emin olunamayan eşitlik uyarıdır. Ders bu yüzden düşmez. */
+export function checkUncertainUnitClaims(text: string): string[] {
+  return scanUnitEqualities(text)
+    .filter((item) => item.verdict === "uncertain")
+    .map((item) => `Birim eşitliği doğrulanamadı (uyarı): ${item.raw}`);
+}
+
+function chainSpans(text: string): ChainSpan[] {
+  const re = new RegExp(
+    `(?<![\\d.,])${NUM_TOKEN}(?:\\s*${UNIT_TOKEN})?(?:\\s*${OP_TOKEN}\\s*${NUM_TOKEN}(?:\\s*${UNIT_TOKEN})?)+\\s*=\\s*${NUM_TOKEN}(?:\\s*${UNIT_TOKEN})?(?![\\d.,A-Za-z])`,
+    "gi",
+  );
+  return [...text.matchAll(re)].map((match) => ({
+    start: match.index ?? 0,
+    end: (match.index ?? 0) + match[0].length,
+  }));
+}
+
+function deterministicMathErrors(text: string): string[] {
+  if (!text) return [];
+  return [
+    ...checkSimpleMathClaims(text),
+    ...checkCalculationChains(text),
+    ...checkUnitConversionClaims(text),
+  ];
+}
+
+/**
+ * Aritmetik iddiası ancak deterministik kontrol de hata görürse kalır.
+ * Kaynak/formül şikâyeti burada elenmez.
+ */
+export function isUnconfirmedMathAllegation(issue: string, draft: string): boolean {
+  const folded = foldTr(issue);
+  if (/kaynak|belge|materyal|ideal gaz|formul/.test(folded)) return false;
+  const alleges = /\d/.test(issue) && /donus|cevril|hesap uyusmaz|birim donusumu tutarsiz|esit degil|birim/.test(folded);
+  if (!alleges) return false;
+  if (deterministicMathErrors(issue).length || deterministicMathErrors(draft).length) return false;
+  return true;
+}
+
+export type IssueSeverity = "blocking" | "non_blocking";
+
+export type IssueSeverityReport = {
+  blocking: string[];
+  nonBlocking: string[];
+};
+
+/**
+ * Doğrulayıcı cümlesinin dersi düşürüp düşürmeyeceği.
+ *
+ * Varsayılan serbesttir. Bloklayan liste dardır: kaynakta olmadığı
+ * söylenen belirli bir iddia, formül, sayı ya da örnek; denetçinin
+ * doğruladığı yanlış işlem; uydurma; güvensiz içerik; gerçekten
+ * okunamayan çıktı. "Net değil", "daha ayrıntılı olsun", bölüm sayısı
+ * ve "doğrulanamıyor" dersi düşürmez.
+ *
+ * "Çıktı geçerli JSON değil" cümlesi tek başına kanıt değildir. Ayrıştırıcı
+ * gerçekten okuyamazsa red `invalid_json` KODUYLA gelir.
+ */
+export function classifyVerifierIssue(message: string, draft = ""): IssueSeverity {
+  const text = message.replace(/^\[[a-z_]+\]\s*/i, "").trim();
+  if (!text) return "non_blocking";
+  if (isConfirmedComputationIssue(text, draft)) return "blocking";
+  if (isUnconfirmedMathAllegation(text, draft)) return "non_blocking";
+  if (isBlockingAllowlist(foldTr(text), text, draft)) return "blocking";
+  return "non_blocking";
+}
+
+function isConfirmedComputationIssue(issue: string, draft: string): boolean {
+  const folded = foldTr(issue);
+  const alleges =
+    /\d/.test(issue) &&
+    /donus|cevril|hesap uyusmaz|birim donusumu tutarsiz|esit degil/.test(folded);
+  if (!alleges) return false;
+  if (/kaynakta olmayan|dokumanda yer almiyor|belgede yer almiyor/.test(folded)) return false;
+  return deterministicMathErrors(issue).length > 0 || deterministicMathErrors(draft).length > 0;
+}
+
+function schemaComplaintIsReal(draft: string): boolean {
+  if (!draft.trim()) return true;
+  try {
+    return !lessonHasTeachingCore(JSON.parse(draft));
+  } catch {
+    return !lessonHasTeachingCore(draft);
+  }
+}
+
+function isBlockingAllowlist(folded: string, original: string, draft = ""): boolean {
+  if (/guvensiz icerik|zararli icerik|nefret soylemi|cinsel istismar|intihar yontemi/.test(folded)) {
+    return true;
+  }
+  if (/\buydur/.test(folded)) return true;
+  if (/bos alan:/.test(folded)) return true;
+  if (/ders v2 semasini karsilamiyor|ders v2 cekirdegi yok/.test(folded)) {
+    return schemaComplaintIsReal(draft);
+  }
+  if (isSpecificAbsence(folded, original)) return true;
+  if (isSpecificWrongClaim(folded, original)) return true;
+  return false;
+}
+
+function hasSpecificArtifact(original: string): boolean {
+  if (/[''‘’"“”«»][^''‘’"“”«»]{12,}[''‘’"“”«»]/.test(original)) return true;
+  if (/[A-Za-z]\s*=\s*[A-Za-z0-9]/.test(original)) return true;
+  if (/\d+(?:[.,]\d+)?\s*(?:°\s*C|℃|MPa|kPa|Pa|bar|atm|K)\b/.test(original)) return true;
+  return false;
+}
+
+function isSpecificAbsence(folded: string, original: string): boolean {
+  const absent =
+    /kaynakta olmayan|kaynakta yok|kaynak sayfalarda yer almiyor|dokumanda yer almiyor|belgede yer almiyor|belgede yok|bilgi yokken|kaynakta gecmiyor/.test(
+      folded,
+    );
+  if (!absent) return false;
+  const hedge =
+    /dogrulanamiyor|materyalin tamami|yeterince degil|eksik ifade|daha detay|net degil|temellendirilmem/.test(
+      folded,
+    );
+  const specific =
+    hasSpecificArtifact(original) ||
+    /formul|yasa|ornek|kavram|sayi|pv\s*=\s*nrt|ideal gaz|ozgul enerji/.test(folded);
+  if (hedge && !specific) return false;
+  return true;
+}
+
+function isSpecificWrongClaim(folded: string, original: string): boolean {
+  if (
+    /yetersiz|eksik ifade|daha detay|net degil|cok genel|asiri genel|dogrulanamiyor|temellendirilmem|yeterince degil|aciklanmali|anlamli hale|genel ve yuzeysel/.test(
+      folded,
+    )
+  ) {
+    return false;
+  }
+  const accuses =
+    /yanlis terminoloji|yanlis formul|yanlis sayi|yanlis iddia|hatali formul|hatalidir|kaynakla uyumsuz/.test(
+      folded,
+    );
+  if (!accuses) return false;
+  return hasSpecificArtifact(original);
+}
+
+/** Üslup listesi dersi düşürmez. Bir olgu hatası düşürür. */
+export function verifierIssuesRejectLesson(issues: string[], draft = ""): boolean {
+  return issues.some((issue) => classifyVerifierIssue(issue, draft) === "blocking");
+}
+
+export function partitionVerifierIssues(issues: string[], draft = ""): IssueSeverityReport {
+  const blocking: string[] = [];
+  const nonBlocking: string[] = [];
+  for (const issue of issues) {
+    if (classifyVerifierIssue(issue, draft) === "blocking") blocking.push(issue);
+    else nonBlocking.push(issue);
+  }
+  return { blocking, nonBlocking };
+}
+
+type LooseCheck = {
+  prompt?: string;
+  explanation?: string;
+  options?: string[];
+  answerIndex?: number;
+  type?: string;
+};
+
+type LooseSection = {
+  heading?: string;
+  body?: string;
+  check?: LooseCheck;
+  [key: string]: unknown;
+};
+
+type LooseLesson = {
+  overview?: string;
+  sections?: LooseSection[];
+  example?: { prompt?: string; solution?: string };
+  commonMistake?: { claim?: string; correction?: string };
+  infoCheck?: { prompt?: string; answer?: string };
+  [key: string]: unknown;
+};
+
+export type LessonExcision = {
+  content: string;
+  removed: string[];
+};
+
+export type SettledLesson = {
+  accepted: boolean;
+  content: string;
+  removed: string[];
+  blocking: string[];
+  nonBlocking: string[];
+};
+
+function needlesFromIssue(issue: string): string[] {
+  const needles: string[] = [];
+  const quoteRe = /[''‘’"“”«»]([^''‘’"“”«»]{8,220})[''‘’"“”«»]/g;
+  for (const match of issue.matchAll(quoteRe)) needles.push(match[1].trim());
+  const formulaRe = /[A-Za-z][A-Za-z0-9_]*\s*=\s*[A-Za-z0-9][A-Za-z0-9+\-*/^=.\s]{0,32}/g;
+  for (const match of issue.matchAll(formulaRe)) needles.push(match[0].replace(/\s+/g, " ").trim());
+  const folded = foldTr(issue);
+  if (/ozgul enerji/.test(folded)) needles.push("özgül enerji");
+  if (/ideal gaz/.test(folded) || /pv\s*=\s*nrt/.test(folded)) {
+    needles.push("PV = nRT", "PV=nRT", "ideal gaz", "İdeal gaz");
+  }
+  return [...new Set(needles.map((needle) => needle.trim()).filter((needle) => foldTr(needle).length >= 6))];
+}
+
+function textHasNeedle(haystack: string, needles: string[]): boolean {
+  const folded = foldTr(haystack);
+  return needles.some((needle) => folded.includes(foldTr(needle)));
+}
+
+function lessonIsSound(lesson: LooseLesson): boolean {
+  return lessonHasTeachingCore(lesson);
+}
+
+function replacementExample(section: LooseSection): { prompt: string; solution: string } | null {
+  const prompt = (section.check?.prompt ?? "").trim();
+  const solution = (section.body ?? "").trim();
+  if (prompt.length < 8 || solution.length < 8 || foldTr(solution) === foldTr(prompt)) return null;
+  return { prompt: prompt.slice(0, 240), solution: solution.slice(0, 700) };
+}
+
+/**
+ * Bloklayan şikâyette tırnak içindeki metin hangi bölüm, örnek ya da
+ * kontrol sorusundaysa yalnız o parça çıkar. Kalan ders en az bir kavram
+ * bölümü ve bir kontrol sorusu taşıyorsa durur.
+ */
+export function exciseUnsupportedLessonParts(
+  draft: string,
+  blockingIssues: string[],
+): LessonExcision | null {
+  let lesson: LooseLesson;
+  try {
+    const parsed = JSON.parse(draft) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    lesson = parsed as LooseLesson;
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(lesson.sections)) return null;
+  const needles = blockingIssues.flatMap(needlesFromIssue);
+  if (!needles.length) return null;
+
+  const removed: string[] = [];
+  const sections = lesson.sections.map((section) => ({ ...section }));
+  const keep: LooseSection[] = [];
+  for (const section of sections) {
+    const body = `${section.heading ?? ""}\n${section.body ?? ""}`;
+    const checkText = `${section.check?.prompt ?? ""}\n${section.check?.explanation ?? ""}`;
+    if (textHasNeedle(body, needles)) {
+      removed.push(`section:${(section.heading ?? "bolum").slice(0, 80)}`);
+      continue;
+    }
+    if (section.check && textHasNeedle(checkText, needles)) {
+      removed.push(`check:${(section.heading ?? "bolum").slice(0, 80)}`);
+      const rest = { ...section };
+      delete rest.check;
+      keep.push(rest);
+      continue;
+    }
+    keep.push(section);
+  }
+  lesson.sections = keep;
+
+  if (lesson.example && textHasNeedle(`${lesson.example.prompt ?? ""}\n${lesson.example.solution ?? ""}`, needles)) {
+    removed.push("example");
+    const donor = keep.find((section) => (section.body ?? "").trim().length >= 20);
+    const replacement = donor ? replacementExample(donor) : null;
+    if (replacement) lesson.example = replacement;
+    else delete lesson.example;
+  }
+  if (
+    lesson.commonMistake &&
+    textHasNeedle(`${lesson.commonMistake.claim ?? ""}\n${lesson.commonMistake.correction ?? ""}`, needles)
+  ) {
+    removed.push("commonMistake");
+    delete lesson.commonMistake;
+  }
+  if (lesson.infoCheck && textHasNeedle(`${lesson.infoCheck.prompt ?? ""}\n${lesson.infoCheck.answer ?? ""}`, needles)) {
+    removed.push("infoCheck");
+    const donor = keep.find((section) => section.check?.prompt && section.check.options?.length);
+    const answer = donor?.check?.options?.[donor.check.answerIndex ?? 0];
+    if (donor?.check?.prompt && typeof answer === "string" && answer.trim().length >= 2) {
+      lesson.infoCheck = { prompt: donor.check.prompt.slice(0, 180), answer: answer.trim().slice(0, 180) };
+    } else {
+      delete lesson.infoCheck;
+    }
+  }
+  if (lesson.overview && textHasNeedle(lesson.overview, needles)) {
+    removed.push("overview");
+    const donor = keep.find((section) => (section.body ?? "").trim().length >= 20);
+    if (donor?.body) lesson.overview = donor.body.slice(0, 280);
+    else delete lesson.overview;
+  }
+
+  if (!removed.length || !lessonIsSound(lesson)) return null;
+  return { content: JSON.stringify(lesson), removed };
+}
+
+/**
+ * Onarımdan sonra kalan bloklayan madde, alıntılanan parçayı keserek
+ * giderilebiliyorsa ders kabul edilir. Sağlam parça kalmazsa red sürer.
+ */
+export function settleRejectedLesson(draft: string, issues: string[]): SettledLesson {
+  const split = partitionVerifierIssues(issues, draft);
+  if (!split.blocking.length) {
+    return {
+      accepted: true,
+      content: draft,
+      removed: [],
+      blocking: [],
+      nonBlocking: split.nonBlocking,
+    };
+  }
+  const excised = exciseUnsupportedLessonParts(draft, split.blocking);
+  if (!excised) {
+    return { accepted: false, content: draft, removed: [], ...split };
+  }
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(excised.content);
+  } catch {
+    parsed = null;
+  }
+  const published = parsed ? publishLessonDraft(parsed) : null;
+  const content = published ? JSON.stringify(published) : excised.content;
+  const pedagogy = lessonPublishIssues(published ?? parsed);
+  const recheck = runIndependentValidation({
+    draft: content,
+    parsed: published ?? parsed,
+    pedagogyIssues: pedagogy,
+  });
+  const hard = recheck.issues.filter(
+    (item) => !domainIssueIsSoft(item.code) && validationIssueBlocks(item, content),
+  );
+  if (hard.length || !published || !lessonHasTeachingCore(published)) {
+    return { accepted: false, content: draft, removed: [], ...split };
+  }
+  console.error("removed_for_source", { removed: excised.removed });
+  return {
+    accepted: true,
+    content,
+    removed: excised.removed,
+    blocking: [],
+    nonBlocking: split.nonBlocking,
+  };
+}
+
+/**
+ * Bağımsız kapıdaki madde. `invalid_json` yalnız ayrıştırıcı kodudur.
+ * Ayrıştırılamayan birim eşitliği uyarıdır. Pedagoji cümlesi allowlist
+ * dışındaysa dersi düşürmez.
+ */
+function domainIssueIsSoft(code: string): boolean {
+  return code === "unit_uncertain" || code === "math_uncertain";
+}
+
+export function validationIssueBlocks(item: ValidationIssue, draft = ""): boolean {
+  if (domainIssueIsSoft(item.code)) return false;
+  if (item.code === "invalid_json" || item.code === "not_object") return true;
+  if (item.stage === "domain" || item.stage === "source" || item.stage === "structural") {
+    return true;
+  }
+  return classifyVerifierIssue(item.message, draft) === "blocking";
+}
+
+/** Koyu terim, LaTeX ve başlık sözcüğü kodda tamamlanır; dersi düşürmez. */
+export function isCosmeticReviewerNit(issue: string): boolean {
+  return classifyVerifierIssue(issue) === "non_blocking";
 }
 
 function uniqueOptionsIssues(parsed: unknown): string[] {
@@ -307,6 +984,21 @@ function domainCheck(input: IndependentValidationInput): ValidationIssue[] {
         : "quantitative";
     issues.push(issue("domain", code, msg));
   }
+  for (const msg of checkCalculationChains(text)) {
+    issues.push(issue("domain", "math_mismatch", msg));
+  }
+  for (const msg of checkUnitConversionClaims(text)) {
+    issues.push(issue("domain", "unit_mismatch", msg));
+  }
+  for (const msg of checkUncertainUnitClaims(text)) {
+    issues.push(issue("domain", "unit_uncertain", msg));
+  }
+  for (const msg of checkUncertainCalculationClaims(text)) {
+    issues.push(issue("domain", "math_uncertain", msg));
+  }
+  for (const msg of inversionIssuesInValue(input.parsed ?? text)) {
+    issues.push(issue("domain", "definition_inversion", msg));
+  }
   for (const msg of uniqueOptionsIssues(input.parsed)) {
     issues.push(issue("domain", "duplicate_options", msg));
   }
@@ -349,15 +1041,16 @@ export function runIndependentValidation(
     const started = Date.now();
     const stageIssues = STAGE_RUNNERS[stage](input);
     stagesMs[stage] = Date.now() - started;
-    if (stageIssues.length) {
-      issues.push(...stageIssues);
+    const hard = stageIssues.filter((item) => !domainIssueIsSoft(item.code));
+    if (stageIssues.length) issues.push(...stageIssues);
+    if (hard.length) {
       failedStage = stage;
       break;
     }
   }
 
   return {
-    ok: issues.length === 0,
+    ok: failedStage == null,
     issues,
     failedStage,
     stagesMs,

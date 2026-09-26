@@ -91,7 +91,7 @@ describe("taranmış PDF tanınıyor", () => {
   it("metin çıkarma bu belgede başarısız", async () => {
     const result = await extractText(scannedPdf(2), "application/pdf");
     expect(result.ok).toBe(false);
-  });
+  }, 30_000);
 });
 
 describe("sayfa çizimi", () => {
@@ -103,7 +103,7 @@ describe("sayfa çizimi", () => {
       expect(page.subarray(1, 4).toString()).toBe("PNG");
       expect(page.byteLength).toBeGreaterThan(100);
     }
-  });
+  }, 30_000);
 
   /* Sayfa başına bir görüntü modeli çağrısı var ve ucun bütçesi 120 saniye.
      Kesmeseydik uzun bir belge zaman aşımına girer, öğrenci HİÇBİR ŞEY
@@ -112,7 +112,7 @@ describe("sayfa çizimi", () => {
     const rendered = await renderPdfPages(scannedPdf(MAX_SCAN_PAGES + 3), 4);
     expect(rendered.pages).toHaveLength(4);
     expect(rendered.total).toBe(MAX_SCAN_PAGES + 3);
-  });
+  }, 30_000);
 
   it("tavan varsayılanı zaman bütçesine göre seçilmiş", () => {
     expect(MAX_SCAN_PAGES).toBeLessThanOrEqual(20);

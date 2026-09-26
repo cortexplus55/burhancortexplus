@@ -13,4 +13,12 @@ describe("process user messages", () => {
   it("maps download failure", () => {
     expect(userMessageForProcessError("download_failed")).toMatch(/alın/i);
   });
+
+  it("desteklenmeyen türde Word ve PowerPoint'i de söylüyor", () => {
+    const message = userMessageForProcessError("unsupported_type");
+    expect(message).toMatch(/PDF/);
+    expect(message).toMatch(/Word/);
+    expect(message).toMatch(/PowerPoint/);
+    expect(message).toMatch(/görsel/);
+  });
 });

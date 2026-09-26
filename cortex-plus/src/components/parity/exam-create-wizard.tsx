@@ -5,27 +5,43 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { isPhotoQuotaError } from "@/lib/documents/process-errors";
 import {
+  PROCESS_RETRY_MESSAGE,
+  postDocumentProcess,
+  requestDocumentProcessing,
+} from "@/lib/documents/process-session";
+import {
   Check,
   ChevronLeft,
   FileText,
   MessageSquare,
   Plus,
+  Smartphone,
   Upload,
   X,
 } from "lucide-react";
+import type { StudyModality } from "@/lib/learning/exam-prep-ui-path";
 import {
-  buildExamPlan,
-  daysUntilExam,
-  PLAN_NODE_META,
-  type PlanNodeDraft,
-} from "@/lib/learning/exam-prep-plan";
-import {
-  groupNodesByPhase,
-  projectedReadiness,
-} from "@/lib/learning/exam-plan-phases";
+  DOCUMENT_ANALYSIS_STAGES,
+  PREP_HOME_COPY,
+  STUDY_MODALITY_CHOICES,
+  WIZARD_COPY,
+  WIZARD_STEP_ORDER,
+  fileProgressLine,
+  sourceCountLabel,
+} from "@/lib/learning/exam-wizard-copy";
+import { freeMaterialLimitLine, materialDetailLine } from "@/lib/learning/prep-material-copy";
+import { filesAcceptedFromSelection } from "@/lib/learning/prep-file-cap";
+import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
+import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
+import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { CreditGate } from "@/components/paywall/credit-gate";
-import { ExamSetupChat } from "@/components/parity/exam-setup-chat";
 import { COMMON_SUBJECTS } from "@/lib/learning/subjects";
+import {
+  DOCUMENT_MATERIAL_HINT,
+  DOCUMENT_PICK_REJECTED,
+  DOCUMENT_UPLOAD_HINT,
+} from "@/lib/documents/upload-labels";
+import { PhoneUploadPanel } from "@/components/parity/phone-upload-panel";
 import "@/styles/exam-create-wizard.css";
 
 type Step =
@@ -36,38 +52,65 @@ type Step =
   | "material"
   | "language"
   | "building"
+  | "shaping"
   | "topics"
-  | "setup"
+  | "modality"
+  | "focus"
   | "plan";
 
-const STEP_ORDER: Step[] = [
-  "start",
-  "subject",
-  "date",
-  "target",
-  "material",
-  "language",
-  "building",
-  "topics",
-  "setup",
-  "plan",
-];
+const STEP_ORDER: Step[] = [...WIZARD_STEP_ORDER];
+const BUILD_STAGES = [...DOCUMENT_ANALYSIS_STAGES];
+const MODALITIES: { id: StudyModality; label: string }[] = STUDY_MODALITY_CHOICES;
 
+type WizardMaterial = {
+  id: string;
+  fileName: string;
+  sizeBytes: number | null;
+  pageCount: number | null;
+};
 
-const BUILD_STAGES = [
-  "Sayfalar okunuyor",
-  "Konular çıkarılıyor",
-  "Seviyene göre sıraya diziliyor",
-  "Materyalinle karşılaştırılıyor",
-];
+type TopicMeta = {
+  sourceCount: number;
+  examHeavy: boolean;
+  important: boolean;
+  sections: string[];
+};
+
+type ExcludedNote = { title: string; reason: string };
+type MissingTopic = { title: string; weightPercent: number | null; examHeavy: boolean };
+
+const EMPTY_META: TopicMeta = { sourceCount: 0, examHeavy: false, important: false, sections: [] };
+
+function formatSyllabusDate(iso: string): string {
+  const [year, month, day] = iso.split("-");
+  const names = [
+    "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+    "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
+  ];
+  const name = names[Number(month) - 1];
+  if (!name || !day || !year) return iso;
+  return `${Number(day)} ${name} ${year}`;
+}
 
 const ALLOWED_TYPES = [
   "application/pdf",
   "image/jpeg",
   "image/png",
   "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "text/plain",
 ];
+
+const FILE_EXTENSIONS = [".pdf", ".txt", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".docx", ".pptx"];
+
+function acceptedUpload(file: File): boolean {
+  if (ALLOWED_TYPES.includes(file.type)) return true;
+  const name = file.name.toLowerCase();
+  return FILE_EXTENSIONS.some((extension) => name.endsWith(extension));
+}
 const MAX_BYTES = 15 * 1024 * 1024;
 
 const WEEKDAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
@@ -120,6 +163,8 @@ export function ExamCreateWizard({
   onUseChat: () => void;
 }) {
   const router = useRouter();
+  const account = useStudentShellAccount();
+  const freePdfCap = account?.audience === "free" ? PHOTO_PAGE_LIMITS.free : null;
   // İlk soru "materyalin var mı?" — elinde dosya olmayan öğrenci eskiden üç
   // adım yürüyüp materyal adımının altındaki ince yazıyı bulmak zorundaydı.
   // Belgeyle gelen öğrenci (deep link) o adımı atlar.
@@ -133,63 +178,125 @@ export function ExamCreateWizard({
   const [examDate, setExamDate] = useState("");
   const [target, setTarget] = useState(75);
   const [language, setLanguage] = useState<"tr" | "en">("tr");
-  // Belge okunduktan sonra sorulan üç soru. Karşılıkları zaten vardı ama
-  // kimse doldurmuyordu: learning_preferences boş kayıt ediliyor,
-  // source_boundary_mode her belgede documents_only'de kalıyordu.
-  const [prefStyle, setPrefStyle] = useState<"theory" | "examples" | "mixed">("mixed");
-  const [dailyMinutes, setDailyMinutes] = useState(45);
-  const [prefNotes, setPrefNotes] = useState("");
+  const [modality, setModality] = useState<StudyModality>("auto");
+  /** true: tüm konulara eşit. false: focusTopics seçili. */
+  const [equalFocus, setEqualFocus] = useState(true);
 
-  const [documentId, setDocumentId] = useState<string | null>(initialDocumentId);
-  const [documentName, setDocumentName] = useState<string | null>(null);
-  const [docs, setDocs] = useState<{ id: string; fileName: string }[]>([]);
+  const [materials, setMaterialsState] = useState<WizardMaterial[]>(
+    initialDocumentId
+      ? [{ id: initialDocumentId, fileName: "Seçili materyal", sizeBytes: null, pageCount: null }]
+      : [],
+  );
+  const materialsRef = useRef(materials);
+  const reservedSlots = useRef(0);
+  function setMaterials(
+    next: WizardMaterial[] | ((current: WizardMaterial[]) => WizardMaterial[]),
+  ) {
+    const resolved = typeof next === "function" ? next(materialsRef.current) : next;
+    materialsRef.current = resolved;
+    setMaterialsState(resolved);
+  }
+  const [docs, setDocs] = useState<WizardMaterial[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [fileProgress, setFileProgress] = useState<{
+    done: number;
+    total: number;
+    current: string | null;
+  } | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const documentIds = materials.map((item) => item.id);
 
   const [buildStage, setBuildStage] = useState(0);
   const [topics, setTopics] = useState<string[]>([]);
   /** Her konunun dayandığı sayfalar; öğrenci neye dayandığını görsün. */
   const [topicPages, setTopicPages] = useState<number[][]>([]);
+  const [topicFiles, setTopicFiles] = useState<string[][]>([]);
+  const [topicWarnings, setTopicWarnings] = useState<string[]>([]);
+  const [topicMeta, setTopicMeta] = useState<TopicMeta[]>([]);
+  const [excludedTopics, setExcludedTopics] = useState<ExcludedNote[]>([]);
+  const [missingTopics, setMissingTopics] = useState<MissingTopic[]>([]);
+  const [suggestedExamDate, setSuggestedExamDate] = useState<string | null>(null);
+  /** Öğrenci oklarla sırayı değiştirdiyse önkoşul sırası ezilmez. */
+  const [orderEdited, setOrderEdited] = useState(false);
   const [focusTopics, setFocusTopics] = useState<string[]>([]);
-  const [newTopic, setNewTopic] = useState("");
   const [title, setTitle] = useState("");
 
   const [starting, setStarting] = useState(false);
+  const [planning, setPlanning] = useState(false);
   const [paywall, setPaywall] = useState(false);
-
-  const days = examDate ? daysUntilExam(examDate) : 0;
-  const preview: PlanNodeDraft[] = useMemo(
-    () => (days ? buildExamPlan(days) : []),
-    [days],
-  );
-  const phases = useMemo(() => groupNodesByPhase(preview), [preview]);
-  const projected = projectedReadiness(0, target, days);
+  const planTimer = useRef<number | null>(null);
+  const shapeTimer = useRef<number | null>(null);
+  const alive = useRef(true);
 
   useEffect(() => {
     void fetch("/api/documents")
       .then((res) => (res.ok ? res.json() : { documents: [] }))
-      .then((data: { documents?: { id: string; fileName: string }[] }) => {
-        setDocs(data.documents ?? []);
+      .then((data: { documents?: WizardMaterial[] }) => {
+        const listed = (data.documents ?? []).map((doc) => ({
+          id: doc.id,
+          fileName: doc.fileName,
+          sizeBytes: doc.sizeBytes ?? null,
+          pageCount: doc.pageCount ?? null,
+        }));
+        setDocs(listed);
         if (initialDocumentId) {
-          const hit = (data.documents ?? []).find((d) => d.id === initialDocumentId);
-          if (hit) setDocumentName(hit.fileName);
+          const hit = listed.find((doc) => doc.id === initialDocumentId);
+          if (hit) {
+            setMaterials((current) =>
+              current.map((item) => (item.id === hit.id ? { ...item, ...hit } : item)),
+            );
+          }
         }
       })
       .catch(() => {});
   }, [initialDocumentId]);
 
-  const stepIndex = STEP_ORDER.indexOf(step);
+  useEffect(
+    () => () => {
+      alive.current = false;
+      if (planTimer.current) window.clearTimeout(planTimer.current);
+      if (shapeTimer.current) window.clearTimeout(shapeTimer.current);
+    },
+    [],
+  );
+
+  const progressStep =
+    step === "building" || step === "shaping" ? "language" : step;
+  const stepIndex = Math.max(0, STEP_ORDER.indexOf(progressStep));
   const progress = ((stepIndex + 1) / STEP_ORDER.length) * 100;
 
   function goBack() {
+    if (planning) {
+      if (planTimer.current) window.clearTimeout(planTimer.current);
+      setPlanning(false);
+      return;
+    }
+    if (step === "building" || step === "shaping") {
+      if (shapeTimer.current) window.clearTimeout(shapeTimer.current);
+      setStep("language");
+      return;
+    }
     const index = STEP_ORDER.indexOf(step);
     if (index <= 0) return;
     setStep(STEP_ORDER[index - 1]);
   }
 
+  function openPlan() {
+    setPlanning(true);
+    if (planTimer.current) window.clearTimeout(planTimer.current);
+    planTimer.current = window.setTimeout(() => {
+      setPlanning(false);
+      setStep("plan");
+    }, 700);
+  }
+
   const runIntake = useCallback(
-    async (docId: string) => {
+    async () => {
+      const ids = materials.map((item) => item.id);
+      const primary = ids[0];
+      if (!primary) return;
       setStep("building");
       setBuildStage(0);
       const ticker = setInterval(
@@ -200,33 +307,179 @@ export function ExamCreateWizard({
         const res = await fetch("/api/learning/exam-prep/intake", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ documentId: docId, probeOnly: true }),
+          body: JSON.stringify({
+            documentId: primary,
+            documentIds: ids,
+            probeOnly: true,
+          }),
         });
         const payload = await res.json().catch(() => ({}));
         const found: string[] = payload?.draft?.topics ?? [];
         setTopics(found);
         setTopicPages(payload?.draft?.topicPages ?? []);
+        setTopicFiles(Array.isArray(payload?.draft?.topicFiles) ? payload.draft.topicFiles : []);
+        setTopicWarnings(
+          Array.isArray(payload?.draft?.topicWarnings) ? payload.draft.topicWarnings : [],
+        );
+        const counts: unknown[] = Array.isArray(payload?.draft?.topicSourceCounts)
+          ? payload.draft.topicSourceCounts
+          : [];
+        const heavy: unknown[] = Array.isArray(payload?.draft?.topicHeavy)
+          ? payload.draft.topicHeavy
+          : [];
+        const important: unknown[] = Array.isArray(payload?.draft?.topicImportant)
+          ? payload.draft.topicImportant
+          : [];
+        const sections: unknown[] = Array.isArray(payload?.draft?.topicSections)
+          ? payload.draft.topicSections
+          : [];
+        setTopicMeta(
+          found.map((_, index) => ({
+            sourceCount: typeof counts[index] === "number" ? counts[index] : 0,
+            examHeavy: heavy[index] === true,
+            important: important[index] === true && heavy[index] !== true,
+            sections: Array.isArray(sections[index])
+              ? sections[index].filter((item: unknown) => typeof item === "string")
+              : [],
+          })),
+        );
+        setExcludedTopics(
+          Array.isArray(payload?.draft?.excluded)
+            ? payload.draft.excluded.flatMap((item: unknown) => {
+                if (!item || typeof item !== "object") return [];
+                const row = item as { title?: unknown; reason?: unknown };
+                if (typeof row.title !== "string" || typeof row.reason !== "string") return [];
+                return [{ title: row.title, reason: row.reason }];
+              })
+            : [],
+        );
+        setMissingTopics(
+          Array.isArray(payload?.draft?.missingTopics)
+            ? payload.draft.missingTopics.flatMap((item: unknown) => {
+                if (!item || typeof item !== "object") return [];
+                const row = item as {
+                  title?: unknown;
+                  weightPercent?: unknown;
+                  examHeavy?: unknown;
+                };
+                if (typeof row.title !== "string") return [];
+                return [
+                  {
+                    title: row.title,
+                    weightPercent: typeof row.weightPercent === "number" ? row.weightPercent : null,
+                    examHeavy: row.examHeavy === true,
+                  },
+                ];
+              })
+            : [],
+        );
+        const suggested =
+          typeof payload?.draft?.suggestedExamDate === "string"
+            ? payload.draft.suggestedExamDate
+            : null;
+        setSuggestedExamDate(suggested);
+        if (suggested) setExamDate((current) => current || suggested);
+        setOrderEdited(false);
         setTitle(payload?.draft?.title || `${subject} sınav hazırlığı`);
       } catch {
         setTopics([]);
       } finally {
         clearInterval(ticker);
+        if (!alive.current) return;
         setBuildStage(BUILD_STAGES.length - 1);
-        setStep("topics");
+        setStep("shaping");
+        if (shapeTimer.current) window.clearTimeout(shapeTimer.current);
+        shapeTimer.current = window.setTimeout(() => {
+          if (alive.current) setStep("topics");
+        }, 700);
       }
     },
-    [subject],
+    [materials, subject],
   );
 
-  async function takeFile(file: File | undefined) {
-    if (!file) return;
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error("PDF, görsel veya TXT yükleyebilirsin.");
-      return;
+  function rememberMaterial(material: WizardMaterial) {
+    const current = materialsRef.current;
+    if (current.some((item) => item.id === material.id)) {
+      setMaterials(current.map((item) => (item.id === material.id ? { ...item, ...material } : item)));
+      return true;
+    }
+    const { accepted } = filesAcceptedFromSelection({
+      committedCount: current.length,
+      selectedCount: 1,
+      cap: PREP_SOURCE_DOCUMENT_CAP,
+    });
+    if (accepted < 1) return false;
+    setMaterials([...current, material]);
+    return true;
+  }
+
+  async function processAndRemember(input: {
+    documentId: string;
+    fileName: string;
+    sizeBytes: number | null;
+  }): Promise<boolean> {
+    const result = await requestDocumentProcessing({
+      documentId: input.documentId,
+      post: postDocumentProcess,
+    });
+    const processed = result.body;
+    if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
+    if (result.status === 402) {
+      if (isPhotoQuotaError(processed)) {
+        toast.error(
+          typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.",
+          {
+            description:
+              freePdfCap !== null
+                ? `Plus ile daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.plus} sayfa).`
+                : undefined,
+          },
+        );
+        return false;
+      }
+      setPaywall(true);
+      return false;
+    }
+    if (!result.ok) {
+      toast.error(typeof processed.error === "string" ? processed.error : "Dosya işlenemedi.");
+      return false;
+    }
+    const stored = rememberMaterial({
+      id: input.documentId,
+      fileName: input.fileName,
+      sizeBytes: input.sizeBytes,
+      pageCount: typeof processed.pageCount === "number" ? processed.pageCount : null,
+    });
+    if (!stored) {
+      toast.error(WIZARD_COPY.fileCap);
+      return false;
+    }
+    toast.success("Materyalin hazır.", {
+      description: typeof processed.notice === "string" ? processed.notice : undefined,
+    });
+    return true;
+  }
+
+  async function takeFile(file: File | undefined, enforceCap = true): Promise<boolean> {
+    if (!file) return false;
+    if (enforceCap) {
+      const { accepted } = filesAcceptedFromSelection({
+        committedCount: materialsRef.current.length + reservedSlots.current,
+        selectedCount: 1,
+        cap: PREP_SOURCE_DOCUMENT_CAP,
+      });
+      if (accepted < 1) {
+        toast.error(WIZARD_COPY.fileCap);
+        return false;
+      }
+    }
+    if (!acceptedUpload(file)) {
+      toast.error(DOCUMENT_PICK_REJECTED);
+      return false;
     }
     if (file.size > MAX_BYTES) {
       toast.error("Dosya en fazla 15 MB olabilir.");
-      return;
+      return false;
     }
     setUploading(true);
     try {
@@ -239,36 +492,48 @@ export function ExamCreateWizard({
       const uploaded = await uploadRes.json().catch(() => ({}));
       if (!uploadRes.ok) {
         toast.error(uploaded.error ?? "Yükleme başarısız.");
-        return;
+        return false;
       }
-      const processRes = await fetch("/api/documents/process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: uploaded.documentId }),
-      });
-      const processed = await processRes.json().catch(() => ({}));
-      if (processRes.status === 402) {
-        // Fotoğraf kotası bittiyse kredi satın almak işe yaramıyor.
-        if (isPhotoQuotaError(processed)) {
-          toast.error(processed.error ?? "Bu ayki fotoğraf hakkın doldu.");
-          return;
-        }
-        setPaywall(true);
-        return;
-      }
-      if (!processRes.ok) {
-        toast.error(processed.error ?? "Dosya işlenemedi.");
-        return;
-      }
-      setDocumentId(uploaded.documentId);
-      setDocumentName(file.name);
-      toast.success("Materyalin hazır.", {
-        description: processed.notice ?? undefined,
+      return await processAndRemember({
+        documentId: uploaded.documentId,
+        fileName: file.name,
+        sizeBytes: file.size,
       });
     } catch {
       toast.error("Bağlantı hatası.");
+      return false;
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function takeFiles(list: FileList | File[] | undefined) {
+    const files = list ? [...list] : [];
+    if (!files.length) return;
+    const { accepted, overflow } = filesAcceptedFromSelection({
+      committedCount: materialsRef.current.length + reservedSlots.current,
+      selectedCount: files.length,
+      cap: PREP_SOURCE_DOCUMENT_CAP,
+    });
+    if (accepted === 0) {
+      toast.error(WIZARD_COPY.fileCap);
+      return;
+    }
+    if (overflow > 0) toast.error(WIZARD_COPY.fileCap);
+    reservedSlots.current += accepted;
+    setFileProgress({ done: 0, total: accepted, current: null });
+    try {
+      let done = 0;
+      for (const file of files.slice(0, accepted)) {
+        setFileProgress({ done, total: accepted, current: file.name });
+        const added = await takeFile(file, false);
+        if (!added) break;
+        done += 1;
+        setFileProgress({ done, total: accepted, current: null });
+      }
+    } finally {
+      setFileProgress(null);
+      reservedSlots.current = Math.max(0, reservedSlots.current - accepted);
     }
   }
 
@@ -285,12 +550,19 @@ export function ExamCreateWizard({
           topics,
           examDate,
           targetScore: target,
-          documentId: documentId ?? undefined,
-          hardTopics: focusTopics,
-          dailyMinutes,
+          documentId: documentIds[0],
+          documentIds,
+          topicOrderManual: orderEdited,
+          hardTopics: equalFocus ? [] : focusTopics,
           learningPreferences: {
-            style: prefStyle,
-            ...(prefNotes ? { notes: prefNotes } : {}),
+            style:
+              modality === "reading"
+                ? "theory"
+                : modality === "practice"
+                  ? "examples"
+                  : "mixed",
+            modality,
+            language,
           },
         }),
       });
@@ -325,7 +597,7 @@ export function ExamCreateWizard({
         <div className="apw-progress-fill" style={{ width: `${progress}%` }} />
       </div>
 
-      {stepIndex > 0 && step !== "building" ? (
+      {stepIndex > 0 && step !== "building" && step !== "shaping" ? (
         <button type="button" className="apw-back" onClick={goBack}>
           <ChevronLeft className="h-4 w-4" aria-hidden /> Geri
         </button>
@@ -348,7 +620,7 @@ export function ExamCreateWizard({
               <FileText className="h-6 w-6" aria-hidden />
               <span className="apw-pick-title">Ders notum var</span>
               <span className="apw-pick-hint">
-                PDF, görsel ya da metin yükle; her şey senin belgenden üretilsin.
+                {DOCUMENT_MATERIAL_HINT}
               </span>
             </button>
 
@@ -467,7 +739,7 @@ export function ExamCreateWizard({
             className="apw-cta"
             onClick={() => setStep("material")}
           >
-            Devam et
+            {WIZARD_COPY.continue}
           </button>
         </section>
       ) : null}
@@ -476,8 +748,9 @@ export function ExamCreateWizard({
         <section className="apw-step">
           <h1>Neyden çalışacaksın?</h1>
           <p className="apw-lead">
-            Ders notunu yükle; konular, sorular ve podcast senin materyalinden
-            çıkar.
+            PDF, Word, slayt ya da fotoğraf yükle. El yazısı not, basılı sayfa
+            ve slayt fotoğrafı (JPG, PNG, HEIC) de olur. Konular senin
+            materyalinden çıkar.
           </p>
 
           <div
@@ -490,12 +763,20 @@ export function ExamCreateWizard({
             onDrop={(e) => {
               e.preventDefault();
               setDragOver(false);
-              void takeFile(e.dataTransfer.files?.[0]);
+              void takeFiles(e.dataTransfer.files);
             }}
           >
             <Upload className="h-7 w-7 opacity-70" aria-hidden />
             <p className="apw-drop-title">Dosyanı buraya bırak</p>
-            <p className="apw-drop-hint">PDF, görsel veya TXT · en fazla 15 MB</p>
+            <p className="apw-drop-hint">{DOCUMENT_UPLOAD_HINT}</p>
+            {fileProgress ? (
+              <p className="apw-drop-hint" role="status" aria-live="polite">
+                {fileProgressLine(fileProgress.done, fileProgress.total, fileProgress.current)}
+              </p>
+            ) : null}
+            {freePdfCap !== null ? (
+              <p className="apw-drop-hint">{freeMaterialLimitLine()}</p>
+            ) : null}
             <button
               type="button"
               className="apw-drop-pick"
@@ -507,57 +788,118 @@ export function ExamCreateWizard({
             <input
               ref={fileRef}
               type="file"
+              multiple
               className="hidden"
-              accept=".pdf,.txt,.png,.jpg,.jpeg,.webp"
+              accept=".pdf,.txt,.png,.jpg,.jpeg,.webp,.heic,.heif,.docx,.pptx,image/heic,image/heif"
               onChange={(e) => {
-                void takeFile(e.target.files?.[0]);
+                void takeFiles(e.target.files ?? undefined);
                 e.target.value = "";
               }}
             />
           </div>
 
-          {documentId ? (
-            <div className="apw-doc-chip">
-              <FileText className="h-4 w-4" aria-hidden />
-              <span>{documentName ?? "Seçili materyal"}</span>
+          {materials.length ? (
+            <ul className="apw-materials">
+              {materials.map((material) => {
+                const detail = materialDetailLine(material);
+                return (
+                  <li key={material.id} className="apw-doc-chip">
+                    <FileText className="h-4 w-4 shrink-0" aria-hidden />
+                    <span className="apw-doc-main">
+                      <strong>{material.fileName}</strong>
+                      {detail ? <small>{detail}</small> : null}
+                    </span>
+                    <Check className="h-4 w-4 shrink-0" aria-hidden />
+                    <button
+                      type="button"
+                      aria-label="Materyali kaldır"
+                      onClick={() =>
+                        setMaterials((current) => current.filter((item) => item.id !== material.id))
+                      }
+                    >
+                      <X className="h-4 w-4" aria-hidden />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+
+          <div className="apw-file-actions">
+            {materials.length ? (
               <button
                 type="button"
-                aria-label="Materyali kaldır"
-                onClick={() => {
-                  setDocumentId(null);
-                  setDocumentName(null);
-                }}
+                className="apw-drop-pick"
+                disabled={uploading || materials.length >= PREP_SOURCE_DOCUMENT_CAP}
+                onClick={() => fileRef.current?.click()}
               >
-                <X className="h-4 w-4" aria-hidden />
+                {WIZARD_COPY.addMore}
               </button>
-            </div>
+            ) : null}
+            <button
+              type="button"
+              className="apw-drop-pick"
+              disabled={uploading || materials.length >= PREP_SOURCE_DOCUMENT_CAP}
+              onClick={() => setPhoneOpen(true)}
+            >
+              <Smartphone className="h-4 w-4" aria-hidden />
+              {WIZARD_COPY.uploadFromPhone}
+            </button>
+          </div>
+
+          {phoneOpen ? (
+            <PhoneUploadPanel
+              onClose={() => setPhoneOpen(false)}
+              onReady={(remote) => {
+                setPhoneOpen(false);
+                void processAndRemember({
+                  documentId: remote.documentId,
+                  fileName: remote.fileName,
+                  sizeBytes: null,
+                });
+              }}
+            />
           ) : null}
 
           {docs.length ? (
             <>
               <h2 className="apw-group">Daha önce yüklediklerin</h2>
               <div className="apw-doc-list">
-                {docs.map((doc) => (
-                  <button
-                    key={doc.id}
-                    type="button"
-                    className={
-                      documentId === doc.id
-                        ? "apw-doc-row apw-doc-row--on"
-                        : "apw-doc-row"
-                    }
-                    onClick={() => {
-                      setDocumentId(doc.id);
-                      setDocumentName(doc.fileName);
-                    }}
-                  >
-                    <FileText className="h-4 w-4 shrink-0" aria-hidden />
-                    <span className="truncate">{doc.fileName}</span>
-                    {documentId === doc.id ? (
-                      <Check className="h-4 w-4 shrink-0" aria-hidden />
-                    ) : null}
-                  </button>
-                ))}
+                {docs.map((doc) => {
+                  const selected = documentIds.includes(doc.id);
+                  return (
+                    <button
+                      key={doc.id}
+                      type="button"
+                      className={selected ? "apw-doc-row apw-doc-row--on" : "apw-doc-row"}
+                      onClick={() => {
+                        if (selected) {
+                          setMaterials((current) => current.filter((item) => item.id !== doc.id));
+                          return;
+                        }
+                        const { accepted } = filesAcceptedFromSelection({
+                          committedCount: materialsRef.current.length,
+                          selectedCount: 1,
+                          cap: PREP_SOURCE_DOCUMENT_CAP,
+                        });
+                        if (accepted < 1) {
+                          toast.error(WIZARD_COPY.fileCap);
+                          return;
+                        }
+                        rememberMaterial({
+                          id: doc.id,
+                          fileName: doc.fileName,
+                          sizeBytes: doc.sizeBytes,
+                          pageCount: doc.pageCount,
+                        });
+                      }}
+                    >
+                      <FileText className="h-4 w-4 shrink-0" aria-hidden />
+                      <span className="truncate">{doc.fileName}</span>
+                      {selected ? <Check className="h-4 w-4 shrink-0" aria-hidden /> : null}
+                    </button>
+                  );
+                })}
               </div>
             </>
           ) : null}
@@ -565,10 +907,10 @@ export function ExamCreateWizard({
           <button
             type="button"
             className="apw-cta"
-            disabled={!documentId || uploading}
+            disabled={!documentIds.length || uploading}
             onClick={() => setStep("language")}
           >
-            Devam et
+            {WIZARD_COPY.continue}
           </button>
           <button type="button" className="apw-ghost" onClick={onUseChat}>
             Materyalim yok — konuşarak kuralım
@@ -578,7 +920,7 @@ export function ExamCreateWizard({
 
       {step === "language" ? (
         <section className="apw-step">
-          <h1>İçerik dili</h1>
+          <h1>{WIZARD_COPY.languageTitle}</h1>
           <p className="apw-lead">
             Dersler, sorular ve podcast bu dilde hazırlanır.
           </p>
@@ -605,17 +947,18 @@ export function ExamCreateWizard({
           <button
             type="button"
             className="apw-cta"
-            onClick={() => documentId && void runIntake(documentId)}
+            onClick={() => void runIntake()}
+            disabled={!documentIds.length}
           >
-            Planı hazırla
+            {WIZARD_COPY.continue}
           </button>
         </section>
       ) : null}
 
       {step === "building" ? (
         <section className="apw-step apw-step--center">
-          <h1>Planın hazırlanıyor</h1>
-          <p className="apw-lead">Bu bir dakika sürebilir.</p>
+          <h1>{WIZARD_COPY.analyzing}</h1>
+          <p className="apw-lead">Konular materyalinin kapsamından çıkarılıyor.</p>
           <ul className="apw-stages">
             {BUILD_STAGES.map((label, index) => (
               <li
@@ -632,179 +975,192 @@ export function ExamCreateWizard({
         </section>
       ) : null}
 
-      {step === "topics" ? (
+      {step === "shaping" ? (
+        <section className="apw-step apw-step--center">
+          <h1>{WIZARD_COPY.shapingTitle}</h1>
+          <p className="apw-lead">{WIZARD_COPY.shapingLead}</p>
+        </section>
+      ) : null}
+
+      {planning ? (
+        <section className="apw-step apw-step--center">
+          <h1>{WIZARD_COPY.planningTitle}</h1>
+          <p className="apw-lead">{WIZARD_COPY.planningLead}</p>
+        </section>
+      ) : null}
+
+      {!planning && step === "topics" ? (
         <section className="apw-step">
           <h1>
-            {topics.length
-              ? `Materyalinde ${topics.length} konu buldum — hangisinde zorlanıyorsun?`
-              : "Konuları birlikte yazalım"}
+            {topics.length ? "Konuları düzenle" : "Konuları birlikte yazalım"}
           </h1>
           <p className="apw-lead">
-            İşaretlediklerine plan daha çok yer ayırır. Yanlış olanı düzelt,
-            eksik olanı ekle.
+            Yanlış olanı değiştir, eksik olanı ekle.
           </p>
-          <ul className="apw-topics">
-            {topics.map((topic, index) => (
-              <li key={`${topic}-${index}`}>
-                <button
-                  type="button"
-                  className={
-                    focusTopics.includes(topic)
-                      ? "apw-focus apw-focus--on"
-                      : "apw-focus"
-                  }
-                  aria-pressed={focusTopics.includes(topic)}
-                  aria-label={`${topic} — zorlandığım konu`}
-                  onClick={() =>
-                    setFocusTopics((prev) =>
-                      prev.includes(topic)
-                        ? prev.filter((t) => t !== topic)
-                        : [...prev, topic],
-                    )
-                  }
-                >
-                  {focusTopics.includes(topic) ? "Zor" : "•"}
-                </button>
-                <span className="apw-topic-field">
-                  <input
-                    value={topic}
-                    aria-label={`${index + 1}. konu`}
-                    onChange={(e) =>
-                      setTopics((prev) =>
-                        prev.map((t, i) => (i === index ? e.target.value : t)),
-                      )
-                    }
-                  />
-                  {topicPages[index]?.length ? (
-                    <em>Kaynak: s.{topicPages[index].join(", ")}</em>
-                  ) : null}
-                </span>
-                <button
-                  type="button"
-                  aria-label={`${topic} konusunu kaldır`}
-                  onClick={() =>
-                    setTopics((prev) => prev.filter((_, i) => i !== index))
-                  }
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                </button>
-              </li>
-            ))}
-          </ul>
-          <div className="apw-topic-add">
-            <input
-              value={newTopic}
-              placeholder="Konu ekle"
-              aria-label="Yeni konu"
-              onChange={(e) => setNewTopic(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key !== "Enter") return;
-                e.preventDefault();
-                if (!newTopic.trim()) return;
-                setTopics((prev) => [...prev, newTopic.trim()]);
-                setNewTopic("");
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => {
-                if (!newTopic.trim()) return;
-                setTopics((prev) => [...prev, newTopic.trim()]);
-                setNewTopic("");
-              }}
-            >
-              <Plus className="h-4 w-4" aria-hidden /> Ekle
-            </button>
-          </div>
+          {suggestedExamDate && suggestedExamDate !== examDate ? (
+            <p className="apw-syllabus-date">
+              Müfredatta sınav tarihi {formatSyllabusDate(suggestedExamDate)}.
+              <button type="button" onClick={() => setExamDate(suggestedExamDate)}>
+                {WIZARD_COPY.useSyllabusDate}
+              </button>
+            </p>
+          ) : null}
+          <TopicEditor
+            topics={topics}
+            topicPages={topicPages}
+            topicFiles={topicFiles}
+            topicWarnings={topicWarnings}
+            topicMeta={topicMeta}
+            excluded={excludedTopics}
+            missing={missingTopics}
+            documentIds={documentIds}
+            onTopics={setTopics}
+            onPages={setTopicPages}
+            onFiles={setTopicFiles}
+            onWarnings={setTopicWarnings}
+            onMeta={setTopicMeta}
+            onMissing={setMissingTopics}
+            onOrderEdited={() => setOrderEdited(true)}
+            onRename={(from, to) =>
+              setFocusTopics((prev) =>
+                prev
+                  .map((item) => (item === from ? to : item))
+                  .filter((item) => item.trim().length > 0),
+              )
+            }
+            onRemove={(title) =>
+              setFocusTopics((prev) => prev.filter((item) => item !== title))
+            }
+          />
           <button
             type="button"
             className="apw-cta"
             disabled={!topics.length}
-            onClick={() => setStep("setup")}
+            onClick={() => setStep("modality")}
           >
-            Devam et
+            {WIZARD_COPY.continue}
           </button>
         </section>
       ) : null}
 
-      {step === "setup" ? (
-        <ExamSetupChat
-          onDone={(answers) => {
-            setPrefStyle(answers.style);
-            setDailyMinutes(answers.dailyMinutes);
-            setPrefNotes(answers.notes);
-            // Kaynak sınırı belgenin kendi ayarı; plan kurulmadan yazılıyor
-            // ki ilk ders de bu sınırla üretilsin. Yazılamazsa plan yine
-            // kurulur — sınır varsayılanda (yalnızca belge) kalır.
-            if (documentId) {
-              void fetch(`/api/documents/${documentId}/topic-map`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  sourceBoundaryMode: answers.onlyMyFiles
-                    ? "documents_only"
-                    : "allow_supporting",
-                }),
-              }).catch(() => {});
-            }
-            setStep("plan");
-          }}
-        />
-      ) : null}
-
-      {step === "plan" ? (
+      {!planning && step === "modality" ? (
         <section className="apw-step">
-          <p className="apw-kicker">{longLabel(examDate)} · sınava {days} gün</p>
-          <h1>Sınava kadar yolun</h1>
-
-          <div className="apw-readiness">
-            <div>
-              <span className="apw-readiness-num">%0</span>
-              <span className="apw-readiness-label">bugün</span>
-            </div>
-            <div className="apw-readiness-track" aria-hidden>
-              <div
-                className="apw-readiness-fill"
-                style={{ width: `${projected}%` }}
-              />
-            </div>
-            <div>
-              <span className="apw-readiness-num">%{projected}</span>
-              <span className="apw-readiness-label">sınav günü</span>
-            </div>
-          </div>
-          <p className="apw-readiness-note">
-            Planı tamamlarsan beklenen hazırlık düzeyin. Tahmindir, garanti değil.
+          <h1>{WIZARD_COPY.modalityTitle}</h1>
+          <p className="apw-lead">
+            Ders, podcast ve pratik bu tercihe göre sıralanır.
           </p>
-
-          <ol className="apw-phases">
-            {phases.map(({ phase, nodes }) => (
-              <li key={phase.id}>
-                <h2>{phase.title}</h2>
-                <p>{phase.blurb}</p>
-                {nodes.length ? (
-                  <ul>
-                    {[...new Set(nodes.map((n) => n.kind))].map((kind) => (
-                      <li key={kind}>{PLAN_NODE_META[kind].title}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <ul>
-                    <li>Tanışma testi</li>
-                    <li>Seviyene göre ilk ders</li>
-                  </ul>
-                )}
-              </li>
+          <div className="apw-choices" role="radiogroup" aria-label="Çalışma biçimi">
+            {MODALITIES.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={modality === option.id}
+                className={
+                  modality === option.id ? "apw-choice apw-choice--on" : "apw-choice"
+                }
+                onClick={() => setModality(option.id)}
+              >
+                {option.label}
+              </button>
             ))}
-          </ol>
-
+          </div>
           <button
             type="button"
             className="apw-cta"
-            disabled={starting}
+            onClick={() => setStep("focus")}
+          >
+            {WIZARD_COPY.continue}
+          </button>
+        </section>
+      ) : null}
+
+      {!planning && step === "focus" ? (
+        <section className="apw-step">
+          <h1>{WIZARD_COPY.focusTitle}</h1>
+          <p className="apw-lead">
+            Eşit odak tüm konulara aynı yeri ayırır. İstersen birkaçı öne çıksın.
+          </p>
+          <div className="apw-choices">
+            <button
+              type="button"
+              className={equalFocus ? "apw-choice apw-choice--on" : "apw-choice"}
+              aria-pressed={equalFocus}
+              onClick={() => {
+                setEqualFocus(true);
+                setFocusTopics([]);
+              }}
+            >
+              {WIZARD_COPY.equalFocus}
+            </button>
+            {topics.map((topic) => {
+              const on = !equalFocus && focusTopics.includes(topic);
+              return (
+                <button
+                  key={topic}
+                  type="button"
+                  className={on ? "apw-choice apw-choice--on" : "apw-choice"}
+                  aria-pressed={on}
+                  onClick={() => {
+                    setEqualFocus(false);
+                    setFocusTopics((prev) => {
+                      const next = prev.includes(topic)
+                        ? prev.filter((item) => item !== topic)
+                        : [...prev, topic];
+                      if (!next.length) setEqualFocus(true);
+                      return next;
+                    });
+                  }}
+                >
+                  {topic}
+                </button>
+              );
+            })}
+          </div>
+          <button type="button" className="apw-cta" onClick={openPlan}>
+            {WIZARD_COPY.continue}
+          </button>
+        </section>
+      ) : null}
+
+      {!planning && step === "plan" ? (
+        <section className="apw-step">
+          <h1>{WIZARD_COPY.planReady}</h1>
+          <p className="apw-lead">{WIZARD_COPY.planLead}</p>
+          <TopicEditor
+            topics={topics}
+            topicPages={topicPages}
+            topicFiles={topicFiles}
+            topicWarnings={topicWarnings}
+            topicMeta={topicMeta}
+            excluded={excludedTopics}
+            missing={missingTopics}
+            documentIds={documentIds}
+            onTopics={setTopics}
+            onPages={setTopicPages}
+            onFiles={setTopicFiles}
+            onWarnings={setTopicWarnings}
+            onMeta={setTopicMeta}
+            onMissing={setMissingTopics}
+            onOrderEdited={() => setOrderEdited(true)}
+            onRename={(from, to) =>
+              setFocusTopics((prev) =>
+                prev
+                  .map((item) => (item === from ? to : item))
+                  .filter((item) => item.trim().length > 0),
+              )
+            }
+            onRemove={(title) =>
+              setFocusTopics((prev) => prev.filter((item) => item !== title))
+            }
+          />
+          <button
+            type="button"
+            className="apw-cta"
+            disabled={starting || !topics.length}
             onClick={() => void startPlan()}
           >
-            {starting ? "Kuruluyor…" : `${days} günlük planı başlat`}
+            {starting ? WIZARD_COPY.creating : PREP_HOME_COPY.startLearning}
           </button>
         </section>
       ) : null}
@@ -816,6 +1172,365 @@ export function ExamCreateWizard({
         returnPath="/deneme-sinavlari/olustur"
       />
     </div>
+  );
+}
+
+function TopicEditor({
+  topics,
+  topicPages,
+  topicFiles,
+  topicWarnings,
+  topicMeta,
+  excluded,
+  missing,
+  documentIds,
+  onTopics,
+  onPages,
+  onFiles,
+  onWarnings,
+  onMeta,
+  onMissing,
+  onOrderEdited,
+  onRename,
+  onRemove,
+}: {
+  topics: string[];
+  topicPages: number[][];
+  topicFiles: string[][];
+  topicWarnings: string[];
+  topicMeta: TopicMeta[];
+  excluded: ExcludedNote[];
+  missing: MissingTopic[];
+  documentIds: string[];
+  onTopics: (next: string[]) => void;
+  onPages: (next: number[][]) => void;
+  onFiles: (next: string[][]) => void;
+  onWarnings: (next: string[]) => void;
+  onMeta: (next: TopicMeta[]) => void;
+  onMissing: (next: MissingTopic[]) => void;
+  onOrderEdited: () => void;
+  onRename: (from: string, to: string) => void;
+  onRemove: (title: string) => void;
+}) {
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const original = editIndex == null ? "" : topics[editIndex] ?? "";
+  const changeDirty = draft.trim().length > 0 && draft.trim() !== original.trim();
+  const addDirty = draft.trim().length > 0;
+
+  function close() {
+    setEditIndex(null);
+    setAdding(false);
+    setDraft("");
+    setError(null);
+    setChecking(false);
+  }
+
+  function duplicate(title: string, ignore: number | null) {
+    const key = title.toLocaleLowerCase("tr");
+    return topics.some(
+      (item, index) => index !== ignore && item.toLocaleLowerCase("tr") === key,
+    );
+  }
+
+  async function ground(title: string) {
+    if (!documentIds.length) {
+      return { ok: false as const, message: WIZARD_COPY.topicCheckFailed, pageNumbers: [] as number[] };
+    }
+    try {
+      const res = await fetch("/api/learning/exam-prep/ground-topic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentIds, title }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return {
+          ok: false as const,
+          message: (payload.error as string | undefined) ?? WIZARD_COPY.topicCheckFailed,
+          pageNumbers: [] as number[],
+        };
+      }
+      const pageNumbers = Array.isArray(payload.pageNumbers)
+        ? payload.pageNumbers.filter((page: unknown) => typeof page === "number")
+        : [];
+      return { ok: true as const, message: "", pageNumbers };
+    } catch {
+      return { ok: false as const, message: WIZARD_COPY.topicCheckFailed, pageNumbers: [] as number[] };
+    }
+  }
+
+  async function saveChange() {
+    if (editIndex == null || !changeDirty || checking) return;
+    const next = draft.trim();
+    if (duplicate(next, editIndex)) {
+      setError(WIZARD_COPY.topicDuplicate);
+      return;
+    }
+    setChecking(true);
+    setError(null);
+    const result = await ground(next);
+    setChecking(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    onRename(original, next);
+    onTopics(topics.map((item, index) => (index === editIndex ? next : item)));
+    onPages(
+      topicPages.map((pages, index) =>
+        index === editIndex ? (result.pageNumbers.length ? result.pageNumbers : pages) : pages,
+      ),
+    );
+    close();
+  }
+
+  async function saveAdd() {
+    const title = draft.trim();
+    if (!title || checking) return;
+    if (duplicate(title, null)) {
+      setError(WIZARD_COPY.topicDuplicate);
+      return;
+    }
+    setChecking(true);
+    setError(null);
+    const result = await ground(title);
+    setChecking(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    onTopics([...topics, title]);
+    onPages([...topicPages, result.pageNumbers]);
+    onFiles([...topicFiles, []]);
+    onWarnings([...topicWarnings, ""]);
+    onMeta([...topicMeta, { ...EMPTY_META }]);
+    onMissing(missing.filter((item) => item.title !== title));
+    close();
+  }
+
+  async function addMissing(item: MissingTopic) {
+    if (checking) return;
+    if (duplicate(item.title, null)) {
+      onMissing(missing.filter((row) => row.title !== item.title));
+      return;
+    }
+    setChecking(true);
+    const result = await ground(item.title);
+    setChecking(false);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    onTopics([...topics, item.title]);
+    onPages([...topicPages, result.pageNumbers]);
+    onFiles([...topicFiles, []]);
+    onWarnings([...topicWarnings, ""]);
+    onMeta([
+      ...topicMeta,
+      { sourceCount: 0, examHeavy: item.examHeavy, important: false, sections: [] },
+    ]);
+    onMissing(missing.filter((row) => row.title !== item.title));
+  }
+
+  function removeAt(index: number) {
+    const title = topics[index];
+    if (!title) return;
+    onRemove(title);
+    onTopics(topics.filter((_, item) => item !== index));
+    onPages(topicPages.filter((_, item) => item !== index));
+    onFiles(topicFiles.filter((_, item) => item !== index));
+    onWarnings(topicWarnings.filter((_, item) => item !== index));
+    onMeta(topicMeta.filter((_, item) => item !== index));
+  }
+
+  function move(index: number, delta: number) {
+    const next = index + delta;
+    if (next < 0 || next >= topics.length) return;
+    const reordered = [...topics];
+    const [title] = reordered.splice(index, 1);
+    reordered.splice(next, 0, title);
+    const pages = [...topicPages];
+    const [page] = pages.splice(index, 1);
+    pages.splice(next, 0, page ?? []);
+    const files = [...topicFiles];
+    const [file] = files.splice(index, 1);
+    files.splice(next, 0, file ?? []);
+    const warnings = [...topicWarnings];
+    const [warning] = warnings.splice(index, 1);
+    warnings.splice(next, 0, warning ?? "");
+    const meta = [...topicMeta];
+    const [metaRow] = meta.splice(index, 1);
+    meta.splice(next, 0, metaRow ?? { ...EMPTY_META });
+    onTopics(reordered);
+    onPages(pages);
+    onFiles(files);
+    onWarnings(warnings);
+    onMeta(meta);
+    onOrderEdited();
+  }
+
+  return (
+    <>
+      {excluded.length ? (
+        <ul className="apw-excluded">
+          {excluded.map((note) => (
+            <li key={note.title}>
+              <strong>{note.title}</strong>
+              <em className="apw-topic-warning">{note.reason}</em>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <ul className="apw-topics">
+        {topics.map((topic, index) => {
+          const meta = topicMeta[index] ?? EMPTY_META;
+          return (
+          <li key={`${index}-${topic}`}>
+            <span className="apw-topic-field">
+              <strong>{topic}</strong>
+              {meta.examHeavy ? <em className="apw-topic-heavy">{WIZARD_COPY.examHeavy}</em> : null}
+              {meta.important && !meta.examHeavy ? (
+                <em className="apw-topic-important">{WIZARD_COPY.important}</em>
+              ) : null}
+              {meta.sourceCount > 0 ? <em>{sourceCountLabel(meta.sourceCount)}</em> : null}
+              {meta.sections.length ? <em>{meta.sections.join(" · ")}</em> : null}
+              {topicFiles[index]?.length ? (
+                <em>Kaynak: {topicFiles[index].join(", ")}</em>
+              ) : topicPages[index]?.length ? (
+                <em>Kaynak: s.{topicPages[index].join(", ")}</em>
+              ) : null}
+              {topicWarnings[index] ? (
+                <em className="apw-topic-warning">{topicWarnings[index]}</em>
+              ) : null}
+            </span>
+            <span className="apw-topic-actions">
+              <button
+                type="button"
+                className="apw-topic-edit"
+                aria-label={WIZARD_COPY.moveUp}
+                disabled={index === 0}
+                onClick={() => move(index, -1)}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                className="apw-topic-edit"
+                aria-label={WIZARD_COPY.moveDown}
+                disabled={index === topics.length - 1}
+                onClick={() => move(index, 1)}
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                className="apw-topic-edit"
+                onClick={() => {
+                  setAdding(false);
+                  setError(null);
+                  setEditIndex(index);
+                  setDraft(topic);
+                }}
+              >
+                {WIZARD_COPY.editTopic}
+              </button>
+              <button
+                type="button"
+                className="apw-topic-edit"
+                aria-label={WIZARD_COPY.removeTopic}
+                onClick={() => removeAt(index)}
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </span>
+          </li>
+          );
+        })}
+      </ul>
+      {missing.length ? (
+        <ul className="apw-missing">
+          {missing.map((item) => (
+            <li key={item.title}>
+              <span>
+                <strong>{item.title}</strong>
+                <em>{WIZARD_COPY.missingMaterial}</em>
+                {item.examHeavy ? <em className="apw-topic-heavy">{WIZARD_COPY.examHeavy}</em> : null}
+              </span>
+              <button type="button" disabled={checking} onClick={() => void addMissing(item)}>
+                {WIZARD_COPY.addMissing}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <button
+        type="button"
+        className="apw-topic-add-btn"
+        onClick={() => {
+          setEditIndex(null);
+          setError(null);
+          setAdding(true);
+          setDraft("");
+        }}
+      >
+        <Plus className="h-4 w-4" aria-hidden /> {WIZARD_COPY.addTopic}
+      </button>
+
+      {editIndex != null || adding ? (
+        <div className="apw-modal-backdrop" role="presentation" onClick={close}>
+          <div
+            className="apw-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="apw-topic-dialog-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="apw-topic-dialog-title">
+              {adding ? WIZARD_COPY.addTopic : WIZARD_COPY.editTopic}
+            </h2>
+            <input
+              value={draft}
+              aria-label={adding ? "Yeni konu" : "Konu adı"}
+              autoFocus
+              onChange={(event) => {
+                setDraft(event.target.value);
+                setError(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") close();
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                if (adding) void saveAdd();
+                else void saveChange();
+              }}
+            />
+            {error ? (
+              <p className="apw-modal-error" role="alert">
+                {error}
+              </p>
+            ) : null}
+            <div className="apw-modal-actions">
+              <button type="button" className="apw-ghost" onClick={close}>
+                {WIZARD_COPY.cancel}
+              </button>
+              <button
+                type="button"
+                className="apw-cta"
+                disabled={checking || (adding ? !addDirty : !changeDirty)}
+                onClick={() => void (adding ? saveAdd() : saveChange())}
+              >
+                {checking ? "Bakılıyor…" : WIZARD_COPY.save}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -920,7 +1635,7 @@ function DateStep({
       </div>
 
       <button type="button" className="apw-cta" disabled={!value} onClick={onNext}>
-        Devam et
+        {WIZARD_COPY.continue}
       </button>
     </section>
   );

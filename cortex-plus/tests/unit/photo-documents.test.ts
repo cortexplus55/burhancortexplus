@@ -57,9 +57,12 @@ beforeEach(() => {
 });
 
 describe("hangi belge fotoğraf", () => {
-  it.each(["image/jpeg", "image/png", "image/webp"])("%s fotoğraf", (mime) => {
-    expect(isImageDocument(mime)).toBe(true);
-  });
+  it.each(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"])(
+    "%s fotoğraf",
+    (mime) => {
+      expect(isImageDocument(mime)).toBe(true);
+    },
+  );
 
   it.each(["application/pdf", "text/plain", "", null, undefined])(
     "%s fotoğraf değil",
@@ -350,7 +353,10 @@ describe("boru hattı", () => {
      önce okunur, sonra reddedilirdi — bedava iş. */
   it("fotoğrafta okumadan önce kota alıyor", () => {
     expect(source.indexOf("await claim(1)")).toBeLessThan(
-      source.indexOf("await extractImageText(buffer"),
+      source.indexOf("await extractImageText("),
+    );
+    expect(source.indexOf("await visionReadyImage(")).toBeLessThan(
+      source.indexOf("await extractImageText("),
     );
   });
 

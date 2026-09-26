@@ -37,6 +37,137 @@ export const normalizeForMatch = (s: string) =>
     .trim();
 const normalize = normalizeForMatch;
 
+const OUTSIDE_LABEL = /(?:Genel bilgiden|Materyal dışı|Outside the material)\s*:/i;
+const NOT_IN_SOURCE_LINE = /Bu,\s*yüklediğin kaynakta yok\s*[—–-]\s*genel bilgiyle anlatıyorum\s*:/i;
+const CITATION = /\[(?:\d+|Sayfa\s+\d+)\]/i;
+const DOC_LABEL = /Belgeden\s*:/i;
+
+const SUBJECT_STOP = new Set([
+  "neden", "nasil", "nasıl", "olamaz", "olabilir", "belgede", "kaynakta", "materyalde",
+  "notlarda", "notumda", "hakkinda", "hakkında", "icinde", "içinde", "nedir", "varsa",
+  "yoksa", "midir", "about", "there", "would", "could", "should", "which", "their",
+  "document", "material", "because", "inside", "notes",
+]);
+
+export type OutsideSplit = {
+  documentPart: string;
+  generalPart: string;
+  labeled: boolean;
+};
+
+/**
+ * Genel bilgi bölümü üç etiketten biri ile başlar. Kaynak bloğunun zorunlu
+ * ilk satırı da aynı bölümdür: denetçi onu "Genel bilgiden" sanmıyordu ve
+ * belgede olmayan doğru cevabı `mixed_mode_missing_sections` ile düşürüyordu.
+ */
+export function splitOutsideMaterial(answer: string): OutsideSplit {
+  const normalized = answer.replace(NOT_IN_SOURCE_LINE, "\nMateryal dışı:");
+  const match = OUTSIDE_LABEL.exec(normalized);
+  if (!match || match.index == null) {
+    return {
+      documentPart: normalized.replace(/^\s*(?:#+\s*)?(?:\*\*)?Belgeden\s*:(?:\*\*)?\s*/i, "").trim(),
+      generalPart: "",
+      labeled: false,
+    };
+  }
+  return {
+    documentPart: normalized
+      .slice(0, match.index)
+      .replace(/^\s*(?:#+\s*)?(?:\*\*)?Belgeden\s*:(?:\*\*)?\s*/i, "")
+      .trim(),
+    generalPart: normalized.slice(match.index + match[0].length).trim(),
+    labeled: true,
+  };
+}
+
+function isAbsenceNote(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+  if (CITATION.test(trimmed) || DOC_LABEL.test(trimmed)) return false;
+  return /belgede\s+yok|kaynakta\s+yok|materyalde\s+yok|belgede\s+geçmi|yer\s+almıyor|kapsamıyor|not in the (document|material|notes)|does not cover|is not in the/i.test(trimmed);
+}
+
+/** Genel bilgi bölümünün içine gizlenmiş "belgede yazıyor" iddiası. */
+export function claimsStoredFact(text: string): boolean {
+  if (/belgede\s+yok|kaynakta\s+yok|materyalde\s+yok|not in the (document|material|notes)/i.test(text)) {
+    return false;
+  }
+  return /belgede\s+(var\b|yazıyor|geçiyor|yer alıyor|anlatılıyor|bulunuyor)|kaynakta\s+(var\b|yazıyor|geçiyor)|belgeye göre|according to (the |your )?(document|notes)|the document (says|states|includes|contains)/i.test(text);
+}
+
+/**
+ * İşaretli genel bilgi, alıntısız ve belgeye mal edilmemişse kaynak
+ * denetçisinden geçebilir. Belgeye ait olduğu söylenen kısım ayrıca
+ * alıntıyla doğrulanır.
+ */
+export function isAcceptableOutsideAnswer(answer: string): boolean {
+  const split = splitOutsideMaterial(answer);
+  if (!split.labeled || split.generalPart.length < 8) return false;
+  if (CITATION.test(split.generalPart) || claimsStoredFact(split.generalPart)) return false;
+  return isAbsenceNote(split.documentPart);
+}
+
+export function isClearlyOffDocument(question: string, sourceText: string): boolean {
+  const source = sourceText.trim();
+  if (!source) return false;
+  return subjectMissing(question, source);
+}
+
+/** Belge dışı soruda ikinci ücretli deneme yok. */
+export function paidChatAttempts(offDocument: boolean): number {
+  return offDocument ? 1 : 2;
+}
+
+function subjectMissing(question: string, source: string): boolean {
+  const hay = source.toLocaleLowerCase("tr");
+  const names = (question.match(/\p{Lu}[\p{L}\p{N}]{3,}/gu) ?? [])
+    .map((word) => word.toLocaleLowerCase("tr"))
+    .filter((word) => !SUBJECT_STOP.has(word));
+  if (names.some((name) => !hay.includes(name))) return true;
+  const tokens = question
+    .toLocaleLowerCase("tr")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((word) => word.length >= 5 && !SUBJECT_STOP.has(word));
+  if (!tokens.length) return false;
+  const missing = tokens.filter((word) => !hay.includes(word));
+  if (!missing.length) return false;
+  const longest = tokens.reduce((best, word) => (word.length > best.length ? word : best));
+  return missing.includes(longest);
+}
+
+/**
+ * Model etiketi unutursa, kaynakta olmayan soruya "Materyal dışı:" eklenir.
+ * Belgede geçen bir konuya ya da belge atıfı taşıyan cevaba dokunulmaz.
+ */
+export function presentOutsideMaterialAnswer(input: {
+  question: string;
+  answer: string;
+  sourceText: string;
+  language?: "tr" | "en";
+}): string {
+  if (splitOutsideMaterial(input.answer).labeled) return input.answer;
+  if (DOC_LABEL.test(input.answer) || CITATION.test(input.answer)) return input.answer;
+  if (claimsStoredFact(input.answer)) return input.answer;
+  const source = input.sourceText.trim();
+  if (!source || !subjectMissing(input.question, source)) return input.answer;
+  const english = input.language === "en";
+  const label = english ? "Outside the material:" : "Materyal dışı:";
+  const alreadyAbsent = /belgede\s+yok|kaynakta\s+yok|materyalde\s+yok|not in the (document|material)/i.test(input.answer);
+  const absence = alreadyAbsent ? "" : english ? "This is not in the material.\n\n" : "Bu, belgede yok.\n\n";
+  return `${absence}${label} ${input.answer.trim()}`;
+}
+
+export function outsideMaterialReviewNote(): string {
+  return (
+    "Sohbet istisnası: \"Materyal dışı:\", \"Outside the material:\" veya \"Genel bilgiden:\" ile işaretlenmiş bölüm genel bilgidir. " +
+    "Bu bölümü belgede geçmediği için reddetme; bilimsel olarak yanlışsa reddet. " +
+    "Belgeden geldiği söylenen veya [n] / [Sayfa N] atıflı bir iddiayı, verilen kaynakta yoksa reddet. " +
+    "Belgede olmayan bir olguyu belgede yazıyormuş gibi sunmak reddedilir. " +
+    "Belgede olmadığını dürüstçe söyleyip işaretli genel bilgi vermek doğru yanıttır. İşareti silme."
+  );
+}
+
 /** Semantic review is combined with literal evidence validation. A model cannot
  * approve nonexistent quotes, arbitrary reference IDs or unsupported claims.
  * This is a conservative quality gate, not a proof of model infallibility.
@@ -45,13 +176,20 @@ export async function verifyDocumentAnswer(input: {
   client: OpenAI; question: string; answer: string; evidence: ChatEvidence[];
   strict: boolean; signal?: AbortSignal;
 }) {
-  const documentPart = input.strict ? input.answer
-    : input.answer.split(/Genel bilgiden\s*:/i)[0].replace(/^\s*(?:#+\s*)?(?:\*\*)?Belgeden\s*:(?:\*\*)?/i, "");
-  if (!input.strict && !/Belgeden\s*:/i.test(input.answer)) {
-    const generalOnly = /^\s*(?:#+\s*)?(?:\*\*)?Genel bilgiden\s*:/i.test(input.answer);
-    const ok = generalOnly && !/\[(?:\d+|Sayfa\s+\d+)\]/i.test(input.answer);
-    return { ok, citations: [], reasons: ok ? [] : ["mixed_mode_missing_sections"], tokensIn: 0, tokensOut: 0 };
+  const split = splitOutsideMaterial(input.answer);
+  if (!input.strict && isAcceptableOutsideAnswer(input.answer)) {
+    return { ok: true, citations: [], reasons: [], tokensIn: 0, tokensOut: 0 };
   }
+  if (!input.strict && split.labeled && CITATION.test(split.generalPart)) {
+    return { ok: false, citations: [], reasons: ["citation_in_general_part"], tokensIn: 0, tokensOut: 0 };
+  }
+  if (!input.strict && split.labeled && claimsStoredFact(split.generalPart)) {
+    return { ok: false, citations: [], reasons: ["document_claim_in_general_part"], tokensIn: 0, tokensOut: 0 };
+  }
+  if (!input.strict && !split.labeled && !DOC_LABEL.test(input.answer)) {
+    return { ok: false, citations: [], reasons: ["mixed_mode_missing_sections"], tokensIn: 0, tokensOut: 0 };
+  }
+  const documentPart = input.strict ? input.answer : split.documentPart;
   if (!input.evidence.length) return { ok: false, citations: [], reasons: ["no_evidence"], tokensIn: 0, tokensOut: 0 };
   const response = await input.client.chat.completions.create({
     model: env.OPENAI_ADVANCED_MODEL,
@@ -89,7 +227,7 @@ export async function verifyDocumentAnswer(input: {
     if (!normalize(source.content).includes(normalize(claim.quote))) reasons.push(`quote_not_in_source:${claim.reference}`);
     if (!normalize(documentPart).includes(normalize(claim.claim))) reasons.push("claim_not_in_answer");
   }
-  const generalPart = input.strict ? "" : input.answer.split(/Genel bilgiden\s*:/i).slice(1).join(" ");
+  const generalPart = input.strict ? "" : split.generalPart;
   if (!inlineReferences.every((r) => references.includes(r))) reasons.push("inline_reference_unreviewed");
   if (/\[(?:\d+|Sayfa\s+\d+)\]/i.test(generalPart)) reasons.push("citation_in_general_part");
   const ok = reasons.length === 0;

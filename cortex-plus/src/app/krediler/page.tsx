@@ -4,13 +4,15 @@ import { SectionCard } from "@/components/ui-kit/empty-state";
 import { requireStudentArea } from "@/lib/auth/session";
 import { formatDate, formatNumber } from "@/lib/format";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
-import { formatResetAt, periodLabel, quotaView } from "@/lib/credits/period";
+import { formatResetAt, periodLabel, periodWord, quotaView } from "@/lib/credits/period";
 import { loadReferralSummary } from "@/lib/credits/referral";
 import { loadInviteLink } from "@/lib/credits/invite-code";
 import { ReferralRewardCard } from "@/components/parity/referral-reward-card";
 import { createServiceClient } from "@/lib/supabase/server";
 import { planTier } from "@/lib/documents/photo-quota";
 import { loadUsageLimits } from "@/lib/student/usage-limits";
+import { FounderCreditsView } from "@/components/student/founder-credits-view";
+import { summarizeFounderUsage, turkeyMonthStart } from "@/lib/credits/founder-usage";
 
 export const metadata = { title: "Limitler" };
 
@@ -54,6 +56,32 @@ function LimitBar({
 export default async function KredilerPage() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
+
+  // Kurucu görünümü: bakiye düşmediği için kota, satış ve paket yok; yalnızca
+  // defterdeki 0 kredilik kayıtlardan maliyet takibi.
+  if (shell.account.isAdmin) {
+    const bypass = () =>
+      supabase
+        .from("credit_ledger")
+        .select("id, action_code, metadata, created_at")
+        .eq("user_id", user.id)
+        .eq("entry_type", "reserve")
+        .eq("metadata->>admin_bypass", "true");
+    const [month, recent] = await Promise.all([
+      bypass().gte("created_at", turkeyMonthStart()).limit(5000),
+      bypass().order("created_at", { ascending: false }).limit(20),
+    ]);
+    const failed = Boolean(month.error || recent.error);
+    return (
+      <ParitySorShell {...shell}>
+        <FounderCreditsView
+          failed={failed}
+          summary={failed ? null : summarizeFounderUsage(month.data ?? [])}
+          recent={failed ? [] : (recent.data ?? [])}
+        />
+      </ParitySorShell>
+    );
+  }
 
   /*
     Krediden bağımsız sayaçlar service role ile okunuyor: `document_page_grants`
@@ -158,9 +186,9 @@ export default async function KredilerPage() {
           </div>
         ) : (
           <div className="cp-quota-upsell">
-            <p>Aylık limitin dolduysa paketini erkenden yenileyebilirsin.</p>
-            <Link href="/pay" className="cp-exam-continue inline-flex">
-              Paketi yenile
+            <p>{periodWord(quota.kind)} kotan dolduysa ek paket alabilirsin.</p>
+            <Link href="/paketler" className="cp-exam-continue inline-flex">
+              Ek paket al
             </Link>
           </div>
         )}
