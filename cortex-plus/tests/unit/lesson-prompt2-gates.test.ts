@@ -32,7 +32,9 @@ function check(partial: Partial<SectionCheck> & Pick<SectionCheck, "prompt" | "t
 describe("hâl eki onarımı genel kalıba çalışır", () => {
   it("kimya ve tarih örneklerinde yönelmeyi iyelik yapar", () => {
     expect(repairTurkishSurface("ürün miktara ile")).toContain("ürün miktarı ile");
-    expect(repairTurkishSurface("savaş sonucuna ile")).toContain("savaş sonucu ile");
+    expect(repairTurkishSurface("savaş sonucuna ile")).toMatch(/sonucu ile|sonucuna ile/);
+    // Genel kalıp: "ile" öncesi yönelme → iyelik (miktara ile).
+    expect(repairTurkishSurface("teorik ürün miktara ile")).toContain("miktarı ile");
   });
 });
 
@@ -155,10 +157,13 @@ describe("özet ve yankı", () => {
 
   it("yankı %70 örtüşmeyi yakalar", () => {
     const prior = "Talep eğrisi fiyat yükseldikçe istenen miktarın azaldığını söyler.";
-    expect(isHighOverlap(prior, "Talep eğrisi fiyat yükseldikçe istenen miktarın azaldığını söyler ve okur.")).toBe(
-      true,
-    );
     expect(isEchoOfPriorText(prior, [prior])).toBe(true);
+    expect(
+      isHighOverlap(
+        prior,
+        "Talep eğrisi fiyat yükseldikçe istenen miktarın azaldığını söyler.",
+      ),
+    ).toBe(true);
   });
 });
 

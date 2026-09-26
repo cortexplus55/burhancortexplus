@@ -134,7 +134,7 @@ describe("ExamLessonSteps", () => {
     expect(screen.getByText("DOĞRU MU YANLIŞ MI?")).toBeTruthy();
     expect(screen.getByText("Sınırın Hareketliliği")).toBeTruthy();
     expect(screen.getByText("Kapalı Sistem")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Yanlış" }));
+    fireEvent.click(screen.getByRole("button", { name: /Yanlış/ }));
 
     expect(screen.getByText("2 / 7")).toBeTruthy();
     expect(screen.queryByText(/\/ 9/)).toBeNull();
@@ -213,7 +213,7 @@ describe("ExamLessonSteps", () => {
     expect(screen.getByText("1 / 1")).toBeTruthy();
     expect(screen.queryByText("Değişim hal fonksiyonu, başlangıç ve son halden bağımsızdır.")).toBeNull();
     expect(screen.queryByText(/ortam koşullarına/)).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Yanlış" }));
+    fireEvent.click(screen.getByRole("button", { name: /Yanlış/ }));
 
     expect(screen.getByText("AÇIKLAMA")).toBeTruthy();
     expect(screen.getByText("🤔 Yanlış")).toBeTruthy();
@@ -312,7 +312,7 @@ describe("ExamLessonSteps", () => {
       "als-formula",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Doğru" }));
+    fireEvent.click(screen.getByRole("button", { name: /Doğru/ }));
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     expect(screen.getByText("Tekrar 1 / 1")).toBeTruthy();

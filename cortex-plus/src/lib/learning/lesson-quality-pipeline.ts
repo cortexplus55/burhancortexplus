@@ -14,7 +14,7 @@
  * Her adım issues[] döner; sunucu log'una yazılır.
  */
 
-import { absoluteClaimIssues, unsupportedAbsoluteClaims } from "@/lib/learning/absolute-claims";
+import { absoluteClaimIssues } from "@/lib/learning/absolute-claims";
 import { repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import {
   isContextlessFragment,
@@ -375,9 +375,3 @@ export function validationIssuesAsQuality(items: ValidationIssue[]): QualityIssu
     excerpt: item.message.slice(0, 80),
   }));
 }
-
-// Referans tutmak için (ağaç sallamasın).
-void unsupportedAbsoluteClaims;
-void isHighOverlap;
-void QualityReportEntry;
-void LessonV2;

@@ -1228,14 +1228,14 @@ describe("exam-prep lesson route", () => {
     expect(retry.prompt).not.toContain("başka sözcüklerle");
     expect(retry.options[retry.answerIndex]).toBe("Doğru");
     for (const check of checks) {
-      if (!check) continue;
+      if (!check?.options?.length || typeof check.answerIndex !== "number") continue;
       const again = reviewQuestionFor(
         {
           type: check.type === "trueFalse" ? "trueFalse" : "mcq",
           prompt: check.prompt,
           options: check.options,
           answerIndex: check.answerIndex,
-          explanation: check.explanation,
+          explanation: check.explanation ?? "Kaynak, ayrımı verilen şarta bağlar.",
         },
         "tr",
         routePageText,
@@ -1553,12 +1553,16 @@ describe("exam-prep lesson route", () => {
     const checks = lesson.sections.map((section) => section.check).filter((check) => check);
     expect(checks.length).toBeGreaterThanOrEqual(3);
     for (const check of checks) {
-      expect(check?.options.length).toBe(4);
+      // Oynatma paketi cevap indeksini sızdırmaz; şıklar durur.
+      expect(check?.options?.length).toBe(4);
       expect(check?.type === "trueFalse" ? "trueFalse" : "mcq").toBe("mcq");
+      expect(check).not.toHaveProperty("answerIndex");
     }
     const numeric = checks.find((check) => check?.prompt === numericPrompt);
-    expect(numeric?.options[numeric.answerIndex]).toBe("-6 kJ");
-    const isothermal = checks.find((check) => /mRT ln\(V₂\/V₁\)/.test(check?.options[check.answerIndex] ?? ""));
+    expect(numeric?.options).toContain("-6 kJ");
+    const isothermal = checks.find((check) =>
+      (check?.options ?? []).some((option) => /mRT ln\(V₂\/V₁\)/.test(option)),
+    );
     expect(isothermal?.prompt).toMatch(/bağıntı|eşitlik|hangi/i);
     expect(isothermal?.options).toHaveLength(4);
     const retry = reviewQuestionFor(

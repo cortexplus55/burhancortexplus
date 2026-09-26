@@ -492,7 +492,6 @@ export async function POST(request: Request) {
   const title = PLAN_NODE_META[kind]?.setupLabel ?? node.title;
   const lessonReviewCards =
     kind === "spaced" ? await loadLessonReviewCards(service, userId, prepId) : [];
-  const founder = await isAdminUser(service, userId);
 
   if (action === "review") {
     if (kind !== "written_exam") return errorResponse(400, "invalid_input");
@@ -566,10 +565,7 @@ export async function POST(request: Request) {
         kind,
         title,
         topicLabel,
-        publicPayload: publicNodePayload(
-          attempt.payload as Record<string, unknown>,
-          lessonReviewCards, kind, { isAdmin: founder },
-        ),
+        publicPayload: await publicPayloadForUser(service, userId, attempt.payload as Record<string, unknown>, lessonReviewCards, kind),
         resumed: true,
       }),
       ...(await readWalletBalance(service, userId)),
@@ -982,10 +978,7 @@ export async function POST(request: Request) {
           kind,
           title,
           topicLabel,
-          publicPayload: publicNodePayload(
-            existingForKey.payload as Record<string, unknown>,
-            lessonReviewCards, kind, { isAdmin: founder },
-          ),
+          publicPayload: await publicPayloadForUser(service, userId, existingForKey.payload as Record<string, unknown>, lessonReviewCards, kind),
           resumed: true,
         }),
         ...(await readWalletBalance(service, userId)),
@@ -1008,10 +1001,7 @@ export async function POST(request: Request) {
             kind,
             title,
             topicLabel,
-            publicPayload: publicNodePayload(
-              existingForKey.payload as Record<string, unknown>,
-              lessonReviewCards, kind, { isAdmin: founder },
-            ),
+            publicPayload: await publicPayloadForUser(service, userId, existingForKey.payload as Record<string, unknown>, lessonReviewCards, kind),
             resumed: true,
           },
         ),
@@ -1036,10 +1026,7 @@ export async function POST(request: Request) {
           kind,
           title,
           topicLabel,
-          publicPayload: publicNodePayload(
-            resumable.payload as Record<string, unknown>,
-            lessonReviewCards, kind, { isAdmin: founder },
-          ),
+          publicPayload: await publicPayloadForUser(service, userId, resumable.payload as Record<string, unknown>, lessonReviewCards, kind),
           resumed: true,
         }),
         ...(await readWalletBalance(service, userId)),
@@ -1106,7 +1093,7 @@ export async function POST(request: Request) {
         title,
         topicLabel,
         voiceMode: false,
-        payload: publicNodePayload(local.payload, lessonReviewCards, kind, { isAdmin: founder }),
+        payload: await publicPayloadForUser(service, userId, local.payload, lessonReviewCards, kind),
         ...(await readWalletBalance(service, userId)),
       });
     }
@@ -1232,13 +1219,15 @@ export async function POST(request: Request) {
       }
     }
     // Aynı konuyu işleyen diğer belgeler (fotoğraf + PDF vb.) bağlama eklenir.
+    // Sayfa okuması başarısızsa / boşsa aramaya düşülmez — incomplete page kapısı bozulmaz.
     if (
       kind === "lesson" &&
       teachingV2 &&
       !voiceSession &&
+      pageSource.block.trim() &&
       shouldSearchSources(sourceMode)
     ) {
-      source = await loadMergedTopicContext(
+      const merged = await loadMergedTopicContext(
         service,
         userId,
         `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim(),
@@ -1249,17 +1238,17 @@ export async function POST(request: Request) {
           allowSearch: true,
         },
       );
-      // Sayfa / span bağlamı daha zenginse onu koru, üzerine birleştirilmiş ekleri yaz.
-      if (pageSource.block.trim()) {
-        const mergedBlock =
-          pageSource.block.includes(source.block.slice(0, 80)) || !source.block.trim()
-            ? pageSource.block
-            : `${pageSource.block}\n\n${source.block}`;
+      if (merged.block.trim() && merged.block !== pageSource.block) {
+        const mergedBlock = pageSource.block.includes(merged.block.slice(0, 80))
+          ? pageSource.block
+          : `${pageSource.block}\n\n${merged.block}`;
         source = {
           ...pageSource,
           block: mergedBlock,
-          matches: [...pageSource.matches, ...source.matches],
+          matches: [...pageSource.matches, ...merged.matches],
         };
+      } else {
+        source = pageSource;
       }
     } else {
       source = pageSource.block
@@ -1376,10 +1365,7 @@ export async function POST(request: Request) {
               kind,
               title,
               topicLabel,
-              publicPayload: publicNodePayload(
-                raced.payload as Record<string, unknown>,
-                lessonReviewCards, kind, { isAdmin: founder },
-              ),
+              publicPayload: await publicPayloadForUser(service, userId, raced.payload as Record<string, unknown>, lessonReviewCards, kind),
               resumed: true,
             }),
           );
@@ -1641,7 +1627,7 @@ export async function POST(request: Request) {
         kind,
         title,
         topicLabel,
-        publicPayload: publicNodePayload(payload, lessonReviewCards, kind, { isAdmin: founder }),
+        publicPayload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind),
         resumed: false,
       }),
       ...(await readWalletBalance(service, userId)),
@@ -1706,7 +1692,7 @@ export async function POST(request: Request) {
     title,
     topicLabel,
     voiceMode,
-    payload: publicNodePayload(payload, lessonReviewCards, kind, { isAdmin: founder }),
+    payload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind),
     ...(await readWalletBalance(service, userId)),
   });
 }
@@ -2621,6 +2607,18 @@ function oralReviewFromPayload(payload: unknown): OralExamReport | null {
   if (!meta || typeof meta !== "object") return null;
   const report = meta as OralExamReport;
   return Array.isArray(report.items) ? report : null;
+}
+
+async function publicPayloadForUser(
+  service: SupabaseClient,
+  userId: string,
+  payload: Record<string, unknown>,
+  reviewCards: LessonReviewCard[] = [],
+  nodeKind?: PlanNodeKind,
+) {
+  const isLesson = payload.type === "lesson";
+  const isAdmin = isLesson ? await isAdminUser(service, userId) : false;
+  return publicNodePayload(payload, reviewCards, nodeKind, { isAdmin });
 }
 
 function publicNodePayload(

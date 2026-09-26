@@ -24,9 +24,10 @@ import {
 import type {
   GradeCheckResult,
   LessonCheckAnswer,
-  PublicLessonV2,
   PublicSectionCheck,
 } from "@/lib/learning/lesson-play";
+import { publicLessonV2Schema } from "@/lib/learning/lesson-play";
+import type { z } from "zod";
 import "@/styles/exam-lesson-steps.css";
 
 /**
@@ -36,10 +37,7 @@ import "@/styles/exam-lesson-steps.css";
  * ardından açıklama. Yanlışlar dersin sonunda bir kez daha sorulur.
  */
 
-/** Yazılı yanıtı sayısal karşılaştırma için normalize eder. */
-function normalizeAnswer(value: string): string {
-  return value.replace(/\s+/g, "").replace(",", ".").toLocaleLowerCase("tr-TR");
-}
+/** Adım satırı mı? */
 
 function stepLine(text: string): boolean {
   return /^(?:Veri|Adım\s*\d+)\s*:/i.test(text.trim());
@@ -104,7 +102,7 @@ function RichBody({ text }: { text: string }) {
   );
 }
 
-type PlayLesson = LessonV2 | PublicLessonV2;
+type PlayLesson = LessonV2 | z.infer<typeof publicLessonV2Schema>;
 type PlayCheck = NonNullable<LessonV2["sections"][number]["check"]> | PublicSectionCheck;
 
 type Step =
@@ -166,10 +164,10 @@ function buildSteps(lesson: PlayLesson): Step[] {
         kind: "section",
         heading: s.heading,
         body: s.body,
-        check: s.check,
-        note: s.note,
-        diagram: "diagram" in s ? s.diagram : undefined,
-        cards: s.cards,
+        check: s.check as PlayCheck | undefined,
+        note: s.note as LessonV2["sections"][number]["note"] | undefined,
+        diagram: ("diagram" in s ? s.diagram : undefined) as LessonV2["sections"][number]["diagram"] | undefined,
+        cards: s.cards as LessonV2["sections"][number]["cards"] | undefined,
         sectionIndex,
       }),
     ),
@@ -240,17 +238,23 @@ function buildSteps(lesson: PlayLesson): Step[] {
       correction: lesson.commonMistake.correction,
     });
   }
-  if (lesson.infoCheck?.prompt.trim() && lesson.infoCheck.answer.trim()) {
-    const duplicated = lesson.sections.some(
-      (section) => section.check?.prompt.trim() === lesson.infoCheck?.prompt.trim(),
-    );
-    if (!duplicated) {
-      steps.push({
-        kind: "recall",
-        heading: "Bilgi kontrolü",
-        prompt: lesson.infoCheck.prompt,
-        solution: lesson.infoCheck.answer,
-      });
+  if (lesson.infoCheck?.prompt.trim()) {
+    const answer =
+      "answer" in lesson.infoCheck && typeof lesson.infoCheck.answer === "string"
+        ? lesson.infoCheck.answer.trim()
+        : "";
+    if (answer) {
+      const duplicated = lesson.sections.some(
+        (section) => section.check?.prompt.trim() === lesson.infoCheck?.prompt.trim(),
+      );
+      if (!duplicated) {
+        steps.push({
+          kind: "recall",
+          heading: "Bilgi kontrolü",
+          prompt: lesson.infoCheck.prompt,
+          solution: answer,
+        });
+      }
     }
   }
   if ((lesson.summary?.length ?? 0) > 0 || (lesson.nextFocus?.length ?? 0) > 0) {
@@ -440,7 +444,7 @@ export function ExamLessonSteps({
       const got = (answer.text ?? "").replace(/\s+/g, "").replace(",", ".").toLocaleLowerCase("tr-TR");
       const want = expected.replace(/\s+/g, "").replace(",", ".").toLocaleLowerCase("tr-TR");
       setRevealed(true);
-      const ok = got === want || (got && want.startsWith(got));
+      const ok = Boolean(got === want || (got && want.startsWith(got)));
       setGradeResult({
         correct: ok,
         answer: expected,
@@ -509,7 +513,7 @@ export function ExamLessonSteps({
               Math.max(0, steps.length - base.length - 1),
             )}
           </span>
-          <span className="als-minutes">yaklaşık {honestReadingMinutes(lesson)} dk</span>
+          <span className="als-minutes">yaklaşık {honestReadingMinutes(lesson as LessonV2)} dk</span>
         </p>
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
       </header>
