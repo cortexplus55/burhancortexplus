@@ -1,20 +1,35 @@
 /* Adım adım ders (.als-*). Renkler parity-shell.css tokenlarından. */
 
 .als {
+  /* Tasarım rolleri → mevcut tokenlar (Prompt 7'ye kadar yerel köprü). */
+  --als-action: #3d5afe;
+  --als-action-hover: #5470ff;
+  --als-action-pressed: #2f47d9;
+  --als-right: var(--pm-success, #22c55e);
+  --als-wrong: var(--pm-danger, #ef4444);
+  --als-ai: var(--pm-violet-500, #8b8ef7);
+  --als-info: #60a5fa;
+  --als-warning: #f59e0b;
   width: min(42rem, 100%);
   margin: 0 auto;
-  padding: 0.5rem 0 2rem;
+  padding: 0.5rem 0 6rem;
   min-height: calc(100dvh - 7rem);
   display: flex;
   flex-direction: column;
 }
 
 .als-top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: grid;
   grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 1.25rem;
+  margin: 0 -0.25rem 1.25rem;
+  padding: 0.65rem 0.25rem;
+  background: color-mix(in srgb, var(--cp-bg, #050505) 92%, transparent);
+  backdrop-filter: blur(8px);
 }
 
 .als-icon {
@@ -52,7 +67,7 @@
 }
 
 .als-segments span.is-on {
-  background: #4c6fff;
+  background: var(--als-action);
 }
 
 .als-count {
@@ -300,7 +315,7 @@
 }
 
 .als-option:hover:not(:disabled) {
-  border-color: #7c6cf7;
+  border-color: var(--als-action);
 }
 
 .als-option:disabled {
@@ -310,23 +325,35 @@
 .als-option:focus-visible,
 .als-cta:focus-visible,
 .als-secondary:focus-visible {
-  outline: 2px solid #7c6cf7;
+  outline: 2px solid var(--als-action);
   outline-offset: 2px;
 }
 
 .als-option.is-picked {
-  border-color: #7c6cf7;
+  border-color: var(--als-action);
   background: rgba(124, 108, 247, 0.14);
 }
 
 .als-option.is-right {
-  border-color: #2e9e4f;
+  border-color: var(--als-right);
   background: rgba(46, 158, 79, 0.16);
 }
 
 .als-option.is-wrong {
-  border-color: #c0453b;
+  border-color: var(--als-wrong);
   background: rgba(192, 69, 59, 0.14);
+}
+
+.als-write {
+  width: 100%;
+  margin-top: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(124, 108, 247, 0.35);
+  background: var(--cp-surface-2);
+  color: inherit;
+  padding: 0.7rem 0.85rem;
+  font: inherit;
+  line-height: 1.5;
 }
 
 .als-explain {
@@ -359,7 +386,7 @@
 }
 
 .als-check.is-right {
-  border-color: #2e9e4f;
+  border-color: var(--als-right);
   background: rgba(20, 70, 40, 0.45);
 }
 
@@ -383,7 +410,7 @@
 }
 
 .als-tf-btn:hover {
-  border-color: #4c6fff;
+  border-color: var(--als-action);
 }
 
 .als-option > span:nth-child(2) {
@@ -419,8 +446,8 @@
   justify-content: space-between;
   gap: 0.75rem;
   border-radius: 1rem;
-  padding: 0.7rem 0.7rem 0.7rem 1rem;
-  background: #161616;
+  padding: 0.7rem 0.7rem calc(0.7rem + env(safe-area-inset-bottom, 0px)) 1rem;
+  background: var(--cp-surface, #161616);
   border: 1px solid var(--cp-border);
 }
 
@@ -429,7 +456,7 @@
 }
 
 .als-feedback.is-right {
-  border-color: #2e9e4f;
+  border-color: var(--als-right);
 }
 
 .als-card-grid {
@@ -481,7 +508,7 @@
   gap: 0.45rem;
   border: 0;
   border-radius: 9999px;
-  background: #3d5afe;
+  background: var(--als-action);
   color: #fff;
   padding: 0.95rem 1.25rem;
   font-size: 0.9375rem;
@@ -588,4 +615,126 @@
   line-height: 1.5;
   color: var(--cp-muted, #a3a3a3);
   text-align: center;
+}
+
+.als-removed {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.75rem 0 0;
+  color: var(--cp-muted);
+  font-size: 0.8125rem;
+}
+
+.als-hint {
+  margin: 0.35rem 0 0;
+  color: var(--cp-muted);
+  font-size: 0.75rem;
+}
+
+.als-quality {
+  margin-top: 1.25rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 12px;
+  background: var(--cp-surface-2, #1a1a1a);
+  font-size: 0.8125rem;
+  color: var(--cp-muted);
+}
+
+.als-quality summary {
+  cursor: pointer;
+  color: var(--cp-gold, #f4ae0b);
+  font-weight: 600;
+}
+
+.als-quality ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.als-revisit {
+  margin-top: 0.5rem;
+  color: var(--cp-muted);
+  font-size: 0.8125rem;
+}
+
+.als-cta:hover:not(:disabled) {
+  background: var(--als-action-hover);
+}
+
+.als-cta:active:not(:disabled) {
+  background: var(--als-action-pressed);
+  transform: scale(0.98);
+}
+
+.als-secondary--danger {
+  color: var(--als-wrong);
+  border-color: var(--als-wrong);
+}
+
+.als-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.als-dialog {
+  width: min(100%, 22rem);
+  padding: 1.25rem 1.25rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface, #121212);
+  color: var(--cp-text, #fafafa);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.als-dialog h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.als-dialog p {
+  margin: 0;
+  color: var(--cp-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.als-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.als-dialog-actions .als-cta,
+.als-dialog-actions .als-secondary {
+  flex: 1 1 8rem;
+}
+
+@media (max-width: 640px) {
+  .als-card-grid {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 0.75rem;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .als-card {
+    flex: 0 0 82%;
+    scroll-snap-align: start;
+  }
+
+  .als-minutes {
+    display: none;
+  }
 }

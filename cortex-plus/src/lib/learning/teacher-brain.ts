@@ -1530,9 +1530,9 @@ function groundedFactRetry<T extends ReviewCheck>(check: T, source: string): T |
   if (foldPrompt(prompt) === foldPrompt(check.prompt)) return null;
   const subject = retrySubjectStem(claim);
   const explanation =
-    subject && !foldTr(check.explanation).includes(subject)
+    subject && !foldTr(check.explanation ?? "").includes(subject)
       ? "Yanıt, sorudaki kavramın kaynağındaki tanımına uyar; başka bir terimin tanımı bu soruyu karşılamaz."
-      : check.explanation;
+      : check.explanation ?? "Yanıt, kaynağın kurduğu tanıma uyar.";
   if (isTrueFalse) {
     const right = trueFalseRightIndex(check.options);
     if (right < 0) return null;
@@ -1636,11 +1636,11 @@ export function reviewQuestionFor<T extends ReviewCheck & { review?: StoredRevie
   if (reversed && foldPrompt(reversed.prompt) !== foldPrompt(check.prompt)) return reversed;
   const fact = language === "tr" ? groundedFactRetry(check, source) : null;
   if (fact && foldPrompt(fact.prompt) !== foldPrompt(check.prompt)) return fact;
-  if (check.options.length >= 3) {
+  if ((check.options?.length ?? 0) >= 3) {
     const rephrased = rephraseMultipleChoice(check);
     if (rephrased && foldPrompt(rephrased.prompt) !== foldPrompt(check.prompt)) return rephrased;
     const prompt = meaningfulRetryStem(check.prompt);
-    if (foldPrompt(prompt) !== foldPrompt(check.prompt) && !retryStemBroken(prompt, check.explanation)) {
+    if (foldPrompt(prompt) !== foldPrompt(check.prompt) && !retryStemBroken(prompt, check.explanation ?? "")) {
       return shiftOptions({ ...check, prompt });
     }
     const shifted = shiftOptions(check);

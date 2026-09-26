@@ -244,7 +244,7 @@ export async function POST(request: Request) {
         })
       : undefined,
     schemaHint: teachingV2
-      ? `${LESSON_V2_SCHEMA_HINT} trueFalse ise options tam olarak ["Doğru","Yanlış"]. Çeldirici gerçek yanılgı olsun; hiçbiri/hepsi yasak. explanation yanlış seçeneği çürütsün ve bölüm metnine bağlansın.`
+      ? `${LESSON_V2_SCHEMA_HINT} trueFalse ise options tam olarak ["Doğru","Yanlış"]. ÇELDİRİCİLER GERÇEK KAVRAM YANILGISI OLMALI: öğrencinin gerçekten yapacağı hatayı yansıtsın (ör. üssü tabanla çarpmak, negatif üssü sonucu negatif sanmak). "hiçbiri", "hepsi" ya da konuyla ilgisiz uydurma şık YASAK — elemesi bedava olan şık öğrenciyi ölçmez. explanation yanlış seçeneği çürütsün ve bölüm metnine bağlansın.`
       : 'Yalnızca JSON: {"title":string,"overview":string,"sections":[{"heading":string,"body":string}],"example":{"prompt":string,"solution":string},"summary":string[],"nextFocus":string[]}',
     verificationContext: teachingV2
       ? `${teacherPersona()} ${sourceBlock.trim() || teacherBrief.trim() ? groundingRules() : ""}

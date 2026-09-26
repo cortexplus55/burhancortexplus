@@ -322,7 +322,7 @@ function settleTaught(text: string, source: string): string {
 function hasCalcMcq(lesson: LessonV2): boolean {
   return lesson.sections.some((section) => {
     const check = section.check;
-    if (!check || check.type !== "mcq") return false;
+    if (!check || check.type !== "mcq" || !check.options) return false;
     const blob = `${check.prompt} ${check.options.join(" ")}`;
     return /\d/.test(blob) && check.optionWhy?.length === check.options.length;
   });
@@ -357,7 +357,7 @@ function checkHasAbsolute(check: SectionCheck, source: string): boolean {
     check.explanation,
     check.whyRight ?? "",
     check.whyWrong ?? "",
-    ...check.options,
+    ...(check.options ?? []),
     ...(check.optionWhy ?? []),
   ].join("\n");
   return auditQuantitative(blob, source).issues.some((issue) => issue.kind === "absolute");

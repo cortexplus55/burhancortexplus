@@ -131,8 +131,12 @@ describe("yes/no retry and check mix", () => {
     expect(checks.length).toBeGreaterThanOrEqual(3);
     const binaryCount = checks.filter((check) => check?.type === "trueFalse").length;
     expect(binaryCount).toBeLessThanOrEqual(1);
-    const multiple = checks.find((check) => check && check.options.length >= 4);
+    const multiple = checks.find((check) => check && (check.options ?? []).length >= 4);
     expect(multiple?.options).toHaveLength(4);
-    expect(multiple?.options.filter((option) => option === multiple.options[multiple.answerIndex])).toHaveLength(1);
+    expect(
+      (multiple?.options ?? []).filter(
+        (option) => option === (multiple?.options ?? [])[multiple?.answerIndex ?? -1],
+      ),
+    ).toHaveLength(1);
   });
 });

@@ -35,10 +35,10 @@ export async function generateExamQuiz(input: {
   idempotencyKey?: string;
 }): Promise<{ ok: true; questions: QuizQuestion[] } | { ok: false; status: number; error: string }> {
   const pedagogyHint = input.teachingV2
-    ? " Her soruda learningObjective, explanation, misconceptionTag ve optionWhy zorunlu. optionWhy, options ile aynı uzunlukta; her şık için bir cümle (doğru şıkta gerekçe, diğerlerinde o şıkkın neden uymadığı). misconceptionTag, tuzakta adı geçen yanlış anlamın adı. multi yalnızca birden fazla bağımsız doğru varken."
+    ? " Her soruda learningObjective, explanation, misconceptionTag ve optionWhy zorunlu. optionWhy, options ile aynı uzunlukta; her şık için bir cümle (doğru şıkta gerekçe, diğerlerinde o şıkkın neden uymadığı). misconceptionTag, tuzakta adı geçen yanlış anlamın adı. multi yalnızca birden fazla bağımsız doğru varken. Yazamıyorsan optionReasons[şıkMetni] alanında O ŞIKKA özgü hata nedenini de ekleyebilirsin (hangi yanlış hesap o sayıyı verir); aynı cümleyi tekrarlama."
     : "";
   const schemaHint =
-    'JSON: {"questions":[{"text":string,"options":string[],"correct":string|string[],"multi":boolean,"explanation":string,"learningObjective":string,"misconceptionTag":string,"optionWhy":string[]}]}. correct, options içinden olmalı. optionWhy her şık için tek cümle, options ile aynı sırada. Çoklu doğru şıklarda multi true, correct dizi ve en az iki bağımsız doğru seçenek olmalı; tek doğru varsa multi false olmalı. "Hepsi doğrudur", "hiçbiri" veya başka seçenekleri özetleyen seçenekler kullanma. Çeldirici, sorunun kavramına ait makul bir yanlış anlama olsun; soruda geçmeyen ve doğru şıkla aynı türden olmayan seçenek yazma. Doğru seçenek kümesi açıklamayla birebir uyuşmalı. Tek doğru cevabı olmayan ya da kendi içinde çözülemeyen soru yazma. Her soruyu matematiksel ve bilimsel doğruluk açısından ikinci kez kontrol et. explanation: 1-2 cümlelik net Türkçe çözüm gerekçesi.' +
+    'JSON: {"questions":[{"text":string,"options":string[],"correct":string|string[],"multi":boolean,"explanation":string,"learningObjective":string,"misconceptionTag":string,"optionWhy":string[],"optionReasons":{"yanlışŞık":"neden"}}]}. correct, options içinden olmalı. optionWhy her şık için tek cümle, options ile aynı sırada. Çoklu doğru şıklarda multi true, correct dizi ve en az iki bağımsız doğru seçenek olmalı; tek doğru varsa multi false olmalı. "Hepsi doğrudur", "hiçbiri" veya başka seçenekleri özetleyen seçenekler kullanma. Çeldirici, sorunun kavramına ait makul bir yanlış anlama olsun; soruda geçmeyen ve doğru şıkla aynı türden olmayan seçenek yazma. Doğru seçenek kümesi açıklamayla birebir uyuşmalı. Tek doğru cevabı olmayan ya da kendi içinde çözülemeyen soru yazma. Her soruyu matematiksel ve bilimsel doğruluk açısından ikinci kez kontrol et. explanation: 1-2 cümlelik net Türkçe çözüm gerekçesi.' +
     pedagogyHint +
     (input.schemaHintExtra ? ` ${input.schemaHintExtra}` : "");
 
@@ -51,6 +51,7 @@ export async function generateExamQuiz(input: {
       explanation: question.explanation,
       learningObjective: question.learningObjective,
       misconceptionTag: question.misconceptionTag,
+      optionReasons: question.optionReasons,
       optionWhy: question.optionWhy,
       topic: question.topic,
       needsSolver: question.needsSolver,
@@ -65,6 +66,7 @@ export async function generateExamQuiz(input: {
       explanation: question.explanation,
       learningObjective: question.learningObjective,
       misconceptionTag: question.misconceptionTag,
+      optionReasons: question.optionReasons,
       optionWhy: question.optionWhy,
       topic: question.topic,
       needsSolver: question.needsSolver,
@@ -85,6 +87,16 @@ export async function generateExamQuiz(input: {
         : {}),
       ...(question.optionWhy
         ? { optionWhy: question.optionWhy.map((line) => repairTurkishSurface(line)) }
+        : {}),
+      ...(question.optionReasons
+        ? {
+            optionReasons: Object.fromEntries(
+              Object.entries(question.optionReasons).map(([key, value]) => [
+                key,
+                repairTurkishSurface(value),
+              ]),
+            ),
+          }
         : {}),
     }));
     const repaired = input.teachingV2 ? repairQuizPedagogy(surfaced) : surfaced;

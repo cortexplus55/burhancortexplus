@@ -96,7 +96,18 @@ describe("teaching standards contract", () => {
         correction: "x = cos θ, y = sin θ",
       },
       infoCheck: { prompt: "0° noktası neresidir?", answer: "(1, 0)" },
-      summary: ["Yarıçap 1", "x=cos, y=sin"],
+      findError: {
+        prompt: "Hangi cümle yanlıştır?",
+        faultyText: "Birim çemberde x sinüs, y kosinüstür.",
+        options: ["x sinüs yazılmış", "yarıçap bir yazılmış"],
+        answerIndex: 0,
+        explanation: "x kosinüstür; sinüs ile kosinüsü yer değiştirmek sık hatadır.",
+      },
+      summary: [
+        "Yarıçapı bir olan çemberde x kosinüs, y sinüstür.",
+        "Açı yönü okunmadan koordinat okunmaz.",
+        "Sık hata sin ile cos yer değiştirmektir.",
+      ],
       nextFocus: ["Özel açılar"],
     };
     expect(validateLessonPedagogy(good)).toEqual([]);
@@ -154,24 +165,49 @@ describe("teaching standards contract", () => {
       title: "Efektif gerilme",
       objective: "Su tablası değişince efektif gerilmeyi hesaplayabilmek",
       overview: "Zeminin dayanımı toplam gerilmeye değil, efektif gerilmeye bağlıdır.",
-      sections: headings.map((heading) => ({
+      sections: headings.map((heading, index) => ({
         heading,
         body: "**Efektif gerilme**, toplam gerilmeden **boşluk suyu basıncının** çıkarılmasıdır.",
-        check: {
-          type: "trueFalse" as const,
-          prompt: "σ' = σ − u doğru mu?",
-          options: ["Doğru", "Yanlış"],
-          answerIndex: 0,
-          explanation: "Metinde bu formül verildi.",
-        },
+        check:
+          index === 0
+            ? {
+                type: "mcq" as const,
+                prompt: "Efektif gerilme hangi işleme eşittir?",
+                options: ["Toplam eksi boşluk basıncı", "Toplam artı boşluk basıncı", "Yalnızca boşluk basıncı"],
+                answerIndex: 0,
+                explanation: "Boşluk suyu basıncı toplam gerilmeden çıkarılır, eklenmez.",
+              }
+            : {
+                type: "trueFalse" as const,
+                prompt: "Boşluk suyu basıncı toplam gerilmeye eklenir.",
+                options: ["Doğru", "Yanlış"],
+                answerIndex: 1,
+                explanation: "Eklenmez; efektif gerilme toplam gerilmeden bu basıncı çıkarır.",
+              },
       })),
-      example: { prompt: "σ = 92 kPa, u = 19,62 kPa ise σ'?", solution: "σ' = 72,38 kPa." },
+      example: { prompt: "σ = 92 kPa, u = 19,62 kPa ise σ'?", solution: "σ' = σ − u. Sonuç 72,38 kPa olur." },
       commonMistake: {
         claim: "Toplam ve efektif gerilme eşittir",
         correction: "Aralarındaki fark boşluk suyu basıncıdır.",
       },
       infoCheck: { prompt: "Formül nedir?", answer: "σ' = σ − u" },
-      summary: ["σ' = σ − u", "Su tablası efektif gerilmeyi değiştirir"],
+      findError: {
+        prompt: "Hangi ifade yanlıştır?",
+        faultyText: "Efektif gerilme toplam gerilme ile boşluk basıncının toplamıdır.",
+        options: ["Toplam sanılmış", "Fark doğru yazılmış"],
+        answerIndex: 0,
+        explanation: "Efektif gerilme toplamdan boşluk basıncını çıkarır; toplamak sık hatadır.",
+      },
+      numericalCheck: {
+        prompt: "σ = 92 kPa ve u = 20 kPa ise efektif gerilme kaçtır?",
+        answer: "72 kPa",
+        explanation: "σ' = σ − u = 92 − 20 = 72 kPa.",
+      },
+      summary: [
+        "Efektif gerilme toplam gerilmeden boşluk basıncının farkıdır.",
+        "Su tablası yükselince efektif gerilme düşer.",
+        "Sık hata toplam gerilmeyi efektif sanmaktır.",
+      ],
       nextFocus: ["Konsolidasyon"],
     });
 
@@ -223,18 +259,34 @@ describe("teaching standards contract", () => {
           heading: "Kaynama Koşulu",
           body: "Efektif gerilme sıfıra inince zemin kaynar.",
           check: {
-            type: "trueFalse" as const,
-            prompt: "Efektif gerilme sıfırken zemin kaynar.",
-            options: ["Doğru", "Yanlış"],
+            type: "mcq" as const,
+            prompt: "Efektif gerilme sıfıra inince ne olur?",
+            options: ["Zemin kaynar", "Zemin donar", "Değişmez"],
             answerIndex: 0,
-            explanation: "Kaynama koşulu efektif gerilmenin sıfır olmasıdır.",
+            explanation: "Kaynama koşulu efektif gerilmenin sıfır olmasıdır; donma ayrı bir olaydır.",
           },
         },
       ],
       example: { prompt: "σ = 92, u = 19,62 ise σ'?", solution: "σ' = 72,38 kPa." },
       commonMistake: { claim: "İkisi eşittir", correction: "Fark boşluk suyu basıncıdır." },
       infoCheck: { prompt: "Formül nedir?", answer: "σ' = σ − u" },
-      summary: ["σ' = σ − u", "Su tablası önemlidir"],
+      findError: {
+        prompt: "Hangi ifade yanlıştır?",
+        faultyText: "Efektif gerilme toplam gerilmeye eşittir.",
+        options: ["Eşit sanılmış", "Fark doğru yazılmış"],
+        answerIndex: 0,
+        explanation: "Aradaki fark boşluk suyu basıncıdır; eşit oldukları sık hatadır.",
+      },
+      numericalCheck: {
+        prompt: "σ = 90 kPa ve u = 20 kPa ise efektif gerilme kaçtır?",
+        answer: "70 kPa",
+        explanation: "σ' = σ − u = 90 − 20 = 70 kPa.",
+      },
+      summary: [
+        "Efektif gerilme toplam gerilmeden boşluk basıncının farkıdır.",
+        "Su tablası değişince efektif gerilme de değişir.",
+        "Sık hata toplam gerilmeyi efektif sanmaktır.",
+      ],
       nextFocus: ["Konsolidasyon"],
     };
     expect(
@@ -739,6 +791,76 @@ describe("scaffold headings keep leaking", () => {
   });
 });
 
+describe("echo, broken feedback, and summary synthesis", () => {
+  const lesson = {
+    title: "Tanzimat Fermanı",
+    objective: "Fermanın ilan yılını ve getirdiği ilkeyi ayırt edebilmek",
+    overview: "Tanzimat fermanı 1839'da ilan edildi ve kanun önünde eşitliği duyurdu.",
+    sections: [
+      {
+        heading: "İlan Yılı",
+        body: "Ferman **1839** yılında **Gülhane**'de okundu.",
+        check: {
+          type: "trueFalse" as const,
+          prompt: "Tanzimat fermanı 1839'da ilan edildi.",
+          options: ["Doğru", "Yanlış"],
+          answerIndex: 0,
+          explanation: "Metin ilan yılını 1839 olarak kurar.",
+        },
+      },
+      {
+        heading: "Eşitlik İlkesi",
+        body: "**Kanun önünde eşitlik** fermanın temel vaadidir.",
+        check: {
+          type: "mcq" as const,
+          prompt: "Fermanın temel vaadi hangisidir?",
+          options: ["Kanun önünde eşitlik", "Saltanatın kaldırılması", "Harf devrimi"],
+          answerIndex: 0,
+          explanation: "Temel vaat eşitliktir; saltanatın kaldırılması bu fermanın konusu değildir.",
+        },
+      },
+    ],
+    example: { prompt: "Ferman hangi yılda okundu?", solution: "1839 yılında okundu." },
+    commonMistake: {
+      claim: "Ferman 1923'te ilan edildi",
+      correction: "İlan yılı 1839'dur.",
+    },
+    infoCheck: { prompt: "Ferman nerede okundu?", answer: "Gülhane" },
+    findError: {
+      prompt: "Hangi cümle yanlıştır?",
+      faultyText: "Tanzimat fermanı Cumhuriyet ile aynı yıl ilan edildi.",
+      options: ["Yıl karıştırılmış", "Yer doğru yazılmış"],
+      answerIndex: 0,
+      explanation: "Ferman 1839'da okundu; 1923 Cumhuriyetin ilanıdır.",
+    },
+    summary: [
+      "Tanzimat fermanı 1839'da ilan edildi ve kanun önünde eşitliği duyurdu.",
+      "Diğer madde veya maddeler ise artar.",
+      "Sık hata ilan yılını 1923 sanmaktır.",
+    ],
+    nextFocus: ["Islahat fermanı"],
+  };
+
+  it("yankı doğru/yanlış sorusunu ve kopya özeti düşürür", () => {
+    const issues = validateLessonPedagogy(lesson, { minSections: 2 });
+    expect(issues.some((issue) => issue.includes("kopyası"))).toBe(true);
+    expect(issues.some((issue) => issue.includes("anlaşılmıyor"))).toBe(true);
+  });
+
+  it("edebiyatta bozuk açıklamayı düşürür", () => {
+    expect(
+      validateTrueFalsePedagogy([
+        {
+          text: "Redif ile kafiye aynı sestir.",
+          correct: false,
+          explanation: "Hangi dizenin ters çevrilirse cümle, kaynağın kurduğu tanımdan kopar.",
+          correctedStatement: "Redif ek, kafiye kökte benzer sestir.",
+        },
+      ]).some((issue) => issue.includes("şablon") || issue.includes("yarım")),
+    ).toBe(true);
+  });
+});
+
 describe("validateLessonV2 is the publish gate", () => {
   const section = (
     heading: string,
@@ -787,11 +909,22 @@ describe("validateLessonV2 is the publish gate", () => {
       solution: "90° yukarıdadır, bu yüzden x 0 ve y 1 olur.",
     },
     commonMistake: {
-      claim: "sin ve cos yer değiştirir",
-      correction: "x = cos θ, y = sin θ",
+      claim: "x koordinatı ile y koordinatı yer değiştirir",
+      correction: "x koordinatı cos θ, y koordinatı sin θ'dır.",
     },
     infoCheck: { prompt: "0° noktası neresidir?", answer: "(1, 0)" },
-    summary: ["Yarıçap 1", "x=cos, y=sin"],
+    findError: {
+      prompt: "Hangi ifade yanlıştır?",
+      faultyText: "Birim çemberde x koordinatı sin θ'dır.",
+      options: ["x ve y karıştırılmış", "Yarıçap yanlış yazılmış"],
+      answerIndex: 0,
+      explanation: "x koordinatı cos θ'dır; sin θ y koordinatını verir.",
+    },
+    summary: [
+      "Birim çemberde yarıçap 1'dir.",
+      "x koordinatı cos θ, y koordinatı sin θ'dır.",
+      "Sık hata x ve y koordinatını birbirine karıştırmaktır.",
+    ],
     nextFocus: ["Özel açılar"],
   };
 
@@ -1072,9 +1205,9 @@ describe("key terms and in-place warnings", () => {
         heading: "Porozite",
         body: "Boşluk hacminin toplam hacme oranıdır.",
         check: {
-          type: "trueFalse" as const,
-          prompt: "Porozite boşluk hacminin toplam hacme oranıdır.",
-          options: ["Doğru", "Yanlış"],
+          type: "mcq" as const,
+          prompt: "Porozite hangi hacme bölünerek bulunur?",
+          options: ["Toplam hacim", "Katı hacim", "Sıvı hacim"],
           answerIndex: 0,
           explanation: "Boşluk oranı katı hacmi kullanır; porozite toplam hacmi kullanır.",
         },
@@ -1083,7 +1216,18 @@ describe("key terms and in-place warnings", () => {
     example: { prompt: "e = 0,5 ise n nedir?", solution: "n = e/(1+e) = 0,333." },
     commonMistake: { claim: "e ile n aynıdır", correction: "Paydaları farklıdır." },
     infoCheck: { prompt: "Boşluk oranı nedir?", answer: "Vv / Vs" },
-    summary: ["e = Vv/Vs", "n = Vv/V"],
+    findError: {
+      prompt: "Hangi ifade yanlıştır?",
+      faultyText: "Boşluk oranı ile porozite aynı paydada hesaplanır.",
+      options: ["Aynı payda sanılmış", "Paydalar ayrı yazılmış"],
+      answerIndex: 0,
+      explanation: "Paydaları farklıdır; boşluk oranı katı hacme, porozite toplam hacme bölünür.",
+    },
+    summary: [
+      "Boşluk oranı boşluk hacminin katı hacmine bölümüdür.",
+      "Porozite boşluk hacminin toplam hacme bölümüdür.",
+      "Sık hata e ile n değerini aynı sanmaktır; paydaları farklıdır.",
+    ],
     nextFocus: ["Doygunluk derecesi"],
   };
 
@@ -1185,16 +1329,46 @@ describe("two concept sections are a complete lesson", () => {
       {
         heading: "Dane Boyu Dağılımı",
         body: "Kaba daneliler için **elek analizi**, ince daneliler için **hidrometre** kullanılır.",
+        check: {
+          type: "mcq" as const,
+          prompt: "İnce dane hangi yöntemle ölçülür?",
+          options: ["Hidrometre", "Elek", "Cetvel"],
+          answerIndex: 0,
+          explanation: "İnce daneler hidrometreyle ölçülür; elek kaba dane içindir.",
+        },
       },
       {
         heading: "Atterberg Limitleri",
         body: "**Likit limit** akmanın, **plastik limit** ise çatlamanın başladığı su içeriğidir.",
+        check: {
+          type: "trueFalse" as const,
+          prompt: "Plastik limit akmanın başladığı su içeriğidir.",
+          options: ["Doğru", "Yanlış"],
+          answerIndex: 1,
+          explanation: "Akmanın başı likit limittir; plastik limit çatlamanın başıdır.",
+        },
       },
     ],
-    example: { prompt: "LL = 45, PL = 22 ise PI?", solution: "PI = 45 − 22 = 23." },
+    example: { prompt: "LL = 45, PL = 22 ise PI?", solution: "PI = LL − PL. PI = 45 − 22 = 23." },
     commonMistake: { claim: "PI ile LI aynıdır", correction: "LI su içeriğine bağlıdır." },
     infoCheck: { prompt: "Plastisite indisi nedir?", answer: "LL − PL" },
-    summary: ["PI = LL − PL", "Elek kaba, hidrometre ince dane"],
+    findError: {
+      prompt: "Hangi ifade yanlıştır?",
+      faultyText: "Plastisite indisi ile likitlik indisi aynı büyüklüktür.",
+      options: ["Aynı sanılmış", "Ayrı tanım yazılmış"],
+      answerIndex: 0,
+      explanation: "Likitlik indisi su içeriğine bağlıdır; plastisite indisi limitlerin farkıdır.",
+    },
+    numericalCheck: {
+      prompt: "LL = 45 ve PL = 22 ise plastisite indisi kaçtır?",
+      answer: "23",
+      explanation: "PI = LL − PL = 45 − 22 = 23.",
+    },
+    summary: [
+      "Plastisite indisi likit limit ile plastik limitin farkıdır.",
+      "Elek kaba daneyi, hidrometre ince daneyi ölçer.",
+      "Sık hata likitlik indisini plastisite sanmaktır; likitlik su içeriğine bağlıdır.",
+    ],
     nextFocus: ["Zemin sınıflandırma"],
   };
 

@@ -126,7 +126,7 @@ describe("scoped heat and work lesson", () => {
     const prompts = filled.sections.map((section) => section.check?.prompt ?? "");
     const formula = filled.sections
       .map((section) => section.check)
-      .find((check) => /mRT ln\(V₂\/V₁\)/.test(check?.options.join(" ") ?? ""));
+      .find((check) => /mRT ln\(V₂\/V₁\)/.test(check?.options?.join(" ") ?? ""));
     expect(formula?.prompt).toMatch(/bağıntı|eşitlik|hangi/i);
     expect(formula?.options).toHaveLength(4);
     expect(prompts.some((prompt) => /bu ifade doğru mudur/i.test(prompt))).toBe(false);

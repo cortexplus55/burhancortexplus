@@ -20,6 +20,7 @@ vi.mock("@/lib/ai/generate", () => ({
 vi.mock("@/lib/learning/source-context", () => ({
   EMPTY_SOURCE_CONTEXT: { block: "" },
   loadSourceContext: mocks.source,
+  loadMergedTopicContext: mocks.source,
 }));
 vi.mock("@/lib/learning/exam-quiz-generate", () => ({
   generateExamQuiz: mocks.quiz,

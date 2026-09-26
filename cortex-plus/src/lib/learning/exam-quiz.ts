@@ -10,6 +10,8 @@ export type QuizQuestion = {
   learningObjective?: string;
   /** Stage 5/6 — dominant misconception this item targets. */
   misconceptionTag?: string;
+  /** Yanlış şık → o şıkka özgü hata gerekçesi (tekrar eden şablon yasak). */
+  optionReasons?: Record<string, string>;
   /** Aynı üretim çağrısında, her şık için bir cümle. */
   optionWhy?: string[];
   /** Hazırlıktaki konu adı. Bilinmeyen ad sınav sonunda gösterilmez. */
@@ -38,6 +40,7 @@ export const quizQuestionSchema = z.object({
   explanation: z.string().optional(),
   learningObjective: z.string().min(8).max(200).optional().catch(undefined),
   misconceptionTag: z.string().min(2).max(80).optional().catch(undefined),
+  optionReasons: z.record(z.string(), z.string().min(8).max(400)).optional(),
   topic: z.string().min(2).max(80).optional(),
 });
 
@@ -95,12 +98,20 @@ export function normalizeQuizQuestion(raw: {
   explanation?: string;
   learningObjective?: string;
   misconceptionTag?: string;
+  optionReasons?: Record<string, string>;
   optionWhy?: string[];
   topic?: string;
 }): QuizQuestion | null {
   const options = [...new Set(raw.options.map((item) => item.trim()).filter(Boolean))];
   const corrects = resolveCorrects(options, raw.correct);
   if (!raw.text.trim() || options.length < 2 || !corrects.length) return null;
+  const optionReasons = raw.optionReasons
+    ? Object.fromEntries(
+        Object.entries(raw.optionReasons)
+          .map(([key, value]) => [key.trim(), String(value).trim()] as const)
+          .filter(([, value]) => value.length >= 8),
+      )
+    : undefined;
   return {
     text: raw.text.trim(),
     options,
@@ -109,6 +120,8 @@ export function normalizeQuizQuestion(raw: {
     explanation: raw.explanation?.trim() || undefined,
     learningObjective: raw.learningObjective?.trim() || undefined,
     misconceptionTag: raw.misconceptionTag?.trim() || undefined,
+    optionReasons:
+      optionReasons && Object.keys(optionReasons).length ? optionReasons : undefined,
     optionWhy: Array.isArray(raw.optionWhy)
       ? raw.optionWhy.map((line) => line.trim()).filter((line) => line.length >= 8)
       : undefined,
@@ -188,6 +201,10 @@ export function coerceQuizQuestions(raw: unknown): QuizQuestion[] | null {
     const optionWhy = Array.isArray(record.optionWhy)
       ? record.optionWhy.filter((line): line is string => typeof line === "string")
       : undefined;
+    const optionReasons =
+      record.optionReasons && typeof record.optionReasons === "object"
+        ? (record.optionReasons as Record<string, string>)
+        : undefined;
     const normalized = normalizeQuizQuestion({
       text,
       options,
@@ -196,6 +213,7 @@ export function coerceQuizQuestions(raw: unknown): QuizQuestion[] | null {
       explanation: typeof record.explanation === "string" ? record.explanation : undefined,
       learningObjective: typeof record.learningObjective === "string" ? record.learningObjective : undefined,
       misconceptionTag: typeof record.misconceptionTag === "string" ? record.misconceptionTag : undefined,
+      optionReasons,
       optionWhy,
       topic: typeof record.topic === "string" ? record.topic : undefined,
     });

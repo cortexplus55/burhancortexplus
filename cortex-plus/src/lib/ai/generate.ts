@@ -326,17 +326,21 @@ export async function generateJson<T>(
       const independent = runIndependentValidation(independentInput);
       Object.assign(stagesMs, independent.stagesMs);
       /**
-       * Ders şema kipinde tanım tersine çevrilmişse üretimi burada kesme.
-       * Kredi bir kez ayrılmışken 502, onarımın iddiayı düzeltmesine
-       * fırsat bırakmıyor ve öğrenciye giden taslak yine de yazılıyordu.
-       * Onarım (`repairLearnerLesson`) bu kodu sahiplenir. Başka etkinlik
-       * ve başka doğrulama kodu burada kabul edilmez.
+       * Ders şema kipinde tanım tersine çevrilmiş ya da yalın bir sayı/hesap
+       * uyuşmazlığı varsa üretimi burada kesme. Kredi bir kez ayrılmışken
+       * 502, onarımın iddiayı düzeltmesine fırsat bırakmıyor ve öğrenciye
+       * giden taslak yine de yazılıyordu. Onarım (`repairLearnerLesson`)
+       * bu kodları sahiplenir — `claim_wrong`/`example_incomplete` olarak
+       * tam bu tür sayı uyuşmazlıklarını (verilende olmayan sayı, hesabın
+       * başlangıç verisi eksik) düzeltiyor. Başka etkinlik ve başka
+       * doğrulama kodu burada kabul edilmez.
        */
+      const lessonRepairOwnsIssue = (code: string) => code === "definition_inversion" || code === "quantitative";
       const lessonRepairOwnsInversion =
         params.verificationMode === "schema" &&
         params.activityKind === "lesson" &&
         independent.issues.length > 0 &&
-        independent.issues.every((issue) => issue.code === "definition_inversion");
+        independent.issues.every((issue) => lessonRepairOwnsIssue(issue.code));
       if (lessonRepairOwnsInversion) return true;
       if (!independent.ok) {
         lastFailedStage = independent.failedStage;

@@ -9,7 +9,7 @@ import {
   workedExampleNeedsFormula,
 } from "@/lib/learning/lesson-repair";
 import { reviewQuestionFor } from "@/lib/learning/teacher-brain";
-import type { LessonV2 } from "@/lib/learning/teaching-standards";
+import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
 
 const MOL = "Mol Kavramı";
 const MOL_SOURCE = [
@@ -148,7 +148,14 @@ describe("non-physics lesson gates", () => {
     expect(result.lesson.example?.solution).toMatch(/2 mol/);
     expect(result.lesson.summary?.join(" ") ?? "").not.toMatch(/ifade doğrudur|diğer seçenek/i);
     expect(result.lesson.sections.map((section) => section.heading)).not.toContain("Bu formüller, mol");
-    const retry = reviewQuestionFor(molLesson().sections[0].check!, "tr");
+    const retry = reviewQuestionFor(
+      molLesson().sections[0].check! as SectionCheck & {
+        type: "mcq" | "trueFalse";
+        options: string[];
+        answerIndex: number;
+      },
+      "tr",
+    );
     expect(retry.prompt).not.toMatch(/36\/18|diğer seçenek/i);
     expect(retry.options[retry.answerIndex]).toBe("2 mol");
     expect(retry.options).not.toEqual(molLesson().sections[0].check?.options);
@@ -175,7 +182,14 @@ describe("non-physics lesson gates", () => {
     const scoped = scopeLessonToTopic(charterLesson(), CHARTER_SOURCE, CHARTER);
     expect(scoped.title).toBe(CHARTER);
     expect(scoped.example?.solution).toMatch(/tutuklama/);
-    const retry = reviewQuestionFor(charterLesson().sections[0].check!, "tr");
+    const retry = reviewQuestionFor(
+      charterLesson().sections[0].check! as SectionCheck & {
+        type: "mcq" | "trueFalse";
+        options: string[];
+        answerIndex: number;
+      },
+      "tr",
+    );
     expect(retry.prompt).not.toBe(charterLesson().sections[0].check?.prompt);
     expect(retry.options[retry.answerIndex]).toBe("Doğru");
   });

@@ -355,10 +355,10 @@ describe("worked example and calculation check", () => {
     expect(solution).toMatch(/Sonuç:/);
     expect(auditQuantitative(solution, MOL_SOURCE).ok).toBe(true);
     const mcq = calculationCheckFromExample(goodMolLesson().example!);
-    expect(mcq?.options[mcq.answerIndex]).toMatch(/2/);
+    expect(mcq?.options?.[mcq.answerIndex ?? -1]).toMatch(/2/);
     expect(mcq?.optionWhy?.some((line) => /çarpma/i.test(line))).toBe(true);
     expect(mcq?.optionWhy?.some((line) => /ters/i.test(line))).toBe(true);
-    expect(mcq?.optionWhy?.length).toBe(mcq?.options.length);
+    expect(mcq?.optionWhy?.length).toBe(mcq?.options?.length);
   });
 });
 

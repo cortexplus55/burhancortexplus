@@ -134,7 +134,7 @@ describe("ExamLessonSteps", () => {
     expect(screen.getByText("DOĞRU MU YANLIŞ MI?")).toBeTruthy();
     expect(screen.getByText("Sınırın Hareketliliği")).toBeTruthy();
     expect(screen.getByText("Kapalı Sistem")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Yanlış" }));
+    fireEvent.click(screen.getByRole("button", { name: /Yanlış/ }));
 
     expect(screen.getByText("2 / 7")).toBeTruthy();
     expect(screen.queryByText(/\/ 9/)).toBeNull();
@@ -166,7 +166,7 @@ describe("ExamLessonSteps", () => {
     expect(screen.getByText(/farklı bir şekilde/)).toBeTruthy();
     expect(onFinish).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    fireEvent.click(screen.getByRole("button", { name: "Başla" }));
     expect(screen.getByText("Tekrar 1 / 1")).toBeTruthy();
     expect(
       screen.getByText("Sistem ile çevre arasındaki yüzeye ne ad verilir?"),
@@ -213,7 +213,7 @@ describe("ExamLessonSteps", () => {
     expect(screen.getByText("1 / 1")).toBeTruthy();
     expect(screen.queryByText("Değişim hal fonksiyonu, başlangıç ve son halden bağımsızdır.")).toBeNull();
     expect(screen.queryByText(/ortam koşullarına/)).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Yanlış" }));
+    fireEvent.click(screen.getByRole("button", { name: /Yanlış/ }));
 
     expect(screen.getByText("AÇIKLAMA")).toBeTruthy();
     expect(screen.getByText("🤔 Yanlış")).toBeTruthy();
@@ -223,7 +223,7 @@ describe("ExamLessonSteps", () => {
 
     expect(screen.getByText("Tekrar")).toBeTruthy();
     expect(screen.getByText("TEKRARLA")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    fireEvent.click(screen.getByRole("button", { name: "Başla" }));
 
     expect(screen.getByText("Tekrar 1 / 1")).toBeTruthy();
     expect(screen.queryByText(/başka sözcüklerle/)).toBeNull();
@@ -261,12 +261,12 @@ describe("ExamLessonSteps", () => {
     );
 
     const relation = screen.getByText("T < T_sat(P)");
-    expect(relation.className).toContain("als-formula");
-    expect(screen.getByText("T > T_sat(P)").className).toContain("als-formula");
+    expect(relation.closest(".als-formula")).toBeTruthy();
+    expect(screen.getByText("T > T_sat(P)").closest(".als-formula")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Kızgın buhar" }));
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     expect(screen.getByText("Tekrar")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    fireEvent.click(screen.getByRole("button", { name: "Başla" }));
     expect(screen.getByText("Tekrar 1 / 1")).toBeTruthy();
     expect(screen.getByText("Kaynama başlamak üzere olan sıvıya ne ad verilir?")).toBeTruthy();
     expect(
@@ -305,16 +305,16 @@ describe("ExamLessonSteps", () => {
     );
 
     const formula = screen.getByText("P = F/A");
-    expect(formula.className).toContain("als-formula");
-    expect(formula.textContent).not.toMatch(/Pascal/);
+    expect(formula.closest(".als-formula")).toBeTruthy();
+    expect(formula.closest(".als-formula")?.textContent).not.toMatch(/Pascal/);
     expect(screen.getByText(/Pascal \(Pa\) olarak tanımlanır genelde kPa/)).toBeTruthy();
-    expect(screen.getByText(/Pascal \(Pa\) olarak tanımlanır genelde kPa/).className).not.toContain(
-      "als-formula",
-    );
+    expect(
+      screen.getByText(/Pascal \(Pa\) olarak tanımlanır genelde kPa/).closest(".als-formula"),
+    ).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Doğru" }));
+    fireEvent.click(screen.getByRole("button", { name: /Doğru/ }));
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
-    fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
+    fireEvent.click(screen.getByRole("button", { name: "Başla" }));
     expect(screen.getByText("Tekrar 1 / 1")).toBeTruthy();
     expect(screen.getByText(/ısıl durumunu gösteren bir özelliktir/)).toBeTruthy();
     expect(

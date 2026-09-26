@@ -9,6 +9,8 @@
  * call alone is never treated as a correctness guarantee.
  */
 
+import { absoluteClaimIssues } from "@/lib/learning/absolute-claims";
+import { auditQuantitative } from "@/lib/learning/quantitative-audit";
 import { foldTr } from "@/lib/documents/page-analysis";
 import {
   calculationMismatchIssues,
@@ -902,6 +904,11 @@ function sourceCheck(input: IndependentValidationInput): ValidationIssue[] {
       }
     }
   }
+  if (input.sourceExcerpt?.trim() && input.parsed) {
+    for (const message of absoluteClaimIssues(input.parsed, input.sourceExcerpt)) {
+      issues.push(issue("source", "unsupported_absolute", message));
+    }
+  }
   return issues;
 }
 
@@ -937,13 +944,45 @@ function assertionTexts(value: unknown): string[] {
   });
 }
 
+function lessonQuantitativeInput(parsed: unknown): {
+  example: { prompt: string; solution: string } | null;
+  sections: string[];
+} | null {
+  const row = asRecord(parsed);
+  if (!row) return null;
+  const exampleRow = asRecord(row.example);
+  const sections = Array.isArray(row.sections)
+    ? row.sections
+        .map((section) => {
+          const body = asRecord(section);
+          return typeof body?.body === "string" ? body.body : "";
+        })
+        .filter(Boolean)
+    : [];
+  if (!exampleRow && !sections.length) return null;
+  const example =
+    exampleRow && typeof exampleRow.prompt === "string" && typeof exampleRow.solution === "string"
+      ? { prompt: exampleRow.prompt, solution: exampleRow.solution }
+      : null;
+  return { example, sections };
+}
+
 function domainCheck(input: IndependentValidationInput): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   // A non-JSON draft is used by standalone diagnostic callers.
   const text = typeof input.draft === "string" && !/^[\s]*[\[{]/.test(input.draft)
     ? input.draft : assertionTexts(input.parsed).join("\n");
-  for (const msg of checkSimpleMathClaims(text)) {
-    issues.push(issue("domain", "math_mismatch", msg));
+  const lesson = lessonQuantitativeInput(input.parsed);
+  const quantitative = lesson
+    ? auditQuantitative({ text, example: lesson.example, sections: lesson.sections })
+    : auditQuantitative(text);
+  for (const msg of quantitative) {
+    const code = msg.startsWith("Hesap uyuşmazlığı")
+      ? "math_mismatch"
+      : msg.startsWith("Birim")
+        ? "unit_mismatch"
+        : "quantitative";
+    issues.push(issue("domain", code, msg));
   }
   for (const msg of checkCalculationChains(text)) {
     issues.push(issue("domain", "math_mismatch", msg));
@@ -962,15 +1001,6 @@ function domainCheck(input: IndependentValidationInput): ValidationIssue[] {
   }
   for (const msg of uniqueOptionsIssues(input.parsed)) {
     issues.push(issue("domain", "duplicate_options", msg));
-  }
-  // Lightweight unit clash: "5 kg = 5 g" / "1 mol = 1 g" style nonsense
-  if (
-    /\b(\d+)\s*kg\s*=\s*\1\s*g\b/i.test(text) ||
-    /\b(\d+)\s*g\s*=\s*\1\s*kg\b/i.test(text) ||
-    /\b(\d+)\s*mol\s*=\s*\1\s*g\b/i.test(text) ||
-    /\b(\d+)\s*g\s*=\s*\1\s*mol\b/i.test(text)
-  ) {
-    issues.push(issue("domain", "unit_mismatch", "Birim dönüşümü tutarsız."));
   }
   for (const msg of checkImpossiblePercentClaims(text)) {
     issues.push(issue("domain", "impossible_percent", msg));

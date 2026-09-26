@@ -5,7 +5,13 @@ import {
   unsupportedQuantities,
 } from "@/lib/learning/teacher-brain";
 import type { OralReviewItem, OralTeacherMoodId } from "@/lib/learning/oral-exam-chrome";
-import { fluencyIssues, repairTurkishSurface } from "@/lib/learning/learner-fluency";
+import {
+  contentStems,
+  fluencyIssues,
+  repairTurkishSurface,
+  sentences,
+  stemsOverlap,
+} from "@/lib/learning/learner-fluency";
 import {
   auditQuantitative,
   gradeStudentClaim,
@@ -17,6 +23,7 @@ import {
   polishLearnerText,
   verifyOralPrompt,
 } from "@/lib/learning/question-verifier";
+import { isPromptEcho } from "@/lib/learning/oral-review";
 
 /**
  * Sözlü denemenin notu, takip sorusu ve kaynak bağı.
@@ -606,19 +613,53 @@ function pointText(value: unknown): string {
 const BINARY_EQUATION =
   /(?<![\d.,\w])([−-]?\d+(?:[.,]\d+)?)\s*([+\-−×x*÷/])\s*([−-]?\d+(?:[.,]\d+)?)\s*=\s*([−-]?\d+(?:[.,]\d+)?)(?![\d.,/])/g;
 
+/**
+ * tutor-quant.ts'in bothSidesRepair'i ürettiği tek sabit kalıp: iki tarafı
+ * ayrı ayrı toplayıp eşit çıkmadığını söyler. Sayılar modelin kendi (belki
+ * kaynaksız) iddiasından gelir ama hüküm aritmetikten gelir — repairModelAnswer
+ * bunu zaten kaynaksız da olsa "mustShip" sayıp gönderiyor; burada ikinci kez
+ * kaynak sayısı aramak o kararı geçersiz kılıp soruyu boşuna düşürür.
+ */
+const CONSERVATION_MISMATCH = /[^.;]+;[^.]+\.\s*İki taraf eşit değil\.?/gi;
+
 function keepOralPoint(point: string, source: string): boolean {
   if (point.length < 2) return false;
   if (!source.trim()) return true;
   if (unsupportedQuantities(point, source).length && !quantityClaimGrounded(point, source)) {
     return false;
   }
-  const residue = point.replace(BINARY_EQUATION, " ");
+  const residue = point.replace(BINARY_EQUATION, " ").replace(CONSERVATION_MISMATCH, " ");
   for (const raw of residue.match(/\d+(?:[.,]\d+)?/g) ?? []) {
     const value = Number(raw.replace("−", "-").replace(",", "."));
     if (!Number.isFinite(value) || value < 3) continue;
     if (!sourceContainsNumber(source, raw)) return false;
   }
   return true;
+}
+
+/**
+ * Modelin expectedPoints vermediği durumda kaynaktan sorunun kavramıyla
+ * örtüşen tek cümleyi bulur. Sorunun kendisiyle örtüşen (yankı) ya da
+ * kavram örtüşmesi olmayan cümle döner değil — boş dizi döner ve soru düşer.
+ */
+function sourceSentenceFor(prompt: string, source: string): string[] {
+  if (!source.trim()) return [];
+  const promptStems = contentStems(prompt);
+  if (!promptStems.length) return [];
+  let best: string | null = null;
+  let bestScore = 0;
+  for (const raw of sentences(source)) {
+    const candidate = raw.replace(/^\[[^\]]*\]\s*/, "").trim();
+    if (!candidate || isPromptEcho(candidate, prompt)) continue;
+    const stems = contentStems(candidate);
+    if (!stems.length) continue;
+    const score = promptStems.filter((stem) => stemsOverlap([stem], stems)).length;
+    if (score > bestScore) {
+      best = candidate;
+      bestScore = score;
+    }
+  }
+  return best && bestScore > 0 ? [best.slice(0, 180)] : [];
 }
 
 /**
@@ -653,7 +694,17 @@ export function publishOralQuestions(
       .map((point) => repairModelAnswer(pointText(point), source))
       .filter((point) => !isScoreLabel(point) && keepOralPoint(point, source) && !auditQuantitative(point, source).issues.some((issue) => issue.kind === "arithmetic"));
     const bare = prompt.replace(/\d+(?:[.,]\d+)?/g, " ").replace(/\s+/g, " ").trim();
-    const points = (given.length ? given : bare.length >= 8 ? [bare.slice(0, 180)] : []).slice(0, 6);
+    // Model expectedPoints vermediyse sorunun kendisini sayı çıkarılmış hâliyle
+    // geri vermek bir "beklenen nokta" değil, sorunun yankısıdır — öğrenciye
+    // hiçbir gerçek bilgi taşımaz ve validateOralPedagogy zaten bunu eler.
+    // Önce kaynakta sorunun kavramıyla örtüşen gerçek bir cümle aranır; o da
+    // yoksa (kaynaksız soru ya da örtüşme yok) soru hiç yayınlanmaz — kaynağa
+    // dayanmayan bir "beklenen nokta" uydurmaktansa soruyu hiç sormamak daha dürüst.
+    const fallback =
+      bare.length >= 8 && !isPromptEcho(bare, prompt)
+        ? [bare.slice(0, 180)]
+        : sourceSentenceFor(prompt, source);
+    const points = (given.length ? given : fallback).slice(0, 6);
     if (!points.length) return [];
     const verified = verifyOralPrompt(prompt, points, source);
     if (!verified) return [];

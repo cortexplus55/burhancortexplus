@@ -35,12 +35,15 @@ function buildSphere(count: number) {
 export function NodeGenerationProgress({
   onClose,
   title = "Dersin hazırlanıyor…",
+  sourceChips = [],
 }: {
   /** Çağıran hâlâ geçirebilir; adım metni dosya adını içermez. */
   sourceName?: string | null;
   onClose?: () => void;
   /** Sözlü deneme aynı adımları kendi başlığıyla gösterir. */
   title?: string;
+  /** Okunan dosya çipleri — 1. adımın altında. */
+  sourceChips?: string[];
 }) {
   const steps = [...LESSON_PREP_STEPS];
 
@@ -54,7 +57,7 @@ export function NodeGenerationProgress({
       () => setReached((value) => Math.min(value + 1, steps.length - 1)),
       1600,
     );
-    const slowTimer = setTimeout(() => setSlow(true), 25000);
+    const slowTimer = setTimeout(() => setSlow(true), 45000);
     return () => {
       clearInterval(timer);
       clearTimeout(slowTimer);
@@ -101,6 +104,15 @@ export function NodeGenerationProgress({
                 ) : null}
               </span>
               {label}
+              {index === 0 && sourceChips.length ? (
+                <span className="apg-chips">
+                  {sourceChips.slice(0, 4).map((chip) => (
+                    <span key={chip} className="apg-chip">
+                      {chip}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
             </li>
           );
         })}

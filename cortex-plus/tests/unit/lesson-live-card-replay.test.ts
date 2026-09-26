@@ -216,7 +216,14 @@ describe("live lesson card replay", () => {
     expect(new Set((lesson.summary ?? []).map((line) => studentVisibleText(line).toLocaleLowerCase("tr"))).size).toBe(
       lesson.summary?.length,
     );
-    const retry = reviewQuestionFor(lesson.sections[0]?.check ?? physicsLesson().sections[0].check!, "tr");
+    const retry = reviewQuestionFor(
+      (lesson.sections[0]?.check ?? physicsLesson().sections[0].check!) as SectionCheck & {
+        type: "mcq" | "trueFalse";
+        options: string[];
+        answerIndex: number;
+      },
+      "tr",
+    );
     expect(retry.prompt.toLocaleLowerCase("tr").replace(/\s+/g, " ")).not.toBe(
       "ideal gaz denklemi aşağıdakilerden hangisi için doğrudur?",
     );
@@ -225,7 +232,7 @@ describe("live lesson card replay", () => {
       const item = section.check;
       if (!item || item.type === "trueFalse") continue;
       expect(item.prompt).not.toMatch(/kullanılır hangisidir|olarak hesaplanır hangisidir/i);
-      expect(item.options.join(" ")).not.toMatch(/[−-]\s*\(/);
+      expect((item.options ?? []).join(" ")).not.toMatch(/[−-]\s*\(/);
     }
   });
 
@@ -249,12 +256,12 @@ describe("live lesson card replay", () => {
     }
     const formula = lesson.sections
       .map((section) => section.check)
-      .find((item) => /n\s*=\s*n/i.test(item?.options[item.answerIndex] ?? "") || /N_A/.test(item?.options.join(" ") ?? ""));
-    expect(formula?.options.length).toBeGreaterThanOrEqual(2);
+      .find((item) => /n\s*=\s*n/i.test(item?.options?.[item.answerIndex ?? -1] ?? "") || /N_A/.test(item?.options?.join(" ") ?? ""));
+    expect(formula?.options?.length).toBeGreaterThanOrEqual(2);
     const keys = (formula?.options ?? []).map(optionKey);
     expect(new Set(keys).size).toBe(keys.length);
     expect((formula?.options ?? []).join(" ")).not.toMatch(/\([^)]*$/);
-    const answer = formula?.options[formula.answerIndex] ?? "";
+    const answer = formula?.options?.[formula.answerIndex ?? -1] ?? "";
     for (const token of rhsTokens(answer)) {
       expect(formula?.prompt ?? "").not.toContain(token);
     }
@@ -286,9 +293,12 @@ describe("live lesson card replay", () => {
     expect(trueFalseIndexes(["YANLIŞ MI", "DOĞRU MU"])).toEqual({ wrong: 0, right: 1 });
     expect(trueFalseIndexes(["DOĞRU MU", "YANLIŞ MI"])).toEqual({ wrong: 1, right: 0 });
     const original = historyLesson().sections[1]?.check;
-    const retry = reviewQuestionFor(original!, "tr");
+    const retry = reviewQuestionFor(
+      original! as SectionCheck & { type: "mcq" | "trueFalse"; options: string[]; answerIndex: number },
+      "tr",
+    );
     expect(retry.prompt.toLocaleLowerCase("tr")).not.toBe(original?.prompt.toLocaleLowerCase("tr"));
-    expect(retry.options[retry.answerIndex]).toBe(original?.options[original.answerIndex]);
+    expect(retry.options[retry.answerIndex]).toBe(original?.options?.[original.answerIndex ?? -1]);
     for (const section of lesson.sections) {
       const prompt = section.check?.prompt ?? "";
       if (!prompt) continue;
@@ -417,10 +427,10 @@ describe("clicked topic slice", () => {
     for (const item of mcqs) {
       if (!item) continue;
       expect(item.options).toHaveLength(4);
-      expect(item.options.join(" ")).not.toMatch(/[−-]\s*\(/);
+      expect((item.options ?? []).join(" ")).not.toMatch(/[−-]\s*\(/);
       expect(item.prompt).not.toMatch(/kullanılır hangisidir|olarak hesaplanır hangisidir|,\s*4/);
       expect(item.prompt.endsWith("?")).toBe(true);
-      for (const option of item.options) expect(numbersMatchSource(option, slice)).toBe(true);
+      for (const option of item.options ?? []) expect(numbersMatchSource(option, slice)).toBe(true);
     }
     const meanings = (lesson.summary ?? []).map((line) =>
       studentVisibleText(line).toLocaleLowerCase("tr").replace(/[^a-zçğıöşü0-9 ]/g, "").replace(/\s+/g, " ").trim(),

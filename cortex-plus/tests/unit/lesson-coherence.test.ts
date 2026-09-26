@@ -250,7 +250,7 @@ describe("lesson coherence gate", () => {
       published.sections.some((section) => section.note && /mol|avogadro|bağıntı/i.test(section.note.title)),
     ).toBe(true);
     const mcq = published.sections.map((section) => section.check).find((check) => check?.type === "mcq");
-    expect(mcq?.optionWhy?.length).toBe(mcq?.options.length);
+    expect(mcq?.optionWhy?.length).toBe(mcq?.options?.length);
     expect(published.example?.solution).toMatch(/Verilen:/);
     expect(published.example?.solution).toMatch(/Yerine koyma:/);
     expect(published.example?.solution).toMatch(/0,25\s*×\s*98\s*=\s*24,5/);

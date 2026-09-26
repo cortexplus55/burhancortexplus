@@ -14,6 +14,7 @@ import { PromoBanner, type PromoCampaign } from "@/components/paywall/promo-bann
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
 import { studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
+import { ACCOUNT_REFRESH_EVENT, spendableCredits } from "@/lib/credits/spendable";
 import { creditChipLabel } from "@/lib/credits/chip-label";
 import { FounderChip } from "@/components/student/founder-chip";
 import { profilePlanView } from "@/lib/billing/tier-presentation";
@@ -74,6 +75,11 @@ export function ParitySorShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  useEffect(() => {
+    const refresh = () => router.refresh();
+    window.addEventListener(ACCOUNT_REFRESH_EVENT, refresh);
+    return () => window.removeEventListener(ACCOUNT_REFRESH_EVENT, refresh);
+  }, [router]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
   const [limitDismissed, setLimitDismissed] = useState(false);
@@ -236,8 +242,19 @@ export function ParitySorShell({
               Satın al +
             </Link>
           ) : account ? (
-            <Link href="/krediler" className="cp-sor-credit-chip">
-              {creditChipLabel({ planLabel, balance })}
+            <Link
+              href="/krediler"
+              className="cp-sor-credit-chip"
+              title={`Satın alınan: ${account.balance} · Bu dönem kalan hak: ${account.freeAllowanceRemaining}`}
+              aria-label={`Satın alınan: ${account.balance} · Bu dönem kalan hak: ${account.freeAllowanceRemaining}`}
+            >
+              {creditChipLabel({
+                planLabel,
+                balance: spendableCredits({
+                  balance,
+                  freeAllowanceRemaining: account.freeAllowanceRemaining,
+                }),
+              })}
             </Link>
           ) : null}
           <button type="button" className="cp-sor-streak" aria-label="Seri">

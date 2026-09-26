@@ -476,13 +476,17 @@ function glossaryScore(option: string, entry: GlossaryEntry): number {
 }
 
 function withOptionReasons(check: SectionCheck, glossary: GlossaryEntry[]): SectionCheck {
-  if (check.type !== "mcq" || check.options.length < 3) return check;
-  if (check.optionWhy && check.optionWhy.length === check.options.length) return check;
+  if (check.type !== "mcq" || !check.options || check.answerIndex == null || check.options.length < 3) {
+    return check;
+  }
+  const options = check.options;
+  const answerIndex = check.answerIndex;
+  if (check.optionWhy && check.optionWhy.length === options.length) return check;
   const answer = glossary.slice().sort(
-    (left, right) => glossaryScore(check.options[check.answerIndex] ?? "", right) - glossaryScore(check.options[check.answerIndex] ?? "", left),
+    (left, right) => glossaryScore(options[answerIndex] ?? "", right) - glossaryScore(options[answerIndex] ?? "", left),
   )[0];
-  const why = check.options.map((option, index) => {
-    if (index === check.answerIndex) {
+  const why = options.map((option, index) => {
+    if (index === answerIndex) {
       const reason = answer && glossaryScore(option, answer) > 0 ? answer.sentence : check.whyRight;
       return (reason || "Bu seçenek kaynağın tanımına uyar.").slice(0, 200);
     }

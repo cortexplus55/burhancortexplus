@@ -61,5 +61,14 @@ export function reviewGateQuestion<T extends SectionCheck>(
   language: MaterialLanguage = "tr",
   source = "",
 ): T {
-  return reviewQuestionFor(check, language, source) as T;
+  // Tekrar varyantı yalnızca çoktan seçmeli/doğru-yanlış şıkları için kurulur;
+  // sayısal/açık uçlu kontrolde şık yok, olduğu gibi geri döner.
+  if ((check.type !== "mcq" && check.type !== "trueFalse") || !check.options || check.answerIndex == null) {
+    return check;
+  }
+  return reviewQuestionFor(
+    { ...check, type: check.type, options: check.options, answerIndex: check.answerIndex },
+    language,
+    source,
+  ) as T;
 }

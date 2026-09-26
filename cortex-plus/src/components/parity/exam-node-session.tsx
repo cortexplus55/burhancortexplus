@@ -10,10 +10,16 @@ import {
   generationFailureCode,
   type GenerationFailure,
 } from "@/lib/learning/generation-failure";
+import { ExamFinishButton } from "@/components/parity/exam-finish-button";
 import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
 import { lessonV2Schema } from "@/lib/learning/teaching-standards";
+import {
+  publicLessonV2Schema,
+  type GradeCheckResult,
+  type LessonCheckAnswer,
+} from "@/lib/learning/lesson-play";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 import { AUDIO_CHARS_PER_CREDIT_PRICE, CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
@@ -64,6 +70,7 @@ import {
   type Mood,
 } from "@/lib/learning/session-signals";
 import { cn } from "@/lib/utils";
+import { onGenerationSucceeded } from "@/lib/credits/spendable";
 import { NodeGenerationProgress } from "@/components/parity/node-generation-progress";
 import { LessonOpenChrome } from "@/components/parity/lesson-open-chrome";
 import {
@@ -209,6 +216,11 @@ export function ExamNodeSession({
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [flipped, setFlipped] = useState(false);
   const [score, setScore] = useState({ score: 0, total: 1, retried: 0 });
+  const [playStartedAt, setPlayStartedAt] = useState<number | null>(null);
+  const [oralGrade, setOralGrade] = useState<{
+    items: { index: number; correct: boolean; gap: string | null }[];
+    scoreRationale?: string;
+  } | null>(null);
   const [writtenReview, setWrittenReview] = useState<WrittenExamReview | null>(null);
   const [nextHref, setNextHref] = useState(`/deneme-sinavlari/${prepId}`);
   const [feedback, setFeedback] = useState<{
@@ -267,6 +279,7 @@ export function ExamNodeSession({
         if (cancelled) return;
         if (res.ok && data.resumed && data.attemptId && data.payload) {
           applyStartPayload(data);
+          setPlayStartedAt(Date.now());
           setStage("play");
           return;
         }
@@ -505,11 +518,9 @@ export function ExamNodeSession({
       if (typeof data.balance === "number") {
         window.dispatchEvent(new CustomEvent("cortex-balance", { detail: data.balance }));
       }
+      setPlayStartedAt(Date.now());
       setStage("play");
-      router.refresh();
-      if (typeof data.balance === "number") {
-        window.dispatchEvent(new CustomEvent("cortex-balance", { detail: data.balance }));
-      }
+      onGenerationSucceeded(() => router.refresh());
     } catch {
       setGenerationError("Bağlantı kurulamadı. Lütfen yeniden dene.");
     } finally {
@@ -562,10 +573,15 @@ export function ExamNodeSession({
       clearClientRequestId();
       setSaveError(null);
       completeRequestIdRef.current = null;
-      if (typeof data.balance === "number") {
-        window.dispatchEvent(new CustomEvent("cortex-balance", { detail: data.balance }));
-      }
       setScore({ score: data.score ?? 0, total: data.total ?? 1, retried: data.retried ?? 0 });
+      setOralGrade(
+        data.oralGrade && Array.isArray(data.oralGrade.items)
+          ? {
+              items: data.oralGrade.items,
+              scoreRationale: data.oralGrade.scoreRationale,
+            }
+          : null,
+      );
       if (data.review) setWrittenReview(data.review);
       if (data.oralReview) setOralReport(data.oralReview as OralExamReport);
       setNextHref(data.nextHref ?? `/deneme-sinavlari/${prepId}`);
@@ -649,10 +665,14 @@ export function ExamNodeSession({
   const chapters = payload.chapters ?? [];
   // Şema tutmazsa düz markdown'a düşülür; ders hiç açılmamasındansa
   // biçimsiz açılsın.
-  const structuredLesson = useMemo(
-    () => (payload.lesson ? lessonV2Schema.safeParse(payload.lesson).data ?? null : null),
-    [payload.lesson],
-  );
+  const structuredLesson = useMemo(() => {
+    if (!payload.lesson) return null;
+    return (
+      publicLessonV2Schema.safeParse(payload.lesson).data ??
+      lessonV2Schema.safeParse(payload.lesson).data ??
+      null
+    );
+  }, [payload.lesson]);
   const coachItem =
     payload.type === "quiz"
       ? questions[index]?.text
@@ -985,9 +1005,40 @@ export function ExamNodeSession({
           <ExamLessonSteps
             lesson={structuredLesson}
             language={language}
-            onFinish={(missed) => {
+            gradeCheck={
+              attemptId
+                ? async (sectionIndex, answer) => {
+                    const res = await fetch("/api/learning/exam-prep/node", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        prepId,
+                        nodeId,
+                        attemptId,
+                        action: "grade-check",
+                        sectionIndex,
+                        checkAnswer: answer,
+                      }),
+                    });
+                    const data = (await res.json().catch(() => ({}))) as GradeCheckResult & {
+                      ok?: boolean;
+                      error?: string;
+                    };
+                    if (!res.ok) {
+                      throw new Error(data.error ?? "grade_failed");
+                    }
+                    return data;
+                  }
+                : undefined
+            }
+            onFinish={(missed, lessonAnswers) => {
               const indexes = (missed ?? []).filter((index) => Number.isInteger(index));
-              void finish(indexes.length ? { lessonMisses: indexes } : undefined);
+              const payloadAnswers: Record<string, unknown> = {};
+              if (indexes.length) payloadAnswers.lessonMisses = indexes;
+              if (lessonAnswers && Object.keys(lessonAnswers).length) {
+                payloadAnswers.lessonAnswers = lessonAnswers as Record<string, LessonCheckAnswer>;
+              }
+              void finish(Object.keys(payloadAnswers).length ? payloadAnswers : undefined);
             }}
             onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
           />
@@ -1309,10 +1360,35 @@ export function ExamNodeSession({
 
       {stage === "result" && !isOral && !isTimedExam && payload.type !== "readiness" && payload.type !== "practice_empty" ? (
         <section className="cp-exam-node-result">
-          <p className="cp-lesson-kicker">Doğru cevaplar</p>
-          <p className="cp-exam-score-xl">
-            {score.score}/{score.total}
-          </p>
+          {payload.type === "lesson" ? (
+            <h1 className="cp-exam-result-title">Dersin tamamı bu kadar</h1>
+          ) : (
+            <p className="cp-lesson-kicker">Doğru cevaplar</p>
+          )}
+          <div className="cp-exam-result-stats" aria-label="Oturum özeti">
+            <div className="cp-exam-result-stat">
+              <span className="cp-exam-result-stat-label">Doğru cevaplar</span>
+              <span className="cp-exam-result-stat-value">
+                {score.score}/{score.total}
+              </span>
+            </div>
+            <div className="cp-exam-result-stat">
+              <span className="cp-exam-result-stat-label">Doğruluk</span>
+              <span className="cp-exam-result-stat-value">
+                %{Math.round((score.score / Math.max(1, score.total)) * 100)}
+              </span>
+            </div>
+            <div className="cp-exam-result-stat">
+              <span className="cp-exam-result-stat-label">Süre</span>
+              <span className="cp-exam-result-stat-value">
+                {Math.max(
+                  1,
+                  Math.round((Date.now() - (playStartedAt ?? Date.now())) / 60000),
+                )}{" "}
+                dk
+              </span>
+            </div>
+          </div>
           <p>{score.total && score.score / score.total >= 0.7 ? "Güzel gidiyor" : "Biraz daha gelişebilirsin"}</p>
           {score.retried > 0 ? (
             <p className="text-sm text-[var(--cp-muted)]">
@@ -1322,25 +1398,46 @@ export function ExamNodeSession({
             </p>
           ) : null}
           <p className="text-sm text-[var(--cp-muted)]">
-            Doğruluk {Math.round((score.score / Math.max(1, score.total)) * 100)}%
-            {" · "}Bu oturum skoru program ilerlemesinden ve sınava hazırlık tahmininden ayrıdır.
+            Bu oturum skoru program ilerlemesinden ve sınava hazırlık tahmininden ayrıdır.
           </p>
-          {resumeEnabled ? (
-            <p className="text-sm">
-              <Link
-                href={`/deneme-sinavlari/${prepId}/tekrarlar`}
-                className="underline"
-              >
-                Yanlışlar ve tekrarlar
-              </Link>
-              {" · "}
-              <Link
-                href={`/deneme-sinavlari/${prepId}/degerlendirme`}
-                className="underline"
-              >
-                Sınav öncesi değerlendirme
-              </Link>
-            </p>
+          {oralGrade?.items?.some((item) => !item.correct && item.gap) ? (
+            <ul className="mt-2 space-y-1 text-sm">
+              {oralGrade.items
+                .filter((item) => !item.correct && item.gap)
+                .map((item) => (
+                  <li key={item.index}>
+                    <span className="text-[var(--cp-muted)]">Eksik: </span>
+                    {item.gap}
+                  </li>
+                ))}
+            </ul>
+          ) : null}
+          {resumeEnabled && (score.retried > 0 || (score.total > 0 && score.score < score.total)) ? (
+            <div className="cp-exam-retry-card">
+              <p className="cp-exam-debrief-label">Tekrar edilecekler</p>
+              <p className="text-sm">
+                <Link
+                  href={`/deneme-sinavlari/${prepId}/tekrarlar`}
+                  className="underline"
+                >
+                  Yanlışlar ve tekrarlar
+                </Link>
+                {" · "}
+                <Link
+                  href={`/deneme-sinavlari/${prepId}/degerlendirme`}
+                  className="underline"
+                >
+                  Sınav öncesi değerlendirme
+                </Link>
+              </p>
+            </div>
+          ) : null}
+          {payload.type === "lesson" ? (
+            <div className="pm-card cp-exam-self-test">
+              <h2>Kendini test et</h2>
+              <p>Bu dersi hızlı bir bilgi kontrolüyle tamamla.</p>
+              <ExamFinishButton prepId={prepId} className="cp-exam-continue cp-exam-continue--primary" />
+            </div>
           ) : null}
           <div className="cp-exam-node-actions">
             <button type="button" className="cp-exam-continue" onClick={() => {

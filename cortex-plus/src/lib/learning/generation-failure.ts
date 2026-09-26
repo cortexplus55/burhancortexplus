@@ -46,8 +46,10 @@ export function describeGenerationFailure(
   /** Hakkın ne zaman yenileneceği — "12 Eylül 2026 03:00". */
   resetsAtLabel?: string,
   kind?: string,
+  options: { isAdmin?: boolean } = {},
 ): GenerationFailure {
   const podcast = kind === "podcast";
+  const refundNote = options.isAdmin ? "" : " Kredin iade edildi.";
   switch (code) {
     case "generation_in_progress":
       return {
@@ -88,8 +90,8 @@ export function describeGenerationFailure(
     case "generation_failed":
       return {
         message: podcast
-          ? "Podcast üretimi sunucuda tamamlanamadı. Yeniden deneyebilirsin."
-          : "Ders şu anda oluşturulamadı. Yeniden deneyebilirsin.",
+          ? `Podcast üretimi sunucuda tamamlanamadı.${refundNote} Yeniden deneyebilirsin.`
+          : `Ders şu anda oluşturulamadı.${refundNote} Yeniden deneyebilirsin.`,
         retryMintsNewId: true,
         canRetryNow: true,
       };

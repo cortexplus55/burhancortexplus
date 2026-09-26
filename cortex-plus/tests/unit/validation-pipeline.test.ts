@@ -152,6 +152,38 @@ describe("Stage 7 validation pipeline", () => {
     expect(result.failedStage).toBeNull();
   });
 
+  it("rejects an unsupported absolute and a dataless calculation", () => {
+    const absolute = runIndependentValidation({
+      draft: "{}",
+      parsed: {
+        overview: "Direnç sadece gerilime bağlıdır ve başka hiçbir şeye bağlı değildir.",
+        sections: [
+          { heading: "Ohm bağıntısı", body: "Ohm yasası gerilimi akım ve dirençle ilişkilendirir." },
+          { heading: "Direncin anlamı", body: "Direnç iletkenin kendi özelliğidir." },
+        ],
+      },
+      sourceExcerpt: "Ohm yasası V = I R bağıntısını kurar. Direnç iletkenin özelliğidir.",
+      pedagogyIssues: [],
+    });
+    expect(absolute.ok).toBe(false);
+    expect(absolute.failedStage).toBe("source");
+    expect(absolute.issues.some((issue) => issue.code === "unsupported_absolute")).toBe(true);
+
+    const orphan = runIndependentValidation({
+      draft: "yükseklik hesabı",
+      parsed: {
+        sections: [{ heading: "Serbest düşme", body: "Oluşan yükseklik = 5 × 4 = 20 m." }],
+        example: {
+          prompt: "Başlangıç verisi yok.",
+          solution: "h = 5 × 4 = 20 m.",
+        },
+      },
+      pedagogyIssues: [],
+    });
+    expect(orphan.ok).toBe(false);
+    expect(orphan.failedStage).toBe("domain");
+  });
+
   it("surfaces pedagogy only after earlier stages pass", () => {
     const result = runIndependentValidation({
       draft: "{}",

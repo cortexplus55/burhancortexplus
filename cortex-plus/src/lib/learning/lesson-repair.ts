@@ -941,9 +941,8 @@ function validCheck(value: unknown): SectionCheck | null {
   const row = value as SectionCheck;
   if (typeof row.prompt !== "string" || row.prompt.trim().length < 12) return null;
   if (!Array.isArray(row.options) || row.options.length < 2) return null;
-  if (!Number.isInteger(row.answerIndex) || row.answerIndex < 0 || row.answerIndex >= row.options.length) {
-    return null;
-  }
+  if (typeof row.answerIndex !== "number" || !Number.isInteger(row.answerIndex)) return null;
+  if (row.answerIndex < 0 || row.answerIndex >= row.options.length) return null;
   if (typeof row.explanation !== "string" || row.explanation.trim().length < 12) return null;
   if (stemLacksSubject(row.prompt)) return null;
   const options = row.options.map((option) => String(option).trim()).filter(Boolean);
@@ -1717,7 +1716,7 @@ function optionsForEquation(equation: string, equations: { equation: string }[],
 
 function isBinaryCheck(check: SectionCheck): boolean {
   if (check.type === "trueFalse") return true;
-  const options = check.options.map((option) => option.trim().toLocaleLowerCase("tr"));
+  const options = (check.options ?? []).map((option) => option.trim().toLocaleLowerCase("tr"));
   if (options.length <= 2 && options.includes("doğru") && options.includes("yanlış")) return true;
   return options.length <= 2 && /\bm[ıi]d[ıi]r\s*\??$/i.test(check.prompt.trim());
 }
@@ -2005,6 +2004,9 @@ function cleanTopicText(text: string, source: string, topicLabel: string): strin
 }
 
 function repairPublishedCheck(check: SectionCheck, corpus: string, source: string): SectionCheck | undefined {
+  // Sayısal/açık uçlu kontrolde şık yok — bu fonksiyon yalnızca çoktan
+  // seçmeli/doğru-yanlış şıklarını onarır; onarılacak bir şey yoksa dokunma.
+  if (!check.options || check.answerIndex == null) return check;
   const open = (option: string) => (option.match(/\(/g) ?? []).length > (option.match(/\)/g) ?? []).length;
   const identities = check.options.map((option) => optionIdentity(option));
   const equationOptions = check.options.some((option) => /=/.test(option));
@@ -2016,7 +2018,7 @@ function repairPublishedCheck(check: SectionCheck, corpus: string, source: strin
       check.options.some((option) => /=/.test(option) && !numbersMatchSource(option, source))) ||
     (equationOptions && check.options.length < 4) ||
     stemBroken(check.prompt);
-  let next = check;
+  let next = check as SectionCheck & { options: string[]; answerIndex: number };
   if (broken) {
     const equations = [...new Set(sentencesOf(corpus).flatMap((sentence) => symbolicEquations(sentence)))].map(
       (equation) => alignSymbolSubscripts(equation, source),
@@ -2066,8 +2068,9 @@ function repairPublishedCheck(check: SectionCheck, corpus: string, source: strin
 }
 
 function checkLeavesTopic(check: SectionCheck, source: string, topicLabel: string): boolean {
-  if (ambiguousRelationQuestion(check.prompt, check.options)) return true;
-  const blob = [check.prompt, check.explanation, ...check.options].join(" ");
+  const options = check.options ?? [];
+  if (ambiguousRelationQuestion(check.prompt, options)) return true;
+  const blob = [check.prompt, check.explanation, ...options].join(" ");
   const prose = `${check.prompt} ${check.explanation}`;
   return foreignToTopic(blob, source, topicLabel) || realGasPrecisionIssue(prose, source);
 }
@@ -2192,7 +2195,7 @@ export function scopeLessonToTopic(lesson: LessonV2, source: string, topicLabel:
           ...check,
           prompt: alignSymbolSubscripts(restoreMathNotation(check.prompt), topicSource),
           explanation: alignSymbolSubscripts(restoreMathNotation(check.explanation), topicSource),
-          options: check.options.map((option) => alignSymbolSubscripts(restoreMathNotation(option), topicSource)),
+          options: check.options?.map((option) => alignSymbolSubscripts(restoreMathNotation(option), topicSource)),
         },
         corpus,
         topicSource,

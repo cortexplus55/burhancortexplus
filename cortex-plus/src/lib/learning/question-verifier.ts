@@ -33,6 +33,8 @@ export type VerifiedChoice = {
   learningObjective?: string;
   misconceptionTag?: string;
   optionWhy?: string[];
+  /** Yanlış şık → o şıkka özgü hata gerekçesi. Doğrulama bunu değiştirmez, olduğu gibi taşır. */
+  optionReasons?: Record<string, string>;
   topic?: string;
   /** Deterministik kapı hükmü veremedi. Tek ikinci çağrı bunu çözer. */
   needsSolver?: boolean;
