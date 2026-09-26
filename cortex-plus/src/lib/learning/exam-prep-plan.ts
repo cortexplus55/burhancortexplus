@@ -114,8 +114,8 @@ export const PLAN_NODE_META: Record<
     voice: false,
   },
   readiness: {
-    title: "Hazırsın",
-    blurb: "Kayıtlı ilerlemeden hazırlık durumu.",
+    title: "Hazırsın?",
+    blurb: "Eksikler bu ekranda · ~3 dk.",
     setupLabel: "Hazırlık durumu",
     voice: false,
   },

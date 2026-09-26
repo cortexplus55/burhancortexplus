@@ -8,12 +8,19 @@ import {
   StudioFrame,
   StudioLoading,
   StudioPaywall,
-  StudioProgress,
-  StudioResults,
 } from "@/components/learning/studio/studio-shared";
-import { cn } from "@/lib/utils";
+import { FlashcardSession } from "@/components/learning/flashcard-session";
+import { makeCardKey, type FlashcardKind } from "@/lib/learning/flashcard-model";
 
-type Card = { id: string; front: string; back: string };
+type GeneratedCard = {
+  id: string;
+  front: string;
+  back: string;
+  kind?: FlashcardKind;
+  sourceLabel?: string | null;
+  cardKey?: string;
+  cardSource?: "studio";
+};
 
 export function FlashcardStudio({
   creditCost,
@@ -22,26 +29,21 @@ export function FlashcardStudio({
 }: {
   creditCost: number | null;
   initialTopic?: string;
-  /** Belge sayfasından gelindiyse kartlar yalnızca bu belgeden üretilir. */
   sourceDocument?: { id: string; fileName: string } | null;
 }) {
-  const [phase, setPhase] = useState<"entry" | "loading" | "play" | "results">("entry");
-  const [topic, setTopic] = useState(initialTopic);
+  const [phase, setPhase] = useState<"entry" | "loading" | "play">("entry");
   const [title, setTitle] = useState("");
-  const [cards, setCards] = useState<Card[]>([]);
-  const [index, setIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
-  const [known, setKnown] = useState(0);
-  const [again, setAgain] = useState(0);
+  const [cards, setCards] = useState<GeneratedCard[]>([]);
+  const [grounded, setGrounded] = useState(true);
   const [paywall, setPaywall] = useState(false);
-
-  const card = cards[index];
 
   async function start(topic: string) {
     setPhase("loading");
     const result = await postStudio<{
       title?: string;
-      cards?: Card[];
+      cards?: GeneratedCard[];
+      grounded?: boolean;
+      sourceNote?: string | null;
     }>("/api/learning/flashcards/generate", {
       topic,
       count: 10,
@@ -61,25 +63,11 @@ export function FlashcardStudio({
       setPhase("entry");
       return;
     }
-    setTopic(topic);
     setTitle(result.data.title ?? topic);
+    setGrounded(result.data.grounded !== false);
+    if (result.data.sourceNote) toast.message(result.data.sourceNote);
     setCards(result.data.cards);
-    setIndex(0);
-    setFlipped(false);
-    setKnown(0);
-    setAgain(0);
     setPhase("play");
-  }
-
-  function mark(knew: boolean) {
-    if (knew) setKnown((n) => n + 1);
-    else setAgain((n) => n + 1);
-    if (index + 1 >= cards.length) {
-      setPhase("results");
-      return;
-    }
-    setIndex((n) => n + 1);
-    setFlipped(false);
   }
 
   return (
@@ -106,65 +94,26 @@ export function FlashcardStudio({
       ) : null}
 
       {phase === "loading" ? (
-        <StudioLoading title="Desten kuruluyor" lead="On kart, tek ışık, temiz tekrar." />
+        <StudioLoading title="Kartların hazırlanıyor…" lead="Kaynak kontrolü ve aralıklı tekrar." />
       ) : null}
 
-      {phase === "play" && card ? (
-        <>
-          <StudioProgress index={index} total={cards.length} />
-          <p className="ls-credit" style={{ marginBottom: "0.85rem" }}>
-            {title}
-          </p>
-          <button
-            type="button"
-            className="ls-flash-scene"
-            onClick={() => setFlipped((v) => !v)}
-            aria-expanded={flipped}
-            aria-label={flipped ? "Kartı soruya çevir" : "Kartı cevaba çevir"}
-          >
-            <div className={cn("ls-flash-inner", flipped && "is-flipped")}>
-              <div className="ls-flash-face">
-                <span className="ls-flash-kicker">Soru</span>
-                <p className="ls-flash-text break-words [overflow-wrap:anywhere]">
-                  {card.front}
-                </p>
-                <span className="ls-credit">Çevirmek için dokun</span>
-              </div>
-              <div className="ls-flash-face ls-flash-face--back">
-                <span className="ls-flash-kicker">Cevap</span>
-                <p className="ls-flash-text break-words [overflow-wrap:anywhere]">
-                  {card.back}
-                </p>
-                <span className="ls-credit">Kartı değerlendirebilirsin</span>
-              </div>
-            </div>
-          </button>
-          <div className="ls-actions">
-            <button type="button" className="ls-ghost" onClick={() => mark(false)}>
-              Tekrar
-            </button>
-            <button type="button" className="ls-cta" onClick={() => mark(true)}>
-              Biliyorum
-            </button>
-          </div>
-        </>
-      ) : null}
-
-      {phase === "results" ? (
-        <StudioResults
-          tool="flash"
-          topic={topic}
-          scoreLabel={`${index + 1} / ${cards.length}`}
-          title="Deste kapandı."
-          lead={`Öğrenildi: ${known} · Tekrar edilecek: ${again}`}
-          onAgain={() => {
-            setIndex(0);
-            setFlipped(false);
-            setKnown(0);
-            setAgain(0);
-            setPhase("play");
-          }}
-          onNew={() => setPhase("entry")}
+      {phase === "play" && cards.length ? (
+        <FlashcardSession
+          title={title || "Kart destesi"}
+          grounded={grounded}
+          cards={cards.map((card) => ({
+            id: card.id,
+            front: card.front,
+            back: card.back,
+            kind: card.kind ?? "definition",
+            cardKey: card.cardKey || makeCardKey("studio", card.id),
+            cardSource: "studio",
+            sourceLabel: card.sourceLabel ?? sourceDocument?.fileName ?? null,
+          }))}
+          newCount={cards.length}
+          dueCount={0}
+          mistakeCount={0}
+          homeHref="/studio/flashcard"
         />
       ) : null}
 

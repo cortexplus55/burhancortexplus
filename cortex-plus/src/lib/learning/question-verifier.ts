@@ -21,6 +21,7 @@ import {
   oralPremiseGrounded,
   verifyOralPrompt as oralPromptPedagogyIssues,
 } from "@/lib/learning/oral-review";
+import { sourceContainsNumber } from "@/lib/learning/teacher-brain";
 import type { SectionCheck } from "@/lib/learning/teaching-standards";
 
 const SUB: Record<string, string> = {
@@ -852,6 +853,16 @@ export function verifyFlashcard(front: string, back: string, source = ""): { fro
   const face = polishLearnerText(front).trim();
   const settled = settleExplanation(back, source);
   if (face.length < 4 || !shownExplanationOk(settled, source)) return null;
+  // Düz sayı/yıl iddiası kaynakta olmalı. Eşitlikli çözüm settleExplanation'a kalır.
+  if (source.trim() && !/=/.test(settled)) {
+    const nums = settled.match(/\d+(?:[.,]\d+)?/g) ?? [];
+    for (const raw of nums) {
+      const n = Number(raw.replace(",", "."));
+      if (!Number.isFinite(n)) continue;
+      if (n < 3 && raw.replace(/\D/g, "").length <= 1) continue;
+      if (!sourceContainsNumber(source, raw)) return null;
+    }
+  }
   return { front: face, back: settled };
 }
 

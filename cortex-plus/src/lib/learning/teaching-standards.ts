@@ -14,9 +14,11 @@ import type { PodcastChapter } from "@/lib/learning/podcast-script";
 import { isUnsupportedComparativeAbsolute, unsupportedAbsoluteClaims } from "@/lib/learning/absolute-claims";
 import {
   contentStems,
+  fluencyIssues,
   isContextlessFragment,
   isCopiedFromPrior,
   isEchoOfPriorText,
+  repairTurkishSurface,
   stemsOverlap,
   turkishSurfaceIssues,
 } from "@/lib/learning/learner-fluency";
@@ -2336,8 +2338,30 @@ export function validateTrueFalsePedagogy(
   return issues;
 }
 
+function flashcardStemOverlapRatio(a: string, b: string): number {
+  const left = contentStems(a);
+  const right = contentStems(b);
+  if (!left.length || !right.length) return 0;
+  const rightSet = new Set(right);
+  let hit = 0;
+  for (const stem of left) {
+    if (
+      rightSet.has(stem) ||
+      [...rightSet].some(
+        (other) =>
+          stem.length >= 5 &&
+          other.length >= 5 &&
+          (stem.startsWith(other) || other.startsWith(stem)),
+      )
+    ) {
+      hit += 1;
+    }
+  }
+  return hit / Math.max(left.length, right.length);
+}
+
 export function validateFlashcardPedagogy(
-  cards: { front: string; back: string; difficulty?: string }[],
+  cards: { front: string; back: string; difficulty?: string; kind?: string }[],
 ): string[] {
   const issues: string[] = [];
   if (cards.length < 4) return ["En az 4 kart gerekli."];
@@ -2347,11 +2371,18 @@ export function validateFlashcardPedagogy(
   for (let i = 0; i < cards.length; i += 1) {
     const card = cards[i];
     const label = `Kart ${i + 1}`;
-    const front = card.front.trim();
-    const back = card.back.trim();
+    const front = repairTurkishSurface(card.front.trim());
+    const back = repairTurkishSurface(card.back.trim());
     if (!front || !back) {
       issues.push(`${label}: ön/arka boş olamaz.`);
       continue;
+    }
+    if (fluencyIssues(front).length) {
+      issues.push(`${label}: Türkçe yüzey hatalı.`);
+    }
+    const backWords = back.split(/\s+/).filter(Boolean).length;
+    if (backWords > 12 && fluencyIssues(back).length) {
+      issues.push(`${label}: Türkçe yüzey hatalı.`);
     }
     if (front.toLocaleLowerCase("tr-TR").includes(back.toLocaleLowerCase("tr-TR")) && back.length > 3) {
       issues.push(`${label}: ön yüz cevabı sızdırıyor.`);
@@ -2359,11 +2390,24 @@ export function validateFlashcardPedagogy(
     if (front === back) {
       issues.push(`${label}: ön ve arka aynı.`);
     }
+    if (backWords > 40) {
+      issues.push(`${label}: arka yüz en fazla 40 kelime olmalı.`);
+    }
     if (/[=:]\s*\S+/.test(front) && back.length < 40) {
       // "sin 30° = ?" is ok; "sin 30° = 1/2" on front leaks.
       const afterEq = front.split(/=/)[1]?.trim();
       if (afterEq && afterEq === back) {
         issues.push(`${label}: ön yüzde cevap var.`);
+      }
+    }
+    if (card.kind === "numeric" && !/\d/.test(back)) {
+      issues.push(`${label}: sayısal kartın arka yüzünde doğrulanmış çözüm olmalı.`);
+    }
+    for (let j = 0; j < i; j += 1) {
+      const prior = `${cards[j].front} ${cards[j].back}`;
+      if (flashcardStemOverlapRatio(`${front} ${back}`, prior) >= 0.6) {
+        issues.push(`${label}: aynı bilgiyi soran başka kart var.`);
+        break;
       }
     }
     if (card.difficulty === "hard" && sawNonHard) hardFirstOk = false;
@@ -2529,21 +2573,36 @@ export function validateOralPedagogy(
 }
 
 /**
- * Flashcard completion under v2: finishing the deck is participation,
- * not exam mastery. Known marks are recorded separately for Stage 6.
+ * Kart düğümü puanı = Bildim oranı. Hazırlık hesabı ayrı formül;
+ * masteryClaim false kalır (kart ≠ konu mastery evidence).
  */
 export function scoreFlashcardsV2(
   cardCount: number,
   answers: Record<string, unknown>,
-): { score: number; total: number; knownCount: number; masteryClaim: false } {
+): {
+  score: number;
+  total: number;
+  knownCount: number;
+  hardCount: number;
+  missedCount: number;
+  masteryClaim: false;
+} {
   let knownCount = 0;
+  let hardCount = 0;
+  let missedCount = 0;
   for (let i = 0; i < cardCount; i += 1) {
-    if (answers[String(i)] === true || answers[String(i)] === "true") knownCount += 1;
+    const value = answers[String(i)];
+    if (value === "knew" || value === true || value === "true") knownCount += 1;
+    else if (value === "hard") hardCount += 1;
+    else if (value === "missed" || value === false || value === "false") missedCount += 1;
   }
+  const total = cardCount || 1;
   return {
-    score: cardCount > 0 ? 1 : 0,
-    total: 1,
+    score: knownCount,
+    total,
     knownCount,
+    hardCount,
+    missedCount,
     masteryClaim: false,
   };
 }
