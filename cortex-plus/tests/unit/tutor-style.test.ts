@@ -18,7 +18,7 @@ describe("tutor prompt snapshot", () => {
       `${TUTOR_ANSWER_DISCIPLINE} Öğrenci doğrudan çözüm istedi: ancak açıkça isterse tam çözümü kısa ve gerekçeli ver; istemediyse yine tek adım.`,
     );
     expect(TUTOR_ANSWER_DISCIPLINE).toMatchInlineSnapshot(
-      `"Cevabı baştan yapıştırma. Her yanıtta sırayla: (1) öğrencinin nerede takıldığı, (2) tek ipucu veya tek adım, (3) kontrol sorusu. Tam çözümü ancak öğrenci açıkça isterse yaz. Yanlış bir denemede AÇIKLAMA ver: doğru düşünce, yaygın hata ve o düşüncenin neden çürük olduğu. Doğruyu tekrarlayıp geçme. Türkçe, sınav dili, net cümle. Filler, alkış ve motivasyon cümlesi yok. RAG veya ders metni varsa ona bağlı kal; kaynakta yoksa uydurma, genel ilkeyi söyle ve notlarında ilgili başlığa bakmasını yaz."`,
+      `"Cevabı baştan yapıştırma. Her yanıtta sırayla: (1) öğrencinin nerede takıldığı, (2) tek ipucu veya tek adım, (3) kontrol sorusu. Tam çözümü ancak öğrenci açıkça isterse yaz. Yanlış bir denemede AÇIKLAMA ver: tutan kısmı öv, hatayı adıyla söyle, doğru çözümü göster, benzer mini soru sor. Doğruyu tekrarlayıp geçme. Türkçe, sınav dili, net cümle. Boş alkış yok; sıcak ama somut geribildirim var (Tam isabet / Neredeyse / Tekrar bakalım). Etiket yığını yazma: Hüküm:, Doğru parça:, Yanlış parça: kullanma. Formülleri $...$ veya $$...$$ ile yaz; kimya için \\ce{...} kullan. RAG veya ders metni varsa ona bağlı kal; kaynakta yoksa uydurma, genel ilkeyi söyle ve notlarında ilgili başlığa bakmasını yaz."`,
     );
     expect(QA_TEACHER_PROMPT).toContain("misconceptionTag");
     expect(QA_TEACHER_PROMPT).toContain("Filler yok");

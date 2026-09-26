@@ -8,6 +8,7 @@ import {
   teacherNoteGroundedInSource,
   type MaterialLanguage,
 } from "@/lib/learning/teacher-brain";
+import type { ExamChatPrompt } from "@/lib/learning/exam-chat-chrome";
 
 /**
  * Sohbetin hangi sınava çalıştığını bilmesi.
@@ -28,6 +29,14 @@ import {
 /** Bölüm gövdesi bağlamı şişirmesin; tanımlar başta gelir. */
 const MAX_SECTION_CHARS = 400;
 
+export type ExamChatHistoryRef = {
+  id: string;
+  kind: "mistake" | "misconception" | "weak" | "flashcard";
+  label: string;
+  summary: string;
+  dateLabel?: string;
+};
+
 export type ExamChatContext = {
   prepTitle: string;
   daysLeft: number | null;
@@ -35,6 +44,12 @@ export type ExamChatContext = {
   language: MaterialLanguage;
   /** Ders metni veya öğretmen notu yüklendiyse belge kuralı uygulanır. */
   hasSource: boolean;
+  /** Gerçek geçmiş kayıtları; uydurma yok. */
+  history: ExamChatHistoryRef[];
+  /** Boş sohbet önerileri (ağırlıklı konu + açık yanlış). */
+  starters: ExamChatPrompt[];
+  /** Modele en fazla bir kez değinmesi için kişisel bağlam satırı. */
+  personalizationPrompt: string;
 };
 
 function daysUntil(examDate: string | null): number | null {
@@ -61,6 +76,150 @@ export function examCountdownLine(prepTitle: string, daysLeft: number | null): s
   return `${prepTitle} için ${daysLeft} gün kaldı. Neye çalışmak istersin?`;
 }
 
+function formatShortDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+}
+
+async function loadChatPersonalization(
+  service: SupabaseClient,
+  userId: string,
+  prepId: string,
+): Promise<ExamChatHistoryRef[]> {
+  const history: ExamChatHistoryRef[] = [];
+
+  const [{ data: mistakes }, { data: misconceptions }, { data: weak }, { data: flash }] =
+    await Promise.all([
+      service
+        .from("mistake_entries")
+        .select("id, topic_label, question_text, created_at")
+        .eq("user_id", userId)
+        .is("mastered_at", null)
+        .order("wrong_count", { ascending: false })
+        .limit(5),
+      service
+        .from("exam_prep_misconceptions")
+        .select("id, topic_label, claim, created_at")
+        .eq("user_id", userId)
+        .eq("exam_prep_id", prepId)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      service
+        .from("weak_topics")
+        .select("id, topic_label, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      service
+        .from("flashcard_reviews")
+        .select("id, topic_label, card_key, last_reviewed_at")
+        .eq("user_id", userId)
+        .eq("exam_prep_id", prepId)
+        .eq("last_rating", "missed")
+        .order("last_reviewed_at", { ascending: false })
+        .limit(5),
+    ]);
+
+  for (const row of mistakes ?? []) {
+    const topic = (row.topic_label as string | null)?.trim();
+    const q = (row.question_text as string | null)?.trim() ?? "";
+    history.push({
+      id: row.id as string,
+      kind: "mistake",
+      label: topic ? `Geçen denemen · ${topic}` : `Geçen denemen · ${formatShortDate(row.created_at as string)}`,
+      summary: q.slice(0, 160),
+      dateLabel: formatShortDate(row.created_at as string),
+    });
+  }
+  for (const row of misconceptions ?? []) {
+    history.push({
+      id: row.id as string,
+      kind: "misconception",
+      label: `Yanılgı · ${(row.topic_label as string | null)?.trim() || formatShortDate(row.created_at as string)}`,
+      summary: ((row.claim as string | null) ?? "").slice(0, 160),
+      dateLabel: formatShortDate(row.created_at as string),
+    });
+  }
+  for (const row of weak ?? []) {
+    const topic = (row.topic_label as string | null)?.trim();
+    if (!topic) continue;
+    history.push({
+      id: row.id as string,
+      kind: "weak",
+      label: `Zayıf konu · ${topic}`,
+      summary: topic,
+      dateLabel: formatShortDate(row.created_at as string),
+    });
+  }
+  for (const row of flash ?? []) {
+    const topic = (row.topic_label as string | null)?.trim() || (row.card_key as string);
+    history.push({
+      id: row.id as string,
+      kind: "flashcard",
+      label: `Kart · Bilmedim · ${topic}`,
+      summary: topic,
+      dateLabel: formatShortDate(row.last_reviewed_at as string),
+    });
+  }
+  return history.slice(0, 12);
+}
+
+export function buildPersonalizationPrompt(history: ExamChatHistoryRef[]): string {
+  if (!history.length) {
+    return "KİŞİSEL GEÇMİŞ: Yok. 'Geçen sefer' veya 'denemende' diye uydurma değinme.";
+  }
+  const lines = history.slice(0, 5).map((item) => {
+    const date = item.dateLabel ? ` (${item.dateLabel})` : "";
+    return `- id=${item.id} [${item.kind}] ${item.label}${date}: ${item.summary}`;
+  });
+  return [
+    "KİŞİSEL GEÇMİŞ (yalnızca bu satırlar gerçek; uydurma yok):",
+    ...lines,
+    "Uygunsa EN FAZLA BİR KEZ değin. citations içine kind:history ve aynı id koy.",
+  ].join("\n");
+}
+
+export function buildExamStarters(
+  weightedTopic: string | null,
+  history: ExamChatHistoryRef[],
+): ExamChatPrompt[] {
+  const starters: ExamChatPrompt[] = [];
+  if (weightedTopic) {
+    starters.push({
+      label: `${weightedTopic} bir örnekle anlat`,
+      prompt: `${weightedTopic} konusunu kısa bir benzetme ve bir örnekle anlat; sonda beni test et.`,
+    });
+  }
+  const mistake = history.find((item) => item.kind === "mistake");
+  if (mistake) {
+    const date = mistake.dateLabel ? ` (${mistake.dateLabel})` : "";
+    starters.push({
+      label: `Geçen denemedeki yanlışı açıkla`,
+      prompt: `Geçen denememdeki bu yanlışı açıkla${date}: ${mistake.summary}`,
+    });
+  }
+  const weak = history.find((item) => item.kind === "weak" || item.kind === "misconception");
+  if (weak && starters.length < 4) {
+    starters.push({
+      label: "Zayıf noktamı güçlendir",
+      prompt: `${weak.summary} konusunda zayıfım; basit anlat ve beni test et.`,
+    });
+  }
+  starters.push({
+    label: "Anlamadığım bir şeyi açıkla",
+    prompt: "Anlamadığım bir şeyi açıkla. Son okuduğum derste takıldığım yeri tekrar anlat.",
+  });
+  if (starters.length < 4) {
+    starters.push({
+      label: "Çalışma stratejilerini konuşalım",
+      prompt: "Çalışma stratejilerini konuşalım. Sınava kalan sürede neye öncelik vermeliyim?",
+    });
+  }
+  return starters.slice(0, 4);
+}
+
 export async function loadExamChatContext(
   service: SupabaseClient,
   userId: string,
@@ -77,6 +236,7 @@ export async function loadExamChatContext(
   const prepTitle = (prep.title as string) ?? "Sınav hazırlığı";
   const daysLeft = daysUntil((prep.exam_date as string | null) ?? null);
   const language = prepLanguage(prep.learning_preferences);
+  const history = await loadChatPersonalization(service, userId, prepId);
 
   const lines: string[] = [
     `Öğrenci "${prepTitle}" hazırlığının içinden yazıyor.`,
@@ -182,11 +342,26 @@ export async function loadExamChatContext(
     );
   }
 
+  const personalizationPrompt = buildPersonalizationPrompt(history);
+  lines.push(personalizationPrompt);
+
+  const weighted =
+    (topics ?? []).find((topic) => {
+      const level = (topic.measured_level as string | null) ?? "";
+      return level === "weak" || level === "zayif";
+    })?.label as string | undefined
+    ?? (topics ?? [])[0]?.label as string | undefined
+    ?? null;
+  const starters = buildExamStarters(weighted, history);
+
   return {
     prepTitle,
     daysLeft,
     language,
     hasSource,
+    history,
+    starters,
+    personalizationPrompt,
     block: `\n\n<sinav-hazirligi>\n${lines.join("\n")}\n</sinav-hazirligi>`,
   };
 }

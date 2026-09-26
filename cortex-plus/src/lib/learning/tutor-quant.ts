@@ -1308,15 +1308,29 @@ function draftConflicts(draft: string, grade: GradedClaim, student: string): boo
   return false;
 }
 
+const VERDICT_CHIP: Record<ClaimVerdict, string> = {
+  dogru: "Tam isabet",
+  kismen: "Neredeyse",
+  yanlis: "Tekrar bakalım",
+};
+
+/** Hükmü sıcak cümleye çevirir; etiket yığını (Doğru kısım:) üretmez. */
 export function renderVerifiedAnswer(grade: GradedClaim): string {
-  const lines = [grade.verdictLine];
-  if (grade.rightParts.length) lines.push(`Doğru kısım: ${grade.rightParts.join(" ")}`);
-  if (grade.wrongParts.length) lines.push(`Yanlış kısım: ${grade.wrongParts.join(" ")}`);
-  const conclusionFold = grade.conclusion.toLocaleLowerCase("tr").slice(0, 18);
-  if (grade.conclusion && !lines.join("\n").toLocaleLowerCase("tr").includes(conclusionFold)) {
-    lines.push(grade.conclusion);
+  const chip = `[[hukum:${grade.verdict}|${VERDICT_CHIP[grade.verdict]}]]`;
+  let warm: string;
+  if (grade.verdict === "dogru") {
+    warm = `Tam isabet! ${grade.rightParts[0] || grade.conclusion}`.trim();
+  } else if (grade.verdict === "kismen") {
+    const right = grade.rightParts[0] ? `${grade.rightParts[0]} ` : "";
+    const wrong = grade.wrongParts[0] || "Gerekçede bir adım eksik kaldı.";
+    warm = `Neredeyse! ${right}${wrong} Doğrusu: ${grade.conclusion}`.trim();
+  } else {
+    const named = grade.wrongParts[0]
+      ? `İşte en sık yapılan hata bu: ${grade.wrongParts[0]}`
+      : "Bu adımda sapma var.";
+    warm = `Tekrar bakalım. ${named} Doğrusu: ${grade.conclusion}`.trim();
   }
-  return lines.join("\n\n");
+  return `${chip}\n\n${warm}`;
 }
 
 const SAFE_COEFFICIENT =

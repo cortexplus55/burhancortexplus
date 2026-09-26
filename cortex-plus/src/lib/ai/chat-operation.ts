@@ -43,3 +43,45 @@ export function chatResultResponse(result: SavedChatResult, documentsOnly: boole
     "X-Source-Page": String(result.citations[0]?.pageNumber ?? ""),
   } });
 }
+
+/** Kapılardan geçmiş cevabı bölüm bölüm flush eder (ham token SSE değil). */
+export function streamedChatResultResponse(result: SavedChatResult, documentsOnly: boolean) {
+  const headers = {
+    "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store",
+    "X-Conversation-Id": result.conversationId, "X-Message-Id": result.messageId,
+    "X-Credits-Used": String(result.creditsUsed), "X-Model": result.model,
+    "X-Sources": String(result.citations.length), "X-Documents-Only": documentsOnly ? "1" : "0",
+    "X-Source-Doc": encodeURIComponent(result.citations[0]?.documentName ?? ""),
+    "X-Source-Page": String(result.citations[0]?.pageNumber ?? ""),
+  };
+  const chunks = splitReplyChunks(result.content);
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      for (let i = 0; i < chunks.length; i += 1) {
+        controller.enqueue(encoder.encode(chunks[i]));
+        if (i < chunks.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 16));
+        }
+      }
+      controller.close();
+    },
+  });
+  return new Response(stream, { headers });
+}
+
+function splitReplyChunks(content: string): string[] {
+  const parts = content.split(/(\n\n)/);
+  if (parts.length <= 1) return [content];
+  const out: string[] = [];
+  let buf = "";
+  for (const part of parts) {
+    buf += part;
+    if (part === "\n\n" && buf.trim()) {
+      out.push(buf);
+      buf = "";
+    }
+  }
+  if (buf) out.push(buf);
+  return out.length ? out : [content];
+}

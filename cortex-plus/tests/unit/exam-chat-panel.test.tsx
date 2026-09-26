@@ -43,7 +43,7 @@ describe("exam chat chrome", () => {
       screen.getByText("Selam! Termodinamik için 7 gün kaldı. Neye çalışmak istersin?"),
     ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Anlamadığım bir şeyi açıkla" })).toBeTruthy();
-    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Ne öğrenmek istersin?" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Başla/ })).toBeNull();
     expect(screen.getByPlaceholderText("Sor, konuş veya dosya gönder")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Gönder" })).toBeNull();

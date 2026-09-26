@@ -123,7 +123,8 @@ describe("post-PDF wizard order", () => {
       expect(prompt).toContain(TUTOR_ANSWER_DISCIPLINE);
       expect(prompt).toContain("Cevabı baştan yapıştırma");
       expect(prompt).toContain("tek ipucu veya tek adım");
-      expect(prompt).toContain("Filler");
+      expect(prompt).toContain("Boş alkış");
+      expect(prompt).toContain("Tam isabet");
     }
     expect(coach).toContain("TUTOR_ANSWER_DISCIPLINE");
   });

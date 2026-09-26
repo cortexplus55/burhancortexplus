@@ -41,7 +41,8 @@ import {
   settleQuantReply,
   type GradedClaim,
 } from "@/lib/learning/tutor-quant";
-import { citationMarker, examTutorAddendum, finalizeTutorReply } from "@/lib/learning/tutor-reply";
+import { citationMarker, examTutorAddendum, finalizeTutorReply, parseTutorStructured, serializeStructuredReply } from "@/lib/learning/tutor-reply";
+import { parseCheckExpected, gradeAgainstExpected } from "@/lib/learning/check-question";
 import { citationHref, type ChatCitation, type ChatEvidence } from "@/lib/ai/chat-citations";
 import {
   isAcceptableOutsideAnswer,
@@ -52,7 +53,7 @@ import {
   verifyDocumentAnswer,
 } from "@/lib/ai/document-answer-verification";
 import { logOpsEvent } from "@/lib/observability/ops-log";
-import { chatRequestHash, chatResultResponse, prepareChatOperation, type SavedChatResult } from "@/lib/ai/chat-operation";
+import { chatRequestHash, chatResultResponse, prepareChatOperation, streamedChatResultResponse, type SavedChatResult } from "@/lib/ai/chat-operation";
 
 export const maxDuration = 300;
 const bodySchema = z.object({
@@ -207,9 +208,30 @@ export async function POST(request: Request) {
       }
       const lastAssistant = [...history].reverse().find((item) => item.role === "assistant");
       const historyText = history.map((item) => (typeof item.content === "string" ? item.content : "")).join("\n");
-      const studentGrade = prepGrounding
+      const pendingExpected = typeof lastAssistant?.content === "string"
+        ? parseCheckExpected(lastAssistant.content)
+        : null;
+      let studentGrade = prepGrounding
         ? gradeStudentClaim({ student: message, context: `${historyText}\n${prepGrounding.corpus}` })
         : gradeStudentClaim({ student: message, context: historyText });
+      if (pendingExpected && pendingExpected.kind !== "open") {
+        const against = gradeAgainstExpected(message, pendingExpected);
+        if (!studentGrade || studentGrade.verdict !== against) {
+          studentGrade = {
+            verdict: against,
+            verdictLine: against === "dogru"
+              ? `Doğru: ${pendingExpected.answer}`
+              : against === "kismen"
+                ? `Kısmen doğru; beklenen: ${pendingExpected.answer}`
+                : `Yanlış; doğrusu: ${pendingExpected.answer}`,
+            rightParts: against === "dogru" ? [pendingExpected.answer] : [],
+            wrongParts: against === "dogru" ? [] : [`Beklenen: ${pendingExpected.answer}`],
+            conclusion: pendingExpected.detail || pendingExpected.answer,
+            wrongType: against === "dogru" ? "" : "check_answer",
+            topicLabel: "Kontrol sorusu",
+          };
+        }
+      }
       // Full page context is used for an attachment; RAG supplies selected chunks.
       const contextBlock = grounded ? chatSourceBlock(evidence, { documentsOnly: strict, maxCharsPerChunk: documentAttached ? 80000 : 3000 }) : "";
       const attachedRaw = !rest.prepId && rest.imageDocumentId
@@ -231,6 +253,7 @@ export async function POST(request: Request) {
             decision: prepGrounding.decision,
             scope: prepGrounding.scope,
             excerpts: prepGrounding.excerpts,
+            personalization: examContext?.personalizationPrompt,
           })
         : "";
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
@@ -242,10 +265,18 @@ export async function POST(request: Request) {
       const offDocument = prepGrounding
         ? prepGrounding.decision === "out"
         : isClearlyOffDocument(message, sourceText);
+      const prepJsonMode = Boolean(rest.prepId && prepGrounding);
       async function polishPrep(text: string): Promise<string> {
         if (!rest.prepId || !prepGrounding) return text;
         const grounding = prepGrounding;
         let next = text;
+        // JSON taslağı erken serileştir; doğrulama öğrenciye giden metin üzerinde kalsın.
+        const structured = parseTutorStructured(next);
+        if (structured) {
+          next = serializeStructuredReply(structured, {
+            context: `${historyText}\n${grounding.corpus}`,
+          }).content;
+        }
         let settledGrade = studentGrade;
         const applySettle = (draft: string) => {
           const settled = settleQuantReply({
@@ -301,6 +332,7 @@ export async function POST(request: Request) {
           scope: grounding.scope,
           grade: settledGrade,
           language: examContext?.language,
+          context: `${historyText}\n${grounding.corpus}`,
         });
         gradedForStore = finalized.misconception;
         return finalized.content;
@@ -309,20 +341,31 @@ export async function POST(request: Request) {
       const attemptLimit = paidChatAttempts(offDocument);
       for (let attempt = 0; attempt < attemptLimit; attempt++) {
         const generationModel = attempt && isPremium ? env.OPENAI_ADVANCED_MODEL : model;
-        const response = await client.chat.completions.create({ model: generationModel, messages: requestMessages }, { signal: request.signal, timeout: 60_000, maxRetries: 0 });
+        const response = await client.chat.completions.create({
+          model: generationModel,
+          messages: requestMessages,
+          ...(prepJsonMode ? { response_format: { type: "json_object" as const }, temperature: 0.4 } : {}),
+        }, { signal: request.signal, timeout: 60_000, maxRetries: 0 });
         tokensIn += response.usage?.prompt_tokens ?? 0;
         tokensOut += response.usage?.completion_tokens ?? 0;
         await recordUsage(service, { userId, actionCode, model: generationModel, tokensIn: response.usage?.prompt_tokens ?? 0, tokensOut: response.usage?.completion_tokens ?? 0, reservationId });
         const rawDraft = response.choices[0]?.message?.content ?? "";
+        // JSON çıktıyı öğrenci metnine çevir; doğrulayıcı serbest metin bekler.
+        const structuredEarly = parseTutorStructured(rawDraft);
+        const studentFacing = structuredEarly
+          ? serializeStructuredReply(structuredEarly, {
+              context: `${historyText}\n${prepGrounding?.corpus ?? ""}`,
+            }).content
+          : rawDraft;
         const stampOutside = !strict && (!prepGrounding || prepGrounding.decision === "out");
         const draft = stampOutside
           ? presentOutsideMaterialAnswer({
               question: message,
-              answer: rawDraft,
+              answer: studentFacing,
               sourceText,
               language: examContext?.language,
             })
-          : rawDraft;
+          : studentFacing;
         let checkedContent = "";
         try {
           const verified = await verifyEducationalContent({ client,
@@ -414,7 +457,9 @@ export async function POST(request: Request) {
       }).catch(() => undefined);
     }
     await recordUserActivity(service, userId, "chat").catch(() => undefined);
-    return chatResultResponse(saved as SavedChatResult, strict);
+    return rest.prepId
+      ? streamedChatResultResponse(saved as SavedChatResult, strict)
+      : chatResultResponse(saved as SavedChatResult, strict);
   } catch (err) {
     try { await undoSpend(); } catch { console.error("chat_credit_recovery_required", { operationId }); }
     // Sebep olmadan bu satır işe yaramaz: 23 Eylül 2026'da canlıda yalnızca

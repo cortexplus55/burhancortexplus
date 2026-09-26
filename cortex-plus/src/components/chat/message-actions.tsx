@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, Copy, RefreshCw, Square, ThumbsDown, ThumbsUp, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
+import { plainTutorText } from "@/lib/learning/tutor-reply";
 
 export type Rating = 1 | -1 | null;
 export type RatingReason = "yanlis" | "anlasilmadi" | "eksik";
@@ -55,8 +56,9 @@ export function MessageActions({
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(plainTutorText(content));
       setCopied(true);
+      toast.success("Kopyalandı");
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
       toast.error("Kopyalanamadı", {
@@ -72,7 +74,7 @@ export function MessageActions({
       return;
     }
     // Markdown işaretleri sesli okunduğunda "yıldız yıldız" diye duyuluyor.
-    const plain = content
+    const plain = plainTutorText(content)
       .replace(/```[\s\S]*?```/g, " kod bloğu ")
       .replace(/[*_`#>|-]/g, " ")
       .replace(/\s+/g, " ")
@@ -140,8 +142,8 @@ export function MessageActions({
         type="button"
         className="cp-msg-action"
         onClick={toggleSpeech}
-        aria-label={speaking ? "Okumayı durdur" : "Sesli oku"}
-        title={speaking ? "Okumayı durdur" : "Sesli oku"}
+        aria-label={speaking ? "Okumayı durdur" : "Sesli dinle"}
+        title={speaking ? "Okumayı durdur" : "Sesli dinle"}
       >
         {speaking ? (
           <Square className="h-3.5 w-3.5" aria-hidden />
@@ -183,8 +185,8 @@ export function MessageActions({
             className={rating === 1 ? "cp-msg-action is-on" : "cp-msg-action"}
             onClick={onThumbUp}
             aria-pressed={rating === 1}
-            aria-label={rating === 1 ? "Beğeniyi geri al" : "Bu yanıt işime yaradı"}
-            title={rating === 1 ? "Beğeniyi geri al" : "Bu yanıt işime yaradı"}
+            aria-label={rating === 1 ? "Beğeniyi geri al" : "Faydalı"}
+            title={rating === 1 ? "Beğeniyi geri al" : "Faydalı"}
           >
             <ThumbsUp className="h-3.5 w-3.5" aria-hidden />
           </button>
@@ -194,8 +196,8 @@ export function MessageActions({
             className={rating === -1 ? "cp-msg-action is-off" : "cp-msg-action"}
             onClick={onThumbDown}
             aria-pressed={rating === -1}
-            aria-label={rating === -1 ? "Oyu geri al" : "Bu yanıt işime yaramadı"}
-            title={rating === -1 ? "Oyu geri al" : "Bu yanıt işime yaramadı"}
+            aria-label={rating === -1 ? "Oyu geri al" : "Faydalı değil"}
+            title={rating === -1 ? "Oyu geri al" : "Faydalı değil"}
           >
             <ThumbsDown className="h-3.5 w-3.5" aria-hidden />
           </button>
