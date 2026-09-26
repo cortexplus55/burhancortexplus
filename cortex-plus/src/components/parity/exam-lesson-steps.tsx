@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft, CornerDownLeft, Info, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
@@ -21,6 +20,7 @@ import {
   studentTextParts,
   type BoardLine,
 } from "@/lib/learning/lesson-board";
+import { renderMath, splitMath } from "@/lib/learning/math-text";
 import type {
   GradeCheckResult,
   LessonCheckAnswer,
@@ -86,18 +86,31 @@ function BoardBody({ text, className }: { text: string; className?: string }) {
 }
 
 function RichBody({ text }: { text: string }) {
-  const parts = studentTextParts(text);
   return (
     <>
-      {parts.map((part, i) =>
-        part.bold ? (
-          <strong key={i} className="als-term">
-            {part.text}
-          </strong>
-        ) : (
-          part.text
-        ),
-      )}
+      {splitMath(text).flatMap((segment, segIndex) => {
+        if (segment.type === "math") {
+          const Tag = segment.display ? "div" : "span";
+          return (
+            <Tag
+              key={`m-${segIndex}`}
+              className={segment.display ? "als-formula cp-lesson-math" : undefined}
+              dangerouslySetInnerHTML={{
+                __html: renderMath(segment.value, segment.display),
+              }}
+            />
+          );
+        }
+        return studentTextParts(segment.value).map((part, index) =>
+          part.bold ? (
+            <strong key={`${segIndex}-${index}`} className="als-term">
+              {part.text}
+            </strong>
+          ) : (
+            <span key={`${segIndex}-${index}`}>{part.text}</span>
+          ),
+        );
+      })}
     </>
   );
 }
@@ -320,6 +333,8 @@ export function ExamLessonSteps({
   /** Yanlış cevaplanan bölümlerin sırası — tekrar kuyruğunu bunlar doğurur. */
   const [missed, setMissed] = useState<number[]>([]);
   const [lessonAnswers, setLessonAnswers] = useState<Record<string, LessonCheckAnswer>>({});
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const closeDialogRef = useRef<HTMLDivElement | null>(null);
 
   const steps = useMemo(() => {
     const retries = missed
@@ -388,8 +403,42 @@ export function ExamLessonSteps({
       go(index - 1);
       return;
     }
-    onClose?.();
+    setCloseConfirmOpen(true);
   }
+
+  function requestClose() {
+    setCloseConfirmOpen(true);
+  }
+
+  function confirmClose() {
+    setCloseConfirmOpen(false);
+    if (onClose) {
+      onClose();
+      return;
+    }
+    if (closeHref && typeof window !== "undefined") {
+      window.location.assign(closeHref);
+    }
+  }
+
+  useEffect(() => {
+    if (!closeConfirmOpen) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const dialog = closeDialogRef.current;
+    const focusable = dialog?.querySelector<HTMLElement>("button.als-cta, button");
+    focusable?.focus();
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setCloseConfirmOpen(false);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      previous?.focus?.();
+    };
+  }, [closeConfirmOpen]);
 
   function markMissed(sectionIndex: number) {
     if (sectionIndex < 0 || missed.includes(sectionIndex)) return;
@@ -471,14 +520,10 @@ export function ExamLessonSteps({
   }
 
   const closeControl =
-    onClose ? (
-      <button type="button" className="als-icon" onClick={onClose} aria-label="Kapat">
+    onClose || closeHref ? (
+      <button type="button" className="als-icon" onClick={requestClose} aria-label="Dersi kapat">
         <X className="h-4 w-4" />
       </button>
-    ) : closeHref ? (
-      <Link href={closeHref} className="als-icon" aria-label="Kapat">
-        <X className="h-4 w-4" />
-      </Link>
     ) : null;
 
   return (
@@ -489,13 +534,20 @@ export function ExamLessonSteps({
             <ChevronLeft className="h-4 w-4" />
           </button>
         ) : closeHref ? (
-          <Link href={closeHref} className="als-icon" aria-label="Geri">
+          <button type="button" className="als-icon" onClick={requestClose} aria-label="Geri">
             <ChevronLeft className="h-4 w-4" />
-          </Link>
+          </button>
         ) : (
           <span className="als-icon als-icon--ghost" aria-hidden />
         )}
-        <div className="als-segments" aria-hidden>
+        <div
+          className="als-segments"
+          role="progressbar"
+          aria-valuenow={Math.min(index + 1, base.length)}
+          aria-valuemin={1}
+          aria-valuemax={Math.max(1, base.length)}
+          aria-label="Ders ilerlemesi"
+        >
           {base.map((_, segment) => (
             <span
               key={segment}
@@ -517,6 +569,34 @@ export function ExamLessonSteps({
         </p>
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
       </header>
+
+      {closeConfirmOpen ? (
+        <div
+          className="als-dialog-backdrop"
+          role="presentation"
+          onClick={() => setCloseConfirmOpen(false)}
+        >
+          <div
+            ref={closeDialogRef}
+            className="als-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="als-close-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="als-close-title">Dersten çıkmak istiyor musun?</h2>
+            <p>İlerlemen kaydedildi, kaldığın yerden devam edebilirsin.</p>
+            <div className="als-dialog-actions">
+              <button type="button" className="als-cta" onClick={() => setCloseConfirmOpen(false)}>
+                Derse dön
+              </button>
+              <button type="button" className="als-secondary als-secondary--danger" onClick={confirmClose}>
+                Çık
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {step.kind === "review-gate" ? (
         <div className="als-slide">
@@ -636,7 +716,7 @@ export function ExamLessonSteps({
                   className="als-secondary"
                   onClick={() => setSolutionShown(true)}
                 >
-                  Çözümü göster
+                  Önce kendin dene, sonra sonucu göster
                 </button>
               )}
             </>
@@ -908,7 +988,7 @@ export function ExamLessonSteps({
         </div>
       ) : mustAnswer ? null : (
         <button type="button" className="als-cta" onClick={next}>
-          {last ? "Dersi bitir" : "Devam et"}
+          {step.kind === "review-gate" ? "Başla" : last ? "Dersi bitir" : "Devam et"}
           <CornerDownLeft className="h-4 w-4" aria-hidden />
         </button>
       )}
