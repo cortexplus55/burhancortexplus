@@ -14,6 +14,11 @@ import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
 import { lessonV2Schema } from "@/lib/learning/teaching-standards";
+import {
+  publicLessonV2Schema,
+  type GradeCheckResult,
+  type LessonCheckAnswer,
+} from "@/lib/learning/lesson-play";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 import { AUDIO_CHARS_PER_CREDIT_PRICE, CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
@@ -656,10 +661,14 @@ export function ExamNodeSession({
   const chapters = payload.chapters ?? [];
   // Şema tutmazsa düz markdown'a düşülür; ders hiç açılmamasındansa
   // biçimsiz açılsın.
-  const structuredLesson = useMemo(
-    () => (payload.lesson ? lessonV2Schema.safeParse(payload.lesson).data ?? null : null),
-    [payload.lesson],
-  );
+  const structuredLesson = useMemo(() => {
+    if (!payload.lesson) return null;
+    return (
+      publicLessonV2Schema.safeParse(payload.lesson).data ??
+      lessonV2Schema.safeParse(payload.lesson).data ??
+      null
+    );
+  }, [payload.lesson]);
   const coachItem =
     payload.type === "quiz"
       ? questions[index]?.text
@@ -992,9 +1001,40 @@ export function ExamNodeSession({
           <ExamLessonSteps
             lesson={structuredLesson}
             language={language}
-            onFinish={(missed) => {
+            gradeCheck={
+              attemptId
+                ? async (sectionIndex, answer) => {
+                    const res = await fetch("/api/learning/exam-prep/node", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        prepId,
+                        nodeId,
+                        attemptId,
+                        action: "grade-check",
+                        sectionIndex,
+                        checkAnswer: answer,
+                      }),
+                    });
+                    const data = (await res.json().catch(() => ({}))) as GradeCheckResult & {
+                      ok?: boolean;
+                      error?: string;
+                    };
+                    if (!res.ok) {
+                      throw new Error(data.error ?? "grade_failed");
+                    }
+                    return data;
+                  }
+                : undefined
+            }
+            onFinish={(missed, lessonAnswers) => {
               const indexes = (missed ?? []).filter((index) => Number.isInteger(index));
-              void finish(indexes.length ? { lessonMisses: indexes } : undefined);
+              const payloadAnswers: Record<string, unknown> = {};
+              if (indexes.length) payloadAnswers.lessonMisses = indexes;
+              if (lessonAnswers && Object.keys(lessonAnswers).length) {
+                payloadAnswers.lessonAnswers = lessonAnswers as Record<string, LessonCheckAnswer>;
+              }
+              void finish(Object.keys(payloadAnswers).length ? payloadAnswers : undefined);
             }}
             onClose={() => router.push(`/deneme-sinavlari/${prepId}`)}
           />

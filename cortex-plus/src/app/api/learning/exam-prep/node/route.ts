@@ -11,6 +11,7 @@ import { completeLessonPartRepair } from "@/lib/ai/lesson-part-repair";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import {
   EMPTY_SOURCE_CONTEXT,
+  loadMergedTopicContext,
   loadPageSourceAcrossDocuments,
   loadPageSourceContext,
   loadSourceContext,
@@ -90,6 +91,13 @@ import {
 import { diagramIssues, needsDiagram } from "@/lib/learning/lesson-diagram";
 import { repairLessonSurface } from "@/lib/learning/learner-fluency";
 import { scoreLessonChecks } from "@/lib/learning/lesson-claims";
+import {
+  gradeSectionCheck,
+  sealLessonForPlay,
+  type LessonCheckAnswer,
+} from "@/lib/learning/lesson-play";
+import { runLessonQualityPipeline } from "@/lib/learning/lesson-quality-pipeline";
+import { isAdminUser } from "@/lib/auth/roles";
 import {
   honestReadingMinutes,
   shouldReplacePlannedMinutes,
@@ -175,7 +183,7 @@ const bodySchema = z.object({
   prepId: z.string().uuid(),
   nodeId: z.string().uuid(),
   attemptId: z.string().uuid().optional(),
-  action: z.enum(["start", "complete", "save", "resume", "review"]).default("start"),
+  action: z.enum(["start", "complete", "save", "resume", "review", "grade-check"]).default("start"),
   difficulty: z.enum(["kolay", "orta", "ileri"]).optional(),
   voiceMode: z.boolean().optional(),
   // Ders başında sorulan iki sinyal: konuya aşinalık ve o anki ruh hali.
@@ -186,6 +194,14 @@ const bodySchema = z.object({
     .enum(["ready", "curious", "calm", "neutral", "low_energy", "stressed"])
     .optional(),
   answers: z.record(z.string(), z.unknown()).optional(),
+  /** Tek kontrol notlandırma: bölüm indeksi + yanıt. */
+  sectionIndex: z.number().int().min(0).optional(),
+  checkAnswer: z
+    .object({
+      pick: z.number().int().min(0).optional(),
+      text: z.string().max(2000).optional(),
+    })
+    .optional(),
   /** Stage 8 — stable client keys (v2 only). */
   clientRequestId: z.string().uuid().optional(),
   completeRequestId: z.string().uuid().optional(),
@@ -476,6 +492,7 @@ export async function POST(request: Request) {
   const title = PLAN_NODE_META[kind]?.setupLabel ?? node.title;
   const lessonReviewCards =
     kind === "spaced" ? await loadLessonReviewCards(service, userId, prepId) : [];
+  const founder = await isAdminUser(service, userId);
 
   if (action === "review") {
     if (kind !== "written_exam") return errorResponse(400, "invalid_input");
@@ -508,6 +525,31 @@ export async function POST(request: Request) {
     });
   }
 
+  // Ders kontrolü: cevap verilmeden önce istemcide cevap yok; not sunucuda.
+  if (action === "grade-check") {
+    if (kind !== "lesson") return errorResponse(400, "invalid_input");
+    const attemptId = parsed.data.attemptId;
+    const sectionIndex = parsed.data.sectionIndex;
+    const checkAnswer = parsed.data.checkAnswer as LessonCheckAnswer | undefined;
+    if (!attemptId || sectionIndex == null || !checkAnswer) {
+      return errorResponse(400, "invalid_input");
+    }
+    const { data: attempt } = await service
+      .from("exam_prep_node_attempts")
+      .select("id, payload, status")
+      .eq("id", attemptId)
+      .eq("user_id", userId)
+      .eq("exam_prep_id", prepId)
+      .eq("node_id", nodeId)
+      .maybeSingle();
+    if (!attempt?.payload) return errorResponse(404, "not_found");
+    const lesson = (attempt.payload as { lesson?: LessonV2 }).lesson;
+    const check = lesson?.sections?.[sectionIndex]?.check;
+    if (!check) return errorResponse(400, "invalid_input");
+    const result = gradeSectionCheck(check, checkAnswer);
+    return NextResponse.json({ ok: true, ...result });
+  }
+
   // --- Stage 8: resume in-progress attempt (flag ON) ---
   if (action === "resume") {
     if (!teachingV2) return errorResponse(400, "invalid_input");
@@ -526,7 +568,7 @@ export async function POST(request: Request) {
         topicLabel,
         publicPayload: publicNodePayload(
           attempt.payload as Record<string, unknown>,
-          lessonReviewCards, kind,
+          lessonReviewCards, kind, { isAdmin: founder },
         ),
         resumed: true,
       }),
@@ -942,7 +984,7 @@ export async function POST(request: Request) {
           topicLabel,
           publicPayload: publicNodePayload(
             existingForKey.payload as Record<string, unknown>,
-            lessonReviewCards, kind,
+            lessonReviewCards, kind, { isAdmin: founder },
           ),
           resumed: true,
         }),
@@ -968,7 +1010,7 @@ export async function POST(request: Request) {
             topicLabel,
             publicPayload: publicNodePayload(
               existingForKey.payload as Record<string, unknown>,
-              lessonReviewCards, kind,
+              lessonReviewCards, kind, { isAdmin: founder },
             ),
             resumed: true,
           },
@@ -996,7 +1038,7 @@ export async function POST(request: Request) {
           topicLabel,
           publicPayload: publicNodePayload(
             resumable.payload as Record<string, unknown>,
-            lessonReviewCards, kind,
+            lessonReviewCards, kind, { isAdmin: founder },
           ),
           resumed: true,
         }),
@@ -1064,7 +1106,7 @@ export async function POST(request: Request) {
         title,
         topicLabel,
         voiceMode: false,
-        payload: publicNodePayload(local.payload, lessonReviewCards, kind),
+        payload: publicNodePayload(local.payload, lessonReviewCards, kind, { isAdmin: founder }),
         ...(await readWalletBalance(service, userId)),
       });
     }
@@ -1156,7 +1198,9 @@ export async function POST(request: Request) {
         ? await loadPageSourceAcrossDocuments(
             service,
             userId,
-            kind === "lesson" && topicDocumentId ? [topicDocumentId] : pageDocumentIds,
+            // Ders: konuya bağlı dosya + aynı hazırlıktaki diğer dosyalar.
+            // Tek dosyaya kilitlemek diğer materyali (PDF + fotoğraf) düşürüyordu.
+            pageDocumentIds,
             mappedPages,
             { sourceBoundaryMode, topicLabel },
           )
@@ -1187,19 +1231,51 @@ export async function POST(request: Request) {
         );
       }
     }
-    source = pageSource.block
-      ? pageSource
-      : voiceSession || !shouldSearchSources(sourceMode)
-      ? EMPTY_SOURCE_CONTEXT
-      : await loadSourceContext(
-          service,
-          userId,
-          `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim(),
-          {
-            documentId: prepSource?.document_id ?? null,
-            sourceBoundaryMode: teachingV2 ? sourceMode : null,
-          },
-        );
+    // Aynı konuyu işleyen diğer belgeler (fotoğraf + PDF vb.) bağlama eklenir.
+    if (
+      kind === "lesson" &&
+      teachingV2 &&
+      !voiceSession &&
+      shouldSearchSources(sourceMode)
+    ) {
+      source = await loadMergedTopicContext(
+        service,
+        userId,
+        `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim(),
+        {
+          documentId: topicDocumentId ?? prepSource?.document_id ?? null,
+          pageNumbers: mappedPages,
+          sourceBoundaryMode: teachingV2 ? sourceMode : null,
+          allowSearch: true,
+        },
+      );
+      // Sayfa / span bağlamı daha zenginse onu koru, üzerine birleştirilmiş ekleri yaz.
+      if (pageSource.block.trim()) {
+        const mergedBlock =
+          pageSource.block.includes(source.block.slice(0, 80)) || !source.block.trim()
+            ? pageSource.block
+            : `${pageSource.block}\n\n${source.block}`;
+        source = {
+          ...pageSource,
+          block: mergedBlock,
+          matches: [...pageSource.matches, ...source.matches],
+        };
+      }
+    } else {
+      source = pageSource.block
+        ? pageSource
+        : voiceSession || !shouldSearchSources(sourceMode)
+          ? EMPTY_SOURCE_CONTEXT
+          : await loadSourceContext(
+              service,
+              userId,
+              `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim(),
+              {
+                documentId: prepSource?.document_id ?? null,
+                sourceBoundaryMode: teachingV2 ? sourceMode : null,
+              },
+            );
+    }
   } catch {
     console.error("node_source_unavailable", {
       kind,
@@ -1302,7 +1378,7 @@ export async function POST(request: Request) {
               topicLabel,
               publicPayload: publicNodePayload(
                 raced.payload as Record<string, unknown>,
-                lessonReviewCards, kind,
+                lessonReviewCards, kind, { isAdmin: founder },
               ),
               resumed: true,
             }),
@@ -1565,7 +1641,7 @@ export async function POST(request: Request) {
         kind,
         title,
         topicLabel,
-        publicPayload: publicNodePayload(payload, lessonReviewCards, kind),
+        publicPayload: publicNodePayload(payload, lessonReviewCards, kind, { isAdmin: founder }),
         resumed: false,
       }),
       ...(await readWalletBalance(service, userId)),
@@ -1630,7 +1706,7 @@ export async function POST(request: Request) {
     title,
     topicLabel,
     voiceMode,
-    payload: publicNodePayload(payload, lessonReviewCards, kind),
+    payload: publicNodePayload(payload, lessonReviewCards, kind, { isAdmin: founder }),
     ...(await readWalletBalance(service, userId)),
   });
 }
@@ -2192,8 +2268,17 @@ async function generateNodePayload(input: {
       await commitCredits(input.service, heldReservationId);
       settled = true;
     }
-    return { type: "lesson", lesson: taughtLesson, title: taughtLesson.title, teachingStandard: activity };
-    } catch (error) {
+    const quality = runLessonQualityPipeline(taughtLesson, {
+      sourceExcerpt: repairSource,
+    });
+    return {
+      type: "lesson",
+      lesson: taughtLesson,
+      title: taughtLesson.title,
+      teachingStandard: activity,
+      qualityReport: quality.report,
+    };
+  } catch (error) {
       if (heldReservationId && !settled) {
         await refundCredits(input.service, heldReservationId).catch(() => undefined);
       }
@@ -2542,6 +2627,7 @@ function publicNodePayload(
   payload: Record<string, unknown>,
   reviewCards: LessonReviewCard[] = [],
   nodeKind?: PlanNodeKind,
+  options: { isAdmin?: boolean; qualityReport?: { rule: string; excerpt: string }[] } = {},
 ) {
   const decorated = withLessonReviewCards(payload, reviewCards);
   if (decorated.type === "oral") {
@@ -2553,6 +2639,23 @@ function publicNodePayload(
       return visible;
     });
     return { ...decorated, questions };
+  }
+  if (decorated.type === "lesson" && decorated.lesson && typeof decorated.lesson === "object") {
+    const sealed = sealLessonForPlay(decorated.lesson as LessonV2);
+    const report =
+      options.qualityReport ??
+      (Array.isArray(decorated.qualityReport)
+        ? (decorated.qualityReport as { rule: string; excerpt: string }[])
+        : undefined);
+    return {
+      ...decorated,
+      lesson: {
+        ...sealed,
+        ...(options.isAdmin && report?.length ? { qualityReport: report } : {}),
+      },
+      // Kalite raporu kökte kalmasın; yalnız kurucu dersine gömülür.
+      qualityReport: undefined,
+    };
   }
   if (decorated.type !== "quiz") return decorated;
   const seal = nodeKind === "written_exam";

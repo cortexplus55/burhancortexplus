@@ -242,7 +242,12 @@ export function ParitySorShell({
               Satın al +
             </Link>
           ) : account ? (
-            <Link href="/krediler" className="cp-sor-credit-chip">
+            <Link
+              href="/krediler"
+              className="cp-sor-credit-chip"
+              title={`Satın alınan: ${account.balance} · Bu dönem kalan hak: ${account.freeAllowanceRemaining}`}
+              aria-label={`Satın alınan: ${account.balance} · Bu dönem kalan hak: ${account.freeAllowanceRemaining}`}
+            >
               {creditChipLabel({
                 planLabel,
                 balance: spendableCredits({

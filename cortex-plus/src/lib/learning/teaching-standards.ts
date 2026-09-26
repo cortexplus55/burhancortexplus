@@ -20,6 +20,7 @@ import {
   stemsOverlap,
   turkishSurfaceIssues,
 } from "@/lib/learning/learner-fluency";
+import { optionWhyUniqueIssues } from "@/lib/learning/lesson-play";
 import { isPromptEcho, verifyOralPrompt } from "@/lib/learning/oral-review";
 import { auditQuantitative, isQuantitativeContext } from "@/lib/learning/quantitative-audit";
 import {
@@ -1594,6 +1595,12 @@ function lessonFluencyIssues(lesson: LessonV2): string[] {
       issues.push(`Kontrol ders cümlesinin kopyası: ${section.heading}`);
     }
   }
+  for (const section of lesson.sections) {
+    if (!section.check) continue;
+    for (const message of optionWhyUniqueIssues(section.check)) {
+      issues.push(`${section.heading}: ${message}`);
+    }
+  }
   return [...new Set(issues)];
 }
 
@@ -1632,10 +1639,11 @@ function lessonCoverageIssues(lesson: LessonV2): string[] {
   if (lesson.infoCheck?.prompt) types.add("explain");
   if (lesson.findError?.prompt) types.add("findError");
   if (lesson.numericalCheck?.prompt) types.add("numerical");
-  const missing = ["mcq", "trueFalse", "explain", "findError"].filter((type) => !types.has(type));
   const issues: string[] = [];
-  if (missing.length) {
-    issues.push(`Eksik kontrol türü: ${missing.join(", ")}.`);
+  // En az 3 farklı tür (kısa derste en az 2). Zorla numerical eklenmez.
+  const floor = lesson.sections.length >= 5 ? 3 : 2;
+  if (types.size < floor && types.size > 0) {
+    issues.push(`Kontrol türü çeşitliliği yetersiz: ${types.size} (en az ${floor}).`);
   }
   const blob = [
     lesson.overview,

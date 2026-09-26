@@ -7,6 +7,7 @@
 
 import { foldTr } from "@/lib/documents/page-analysis";
 import { summaryLineProblem } from "@/lib/learning/lesson-grounding";
+import { scoreLessonFromAnswers } from "@/lib/learning/lesson-play";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 
 const GENERIC = new Set([
@@ -550,28 +551,11 @@ export function claimsFromVerify(raw: unknown, lesson: LessonV2): string[] {
 /**
  * Ders skoru ilk denemedeki kontrol sorularıdır.
  * Tekrar doğru olsa bile kaçan soru doğruya yazılmaz.
+ * `lessonAnswers` varsa sunucu notlar; eski `lessonMisses` yedeği kalır.
  */
 export function scoreLessonChecks(
   lesson: { sections?: { check?: unknown }[] } | null | undefined,
   answers: Record<string, unknown>,
 ): { score: number; total: number; retried: number } {
-  const sections = lesson?.sections ?? [];
-  const checked = sections
-    .map((section, index) => (section.check ? index : -1))
-    .filter((index) => index >= 0);
-  if (!checked.length) return { score: 1, total: 1, retried: 0 };
-  const raw = answers.lessonMisses;
-  const missed = new Set<number>();
-  if (Array.isArray(raw)) {
-    for (const value of raw) {
-      if (typeof value === "number" && Number.isInteger(value) && checked.includes(value)) {
-        missed.add(value);
-      }
-    }
-  }
-  return {
-    score: checked.length - missed.size,
-    total: checked.length,
-    retried: missed.size,
-  };
+  return scoreLessonFromAnswers(lesson, answers);
 }

@@ -573,19 +573,36 @@ export function isCopiedFromPrior(point: string, priorTexts: string[]): boolean 
 }
 
 /**
- * Doğru/yanlış sorusu ekrandaki cümlenin aynısı mı?
+ * Doğru/yanlış sorusu ekrandaki cümlenin aynısı ya da %70+ örtüşeni mi?
+ * Ölçüm: birebir kapsama veya kelime 3-gram Jaccard.
  * Eşik yüksek: kavramı tersine çeviren kısa yanılgı elenmez.
  */
 export function isEchoOfPriorText(prompt: string, priorTexts: string[]): boolean {
   const folded = prompt.trim().toLocaleLowerCase("tr-TR").replace(/\s+/g, " ");
   if (folded.length < 24) return false;
-  return priorTexts.some((prior) =>
-    prior.toLocaleLowerCase("tr-TR").replace(/\s+/g, " ").includes(folded),
-  );
+  const grams = (text: string) => {
+    const words = text.split(/\s+/).filter(Boolean);
+    const out = new Set<string>();
+    for (let i = 0; i <= words.length - 3; i += 1) {
+      out.add(words.slice(i, i + 3).join(" "));
+    }
+    return out;
+  };
+  const promptGrams = grams(folded);
+  return priorTexts.some((prior) => {
+    const priorFolded = prior.toLocaleLowerCase("tr-TR").replace(/\s+/g, " ");
+    if (priorFolded.includes(folded)) return true;
+    const priorGrams = grams(priorFolded);
+    if (!promptGrams.size || !priorGrams.size) return false;
+    let shared = 0;
+    for (const gram of promptGrams) if (priorGrams.has(gram)) shared += 1;
+    const jaccard = shared / (promptGrams.size + priorGrams.size - shared);
+    return jaccard >= 0.7;
+  });
 }
 
-/** "Diğer madde ise artar" tek başına anlaşılmaz. */
+/** "Diğer madde ise artar" / "Ayrıca…" tek başına anlaşılmaz. */
 export function isContextlessFragment(point: string): boolean {
   const folded = point.trim().toLocaleLowerCase("tr-TR");
-  return /^(diğer|öteki|o ise|bu ise)\b/.test(folded);
+  return /^(diğer|öteki|ayrıca|bunun yanında|o ise|bu ise)\b/.test(folded);
 }
