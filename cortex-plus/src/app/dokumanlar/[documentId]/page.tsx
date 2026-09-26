@@ -180,7 +180,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
             {canGenerate ? (
               <Link
                 href={planHref}
-                className="inline-flex min-h-[48px] w-full items-center justify-center rounded-2xl bg-amber-500 px-5 py-3 text-sm font-bold text-black hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 sm:w-auto"
+                className="inline-flex min-h-[48px] w-full items-center justify-center rounded-2xl bg-action px-5 py-3 text-sm font-bold text-action-foreground hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--c-focus)] sm:w-auto"
               >
                 {planLabel}
               </Link>

@@ -140,7 +140,7 @@ export function MistakeRunner({
                     : isPicked && feedback && !feedback.correct
                       ? "border-red-500/60 bg-red-500/10 text-[var(--cs-text)]"
                       : isPicked
-                        ? "border-amber-500 bg-amber-500/10 text-[var(--cs-text)]"
+                        ? "border-amber-500 bg-action/10 text-[var(--cs-text)]"
                         : "border-white/10 text-[var(--cs-muted)] hover:border-white/25",
                 ].join(" ")}
               >
@@ -155,7 +155,7 @@ export function MistakeRunner({
             type="button"
             onClick={check}
             disabled={picked === null || sending}
-            className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+            className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-action px-5 py-2.5 text-sm font-bold text-action-foreground transition-colors hover:bg-action-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
             {sending ? "Kontrol ediliyor…" : "Kontrol et"}
           </button>
@@ -216,7 +216,7 @@ export function MistakeRunner({
             <div className="flex flex-wrap gap-2">
               <Link
                 href={similarHref}
-                className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-100"
+                className="rounded-lg border border-amber-500/40 bg-action/10 px-3 py-2 text-xs font-semibold text-amber-100"
               >
                 Benzer soru çöz
               </Link>
@@ -231,7 +231,7 @@ export function MistakeRunner({
             <button
               type="button"
               onClick={advance}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black transition-colors hover:bg-amber-400"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-action px-5 py-2.5 text-sm font-bold text-action-foreground transition-colors hover:bg-action-hover"
             >
               {nextLabel}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />

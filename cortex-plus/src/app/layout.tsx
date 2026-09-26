@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Figtree, Geist, Geist_Mono, Sora } from "next/font/google";
+import { DM_Serif_Display, Figtree, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 // Model çıktısındaki LaTeX her yüzeyde render edilebilsin diye kök seviyede.
 import "katex/dist/katex.min.css";
-// Premium tasarım sistemi (token + bileşenler) — bkz. dosyanın başındaki not.
+// Premium tasarım sistemi (sınıflar; token kaynağı tokens.css).
 import "@/styles/premium-design-system.css";
 import { Providers } from "@/components/providers";
 
@@ -13,14 +13,10 @@ const figtree = Figtree({
   display: "swap",
 });
 
-// Referans ürünün gövde fontuyla (Figtree) birebir aynı fontu kullanıyorduk —
-// "kendi kimliğimiz" kararının en somut karşılığı burada: başlıklar artık
-// Referans üründe hiç kullanılmayan, daha geometrik/kendinden emin bir yüz alıyor.
-// Gövde metni şimdilik Figtree'de kalıyor — bunu da değiştirmek 30+ sayfayı
-// tek seferde etkiler, ayrı bir faz olarak planlandı.
-const sora = Sora({
+const dmSerif = DM_Serif_Display({
   variable: "--font-display",
   subsets: ["latin"],
+  weight: "400",
   display: "swap",
 });
 
@@ -84,7 +80,7 @@ export default function RootLayout({
   return (
     <html lang="tr" suppressHydrationWarning>
       <body
-        className={`${figtree.variable} ${sora.variable} ${geistSans.variable} ${geistMono.variable} min-h-screen antialiased bg-background text-foreground`}
+        className={`${figtree.variable} ${dmSerif.variable} ${geistSans.variable} ${geistMono.variable} min-h-screen antialiased bg-background text-foreground`}
       >
         <Providers>{children}</Providers>
       </body>

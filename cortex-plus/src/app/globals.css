@@ -1,53 +1,10 @@
+@import "../styles/tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 270 10% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 270 10% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 270 10% 10%;
-    --primary: 270 65% 48%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 270 20% 96%;
-    --secondary-foreground: 270 30% 20%;
-    --muted: 270 15% 96%;
-    --muted-foreground: 270 8% 45%;
-    --accent: 270 40% 94%;
-    --accent-foreground: 270 50% 25%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 270 15% 90%;
-    --input: 270 15% 90%;
-    --ring: 270 65% 48%;
-    --radius: 0.625rem;
-  }
-
-  .dark {
-    --background: 0 0% 3%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 42 91% 51%;
-    --primary-foreground: 30 10% 6%;
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14%;
-    --muted-foreground: 0 0% 62%;
-    --accent: 38 40% 14%;
-    --accent-foreground: 38 90% 88%;
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 16%;
-    --input: 0 0% 16%;
-    --ring: 38 92% 54%;
-  }
-
   * {
     @apply border-border;
   }
@@ -58,55 +15,9 @@
   }
 }
 
-/* THEME_CINEMATIC_PREMIUM_PACK */
-
-:root {
-  --cx-gold: #f4ae0b;
-  --cx-gold-hover: #ffc233;
-  --cx-gold-glow: rgba(244, 174, 11, 0.35);
-  --font-display: "DM Serif Display", Georgia, serif;
-  --font-ui: "Figtree", var(--font-geist-sans), system-ui, sans-serif;
-}
-
-.dark {
-  --background: 0 0% 2%;
-  --foreground: 40 20% 98%;
-  --card: 0 0% 6%;
-  --card-foreground: 40 20% 98%;
-  --popover: 0 0% 6%;
-  --popover-foreground: 40 20% 98%;
-  --primary: 42 91% 51%;
-  --primary-foreground: 30 10% 6%;
-  --secondary: 0 0% 10%;
-  --secondary-foreground: 40 20% 98%;
-  --muted: 0 0% 12%;
-  --muted-foreground: 0 0% 64%;
-  --accent: 38 45% 12%;
-  --accent-foreground: 38 92% 88%;
-  --destructive: 0 62% 45%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 14%;
-  --input: 0 0% 14%;
-  --ring: 42 92% 54%;
-
-  /* Bridge tokens used across shells */
-  --mk-bg: #050505;
-  --mk-text: #fafafa;
-  --mk-muted: #a3a3a3;
-  --mk-border: rgba(255, 255, 255, 0.08);
-  --mk-primary: #f4ae0b;
-  --cp-bg: #050505;
-  --cp-surface: #121212;
-  --cp-surface-2: #1a1a1a;
-  --cp-border: rgba(255, 255, 255, 0.08);
-  --cp-text: #fafafa;
-  --cp-muted: #a3a3a3;
-  --cp-gold: #f4ae0b;
-}
-
 .dark body {
   background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(244, 174, 11, 0.07), transparent 55%),
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(244, 174, 11, 0.035), transparent 55%),
     hsl(var(--background));
   color: hsl(var(--foreground));
 }
@@ -117,7 +28,7 @@
 }
 
 .dark :focus-visible {
-  outline: 2px solid rgba(244, 174, 11, 0.75);
+  outline: 2px solid var(--c-focus);
   outline-offset: 2px;
 }
 
@@ -142,4 +53,23 @@
 .dark *::-webkit-scrollbar-thumb:hover {
   background: rgba(244, 174, 11, 0.45);
   background-clip: padding-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 150ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .pm-enter,
+  .pm-stagger,
+  .pm-orb--breathe,
+  .animate-pulse,
+  .animate-ping {
+    animation: none !important;
+  }
 }

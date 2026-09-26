@@ -53,6 +53,7 @@ const PROTECTED_PREFIXES = [
   "/ayarlar",
   "/destek",
   "/admin",
+  "/tasarim",
 ];
 
 const ONBOARDING_SKIP = [

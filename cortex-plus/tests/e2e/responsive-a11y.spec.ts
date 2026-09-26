@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 test.describe("responsive layout", () => {
   test("landing page has no horizontal overflow on mobile", async ({ page }) => {
@@ -98,4 +99,42 @@ test.describe("accessibility basics", () => {
     await page.goto("/giris");
     await expect(page.getByLabel("E-posta")).toBeVisible();
   });
+});
+
+const PUBLIC_SCREENS = [
+  "/",
+  "/fiyatlandirma",
+  "/ozellikler",
+  "/giris",
+  "/kayit",
+] as const;
+
+test.describe("design system responsive a11y", () => {
+  for (const path of PUBLIC_SCREENS) {
+    for (const width of [360, 1280] as const) {
+      test(`${path} @ ${width}px: no overflow and no critical axe`, async ({ page }) => {
+        await page.setViewportSize({ width, height: width === 360 ? 740 : 900 });
+        await page.goto(path);
+        await page.waitForLoadState("domcontentloaded");
+
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+        );
+        expect(overflow).toBe(true);
+
+        const results = await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa"])
+          .analyze();
+        const serious = results.violations.filter(
+          (v) => v.impact === "critical" || v.impact === "serious",
+        );
+        expect(serious, JSON.stringify(serious, null, 2)).toEqual([]);
+
+        await page.screenshot({
+          path: `test-results/a11y${path === "/" ? "/home" : path}-${width}.png`,
+          fullPage: true,
+        });
+      });
+    }
+  }
 });

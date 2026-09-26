@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { X } from "lucide-react";
+import { BookOpen, Headphones, Mic, FileQuestion, ListChecks, Layers, Sparkles, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import "@/styles/oral-exam-chrome.css";
 import {
   STUDY_PATH_HINT,
@@ -10,7 +11,18 @@ import {
   studyActivityHref,
   studyPodcastHref,
   type StudyNodeRef,
+  type StudyToolId,
 } from "@/lib/learning/study-tools";
+
+const TOOL_ICONS: Record<StudyToolId, LucideIcon> = {
+  lesson: BookOpen,
+  podcast: Headphones,
+  oral: Mic,
+  written_exam: FileQuestion,
+  quiz: ListChecks,
+  flashcards: Layers,
+  qa: Sparkles,
+};
 
 /**
  * Hazırlık düzeyinde "Ders oluştur".
@@ -54,7 +66,7 @@ export function StudyToolsHub({
         <p className="cp-study-hub-hint">{STUDY_PATH_HINT}</p>
         {topics.length ? (
           <label className="cp-field">
-            <span>Konu</span>
+            <span>Konu seç</span>
             <select
               aria-label="Konu seç"
               value={topicLabel ?? ""}
@@ -73,6 +85,7 @@ export function StudyToolsHub({
         )}
         <ul className="cp-study-hub-grid">
           {STUDY_TOOLS.map((tool) => {
+            const Icon = TOOL_ICONS[tool.id];
             const href =
               tool.id === "podcast"
                 ? studyPodcastHref(prepId, topicLabel, topicOptions)
@@ -82,17 +95,24 @@ export function StudyToolsHub({
                       ? studyActivityHref(prepId, target.node.id, target.topicQuery)
                       : null;
                   })();
+            const body = (
+              <>
+                <span className={`cp-study-hub-icon cp-study-hub-icon--${tool.id}`} aria-hidden>
+                  <Icon className="h-5 w-5" />
+                </span>
+                <strong>{tool.title}</strong>
+                <em>{href ? tool.blurb : "Bu konuda yok"}</em>
+              </>
+            );
             return (
               <li key={tool.id}>
                 {href ? (
                   <Link href={href} className="cp-study-hub-tile" aria-label={tool.title}>
-                    <strong>{tool.title}</strong>
-                    <em>{tool.blurb}</em>
+                    {body}
                   </Link>
                 ) : (
                   <span className="cp-study-hub-tile is-off" aria-disabled="true">
-                    <strong>{tool.title}</strong>
-                    <em>Bu konuda bu etkinlik yok</em>
+                    {body}
                   </span>
                 )}
               </li>

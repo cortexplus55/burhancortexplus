@@ -59,7 +59,7 @@ export default async function DashboardPage() {
           <Link
             href={hub.nextBestAction.href}
             aria-describedby="nba-reason"
-            className="inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-500 px-6 py-3 text-base font-bold text-black transition-colors hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
+            className="inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-action px-6 py-3 text-base font-bold text-action-foreground transition-colors hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--c-focus)]"
           >
             {hub.nextBestAction.label}
           </Link>

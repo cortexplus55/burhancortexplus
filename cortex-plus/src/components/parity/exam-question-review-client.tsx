@@ -85,7 +85,7 @@ export function ExamQuestionReviewClient({
           href={`/deneme-sinavlari/${prepId}/sonuc?examId=${examId}${
             score != null ? `&score=${score}` : ""
           }`}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all shadow-sm"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface-2 hover:bg-surface-3 border border-white/10 text-xs font-medium text-[var(--c-text-muted)] hover:text-white transition-all shadow-sm"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Sonuca dön</span>
@@ -94,7 +94,7 @@ export function ExamQuestionReviewClient({
         <div className="flex items-center gap-2">
           <Link
             href={`/deneme-sinavlari/${prepId}/deneme/${examId}`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-xs font-semibold text-violet-300 transition-all"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-action-soft hover:bg-action-soft border border-action/30 text-xs font-semibold text-action transition-all"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Tekrar Çöz</span>
@@ -104,11 +104,11 @@ export function ExamQuestionReviewClient({
 
       {/* Header Summary Hero */}
       <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-[#161722]/90 to-[#101118]/90 backdrop-blur-xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-action-soft rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-xs font-semibold text-violet-300 mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-action-soft border border-action/20 text-xs font-semibold text-action mb-3">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Soru Soru Çözüm Analizi</span>
             </div>
@@ -122,7 +122,7 @@ export function ExamQuestionReviewClient({
 
           {/* Score Badge */}
           {score != null ? (
-            <div className="flex-shrink-0 flex sm:flex-col items-center justify-center px-6 py-4 rounded-2xl bg-zinc-900/90 border border-white/10 text-center gap-2 sm:gap-0">
+            <div className="flex-shrink-0 flex sm:flex-col items-center justify-center px-6 py-4 rounded-2xl bg-surface-2 border border-white/10 text-center gap-2 sm:gap-0">
               <span className="text-xs uppercase tracking-wider text-zinc-400 font-semibold">
                 Sınav Puanı
               </span>
@@ -135,14 +135,14 @@ export function ExamQuestionReviewClient({
 
         {/* Filter Tabs & Quick Stats */}
         <div className="mt-8 pt-6 border-t border-white/5 flex flex-wrap items-center justify-between gap-4">
-          <div className="inline-flex p-1 rounded-xl bg-zinc-900/90 border border-white/10">
+          <div className="inline-flex p-1 rounded-xl bg-surface-2 border border-white/10">
             <button
               type="button"
               onClick={() => setFilter("all")}
               className={cn(
                 "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
                 filter === "all"
-                  ? "bg-violet-600 text-white shadow-md shadow-violet-600/30"
+                  ? "bg-action text-white shadow-md shadow-glow-action"
                   : "text-zinc-400 hover:text-white",
               )}
             >
@@ -204,11 +204,11 @@ export function ExamQuestionReviewClient({
           return (
             <div
               key={question.id}
-              className="rounded-3xl border border-white/10 bg-zinc-900/75 backdrop-blur-xl p-6 sm:p-7 shadow-xl space-y-5 relative overflow-hidden"
+              className="rounded-3xl border border-white/10 bg-surface-1 backdrop-blur-xl p-6 sm:p-7 shadow-xl space-y-5 relative overflow-hidden"
             >
               {/* Card Header: Question Number & Result Verdict */}
               <div className="flex items-center justify-between gap-3">
-                <span className="px-3 py-1 rounded-lg bg-zinc-800 text-xs font-bold text-zinc-300">
+                <span className="px-3 py-1 rounded-lg bg-zinc-800 text-xs font-bold text-[var(--c-text-muted)]">
                   Soru {displayNum}
                 </span>
 
@@ -297,10 +297,10 @@ export function ExamQuestionReviewClient({
               <div className="p-4 sm:p-5 rounded-2xl bg-zinc-950/80 border border-white/10 space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-violet-300">
+                    <div className="w-6 h-6 rounded-full bg-action-soft border border-action/30 flex items-center justify-center text-action">
                       <Sparkles className="w-3.5 h-3.5" />
                     </div>
-                    <span className="text-xs font-bold text-violet-300 uppercase tracking-wider">
+                    <span className="text-xs font-bold text-action uppercase tracking-wider">
                       Cortex Plus Çözüm Açıklaması
                     </span>
                   </div>
@@ -317,7 +317,7 @@ export function ExamQuestionReviewClient({
                   ) : null}
                 </div>
 
-                <p className="text-sm text-zinc-300 leading-relaxed">
+                <p className="text-sm text-[var(--c-text-muted)] leading-relaxed">
                   {explanation}
                 </p>
               </div>

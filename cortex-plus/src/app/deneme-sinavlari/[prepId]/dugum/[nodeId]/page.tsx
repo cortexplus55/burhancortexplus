@@ -114,7 +114,7 @@ export default async function ExamNodePage({
   }
 
   return (
-    <ParitySorShell {...shell}>
+    <ParitySorShell {...shell} chrome="exam">
       <ExamNodeSession
         prepId={prep.id}
         nodeId={node.id}

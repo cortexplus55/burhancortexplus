@@ -1,73 +1,7 @@
 ﻿/**
- * Premium tasarım sistemi — "pm-" öneki.
- *
- * Referans ürünün vitrinini inceledikten sonra kuruldu (bkz. commit mesajı).
- * Amaç birebir kopya değil: aynı işçilik seviyesini (katmanlı derinlik,
- * parlayan AI küresi, dairesel ilerleme, konuya özel renk) kendi
- * kimliğimizle (amber ana renk, mor ikincil, mevcut --cp-* koyu zemin)
- * kurmak. Mevcut --cp-* token'larını değiştirmiyor, üstüne ekliyor —
- * böylece halihazırda çalışan 30+ sayfa etkilenmeden yeni yüzeyler
- * (/ornek, cp-tutor-orb gibi izole bileşenler) bunu kullanabiliyor.
- *
- * Bu ilk faz: sistem + /ornek vitrin sayfası + sesli eğitmen küresi.
- * Geri kalan yüzeylere yayılım ayrı fazlarda.
+ * Premium tasarım sistemi — "pm-" öneki (sınıflar).
+ * Renk / süre / köşe tokenları src/styles/tokens.css'te.
  */
-
-:root {
-  /* --- Marka: amber ---------------------------------------------------- */
-  --pm-amber-300: #f6c987;
-  --pm-amber-400: #f0b354;
-  --pm-amber-500: #e8a33d;
-  --pm-amber-600: #c47c1f;
-  --pm-amber-700: #8f5710;
-
-  /* --- İkincil: "zeka" moru — mevcut cp-exam-continue--primary'deki
-     gradyanla aynı aile, sistemleştirilmiş hali. --------------------------- */
-  --pm-violet-300: #c7cbfb;
-  --pm-violet-400: #a5b4fc;
-  --pm-violet-500: #8b8ef7;
-  --pm-violet-600: #6b6cf0;
-
-  /* --- Anlamsal --------------------------------------------------------- */
-  --pm-success: #4ade80;
-  --pm-danger: #f2603c;
-
-  /* --- Zemin (mevcut --cp-bg/--cp-surface ile aynı aile) ------------------ */
-  --pm-surface: #17171b;
-  --pm-surface-2: #202027;
-  --pm-line: #2c2c34;
-  --pm-ring-track: #26262e;
-
-  /* --- Ölçek -------------------------------------------------------------- */
-  --pm-radius-sm: 0.625rem;
-  --pm-radius-md: 1.1rem;
-  --pm-radius-lg: 1.6rem;
-  --pm-radius-pill: 9999px;
-
-  /* --- Hareket: expo-out — sıçramasız ama kesin bir "yerine oturma" hissi. */
-  --pm-ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --pm-dur-fast: 150ms;
-  --pm-dur-base: 260ms;
-  --pm-dur-slow: 420ms;
-
-  /* --- Yükselti: ton amber'e hafif kaymış, tamamen nötr gölge cansız durur. */
-  --pm-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --pm-shadow-md: 0 8px 24px -8px rgba(10, 8, 4, 0.55);
-  --pm-shadow-lg: 0 24px 60px -16px rgba(10, 8, 4, 0.6);
-  --pm-glow-amber: 0 0 56px -8px rgba(232, 163, 61, 0.55);
-  --pm-glow-violet: 0 0 56px -8px rgba(139, 142, 247, 0.55);
-
-  /* --- Ders/konu renkleri: her biri kendi tonu — referans ürünün "her derse kendi
-     rengi" fikri, bizim koyu zeminde parlayan-cam yorumuyla. ---------------- */
-  --pm-subj-matematik: #6b8cff;
-  --pm-subj-fizik: #34d399;
-  --pm-subj-kimya: #f0b354;
-  --pm-subj-biyoloji: #a3e635;
-  --pm-subj-turkce: #f2603c;
-  --pm-subj-ingilizce: #f472b6;
-  --pm-subj-tarih: #fbbf24;
-  --pm-subj-cografya: #22d3ee;
-}
 
 /* ============================================================ Tipografi */
 
@@ -291,25 +225,11 @@
    --pm-i indeksiyle kullanılır. */
 .pm-stagger {
   animation: pm-enter var(--pm-dur-base) var(--pm-ease) both;
-  animation-delay: calc(var(--pm-i, 0) * 55ms);
+  animation-delay: calc(min(var(--pm-i, 0), 7) * 40ms);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .pm-stagger {
     animation: none;
   }
-}
-/* ============================================================ TOKEN BRIDGE P1
-   --cp-* = ǬrǬn kabuu011fu (parity). --pm-* = vitrin/premium yǬzeyler.
-   Payla��lan zemin/alt��n de��erleri --cp kayna����na ba����lan��r; bǬylece
-   iki sistem ayn�� koyu tema + #f4ae0b alt��n�� konu��ur. Bile��en s��n��flar��
-   (.pm-*) ayn�� kal��r.
-   ============================================================ */
-:root {
-  --pm-surface: var(--cp-surface, #1a1a1a);
-  --pm-surface-2: var(--cp-surface-2, #242424);
-  --pm-line: var(--cp-border, #2e2e2e);
-  --pm-amber-500: var(--cp-gold, #f4ae0b);
-  --pm-amber-400: #ffc233;
-  --pm-amber-600: #d4920a;
 }

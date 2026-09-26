@@ -1,18 +1,9 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&display=swap");
 
-/* Referans ürün tarzı mobile app shell (dark) — sinematik altın vurgu */
+/* Tokenler tokens.css'te; burada yeniden tanımlanmaz. */
 .cs-app {
-  --cs-bg: #0a0a0a;
-  --cs-surface: #1a1a1a;
-  --cs-surface-elevated: #242424;
-  --cs-primary: #f4ae0b;
-  --cs-primary-hover: #ffc233;
-  --cs-text: #ffffff;
-  --cs-muted: #a3a3a3;
-  --cs-border: #2e2e2e;
-  --cs-pill: #1e1e1e;
-  color: var(--cs-text);
-  background: var(--cs-bg);
+  color: var(--c-text);
+  background: var(--c-bg);
   min-height: 100dvh;
 }
 
@@ -47,7 +38,7 @@
 }
 
 .cs-app .cs-btn-primary:hover {
-  background: linear-gradient(135deg, #ffc857 0%, #f4ae0b 100%);
+  background: linear-gradient(135deg, #ffc857 0%, var(--c-brand) 100%);
 }
 
 .cs-app .cs-pay-card {

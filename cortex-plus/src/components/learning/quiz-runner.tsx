@@ -99,7 +99,7 @@ export function QuizRunner({
             className={cn(
               "shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
               result.correct === result.total
-                ? "bg-amber-500/20 text-amber-200"
+                ? "bg-action/20 text-amber-200"
                 : "bg-white/10 text-[var(--cs-muted)]",
             )}
           >

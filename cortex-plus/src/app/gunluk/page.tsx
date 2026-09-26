@@ -41,7 +41,7 @@ export default async function GunlukPage() {
             </p>
             <Link
               href="/deneme-sinavlari"
-              className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-black transition-colors hover:bg-amber-400"
+              className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-action px-5 py-2.5 text-sm font-bold text-action-foreground transition-colors hover:bg-action-hover"
             >
               Deneme çöz
             </Link>

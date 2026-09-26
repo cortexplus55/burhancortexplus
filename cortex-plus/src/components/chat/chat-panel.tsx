@@ -946,7 +946,7 @@ function ChatPanelSession({
   const showSourceMode = hasDocuments || Boolean(initialDocumentId);
   function renderSourceMode(compact = false) {
     if (!showSourceMode) return null;
-    const on = "rounded-full bg-amber-500/20 px-3 py-1 font-semibold text-amber-100";
+    const on = "rounded-full bg-action/20 px-3 py-1 font-semibold text-amber-100";
     const off = "rounded-full px-3 py-1 text-[var(--cs-muted)] hover:text-[var(--cs-text)]";
     return (
       <div

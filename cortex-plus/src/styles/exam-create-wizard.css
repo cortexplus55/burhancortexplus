@@ -24,7 +24,7 @@
 
 .apw-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #7c6cf7, #6b8cff);
+  background: linear-gradient(90deg, var(--c-ai), var(--c-action));
   transition: width 0.3s ease;
 }
 
@@ -90,7 +90,7 @@
   width: 100%;
   border-radius: 0.85rem;
   border: 1px solid var(--cp-border);
-  background: #141414;
+  background: var(--c-surface-1);
   color: inherit;
   padding: 0.8rem 0.95rem;
   font-size: 0.9375rem;
@@ -103,7 +103,7 @@
 .apw-quick-btn:focus-visible,
 .apw-doc-row:focus-visible,
 .apw-add-own:focus-visible {
-  outline: 2px solid #7c6cf7;
+  outline: 2px solid var(--c-ai);
   outline-offset: 2px;
 }
 
@@ -125,7 +125,7 @@
 }
 
 .apw-add-own:hover {
-  border-color: #7c6cf7;
+  border-color: var(--c-ai);
 }
 
 .apw-grid {
@@ -148,12 +148,12 @@
 }
 
 .apw-tile:hover {
-  border-color: #7c6cf7;
+  border-color: var(--c-ai);
   background: var(--cp-surface-2);
 }
 
 .apw-tile--on {
-  border-color: #7c6cf7;
+  border-color: var(--c-ai);
   background: rgba(124, 108, 247, 0.14);
 }
 
@@ -162,7 +162,7 @@
   margin-top: 1.5rem;
   border: 0;
   border-radius: 9999px;
-  background: linear-gradient(135deg, #6b8cff, #7c6cf7);
+  background: linear-gradient(135deg, var(--c-action), var(--c-ai));
   color: #fff;
   padding: 0.9rem 1.25rem;
   font-size: 0.9375rem;
@@ -224,7 +224,7 @@
 }
 
 .apw-quick-btn--on {
-  border-color: #7c6cf7;
+  border-color: var(--c-ai);
   background: rgba(124, 108, 247, 0.14);
 }
 
@@ -290,7 +290,7 @@
 }
 
 .apw-cal-day--on {
-  background: linear-gradient(135deg, #6b8cff, #7c6cf7);
+  background: linear-gradient(135deg, var(--c-action), var(--c-ai));
   color: #fff;
   font-weight: 700;
 }
@@ -310,7 +310,7 @@
   font-size: 2.75rem;
   font-weight: 800;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #6b8cff, #7c6cf7);
+  background: linear-gradient(135deg, var(--c-action), var(--c-ai));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -319,7 +319,7 @@
 .apw-target input[type="range"] {
   width: 100%;
   margin-top: 1rem;
-  accent-color: #7c6cf7;
+  accent-color: var(--c-ai);
 }
 
 .apw-target-scale {
@@ -344,7 +344,7 @@
 }
 
 .apw-drop--over {
-  border-color: #7c6cf7;
+  border-color: var(--c-ai);
   background: rgba(124, 108, 247, 0.08);
 }
 
@@ -376,7 +376,7 @@
   gap: 0.5rem;
   margin-top: 0.75rem;
   border-radius: 0.75rem;
-  border: 1px solid #7c6cf7;
+  border: 1px solid var(--c-ai);
   background: rgba(124, 108, 247, 0.12);
   padding: 0.6rem 0.8rem;
   font-size: 0.875rem;
@@ -432,7 +432,7 @@
 }
 
 .apw-doc-row--on {
-  border-color: #7c6cf7;
+  border-color: var(--c-ai);
   background: rgba(124, 108, 247, 0.12);
 }
 
@@ -544,7 +544,7 @@
 
 .apw-stages li.is-done .apw-stage-dot {
   border-color: transparent;
-  background: linear-gradient(135deg, #6b8cff, #7c6cf7);
+  background: linear-gradient(135deg, var(--c-action), var(--c-ai));
 }
 
 /* --- Konu onayı --- */
@@ -577,7 +577,7 @@
 }
 
 .apw-topics li input:focus-visible {
-  outline: 2px solid #7c6cf7;
+  outline: 2px solid var(--c-ai);
   outline-offset: 1px;
   border-radius: 0.35rem;
 }
@@ -621,7 +621,7 @@
 }
 
 .apw-choice--on {
-  border-color: #7c6cf7;
+  border-color: var(--c-ai);
   background: rgba(124, 108, 247, 0.14);
 }
 
@@ -691,7 +691,7 @@
   width: min(100%, 28rem);
   border-radius: 1.1rem;
   border: 1px solid var(--cp-border);
-  background: var(--cp-surface, #161616);
+  background: var(--cp-surface, var(--c-surface-1));
   padding: 1.1rem 1.15rem 1.15rem;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
 }
@@ -712,7 +712,7 @@
 }
 
 .apw-modal input:focus-visible {
-  outline: 2px solid #7c6cf7;
+  outline: 2px solid var(--c-ai);
   outline-offset: 1px;
 }
 
@@ -770,7 +770,7 @@
 .apw-readiness-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #6b8cff, #7c6cf7, var(--cp-gold));
+  background: linear-gradient(90deg, var(--c-action), var(--c-ai), var(--cp-gold));
   transition: width 0.4s ease;
 }
 
@@ -797,7 +797,7 @@
   bottom: 0.5rem;
   width: 2px;
   border-radius: 9999px;
-  background: linear-gradient(180deg, #6b8cff, #7c6cf7 55%, var(--cp-gold));
+  background: linear-gradient(180deg, var(--c-action), var(--c-ai) 55%, var(--cp-gold));
   opacity: 0.5;
 }
 
@@ -814,7 +814,7 @@
   height: 0.9rem;
   border-radius: 9999px;
   border: 2px solid var(--cp-bg);
-  background: linear-gradient(135deg, #6b8cff, #7c6cf7);
+  background: linear-gradient(135deg, var(--c-action), var(--c-ai));
 }
 
 .apw-phases h2 {
@@ -896,13 +896,13 @@
 }
 
 .apw-day--on {
-  border-color: #7c6cf7;
+  border-color: var(--c-ai);
   background: rgba(124, 108, 247, 0.16);
   color: var(--cp-text);
 }
 
 .apw-day:focus-visible {
-  outline: 2px solid #7c6cf7;
+  outline: 2px solid var(--c-ai);
   outline-offset: 2px;
 }
 
@@ -944,7 +944,7 @@
   gap: 0.55rem;
   width: 100%;
   border: 0;
-  border-left: 2px solid #7c6cf7;
+  border-left: 2px solid var(--c-ai);
   border-radius: 0 0.5rem 0.5rem 0;
   background: transparent;
   color: inherit;
@@ -960,7 +960,7 @@
 .apc-check {
   width: 0.8rem;
   height: 0.8rem;
-  color: #7c6cf7;
+  color: var(--c-ai);
 }
 
 .apc-done-q {
@@ -1048,7 +1048,7 @@
   min-width: 0;
   border-radius: 9999px;
   border: 1px solid var(--cp-border);
-  background: #141414;
+  background: var(--c-surface-1);
   color: inherit;
   padding: 0.6rem 0.9rem;
   font-size: 0.875rem;
@@ -1058,7 +1058,7 @@
 .apc-compose button:focus-visible,
 .apc-done:focus-visible,
 .apc-skip:focus-visible {
-  outline: 2px solid #7c6cf7;
+  outline: 2px solid var(--c-ai);
   outline-offset: 2px;
 }
 
@@ -1070,7 +1070,7 @@
   flex: none;
   border: 0;
   border-radius: 9999px;
-  background: #7c6cf7;
+  background: var(--c-ai);
   color: #fff;
   cursor: pointer;
 }
@@ -1198,7 +1198,7 @@
 
 .apw-pick:hover,
 .apw-pick:focus-visible {
-  border-color: #7c6cf7;
+  border-color: var(--c-ai);
   background: var(--cp-surface-2);
 }
 

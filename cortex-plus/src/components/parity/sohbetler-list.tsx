@@ -90,7 +90,7 @@ export function SohbetlerList({ items }: { items: ConversationRow[] }) {
         <h1 className="text-xl font-semibold">Geçmiş konuşmalar</h1>
         <Link
           href="/ogretmen"
-          className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-black"
+          className="rounded-xl bg-action px-4 py-2 text-sm font-bold text-action-foreground"
         >
           Yeni sohbet
         </Link>

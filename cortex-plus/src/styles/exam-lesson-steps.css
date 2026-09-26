@@ -1,15 +1,6 @@
-/* Adım adım ders (.als-*). Renkler parity-shell.css tokenlarından. */
+/* Adım adım ders (.als-*). Tokenler tokens.css'ten. */
 
 .als {
-  /* Tasarım rolleri → mevcut tokenlar (Prompt 7'ye kadar yerel köprü). */
-  --als-action: #3d5afe;
-  --als-action-hover: #5470ff;
-  --als-action-pressed: #2f47d9;
-  --als-right: var(--pm-success, #22c55e);
-  --als-wrong: var(--pm-danger, #ef4444);
-  --als-ai: var(--pm-violet-500, #8b8ef7);
-  --als-info: #60a5fa;
-  --als-warning: #f59e0b;
   width: min(42rem, 100%);
   margin: 0 auto;
   padding: 0.5rem 0 6rem;
@@ -28,7 +19,7 @@
   gap: 0.75rem;
   margin: 0 -0.25rem 1.25rem;
   padding: 0.65rem 0.25rem;
-  background: color-mix(in srgb, var(--cp-bg, #050505) 92%, transparent);
+  background: color-mix(in srgb, var(--cp-bg, var(--c-bg)) 92%, transparent);
   backdrop-filter: blur(8px);
 }
 
@@ -83,7 +74,7 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
     radial-gradient(120% 80% at 50% 0%, rgba(76, 111, 255, 0.16), transparent 55%),
-    #141414;
+    var(--c-surface-1);
   padding: 1.35rem 1.25rem 1.2rem;
 }
 
@@ -305,7 +296,7 @@
   gap: 0.65rem;
   border-radius: 0.75rem;
   border: 1px solid var(--cp-border);
-  background: #141414;
+  background: var(--c-surface-1);
   color: inherit;
   padding: 0.7rem 0.85rem;
   font-size: 0.9375rem;
@@ -447,7 +438,7 @@
   gap: 0.75rem;
   border-radius: 1rem;
   padding: 0.7rem 0.7rem calc(0.7rem + env(safe-area-inset-bottom, 0px)) 1rem;
-  background: var(--cp-surface, #161616);
+  background: var(--cp-surface, var(--c-surface-1));
   border: 1px solid var(--cp-border);
 }
 
@@ -471,7 +462,7 @@
   min-width: 0;
   border-radius: 1rem;
   border: 1px solid var(--cp-border);
-  background: #1a1a1a;
+  background: var(--c-surface-2);
   padding: 0.9rem 1rem;
 }
 
@@ -539,7 +530,7 @@
    ders akışındaki mor kontrolden ayrılsın diye — öğrenci bunun yeni
    bir bölüm değil, geri dönüş olduğunu bir bakışta görsün. */
 .als-retry-kicker {
-  color: var(--cp-gold, #f4ae0b);
+  color: var(--cp-gold, var(--c-brand));
   margin-bottom: 0.25rem;
 }
 
@@ -556,7 +547,7 @@
   margin-top: 0.9rem;
   padding: 0.85rem 1rem;
   border-radius: 1rem;
-  border: 1px solid var(--cp-gold, #f4ae0b);
+  border: 1px solid var(--cp-gold, var(--c-brand));
   background: rgba(244, 174, 11, 0.08);
 }
 
@@ -581,7 +572,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--cp-gold, #f4ae0b);
+  color: var(--cp-gold, var(--c-brand));
 }
 
 .als-note-body {
@@ -596,9 +587,9 @@
 .als-diagram {
   margin: 0.9rem 0 0;
   padding: 0.75rem;
-  border: 1px solid var(--cp-border, #2e2e2e);
+  border: 1px solid var(--cp-border, var(--c-border-strong));
   border-radius: 12px;
-  background: var(--cp-surface, #1a1a1a);
+  background: var(--cp-surface, var(--c-surface-2));
 }
 
 .als-diagram svg {
@@ -613,7 +604,7 @@
   margin-top: 0.5rem;
   font-size: 0.8125rem;
   line-height: 1.5;
-  color: var(--cp-muted, #a3a3a3);
+  color: var(--cp-muted, var(--c-text-muted));
   text-align: center;
 }
 
@@ -637,14 +628,14 @@
   padding: 0.75rem 1rem;
   border: 1px solid var(--cp-border);
   border-radius: 12px;
-  background: var(--cp-surface-2, #1a1a1a);
+  background: var(--cp-surface-2, var(--c-surface-2));
   font-size: 0.8125rem;
   color: var(--cp-muted);
 }
 
 .als-quality summary {
   cursor: pointer;
-  color: var(--cp-gold, #f4ae0b);
+  color: var(--cp-gold, var(--c-brand));
   font-weight: 600;
 }
 
@@ -689,8 +680,8 @@
   padding: 1.25rem 1.25rem 1rem;
   border-radius: 1rem;
   border: 1px solid var(--cp-border);
-  background: var(--cp-surface, #121212);
-  color: var(--cp-text, #fafafa);
+  background: var(--cp-surface, var(--c-surface-1));
+  color: var(--cp-text, var(--c-text));
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
 }
 
