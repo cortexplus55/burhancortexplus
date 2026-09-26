@@ -2,6 +2,13 @@ import { z } from "zod";
 
 export type DecisionProviderMode = "auto" | "jev" | "openai";
 
+const TRUTHY_ENV = new Set(["true", "1", "yes", "on"]);
+
+/** Jev is explicit opt-in: absent, empty, or unrecognized values all stay off. */
+export function jevEnabledFromEnv(value: string | undefined): boolean {
+  return value !== undefined && TRUTHY_ENV.has(value.trim().toLowerCase());
+}
+
 /** Missing or unknown values stay on auto so startup never requires a Jev key. */
 export function decisionProviderFromEnv(
   value: string | undefined,
@@ -30,10 +37,11 @@ export const envSchema = z.object({
   /** TypeSafe Jev decision engine (server-only; never expose to client). */
   TYPESAFE_API_KEY: z.string().optional(),
   JEV_MODEL: z.string().optional(),
+  /** Explicit opt-in only — see jevEnabledFromEnv. A present TYPESAFE_API_KEY does not imply this. */
   JEV_ENABLED: z
     .string()
     .optional()
-    .transform((v) => v !== "false" && v !== "0"),
+    .transform((v) => jevEnabledFromEnv(v)),
   JEV_TIMEOUT_MS: z.coerce.number().int().positive().default(1500),
   JEV_FALLBACK_ENABLED: z
     .string()
