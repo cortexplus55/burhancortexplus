@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("Kayıt ve marketing", () => {
+test.describe("Kayıt ve marketing", { tag: ["@smoke", "@public"] }, () => {
   test("ana sayfa ve kayıt sihirbazı öğrenci adımları", async ({ page }) => {
     await page.goto("/");
     // Regex'te büyük "İ" kullanmayın: JS'te "İ".toLowerCase() düz "i" değil,

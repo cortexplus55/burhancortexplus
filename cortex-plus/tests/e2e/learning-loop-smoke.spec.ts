@@ -5,7 +5,7 @@ import { test, expect } from "@playwright/test";
  * Tam E2E (upload→quiz→notebook) canlı hesap/oturum ister; CI'de smoke ile
  * navigasyon ve marketing tutarlılığı doğrulanır.
  */
-test.describe("learning loop surfaces", () => {
+test.describe("learning loop surfaces", { tag: ["@smoke"] }, () => {
   test("marketing feature names stay canonical", async ({ page }) => {
     await page.goto("/ozellikler");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
