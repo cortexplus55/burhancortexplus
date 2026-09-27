@@ -17,7 +17,7 @@
   grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: 0.75rem;
-  margin: 0 -0.25rem 1.25rem;
+  margin: 0 -0.25rem var(--sp-4, 1rem);
   padding: 0.65rem 0.25rem;
   background: color-mix(in srgb, var(--cp-bg, var(--c-bg)) 92%, transparent);
   backdrop-filter: blur(8px);
@@ -75,7 +75,7 @@
   background:
     radial-gradient(120% 80% at 50% 0%, rgba(76, 111, 255, 0.16), transparent 55%),
     var(--c-surface-1);
-  padding: 1.35rem 1.25rem 1.2rem;
+  padding: var(--sp-5, 1.25rem);
 }
 
 .als-kicker {
@@ -106,12 +106,12 @@
 
 .als-body,
 .als-solution-body {
-  margin-top: 0.75rem;
+  margin-top: var(--sp-3, 0.75rem);
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: var(--sp-2, 0.5rem);
   font-size: 1rem;
-  line-height: 1.65;
+  line-height: 1.6;
   color: #dcdcdc;
 }
 
@@ -265,11 +265,11 @@
 /* --- Bölüm kontrolü --- */
 
 .als-check {
-  margin-top: 1.5rem;
+  margin-top: var(--sp-4, 1rem);
   border-radius: 1rem;
   border: 1px solid var(--cp-border);
   background: var(--cp-surface);
-  padding: 1rem;
+  padding: var(--sp-5, 1.25rem);
 }
 
 .als-check .als-kicker {
@@ -579,6 +579,43 @@
   margin: 0.25rem 0 0;
   font-size: 0.9375rem;
   line-height: 1.55;
+}
+
+/* Kaynak künyesi: ana okuma akışının dışında, aç/kapa rozet. Floating
+   overlay değil — satır içi, bu yüzden mobilde viewport dışına taşmaz. */
+.als-source {
+  margin-top: var(--sp-2, 0.5rem);
+}
+
+.als-source-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--cp-border);
+  background: transparent;
+  border-radius: 9999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cp-muted);
+  cursor: pointer;
+}
+
+.als-source-trigger:hover {
+  border-color: var(--als-action);
+  color: inherit;
+}
+
+.als-source-trigger:focus-visible {
+  outline: 2px solid var(--als-action);
+  outline-offset: 2px;
+}
+
+.als-source-detail {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--cp-muted);
 }
 
 /* Ders şeması: bölüm metniyle kontrol arasında, kendi kutusunda.

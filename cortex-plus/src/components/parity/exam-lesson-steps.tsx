@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft, CornerDownLeft, Info, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
@@ -27,6 +27,7 @@ import type {
   PublicSectionCheck,
 } from "@/lib/learning/lesson-play";
 import { publicLessonV2Schema } from "@/lib/learning/lesson-play";
+import { stripInlineSourceLine } from "@/lib/learning/lesson-source";
 import type { z } from "zod";
 import "@/styles/exam-lesson-steps.css";
 
@@ -85,6 +86,41 @@ function BoardBody({ text, className }: { text: string; className?: string }) {
   );
 }
 
+/**
+ * Kaynak künyesi (dosya + sayfa) artık gövde metninin bir parçası değil —
+ * öğrencinin ana okuma akışında yer kaplamayan küçük, tıklanabilir bir
+ * rozet. Floating popover yerine satır içi aç/kapa: bir dış katman/portal
+ * olmadığı için mobilde ekran dışına taşma riski yok.
+ */
+function SourceBadge({ source }: { source: { file: string; page?: number } }) {
+  const [open, setOpen] = useState(false);
+  const detailId = useId();
+  const label = source.page ? `${source.file}, s.${source.page}` : source.file;
+  return (
+    <div className="als-source">
+      <button
+        type="button"
+        className="als-source-trigger"
+        aria-expanded={open}
+        aria-controls={detailId}
+        aria-label={open ? `Kaynağı gizle: ${label}` : `Kaynağı göster: ${label}`}
+        onClick={() => setOpen((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setOpen(false);
+        }}
+      >
+        <Info className="h-3 w-3" aria-hidden />
+        Kaynak
+      </button>
+      {open ? (
+        <span id={detailId} role="note" className="als-source-detail">
+          {label}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function RichBody({ text }: { text: string }) {
   return (
     <>
@@ -128,6 +164,7 @@ type Step =
       note?: LessonV2["sections"][number]["note"];
       diagram?: LessonV2["sections"][number]["diagram"];
       cards?: LessonV2["sections"][number]["cards"];
+      source?: { file: string; page?: number };
       sectionIndex: number;
     }
   | {
@@ -172,18 +209,24 @@ function buildSteps(lesson: PlayLesson): Step[] {
     steps.push({ kind: "overview", heading: lesson.title, body: overview });
   }
   steps.push(
-    ...lesson.sections.map(
-      (s, sectionIndex): Step => ({
+    ...lesson.sections.map((s, sectionIndex): Step => {
+      // `source` alanı doldurulmuş üretimlerde zaten ayrı gelir; bu
+      // değişiklikten önce kaydedilmiş derslerde künye hâlâ gövdenin
+      // sonunda gömülü olabilir — ekranda göstermeden önce ayıklanır.
+      const existingSource = "source" in s ? (s.source as { file: string; page?: number } | undefined) : undefined;
+      const stripped = existingSource ? null : stripInlineSourceLine(s.body);
+      return {
         kind: "section",
         heading: s.heading,
-        body: s.body,
+        body: stripped ? stripped.body : s.body,
         check: s.check as PlayCheck | undefined,
         note: s.note as LessonV2["sections"][number]["note"] | undefined,
         diagram: ("diagram" in s ? s.diagram : undefined) as LessonV2["sections"][number]["diagram"] | undefined,
         cards: s.cards as LessonV2["sections"][number]["cards"] | undefined,
+        source: existingSource ?? stripped?.source ?? undefined,
         sectionIndex,
-      }),
-    ),
+      };
+    }),
   );
   if (lesson.example?.prompt.trim()) {
     steps.push({
@@ -621,6 +664,7 @@ export function ExamLessonSteps({
                   Doğrulanamayan cümleler çıkarıldı.
                 </p>
               ) : null}
+              {step.kind === "section" && step.source ? <SourceBadge source={step.source} /> : null}
             </>
           ) : null}
 

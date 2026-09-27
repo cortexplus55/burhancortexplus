@@ -11,6 +11,7 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
+import { stripInlineSourceLine } from "@/lib/learning/lesson-source";
 import { titleConcepts } from "@/lib/learning/lesson-claims";
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
 import { fluencyIssues, repairTurkishSurface, sentences } from "@/lib/learning/learner-fluency";
@@ -26,6 +27,11 @@ import {
 
 export const LESSON_TEACH_RULE = [
   "DERSİ TEK JSON OLARAK YAZ. Kaynak cümlesini art arda dizmek ders değildir.",
+  "MİKRO ÖĞRENME: Öğrenci ekranı sığdırmak için scroll yapmasın. Başlık en fazla 8 kelime. " +
+    "Bölüm gövdesi 35-60 kelime, en fazla 70 kelime. En fazla 2-3 temel fikir anlat. " +
+    "Aynı bilgiyi iki farklı cümlede veya iki bölümde tekrar etme. Gereksiz giriş cümlesi " +
+    "('Bu konu önemlidir', 'Bilinmesi gereken nokta şudur', 'Özetlemek gerekirse') ve " +
+    "gereksiz sonuç cümlesi yazma; doğrudan öğretilecek bilgiyi anlat.",
   "overview kancadır: konuya girmeden önce kaynağın kurduğu tek durum. İlk bölümün cümlesini kopyalama. Uydurma benzetme yazma; benzetme ancak kaynakla çelişmiyorsa overview veya bir notta durur.",
   "Her heading kavramın adıdır. Gövde o başlığın vaadini anlatır: başlık örnek veya hesap diyorsa gövdede çözülmüş sayı vardır. Başka dosyanın konusu gövdeye girmez.",
   "Konunun kendi terimi için note tanım kutusudur: {title, body, tone:\"info\"}.",
@@ -38,7 +44,8 @@ export const LESSON_TEACH_RULE = [
   "check.review aynı fikri başka açıdan sorar. Cümlenin sonuna 'yargısı doğru mudur?' eklemek tekrar değildir.",
   "summary üç maddedir: kural, sık hata, uygulama. Bölüm cümlesini kopyalama. 'Diğer' ya da zamirle başlayan bağlamsız madde yazma.",
   "Aynı konuyu işleyen her kaynak parçası kullanılır. Tek dosyaya sıkışma.",
-  "Kaynak [s.N] dosya biçimindeyse bölümün sonuna Kaynak: dosya, s.N yaz.",
+  "Kaynak künyesini (dosya adı, sayfa numarası) gövde metnine yazma; bu ayrıca kaydedilir. " +
+    "'Kaynak:' diye başlayan bir künye cümlesi ekleme.",
   "Cümle yüklemle biter. Cümle ortasında sıradan ad büyük harfle başlamaz.",
   "Anlatım yaklaşık 5 dakikalık okuma olsun. Aynı cümleyi tekrarlayarak uzatma.",
 ].join(" ");
@@ -128,6 +135,28 @@ function sourceBlocks(source: string): CiteBlock[] {
       text: match[3].trim(),
     }),
   );
+}
+
+export { stripInlineSourceLine };
+
+/**
+ * Bölüm kaynak künyesini gövdeden ayırıp `section.source`'a taşır.
+ * `attachCitations`/`weaveUnusedSources`/`sourceBackedBody` künyeyi hâlâ
+ * gövdeye ekleyerek üretiyor (bu, dahili yankı/uzunluk denetimlerinin
+ * `section.body`'yi tek bir metin olarak görmesine dayanıyor — o denetimleri
+ * bozmamak için değiştirilmedi); bu fonksiyon ders hazır olduktan sonra
+ * tek seferde künyeyi ayırıp öğrenciye gösterilecek temiz gövdeyi bırakır.
+ */
+export function extractSectionSources(lesson: LessonV2): LessonV2 {
+  let changed = false;
+  const sections = lesson.sections.map((section) => {
+    if (section.source) return section;
+    const { body, source } = stripInlineSourceLine(section.body);
+    if (!source) return section;
+    changed = true;
+    return { ...section, body, source };
+  });
+  return changed ? { ...lesson, sections } : lesson;
 }
 
 /** Konu haritasındaki dosya ve sayfa dışındaki bloklar derse girmez. */
@@ -708,6 +737,22 @@ function softenSummary(lesson: LessonV2, topic: string): LessonV2 {
   return { ...lesson, summary };
 }
 
+/**
+ * Bölümün vurgu/tanım kutusu (`note`) kendi gövdesinin kopyasıysa kutuyu
+ * kaldırır. Kutu değer katmıyorsa (aynı bilgiyi ikinci kez anlatıyorsa)
+ * hiç render edilmemeli — bkz. exam-lesson-steps.tsx `als-note`.
+ */
+function dropDuplicateNotes(lesson: LessonV2): LessonV2 {
+  let changed = false;
+  const sections = lesson.sections.map((section) => {
+    if (!section.note) return section;
+    if (!nearCopy(foldTr(section.note.body), foldTr(section.body))) return section;
+    changed = true;
+    return withoutNote(section);
+  });
+  return changed ? { ...lesson, sections } : lesson;
+}
+
 function dropInventedSentences(text: string, source: string): string {
   const parts = text.split(/\n+|(?<=[.!?])\s+(?=[A-ZÇĞİÖŞÜ“"0-9])/);
   const kept = parts
@@ -935,11 +980,13 @@ function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): Le
   next = withInfoCheck(next, source);
   next = weaveUnusedSources(next, source, topicLabel);
   next = softenSummary(next, topicLabel);
+  next = dropDuplicateNotes(next);
   if (next.example && topicIsQuantitative(source)) {
     const blob = `${next.example.prompt}\n${next.example.solution}`;
     if (!exampleReady(blob, source)) next = withoutExample(next);
   }
   next = scrubInventedNumbers(next, source);
+  next = extractSectionSources(next);
   const dropped =
     next.sections.filter((section) => section.check).length < checksBefore ||
     sentences(lessonProse(next)).length < sentencesBefore ||
@@ -1240,7 +1287,7 @@ export function salvageTaughtLesson(
   const still = criticalTeachingFailures(teachingFailures(prepared, source, topic));
   if (!still.length) return { lesson: prepared, removed };
 
-  const stripped = salvageStripRemaining(prepared, source, topic, removed);
+  const stripped = extractSectionSources(salvageStripRemaining(prepared, source, topic, removed));
   const finalParsed = lessonV2Schema.safeParse(stripped).data ?? stripped;
   return { lesson: finalParsed, removed };
 }
