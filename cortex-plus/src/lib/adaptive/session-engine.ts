@@ -212,6 +212,22 @@ export async function submitEvidence(
   mastery: number;
   action: GovernorAction | null;
 }> {
+  // Terminal-state guard: a completed/abandoned session must never accept a
+  // late or stale evidence submission and mint a new decision for it. The
+  // normal flow can't reach a finished session's id via startSession
+  // (getActiveSession only returns 'active' rows), but this endpoint takes
+  // sessionId directly from the client, so a race (double-submit before the
+  // UI shows completion, a retried request arriving after complete()) could
+  // otherwise still slip through.
+  const { data: sessionRow } = await service
+    .from("adaptive_learning_sessions")
+    .select("status")
+    .eq("id", input.sessionId)
+    .maybeSingle();
+  if (sessionRow?.status !== "active") {
+    return { duplicate: true, mastery: 0, action: null };
+  }
+
   const inserted = await appendEvent(service, {
     userId: input.userId,
     examPrepId: input.examPrepId,

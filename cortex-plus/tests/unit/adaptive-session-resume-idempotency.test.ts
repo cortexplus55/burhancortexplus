@@ -255,8 +255,9 @@ describe("adaptive session resume idempotency", () => {
 
   it("E) two concurrent fresh starts do not create two sessions or two decisions", async () => {
     let calls = 0;
+    const nextActionMock = vi.fn().mockImplementation(async () => makeAction(++calls));
     vi.doMock("@/lib/adaptive/learning-governor", () => ({
-      nextAction: vi.fn().mockImplementation(async () => makeAction(++calls)),
+      nextAction: nextActionMock,
     }));
     const { startSession } = await import("@/lib/adaptive/session-engine");
     const rows: Row[] = [];
@@ -286,10 +287,23 @@ describe("adaptive session resume idempotency", () => {
     };
     const loser = await startSession(loserService as never, { userId: "u1", examPrepId: "p1" });
 
-    expect(calls).toBe(1);
-    expect(loser.session.id).toBe(winner.session.id);
-    expect(loser.action).toEqual(winner.action);
+    // Only 1 active session row was ever created.
     expect(rows.filter((r) => r.status === "active")).toHaveLength(1);
+    // Only 1 decision was ever computed — the loser's insert conflict never
+    // triggers a second nextAction() call.
+    expect(nextActionMock).toHaveBeenCalledTimes(1);
+    expect(calls).toBe(1);
+    // Both responses resolve to the exact same session...
+    expect(loser.session.id).toBe(winner.session.id);
+    // ...and the exact same pending decision (decisionTraceId included, via
+    // deep equality of the whole action object) — the loser read the
+    // winner's persisted state rather than being handed a fresh one.
+    expect(loser.action?.decisionTraceId).toBe(winner.action?.decisionTraceId);
+    expect(loser.action).toEqual(winner.action);
+    // Intervention/content-generation idempotency for this same
+    // decisionTraceId is covered separately in
+    // adaptive-session-content-idempotency.test.ts, since that event is
+    // written by the content route, not by startSession.
   });
 
   it("F) a completed session is never resumed as if it still had a pending step", async () => {
@@ -430,5 +444,68 @@ describe("adaptive session resume idempotency", () => {
     expect(calls).toBe(1);
     expect(retry.duplicate).toBe(true);
     expect(retry.action?.decisionTraceId).toBe("decision-1");
+  });
+
+  it("G) submitEvidence against a completed session is a no-op (terminal-state guard)", async () => {
+    let calls = 0;
+    vi.doMock("@/lib/adaptive/learning-governor", () => ({
+      nextAction: vi.fn().mockImplementation(async () => makeAction(++calls)),
+    }));
+    mockStudentStateNull();
+    const rows: Row[] = [
+      {
+        id: "session-1",
+        user_id: "u1",
+        exam_prep_id: "p1",
+        started_at: new Date().toISOString(),
+        planned_duration_minutes: 45,
+        objective: "",
+        current_topic_id: null,
+        current_topic_key: null,
+        current_step: 3,
+        completion_pct: 100,
+        // Already completed — e.g. the student finished, and a stale/late
+        // client request (double-submit race, retried network call) then
+        // arrives for the same sessionId.
+        status: "completed",
+        pending_decision_trace_id: null,
+        pending_action: null,
+      },
+    ];
+    const events: Row[] = [];
+    const service = {
+      from(table: string) {
+        if (table === "adaptive_learning_sessions") return sessionsTableDouble(rows);
+        if (table === "adaptive_learning_events") return eventsTableDouble(events);
+        throw new Error(`unexpected table: ${table}`);
+      },
+    };
+    const { submitEvidence } = await import("@/lib/adaptive/session-engine");
+
+    const result = await submitEvidence(service as never, {
+      userId: "u1",
+      examPrepId: "p1",
+      sessionId: "session-1",
+      evidence: {
+        topicId: "topic-1",
+        topicKey: "topluluk-dagilisi",
+        correct: true,
+        difficulty: "medium",
+        independent: true,
+        hintUsed: false,
+        retry: false,
+        transfer: false,
+        examLevel: false,
+        retrievalAfterDelay: false,
+        idempotencyKey: "late-answer-1",
+      },
+    });
+
+    expect(calls).toBe(0);
+    expect(result.action).toBeNull();
+    expect(events).toHaveLength(0);
+    expect(rows[0]?.status).toBe("completed");
+    expect(rows[0]?.pending_action).toBeNull();
+    expect(rows[0]?.current_step).toBe(3);
   });
 });

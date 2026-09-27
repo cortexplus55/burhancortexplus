@@ -32,6 +32,15 @@ ALTER TABLE public.adaptive_learning_sessions
 --   WHERE status = 'active'
 --   GROUP BY 1, 2
 --   HAVING count(*) > 1;
+--
+-- NULL note: PostgreSQL unique indexes treat NULLs as distinct from each
+-- other by default (NULLS DISTINCT), which would let two "active" rows with
+-- a NULL key column coexist and defeat this invariant. That does not apply
+-- here: both user_id and exam_prep_id are declared NOT NULL on this table
+-- (see the CREATE TABLE in 20260927120000_adaptive_learning_engine.sql,
+-- lines 109-110) and neither column has ever been altered since, so NULL is
+-- schema-impossible for either key column — no NULLS NOT DISTINCT (PG 15+)
+-- or expression-index workaround is needed for the invariant to hold.
 DROP INDEX IF EXISTS public.adaptive_learning_sessions_active_idx;
 
 CREATE UNIQUE INDEX IF NOT EXISTS adaptive_learning_sessions_active_uidx
