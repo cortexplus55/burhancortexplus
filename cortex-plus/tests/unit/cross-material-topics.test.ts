@@ -557,12 +557,16 @@ describe("single file stays a list of its own chapters", () => {
         documentId: "trig-99",
         fileName: "trigonometri.pdf",
         pages: Array.from({ length: 9 }, (_, offset) => index * 9 + offset + 1),
+        summary: index === 0
+          ? "Birim çember üzerinde açı ölçüsü, radyan, sinüs, kosinüs ve dönüşüm formülleri"
+          : title,
       })),
       documents: [{ documentId: "trig-99", fileName: "trigonometri.pdf", text: "Trigonometri konu anlatımı" }],
     });
     expect(result.topics.map((topic) => topic.title)).toEqual(titles);
     expect(result.topics[10].pages).toEqual([91, 92, 93, 94, 95, 96, 97, 98, 99]);
     expect(result.topics.every((topic) => topic.sourceCount === 1)).toBe(true);
+    expect(result.ambiguous).toEqual([]);
   });
 
   it("does not collapse distinct chapters and still folds a recap", () => {
