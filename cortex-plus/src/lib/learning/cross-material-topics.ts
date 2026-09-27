@@ -1008,6 +1008,11 @@ function ambiguousPairs(groups: MaterialCandidate[][]): AmbiguousClusterPair[] {
   const pairs: AmbiguousClusterPair[] = [];
   for (let left = 0; left < heads.length; left += 1) {
     for (let right = left + 1; right < heads.length; right += 1) {
+      // Separate chapters in one document have already been approved by its
+      // topic map. An LLM ambiguity pass must not collapse them again.
+      if (heads[left].documentId && heads[left].documentId === heads[right].documentId) {
+        continue;
+      }
       const leftTitle = tokensOf(heads[left].title);
       const rightTitle = tokensOf(heads[right].title);
       const score = jaccard(leftTitle, rightTitle);

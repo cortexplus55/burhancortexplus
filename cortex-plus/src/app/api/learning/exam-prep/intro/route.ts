@@ -10,6 +10,7 @@ import {
   scoreAndNormalizeDiagnostic,
 } from "@/lib/learning/diagnostic-generate";
 import type { DiagnosticTopicPlan } from "@/lib/learning/diagnostic";
+import { diagnosticTopicSource } from "@/lib/learning/diagnostic-source";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import {
   EMPTY_SOURCE_CONTEXT,
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
   const { data: prep } = await service
     .from("exam_preps")
     .select(
-      "id, title, exam_type, active_topic_id, intro_completed_at, document_id, hard_topics_self",
+      "id, title, exam_type, active_topic_id, intro_completed_at, document_id, source_document_ids, hard_topics_self",
     )
     .eq("id", prepId)
     .eq("user_id", userId)
@@ -117,24 +118,51 @@ export async function POST(request: Request) {
 
   const { data: topic } = await service
     .from("exam_prep_topics")
-    .select("id, label")
+    .select("id, label, document_topic_node_id, source_refs")
     .eq("id", prep.active_topic_id)
+    .eq("exam_prep_id", prepId)
     .maybeSingle();
   if (!topic) return errorResponse(404, "not_found");
+
+  // A prep can contain several PDFs. The first-lesson diagnostic must read
+  // the selected topic's own source, not blindly the prep's first document.
+  const selectedSource = diagnosticTopicSource({
+    primaryDocumentId: prep.document_id as string | null,
+    sourceDocumentIds: prep.source_document_ids,
+    documentTopicNodeId: topic.document_topic_node_id as string | null,
+    sourceRefs: topic.source_refs,
+  });
+  let diagnosticDocumentId = selectedSource.documentId;
+  const diagnosticNodeId = selectedSource.nodeId;
+  if (!selectedSource.fromRef && diagnosticNodeId) {
+    const { data: linkedNode } = await service
+      .from("document_topic_nodes")
+      .select("document_id")
+      .eq("id", diagnosticNodeId)
+      .maybeSingle();
+    if (linkedNode?.document_id && selectedSource.allowedDocumentIds.has(linkedNode.document_id as string)) {
+      diagnosticDocumentId = linkedNode.document_id as string;
+    }
+  }
+  if (diagnosticDocumentId) {
+    const { data: ownedDocument } = await service
+      .from("documents")
+      .select("id")
+      .eq("id", diagnosticDocumentId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!ownedDocument) return errorResponse(503, "source_unavailable");
+  }
 
   const v2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
   let useV2Diagnostic = false;
   let plans: DiagnosticTopicPlan[] = [];
 
-  if (v2 && prep.document_id) {
-    const { data: prepTopics } = await service
-      .from("exam_prep_topics")
-      .select("id, label, document_topic_node_id")
-      .eq("exam_prep_id", prepId);
+  if (v2 && diagnosticDocumentId) {
     plans = await loadDocumentTopicPlans(
       service,
-      prep.document_id,
-      prepTopics ?? [],
+      diagnosticDocumentId,
+      [{ id: topic.id, label: topic.label, document_topic_node_id: diagnosticNodeId }],
     );
     useV2Diagnostic = plans.some(
       (p) => p.status !== "unreadable" && p.pageNumbers.length > 0,
@@ -298,11 +326,11 @@ export async function POST(request: Request) {
     }
   }
 
-  if (useV2Diagnostic && prep.document_id) {
+  if (useV2Diagnostic && diagnosticDocumentId) {
     const { data: doc } = await service
       .from("documents")
       .select("source_boundary_mode")
-      .eq("id", prep.document_id)
+      .eq("id", diagnosticDocumentId)
       .maybeSingle();
 
     const outcome = await generateTopicMapDiagnostic({
@@ -311,7 +339,7 @@ export async function POST(request: Request) {
       isPremium: await isPremiumUser(service, userId),
       prepTitle: prep.title ?? prep.exam_type,
       examType: prep.exam_type,
-      documentId: prep.document_id,
+      documentId: diagnosticDocumentId,
       sourceBoundaryMode:
         (doc?.source_boundary_mode as "documents_only" | "allow_supporting" | null) ??
         "documents_only",
@@ -362,7 +390,7 @@ export async function POST(request: Request) {
 
   // Belge seçili değilse arama yapılmaz: filtresiz arama öğrencinin ilgisiz
   // belgelerinden parça çekiyordu. Belgesiz hazırlıkta çit konunun kendisi.
-  const sourceMode = resolvePrepSourceMode({ documentId: prep.document_id });
+  const sourceMode = resolvePrepSourceMode({ documentId: diagnosticDocumentId });
   let source = EMPTY_SOURCE_CONTEXT;
   if (shouldSearchSources(sourceMode)) {
     try {
@@ -370,7 +398,7 @@ export async function POST(request: Request) {
         service,
         userId,
         `${prep.title ?? prep.exam_type} ${topic.label}`,
-        { documentId: prep.document_id ?? null, limit: 6 },
+        { documentId: diagnosticDocumentId, limit: 6 },
       );
     } catch {
       return errorResponse(503, "source_unavailable");
