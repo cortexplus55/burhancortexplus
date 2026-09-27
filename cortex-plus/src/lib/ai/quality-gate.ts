@@ -164,6 +164,8 @@ export async function verifyEducationalContent(input: {
    * art arda gitmesindendi.
    */
   trustIndependent?: boolean;
+  /** Use only for high-stakes generated assessments; style feedback still belongs in issues. */
+  requireReviewerApproval?: boolean;
 }): Promise<VerifyEducationalResult> {
   let content = input.draft;
   const originalShape = activityDraftShape(input.draft);
@@ -174,6 +176,7 @@ export async function verifyEducationalContent(input: {
   let tokensIn = 0;
   let tokensOut = 0;
   let repairAttempted = false;
+  let reviewerRejected = false;
   let modelCalls = 0;
   const stagesMs: Partial<Record<ValidationStage, number>> = {};
   const failClosed = input.failClosedOnUnavailable ?? Boolean(input.independent);
@@ -355,6 +358,7 @@ export async function verifyEducationalContent(input: {
       );
     }
     const verdict = verdictResult.data;
+    reviewerRejected = Boolean(input.requireReviewerApproval && !verdict.approved);
     const independent = runIndependent(content);
     // Üslup ve doğrulanmayan aritmetik dersi düşürmez.
     // Kaynakta olmayan formül, yanlış sayı ve okunamayan JSON kalır.
@@ -365,6 +369,7 @@ export async function verifyEducationalContent(input: {
     const blocking = [
       ...modelSplit.blocking,
       ...independentBlocking.map((item) => item.message),
+      ...(reviewerRejected ? [verdict.issues[0] ?? "Bağımsız denetçi soru gerekçesini reddetti."] : []),
     ];
     const nonBlocking = [
       ...modelSplit.nonBlocking,
@@ -428,6 +433,7 @@ export async function verifyEducationalContent(input: {
     ...finalModel.blocking.filter(
       (message) => !finalBlocking.some((item) => item.message === message),
     ),
+    ...(reviewerRejected ? [lastReviewIssues[0] ?? "Bağımsız denetçi soru gerekçesini reddetti."] : []),
   ];
   const nonBlockingLeft = [
     ...finalIndependent.issues
@@ -456,7 +462,7 @@ export async function verifyEducationalContent(input: {
     blockingLeft.unshift(SHAPE_BROKEN);
   }
   // Tek onarım yetmediyse uydurulan parça kesilir; sağlam ders kalırsa kabul.
-  if (repairAttempted && shapeKept()) {
+  if (repairAttempted && shapeKept() && !reviewerRejected) {
     const settled = settleRejectedLesson(content, blockingLeft);
     if (settled.accepted && settled.removed.length > 0) {
       return {

@@ -53,7 +53,7 @@ export function ExamTopicPick({
       </div>
       <h1>Konu seç</h1>
       <p className="cp-topic-pick-lead">
-        Bu sınavın konularından birini seç; önce 5 soruluk tanışma testi gelir.
+        Bu sınavın konularından birini seç; önce kısa bir başlangıç tanısı, ardından ders gelir.
       </p>
       <ol className="cp-topic-pick">
         {topics.map((topic, index) => (

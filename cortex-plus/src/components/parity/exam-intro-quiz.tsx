@@ -38,6 +38,14 @@ const SKILL_TR: Record<string, string> = {
   misconception: "yanılgı",
 };
 
+const LEVEL_TR: Record<string, string> = {
+  unknown: "henüz ölçülmedi",
+  weak: "temel tekrar gerekli",
+  developing: "gelişiyor",
+  solid: "temeli sağlam",
+  strong: "ileri düzey",
+};
+
 export function ExamIntroQuiz({
   prepId,
   topicLabel,
@@ -213,7 +221,7 @@ export function ExamIntroQuiz({
         <section>
           <p className="cp-lesson-kicker">{displayTopic}</p>
           <h1>Tanışma testi açılamadı</h1>
-          <p className="text-sm text-[var(--cp-muted)]">
+          <p role="alert" className="text-sm text-[var(--cp-muted)]">
             {startError ?? "Sorular yüklenemedi. Boş ekranda kalma — tekrar dene."}
           </p>
           <button
@@ -285,8 +293,8 @@ export function ExamIntroQuiz({
                     <li key={topic.topicLabel}>
                       {topic.topicLabel}:{" "}
                       {topic.status === "unreadable" || topic.status === "unmeasured"
-                        ? `ölçülmedi (${topic.measuredLevel})`
-                        : `ölçülen ${topic.measuredLevel}`}
+                        ? LEVEL_TR.unknown
+                        : `ölçülen düzey: ${LEVEL_TR[topic.measuredLevel] ?? topic.measuredLevel}`}
                       {topic.reason ? ` — ${topic.reason}` : ""}
                     </li>
                   ))}

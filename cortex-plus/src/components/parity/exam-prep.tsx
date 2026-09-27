@@ -362,7 +362,7 @@ export function ParityExamPrep({
               </li>
               <li>
                 <strong>Hadi başlayalım</strong>
-                <span>Bir konu seç. 5 soruluk tanışma testi gelir; bazı sorularda birden fazla yanıt vardır.</span>
+                <span>Bir konu seç. Kısa başlangıç soruları o konudaki seviyeni ölçer; sonra derse geçersin.</span>
               </li>
               <li>
                 <strong>Yolda ilerle</strong>

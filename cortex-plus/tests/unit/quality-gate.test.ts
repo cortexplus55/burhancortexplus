@@ -207,6 +207,29 @@ describe("educational quality gate", () => {
     expect(create).toHaveBeenCalledTimes(1);
   });
 
+  it("repairs a diagnostic option explanation rejected by the reviewer", async () => {
+    const { input, create } = fixture([
+      { approved: false, issues: ["2π şıkkının gerekçesi 90 derece diyor; 2π 360 derecedir."] },
+      { content: "düzeltilmiş soru ve gerekçe" },
+      { approved: true, issues: [] },
+    ]);
+    const result = await verifyEducationalContent({ ...input, requireReviewerApproval: true });
+    expect(result.content).toBe("düzeltilmiş soru ve gerekçe");
+    expect(result.repairAttempted).toBe(true);
+    expect(create).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not accept a diagnostic the reviewer rejects twice", async () => {
+    const { input } = fixture([
+      { approved: false, issues: ["Yanlış şık gerekçesinde sayı hatası var."] },
+      { content: "hâlâ yanlış" },
+      { approved: false, issues: ["Yanlış şık gerekçesi düzelmedi."] },
+    ]);
+    await expect(
+      verifyEducationalContent({ ...input, requireReviewerApproval: true }),
+    ).rejects.toMatchObject({ repairAttempted: true });
+  });
+
   it("rejects a source error after one repair and records recheck_passed false", async () => {
     const { input } = fixture([
       { approved: false, issues: ["Kaynakta olmayan formül PV = nRT."] },
