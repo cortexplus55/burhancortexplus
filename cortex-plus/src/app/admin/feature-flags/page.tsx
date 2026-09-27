@@ -30,6 +30,30 @@ const KNOWN = [
     description:
       "Açıkken belge işleme sonrası sayfa meta, konu haritası ve kapsam raporu üretilir; /dokumanlar/[id] incelenebilir. Kapalıyken mevcut sınav hazırlığı ve klasik RAG process aynen çalışır.",
   },
+  {
+    key: "adaptive_learning_enabled",
+    label: "Adaptive öğrenme motoru",
+    description:
+      "Global açarsan tüm adaptive kullanıcıları etkiler. Pilot için globali KAPALI tutup metadata.pilot_user_ids kullanın (/admin/adaptive).",
+  },
+  {
+    key: "jev_enabled",
+    label: "Jev karar motoru",
+    description:
+      "Global açarsan tüm adaptive kullanıcıları etkiler. Pilot için globali KAPALI tutun; JEV_ENABLED env + pilot listesi gerekir. Klasik sınav hazırlığı bu bayraktan bağımsızdır.",
+  },
+  {
+    key: "adaptive_daily_replan_enabled",
+    label: "Adaptive günlük replan",
+    description:
+      "Global açarsan tüm adaptive kullanıcıları etkiler. Pilot listesi /admin/adaptive üzerinden yönetilir.",
+  },
+  {
+    key: "adaptive_model_router_enabled",
+    label: "Adaptive model router",
+    description:
+      "Global açarsan tüm adaptive kullanıcıları etkiler. gpt-4o yükseltme yolu; pilot için globali kapalı tutun.",
+  },
 ];
 
 /**
