@@ -21,7 +21,7 @@ Phase 3 hardening added:
 | Teaching mode | `escalateTeachingMode` on `repeatedErrorCount` |
 | Exam phase | 20d learn / 7d mixed / 2d cram in priority + action filters |
 | Readiness | EMA + deadband (`READINESS_DEADBAND=3`) |
-| Jev model | Validate `JEV_MODEL` against `/v1/models`; admin diagnostic + fallback |
+| Jev model | Pinned `jev-1.13.0` / gateway `typesafe-ai/jev`; `/v1/models` only for admin + live test |
 | Replan flag | Passes `userId` for pilot daily replan |
 | Student UI | Strip `model` / escalation from student payloads |
 | Trust copy | Turkish reasons for misconception / review / missed-day |
@@ -50,12 +50,12 @@ Verified: 8 `adaptive_*` tables, mastery columns, `feature_flags.metadata`, 4 fl
 
 | Check | Result |
 |---|---|
-| `adaptive-jev-live.test.ts` | **Skipped** — `TYPESAFE_API_KEY` absent in test process / not in Vercel env listing reviewed |
-| Fallback on 500 / circuit | **Pass** (`adaptive-jev-fallback.test.ts`) |
-| Jev vs fallback safety | **Pass** — both blocked from advancing without prerequisites (pilot scenario test) |
-| Invalid model path | Code path added (`resolveJevModel` + diagnostic); live probe pending key |
+| İstemci API şekli | **Hizalandı** — resmi SystemOne map + instructions/criteria; bkz. `docs/delivery/JEV-INTEGRATION.md` |
+| `adaptive-jev-live.test.ts` | **ÇALIŞTIRILMADI** — canlı doğrulama anahtar eklenince (`RUN_JEV_LIVE=1` + `TYPESAFE_API_KEY` veya `AI_GATEWAY_API_KEY`) |
+| Fallback / circuit / normalize | **Pass** (birim testleri; tip-farkında noul/score ayrıştırma) |
+| Jev vs fallback safety | **Pass** — politika korkulukları korunur |
 
-**External blocker:** configure `TYPESAFE_API_KEY` (and optional `JEV_MODEL`) in local `.env.local` + Vercel, then re-run live suite.
+**External blocker:** erişim anahtarı + `JEV_ENABLED` + gölge/pilot adımları — ürün sahibi Vercel env’e yazar (agent env değiştirmez).
 
 ---
 
@@ -246,13 +246,13 @@ Flags remain `enabled=false`. Non-pilot users are outside `pilot_user_ids` → a
 
 ## OpenAI-backed operating mode (2026-09-27)
 
-TypeSafe Jev access is still on the early-access waitlist. The pilot does not wait on it.
+TypeSafe Jev istemcisi resmi API’ye hizalandı; canlı doğrulama: **yapılmadı** (bu ortamda anahtar yok). Pilot gölge → birincil sırası `JEV-INTEGRATION.md` içinde.
 
 | Item | Status |
 |---|---|
 | Adaptive Learning Engine | **READY FOR OPENAI-BACKED PILOT** |
-| Jev integration | **IMPLEMENTED, WAITING FOR TYPESAFE EARLY ACCESS** |
-| Jev validated | **No** |
+| Jev integration | **IMPLEMENTED — resmi API’ye hizalı; canlı doğrulama anahtar bekliyor** |
+| Jev validated | **No** (canlı sözleşme testi çalıştırılmadı) |
 | Active decision provider | OpenAI (`DECISION_PROVIDER=auto`): gpt-4o-mini, gpt-4o only on escalation |
 | Provider telemetry | `openai_decision` when Jev is intentionally off. `openai_fallback` only after a real Jev failure |
 | Global flags | OFF |
