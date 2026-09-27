@@ -15,6 +15,9 @@ import { DocumentUpload } from "@/components/documents/document-upload";
  */
 const pushMock = vi.fn();
 const refreshMock = vi.fn();
+const uploadFileMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/documents/upload-client", () => ({ uploadDocumentFile: uploadFileMock }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, refresh: refreshMock, replace: vi.fn() }),
@@ -33,17 +36,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
   pushMock.mockClear();
   refreshMock.mockClear();
+  uploadFileMock.mockReset();
 });
 
 describe("document upload — post-success navigation", () => {
   it("navigates to the new document once and does not also fire a competing router.refresh (pdf_learning_v2 path)", async () => {
+    uploadFileMock.mockResolvedValue({ documentId: "doc-1" });
     vi.stubGlobal(
       "fetch",
       vi.fn((input: RequestInfo | URL) => {
         const url = String(input);
-        if (url.includes("/api/documents/upload")) {
-          return Promise.resolve(jsonResponse({ documentId: "doc-1" }));
-        }
         if (url.includes("/api/documents/process")) {
           return Promise.resolve(jsonResponse({ ok: true }));
         }
@@ -67,13 +69,11 @@ describe("document upload — post-success navigation", () => {
   });
 
   it("still refreshes the current page on the non-learningV2 success path (no navigation to race with)", async () => {
+    uploadFileMock.mockResolvedValue({ documentId: "doc-2" });
     vi.stubGlobal(
       "fetch",
       vi.fn((input: RequestInfo | URL) => {
         const url = String(input);
-        if (url.includes("/api/documents/upload")) {
-          return Promise.resolve(jsonResponse({ documentId: "doc-2" }));
-        }
         if (url.includes("/api/documents/process")) {
           return Promise.resolve(jsonResponse({ ok: true }));
         }

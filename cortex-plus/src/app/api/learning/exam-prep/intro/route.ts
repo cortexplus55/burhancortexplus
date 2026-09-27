@@ -74,10 +74,12 @@ export async function POST(request: Request) {
   // Erteleme: ölçüm yapılmadı, yalnızca kapı açıldı. intro_completed_at
   // dolmuyor ki hazırlık sayfası hatırlatmayı sürdürebilsin.
   if (action === "skip") {
-    await service
+    const { error } = await service
       .from("exam_preps")
       .update({ intro_deferred_at: new Date().toISOString() })
-      .eq("id", prepId);
+      .eq("id", prepId)
+      .eq("user_id", userId);
+    if (error) return errorResponse(503, "save_failed");
     return NextResponse.json({ ok: true, deferred: true, nextHref });
   }
 
@@ -288,10 +290,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         ok: true,
         attemptId: existing.id,
-        topicLabel:
-          payload.mode === "diagnostic_v2"
-            ? "Belge konu haritası tanı"
-            : topic.label,
+        topicLabel: topic.label,
         mode: payload.mode === "diagnostic_v2" ? "diagnostic_v2" : "legacy",
         questions: questions.map((q) => publicQuizQuestion(q)),
         hardTopicsSelf: prep.hard_topics_self ?? [],
@@ -317,6 +316,7 @@ export async function POST(request: Request) {
         (doc?.source_boundary_mode as "documents_only" | "allow_supporting" | null) ??
         "documents_only",
       plans,
+      activePrepTopicId: topic.id,
     });
     if (outcome.ok) {
       const { data: attempt, error } = await service
@@ -341,7 +341,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         ok: true,
         attemptId: attempt.id,
-        topicLabel: "Belge konu haritası tanı",
+        topicLabel: topic.label,
         mode: "diagnostic_v2",
         questions: outcome.questions.map((q) => publicQuizQuestion(q)),
         hardTopicsSelf: prep.hard_topics_self ?? [],
@@ -350,13 +350,14 @@ export async function POST(request: Request) {
           .map((p) => ({ title: p.title, reason: p.reason, status: p.status })),
       });
     }
-    // Verification/provider failure → legacy 5-question intro so the student
-    // is not stuck on an error screen.
-    console.error("diagnostic_v2_fallback_legacy", {
+    // The source or clinical question gate failed. A weaker second generator
+    // must not turn rejected answers into a scored diagnosis.
+    console.error("diagnostic_v2_rejected", {
       prepId,
       error: outcome.error,
       status: outcome.status,
     });
+    return errorResponse(outcome.status, outcome.error);
   }
 
   // Belge seçili değilse arama yapılmaz: filtresiz arama öğrencinin ilgisiz
@@ -385,27 +386,18 @@ export async function POST(request: Request) {
       : "";
 
   const isPremium = await isPremiumUser(service, userId);
-  let outcome = await generateExamQuiz({
+  const outcome = await generateExamQuiz({
     service,
     userId,
     isPremium,
     difficulty: "hard",
+    sourceExcerpt: source.block,
+    requireSourceSupport: sourceMode !== "topic_only",
     userPrompt: `Sınav: ${prep.title ?? prep.exam_type}. Konu: ${topic.label}.${source.block}${topicBlock}
 5 çoktan seçmeli tanışma sorusu yaz. Konunun temelini yokla, aşırı tuzak kurma.
 Tüm sorularda multi false (tek doğru). correct her zaman options içinde olsun.
 Her soruyu göndermeden önce bilimsel ve matematiksel doğruluğunu kontrol et. Soru kökü ile doğru seçenek tam olarak uyuşsun.`,
   });
-  if (!outcome.ok && outcome.error === "content_verification_failed") {
-    outcome = await generateExamQuiz({
-      service,
-      userId,
-      isPremium,
-      difficulty: "hard",
-      verificationMode: "schema",
-      userPrompt: `Sınav: ${prep.title ?? prep.exam_type}. Konu: ${topic.label}.${source.block}${topicBlock}
-5 kısa çoktan seçmeli tanışma sorusu. Hepsi multi false, tek doğru şık.${sourceMode === "topic_only" ? "" : " Belge alıntılarına dayan."}`,
-    });
-  }
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
 
   const questions = outcome.questions.slice(0, 5);

@@ -1,5 +1,6 @@
 import { foldTr } from "@/lib/documents/page-analysis";
 import type { GroundMatch } from "@/lib/learning/topic-grounding";
+import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 
 /**
  * Öğrencinin son konu listesi yolu kurar.
@@ -21,6 +22,7 @@ export type LoadedPrepTopic = {
   weightPercent?: number | null;
   examHeavy?: boolean;
   importance?: "important" | "medium" | "less" | null;
+  sourceRefs?: TopicSourceRef[];
 };
 
 export type LoadedPrepTopics = {
@@ -33,6 +35,7 @@ export type RequestedPrepTopic = {
   title: string;
   linkedTitle: string | null;
   pageNumbers: number[];
+  sourceRefs?: TopicSourceRef[];
 };
 
 function foldOf(title: string): string {
@@ -106,6 +109,7 @@ export function applyStudentTopicList(input: {
         title,
         selfHard: Boolean(source?.selfHard) || selfHard,
         pageNumbers: source?.pageNumbers?.length ? source.pageNumbers : item.pageNumbers,
+        sourceRefs: source?.sourceRefs?.length ? source.sourceRefs : item.sourceRefs ?? [],
       });
       continue;
     }
@@ -115,6 +119,7 @@ export function applyStudentTopicList(input: {
       id: `added:${titles.length}:${foldOf(title).slice(0, 24) || "konu"}`,
       title,
       pageNumbers: item.pageNumbers,
+      sourceRefs: item.sourceRefs ?? [],
       measuredLevel: "unknown",
       selfHard,
       priority: 3,
@@ -132,5 +137,6 @@ export function requestedFromGround(
     title: title.trim(),
     linkedTitle: match.linkedTitle,
     pageNumbers: match.pageNumbers,
+    sourceRefs: match.sourceRefs,
   };
 }

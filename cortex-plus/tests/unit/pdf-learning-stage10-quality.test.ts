@@ -73,7 +73,7 @@ describe("Stage 10 document varieties", () => {
     ];
     const analyses = analyzePages(pages);
     const topics = topicsFor(analyses, [
-      { title: "Açı Ölçüsü ve Birim Çember", pages: [1, 2] },
+      { title: "Derece Radyan ve Birim Çember", pages: [1, 2] },
     ]);
     const coverage = buildCoverageReport(analyses, topics, []);
     expect(coverage.uncoveredContentPages).toEqual([]);

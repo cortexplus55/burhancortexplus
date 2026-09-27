@@ -15,6 +15,7 @@ import {
   requestDocumentProcessing,
 } from "@/lib/documents/process-session";
 import { DOCUMENT_UPLOAD_HINT } from "@/lib/documents/upload-labels";
+import { uploadDocumentFile } from "@/lib/documents/upload-client";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ const ALLOWED = [
 ];
 
 const MAX_BYTES = 15 * 1024 * 1024;
+const PDF_MAX_BYTES = 50 * 1024 * 1024;
 
 export function DocumentUpload({
   creditCost,
@@ -57,13 +59,13 @@ export function DocumentUpload({
     event.preventDefault();
     if (!file) return;
 
-    const extensionOk = /\.(heic|heif|jpe?g|png|webp)$/i.test(file.name);
+    const extensionOk = /\.(pdf|txt|docx|pptx|heic|heif|jpe?g|png|webp)$/i.test(file.name);
     if (!ALLOWED.includes(file.type) && !extensionOk) {
       toast.error("Desteklenmeyen dosya türü.");
       return;
     }
-    if (file.size > MAX_BYTES) {
-      toast.error("Dosya en fazla 15 MB olabilir.");
+    if (file.size > (file.type === "application/pdf" || /\.pdf$/i.test(file.name) ? PDF_MAX_BYTES : MAX_BYTES)) {
+      toast.error("PDF en fazla 50 MB, diğer dosyalar en fazla 15 MB olabilir.");
       return;
     }
 
@@ -77,19 +79,7 @@ export function DocumentUpload({
     // the redundant refresh once we've already navigated away.
     let navigated = false;
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const uploadRes = await fetch("/api/documents/upload", {
-        method: "POST",
-        body: form,
-      });
-      const uploaded = await uploadRes.json().catch(() => ({}));
-
-      if (!uploadRes.ok) {
-        toast.error(uploaded.error ?? "Yükleme başarısız.");
-        setStatusDetail(null);
-        return;
-      }
+      const uploaded = await uploadDocumentFile(file);
 
       setStage("processing");
       setStatusDetail(
@@ -100,6 +90,16 @@ export function DocumentUpload({
       const result = await requestDocumentProcessing({
         documentId: uploaded.documentId,
         post: postDocumentProcess,
+        onProgress: (progress) => {
+          const next = Number(progress.nextPage);
+          const total = Number(progress.pageCount);
+          if (progress.phase === "extract" && typeof progress.nextPage === "number" &&
+              Number.isFinite(next) && Number.isFinite(total) && total > 0) {
+            setStatusDetail(`Belgen okunuyor: ${Math.min(next - 1, total)}/${total} sayfa hazır…`);
+          } else if (progress.phase === "map") {
+            setStatusDetail("Sayfalar okundu; konular ve çalışma yolu hazırlanıyor…");
+          }
+        },
       });
       const processed = result.body;
       if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
@@ -139,8 +139,8 @@ export function DocumentUpload({
       });
       setFile(null);
       router.refresh();
-    } catch {
-      toast.error("Bağlantı hatası.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bağlantı hatası.");
       setStatusDetail(null);
     } finally {
       setStage("idle");
@@ -181,7 +181,7 @@ export function DocumentUpload({
           >
             {DOCUMENT_UPLOAD_HINT}
             {creditCost !== null && !founder ? ` · işleme ${creditCost} kredi` : ""}
-            {freePdfCap !== null ? ` · PDF sayfa: ${freePdfCap}` : ""}
+            {freePdfCap !== null ? ` · aylık taranmış sayfa hakkı: ${freePdfCap}` : ""}
             {learningV2
               ? " · işlem sonrası konu haritası çıkarılır"
               : ""}

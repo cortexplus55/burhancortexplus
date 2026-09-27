@@ -11,8 +11,8 @@ import { deflateSync } from "node:zlib";
   Düzeltme sayfayı görüntüye çevirip zaten çalışan fotoğraf okuyucusundan
   geçiriyor. Bu dosya üç kırılgan yeri tutuyor:
 
-  1. Çizim gerçekten çalışıyor ve uzun belgede KESİLİYOR (uç noktanın
-     120 saniyelik bütçesi 50 sayfayı kaldırmıyor).
+  1. Çizim tek istekte sınırlı sayfa işler, sonraki tur fiziksel sayfa
+     numarasından devam edebilir.
   2. Tek bir okunamayan sayfa belgeyi düşürmüyor.
   3. Okunamayan sayfa kota YAKMIYOR.
 */
@@ -105,13 +105,18 @@ describe("sayfa çizimi", () => {
     }
   }, 30_000);
 
-  /* Sayfa başına bir görüntü modeli çağrısı var ve ucun bütçesi 120 saniye.
-     Kesmeseydik uzun bir belge zaman aşımına girer, öğrenci HİÇBİR ŞEY
-     alamazdı — yarım okumak bundan iyi. */
-  it("uzun belgeyi kesiyor ama gerçek sayfa sayısını söylüyor", async () => {
+  /* Tek tur kaynak sınırını korurken gerçek toplam ve sonraki aralık elde. */
+  it("uzun belgeden sınırlı sayfa çiziyor ve gerçek sayfa sayısını söylüyor", async () => {
     const rendered = await renderPdfPages(scannedPdf(MAX_SCAN_PAGES + 3), 4);
     expect(rendered.pages).toHaveLength(4);
     expect(rendered.total).toBe(MAX_SCAN_PAGES + 3);
+  }, 30_000);
+
+  it("99 sayfalık taranmış PDF'in son fiziksel sayfasını ayrı turda çiziyor", async () => {
+    const rendered = await renderPdfPages(scannedPdf(99), 6, 95);
+    expect(rendered.total).toBe(99);
+    expect(rendered.pages).toHaveLength(5);
+    expect(rendered.pages[4].subarray(1, 4).toString()).toBe("PNG");
   }, 30_000);
 
   it("tavan varsayılanı zaman bütçesine göre seçilmiş", () => {

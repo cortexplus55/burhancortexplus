@@ -2,7 +2,8 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   attachQuestionMeta,
-  buildDiagnosticSkillPlan,
+  firstLessonDiagnosticSlots,
+  selectDiagnosticSkillQuestions,
   isDiagnosticSkill,
   pickMainTopics,
   planDiagnosticTopics,
@@ -17,7 +18,7 @@ import {
   type QuizQuestion,
 } from "@/lib/learning/exam-quiz";
 import {
-  loadSourceContext,
+  loadPageSourceContext,
   SourceUnavailableError,
 } from "@/lib/learning/source-context";
 
@@ -26,6 +27,7 @@ export type DocumentTopicRow = {
   title: string;
   parent_id: string | null;
   sort_order: number;
+  common_mistakes?: string[] | null;
 };
 
 export async function loadDocumentTopicPlans(
@@ -46,17 +48,24 @@ export async function loadDocumentTopicPlans(
     rows.map((n) => ({ ...n, parentId: n.parent_id })),
   );
 
-  const { data: links } = await service
-    .from("document_topic_page_links")
-    .select("topic_id, page_number")
-    .eq("document_id", documentId)
-    .in(
-      "topic_id",
-      main.map((n) => n.id),
-    );
+  // A long book can have more than PostgREST's default 1,000 topic/page
+  // links. The active chapter may be beyond that first response.
+  const links: { topic_id: string; page_number: number }[] = [];
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await service
+      .from("document_topic_page_links")
+      .select("topic_id, page_number")
+      .eq("document_id", documentId)
+      .in("topic_id", main.map((n) => n.id))
+      .order("page_number", { ascending: true })
+      .range(offset, offset + 499);
+    if (error) throw new SourceUnavailableError();
+    links.push(...((data ?? []) as typeof links));
+    if ((data ?? []).length < 500) break;
+  }
 
   const pagesByTopic = new Map<string, number[]>();
-  for (const link of links ?? []) {
+  for (const link of links) {
     const list = pagesByTopic.get(link.topic_id) ?? [];
     list.push(link.page_number);
     pagesByTopic.set(link.topic_id, list);
@@ -87,6 +96,7 @@ export async function loadDocumentTopicPlans(
       byLabel.get(n.title.trim().toLocaleLowerCase("tr")) ??
       null,
     pageNumbers: [...new Set(pagesByTopic.get(n.id) ?? [])].sort((a, b) => a - b),
+    commonMistakes: Array.isArray(n.common_mistakes) ? n.common_mistakes : [],
   }));
 
   return planDiagnosticTopics(inputs, unreadable);
@@ -109,23 +119,31 @@ export async function generateTopicMapDiagnostic(input: {
   documentId: string;
   sourceBoundaryMode: "documents_only" | "allow_supporting" | null;
   plans: DiagnosticTopicPlan[];
+  /** The learner opens one lesson; other chapters remain explicitly unmeasured. */
+  activePrepTopicId: string;
 }): Promise<
   | { ok: true; questions: DiagnosticQuestion[]; plans: DiagnosticTopicPlan[] }
   | { ok: false; status: number; error: string }
 > {
-  const slots = buildDiagnosticSkillPlan(input.plans);
+  const slots = firstLessonDiagnosticSlots(input.plans, input.activePrepTopicId);
   if (!slots.length) {
     return { ok: false, status: 400, error: "no_measurable_topics" };
   }
+  const active = slots[0].topic;
 
-  const query = slots.map((s) => s.topic.title).join(" ");
   let source;
   try {
-    source = await loadSourceContext(input.service, input.userId, query, {
-      documentId: input.documentId,
-      limit: Math.min(8, Math.max(4, slots.length)),
-      sourceBoundaryMode: input.sourceBoundaryMode ?? "documents_only",
-    });
+    source = await loadPageSourceContext(
+      input.service,
+      input.userId,
+      input.documentId,
+      active.pageNumbers,
+      {
+        sourceBoundaryMode: input.sourceBoundaryMode ?? "documents_only",
+        topicLabel: active.title,
+      },
+    );
+    if (!source.block.trim()) throw new SourceUnavailableError();
   } catch (err) {
     if (err instanceof SourceUnavailableError) {
       return { ok: false, status: 503, error: "source_unavailable" };
@@ -138,8 +156,9 @@ export async function generateTopicMapDiagnostic(input: {
       ? "destekleyici genel bilgi sınırlı kullanılabilir"
       : "documents_only — kaynak dışı uydurma yok";
 
-  // One call for all slots; advanced model + schema fallback unblocks intro.
-  const BATCH = Math.max(1, slots.length);
+  // A bounded first-topic probe. Each other document topic stays unmeasured
+  // until its own lesson instead of forcing a whole-book quiz into one call.
+  const BATCH = 3;
   const rawQuestions: QuizQuestion[] = [];
   for (let start = 0; start < slots.length; start += BATCH) {
     const batch = slots.slice(start, start + BATCH);
@@ -154,12 +173,14 @@ export async function generateTopicMapDiagnostic(input: {
         return `${line}\n   Belgedeki yanılgılar (çeldirici olarak kullan): ${mistakes.join(" | ")}`;
       })
       .join("\n");
-    const userPrompt = `Sınav: ${input.prepTitle ?? input.examType}. Kısa TANİ (başlangıç) soruları.
-Ustalık iddiası yok; her satır için TAM BİR basit soru yaz; sıra bozulmasın.
+    const userPrompt = `Sınav: ${input.prepTitle ?? input.examType}. Kısa TANI (başlangıç) soruları.
+Ustalık iddiası yok; her satır için İKİ bağımsız kısa soru yaz (toplam 6); doğrulama sorunlu soruları eleyeceği için yedek soru gerekir.
+Her sorunun topic alanına satırdaki beceri kodunu (definition, concept veya application) aynen yaz.
 ${blueprint}
 ${source.block}
 Kurallar:
 - Yalnızca kaynak alıntılarına dayan (${boundaryNote}).
+- Kaynakta bulunmayan "sadece", "yalnızca", "her zaman" gibi kesin iddiaları doğru cevap veya gerekçe diye yazma. Yanlış seçeneği açıklarken açıkça yanlış olduğunu belirt.
 - Tercihen multi false (tek doğru); en fazla bir soruda multi true.
 - 4 net şık; correct options içinde; kısa Türkçe explanation.
 - ÇELDİRİCİLER GERÇEK HATA OLSUN: yukarıda konuya ait yanılgı verildiyse onu
@@ -174,6 +195,7 @@ Kurallar:
       isPremium: input.isPremium,
       difficulty: "hard",
       teachingV2: true,
+      schemaHintExtra: "Bu tanıda questions dizisi 6 soru içerir. Her sorunun topic alanı definition, concept veya application kodudur.",
       sourceExcerpt: source.block,
       requireSourceSupport: true,
       userPrompt,
@@ -181,19 +203,17 @@ Kurallar:
     // Stage 7: retries + independent-only accept live inside generateExamQuiz / generateJson
     // under one credit reservation. Do not call again (would risk double-charge).
     if (!outcome.ok) return outcome;
-    rawQuestions.push(...outcome.questions.slice(0, batch.length));
+    if (outcome.questions.length < batch.length) {
+      return { ok: false, status: 422, error: "insufficient_verified_questions" };
+    }
+    rawQuestions.push(...selectDiagnosticSkillQuestions(outcome.questions, batch.map((slot) => slot.skill)));
   }
 
   let questions = attachQuestionMeta(rawQuestions, slots);
 
-  // If model returned fewer questions, still keep meta alignment for what we have.
-  if (questions.length < slots.length) {
-    questions = questions.slice(0, questions.length);
-  }
-
   // Prefer model-provided skill tags when present on raw objects (best-effort).
   questions = questions.map((q, i) => {
-    const rawSkill = (rawQuestions[i] as QuizQuestion & { skill?: unknown })?.skill;
+    const rawSkill = rawQuestions[i]?.topic;
     return {
       ...q,
       skill: isDiagnosticSkill(rawSkill) ? rawSkill : slots[i].skill,

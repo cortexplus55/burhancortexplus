@@ -50,6 +50,7 @@ export type VerifiedChoice = {
 export type ChoiceCheck = {
   status: "keep" | "drop" | "unresolved";
   question: VerifiedChoice;
+  reason?: string;
 };
 
 type Term = { coeff: number; formula: string; atoms: Map<string, number> };
@@ -626,25 +627,25 @@ export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCh
     options: raw.options.map((option) => polishLearnerText(option).trim()).filter(Boolean),
     explanation: raw.explanation ? polishLearnerText(raw.explanation) : raw.explanation,
   };
-  if (polished.text.length < 8 || polished.options.length < 2) return { status: "drop", question: polished };
-  if (polished.options.some((option) => META_OPTION.test(option.trim()))) return { status: "drop", question: polished };
+  if (polished.text.length < 8 || polished.options.length < 2) return { status: "drop", question: polished, reason: "shape" };
+  if (polished.options.some((option) => META_OPTION.test(option.trim()))) return { status: "drop", question: polished, reason: "meta_option" };
   const balanced = balanceQuestion(polished);
-  if (!balanced) return { status: "drop", question: polished };
+  if (!balanced) return { status: "drop", question: polished, reason: "balance" };
   const limited = repairLimiting(balanced);
-  if (!limited) return { status: "drop", question: balanced };
+  if (!limited) return { status: "drop", question: balanced, reason: "limiting" };
   const numeric = alignNumericKey(limited);
-  if (!numeric || numeric.options.length < 2) return { status: "drop", question: limited };
+  if (!numeric || numeric.options.length < 2) return { status: "drop", question: limited, reason: "numeric" };
   const backed = sourceBackedOption(numeric, source);
   let next = numeric;
   if (backed && !next.correct.includes(backed)) {
     next = { ...next, correct: [backed], multi: false, needsSolver: false };
   }
-  if (!next.multi && next.correct.length !== 1) return { status: "drop", question: next };
-  if (next.multi && next.correct.length < 2) return { status: "drop", question: next };
-  if (!next.correct.every((item) => next.options.includes(item))) return { status: "drop", question: next };
+  if (!next.multi && next.correct.length !== 1) return { status: "drop", question: next, reason: "answer_count" };
+  if (next.multi && next.correct.length < 2) return { status: "drop", question: next, reason: "answer_count" };
+  if (!next.correct.every((item) => next.options.includes(item))) return { status: "drop", question: next, reason: "answer_missing" };
   const explanation = settleExplanation(next.explanation ?? "", `${source}\n${next.text}`);
   if (!explanation || !explanationMatchesCorrect(explanation, next.correct)) {
-    return { status: "drop", question: next };
+    return { status: "drop", question: next, reason: "explanation" };
   }
   next = {
     ...next,
@@ -652,13 +653,13 @@ export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCh
     misconceptionTag: next.misconceptionTag?.trim() || "yanlış eşleme",
   };
   const withWhy = settleOptionWhy(next, source);
-  if (!withWhy) return { status: "drop", question: next };
+  if (!withWhy) return { status: "drop", question: next, reason: "option_why" };
   next = withWhy;
   const blob = `${next.text}\n${next.explanation ?? ""}\n${(next.optionWhy ?? []).join("\n")}`;
   if (!auditQuantitative(blob, source).ok) {
     const repairedExpl = settleExplanation(next.explanation ?? "", source);
     if (!repairedExpl || !auditQuantitative(`${repairedExpl}\n${(next.optionWhy ?? []).join("\n")}`, source).ok) {
-      return { status: "drop", question: next };
+      return { status: "drop", question: next, reason: "quantitative" };
     }
     next = { ...next, explanation: repairedExpl };
   }

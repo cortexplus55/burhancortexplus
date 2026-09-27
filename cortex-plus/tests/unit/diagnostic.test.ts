@@ -1,18 +1,35 @@
 import { describe, expect, it } from "vitest";
+import { parseQuizQuestions } from "@/lib/learning/exam-quiz";
 import {
   attachQuestionMeta,
   buildDiagnosticSkillPlan,
+  firstLessonDiagnosticSlots,
   measuredLevelFromAccuracy,
   overallMeasuredFromTopics,
   planDiagnosticTopics,
   pickMainTopics,
   scoreDiagnosticAnswers,
+  selectDiagnosticSkillQuestions,
   startingLevelLabel,
   type DiagnosticQuestion,
   type DiagnosticTopicPlan,
 } from "@/lib/learning/diagnostic";
 
 describe("planDiagnosticTopics", () => {
+  it("keeps the generated rationale for each choice through schema parsing", () => {
+    const question = {
+      text: "Büyüme hangi ölçümlerle izlenir?",
+      options: ["Boy ve kilo", "Tek ölçüm"],
+      correct: "Boy ve kilo",
+      multi: false,
+      explanation: "Boy ve kilo zaman içinde izlenir.",
+      optionWhy: ["Boy ve kilo birlikte izlenir.", "Tek ölçüm eğriyi göstermez."],
+      topic: "definition",
+    };
+    const parsed = parseQuizQuestions({ questions: [question, question, question] });
+    expect(parsed?.[0].optionWhy).toEqual(question.optionWhy);
+    expect(parsed?.[0].topic).toBe("definition");
+  });
   it("marks topics whose only pages are unreadable as unreadable/unknown", () => {
     const plans = planDiagnosticTopics(
       [
@@ -51,6 +68,29 @@ describe("planDiagnosticTopics", () => {
 });
 
 describe("pickMainTopics / skill plan", () => {
+  it("selects one verified question per skill when backups are interleaved", () => {
+    const candidates = [
+      { topic: "definition", text: "D1" },
+      { topic: "definition", text: "D2" },
+      { topic: "concept", text: "C1" },
+      { topic: "concept", text: "C2" },
+      { topic: "application", text: "A1" },
+      { topic: "application", text: "A2" },
+    ];
+    expect(selectDiagnosticSkillQuestions(candidates, ["definition", "concept", "application"])
+      .map((question) => question.text)).toEqual(["D1", "C1", "A1"]);
+  });
+  it("first lesson measures only the selected document chapter", () => {
+    const plans: DiagnosticTopicPlan[] = [
+      { id: "a", title: "Büyüme", examPrepTopicId: "prep-a", pageNumbers: [1, 2], status: "unmeasured" },
+      { id: "b", title: "Yenidoğan", examPrepTopicId: "prep-b", pageNumbers: [3, 4], status: "unmeasured" },
+    ];
+    const slots = firstLessonDiagnosticSlots(plans, "prep-a");
+    expect(slots).toHaveLength(3);
+    expect(slots.map((slot) => slot.topic.id)).toEqual(["a", "a", "a"]);
+    expect(slots.map((slot) => slot.skill)).toEqual(["definition", "concept", "application"]);
+    expect(firstLessonDiagnosticSlots(plans, "unknown")).toEqual([]);
+  });
   it("prefers parentless nodes as main topics", () => {
     const mains = pickMainTopics([
       { id: "1", parentId: null },
@@ -156,6 +196,21 @@ describe("scoreDiagnosticAnswers", () => {
     expect(measuredLevelFromAccuracy(2, 2)).toBe("solid");
     expect(overallMeasuredFromTopics([])).toBe("unknown");
     expect(startingLevelLabel("solid", 1, 3)).toMatch(/kısa test/i);
+  });
+
+  it("counts every verified backup question even when skill labels repeat", () => {
+    const repeated: DiagnosticQuestion[] = [
+      questions[0],
+      { ...questions[0], text: "Başka bir tanım?" },
+      { ...questions[1], skill: "definition" },
+    ];
+    const scored = scoreDiagnosticAnswers(repeated, {
+      "0": "yarıçap yay",
+      "1": "yarıçap yay",
+      "2": "s=r/θ",
+    }, plans);
+    expect(scored.topicResults[0].measuredLevel).toBe("emerging");
+    expect(scored.topicResults[0].evidence).toHaveLength(3);
   });
 
   it("attachQuestionMeta aligns slots to questions", () => {

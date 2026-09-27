@@ -23,16 +23,21 @@ export async function storageUsage(
   userId: string,
   isPremium: boolean,
 ): Promise<StorageUsage> {
-  const { data } = await service
-    .from("documents")
-    .select("size_bytes")
-    .eq("user_id", userId)
-    .is("deleted_at", null);
-
-  const usedBytes = (data ?? []).reduce(
-    (sum, row) => sum + Number((row as { size_bytes: number | null }).size_bytes ?? 0),
-    0,
-  );
+  let usedBytes = 0;
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await service
+      .from("documents")
+      .select("size_bytes")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .range(offset, offset + 499);
+    if (error) throw new Error("storage_usage_unavailable");
+    usedBytes += (data ?? []).reduce(
+      (sum, row) => sum + Number((row as { size_bytes: number | null }).size_bytes ?? 0),
+      0,
+    );
+    if ((data ?? []).length < 500) break;
+  }
   const capBytes = isPremium ? STORAGE_CAP_PREMIUM : STORAGE_CAP_FREE;
 
   return {

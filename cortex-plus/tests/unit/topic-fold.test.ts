@@ -82,6 +82,28 @@ describe("outline of a note that repeats callout boxes", () => {
 });
 
 describe("consolidateTopics", () => {
+  it("keeps ten independent one-page chapters separately measurable", () => {
+    const chapters = [
+      "Büyüme ve Gelişme", "Yenidoğan Dönemi", "Beslenme ve Malnütrisyon",
+      "Solunum Sistemi", "Gastroenteroloji ve Dehidratasyon",
+      "Enfeksiyon Hastalıkları", "Hematoloji ve Onkoloji", "Nefroloji",
+      "Kardiyoloji", "Pediatrik Aciller ve Aşı Mantığı",
+    ];
+    const pages = chapters.map((title, index) => ({
+      pageNumber: index + 1,
+      headings: [`${index + 1}. ${title}`],
+      textContent: `${index + 1}. ${title}\n${title} için ayrıntılı anlatım.`,
+    }));
+    const mapped = consolidateTopics(
+      chapters.map((title, index) => topic(title, [index + 1])),
+      pages,
+    );
+    expect(mapped.topics).toHaveLength(10);
+    expect(mapped.topics.map((item) => item.title)).toEqual(chapters);
+    expect(mapped.topics[8].pageNumbers).toEqual([9]);
+    expect(mapped.topics[9].pageNumbers).toEqual([10]);
+  });
+
   it("folds the 23-title oversplit back into the real concepts", () => {
     const oversplit = [
       topic("VİZEDE DİKKAT", [1, 2, 3, 4, 5, 6, 7]),
@@ -184,7 +206,7 @@ describe("consolidateTopics", () => {
     expect(headingsToGuard(padded)).toHaveLength(8);
   });
 
-  it("packs a one-section-per-page note down to the ceiling", () => {
+  it("keeps independent one-section-per-page chapters in a longer note", () => {
     const names = [
       "Sistem ve Sınır",
       "Kapalı ve Açık Sistem",
@@ -217,8 +239,8 @@ describe("consolidateTopics", () => {
         headings: ["19. Bölüm 1 Tekrarı - Mini Vize ve Formül Haritası"],
       },
     ];
-    // 18 kavram + tekrar. Tekrar konu değil; 18 kavram tavana (12) iner.
-    expect(headingsToGuard(pages)).toEqual([]);
+    // Tekrar konu değil; 18 bağımsız kavram ayrı ölçülebilir kalır.
+    expect(headingsToGuard(pages)).toEqual(sections);
     const oversplit = [
       ...sections.map((heading, index) =>
         topic(heading.replace(/^\d+\.\s+/, ""), [index + 2]),
@@ -227,8 +249,7 @@ describe("consolidateTopics", () => {
       topic("Mini Vize ve Formül Haritası", [20]),
     ];
     const { topics } = consolidateTopics(oversplit, pages, 20);
-    expect(topics.length).toBeGreaterThanOrEqual(8);
-    expect(topics.length).toBeLessThanOrEqual(12);
+    expect(topics).toHaveLength(18);
     expect(topics.map((item) => item.title).join(" ")).not.toMatch(/vizede dikkat/i);
     expect(topics.map((item) => item.title).join(" ")).not.toMatch(/mini vize/i);
     const covered = new Set(topics.flatMap((item) => item.pageNumbers));

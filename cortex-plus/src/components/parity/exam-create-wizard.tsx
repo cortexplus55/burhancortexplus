@@ -42,6 +42,7 @@ import {
   DOCUMENT_UPLOAD_HINT,
 } from "@/lib/documents/upload-labels";
 import { PhoneUploadPanel } from "@/components/parity/phone-upload-panel";
+import { uploadDocumentFile } from "@/lib/documents/upload-client";
 import "@/styles/exam-create-wizard.css";
 
 type Step =
@@ -112,6 +113,7 @@ function acceptedUpload(file: File): boolean {
   return FILE_EXTENSIONS.some((extension) => name.endsWith(extension));
 }
 const MAX_BYTES = 15 * 1024 * 1024;
+const PDF_MAX_BYTES = 50 * 1024 * 1024;
 
 const WEEKDAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 const MONTHS = [
@@ -477,30 +479,20 @@ export function ExamCreateWizard({
       toast.error(DOCUMENT_PICK_REJECTED);
       return false;
     }
-    if (file.size > MAX_BYTES) {
-      toast.error("Dosya en fazla 15 MB olabilir.");
+    if (file.size > (file.type === "application/pdf" || /\.pdf$/i.test(file.name) ? PDF_MAX_BYTES : MAX_BYTES)) {
+      toast.error("PDF en fazla 50 MB, diğer dosyalar en fazla 15 MB olabilir.");
       return false;
     }
     setUploading(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const uploadRes = await fetch("/api/documents/upload", {
-        method: "POST",
-        body: form,
-      });
-      const uploaded = await uploadRes.json().catch(() => ({}));
-      if (!uploadRes.ok) {
-        toast.error(uploaded.error ?? "Yükleme başarısız.");
-        return false;
-      }
+      const uploaded = await uploadDocumentFile(file);
       return await processAndRemember({
         documentId: uploaded.documentId,
         fileName: file.name,
         sizeBytes: file.size,
       });
-    } catch {
-      toast.error("Bağlantı hatası.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bağlantı hatası.");
       return false;
     } finally {
       setUploading(false);

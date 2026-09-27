@@ -6,9 +6,10 @@ import {
   type GroundingCorpus,
   type GroundMatch,
 } from "@/lib/learning/topic-grounding";
+import { foldTr } from "@/lib/documents/page-analysis";
+import { loadPagedDocumentRows } from "@/lib/learning/paged-document-rows";
 
 const PAGE_TEXT_CAP = 6000;
-const PAGES_PER_DOCUMENT = 80;
 
 export async function loadGroundingCorpus(
   service: SupabaseClient,
@@ -19,7 +20,7 @@ export async function loadGroundingCorpus(
 
   const { data: docs, error: docError } = await service
     .from("documents")
-    .select("id")
+    .select("id, file_name")
     .eq("user_id", userId)
     .in("id", documentIds)
     .is("deleted_at", null);
@@ -28,39 +29,48 @@ export async function loadGroundingCorpus(
   const owned = new Set((docs ?? []).map((row) => row.id as string));
   if (documentIds.some((id) => !owned.has(id))) return null;
 
-  const [{ data: nodes }, { data: pages }] = await Promise.all([
-    service.from("document_topic_nodes").select("title").in("document_id", [...owned]),
-    service
-      .from("document_pages")
-      .select("document_id, page_number, text_content, headings")
-      .in("document_id", [...owned])
-      .order("page_number", { ascending: true }),
+  const [nodes, pages] = await Promise.all([
+    loadPagedDocumentRows(
+      service,
+      "document_topic_nodes",
+      "id, document_id, title",
+      documentIds,
+      ["id"],
+    ),
+    loadPagedDocumentRows(
+      service,
+      "document_pages",
+      "document_id, page_number, text_content, headings",
+      documentIds,
+      ["page_number"],
+    ),
   ]);
 
-  const kept = new Map<string, number>();
   const corpusPages: GroundingCorpus["pages"] = [];
-  for (const row of pages ?? []) {
+  for (const row of pages) {
     const documentId = row.document_id as string;
-    const seen = kept.get(documentId) ?? 0;
-    if (seen >= PAGES_PER_DOCUMENT) continue;
-    kept.set(documentId, seen + 1);
     const text = ((row.text_content as string | null) ?? "").slice(0, PAGE_TEXT_CAP);
     const headings = Array.isArray(row.headings)
-      ? (row.headings as unknown[]).filter((item): item is string => typeof item === "string").slice(0, 12)
+      ? (row.headings as unknown[]).filter((item): item is string => typeof item === "string")
       : [];
     if (!text.trim() && !headings.length) continue;
     corpusPages.push({
+      documentId,
       pageNumber: row.page_number as number,
       text,
       headings,
+      searchText: foldTr([text, ...headings].join("\n")),
     });
   }
 
   return {
-    titles: (nodes ?? [])
+    titles: nodes
       .map((row) => row.title as string)
       .filter((title) => title.trim().length > 0),
     pages: corpusPages,
+    fileNamesByDocument: Object.fromEntries(
+      (docs ?? []).map((row) => [row.id as string, (row.file_name as string | null) ?? ""]),
+    ),
   };
 }
 

@@ -166,6 +166,32 @@ export function buildDiagnosticSkillPlan(
   return slots;
 }
 
+/** First lesson probes only its own sourced chapter. Other chapters remain unknown. */
+export function firstLessonDiagnosticSlots(
+  plans: DiagnosticTopicPlan[],
+  activePrepTopicId: string,
+): Array<{ topic: DiagnosticTopicPlan; skill: DiagnosticSkill }> {
+  const topic = plans.find((plan) =>
+    plan.examPrepTopicId === activePrepTopicId &&
+    plan.status !== "unreadable" && plan.pageNumbers.length > 0,
+  );
+  if (!topic) return [];
+  return (["definition", "concept", "application"] as const).map((skill) => ({ topic, skill }));
+}
+
+/** Prefer one verified candidate for each requested skill before using backups. */
+export function selectDiagnosticSkillQuestions<T extends { topic?: string }>(
+  candidates: T[],
+  skills: DiagnosticSkill[],
+): T[] {
+  const remaining = [...candidates];
+  return skills.map((skill) => {
+    const match = remaining.findIndex((question) => question.topic === skill);
+    const index = match >= 0 ? match : 0;
+    return remaining.splice(index, 1)[0];
+  }).filter((question): question is T => question !== undefined);
+}
+
 export function measuredLevelFromAccuracy(correct: number, total: number): MeasuredLevel {
   if (total <= 0) return "unknown";
   const ratio = correct / total;
@@ -266,9 +292,10 @@ export function scoreDiagnosticAnswers(
       topic.measuredLevel = "unknown";
       continue;
     }
-    const hits = Object.values(topic.skillHits);
-    const ok = hits.filter((h) => h.correct).length;
-    topic.measuredLevel = measuredLevelFromAccuracy(ok, hits.length);
+    // The verifier can discard any of the backup questions. Count every
+    // answered question, even when two survivors probe the same skill.
+    const ok = topic.evidence.filter((item) => item.correct).length;
+    topic.measuredLevel = measuredLevelFromAccuracy(ok, topic.evidence.length);
     topic.reason = undefined;
   }
 

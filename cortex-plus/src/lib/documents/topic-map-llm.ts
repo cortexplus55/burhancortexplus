@@ -246,6 +246,8 @@ export async function buildTopicMapLLM(
    * kuralını değiştirmez; not yoksa prompt bugünkü metindir.
    */
   teacherBrief?: string | null,
+  /** A long book's twelve-page window may legitimately contain one chapter. */
+  allowSingleTopic = false,
 ): Promise<TopicMapBuildResult | null> {
   const contentPages = pagesForTopicMap(pages);
   // İki sayfa şartı Word'ü düşürüyordu: sayfa sonu yoksa belge tek sayfa
@@ -255,7 +257,12 @@ export async function buildTopicMapLLM(
   const contentNumbers = new Set(contentPages.map((page) => page.pageNumber));
 
   const backbone = headingsToGuard(contentPages);
-  const ceiling = topicCeiling(contentPages.length);
+  const sourcedTitles = new Set(backbone.map((heading) => fold(normalizeTopicTitle(heading))));
+  const validTitle = (title: string) =>
+    topicTitleIssues(title).length === 0 || sourcedTitles.has(fold(title));
+  // Tek sayfalık bağımsız bölümler de haritada kalır. Katlama katmanı aynı
+  // sınırı uygular; modelin daha baştan bölüm atmasını istemeyiz.
+  const ceiling = Math.max(topicCeiling(contentPages.length), backbone.length);
 
   /**
    * Bekçiye takılan taslaklardan EN İYİSİ.
@@ -302,7 +309,7 @@ export async function buildTopicMapLLM(
       userPrompt: `Aşağıda "${fileName}" adlı ders belgesinin sayfa sayfa metni var. Belgenin konu haritasını çıkar: her ana konu için başlık, öğrenme hedefi ve o konunun geçtiği sayfa numaraları. Sadece bu belgede geçen konuları kullan, dışarıdan konu ekleme.
 
 Bu belgede ${contentPages.length} öğretim sayfası var. ${topicScopeGuidance(contentPages.length)}
-En fazla ${ceiling} konu yaz.
+En fazla ${ceiling} konu yaz; bağımsız bölüm sayısı daha fazlaysa hepsini koru.
 ${minimumTopicCount(contentPages) === 1 ? "Belge kısa: tek konu yeter. Başlık cümle olmasın; sonuna nokta ya da soru işareti koyma.\n" : ""}
 ${
   backbone.length
@@ -367,7 +374,10 @@ ${pageDigest(contentPages)}` + topicMapTeacherNote(teacherBrief),
       if (!topic.pageNumbers.length) return false;
       // Kurala uymayan başlık, haritayı tümden düşürmektense elenir;
       // sayfaları aşağıda en yakın konuya bağlanıyor.
-      if (topicTitleIssues(topic.title).length) return false;
+      // A single word is normally too vague, but a document can explicitly
+      // name an independent chapter "Kardiyoloji" or "Nefroloji". That
+      // source-backed title must not disappear during validation.
+      if (!validTitle(topic.title)) return false;
       const key = topic.title.toLocaleLowerCase("tr").trim();
       if (seen.has(key)) return false;
       seen.add(key);
@@ -396,7 +406,7 @@ ${pageDigest(contentPages)}` + topicMapTeacherNote(teacherBrief),
   const shipped = topics.map((t) => t.title);
   for (const heading of unrepresentedHeadings(backbone, shipped)) {
     const title = normalizeTopicTitle(heading);
-    if (topicTitleIssues(title).length) continue;
+    if (!validTitle(title)) continue;
     if (seen.has(title.toLocaleLowerCase("tr").trim())) continue;
     const pageNumbers = contentPages
       .filter((page) => pageCarriesHeading(page, heading))
@@ -422,11 +432,12 @@ ${pageDigest(contentPages)}` + topicMapTeacherNote(teacherBrief),
     contentPages.length,
   );
 
-  if (consolidated.topics.length < minimumTopicCount(contentPages)) {
+  const needed = allowSingleTopic ? 1 : minimumTopicCount(contentPages);
+  if (consolidated.topics.length < needed) {
     // Tek konunun yeterli olduğu kısa belgede model boş döndüyse metin
     // duruyordur. Başlığı belgeden kur; uzun PDF'in numaralı bölümü de
     // yoksa harita boş kalır.
-    if (minimumTopicCount(contentPages) === 1) {
+    if (needed === 1) {
       return topicMapFromExtractedText(contentPages, pages, fileName);
     }
     return null;

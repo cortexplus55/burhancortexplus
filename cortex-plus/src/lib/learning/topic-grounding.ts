@@ -1,4 +1,5 @@
 import { foldTr } from "@/lib/documents/page-analysis";
+import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 
 /**
  * Öğrencinin yazdığı konu başlığı belgede duruyor mu?
@@ -39,17 +40,21 @@ export type GroundPage = {
   pageNumber: number;
   text: string;
   headings: string[];
+  documentId?: string;
+  searchText?: string;
 };
 
 export type GroundingCorpus = {
   titles: string[];
   pages: GroundPage[];
+  fileNamesByDocument?: Record<string, string>;
 };
 
 export type GroundMatch = {
   ok: true;
   linkedTitle: string | null;
   pageNumbers: number[];
+  sourceRefs: TopicSourceRef[];
 };
 
 export type GroundRejection = {
@@ -64,19 +69,42 @@ function distinctiveWords(folded: string): string[] {
 }
 
 function pageBlob(page: GroundPage): string {
-  return foldTr([page.text, ...page.headings].join("\n"));
+  return page.searchText ?? foldTr([page.text, ...page.headings].join("\n"));
 }
 
 function hasWord(blob: string, word: string): boolean {
   return new RegExp(`(?:^|[^a-z0-9])${word}(?:[^a-z0-9]|$)`).test(blob);
 }
 
-function pagesMatching(corpus: GroundingCorpus, test: (page: GroundPage, blob: string) => boolean): number[] {
+function pagesMatching(corpus: GroundingCorpus, test: (page: GroundPage, blob: string) => boolean): GroundPage[] {
   return corpus.pages
     .filter((page) => test(page, pageBlob(page)))
-    .map((page) => page.pageNumber)
-    .sort((a, b) => a - b)
-    .slice(0, 6);
+    .sort((a, b) => a.pageNumber - b.pageNumber);
+}
+
+function groundMatch(
+  corpus: GroundingCorpus,
+  linkedTitle: string | null,
+  pages: GroundPage[],
+): GroundMatch {
+  const byDocument = new Map<string, number[]>();
+  for (const page of pages) {
+    if (!page.documentId) continue;
+    const numbers = byDocument.get(page.documentId) ?? [];
+    numbers.push(page.pageNumber);
+    byDocument.set(page.documentId, numbers);
+  }
+  return {
+    ok: true,
+    linkedTitle,
+    pageNumbers: [...new Set(pages.map((page) => page.pageNumber))].sort((a, b) => a - b),
+    sourceRefs: [...byDocument].map(([documentId, numbers]) => ({
+      documentId,
+      fileName: corpus.fileNamesByDocument?.[documentId] ?? "",
+      pages: [...new Set(numbers)].sort((a, b) => a - b),
+      nodeId: null,
+    })),
+  };
 }
 
 function linkExistingTitle(want: string, titles: string[]): string | null {
@@ -115,7 +143,7 @@ export function groundTopicTitle(
   if (linked) {
     const linkedFold = foldTr(linked);
     const pages = pagesMatching(corpus, (_page, blob) => blob.includes(linkedFold));
-    return { ok: true, linkedTitle: linked, pageNumbers: pages };
+    return groundMatch(corpus, linked, pages);
   }
 
   if (want.length >= 4) {
@@ -123,14 +151,14 @@ export function groundTopicTitle(
       page.headings.some((heading) => foldTr(heading).includes(want)),
     );
     if (inHeading.length) {
-      return { ok: true, linkedTitle: null, pageNumbers: inHeading };
+      return groundMatch(corpus, null, inHeading);
     }
   }
 
   if (want.length >= 8) {
     const inBody = pagesMatching(corpus, (_page, blob) => blob.includes(want));
     if (inBody.length) {
-      return { ok: true, linkedTitle: null, pageNumbers: inBody };
+      return groundMatch(corpus, null, inBody);
     }
   }
 
@@ -140,7 +168,7 @@ export function groundTopicTitle(
       words.every((word) => hasWord(blob, word)),
     );
     if (together.length) {
-      return { ok: true, linkedTitle: null, pageNumbers: together };
+      return groundMatch(corpus, null, together);
     }
   }
 
@@ -148,7 +176,7 @@ export function groundTopicTitle(
     const word = words[0];
     const hit = pagesMatching(corpus, (_page, blob) => hasWord(blob, word));
     if (hit.length) {
-      return { ok: true, linkedTitle: null, pageNumbers: hit };
+      return groundMatch(corpus, null, hit);
     }
   }
 

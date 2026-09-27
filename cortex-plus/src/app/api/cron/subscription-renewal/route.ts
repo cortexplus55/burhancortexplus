@@ -11,6 +11,7 @@ import {
 import { processPendingDeletionRequests } from "@/lib/privacy/account-deletion";
 import { processPendingDocumentDeletions } from "@/lib/privacy/document-deletion";
 import { logOpsEvent } from "@/lib/observability/ops-log";
+import { cleanupExpiredUploads } from "@/lib/documents/upload-cleanup";
 
 export const dynamic = "force-dynamic";
 
@@ -157,11 +158,19 @@ export async function GET(request: Request) {
     logOpsEvent("subscription_sync_failed", { stage: "deletion_queue" });
   }
 
+  let expiredUploads = 0;
+  try {
+    expiredUploads = await cleanupExpiredUploads(service);
+  } catch {
+    logOpsEvent("document_upload_failed", { stage: "expired_cleanup" });
+  }
+
   return NextResponse.json({
     scanned: rows.length,
     reminded: reminded.length,
     expired: expired.length,
     notified: notices.length,
     deletion,
+    expiredUploads,
   });
 }

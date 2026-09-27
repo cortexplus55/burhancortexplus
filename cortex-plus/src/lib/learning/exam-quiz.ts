@@ -41,6 +41,9 @@ export const quizQuestionSchema = z.object({
   learningObjective: z.string().min(8).max(200).optional().catch(undefined),
   misconceptionTag: z.string().min(2).max(80).optional().catch(undefined),
   optionReasons: z.record(z.string(), z.string().min(8).max(400)).optional(),
+  // Zod strips undeclared keys. Without this field the generated per-option
+  // explanations vanished before the verifier, so every quiz was rejected.
+  optionWhy: z.array(z.string().min(8).max(400)).min(2).max(6).optional(),
   topic: z.string().min(2).max(80).optional(),
 });
 

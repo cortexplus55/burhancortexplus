@@ -293,7 +293,7 @@ export function errorResponse(status: number, code: string) {
     storage_full:
       "Yükleme alanın doldu. Yeni belge eklemek için eskilerinden birini sil.",
     invalid_file:
-      "Bu dosya yüklenemedi. Desteklenen türde (PDF, Word, PowerPoint, TXT, JPG, PNG, HEIC) ve 15 MB'tan küçük olduğundan emin ol.",
+      "Bu dosya yüklenemedi. PDF en fazla 50 MB, diğer desteklenen dosyalar en fazla 15 MB olabilir.",
     upload_failed:
       "Yükleme sırasında bir sorun oluştu. Lütfen tekrar dene.",
     content_verification_failed:

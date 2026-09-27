@@ -17,6 +17,7 @@ import { PREP_HOME_COPY, WIZARD_COPY } from "@/lib/learning/exam-wizard-copy";
 import { freeMaterialLimitLine } from "@/lib/learning/prep-material-copy";
 import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
 import { useStudentShellAccount } from "@/lib/student/student-shell-context";
+import { uploadDocumentFile } from "@/lib/documents/upload-client";
 import "@/styles/exam-create-wizard.css";
 
 const EXTENSIONS = [".pdf", ".txt", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".docx", ".pptx"];
@@ -99,23 +100,17 @@ export function PrepMaterialAdder({
       toast.error(WIZARD_COPY.fileCap);
       return;
     }
-    if (!accepted(file) || file.size > 15 * 1024 * 1024) {
-      toast.error(file.size > 15 * 1024 * 1024 ? "Dosya en fazla 15 MB olabilir." : "Bu dosya türü desteklenmiyor.");
+    const maxBytes = file.type === "application/pdf" || /\.pdf$/i.test(file.name) ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
+    if (!accepted(file) || file.size > maxBytes) {
+      toast.error(file.size > maxBytes ? "PDF en fazla 50 MB, diğer dosyalar en fazla 15 MB olabilir." : "Bu dosya türü desteklenmiyor.");
       return;
     }
     setBusy(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const uploadRes = await fetch("/api/documents/upload", { method: "POST", body: form });
-      const uploaded = await uploadRes.json().catch(() => ({}));
-      if (!uploadRes.ok) {
-        toast.error(uploaded.error ?? "Yükleme başarısız.");
-        return;
-      }
+      const uploaded = await uploadDocumentFile(file);
       await processThenAttach(uploaded.documentId as string);
-    } catch {
-      toast.error("Bağlantı hatası.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Bağlantı hatası.");
     } finally {
       setBusy(false);
     }

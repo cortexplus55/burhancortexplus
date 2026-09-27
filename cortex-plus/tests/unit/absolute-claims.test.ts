@@ -33,6 +33,28 @@ describe("unsupported absolute claims", () => {
     ).toEqual([]);
   });
 
+  it("olumsuz mutlak ifadeyi ancak kaynak aynı olumsuzluğu destekliyorsa kabul eder", () => {
+    const source = "Boy ve kilo tek başına değil, zamana karşı persentil eğrisi ile değerlendirilir.";
+    expect(unsupportedAbsoluteClaims(
+      "Boy ve kilo sadece tek ölçümle değerlendirilmez.",
+      source,
+    )).toEqual([]);
+    expect(unsupportedAbsoluteClaims(
+      "Büyüme sadece fiziksel boyutla ilgili değildir.",
+      source,
+    )).toHaveLength(1);
+    expect(unsupportedAbsoluteClaims(
+      "Büyüme sadece fiziksel boyutla ilgilidir.",
+      source,
+    )).toHaveLength(1);
+  });
+
+  it("yanılgı etiketini kanıtlanmış bilgi gibi denetlemez", () => {
+    expect(absoluteClaimIssues({
+      questions: [{ misconceptionTag: "Yalnızca ateş enfeksiyondur", explanation: "Ateş tek başına tanı koydurmaz." }],
+    }, "Enfeksiyon farklı belirtilerle seyredebilir.")).toEqual([]);
+  });
+
   it("yanlış işaretli önermeyi iddia saymaz", () => {
     const parsed = {
       items: [

@@ -20,8 +20,8 @@ parantez içi kısaltma hiçbir şey öğretmiyor.
 
 | Kural | Kod |
 |---|---|
-| Yaklaşık 3 öğretim sayfasına 1 konu, 4–12 arası (ipucu) | `targetTopicCount` |
-| Sert tavan: 10 sayfada en fazla 8, 20 sayfada en fazla 12 | `topicCeiling` |
+| Yaklaşık 3 öğretim sayfasına 1 konu (yoğunluk ipucu; sabit üst sınır yok) | `targetTopicCount` |
+| Sayfa yoğunluğu sınırı kutuları ve örnekleri toplar; belgedeki bağımsız numaralı bölümler korunur | `topicCeiling`, `mapCeiling` |
 | Kutu, çözümlü örnek adımı, tekrar ve kısa/uzun çift konu değildir | `topic-fold.ts` |
 | Baştaki bölüm numarası ve sondaki parantezli kısaltma atılır | `normalizeTopicTitle` |
 | "Sayfa N", tek kelimelik, cümleye dönmüş başlık elenir | `topicTitleIssues` |
@@ -41,6 +41,15 @@ Astra: (konu değil — tek başına sınanamıyor, 2'nin açılışı)
 Elenen başlığın sayfaları silinmez. Çözümlü örnek, adındaki kavrama
 katılır; kutu ve bölüm sonu tekrarı, sayfanın kendi bölümüne ya da
 ondan önceki konuya bağlanır. Kapsama düşmez, harita tümden çöpe gitmez.
+
+**27 Eylül 2026 düzeltmesi:** 10 sayfalık pediatri kaynağının her sayfası
+ayrı bir numaralı bölümdü. Eski sekiz konu tavanı Kardiyoloji ile Pediatrik
+Aciller ve Aşı Mantığı bölümlerini listeden düşürüyor; bu sayfaları komşu
+konulara bağlayan kapsama raporu da yanıltıcı biçimde 10/10 diyordu.
+Bağımsız bölüm artık sayfa yoğunluğu ipucundan üstündür. Kapsama denetimi
+yalnızca sayfa bağlantısını değil, bölüm adının konu haritasında temsil
+edilmesini de arar. Uzun belgelerin haritası 12 öğretim sayfalık kalıcı
+parçalar hâlinde işlenir; başarısız istek tamamlanan parçaları kaybetmez.
 
 Aynı dosya yeniden yüklenince eski harita kopyalanmaz; her yükleme yeni
 bir belgedir. Eski kuralda kaydedilmiş ve hâlâ kutu ya da tavanın üstünde

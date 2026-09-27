@@ -7,10 +7,12 @@ import { repairQuizPedagogy, validateQuizPedagogy } from "@/lib/learning/teachin
 import { repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import {
   refineVerifiedChoices,
+  verifyChoiceQuestion,
   verifyChoiceSet,
   type VerifiedChoice,
 } from "@/lib/learning/question-verifier";
 import { quizClaimIssues } from "@/lib/learning/tutor-quant";
+import { absoluteClaimIssues } from "@/lib/learning/absolute-claims";
 
 const QUIZ_GATE = {
   requireObjective: false,
@@ -76,6 +78,7 @@ export async function generateExamQuiz(input: {
     }));
 
   let lastIssues: string[] = [];
+  let loggedCandidateFailure = false;
   const questionsFrom = (raw: unknown): QuizQuestion[] | null => {
     const parsed = parseQuizQuestions(raw) ?? coerceQuizQuestions(raw);
     if (!parsed) return null;
@@ -103,8 +106,25 @@ export async function generateExamQuiz(input: {
         : {}),
     }));
     const repaired = input.teachingV2 ? repairQuizPedagogy(surfaced) : surfaced;
-    const verified = verifyChoiceSet(asChoices(repaired), input.sourceExcerpt ?? "", 3);
+    // A six-question draft has spare candidates. Reject an unsupported
+    // question on its own instead of discarding the entire valid batch.
+    const grounded = input.requireSourceSupport && input.sourceExcerpt?.trim()
+      ? repaired.filter((question) => absoluteClaimIssues({ questions: [question] }, input.sourceExcerpt).length === 0)
+      : repaired;
+    const verified = verifyChoiceSet(asChoices(grounded), input.sourceExcerpt ?? "", 3);
     if (!verified) {
+      if (input.teachingV2 && !loggedCandidateFailure) {
+        loggedCandidateFailure = true;
+        const outcomes = asChoices(grounded).map((question) => verifyChoiceQuestion(question, input.sourceExcerpt ?? ""));
+        console.warn("quiz_candidates_rejected", {
+          parsed: parsed.length,
+          grounded: grounded.length,
+          kept: outcomes.filter((row) => row.status === "keep").length,
+          unresolved: outcomes.filter((row) => row.status === "unresolved").length,
+          dropped: outcomes.filter((row) => row.status === "drop").length,
+          reasons: [...new Set(outcomes.map((row) => row.reason).filter(Boolean))],
+        });
+      }
       lastIssues = ["Bağımsız doğrulama soruyu tutmadı. Tek doğru cevabı olan yeni soru yaz."];
       return null;
     }

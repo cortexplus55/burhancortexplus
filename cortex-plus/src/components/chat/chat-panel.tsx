@@ -607,17 +607,9 @@ function ChatPanelSession({
   }
 
   async function uploadAttachment(file: File): Promise<string | null> {
-    const form = new FormData();
-    form.set("file", file);
-    const uploadRes = await fetch("/api/documents/upload", {
-      method: "POST",
-      body: form,
-    });
-    const uploaded = await uploadRes.json().catch(() => ({}));
-    if (!uploadRes.ok) {
-      throw new Error(uploaded.error ?? "Yükleme başarısız.");
-    }
-    return uploaded.documentId as string;
+    const { uploadDocumentFile } = await import("@/lib/documents/upload-client");
+    const uploaded = await uploadDocumentFile(file);
+    return uploaded.documentId;
   }
 
   async function send(

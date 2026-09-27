@@ -77,6 +77,11 @@ export function ExamIntroQuiz({
         body: JSON.stringify({ prepId, action: "skip" }),
       });
       const payload = await res.json().catch(() => ({}));
+      if (!res.ok || !payload.nextHref) {
+        toast.error(payload.error ?? "Ders açılamadı. Tekrar dene.");
+        setDeferring(false);
+        return;
+      }
       router.push(payload.nextHref ?? home);
       router.refresh();
     } catch {
@@ -188,8 +193,8 @@ export function ExamIntroQuiz({
           </h1>
           <p className="text-sm text-[var(--cp-muted)]">
             {mode === "diagnostic_v2"
-              ? "Belgedeki ana konuların hepsinden kısa bir örnekleme geliyor. Bu test ustalığı kanıtlamaz."
-              : "Konuyu kısaca yoklayan 5 soru geliyor."}
+              ? "Seçtiğin konunun belge sayfalarından kısa sorular hazırlanıyor. Diğer konular ölçülmemiş kalır."
+              : "Seçtiğin konuyu yoklayan kısa sorular hazırlanıyor."}
           </p>
           {/* Kaçış hazırlanma sırasında da dursun: test yirmi saniyeden uzun
               sürebiliyor ve öğrencinin atlamak isteyeceği an tam burası. */}
@@ -217,6 +222,14 @@ export function ExamIntroQuiz({
             onClick={() => void start()}
           >
             Tekrar dene
+          </button>
+          <button
+            type="button"
+            className="cp-exam-intro-defer"
+            disabled={deferring}
+            onClick={() => void deferIntro()}
+          >
+            {deferring ? "Ders açılıyor…" : "Ölçümü ertele, derse geç"}
           </button>
         </section>
       ) : null}

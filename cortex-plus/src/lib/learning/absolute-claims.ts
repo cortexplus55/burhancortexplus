@@ -55,8 +55,10 @@ function sentences(text: string): string[] {
 }
 
 function isDenial(sentence: string, markerIndex: number): boolean {
-  const after = sentence.slice(markerIndex, markerIndex + 32);
-  return /\b(değil|değildir|yanlış|yanlıştır|gerekmez|olmayabilir|zorunda değil)\b/i.test(after);
+  // Negation is the predicate, often well past 32 characters in Turkish.
+  // Inspect this clause only: a later unrelated denial must not excuse it.
+  const after = sentence.slice(markerIndex).split(/\s+(?:ama|fakat|ancak|oysa)\s+/i)[0];
+  return /(?:^|\s)(?:değil(?:dir)?|yanlış(?:tır)?|gerekmez|olmayabilir|dayanmaz|değerlendirilmez|olmu?yor|seyredemez)(?:[.!?"'”’)]|\s|$)/i.test(after);
 }
 
 /**
@@ -69,6 +71,16 @@ export function unsupportedAbsoluteClaims(text: string, source: string | undefin
   const sourceSentences = sentences(source);
 
   for (const sentence of sentences(text).flatMap((part) => part.split(/[,;]/))) {
+    const marker = sentence.match(MARKER);
+    if (marker?.index != null && isDenial(sentence, marker.index)) {
+      const stems = contentStems(sentence);
+      const supported = sourceSentences.some((candidate) =>
+        /\b(değil(?:dir)?|yanlış(?:tır)?|dayanmaz|değerlendirilmez|gelmez|seyredemez|gerekmez)\b/i.test(candidate) &&
+        stems.filter((stem) => stemsOverlap([stem], contentStems(candidate))).length >= 2,
+      );
+      if (!supported) issues.push(`Kaynakta desteklenmeyen kesin iddia: ${sentence.slice(0, 140)}`);
+      continue;
+    }
     if (COMPARATIVE_ABSOLUTE.test(sentence)) {
       const foldedSource = fold(source);
       const supported =
@@ -80,8 +92,7 @@ export function unsupportedAbsoluteClaims(text: string, source: string | undefin
       }
       continue;
     }
-    const marker = sentence.match(MARKER);
-    if (!marker || marker.index == null || isDenial(sentence, marker.index)) continue;
+    if (!marker || marker.index == null) continue;
     const family = FAMILY[familyOf(marker[1])];
     const stems = contentStems(sentence).filter((stem) => !family.some((word) => fold(word).includes(stem)));
     const supported = sourceSentences.some((candidate) => {
@@ -113,7 +124,7 @@ export function assertedFactTexts(value: unknown, key?: string): string[] {
     if (key && ["claim", "options", "question", "faultyText", "prompt"].includes(key)) return [];
     return [value];
   }
-  if (Array.isArray(value)) return value.flatMap((item) => assertedFactTexts(item));
+  if (Array.isArray(value)) return value.flatMap((item) => assertedFactTexts(item, key));
   const row = asRecord(value);
   if (!row) return [];
 
@@ -134,7 +145,7 @@ export function assertedFactTexts(value: unknown, key?: string): string[] {
   }
 
   return Object.entries(row).flatMap(([childKey, child]) => {
-    if (["claim", "options", "question", "faultyText"].includes(childKey)) return [];
+    if (["claim", "options", "question", "faultyText", "misconceptionTag"].includes(childKey)) return [];
     if (childKey === "text" && Array.isArray(row.options)) return [];
     if (childKey === "prompt" && row.type !== "trueFalse") return [];
     return assertedFactTexts(child, childKey);

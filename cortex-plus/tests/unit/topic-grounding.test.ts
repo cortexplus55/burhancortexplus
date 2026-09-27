@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { applyStudentTopicList } from "@/lib/learning/apply-prep-topics";
 import { freeMaterialLimitLine, materialDetailLine } from "@/lib/learning/prep-material-copy";
 import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
-import { mergeTopicDrafts } from "@/lib/learning/prep-topic-list";
+import { mergeTopicDrafts, PREP_TOPIC_CAP, prepTopicCapacityError } from "@/lib/learning/prep-topic-list";
 import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
 import { groundTopicTitle } from "@/lib/learning/topic-grounding";
 import type { GroundingCorpus } from "@/lib/learning/topic-grounding";
@@ -60,6 +60,55 @@ describe("groundTopicTitle", () => {
 
   it("rejects a title made only of empty words", () => {
     expect(groundTopicTitle("ve bir", corpus).ok).toBe(false);
+  });
+
+  it("finds a topic that appears only on page 99", () => {
+    const longCorpus: GroundingCorpus = {
+      titles: [],
+      pages: Array.from({ length: 99 }, (_, index) => ({
+        documentId: "doc-a",
+        pageNumber: index + 1,
+        text: index === 98 ? "Nefronların süzme işlevi burada anlatılır." : "Başka konu",
+        headings: [],
+      })),
+      fileNamesByDocument: { "doc-a": "uzun.pdf" },
+    };
+    const match = groundTopicTitle("Nefronların süzme işlevi", longCorpus);
+    expect(match.ok).toBe(true);
+    if (!match.ok) return;
+    expect(match.pageNumbers).toEqual([99]);
+    expect(match.sourceRefs).toEqual([{ documentId: "doc-a", fileName: "uzun.pdf", pages: [99], nodeId: null }]);
+  });
+
+  it("keeps every matched page and distinguishes files with the same page number", () => {
+    const match = groundTopicTitle("fotosentez", {
+      titles: [],
+      pages: [
+        ...Array.from({ length: 99 }, (_, index) => ({
+          documentId: "doc-a",
+          pageNumber: index + 1,
+          text: "Fotosentez",
+          headings: [],
+        })),
+        { documentId: "doc-b", pageNumber: 99, text: "Fotosentez", headings: [] },
+      ],
+      fileNamesByDocument: { "doc-a": "a.pdf", "doc-b": "b.pdf" },
+    });
+    expect(match.ok).toBe(true);
+    if (!match.ok) return;
+    expect(match.pageNumbers).toHaveLength(99);
+    expect(match.sourceRefs).toEqual([
+      { documentId: "doc-a", fileName: "a.pdf", pages: Array.from({ length: 99 }, (_, index) => index + 1), nodeId: null },
+      { documentId: "doc-b", fileName: "b.pdf", pages: [99], nodeId: null },
+    ]);
+  });
+});
+
+describe("prep topic capacity", () => {
+  it("accepts a 99-topic document and reports overflow instead of dropping topics", () => {
+    expect(PREP_TOPIC_CAP).toBeGreaterThanOrEqual(99);
+    expect(prepTopicCapacityError(99)).toBeNull();
+    expect(prepTopicCapacityError(PREP_TOPIC_CAP + 1)).toContain(String(PREP_TOPIC_CAP + 1));
   });
 });
 

@@ -9,7 +9,8 @@ import { buildExamPlan, daysUntilExam } from "@/lib/learning/exam-prep-plan";
 import { refoldTopicMapIfNeeded } from "@/lib/documents/pdf-learning-v2";
 import { documentTitle } from "@/lib/documents/topic-title";
 import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
-import { PREP_TOPIC_CAP } from "@/lib/learning/prep-topic-list";
+import { PREP_TOPIC_CAP, prepTopicCapacityError } from "@/lib/learning/prep-topic-list";
+import { loadPagedDocumentRows } from "@/lib/learning/paged-document-rows";
 import {
   contradictionsByTopicTitleResolved,
   readContradictionDocuments,
@@ -82,12 +83,13 @@ async function resolveTopicSuggestions(
     .eq("user_id", userId)
     .maybeSingle();
   if (doc?.topic_map_status === "ready" || doc?.topic_map_status === "reviewed") {
-    const { data: nodes } = await service
-      .from("document_topic_nodes")
-      .select("id, title, parent_id, sort_order, prerequisites")
-      .eq("document_id", doc.id)
-      .order("sort_order");
-    const nodeRows = nodes ?? [];
+    const nodeRows = await loadPagedDocumentRows(
+      service,
+      "document_topic_nodes",
+      "id, title, parent_id, sort_order, prerequisites, document_id",
+      [doc.id],
+      ["sort_order", "id"],
+    );
     const mains = pickMainTopics(
       nodeRows.map((n) => ({
         id: n.id as string,
@@ -105,12 +107,15 @@ async function resolveTopicSuggestions(
     // yazıyor; bizde belge zaten tek, o yüzden sayı değil SAYFA
     // gösteriliyor — aynı soruya ("bu konu neye dayanıyor?") gerçekten
     // değişen bir cevap.
-    const { data: links } = await service
-      .from("document_topic_page_links")
-      .select("topic_id, page_number")
-      .eq("document_id", doc.id);
+    const links = await loadPagedDocumentRows(
+      service,
+      "document_topic_page_links",
+      "topic_id, page_number, document_id",
+      [doc.id],
+      ["topic_id", "page_number"],
+    );
     const pagesByTopic = new Map<string, number[]>();
-    for (const link of links ?? []) {
+    for (const link of links) {
       const list = pagesByTopic.get(link.topic_id as string) ?? [];
       list.push(link.page_number as number);
       pagesByTopic.set(link.topic_id as string, list);
@@ -186,6 +191,31 @@ export async function POST(request: Request) {
     documentId: parsed.data.documentId,
     documentIds: parsed.data.documentIds,
   });
+  if (documentIds.length) {
+    const { data: ownedDocuments, error: ownershipError } = await service
+      .from("documents")
+      .select("id, status, topic_map_status")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .in("id", documentIds);
+    if (ownershipError || ownedDocuments?.length !== documentIds.length) {
+      return NextResponse.json({ error: "Bu belgeler bulunamadı." }, { status: 404 });
+    }
+    if (ownedDocuments.some((document) => document.status !== "completed")) {
+      return NextResponse.json(
+        { error: "Belgen hâlâ hazırlanıyor. İşlem bitince çalışma yolunu oluşturabilirsin." },
+        { status: 409 },
+      );
+    }
+    if (v2 && ownedDocuments.some((document) =>
+      document.topic_map_status !== "ready" && document.topic_map_status !== "reviewed"
+    )) {
+      return NextResponse.json(
+        { error: "Belgenin konuları hâlâ hazırlanıyor. İşlem bitince tekrar dene." },
+        { status: 409 },
+      );
+    }
+  }
   // Katlamak model çağırmaz. Hazır öğretmen analizi de yeniden üretilmez;
   // konu listesi saklı haritadan okunur.
   if (v2) {
@@ -220,7 +250,13 @@ export async function POST(request: Request) {
     }
     mergedTopics = orderTopicsForPath(mergedTopics, { manualOrder: false });
   }
-  mergedTopics = mergedTopics.slice(0, PREP_TOPIC_CAP);
+  const capacityError = prepTopicCapacityError(mergedTopics.length);
+  if (capacityError) {
+    return NextResponse.json(
+      { error: capacityError, topicCount: mergedTopics.length, topicCap: PREP_TOPIC_CAP },
+      { status: 422 },
+    );
+  }
   const merged = {
     topics: mergedTopics.map((topic) => topic.title),
     topicPages: mergedTopics.map((topic) => topic.pages),
@@ -283,17 +319,15 @@ export async function POST(request: Request) {
               merged.topics,
             ),
             examType: "Serbest",
-            topics: merged.topics.slice(0, PREP_TOPIC_CAP),
-            topicPages: merged.topicPages
-              .slice(0, PREP_TOPIC_CAP)
-              .map((pages) => pages.slice(0, 6)),
-            topicFiles: merged.topicFiles.slice(0, PREP_TOPIC_CAP),
-            topicWarnings: topicWarnings.slice(0, PREP_TOPIC_CAP),
-            topicSourceCounts: merged.topicSourceCounts.slice(0, PREP_TOPIC_CAP),
-            topicHeavy: merged.topicHeavy.slice(0, PREP_TOPIC_CAP),
-            topicImportant: merged.topicImportant.slice(0, PREP_TOPIC_CAP),
-            topicWeights: merged.topicWeights.slice(0, PREP_TOPIC_CAP),
-            topicSections: merged.topicSections.slice(0, PREP_TOPIC_CAP),
+            topics: merged.topics,
+            topicPages: merged.topicPages,
+            topicFiles: merged.topicFiles,
+            topicWarnings,
+            topicSourceCounts: merged.topicSourceCounts,
+            topicHeavy: merged.topicHeavy,
+            topicImportant: merged.topicImportant,
+            topicWeights: merged.topicWeights,
+            topicSections: merged.topicSections,
             excluded: consolidated?.excluded ?? [],
             missingTopics: consolidated?.missingFromMaterials ?? [],
             suggestedExamDate: consolidated?.suggestedExamDate ?? null,
@@ -329,7 +363,7 @@ ${transcript}`,
 
   const draft = outcome.data;
   if (intakeMode === "v2" && merged.topics.length) {
-    draft.topics = merged.topics.slice(0, PREP_TOPIC_CAP);
+    draft.topics = merged.topics;
   }
 
   const examDate = parsed.data.examDate;

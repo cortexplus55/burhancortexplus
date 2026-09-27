@@ -24,6 +24,7 @@ const processErrorLabels: Record<string, string> = {
   no_text: "Belgenin bazı sayfalarında okunabilir metin bulunamadı.",
   openai_missing: "Metin hazırlama servisi şu an kapalı — biraz sonra dene",
   embed_failed: "İçerik hazırlanamadı — tekrar dene",
+  insufficient_credits: "Belgeyi işlemek için yeterli kredin yok. Kredi ekledikten sonra yeniden işle.",
 };
 
 const GENERIC = "Belge işlenemedi — tekrar dene";
