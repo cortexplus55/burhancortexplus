@@ -141,6 +141,10 @@ type GenerateJsonParams<T> = {
   modelOverride?: string;
   /** Bağımsız kapı temizse ders denetiminde ileri model çağrılmaz. */
   trustIndependent?: boolean;
+  /** Additional subject-specific checks for the independent model reviewer. */
+  reviewerAddendum?: string;
+  /** A scored diagnostic must not ignore a factual rejection by its reviewer. */
+  requireReviewerApproval?: boolean;
   /**
    * Ayrıştırılamayan soru için aynı rezervasyonda tek çözüm çağrısı.
    * Null dönerse taslak yeniden yazılır; yeni kredi ayrılmaz.
@@ -489,6 +493,8 @@ export async function generateJson<T>(
                 : undefined,
               failClosedOnUnavailable: v2,
               trustIndependent: params.trustIndependent,
+              reviewerAddendum: params.reviewerAddendum,
+              requireReviewerApproval: params.requireReviewerApproval,
             });
             content = verified.content;
             modelCalls += verified.modelCalls;

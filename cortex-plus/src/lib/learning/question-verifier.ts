@@ -16,6 +16,7 @@ import {
 } from "@/lib/learning/tutor-quant";
 import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
 import { optionWhyUniqueIssues } from "@/lib/learning/lesson-play";
+import { angleOptionReasonIssues } from "@/lib/learning/angle-option-reason";
 import {
   isPromptEcho,
   oralPremiseGrounded,
@@ -655,6 +656,9 @@ export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCh
   const withWhy = settleOptionWhy(next, source);
   if (!withWhy) return { status: "drop", question: next, reason: "option_why" };
   next = withWhy;
+  if (angleOptionReasonIssues(next).length) {
+    return { status: "drop", question: next, reason: "option_why_angle" };
+  }
   const blob = `${next.text}\n${next.explanation ?? ""}\n${(next.optionWhy ?? []).join("\n")}`;
   if (!auditQuantitative(blob, source).ok) {
     const repairedExpl = settleExplanation(next.explanation ?? "", source);

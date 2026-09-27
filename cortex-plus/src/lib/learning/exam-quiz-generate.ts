@@ -29,6 +29,10 @@ export async function generateExamQuiz(input: {
   verificationMode?: "full" | "schema";
   /** Stage 5: enforce pedagogy validators (fail closed via quality gate). */
   teachingV2?: boolean;
+  /** Diagnostic retries stay within one credit reservation. */
+  maxDraftAttempts?: 1 | 2 | 3;
+  /** Verify each displayed explanation against its own option. */
+  verifyOptionReasoning?: boolean;
   schemaHintExtra?: string;
   /** Stage 7: source excerpt for independent source checks. */
   sourceExcerpt?: string;
@@ -162,7 +166,7 @@ export async function generateExamQuiz(input: {
     verificationMode: input.verificationMode,
     validationProfile: input.teachingV2 ? "v2" : "legacy",
     idempotencyKey: input.idempotencyKey,
-    maxDraftAttempts: input.teachingV2 ? 2 : 1,
+    maxDraftAttempts: input.maxDraftAttempts ?? (input.teachingV2 ? 2 : 1),
     allowIndependentAccept: false,
     activityKind: "quiz",
     /**
@@ -170,7 +174,11 @@ export async function generateExamQuiz(input: {
      * sonucunu kaynakta yazmıyor diye reddedip taslağı ders şekline çeviriyordu;
      * ayrıştırıcı da bunu biçim hatası diye öğrenciye yazıyordu.
      */
-    trustIndependent: input.teachingV2 ? true : undefined,
+    trustIndependent: input.teachingV2 && !input.verifyOptionReasoning ? true : undefined,
+    reviewerAddendum: input.verifyOptionReasoning
+      ? "Çoktan seçmeli her sorunun HER optionWhy satırını aynı sıradaki şıkla ve kaynakla ayrı ayrı karşılaştır. Yanlış şıkkın gerekçesindeki eşitlik, sayı, birim veya kavram hatasını onaylama. Yalnızca gerçek bilgi hatasında approved false; üslup önerileri için approved true döndür. Hata varsa hangi şıkta neyin yanlış olduğunu issues içinde açıkça yaz."
+      : undefined,
+    requireReviewerApproval: input.verifyOptionReasoning,
     reviewDraft: input.teachingV2
       ? (draft) => {
           try {
