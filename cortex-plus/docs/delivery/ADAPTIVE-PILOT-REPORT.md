@@ -1,9 +1,10 @@
 # Adaptive Learning Engine — Phase 3 Pilot Report
 
-**Date:** 2026-09-26  
+**Date:** 2026-09-26 (engine), verified live 2026-09-27  
 **Policy:** `adaptive-v1`  
 **Pilot user:** `burhan55600@gmail.com` (`9d79106a-d31e-46e5-9cc5-4a09b519bc34`)  
-**Global rollout:** OFF (all adaptive flags `enabled=false`; pilot via `metadata.pilot_user_ids` only)
+**Global rollout:** OFF (all adaptive flags `enabled=false`; pilot via `metadata.pilot_user_ids` only)  
+**Session loop:** **PASS** — verified end-to-end in production 2026-09-27, see [Live production verification](#live-production-verification--session-loop-pass-2026-09-27) below.
 
 ---
 
@@ -187,7 +188,7 @@ Flags remain `enabled=false`. Non-pilot users are outside `pilot_user_ids` → a
 ## Remaining limitations / blockers
 
 1. **TYPESAFE_API_KEY missing** → live Jev = NO until configured  
-2. **Phase 3 app code not yet on production** → browser product-flow acceptance incomplete until push/deploy  
+2. ~~Phase 3 app code not yet on production~~ — **resolved 2026-09-27**: merged (PR #126, then PR #127 fixing the session-start CTA bug), deployed, and the session loop verified live in production. See below.
 3. Soft gap: `misconceptionFlags` still not a first-class DB column (payload/events carry tags)  
 4. Circuit breaker still in-process (serverless instance-local)
 
@@ -224,8 +225,8 @@ Flags remain `enabled=false`. Non-pilot users are outside `pilot_user_ids` → a
 |---|---|
 | Migrations | Applied + verified on production |
 | Live Jev | Skipped / blocked (no key) |
-| Pilot user flow | Targeting ON; full browser flow pending deploy |
-| Adaptive sessions tested | Scenario/unit matrix (not live browser count) |
+| Pilot user flow | Targeting ON; full browser flow **verified live 2026-09-27** (see Live production verification) |
+| Adaptive sessions tested | Scenario/unit matrix **+ 1 live production session (PASS)** |
 | Interventions tested | Wrong→remediate→transfer path in unit pilot |
 | Plan adaptations | Missed-day + exam-phase + anti-loop |
 | Persistence | Schema + mastery dual-write verified |
@@ -237,7 +238,7 @@ Flags remain `enabled=false`. Non-pilot users are outside `pilot_user_ids` → a
 | Non-pilot | Flags OFF; pilot UUID only |
 | Remaining blockers | TYPESAFE_API_KEY; git push deploy for production UI |
 
-**Rollout:** leave flags global OFF. Pilot UUID already set.
+**Rollout:** session loop verified PASS in production 2026-09-27; global rollout NOT YET — see the controlled-pilot-scenarios checklist above. Leave flags global OFF; pilot UUID already set.
 
 ---
 
@@ -255,3 +256,85 @@ TypeSafe Jev access is still on the early-access waitlist. The pilot does not wa
 | Global flags | OFF |
 
 Switching to Jev later is configuration (`JEV_ENABLED=true` plus `TYPESAFE_API_KEY`), not an engine rewrite. No migration is required to enable Jev. Do not send all traffic to Jev until the stored sanitized cases are compared offline.
+
+---
+
+## Live production verification — session loop PASS (2026-09-27)
+
+### PR #126 → PR #127: root cause and fix
+
+The Adaptive Learning Engine (this whole document's subject) had been written but never committed — recovered and merged as **PR #126** (merge commit `1d5bc33`). Immediately after that merge, production showed `adaptive_master_plans=1` and `adaptive_daily_plans=1` (the planning layer ran) but `adaptive_learning_sessions=0` (the session loop never started) for the pilot account.
+
+**Root cause:** `loadLearningHub()` (`src/lib/learning/learning-hub.ts`) only re-pointed the dashboard's primary CTA ("Çalışmaya Başla") to `/oturum` when `!resumeHref && !processing`. `resumeHref` is set by any `exam_prep_node_attempts` row with `status='active'` — an unrelated legacy "resume your unfinished lesson" marker. The pilot account had one left over from earlier (pre-pilot) testing, so the CTA kept pointing at the old legacy screen and the pilot user had no working link into `/api/adaptive/session/start`.
+
+**Fix:** [PR #127](https://github.com/cortexplus55/burhancortexplus/pull/127), merge commit `99cbc39424bc326cfb9b02dea9377fad84941826`. Extracted the condition into `shouldRouteToAdaptiveSession({ resumeHref, processing })` and dropped `resumeHref` from the gate — for a pilot user, resuming *the adaptive session* is the intended "resume," not an old legacy attempt. `processing` (a document still being ingested) stays as a gate. Production Vercel deployment of this commit: **success** (build/test/e2e all green).
+
+### Browser-verified run (this session, live production, `burhan55600@gmail.com`)
+
+Driven through the actual UI (dashboard → "Çalışmaya Başla" → answer a question wrong → answer a question right → end session), not the database directly. Confirmed via `/admin/adaptive?userId=9d79106a-d31e-46e5-9cc5-4a09b519bc34` immediately after:
+
+| Check | Result |
+|---|---|
+| Adaptive sessions | **1**, `status=completed`, `completion_pct=100` |
+| Adaptive decisions | **3**, provider = `openai_decision` for all three |
+| Jev calls | **0** |
+| Fallback count | **0** (Fallback column: "Fallback yok") |
+
+**Event total: 10**
+
+| Event type | Count |
+|---|---|
+| `session_started` | 1 |
+| `answer_submitted` | 2 |
+| `intervention_started` | 3 |
+| `misconception_detected` | 1 |
+| `mastery_updated` | 2 |
+| `session_completed` | 1 |
+
+**Current prep mastery (both topics touched this run):**
+
+| | Wrong-answered topic | Correct-answered topic |
+|---|---|---|
+| mastery | 0 | 0.0552 |
+| mastery_confidence | 0.178 | 0.23 |
+| status | introduced | introduced |
+| repeated_error_count / streak_correct | repeated_error_count = 1 | streak_correct = 1 |
+| evidence_count | 1 | 1 |
+
+**Verdict on this behavior: PASS.**
+- A single wrong answer did **not** raise mastery (stayed at 0) — no credit given without evidence.
+- A single correct answer made a small, evidence-based increase (0 → 0.0552) — not a jump to "mastered."
+- Neither topic left `introduced` status from one answer either way. `MasteryEngine` is behaving as evidence-accumulating, not single-shot.
+
+### Cost — two distinct metrics, not one
+
+These are **different things** and should not be quoted interchangeably:
+
+1. **Decision-provider cost** (the `DecisionProvider` call only — deciding *what to do next*, not generating the lesson content): sum of `adaptive_jev_decisions.usage` for this session ≈ **$0.00313**.
+2. **Total session model cost** (decision + all generated content — lessons, questions, feedback): what the admin/telemetry panel reports per session ≈ **$0.0162** (breakdown observed: 1,262 mini decision tokens + 784 GPT-4o decision tokens + 6,196 content tokens → $0.0033 decision + $0.0129 content = $0.0162 total).
+
+The content-generation cost (~$0.013) dominates the decision cost (~$0.003) roughly 4:1 for this session — expected, since the DecisionProvider call is a small structured-output request while content generation writes full lesson/question text.
+
+### Pilot isolation and security — reconfirmed
+
+- `/admin/adaptive` (no `userId`): all four adaptive flags show `enabled=false` at the global level; pilot count 1 for `adaptive_learning_enabled` / `adaptive_daily_replan_enabled` / `adaptive_model_router_enabled`, pilot count **0** for `jev_enabled` (empty metadata, matching "Jev remains disabled").
+- Decision Engine banner: **"OpenAI temporary provider"** / **"Jev: Waiting for API access / disabled"**.
+- Non-pilot legacy flow: unchanged by this verification — `withAdaptiveUser` still 404s for any user outside `metadata.pilot_user_ids` (see `tests/unit/adaptive-api-guard.test.ts`, added in PR #127), and the classic exam-prep path never touches adaptive code when the overlay's `isFeatureEnabled` check is false.
+- No runtime code, feature flags, Supabase config, or production data were changed to produce this verification — it was a normal pilot-user session through the real UI.
+
+### Final verdict
+
+**ADAPTIVE SESSION LOOP: PASS**
+**GLOBAL ROLLOUT: NOT YET**
+
+### Checklist — remaining controlled pilot scenarios before global rollout
+
+- [ ] Repeated wrong answers on the same topic (anti-loop ladder: reteach → worked example → easier decomposition → prerequisite review)
+- [ ] Repeated correct answers (fast-learner acceleration: less explanation, harder questions, faster topic advance)
+- [ ] Prerequisite remediation actually teaches only the missing prerequisite, not the whole topic again
+- [ ] Scheduled review creation and completion (interval lengthens on success, shortens on failure)
+- [ ] Missed-day daily/master replan (rebalances remaining work without dumping everything into one day)
+- [ ] GPT-4o escalation happens only when policy requires it (logged reason code), not by default
+- [ ] Session resume/reload — refreshing mid-session does not lose or duplicate state
+- [ ] Second-day continuity — plan, mastery, and history persist and the daily plan doesn't regenerate as a duplicate
+- [ ] Non-pilot regression — a second, non-pilot account confirmed to see zero adaptive UI/behavior change (automated coverage exists; a live non-pilot browser pass is still open)
