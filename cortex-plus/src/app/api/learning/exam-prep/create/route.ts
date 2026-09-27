@@ -97,6 +97,7 @@ export async function POST(request: Request) {
             title,
             linkedTitle: grounded.matches[index]?.linkedTitle ?? null,
             pageNumbers: grounded.matches[index]?.pageNumbers ?? [],
+            sourceRefs: grounded.matches[index]?.sourceRefs ?? [],
           })),
           loaded,
           hardTopics: parsed.data.hardTopics ?? [],

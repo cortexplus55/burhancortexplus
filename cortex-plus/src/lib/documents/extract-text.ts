@@ -17,12 +17,14 @@ function ensurePromiseWithResolvers() {
 export async function extractText(
   buffer: Buffer,
   mimeType: string,
-): Promise<{ pages: string[]; ok: boolean }> {
+  startPage = 1,
+  maxPages = Number.MAX_SAFE_INTEGER,
+): Promise<{ pages: string[]; ok: boolean; total: number }> {
   if (mimeType === "text/plain") {
     const text = buffer.toString("utf8").replace(/\u0000/g, "");
-    return { pages: [text], ok: Boolean(text.trim()) };
+    return { pages: startPage <= 1 ? [text] : [], ok: Boolean(text.trim()), total: 1 };
   }
-  if (mimeType !== "application/pdf") return { pages: [], ok: false };
+  if (mimeType !== "application/pdf") return { pages: [], ok: false, total: 0 };
 
   ensurePromiseWithResolvers();
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -33,7 +35,9 @@ export async function extractText(
   try {
     const pdf = await task.promise;
     const pages: string[] = [];
-    for (let number = 1; number <= pdf.numPages; number++) {
+    const first = Math.max(1, Math.trunc(startPage));
+    const last = Math.min(pdf.numPages, first + Math.max(0, Math.trunc(maxPages)) - 1);
+    for (let number = first; number <= last; number++) {
       const page = await pdf.getPage(number);
       const content = await page.getTextContent();
       pages.push(content.items.map((item) =>
@@ -41,7 +45,7 @@ export async function extractText(
       ).join("").replace(/\u0000/g, "").trim());
       page.cleanup();
     }
-    return { pages, ok: pages.some((page) => Boolean(page.trim())) };
+    return { pages, ok: pages.some((page) => Boolean(page.trim())), total: pdf.numPages };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (/password|PasswordException|encrypted/i.test(msg)) {

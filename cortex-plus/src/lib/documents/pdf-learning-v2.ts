@@ -1,9 +1,9 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { analyzePage, analyzePages, type PageAnalysis } from "@/lib/documents/page-analysis";
+import { analyzePage, type PageAnalysis } from "@/lib/documents/page-analysis";
 import { buildCoverageReport, type CoverageReport } from "@/lib/documents/coverage";
 import { draftFromLlmTopic, type TopicDraft } from "@/lib/documents/topic-map";
-import { buildTopicMapLLM, completeTopicPageLinks } from "@/lib/documents/topic-map-llm";
+import { buildTopicMapLLM, completeTopicPageLinks, pagesForTopicMap } from "@/lib/documents/topic-map-llm";
 import { runTeacherAnalysis } from "@/lib/documents/teacher-analysis-run";
 import {
   shouldRewriteStoredTopicMap,
@@ -14,10 +14,68 @@ import { replaceTopicNodes } from "@/lib/documents/topic-map-refold";
 
 export type PdfLearningV2Result = {
   ok: boolean;
+  /** Further bounded map windows are pending; caller returns 202 and retries. */
+  pending?: boolean;
   topics: number;
   coverage: CoverageReport | null;
   error?: string;
 };
+
+const MAP_WINDOW_PAGES = 12;
+const PAGE_READ_BATCH = 200;
+const MAP_LEASE_MS = 240_000;
+
+type MapCheckpointTopic = {
+  title: string;
+  learningObjective: string | null;
+  pageNumbers: number[];
+};
+
+type MapJob = {
+  next_index: number;
+  topics: MapCheckpointTopic[];
+  lease_token: string | null;
+};
+
+export function topicMapWindows<T>(pages: T[], windowSize = MAP_WINDOW_PAGES): T[][] {
+  const windows: T[][] = [];
+  for (let offset = 0; offset < pages.length; offset += windowSize) {
+    windows.push(pages.slice(offset, offset + windowSize));
+  }
+  return windows;
+}
+
+async function claimMapJob(service: SupabaseClient, documentId: string): Promise<MapJob | null> {
+  const { error: insertError } = await service.from("document_topic_map_jobs")
+    .insert({ document_id: documentId });
+  if (insertError && insertError.code !== "23505") throw new Error("topic_map_job_insert_failed");
+
+  const token = crypto.randomUUID();
+  const now = new Date();
+  const { data, error } = await service.from("document_topic_map_jobs")
+    .update({
+      lease_token: token,
+      lease_until: new Date(now.getTime() + MAP_LEASE_MS).toISOString(),
+      updated_at: now.toISOString(),
+    })
+    .eq("document_id", documentId)
+    .or(`lease_until.is.null,lease_until.lt.${now.toISOString()}`)
+    .select("next_index, topics, lease_token")
+    .maybeSingle();
+  if (error) throw new Error("topic_map_job_claim_failed");
+  return data ? {
+    next_index: data.next_index as number,
+    topics: Array.isArray(data.topics) ? data.topics as MapCheckpointTopic[] : [],
+    lease_token: data.lease_token as string,
+  } : null;
+}
+
+async function releaseMapJob(service: SupabaseClient, documentId: string, token: string) {
+  await service.from("document_topic_map_jobs")
+    .update({ lease_token: null, lease_until: null, updated_at: new Date().toISOString() })
+    .eq("document_id", documentId)
+    .eq("lease_token", token);
+}
 
 async function clearTopicMap(service: SupabaseClient, documentId: string) {
   // Links cascade from topics; delete topics first for a clean rebuild.
@@ -26,13 +84,18 @@ async function clearTopicMap(service: SupabaseClient, documentId: string) {
 }
 
 async function loadPageRows(service: SupabaseClient, documentId: string) {
-  const { data, error } = await service
-    .from("document_pages")
-    .select("id, page_number, text_content")
-    .eq("document_id", documentId)
-    .order("page_number", { ascending: true });
-  if (error) throw new Error("page_load_failed");
-  return data ?? [];
+  const rows: { id: string; page_number: number; text_content: string | null }[] = [];
+  for (let offset = 0; ; offset += PAGE_READ_BATCH) {
+    const { data, error } = await service.from("document_pages")
+      .select("id, page_number, text_content")
+      .eq("document_id", documentId)
+      .order("page_number", { ascending: true })
+      .range(offset, offset + PAGE_READ_BATCH - 1);
+    if (error) throw new Error("page_load_failed");
+    rows.push(...((data ?? []) as typeof rows));
+    if ((data ?? []).length < PAGE_READ_BATCH) break;
+  }
+  return rows;
 }
 
 async function persistPageMeta(
@@ -64,11 +127,10 @@ async function persistTopics(
   pageIdByNumber: Map<number, string>,
 ) {
   const topicIdByMergeKey = new Map<string, string>();
-
-  for (const [index, topic] of topics.entries()) {
-    const { data, error } = await service
-      .from("document_topic_nodes")
-      .insert({
+  if (!topics.length) return topicIdByMergeKey;
+  const { data: saved, error: topicError } = await service
+    .from("document_topic_nodes")
+    .insert(topics.map((topic, index) => ({
         document_id: documentId,
         parent_id: null,
         sort_order: index,
@@ -80,26 +142,31 @@ async function persistTopics(
         worked_examples: topic.workedExamples,
         common_mistakes: topic.commonMistakes,
         source_exercises: topic.sourceExercises,
-      })
-      .select("id")
-      .single();
-    if (error || !data) throw new Error("topic_insert_failed");
-    topicIdByMergeKey.set(topic.mergeKey, data.id);
-
+      })))
+    .select("id, sort_order");
+  if (topicError || !saved || saved.length !== topics.length) throw new Error("topic_insert_failed");
+  const idByOrder = new Map(saved.map((row) => [row.sort_order as number, row.id as string]));
+  const links: {
+    document_id: string; topic_id: string; page_id: string;
+    page_number: number; relevance: "primary";
+  }[] = [];
+  for (const [index, topic] of topics.entries()) {
+    const id = idByOrder.get(index);
+    if (!id) throw new Error("topic_insert_failed");
+    topicIdByMergeKey.set(topic.mergeKey, id);
     for (const pageNumber of topic.pageNumbers) {
       const pageId = pageIdByNumber.get(pageNumber);
       if (!pageId) continue;
-      const { error: linkError } = await service
-        .from("document_topic_page_links")
-        .insert({
-          document_id: documentId,
-          topic_id: data.id,
-          page_id: pageId,
-          page_number: pageNumber,
-          relevance: "primary",
-        });
-      if (linkError) throw new Error("topic_link_failed");
+      links.push({
+        document_id: documentId, topic_id: id, page_id: pageId,
+        page_number: pageNumber, relevance: "primary",
+      });
     }
+  }
+  for (let offset = 0; offset < links.length; offset += 200) {
+    const { error: linkError } = await service.from("document_topic_page_links")
+      .insert(links.slice(offset, offset + 200));
+    if (linkError) throw new Error("topic_link_failed");
   }
 
   return topicIdByMergeKey;
@@ -137,99 +204,153 @@ export async function runPdfLearningV2(
   service: SupabaseClient,
   documentId: string,
 ): Promise<PdfLearningV2Result> {
-  await service
-    .from("documents")
-    .update({
-      topic_map_status: "pending",
-      topic_map_error: null,
-      topic_map_updated_at: new Date().toISOString(),
-    })
-    .eq("id", documentId);
-
+  let previousMapStatus: string | null = null;
   try {
-    await clearTopicMap(service, documentId);
-
-    const { data: docRow } = await service
+    const { data: docRow, error: docLoadError } = await service
       .from("documents")
-      .select("user_id, file_name, mime_type")
+      .select("user_id, file_name, mime_type, topic_map_status")
       .eq("id", documentId)
+      .is("deleted_at", null)
       .maybeSingle();
+    if (docLoadError || !docRow?.user_id) throw new Error("document_not_found");
+    previousMapStatus = docRow.topic_map_status as string | null;
 
-    const rows = await loadPageRows(service, documentId);
-    const texts = rows.map((row) => row.text_content ?? "");
-    const analyses = analyzePages(texts);
-    const pageIdByNumber = new Map(
-      rows.map((row) => [row.page_number as number, row.id as string]),
-    );
-
-    for (const analysis of analyses) {
-      const pageId = pageIdByNumber.get(analysis.pageNumber);
-      if (!pageId) continue;
-      await persistPageMeta(service, pageId, analysis);
+    // A preparation keeps stable document_topic_node_id references. A rebuild
+    // may not delete those nodes after the learner has started using them.
+    if (previousMapStatus === "ready" || previousMapStatus === "reviewed") {
+      if (await documentTopicMapIsInUse(service, documentId, [])) {
+        return { ok: false, topics: 0, coverage: null, error: "topic_map_in_use" };
+      }
     }
 
-    // Öğretmen analizi haritadan önce gelir ama haritanın ön koşulu
-    // değildir. Model susarsa veya kredi haritayı aç bırakacaksa not
-    // boş kalır; kısa Office yedeği ve uzun PDF yolu aynı durur.
-    let teacherBrief: string | null = null;
-    if (docRow?.user_id) {
-      const brain = await runTeacherAnalysis(service, documentId, {
-        userId: docRow.user_id as string,
-        fileName: (docRow.file_name as string) ?? "belge",
-        mimeType: (docRow.mime_type as string | null) ?? null,
-      });
-      teacherBrief = brain.topicMapBrief;
-    } else {
-      console.info(JSON.stringify({
-        event: "teacher_analysis",
-        documentId,
-        status: "not_started",
-        error: "missing_user",
-      }));
-    }
-
-    // Konu haritası modelin belgeyi okumasıyla çıkar. Eski sezgisel yedek
-    // bir trigonometri fikstürüne ayarlıydı; pediatri belgesinde "Derece
-    // ve radyan" yazdı. O yedek yok. Kısa belgede model boş dönerse
-    // başlık belgenin kendi metninden kurulur. Uzun PDF'te model susarsa
-    // yalnızca belgenin kendi numaralı bölümleri kullanılır; onlar da
-    // yoksa harita başarısız kalır. Başka dersin konusu yazılmaz.
-    const llmMap = docRow?.user_id
-      ? await buildTopicMapLLM(
-          service,
-          documentId,
-          docRow.user_id as string,
-          (docRow.file_name as string) ?? "belge",
-          analyses,
-          teacherBrief,
-        )
-      : null;
-    if (!llmMap) throw new Error("topic_map_unavailable");
-    const { topics, mergedTitles } = llmMap;
-    await persistTopics(service, documentId, topics, pageIdByNumber);
-
-    const coverage = buildCoverageReport(analyses, topics, mergedTitles);
-    await persistCoverage(service, documentId, coverage);
-
-    const { error: docError } = await service
-      .from("documents")
+    const { error: pendingError } = await service.from("documents")
       .update({
-        topic_map_status: "ready",
+        topic_map_status: "pending",
         topic_map_error: null,
         topic_map_updated_at: new Date().toISOString(),
       })
       .eq("id", documentId);
-    if (docError) throw new Error("document_status_update_failed");
+    if (pendingError) throw new Error("topic_map_status_update_failed");
 
-    return { ok: true, topics: topics.length, coverage };
+    const rows = await loadPageRows(service, documentId);
+    const analyses = rows.map((row) =>
+      analyzePage(row.page_number, row.text_content ?? ""),
+    );
+    const pageIdByNumber = new Map(
+      rows.map((row) => [row.page_number as number, row.id as string]),
+    );
+    const windows = topicMapWindows(pagesForTopicMap(analyses));
+    if (!windows.length) throw new Error("topic_map_no_readable_pages");
+
+    const job = await claimMapJob(service, documentId);
+    if (!job) return { ok: true, pending: true, topics: 0, coverage: null };
+    const token = job.lease_token!;
+    try {
+      if (job.next_index === 0) {
+        // Independent page updates run in small parallel batches. Serial 99+
+        // network requests consumed most of the old processing window.
+        for (let offset = 0; offset < analyses.length; offset += 8) {
+          await Promise.all(analyses.slice(offset, offset + 8).map(async (analysis) => {
+            const pageId = pageIdByNumber.get(analysis.pageNumber);
+            if (pageId) await persistPageMeta(service, pageId, analysis);
+          }));
+        }
+      }
+
+      let compactTopics = job.topics;
+      if (job.next_index < windows.length) {
+        // Teacher analysis is optional and can read the whole source. It is
+        // useful on short notes; on long books bounded page windows carry the
+        // actual teaching map without a whole-document model request.
+        let teacherBrief: string | null = null;
+        if (windows.length === 1) {
+          const brain = await runTeacherAnalysis(service, documentId, {
+            userId: docRow.user_id as string,
+            fileName: (docRow.file_name as string) ?? "belge",
+            mimeType: (docRow.mime_type as string | null) ?? null,
+          });
+          teacherBrief = brain.topicMapBrief;
+        }
+
+        const windowMap = await buildTopicMapLLM(
+          service,
+          documentId,
+          docRow.user_id as string,
+          (docRow.file_name as string) ?? "belge",
+          windows[job.next_index],
+          teacherBrief,
+          windows.length > 1,
+        );
+        if (!windowMap?.topics.length) throw new Error("topic_map_unavailable");
+        compactTopics = [...compactTopics, ...windowMap.topics.map((topic) => ({
+          title: topic.title,
+          learningObjective: topic.learningObjective,
+          pageNumbers: topic.pageNumbers,
+        }))];
+        const nextIndex = job.next_index + 1;
+        const { data: saved, error: checkpointError } = await service
+          .from("document_topic_map_jobs")
+          .update({
+            next_index: nextIndex,
+            topics: compactTopics,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("document_id", documentId)
+          .eq("lease_token", token)
+          .select("document_id");
+        if (checkpointError || !saved?.length) throw new Error("topic_map_claim_lost");
+        if (nextIndex < windows.length) {
+          return { ok: true, pending: true, topics: compactTopics.length, coverage: null };
+        }
+      }
+
+      if (!compactTopics.length) throw new Error("topic_map_unavailable");
+      const drafted = compactTopics.map((topic, index) =>
+        draftFromLlmTopic(topic.title, topic.learningObjective, topic.pageNumbers, analyses, index),
+      );
+      const consolidated = consolidateTopics(drafted, pagesForTopicMap(analyses), windows.flat().length);
+      const topics = completeTopicPageLinks(
+        consolidated.topics.map((topic, index) => ({
+          ...draftFromLlmTopic(topic.title, topic.learningObjective, topic.pageNumbers, analyses, index),
+          prerequisites: topic.prerequisites ?? [],
+        })),
+        analyses,
+      );
+      if (!topics.length) throw new Error("topic_map_unavailable");
+
+      await clearTopicMap(service, documentId);
+      await persistTopics(service, documentId, topics, pageIdByNumber);
+      const coverage = buildCoverageReport(analyses, topics, consolidated.mergedTitles);
+      await persistCoverage(service, documentId, coverage);
+
+      const { error: docError } = await service.from("documents")
+        .update({
+          topic_map_status: "ready",
+          topic_map_error: null,
+          topic_map_updated_at: new Date().toISOString(),
+        })
+        .eq("id", documentId);
+      if (docError) throw new Error("document_status_update_failed");
+
+      await service.from("document_topic_map_jobs")
+        .delete().eq("document_id", documentId).eq("lease_token", token);
+      return { ok: true, topics: topics.length, coverage };
+    } finally {
+      await releaseMapJob(service, documentId, token);
+    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "topic_map_failed";
     console.error("pdf learning v2 failed", { name: message });
+    if (message === "topic_map_claim_lost") {
+      return { ok: true, pending: true, topics: 0, coverage: null };
+    }
     await service
       .from("documents")
       .update({
-        topic_map_status: "failed",
+        topic_map_status: previousMapStatus === "ready" || previousMapStatus === "reviewed"
+          ? previousMapStatus
+          : "failed",
         topic_map_error: message,
         topic_map_updated_at: new Date().toISOString(),
       })

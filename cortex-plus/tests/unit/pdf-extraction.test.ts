@@ -25,6 +25,33 @@ function compressedPdf() {
   return Buffer.concat(parts);
 }
 
+function longCompressedPdf(pageCount: number) {
+  const firstContentId = 3 + pageCount;
+  const fontId = firstContentId + pageCount;
+  const kids = Array.from({ length: pageCount }, (_, index) => `${index + 3} 0 R`).join(" ");
+  const objects = [
+    Buffer.from("<< /Type /Catalog /Pages 2 0 R >>"),
+    Buffer.from(`<< /Type /Pages /Kids [${kids}] /Count ${pageCount} >>`),
+    ...Array.from({ length: pageCount }, (_, index) => Buffer.from(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${firstContentId + index} 0 R >>`,
+    )),
+    ...Array.from({ length: pageCount }, (_, index) => {
+      const content = deflateSync(Buffer.from(`BT /F1 12 Tf 30 100 Td (Physical page ${index + 1}) Tj ET`));
+      return Buffer.concat([Buffer.from(`<< /Length ${content.length} /Filter /FlateDecode >>\nstream\n`), content, Buffer.from("\nendstream")]);
+    }),
+    Buffer.from("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"),
+  ];
+  const parts = [Buffer.from("%PDF-1.7\n")];
+  const offsets: number[] = [];
+  for (const [index, object] of objects.entries()) {
+    offsets.push(Buffer.concat(parts).length);
+    parts.push(Buffer.from(`${index + 1} 0 obj\n`), object, Buffer.from("\nendobj\n"));
+  }
+  const xref = Buffer.concat(parts).length;
+  parts.push(Buffer.from(`xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`).join("")}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`));
+  return Buffer.concat(parts);
+}
+
 describe("PDF extraction", () => {
   it("decodes compressed streams and preserves physical page numbers", async () => {
     const result = await extractText(compressedPdf(), "application/pdf");
@@ -34,4 +61,13 @@ describe("PDF extraction", () => {
   it("rejects malformed PDFs rather than storing metadata as lesson text", async () => {
     await expect(extractText(Buffer.from("(fake PDF metadata)"), "application/pdf")).rejects.toThrow();
   });
+  it("reads the final physical pages of a 99-page PDF without a first-page cap", async () => {
+    const result = await extractText(longCompressedPdf(99), "application/pdf", 95, 6);
+    expect(result.total).toBe(99);
+    expect(result.pages).toHaveLength(5);
+    expect(result.pages).toEqual([
+      "Physical page 95", "Physical page 96", "Physical page 97",
+      "Physical page 98", "Physical page 99",
+    ]);
+  }, 30_000);
 });

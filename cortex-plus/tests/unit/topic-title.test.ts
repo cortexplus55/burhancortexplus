@@ -21,8 +21,8 @@ describe("targetTopicCount", () => {
     // Kısa özet notu bölünemeyecek kadar kısa olsa da plan üretebilmeli.
     expect(targetTopicCount(3)).toBe(4);
     expect(targetTopicCount(1)).toBe(4);
-    // Ders kitabı: 200 sayfa 66 konuya bölünürse konu listesi gezilemez.
-    expect(targetTopicCount(200)).toBe(12);
+    // Büyük kitabın bağımsız bölümleri sabit bir 12-konu tavanında kaybolmaz.
+    expect(targetTopicCount(200)).toBe(67);
   });
 
   it("treats the count as a ceiling, not a page quota", () => {
@@ -33,8 +33,9 @@ describe("targetTopicCount", () => {
     expect(short).not.toBe(long);
     expect(topicCeiling(10)).toBe(8);
     expect(topicCeiling(20)).toBe(12);
-    expect(short).toContain("En fazla 8");
-    expect(long).toContain("En fazla 12");
+    expect(short).toContain("Yaklaşık 8");
+    expect(long).toContain("Yaklaşık 12");
+    expect(topicCeiling(99)).toBeGreaterThan(12);
   });
 });
 

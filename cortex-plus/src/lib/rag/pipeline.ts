@@ -84,7 +84,7 @@ export async function processDocument(
       .from("processing_jobs")
       .update({ status: "failed", error_message: message })
       .eq("document_id", documentId);
-    return { ok: false, chunks: 0, error: message };
+    return { ok: false, chunks: 0, error: code };
   };
 
   await service

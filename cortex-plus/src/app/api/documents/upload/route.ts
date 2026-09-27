@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "invalid_file" }, { status: 400 });
+    return errorResponse(400, "invalid_file");
   }
 
   // Alan dolu mu — yükleme başlamadan bakılıyor, yoksa dosyayı depoya
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
   const stored = await storeUserDocument(service, userId, file);
   if (!stored.ok) {
-    return NextResponse.json({ error: stored.error }, { status: 400 });
+    return errorResponse(400, stored.error);
   }
 
   return NextResponse.json({

@@ -140,12 +140,12 @@ describe("limitler sayfası", () => {
 });
 
 describe("yükleme kromu", () => {
-  it("ücretsiz hesapta PDF sayfa tavanını aynı yerde yazar", () => {
+  it("ücretsiz hesapta yalnızca taranmış sayfa kotasını açıkça yazar", () => {
     const upload = readFileSync("src/components/documents/document-upload.tsx", "utf8");
     const modal = readFileSync("src/components/parity/upload-modal.tsx", "utf8");
-    expect(upload).toContain("PDF sayfa:");
+    expect(upload).toContain("aylık taranmış sayfa hakkı:");
     expect(upload).toContain("PHOTO_PAGE_LIMITS.free");
-    expect(modal).toContain("PDF sayfa:");
+    expect(modal).toContain("aylık taranmış sayfa hakkı:");
     expect(modal).toContain("PHOTO_PAGE_LIMITS.free");
   });
 });

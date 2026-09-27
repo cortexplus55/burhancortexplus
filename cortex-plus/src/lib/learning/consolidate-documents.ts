@@ -11,6 +11,7 @@ import {
   type MaterialDocument,
 } from "@/lib/learning/cross-material-topics";
 import { findAnalysisTopic, parseTeacherAnalysis } from "@/lib/learning/teacher-brain";
+import { loadPagedDocumentRows } from "@/lib/learning/paged-document-rows";
 
 const TEXT_CAP = 14_000;
 
@@ -46,27 +47,44 @@ export async function consolidatePrepDocuments(
   };
   if (!documentIds.length) return empty;
 
-  const [{ data: docs }, { data: nodes }, { data: pages }] = await Promise.all([
-    service.from("documents").select("id, file_name").in("id", documentIds),
-    service
-      .from("document_topic_nodes")
-      .select(
-        "id, document_id, title, parent_id, sort_order, prerequisites, learning_objective, key_definitions, common_mistakes, source_exercises",
-      )
-      .in("document_id", documentIds)
-      .order("sort_order"),
-    service
-      .from("document_pages")
-      .select("document_id, page_number, text_content")
-      .in("document_id", documentIds)
-      .order("page_number"),
+  const { data: docs, error: docsError } = await service
+    .from("documents")
+    .select("id, file_name")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .in("id", documentIds);
+  if (docsError || docs?.length !== new Set(documentIds).size) {
+    throw new Error("documents_unavailable");
+  }
+  const [nodes, pages, links] = await Promise.all([
+    loadPagedDocumentRows(
+      service,
+      "document_topic_nodes",
+      "id, document_id, title, parent_id, sort_order, prerequisites, learning_objective, key_definitions, common_mistakes, source_exercises",
+      documentIds,
+      ["sort_order", "id"],
+    ),
+    loadPagedDocumentRows(
+      service,
+      "document_pages",
+      "document_id, page_number, text_content",
+      documentIds,
+      ["page_number"],
+    ),
+    loadPagedDocumentRows(
+      service,
+      "document_topic_page_links",
+      "topic_id, page_number, document_id",
+      documentIds,
+      ["topic_id", "page_number"],
+    ),
   ]);
 
   const fileName = new Map(
     (docs ?? []).map((row) => [row.id as string, (row.file_name as string | null) ?? ""]),
   );
   const textByDoc = new Map<string, string>();
-  for (const page of pages ?? []) {
+  for (const page of pages) {
     const id = page.document_id as string;
     const have = textByDoc.get(id) ?? "";
     if (have.length >= TEXT_CAP) continue;
@@ -81,13 +99,8 @@ export async function consolidatePrepDocuments(
   }));
 
   const linksByDoc = new Map<string, { topic_id: string; page_number: number }[]>();
-  const topicIds = (nodes ?? []).map((node) => node.id as string);
-  if (topicIds.length) {
-    const { data: links } = await service
-      .from("document_topic_page_links")
-      .select("topic_id, page_number, document_id")
-      .in("document_id", documentIds);
-    for (const link of links ?? []) {
+  if (nodes.length) {
+    for (const link of links) {
       const id = link.document_id as string;
       const list = linksByDoc.get(id) ?? [];
       list.push({ topic_id: link.topic_id as string, page_number: link.page_number as number });
@@ -111,7 +124,7 @@ export async function consolidatePrepDocuments(
 
   const candidates: MaterialCandidate[] = [];
   for (const documentId of documentIds) {
-    const rows = (nodes ?? []).filter((node) => node.document_id === documentId);
+    const rows = nodes.filter((node) => node.document_id === documentId);
     const mains = pickMainTopics(
       rows.map((node) => ({
         id: node.id as string,

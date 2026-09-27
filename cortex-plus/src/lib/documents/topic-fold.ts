@@ -194,14 +194,14 @@ export function outlineSections(
  * omurga boştur; onları tek tek konu yapmak listeyi şişiriyordu.
  */
 /**
- * Kısa notta numaralı bölümler tavanın üstündeyse her biri kendi konusu olur.
- * Uzun, sayfa başına bir başlıklı not bu kurala girmez; sayfa tavanı durur.
+ * Belgedeki bağımsız numaralı bölümler konu yoğunluğu ipucundan güçlüdür.
+ * Bir sayfalık on farklı pediatri bölümü sekiz konuya zorlanırsa iki bölümü
+ * öğrenci hiç ayrı ölçemez; büyük kitaplarda aynı kayıp katlanır.
  */
 function mapCeiling(pageCount: number, pages: { headings: string[] }[]): number {
   const ceiling = topicCeiling(pageCount);
   const numbered = chapterHeadings(pages).filter((heading) => isNumberedChapter(heading)).length;
-  if (pageCount <= 6 && numbered >= 2 && numbered <= 8 && numbered > ceiling) return numbered;
-  return ceiling;
+  return Math.max(ceiling, numbered);
 }
 
 export function headingsToGuard(pages: { headings: string[] }[]): string[] {

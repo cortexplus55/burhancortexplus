@@ -24,10 +24,10 @@ export function pickProcessPhase(input: {
   topicMapStatus: string | null;
   learningV2: boolean;
 }): ProcessPhase {
+  if (input.chunkCount <= 0) return "extract";
   const mapReady =
     input.topicMapStatus === "ready" || input.topicMapStatus === "reviewed";
   if (input.status === "completed" && (!input.learningV2 || mapReady)) return "done";
-  if (input.chunkCount <= 0) return "extract";
   if (!input.learningV2 || mapReady) return "done";
   return "map";
 }
@@ -74,9 +74,12 @@ export async function requestDocumentProcessing(input: {
   post: ProcessPost;
   sleep?: (ms: number) => Promise<void>;
   maxRounds?: number;
+  onProgress?: (body: Record<string, unknown>) => void;
 }): Promise<ProcessClientResult> {
   const sleep = input.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
-  const maxRounds = input.maxRounds ?? 8;
+  // Six physical PDF pages per server call means a 99-page source alone needs
+  // at least 17 rounds; topic mapping follows. Keep the client with its job.
+  const maxRounds = input.maxRounds ?? 240;
   let retried = false;
 
   for (let round = 0; round < maxRounds; round += 1) {
@@ -98,7 +101,8 @@ export async function requestDocumentProcessing(input: {
       return { ok: false, status: 0, body: { error: "Bağlantı hatası." }, retried, rounds: round + 1 };
     }
     if (response.status === 202) {
-      await sleep(round === 0 ? 400 : 800);
+      input.onProgress?.(response.body);
+      await sleep(round === 0 ? 800 : 2_000);
       continue;
     }
     const ok = response.status >= 200 && response.status < 300;

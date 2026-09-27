@@ -16,6 +16,9 @@ describe("document processing phases", () => {
         learningV2: true,
       }),
     ).toBe("extract");
+    expect(pickProcessPhase({
+      status: "completed", chunkCount: 0, topicMapStatus: "ready", learningV2: true,
+    })).toBe("extract");
     expect(
       pickProcessPhase({
         status: "processing",
@@ -80,5 +83,22 @@ describe("document processing phases", () => {
     expect(result.ok).toBe(false);
     expect(result.retried).toBe(false);
     expect(result.status).toBe(402);
+  });
+
+  it("continues past the former eight-round limit for a 99-page PDF", async () => {
+    let calls = 0;
+    const result = await requestDocumentProcessing({
+      documentId: "doc-99",
+      sleep: async () => {},
+      post: async () => {
+        calls += 1;
+        return calls <= 17
+          ? { status: 202, body: { status: "processing", nextPage: calls * 6 + 1 } }
+          : { status: 200, body: { status: "completed", pageCount: 99 } };
+      },
+    });
+    expect(result.ok).toBe(true);
+    expect(result.rounds).toBe(18);
+    expect(result.body.pageCount).toBe(99);
   });
 });

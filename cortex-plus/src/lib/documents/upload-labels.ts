@@ -9,7 +9,7 @@
 export const DOCUMENT_KIND_LABEL =
   "PDF, Word (.docx), PowerPoint (.pptx), TXT, JPG, PNG ve HEIC";
 
-export const DOCUMENT_UPLOAD_HINT = `${DOCUMENT_KIND_LABEL} · en fazla 15 MB`;
+export const DOCUMENT_UPLOAD_HINT = `${DOCUMENT_KIND_LABEL} · PDF en fazla 50 MB, diğer dosyalar 15 MB`;
 
 export const DOCUMENT_TYPE_REJECTED =
   "Bu dosya türü desteklenmiyor. PDF, Word (.docx), PowerPoint (.pptx), TXT veya görsel (JPG, PNG, HEIC) yükle.";

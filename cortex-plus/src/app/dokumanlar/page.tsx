@@ -20,6 +20,7 @@ import {
   topicMapErrorLabel,
 } from "@/lib/documents/error-labels";
 import { DOCUMENT_EMPTY_DESCRIPTION } from "@/lib/documents/upload-labels";
+import { isProcessingStale } from "@/lib/documents/processing-stale";
 
 export const metadata = { title: "Belgeler" };
 
@@ -31,7 +32,7 @@ const statusLabels: Record<string, string> = {
 };
 
 const processingHints: Record<string, string> = {
-  pending: "Dosyan yükleniyor",
+  pending: "Dosya yükleniyor; yarıda kaldıysa yeniden yükle",
   processing: "Belgen okunuyor",
   completed: "Belgen hazır",
   failed: "İşlem başarısız",
@@ -65,26 +66,25 @@ export default async function DokumanlarPage() {
   const { data: documents } = await supabase
     .from("documents")
     .select(
-      "id, file_name, status, size_bytes, created_at, error_message, topic_map_status, topic_map_error, page_count",
+      "id, file_name, status, size_bytes, created_at, updated_at, error_message, topic_map_status, topic_map_error, page_count",
     )
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(30);
 
-  const anyProcessing = (documents ?? []).some(
+  const activeDocumentIds = (documents ?? []).filter(
     (d) =>
-      d.status === "processing" ||
-      d.status === "pending" ||
+      (d.status === "processing" && d.topic_map_status !== "failed") ||
       (pdfLearningV2 && d.status === "completed" && d.topic_map_status === "pending"),
-  );
+  ).map((d) => d.id);
 
   return (
     <AppShell
       title="Belgeler"
-      creditHint={`Belge işleme: sayfa başına ${cost} kredi.`}
+      creditHint={`Belge işleme: belge başına ${cost} kredi.`}
     >
-      <DocumentStatusPoller active={anyProcessing} />
+      <DocumentStatusPoller documentIds={activeDocumentIds} />
       <div className="space-y-6">
         <SectionCard
           variant="parity"
@@ -133,9 +133,11 @@ export default async function DokumanlarPage() {
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      {document.status === "processing" ||
-                      document.status === "failed" ||
-                      document.status === "pending" ? (
+                      {document.status === "failed" ||
+                      (document.status === "processing" && (
+                        document.topic_map_status === "failed" ||
+                        isProcessingStale(document.status, document.updated_at)
+                      )) ? (
                         <DocumentRetryButton documentId={document.id} />
                       ) : null}
                       <DocumentDeleteButton documentId={document.id} />

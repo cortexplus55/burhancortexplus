@@ -4,6 +4,7 @@
 
 import type { PageAnalysis, PageKind } from "@/lib/documents/page-analysis";
 import type { TopicDraft } from "@/lib/documents/topic-map";
+import { chapterHeadings, pageCarriesHeading, unrepresentedHeadings } from "@/lib/documents/topic-title";
 
 export type CoverageStatus = "complete" | "incomplete" | "blocked";
 
@@ -30,6 +31,13 @@ export function buildCoverageReport(
   for (const topic of topics) {
     for (const pageNumber of topic.pageNumbers) linkedPages.add(pageNumber);
   }
+  const teachingPages = pages.filter((page) =>
+    page.pageKind === "content" || page.pageKind === "uncertain",
+  );
+  const missingChapters = unrepresentedHeadings(
+    chapterHeadings(teachingPages),
+    topics.map((topic) => topic.title),
+  );
 
   const skippedPages: CoverageReport["skippedPages"] = [];
   const unreadablePages: CoverageReport["unreadablePages"] = [];
@@ -66,12 +74,15 @@ export function buildCoverageReport(
     }
 
     contentPages += 1;
-    if (linkedPages.has(page.pageNumber)) {
+    const missingHere = missingChapters.find((heading) => pageCarriesHeading(page, heading));
+    if (linkedPages.has(page.pageNumber) && !missingHere) {
       coveredPages += 1;
     } else {
       uncoveredContentPages.push({
         pageNumber: page.pageNumber,
-        reason: "İçerik sayfası hiçbir konuya bağlanmadı.",
+        reason: missingHere
+          ? `Bağımsız bölüm konu haritasında temsil edilmiyor: ${missingHere}`
+          : "İçerik sayfası hiçbir konuya bağlanmadı.",
       });
     }
   }
@@ -86,7 +97,7 @@ export function buildCoverageReport(
 
   const summary =
     status === "complete"
-      ? `Tüm öğretim sayfaları (${coveredPages}/${contentPages}) en az bir konuya bağlı.`
+      ? `Tüm öğretim sayfaları (${coveredPages}/${contentPages}) konuya bağlı ve bağımsız bölümler temsil ediliyor.`
       : status === "blocked"
         ? "Belgeden okunabilir öğretim sayfası çıkarılamadı."
         : [

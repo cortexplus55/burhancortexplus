@@ -30,14 +30,13 @@ const TRAILING_PAREN = /\s*\([^()]{2,20}\)\s*$/;
 /**
  * Konu sayısı belgenin uzunluğuna göre.
  *
- * Yaklaşık her üç öğretim sayfasına bir konu. Alt sınır 4: iki konuya
- * bölünmüş bir belge plan üretmeye yetmiyor. Üst sınır 12: 200 sayfalık bir
- * ders kitabı 60 konuya bölünürse çalışma planı gün başına birkaç dakikaya
- * iniyor ve konu listesi gezilemez oluyor.
+ * Yaklaşık her üç öğretim sayfasına bir konu bir hedef yoğunluktur. Büyük
+ * belgelerde sabit bir üst sınır bağımsız bölümleri sessizce siliyordu.
+ * Gerçek sınır aşağıdaki bölüm tespiti ve birleştirme kurallarıdır.
  */
 export function targetTopicCount(contentPageCount: number): number {
   const raw = Math.round(contentPageCount / 3);
-  return Math.min(12, Math.max(4, raw));
+  return Math.max(4, raw);
 }
 
 /**
@@ -45,13 +44,14 @@ export function targetTopicCount(contentPageCount: number): number {
  *
  * `targetTopicCount` yaklaşık bir yoğunluk ipucuydu (20 sayfada 7). Canlıda
  * her kutu ve her sayfa ayrı konu olunca 10 sayfalık not 23 başlık üretiyordu.
- * Tavan, sayfa sayısından biraz geniş: 10 sayfa en fazla 8, 20 sayfa en fazla
- * 12. Doldurulacak kota değil; aşılırsa harita birleştirilir.
+ * Sayfa sayısından türeyen yoğunluk sınırı yalnızca modelin kutu ve örnekleri
+ * ayrı konu yapmasını önler. Bağımsız bölüm sayısı bundan fazlaysa katlama
+ * katmanı o bölümleri korur; 99 sayfalık kaynak 12 konuya zorlanmaz.
  */
 export function topicCeiling(pageCount: number): number {
   if (pageCount <= 1) return 1;
   if (pageCount <= 6) return pageCount;
-  return Math.min(12, Math.max(8, Math.round(pageCount * 0.6)));
+  return Math.max(8, Math.round(pageCount * 0.6));
 }
 
 export function topicScopeGuidance(contentPageCount: number): string {
@@ -60,7 +60,7 @@ export function topicScopeGuidance(contentPageCount: number): string {
     "Konu sayısı sayfa sayısına bölünerek üretilmez. " +
     "Her konu, belgede tek başına sınanabilecek ayrı bir içerik kümesidir. " +
     "Sayfa sayısı artsa bile yeni konu ancak yeni bir kavram kümesi varsa eklenir. " +
-    `En fazla ${ceiling} konu. Bu bir tavan, doldurulacak kota değil.`
+    `Yaklaşık ${ceiling} konu üst sınırını hedefle; belgedeki bağımsız bölümleri sırf sayı için birleştirme veya atlama.`
   );
 }
 
@@ -276,9 +276,14 @@ export function chapterHeadings(
   const counts = new Map<string, number>();
   for (const page of pages) {
     const seenOnPage = new Set<string>();
+    const lead = (page.headings ?? [])[0]?.trim() ?? "";
+    // Çözümlü örneğin "1. Konumu belirle" gibi adımları, noktadan
+    // sonra yazılmış olsa bile bağımsız bölüm değildir.
+    const workedSteps = /^(?:adım adım|çözüm|çözümlü örnek|ornek çözüm)/i.test(lead);
     for (const raw of page.headings ?? []) {
       const heading = (raw ?? "").replace(TOC_PAGE_TAIL, "").trim();
       if (!heading || SUB_NUMBER.test(heading)) continue;
+      if (workedSteps && heading !== lead && isNumberedChapter(heading)) continue;
       if (looksLikeQuestionOrSentence(heading)) continue;
       // Kutu, adım, örnek ve tekrar omurgaya girerse bekçi onları konu
       // diye geri ekliyor. Sayfa metni durur; konu listesine çıkmaz.

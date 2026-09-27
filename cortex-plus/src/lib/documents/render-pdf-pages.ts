@@ -16,13 +16,11 @@ import "server-only";
  */
 
 /**
- * Tek istekte okunacak en fazla sayfa.
+ * Tek istekte çizilecek en fazla sayfa; belgenin toplam sayfa tavanı değil.
  *
  * Kota 50 sayfayı kaldırıyor ama ZAMAN kaldırmıyor: her sayfa ayrı bir
- * görüntü modeli çağrısı ve uç noktanın bütçesi 120 saniye. Dörtlü
- * paralellikle 20 sayfa ~30 saniye; 50 sayfa aynı bütçede zaman aşımına
- * giriyor ve öğrenci hiçbir şey alamıyordu. Uzun belge kesiliyor ve bunu
- * söylüyoruz — yarım okumak, hiç okumamaktan iyi.
+ * görüntü modeli çağrısı. Uzun belgeye sonraki turda startPage verilerek
+ * devam edilir; bir sayfa bile sessizce atlanmaz.
  */
 export const MAX_SCAN_PAGES = 20;
 
@@ -57,6 +55,7 @@ function ensurePromiseWithResolvers() {
 export async function renderPdfPages(
   buffer: Buffer,
   maxPages = MAX_SCAN_PAGES,
+  startPage = 1,
 ): Promise<RenderedPdf> {
   ensurePromiseWithResolvers();
   /*
@@ -77,10 +76,11 @@ export async function renderPdfPages(
 
   try {
     const pdf = await task.promise;
-    const limit = Math.max(0, Math.min(maxPages, pdf.numPages));
+    const first = Math.max(1, Math.trunc(startPage));
+    const last = Math.min(pdf.numPages, first + Math.max(0, Math.trunc(maxPages)) - 1);
     const pages: Buffer[] = [];
 
-    for (let number = 1; number <= limit; number++) {
+    for (let number = first; number <= last; number++) {
       const page = await pdf.getPage(number);
       const base = page.getViewport({ scale: 1 });
       const scale = TARGET_LONG_EDGE / Math.max(base.width, base.height);

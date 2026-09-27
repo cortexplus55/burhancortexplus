@@ -90,8 +90,12 @@ describe("PDF learning topic map + coverage", () => {
       .filter((page) => page.pageKind === "content")
       .map((page) => page.pageNumber);
     const topics = topicsFor(analyses, [
-      { title: "Açı Ölçüsü ve Birim Çember", pages: contentPages.slice(0, 8) },
-      { title: "Kimlikler, Grafikler ve Denklemler", pages: contentPages.slice(8) },
+      { title: "Derece ve Radyan", pages: [3, 4] },
+      { title: "Birim Çember", pages: [5, 6] },
+      { title: "İşaretler ve Bölgeler", pages: [7, 8] },
+      { title: "Trigonometrik Kimlikler", pages: [9, 10] },
+      { title: "Trigonometrik Grafikler", pages: [11, 12] },
+      { title: "Trigonometrik Denklemler", pages: contentPages.filter((page) => page >= 13) },
     ]);
     const coverage = buildCoverageReport(analyses, topics, []);
 
@@ -120,5 +124,25 @@ describe("PDF learning topic map + coverage", () => {
     expect(coverage.skippedPages.map((p) => p.pageNumber)).toContain(2);
     expect(coverage.unreadablePages.map((p) => p.pageNumber)).toContain(3);
     expect(coverage.status).not.toBe("complete");
+  });
+
+  it("does not call chapter nine and ten covered by unrelated earlier topics", () => {
+    const chapterNames = [
+      "Büyüme ve Gelişme", "Yenidoğan Dönemi", "Beslenme ve Malnütrisyon",
+      "Solunum Sistemi", "Gastroenteroloji ve Dehidratasyon",
+      "Enfeksiyon Hastalıkları", "Hematoloji ve Onkoloji", "Nefroloji",
+      "Kardiyoloji", "Pediatrik Aciller ve Aşı Mantığı",
+    ];
+    const analyses = analyzePages(chapterNames.map((title, index) =>
+      `${index + 1}. ${title}\n${title} konusunda ayrıntılı bilgiler ve örnekler vardır.`,
+    ));
+    const topics = topicsFor(analyses, chapterNames.slice(0, 8).map((title, index) => ({
+      title, pages: [index + 1, ...(index === 7 ? [9, 10] : [])],
+    })));
+    const report = buildCoverageReport(analyses, topics);
+    expect(report.status).toBe("incomplete");
+    expect(report.coveredPages).toBe(8);
+    expect(report.uncoveredContentPages.map((page) => page.pageNumber)).toEqual([9, 10]);
+    expect(report.uncoveredContentPages[0].reason).toContain("Kardiyoloji");
   });
 });

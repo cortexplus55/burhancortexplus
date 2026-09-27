@@ -128,7 +128,7 @@ export function UploadModal({
           <p>Dosyalarını buraya bırak</p>
           <p className="cp-upload-hint">
             Görseller, PDF
-            {freePdfCap !== null ? ` · PDF sayfa: ${freePdfCap}` : ""}
+            {freePdfCap !== null ? ` · aylık taranmış sayfa hakkı: ${freePdfCap}` : ""}
           </p>
           <button
             type="button"

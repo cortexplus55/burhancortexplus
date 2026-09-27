@@ -4,6 +4,7 @@ import { ParitySorShell } from "@/components/parity/sor-shell";
 import { TopicMapEditor } from "@/components/documents/topic-map-editor";
 import { DocumentDeleteButton } from "@/components/documents/document-delete-button";
 import { DocumentRetryButton } from "@/components/documents/document-retry-button";
+import { DocumentStatusPoller } from "@/components/documents/document-status-poller";
 import { processErrorLabel } from "@/lib/documents/error-labels";
 import { isProcessingStale } from "@/lib/documents/processing-stale";
 import { requireStudentArea } from "@/lib/auth/session";
@@ -145,6 +146,11 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
 
   return (
     <ParitySorShell {...shell}>
+      <DocumentStatusPoller documentIds={
+        (doc.status === "processing" && doc.topic_map_status !== "failed") ||
+        (completed && pdfLearningV2 && doc.topic_map_status === "pending")
+          ? [documentId] : []
+      } />
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 pb-24">
         <div className="space-y-1">
           <Link
@@ -227,7 +233,14 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
               </Link>
             </div>
           </section>
-        ) : isProcessingStale(doc.status, doc.updated_at as string | null) ? (
+        ) : doc.status === "pending" ? (
+          <section className="cs-pay-card space-y-3 p-5" role="status">
+            <p className="text-sm text-[var(--cs-muted)]">
+              Dosya yüklemesi henüz tamamlanmadı. Yükleme yarıda kaldıysa dosyayı yeniden seç.
+            </p>
+            <Link href="/dokumanlar" className="text-xs underline">Belgelerime dön</Link>
+          </section>
+        ) : doc.status === "processing" && isProcessingStale(doc.status, doc.updated_at as string | null) ? (
           <section className="cs-pay-card space-y-3 p-5">
             <p className="text-sm text-amber-200" role="status">
               İşleme takıldı — belge yarım saatten uzun süredir hazırlanamadı.
