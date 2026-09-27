@@ -26,10 +26,17 @@ export { classifyKnowledgeGap } from "@/lib/adaptive/knowledge-gap";
 export { routeTutorModel } from "@/lib/adaptive/tutor-model-router";
 export {
   normalizeDecisionPayload,
+  normalizeJevAnswers,
   deterministicFallback,
 } from "@/lib/adaptive/jev/normalize";
 export { buildDecisionState, hashDecisionState } from "@/lib/adaptive/jev/build-decision-state";
 export { shouldAttemptJev, decisionEngineStatus } from "@/lib/adaptive/jev/provider-mode";
+export {
+  resolveJevAccessSync,
+  resolveJevModelName,
+  parseJevAccess,
+} from "@/lib/adaptive/jev/access";
+export { getJevCircuitSnapshot } from "@/lib/adaptive/jev/circuit-breaker";
 export {
   sanitizedEvalSnapshot,
   scoreDecisionAgreement,
