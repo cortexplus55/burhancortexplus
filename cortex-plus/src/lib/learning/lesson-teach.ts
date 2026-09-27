@@ -753,6 +753,45 @@ function dropDuplicateNotes(lesson: LessonV2): LessonV2 {
   return changed ? { ...lesson, sections } : lesson;
 }
 
+const BODY_WORD_BUDGET = 70;
+const TITLE_WORD_BUDGET = 8;
+
+function wordCount(text: string): number {
+  const trimmed = text.trim();
+  return trimmed ? trimmed.split(/\s+/).length : 0;
+}
+
+/**
+ * LESSON_TEACH_RULE'daki kelime bütçesi model tarafından her zaman
+ * uygulanmıyor; bu yalnızca geliştiriciye görünen bir gözlem — üretimde
+ * öğrenciye hiçbir şey göstermez, dersi kesmez ya da değiştirmez.
+ */
+function warnOnBudgetOverrun(lesson: LessonV2, topicLabel: string): void {
+  if (process.env.NODE_ENV === "production") return;
+  const titleWords = wordCount(lesson.title);
+  if (titleWords > TITLE_WORD_BUDGET) {
+    console.warn("[Adaptive Lesson] Content budget exceeded", {
+      topicLabel,
+      field: "title",
+      wordCount: titleWords,
+      budget: TITLE_WORD_BUDGET,
+    });
+  }
+  lesson.sections.forEach((section, index) => {
+    const bodyWords = wordCount(section.body);
+    if (bodyWords > BODY_WORD_BUDGET) {
+      console.warn("[Adaptive Lesson] Content budget exceeded", {
+        topicLabel,
+        field: "section.body",
+        heading: section.heading,
+        sectionIndex: index,
+        wordCount: bodyWords,
+        budget: BODY_WORD_BUDGET,
+      });
+    }
+  });
+}
+
 function dropInventedSentences(text: string, source: string): string {
   const parts = text.split(/\n+|(?<=[.!?])\s+(?=[A-ZÇĞİÖŞÜ“"0-9])/);
   const kept = parts
@@ -987,6 +1026,7 @@ function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): Le
   }
   next = scrubInventedNumbers(next, source);
   next = extractSectionSources(next);
+  warnOnBudgetOverrun(next, topicLabel);
   const dropped =
     next.sections.filter((section) => section.check).length < checksBefore ||
     sentences(lessonProse(next)).length < sentencesBefore ||
