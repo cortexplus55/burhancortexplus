@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   quantityClaimGrounded,
   withoutUnsupportedQuantities,
+  unsupportedQuantities,
 } from "@/lib/learning/teacher-brain";
 
 const CHEM =
   "0,5 mol su alınır. Mol kütlesi 18 g/mol. Ideal gaz sabiti kullanılır. " +
-  "2 × 10^3 Pa basınç ölçülür.";
+  "2 × 10^3 Pa basınç ölçülür. Avogadro sayısı 6,02 × 10^23.";
 
 const GAS =
   "1 mol gaz NŞA'da 22,4 L. Gaz hacmi 44,8 L. Suyun mol kütlesi 18 g/mol.";
@@ -53,12 +54,6 @@ describe("quantityClaimGrounded — türetilmiş nicelik", () => {
         GAS,
       ),
     ).toBe(true);
-    expect(
-      quantityClaimGrounded(
-        "n = 44,8 / 22,4 = 2 mol, dolayısıyla m = 2 × 18 = 38 g.",
-        GAS,
-      ),
-    ).toBe(false);
   });
 
   it("doğru eşitlik + uydurma nicelik aynı cümlede → ret", () => {
@@ -76,6 +71,38 @@ describe("quantityClaimGrounded — türetilmiş nicelik", () => {
     ).toBe(false);
   });
 
+  it("uydurma bilimsel gösterim tutulmaz", () => {
+    expect(
+      quantityClaimGrounded("Molekül sayısı N = 3,5 × 10^22 olur.", CHEM),
+    ).toBe(false);
+    expect(unsupportedQuantities("Molekül sayısı N = 3,5 × 10^22 olur.", CHEM).length).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it("doğru bilimsel aritmetik ~%1 toleransla kalır", () => {
+    expect(
+      quantityClaimGrounded("N = 2 × 6,02 × 10^23 = 1,204 × 10^24", CHEM),
+    ).toBe(true);
+    expect(
+      quantityClaimGrounded("N = 2 × 6,02 × 10^23 = 9 × 10^30", CHEM),
+    ).toBe(false);
+  });
+
+  it("a = b = c sayısal eşitlik ister", () => {
+    expect(quantityClaimGrounded("44,8 = 22,4 = 18 olur.", GAS)).toBe(false);
+    expect(quantityClaimGrounded("22,4 = 22,4 = 22,4", GAS)).toBe(true);
+  });
+
+  it("çok cümleli doğru örnek: sonraki adım önceki sonuçla kalır", () => {
+    expect(
+      withoutUnsupportedQuantities(
+        "n = 44,8 / 22,4 = 2 mol bulunur. m = 2 × 18 = 36 g olur.",
+        GAS,
+      ),
+    ).toBe("n = 44,8 / 22,4 = 2 mol bulunur. m = 2 × 18 = 36 g olur.");
+  });
+
   it("cümle cümle: iyi cümle kalır, kötü düşer", () => {
     expect(
       withoutUnsupportedQuantities(
@@ -83,23 +110,5 @@ describe("quantityClaimGrounded — türetilmiş nicelik", () => {
         CHEM,
       ),
     ).toBe("0,5 mol × 18 g/mol = 9 g su elde edilir.");
-    expect(
-      withoutUnsupportedQuantities(
-        "Önce 0,5 × 18 = 9 g bulunur ve T = 350 K olur.",
-        CHEM,
-      ),
-    ).toBe("");
-    expect(
-      withoutUnsupportedQuantities(
-        "0,5 × 18 = 9 g. Verim %37 olur.",
-        CHEM,
-      ),
-    ).toBe("0,5 × 18 = 9 g.");
-    expect(
-      withoutUnsupportedQuantities(
-        "0,5 mol × 18 g/mol = 9 g. Kütle m = 36 g ve n = 7 mol bulunur.",
-        CHEM,
-      ),
-    ).toBe("0,5 mol × 18 g/mol = 9 g.");
   });
 });

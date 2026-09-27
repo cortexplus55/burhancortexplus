@@ -89,6 +89,16 @@ describe("describeGenerationFailure", () => {
     expect(
       describeGenerationFailure("generation_failed", undefined, "podcast").message,
     ).toContain("Kredin iade edildi");
+    expect(
+      describeGenerationFailure("content_verification_failed", undefined, undefined, {
+        refunded: true,
+      }).message,
+    ).toContain("Kredin iade edildi");
+    expect(
+      describeGenerationFailure("content_verification_failed", undefined, undefined, {
+        refunded: false,
+      }).message,
+    ).not.toContain("Kredin iade edildi");
   });
 
   it("does not invite a retry that cannot help", () => {

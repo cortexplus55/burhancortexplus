@@ -45,6 +45,7 @@ export default async function AdminDersHatalariPage({
   ]);
   const rows = listed.rows;
   const tableMissing = listed.tableMissing;
+  const queryError = listed.queryError;
 
   return (
     <AdminShell href="/admin/ders-hatalari" pendingApplications={pending}>
@@ -58,6 +59,13 @@ export default async function AdminDersHatalariPage({
           Kayıt tablosu henüz kurulmadı. Migration
           `20260928010000_lesson_generation_failures` SQL Editor&apos;dan elle
           uygulanmalı; uygulama tablosuz da çalışır.
+        </AdminNote>
+      ) : null}
+
+      {queryError ? (
+        <AdminNote tone="warn">
+          Kayıtlar okunamadı. Biraz sonra yenile; sorun sürerse Vercel
+          loglarına bak.
         </AdminNote>
       ) : null}
 
@@ -153,6 +161,10 @@ export default async function AdminDersHatalariPage({
         ) : tableMissing ? (
           <AdminEmpty title="Kayıt tablosu henüz kurulmadı">
             Migration uygulanınca hatalar burada listelenir.
+          </AdminEmpty>
+        ) : queryError ? (
+          <AdminEmpty title="Kayıtlar okunamadı">
+            Sorgu hatası. Biraz sonra yenile.
           </AdminEmpty>
         ) : (
           <AdminEmpty title="Kayıt yok">Bu filtrede ders üretim hatası görünmüyor.</AdminEmpty>

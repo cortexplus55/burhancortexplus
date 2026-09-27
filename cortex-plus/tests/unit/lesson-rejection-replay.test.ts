@@ -242,6 +242,7 @@ vi.mock("@/lib/credits/service", () => ({
   commitCredits: pipelineMocks.commit,
   refundCredits: pipelineMocks.refund,
   recordUsage: pipelineMocks.usage,
+  refundStalePendingReservations: vi.fn(async () => 0),
   newIdempotencyKey: () => "idem-replay",
 }));
 

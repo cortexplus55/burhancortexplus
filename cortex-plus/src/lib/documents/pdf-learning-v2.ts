@@ -218,7 +218,8 @@ export async function runPdfLearningV2(
     // A preparation keeps stable document_topic_node_id references. A rebuild
     // may not delete those nodes after the learner has started using them.
     if (previousMapStatus === "ready" || previousMapStatus === "reviewed") {
-      if (await documentTopicMapIsInUse(service, documentId, [])) {
+      const inUse = await documentTopicMapIsInUse(service, documentId, []).catch(() => true);
+      if (inUse) {
         return { ok: false, topics: 0, coverage: null, error: "topic_map_in_use" };
       }
     }
@@ -406,58 +407,81 @@ export type TopicMapSnapshot = {
  * Eski yol yalnız exam_preps.document_id ve document_topic_node_id'ye
  * bakıyordu; source_refs içindeki ikincil belge düğümleri korunmuyordu.
  * source_document_ids ve source_refs.nodeId de "kullanımda" sayılır.
+ *
+ * Lookup hatası → "kullanımda" (yeniden yazma). Yanlış JSON filtresi
+ * yüzünden 500 dönmemeli; kullanılmayan belge de intake/sayfa kırılmamalı.
  */
 export async function documentTopicMapIsInUse(
   service: SupabaseClient,
   documentId: string,
   nodeIds: string[],
 ): Promise<boolean> {
-  const { data: preps, error: prepError } = await service
-    .from("exam_preps")
-    .select("id")
-    .eq("document_id", documentId)
-    .limit(1);
-  if (prepError) throw new Error("prep_lookup_failed");
-  if (preps?.length) return true;
+  try {
+    const { data: preps, error: prepError } = await service
+      .from("exam_preps")
+      .select("id")
+      .eq("document_id", documentId)
+      .limit(1);
+    if (prepError) {
+      console.error("document_topic_map_in_use_lookup_failed", { stage: "document_id" });
+      return true;
+    }
+    if (preps?.length) return true;
 
-  const { data: sourcePreps, error: sourcePrepError } = await service
-    .from("exam_preps")
-    .select("id")
-    .contains("source_document_ids", [documentId])
-    .limit(1);
-  if (sourcePrepError) throw new Error("prep_source_lookup_failed");
-  if (sourcePreps?.length) return true;
+    const { data: sourcePreps, error: sourcePrepError } = await service
+      .from("exam_preps")
+      .select("id")
+      .contains("source_document_ids", [documentId])
+      .limit(1);
+    if (sourcePrepError) {
+      console.error("document_topic_map_in_use_lookup_failed", { stage: "source_document_ids" });
+      return true;
+    }
+    if (sourcePreps?.length) return true;
 
-  if (nodeIds.length) {
-    const { data: linked, error: linkError } = await service
+    if (nodeIds.length) {
+      const { data: linked, error: linkError } = await service
+        .from("exam_prep_topics")
+        .select("id")
+        .in("document_topic_node_id", nodeIds)
+        .limit(1);
+      if (linkError) {
+        console.error("document_topic_map_in_use_lookup_failed", { stage: "node_id" });
+        return true;
+      }
+      if (linked?.length) return true;
+    }
+
+    // postgrest-js 2.x: jsonb cs filtresi dizi/nesne için JSON string ister;
+    // düz nesne `cs.{[object Object]}` üretir ve Postgres reddeder.
+    const { data: byDoc, error: byDocError } = await service
       .from("exam_prep_topics")
       .select("id")
-      .in("document_topic_node_id", nodeIds)
+      .contains("source_refs", JSON.stringify([{ documentId }]))
       .limit(1);
-    if (linkError) throw new Error("prep_topic_lookup_failed");
-    if (linked?.length) return true;
-  }
+    if (byDocError) {
+      console.error("document_topic_map_in_use_lookup_failed", { stage: "source_refs_doc" });
+      return true;
+    }
+    if (byDoc?.length) return true;
 
-  // source_refs içindeki nodeId / documentId (ikincil belgeler).
-  // limit(400) tarama yok — jsonb containment ile belge/düğüm filtrele.
-  const { data: byDoc, error: byDocError } = await service
-    .from("exam_prep_topics")
-    .select("id")
-    .contains("source_refs", [{ documentId }])
-    .limit(1);
-  if (byDocError) throw new Error("prep_topic_refs_lookup_failed");
-  if (byDoc?.length) return true;
-
-  for (const nodeId of nodeIds) {
-    const { data: byNode, error: byNodeError } = await service
-      .from("exam_prep_topics")
-      .select("id")
-      .contains("source_refs", [{ nodeId }])
-      .limit(1);
-    if (byNodeError) throw new Error("prep_topic_refs_lookup_failed");
-    if (byNode?.length) return true;
+    for (const nodeId of nodeIds) {
+      const { data: byNode, error: byNodeError } = await service
+        .from("exam_prep_topics")
+        .select("id")
+        .contains("source_refs", JSON.stringify([{ nodeId }]))
+        .limit(1);
+      if (byNodeError) {
+        console.error("document_topic_map_in_use_lookup_failed", { stage: "source_refs_node" });
+        return true;
+      }
+      if (byNode?.length) return true;
+    }
+    return false;
+  } catch {
+    console.error("document_topic_map_in_use_lookup_failed", { stage: "throw" });
+    return true;
   }
-  return false;
 }
 
 /**
@@ -534,7 +558,8 @@ export async function refoldTopicMapIfNeeded(
   }));
 
   const nodeIds = topicRows.map((row) => row.id as string);
-  const inUse = await documentTopicMapIsInUse(service, documentId, nodeIds);
+  // Lookup hatası → kullanımda say (yeniden yazma); 500 yok.
+  const inUse = await documentTopicMapIsInUse(service, documentId, nodeIds).catch(() => true);
   if (
     !shouldRewriteStoredTopicMap({
       status: (doc.topic_map_status as string | null) ?? null,
@@ -591,7 +616,7 @@ export async function refoldTopicMapIfNeeded(
           const { data: claimed, error } = await query.select("id");
           if (error || !claimed?.length) return false;
           // Hak alındıktan sonra hazırlık açıldıysa eski düğümler durur.
-          return !(await documentTopicMapIsInUse(service, documentId, nodeIds));
+          return !(await documentTopicMapIsInUse(service, documentId, nodeIds).catch(() => true));
         },
         insert: async (index) => {
           const topic = linked[index];
@@ -679,7 +704,14 @@ export async function loadTopicMapSnapshot(
   service: SupabaseClient,
   documentId: string,
 ): Promise<TopicMapSnapshot | null> {
-  await refoldTopicMapIfNeeded(service, documentId);
+  try {
+    await refoldTopicMapIfNeeded(service, documentId);
+  } catch (error) {
+    console.error("topic_map_refold_skipped", {
+      documentId,
+      errorType: error instanceof Error ? (error.constructor?.name ?? error.name) : "unknown",
+    });
+  }
   const { data: doc } = await service
     .from("documents")
     .select(

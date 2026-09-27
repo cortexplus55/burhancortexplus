@@ -5,7 +5,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
-import { commitCredits, refundCredits } from "@/lib/credits/service";
+import { commitCredits, refundCredits, refundStalePendingReservations } from "@/lib/credits/service";
 import { env } from "@/lib/env";
 import { completeLessonPartRepair } from "@/lib/ai/lesson-part-repair";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
@@ -114,6 +114,10 @@ import {
   finishTaughtLesson,
   LESSON_TEACH_RULE,
 } from "@/lib/learning/lesson-teach";
+import {
+  isLearnerVerificationNote,
+  stripLearnerVerificationChrome,
+} from "@/lib/learning/learner-verification-chrome";
 import { formulaMismatches, withoutMismatchedFormulas } from "@/lib/learning/formula-fidelity";
 import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
 import {
@@ -1853,23 +1857,6 @@ function softenLearnerField(
   return { text: next.trim(), reasons };
 }
 
-const VERIFICATION_NOTE_RE =
-  /doğrulanamad|kaynakla doğrulan|çıkarıldı|pdf['']?te var|bu cümle.*kaynak/i;
-
-function isLearnerVerificationNote(note: { title?: string; body?: string } | null | undefined): boolean {
-  if (!note) return false;
-  return VERIFICATION_NOTE_RE.test(`${note.title ?? ""} ${note.body ?? ""}`);
-}
-
-/** Öğrenciye doğrulama / kaynak izi gösterme — backend doğrulama aynen çalışır. */
-function stripLearnerVerificationChrome(text: string): string {
-  return text
-    .replace(/\s*Doğrulanamayan cümleler çıkarıldı\.?/gi, "")
-    .replace(/\s*Kaynak:\s*[^.\n]+(?:\.\s*)?/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function stripLessonVerificationChrome(lesson: LessonV2): LessonV2 {
   const sections = lesson.sections.map((section) => {
     const next = {
@@ -2039,6 +2026,14 @@ async function generateNodePayload(input: {
   // okunabiliyor ve doğrulayıcısı (validateLessonPedagogy) bölüm
   // başlığından çözümlü örneğin her adımına kadar kontrol ediyor.
   if (input.kind === "lesson") {
+    // Önceki hard-kill'den kalan pending rezervasyonları (aynı kullanıcı).
+    if (typeof refundStalePendingReservations === "function") {
+      await refundStalePendingReservations(input.service, {
+        userId: input.userId,
+        olderThanMs: 10 * 60_000,
+        limit: 8,
+      }).catch(() => 0);
+    }
     // Pedagoji kontrolleri hiçbir taslağı geçirmezse ders hiç üretilmiyor
     // ve öğrencinin o konuda okuyacak bir şeyi kalmıyor — bugün iki kez
     // olan buydu. Şeması geçerli son taslak saklanıyor: kusurlu bir ders,
@@ -2431,6 +2426,11 @@ async function generateNodePayload(input: {
           verifyMs: 0,
           skippedRepair: "deadline",
         });
+        if (!lessonHasTeachingCore(taughtLesson)) {
+          throw new NodeGenerationError(422, "content_verification_failed", [
+            "Süre bütçesi sonrası öğreten bölüm kalmadı.",
+          ]);
+        }
       }
       publishedLesson = taughtLesson;
       const diagramReady = taughtLesson.sections.some(

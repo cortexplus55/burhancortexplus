@@ -111,7 +111,8 @@ export function describeGenerationFailure(
   const showRefund =
     options.isAdmin !== true &&
     (options.refunded === true ||
-      (options.refunded === undefined && code === "generation_failed"));
+      (options.refunded === undefined &&
+        (code === "generation_failed" || code === "content_verification_failed")));
   const refundNote = showRefund ? " Kredin iade edildi." : "";
   switch (code) {
     case "generation_in_progress":
@@ -136,8 +137,8 @@ export function describeGenerationFailure(
     case "content_verification_failed":
       return {
         message: podcast
-          ? "Podcast kalite kontrolünden geçemedi; yanlış bilgi yayınlamamak için durduk. Yeniden denemek genelde işe yarıyor."
-          : "Hazırlanan ders kalite kontrolünden geçemedi; yanlış bilgi göstermemek için yayınlamadık. Yeniden denemek genelde işe yarıyor.",
+          ? `Podcast kalite kontrolünden geçemedi; yanlış bilgi yayınlamamak için durduk.${refundNote} Yeniden denemek genelde işe yarıyor.`
+          : `Hazırlanan ders kalite kontrolünden geçemedi; yanlış bilgi göstermemek için yayınlamadık.${refundNote} Yeniden denemek genelde işe yarıyor.`,
         retryMintsNewId: true,
         canRetryNow: true,
       };

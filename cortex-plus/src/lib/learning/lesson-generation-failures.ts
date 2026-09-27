@@ -63,8 +63,10 @@ export async function recordLessonGenerationFailure(
 
 export type ListLessonFailuresResult = {
   rows: LessonFailureRow[];
-  /** Tablo yok / sorgu hatası — admin 'Kayıt yok' yerine uyarı göstermeli. */
+  /** Tablo yok (PGRST205 / 42P01) — admin özel uyarı göstermeli. */
   tableMissing: boolean;
+  /** Diğer sorgu hataları. */
+  queryError: boolean;
 };
 
 export async function listLessonGenerationFailures(
@@ -89,12 +91,20 @@ export async function listLessonGenerationFailures(
   const { data, error } = await query;
   if (error) {
     const msg = `${error.message ?? ""} ${error.code ?? ""}`.toLowerCase();
+    const code = String(error.code ?? "").toUpperCase();
     const tableMissing =
-      msg.includes("does not exist") ||
-      msg.includes("relation") ||
+      code === "PGRST205" ||
+      code === "42P01" ||
+      msg.includes("pgrst205") ||
       msg.includes("42p01") ||
-      msg.includes("schema cache");
-    return { rows: [], tableMissing: tableMissing || Boolean(error) };
+      (msg.includes("does not exist") && msg.includes("lesson_generation_failures")) ||
+      (msg.includes("relation") && msg.includes("does not exist")) ||
+      (msg.includes("schema cache") && msg.includes("lesson_generation_failures"));
+    console.error("lesson_generation_failures_list_failed", {
+      code: error.code ?? null,
+      tableMissing,
+    });
+    return { rows: [], tableMissing, queryError: !tableMissing };
   }
-  return { rows: (data ?? []) as LessonFailureRow[], tableMissing: false };
+  return { rows: (data ?? []) as LessonFailureRow[], tableMissing: false, queryError: false };
 }

@@ -99,6 +99,54 @@ export async function refundCredits(
 }
 
 /**
+ * Vercel hard-kill (300 sn) sonrası pending kalan rezervasyonları iade et.
+ * Yeni migration yok — mevcut credit_reservations + credit_refund.
+ * Best-effort: hata üretim yolunu bozmaz.
+ */
+export async function refundStalePendingReservations(
+  service: SupabaseClient,
+  options: {
+    userId?: string;
+    /** Varsayılan 10 dakika. */
+    olderThanMs?: number;
+    limit?: number;
+  } = {},
+): Promise<number> {
+  const olderThanMs = options.olderThanMs ?? 10 * 60_000;
+  const cutoff = new Date(Date.now() - olderThanMs).toISOString();
+  try {
+    let query = service
+      .from("credit_reservations")
+      .select("id")
+      .eq("status", "pending")
+      .lt("created_at", cutoff)
+      .order("created_at", { ascending: true })
+      .limit(options.limit ?? 40);
+    if (options.userId) query = query.eq("user_id", options.userId);
+    const { data, error } = await query;
+    if (error || !data?.length) return 0;
+    let refunded = 0;
+    for (const row of data) {
+      try {
+        await refundCredits(service, row.id as string);
+        refunded += 1;
+      } catch {
+        // tek satır düşmesin diye devam
+      }
+    }
+    if (refunded) {
+      console.error("stale_credit_reservations_refunded", {
+        count: refunded,
+        userId: options.userId ?? null,
+      });
+    }
+    return refunded;
+  } catch {
+    return 0;
+  }
+}
+
+/**
  * Sesin kendi eylem kodlari.
  *
  * Seslendirme ve cozumleme krediden dusmuyor (bedeli dugume dahil), bu yuzden

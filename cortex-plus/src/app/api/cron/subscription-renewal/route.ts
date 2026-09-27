@@ -12,6 +12,7 @@ import { processPendingDeletionRequests } from "@/lib/privacy/account-deletion";
 import { processPendingDocumentDeletions } from "@/lib/privacy/document-deletion";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { cleanupExpiredUploads } from "@/lib/documents/upload-cleanup";
+import { refundStalePendingReservations } from "@/lib/credits/service";
 
 export const dynamic = "force-dynamic";
 
@@ -165,6 +166,17 @@ export async function GET(request: Request) {
     logOpsEvent("document_upload_failed", { stage: "expired_cleanup" });
   }
 
+  let staleReservations = 0;
+  try {
+    // Vercel 300 sn hard-kill sonrası pending kalan rezervasyonlar.
+    staleReservations = await refundStalePendingReservations(service, {
+      olderThanMs: 10 * 60_000,
+      limit: 80,
+    });
+  } catch {
+    logOpsEvent("subscription_sync_failed", { stage: "stale_reservations" });
+  }
+
   return NextResponse.json({
     scanned: rows.length,
     reminded: reminded.length,
@@ -172,5 +184,6 @@ export async function GET(request: Request) {
     notified: notices.length,
     deletion,
     expiredUploads,
+    staleReservations,
   });
 }
