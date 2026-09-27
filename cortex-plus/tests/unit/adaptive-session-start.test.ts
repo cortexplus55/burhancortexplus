@@ -7,6 +7,49 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * so a persistence regression here would have shipped silently. These tests
  * pin startSession's actual insert behavior.
  */
+/**
+ * Generic fake Postgrest-style select builder: supports an arbitrary chain
+ * of .eq()/.order()/.limit() terminated by .maybeSingle(), so the same
+ * double serves both getActiveSession's (eq*3, order, limit) chain and
+ * getPendingAction's (single eq by "id") chain.
+ */
+function makeSelectBuilder(row: Record<string, unknown> | null) {
+  const builder = {
+    eq: () => builder,
+    order: () => builder,
+    limit: () => builder,
+    maybeSingle: async () => ({ data: row, error: null }),
+  };
+  return builder;
+}
+
+function makeUpdateBuilder() {
+  const builder = {
+    eq: () => builder,
+    then: (resolve: (v: { data: null; error: null }) => void) => resolve({ data: null, error: null }),
+  };
+  return builder;
+}
+
+/**
+ * startSession always goes through generateOrJoin/claimGeneration for its
+ * first action, which reads/writes adaptive_generation_claims — every
+ * service double here needs to serve that table even though these tests
+ * aren't about the claim mechanism itself (that's
+ * adaptive-session-resume-idempotency.test.ts). nextAction is mocked to
+ * resolve null in this file's beforeEach, so the claim is always won
+ * immediately and resolved with a null action.
+ */
+function claimsTableDouble() {
+  return {
+    select: () => ({
+      eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
+    }),
+    insert: async () => ({ error: null }),
+    update: () => makeUpdateBuilder(),
+  };
+}
+
 describe("startSession persistence", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -32,19 +75,7 @@ describe("startSession persistence", () => {
       from(table: string) {
         if (table === "adaptive_learning_sessions") {
           return {
-            select: () => ({
-              eq: () => ({
-                eq: () => ({
-                  eq: () => ({
-                    order: () => ({
-                      limit: () => ({
-                        maybeSingle: async () => ({ data: null, error: null }),
-                      }),
-                    }),
-                  }),
-                }),
-              }),
-            }),
+            select: () => makeSelectBuilder(null),
             insert: (row: Record<string, unknown>) => {
               inserted.push(row);
               return {
@@ -53,11 +84,13 @@ describe("startSession persistence", () => {
                 }),
               };
             },
+            update: () => makeUpdateBuilder(),
           };
         }
         if (table === "adaptive_learning_events") {
           return { insert: async (row: Record<string, unknown>) => (inserted.push(row), { error: null }) };
         }
+        if (table === "adaptive_generation_claims") return claimsTableDouble();
         throw new Error(`unexpected table in test double: ${table}`);
       },
     };
@@ -114,25 +147,15 @@ describe("startSession persistence", () => {
       from(table: string) {
         if (table === "adaptive_learning_sessions") {
           return {
-            select: () => ({
-              eq: () => ({
-                eq: () => ({
-                  eq: () => ({
-                    order: () => ({
-                      limit: () => ({
-                        maybeSingle: async () => ({ data: existingSession, error: null }),
-                      }),
-                    }),
-                  }),
-                }),
-              }),
-            }),
+            select: () => makeSelectBuilder(existingSession),
             insert: (row: Record<string, unknown>) => {
               inserted.push(row);
               return { select: () => ({ single: async () => ({ data: null, error: null }) }) };
             },
+            update: () => makeUpdateBuilder(),
           };
         }
+        if (table === "adaptive_generation_claims") return claimsTableDouble();
         throw new Error(`unexpected table in test double: ${table}`);
       },
     };

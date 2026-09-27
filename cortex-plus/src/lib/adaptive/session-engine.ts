@@ -55,6 +55,232 @@ export async function getActiveSession(
   };
 }
 
+/**
+ * The action returned by the last nextAction() call for a session that has
+ * not yet been answered. Persisted on the session row so resuming (page
+ * reload, tab restore, remount) can replay it verbatim instead of minting a
+ * new decisionTraceId — which would miss the content cache and trigger a
+ * fresh decision + generation call for zero new student input.
+ */
+async function getPendingAction(
+  service: SupabaseClient,
+  sessionId: string,
+): Promise<GovernorAction | null> {
+  const { data } = await service
+    .from("adaptive_learning_sessions")
+    .select("pending_decision_trace_id, pending_action")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (!data?.pending_decision_trace_id || !data.pending_action) return null;
+  return data.pending_action as GovernorAction;
+}
+
+async function persistPendingAction(
+  service: SupabaseClient,
+  sessionId: string,
+  action: GovernorAction | null,
+): Promise<void> {
+  const { error } = await service
+    .from("adaptive_learning_sessions")
+    .update({
+      pending_decision_trace_id: action?.decisionTraceId ?? null,
+      pending_action: action ?? null,
+      current_topic_id: action?.topicId || null,
+      current_topic_key: action?.topicKey ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", sessionId);
+  // A GPT/decision call already happened by the time this runs. If the
+  // write silently failed, the client would still get the action while the
+  // DB keeps no record of it — the next resume would regenerate instead of
+  // replaying it, quietly reintroducing the exact bug this file fixes.
+  if (error) {
+    throw new Error(error.message ?? "persist_pending_action_failed");
+  }
+}
+
+/**
+ * How stale an unresolved generation claim must be before another request
+ * is allowed to take over — well above the ~1-1.5s p95 decision latency
+ * observed in production, so this only ever fires for a request that
+ * genuinely died mid-generation, not one that's merely slow.
+ */
+const GENERATION_CLAIM_STALE_MS = 20_000;
+/** How often a waiting request re-checks whether the claim holder finished. */
+const GENERATION_WAIT_POLL_MS = 50;
+/** Bound on how long a request will wait for someone else's generation. */
+const GENERATION_WAIT_MAX_MS = 6_000;
+
+function isClaimStale(claimedAt: string): boolean {
+  return Date.now() - new Date(claimedAt).getTime() > GENERATION_CLAIM_STALE_MS;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Coordinates "who gets to generate the next action" across concurrent
+ * requests and serverless instances, backed entirely by Postgres — no
+ * process-local mutex, so it holds under Vercel's multi-instance model.
+ *
+ * `token` names the specific generation episode: "start" for a session's
+ * first action, or the answering evidence's idempotencyKey for the action
+ * that follows an answer. Two requests racing for the SAME token will only
+ * ever have one of them actually call nextAction(); the other polls
+ * adaptive_generation_claims (a real table, so this survives a cold start
+ * or a different instance taking over) until the winner's result appears,
+ * or takes over itself if the winner's claim goes stale (crashed mid-call).
+ */
+async function claimGeneration(
+  service: SupabaseClient,
+  sessionId: string,
+  token: string,
+): Promise<{ claimed: true } | { claimed: false; action: GovernorAction | null }> {
+  const deadline = Date.now() + GENERATION_WAIT_MAX_MS;
+  for (;;) {
+    const { data: claim } = await service
+      .from("adaptive_generation_claims")
+      .select("claimed_at, decision_trace_id, action")
+      .eq("session_id", sessionId)
+      .eq("token", token)
+      .maybeSingle();
+
+    if (claim?.decision_trace_id && claim.action) {
+      return { claimed: false, action: claim.action as GovernorAction };
+    }
+
+    if (!claim) {
+      const { error } = await service.from("adaptive_generation_claims").insert({
+        session_id: sessionId,
+        token,
+        claimed_at: new Date().toISOString(),
+      });
+      if (!error) return { claimed: true };
+      if (String(error.code) !== "23505") {
+        throw new Error(error.message ?? "claim_generation_failed");
+      }
+      // 23505: someone else inserted the claim between our select and our
+      // insert — fall through to poll/steal below.
+    } else if (isClaimStale(claim.claimed_at as string)) {
+      // Nobody has a live claim (the prior claimant died mid-generation) —
+      // try to take over. The .eq("claimed_at", <value we just read>) makes
+      // this a compare-and-swap: if another request already stole it since
+      // our read, this UPDATE matches zero rows and we correctly lose.
+      const { data: won, error } = await service
+        .from("adaptive_generation_claims")
+        .update({ claimed_at: new Date().toISOString() })
+        .eq("session_id", sessionId)
+        .eq("token", token)
+        .eq("claimed_at", claim.claimed_at as string)
+        .is("decision_trace_id", null)
+        .select("claimed_at")
+        .maybeSingle();
+      if (error) throw new Error(error.message ?? "claim_generation_failed");
+      if (won) return { claimed: true };
+    }
+
+    if (Date.now() >= deadline) return { claimed: false, action: null };
+    await sleep(GENERATION_WAIT_POLL_MS);
+  }
+}
+
+/** Records the winner's result so every waiter on this token unblocks. */
+async function resolveGenerationClaim(
+  service: SupabaseClient,
+  sessionId: string,
+  token: string,
+  action: GovernorAction | null,
+): Promise<void> {
+  const { error } = await service
+    .from("adaptive_generation_claims")
+    .update({
+      decision_trace_id: action?.decisionTraceId ?? null,
+      action: action ?? null,
+    })
+    .eq("session_id", sessionId)
+    .eq("token", token);
+  if (error) throw new Error(error.message ?? "resolve_generation_claim_failed");
+  await persistPendingAction(service, sessionId, action);
+}
+
+/**
+ * Waits for (but never itself starts) a generation under `token` — used by
+ * a request that must not become the generator under any circumstance
+ * (a duplicate/retried evidence submission whose real answer is being
+ * processed by whichever request actually won the idempotency-key insert).
+ */
+async function awaitGeneration(
+  service: SupabaseClient,
+  sessionId: string,
+  token: string,
+): Promise<GovernorAction | null> {
+  const deadline = Date.now() + GENERATION_WAIT_MAX_MS;
+  for (;;) {
+    const { data: claim } = await service
+      .from("adaptive_generation_claims")
+      .select("decision_trace_id, action")
+      .eq("session_id", sessionId)
+      .eq("token", token)
+      .maybeSingle();
+    if (claim?.decision_trace_id && claim.action) return claim.action as GovernorAction;
+    if (Date.now() >= deadline) return null;
+    await sleep(GENERATION_WAIT_POLL_MS);
+  }
+}
+
+/** Generates the next action, or joins an equivalent in-flight/finished one. */
+async function generateOrJoin(
+  service: SupabaseClient,
+  input: {
+    userId: string;
+    examPrepId: string;
+    sessionId: string;
+    token: string;
+    ctx: GovernorContext;
+  },
+): Promise<GovernorAction | null> {
+  const claim = await claimGeneration(service, input.sessionId, input.token);
+  if (!claim.claimed) return claim.action;
+  const action = await nextAction(
+    service,
+    input.userId,
+    input.examPrepId,
+    input.sessionId,
+    input.ctx,
+  );
+  await resolveGenerationClaim(service, input.sessionId, input.token, action);
+  return action;
+}
+
+/**
+ * Shared by both places startSession resumes an already-existing active
+ * session (the direct `existing` case, and the 23505-race fallback) so the
+ * two can never drift out of sync with each other.
+ */
+async function resumeExistingSession(
+  service: SupabaseClient,
+  input: { userId: string; examPrepId: string },
+  session: SessionState,
+): Promise<{ session: SessionState; action: GovernorAction | null }> {
+  const pending = await getPendingAction(service, session.id);
+  if (pending) {
+    return { session, action: pending };
+  }
+  // No pending action recorded yet (row predates this migration, or the
+  // very first generation for this session is still in flight from a
+  // concurrent request) — join that generation instead of starting a
+  // second, redundant one.
+  const action = await generateOrJoin(service, {
+    userId: input.userId,
+    examPrepId: input.examPrepId,
+    sessionId: session.id,
+    token: "start",
+    ctx: { sessionMinutesRemaining: session.plannedDurationMinutes },
+  });
+  return { session, action };
+}
+
 export async function startSession(
   service: SupabaseClient,
   input: {
@@ -70,14 +296,7 @@ export async function startSession(
     input.examPrepId,
   );
   if (existing) {
-    const action = await nextAction(
-      service,
-      input.userId,
-      input.examPrepId,
-      existing.id,
-      { sessionMinutesRemaining: existing.plannedDurationMinutes },
-    );
-    return { session: existing, action };
+    return resumeExistingSession(service, input, existing);
   }
 
   const planned = input.plannedDurationMinutes ?? 45;
@@ -95,6 +314,21 @@ export async function startSession(
       "id, exam_prep_id, started_at, planned_duration_minutes, objective, current_topic_id, current_step, completion_pct, status",
     )
     .single();
+
+  if (error && String(error.code) === "23505") {
+    // Lost the race to a concurrent /session/start call that already
+    // inserted the active session for this user+prep (a normal read-then-
+    // insert race under READ COMMITTED: our own getActiveSession() above
+    // saw nothing a moment ago, but a concurrent request fully committed
+    // its insert in between). Read its row and resume it exactly like the
+    // `existing` branch above — same helper, so the winner may still be
+    // mid-generation and this request correctly joins that claim rather
+    // than starting a second one.
+    const race = await getActiveSession(service, input.userId, input.examPrepId);
+    if (race) {
+      return resumeExistingSession(service, input, race);
+    }
+  }
 
   if (error || !data) {
     throw new Error(error?.message ?? "session_start_failed");
@@ -120,24 +354,13 @@ export async function startSession(
     payload: { plannedDurationMinutes: planned },
   });
 
-  const action = await nextAction(
-    service,
-    input.userId,
-    input.examPrepId,
-    session.id,
-    { sessionMinutesRemaining: planned, todayTarget: session.objective },
-  );
-
-  if (action) {
-    await service
-      .from("adaptive_learning_sessions")
-      .update({
-        current_topic_id: action.topicId || null,
-        current_topic_key: action.topicKey,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", session.id);
-  }
+  const action = await generateOrJoin(service, {
+    userId: input.userId,
+    examPrepId: input.examPrepId,
+    sessionId: session.id,
+    token: "start",
+    ctx: { sessionMinutesRemaining: planned, todayTarget: session.objective },
+  });
 
   return { session, action };
 }
@@ -157,6 +380,22 @@ export async function submitEvidence(
   mastery: number;
   action: GovernorAction | null;
 }> {
+  // Terminal-state guard: a completed/abandoned session must never accept a
+  // late or stale evidence submission and mint a new decision for it. The
+  // normal flow can't reach a finished session's id via startSession
+  // (getActiveSession only returns 'active' rows), but this endpoint takes
+  // sessionId directly from the client, so a race (double-submit before the
+  // UI shows completion, a retried request arriving after complete()) could
+  // otherwise still slip through.
+  const { data: sessionRow } = await service
+    .from("adaptive_learning_sessions")
+    .select("status")
+    .eq("id", input.sessionId)
+    .maybeSingle();
+  if (sessionRow?.status !== "active") {
+    return { duplicate: true, mastery: 0, action: null };
+  }
+
   const inserted = await appendEvent(service, {
     userId: input.userId,
     examPrepId: input.examPrepId,
@@ -168,13 +407,14 @@ export async function submitEvidence(
   });
 
   if (!inserted) {
-    const action = await nextAction(
-      service,
-      input.userId,
-      input.examPrepId,
-      input.sessionId,
-      input.ctx,
-    );
+    // Retried/duplicate answer submission (same idempotencyKey). The request
+    // that actually won the event insert is the sole legitimate generator
+    // for the action that follows THIS answer — reading pending_action
+    // directly here would be wrong if that winner hasn't finished yet: the
+    // session row would still hold the OLD (already-answered) action, which
+    // must never be handed back as if it were fresh. awaitGeneration only
+    // ever waits/joins — it can't itself become the generator.
+    const action = await awaitGeneration(service, input.sessionId, input.evidence.idempotencyKey);
     return { duplicate: true, mastery: 0, action };
   }
 
@@ -317,18 +557,18 @@ export async function submitEvidence(
     })
     .eq("id", input.sessionId);
 
-  const action = await nextAction(
-    service,
-    input.userId,
-    input.examPrepId,
-    input.sessionId,
-    {
+  const action = await generateOrJoin(service, {
+    userId: input.userId,
+    examPrepId: input.examPrepId,
+    sessionId: input.sessionId,
+    token: input.evidence.idempotencyKey,
+    ctx: {
       ...input.ctx,
       lastAnswerCorrect: evidence.correct,
       repeatedMisconception: updated.next.repeatedErrorCount >= 2,
       sessionMinutesRemaining: Number(sess?.planned_duration_minutes ?? 45),
     },
-  );
+  });
 
   return { duplicate: false, mastery: updated.next.mastery, action };
 }
@@ -349,6 +589,8 @@ export async function completeSession(
       status,
       ended_at: new Date().toISOString(),
       completion_pct: input.abandoned ? undefined : 100,
+      pending_decision_trace_id: null,
+      pending_action: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", input.sessionId)
