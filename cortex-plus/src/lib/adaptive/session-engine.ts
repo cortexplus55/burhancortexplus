@@ -55,6 +55,43 @@ export async function getActiveSession(
   };
 }
 
+/**
+ * The action returned by the last nextAction() call for a session that has
+ * not yet been answered. Persisted on the session row so resuming (page
+ * reload, tab restore, remount) can replay it verbatim instead of minting a
+ * new decisionTraceId — which would miss the content cache and trigger a
+ * fresh decision + generation call for zero new student input.
+ */
+async function getPendingAction(
+  service: SupabaseClient,
+  sessionId: string,
+): Promise<GovernorAction | null> {
+  const { data } = await service
+    .from("adaptive_learning_sessions")
+    .select("pending_decision_trace_id, pending_action")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (!data?.pending_decision_trace_id || !data.pending_action) return null;
+  return data.pending_action as GovernorAction;
+}
+
+async function persistPendingAction(
+  service: SupabaseClient,
+  sessionId: string,
+  action: GovernorAction | null,
+): Promise<void> {
+  await service
+    .from("adaptive_learning_sessions")
+    .update({
+      pending_decision_trace_id: action?.decisionTraceId ?? null,
+      pending_action: action ?? null,
+      current_topic_id: action?.topicId || null,
+      current_topic_key: action?.topicKey ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", sessionId);
+}
+
 export async function startSession(
   service: SupabaseClient,
   input: {
@@ -70,6 +107,12 @@ export async function startSession(
     input.examPrepId,
   );
   if (existing) {
+    const pending = await getPendingAction(service, existing.id);
+    if (pending) {
+      return { session: existing, action: pending };
+    }
+    // Defensive: an active session somehow has no pending action recorded
+    // yet (e.g. row predates this migration). Compute and persist one.
     const action = await nextAction(
       service,
       input.userId,
@@ -77,6 +120,7 @@ export async function startSession(
       existing.id,
       { sessionMinutesRemaining: existing.plannedDurationMinutes },
     );
+    await persistPendingAction(service, existing.id, action);
     return { session: existing, action };
   }
 
@@ -95,6 +139,26 @@ export async function startSession(
       "id, exam_prep_id, started_at, planned_duration_minutes, objective, current_topic_id, current_step, completion_pct, status",
     )
     .single();
+
+  if (error && String(error.code) === "23505") {
+    // Lost the race to a concurrent /session/start call that already
+    // inserted the active session for this user+prep. Read its row instead
+    // of minting a second decision.
+    const race = await getActiveSession(service, input.userId, input.examPrepId);
+    if (race) {
+      const pending = await getPendingAction(service, race.id);
+      if (pending) return { session: race, action: pending };
+      const action = await nextAction(
+        service,
+        input.userId,
+        input.examPrepId,
+        race.id,
+        { sessionMinutesRemaining: race.plannedDurationMinutes },
+      );
+      await persistPendingAction(service, race.id, action);
+      return { session: race, action };
+    }
+  }
 
   if (error || !data) {
     throw new Error(error?.message ?? "session_start_failed");
@@ -128,16 +192,7 @@ export async function startSession(
     { sessionMinutesRemaining: planned, todayTarget: session.objective },
   );
 
-  if (action) {
-    await service
-      .from("adaptive_learning_sessions")
-      .update({
-        current_topic_id: action.topicId || null,
-        current_topic_key: action.topicKey,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", session.id);
-  }
+  await persistPendingAction(service, session.id, action);
 
   return { session, action };
 }
@@ -168,13 +223,9 @@ export async function submitEvidence(
   });
 
   if (!inserted) {
-    const action = await nextAction(
-      service,
-      input.userId,
-      input.examPrepId,
-      input.sessionId,
-      input.ctx,
-    );
+    // Retried/duplicate answer submission (same idempotencyKey) — replay the
+    // already-persisted pending action instead of minting a new decision.
+    const action = await getPendingAction(service, input.sessionId);
     return { duplicate: true, mastery: 0, action };
   }
 
@@ -329,6 +380,7 @@ export async function submitEvidence(
       sessionMinutesRemaining: Number(sess?.planned_duration_minutes ?? 45),
     },
   );
+  await persistPendingAction(service, input.sessionId, action);
 
   return { duplicate: false, mastery: updated.next.mastery, action };
 }
@@ -349,6 +401,8 @@ export async function completeSession(
       status,
       ended_at: new Date().toISOString(),
       completion_pct: input.abandoned ? undefined : 100,
+      pending_decision_trace_id: null,
+      pending_action: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", input.sessionId)
