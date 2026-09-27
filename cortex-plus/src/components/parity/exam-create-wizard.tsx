@@ -433,7 +433,7 @@ export function ExamCreateWizard({
           {
             description:
               freePdfCap !== null
-                ? `Plus ile daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.plus} sayfa).`
+                ? freeMaterialLimitLine()
                 : undefined,
           },
         );

@@ -1,8 +1,8 @@
 import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
 
-/** Ücretsiz planda gösterilen mevcut sayfa tavanı ve Plus cümlesi. */
+/** Yalnızca fotoğraf ve metin katmanı olmayan PDF sayfalarının aylık kotası. */
 export function freeMaterialLimitLine(): string {
-  return `PDF sayfa: ${PHOTO_PAGE_LIMITS.free}. Plus ile daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.plus} sayfa).`;
+  return `Aylık fotoğraf ve taranmış PDF hakkı: ${PHOTO_PAGE_LIMITS.free} sayfa. Metin katmanı olan PDF'ler bu kotaya girmez. Plus'ta ${PHOTO_PAGE_LIMITS.plus} sayfa.`;
 }
 
 export function formatBytes(bytes: number): string {
