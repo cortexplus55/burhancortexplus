@@ -4,7 +4,8 @@
 **Policy:** `adaptive-v1`  
 **Pilot user:** `burhan55600@gmail.com` (`9d79106a-d31e-46e5-9cc5-4a09b519bc34`)  
 **Global rollout:** OFF (all adaptive flags `enabled=false`; pilot via `metadata.pilot_user_ids` only)  
-**Session loop:** **PASS** — verified end-to-end in production 2026-09-27, see [Live production verification](#live-production-verification--session-loop-pass-2026-09-27) below.
+**Session loop:** **PASS** — verified end-to-end in production 2026-09-27, see [Live production verification](#live-production-verification--session-loop-pass-2026-09-27) below.  
+**Session resume/reload:** **PASS** — a real duplicate-decision bug found and fixed (PR #129), including a true-concurrency race caught in review; verified live 2026-09-27, see [Session resume/reload idempotency](#session-resumereload-idempotency--fixed-and-verified-2026-09-27) below.
 
 ---
 
@@ -37,6 +38,7 @@ Phase 3 hardening added:
 |---|---|
 | `20260927120000_adaptive_learning_engine` | Applied via MCP `apply_migration` |
 | `20260927180000_feature_flag_pilot_metadata` | Applied |
+| `20260927190000_adaptive_session_resume_idempotency` | Applied by user via Supabase SQL editor 2026-09-27 |
 
 Verified: 8 `adaptive_*` tables, mastery columns, `feature_flags.metadata`, 4 flags OFF, `adaptive-v1` policy, SELECT-own RLS policies.
 
@@ -335,6 +337,46 @@ The content-generation cost (~$0.013) dominates the decision cost (~$0.003) roug
 - [ ] Scheduled review creation and completion (interval lengthens on success, shortens on failure)
 - [ ] Missed-day daily/master replan (rebalances remaining work without dumping everything into one day)
 - [ ] GPT-4o escalation happens only when policy requires it (logged reason code), not by default
-- [ ] Session resume/reload — refreshing mid-session does not lose or duplicate state
+- [x] Session resume/reload — refreshing mid-session does not lose or duplicate state — **PASS, fixed in PR #129, verified live 2026-09-27** (see below)
 - [ ] Second-day continuity — plan, mastery, and history persist and the daily plan doesn't regenerate as a duplicate
 - [ ] Non-pilot regression — a second, non-pilot account confirmed to see zero adaptive UI/behavior change (automated coverage exists; a live non-pilot browser pass is still open)
+
+---
+
+## Session resume/reload idempotency — fixed and verified (2026-09-27)
+
+### The bug
+
+While working through the checklist item above, a manual reload of `/oturum` mid-session (no answer given) produced a **completely different question** than the one on screen a moment earlier. Checking `/admin/adaptive?userId=...` confirmed it wasn't cosmetic: one click + one reload had produced **two** `openai_decision` rows and **two** `intervention_started` events for the same topic at the same timestamp.
+
+**Root cause:** `startSession()` called `nextAction()` unconditionally every time it resumed an already-active session. `nextAction()` always mints a fresh `decisionTraceId`, and content generation is cached by that id — so a fresh id on every resume always missed the cache, triggering a brand-new decision *and* a brand-new GPT content-generation call for zero new student input.
+
+### The fix — PR #129
+
+1. The current *unanswered* action is now persisted on the session row (`pending_decision_trace_id`, `pending_action`). Resuming replays it verbatim — no new decision, no new intervention, no new content generation — until it's answered or the session completes.
+2. A unique index (`(user_id, exam_prep_id) WHERE status='active'`) stops two concurrent `/session/start` calls from creating two session rows.
+3. **A second, real concurrency gap was caught in review** before merge: the unique index alone didn't stop two concurrent requests from each calling `nextAction()` for the same session's first action, if the loser read the winner's row before the winner had finished generating (`pending_action` still `null` at that instant isn't a safe "nobody started" signal — the winner might just not have persisted yet). The same ambiguity existed for two concurrent duplicate `/session/evidence` submissions. Fixed with a new `adaptive_generation_claims` table: an atomic, Postgres-enforced claim (`PRIMARY KEY (session_id, token)`) so exactly one request generates for a given session+step, independent of any Node process — correct across Vercel's multi-instance model, not a process-local mutex. A stale claim (>20s, well above the ~1-1.5s p95 decision latency) can be taken over, so a request that dies mid-generation doesn't wedge the session.
+4. `persistPendingAction` now checks the DB write's `error` and throws instead of silently succeeding — closes a "GPT call happened, client got the action, but the DB kept no record" failure mode.
+5. A terminal-state guard: `submitEvidence` now checks the session's own status first and is a full no-op against a completed/abandoned session (a late or retried request could otherwise still mint a decision into a finished session).
+
+Real concurrency (not just sequential calls) proven with a deferred-promise barrier in tests: the "winner" is deliberately blocked mid-`nextAction()` while a second request reads its already-committed-but-not-yet-generated session row, asserting the loser never calls `nextAction()` and both resolve to the identical `decisionTraceId`.
+
+Migration: `20260927190000_adaptive_session_resume_idempotency.sql`. Applied to production by the user before verification below.
+
+Along the way, two unrelated pre-existing encoding bugs on `main` were found and fixed separately (not part of the adaptive engine): a stray UTF-8 BOM and mojibake Turkish text in CSS comments, both of which crashed the local Turbopack dev server outright — [PR #130](https://github.com/cortexplus55/burhancortexplus/pull/130).
+
+### Live verification (production DB, real pilot account, 2026-09-27)
+
+Tested via a local dev server pointed at the same production Supabase project, logged in as the real pilot account (`burhan`), exercising the actual `/api/adaptive/session/*` routes end to end — not a unit-test double.
+
+| Step | Result |
+|---|---|
+| Resume a pre-existing (pre-migration) active session | **1** decision generated, not 2 — the defensive migration-compat path works |
+| 3× reload with no answer (incl. a React StrictMode double-invoke) | **0** new decisions, **0** new interventions; every response returned the same `decisionTraceId`; `/session/content` returned `cached: true` with byte-identical title/body/question/choices each time |
+| Answer submitted | exactly **1** new decision + **1** new intervention + **1** `mastery_updated` (0 → 0.06); session advanced to a new topic, progress 0% → 10% |
+
+Admin panel decision counter: 9 → 10 (resume) → 10, 10, 10 (three reloads, unchanged) → 11 (after answering). Exactly matches the invariant the fix claims.
+
+### Remaining pilot checklist
+
+With this item closed, the outstanding pre-global-rollout items are: repeated wrong/correct answers, prerequisite remediation, scheduled review, missed-day replan, GPT-4o escalation gating, second-day continuity, and non-pilot regression (live browser pass) — see the checklist above.
