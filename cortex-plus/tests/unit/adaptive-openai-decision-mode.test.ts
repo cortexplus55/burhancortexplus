@@ -82,7 +82,7 @@ describe("decision provider mode", () => {
         mode: "auto",
         jevEnabledEnv: false,
         jevFlag: true,
-        hasApiKey: true,
+        hasJevCredential: true,
         circuitAllows: true,
       }).attempt,
     ).toBe(false);
@@ -91,7 +91,7 @@ describe("decision provider mode", () => {
         mode: "auto",
         jevEnabledEnv: true,
         jevFlag: true,
-        hasApiKey: false,
+        hasJevCredential: false,
         circuitAllows: true,
       }),
     ).toEqual({ attempt: false, fallbackBecauseCircuit: false });
@@ -100,7 +100,7 @@ describe("decision provider mode", () => {
         mode: "openai",
         jevEnabledEnv: true,
         jevFlag: true,
-        hasApiKey: true,
+        hasJevCredential: true,
         circuitAllows: true,
       }).attempt,
     ).toBe(false);
@@ -112,7 +112,7 @@ describe("decision provider mode", () => {
         mode: "auto",
         jevEnabledEnv: true,
         jevFlag: true,
-        hasApiKey: true,
+        hasJevCredential: true,
         circuitAllows: false,
       }),
     ).toEqual({ attempt: false, fallbackBecauseCircuit: true });
@@ -123,7 +123,7 @@ describe("decision provider mode", () => {
       decisionEngineStatus({
         mode: "auto",
         jevEnabledEnv: false,
-        hasApiKey: false,
+        hasJevCredential: false,
       }),
     ).toMatchObject({
       decisionLabel: "OpenAI temporary provider",
@@ -316,7 +316,18 @@ describe("OpenAI primary decision service", () => {
   }
 
   async function loadService(env: Record<string, unknown>, create: ReturnType<typeof vi.fn>) {
-    vi.doMock("@/lib/env", () => ({ env }));
+    vi.doMock("next/server", () => ({
+      after: (fn: () => void) => {
+        fn();
+      },
+    }));
+    vi.doMock("@/lib/env", () => ({
+      env,
+      parseJevAccess: (v: string | undefined) => {
+        const x = (v ?? "auto").toLowerCase();
+        return x === "typesafe" || x === "gateway" ? x : "auto";
+      },
+    }));
     vi.doMock("@/lib/admin/feature-flags", () => ({
       isFeatureEnabled: vi.fn().mockResolvedValue(false),
       JEV_ENABLED_FLAG: "jev_enabled",
@@ -337,9 +348,13 @@ describe("OpenAI primary decision service", () => {
     const { decideNextActions } = await loadService(
       {
         TYPESAFE_API_KEY: undefined,
+        AI_GATEWAY_API_KEY: undefined,
+        JEV_ACCESS: "auto",
         JEV_MODEL: undefined,
         JEV_ENABLED: false,
+        JEV_SHADOW_MODE: false,
         JEV_TIMEOUT_MS: 500,
+        JEV_MIN_CONFIDENCE: 0.45,
         JEV_FALLBACK_ENABLED: true,
         JEV_FALLBACK: true,
         DECISION_PROVIDER: "auto",
@@ -379,7 +394,11 @@ describe("OpenAI primary decision service", () => {
     const { decideNextActions } = await loadService(
       {
         TYPESAFE_API_KEY: undefined,
+        AI_GATEWAY_API_KEY: undefined,
+        JEV_ACCESS: "auto",
         JEV_ENABLED: false,
+        JEV_SHADOW_MODE: false,
+        JEV_MIN_CONFIDENCE: 0.45,
         JEV_FALLBACK_ENABLED: true,
         DECISION_PROVIDER: "auto",
         OPENAI_API_KEY: "test-key",
@@ -429,7 +448,11 @@ describe("OpenAI primary decision service", () => {
     const { decideNextActions } = await loadService(
       {
         TYPESAFE_API_KEY: undefined,
+        AI_GATEWAY_API_KEY: undefined,
+        JEV_ACCESS: "auto",
         JEV_ENABLED: false,
+        JEV_SHADOW_MODE: false,
+        JEV_MIN_CONFIDENCE: 0.45,
         JEV_FALLBACK_ENABLED: true,
         DECISION_PROVIDER: "openai",
         OPENAI_API_KEY: "test-key",
@@ -461,7 +484,11 @@ describe("OpenAI primary decision service", () => {
     const { decideNextActions } = await loadService(
       {
         TYPESAFE_API_KEY: undefined,
+        AI_GATEWAY_API_KEY: undefined,
+        JEV_ACCESS: "auto",
         JEV_ENABLED: false,
+        JEV_SHADOW_MODE: false,
+        JEV_MIN_CONFIDENCE: 0.45,
         JEV_FALLBACK_ENABLED: true,
         DECISION_PROVIDER: "auto",
         OPENAI_API_KEY: "test-key",
@@ -486,18 +513,28 @@ describe("OpenAI primary decision service", () => {
       choices: [{ message: { content: decisionJson(0.91) } }],
       usage: { prompt_tokens: 9, completion_tokens: 5 },
     });
+    vi.doMock("next/server", () => ({
+      after: (fn: () => void) => {
+        fn();
+      },
+    }));
     vi.doMock("@/lib/env", () => ({
       env: {
         TYPESAFE_API_KEY: "test-key",
-        JEV_MODEL: "systemone",
+        AI_GATEWAY_API_KEY: undefined,
+        JEV_ACCESS: "typesafe",
+        JEV_MODEL: "jev-1.13.0",
         JEV_ENABLED: true,
+        JEV_SHADOW_MODE: false,
         JEV_TIMEOUT_MS: 500,
+        JEV_MIN_CONFIDENCE: 0.45,
         JEV_FALLBACK_ENABLED: true,
         DECISION_PROVIDER: "auto",
         OPENAI_API_KEY: "test-key",
         OPENAI_STANDARD_MODEL: "gpt-4o-mini",
         OPENAI_ADVANCED_MODEL: "gpt-4o",
       },
+      parseJevAccess: () => "typesafe",
     }));
     vi.doMock("@/lib/admin/feature-flags", () => ({
       isFeatureEnabled: vi.fn().mockResolvedValue(true),
@@ -506,11 +543,21 @@ describe("OpenAI primary decision service", () => {
     vi.doMock("@/lib/adaptive/jev/client", () => ({
       callJevSystemOne: vi.fn().mockResolvedValue({
         ok: false,
-        error: "http_500",
+        error: "server_error",
+        status: 500,
         latencyMs: 12,
+        attempts: 1,
+        retryable: true,
       }),
-      defaultJevQuestions: vi.fn().mockReturnValue([]),
-      resolveJevModel: vi.fn().mockResolvedValue("systemone"),
+      defaultJevQuestions: vi.fn().mockReturnValue({
+        next_action: {
+          type: "choice",
+          instructions: "x",
+          criteria: { practice: "p", reteach: "r", teach: "t" },
+        },
+      }),
+      resolveJevModel: vi.fn().mockReturnValue("jev-1.13.0"),
+      listJevModels: vi.fn(),
     }));
     vi.doMock("openai", () => ({
       default: class {
@@ -527,7 +574,7 @@ describe("OpenAI primary decision service", () => {
       state: state({ allowed_actions: ["practice", "reteach", "teach"] }),
     });
     expect(result.provider).toBe("openai_fallback");
-    expect(result.fallbackReason).toContain("http_500");
+    expect(result.fallbackReason).toContain("server_error");
     expect(result.fallbackReason).not.toContain("jev_disabled");
   });
 });
