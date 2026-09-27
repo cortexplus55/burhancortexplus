@@ -195,6 +195,8 @@ Kurallar:
       isPremium: input.isPremium,
       difficulty: "hard",
       teachingV2: true,
+      maxDraftAttempts: 3,
+      verifyOptionReasoning: true,
       schemaHintExtra: "Bu tanıda questions dizisi 6 soru içerir. Her sorunun topic alanı definition, concept veya application kodudur.",
       sourceExcerpt: source.block,
       requireSourceSupport: true,

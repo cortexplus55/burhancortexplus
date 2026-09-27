@@ -22,6 +22,24 @@ function why(options: string[], correct: string[]): string[] {
 }
 
 describe("question verifier is subject-agnostic", () => {
+  it("drops the ambiguous radian-value question observed in production", () => {
+    const checked = verifyChoiceQuestion({
+      text: "Bir açının ölçüsünü radyanda ifade etmek için hangi değer kullanılır?",
+      options: ["Derece", "π", "Daire çapı", "Daire yarıçapı"],
+      correct: ["π"],
+      multi: false,
+      explanation: "Açıların radyan cinsinden ölçüsünü ifade etmek için π kullanılmaktadır.",
+      optionWhy: [
+        "Derece farklı bir ölçü birimidir.",
+        "π bir radyan ölçüsü olarak kullanılabilir.",
+        "Daire çapı bir açı ölçüsü değildir.",
+        "Daire yarıçapı açının ölçüsü değildir.",
+      ],
+    });
+    expect(checked.status).toBe("drop");
+    expect(checked.reason).toBe("ambiguous_angle_question");
+  });
+
   it("keeps equal-ratio limiting when options already name neither-limits", () => {
     const options = ["Al", "Cl₂", "İkisi de tamamen tükenir"];
     const checked = verifyChoiceQuestion({

@@ -322,7 +322,7 @@ function buildSteps(lesson: PlayLesson): Step[] {
   if ((lesson.summary?.length ?? 0) > 0 || (lesson.nextFocus?.length ?? 0) > 0) {
     steps.push({
       kind: "summary",
-      heading: "Özet",
+      heading: lesson.summary?.length ? "Özet" : "Sırada ne var",
       points: lesson.summary ?? [],
       next: lesson.nextFocus ?? [],
     });
@@ -819,16 +819,18 @@ export function ExamLessonSteps({
 
           {step.kind === "summary" ? (
             <>
-              <ul className="als-list">
-                {step.points.map((point) => (
-                  <li key={point}>
-                    <RichBody text={point} />
-                  </li>
-                ))}
-              </ul>
+              {step.points.length ? (
+                <ul className="als-list">
+                  {step.points.map((point) => (
+                    <li key={point}>
+                      <RichBody text={point} />
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               {step.next.length ? (
                 <>
-                  <h2 className="als-subhead">Sırada ne var</h2>
+                  {step.points.length ? <h2 className="als-subhead">Sırada ne var</h2> : null}
                   <ul className="als-list als-list--muted">
                     {step.next.map((item) => (
                       <li key={item}>
