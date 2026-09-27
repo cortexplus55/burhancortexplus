@@ -48,6 +48,20 @@ type Props = {
  */
 const RULES_CHANGED_AT = Date.parse("2026-09-11T00:00:00Z");
 
+const coverageLabels: Record<string, string> = {
+  complete: "Tüm okunabilir sayfalar kapsandı",
+  incomplete: "Bazı sayfalar henüz kapsanmadı",
+  blocked: "Kapsam kontrolü tamamlanamadı",
+};
+
+const mapStatusLabels: Record<string, string> = {
+  none: "Henüz oluşturulmadı",
+  pending: "Hazırlanıyor",
+  ready: "Kullanıma hazır",
+  failed: "Yeniden oluşturulması gerekiyor",
+  reviewed: "Gözden geçirildi",
+};
+
 export function TopicMapEditor({
   documentId,
   initialTopics,
@@ -168,7 +182,7 @@ export function TopicMapEditor({
             </h2>
             <span className="text-xs text-[var(--cs-muted)]">
               {coverage.coveredPages}/{coverage.contentPages} içerik sayfası ·{" "}
-              {coverage.status}
+              {coverageLabels[coverage.status] ?? "Kontrol ediliyor"}
             </span>
           </div>
           <p className="text-sm text-[var(--cs-text)]">{coverage.summary}</p>
@@ -243,7 +257,9 @@ export function TopicMapEditor({
           <h2 className="text-sm font-semibold text-[var(--cs-text)]">
             Konu haritası ({topics.length})
           </h2>
-          <p className="text-xs text-[var(--cs-muted)]">Durum: {initialStatus}</p>
+          <p className="text-xs text-[var(--cs-muted)]">
+            Durum: {mapStatusLabels[initialStatus] ?? "Kontrol ediliyor"}
+          </p>
         </div>
 
         {topics.map((topic) => (

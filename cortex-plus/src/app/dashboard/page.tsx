@@ -101,8 +101,11 @@ export default async function DashboardPage() {
               id="weak-heading"
               className="text-sm font-semibold text-[var(--cs-text)]"
             >
-              En çok çalışman gereken konular
+              Tüm çalışmalarından tekrar konuları
             </h2>
+            <p className="text-xs text-[var(--cs-muted)]">
+              Bu liste yalnızca yukarıdaki sınav planına ait değildir.
+            </p>
             <ul className="space-y-2">
               {hub.weakTopics.map((topic, i) => (
                 <li

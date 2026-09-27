@@ -36,3 +36,20 @@ export function angleOptionReasonIssues(input: {
   });
   return issues;
 }
+
+/** A radian is a unit, not a fixed value such as π. Reject this vague stem. */
+export function angleQuestionIssues(input: {
+  text: string;
+  correct: string[];
+}): string[] {
+  const stem = input.text.toLocaleLowerCase("tr-TR");
+  const asksGenericRadianValue =
+    /radyan(?:da|la|a)?\s+(?:cinsinden\s+)?(?:ifade|ölç|hesap)/u.test(stem) &&
+    /hangi\s+(?:değer|sayı)/u.test(stem) &&
+    !/\b\d+(?:[.,]\d+)?\s*(?:derece|°)/u.test(stem) &&
+    !/\b(?:tam|yarım|çeyrek)\s+tur\b/u.test(stem);
+  if (asksGenericRadianValue && input.correct.some((answer) => /^(?:\d+)?\s*π$/u.test(answer.trim()))) {
+    return ["Radyan genel bir ölçü birimidir; belirsiz sorunun tek yanıtı π olamaz."];
+  }
+  return [];
+}

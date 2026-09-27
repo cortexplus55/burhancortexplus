@@ -16,7 +16,7 @@ import {
 } from "@/lib/learning/tutor-quant";
 import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
 import { optionWhyUniqueIssues } from "@/lib/learning/lesson-play";
-import { angleOptionReasonIssues } from "@/lib/learning/angle-option-reason";
+import { angleOptionReasonIssues, angleQuestionIssues } from "@/lib/learning/angle-option-reason";
 import {
   isPromptEcho,
   oralPremiseGrounded,
@@ -644,6 +644,7 @@ export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCh
   if (!next.multi && next.correct.length !== 1) return { status: "drop", question: next, reason: "answer_count" };
   if (next.multi && next.correct.length < 2) return { status: "drop", question: next, reason: "answer_count" };
   if (!next.correct.every((item) => next.options.includes(item))) return { status: "drop", question: next, reason: "answer_missing" };
+  if (angleQuestionIssues(next).length) return { status: "drop", question: next, reason: "ambiguous_angle_question" };
   const explanation = settleExplanation(next.explanation ?? "", `${source}\n${next.text}`);
   if (!explanation || !explanationMatchesCorrect(explanation, next.correct)) {
     return { status: "drop", question: next, reason: "explanation" };
