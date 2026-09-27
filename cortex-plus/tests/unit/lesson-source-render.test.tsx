@@ -57,3 +57,38 @@ describe("ExamLessonSteps — source badge", () => {
     expect(screen.getByRole("button", { name: /Kaynağı göster/i })).toBeTruthy();
   });
 });
+
+describe("ExamLessonSteps — legacy duplicate takeaway box", () => {
+  it("does not render a note box that just repeats a legacy section's body (pre-fix content)", () => {
+    // dropDuplicateNotes (lesson-teach.ts) only runs for lessons taught
+    // after this fix; a lesson generated before it still has this note
+    // persisted as-is. The client applies the same check at render time.
+    const lesson = lessonWith({
+      body:
+        "Büyüme, çocuğun vücut ölçülerindeki niceliksel artışları ifade eder. " +
+        "Gelişme ise motor, dil, bilişsel ve sosyal becerilerin olgunlaşmasını anlatır.",
+      note: {
+        title: "Büyüme ve Gelişme",
+        body:
+          "Büyüme, çocuğun vücut ölçülerindeki niceliksel artışı; gelişme ise motor, dil, " +
+          "bilişsel ve sosyal becerilerin olgunlaşmasını ifade eder.",
+        tone: "info",
+      },
+    });
+    render(<ExamLessonSteps lesson={lesson} closeHref="/deneme-sinavlari/p" />);
+    expect(screen.queryByText("Büyüme ve Gelişme")).toBeNull();
+  });
+
+  it("still renders a note that is genuinely distinct from its section body", () => {
+    const lesson = lessonWith({
+      body: "Mol kütlesi, bir mol maddenin gram cinsinden kütlesidir.",
+      note: {
+        title: "Avogadro sayısı",
+        body: "Bir molde 6,02 × 10^23 tanecik bulunur; bu sabite Avogadro sayısı denir.",
+        tone: "info",
+      },
+    });
+    render(<ExamLessonSteps lesson={lesson} closeHref="/deneme-sinavlari/p" />);
+    expect(screen.getByText("Avogadro sayısı")).toBeTruthy();
+  });
+});

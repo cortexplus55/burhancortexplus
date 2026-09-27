@@ -1,5 +1,6 @@
 /**
- * Ders gövdesinin sonuna eklenmiş "Kaynak: dosya, s.N" künyesini ayırma.
+ * Ders gövdesinin sonuna eklenmiş "Kaynak: dosya, s.N" künyesini ayırma ve
+ * gövdesiyle neredeyse aynı olan vurgu kutusunu (note) tespit etme.
  *
  * Küçük ve bağımsız tutuluyor: hem sunucudaki ders üretim/onarım hattı
  * (lesson-teach.ts) hem de istemcideki ders ekranı (exam-lesson-steps.tsx)
@@ -7,6 +8,8 @@
  * lesson-teach.ts'in geri kalanını (kaynak doğrulama, akıcılık onarımı vb.)
  * pakete taşımamak için ayrı dosyada duruyor.
  */
+
+import { foldTr } from "@/lib/documents/page-analysis";
 
 // Global (değil yalnızca sonda-çapalı): attachCitations() bir bölüme künye
 // ekler, weaveUnusedSources() AYNI (son) bölümün sonuna ikinci bir cümle +
@@ -41,4 +44,26 @@ export function stripInlineSourceLine(
   });
   if (!source) return { body, source: null };
   return { body: cleaned.replace(/\s{2,}/g, " ").trim(), source };
+}
+
+/**
+ * lesson-teach.ts'teki `nearCopy` ile aynı algoritma — sunucu tarafında
+ * `dropDuplicateNotes` yalnızca YENİ üretimde çalışıyor; bu değişiklikten
+ * önce kaydedilmiş derslerde gövdesini tekrarlayan note hâlâ veritabanında
+ * duruyor. Aynı kontrolü render anında da yaparak eski derslerde de tekrar
+ * eden kutuyu göstermemek için kullanılıyor — veri taşıma gerekmiyor.
+ */
+export function isNearDuplicateText(a: string, b: string): boolean {
+  const left = foldTr(a).replace(/[^a-z0-9]+/g, " ").trim();
+  const right = foldTr(b).replace(/[^a-z0-9]+/g, " ").trim();
+  if (left.length < 24 || right.length < 24) return false;
+  if (left.includes(right) || right.includes(left)) return true;
+  const window = 40;
+  const shorter = left.length <= right.length ? left : right;
+  const longer = left.length <= right.length ? right : left;
+  if (shorter.length < window) return false;
+  for (let index = 0; index + window <= shorter.length; index += 4) {
+    if (longer.includes(shorter.slice(index, index + window))) return true;
+  }
+  return false;
 }

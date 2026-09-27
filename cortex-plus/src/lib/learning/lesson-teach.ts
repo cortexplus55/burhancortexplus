@@ -11,7 +11,7 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
-import { stripInlineSourceLine } from "@/lib/learning/lesson-source";
+import { isNearDuplicateText, stripInlineSourceLine } from "@/lib/learning/lesson-source";
 import { titleConcepts } from "@/lib/learning/lesson-claims";
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
 import { fluencyIssues, repairTurkishSurface, sentences } from "@/lib/learning/learner-fluency";
@@ -746,7 +746,7 @@ function dropDuplicateNotes(lesson: LessonV2): LessonV2 {
   let changed = false;
   const sections = lesson.sections.map((section) => {
     if (!section.note) return section;
-    if (!nearCopy(foldTr(section.note.body), foldTr(section.body))) return section;
+    if (!isNearDuplicateText(section.note.body, section.body)) return section;
     changed = true;
     return withoutNote(section);
   });

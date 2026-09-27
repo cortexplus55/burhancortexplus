@@ -27,7 +27,7 @@ import type {
   PublicSectionCheck,
 } from "@/lib/learning/lesson-play";
 import { publicLessonV2Schema } from "@/lib/learning/lesson-play";
-import { stripInlineSourceLine } from "@/lib/learning/lesson-source";
+import { isNearDuplicateText, stripInlineSourceLine } from "@/lib/learning/lesson-source";
 import type { z } from "zod";
 import "@/styles/exam-lesson-steps.css";
 
@@ -215,12 +215,18 @@ function buildSteps(lesson: PlayLesson): Step[] {
       // sonunda gömülü olabilir — ekranda göstermeden önce ayıklanır.
       const existingSource = "source" in s ? (s.source as { file: string; page?: number } | undefined) : undefined;
       const stripped = existingSource ? null : stripInlineSourceLine(s.body);
+      const note = s.note as LessonV2["sections"][number]["note"] | undefined;
+      // dropDuplicateNotes (lesson-teach.ts) yalnızca yeni üretimde çalışır;
+      // bu değişiklikten önce kaydedilmiş derslerde gövdesini tekrarlayan
+      // note hâlâ veritabanında durabilir — aynı kontrol burada da yapılır.
+      const dedupedNote =
+        note && isNearDuplicateText(note.body, s.body) ? undefined : note;
       return {
         kind: "section",
         heading: s.heading,
         body: stripped ? stripped.body : s.body,
         check: s.check as PlayCheck | undefined,
-        note: s.note as LessonV2["sections"][number]["note"] | undefined,
+        note: dedupedNote,
         diagram: ("diagram" in s ? s.diagram : undefined) as LessonV2["sections"][number]["diagram"] | undefined,
         cards: s.cards as LessonV2["sections"][number]["cards"] | undefined,
         source: existingSource ?? stripped?.source ?? undefined,
