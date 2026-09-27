@@ -221,10 +221,9 @@ describe("prep material helpers", () => {
     expect(materialDetailLine({})).toBe("");
   });
 
-  it("uses the same Plus page-limit sentence as the plan comparison", () => {
-    expect(freeMaterialLimitLine()).toContain(`PDF sayfa: ${PHOTO_PAGE_LIMITS.free}`);
-    expect(freeMaterialLimitLine()).toContain(
-      `Plus ile daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.plus} sayfa)`,
-    );
+  it("distinguishes the monthly scanned-page quota from text PDFs", () => {
+    expect(freeMaterialLimitLine()).toContain(`taranmış PDF hakkı: ${PHOTO_PAGE_LIMITS.free} sayfa`);
+    expect(freeMaterialLimitLine()).toContain("Metin katmanı olan PDF'ler bu kotaya girmez");
+    expect(freeMaterialLimitLine()).toContain(`Plus'ta ${PHOTO_PAGE_LIMITS.plus} sayfa`);
   });
 });

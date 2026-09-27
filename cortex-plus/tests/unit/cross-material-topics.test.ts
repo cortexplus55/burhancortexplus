@@ -542,6 +542,29 @@ describe("law syllabus — not a chemistry special case", () => {
 });
 
 describe("single file stays a list of its own chapters", () => {
+  it("keeps all 11 independent chapters of a 99-page trigonometry PDF", () => {
+    const titles = [
+      "Açı Ölçüsü ve Radyan", "Birim Çember", "Sinüs ve Kosinüs",
+      "Tanjant ve Kotanjant", "Temel Trigonometrik Özdeşlikler",
+      "Toplam ve Fark Formülleri", "İki Kat ve Yarım Açı",
+      "Dönüşüm Formülleri", "Trigonometrik Denklemler",
+      "Trigonometrik Fonksiyon Grafikleri", "Üçgende Trigonometri Uygulamaları",
+    ];
+    const result = consolidateMaterials({
+      candidates: titles.map((title, index) => candidate({
+        id: `trig-${index}`,
+        title,
+        documentId: "trig-99",
+        fileName: "trigonometri.pdf",
+        pages: Array.from({ length: 9 }, (_, offset) => index * 9 + offset + 1),
+      })),
+      documents: [{ documentId: "trig-99", fileName: "trigonometri.pdf", text: "Trigonometri konu anlatımı" }],
+    });
+    expect(result.topics.map((topic) => topic.title)).toEqual(titles);
+    expect(result.topics[10].pages).toEqual([91, 92, 93, 94, 95, 96, 97, 98, 99]);
+    expect(result.topics.every((topic) => topic.sourceCount === 1)).toBe(true);
+  });
+
   it("does not collapse distinct chapters and still folds a recap", () => {
     const result = consolidateMaterials({
       candidates: [

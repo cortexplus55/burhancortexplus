@@ -792,6 +792,20 @@ function sharesBesidesLead(left: MaterialCandidate, right: MaterialCandidate): b
 function clusterWithoutSyllabus(candidates: MaterialCandidate[]): MaterialCandidate[][] {
   if (!candidates.length) return [];
   const multiFile = new Set(candidates.map((item) => item.documentId).filter(Boolean)).size > 1;
+  if (!multiFile) {
+    // This document's ready topic map already decided which chapters stand
+    // alone. Similar words ("sinüs", "trigonometrik") are prerequisite
+    // relationships, not permission to merge its 11 chapters into four.
+    // Only exact duplicate headings from the same file may share a bucket.
+    const exact = new Map<string, MaterialCandidate[]>();
+    for (const candidate of candidates) {
+      const key = topicMatchKey(candidate.title) || candidate.id;
+      const group = exact.get(key) ?? [];
+      group.push(candidate);
+      exact.set(key, group);
+    }
+    return orderGroups([...exact.values()], candidates);
+  }
   const freq = tokenFrequency(candidates);
   const knownLeads = candidates
     .map((item) => leadOf(item.title))
