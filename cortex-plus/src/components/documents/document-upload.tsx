@@ -69,6 +69,13 @@ export function DocumentUpload({
 
     setStage("uploading");
     setStatusDetail("Dosyan yükleniyor…");
+    // router.push (learningV2 success path) and router.refresh (finally
+    // below) both start a Next.js router transition — firing refresh right
+    // after push interrupts the pending push, so the app never lands on
+    // the document page and the list behind it keeps showing stale data
+    // (looks to the student like the upload silently did nothing). Skip
+    // the redundant refresh once we've already navigated away.
+    let navigated = false;
     try {
       const form = new FormData();
       form.append("file", file);
@@ -120,6 +127,7 @@ export function DocumentUpload({
           "Belge hazır. Konu haritasını gözden geçirip sınav hazırlığına geçebilirsin.",
         );
         setFile(null);
+        navigated = true;
         router.push(`/dokumanlar/${uploaded.documentId}`);
         return;
       }
@@ -137,7 +145,7 @@ export function DocumentUpload({
     } finally {
       setStage("idle");
       setStatusDetail(null);
-      router.refresh();
+      if (!navigated) router.refresh();
     }
   }
 

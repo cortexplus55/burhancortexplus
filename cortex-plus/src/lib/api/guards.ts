@@ -292,6 +292,10 @@ export function errorResponse(status: number, code: string) {
     no_topics: "Önce en az bir konu ekle.",
     storage_full:
       "Yükleme alanın doldu. Yeni belge eklemek için eskilerinden birini sil.",
+    invalid_file:
+      "Bu dosya yüklenemedi. Desteklenen türde (PDF, Word, PowerPoint, TXT, JPG, PNG, HEIC) ve 15 MB'tan küçük olduğundan emin ol.",
+    upload_failed:
+      "Yükleme sırasında bir sorun oluştu. Lütfen tekrar dene.",
     content_verification_failed:
       "Üretilen sorular eğitim doğrulamasından geçmedi. Tekrar dener misin?",
     source_unavailable:
