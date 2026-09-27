@@ -331,15 +331,15 @@ The content-generation cost (~$0.013) dominates the decision cost (~$0.003) roug
 
 ### Checklist — remaining controlled pilot scenarios before global rollout
 
-- [ ] Repeated wrong answers on the same topic (anti-loop ladder: reteach → worked example → easier decomposition → prerequisite review)
-- [ ] Repeated correct answers (fast-learner acceleration: less explanation, harder questions, faster topic advance)
-- [ ] Prerequisite remediation actually teaches only the missing prerequisite, not the whole topic again
-- [ ] Scheduled review creation and completion (interval lengthens on success, shortens on failure)
-- [ ] Missed-day daily/master replan (rebalances remaining work without dumping everything into one day)
-- [ ] GPT-4o escalation happens only when policy requires it (logged reason code), not by default
+- [x] Repeated wrong answers on the same topic (anti-loop ladder: reteach → worked example → easier decomposition → prerequisite review) — **PASS, verified live 2026-09-27** (see round 2 below)
+- [x] Repeated correct answers (fast-learner acceleration: less explanation, harder questions, faster topic advance) — **PARTIAL PASS, verified live 2026-09-27** — teach→worked_example progression with rising confidence confirmed; did not reach the practice/mini_assessment tier live in one session (see round 2)
+- [ ] Prerequisite remediation actually teaches only the missing prerequisite, not the whole topic again — not independently live-triggered (no natural unmet-prerequisite case arose this session); code path exists and is unit-tested
+- [ ] Scheduled review creation and completion (interval lengthens on success, shortens on failure) — mastery didn't reach the scheduling threshold (0.75) live in one session; unit-tested only
+- [ ] Missed-day daily/master replan (rebalances remaining work without dumping everything into one day) — cannot be live-tested without an actual day passing; unit-tested only
+- [x] GPT-4o escalation happens only when policy requires it (logged reason code), not by default — **PASS, verified live 2026-09-27** (see round 2 below)
 - [x] Session resume/reload — refreshing mid-session does not lose or duplicate state — **PASS, fixed in PR #129, verified live 2026-09-27** (see below)
-- [ ] Second-day continuity — plan, mastery, and history persist and the daily plan doesn't regenerate as a duplicate
-- [ ] Non-pilot regression — a second, non-pilot account confirmed to see zero adaptive UI/behavior change (automated coverage exists; a live non-pilot browser pass is still open)
+- [ ] Second-day continuity — plan, mastery, and history persist and the daily plan doesn't regenerate as a duplicate — cannot be live-tested without an actual day passing; the next-study-day computation was observed to run correctly at session-end (see round 2)
+- [ ] Non-pilot regression — a second, non-pilot account confirmed to see zero adaptive UI/behavior change — automated coverage exists (`adaptive-api-guard.test.ts`); a live non-pilot browser pass needs a second real account, not created without the product owner's say-so
 
 ---
 
@@ -380,3 +380,72 @@ Admin panel decision counter: 9 → 10 (resume) → 10, 10, 10 (three reloads, u
 ### Remaining pilot checklist
 
 With this item closed, the outstanding pre-global-rollout items are: repeated wrong/correct answers, prerequisite remediation, scheduled review, missed-day replan, GPT-4o escalation gating, second-day continuity, and non-pilot regression (live browser pass) — see the checklist above.
+
+---
+
+## Pilot checklist round 2 — live production run (2026-09-27, post-PR #129)
+
+Single continuous live session on `cortexplus.app`, pilot account `burhan`, driven through the real UI (no direct DB access), cross-checked against `/admin/adaptive?userId=...` after each step. 15 answers submitted across this run; session ended cleanly via "Oturumu bitir".
+
+### Repeated wrong answers — anti-loop — PASS
+
+Answered **"Romanda Gerçekçilik ve İç Çözümleme" wrong three times in a row** (same topic each time, since a wrong answer keeps a topic's priority high instead of letting the policy move on to another weak topic the way a correct answer does):
+
+| Attempt | Mastery | Confidence | Status | Action | Provider/model |
+|---|---|---|---|---|---|
+| before | ~0.17 (carried from earlier) | 0.32 | learning | — | — |
+| wrong #1 | 0.03 | 0.27 | **at_risk** | `reteach` | openai_decision |
+| wrong #2 | (falling) | — | at_risk | `reteach` | openai_decision |
+| wrong #3 | (falling) | — | at_risk | `reteach` | openai_decision |
+
+Three consecutive `misconception_detected` + `intervention_started` events were recorded for the same topic, each with newly generated content that re-explained the *same* concept from a different angle and explicitly named the misconception (e.g. "Odak: Öğrenciler, iç çözümlemenin sadece olay sayısıyla ilgili olduğunu düşünmektedir."). GPT‑4o call share rose from 39% to 46% of all OpenAI calls specifically across this struggling stretch (see the GPT‑4o section below) — the model escalated in response to repeated confusion, matching `repeatedConfusion: topic.repeatedErrorCount >= 2` in `learning-governor.ts`.
+
+Then answered **two correct in a row on the same topic**: mastery recovered 0.03 → 0.19, confidence rose 0.27 → 0.45, status flipped back from `at_risk` to `introduced`, action moved from `reteach` back toward `worked_example`/higher confidence. This is the live version of the exact scenario already described in this report under "Misconception handling" (`emerging seed mastery → wrong → mastery decreases, repeatedErrorCount↑ → transfer correct → mastery increases again`) — now confirmed against real production data, not just the unit scenario.
+
+**Not separately confirmed:** the ladder's later, more severe stages (easier decomposition, prerequisite review) — three wrong answers escalated the *model* (GPT‑4o) and flagged the topic `at_risk`, but stayed in `reteach` rather than visibly switching to a different action name. Whether a 4th+ consecutive wrong answer would surface `easier_decomposition` or `prerequisite_review` as a distinct action was not tested (would have required continuing to fail on purpose past the point already demonstrated).
+
+### Repeated correct answers — fast learner — PARTIAL PASS
+
+Across ~10 correct answers spread over two topics ("şiirde yenilik arayışı", "topluluğun dağılışı ve mirası"), both climbed from `introduced` (mastery 0, confidence 0.18) to `learning`:
+
+| Topic | Mastery | Confidence | Action progression |
+|---|---|---|---|
+| şiirde yenilik arayışı | 0.00 → 0.35 | 0.18 → 0.50 | `teach` (conf 0.10) → `worked_example` (conf 0.30 → 0.35 → 0.50) |
+| topluluğun dağılışı ve mirası | 0.00 → 0.28 | 0.18 → 0.42 | `teach` (conf 0.10) → `worked_example` (conf 0.30 → 0.50) |
+
+This confirms the core "less explanation as evidence accumulates" behavior. It did **not** reach the `mini_assessment`/`practice` tier live (that requires mastery ≥0.7 + confidence ≥0.55 + evidence ≥3 *on one topic*, per `mastery-engine.ts`/policy config): the priority queue kept rotating to whichever topic was currently weakest rather than letting one topic's streak run uninterrupted, so no single topic accumulated enough consecutive evidence in this session. `practice` at confidence 0.80 *has* appeared historically in this account's decision log (03:18, from earlier testing), so the tier is reachable — just not re-triggered in this specific run. Topic rotation itself (always serving the globally-weakest topic rather than "sticking" with a streak) is arguably correct prioritization behavior, not a bug.
+
+### GPT-4o escalation gating — PASS
+
+Global GPT-4o call share moved specifically alongside the struggle above, not on a fixed schedule:
+
+| Point in session | GPT-4o calls / % |
+|---|---|
+| Before the repeated-wrong-answer stretch | 21 / 45% |
+| Immediately after 3 wrong answers on one topic | 27 / 47% |
+| Session end | 33 / 46% |
+
+6 additional GPT-4o calls landed in the exact window of the 3 consecutive wrong answers, consistent with `routeTutorModel`'s `repeatedConfusion` trigger rather than random or default routing. No Jev calls and no fallbacks occurred throughout (`Jev calls: 0`, `Fallback: 0`) — confirms GPT-4o escalation is independent of, and unaffected by, the still-disabled Jev integration.
+
+### Session completion, review nudge, and next-day planning — observed, not fully provable live
+
+Ending the session (`Oturumu bitir`) completed cleanly with no errors despite the heavy activity (24 decisions, 15 answers, repeated struggle-and-recovery) — this also re-confirms the resume/concurrency fix from PR #129 didn't destabilize `completeSession` under load. The completion screen correctly surfaced the single weakest remaining topic ("Topluluğun Dağılışı ve Mirası") and computed a next study day (`2026-09-28`, correctly the next day). This is the generic end-of-session weak-point nudge (`buildSessionSummary`'s `weak` topic message), **not** the same thing as an `adaptive_scheduled_reviews` row with a lengthening/shortening interval — none of today's topics crossed the mastery≥0.75 + confidence≥0.65 + evidence≥4 threshold that actually inserts a scheduled review, so that mechanism remains unit-tested only, not live-triggered.
+
+### Non-pilot regression — reconfirmed, not newly live-tested
+
+`/admin/adaptive` (no `userId`) reconfirmed after this run: all four adaptive flags still `enabled=false` globally, pilot count still exactly **1** (`9d79106a-...`) for `adaptive_learning_enabled`/`adaptive_daily_replan_enabled`/`adaptive_model_router_enabled`, **0** for `jev_enabled`. This restates the existing guarantee after a heavy pilot session — it is not a new live pass through a second, non-pilot account's browser experience, which still needs either a second real account or the product owner doing it themselves.
+
+### What remains genuinely open
+
+- **Prerequisite remediation** and **scheduled review**: mechanism exists and is unit-tested, but no live case naturally arose this session (would need a topic with an actually-unmet prerequisite, or ~15-20 more correct answers on one topic to cross the review threshold — both possible but not done today).
+- **Missed-day replan** and **second-day continuity**: cannot be produced live without an actual day passing (or altering server time, which was not done).
+- **Non-pilot regression**: needs a second real, non-pilot account for a live browser pass.
+
+### Updated final verdict
+
+**ADAPTIVE SESSION LOOP: PASS**
+**SESSION RESUME/RELOAD: PASS**
+**ANTI-LOOP / MISCONCEPTION RECOVERY: PASS**
+**GPT-4O ESCALATION GATING: PASS**
+**FAST-LEARNER PROGRESSION: PARTIAL PASS** (direction confirmed, top tier not re-triggered)
+**GLOBAL ROLLOUT: NOT YET** — prerequisite remediation, scheduled review, missed-day replan, second-day continuity, and non-pilot live regression remain open, for the reasons above.
