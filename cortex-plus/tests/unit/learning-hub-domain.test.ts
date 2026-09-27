@@ -31,6 +31,7 @@ import {
   rescheduleOverdueTasks,
 } from "@/lib/learning/todays-plan";
 import { formatProgressLine } from "@/lib/learning/progress-line";
+import { shouldRouteToAdaptiveSession } from "@/lib/learning/learning-hub";
 
 describe("resolveNextBestAction", () => {
   const base = {
@@ -294,5 +295,34 @@ describe("todays plan", () => {
       dailyMinutesCap: 5,
     });
     expect(tasks).toHaveLength(1);
+  });
+});
+
+describe("shouldRouteToAdaptiveSession", () => {
+  // Production: adaptive_daily_plans=1 (overlay ran) but
+  // adaptive_learning_sessions=0 — a leftover active legacy
+  // exam_prep_node_attempts row (resumeHref) silently kept the pilot's
+  // primary CTA pointed at the old resume screen instead of /oturum.
+  it("routes to the adaptive session even when a stale legacy resumeHref exists", () => {
+    expect(
+      shouldRouteToAdaptiveSession({
+        resumeHref: "/deneme-sinavlari/prep-1/dugum/node-1",
+        processing: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("routes to the adaptive session when there is no resumeHref at all", () => {
+    expect(shouldRouteToAdaptiveSession({ resumeHref: null, processing: false })).toBe(true);
+  });
+
+  it("still waits while a document is processing, resumeHref or not", () => {
+    expect(shouldRouteToAdaptiveSession({ resumeHref: null, processing: true })).toBe(false);
+    expect(
+      shouldRouteToAdaptiveSession({
+        resumeHref: "/deneme-sinavlari/prep-1/dugum/node-1",
+        processing: true,
+      }),
+    ).toBe(false);
   });
 });

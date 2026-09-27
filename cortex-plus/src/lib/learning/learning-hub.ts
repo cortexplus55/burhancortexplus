@@ -30,6 +30,24 @@ import type { TopicMasterySnapshot } from "@/lib/learning/learning-tracking";
 import type { ProgressSummary } from "@/lib/learning/progress-line";
 import { STALE_PROCESSING_MS } from "@/lib/documents/processing-stale";
 
+/**
+ * Adaptive pilot: a stale legacy `resumeHref` (an old, unrelated
+ * exam_prep_node_attempts row left "active") must never block the pilot's
+ * primary CTA from routing into the adaptive session — that CTA *is* the
+ * pilot. Production showed adaptive_daily_plans populated (the overlay ran)
+ * but adaptive_learning_sessions stayed at 0: the CTA never re-pointed to
+ * `/oturum` because the pilot account had a leftover active legacy attempt
+ * from earlier testing. A document still processing is a real reason to
+ * wait — you cannot start a session against a source that is not ready —
+ * so that gate stays.
+ */
+export function shouldRouteToAdaptiveSession(input: {
+  resumeHref: string | null;
+  processing: boolean;
+}): boolean {
+  return !input.processing;
+}
+
 export type LearningHubSnapshot = {
   firstName: string;
   countdown: ExamCountdown;
@@ -452,7 +470,7 @@ export async function loadLearningHub(
         }));
         minutesOut = plan.estimatedMinutes || minutesOut;
       }
-      if (!resumeHref && !processing) {
+      if (shouldRouteToAdaptiveSession({ resumeHref, processing: Boolean(processing) })) {
         nextBestAction = {
           kind: "exam_prep_node",
           href: `/deneme-sinavlari/${nearestPrep.id}/oturum`,
