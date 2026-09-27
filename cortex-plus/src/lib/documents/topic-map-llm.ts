@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
-import type { PageAnalysis } from "@/lib/documents/page-analysis";
+import { pageUsableForLesson, type PageAnalysis } from "@/lib/documents/page-analysis";
 import {
   draftFromLlmTopic,
   type TopicDraft,
@@ -94,18 +94,8 @@ export function pagesForTopicMap(pages: PageAnalysis[]): PageAnalysis[] {
   );
   if (rich.length > 0) return rich;
 
-  return pages.filter((page) => {
-    if (
-      page.pageKind === "blank" ||
-      page.pageKind === "cover" ||
-      page.pageKind === "toc" ||
-      page.pageKind === "answer_key"
-    ) {
-      return false;
-    }
-    const letters = page.textContent.match(/\p{L}/gu)?.length ?? 0;
-    return letters >= 12;
-  });
+  // Kısa slayt yolu — ders okuyucusuyla aynı pageUsableForLesson kuralı.
+  return pages.filter((page) => pageUsableForLesson(page));
 }
 
 /**

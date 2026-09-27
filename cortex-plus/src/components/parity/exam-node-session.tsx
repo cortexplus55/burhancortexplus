@@ -10,6 +10,7 @@ import {
   generationFailureCode,
   type GenerationFailure,
 } from "@/lib/learning/generation-failure";
+import { useIsFounder } from "@/lib/student/student-shell-context";
 import { ExamFinishButton } from "@/components/parity/exam-finish-button";
 import { ExamNodeCoach } from "@/components/parity/exam-node-coach";
 import { ExamLessonBody } from "@/components/parity/exam-lesson-body";
@@ -157,6 +158,7 @@ export function ExamNodeSession({
   language?: "tr" | "en";
 }) {
   const router = useRouter();
+  const isAdmin = useIsFounder();
   const meta = PLAN_NODE_META[kind];
   // Referans üründeki sıra: aşinalık → ruh hali → kurulum. İkisi de zorunlu değil;
   // "setup"tan geri dönülebilsin diye aynı stage makinesinde tutuluyorlar.
@@ -507,6 +509,11 @@ export function ExamNodeSession({
           generationFailureCode(data),
           resetsAtLabel ?? undefined,
           kind,
+          {
+            isAdmin,
+            refunded: data.refunded === true,
+            reason: typeof data.reason === "string" ? data.reason : undefined,
+          },
         );
         if (failure.retryMintsNewId) clearClientRequestId();
         setGenerationFailure(failure);

@@ -373,6 +373,8 @@ describe("guards", () => {
   const source = readFileSync("src/lib/api/guards.ts", "utf8");
 
   it("hata yanıtı makine tarafından okunabilir kod taşıyor", () => {
-    expect(source).toMatch(/\{ error: messages\[code\] \?\? "[^"]+", code \}/);
+    expect(source).toMatch(
+      /\{ error: messages\[code\] \?\? "[^"]+", code(?:, \.\.\.extras)? \}/,
+    );
   });
 });

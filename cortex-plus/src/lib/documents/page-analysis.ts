@@ -132,6 +132,34 @@ export function classifyPageKind(text: string, pageNumber: number): PageKind {
   return "content";
 }
 
+/**
+ * Sayfa derste / konu haritasında kullanılabilir mi — tek kural.
+ *
+ * Kısa slaytlar (<40 karakter) `page_kind=unreadable` ve
+ * `extraction_ok=false` olur ama metin durur; harita bunları alıyorsa
+ * ders okuyucusu da almalı. Kapak / içindekiler / cevap anahtarı /
+ * boş sayfa hariç; en az birkaç harf gerekir.
+ */
+export function pageUsableForLesson(page: {
+  textContent?: string | null;
+  text_content?: string | null;
+  pageKind?: PageKind | string | null;
+  page_kind?: PageKind | string | null;
+  extractionOk?: boolean | null;
+  extraction_ok?: boolean | null;
+}): boolean {
+  const text = String(page.textContent ?? page.text_content ?? "").trim();
+  if (!text) return false;
+  const kind = String(page.pageKind ?? page.page_kind ?? "");
+  if (kind === "blank" || kind === "cover" || kind === "toc" || kind === "answer_key") {
+    return false;
+  }
+  if (kind === "content" || kind === "uncertain") return true;
+  // unreadable / unknown: kısa slayt veya OCR artığı — harfle doluysa kullan.
+  const letters = text.match(/\p{L}/gu)?.length ?? 0;
+  return letters >= 12;
+}
+
 export function analyzePage(
   pageNumber: number,
   text: string,

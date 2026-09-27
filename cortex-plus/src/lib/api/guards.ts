@@ -272,7 +272,11 @@ export async function guestLimit(
   return tooManyResponse(result);
 }
 
-export function errorResponse(status: number, code: string) {
+export function errorResponse(
+  status: number,
+  code: string,
+  extras: Record<string, unknown> = {},
+) {
   const messages: Record<string, string> = {
     insufficient_credits:
       "Bu işlem için yeterli kredin veya ücretsiz hakkın kalmadı.",
@@ -317,7 +321,7 @@ export function errorResponse(status: number, code: string) {
     `error` alanı olduğu gibi duruyor — mevcut istemciler onu okuyor.
   */
   return NextResponse.json(
-    { error: messages[code] ?? "Beklenmeyen bir hata oluştu.", code },
+    { error: messages[code] ?? "Beklenmeyen bir hata oluştu.", code, ...extras },
     { status },
   );
 }

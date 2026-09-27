@@ -441,7 +441,19 @@ ${body}`,
 function sourceHasNumber(source: string, raw: string): boolean {
   const normalized = source.replace(/,/g, ".");
   const digits = raw.replace("%", "").replace(/\s/g, "").replace(",", ".");
-  return normalized.includes(digits) || source.includes(raw.replace(/\s/g, ""));
+  if (!digits) return false;
+  const escaped = digits.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Tam sayı/ondalık jetonu. "10" → "10^3" veya "110" içinde sayılmaz;
+  // "215" → "215.4" içinde (ondalık bütünü) sayılır.
+  const asToken = new RegExp(
+    `(?<![\\d.,])${escaped}(?:[.,]\\d+)?(?![\\d])(?!\\s*\\^\\s*\\d)`,
+  );
+  if (asToken.test(normalized)) return true;
+  const rawCompact = raw.replace(/\s/g, "");
+  if (rawCompact && rawCompact !== digits && normalized.includes(rawCompact.replace(",", "."))) {
+    return true;
+  }
+  return false;
 }
 
 /** Kaynakta bu sayı, virgül ya da nokta yazımıyla duruyor mu? */
@@ -449,68 +461,240 @@ export function sourceContainsNumber(source: string, raw: string): boolean {
   return sourceHasNumber(source, raw);
 }
 
+/** Sayfa atıfları ([s.4]) nicelik değildir — taramadan çıkar. */
+function stripPageMarkers(text: string): string {
+  return text.replace(/\[s\.\d+\]/gi, " ");
+}
+
 /** Kaynakta geçmeyen yüzde ve denklem katsayısı. Küçük sıra sayıları sayılmaz. */
 export function unsupportedQuantities(generated: string, source: string): string[] {
   if (!source.trim() || !generated.trim()) return [];
   const issues: string[] = [];
-  for (const match of generated.match(/%\s*\d+(?:[.,]\d+)?/g) ?? []) {
-    if (!sourceHasNumber(source, match)) issues.push(match.replace(/\s/g, ""));
+  const haystack = stripPageMarkers(source);
+  const needle = stripPageMarkers(generated);
+  for (const match of needle.match(/%\s*\d+(?:[.,]\d+)?/g) ?? []) {
+    if (!sourceHasNumber(haystack, match)) issues.push(match.replace(/\s/g, ""));
   }
   // Ondalık nokta cümle sınırı değildir: `1.337` iki parçaya bölününce
   // 337 eşitliğin dışında kalıyor ve uydurma sonuç derste duruyordu.
-  for (const sentence of generated.split(/\n+|(?<!\d)\.(?!\d)/)) {
+  for (const sentence of needle.split(/\n+|(?<!\d)\.(?!\d)/)) {
     if (!/=/.test(sentence)) continue;
-    for (const num of sentence.match(/\d+/g) ?? []) {
-      if (Number(num) < 3) continue;
-      if (!sourceHasNumber(source, num)) issues.push(num);
+    for (const num of sentence.match(/\d+(?:[.,]\d+)?/g) ?? []) {
+      const asNumber = Number(num.replace(",", "."));
+      if (!Number.isFinite(asNumber)) continue;
+      // Küçük tam sayılar sıra/indeks olabilir; ondalık uydurma (1.337) tutulmaz.
+      const isDecimal = /[.,]/.test(num);
+      if (!isDecimal && asNumber < 3) continue;
+      if (!sourceHasNumber(haystack, num)) issues.push(num);
     }
   }
   return [...new Set(issues)].slice(0, 6);
 }
 
+function parseQty(value: string): number {
+  const trimmed = value.replace(/\s/g, "").replace("−", "-");
+  // 2×10^3 / 2*10^3 / 2 x 10^3
+  const sci = trimmed.match(/^([−-]?\d+(?:[.,]\d+)?)\s*[×x*]\s*10\s*\^\s*([−-]?\d+)$/i);
+  if (sci) {
+    return Number(sci[1].replace(",", ".")) * 10 ** Number(sci[2].replace("−", "-"));
+  }
+  const sciE = trimmed.match(/^([−-]?\d+(?:[.,]\d+)?)[eE]([−+]?\d+)$/);
+  if (sciE) {
+    return Number(sciE[1].replace(",", ".")) * 10 ** Number(sciE[2]);
+  }
+  return Number(trimmed.replace(",", "."));
+}
+
+function qtyTolerance(claimedText: string, expected: number): number {
+  const decimals = claimedText.replace(/[×x*]\s*10\s*\^.*/i, "").split(/[.,]/)[1]?.length ?? 0;
+  if (decimals > 0) return 0.5 * 10 ** -decimals;
+  if (Math.abs(expected) >= 100) return 0.51;
+  return 1e-6;
+}
+
+function applyOp(a: number, op: string, b: number): number | null {
+  if (op === "+") return a + b;
+  if (op === "-" || op === "−") return a - b;
+  if (op === "×" || op === "x" || op === "*") return a * b;
+  if (op === "÷" || op === "/") return b === 0 ? null : a / b;
+  return null;
+}
+
+/** Operand kaynakta veya aynı pasajda daha önce doğrulanmış mı? */
+function operandGrounded(
+  raw: string,
+  source: string,
+  proven: Set<string>,
+): boolean {
+  const key = raw.replace(/\s/g, "").replace(",", ".");
+  if (proven.has(key)) return true;
+  if (sourceHasNumber(source, raw)) return true;
+  // ×10^n biçimi: taban kaynakta ise üslü yazım da kabul
+  const sci = raw.match(/^([−-]?\d+(?:[.,]\d+)?)\s*[×x*]\s*10\s*\^\s*([−-]?\d+)$/i);
+  if (sci && sourceHasNumber(source, sci[1])) return true;
+  return false;
+}
+
+function proveResult(raw: string, proven: Set<string>) {
+  proven.add(raw.replace(/\s/g, "").replace(",", "."));
+}
+
+/** Sayı ile işlem arasında birim (mol, g/mol, m/s² …) olabilir. */
+const UNIT_GAP = String.raw`(?:\s*[A-Za-zμµ°%²³⁰-⁹/·]+(?:/[A-Za-zμµ°0-9]+)?)?\s*`;
+const NUM = String.raw`([−-]?\d+(?:[.,]\d+)?(?:\s*[×x*]\s*10\s*\^\s*[−-]?\d+)?)`;
+const OP = String.raw`([+\-−×x*÷/])`;
+
 /**
- * Kaynakta yazmayan sonuç, işlem doğruysa ve girdiler kaynakta duruyorsa
- * uydurma değildir. "0,25 × 98 = 24,5" kaynakta 24,5 geçmese de tutulur.
- * Yanlış sonuç ve kaynaksız yüzde tutulmaz.
+ * Kaynakta yazmayan sonuç, işlem doğruysa ve girdiler kaynakta (veya
+ * aynı pasajda önce doğrulanmış) duruyorsa uydurma değildir.
+ * Zincir: a×b÷c = d, parantez, ardışık eşitlik, ondalık virgül, ×10^n.
+ * Yanlış aritmetik ve dayanaksız yüzde tutulmaz.
  */
 export function quantityClaimGrounded(text: string, source: string): boolean {
   if (!source.trim() || !text.trim()) return true;
-  if (!unsupportedQuantities(text, source).length) return true;
-  if (!/=/.test(text)) return false;
-  const eq =
-    /(?<![\d.,\w])([−-]?\d+(?:[.,]\d+)?)\s*([+\-−×x*÷/])\s*([−-]?\d+(?:[.,]\d+)?)\s*=\s*([−-]?\d+(?:[.,]\d+)?)(?![\d.,/])/g;
-  let saw = false;
-  for (const match of text.matchAll(eq)) {
-    saw = true;
-    const number = (value: string) => Number(value.replace("−", "-").replace(",", "."));
-    const a = number(match[1]);
-    const b = number(match[3]);
-    const claimedText = match[4];
-    const claimed = number(claimedText);
-    const op = match[2];
-    let expected: number | null = null;
-    if (op === "+") expected = a + b;
-    else if (op === "-" || op === "−") expected = a - b;
-    else if (op === "×" || op === "x" || op === "*") expected = a * b;
-    else if (op === "÷" || op === "/") expected = b === 0 ? null : a / b;
-    if (expected == null || ![a, b, claimed].every((n) => Number.isFinite(n))) return false;
-    const decimals = claimedText.split(/[.,]/)[1]?.length ?? 0;
-    const tolerance = decimals > 0 ? 0.5 * 10 ** -decimals : 1e-6;
-    if (Math.abs(expected - claimed) > tolerance) return false;
-    if (!sourceHasNumber(source, match[1]) || !sourceHasNumber(source, match[3])) return false;
+  const cleanText = stripPageMarkers(text);
+  const cleanSource = stripPageMarkers(source);
+  const hasEquation = /=/.test(cleanText);
+  // Eşitlik yoksa eski davranış: desteklenmeyen nicelik = ret.
+  if (!hasEquation) {
+    return !unsupportedQuantities(cleanText, cleanSource).length;
   }
-  return saw;
+  // Eşitlik varken aritmetik doğrulanır — kaynakta görünen yanlış sonuç da ret.
+  text = cleanText;
+  source = cleanSource;
+
+  const proven = new Set<string>();
+  let verifiedClaim = false;
+
+  // Parantezli ikili: (a × b) ÷ c = d
+  const paren = new RegExp(
+    String.raw`\(\s*${NUM}${UNIT_GAP}${OP}${UNIT_GAP}${NUM}\s*\)\s*${OP}${UNIT_GAP}${NUM}${UNIT_GAP}=\s*${NUM}`,
+    "g",
+  );
+  for (const match of text.matchAll(paren)) {
+    const a = parseQty(match[1]);
+    const b = parseQty(match[3]);
+    const c = parseQty(match[5]);
+    const claimedText = match[6];
+    const claimed = parseQty(claimedText);
+    if (
+      !operandGrounded(match[1], source, proven) ||
+      !operandGrounded(match[3], source, proven)
+    ) {
+      return false;
+    }
+    const mid = applyOp(a, match[2], b);
+    if (mid == null) return false;
+    proveResult(String(mid).replace(".", ","), proven);
+    proveResult(String(mid), proven);
+    if (!operandGrounded(match[5], source, proven)) return false;
+    const expected = applyOp(mid, match[4], c);
+    if (expected == null || ![a, b, c, claimed].every((n) => Number.isFinite(n))) return false;
+    if (Math.abs(expected - claimed) > qtyTolerance(claimedText, expected)) return false;
+    proveResult(claimedText, proven);
+    verifiedClaim = true;
+  }
+
+  // Zincir: a × b ÷ c = d  (soldan sağa)
+  const chain = new RegExp(
+    String.raw`(?<![\d.,])${NUM}${UNIT_GAP}${OP}${UNIT_GAP}${NUM}${UNIT_GAP}${OP}${UNIT_GAP}${NUM}${UNIT_GAP}=\s*${NUM}(?![\d.,/])`,
+    "g",
+  );
+  for (const match of text.matchAll(chain)) {
+    const a = parseQty(match[1]);
+    const b = parseQty(match[3]);
+    const c = parseQty(match[5]);
+    const claimedText = match[6];
+    const claimed = parseQty(claimedText);
+    if (
+      !operandGrounded(match[1], source, proven) ||
+      !operandGrounded(match[3], source, proven)
+    ) {
+      return false;
+    }
+    const mid = applyOp(a, match[2], b);
+    if (mid == null) return false;
+    // Ara sonuç bir sonraki işlemde kullanılıyorsa kanıtlanmış sayılır.
+    proveResult(String(mid).replace(".", ","), proven);
+    proveResult(String(mid), proven);
+    if (!operandGrounded(match[5], source, proven)) return false;
+    const expected = applyOp(mid, match[4], c);
+    if (expected == null || ![a, b, c, claimed].every((n) => Number.isFinite(n))) return false;
+    if (Math.abs(expected - claimed) > qtyTolerance(claimedText, expected)) return false;
+    proveResult(claimedText, proven);
+    verifiedClaim = true;
+  }
+
+  // İkili: a × b = c  (birim ve bilimsel gösterim dahil).
+  // Zincir/parantez zaten doğruladıysa alt eşleşme (18÷9=1) sonucu bozmasın.
+  if (!verifiedClaim) {
+    const eq = new RegExp(
+      String.raw`(?<![\d.,])${NUM}${UNIT_GAP}${OP}${UNIT_GAP}${NUM}${UNIT_GAP}=\s*${NUM}(?![\d.,/])`,
+      "g",
+    );
+    for (const match of text.matchAll(eq)) {
+      const aRaw = match[1];
+      const bRaw = match[3];
+      const claimedText = match[4];
+      const a = parseQty(aRaw);
+      const b = parseQty(bRaw);
+      const claimed = parseQty(claimedText);
+      const expected = applyOp(a, match[2], b);
+      if (expected == null || ![a, b, claimed].every((n) => Number.isFinite(n))) return false;
+      if (Math.abs(expected - claimed) > qtyTolerance(claimedText, expected)) return false;
+      if (!operandGrounded(aRaw, source, proven) || !operandGrounded(bRaw, source, proven)) {
+        return false;
+      }
+      proveResult(claimedText, proven);
+      verifiedClaim = true;
+    }
+  }
+
+  // Ardışık eşitlik: a = b = c — yalnızca kaynaklı/kanıtlı değerler
+  const sequential = text.match(
+    /([−-]?\d+(?:[.,]\d+)?(?:\s*[×x*]\s*10\s*\^\s*[−-]?\d+)?)\s*=\s*([−-]?\d+(?:[.,]\d+)?(?:\s*[×x*]\s*10\s*\^\s*[−-]?\d+)?)\s*=\s*([−-]?\d+(?:[.,]\d+)?(?:\s*[×x*]\s*10\s*\^\s*[−-]?\d+)?)/,
+  );
+  if (sequential) {
+    const values = [sequential[1], sequential[2], sequential[3]];
+    if (values.every((value) => operandGrounded(value, source, proven))) {
+      verifiedClaim = true;
+    }
+  }
+
+  // Sayısal işlem doğrulanamadıysa: sembolik eşitlik (σ' = σ − u) eski
+  // kurala düşer — desteklenmeyen nicelik yoksa kabul.
+  if (!verifiedClaim) {
+    return !unsupportedQuantities(text, source).length;
+  }
+
+  // Dayanaksız yüzde hâlâ ret: eşitlik doğrulansa bile % kaynakta yoksa
+  for (const match of text.match(/%\s*\d+(?:[.,]\d+)?/g) ?? []) {
+    if (!sourceHasNumber(source, match) && !operandGrounded(match.replace("%", ""), source, proven)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
-/** Kaynakta olmayan niceliğin cümlesini düşürür. Kalan metin kalır. */
+/** Kaynakta olmayan (ve türetilemeyen) niceliğin cümlesini düşürür. */
 export function withoutUnsupportedQuantities(text: string, source: string): string {
   if (!text.trim() || !unsupportedQuantities(text, source).length) return text;
   const parts = text.split(/\n+|(?<=[.!?])\s+(?=[A-ZÇĞİÖŞÜ“"])/);
   const kept = parts
     .map((part) => part.trim())
-    .filter((part) => part && unsupportedQuantities(part, source).length === 0);
+    .filter((part) => {
+      if (!part) return false;
+      if (!unsupportedQuantities(part, source).length) return true;
+      return quantityClaimGrounded(part, source);
+    });
   const joined = kept.join(" ").replace(/\s+/g, " ").trim();
-  if (unsupportedQuantities(joined, source).length) return "";
+  if (
+    unsupportedQuantities(joined, source).length &&
+    !quantityClaimGrounded(joined, source)
+  ) {
+    return "";
+  }
   return joined;
 }
 
@@ -761,7 +945,7 @@ export function lessonDepth(priority: TeachingPriority | null): {
   if (priority === "less") {
     return {
       difficulty: "easy",
-      maxDraftAttempts: 1,
+      maxDraftAttempts: 2,
       quizItems: 2,
       line: "Öncelik: daha az önemli. Konuyu yine öğret ama kısa tut: tek tanım, bir tuzak, kısa bir örnek.",
     };
@@ -769,7 +953,7 @@ export function lessonDepth(priority: TeachingPriority | null): {
   if (priority === "medium") {
     return {
       difficulty: "medium",
-      maxDraftAttempts: 1,
+      maxDraftAttempts: 2,
       quizItems: 3,
       line: "Öncelik: orta. Tanım, formül ve bir çözümlü örnek yeter.",
     };

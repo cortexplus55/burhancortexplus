@@ -34,11 +34,24 @@ export function isAdminUser(client: SupabaseClient, userId: string): Promise<boo
   if (hit) return hit;
 
   // Eşzamanlı fırlayan hata da (istemci eksik, ağ katmanı çöktü) kapalıya düşsün.
+  // Güvenlik: hata → false kalır; teşhis için kod loglanır.
   const pending = (async () => {
     try {
       const { data, error } = await client.rpc("is_admin", { uid: userId });
-      return !error && data === true;
-    } catch {
+      if (error) {
+        console.warn("is_admin_rpc_failed", {
+          code: (error as { code?: string }).code ?? "rpc_error",
+        });
+        return false;
+      }
+      return data === true;
+    } catch (error) {
+      console.warn("is_admin_rpc_failed", {
+        code:
+          error instanceof Error
+            ? (error.constructor?.name ?? error.name)
+            : "exception",
+      });
       return false;
     }
   })();

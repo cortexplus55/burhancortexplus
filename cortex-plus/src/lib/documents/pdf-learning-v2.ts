@@ -400,7 +400,14 @@ export type TopicMapSnapshot = {
  * düğüm ilerlemesi ve tanı o kimliğe bakıyor; düğümü silmek hazırlığı
  * bozar. Quiz, kart ve çalışma planı bu tabloya bağlı değil.
  */
-async function documentTopicMapIsInUse(
+/**
+ * Harita kullanımda mı?
+ *
+ * Eski yol yalnız exam_preps.document_id ve document_topic_node_id'ye
+ * bakıyordu; source_refs içindeki ikincil belge düğümleri korunmuyordu.
+ * source_document_ids ve source_refs.nodeId de "kullanımda" sayılır.
+ */
+export async function documentTopicMapIsInUse(
   service: SupabaseClient,
   documentId: string,
   nodeIds: string[],
@@ -412,15 +419,43 @@ async function documentTopicMapIsInUse(
     .limit(1);
   if (prepError) throw new Error("prep_lookup_failed");
   if (preps?.length) return true;
-  if (!nodeIds.length) return false;
 
-  const { data: linked, error: linkError } = await service
-    .from("exam_prep_topics")
+  const { data: sourcePreps, error: sourcePrepError } = await service
+    .from("exam_preps")
     .select("id")
-    .in("document_topic_node_id", nodeIds)
+    .contains("source_document_ids", [documentId])
     .limit(1);
-  if (linkError) throw new Error("prep_topic_lookup_failed");
-  return Boolean(linked?.length);
+  if (sourcePrepError) throw new Error("prep_source_lookup_failed");
+  if (sourcePreps?.length) return true;
+
+  if (nodeIds.length) {
+    const { data: linked, error: linkError } = await service
+      .from("exam_prep_topics")
+      .select("id")
+      .in("document_topic_node_id", nodeIds)
+      .limit(1);
+    if (linkError) throw new Error("prep_topic_lookup_failed");
+    if (linked?.length) return true;
+  }
+
+  // source_refs içindeki nodeId / documentId (ikincil belgeler).
+  const { data: refTopics, error: refError } = await service
+    .from("exam_prep_topics")
+    .select("id, source_refs")
+    .not("source_refs", "is", null)
+    .limit(400);
+  if (refError) throw new Error("prep_topic_refs_lookup_failed");
+  const nodeSet = new Set(nodeIds);
+  for (const row of refTopics ?? []) {
+    const refs = Array.isArray(row.source_refs) ? row.source_refs : [];
+    for (const raw of refs) {
+      if (typeof raw !== "object" || raw === null) continue;
+      const ref = raw as { documentId?: unknown; nodeId?: unknown };
+      if (ref.documentId === documentId) return true;
+      if (typeof ref.nodeId === "string" && nodeSet.has(ref.nodeId)) return true;
+    }
+  }
+  return false;
 }
 
 /**

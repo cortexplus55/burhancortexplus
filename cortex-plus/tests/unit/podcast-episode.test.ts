@@ -429,7 +429,11 @@ describe("podcast failure copy", () => {
       code: "source_unavailable",
     });
     expect(code).toBe("source_unavailable");
-    expect(describeGenerationFailure(code).message).toContain("kaynak sayfaları okunamadı");
+    expect(
+      describeGenerationFailure(code, undefined, undefined, {
+        reason: "documents_processing",
+      }).message,
+    ).toContain("kaynak sayfaları okunamadı");
     expect(describeGenerationFailure("invalid_ai_response", undefined, "podcast").message).toContain(
       "doğrulanamadı",
     );
