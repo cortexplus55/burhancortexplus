@@ -80,7 +80,7 @@ async function persistPendingAction(
   sessionId: string,
   action: GovernorAction | null,
 ): Promise<void> {
-  await service
+  const { error } = await service
     .from("adaptive_learning_sessions")
     .update({
       pending_decision_trace_id: action?.decisionTraceId ?? null,
@@ -90,6 +90,195 @@ async function persistPendingAction(
       updated_at: new Date().toISOString(),
     })
     .eq("id", sessionId);
+  // A GPT/decision call already happened by the time this runs. If the
+  // write silently failed, the client would still get the action while the
+  // DB keeps no record of it — the next resume would regenerate instead of
+  // replaying it, quietly reintroducing the exact bug this file fixes.
+  if (error) {
+    throw new Error(error.message ?? "persist_pending_action_failed");
+  }
+}
+
+/**
+ * How stale an unresolved generation claim must be before another request
+ * is allowed to take over — well above the ~1-1.5s p95 decision latency
+ * observed in production, so this only ever fires for a request that
+ * genuinely died mid-generation, not one that's merely slow.
+ */
+const GENERATION_CLAIM_STALE_MS = 20_000;
+/** How often a waiting request re-checks whether the claim holder finished. */
+const GENERATION_WAIT_POLL_MS = 50;
+/** Bound on how long a request will wait for someone else's generation. */
+const GENERATION_WAIT_MAX_MS = 6_000;
+
+function isClaimStale(claimedAt: string): boolean {
+  return Date.now() - new Date(claimedAt).getTime() > GENERATION_CLAIM_STALE_MS;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Coordinates "who gets to generate the next action" across concurrent
+ * requests and serverless instances, backed entirely by Postgres — no
+ * process-local mutex, so it holds under Vercel's multi-instance model.
+ *
+ * `token` names the specific generation episode: "start" for a session's
+ * first action, or the answering evidence's idempotencyKey for the action
+ * that follows an answer. Two requests racing for the SAME token will only
+ * ever have one of them actually call nextAction(); the other polls
+ * adaptive_generation_claims (a real table, so this survives a cold start
+ * or a different instance taking over) until the winner's result appears,
+ * or takes over itself if the winner's claim goes stale (crashed mid-call).
+ */
+async function claimGeneration(
+  service: SupabaseClient,
+  sessionId: string,
+  token: string,
+): Promise<{ claimed: true } | { claimed: false; action: GovernorAction | null }> {
+  const deadline = Date.now() + GENERATION_WAIT_MAX_MS;
+  for (;;) {
+    const { data: claim } = await service
+      .from("adaptive_generation_claims")
+      .select("claimed_at, decision_trace_id, action")
+      .eq("session_id", sessionId)
+      .eq("token", token)
+      .maybeSingle();
+
+    if (claim?.decision_trace_id && claim.action) {
+      return { claimed: false, action: claim.action as GovernorAction };
+    }
+
+    if (!claim) {
+      const { error } = await service.from("adaptive_generation_claims").insert({
+        session_id: sessionId,
+        token,
+        claimed_at: new Date().toISOString(),
+      });
+      if (!error) return { claimed: true };
+      if (String(error.code) !== "23505") {
+        throw new Error(error.message ?? "claim_generation_failed");
+      }
+      // 23505: someone else inserted the claim between our select and our
+      // insert — fall through to poll/steal below.
+    } else if (isClaimStale(claim.claimed_at as string)) {
+      // Nobody has a live claim (the prior claimant died mid-generation) —
+      // try to take over. The .eq("claimed_at", <value we just read>) makes
+      // this a compare-and-swap: if another request already stole it since
+      // our read, this UPDATE matches zero rows and we correctly lose.
+      const { data: won, error } = await service
+        .from("adaptive_generation_claims")
+        .update({ claimed_at: new Date().toISOString() })
+        .eq("session_id", sessionId)
+        .eq("token", token)
+        .eq("claimed_at", claim.claimed_at as string)
+        .is("decision_trace_id", null)
+        .select("claimed_at")
+        .maybeSingle();
+      if (error) throw new Error(error.message ?? "claim_generation_failed");
+      if (won) return { claimed: true };
+    }
+
+    if (Date.now() >= deadline) return { claimed: false, action: null };
+    await sleep(GENERATION_WAIT_POLL_MS);
+  }
+}
+
+/** Records the winner's result so every waiter on this token unblocks. */
+async function resolveGenerationClaim(
+  service: SupabaseClient,
+  sessionId: string,
+  token: string,
+  action: GovernorAction | null,
+): Promise<void> {
+  const { error } = await service
+    .from("adaptive_generation_claims")
+    .update({
+      decision_trace_id: action?.decisionTraceId ?? null,
+      action: action ?? null,
+    })
+    .eq("session_id", sessionId)
+    .eq("token", token);
+  if (error) throw new Error(error.message ?? "resolve_generation_claim_failed");
+  await persistPendingAction(service, sessionId, action);
+}
+
+/**
+ * Waits for (but never itself starts) a generation under `token` — used by
+ * a request that must not become the generator under any circumstance
+ * (a duplicate/retried evidence submission whose real answer is being
+ * processed by whichever request actually won the idempotency-key insert).
+ */
+async function awaitGeneration(
+  service: SupabaseClient,
+  sessionId: string,
+  token: string,
+): Promise<GovernorAction | null> {
+  const deadline = Date.now() + GENERATION_WAIT_MAX_MS;
+  for (;;) {
+    const { data: claim } = await service
+      .from("adaptive_generation_claims")
+      .select("decision_trace_id, action")
+      .eq("session_id", sessionId)
+      .eq("token", token)
+      .maybeSingle();
+    if (claim?.decision_trace_id && claim.action) return claim.action as GovernorAction;
+    if (Date.now() >= deadline) return null;
+    await sleep(GENERATION_WAIT_POLL_MS);
+  }
+}
+
+/** Generates the next action, or joins an equivalent in-flight/finished one. */
+async function generateOrJoin(
+  service: SupabaseClient,
+  input: {
+    userId: string;
+    examPrepId: string;
+    sessionId: string;
+    token: string;
+    ctx: GovernorContext;
+  },
+): Promise<GovernorAction | null> {
+  const claim = await claimGeneration(service, input.sessionId, input.token);
+  if (!claim.claimed) return claim.action;
+  const action = await nextAction(
+    service,
+    input.userId,
+    input.examPrepId,
+    input.sessionId,
+    input.ctx,
+  );
+  await resolveGenerationClaim(service, input.sessionId, input.token, action);
+  return action;
+}
+
+/**
+ * Shared by both places startSession resumes an already-existing active
+ * session (the direct `existing` case, and the 23505-race fallback) so the
+ * two can never drift out of sync with each other.
+ */
+async function resumeExistingSession(
+  service: SupabaseClient,
+  input: { userId: string; examPrepId: string },
+  session: SessionState,
+): Promise<{ session: SessionState; action: GovernorAction | null }> {
+  const pending = await getPendingAction(service, session.id);
+  if (pending) {
+    return { session, action: pending };
+  }
+  // No pending action recorded yet (row predates this migration, or the
+  // very first generation for this session is still in flight from a
+  // concurrent request) — join that generation instead of starting a
+  // second, redundant one.
+  const action = await generateOrJoin(service, {
+    userId: input.userId,
+    examPrepId: input.examPrepId,
+    sessionId: session.id,
+    token: "start",
+    ctx: { sessionMinutesRemaining: session.plannedDurationMinutes },
+  });
+  return { session, action };
 }
 
 export async function startSession(
@@ -107,21 +296,7 @@ export async function startSession(
     input.examPrepId,
   );
   if (existing) {
-    const pending = await getPendingAction(service, existing.id);
-    if (pending) {
-      return { session: existing, action: pending };
-    }
-    // Defensive: an active session somehow has no pending action recorded
-    // yet (e.g. row predates this migration). Compute and persist one.
-    const action = await nextAction(
-      service,
-      input.userId,
-      input.examPrepId,
-      existing.id,
-      { sessionMinutesRemaining: existing.plannedDurationMinutes },
-    );
-    await persistPendingAction(service, existing.id, action);
-    return { session: existing, action };
+    return resumeExistingSession(service, input, existing);
   }
 
   const planned = input.plannedDurationMinutes ?? 45;
@@ -142,21 +317,16 @@ export async function startSession(
 
   if (error && String(error.code) === "23505") {
     // Lost the race to a concurrent /session/start call that already
-    // inserted the active session for this user+prep. Read its row instead
-    // of minting a second decision.
+    // inserted the active session for this user+prep (a normal read-then-
+    // insert race under READ COMMITTED: our own getActiveSession() above
+    // saw nothing a moment ago, but a concurrent request fully committed
+    // its insert in between). Read its row and resume it exactly like the
+    // `existing` branch above — same helper, so the winner may still be
+    // mid-generation and this request correctly joins that claim rather
+    // than starting a second one.
     const race = await getActiveSession(service, input.userId, input.examPrepId);
     if (race) {
-      const pending = await getPendingAction(service, race.id);
-      if (pending) return { session: race, action: pending };
-      const action = await nextAction(
-        service,
-        input.userId,
-        input.examPrepId,
-        race.id,
-        { sessionMinutesRemaining: race.plannedDurationMinutes },
-      );
-      await persistPendingAction(service, race.id, action);
-      return { session: race, action };
+      return resumeExistingSession(service, input, race);
     }
   }
 
@@ -184,15 +354,13 @@ export async function startSession(
     payload: { plannedDurationMinutes: planned },
   });
 
-  const action = await nextAction(
-    service,
-    input.userId,
-    input.examPrepId,
-    session.id,
-    { sessionMinutesRemaining: planned, todayTarget: session.objective },
-  );
-
-  await persistPendingAction(service, session.id, action);
+  const action = await generateOrJoin(service, {
+    userId: input.userId,
+    examPrepId: input.examPrepId,
+    sessionId: session.id,
+    token: "start",
+    ctx: { sessionMinutesRemaining: planned, todayTarget: session.objective },
+  });
 
   return { session, action };
 }
@@ -239,9 +407,14 @@ export async function submitEvidence(
   });
 
   if (!inserted) {
-    // Retried/duplicate answer submission (same idempotencyKey) — replay the
-    // already-persisted pending action instead of minting a new decision.
-    const action = await getPendingAction(service, input.sessionId);
+    // Retried/duplicate answer submission (same idempotencyKey). The request
+    // that actually won the event insert is the sole legitimate generator
+    // for the action that follows THIS answer — reading pending_action
+    // directly here would be wrong if that winner hasn't finished yet: the
+    // session row would still hold the OLD (already-answered) action, which
+    // must never be handed back as if it were fresh. awaitGeneration only
+    // ever waits/joins — it can't itself become the generator.
+    const action = await awaitGeneration(service, input.sessionId, input.evidence.idempotencyKey);
     return { duplicate: true, mastery: 0, action };
   }
 
@@ -384,19 +557,18 @@ export async function submitEvidence(
     })
     .eq("id", input.sessionId);
 
-  const action = await nextAction(
-    service,
-    input.userId,
-    input.examPrepId,
-    input.sessionId,
-    {
+  const action = await generateOrJoin(service, {
+    userId: input.userId,
+    examPrepId: input.examPrepId,
+    sessionId: input.sessionId,
+    token: input.evidence.idempotencyKey,
+    ctx: {
       ...input.ctx,
       lastAnswerCorrect: evidence.correct,
       repeatedMisconception: updated.next.repeatedErrorCount >= 2,
       sessionMinutesRemaining: Number(sess?.planned_duration_minutes ?? 45),
     },
-  );
-  await persistPendingAction(service, input.sessionId, action);
+  });
 
   return { duplicate: false, mastery: updated.next.mastery, action };
 }

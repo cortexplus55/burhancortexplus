@@ -31,6 +31,25 @@ function makeUpdateBuilder() {
   return builder;
 }
 
+/**
+ * startSession always goes through generateOrJoin/claimGeneration for its
+ * first action, which reads/writes adaptive_generation_claims — every
+ * service double here needs to serve that table even though these tests
+ * aren't about the claim mechanism itself (that's
+ * adaptive-session-resume-idempotency.test.ts). nextAction is mocked to
+ * resolve null in this file's beforeEach, so the claim is always won
+ * immediately and resolved with a null action.
+ */
+function claimsTableDouble() {
+  return {
+    select: () => ({
+      eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
+    }),
+    insert: async () => ({ error: null }),
+    update: () => makeUpdateBuilder(),
+  };
+}
+
 describe("startSession persistence", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -71,6 +90,7 @@ describe("startSession persistence", () => {
         if (table === "adaptive_learning_events") {
           return { insert: async (row: Record<string, unknown>) => (inserted.push(row), { error: null }) };
         }
+        if (table === "adaptive_generation_claims") return claimsTableDouble();
         throw new Error(`unexpected table in test double: ${table}`);
       },
     };
@@ -135,6 +155,7 @@ describe("startSession persistence", () => {
             update: () => makeUpdateBuilder(),
           };
         }
+        if (table === "adaptive_generation_claims") return claimsTableDouble();
         throw new Error(`unexpected table in test double: ${table}`);
       },
     };
