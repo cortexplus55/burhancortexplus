@@ -1,6 +1,6 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Figtree:ital,wght@0,400..800;1,400..800&display=swap");
 
-/* Cortex Plus — ultra premium (referans üründen esinlenmiş, gold cinematic) */
+/* Cortex Plus â€” ultra premium (referans Ã¼rÃ¼nden esinlenmiÅŸ, gold cinematic) */
 .cortex-premium,
 .cortex-premium-auth,
 .cs-app.cortex-premium-app {
@@ -443,8 +443,8 @@
   border-radius: 1.25rem;
 }
 
-/* Ödeme öncesi yasal onay. Küçük punto ama tıklanabilir alan geniş:
-   kutu kaçırılırsa öğrenci "Satın al" çalışmıyor sanıyor. */
+/* Ã–deme Ã¶ncesi yasal onay. KÃ¼Ã§Ã¼k punto ama tÄ±klanabilir alan geniÅŸ:
+   kutu kaÃ§Ä±rÄ±lÄ±rsa Ã¶ÄŸrenci "SatÄ±n al" Ã§alÄ±ÅŸmÄ±yor sanÄ±yor. */
 .cs-legal-consent {
   display: flex;
   align-items: flex-start;
