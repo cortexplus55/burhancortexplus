@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { angleOptionReasonIssues } from "@/lib/learning/angle-option-reason";
+import { angleOptionReasonIssues, angleQuestionIssues } from "@/lib/learning/angle-option-reason";
 
 describe("angle option explanations", () => {
   it("rejects the contradictory distractor explanations seen in the live diagnostic", () => {
@@ -40,6 +40,22 @@ describe("angle option explanations", () => {
       text: "Hangi sinyal doğrudur?",
       options: ["π/2"],
       optionWhy: ["Bu 360 dereceyi gösterir."],
+    })).toEqual([]);
+  });
+});
+
+describe("angle question answerability", () => {
+  it("rejects a live diagnostic that treats π as the only possible radian value", () => {
+    expect(angleQuestionIssues({
+      text: "Bir açının ölçüsünü radyanda ifade etmek için hangi değer kullanılır?",
+      correct: ["π"],
+    })).toHaveLength(1);
+  });
+
+  it("keeps a concrete degree-to-radian conversion", () => {
+    expect(angleQuestionIssues({
+      text: "180 derece radyanda hangi değere eşittir?",
+      correct: ["π"],
     })).toEqual([]);
   });
 });

@@ -176,7 +176,7 @@ export async function generateExamQuiz(input: {
      */
     trustIndependent: input.teachingV2 && !input.verifyOptionReasoning ? true : undefined,
     reviewerAddendum: input.verifyOptionReasoning
-      ? "Çoktan seçmeli her sorunun HER optionWhy satırını aynı sıradaki şıkla ve kaynakla ayrı ayrı karşılaştır. Yanlış şıkkın gerekçesindeki eşitlik, sayı, birim veya kavram hatasını onaylama. Yalnızca gerçek bilgi hatasında approved false; üslup önerileri için approved true döndür. Hata varsa hangi şıkta neyin yanlış olduğunu issues içinde açıkça yaz."
+      ? "Her sorunun kökünün belirli ve tek doğru yanıtı olup olmadığını, cevabın ve HER optionWhy satırının aynı sıradaki şıkla ve kaynakla doğruluğunu ayrı ayrı kontrol et. Bir ölçü birimini tek bir sabit değer sanan, bağlam vermeden 'hangi değer kullanılır' diyen veya birden fazla doğru yorumu olan soruyu reddet. Yanlış şık gerekçesindeki eşitlik, sayı, birim veya kavram hatasını onaylama. Yalnızca gerçek bilgi/ölçme hatasında approved false; üslup önerileri için approved true döndür. Hata varsa hangi soru/şıkta neyin yanlış olduğunu issues içinde açıkça yaz."
       : undefined,
     requireReviewerApproval: input.verifyOptionReasoning,
     reviewDraft: input.teachingV2
