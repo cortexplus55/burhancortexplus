@@ -193,7 +193,8 @@ export async function POST(request: Request) {
       code: outcome.error,
       reasons: outcome.reasons,
     });
-    return errorResponse(outcome.status, outcome.error);
+    // generateJson başarısızlığında rezervasyon iade edilir.
+    return errorResponse(outcome.status, outcome.error, { refunded: true });
   }
 
   await writePodcastCache(service, {

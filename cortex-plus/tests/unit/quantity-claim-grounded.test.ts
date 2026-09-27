@@ -8,6 +8,9 @@ const CHEM =
   "0,5 mol su alınır. Mol kütlesi 18 g/mol. Ideal gaz sabiti kullanılır. " +
   "2 × 10^3 Pa basınç ölçülür.";
 
+const GAS =
+  "1 mol gaz NŞA'da 22,4 L. Gaz hacmi 44,8 L. Suyun mol kütlesi 18 g/mol.";
+
 describe("quantityClaimGrounded — türetilmiş nicelik", () => {
   it("0,5 mol × 18 g/mol = 9 g kalır; = 10 g silinir", () => {
     expect(quantityClaimGrounded("0,5 mol × 18 g/mol = 9 g", CHEM)).toBe(true);
@@ -35,5 +38,68 @@ describe("quantityClaimGrounded — türetilmiş nicelik", () => {
     expect(quantityClaimGrounded("4 × 4 = 16", math)).toBe(true);
     const history = "1789 yılında başlar, 1799'da biter";
     expect(quantityClaimGrounded("1799 - 1789 = 10", history)).toBe(true);
+  });
+
+  it("aynı cümlede doğru zincir + yanlış ikili → ret", () => {
+    expect(
+      quantityClaimGrounded(
+        "m = 44,8 ÷ 22,4 × 18 = 36 g olur ve 2 × 18 = 38 g bulunur.",
+        GAS,
+      ),
+    ).toBe(false);
+    expect(
+      quantityClaimGrounded(
+        "n = 44,8 / 22,4 = 2 mol, dolayısıyla m = 2 × 18 = 36 g.",
+        GAS,
+      ),
+    ).toBe(true);
+    expect(
+      quantityClaimGrounded(
+        "n = 44,8 / 22,4 = 2 mol, dolayısıyla m = 2 × 18 = 38 g.",
+        GAS,
+      ),
+    ).toBe(false);
+  });
+
+  it("doğru eşitlik + uydurma nicelik aynı cümlede → ret", () => {
+    expect(
+      quantityClaimGrounded(
+        "n = 44,8 / 22,4 = 2 mol olur; basınç P = 5 atm alınır.",
+        GAS,
+      ),
+    ).toBe(false);
+    expect(
+      quantityClaimGrounded(
+        "m = 44,8 ÷ 22,4 × 18 = 36 g olur, T = 300 K alınır.",
+        GAS,
+      ),
+    ).toBe(false);
+  });
+
+  it("cümle cümle: iyi cümle kalır, kötü düşer", () => {
+    expect(
+      withoutUnsupportedQuantities(
+        "0,5 mol × 18 g/mol = 9 g su elde edilir. Bu sırada sıcaklık T = 350 K olur.",
+        CHEM,
+      ),
+    ).toBe("0,5 mol × 18 g/mol = 9 g su elde edilir.");
+    expect(
+      withoutUnsupportedQuantities(
+        "Önce 0,5 × 18 = 9 g bulunur ve T = 350 K olur.",
+        CHEM,
+      ),
+    ).toBe("");
+    expect(
+      withoutUnsupportedQuantities(
+        "0,5 × 18 = 9 g. Verim %37 olur.",
+        CHEM,
+      ),
+    ).toBe("0,5 × 18 = 9 g.");
+    expect(
+      withoutUnsupportedQuantities(
+        "0,5 mol × 18 g/mol = 9 g. Kütle m = 36 g ve n = 7 mol bulunur.",
+        CHEM,
+      ),
+    ).toBe("0,5 mol × 18 g/mol = 9 g.");
   });
 });

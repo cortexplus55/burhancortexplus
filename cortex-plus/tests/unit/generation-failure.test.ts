@@ -65,7 +65,7 @@ describe("describeGenerationFailure", () => {
     }
   });
 
-  it("isAdmin veya refunded=false iken iade cümlesi yok", () => {
+  it("isAdmin veya refunded=false iken iade cümlesi yok; undefined eski davranış", () => {
     expect(
       describeGenerationFailure("generation_failed", undefined, undefined, {
         isAdmin: true,
@@ -81,6 +81,13 @@ describe("describeGenerationFailure", () => {
       describeGenerationFailure("generation_failed", undefined, undefined, {
         refunded: true,
       }).message,
+    ).toContain("Kredin iade edildi");
+    // Podcast vb. refunded geçirmeyen ekranlar: generation_failed'da iade varsay.
+    expect(describeGenerationFailure("generation_failed").message).toContain(
+      "Kredin iade edildi",
+    );
+    expect(
+      describeGenerationFailure("generation_failed", undefined, "podcast").message,
     ).toContain("Kredin iade edildi");
   });
 

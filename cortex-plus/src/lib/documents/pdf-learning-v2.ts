@@ -439,21 +439,23 @@ export async function documentTopicMapIsInUse(
   }
 
   // source_refs içindeki nodeId / documentId (ikincil belgeler).
-  const { data: refTopics, error: refError } = await service
+  // limit(400) tarama yok — jsonb containment ile belge/düğüm filtrele.
+  const { data: byDoc, error: byDocError } = await service
     .from("exam_prep_topics")
-    .select("id, source_refs")
-    .not("source_refs", "is", null)
-    .limit(400);
-  if (refError) throw new Error("prep_topic_refs_lookup_failed");
-  const nodeSet = new Set(nodeIds);
-  for (const row of refTopics ?? []) {
-    const refs = Array.isArray(row.source_refs) ? row.source_refs : [];
-    for (const raw of refs) {
-      if (typeof raw !== "object" || raw === null) continue;
-      const ref = raw as { documentId?: unknown; nodeId?: unknown };
-      if (ref.documentId === documentId) return true;
-      if (typeof ref.nodeId === "string" && nodeSet.has(ref.nodeId)) return true;
-    }
+    .select("id")
+    .contains("source_refs", [{ documentId }])
+    .limit(1);
+  if (byDocError) throw new Error("prep_topic_refs_lookup_failed");
+  if (byDoc?.length) return true;
+
+  for (const nodeId of nodeIds) {
+    const { data: byNode, error: byNodeError } = await service
+      .from("exam_prep_topics")
+      .select("id")
+      .contains("source_refs", [{ nodeId }])
+      .limit(1);
+    if (byNodeError) throw new Error("prep_topic_refs_lookup_failed");
+    if (byNode?.length) return true;
   }
   return false;
 }

@@ -32,6 +32,7 @@ COMMENT ON TABLE public.lesson_generation_failures IS
 ALTER TABLE public.lesson_generation_failures ENABLE ROW LEVEL SECURITY;
 
 -- Servis rolü yazar (RLS bypass). Authenticated: yalnız is_admin() okur.
+DROP POLICY IF EXISTS lesson_generation_failures_admin_select ON public.lesson_generation_failures;
 CREATE POLICY lesson_generation_failures_admin_select
   ON public.lesson_generation_failures
   FOR SELECT

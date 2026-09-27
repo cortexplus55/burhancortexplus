@@ -106,7 +106,12 @@ export function describeGenerationFailure(
   } = {},
 ): GenerationFailure {
   const podcast = kind === "podcast";
-  const showRefund = options.isAdmin !== true && options.refunded === true;
+  // refunded=true → iade cümlesi; false → yok; undefined → eski ekranlar
+  // (podcast vb.) generation_failed'da iade varsayar.
+  const showRefund =
+    options.isAdmin !== true &&
+    (options.refunded === true ||
+      (options.refunded === undefined && code === "generation_failed"));
   const refundNote = showRefund ? " Kredin iade edildi." : "";
   switch (code) {
     case "generation_in_progress":

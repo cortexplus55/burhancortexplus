@@ -6,6 +6,7 @@ import { documentTopicMapIsInUse } from "@/lib/documents/pdf-learning-v2";
 
 describe("documentTopicMapIsInUse — source_refs koruması", () => {
   it("7) source_refs'te referanslı ikincil belge kullanımda sayılır", async () => {
+    const containsCalls: unknown[][] = [];
     const service = {
       from: (table: string) => {
         if (table === "exam_preps") {
@@ -21,32 +22,23 @@ describe("documentTopicMapIsInUse — source_refs koruması", () => {
           };
         }
         if (table === "exam_prep_topics") {
-          let call = 0;
           return {
             select: () => ({
               in: () => ({
                 limit: async () => ({ data: [], error: null }),
               }),
-              not: () => ({
-                limit: async () => {
-                  call += 1;
-                  return {
-                    data: [
-                      {
-                        id: "t1",
-                        source_refs: [
-                          {
-                            documentId: "secondary-doc",
-                            nodeId: "node-secondary",
-                            pages: [1, 2],
-                          },
-                        ],
-                      },
-                    ],
+              contains: (...args: unknown[]) => {
+                containsCalls.push(args);
+                const filter = args[1] as Array<{ documentId?: string; nodeId?: string }>;
+                const hitDoc = filter?.[0]?.documentId === "secondary-doc";
+                const hitNode = filter?.[0]?.nodeId === "node-secondary";
+                return {
+                  limit: async () => ({
+                    data: hitDoc || hitNode ? [{ id: "t1" }] : [],
                     error: null,
-                  };
-                },
-              }),
+                  }),
+                };
+              },
             }),
           };
         }
@@ -65,5 +57,12 @@ describe("documentTopicMapIsInUse — source_refs koruması", () => {
     await expect(
       documentTopicMapIsInUse(service, "unrelated-doc", ["node-secondary"]),
     ).resolves.toBe(true);
+
+    expect(containsCalls.some((call) => JSON.stringify(call).includes("secondary-doc"))).toBe(
+      true,
+    );
+    expect(containsCalls.some((call) => JSON.stringify(call).includes("node-secondary"))).toBe(
+      true,
+    );
   });
 });

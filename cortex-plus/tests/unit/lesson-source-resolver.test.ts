@@ -296,7 +296,7 @@ describe("resolveLessonSource", () => {
     expect(result.context?.block.length).toBeGreaterThanOrEqual(MIN_USABLE_LESSON_CHARS);
   });
 
-  it("5) eski hazırlık: source_refs yok → arama ile bulur ve yazar", async () => {
+  it("5) eski hazırlık: source_refs yok → arama bulur ama fuzzy yazmaz", async () => {
     loadPageSourceContext.mockResolvedValue(pageBlock("x", [], ""));
     loadTopicSpanContext.mockResolvedValue(null);
     searchDocumentChunksAcross.mockResolvedValue([
@@ -311,68 +311,53 @@ describe("resolveLessonSource", () => {
       },
     ]);
     let updateCount = 0;
-    const service = mockService({
-      "exam_prep_topics:maybeSingle": () => ({
-        data: {
-          source_refs: [],
-          document_topic_node_id: null,
-          exam_prep_id: "prep-old",
-        },
-        error: null,
-      }),
-      "exam_prep_topics:update": () => {
-        updateCount += 1;
-        return { data: null, error: null };
-      },
-      "documents:maybeSingle": () => ({ data: { status: "completed" }, error: null }),
-    });
-    // documents processing check uses .in().is() — return via from select
-    (service as { from: ReturnType<typeof vi.fn> }).from = vi.fn((table: string) => {
-      if (table === "documents") {
-        return {
-          select: () => ({
-            eq: () => ({
-              in: () => ({
-                is: async () => ({
-                  data: [{ id: "doc-old", status: "completed" }],
+    const service = {
+      from: vi.fn((table: string) => {
+        if (table === "documents") {
+          return {
+            select: () => ({
+              eq: () => ({
+                in: () => ({
+                  is: async () => ({
+                    data: [{ id: "doc-old", status: "completed" }],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === "exam_prep_topics") {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({
+                  data: {
+                    source_refs: [],
+                    document_topic_node_id: null,
+                    exam_prep_id: "prep-old",
+                  },
                   error: null,
                 }),
               }),
             }),
-          }),
-        };
-      }
-      if (table === "exam_prep_topics") {
-        return {
-          select: () => ({
-            eq: () => ({
-              maybeSingle: async () => ({
-                data: {
-                  source_refs: updateCount ? [{ documentId: "doc-old", pages: [5] }] : [],
-                  document_topic_node_id: null,
-                  exam_prep_id: "prep-old",
+            update: () => ({
+              eq: () => ({
+                eq: async () => {
+                  updateCount += 1;
+                  return { data: null, error: null };
                 },
-                error: null,
               }),
             }),
-          }),
-          update: (payload: unknown) => ({
-            eq: () => ({
-              eq: async () => {
-                updateCount += 1;
-                void payload;
-                return { data: null, error: null };
-              },
-            }),
+          };
+        }
+        return {
+          select: () => ({
+            eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
           }),
         };
-      }
-      return {
-        select: () => ({
-          eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
-        }),
-      };
-    });
+      }),
+    } as never;
 
     const first = await resolveLessonSource(service, {
       userId: "user-1",
@@ -390,28 +375,89 @@ describe("resolveLessonSource", () => {
     });
     expect(first.unavailable).toBeUndefined();
     expect(first.context?.block).toContain("Türev");
-    expect(updateCount).toBeGreaterThanOrEqual(1);
+    // Fuzzy arama kalıcı source_refs yazmaz.
+    expect(updateCount).toBe(0);
+    expect(first.trace.healed).toBeFalsy();
+  });
 
-    const writesAfterFirst = updateCount;
-    const second = await resolveLessonSource(service, {
+  it("5b) iki belgelik title_align heal: sayfalar kendi documentId altına yazılır", async () => {
+    loadPageSourceContext.mockResolvedValue(pageBlock("x", [], ""));
+    loadTopicSpanContext.mockResolvedValue({
+      matches: [],
+      documentName: "kitap-a.pdf",
+      formulas: [],
+      block:
+        "[s.2] kitap-a: Mol oranı. ".repeat(8) +
+        "\n\n[s.9] kitap-b: Gaz hacmi. ".repeat(8),
+      pagesByDocument: [
+        { documentId: "doc-a", pages: [2, 3] },
+        { documentId: "doc-b", pages: [9] },
+      ],
+    });
+    searchDocumentChunksAcross.mockResolvedValue([]);
+    let writtenRefs: unknown = null;
+    const service = {
+      from: vi.fn((table: string) => {
+        if (table === "exam_prep_topics") {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({
+                  data: {
+                    source_refs: [],
+                    document_topic_node_id: null,
+                    exam_prep_id: "prep-2",
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+            update: (payload: { source_refs?: unknown }) => ({
+              eq: () => ({
+                eq: async () => {
+                  writtenRefs = payload.source_refs;
+                  return { data: null, error: null };
+                },
+              }),
+            }),
+          };
+        }
+        return {
+          select: () => ({
+            eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+          }),
+        };
+      }),
+    } as never;
+
+    const result = await resolveLessonSource(service, {
       userId: "user-1",
-      prepId: "prep-old",
-      topicId: "topic-old",
-      topicLabel: "Türev",
-      sessionMeta: { sourcePages: [] },
-      prepDocs: ["doc-old"],
-      primaryDocumentId: "doc-old",
+      prepId: "prep-2",
+      topicId: "topic-2",
+      topicLabel: "Mol oranı",
+      sessionMeta: null,
+      prepDocs: ["doc-a", "doc-b"],
+      primaryDocumentId: "doc-a",
       topicDocumentId: null,
       topicNodeId: null,
-      sourceRefs: [
-        { documentId: "doc-old", pages: [5], nodeId: null, fileName: "mat.pdf" },
-      ],
-      sourceDocumentIds: ["doc-old"],
+      sourceRefs: [],
+      sourceDocumentIds: ["doc-a", "doc-b"],
       sourceBoundaryMode: "documents_only",
     });
-    // 2. istekte source_refs dolu → loadPage path; heal yazmaz
-    expect(second.unavailable).toBeUndefined();
-    expect(updateCount).toBe(writesAfterFirst);
+    expect(result.unavailable).toBeUndefined();
+    expect(result.trace.healed).toBe(true);
+    expect(Array.isArray(writtenRefs)).toBe(true);
+    const refs = writtenRefs as { documentId: string; pages: number[] }[];
+    expect(refs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ documentId: "doc-a", pages: [2, 3] }),
+        expect.objectContaining({ documentId: "doc-b", pages: [9] }),
+      ]),
+    );
+    // Tek belge altına karışık sayfa yazılmamalı.
+    expect(refs.some((ref) => ref.documentId === "doc-a" && ref.pages.includes(9))).toBe(
+      false,
+    );
   });
 
   it("6) sarkık nodeId → kendini onarır", async () => {

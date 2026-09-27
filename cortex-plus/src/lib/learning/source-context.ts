@@ -33,6 +33,11 @@ export type SourceContext = {
   documentName: string | null;
   /** Sayfalardan çıkarılmış formüller; ders bunlara karşı denetleniyor. */
   formulas?: string[];
+  /**
+   * Başlık hizalamasında belge başına sayfalar — self-heal karışık belge
+   * sayfalarını tek id altına yazmasın diye.
+   */
+  pagesByDocument?: Array<{ documentId: string; pages: number[] }>;
 };
 
 export type PageSourceLoadResult = SourceContext & {
@@ -562,6 +567,10 @@ export async function loadTopicSpanContext(
       documentName,
       formulas,
       block: parts.join("\n\n"),
+      pagesByDocument: [...pagesByDoc.entries()].map(([documentId, pages]) => ({
+        documentId,
+        pages: [...pages].sort((a, b) => a - b),
+      })),
     };
   } catch (error) {
     if (error instanceof SourceUnavailableError) return null;

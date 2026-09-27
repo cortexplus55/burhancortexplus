@@ -1244,9 +1244,15 @@ export async function POST(request: Request) {
           refunded: false,
         });
       }
-      // Zenginleştirme ölümcül değil — related parçalar eklenir.
+      // Zenginleştirme ölümcül değil — related parçalar eklenir (#118, sayfa yolu dahil).
       source = shouldSearchSources(sourceMode)
-        ? await enrichLessonSource(service, userId, resolved.context, sourceQuery)
+        ? await enrichLessonSource(
+            service,
+            userId,
+            resolved.context,
+            sourceQuery,
+            prepDocs,
+          )
         : resolved.context;
     } else {
       let pageSource =
@@ -1639,7 +1645,11 @@ export async function POST(request: Request) {
       });
     }
     if (error instanceof NodeGenerationError) {
-      return errorResponse(error.status, error.code, { refunded, reasons });
+      const admin = await isAdminUser(service, userId).catch(() => false);
+      return errorResponse(error.status, error.code, {
+        refunded,
+        ...(admin && reasons.length ? { reasons } : {}),
+      });
     }
     return errorResponse(502, "generation_failed", { refunded: true });
   }
@@ -1835,22 +1845,48 @@ function softenLearnerField(
   if (hadFormula && next.trim() !== text.trim()) reasons.push("formula_mismatch_dropped");
   if (checkQuantities && next.trim()) {
     const before = next;
-    if (unsupportedQuantities(before, source).length) {
-      // Türetilmiş doğru aritmetik kaynaklı sayılır; yanlış / dayanaksız silinir.
-      if (quantityClaimGrounded(before, source)) {
-        /* keep */
-      } else {
-        const cleaned = withoutUnsupportedQuantities(before, source);
-        next =
-          unsupportedQuantities(cleaned, source).length &&
-          !quantityClaimGrounded(cleaned, source)
-            ? ""
-            : cleaned;
-        if (next.trim() !== before.trim()) reasons.push("quantity_dropped");
-      }
-    }
+    // Her zaman cümle cümle: alan düzeyinde tek doğru eşitlik tüm metni kurtarmaz.
+    const cleaned = withoutUnsupportedQuantities(before, source);
+    next = cleaned.trim() && quantityClaimGrounded(cleaned, source) ? cleaned : "";
+    if (next.trim() !== before.trim()) reasons.push("quantity_dropped");
   }
   return { text: next.trim(), reasons };
+}
+
+const VERIFICATION_NOTE_RE =
+  /doğrulanamad|kaynakla doğrulan|çıkarıldı|pdf['']?te var|bu cümle.*kaynak/i;
+
+function isLearnerVerificationNote(note: { title?: string; body?: string } | null | undefined): boolean {
+  if (!note) return false;
+  return VERIFICATION_NOTE_RE.test(`${note.title ?? ""} ${note.body ?? ""}`);
+}
+
+/** Öğrenciye doğrulama / kaynak izi gösterme — backend doğrulama aynen çalışır. */
+function stripLearnerVerificationChrome(text: string): string {
+  return text
+    .replace(/\s*Doğrulanamayan cümleler çıkarıldı\.?/gi, "")
+    .replace(/\s*Kaynak:\s*[^.\n]+(?:\.\s*)?/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function stripLessonVerificationChrome(lesson: LessonV2): LessonV2 {
+  const sections = lesson.sections.map((section) => {
+    const next = {
+      ...section,
+      body: stripLearnerVerificationChrome(section.body),
+      heading: section.heading,
+    };
+    if (next.note && isLearnerVerificationNote(next.note)) delete next.note;
+    return next;
+  });
+  const overview = lesson.overview
+    ? stripLearnerVerificationChrome(lesson.overview)
+    : undefined;
+  const cleaned: LessonV2 = { ...lesson, sections };
+  if (overview) cleaned.overview = overview;
+  else delete cleaned.overview;
+  return cleaned;
 }
 
 /**
@@ -2064,15 +2100,11 @@ async function generateNodePayload(input: {
     let draftMs = 0;
     let reviewMs = 0;
     const draftBudgetStarted = Date.now();
+    /** 300 sn fonksiyon tavanı — yeni deneme/onarım ~200 sn sonra başlatılmaz. */
+    const DRAFT_DEADLINE_MS = 200_000;
+    const pastDeadline = () => Date.now() - draftBudgetStarted >= DRAFT_DEADLINE_MS;
     const lessonDraftAttempts = Math.max(2, depth.maxDraftAttempts);
-    /** Nicelik yüzünden reddedilince kavramsal çekirdek yedeği. */
-    let quantitySalvage: LessonV2 | null = null;
-    let parseRounds = 0;
-    const QUANTITY_NOTE = {
-      title: "Not",
-      body: "Bazı hesap adımları kaynakla doğrulanamadığı için çıkarıldı.",
-    };
-    const requestLesson = (note: string, retried: boolean) =>
+    const requestLesson = (note: string, retried: boolean, attempts: number) =>
       generateJson({
       service: input.service,
       userId: input.userId,
@@ -2082,7 +2114,8 @@ async function generateNodePayload(input: {
       modelOverride: env.OPENAI_LESSON_MODEL,
       ...v2Common,
       // depth.maxDraftAttempts (≥2): geri bildirim ikinci taslağa gider.
-      maxDraftAttempts: lessonDraftAttempts,
+      maxDraftAttempts: attempts,
+      deadlineAt: draftBudgetStarted + DRAFT_DEADLINE_MS,
       verificationMode: "schema",
       deferCommit: true,
       idempotencyKey:
@@ -2121,7 +2154,6 @@ async function generateNodePayload(input: {
       // "JSON şeman bozuk" gibi yanlış bir yönlendirmeyle gidiyordu.
       describeParseFailure: () => lastParseIssues,
       parse: (raw) => {
-        parseRounds += 1;
         lastParseIssues = [];
         degradeReasons = [];
         const published = publishLessonDraft(raw, { keyTerms });
@@ -2182,10 +2214,15 @@ async function generateNodePayload(input: {
         const sections = parsed.sections.flatMap((section) => {
           const body = take(section.body);
           if (body.length < 20) return [];
-          return [{ ...section, body }];
+          // Öğrenciye doğrulama/kaynak meta notu gösterme.
+          const cleaned = { ...section, body };
+          if (cleaned.note && isLearnerVerificationNote(cleaned.note)) {
+            delete cleaned.note;
+          }
+          return [cleaned];
         });
         const lesson: LessonV2 = { ...parsed, sections };
-        if (overview) lesson.overview = overview;
+        if (overview) lesson.overview = stripLearnerVerificationChrome(overview);
         else delete lesson.overview;
         if (parsed.example) {
           const solution = take(parsed.example.solution);
@@ -2193,33 +2230,19 @@ async function generateNodePayload(input: {
           else delete lesson.example;
         }
         if (!lessonHasTeachingCore(lesson)) {
-          const onlyQuantity = reasons.includes("quantity_dropped");
-          const hasConceptual = lesson.sections.some(
-            (section) => (section.body ?? "").trim().length >= 20,
+          // İnce ders yayınlanmaz / ücretlendirilmez — iade ile düş.
+          const onlyQuantity = reasons.includes("quantity_dropped") && reasons.every(
+            (reason) => reason === "quantity_dropped",
           );
-          if (onlyQuantity && hasConceptual) {
-            const salvaged: LessonV2 = {
-              ...lesson,
-              sections: lesson.sections.map((section, index) =>
-                index === 0 && !section.note
-                  ? { ...section, note: QUANTITY_NOTE }
-                  : section,
-              ),
-            };
-            quantitySalvage = salvaged;
-            // Son çare (son taslak): kavramsal çekirdek + not → yayınla.
-            if (parseRounds >= lessonDraftAttempts) {
-              degradeReasons = [...reasons, "quantity_salvage_note"];
-              lastValidLesson = salvaged;
-              lastValidMissing = Number.POSITIVE_INFINITY;
-              return salvaged;
-            }
-          }
           lastParseIssues = [
             onlyQuantity
               ? "Kaynakta olmayan nicelik çıktıktan sonra öğreten bölüm kalmadı. Hesap adımlarını kaynak sayılarından doğru türet."
               : "Kaynakla bağlanamayan parçalar çıktıktan sonra öğreten bölüm kalmadı.",
           ];
+          console.error("lesson_quantity_too_thin", {
+            reasons: reasons.slice(0, 8),
+            onlyQuantity,
+          });
           return null;
         }
         const missingList = useBackbone
@@ -2275,7 +2298,7 @@ async function generateNodePayload(input: {
      * ikinci taslağa gider. Öğretmen notundaki sayı kaynakta yoksa notsuz
      * bir deneme daha (ayrı idempotency anahtarı).
      */
-    let outcome = await requestLesson(teacherNote, false);
+    let outcome = await requestLesson(teacherNote, false, lessonDraftAttempts);
     if (outcome.ok) {
       lessonModelCalls += outcome.modelCalls;
       draftMs += outcome.draftMs;
@@ -2288,11 +2311,11 @@ async function generateNodePayload(input: {
     if (
       !outcome.ok &&
       !lastValidLesson &&
-      !quantitySalvage &&
       noteHasUnsupported &&
+      !pastDeadline() &&
       lastParseIssues.some((issue) => /nicelik|sayı|hesap/i.test(issue))
     ) {
-      const retry = await requestLesson("", true);
+      const retry = await requestLesson("", true, lessonDraftAttempts);
       if (retry.ok) {
         lessonModelCalls += retry.modelCalls;
         draftMs += retry.draftMs;
@@ -2304,6 +2327,7 @@ async function generateNodePayload(input: {
       ms: Date.now() - draftBudgetStarted,
       calls: lessonModelCalls,
       maxDraftAttempts: lessonDraftAttempts,
+      pastDeadline: pastDeadline(),
     });
     const lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;
     if (!lesson) {
@@ -2331,53 +2355,84 @@ async function generateNodePayload(input: {
     let publishedLesson: LessonV2 = lesson;
     try {
       const repairSource = [input.sourceBlock, teacherNote].filter((part) => part.trim()).join("\n");
-      const repairCall = (prompt: string, maxTokens: number) => {
-        lessonModelCalls += 1;
-        return completeLessonPartRepair({
-          service: input.service,
-          userId: input.userId,
-          prompt,
-          maxTokens,
-        });
-      };
-      const repairStarted = Date.now();
-      const repair = await repairLearnerLesson(
+      let taughtLesson = lesson;
+      let repair = {
         lesson,
-        {
+        requested: [] as string[],
+        succeeded: [] as string[],
+        dropped: [] as string[],
+        verifyMs: 0,
+      };
+      let taught = {
+        lesson,
+        salvaged: false,
+        failures: [] as { unit: string; problem: string }[],
+      };
+      if (!pastDeadline()) {
+        const repairCall = (prompt: string, maxTokens: number) => {
+          lessonModelCalls += 1;
+          return completeLessonPartRepair({
+            service: input.service,
+            userId: input.userId,
+            prompt,
+            maxTokens,
+          });
+        };
+        const repairStarted = Date.now();
+        repair = await repairLearnerLesson(
+          lesson,
+          {
+            source: repairSource,
+            topicLabel: input.topicLabel,
+            targetMinutes: input.sessionMeta?.durationMinutes,
+          },
+          (prompt) => repairCall(prompt, 1500),
+          repairSource.trim() ? (prompt) => repairCall(prompt, 400) : undefined,
+        );
+        taught = await finishTaughtLesson(repair.lesson, {
           source: repairSource,
           topicLabel: input.topicLabel,
-          targetMinutes: input.sessionMeta?.durationMinutes,
-        },
-        (prompt) => repairCall(prompt, 1500),
-        repairSource.trim() ? (prompt) => repairCall(prompt, 400) : undefined,
-      );
-      const taught = await finishTaughtLesson(repair.lesson, {
-        source: repairSource,
-        topicLabel: input.topicLabel,
-      });
-      const taughtLesson = taught.lesson;
+        });
+        taughtLesson = stripLessonVerificationChrome(taught.lesson);
+        const critical = criticalTeachingFailures(taught.failures);
+        const repairWallMs = Date.now() - repairStarted;
+        const verifyMs = repair.verifyMs;
+        console.error("lesson_model_calls", {
+          calls: lessonModelCalls,
+          draftMs,
+          reviewMs,
+          repairMs: Math.max(0, repairWallMs - verifyMs),
+          verifyMs,
+        });
+        if (taught.salvaged || critical.length) {
+          console.error("lesson_generation_salvaged", {
+            failures: critical.slice(0, 8).map((failure) => `${failure.unit}:${failure.problem}`),
+          });
+        }
+        if (repair.requested.length) {
+          console.error("lesson_generation_repaired", {
+            checks: repair.requested,
+            succeeded: repair.succeeded,
+          });
+        }
+        // İnce / öğretemeyen kurtarma yayınlanmaz.
+        if (!lessonHasTeachingCore(taughtLesson)) {
+          throw new NodeGenerationError(422, "content_verification_failed", [
+            "Doğrulama sonrası öğreten bölüm kalmadı.",
+          ]);
+        }
+      } else {
+        taughtLesson = stripLessonVerificationChrome(lesson);
+        console.error("lesson_model_calls", {
+          calls: lessonModelCalls,
+          draftMs,
+          reviewMs,
+          repairMs: 0,
+          verifyMs: 0,
+          skippedRepair: "deadline",
+        });
+      }
       publishedLesson = taughtLesson;
-      const critical = criticalTeachingFailures(taught.failures);
-      const repairWallMs = Date.now() - repairStarted;
-      const verifyMs = repair.verifyMs;
-      console.error("lesson_model_calls", {
-        calls: lessonModelCalls,
-        draftMs,
-        reviewMs,
-        repairMs: Math.max(0, repairWallMs - verifyMs),
-        verifyMs,
-      });
-      if (taught.salvaged || critical.length) {
-        console.error("lesson_generation_salvaged", {
-          failures: critical.slice(0, 8).map((failure) => `${failure.unit}:${failure.problem}`),
-        });
-      }
-      if (repair.requested.length) {
-        console.error("lesson_generation_repaired", {
-          checks: repair.requested,
-          succeeded: repair.succeeded,
-        });
-      }
       const diagramReady = taughtLesson.sections.some(
         (section) => section.diagram && diagramIssues(section.diagram).length === 0,
       );

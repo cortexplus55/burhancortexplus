@@ -61,6 +61,12 @@ export async function recordLessonGenerationFailure(
   }
 }
 
+export type ListLessonFailuresResult = {
+  rows: LessonFailureRow[];
+  /** Tablo yok / sorgu hatası — admin 'Kayıt yok' yerine uyarı göstermeli. */
+  tableMissing: boolean;
+};
+
 export async function listLessonGenerationFailures(
   service: SupabaseClient,
   options: {
@@ -69,7 +75,7 @@ export async function listLessonGenerationFailures(
     reason?: string | null;
     since?: string | null;
   } = {},
-): Promise<LessonFailureRow[]> {
+): Promise<ListLessonFailuresResult> {
   let query = service
     .from("lesson_generation_failures")
     .select(
@@ -81,6 +87,14 @@ export async function listLessonGenerationFailures(
   if (options.reason) query = query.eq("reason", options.reason);
   if (options.since) query = query.gte("created_at", options.since);
   const { data, error } = await query;
-  if (error) return [];
-  return (data ?? []) as LessonFailureRow[];
+  if (error) {
+    const msg = `${error.message ?? ""} ${error.code ?? ""}`.toLowerCase();
+    const tableMissing =
+      msg.includes("does not exist") ||
+      msg.includes("relation") ||
+      msg.includes("42p01") ||
+      msg.includes("schema cache");
+    return { rows: [], tableMissing: tableMissing || Boolean(error) };
+  }
+  return { rows: (data ?? []) as LessonFailureRow[], tableMissing: false };
 }

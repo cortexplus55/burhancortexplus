@@ -34,7 +34,7 @@ export default async function AdminDersHatalariPage({
   const days = Math.min(30, Math.max(1, Number(params.gun) || 7));
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
 
-  const [rows, pending] = await Promise.all([
+  const [listed, pending] = await Promise.all([
     listLessonGenerationFailures(service, {
       limit: 200,
       kind,
@@ -43,6 +43,8 @@ export default async function AdminDersHatalariPage({
     }),
     countPendingApplications(service),
   ]);
+  const rows = listed.rows;
+  const tableMissing = listed.tableMissing;
 
   return (
     <AdminShell href="/admin/ders-hatalari" pendingApplications={pending}>
@@ -50,6 +52,14 @@ export default async function AdminDersHatalariPage({
         Son 200 kayıt. Taslak metni saklanmaz — sebep kodu, kısa cümleler ve
         kaynak çözücü izi yeter. Zamanlar Europe/Istanbul (TRT).
       </AdminNote>
+
+      {tableMissing ? (
+        <AdminNote tone="warn">
+          Kayıt tablosu henüz kurulmadı. Migration
+          `20260928010000_lesson_generation_failures` SQL Editor&apos;dan elle
+          uygulanmalı; uygulama tablosuz da çalışır.
+        </AdminNote>
+      ) : null}
 
       <form className="adm-filters" method="get">
         <label>
@@ -140,6 +150,10 @@ export default async function AdminDersHatalariPage({
               );
             })}
           </AdminTableFrame>
+        ) : tableMissing ? (
+          <AdminEmpty title="Kayıt tablosu henüz kurulmadı">
+            Migration uygulanınca hatalar burada listelenir.
+          </AdminEmpty>
         ) : (
           <AdminEmpty title="Kayıt yok">Bu filtrede ders üretim hatası görünmüyor.</AdminEmpty>
         )}

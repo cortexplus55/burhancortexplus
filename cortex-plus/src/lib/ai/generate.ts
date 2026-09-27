@@ -101,6 +101,11 @@ type GenerateJsonParams<T> = {
   /** Extra draft regenerations under the same reservation (v2 default 2). */
   maxDraftAttempts?: number;
   /**
+   * Bu zamandan (epoch ms) sonra yeni taslak denemesi başlatılmaz.
+   * 300 sn fonksiyon tavanı için rota ~200 sn verir; rezervasyon iade edilir.
+   */
+  deadlineAt?: number;
+  /**
    * v2 last resort under the same reservation: accept when independent
    * pipeline passes even if LLM review keeps rejecting (never if review is down).
    */
@@ -387,6 +392,14 @@ export async function generateJson<T>(
 
     outer: for (const mode of modes) {
       for (let draftAttempt = 0; draftAttempt < maxDraftAttempts; draftAttempt += 1) {
+        if (params.deadlineAt != null && Date.now() >= params.deadlineAt) {
+          console.error("generate_json_deadline", {
+            actionCode,
+            draftAttempt,
+            mode,
+          });
+          break outer;
+        }
         const draftStarted = Date.now();
         const completion = await withTransientRetry(
           () => {

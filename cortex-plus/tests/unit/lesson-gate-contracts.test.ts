@@ -9,14 +9,18 @@ describe("ders kapısı rota sözleşmeleri", () => {
   const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
 
   it("10) maxDraftAttempts depth'e bağlı (≥2); tek atış override yok", () => {
-    expect(route).toContain("maxDraftAttempts: lessonDraftAttempts");
     expect(route).toContain("Math.max(2, depth.maxDraftAttempts)");
-    expect(route).not.toMatch(/maxDraftAttempts:\s*1/);
+    expect(route).toContain("requestLesson(teacherNote, false, lessonDraftAttempts)");
+    expect(route).toContain("deadlineAt:");
+    expect(route).not.toMatch(/maxDraftAttempts:\s*1\b/);
   });
 
-  it("11) nicelik son çare notu var", () => {
-    expect(route).toContain("quantity_salvage_note");
-    expect(route).toContain("Bazı hesap adımları kaynakla doğrulanamadığı için çıkarıldı");
+  it("11) ince nicelik kurtarma yayınlanmaz; öğrenci meta notu yok", () => {
+    expect(route).not.toContain("quantity_salvage_note");
+    expect(route).not.toContain("Bazı hesap adımları kaynakla doğrulanamadığı için çıkarıldı");
+    expect(route).toContain("lesson_quantity_too_thin");
+    expect(route).toContain("stripLessonVerificationChrome");
+    expect(route).toContain("deadlineAt");
   });
 
   it("12) commitCredits sonrası kalite hattı dersi düşürmez", () => {

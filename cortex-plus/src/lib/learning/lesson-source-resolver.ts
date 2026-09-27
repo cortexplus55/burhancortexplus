@@ -224,9 +224,13 @@ async function healTopicSources(
     topicLabel: string;
     refs: ParsedTopicSourceRef[];
     topicNodeId: string | null;
-    foundDocumentId: string | null;
-    foundPages: number[];
-    foundNodeId: string | null;
+    /** Belge başına sayfa — tek id altında karıştırılmaz. */
+    foundRefs?: ParsedTopicSourceRef[];
+    foundDocumentId?: string | null;
+    foundPages?: number[];
+    foundNodeId?: string | null;
+    /** Fuzzy arama sonuçlarını kalıcı yazma. */
+    allowPersistFound?: boolean;
   },
 ): Promise<{ healed: boolean; refs: ParsedTopicSourceRef[]; nodeId: string | null }> {
   if (!input.topicId) {
@@ -267,6 +271,7 @@ async function healTopicSources(
     if (!exists?.id) {
       const docId =
         input.foundDocumentId ??
+        input.foundRefs?.[0]?.documentId ??
         nextRefs[0]?.documentId ??
         null;
       if (docId) {
@@ -274,7 +279,9 @@ async function healTopicSources(
           service,
           docId,
           input.topicLabel,
-          input.foundPages.length ? input.foundPages : (nextRefs[0]?.pages ?? []),
+          input.foundPages?.length
+            ? input.foundPages
+            : (input.foundRefs?.[0]?.pages ?? nextRefs[0]?.pages ?? []),
         );
         if (replacement) {
           nextNodeId = replacement.id;
@@ -284,17 +291,40 @@ async function healTopicSources(
     }
   }
 
-  // Eski konular: source_refs yoksa bulunan belge+sayfayı yaz.
-  if (!nextRefs.length && input.foundDocumentId && input.foundPages.length) {
-    nextRefs = [
-      {
+  // Eski konular: source_refs yoksa yalnızca yüksek güvenli, belge-başına eşleme yaz.
+  if (!nextRefs.length && input.allowPersistFound !== false) {
+    const byDoc = new Map<string, ParsedTopicSourceRef>();
+    for (const ref of input.foundRefs ?? []) {
+      if (!ref.documentId || !ref.pages.length) continue;
+      const prev = byDoc.get(ref.documentId);
+      const pages = [...new Set([...(prev?.pages ?? []), ...ref.pages])]
+        .filter((page) => Number.isInteger(page) && page > 0)
+        .sort((a, b) => a - b);
+      byDoc.set(ref.documentId, {
+        documentId: ref.documentId,
+        nodeId: ref.nodeId ?? input.foundNodeId ?? nextNodeId,
+        pages,
+        fileName: ref.fileName ?? null,
+      });
+    }
+    if (
+      !byDoc.size &&
+      input.foundDocumentId &&
+      input.foundPages?.length
+    ) {
+      byDoc.set(input.foundDocumentId, {
         documentId: input.foundDocumentId,
         nodeId: input.foundNodeId ?? nextNodeId,
-        pages: input.foundPages,
+        pages: [...new Set(input.foundPages)].filter(
+          (page) => Number.isInteger(page) && page > 0,
+        ),
         fileName: null,
-      },
-    ];
-    healed = true;
+      });
+    }
+    if (byDoc.size) {
+      nextRefs = [...byDoc.values()];
+      healed = true;
+    }
   }
 
   if (!healed) {
@@ -415,9 +445,8 @@ export async function resolveLessonSource(
         topicLabel: input.topicLabel,
         refs,
         topicNodeId: input.topicNodeId,
-        foundDocumentId: refs[0]?.documentId ?? null,
-        foundPages: refs.flatMap((ref) => ref.pages),
-        foundNodeId: refs[0]?.nodeId ?? null,
+        foundRefs: refs,
+        allowPersistFound: false,
       });
       if (heal.healed) {
         trace.healed = true;
@@ -507,29 +536,29 @@ export async function resolveLessonSource(
       detail: span?.documentName ?? undefined,
     });
     if (span && meaningful(span)) {
-      const pages = [
-        ...new Set(
-          [...span.block.matchAll(/\[s\.(\d+)\]/g)].map((match) => Number(match[1])),
-        ),
-      ].filter((page) => Number.isInteger(page) && page > 0);
-      const heal = await healTopicSources(service, {
-        userId: input.userId,
-        prepId: input.prepId,
-        topicId: input.topicId,
-        topicLabel: input.topicLabel,
-        refs,
-        topicNodeId: input.topicNodeId,
-        foundDocumentId:
-          input.topicDocumentId ??
-          input.primaryDocumentId ??
-          documentIds[0] ??
-          null,
-        foundPages: pages,
-        foundNodeId: input.topicNodeId,
-      });
-      if (heal.healed) {
-        trace.healed = true;
-        trace.steps.push({ step: "heal", ok: true, detail: "title_align_persist" });
+      // Deterministik başlık hizası: sayfaları kendi belge id'leriyle yaz.
+      const foundRefs = (span.pagesByDocument ?? []).map((entry) => ({
+        documentId: entry.documentId,
+        nodeId: input.topicNodeId,
+        pages: entry.pages,
+        fileName: null as string | null,
+      }));
+      if (foundRefs.length) {
+        const heal = await healTopicSources(service, {
+          userId: input.userId,
+          prepId: input.prepId,
+          topicId: input.topicId,
+          topicLabel: input.topicLabel,
+          refs,
+          topicNodeId: input.topicNodeId,
+          foundRefs,
+          foundNodeId: input.topicNodeId,
+          allowPersistFound: true,
+        });
+        if (heal.healed) {
+          trace.healed = true;
+          trace.steps.push({ step: "heal", ok: true, detail: "title_align_persist" });
+        }
       }
       return { context: span, trace };
     }
@@ -621,28 +650,7 @@ export async function resolveLessonSource(
         detail: `matches=${usable.length}`,
       });
       if (meaningful(context)) {
-        const pages = [
-          ...new Set(
-            usable
-              .map((match) => match.pageNumber)
-              .filter((page): page is number => typeof page === "number" && page > 0),
-          ),
-        ];
-        const heal = await healTopicSources(service, {
-          userId: input.userId,
-          prepId: input.prepId,
-          topicId: input.topicId,
-          topicLabel: input.topicLabel,
-          refs,
-          topicNodeId: input.topicNodeId,
-          foundDocumentId: usable[0]?.documentId ?? null,
-          foundPages: pages,
-          foundNodeId: null,
-        });
-        if (heal.healed) {
-          trace.healed = true;
-          trace.steps.push({ step: "heal", ok: true, detail: "search_persist" });
-        }
+        // Fuzzy arama yalnızca bu isteğe hizmet eder — source_refs'e yazılmaz.
         return { context, trace };
       }
     } else {
@@ -702,14 +710,18 @@ export async function enrichLessonSource(
   userId: string,
   base: SourceContext,
   query: string,
+  documentIds?: string[],
 ): Promise<SourceContext> {
   if (!base.block.trim()) return base;
   try {
+    const fromMatches = base.matches.map((match) => match.documentId).filter(Boolean);
+    const ids = [...new Set((documentIds?.length ? documentIds : fromMatches).filter(Boolean))];
+    if (!ids.length) return base;
     const related = await searchDocumentChunksAcross(
       service,
       userId,
       query,
-      base.matches.map((match) => match.documentId).filter(Boolean),
+      ids,
       { limit: 4, perDocument: 1 },
     );
     if (!related.length) return base;
