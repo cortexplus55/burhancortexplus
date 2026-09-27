@@ -59,6 +59,7 @@ export function ExamIntroQuiz({
   const [paywall, setPaywall] = useState(false);
   const [stage, setStage] = useState<"play" | "result">("play");
   const [questions, setQuestions] = useState<PublicQuizQuestion[]>([]);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [score, setScore] = useState({ score: 0, total: 5 });
@@ -101,6 +102,7 @@ export function ExamIntroQuiz({
     setLoading(true);
     setStartError(null);
     setQuestions([]);
+    setAttemptId(null);
     try {
       const res = await fetch("/api/learning/exam-prep/intro", {
         method: "POST",
@@ -134,6 +136,7 @@ export function ExamIntroQuiz({
         return;
       }
       setQuestions(nextQuestions);
+      setAttemptId(typeof data.attemptId === "string" ? data.attemptId : null);
       if (data.mode === "diagnostic_v2") setMode("diagnostic_v2");
       if (typeof data.topicLabel === "string") setDisplayTopic(data.topicLabel);
     } catch {
@@ -150,7 +153,12 @@ export function ExamIntroQuiz({
       const res = await fetch("/api/learning/exam-prep/intro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prepId, action: "complete", answers: nextAnswers }),
+        body: JSON.stringify({
+          prepId,
+          ...(attemptId ? { attemptId } : {}),
+          action: "complete",
+          answers: nextAnswers,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

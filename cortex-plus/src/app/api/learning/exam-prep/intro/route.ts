@@ -34,6 +34,7 @@ import {
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
+  attemptId: z.string().uuid().optional(),
   action: z.enum(["start", "complete", "skip"]).default("start"),
   answers: z.record(z.string(), z.unknown()).optional(),
 });
@@ -170,15 +171,17 @@ export async function POST(request: Request) {
   }
 
   if (action === "complete") {
-    const { data: attempt } = await service
+    let attemptQuery = service
       .from("exam_prep_intro_attempts")
       .select("id, payload")
       .eq("exam_prep_id", prepId)
       .eq("user_id", userId)
+      .eq("topic_id", topic.id)
       .eq("status", "active")
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+    if (parsed.data.attemptId) attemptQuery = attemptQuery.eq("id", parsed.data.attemptId);
+    const { data: attempt } = await attemptQuery.maybeSingle();
     if (!attempt) return errorResponse(400, "invalid_input");
 
     const payload = (attempt.payload as {
@@ -303,6 +306,7 @@ export async function POST(request: Request) {
     .select("id, payload")
     .eq("exam_prep_id", prepId)
     .eq("user_id", userId)
+    .eq("topic_id", topic.id)
     .eq("status", "active")
     .order("created_at", { ascending: false })
     .limit(1)
