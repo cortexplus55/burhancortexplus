@@ -1,6 +1,13 @@
 import { z } from "zod";
 
 export type DecisionProviderMode = "auto" | "jev" | "openai";
+export type JevAccessMode = "auto" | "typesafe" | "gateway";
+
+export function parseJevAccess(value: string | undefined): JevAccessMode {
+  const v = (value ?? "auto").trim().toLowerCase();
+  if (v === "typesafe" || v === "gateway" || v === "auto") return v;
+  return "auto";
+}
 
 const TRUTHY_ENV = new Set(["true", "1", "yes", "on"]);
 
@@ -9,12 +16,31 @@ export function jevEnabledFromEnv(value: string | undefined): boolean {
   return value !== undefined && TRUTHY_ENV.has(value.trim().toLowerCase());
 }
 
+/** Same explicit opt-in as JEV_ENABLED — used for shadow rollout. */
+export function jevShadowModeFromEnv(value: string | undefined): boolean {
+  return jevEnabledFromEnv(value);
+}
+
 /** Missing or unknown values stay on auto so startup never requires a Jev key. */
 export function decisionProviderFromEnv(
   value: string | undefined,
 ): DecisionProviderMode {
   if (value === "jev" || value === "openai") return value;
   return "auto";
+}
+
+function jevMinConfidenceFromEnv(value: string | undefined): number {
+  if (value === undefined || value.trim() === "") return 0.45;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0.45;
+  return Math.max(0, Math.min(1, n));
+}
+
+function jevTimeoutFromEnv(value: string | undefined): number {
+  if (value === undefined || value.trim() === "") return 2000;
+  const n = Number(value);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) return 2000;
+  return n;
 }
 
 export const envSchema = z.object({
@@ -36,19 +62,41 @@ export const envSchema = z.object({
   OPENAI_STT_MODEL: z.string().default("gpt-4o-mini-transcribe"),
   /** TypeSafe Jev decision engine (server-only; never expose to client). */
   TYPESAFE_API_KEY: z.string().optional(),
+  /** Vercel AI Gateway key (server-only). Alternative to TYPESAFE_API_KEY. */
+  AI_GATEWAY_API_KEY: z.string().optional(),
+  /** auto | typesafe | gateway — unknown → auto. */
+  JEV_ACCESS: z
+    .string()
+    .optional()
+    .transform((v) => parseJevAccess(v)),
+  /** Optional base URL override (test/proxy). */
+  JEV_BASE_URL: z.string().optional(),
   JEV_MODEL: z.string().optional(),
-  /** Explicit opt-in only — see jevEnabledFromEnv. A present TYPESAFE_API_KEY does not imply this. */
+  /** Explicit opt-in only — see jevEnabledFromEnv. A present API key does not imply this. */
   JEV_ENABLED: z
     .string()
     .optional()
     .transform((v) => jevEnabledFromEnv(v)),
-  JEV_TIMEOUT_MS: z.coerce.number().int().positive().default(1500),
+  /** Shadow mode: Jev runs after OpenAI decision; student sees OpenAI. */
+  JEV_SHADOW_MODE: z
+    .string()
+    .optional()
+    .transform((v) => jevShadowModeFromEnv(v)),
+  JEV_TIMEOUT_MS: z
+    .string()
+    .optional()
+    .transform((v) => jevTimeoutFromEnv(v)),
+  /** Min next_action.confidence to accept a Jev decision (else escalate to OpenAI). */
+  JEV_MIN_CONFIDENCE: z
+    .string()
+    .optional()
+    .transform((v) => jevMinConfidenceFromEnv(v)),
   JEV_FALLBACK_ENABLED: z
     .string()
     .optional()
     .transform((v) => v !== "false" && v !== "0"),
   /**
-   * auto: Jev when enabled and a TypeSafe key exists, otherwise OpenAI primary.
+   * auto: Jev when enabled and a credential exists, otherwise OpenAI primary.
    * openai: never call Jev. jev: prefer Jev; missing key still starts the app.
    */
   DECISION_PROVIDER: z
@@ -72,9 +120,14 @@ const parsed = envSchema.safeParse({
   OPENAI_TTS_MODEL: process.env.OPENAI_TTS_MODEL,
   OPENAI_STT_MODEL: process.env.OPENAI_STT_MODEL,
   TYPESAFE_API_KEY: process.env.TYPESAFE_API_KEY,
+  AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
+  JEV_ACCESS: process.env.JEV_ACCESS,
+  JEV_BASE_URL: process.env.JEV_BASE_URL,
   JEV_MODEL: process.env.JEV_MODEL,
   JEV_ENABLED: process.env.JEV_ENABLED,
+  JEV_SHADOW_MODE: process.env.JEV_SHADOW_MODE,
   JEV_TIMEOUT_MS: process.env.JEV_TIMEOUT_MS,
+  JEV_MIN_CONFIDENCE: process.env.JEV_MIN_CONFIDENCE,
   JEV_FALLBACK_ENABLED: process.env.JEV_FALLBACK_ENABLED,
   DECISION_PROVIDER: process.env.DECISION_PROVIDER,
 });
