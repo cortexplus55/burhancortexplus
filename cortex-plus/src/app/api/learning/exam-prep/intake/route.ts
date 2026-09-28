@@ -4,8 +4,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
-import { pickStudyTopics } from "@/lib/learning/diagnostic";
-import { cleanOutlineDeterministic } from "@/lib/documents/outline-clean";
+import {
+  detectPageFurniture,
+  extractTocUnits,
+} from "@/lib/documents/outline-clean";
+import {
+  buildStudyOutlineFromNodes,
+  seriesLabelFromFileName,
+} from "@/lib/learning/study-outline";
 import { buildExamPlan, daysUntilExam } from "@/lib/learning/exam-prep-plan";
 import { refoldTopicMapIfNeeded } from "@/lib/documents/pdf-learning-v2";
 import { documentTitle } from "@/lib/documents/topic-title";
@@ -69,74 +75,6 @@ const draftSchema = z.object({
 
 export type IntakeStudyUnit = { title: string; topicIndexes: number[] };
 
-function foldTopicTitle(text: string): string {
-  return text.toLocaleLowerCase("tr").replace(/\s+/g, " ").trim();
-}
-
-/**
- * Read-time outline clean — does not write document_topic_nodes.
- */
-function studyOutlineFromFlatNodes(
-  nodeRows: Array<{
-    id: string;
-    title: string;
-    parent_id: string | null;
-    sort_order: number;
-  }>,
-  pagesByTopic: Map<string, number[]>,
-): {
-  study: Array<{ id: string; title: string; parentId: string | null }>;
-  units: IntakeStudyUnit[];
-} {
-  const nodes = nodeRows.map((n) => ({
-    id: n.id,
-    title: n.title,
-    parentId: n.parent_id,
-    sortOrder: n.sort_order,
-  }));
-  const hasHierarchy = nodes.some((n) => n.parentId);
-
-  if (hasHierarchy) {
-    const study = pickStudyTopics(nodes);
-    const units: IntakeStudyUnit[] = [];
-    const parents = nodes
-      .filter((n) => nodes.some((c) => c.parentId === n.id))
-      .sort((a, b) => a.sortOrder - b.sortOrder);
-    for (const parent of parents) {
-      const topicIndexes = study
-        .map((s, index) => (s.parentId === parent.id ? index : -1))
-        .filter((index) => index >= 0);
-      if (topicIndexes.length) {
-        units.push({ title: parent.title, topicIndexes });
-      }
-    }
-    return { study, units };
-  }
-
-  const sorted = [...nodes].sort((a, b) => a.sortOrder - b.sortOrder);
-  const cleaned = cleanOutlineDeterministic({
-    titles: sorted.map((n) => ({
-      title: n.title,
-      pageNumbers: [...new Set(pagesByTopic.get(n.id) ?? [])].sort((a, b) => a - b),
-    })),
-  });
-  const study = cleaned.kept.map((kept, index) => {
-    const match =
-      sorted.find((n) => foldTopicTitle(n.title) === foldTopicTitle(kept.title)) ??
-      sorted.find((n) => foldTopicTitle(n.title).includes(foldTopicTitle(kept.title)));
-    return {
-      id: match?.id ?? `outline-${index}`,
-      title: kept.title,
-      parentId: null as string | null,
-    };
-  });
-  const units = cleaned.units.map((unit) => ({
-    title: unit.title,
-    topicIndexes: unit.topicIndexes,
-  }));
-  return { study, units };
-}
-
 async function resolveTopicSuggestions(
   service: SupabaseClient,
   userId: string,
@@ -185,30 +123,55 @@ async function resolveTopicSuggestions(
       list.push(link.page_number as number);
       pagesByTopic.set(link.topic_id as string, list);
     }
-    const outline = studyOutlineFromFlatNodes(
-      nodeRows.map((n) => ({
-        id: n.id as string,
-        title: n.title as string,
-        parent_id: (n.parent_id as string | null) ?? null,
-        sort_order: typeof n.sort_order === "number" ? n.sort_order : 0,
-      })),
-      pagesByTopic,
-    );
-    units = outline.units;
-    const mains = outline.study;
     const { data: docName } = await service
       .from("documents")
       .select("file_name")
       .eq("id", doc.id)
       .maybeSingle();
     const fileName = (docName?.file_name as string | null) ?? "";
-    topicSuggestions = mains.map((n) => ({
-      id: n.id,
-      title: n.title,
-      pages: [...new Set(pagesByTopic.get(n.id) ?? [])].sort((a, b) => a - b),
+    const pageRows = await loadPagedDocumentRows(
+      service,
+      "document_pages",
+      "page_number, text_content, page_kind, headings",
+      [doc.id],
+      ["page_number"],
+    );
+    const lightPages = pageRows.map((page) => ({
+      pageNumber: page.page_number as number,
+      text: ((page.text_content as string | null) ?? "").slice(0, 4000),
+      pageKind: (page.page_kind as string | null) ?? null,
+      headings: Array.isArray(page.headings) ? (page.headings as string[]) : undefined,
+    }));
+    const furniture = detectPageFurniture(lightPages);
+    const tocUnits = extractTocUnits(lightPages);
+    const seriesLabels = [
+      ...new Set([...furniture.seriesLabels, ...seriesLabelFromFileName(fileName)]),
+    ];
+    const contentPageCount = pageRows.filter(
+      (p) =>
+        !p.page_kind || p.page_kind === "content" || p.page_kind === "uncertain",
+    ).length;
+    const outline = buildStudyOutlineFromNodes({
+      nodes: nodeRows.map((n) => ({
+        id: n.id as string,
+        title: n.title as string,
+        parentId: (n.parent_id as string | null) ?? null,
+        sortOrder: typeof n.sort_order === "number" ? n.sort_order : 0,
+      })),
+      pagesByTopic,
+      seriesLabels,
+      unitRuns: furniture.unitRuns,
+      tocUnits,
+      contentPageCount: contentPageCount || pageRows.length,
+    });
+    units = outline.units;
+    topicSuggestions = outline.topics.map((topic) => ({
+      id: topic.id,
+      title: topic.title,
+      pages: topic.pages,
       documentId,
       fileName,
-      prerequisites: prereqById.get(n.id) ?? [],
+      prerequisites: prereqById.get(topic.id) ?? [],
     }));
     if (topicSuggestions.length) intakeMode = "v2";
   }
@@ -313,6 +276,9 @@ export async function POST(request: Request) {
     ? await consolidatePrepDocuments(service, userId, documentIds, { allowModel: true })
     : null;
   let mergedTopics: Array<ConsolidatedTopic | MergedTopic> = consolidated?.topics ?? [];
+  if (consolidated?.units?.length) {
+    intakeUnits = consolidated.units;
+  }
   if (mergedTopics.length) {
     intakeMode = "v2";
   } else {
@@ -416,7 +382,7 @@ export async function POST(request: Request) {
             excluded: consolidated?.excluded ?? [],
             missingTopics: consolidated?.missingFromMaterials ?? [],
             suggestedExamDate: consolidated?.suggestedExamDate ?? null,
-            units: intakeUnits.length ? intakeUnits : undefined,
+            units: consolidated?.units ?? (intakeUnits.length ? intakeUnits : undefined),
           }
         : null,
     });

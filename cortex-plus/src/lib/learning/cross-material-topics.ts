@@ -101,6 +101,8 @@ export type ConsolidationResult = {
   ambiguous: AmbiguousClusterPair[];
   /** Konu olmayan bölümler. Test ve iz için. */
   foldedNonTopics: string[];
+  /** Wizard bölümleri; topicIndexes consolidated.topics sırasına göre. */
+  units?: { title: string; topicIndexes: number[] }[];
 };
 
 export type TopicImportance = "important" | "medium" | "less";
