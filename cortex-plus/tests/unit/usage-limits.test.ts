@@ -143,9 +143,12 @@ describe("yükleme kromu", () => {
   it("ücretsiz hesapta yalnızca taranmış sayfa kotasını açıkça yazar", () => {
     const upload = readFileSync("src/components/documents/document-upload.tsx", "utf8");
     const modal = readFileSync("src/components/parity/upload-modal.tsx", "utf8");
+    const limits = readFileSync("src/lib/student/student-shell-context.tsx", "utf8");
     expect(upload).toContain("aylık taranmış sayfa hakkı:");
-    expect(upload).toContain("PHOTO_PAGE_LIMITS.free");
+    expect(upload).toContain("useDocumentLimits");
     expect(modal).toContain("aylık taranmış sayfa hakkı:");
-    expect(modal).toContain("PHOTO_PAGE_LIMITS.free");
+    expect(modal).toContain("useDocumentLimits");
+    expect(limits).toContain("PHOTO_PAGE_LIMITS.free");
+    expect(limits).toContain("isAdmin");
   });
 });

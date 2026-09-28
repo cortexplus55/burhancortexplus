@@ -15,7 +15,7 @@ import { isNearDuplicateText, stripInlineSourceLine } from "@/lib/learning/lesso
 import { titleConcepts } from "@/lib/learning/lesson-claims";
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
 import { fluencyIssues, repairTurkishSurface, sentences } from "@/lib/learning/learner-fluency";
-import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
+import { announcedExampleGap, exampleIsComplete, ensureThreeChecks, minimumLessonChecks } from "@/lib/learning/lesson-repair";
 import { auditQuantitative, evaluateArithmetic, repairQuantitative } from "@/lib/learning/tutor-quant";
 import { groundProseCalculations, workedExampleIssues } from "@/lib/learning/worked-example";
 import { topicMatchKey } from "@/lib/learning/topic-merge";
@@ -40,12 +40,16 @@ export const LESSON_TEACH_RULE = [
   "Nicel konuda example tam çözülmüş örnektir. solution satırları: Verilen: … İstenen: … Bağıntı: … Yerine koyma: … Sonuç: … birimle. Çözümdeki her sayı verilenlerde ya da önceki adımda durur. Kaynakta örnek varsa onu kullan. Yoksa kaynaktaki sabitlerle bir örnek kur; ara sonucu kendin hesapla, uydurma sonuç yazma. Sözel konuda sayı uydurma; kaynağın olayını adım adım analiz et.",
   "Hesabı yazmadan önce veriyi söyle. Verisi söylenmemiş eşitlik yazma.",
   "sadece, asla, her zaman, tek bir, hiçbir, only, never, always gibi kesin hüküm ancak kaynak aynı sözü kuruyorsa yazılır.",
-  "Kontrol, konunun becerisini ölçer ve ders cümlesini tekrar etmez. Kaynak zenginse en az beş çeşitli kontrol yaz: mcq, doğru/yanlış, sayısal, öğrencinin kendisinin yazdığı. Nicel konuda en az bir mcq hesap sorar. Çeldirici gerçek işlem hatasıdır: çarpma yerine bölme, ters bölme, verilen sayıyı sonuç sanma. optionWhy her şıkka tek başına okunan bir cümledir. explanation gerekçeyi söyler, soru cümlesini ve 'kendi anlamına bağlıyor' kalıbını tekrarlamaz. Doğru/yanlış yalnızca iki taraf da anlamlıysa.",
+  "Kontrol, konunun becerisini ölçer ve ders cümlesini tekrar etmez. En az min(3, kavram bölümü) ve her iki slaytta bir kontrol yaz. Kaynak zenginse en az beş çeşitli kontrol yaz: mcq, doğru/yanlış, sayısal, öğrencinin kendisinin yazdığı. Nicel konuda en az bir mcq hesap sorar. Çeldirici gerçek işlem hatasıdır: çarpma yerine bölme, ters bölme, verilen sayıyı sonuç sanma. optionWhy her şıkka tek başına okunan bir cümledir. explanation gerekçeyi söyler, soru cümlesini ve 'kendi anlamına bağlıyor' kalıbını tekrarlamaz. Doğru/yanlış yalnızca iki taraf da anlamlıysa.",
+  "Formüllerde değişken adı olarak yazılım tanımlayıcısı (alt çizgili kelime: açı_radyan, v_final) KULLANMA. Tek harf/Yunan harfi + alt simge kullan (α, αᵣ gibi) ya da kelimeyle yaz (\"derece cinsinden açı\"). Satır içi formülü $…$ içinde LaTeX ile yazabilirsin: $\\alpha_{\\text{rad}}$.",
   "check.review aynı fikri başka açıdan sorar. Cümlenin sonuna 'yargısı doğru mudur?' eklemek tekrar değildir.",
   "summary üç maddedir: kural, sık hata, uygulama. Bölüm cümlesini kopyalama. 'Diğer' ya da zamirle başlayan bağlamsız madde yazma.",
   "Aynı konuyu işleyen her kaynak parçası kullanılır. Tek dosyaya sıkışma.",
   "Kaynak künyesini (dosya adı, sayfa numarası) gövde metnine yazma; bu ayrıca kaydedilir. " +
     "'Kaynak:' diye başlayan bir künye cümlesi ekleme.",
+  "Hesaplanabilir bağıntı formula alanına (title, expression, note), sıralı işlem procedure alanına " +
+    "(2-6 numaralı adım, her adımda kaynaktaki somut sayı) yazılır — gövdeye ikinci kez yazılmaz. " +
+    "Kaynakta karşılık/eşik tablosu varsa table alanına yazılır. Bu üç alan gövdenin tekrarı değildir.",
   "Cümle yüklemle biter. Cümle ortasında sıradan ad büyük harfle başlamaz.",
   "Anlatım yaklaşık 5 dakikalık okuma olsun. Aynı cümleyi tekrarlayarak uzatma.",
 ].join(" ");
@@ -87,6 +91,14 @@ export type TeachingFailure = { unit: string; problem: string };
 
 export type TopicPageSpan = { fileName: string; pages: number[] };
 
+/**
+ * Başlık hizalaması — dil ve konu bağımsız.
+ *
+ * 1) Tam eşleşme (topicMatchKey)
+ * 2) ≥10 karakterlik alt dize
+ * 3) Katlanmış kök örtüşmesi: anlamlı kelime köklerinin çoğunluğu ortak
+ *    (en az 2 ortak kök ve ortak / kısa taraf ≥ 0.6)
+ */
 export function topicTitlesAlign(left: string, right: string): boolean {
   const a = topicMatchKey(left);
   const b = topicMatchKey(right);
@@ -94,7 +106,23 @@ export function topicTitlesAlign(left: string, right: string): boolean {
   if (a === b) return true;
   const short = a.length <= b.length ? a : b;
   const long = a.length <= b.length ? b : a;
-  return short.length >= 10 && long.includes(short);
+  if (short.length >= 10 && long.includes(short)) return true;
+  return topicStemOverlap(a, b);
+}
+
+/** Test ve eşik belgesi için kök örtüşmesi. */
+export function topicStemOverlap(leftKey: string, rightKey: string): boolean {
+  const left = leftKey.split(" ").filter((token) => token.length >= 3);
+  const right = rightKey.split(" ").filter((token) => token.length >= 3);
+  if (!left.length || !right.length) return false;
+  const rightSet = new Set(right);
+  let shared = 0;
+  for (const token of left) {
+    if (rightSet.has(token)) shared += 1;
+  }
+  if (shared < 2) return false;
+  const shorter = Math.min(left.length, right.length);
+  return shared / shorter >= 0.6;
 }
 
 function fileKey(name: string): string {
@@ -315,6 +343,58 @@ function numberKeys(text: string): string[] {
 function inventedNumbers(text: string, source: string): string[] {
   const have = new Set(numberKeys(source));
   return [...new Set(numberKeys(text).filter((key) => Number(key) >= 3 && !have.has(key)))];
+}
+
+/**
+ * A repeated one-fact page cannot support a fresh angle/value table. Ordinary
+ * lessons may use source formulas to derive practice numbers; this guard is
+ * applied only when the page loader has proved the source is sparse/repeated.
+ * Run it after check refill so a repaired lesson cannot reintroduce the item.
+ */
+export function dropSparseSourceNumericChecks(
+  lesson: LessonV2,
+  source: string,
+): { lesson: LessonV2; dropped: number } {
+  let dropped = 0;
+  // Retrieval labels and physical page numbers locate evidence; they are not
+  // mathematical facts that can justify a generated numerical exercise.
+  const teachingSource = source
+    .replace(/\[s\.\d+\][^:\n]*:/g, "")
+    .replace(/Bu bölümün \d+\. çalışma sayfası fiziksel sayfa \d+ üzerindedir\./gi, "");
+  const unsupported = (parts: Array<string | undefined>) =>
+    inventedNumbers(parts.filter(Boolean).join("\n"), teachingSource).length > 0;
+  const sections = lesson.sections.map((section) => {
+    const check = section.check;
+    if (!check || !unsupported([
+      check.prompt,
+      check.explanation,
+      check.answer,
+      check.faultyText,
+      ...(check.options ?? []),
+      ...(check.optionWhy ?? []),
+      check.review?.prompt,
+      ...(check.review?.options ?? []),
+    ])) return section;
+    dropped += 1;
+    const clean = { ...section };
+    delete clean.check;
+    return clean;
+  });
+  const clean: LessonV2 = { ...lesson, sections };
+  if (clean.infoCheck && unsupported([clean.infoCheck.prompt, clean.infoCheck.answer])) {
+    delete clean.infoCheck;
+    dropped += 1;
+  }
+  if (clean.findError && unsupported([
+    clean.findError.prompt,
+    clean.findError.faultyText,
+    clean.findError.explanation,
+    ...clean.findError.options,
+  ])) {
+    delete clean.findError;
+    dropped += 1;
+  }
+  return { lesson: clean, dropped };
 }
 
 /**
@@ -997,6 +1077,62 @@ function withoutExample(lesson: LessonV2): LessonV2 {
   return next;
 }
 
+function formulaText(formula: NonNullable<LessonV2["sections"][number]["formula"]>): string {
+  return [formula.title, formula.expression, formula.note ?? ""].join(" ");
+}
+
+function procedureText(procedure: NonNullable<LessonV2["sections"][number]["procedure"]>): string {
+  return [procedure.title ?? "", ...procedure.steps.flatMap((step) => [step.label, step.detail])].join(" ");
+}
+
+function tableText(table: NonNullable<LessonV2["sections"][number]["table"]>): string {
+  return [table.caption ?? "", ...table.rows.flatMap((row) => row)].join(" ");
+}
+
+/**
+ * formula/procedure/table gövdeden ayrı, model tarafından uydurulan bir
+ * sayı taşıyabilir (attachCitations/scrubInventedNumbers gibi düz metin
+ * onarım araçları bunları görmez, çünkü body değiller). Kaynakta olmayan
+ * bir sayı bulunursa alan onarılmaya çalışılmaz — cards/diagram'da olduğu
+ * gibi tümüyle düşürülür; body zaten kendi başına ayakta kalıyor.
+ * Ayrıca formula.note/procedure gövdenin birebir tekrarıysa (öğrenci aynı
+ * cümleyi iki kez görmesin diye) aynı şekilde düşürülür.
+ */
+function scrubStructuredBlockFabrication(lesson: LessonV2, source: string): LessonV2 {
+  if (!source.trim()) return lesson;
+  let changed = false;
+  const sections = lesson.sections.map((section) => {
+    const next = { ...section };
+    if (next.formula) {
+      const text = formulaText(next.formula);
+      const fabricated = inventedNumbers(text, source).length > 0;
+      const echoesBody = next.formula.note ? nearCopy(foldTr(next.formula.note), foldTr(next.body)) : false;
+      if (fabricated || echoesBody) {
+        delete next.formula;
+        changed = true;
+      }
+    }
+    if (next.procedure) {
+      const text = procedureText(next.procedure);
+      const fabricated = inventedNumbers(text, source).length > 0;
+      const echoesBody = nearCopy(foldTr(text), foldTr(next.body));
+      if (fabricated || echoesBody) {
+        delete next.procedure;
+        changed = true;
+      }
+    }
+    if (next.table) {
+      const text = tableText(next.table);
+      if (inventedNumbers(text, source).length > 0) {
+        delete next.table;
+        changed = true;
+      }
+    }
+    return next;
+  });
+  return changed ? { ...lesson, sections } : lesson;
+}
+
 function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): LessonV2 {
   const checksBefore = lesson.sections.filter((section) => section.check).length;
   const sentencesBefore = sentences(lessonProse(lesson)).length;
@@ -1025,6 +1161,12 @@ function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): Le
     if (!exampleReady(blob, source)) next = withoutExample(next);
   }
   next = scrubInventedNumbers(next, source);
+  next = scrubStructuredBlockFabrication(next, source);
+  if (next.sections.filter((section) => section.check).length < minimumLessonChecks(next)) {
+    next = ensureThreeChecks(next, source);
+  }
+  // ensureThreeChecks yeni bölüm ekleyebilir; künye ayıklama onun ardından,
+  // en sonda çalışmalı ki eklenen bölümler de temiz çıksın.
   next = extractSectionSources(next);
   warnOnBudgetOverrun(next, topicLabel);
   const dropped =
@@ -1327,8 +1469,13 @@ export function salvageTaughtLesson(
   const still = criticalTeachingFailures(teachingFailures(prepared, source, topic));
   if (!still.length) return { lesson: prepared, removed };
 
-  const stripped = extractSectionSources(salvageStripRemaining(prepared, source, topic, removed));
-  const finalParsed = lessonV2Schema.safeParse(stripped).data ?? stripped;
+  const stripped = salvageStripRemaining(prepared, source, topic, removed);
+  const refilled =
+    stripped.sections.filter((section) => section.check).length < minimumLessonChecks(stripped)
+      ? ensureThreeChecks(stripped, source)
+      : stripped;
+  const sourced = extractSectionSources(refilled);
+  const finalParsed = lessonV2Schema.safeParse(sourced).data ?? sourced;
   return { lesson: finalParsed, removed };
 }
 
@@ -1379,7 +1526,12 @@ export async function finishTaughtLesson(
   lesson: LessonV2,
   input: { source: string; topicLabel: string },
   repair?: (prompt: string) => Promise<unknown>,
-): Promise<{ lesson: LessonV2; failures: TeachingFailure[]; salvaged: boolean }> {
+): Promise<{
+  lesson: LessonV2;
+  failures: TeachingFailure[];
+  salvaged: boolean;
+  checkCountLow: boolean;
+}> {
   let current = prepareTaught(lesson, input.source, input.topicLabel);
   let failures = teachingFailures(current, input.source, input.topicLabel);
   if (criticalTeachingFailures(failures).length && repair) {
@@ -1400,12 +1552,26 @@ export async function finishTaughtLesson(
     failures = teachingFailures(current, input.source, input.topicLabel);
   }
   if (!criticalTeachingFailures(failures).length) {
-    return { lesson: current, failures, salvaged: false };
+    const topped =
+      current.sections.filter((s) => s.check).length < minimumLessonChecks(current)
+        ? ensureThreeChecks(current, input.source)
+        : current;
+    return {
+      lesson: topped,
+      failures: teachingFailures(topped, input.source, input.topicLabel),
+      salvaged: false,
+      checkCountLow: topped.sections.filter((s) => s.check).length < minimumLessonChecks(topped),
+    };
   }
   const salvaged = salvageTaughtLesson(current, input);
+  const topped =
+    salvaged.lesson.sections.filter((s) => s.check).length < minimumLessonChecks(salvaged.lesson)
+      ? ensureThreeChecks(salvaged.lesson, input.source)
+      : salvaged.lesson;
   return {
-    lesson: salvaged.lesson,
-    failures: teachingFailures(salvaged.lesson, input.source, input.topicLabel),
+    lesson: topped,
+    failures: teachingFailures(topped, input.source, input.topicLabel),
     salvaged: true,
+    checkCountLow: topped.sections.filter((s) => s.check).length < minimumLessonChecks(topped),
   };
 }

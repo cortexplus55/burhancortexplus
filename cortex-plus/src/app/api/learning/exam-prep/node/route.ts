@@ -5,20 +5,25 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
-import { commitCredits, refundCredits } from "@/lib/credits/service";
+import { commitCredits, refundCredits, refundStalePendingReservations } from "@/lib/credits/service";
 import { env } from "@/lib/env";
 import { completeLessonPartRepair } from "@/lib/ai/lesson-part-repair";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import {
   EMPTY_SOURCE_CONTEXT,
-  loadMergedTopicContext,
   loadPageSourceAcrossDocuments,
   loadPageSourceContext,
   loadSourceContext,
   pagesMarkedInSource,
-  loadTopicSpanContext,
   widenSourcePages,
 } from "@/lib/learning/source-context";
+import {
+  enrichLessonSource,
+  resolveLessonSource,
+  type SourceTrace,
+  type SourceUnavailableReason,
+} from "@/lib/learning/lesson-source-resolver";
+import { recordLessonGenerationFailure } from "@/lib/learning/lesson-generation-failures";
 import {
   resolvePrepSourceMode,
   shouldSearchSources,
@@ -93,8 +98,12 @@ import { diagramIssues, needsDiagram } from "@/lib/learning/lesson-diagram";
 import { repairLessonSurface } from "@/lib/learning/learner-fluency";
 import { scoreLessonChecks } from "@/lib/learning/lesson-claims";
 import {
+  buildLessonRetryCheck,
   gradeSectionCheck,
+  resolveCheckForGrade,
   sealLessonForPlay,
+  sealSectionCheck,
+  type CheckGradeVariant,
   type LessonCheckAnswer,
 } from "@/lib/learning/lesson-play";
 import { runLessonQualityPipeline } from "@/lib/learning/lesson-quality-pipeline";
@@ -106,9 +115,14 @@ import {
 import { repairLearnerLesson, scopeLessonToTopic, type LessonCheckCode } from "@/lib/learning/lesson-repair";
 import {
   criticalTeachingFailures,
+  dropSparseSourceNumericChecks,
   finishTaughtLesson,
   LESSON_TEACH_RULE,
 } from "@/lib/learning/lesson-teach";
+import {
+  isLearnerVerificationNote,
+  stripLearnerVerificationChrome,
+} from "@/lib/learning/learner-verification-chrome";
 import { formulaMismatches, withoutMismatchedFormulas } from "@/lib/learning/formula-fidelity";
 import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
 import {
@@ -129,6 +143,7 @@ import {
   SOURCE_PAGE_FORMULA_RULE,
   studentLanguageLine,
   teacherNoteGroundedInSource,
+  quantityClaimGrounded,
   unsupportedQuantities,
   withoutUnsupportedQuantities,
   type TeachingPriority,
@@ -197,6 +212,8 @@ const bodySchema = z.object({
   answers: z.record(z.string(), z.unknown()).optional(),
   /** Tek kontrol notlandırma: bölüm indeksi + yanıt. */
   sectionIndex: z.number().int().min(0).optional(),
+  /** primary = bölüm sorusu; retry = sunucunun kurduğu tekrar varyantı. */
+  variant: z.enum(["primary", "retry"]).optional().default("primary"),
   checkAnswer: z
     .object({
       pick: z.number().int().min(0).optional(),
@@ -437,12 +454,12 @@ export async function POST(request: Request) {
   const { data: topic } = topicLookupId
     ? await service
         .from("exam_prep_topics")
-        .select("id, label, measured_level")
+        .select("id, label, measured_level, document_topic_node_id, source_refs")
         .eq("id", topicLookupId)
         .maybeSingle()
     : await service
         .from("exam_prep_topics")
-        .select("id, label, measured_level")
+        .select("id, label, measured_level, document_topic_node_id, source_refs")
         .eq("exam_prep_id", prepId)
         .order("sort_order")
         .limit(1)
@@ -450,15 +467,11 @@ export async function POST(request: Request) {
 
   let topicDocumentId: string | null = null;
   let topicNodeId: string | null = null;
+  const topicSourceRefs = topic?.source_refs ?? null;
   if (topic?.id) {
-    const linked = await service
-      .from("exam_prep_topics")
-      .select("document_topic_node_id")
-      .eq("id", topic.id)
-      .maybeSingle();
     const nodeIdForTopic =
-      !linked.error && typeof linked.data?.document_topic_node_id === "string"
-        ? linked.data.document_topic_node_id
+      typeof topic.document_topic_node_id === "string"
+        ? topic.document_topic_node_id
         : null;
     topicNodeId = nodeIdForTopic;
     if (nodeIdForTopic) {
@@ -526,11 +539,13 @@ export async function POST(request: Request) {
   }
 
   // Ders kontrolü: cevap verilmeden önce istemcide cevap yok; not sunucuda.
+  // Design B: variant=retry iken aynı deterministik tekrar varyantı yeniden kurulur.
   if (action === "grade-check") {
     if (kind !== "lesson") return errorResponse(400, "invalid_input");
     const attemptId = parsed.data.attemptId;
     const sectionIndex = parsed.data.sectionIndex;
     const checkAnswer = parsed.data.checkAnswer as LessonCheckAnswer | undefined;
+    const variant = (parsed.data.variant ?? "primary") as CheckGradeVariant;
     if (!attemptId || sectionIndex == null || !checkAnswer) {
       return errorResponse(400, "invalid_input");
     }
@@ -544,9 +559,29 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (!attempt?.payload) return errorResponse(404, "not_found");
     const lesson = (attempt.payload as { lesson?: LessonV2 }).lesson;
-    const check = lesson?.sections?.[sectionIndex]?.check;
-    if (!check) return errorResponse(400, "invalid_input");
+    const section = lesson?.sections?.[sectionIndex];
+    const primary = section?.check;
+    if (!primary) return errorResponse(400, "invalid_input");
+    const check = resolveCheckForGrade(
+      primary,
+      variant,
+      prepLanguage(prep.learning_preferences),
+      section?.body ?? "",
+    );
     const result = gradeSectionCheck(check, checkAnswer);
+    // Primary notlandırmadan sonra sealed retry gönderilir (cevap zaten açık).
+    if (variant === "primary") {
+      const retry = buildLessonRetryCheck(
+        primary,
+        prepLanguage(prep.learning_preferences),
+        section?.body ?? "",
+      );
+      return NextResponse.json({
+        ok: true,
+        ...result,
+        retryCheck: sealSectionCheck(retry),
+      });
+    }
     return NextResponse.json({ ok: true, ...result });
   }
 
@@ -566,7 +601,7 @@ export async function POST(request: Request) {
         kind,
         title,
         topicLabel,
-        publicPayload: await publicPayloadForUser(service, userId, attempt.payload as Record<string, unknown>, lessonReviewCards, kind),
+        publicPayload: await publicPayloadForUser(service, userId, attempt.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
         resumed: true,
       }),
       ...(await readWalletBalance(service, userId)),
@@ -989,7 +1024,7 @@ export async function POST(request: Request) {
           kind,
           title,
           topicLabel,
-          publicPayload: await publicPayloadForUser(service, userId, existingForKey.payload as Record<string, unknown>, lessonReviewCards, kind),
+          publicPayload: await publicPayloadForUser(service, userId, existingForKey.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
           resumed: true,
         }),
         ...(await readWalletBalance(service, userId)),
@@ -1012,7 +1047,7 @@ export async function POST(request: Request) {
             kind,
             title,
             topicLabel,
-            publicPayload: await publicPayloadForUser(service, userId, existingForKey.payload as Record<string, unknown>, lessonReviewCards, kind),
+            publicPayload: await publicPayloadForUser(service, userId, existingForKey.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
             resumed: true,
           },
         ),
@@ -1037,7 +1072,7 @@ export async function POST(request: Request) {
           kind,
           title,
           topicLabel,
-          publicPayload: await publicPayloadForUser(service, userId, resumable.payload as Record<string, unknown>, lessonReviewCards, kind),
+          publicPayload: await publicPayloadForUser(service, userId, resumable.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
           resumed: true,
         }),
         ...(await readWalletBalance(service, userId)),
@@ -1104,7 +1139,7 @@ export async function POST(request: Request) {
         title,
         topicLabel,
         voiceMode: false,
-        payload: await publicPayloadForUser(service, userId, local.payload, lessonReviewCards, kind),
+        payload: await publicPayloadForUser(service, userId, local.payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
         ...(await readWalletBalance(service, userId)),
       });
     }
@@ -1127,12 +1162,27 @@ export async function POST(request: Request) {
   // eklenseydi, kod migration'dan önce dağıtıldığında her düğüm 404 verirdi.
   const { data: prepSource, error: sourceLookupError } = await service
     .from("exam_preps")
-    .select("document_id")
+    .select("document_id, source_document_ids")
     .eq("id", prepId)
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (sourceLookupError || !prepSource) return errorResponse(503, "source_unavailable");
+  if (sourceLookupError || !prepSource) {
+    await recordLessonGenerationFailure(service, {
+      userId,
+      prepId,
+      topicId: topic?.id ?? null,
+      topicLabel,
+      kind,
+      stage: "source",
+      reason: "no_prep_documents",
+      reasons: ["prep_lookup_failed"],
+    });
+    return errorResponse(503, "source_unavailable", {
+      reason: "no_prep_documents",
+      refunded: false,
+    });
+  }
 
   const prepDocs = teachingV2 ? await loadPrepDocumentIds(service, prepId) : [];
   if (topicDocumentId) prepSource.document_id = topicDocumentId;
@@ -1172,96 +1222,106 @@ export async function POST(request: Request) {
   });
 
   let source;
+  let sourceTrace: SourceTrace | null = null;
   try {
-    // Konunun kendi sayfaları varsa onları okuyoruz; benzerlik araması
-    // o sayfaların prompta girdiğini garanti etmiyordu ve ders kaynakta
-    // duran formülü yanlış yazabiliyordu. İstenen sayfa okunamazsa üretim
-    // durur; yalnızca sayfa listesi olmayan eski planlar aramayı kullanır.
     const mappedPages = topicWiden ? undefined : sessionMeta?.sourcePages;
     const pageDocumentIds = [
       topicDocumentId,
       prepSource.document_id as string | null,
       ...prepDocs,
     ];
-    const lessonSpans =
-      kind === "lesson" && teachingV2 && !voiceSession
-        ? await loadTopicSpanContext(service, userId, pageDocumentIds, topicLabel, {
-            sourceBoundaryMode,
-            preferredNodeId: topicNodeId,
-          })
-        : null;
-    let pageSource = lessonSpans?.block.trim()
-      ? lessonSpans
-      : teachingV2 && !voiceSession
-        ? await loadPageSourceAcrossDocuments(
+    const sourceQuery = `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim();
+
+    // Ders: birleşik çözücü. Sonraki adım önceki kaynağı silemez.
+    if (kind === "lesson" && teachingV2 && !voiceSession) {
+      const resolved = await resolveLessonSource(service, {
+        userId,
+        prepId,
+        topicId: topic?.id ?? null,
+        topicLabel,
+        sessionMeta,
+        prepDocs,
+        primaryDocumentId: (prepSource.document_id as string | null) ?? null,
+        topicDocumentId,
+        topicNodeId,
+        sourceRefs: topicSourceRefs,
+        sourceDocumentIds: prepSource.source_document_ids,
+        sourceBoundaryMode,
+        query: sourceQuery,
+      });
+      sourceTrace = resolved.trace;
+      if (resolved.unavailable) {
+        console.error("node_source_unavailable", {
+          kind,
+          requestId: parsed.data.clientRequestId ?? null,
+          topic: topicLabel,
+          reason: resolved.unavailable,
+          trace: resolved.trace,
+        });
+        await recordLessonGenerationFailure(service, {
+          userId,
+          prepId,
+          topicId: topic?.id ?? null,
+          topicLabel,
+          kind,
+          stage: "source",
+          reason: resolved.unavailable,
+          reasons: resolved.trace.steps
+            .filter((step) => !step.ok)
+            .map((step) => `${step.step}:${step.detail ?? "fail"}`)
+            .slice(0, 8),
+          sourceTrace: resolved.trace,
+        });
+        return errorResponse(503, "source_unavailable", {
+          reason: resolved.unavailable,
+          refunded: false,
+        });
+      }
+      // Zenginleştirme ölümcül değil — related parçalar eklenir (#118, sayfa yolu dahil).
+      source = shouldSearchSources(sourceMode)
+        ? await enrichLessonSource(
             service,
             userId,
-            // Ders: konuya bağlı dosya + aynı hazırlıktaki diğer dosyalar.
-            // Tek dosyaya kilitlemek diğer materyali (PDF + fotoğraf) düşürüyordu.
-            pageDocumentIds,
-            mappedPages,
-            { sourceBoundaryMode, topicLabel },
+            resolved.context,
+            sourceQuery,
+            prepDocs,
           )
-        : EMPTY_SOURCE_CONTEXT;
-    if (
-      !lessonSpans?.block.trim() &&
-      kind !== "lesson" &&
-      teachingV2 &&
-      !voiceSession &&
-      prepSource.document_id &&
-      mappedPages?.length &&
-      pageSource.block.trim()
-    ) {
-      const widened = await widenSourcePages(
-        service,
-        prepSource.document_id as string,
-        topicLabel,
-        mappedPages,
-        pageSource.block,
-      );
-      if (widened.some((page) => !mappedPages.includes(page))) {
-        pageSource = await loadPageSourceContext(
-          service,
-          userId,
-          prepSource.document_id,
-          widened,
-          { sourceBoundaryMode, topicLabel },
-        );
-      }
-    }
-    // Aynı konuyu işleyen diğer belgeler (fotoğraf + PDF vb.) bağlama eklenir.
-    // Sayfa okuması başarısızsa / boşsa aramaya düşülmez — incomplete page kapısı bozulmaz.
-    if (
-      kind === "lesson" &&
-      teachingV2 &&
-      !voiceSession &&
-      pageSource.block.trim() &&
-      shouldSearchSources(sourceMode)
-    ) {
-      const merged = await loadMergedTopicContext(
-        service,
-        userId,
-        `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim(),
-        {
-          documentId: topicDocumentId ?? prepSource?.document_id ?? null,
-          pageNumbers: mappedPages,
-          sourceBoundaryMode: teachingV2 ? sourceMode : null,
-          allowSearch: true,
-        },
-      );
-      if (merged.block.trim() && merged.block !== pageSource.block) {
-        const mergedBlock = pageSource.block.includes(merged.block.slice(0, 80))
-          ? pageSource.block
-          : `${pageSource.block}\n\n${merged.block}`;
-        source = {
-          ...pageSource,
-          block: mergedBlock,
-          matches: [...pageSource.matches, ...merged.matches],
-        };
-      } else {
-        source = pageSource;
-      }
+        : resolved.context;
     } else {
+      let pageSource =
+        teachingV2 && !voiceSession
+          ? await loadPageSourceAcrossDocuments(
+              service,
+              userId,
+              pageDocumentIds,
+              mappedPages,
+              { sourceBoundaryMode, topicLabel, mode: "strict" },
+            )
+          : EMPTY_SOURCE_CONTEXT;
+      if (
+        teachingV2 &&
+        !voiceSession &&
+        prepSource.document_id &&
+        mappedPages?.length &&
+        pageSource.block.trim()
+      ) {
+        const widened = await widenSourcePages(
+          service,
+          prepSource.document_id as string,
+          topicLabel,
+          mappedPages,
+          pageSource.block,
+        );
+        if (widened.some((page) => !mappedPages.includes(page))) {
+          pageSource = await loadPageSourceContext(
+            service,
+            userId,
+            prepSource.document_id,
+            widened,
+            { sourceBoundaryMode, topicLabel },
+          );
+        }
+      }
       source = pageSource.block
         ? pageSource
         : voiceSession || !shouldSearchSources(sourceMode)
@@ -1269,7 +1329,7 @@ export async function POST(request: Request) {
           : await loadSourceContext(
               service,
               userId,
-              `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim(),
+              sourceQuery,
               {
                 documentId: prepSource?.document_id ?? null,
                 sourceBoundaryMode: teachingV2 ? sourceMode : null,
@@ -1277,12 +1337,29 @@ export async function POST(request: Request) {
             );
     }
   } catch {
+    const reason: SourceUnavailableReason = "search_error";
     console.error("node_source_unavailable", {
       kind,
       requestId: parsed.data.clientRequestId ?? null,
       topic: topicLabel,
+      reason,
+      trace: sourceTrace,
     });
-    return errorResponse(503, "source_unavailable");
+    await recordLessonGenerationFailure(service, {
+      userId,
+      prepId,
+      topicId: topic?.id ?? null,
+      topicLabel,
+      kind,
+      stage: "source",
+      reason,
+      reasons: ["exception"],
+      sourceTrace: sourceTrace ?? undefined,
+    });
+    return errorResponse(503, "source_unavailable", {
+      reason,
+      refunded: false,
+    });
   }
 
   // Podcast, sayfa kaynağı duruyorsa hazırlıktaki diğer belgelere de bakar.
@@ -1301,7 +1378,29 @@ export async function POST(request: Request) {
     prepSource.document_id &&
     !source.block.trim()
   ) {
-    return errorResponse(503, "source_unavailable");
+    const reason: SourceUnavailableReason = "search_no_match";
+    console.error("node_source_unavailable", {
+      kind,
+      requestId: parsed.data.clientRequestId ?? null,
+      topic: topicLabel,
+      reason,
+      trace: sourceTrace,
+    });
+    await recordLessonGenerationFailure(service, {
+      userId,
+      prepId,
+      topicId: topic?.id ?? null,
+      topicLabel,
+      kind,
+      stage: "source",
+      reason,
+      reasons: ["empty_block"],
+      sourceTrace: sourceTrace ?? undefined,
+    });
+    return errorResponse(503, "source_unavailable", {
+      reason,
+      refunded: false,
+    });
   }
 
   // Stage 8: reserve a creating row + stable credit key before model work.
@@ -1376,7 +1475,7 @@ export async function POST(request: Request) {
               kind,
               title,
               topicLabel,
-              publicPayload: await publicPayloadForUser(service, userId, raced.payload as Record<string, unknown>, lessonReviewCards, kind),
+              publicPayload: await publicPayloadForUser(service, userId, raced.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
               resumed: true,
             }),
           );
@@ -1454,6 +1553,7 @@ export async function POST(request: Request) {
           familiarity,
           mood,
           sourceBlock: source.block,
+          repetitiveSparseEvidence: source.repetitiveSparseEvidence,
           sourceFormulas: source.formulas ?? [],
           teachingV2,
           sessionMeta: sessionMeta
@@ -1533,12 +1633,30 @@ export async function POST(request: Request) {
               : "",
         });
   } catch (error) {
+    const code = error instanceof NodeGenerationError ? error.code : "generation_failed";
+    const status = error instanceof NodeGenerationError ? error.status : 502;
+    const reasons = error instanceof NodeGenerationError ? error.reasons.slice(0, 6) : [];
+    // generateJson deferCommit başarısızlığında rezervasyon iade edilir.
+    // commitCredits sonrası hatalar generateNodePayload içinde yutulur.
+    const refunded = code !== "source_unavailable";
     console.error("node_generation_failed", {
       kind,
       requestId: clientRequestId ?? parsed.data.clientRequestId ?? null,
-      code: error instanceof NodeGenerationError ? error.code : "generation_failed",
-      status: error instanceof NodeGenerationError ? error.status : 502,
-      reasons: error instanceof NodeGenerationError ? error.reasons.slice(0, 6) : [],
+      code,
+      status,
+      reasons,
+      refunded,
+    });
+    await recordLessonGenerationFailure(service, {
+      userId,
+      prepId,
+      topicId: topic?.id ?? null,
+      topicLabel,
+      kind,
+      stage: code === "content_verification_failed" ? "verification" : "generation",
+      reason: code,
+      reasons,
+      sourceTrace: sourceTrace ?? undefined,
     });
     if (teachingV2 && creatingAttemptId && generationId && clientRequestId) {
       await service
@@ -1557,12 +1675,17 @@ export async function POST(request: Request) {
         clientRequestId,
         generationId,
         status: "failed",
-        errorCode:
-          error instanceof NodeGenerationError ? error.code : "generation_failed",
+        errorCode: code,
       });
     }
-    if (error instanceof NodeGenerationError) return errorResponse(error.status, error.code);
-    return errorResponse(502, "generation_failed");
+    if (error instanceof NodeGenerationError) {
+      const admin = await isAdminUser(service, userId).catch(() => false);
+      return errorResponse(error.status, error.code, {
+        refunded,
+        ...(admin && reasons.length ? { reasons } : {}),
+      });
+    }
+    return errorResponse(502, "generation_failed", { refunded: true });
   }
 
   const total = countTotal(kind, payload);
@@ -1638,7 +1761,7 @@ export async function POST(request: Request) {
         kind,
         title,
         topicLabel,
-        publicPayload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind),
+        publicPayload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
         resumed: false,
       }),
       ...(await readWalletBalance(service, userId)),
@@ -1703,7 +1826,7 @@ export async function POST(request: Request) {
     title,
     topicLabel,
     voiceMode,
-    payload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind),
+    payload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
     ...(await readWalletBalance(service, userId)),
   });
 }
@@ -1756,13 +1879,31 @@ function softenLearnerField(
   if (hadFormula && next.trim() !== text.trim()) reasons.push("formula_mismatch_dropped");
   if (checkQuantities && next.trim()) {
     const before = next;
-    if (unsupportedQuantities(before, source).length) {
-      const cleaned = withoutUnsupportedQuantities(before, source);
-      next = unsupportedQuantities(cleaned, source).length ? "" : cleaned;
-      if (next.trim() !== before.trim()) reasons.push("quantity_dropped");
-    }
+    // Her zaman cümle cümle: alan düzeyinde tek doğru eşitlik tüm metni kurtarmaz.
+    const cleaned = withoutUnsupportedQuantities(before, source);
+    next = cleaned.trim() && quantityClaimGrounded(cleaned, source) ? cleaned : "";
+    if (next.trim() !== before.trim()) reasons.push("quantity_dropped");
   }
   return { text: next.trim(), reasons };
+}
+
+function stripLessonVerificationChrome(lesson: LessonV2): LessonV2 {
+  const sections = lesson.sections.map((section) => {
+    const next = {
+      ...section,
+      body: stripLearnerVerificationChrome(section.body),
+      heading: section.heading,
+    };
+    if (next.note && isLearnerVerificationNote(next.note)) delete next.note;
+    return next;
+  });
+  const overview = lesson.overview
+    ? stripLearnerVerificationChrome(lesson.overview)
+    : undefined;
+  const cleaned: LessonV2 = { ...lesson, sections };
+  if (overview) cleaned.overview = overview;
+  else delete cleaned.overview;
+  return cleaned;
 }
 
 /**
@@ -1818,6 +1959,7 @@ async function generateNodePayload(input: {
   mood: Mood;
   /** Öğrencinin kendi kaynağından alıntılar; kaynak yoksa boş. */
   sourceBlock: string;
+  repetitiveSparseEvidence?: boolean;
   /**
    * Belge yokken konunun çiti. Sohbetteki "belgede yoksa cevap verme"
    * kuralının belgesiz karşılığı: model konu başlığının dışına çıkamaz.
@@ -1915,6 +2057,13 @@ async function generateNodePayload(input: {
   // okunabiliyor ve doğrulayıcısı (validateLessonPedagogy) bölüm
   // başlığından çözümlü örneğin her adımına kadar kontrol ediyor.
   if (input.kind === "lesson") {
+    // Önceki hard-kill'den kalan pending rezervasyonları (aynı kullanıcı).
+    // Allowlist + kullanıcı cooldown service içinde; DOCUMENT_PAGE_PROCESS dokunulmaz.
+    await refundStalePendingReservations(input.service, {
+      userId: input.userId,
+      olderThanMs: 10 * 60_000,
+      limit: 8,
+    }).catch(() => 0);
     // Pedagoji kontrolleri hiçbir taslağı geçirmezse ders hiç üretilmiyor
     // ve öğrencinin o konuda okuyacak bir şeyi kalmıyor — bugün iki kez
     // olan buydu. Şeması geçerli son taslak saklanıyor: kusurlu bir ders,
@@ -1975,7 +2124,12 @@ async function generateNodePayload(input: {
     let lessonModelCalls = 0;
     let draftMs = 0;
     let reviewMs = 0;
-    const requestLesson = (note: string, retried: boolean) =>
+    const draftBudgetStarted = Date.now();
+    /** 300 sn fonksiyon tavanı — yeni deneme/onarım ~200 sn sonra başlatılmaz. */
+    const DRAFT_DEADLINE_MS = 200_000;
+    const pastDeadline = () => Date.now() - draftBudgetStarted >= DRAFT_DEADLINE_MS;
+    const lessonDraftAttempts = Math.max(2, depth.maxDraftAttempts);
+    const requestLesson = (note: string, retried: boolean, attempts: number) =>
       generateJson({
       service: input.service,
       userId: input.userId,
@@ -1984,7 +2138,9 @@ async function generateNodePayload(input: {
       difficulty: depth.difficulty,
       modelOverride: env.OPENAI_LESSON_MODEL,
       ...v2Common,
-      maxDraftAttempts: 1,
+      // depth.maxDraftAttempts (≥2): geri bildirim ikinci taslağa gider.
+      maxDraftAttempts: attempts,
+      deadlineAt: draftBudgetStarted + DRAFT_DEADLINE_MS,
       verificationMode: "schema",
       deferCommit: true,
       idempotencyKey:
@@ -2083,10 +2239,15 @@ async function generateNodePayload(input: {
         const sections = parsed.sections.flatMap((section) => {
           const body = take(section.body);
           if (body.length < 20) return [];
-          return [{ ...section, body }];
+          // Öğrenciye doğrulama/kaynak meta notu gösterme.
+          const cleaned = { ...section, body };
+          if (cleaned.note && isLearnerVerificationNote(cleaned.note)) {
+            delete cleaned.note;
+          }
+          return [cleaned];
         });
         const lesson: LessonV2 = { ...parsed, sections };
-        if (overview) lesson.overview = overview;
+        if (overview) lesson.overview = stripLearnerVerificationChrome(overview);
         else delete lesson.overview;
         if (parsed.example) {
           const solution = take(parsed.example.solution);
@@ -2094,11 +2255,19 @@ async function generateNodePayload(input: {
           else delete lesson.example;
         }
         if (!lessonHasTeachingCore(lesson)) {
+          // İnce ders yayınlanmaz / ücretlendirilmez — iade ile düş.
+          const onlyQuantity = reasons.includes("quantity_dropped") && reasons.every(
+            (reason) => reason === "quantity_dropped",
+          );
           lastParseIssues = [
-            reasons.includes("quantity_dropped")
-              ? "Kaynakta olmayan nicelik çıktıktan sonra öğreten bölüm kalmadı."
+            onlyQuantity
+              ? "Kaynakta olmayan nicelik çıktıktan sonra öğreten bölüm kalmadı. Hesap adımlarını kaynak sayılarından doğru türet."
               : "Kaynakla bağlanamayan parçalar çıktıktan sonra öğreten bölüm kalmadı.",
           ];
+          console.error("lesson_quantity_too_thin", {
+            reasons: reasons.slice(0, 8),
+            onlyQuantity,
+          });
           return null;
         }
         const missingList = useBackbone
@@ -2150,18 +2319,41 @@ async function generateNodePayload(input: {
     });
     /**
      * Model çağrısı düşerse ders yoktur ve rezervasyon iade edilir.
-     * Ayrıştırılan ders kapıyı geçemese de açılır: tek onarımdan sonra
-     * doğrulanamayan cümle çıkarılır. Kredi, ders dönünce kesinleşir.
-     *
-     * Öğretmen notundaki sayı kaynağın bu kesitinde yoksa kapı taslağı
-     * düşürür. O durumda notsuz bir kez daha üretilir; ikinci tur yok.
+     * depth.maxDraftAttempts (≥2) içinde describeParseFailure geri bildirimi
+     * ikinci taslağa gider. Öğretmen notundaki sayı kaynakta yoksa notsuz
+     * bir deneme daha (ayrı idempotency anahtarı).
      */
-    const outcome = await requestLesson(teacherNote, false);
+    let outcome = await requestLesson(teacherNote, false, lessonDraftAttempts);
     if (outcome.ok) {
       lessonModelCalls += outcome.modelCalls;
       draftMs += outcome.draftMs;
       reviewMs += outcome.reviewMs;
     }
+    const noteHasUnsupported =
+      Boolean(teacherNote.trim()) &&
+      unsupportedQuantities(teacherNote, input.sourceBlock).length > 0 &&
+      !quantityClaimGrounded(teacherNote, input.sourceBlock);
+    if (
+      !outcome.ok &&
+      !lastValidLesson &&
+      noteHasUnsupported &&
+      !pastDeadline() &&
+      lastParseIssues.some((issue) => /nicelik|sayı|hesap/i.test(issue))
+    ) {
+      const retry = await requestLesson("", true, lessonDraftAttempts);
+      if (retry.ok) {
+        lessonModelCalls += retry.modelCalls;
+        draftMs += retry.draftMs;
+        reviewMs += retry.reviewMs;
+        outcome = retry;
+      }
+    }
+    console.error("lesson_draft_budget", {
+      ms: Date.now() - draftBudgetStarted,
+      calls: lessonModelCalls,
+      maxDraftAttempts: lessonDraftAttempts,
+      pastDeadline: pastDeadline(),
+    });
     const lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;
     if (!lesson) {
       console.error("lesson_model_calls", {
@@ -2185,99 +2377,182 @@ async function generateNodePayload(input: {
      */
     const heldReservationId = outcome.ok ? outcome.reservationId : undefined;
     let settled = false;
+    let publishedLesson: LessonV2 = lesson;
     try {
-    const repairSource = [input.sourceBlock, teacherNote].filter((part) => part.trim()).join("\n");
-    const repairCall = (prompt: string, maxTokens: number) => {
-      lessonModelCalls += 1;
-      return completeLessonPartRepair({
-        service: input.service,
-        userId: input.userId,
-        prompt,
-        maxTokens,
-      });
-    };
-    const repairStarted = Date.now();
-    const repair = await repairLearnerLesson(
-      lesson,
-      {
-        source: repairSource,
-        topicLabel: input.topicLabel,
-        targetMinutes: input.sessionMeta?.durationMinutes,
-      },
-      (prompt) => repairCall(prompt, 1500),
-      repairSource.trim() ? (prompt) => repairCall(prompt, 400) : undefined,
-    );
-    const taught = await finishTaughtLesson(repair.lesson, {
-      source: repairSource,
-      topicLabel: input.topicLabel,
-    });
-    const taughtLesson = taught.lesson;
-    const critical = criticalTeachingFailures(taught.failures);
-    const repairWallMs = Date.now() - repairStarted;
-    const verifyMs = repair.verifyMs;
-    console.error("lesson_model_calls", {
-      calls: lessonModelCalls,
-      draftMs,
-      reviewMs,
-      repairMs: Math.max(0, repairWallMs - verifyMs),
-      verifyMs,
-    });
-    if (taught.salvaged || critical.length) {
-      console.error("lesson_generation_salvaged", {
-        failures: critical.slice(0, 8).map((failure) => `${failure.unit}:${failure.problem}`),
-      });
-    }
-    if (repair.requested.length) {
-      console.error("lesson_generation_repaired", {
-        checks: repair.requested,
-        succeeded: repair.succeeded,
-      });
-    }
-    const diagramReady = taughtLesson.sections.some(
-      (section) => section.diagram && diagramIssues(section.diagram).length === 0,
-    );
-    const reasons = [
-      ...degradeReasons.filter((reason) => {
-        if (diagramReady && (reason === "diagram_missing" || reason === "diagram_unreadable")) return false;
-        return !repair.succeeded.includes(reason as LessonCheckCode);
-      }),
-      ...repair.dropped,
-    ].filter((reason, index, all) => all.indexOf(reason) === index);
-    if (reasons.length) {
-      console.error("lesson_generation_degraded", { reasons: reasons.slice(0, 8) });
-    }
-    // Dersi konuya da yaz: öğrenci sonra geri dönüp okuyabilsin ve ders
-    // bitince önerilen podcast bu içerikten türeyebilsin. Yazamamak dersi
-    // bozmaz — öğrenci ekranda zaten okuyor.
-    if (input.prepId && input.topicId) {
-      await input.service
-        .from("exam_prep_lessons")
-        .insert({
-          exam_prep_id: input.prepId,
-          topic_id: input.topicId,
-          title: taughtLesson.title,
-          content_md: taughtLesson.overview ?? taughtLesson.sections[0]?.body ?? taughtLesson.title,
-          content_json: taughtLesson,
-        })
-        .then(undefined, () => undefined);
-    }
-    if (heldReservationId) {
-      await commitCredits(input.service, heldReservationId);
-      settled = true;
-    }
-    const quality = runLessonQualityPipeline(taughtLesson, {
-      sourceExcerpt: repairSource,
-    });
-    return {
-      type: "lesson",
-      lesson: taughtLesson,
-      title: taughtLesson.title,
-      teachingStandard: activity,
-      qualityReport: quality.report,
-    };
-  } catch (error) {
+      const repairSource = [input.sourceBlock, teacherNote].filter((part) => part.trim()).join("\n");
+      let taughtLesson = lesson;
+      let repair = {
+        lesson,
+        requested: [] as string[],
+        succeeded: [] as string[],
+        dropped: [] as string[],
+        verifyMs: 0,
+      };
+      let taught = {
+        lesson,
+        salvaged: false,
+        failures: [] as { unit: string; problem: string }[],
+        checkCountLow: false,
+      };
+      if (!pastDeadline()) {
+        const repairCall = (prompt: string, maxTokens: number) => {
+          lessonModelCalls += 1;
+          return completeLessonPartRepair({
+            service: input.service,
+            userId: input.userId,
+            prompt,
+            maxTokens,
+          });
+        };
+        const repairStarted = Date.now();
+        repair = await repairLearnerLesson(
+          lesson,
+          {
+            source: repairSource,
+            topicLabel: input.topicLabel,
+            targetMinutes: input.sessionMeta?.durationMinutes,
+          },
+          (prompt) => repairCall(prompt, 1500),
+          repairSource.trim() ? (prompt) => repairCall(prompt, 400) : undefined,
+        );
+        taught = await finishTaughtLesson(repair.lesson, {
+          source: repairSource,
+          topicLabel: input.topicLabel,
+        });
+        taughtLesson = stripLessonVerificationChrome(taught.lesson);
+        const critical = criticalTeachingFailures(taught.failures);
+        const repairWallMs = Date.now() - repairStarted;
+        const verifyMs = repair.verifyMs;
+        console.error("lesson_model_calls", {
+          calls: lessonModelCalls,
+          draftMs,
+          reviewMs,
+          repairMs: Math.max(0, repairWallMs - verifyMs),
+          verifyMs,
+        });
+        if (taught.salvaged || critical.length) {
+          console.error("lesson_generation_salvaged", {
+            failures: critical.slice(0, 8).map((failure) => `${failure.unit}:${failure.problem}`),
+          });
+        }
+        if (taught.checkCountLow) {
+          await recordLessonGenerationFailure(input.service, {
+            userId: input.userId,
+            prepId: input.prepId ?? null,
+            topicLabel: input.topicLabel,
+            kind: "lesson",
+            stage: "check_count",
+            reason: "check_count_low",
+            reasons: ["Kontrol sayısı minimumun altında kaldı; ders yine de yayınlandı."],
+          }).catch(() => undefined);
+        }
+        if (repair.requested.length) {
+          console.error("lesson_generation_repaired", {
+            checks: repair.requested,
+            succeeded: repair.succeeded,
+          });
+        }
+        // İnce / öğretemeyen kurtarma yayınlanmaz.
+        if (!lessonHasTeachingCore(taughtLesson)) {
+          throw new NodeGenerationError(422, "content_verification_failed", [
+            "Doğrulama sonrası öğreten bölüm kalmadı.",
+          ]);
+        }
+      } else {
+        taughtLesson = stripLessonVerificationChrome(lesson);
+        console.error("lesson_model_calls", {
+          calls: lessonModelCalls,
+          draftMs,
+          reviewMs,
+          repairMs: 0,
+          verifyMs: 0,
+          skippedRepair: "deadline",
+        });
+        if (!lessonHasTeachingCore(taughtLesson)) {
+          throw new NodeGenerationError(422, "content_verification_failed", [
+            "Süre bütçesi sonrası öğreten bölüm kalmadı.",
+          ]);
+        }
+      }
+      if (input.requireSourceSupport && input.repetitiveSparseEvidence) {
+        const sparse = dropSparseSourceNumericChecks(taughtLesson, input.sourceBlock);
+        taughtLesson = sparse.lesson;
+        if (sparse.dropped) {
+          console.error("lesson_sparse_source_checks_dropped", { count: sparse.dropped });
+        }
+      }
+      publishedLesson = taughtLesson;
+      const diagramReady = taughtLesson.sections.some(
+        (section) => section.diagram && diagramIssues(section.diagram).length === 0,
+      );
+      const reasons = [
+        ...degradeReasons.filter((reason) => {
+          if (diagramReady && (reason === "diagram_missing" || reason === "diagram_unreadable")) return false;
+          return !repair.succeeded.includes(reason as LessonCheckCode);
+        }),
+        ...repair.dropped,
+      ].filter((reason, index, all) => all.indexOf(reason) === index);
+      if (reasons.length) {
+        console.error("lesson_generation_degraded", { reasons: reasons.slice(0, 8) });
+      }
+      // Dersi konuya da yaz: öğrenci sonra geri dönüp okuyabilsin ve ders
+      // bitince önerilen podcast bu içerikten türeyebilsin. Yazamamak dersi
+      // bozmaz — öğrenci ekranda zaten okuyor.
+      if (input.prepId && input.topicId) {
+        await input.service
+          .from("exam_prep_lessons")
+          .insert({
+            exam_prep_id: input.prepId,
+            topic_id: input.topicId,
+            title: taughtLesson.title,
+            content_md: taughtLesson.overview ?? taughtLesson.sections[0]?.body ?? taughtLesson.title,
+            content_json: taughtLesson,
+          })
+          .then(undefined, () => undefined);
+      }
+      if (heldReservationId) {
+        await commitCredits(input.service, heldReservationId);
+        settled = true;
+      }
+      // commitCredits sonrası kalite hattı dersi düşürmez / iade demez.
+      let qualityReport = null;
+      try {
+        const quality = runLessonQualityPipeline(taughtLesson, {
+          sourceExcerpt: repairSource,
+        });
+        qualityReport = quality.report;
+      } catch (error) {
+        console.error("lesson_quality_pipeline_failed", {
+          errorType: error instanceof Error ? (error.constructor?.name ?? error.name) : "unknown",
+        });
+        qualityReport = null;
+      }
+      return {
+        type: "lesson",
+        lesson: taughtLesson,
+        title: taughtLesson.title,
+        teachingStandard: activity,
+        qualityReport,
+        refunded: false,
+      };
+    } catch (error) {
       if (heldReservationId && !settled) {
         await refundCredits(input.service, heldReservationId).catch(() => undefined);
+        throw error;
+      }
+      // Kredi kesinleştikten sonra gelen hata: dersi düşürme, iade yok.
+      if (settled) {
+        console.error("lesson_post_commit_error", {
+          errorType: error instanceof Error ? (error.constructor?.name ?? error.name) : "unknown",
+        });
+        return {
+          type: "lesson",
+          lesson: publishedLesson,
+          title: publishedLesson.title,
+          teachingStandard: activity,
+          qualityReport: null,
+          refunded: false,
+        };
       }
       throw error;
     }
@@ -2686,17 +2961,22 @@ async function publicPayloadForUser(
   payload: Record<string, unknown>,
   reviewCards: LessonReviewCard[] = [],
   nodeKind?: PlanNodeKind,
+  language: ReturnType<typeof prepLanguage> = "tr",
 ) {
   const isLesson = payload.type === "lesson";
   const isAdmin = isLesson ? await isAdminUser(service, userId) : false;
-  return publicNodePayload(payload, reviewCards, nodeKind, { isAdmin });
+  return publicNodePayload(payload, reviewCards, nodeKind, { isAdmin, language });
 }
 
 function publicNodePayload(
   payload: Record<string, unknown>,
   reviewCards: LessonReviewCard[] = [],
   nodeKind?: PlanNodeKind,
-  options: { isAdmin?: boolean; qualityReport?: { rule: string; excerpt: string }[] } = {},
+  options: {
+    isAdmin?: boolean;
+    qualityReport?: { rule: string; excerpt: string }[];
+    language?: ReturnType<typeof prepLanguage>;
+  } = {},
 ) {
   const decorated = withLessonReviewCards(payload, reviewCards);
   if (decorated.type === "oral") {
@@ -2710,7 +2990,9 @@ function publicNodePayload(
     return { ...decorated, questions };
   }
   if (decorated.type === "lesson" && decorated.lesson && typeof decorated.lesson === "object") {
-    const sealed = sealLessonForPlay(decorated.lesson as LessonV2);
+    const sealed = sealLessonForPlay(decorated.lesson as LessonV2, {
+      language: options.language ?? "tr",
+    });
     const report =
       options.qualityReport ??
       (Array.isArray(decorated.qualityReport)

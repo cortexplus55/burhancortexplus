@@ -9,16 +9,20 @@ import {
 } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
 import { examPrepHomeHref } from "@/lib/learning/exam-prep-hrefs";
+import { daysUntilDate } from "@/lib/learning/exam-countdown";
 
 export const metadata = { title: "Çalışma oturumu" };
 export const dynamic = "force-dynamic";
 
 export default async function AdaptiveOturumPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ prepId: string }>;
+  searchParams: Promise<{ planItemId?: string }>;
 }) {
   const { prepId } = await params;
+  const { planItemId } = await searchParams;
   const { supabase, user } = await requireStudentArea();
   const service = createServiceClient();
 
@@ -37,13 +41,7 @@ export default async function AdaptiveOturumPage({
 
   const shell = await loadParityShellProps(supabase, user.id, user.email);
   const daysRemaining = prep.exam_date
-    ? Math.max(
-        0,
-        Math.ceil(
-          (new Date(`${prep.exam_date}T23:59:59`).getTime() - Date.now()) /
-            86_400_000,
-        ),
-      )
+    ? Math.max(0, daysUntilDate(String(prep.exam_date)))
     : null;
 
   return (
@@ -52,6 +50,7 @@ export default async function AdaptiveOturumPage({
         prepId={prepId}
         prepTitle={String(prep.title ?? "Sınav hazırlığı")}
         daysRemaining={daysRemaining}
+        planItemId={planItemId && /^[0-9a-f-]{36}$/i.test(planItemId) ? planItemId : null}
       />
     </ParitySorShell>
   );

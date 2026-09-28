@@ -121,13 +121,20 @@ export function trackAdaptiveEventServer(
   }
 }
 
-/** Published list rates used for pilot estimates. gpt-4o vs gpt-4o-mini. */
+/**
+ * Published list rates for pilot estimates.
+ * Jev (TypeSafe): $0.042 / 1M input, output free.
+ * gpt-4o vs gpt-4o-mini otherwise.
+ */
 export function estimateTokenCostUsd(
   model: string,
   tokensIn: number,
   tokensOut: number,
 ): number {
   const m = model.toLowerCase();
+  if (m.startsWith("jev") || m.includes("typesafe")) {
+    return tokensIn * (0.042 / 1e6);
+  }
   const is4o = m.includes("gpt-4o") && !m.includes("mini");
   const inRate = is4o ? 2.5 / 1e6 : 0.15 / 1e6;
   const outRate = is4o ? 10 / 1e6 : 0.6 / 1e6;

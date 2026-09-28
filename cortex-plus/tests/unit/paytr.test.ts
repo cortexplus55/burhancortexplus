@@ -3,8 +3,11 @@ import crypto from "crypto";
 import {
   buildBasket,
   buildPaytrToken,
+  buildPaytrStatusToken,
   generateMerchantOid,
   isPaytrConfigured,
+  parsePaytrTryToKurus,
+  queryPaytrStatus,
   requestPaytrRefund,
   verifyPaytrCallbackHash,
 } from "@/lib/payments/paytr";
@@ -230,5 +233,113 @@ describe("requestPaytrRefund", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.errMsg).toMatch(/network down/i);
+  });
+
+  it("accepts a partial return_amount with two decimals", async () => {
+    let postedBody = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        postedBody = String(init?.body ?? "");
+        return new Response(JSON.stringify({ status: "success" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
+
+    const result = await requestPaytrRefund({
+      merchantOid: "cpx",
+      returnAmountTry: 12.5,
+      referenceNo: "partial-1",
+    });
+    expect(result.ok).toBe(true);
+    const params = new URLSearchParams(postedBody);
+    expect(params.get("return_amount")).toBe("12.50");
+  });
+});
+
+describe("queryPaytrStatus", () => {
+  const MERCHANT_ID = "123456";
+
+  beforeEach(() => {
+    process.env.PAYTR_MERCHANT_ID = MERCHANT_ID;
+    process.env.PAYTR_MERCHANT_KEY = MERCHANT_KEY;
+    process.env.PAYTR_MERCHANT_SALT = MERCHANT_SALT;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("T13: durum sorgu tokenı merchant_id + oid + salt ile üretilir", () => {
+    const oid = "cpstatus01";
+    const expected = Buffer.from(
+      crypto
+        .createHmac("sha256", MERCHANT_KEY)
+        .update(MERCHANT_ID + oid + MERCHANT_SALT)
+        .digest(),
+    ).toString("base64");
+    expect(buildPaytrStatusToken(oid)).toBe(expected);
+  });
+
+  it("returns[] içindeki reference_no ve return_amount'u okur", async () => {
+    let postedBody = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        postedBody = String(init?.body ?? "");
+        return new Response(
+          JSON.stringify({
+            status: "success",
+            payment_amount: "150,00",
+            payment_total: "150,00",
+            currency: "TL",
+            returns: [
+              {
+                return_amount: "75.00",
+                return_date: "2026-09-28 12:00:00",
+                reference_no: "ref-abc",
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+
+    const result = await queryPaytrStatus("cpstatus01");
+    expect(result.ok).toBe(true);
+    expect(result.returns).toHaveLength(1);
+    expect(result.returns[0].referenceNo).toBe("ref-abc");
+    expect(result.returns[0].returnAmountTry).toBe(75);
+    const params = new URLSearchParams(postedBody);
+    expect(params.get("paytr_token")).toBe(buildPaytrStatusToken("cpstatus01"));
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      "https://www.paytr.com/odeme/durum-sorgu",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("parsePaytrTryToKurus virgüllü ve binlik ayraçlı TL'yi kuruşa çevirir", () => {
+    expect(parsePaytrTryToKurus("10,8")).toBe(1080);
+    expect(parsePaytrTryToKurus("10.80")).toBe(1080);
+    expect(parsePaytrTryToKurus(1.5)).toBe(150);
+    expect(parsePaytrTryToKurus("1.234,56")).toBe(123456);
+  });
+
+  it("fetch AbortSignal.timeout ile çağrılır", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        expect(init?.signal).toBeDefined();
+        return new Response(JSON.stringify({ status: "success", returns: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
+    await queryPaytrStatus("cptimeout");
+    expect(vi.mocked(fetch)).toHaveBeenCalled();
   });
 });

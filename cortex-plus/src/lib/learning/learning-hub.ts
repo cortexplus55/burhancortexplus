@@ -28,7 +28,12 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { maybeRescheduleMissedDays } from "@/lib/learning/missed-day-reschedule";
 import type { TopicMasterySnapshot } from "@/lib/learning/learning-tracking";
 import type { ProgressSummary } from "@/lib/learning/progress-line";
-import { STALE_PROCESSING_MS } from "@/lib/documents/processing-stale";
+import { failStaleProcessingDocuments } from "@/lib/documents/fail-stale-processing";
+import {
+  pickScopedProcessingDocument,
+  processingBlocksNextAction,
+  scopedDocumentIdsForPrep,
+} from "@/lib/learning/learning-hub-processing-gate";
 
 /**
  * Adaptive pilot: a stale legacy `resumeHref` (an old, unrelated
@@ -58,6 +63,7 @@ export type LearningHubSnapshot = {
   weakTopics: RankedWeakTopic[];
   streak: number;
   recentDocuments: { id: string; fileName: string; status: string }[];
+  failedDocuments: { id: string; fileName: string }[];
   secondary: { href: string; label: string }[];
   /** "Son ilerleme" satırı — tek cümle, ayrı katalog değil. */
   progress: ProgressSummary;
@@ -119,19 +125,29 @@ export async function loadLearningHub(
 ): Promise<LearningHubSnapshot> {
   const today = istanbulToday();
   const now = new Date();
+  const service = createServiceClient();
 
   // Adaptive: missed calendar days → rebuild schedule (best-effort).
   try {
-    await maybeRescheduleMissedDays(createServiceClient(), userId);
+    await maybeRescheduleMissedDays(service, userId);
   } catch {
     // ignore
   }
+
+  try {
+    await failStaleProcessingDocuments(service, userId, now);
+  } catch {
+    // Hub must render even if stale cleanup fails.
+  }
+
+  const failedSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const [
     { data: profile },
     { data: goal },
     { data: preps },
     { data: processingDocs },
+    { data: failedDocs },
     { count: completedDocCount },
     { data: recentDocs },
     mistakes,
@@ -156,22 +172,29 @@ export async function loadLearningHub(
       .maybeSingle(),
     supabase
       .from("exam_preps")
-      .select("id, title, exam_date, exam_type, learning_tracking, daily_minutes")
+      .select(
+        "id, title, exam_date, exam_type, learning_tracking, daily_minutes, document_id, source_document_ids",
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(5),
     supabase
       .from("documents")
-      .select("id, file_name, updated_at")
+      .select("id, file_name, updated_at, topic_map_status")
       .eq("user_id", userId)
       .is("deleted_at", null)
       .in("status", ["pending", "processing"])
-      // Takılı kalan belge ana aksiyonu sonsuza dek kilitlemesin: işleme
-      // yarım saatten uzun süredir kımıldamıyorsa NBA onu görmez; öğrenci
-      // belge sayfasında "Yeniden işle"yi görür.
-      .gte("updated_at", new Date(now.getTime() - STALE_PROCESSING_MS).toISOString())
-      .order("created_at", { ascending: false })
-      .limit(1),
+      .order("updated_at", { ascending: false })
+      .limit(12),
+    supabase
+      .from("documents")
+      .select("id, file_name, updated_at")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .eq("status", "failed")
+      .gte("updated_at", failedSince)
+      .order("updated_at", { ascending: false })
+      .limit(6),
     supabase
       .from("documents")
       .select("id", { count: "exact", head: true })
@@ -295,6 +318,7 @@ export async function loadLearningHub(
   let examPrepContinueLabel: string | null = null;
   let prepNodeForToday: { id: string; title: string; href: string } | null =
     null;
+  let prepNodesSnapshot: { status?: string | null }[] = [];
 
   const primaryPrepId =
     (nearestPrep?.id as string | undefined) ??
@@ -339,6 +363,7 @@ export async function loadLearningHub(
       openMistakes: mistakes.open,
     });
 
+    prepNodesSnapshot = nodes ?? [];
     const readyNode = (nodes ?? []).find(
       (n) => n.status === "ready" || n.status === "in_progress",
     );
@@ -410,7 +435,43 @@ export async function loadLearningHub(
   }
 
   const onboardingComplete = Boolean(profile?.onboarding_completed_at);
-  const processing = processingDocs?.[0] ?? null;
+
+  const prepForScope =
+    nearestPrep ??
+    ((preps ?? [])[0] as
+      | {
+          document_id?: string | null;
+          source_document_ids?: string[] | null;
+        }
+      | undefined);
+  const scopedIds = scopedDocumentIdsForPrep(prepForScope ?? null);
+  const processingCandidates =
+    prepForScope && scopedIds.length === 0 ? [] : (processingDocs ?? []);
+  const scopedProcessing = pickScopedProcessingDocument(
+    processingCandidates.map((d) => ({
+      id: d.id as string,
+      file_name: d.file_name as string | null,
+      topic_map_status: d.topic_map_status as string | null,
+    })),
+    scopedIds,
+  );
+  const hasRunnablePrepContent =
+    Boolean(prepNodeForToday) ||
+    prepNodesSnapshot.some((n) => {
+      const status = n.status as string | null;
+      return status === "ready" || status === "in_progress" || status === "completed";
+    });
+  const processingBlocks = processingBlocksNextAction({
+    scopedProcessingId: scopedProcessing?.id ?? null,
+    hasRunnablePrepContent,
+  });
+  const processing = processingBlocks ? scopedProcessing : null;
+
+  const scopedFailed =
+    scopedIds.length > 0
+      ? (failedDocs ?? []).filter((d) => scopedIds.includes(d.id as string))
+      : (failedDocs ?? []);
+
   const firstTask = todaysTasks[0] ?? null;
 
   const nba = resolveNextBestAction({
@@ -444,7 +505,6 @@ export async function loadLearningHub(
 
   // Adaptive Learning Engine overlay (flag OFF = no change).
   try {
-    const service = createServiceClient();
     const { isFeatureEnabled, ADAPTIVE_LEARNING_FLAG } = await import(
       "@/lib/admin/feature-flags"
     );
@@ -465,15 +525,27 @@ export async function loadLearningHub(
           id: item.id,
           title: item.title,
           minutes: item.minutes,
-          href: item.href ?? `/deneme-sinavlari/${nearestPrep.id}/oturum`,
+          href:
+            item.href ??
+            `/deneme-sinavlari/${nearestPrep.id}/oturum?planItemId=${item.id}`,
           kind: "prep_node" as const,
         }));
         minutesOut = plan.estimatedMinutes || minutesOut;
       }
-      if (shouldRouteToAdaptiveSession({ resumeHref, processing: Boolean(processing) })) {
+      if (
+        shouldRouteToAdaptiveSession({
+          resumeHref,
+          processing: processingBlocks,
+        })
+      ) {
+        const firstPending =
+          plan.items.find((item) => item.status === "pending" || item.status === "active") ??
+          plan.items[0];
         nextBestAction = {
           kind: "exam_prep_node",
-          href: `/deneme-sinavlari/${nearestPrep.id}/oturum`,
+          href:
+            firstPending?.href ??
+            `/deneme-sinavlari/${nearestPrep.id}/oturum`,
           label: "Çalışmaya Başla",
           reason:
             plan.rebalanceNotice ||
@@ -504,6 +576,10 @@ export async function loadLearningHub(
       id: d.id as string,
       fileName: d.file_name as string,
       status: d.status as string,
+    })),
+    failedDocuments: scopedFailed.map((d) => ({
+      id: d.id as string,
+      fileName: (d.file_name as string) || "Belge",
     })),
     secondary: [
       { href: "/dashboard", label: "Bugün" },

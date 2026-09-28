@@ -2,6 +2,9 @@
   "name": "cortex-plus",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "postinstall": "node scripts/copy-pdf-worker.mjs",
@@ -11,6 +14,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:jev-live": "vitest run tests/unit/adaptive-jev-live.test.ts",
     "test:db": "node scripts/test-reschedule-transaction.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
@@ -26,6 +30,7 @@
     "@supabase/supabase-js": "^2.112.4",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.2",
+    "@vercel/oidc": "^3.8.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fflate": "^0.8.3",

@@ -31,16 +31,74 @@ describe("describeGenerationFailure", () => {
   });
 
   it("says what went wrong, not just that something did", () => {
-    // Tek bir cümle vardı ve hiçbir şey söylemiyordu.
-    expect(describeGenerationFailure("source_unavailable").message).toContain(
-      "kaynak sayfaları okunamadı",
-    );
+    expect(
+      describeGenerationFailure("source_unavailable", undefined, undefined, {
+        reason: "documents_processing",
+      }).message,
+    ).toContain("kaynak sayfaları okunamadı");
     expect(
       describeGenerationFailure("content_verification_failed").message,
     ).toContain("kalite kontrolünden geçemedi");
     expect(describeGenerationFailure("topic_map_unavailable").message).toContain(
       "konu haritası",
     );
+  });
+
+  it("source_unavailable: hâlâ işleniyor yalnız documents_processing'te", () => {
+    expect(
+      describeGenerationFailure("source_unavailable", undefined, undefined, {
+        reason: "documents_processing",
+      }).message,
+    ).toMatch(/hâlâ işleniyor/);
+    for (const reason of [
+      "no_topic_mapping",
+      "search_no_match",
+      "pages_unusable",
+      "search_error",
+      "no_prep_documents",
+    ]) {
+      expect(
+        describeGenerationFailure("source_unavailable", undefined, undefined, {
+          reason,
+        }).message,
+      ).not.toMatch(/hâlâ işleniyor/);
+    }
+  });
+
+  it("isAdmin veya refunded=false iken iade cümlesi yok; undefined eski davranış", () => {
+    expect(
+      describeGenerationFailure("generation_failed", undefined, undefined, {
+        isAdmin: true,
+        refunded: true,
+      }).message,
+    ).not.toContain("Kredin iade edildi");
+    expect(
+      describeGenerationFailure("generation_failed", undefined, undefined, {
+        refunded: false,
+      }).message,
+    ).not.toContain("Kredin iade edildi");
+    expect(
+      describeGenerationFailure("generation_failed", undefined, undefined, {
+        refunded: true,
+      }).message,
+    ).toContain("Kredin iade edildi");
+    // Podcast vb. refunded geçirmeyen ekranlar: generation_failed'da iade varsay.
+    expect(describeGenerationFailure("generation_failed").message).toContain(
+      "Kredin iade edildi",
+    );
+    expect(
+      describeGenerationFailure("generation_failed", undefined, "podcast").message,
+    ).toContain("Kredin iade edildi");
+    expect(
+      describeGenerationFailure("content_verification_failed", undefined, undefined, {
+        refunded: true,
+      }).message,
+    ).toContain("Kredin iade edildi");
+    expect(
+      describeGenerationFailure("content_verification_failed", undefined, undefined, {
+        refunded: false,
+      }).message,
+    ).not.toContain("Kredin iade edildi");
   });
 
   it("does not invite a retry that cannot help", () => {

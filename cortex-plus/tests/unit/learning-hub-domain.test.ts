@@ -32,6 +32,11 @@ import {
 } from "@/lib/learning/todays-plan";
 import { formatProgressLine } from "@/lib/learning/progress-line";
 import { shouldRouteToAdaptiveSession } from "@/lib/learning/learning-hub";
+import {
+  pickScopedProcessingDocument,
+  processingBlocksNextAction,
+} from "@/lib/learning/learning-hub-processing-gate";
+import { failStaleProcessingDocuments } from "@/lib/documents/fail-stale-processing";
 
 describe("resolveNextBestAction", () => {
   const base = {
@@ -58,6 +63,19 @@ describe("resolveNextBestAction", () => {
     });
     expect(a.kind).toBe("document_processing");
     expect(a.href).toBe("/dokumanlar/d1");
+  });
+
+  it("failed belge document_processing üretmez", () => {
+    const scoped = pickScopedProcessingDocument(
+      [{ id: "failed-1", topic_map_status: "failed" }],
+      ["failed-1"],
+    );
+    expect(scoped).toBeNull();
+    const a = resolveNextBestAction({
+      ...base,
+      processingDocumentId: null,
+    });
+    expect(a.kind).not.toBe("document_processing");
   });
 
   it("yarım kalan çalışma bugünün görevinden önce gelir", () => {
@@ -295,6 +313,82 @@ describe("todays plan", () => {
       dailyMinutesCap: 5,
     });
     expect(tasks).toHaveLength(1);
+  });
+});
+
+describe("scoped processing gate", () => {
+  it("başka hazırlığın işleyen belgesi aktif hazırlığı kilitlemez", () => {
+    const picked = pickScopedProcessingDocument(
+      [
+        { id: "prep-a-doc", topic_map_status: "pending" },
+        { id: "prep-b-doc", topic_map_status: "pending" },
+      ],
+      ["prep-a-doc"],
+    );
+    expect(picked?.id).toBe("prep-a-doc");
+    expect(
+      processingBlocksNextAction({
+        scopedProcessingId: picked?.id ?? null,
+        hasRunnablePrepContent: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("çalışılabilir düğüm varken işleme NBA'yı kilitlemez", () => {
+    expect(
+      processingBlocksNextAction({
+        scopedProcessingId: "doc-1",
+        hasRunnablePrepContent: true,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("failStaleProcessingDocuments", () => {
+  it("bayat kayıtları failed + processing_timeout yapar", async () => {
+    const updates: Record<string, unknown>[] = [];
+    const service = {
+      from: () => ({
+        update: (payload: Record<string, unknown>) => ({
+          eq: () => ({
+            is: () => ({
+              in: () => ({
+                lt: () => ({
+                  select: async () => {
+                    updates.push(payload);
+                    return { data: [{ id: "stale-1" }], error: null };
+                  },
+                }),
+              }),
+            }),
+          }),
+        }),
+      }),
+    };
+    const count = await failStaleProcessingDocuments(
+      service as never,
+      "user-1",
+      new Date("2026-09-24T10:00:00Z"),
+    );
+    expect(count).toBe(1);
+    expect(updates[0]).toMatchObject({
+      status: "failed",
+      error_message: "processing_timeout",
+    });
+  });
+
+  it("aktif belgenin güncel updated_at'i cutoff'un üstündeyse dokunulmaz", async () => {
+    // Source contract: extract steps and map checkpoints must bump updated_at.
+    const ingest = await import("node:fs").then((fs) =>
+      fs.readFileSync("src/lib/documents/pdf-ingestion.ts", "utf8"),
+    );
+    const map = await import("node:fs").then((fs) =>
+      fs.readFileSync("src/lib/documents/pdf-learning-v2.ts", "utf8"),
+    );
+    expect(ingest).toMatch(/updated_at:\s*nowIso|updated_at:\s*new Date\(\)\.toISOString\(\)/);
+    expect(ingest).toContain('status: "processing"');
+    expect(map).toContain("updated_at: nowIso");
+    expect(map).toContain("topic_map_updated_at: nowIso");
   });
 });
 

@@ -4,6 +4,8 @@
 
 **Karar:** Belgeden çalışma altyapısı artık 99 sayfalık bir metin PDF'ini okuyup 11 ayrı konuya ve fiziksel sayfa aralıklarına bağlayabiliyor. En büyük açık, ilk yararlı sonuca giderken öğrencinin güvenidir: tanışma testinde bir üretim hatası görüldü; onarımdan sonraki canlı testte 3 sorunun ikisi sağlam, üçüncüsü kavramsal olarak belirsizdi. Akış çalışıyor demek, soru kalitesinin istikrarlı olduğu anlamına gelmiyor. İkinci açık, etkin plan ile tüm geçmiş çalışmaların ilerleme ve zayıflık verilerinin aynı ekranda bağlam belirtilmeden sunulmasıdır.
 
+**Ek canlı bulgu, aynı gün:** İlk konunun tanışma testi bitirilmeden “Birim Çember”e geçildiğinde ikinci konu ekranı ilk konunun etkin soru girişimini yeniden kullandı ve “Bir tam tur kaç derece?” sorusunu gösterdi. Kök neden, etkin `exam_prep_intro_attempts` sorgusunun yalnızca hazırlığa bakıp `topic_id` ile sınırlandırılmamasıydı. Başlatma ve tamamlama sorguları seçili konuya, tamamlama ayrıca gösterilen `attemptId` değerine bağlandı. Bu düzeltmenin kalıcı kabul ölçütü, iki konu arasında geçişte her zaman konuya ait ayrı soruların ve ayrı yanıtların korunmasıdır.
+
 Bu rapor 99 sayfalık **sentetik** trigonometri PDF'i ve oturum açılmış öğrenci/kurucu hesabıyla canlı Cortex Plus ve Astra gezintisine, ayrıca Cortex Plus koduna dayanır. Sentetik belgenin bölüm başına içeriği seyrektir; gerçek ders materyali kalitesine genelleme yapılmaz. Farklı telefon genişlikleri, sıfırdan kayıt, abonelik ödemesi ve tüm 39 plan etkinliği canlıda uçtan uca sınanmadı. Bunlar başarı olarak yazılmıyor. Astra, öğrenciye sağladığı öğretim ve yön bulma faydası için referanstır; piksel kopyası hedef değildir.
 
 Kanıt bağlantıları: [Cortex plan](https://cortexplus.app/deneme-sinavlari/4b9ee90c-3f1b-4032-b919-1b3506dd8f26), [Cortex 99 sayfalık belge](https://cortexplus.app/dokumanlar/7a871ff2-7221-4679-a6ba-2f2e3abe5185), [Astra sınav hazırlıkları](https://app.astra-ai.co/exam-preps). Bağlantılar oturum gerektirir. Canlı testten önceki soru açıklamalarında `2π` için 90°, `π/2` için tam dönüş yazılmıştı. Sonraki sürümde bu iki eşleme düzeldi; yeni üçüncü sorudaki belirsizlik bu denetim sırasında ayrıca kapıya eklendi.
@@ -14,6 +16,7 @@ Kanıt bağlantıları: [Cortex plan](https://cortexplus.app/deneme-sinavlari/4b
 |---|---|---|
 | P0 | İlk dersin tanışma testi `invalid_ai_response` ile açılamadı; öğrenci daha ilk adımda bekleyip yeniden denedi. | Taslak üretimi/bağımsız denetim aynı kredi işlemi içinde yeniden denensin; hata metni ve derse geçiş kalsın. 30 farklı belge-konuda 30/30 ilk denemede kullanılabilir test ve reddedilen üretimde 0 kredi kaybı. |
 | P0 | Canlı soru “Bir açının ölçüsünü radyanda ifade etmek için hangi değer kullanılır?” diyerek `π`yi tek yanıt saydı. Radyan birimdir, herhangi bir açı tek başına π olmak zorunda değildir. | Belirsiz soru kökünü üretimden çıkar; ölçülen kavram, koşul ve tek doğru yanıt denetimini her derse uygula. Üretim sonrası örneklemde 0 tartışmalı doğru anahtar. |
+| P0 | Bitmemiş Açı Ölçüsü testi varken Birim Çember seçildiğinde aynı etkin girişim ikinci konuya taşındı. | Etkin girişim sorgusu `topic_id` ile, bitirme işlemi ayrıca istemcinin gördüğü girişim kimliğiyle sınırlandırılsın. İki konu arasında geçişte yanlış konunun sorusu/puanı 0. |
 | P1 | Ana sayfadaki aktif trigonometri planının yanında fizik ve fonksiyon gibi eski zayıf konular görünüyordu. Bu, planın konuları karıştırdığı izlenimini veriyor. | Listeyi “Tüm çalışmalarından” diye etiketle (bu tur yapıldı); sonra etkin planın zayıflıklarını ayrı veri sorgusuyla göster. Plan panelinde yabancı konu 0. |
 | P1 | Planın 39 etkinliği uzun bir listede; ilk dersten sonraki karar, ileri etkinliklerin ağırlığında kayboluyor. | “Şimdi”, “Bugün”, “Sonra” katmanları; sonraki 1 eylem ve bağlı kaynak önde, kalan gruplar kapalı. İlk anlamlı CTA ilk görünümde. |
 | P1 | 3/3 tanışma sonucundan sonra ilerleme bölümünde “ölçülen konularda zayıf sinyal” ve %0 hâkimiyet görüldü. Tanı puanı ile hâkimiyet farklı olabilir fakat metin bunu anlatmıyor. | “Tanı puanı 3/3; hâkimiyet henüz bağımsız pratikle ölçülmedi” gibi iki ayrı satır; puanların hesap yöntemi açıklanmalı. |
@@ -58,6 +61,9 @@ Eski öğretmen/veli panelleri ve 34 simülasyonlu eski “Uygulamalar” alanı
 
 ## 9. Quick Wins
 
+- 28 Eylül canlı ek kontrol: 99 sayfalık sentetik PDF'nin “Birim Çember” bölümündeki 9 fiziksel sayfa aynı tek kısa bilgiyi tekrar ediyordu. Üç ayrı beceri için altı aday soru üretimi yaklaşık iki dakika sürdü ve kaynakta olmayan “Birlik ölçü” ifadesi bağımsız doğrulamada reddedildi. Kaynak sadakati kapısı doğru çalıştı; ilk ders deneyimi başarısızdı. Tekrarlanan kısa sayfalar artık üretimden önce tespit ediliyor; kredi harcamadan “ölçülmemiş” açıklaması ve derse geçiş canlıda doğrulandı.
+- 28 Eylül canlı yeniden kontrol: Kaynak açıklaması hızlı açıldı; “Derse geç” Birim Çember'in s.10–18 düğümüne yönlendirdi ve ders üretildi. Ancak dersin hızlı sınavında PDF'de bulunmayan 135° ve √2/2 değerleriyle koordinat sorusu çıktı. Belge “Yalnızca bu belge” modundaydı. Bu nedenle ders üretimi hâlâ P0 kaynak sadakati bulgusu taşıyor; tekrarlı dar kaynakta sayısal kontrol şıkları yayın öncesi denetimden geçirilmeli. Aynı dersin eski kayıtlı örneği ayrıca temizlenmeden canlı test hesabında kalır.
+
 - Yapıldı: dashboard küresel tekrar listesi açıkça etiketlendi; `complete/ready` teknik durumları öğrenci diline çevrildi.
 - Yapıldı: ilk test için üç taslak denemesi, bağımsız seçenek gerekçesi denetimi, hatalı açı eşlemesi filtresi; bu tur ayrıca belirsiz radyan sorusuna ret eklendi.
 - Sonraki küçük iş: etkin planın zayıf konuları ile diğer çalışmaların tekrarlarını veri düzeyinde ayır.
@@ -79,6 +85,7 @@ Görsel bileşenlerin tekilleştirilmesi son satırdır. Öncelik tablosu:
 | İş | Öncelik | Efor | Etki | Kabul kriteri |
 |---|---|---|---|---|
 | 30 belge/konu tanışma testi kalite örneklemi, belirsiz/yanlış soru ret oranı | P0 | M | Kritik | 30/30 test açılır; bağımsız öğretmen incelemesinde yanlış anahtar 0 |
+| Tanışma girişimi konu ve girişim kimliğine göre ayrıştırma | P0 | S | Kritik | A→B→A geçişinde iki testin soru ve cevapları karışmaz |
 | Ders içi kontrol, quiz, doğru/yanlış, podcast için kaynak ve doğruluk örneklemi | P0 | L | Kritik | Her formatta 20 örnek; yanlış matematik ve uydurma kaynak 0 |
 | Aktif hazırlığa bağlı ilerleme ve tekrar ayrımı | P1 | M | Yüksek | Diğer ders başlığı aktif plan kartında 0 |
 | Plan yoğunluğunu “Şimdi/Bugün/Sonra”ya bölme | P1 | M | Yüksek | İlk CTA kaydırmasız, sayfa atfı korunur |

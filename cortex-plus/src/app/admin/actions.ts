@@ -5,7 +5,17 @@ import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { auditLog } from "@/lib/audit";
 import { verifySmtpConnection } from "@/lib/email/smtp";
-import { requestPaytrRefund } from "@/lib/payments/paytr";
+import { requestPaytrRefund, queryPaytrStatus } from "@/lib/payments/paytr";
+import {
+  applyPaymentRefund,
+  generateRefundProviderRef,
+  insertPendingRefundLock,
+  loadRefundContext,
+  markPendingRefundFailed,
+  previewPaymentRefund,
+  reconcileDeltaRef,
+} from "@/lib/payments/refund";
+import { formatTry } from "@/lib/format";
 
 async function requireAdminActor() {
   const supabase = await createClient();
@@ -397,7 +407,205 @@ export async function adjustCredits(input: {
  * abonelik ve kalan hak yerinde kalırdı. Artık iade, satın alınan şeyi de
  * geri alıyor.
  */
-export async function markPaymentRefunded(paymentId: string) {
+/**
+ * Admin iadesi: PayTR'ye iade ister, sonra deftere işler (kredi + abonelik).
+ * amountKurus verilmezse kalan tutarın tamamı iade edilir.
+ */
+export async function markPaymentRefunded(
+  paymentId: string,
+  amountKurus?: number,
+) {
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+
+  const parsed = z
+    .object({
+      paymentId: z.string().uuid(),
+      amountKurus: z.number().int().positive().max(10_000_000).optional(),
+    })
+    .safeParse({ paymentId, amountKurus });
+  if (!parsed.success) return { ok: false, error: "Geçersiz kayıt veya tutar." };
+
+  const service = createServiceClient();
+  const preview = await previewPaymentRefund(
+    service,
+    parsed.data.paymentId,
+    parsed.data.amountKurus,
+  );
+  if (!preview.ok) return preview;
+
+  const loaded = await loadRefundContext(service, parsed.data.paymentId);
+  if (!loaded.ok) return loaded;
+  const ctx = loaded.context;
+
+  if (ctx.payment.status !== "paid") {
+    return { ok: false, error: "Yalnızca ödenmiş işlemler iade edilebilir." };
+  }
+
+  const refundKurus = preview.plan.refundKurus;
+  if (!(refundKurus > 0) || refundKurus > ctx.paidKurus - ctx.alreadyRefundedKurus) {
+    return { ok: false, error: "İade tutarı kalan iade edilebilir tutarı aşıyor." };
+  }
+
+  const providerRef = generateRefundProviderRef(
+    `adm${parsed.data.paymentId.replace(/-/g, "").slice(0, 8)}`,
+  );
+
+  const lock = await insertPendingRefundLock(service, {
+    paymentId: parsed.data.paymentId,
+    refundKurus,
+    providerRef,
+    actorId,
+    merchantOid: ctx.merchantOid,
+  });
+  if (!lock.ok) return lock;
+
+  const paytr = await requestPaytrRefund({
+    merchantOid: ctx.merchantOid,
+    returnAmountTry: refundKurus / 100,
+    referenceNo: providerRef,
+  });
+
+  if (!paytr.ok) {
+    await markPendingRefundFailed(
+      service,
+      lock.refundId,
+      paytr.errMsg ?? "PayTR iade reddedildi.",
+    );
+    return {
+      ok: false,
+      error: paytr.errMsg
+        ? `PayTR iade başarısız: ${paytr.errMsg}`
+        : "PayTR iade başarısız; defter değişmedi.",
+    };
+  }
+
+  const applied = await applyPaymentRefund(service, {
+    paymentId: parsed.data.paymentId,
+    refundKurus,
+    source: "admin",
+    providerRef,
+    actorId,
+    pendingRefundId: lock.refundId,
+  });
+
+  if (!applied.ok) {
+    return {
+      ok: false,
+      error: applied.error ?? "İade PayTR'de alındı ama defter tamamlanamadı.",
+      partialFailure: applied.partialFailure,
+      errorStep: applied.errorStep,
+    };
+  }
+
+  return {
+    ok: true,
+    message:
+      applied.message ??
+      `PayTR iadesi alındı (${formatTry(refundKurus)}).`,
+    reversed: applied.reversed,
+    unrecovered: applied.unrecovered,
+    isFull: applied.isFull,
+    previewText: preview.previewText,
+  };
+}
+
+/** PayTR panelinden zaten yapılmış iadeyi PayTR'yi tekrar çağırmadan deftere işler. */
+export async function recordExternalRefund(input: {
+  paymentId: string;
+  amountKurus: number;
+  providerRef?: string;
+  note?: string;
+}) {
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
+
+  const schema = z.object({
+    paymentId: z.string().uuid(),
+    amountKurus: z.number().int().positive().max(10_000_000),
+    providerRef: z.string().min(1).max(64).optional(),
+    note: z.string().max(500).optional(),
+  });
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Geçersiz istek." };
+
+  const service = createServiceClient();
+  const loaded = await loadRefundContext(service, parsed.data.paymentId);
+  if (!loaded.ok) return loaded;
+  const ctx = loaded.context;
+
+  // B5: tam iade edilmiş satırlarda yalnızca legacy kredi temizliği; UI gizler ama sunucu da korur.
+  if (ctx.payment.status === "refunded" && !ctx.legacyRefundedCleanup) {
+    return {
+      ok: false,
+      error: "Bu ödeme zaten iade edilmiş; yeni kayıt gerekmiyor.",
+    };
+  }
+
+  const remaining = ctx.paidKurus - ctx.alreadyRefundedKurus;
+  if (parsed.data.amountKurus > remaining && remaining > 0) {
+    return {
+      ok: false,
+      error: `İade tutarı kalanı (${formatTry(remaining)}) aşıyor.`,
+    };
+  }
+
+  const providerRef =
+    parsed.data.providerRef?.trim() ||
+    generateRefundProviderRef("ext");
+
+  // Eşzamanlı "kaydet" çift yazımını pending kilit ile daralt.
+  const lock = await insertPendingRefundLock(service, {
+    paymentId: parsed.data.paymentId,
+    refundKurus: parsed.data.amountKurus,
+    providerRef,
+    actorId,
+    merchantOid: ctx.merchantOid,
+  });
+  if (!lock.ok) return lock;
+
+  const applied = await applyPaymentRefund(service, {
+    paymentId: parsed.data.paymentId,
+    refundKurus: parsed.data.amountKurus,
+    source: "admin",
+    providerRef,
+    actorId,
+    pendingRefundId: lock.refundId,
+    note: parsed.data.note ?? "PayTR panelinden yapıldı, admin kaydetti",
+  });
+
+  if (!applied.ok) {
+    if (!applied.partialFailure) {
+      await markPendingRefundFailed(
+        service,
+        lock.refundId,
+        applied.error ?? "record_failed",
+      );
+    }
+    return {
+      ok: false,
+      error: applied.error ?? "İade kaydedilemedi.",
+      partialFailure: applied.partialFailure,
+      errorStep: applied.errorStep,
+    };
+  }
+
+  return {
+    ok: true,
+    message: applied.noop
+      ? "Bu iade zaten kayıtlıydı."
+      : applied.message ?? "İade deftere işlendi (PayTR çağrılmadı).",
+    reversed: applied.reversed,
+    unrecovered: applied.unrecovered,
+    isFull: applied.isFull,
+  };
+}
+
+/**
+ * PayTR Durum Sorgu ile iadeleri çekip deftere işler.
+ * B2/B3: satır satır uydurma ref YOK — PayTR toplamı − kayıtlı toplam = delta.
+ */
+export async function reconcilePaymentWithPaytr(paymentId: string) {
   const actorId = await requireAdminActor();
   if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
 
@@ -405,117 +613,103 @@ export async function markPaymentRefunded(paymentId: string) {
   if (!parsed.success) return { ok: false, error: "Geçersiz kayıt." };
 
   const service = createServiceClient();
-  const { data: payment } = await service
-    .from("payments")
-    .select("id, status, user_id, beneficiary_user_id, plan_id, merchant_oid, amount_try")
-    .eq("id", parsed.data)
-    .maybeSingle();
+  const loaded = await loadRefundContext(service, parsed.data);
+  if (!loaded.ok) return loaded;
+  const ctx = loaded.context;
 
-  if (!payment) return { ok: false, error: "Ödeme bulunamadı." };
-  if (payment.status !== "paid") {
-    return { ok: false, error: "Yalnızca ödenmiş işlemler iade edilebilir." };
-  }
-
-  const merchantOid = payment.merchant_oid as string | null;
-  /** DB `amount_try` kolonu kuruş tutar; PayTR iade API'si TL (lira) ister. */
-  const amountKurus = payment.amount_try as number | null;
-  if (!merchantOid || amountKurus == null || !(amountKurus > 0)) {
+  // B5: legacy refunded satırda mutabakat aboneliği bozmasın; kredi temizliği ayrı.
+  if (ctx.payment.status === "refunded" && !ctx.legacyRefundedCleanup) {
     return {
-      ok: false,
-      error: "Ödeme kaydında PayTR sipariş no veya tutar eksik; iade yapılamadı.",
-    };
-  }
-  const returnAmountTry = amountKurus / 100;
-
-  const paytr = await requestPaytrRefund({
-    merchantOid,
-    returnAmountTry,
-    referenceNo: `admin-${parsed.data.slice(0, 8)}`,
-  });
-
-  if (!paytr.ok) {
-    return {
-      ok: false,
-      error: paytr.errMsg
-        ? `PayTR iade başarısız: ${paytr.errMsg}`
-        : "PayTR iade başarısız; kayıt iade edildi olarak işaretlenmedi.",
+      ok: true,
+      message: "Ödeme zaten iade edilmiş; PayTR mutabakatı gerekmiyor.",
+      appliedCount: 0,
+      paytrTotalKurus: 0,
+      alreadyRefundedKurus: ctx.alreadyRefundedKurus,
     };
   }
 
-  const { error } = await service
-    .from("payments")
-    .update({ status: "refunded", updated_at: new Date().toISOString() })
-    .eq("id", parsed.data);
-
-  if (error) {
+  const status = await queryPaytrStatus(ctx.merchantOid);
+  if (!status.ok) {
     return {
       ok: false,
-      error:
-        "PayTR iade alındı ama yerel kayıt güncellenemedi. Destek ile kontrol edin.",
+      error: status.errMsg ?? "PayTR durum sorgu başarısız.",
     };
   }
 
-  // Hakkı kimin kullandığıysa aboneliği de onda; hediye ödemelerinde
-  // ödeyenle yararlanan farklı olabiliyor.
-  const beneficiaryId =
-    (payment.beneficiary_user_id as string | null) ??
-    (payment.user_id as string | null);
+  const paytrTotalKurus = status.returns.reduce(
+    (sum, row) => sum + Math.round(row.returnAmountTry * 100),
+    0,
+  );
 
-  let subscriptionCancelled = false;
-  if (beneficiaryId && payment.plan_id) {
-    const { data: cancelled } = await service
-      .from("subscriptions")
-      .update({ status: "cancelled", updated_at: new Date().toISOString() })
-      .eq("user_id", beneficiaryId)
-      .eq("plan_id", payment.plan_id)
-      .eq("status", "active")
-      .select("id");
-    subscriptionCancelled = (cancelled ?? []).length > 0;
+  // Taze context (pending expiry sonrası)
+  const fresh = await loadRefundContext(service, parsed.data);
+  if (!fresh.ok) return fresh;
+  const already = fresh.context.alreadyRefundedKurus;
+  const delta = paytrTotalKurus - already;
 
-    if (subscriptionCancelled) {
-      /*
-        Dönemi hemen kapat. Cüzdanın hakkı `credit_reserve` içinde tembel
-        yenileniyor: dönem bitmiş görünmezse kullanıcı, aboneliği iptal
-        edilmiş olsa bile kalan aylık hakkını harcamaya devam ederdi.
-        Bitişi geçmişe çekince bir sonraki işlemde ücretsiz kademeye düşüyor.
-      */
-      await service
-        .from("credit_wallets")
-        .update({
-          free_allowance_remaining: 0,
-          period_ends_at: new Date(Date.now() - 1000).toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", beneficiaryId);
-    }
+  if (delta <= 0) {
+    return {
+      ok: true,
+      message:
+        paytrTotalKurus === 0
+          ? "PayTR'de bu sipariş için iade kaydı yok."
+          : `PayTR toplam iadesi (${formatTry(paytrTotalKurus)}) zaten kayıtlı (${formatTry(already)}).`,
+      appliedCount: 0,
+      paytrTotalKurus,
+      alreadyRefundedKurus: already,
+      deltaKurus: 0,
+    };
   }
 
-  await auditLog(service, {
+  const providerRef = reconcileDeltaRef(ctx.merchantOid, paytrTotalKurus);
+  const applied = await applyPaymentRefund(service, {
+    paymentId: parsed.data,
+    refundKurus: delta,
+    source: "reconcile",
+    providerRef,
     actorId,
-    action: "payment.refunded",
-    entityType: "payment",
-    entityId: parsed.data,
-    metadata: {
-      subscriptionCancelled,
-      beneficiaryId,
-      paytr: {
-        status: paytr.status,
-        merchantOid,
-        returnAmountTry,
-        amountKurus,
-        raw: paytr.raw,
-      },
-    },
+    note: `PayTR mutabakatı: toplam ${paytrTotalKurus} kuruş, delta ${delta}`,
   });
 
-  revalidatePath("/admin/odemeler");
-  revalidatePath("/admin");
+  if (!applied.ok) {
+    return {
+      ok: false,
+      error: applied.error ?? "Mutabakat iadesi işlenemedi.",
+      partialFailure: applied.partialFailure,
+      errorStep: applied.errorStep,
+      paytrTotalKurus,
+      alreadyRefundedKurus: already,
+      deltaKurus: delta,
+    };
+  }
+
   return {
     ok: true,
-    message: subscriptionCancelled
-      ? "PayTR iadesi alındı. Abonelik kapatıldı, kalan hak sıfırlandı."
-      : "PayTR iadesi alındı; ödeme iade edildi olarak işaretlendi.",
+    message: applied.noop
+      ? "PayTR iadeleri zaten kayıtlıydı; yeni işlem yok."
+      : `PayTR'den ${formatTry(delta)} iade deftere işlendi (toplam ${formatTry(paytrTotalKurus)}).`,
+    appliedCount: applied.noop ? 0 : 1,
+    paytrTotalKurus,
+    alreadyRefundedKurus: already,
+    deltaKurus: delta,
+    reversed: applied.reversed,
+    unrecovered: applied.unrecovered,
   };
+}
+
+/** Admin önizleme — yazma yok. */
+export async function previewAdminPaymentRefund(
+  paymentId: string,
+  amountKurus?: number,
+) {
+  const actorId = await requireAdminActor();
+  if (!actorId) return { ok: false as const, error: "Yetkisiz işlem." };
+
+  const parsed = z.string().uuid().safeParse(paymentId);
+  if (!parsed.success) return { ok: false as const, error: "Geçersiz kayıt." };
+
+  const service = createServiceClient();
+  return previewPaymentRefund(service, parsed.data, amountKurus);
 }
 
 /** Paketin fiyatını, kredi miktarını ve satışta olup olmadığını günceller. */

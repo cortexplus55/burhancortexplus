@@ -99,6 +99,161 @@ export async function refundCredits(
 }
 
 /**
+ * Tek istekte (≤300 sn) biten eylemler. Bunların pending kalması Vercel
+ * hard-kill'inden gelir — iade güvenli.
+ *
+ * `DOCUMENT_PAGE_PROCESS` YOK: PDF işleme tek rezervasyonu birçok chunk
+ * isteğine yayar; 10 dk'dan uzun sürebilir. Ortada iade etmek son commit'i
+ * sessiz no-op yapar (belge bedava işlenmiş olur).
+ */
+export const STALE_REFUND_ACTION_CODES: readonly ActionCode[] = [
+  "AI_CHAT_STANDARD",
+  "AI_CHAT_ADVANCED",
+  "AI_CHAT_PARENT",
+  "IMAGE_SOLUTION",
+  "QUIZ_GENERATE",
+  "FLASHCARD_GENERATE",
+  "PRACTICE_EXAM_GENERATE",
+  "PRACTICE_EXAM_GRADE",
+  "STUDY_PLAN_GENERATE",
+  "EXPORT_PDF",
+  "AUDIO_SYNTHESIZE",
+] as const;
+
+/** Kullanıcı başına ders öncesi temizliği ucuz tut — birkaç dakikada bir. */
+const STALE_CLEANUP_COOLDOWN_MS = 3 * 60_000;
+const lastStaleCleanupByUser = new Map<string, number>();
+
+/**
+ * Vercel hard-kill (300 sn) sonrası pending kalan rezervasyonları iade et.
+ * Yalnızca allowlist'teki tek-istek eylemleri; DOCUMENT_PAGE_PROCESS dokunulmaz.
+ * Yeni migration yok. Best-effort.
+ */
+export async function refundStalePendingReservations(
+  service: SupabaseClient,
+  options: {
+    userId?: string;
+    /** Varsayılan 10 dakika. */
+    olderThanMs?: number;
+    limit?: number;
+    /** true ise kullanıcı cooldown'ı yok sayılır (cron). */
+    force?: boolean;
+  } = {},
+): Promise<number> {
+  const olderThanMs = options.olderThanMs ?? 10 * 60_000;
+  const cutoff = new Date(Date.now() - olderThanMs).toISOString();
+  if (options.userId && !options.force) {
+    const last = lastStaleCleanupByUser.get(options.userId) ?? 0;
+    if (Date.now() - last < STALE_CLEANUP_COOLDOWN_MS) return 0;
+    lastStaleCleanupByUser.set(options.userId, Date.now());
+  }
+  try {
+    let query = service
+      .from("credit_reservations")
+      .select("id, action_code, status")
+      .eq("status", "pending")
+      .in("action_code", [...STALE_REFUND_ACTION_CODES])
+      .lt("created_at", cutoff)
+      .order("created_at", { ascending: true })
+      .limit(options.limit ?? 40);
+    if (options.userId) query = query.eq("user_id", options.userId);
+    const { data, error } = await query;
+    if (error || !data?.length) return 0;
+    let refunded = 0;
+    for (const row of data) {
+      const code = String(row.action_code ?? "");
+      if (!(STALE_REFUND_ACTION_CODES as readonly string[]).includes(code)) continue;
+      if (code === "DOCUMENT_PAGE_PROCESS") continue;
+      try {
+        await refundCredits(service, row.id as string);
+        refunded += 1;
+      } catch {
+        // tek satır düşmesin diye devam
+      }
+    }
+    if (refunded) {
+      console.error("stale_credit_reservations_refunded", {
+        count: refunded,
+        userId: options.userId ?? null,
+      });
+    }
+    return refunded;
+  } catch {
+    return 0;
+  }
+}
+
+/** Test / cooldown sıfırlama. */
+export function resetStaleCleanupCooldownForTests() {
+  lastStaleCleanupByUser.clear();
+}
+
+/**
+ * Abandoned DOCUMENT_PAGE_PROCESS reservations: document failed or stuck
+ * with no progress for >24h → refund. Completed documents with a leftover
+ * pending reservation → commit (charge was earned).
+ */
+export async function refundAbandonedDocumentReservations(
+  service: SupabaseClient,
+  options: { olderThanMs?: number; limit?: number } = {},
+): Promise<number> {
+  const olderThanMs = options.olderThanMs ?? 24 * 60 * 60_000;
+  const cutoff = new Date(Date.now() - olderThanMs).toISOString();
+  try {
+    const { data, error } = await service
+      .from("credit_reservations")
+      .select("id, user_id, idempotency_key, created_at")
+      .eq("status", "pending")
+      .eq("action_code", "DOCUMENT_PAGE_PROCESS")
+      .lt("created_at", cutoff)
+      .order("created_at", { ascending: true })
+      .limit(options.limit ?? 40);
+    if (error || !data?.length) return 0;
+
+    let settled = 0;
+    for (const row of data) {
+      const key = String(row.idempotency_key ?? "");
+      const documentId = key.startsWith("document_process_")
+        ? key.slice("document_process_".length)
+        : null;
+      if (!documentId) continue;
+
+      const { data: doc } = await service
+        .from("documents")
+        .select("id, status, updated_at")
+        .eq("id", documentId)
+        .maybeSingle();
+
+      const status = (doc as { status?: string } | null)?.status;
+      const updatedAt = (doc as { updated_at?: string } | null)?.updated_at;
+
+      try {
+        if (status === "completed") {
+          await commitCredits(service, row.id as string);
+          settled += 1;
+          continue;
+        }
+        const staleProgress =
+          !doc ||
+          status === "failed" ||
+          (updatedAt != null && updatedAt < cutoff);
+        if (!staleProgress) continue;
+        await refundCredits(service, row.id as string);
+        settled += 1;
+      } catch {
+        // continue
+      }
+    }
+    if (settled) {
+      console.error("abandoned_document_reservations_settled", { count: settled });
+    }
+    return settled;
+  } catch {
+    return 0;
+  }
+}
+
+/**
  * Sesin kendi eylem kodlari.
  *
  * Seslendirme ve cozumleme krediden dusmuyor (bedeli dugume dahil), bu yuzden

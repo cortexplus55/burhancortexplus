@@ -9,6 +9,7 @@ import { diagramIssues, lessonDiagramSchema } from "@/lib/learning/lesson-diagra
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { foldTr } from "@/lib/documents/page-analysis";
 import { preserveSubscriptLetters } from "@/lib/learning/lesson-board";
+import { mathIdentifierIssues, normalizeMathIdentifiers } from "@/lib/learning/math-identifiers";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import type { PodcastChapter } from "@/lib/learning/podcast-script";
 import { isUnsupportedComparativeAbsolute, unsupportedAbsoluteClaims } from "@/lib/learning/absolute-claims";
@@ -220,7 +221,14 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "commonMistake bu dersin kendi konusundan ve kaynak sayfalarından gelsin. " +
         "claim yanlış inanç, correction kaynağın doğrusu olsun. " +
         "Düzeltmeyi kaynak cümlesiyle yaz; yazamıyorsan commonMistake alanını atla. " +
-        "Kaynakta olmayan formül, birim veya sayı yazma; emin değilsen materyalde geçtiği hâliyle söyle."
+        "Kaynakta olmayan formül, birim veya sayı yazma; emin değilsen materyalde geçtiği hâliyle söyle. " +
+        "Hesaplanabilir bir bağıntı varsa formula alanına yaz (title, expression, note); gövdeye ikinci kez yazma. " +
+        "Kaynakta sıralı bir işlem/hesaplama basamağı varsa (2-6 adım) procedure alanına numaralı adım olarak yaz; " +
+        "her adımın detail'i kaynaktaki somut sayıyı taşısın, gövdede aynı adımları tekrar anlatma. " +
+        "Kaynakta doğal bir karşılık ya da eşik tablosu varsa (kategori/değer çiftleri) table alanına yaz. " +
+        "formula/procedure/table doldurulduğunda body yine de tek başına anlaşılır kısa bir açıklama olarak " +
+        "kalır; bu üç alan body'nin özeti değil, body'nin anlatmadığı somut ayrıntıdır — aynı sayıyı veya " +
+        "aynı cümleyi hem gövdede hem bu alanlarda tekrarlama."
       );
     case "quiz":
       return (
@@ -410,6 +418,46 @@ export const lessonV2Schema = z.object({
         // Şekille anlaşılan konularda çizim; model tarifini veriyor,
         // SVG'yi biz kuruyoruz (bkz. lesson-diagram.ts).
         diagram: lessonDiagramSchema.optional().catch(undefined),
+        // Hesaplanabilir bir bağıntı varsa gövdeye gömülmez, ayrı bir
+        // kart olarak durur — Astra karşılaştırmasında gövdeye sıkışan
+        // formüllerin okunaksızlaştığı görüldü (bkz. docs kıyas notu).
+        formula: z
+          .object({
+            title: z.string().min(2).max(60),
+            expression: z.string().min(2).max(200),
+            note: z.string().min(2).max(200).optional().catch(undefined),
+          })
+          .optional()
+          .catch(undefined),
+        // Kaynakta sıralı, uygulanabilir bir işlem varsa (hesaplama,
+        // tanı basamağı) düz paragraf yerine numaralı adım listesi.
+        procedure: z
+          .object({
+            title: z.string().min(2).max(80).optional().catch(undefined),
+            steps: z
+              .array(
+                z.object({
+                  label: z.string().min(2).max(80),
+                  detail: z.string().min(2).max(200),
+                }),
+              )
+              .min(2)
+              .max(6),
+          })
+          .optional()
+          .catch(undefined),
+        // Kaynakta doğal bir karşılık/eşik tablosu varsa (persentil↔SD
+        // gibi) küçük bir referans tablosu. Satır uzunluğu columns'la
+        // tutmuyorsa render katmanı kırpar/doldurur; şema burada katı
+        // değil — bozuk tablo dersi düşürmemeli.
+        table: z
+          .object({
+            caption: z.string().min(2).max(100).optional().catch(undefined),
+            columns: z.array(z.string().min(1).max(40)).min(2).max(4),
+            rows: z.array(z.array(z.string().min(1).max(60)).min(1).max(4)).min(2).max(6),
+          })
+          .optional()
+          .catch(undefined),
       }),
     )
     // Alt sınır bir: dar kaynak iki kavram da taşımayabilir ve uydurulan
@@ -597,6 +645,16 @@ export function brokenSuperscript(text: string): boolean {
   return new RegExp(`[${SUPERSCRIPTS}]\\s*[+\\-*/×÷]\\s*[${SUPERSCRIPTS}]`).test(
     text,
   );
+}
+
+/** $…$ / \(…\) dışında kalan ham LaTeX komutları. */
+export function hasUndelimitedLatex(text: string): boolean {
+  const stripped = text
+    .replace(/\$\$[\s\S]+?\$\$/g, "")
+    .replace(/\$[^$\n]+\$/g, "")
+    .replace(/\\\([\s\S]+?\\\)/g, "")
+    .replace(/\\\[[\s\S]+?\\\]/g, "");
+  return /\\\(|\\\[|\\frac|\\geq|\\leq|\\cdot|\$\$/.test(stripped);
 }
 
 /**
@@ -813,8 +871,26 @@ function toDigitScript(value: string, table: string): string {
   return value.replace(/\d/g, (digit) => table[Number(digit)] ?? digit);
 }
 
-/** Ham LaTeX'i öğrencinin okuduğu düz yazıma çevirir. Yeni olgu eklemez. */
+/** Ham LaTeX'i öğrencinin okuduğu düz yazıma çevirir. Yeni olgu eklemez.
+ * $…$ / \(…\) içindeki LaTeX korunur; dışındaki flatten edilir.
+ */
 export function normalizeMathNotation(text: string): string {
+  const out = normalizeMathIdentifiers(text);
+  // Sınırlı LaTeX bloklarını koru, dışını düzleştir.
+  const parts: string[] = [];
+  const re = /\$\$[\s\S]+?\$\$|\$[^$\n]+\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]/g;
+  let last = 0;
+  for (const match of out.matchAll(re)) {
+    const start = match.index ?? 0;
+    if (start > last) parts.push(flattenUndelimitedLatex(out.slice(last, start)));
+    parts.push(match[0]);
+    last = start + match[0].length;
+  }
+  if (last < out.length) parts.push(flattenUndelimitedLatex(out.slice(last)));
+  return parts.join("");
+}
+
+function flattenUndelimitedLatex(text: string): string {
   let out = preserveSubscriptLetters(text);
   out = out.replace(/\\frac\s*\{([^{}]+)\}\{([^{}]+)\}/g, "($1)/($2)");
   out = out.replace(/_\{([^{}]+)\}/g, (_match, inner: string) => toDigitScript(inner, SUBSCRIPTS));
@@ -824,7 +900,6 @@ export function normalizeMathNotation(text: string): string {
   out = out.replace(/_(\d)/g, (_match, digit: string) => SUBSCRIPTS[Number(digit)] ?? digit);
   out = out.replace(/\^(\d)/g, (_match, digit: string) => SUPERSCRIPT_DIGITS[Number(digit)] ?? digit);
   out = out.replace(/\\([A-Za-z]+)/g, (full, name: string) => LATEX_SYMBOLS[name] ?? full);
-  out = out.replace(/\\\(|\\\)|\\\[|\\\]|\$\$|\$/g, "");
   return out;
 }
 
@@ -1853,6 +1928,7 @@ export function lessonPublishIssues(
       !issue.includes("Anahtar terimler işaretlenmemiş") &&
       !issue.includes("adım adım ve gerekçeli") &&
       !issue.includes("Ham LaTeX") &&
+      !issue.includes("Kod gibi değişken adı") &&
       !isSectionCountIssue(issue),
   );
   const teaching =
@@ -1861,6 +1937,8 @@ export function lessonPublishIssues(
   if (teaching < 1) {
     issues.push("En az 1 kontrol sorusu ve yanıtı kalmalı; öğretmeyenler çıkarıldı.");
   }
+  // Onarılabilir ama yayın engeli değil: kimlik uyarıları raporda kalsın diye
+  // validateLessonPedagogy içinde durur; burada publish kapısı yutmaz.
   return issues.filter(publishIssueBlocks);
 }
 
@@ -1932,7 +2010,8 @@ export const LESSON_V2_SCHEMA_HINT =
   "Kaynak [s.N] dosya biçimindeyse bölüm sonuna Kaynak: dosya, s.N yaz. " +
   "cards isteğe bağlı: kardeş kavram kümesi varsa 2-6 kart; yoksa cards yazma, uydurma kart ekleme. " +
   "overview giriş metnidir; ayrı bir Giriş bölümü açma. " +
-  "Kaynak sayfada yazmayan formül veya teorem yazma.";
+  "Kaynak sayfada yazmayan formül veya teorem yazma. " +
+  "Formüllerde değişken adı olarak yazılım tanımlayıcısı (alt çizgili kelime: açı_radyan, v_final) KULLANMA. Tek harf/Yunan harfi + alt simge kullan (α, αᵣ gibi) ya da kelimeyle yaz. Satır içi formülü $…$ içinde LaTeX ile yazabilirsin.";
 
 /**
  * Yayına asla çıkmaması gereken kusurlar.
@@ -1956,8 +2035,7 @@ export function blockingLessonIssues(raw: unknown): string[] {
   const lesson = parsed.data;
   const issues: string[] = [];
 
-  // Ham LaTeX ekranda olduğu gibi görünüyor; podcast doğrulayıcısı bunu
-  // baştan beri reddediyordu, ders doğrulayıcısında yoktu.
+  // Sınırlandırılmamış LaTeX ekranda ham kalır. $…$ / \(…\) içindeki serbest.
   const texts = [
     lesson.overview,
     ...lesson.sections.map((s) => s.body),
@@ -1965,11 +2043,16 @@ export function blockingLessonIssues(raw: unknown): string[] {
     lesson.example?.solution,
     lesson.commonMistake?.correction,
   ].filter((item): item is string => typeof item === "string" && item.length > 0);
-  if (texts.some((t) => /\\\(|\\\[|\\frac|\\geq|\\leq|\\cdot|\$\$/.test(t))) {
+  if (texts.some((t) => hasUndelimitedLatex(t))) {
     issues.push("Ham LaTeX var; formülleri konuşulabilir Unicode ile yaz.");
   }
   if (texts.some(brokenSuperscript)) {
     issues.push("Üs bölünmüş; üssün tamamını üst simgeyle yaz.");
+  }
+  for (const text of texts) {
+    for (const issue of mathIdentifierIssues(text, lesson.title)) {
+      if (!issues.includes(issue)) issues.push(issue);
+    }
   }
 
   for (const section of lesson.sections) {

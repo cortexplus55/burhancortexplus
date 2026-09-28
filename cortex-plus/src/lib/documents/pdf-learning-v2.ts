@@ -19,6 +19,8 @@ export type PdfLearningV2Result = {
   topics: number;
   coverage: CoverageReport | null;
   error?: string;
+  windowsDone?: number;
+  windowsTotal?: number;
 };
 
 const MAP_WINDOW_PAGES = 12;
@@ -84,10 +86,16 @@ async function clearTopicMap(service: SupabaseClient, documentId: string) {
 }
 
 async function loadPageRows(service: SupabaseClient, documentId: string) {
-  const rows: { id: string; page_number: number; text_content: string | null }[] = [];
+  const rows: {
+    id: string;
+    page_number: number;
+    text_content: string | null;
+    extraction_ok: boolean | null;
+    page_kind: string | null;
+  }[] = [];
   for (let offset = 0; ; offset += PAGE_READ_BATCH) {
     const { data, error } = await service.from("document_pages")
-      .select("id, page_number, text_content")
+      .select("id, page_number, text_content, extraction_ok, page_kind")
       .eq("document_id", documentId)
       .order("page_number", { ascending: true })
       .range(offset, offset + PAGE_READ_BATCH - 1);
@@ -218,7 +226,8 @@ export async function runPdfLearningV2(
     // A preparation keeps stable document_topic_node_id references. A rebuild
     // may not delete those nodes after the learner has started using them.
     if (previousMapStatus === "ready" || previousMapStatus === "reviewed") {
-      if (await documentTopicMapIsInUse(service, documentId, [])) {
+      const inUse = await documentTopicMapIsInUse(service, documentId, []).catch(() => true);
+      if (inUse) {
         return { ok: false, topics: 0, coverage: null, error: "topic_map_in_use" };
       }
     }
@@ -233,9 +242,17 @@ export async function runPdfLearningV2(
     if (pendingError) throw new Error("topic_map_status_update_failed");
 
     const rows = await loadPageRows(service, documentId);
-    const analyses = rows.map((row) =>
-      analyzePage(row.page_number, row.text_content ?? ""),
-    );
+    const analyses = rows.map((row) => {
+      const analysis = analyzePage(row.page_number, row.text_content ?? "");
+      if (row.extraction_ok === false) {
+        analysis.extractionOk = false;
+        if (analysis.pageKind === "content" || analysis.pageKind === "uncertain") {
+          analysis.pageKind = "unreadable";
+        }
+      }
+      if (row.page_kind === "blank") analysis.pageKind = "blank";
+      return analysis;
+    });
     const pageIdByNumber = new Map(
       rows.map((row) => [row.page_number as number, row.id as string]),
     );
@@ -281,26 +298,68 @@ export async function runPdfLearningV2(
           teacherBrief,
           windows.length > 1,
         );
-        if (!windowMap?.topics.length) throw new Error("topic_map_unavailable");
+        // Empty window: record and skip — fail only if the whole doc yields zero.
+        if (!windowMap?.topics.length) {
+          const nextIndex = job.next_index + 1;
+          const nowIso = new Date().toISOString();
+          const { data: saved, error: checkpointError } = await service
+            .from("document_topic_map_jobs")
+            .update({
+              next_index: nextIndex,
+              topics: compactTopics,
+              updated_at: nowIso,
+            })
+            .eq("document_id", documentId)
+            .eq("lease_token", token)
+            .select("document_id");
+          if (checkpointError || !saved?.length) throw new Error("topic_map_claim_lost");
+          await service.from("documents").update({
+            updated_at: nowIso,
+            topic_map_updated_at: nowIso,
+          }).eq("id", documentId);
+          if (nextIndex < windows.length) {
+            return {
+              ok: true,
+              pending: true,
+              topics: compactTopics.length,
+              coverage: null,
+              windowsDone: nextIndex,
+              windowsTotal: windows.length,
+            };
+          }
+        } else {
         compactTopics = [...compactTopics, ...windowMap.topics.map((topic) => ({
           title: topic.title,
           learningObjective: topic.learningObjective,
           pageNumbers: topic.pageNumbers,
         }))];
         const nextIndex = job.next_index + 1;
+        const nowIso = new Date().toISOString();
         const { data: saved, error: checkpointError } = await service
           .from("document_topic_map_jobs")
           .update({
             next_index: nextIndex,
             topics: compactTopics,
-            updated_at: new Date().toISOString(),
+            updated_at: nowIso,
           })
           .eq("document_id", documentId)
           .eq("lease_token", token)
           .select("document_id");
         if (checkpointError || !saved?.length) throw new Error("topic_map_claim_lost");
+        await service.from("documents").update({
+          updated_at: nowIso,
+          topic_map_updated_at: nowIso,
+        }).eq("id", documentId);
         if (nextIndex < windows.length) {
-          return { ok: true, pending: true, topics: compactTopics.length, coverage: null };
+          return {
+            ok: true,
+            pending: true,
+            topics: compactTopics.length,
+            coverage: null,
+            windowsDone: nextIndex,
+            windowsTotal: windows.length,
+          };
+        }
         }
       }
 
@@ -400,27 +459,87 @@ export type TopicMapSnapshot = {
  * düğüm ilerlemesi ve tanı o kimliğe bakıyor; düğümü silmek hazırlığı
  * bozar. Quiz, kart ve çalışma planı bu tabloya bağlı değil.
  */
-async function documentTopicMapIsInUse(
+/**
+ * Harita kullanımda mı?
+ *
+ * Eski yol yalnız exam_preps.document_id ve document_topic_node_id'ye
+ * bakıyordu; source_refs içindeki ikincil belge düğümleri korunmuyordu.
+ * source_document_ids ve source_refs.nodeId de "kullanımda" sayılır.
+ *
+ * Lookup hatası → "kullanımda" (yeniden yazma). Yanlış JSON filtresi
+ * yüzünden 500 dönmemeli; kullanılmayan belge de intake/sayfa kırılmamalı.
+ */
+export async function documentTopicMapIsInUse(
   service: SupabaseClient,
   documentId: string,
   nodeIds: string[],
 ): Promise<boolean> {
-  const { data: preps, error: prepError } = await service
-    .from("exam_preps")
-    .select("id")
-    .eq("document_id", documentId)
-    .limit(1);
-  if (prepError) throw new Error("prep_lookup_failed");
-  if (preps?.length) return true;
-  if (!nodeIds.length) return false;
+  try {
+    const { data: preps, error: prepError } = await service
+      .from("exam_preps")
+      .select("id")
+      .eq("document_id", documentId)
+      .limit(1);
+    if (prepError) {
+      console.error("document_topic_map_in_use_lookup_failed", { stage: "document_id" });
+      return true;
+    }
+    if (preps?.length) return true;
 
-  const { data: linked, error: linkError } = await service
-    .from("exam_prep_topics")
-    .select("id")
-    .in("document_topic_node_id", nodeIds)
-    .limit(1);
-  if (linkError) throw new Error("prep_topic_lookup_failed");
-  return Boolean(linked?.length);
+    const { data: sourcePreps, error: sourcePrepError } = await service
+      .from("exam_preps")
+      .select("id")
+      .contains("source_document_ids", [documentId])
+      .limit(1);
+    if (sourcePrepError) {
+      console.error("document_topic_map_in_use_lookup_failed", { stage: "source_document_ids" });
+      return true;
+    }
+    if (sourcePreps?.length) return true;
+
+    if (nodeIds.length) {
+      const { data: linked, error: linkError } = await service
+        .from("exam_prep_topics")
+        .select("id")
+        .in("document_topic_node_id", nodeIds)
+        .limit(1);
+      if (linkError) {
+        console.error("document_topic_map_in_use_lookup_failed", { stage: "node_id" });
+        return true;
+      }
+      if (linked?.length) return true;
+    }
+
+    // postgrest-js 2.x: jsonb cs filtresi dizi/nesne için JSON string ister;
+    // düz nesne `cs.{[object Object]}` üretir ve Postgres reddeder.
+    const { data: byDoc, error: byDocError } = await service
+      .from("exam_prep_topics")
+      .select("id")
+      .contains("source_refs", JSON.stringify([{ documentId }]))
+      .limit(1);
+    if (byDocError) {
+      console.error("document_topic_map_in_use_lookup_failed", { stage: "source_refs_doc" });
+      return true;
+    }
+    if (byDoc?.length) return true;
+
+    for (const nodeId of nodeIds) {
+      const { data: byNode, error: byNodeError } = await service
+        .from("exam_prep_topics")
+        .select("id")
+        .contains("source_refs", JSON.stringify([{ nodeId }]))
+        .limit(1);
+      if (byNodeError) {
+        console.error("document_topic_map_in_use_lookup_failed", { stage: "source_refs_node" });
+        return true;
+      }
+      if (byNode?.length) return true;
+    }
+    return false;
+  } catch {
+    console.error("document_topic_map_in_use_lookup_failed", { stage: "throw" });
+    return true;
+  }
 }
 
 /**
@@ -497,7 +616,8 @@ export async function refoldTopicMapIfNeeded(
   }));
 
   const nodeIds = topicRows.map((row) => row.id as string);
-  const inUse = await documentTopicMapIsInUse(service, documentId, nodeIds);
+  // Lookup hatası → kullanımda say (yeniden yazma); 500 yok.
+  const inUse = await documentTopicMapIsInUse(service, documentId, nodeIds).catch(() => true);
   if (
     !shouldRewriteStoredTopicMap({
       status: (doc.topic_map_status as string | null) ?? null,
@@ -554,7 +674,7 @@ export async function refoldTopicMapIfNeeded(
           const { data: claimed, error } = await query.select("id");
           if (error || !claimed?.length) return false;
           // Hak alındıktan sonra hazırlık açıldıysa eski düğümler durur.
-          return !(await documentTopicMapIsInUse(service, documentId, nodeIds));
+          return !(await documentTopicMapIsInUse(service, documentId, nodeIds).catch(() => true));
         },
         insert: async (index) => {
           const topic = linked[index];
@@ -642,7 +762,14 @@ export async function loadTopicMapSnapshot(
   service: SupabaseClient,
   documentId: string,
 ): Promise<TopicMapSnapshot | null> {
-  await refoldTopicMapIfNeeded(service, documentId);
+  try {
+    await refoldTopicMapIfNeeded(service, documentId);
+  } catch (error) {
+    console.error("topic_map_refold_skipped", {
+      documentId,
+      errorType: error instanceof Error ? (error.constructor?.name ?? error.name) : "unknown",
+    });
+  }
   const { data: doc } = await service
     .from("documents")
     .select(

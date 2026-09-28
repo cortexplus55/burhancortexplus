@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditGate } from "@/components/paywall/credit-gate";
-import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
 import { isPhotoQuotaError } from "@/lib/documents/process-errors";
 import {
   PROCESS_RETRY_MESSAGE,
@@ -16,7 +15,9 @@ import {
 } from "@/lib/documents/process-session";
 import { DOCUMENT_UPLOAD_HINT } from "@/lib/documents/upload-labels";
 import { uploadDocumentFile } from "@/lib/documents/upload-client";
-import { useStudentShellAccount } from "@/lib/student/student-shell-context";
+import { formatDocumentProcessProgress } from "@/lib/documents/process-progress-label";
+import { messageFromProcessBody } from "@/lib/documents/process-user-message";
+import { useDocumentLimits } from "@/lib/student/student-shell-context";
 import { cn } from "@/lib/utils";
 
 const ALLOWED = [
@@ -45,14 +46,12 @@ export function DocumentUpload({
   learningV2?: boolean;
 }) {
   const router = useRouter();
-  const account = useStudentShellAccount();
-  // Kurucuda ne işlem bedeli ne sayfa tavanı var; ikisi de sunucuda sayılmıyor.
-  const founder = account?.isAdmin === true;
-  const freePdfCap =
-    !founder && account?.audience === "free" ? PHOTO_PAGE_LIMITS.free : null;
+  const { isAdmin, freePdfCap } = useDocumentLimits();
+  const founder = isAdmin;
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<"idle" | "uploading" | "processing">("idle");
   const [statusDetail, setStatusDetail] = useState<string | null>(null);
+  const [processAlert, setProcessAlert] = useState<string | null>(null);
   const [paywall, setPaywall] = useState(false);
 
   async function submit(event: React.FormEvent) {
@@ -71,6 +70,7 @@ export function DocumentUpload({
 
     setStage("uploading");
     setStatusDetail("Dosyan yükleniyor…");
+    setProcessAlert(null);
     // router.push (learningV2 success path) and router.refresh (finally
     // below) both start a Next.js router transition — firing refresh right
     // after push interrupts the pending push, so the app never lands on
@@ -91,14 +91,8 @@ export function DocumentUpload({
         documentId: uploaded.documentId,
         post: postDocumentProcess,
         onProgress: (progress) => {
-          const next = Number(progress.nextPage);
-          const total = Number(progress.pageCount);
-          if (progress.phase === "extract" && typeof progress.nextPage === "number" &&
-              Number.isFinite(next) && Number.isFinite(total) && total > 0) {
-            setStatusDetail(`Belgen okunuyor: ${Math.min(next - 1, total)}/${total} sayfa hazır…`);
-          } else if (progress.phase === "map") {
-            setStatusDetail("Sayfalar okundu; konular ve çalışma yolu hazırlanıyor…");
-          }
+          const line = formatDocumentProcessProgress(progress);
+          if (line) setStatusDetail(line);
         },
       });
       const processed = result.body;
@@ -109,7 +103,10 @@ export function DocumentUpload({
         // Fotoğraf kotası bittiyse kredi satın almak işe yaramıyor; kapı
         // yerine ne olduğunu söyleyen cümle çıkıyor.
         if (isPhotoQuotaError(processed)) {
-          toast.error(typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.");
+          const message =
+            typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.";
+          setProcessAlert(message);
+          toast.error(message);
           return;
         }
         setPaywall(true);
@@ -117,7 +114,9 @@ export function DocumentUpload({
       }
 
       if (!result.ok) {
-        toast.error(typeof processed.error === "string" ? processed.error : "Doküman işlenemedi.");
+        const message = messageFromProcessBody(processed);
+        setProcessAlert(message);
+        toast.error(message);
         setStatusDetail(null);
         return;
       }
@@ -140,7 +139,9 @@ export function DocumentUpload({
       setFile(null);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Bağlantı hatası.");
+      const message = error instanceof Error ? error.message : "Bağlantı hatası.";
+      setProcessAlert(message);
+      toast.error(message);
       setStatusDetail(null);
     } finally {
       setStage("idle");
@@ -197,6 +198,24 @@ export function DocumentUpload({
             >
               {statusDetail}
             </p>
+          ) : null}
+          {processAlert ? (
+            <div
+              className={cn(
+                "rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm",
+                isParity ? "text-red-100" : "text-red-900 dark:text-red-100",
+              )}
+              role="alert"
+            >
+              <p>{processAlert}</p>
+              <button
+                type="button"
+                className="mt-2 text-xs underline underline-offset-2"
+                onClick={() => setProcessAlert(null)}
+              >
+                Kapat
+              </button>
+            </div>
           ) : null}
         </div>
 

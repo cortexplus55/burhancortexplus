@@ -1,3 +1,5 @@
+import { pdfjsDocumentOptions } from "@/lib/documents/pdfjs-options";
+
 /** pdfjs-dist 6 uses Promise.withResolvers (Node 22+); polyfill for Node 20 CI/runtimes. */
 function ensurePromiseWithResolvers() {
   if (typeof Promise.withResolvers === "function") return;
@@ -28,10 +30,7 @@ export async function extractText(
 
   ensurePromiseWithResolvers();
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const task = getDocument({
-    data: new Uint8Array(buffer),
-    useSystemFonts: true,
-  });
+  const task = getDocument(pdfjsDocumentOptions(new Uint8Array(buffer)));
   try {
     const pdf = await task.promise;
     const pages: string[] = [];
@@ -52,6 +51,44 @@ export async function extractText(
       throw new Error("encrypted_pdf");
     }
     throw err;
+  } finally {
+    await task.destroy();
+  }
+}
+
+/**
+ * Cheap preflight: page count + which pages lack a text layer.
+ * No rendering, no model calls.
+ *
+ * `scannedPages` is an upper bound — truly blank pages are included here but
+ * ingestion classifies them as blank and does not charge photo quota.
+ */
+export async function preflightPdfPages(buffer: Buffer): Promise<{
+  pageCount: number;
+  textPages: number;
+  scannedPages: number;
+}> {
+  ensurePromiseWithResolvers();
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const task = getDocument(pdfjsDocumentOptions(new Uint8Array(buffer)));
+  try {
+    const pdf = await task.promise;
+    let textPages = 0;
+    for (let number = 1; number <= pdf.numPages; number++) {
+      const page = await pdf.getPage(number);
+      const content = await page.getTextContent();
+      const text = content.items
+        .map((item) => ("str" in item ? item.str : ""))
+        .join("")
+        .trim();
+      if (text) textPages += 1;
+      page.cleanup();
+    }
+    return {
+      pageCount: pdf.numPages,
+      textPages,
+      scannedPages: Math.max(0, pdf.numPages - textPages),
+    };
   } finally {
     await task.destroy();
   }

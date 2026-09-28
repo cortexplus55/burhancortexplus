@@ -41,13 +41,28 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas", "heic-convert", "heic-decode", "libheif-js"],
   outputFileTracingIncludes: {
     "/api/documents/process": [
+      "./node_modules/pdfjs-dist/wasm/**",
+      "./node_modules/pdfjs-dist/standard_fonts/**",
+      "./node_modules/pdfjs-dist/cmaps/**",
       "./node_modules/pdfjs-dist/**/*",
       "./node_modules/@napi-rs/canvas*/**/*",
       "./node_modules/heic-convert/**/*",
       "./node_modules/heic-decode/**/*",
       "./node_modules/libheif-js/**/*",
     ],
-    "/api/ai/chat": ["./node_modules/pdfjs-dist/**/*", "./node_modules/@napi-rs/canvas*/**/*"],
+    "/api/documents/preflight": [
+      "./node_modules/pdfjs-dist/wasm/**",
+      "./node_modules/pdfjs-dist/standard_fonts/**",
+      "./node_modules/pdfjs-dist/cmaps/**",
+      "./node_modules/pdfjs-dist/**/*",
+    ],
+    "/api/ai/chat": [
+      "./node_modules/pdfjs-dist/wasm/**",
+      "./node_modules/pdfjs-dist/standard_fonts/**",
+      "./node_modules/pdfjs-dist/cmaps/**",
+      "./node_modules/pdfjs-dist/**/*",
+      "./node_modules/@napi-rs/canvas*/**/*",
+    ],
   },
   /*
     `/.well-known/assetlinks.json` bir uç noktadan geliyor.

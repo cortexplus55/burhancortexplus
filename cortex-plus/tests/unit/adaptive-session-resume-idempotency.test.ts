@@ -26,6 +26,7 @@ type Row = Record<string, unknown>;
 
 type SelectBuilder = {
   eq: (col: string, val: unknown) => SelectBuilder;
+  like: (col: string, val: unknown) => SelectBuilder;
   order: (col: string, opts?: { ascending?: boolean }) => SelectBuilder;
   limit: (n: number) => SelectBuilder;
   maybeSingle: () => Promise<{ data: Row | null; error: null }>;
@@ -34,11 +35,19 @@ type SelectBuilder = {
 
 /** Generic fake Postgrest-style select builder shared by every fake table. */
 function makeQueryBuilder(rows: Row[]): SelectBuilder {
-  const filters: [string, unknown][] = [];
+  const filters: [string, unknown, string?][] = [];
   let limitN: number | null = null;
   let orderDesc = false;
   const filtered = () => {
-    let out = rows.filter((r) => filters.every(([c, v]) => r[c] === v));
+    let out = rows.filter((r) =>
+      filters.every(([c, v, op]) => {
+        if (op === "like") {
+          const pat = String(v).replace(/%/g, ".*");
+          return new RegExp(`^${pat}$`).test(String(r[c] ?? ""));
+        }
+        return r[c] === v;
+      }),
+    );
     if (orderDesc) {
       out = [...out].sort((a, b) =>
         String(b.created_at ?? b.started_at ?? "").localeCompare(
@@ -52,6 +61,10 @@ function makeQueryBuilder(rows: Row[]): SelectBuilder {
   const builder: SelectBuilder = {
     eq(col, val) {
       filters.push([col, val]);
+      return builder;
+    },
+    like(col, val) {
+      filters.push([col, val, "like"]);
       return builder;
     },
     order(_col, opts) {
@@ -313,7 +326,7 @@ describe("adaptive session resume idempotency", () => {
     expect(tables.sessions[0]?.pending_decision_trace_id).toBe("decision-1");
     expect(tables.sessions[0]?.pending_action).toMatchObject({ decisionTraceId: "decision-1" });
     expect(tables.claims).toHaveLength(1);
-    expect(tables.claims[0]).toMatchObject({ token: "start", decision_trace_id: "decision-1" });
+    expect(tables.claims[0]).toMatchObject({ token: "start:none:none", decision_trace_id: "decision-1" });
   });
 
   it("B) reload before answering does not call nextAction again and returns the same action", async () => {
@@ -624,12 +637,12 @@ describe("adaptive session resume idempotency", () => {
     const service = buildService(tables);
 
     // Start the "winner" request. It runs: no existing session -> insert
-    // succeeds -> session_started event -> claims token "start" (wins,
+    // succeeds -> session_started event -> claims token "start:none:none" (wins,
     // inserts the claim row) -> calls nextAction() -> blocks on winnerGate.
     const winnerPromise = startSession(service as never, { userId: "u1", examPrepId: "p1" });
     await flushUntil(() => nextActionCalls.length === 1);
     expect(nextActionCalls).toHaveLength(1);
-    // At this exact point: the session row exists, a claim row for "start"
+    // At this exact point: the session row exists, a claim row for "start:none:none"
     // exists, but pending_action is still null — this is the real race
     // window the review flagged.
     expect(tables.sessions).toHaveLength(1);
@@ -647,7 +660,7 @@ describe("adaptive session resume idempotency", () => {
 
     expect(nextActionCalls).toHaveLength(1);
     expect(tables.sessions.filter((r) => r.status === "active")).toHaveLength(1);
-    expect(tables.claims.filter((c) => c.token === "start")).toHaveLength(1);
+    expect(tables.claims.filter((c) => c.token === "start:none:none")).toHaveLength(1);
     expect(loser.session.id).toBe(winner.session.id);
     expect(loser.action?.decisionTraceId).toBe(winner.action?.decisionTraceId);
     expect(loser.action).toEqual(winner.action);

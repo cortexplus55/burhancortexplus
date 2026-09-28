@@ -48,6 +48,13 @@ export type GovernorContext = {
   sessionMinutesRemaining?: number;
   fatigueSignal?: number;
   planTopicKeys?: string[];
+  /** Bugünkü programın seçilen maddesi — varsa önce o konu. */
+  planItem?: {
+    id: string;
+    topicKey: string;
+    kind: string;
+    title?: string;
+  } | null;
   hasComplexVisual?: boolean;
   advancedReasoning?: boolean;
   highImpactAssessment?: boolean;
@@ -118,7 +125,36 @@ export async function nextAction(
 
   if (!candidates.length) return null;
 
-  const top = candidates[0]!;
+  // Bugünkü program maddesi: önkoşul OK ve bugün master edilmemişse onu seç.
+  let top = candidates[0]!;
+  if (ctx.planItem?.topicKey) {
+    const wantedKey = ctx.planItem.topicKey;
+    const fromPlan = candidates.find((c) => c.topicKey === wantedKey);
+    const planTopic =
+      bundle.topics.find((t) => t.topicKey === wantedKey) ?? null;
+    const masteryByKeyProbe = new Map(
+      bundle.topics.map((t) => [
+        t.topicKey,
+        { mastery: t.mastery, status: t.status },
+      ]),
+    );
+    const prereqOk = prerequisitesMet(bundle.graph, wantedKey, masteryByKeyProbe);
+    const masteredToday = planTopic?.status === "mastered";
+    if (fromPlan && prereqOk && !masteredToday) {
+      top = fromPlan;
+    } else if (!fromPlan && prereqOk && !masteredToday) {
+      const graphTopic = bundle.graph.topics.find((g) => g.topicKey === wantedKey);
+      if (graphTopic) {
+        top = {
+          topicId: graphTopic.topicId,
+          topicKey: graphTopic.topicKey,
+          title: graphTopic.title,
+          priority: 99,
+          reason: "plan",
+        };
+      }
+    }
+  }
   const topic =
     bundle.topics.find((t) => t.topicKey === top.topicKey) ??
     ({
@@ -282,9 +318,26 @@ export async function nextAction(
     graphTopic?.importance === "important" ||
     (graphTopic?.weightPercent ?? 0) >= 15;
 
+  let finalAction = policy.action;
+  if (ctx.planItem?.kind && top.topicKey === ctx.planItem.topicKey) {
+    const kind = ctx.planItem.kind;
+    if (kind === "learn" && allowedActions.includes("teach")) finalAction = "teach";
+    else if (
+      (kind === "practice" || kind === "mock") &&
+      (allowedActions.includes("practice") || allowedActions.includes("retrieval_practice"))
+    ) {
+      finalAction = allowedActions.includes("practice") ? "practice" : "retrieval_practice";
+    } else if (
+      (kind === "review" || kind === "scheduled_review") &&
+      allowedActions.includes("scheduled_review")
+    ) {
+      finalAction = "scheduled_review";
+    }
+  }
+
   const code = pickReason(
     topic,
-    policy.action,
+    finalAction,
     ctx.behindSchedule ?? false,
     reviewDue,
     prereqGap,
@@ -292,11 +345,11 @@ export async function nextAction(
   );
 
   const durationTarget =
-    policy.action === "teach"
+    finalAction === "teach"
       ? Math.min(20, sessionMinutes)
-      : policy.action === "mini_assessment"
+      : finalAction === "mini_assessment"
         ? Math.min(10, sessionMinutes)
-        : policy.action === "scheduled_review"
+        : finalAction === "scheduled_review"
           ? Math.min(8, sessionMinutes)
           : Math.min(15, sessionMinutes);
 
@@ -309,19 +362,20 @@ export async function nextAction(
       event_type: "jev_decision",
       topic_key: topic.topicKey,
       payload: {
-        action: policy.action,
+        action: finalAction,
         teachingMode,
         difficulty: policy.difficulty,
         decisionTraceId,
         phase,
-        overridden: policy.overridden,
-        overrideReason: policy.overrideReason,
+        overridden: policy.overridden || Boolean(ctx.planItem),
+        overrideReason: policy.overrideReason ?? (ctx.planItem ? "plan_item" : null),
+        planItemId: ctx.planItem?.id ?? null,
       },
     });
   }
 
   return {
-    action: policy.action,
+    action: finalAction,
     topicId: topic.topicId || top.topicId,
     topicKey: topic.topicKey,
     subtopicId: null,

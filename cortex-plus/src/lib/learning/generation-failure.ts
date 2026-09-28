@@ -41,15 +41,79 @@ export function generationFailureCode(body: { code?: unknown; error?: unknown })
   return body.error;
 }
 
+export type SourceUnavailableReasonCode =
+  | "no_prep_documents"
+  | "documents_processing"
+  | "no_topic_mapping"
+  | "pages_unusable"
+  | "search_no_match"
+  | "search_error";
+
+function sourceUnavailableMessage(reason: unknown): {
+  message: string;
+  action?: { href: string; label: string };
+} {
+  switch (reason) {
+    case "documents_processing":
+      return {
+        message:
+          "Bu konunun kaynak sayfaları okunamadı. Belgen hâlâ işleniyor olabilir; birkaç dakika sonra yeniden dene.",
+      };
+    case "no_prep_documents":
+      return {
+        message:
+          "Bu hazırlığa bağlı okunabilir belge bulunamadı. Belge ekleyip yeniden dene.",
+        action: { href: "/belgeler", label: "Belgelerime git" },
+      };
+    case "no_topic_mapping":
+      return {
+        message:
+          "Bu konu belgelerinde eşleşmedi. Konu haritasını yenileyip yeniden dene.",
+        action: { href: "/belgeler", label: "Konu haritasını yenile" },
+      };
+    case "pages_unusable":
+      return {
+        message:
+          "Bu konunun işaretli sayfalarından okunabilir metin çıkmadı. Belgeyi yeniden işle veya başka sayfa seç.",
+        action: { href: "/belgeler", label: "Belgelerime git" },
+      };
+    case "search_error":
+      return {
+        message:
+          "Kaynak araması geçici olarak başarısız oldu. Biraz sonra yeniden dene.",
+      };
+    case "search_no_match":
+    default:
+      return {
+        message:
+          "Bu konu belgelerinde eşleşmedi. Konu haritasını yenileyip yeniden dene.",
+        action: { href: "/belgeler", label: "Konu haritasını yenile" },
+      };
+  }
+}
+
 export function describeGenerationFailure(
   code: unknown,
   /** Hakkın ne zaman yenileneceği — "12 Eylül 2026 03:00". */
   resetsAtLabel?: string,
   kind?: string,
-  options: { isAdmin?: boolean } = {},
+  options: {
+    isAdmin?: boolean;
+    /** Sunucu iade ettiyse true. Yoksa / false ise iade cümlesi yok. */
+    refunded?: boolean;
+    /** source_unavailable alt sebebi. */
+    reason?: unknown;
+  } = {},
 ): GenerationFailure {
   const podcast = kind === "podcast";
-  const refundNote = options.isAdmin ? "" : " Kredin iade edildi.";
+  // refunded=true → iade cümlesi; false → yok; undefined → eski ekranlar
+  // (podcast vb.) generation_failed'da iade varsayar.
+  const showRefund =
+    options.isAdmin !== true &&
+    (options.refunded === true ||
+      (options.refunded === undefined &&
+        (code === "generation_failed" || code === "content_verification_failed")));
+  const refundNote = showRefund ? " Kredin iade edildi." : "";
   switch (code) {
     case "generation_in_progress":
       return {
@@ -60,19 +124,21 @@ export function describeGenerationFailure(
         canRetryNow: false,
       };
 
-    case "source_unavailable":
+    case "source_unavailable": {
+      const detail = sourceUnavailableMessage(options.reason);
       return {
-        message:
-          "Bu konunun kaynak sayfaları okunamadı. Belgen hâlâ işleniyor olabilir; birkaç dakika sonra yeniden dene.",
+        message: detail.message,
         retryMintsNewId: true,
         canRetryNow: true,
+        action: detail.action,
       };
+    }
 
     case "content_verification_failed":
       return {
         message: podcast
-          ? "Podcast kalite kontrolünden geçemedi; yanlış bilgi yayınlamamak için durduk. Yeniden denemek genelde işe yarıyor."
-          : "Hazırlanan ders kalite kontrolünden geçemedi; yanlış bilgi göstermemek için yayınlamadık. Yeniden denemek genelde işe yarıyor.",
+          ? `Podcast kalite kontrolünden geçemedi; yanlış bilgi yayınlamamak için durduk.${refundNote} Yeniden denemek genelde işe yarıyor.`
+          : `Hazırlanan ders kalite kontrolünden geçemedi; yanlış bilgi göstermemek için yayınlamadık.${refundNote} Yeniden denemek genelde işe yarıyor.`,
         retryMintsNewId: true,
         canRetryNow: true,
       };

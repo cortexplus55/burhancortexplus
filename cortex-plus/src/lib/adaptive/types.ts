@@ -138,6 +138,30 @@ export type DecisionTelemetry = {
   miniOutputTokens?: number;
 };
 
+/** Jev-specific audit extras — never copy onto student payloads. */
+export type JevUsageMeta = {
+  access?: "typesafe" | "gateway";
+  model?: string;
+  latencyMs?: number;
+  attempts?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  costUsd?: number;
+  error?: string;
+  confidence?: number;
+  questionSetVersion?: number;
+  lowConfidence?: boolean;
+  shadow?: {
+    action: string;
+    confidence: number;
+    agree: boolean;
+    latency_ms: number;
+    model: string;
+    cost_usd: number;
+    error?: string;
+  };
+};
+
 export type LearningEventType =
   | "session_started"
   | "lesson_started"
@@ -270,6 +294,8 @@ export type JevDecisionResult = {
   reasonCodes?: string[];
   auditId?: string;
   telemetry?: DecisionTelemetry;
+  /** Present only on the server decision object. Never copy onto student payloads. */
+  jevUsage?: JevUsageMeta;
 };
 
 export type GovernorAction = {

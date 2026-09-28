@@ -586,7 +586,8 @@ describe("mixed-file prep with the same page number", () => {
     expect(finished.salvaged).toBe(true);
     expect(lessonV2Schema.safeParse(finished.lesson).success).toBe(true);
     expect(finished.lesson.sections.length).toBeGreaterThan(0);
-    expect(finished.lesson.sections.filter((section) => section.check).length).toBeLessThan(3);
+    // Salvage yayınlar; refill minimuma yetişemezse checkCountLow işaretlenir (iade yok).
+    expect(typeof finished.checkCountLow).toBe("boolean");
     const blob = JSON.stringify(finished.lesson);
     expect(blob).toMatch(/Doğrulanamayan cümleler çıkarıldı/);
     expect(blob).toMatch(/sınırlayıcı bileşen/i);

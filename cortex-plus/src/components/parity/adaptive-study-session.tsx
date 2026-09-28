@@ -64,10 +64,12 @@ export function AdaptiveStudySession({
   prepId,
   prepTitle,
   daysRemaining,
+  planItemId = null,
 }: {
   prepId: string;
   prepTitle: string;
   daysRemaining: number | null;
+  planItemId?: string | null;
 }) {
   const [loading, setLoading] = useState(true);
   const [contentLoading, setContentLoading] = useState(false);
@@ -120,7 +122,10 @@ export function AdaptiveStudySession({
       const res = await fetch("/api/adaptive/session/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ examPrepId: prepId }),
+        body: JSON.stringify({
+          examPrepId: prepId,
+          ...(planItemId ? { planItemId } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
@@ -137,7 +142,7 @@ export function AdaptiveStudySession({
     } finally {
       setLoading(false);
     }
-  }, [prepId, loadContent]);
+  }, [prepId, planItemId, loadContent]);
 
   useEffect(() => {
     void start();

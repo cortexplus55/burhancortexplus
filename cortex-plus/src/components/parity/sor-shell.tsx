@@ -235,9 +235,9 @@ export function ParitySorShell({
         )}
 
         <div className="cp-sor-top-actions">
-          {examChrome ? null : isAdmin && account ? (
+          {isAdmin && account ? (
             <FounderChip />
-          ) : showBuy ? (
+          ) : examChrome ? null : showBuy ? (
             <Link href="/pay" className="cp-sor-buy">
               Satın al +
             </Link>
@@ -257,7 +257,11 @@ export function ParitySorShell({
               })}
             </Link>
           ) : null}
-          <button type="button" className="cp-sor-streak" aria-label="Seri">
+          <button
+            type="button"
+            className="cp-sor-streak"
+            aria-label={`Seri: ${streakCount} gün`}
+          >
             <Flame className="h-4 w-4 text-orange-500" aria-hidden />
             <span>{streakCount}</span>
           </button>

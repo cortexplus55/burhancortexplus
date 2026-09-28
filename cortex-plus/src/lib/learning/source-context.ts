@@ -1,8 +1,10 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { pageUsableForLesson } from "@/lib/documents/page-analysis";
 import { sliceNumberedSection } from "@/lib/documents/topic-title";
 import { conceptInText, conceptsWorthWidening } from "@/lib/learning/lesson-claims";
 import { topicTitlesAlign } from "@/lib/learning/lesson-teach";
+import { hasRepetitiveSparseEvidence } from "@/lib/learning/diagnostic-evidence";
 import { MIN_CHUNK_SIMILARITY, searchDocumentChunks, type DocumentMatch } from "@/lib/rag/pipeline";
 
 /**
@@ -20,6 +22,11 @@ import { MIN_CHUNK_SIMILARITY, searchDocumentChunks, type DocumentMatch } from "
 /** Kaynak parçalarını istemcinin gönderemeyeceği kadar sınırlı tut. */
 const MAX_CHARS_PER_CHUNK = 900;
 
+/** Toleranslı ders yolunda kullanılabilir metin alt sınırı (karakter). */
+export const MIN_USABLE_LESSON_CHARS = 200;
+
+export type PageSourceMode = "strict" | "tolerant";
+
 export type SourceContext = {
   /** Prompt'a eklenecek metin; kaynak yoksa boş. */
   block: string;
@@ -27,6 +34,18 @@ export type SourceContext = {
   documentName: string | null;
   /** Sayfalardan çıkarılmış formüller; ders bunlara karşı denetleniyor. */
   formulas?: string[];
+  /** One short statement repeated across pages; not enough for numeric checks. */
+  repetitiveSparseEvidence?: boolean;
+  /**
+   * Başlık hizalamasında belge başına sayfalar — self-heal karışık belge
+   * sayfalarını tek id altına yazmasın diye.
+   */
+  pagesByDocument?: Array<{ documentId: string; pages: number[] }>;
+};
+
+export type PageSourceLoadResult = SourceContext & {
+  skippedPages: number[];
+  usableChars: number;
 };
 
 /** Kaynak bloğundaki `[s.N]` ve `· s.N` işaretleri. Atıf denetimi bunları kabul eder. */
@@ -195,7 +214,11 @@ export async function loadPageSourceAcrossDocuments(
   userId: string,
   documentIds: Array<string | null | undefined>,
   pageNumbers: number[] | undefined,
-  options: { sourceBoundaryMode?: "documents_only" | "allow_supporting" | null; topicLabel?: string } = {},
+  options: {
+    sourceBoundaryMode?: "documents_only" | "allow_supporting" | null;
+    topicLabel?: string;
+    mode?: PageSourceMode;
+  } = {},
 ): Promise<SourceContext> {
   const ids = [...new Set(documentIds.filter((id): id is string => Boolean(id)))];
   if (!ids.length || !pageNumbers?.length) return EMPTY_SOURCE_CONTEXT;
@@ -221,14 +244,24 @@ export async function loadPageSourceContext(
   userId: string,
   documentId: string | null | undefined,
   pageNumbers: number[] | undefined,
-  options: { sourceBoundaryMode?: "documents_only" | "allow_supporting" | null; topicLabel?: string } = {},
-): Promise<SourceContext> {
-  if (!documentId || !pageNumbers?.length) return EMPTY_SOURCE_CONTEXT;
+  options: {
+    sourceBoundaryMode?: "documents_only" | "allow_supporting" | null;
+    topicLabel?: string;
+    mode?: PageSourceMode;
+  } = {},
+): Promise<PageSourceLoadResult> {
+  const empty: PageSourceLoadResult = {
+    ...EMPTY_SOURCE_CONTEXT,
+    skippedPages: [],
+    usableChars: 0,
+  };
+  if (!documentId || !pageNumbers?.length) return empty;
 
   if (pageNumbers.some((number) => !Number.isInteger(number) || number < 1)) {
     throw new SourceUnavailableError();
   }
   const requiredPages = [...new Set(pageNumbers)].sort((a, b) => a - b);
+  const tolerant = options.mode === "tolerant";
   const { data: doc, error: docError } = await service.from("documents")
     .select("file_name").eq("id", documentId).eq("user_id", userId).is("deleted_at", null).maybeSingle();
   if (docError || !doc) throw new SourceUnavailableError();
@@ -239,14 +272,34 @@ export async function loadPageSourceContext(
       .in("page_number", requiredPages)
       .order("page_number", { ascending: true });
 
-  if (docError || pagesError || !doc) throw new SourceUnavailableError();
-  const usable = (pages ?? []).filter(
-    (page) => requiredPages.includes(page.page_number as number) &&
-      page.extraction_ok !== false && page.page_kind !== "unreadable" &&
-      ((page.text_content as string | null) ?? "").trim().length > 0,
+  if (pagesError || !doc) throw new SourceUnavailableError();
+  const byNumber = new Map(
+    (pages ?? []).map((page) => [page.page_number as number, page]),
   );
-  const loadedNumbers = new Set(usable.map((page) => page.page_number as number));
-  if (requiredPages.some((number) => !loadedNumbers.has(number))) {
+  const usable: NonNullable<typeof pages> = [];
+  const skippedPages: number[] = [];
+  for (const number of requiredPages) {
+    const page = byNumber.get(number);
+    if (!page) {
+      skippedPages.push(number);
+      continue;
+    }
+    const text = ((page.text_content as string | null) ?? "").trim();
+    const strictOk =
+      page.extraction_ok !== false &&
+      page.page_kind !== "unreadable" &&
+      text.length > 0;
+    // Tolerant (ders): harita ile aynı pageUsableForLesson.
+    // Strict (quiz/sözlü/varsayılan): eski hep-ya-hiç kuralı.
+    const ok = tolerant ? pageUsableForLesson(page) : strictOk;
+    if (ok) usable.push(page);
+    else skippedPages.push(number);
+  }
+  if (!usable.length) {
+    if (tolerant) return { ...empty, skippedPages };
+    throw new SourceUnavailableError();
+  }
+  if (!tolerant && skippedPages.length) {
     throw new SourceUnavailableError();
   }
 
@@ -268,10 +321,14 @@ export async function loadPageSourceContext(
     formulas: (hits.length ? page.formulas.filter((formula) => formulaFitsSlice(formula, page.sliced)) : page.formulas),
   }));
   const formulas = topicPages.flatMap((page) => page.formulas);
+  const usableChars = topicPages.reduce((sum, page) => sum + page.text.trim().length, 0);
   return {
     matches: [],
     documentName,
     formulas,
+    skippedPages,
+    usableChars,
+    repetitiveSparseEvidence: hasRepetitiveSparseEvidence(topicPages.map((page) => page.text)),
     block: pageSourceBlock(
       documentName,
       topicPages,
@@ -365,6 +422,7 @@ export function mergeTopicSources(
   if (!extras.length) return pageBound;
   return {
     ...pageBound,
+    repetitiveSparseEvidence: false,
     matches: [...pageBound.matches, ...related.filter((match) => seen.has(`${match.documentId}:${match.chunkId}`))],
     block:
       pageBound.block +
@@ -377,6 +435,9 @@ export function mergeTopicSources(
  * Sayfa listesi varsa onu okur; yoksa benzerlik araması.
  * Ardından kullanıcının diğer belgelerinden konuya uyan parçaları ekler.
  * Belgesiz hazırlıkta arama yapılmaz.
+ *
+ * Taban yükleme (sayfa / benzerlik) de try/catch içinde: isteğe bağlı
+ * zenginleştirme mevcut sayfa kaynağını çöpe atamaz.
  */
 export async function loadMergedTopicContext(
   service: SupabaseClient,
@@ -387,25 +448,36 @@ export async function loadMergedTopicContext(
     pageNumbers?: number[];
     sourceBoundaryMode?: "documents_only" | "allow_supporting" | null;
     allowSearch: boolean;
+    /** Önceden yüklenmiş sayfa kaynağı — taban yeniden okunmaz. */
+    baseContext?: SourceContext | null;
+    mode?: PageSourceMode;
   },
 ): Promise<SourceContext> {
   if (!options.allowSearch) return EMPTY_SOURCE_CONTEXT;
 
-  let base = EMPTY_SOURCE_CONTEXT;
-  if (options.pageNumbers?.length) {
-    base = await loadPageSourceContext(
-      service,
-      userId,
-      options.documentId,
-      options.pageNumbers,
-      { sourceBoundaryMode: options.sourceBoundaryMode },
-    );
-  }
-  if (!base.block) {
-    base = await loadSourceContext(service, userId, query, {
-      documentId: options.documentId,
-      sourceBoundaryMode: options.sourceBoundaryMode,
-    });
+  let base = options.baseContext?.block.trim()
+    ? options.baseContext
+    : EMPTY_SOURCE_CONTEXT;
+
+  try {
+    if (!base.block.trim() && options.pageNumbers?.length) {
+      base = await loadPageSourceContext(
+        service,
+        userId,
+        options.documentId,
+        options.pageNumbers,
+        { sourceBoundaryMode: options.sourceBoundaryMode, mode: options.mode },
+      );
+    }
+    if (!base.block.trim()) {
+      base = await loadSourceContext(service, userId, query, {
+        documentId: options.documentId,
+        sourceBoundaryMode: options.sourceBoundaryMode,
+      });
+    }
+  } catch {
+    if (options.baseContext?.block.trim()) return options.baseContext;
+    throw new SourceUnavailableError();
   }
 
   try {
@@ -433,6 +505,7 @@ export async function loadTopicSpanContext(
   options: {
     sourceBoundaryMode?: "documents_only" | "allow_supporting" | null;
     preferredNodeId?: string | null;
+    mode?: PageSourceMode;
   } = {},
 ): Promise<SourceContext | null> {
   const ids = [...new Set(documentIds.filter((id): id is string => Boolean(id)))];
@@ -467,6 +540,7 @@ export async function loadTopicSpanContext(
     }
     const parts: string[] = [];
     const formulas: string[] = [];
+    const sparseFlags: boolean[] = [];
     let documentName: string | null = null;
     for (const [documentId, pages] of pagesByDoc) {
       const { data: existing } = await service
@@ -482,10 +556,12 @@ export async function loadTopicSpanContext(
         const loaded = await loadPageSourceContext(service, userId, documentId, usable, {
           sourceBoundaryMode: options.sourceBoundaryMode,
           topicLabel,
+          mode: options.mode ?? "tolerant",
         });
         if (!loaded.block.trim()) continue;
         if (!documentName) documentName = loaded.documentName;
         parts.push(loaded.block);
+        sparseFlags.push(Boolean(loaded.repetitiveSparseEvidence));
         formulas.push(...(loaded.formulas ?? []));
       } catch (error) {
         if (error instanceof SourceUnavailableError) continue;
@@ -497,7 +573,12 @@ export async function loadTopicSpanContext(
       matches: [],
       documentName,
       formulas,
+      repetitiveSparseEvidence: parts.length === 1 && sparseFlags[0] === true,
       block: parts.join("\n\n"),
+      pagesByDocument: [...pagesByDoc.entries()].map(([documentId, pages]) => ({
+        documentId,
+        pages: [...pages].sort((a, b) => a - b),
+      })),
     };
   } catch (error) {
     if (error instanceof SourceUnavailableError) return null;

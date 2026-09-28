@@ -46,15 +46,37 @@ export function calloutTone(note: { title: string; tone?: CalloutTone | null }):
   return "info";
 }
 
-export function reviewGateLead(count: number): string {
+export function reviewGateLead(count: number, options?: { distinct?: boolean }): string {
   const n = Math.max(1, Math.floor(count));
+  if (options?.distinct === false) {
+    return `Bitirmeden önce, yanlış cevapladığın ${n} kontrol sorusunu bir kez daha deneyelim.`;
+  }
   return `Bitirmeden önce, yanlış cevapladığın ${n} kontrol sorusunu farklı bir şekilde sorup tekrar deneyelim.`;
+}
+
+function foldPromptText(text: string): string {
+  return text.trim().toLocaleLowerCase("tr").replace(/\s+/g, " ");
+}
+
+/** Tekrar sorusu kök veya şık sırası bakımından gerçekten farklı mı? */
+export function isDistinctRetryVariant(
+  primary: Pick<SectionCheck, "prompt" | "options">,
+  retry: Pick<SectionCheck, "prompt" | "options">,
+): boolean {
+  if (foldPromptText(primary.prompt) !== foldPromptText(retry.prompt)) return true;
+  const left = primary.options ?? [];
+  const right = retry.options ?? [];
+  if (left.length !== right.length) return true;
+  return left.some((option, index) => option.trim() !== (right[index] ?? "").trim());
 }
 
 /**
  * Kısa tekrar kapısı. Dersle aynı çağrıda yazılan varyant geçerlidir.
  * Yoksa aynı kavram başka sayı veya yönden sorulur.
  * Kalan doğru/yanlış kökü de başka cümleyle sorulur. Kapıda yeni model çağrısı yok.
+ *
+ * Sunucu ve sızdırma yolu aynı fonksiyonu kullanır (deterministik).
+ * Cevaplı paket gerekir; sızdırılmış pakette istemci bunu çağırmamalı.
  */
 export function reviewGateQuestion<T extends SectionCheck>(
   check: T,

@@ -15,6 +15,9 @@ import "server-only";
  * gibi çizmek bunların hepsini kapsıyor.
  */
 
+import { pdfjsDocumentOptions } from "@/lib/documents/pdfjs-options";
+import { logOpsEvent } from "@/lib/observability/ops-log";
+
 /**
  * Tek istekte çizilecek en fazla sayfa; belgenin toplam sayfa tavanı değil.
  *
@@ -30,9 +33,22 @@ export const MAX_SCAN_PAGES = 20;
  */
 const TARGET_LONG_EDGE = 1600;
 
+/** Share of non-near-white pixels below which a page with image ops is blank. */
+export const BLANK_INK_RATIO = 0.002;
+
+export type RenderedPdfPage = {
+  png: Buffer;
+  /** 0–1 share of non-white pixels at a cheap sample scale. */
+  inkRatio: number;
+  /** Operator list contained an image paint. */
+  hasImageContent: boolean;
+  /** Image content present but render is ~blank → do not OCR. */
+  scanRenderFailed: boolean;
+  pageNumber: number;
+};
+
 export type RenderedPdf = {
-  /** PNG olarak çizilmiş sayfalar, sırayla. */
-  pages: Buffer[];
+  pages: RenderedPdfPage[];
   /** PDF'in gerçek sayfa sayısı — kesilip kesilmediğini söylemek için. */
   total: number;
 };
@@ -52,10 +68,50 @@ function ensurePromiseWithResolvers() {
   };
 }
 
+export function inkRatioFromRgba(
+  data: Uint8ClampedArray | Buffer,
+  threshold = 250,
+): number {
+  const pixels = Math.floor(data.length / 4);
+  if (pixels <= 0) return 0;
+  let ink = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i]! < threshold || data[i + 1]! < threshold || data[i + 2]! < threshold) {
+      ink += 1;
+    }
+  }
+  return ink / pixels;
+}
+
+async function pageHasImageContent(page: {
+  getOperatorList: () => Promise<{ fnArray: number[] }>;
+}): Promise<boolean> {
+  try {
+    const ops = await Promise.race([
+      page.getOperatorList(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2_000)),
+    ]);
+    if (!ops) return false;
+    const { OPS } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const imageCodes = new Set(
+      [OPS.paintImageXObject, OPS.paintInlineImageXObject, OPS.paintImageMaskXObject].filter(
+        (n): n is number => typeof n === "number",
+      ),
+    );
+    if (imageCodes.size && ops.fnArray.some((fn) => imageCodes.has(fn))) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export async function renderPdfPages(
   buffer: Buffer,
   maxPages = MAX_SCAN_PAGES,
   startPage = 1,
+  options?: {
+    pdfjsOverrides?: Parameters<typeof pdfjsDocumentOptions>[1];
+  },
 ): Promise<RenderedPdf> {
   ensurePromiseWithResolvers();
   /*
@@ -69,16 +125,25 @@ export async function renderPdfPages(
     import("@napi-rs/canvas"),
     import("pdfjs-dist/legacy/build/pdf.mjs"),
   ]);
+  const warnings: string[] = [];
   const task = getDocument({
-    data: new Uint8Array(buffer),
-    useSystemFonts: true,
+    ...pdfjsDocumentOptions(new Uint8Array(buffer), options?.pdfjsOverrides),
+    // Collect decode warnings for ops when a blank render slips through.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...( { verbosity: 0 } as any ),
   });
+  // pdfjs pushes warnings to console.warn; capture via monkey-patch for this call.
+  const previousWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args.map(String).join(" "));
+    previousWarn(...args);
+  };
 
   try {
     const pdf = await task.promise;
     const first = Math.max(1, Math.trunc(startPage));
     const last = Math.min(pdf.numPages, first + Math.max(0, Math.trunc(maxPages)) - 1);
-    const pages: Buffer[] = [];
+    const pages: RenderedPdfPage[] = [];
 
     for (let number = first; number <= last; number++) {
       const page = await pdf.getPage(number);
@@ -103,12 +168,60 @@ export async function renderPdfPages(
         canvas: canvas as any,
       }).promise;
 
-      pages.push(canvas.toBuffer("image/png"));
+      // getOperatorList BEFORE render hangs on Node 20 (transferToFixedLength).
+      // Probe after paint, with a timeout; fall back to ink/size heuristics.
+      let hasImageContent = await pageHasImageContent(page);
+
+      // Cheap ink metric at reduced resolution (sample every Nth pixel via getImageData).
+      const sampleScale = Math.min(1, 200 / Math.max(canvas.width, canvas.height));
+      const sw = Math.max(1, Math.floor(canvas.width * sampleScale));
+      const sh = Math.max(1, Math.floor(canvas.height * sampleScale));
+      const sample = createCanvas(sw, sh);
+      const sctx = sample.getContext("2d");
+      sctx.fillStyle = "#ffffff";
+      sctx.fillRect(0, 0, sw, sh);
+      sctx.drawImage(canvas, 0, 0, sw, sh);
+      const inkRatio = inkRatioFromRgba(sctx.getImageData(0, 0, sw, sh).data);
+      const png = canvas.toBuffer("image/png");
+      // Ops probe timed out but the bitmap has ink → treat as image content.
+      if (!hasImageContent && inkRatio >= BLANK_INK_RATIO) {
+        hasImageContent = true;
+      }
+      // Ops probe timed out and the bitmap is a tiny white PNG — typical
+      // failed CCITT/JBIG2 decode. Prefer the render-failed path over "blank".
+      if (!hasImageContent && inkRatio < BLANK_INK_RATIO && png.byteLength < 2_000) {
+        hasImageContent = true;
+      }
+      const scanRenderFailed = hasImageContent && inkRatio < BLANK_INK_RATIO;
+
+      if (scanRenderFailed) {
+        logOpsEvent("document_parse_failed", {
+          documentId: null,
+          code: "scan_render_failed",
+          pageNumber: number,
+          inkRatio,
+          warning: warnings.slice(-5).join(" | ").slice(0, 500),
+        });
+      }
+
+      pages.push({
+        png,
+        inkRatio,
+        hasImageContent,
+        scanRenderFailed,
+        pageNumber: number,
+      });
       page.cleanup();
     }
 
     return { pages, total: pdf.numPages };
   } finally {
+    console.warn = previousWarn;
     await task.destroy();
   }
+}
+
+/** Back-compat: buffers only (legacy callers / pipeline). */
+export function renderedPngBuffers(rendered: RenderedPdf): Buffer[] {
+  return rendered.pages.map((page) => page.png);
 }

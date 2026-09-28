@@ -13,6 +13,7 @@ import { planTier } from "@/lib/documents/photo-quota";
 import { loadUsageLimits } from "@/lib/student/usage-limits";
 import { FounderCreditsView } from "@/components/student/founder-credits-view";
 import { summarizeFounderUsage, turkeyMonthStart } from "@/lib/credits/founder-usage";
+import { isPaymentRefundLedgerEntry } from "@/lib/payments/refund";
 
 export const metadata = { title: "Limitler" };
 
@@ -24,6 +25,19 @@ const entryLabels: Record<string, string> = {
   purchase: "Satın alma",
   adjustment: "Düzeltme",
 };
+
+function ledgerEntryLabel(entry: {
+  entry_type: string;
+  action_code?: string | null;
+  idempotency_key?: string | null;
+  metadata?: { reason?: unknown } | null;
+}): string {
+  if (isPaymentRefundLedgerEntry(entry)) {
+    return "İade — kredi geri alındı";
+  }
+  const base = entryLabels[entry.entry_type] ?? entry.entry_type;
+  return entry.action_code ? `${base} · ${entry.action_code}` : base;
+}
 
 function LimitBar({
   label,
@@ -109,7 +123,7 @@ export default async function KredilerPage() {
       .maybeSingle(),
     supabase
       .from("credit_ledger")
-      .select("id, delta, entry_type, action_code, created_at")
+      .select("id, delta, entry_type, action_code, created_at, idempotency_key, metadata")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(25),
@@ -249,8 +263,7 @@ export default async function KredilerPage() {
                   className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
                 >
                   <span className="text-[var(--cs-text)]">
-                    {entryLabels[entry.entry_type] ?? entry.entry_type}
-                    {entry.action_code ? ` · ${entry.action_code}` : ""}
+                    {ledgerEntryLabel(entry)}
                   </span>
                   <span className="flex items-center gap-3">
                     <span
