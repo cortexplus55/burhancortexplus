@@ -20,6 +20,7 @@ import {
 } from "@/lib/documents/pdf-learning-v2";
 import { documentTitle } from "@/lib/documents/topic-title";
 import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
+import { clampExamLabel } from "@/lib/documents/process-session";
 import { PREP_TOPIC_CAP, prepTopicCapacityError } from "@/lib/learning/prep-topic-list";
 import { loadPagedDocumentRows } from "@/lib/learning/paged-document-rows";
 import {
@@ -54,7 +55,7 @@ const bodySchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   /** Exam type/level for oneshot teacher perspective (optional on probe). */
-  examType: z.string().min(2).max(40).optional(),
+  examType: z.unknown().optional().transform(clampExamLabel),
   documentId: z.string().uuid().optional(),
   documentIds: z.array(z.string().uuid()).max(8).optional(),
   /** Flag+topic-map check only — no AI / no credits. */

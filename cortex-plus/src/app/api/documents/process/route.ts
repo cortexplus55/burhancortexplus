@@ -4,7 +4,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { processDocument } from "@/lib/rag/pipeline";
 import { runPdfLearningV2 } from "@/lib/documents/pdf-learning-v2";
-import { pickProcessPhase } from "@/lib/documents/process-session";
+import { clampExamLabel, pickProcessPhase } from "@/lib/documents/process-session";
 import {
   commitCredits,
   refundCredits,
@@ -29,7 +29,7 @@ const bodySchema = z.object({
   documentId: z.string().uuid(),
   maxOcrPages: z.number().int().positive().optional(),
   /** Exam type/subject for oneshot teacher perspective (optional). */
-  examType: z.string().min(2).max(40).optional(),
+  examType: z.unknown().optional().transform(clampExamLabel),
   examDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)

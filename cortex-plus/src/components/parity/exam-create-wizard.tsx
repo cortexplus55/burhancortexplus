@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { isPhotoQuotaError } from "@/lib/documents/process-errors";
 import {
+  clampExamLabel,
   postDocumentProcess,
   requestDocumentProcessing,
 } from "@/lib/documents/process-session";
@@ -557,7 +558,7 @@ export function ExamCreateWizard({
             documentId: primary,
             documentIds: ids,
             probeOnly: true,
-            examType: subject.trim() || undefined,
+            examType: clampExamLabel(subject),
             examDate: examDate.trim() || undefined,
           }),
         });
@@ -746,7 +747,7 @@ export function ExamCreateWizard({
     });
     setProcessDetail("Belge işleniyor…");
     setProcessPercent(4);
-    const processExamType = subject.trim() || undefined;
+    const processExamType = clampExamLabel(subject);
     const processExamDate = examDate.trim() || undefined;
     const result = await requestDocumentProcessing({
       documentId: input.documentId,

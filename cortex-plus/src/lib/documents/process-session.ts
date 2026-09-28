@@ -22,6 +22,15 @@ export const MAX_IDENTICAL_RETRYABLE_FAILURES = 3;
 
 export type ProcessPhase = "extract" | "map" | "done";
 
+/** Exam/subject label sent with processing — free text, never a reason to 400. */
+export const EXAM_LABEL_MAX_CHARS = 40;
+
+export function clampExamLabel(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const text = value.replace(/\s+/g, " ").trim().slice(0, EXAM_LABEL_MAX_CHARS).trim();
+  return text.length >= 2 ? text : undefined;
+}
+
 export function shouldYieldProcessing(
   startedAt: number,
   now = Date.now(),
