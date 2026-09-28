@@ -553,9 +553,16 @@ export function ExamCreateWizard({
           intakeFailed = true;
           setIntakeAlert(
             (payload.error as string | undefined) ??
-              "Belgen hâlâ hazırlanıyor. İşlem bitince tekrar dene.",
+              "Belgenin konuları hâlâ hazırlanıyor. Devam ediyoruz…",
           );
           setStep("material");
+          for (const material of materialsRef.current) {
+            void processAndRemember({
+              documentId: material.id,
+              fileName: material.fileName,
+              sizeBytes: material.sizeBytes,
+            });
+          }
           return;
         }
         if (res.status === 422) {
@@ -571,12 +578,7 @@ export function ExamCreateWizard({
         }
         if (!res.ok) {
           intakeFailed = true;
-          const message =
-            (payload.error as string | undefined) ??
-            (res.status >= 500
-              ? "Sunucu geçici olarak yanıt vermiyor. Biraz sonra tekrar dene."
-              : "Konular çıkarılamadı.");
-          setIntakeAlert(message);
+          setIntakeAlert("Konular alınamadı. Tekrar dene.");
           setTopics([]);
           setStep("topics");
           return;
@@ -676,7 +678,7 @@ export function ExamCreateWizard({
         setTitle(payload?.draft?.title || `${subject} sınav hazırlığı`);
       } catch {
         intakeFailed = true;
-        setIntakeAlert("Bağlantı hatası. Tekrar dene.");
+        setIntakeAlert("Konular alınamadı. Tekrar dene.");
         setTopics([]);
         setStep("topics");
       } finally {
@@ -977,14 +979,14 @@ export function ExamCreateWizard({
     return pool.filter((s) => s.toLocaleLowerCase("tr").includes(q));
   }, [subjectQuery, recentSubjects]);
 
-  const resumeProcessingDoc = useCallback((doc: WizardMaterial) => {
+  const resumeProcessingDoc = (doc: WizardMaterial) => {
     setUploading(true);
     void processAndRemember({
       documentId: doc.id,
       fileName: doc.fileName,
       sizeBytes: doc.sizeBytes,
     }).finally(() => setUploading(false));
-  }, []);
+  };
 
   const removeFailedMaterial = useCallback((failed: { documentId: string }) => {
     void fetch(`/api/documents/${failed.documentId}`, { method: "DELETE" })
