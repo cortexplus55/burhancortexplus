@@ -391,7 +391,10 @@ describe("subject lessons", () => {
     const blob = JSON.stringify(finished.lesson);
     expect(blob).not.toMatch(/kendi anlamına bağlıyor/);
     expect(blob).not.toMatch(/tepkimeler|denkleştirme/i);
-    expect(blob).toMatch(/Kaynak: pdf-12-sayfa\.pdf, s\./);
+    // Künye artık gövde metninin bir parçası değil (bkz. lesson-source.ts) —
+    // ayrı `section.source` alanında yapılandırılmış olarak durur.
+    expect(finished.lesson.sections.every((section) => !/kaynak\s*:/i.test(section.body))).toBe(true);
+    expect(finished.lesson.sections.some((section) => section.source?.file === "pdf-12-sayfa.pdf")).toBe(true);
     expect(topicIsQuantitative(MOL_SOURCE)).toBe(true);
   });
 

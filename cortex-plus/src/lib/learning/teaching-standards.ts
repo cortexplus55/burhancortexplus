@@ -187,7 +187,11 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "Sözel konuda kaynağın olayını, belgesini veya hükmünü somut bir vaka olarak yaz. " +
         "Çoktan seçmeli çeldiriciler aynı kaynaktaki başka terimler veya yanılgılar olsun. " +
         "optionWhy her şık için bir cümle taşısın: doğru şıkta gerekçe, diğerlerinde o şıkkın neden uymadığı. " +
-        "Kaynak satırı [s.N] ile işaretliyse bölümün sonuna Kaynak: dosya, s.N yaz. " +
+        "Kaynak künyesini (dosya adı, sayfa numarası) bölüm gövdesine yazma; bu ayrı kaydedilir, " +
+        "'Kaynak:' diye başlayan bir cümle ekleme. " +
+        "Bölüm gövdesi 35-60 kelime, en fazla 70 kelime olsun; en fazla 2-3 temel fikir anlat. " +
+        "Aynı bilgiyi gövdede iki kez ya da hem gövdede hem özet/note'ta birebir tekrar etme. " +
+        "Gereksiz giriş ('Bu konu önemlidir') veya sonuç cümlesi ('Özetlemek gerekirse') yazma. " +
         "Özet, bölüm cümlelerini yeniden sıralamasın; tanımı, gerekçeyi ve uygulamayı birleştirsin. " +
         // Yanılgı dersin sonunda tek adımdı; öğrenci onu beş adım sonra
         // görüyordu. Okunduğu yerde kesilirse hiç yerleşmiyor.
@@ -383,6 +387,18 @@ export const lessonV2Schema = z.object({
         // görünür. Sınava iki gün kala dersi yeniden okuyan öğrenci neye
         // bakacağını düz paragraftan çıkaramıyordu.
         body: z.string().min(20).max(2500),
+        // Kaynak künyesi (dosya adı + sayfa) ayrı alan: gövde metninin bir
+        // parçası olarak okunmaz, ekranda küçük bir "Kaynak" rozeti/butonu
+        // besler. Model bunu yazmıyor — attachCitations/weaveUnusedSources
+        // (lesson-teach.ts) veya legacy gövdeden ayrıştırma
+        // (stripInlineSourceLine) dolduruyor. Yoksa rozet render edilmez.
+        source: z
+          .object({
+            file: z.string().min(1).max(200),
+            page: z.number().int().min(1).max(9999).optional().catch(undefined),
+          })
+          .optional()
+          .catch(undefined),
         check: sectionCheckSchema.optional().catch(undefined),
         // true ise ekranda check gövdeden ÖNCE gösterilir (geri getirme /
         // "önce dene" — Astra kıyasında bu sıranın kavramı daha iyi

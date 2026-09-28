@@ -71,6 +71,9 @@ export const publicLessonV2Schema = z.object({
       z.object({
         heading: z.string().min(1).max(160),
         body: z.string().min(1),
+        source: z
+          .object({ file: z.string(), page: z.number().optional() })
+          .optional(),
         check: publicSectionCheckSchema.optional(),
         checkFirst: z.boolean().optional(),
         retryCheck: publicSectionCheckSchema.optional(),
