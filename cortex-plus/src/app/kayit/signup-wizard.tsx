@@ -20,6 +20,7 @@ import {
   AVATAR_OPTIONS,
   GOAL_OPTIONS,
   GRADE_OPTIONS,
+  SIGNUP_NEXT_KEY,
   SIGNUP_STORAGE_KEY,
   SUBJECT_OPTIONS,
   stepIdsForRole,
@@ -28,6 +29,7 @@ import {
 } from "@/lib/parity/signup";
 import { authCallbackUrl, authErrorMessage } from "@/lib/auth/messages";
 import { signInWithGoogle } from "@/lib/auth/google-oauth";
+import { foldTr } from "@/lib/documents/page-analysis";
 import { supabaseConfigIssue } from "@/lib/supabase/config-check";
 import { SignupPremiumShell } from "@/components/layout/signup-premium-shell";
 import "@/styles/cortex-premium.css";
@@ -86,6 +88,12 @@ export function SignupWizard() {
   function stashPayload(payload: SignupPayload) {
     try {
       localStorage.setItem(SIGNUP_STORAGE_KEY, JSON.stringify(payload));
+      // Satın almaya basan misafir /kayit?next=/pay'e geliyor; kayıt
+      // bitince oraya dönmeli, dashboard'a değil. Doğrulama bağlantısı
+      // aynı tarayıcıda açılınca tamamla sayfası bunu okuyor.
+      const target = searchParams.get("next");
+      if (target) localStorage.setItem(SIGNUP_NEXT_KEY, target);
+      else localStorage.removeItem(SIGNUP_NEXT_KEY);
     } catch {
       /* storage kapalı olabilir */
     }
@@ -112,9 +120,10 @@ export function SignupWizard() {
 
     const ders = searchParams.get("ders")?.trim();
     if (!ders) return;
-    const match = SUBJECT_OPTIONS.find(
-      (s) => s.label.toLocaleLowerCase("tr") === ders.toLocaleLowerCase("tr"),
-    );
+    // Pazarlama sayfası slug gönderiyor (?ders=turkce); etiket "Türkçe".
+    // Yalnızca küçük harfe çevirmek "turkce", "ingilizce", "cografya"yı
+    // hiç eşleştirmiyordu — aksanlar da katlanıyor.
+    const match = SUBJECT_OPTIONS.find((s) => foldTr(s.label) === foldTr(ders));
     if (match) {
       setDraft((d) => ({ ...d, focusSubject: match.label }));
     }

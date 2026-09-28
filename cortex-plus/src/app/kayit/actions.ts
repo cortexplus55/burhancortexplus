@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { homePathForRole, isOptionalPhoneValid } from "@/lib/parity/signup";
+import { resolveFullName } from "@/lib/auth/resolve-full-name";
 import { getParentLinkStatus } from "@/lib/parent/link-status";
 import {
   sendParentInviteEmail,
@@ -12,7 +13,11 @@ import {
 
 const payloadSchema = z.object({
   role: z.enum(["student", "parent", "teacher"]),
-  fullName: z.string().min(2).max(120),
+  // Boş gelebilir: sihirbazdaki "Google ile devam et" ad alanı doldurulmadan
+  // da basılabiliyor. Ad sunucuda Google hesabından tamamlanıyor
+  // (resolveFullName); eskiden min(2) burada "Bilgiler geçersiz." dönüp
+  // Google ile kayıt olan öğrenciyi baştan onboarding'e gönderiyordu.
+  fullName: z.string().max(120).default(""),
   gradeLevel: z.string().max(40).optional(),
   schoolName: z.string().max(160).optional(),
   focusSubject: z.string().max(60).optional(),
@@ -63,7 +68,9 @@ async function completeSignupInner(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Oturum bulunamadı." };
 
-  const payload = { ...parsed.data, role: "student" as const };
+  const fullName = resolveFullName(parsed.data.fullName, user);
+  if (fullName.length < 2) return { ok: false, error: "Ad soyad gerekli." };
+  const payload = { ...parsed.data, fullName, role: "student" as const };
   if (
     payload.parentPhone &&
     !isOptionalPhoneValid(payload.parentPhone)
