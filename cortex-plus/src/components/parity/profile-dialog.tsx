@@ -8,11 +8,14 @@ import "@/styles/parity-shell.css";
 
 type TabId = "account" | "school" | "learning";
 
+// "Veli" seçeneği kaldırıldı: ürün yalnızca öğrenciye (AGENTS.md, 29 Ağustos
+// 2026 kararı); veliyi seçen öğrenciyi bekleyen bir veli arayüzü yok.
 const ROLES = [
   { id: "student", label: "Öğrenci", hint: "Sınav ve ders odaklı AI" },
   { id: "graduate", label: "Mezun", hint: "KPSS, TUS ve yetişkin hedefler" },
-  { id: "parent", label: "Veli", hint: "Çocuğunun ilerlemesini takip et" },
 ] as const;
+
+type SchoolOption = { id: string; name: string; city: string | null };
 
 export type ProfilePlanView = {
   /** Ücretsizde paketin adı ('Temel'), abonede rozet ('Plus' / 'Sigma'). */
@@ -34,7 +37,7 @@ export function ProfileDialog({
   const [tab, setTab] = useState<TabId>("account");
   const [role, setRole] = useState("student");
   const [schoolQuery, setSchoolQuery] = useState("");
-  const [schoolOptions, setSchoolOptions] = useState<string[]>([]);
+  const [schoolOptions, setSchoolOptions] = useState<SchoolOption[]>([]);
   const [schoolName, setSchoolName] = useState("");
   const [dailyGoal, setDailyGoal] = useState("3");
   const [loading, setLoading] = useState(false);
@@ -66,7 +69,7 @@ export function ProfileDialog({
     const t = window.setTimeout(() => {
       void fetch(`/api/schools/search?q=${encodeURIComponent(q)}`)
         .then((r) => r.json())
-        .then((data) => setSchoolOptions(data.schools ?? []))
+        .then((data) => setSchoolOptions(Array.isArray(data.results) ? data.results : []))
         .catch(() => setSchoolOptions([]));
     }, 200);
     return () => window.clearTimeout(t);
@@ -83,49 +86,66 @@ export function ProfileDialog({
 
   if (!open) return null;
 
-  async function saveLearning() {
-    setLoading(true);
+  async function patchProfile(body: Record<string, unknown>): Promise<boolean> {
     try {
       const res = await fetch("/api/profile/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          daily_goal_minutes: Number(dailyGoal) || 3,
-          learning_role: role,
-        }),
+        body: JSON.stringify(body),
       });
-      if (!res.ok) {
-        toast.error("Kaydedilemedi.");
-        return;
-      }
-      toast.success("Öğrenme hedefin güncellendi.");
-      onClose();
+      return res.ok;
     } catch {
-      toast.error("Bağlantı hatası.");
-    } finally {
-      setLoading(false);
+      return false;
     }
   }
 
-  async function saveSchool(name: string) {
+  async function saveLearning() {
     setLoading(true);
-    try {
-      const res = await fetch("/api/profile/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ school_name: name }),
-      });
-      if (!res.ok) {
-        toast.error("Okul kaydedilemedi.");
-        return;
-      }
-      setSchoolName(name);
-      toast.success("Okul güncellendi.");
-    } catch {
-      toast.error("Bağlantı hatası.");
-    } finally {
-      setLoading(false);
+    const ok = await patchProfile({ daily_goal_minutes: Number(dailyGoal) || 3 });
+    setLoading(false);
+    if (!ok) {
+      toast.error("Kaydedilemedi.");
+      return;
     }
+    toast.success("Öğrenme hedefin güncellendi.");
+    onClose();
+  }
+
+  /*
+    Rol "Hesabım" sekmesinde seçiliyordu ama o sekmede kaydet yoktu; seçim
+    ancak "Öğrenme" sekmesindeki Kaydet'e basılırsa gidiyordu. Artık
+    seçildiği anda kaydediliyor.
+  */
+  async function saveRole(next: string) {
+    const previous = role;
+    setRole(next);
+    const ok = await patchProfile({ learning_role: next });
+    if (!ok) {
+      setRole(previous);
+      toast.error("Rol kaydedilemedi.");
+      return;
+    }
+    toast.success("Rolün güncellendi.");
+  }
+
+  /*
+    Okul adı eskiden serbest metin olarak yazılıyordu; profil paneli ve okul
+    paylaşımı ise school_id'ye bakıyor. "Okul güncellendi" deniyor, hiçbir
+    şey değişmiyordu (okul paylaşımı school_required dönüyordu). Arama artık
+    kimlikli sonuçları kullanıyor, sınav hazırlığındaki okul seçici gibi.
+  */
+  async function saveSchool(school: SchoolOption) {
+    setLoading(true);
+    const ok = await patchProfile({ school_name: school.name, school_id: school.id });
+    setLoading(false);
+    if (!ok) {
+      toast.error("Okul kaydedilemedi.");
+      return;
+    }
+    setSchoolName(school.name);
+    setSchoolQuery(school.name);
+    setSchoolOptions([]);
+    toast.success("Okul güncellendi.");
   }
 
   return (
@@ -216,7 +236,8 @@ export function ProfileDialog({
                       "cp-profile-role",
                       role === item.id && "cp-profile-role--active",
                     )}
-                    onClick={() => setRole(item.id)}
+                    aria-pressed={role === item.id}
+                    onClick={() => void saveRole(item.id)}
                   >
                     <strong>{item.label}</strong>
                     <span>{item.hint}</span>
@@ -241,10 +262,10 @@ export function ProfileDialog({
             </label>
             {schoolOptions.length ? (
               <ul className="cp-school-suggest">
-                {schoolOptions.map((name) => (
-                  <li key={name}>
-                    <button type="button" onClick={() => void saveSchool(name.split(" (")[0] ?? name)}>
-                      + {name}
+                {schoolOptions.map((school) => (
+                  <li key={school.id}>
+                    <button type="button" disabled={loading} onClick={() => void saveSchool(school)}>
+                      + {school.city ? `${school.name} (${school.city})` : school.name}
                     </button>
                   </li>
                 ))}
@@ -263,7 +284,7 @@ export function ProfileDialog({
               Her gün kaç soru veya görev tamamlamak istediğini seç.
             </p>
             <label className="cp-field">
-              <span>Günlük görev sayısı</span>
+              <span>Günlük soru / görev sayısı</span>
               <input
                 type="number"
                 min={1}

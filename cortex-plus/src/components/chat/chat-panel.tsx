@@ -635,7 +635,10 @@ function ChatPanelSession({
         const mode = COMPOSER_MODES.find((m) => m.id === composerAssist);
         if (!mode || !text) return text;
         if (mode.id === "today") {
-          return `${mode.prefix}(Günlük hedefim: ${dailyGoalMinutes} dakika.) ${text}`;
+          // Ayarlarda bu değer "günlük soru / görev sayısı" olarak soruluyor
+          // (sütunun adı daily_goal_minutes olsa da). Modele "dakika" demek
+          // 3 görevlik hedefi 3 dakikalık bir hedefe çeviriyordu.
+          return `${mode.prefix}(Günlük hedefim: ${dailyGoalMinutes} soru ya da görev.) ${text}`;
         }
         return `${mode.prefix}${text}`;
       })(),
