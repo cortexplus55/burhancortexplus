@@ -349,40 +349,35 @@ export async function loadLearningHub(
   let masteryActivity: MasteryRow[] = [];
   let topicStatusRows: TopicStatusRow[] = [];
   if (prepIds.length) {
-    const [attempts, mastery, topics] = await Promise.all([
-      Promise.all(
-        prepIds.map((prepId) =>
-          supabase
-            .from("exam_prep_node_attempts")
-            .select("exam_prep_id, updated_at")
-            .eq("user_id", userId)
-            .eq("exam_prep_id", prepId)
-            .order("updated_at", { ascending: false })
-            .limit(1)
-            .maybeSingle()
-            .then((r) => r.data as AttemptRow | null),
-        ),
-      ),
-      Promise.all(
-        prepIds.map((prepId) =>
-          supabase
-            .from("exam_prep_topic_mastery")
-            .select("exam_prep_id, last_practiced_at")
-            .eq("user_id", userId)
-            .eq("exam_prep_id", prepId)
-            .order("last_practiced_at", { ascending: false })
-            .limit(1)
-            .maybeSingle()
-            .then((r) => r.data as MasteryRow | null),
-        ),
-      ),
+    const [attemptsRes, masteryRes, topics] = await Promise.all([
+      supabase
+        .from("exam_prep_node_attempts")
+        .select("exam_prep_id, updated_at")
+        .eq("user_id", userId)
+        .in("exam_prep_id", prepIds)
+        .order("updated_at", { ascending: false, nullsFirst: false }),
+      supabase
+        .from("exam_prep_topic_mastery")
+        .select("exam_prep_id, last_practiced_at")
+        .eq("user_id", userId)
+        .in("exam_prep_id", prepIds)
+        .order("last_practiced_at", { ascending: false, nullsFirst: false }),
       supabase
         .from("exam_prep_topics")
         .select("exam_prep_id, status")
         .in("exam_prep_id", prepIds),
     ]);
-    attemptActivity = attempts.filter((r): r is AttemptRow => Boolean(r));
-    masteryActivity = mastery.filter((r): r is MasteryRow => Boolean(r));
+    const latestAttempt = new Map<string, AttemptRow>();
+    for (const row of (attemptsRes.data ?? []) as AttemptRow[]) {
+      if (!latestAttempt.has(row.exam_prep_id)) latestAttempt.set(row.exam_prep_id, row);
+    }
+    const latestMastery = new Map<string, MasteryRow>();
+    for (const row of (masteryRes.data ?? []) as MasteryRow[]) {
+      if (!row.last_practiced_at) continue;
+      if (!latestMastery.has(row.exam_prep_id)) latestMastery.set(row.exam_prep_id, row);
+    }
+    attemptActivity = [...latestAttempt.values()];
+    masteryActivity = [...latestMastery.values()];
     topicStatusRows = (topics.data ?? []) as TopicStatusRow[];
   }
 

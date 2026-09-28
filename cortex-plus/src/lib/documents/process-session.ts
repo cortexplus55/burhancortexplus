@@ -101,13 +101,23 @@ export const PROCESS_RETRY_MESSAGE =
 
 export type ProcessPost = (body: {
   documentId: string;
+  examType?: string | null;
+  examDate?: string | null;
 }) => Promise<{ status: number; body: Record<string, unknown> }>;
 
-export const postDocumentProcess: ProcessPost = async ({ documentId }) => {
+export const postDocumentProcess: ProcessPost = async ({
+  documentId,
+  examType,
+  examDate,
+}) => {
   const response = await fetch("/api/documents/process", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ documentId }),
+    body: JSON.stringify({
+      documentId,
+      ...(examType ? { examType } : {}),
+      ...(examDate ? { examDate } : {}),
+    }),
   });
   const raw = await response.json().catch(() => ({}));
   const body =

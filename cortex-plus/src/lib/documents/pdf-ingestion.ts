@@ -12,11 +12,16 @@ import { logOpsEvent } from "@/lib/observability/ops-log";
 import { isRetryableIngestionCode } from "@/lib/documents/ingestion-errors";
 
 /** Default pages per step; shrinks when the deadline is near. */
-export const PDF_PAGES_PER_STEP = 10;
+export const PDF_PAGES_PER_STEP = 40;
 /** Soft wall-clock budget for one Vercel invocation (leave margin under 300s). */
-export const PDF_STEP_DEADLINE_MS = 200_000;
-/** Parallel OCR pages per wave — claim/retry/blocked stay per-page. */
-export const OCR_PAGE_CONCURRENCY = 8;
+export const PDF_STEP_DEADLINE_MS = 250_000;
+/**
+ * Parallel OCR pages per wave — claim/retry/blocked stay per-page.
+ * Raised for Astra-parity speed (211-page scan target ≈4 min).
+ */
+export const OCR_PAGE_CONCURRENCY = 24;
+/** How long one process/route invocation may chain extract steps. */
+export const PDF_CHAIN_BUDGET_MS = 250_000;
 const EMBED_BATCH = 24;
 const LEASE_RENEW_MS = 240_000;
 
@@ -334,8 +339,8 @@ export async function readPdfBatch(
       needsOcr.push(index);
     }
 
-    // Bounded pool: start up to OCR_PAGE_CONCURRENCY pages, honour deadline
-    // before each start so a near-budget step returns a contiguous prefix.
+    // Bounded pool: up to OCR_PAGE_CONCURRENCY pages in flight. Honour the
+    // deadline before each start so a near-budget step returns a contiguous prefix.
     let cursor = 0;
     let poolError: unknown = null;
     const inFlight = new Map<number, Promise<void>>();
@@ -363,8 +368,6 @@ export async function readPdfBatch(
         }
       })();
       inFlight.set(index, work);
-      // Record the first failure and swallow so siblings never surface as
-      // unhandledRejection; the loop stops starting and rethrows after settle.
       work
         .catch((error) => {
           poolError = poolError ?? error;
@@ -390,7 +393,6 @@ export async function readPdfBatch(
         break;
       }
       if (!inFlight.size) break;
-      // Race may reject when a worker fails; poolError catch already recorded it.
       await Promise.race(inFlight.values()).catch(() => undefined);
     }
     if (inFlight.size) await Promise.allSettled([...inFlight.values()]);
@@ -463,8 +465,8 @@ export async function saveBatch(
 
 function adaptivePageBudget(deadlineMs: number): number {
   const remaining = deadlineMs - Date.now();
-  if (remaining < 45_000) return 2;
-  if (remaining < 90_000) return 4;
+  if (remaining < 45_000) return 8;
+  if (remaining < 90_000) return 16;
   return PDF_PAGES_PER_STEP;
 }
 

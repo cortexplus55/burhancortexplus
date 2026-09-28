@@ -47,7 +47,8 @@ export type PdfLearningV2Result = {
 const MAP_WINDOW_PAGES = 12;
 const PAGE_READ_BATCH = 200;
 export { MAP_LEASE_MS };
-const ROUND_DEADLINE_MS = 90_000;
+/** Outline oneshot needs its own round budget (≥ call timeout). */
+const ROUND_DEADLINE_MS = 250_000;
 
 type MapCheckpointTopic = {
   title: string;
@@ -62,6 +63,8 @@ type JobMeta = {
   tocUnits?: { title: string; startPage: number }[];
   windowAttempts?: Record<string, number>;
   outline?: OutlineUnitDraft[];
+  /** Raw LLM draft saved between oneshot call and validate/repair rounds. */
+  rawDraft?: unknown;
   windowsTotal?: number;
   examLabel?: string | null;
   examDate?: string | null;
@@ -163,6 +166,23 @@ async function readMapJobProgress(
 async function releaseMapJob(service: SupabaseClient, documentId: string, token: string) {
   await service.from("document_topic_map_jobs")
     .update({ lease_token: null, lease_until: null, updated_at: new Date().toISOString() })
+    .eq("document_id", documentId)
+    .eq("lease_token", token);
+}
+
+/** Keep the map lease alive while a long outline call runs. */
+async function renewMapLease(
+  service: SupabaseClient,
+  documentId: string,
+  token: string,
+): Promise<void> {
+  const now = new Date();
+  await service
+    .from("document_topic_map_jobs")
+    .update({
+      lease_until: new Date(now.getTime() + MAP_LEASE_MS).toISOString(),
+      updated_at: now.toISOString(),
+    })
     .eq("document_id", documentId)
     .eq("lease_token", token);
 }
@@ -610,34 +630,61 @@ export async function runPdfLearningV2(
         const mapPages = pagesForTopicMap(analyses);
         if (!mapPages.length) throw new Error("topic_map_no_readable_pages");
 
+        const tocFromMeta = meta.tocUnits?.length
+          ? meta.tocUnits.map((u) => `- ${u.title} (s.${u.startPage})`).join("\n")
+          : "";
+        const tocFromPages = analyses
+          .filter((p) => p.pageKind === "toc")
+          .map((p) => p.textContent.slice(0, 1200))
+          .filter(Boolean)
+          .join("\n")
+          .slice(0, 4000);
+        const tocBlock = tocFromMeta || tocFromPages || null;
+
+        const corpusPages = mapPages.map((p) => ({
+          pageNumber: p.pageNumber,
+          text:
+            p.pageKind === "toc"
+              ? `İÇİNDEKİLER\n${p.textContent}`
+              : p.textContent,
+        }));
+
+        const heartbeat = setInterval(() => {
+          void renewMapLease(service, documentId, token);
+        }, Math.max(30_000, Math.floor(MAP_LEASE_MS / 3)));
+
         const outlineStarted = Date.now();
-        const outlineResult = await buildOutlineOneShot({
-          service,
-          userId: docRow.user_id as string,
-          files: [
-            {
-              fileName: (docRow.file_name as string) ?? "belge",
-              pages: mapPages.map((p) => ({
-                pageNumber: p.pageNumber,
-                text: p.textContent,
-              })),
-            },
-          ],
-          pagesForFallback: mapPages,
-          examLabel: options?.examLabel ?? meta.examLabel ?? null,
-          examDate: options?.examDate ?? meta.examDate ?? null,
-          deadlineAt,
-          allowModel: true,
-        });
-        console.info("pdf-learning-v2 outline", {
+        let outlineResult;
+        try {
+          outlineResult = await buildOutlineOneShot({
+            service,
+            userId: docRow.user_id as string,
+            files: [
+              {
+                fileName: (docRow.file_name as string) ?? "belge",
+                pages: corpusPages,
+              },
+            ],
+            pagesForFallback: mapPages,
+            examLabel: options?.examLabel ?? meta.examLabel ?? null,
+            examDate: options?.examDate ?? meta.examDate ?? null,
+            deadlineAt,
+            allowModel: true,
+            tocBlock: tocBlock ?? undefined,
+          });
+        } finally {
+          clearInterval(heartbeat);
+        }
+        console.info("pipeline_timing", {
           documentId,
-          fromModel: outlineResult.fromModel,
-          path: outlineResult.path,
+          stage: "outline",
+          ms: Date.now() - outlineStarted,
+          pages: mapPages.length,
           model: outlineResult.model ?? null,
+          path: outlineResult.path,
           units: outlineResult.units.length,
           topics: outlineResult.units.reduce((n, u) => n + u.topics.length, 0),
           retryable: outlineResult.retryable,
-          ms: Date.now() - outlineStarted,
         });
         // No fabricated heading soup — student gets a clear retry state.
         if (!outlineResult.fromModel || !outlineResult.units.length) {
@@ -731,24 +778,39 @@ export async function runPdfLearningV2(
             : prior.prerequisites,
         };
       });
+      // Re-check in-use before wipe — race if a prep linked the map mid-round.
+      const existingIds = (
+        await service
+          .from("document_topic_nodes")
+          .select("id")
+          .eq("document_id", documentId)
+      ).data?.map((r) => r.id as string) ?? [];
+      if (
+        existingIds.length &&
+        (await documentTopicMapIsInUse(service, documentId, existingIds).catch(() => true))
+      ) {
+        throw new Error("topic_map_in_use");
+      }
       await clearTopicMap(service, documentId);
+      // Index-based unit wiring — walk leaves in outline order; never match by
+      // title alone (duplicate unit titles would collide).
+      let leafCursor = 0;
+      const unitsByIndex = units.map((u) => {
+        const count = u.topics.length;
+        const topicIndexes = Array.from({ length: count }, (_, i) => leafCursor + i);
+        leafCursor += count;
+        return {
+          title: u.title,
+          examWeight: u.examWeight,
+          topicIndexes: topicIndexes.filter((i) => i < leafTopics.length),
+        };
+      });
       await persistTopics(
         service,
         documentId,
         withUnits,
         pageIdByNumber,
-        units.map((u, unitIndex) => ({
-          title: u.title,
-          examWeight: u.examWeight,
-          topicIndexes: leafTopics
-            .map((leaf, leafIndex) =>
-              leaf.unitTitle === u.title ||
-              (units[unitIndex] && leaf.unitTitle === units[unitIndex]!.title)
-                ? leafIndex
-                : -1,
-            )
-            .filter((i) => i >= 0),
-        })),
+        unitsByIndex,
       );
       const coverage = buildCoverageReport(analyses, withUnits, []);
       const topicCount = withUnits.length;
@@ -858,10 +920,11 @@ export type TopicMapSnapshot = {
 export function flatMapNeedsOneshotRegen(input: {
   status: string | null;
   inUse: boolean;
-  nodes: { parent_id: string | null }[];
+  nodes: { parent_id: string | null; is_student_edited?: boolean | null }[];
 }): boolean {
   if (input.status !== "ready" && input.status !== "reviewed") return false;
   if (input.inUse) return false;
+  if (input.nodes.some((n) => n.is_student_edited === true)) return false;
   if (!input.nodes.length) return true;
   if (input.nodes.some((n) => n.parent_id != null)) return false;
   // Short flat maps can be legitimate single-level outlines.
@@ -882,7 +945,7 @@ export async function unusedFlatMapNeedsOneshot(
 
   const { data: nodes, error } = await service
     .from("document_topic_nodes")
-    .select("id, parent_id")
+    .select("id, parent_id, is_student_edited")
     .eq("document_id", documentId);
   if (error) return false;
   const rows = nodes ?? [];
@@ -896,7 +959,10 @@ export async function unusedFlatMapNeedsOneshot(
   return flatMapNeedsOneshotRegen({
     status,
     inUse,
-    nodes: rows.map((r) => ({ parent_id: (r.parent_id as string | null) ?? null })),
+    nodes: rows.map((r) => ({
+      parent_id: (r.parent_id as string | null) ?? null,
+      is_student_edited: (r.is_student_edited as boolean | null) ?? null,
+    })),
   });
 }
 
@@ -912,7 +978,8 @@ export async function regenerateUnusedFlatTopicMap(
   const needs = await unusedFlatMapNeedsOneshot(service, documentId);
   if (!needs) return { regenerating: false };
 
-  await clearTopicMap(service, documentId);
+  // Keep the old map until the new one is ready — mark pending without wipe.
+  // Persist round clears+swaps only after a successful oneshot.
   await service.from("document_topic_map_jobs").delete().eq("document_id", documentId);
   const { error } = await service
     .from("documents")
@@ -930,6 +997,197 @@ export async function regenerateUnusedFlatTopicMap(
     return { regenerating: false };
   }
   return { regenerating: true };
+}
+
+/**
+ * One oneshot call over ALL course documents. Persists topics per fileIndex
+ * onto each document. Used by multi-file intake so consolidate never runs.
+ */
+export async function runCourseOutlineOneShot(
+  service: SupabaseClient,
+  userId: string,
+  documentIds: string[],
+  options?: { examLabel?: string | null; examDate?: string | null },
+): Promise<{ ok: boolean; units: number; topics: number; model?: string }> {
+  if (documentIds.length < 2) {
+    return { ok: false, units: 0, topics: 0 };
+  }
+  const files: { documentId: string; fileName: string; pages: { pageNumber: number; text: string }[] }[] = [];
+  const previousParts: OutlineUnitDraft[] = [];
+
+  for (const documentId of documentIds) {
+    const inUseIds = (
+      await service.from("document_topic_nodes").select("id").eq("document_id", documentId)
+    ).data?.map((r) => r.id as string) ?? [];
+    if (
+      inUseIds.length &&
+      (await documentTopicMapIsInUse(service, documentId, inUseIds).catch(() => true))
+    ) {
+      return { ok: false, units: 0, topics: 0 };
+    }
+    const { data: doc } = await service
+      .from("documents")
+      .select("file_name, status")
+      .eq("id", documentId)
+      .maybeSingle();
+    if (!doc || doc.status !== "completed") {
+      return { ok: false, units: 0, topics: 0 };
+    }
+    const light = await loadPageLight(service, documentId);
+    const texts = await loadPageTexts(
+      service,
+      documentId,
+      light.map((r) => r.page_number),
+    );
+    const analyses: PageAnalysis[] = light.map((row) => {
+      const base = analysesFromLight([row])[0]!;
+      return { ...base, textContent: texts.get(row.page_number) ?? "" };
+    });
+    const mapPages = pagesForTopicMap(analyses);
+    if (!mapPages.length) return { ok: false, units: 0, topics: 0 };
+    files.push({
+      documentId,
+      fileName: (doc.file_name as string) ?? "belge",
+      pages: mapPages.map((p) => ({
+        pageNumber: p.pageNumber,
+        text: p.pageKind === "toc" ? `İÇİNDEKİLER\n${p.textContent}` : p.textContent,
+      })),
+    });
+
+    // Prior hierarchical outline for extend/merge prompt.
+    const { data: priorNodes } = await service
+      .from("document_topic_nodes")
+      .select("id, title, parent_id, sort_order, learning_objective, key_definitions, key_relations, prerequisites")
+      .eq("document_id", documentId)
+      .order("sort_order");
+    if (priorNodes?.some((n) => n.parent_id != null)) {
+      const parents = priorNodes.filter((n) =>
+        priorNodes.some((c) => c.parent_id === n.id),
+      );
+      for (const parent of parents) {
+        const children = priorNodes.filter((c) => c.parent_id === parent.id);
+        previousParts.push({
+          title: String(parent.title ?? ""),
+          topics: children.map((c) => ({
+            title: String(c.title ?? ""),
+            sourceTitles: [String(c.title ?? "")],
+            pageNumbers: [],
+            whyLearn: (c.learning_objective as string | null) ?? undefined,
+          })),
+        });
+      }
+    }
+  }
+
+  const started = Date.now();
+  const result = await buildOutlineOneShot({
+    service,
+    userId,
+    files: files.map((f) => ({ fileName: f.fileName, pages: f.pages })),
+    examLabel: options?.examLabel ?? null,
+    examDate: options?.examDate ?? null,
+    allowModel: true,
+    previousOutline: previousParts.length ? previousParts : undefined,
+  });
+  console.info("pipeline_timing", {
+    documentId: documentIds.join(","),
+    stage: "outline_course",
+    ms: Date.now() - started,
+    pages: files.reduce((n, f) => n + f.pages.length, 0),
+    model: result.model ?? null,
+    path: result.path,
+    units: result.units.length,
+  });
+  if (!result.fromModel || !result.units.length) {
+    return { ok: false, units: 0, topics: 0, model: result.model };
+  }
+
+  // Persist each file's topics onto its document (fileIndex → documentIds).
+  for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
+    const file = files[fileIndex]!;
+    const fileUnits = result.units
+      .map((unit) => ({
+        ...unit,
+        topics: unit.topics.filter((t) => (t.fileIndex ?? 0) === fileIndex),
+      }))
+      .filter((u) => u.topics.length > 0);
+    if (!fileUnits.length) continue;
+
+    const light = await loadPageLight(service, file.documentId);
+    const pageIdByNumber = new Map(
+      light.map((row) => [row.page_number as number, row.id as string]),
+    );
+    const analyses = analysesFromLight(light);
+    const { units, leafTopics } = outlineLeavesFromUnits(fileUnits);
+    if (!leafTopics.length) continue;
+
+    const hierarchical: HierarchicalTopic[] = leafTopics.map((leaf, index) => {
+      const why = leaf.whyLearn ?? leaf.description ?? null;
+      const draft = draftFromLlmTopic(leaf.title, why, leaf.pageNumbers, analyses, index);
+      return {
+        ...draft,
+        learningObjective: why,
+        prerequisites: leaf.prerequisiteTitles ?? [],
+        keyDefinitions: leaf.likelyAsked ?? draft.keyDefinitions,
+        unitTitle: leaf.unitTitle,
+        examWeight: leaf.examWeight ?? null,
+        unitExamWeight: leaf.unitExamWeight ?? null,
+        likelyAsked: leaf.likelyAsked ?? [],
+        whyLearn: why,
+      };
+    });
+    const linked = completeTopicPageLinks(hierarchical, analyses);
+    const withUnits: HierarchicalTopic[] = leafTopics.map((leaf, index) => {
+      const match =
+        linked.find(
+          (t) => t.title === leaf.title && t.pageNumbers[0] === leaf.pageNumbers[0],
+        ) ??
+        linked[index] ??
+        hierarchical[index]!;
+      const prior = match as HierarchicalTopic;
+      return {
+        ...prior,
+        unitTitle: leaf.unitTitle,
+        examWeight: leaf.examWeight ?? prior.examWeight,
+        unitExamWeight: leaf.unitExamWeight ?? prior.unitExamWeight,
+        likelyAsked: leaf.likelyAsked ?? prior.likelyAsked,
+        whyLearn: leaf.whyLearn ?? leaf.description ?? prior.whyLearn,
+        prerequisites: leaf.prerequisiteTitles?.length
+          ? leaf.prerequisiteTitles
+          : prior.prerequisites,
+      };
+    });
+
+    await clearTopicMap(service, file.documentId);
+    let leafCursor = 0;
+    const unitsByIndex = units.map((u) => {
+      const count = u.topics.length;
+      const topicIndexes = Array.from({ length: count }, (_, i) => leafCursor + i);
+      leafCursor += count;
+      return {
+        title: u.title,
+        examWeight: u.examWeight,
+        topicIndexes: topicIndexes.filter((i) => i < leafTopics.length),
+      };
+    });
+    await persistTopics(service, file.documentId, withUnits, pageIdByNumber, unitsByIndex);
+    await service
+      .from("documents")
+      .update({
+        topic_map_status: "ready",
+        topic_map_error: null,
+        topic_map_updated_at: new Date().toISOString(),
+        status: "completed",
+      })
+      .eq("id", file.documentId);
+  }
+
+  return {
+    ok: true,
+    units: result.units.length,
+    topics: result.units.reduce((n, u) => n + u.topics.length, 0),
+    model: result.model,
+  };
 }
 
 export async function documentTopicMapIsInUse(

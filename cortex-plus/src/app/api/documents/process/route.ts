@@ -15,6 +15,7 @@ import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
 import {
   processPdfDocumentStep,
   PDF_STEP_DEADLINE_MS,
+  PDF_CHAIN_BUDGET_MS,
 } from "@/lib/documents/pdf-ingestion";
 import { userMessageForProcessError } from "@/lib/documents/process-user-message";
 import {
@@ -27,6 +28,12 @@ import { isAdminUser } from "@/lib/auth/roles";
 const bodySchema = z.object({
   documentId: z.string().uuid(),
   maxOcrPages: z.number().int().positive().optional(),
+  /** Exam type/subject for oneshot teacher perspective (optional). */
+  examType: z.string().min(2).max(40).optional(),
+  examDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 export const maxDuration = 300;
 
@@ -124,9 +131,50 @@ export async function POST(request: Request) {
       }).eq("document_id", doc.id);
     }
     if (state?.status !== "ready" || !chunkCount) {
-      const indexed = await processPdfDocumentStep(service, doc.id, userId, {
-        deadlineMs: Date.now() + PDF_STEP_DEADLINE_MS,
+      // Chain extract steps inside maxDuration — fewer client round-trips.
+      const chainStarted = Date.now();
+      const chainDeadline = chainStarted + PDF_CHAIN_BUDGET_MS;
+      let indexed = await processPdfDocumentStep(service, doc.id, userId, {
+        deadlineMs: Math.min(Date.now() + PDF_STEP_DEADLINE_MS, chainDeadline),
         maxOcrPages: parsed.data.maxOcrPages ?? null,
+      });
+      let extractSteps = 1;
+      while (
+        indexed.status === "processing" &&
+        Date.now() + 15_000 < chainDeadline
+      ) {
+        const stepStarted = Date.now();
+        indexed = await processPdfDocumentStep(service, doc.id, userId, {
+          deadlineMs: Math.min(Date.now() + PDF_STEP_DEADLINE_MS, chainDeadline),
+          maxOcrPages: parsed.data.maxOcrPages ?? null,
+        });
+        extractSteps += 1;
+        const stepPages =
+          indexed.status === "processing"
+            ? (indexed.pagesDone ?? indexed.nextPage ?? null)
+            : indexed.status === "ready"
+              ? indexed.pageCount
+              : null;
+        console.info("pipeline_timing", {
+          documentId: doc.id,
+          stage: "extract_step",
+          ms: Date.now() - stepStarted,
+          pages: stepPages,
+          nextPage: indexed.status === "processing" ? indexed.nextPage : null,
+          ocrPages: indexed.status === "processing" ? (indexed.ocrPages ?? null) : null,
+        });
+        if (indexed.status === "failed") break;
+      }
+      console.info("pipeline_timing", {
+        documentId: doc.id,
+        stage: "extract_chain",
+        ms: Date.now() - chainStarted,
+        steps: extractSteps,
+        status: indexed.status,
+        pages:
+          indexed.status === "ready" || indexed.status === "processing"
+            ? indexed.pageCount
+            : null,
       });
       if (indexed.status === "failed") {
         if (indexed.code === "insufficient_credits") {
@@ -232,7 +280,10 @@ export async function POST(request: Request) {
         .eq("id", doc.id)
         .eq("user_id", userId);
     }
-    const mapped = await runPdfLearningV2(service, doc.id);
+    const mapped = await runPdfLearningV2(service, doc.id, {
+      examLabel: parsed.data.examType ?? null,
+      examDate: parsed.data.examDate ?? null,
+    });
     if ((mapped as { pending?: boolean }).pending) {
       return NextResponse.json({
         documentId: doc.id,

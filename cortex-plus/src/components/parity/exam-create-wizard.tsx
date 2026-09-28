@@ -554,6 +554,8 @@ export function ExamCreateWizard({
             documentId: primary,
             documentIds: ids,
             probeOnly: true,
+            examType: subject.trim() || undefined,
+            examDate: examDate.trim() || undefined,
           }),
         });
         const payload = await res.json().catch(() => ({}));
@@ -740,9 +742,16 @@ export function ExamCreateWizard({
       surface: "exam-wizard",
     });
     setProcessDetail("Belge işleniyor…");
+    const processExamType = subject.trim() || undefined;
+    const processExamDate = examDate.trim() || undefined;
     const result = await requestDocumentProcessing({
       documentId: input.documentId,
-      post: postDocumentProcess,
+      post: (body) =>
+        postDocumentProcess({
+          ...body,
+          examType: processExamType,
+          examDate: processExamDate,
+        }),
       onProgress: (progress) => {
         const line = formatDocumentProcessProgress(progress);
         if (line) setProcessDetail(line);

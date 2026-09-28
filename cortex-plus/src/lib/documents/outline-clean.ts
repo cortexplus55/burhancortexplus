@@ -44,6 +44,8 @@ export type OutlineUnitDraft = {
     id?: string;
     title: string;
     sourceTitles: string[];
+    /** 0-based index of the uploaded file the pages belong to. */
+    fileIndex?: number;
     pageNumbers: number[];
     /** Short student-facing description / why-learn. */
     description?: string;

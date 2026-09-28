@@ -201,9 +201,9 @@ describe("prep create keeps stored analysis", () => {
     expect(create).not.toContain("runTeacherAnalysis");
     expect(intake).toContain("mergeTopicGroups");
     expect(intake).not.toContain("runTeacherAnalysis");
-    // Learning order always; multi-file consolidate is not the single-doc short-circuit.
-    expect(intake).toContain("orderTopicsForPath(mergedTopics");
-    expect(intake).toContain("documentIds.length > 1");
+    // Oneshot maps keep LLM order; legacy path may still reorder.
+    expect(intake).toContain("loadOneshotIntakeTopics");
+    expect(intake).toContain("keepLlmOrder");
     expect(intake).toContain("regenerateUnusedFlatTopicMap");
   });
 });

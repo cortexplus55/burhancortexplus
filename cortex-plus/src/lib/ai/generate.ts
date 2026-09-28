@@ -93,6 +93,24 @@ type GenerateJsonParams<T> = {
   /** Same user operation retries must reuse this key to avoid double-charge. */
   idempotencyKey?: string;
   /**
+   * Per-call OpenAI timeout (ms). Default 90_000.
+   * Outline oneshot for large books needs ~240_000.
+   */
+  callTimeoutMs?: number;
+  /**
+   * OpenAI response_format. Default json_object. Outline uses strict json_schema.
+   */
+  responseFormat?:
+    | { type: "json_object" }
+    | {
+        type: "json_schema";
+        json_schema: {
+          name: string;
+          strict?: boolean;
+          schema: Record<string, unknown>;
+        };
+      };
+  /**
    * Başarılı ayrıştırmada krediyi hemen kesinleştirme.
    * Ders kapısı commit'ten sonra reddedilirse öğrenci dersi görmeden öder.
    * Rota dersi döndürünce `commitCredits`, dönmeden hata olursa `refundCredits`.
@@ -265,7 +283,16 @@ export async function generateJson<T>(
     // zaman aşımında aynı rezervasyonla bir kez daha denenir; deneme
     // ancak 270 saniyenin içinde bitecekse yapılır. SDK yeniden denemez
     // (`maxRetries: 0`) — sınırsız tekrar 300 saniyelik tavanı aşar.
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 90_000, maxRetries: 0 });
+    const callTimeoutMs = Math.max(
+      5_000,
+      Math.min(params.callTimeoutMs ?? 90_000, 270_000),
+    );
+    const responseFormat = params.responseFormat ?? { type: "json_object" as const };
+    const openai = new OpenAI({
+      apiKey: env.OPENAI_API_KEY,
+      timeout: callTimeoutMs,
+      maxRetries: 0,
+    });
 
     const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
       { type: "text", text: params.userPrompt },
@@ -406,7 +433,7 @@ export async function generateJson<T>(
             modelCalls += 1;
             return openai.chat.completions.create({
           model,
-          response_format: { type: "json_object" },
+          response_format: responseFormat,
           messages: [
             {
               role: "system",
@@ -454,7 +481,7 @@ export async function generateJson<T>(
           ],
             });
           },
-          { startedAt: generationStarted, callTimeoutMs: 90_000 },
+          { startedAt: generationStarted, callTimeoutMs },
         );
         draftMs += Date.now() - draftStarted;
 

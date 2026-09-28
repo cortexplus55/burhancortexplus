@@ -71,10 +71,10 @@ describe("bounded map round progress labels", () => {
     expect(windows[windows.length - 1]!.length).toBeLessThanOrEqual(12);
   });
 
-  it("runs OCR in parallel waves (8–10) with page step 10", () => {
-    expect(OCR_PAGE_CONCURRENCY).toBeGreaterThanOrEqual(8);
-    expect(OCR_PAGE_CONCURRENCY).toBeLessThanOrEqual(10);
-    expect(PDF_PAGES_PER_STEP).toBe(10);
+  it("runs OCR in parallel waves (20–30) with larger page steps", () => {
+    expect(OCR_PAGE_CONCURRENCY).toBeGreaterThanOrEqual(20);
+    expect(OCR_PAGE_CONCURRENCY).toBeLessThanOrEqual(30);
+    expect(PDF_PAGES_PER_STEP).toBeGreaterThanOrEqual(30);
   });
 
   it("exposes outline model routing constants", () => {

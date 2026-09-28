@@ -49,4 +49,15 @@ describe("flatMapNeedsOneshotRegen", () => {
       }),
     ).toBe(false);
   });
+
+  it("never regenerates student-edited maps", () => {
+    const nodes = Array.from({ length: 50 }, () => ({
+      parent_id: null as string | null,
+      is_student_edited: false,
+    }));
+    nodes[0]!.is_student_edited = true;
+    expect(
+      flatMapNeedsOneshotRegen({ status: "ready", inUse: false, nodes }),
+    ).toBe(false);
+  });
 });

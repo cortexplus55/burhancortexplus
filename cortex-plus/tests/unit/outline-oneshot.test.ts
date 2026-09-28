@@ -7,8 +7,14 @@ import {
   normalizeOutlineTokens,
   topicTextGrounded,
   pageTextMapFromFiles,
+  pageKey,
+  stemOutlineToken,
+  trimOneShotDraft,
+  oneShotJsonSchema,
+  oneShotOutlineSchema,
   ONESHOT_MAX_INPUT_CHARS,
   OUTLINE_MINI_PAGE_LIMIT,
+  OUTLINE_CALL_TIMEOUT_MS,
   type OneShotOutlineDraft,
 } from "@/lib/documents/outline-oneshot";
 
@@ -65,6 +71,7 @@ function groundedDraft(overrides?: Partial<OneShotOutlineDraft["units"][0]["topi
             likelyAsked: ["Yazılı kaynaklar", "Örf ve âdet"],
             prerequisiteIds: [],
             ...overrides,
+            fileIndex: overrides?.fileIndex ?? 0,
           },
         ],
       },
@@ -78,7 +85,7 @@ const GROUND_PAGES = [
 ];
 
 describe("buildMaterialCorpus / splitCorpusForContext", () => {
-  it("prefixes files and keeps page markers", () => {
+  it("prefixes files and keeps file-qualified page markers", () => {
     const corpus = buildMaterialCorpus([
       {
         fileName: "kitap.pdf",
@@ -88,9 +95,9 @@ describe("buildMaterialCorpus / splitCorpusForContext", () => {
         ],
       },
     ]);
-    expect(corpus).toContain("=== Dosya: kitap.pdf ===");
-    expect(corpus).toContain("[s.1] Kapak");
-    expect(corpus).toContain("[s.2]");
+    expect(corpus).toContain("=== Dosya d1: kitap.pdf ===");
+    expect(corpus).toContain("[d1 s.1] Kapak");
+    expect(corpus).toContain("[d1 s.2]");
   });
 
   it("splits long corpus into at most 3 parts on line boundaries", () => {
@@ -103,13 +110,24 @@ describe("buildMaterialCorpus / splitCorpusForContext", () => {
     expect(parts.join("\n").includes("[s.1]")).toBe(true);
   });
 
-  it("builds multi-file corpus", () => {
+  it("builds multi-file corpus with per-file markers", () => {
     const corpus = buildMaterialCorpus([
       { fileName: "a.pdf", pages: [{ pageNumber: 1, text: "A metni" }] },
       { fileName: "b.pdf", pages: [{ pageNumber: 1, text: "B metni" }] },
     ]);
-    expect(corpus).toContain("=== Dosya: a.pdf ===");
-    expect(corpus).toContain("=== Dosya: b.pdf ===");
+    expect(corpus).toContain("=== Dosya d1: a.pdf ===");
+    expect(corpus).toContain("=== Dosya d2: b.pdf ===");
+    expect(corpus).toContain("[d1 s.1] A metni");
+    expect(corpus).toContain("[d2 s.1] B metni");
+  });
+
+  it("keys page texts by file so page 1 of two files never merges", () => {
+    const map = pageTextMapFromFiles([
+      { fileName: "a.pdf", pages: [{ pageNumber: 1, text: "A metni" }] },
+      { fileName: "b.pdf", pages: [{ pageNumber: 1, text: "B metni" }] },
+    ]);
+    expect(map.get(pageKey(0, 1))).toBe("A metni");
+    expect(map.get(pageKey(1, 1))).toBe("B metni");
   });
 });
 
@@ -143,9 +161,19 @@ describe("selectOutlineModel", () => {
 describe("token grounding", () => {
   it("normalizes Turkish tokens without fixture subject words", () => {
     const tokens = normalizeOutlineTokens("Hukukun Kaynakları ve Örf");
-    expect(tokens).toContain("hukukun");
-    expect(tokens).toContain("kaynaklari");
+    expect(tokens).toContain("hukuk");
+    expect(tokens).toContain("kaynak");
     expect(tokens).not.toContain("ve");
+  });
+
+  it("stems Turkish inflections onto a shared stem", () => {
+    expect(stemOutlineToken("kaynaklari")).toBe(stemOutlineToken("kaynak"));
+    expect(stemOutlineToken("konular")).toBe(stemOutlineToken("konu"));
+    expect(stemOutlineToken("secimleri")).toBe(stemOutlineToken("secim"));
+    expect(stemOutlineToken("mahkemesi")).toBe(stemOutlineToken("mahkeme"));
+    // Short words are left alone — over-stemming invents matches.
+    expect(stemOutlineToken("mol")).toBe("mol");
+    expect(stemOutlineToken("atom")).toBe("atom");
   });
 
   it("accepts topics whose title overlaps cited page text", () => {
@@ -185,6 +213,150 @@ describe("token grounding", () => {
       }),
     ).toBe(false);
   });
+
+  it("rejects at least 8 of 10 fabricated topics against a chemistry corpus", () => {
+    const pageTexts = pageTextMapFromFiles([
+      {
+        fileName: "kimya.pdf",
+        pages: [
+          {
+            pageNumber: 1,
+            text: "Mol kavramı ve Avogadro sayısı kimyasal hesaplamaların temelidir.",
+          },
+          {
+            pageNumber: 2,
+            text: "Mol kütlesi hesaplama yöntemleri ve bağıl atom kütlesi anlatılır.",
+          },
+          {
+            pageNumber: 3,
+            text: "Kimyasal tepkimelerde denklem denkleştirme ve tepkime türleri.",
+          },
+        ],
+      },
+    ]);
+    const fabricated = [
+      { title: "Anayasa Mahkemesi Kararları", whyLearn: "Yargı denetimini öğreneceksin.", likelyAsked: ["İptal davası"] },
+      { title: "Cumhuriyetin İlanı", whyLearn: "Tarihsel süreci öğreneceksin.", likelyAsked: ["Saltanatın kaldırılması"] },
+      { title: "Borçlar Hukukunda Sözleşme", whyLearn: "Sözleşme kurulmasını öğreneceksin.", likelyAsked: ["İrade beyanı"] },
+      { title: "Osmanlı Kuruluş Dönemi", whyLearn: "Beylikten devlete geçişi öğreneceksin.", likelyAsked: ["Söğüt"] },
+      { title: "Fransız İhtilali Sonuçları", whyLearn: "Milliyetçiliğin yayılmasını öğreneceksin.", likelyAsked: ["Milliyetçilik"] },
+      { title: "Pazarlama Karması Bileşenleri", whyLearn: "Dört bileşeni öğreneceksin.", likelyAsked: ["Tutundurma"] },
+      { title: "Elektrik Devre Analizi", whyLearn: "Devre çözümlemeyi öğreneceksin.", likelyAsked: ["Ohm yasası"] },
+      { title: "Türk Dili Ses Bilgisi", whyLearn: "Ünlü uyumlarını öğreneceksin.", likelyAsked: ["Büyük ünlü uyumu"] },
+      { title: "Mikroekonomide Arz Talep Dengesi", whyLearn: "Piyasa dengesini öğreneceksin.", likelyAsked: ["Talep eğrisi"] },
+      { title: "Coğrafi Konum ve İklim Tipleri", whyLearn: "İklim kuşaklarını öğreneceksin.", likelyAsked: ["Akdeniz iklimi"] },
+    ];
+    const rejected = fabricated.filter(
+      (topic) =>
+        !topicTextGrounded({ ...topic, pageStart: 1, pageEnd: 3, pageTexts }),
+    ).length;
+    expect(rejected).toBeGreaterThanOrEqual(8);
+  });
+
+  it("needs same-page evidence (or real density) on ranges wider than 8 pages", () => {
+    const filler = (n: number) => ({
+      pageNumber: n,
+      text: `Dolgu paragraf ${n} burada duruyor.`,
+    });
+    const topic = {
+      title: "Nukleotid Replikasyon Semasi",
+      whyLearn: "Kromozom telomer sentromer histon plazmit ribozom lizozom golgi",
+      likelyAsked: [] as string[],
+      pageStart: 1,
+      pageEnd: 12,
+    };
+
+    const spread = pageTextMapFromFiles([
+      {
+        fileName: "bio.pdf",
+        pages: Array.from({ length: 12 }, (_, i) => {
+          if (i === 1) return { pageNumber: 2, text: "Nukleotid zinciri burada anlatilir." };
+          if (i === 10) return { pageNumber: 11, text: "Replikasyon sureci burada anlatilir." };
+          return filler(i + 1);
+        }),
+      },
+    ]);
+    expect(topicTextGrounded({ ...topic, pageTexts: spread })).toBe(false);
+
+    const together = pageTextMapFromFiles([
+      {
+        fileName: "bio.pdf",
+        pages: Array.from({ length: 12 }, (_, i) =>
+          i === 1
+            ? { pageNumber: 2, text: "Nukleotid zinciri ve replikasyon sureci burada anlatilir." }
+            : filler(i + 1),
+        ),
+      },
+    ]);
+    expect(topicTextGrounded({ ...topic, pageTexts: together })).toBe(true);
+  });
+});
+
+describe("trimOneShotDraft", () => {
+  it("truncates over-length fields instead of rejecting the outline", () => {
+    const trimmed = trimOneShotDraft({
+      units: [
+        {
+          title: "U".repeat(300),
+          topics: [
+            {
+              title: "T".repeat(300),
+              whyLearn: "W".repeat(900),
+              description: "D".repeat(900),
+              pageStart: 1,
+              pageEnd: 2,
+              likelyAsked: ["a", "b", "c", "d", "e", "f"],
+              prerequisiteIds: Array.from({ length: 20 }, (_, i) => `t${i}`),
+            },
+          ],
+        },
+      ],
+    });
+    const unit = trimmed.units[0] as Record<string, unknown>;
+    const topic = (unit.topics as Record<string, unknown>[])[0]!;
+    expect((unit.title as string).length).toBe(120);
+    expect((topic.title as string).length).toBe(120);
+    expect((topic.whyLearn as string).length).toBe(400);
+    expect((topic.likelyAsked as string[])).toHaveLength(4);
+    expect((topic.prerequisiteIds as string[])).toHaveLength(8);
+    expect(topic.fileIndex).toBe(0);
+    expect(oneShotOutlineSchema.safeParse(trimmed).success).toBe(true);
+  });
+
+  it("caps units at 20 and topics at 40 in total", () => {
+    const trimmed = trimOneShotDraft({
+      units: Array.from({ length: 30 }, (_, u) => ({
+        title: `U${u}`,
+        topics: Array.from({ length: 10 }, (_, t) => ({
+          title: `U${u}T${t}`,
+          pageStart: 1,
+          pageEnd: 1,
+        })),
+      })),
+    });
+    expect(trimmed.units.length).toBeLessThanOrEqual(20);
+    const total = trimmed.units.reduce(
+      (n, u) => n + (u.topics as unknown[]).length,
+      0,
+    );
+    expect(total).toBe(40);
+  });
+});
+
+describe("oneShotJsonSchema", () => {
+  it("is a strict object schema carrying fileIndex", () => {
+    const units = (oneShotJsonSchema.properties as Record<string, never>).units as Record<
+      string,
+      never
+    >;
+    const topicProps = (
+      ((units.items as Record<string, never>).properties as Record<string, never>)
+        .topics as Record<string, never>
+    ).items as Record<string, never>;
+    expect(oneShotJsonSchema.additionalProperties).toBe(false);
+    expect(Object.keys(topicProps.properties as object)).toContain("fileIndex");
+    expect(topicProps.required as unknown as string[]).toContain("fileIndex");
+  });
 });
 
 describe("validateOneShotOutline", () => {
@@ -223,7 +395,7 @@ describe("validateOneShotOutline", () => {
     }
   });
 
-  it("rejects Diğer Konular, bad pages, and >40 topics", () => {
+  it("drops Diğer Konular and topics past 40, keeping the rest", () => {
     const draft = {
       units: [
         {
@@ -242,7 +414,101 @@ describe("validateOneShotOutline", () => {
       ],
     } as OneShotOutlineDraft;
     const result = validateOneShotOutline(draft, 10);
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.normalized).toHaveLength(1);
+      expect(result.normalized[0]!.title).toBe("Unit");
+      expect(result.normalized[0]!.topics).toHaveLength(40);
+      expect(result.dropped.some((i) => i.code === "diger_bucket")).toBe(true);
+      expect(result.dropped.some((i) => i.code === "topic_count")).toBe(true);
+    }
+  });
+
+  it("keeps grounded topics while dropping the ungrounded one", () => {
+    const pageTexts = pageTextMapFromFiles([
+      {
+        fileName: "x.pdf",
+        pages: [
+          { pageNumber: 1, text: "Mol kavramı ve Avogadro sayısı anlatılır." },
+          { pageNumber: 2, text: "Mol kütlesi hesaplama yöntemleri." },
+        ],
+      },
+    ]);
+    const draft = {
+      units: [
+        {
+          title: "Kimya",
+          topics: [
+            {
+              title: "Mol Kavramı",
+              whyLearn: "Avogadro sayısını öğreneceksin.",
+              pageStart: 1,
+              pageEnd: 1,
+              likelyAsked: ["Mol kavramı"],
+            },
+            {
+              title: "Anayasa Mahkemesi",
+              whyLearn: "Yargı denetimi",
+              pageStart: 2,
+              pageEnd: 2,
+              likelyAsked: ["İptal davası"],
+            },
+          ],
+        },
+      ],
+    } as OneShotOutlineDraft;
+    const result = validateOneShotOutline(draft, {
+      filePageCounts: [2],
+      pageTexts,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.normalized[0]!.topics).toHaveLength(1);
+      expect(result.normalized[0]!.topics[0]!.title).toBe("Mol Kavramı");
+      expect(result.dropped.some((i) => i.code === "ungrounded_topic")).toBe(true);
+    }
+  });
+
+  it("bounds page ranges per file and records the topic's fileIndex", () => {
+    const pageTexts = pageTextMapFromFiles([
+      { fileName: "a.pdf", pages: [{ pageNumber: 1, text: "Mol kavramı Avogadro sayısı." }] },
+      { fileName: "b.pdf", pages: [{ pageNumber: 1, text: "Hukukun kaynakları örf âdet." }] },
+    ]);
+    const draft = {
+      units: [
+        {
+          title: "Karışık",
+          topics: [
+            {
+              title: "Hukukun Kaynakları",
+              whyLearn: "Kaynak türleri örf âdet",
+              fileIndex: 1,
+              pageStart: 1,
+              pageEnd: 1,
+              likelyAsked: [],
+            },
+            {
+              title: "Olmayan Dosya",
+              whyLearn: "Mol kavramı",
+              fileIndex: 5,
+              pageStart: 1,
+              pageEnd: 1,
+              likelyAsked: [],
+            },
+          ],
+        },
+      ],
+    } as unknown as OneShotOutlineDraft;
+    const result = validateOneShotOutline(draft, {
+      filePageCounts: [1, 1],
+      pageTexts,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.normalized[0]!.topics).toHaveLength(1);
+      expect(result.normalized[0]!.topics[0]!.fileIndex).toBe(1);
+      expect(result.dropped.some((i) => i.code === "page_range")).toBe(true);
+    }
   });
 
   it("rejects page ranges outside the book", () => {
@@ -260,7 +526,7 @@ describe("validateOneShotOutline", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("rejects ungrounded topics when page texts are supplied", () => {
+  it("rejects ungrounded topics when page texts are supplied (legacy number keys)", () => {
     const pageTexts = new Map([[1, "Mol kavramı Avogadro"]]);
     const draft = {
       units: [
@@ -286,6 +552,51 @@ describe("validateOneShotOutline", () => {
   });
 });
 
+/** Runs one outline over N files of the given page counts; returns models used. */
+async function runSummedRouting(pageCounts: number[]): Promise<string[]> {
+  const models: string[] = [];
+  mockedGenerate.mockImplementation(async (params) => {
+    models.push(String(params.modelOverride));
+    const data = params.parse({
+      units: [
+        {
+          title: "Hukuk",
+          examWeight: "high",
+          topics: [
+            {
+              id: "t1",
+              title: "Hukuk Kaynakları",
+              whyLearn: "Kaynakları öğreneceksin.",
+              fileIndex: 0,
+              pageStart: 1,
+              pageEnd: 3,
+              examWeight: "high",
+              likelyAsked: ["Hukuk kaynakları"],
+              prerequisiteIds: [],
+            },
+          ],
+        },
+      ],
+    });
+    return { ok: true as const, data, usage: { tokensIn: 1, tokensOut: 1 } } as never;
+  });
+
+  const result = await buildOutlineOneShot({
+    service: {} as never,
+    userId: "u1",
+    files: pageCounts.map((count, fileIndex) => ({
+      fileName: `d${fileIndex + 1}.pdf`,
+      pages: Array.from({ length: count }, (_, i) => ({
+        pageNumber: i + 1,
+        text: `Hukuk kaynakları yasama yürütme yargı idare sayfa ${i + 1}.`,
+      })),
+    })),
+    allowModel: true,
+  });
+  expect(result.fromModel).toBe(true);
+  return models;
+}
+
 describe("buildOutlineOneShot", () => {
   beforeEach(() => {
     mockedGenerate.mockReset();
@@ -294,8 +605,12 @@ describe("buildOutlineOneShot", () => {
   it("uses gpt-4o-mini for short material with teacher+student fields", async () => {
     mockedGenerate.mockImplementation(async (params) => {
       expect(params.modelOverride).toBe("gpt-4o-mini");
+      expect(params.callTimeoutMs).toBe(OUTLINE_CALL_TIMEOUT_MS);
+      expect(params.idempotencyKey).toMatch(/^outline:u1:[a-z0-9]+:first$/);
+      expect(params.responseFormat?.type).toBe("json_schema");
       expect(String(params.userPrompt)).toMatch(/ÖĞRETMEN|öğretmen|examWeight|likelyAsked/i);
       expect(String(params.userPrompt)).toMatch(/UYDURMA|uydurma/i);
+      expect(String(params.userPrompt)).toContain("d1 = demo.pdf");
       const data = params.parse({
         units: [
           {
@@ -406,6 +721,18 @@ describe("buildOutlineOneShot", () => {
     expect(mockedGenerate).toHaveBeenCalledTimes(1);
   });
 
+  it("routes on summed pages across files: 12 + 16 = 28 stays on mini", async () => {
+    const models = await runSummedRouting([12, 16]);
+    expect(models[0]).toBe("gpt-4o-mini");
+    expect(models).toHaveLength(1);
+  });
+
+  it("routes on summed pages across files: 12 + 25 = 37 goes strong", async () => {
+    const models = await runSummedRouting([12, 25]);
+    expect(models[0]).toBe("gpt-4.1");
+    expect(models).toHaveLength(1);
+  });
+
   it("escalates to gpt-4.1 when mini draft fails validation", async () => {
     let calls = 0;
     mockedGenerate.mockImplementation(async (params) => {
@@ -494,6 +821,82 @@ describe("buildOutlineOneShot", () => {
     expect(result.fromModel).toBe(true);
     expect(result.units[0]!.title).toBe("Temel Kavramlar");
     expect(calls).toBeGreaterThanOrEqual(3);
+  });
+
+  it("repairs against the cited pages only, with the invalid draft attached", async () => {
+    const pages = Array.from({ length: 20 }, (_, i) => ({
+      pageNumber: i + 1,
+      text: `Sayfa ${i + 1} benzersiz icerik isareti p${i + 1}q anlatilir.`,
+    }));
+    let repairPrompt = "";
+    mockedGenerate.mockImplementation(async (params) => {
+      const prompt = String(params.userPrompt ?? "");
+      if (prompt.includes("geçersizdi")) {
+        repairPrompt = prompt;
+        return { ok: true as const, data: null, usage: { tokensIn: 1, tokensOut: 1 } } as never;
+      }
+      return {
+        ok: true as const,
+        data: params.parse({
+          units: [
+            {
+              title: "Diğer Konular",
+              topics: [{ title: "Junk", pageStart: 3, pageEnd: 4 }],
+            },
+          ],
+        }),
+        usage: { tokensIn: 1, tokensOut: 1 },
+      } as never;
+    });
+
+    await buildOutlineOneShot({
+      service: {} as never,
+      userId: "u1",
+      files: [{ fileName: "kitap.pdf", pages }],
+      allowModel: true,
+    });
+
+    expect(repairPrompt).toContain("[d1 s.3]");
+    expect(repairPrompt).toContain("[d1 s.4]");
+    expect(repairPrompt).not.toContain("[d1 s.9]");
+    expect(repairPrompt).toContain('"title":"Junk"');
+    expect(repairPrompt).toContain("diger_bucket");
+  });
+
+  it("asks the model to extend a previous outline and follow the book's own structure", async () => {
+    let prompt = "";
+    mockedGenerate.mockImplementation(async (params) => {
+      prompt = String(params.userPrompt ?? "");
+      return {
+        ok: true as const,
+        data: params.parse(groundedDraft()),
+        usage: { tokensIn: 1, tokensOut: 1 },
+      } as never;
+    });
+
+    await buildOutlineOneShot({
+      service: {} as never,
+      userId: "u1",
+      files: [
+        {
+          fileName: "demo.pdf",
+          pages: GROUND_PAGES.map((p) => ({ pageNumber: p.pageNumber, text: p.textContent })),
+        },
+      ],
+      previousOutline: [
+        {
+          title: "Var Olan Ünite",
+          topics: [{ title: "Var Olan Konu", sourceTitles: ["Var Olan Konu"], pageNumbers: [1] }],
+        },
+      ],
+      tocBlock: "ÜNİTE 1: Hukukun Kaynakları\nÜNİTE 2: Hak Ehliyeti",
+      allowModel: true,
+    });
+
+    expect(prompt).toContain("ÖNCEKİ ÇALIŞMA YOLU");
+    expect(prompt).toContain("Var Olan Konu");
+    expect(prompt).toContain("Kitabın kendi yapısı");
+    expect(prompt).toContain("ÜNİTE 2: Hak Ehliyeti");
   });
 
   it("returns empty retryable result when the model fails completely (no fake list)", async () => {
