@@ -6,9 +6,12 @@ import {
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
 import {
+  COURSE_ROUND_BUDGET_MS,
   loadTopicMapSnapshot,
   runCourseMapRound,
 } from "@/lib/documents/pdf-learning-v2";
+
+export const maxDuration = 300;
 
 type RouteContext = { params: Promise<{ documentId: string }> };
 
@@ -180,9 +183,13 @@ export async function POST(request: Request, context: RouteContext) {
     return errorResponse(409, "document_not_ready");
   }
 
-  const result = await runCourseMapRound(service, { documentIds: [documentId] });
-  if (result.pending) {
-    // Long material: the map keeps building in later rounds (process route).
+  const result = await runCourseMapRound(service, {
+    documentIds: [documentId],
+    rebuild: true,
+    deadlineAt: Date.now() + COURSE_ROUND_BUDGET_MS,
+  });
+  if (result.pending || result.deferred) {
+    // The client continues the rounds through the process route.
     return NextResponse.json({ ok: true, pending: true, stage: result.stage ?? null }, { status: 202 });
   }
   if (!result.ok) {

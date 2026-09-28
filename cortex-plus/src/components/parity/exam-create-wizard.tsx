@@ -300,6 +300,8 @@ export function ExamCreateWizard({
   const [focusTopics, setFocusTopics] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [intakeAlert, setIntakeAlert] = useState<string | null>(null);
+  /** The course map ran out of attempts: offer a calm "Tekrar dene". */
+  const [mapRetry, setMapRetry] = useState(false);
   const [draftResumeBanner, setDraftResumeBanner] = useState(false);
   const [processingDocs, setProcessingDocs] = useState<WizardMaterial[]>([]);
   const draftHydrated = useRef(false);
@@ -543,6 +545,7 @@ export function ExamCreateWizard({
       const primary = ids[0];
       if (!primary) return;
       setIntakeAlert(null);
+      setMapRetry(false);
       setStep("building");
       setBuildStage(0);
       const ticker = setInterval(
@@ -557,7 +560,8 @@ export function ExamCreateWizard({
         requestDocumentProcessing({
           documentId: primary,
           post: (body) =>
-            postDocumentProcess({ ...body, courseDocumentIds: ids, examType, examDate: examDay }),
+            // Started by the student, so a map that ran out of attempts starts fresh.
+            postDocumentProcess({ ...body, courseDocumentIds: ids, examType, examDate: examDay, retryMap: true }),
           onProgress: (progress) => {
             const line = formatDocumentProcessProgress(progress);
             if (line) setProcessDetail(line);
@@ -589,6 +593,11 @@ export function ExamCreateWizard({
         if (!res) {
           intakeFailed = true;
           const processed = course.body;
+          if (processed.canRetry === true) {
+            setMapRetry(true);
+            setStep("language");
+            return;
+          }
           if (course.status === 402 && !isPhotoQuotaError(processed)) setPaywall(true);
           else setIntakeAlert(messageFromProcessBody(processed));
           setStep("material");
@@ -1484,13 +1493,18 @@ export function ExamCreateWizard({
               </button>
             ))}
           </div>
+          {mapRetry ? (
+            <p className="apw-lead" role="status">
+              Konuları hazırlamak için bir kez daha deneyelim.
+            </p>
+          ) : null}
           <button
             type="button"
             className="apw-cta"
             onClick={() => void runIntake()}
             disabled={!documentIds.length}
           >
-            {WIZARD_COPY.continue}
+            {mapRetry ? "Tekrar dene" : WIZARD_COPY.continue}
           </button>
         </section>
       ) : null}

@@ -6,6 +6,7 @@ import { processDocument } from "@/lib/rag/pipeline";
 import {
   COURSE_ROUND_BUDGET_MS,
   firstUnextractedDocument,
+  markMapDeferred,
   planCourseMap,
   runCourseMapRound,
 } from "@/lib/documents/pdf-learning-v2";
@@ -45,6 +46,8 @@ const bodySchema = z.object({
   courseDocumentIds: z.array(z.string().uuid()).min(1).max(8).optional(),
   /** Add-source: the prep the new file joins (its topic names guide the outline). */
   prepId: z.string().uuid().optional(),
+  /** The student pressed "Tekrar dene": a map that ran out of attempts starts fresh. */
+  retryMap: z.boolean().optional(),
 });
 export const maxDuration = 300;
 
@@ -261,6 +264,8 @@ export async function POST(request: Request) {
         }, { status: 202 });
       }
       if (learningV2) {
+        // Wizard files wait for the course outline; pollers must not map them alone.
+        if (deferMap) await markMapDeferred(service, doc.id);
         return NextResponse.json({
           documentId: doc.id, status: "processing", phase: "map",
           pageCount: indexed.pageCount,
@@ -304,6 +309,7 @@ export async function POST(request: Request) {
 
   if (phase === "map" && deferMap) {
     // Extracted; the course outline runs once all files are in.
+    await markMapDeferred(service, doc.id);
     return course
       ? NextResponse.json({
           documentId: doc.id, status: "processing", phase: "extract",
@@ -337,6 +343,16 @@ export async function POST(request: Request) {
     // Files whose map is in use keep it; the rest share one outline.
     const ids = course ? await planCourseMap(service, course) : all;
     if (!ids.length) return finish(null);
+    if (!parsed.data.retryMap) {
+      // A map that ran out of attempts waits for the student's "Tekrar dene";
+      // no refresh or poll starts model calls on it.
+      const { data: states } = await service
+        .from("documents")
+        .select("id, topic_map_status, topic_map_error")
+        .in("id", ids);
+      const stopped = (states ?? []).find((row) => row.topic_map_status === "failed");
+      if (stopped) return mapUnavailable(parsed.data.documentId, (stopped.topic_map_error as string | null) ?? null);
+    }
     // Ensure failed status can re-enter map.
     await service.from("documents")
       .update({ status: "processing", error_message: null })
@@ -349,7 +365,17 @@ export async function POST(request: Request) {
       examDate: parsed.data.examDate ?? null,
       prepId: parsed.data.prepId ?? null,
       deadlineAt: routeStarted + COURSE_ROUND_BUDGET_MS,
+      fromCourse: Boolean(course),
     });
+    if (mapped.deferred) {
+      // The wizard's course outline will cover this file.
+      return NextResponse.json({
+        documentId: doc.id,
+        status: "processing",
+        mapDeferred: true,
+        pageCount: typeof doc.page_count === "number" ? doc.page_count : null,
+      });
+    }
     if (mapped.pending) {
       return NextResponse.json({
         documentId: parsed.data.documentId,
@@ -364,6 +390,7 @@ export async function POST(request: Request) {
     if (!mapped.ok) {
       const code = mapped.error || "topic_map_failed";
       if (code === "insufficient_credits") return errorResponse(402, "insufficient_credits");
+      if (code === "topic_map_unavailable") return mapUnavailable(parsed.data.documentId, code);
       if (isRetryableIngestionCode(code) || mapped.retryable) {
         return NextResponse.json({
           code,
@@ -455,6 +482,7 @@ export async function POST(request: Request) {
   }
 
   if (result.deferred) {
+    if (deferMap) await markMapDeferred(service, doc.id);
     return NextResponse.json(
       {
         documentId: doc.id,
@@ -479,6 +507,22 @@ export async function POST(request: Request) {
     topicMap: result.topicMap ?? null,
     pageCount: result.pageCount ?? null,
   });
+}
+
+/**
+ * The map ran out of attempts. Extraction and chunks stay; the student sees a
+ * calm "Tekrar dene" (not an error) and nothing is charged. 422 so no client
+ * loop retries it on its own.
+ */
+function mapUnavailable(documentId: string, code: string | null) {
+  return NextResponse.json({
+    documentId,
+    code: code || "topic_map_unavailable",
+    retryable: false,
+    canRetry: true,
+    error: "Konuları yeniden hazırlamak için Tekrar dene.",
+    phase: "map",
+  }, { status: 422 });
 }
 
 function processFailureMessage(error?: string): string {

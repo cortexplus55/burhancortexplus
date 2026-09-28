@@ -109,7 +109,10 @@ export function makeFakeDb(tables: Record<string, Row[]>, options?: { creditCost
             return { data: null, error: { code: "23505" } };
           }
           for (const it of items) {
-            Object.assign(it, { next_index: 0, topics: [], lease_token: null, lease_until: null });
+            // Column defaults only where the insert gave no value.
+            for (const [k, v] of Object.entries({ next_index: 0, topics: [], lease_token: null, lease_until: null })) {
+              if (!(k in it)) it[k] = v;
+            }
           }
         }
         if (op === "upsert" && onConflict) {

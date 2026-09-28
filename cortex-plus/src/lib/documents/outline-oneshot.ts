@@ -1004,7 +1004,11 @@ export type OutlineStepResult =
   | { kind: "continue"; progress: OutlineProgress; release: string[]; failed: boolean }
   | { kind: "wait"; needMs: number }
   | { kind: "blocked"; error: string; release: string[] }
-  | { kind: "exhausted"; release: string[] };
+  /**
+   * No usable map. "rejected": our validation turned down every draft of this
+   * cycle — final for this attempt. "provider": the model never answered.
+   */
+  | { kind: "exhausted"; release: string[]; reason: "rejected" | "provider" };
 
 function draftTopicCount(draft: OneShotOutlineDraft): number {
   return draft.units.reduce((n, unit) => n + unit.topics.length, 0);
@@ -1169,7 +1173,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
     if (!draft) {
       return best
         ? { kind: "done", map: best, path: "kept", release: [] }
-        : { kind: "exhausted", release: [] };
+        : { kind: "exhausted", release: [], reason: "rejected" };
     }
     const { issues } = candidateFrom(draft, material.validation, progress.draftModel ?? strong, []);
     const cited = buildCitedPagesCorpus(
@@ -1197,6 +1201,8 @@ export async function runOutlineStep(input: OutlinePromptInput & {
       return {
         kind: "exhausted",
         release: repaired.reservationId ? [repaired.reservationId] : [],
+        // The repair only runs after a draft was rejected by validation.
+        reason: "rejected",
       };
     }
     const loser = chosen === best ? fixed : best;
@@ -1232,7 +1238,7 @@ export async function runOutlineStep(input: OutlinePromptInput & {
       return failWith(call.error, { ...progress, stage: "fallback" });
     }
     if (best) return { kind: "done", map: best, path: "kept", release: [] };
-    return { kind: "exhausted", release: [] };
+    return { kind: "exhausted", release: [], reason: "provider" };
   }
 
   const { candidate } = candidateFrom(

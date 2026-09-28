@@ -5,41 +5,12 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeFakeDb } from "./helpers/fake-supabase";
+import { HANG, model } from "./helpers/outline-model-mock";
 
-type Call = { model: string; key: string; prompt: string };
-const calls: Call[] = [];
-const HANG = Symbol("hang");
-let impl: (p: { modelOverride: string; userPrompt: string }) => unknown = () => null;
+const calls = model.calls;
 
-vi.mock("@/lib/ai/generate", async () => {
-  const credits = await vi.importActual<typeof import("@/lib/credits/service")>("@/lib/credits/service");
-  return {
-    isPremiumUser: vi.fn(async () => false),
-    generateJson: vi.fn(async (p: any) => {
-      const reservation = await credits.reserveCredits(p.service, p.userId, p.actionCode, p.idempotencyKey);
-      if (!reservation.ok) return { ok: false, status: 409, error: reservation.reason };
-      calls.push({ model: p.modelOverride, key: p.idempotencyKey, prompt: p.userPrompt });
-      const out = impl(p);
-      if (out === HANG) return new Promise(() => {});
-      const failed = out && typeof out === "object" && "error" in out ? String((out as { error: string }).error) : null;
-      const data = !failed && out ? p.parse(out) : null;
-      if (!data) {
-        await credits.refundCredits(p.service, reservation.reservationId);
-        return { ok: false, status: failed === "deadline" ? 504 : 502, error: failed ?? "generation_failed" };
-      }
-      if (!p.deferCommit) await credits.commitCredits(p.service, reservation.reservationId);
-      return { ok: true, data, reservationId: p.deferCommit ? reservation.reservationId : undefined, usage: { tokensIn: 1, tokensOut: 1 } };
-    }),
-  };
-});
-vi.mock("@/lib/env", () => ({
-  env: {
-    OPENAI_STANDARD_MODEL: "gpt-4o-mini",
-    OPENAI_OUTLINE_STANDARD_MODEL: "gpt-4o-mini",
-    OPENAI_OUTLINE_STRONG_MODEL: "gpt-4.1",
-    OPENAI_OUTLINE_FALLBACK_MODEL: "gpt-4.1-mini",
-  },
-}));
+vi.mock("@/lib/ai/generate", async () => (await import("./helpers/outline-model-mock")).generateModule());
+vi.mock("@/lib/env", async () => (await import("./helpers/outline-model-mock")).outlineEnv);
 
 const route = vi.hoisted(() => ({ service: null as unknown }));
 vi.mock("@/lib/api/guards", async (importOriginal) => {
@@ -51,7 +22,7 @@ vi.mock("@/lib/admin/feature-flags", async (importOriginal) => {
   return { ...actual, isFeatureEnabled: async () => true };
 });
 
-import { runCourseMapRound } from "@/lib/documents/pdf-learning-v2";
+import { MAX_OUTLINE_CALLS, runCourseMapRound } from "@/lib/documents/pdf-learning-v2";
 import { loadOneshotIntakeTopics } from "@/lib/learning/intake-outline";
 
 const COST = 3;
@@ -116,14 +87,14 @@ async function runRounds(client: any, ids: string[], opts: Record<string, unknow
 
 beforeEach(() => {
   calls.length = 0;
-  impl = () => null;
+  model.impl = () => null;
 });
 
 describe("course map round (fake DB, real credit semantics)", () => {
   it("same file uploaded 3 times → 3 maps, one model call and one charge each", async () => {
     for (const id of ["up1", "up2", "up3"]) {
       const { db, client, chargedCredits } = mkDb([{ id, name: "kitap.pdf", pages: 12, file: 0 }]);
-      impl = () => oneFile([1, 2, 3, 4, 5, 6]);
+      model.impl = () => oneFile([1, 2, 3, 4, 5, 6]);
       const before = calls.length;
       const rounds = await runRounds(client, [id]);
       expect(rounds.at(-1)).toMatchObject({ ok: true, topics: 6 });
@@ -135,7 +106,7 @@ describe("course map round (fake DB, real credit semantics)", () => {
 
   it("a rejected mini draft really calls gpt-4.1 in the next round; only the kept call is charged", async () => {
     const { db, client, chargedCredits } = mkDb([{ id: "d1", name: "k.pdf", pages: 12, file: 0 }]);
-    impl = (p) => (p.modelOverride === "gpt-4o-mini" ? JUNK : oneFile([1, 2, 3, 4]));
+    model.impl = (p) => (p.modelOverride === "gpt-4o-mini" ? JUNK : oneFile([1, 2, 3, 4]));
     const rounds = await runRounds(client, ["d1"]);
     expect(rounds.map((r) => r.pending ?? false)).toEqual([true, false]);
     expect(rounds[0]!.stage).toBe("escalate");
@@ -148,12 +119,12 @@ describe("course map round (fake DB, real credit semantics)", () => {
 
   it("a hard-killed round's pending reservation is refunded and a new call is made", async () => {
     const { db, client, chargedCredits } = mkDb([{ id: "d1", name: "k.pdf", pages: 12, file: 0 }]);
-    impl = () => HANG;
+    model.impl = () => HANG;
     void runCourseMapRound(client, { documentIds: ["d1"] });
     await vi.waitFor(() => expect(calls).toHaveLength(1));
     // The function was killed: its lease simply expires.
     db.tables.document_topic_map_jobs![0]!.lease_until = new Date(0).toISOString();
-    impl = () => oneFile([1, 2, 3]);
+    model.impl = () => oneFile([1, 2, 3]);
     const rounds = await runRounds(client, ["d1"]);
     expect(rounds.at(-1)).toMatchObject({ ok: true, topics: 3 });
     expect(calls).toHaveLength(2);
@@ -166,7 +137,7 @@ describe("course map round (fake DB, real credit semantics)", () => {
   it("our own deadline abort keeps the stage checkpointed; the next round retries it", async () => {
     const { db, client, chargedCredits } = mkDb([{ id: "d1", name: "k.pdf", pages: 12, file: 0 }]);
     let n = 0;
-    impl = () => (++n === 1 ? { error: "deadline" } : oneFile([1, 2]));
+    model.impl = () => (++n === 1 ? { error: "deadline" } : oneFile([1, 2]));
     const first = await runCourseMapRound(client, { documentIds: ["d1"] });
     expect(first).toMatchObject({ ok: true, pending: true, stage: "first" });
     const meta = (db.tables.document_topic_map_jobs![0]!.topics as any[])[0];
@@ -179,34 +150,50 @@ describe("course map round (fake DB, real credit semantics)", () => {
 
   it("does not start a call that cannot finish in the round (no call, stays pending)", async () => {
     const { client } = mkDb([{ id: "d1", name: "k.pdf", pages: 12, file: 0 }]);
-    impl = () => oneFile([1]);
+    model.impl = () => oneFile([1]);
     const r = await runCourseMapRound(client, { documentIds: ["d1"], deadlineAt: Date.now() + 20_000 });
     expect(r).toMatchObject({ pending: true, stage: "first" });
     expect(calls).toHaveLength(0);
   });
 
-  it("gives up with a retryable error (no fabricated list) after repeated failures", async () => {
+  it("provider failures stop within the call cap: failed map, no fabricated list, nothing charged", async () => {
     const { db, client, chargedCredits } = mkDb([{ id: "d1", name: "k.pdf", pages: 12, file: 0 }]);
-    impl = () => ({ error: "generation_failed" });
+    model.impl = () => ({ error: "generation_failed" });
     const rounds = await runRounds(client, ["d1"], {}, 12);
     const last = rounds.at(-1)!;
-    expect(last).toMatchObject({ ok: false, error: "topic_map_unavailable", retryable: true });
+    expect(last).toMatchObject({ ok: false, error: "topic_map_unavailable", retryable: false });
+    expect(calls.length).toBeLessThanOrEqual(MAX_OUTLINE_CALLS);
+    expect(db.tables.documents![0]).toMatchObject({ status: "processing", topic_map_status: "failed", topic_map_error: "topic_map_unavailable" });
     expect(db.tables.document_topic_nodes).toHaveLength(0);
     expect(db.tables.document_topic_map_jobs).toHaveLength(0);
     expect(chargedCredits("u1")).toBe(0);
   });
 
+  it("validation rejecting every draft is final after ONE first → escalate → repair cycle", async () => {
+    const { db, client, chargedCredits } = mkDb([{ id: "d1", name: "k.pdf", pages: 12, file: 0 }]);
+    model.impl = () => JUNK;
+    const rounds = await runRounds(client, ["d1"], {}, 12);
+    expect(rounds.at(-1)).toMatchObject({ ok: false, error: "topic_map_unavailable" });
+    expect(calls.map((c) => `${c.model}:${c.key.split(":").pop()}`)).toEqual([
+      "gpt-4o-mini:first",
+      "gpt-4.1:escalate",
+      "gpt-4.1:repair",
+    ]);
+    expect(db.tables.documents![0]).toMatchObject({ topic_map_status: "failed" });
+    expect(chargedCredits("u1")).toBe(0);
+  });
+
   it("12 + 16 pages → one call on gpt-4o-mini; 16 + 16 → one call on gpt-4.1", async () => {
-    for (const [pagesA, pagesB, model] of [[12, 16, "gpt-4o-mini"], [16, 16, "gpt-4.1"]] as const) {
+    for (const [pagesA, pagesB, routed] of [[12, 16, "gpt-4o-mini"], [16, 16, "gpt-4.1"]] as const) {
       calls.length = 0;
       const { client, chargedCredits } = mkDb([
         { id: "dA", name: "a.pdf", pages: pagesA, file: 0 },
         { id: "dB", name: "b.pdf", pages: pagesB, file: 1 },
       ]);
-      impl = () => outline([{ title: "Ünite", topics: [[0, 2], [1, 3], [0, 5]] }]);
+      model.impl = () => outline([{ title: "Ünite", topics: [[0, 2], [1, 3], [0, 5]] }]);
       const rounds = await runRounds(client, ["dA", "dB"]);
       expect(rounds.at(-1)).toMatchObject({ ok: true, topics: 3 });
-      expect(calls.map((c) => c.model)).toEqual([model]);
+      expect(calls.map((c) => c.model)).toEqual([routed]);
       expect(calls[0]!.prompt).toContain("[d2 s.3]");
       expect(chargedCredits("u1")).toBe(COST);
     }
@@ -217,7 +204,7 @@ describe("course map round (fake DB, real credit semantics)", () => {
       { id: "dA", name: "a.pdf", pages: 12, file: 0 },
       { id: "dB", name: "b.pdf", pages: 16, file: 1 },
     ]);
-    impl = () =>
+    model.impl = () =>
       outline([
         { title: "Birinci Ünite", topics: [[1, 4], [0, 2]] },
         { title: "İkinci Ünite", topics: [[0, 7], [1, 9], [0, 3]] },
@@ -242,7 +229,7 @@ describe("course map round (fake DB, real credit semantics)", () => {
       exam_preps: [{ id: "p1", user_id: "u1", document_id: "old", source_document_ids: ["old"] }],
       exam_prep_topics: [{ id: "x1", exam_prep_id: "p1", label: "Var Olan Konu Başlığı", sort_order: 0 }],
     });
-    impl = () => oneFile([1, 2]);
+    model.impl = () => oneFile([1, 2]);
     const rounds = await runRounds(client, ["dN"], { prepId: "p1" });
     expect(rounds.at(-1)).toMatchObject({ ok: true });
     expect(calls).toHaveLength(1);
@@ -254,7 +241,7 @@ describe("course map round (fake DB, real credit semantics)", () => {
       { id: "dA", name: "a.pdf", pages: 600, file: 0 },
       { id: "dB", name: "b.pdf", pages: 600, file: 1 },
     ]);
-    impl = (p) =>
+    model.impl = (p) =>
       p.userPrompt.includes("Kısmi taslak")
         ? outline([{ title: "Ünite", topics: [[1, 450], [0, 12]] }])
         : outline([{ title: "Ünite", topics: [[0, 1]] }]);
@@ -303,7 +290,7 @@ describe("process route: extract per file, then ONE course outline", () => {
     );
     for (const doc of fake.db.tables.documents as any[]) doc.mime_type = "application/pdf";
     route.service = fake.client;
-    impl = () => outline([{ title: "Ünite", topics: [[0, 2], [1, 3]] }]);
+    model.impl = () => outline([{ title: "Ünite", topics: [[0, 2], [1, 3]] }]);
     const { POST } = await import("@/app/api/documents/process/route");
 
     const deferred = await POST(post({ documentId: A, deferMap: true }));

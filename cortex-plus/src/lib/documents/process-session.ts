@@ -125,6 +125,8 @@ export type ProcessPost = (body: {
   courseDocumentIds?: string[];
   /** Add-source: the prep the file joins. */
   prepId?: string | null;
+  /** The student pressed "Tekrar dene" on a map that ran out of attempts. */
+  retryMap?: boolean;
 }) => Promise<{ status: number; body: Record<string, unknown> }>;
 
 export const postDocumentProcess: ProcessPost = async ({
@@ -134,6 +136,7 @@ export const postDocumentProcess: ProcessPost = async ({
   deferMap,
   courseDocumentIds,
   prepId,
+  retryMap,
 }) => {
   const response = await fetch("/api/documents/process", {
     method: "POST",
@@ -145,6 +148,7 @@ export const postDocumentProcess: ProcessPost = async ({
       ...(deferMap ? { deferMap: true } : {}),
       ...(courseDocumentIds?.length ? { courseDocumentIds } : {}),
       ...(prepId ? { prepId } : {}),
+      ...(retryMap ? { retryMap: true } : {}),
     }),
   });
   const raw = await response.json().catch(() => ({}));

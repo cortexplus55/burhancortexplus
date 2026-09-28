@@ -165,8 +165,8 @@ const DEFS: Record<string, IngestionErrorDef> = {
     code: "topic_map_unavailable",
     retryable: true,
     scope: "batch",
-    userMessage: "Konu haritası bu belgeden çıkarılamadı.",
-    action: "Belgen kaydedildi; 'Devam et' ile kaldığı yerden sürdür.",
+    userMessage: "Belgen kaydedildi.",
+    action: "Konuları hazırlamak için Tekrar dene.",
   },
   topic_map_no_readable_pages: {
     code: "topic_map_no_readable_pages",

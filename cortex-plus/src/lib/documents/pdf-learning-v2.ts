@@ -25,6 +25,7 @@ import {
   runOutlineStep,
   type MaterialFileCorpus,
   type OutlineProgress,
+  type OutlineStepResult,
   type OutlineStage,
 } from "@/lib/documents/outline-oneshot";
 import {
@@ -48,6 +49,8 @@ export type CourseMapResult = {
   topics: number;
   error?: string;
   retryable?: boolean;
+  /** Waiting for the wizard's course outline — no model call was made. */
+  deferred?: boolean;
 };
 
 const PAGE_READ_BATCH = 200;
@@ -59,6 +62,13 @@ const POST_CALL_RESERVE_MS = 12_000;
 const PERSIST_RESERVE_MS = 25_000;
 /** Failed outline attempts (provider errors, aborts) before giving up. */
 const MAX_OUTLINE_FAILURES = 4;
+/**
+ * Hard cap on outline call stages per attempt (first, escalate, repair,
+ * fallback, retries). The parallel parts of a huge corpus are one stage.
+ */
+export const MAX_OUTLINE_CALLS = 6;
+/** A wizard deferral or course job untouched this long is abandoned. */
+export const COURSE_WAIT_STALE_MS = 30 * 60_000;
 
 type CourseOutline = {
   units: OutlineUnitDraft[];
@@ -77,6 +87,10 @@ type CourseMeta = {
   stage: CourseMapStage;
   rounds: number;
   failures: number;
+  /** Outline call stages started in this attempt (see MAX_OUTLINE_CALLS). */
+  calls?: number;
+  /** Last checkpoint — tells a live course from an abandoned one. */
+  touchedAt?: string;
   /** Keys of calls in flight — a killed round leaves them for the next one. */
   inflight?: string[];
   progress?: OutlineProgress;
@@ -92,6 +106,74 @@ type MapJob = { topics: unknown[]; lease_token: string };
 function readCourseMeta(raw: unknown[]): CourseMeta | null {
   const first = raw[0] as CourseMeta | undefined;
   return first && first.__meta === true && first.phase === "course" ? first : null;
+}
+
+/**
+ * "This file waits for a course outline" — kept in the file's own job row
+ * (existing columns only). No courseId: the wizard extracted it and will
+ * start the course later. courseId: that course's outline covers it.
+ */
+type WaitMarker = { __meta: true; phase: "deferred"; at: string; courseId?: string };
+
+function readWaitMarker(raw: unknown): WaitMarker | null {
+  const first = (Array.isArray(raw) ? raw[0] : null) as WaitMarker | null;
+  return first && first.__meta === true && first.phase === "deferred" ? first : null;
+}
+
+function isFresh(iso: string | undefined | null, nowMs: number): boolean {
+  const at = iso ? Date.parse(iso) : NaN;
+  return Number.isFinite(at) && nowMs - at < COURSE_WAIT_STALE_MS;
+}
+
+/** Record that this file's map waits for a course outline. Never overwrites a course job. */
+export async function markMapDeferred(service: SupabaseClient, documentId: string, courseId?: string) {
+  const marker: WaitMarker = { __meta: true, phase: "deferred", at: new Date().toISOString(), ...(courseId ? { courseId } : {}) };
+  const { data } = await service.from("document_topic_map_jobs").select("topics").eq("document_id", documentId).maybeSingle();
+  if (!data) {
+    await service.from("document_topic_map_jobs").insert({ document_id: documentId, topics: [marker] });
+  } else if (!readCourseMeta(Array.isArray(data.topics) ? (data.topics as unknown[]) : [])) {
+    await service.from("document_topic_map_jobs").update({ topics: [marker] }).eq("document_id", documentId);
+  }
+}
+
+async function clearWaitMarkers(service: SupabaseClient, documentIds: string[]) {
+  for (const documentId of documentIds) {
+    const { data } = await service.from("document_topic_map_jobs").select("topics").eq("document_id", documentId).maybeSingle();
+    if (readWaitMarker(data?.topics)) {
+      await service.from("document_topic_map_jobs").delete().eq("document_id", documentId);
+    }
+  }
+}
+
+/**
+ * A single-file caller (status poller, retry, rebuild) must not map a file
+ * that a course outline will cover: it waits, and makes no model call.
+ */
+async function waitForCourse(
+  service: SupabaseClient,
+  courseId: string,
+  documentIds: string[],
+  topics: unknown[],
+  nowMs: number,
+): Promise<CourseMapResult | null> {
+  const marker = readWaitMarker(topics);
+  if (marker && !marker.courseId) {
+    return isFresh(marker.at, nowMs) ? { ok: true, deferred: true, topics: 0 } : null;
+  }
+  let course = readCourseMeta(topics);
+  if (marker?.courseId) {
+    const { data } = await service.from("document_topic_map_jobs").select("topics").eq("document_id", marker.courseId).maybeSingle();
+    course = readCourseMeta(Array.isArray(data?.topics) ? (data.topics as unknown[]) : []);
+  }
+  if (
+    course &&
+    course.courseDocumentIds.join(",") !== documentIds.join(",") &&
+    course.courseDocumentIds.includes(courseId) &&
+    isFresh(course.touchedAt, nowMs)
+  ) {
+    return { ok: true, pending: true, leaseBusy: true, topics: 0, stage: course.stage, round: course.rounds };
+  }
+  return null;
 }
 
 async function claimMapJob(service: SupabaseClient, documentId: string): Promise<MapJob | null> {
@@ -249,6 +331,8 @@ async function persistCoverage(service: SupabaseClient, documentId: string, cove
 }
 
 function isRetryableMapError(message: string): boolean {
+  // Out of attempts: final until the student presses "Tekrar dene".
+  if (message === "topic_map_unavailable") return false;
   if (message === "topic_map_no_readable_pages") return false;
   if (message === "topic_map_in_use") return false;
   if (message === "insufficient_credits" || message === "document_not_found") return false;
@@ -527,6 +611,13 @@ export async function runCourseMapRound(
     /** Absolute deadline for this round (defaults to now + budget). */
     deadlineAt?: number;
     now?: () => number;
+    /**
+     * The wizard's course request: it owns these files. Other callers wait
+     * for a course that covers the file instead of mapping it alone.
+     */
+    fromCourse?: boolean;
+    /** The student asked to rebuild a ready map. */
+    rebuild?: boolean;
   },
 ): Promise<CourseMapResult> {
   const now = input.now ?? Date.now;
@@ -581,8 +672,20 @@ export async function runCourseMapRound(
     return { ok: true, pending: true, leaseBusy: true, topics: 0, stage: busy?.stage ?? "prepare", round: busy?.rounds ?? 0 };
   }
   const token = job.lease_token;
+  if (!input.fromCourse) {
+    const wait = await waitForCourse(service, courseId, documentIds, job.topics, now()).catch(() => null);
+    const nothingToDo =
+      !readCourseMeta(job.topics) &&
+      !input.rebuild &&
+      docs.every((d) => d.topic_map_status === "ready" || d.topic_map_status === "reviewed");
+    if (wait || nothingToDo) {
+      await releaseMapJob(service, courseId, token);
+      return wait ?? { ok: true, topics: 0 };
+    }
+  }
   const heartbeat = setInterval(() => void renewMapLease(service, courseId, token), Math.max(30_000, Math.floor(MAP_LEASE_MS / 3)));
   const checkpoint = async () => {
+    meta!.touchedAt = new Date(now()).toISOString();
     const { data, error } = await service
       .from("document_topic_map_jobs")
       .update({ topics: [meta], updated_at: new Date().toISOString() })
@@ -594,6 +697,14 @@ export async function runCourseMapRound(
   const pending = (): CourseMapResult => ({ ok: true, pending: true, topics: 0, stage: meta!.stage, round: meta!.rounds });
   const timing = (stage: string, extra: Record<string, unknown>) =>
     console.info("pipeline_timing", { documentId: courseId, files: documentIds.length, stage, ...extra });
+  const others = documentIds.filter((id) => id !== courseId);
+  /** Out of attempts: never a fabricated list; a calm "Tekrar dene" state. */
+  const giveUp = async (held: OutlineProgress | undefined) => {
+    if (held) await settleReservations(service, reservationsHeld(held), "refund");
+    await service.from("document_topic_map_jobs").delete().eq("document_id", courseId).eq("lease_token", token);
+    await clearWaitMarkers(service, others);
+    return fail("topic_map_unavailable");
+  };
 
   try {
     meta = readCourseMeta(job.topics);
@@ -619,6 +730,7 @@ export async function runCourseMapRound(
         stage: "prepare",
         rounds: 0,
         failures: 0,
+        calls: 0,
         previousStatus: Object.fromEntries(docs.map((d) => [d.id, d.topic_map_status])),
         examLabel: input.examLabel ?? null,
         examDate: input.examDate ?? null,
@@ -628,6 +740,9 @@ export async function runCourseMapRound(
         .from("documents")
         .update({ topic_map_status: "pending", topic_map_error: null, topic_map_updated_at: new Date().toISOString() })
         .in("id", documentIds);
+      await checkpoint();
+      // The other files now wait for this course (pollers make no call).
+      for (const id of others) await markMapDeferred(service, id, courseId);
     }
     meta.rounds += 1;
     if (meta.inflight?.length) {
@@ -658,24 +773,31 @@ export async function runCourseMapRound(
       const progress: OutlineProgress = meta.progress ?? { stage: meta.stage as OutlineStage };
       const previousOutline = meta.prepId ? await previousOutlineForPrep(service, userId, meta.prepId) : undefined;
       const stageStarted = now();
-      const step = await runOutlineStep({
-        service,
-        userId,
-        material,
-        progress,
-        examLabel: input.examLabel ?? meta.examLabel ?? null,
-        examDate: input.examDate ?? meta.examDate ?? null,
-        tocBlock: tocBlockFrom(prepared),
-        previousOutline,
-        deadlineAt: deadlineAt - POST_CALL_RESERVE_MS,
-        now,
-        keyFor: (stage, part) =>
-          `outline:${courseId}:${material.contentHash}:${meta!.attemptId}:${stage}${part ? `:part${part}` : ""}`,
-        onCallStart: async (keys) => {
-          meta!.inflight = keys;
-          await checkpoint();
-        },
-      });
+      const held = meta.progress;
+      const step: OutlineStepResult =
+        (meta.calls ?? 0) >= MAX_OUTLINE_CALLS
+          ? held?.best
+            ? { kind: "done", map: held.best, path: "kept", release: [] }
+            : { kind: "exhausted", release: [], reason: "rejected" }
+          : await runOutlineStep({
+              service,
+              userId,
+              material,
+              progress,
+              examLabel: input.examLabel ?? meta.examLabel ?? null,
+              examDate: input.examDate ?? meta.examDate ?? null,
+              tocBlock: tocBlockFrom(prepared),
+              previousOutline,
+              deadlineAt: deadlineAt - POST_CALL_RESERVE_MS,
+              now,
+              keyFor: (stage, part) =>
+                `outline:${courseId}:${material.contentHash}:${meta!.attemptId}:${stage}${part ? `:part${part}` : ""}`,
+              onCallStart: async (keys) => {
+                meta!.inflight = keys;
+                meta!.calls = (meta!.calls ?? 0) + 1;
+                await checkpoint();
+              },
+            });
       if (step.kind !== "wait") {
         // The call settled: its key is spent, the next call gets a new one.
         meta.inflight = [];
@@ -686,6 +808,7 @@ export async function runCourseMapRound(
         outlineStage: progress.stage,
         result: step.kind,
         ms: now() - stageStarted,
+        calls: meta.calls ?? 0,
         pages: material.pageCount,
         corpusChars: material.corpus.length,
         routedModel: material.routed.model,
@@ -693,6 +816,7 @@ export async function runCourseMapRound(
         ...(step.kind === "done"
           ? { model: step.map.model, path: step.path, units: step.map.units.length, topics: step.map.kept, droppedTopics: step.map.dropped }
           : {}),
+        ...(step.kind === "exhausted" ? { reason: step.reason } : {}),
       });
 
       if (step.kind === "wait") {
@@ -700,34 +824,39 @@ export async function runCourseMapRound(
         return pending();
       }
       if (step.kind === "blocked") throw new Error(step.error);
-      if (step.kind === "continue") {
-        meta.progress = step.progress;
-        meta.stage = step.progress.stage;
-        if (step.failed) meta.failures += 1;
-        if (meta.failures < MAX_OUTLINE_FAILURES) {
+      let kept = step.kind === "done" ? { map: step.map, path: step.path } : null;
+      if (!kept) {
+        // Validation rejecting every draft of a cycle is final; only provider
+        // failures (and our own deadline) retry, within both budgets.
+        const provider = step.kind === "exhausted" && step.reason === "provider";
+        if (step.kind === "continue") {
+          meta.progress = step.progress;
+          meta.stage = step.progress.stage;
+          if (step.failed) meta.failures += 1;
+        }
+        if (provider) meta.failures += 1;
+        const budgetLeft = meta.failures < MAX_OUTLINE_FAILURES && (meta.calls ?? 0) < MAX_OUTLINE_CALLS;
+        if (budgetLeft && (step.kind === "continue" || provider)) {
+          if (provider) {
+            meta.progress = { stage: "first" };
+            meta.stage = "first";
+          }
           await checkpoint();
           return pending();
         }
-        await settleReservations(service, reservationsHeld(step.progress), "refund");
-      }
-      if (step.kind === "exhausted" || step.kind === "continue") {
-        if (step.kind === "exhausted") meta.failures += 1;
-        if (meta.failures < MAX_OUTLINE_FAILURES) {
-          meta.progress = { stage: "first" };
-          meta.stage = "first";
-          await checkpoint();
-          return pending();
-        }
-        // No fabricated list: a clear retry state; the next try starts fresh.
-        await service.from("document_topic_map_jobs").delete().eq("document_id", courseId).eq("lease_token", token);
-        return await fail("topic_map_unavailable");
+        const last = step.kind === "continue" ? step.progress : undefined;
+        if (!last?.best) return await giveUp(last);
+        // Out of budget with a usable (validated) map: keep it.
+        const keep = new Set(last.best.reservationIds);
+        await settleReservations(service, reservationsHeld(last).filter((id) => !keep.has(id)), "refund");
+        kept = { map: last.best, path: "kept" };
       }
       meta.outline = {
-        units: step.map.units,
-        model: step.map.model,
-        path: step.path,
-        dropped: step.map.dropped,
-        reservationIds: step.map.reservationIds,
+        units: kept.map.units,
+        model: kept.map.model,
+        path: kept.path,
+        dropped: kept.map.dropped,
+        reservationIds: kept.map.reservationIds,
       };
       meta.progress = undefined;
       meta.stage = "persist";
@@ -753,6 +882,7 @@ export async function runCourseMapRound(
     if (docError) throw new Error("document_status_update_failed");
     await settleReservations(service, outline.reservationIds, "commit");
     await service.from("document_topic_map_jobs").delete().eq("document_id", courseId).eq("lease_token", token);
+    await clearWaitMarkers(service, others);
     timing("persist", { ms: now() - persistStarted, topics, units: outline.units.length, model: outline.model, path: outline.path, droppedTopics: outline.dropped, roundMs: now() - roundStarted });
     return { ok: true, topics, stage: "persist", round: meta.rounds };
   } catch (error) {

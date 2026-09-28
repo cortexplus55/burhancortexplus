@@ -112,6 +112,13 @@ export function DocumentUpload({
         return;
       }
 
+      if (!result.ok && processed.canRetry === true && uploaded.documentId) {
+        // The map ran out of attempts: the document page offers a calm "Tekrar dene".
+        setFile(null);
+        navigated = true;
+        router.push(`/dokumanlar/${uploaded.documentId}`);
+        return;
+      }
       if (!result.ok) {
         const message = messageFromProcessBody(processed);
         setProcessAlert(message);
