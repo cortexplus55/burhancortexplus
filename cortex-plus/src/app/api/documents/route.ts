@@ -18,11 +18,16 @@ export async function GET(request: Request) {
   const { supabase, userId } = guard.ctx;
   const user = { id: userId };
 
+  const url = new URL(request.url);
+  const statusFilter = url.searchParams.get("status");
+  const statusValues =
+    statusFilter === "processing" ? ["pending", "processing"] : ["completed"];
+
   const { data } = await supabase
     .from("documents")
     .select("id, file_name, created_at, size_bytes, page_count")
     .eq("user_id", user.id)
-    .eq("status", "completed")
+    .in("status", statusValues)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(20);

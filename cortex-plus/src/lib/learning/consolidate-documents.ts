@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
-import { pickMainTopics } from "@/lib/learning/diagnostic";
+import { pickStudyTopics } from "@/lib/learning/diagnostic";
 import {
   applyClusterMerges,
   consolidateMaterials,
@@ -125,7 +125,7 @@ export async function consolidatePrepDocuments(
   const candidates: MaterialCandidate[] = [];
   for (const documentId of documentIds) {
     const rows = nodes.filter((node) => node.document_id === documentId);
-    const mains = pickMainTopics(
+    const mains = pickStudyTopics(
       rows.map((node) => ({
         id: node.id as string,
         title: node.title as string,

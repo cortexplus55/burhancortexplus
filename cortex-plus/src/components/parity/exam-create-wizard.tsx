@@ -27,8 +27,16 @@ import {
   WIZARD_COPY,
   WIZARD_STEP_ORDER,
   fileProgressLine,
-  sourceCountLabel,
 } from "@/lib/learning/exam-wizard-copy";
+import {
+  clearExamWizardDraft,
+  readExamWizardDraft,
+  writeExamWizardDraft,
+  type ExamWizardDraft,
+  type WizardDraftStep,
+} from "@/lib/learning/exam-wizard-draft";
+import { setFocusPrepCookieClient } from "@/lib/learning/focus-prep";
+import { WizardProcessingPanel } from "@/components/parity/wizard-processing-panel";
 import { freeMaterialLimitLine, materialDetailLine } from "@/lib/learning/prep-material-copy";
 import { filesAcceptedFromSelection } from "@/lib/learning/prep-file-cap";
 import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
@@ -84,7 +92,40 @@ type TopicMeta = {
   examHeavy: boolean;
   important: boolean;
   sections: string[];
+  unitTitle?: string | null;
 };
+
+type TopicUnit = { title: string; topicIndexes: number[] };
+
+function unitTitleForIndex(units: TopicUnit[], index: number): string | null {
+  for (const unit of units) {
+    if (unit.topicIndexes.includes(index)) return unit.title;
+  }
+  return null;
+}
+
+function remapUnitIndexes(units: TopicUnit[], from: number, to: number): TopicUnit[] {
+  return units.map((unit) => ({
+    ...unit,
+    topicIndexes: unit.topicIndexes.map((index) => {
+      if (index === from) return to;
+      if (from < to && index > from && index <= to) return index - 1;
+      if (from > to && index >= to && index < from) return index + 1;
+      return index;
+    }),
+  }));
+}
+
+function dropUnitIndex(units: TopicUnit[], removed: number): TopicUnit[] {
+  return units
+    .map((unit) => ({
+      ...unit,
+      topicIndexes: unit.topicIndexes
+        .filter((index) => index !== removed)
+        .map((index) => (index > removed ? index - 1 : index)),
+    }))
+    .filter((unit) => unit.topicIndexes.length > 0);
+}
 
 type ExcludedNote = { title: string; reason: string };
 type MissingTopic = { title: string; weightPercent: number | null; examHeavy: boolean };
@@ -238,6 +279,7 @@ export function ExamCreateWizard({
   const [topicFiles, setTopicFiles] = useState<string[][]>([]);
   const [topicWarnings, setTopicWarnings] = useState<string[]>([]);
   const [topicMeta, setTopicMeta] = useState<TopicMeta[]>([]);
+  const [topicUnits, setTopicUnits] = useState<TopicUnit[]>([]);
   const [excludedTopics, setExcludedTopics] = useState<ExcludedNote[]>([]);
   const [missingTopics, setMissingTopics] = useState<MissingTopic[]>([]);
   const [suggestedExamDate, setSuggestedExamDate] = useState<string | null>(null);
@@ -245,6 +287,11 @@ export function ExamCreateWizard({
   const [orderEdited, setOrderEdited] = useState(false);
   const [focusTopics, setFocusTopics] = useState<string[]>([]);
   const [title, setTitle] = useState("");
+  const [intakeAlert, setIntakeAlert] = useState<string | null>(null);
+  const [draftResumeBanner, setDraftResumeBanner] = useState(false);
+  const [processingDocs, setProcessingDocs] = useState<WizardMaterial[]>([]);
+  const draftHydrated = useRef(false);
+  const draftWriteTimer = useRef<number | null>(null);
 
   const [starting, setStarting] = useState(false);
   const [planning, setPlanning] = useState(false);
@@ -252,6 +299,167 @@ export function ExamCreateWizard({
   const planTimer = useRef<number | null>(null);
   const shapeTimer = useRef<number | null>(null);
   const alive = useRef(true);
+
+  const resetWizard = useCallback(() => {
+    clearExamWizardDraft();
+    clearPendingDocProcess();
+    setStep(initialDocumentId ? "subject" : "start");
+    setSubject("");
+    setSubjectQuery("");
+    setExamDate("");
+    setTarget(75);
+    setLanguage("tr");
+    setModality("auto");
+    setEqualFocus(true);
+    setMaterials(
+      initialDocumentId
+        ? [{ id: initialDocumentId, fileName: "Seçili materyal", sizeBytes: null, pageCount: null }]
+        : [],
+    );
+    setProcessDetail(null);
+    setProcessAlert(null);
+    setFailedMaterials([]);
+    setTopics([]);
+    setTopicPages([]);
+    setTopicFiles([]);
+    setTopicWarnings([]);
+    setTopicMeta([]);
+    setTopicUnits([]);
+    setExcludedTopics([]);
+    setMissingTopics([]);
+    setSuggestedExamDate(null);
+    setOrderEdited(false);
+    setFocusTopics([]);
+    setTitle("");
+    setIntakeAlert(null);
+    setDraftResumeBanner(false);
+  }, [initialDocumentId]);
+
+  useEffect(() => {
+    if (draftHydrated.current) return;
+    draftHydrated.current = true;
+    const pending = readPendingDocProcess();
+    const draft = readExamWizardDraft();
+    if (!draft && !pending) return;
+
+    if (draft) {
+      setDraftResumeBanner(true);
+      setStep(draft.step as Step);
+      setSubject(draft.subject);
+      setExamDate(draft.examDate);
+      setTarget(draft.target);
+      setLanguage(draft.language);
+      setModality(draft.modality as StudyModality);
+      setEqualFocus(draft.equalFocus);
+      setFocusTopics(draft.focusTopics);
+      setMaterials(draft.materials);
+      setFailedMaterials(draft.failedMaterials);
+      setTitle(draft.title);
+      setOrderEdited(draft.orderEdited);
+      if (draft.topicsDraft) {
+        setTopics(draft.topicsDraft.topics);
+        setTopicPages(draft.topicsDraft.topicPages ?? []);
+        setTopicFiles(draft.topicsDraft.topicFiles ?? []);
+        setTopicWarnings(draft.topicsDraft.topicWarnings ?? []);
+        setTopicUnits(draft.topicsDraft.units ?? []);
+        setTopicMeta(
+          draft.topicsDraft.meta ??
+            draft.topicsDraft.topics.map((_, index) => ({
+              ...EMPTY_META,
+              unitTitle: unitTitleForIndex(draft.topicsDraft?.units ?? [], index),
+            })),
+        );
+      }
+      if (draft.processing) {
+        setProcessDetail(`Belge işleniyor: ${draft.processing.fileName}`);
+      }
+    } else if (pending?.surface === "exam-wizard") {
+      setStep("material");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!draftHydrated.current) return;
+    if (draftWriteTimer.current) window.clearTimeout(draftWriteTimer.current);
+    draftWriteTimer.current = window.setTimeout(() => {
+      const pending = readPendingDocProcess();
+      const payload: ExamWizardDraft = {
+        v: 1,
+        step: step as WizardDraftStep,
+        subject,
+        examDate,
+        target,
+        language,
+        modality,
+        equalFocus,
+        focusTopics,
+        materials,
+        failedMaterials,
+        processing:
+          pending?.surface === "exam-wizard"
+            ? {
+                documentId: pending.documentId,
+                fileName: pending.fileName,
+                sizeBytes: pending.sizeBytes,
+                startedAt: pending.startedAt,
+              }
+            : null,
+        topicsDraft: topics.length
+          ? {
+              topics,
+              units: topicUnits.length ? topicUnits : undefined,
+              topicPages,
+              topicFiles,
+              topicWarnings,
+              meta: topicMeta,
+            }
+          : undefined,
+        title,
+        orderEdited,
+        updatedAt: new Date().toISOString(),
+      };
+      writeExamWizardDraft(payload);
+    }, 300);
+    return () => {
+      if (draftWriteTimer.current) window.clearTimeout(draftWriteTimer.current);
+    };
+  }, [
+    step,
+    subject,
+    examDate,
+    target,
+    language,
+    modality,
+    equalFocus,
+    focusTopics,
+    materials,
+    failedMaterials,
+    topics,
+    topicUnits,
+    topicPages,
+    topicFiles,
+    topicWarnings,
+    topicMeta,
+    title,
+    orderEdited,
+    processDetail,
+  ]);
+
+  useEffect(() => {
+    void fetch("/api/documents?status=processing")
+      .then((res) => (res.ok ? res.json() : { documents: [] }))
+      .then((data: { documents?: WizardMaterial[] }) => {
+        setProcessingDocs(
+          (data.documents ?? []).map((doc) => ({
+            id: doc.id,
+            fileName: doc.fileName,
+            sizeBytes: doc.sizeBytes ?? null,
+            pageCount: doc.pageCount ?? null,
+          })),
+        );
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     void fetch("/api/documents")
@@ -322,12 +530,14 @@ export function ExamCreateWizard({
       const ids = materials.map((item) => item.id);
       const primary = ids[0];
       if (!primary) return;
+      setIntakeAlert(null);
       setStep("building");
       setBuildStage(0);
       const ticker = setInterval(
         () => setBuildStage((s) => Math.min(s + 1, BUILD_STAGES.length - 1)),
         1400,
       );
+      let intakeFailed = false;
       try {
         const res = await fetch("/api/learning/exam-prep/intake", {
           method: "POST",
@@ -339,7 +549,64 @@ export function ExamCreateWizard({
           }),
         });
         const payload = await res.json().catch(() => ({}));
+        if (res.status === 409) {
+          intakeFailed = true;
+          setIntakeAlert(
+            (payload.error as string | undefined) ??
+              "Belgen hâlâ hazırlanıyor. İşlem bitince tekrar dene.",
+          );
+          setStep("material");
+          return;
+        }
+        if (res.status === 422) {
+          intakeFailed = true;
+          setIntakeAlert(
+            (payload.error as string | undefined) ?? "Konu listesi bu materyal için uygun değil.",
+          );
+          setTopics([]);
+          setTopicUnits([]);
+          setTopicMeta([]);
+          setStep("topics");
+          return;
+        }
+        if (!res.ok) {
+          intakeFailed = true;
+          const message =
+            (payload.error as string | undefined) ??
+            (res.status >= 500
+              ? "Sunucu geçici olarak yanıt vermiyor. Biraz sonra tekrar dene."
+              : "Konular çıkarılamadı.");
+          setIntakeAlert(message);
+          setTopics([]);
+          setStep("topics");
+          return;
+        }
         const found: string[] = payload?.draft?.topics ?? [];
+        if (!found.length) {
+          intakeFailed = true;
+          setIntakeAlert("Materyalden konu çıkarılamadı. Başka bir dosya dene veya konuşarak kur.");
+          setTopics([]);
+          setTopicUnits([]);
+          setTopicMeta([]);
+          setStep("topics");
+          return;
+        }
+        const units: TopicUnit[] = Array.isArray(payload?.draft?.units)
+          ? payload.draft.units.flatMap((unit: unknown) => {
+              if (!unit || typeof unit !== "object") return [];
+              const row = unit as { title?: unknown; topicIndexes?: unknown };
+              if (typeof row.title !== "string" || !Array.isArray(row.topicIndexes)) return [];
+              return [
+                {
+                  title: row.title,
+                  topicIndexes: row.topicIndexes.filter(
+                    (index: unknown): index is number => typeof index === "number",
+                  ),
+                },
+              ];
+            })
+          : [];
+        setTopicUnits(units);
         setTopics(found);
         setTopicPages(payload?.draft?.topicPages ?? []);
         setTopicFiles(Array.isArray(payload?.draft?.topicFiles) ? payload.draft.topicFiles : []);
@@ -366,6 +633,7 @@ export function ExamCreateWizard({
             sections: Array.isArray(sections[index])
               ? sections[index].filter((item: unknown) => typeof item === "string")
               : [],
+            unitTitle: unitTitleForIndex(units, index),
           })),
         );
         setExcludedTopics(
@@ -407,10 +675,14 @@ export function ExamCreateWizard({
         setOrderEdited(false);
         setTitle(payload?.draft?.title || `${subject} sınav hazırlığı`);
       } catch {
+        intakeFailed = true;
+        setIntakeAlert("Bağlantı hatası. Tekrar dene.");
         setTopics([]);
+        setStep("topics");
       } finally {
         clearInterval(ticker);
         if (!alive.current) return;
+        if (intakeFailed) return;
         setBuildStage(BUILD_STAGES.length - 1);
         setStep("shaping");
         if (shapeTimer.current) window.clearTimeout(shapeTimer.current);
@@ -479,11 +751,20 @@ export function ExamCreateWizard({
       return false;
     }
     if (!result.ok) {
-      clearPendingDocProcess();
+      const code = typeof processed.code === "string" ? processed.code : "";
+      const keepPending =
+        result.status === 0 ||
+        code === "processing_timeout" ||
+        code === "retryable_exhausted" ||
+        (result.status >= 500 && result.status < 600);
       const message = messageFromProcessBody(processed);
       setProcessAlert(message);
       toast.error(message);
-      setProcessDetail(null);
+      setProcessDetail(keepPending ? message : null);
+      if (keepPending) {
+        return false;
+      }
+      clearPendingDocProcess();
       setFailedMaterials((current) => {
         const rest = current.filter((item) => item.documentId !== input.documentId);
         return [
@@ -676,6 +957,10 @@ export function ExamCreateWizard({
         toast.error(payload.error ?? "Plan kurulamadı.");
         return;
       }
+      clearExamWizardDraft();
+      if (typeof payload.prepId === "string") {
+        setFocusPrepCookieClient(payload.prepId);
+      }
       router.push(`/deneme-sinavlari/${payload.prepId}`);
       router.refresh();
     } catch {
@@ -692,11 +977,92 @@ export function ExamCreateWizard({
     return pool.filter((s) => s.toLocaleLowerCase("tr").includes(q));
   }, [subjectQuery, recentSubjects]);
 
+  const resumeProcessingDoc = useCallback((doc: WizardMaterial) => {
+    setUploading(true);
+    void processAndRemember({
+      documentId: doc.id,
+      fileName: doc.fileName,
+      sizeBytes: doc.sizeBytes,
+    }).finally(() => setUploading(false));
+  }, []);
+
+  const removeFailedMaterial = useCallback((failed: { documentId: string }) => {
+    void fetch(`/api/documents/${failed.documentId}`, { method: "DELETE" })
+      .then(async (res) => {
+        if (!res.ok) {
+          toast.error("Kaldırılamadı.");
+          return;
+        }
+        setFailedMaterials((current) =>
+          current.filter((item) => item.documentId !== failed.documentId),
+        );
+        if (readPendingDocProcess()?.documentId === failed.documentId) {
+          clearPendingDocProcess();
+        }
+      })
+      .catch(() => toast.error("Bağlantı hatası."));
+  }, []);
+
+  const showProcessingPanel =
+    uploading ||
+    Boolean(processDetail) ||
+    Boolean(processAlert) ||
+    failedMaterials.length > 0;
+
   return (
     <div className="apw">
       <div className="apw-progress" aria-hidden>
         <div className="apw-progress-fill" style={{ width: `${progress}%` }} />
       </div>
+
+      {draftResumeBanner ? (
+        <div className="apw-draft-resume" role="status">
+          <span>Kaldığın yerden devam ediyorsun.</span>
+          <button
+            type="button"
+            className="apw-ghost"
+            onClick={() => {
+              if (window.confirm("Sihirbazı sıfırlamak istediğine emin misin?")) {
+                resetWizard();
+              }
+            }}
+          >
+            Baştan başla
+          </button>
+        </div>
+      ) : null}
+
+      {showProcessingPanel ? (
+        <WizardProcessingPanel
+          processDetail={processDetail}
+          processAlert={processAlert}
+          failedMaterials={failedMaterials}
+          uploading={uploading}
+          onDismissAlert={() => setProcessAlert(null)}
+          onContinue={(failed) => {
+            setUploading(true);
+            void processAndRemember(failed).finally(() => setUploading(false));
+          }}
+          onRetry={(failed) => {
+            setUploading(true);
+            void processAndRemember(failed).finally(() => setUploading(false));
+          }}
+          onRemove={removeFailedMaterial}
+        />
+      ) : null}
+
+      {processingDocs.length ? (
+        <ul className="apw-processing-docs">
+          {processingDocs.map((doc) => (
+            <li key={doc.id}>
+              <span>İşlenmekte olan belgen: {doc.fileName}</span>
+              <button type="button" className="apw-drop-pick" onClick={() => resumeProcessingDoc(doc)}>
+                Devam et
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       {stepIndex > 0 && step !== "building" && step !== "shaping" ? (
         <button type="button" className="apw-back" onClick={goBack}>
@@ -875,32 +1241,12 @@ export function ExamCreateWizard({
                 {fileProgressLine(fileProgress.done, fileProgress.total, fileProgress.current)}
               </p>
             ) : null}
-            {processDetail ? (
-              <p className="apw-drop-hint" role="status" aria-live="polite">
-                {processDetail}
-              </p>
-            ) : null}
             {materialLimitLine ? (
               <p className="apw-drop-hint">{materialLimitLine}</p>
             ) : null}
             <p className="apw-drop-hint">
               Sekmeyi kapatırsan geri geldiğinde kaldığı yerden devam eder.
             </p>
-            {processAlert ? (
-              <div
-                className="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100"
-                role="alert"
-              >
-                <p>{processAlert}</p>
-                <button
-                  type="button"
-                  className="mt-2 text-xs underline underline-offset-2"
-                  onClick={() => setProcessAlert(null)}
-                >
-                  Kapat
-                </button>
-              </div>
-            ) : null}
             <button
               type="button"
               className="apw-drop-pick"
@@ -921,68 +1267,6 @@ export function ExamCreateWizard({
               }}
             />
           </div>
-
-          {failedMaterials.length ? (
-            <ul className="apw-materials">
-              {failedMaterials.map((failed) => (
-                <li key={failed.documentId} className="apw-doc-chip apw-doc-chip--failed">
-                  <FileText className="h-4 w-4 shrink-0" aria-hidden />
-                  <span className="apw-doc-main">
-                    <strong>{failed.fileName}</strong>
-                    <small>{failed.error}</small>
-                    <small className="text-[var(--cp-muted)]">ID: {failed.documentId.slice(0, 8)}…</small>
-                  </span>
-                  <button
-                    type="button"
-                    className="apw-drop-pick"
-                    disabled={uploading}
-                    onClick={() => {
-                      setUploading(true);
-                      void processAndRemember(failed).finally(() => setUploading(false));
-                    }}
-                  >
-                    Devam et
-                  </button>
-                  <button
-                    type="button"
-                    className="apw-drop-pick"
-                    disabled={uploading}
-                    onClick={() => {
-                      setUploading(true);
-                      void processAndRemember(failed).finally(() => setUploading(false));
-                    }}
-                  >
-                    Tekrar dene
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Başarısız materyali kaldır"
-                    disabled={uploading}
-                    onClick={() => {
-                      void fetch(`/api/documents/${failed.documentId}`, { method: "DELETE" })
-                        .then(async (res) => {
-                          if (!res.ok) {
-                            toast.error("Kaldırılamadı.");
-                            return;
-                          }
-                          setFailedMaterials((current) =>
-                            current.filter((item) => item.documentId !== failed.documentId),
-                          );
-                          if (
-                            readPendingDocProcess()?.documentId === failed.documentId
-                          ) {
-                            clearPendingDocProcess();
-                          }
-                        })
-                        .catch(() => toast.error("Bağlantı hatası."));
-                    }}
-                  >
-                    Kaldır
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
 
           {materials.length ? (
             <ul className="apw-materials">
@@ -1183,6 +1467,21 @@ export function ExamCreateWizard({
           <p className="apw-lead">
             Yanlış olanı değiştir, eksik olanı ekle.
           </p>
+          {intakeAlert ? (
+            <div
+              className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-50"
+              role="alert"
+            >
+              <p>{intakeAlert}</p>
+              <button
+                type="button"
+                className="mt-2 text-xs underline underline-offset-2"
+                onClick={() => setIntakeAlert(null)}
+              >
+                Kapat
+              </button>
+            </div>
+          ) : null}
           {suggestedExamDate && suggestedExamDate !== examDate ? (
             <p className="apw-syllabus-date">
               Müfredatta sınav tarihi {formatSyllabusDate(suggestedExamDate)}.
@@ -1197,6 +1496,7 @@ export function ExamCreateWizard({
             topicFiles={topicFiles}
             topicWarnings={topicWarnings}
             topicMeta={topicMeta}
+            topicUnits={topicUnits}
             excluded={excludedTopics}
             missing={missingTopics}
             documentIds={documentIds}
@@ -1205,6 +1505,7 @@ export function ExamCreateWizard({
             onFiles={setTopicFiles}
             onWarnings={setTopicWarnings}
             onMeta={setTopicMeta}
+            onUnits={setTopicUnits}
             onMissing={setMissingTopics}
             onOrderEdited={() => setOrderEdited(true)}
             onRename={(from, to) =>
@@ -1319,6 +1620,7 @@ export function ExamCreateWizard({
             topicFiles={topicFiles}
             topicWarnings={topicWarnings}
             topicMeta={topicMeta}
+            topicUnits={topicUnits}
             excluded={excludedTopics}
             missing={missingTopics}
             documentIds={documentIds}
@@ -1327,6 +1629,7 @@ export function ExamCreateWizard({
             onFiles={setTopicFiles}
             onWarnings={setTopicWarnings}
             onMeta={setTopicMeta}
+            onUnits={setTopicUnits}
             onMissing={setMissingTopics}
             onOrderEdited={() => setOrderEdited(true)}
             onRename={(from, to) =>
@@ -1367,6 +1670,7 @@ function TopicEditor({
   topicFiles,
   topicWarnings,
   topicMeta,
+  topicUnits,
   excluded,
   missing,
   documentIds,
@@ -1375,6 +1679,7 @@ function TopicEditor({
   onFiles,
   onWarnings,
   onMeta,
+  onUnits,
   onMissing,
   onOrderEdited,
   onRename,
@@ -1385,6 +1690,7 @@ function TopicEditor({
   topicFiles: string[][];
   topicWarnings: string[];
   topicMeta: TopicMeta[];
+  topicUnits: TopicUnit[];
   excluded: ExcludedNote[];
   missing: MissingTopic[];
   documentIds: string[];
@@ -1393,6 +1699,7 @@ function TopicEditor({
   onFiles: (next: string[][]) => void;
   onWarnings: (next: string[]) => void;
   onMeta: (next: TopicMeta[]) => void;
+  onUnits: (next: TopicUnit[]) => void;
   onMissing: (next: MissingTopic[]) => void;
   onOrderEdited: () => void;
   onRename: (from: string, to: string) => void;
@@ -1490,11 +1797,23 @@ function TopicEditor({
       setError(result.message);
       return;
     }
+    const nextIndex = topics.length;
     onTopics([...topics, title]);
     onPages([...topicPages, result.pageNumbers]);
     onFiles([...topicFiles, []]);
     onWarnings([...topicWarnings, ""]);
-    onMeta([...topicMeta, { ...EMPTY_META }]);
+    const lastUnitTitle =
+      topicUnits.length > 0 ? topicUnits[topicUnits.length - 1]?.title ?? null : null;
+    onMeta([...topicMeta, { ...EMPTY_META, unitTitle: lastUnitTitle }]);
+    if (topicUnits.length) {
+      onUnits(
+        topicUnits.map((unit, unitIndex) =>
+          unitIndex === topicUnits.length - 1
+            ? { ...unit, topicIndexes: [...unit.topicIndexes, nextIndex] }
+            : unit,
+        ),
+      );
+    }
     onMissing(missing.filter((item) => item.title !== title));
     close();
   }
@@ -1532,6 +1851,7 @@ function TopicEditor({
     onFiles(topicFiles.filter((_, item) => item !== index));
     onWarnings(topicWarnings.filter((_, item) => item !== index));
     onMeta(topicMeta.filter((_, item) => item !== index));
+    onUnits(dropUnitIndex(topicUnits, index));
   }
 
   function move(index: number, delta: number) {
@@ -1557,7 +1877,89 @@ function TopicEditor({
     onFiles(files);
     onWarnings(warnings);
     onMeta(meta);
+    onUnits(remapUnitIndexes(topicUnits, index, next));
     onOrderEdited();
+  }
+
+  const unitHeaders =
+    topicUnits.length > 0
+      ? topicUnits
+      : topicMeta.some((meta) => meta.unitTitle)
+        ? topicMeta.reduce<TopicUnit[]>((acc, meta, index) => {
+            const title = meta.unitTitle?.trim();
+            if (!title) return acc;
+            const existing = acc.find((unit) => unit.title === title);
+            if (existing) {
+              existing.topicIndexes.push(index);
+              return acc;
+            }
+            acc.push({ title, topicIndexes: [index] });
+            return acc;
+          }, [])
+        : [];
+
+  const listedIndexes = new Set(unitHeaders.flatMap((unit) => unit.topicIndexes));
+  const orphanIndexes = topics.map((_, index) => index).filter((index) => !listedIndexes.has(index));
+
+  function renderTopicRow(index: number) {
+    const topic = topics[index];
+    const meta = topicMeta[index] ?? EMPTY_META;
+    if (!topic) return null;
+    return (
+      <li key={`${index}-${topic}`}>
+        <span className="apw-topic-field">
+          <strong>{topic}</strong>
+          {meta.examHeavy ? <em className="apw-topic-heavy">{WIZARD_COPY.examHeavy}</em> : null}
+          {meta.important && !meta.examHeavy ? (
+            <em className="apw-topic-important">{WIZARD_COPY.important}</em>
+          ) : null}
+          {meta.sections.length ? <em>{meta.sections.join(" · ")}</em> : null}
+          {topicWarnings[index] ? (
+            <em className="apw-topic-warning">{topicWarnings[index]}</em>
+          ) : null}
+        </span>
+        <span className="apw-topic-actions">
+          <button
+            type="button"
+            className="apw-topic-edit"
+            aria-label={WIZARD_COPY.moveUp}
+            disabled={index === 0}
+            onClick={() => move(index, -1)}
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            className="apw-topic-edit"
+            aria-label={WIZARD_COPY.moveDown}
+            disabled={index === topics.length - 1}
+            onClick={() => move(index, 1)}
+          >
+            ↓
+          </button>
+          <button
+            type="button"
+            className="apw-topic-edit"
+            onClick={() => {
+              setAdding(false);
+              setError(null);
+              setEditIndex(index);
+              setDraft(topic);
+            }}
+          >
+            {WIZARD_COPY.editTopic}
+          </button>
+          <button
+            type="button"
+            className="apw-topic-edit"
+            aria-label={WIZARD_COPY.removeTopic}
+            onClick={() => removeAt(index)}
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        </span>
+      </li>
+    );
   }
 
   return (
@@ -1573,70 +1975,24 @@ function TopicEditor({
         </ul>
       ) : null}
       <ul className="apw-topics">
-        {topics.map((topic, index) => {
-          const meta = topicMeta[index] ?? EMPTY_META;
-          return (
-          <li key={`${index}-${topic}`}>
-            <span className="apw-topic-field">
-              <strong>{topic}</strong>
-              {meta.examHeavy ? <em className="apw-topic-heavy">{WIZARD_COPY.examHeavy}</em> : null}
-              {meta.important && !meta.examHeavy ? (
-                <em className="apw-topic-important">{WIZARD_COPY.important}</em>
-              ) : null}
-              {meta.sourceCount > 0 ? <em>{sourceCountLabel(meta.sourceCount)}</em> : null}
-              {meta.sections.length ? <em>{meta.sections.join(" · ")}</em> : null}
-              {topicFiles[index]?.length ? (
-                <em>Kaynak: {topicFiles[index].join(", ")}</em>
-              ) : topicPages[index]?.length ? (
-                <em>Kaynak: s.{topicPages[index].join(", ")}</em>
-              ) : null}
-              {topicWarnings[index] ? (
-                <em className="apw-topic-warning">{topicWarnings[index]}</em>
-              ) : null}
-            </span>
-            <span className="apw-topic-actions">
-              <button
-                type="button"
-                className="apw-topic-edit"
-                aria-label={WIZARD_COPY.moveUp}
-                disabled={index === 0}
-                onClick={() => move(index, -1)}
-              >
-                ↑
-              </button>
-              <button
-                type="button"
-                className="apw-topic-edit"
-                aria-label={WIZARD_COPY.moveDown}
-                disabled={index === topics.length - 1}
-                onClick={() => move(index, 1)}
-              >
-                ↓
-              </button>
-              <button
-                type="button"
-                className="apw-topic-edit"
-                onClick={() => {
-                  setAdding(false);
-                  setError(null);
-                  setEditIndex(index);
-                  setDraft(topic);
-                }}
-              >
-                {WIZARD_COPY.editTopic}
-              </button>
-              <button
-                type="button"
-                className="apw-topic-edit"
-                aria-label={WIZARD_COPY.removeTopic}
-                onClick={() => removeAt(index)}
-              >
-                <X className="h-4 w-4" aria-hidden />
-              </button>
-            </span>
+        {unitHeaders.length
+          ? unitHeaders.map((unit) => (
+              <li key={unit.title} className="apw-topic-unit">
+                <h3 className="apw-group">{unit.title}</h3>
+                <ul className="apw-topics">
+                  {unit.topicIndexes.map((index) => renderTopicRow(index))}
+                </ul>
+              </li>
+            ))
+          : topics.map((_, index) => renderTopicRow(index))}
+        {orphanIndexes.length ? (
+          <li className="apw-topic-unit">
+            {unitHeaders.length ? <h3 className="apw-group">Diğer</h3> : null}
+            <ul className="apw-topics">
+              {orphanIndexes.map((index) => renderTopicRow(index))}
+            </ul>
           </li>
-          );
-        })}
+        ) : null}
       </ul>
       {missing.length ? (
         <ul className="apw-missing">

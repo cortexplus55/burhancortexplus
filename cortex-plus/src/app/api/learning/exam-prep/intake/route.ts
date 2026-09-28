@@ -4,7 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
-import { pickMainTopics } from "@/lib/learning/diagnostic";
+import { pickStudyTopics } from "@/lib/learning/diagnostic";
+import { cleanOutlineDeterministic } from "@/lib/documents/outline-clean";
 import { buildExamPlan, daysUntilExam } from "@/lib/learning/exam-prep-plan";
 import { refoldTopicMapIfNeeded } from "@/lib/documents/pdf-learning-v2";
 import { documentTitle } from "@/lib/documents/topic-title";
@@ -66,6 +67,76 @@ const draftSchema = z.object({
   ready: z.boolean(),
 });
 
+export type IntakeStudyUnit = { title: string; topicIndexes: number[] };
+
+function foldTopicTitle(text: string): string {
+  return text.toLocaleLowerCase("tr").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Read-time outline clean — does not write document_topic_nodes.
+ */
+function studyOutlineFromFlatNodes(
+  nodeRows: Array<{
+    id: string;
+    title: string;
+    parent_id: string | null;
+    sort_order: number;
+  }>,
+  pagesByTopic: Map<string, number[]>,
+): {
+  study: Array<{ id: string; title: string; parentId: string | null }>;
+  units: IntakeStudyUnit[];
+} {
+  const nodes = nodeRows.map((n) => ({
+    id: n.id,
+    title: n.title,
+    parentId: n.parent_id,
+    sortOrder: n.sort_order,
+  }));
+  const hasHierarchy = nodes.some((n) => n.parentId);
+
+  if (hasHierarchy) {
+    const study = pickStudyTopics(nodes);
+    const units: IntakeStudyUnit[] = [];
+    const parents = nodes
+      .filter((n) => nodes.some((c) => c.parentId === n.id))
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    for (const parent of parents) {
+      const topicIndexes = study
+        .map((s, index) => (s.parentId === parent.id ? index : -1))
+        .filter((index) => index >= 0);
+      if (topicIndexes.length) {
+        units.push({ title: parent.title, topicIndexes });
+      }
+    }
+    return { study, units };
+  }
+
+  const sorted = [...nodes].sort((a, b) => a.sortOrder - b.sortOrder);
+  const cleaned = cleanOutlineDeterministic({
+    titles: sorted.map((n) => ({
+      title: n.title,
+      pageNumbers: [...new Set(pagesByTopic.get(n.id) ?? [])].sort((a, b) => a - b),
+    })),
+  });
+  const study = cleaned.kept.map((kept, index) => {
+    const match =
+      sorted.find((n) => foldTopicTitle(n.title) === foldTopicTitle(kept.title)) ??
+      sorted.find((n) => foldTopicTitle(n.title).includes(foldTopicTitle(kept.title)));
+    return {
+      id: match?.id ?? `outline-${index}`,
+      title: kept.title,
+      parentId: null as string | null,
+    };
+  });
+  const units = cleaned.units.map((unit) => ({
+    title: unit.title,
+    topicIndexes: unit.topicIndexes,
+  }));
+  return { study, units };
+}
+
 async function resolveTopicSuggestions(
   service: SupabaseClient,
   userId: string,
@@ -73,8 +144,9 @@ async function resolveTopicSuggestions(
   v2: boolean,
 ) {
   let topicSuggestions: MergeTopicInput[] = [];
+  let units: IntakeStudyUnit[] = [];
   let intakeMode: "legacy" | "v2" = "legacy";
-  if (!v2 || !documentId) return { topicSuggestions, intakeMode };
+  if (!v2 || !documentId) return { topicSuggestions, intakeMode, units };
 
   const { data: doc } = await service
     .from("documents")
@@ -90,13 +162,7 @@ async function resolveTopicSuggestions(
       [doc.id],
       ["sort_order", "id"],
     );
-    const mains = pickMainTopics(
-      nodeRows.map((n) => ({
-        id: n.id as string,
-        title: n.title as string,
-        parentId: (n.parent_id as string | null) ?? null,
-      })),
-    );
+    const pagesByTopic = new Map<string, number[]>();
     const prereqById = new Map(
       nodeRows.map((node) => [
         node.id as string,
@@ -114,12 +180,22 @@ async function resolveTopicSuggestions(
       [doc.id],
       ["topic_id", "page_number"],
     );
-    const pagesByTopic = new Map<string, number[]>();
     for (const link of links) {
       const list = pagesByTopic.get(link.topic_id as string) ?? [];
       list.push(link.page_number as number);
       pagesByTopic.set(link.topic_id as string, list);
     }
+    const outline = studyOutlineFromFlatNodes(
+      nodeRows.map((n) => ({
+        id: n.id as string,
+        title: n.title as string,
+        parent_id: (n.parent_id as string | null) ?? null,
+        sort_order: typeof n.sort_order === "number" ? n.sort_order : 0,
+      })),
+      pagesByTopic,
+    );
+    units = outline.units;
+    const mains = outline.study;
     const { data: docName } = await service
       .from("documents")
       .select("file_name")
@@ -136,7 +212,7 @@ async function resolveTopicSuggestions(
     }));
     if (topicSuggestions.length) intakeMode = "v2";
   }
-  return { topicSuggestions, intakeMode };
+  return { topicSuggestions, intakeMode, units };
 }
 
 /**
@@ -232,6 +308,7 @@ export async function POST(request: Request) {
   }
   const groups: MergeTopicInput[][] = [];
   let intakeMode: "legacy" | "v2" = "legacy";
+  let intakeUnits: IntakeStudyUnit[] = [];
   const consolidated = documentIds.length
     ? await consolidatePrepDocuments(service, userId, documentIds, { allowModel: true })
     : null;
@@ -242,6 +319,7 @@ export async function POST(request: Request) {
     for (const documentId of documentIds.length ? documentIds : [parsed.data.documentId]) {
       const resolved = await resolveTopicSuggestions(service, userId, documentId, v2);
       if (resolved.intakeMode === "v2") intakeMode = "v2";
+      if (!intakeUnits.length && resolved.units.length) intakeUnits = resolved.units;
       groups.push(resolved.topicSuggestions);
     }
     const firstPass = mergeTopicGroups(groups);
@@ -338,6 +416,7 @@ export async function POST(request: Request) {
             excluded: consolidated?.excluded ?? [],
             missingTopics: consolidated?.missingFromMaterials ?? [],
             suggestedExamDate: consolidated?.suggestedExamDate ?? null,
+            units: intakeUnits.length ? intakeUnits : undefined,
           }
         : null,
     });
