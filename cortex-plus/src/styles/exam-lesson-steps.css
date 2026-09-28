@@ -78,6 +78,24 @@
   padding: 1.35rem 1.25rem 1.2rem;
 }
 
+/* checkFirst: soru anlatımdan önce sorulur ("önce dene" / geri getirme) —
+   gerçek DOM sırası değişir (bkz. exam-lesson-steps.tsx), ekran okuyucu da
+   soruyu önce duysun diye. .als-check normalde .als-slide'dan SONRA gelip
+   margin-top ile boşluk açar; checkFirst'te sıra tersine dönünce boşluğu
+   artık ikinci sıradaki eleman taşımalı — bu yüzden yapısal seçiciler. */
+.als-step-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.als-step-content > .als-check:first-child {
+  margin-top: 0;
+}
+
+.als-step-content > .als-slide:not(:first-child) {
+  margin-top: 1.5rem;
+}
+
 .als-kicker {
   display: inline-flex;
   margin: 0 0 0.65rem;

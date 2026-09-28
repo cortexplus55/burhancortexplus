@@ -217,7 +217,14 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "commonMistake bu dersin kendi konusundan ve kaynak sayfalarından gelsin. " +
         "claim yanlış inanç, correction kaynağın doğrusu olsun. " +
         "Düzeltmeyi kaynak cümlesiyle yaz; yazamıyorsan commonMistake alanını atla. " +
-        "Kaynakta olmayan formül, birim veya sayı yazma; emin değilsen materyalde geçtiği hâliyle söyle."
+        "Kaynakta olmayan formül, birim veya sayı yazma; emin değilsen materyalde geçtiği hâliyle söyle. " +
+        "checkFirst: bir bölümün check'i, gövdeyi okumadan önce sorulunca kavramı daha iyi oturtuyorsa " +
+        "checkFirst: true yaz — ekranda önce soru, sonra anlatım gösterilir. Yalnızca gerçekten " +
+        "öğrencinin önceden tahmin edebileceği bir soru için kullan, her bölüme değil. " +
+        "Bir kavram tek paragrafa sığmayacak kadar derinse (somut mekanizma, çok basamaklı hesap) " +
+        "AYNI heading'i art arda iki bölümde kullanabilirsin: birincisi kavramı tanıtır, ikincisi " +
+        "mekanizmayı derinleştirir (procedure/formula/table ile). Bunu yalnızca kaynak gerçekten " +
+        "o derinliği veriyorsa yap; bölüm sayısını doldurmak için tekrar heading uydurma."
       );
     case "quiz":
       return (
@@ -370,6 +377,11 @@ export const lessonV2Schema = z.object({
         // bakacağını düz paragraftan çıkaramıyordu.
         body: z.string().min(20).max(2500),
         check: sectionCheckSchema.optional().catch(undefined),
+        // true ise ekranda check gövdeden ÖNCE gösterilir (geri getirme /
+        // "önce dene" — Astra kıyasında bu sıranın kavramı daha iyi
+        // oturttuğu görüldü). check yoksa etkisi yok; .catch ile bozuk
+        // değer sessizce false sayılır, dersi düşürmez.
+        checkFirst: z.boolean().optional().catch(undefined),
         // Süs alanlar dersi düşürmemeli.
         //
         // diagram eklenince ders üretimi tamamen durdu: model kurala
