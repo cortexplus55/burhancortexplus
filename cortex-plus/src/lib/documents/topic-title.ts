@@ -1,3 +1,5 @@
+import { isHeadingCandidate } from "@/lib/documents/outline-clean";
+
 /**
  * Konu bölme ve adlandırma kuralı — "ev stili".
  *
@@ -21,8 +23,10 @@
  * görünsün diye üretim tarafında da doğrulama tarafında da bunlar geçerli.
  */
 
-/** Başlıktaki bölüm numarası: "3.", "1.2.", "IV -" gibi. */
-const LEADING_NUMBER = /^\s*(\d+([.)]\d+)*[.)]?|[IVXLC]+[.)])\s+/;
+/** Başlıktaki bölüm numarası: "3.", "1.2.", "IV -" gibi. 4 haneli yıl (1000–2099) değil. */
+const LEADING_NUMBER = /^\s*(\d{1,3}([.)]\d+)*[.)]?|[IVXLC]+[.)])\s+/;
+/** "1982 Anayasası…" — yıl bölüm numarası sayılmaz. */
+const YEAR_LED_TITLE = /^\s*(1[0-9]{3}|20[0-9]{2})\s+\S/;
 
 /** Sonda duran parantezli kısaltma: "(USCS)", "(TS 1500)". */
 const TRAILING_PAREN = /\s*\([^()]{2,20}\)\s*$/;
@@ -70,8 +74,12 @@ export function topicScopeGuidance(contentPageCount: number): string {
  * modelin işi, temizlik bizim.
  */
 export function normalizeTopicTitle(title: string): string {
-  return title
-    .replace(LEADING_NUMBER, "")
+  const trimmed = title.trim();
+  // 4 haneli yıl (1000–2099) bölüm numarası değildir — "1982 Anayasası" kalsın.
+  const withoutNumber = YEAR_LED_TITLE.test(trimmed)
+    ? trimmed
+    : trimmed.replace(LEADING_NUMBER, "");
+  return withoutNumber
     .replace(TRAILING_PAREN, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -100,6 +108,19 @@ export function topicTitleIssues(title: string): string[] {
   if (/[.!?]$/.test(clean)) {
     issues.push("Başlık cümle değil; sonunda nokta olmaz.");
   }
+  if (/```/.test(clean)) {
+    issues.push("Başlık kod bloğu olamaz.");
+  }
+  if (/[-–—,]\s*$/.test(clean)) {
+    issues.push("Başlık yarım kalmış.");
+  }
+  if (
+    /\b(hangisi|hangisidir|aşağıdakilerden|asagidakilerden|which of the following)\b/i.test(
+      clean,
+    )
+  ) {
+    issues.push("Başlık soru cümlesi olamaz.");
+  }
   return issues;
 }
 
@@ -121,6 +142,13 @@ const TOC_PAGE_TAIL = /\s+\d{1,3}$/;
 function looksLikeQuestionOrSentence(heading: string): boolean {
   if (/[?]$/.test(heading)) return true;
   if (/[=<>≤≥±×÷√]/.test(heading)) return true;
+  if (
+    /\b(hangisi|hangisidir|hangileri|aşağıdakilerden|asagidakilerden|aşağıda verilen|asagida verilen|yukarıdaki|yukaridaki|kaçtır|kactir|değildir|degildir|which of the following|what is|true\/false)\b/i.test(
+      heading,
+    )
+  ) {
+    return true;
+  }
   const words = heading.split(/\s+/).filter(Boolean).length;
   return words > 9;
 }
@@ -285,6 +313,7 @@ export function chapterHeadings(
       if (!heading || SUB_NUMBER.test(heading)) continue;
       if (workedSteps && heading !== lead && isNumberedChapter(heading)) continue;
       if (looksLikeQuestionOrSentence(heading)) continue;
+      if (!isHeadingCandidate(heading)) continue;
       // Kutu, adım, örnek ve tekrar omurgaya girerse bekçi onları konu
       // diye geri ekliyor. Sayfa metni durur; konu listesine çıkmaz.
       if (

@@ -7,16 +7,29 @@
  */
 
 import { processProgressFingerprint } from "@/lib/documents/process-progress-label";
+import { MAP_LEASE_MS } from "@/lib/documents/pdf-learning-v2-lease";
 
 export const PROCESS_STEP_BUDGET_MS = 45_000;
 
 /** İlerleme yoksa bu süreden sonra istemci pes eder (~6 dk). */
 export const PROCESS_STALL_MS = 6 * 60 * 1000;
 
+/** leaseBusy responses keep the stall timer alive for lease + buffer. */
+export const LEASE_BUSY_ALIVE_MS = MAP_LEASE_MS + 30_000;
+
 /** Same nextPage + retryable 503 this many times → terminal for the client. */
 export const MAX_IDENTICAL_RETRYABLE_FAILURES = 3;
 
 export type ProcessPhase = "extract" | "map" | "done";
+
+/** Exam/subject label sent with processing — free text, never a reason to 400. */
+export const EXAM_LABEL_MAX_CHARS = 40;
+
+export function clampExamLabel(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const text = value.replace(/\s+/g, " ").trim().slice(0, EXAM_LABEL_MAX_CHARS).trim();
+  return text.length >= 2 ? text : undefined;
+}
 
 export function shouldYieldProcessing(
   startedAt: number,
@@ -92,18 +105,51 @@ export function stallCursorKey(
   return `${phase}:${String(next)}`;
 }
 
+/**
+ * Shown only after automatic retries are exhausted (OpenAI fully down, etc.).
+ * Mid-flight silent retries must not surface this to the student.
+ */
 export const PROCESS_RETRY_MESSAGE =
-  "Dosya işlenirken sunucu yanıt vermedi. Bir kez daha deniyorum.";
+  "İşlem tamamlanamadı. İlerlemen duruyor — 'Devam et' ile kaldığın yerden sürdür.";
+
+/** @deprecated Use PROCESS_RETRY_MESSAGE only on exhaustion; silent mid-flight. */
+export const PROCESS_AUTO_RETRY_NOTICE = PROCESS_RETRY_MESSAGE;
 
 export type ProcessPost = (body: {
   documentId: string;
+  examType?: string | null;
+  examDate?: string | null;
+  /** Extract only; the course outline runs once all files are in. */
+  deferMap?: boolean;
+  /** One outline over every file of the course (first = documentId). */
+  courseDocumentIds?: string[];
+  /** Add-source: the prep the file joins. */
+  prepId?: string | null;
+  /** The student pressed "Tekrar dene" on a map that ran out of attempts. */
+  retryMap?: boolean;
 }) => Promise<{ status: number; body: Record<string, unknown> }>;
 
-export const postDocumentProcess: ProcessPost = async ({ documentId }) => {
+export const postDocumentProcess: ProcessPost = async ({
+  documentId,
+  examType,
+  examDate,
+  deferMap,
+  courseDocumentIds,
+  prepId,
+  retryMap,
+}) => {
   const response = await fetch("/api/documents/process", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ documentId }),
+    body: JSON.stringify({
+      documentId,
+      ...(examType ? { examType } : {}),
+      ...(examDate ? { examDate } : {}),
+      ...(deferMap ? { deferMap: true } : {}),
+      ...(courseDocumentIds?.length ? { courseDocumentIds } : {}),
+      ...(prepId ? { prepId } : {}),
+      ...(retryMap ? { retryMap: true } : {}),
+    }),
   });
   const raw = await response.json().catch(() => ({}));
   const body =
@@ -161,13 +207,16 @@ export async function requestDocumentProcessing(input: {
   let identicalCursor: string | null = null;
   let identicalFailures = 0;
   let lastKnownNextPage: unknown = null;
+  let leaseBusyStreak = false;
   const progressState = {
     lastProgressAt: now(),
     lastFingerprint: null as string | null,
   };
 
   while (rounds < hardCap) {
-    if (now() - progressState.lastProgressAt > stallMs) {
+    // leaseBusy only extends the stall window by LEASE_BUSY_ALIVE_MS — not forever.
+    const idleLimit = leaseBusyStreak ? LEASE_BUSY_ALIVE_MS : stallMs;
+    if (now() - progressState.lastProgressAt > idleLimit) {
       return {
         ok: false,
         status: 504,
@@ -233,7 +282,14 @@ export async function requestDocumentProcessing(input: {
     }
 
     if (response.status === 202) {
+      const enteringLeaseBusy =
+        response.body.leaseBusy === true && !leaseBusyStreak;
+      leaseBusyStreak = response.body.leaseBusy === true;
       noteProgress(response.body, progressState);
+      // Arm the shorter alive window once when leaseBusy begins; do not refresh forever.
+      if (enteringLeaseBusy) {
+        progressState.lastProgressAt = now();
+      }
       lastKnownNextPage =
         response.body.nextPage ??
         response.body.pagesDone ??

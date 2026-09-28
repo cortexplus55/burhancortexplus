@@ -67,7 +67,7 @@ export const WIZARD_COPY = {
   topicDuplicate: "Bu konu listede zaten var.",
   topicCheckFailed: "Konu şu an doğrulanamadı. Tekrar dene.",
   fileCap: "Bir hazırlığa en fazla 8 dosya ekleyebilirsin.",
-  examHeavy: "Sınavda ağırlıklı",
+  examHeavy: "Sınavda sık çıkar",
   important: "Önemli",
   missingMaterial: "materyalde yok",
   addMissing: "Ekle",

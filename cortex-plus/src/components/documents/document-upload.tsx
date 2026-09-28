@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { isPhotoQuotaError } from "@/lib/documents/process-errors";
 import {
-  PROCESS_RETRY_MESSAGE,
   postDocumentProcess,
   requestDocumentProcessing,
 } from "@/lib/documents/process-session";
@@ -96,7 +95,7 @@ export function DocumentUpload({
         },
       });
       const processed = result.body;
-      if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
+      // Automatic retries stay silent; errors surface only after exhaustion.
 
       if (result.status === 402) {
         setStatusDetail(null);
@@ -113,6 +112,13 @@ export function DocumentUpload({
         return;
       }
 
+      if (!result.ok && processed.canRetry === true && uploaded.documentId) {
+        // The map ran out of attempts: the document page offers a calm "Tekrar dene".
+        setFile(null);
+        navigated = true;
+        router.push(`/dokumanlar/${uploaded.documentId}`);
+        return;
+      }
       if (!result.ok) {
         const message = messageFromProcessBody(processed);
         setProcessAlert(message);

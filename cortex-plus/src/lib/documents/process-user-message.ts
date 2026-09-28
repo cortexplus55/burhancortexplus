@@ -25,8 +25,7 @@ const MESSAGES: Record<string, string> = {
   file_too_large: "PDF en fazla 50 MB, diğer dosyalar en fazla 15 MB olabilir.",
   unsupported_type: DOCUMENT_TYPE_REJECTED,
   topic_map_failed: "Konu haritası çıkarılamadı. Yeniden dene ile tekrar başlat.",
-  topic_map_unavailable:
-    "Konu haritası bu belgeden çıkarılamadı. Daha net bir tarama yükle veya yeniden dene.",
+  topic_map_unavailable: "Belgen kaydedildi. Konuları hazırlamak için Tekrar dene.",
   topic_map_no_readable_pages:
     "Okunabilir sayfa bulunamadı; konular çıkarılamadı. Daha net taranmış bir PDF dene.",
   processing_timeout:

@@ -15,7 +15,6 @@ import {
   writePendingDocProcess,
 } from "@/lib/documents/pending-doc-process";
 import {
-  PROCESS_RETRY_MESSAGE,
   postDocumentProcess,
   requestDocumentProcessing,
 } from "@/lib/documents/process-session";
@@ -99,6 +98,8 @@ export function PrepMaterialAdder({
     documentId: string;
     fileName: string;
     sizeBytes: number | null;
+    /** An explicit "Tekrar dene"/"Devam et" press. */
+    retryMap?: boolean;
   }) {
     writePendingDocProcess({
       documentId: input.documentId,
@@ -110,14 +111,15 @@ export function PrepMaterialAdder({
     setProcessDetail("Belge işleniyor…");
     const result = await requestDocumentProcessing({
       documentId: input.documentId,
-      post: postDocumentProcess,
+      // The prep's topic names guide the new file's outline (reuse, don't duplicate).
+      post: (body) => postDocumentProcess({ ...body, prepId, retryMap: input.retryMap }),
       onProgress: (progress) => {
         const line = formatDocumentProcessProgress(progress);
         if (line) setProcessDetail(line);
       },
     });
     const processed = result.body;
-    if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
+    // Silent automatic retries — student sees progress only until exhaustion.
     if (result.status === 402) {
       clearPendingDocProcess();
       setProcessDetail(null);
@@ -137,8 +139,10 @@ export function PrepMaterialAdder({
     if (!result.ok) {
       clearPendingDocProcess();
       const message = messageFromProcessBody(processed);
-      setProcessAlert(message);
-      toast.error(message);
+      // A map out of attempts is not an error: just offer "Tekrar dene".
+      const calm = processed.canRetry === true;
+      setProcessAlert(calm ? null : message);
+      if (!calm) toast.error(message);
       setProcessDetail(null);
       setFailedUpload({
         documentId: input.documentId,
@@ -268,6 +272,7 @@ export function PrepMaterialAdder({
                 documentId: failedUpload.documentId,
                 fileName: failedUpload.fileName,
                 sizeBytes: null,
+                retryMap: true,
               }).finally(() => setBusy(false));
             }}
           >
@@ -283,6 +288,7 @@ export function PrepMaterialAdder({
                 documentId: failedUpload.documentId,
                 fileName: failedUpload.fileName,
                 sizeBytes: null,
+                retryMap: true,
               }).finally(() => setBusy(false));
             }}
           >

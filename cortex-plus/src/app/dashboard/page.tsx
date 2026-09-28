@@ -6,6 +6,10 @@ import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadLearningHub } from "@/lib/learning/learning-hub";
 import { formatProgressLine } from "@/lib/learning/progress-line";
 import { DashboardFailedDocuments } from "@/components/dashboard/dashboard-failed-documents";
+import {
+  FocusPrepSwitch,
+  FocusPrepUrgentLine,
+} from "@/components/dashboard/focus-prep-controls";
 
 export const metadata = { title: "Ana Sayfa" };
 export const dynamic = "force-dynamic";
@@ -57,16 +61,23 @@ export default async function DashboardPage() {
         </header>
 
         <div>
-          <Link
-            href={hub.nextBestAction.href}
-            aria-describedby="nba-reason"
-            className="inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-action px-6 py-3 text-base font-bold text-action-foreground transition-colors hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--c-focus)]"
-          >
-            {hub.nextBestAction.label}
-          </Link>
+          <div className="flex items-stretch gap-2">
+            <Link
+              href={hub.nextBestAction.href}
+              aria-describedby="nba-reason"
+              className="inline-flex min-h-[52px] flex-1 items-center justify-center rounded-2xl bg-action px-6 py-3 text-base font-bold text-action-foreground transition-colors hover:bg-action-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--c-focus)]"
+            >
+              {hub.nextBestAction.label}
+            </Link>
+            <FocusPrepSwitch
+              preps={hub.switchPreps}
+              currentId={hub.focusPrepId}
+            />
+          </div>
           <p id="nba-reason" className="mt-2 text-center text-xs text-[var(--cs-muted)]">
             {hub.nextBestAction.reason}
           </p>
+          {hub.urgentChip ? <FocusPrepUrgentLine chip={hub.urgentChip} /> : null}
           {hub.failedDocuments.length > 0 ? (
             <p className="mt-2 text-center text-xs text-red-200/90">
               {hub.failedDocuments.length === 1

@@ -43,7 +43,7 @@ const topicMapLabels: Record<string, string> = {
   pending: "Harita çıkarılıyor",
   ready: "Harita hazır",
   reviewed: "Harita gözden geçirildi",
-  failed: "Harita başarısız",
+  failed: "Harita hazır değil",
 };
 
 function statusClass(status: string) {
@@ -105,6 +105,11 @@ export default async function DokumanlarPage() {
                 document.status === "completed" &&
                 (!pdfLearningV2 || mapReady(document.topic_map_status));
               const completed = document.status === "completed";
+              // Out of map attempts: a calm "Tekrar dene", never an error.
+              const mapStopped =
+                pdfLearningV2 &&
+                (document.status === "processing" || document.status === "completed") &&
+                document.topic_map_status === "failed";
 
               return (
                 <li key={document.id} className="cs-pay-card space-y-3 px-4 py-4">
@@ -118,26 +123,28 @@ export default async function DokumanlarPage() {
                           ? `${document.page_count} sayfa · `
                           : `${Math.round((document.size_bytes ?? 0) / 1024)} KB · `}
                         {formatDate(document.created_at)}
-                        {document.status !== "completed"
-                          ? ` · ${processingHints[document.status] ?? statusLabels[document.status]}`
-                          : " · Belgen hazır"}
+                        {mapStopped
+                          ? " · Belgen kaydedildi"
+                          : document.status !== "completed"
+                            ? ` · ${processingHints[document.status] ?? statusLabels[document.status]}`
+                            : " · Belgen hazır"}
                         {processErrorLabel(document.error_message)
                           ? ` · ${processErrorLabel(document.error_message)}`
                           : ""}
                         {pdfLearningV2 && document.topic_map_status
                           ? ` · ${topicMapLabels[document.topic_map_status] ?? document.topic_map_status}`
                           : ""}
-                        {pdfLearningV2 && document.topic_map_error
+                        {/* Only a stopped map carries a hint, and it has its button. */}
+                        {mapStopped && document.topic_map_error
                           ? ` · ${topicMapErrorLabel(document.topic_map_error)}`
                           : ""}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       {document.status === "failed" ||
-                      (document.status === "processing" && (
-                        document.topic_map_status === "failed" ||
-                        isProcessingStale(document.status, document.updated_at)
-                      )) ? (
+                      mapStopped ||
+                      (document.status === "processing" &&
+                        isProcessingStale(document.status, document.updated_at)) ? (
                         <DocumentRetryButton documentId={document.id} />
                       ) : null}
                       <DocumentDeleteButton documentId={document.id} />
@@ -147,7 +154,7 @@ export default async function DokumanlarPage() {
                           statusClass(document.status),
                         )}
                       >
-                        {statusLabels[document.status] ?? document.status}
+                        {mapStopped ? "Bekliyor" : (statusLabels[document.status] ?? document.status)}
                       </span>
                     </div>
                   </div>

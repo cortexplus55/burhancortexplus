@@ -2,6 +2,8 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { extractText } from "@/lib/documents/extract-text";
 import { renderPdfPages, BLANK_INK_RATIO } from "@/lib/documents/render-pdf-pages";
+
+type RenderedPage = Awaited<ReturnType<typeof renderPdfPages>>["pages"][number];
 import { extractImageText } from "@/lib/documents/extract-image-text";
 import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
 import { isAdminUser, AdminCheckError } from "@/lib/auth/roles";
@@ -12,11 +14,49 @@ import { logOpsEvent } from "@/lib/observability/ops-log";
 import { isRetryableIngestionCode } from "@/lib/documents/ingestion-errors";
 
 /** Default pages per step; shrinks when the deadline is near. */
-export const PDF_PAGES_PER_STEP = 6;
+export const PDF_PAGES_PER_STEP = 40;
 /** Soft wall-clock budget for one Vercel invocation (leave margin under 300s). */
-export const PDF_STEP_DEADLINE_MS = 200_000;
-/** Parallel OCR pages per wave — claim/retry/blocked stay per-page. */
-export const OCR_PAGE_CONCURRENCY = 4;
+export const PDF_STEP_DEADLINE_MS = 250_000;
+/**
+ * OCR pages in flight — claim/retry/blocked stay per-page. The pool starts at
+ * OCR_START_CONCURRENCY, halves on a 429 (never below OCR_MIN_CONCURRENCY)
+ * and grows by one per clean page up to OCR_PAGE_CONCURRENCY. A high-detail
+ * page image is ~37k input tokens for gpt-4o-mini, so the provider's TPM
+ * limit, not a fixed number, decides the real speed.
+ */
+export const OCR_PAGE_CONCURRENCY = 24;
+export const OCR_START_CONCURRENCY = 12;
+export const OCR_MIN_CONCURRENCY = 4;
+/**
+ * The pool keeps its size across 40-page steps of the same document (the
+ * route chains steps in one process), so each step does not fall back to
+ * OCR_START_CONCURRENCY. A cold instance starts over at the start value.
+ */
+const OCR_POOL_MEMORY_MS = 15 * 60_000;
+const ocrPoolMemory = new Map<string, { limit: number; at: number }>();
+
+export function rememberedOcrLimit(documentId: string, now = Date.now()): number | null {
+  const hit = ocrPoolMemory.get(documentId);
+  if (!hit) return null;
+  if (now - hit.at > OCR_POOL_MEMORY_MS) {
+    ocrPoolMemory.delete(documentId);
+    return null;
+  }
+  return hit.limit;
+}
+
+function rememberOcrLimit(documentId: string, limit: number) {
+  ocrPoolMemory.delete(documentId);
+  ocrPoolMemory.set(documentId, { limit, at: Date.now() });
+  while (ocrPoolMemory.size > 500) {
+    const oldest = ocrPoolMemory.keys().next().value;
+    if (oldest === undefined) break;
+    ocrPoolMemory.delete(oldest);
+  }
+}
+
+/** How long one process/route invocation may chain extract steps. */
+export const PDF_CHAIN_BUDGET_MS = 250_000;
 const EMBED_BATCH = 24;
 const LEASE_RENEW_MS = 240_000;
 
@@ -153,6 +193,7 @@ async function ocrOneBlankPage(input: {
   failed: boolean;
   tokensIn: number;
   tokensOut: number;
+  rateLimited?: boolean;
 }> {
   const {
     service, documentId, userId, pageNumber, png, inkRatio,
@@ -232,6 +273,7 @@ async function ocrOneBlankPage(input: {
       failed: false,
       tokensIn: read.tokensIn,
       tokensOut: read.tokensOut,
+      rateLimited: read.rateLimited,
     };
   }
 
@@ -249,6 +291,7 @@ async function ocrOneBlankPage(input: {
     failed: !blank,
     tokensIn: read.tokensIn,
     tokensOut: read.tokensOut,
+    rateLimited: read.rateLimited,
   };
 }
 
@@ -302,45 +345,62 @@ export async function readPdfBatch(
   const claimed = new Set<number>();
 
   try {
-    const rendered = await renderPdfPages(buffer, pages.length, firstPage);
-    if (rendered.pages.length !== pages.length) throw new Error("scan_unreadable");
-
-    // Classify without OCR first — blank / render-failed are done immediately.
-    const needsOcr: number[] = [];
-    for (const index of blankIndexes) {
-      const meta = rendered.pages[index]!;
-      const number = firstPage + index;
+    // Render and OCR are pipelined: a page goes to OCR as soon as it is painted.
+    const blank = new Set(blankIndexes);
+    const metas = new Map<number, RenderedPage>();
+    const queue: number[] = [];
+    let wake: (() => void) | null = null;
+    const notify = () => {
+      const resume = wake;
+      wake = null;
+      resume?.();
+    };
+    const takePage = (meta: RenderedPage, index: number) => {
+      if (!blank.has(index) || metas.has(index)) return;
+      metas.set(index, meta);
+      // Classify without OCR first — blank / render-failed are done immediately.
       if (meta.inkRatio < BLANK_INK_RATIO && !meta.hasImageContent) {
-        pages[index] = {
-          text: "",
-          extractionOk: true,
-          extractionMethod: "none",
-          pageKind: "blank",
-        };
+        pages[index] = { text: "", extractionOk: true, extractionMethod: "none", pageKind: "blank" };
         done[index] = true;
-        continue;
-      }
-      if (meta.scanRenderFailed) {
-        pages[index] = {
-          text: "",
-          extractionOk: false,
-          extractionMethod: "ocr",
-          pageKind: "unreadable",
-        };
+      } else if (meta.scanRenderFailed) {
+        pages[index] = { text: "", extractionOk: false, extractionMethod: "ocr", pageKind: "unreadable" };
         done[index] = true;
-        failedPages.push(number);
-        continue;
+        failedPages.push(firstPage + index);
+      } else {
+        queue.push(index);
+        notify();
       }
-      needsOcr.push(index);
-    }
+    };
+    const renderStarted = Date.now();
+    let renderMs = 0;
+    let renderError: unknown = null;
+    let renderDone = false;
+    const rendering = renderPdfPages(buffer, pages.length, firstPage, { onPage: takePage })
+      .then((rendered) => {
+        if (rendered.pages.length !== pages.length) throw new Error("scan_unreadable");
+        rendered.pages.forEach(takePage);
+      })
+      .catch((error) => {
+        renderError = error;
+      })
+      .finally(() => {
+        renderDone = true;
+        renderMs = Date.now() - renderStarted;
+        notify();
+      });
 
-    // Bounded pool: start up to OCR_PAGE_CONCURRENCY pages, honour deadline
-    // before each start so a near-budget step returns a contiguous prefix.
-    let cursor = 0;
+    const ocrStarted = Date.now();
+    const maxLimit = Math.max(1, Math.min(OCR_PAGE_CONCURRENCY, ocrConcurrency));
+    let limitNow = Math.max(1, Math.min(
+      rememberedOcrLimit(documentId) ?? OCR_START_CONCURRENCY,
+      maxLimit,
+    ));
+    const limitStart = limitNow;
+    let rateLimitedPages = 0;
     let poolError: unknown = null;
     const inFlight = new Map<number, Promise<void>>();
     const startOne = (index: number) => {
-      const meta = rendered.pages[index]!;
+      const meta = metas.get(index)!;
       const number = firstPage + index;
       const work = (async () => {
         const result = await ocrOneBlankPage({
@@ -352,6 +412,12 @@ export async function readPdfBatch(
         });
         pages[index] = result.page;
         done[index] = true;
+        if (result.rateLimited) {
+          rateLimitedPages += 1;
+          limitNow = Math.max(Math.min(OCR_MIN_CONCURRENCY, maxLimit), Math.floor(limitNow / 2));
+        } else if (result.ocrSuccess) {
+          limitNow = Math.min(maxLimit, limitNow + 1);
+        }
         if (result.ocrSuccess) ocrPageNumbers.push(number);
         if (result.failed) failedPages.push(number);
         if (result.tokensIn || result.tokensOut) {
@@ -363,38 +429,43 @@ export async function readPdfBatch(
         }
       })();
       inFlight.set(index, work);
-      // Record the first failure and swallow so siblings never surface as
-      // unhandledRejection; the loop stops starting and rethrows after settle.
       work
         .catch((error) => {
           poolError = poolError ?? error;
         })
         .finally(() => {
           inFlight.delete(index);
+          notify();
         });
     };
 
-    const concurrency = Math.max(1, Math.min(OCR_PAGE_CONCURRENCY, ocrConcurrency));
-    while (cursor < needsOcr.length || inFlight.size) {
-      while (
-        !poolError &&
-        inFlight.size < concurrency &&
-        cursor < needsOcr.length &&
-        Date.now() < deadlineMs - 5_000
-      ) {
-        startOne(needsOcr[cursor]!);
-        cursor += 1;
+    // Honour the deadline before each start so a near-budget step returns a
+    // contiguous prefix.
+    let ocrPages = 0;
+    for (;;) {
+      while (!poolError && inFlight.size < limitNow && queue.length && Date.now() < deadlineMs - 5_000) {
+        startOne(queue.shift()!);
+        ocrPages += 1;
       }
-      if (poolError) {
-        await Promise.allSettled([...inFlight.values()]);
-        break;
-      }
-      if (!inFlight.size) break;
-      // Race may reject when a worker fails; poolError catch already recorded it.
-      await Promise.race(inFlight.values()).catch(() => undefined);
+      if (poolError || renderError) break;
+      const canStart = queue.length > 0 && Date.now() < deadlineMs - 5_000;
+      if (renderDone && !inFlight.size && !canStart) break;
+      await new Promise<void>((resolve) => {
+        wake = resolve;
+      });
     }
     if (inFlight.size) await Promise.allSettled([...inFlight.values()]);
+    if (ocrPages > 0) rememberOcrLimit(documentId, limitNow);
+    await rendering;
+    console.info("pipeline_timing", {
+      documentId, stage: "render", ms: renderMs, pages: pages.length, firstPage,
+    });
+    console.info("pipeline_timing", {
+      documentId, stage: "ocr", ms: Date.now() - ocrStarted, pages: ocrPages,
+      concurrencyStart: limitStart, concurrencyEnd: limitNow, rateLimitedPages,
+    });
     if (poolError) throw poolError;
+    if (renderError) throw renderError;
   } catch (error) {
     if (!founder) {
       // Batch is abandoning — release every held claim (text was not saved).
@@ -463,8 +534,8 @@ export async function saveBatch(
 
 function adaptivePageBudget(deadlineMs: number): number {
   const remaining = deadlineMs - Date.now();
-  if (remaining < 45_000) return 2;
-  if (remaining < 90_000) return 4;
+  if (remaining < 45_000) return 8;
+  if (remaining < 90_000) return 16;
   return PDF_PAGES_PER_STEP;
 }
 

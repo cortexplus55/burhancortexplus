@@ -8,6 +8,7 @@ import {
   overallMeasuredFromTopics,
   planDiagnosticTopics,
   pickMainTopics,
+  pickStudyTopics,
   scoreDiagnosticAnswers,
   selectDiagnosticSkillQuestions,
   startingLevelLabel,
@@ -98,6 +99,15 @@ describe("pickMainTopics / skill plan", () => {
       { id: "3", parentId: null },
     ]);
     expect(mains.map((m) => m.id)).toEqual(["1", "3"]);
+  });
+
+  it("pickStudyTopics uses leaves when hierarchy exists", () => {
+    const study = pickStudyTopics([
+      { id: "unit", parentId: null },
+      { id: "a", parentId: "unit" },
+      { id: "b", parentId: "unit" },
+    ]);
+    expect(study.map((n) => n.id)).toEqual(["a", "b"]);
   });
 
   it("samples one skill slot per measurable topic and cycles skills", () => {

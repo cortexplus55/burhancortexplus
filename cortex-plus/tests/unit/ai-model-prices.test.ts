@@ -20,6 +20,7 @@ import { EMBEDDING_MODEL } from "@/lib/rag/pipeline";
 const MIGRATIONS = [
   "20260914120000_seed_ai_model_prices.sql",
   "20260925120000_seed_gpt41_mini_price.sql",
+  "20260928130000_seed_gpt41_outline_price.sql",
 ].map((file) => path.resolve(__dirname, "../../supabase/migrations", file));
 
 function pricedModels(): Map<string, { input: number; output: number }> {
@@ -36,14 +37,16 @@ function pricedModels(): Map<string, { input: number; output: number }> {
 describe("ai_model_prices tohumu", () => {
   const priced = pricedModels();
 
-  it("altı modelin hepsini okuyabiliyor", () => {
-    expect(priced.size).toBe(6);
+  it("yedi modelin hepsini okuyabiliyor", () => {
+    expect(priced.size).toBe(7);
   });
 
   it.each([
     ["standart metin", env.OPENAI_STANDARD_MODEL],
     ["ders taslağı", env.OPENAI_LESSON_MODEL],
     ["gelişmiş metin", env.OPENAI_ADVANCED_MODEL],
+    ["outline standart", env.OPENAI_OUTLINE_STANDARD_MODEL],
+    ["outline güçlü", env.OPENAI_OUTLINE_STRONG_MODEL],
     ["seslendirme", env.OPENAI_TTS_MODEL],
     ["çözümleme", env.OPENAI_STT_MODEL],
     ["gömme", EMBEDDING_MODEL],

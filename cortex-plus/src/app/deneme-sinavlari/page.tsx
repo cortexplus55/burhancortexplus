@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { ParityExamPrep } from "@/components/parity/exam-prep";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { requireStudentArea } from "@/lib/auth/session";
@@ -7,6 +8,11 @@ import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
 import { daysUntilExam, nodeProgress } from "@/lib/learning/exam-prep-plan";
 import type { ExamPrepCard } from "@/components/parity/exam-prep";
 import { toFeedRows, toSummary } from "@/lib/parity/school-feed";
+import {
+  FOCUS_PREP_COOKIE,
+  selectFocusPrep,
+  type FocusPrepCandidate,
+} from "@/lib/learning/focus-prep";
 
 export const metadata = { title: "Sınav hazırlığı" };
 
@@ -53,19 +59,31 @@ export default async function DenemeSinavlariPage() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
-  const [{ data: prepRows }, { data: profile }] = await Promise.all([
-    supabase
-      .from("exam_preps")
-      .select("id, title, exam_type, target_score, created_at, study_plan_id, exam_date")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(8),
-    supabase
-      .from("profiles")
-      .select("school_name")
-      .eq("id", user.id)
-      .maybeSingle(),
-  ]);
+  const cookieStore = await cookies();
+  const cookiePrepId = cookieStore.get(FOCUS_PREP_COOKIE)?.value ?? null;
+
+  const [{ data: prepRows }, { data: profile }, { data: activeAttempt }] =
+    await Promise.all([
+      supabase
+        .from("exam_preps")
+        .select("id, title, exam_type, target_score, created_at, study_plan_id, exam_date")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("profiles")
+        .select("school_name")
+        .eq("id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("exam_prep_node_attempts")
+        .select("exam_prep_id")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
   const preps = prepRows ?? [];
 
@@ -125,9 +143,71 @@ export default async function DenemeSinavlariPage() {
         })),
     ),
   );
+
+  const prepIdsForActivity = preps.map((prep) => prep.id);
+  const [{ data: attemptActivity }, { data: masteryActivity }] = prepIdsForActivity.length
+    ? await Promise.all([
+        supabase
+          .from("exam_prep_node_attempts")
+          .select("exam_prep_id, updated_at")
+          .eq("user_id", user.id)
+          .in("exam_prep_id", prepIdsForActivity),
+        supabase
+          .from("exam_prep_topic_mastery")
+          .select("exam_prep_id, last_practiced_at")
+          .eq("user_id", user.id)
+          .in("exam_prep_id", prepIdsForActivity),
+      ])
+    : [{ data: [] as { exam_prep_id: string; updated_at: string }[] }, { data: [] }];
+
+  const attemptMax = new Map<string, string>();
+  for (const row of attemptActivity ?? []) {
+    const id = row.exam_prep_id as string;
+    const ts = row.updated_at as string;
+    const prev = attemptMax.get(id);
+    if (!prev || Date.parse(ts) > Date.parse(prev)) attemptMax.set(id, ts);
+  }
+  const masteryMax = new Map<string, string>();
+  for (const row of masteryActivity ?? []) {
+    const id = row.exam_prep_id as string;
+    const ts = row.last_practiced_at as string | null;
+    if (!ts) continue;
+    const prev = masteryMax.get(id);
+    if (!prev || Date.parse(ts) > Date.parse(prev)) masteryMax.set(id, ts);
+  }
+
+  const focusCandidates: FocusPrepCandidate[] = preps.map((prep) => {
+    const attemptAt = attemptMax.get(prep.id) ?? null;
+    const masteryAt = masteryMax.get(prep.id) ?? null;
+    let lastActivityAt: string | null = null;
+    if (attemptAt && masteryAt) {
+      lastActivityAt =
+        Date.parse(attemptAt) >= Date.parse(masteryAt) ? attemptAt : masteryAt;
+    } else {
+      lastActivityAt = attemptAt ?? masteryAt;
+    }
+    const topics = topicMap.get(prep.id) ?? [];
+    const progress = topics.length ? topicProgress(topics) : null;
+    const unfinished =
+      progress && progress.total > 0 ? progress.done < progress.total : undefined;
+    return {
+      id: prep.id,
+      title: prep.title ?? prep.exam_type,
+      examDate: prep.exam_date ?? null,
+      createdAt: prep.created_at ?? new Date(0).toISOString(),
+      lastActivityAt,
+      unfinished,
+    };
+  });
+
+  const { focusPrepId } = selectFocusPrep({
+    preps: focusCandidates,
+    activeAttemptPrepId: (activeAttempt?.exam_prep_id as string | null) ?? null,
+    cookiePrepId,
+  });
+
   const activePrep =
-    cards.find((card) => card.topicsTotal > 0 && card.topicsDone < card.topicsTotal) ??
-    cards.find((card) => card.topicsTotal > 0) ??
+    (focusPrepId ? cards.find((card) => card.id === focusPrepId) : null) ??
     cards[0] ??
     null;
   const otherPreps = cards.filter((card) => card.id !== activePrep?.id);

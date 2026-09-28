@@ -9,7 +9,7 @@
 import { DOCUMENT_TYPE_REJECTED } from "@/lib/documents/upload-labels";
 
 const topicMapErrorLabels: Record<string, string> = {
-  topic_map_unavailable: "Konular çıkarılamadı — belgeyi tekrar yüklemeyi dene",
+  topic_map_unavailable: "Konuları hazırlamak için Tekrar dene",
   document_status_update_failed: "Kaydedilemedi — tekrar dene",
 };
 

@@ -4,11 +4,23 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
-import { pickMainTopics } from "@/lib/learning/diagnostic";
+import {
+  detectPageFurniture,
+  extractTocUnits,
+} from "@/lib/documents/outline-clean";
+import {
+  buildStudyOutlineFromNodes,
+  seriesLabelFromFileName,
+} from "@/lib/learning/study-outline";
 import { buildExamPlan, daysUntilExam } from "@/lib/learning/exam-prep-plan";
-import { refoldTopicMapIfNeeded } from "@/lib/documents/pdf-learning-v2";
+import {
+  refoldTopicMapIfNeeded,
+  planCourseMap,
+  regenerateUnusedFlatTopicMap,
+} from "@/lib/documents/pdf-learning-v2";
 import { documentTitle } from "@/lib/documents/topic-title";
 import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
+import { clampExamLabel } from "@/lib/documents/process-session";
 import { PREP_TOPIC_CAP, prepTopicCapacityError } from "@/lib/learning/prep-topic-list";
 import { loadPagedDocumentRows } from "@/lib/learning/paged-document-rows";
 import {
@@ -21,6 +33,7 @@ import type { ConsolidatedTopic } from "@/lib/learning/cross-material-topics";
 import { resolveAmbiguousMerges } from "@/lib/learning/topic-merge-model";
 import { consolidatePrepDocuments } from "@/lib/learning/consolidate-documents";
 import { formatContradictions } from "@/lib/learning/source-contradictions";
+import { loadOneshotIntakeTopics, type IntakeStudyUnit } from "@/lib/learning/intake-outline";
 
 const bodySchema = z.object({
   messages: z
@@ -37,6 +50,8 @@ const bodySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
+  /** Exam type/level for oneshot teacher perspective (optional on probe). */
+  examType: z.unknown().optional().transform(clampExamLabel),
   documentId: z.string().uuid().optional(),
   documentIds: z.array(z.string().uuid()).max(8).optional(),
   /** Flag+topic-map check only — no AI / no credits. */
@@ -73,8 +88,9 @@ async function resolveTopicSuggestions(
   v2: boolean,
 ) {
   let topicSuggestions: MergeTopicInput[] = [];
+  let units: IntakeStudyUnit[] = [];
   let intakeMode: "legacy" | "v2" = "legacy";
-  if (!v2 || !documentId) return { topicSuggestions, intakeMode };
+  if (!v2 || !documentId) return { topicSuggestions, intakeMode, units };
 
   const { data: doc } = await service
     .from("documents")
@@ -90,13 +106,7 @@ async function resolveTopicSuggestions(
       [doc.id],
       ["sort_order", "id"],
     );
-    const mains = pickMainTopics(
-      nodeRows.map((n) => ({
-        id: n.id as string,
-        title: n.title as string,
-        parentId: (n.parent_id as string | null) ?? null,
-      })),
-    );
+    const pagesByTopic = new Map<string, number[]>();
     const prereqById = new Map(
       nodeRows.map((node) => [
         node.id as string,
@@ -114,7 +124,6 @@ async function resolveTopicSuggestions(
       [doc.id],
       ["topic_id", "page_number"],
     );
-    const pagesByTopic = new Map<string, number[]>();
     for (const link of links) {
       const list = pagesByTopic.get(link.topic_id as string) ?? [];
       list.push(link.page_number as number);
@@ -126,17 +135,53 @@ async function resolveTopicSuggestions(
       .eq("id", doc.id)
       .maybeSingle();
     const fileName = (docName?.file_name as string | null) ?? "";
-    topicSuggestions = mains.map((n) => ({
-      id: n.id,
-      title: n.title,
-      pages: [...new Set(pagesByTopic.get(n.id) ?? [])].sort((a, b) => a - b),
+    const pageRows = await loadPagedDocumentRows(
+      service,
+      "document_pages",
+      "page_number, text_content, page_kind, headings",
+      [doc.id],
+      ["page_number"],
+    );
+    const lightPages = pageRows.map((page) => ({
+      pageNumber: page.page_number as number,
+      text: ((page.text_content as string | null) ?? "").slice(0, 4000),
+      pageKind: (page.page_kind as string | null) ?? null,
+      headings: Array.isArray(page.headings) ? (page.headings as string[]) : undefined,
+    }));
+    const furniture = detectPageFurniture(lightPages);
+    const tocUnits = extractTocUnits(lightPages);
+    const seriesLabels = [
+      ...new Set([...furniture.seriesLabels, ...seriesLabelFromFileName(fileName)]),
+    ];
+    const contentPageCount = pageRows.filter(
+      (p) =>
+        !p.page_kind || p.page_kind === "content" || p.page_kind === "uncertain",
+    ).length;
+    const outline = buildStudyOutlineFromNodes({
+      nodes: nodeRows.map((n) => ({
+        id: n.id as string,
+        title: n.title as string,
+        parentId: (n.parent_id as string | null) ?? null,
+        sortOrder: typeof n.sort_order === "number" ? n.sort_order : 0,
+      })),
+      pagesByTopic,
+      seriesLabels,
+      unitRuns: furniture.unitRuns,
+      tocUnits,
+      contentPageCount: contentPageCount || pageRows.length,
+    });
+    units = outline.units;
+    topicSuggestions = outline.topics.map((topic) => ({
+      id: topic.id,
+      title: topic.title,
+      pages: topic.pages,
       documentId,
       fileName,
-      prerequisites: prereqById.get(n.id) ?? [],
+      prerequisites: prereqById.get(topic.id) ?? [],
     }));
     if (topicSuggestions.length) intakeMode = "v2";
   }
-  return { topicSuggestions, intakeMode };
+  return { topicSuggestions, intakeMode, units };
 }
 
 /**
@@ -216,14 +261,24 @@ export async function POST(request: Request) {
       );
     }
   }
-  // Katlamak model çağırmaz. Hazır öğretmen analizi de yeniden üretilmez;
-  // konu listesi saklı haritadan okunur.
+  // Unused flat junk maps → oneshot regen. Used maps are never rewritten.
+  // Katlamak model çağırmaz; hiyerarşik hazır haritalar yalnızca katlanır.
   if (v2) {
     for (const documentId of documentIds) {
       try {
+        const regen = await regenerateUnusedFlatTopicMap(service, documentId);
+        if (regen.regenerating) {
+          return NextResponse.json(
+            {
+              error: "Belgenin konuları yeniden düzenleniyor. İşlem bitince tekrar dene.",
+              code: "topic_map_regenerating",
+            },
+            { status: 409 },
+          );
+        }
         await refoldTopicMapIfNeeded(service, documentId);
       } catch (error) {
-        console.error("intake_refold_skipped", {
+        console.error("intake_map_refresh_skipped", {
           documentId,
           errorType: error instanceof Error ? (error.constructor?.name ?? error.name) : "unknown",
         });
@@ -232,16 +287,50 @@ export async function POST(request: Request) {
   }
   const groups: MergeTopicInput[][] = [];
   let intakeMode: "legacy" | "v2" = "legacy";
-  const consolidated = documentIds.length
-    ? await consolidatePrepDocuments(service, userId, documentIds, { allowModel: true })
-    : null;
-  let mergedTopics: Array<ConsolidatedTopic | MergedTopic> = consolidated?.topics ?? [];
-  if (mergedTopics.length) {
-    intakeMode = "v2";
-  } else {
+  let intakeUnits: IntakeStudyUnit[] = [];
+  let consolidated: Awaited<ReturnType<typeof consolidatePrepDocuments>> | null = null;
+  let mergedTopics: Array<ConsolidatedTopic | MergedTopic> = [];
+  let keepLlmOrder = false;
+
+  // Oneshot hierarchical maps: use LLM units/topics/order as-is.
+  // Never consolidate or re-sort — that was the round-2 B1 failure mode.
+  if (v2 && documentIds.length) {
+    const oneshot = await loadOneshotIntakeTopics(service, userId, documentIds);
+    // Several files not outlined together yet → the client runs the one course
+    // outline (process route) and comes back. Maps in use are never rewritten.
+    if (!oneshot && documentIds.length > 1 && (await planCourseMap(service, documentIds)).length) {
+      return NextResponse.json(
+        {
+          error: "Belgenin konuları yeniden düzenleniyor. İşlem bitince tekrar dene.",
+          code: "topic_map_regenerating",
+        },
+        { status: 409 },
+      );
+    }
+    if (oneshot) {
+      mergedTopics = oneshot.topics;
+      intakeUnits = oneshot.units;
+      intakeMode = "v2";
+      keepLlmOrder = true;
+    }
+  }
+
+  if (!mergedTopics.length) {
+    // Legacy maps only — old merge path.
+    if (documentIds.length > 1) {
+      consolidated = await consolidatePrepDocuments(service, userId, documentIds, {
+        allowModel: true,
+      });
+      mergedTopics = consolidated?.topics ?? [];
+      if (consolidated?.units?.length) intakeUnits = consolidated.units;
+      if (mergedTopics.length) intakeMode = "v2";
+    }
+  }
+  if (!mergedTopics.length) {
     for (const documentId of documentIds.length ? documentIds : [parsed.data.documentId]) {
       const resolved = await resolveTopicSuggestions(service, userId, documentId, v2);
       if (resolved.intakeMode === "v2") intakeMode = "v2";
+      if (!intakeUnits.length && resolved.units.length) intakeUnits = resolved.units;
       groups.push(resolved.topicSuggestions);
     }
     const firstPass = mergeTopicGroups(groups);
@@ -255,6 +344,9 @@ export async function POST(request: Request) {
         // Model yoksa iki başlık ayrı kalır. Konu düşmez.
       }
     }
+  }
+  // Only re-order legacy flat merges. Oneshot learning order is authoritative.
+  if (!keepLlmOrder) {
     mergedTopics = orderTopicsForPath(mergedTopics, { manualOrder: false });
   }
   const capacityError = prepTopicCapacityError(mergedTopics.length);
@@ -286,6 +378,12 @@ export async function POST(request: Request) {
     topicScopeNotes: mergedTopics.map((topic) =>
       "scopeNote" in topic ? topic.scopeNote : null,
     ),
+    topicDescriptions: mergedTopics.map((topic) => {
+      if ("summary" in topic && typeof topic.summary === "string" && topic.summary.trim()) {
+        return topic.summary.trim().slice(0, 240);
+      }
+      return null;
+    }),
   };
   const contradictionDocs = await readContradictionDocuments(service, documentIds).catch(() => []);
   const contradictionMap = await contradictionsByTopicTitleResolved(
@@ -300,6 +398,7 @@ export async function POST(request: Request) {
     })),
     contradictionDocs,
   );
+  // Warnings stay contradictions/narrow-scope only — short descriptions are separate.
   const topicWarnings = mergedTopics.map((topic, index) => {
     const scope = merged.topicScopeNotes[index];
     const contradiction = formatContradictions(contradictionMap.get(topic.title) ?? []);
@@ -335,9 +434,11 @@ export async function POST(request: Request) {
             topicImportant: merged.topicImportant,
             topicWeights: merged.topicWeights,
             topicSections: merged.topicSections,
+            topicDescriptions: merged.topicDescriptions,
             excluded: consolidated?.excluded ?? [],
             missingTopics: consolidated?.missingFromMaterials ?? [],
             suggestedExamDate: consolidated?.suggestedExamDate ?? null,
+            units: consolidated?.units ?? (intakeUnits.length ? intakeUnits : undefined),
           }
         : null,
     });

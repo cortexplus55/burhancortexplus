@@ -1,8 +1,18 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 import { onboardingPathForRole } from "@/lib/auth/onboarding-path";
 import { continueHref, mapPrepTopics } from "@/lib/learning/exam-prep-progress";
-import { resolveExamCountdown, type ExamCountdown } from "@/lib/learning/exam-countdown";
+import {
+  daysUntilDate,
+  resolveExamCountdown,
+  type ExamCountdown,
+} from "@/lib/learning/exam-countdown";
+import {
+  FOCUS_PREP_COOKIE,
+  selectFocusPrep,
+  type FocusPrepCandidate,
+} from "@/lib/learning/focus-prep";
 import {
   resolveNextBestAction,
   type NextBestAction,
@@ -53,6 +63,18 @@ export function shouldRouteToAdaptiveSession(input: {
   return !input.processing;
 }
 
+export type LearningHubSwitchPrep = {
+  id: string;
+  title: string;
+  daysLeft: number | null;
+};
+
+export type LearningHubUrgentChip = {
+  prepId: string;
+  title: string;
+  daysLeft: number;
+};
+
 export type LearningHubSnapshot = {
   firstName: string;
   countdown: ExamCountdown;
@@ -67,7 +89,48 @@ export type LearningHubSnapshot = {
   secondary: { href: string; label: string }[];
   /** "Son ilerleme" satırı — tek cümle, ayrı katalog değil. */
   progress: ProgressSummary;
+  /** Dashboard / Çalış odak sınavı (selectFocusPrep). */
+  focusPrepId: string | null;
+  urgentChip: LearningHubUrgentChip | null;
+  switchPreps: LearningHubSwitchPrep[];
 };
+
+function maxIsoByPrep(
+  rows: { exam_prep_id: string; ts: string | null | undefined }[],
+): Map<string, string> {
+  const best = new Map<string, number>();
+  for (const row of rows) {
+    if (!row.ts) continue;
+    const parsed = Date.parse(row.ts);
+    if (!Number.isFinite(parsed)) continue;
+    const id = row.exam_prep_id;
+    const prev = best.get(id) ?? 0;
+    if (parsed > prev) best.set(id, parsed);
+  }
+  const out = new Map<string, string>();
+  for (const [id, ts] of best) {
+    out.set(id, new Date(ts).toISOString());
+  }
+  return out;
+}
+
+function unfinishedByPrep(
+  topicRows: { exam_prep_id: string; status: string | null }[],
+): Map<string, boolean> {
+  const totals = new Map<string, { done: number; total: number }>();
+  for (const row of topicRows) {
+    const id = row.exam_prep_id;
+    const cur = totals.get(id) ?? { done: 0, total: 0 };
+    cur.total += 1;
+    if (row.status === "done") cur.done += 1;
+    totals.set(id, cur);
+  }
+  const out = new Map<string, boolean>();
+  for (const [id, { done, total }] of totals) {
+    out.set(id, total > 0 && done < total);
+  }
+  return out;
+}
 
 function istanbulToday(): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -122,6 +185,7 @@ export async function loadLearningHub(
   supabase: SupabaseClient,
   userId: string,
   email?: string | null,
+  options?: { cookiePrepId?: string | null },
 ): Promise<LearningHubSnapshot> {
   const today = istanbulToday();
   const now = new Date();
@@ -173,11 +237,11 @@ export async function loadLearningHub(
     supabase
       .from("exam_preps")
       .select(
-        "id, title, exam_date, exam_type, learning_tracking, daily_minutes, document_id, source_document_ids",
+        "id, title, exam_date, exam_type, learning_tracking, daily_minutes, document_id, source_document_ids, created_at",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(5),
+      .limit(20),
     supabase
       .from("documents")
       .select("id, file_name, updated_at, topic_map_status")
@@ -267,32 +331,123 @@ export async function loadLearningHub(
     (t) => !t.completed && t.due_date && t.due_date <= today,
   );
 
-  const nearestPrep = (preps ?? [])
-    .filter((p) => p.exam_date)
-    .map((p) => ({
-      ...p,
-      days: resolveExamCountdown({
-        prepExamDate: p.exam_date as string,
-        prepTitle: (p.title as string) ?? (p.exam_type as string) ?? "Sınav",
-      }),
-    }))
-    .filter((p) => p.days.state === "countdown" || p.days.state === "past")
-    .sort((a, b) => {
-      const da = a.days.daysLeft ?? 9999;
-      const db = b.days.daysLeft ?? 9999;
-      // Prefer future, then soonest.
-      if (da < 0 && db >= 0) return 1;
-      if (db < 0 && da >= 0) return -1;
-      return Math.abs(da) - Math.abs(db);
-    })[0];
+  const prepList = preps ?? [];
+  const prepIds = prepList.map((p) => p.id as string);
+
+  const cookieStore = await cookies();
+  const cookiePrepId =
+    options?.cookiePrepId ??
+    cookieStore.get(FOCUS_PREP_COOKIE)?.value ??
+    null;
+
+  // Max activity per prep — avoid PostgREST 1000-row truncation on heavy users.
+  type AttemptRow = { exam_prep_id: string; updated_at: string };
+  type MasteryRow = { exam_prep_id: string; last_practiced_at: string | null };
+  type TopicStatusRow = { exam_prep_id: string; status: string | null };
+
+  let attemptActivity: AttemptRow[] = [];
+  let masteryActivity: MasteryRow[] = [];
+  let topicStatusRows: TopicStatusRow[] = [];
+  if (prepIds.length) {
+    const [attemptsRes, masteryRes, topics] = await Promise.all([
+      supabase
+        .from("exam_prep_node_attempts")
+        .select("exam_prep_id, updated_at")
+        .eq("user_id", userId)
+        .in("exam_prep_id", prepIds)
+        .order("updated_at", { ascending: false, nullsFirst: false }),
+      supabase
+        .from("exam_prep_topic_mastery")
+        .select("exam_prep_id, last_practiced_at")
+        .eq("user_id", userId)
+        .in("exam_prep_id", prepIds)
+        .order("last_practiced_at", { ascending: false, nullsFirst: false }),
+      supabase
+        .from("exam_prep_topics")
+        .select("exam_prep_id, status")
+        .in("exam_prep_id", prepIds),
+    ]);
+    const latestAttempt = new Map<string, AttemptRow>();
+    for (const row of (attemptsRes.data ?? []) as AttemptRow[]) {
+      if (!latestAttempt.has(row.exam_prep_id)) latestAttempt.set(row.exam_prep_id, row);
+    }
+    const latestMastery = new Map<string, MasteryRow>();
+    for (const row of (masteryRes.data ?? []) as MasteryRow[]) {
+      if (!row.last_practiced_at) continue;
+      if (!latestMastery.has(row.exam_prep_id)) latestMastery.set(row.exam_prep_id, row);
+    }
+    attemptActivity = [...latestAttempt.values()];
+    masteryActivity = [...latestMastery.values()];
+    topicStatusRows = (topics.data ?? []) as TopicStatusRow[];
+  }
+
+  const attemptMax = maxIsoByPrep(
+    attemptActivity.map((r) => ({
+      exam_prep_id: r.exam_prep_id,
+      ts: r.updated_at,
+    })),
+  );
+  const masteryMax = maxIsoByPrep(
+    masteryActivity.map((r) => ({
+      exam_prep_id: r.exam_prep_id,
+      ts: r.last_practiced_at,
+    })),
+  );
+  const unfinishedMap = unfinishedByPrep(
+    topicStatusRows.map((r) => ({
+      exam_prep_id: r.exam_prep_id,
+      status: r.status,
+    })),
+  );
+
+  const focusCandidates: FocusPrepCandidate[] = prepList.map((p) => {
+    const id = p.id as string;
+    const attemptAt = attemptMax.get(id) ?? null;
+    const masteryAt = masteryMax.get(id) ?? null;
+    let lastActivityAt: string | null = null;
+    if (attemptAt && masteryAt) {
+      lastActivityAt =
+        Date.parse(attemptAt) >= Date.parse(masteryAt) ? attemptAt : masteryAt;
+    } else {
+      lastActivityAt = attemptAt ?? masteryAt;
+    }
+    const unfinished = unfinishedMap.get(id);
+    return {
+      id,
+      title: (p.title as string) ?? (p.exam_type as string) ?? "Sınav",
+      examDate: (p.exam_date as string | null) ?? null,
+      createdAt: (p.created_at as string) ?? new Date(0).toISOString(),
+      lastActivityAt,
+      unfinished: unfinished === undefined ? undefined : unfinished,
+    };
+  });
+
+  const { focusPrepId, urgentChip } = selectFocusPrep({
+    preps: focusCandidates,
+    activeAttemptPrepId: (activeAttempt?.exam_prep_id as string | null) ?? null,
+    cookiePrepId,
+    now,
+  });
+
+  const focusPrep =
+    prepList.find((p) => p.id === focusPrepId) ?? prepList[0] ?? undefined;
 
   const countdown = resolveExamCountdown({
-    prepExamDate: (nearestPrep?.exam_date as string | null) ?? null,
+    prepExamDate: (focusPrep?.exam_date as string | null) ?? null,
     prepTitle:
-      (nearestPrep?.title as string | null) ??
-      (nearestPrep?.exam_type as string | null) ??
+      (focusPrep?.title as string | null) ??
+      (focusPrep?.exam_type as string | null) ??
       null,
     goalTargetDate: (goal?.target_date as string | null) ?? null,
+  });
+
+  const switchPreps: LearningHubSwitchPrep[] = prepList.map((p) => {
+    const examDate = (p.exam_date as string | null) ?? null;
+    return {
+      id: p.id as string,
+      title: (p.title as string) ?? (p.exam_type as string) ?? "Sınav",
+      daysLeft: examDate ? daysUntilDate(examDate, now) : null,
+    };
   });
 
   // Son 30 günün quiz/deneme yanlış oranı konu bazında — sıralama tek bir
@@ -321,8 +476,8 @@ export async function loadLearningHub(
   let prepNodesSnapshot: { status?: string | null }[] = [];
 
   const primaryPrepId =
-    (nearestPrep?.id as string | undefined) ??
-    ((preps ?? [])[0]?.id as string | undefined);
+    (focusPrepId as string | undefined) ??
+    (focusPrep?.id as string | undefined);
 
   if (primaryPrepId) {
     const [{ data: topics }, { data: masteryRows }, { data: nodes }] =
@@ -350,7 +505,7 @@ export async function loadLearningHub(
     examPrepContinueHref = continueHref(primaryPrepId, mapped);
     examPrepContinueLabel = "Çalışmaya devam et";
 
-    const tracking = nearestPrep?.learning_tracking as
+    const tracking = focusPrep?.learning_tracking as
       | { programProgressPct?: number; examReadinessPct?: number }
       | null;
     const programPct = Number(tracking?.programProgressPct ?? 0);
@@ -412,8 +567,8 @@ export async function loadLearningHub(
   ]);
 
   const dailyMinutesCap =
-    typeof nearestPrep?.daily_minutes === "number" && nearestPrep.daily_minutes > 0
-      ? (nearestPrep.daily_minutes as number)
+    typeof focusPrep?.daily_minutes === "number" && focusPrep.daily_minutes > 0
+      ? (focusPrep.daily_minutes as number)
       : null;
 
   const { tasks: todaysTasks, totalMinutes } = buildTodaysStudyPlan({
@@ -437,8 +592,8 @@ export async function loadLearningHub(
   const onboardingComplete = Boolean(profile?.onboarding_completed_at);
 
   const prepForScope =
-    nearestPrep ??
-    ((preps ?? [])[0] as
+    focusPrep ??
+    (prepList[0] as
       | {
           document_id?: string | null;
           source_document_ids?: string[] | null;
@@ -510,7 +665,7 @@ export async function loadLearningHub(
     );
     if (
       onboardingComplete &&
-      nearestPrep?.id &&
+      focusPrep?.id &&
       (await isFeatureEnabled(service, ADAPTIVE_LEARNING_FLAG, userId))
     ) {
       const { ensureCurrentDailyPlan } = await import(
@@ -518,7 +673,7 @@ export async function loadLearningHub(
       );
       const plan = await ensureCurrentDailyPlan(service, {
         userId,
-        examPrepId: nearestPrep.id as string,
+        examPrepId: focusPrep.id as string,
       });
       if (plan.items.length) {
         tasksOut = plan.items.map((item) => ({
@@ -527,7 +682,7 @@ export async function loadLearningHub(
           minutes: item.minutes,
           href:
             item.href ??
-            `/deneme-sinavlari/${nearestPrep.id}/oturum?planItemId=${item.id}`,
+            `/deneme-sinavlari/${focusPrep.id}/oturum?planItemId=${item.id}`,
           kind: "prep_node" as const,
         }));
         minutesOut = plan.estimatedMinutes || minutesOut;
@@ -545,7 +700,7 @@ export async function loadLearningHub(
           kind: "exam_prep_node",
           href:
             firstPending?.href ??
-            `/deneme-sinavlari/${nearestPrep.id}/oturum`,
+            `/deneme-sinavlari/${focusPrep.id}/oturum`,
           label: "Çalışmaya Başla",
           reason:
             plan.rebalanceNotice ||
@@ -598,5 +753,8 @@ export async function loadLearningHub(
         lastExamAttempt?.score == null ? null : Math.round(Number(lastExamAttempt.score)),
       lastExamAt: (lastExamAttempt?.completed_at as string | null) ?? null,
     },
+    focusPrepId: focusPrepId ?? (focusPrep?.id as string | null) ?? null,
+    urgentChip,
+    switchPreps,
   };
 }

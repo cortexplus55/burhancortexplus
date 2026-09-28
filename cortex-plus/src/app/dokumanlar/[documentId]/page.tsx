@@ -13,7 +13,7 @@ import {
   isFeatureEnabled,
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
-import { loadTopicMapSnapshot } from "@/lib/documents/pdf-learning-v2";
+import { documentTopicMapIsInUse, loadTopicMapSnapshot } from "@/lib/documents/pdf-learning-v2";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 import { DocumentPdfPreview } from "@/components/documents/document-pdf-preview";
@@ -71,6 +71,9 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
       : null;
 
   const topicCount = snapshot?.topics.length ?? 0;
+  const mapInUse = topicCount
+    ? await documentTopicMapIsInUse(service, documentId, snapshot!.topics.map((t) => t.id))
+    : false;
   const estMinutes = Math.max(30, topicCount * 22);
   const estHours = Math.floor(estMinutes / 60);
   const estRem = estMinutes % 60;
@@ -240,6 +243,13 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
             </p>
             <Link href="/dokumanlar" className="text-xs underline">Belgelerime dön</Link>
           </section>
+        ) : doc.status === "processing" && pdfLearningV2 && doc.topic_map_status === "failed" ? (
+          <section className="cs-pay-card space-y-3 p-5" role="status">
+            <p className="text-sm text-[var(--cs-muted)]">
+              Belgen kaydedildi. Konuları hazırlamak için tekrar dene.
+            </p>
+            <DocumentRetryButton documentId={documentId} />
+          </section>
         ) : doc.status === "processing" && isProcessingStale(doc.status, doc.updated_at as string | null) ? (
           <section className="cs-pay-card space-y-3 p-5">
             <p className="text-sm text-amber-200" role="status">
@@ -325,6 +335,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                 (doc.topic_map_updated_at as string | null) ?? null
               }
               mapReady={mapReady}
+              mapInUse={mapInUse}
               hidePlanLink
               coverage={
                 snapshot.coverage

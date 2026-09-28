@@ -5,7 +5,7 @@ import {
   firstLessonDiagnosticSlots,
   selectDiagnosticSkillQuestions,
   isDiagnosticSkill,
-  pickMainTopics,
+  pickStudyTopics,
   planDiagnosticTopics,
   scoreDiagnosticAnswers,
   type DiagnosticQuestion,
@@ -44,7 +44,7 @@ export async function loadDocumentTopicPlans(
   const rows = (nodes ?? []) as DocumentTopicRow[];
   if (!rows.length) return [];
 
-  const main = pickMainTopics(
+  const main = pickStudyTopics(
     rows.map((n) => ({ ...n, parentId: n.parent_id })),
   );
 
