@@ -2027,13 +2027,12 @@ async function generateNodePayload(input: {
   // başlığından çözümlü örneğin her adımına kadar kontrol ediyor.
   if (input.kind === "lesson") {
     // Önceki hard-kill'den kalan pending rezervasyonları (aynı kullanıcı).
-    if (typeof refundStalePendingReservations === "function") {
-      await refundStalePendingReservations(input.service, {
-        userId: input.userId,
-        olderThanMs: 10 * 60_000,
-        limit: 8,
-      }).catch(() => 0);
-    }
+    // Allowlist + kullanıcı cooldown service içinde; DOCUMENT_PAGE_PROCESS dokunulmaz.
+    await refundStalePendingReservations(input.service, {
+      userId: input.userId,
+      olderThanMs: 10 * 60_000,
+      limit: 8,
+    }).catch(() => 0);
     // Pedagoji kontrolleri hiçbir taslağı geçirmezse ders hiç üretilmiyor
     // ve öğrencinin o konuda okuyacak bir şeyi kalmıyor — bugün iki kez
     // olan buydu. Şeması geçerli son taslak saklanıyor: kusurlu bir ders,

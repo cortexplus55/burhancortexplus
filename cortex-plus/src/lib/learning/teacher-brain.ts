@@ -466,7 +466,11 @@ function stripPageMarkers(text: string): string {
   return text.replace(/\[s\.\d+\]/gi, " ");
 }
 
-/** Üst simge ²³ → 23 */
+/**
+ * Üst simgeleri ASCII'ye çevir.
+ * `10⁻²` → `10^-2` (caret): aksi halde `10-2` olur, bilimsel jeton parçalanır
+ * ve küçük `2` sıradan tam sayı diye atlanır.
+ */
 function decodeSuperscripts(text: string): string {
   const map: Record<string, string> = {
     "⁰": "0",
@@ -482,16 +486,20 @@ function decodeSuperscripts(text: string): string {
     "⁻": "-",
     "⁺": "+",
   };
-  return text.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+/g, (chunk) =>
-    [...chunk].map((ch) => map[ch] ?? "").join(""),
-  );
+  const decodeChunk = (chunk: string) =>
+    [...chunk].map((ch) => map[ch] ?? "").join("");
+  return text
+    .replace(/10([⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+)/g, (_, chunk: string) => `10^${decodeChunk(chunk)}`)
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+/g, (chunk) => decodeChunk(chunk));
 }
 
 /**
- * Bilimsel gösterim jetonu: 6,02×10^23 | 6.02 x 10^23 | 6,02.10²³ | 6,02e23 | 10^23
+ * Bilimsel gösterim jetonu: 6,02×10^23 | 6.02 x 10^23 | 6,02.10²³ | 6,02e23 | 10^23 | 10⁻²
+ * Mantissa varsa çarpım işareti zorunlu — aksi halde `110^-2` yanlış parçalanır.
+ * Yalın `10^n` / `10⁻ⁿ` de jeton sayılır.
  */
 const SCI_TOKEN_RE =
-  /([−-]?\d+(?:[.,]\d+)?)\s*(?:[×x*·.]\s*)?10\s*(?:\^\s*([−-]?\d+)|[eE]([−+]?\d+)|([⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+))|([−-]?\d+(?:[.,]\d+)?)[eE]([−+]?\d+)/gi;
+  /(?:([−-]?\d+(?:[.,]\d+)?)\s*[×x*·.]\s*)?10\s*(?:\^\s*([−-]?\d+)|[eE]([−+]?\d+)|([⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+))|([−-]?\d+(?:[.,]\d+)?)[eE]([−+]?\d+)/gi;
 
 function parseSciToken(raw: string): number | null {
   const text = decodeSuperscripts(raw.replace(/\s/g, "").replace("−", "-"));
@@ -565,7 +573,10 @@ export function unsupportedQuantities(generated: string, source: string): string
       // Küçük tam sayılar sıra/indeks olabilir; ondalık uydurma (1.337) tutulmaz.
       const isDecimal = /[.,]/.test(num);
       if (!isDecimal && asNumber < 3) continue;
-      if (!sourceHasNumber(haystack, num)) issues.push(num);
+      // Düz yazım (0,000018) kaynakta bilimsel (1,8×10^-5) olabilir.
+      if (!sourceHasNumber(haystack, num) && !sourceHasSciValue(haystack, num)) {
+        issues.push(num);
+      }
     }
   }
   return [...new Set(issues)].slice(0, 6);

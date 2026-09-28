@@ -21,8 +21,8 @@ export function stripLearnerVerificationChrome(text: string): string {
   return text
     .replace(/\s*Doğrulanamayan cümleler çıkarıldı\.?/gi, "")
     .replace(/\s*Bazı hesap adımları kaynakla doğrulanamadığı için çıkarıldı\.?/gi, "")
-    // "Kaynak: kimya.pdf, s.4" — dosya noktasında kesilmez; sayfa dahil silinir.
-    .replace(/\s*Kaynak:\s*\S+(?:\s*,\s*)?(?:\s*s\.\d+)?\.?/gi, " ")
+    // "Kaynak: kimya.pdf, s.4" veya çok kelimeli ad — sayfa dahil tümü silinir.
+    .replace(/\s*Kaynak:\s*(?:.+?,\s*s\.\d+|\S+)\.?/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 }

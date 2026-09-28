@@ -99,9 +99,35 @@ export async function refundCredits(
 }
 
 /**
+ * Tek istekte (≤300 sn) biten eylemler. Bunların pending kalması Vercel
+ * hard-kill'inden gelir — iade güvenli.
+ *
+ * `DOCUMENT_PAGE_PROCESS` YOK: PDF işleme tek rezervasyonu birçok chunk
+ * isteğine yayar; 10 dk'dan uzun sürebilir. Ortada iade etmek son commit'i
+ * sessiz no-op yapar (belge bedava işlenmiş olur).
+ */
+export const STALE_REFUND_ACTION_CODES: readonly ActionCode[] = [
+  "AI_CHAT_STANDARD",
+  "AI_CHAT_ADVANCED",
+  "AI_CHAT_PARENT",
+  "IMAGE_SOLUTION",
+  "QUIZ_GENERATE",
+  "FLASHCARD_GENERATE",
+  "PRACTICE_EXAM_GENERATE",
+  "PRACTICE_EXAM_GRADE",
+  "STUDY_PLAN_GENERATE",
+  "EXPORT_PDF",
+  "AUDIO_SYNTHESIZE",
+] as const;
+
+/** Kullanıcı başına ders öncesi temizliği ucuz tut — birkaç dakikada bir. */
+const STALE_CLEANUP_COOLDOWN_MS = 3 * 60_000;
+const lastStaleCleanupByUser = new Map<string, number>();
+
+/**
  * Vercel hard-kill (300 sn) sonrası pending kalan rezervasyonları iade et.
- * Yeni migration yok — mevcut credit_reservations + credit_refund.
- * Best-effort: hata üretim yolunu bozmaz.
+ * Yalnızca allowlist'teki tek-istek eylemleri; DOCUMENT_PAGE_PROCESS dokunulmaz.
+ * Yeni migration yok. Best-effort.
  */
 export async function refundStalePendingReservations(
   service: SupabaseClient,
@@ -110,15 +136,23 @@ export async function refundStalePendingReservations(
     /** Varsayılan 10 dakika. */
     olderThanMs?: number;
     limit?: number;
+    /** true ise kullanıcı cooldown'ı yok sayılır (cron). */
+    force?: boolean;
   } = {},
 ): Promise<number> {
   const olderThanMs = options.olderThanMs ?? 10 * 60_000;
   const cutoff = new Date(Date.now() - olderThanMs).toISOString();
+  if (options.userId && !options.force) {
+    const last = lastStaleCleanupByUser.get(options.userId) ?? 0;
+    if (Date.now() - last < STALE_CLEANUP_COOLDOWN_MS) return 0;
+    lastStaleCleanupByUser.set(options.userId, Date.now());
+  }
   try {
     let query = service
       .from("credit_reservations")
-      .select("id")
+      .select("id, action_code, status")
       .eq("status", "pending")
+      .in("action_code", [...STALE_REFUND_ACTION_CODES])
       .lt("created_at", cutoff)
       .order("created_at", { ascending: true })
       .limit(options.limit ?? 40);
@@ -127,6 +161,9 @@ export async function refundStalePendingReservations(
     if (error || !data?.length) return 0;
     let refunded = 0;
     for (const row of data) {
+      const code = String(row.action_code ?? "");
+      if (!(STALE_REFUND_ACTION_CODES as readonly string[]).includes(code)) continue;
+      if (code === "DOCUMENT_PAGE_PROCESS") continue;
       try {
         await refundCredits(service, row.id as string);
         refunded += 1;
@@ -144,6 +181,11 @@ export async function refundStalePendingReservations(
   } catch {
     return 0;
   }
+}
+
+/** Test / cooldown sıfırlama. */
+export function resetStaleCleanupCooldownForTests() {
+  lastStaleCleanupByUser.clear();
 }
 
 /**

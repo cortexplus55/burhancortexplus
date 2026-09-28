@@ -16,6 +16,14 @@ describe("stripLearnerVerificationChrome", () => {
     ).toBe("Özet burada.");
   });
 
+  it("çok kelimeli Kaynak: adını tümüyle siler", () => {
+    expect(
+      stripLearnerVerificationChrome(
+        "Mol korunur. Kaynak: Organik Kimya Ders Notları.pdf, s.4 Sonraki adımdır.",
+      ),
+    ).toBe("Mol korunur. Sonraki adımdır.");
+  });
+
   it("belirli meta notları siler; gerçek öğretim cümleleri kalır", () => {
     expect(
       stripLearnerVerificationChrome(

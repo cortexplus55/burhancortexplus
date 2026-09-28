@@ -168,13 +168,15 @@ export async function GET(request: Request) {
 
   let staleReservations = 0;
   try {
-    // Vercel 300 sn hard-kill sonrası pending kalan rezervasyonlar.
+    // Vercel 300 sn hard-kill sonrası pending kalan tek-istek rezervasyonlar.
+    // force: kullanıcı cooldown'ı yok; DOCUMENT_PAGE_PROCESS allowlist dışı.
     staleReservations = await refundStalePendingReservations(service, {
       olderThanMs: 10 * 60_000,
       limit: 80,
+      force: true,
     });
   } catch {
-    logOpsEvent("subscription_sync_failed", { stage: "stale_reservations" });
+    logOpsEvent("credit_transaction_failed", { stage: "stale_reservations" });
   }
 
   return NextResponse.json({

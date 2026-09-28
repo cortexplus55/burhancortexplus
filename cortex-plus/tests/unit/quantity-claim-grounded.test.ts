@@ -94,6 +94,26 @@ describe("quantityClaimGrounded — türetilmiş nicelik", () => {
     expect(quantityClaimGrounded("22,4 = 22,4 = 22,4", GAS)).toBe(true);
   });
 
+  it("Unicode üst simge üs: 10⁻² caret bilimsel karşılaştırmaya girer", () => {
+    const source = "Asit sabiti Ka = 1,8 × 10^-5. Avogadro 6,02 × 10^23.";
+    expect(
+      unsupportedQuantities("Ka = 1,8 × 10⁻² bulunur.", source).length,
+    ).toBeGreaterThan(0);
+    expect(quantityClaimGrounded("Ka = 1,8 × 10⁻² bulunur.", source)).toBe(false);
+    expect(quantityClaimGrounded("Ka = 1,8 × 10⁻⁵ bulunur.", source)).toBe(true);
+    expect(
+      unsupportedQuantities("[H⁺] = 10⁻² M alınır.", source).length,
+    ).toBeGreaterThan(0);
+    expect(quantityClaimGrounded("[H⁺] = 10⁻² M alınır.", source)).toBe(false);
+    expect(quantityClaimGrounded("N = 6,02 × 10²³ alınır.", source)).toBe(true);
+  });
+
+  it("düz ondalık kaynakta bilimsel değerle eşleşir", () => {
+    const source = "Asit sabiti Ka = 1,8 × 10^-5 mol/L.";
+    expect(quantityClaimGrounded("Ka = 0,000018 mol/L.", source)).toBe(true);
+    expect(unsupportedQuantities("Ka = 0,000018 mol/L.", source)).toEqual([]);
+  });
+
   it("çok cümleli doğru örnek: sonraki adım önceki sonuçla kalır", () => {
     expect(
       withoutUnsupportedQuantities(
