@@ -1759,7 +1759,7 @@ function equationCheck(
 /**
  * Model üçüncü soruyu yazmadıysa dersin kendi cümlelerinden kurulur.
  * Yeni bir model çağrısı yok. Çeldirici, dersteki başka bağıntı ya da aynı bağıntının değişimidir.
- * Hedef en az 3 (klasik ensureThreeChecks); daha geniş derste minimumLessonChecks üstüne çıkar.
+ * Klasik hedef 3; daha geniş derste minimumLessonChecks üstüne çıkar.
  */
 export function ensureThreeChecks(lesson: LessonV2, source = ""): LessonV2 {
   const next: LessonV2 = {
@@ -1822,9 +1822,18 @@ export function ensureThreeChecks(lesson: LessonV2, source = ""): LessonV2 {
     section.check = queue.shift();
   }
   while (queue.length && checkCount(next) < target() && next.sections.length < 8) {
-    const check = queue.shift();
+    // Yeni slayta yalnızca MCQ koy — TF kökü gövdeyle echo_check üretir.
+    const idx = queue.findIndex((row) => !isBinaryCheck(row));
+    if (idx < 0) break;
+    const check = queue.splice(idx, 1)[0];
     if (!check) break;
-    const body = check.explanation.length >= 20 ? check.explanation : `${check.explanation} Bu bağıntı dersin anlatımındadır.`;
+    // Yeni bölüm gövdesi açıklama olmasın — prompt ile aynı metin echo sayılır.
+    const bodySeed =
+      equations.find((item) => foldTr(check.explanation).includes(foldTr(item.equation)))?.sentence ??
+      statements.find((sentence) => foldTr(check.prompt).includes(foldTr(sentence).slice(0, 40))) ??
+      check.explanation;
+    const body =
+      bodySeed.length >= 20 ? bodySeed : `${check.explanation} Bu bağıntı dersin anlatımındadır.`;
     const heading = addedHeading(check.prompt, next.title);
     next.sections.push({
       heading: heading.length >= 2 ? heading : "Bağıntı",

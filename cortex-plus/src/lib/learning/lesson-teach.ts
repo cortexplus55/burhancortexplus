@@ -965,7 +965,9 @@ function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): Le
     if (!exampleReady(blob, source)) next = withoutExample(next);
   }
   next = scrubInventedNumbers(next, source);
-  next = ensureThreeChecks(next, source);
+  if (next.sections.filter((section) => section.check).length < minimumLessonChecks(next)) {
+    next = ensureThreeChecks(next, source);
+  }
   const dropped =
     next.sections.filter((section) => section.check).length < checksBefore ||
     sentences(lessonProse(next)).length < sentencesBefore ||
@@ -1267,7 +1269,10 @@ export function salvageTaughtLesson(
   if (!still.length) return { lesson: prepared, removed };
 
   const stripped = salvageStripRemaining(prepared, source, topic, removed);
-  const refilled = ensureThreeChecks(stripped, source);
+  const refilled =
+    stripped.sections.filter((section) => section.check).length < minimumLessonChecks(stripped)
+      ? ensureThreeChecks(stripped, source)
+      : stripped;
   const finalParsed = lessonV2Schema.safeParse(refilled).data ?? refilled;
   return { lesson: finalParsed, removed };
 }
@@ -1345,7 +1350,10 @@ export async function finishTaughtLesson(
     failures = teachingFailures(current, input.source, input.topicLabel);
   }
   if (!criticalTeachingFailures(failures).length) {
-    const topped = ensureThreeChecks(current, input.source);
+    const topped =
+      current.sections.filter((s) => s.check).length < minimumLessonChecks(current)
+        ? ensureThreeChecks(current, input.source)
+        : current;
     return {
       lesson: topped,
       failures: teachingFailures(topped, input.source, input.topicLabel),
@@ -1354,7 +1362,10 @@ export async function finishTaughtLesson(
     };
   }
   const salvaged = salvageTaughtLesson(current, input);
-  const topped = ensureThreeChecks(salvaged.lesson, input.source);
+  const topped =
+    salvaged.lesson.sections.filter((s) => s.check).length < minimumLessonChecks(salvaged.lesson)
+      ? ensureThreeChecks(salvaged.lesson, input.source)
+      : salvaged.lesson;
   return {
     lesson: topped,
     failures: teachingFailures(topped, input.source, input.topicLabel),
