@@ -7,6 +7,7 @@ import {
   describeGenerationFailure,
   generationFailureCode,
 } from "@/lib/learning/generation-failure";
+import { useIsFounder } from "@/lib/student/student-shell-context";
 
 export function PrepPodcastSession({
   prepId,
@@ -20,6 +21,7 @@ export function PrepPodcastSession({
   length: "ozet" | "standart" | "derin";
 }) {
   const router = useRouter();
+  const isAdmin = useIsFounder();
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [title, setTitle] = useState(topicLabel);
@@ -41,10 +43,21 @@ export function PrepPodcastSession({
           chapters?: unknown[];
           code?: string;
           error?: string;
+          refunded?: boolean;
+          reason?: string;
         };
         if (!alive) return;
         if (!res.ok || !Array.isArray(data.chapters)) {
-          const failure = describeGenerationFailure(generationFailureCode(data), undefined, "podcast");
+          const failure = describeGenerationFailure(
+            generationFailureCode(data),
+            undefined,
+            "podcast",
+            {
+              isAdmin,
+              refunded: data.refunded === true,
+              reason: data.reason,
+            },
+          );
           setMessage(failure.message);
           setStatus("error");
           return;
@@ -61,7 +74,7 @@ export function PrepPodcastSession({
     return () => {
       alive = false;
     };
-  }, [attempt, prepId, topicId, topicLabel, length]);
+  }, [attempt, prepId, topicId, topicLabel, length, isAdmin]);
 
   const home = `/deneme-sinavlari/${prepId}`;
 

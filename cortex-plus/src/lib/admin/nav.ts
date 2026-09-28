@@ -1,5 +1,6 @@
 import {
   Activity,
+  AlertTriangle,
   Coins,
   FileText,
   GraduationCap,
@@ -107,6 +108,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         label: "AI kullanımı",
         icon: Activity,
         blurb: "Hangi işlem ne sıklıkla çalışmış, ne kadar metin işlenmiş.",
+      },
+      {
+        href: "/admin/ders-hatalari",
+        label: "Ders hataları",
+        icon: AlertTriangle,
+        blurb: "Ders üretimi neden düştü: kaynak, kalite kapısı, sağlayıcı. TRT zaman damgası.",
       },
       {
         href: "/admin/adaptive",

@@ -160,6 +160,22 @@ export default async function AdminPage() {
           </div>
         </div>
       ) : null}
+
+      <AdminCard
+        title="Ders üretim hataları"
+        desc="Kaynak, kalite kapısı ve sağlayıcı düşüşleri."
+        actions={
+          <Link href="/admin/ders-hatalari" className="adm-btn">
+            Hatalara bak
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+          </Link>
+        }
+      >
+        <p className="text-sm text-[var(--adm-muted)]">
+          Her başarısız ders üretimi sebep kodu ve kaynak çözücü iziyle kayda
+          geçer. TRT zaman damgası.
+        </p>
+      </AdminCard>
     </AdminShell>
   );
 }

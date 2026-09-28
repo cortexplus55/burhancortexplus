@@ -220,7 +220,14 @@ export async function POST(request: Request) {
   // konu listesi saklı haritadan okunur.
   if (v2) {
     for (const documentId of documentIds) {
-      await refoldTopicMapIfNeeded(service, documentId);
+      try {
+        await refoldTopicMapIfNeeded(service, documentId);
+      } catch (error) {
+        console.error("intake_refold_skipped", {
+          documentId,
+          errorType: error instanceof Error ? (error.constructor?.name ?? error.name) : "unknown",
+        });
+      }
     }
   }
   const groups: MergeTopicInput[][] = [];

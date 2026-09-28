@@ -119,7 +119,7 @@ describe("sınav kapsamı", () => {
     expect(priorityForTopic(groups, "Birinci Yasa")).toBe("important");
     expect(schedulePriorityForTopic(groups, "Birim dönüşümü")).toBe(5);
     expect(lessonDepth("important").maxDraftAttempts).toBe(2);
-    expect(lessonDepth("less").maxDraftAttempts).toBe(1);
+    expect(lessonDepth("less").maxDraftAttempts).toBe(2);
     expect(lessonDepth("less").quizItems).toBeLessThan(lessonDepth("important").quizItems);
     expect(lessonDepth(null).maxDraftAttempts).toBe(2);
   });

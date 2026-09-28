@@ -9,7 +9,7 @@
 
 import { foldTr } from "@/lib/documents/page-analysis";
 import { restoreMathNotation } from "@/lib/learning/lesson-board";
-import { unsupportedQuantities } from "@/lib/learning/teacher-brain";
+import { quantityClaimGrounded, unsupportedQuantities } from "@/lib/learning/teacher-brain";
 import { retainAnchoredSentences } from "@/lib/learning/lesson-coherence";
 import {
   definitionalInversionIssues,
@@ -79,7 +79,12 @@ function sentenceReason(sentence: string, source: string): string | null {
   if (definitionalInversionIssues(sentence).length) return "definition_inversion";
   const alien = alienHit(sentence, source);
   if (alien) return `off_topic:${alien}`;
-  if (source.trim() && !truncated(source) && unsupportedQuantities(sentence, source).length) {
+  if (
+    source.trim() &&
+    !truncated(source) &&
+    unsupportedQuantities(sentence, source).length &&
+    !quantityClaimGrounded(sentence, source)
+  ) {
     return "unsupported_quantity";
   }
   return null;

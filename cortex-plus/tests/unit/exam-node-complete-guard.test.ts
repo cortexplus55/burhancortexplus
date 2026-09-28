@@ -1,8 +1,30 @@
 import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ guard: vi.fn(), source: vi.fn(), generate: vi.fn() }));
-vi.mock("@/lib/api/guards", () => ({ withUser: mocks.guard, errorResponse: (status: number, error: string) => Response.json({ error }, { status }) }));
+vi.mock("@/lib/api/guards", () => ({
+  withUser: mocks.guard,
+  errorResponse: (status: number, code: string, extras: Record<string, unknown> = {}) =>
+    Response.json({ error: code, code, ...extras }, { status }),
+}));
 vi.mock("@/lib/ai/generate", () => ({ generateJson: mocks.generate, isPremiumUser: vi.fn() }));
-vi.mock("@/lib/learning/source-context", () => ({ EMPTY_SOURCE_CONTEXT: {}, loadSourceContext: mocks.source, loadMergedTopicContext: mocks.source }));
+vi.mock("@/lib/learning/source-context", () => ({
+  EMPTY_SOURCE_CONTEXT: { block: "", matches: [], documentName: null },
+  loadSourceContext: mocks.source,
+  loadMergedTopicContext: mocks.source,
+  loadPageSourceAcrossDocuments: mocks.source,
+  loadPageSourceContext: mocks.source,
+  pagesMarkedInSource: () => [],
+  widenSourcePages: async (_s: unknown, _d: unknown, _t: unknown, pages: number[]) => pages,
+}));
+vi.mock("@/lib/learning/lesson-source-resolver", () => ({
+  resolveLessonSource: async () => ({
+    unavailable: "search_error",
+    trace: { steps: [] },
+  }),
+  enrichLessonSource: async (_s: unknown, _u: unknown, ctx: unknown) => ctx,
+}));
+vi.mock("@/lib/learning/lesson-generation-failures", () => ({
+  recordLessonGenerationFailure: vi.fn(async () => undefined),
+}));
 vi.mock("@/lib/learning/exam-quiz-generate", () => ({ generateExamQuiz: vi.fn() }));
 import { POST } from "@/app/api/learning/exam-prep/node/route";
 
@@ -17,9 +39,15 @@ describe("selected source is required before generation", () => {
         select: (columns: string) => { selected = columns; return builder; },
         eq: () => builder, or: () => builder, order: () => builder, limit: () => builder, insert,
         maybeSingle: async () => {
-          if (table === "exam_preps") return selected === "document_id"
-            ? { data: lookupFailure ? null : { document_id: "document" }, error: lookupFailure ? {} : null }
-            : { data: { id: "prep", title: "Biology" } };
+          if (table === "exam_preps") {
+            if (selected.includes("document_id") && !selected.includes("title")) {
+              return {
+                data: lookupFailure ? null : { document_id: "document", source_document_ids: [] },
+                error: lookupFailure ? {} : null,
+              };
+            }
+            return { data: { id: "prep", title: "Biology" } };
+          }
           if (table === "exam_prep_nodes") return { data: { id: "node", kind: "true_false", status: "ready" } };
           return { data: null };
         },
@@ -29,7 +57,8 @@ describe("selected source is required before generation", () => {
     mocks.guard.mockResolvedValue({ ok: true, ctx: { userId: "user", service: { from } } });
     const response = await POST(new Request("https://example.test", { method: "POST", body: JSON.stringify({ prepId: "00000000-0000-4000-8000-000000000001", nodeId: "00000000-0000-4000-8000-000000000002", action: "start" }) }));
     expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({ error: "source_unavailable" });
+    const body = await response.json();
+    expect(body.code ?? body.error).toBe("source_unavailable");
     expect(mocks.generate).not.toHaveBeenCalled();
     expect(insert).not.toHaveBeenCalled();
   });
