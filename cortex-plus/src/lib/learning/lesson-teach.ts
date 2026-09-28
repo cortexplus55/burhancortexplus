@@ -52,6 +52,11 @@ export const LESSON_TEACH_RULE = [
     "Kaynakta karşılık/eşik tablosu varsa table alanına yazılır. Bu üç alan gövdenin tekrarı değildir.",
   "Cümle yüklemle biter. Cümle ortasında sıradan ad büyük harfle başlamaz.",
   "Anlatım yaklaşık 5 dakikalık okuma olsun. Aynı cümleyi tekrarlayarak uzatma.",
+  "Öğrenci gövdeyi okumadan tahmin edebileceği bir check varsa checkFirst: true yaz — ekranda " +
+    "önce soru sorulur, sonra anlatım gelir. Seyrek kullan, her bölüme değil.",
+  "Kavram tek paragrafa sığmayacak kadar derinse aynı heading'i art arda iki bölümde kullanabilirsin " +
+    "(biri tanıtır, biri mekanizmayı derinleştirir) — ama yalnızca kaynak bu derinliği veriyorsa; " +
+    "bölüm sayısını doldurmak için heading tekrarlama.",
 ].join(" ");
 
 const CRITICAL = new Set([

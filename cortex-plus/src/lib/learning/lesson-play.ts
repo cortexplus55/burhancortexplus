@@ -75,6 +75,7 @@ export const publicLessonV2Schema = z.object({
           .object({ file: z.string(), page: z.number().optional() })
           .optional(),
         check: publicSectionCheckSchema.optional(),
+        checkFirst: z.boolean().optional(),
         retryCheck: publicSectionCheckSchema.optional(),
         note: z
           .object({

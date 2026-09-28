@@ -228,7 +228,14 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "Kaynakta doğal bir karşılık ya da eşik tablosu varsa (kategori/değer çiftleri) table alanına yaz. " +
         "formula/procedure/table doldurulduğunda body yine de tek başına anlaşılır kısa bir açıklama olarak " +
         "kalır; bu üç alan body'nin özeti değil, body'nin anlatmadığı somut ayrıntıdır — aynı sayıyı veya " +
-        "aynı cümleyi hem gövdede hem bu alanlarda tekrarlama."
+        "aynı cümleyi hem gövdede hem bu alanlarda tekrarlama. " +
+        "checkFirst: bir bölümün check'i, gövdeyi okumadan önce sorulunca kavramı daha iyi oturtuyorsa " +
+        "checkFirst: true yaz — ekranda önce soru, sonra anlatım gösterilir. Yalnızca gerçekten " +
+        "öğrencinin önceden tahmin edebileceği bir soru için kullan, her bölüme değil. " +
+        "Bir kavram tek paragrafa sığmayacak kadar derinse (somut mekanizma, çok basamaklı hesap) " +
+        "AYNI heading'i art arda iki bölümde kullanabilirsin: birincisi kavramı tanıtır, ikincisi " +
+        "mekanizmayı derinleştirir (procedure/formula/table ile). Bunu yalnızca kaynak gerçekten " +
+        "o derinliği veriyorsa yap; bölüm sayısını doldurmak için tekrar heading uydurma."
       );
     case "quiz":
       return (
@@ -393,6 +400,11 @@ export const lessonV2Schema = z.object({
           .optional()
           .catch(undefined),
         check: sectionCheckSchema.optional().catch(undefined),
+        // true ise ekranda check gövdeden ÖNCE gösterilir (geri getirme /
+        // "önce dene" — Astra kıyasında bu sıranın kavramı daha iyi
+        // oturttuğu görüldü). check yoksa etkisi yok; .catch ile bozuk
+        // değer sessizce false sayılır, dersi düşürmez.
+        checkFirst: z.boolean().optional().catch(undefined),
         // Süs alanlar dersi düşürmemeli.
         //
         // diagram eklenince ders üretimi tamamen durdu: model kurala

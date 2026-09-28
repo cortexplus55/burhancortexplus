@@ -241,6 +241,8 @@ type Step =
       heading: string;
       body: string;
       check?: PlayCheck;
+      /** true: check ekranda gövdeden önce gösterilir (geri getirme / "önce dene"). */
+      checkFirst?: boolean;
       note?: LessonV2["sections"][number]["note"];
       diagram?: LessonV2["sections"][number]["diagram"];
       cards?: LessonV2["sections"][number]["cards"];
@@ -311,6 +313,7 @@ function buildSteps(lesson: PlayLesson): Step[] {
         heading: s.heading,
         body: stripped ? stripped.body : s.body,
         check: s.check as PlayCheck | undefined,
+        checkFirst: ("checkFirst" in s ? s.checkFirst : undefined) as boolean | undefined,
         note: dedupedNote,
         diagram: ("diagram" in s ? s.diagram : undefined) as LessonV2["sections"][number]["diagram"] | undefined,
         cards: s.cards as LessonV2["sections"][number]["cards"] | undefined,
@@ -800,6 +803,13 @@ export function ExamLessonSteps({
         </div>
       ) : null}
 
+      {(() => {
+        // checkFirst: soru gövdeden önce gösterilir (geri getirme / "önce
+        // dene"). Görsel bir CSS ters çevirme (column-reverse) yerine gerçek
+        // DOM sırası değişiyor — ekran okuyucu da soruyu önce duysun diye.
+        const checkFirst = step.kind === "section" && Boolean(step.checkFirst);
+        const slideRegion = (
+          <>
       {step.kind === "review-gate" ? (
         <div className="als-slide">
           <p className="als-kicker">TEKRARLA</p>
@@ -1005,7 +1015,10 @@ export function ExamLessonSteps({
           ) : null}
         </div>
       ) : null}
-
+          </>
+        );
+        const checkRegion = (
+          <>
       {check && (check.type === "numerical" || check.type === "explain") ? (
         <section className="als-check" aria-label="Bölüm kontrolü">
           <p className="als-kicker">{checkKicker(check.type)}</p>
@@ -1193,6 +1206,15 @@ export function ExamLessonSteps({
           ) : null}
         </section>
       ) : null}
+          </>
+        );
+        return (
+          <div className="als-step-content">
+            {checkFirst ? checkRegion : slideRegion}
+            {checkFirst ? slideRegion : checkRegion}
+          </div>
+        );
+      })()}
 
       {revealed && check && ungradable ? (
         <div className="als-feedback" role="status">
