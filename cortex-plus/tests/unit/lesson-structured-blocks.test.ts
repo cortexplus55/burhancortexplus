@@ -65,8 +65,9 @@ describe("lessonV2Schema — formula/procedure/table fields", () => {
 
   it("drops a malformed procedure (fewer than 2 steps) without breaking the rest of the section", () => {
     const lesson = baseLesson();
+    // Malformed at runtime (schema requires >= 2 steps), not at the type
+    // level — zod's `.min()` isn't reflected in the inferred TS type.
     lesson.sections[0]!.procedure = {
-      // @ts-expect-error — intentionally malformed: schema requires min 2 steps
       steps: [{ label: "Tek adım", detail: "Yetersiz." }],
     };
     const parsed = lessonV2Schema.parse(lesson);
