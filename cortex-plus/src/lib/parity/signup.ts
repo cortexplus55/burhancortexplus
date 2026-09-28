@@ -30,6 +30,8 @@ export type SignupPayload = {
 };
 
 export const SIGNUP_STORAGE_KEY = "cortex-signup-payload";
+/** Kayıt bitince dönülecek yol (ör. /pay). safeNextPath ile okunur. */
+export const SIGNUP_NEXT_KEY = "cortex-signup-next";
 
 export const ROLE_OPTIONS: {
   id: SignupRole;

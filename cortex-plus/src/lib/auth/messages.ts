@@ -38,6 +38,12 @@ export function authErrorMessage(error: AuthError | null | undefined): string {
   if (msg.includes("invalid login credentials") || msg.includes("invalid credentials")) {
     return "E-posta veya şifre hatalı. Kontrol edip tekrar dene.";
   }
+  if (msg.includes("should be different")) {
+    return "Yeni şifre eskisiyle aynı olamaz.";
+  }
+  if (msg.includes("session missing")) {
+    return "Oturumun kapanmış. Şifreni sıfırlamak için yeni bir bağlantı iste.";
+  }
   if (msg.includes("expired") || msg.includes("invalid token") || msg.includes("otp")) {
     return "Bağlantının süresi dolmuş. Yeni bir bağlantı iste.";
   }

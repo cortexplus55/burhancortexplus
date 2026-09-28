@@ -216,6 +216,22 @@ describe("otomatik yenileme engelleri", () => {
     }
   });
 
+  /*
+    Kullanım koşulları sayfası kendi metnini ayrı tutuyor (texts.ts'te değil)
+    ve kayıt formundaki onay kutusu buraya bağlanıyor. 28 Eylül 2026'da
+    "İptal, o dönemin sonunda yenilemeyi durdurur" diyordu — iptal
+    edilmezse yenileneceğini ima eden, sözleşmeyle çelişen bir cümle.
+  */
+  it("desteklenmiyorken kullanım koşulları ve SSS de yenileme ima etmiyor", () => {
+    const terms = readFileSync("src/app/kullanim-kosullari/page.tsx", "utf8");
+    const faq = readFileSync("src/lib/parity/marketing-faq.ts", "utf8");
+    if (!AUTO_RENEW_SUPPORTED) {
+      expect(terms).toContain("otomatik olarak yenilenmez");
+      expect(terms).not.toMatch(/yenilemeyi durdur/i);
+      expect(faq).not.toMatch(/yenilemeyi durdur/i);
+    }
+  });
+
   it("engeller yönetim panelinde görünüyor", () => {
     const page = readFileSync("src/app/admin/sistem/page.tsx", "utf8");
     expect(page).toContain("RECURRING_BLOCKERS");

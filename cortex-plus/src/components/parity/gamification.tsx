@@ -7,8 +7,20 @@ import "@/styles/parity-app.css";
 
 const STORAGE_KEY = "cortex-gamification-v1";
 
+/*
+  Tek seferlik seri karşılaması.
+
+  Eskiden ikinci bir ekran "İlk Roket açıldı! Sıradaki rozetler seni
+  bekliyor" diyordu; oysa kodda rozet sistemi yok — açılan bir şey, sırada
+  bekleyen bir rozet yok. Öğrenciye tutulmayacak bir söz veriliyordu; ekran
+  kaldırıldı. Rozet sistemi kurulursa o ekran gerçek bir rozetle geri gelir.
+
+  Seri yalnızca soru sormakla değil, ders, test, sözlü, tekrar ve deneme
+  tamamlamakla da ilerliyor (recordUserActivity çağıranları) — metin de
+  bunu söylüyor.
+*/
 export function GamificationGate() {
-  const [step, setStep] = useState<"none" | "streak" | "badge">("none");
+  const [step, setStep] = useState<"none" | "streak">("none");
   const [streakDays, setStreakDays] = useState(1);
 
   useEffect(() => {
@@ -50,65 +62,26 @@ export function GamificationGate() {
     setStep("none");
   }
 
-  function continueFromStreak() {
-    setStep("badge");
-  }
-
   if (step === "none") return null;
-
-  if (step === "streak") {
-    return (
-      <div
-        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Seri"
-      >
-        <div className="cs-app cs-pay-card w-full max-w-sm p-6 text-center">
-          <p className="text-4xl" aria-hidden>
-            🔥
-          </p>
-          <h2 className="mt-3 text-xl font-semibold">
-            {streakDays > 1 ? `${streakDays} günlük serin devam ediyor!` : "Serini başlattın!"}
-          </h2>
-          <p className="mt-2 text-sm text-[var(--cs-muted)]">
-            Her gün en az bir soru sorarak serini canlı tut.
-          </p>
-          <Button
-            type="button"
-            className="cs-btn-primary mt-6 w-full rounded-full"
-            onClick={continueFromStreak}
-          >
-            Devam et
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="Başarı"
+      aria-label="Seri"
     >
       <div className="cs-app cs-pay-card w-full max-w-sm p-6 text-center">
         <p className="text-4xl" aria-hidden>
-          🚀
+          🔥
         </p>
-        <h2 className="mt-3 text-xl font-semibold">İlk Roket açıldı!</h2>
+        <h2 className="mt-3 text-xl font-semibold">
+          {streakDays > 1 ? `${streakDays} günlük serin devam ediyor!` : "Serini başlattın!"}
+        </h2>
         <p className="mt-2 text-sm text-[var(--cs-muted)]">
-          Cortex Plus yolculuğuna başladın. Sıradaki rozetler seni bekliyor.
+          Her gün bir ders, test ya da soru — hangisi olursa — serini canlı tutar.
         </p>
         <div className="mt-6 flex flex-col gap-2">
-          <Link
-            href="/ilerleme"
-            className="text-sm text-[var(--cs-primary)] underline underline-offset-2"
-            onClick={dismiss}
-          >
-            Hikâyeyi gör
-          </Link>
           <Button
             type="button"
             className="cs-btn-primary w-full rounded-full"
@@ -116,6 +89,13 @@ export function GamificationGate() {
           >
             Devam et
           </Button>
+          <Link
+            href="/ilerleme"
+            className="text-sm text-[var(--cs-primary)] underline underline-offset-2"
+            onClick={dismiss}
+          >
+            İlerlemeni gör
+          </Link>
         </div>
       </div>
     </div>

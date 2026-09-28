@@ -216,6 +216,8 @@ export function ExamNodeSession({
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [flipped, setFlipped] = useState(false);
+  /** Cevabı en az bir kez görülen kartın sırası — değerlendirme ancak ondan sonra açılır. */
+  const [revealedCard, setRevealedCard] = useState(-1);
   const [score, setScore] = useState({ score: 0, total: 1, retried: 0 });
   const [playStartedAt, setPlayStartedAt] = useState<number | null>(null);
   const [oralGrade, setOralGrade] = useState<{
@@ -1214,16 +1216,36 @@ export function ExamNodeSession({
       ) : null}
 
       {stage === "play" && payload.type === "cards" && cards[index] ? (
+        /*
+          Değerlendirme cevap görüldükten sonra açılıyor. Önceden "Evet"
+          kart hiç çevrilmeden basılabiliyordu: öğrenci cevabı görmeden
+          "biliyorum" diyebiliyor, o öz-değerlendirme de kayda geçiyordu.
+          Aralıklı tekrarın kuralı önce hatırla, sonra cevabı gör, sonra
+          dürüstçe değerlendir.
+        */
         <section className="cp-exam-card-stage">
           <p className="cp-lesson-kicker">
             {index + 1}/{cards.length}
           </p>
-          <button type="button" className="cp-exam-flash" onClick={() => setFlipped((value) => !value)}>
-            {flipped ? cards[index].back : cards[index].front}
+          <button
+            type="button"
+            className={cn("cp-exam-flash", flipped && "cp-exam-flash--back")}
+            aria-label={flipped ? "Kartı soru yüzüne çevir" : "Kartı çevir, cevabı göster"}
+            onClick={() => {
+              setFlipped((value) => !value);
+              setRevealedCard(index);
+            }}
+          >
+            <span className="cp-exam-flash-side">{flipped ? "Cevap" : "Soru"}</span>
+            <span aria-live="polite">{flipped ? cards[index].back : cards[index].front}</span>
           </button>
-          <p className="text-sm text-[var(--cp-muted)]">Kartı çevirmek için tıkla</p>
-          <p>Cevabı biliyor musun?</p>
-          <div className="flex gap-2">
+          {revealedCard !== index ? (
+            <p className="cp-exam-card-hint">Önce kendin hatırlamaya çalış, sonra karta dokunup cevabı gör.</p>
+          ) : null}
+          {revealedCard === index ? (
+          <>
+          <p>Cevabı biliyor muydun?</p>
+          <div className="cp-exam-card-rate">
             <button
               type="button"
               className="cp-exam-continue"
@@ -1251,6 +1273,8 @@ export function ExamNodeSession({
               Evet
             </button>
           </div>
+          </>
+          ) : null}
         </section>
       ) : null}
 

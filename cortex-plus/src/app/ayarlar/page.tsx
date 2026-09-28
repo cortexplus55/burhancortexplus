@@ -117,13 +117,30 @@ export default async function AyarlarPage() {
         </SectionCard>
 
         <SectionCard
+          title="Güvenlik"
+          description="Google ile kayıt olduysan buradan bir şifre de belirleyebilirsin."
+        >
+          <Link href="/sifre-yenile" className="text-sm font-medium underline">
+            Şifreni değiştir
+          </Link>
+        </SectionCard>
+
+        {/*
+          Silme bir ekip işi değil: talep anında işleniyor, yarım kalırsa
+          günlük cron yeniden deniyor (processPendingDeletionRequests). Eski
+          metin "ekibimiz KVKK süresi içinde" diyor, durumu ham "pending"
+          olarak gösteriyordu.
+        */}
+        <SectionCard
           title="Hesap verisi"
-          description="Silme talebi oluşturduğunda ekibimiz KVKK süresi içinde işlemi tamamlar."
+          description="Silme talebi hemen işlenir; tamamlandığında hesabın kapanır."
         >
           {deletionRequest ? (
             <p className="text-sm">
-              Talep durumu: <strong>{deletionRequest.status}</strong> ·{" "}
-              {formatDate(deletionRequest.requested_at)}
+              {deletionRequest.status === "completed"
+                ? "Silme talebin tamamlandı"
+                : "Silme talebin işleniyor; yarım kalan adımlar her gün otomatik olarak yeniden deneniyor"}{" "}
+              · {formatDate(deletionRequest.requested_at)}
             </p>
           ) : (
             <DataDeletionButton />

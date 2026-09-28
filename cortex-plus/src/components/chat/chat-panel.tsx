@@ -297,6 +297,8 @@ function ChatPanelSession({
     (typeof COMPOSER_MODES)[number]["id"] | null
   >(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const viewRef = useRef<HTMLDivElement>(null);
+  const composerZoneRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(3);
@@ -489,6 +491,40 @@ function ChatPanelSession({
     };
   }, []);
 
+  /*
+    Sabit besteci (composer) içeriğin üstünde duruyor; altındaki içerik
+    onun kapladığı kadar boşluk bırakmalı. Bu boşluk CSS'te beş ayrı sabit
+    sayıyla tutuluyordu (12rem, 13.5rem, 16.5rem, 17.75rem, 22.5rem) — her
+    biri bir durum ve bir genişlik için ayarlanmış, birbirini hesaba
+    katmamış. 28 Eylül 2026'da 375px'te "Günün turu" kartı kaynak seçicinin
+    ("Yalnızca belgem") üstüne biniyordu: 23 Eylül'de besteci alt menünün
+    üstüne 4.6rem kaldırılmış, ama 24 Eylül'deki hero boşluğu bu kaldırmayı
+    içermiyordu. Artık gerçek yükseklik ölçülüyor.
+  */
+  useEffect(() => {
+    const view = viewRef.current;
+    const zone = composerZoneRef.current;
+    if (!view || !zone) return;
+    const sync = () => {
+      if (window.getComputedStyle(zone).position !== "fixed") {
+        view.style.removeProperty("--cp-sor-composer-clearance");
+        delete view.dataset.composerMeasured;
+        return;
+      }
+      const clearance = Math.max(0, Math.ceil(window.innerHeight - zone.getBoundingClientRect().top));
+      view.style.setProperty("--cp-sor-composer-clearance", `${clearance}px`);
+      view.dataset.composerMeasured = "1";
+    };
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(sync);
+    observer?.observe(zone);
+    window.addEventListener("resize", sync);
+    sync();
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", sync);
+    };
+  }, [isParitySor]);
+
   function clearPending() {
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPendingFile(null);
@@ -599,7 +635,10 @@ function ChatPanelSession({
         const mode = COMPOSER_MODES.find((m) => m.id === composerAssist);
         if (!mode || !text) return text;
         if (mode.id === "today") {
-          return `${mode.prefix}(Günlük hedefim: ${dailyGoalMinutes} dakika.) ${text}`;
+          // Ayarlarda bu değer "günlük soru / görev sayısı" olarak soruluyor
+          // (sütunun adı daily_goal_minutes olsa da). Modele "dakika" demek
+          // 3 görevlik hedefi 3 dakikalık bir hedefe çeviriyordu.
+          return `${mode.prefix}(Günlük hedefim: ${dailyGoalMinutes} soru ya da görev.) ${text}`;
         }
         return `${mode.prefix}${text}`;
       })(),
@@ -1004,7 +1043,7 @@ function ChatPanelSession({
   if (isParitySor) {
     return (
       <>
-        <div className={cn("cp-sor-view", examChrome && "cp-exam-chat")}>
+        <div ref={viewRef} className={cn("cp-sor-view", examChrome && "cp-exam-chat")}>
           {showParityThread && !examChrome ? (
             <div className="cp-thread-bar">
               <button type="button" onClick={resetParityThread}>
@@ -1242,6 +1281,7 @@ function ChatPanelSession({
               daraltmadan her açılışta görünüyor. Sınav sohbetinde satış
               kartı yok; kota dolunca mevcut kredi kapısı açılır. */}
           <div
+            ref={composerZoneRef}
             className={cn(
               "cp-sor-composer-zone",
               showUpgrade && "cp-sor-composer-zone--aside",

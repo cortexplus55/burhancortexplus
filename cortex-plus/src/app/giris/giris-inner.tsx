@@ -5,6 +5,8 @@ import { PremiumAuthShell } from "@/components/layout/premium-auth-shell";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { createClient } from "@/lib/supabase/client";
 import { signInWithGoogle } from "@/lib/auth/google-oauth";
+import { authErrorMessage } from "@/lib/auth/messages";
+import { safeNextPath } from "@/lib/auth/safe-next-path";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -14,10 +16,15 @@ export default function GirisPage() {
   const params = useSearchParams();
   // Giriş sonrası varsayılan ana sayfa öğrenme döngüsü (dashboard); AI sohbet
   // yalnızca açıkça `next=/ogretmen` istenirse.
-  const next = params.get("next") ?? "/dashboard";
+  //
+  // `next` doğrudan router.push'a gidiyordu: /giris?next=https://… girişten
+  // sonra öğrenciyi başka bir siteye götürüyordu (açık yönlendirme). Google
+  // yolu sunucuda (auth/callback) temizleniyordu, şifreli giriş yolu değil.
+  const next = safeNextPath(params.get("next"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [unconfirmed, setUnconfirmed] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,7 +33,18 @@ export default function GirisPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
-      toast.error("Giriş başarısız. Bilgilerini kontrol et.");
+      // "Giriş başarısız" her hatada aynıydı; e-postasını doğrulamamış
+      // öğrenci şifresini yanlış sanıyordu.
+      const needsConfirm = error.message.toLowerCase().includes("email not confirmed");
+      setUnconfirmed(needsConfirm);
+      if (needsConfirm) {
+        try {
+          sessionStorage.setItem("cortex-signup-email", email);
+        } catch {
+          /* ignore */
+        }
+      }
+      toast.error(authErrorMessage(error));
       return;
     }
     router.push(next);
@@ -50,6 +68,19 @@ export default function GirisPage() {
     >
       <div className="space-y-4">
         <GoogleSignInButton onClick={google} disabled={loading} />
+        {/* Google ile ilk girişte hesap burada da açılabiliyor; kayıt
+            sihirbazındaki onay kutusu bu yolda hiç görünmüyordu. */}
+        <p className="text-center text-xs text-[var(--cx-muted)]">
+          Google ile devam ederek{" "}
+          <Link href="/kullanim-kosullari" className="underline">
+            Kullanım Koşulları
+          </Link>
+          {" ve "}
+          <Link href="/kvkk" className="underline">
+            KVKK Aydınlatma Metni
+          </Link>
+          &apos;ni kabul etmiş olursun.
+        </p>
 
         <div className="flex items-center gap-3 text-xs text-[var(--cx-muted)]">
           <span className="h-px flex-1 bg-[var(--cx-border)]" aria-hidden />
@@ -90,6 +121,15 @@ export default function GirisPage() {
             Giriş yap
           </button>
         </form>
+        {unconfirmed ? (
+          <p className="text-center text-sm text-[var(--cx-muted)]" role="status">
+            Doğrulama e-postası gelmediyse{" "}
+            <Link href="/email-dogrula" className="text-[var(--cx-gold-hover)] underline">
+              yenisini gönder
+            </Link>
+            .
+          </p>
+        ) : null}
         <p className="text-center text-sm text-[var(--cx-muted)]">
           <Link href="/sifremi-unuttum" className="text-[var(--cx-gold-hover)] underline">
             Şifreni mi unuttun?

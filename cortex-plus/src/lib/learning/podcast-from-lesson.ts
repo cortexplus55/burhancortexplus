@@ -29,6 +29,7 @@ import {
   podcastNarrationBrief,
   SINGLE_NARRATOR_SCHEMA,
 } from "@/lib/learning/teacher-brain";
+import { lessonSectionDetails } from "@/lib/learning/lesson-section-text";
 
 /**
  * Podcast promptuna giren, dersin sıkıştırılmış hâli.
@@ -46,9 +47,9 @@ import {
 export function lessonPodcastBrief(lesson: LessonV2): string {
   const sections = lesson.sections
     .map((s, i) =>
-      isScaffoldHeading(s.heading)
+      (isScaffoldHeading(s.heading)
         ? `${i + 1}. (bu bölümü içeriğine göre sen adlandır): ${s.body}`
-        : `${i + 1}. ${s.heading}: ${s.body}`,
+        : `${i + 1}. ${s.heading}: ${s.body}`) + sectionDetails(s),
     )
     .join("\n");
 
@@ -71,6 +72,12 @@ export function lessonPodcastBrief(lesson: LessonV2): string {
   ]
     .filter((line) => line !== "")
     .join("\n");
+}
+
+function sectionDetails(section: LessonV2["sections"][number]): string {
+  return lessonSectionDetails(section)
+    .map((line) => `\n   ${line}`)
+    .join("");
 }
 
 /**
@@ -164,7 +171,7 @@ export async function generatePodcastFromLesson(input: {
 
 ${brief}
 
-Bu podcast yukarıdaki DERSİN sesli hâlidir. Öğrenci dersi az önce okudu; şimdi aynı şeyi kulakla tekrar ediyor. Olguyu yeniden çıkarma, aktar: bölümler dersin bölümlerini izlesin, örnek dersin çözümlü örneği olsun, yaygın hata dersinki olsun. Derste geçmeyen bir sayı kullanma. BÖLÜM ADLARINI DERSTEN KOPYALAMA ZORUNDA DEĞİLSİN: her başlık o bölümde konuşulan kavramı adlandırsın.`,
+Bu podcast yukarıdaki DERSİN sesli hâlidir. Öğrenci dersi az önce okudu; şimdi aynı şeyi kulakla tekrar ediyor. Olguyu yeniden çıkarma, aktar: bölümler dersin bölümlerini izlesin, örnek dersin çözümlü örneği olsun, yaygın hata dersinki olsun. Bir bölümde sırayla yapılan işlem varsa adımları aynı sırayla anlat; karşılık tablosunu satır satır okuma, öğrencinin aklında kalması gereken karşılıkları söyle. Derste geçmeyen bir sayı kullanma. BÖLÜM ADLARINI DERSTEN KOPYALAMA ZORUNDA DEĞİLSİN: her başlık o bölümde konuşulan kavramı adlandırsın.`,
     parse: (raw) => {
       const data = podcastV2Schema.safeParse(raw).data ?? null;
       if (!data) {

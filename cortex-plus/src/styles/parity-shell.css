@@ -9016,3 +9016,94 @@
   }
 }
 
+
+/*
+  Sabit besteci için ölçülmüş boşluk (bkz. chat-panel.tsx, composerZoneRef).
+  Yukarıdaki sabit padding-bottom değerleri (12rem … 22.5rem) yalnızca ilk
+  boyamada, ölçüm gelmeden önce geçerli. Ölçüm gelince içerik, bestecinin
+  gerçekten kapladığı yükseklik + 1rem kadar boşluk bırakıyor — genişlik,
+  kaynak seçici satırı, Plus kartı ya da klavye ne olursa olsun.
+*/
+.cp-sor-root .cp-sor-view[data-composer-measured] .cp-sor-hero,
+.cp-sor-root .cp-sor-view[data-composer-measured] .cp-sor-messages {
+  padding-bottom: calc(var(--cp-sor-composer-clearance) + 1rem);
+}
+
+@media (max-width: 767px) {
+  /*
+    Boş ekranda besteci saydamdı: "Günün turu" kartı kaydırılınca ya da dar
+    ekranda kaynak seçicinin ("Yalnızca belgem") arkasından görünüyor, iki
+    metin üst üste biniyordu (28 Eylül 2026, 375px). Plus kartlı hâl bunu
+    zaten opak zeminle çözmüştü; normal hâl de aynı zemini alıyor.
+  */
+  .cp-sor-root .cp-sor-view[data-composer-measured] .cp-sor-composer-zone {
+    background: var(--cp-bg);
+    box-shadow: 0 -0.75rem 0.75rem -0.25rem var(--cp-bg);
+  }
+}
+
+@media (max-width: 640px) {
+  /*
+    Üç öneri çipi alt alta üç satır (153px) kaplıyordu; 375×812'de bu,
+    "Günün turu" kartını bestecinin altına itiyordu. İkişerli sıra bir satır
+    kazandırıyor, dokunma hedefi 44px kalıyor.
+  */
+  .cp-sor-root .cp-sor-starters {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .cp-sor-root .cp-sor-starter {
+    flex: 1 1 calc(50% - 0.5rem);
+    width: auto;
+  }
+}
+
+/*
+  Sınav hazırlığındaki hafıza kartı. Bölümün kendi stili yoktu: kart ortada,
+  ipucu ve Evet/Hayır sırası solda duruyordu. Kart artık hangi yüzün
+  göründüğünü söylüyor; değerlendirme cevap görüldükten sonra açılıyor.
+*/
+.cp-exam-card-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.cp-exam-card-stage .cp-exam-flash {
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.cp-exam-flash--back {
+  border-color: color-mix(in srgb, var(--cp-gold) 55%, transparent);
+  background: color-mix(in srgb, var(--cp-gold) 6%, var(--c-surface-2));
+}
+
+.cp-exam-flash-side {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.cp-exam-flash--back .cp-exam-flash-side {
+  color: var(--cp-gold);
+}
+
+.cp-exam-card-hint {
+  margin: 0;
+  max-width: 22rem;
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
+.cp-exam-card-rate {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
