@@ -110,4 +110,23 @@ describe("exam prep home path", () => {
     expect(screen.getByText("Sistemler")).toBeTruthy();
     expect(screen.getByText("Enerji")).toBeTruthy();
   });
+
+  it("shows a lock icon (not a step number) on a locked trail node", () => {
+    renderHome();
+    const locked = screen.getByRole("button", { name: /Podcast Dinle/ });
+    expect(locked.querySelector("svg.lucide-lock")).toBeTruthy();
+  });
+
+  it("shows a check icon on a done trail node", () => {
+    renderHome({ nodes: [{ ...lesson, status: "done" }, podcast] });
+    const done = screen.getByRole("button", { name: /Giriş Dersi/ });
+    expect(done.querySelector("svg.lucide-check")).toBeTruthy();
+  });
+
+  it("renders the trail as a single connected list (no left/right split)", () => {
+    const { container } = renderHome();
+    expect(container.querySelector(".cp-exam-trail-item--left")).toBeNull();
+    expect(container.querySelector(".cp-exam-trail-item--right")).toBeNull();
+    expect(container.querySelectorAll(".cp-exam-trail-item")).toHaveLength(2);
+  });
 });

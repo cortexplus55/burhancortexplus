@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Check, Mic, Share2 } from "lucide-react";
+import { Check, Lock, Mic, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   PLAN_NODE_META,
@@ -53,7 +53,11 @@ export type HomeNode = {
 };
 
 function trailGlyph(node: HomeNode, index: number) {
-  if (node.status === "done") return "✓";
+  if (node.status === "done") return <Check className="h-5 w-5" aria-hidden />;
+  // Kilitli düğümde adım numarası yerine kilit: Astra kıyasında sıra
+  // numarasının konumdan zaten çıkarılabildiği, kilidin ise "bu daha
+  // açılmadı"yı tek bakışta ilettiği görüldü.
+  if (node.status === "locked") return <Lock className="h-4 w-4" aria-hidden />;
   if (node.kind === "podcast") return <Mic className="h-5 w-5" aria-hidden />;
   return index + 1;
 }
@@ -633,10 +637,7 @@ function StudyPath({
           </header>
           <ol className="cp-exam-trail" aria-label={group.phase.title}>
             {group.items.map(({ node, index }) => (
-              <li
-                key={node.id}
-                className={`cp-exam-trail-item cp-exam-trail-item--${index % 2 === 0 ? "left" : "right"}`}
-              >
+              <li key={node.id} className="cp-exam-trail-item">
                 <button
                   type="button"
                   className={`cp-exam-trail-node cp-exam-trail-node--${node.status}${
