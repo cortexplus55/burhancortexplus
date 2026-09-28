@@ -8,6 +8,9 @@ import { ArrowLeft, CalendarDays, Flame, Gift, Gauge, LayoutGrid, LineChart, Use
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/gamification";
 import { GamificationGate } from "@/components/parity/gamification";
+import { JourneyDialog, type JourneyTab } from "@/components/parity/journey-dialog";
+import { BadgeUnlockNotice } from "@/components/parity/badge-unlock-notice";
+import type { BadgeJourney } from "@/lib/gamification/badges";
 import { ParityDialogHost, MenuDialogUrlSync } from "@/components/parity/parity-dialog-host";
 import { PlusLimitBanner } from "@/components/paywall/plus-limit-banner";
 import { PromoBanner, type PromoCampaign } from "@/components/paywall/promo-banner";
@@ -82,6 +85,12 @@ export function ParitySorShell({
   }, [router]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
+  const [journeyOpen, setJourneyOpen] = useState(false);
+  const [journeyTab, setJourneyTab] = useState<JourneyTab>("streak");
+  // Pencere seriyi günlük kayıttan yeniden hesaplıyor; düğmedeki sayı da ona uysun.
+  const syncStreak = useCallback((journey: BadgeJourney) => {
+    setStreakCount(journey.streak.current);
+  }, []);
   const [limitDismissed, setLimitDismissed] = useState(false);
   const [balance, setBalance] = useState(account?.balance ?? 0);
   useEffect(() => {
@@ -260,7 +269,12 @@ export function ParitySorShell({
           <button
             type="button"
             className="cp-sor-streak"
-            aria-label={`Seri: ${streakCount} gün`}
+            aria-label={`Seri: ${streakCount} gün. Seri ve rozetleri aç`}
+            aria-haspopup="dialog"
+            onClick={() => {
+              setJourneyTab("streak");
+              setJourneyOpen(true);
+            }}
           >
             <Flame className="h-4 w-4 text-orange-500" aria-hidden />
             <span>{streakCount}</span>
@@ -394,6 +408,19 @@ export function ParitySorShell({
         <MenuDialogUrlSync onOpen={openMenuFromUrl} />
       </Suspense>
       {isPremium ? <GamificationGate /> : null}
+      <JourneyDialog
+        open={journeyOpen}
+        tab={journeyTab}
+        onClose={() => setJourneyOpen(false)}
+        onLoaded={syncStreak}
+      />
+      <BadgeUnlockNotice
+        onJourney={syncStreak}
+        onOpenBadges={() => {
+          setJourneyTab("badges");
+          setJourneyOpen(true);
+        }}
+      />
     </div>
     </StudentShellProvider>
   );
