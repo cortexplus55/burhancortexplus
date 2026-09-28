@@ -581,6 +581,147 @@
   line-height: 1.55;
 }
 
+/* Bağıntı kartı: gövdeden ayrı, altın çerçeveli — özet değil, formül. */
+.als-formula-card {
+  margin-top: 0.9rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-gold, var(--c-brand));
+  background: rgba(226, 179, 64, 0.08);
+}
+
+.als-formula-card-title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cp-gold, var(--c-brand));
+}
+
+.als-formula-card-expr {
+  margin: 0.4rem 0 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.als-formula-card-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #b8b8b8;
+}
+
+/* Mekanizma: düz paragraf değil, numaralı uygulanabilir adım listesi. */
+.als-procedure {
+  margin-top: 0.9rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-2);
+}
+
+.als-procedure-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #b8b8b8;
+}
+
+.als-procedure ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: als-procedure-step;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.als-procedure li {
+  counter-increment: als-procedure-step;
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+}
+
+.als-procedure li::before {
+  content: counter(als-procedure-step);
+  flex: none;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  background: var(--cp-gold, var(--c-brand));
+  color: #1a1a1a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.als-procedure-label {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  margin-right: 0.35rem;
+}
+
+.als-procedure-detail {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #d0d0d0;
+}
+
+/* Küçük referans tablosu (persentil↔SD gibi karşılıklar). Dar ekranda
+   yatay kaydırma kendi kutusunda kalır, sayfa yana taşmaz. */
+.als-reference-table {
+  margin-top: 0.9rem;
+}
+
+.als-reference-table-caption {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #b8b8b8;
+}
+
+.als-reference-table-scroll {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  border: 1px solid var(--cp-border);
+}
+
+.als-reference-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.als-reference-table th,
+.als-reference-table td {
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.als-reference-table th {
+  background: var(--c-surface-2);
+  font-weight: 700;
+  color: #b8b8b8;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.als-reference-table td {
+  border-top: 1px solid var(--cp-border);
+}
+
 /* Ders şeması: bölüm metniyle kontrol arasında, kendi kutusunda.
    Genişliği sınırlı — 320 birimlik çizim büyütülünce çizgiler
    incelip okunmaz oluyor. */

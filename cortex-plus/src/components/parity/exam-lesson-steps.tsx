@@ -130,6 +130,71 @@ function RichBody({ text, topicHint = "" }: { text: string; topicHint?: string }
   );
 }
 
+/**
+ * Bağıntı gövdeye gömülmez, ayrı bir kart olarak durur — Astra
+ * karşılaştırmasında gövdeye sıkışan formüllerin gövdeyi hem uzatıp hem
+ * okunaksızlaştırdığı görüldü. `.als-formula` adı `RichBody`'nin satır içi
+ * matematik bloğu tarafından zaten kullanılıyor; çakışmasın diye bu kart
+ * `.als-formula-card`.
+ */
+function FormulaCard({ formula }: { formula: NonNullable<LessonV2["sections"][number]["formula"]> }) {
+  return (
+    <div className="als-formula-card">
+      <p className="als-formula-card-title">{formula.title}</p>
+      <p className="als-formula-card-expr">
+        <RichBody text={formula.expression} />
+      </p>
+      {formula.note ? <p className="als-formula-card-note">{formula.note}</p> : null}
+    </div>
+  );
+}
+
+/** Mekanizma düz paragraf değil, numaralı ve uygulanabilir adım listesi. */
+function ProcedureList({ procedure }: { procedure: NonNullable<LessonV2["sections"][number]["procedure"]> }) {
+  return (
+    <div className="als-procedure">
+      {procedure.title ? <p className="als-procedure-title">{procedure.title}</p> : null}
+      <ol>
+        {procedure.steps.map((step, index) => (
+          <li key={index}>
+            <span className="als-procedure-label">{step.label}</span>
+            <span className="als-procedure-detail">{step.detail}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/** Küçük referans tablosu (persentil↔SD gibi karşılıklar). */
+function ReferenceTable({ table }: { table: NonNullable<LessonV2["sections"][number]["table"]> }) {
+  return (
+    <div className="als-reference-table">
+      {table.caption ? <p className="als-reference-table-caption">{table.caption}</p> : null}
+      <div className="als-reference-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              {table.columns.map((column, index) => (
+                <th key={index}>{column}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                {table.columns.map((_column, colIndex) => (
+                  <td key={colIndex}>{row[colIndex] ?? ""}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 type PlayLesson = LessonV2 | z.infer<typeof publicLessonV2Schema>;
 type PlayCheck = NonNullable<LessonV2["sections"][number]["check"]> | PublicSectionCheck;
 
@@ -143,6 +208,9 @@ type Step =
       note?: LessonV2["sections"][number]["note"];
       diagram?: LessonV2["sections"][number]["diagram"];
       cards?: LessonV2["sections"][number]["cards"];
+      formula?: LessonV2["sections"][number]["formula"];
+      procedure?: LessonV2["sections"][number]["procedure"];
+      table?: LessonV2["sections"][number]["table"];
       sectionIndex: number;
     }
   | {
@@ -198,6 +266,11 @@ function buildSteps(lesson: PlayLesson): Step[] {
         note: s.note as LessonV2["sections"][number]["note"] | undefined,
         diagram: ("diagram" in s ? s.diagram : undefined) as LessonV2["sections"][number]["diagram"] | undefined,
         cards: s.cards as LessonV2["sections"][number]["cards"] | undefined,
+        formula: ("formula" in s ? s.formula : undefined) as LessonV2["sections"][number]["formula"] | undefined,
+        procedure: ("procedure" in s ? s.procedure : undefined) as
+          | LessonV2["sections"][number]["procedure"]
+          | undefined,
+        table: ("table" in s ? s.table : undefined) as LessonV2["sections"][number]["table"] | undefined,
         sectionIndex,
       }),
     ),
@@ -716,6 +789,12 @@ export function ExamLessonSteps({
               ))}
             </div>
           ) : null}
+
+          {step.kind === "section" && step.formula ? <FormulaCard formula={step.formula} /> : null}
+
+          {step.kind === "section" && step.procedure ? <ProcedureList procedure={step.procedure} /> : null}
+
+          {step.kind === "section" && step.table ? <ReferenceTable table={step.table} /> : null}
 
           {step.kind === "section" && step.diagram ? (
             <LessonDiagramView diagram={step.diagram} id={`als-d-${index}`} />

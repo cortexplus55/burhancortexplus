@@ -217,7 +217,14 @@ export function teachingStandardConstraints(activity: TeachingActivity): string 
         "commonMistake bu dersin kendi konusundan ve kaynak sayfalarından gelsin. " +
         "claim yanlış inanç, correction kaynağın doğrusu olsun. " +
         "Düzeltmeyi kaynak cümlesiyle yaz; yazamıyorsan commonMistake alanını atla. " +
-        "Kaynakta olmayan formül, birim veya sayı yazma; emin değilsen materyalde geçtiği hâliyle söyle."
+        "Kaynakta olmayan formül, birim veya sayı yazma; emin değilsen materyalde geçtiği hâliyle söyle. " +
+        "Hesaplanabilir bir bağıntı varsa formula alanına yaz (title, expression, note); gövdeye ikinci kez yazma. " +
+        "Kaynakta sıralı bir işlem/hesaplama basamağı varsa (2-6 adım) procedure alanına numaralı adım olarak yaz; " +
+        "her adımın detail'i kaynaktaki somut sayıyı taşısın, gövdede aynı adımları tekrar anlatma. " +
+        "Kaynakta doğal bir karşılık ya da eşik tablosu varsa (kategori/değer çiftleri) table alanına yaz. " +
+        "formula/procedure/table doldurulduğunda body yine de tek başına anlaşılır kısa bir açıklama olarak " +
+        "kalır; bu üç alan body'nin özeti değil, body'nin anlatmadığı somut ayrıntıdır — aynı sayıyı veya " +
+        "aynı cümleyi hem gövdede hem bu alanlarda tekrarlama."
       );
     case "quiz":
       return (
@@ -395,6 +402,46 @@ export const lessonV2Schema = z.object({
         // Şekille anlaşılan konularda çizim; model tarifini veriyor,
         // SVG'yi biz kuruyoruz (bkz. lesson-diagram.ts).
         diagram: lessonDiagramSchema.optional().catch(undefined),
+        // Hesaplanabilir bir bağıntı varsa gövdeye gömülmez, ayrı bir
+        // kart olarak durur — Astra karşılaştırmasında gövdeye sıkışan
+        // formüllerin okunaksızlaştığı görüldü (bkz. docs kıyas notu).
+        formula: z
+          .object({
+            title: z.string().min(2).max(60),
+            expression: z.string().min(2).max(200),
+            note: z.string().min(2).max(200).optional().catch(undefined),
+          })
+          .optional()
+          .catch(undefined),
+        // Kaynakta sıralı, uygulanabilir bir işlem varsa (hesaplama,
+        // tanı basamağı) düz paragraf yerine numaralı adım listesi.
+        procedure: z
+          .object({
+            title: z.string().min(2).max(80).optional().catch(undefined),
+            steps: z
+              .array(
+                z.object({
+                  label: z.string().min(2).max(80),
+                  detail: z.string().min(2).max(200),
+                }),
+              )
+              .min(2)
+              .max(6),
+          })
+          .optional()
+          .catch(undefined),
+        // Kaynakta doğal bir karşılık/eşik tablosu varsa (persentil↔SD
+        // gibi) küçük bir referans tablosu. Satır uzunluğu columns'la
+        // tutmuyorsa render katmanı kırpar/doldurur; şema burada katı
+        // değil — bozuk tablo dersi düşürmemeli.
+        table: z
+          .object({
+            caption: z.string().min(2).max(100).optional().catch(undefined),
+            columns: z.array(z.string().min(1).max(40)).min(2).max(4),
+            rows: z.array(z.array(z.string().min(1).max(60)).min(1).max(4)).min(2).max(6),
+          })
+          .optional()
+          .catch(undefined),
       }),
     )
     // Alt sınır bir: dar kaynak iki kavram da taşımayabilir ve uydurulan

@@ -84,6 +84,26 @@ export const publicLessonV2Schema = z.object({
           .array(z.object({ title: z.string(), body: z.string() }))
           .optional(),
         diagram: z.unknown().optional(),
+        formula: z
+          .object({
+            title: z.string(),
+            expression: z.string(),
+            note: z.string().optional(),
+          })
+          .optional(),
+        procedure: z
+          .object({
+            title: z.string().optional(),
+            steps: z.array(z.object({ label: z.string(), detail: z.string() })),
+          })
+          .optional(),
+        table: z
+          .object({
+            caption: z.string().optional(),
+            columns: z.array(z.string()),
+            rows: z.array(z.array(z.string())),
+          })
+          .optional(),
       }),
     )
     .min(1),
