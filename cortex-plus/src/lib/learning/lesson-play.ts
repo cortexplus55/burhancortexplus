@@ -32,10 +32,7 @@ export type PublicLessonV2 = Omit<LessonV2, "sections" | "findError" | "numerica
   sections: Array<
     Omit<LessonV2["sections"][number], "check"> & {
       check?: PublicSectionCheck;
-      /**
-       * Sunucunun kurduğu tekrar varyantının sızdırılmış yüzü.
-       * Cevap yok; istemci soruyu kendisi kurmaz (Design B).
-       */
+      /** @deprecated Cevap sızdırır; sealLessonForPlay artık eklemez. Eski paketler için opsiyonel. */
       retryCheck?: PublicSectionCheck;
     }
   >;
@@ -174,7 +171,7 @@ export function sealSectionCheck(check: SectionCheck): PublicSectionCheck {
 
 /**
  * Tam kontrolden tekrar varyantı. Deterministik (stableShift).
- * grade-check ve sealLessonForPlay aynı yolu kullanır.
+ * grade-check primary yanıtında sealed olarak döner; paket önceden taşımaz.
  */
 export function buildLessonRetryCheck(
   check: SectionCheck,
@@ -184,23 +181,21 @@ export function buildLessonRetryCheck(
   return reviewGateQuestion(check, language, source);
 }
 
-/** Tam ders → oynatma paketi. Design B: her bölümün sealed retryCheck'i sunucuda kurulur. */
+/** Tam ders → oynatma paketi. Cevap ve tekrar varyantı yok (cevap sızdırmaz). */
 export function sealLessonForPlay(
   lesson: LessonV2,
-  options: { language?: MaterialLanguage } = {},
+  _options: { language?: MaterialLanguage } = {},
 ): PublicLessonV2 {
-  const language = options.language ?? "tr";
+  void _options;
   return {
     ...lesson,
     sections: lesson.sections.map((section) => {
       if (!section.check) {
-        return { ...section, check: undefined, retryCheck: undefined };
+        return { ...section, check: undefined };
       }
-      const retry = buildLessonRetryCheck(section.check, language, section.body);
       return {
         ...section,
         check: sealSectionCheck(section.check),
-        retryCheck: sealSectionCheck(retry),
       };
     }),
     findError: lesson.findError
@@ -322,6 +317,11 @@ export type GradeCheckResult = {
   answer?: string;
   expectedPoints?: string[];
   pointMatches?: boolean[];
+  /**
+   * Yalnızca variant=primary yanıtında: sızdırılmış tekrar sorusu.
+   * Cevap açıldıktan sonra gider; ders paketinde retryCheck yok.
+   */
+  retryCheck?: PublicSectionCheck;
 };
 
 /** Tek kontrolü sunucuda notlar. */

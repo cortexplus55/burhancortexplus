@@ -98,9 +98,11 @@ import { diagramIssues, needsDiagram } from "@/lib/learning/lesson-diagram";
 import { repairLessonSurface } from "@/lib/learning/learner-fluency";
 import { scoreLessonChecks } from "@/lib/learning/lesson-claims";
 import {
+  buildLessonRetryCheck,
   gradeSectionCheck,
   resolveCheckForGrade,
   sealLessonForPlay,
+  sealSectionCheck,
   type CheckGradeVariant,
   type LessonCheckAnswer,
 } from "@/lib/learning/lesson-play";
@@ -566,6 +568,19 @@ export async function POST(request: Request) {
       section?.body ?? "",
     );
     const result = gradeSectionCheck(check, checkAnswer);
+    // Primary notlandırmadan sonra sealed retry gönderilir (cevap zaten açık).
+    if (variant === "primary") {
+      const retry = buildLessonRetryCheck(
+        primary,
+        prepLanguage(prep.learning_preferences),
+        section?.body ?? "",
+      );
+      return NextResponse.json({
+        ok: true,
+        ...result,
+        retryCheck: sealSectionCheck(retry),
+      });
+    }
     return NextResponse.json({ ok: true, ...result });
   }
 

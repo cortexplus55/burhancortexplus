@@ -1,20 +1,23 @@
 // @vitest-environment jsdom
 /**
  * Tekrar sorusunda doğru şık Yanlış sayılmaz (Açı Ölçüsü ve Radyan, 28 Eyl).
+ * B1: paket önceden retryCheck taşımaz; grade-check primary sealed retry döner.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { LessonV2 } from "@/lib/learning/teaching-standards";
+import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
 import { ExamLessonSteps } from "@/components/parity/exam-lesson-steps";
 import {
   buildLessonRetryCheck,
   gradeSectionCheck,
   resolveCheckForGrade,
   sealLessonForPlay,
+  sealSectionCheck,
   type GradeCheckResult,
   type LessonCheckAnswer,
 } from "@/lib/learning/lesson-play";
 import { isDistinctRetryVariant, reviewGateLead } from "@/lib/learning/lesson-chrome";
+import { reviewQuestionFor } from "@/lib/learning/teacher-brain";
 
 Element.prototype.scrollIntoView = vi.fn();
 afterEach(cleanup);
@@ -59,15 +62,15 @@ async function advanceToCheck() {
 }
 
 describe("tekrar sorusunda doğru şık Yanlış sayılmaz (Açı Ölçüsü ve Radyan, 28 Eyl)", () => {
-  it("sızdırılmış derste cevap sızmaz; retryCheck de sızdırılmıştır", () => {
+  it("sızdırılmış derste cevap ve retryCheck yok", () => {
     const sealed = sealLessonForPlay(radianLesson);
     const blob = JSON.stringify(sealed);
     expect(blob).not.toMatch(/"answerIndex"/);
     expect(blob).not.toMatch(/"explanation"/);
     expect(blob).not.toMatch(/"optionWhy"/);
     expect(blob).not.toMatch(/"review"/);
-    expect(sealed.sections[0]?.retryCheck?.prompt).toBeTruthy();
-    expect(sealed.sections[0]?.retryCheck).not.toHaveProperty("answerIndex");
+    expect(blob).not.toMatch(/"retryCheck"/);
+    expect(sealed.sections[0]?.retryCheck).toBeUndefined();
   });
 
   it("iki build aynı retry varyantını üretir (deterministik)", () => {
@@ -93,21 +96,26 @@ describe("tekrar sorusunda doğru şık Yanlış sayılmaz (Açı Ölçüsü ve 
     const gradeCheck = vi.fn(async (sectionIndex: number, answer: LessonCheckAnswer, variant = "primary") => {
       const primary = radianLesson.sections[sectionIndex]!.check!;
       const check = resolveCheckForGrade(primary, variant, "tr", radianLesson.sections[sectionIndex]!.body);
-      return gradeSectionCheck(check, answer) as GradeCheckResult;
+      const graded = gradeSectionCheck(check, answer) as GradeCheckResult;
+      if (variant === "primary") {
+        graded.retryCheck = sealSectionCheck(buildLessonRetryCheck(primary, "tr", radianLesson.sections[sectionIndex]!.body));
+      }
+      return graded;
     });
 
     render(<ExamLessonSteps lesson={sealed} gradeCheck={gradeCheck} onFinish={vi.fn()} />);
     await advanceToCheck();
 
-    // İlk kontrol — yanlış şık B (metin gövdede de geçebilir; şık düğmesini seç)
     const wrongOption = screen.getAllByText(/180 derece = 2π/i).find((el) => el.closest("button.als-option"));
     expect(wrongOption).toBeTruthy();
     fireEvent.click(wrongOption!);
     await waitFor(() => expect(screen.getByText(/Yanlış/i)).toBeTruthy());
     expect(gradeCheck).toHaveBeenCalledWith(0, { pick: 1 }, "primary");
+    const primaryResult = await gradeCheck.mock.results[0]?.value;
+    expect(primaryResult?.retryCheck?.prompt).toBeTruthy();
+    expect(primaryResult?.retryCheck).not.toHaveProperty("answerIndex");
     fireEvent.click(screen.getByRole("button", { name: /Devam et/i }));
 
-    // Özet vb. adımları geç
     for (let i = 0; i < 4; i += 1) {
       if (screen.queryByText("TEKRARLA") && screen.queryByRole("button", { name: /Başla/i })) break;
       const next = screen.queryByRole("button", { name: /Devam et|Dersi bitir/i });
@@ -118,7 +126,6 @@ describe("tekrar sorusunda doğru şık Yanlış sayılmaz (Açı Ölçüsü ve 
     await waitFor(() => expect(screen.getByRole("button", { name: /Başla/i })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: /Başla/i }));
 
-    // Tekrar — doğru seçeneğin metni (sıra kaymış olabilir)
     const correctLabel = screen
       .getAllByText(/360 derece = 2π/i)
       .find((el) => el.closest("button.als-option"));
@@ -132,7 +139,7 @@ describe("tekrar sorusunda doğru şık Yanlış sayılmaz (Açı Ölçüsü ve 
     expect(explain?.textContent?.replace(/\s+/g, " ").trim().length).toBeGreaterThan(20);
   });
 
-  it("sayısal ve explain tekrarları da sunucuya gider", async () => {
+  it("sayısal tekrar sunucuya variant=retry ile gider", async () => {
     const numerical: LessonV2 = {
       title: "Sayı",
       overview: "Mol hesabı kütleyi mol kütlesine böler.",
@@ -153,7 +160,11 @@ describe("tekrar sorusunda doğru şık Yanlış sayılmaz (Açı Ölçüsü ve 
     const sealed = sealLessonForPlay(numerical);
     const gradeCheck = vi.fn(async (sectionIndex: number, answer: LessonCheckAnswer, variant = "primary") => {
       const primary = numerical.sections[sectionIndex]!.check!;
-      return gradeSectionCheck(resolveCheckForGrade(primary, variant, "tr", ""), answer);
+      const graded = gradeSectionCheck(resolveCheckForGrade(primary, variant, "tr", ""), answer);
+      if (variant === "primary") {
+        return { ...graded, retryCheck: sealSectionCheck(buildLessonRetryCheck(primary, "tr", "")) };
+      }
+      return graded;
     });
     render(<ExamLessonSteps lesson={sealed} gradeCheck={gradeCheck} onFinish={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /Devam et/i }));
@@ -162,6 +173,20 @@ describe("tekrar sorusunda doğru şık Yanlış sayılmaz (Açı Ölçüsü ve 
     fireEvent.click(screen.getByRole("button", { name: /Yanıtı kontrol et/i }));
     await waitFor(() => expect(gradeCheck).toHaveBeenCalled());
     expect(gradeCheck.mock.calls[0]?.[2] ?? "primary").toBe("primary");
+
+    fireEvent.click(screen.getByRole("button", { name: /Devam et/i }));
+    for (let i = 0; i < 4; i += 1) {
+      if (screen.queryByRole("button", { name: /Başla/i })) break;
+      const next = screen.queryByRole("button", { name: /Devam et|Dersi bitir/i });
+      if (!next) break;
+      fireEvent.click(next);
+    }
+    await waitFor(() => expect(screen.getByRole("button", { name: /Başla/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Başla/i }));
+    await waitFor(() => expect(screen.getByLabelText(/Sayısal yanıt/i)).toBeTruthy());
+    fireEvent.change(screen.getByLabelText(/Sayısal yanıt/i), { target: { value: "1 mol" } });
+    fireEvent.click(screen.getByRole("button", { name: /Yanıtı kontrol et/i }));
+    await waitFor(() => expect(gradeCheck.mock.calls.some((c) => c[2] === "retry")).toBe(true));
   });
 
   it("gradeCheck yok ve sızdırılmış paket: Yanlış yok, yeniden dene mesajı", async () => {
@@ -180,5 +205,137 @@ describe("tekrar sorusunda doğru şık Yanlış sayılmaz (Açı Ölçüsü ve 
     expect(reviewGateLead(1, { distinct: true })).toContain("farklı bir şekilde");
     const same = radianLesson.sections[0]!.check!;
     expect(isDistinctRetryVariant(same, same)).toBe(false);
+  });
+});
+
+describe("B1: retry varyantları paket JSON'unda sızmaz", () => {
+  function assertPayloadClean(lesson: LessonV2, correctTexts: string[]) {
+    const sealed = sealLessonForPlay(lesson);
+    const blob = JSON.stringify(sealed);
+    expect(blob).not.toMatch(/"retryCheck"/);
+    expect(blob).not.toMatch(/"answerIndex"/);
+    for (const text of correctTexts) {
+      // Şık metni primary options'ta olabilir — ama retry prompt'u (cevap cümlesi) olmamalı
+      // Fact/definition retry prompt'ları doğru şıkkı gövdeye gömer; paket onları taşımaz.
+      void text;
+    }
+    const primary = lesson.sections[0]!.check!;
+    const retry = buildLessonRetryCheck(primary, "tr", lesson.sections[0]!.body);
+    const sealedRetry = sealSectionCheck(retry);
+    expect(sealedRetry.prompt).toBeTruthy();
+    expect(sealedRetry).not.toHaveProperty("answerIndex");
+    expect(sealedRetry).not.toHaveProperty("explanation");
+    // Primary grade yanıtı sealed retry taşır (simüle)
+    const pick =
+      typeof primary.answerIndex === "number"
+        ? (primary.answerIndex + 1) % (primary.options?.length ?? 2)
+        : 0;
+    const gradePayload = {
+      ...gradeSectionCheck(primary, { pick }),
+      retryCheck: sealedRetry,
+    };
+    expect(gradePayload.retryCheck.prompt).toBe(sealedRetry.prompt);
+    expect(JSON.stringify(gradePayload.retryCheck)).not.toMatch(/"answerIndex"/);
+  }
+
+  it("fact retry: KPSS anayasa cümlesi pakette yok", () => {
+    const source =
+      "Türkiye Cumhuriyeti'nin ilk anayasası 1921 Teşkilât-ı Esasiye Kanunu olarak kabul edilir. 1924 Anayasası sonra gelir.";
+    const check: SectionCheck = {
+      type: "mcq",
+      prompt: "Türkiye'nin ilk anayasası hangisidir?",
+      options: [
+        "1921 Teşkilât-ı Esasiye Kanunu",
+        "1924 Anayasası",
+        "1961 Anayasası",
+        "1982 Anayasası",
+      ],
+      answerIndex: 0,
+      explanation: "İlk anayasa 1921 Teşkilât-ı Esasiye Kanunu'dur.",
+    };
+    const retry = reviewQuestionFor(check as Parameters<typeof reviewQuestionFor>[0], "tr", source);
+    expect(retry.prompt).toMatch(/Doğru mu|ne ad|hangi/i);
+    const lesson: LessonV2 = {
+      title: "Anayasa",
+      overview: "Cumhuriyet anayasaları sırayla gelir.",
+      sections: [{ heading: "1921", body: source, check }],
+      summary: ["1921 ilk", "1924 sonra", "Sıra önemli"],
+    };
+    const sealed = sealLessonForPlay(lesson);
+    const blob = JSON.stringify(sealed);
+    expect(blob).not.toContain(retry.prompt);
+    expect(blob).not.toMatch(/"retryCheck"/);
+    assertPayloadClean(lesson, [check.options![0]!]);
+  });
+
+  it("definition retry: doğru şık + ne ad verilir pakette yok", () => {
+    const source =
+      "Doymuş sıvı belirli bir basınçta kaynama başlamak üzere olan sıvıdır. Sıkıştırılmış sıvı T < T_sat(P) koşuludur. Kızgın buhar T > T_sat(P) bölgesindedir.";
+    const check: SectionCheck = {
+      type: "mcq",
+      prompt: "Aşağıdakilerden hangisi doymuş sıvının tanımına uygundur?",
+      options: [
+        "Kaynama başlamak üzere olan sıvı",
+        "Yoğuşmak üzere olan buhar",
+        "Kızgın buhar",
+        "Sıvı-buhar karışımı",
+      ],
+      answerIndex: 0,
+      explanation: "Doymuş sıvı kaynama başlamak üzere olan sıvıdır.",
+    };
+    const retry = reviewQuestionFor(check as Parameters<typeof reviewQuestionFor>[0], "tr", source);
+    expect(retry.prompt.toLocaleLowerCase("tr")).toMatch(/ne ad verilir|hangi/);
+    const lesson: LessonV2 = {
+      title: "Saf Maddeler",
+      overview: "Fazlar basınç ve sıcaklıkla ayrılır.",
+      sections: [{ heading: "Doymuş sıvı", body: source, check }],
+      summary: ["Doymuş sıvı", "Sıkıştırılmış", "Kızgın"],
+    };
+    const sealed = sealLessonForPlay(lesson);
+    expect(JSON.stringify(sealed)).not.toContain(retry.prompt);
+    assertPayloadClean(lesson, [check.options![0]!]);
+  });
+
+  it("trueFalse flip ve shift/rephrase paket sızdırmaz", () => {
+    const tf: SectionCheck = {
+      type: "trueFalse",
+      prompt: "Mutlak basınç hesaplanırken gösterge basıncı kullanılmalıdır. DOĞRU MU YANLIŞ?",
+      options: ["Doğru", "Yanlış"],
+      answerIndex: 0,
+      explanation: "Gösterge basıncına atmosfer eklenir.",
+    };
+    const flipped = reviewQuestionFor(tf as Parameters<typeof reviewQuestionFor>[0], "tr", "Mutlak basınç = gösterge + atmosfer.");
+    expect(flipped.prompt).toMatch(/kullanılmamalıdır|DOĞRU MU/i);
+
+    const mcq: SectionCheck = {
+      type: "mcq",
+      prompt: "Aşağıdaki ifadelerden hangisi doğrudur?",
+      options: ["P = F/A", "P = F·A", "P = A/F", "P = F+A"],
+      answerIndex: 0,
+      explanation: "Basınç kuvvetin alana bölümüdür.",
+    };
+    const shifted = reviewQuestionFor(mcq as Parameters<typeof reviewQuestionFor>[0], "tr", "Basınç P = F/A bağıntısıyla yazılır.");
+
+    for (const [check, source] of [
+      [tf, "Mutlak basınç = gösterge + atmosfer."] as const,
+      [mcq, "Basınç P = F/A bağıntısıyla yazılır."] as const,
+    ]) {
+      const lesson: LessonV2 = {
+        title: "Basınç",
+        overview: "Basınç tanımı.",
+        sections: [{ heading: "Tanım", body: source, check }],
+        summary: ["P=F/A", "Mutlak", "Gösterge"],
+      };
+      const sealed = sealLessonForPlay(lesson);
+      const blob = JSON.stringify(sealed);
+      expect(blob).not.toMatch(/"retryCheck"/);
+      const retry = buildLessonRetryCheck(check, "tr", source);
+      if (retry.prompt !== check.prompt) {
+        expect(blob).not.toContain(retry.prompt);
+      }
+      expect(sealSectionCheck(retry)).not.toHaveProperty("answerIndex");
+    }
+    expect(shifted.options).toBeTruthy();
+    expect(flipped.answerIndex).not.toBe(tf.answerIndex);
   });
 });

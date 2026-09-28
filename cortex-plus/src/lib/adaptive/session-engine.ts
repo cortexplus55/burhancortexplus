@@ -257,6 +257,10 @@ async function generateOrJoin(
  * Shared by both places startSession resumes an already-existing active
  * session (the direct `existing` case, and the 23505-race fallback) so the
  * two can never drift out of sync with each other.
+ *
+ * Resume only mid-step (served, unanswered). Idle pending whose topic
+ * differs from the plan item is cleared so "Çalışmaya Başla" / planItemId
+ * open the planned topic — not a leftover Birim Çember.
  */
 async function resumeExistingSession(
   service: SupabaseClient,
@@ -268,20 +272,41 @@ async function resumeExistingSession(
   session: SessionState,
 ): Promise<{ session: SessionState; action: GovernorAction | null }> {
   const pending = await getPendingAction(service, session.id);
-  if (pending) {
-    // Öğrenci adım ortasında (cevapsız soru) — plan maddesi farklı olsa da sürdür.
-    return { session, action: pending };
-  }
   const planCtx = await resolvePlanContext(service, {
     userId: input.userId,
     examPrepId: input.examPrepId,
     planItemId: input.planItemId,
   });
+  const wantedKey = planCtx.planItem?.topicKey
+    ? normalizeTopicKey(planCtx.planItem.topicKey)
+    : null;
+  const pendingKey = pending?.topicKey ? normalizeTopicKey(pending.topicKey) : null;
+  const planDiffers = Boolean(
+    pending &&
+      wantedKey &&
+      pendingKey !== wantedKey,
+  );
+
+  if (pending) {
+    const answered = await hasAnswerForDecision(
+      service,
+      session.id,
+      pending.decisionTraceId,
+    );
+    // Mid-step (cevapsız) ve plan aynı/yok → sürdür.
+    if (!answered && !planDiffers) {
+      return { session, action: pending };
+    }
+    // Idle / cevaplanmış / plan farklı → temizle, plan maddesi için üret.
+    await persistPendingAction(service, session.id, null);
+  }
+
   const action = await generateOrJoin(service, {
     userId: input.userId,
     examPrepId: input.examPrepId,
     sessionId: session.id,
-    token: "start",
+    // Plan maddesi değişince yeni karar; aksi halde "start" idempotent kalır.
+    token: planCtx.planItem?.id ? `start:${planCtx.planItem.id}` : "start",
     ctx: {
       sessionMinutesRemaining: session.plannedDurationMinutes,
       todayTarget: planCtx.objective ?? session.objective,
@@ -289,7 +314,37 @@ async function resumeExistingSession(
       planItem: planCtx.planItem,
     },
   });
+  if (planCtx.planItem?.id) {
+    await markPlanItemActive(service, planCtx.planItem.id);
+  }
   return { session, action };
+}
+
+/** Bu karar için answer_submitted var mı? (idempotencyKey içinde decisionTraceId). */
+async function hasAnswerForDecision(
+  service: SupabaseClient,
+  sessionId: string,
+  decisionTraceId: string,
+): Promise<boolean> {
+  if (!decisionTraceId) return false;
+  try {
+    const { data } = await service
+      .from("adaptive_learning_events")
+      .select("idempotency_key, payload")
+      .eq("session_id", sessionId)
+      .eq("event_type", "answer_submitted")
+      .limit(40);
+    const needle = decisionTraceId;
+    return (data ?? []).some((row) => {
+      const key = String(row.idempotency_key ?? "");
+      if (key.includes(needle)) return true;
+      const evidence = (row.payload as { evidence?: { idempotencyKey?: string } } | null)
+        ?.evidence;
+      return Boolean(evidence?.idempotencyKey?.includes(needle));
+    });
+  } catch {
+    return false;
+  }
 }
 
 export async function startSession(
@@ -373,7 +428,7 @@ export async function startSession(
     userId: input.userId,
     examPrepId: input.examPrepId,
     sessionId: session.id,
-    token: "start",
+    token: planCtx.planItem?.id ? `start:${planCtx.planItem.id}` : "start",
     ctx: {
       sessionMinutesRemaining: planned,
       todayTarget: session.objective,

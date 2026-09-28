@@ -22,7 +22,7 @@ import {
   type BoardLine,
 } from "@/lib/learning/lesson-board";
 import { renderMath, splitMath } from "@/lib/learning/math-text";
-import { normalizeMathIdentifiers } from "@/lib/learning/math-identifiers";
+import { normalizeMathIdentifiers, isProgrammingContext } from "@/lib/learning/math-identifiers";
 import type {
   CheckGradeVariant,
   GradeCheckResult,
@@ -46,7 +46,15 @@ function stepLine(text: string): boolean {
   return /^(?:Veri|Adım\s*\d+)\s*:/i.test(text.trim());
 }
 
-function BoardBody({ text, className }: { text: string; className?: string }) {
+function BoardBody({
+  text,
+  className,
+  topicHint = "",
+}: {
+  text: string;
+  className?: string;
+  topicHint?: string;
+}) {
   const lines = layoutBoard(text);
   const rendered: BoardLine[] = lines.length ? lines : [{ kind: "prose", text }];
   const blocks: Array<{ kind: "line"; line: BoardLine; index: number } | { kind: "steps"; lines: BoardLine[]; index: number }> = [];
@@ -70,17 +78,17 @@ function BoardBody({ text, className }: { text: string; className?: string }) {
           <ol key={block.index} className="als-steps">
             {block.lines.map((line, index) => (
               <li key={index}>
-                <RichBody text={line.text} />
+                <RichBody text={line.text} topicHint={topicHint} />
               </li>
             ))}
           </ol>
         ) : block.line.kind === "formula" ? (
           <p key={block.index} className="als-formula">
-            <RichBody text={block.line.text} />
+            <RichBody text={block.line.text} topicHint={topicHint} />
           </p>
         ) : (
           <p key={block.index}>
-            <RichBody text={block.line.text} />
+            <RichBody text={block.line.text} topicHint={topicHint} />
           </p>
         ),
       )}
@@ -88,8 +96,11 @@ function BoardBody({ text, className }: { text: string; className?: string }) {
   );
 }
 
-function RichBody({ text }: { text: string }) {
-  const normalized = normalizeMathIdentifiers(text);
+function RichBody({ text, topicHint = "" }: { text: string; topicHint?: string }) {
+  const normalized = normalizeMathIdentifiers(text, {
+    topicHint,
+    programming: isProgrammingContext("", topicHint),
+  });
   return (
     <>
       {splitMath(normalized).flatMap((segment, segIndex) => {
@@ -153,7 +164,7 @@ type Step =
       heading: string;
       check: PlayCheck;
       sectionIndex: number;
-      variant: "retry";
+      variant: CheckGradeVariant;
     };
 
 const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F"] as const;
@@ -342,9 +353,12 @@ export function ExamLessonSteps({
   const [missed, setMissed] = useState<number[]>([]);
   const [lessonAnswers, setLessonAnswers] = useState<Record<string, LessonCheckAnswer>>({});
   const [retryAnswers, setRetryAnswers] = useState<Record<string, LessonCheckAnswer>>({});
+  /** grade-check primary yanıtındaki sealed retry — paket önceden taşımaz. */
+  const [serverRetries, setServerRetries] = useState<Record<string, PublicSectionCheck>>({});
   const [ungradable, setUngradable] = useState(false);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const closeDialogRef = useRef<HTMLDivElement | null>(null);
+  const mathTopicHint = lesson.title ?? "";
 
   const steps = useMemo(() => {
     const retries = missed
@@ -353,11 +367,13 @@ export function ExamLessonSteps({
           | (PlayLesson["sections"][number] & { retryCheck?: PublicSectionCheck })
           | undefined;
         if (!section?.check) return null;
-        // Design B: sunucunun sealed retryCheck'i. Eski paketlerde answerIndex
-        // varsa istemci reviewGateQuestion ile yedek kurar.
-        const sealedRetry = section.retryCheck;
-        const legacy =
-          !sealedRetry &&
+        // Sunucunun primary notlandırmada verdiği sealed retry.
+        // Eski paket: lesson.retryCheck veya istemcide answerIndex ile legacy.
+        const fromServer = serverRetries[String(sectionIndex)];
+        const fromLegacyPayload = section.retryCheck;
+        const legacyClient =
+          !fromServer &&
+          !fromLegacyPayload &&
           typeof (section.check as { answerIndex?: number }).answerIndex === "number"
             ? reviewGateQuestion(
                 section.check as NonNullable<LessonV2["sections"][number]["check"]>,
@@ -365,13 +381,16 @@ export function ExamLessonSteps({
                 section.body,
               )
             : null;
-        const retryCheck = sealedRetry ?? legacy ?? section.check;
+        const retryCheck = fromServer ?? fromLegacyPayload ?? legacyClient ?? section.check;
+        // Sunucu varyantı yoksa (eski istemci yolu) primary ile notlanır.
+        const variant: CheckGradeVariant =
+          fromServer || fromLegacyPayload || legacyClient ? "retry" : "primary";
         return {
           kind: "retry" as const,
           heading: section.heading,
           check: retryCheck,
           sectionIndex,
-          variant: "retry" as const,
+          variant,
         } satisfies Step;
       })
       .filter((s): s is Extract<Step, { kind: "retry" }> => s !== null);
@@ -386,7 +405,7 @@ export function ExamLessonSteps({
       { kind: "review-gate", count: retries.length, distinct } as Step,
       ...retries,
     ];
-  }, [base, missed, lesson, language]);
+  }, [base, missed, lesson, language, serverRetries]);
 
   const step = steps[Math.min(index, steps.length - 1)];
   const last = index >= steps.length - 1;
@@ -487,7 +506,8 @@ export function ExamLessonSteps({
         : step.kind === "retry"
           ? step.sectionIndex
           : -1;
-    const variant: CheckGradeVariant = step.kind === "retry" ? "retry" : "primary";
+    const variant: CheckGradeVariant =
+      step.kind === "retry" ? step.variant : "primary";
     if (step.kind === "section" && sectionIndex >= 0) {
       setLessonAnswers((prev) => ({ ...prev, [String(sectionIndex)]: answer }));
     }
@@ -508,6 +528,9 @@ export function ExamLessonSteps({
         setGradeResult(result);
         setRevealed(true);
         if (typeof answer.pick === "number") setPicked(answer.pick);
+        if (result.retryCheck && step.kind === "section") {
+          setServerRetries((prev) => ({ ...prev, [String(sectionIndex)]: result.retryCheck! }));
+        }
         // İlk deneme yanlışsa kuyruğa al; doğru tekrar yeniden kuyruğa almaz.
         if (step.kind === "section" && !result.correct && !result.half) {
           markMissed(sectionIndex);
@@ -671,7 +694,7 @@ export function ExamLessonSteps({
 
           {step.kind === "overview" || step.kind === "section" ? (
             <>
-              <BoardBody text={step.body} />
+              <BoardBody text={step.body}  topicHint={mathTopicHint} />
               {bodyHasRemovalNote(step.body) ? (
                 <p className="als-removed" role="status" title="Materyalinle doğrulanamayan kısımları göstermedik.">
                   <Info className="h-3.5 w-3.5" aria-hidden />
@@ -687,7 +710,7 @@ export function ExamLessonSteps({
                 <article key={card.title} className="als-card">
                   <h2>{card.title}</h2>
                   <p>
-                    <RichBody text={card.body} />
+                    <RichBody text={card.body}  topicHint={mathTopicHint} />
                   </p>
                 </article>
               ))}
@@ -702,7 +725,7 @@ export function ExamLessonSteps({
             <aside className={`als-note als-note--${calloutTone(step.note)}`}>
               <p className="als-note-title">{step.note.title}</p>
               <p className="als-note-body">
-                <RichBody text={step.note.body} />
+                <RichBody text={step.note.body}  topicHint={mathTopicHint} />
               </p>
             </aside>
           ) : null}
@@ -715,21 +738,21 @@ export function ExamLessonSteps({
                   <ul className="als-list">
                     {step.givens.map((given) => (
                       <li key={given}>
-                        <RichBody text={given} />
+                        <RichBody text={given}  topicHint={mathTopicHint} />
                       </li>
                     ))}
                   </ul>
                 </>
               ) : (
                 <p className="als-body">
-                  <RichBody text={step.prompt} />
+                  <RichBody text={step.prompt}  topicHint={mathTopicHint} />
                 </p>
               )}
               {step.unknown ? (
                 <>
                   <h2 className="als-subhead">İstenen</h2>
                   <p className="als-body">
-                    <RichBody text={step.unknown} />
+                    <RichBody text={step.unknown}  topicHint={mathTopicHint} />
                   </p>
                 </>
               ) : null}
@@ -753,17 +776,17 @@ export function ExamLessonSteps({
                         <ol className="als-list">
                           {stepTexts.map((item, stepIndex) => (
                             <li key={item}>
-                              {stepIndex + 1}. <RichBody text={item} />
+                              {stepIndex + 1}. <RichBody text={item}  topicHint={mathTopicHint} />
                             </li>
                           ))}
                         </ol>
                       ) : shown ? (
-                        <BoardBody text={shown} className="als-solution-body" />
+                        <BoardBody text={shown} className="als-solution-body"  topicHint={mathTopicHint} />
                       ) : null}
                       {step.result ? (
                         <p>
                           <strong>Sonuç: </strong>
-                          <RichBody text={step.result} />
+                          <RichBody text={step.result}  topicHint={mathTopicHint} />
                         </p>
                       ) : null}
                     </div>
@@ -784,7 +807,7 @@ export function ExamLessonSteps({
           {step.kind === "recall" ? (
             <div className="als-recall">
               <p className="als-body">
-                <RichBody text={step.prompt} />
+                <RichBody text={step.prompt}  topicHint={mathTopicHint} />
               </p>
               <label className="als-recall-label" htmlFor={`als-recall-${index}`}>
                 Önce kendin yaz
@@ -799,7 +822,7 @@ export function ExamLessonSteps({
               {solutionShown ? (
                 <div className="als-solution">
                   <span className="als-tag">Çözüm</span>
-                  <BoardBody text={step.solution} className="als-solution-body" />
+                  <BoardBody text={step.solution} className="als-solution-body"  topicHint={mathTopicHint} />
                 </div>
               ) : (
                 <button
@@ -817,11 +840,11 @@ export function ExamLessonSteps({
             <div className="als-mistake">
               <p className="als-mistake-claim">
                 <span className="als-tag als-tag--warn">Yanlış</span>
-                <RichBody text={step.claim} />
+                <RichBody text={step.claim}  topicHint={mathTopicHint} />
               </p>
               <p className="als-mistake-fix">
                 <span className="als-tag als-tag--ok">Doğrusu</span>
-                <RichBody text={step.correction} />
+                <RichBody text={step.correction}  topicHint={mathTopicHint} />
               </p>
             </div>
           ) : null}
@@ -832,7 +855,7 @@ export function ExamLessonSteps({
                 <ul className="als-list">
                   {step.points.map((point) => (
                     <li key={point}>
-                      <RichBody text={point} />
+                      <RichBody text={point}  topicHint={mathTopicHint} />
                     </li>
                   ))}
                 </ul>
@@ -843,7 +866,7 @@ export function ExamLessonSteps({
                   <ul className="als-list als-list--muted">
                     {step.next.map((item) => (
                       <li key={item}>
-                        <RichBody text={item} />
+                        <RichBody text={item}  topicHint={mathTopicHint} />
                       </li>
                     ))}
                   </ul>
@@ -941,7 +964,7 @@ export function ExamLessonSteps({
         >
           <p className="als-kicker">{checkKicker(check.type)}</p>
           <p className="als-check-prompt">
-            <RichBody text={check.prompt} />
+            <RichBody text={check.prompt}  topicHint={mathTopicHint} />
           </p>
           {!revealed ? (
             <div className="als-tf">
@@ -975,6 +998,7 @@ export function ExamLessonSteps({
               picked={picked}
               revisit={step.kind === "section"}
               gradeResult={gradeResult}
+              topicHint={mathTopicHint}
             />
           ) : null}
         </section>
@@ -984,7 +1008,7 @@ export function ExamLessonSteps({
         <section className="als-check" aria-label="Hızlı sınav">
           <p className="als-kicker">{checkKicker(check.type)}</p>
           <p className="als-check-prompt">
-            <RichBody text={check.prompt} />
+            <RichBody text={check.prompt}  topicHint={mathTopicHint} />
           </p>
           <div className="als-options" role={check.type === "findError" ? "radiogroup" : undefined}>
             {(
@@ -1016,7 +1040,7 @@ export function ExamLessonSteps({
                     {OPTION_LETTERS[optionIndex] ?? optionIndex + 1}
                   </span>
                   <span>
-                    <RichBody text={option} />
+                    <RichBody text={option}  topicHint={mathTopicHint} />
                   </span>
                   {revealed && isAnswer ? (
                     <Check className="h-4 w-4 shrink-0" aria-hidden />
@@ -1035,6 +1059,7 @@ export function ExamLessonSteps({
               picked={picked}
               revisit={step.kind === "section"}
               gradeResult={gradeResult}
+              topicHint={mathTopicHint}
             />
           ) : null}
         </section>
@@ -1082,11 +1107,13 @@ function Explanation({
   picked,
   revisit,
   gradeResult,
+  topicHint = "",
 }: {
   check: PlayCheck;
   picked: number | null;
   revisit: boolean;
   gradeResult?: GradeCheckResult | null;
+  topicHint?: string;
 }) {
   const answerIndex =
     gradeResult?.answerIndex ??
@@ -1122,7 +1149,7 @@ function Explanation({
         <>
           {wrongBody ? (
             <p>
-              <RichBody text={wrongBody} />
+              <RichBody text={wrongBody} topicHint={topicHint} />
             </p>
           ) : null}
           {optionWhy.length > 1
@@ -1153,7 +1180,7 @@ function Explanation({
         </>
       ) : rightBody ? (
         <p>
-          <RichBody text={rightBody} />
+          <RichBody text={rightBody} topicHint={topicHint} />
         </p>
       ) : null}
       {wrong && revisit ? (

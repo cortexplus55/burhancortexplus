@@ -58,11 +58,15 @@ function toKatexBase(base: string): string {
   return base;
 }
 
+/** Kelime sınırı: ASCII \\w Türkçe harfi (ı,ş,…) dışarıda bırakır; \\p{L}\\p{N} kullan. */
+const EDGE = String.raw`(?<![\p{L}\p{N}_./@])`;
+const EDGE_END = String.raw`(?![\p{L}\p{N}_./@])`;
+
 function transformChunk(chunk: string): string {
   let out = chunk;
   // Önce kısa taban (1-3 Latin/Yunan harf) + alt simge: α_r, P_mutlak, y_f, a_1
   out = out.replace(
-    /(?<![\w./@])([A-Za-zα-ωΑ-Ω]{1,3})_(\d{1,3})(?![\w./@])/g,
+    new RegExp(`${EDGE}([A-Za-zα-ωΑ-Ω]{1,3})_(\\d{1,3})${EDGE_END}`, "gu"),
     (_m, base: string, digits: string) => {
       const SUB: Record<string, string> = {
         "0": "₀",
@@ -80,7 +84,7 @@ function transformChunk(chunk: string): string {
     },
   );
   out = out.replace(
-    /(?<![\w./@])([A-Za-zα-ωΑ-Ω]{1,3})_([A-Za-z\p{L}]{1,24})(?![\w./@])/gu,
+    new RegExp(`${EDGE}([A-Za-zα-ωΑ-Ω]{1,3})_([A-Za-z\\p{L}]{1,24})${EDGE_END}`, "gu"),
     (_m, base: string, word: string) => {
       // Yalnızca tek harf Unicode alt simgeye gider (αᵣ). Çok harfli sözcük KaTeX.
       if (word.length === 1) {
@@ -94,7 +98,7 @@ function transformChunk(chunk: string): string {
   // Sonra çok kelimeli snake_case (her iki yan ≥2 ve taban ASCII-Latin değil / uzun kelime):
   // açı_radyan → açı (radyan). Kısa Latin tabanlar yukarıda işlendi.
   out = out.replace(
-    /(?<![\w./@])([\p{L}]{2,})_([\p{L}]{2,})(?![\w./@])/gu,
+    new RegExp(`${EDGE}([\\p{L}]{2,})_([\\p{L}]{2,})${EDGE_END}`, "gu"),
     (_m, left: string, right: string) => {
       if (
         /^[a-z]+$/i.test(left) &&
@@ -114,7 +118,7 @@ function transformChunk(chunk: string): string {
 
 /**
  * α_r → αᵣ; α_d → $\alpha_{\text{d}}$; açı_radyan → açı (radyan).
- * URL, e-posta, kod bloğu, $…$, \ce{…} korunur.
+ * URL, e-posta, kod bloğu, satır içi `…`, $…$, \ce{…} korunur.
  */
 export function normalizeMathIdentifiers(
   text: string,
@@ -133,6 +137,7 @@ export function normalizeMathIdentifiers(
     }
   };
   add(/```[\s\S]*?```/g);
+  add(/`[^`\n]+`/g);
   add(/\$\$[\s\S]+?\$\$/g);
   add(/\$[^$\n]+\$/g);
   add(/\\\([\s\S]+?\\\)/g);
@@ -161,19 +166,32 @@ export function normalizeMathIdentifiers(
   return out;
 }
 
+/** Normalizer'ın bıraktığı bilinen yazılım tanımlayıcıları (flag yok). */
+function isKeptSoftwareId(left: string, right: string): boolean {
+  return (
+    /^[a-z]+$/i.test(left) &&
+    /^(id|name|key|url|path|type|index|count|uuid)$/i.test(right)
+  );
+}
+
 /** Yayın/onarım için: hâlâ snake_case veya `_harf` kod kimliği var mı? */
 export function mathIdentifierIssues(text: string, topicHint = ""): string[] {
   if (!text || isProgrammingContext(text, topicHint)) return [];
   const sample = text
     .replace(/```[\s\S]*?```/g, "")
+    .replace(/`[^`\n]+`/g, "")
     .replace(/\$\$[\s\S]+?\$\$|\$[^$\n]+\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]/g, "")
     .replace(/\\ce\{[^{}]*\}/g, "")
     .replace(/\bhttps?:\/\/[^\s]+/g, "")
     .replace(/\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b/g, "");
-  if (/(?<![\w./@])[\p{L}]{2,}_[\p{L}]{2,}(?![\w./@])/u.test(sample)) {
+  const multi = new RegExp(`${EDGE}([\\p{L}]{2,})_([\\p{L}]{2,})${EDGE_END}`, "gu");
+  for (const match of sample.matchAll(multi)) {
+    const left = match[1] ?? "";
+    const right = match[2] ?? "";
+    if (isKeptSoftwareId(left, right)) continue;
     return ["Kod gibi değişken adı var (açı_radyan); normal matematik gösterimi kullan."];
   }
-  if (/(?<![\w./@])[A-Za-zα-ωΑ-Ω]{1,3}_[A-Za-z](?![A-Za-z0-9])/u.test(sample)) {
+  if (new RegExp(`${EDGE}[A-Za-zα-ωΑ-Ω]{1,3}_[A-Za-z](?![A-Za-z0-9])`, "u").test(sample)) {
     return ["Kod gibi değişken adı var (açı_radyan); normal matematik gösterimi kullan."];
   }
   return [];
