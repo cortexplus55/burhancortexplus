@@ -391,6 +391,8 @@ export async function POST(request: Request) {
       const code = mapped.error || "topic_map_failed";
       if (code === "insufficient_credits") return errorResponse(402, "insufficient_credits");
       if (code === "topic_map_unavailable") return mapUnavailable(parsed.data.documentId, code);
+      // A plan uses this map: it stays as it is and the document is done.
+      if (code === "topic_map_in_use") return finish(null);
       if (isRetryableIngestionCode(code) || mapped.retryable) {
         return NextResponse.json({
           code,

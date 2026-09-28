@@ -192,6 +192,17 @@ export async function POST(request: Request, context: RouteContext) {
     // The client continues the rounds through the process route.
     return NextResponse.json({ ok: true, pending: true, stage: result.stage ?? null }, { status: 202 });
   }
+  if (!result.ok && result.error === "topic_map_in_use") {
+    // As on main: refused, nothing changed, no model call.
+    return NextResponse.json(
+      {
+        error: "Bu harita bir çalışma planında kullanılıyor; plan bozulmasın diye yeniden oluşturulmaz.",
+        code: "topic_map_in_use",
+        inUse: true,
+      },
+      { status: 422 },
+    );
+  }
   if (!result.ok) {
     return NextResponse.json(
       { error: "Konu haritası yeniden oluşturulamadı.", detail: result.error },

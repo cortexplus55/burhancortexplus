@@ -448,6 +448,55 @@ async function settleReservations(
   }
 }
 
+/** Files whose topic nodes a plan (exam prep) uses. Lookup errors count as in use. */
+async function docsWithMapInUse(service: SupabaseClient, documentIds: string[]): Promise<string[]> {
+  const out: string[] = [];
+  for (const id of documentIds) {
+    const { data } = await service.from("document_topic_nodes").select("id").eq("document_id", id);
+    const nodeIds = (data ?? []).map((r) => r.id as string);
+    if (!nodeIds.length) continue;
+    if (await documentTopicMapIsInUse(service, id, nodeIds).catch(() => true)) out.push(id);
+  }
+  return out;
+}
+
+/** An in-use map is a working map: show it as ready, never failed/pending. */
+async function keepInUseMaps(
+  service: SupabaseClient,
+  docs: { id: string; topic_map_status: string | null }[],
+) {
+  for (const doc of docs) {
+    if (doc.topic_map_status === "ready" || doc.topic_map_status === "reviewed") continue;
+    await service
+      .from("documents")
+      .update({ topic_map_status: "ready", topic_map_error: null, topic_map_updated_at: new Date().toISOString() })
+      .eq("id", doc.id);
+  }
+}
+
+/** After a refused persist: files with nodes keep them as ready; the rest may retry calmly. */
+async function restoreAfterInUse(
+  service: SupabaseClient,
+  docs: { id: string }[],
+  previous: Record<string, string | null>,
+) {
+  for (const doc of docs) {
+    const { data } = await service.from("document_topic_nodes").select("id").eq("document_id", doc.id).limit(1);
+    const before = previous[doc.id];
+    const status = data?.length
+      ? before === "reviewed" ? "reviewed" : "ready"
+      : "failed";
+    await service
+      .from("documents")
+      .update({
+        topic_map_status: status,
+        topic_map_error: status === "failed" ? "topic_map_unavailable" : null,
+        topic_map_updated_at: new Date().toISOString(),
+      })
+      .eq("id", doc.id);
+  }
+}
+
 /**
  * Write the course outline onto each document, keeping ONE course order:
  * unit sort_order = its index in the whole course, leaf sort_order =
@@ -463,17 +512,12 @@ async function persistCourseOutline(
   const { units } = flattenOutlineUnits(outline);
   const unitsTotal = units.length;
   let saved = 0;
+  // Re-check in-use for every file before the first swap — a prep may have
+  // linked one mid-round, and no file should be half-rewritten then.
+  if ((await docsWithMapInUse(service, documentIds)).length) throw new Error("topic_map_in_use");
   for (const [fileIndex, documentId] of documentIds.entries()) {
     const light = await loadPageLight(service, documentId);
     const pageIdByNumber = new Map(light.map((row) => [row.page_number, row.id]));
-    const existingIds =
-      (await service.from("document_topic_nodes").select("id").eq("document_id", documentId)).data?.map(
-        (r) => r.id as string,
-      ) ?? [];
-    // Re-check in-use before the swap — a prep may have linked it mid-round.
-    if (existingIds.length && (await documentTopicMapIsInUse(service, documentId, existingIds).catch(() => true))) {
-      throw new Error("topic_map_in_use");
-    }
     await clearTopicMap(service, documentId);
 
     const mine = units
@@ -631,14 +675,17 @@ export async function runCourseMapRound(
   const fail = async (message: string): Promise<CourseMapResult> => {
     const retryable = isRetryableMapError(message);
     console.error("course_map_failed", { courseId, error: message, stage: meta?.stage ?? null });
-    if (!retryable) {
+    // A map a plan uses is never marked failed: it stays as it is.
+    if (!retryable && message !== "topic_map_in_use") {
       for (const documentId of documentIds) {
         const previous = meta?.previousStatus?.[documentId] ?? null;
+        const kept = previous === "ready" || previous === "reviewed";
         await service
           .from("documents")
           .update({
-            topic_map_status: previous === "ready" || previous === "reviewed" ? previous : "failed",
-            topic_map_error: message,
+            // A failed rebuild keeps the old map: it is simply ready again.
+            topic_map_status: kept ? previous : "failed",
+            topic_map_error: kept ? null : message,
             topic_map_updated_at: new Date().toISOString(),
           })
           .eq("id", documentId);
@@ -718,9 +765,12 @@ export async function runCourseMapRound(
       meta = null;
     }
     if (!meta) {
-      for (const doc of docs) {
-        if (doc.topic_map_status !== "ready" && doc.topic_map_status !== "reviewed") continue;
-        if (await documentTopicMapIsInUse(service, doc.id, []).catch(() => true)) throw new Error("topic_map_in_use");
+      // A map a plan already uses is never rewritten (as on main): refuse
+      // before any call, and leave its status and nodes exactly as they are.
+      const inUse = await docsWithMapInUse(service, docs.map((d) => d.id));
+      if (inUse.length) {
+        await keepInUseMaps(service, docs.filter((d) => inUse.includes(d.id)));
+        return { ok: false, topics: 0, error: "topic_map_in_use", retryable: false };
       }
       meta = {
         __meta: true,
@@ -890,6 +940,17 @@ export async function runCourseMapRound(
     if (message === "topic_map_claim_lost") {
       return { ok: true, pending: true, topics: 0, stage: meta?.stage, round: meta?.rounds };
     }
+    if (message === "topic_map_in_use" && meta) {
+      // A plan linked a file mid-round: nothing is charged, every map stays usable.
+      await refundStaleReservations(service, userId, meta.inflight ?? []).catch(() => undefined);
+      await settleReservations(service, [
+        ...(meta.progress ? reservationsHeld(meta.progress) : []),
+        ...(meta.outline?.reservationIds ?? []),
+      ], "refund");
+      await service.from("document_topic_map_jobs").delete().eq("document_id", courseId).eq("lease_token", token);
+      await clearWaitMarkers(service, others);
+      await restoreAfterInUse(service, docs, meta.previousStatus ?? {});
+    }
     return fail(message);
   } finally {
     clearInterval(heartbeat);
@@ -1018,18 +1079,19 @@ export async function planCourseMap(
   const nodesOf = new Map<string, { id: string; parent_id: string | null; key_relations: unknown }[]>();
   const candidates: string[] = [];
   for (const id of documentIds) {
-    if (!ready.has(id)) {
-      candidates.push(id);
-      continue;
-    }
     const { data: nodes } = await service
       .from("document_topic_nodes")
       .select("id, parent_id, key_relations")
       .eq("document_id", id);
     const rows = (nodes ?? []) as { id: string; parent_id: string | null; key_relations: unknown }[];
+    // A map a plan uses is kept as it is, whatever its status says.
+    if (rows.length && (await documentTopicMapIsInUse(service, id, rows.map((r) => r.id)).catch(() => true))) continue;
+    if (!ready.has(id)) {
+      candidates.push(id);
+      continue;
+    }
     nodesOf.set(id, rows);
-    const inUse = await documentTopicMapIsInUse(service, id, rows.map((r) => r.id)).catch(() => true);
-    if (!inUse) candidates.push(id);
+    candidates.push(id);
   }
   if (candidates.length <= 1) return candidates.filter((id) => !ready.has(id));
   const courseId = candidates[0]!;

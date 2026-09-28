@@ -13,7 +13,7 @@ import {
   isFeatureEnabled,
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
-import { loadTopicMapSnapshot } from "@/lib/documents/pdf-learning-v2";
+import { documentTopicMapIsInUse, loadTopicMapSnapshot } from "@/lib/documents/pdf-learning-v2";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 import { DocumentPdfPreview } from "@/components/documents/document-pdf-preview";
@@ -71,6 +71,9 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
       : null;
 
   const topicCount = snapshot?.topics.length ?? 0;
+  const mapInUse = topicCount
+    ? await documentTopicMapIsInUse(service, documentId, snapshot!.topics.map((t) => t.id))
+    : false;
   const estMinutes = Math.max(30, topicCount * 22);
   const estHours = Math.floor(estMinutes / 60);
   const estRem = estMinutes % 60;
@@ -332,6 +335,7 @@ export default async function DocumentDetailPage({ params, searchParams }: PageP
                 (doc.topic_map_updated_at as string | null) ?? null
               }
               mapReady={mapReady}
+              mapInUse={mapInUse}
               hidePlanLink
               coverage={
                 snapshot.coverage
