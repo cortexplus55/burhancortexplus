@@ -9,7 +9,13 @@ export function hasRepetitiveSparseEvidence(pageTexts: string[]): boolean {
     text
       .normalize("NFKC")
       .toLocaleLowerCase("tr")
-      .replace(/\d+(?:[.,]\d+)*/g, "#")
+      .split(/\r?\n/)
+      // Only page markers vary in the observed fixture. Keep numbers in
+      // worked examples: different values can be real learning evidence.
+      .map((line) => /(?:fiziksel\s+sayfa|çalışma\s+sayfası|page\s+\d+)/.test(line)
+        ? line.replace(/\d+(?:[.,]\d+)*/g, "#")
+        : line)
+      .join(" ")
       .replace(/\s+/g, " ")
       .trim(),
   );

@@ -18,6 +18,9 @@ describe("first-lesson diagnostic evidence", () => {
       "Birim çemberin yarıçapı 1'dir.",
     ];
     expect(hasRepetitiveSparseEvidence(diverse)).toBe(false);
+    expect(hasRepetitiveSparseEvidence([1, 2, 3].map((n) =>
+      `Birim çember örneğinde x = ${n}.\nFiziksel sayfa ${n}.`,
+    ))).toBe(false);
     expect(hasRepetitiveSparseEvidence(Array(3).fill("Açıklama ve örnek. ".repeat(40)))).toBe(false);
     expect(hasRepetitiveSparseEvidence([diverse[0]])).toBe(false);
   });
