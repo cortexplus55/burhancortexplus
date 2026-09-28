@@ -72,6 +72,7 @@ export const publicLessonV2Schema = z.object({
         heading: z.string().min(1).max(160),
         body: z.string().min(1),
         check: publicSectionCheckSchema.optional(),
+        checkFirst: z.boolean().optional(),
         retryCheck: publicSectionCheckSchema.optional(),
         note: z
           .object({
