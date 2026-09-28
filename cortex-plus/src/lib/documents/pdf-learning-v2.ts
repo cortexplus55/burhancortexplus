@@ -610,6 +610,7 @@ export async function runPdfLearningV2(
         const mapPages = pagesForTopicMap(analyses);
         if (!mapPages.length) throw new Error("topic_map_no_readable_pages");
 
+        const outlineStarted = Date.now();
         const outlineResult = await buildOutlineOneShot({
           service,
           userId: docRow.user_id as string,
@@ -628,6 +629,20 @@ export async function runPdfLearningV2(
           deadlineAt,
           allowModel: true,
         });
+        console.info("pdf-learning-v2 outline", {
+          documentId,
+          fromModel: outlineResult.fromModel,
+          path: outlineResult.path,
+          model: outlineResult.model ?? null,
+          units: outlineResult.units.length,
+          topics: outlineResult.units.reduce((n, u) => n + u.topics.length, 0),
+          retryable: outlineResult.retryable,
+          ms: Date.now() - outlineStarted,
+        });
+        // No fabricated heading soup — student gets a clear retry state.
+        if (!outlineResult.fromModel || !outlineResult.units.length) {
+          throw new Error("topic_map_unavailable");
+        }
 
         meta = {
           ...meta,

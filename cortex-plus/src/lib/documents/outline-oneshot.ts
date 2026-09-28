@@ -1,26 +1,68 @@
 /**
- * One-shot study outline: one gpt-4o-mini call over the whole material
- * (or split→parallel→merge when too long). Fallback only on total LLM failure.
+ * One-shot study outline: one model call over the whole material returns
+ * units→topics + learning path (teacher + student perspectives).
+ *
+ * Routing: ≤30 pages → gpt-4o-mini; >30 pages (or corpus too large for mini)
+ * → gpt-4.1. Validation failure escalates to the strong model; one repair
+ * on the strong model. Total failure → empty retryable result (no fake list).
  */
 
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
-import {
-  cleanOutlineDeterministic,
-  deterministicUnitsAsDraft,
-  extractTocUnits,
-  detectPageFurniture,
-  type OutlineUnitDraft,
-} from "@/lib/documents/outline-clean";
-import { chapterHeadings } from "@/lib/documents/topic-title";
-import type { PageAnalysis } from "@/lib/documents/page-analysis";
+import { env } from "@/lib/env";
+import type { OutlineUnitDraft } from "@/lib/documents/outline-clean";
+import { foldTr, type PageAnalysis } from "@/lib/documents/page-analysis";
 
-/** ~100k tokens ≈ 350k chars; stay under with margin for system/prompt. */
+/** Soft page threshold for the cheaper outline model. */
+export const OUTLINE_MINI_PAGE_LIMIT = 30;
+/** ~100k tokens — stay under mini context with prompt margin. */
 export const ONESHOT_MAX_INPUT_CHARS = 280_000;
-/** Split into at most this many parallel parts. */
+/** gpt-4.1 1M context — whole-book corpus without splitting. */
+export const ONESHOT_STRONG_MAX_CHARS = 2_500_000;
+/** Split into at most this many parallel parts (mini path only). */
 export const ONESHOT_MAX_PARTS = 3;
+
+export function outlineStandardModel(): string {
+  return (
+    env.OPENAI_OUTLINE_STANDARD_MODEL?.trim() ||
+    env.OPENAI_STANDARD_MODEL?.trim() ||
+    "gpt-4o-mini"
+  );
+}
+
+export function outlineStrongModel(): string {
+  return env.OPENAI_OUTLINE_STRONG_MODEL?.trim() || "gpt-4.1";
+}
+
+export type OutlineModelChoice = {
+  model: string;
+  tier: "standard" | "strong";
+  reason: "page_count" | "corpus_size" | "escalation" | "repair";
+};
+
+/** Pick outline model from material size (pages + corpus chars). */
+export function selectOutlineModel(input: {
+  pageCount: number;
+  corpusChars: number;
+}): OutlineModelChoice {
+  if (
+    input.pageCount > OUTLINE_MINI_PAGE_LIMIT ||
+    input.corpusChars > ONESHOT_MAX_INPUT_CHARS
+  ) {
+    return {
+      model: outlineStrongModel(),
+      tier: "strong",
+      reason: input.pageCount > OUTLINE_MINI_PAGE_LIMIT ? "page_count" : "corpus_size",
+    };
+  }
+  return {
+    model: outlineStandardModel(),
+    tier: "standard",
+    reason: "page_count",
+  };
+}
 
 const examWeightSchema = z.enum(["high", "medium", "low"]);
 
@@ -51,7 +93,10 @@ export type OneShotOutlineDraft = z.infer<typeof oneShotOutlineSchema>;
 export type OneShotOutlineResult = {
   units: OutlineUnitDraft[];
   fromModel: boolean;
-  path: "single" | "split_merge" | "repair" | "fallback";
+  path: "single" | "split_merge" | "repair" | "escalation" | "failed";
+  /** True when the student should retry — never invent a fake map. */
+  retryable: boolean;
+  model?: string;
 };
 
 export type MaterialFileCorpus = {
@@ -72,7 +117,19 @@ export function buildMaterialCorpus(files: MaterialFileCorpus[]): string {
   return parts.join("\n");
 }
 
-/** Split on file/page boundaries when corpus exceeds the budget. */
+export function pageTextMapFromFiles(files: MaterialFileCorpus[]): Map<number, string> {
+  const map = new Map<number, string>();
+  for (const file of files) {
+    for (const page of file.pages) {
+      const prev = map.get(page.pageNumber) ?? "";
+      const body = (page.text ?? "").trim();
+      map.set(page.pageNumber, prev ? `${prev}\n${body}` : body);
+    }
+  }
+  return map;
+}
+
+/** Split on file/page boundaries when corpus exceeds the mini budget. */
 export function splitCorpusForContext(
   corpus: string,
   maxChars = ONESHOT_MAX_INPUT_CHARS,
@@ -94,13 +151,11 @@ export function splitCorpusForContext(
     buf.push(line);
     size += add;
     if (parts.length >= ONESHOT_MAX_PARTS - 1 && size >= maxChars * 0.9) {
-      // Remainder goes into the last part even if slightly over.
       continue;
     }
   }
   flush();
   if (parts.length > ONESHOT_MAX_PARTS) {
-    // Merge excess into the last allowed parts.
     const head = parts.slice(0, ONESHOT_MAX_PARTS - 1);
     const tail = parts.slice(ONESHOT_MAX_PARTS - 1).join("\n");
     return [...head, tail];
@@ -108,17 +163,102 @@ export function splitCorpusForContext(
   return parts.length ? parts : [corpus.slice(0, maxChars)];
 }
 
+const TR_STOP = new Set([
+  "ve",
+  "bir",
+  "icin",
+  "için",
+  "olan",
+  "ile",
+  "da",
+  "de",
+  "mi",
+  "mu",
+  "mı",
+  "bu",
+  "su",
+  "şu",
+  "olarak",
+  "gibi",
+  "kadar",
+  "ancak",
+  "veya",
+  "ise",
+  "ki",
+  "ne",
+  "degil",
+  "değil",
+  "the",
+  "and",
+  "of",
+  "to",
+  "in",
+  "for",
+  "with",
+  "is",
+  "are",
+  "a",
+  "an",
+]);
+
+/** Turkish-aware token set for grounding checks (no subject keyword lists). */
+export function normalizeOutlineTokens(text: string): string[] {
+  const folded = foldTr(text)
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!folded) return [];
+  const out: string[] = [];
+  for (const raw of folded.split(" ")) {
+    if (raw.length < 3) continue;
+    if (TR_STOP.has(raw)) continue;
+    if (/^\d+$/.test(raw)) continue;
+    out.push(raw);
+  }
+  return [...new Set(out)];
+}
+
+export function topicTextGrounded(input: {
+  title: string;
+  whyLearn?: string | null;
+  likelyAsked?: string[];
+  pageStart: number;
+  pageEnd: number;
+  pageTexts: Map<number, string>;
+}): boolean {
+  const start = Math.min(input.pageStart, input.pageEnd);
+  const end = Math.max(input.pageStart, input.pageEnd);
+  const cited: string[] = [];
+  for (let p = start; p <= end; p += 1) {
+    cited.push(input.pageTexts.get(p) ?? "");
+  }
+  const pageTokens = new Set(normalizeOutlineTokens(cited.join(" ")));
+  if (!pageTokens.size) return false;
+
+  const topicBlob = [input.title, input.whyLearn ?? "", ...(input.likelyAsked ?? [])].join(" ");
+  const topicTokens = normalizeOutlineTokens(topicBlob);
+  if (!topicTokens.length) return false;
+
+  const hit = topicTokens.filter((t) => pageTokens.has(t)).length;
+  const need = Math.min(2, topicTokens.length);
+  if (hit >= need) return true;
+  return hit / topicTokens.length >= 0.34;
+}
+
 export type OneShotValidationIssue =
   | { code: "unit_count"; units: number }
   | { code: "topic_count"; topics: number }
   | { code: "empty_title" }
+  | { code: "empty_unit"; title: string }
   | { code: "duplicate_topic"; title: string }
   | { code: "page_range"; title: string; pageStart: number; pageEnd: number }
+  | { code: "ungrounded_topic"; title: string; pageStart: number; pageEnd: number }
   | { code: "diger_bucket"; title: string };
 
 export function validateOneShotOutline(
   draft: OneShotOutlineDraft,
   maxPage: number,
+  pageTexts?: Map<number, string>,
 ): { ok: true; normalized: OutlineUnitDraft[] } | { ok: false; issues: OneShotValidationIssue[] } {
   const issues: OneShotValidationIssue[] = [];
   if (draft.units.length < 1 || draft.units.length > 20) {
@@ -131,7 +271,6 @@ export function validateOneShotOutline(
 
   const seen = new Set<string>();
   const idToTitle = new Map<string, string>();
-  // First pass: assign stable local ids and collect titles.
   let autoId = 0;
   for (const unit of draft.units) {
     for (const topic of unit.topics) {
@@ -183,18 +322,42 @@ export function validateOneShotOutline(
       }
       start = Math.max(1, Math.min(start, maxPage));
       end = Math.max(start, Math.min(end, maxPage));
-      seen.add(key);
-      const pageNumbers: number[] = [];
-      for (let p = start; p <= end; p += 1) pageNumbers.push(p);
+
       const why =
         (topic.whyLearn || topic.description || "").trim().slice(0, 400) || undefined;
       const likelyAsked = [...new Set((topic.likelyAsked ?? []).map((s) => s.trim()).filter(Boolean))]
         .slice(0, 4);
-      const prerequisiteTitles = [...new Set(
-        (topic.prerequisiteIds ?? [])
-          .map((id) => idToTitle.get(id.trim()) ?? "")
-          .filter((t) => t && t.toLocaleLowerCase("tr") !== key),
-      )].slice(0, 8);
+
+      if (
+        pageTexts &&
+        !topicTextGrounded({
+          title,
+          whyLearn: why,
+          likelyAsked,
+          pageStart: start,
+          pageEnd: end,
+          pageTexts,
+        })
+      ) {
+        issues.push({
+          code: "ungrounded_topic",
+          title,
+          pageStart: start,
+          pageEnd: end,
+        });
+        continue;
+      }
+
+      seen.add(key);
+      const pageNumbers: number[] = [];
+      for (let p = start; p <= end; p += 1) pageNumbers.push(p);
+      const prerequisiteTitles = [
+        ...new Set(
+          (topic.prerequisiteIds ?? [])
+            .map((id) => idToTitle.get(id.trim()) ?? "")
+            .filter((t) => t && t.toLocaleLowerCase("tr") !== key),
+        ),
+      ].slice(0, 8);
       topics.push({
         id: topic.id?.trim() || undefined,
         title,
@@ -208,13 +371,15 @@ export function validateOneShotOutline(
         prerequisiteTitles,
       });
     }
-    if (topics.length) {
-      normalized.push({
-        title: unitTitle,
-        examWeight: unit.examWeight ?? "medium",
-        topics,
-      });
+    if (!topics.length) {
+      issues.push({ code: "empty_unit", title: unitTitle });
+      continue;
     }
+    normalized.push({
+      title: unitTitle,
+      examWeight: unit.examWeight ?? "medium",
+      topics,
+    });
   }
 
   if (!normalized.length) {
@@ -248,7 +413,7 @@ function studentOutlinePrompt(input: {
 1) ÖĞRETMEN bakışı (sınav türü/seviyesi: ${input.examLabel?.trim() || "genel"}):
 - Bu sınavda ne sorulması olası?
 - Her ünite ve konu için examWeight: "high" | "medium" | "low".
-- Her konu için likelyAsked: 2–4 kısa madde (sinavda_sorulabilecekler).
+- Her konu için likelyAsked: 2–4 kısa madde (sinavda_sorulabilecekler). Her madde alıntılanan sayfalardaki metne dayanmalı.
 
 2) ÖĞRENCİ bakışı:
 - Bu içeriği en iyi nasıl anlarım, hangi sırayla çalışırım?
@@ -257,9 +422,12 @@ function studentOutlinePrompt(input: {
 - Her konu için whyLearn: tek cümle (ne öğreneceğim / neden önemli).
 - Her konuya kısa id ver (ör. "t1") ve prerequisiteIds ile önceki konu id'lerini bağla.
 
-Ortak kurallar:
-- Kitabın/dosyaların kendi yapısını (içindekiler, bölüm başlıkları) dikkate al ama logolar, seri adları, sayfa üstbilgileri, soru numaraları, şıklar, OCR bozukluklarını konu yapma.
+SERT KURAL — UYDURMA YOK:
+- Yalnızca verilen materyali kullan. Materyalde olmayan konu, madde veya sayfa ekleme.
+- Her konu ve her likelyAsked maddesi, pageStart–pageEnd aralığındaki [s.N] metniyle desteklenmeli.
+- Materyal bir şeyi kapsamıyorsa onu ekleme.
 - pageStart/pageEnd gerçek [s.N] işaretlerinden; 1–${input.maxPage} dışında numara uydurma.
+- Kitabın/dosyaların kendi yapısını (içindekiler, bölüm başlıkları) dikkate al ama logolar, seri adları, sayfa üstbilgileri, soru numaraları, şıklar, OCR bozukluklarını konu yapma.
 - "Diğer Konular" kovası EKLEME. Ünite 1–20, toplam konu ≤40.
 
 JSON: {"units":[{"title":string,"examWeight":"high|medium|low","topics":[{"id":string,"title":string,"whyLearn":string,"description":string,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[],"prerequisiteIds":string[]}]}]}
@@ -270,13 +438,14 @@ ${input.corpus}${repair}`;
 
 const SCHEMA_HINT =
   'JSON: {"units":[{"title":string,"examWeight":"high|medium|low","topics":[{"id":string,"title":string,"whyLearn":string,"description":string,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[2-4],"prerequisiteIds":string[]}]}]}. ' +
-  "Öğretmen+öğrenci bakışı birlikte. 1–20 ünite, ≤40 konu. Diğer Konular yok. Öğrenme sırası (önkoşul önce).";
+  "Öğretmen+öğrenci bakışı. Uydurma yok — her konu alıntılanan sayfa metnine dayanır. 1–20 ünite, ≤40 konu. Diğer Konular yok. Öğrenme sırası (önkoşul önce).";
 
 async function callOutlineModel(input: {
   service: SupabaseClient;
   userId: string;
   corpus: string;
   maxPage: number;
+  model: string;
   examLabel?: string | null;
   examDate?: string | null;
   deadlineAt?: number;
@@ -291,6 +460,7 @@ async function callOutlineModel(input: {
       verificationMode: "schema",
       deadlineAt: input.deadlineAt,
       maxDraftAttempts: 1,
+      modelOverride: input.model,
       schemaHint: SCHEMA_HINT,
       userPrompt: studentOutlinePrompt({
         examLabel: input.examLabel,
@@ -311,79 +481,104 @@ async function callOutlineModel(input: {
   return null;
 }
 
-function fallbackFromPages(
-  pages: PageAnalysis[],
-  fileName: string,
-): OutlineUnitDraft[] {
-  const light = pages.map((p) => ({
-    pageNumber: p.pageNumber,
-    text: p.textContent,
-    pageKind: p.pageKind,
-    headings: p.headings,
-  }));
-  const tocUnits = extractTocUnits(light);
-  const furniture = detectPageFurniture(light);
-  const byTitle = new Map<string, number[]>();
-  for (const page of pages) {
-    for (const heading of page.headings ?? []) {
-      const title = heading.trim();
-      if (!title) continue;
-      const list = byTitle.get(title) ?? [];
-      list.push(page.pageNumber);
-      byTitle.set(title, list);
-    }
+function failedResult(partial?: { path?: OneShotOutlineResult["path"]; model?: string }): OneShotOutlineResult {
+  return {
+    units: [],
+    fromModel: false,
+    path: partial?.path ?? "failed",
+    retryable: true,
+    model: partial?.model,
+  };
+}
+
+async function outlineWithModel(input: {
+  service: SupabaseClient;
+  userId: string;
+  corpus: string;
+  maxPage: number;
+  model: string;
+  tier: "standard" | "strong";
+  examLabel?: string | null;
+  examDate?: string | null;
+  deadlineAt?: number;
+}): Promise<{ draft: OneShotOutlineDraft | null; path: "single" | "split_merge" }> {
+  // Strong model reads the whole material in one call (1M context).
+  if (input.tier === "strong" || input.corpus.length <= ONESHOT_MAX_INPUT_CHARS) {
+    const corpus =
+      input.tier === "strong" && input.corpus.length > ONESHOT_STRONG_MAX_CHARS
+        ? input.corpus.slice(0, ONESHOT_STRONG_MAX_CHARS)
+        : input.corpus;
+    const draft = await callOutlineModel({
+      service: input.service,
+      userId: input.userId,
+      corpus,
+      maxPage: input.maxPage,
+      model: input.model,
+      examLabel: input.examLabel,
+      examDate: input.examDate,
+      deadlineAt: input.deadlineAt,
+    });
+    return { draft, path: "single" };
   }
-  // Prefer chapterHeadings order when available.
-  const ordered = chapterHeadings(pages);
-  const titles =
-    ordered.length > 0
-      ? ordered.map((title) => ({
-          title,
-          pageNumbers: [...new Set(byTitle.get(title) ?? [])].sort((a, b) => a - b),
-        }))
-      : [...byTitle.entries()].map(([title, pageNumbers]) => ({
-          title,
-          pageNumbers: [...new Set(pageNumbers)].sort((a, b) => a - b),
-        }));
-  // Drop titles with no real pages — never invent page numbers.
-  const grounded = titles.filter((t) => t.pageNumbers.length > 0);
-  if (!grounded.length) {
-    return [
-      {
-        title: fileName.replace(/\.[^.]+$/, "") || "Konular",
-        topics: pages
-          .filter((p) => p.pageKind === "content" || p.pageKind === "uncertain")
-          .slice(0, 40)
-          .map((p) => ({
-            title: p.headings[0] || `Sayfa ${p.pageNumber}`,
-            sourceTitles: [p.headings[0] || `Sayfa ${p.pageNumber}`],
-            pageNumbers: [p.pageNumber],
-          }))
-          .filter((t) => t.pageNumbers.length > 0),
-      },
-    ].filter((u) => u.topics.length > 0);
+
+  const parts = splitCorpusForContext(input.corpus);
+  if (parts.length === 1) {
+    const draft = await callOutlineModel({
+      service: input.service,
+      userId: input.userId,
+      corpus: parts[0]!,
+      maxPage: input.maxPage,
+      model: input.model,
+      examLabel: input.examLabel,
+      examDate: input.examDate,
+      deadlineAt: input.deadlineAt,
+    });
+    return { draft, path: "single" };
   }
-  const cleaned = cleanOutlineDeterministic({
-    titles: grounded,
-    seriesLabels: furniture.seriesLabels,
-    unitRuns: furniture.unitRuns,
-    tocUnits: tocUnits.length ? tocUnits : undefined,
-    contentPageCount: pages.filter(
-      (p) => p.pageKind === "content" || p.pageKind === "uncertain",
-    ).length,
+
+  const partials = await Promise.all(
+    parts.map((part, index) =>
+      callOutlineModel({
+        service: input.service,
+        userId: input.userId,
+        corpus: `--- Parça ${index + 1}/${parts.length} ---\n${part}`,
+        maxPage: input.maxPage,
+        model: input.model,
+        examLabel: input.examLabel,
+        examDate: input.examDate,
+        deadlineAt: input.deadlineAt,
+      }),
+    ),
+  );
+  if (partials.some((p) => !p)) {
+    return { draft: null, path: "split_merge" };
+  }
+  const mergeCorpus = partials
+    .map((p, i) => `=== Kısmi taslak ${i + 1} ===\n${JSON.stringify(p)}`)
+    .join("\n");
+  const draft = await callOutlineModel({
+    service: input.service,
+    userId: input.userId,
+    corpus: `Aşağıdaki kısmi ünite/konu taslaklarını tek bir bütün çalışma yolunda birleştir. Metni yeniden okuma; yalnızca taslakları birleştir, yinele, sıraya koy. Uydurma ekleme.\n\n${mergeCorpus}`,
+    maxPage: input.maxPage,
+    model: input.model,
+    examLabel: input.examLabel,
+    examDate: input.examDate,
+    deadlineAt: input.deadlineAt,
   });
-  return deterministicUnitsAsDraft(cleaned);
+  return { draft, path: "split_merge" };
 }
 
 /**
- * Whole-material outline. Prefer a single model call; split+merge when needed.
+ * Whole-material outline. Prefer a single model call; split+merge only on mini
+ * when the corpus exceeds the mini budget. Never invent a fake topic list.
  */
 export async function buildOutlineOneShot(input: {
   service: SupabaseClient;
   userId: string;
   files: MaterialFileCorpus[];
-  /** Analyses used only for fallback (headings/TOC). */
-  pagesForFallback: PageAnalysis[];
+  /** Kept for API compatibility; unused — failure returns empty retryable. */
+  pagesForFallback?: PageAnalysis[];
   examLabel?: string | null;
   examDate?: string | null;
   deadlineAt?: number;
@@ -392,115 +587,122 @@ export async function buildOutlineOneShot(input: {
   const maxPage = Math.max(
     1,
     ...input.files.flatMap((f) => f.pages.map((p) => p.pageNumber)),
-    ...input.pagesForFallback.map((p) => p.pageNumber),
+    ...(input.pagesForFallback ?? []).map((p) => p.pageNumber),
   );
-  const fileName = input.files.map((f) => f.fileName).join(" + ") || "belge";
+  const pageCount = Math.max(
+    ...input.files.flatMap((f) => f.pages.map((p) => p.pageNumber)),
+    0,
+  );
 
   if (input.allowModel === false) {
-    return {
-      units: fallbackFromPages(input.pagesForFallback, fileName),
-      fromModel: false,
-      path: "fallback",
-    };
+    return failedResult();
   }
 
   const corpus = buildMaterialCorpus(input.files);
   if (!corpus.trim()) {
-    return {
-      units: fallbackFromPages(input.pagesForFallback, fileName),
-      fromModel: false,
-      path: "fallback",
-    };
+    return failedResult();
   }
 
-  const parts = splitCorpusForContext(corpus);
-  let draft: OneShotOutlineDraft | null = null;
-  let path: OneShotOutlineResult["path"] = "single";
+  const pageTexts = pageTextMapFromFiles(input.files);
+  const routed = selectOutlineModel({ pageCount, corpusChars: corpus.length });
+  const strong = outlineStrongModel();
 
-  if (parts.length === 1) {
-    draft = await callOutlineModel({
-      service: input.service,
-      userId: input.userId,
-      corpus: parts[0]!,
-      maxPage,
-      examLabel: input.examLabel,
-      examDate: input.examDate,
-      deadlineAt: input.deadlineAt,
-    });
-  } else {
-    path = "split_merge";
-    const partials = await Promise.all(
-      parts.map((part, index) =>
-        callOutlineModel({
-          service: input.service,
-          userId: input.userId,
-          corpus: `--- Parça ${index + 1}/${parts.length} ---\n${part}`,
-          maxPage,
-          examLabel: input.examLabel,
-          examDate: input.examDate,
-          deadlineAt: input.deadlineAt,
-        }),
-      ),
-    );
-    if (partials.some((p) => !p)) {
-      return {
-        units: fallbackFromPages(input.pagesForFallback, fileName),
-        fromModel: false,
-        path: "fallback",
-      };
-    }
-    const mergeCorpus = partials
-      .map(
-        (p, i) =>
-          `=== Kısmi taslak ${i + 1} ===\n${JSON.stringify(p)}`,
-      )
-      .join("\n");
-    draft = await callOutlineModel({
-      service: input.service,
-      userId: input.userId,
-      corpus: `Aşağıdaki kısmi ünite/konu taslaklarını tek bir bütün çalışma yolunda birleştir. Metni yeniden okuma; yalnızca taslakları birleştir, yinele, sıraya koy.\n\n${mergeCorpus}`,
-      maxPage,
-      examLabel: input.examLabel,
-      examDate: input.examDate,
-      deadlineAt: input.deadlineAt,
-    });
-  }
+  let { draft, path } = await outlineWithModel({
+    service: input.service,
+    userId: input.userId,
+    corpus,
+    maxPage,
+    model: routed.model,
+    tier: routed.tier,
+    examLabel: input.examLabel,
+    examDate: input.examDate,
+    deadlineAt: input.deadlineAt,
+  });
+  let usedModel = routed.model;
+  let resultPath: OneShotOutlineResult["path"] = path;
 
   if (!draft) {
-    return {
-      units: fallbackFromPages(input.pagesForFallback, fileName),
-      fromModel: false,
-      path: "fallback",
-    };
+    // Mini totally failed → escalate to strong once before giving up.
+    if (routed.tier === "standard") {
+      const escalated = await outlineWithModel({
+        service: input.service,
+        userId: input.userId,
+        corpus,
+        maxPage,
+        model: strong,
+        tier: "strong",
+        examLabel: input.examLabel,
+        examDate: input.examDate,
+        deadlineAt: input.deadlineAt,
+      });
+      draft = escalated.draft;
+      usedModel = strong;
+      resultPath = "escalation";
+    }
+    if (!draft) return failedResult({ path: "failed", model: usedModel });
   }
 
-  let validated = validateOneShotOutline(draft, maxPage);
+  let validated = validateOneShotOutline(draft, maxPage, pageTexts);
+
+  // Quality escalation: mini result failed validation → redo with gpt-4.1.
+  if (!validated.ok && routed.tier === "standard" && usedModel !== strong) {
+    const escalated = await outlineWithModel({
+      service: input.service,
+      userId: input.userId,
+      corpus,
+      maxPage,
+      model: strong,
+      tier: "strong",
+      examLabel: input.examLabel,
+      examDate: input.examDate,
+      deadlineAt: input.deadlineAt,
+    });
+    usedModel = strong;
+    resultPath = "escalation";
+    if (escalated.draft) {
+      draft = escalated.draft;
+      validated = validateOneShotOutline(draft, maxPage, pageTexts);
+    }
+  }
+
   if (!validated.ok) {
-    const repairErrors = validated.issues
-      .map((issue) => JSON.stringify(issue))
-      .join("\n");
+    const repairErrors = validated.issues.map((issue) => JSON.stringify(issue)).join("\n");
+    const repairCorpus =
+      corpus.length > ONESHOT_STRONG_MAX_CHARS
+        ? corpus.slice(0, ONESHOT_STRONG_MAX_CHARS)
+        : corpus;
     const repaired = await callOutlineModel({
       service: input.service,
       userId: input.userId,
-      corpus: parts.length === 1 ? parts[0]! : buildMaterialCorpus(input.files).slice(0, ONESHOT_MAX_INPUT_CHARS),
+      corpus: repairCorpus,
       maxPage,
+      model: strong,
       examLabel: input.examLabel,
       examDate: input.examDate,
       deadlineAt: input.deadlineAt,
       repairErrors,
     });
+    usedModel = strong;
     if (repaired) {
-      validated = validateOneShotOutline(repaired, maxPage);
+      validated = validateOneShotOutline(repaired, maxPage, pageTexts);
       if (validated.ok) {
-        return { units: validated.normalized, fromModel: true, path: "repair" };
+        return {
+          units: validated.normalized,
+          fromModel: true,
+          path: "repair",
+          retryable: false,
+          model: usedModel,
+        };
       }
     }
-    return {
-      units: fallbackFromPages(input.pagesForFallback, fileName),
-      fromModel: false,
-      path: "fallback",
-    };
+    return failedResult({ path: "failed", model: usedModel });
   }
 
-  return { units: validated.normalized, fromModel: true, path };
+  return {
+    units: validated.normalized,
+    fromModel: true,
+    path: resultPath,
+    retryable: false,
+    model: usedModel,
+  };
 }

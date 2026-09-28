@@ -4,6 +4,12 @@ import { MAP_LEASE_MS } from "@/lib/documents/pdf-learning-v2-lease";
 import { LEASE_BUSY_ALIVE_MS, stallCursorKey } from "@/lib/documents/process-session";
 import { analyzePage } from "@/lib/documents/page-analysis";
 import { topicMapWindows } from "@/lib/documents/pdf-learning-v2";
+import { OCR_PAGE_CONCURRENCY, PDF_PAGES_PER_STEP } from "@/lib/documents/pdf-ingestion";
+import {
+  OUTLINE_MINI_PAGE_LIMIT,
+  outlineStandardModel,
+  outlineStrongModel,
+} from "@/lib/documents/outline-oneshot";
 
 describe("bounded map round progress labels", () => {
   it("shows extract → windows → outline labels", () => {
@@ -63,5 +69,17 @@ describe("bounded map round progress labels", () => {
     expect(windows.length).toBe(17);
     expect(windows[0]).toHaveLength(12);
     expect(windows[windows.length - 1]!.length).toBeLessThanOrEqual(12);
+  });
+
+  it("runs OCR in parallel waves (8–10) with page step 10", () => {
+    expect(OCR_PAGE_CONCURRENCY).toBeGreaterThanOrEqual(8);
+    expect(OCR_PAGE_CONCURRENCY).toBeLessThanOrEqual(10);
+    expect(PDF_PAGES_PER_STEP).toBe(10);
+  });
+
+  it("exposes outline model routing constants", () => {
+    expect(OUTLINE_MINI_PAGE_LIMIT).toBe(30);
+    expect(outlineStandardModel()).toMatch(/mini|4o/i);
+    expect(outlineStrongModel()).toMatch(/gpt-4\.1/);
   });
 });

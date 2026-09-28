@@ -290,16 +290,29 @@ export async function POST(request: Request) {
   const groups: MergeTopicInput[][] = [];
   let intakeMode: "legacy" | "v2" = "legacy";
   let intakeUnits: IntakeStudyUnit[] = [];
-  const consolidated = documentIds.length
-    ? await consolidatePrepDocuments(service, userId, documentIds, { allowModel: true })
-    : null;
-  let mergedTopics: Array<ConsolidatedTopic | MergedTopic> = consolidated?.topics ?? [];
-  if (consolidated?.units?.length) {
-    intakeUnits = consolidated.units;
+  // Multi-file only: consolidate merges. Single-file reads the oneshot map
+  // directly so the old merge-first path cannot short-circuit units/regen.
+  let consolidated: Awaited<ReturnType<typeof consolidatePrepDocuments>> | null = null;
+  let mergedTopics: Array<ConsolidatedTopic | MergedTopic> = [];
+  if (documentIds.length > 1) {
+    consolidated = await consolidatePrepDocuments(service, userId, documentIds, {
+      allowModel: true,
+    });
+    mergedTopics = consolidated?.topics ?? [];
+    if (consolidated?.units?.length) intakeUnits = consolidated.units;
+    if (mergedTopics.length) intakeMode = "v2";
+  } else if (documentIds.length === 1) {
+    // Single doc: still use consolidate for perspective unpack (examHeavy /
+    // whyLearn) — it reads the hierarchical oneshot nodes, not a flat junk pass
+    // (unused flats were regenerated above).
+    consolidated = await consolidatePrepDocuments(service, userId, documentIds, {
+      allowModel: false,
+    });
+    mergedTopics = consolidated?.topics ?? [];
+    if (consolidated?.units?.length) intakeUnits = consolidated.units;
+    if (mergedTopics.length) intakeMode = "v2";
   }
-  if (mergedTopics.length) {
-    intakeMode = "v2";
-  } else {
+  if (!mergedTopics.length) {
     for (const documentId of documentIds.length ? documentIds : [parsed.data.documentId]) {
       const resolved = await resolveTopicSuggestions(service, userId, documentId, v2);
       if (resolved.intakeMode === "v2") intakeMode = "v2";
@@ -317,8 +330,9 @@ export async function POST(request: Request) {
         // Model yoksa iki başlık ayrı kalır. Konu düşmez.
       }
     }
-    mergedTopics = orderTopicsForPath(mergedTopics, { manualOrder: false });
   }
+  // Learning order: prerequisites first (even when consolidate supplied topics).
+  mergedTopics = orderTopicsForPath(mergedTopics, { manualOrder: false });
   const capacityError = prepTopicCapacityError(mergedTopics.length);
   if (capacityError) {
     return NextResponse.json(

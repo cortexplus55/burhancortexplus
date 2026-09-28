@@ -201,6 +201,10 @@ describe("prep create keeps stored analysis", () => {
     expect(create).not.toContain("runTeacherAnalysis");
     expect(intake).toContain("mergeTopicGroups");
     expect(intake).not.toContain("runTeacherAnalysis");
+    // Learning order always; multi-file consolidate is not the single-doc short-circuit.
+    expect(intake).toContain("orderTopicsForPath(mergedTopics");
+    expect(intake).toContain("documentIds.length > 1");
+    expect(intake).toContain("regenerateUnusedFlatTopicMap");
   });
 });
 
