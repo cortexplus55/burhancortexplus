@@ -13,6 +13,9 @@ export const PROCESS_STEP_BUDGET_MS = 45_000;
 /** İlerleme yoksa bu süreden sonra istemci pes eder (~6 dk). */
 export const PROCESS_STALL_MS = 6 * 60 * 1000;
 
+/** Same nextPage + retryable 503 this many times → terminal for the client. */
+export const MAX_IDENTICAL_RETRYABLE_FAILURES = 3;
+
 export type ProcessPhase = "extract" | "map" | "done";
 
 export function shouldYieldProcessing(
@@ -29,7 +32,6 @@ export function pickProcessPhase(input: {
   topicMapStatus: string | null;
   learningV2: boolean;
 }): ProcessPhase {
-  // Failed docs can be retried — resume extract or map from durable state.
   if (input.status === "failed") {
     if (input.chunkCount <= 0) return "extract";
     if (input.learningV2) {
@@ -56,7 +58,10 @@ export function transientBackoffMs(
   retryAfterMs?: number | null,
 ): number {
   if (typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs > 0) {
-    return Math.min(retryAfterMs, 120_000);
+    // Honour server hint but still grow with attempt so fixed 2s never sticks.
+    const hinted = Math.min(retryAfterMs, 120_000);
+    const grown = Math.min(30_000, hinted * 2 ** Math.min(attempt, 4));
+    return grown + Math.floor(Math.random() * 400);
   }
   const base = Math.min(30_000, 800 * 2 ** Math.min(attempt, 6));
   return base + Math.floor(Math.random() * 400);
@@ -66,6 +71,12 @@ export function readRetryAfterMs(body: Record<string, unknown>): number | null {
   const fromBody = Number(body.retryAfterMs ?? body.retry_after_ms);
   if (Number.isFinite(fromBody) && fromBody > 0) return fromBody;
   return null;
+}
+
+export function stallCursorKey(body: Record<string, unknown>): string {
+  const next = body.nextPage ?? body.pagesDone ?? body.windowsDone ?? "";
+  const phase = body.phase ?? "";
+  return `${phase}:${String(next)}`;
 }
 
 export const PROCESS_RETRY_MESSAGE =
@@ -115,7 +126,7 @@ function noteProgress(
 
 /**
  * İş bitene kadar sorar. Duraksama algısı: nextPage / windowsDone ilerlemiyorsa
- * ~6 dk sonra durur. 202, haritanın sıradaki turda süreceği anlamına gelir.
+ * ~6 dk sonra durur. Aynı nextPage'te 3 retryable 503 → istemci terminal sayar.
  */
 export async function requestDocumentProcessing(input: {
   documentId: string;
@@ -134,6 +145,8 @@ export async function requestDocumentProcessing(input: {
   let retried = false;
   let rounds = 0;
   let transientAttempt = 0;
+  let identicalCursor: string | null = null;
+  let identicalFailures = 0;
   const progressState = {
     lastProgressAt: now(),
     lastFingerprint: null as string | null,
@@ -164,6 +177,33 @@ export async function requestDocumentProcessing(input: {
 
     if (response && isTransientProcessStatus(response.status)) {
       retried = true;
+      const cursor = stallCursorKey(response.body);
+      if (response.status === 503 && cursor === identicalCursor) {
+        identicalFailures += 1;
+      } else {
+        identicalCursor = cursor;
+        identicalFailures = 1;
+      }
+      if (
+        response.status === 503 &&
+        identicalFailures >= MAX_IDENTICAL_RETRYABLE_FAILURES
+      ) {
+        return {
+          ok: false,
+          status: 503,
+          body: {
+            ...response.body,
+            retryable: false,
+            error:
+              typeof response.body.error === "string"
+                ? response.body.error
+                : "Sunucu şu an yoğun. Belgen kaydedildi; 'Devam et' ile kaldığı yerden sürdür.",
+            code: response.body.code ?? "retryable_exhausted",
+          },
+          retried,
+          rounds,
+        };
+      }
       const delay = transientBackoffMs(transientAttempt, readRetryAfterMs(response.body));
       transientAttempt += 1;
       await sleep(delay);
@@ -171,6 +211,8 @@ export async function requestDocumentProcessing(input: {
     }
 
     transientAttempt = 0;
+    identicalCursor = null;
+    identicalFailures = 0;
 
     if (!response) {
       return { ok: false, status: 0, body: { error: "Bağlantı hatası." }, retried, rounds };

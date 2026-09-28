@@ -189,8 +189,9 @@ export function resetStaleCleanupCooldownForTests() {
 }
 
 /**
- * Abandoned DOCUMENT_PAGE_PROCESS reservations: document failed, or no
- * progress for >24h while still pending. Does not touch the general allowlist.
+ * Abandoned DOCUMENT_PAGE_PROCESS reservations: document failed or stuck
+ * with no progress for >24h → refund. Completed documents with a leftover
+ * pending reservation → commit (charge was earned).
  */
 export async function refundAbandonedDocumentReservations(
   service: SupabaseClient,
@@ -209,7 +210,7 @@ export async function refundAbandonedDocumentReservations(
       .limit(options.limit ?? 40);
     if (error || !data?.length) return 0;
 
-    let refunded = 0;
+    let settled = 0;
     for (const row of data) {
       const key = String(row.idempotency_key ?? "");
       const documentId = key.startsWith("document_process_")
@@ -225,24 +226,28 @@ export async function refundAbandonedDocumentReservations(
 
       const status = (doc as { status?: string } | null)?.status;
       const updatedAt = (doc as { updated_at?: string } | null)?.updated_at;
-      const staleProgress =
-        !doc ||
-        status === "failed" ||
-        status === "completed" ||
-        (updatedAt != null && updatedAt < cutoff);
 
-      if (!staleProgress) continue;
       try {
+        if (status === "completed") {
+          await commitCredits(service, row.id as string);
+          settled += 1;
+          continue;
+        }
+        const staleProgress =
+          !doc ||
+          status === "failed" ||
+          (updatedAt != null && updatedAt < cutoff);
+        if (!staleProgress) continue;
         await refundCredits(service, row.id as string);
-        refunded += 1;
+        settled += 1;
       } catch {
         // continue
       }
     }
-    if (refunded) {
-      console.error("abandoned_document_reservations_refunded", { count: refunded });
+    if (settled) {
+      console.error("abandoned_document_reservations_settled", { count: settled });
     }
-    return refunded;
+    return settled;
   } catch {
     return 0;
   }

@@ -479,6 +479,7 @@ export function ExamCreateWizard({
       return false;
     }
     if (!result.ok) {
+      clearPendingDocProcess();
       const message = messageFromProcessBody(processed);
       setProcessAlert(message);
       toast.error(message);
@@ -562,6 +563,34 @@ export function ExamCreateWizard({
     setUploading(true);
     try {
       const uploaded = await uploadDocumentFile(file);
+      // Authoritative server page/quota check before the long OCR wait.
+      if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
+        try {
+          const preflightRes = await fetch("/api/documents/preflight", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ documentId: uploaded.documentId }),
+          });
+          const preflight = (await preflightRes.json().catch(() => ({}))) as {
+            fits?: boolean;
+            scannedPages?: number;
+            textPages?: number;
+            quota?: { unlimited?: boolean; remaining?: number | null; tier?: string };
+            error?: string;
+          };
+          if (preflightRes.ok && preflight.fits === false && !preflight.quota?.unlimited) {
+            const remaining = preflight.quota?.remaining ?? 0;
+            const scanned = preflight.scannedPages ?? 0;
+            const message =
+              `Bu PDF'in ${scanned} sayfası taranmış görünüyor. Bu ay kalan taranmış sayfa hakkın: ${remaining}.`;
+            setProcessAlert(message);
+            toast.error(message);
+            return false;
+          }
+        } catch {
+          // Preflight is advisory — process path still enforces quota.
+        }
+      }
       return await processAndRemember({
         documentId: uploaded.documentId,
         fileName: file.name,
@@ -851,8 +880,7 @@ export function ExamCreateWizard({
               <p className="apw-drop-hint">{materialLimitLine}</p>
             ) : null}
             <p className="apw-drop-hint">
-              Uzun taramalar sekme kapansa bile sunucuda devam eder; geri gelince
-              &quot;Devam et&quot; ile sürdürebilirsin.
+              Sekmeyi kapatırsan geri geldiğinde kaldığı yerden devam eder.
             </p>
             {processAlert ? (
               <div

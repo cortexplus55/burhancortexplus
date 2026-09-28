@@ -376,6 +376,20 @@ describe("failStaleProcessingDocuments", () => {
       error_message: "processing_timeout",
     });
   });
+
+  it("aktif belgenin güncel updated_at'i cutoff'un üstündeyse dokunulmaz", async () => {
+    // Source contract: extract steps and map checkpoints must bump updated_at.
+    const ingest = await import("node:fs").then((fs) =>
+      fs.readFileSync("src/lib/documents/pdf-ingestion.ts", "utf8"),
+    );
+    const map = await import("node:fs").then((fs) =>
+      fs.readFileSync("src/lib/documents/pdf-learning-v2.ts", "utf8"),
+    );
+    expect(ingest).toMatch(/updated_at:\s*nowIso|updated_at:\s*new Date\(\)\.toISOString\(\)/);
+    expect(ingest).toContain('status: "processing"');
+    expect(map).toContain("updated_at: nowIso");
+    expect(map).toContain("topic_map_updated_at: nowIso");
+  });
 });
 
 describe("shouldRouteToAdaptiveSession", () => {

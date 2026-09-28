@@ -135,6 +135,7 @@ export function PrepMaterialAdder({
       return;
     }
     if (!result.ok) {
+      clearPendingDocProcess();
       const message = messageFromProcessBody(processed);
       setProcessAlert(message);
       toast.error(message);
@@ -235,7 +236,7 @@ export function PrepMaterialAdder({
         <p className="text-xs text-[var(--cp-muted)]">{materialLimitLine}</p>
       ) : null}
       <p className="text-xs text-[var(--cp-muted)]">
-        Uzun taramalar sekme kapansa bile sunucuda devam eder; geri gelince Devam et ile sürdürebilirsin.
+        Sekmeyi kapatırsan geri geldiğinde kaldığı yerden devam eder.
       </p>
       {processAlert ? (
         <div

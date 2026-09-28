@@ -101,8 +101,34 @@ describe("document processing phases", () => {
     expect(isTransientProcessStatus(402)).toBe(false);
   });
 
-  it("honours retryAfterMs for backoff", () => {
-    expect(transientBackoffMs(3, 5000)).toBe(5000);
+  it("honours retryAfterMs and grows with attempt", () => {
+    expect(transientBackoffMs(0, 2000)).toBeGreaterThanOrEqual(2000);
+    expect(transientBackoffMs(2, 2000)).toBeGreaterThan(transientBackoffMs(0, 2000) - 400);
+  });
+
+  it("same nextPage'te 3 retryable 503 sonrası terminal döner", async () => {
+    let calls = 0;
+    const result = await requestDocumentProcessing({
+      documentId: "doc-503",
+      sleep: async () => {},
+      post: async () => {
+        calls += 1;
+        return {
+          status: 503,
+          body: {
+            retryable: true,
+            retryAfterMs: 100,
+            nextPage: 55,
+            phase: "extract",
+            error: "Sunucu yoğun.",
+          },
+        };
+      },
+    });
+    expect(calls).toBe(3);
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(503);
+    expect(result.body.retryable).toBe(false);
   });
 
   it("tracks extract progress fingerprints", () => {

@@ -301,17 +301,22 @@ export async function runPdfLearningV2(
         // Empty window: record and skip — fail only if the whole doc yields zero.
         if (!windowMap?.topics.length) {
           const nextIndex = job.next_index + 1;
+          const nowIso = new Date().toISOString();
           const { data: saved, error: checkpointError } = await service
             .from("document_topic_map_jobs")
             .update({
               next_index: nextIndex,
               topics: compactTopics,
-              updated_at: new Date().toISOString(),
+              updated_at: nowIso,
             })
             .eq("document_id", documentId)
             .eq("lease_token", token)
             .select("document_id");
           if (checkpointError || !saved?.length) throw new Error("topic_map_claim_lost");
+          await service.from("documents").update({
+            updated_at: nowIso,
+            topic_map_updated_at: nowIso,
+          }).eq("id", documentId);
           if (nextIndex < windows.length) {
             return {
               ok: true,
@@ -329,17 +334,22 @@ export async function runPdfLearningV2(
           pageNumbers: topic.pageNumbers,
         }))];
         const nextIndex = job.next_index + 1;
+        const nowIso = new Date().toISOString();
         const { data: saved, error: checkpointError } = await service
           .from("document_topic_map_jobs")
           .update({
             next_index: nextIndex,
             topics: compactTopics,
-            updated_at: new Date().toISOString(),
+            updated_at: nowIso,
           })
           .eq("document_id", documentId)
           .eq("lease_token", token)
           .select("document_id");
         if (checkpointError || !saved?.length) throw new Error("topic_map_claim_lost");
+        await service.from("documents").update({
+          updated_at: nowIso,
+          topic_map_updated_at: nowIso,
+        }).eq("id", documentId);
         if (nextIndex < windows.length) {
           return {
             ok: true,

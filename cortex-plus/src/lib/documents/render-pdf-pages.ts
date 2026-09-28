@@ -36,12 +36,6 @@ const TARGET_LONG_EDGE = 1600;
 /** Share of non-near-white pixels below which a page with image ops is blank. */
 export const BLANK_INK_RATIO = 0.002;
 
-const IMAGE_OPS = new Set([
-  "paintImageXObject",
-  "paintInlineImageXObject",
-  "paintImageMaskXObject",
-]);
-
 export type RenderedPdfPage = {
   png: Buffer;
   /** 0–1 share of non-white pixels at a cheap sample scale. */
@@ -93,8 +87,11 @@ async function pageHasImageContent(page: {
   getOperatorList: () => Promise<{ fnArray: number[] }>;
 }): Promise<boolean> {
   try {
-    const ops = await page.getOperatorList();
-    // pdfjs OPS enum values are numbers; names live on OPS. Check both.
+    const ops = await Promise.race([
+      page.getOperatorList(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2_000)),
+    ]);
+    if (!ops) return false;
     const { OPS } = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const imageCodes = new Set(
       [OPS.paintImageXObject, OPS.paintInlineImageXObject, OPS.paintImageMaskXObject].filter(
@@ -102,7 +99,6 @@ async function pageHasImageContent(page: {
       ),
     );
     if (imageCodes.size && ops.fnArray.some((fn) => imageCodes.has(fn))) return true;
-    // Fallback: some builds expose string fn names via toString of wrappers.
     return false;
   } catch {
     return false;
@@ -151,7 +147,6 @@ export async function renderPdfPages(
 
     for (let number = first; number <= last; number++) {
       const page = await pdf.getPage(number);
-      const hasImageContent = await pageHasImageContent(page);
       const base = page.getViewport({ scale: 1 });
       const scale = TARGET_LONG_EDGE / Math.max(base.width, base.height);
       const viewport = page.getViewport({ scale });
@@ -173,6 +168,10 @@ export async function renderPdfPages(
         canvas: canvas as any,
       }).promise;
 
+      // getOperatorList BEFORE render hangs on Node 20 (transferToFixedLength).
+      // Probe after paint, with a timeout; fall back to ink/size heuristics.
+      let hasImageContent = await pageHasImageContent(page);
+
       // Cheap ink metric at reduced resolution (sample every Nth pixel via getImageData).
       const sampleScale = Math.min(1, 200 / Math.max(canvas.width, canvas.height));
       const sw = Math.max(1, Math.floor(canvas.width * sampleScale));
@@ -183,8 +182,17 @@ export async function renderPdfPages(
       sctx.fillRect(0, 0, sw, sh);
       sctx.drawImage(canvas, 0, 0, sw, sh);
       const inkRatio = inkRatioFromRgba(sctx.getImageData(0, 0, sw, sh).data);
-      const scanRenderFailed =
-        hasImageContent && inkRatio < BLANK_INK_RATIO;
+      const png = canvas.toBuffer("image/png");
+      // Ops probe timed out but the bitmap has ink → treat as image content.
+      if (!hasImageContent && inkRatio >= BLANK_INK_RATIO) {
+        hasImageContent = true;
+      }
+      // Ops probe timed out and the bitmap is a tiny white PNG — typical
+      // failed CCITT/JBIG2 decode. Prefer the render-failed path over "blank".
+      if (!hasImageContent && inkRatio < BLANK_INK_RATIO && png.byteLength < 2_000) {
+        hasImageContent = true;
+      }
+      const scanRenderFailed = hasImageContent && inkRatio < BLANK_INK_RATIO;
 
       if (scanRenderFailed) {
         logOpsEvent("document_parse_failed", {
@@ -197,7 +205,7 @@ export async function renderPdfPages(
       }
 
       pages.push({
-        png: canvas.toBuffer("image/png"),
+        png,
         inkRatio,
         hasImageContent,
         scanRenderFailed,
@@ -217,6 +225,3 @@ export async function renderPdfPages(
 export function renderedPngBuffers(rendered: RenderedPdf): Buffer[] {
   return rendered.pages.map((page) => page.png);
 }
-
-// Silence unused in case tree-shaking complains about IMAGE_OPS name set.
-void IMAGE_OPS;

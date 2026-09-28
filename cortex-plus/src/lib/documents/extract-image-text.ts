@@ -30,22 +30,31 @@ const NO_TEXT = "[METIN_YOK]";
  */
 const MIN_USEFUL_CHARS = 40;
 
-/** Polite "no text" sentences the model returns instead of [METIN_YOK]. */
+/** Polite "no text" sentences — only applied to short OCR replies. */
 const NO_TEXT_PATTERNS = [
-  /\[?\s*METIN_YOK\s*\]?/i,
   /\bno\s*text\b/i,
   /\bempty\s*page\b/i,
   /bo[sş]\s*sayfa/i,
-  /g[oö]rselde.{0,40}(yaz[ıi]|metin).{0,20}(bulunm|yok|de[gğ]il)/i,
-  /(yaz[ıi]|metin).{0,20}(bulunmuyor|yok|g[oö]r[uü]nm[uü]yor)/i,
-  /okunacak.{0,20}(yaz[ıi]|metin).{0,10}yok/i,
+  // Anchor to the start of the reply so textbook prose like
+  // "yazılı … yoktur" is never matched mid-sentence.
+  /^\s*(bu\s+)?g[oö]rselde\b.{0,60}(yaz[ıi]|metin).{0,30}(bulunm|yok|de[gğ]il|g[oö]r[uü]nm[uü]yor)/i,
+  /^\s*(okunacak\s+)?(yaz[ıi]|metin)\b.{0,30}(bulunmuyor|yok|g[oö]r[uü]nm[uü]yor)/i,
+  /^\s*okunacak.{0,20}(yaz[ıi]|metin).{0,10}yok/i,
 ];
+
+/** Above this length, polite-refusal patterns must not fire (real textbook prose). */
+const POLITE_NO_TEXT_MAX_CHARS = 160;
+const POLITE_NO_TEXT_MAX_LINES = 3;
 
 /** Exported for unit tests — junk "no text" answers must never be indexed. */
 export function isNoTextOcrResponse(raw: string): boolean {
   const text = raw.trim();
   if (!text) return true;
   if (text.includes(NO_TEXT)) return true;
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  const shortEnough =
+    text.length < POLITE_NO_TEXT_MAX_CHARS && lines.length <= POLITE_NO_TEXT_MAX_LINES;
+  if (!shortEnough) return false;
   return NO_TEXT_PATTERNS.some((pattern) => pattern.test(text));
 }
 

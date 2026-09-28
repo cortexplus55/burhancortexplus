@@ -31,4 +31,21 @@ describe("OCR no-text ayırıcıları", () => {
   it("çok kısa metin kullanılabilir sayılmaz", () => {
     expect(isUsableOcrText("Kısa başlık")).toBe(false);
   });
+
+  it("KPSS gerçek cümleleri 'yok' geçse de kullanılabilir", () => {
+    const page13 =
+      "Herhangi bir yazılı düzenleme yoksa örf ve âdet hukuku geçerli olur; bu kural Anayasa'da da yer bulur.";
+    const england =
+      "İngiltere'nin yazılı bir anayasası yoktur; teamüller ve kanunlar anayasal düzeni oluşturur.";
+    expect(isNoTextOcrResponse(page13)).toBe(false);
+    expect(isUsableOcrText(page13)).toBe(true);
+    expect(isNoTextOcrResponse(england)).toBe(false);
+    expect(isUsableOcrText(england)).toBe(true);
+  });
+
+  it("kısa kibar ret cümlesi no-text sayılır", () => {
+    const polite = "Görselde herhangi bir yazı bulunmamaktadır.";
+    expect(isNoTextOcrResponse(polite)).toBe(true);
+    expect(isUsableOcrText(polite)).toBe(false);
+  });
 });

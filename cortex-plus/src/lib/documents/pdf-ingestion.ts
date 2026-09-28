@@ -15,6 +15,8 @@ import { isRetryableIngestionCode } from "@/lib/documents/ingestion-errors";
 export const PDF_PAGES_PER_STEP = 6;
 /** Soft wall-clock budget for one Vercel invocation (leave margin under 300s). */
 export const PDF_STEP_DEADLINE_MS = 200_000;
+/** Parallel OCR pages per wave — claim/retry/blocked stay per-page. */
+export const OCR_PAGE_CONCURRENCY = 4;
 const EMBED_BATCH = 24;
 const LEASE_RENEW_MS = 240_000;
 
@@ -40,6 +42,14 @@ export type PdfIngestionResult =
     }
   | { status: "ready"; pageCount: number; failedPages?: number[] }
   | { status: "failed"; code: string; retryable?: boolean };
+
+export type PagePersist = {
+  text: string;
+  extractionOk: boolean;
+  extractionMethod: "text_layer" | "ocr" | "none";
+  /** Always set — PostgREST bulk upsert nulls missing keys. */
+  pageKind: "content" | "blank" | "unreadable";
+};
 
 async function updateLease(
   service: SupabaseClient,
@@ -94,14 +104,153 @@ async function ensureReservation(
   return id;
 }
 
-type PagePersist = {
-  text: string;
-  extractionOk: boolean;
-  extractionMethod: "text_layer" | "ocr" | "none";
-  pageKind?: "blank" | "unreadable" | null;
-};
+/** Contiguous prefix of finished pages — unfinished slots must not advance nextPage. */
+export function contiguousDonePrefix(done: boolean[]): number {
+  let length = 0;
+  while (length < done.length && done[length]) length += 1;
+  return length;
+}
 
-async function readPdfBatch(
+/**
+ * Rows for document_pages upsert. Every row includes page_kind so PostgREST
+ * never inserts NULL when a mixed batch has optional keys on only some rows.
+ */
+export function buildDocumentPageRows(
+  documentId: string,
+  firstPage: number,
+  pages: PagePersist[],
+): Record<string, unknown>[] {
+  return pages.map((page, index) => ({
+    document_id: documentId,
+    page_number: firstPage + index,
+    text_content: page.text,
+    extraction_ok: page.extractionOk,
+    extraction_method: page.extractionMethod,
+    char_count: page.text.length,
+    page_kind: page.pageKind ?? "content",
+  }));
+}
+
+async function ocrOneBlankPage(input: {
+  service: SupabaseClient;
+  documentId: string;
+  userId: string;
+  pageNumber: number;
+  png: Buffer;
+  inkRatio: number;
+  founder: boolean;
+  limit: number;
+  deadlineMs: number;
+  maxOcrPages?: number | null;
+}): Promise<{
+  page: PagePersist;
+  claimed: boolean;
+  ocrSuccess: boolean;
+  failed: boolean;
+  tokensIn: number;
+  tokensOut: number;
+}> {
+  const {
+    service, documentId, userId, pageNumber, png, inkRatio,
+    founder, limit, deadlineMs, maxOcrPages,
+  } = input;
+
+  if (typeof maxOcrPages === "number" && maxOcrPages >= 0) {
+    const { count } = await service.from("document_ocr_claims")
+      .select("page_number", { count: "exact", head: true })
+      .eq("document_id", documentId);
+    if ((count ?? 0) >= maxOcrPages) {
+      return {
+        page: {
+          text: "",
+          extractionOk: false,
+          extractionMethod: "ocr",
+          pageKind: "unreadable",
+        },
+        claimed: false,
+        ocrSuccess: false,
+        failed: true,
+        tokensIn: 0,
+        tokensOut: 0,
+      };
+    }
+  }
+
+  let claimed = false;
+  if (!founder) {
+    const { data, error } = await service.rpc("claim_document_ocr_page", {
+      p_document_id: documentId, p_user_id: userId,
+      p_page_number: pageNumber, p_limit: limit,
+    });
+    if (error) throw new Error("photo_quota_unavailable");
+    if (data !== true) throw new Error("photo_quota_exhausted");
+    claimed = true;
+  }
+
+  let read = await extractImageText(png, "image/png", { deadlineMs });
+  if (!read.ok && read.reason === "unreadable" && Date.now() + 20_000 < deadlineMs) {
+    read = await extractImageText(png, "image/png", { deadlineMs });
+  }
+
+  if (read.reason === "blocked") {
+    if (claimed) {
+      await service.rpc("release_document_ocr_page", {
+        p_document_id: documentId, p_user_id: userId, p_page_number: pageNumber,
+      });
+    }
+    return {
+      page: {
+        text: "",
+        extractionOk: false,
+        extractionMethod: "ocr",
+        pageKind: "unreadable",
+      },
+      claimed: false,
+      ocrSuccess: false,
+      failed: true,
+      tokensIn: read.tokensIn,
+      tokensOut: read.tokensOut,
+    };
+  }
+
+  const text = read.ok && read.pages[0] ? read.pages[0].trim() : "";
+  if (text) {
+    return {
+      page: { text, extractionOk: true, extractionMethod: "ocr", pageKind: "content" },
+      claimed,
+      ocrSuccess: true,
+      failed: false,
+      tokensIn: read.tokensIn,
+      tokensOut: read.tokensOut,
+    };
+  }
+
+  const blank = inkRatio < BLANK_INK_RATIO;
+  if (claimed) {
+    await service.rpc("release_document_ocr_page", {
+      p_document_id: documentId, p_user_id: userId, p_page_number: pageNumber,
+    });
+  }
+  return {
+    page: {
+      text: "",
+      extractionOk: blank,
+      extractionMethod: blank ? "none" : "ocr",
+      pageKind: blank ? "blank" : "unreadable",
+    },
+    claimed: false,
+    ocrSuccess: false,
+    failed: !blank,
+    tokensIn: read.tokensIn,
+    tokensOut: read.tokensOut,
+  };
+}
+
+/**
+ * Read one PDF window. On deadline, returns only the contiguous finished
+ * prefix so nextPage never skips unprocessed pages.
+ */
+export async function readPdfBatch(
   service: SupabaseClient,
   buffer: Buffer,
   documentId: string,
@@ -110,6 +259,7 @@ async function readPdfBatch(
   pageBudget: number,
   deadlineMs: number,
   maxOcrPages?: number | null,
+  ocrConcurrency = OCR_PAGE_CONCURRENCY,
 ): Promise<{
   pages: PagePersist[];
   total: number;
@@ -123,11 +273,13 @@ async function readPdfBatch(
     text,
     extractionOk: Boolean(text.trim()),
     extractionMethod: text.trim() ? "text_layer" as const : "none" as const,
+    pageKind: text.trim() ? "content" as const : "unreadable" as const,
   }));
-  const blankIndexes = pages.flatMap((page, index) => page.text.trim() ? [] : [index]);
+  const done = pages.map((page) => Boolean(page.text.trim()));
   const failedPages: number[] = [];
   const ocrPageNumbers: number[] = [];
 
+  const blankIndexes = pages.flatMap((page, index) => page.text.trim() ? [] : [index]);
   if (!blankIndexes.length) {
     return { pages, total: extracted.total, ocrPageNumbers, failedPages };
   }
@@ -146,13 +298,11 @@ async function readPdfBatch(
     const rendered = await renderPdfPages(buffer, pages.length, firstPage);
     if (rendered.pages.length !== pages.length) throw new Error("scan_unreadable");
 
+    // Classify without OCR first — blank / render-failed are done immediately.
+    const needsOcr: number[] = [];
     for (const index of blankIndexes) {
-      if (Date.now() >= deadlineMs - 5_000) break;
-
-      const number = firstPage + index;
       const meta = rendered.pages[index]!;
-
-      // Truly blank back side — not a failure.
+      const number = firstPage + index;
       if (meta.inkRatio < BLANK_INK_RATIO && !meta.hasImageContent) {
         pages[index] = {
           text: "",
@@ -160,9 +310,9 @@ async function readPdfBatch(
           extractionMethod: "none",
           pageKind: "blank",
         };
+        done[index] = true;
         continue;
       }
-
       if (meta.scanRenderFailed) {
         pages[index] = {
           text: "",
@@ -170,88 +320,57 @@ async function readPdfBatch(
           extractionMethod: "ocr",
           pageKind: "unreadable",
         };
+        done[index] = true;
         failedPages.push(number);
         continue;
       }
-
-      if (typeof maxOcrPages === "number" && maxOcrPages >= 0) {
-        const { count } = await service.from("document_ocr_claims")
-          .select("page_number", { count: "exact", head: true })
-          .eq("document_id", documentId);
-        if ((count ?? 0) >= maxOcrPages) {
-          pages[index] = {
-            text: "",
-            extractionOk: false,
-            extractionMethod: "ocr",
-            pageKind: "unreadable",
-          };
-          failedPages.push(number);
-          continue;
-        }
-      }
-
-      if (!founder) {
-        const { data, error } = await service.rpc("claim_document_ocr_page", {
-          p_document_id: documentId, p_user_id: userId,
-          p_page_number: number, p_limit: limit,
-        });
-        if (error) throw new Error("photo_quota_unavailable");
-        if (data !== true) throw new Error("photo_quota_exhausted");
-        claimed.push(number);
-      }
-
-      let read = await extractImageText(meta.png, "image/png", { deadlineMs });
-      // One in-step retry for transient OCR empties when budget allows.
-      if (!read.ok && read.reason === "unreadable" && Date.now() + 20_000 < deadlineMs) {
-        read = await extractImageText(meta.png, "image/png", { deadlineMs });
-      }
-
-      if (read.tokensIn || read.tokensOut) {
-        await recordUsage(service, {
-          userId, actionCode: "DOCUMENT_PAGE_PROCESS",
-          model: env.OPENAI_STANDARD_MODEL,
-          tokensIn: read.tokensIn, tokensOut: read.tokensOut,
-        });
-      }
-
-      if (read.reason === "blocked") {
-        // Page-scoped: mark and continue (do not kill the whole book).
-        pages[index] = {
-          text: "",
-          extractionOk: false,
-          extractionMethod: "ocr",
-          pageKind: "unreadable",
-        };
-        failedPages.push(number);
-        if (!founder) {
-          await service.rpc("release_document_ocr_page", {
-            p_document_id: documentId, p_user_id: userId, p_page_number: number,
-          });
-          claimed.splice(claimed.indexOf(number), 1);
-        }
-        continue;
-      }
-
-      const text = read.ok && read.pages[0] ? read.pages[0].trim() : "";
-      if (text) {
-        pages[index] = { text, extractionOk: true, extractionMethod: "ocr" };
-        ocrPageNumbers.push(number);
-      } else {
-        pages[index] = {
-          text: "",
-          extractionOk: false,
-          extractionMethod: "ocr",
-          pageKind: meta.inkRatio < BLANK_INK_RATIO ? "blank" : "unreadable",
-        };
-        if (meta.inkRatio >= BLANK_INK_RATIO) failedPages.push(number);
-        if (!founder) {
-          await service.rpc("release_document_ocr_page", {
-            p_document_id: documentId, p_user_id: userId, p_page_number: number,
-          });
-          claimed.splice(claimed.indexOf(number), 1);
-        }
-      }
+      needsOcr.push(index);
     }
+
+    // Bounded pool: start up to OCR_PAGE_CONCURRENCY pages, honour deadline
+    // before each start so a near-budget step returns a contiguous prefix.
+    let cursor = 0;
+    const inFlight = new Map<number, Promise<void>>();
+    const startOne = (index: number) => {
+      const meta = rendered.pages[index]!;
+      const number = firstPage + index;
+      const work = (async () => {
+        const result = await ocrOneBlankPage({
+          service, documentId, userId, pageNumber: number,
+          png: meta.png, inkRatio: meta.inkRatio,
+          founder, limit, deadlineMs, maxOcrPages,
+        });
+        pages[index] = result.page;
+        done[index] = true;
+        if (result.claimed) claimed.push(number);
+        if (result.ocrSuccess) ocrPageNumbers.push(number);
+        if (result.failed) failedPages.push(number);
+        if (result.tokensIn || result.tokensOut) {
+          await recordUsage(service, {
+            userId, actionCode: "DOCUMENT_PAGE_PROCESS",
+            model: env.OPENAI_STANDARD_MODEL,
+            tokensIn: result.tokensIn, tokensOut: result.tokensOut,
+          });
+        }
+      })();
+      inFlight.set(index, work);
+      void work.finally(() => inFlight.delete(index));
+    };
+
+    const concurrency = Math.max(1, Math.min(OCR_PAGE_CONCURRENCY, ocrConcurrency));
+    while (cursor < needsOcr.length || inFlight.size) {
+      while (
+        inFlight.size < concurrency &&
+        cursor < needsOcr.length &&
+        Date.now() < deadlineMs - 5_000
+      ) {
+        startOne(needsOcr[cursor]!);
+        cursor += 1;
+      }
+      if (!inFlight.size) break;
+      await Promise.race(inFlight.values());
+    }
+    if (inFlight.size) await Promise.all(inFlight.values());
   } catch (error) {
     if (!founder) {
       for (const number of claimed) {
@@ -263,25 +382,23 @@ async function readPdfBatch(
     throw error;
   }
 
-  return { pages, total: extracted.total, ocrPageNumbers, failedPages };
+  const prefixLen = contiguousDonePrefix(done);
+  return {
+    pages: pages.slice(0, prefixLen),
+    total: extracted.total,
+    ocrPageNumbers: ocrPageNumbers.filter((n) => n < firstPage + prefixLen),
+    failedPages: failedPages.filter((n) => n < firstPage + prefixLen),
+  };
 }
 
-async function saveBatch(
+export async function saveBatch(
   service: SupabaseClient,
   documentId: string,
   firstPage: number,
   pages: PagePersist[],
 ) {
   if (pages.some((page) => page.text.length > 200_000)) throw new Error("page_text_too_large");
-  const rows = pages.map((page, index) => ({
-    document_id: documentId,
-    page_number: firstPage + index,
-    text_content: page.text,
-    extraction_ok: page.extractionOk,
-    extraction_method: page.extractionMethod,
-    char_count: page.text.length,
-    ...(page.pageKind ? { page_kind: page.pageKind } : {}),
-  }));
+  const rows = buildDocumentPageRows(documentId, firstPage, pages);
   const { data: pageRows, error: pageError } = await service.from("document_pages")
     .upsert(rows, { onConflict: "document_id,page_number" })
     .select("id,page_number");
@@ -368,6 +485,22 @@ export async function processPdfDocumentStep(
     );
     ocrPageNumbers = read.ocrPageNumbers;
 
+    // Deadline with zero finished pages — retryable, do not advance cursor.
+    if (!read.pages.length) {
+      await updateLease(service, documentId, lease.token, {
+        lease_token: null,
+        lease_until: null,
+      });
+      return {
+        status: "processing",
+        pageCount: read.total,
+        nextPage: firstPage,
+        pagesDone: firstPage - 1,
+        failedPages: [],
+        ocrPages: 0,
+      };
+    }
+
     if (!lease.initialized) {
       const { error: clearError } = await service.from("document_pages")
         .delete().eq("document_id", documentId);
@@ -376,6 +509,7 @@ export async function processPdfDocumentStep(
       await service.from("document_coverage_reports").delete().eq("document_id", documentId);
       await service.from("documents").update({
         topic_map_status: "none", topic_map_error: null, topic_map_updated_at: null,
+        updated_at: new Date().toISOString(),
       }).eq("id", documentId).eq("user_id", userId);
       await updateLease(service, documentId, lease.token, { initialized: true, total_pages: read.total });
     }
@@ -388,7 +522,6 @@ export async function processPdfDocumentStep(
     if (complete) {
       const { count, error: countError } = await service.from("document_chunks")
         .select("id", { count: "exact", head: true }).eq("document_id", documentId);
-      // Allow completion with partial OCR if at least some pages were readable.
       if (countError) throw new Error("empty_content");
       if (!count) {
         const anyOk = read.pages.some((page) => page.extractionOk && page.text.trim());
@@ -396,8 +529,14 @@ export async function processPdfDocumentStep(
       }
     }
 
+    const nowIso = new Date().toISOString();
     const { error: documentError } = await service.from("documents")
-      .update({ status: "processing", page_count: read.total, error_message: null })
+      .update({
+        status: "processing",
+        page_count: read.total,
+        error_message: null,
+        updated_at: nowIso,
+      })
       .eq("id", documentId).eq("user_id", userId);
     if (documentError) throw new Error("completion_update_failed");
     await service.from("processing_jobs").update({
@@ -406,7 +545,6 @@ export async function processPdfDocumentStep(
       error_message: null,
     }).eq("document_id", documentId);
 
-    // Credits commit only when the document reaches completed (route).
     await updateLease(service, documentId, lease.token, {
       next_page: nextPage,
       total_pages: read.total,
@@ -433,7 +571,6 @@ export async function processPdfDocumentStep(
 
     const { data: released } = await service.from("document_ingestion_state").update({
       lease_token: null, lease_until: null,
-      // Keep reservation_id on retryable errors so the same key survives.
       ...(retryable ? {} : { reservation_id: null }),
     }).eq("document_id", documentId).eq("lease_token", lease.token)
       .select("document_id").maybeSingle();
@@ -459,8 +596,11 @@ export async function processPdfDocumentStep(
       });
     }
     if (reservationId) await refundCredits(service, reservationId).catch(() => {});
-    await service.from("documents").update({ status: "failed", error_message: code })
-      .eq("id", documentId).eq("user_id", userId);
+    await service.from("documents").update({
+      status: "failed",
+      error_message: code,
+      updated_at: new Date().toISOString(),
+    }).eq("id", documentId).eq("user_id", userId);
     await service.from("processing_jobs").update({ status: "failed", error_message: code })
       .eq("document_id", documentId);
     return { status: "failed", code, retryable: false };
