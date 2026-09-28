@@ -4,7 +4,6 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
-import { normalizeMathIdentifiers } from "@/lib/learning/math-identifiers";
 
 export type BoardLine = { kind: "prose" | "formula"; text: string };
 
@@ -395,7 +394,7 @@ function splitBlock(block: string): string[] {
 }
 
 export function layoutBoard(text: string): BoardLine[] {
-  const normalized = restoreMathNotation(normalizeMathIdentifiers(text))
+  const normalized = restoreMathNotation(text)
     .replace(/şöyle\s+olarak\s+(hesaplan\w*)/gi, "şöyle $1")
     .replace(/\r\n/g, "\n")
     .replace(/\s+(?=Veri\s*:)/gi, "\n")

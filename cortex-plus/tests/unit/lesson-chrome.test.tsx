@@ -260,9 +260,20 @@ describe("ExamLessonSteps", () => {
       />,
     );
 
-    const relation = screen.getByText("T < T_sat(P)");
-    expect(relation.closest(".als-formula")).toBeTruthy();
-    expect(screen.getByText("T > T_sat(P)").closest(".als-formula")).toBeTruthy();
+    // T_sat RichBody'de KaTeX alt simgeye döner; ham snake_case görünmez.
+    const formulas = [...document.querySelectorAll(".als-formula")];
+    expect(
+      formulas.some((el) => {
+        const t = el.textContent ?? "";
+        return t.includes("<") && t.includes("T") && /sat/i.test(t) && !t.includes("T_sat");
+      }),
+    ).toBe(true);
+    expect(
+      formulas.some((el) => {
+        const t = el.textContent ?? "";
+        return t.includes(">") && t.includes("T") && /sat/i.test(t) && !t.includes("T_sat");
+      }),
+    ).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Kızgın buhar" }));
     fireEvent.click(screen.getByRole("button", { name: "Devam et" }));
     expect(screen.getByText("Tekrar")).toBeTruthy();
@@ -342,7 +353,9 @@ describe("ExamLessonSteps", () => {
     const list = document.querySelector("ol.als-steps");
     expect(list).toBeTruthy();
     expect(list?.querySelectorAll("li").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText(/m_buhar = 2 kg/)).toBeTruthy();
+    // m_buhar → KaTeX $m_{\text{buhar}}$; ham alt çizgi yok.
+    expect(list?.textContent).toMatch(/m.*buhar.*=\s*2 kg/i);
+    expect(list?.textContent).not.toMatch(/m_buhar/);
     expect(screen.getByText(/Kalite hesaplama/)).toBeTruthy();
   });
 });

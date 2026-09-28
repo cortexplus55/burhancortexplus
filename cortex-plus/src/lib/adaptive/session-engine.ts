@@ -389,7 +389,7 @@ export async function startSession(
   return { session, action };
 }
 
-/** Bugünkü plan maddeleri + isteğe bağlı seçili madde. */
+/** Bugünkü plan maddeleri + isteğe bağlı seçili madde. Ağır ensureDailyPlan yok — oturum start'ı bloklamasın. */
 async function resolvePlanContext(
   service: SupabaseClient,
   input: { userId: string; examPrepId: string; planItemId?: string | null },
@@ -399,22 +399,40 @@ async function resolvePlanContext(
   objective: string | null;
 }> {
   try {
-    const { ensureCurrentDailyPlan } = await import("@/lib/adaptive/daily-planner");
-    const plan = await ensureCurrentDailyPlan(service, {
-      userId: input.userId,
-      examPrepId: input.examPrepId,
-    });
-    const pending = plan.items.filter(
+    const { data: plan } = await service
+      .from("adaptive_daily_plans")
+      .select("id, objective")
+      .eq("user_id", input.userId)
+      .eq("exam_prep_id", input.examPrepId)
+      .eq("status", "active")
+      .order("plan_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!plan?.id) {
+      return { planTopicKeys: [], planItem: null, objective: null };
+    }
+    const { data: itemRows } = await service
+      .from("adaptive_daily_plan_items")
+      .select("id, kind, title, topic_key, status")
+      .eq("daily_plan_id", plan.id)
+      .order("sort_order", { ascending: true });
+    const items = (itemRows ?? []).map((row) => ({
+      id: String(row.id),
+      kind: String(row.kind ?? ""),
+      title: String(row.title ?? ""),
+      topicKey: row.topic_key ? normalizeTopicKey(String(row.topic_key)) : null,
+      status: String(row.status ?? "pending"),
+    }));
+    const pending = items.filter(
       (item) => item.status === "pending" || item.status === "active",
     );
-    const ordered = pending.length ? pending : plan.items;
+    const ordered = pending.length ? pending : items;
     const planTopicKeys = ordered
       .map((item) => item.topicKey)
-      .filter((key): key is string => Boolean(key))
-      .map((key) => normalizeTopicKey(key));
+      .filter((key): key is string => Boolean(key));
     const selected =
       (input.planItemId
-        ? plan.items.find((item) => item.id === input.planItemId)
+        ? items.find((item) => item.id === input.planItemId)
         : null) ??
       ordered[0] ??
       null;
@@ -423,12 +441,12 @@ async function resolvePlanContext(
       planItem: selected?.topicKey
         ? {
             id: selected.id,
-            topicKey: normalizeTopicKey(selected.topicKey),
+            topicKey: selected.topicKey,
             kind: selected.kind,
             title: selected.title,
           }
         : null,
-      objective: plan.objective || selected?.title || null,
+      objective: (plan.objective as string) || selected?.title || null,
     };
   } catch {
     return { planTopicKeys: [], planItem: null, objective: null };
@@ -436,11 +454,15 @@ async function resolvePlanContext(
 }
 
 async function markPlanItemActive(service: SupabaseClient, planItemId: string) {
-  await service
-    .from("adaptive_daily_plan_items")
-    .update({ status: "active", updated_at: new Date().toISOString() })
-    .eq("id", planItemId)
-    .eq("status", "pending");
+  try {
+    await service
+      .from("adaptive_daily_plan_items")
+      .update({ status: "active", updated_at: new Date().toISOString() })
+      .eq("id", planItemId)
+      .eq("status", "pending");
+  } catch {
+    // best-effort
+  }
 }
 
 export async function markPlanItemDone(
@@ -448,18 +470,26 @@ export async function markPlanItemDone(
   input: { userId: string; examPrepId: string; topicKey: string },
 ) {
   const key = normalizeTopicKey(input.topicKey);
-  const { ensureCurrentDailyPlan } = await import("@/lib/adaptive/daily-planner");
   try {
-    const plan = await ensureCurrentDailyPlan(service, {
-      userId: input.userId,
-      examPrepId: input.examPrepId,
+    const { data: plan } = await service
+      .from("adaptive_daily_plans")
+      .select("id")
+      .eq("user_id", input.userId)
+      .eq("exam_prep_id", input.examPrepId)
+      .eq("status", "active")
+      .order("plan_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!plan?.id) return;
+    const { data: rows } = await service
+      .from("adaptive_daily_plan_items")
+      .select("id, topic_key, status")
+      .eq("daily_plan_id", plan.id);
+    const match = (rows ?? []).find((row) => {
+      const topic = row.topic_key ? normalizeTopicKey(String(row.topic_key)) : "";
+      const status = String(row.status ?? "");
+      return topic === key && (status === "pending" || status === "active");
     });
-    const match = plan.items.find(
-      (item) =>
-        item.topicKey &&
-        normalizeTopicKey(item.topicKey) === key &&
-        (item.status === "pending" || item.status === "active"),
-    );
     if (!match) return;
     await service
       .from("adaptive_daily_plan_items")

@@ -7,16 +7,20 @@ import { minimumLessonChecks, ensureThreeChecks } from "@/lib/learning/lesson-re
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 import { hasUndelimitedLatex } from "@/lib/learning/teaching-standards";
 
-function graph(topics: { key: string; title: string; importance?: "important" | "normal" | "less" }[]): ExamGraph {
+function graph(topics: { key: string; title: string; importance?: "important" | "medium" | "less" }[]): ExamGraph {
   return {
+    examPrepId: "00000000-0000-4000-8000-000000000099",
     topics: topics.map((t, i) => ({
       topicId: `id-${i}`,
       topicKey: t.key,
       title: t.title,
-      importance: t.importance ?? "normal",
+      importance: t.importance ?? "medium",
       weightPercent: t.importance === "important" ? 20 : 10,
       prerequisites: [],
       sourceRefs: [],
+      pageNumbers: [],
+      documentTopicNodeId: null,
+      measuredLevel: null,
     })),
     edges: [],
   };

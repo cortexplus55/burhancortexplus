@@ -2374,6 +2374,7 @@ async function generateNodePayload(input: {
         lesson,
         salvaged: false,
         failures: [] as { unit: string; problem: string }[],
+        checkCountLow: false,
       };
       if (!pastDeadline()) {
         const repairCall = (prompt: string, maxTokens: number) => {

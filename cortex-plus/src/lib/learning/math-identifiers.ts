@@ -60,20 +60,7 @@ function toKatexBase(base: string): string {
 
 function transformChunk(chunk: string): string {
   let out = chunk;
-  // Çok kelimeli snake_case: açı_radyan → açı (radyan)
-  out = out.replace(
-    /(?<![\w./@])([\p{L}]{2,})_([\p{L}]{2,})(?![\w./@])/gu,
-    (_m, left: string, right: string) => {
-      if (
-        /^[a-z]+$/i.test(left) &&
-        /^(id|name|key|url|path|type|index|count|uuid)$/i.test(right)
-      ) {
-        return `${left}_${right}`;
-      }
-      return `${left} (${right})`;
-    },
-  );
-  // Tek harf/Yunan + alt simge: α_r, α_d, v_son, n_toplam; a_1 → a₁
+  // Önce kısa taban (1-3 Latin/Yunan harf) + alt simge: α_r, P_mutlak, y_f, a_1
   out = out.replace(
     /(?<![\w./@])([A-Za-zα-ωΑ-Ω]{1,3})_(\d{1,3})(?![\w./@])/g,
     (_m, base: string, digits: string) => {
@@ -95,14 +82,31 @@ function transformChunk(chunk: string): string {
   out = out.replace(
     /(?<![\w./@])([A-Za-zα-ωΑ-Ω]{1,3})_([A-Za-z\p{L}]{1,24})(?![\w./@])/gu,
     (_m, base: string, word: string) => {
+      // Yalnızca tek harf Unicode alt simgeye gider (αᵣ). Çok harfli sözcük KaTeX.
       if (word.length === 1) {
         const uni = unicodeSubWord(word);
         if (uni) return `${base}${uni}`;
         return `$${toKatexBase(base)}_{\\text{${word}}}$`;
       }
-      const uni = unicodeSubWord(word);
-      if (uni) return `${base}${uni}`;
       return `$${toKatexBase(base)}_{\\text{${word}}}$`;
+    },
+  );
+  // Sonra çok kelimeli snake_case (her iki yan ≥2 ve taban ASCII-Latin değil / uzun kelime):
+  // açı_radyan → açı (radyan). Kısa Latin tabanlar yukarıda işlendi.
+  out = out.replace(
+    /(?<![\w./@])([\p{L}]{2,})_([\p{L}]{2,})(?![\w./@])/gu,
+    (_m, left: string, right: string) => {
+      if (
+        /^[a-z]+$/i.test(left) &&
+        /^(id|name|key|url|path|type|index|count|uuid)$/i.test(right)
+      ) {
+        return `${left}_${right}`;
+      }
+      // Hâlâ ASCII kısa taban kaldıysa (kaçmışsa) KaTeX alt simgeye çevir.
+      if (/^[A-Za-z]{1,3}$/.test(left)) {
+        return `$${toKatexBase(left)}_{\\text{${right}}}$`;
+      }
+      return `${left} (${right})`;
     },
   );
   return out;

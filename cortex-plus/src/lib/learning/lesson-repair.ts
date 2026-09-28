@@ -1759,14 +1759,14 @@ function equationCheck(
 /**
  * Model üçüncü soruyu yazmadıysa dersin kendi cümlelerinden kurulur.
  * Yeni bir model çağrısı yok. Çeldirici, dersteki başka bağıntı ya da aynı bağıntının değişimidir.
- * Hedef: minimumLessonChecks (en az min(3, kavram) ve her 2 slaytta 1).
+ * Hedef en az 3 (klasik ensureThreeChecks); daha geniş derste minimumLessonChecks üstüne çıkar.
  */
 export function ensureThreeChecks(lesson: LessonV2, source = ""): LessonV2 {
   const next: LessonV2 = {
     ...lesson,
     sections: lesson.sections.map((section) => ({ ...section })),
   };
-  const target = () => minimumLessonChecks(next);
+  const target = () => Math.max(3, minimumLessonChecks(next));
   const used = new Set(
     next.sections.map((section) => foldTr(section.check?.prompt ?? "")).filter(Boolean),
   );

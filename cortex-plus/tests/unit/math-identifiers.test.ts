@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { normalizeMathIdentifiers, mathIdentifierIssues, isProgrammingContext } from "@/lib/learning/math-identifiers";
-import { layoutBoard } from "@/lib/learning/lesson-board";
 
 describe("normalizeMathIdentifiers", () => {
   it("α_r ve α_d alt çizgisini temizler", () => {
@@ -26,10 +25,8 @@ describe("normalizeMathIdentifiers", () => {
     expect(isProgrammingContext(text, "kod yazma")).toBe(true);
   });
 
-  it("a_1 dizi notasyonunu a₁ yapar (digit yolu layoutBoard ile)", () => {
-    const board = layoutBoard("a_1 dizisi");
-    const joined = board.map((line) => line.text).join(" ");
-    expect(joined).not.toMatch(/a_1/);
+  it("a_1 dizi notasyonunu a₁ yapar", () => {
+    expect(normalizeMathIdentifiers("a_1 dizisi")).toBe("a₁ dizisi");
   });
 
   it("URL ve \\ce{H2O} korunur", () => {

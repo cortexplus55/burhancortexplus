@@ -812,7 +812,7 @@ function toDigitScript(value: string, table: string): string {
  * $…$ / \(…\) içindeki LaTeX korunur; dışındaki flatten edilir.
  */
 export function normalizeMathNotation(text: string): string {
-  let out = normalizeMathIdentifiers(text);
+  const out = normalizeMathIdentifiers(text);
   // Sınırlı LaTeX bloklarını koru, dışını düzleştir.
   const parts: string[] = [];
   const re = /\$\$[\s\S]+?\$\$|\$[^$\n]+\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]/g;

@@ -958,7 +958,6 @@ function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): Le
   next = withSourceExample(next, source);
   next = withCalculationCheck(next, source);
   next = withInfoCheck(next, source);
-  next = ensureThreeChecks(next, source);
   next = weaveUnusedSources(next, source, topicLabel);
   next = softenSummary(next, topicLabel);
   if (next.example && topicIsQuantitative(source)) {
@@ -966,6 +965,7 @@ function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): Le
     if (!exampleReady(blob, source)) next = withoutExample(next);
   }
   next = scrubInventedNumbers(next, source);
+  next = ensureThreeChecks(next, source);
   const dropped =
     next.sections.filter((section) => section.check).length < checksBefore ||
     sentences(lessonProse(next)).length < sentencesBefore ||
@@ -1323,7 +1323,7 @@ export async function finishTaughtLesson(
   lesson: LessonV2;
   failures: TeachingFailure[];
   salvaged: boolean;
-  checkCountLow?: boolean;
+  checkCountLow: boolean;
 }> {
   let current = prepareTaught(lesson, input.source, input.topicLabel);
   let failures = teachingFailures(current, input.source, input.topicLabel);
