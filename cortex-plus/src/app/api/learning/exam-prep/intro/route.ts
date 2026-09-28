@@ -31,6 +31,8 @@ import {
   examPrepNodeHref,
   examPrepTopicHref,
 } from "@/lib/learning/exam-prep-hrefs";
+import { nodeForTopic } from "@/lib/learning/exam-prep-ui-path";
+import { parseSessionMeta } from "@/lib/learning/teaching-standards";
 
 const bodySchema = z.object({
   prepId: z.string().uuid(),
@@ -39,16 +41,44 @@ const bodySchema = z.object({
   answers: z.record(z.string(), z.unknown()).optional(),
 });
 
-async function firstReadyHref(service: ApiContext["service"], prepId: string) {
-  const { data: node } = await service
+async function firstReadyHref(service: ApiContext["service"], prepId: string, activeTopicId: string | null) {
+  const { data: nodes } = await service
     .from("exam_prep_nodes")
-    .select("id")
+    .select("id, status, sort_order, session_meta")
     .eq("exam_prep_id", prepId)
-    .eq("status", "ready")
-    .order("sort_order")
-    .limit(1)
-    .maybeSingle();
-  return node ? examPrepNodeHref(prepId, node.id) : examPrepHomeHref(prepId);
+    .order("sort_order");
+  const rows = nodes ?? [];
+  if (activeTopicId) {
+    const { data: topic } = await service
+      .from("exam_prep_topics")
+      .select("id, label, document_topic_node_id")
+      .eq("id", activeTopicId)
+      .eq("exam_prep_id", prepId)
+      .maybeSingle();
+    if (topic) {
+      const chosen = nodeForTopic(
+        rows.map((row) => ({
+          id: row.id as string,
+          sortOrder: (row.sort_order as number) ?? 0,
+          status: row.status as "locked" | "ready" | "done",
+          sessionMeta: parseSessionMeta(row.session_meta),
+        })),
+        { ids: [topic.id, topic.document_topic_node_id], label: topic.label },
+      );
+      if (chosen) {
+        if (chosen.status === "locked") {
+          const { error } = await service.from("exam_prep_nodes")
+            .update({ status: "ready" })
+            .eq("id", chosen.id)
+            .eq("exam_prep_id", prepId);
+          if (error) return examPrepHomeHref(prepId);
+        }
+        return examPrepNodeHref(prepId, chosen.id);
+      }
+    }
+  }
+  const firstReady = rows.find((row) => row.status === "ready");
+  return firstReady ? examPrepNodeHref(prepId, firstReady.id) : examPrepHomeHref(prepId);
 }
 
 export async function POST(request: Request) {
@@ -71,7 +101,7 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (!prep) return errorResponse(404, "not_found");
 
-  const nextHref = await firstReadyHref(service, prepId);
+  const nextHref = await firstReadyHref(service, prepId, prep.active_topic_id as string | null);
 
   // Erteleme: ölçüm yapılmadı, yalnızca kapı açıldı. intro_completed_at
   // dolmuyor ki hazırlık sayfası hatırlatmayı sürdürebilsin.
@@ -380,6 +410,14 @@ export async function POST(request: Request) {
         unmeasuredTopics: outcome.plans
           .filter((p) => p.status === "unreadable" || !p.pageNumbers.length)
           .map((p) => ({ title: p.title, reason: p.reason, status: p.status })),
+      });
+    }
+    if (outcome.error === "insufficient_source_variety") {
+      return NextResponse.json({
+        ok: true,
+        sourceLimited: true,
+        topicLabel: topic.label,
+        nextHref,
       });
     }
     // The source or clinical question gate failed. A weaker second generator

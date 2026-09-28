@@ -68,6 +68,7 @@ export function ExamIntroQuiz({
   const [diagnostic, setDiagnostic] = useState<DiagnosticPayload | null>(null);
   const [displayTopic, setDisplayTopic] = useState(topicLabel);
   const [startError, setStartError] = useState<string | null>(null);
+  const [sourceLimited, setSourceLimited] = useState(false);
   const [deferring, setDeferring] = useState(false);
 
   useEffect(() => {
@@ -95,12 +96,14 @@ export function ExamIntroQuiz({
       router.refresh();
     } catch {
       setDeferring(false);
+      toast.error("Bağlantı kesildi. Derse geçmek için tekrar dene.");
     }
   }
 
   async function start() {
     setLoading(true);
     setStartError(null);
+    setSourceLimited(false);
     setQuestions([]);
     setAttemptId(null);
     try {
@@ -120,6 +123,11 @@ export function ExamIntroQuiz({
       }
       if (res.status === 409 && data.nextHref) {
         window.location.assign(data.nextHref);
+        return;
+      }
+      if (data.sourceLimited) {
+        if (typeof data.topicLabel === "string") setDisplayTopic(data.topicLabel);
+        setSourceLimited(true);
         return;
       }
       if (!res.ok) {
@@ -225,7 +233,27 @@ export function ExamIntroQuiz({
         </section>
       ) : null}
 
-      {!loading && stage === "play" && !questions.length && !paywall ? (
+      {!loading && stage === "play" && !questions.length && !paywall && sourceLimited ? (
+        <section>
+          <p className="cp-lesson-kicker">{displayTopic}</p>
+          <h1>Bu bölüm için ölçümü erteleyelim</h1>
+          <p className="text-sm text-[var(--cp-muted)]">
+            Belgenin bu bölümündeki sayfalar aynı kısa bilgiyi tekrarlıyor. Üç farklı
+            beceriyi yalnızca bu kaynaktan güvenilir biçimde ölçemeyiz. Konu ölçülmemiş
+            kalacak; derse şimdi geçebilirsin.
+          </p>
+          <button
+            type="button"
+            className="cp-exam-continue cp-exam-continue--primary"
+            disabled={deferring}
+            onClick={() => void deferIntro()}
+          >
+            {deferring ? "Ders açılıyor…" : "Derse geç"}
+          </button>
+        </section>
+      ) : null}
+
+      {!loading && stage === "play" && !questions.length && !paywall && !sourceLimited ? (
         <section>
           <p className="cp-lesson-kicker">{displayTopic}</p>
           <h1>Tanışma testi açılamadı</h1>
