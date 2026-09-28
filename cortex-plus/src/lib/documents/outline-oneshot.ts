@@ -607,7 +607,7 @@ export async function buildOutlineOneShot(input: {
   const routed = selectOutlineModel({ pageCount, corpusChars: corpus.length });
   const strong = outlineStrongModel();
 
-  let { draft, path } = await outlineWithModel({
+  const firstPass = await outlineWithModel({
     service: input.service,
     userId: input.userId,
     corpus,
@@ -618,8 +618,9 @@ export async function buildOutlineOneShot(input: {
     examDate: input.examDate,
     deadlineAt: input.deadlineAt,
   });
+  let draft = firstPass.draft;
   let usedModel = routed.model;
-  let resultPath: OneShotOutlineResult["path"] = path;
+  let resultPath: OneShotOutlineResult["path"] = firstPass.path;
 
   if (!draft) {
     // Mini totally failed → escalate to strong once before giving up.
