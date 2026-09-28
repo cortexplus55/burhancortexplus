@@ -27,19 +27,24 @@ vi.mock("@/lib/learning/validation-metrics", () => ({
 }));
 
 let server: http.Server;
+const mode = { slowFirstToken: false };
 const previousBaseUrl = process.env.OPENAI_BASE_URL;
 
 beforeAll(async () => {
   server = http.createServer((_req, res) => {
+    const chunk = (content: string) =>
+      `data: ${JSON.stringify({ id: "x", object: "chat.completion.chunk", created: 0, model: "m", choices: [{ index: 0, delta: { content } }] })}\n\n`;
+    if (mode.slowFirstToken) {
+      // A big prompt: nothing for a while, then a complete answer.
+      setTimeout(() => {
+        res.writeHead(200, { "content-type": "text/event-stream" });
+        res.write(chunk('{"ok":true}'));
+        res.end("data: [DONE]\n\n");
+      }, 1_500);
+      return;
+    }
     res.writeHead(200, { "content-type": "text/event-stream" });
-    const chunk = {
-      id: "x",
-      object: "chat.completion.chunk",
-      created: 0,
-      model: "m",
-      choices: [{ index: 0, delta: { content: '{"units":[' } }],
-    };
-    res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+    res.write(chunk('{"units":['));
     // …and then nothing, forever.
   });
   await new Promise<void>((resolve) => server.listen(0, resolve));
@@ -81,6 +86,16 @@ describe("streamed generation respects the round deadline", () => {
     expect(ms).toBeLessThan(4_000);
     expect(credits.refunded).toContain("r1");
     expect(credits.committed).toEqual([]);
+  });
+
+  it("waits for a slow first token (deadline only), then stalls are watched", async () => {
+    mode.slowFirstToken = true;
+    try {
+      const { outcome } = await run({ deadlineInMs: 60_000, stallMs: 600 });
+      expect(outcome).toMatchObject({ ok: true, data: { ok: true } });
+    } finally {
+      mode.slowFirstToken = false;
+    }
   });
 
   it("aborts a stalled stream long before the deadline and does not retry it", async () => {

@@ -207,7 +207,8 @@ export class CallAbortedError extends Error {
 
 /**
  * One AbortSignal per model call: fires at min(deadlineAt, now + timeout),
- * or when a stream goes quiet for `stallMs`.
+ * or when a stream goes quiet for `stallMs` after its first chunk. Time to
+ * first token (long on big gpt-4.1 prompts) is bounded by the deadline only.
  */
 export function callGuard(input: { callTimeoutMs: number; deadlineAt?: number; stallMs?: number }) {
   const controller = new AbortController();
@@ -226,7 +227,6 @@ export function callGuard(input: { callTimeoutMs: number; deadlineAt?: number; s
     if (stallTimer) clearTimeout(stallTimer);
     stallTimer = setTimeout(() => fire("stalled"), input.stallMs);
   };
-  touch();
   return {
     signal: controller.signal,
     touch,
