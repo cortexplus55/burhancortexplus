@@ -43,10 +43,38 @@ export type OutlineUnitDraft = {
   }[];
 };
 
-const QUESTION_PHRASES_TR =
-  /\b(hangisi|hangisidir|hangileri|aşağıdakilerden|asagidakilerden|aşağıda verilen|asagida verilen|yukarıdaki|yukaridaki|kaçtır|kactir|nedir|değildir|degildir|doğru olan|dogru olan|yanlış olan|yanlis olan)\b/i;
+const QUESTION_STEM_MARKERS_TR =
+  /\b(hangisi|hangisidir|hangileri|aşağıdakilerden|asagidakilerden|aşağıda verilen|asagida verilen)\b/i;
+const QUESTION_STEM_MARKERS_MISC_TR =
+  /\b(yukarıdaki|yukaridaki|kaçtır|kactir|doğru olan|dogru olan|yanlış olan|yanlis olan)\b/i;
 const QUESTION_PHRASES_EN =
   /\b(which of the following|what is|true\/false|true or false)\b/i;
+const TOC_PAGE_HEAD = /icindekiler|table\s+of\s+contents|contents\b/i;
+const TOC_UNIT_LINE =
+  /^\s*(?:ÜNİTE|UNITE|BÖLÜM|BOLUM|Chapter|CHAPTER|Unit|UNIT)\s*\d+\s*[:.\-–]?\s*(.+)/i;
+const TOC_NUMBERED_LINE = /^\s*\d+[.)]\s+(.{4,80})/;
+const TR_STOPWORD_RE =
+  /\b(ve|bir|için|icin|olan|ile|da|de|mi|mu|mı|bu|şu|olarak|gibi|kadar|ancak|veya|ise|ki|ne|için|üzerine|sonra|kadar|olan|değil|degil)\b/gi;
+const EN_STOPWORD_RE =
+  /\b(the|and|of|to|in|for|with|chapter|unit|section|is|are|was|be|this|that|from)\b/gi;
+const EN_TITLE_MINOR = new Set([
+  "a",
+  "an",
+  "the",
+  "and",
+  "or",
+  "but",
+  "in",
+  "on",
+  "at",
+  "to",
+  "for",
+  "of",
+  "with",
+  "as",
+]);
+const MORPHOLOGICAL_TAIL =
+  /(ligina|madan|mesine|dikten|aktan|ina|ine|ndan|nden)$/i;
 const ANSWER_OPTION = /^[A-E][).]\s/;
 const ROMAN_STATEMENT = /^(I|II|III|IV|V)[.)]\s/;
 const PRACTICE_HEADING =
@@ -61,7 +89,7 @@ const LEADING_CHAPTER_NUMBER =
 
 const GENERIC_SINGLE_WORDS = new Set([
   "durum",
-  "bakanlar",
+  "status",
   "giris",
   "giriş",
   "ozet",
@@ -74,7 +102,6 @@ const GENERIC_SINGLE_WORDS = new Set([
   "ekler",
   "overview",
   "summary",
-  "status",
   "notes",
 ]);
 
@@ -136,8 +163,126 @@ export function looksLikeQuestionStem(line: string): boolean {
   const text = line.trim();
   if (!text) return false;
   if (/\?$/.test(text)) return true;
-  if (QUESTION_PHRASES_TR.test(text) || QUESTION_PHRASES_EN.test(text)) return true;
+  if (QUESTION_STEM_MARKERS_TR.test(text) || QUESTION_PHRASES_EN.test(text)) return true;
+  if (QUESTION_STEM_MARKERS_MISC_TR.test(text)) return true;
+  if (/\b(nedir|değildir|degildir)\b/i.test(text)) {
+    if (
+      /\b(hangisi|aşağı|asagi|yukarı|yukari|şu|su |bu |hangiler)\b/i.test(text)
+    ) {
+      return true;
+    }
+    if (/^(?:\d+[.)]\s*)?(?:aşağı|asagi)\b/i.test(text)) return true;
+  }
   return false;
+}
+
+/** Heuristic language from stopwords and script. */
+export function detectTextLanguage(text: string): "tr" | "en" | "unknown" {
+  const sample = (text ?? "").slice(0, 8000);
+  if (!sample.trim()) return "unknown";
+  const trDiacritics = (sample.match(/[ıİşğüöçŞĞÜÖÇ]/g) ?? []).length;
+  const trScore = (sample.match(TR_STOPWORD_RE) ?? []).length + trDiacritics * 2;
+  const enScore = (sample.match(EN_STOPWORD_RE) ?? []).length;
+  if (trScore >= 3 && trScore > enScore * 1.2) return "tr";
+  if (enScore >= 3 && enScore > trScore * 1.2) return "en";
+  if (trDiacritics >= 2) return "tr";
+  return "unknown";
+}
+
+function englishTitleCase(text: string): string {
+  const letters = text.replace(/[^\p{L}]/gu, "");
+  const upper = letters.replace(/[^\p{Lu}]/gu, "").length;
+  const shouting = letters.length > 3 && upper / letters.length > 0.7;
+  return text
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word, index) => {
+      const body = shouting ? word.toLowerCase() : word;
+      const lower = body.toLowerCase();
+      if (index > 0 && EN_TITLE_MINOR.has(lower)) return lower;
+      if (!lower.length) return body;
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(" ")
+    .trim();
+}
+
+export function titleCaseForLanguage(
+  text: string,
+  lang: "tr" | "en" | "unknown",
+): string {
+  if (lang === "en") return englishTitleCase(text);
+  return turkishTitleCase(text);
+}
+
+function minPageNumber(topic: CleanCandidate): number {
+  if (!topic.pageNumbers.length) return Number.MAX_SAFE_INTEGER;
+  return Math.min(...topic.pageNumbers);
+}
+
+function trailingTocPageNumber(line: string): number | null {
+  const m = line.match(/(?:\.{2,}|…)\s*(\d{1,4})\s*$/) ?? line.match(/\s+(\d{1,4})\s*$/);
+  if (!m) return null;
+  const n = Number.parseInt(m[1]!, 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function isTocPage(page: CleanPageInput): boolean {
+  if (page.pageKind === "toc") return true;
+  const head = foldOutlineKey(cleanOcrPageText(page.text).slice(0, 200));
+  return TOC_PAGE_HEAD.test(head);
+}
+
+/**
+ * Parse table-of-contents pages into ordered unit titles with start pages.
+ */
+export function extractTocUnits(
+  pages: { pageNumber: number; text: string; pageKind?: string | null; headings?: string[] }[],
+): { title: string; startPage: number }[] {
+  const tocPages = pages.filter(isTocPage).sort((a, b) => a.pageNumber - b.pageNumber);
+  if (!tocPages.length) return [];
+
+  const raw: { title: string; startPage: number }[] = [];
+  let fallbackPage = 1;
+
+  for (const page of tocPages) {
+    const lines = normalizeLines(page.text);
+    for (const line of lines) {
+      if (looksLikeQuestionStem(line) || ANSWER_OPTION.test(line)) continue;
+      const trimmed = line.trim();
+      if (!trimmed || /^\d{1,4}\s*$/.test(trimmed)) continue;
+
+      let title: string | null = null;
+      const unitMatch = trimmed.match(TOC_UNIT_LINE);
+      if (unitMatch) {
+        title = unitMatch[1]!.trim();
+      } else {
+        const numMatch = trimmed.match(TOC_NUMBERED_LINE);
+        if (numMatch) title = numMatch[1]!.trim();
+      }
+      if (!title || title.length < 4) continue;
+      if (looksLikeQuestionStem(title)) continue;
+      if (/^[\d.\s]+$/.test(title)) continue;
+
+      title = title.replace(/(?:\.{2,}|…)\s*\d+\s*$/, "").replace(/\s+\d{1,4}\s*$/, "").trim();
+      if (!title || title.length < 4) continue;
+
+      const fromLine = trailingTocPageNumber(trimmed);
+      const startPage = fromLine ?? fallbackPage;
+      fallbackPage = startPage + 1;
+      raw.push({ title, startPage });
+    }
+  }
+
+  const seen = new Set<string>();
+  const unique: { title: string; startPage: number }[] = [];
+  for (const row of raw) {
+    const key = foldOutlineKey(row.title);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(row);
+  }
+  return unique.sort((a, b) => a.startPage - b.startPage);
 }
 
 function unbalancedQuotesOrParens(text: string): boolean {
@@ -254,6 +399,7 @@ export function normalizeOutlineTitle(title: string): string {
 export function detectPageFurniture(
   pages: { pageNumber: number; text: string; pageKind?: string | null }[],
 ): FurnitureDetection {
+  const lang = detectTextLanguage(pages.map((p) => p.text).join("\n"));
   const content = pages.filter((page) => {
     const kind = page.pageKind ?? "content";
     return kind === "content" || kind === "uncertain" || !page.pageKind;
@@ -334,9 +480,10 @@ export function detectPageFurniture(
     if (unique.length / span < 0.6 && unique.length < 3) continue;
     const sample =
       furnitureLines.find((line) => foldOutlineKey(stripSeriesLabel(line, seriesLabels)) === key) ??
-      turkishTitleCase(key);
+      key;
+    const stripped = stripSeriesLabel(sample, seriesLabels) || sample;
     unitRuns.push({
-      label: turkishTitleCase(stripSeriesLabel(sample, seriesLabels) || sample),
+      label: titleCaseForLanguage(stripped, lang),
       pageNumbers: unique,
     });
   }
@@ -399,27 +546,34 @@ function isGenericBareWord(title: string): boolean {
   return GENERIC_SINGLE_WORDS.has(foldOutlineKey(words[0]!));
 }
 
+function endsWithLowercaseLetter(text: string): boolean {
+  const last = text.trim().match(/\p{L}$/u)?.[0];
+  if (!last) return false;
+  return last === last.toLocaleLowerCase("tr") && last !== last.toLocaleUpperCase("tr");
+}
+
 function needsModelReviewTitle(title: string): boolean {
   const text = title.trim();
   const folded = foldOutlineKey(text);
-  // Ambiguous cut-offs that might still be real topics after OCR repair
-  if (text.length >= 18 && text.length <= 70 && !/[.!?]$/.test(text)) {
-    if (
-      /^(bir |turk |meclisin |tbmm|valilerin |baskomutanlik)/i.test(folded) &&
-      !looksLikeQuestionStem(text)
-    ) {
-      return true;
-    }
+  if (/[-–—,]\s*$/.test(text)) return true;
+  if (unbalancedQuotesOrParens(text)) return true;
+
+  const words = letterWordCount(text);
+  if (MORPHOLOGICAL_TAIL.test(folded) && (words >= 3 || text.length >= 25)) {
+    return true;
   }
-  // Dative/ablative tails that look like cut mid-sentence clauses
-  if (/(ligina|madan|mesine|dikten|aktan)$/i.test(folded)) return true;
-  if (/^[A-ZÇĞİÖŞÜ].{8,40}$/.test(text) && letterWordCount(text) <= 4 && !/[a-zçğıöşü]/.test(text.slice(1))) {
-    return false;
+
+  if (
+    text.length >= 18 &&
+    text.length <= 70 &&
+    !/[.!?]$/.test(text) &&
+    endsWithLowercaseLetter(text) &&
+    words >= 4
+  ) {
+    const endsPostposition = TRAILING_CONJ.test(text);
+    if (startsLowercase(text) || endsPostposition) return true;
   }
-  if (/\s(ile|ve|için|icin|olan|göre|gore)\s*$/i.test(text)) return true;
-  if (text.length > 25 && letterWordCount(text) <= 5 && !/[.?!:]$/.test(text) && /[a-zçğıöşü]$/i.test(text)) {
-    if (/^(bir |aşağı|asagi|tbmm|meclis|valilerin |bakanlar)/i.test(text)) return true;
-  }
+
   return false;
 }
 
@@ -430,14 +584,25 @@ export function cleanOutlineDeterministic(input: {
   titles: { title: string; pageNumbers: number[] }[];
   seriesLabels?: string[];
   unitRuns?: FurnitureDetection["unitRuns"];
+  tocUnits?: { title: string; startPage: number }[];
   contentPageCount?: number;
+  language?: "tr" | "en" | "unknown";
 }): CleanOutlineResult {
   const seriesLabels = input.seriesLabels ?? [];
+  const unitRuns = input.unitRuns ?? [];
   const furniture = {
     seriesLabels,
-    unitRuns: input.unitRuns ?? [],
+    unitRuns,
     furnitureLines: [],
   };
+  const lang =
+    input.language ??
+    detectTextLanguage(
+      input.titles.map((t) => t.title).join("\n"),
+    );
+  const unitLabelKeys = new Set(
+    unitRuns.map((u) => foldOutlineKey(stripSeriesLabel(u.label, seriesLabels))),
+  );
   const dropped: CleanOutlineResult["dropped"] = [];
   const kept: CleanCandidate[] = [];
   const reattachQueue: { pageNumbers: number[]; afterIndex: number }[] = [];
@@ -458,8 +623,7 @@ export function cleanOutlineDeterministic(input: {
     } else if (seriesLabels.some((s) => foldOutlineKey(s) === foldOutlineKey(original))) {
       reason = "bare_series_label";
     } else if (
-      furniture.unitRuns.some((u) => foldOutlineKey(u.label) === foldOutlineKey(stripSeriesLabel(original, seriesLabels)))
-      && seriesLabels.some((s) => new RegExp(`^${escapeRegExp(s)}\\s+`, "i").test(original))
+      unitLabelKeys.has(foldOutlineKey(stripSeriesLabel(original, seriesLabels)))
     ) {
       reason = "running_unit_header";
     } else if (isFragmentTitle(original)) {
@@ -490,7 +654,7 @@ export function cleanOutlineDeterministic(input: {
     }
 
     let title = normalizeOutlineTitle(stripSeriesLabel(original, seriesLabels));
-    title = turkishTitleCase(title);
+    title = titleCaseForLanguage(title, lang);
     if (!title || letterWordCount(title) < 1) {
       dropped.push({ title: original, reason: "empty_after_strip", pageNumbers: raw.pageNumbers });
       reattachQueue.push({ pageNumbers: raw.pageNumbers, afterIndex: kept.length - 1 });
@@ -531,18 +695,17 @@ export function cleanOutlineDeterministic(input: {
   }
 
   const bounds = outlineTopicBounds(input.contentPageCount ?? merged.length * 2);
-  // Soft trim extreme oversplit before LLM — prefer dropping review-flagged /
-  // short titles, never silently cut the document's tail.
   let finalKept = merged;
-  if ((input.contentPageCount ?? 0) > 40 && merged.length > 80) {
+  if ((input.contentPageCount ?? 0) > 40 && merged.length > bounds.topicsMax) {
     const ranked = [...merged].sort((a, b) => {
-      const score = (c: CleanCandidate) =>
-        (c.needsModelReview ? 0 : 2) + Math.min(c.title.split(/\s+/).length, 6);
+      const score = (c: CleanCandidate) => {
+        const wordLen = c.title.split(/\s+/).length;
+        return (c.needsModelReview ? 0 : 10) + wordLen;
+      };
       return score(b) - score(a);
     });
-    const keptKeys = new Set(ranked.slice(0, 80).map((c) => c.sourceTitle));
+    const keptKeys = new Set(ranked.slice(0, bounds.topicsMax).map((c) => c.sourceTitle));
     finalKept = merged.filter((c) => keptKeys.has(c.sourceTitle));
-    // Reattach pages from trimmed rows
     for (const c of merged) {
       if (keptKeys.has(c.sourceTitle)) continue;
       dropped.push({
@@ -559,7 +722,7 @@ export function cleanOutlineDeterministic(input: {
     }
   }
 
-  const units = groupIntoUnits(finalKept, furniture.unitRuns, bounds.targetUnits);
+  const units = groupIntoUnits(finalKept, unitRuns, input.tocUnits, seriesLabels, lang);
 
   return { kept: finalKept, dropped, units, furniture };
 }
@@ -584,60 +747,82 @@ export function areOutlineNearDuplicates(a: string, b: string): boolean {
 function groupIntoUnits(
   topics: CleanCandidate[],
   unitRuns: FurnitureDetection["unitRuns"],
-  targetUnits: number,
+  tocUnits: { title: string; startPage: number }[] | undefined,
+  seriesLabels: string[],
+  lang: "tr" | "en" | "unknown",
 ): CleanOutlineResult["units"] {
   if (!topics.length) return [];
-  if (unitRuns.length >= 2) {
-    const units: CleanOutlineResult["units"] = [];
-    const assigned = new Set<number>();
-    for (const run of unitRuns) {
-      const indexes: number[] = [];
-      const pageSet = new Set(run.pageNumbers);
-      topics.forEach((topic, index) => {
-        if (assigned.has(index)) return;
-        if (topic.pageNumbers.some((p) => pageSet.has(p))) {
-          indexes.push(index);
-          assigned.add(index);
+
+  const buildUnit = (title: string, indexes: number[]): CleanOutlineResult["units"][number] => ({
+    title: titleCaseForLanguage(stripSeriesLabel(title, seriesLabels), lang),
+    topicIndexes: indexes,
+    pageNumbers: [...new Set(indexes.flatMap((i) => topics[i]!.pageNumbers))].sort(
+      (a, b) => a - b,
+    ),
+  });
+
+  if (tocUnits?.length) {
+    const skeleton = [...tocUnits].sort((a, b) => a.startPage - b.startPage);
+    const bucketCount = skeleton.length;
+    const buckets: number[][] = Array.from({ length: bucketCount }, () => []);
+    for (let ti = 0; ti < topics.length; ti += 1) {
+      const page = minPageNumber(topics[ti]!);
+      let unitIdx = skeleton.length - 1;
+      if (page < skeleton[0]!.startPage) {
+        unitIdx = 0;
+      } else {
+        for (let u = 0; u < skeleton.length; u += 1) {
+          const nextStart = skeleton[u + 1]?.startPage ?? Number.MAX_SAFE_INTEGER;
+          if (page >= skeleton[u]!.startPage && page < nextStart) {
+            unitIdx = u;
+            break;
+          }
         }
-      });
-      if (indexes.length) {
-        units.push({
-          title: run.label,
-          topicIndexes: indexes,
-          pageNumbers: [...new Set(indexes.flatMap((i) => topics[i]!.pageNumbers))].sort(
-            (a, b) => a - b,
-          ),
-        });
       }
+      buckets[unitIdx]!.push(ti);
     }
-    const rest = topics.map((_, i) => i).filter((i) => !assigned.has(i));
-    if (rest.length) {
-      units.push({
-        title: "Diğer konular",
-        topicIndexes: rest,
-        pageNumbers: [...new Set(rest.flatMap((i) => topics[i]!.pageNumbers))].sort(
-          (a, b) => a - b,
-        ),
-      });
-    }
-    if (units.length) return units;
+    return skeleton
+      .map((unit, i) => buildUnit(unit.title, buckets[i]!))
+      .filter((u) => u.topicIndexes.length > 0);
   }
 
-  const count = clamp(targetUnits, 1, Math.max(1, topics.length));
-  const size = Math.ceil(topics.length / count);
-  const units: CleanOutlineResult["units"] = [];
-  for (let i = 0; i < topics.length; i += size) {
-    const indexes = topics.slice(i, i + size).map((_, j) => i + j);
-    const first = topics[i]!;
-    units.push({
-      title: first.title,
-      topicIndexes: indexes,
-      pageNumbers: [...new Set(indexes.flatMap((idx) => topics[idx]!.pageNumbers))].sort(
-        (a, b) => a - b,
-      ),
-    });
+  if (unitRuns.length >= 1) {
+    const sorted = [...unitRuns].sort(
+      (a, b) => Math.min(...a.pageNumbers) - Math.min(...b.pageNumbers),
+    );
+    const ranges = sorted.map((run, i) => ({
+      label: run.label,
+      start: Math.min(...run.pageNumbers),
+      end: i + 1 < sorted.length ? Math.min(...sorted[i + 1]!.pageNumbers) : Number.MAX_SAFE_INTEGER,
+    }));
+    const buckets: number[][] = ranges.map(() => []);
+    for (let ti = 0; ti < topics.length; ti += 1) {
+      const page = minPageNumber(topics[ti]!);
+      let idx = 0;
+      if (page < ranges[0]!.start) {
+        idx = 0;
+      } else {
+        for (let r = 0; r < ranges.length; r += 1) {
+          if (page >= ranges[r]!.start && page < ranges[r]!.end) {
+            idx = r;
+            break;
+          }
+          if (r === ranges.length - 1) idx = r;
+        }
+      }
+      buckets[idx]!.push(ti);
+    }
+    return ranges
+      .map((range, i) => buildUnit(range.label, buckets[i]!))
+      .filter((u) => u.topicIndexes.length > 0);
   }
-  return units;
+
+  return [
+    buildUnit(
+      topics[0]!.title,
+      topics.map((_, i) => i),
+    ),
+  ];
 }
 
 /** Levenshtein distance for outline validator. */
@@ -774,14 +959,22 @@ export function validateOutlineLlmResult(input: {
 }
 
 /** Build hierarchical units from a validated outline draft. */
-export function flattenOutlineUnits(draft: OutlineUnitDraft[]): {
+export function flattenOutlineUnits(
+  draft: OutlineUnitDraft[],
+  language?: "tr" | "en" | "unknown",
+): {
   units: { title: string; topics: { title: string; pageNumbers: number[]; sourceTitles: string[] }[] }[];
   leafTopics: { title: string; pageNumbers: number[]; unitTitle: string }[];
 } {
+  const lang =
+    language ??
+    detectTextLanguage(
+      draft.flatMap((u) => [u.title, ...u.topics.map((t) => t.title)]).join("\n"),
+    );
   const units = draft.map((unit) => ({
-    title: turkishTitleCase(unit.title),
+    title: titleCaseForLanguage(unit.title, lang),
     topics: unit.topics.map((topic) => ({
-      title: turkishTitleCase(topic.title),
+      title: titleCaseForLanguage(topic.title, lang),
       pageNumbers: [...new Set(topic.pageNumbers)].sort((a, b) => a - b),
       sourceTitles: topic.sourceTitles,
     })),

@@ -102,7 +102,7 @@ describe("validateOutlineLlmResult", () => {
           pick("TBMM Seçimleri ve Seçim Dönemi"),
           pick("Yasama Sorumsuzluğu"),
           {
-            title: "Kanun Yapımı Süreci",
+            title: "Kanunların Yapılması ve Yürürlüğe Girmesi",
             sourceTitles: [
               "Kanunların Yapılması ve Yürürlüğe Girmesi",
               "Kanun Yapımı Süreci",
