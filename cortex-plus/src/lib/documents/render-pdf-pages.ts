@@ -111,6 +111,8 @@ export async function renderPdfPages(
   startPage = 1,
   options?: {
     pdfjsOverrides?: Parameters<typeof pdfjsDocumentOptions>[1];
+    /** Called as soon as each page is painted, so OCR can start right away. */
+    onPage?: (page: RenderedPdfPage, index: number) => void;
   },
 ): Promise<RenderedPdf> {
   ensurePromiseWithResolvers();
@@ -204,14 +206,12 @@ export async function renderPdfPages(
         });
       }
 
-      pages.push({
-        png,
-        inkRatio,
-        hasImageContent,
-        scanRenderFailed,
-        pageNumber: number,
-      });
+      const rendered = { png, inkRatio, hasImageContent, scanRenderFailed, pageNumber: number };
+      pages.push(rendered);
       page.cleanup();
+      options?.onPage?.(rendered, pages.length - 1);
+      // Let OCR requests started by onPage go out before the next paint.
+      await new Promise<void>((resolve) => setImmediate(resolve));
     }
 
     return { pages, total: pdf.numPages };

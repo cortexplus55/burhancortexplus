@@ -90,7 +90,7 @@ const PROMPT = [
   `Görselde okunacak hiçbir yazı yoksa yalnızca ${NO_TEXT} yaz.`,
 ].join(" ");
 
-type Attempt = { text: string | null; tokensIn: number; tokensOut: number };
+type Attempt = { text: string | null; tokensIn: number; tokensOut: number; rateLimited: boolean };
 
 function isRateLimitError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -110,159 +110,52 @@ function rateLimitWaitMs(error: unknown, attempt: number): number {
   return Math.min(16_000, 500 * 2 ** attempt);
 }
 
+/** Below this, a new attempt (or a 429 wait) cannot finish before the deadline. */
+const MIN_ATTEMPT_MS = 3_000;
+
 async function readWith(
   openai: OpenAI,
   model: string,
   dataUrl: string,
+  deadlineMs: number,
 ): Promise<Attempt> {
+  let rateLimited = false;
   for (let attempt = 0; attempt < 4; attempt += 1) {
+    const remaining = deadlineMs - Date.now();
+    if (remaining < MIN_ATTEMPT_MS) break;
     try {
-      const completion = await openai.chat.completions.create({
-        model,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: PROMPT },
-              { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
-            ],
-          },
-        ],
-      });
+      const completion = await openai.chat.completions.create(
+        {
+          model,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: PROMPT },
+                { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
+              ],
+            },
+          ],
+        },
+        // Each attempt gets only the time that is really left.
+        { timeout: Math.min(60_000, remaining) },
+      );
       const tokensIn = completion.usage?.prompt_tokens ?? 0;
       const tokensOut = completion.usage?.completion_tokens ?? 0;
       const raw = completion.choices[0]?.message?.content?.trim() ?? "";
       const cleaned = cleanOcrPageText(raw);
       const usable = isUsableOcrText(cleaned);
-      return { text: usable ? cleaned : null, tokensIn, tokensOut };
+      return { text: usable ? cleaned : null, tokensIn, tokensOut, rateLimited };
     } catch (error) {
-      if (isRateLimitError(error) && attempt < 3) {
-        await new Promise((r) => setTimeout(r, rateLimitWaitMs(error, attempt)));
-        continue;
-      }
-      return { text: null, tokensIn: 0, tokensOut: 0 };
+      if (!isRateLimitError(error)) break;
+      rateLimited = true;
+      const wait = rateLimitWaitMs(error, attempt);
+      // Never sleep past the deadline.
+      if (attempt >= 3 || Date.now() + wait + MIN_ATTEMPT_MS > deadlineMs) break;
+      await new Promise((r) => setTimeout(r, wait));
     }
   }
-  return { text: null, tokensIn: 0, tokensOut: 0 };
-}
-
-/** Pages per multi-image vision request (faster than N serial singles). */
-export const OCR_VISION_BATCH_SIZE = 4;
-
-const BATCH_PROMPT = [
-  "Aşağıda numaralı sayfa görselleri var. Her sayfanın metnini olduğu gibi yaz.",
-  "Soruyu ÇÖZME. Markdown/kod bloğu kullanma.",
-  "Her sayfayı şu etiketle başlat: <<<SAYFA N>>> (N = 1..k).",
-  "Sayfada yazı yoksa o etiket altında yalnızca [METIN_YOK] yaz.",
-].join(" ");
-
-/** Parse <<<SAYFA N>>> blocks from a multi-page OCR reply. */
-export function splitBatchedOcrResponse(raw: string, pageCount: number): (string | null)[] {
-  const out: (string | null)[] = Array.from({ length: pageCount }, () => null);
-  const parts = raw.split(/<<<\s*SAYFA\s*(\d+)\s*>>>/i);
-  // parts: [preamble, n1, body1, n2, body2, ...]
-  for (let i = 1; i + 1 < parts.length; i += 2) {
-    const n = Number(parts[i]);
-    if (!Number.isFinite(n) || n < 1 || n > pageCount) continue;
-    const cleaned = cleanOcrPageText((parts[i + 1] ?? "").trim());
-    out[n - 1] = isUsableOcrText(cleaned) ? cleaned : null;
-  }
-  return out;
-}
-
-async function readBatchWith(
-  openai: OpenAI,
-  model: string,
-  dataUrls: string[],
-): Promise<{ texts: (string | null)[]; tokensIn: number; tokensOut: number }> {
-  const content: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
-    { type: "text", text: `${BATCH_PROMPT}\nSayfa sayısı: ${dataUrls.length}.` },
-  ];
-  dataUrls.forEach((url, i) => {
-    content.push({ type: "text", text: `Sayfa ${i + 1}:` });
-    content.push({ type: "image_url", image_url: { url, detail: "high" } });
-  });
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    try {
-      const completion = await openai.chat.completions.create({
-        model,
-        messages: [{ role: "user", content }],
-      });
-      const tokensIn = completion.usage?.prompt_tokens ?? 0;
-      const tokensOut = completion.usage?.completion_tokens ?? 0;
-      const raw = completion.choices[0]?.message?.content?.trim() ?? "";
-      return {
-        texts: splitBatchedOcrResponse(raw, dataUrls.length),
-        tokensIn,
-        tokensOut,
-      };
-    } catch (error) {
-      if (isRateLimitError(error) && attempt < 3) {
-        await new Promise((r) => setTimeout(r, rateLimitWaitMs(error, attempt)));
-        continue;
-      }
-      return { texts: dataUrls.map(() => null), tokensIn: 0, tokensOut: 0 };
-    }
-  }
-  return { texts: dataUrls.map(() => null), tokensIn: 0, tokensOut: 0 };
-}
-
-/**
- * Several page PNGs in one vision call. Falls back to per-page on partial miss.
- */
-export async function extractImageTextBatch(
-  buffers: Buffer[],
-  mimeType = "image/png",
-  options?: { deadlineMs?: number },
-): Promise<ImageReadResult[]> {
-  if (!buffers.length) return [];
-  if (!env.OPENAI_API_KEY) {
-    return buffers.map(() => ({
-      pages: [],
-      ok: false,
-      model: null,
-      tokensIn: 0,
-      tokensOut: 0,
-      reason: "not_configured" as const,
-    }));
-  }
-  const pageDeadlineMs = options?.deadlineMs ?? Date.now() + 90_000;
-  const openai = new OpenAI({
-    apiKey: env.OPENAI_API_KEY,
-    timeout: Math.min(90_000, Math.max(5_000, pageDeadlineMs - Date.now())),
-    maxRetries: 0,
-  });
-  const dataUrls = buffers.map((b) => `data:${mimeType};base64,${b.toString("base64")}`);
-  const model = env.OPENAI_STANDARD_MODEL;
-  const batch = await readBatchWith(openai, model, dataUrls);
-  const results: ImageReadResult[] = [];
-  for (let i = 0; i < buffers.length; i += 1) {
-    const text = batch.texts[i];
-    if (text) {
-      results.push({
-        pages: [text],
-        ok: true,
-        model,
-        tokensIn: Math.floor(batch.tokensIn / buffers.length),
-        tokensOut: Math.floor(batch.tokensOut / buffers.length),
-      });
-      continue;
-    }
-    // Partial miss → single-page fallback for that page only.
-    if (Date.now() < pageDeadlineMs) {
-      results.push(await extractImageText(buffers[i]!, mimeType, options));
-    } else {
-      results.push({
-        pages: [],
-        ok: false,
-        model: null,
-        tokensIn: 0,
-        tokensOut: 0,
-        reason: "unreadable",
-      });
-    }
-  }
-  return results;
+  return { text: null, tokensIn: 0, tokensOut: 0, rateLimited };
 }
 
 export type ImageReadResult = {
@@ -281,6 +174,8 @@ export type ImageReadResult = {
   tokensIn: number;
   tokensOut: number;
   reason?: "not_configured" | "too_large" | "unreadable" | "blocked";
+  /** The provider answered 429 at least once — the OCR pool slows down. */
+  rateLimited?: boolean;
 };
 
 /**
@@ -330,17 +225,19 @@ export async function extractImageText(
   const ladder = [...new Set([env.OPENAI_STANDARD_MODEL, env.OPENAI_ADVANCED_MODEL])];
   let tokensIn = 0;
   let tokensOut = 0;
+  let rateLimited = false;
 
   for (let i = 0; i < ladder.length; i += 1) {
     const model = ladder[i]!;
     // Skip expensive fallback when the step deadline is near.
     if (i > 0 && Date.now() + 25_000 >= pageDeadlineMs) break;
     if (Date.now() >= pageDeadlineMs) break;
-    const attempt = await readWith(openai, model, dataUrl);
+    const attempt = await readWith(openai, model, dataUrl, pageDeadlineMs);
     tokensIn += attempt.tokensIn;
     tokensOut += attempt.tokensOut;
+    rateLimited ||= attempt.rateLimited;
     if (attempt.text) {
-      return { pages: [attempt.text], ok: true, model, tokensIn, tokensOut };
+      return { pages: [attempt.text], ok: true, model, tokensIn, tokensOut, rateLimited };
     }
   }
 
@@ -351,12 +248,13 @@ export async function extractImageText(
     tokensIn,
     tokensOut,
     reason: "unreadable",
+    rateLimited,
   };
 }
 
 /**
  * Aynı anda kaç sayfa okunuyor (fotoğraf yolu).
- * PDF OCR pool uses OCR_PAGE_CONCURRENCY in pdf-ingestion (24).
+ * The PDF OCR pool adapts its own concurrency in pdf-ingestion.
  */
 const PAGE_CONCURRENCY = 24;
 
@@ -391,7 +289,7 @@ export async function extractImagePages(
 
   for (let start = 0; start < images.length; start += PAGE_CONCURRENCY) {
     const wave = images.slice(start, start + PAGE_CONCURRENCY);
-    // Per-page extractImageText keeps moderation; PDF OCR pool uses batch separately.
+    // Per-page extractImageText keeps moderation.
     const results = await Promise.all(
       wave.map((image) => extractImageText(image, mimeType, options)),
     );

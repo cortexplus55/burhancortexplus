@@ -3,7 +3,12 @@ import { formatDocumentProcessProgress, processProgressFingerprint } from "@/lib
 import { MAP_LEASE_MS } from "@/lib/documents/pdf-learning-v2-lease";
 import { LEASE_BUSY_ALIVE_MS, stallCursorKey } from "@/lib/documents/process-session";
 import { analyzePage } from "@/lib/documents/page-analysis";
-import { OCR_PAGE_CONCURRENCY, PDF_PAGES_PER_STEP } from "@/lib/documents/pdf-ingestion";
+import {
+  OCR_MIN_CONCURRENCY,
+  OCR_PAGE_CONCURRENCY,
+  OCR_START_CONCURRENCY,
+  PDF_PAGES_PER_STEP,
+} from "@/lib/documents/pdf-ingestion";
 import {
   OUTLINE_MINI_PAGE_LIMIT,
   outlineStandardModel,
@@ -62,9 +67,10 @@ describe("bounded map round progress labels", () => {
     expect(analysis.extractionMethod).toBe("ocr");
   });
 
-  it("runs OCR in parallel waves (20–30) with larger page steps", () => {
-    expect(OCR_PAGE_CONCURRENCY).toBeGreaterThanOrEqual(20);
-    expect(OCR_PAGE_CONCURRENCY).toBeLessThanOrEqual(30);
+  it("runs OCR with an adaptive pool (4 → start 12 → up to 24) and larger page steps", () => {
+    expect(OCR_MIN_CONCURRENCY).toBe(4);
+    expect(OCR_START_CONCURRENCY).toBe(12);
+    expect(OCR_PAGE_CONCURRENCY).toBe(24);
     expect(PDF_PAGES_PER_STEP).toBeGreaterThanOrEqual(30);
   });
 
