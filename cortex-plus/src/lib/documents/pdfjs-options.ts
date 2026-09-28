@@ -20,8 +20,14 @@ function resolvePdfjsRoot(): string {
 
 /** Directory path for pdfjs asset loaders — must end with "/". */
 function assetDir(absoluteDir: string): string {
-  const normalized = path.resolve(absoluteDir);
-  return normalized.endsWith(path.sep) ? normalized : normalized + path.sep;
+  // pdfjs-dist checks for a literal "/" even on Windows. Node's filesystem
+  // accepts forward slashes there, while a native trailing "\\" is rejected
+  // before PDF parsing starts.
+  return factoryDir(path.resolve(absoluteDir));
+}
+
+function factoryDir(value: string): string {
+  return value.replace(/\\/g, "/").replace(/\/*$/, "/");
 }
 
 export type PdfjsDocumentOptions = {
@@ -56,10 +62,10 @@ export function pdfjsDocumentOptions(
   return {
     data,
     useSystemFonts: true,
-    wasmUrl: overrides?.wasmUrl ?? assets.wasmUrl,
+    wasmUrl: overrides?.wasmUrl ? factoryDir(overrides.wasmUrl) : assets.wasmUrl,
     standardFontDataUrl:
-      overrides?.standardFontDataUrl ?? assets.standardFontDataUrl,
-    cMapUrl: overrides?.cMapUrl ?? assets.cMapUrl,
+      overrides?.standardFontDataUrl ? factoryDir(overrides.standardFontDataUrl) : assets.standardFontDataUrl,
+    cMapUrl: overrides?.cMapUrl ? factoryDir(overrides.cMapUrl) : assets.cMapUrl,
     cMapPacked: true,
   };
 }

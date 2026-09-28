@@ -4,6 +4,7 @@ import { pageUsableForLesson } from "@/lib/documents/page-analysis";
 import { sliceNumberedSection } from "@/lib/documents/topic-title";
 import { conceptInText, conceptsWorthWidening } from "@/lib/learning/lesson-claims";
 import { topicTitlesAlign } from "@/lib/learning/lesson-teach";
+import { hasRepetitiveSparseEvidence } from "@/lib/learning/diagnostic-evidence";
 import { MIN_CHUNK_SIMILARITY, searchDocumentChunks, type DocumentMatch } from "@/lib/rag/pipeline";
 
 /**
@@ -43,6 +44,8 @@ export type SourceContext = {
 export type PageSourceLoadResult = SourceContext & {
   skippedPages: number[];
   usableChars: number;
+  /** Repeated short page text cannot support three distinct diagnostic skills. */
+  repetitiveSparseEvidence?: boolean;
 };
 
 /** Kaynak bloğundaki `[s.N]` ve `· s.N` işaretleri. Atıf denetimi bunları kabul eder. */
@@ -325,6 +328,7 @@ export async function loadPageSourceContext(
     formulas,
     skippedPages,
     usableChars,
+    repetitiveSparseEvidence: hasRepetitiveSparseEvidence(topicPages.map((page) => page.text)),
     block: pageSourceBlock(
       documentName,
       topicPages,
