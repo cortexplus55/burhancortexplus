@@ -18,11 +18,9 @@ import type { MaterialLanguage } from "@/lib/learning/teacher-brain";
 import {
   layoutBoard,
   overviewDuplicatesSection,
-  studentTextParts,
   type BoardLine,
 } from "@/lib/learning/lesson-board";
-import { renderMath, splitMath } from "@/lib/learning/math-text";
-import { normalizeMathIdentifiers, isProgrammingContext } from "@/lib/learning/math-identifiers";
+import { RichBody } from "@/components/parity/lesson-rich-text";
 import type {
   CheckGradeVariant,
   GradeCheckResult,
@@ -129,40 +127,6 @@ function SourceBadge({ source }: { source: { file: string; page?: number } }) {
         </span>
       ) : null}
     </div>
-  );
-}
-
-function RichBody({ text, topicHint = "" }: { text: string; topicHint?: string }) {
-  const normalized = normalizeMathIdentifiers(text, {
-    topicHint,
-    programming: isProgrammingContext("", topicHint),
-  });
-  return (
-    <>
-      {splitMath(normalized).flatMap((segment, segIndex) => {
-        if (segment.type === "math") {
-          const Tag = segment.display ? "div" : "span";
-          return (
-            <Tag
-              key={`m-${segIndex}`}
-              className={segment.display ? "als-formula cp-lesson-math" : undefined}
-              dangerouslySetInnerHTML={{
-                __html: renderMath(segment.value, segment.display),
-              }}
-            />
-          );
-        }
-        return studentTextParts(segment.value).map((part, index) =>
-          part.bold ? (
-            <strong key={`${segIndex}-${index}`} className="als-term">
-              {part.text}
-            </strong>
-          ) : (
-            <span key={`${segIndex}-${index}`}>{part.text}</span>
-          ),
-        );
-      })}
-    </>
   );
 }
 

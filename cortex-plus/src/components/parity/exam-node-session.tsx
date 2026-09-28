@@ -24,6 +24,7 @@ import {
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 import { AUDIO_CHARS_PER_CREDIT_PRICE, CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
+import { RichBody } from "@/components/parity/lesson-rich-text";
 import { ExamReadinessScreen } from "@/components/parity/exam-readiness-screen";
 import { ExamWrittenReview } from "@/components/parity/exam-written-review";
 import type { ReadinessScreen } from "@/lib/learning/readiness-screen";
@@ -99,6 +100,7 @@ type Payload = {
     correct?: string[];
     explanation?: string;
     optionWhy?: string[];
+    steps?: string[];
     misconceptionTag?: string;
     hint?: string;
     expectedPoints?: string[];
@@ -1102,6 +1104,7 @@ export function ExamNodeSession({
               correct: isTimedExam ? undefined : question.correct,
               explanation: isTimedExam ? undefined : question.explanation,
               optionWhy: isTimedExam ? undefined : question.optionWhy,
+              steps: isTimedExam ? undefined : question.steps,
               misconceptionTag: isTimedExam ? undefined : question.misconceptionTag,
             }))}
             index={index}
@@ -1151,7 +1154,9 @@ export function ExamNodeSession({
           <p className="cp-lesson-kicker">
             {index + 1}/{items.length}
           </p>
-          <h1>{items[index].text}</h1>
+          <h1>
+            <RichBody text={items[index].text} />
+          </h1>
           <div className="flex gap-2">
             {([true, false] as const).map((value) => {
               const isSelected = answers[String(index)] === value;
@@ -1194,10 +1199,14 @@ export function ExamNodeSession({
                 {answers[String(index)] === items[index].correct ? "✓ Doğru!" : "✕ Yanlış"}
               </div>
               {!items[index].correct && items[index].correctedStatement ? (
-                <p className="cp-exam-quiz-explain"><strong>Doğru ifade:</strong> {items[index].correctedStatement}</p>
+                <p className="cp-exam-quiz-explain">
+                  <strong>Doğru ifade:</strong> <RichBody text={items[index].correctedStatement} />
+                </p>
               ) : null}
               {items[index].explanation ? (
-                <p className="cp-exam-quiz-explain">{items[index].explanation}</p>
+                <p className="cp-exam-quiz-explain">
+                  <RichBody text={items[index].explanation} />
+                </p>
               ) : null}
               <button
                 type="button"
@@ -1237,7 +1246,9 @@ export function ExamNodeSession({
             }}
           >
             <span className="cp-exam-flash-side">{flipped ? "Cevap" : "Soru"}</span>
-            <span aria-live="polite">{flipped ? cards[index].back : cards[index].front}</span>
+            <span aria-live="polite">
+              <RichBody text={flipped ? cards[index].back : cards[index].front} />
+            </span>
           </button>
           {revealedCard !== index ? (
             <p className="cp-exam-card-hint">Önce kendin hatırlamaya çalış, sonra karta dokunup cevabı gör.</p>

@@ -14,6 +14,13 @@ export type QuizQuestion = {
   optionReasons?: Record<string, string>;
   /** Aynı üretim çağrısında, her şık için bir cümle. */
   optionWhy?: string[];
+  /**
+   * Çok adımlı hesapta çözüm adımları (2–5). Derste işlem adımları numaralı
+   * liste olarak duruyor; quizde aynı hesap tek cümleye sıkışıyordu
+   * ("n = 8/16 = 0,5 mol, dolayısıyla …"). Doğrulayıcı sayıları denetler ve
+   * son adımın doğru şıkka vardığını kontrol eder; tutmazsa adımlar düşer.
+   */
+  steps?: string[];
   /** Hazırlıktaki konu adı. Bilinmeyen ad sınav sonunda gösterilmez. */
   topic?: string;
   /** İkinci çözücü bunu görür. Öğrenciye gitmez. */
@@ -27,6 +34,7 @@ export type PublicQuizQuestion = {
   correct?: string[];
   explanation?: string;
   optionWhy?: string[];
+  steps?: string[];
   misconceptionTag?: string;
 };
 
@@ -44,6 +52,8 @@ export const quizQuestionSchema = z.object({
   // Zod strips undeclared keys. Without this field the generated per-option
   // explanations vanished before the verifier, so every quiz was rejected.
   optionWhy: z.array(z.string().min(8).max(400)).min(2).max(6).optional(),
+  // Bozuk adımlar soruyu düşürmez; yalnızca adımlar gösterilmez.
+  steps: z.array(z.string()).max(8).optional().catch(undefined),
   topic: z.string().min(2).max(80).optional(),
 });
 
@@ -103,6 +113,7 @@ export function normalizeQuizQuestion(raw: {
   misconceptionTag?: string;
   optionReasons?: Record<string, string>;
   optionWhy?: string[];
+  steps?: string[];
   topic?: string;
 }): QuizQuestion | null {
   const options = [...new Set(raw.options.map((item) => item.trim()).filter(Boolean))];
@@ -128,8 +139,19 @@ export function normalizeQuizQuestion(raw: {
     optionWhy: Array.isArray(raw.optionWhy)
       ? raw.optionWhy.map((line) => line.trim()).filter((line) => line.length >= 8)
       : undefined,
+    steps: normalizeSteps(raw.steps),
     topic: raw.topic?.trim() || undefined,
   };
+}
+
+/** 2–5 kısa adım; "1)" gibi numara önekleri atılır (liste zaten numaralı). */
+export function normalizeSteps(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const steps = raw
+    .filter((line): line is string => typeof line === "string")
+    .map((line) => line.replace(/^\s*(?:adım\s*)?\d+\s*[).:\-–]\s*/i, "").trim())
+    .filter((line) => line.length >= 4 && line.length <= 220);
+  return steps.length >= 2 ? steps.slice(0, 5) : undefined;
 }
 
 /** Yazılı deneme sırasında istemciye giden soru. Doğru şık ve açıklama yok. */
@@ -149,6 +171,7 @@ export function publicQuizQuestion(question: QuizQuestion): PublicQuizQuestion {
     correct: question.correct,
     explanation: question.explanation,
     optionWhy: question.optionWhy,
+    steps: question.steps,
     misconceptionTag: question.misconceptionTag,
   };
 }
@@ -218,6 +241,7 @@ export function coerceQuizQuestions(raw: unknown): QuizQuestion[] | null {
       misconceptionTag: typeof record.misconceptionTag === "string" ? record.misconceptionTag : undefined,
       optionReasons,
       optionWhy,
+      steps: Array.isArray(record.steps) ? (record.steps as string[]) : undefined,
       topic: typeof record.topic === "string" ? record.topic : undefined,
     });
     return normalized ? [normalized] : [];
