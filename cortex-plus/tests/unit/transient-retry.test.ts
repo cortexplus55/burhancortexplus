@@ -58,4 +58,25 @@ describe("transient provider errors", () => {
     );
     expect(down).toHaveBeenCalledTimes(2);
   });
+
+  it("supports more silent attempts with backoff under the same caller", async () => {
+    const sleep = vi.fn(async (_ms: number) => {});
+    const run = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(Object.assign(new Error("up"), { status: 429 }))
+      .mockRejectedValueOnce(Object.assign(new Error("up"), { status: 503 }))
+      .mockResolvedValueOnce("ok");
+    await expect(
+      withTransientRetry(run, {
+        startedAt: Date.now(),
+        callTimeoutMs: 30_000,
+        maxAttempts: 4,
+        sleep,
+      }),
+    ).resolves.toBe("ok");
+    expect(run).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenCalledTimes(2);
+    expect(sleep.mock.calls[0]?.[0]).toBe(1_000);
+    expect(sleep.mock.calls[1]?.[0]).toBe(2_000);
+  });
 });

@@ -35,7 +35,7 @@ describe("bounded map round progress labels", () => {
         windowsDone: 17,
         windowsTotal: 17,
       }),
-    ).toBe("Konular düzenleniyor…");
+    ).toBe("Çalışma yolu çıkarılıyor…");
     expect(
       formatDocumentProcessProgress({
         phase: "map",
@@ -43,7 +43,7 @@ describe("bounded map round progress labels", () => {
         windowsDone: 1,
         windowsTotal: 1,
       }),
-    ).toBe("Konular düzenleniyor…");
+    ).toBe("Çalışma yolu çıkarılıyor…");
   });
 
   it("fingerprints leaseBusy separately and keeps lease alive window", () => {

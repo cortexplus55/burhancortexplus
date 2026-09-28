@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { isPhotoQuotaError } from "@/lib/documents/process-errors";
 import {
-  PROCESS_RETRY_MESSAGE,
   postDocumentProcess,
   requestDocumentProcessing,
 } from "@/lib/documents/process-session";
@@ -40,7 +39,10 @@ import { WizardProcessingPanel } from "@/components/parity/wizard-processing-pan
 import { freeMaterialLimitLine, materialDetailLine } from "@/lib/learning/prep-material-copy";
 import { filesAcceptedFromSelection } from "@/lib/learning/prep-file-cap";
 import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
-import { formatDocumentProcessProgress } from "@/lib/documents/process-progress-label";
+import {
+  formatDocumentProcessProgress,
+  processProgressRatio,
+} from "@/lib/documents/process-progress-label";
 import { messageFromProcessBody } from "@/lib/documents/process-user-message";
 import {
   clearPendingDocProcess,
@@ -266,6 +268,7 @@ export function ExamCreateWizard({
   const [docs, setDocs] = useState<WizardMaterial[]>([]);
   const [uploading, setUploading] = useState(false);
   const [processDetail, setProcessDetail] = useState<string | null>(null);
+  const [processPercent, setProcessPercent] = useState<number | null>(null);
   const [processAlert, setProcessAlert] = useState<string | null>(null);
   const [failedMaterials, setFailedMaterials] = useState<
     { documentId: string; fileName: string; sizeBytes: number | null; error: string }[]
@@ -742,6 +745,7 @@ export function ExamCreateWizard({
       surface: "exam-wizard",
     });
     setProcessDetail("Belge işleniyor…");
+    setProcessPercent(4);
     const processExamType = subject.trim() || undefined;
     const processExamDate = examDate.trim() || undefined;
     const result = await requestDocumentProcessing({
@@ -755,13 +759,16 @@ export function ExamCreateWizard({
       onProgress: (progress) => {
         const line = formatDocumentProcessProgress(progress);
         if (line) setProcessDetail(line);
+        const ratio = processProgressRatio(progress);
+        if (ratio != null) setProcessPercent(Math.round(ratio * 100));
       },
     });
     const processed = result.body;
-    if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
+    // Silent mid-flight retries — toast/retry UI only after exhaustion below.
     if (result.status === 402) {
       clearPendingDocProcess();
       setProcessDetail(null);
+      setProcessPercent(null);
       if (isPhotoQuotaError(processed)) {
         const description = materialLimitLine ?? undefined;
         toast.error(
@@ -784,9 +791,10 @@ export function ExamCreateWizard({
         code === "retryable_exhausted" ||
         (result.status >= 500 && result.status < 600);
       const message = messageFromProcessBody(processed);
+      // Exhaustion only: show retry screen, keep progress (pending doc).
       setProcessAlert(message);
-      toast.error(message);
-      setProcessDetail(keepPending ? message : null);
+      setProcessDetail(keepPending ? "İlerlemen duruyor — kaldığın yerden devam edebilirsin." : null);
+      setProcessPercent(null);
       if (keepPending) {
         return false;
       }
@@ -808,6 +816,7 @@ export function ExamCreateWizard({
     clearPendingDocProcess();
     setProcessAlert(null);
     setProcessDetail(null);
+    setProcessPercent(null);
     setFailedMaterials((current) =>
       current.filter((item) => item.documentId !== input.documentId),
     );
@@ -1062,6 +1071,7 @@ export function ExamCreateWizard({
         <WizardProcessingPanel
           processDetail={processDetail}
           processAlert={processAlert}
+          processPercent={processPercent}
           failedMaterials={failedMaterials}
           uploading={uploading}
           onDismissAlert={() => setProcessAlert(null)}

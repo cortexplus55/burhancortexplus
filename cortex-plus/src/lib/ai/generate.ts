@@ -98,6 +98,18 @@ type GenerateJsonParams<T> = {
    */
   callTimeoutMs?: number;
   /**
+   * Stream the draft completion (outline). Keeps the provider connection
+   * alive under long budgets; partial text is optional for checkpoints.
+   */
+  stream?: boolean;
+  /** Called as streamed draft text accumulates (throttled by the caller). */
+  onPartialContent?: (text: string) => void;
+  /**
+   * Transient 429/5xx/timeout attempts under the same reservation.
+   * Default 2 (one retry). Outline may pass 3–4.
+   */
+  maxTransientAttempts?: number;
+  /**
    * OpenAI response_format. Default json_object. Outline uses strict json_schema.
    */
   responseFormat?:
@@ -428,72 +440,108 @@ export async function generateJson<T>(
           break outer;
         }
         const draftStarted = Date.now();
-        const completion = await withTransientRetry(
-          () => {
-            modelCalls += 1;
-            return openai.chat.completions.create({
-          model,
-          response_format: responseFormat,
-          messages: [
-            {
-              role: "system",
-              content: `${SYSTEM_GUARDRAIL}\n${CONTENT_STYLE}\n${params.schemaHint}`,
-            },
-            {
-              role: "user",
-              content:
-                draftAttempt === 0 && mode === (params.verificationMode ?? "full")
-                  ? userContent
-                  : [
-                      {
-                        type: "text",
-                        /**
-                         * YENİDEN ÜRETİM, ZAR ATMAK DEĞİL DÜZELTMEDİR.
-                         *
-                         * Burada modele yalnızca kod veriliyordu
-                         * ("pedagogy_rule") ve üstüne "daha kısa yaz"
-                         * deniyordu. Kod modele hiçbir şey anlatmıyor,
-                         * "daha kısa" ise çoğu kuralın ihlalini büsbütün
-                         * kötüleştiriyor. Model aynı istemle aynı zarı
-                         * yeniden atıyordu.
-                         *
-                         * Canlıda 19 ders denemesinin 13'ü reddedildi ve
-                         * redlerin yarısından fazlası TEK bir kuraldan
-                         * geliyordu: anahtar terimleri koyu yazmamak.
-                         * Doğrulayıcı bunu zaten tek cümleyle söylüyor;
-                         * söylediği şey modele ulaşmıyordu.
-                         */
-                        text:
-                          `${params.userPrompt}\n\n` +
-                          (lastFailureMessages.length
-                            ? `ÖNCEKİ TASLAK ŞU SEBEPLERLE REDDEDİLDİ — her birini düzelt:\n` +
-                              lastFailureMessages
-                                .slice(0, 8)
-                                .map((m, i) => `${i + 1}. ${m}`)
-                                .join("\n") +
-                              `\nGeri kalanını koru; yalnızca bu maddeleri gider.`
-                            : `Önceki taslak doğrulamadan geçmedi (${lastFailureCodes.join(",") || "rejected"}). Şemaya uygun, kaynaktan doğrulanabilir çıktı yaz.`) +
-                          (mode === "schema" ? " Tek doğru şık tercih et." : ""),
-                      },
-                      ...userContent.slice(1),
-                    ],
-            },
-          ],
-            });
+        const draftMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+          {
+            role: "system",
+            content: `${SYSTEM_GUARDRAIL}\n${CONTENT_STYLE}\n${params.schemaHint}`,
           },
-          { startedAt: generationStarted, callTimeoutMs },
+          {
+            role: "user",
+            content:
+              draftAttempt === 0 && mode === (params.verificationMode ?? "full")
+                ? userContent
+                : [
+                    {
+                      type: "text",
+                      /**
+                       * YENİDEN ÜRETİM, ZAR ATMAK DEĞİL DÜZELTMEDİR.
+                       *
+                       * Burada modele yalnızca kod veriliyordu
+                       * ("pedagogy_rule") ve üstüne "daha kısa yaz"
+                       * deniyordu. Kod modele hiçbir şey anlatmıyor,
+                       * "daha kısa" ise çoğu kuralın ihlalini büsbütün
+                       * kötüleştiriyor. Model aynı istemle aynı zarı
+                       * yeniden atıyordu.
+                       *
+                       * Canlıda 19 ders denemesinin 13'ü reddedildi ve
+                       * redlerin yarısından fazlası TEK bir kuraldan
+                       * geliyordu: anahtar terimleri koyu yazmamak.
+                       * Doğrulayıcı bunu zaten tek cümleyle söylüyor;
+                       * söylediği şey modele ulaşmıyordu.
+                       */
+                      text:
+                        `${params.userPrompt}\n\n` +
+                        (lastFailureMessages.length
+                          ? `ÖNCEKİ TASLAK ŞU SEBEPLERLE REDDEDİLDİ — her birini düzelt:\n` +
+                            lastFailureMessages
+                              .slice(0, 8)
+                              .map((m, i) => `${i + 1}. ${m}`)
+                              .join("\n") +
+                            `\nGeri kalanını koru; yalnızca bu maddeleri gider.`
+                          : `Önceki taslak doğrulamadan geçmedi (${lastFailureCodes.join(",") || "rejected"}). Şemaya uygun, kaynaktan doğrulanabilir çıktı yaz.`) +
+                        (mode === "schema" ? " Tek doğru şık tercih et." : ""),
+                    },
+                    ...userContent.slice(1),
+                  ],
+          },
+        ];
+
+        const draftResult = await withTransientRetry(
+          async () => {
+            modelCalls += 1;
+            if (params.stream) {
+              const stream = await openai.chat.completions.create({
+                model,
+                stream: true,
+                stream_options: { include_usage: true },
+                response_format: responseFormat,
+                messages: draftMessages,
+              });
+              let text = "";
+              let usage = { prompt_tokens: 0, completion_tokens: 0 };
+              for await (const chunk of stream) {
+                const delta = chunk.choices[0]?.delta?.content ?? "";
+                if (delta) {
+                  text += delta;
+                  params.onPartialContent?.(text);
+                }
+                if (chunk.usage) {
+                  usage = {
+                    prompt_tokens: chunk.usage.prompt_tokens ?? 0,
+                    completion_tokens: chunk.usage.completion_tokens ?? 0,
+                  };
+                }
+              }
+              return { content: text || "{}", usage };
+            }
+            const completion = await openai.chat.completions.create({
+              model,
+              response_format: responseFormat,
+              messages: draftMessages,
+            });
+            return {
+              content: completion.choices[0]?.message?.content ?? "{}",
+              usage: {
+                prompt_tokens: completion.usage?.prompt_tokens ?? 0,
+                completion_tokens: completion.usage?.completion_tokens ?? 0,
+              },
+            };
+          },
+          {
+            startedAt: generationStarted,
+            callTimeoutMs,
+            maxAttempts: params.maxTransientAttempts,
+          },
         );
         draftMs += Date.now() - draftStarted;
 
         completionUsage = {
-          prompt_tokens:
-            completionUsage.prompt_tokens + (completion.usage?.prompt_tokens ?? 0),
+          prompt_tokens: completionUsage.prompt_tokens + draftResult.usage.prompt_tokens,
           completion_tokens:
-            completionUsage.completion_tokens +
-            (completion.usage?.completion_tokens ?? 0),
+            completionUsage.completion_tokens + draftResult.usage.completion_tokens,
         };
 
-        const raw = completion.choices[0]?.message?.content ?? "{}";
+        const raw = draftResult.content;
         content = raw;
 
         if (mode === "schema") {

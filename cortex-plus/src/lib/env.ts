@@ -68,6 +68,11 @@ export const envSchema = z.object({
    * gpt-4.1 — 1M bağlam; bütün materyal tek çağrıda.
    */
   OPENAI_OUTLINE_STRONG_MODEL: z.string().default("gpt-4.1"),
+  /**
+   * gpt-4.1 art arda düşerse sessiz yedek model (öğrenci görmez).
+   * Boşsa gpt-4.1-mini.
+   */
+  OPENAI_OUTLINE_FALLBACK_MODEL: z.string().default("gpt-4.1-mini"),
   OPENAI_TTS_MODEL: z.string().default("gpt-4o-mini-tts"),
   OPENAI_STT_MODEL: z.string().default("gpt-4o-mini-transcribe"),
   /** TypeSafe Jev decision engine (server-only; never expose to client). */
@@ -129,6 +134,7 @@ const parsed = envSchema.safeParse({
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,
   OPENAI_OUTLINE_STANDARD_MODEL: process.env.OPENAI_OUTLINE_STANDARD_MODEL,
   OPENAI_OUTLINE_STRONG_MODEL: process.env.OPENAI_OUTLINE_STRONG_MODEL,
+  OPENAI_OUTLINE_FALLBACK_MODEL: process.env.OPENAI_OUTLINE_FALLBACK_MODEL,
   OPENAI_TTS_MODEL: process.env.OPENAI_TTS_MODEL,
   OPENAI_STT_MODEL: process.env.OPENAI_STT_MODEL,
   TYPESAFE_API_KEY: process.env.TYPESAFE_API_KEY,

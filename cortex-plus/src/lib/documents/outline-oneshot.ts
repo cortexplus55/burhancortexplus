@@ -23,10 +23,23 @@ export const OUTLINE_MINI_PAGE_LIMIT = 30;
 export const ONESHOT_MAX_INPUT_CHARS = 280_000;
 /** gpt-4.1 1M context — whole-book corpus without splitting. */
 export const ONESHOT_STRONG_MAX_CHARS = 2_500_000;
-/** Split into at most this many parallel parts (mini path only). */
+/**
+ * ~700k tokens of Turkish/Latin text (~3 chars/token). Above this, one
+ * gpt-4.1 call is unreliable — force-split on file/page boundaries.
+ */
+export const ONESHOT_FORCE_SPLIT_CHARS = 2_100_000;
+/** ~1000 pages → auto-split even when char count is moderate. */
+export const ONESHOT_FORCE_SPLIT_PAGES = 1000;
+/** Per-part corpus budget when force-splitting a huge book. */
+export const ONESHOT_FORCE_SPLIT_PART_CHARS = 350_000;
+/** Split into at most this many parallel parts (mini path). */
 export const ONESHOT_MAX_PARTS = 3;
+/** Force-split path may use more parts for ~1000-page books. */
+export const ONESHOT_FORCE_SPLIT_MAX_PARTS = 8;
 /** A whole book in one call needs far more than the 90s default. */
 export const OUTLINE_CALL_TIMEOUT_MS = 240_000;
+/** Silent 429/5xx/timeout attempts inside one reservation. */
+export const OUTLINE_TRANSIENT_ATTEMPTS = 4;
 
 export function outlineStandardModel(): string {
   return (
@@ -38,6 +51,22 @@ export function outlineStandardModel(): string {
 
 export function outlineStrongModel(): string {
   return env.OPENAI_OUTLINE_STRONG_MODEL?.trim() || "gpt-4.1";
+}
+
+/** Second model when gpt-4.1 keeps failing (env-configurable). */
+export function outlineFallbackModel(): string {
+  return env.OPENAI_OUTLINE_FALLBACK_MODEL?.trim() || "gpt-4.1-mini";
+}
+
+/** Huge corpus / page count that cannot fit one reliable gpt-4.1 call. */
+export function needsForceSplit(input: {
+  pageCount: number;
+  corpusChars: number;
+}): boolean {
+  return (
+    input.pageCount >= ONESHOT_FORCE_SPLIT_PAGES ||
+    input.corpusChars > ONESHOT_FORCE_SPLIT_CHARS
+  );
 }
 
 export type OutlineModelChoice = {
@@ -181,12 +210,21 @@ export const oneShotJsonSchema: Record<string, unknown> = {
 export type OneShotOutlineResult = {
   units: OutlineUnitDraft[];
   fromModel: boolean;
-  path: "single" | "split_merge" | "repair" | "escalation" | "failed";
+  path: "single" | "split_merge" | "repair" | "escalation" | "fallback" | "failed";
   /** True when the student should retry — never invent a fake map. */
   retryable: boolean;
   model?: string;
   /** Topics the validator silently dropped from an otherwise usable map. */
   droppedTopics?: number;
+  /** Partial part drafts saved for resume (never restart from zero). */
+  partDrafts?: (OneShotOutlineDraft | null)[];
+  /** Last streamed/raw draft JSON for resume. */
+  rawDraft?: unknown;
+};
+
+export type OutlineCheckpoint = {
+  rawDraft?: unknown;
+  partDrafts?: (OneShotOutlineDraft | null)[];
 };
 
 export type MaterialFileCorpus = {
@@ -287,6 +325,7 @@ export function filePageBounds(files: MaterialFileCorpus[]): number[] {
 export function splitCorpusForContext(
   corpus: string,
   maxChars = ONESHOT_MAX_INPUT_CHARS,
+  maxParts = ONESHOT_MAX_PARTS,
 ): string[] {
   if (corpus.length <= maxChars) return [corpus];
   const lines = corpus.split("\n");
@@ -304,17 +343,145 @@ export function splitCorpusForContext(
     if (size + add > maxChars && buf.length) flush();
     buf.push(line);
     size += add;
-    if (parts.length >= ONESHOT_MAX_PARTS - 1 && size >= maxChars * 0.9) {
+    if (parts.length >= maxParts - 1 && size >= maxChars * 0.9) {
       continue;
     }
   }
   flush();
-  if (parts.length > ONESHOT_MAX_PARTS) {
-    const head = parts.slice(0, ONESHOT_MAX_PARTS - 1);
-    const tail = parts.slice(ONESHOT_MAX_PARTS - 1).join("\n");
+  if (parts.length > maxParts) {
+    const head = parts.slice(0, maxParts - 1);
+    const tail = parts.slice(maxParts - 1).join("\n");
     return [...head, tail];
   }
   return parts.length ? parts : [corpus.slice(0, maxChars)];
+}
+
+/**
+ * Split material into parallel outline parts on file and page boundaries.
+ * Never breaks mid-page. Prefers whole-file chunks when a file fits.
+ * Also respects a page budget so ~1000 short OCR pages still shard.
+ */
+export function splitFilesForOutline(
+  files: MaterialFileCorpus[],
+  options?: {
+    maxCharsPerPart?: number;
+    maxParts?: number;
+    maxPagesPerPart?: number;
+  },
+): MaterialFileCorpus[][] {
+  const maxChars = options?.maxCharsPerPart ?? ONESHOT_FORCE_SPLIT_PART_CHARS;
+  const maxParts = options?.maxParts ?? ONESHOT_FORCE_SPLIT_MAX_PARTS;
+  const totalPages = files.reduce((n, f) => n + f.pages.length, 0);
+  const maxPages =
+    options?.maxPagesPerPart ??
+    Math.max(80, Math.ceil(totalPages / maxParts));
+  const parts: MaterialFileCorpus[][] = [];
+  let current: MaterialFileCorpus[] = [];
+  let currentChars = 0;
+  let currentPages = 0;
+
+  const flush = () => {
+    if (!current.length) return;
+    parts.push(current);
+    current = [];
+    currentChars = 0;
+    currentPages = 0;
+  };
+
+  const pageChars = (page: { text: string }) =>
+    (page.text ?? "").replace(/\s+/g, " ").trim().length + 24;
+
+  const wouldExceed = (addChars: number, addPages: number) =>
+    (current.length > 0 &&
+      (currentChars + addChars > maxChars || currentPages + addPages > maxPages)) ||
+    false;
+
+  for (const file of files) {
+    const fileHeader = 40 + file.fileName.length;
+    let fileChars = fileHeader;
+    for (const page of file.pages) fileChars += pageChars(page);
+    const filePageCount = file.pages.length;
+
+    // Whole file fits in the current / a fresh part.
+    if (
+      fileChars <= maxChars &&
+      filePageCount <= maxPages &&
+      !wouldExceed(fileChars, filePageCount)
+    ) {
+      current.push(file);
+      currentChars += fileChars;
+      currentPages += filePageCount;
+      if (
+        parts.length < maxParts - 1 &&
+        (currentChars >= maxChars * 0.85 || currentPages >= maxPages)
+      ) {
+        flush();
+      }
+      continue;
+    }
+    if (
+      fileChars <= maxChars &&
+      filePageCount <= maxPages &&
+      wouldExceed(fileChars, filePageCount)
+    ) {
+      flush();
+      if (parts.length >= maxParts - 1) {
+        current.push(file);
+        currentChars += fileChars;
+        currentPages += filePageCount;
+        continue;
+      }
+      current.push(file);
+      currentChars = fileChars;
+      currentPages = filePageCount;
+      continue;
+    }
+
+    // Split this file across page boundaries.
+    let pageBuf: MaterialFileCorpus["pages"] = [];
+    let pageBufChars = fileHeader;
+    const flushPages = () => {
+      if (!pageBuf.length) return;
+      const addPages = pageBuf.length;
+      if (wouldExceed(pageBufChars, addPages)) flush();
+      current.push({ fileName: file.fileName, pages: pageBuf });
+      currentChars += pageBufChars;
+      currentPages += addPages;
+      pageBuf = [];
+      pageBufChars = fileHeader;
+      if (
+        parts.length < maxParts - 1 &&
+        (currentChars >= maxChars * 0.85 || currentPages >= maxPages)
+      ) {
+        flush();
+      }
+    };
+    for (const page of file.pages) {
+      const add = pageChars(page);
+      if (
+        pageBuf.length &&
+        (pageBufChars + add > maxChars || pageBuf.length + 1 > maxPages)
+      ) {
+        flushPages();
+      }
+      if (parts.length >= maxParts - 1) {
+        pageBuf.push(page);
+        pageBufChars += add;
+        continue;
+      }
+      pageBuf.push(page);
+      pageBufChars += add;
+    }
+    flushPages();
+  }
+  flush();
+
+  if (parts.length > maxParts) {
+    const head = parts.slice(0, maxParts - 1);
+    const tail = parts.slice(maxParts - 1).flat();
+    return [...head, tail];
+  }
+  return parts.length ? parts : [files];
 }
 
 const TR_STOP = new Set([
@@ -916,7 +1083,13 @@ async function callOutlineModel(input: {
   previousOutline?: OutlineUnitDraft[];
   repairErrors?: string;
   invalidDraftJson?: string;
+  /** Resume from a previously streamed partial — never from zero. */
+  resumeDraftJson?: string;
+  onPartialContent?: (text: string) => void;
 }): Promise<OneShotOutlineDraft | null> {
+  const resumeBlock = input.resumeDraftJson?.trim()
+    ? `\n\nÖNCEKİ KISMİ ÇIKTI (kaldığın yerden devam et / tamamla; sıfırdan yazma):\n${input.resumeDraftJson.slice(0, 40_000)}`
+    : "";
   try {
     const generated = await generateJson({
       service: input.service,
@@ -928,6 +1101,9 @@ async function callOutlineModel(input: {
       maxDraftAttempts: 1,
       modelOverride: input.model,
       callTimeoutMs: OUTLINE_CALL_TIMEOUT_MS,
+      stream: true,
+      maxTransientAttempts: OUTLINE_TRANSIENT_ATTEMPTS,
+      onPartialContent: input.onPartialContent,
       idempotencyKey: input.idempotencyKey,
       responseFormat: {
         type: "json_schema",
@@ -938,17 +1114,18 @@ async function callOutlineModel(input: {
         },
       },
       schemaHint: SCHEMA_HINT,
-      userPrompt: studentOutlinePrompt({
-        examLabel: input.examLabel,
-        examDate: input.examDate,
-        corpus: input.corpus,
-        fileGuide: input.fileGuide,
-        maxPage: input.maxPage,
-        tocBlock: input.tocBlock,
-        previousOutline: input.previousOutline,
-        repairErrors: input.repairErrors,
-        invalidDraftJson: input.invalidDraftJson,
-      }),
+      userPrompt:
+        studentOutlinePrompt({
+          examLabel: input.examLabel,
+          examDate: input.examDate,
+          corpus: input.corpus,
+          fileGuide: input.fileGuide,
+          maxPage: input.maxPage,
+          tocBlock: input.tocBlock,
+          previousOutline: input.previousOutline,
+          repairErrors: input.repairErrors,
+          invalidDraftJson: input.invalidDraftJson,
+        }) + resumeBlock,
       parse: (raw) => {
         const parsed = oneShotOutlineSchema.safeParse(trimOneShotDraft(raw));
         return parsed.success ? parsed.data : null;
@@ -988,7 +1165,7 @@ export function outlineIdempotencyKey(input: {
   userId: string;
   files: { fileName: string }[];
   pageCount: number;
-  attempt: "first" | "escalate" | "repair";
+  attempt: "first" | "escalate" | "repair" | "fallback";
   suffix?: string;
 }): string {
   const material = fnv1a(
@@ -1001,9 +1178,11 @@ export function outlineIdempotencyKey(input: {
 async function outlineWithModel(input: {
   service: SupabaseClient;
   userId: string;
+  files: MaterialFileCorpus[];
   corpus: string;
   fileGuide: string;
   maxPage: number;
+  pageCount: number;
   model: string;
   tier: "standard" | "strong";
   idempotencyKeyFor: (suffix?: string) => string;
@@ -1012,7 +1191,15 @@ async function outlineWithModel(input: {
   deadlineAt?: number;
   tocBlock?: string | null;
   previousOutline?: OutlineUnitDraft[];
-}): Promise<{ draft: OneShotOutlineDraft | null; path: "single" | "split_merge" }> {
+  resumeDraftJson?: string;
+  resumePartDrafts?: (OneShotOutlineDraft | null)[];
+  onCheckpoint?: (state: OutlineCheckpoint) => void;
+}): Promise<{
+  draft: OneShotOutlineDraft | null;
+  path: "single" | "split_merge";
+  partDrafts?: (OneShotOutlineDraft | null)[];
+  rawDraft?: unknown;
+}> {
   const shared = {
     service: input.service,
     userId: input.userId,
@@ -1026,51 +1213,123 @@ async function outlineWithModel(input: {
     previousOutline: input.previousOutline,
   };
 
-  // Strong model reads the whole material in one call (1M context).
-  if (input.tier === "strong" || input.corpus.length <= ONESHOT_MAX_INPUT_CHARS) {
+  const forceSplit = needsForceSplit({
+    pageCount: input.pageCount,
+    corpusChars: input.corpus.length,
+  });
+
+  // Strong model reads the whole material in one call unless force-split.
+  if (
+    !forceSplit &&
+    (input.tier === "strong" || input.corpus.length <= ONESHOT_MAX_INPUT_CHARS)
+  ) {
     const corpus =
       input.tier === "strong" && input.corpus.length > ONESHOT_STRONG_MAX_CHARS
         ? input.corpus.slice(0, ONESHOT_STRONG_MAX_CHARS)
         : input.corpus;
+    let lastPartial = input.resumeDraftJson ?? "";
     const draft = await callOutlineModel({
       ...shared,
       corpus,
+      resumeDraftJson: input.resumeDraftJson,
       idempotencyKey: input.idempotencyKeyFor(),
+      onPartialContent: (text) => {
+        lastPartial = text;
+        input.onCheckpoint?.({ rawDraft: text });
+      },
     });
-    return { draft, path: "single" };
+    return { draft, path: "single", rawDraft: draft ?? (lastPartial || undefined) };
   }
 
-  const parts = splitCorpusForContext(input.corpus);
-  if (parts.length === 1) {
+  // Mini oversize OR huge-book force-split → parallel parts → merge over drafts only.
+  const fileParts = forceSplit
+    ? splitFilesForOutline(input.files, {
+        maxCharsPerPart: ONESHOT_FORCE_SPLIT_PART_CHARS,
+        maxParts: ONESHOT_FORCE_SPLIT_MAX_PARTS,
+      })
+    : null;
+
+  const corpusParts =
+    fileParts && fileParts.length > 1
+      ? fileParts.map((partFiles) => buildMaterialCorpus(partFiles))
+      : forceSplit
+        ? splitCorpusForContext(
+            input.corpus,
+            ONESHOT_FORCE_SPLIT_PART_CHARS,
+            ONESHOT_FORCE_SPLIT_MAX_PARTS,
+          )
+        : splitCorpusForContext(input.corpus);
+
+  if (corpusParts.length === 1) {
+    let lastPartial = input.resumeDraftJson ?? "";
     const draft = await callOutlineModel({
       ...shared,
-      corpus: parts[0]!,
+      corpus: corpusParts[0]!,
+      resumeDraftJson: input.resumeDraftJson,
       idempotencyKey: input.idempotencyKeyFor(),
+      onPartialContent: (text) => {
+        lastPartial = text;
+        input.onCheckpoint?.({ rawDraft: text });
+      },
     });
-    return { draft, path: "single" };
+    return { draft, path: "single", rawDraft: draft ?? (lastPartial || undefined) };
   }
 
-  const partials = await Promise.all(
-    parts.map((part, index) =>
-      callOutlineModel({
-        ...shared,
-        corpus: `--- Parça ${index + 1}/${parts.length} ---\n${part}`,
-        idempotencyKey: input.idempotencyKeyFor(`part${index + 1}`),
-      }),
-    ),
+  const priorParts = input.resumePartDrafts ?? [];
+  const partDrafts: (OneShotOutlineDraft | null)[] = corpusParts.map(
+    (_, index) => priorParts[index] ?? null,
   );
-  if (partials.some((p) => !p)) {
-    return { draft: null, path: "split_merge" };
+
+  // Resume: skip parts that already produced a draft (idempotent — no re-charge).
+  await Promise.all(
+    corpusParts.map(async (part, index) => {
+      if (partDrafts[index]) return;
+      let lastPartial = "";
+      const draft = await callOutlineModel({
+        ...shared,
+        corpus: `--- Parça ${index + 1}/${corpusParts.length} ---\n${part}`,
+        idempotencyKey: input.idempotencyKeyFor(`part${index + 1}`),
+        onPartialContent: (text) => {
+          lastPartial = text;
+          const next = [...partDrafts];
+          input.onCheckpoint?.({
+            rawDraft: lastPartial,
+            partDrafts: next,
+          });
+        },
+      });
+      partDrafts[index] = draft;
+      input.onCheckpoint?.({
+        partDrafts: [...partDrafts],
+        rawDraft: draft ?? (lastPartial || undefined),
+      });
+    }),
+  );
+
+  if (partDrafts.some((p) => !p)) {
+    return { draft: null, path: "split_merge", partDrafts, rawDraft: partDrafts };
   }
-  const mergeCorpus = partials
+
+  const mergeCorpus = partDrafts
     .map((p, i) => `=== Kısmi taslak ${i + 1} ===\n${JSON.stringify(p)}`)
     .join("\n");
+  let mergePartial = "";
   const draft = await callOutlineModel({
     ...shared,
+    // Merge sees ONLY partial outlines — not the original page corpus.
     corpus: `Aşağıdaki kısmi ünite/konu taslaklarını tek bir bütün çalışma yolunda birleştir. Metni yeniden okuma; yalnızca taslakları birleştir, yinele, sıraya koy. Uydurma ekleme.\n\n${mergeCorpus}`,
     idempotencyKey: input.idempotencyKeyFor("merge"),
+    onPartialContent: (text) => {
+      mergePartial = text;
+      input.onCheckpoint?.({ rawDraft: text, partDrafts: [...partDrafts] });
+    },
   });
-  return { draft, path: "split_merge" };
+  return {
+    draft,
+    path: "split_merge",
+    partDrafts,
+    rawDraft: draft ?? (mergePartial || undefined),
+  };
 }
 
 function citedRefsFromDraft(
@@ -1087,8 +1346,9 @@ function citedRefsFromDraft(
 }
 
 /**
- * Whole-material outline. Prefer a single model call; split+merge only on mini
- * when the corpus exceeds the mini budget. Never invent a fake topic list.
+ * Whole-material outline. Prefer a single model call; split+merge on mini
+ * oversize or when the corpus is too large for one gpt-4.1 call (~1000p /
+ * ~700k tokens). Never invent a fake topic list.
  */
 export async function buildOutlineOneShot(input: {
   service: SupabaseClient;
@@ -1104,6 +1364,12 @@ export async function buildOutlineOneShot(input: {
   previousOutline?: OutlineUnitDraft[];
   /** The book's own table of contents, if we extracted one. */
   tocBlock?: string;
+  /** Partial stream / prior draft — resume, never from zero. */
+  resumeDraft?: unknown;
+  /** Completed split-part drafts from a prior round. */
+  resumePartDrafts?: (OneShotOutlineDraft | null)[];
+  /** Persist partial progress for the next process round. */
+  onCheckpoint?: (state: OutlineCheckpoint) => void;
 }): Promise<OneShotOutlineResult> {
   const bounds = filePageBounds(input.files);
   const maxPage = Math.max(1, ...bounds);
@@ -1120,6 +1386,13 @@ export async function buildOutlineOneShot(input: {
     return failedResult();
   }
 
+  const resumeDraftJson =
+    typeof input.resumeDraft === "string"
+      ? input.resumeDraft
+      : input.resumeDraft != null
+        ? JSON.stringify(input.resumeDraft)
+        : undefined;
+
   const fileGuide = fileGuideBlock(input.files, bounds);
   const pageTexts = pageTextMapFromFiles(input.files);
   const validationOptions: OneShotValidationOptions = {
@@ -1128,8 +1401,9 @@ export async function buildOutlineOneShot(input: {
   };
   const routed = selectOutlineModel({ pageCount, corpusChars: corpus.length });
   const strong = outlineStrongModel();
+  const fallback = outlineFallbackModel();
   const keyFor =
-    (attempt: "first" | "escalate" | "repair") =>
+    (attempt: "first" | "escalate" | "repair" | "fallback") =>
     (suffix?: string) =>
       outlineIdempotencyKey({
         userId: input.userId,
@@ -1142,15 +1416,23 @@ export async function buildOutlineOneShot(input: {
   const shared = {
     service: input.service,
     userId: input.userId,
+    files: input.files,
     corpus,
     fileGuide,
     maxPage,
+    pageCount,
     examLabel: input.examLabel,
     examDate: input.examDate,
     deadlineAt: input.deadlineAt,
     tocBlock: input.tocBlock,
     previousOutline: input.previousOutline,
+    resumeDraftJson,
+    resumePartDrafts: input.resumePartDrafts,
+    onCheckpoint: input.onCheckpoint,
   };
+
+  let partDrafts = input.resumePartDrafts;
+  let rawDraft: unknown = input.resumeDraft;
 
   const firstPass = await outlineWithModel({
     ...shared,
@@ -1161,12 +1443,21 @@ export async function buildOutlineOneShot(input: {
   let draft = firstPass.draft;
   let usedModel = routed.model;
   let resultPath: OneShotOutlineResult["path"] = firstPass.path;
+  partDrafts = firstPass.partDrafts ?? partDrafts;
+  rawDraft = firstPass.rawDraft ?? rawDraft;
 
   if (!draft) {
     // Mini totally failed → escalate to strong once before giving up.
     if (routed.tier === "standard") {
       const escalated = await outlineWithModel({
         ...shared,
+        resumePartDrafts: partDrafts,
+        resumeDraftJson:
+          typeof rawDraft === "string"
+            ? rawDraft
+            : rawDraft != null
+              ? JSON.stringify(rawDraft)
+              : resumeDraftJson,
         model: strong,
         tier: "strong",
         idempotencyKeyFor: keyFor("escalate"),
@@ -1174,22 +1465,56 @@ export async function buildOutlineOneShot(input: {
       draft = escalated.draft;
       usedModel = strong;
       resultPath = "escalation";
+      partDrafts = escalated.partDrafts ?? partDrafts;
+      rawDraft = escalated.rawDraft ?? rawDraft;
     }
-    if (!draft) return failedResult({ path: "failed", model: usedModel });
+  }
+
+  // Strong path still empty → env fallback model (e.g. gpt-4.1-mini).
+  if (!draft && usedModel === strong && fallback !== strong) {
+    const fb = await outlineWithModel({
+      ...shared,
+      resumePartDrafts: partDrafts,
+      resumeDraftJson:
+        typeof rawDraft === "string"
+          ? rawDraft
+          : rawDraft != null
+            ? JSON.stringify(rawDraft)
+            : resumeDraftJson,
+      model: fallback,
+      tier: "strong",
+      idempotencyKeyFor: keyFor("fallback"),
+    });
+    draft = fb.draft;
+    usedModel = fallback;
+    resultPath = "fallback";
+    partDrafts = fb.partDrafts ?? partDrafts;
+    rawDraft = fb.rawDraft ?? rawDraft;
+  }
+
+  if (!draft) {
+    return {
+      ...failedResult({ path: "failed", model: usedModel }),
+      partDrafts,
+      rawDraft,
+    };
   }
 
   let validated = validateOneShotOutline(draft, validationOptions);
 
   // Quality escalation: mini kept nothing → redo with gpt-4.1.
-  if (!validated.ok && routed.tier === "standard" && usedModel !== strong) {
+  if (!validated.ok && routed.tier === "standard" && usedModel !== strong && usedModel !== fallback) {
     const escalated = await outlineWithModel({
       ...shared,
+      resumePartDrafts: partDrafts,
       model: strong,
       tier: "strong",
       idempotencyKeyFor: keyFor("escalate"),
     });
     usedModel = strong;
     resultPath = "escalation";
+    partDrafts = escalated.partDrafts ?? partDrafts;
+    rawDraft = escalated.rawDraft ?? rawDraft;
     if (escalated.draft) {
       draft = escalated.draft;
       validated = validateOneShotOutline(draft, validationOptions);
@@ -1206,14 +1531,23 @@ export async function buildOutlineOneShot(input: {
     );
     const repairCorpus = (cited || corpus).slice(0, ONESHOT_STRONG_MAX_CHARS);
     const repaired = await callOutlineModel({
-      ...shared,
+      service: input.service,
+      userId: input.userId,
+      fileGuide,
+      maxPage,
+      examLabel: input.examLabel,
+      examDate: input.examDate,
+      deadlineAt: input.deadlineAt,
+      tocBlock: input.tocBlock,
+      previousOutline: input.previousOutline,
       corpus: repairCorpus,
-      model: strong,
+      model: usedModel === fallback ? fallback : strong,
       idempotencyKey: keyFor("repair")(),
       repairErrors,
       invalidDraftJson: JSON.stringify(draft),
+      onPartialContent: (text) => input.onCheckpoint?.({ rawDraft: text, partDrafts }),
     });
-    usedModel = strong;
+    usedModel = usedModel === fallback ? fallback : strong;
     if (repaired) {
       const repairedValidation = validateOneShotOutline(repaired, validationOptions);
       if (repairedValidation.ok) {
@@ -1224,10 +1558,46 @@ export async function buildOutlineOneShot(input: {
           retryable: false,
           model: usedModel,
           droppedTopics: repairedValidation.dropped.length,
+          partDrafts,
+          rawDraft: repaired,
         };
       }
     }
-    return failedResult({ path: "failed", model: usedModel });
+
+    // Last resort after repair: try fallback model once if not already used.
+    if (usedModel !== fallback && fallback !== strong) {
+      const fb = await outlineWithModel({
+        ...shared,
+        resumePartDrafts: partDrafts,
+        resumeDraftJson: JSON.stringify(draft),
+        model: fallback,
+        tier: "strong",
+        idempotencyKeyFor: keyFor("fallback"),
+      });
+      if (fb.draft) {
+        const fbValidated = validateOneShotOutline(fb.draft, validationOptions);
+        if (fbValidated.ok) {
+          return {
+            units: fbValidated.normalized,
+            fromModel: true,
+            path: "fallback",
+            retryable: false,
+            model: fallback,
+            droppedTopics: fbValidated.dropped.length,
+            partDrafts: fb.partDrafts ?? partDrafts,
+            rawDraft: fb.draft,
+          };
+        }
+      }
+      partDrafts = fb.partDrafts ?? partDrafts;
+      rawDraft = fb.rawDraft ?? rawDraft;
+    }
+
+    return {
+      ...failedResult({ path: "failed", model: usedModel }),
+      partDrafts,
+      rawDraft,
+    };
   }
 
   return {
@@ -1237,5 +1607,7 @@ export async function buildOutlineOneShot(input: {
     retryable: false,
     model: usedModel,
     droppedTopics: validated.dropped.length,
+    partDrafts,
+    rawDraft: draft,
   };
 }

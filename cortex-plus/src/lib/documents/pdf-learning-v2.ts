@@ -65,6 +65,8 @@ type JobMeta = {
   outline?: OutlineUnitDraft[];
   /** Raw LLM draft saved between oneshot call and validate/repair rounds. */
   rawDraft?: unknown;
+  /** Completed split-part drafts — resume must not restart from zero. */
+  partDrafts?: unknown[];
   windowsTotal?: number;
   examLabel?: string | null;
   examDate?: string | null;
@@ -653,6 +655,34 @@ export async function runPdfLearningV2(
           void renewMapLease(service, documentId, token);
         }, Math.max(30_000, Math.floor(MAP_LEASE_MS / 3)));
 
+        let checkpointWrite: Promise<void> = Promise.resolve();
+        let lastCheckpointAt = 0;
+        const persistCheckpoint = (state: {
+          rawDraft?: unknown;
+          partDrafts?: unknown[];
+        }) => {
+          const nowMs = Date.now();
+          // Throttle DB writes while the stream is hot; always keep latest.
+          if (nowMs - lastCheckpointAt < 4_000) return;
+          lastCheckpointAt = nowMs;
+          meta = {
+            ...meta!,
+            phase: "oneshot",
+            rawDraft: state.rawDraft ?? meta?.rawDraft,
+            partDrafts: state.partDrafts ?? meta?.partDrafts,
+          };
+          checkpointWrite = (async () => {
+            await service
+              .from("document_topic_map_jobs")
+              .update({
+                topics: packJobTopics(meta!, []),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("document_id", documentId)
+              .eq("lease_token", token);
+          })();
+        };
+
         const outlineStarted = Date.now();
         let outlineResult;
         try {
@@ -671,7 +701,13 @@ export async function runPdfLearningV2(
             deadlineAt,
             allowModel: true,
             tocBlock: tocBlock ?? undefined,
+            resumeDraft: meta.rawDraft,
+            resumePartDrafts: Array.isArray(meta.partDrafts)
+              ? (meta.partDrafts as never[])
+              : undefined,
+            onCheckpoint: persistCheckpoint,
           });
+          await checkpointWrite;
         } finally {
           clearInterval(heartbeat);
         }
@@ -686,6 +722,24 @@ export async function runPdfLearningV2(
           topics: outlineResult.units.reduce((n, u) => n + u.topics.length, 0),
           retryable: outlineResult.retryable,
         });
+        // Keep partial progress even on failure — next round resumes, never zero.
+        if (outlineResult.rawDraft != null || outlineResult.partDrafts?.length) {
+          meta = {
+            ...meta,
+            phase: "oneshot",
+            rawDraft: outlineResult.rawDraft ?? meta.rawDraft,
+            partDrafts: outlineResult.partDrafts ?? meta.partDrafts,
+          };
+          await service
+            .from("document_topic_map_jobs")
+            .update({
+              topics: packJobTopics(meta, []),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("document_id", documentId)
+            .eq("lease_token", token);
+        }
+
         // No fabricated heading soup — student gets a clear retry state.
         if (!outlineResult.fromModel || !outlineResult.units.length) {
           throw new Error("topic_map_unavailable");
@@ -695,6 +749,8 @@ export async function runPdfLearningV2(
           ...meta,
           phase: "persist",
           outline: outlineResult.units,
+          rawDraft: undefined,
+          partDrafts: undefined,
           windowsTotal: 1,
         };
         const nowIso = new Date().toISOString();

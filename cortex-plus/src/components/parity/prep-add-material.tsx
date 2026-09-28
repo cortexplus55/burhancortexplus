@@ -15,7 +15,6 @@ import {
   writePendingDocProcess,
 } from "@/lib/documents/pending-doc-process";
 import {
-  PROCESS_RETRY_MESSAGE,
   postDocumentProcess,
   requestDocumentProcessing,
 } from "@/lib/documents/process-session";
@@ -117,7 +116,7 @@ export function PrepMaterialAdder({
       },
     });
     const processed = result.body;
-    if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
+    // Silent automatic retries — student sees progress only until exhaustion.
     if (result.status === 402) {
       clearPendingDocProcess();
       setProcessDetail(null);

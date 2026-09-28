@@ -96,8 +96,15 @@ export function stallCursorKey(
   return `${phase}:${String(next)}`;
 }
 
+/**
+ * Shown only after automatic retries are exhausted (OpenAI fully down, etc.).
+ * Mid-flight silent retries must not surface this to the student.
+ */
 export const PROCESS_RETRY_MESSAGE =
-  "Dosya işlenirken sunucu yanıt vermedi. Bir kez daha deniyorum.";
+  "İşlem tamamlanamadı. İlerlemen duruyor — 'Devam et' ile kaldığın yerden sürdür.";
+
+/** @deprecated Use PROCESS_RETRY_MESSAGE only on exhaustion; silent mid-flight. */
+export const PROCESS_AUTO_RETRY_NOTICE = PROCESS_RETRY_MESSAGE;
 
 export type ProcessPost = (body: {
   documentId: string;

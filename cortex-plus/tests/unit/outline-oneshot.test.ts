@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildMaterialCorpus,
   splitCorpusForContext,
+  splitFilesForOutline,
+  needsForceSplit,
   validateOneShotOutline,
   selectOutlineModel,
   normalizeOutlineTokens,
@@ -13,6 +15,8 @@ import {
   oneShotJsonSchema,
   oneShotOutlineSchema,
   ONESHOT_MAX_INPUT_CHARS,
+  ONESHOT_FORCE_SPLIT_PAGES,
+  ONESHOT_FORCE_SPLIT_CHARS,
   OUTLINE_MINI_PAGE_LIMIT,
   OUTLINE_CALL_TIMEOUT_MS,
   type OneShotOutlineDraft,
@@ -28,6 +32,7 @@ vi.mock("@/lib/env", () => ({
     OPENAI_STANDARD_MODEL: "gpt-4o-mini",
     OPENAI_OUTLINE_STANDARD_MODEL: "gpt-4o-mini",
     OPENAI_OUTLINE_STRONG_MODEL: "gpt-4.1",
+    OPENAI_OUTLINE_FALLBACK_MODEL: "gpt-4.1-mini",
   },
 }));
 
@@ -128,6 +133,33 @@ describe("buildMaterialCorpus / splitCorpusForContext", () => {
     ]);
     expect(map.get(pageKey(0, 1))).toBe("A metni");
     expect(map.get(pageKey(1, 1))).toBe("B metni");
+  });
+
+  it("force-splits at ~1000 pages or ~700k-token char budget", () => {
+    expect(needsForceSplit({ pageCount: ONESHOT_FORCE_SPLIT_PAGES, corpusChars: 10 })).toBe(true);
+    expect(needsForceSplit({ pageCount: 10, corpusChars: ONESHOT_FORCE_SPLIT_CHARS + 1 })).toBe(
+      true,
+    );
+    expect(needsForceSplit({ pageCount: 40, corpusChars: 100_000 })).toBe(false);
+  });
+
+  it("splits files on page boundaries without breaking mid-page", () => {
+    const files = [
+      {
+        fileName: "huge.pdf",
+        pages: Array.from({ length: 20 }, (_, i) => ({
+          pageNumber: i + 1,
+          text: "x".repeat(30_000),
+        })),
+      },
+    ];
+    const parts = splitFilesForOutline(files, { maxCharsPerPart: 80_000, maxParts: 4 });
+    expect(parts.length).toBeGreaterThan(1);
+    expect(parts.length).toBeLessThanOrEqual(4);
+    const pageNumbers = parts.flatMap((part) =>
+      part.flatMap((f) => f.pages.map((p) => p.pageNumber)),
+    );
+    expect(pageNumbers).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
   });
 });
 
@@ -606,6 +638,8 @@ describe("buildOutlineOneShot", () => {
     mockedGenerate.mockImplementation(async (params) => {
       expect(params.modelOverride).toBe("gpt-4o-mini");
       expect(params.callTimeoutMs).toBe(OUTLINE_CALL_TIMEOUT_MS);
+      expect(params.stream).toBe(true);
+      expect(params.maxTransientAttempts).toBeGreaterThanOrEqual(3);
       expect(params.idempotencyKey).toMatch(/^outline:u1:[a-z0-9]+:first$/);
       expect(params.responseFormat?.type).toBe("json_schema");
       expect(String(params.userPrompt)).toMatch(/ÖĞRETMEN|öğretmen|examWeight|likelyAsked/i);
@@ -980,5 +1014,121 @@ describe("buildOutlineOneShot", () => {
     expect(result.fromModel).toBe(false);
     expect(result.retryable).toBe(true);
     expect(result.units).toEqual([]);
+  });
+
+  it("force-splits a ~1000-page corpus, runs parts in parallel, merges drafts only", async () => {
+    const pageCount = ONESHOT_FORCE_SPLIT_PAGES + 1;
+    const pages = Array.from({ length: pageCount }, (_, i) => ({
+      pageNumber: i + 1,
+      text: `Hukuk kaynakları yasama yürütme yargı idare anlatılır sayfa ${i + 1}.`,
+    }));
+    const keys: string[] = [];
+    const mergePrompts: string[] = [];
+    mockedGenerate.mockImplementation(async (params) => {
+      keys.push(String(params.idempotencyKey ?? ""));
+      const prompt = String(params.userPrompt ?? "");
+      if (prompt.includes("Kısmi taslak")) {
+        mergePrompts.push(prompt);
+        expect(prompt).not.toContain("--- Parça");
+        expect(prompt).not.toMatch(/\[d1 s\.500\]/);
+      }
+      expect(params.stream).toBe(true);
+      const data = params.parse(groundedDraft());
+      return { ok: true as const, data, usage: { tokensIn: 1, tokensOut: 1 } } as never;
+    });
+
+    const result = await buildOutlineOneShot({
+      service: {} as never,
+      userId: "u1",
+      files: [{ fileName: "kpss-1000.pdf", pages }],
+      allowModel: true,
+    });
+
+    expect(result.fromModel).toBe(true);
+    expect(result.path).toBe("split_merge");
+    expect(result.model).toBe("gpt-4.1");
+    expect(keys.some((k) => k.includes(":part"))).toBe(true);
+    expect(keys.some((k) => k.endsWith(":merge") || k.includes(":merge"))).toBe(true);
+    expect(mergePrompts.length).toBeGreaterThanOrEqual(1);
+    expect(mockedGenerate.mock.calls.length).toBeGreaterThan(2);
+  });
+
+  it("resumes split parts from saved drafts without re-calling completed parts", async () => {
+    const pageCount = ONESHOT_FORCE_SPLIT_PAGES + 1;
+    const pages = Array.from({ length: pageCount }, (_, i) => ({
+      pageNumber: i + 1,
+      text: `Hukuk kaynakları yasama yürütme yargı idare anlatılır sayfa ${i + 1}.`,
+    }));
+    // Probe how many parts the splitter produces.
+    const probeParts = splitFilesForOutline([{ fileName: "kpss-1000.pdf", pages }]);
+    expect(probeParts.length).toBeGreaterThan(1);
+
+    const savedParts = probeParts.map(() => groundedDraft());
+    // Leave the last part empty so only it (+ merge) run.
+    const resumePartDrafts = savedParts.map((d, i) =>
+      i === savedParts.length - 1 ? null : d,
+    );
+
+    const keys: string[] = [];
+    mockedGenerate.mockImplementation(async (params) => {
+      keys.push(String(params.idempotencyKey ?? ""));
+      return {
+        ok: true as const,
+        data: params.parse(groundedDraft()),
+        usage: { tokensIn: 1, tokensOut: 1 },
+      } as never;
+    });
+
+    const result = await buildOutlineOneShot({
+      service: {} as never,
+      userId: "u1",
+      files: [{ fileName: "kpss-1000.pdf", pages }],
+      allowModel: true,
+      resumePartDrafts,
+    });
+
+    expect(result.fromModel).toBe(true);
+    expect(result.path).toBe("split_merge");
+    // Only the missing last part + merge — not every part again.
+    const partKeys = keys.filter((k) => k.includes(":part"));
+    expect(partKeys.length).toBe(1);
+    expect(keys.some((k) => k.includes(":merge"))).toBe(true);
+  });
+
+  it("falls back to OPENAI_OUTLINE_FALLBACK_MODEL when gpt-4.1 keeps failing", async () => {
+    const models: string[] = [];
+    mockedGenerate.mockImplementation(async (params) => {
+      models.push(String(params.modelOverride));
+      if (params.modelOverride === "gpt-4.1-mini") {
+        return {
+          ok: true as const,
+          data: params.parse(groundedDraft()),
+          usage: { tokensIn: 1, tokensOut: 1 },
+        } as never;
+      }
+      return { ok: false as const, status: 502, error: "generation_failed" } as never;
+    });
+
+    const pages = Array.from({ length: 40 }, (_, i) => ({
+      pageNumber: i + 1,
+      text: `Hukuk kaynakları yasama yürütme yargı idare anlatılır sayfa ${i + 1}.`,
+    }));
+    const result = await buildOutlineOneShot({
+      service: {} as never,
+      userId: "u1",
+      files: [{ fileName: "big.pdf", pages }],
+      allowModel: true,
+    });
+
+    expect(result.fromModel).toBe(true);
+    expect(result.path).toBe("fallback");
+    expect(result.model).toBe("gpt-4.1-mini");
+    expect(models).toContain("gpt-4.1");
+    expect(models).toContain("gpt-4.1-mini");
+    expect(
+      mockedGenerate.mock.calls.some(
+        (call) => String(call[0]?.idempotencyKey ?? "").includes(":fallback"),
+      ),
+    ).toBe(true);
   });
 });

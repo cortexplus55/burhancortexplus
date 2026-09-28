@@ -28,6 +28,21 @@
   transition: width 0.3s ease;
 }
 
+/* In-step document processing — progress only until retries exhaust. */
+.apw-process-bar {
+  height: 6px;
+  margin: 0.75rem 0 0.35rem;
+  border-radius: 9999px;
+  background: rgba(124, 108, 247, 0.18);
+  overflow: hidden;
+}
+
+.apw-process-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--c-ai), var(--c-action));
+  transition: width 0.35s ease;
+}
+
 .apw-back {
   display: inline-flex;
   align-items: center;

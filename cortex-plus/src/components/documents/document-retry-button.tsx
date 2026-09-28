@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  PROCESS_RETRY_MESSAGE,
   postDocumentProcess,
   requestDocumentProcessing,
 } from "@/lib/documents/process-session";
@@ -20,7 +19,7 @@ export function DocumentRetryButton({ documentId }: { documentId: string }) {
         documentId,
         post: postDocumentProcess,
       });
-      if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
+      // Silent automatic retries; toast only on terminal failure.
       if (!result.ok) {
         toast.error(
           typeof result.body.error === "string" ? result.body.error : "Doküman yeniden işlenemedi.",

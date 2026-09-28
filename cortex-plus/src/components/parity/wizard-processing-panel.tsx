@@ -14,6 +14,8 @@ type WizardProcessingPanelProps = {
   processAlert: string | null;
   failedMaterials: WizardFailedMaterial[];
   uploading?: boolean;
+  /** 0–100 progress while auto-retries run silently. */
+  processPercent?: number | null;
   onContinue: (failed: WizardFailedMaterial) => void;
   onRetry: (failed: WizardFailedMaterial) => void;
   onRemove: (failed: WizardFailedMaterial) => void;
@@ -26,6 +28,7 @@ export function WizardProcessingPanel({
   processAlert,
   failedMaterials,
   uploading = false,
+  processPercent = null,
   onContinue,
   onRetry,
   onRemove,
@@ -39,20 +42,45 @@ export function WizardProcessingPanel({
     failedMaterials.length > 0;
   if (!showPanel) return null;
 
+  const showProgress =
+    processPercent != null &&
+    Number.isFinite(processPercent) &&
+    !processAlert &&
+    failedMaterials.length === 0;
+
   return (
     <div className="apw-processing-panel">
       {hint ? <p className="apw-drop-hint">{hint}</p> : null}
-      {processDetail ? (
+      {showProgress ? (
+        <div
+          className="apw-process-bar"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(processPercent)}
+          aria-label="Belge işleniyor"
+        >
+          <div
+            className="apw-process-bar-fill"
+            style={{ width: `${Math.max(4, Math.min(100, processPercent))}%` }}
+          />
+        </div>
+      ) : null}
+      {processDetail && !processAlert ? (
         <p className="apw-drop-hint" role="status" aria-live="polite">
           {processDetail}
         </p>
       ) : null}
+      {/* Retry / error UI only after automatic attempts are exhausted. */}
       {processAlert ? (
         <div
           className="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100"
           role="alert"
         >
           <p>{processAlert}</p>
+          {processDetail ? (
+            <p className="mt-1 text-xs text-[var(--cp-muted)]">{processDetail}</p>
+          ) : null}
           {onDismissAlert ? (
             <button
               type="button"
