@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { lessonV2Schema } from "@/lib/learning/teaching-standards";
+import { lessonSectionDetails } from "@/lib/learning/lesson-section-text";
 import { loadPrepDocumentIds, loadTopicTeaching, taughtCoverageLine } from "@/lib/documents/teacher-analysis-run";
 import {
   prepLanguage,
@@ -360,8 +361,17 @@ export async function loadExamChatContext(
     // türetip dersle çelişti: ders "C_u, D60'ın D10'a oranıdır" derken
     // sohbet "C_u (konsolidasyon dayanımı)" dedi. Bölüm gövdeleri de
     // gelmeli — öğrenci aynı konuda iki farklı tanım duymamalı.
+    // Formül kartı / sıralı işlem / tablo gövdenin dışında duruyor (üretim
+    // promptu formülü gövdeye ikinci kez yazdırmıyor). Yalnızca gövde
+    // verilirse sohbet dersin formülünü göremez ve sorana kendi formülünü
+    // kurabilir — yukarıdaki tanım çelişkisiyle aynı tür risk.
     const sections = lesson.sections
-      .map((s) => `- ${s.heading}: ${s.body.slice(0, MAX_SECTION_CHARS)}`)
+      .map((s) => {
+        const details = lessonSectionDetails(s)
+          .map((line) => `\n  ${line.slice(0, MAX_SECTION_CHARS)}`)
+          .join("");
+        return `- ${s.heading}: ${s.body.slice(0, MAX_SECTION_CHARS)}${details}`;
+      })
       .join("\n");
     lines.push(
       ...[
