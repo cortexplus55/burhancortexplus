@@ -1,13 +1,19 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Smartphone, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { PhoneUploadPanel } from "@/components/parity/phone-upload-panel";
 import { CreditGate } from "@/components/paywall/credit-gate";
-import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
 import { isPhotoQuotaError } from "@/lib/documents/process-errors";
+import { formatDocumentProcessProgress } from "@/lib/documents/process-progress-label";
+import { messageFromProcessBody } from "@/lib/documents/process-user-message";
+import {
+  clearPendingDocProcess,
+  readPendingDocProcess,
+  writePendingDocProcess,
+} from "@/lib/documents/pending-doc-process";
 import {
   PROCESS_RETRY_MESSAGE,
   postDocumentProcess,
@@ -16,7 +22,10 @@ import {
 import { PREP_HOME_COPY, WIZARD_COPY } from "@/lib/learning/exam-wizard-copy";
 import { freeMaterialLimitLine } from "@/lib/learning/prep-material-copy";
 import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
-import { useStudentShellAccount } from "@/lib/student/student-shell-context";
+import {
+  useDocumentLimits,
+  useStudentShellAccount,
+} from "@/lib/student/student-shell-context";
 import { uploadDocumentFile } from "@/lib/documents/upload-client";
 import "@/styles/exam-create-wizard.css";
 
@@ -40,11 +49,26 @@ export function PrepMaterialAdder({
 }) {
   const router = useRouter();
   const account = useStudentShellAccount();
-  const freeCap = account?.audience === "free" ? PHOTO_PAGE_LIMITS.free : null;
+  const { isAdmin } = useDocumentLimits();
+  const materialLimitLine = freeMaterialLimitLine({
+    isAdmin,
+    tier:
+      account?.audience === "plus" || account?.audience === "sigma"
+        ? account.audience
+        : "free",
+  });
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [paywall, setPaywall] = useState(false);
+  const [processDetail, setProcessDetail] = useState<string | null>(null);
+  const [processAlert, setProcessAlert] = useState<string | null>(null);
+  const [failedUpload, setFailedUpload] = useState<{
+    documentId: string;
+    fileName: string;
+    error: string;
+  } | null>(null);
+  const resumeRef = useRef(false);
 
   async function attach(documentId: string) {
     const res = await fetch("/api/learning/exam-prep/add-source", {
@@ -67,32 +91,82 @@ export function PrepMaterialAdder({
     if (Array.isArray(payload.warnings) && payload.warnings[0]) {
       toast.warning(String(payload.warnings[0]));
     }
+    setFailedUpload(null);
     router.refresh();
   }
 
-  async function processThenAttach(documentId: string) {
+  async function processThenAttach(input: {
+    documentId: string;
+    fileName: string;
+    sizeBytes: number | null;
+  }) {
+    writePendingDocProcess({
+      documentId: input.documentId,
+      fileName: input.fileName,
+      sizeBytes: input.sizeBytes,
+      startedAt: new Date().toISOString(),
+      surface: "prep-add",
+    });
+    setProcessDetail("Belge işleniyor…");
     const result = await requestDocumentProcessing({
-      documentId,
+      documentId: input.documentId,
       post: postDocumentProcess,
+      onProgress: (progress) => {
+        const line = formatDocumentProcessProgress(progress);
+        if (line) setProcessDetail(line);
+      },
     });
     const processed = result.body;
     if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
     if (result.status === 402) {
+      clearPendingDocProcess();
+      setProcessDetail(null);
       if (isPhotoQuotaError(processed)) {
+        const description = materialLimitLine ?? undefined;
         toast.error(typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.", {
-          description: freeCap !== null ? freeMaterialLimitLine() : undefined,
+          description,
         });
+        setProcessAlert(
+          typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.",
+        );
         return;
       }
       setPaywall(true);
       return;
     }
     if (!result.ok) {
-      toast.error(typeof processed.error === "string" ? processed.error : "Dosya işlenemedi.");
+      const message = messageFromProcessBody(processed);
+      setProcessAlert(message);
+      toast.error(message);
+      setProcessDetail(null);
+      setFailedUpload({
+        documentId: input.documentId,
+        fileName: input.fileName,
+        error: message,
+      });
       return;
     }
-    await attach(documentId);
+    clearPendingDocProcess();
+    setProcessAlert(null);
+    setProcessDetail(null);
+    await attach(input.documentId);
   }
+
+  useEffect(() => {
+    const pending = readPendingDocProcess();
+    if (!pending || pending.surface !== "prep-add" || resumeRef.current) return;
+    resumeRef.current = true;
+    setBusy(true);
+    void processThenAttach({
+      documentId: pending.documentId,
+      fileName: pending.fileName,
+      sizeBytes: pending.sizeBytes,
+    }).finally(() => {
+      setBusy(false);
+      resumeRef.current = false;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount resume once
+  }, []);
 
   async function takeFile(file: File | undefined) {
     if (!file || busy) return;
@@ -108,9 +182,15 @@ export function PrepMaterialAdder({
     setBusy(true);
     try {
       const uploaded = await uploadDocumentFile(file);
-      await processThenAttach(uploaded.documentId as string);
+      await processThenAttach({
+        documentId: uploaded.documentId as string,
+        fileName: file.name,
+        sizeBytes: file.size,
+      });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Bağlantı hatası.");
+      const message = error instanceof Error ? error.message : "Bağlantı hatası.";
+      setProcessAlert(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -146,14 +226,99 @@ export function PrepMaterialAdder({
           event.target.value = "";
         }}
       />
-      {freeCap !== null ? <p className="text-xs text-[var(--cp-muted)]">{freeMaterialLimitLine()}</p> : null}
+      {processDetail ? (
+        <p className="text-xs text-[var(--cp-muted)]" role="status" aria-live="polite">
+          {processDetail}
+        </p>
+      ) : null}
+      {materialLimitLine ? (
+        <p className="text-xs text-[var(--cp-muted)]">{materialLimitLine}</p>
+      ) : null}
+      <p className="text-xs text-[var(--cp-muted)]">
+        Uzun taramalar sekme kapansa bile sunucuda devam eder; geri gelince Devam et ile sürdürebilirsin.
+      </p>
+      {processAlert ? (
+        <div
+          className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100"
+          role="alert"
+        >
+          <p>{processAlert}</p>
+          <button
+            type="button"
+            className="mt-2 text-xs underline underline-offset-2"
+            onClick={() => setProcessAlert(null)}
+          >
+            Kapat
+          </button>
+        </div>
+      ) : null}
+      {failedUpload ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--cp-muted)]">
+          <span>
+            {failedUpload.fileName} — {failedUpload.error}
+          </span>
+          <button
+            type="button"
+            className="cp-back-pill"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              void processThenAttach({
+                documentId: failedUpload.documentId,
+                fileName: failedUpload.fileName,
+                sizeBytes: null,
+              }).finally(() => setBusy(false));
+            }}
+          >
+            Devam et
+          </button>
+          <button
+            type="button"
+            className="cp-back-pill"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              void processThenAttach({
+                documentId: failedUpload.documentId,
+                fileName: failedUpload.fileName,
+                sizeBytes: null,
+              }).finally(() => setBusy(false));
+            }}
+          >
+            Tekrar dene
+          </button>
+          <button
+            type="button"
+            className="cp-back-pill"
+            disabled={busy}
+            onClick={() => {
+              void fetch(`/api/documents/${failedUpload.documentId}`, { method: "DELETE" })
+                .then(async (res) => {
+                  if (!res.ok) {
+                    toast.error("Kaldırılamadı.");
+                    return;
+                  }
+                  setFailedUpload(null);
+                  clearPendingDocProcess();
+                })
+                .catch(() => toast.error("Bağlantı hatası."));
+            }}
+          >
+            Kaldır
+          </button>
+        </div>
+      ) : null}
       {phoneOpen ? (
         <PhoneUploadPanel
           onClose={() => setPhoneOpen(false)}
           onReady={(remote) => {
             setPhoneOpen(false);
             setBusy(true);
-            void processThenAttach(remote.documentId).finally(() => setBusy(false));
+            void processThenAttach({
+              documentId: remote.documentId,
+              fileName: remote.fileName ?? "Telefon yüklemesi",
+              sizeBytes: null,
+            }).finally(() => setBusy(false));
           }}
         />
       ) : null}

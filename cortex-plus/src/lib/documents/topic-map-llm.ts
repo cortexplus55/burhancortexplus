@@ -89,13 +89,21 @@ const SINGLE_PAGE_DIGEST_CHARS = 6000;
  * boş sayfa sanıp "konular çıkarılamadı" diyordu.
  */
 export function pagesForTopicMap(pages: PageAnalysis[]): PageAnalysis[] {
-  const rich = pages.filter(
+  // OCR/render failures and blanks never feed the topic map.
+  const usable = pages.filter(
+    (page) =>
+      page.extractionOk !== false &&
+      page.pageKind !== "blank" &&
+      page.pageKind !== "unreadable" &&
+      page.charCount > 0,
+  );
+  const rich = usable.filter(
     (page) => page.pageKind === "content" || page.pageKind === "uncertain",
   );
   if (rich.length > 0) return rich;
 
   // Kısa slayt yolu — ders okuyucusuyla aynı pageUsableForLesson kuralı.
-  return pages.filter((page) => pageUsableForLesson(page));
+  return usable.filter((page) => pageUsableForLesson(page));
 }
 
 /**

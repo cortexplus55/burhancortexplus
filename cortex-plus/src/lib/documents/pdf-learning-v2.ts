@@ -19,6 +19,8 @@ export type PdfLearningV2Result = {
   topics: number;
   coverage: CoverageReport | null;
   error?: string;
+  windowsDone?: number;
+  windowsTotal?: number;
 };
 
 const MAP_WINDOW_PAGES = 12;
@@ -84,10 +86,16 @@ async function clearTopicMap(service: SupabaseClient, documentId: string) {
 }
 
 async function loadPageRows(service: SupabaseClient, documentId: string) {
-  const rows: { id: string; page_number: number; text_content: string | null }[] = [];
+  const rows: {
+    id: string;
+    page_number: number;
+    text_content: string | null;
+    extraction_ok: boolean | null;
+    page_kind: string | null;
+  }[] = [];
   for (let offset = 0; ; offset += PAGE_READ_BATCH) {
     const { data, error } = await service.from("document_pages")
-      .select("id, page_number, text_content")
+      .select("id, page_number, text_content, extraction_ok, page_kind")
       .eq("document_id", documentId)
       .order("page_number", { ascending: true })
       .range(offset, offset + PAGE_READ_BATCH - 1);
@@ -234,9 +242,17 @@ export async function runPdfLearningV2(
     if (pendingError) throw new Error("topic_map_status_update_failed");
 
     const rows = await loadPageRows(service, documentId);
-    const analyses = rows.map((row) =>
-      analyzePage(row.page_number, row.text_content ?? ""),
-    );
+    const analyses = rows.map((row) => {
+      const analysis = analyzePage(row.page_number, row.text_content ?? "");
+      if (row.extraction_ok === false) {
+        analysis.extractionOk = false;
+        if (analysis.pageKind === "content" || analysis.pageKind === "uncertain") {
+          analysis.pageKind = "unreadable";
+        }
+      }
+      if (row.page_kind === "blank") analysis.pageKind = "blank";
+      return analysis;
+    });
     const pageIdByNumber = new Map(
       rows.map((row) => [row.page_number as number, row.id as string]),
     );
@@ -282,7 +298,31 @@ export async function runPdfLearningV2(
           teacherBrief,
           windows.length > 1,
         );
-        if (!windowMap?.topics.length) throw new Error("topic_map_unavailable");
+        // Empty window: record and skip — fail only if the whole doc yields zero.
+        if (!windowMap?.topics.length) {
+          const nextIndex = job.next_index + 1;
+          const { data: saved, error: checkpointError } = await service
+            .from("document_topic_map_jobs")
+            .update({
+              next_index: nextIndex,
+              topics: compactTopics,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("document_id", documentId)
+            .eq("lease_token", token)
+            .select("document_id");
+          if (checkpointError || !saved?.length) throw new Error("topic_map_claim_lost");
+          if (nextIndex < windows.length) {
+            return {
+              ok: true,
+              pending: true,
+              topics: compactTopics.length,
+              coverage: null,
+              windowsDone: nextIndex,
+              windowsTotal: windows.length,
+            };
+          }
+        } else {
         compactTopics = [...compactTopics, ...windowMap.topics.map((topic) => ({
           title: topic.title,
           learningObjective: topic.learningObjective,
@@ -301,7 +341,15 @@ export async function runPdfLearningV2(
           .select("document_id");
         if (checkpointError || !saved?.length) throw new Error("topic_map_claim_lost");
         if (nextIndex < windows.length) {
-          return { ok: true, pending: true, topics: compactTopics.length, coverage: null };
+          return {
+            ok: true,
+            pending: true,
+            topics: compactTopics.length,
+            coverage: null,
+            windowsDone: nextIndex,
+            windowsTotal: windows.length,
+          };
+        }
         }
       }
 

@@ -109,11 +109,14 @@ describe("isAdminUser", () => {
     expect(second.rpc).toHaveBeenCalledTimes(1);
   });
 
-  it("sorgu hata verirse ya da patlarsa yönetici saymaz", async () => {
+  it("sorgu hata verirse bir kez yeniden dener, yine düşerse yönetici saymaz", async () => {
     const failing = { rpc: vi.fn(async () => ({ data: true, error: { message: "down" } })) };
     expect(await isAdminUser(asClient(failing), "u1")).toBe(false);
+    expect(failing.rpc).toHaveBeenCalledTimes(2);
+
     const throwing = { rpc: vi.fn(async () => { throw new Error("network"); }) };
     expect(await isAdminUser(asClient(throwing), "u1")).toBe(false);
+    expect(throwing.rpc).toHaveBeenCalledTimes(2);
   });
 
   it("yalnızca kesin true değerini kabul eder", async () => {

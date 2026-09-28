@@ -366,7 +366,8 @@ describe("boru hattı", () => {
   it("taramada çizimden sonra, okumadan önce kota alıyor", () => {
     const render = source.indexOf("await renderPdfPages(buffer)");
     const claim = source.indexOf("await claim(rendered.pages.length)");
-    const read = source.indexOf("await extractImagePages(rendered.pages)");
+    expect(source).toContain("rendered.pages.map((page) => page.png)");
+    const read = source.indexOf("await extractImagePages(pngs)");
     expect(render).toBeLessThan(claim);
     expect(claim).toBeLessThan(read);
   });

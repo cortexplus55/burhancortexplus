@@ -32,8 +32,17 @@ import {
 import { freeMaterialLimitLine, materialDetailLine } from "@/lib/learning/prep-material-copy";
 import { filesAcceptedFromSelection } from "@/lib/learning/prep-file-cap";
 import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
-import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
-import { useStudentShellAccount } from "@/lib/student/student-shell-context";
+import { formatDocumentProcessProgress } from "@/lib/documents/process-progress-label";
+import { messageFromProcessBody } from "@/lib/documents/process-user-message";
+import {
+  clearPendingDocProcess,
+  readPendingDocProcess,
+  writePendingDocProcess,
+} from "@/lib/documents/pending-doc-process";
+import {
+  useDocumentLimits,
+  useStudentShellAccount,
+} from "@/lib/student/student-shell-context";
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { COMMON_SUBJECTS } from "@/lib/learning/subjects";
 import {
@@ -166,7 +175,14 @@ export function ExamCreateWizard({
 }) {
   const router = useRouter();
   const account = useStudentShellAccount();
-  const freePdfCap = account?.audience === "free" ? PHOTO_PAGE_LIMITS.free : null;
+  const { isAdmin } = useDocumentLimits();
+  const materialLimitLine = freeMaterialLimitLine({
+    isAdmin,
+    tier:
+      account?.audience === "plus" || account?.audience === "sigma"
+        ? account.audience
+        : "free",
+  });
   // İlk soru "materyalin var mı?" — elinde dosya olmayan öğrenci eskiden üç
   // adım yürüyüp materyal adımının altındaki ince yazıyı bulmak zorundaydı.
   // Belgeyle gelen öğrenci (deep link) o adımı atlar.
@@ -200,6 +216,11 @@ export function ExamCreateWizard({
   }
   const [docs, setDocs] = useState<WizardMaterial[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [processDetail, setProcessDetail] = useState<string | null>(null);
+  const [processAlert, setProcessAlert] = useState<string | null>(null);
+  const [failedMaterials, setFailedMaterials] = useState<
+    { documentId: string; fileName: string; sizeBytes: number | null; error: string }[]
+  >([]);
   const [fileProgress, setFileProgress] = useState<{
     done: number;
     total: number;
@@ -263,6 +284,8 @@ export function ExamCreateWizard({
     },
     [],
   );
+
+  const resumePendingRef = useRef(false);
 
   const progressStep =
     step === "building" || step === "shaping" ? "language" : step;
@@ -420,22 +443,35 @@ export function ExamCreateWizard({
     fileName: string;
     sizeBytes: number | null;
   }): Promise<boolean> {
+    writePendingDocProcess({
+      documentId: input.documentId,
+      fileName: input.fileName,
+      sizeBytes: input.sizeBytes,
+      startedAt: new Date().toISOString(),
+      surface: "exam-wizard",
+    });
+    setProcessDetail("Belge işleniyor…");
     const result = await requestDocumentProcessing({
       documentId: input.documentId,
       post: postDocumentProcess,
+      onProgress: (progress) => {
+        const line = formatDocumentProcessProgress(progress);
+        if (line) setProcessDetail(line);
+      },
     });
     const processed = result.body;
     if (result.retried) toast.message(PROCESS_RETRY_MESSAGE);
     if (result.status === 402) {
+      clearPendingDocProcess();
+      setProcessDetail(null);
       if (isPhotoQuotaError(processed)) {
+        const description = materialLimitLine ?? undefined;
         toast.error(
           typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.",
-          {
-            description:
-              freePdfCap !== null
-                ? freeMaterialLimitLine()
-                : undefined,
-          },
+          { description },
+        );
+        setProcessAlert(
+          typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.",
         );
         return false;
       }
@@ -443,9 +479,30 @@ export function ExamCreateWizard({
       return false;
     }
     if (!result.ok) {
-      toast.error(typeof processed.error === "string" ? processed.error : "Dosya işlenemedi.");
+      const message = messageFromProcessBody(processed);
+      setProcessAlert(message);
+      toast.error(message);
+      setProcessDetail(null);
+      setFailedMaterials((current) => {
+        const rest = current.filter((item) => item.documentId !== input.documentId);
+        return [
+          ...rest,
+          {
+            documentId: input.documentId,
+            fileName: input.fileName,
+            sizeBytes: input.sizeBytes,
+            error: message,
+          },
+        ];
+      });
       return false;
     }
+    clearPendingDocProcess();
+    setProcessAlert(null);
+    setProcessDetail(null);
+    setFailedMaterials((current) =>
+      current.filter((item) => item.documentId !== input.documentId),
+    );
     const stored = rememberMaterial({
       id: input.documentId,
       fileName: input.fileName,
@@ -459,8 +516,27 @@ export function ExamCreateWizard({
     toast.success("Materyalin hazır.", {
       description: typeof processed.notice === "string" ? processed.notice : undefined,
     });
+    if (typeof processed.notice === "string" && processed.notice.trim()) {
+      toast.message(processed.notice.trim());
+    }
     return true;
   }
+
+  useEffect(() => {
+    const pending = readPendingDocProcess();
+    if (!pending || pending.surface !== "exam-wizard" || resumePendingRef.current) return;
+    resumePendingRef.current = true;
+    setUploading(true);
+    void processAndRemember({
+      documentId: pending.documentId,
+      fileName: pending.fileName,
+      sizeBytes: pending.sizeBytes,
+    }).finally(() => {
+      setUploading(false);
+      resumePendingRef.current = false;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount resume once
+  }, []);
 
   async function takeFile(file: File | undefined, enforceCap = true): Promise<boolean> {
     if (!file) return false;
@@ -766,8 +842,32 @@ export function ExamCreateWizard({
                 {fileProgressLine(fileProgress.done, fileProgress.total, fileProgress.current)}
               </p>
             ) : null}
-            {freePdfCap !== null ? (
-              <p className="apw-drop-hint">{freeMaterialLimitLine()}</p>
+            {processDetail ? (
+              <p className="apw-drop-hint" role="status" aria-live="polite">
+                {processDetail}
+              </p>
+            ) : null}
+            {materialLimitLine ? (
+              <p className="apw-drop-hint">{materialLimitLine}</p>
+            ) : null}
+            <p className="apw-drop-hint">
+              Uzun taramalar sekme kapansa bile sunucuda devam eder; geri gelince
+              &quot;Devam et&quot; ile sürdürebilirsin.
+            </p>
+            {processAlert ? (
+              <div
+                className="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100"
+                role="alert"
+              >
+                <p>{processAlert}</p>
+                <button
+                  type="button"
+                  className="mt-2 text-xs underline underline-offset-2"
+                  onClick={() => setProcessAlert(null)}
+                >
+                  Kapat
+                </button>
+              </div>
             ) : null}
             <button
               type="button"
@@ -789,6 +889,68 @@ export function ExamCreateWizard({
               }}
             />
           </div>
+
+          {failedMaterials.length ? (
+            <ul className="apw-materials">
+              {failedMaterials.map((failed) => (
+                <li key={failed.documentId} className="apw-doc-chip apw-doc-chip--failed">
+                  <FileText className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="apw-doc-main">
+                    <strong>{failed.fileName}</strong>
+                    <small>{failed.error}</small>
+                    <small className="text-[var(--cp-muted)]">ID: {failed.documentId.slice(0, 8)}…</small>
+                  </span>
+                  <button
+                    type="button"
+                    className="apw-drop-pick"
+                    disabled={uploading}
+                    onClick={() => {
+                      setUploading(true);
+                      void processAndRemember(failed).finally(() => setUploading(false));
+                    }}
+                  >
+                    Devam et
+                  </button>
+                  <button
+                    type="button"
+                    className="apw-drop-pick"
+                    disabled={uploading}
+                    onClick={() => {
+                      setUploading(true);
+                      void processAndRemember(failed).finally(() => setUploading(false));
+                    }}
+                  >
+                    Tekrar dene
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Başarısız materyali kaldır"
+                    disabled={uploading}
+                    onClick={() => {
+                      void fetch(`/api/documents/${failed.documentId}`, { method: "DELETE" })
+                        .then(async (res) => {
+                          if (!res.ok) {
+                            toast.error("Kaldırılamadı.");
+                            return;
+                          }
+                          setFailedMaterials((current) =>
+                            current.filter((item) => item.documentId !== failed.documentId),
+                          );
+                          if (
+                            readPendingDocProcess()?.documentId === failed.documentId
+                          ) {
+                            clearPendingDocProcess();
+                          }
+                        })
+                        .catch(() => toast.error("Bağlantı hatası."));
+                    }}
+                  >
+                    Kaldır
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
 
           {materials.length ? (
             <ul className="apw-materials">

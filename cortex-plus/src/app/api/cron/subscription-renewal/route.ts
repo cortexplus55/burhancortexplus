@@ -12,7 +12,7 @@ import { processPendingDeletionRequests } from "@/lib/privacy/account-deletion";
 import { processPendingDocumentDeletions } from "@/lib/privacy/document-deletion";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { cleanupExpiredUploads } from "@/lib/documents/upload-cleanup";
-import { refundStalePendingReservations } from "@/lib/credits/service";
+import { refundStalePendingReservations, refundAbandonedDocumentReservations } from "@/lib/credits/service";
 
 export const dynamic = "force-dynamic";
 
@@ -174,6 +174,10 @@ export async function GET(request: Request) {
       olderThanMs: 10 * 60_000,
       limit: 80,
       force: true,
+    });
+    staleReservations += await refundAbandonedDocumentReservations(service, {
+      olderThanMs: 24 * 60 * 60_000,
+      limit: 40,
     });
   } catch {
     logOpsEvent("credit_transaction_failed", { stage: "stale_reservations" });

@@ -96,7 +96,11 @@ export async function moderate(
   const imageUrls = typeof input === "string" ? [] : (input.imageUrls ?? []);
 
   try {
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+    const openai = new OpenAI({
+      apiKey: env.OPENAI_API_KEY,
+      timeout: 20_000,
+      maxRetries: 1,
+    });
     const content: OpenAI.Moderations.ModerationCreateParams["input"] =
       imageUrls.length > 0
         ? [

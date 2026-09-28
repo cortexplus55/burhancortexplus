@@ -3,10 +3,15 @@
  *
  * Uzun bir PDF tek istekte sunucu zaman aşımına düşüyordu (504). İş,
  * metin çıkarma ve konu haritası olarak ayrı turlar halinde ilerler;
- * geçici 5xx bir kez yeniden denenir.
+ * geçici 5xx / ağ hataları üstel geri çekilme ile yeniden denenir.
  */
 
+import { processProgressFingerprint } from "@/lib/documents/process-progress-label";
+
 export const PROCESS_STEP_BUDGET_MS = 45_000;
+
+/** İlerleme yoksa bu süreden sonra istemci pes eder (~6 dk). */
+export const PROCESS_STALL_MS = 6 * 60 * 1000;
 
 export type ProcessPhase = "extract" | "map" | "done";
 
@@ -24,6 +29,16 @@ export function pickProcessPhase(input: {
   topicMapStatus: string | null;
   learningV2: boolean;
 }): ProcessPhase {
+  // Failed docs can be retried — resume extract or map from durable state.
+  if (input.status === "failed") {
+    if (input.chunkCount <= 0) return "extract";
+    if (input.learningV2) {
+      const mapReady =
+        input.topicMapStatus === "ready" || input.topicMapStatus === "reviewed";
+      if (!mapReady) return "map";
+    }
+    return "extract";
+  }
   if (input.chunkCount <= 0) return "extract";
   const mapReady =
     input.topicMapStatus === "ready" || input.topicMapStatus === "reviewed";
@@ -33,7 +48,24 @@ export function pickProcessPhase(input: {
 }
 
 export function isTransientProcessStatus(status: number): boolean {
-  return status === 408 || status === 429 || status >= 500;
+  return status === 0 || status === 408 || status === 429 || status === 503 || status >= 500;
+}
+
+export function transientBackoffMs(
+  attempt: number,
+  retryAfterMs?: number | null,
+): number {
+  if (typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs > 0) {
+    return Math.min(retryAfterMs, 120_000);
+  }
+  const base = Math.min(30_000, 800 * 2 ** Math.min(attempt, 6));
+  return base + Math.floor(Math.random() * 400);
+}
+
+export function readRetryAfterMs(body: Record<string, unknown>): number | null {
+  const fromBody = Number(body.retryAfterMs ?? body.retry_after_ms);
+  if (Number.isFinite(fromBody) && fromBody > 0) return fromBody;
+  return null;
 }
 
 export const PROCESS_RETRY_MESSAGE =
@@ -54,6 +86,11 @@ export const postDocumentProcess: ProcessPost = async ({ documentId }) => {
     raw && typeof raw === "object" && !Array.isArray(raw)
       ? (raw as Record<string, unknown>)
       : {};
+  const retryAfterHeader = response.headers.get("retry-after");
+  const retryAfterSec = retryAfterHeader ? Number(retryAfterHeader) : NaN;
+  if (Number.isFinite(retryAfterSec) && retryAfterSec > 0) {
+    body.retryAfterMs = Math.max(0, retryAfterSec * 1000);
+  }
   return { status: response.status, body };
 };
 
@@ -65,9 +102,20 @@ export type ProcessClientResult = {
   rounds: number;
 };
 
+function noteProgress(
+  body: Record<string, unknown>,
+  state: { lastProgressAt: number; lastFingerprint: string | null },
+): void {
+  const fingerprint = processProgressFingerprint(body);
+  if (fingerprint && fingerprint !== state.lastFingerprint) {
+    state.lastFingerprint = fingerprint;
+    state.lastProgressAt = Date.now();
+  }
+}
+
 /**
- * İş bitene kadar sorar. Her turda geçici 5xx yalnızca bir kez yenilenir.
- * 202, haritanın sıradaki turda süreceği anlamına gelir.
+ * İş bitene kadar sorar. Duraksama algısı: nextPage / windowsDone ilerlemiyorsa
+ * ~6 dk sonra durur. 202, haritanın sıradaki turda süreceği anlamına gelir.
  */
 export async function requestDocumentProcessing(input: {
   documentId: string;
@@ -75,45 +123,77 @@ export async function requestDocumentProcessing(input: {
   sleep?: (ms: number) => Promise<void>;
   maxRounds?: number;
   onProgress?: (body: Record<string, unknown>) => void;
+  stallMs?: number;
+  now?: () => number;
 }): Promise<ProcessClientResult> {
   const sleep = input.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
-  // Six physical PDF pages per server call means a 99-page source alone needs
-  // at least 17 rounds; topic mapping follows. Keep the client with its job.
-  const maxRounds = input.maxRounds ?? 240;
-  let retried = false;
+  const now = input.now ?? (() => Date.now());
+  const stallMs = input.stallMs ?? PROCESS_STALL_MS;
+  const hardCap = input.maxRounds ?? 10_000;
 
-  for (let round = 0; round < maxRounds; round += 1) {
+  let retried = false;
+  let rounds = 0;
+  let transientAttempt = 0;
+  const progressState = {
+    lastProgressAt: now(),
+    lastFingerprint: null as string | null,
+  };
+
+  while (rounds < hardCap) {
+    if (now() - progressState.lastProgressAt > stallMs) {
+      return {
+        ok: false,
+        status: 504,
+        body: {
+          error: "Belge hâlâ işleniyor. Biraz sonra yeniden dene.",
+          code: "processing_timeout",
+        },
+        retried,
+        rounds,
+      };
+    }
+
     let response: { status: number; body: Record<string, unknown> } | null = null;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        response = await input.post({ documentId: input.documentId });
-      } catch {
-        response = { status: 0, body: { error: "Bağlantı hatası." } };
-      }
-      if (response && !isTransientProcessStatus(response.status) && response.status !== 0) break;
-      if (attempt === 0) {
-        retried = true;
-        continue;
-      }
-      break;
+    try {
+      response = await input.post({ documentId: input.documentId });
+    } catch {
+      response = { status: 0, body: { error: "Bağlantı hatası." } };
     }
-    if (!response) {
-      return { ok: false, status: 0, body: { error: "Bağlantı hatası." }, retried, rounds: round + 1 };
-    }
-    if (response.status === 202) {
-      input.onProgress?.(response.body);
-      await sleep(round === 0 ? 800 : 2_000);
+
+    rounds += 1;
+
+    if (response && isTransientProcessStatus(response.status)) {
+      retried = true;
+      const delay = transientBackoffMs(transientAttempt, readRetryAfterMs(response.body));
+      transientAttempt += 1;
+      await sleep(delay);
       continue;
     }
+
+    transientAttempt = 0;
+
+    if (!response) {
+      return { ok: false, status: 0, body: { error: "Bağlantı hatası." }, retried, rounds };
+    }
+
+    if (response.status === 202) {
+      noteProgress(response.body, progressState);
+      input.onProgress?.(response.body);
+      await sleep(rounds === 1 ? 800 : 2_000);
+      continue;
+    }
+
     const ok = response.status >= 200 && response.status < 300;
-    return { ok, status: response.status, body: response.body, retried, rounds: round + 1 };
+    return { ok, status: response.status, body: response.body, retried, rounds };
   }
 
   return {
     ok: false,
     status: 504,
-    body: { error: "Belge hâlâ işleniyor. Biraz sonra yeniden dene." },
+    body: { error: "Belge hâlâ işleniyor. Biraz sonra yeniden dene.", code: "processing_timeout" },
     retried,
-    rounds: maxRounds,
+    rounds,
   };
 }
+
+export { processProgressFingerprint };

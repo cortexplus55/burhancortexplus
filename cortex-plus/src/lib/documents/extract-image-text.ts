@@ -30,6 +30,31 @@ const NO_TEXT = "[METIN_YOK]";
  */
 const MIN_USEFUL_CHARS = 40;
 
+/** Polite "no text" sentences the model returns instead of [METIN_YOK]. */
+const NO_TEXT_PATTERNS = [
+  /\[?\s*METIN_YOK\s*\]?/i,
+  /\bno\s*text\b/i,
+  /\bempty\s*page\b/i,
+  /bo[sş]\s*sayfa/i,
+  /g[oö]rselde.{0,40}(yaz[ıi]|metin).{0,20}(bulunm|yok|de[gğ]il)/i,
+  /(yaz[ıi]|metin).{0,20}(bulunmuyor|yok|g[oö]r[uü]nm[uü]yor)/i,
+  /okunacak.{0,20}(yaz[ıi]|metin).{0,10}yok/i,
+];
+
+/** Exported for unit tests — junk "no text" answers must never be indexed. */
+export function isNoTextOcrResponse(raw: string): boolean {
+  const text = raw.trim();
+  if (!text) return true;
+  if (text.includes(NO_TEXT)) return true;
+  return NO_TEXT_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+export function isUsableOcrText(raw: string): boolean {
+  const text = raw.trim();
+  if (!text || isNoTextOcrResponse(text)) return false;
+  return text.length >= MIN_USEFUL_CHARS;
+}
+
 /**
  * Görüntü modeline gidebilecek en büyük dosya.
  *
@@ -79,8 +104,7 @@ async function readWith(
     const tokensIn = completion.usage?.prompt_tokens ?? 0;
     const tokensOut = completion.usage?.completion_tokens ?? 0;
     const raw = completion.choices[0]?.message?.content?.trim() ?? "";
-    const usable =
-      raw && !raw.includes(NO_TEXT) && raw.length >= MIN_USEFUL_CHARS;
+    const usable = isUsableOcrText(raw);
     return { text: usable ? raw : null, tokensIn, tokensOut };
   } catch {
     // Çağrı hiç olmadıysa faturası da yok.
@@ -121,6 +145,7 @@ export type ImageReadResult = {
 export async function extractImageText(
   buffer: Buffer,
   mimeType: string,
+  options?: { deadlineMs?: number },
 ): Promise<ImageReadResult> {
   const empty = { pages: [], ok: false as const, model: null, tokensIn: 0, tokensOut: 0 };
   if (!env.OPENAI_API_KEY) return { ...empty, reason: "not_configured" };
@@ -141,14 +166,23 @@ export async function extractImageText(
     return { ...empty, reason: "blocked" };
   }
 
-  const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 90_000, maxRetries: 0 });
+  const pageDeadlineMs = options?.deadlineMs ?? Date.now() + 60_000;
+  const openai = new OpenAI({
+    apiKey: env.OPENAI_API_KEY,
+    timeout: Math.min(60_000, Math.max(5_000, pageDeadlineMs - Date.now())),
+    maxRetries: 0,
+  });
 
   // İki ad aynıysa (yanlış yapılandırma) aynı modeli iki kez çağırmayalım.
   const ladder = [...new Set([env.OPENAI_STANDARD_MODEL, env.OPENAI_ADVANCED_MODEL])];
   let tokensIn = 0;
   let tokensOut = 0;
 
-  for (const model of ladder) {
+  for (let i = 0; i < ladder.length; i += 1) {
+    const model = ladder[i]!;
+    // Skip expensive fallback when the step deadline is near.
+    if (i > 0 && Date.now() + 25_000 >= pageDeadlineMs) break;
+    if (Date.now() >= pageDeadlineMs) break;
     const attempt = await readWith(openai, model, dataUrl);
     tokensIn += attempt.tokensIn;
     tokensOut += attempt.tokensOut;
@@ -197,6 +231,7 @@ export type ImagePagesResult = {
 export async function extractImagePages(
   images: Buffer[],
   mimeType = "image/png",
+  options?: { deadlineMs?: number },
 ): Promise<ImagePagesResult> {
   const pages: string[] = new Array(images.length).fill("");
   let readCount = 0;
@@ -207,7 +242,7 @@ export async function extractImagePages(
   for (let start = 0; start < images.length; start += PAGE_CONCURRENCY) {
     const batch = images.slice(start, start + PAGE_CONCURRENCY);
     const results = await Promise.all(
-      batch.map((image) => extractImageText(image, mimeType)),
+      batch.map((image) => extractImageText(image, mimeType, options)),
     );
 
     results.forEach((result, offset) => {

@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   PROCESS_RETRY_MESSAGE,
+  PROCESS_STALL_MS,
   isTransientProcessStatus,
   pickProcessPhase,
+  processProgressFingerprint,
   requestDocumentProcessing,
+  transientBackoffMs,
 } from "@/lib/documents/process-session";
 
 describe("document processing phases", () => {
@@ -45,6 +48,33 @@ describe("document processing phases", () => {
     ).toBe("done");
   });
 
+  it("failed belgede parça yoksa extract, parça varsa harita bekliyorsa map", () => {
+    expect(
+      pickProcessPhase({
+        status: "failed",
+        chunkCount: 0,
+        topicMapStatus: "none",
+        learningV2: true,
+      }),
+    ).toBe("extract");
+    expect(
+      pickProcessPhase({
+        status: "failed",
+        chunkCount: 8,
+        topicMapStatus: "pending",
+        learningV2: true,
+      }),
+    ).toBe("map");
+    expect(
+      pickProcessPhase({
+        status: "failed",
+        chunkCount: 8,
+        topicMapStatus: "ready",
+        learningV2: true,
+      }),
+    ).toBe("extract");
+  });
+
   it("retries one transient 5xx, then keeps polling a 202 until the document is ready", async () => {
     const statuses = [504, 202, 200];
     const seen: number[] = [];
@@ -66,7 +96,39 @@ describe("document processing phases", () => {
     expect(result.body.pageCount).toBe(12);
     expect(PROCESS_RETRY_MESSAGE.length).toBeGreaterThan(10);
     expect(isTransientProcessStatus(504)).toBe(true);
+    expect(isTransientProcessStatus(503)).toBe(true);
+    expect(isTransientProcessStatus(0)).toBe(true);
     expect(isTransientProcessStatus(402)).toBe(false);
+  });
+
+  it("honours retryAfterMs for backoff", () => {
+    expect(transientBackoffMs(3, 5000)).toBe(5000);
+  });
+
+  it("tracks extract progress fingerprints", () => {
+    expect(
+      processProgressFingerprint({ phase: "extract", nextPage: 7 }),
+    ).toBe("extract:7");
+  });
+
+  it("stops when progress stalls for the stall window", async () => {
+    let now = 0;
+    const result = await requestDocumentProcessing({
+      documentId: "stall-doc",
+      stallMs: 1000,
+      now: () => now,
+      sleep: async (ms) => {
+        now += ms;
+      },
+      post: async () => ({
+        status: 202,
+        body: { phase: "extract", nextPage: 1, pageCount: 99 },
+      }),
+    });
+    expect(result.ok).toBe(false);
+    expect(result.body.code).toBe("processing_timeout");
+    expect(now).toBeGreaterThanOrEqual(1000);
+    expect(PROCESS_STALL_MS).toBeGreaterThan(300_000);
   });
 
   it("does not retry a photo-quota or credit refusal", async () => {

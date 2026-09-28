@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { deflateSync } from "node:zlib";
 
 /*
@@ -85,6 +86,7 @@ beforeEach(() => {
   mocks.moderate.mockResolvedValue({ action: "allow", categories: [] });
 });
 
+describe.sequential("taranmış PDF render (pdfjs tek iş parçacığı)", () => {
 describe("taranmış PDF tanınıyor", () => {
   /* Bu, düzeltmenin dayandığı olgu: metin katmanı olmayan PDF `extractText`
      tarafından okunamıyor. Okunabilseydi çizime hiç gerek olmazdı. */
@@ -100,8 +102,9 @@ describe("sayfa çizimi", () => {
     expect(rendered.total).toBe(2);
     expect(rendered.pages).toHaveLength(2);
     for (const page of rendered.pages) {
-      expect(page.subarray(1, 4).toString()).toBe("PNG");
-      expect(page.byteLength).toBeGreaterThan(100);
+      expect(page.png.subarray(1, 4).toString()).toBe("PNG");
+      expect(page.png.byteLength).toBeGreaterThan(100);
+      expect(page.pageNumber).toBeGreaterThan(0);
     }
   }, 30_000);
 
@@ -116,12 +119,43 @@ describe("sayfa çizimi", () => {
     const rendered = await renderPdfPages(scannedPdf(99), 6, 95);
     expect(rendered.total).toBe(99);
     expect(rendered.pages).toHaveLength(5);
-    expect(rendered.pages[4].subarray(1, 4).toString()).toBe("PNG");
+    expect(rendered.pages[4].png.subarray(1, 4).toString()).toBe("PNG");
   }, 30_000);
 
   it("tavan varsayılanı zaman bütçesine göre seçilmiş", () => {
     expect(MAX_SCAN_PAGES).toBeLessThanOrEqual(20);
   });
+});
+
+describe("CCITT G4 ofis taraması (fixture)", () => {
+  const fixture = readFileSync(
+    path.join("tests", "fixtures", "ccitt-scan-3page.pdf"),
+  );
+
+  it("eksik wasm yolu taramayı boş sayar (scanRenderFailed veya düşük inkRatio)", async () => {
+    const rendered = await renderPdfPages(fixture, 1, 1, {
+      pdfjsOverrides: { wasmUrl: "/nonexistent/wasm/" },
+    });
+    expect(rendered.pages).toHaveLength(1);
+    const page = rendered.pages[0]!;
+    expect(page.hasImageContent).toBe(true);
+    expect(
+      page.scanRenderFailed === true || page.inkRatio < 0.002,
+    ).toBe(true);
+  }, 60_000);
+
+  it("wasm ile sayfa görüntüsü ve mürekkep metriği üretir", async () => {
+    const rendered = await renderPdfPages(fixture, 3);
+    expect(rendered.total).toBe(3);
+    expect(rendered.pages).toHaveLength(3);
+    for (const page of rendered.pages) {
+      expect(page.hasImageContent).toBe(true);
+      expect(page.scanRenderFailed).toBe(false);
+      expect(page.inkRatio).toBeGreaterThan(0.01);
+      expect(page.png.subarray(1, 4).toString()).toBe("PNG");
+      expect(page.png.byteLength).toBeGreaterThan(2_000);
+    }
+  }, 60_000);
 });
 
 describe("çok sayfa okuma", () => {
@@ -183,3 +217,5 @@ describe("boru hattı beklenmeyen hatada da kota yakmıyor", () => {
     expect(source).toContain('return failAndRelease("processing_failed")');
   });
 });
+
+}); // describe.sequential render pdf integration
