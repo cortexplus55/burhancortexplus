@@ -105,6 +105,12 @@ type GenerateJsonParams<T> = {
   /** Called as streamed draft text accumulates (throttled by the caller). */
   onPartialContent?: (text: string) => void;
   /**
+   * A stream that sends nothing for this long is aborted (default 30_000).
+   * The SDK timeout stops at response headers, so the stream body needs its
+   * own watchdog.
+   */
+  streamStallMs?: number;
+  /**
    * Transient 429/5xx/timeout attempts under the same reservation.
    * Default 2 (one retry). Outline may pass 3–4.
    */
@@ -189,6 +195,48 @@ type GenerateJsonParams<T> = {
     ask: (system: string, user: string) => Promise<string | null>,
   ) => Promise<T | null>;
 };
+
+const STREAM_STALL_MS = 30_000;
+
+/** Our own abort (deadline or stalled stream), never retried as transient. */
+export class CallAbortedError extends Error {
+  constructor(readonly reason: "deadline" | "stalled") {
+    super(`call_aborted_${reason}`);
+  }
+}
+
+/**
+ * One AbortSignal per model call: fires at min(deadlineAt, now + timeout),
+ * or when a stream goes quiet for `stallMs`.
+ */
+export function callGuard(input: { callTimeoutMs: number; deadlineAt?: number; stallMs?: number }) {
+  const controller = new AbortController();
+  let reason: "deadline" | "stalled" | null = null;
+  const now = Date.now();
+  const wall = Math.min(now + input.callTimeoutMs, input.deadlineAt ?? Number.POSITIVE_INFINITY);
+  const fire = (why: "deadline" | "stalled") => {
+    if (reason) return;
+    reason = why;
+    controller.abort();
+  };
+  const wallTimer = setTimeout(() => fire("deadline"), Math.max(0, wall - now));
+  let stallTimer: ReturnType<typeof setTimeout> | null = null;
+  const touch = () => {
+    if (!input.stallMs) return;
+    if (stallTimer) clearTimeout(stallTimer);
+    stallTimer = setTimeout(() => fire("stalled"), input.stallMs);
+  };
+  touch();
+  return {
+    signal: controller.signal,
+    touch,
+    reason: () => reason,
+    dispose: () => {
+      clearTimeout(wallTimer);
+      if (stallTimer) clearTimeout(stallTimer);
+    },
+  };
+}
 
 function parseCandidate(raw: string): unknown | null {
   return parseModelJson(raw);
@@ -489,43 +537,70 @@ export async function generateJson<T>(
         const draftResult = await withTransientRetry(
           async () => {
             modelCalls += 1;
-            if (params.stream) {
-              const stream = await openai.chat.completions.create({
-                model,
-                stream: true,
-                stream_options: { include_usage: true },
-                response_format: responseFormat,
-                messages: draftMessages,
-              });
-              let text = "";
-              let usage = { prompt_tokens: 0, completion_tokens: 0 };
-              for await (const chunk of stream) {
-                const delta = chunk.choices[0]?.delta?.content ?? "";
-                if (delta) {
-                  text += delta;
-                  params.onPartialContent?.(text);
-                }
-                if (chunk.usage) {
-                  usage = {
-                    prompt_tokens: chunk.usage.prompt_tokens ?? 0,
-                    completion_tokens: chunk.usage.completion_tokens ?? 0,
-                  };
-                }
-              }
-              return { content: text || "{}", usage };
-            }
-            const completion = await openai.chat.completions.create({
-              model,
-              response_format: responseFormat,
-              messages: draftMessages,
+            // Hard wall for the whole call, stream body included: the SDK
+            // timeout ends at response headers, so a slow stream could run
+            // past the function's 300 s ceiling.
+            const guard = callGuard({
+              callTimeoutMs,
+              deadlineAt: params.deadlineAt,
+              stallMs: params.stream ? (params.streamStallMs ?? STREAM_STALL_MS) : undefined,
             });
-            return {
-              content: completion.choices[0]?.message?.content ?? "{}",
-              usage: {
-                prompt_tokens: completion.usage?.prompt_tokens ?? 0,
-                completion_tokens: completion.usage?.completion_tokens ?? 0,
-              },
-            };
+            try {
+              if (params.stream) {
+                const stream = await openai.chat.completions.create(
+                  {
+                    model,
+                    stream: true,
+                    stream_options: { include_usage: true },
+                    response_format: responseFormat,
+                    messages: draftMessages,
+                  },
+                  { signal: guard.signal },
+                );
+                let text = "";
+                let usage = { prompt_tokens: 0, completion_tokens: 0 };
+                for await (const chunk of stream) {
+                  guard.touch();
+                  const delta = chunk.choices[0]?.delta?.content ?? "";
+                  if (delta) {
+                    text += delta;
+                    params.onPartialContent?.(text);
+                  }
+                  if (chunk.usage) {
+                    usage = {
+                      prompt_tokens: chunk.usage.prompt_tokens ?? 0,
+                      completion_tokens: chunk.usage.completion_tokens ?? 0,
+                    };
+                  }
+                }
+                // The SDK ends the iterator quietly on abort; a cut stream is
+                // not a finished answer.
+                const aborted = guard.reason();
+                if (aborted) throw new CallAbortedError(aborted);
+                return { content: text || "{}", usage };
+              }
+              const completion = await openai.chat.completions.create(
+                {
+                  model,
+                  response_format: responseFormat,
+                  messages: draftMessages,
+                },
+                { signal: guard.signal },
+              );
+              return {
+                content: completion.choices[0]?.message?.content ?? "{}",
+                usage: {
+                  prompt_tokens: completion.usage?.prompt_tokens ?? 0,
+                  completion_tokens: completion.usage?.completion_tokens ?? 0,
+                },
+              };
+            } catch (error) {
+              const aborted = guard.reason();
+              if (aborted && !(error instanceof CallAbortedError)) throw new CallAbortedError(aborted);
+              throw error;
+            } finally {
+              guard.dispose();
+            }
           },
           {
             startedAt: generationStarted,
@@ -732,6 +807,12 @@ export async function generateJson<T>(
       reservationId: params.deferCommit ? reservation.reservationId : undefined,
     };
   } catch (error) {
+    if (error instanceof CallAbortedError) {
+      console.error("generate_json_aborted", { actionCode, model, reason: error.reason });
+      lastFailedStage = "safe_outcome";
+      lastFailureCodes = [error.reason];
+      return await recordAndFail(error.reason, error.reason === "deadline" ? 504 : 502);
+    }
     // No prompts, answers, provider messages, document text or keys in logs.
     console.error("educational_generation_failed", {
       actionCode,
