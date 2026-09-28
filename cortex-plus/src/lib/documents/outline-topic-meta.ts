@@ -93,15 +93,7 @@ export function unpackTopicPerspective(row: {
   prerequisites?: unknown;
   key_definitions?: unknown;
   key_relations?: unknown;
-  /** Optional denormalized column from optional migration — ignored if absent. */
-  exam_weight?: string | null;
-  likely_asked?: unknown;
 }): OutlineTopicPerspective {
-  const fromCol = row.exam_weight ? normalizeExamWeight(row.exam_weight) : null;
-  const fromRel = readExamWeightFromRelations(row.key_relations);
-  const likelyFromCol = Array.isArray(row.likely_asked)
-    ? row.likely_asked.filter((s): s is string => typeof s === "string")
-    : [];
   const likelyFromDefs = Array.isArray(row.key_definitions)
     ? row.key_definitions.filter((s): s is string => typeof s === "string")
     : [];
@@ -109,8 +101,8 @@ export function unpackTopicPerspective(row: {
     ? row.prerequisites.filter((s): s is string => typeof s === "string")
     : [];
   return {
-    examWeight: fromCol ?? fromRel ?? "medium",
-    likelyAsked: (likelyFromCol.length ? likelyFromCol : likelyFromDefs)
+    examWeight: readExamWeightFromRelations(row.key_relations) ?? "medium",
+    likelyAsked: likelyFromDefs
       .map((s) => s.trim())
       .filter(Boolean)
       .slice(0, 4),

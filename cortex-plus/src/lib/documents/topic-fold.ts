@@ -102,18 +102,6 @@ function cleanHeading(raw: string): string {
   return (raw ?? "").replace(TOC_PAGE_TAIL, "").trim();
 }
 
-export function preferredHeading(headings: string[]): string {
-  for (const raw of headings) {
-    const heading = cleanHeading(raw);
-    if (!heading) continue;
-    if (isRunningHeader(heading) || isCalloutLabel(heading) || isProcedureStep(heading)) {
-      continue;
-    }
-    return heading;
-  }
-  return "";
-}
-
 /**
  * Aynı kavramın kısa ve uzun başlığı.
  *

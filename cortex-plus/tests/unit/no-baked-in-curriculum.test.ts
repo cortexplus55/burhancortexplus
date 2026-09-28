@@ -28,7 +28,6 @@ import { describe, expect, it } from "vitest";
 const PRODUCTION_FILES = [
   "src/lib/documents/topic-map.ts",
   "src/lib/documents/topic-map-llm.ts",
-  "src/lib/documents/topic-map-fallback.ts",
   "src/lib/documents/topic-fold.ts",
   "src/lib/documents/topic-map-refold.ts",
   "src/lib/documents/topic-title.ts",

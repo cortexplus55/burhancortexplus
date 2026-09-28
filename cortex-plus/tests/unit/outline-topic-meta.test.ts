@@ -28,17 +28,4 @@ describe("outline-topic-meta pack/unpack", () => {
     expect(examWeightToEmphasis("high")).toBe("core");
     expect(examWeightToEmphasis("low")).toBe("skim");
   });
-
-  it("prefers optional migration columns when present", () => {
-    const unpacked = unpackTopicPerspective({
-      learning_objective: "from packed",
-      prerequisites: [],
-      key_definitions: ["packed point"],
-      key_relations: ["exam_weight:low"],
-      exam_weight: "high",
-      likely_asked: ["from column"],
-    });
-    expect(unpacked.examWeight).toBe("high");
-    expect(unpacked.likelyAsked).toEqual(["from column"]);
-  });
 });

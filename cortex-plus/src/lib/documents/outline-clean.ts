@@ -176,7 +176,7 @@ export function isPracticePage(text: string): boolean {
   return false;
 }
 
-export function looksLikeQuestionStem(line: string): boolean {
+function looksLikeQuestionStem(line: string): boolean {
   const text = line.trim();
   if (!text) return false;
   if (/\?$/.test(text)) return true;
@@ -194,7 +194,7 @@ export function looksLikeQuestionStem(line: string): boolean {
 }
 
 /** Heuristic language from stopwords and script. */
-export function detectTextLanguage(text: string): "tr" | "en" | "unknown" {
+function detectTextLanguage(text: string): "tr" | "en" | "unknown" {
   const sample = (text ?? "").slice(0, 8000);
   if (!sample.trim()) return "unknown";
   const trDiacritics = (sample.match(/[ıİşğüöçŞĞÜÖÇ]/g) ?? []).length;
@@ -224,7 +224,7 @@ function englishTitleCase(text: string): string {
     .trim();
 }
 
-export function titleCaseForLanguage(
+function titleCaseForLanguage(
   text: string,
   lang: "tr" | "en" | "unknown",
 ): string {
@@ -433,7 +433,7 @@ export function turkishTitleCase(text: string): string {
 }
 
 /** Strip series label prefix from a heading / title. */
-export function stripSeriesLabel(title: string, seriesLabels: string[]): string {
+function stripSeriesLabel(title: string, seriesLabels: string[]): string {
   let out = title.trim();
   for (const label of seriesLabels) {
     const re = new RegExp(`^${escapeRegExp(label)}\\s+`, "i");
@@ -672,7 +672,7 @@ function isShoutingTitle(text: string): boolean {
  * Infer unit runs from a flat title list when TOC / furniture is absent.
  * Prefers series-prefixed short labels and shouting section headers.
  */
-export function inferUnitRunsFromTitles(
+function inferUnitRunsFromTitles(
   titles: { title: string; pageNumbers: number[] }[],
   seriesLabels: string[],
 ): FurnitureDetection["unitRuns"] {
@@ -864,7 +864,7 @@ export function cleanOutlineDeterministic(input: {
   return { kept: finalKept, dropped, units, furniture };
 }
 
-export function areOutlineNearDuplicates(a: string, b: string): boolean {
+function areOutlineNearDuplicates(a: string, b: string): boolean {
   const fa = foldOutlineKey(a);
   const fb = foldOutlineKey(b);
   if (fa === fb) return true;
@@ -962,159 +962,11 @@ function groupIntoUnits(
   ];
 }
 
-/** Levenshtein distance for outline validator. */
-export function editDistance(a: string, b: string): number {
-  const s = foldOutlineKey(a);
-  const t = foldOutlineKey(b);
-  const m = s.length;
-  const n = t.length;
-  const dp = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
-  for (let i = 0; i <= m; i += 1) dp[i]![0] = i;
-  for (let j = 0; j <= n; j += 1) dp[0]![j] = j;
-  for (let i = 1; i <= m; i += 1) {
-    for (let j = 1; j <= n; j += 1) {
-      const cost = s[i - 1] === t[j - 1] ? 0 : 1;
-      dp[i]![j] = Math.min(
-        dp[i - 1]![j]! + 1,
-        dp[i]![j - 1]! + 1,
-        dp[i - 1]![j - 1]! + cost,
-      );
-    }
-  }
-  return dp[m]![n]!;
-}
-
-export function titleEditAcceptable(source: string, proposed: string): boolean {
-  if (foldOutlineKey(source) === foldOutlineKey(proposed)) return true;
-  // Allow series strip / leading number / casing
-  const normSource = foldOutlineKey(normalizeOutlineTitle(source));
-  const normProposed = foldOutlineKey(normalizeOutlineTitle(proposed));
-  if (normSource === normProposed) return true;
-  if (normSource.includes(normProposed) || normProposed.includes(normSource)) {
-    const shorter = Math.min(normSource.length, normProposed.length);
-    if (shorter >= 8) return true;
-  }
-  // Merge "A ve B"
-  if (/\sve\s/i.test(proposed)) {
-    const parts = proposed.split(/\sve\s/i).map((p) => foldOutlineKey(p.trim()));
-    if (parts.some((p) => p && (normSource.includes(p) || p.includes(normSource)))) {
-      return true;
-    }
-  }
-  const wordsS = normSource.split(" ").filter(Boolean);
-  const wordsP = normProposed.split(" ").filter(Boolean);
-  if (wordsS.length && wordsP.length && wordsS.length === wordsP.length) {
-    let ok = true;
-    for (let i = 0; i < wordsS.length; i += 1) {
-      const d = editDistance(wordsS[i]!, wordsP[i]!);
-      if (d > 2 && d / Math.max(wordsS[i]!.length, 1) > 0.2) {
-        ok = false;
-        break;
-      }
-    }
-    if (ok) return true;
-  }
-  const dist = editDistance(normSource, normProposed);
-  const maxLen = Math.max(normSource.length, normProposed.length, 1);
-  return dist <= 2 || dist / maxLen <= 0.2;
-}
-
-export type OutlineValidationIssue =
-  | { code: "invented_topic"; title: string }
-  | { code: "edit_too_large"; title: string; source: string }
-  | { code: "missing_chapter"; heading: string }
-  | { code: "uncovered_pages"; pages: number[] }
-  | { code: "count_bounds"; units: number; topics: number; contentPages: number };
-
-export function validateOutlineLlmResult(input: {
-  draft: OutlineUnitDraft[];
-  candidates: { title: string; sourceTitle?: string; pageNumbers: number[] }[];
-  contentPages: number[];
-  numberedChapters?: string[];
-  contentPageCount: number;
-}): { ok: true } | { ok: false; issues: OutlineValidationIssue[] } {
-  const issues: OutlineValidationIssue[] = [];
-  const candidateTitles = input.candidates.flatMap((c) =>
-    [c.title, c.sourceTitle].filter(Boolean) as string[],
-  );
-  const allTopics = input.draft.flatMap((u) => u.topics);
-  const bounds = outlineTopicBounds(input.contentPageCount);
-
-  if (input.contentPageCount > 40) {
-    if (
-      input.draft.length < bounds.unitsMin ||
-      input.draft.length > bounds.unitsMax ||
-      allTopics.length < bounds.topicsMin ||
-      allTopics.length > bounds.topicsMax
-    ) {
-      issues.push({
-        code: "count_bounds",
-        units: input.draft.length,
-        topics: allTopics.length,
-        contentPages: input.contentPageCount,
-      });
-    }
-  }
-
-  for (const topic of allTopics) {
-    if (!topic.sourceTitles?.length) {
-      issues.push({ code: "invented_topic", title: topic.title });
-      continue;
-    }
-    let matched = false;
-    for (const source of topic.sourceTitles) {
-      const exists = candidateTitles.some(
-        (c) => foldOutlineKey(c) === foldOutlineKey(source) || titleEditAcceptable(c, source),
-      );
-      if (!exists) continue;
-      if (!titleEditAcceptable(source, topic.title) && !candidateTitles.some((c) => titleEditAcceptable(c, topic.title))) {
-        issues.push({ code: "edit_too_large", title: topic.title, source });
-      }
-      matched = true;
-      break;
-    }
-    if (!matched) issues.push({ code: "invented_topic", title: topic.title });
-  }
-
-  const covered = new Set(allTopics.flatMap((t) => t.pageNumbers));
-  const uncovered = input.contentPages.filter((p) => !covered.has(p));
-  // Allow small gaps — attach step fills them; reject large holes
-  if (uncovered.length > Math.max(3, Math.ceil(input.contentPages.length * 0.15))) {
-    issues.push({ code: "uncovered_pages", pages: uncovered });
-  }
-
-  for (const heading of input.numberedChapters ?? []) {
-    const titles = allTopics.map((t) => t.title);
-    const sources = allTopics.flatMap((t) => t.sourceTitles);
-    const represented = [...titles, ...sources].some(
-      (t) => titleEditAcceptable(heading, t) || foldOutlineKey(t).includes(foldOutlineKey(normalizeOutlineTitle(heading))),
-    );
-    if (!represented) issues.push({ code: "missing_chapter", heading });
-  }
-
-  return issues.length ? { ok: false, issues } : { ok: true };
-}
-
-export type OutlineLeafTopic = {
-  title: string;
-  pageNumbers: number[];
-  unitTitle: string;
-  description?: string;
-  whyLearn?: string;
-  examWeight?: OutlineExamWeight;
-  unitExamWeight?: OutlineExamWeight;
-  likelyAsked?: string[];
-  prerequisiteTitles?: string[];
-};
-
-/** Build hierarchical units from a validated outline draft. */
+/** Title-case a validated outline and sort each topic's pages. */
 export function flattenOutlineUnits(
   draft: OutlineUnitDraft[],
   language?: "tr" | "en" | "unknown",
-): {
-  units: OutlineUnitDraft[];
-  leafTopics: OutlineLeafTopic[];
-} {
+): { units: OutlineUnitDraft[] } {
   const lang =
     language ??
     detectTextLanguage(
@@ -1127,36 +979,8 @@ export function flattenOutlineUnits(
       ...topic,
       title: titleCaseForLanguage(topic.title, lang),
       pageNumbers: [...new Set(topic.pageNumbers)].sort((a, b) => a - b),
-      sourceTitles: topic.sourceTitles,
     })),
   }));
-  const leafTopics = units.flatMap((unit) =>
-    unit.topics.map((topic) => ({
-      title: topic.title,
-      pageNumbers: topic.pageNumbers,
-      unitTitle: unit.title,
-      description: topic.description,
-      whyLearn: topic.whyLearn ?? topic.description,
-      examWeight: topic.examWeight,
-      unitExamWeight: unit.examWeight,
-      likelyAsked: topic.likelyAsked,
-      prerequisiteTitles: topic.prerequisiteTitles,
-    })),
-  );
-  return { units, leafTopics };
+  return { units };
 }
 
-/** Convert deterministic clean result into OutlineUnitDraft for fallback. */
-export function deterministicUnitsAsDraft(result: CleanOutlineResult): OutlineUnitDraft[] {
-  return result.units.map((unit) => ({
-    title: unit.title,
-    topics: unit.topicIndexes.map((index) => {
-      const topic = result.kept[index]!;
-      return {
-        title: topic.title,
-        sourceTitles: [topic.sourceTitle],
-        pageNumbers: topic.pageNumbers,
-      };
-    }),
-  }));
-}
