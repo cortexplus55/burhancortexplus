@@ -46,4 +46,10 @@ describe("sparse source lesson checks", () => {
     const result = dropSparseSourceNumericChecks(lesson(), `${source} 135° açısının koordinatları hesaplanır.`);
     expect(result.dropped).toBe(0);
   });
+
+  it("does not treat citation and page numbers as teaching evidence", () => {
+    const numberedSource = `[s.135] trigonometri.pdf: Bu bölümün 135. çalışma sayfası fiziksel sayfa 135 üzerindedir. ${source}`;
+    const result = dropSparseSourceNumericChecks(lesson(), numberedSource);
+    expect(result.dropped).toBe(1);
+  });
 });

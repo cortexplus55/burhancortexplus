@@ -324,8 +324,13 @@ export function dropSparseSourceNumericChecks(
   source: string,
 ): { lesson: LessonV2; dropped: number } {
   let dropped = 0;
+  // Retrieval labels and physical page numbers locate evidence; they are not
+  // mathematical facts that can justify a generated numerical exercise.
+  const teachingSource = source
+    .replace(/\[s\.\d+\][^:\n]*:/g, "")
+    .replace(/Bu bölümün \d+\. çalışma sayfası fiziksel sayfa \d+ üzerindedir\./gi, "");
   const unsupported = (parts: Array<string | undefined>) =>
-    inventedNumbers(parts.filter(Boolean).join("\n"), source).length > 0;
+    inventedNumbers(parts.filter(Boolean).join("\n"), teachingSource).length > 0;
   const sections = lesson.sections.map((section) => {
     const check = section.check;
     if (!check || !unsupported([
