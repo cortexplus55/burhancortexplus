@@ -5,14 +5,20 @@
  *
  * - Tokens: Turkish-aware folding, apostrophe suffixes dropped
  *   ("Türkiye'nin" → "turkiye"), light suffix stripping that never cuts a
- *   word below 5 letters, and prefix matching (≥5 letters) so "memur" and
- *   "memurluğu" are the same word. English text is never Turkish-stemmed.
+ *   word below 5 letters, soft final consonants hardened ("termodinamiğ" →
+ *   "termodinamik"), a buffer-letter leftover may be the bare word ("yasas"
+ *   ~ "yasa"), and prefix matching (≥5 letters; 4 letters with a short
+ *   suffix) so "memur" and "memurluğu" are the same word. English text is
+ *   never Turkish-stemmed.
  * - Generic words (function words, "you will learn", "konu", "temel"…) are
  *   not evidence.
  * - Title words carry the decision. A word that occurs on a large share of
  *   the file's pages proves nothing; a rare word that is also concentrated
  *   in the cited range proves a lot (IDF-like weighting).
  * - A year in the title must appear on the cited pages.
+ * - A title word the whole file never uses was not taken from it.
+ * - One- to four-page files (Word notes, a few slides) have no rare words:
+ *   there half of the title words must be on the cited page.
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
@@ -76,6 +82,11 @@ const TR_SUFFIXES = [
 export const MIN_STEM_CHARS = 5;
 /** Prefix matching ("memur" ~ "memurlugu") only for stems this long. */
 const MIN_PREFIX_MATCH = 5;
+/** Four-letter stems match only when the other side adds a short suffix. */
+const SHORT_PREFIX_MATCH = 4;
+
+/** Soft final consonant back to its dictionary form: termodinamiğ → termodinamik, kitab → kitap. */
+const TR_SOFT_TO_HARD: Record<string, string> = { g: "k", b: "p", d: "t" };
 
 function stemTr(token: string): string {
   let out = token;
@@ -90,7 +101,8 @@ function stemTr(token: string): string {
     }
     if (!changed) break;
   }
-  return out;
+  const hard = out.length >= 5 ? TR_SOFT_TO_HARD[out.at(-1)!] : undefined;
+  return hard ? out.slice(0, -1) + hard : out;
 }
 
 function stemEn(token: string): string {
@@ -118,6 +130,7 @@ export function groundingTokens(text: string, lang: GroundingLang = detectGround
     if (raw.length < 3 || STOPWORDS.has(raw)) continue;
     const stem = lang === "tr" ? stemTr(raw) : stemEn(raw);
     if (STOPWORDS.has(stem)) continue;
+    if (lang === "tr" && BUFFER_LEFTOVER.test(stem) && STOPWORDS.has(stem.slice(0, -1))) continue;
     out.add(stem);
   }
   return [...out];
@@ -144,13 +157,33 @@ function lowerBound(sorted: string[], q: string): number {
   return lo;
 }
 
+/** Longest suffix a short (4-letter) stem may carry and still be the same word. */
+const SHORT_STEM_SUFFIX = 3;
+
+/**
+ * A stem left with a buffer letter after a vowel ("yasas" from "yasası",
+ * "yasan" from "yasanın") may also be the bare word ("yasa").
+ */
+const BUFFER_LEFTOVER = /^[a-z]{3,}[aeiou][sny]$/;
+
 function pageHas(page: PageEntry | undefined, q: string): boolean {
   if (!page) return false;
+  if (wordOnPage(page, q)) return true;
+  return BUFFER_LEFTOVER.test(q) && wordOnPage(page, q.slice(0, -1));
+}
+
+function wordOnPage(page: PageEntry, q: string): boolean {
   if (page.set.has(q)) return true;
-  if (q.length < MIN_PREFIX_MATCH || /^\d/.test(q)) return false;
-  const next = page.sorted[lowerBound(page.sorted, q)];
-  if (next?.startsWith(q)) return true;
-  for (let len = MIN_PREFIX_MATCH; len < q.length; len += 1) {
+  if (q.length < SHORT_PREFIX_MATCH || /^\d/.test(q)) return false;
+  // The title word is the start of a page word ("memur" ~ "memurluğu").
+  for (let i = lowerBound(page.sorted, q); i < page.sorted.length; i += 1) {
+    const word = page.sorted[i]!;
+    if (!word.startsWith(q)) break;
+    if (q.length >= MIN_PREFIX_MATCH || word.length - q.length <= SHORT_STEM_SUFFIX) return true;
+  }
+  // A page word is the start of the title word ("yasa" ~ "yasas").
+  for (let len = SHORT_PREFIX_MATCH; len < q.length; len += 1) {
+    if (len < MIN_PREFIX_MATCH && q.length - len > SHORT_STEM_SUFFIX) continue;
     if (page.set.has(q.slice(0, len))) return true;
   }
   return false;
@@ -182,7 +215,15 @@ export const COMMON_PAGE_SHARE = 0.3;
 /** Beyond this span, a hit must be concentrated in the range, not scattered. */
 export const WIDE_RANGE_PAGES = 8;
 /** Weighted share of distinctive title words that must be on the cited pages. */
-export const TITLE_COVERAGE = 0.5;
+export const TITLE_COVERAGE = 0.75;
+/**
+ * Files this short (a Word note, a few slides) have no "common" vs "rare"
+ * words: every word is on every page. There, half of the title words must be
+ * on the cited pages ("Termodinamiğin İkinci Yasası" on a slide about the
+ * second law and entropy), and the "absent from the file" rule is off.
+ */
+export const SHORT_FILE_PAGES = 5;
+export const SHORT_FILE_COVERAGE = 0.5;
 /** A distinctive hit counts as "concentrated" above this lift over chance. */
 export const CONCENTRATION_LIFT = 2;
 
@@ -202,7 +243,7 @@ export type GroundingVerdict = {
     | "no_title_tokens"
     | "year_missing"
     | "low_title_coverage"
-    | "no_distinctive_hit"
+    | "absent_word"
     | "scattered";
 };
 
@@ -239,6 +280,14 @@ export function groundTopic(file: GroundingFile, input: GroundingInput): Groundi
       weight: Math.log(1 + N / (1 + df)),
     };
   });
+  if (N < SHORT_FILE_PAGES) {
+    const hit = stats.filter((s) => s.hits > 0).length;
+    return hit / stats.length >= SHORT_FILE_COVERAGE
+      ? { grounded: true, reason: "ok" }
+      : { grounded: false, reason: "low_title_coverage" };
+  }
+  // A title word the material never uses anywhere was not taken from it.
+  if (stats.some((s) => s.df === 0)) return { grounded: false, reason: "absent_word" };
   const distinctive = stats.filter((s) => !s.common);
   if (!distinctive.length) {
     // Only everyday words of this material: they must all be on the pages.

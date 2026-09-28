@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { extractOfficeText } from "@/lib/documents/extract-office-text";
 import {
   buildGroundingFile,
   groundTopic,
@@ -113,6 +114,28 @@ export const fakes: Case[] = ([
   ["tp", "Machine Learning with NumPy", 205, 214, "You will learn to train models with NumPy arrays.", ["Gradient descent", "Arrays"]],
 ] as [Book, string, number, number, string, string[]][]).map(([book, title, a, b, why, asked]) => ({ book, title, a, b, why, asked }));
 
+/** Held-out fakes (round-4 review), never tuned against. The first and last KPSS ones sit close to real chapters. */
+export const heldOut: Case[] = ([
+  ["kpss", "Türk Ceza Kanununda Hapis Cezasının İnfazı", 15, 20],
+  ["kpss", "Uluslararası Ticaret Hukuku ve Dış Ticaret Rejimi", 36, 40],
+  ["kpss", "Sağlık Hukuku ve Hasta Hakları", 204, 211],
+  ["kpss", "Çevre Hukuku ve İklim Değişikliği", 164, 203],
+  ["kpss", "Anayasa Mahkemesinin 2024 Kararları", 146, 163],
+  ["kpss", "Osmanlı Dönemi Vergi Sistemi", 58, 75],
+  ["kpss", "Belediye Bütçesi ve Yerel Vergiler", 177, 180],
+  ["kpss", "Cumhurbaşkanlığı Seçiminde Sandık Güvenliği", 132, 145],
+  ["kpss", "Avrupa İnsan Hakları Mahkemesinde Bireysel Başvuru Harçları", 204, 211],
+  ["kpss", "Medeni Kanunda Miras Paylaşımı ve Vasiyetname", 21, 35],
+  ["k12", "Radyoaktivite ve Nükleer Tepkimeler", 2, 10],
+  ["k16", "Kimyasal Denge ve Le Chatelier İlkesi", 11, 16],
+  ["k16", "Asitlerin Metallerle Tepkimesi ve Korozyon", 14, 16],
+  ["tp", "Graphical User Interfaces with Tkinter", 169, 192],
+  ["tp", "Multithreading and Concurrency", 85, 104],
+  ["tp", "Regular Expressions for String Matching", 93, 104],
+  ["tp", "Unit Testing with pytest", 215, 222],
+  ["tp", "Database Access with SQL Queries", 159, 168],
+] as [Book, string, number, number][]).map(([book, title, a, b]) => ({ book, title, a, b }));
+
 function verdict(c: Case, withWhy = false) {
   return groundTopic(files[c.book], {
     title: c.title,
@@ -131,11 +154,21 @@ describe("outline grounding on real material", () => {
     });
   }
 
-  it("rejects at least 8 of 10 fabricated topics, with or without why/likelyAsked", () => {
+  it("rejects at least 9 of 10 fabricated topics, with or without why/likelyAsked", () => {
     const titleOnly = fakes.filter((c) => !verdict(c).grounded).length;
     const withWhy = fakes.filter((c) => !verdict(c, true).grounded).length;
-    expect(titleOnly).toBeGreaterThanOrEqual(8);
-    expect(withWhy).toBeGreaterThanOrEqual(8);
+    expect(titleOnly).toBeGreaterThanOrEqual(9);
+    expect(withWhy).toBeGreaterThanOrEqual(9);
+  });
+
+  it("rejects at least 15 of the 18 held-out fakes (was 10/18)", () => {
+    expect(heldOut.filter((c) => !verdict(c).grounded).length).toBeGreaterThanOrEqual(15);
+  });
+
+  it("rejects a title word the whole file never uses", () => {
+    expect(verdict({ book: "kpss", title: "Osmanlı Ekonomisi ve Kapitülasyonlar", a: 58, b: 75 }).reason).toBe(
+      "absent_word",
+    );
   });
 
   it("requires a year in the title to be on the cited pages", () => {
@@ -145,7 +178,37 @@ describe("outline grounding on real material", () => {
   });
 });
 
+describe("short Word / PowerPoint notes", () => {
+  const officeFile = (file: string, mime: string) => {
+    const extracted = extractOfficeText(readFileSync(path.join(__dirname, "../fixtures/office", file)), mime);
+    return buildGroundingFile(new Map(extracted.pages.map((text, i) => [i + 1, text] as [number, string])));
+  };
+  const docx = officeFile("ornek-ders.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+  const pptx = officeFile("ornek-slayt.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+  const onPage = (file: GroundingFile, title: string) => groundTopic(file, { title, pageStart: 1, pageEnd: 1 }).grounded;
+
+  it("accepts every natural title of the one-page notes", () => {
+    const docxTitles = ["Termodinamiğin Birinci Yasası", "Termodinamiğin Birinci Yasası ve İç Enerji", "Termodinamik: Birinci Yasa ve İç Enerji", "Birinci Yasa ve Enerjinin Korunumu", "İç Enerji, Isı ve İş İlişkisi", "Enerjinin Korunumu İlkesi", "Termodinamik", "Birinci Yasa"];
+    const pptxTitles = ["Entropi ve İkinci Yasa", "Entropi Nedir?", "Termodinamiğin İkinci Yasası", "İkinci Yasa ve Entropinin Artışı", "Entropi: Düzensizliğin Ölçüsü", "Evrenin Entropisi"];
+    expect(docxTitles.filter((t) => !onPage(docx, t))).toEqual([]);
+    expect(pptxTitles.filter((t) => !onPage(pptx, t))).toEqual([]);
+  });
+
+  it("still rejects invented topics on them", () => {
+    expect(onPage(docx, "Organik Kimya ve Hidrokarbonlar")).toBe(false);
+    expect(onPage(docx, "Kuantum Mekaniği")).toBe(false);
+    expect(onPage(pptx, "Fotosentez ve Hücre Solunumu")).toBe(false);
+    expect(onPage(pptx, "Kuantum Entropisi ve Kara Delikler")).toBe(false);
+  });
+});
+
 describe("grounding tokens", () => {
+  it("matches Turkish consonant softening and possessive endings", () => {
+    const file = buildGroundingFile(new Map([[1, "Termodinamik. Birinci yasa: enerji korunur."], [2, "dolgu"], [3, "dolgu"], [4, "dolgu"], [5, "dolgu"], [6, "dolgu"]]), "tr");
+    expect(groundingTokens("Termodinamiğin", "tr")).toEqual(["termodinamik"]);
+    expect(groundTopic(file, { title: "Termodinamiğin Birinci Yasası", pageStart: 1, pageEnd: 1 }).grounded).toBe(true);
+  });
+
   it("drops apostrophe suffixes and generic words", () => {
     const tokens = groundingTokens("Türkiye'nin Temel Kavramları ve Konuları", "tr");
     expect(tokens.some((t) => t.startsWith("turkiy"))).toBe(true);
@@ -170,7 +233,7 @@ describe("grounding tokens", () => {
   it("rejects words scattered across a wide citation", () => {
     const pages = new Map<number, string>();
     for (let p = 1; p <= 40; p += 1) pages.set(p, `dolgu paragraf metni sayfa ${p} hukuk`);
-    pages.set(3, "nukleotid zinciri anlatilir hukuk");
+    pages.set(3, "nukleotid zinciri ve replikasyon anlatilir hukuk");
     pages.set(30, "replikasyon sureci anlatilir hukuk");
     const file = buildGroundingFile(pages, "tr");
     expect(groundTopic(file, { title: "Nükleotid Replikasyonu", pageStart: 1, pageEnd: 40 }).grounded).toBe(
