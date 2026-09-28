@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { postDocumentProcess, requestDocumentProcessing } from "@/lib/documents/process-session";
 
 type TopicRow = {
   id: string;
@@ -166,6 +167,17 @@ export function TopicMapEditor({
       if (!response.ok) {
         toast.error(result.error ?? "Yeniden oluşturulamadı.");
         return;
+      }
+      if (response.status === 202) {
+        // Still building: keep the rounds going and say so until it is done.
+        const progress = toast.loading("Konu haritası yenileniyor…");
+        const done = await requestDocumentProcessing({ documentId, post: postDocumentProcess });
+        toast.dismiss(progress);
+        if (!done.ok) {
+          toast("Harita şimdilik yenilenemedi; mevcut haritan duruyor.");
+          router.refresh();
+          return;
+        }
       }
       toast.success("Konu haritası yenilendi.");
       router.refresh();
