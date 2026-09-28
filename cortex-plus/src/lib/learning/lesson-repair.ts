@@ -1314,6 +1314,13 @@ export function lessonRepairPrompt(
     "Sık yapılan hatanın doğrusu kaynak cümlesiyle desteklensin. Destekleyemiyorsan commonMistake yazma.",
     "Başlıkta olup kaynakta duran her kavram bir bölümde geçsin. Kaynakta yoksa ekleme.",
     "Çizim gerekiyorsa diagram koy: en az iki etiket, en az iki şekil.",
+    // Model yalnızca body/check/diagram yamalayabilir (mergeLessonRepair
+    // başka alanı okumuyor); formula/procedure/table'ı burada yalnızca
+    // GÖRSÜN diye "mevcut ders" JSON'una ekliyoruz — aksi hâlde bölümün
+    // zaten bir formül/prosedür/tablo kartı olduğunu bilmeden aynı
+    // bilgiyi yeni yazdığı body'ye tekrar sıkıştırabilirdi.
+    "Bir bölümün mevcut ders JSON'unda formula/procedure/table varsa o bilgi ayrı bir kartta zaten " +
+      "gösteriliyor; yeni yazdığın body'de aynı formülü/adımları/tabloyu tekrar etme.",
     `Düzeltilecek kodlar: ${codes.join(", ")}.`,
     gaps.length ? `Eksik kavramlar: ${gaps.join(", ")}.` : "",
     quotes.length ? `Kaynağa uymayan cümleler: ${quotes.join(" | ")}` : "",
@@ -1330,6 +1337,12 @@ export function lessonRepairPrompt(
         heading: section.heading,
         body: section.body,
         check: section.check ?? null,
+        // Salt-okunur bağlam: mergeLessonRepair yamasında bu üç alanı
+        // hiç okumuyor, yalnızca modelin body'yi tekrar üretirken bu
+        // bilginin zaten başka yerde durduğunu bilmesi için buradalar.
+        formula: section.formula ?? null,
+        procedure: section.procedure ?? null,
+        table: section.table ?? null,
       })),
       example: lesson.example ?? null,
       summary: lesson.summary ?? [],
