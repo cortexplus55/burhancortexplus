@@ -189,6 +189,71 @@ export function resetStaleCleanupCooldownForTests() {
 }
 
 /**
+ * Abandoned DOCUMENT_PAGE_PROCESS reservations: document failed or stuck
+ * with no progress for >24h → refund. Completed documents with a leftover
+ * pending reservation → commit (charge was earned).
+ */
+export async function refundAbandonedDocumentReservations(
+  service: SupabaseClient,
+  options: { olderThanMs?: number; limit?: number } = {},
+): Promise<number> {
+  const olderThanMs = options.olderThanMs ?? 24 * 60 * 60_000;
+  const cutoff = new Date(Date.now() - olderThanMs).toISOString();
+  try {
+    const { data, error } = await service
+      .from("credit_reservations")
+      .select("id, user_id, idempotency_key, created_at")
+      .eq("status", "pending")
+      .eq("action_code", "DOCUMENT_PAGE_PROCESS")
+      .lt("created_at", cutoff)
+      .order("created_at", { ascending: true })
+      .limit(options.limit ?? 40);
+    if (error || !data?.length) return 0;
+
+    let settled = 0;
+    for (const row of data) {
+      const key = String(row.idempotency_key ?? "");
+      const documentId = key.startsWith("document_process_")
+        ? key.slice("document_process_".length)
+        : null;
+      if (!documentId) continue;
+
+      const { data: doc } = await service
+        .from("documents")
+        .select("id, status, updated_at")
+        .eq("id", documentId)
+        .maybeSingle();
+
+      const status = (doc as { status?: string } | null)?.status;
+      const updatedAt = (doc as { updated_at?: string } | null)?.updated_at;
+
+      try {
+        if (status === "completed") {
+          await commitCredits(service, row.id as string);
+          settled += 1;
+          continue;
+        }
+        const staleProgress =
+          !doc ||
+          status === "failed" ||
+          (updatedAt != null && updatedAt < cutoff);
+        if (!staleProgress) continue;
+        await refundCredits(service, row.id as string);
+        settled += 1;
+      } catch {
+        // continue
+      }
+    }
+    if (settled) {
+      console.error("abandoned_document_reservations_settled", { count: settled });
+    }
+    return settled;
+  } catch {
+    return 0;
+  }
+}
+
+/**
  * Sesin kendi eylem kodlari.
  *
  * Seslendirme ve cozumleme krediden dusmuyor (bedeli dugume dahil), bu yuzden

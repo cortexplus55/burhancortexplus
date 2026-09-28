@@ -43,7 +43,20 @@ export async function loadUsageLimits(
   userId: string,
   tier: PlanTier,
   now = new Date(),
+  options?: { isAdmin?: boolean },
 ): Promise<UsageLimit[]> {
+  if (options?.isAdmin) {
+    return [
+      {
+        key: "photo-pages",
+        label: "Fotoğraf ve PDF sayfa",
+        used: 0,
+        limit: Number.MAX_SAFE_INTEGER,
+        hint: "Sınırsız",
+      },
+    ];
+  }
+
   const [photo, upgrade, dailyPhotos] = await Promise.all([
     service
       .from("document_page_grants")

@@ -5,6 +5,7 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadLearningHub } from "@/lib/learning/learning-hub";
 import { formatProgressLine } from "@/lib/learning/progress-line";
+import { DashboardFailedDocuments } from "@/components/dashboard/dashboard-failed-documents";
 
 export const metadata = { title: "Ana Sayfa" };
 export const dynamic = "force-dynamic";
@@ -66,7 +67,17 @@ export default async function DashboardPage() {
           <p id="nba-reason" className="mt-2 text-center text-xs text-[var(--cs-muted)]">
             {hub.nextBestAction.reason}
           </p>
+          {hub.failedDocuments.length > 0 ? (
+            <p className="mt-2 text-center text-xs text-red-200/90">
+              {hub.failedDocuments.length === 1
+                ? `${hub.failedDocuments[0]?.fileName} işlenemedi.`
+                : `${hub.failedDocuments.length} belge işlenemedi.`}{" "}
+              Aşağıdan yeniden dene veya kaldır.
+            </p>
+          ) : null}
         </div>
+
+        <DashboardFailedDocuments documents={hub.failedDocuments} />
 
         <section aria-labelledby="today-plan-heading" className="space-y-3">
           <h2

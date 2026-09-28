@@ -227,7 +227,8 @@ export async function processDocument(
         return fail("photo_quota_exhausted");
       }
 
-      const read = await extractImagePages(rendered.pages);
+      const pngs = rendered.pages.map((page) => page.png);
+      const read = await extractImagePages(pngs);
       recordVision(read.tokensIn, read.tokensOut, null);
 
       if (read.blocked) {

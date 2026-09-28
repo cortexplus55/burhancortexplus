@@ -225,5 +225,6 @@ describe("prep material helpers", () => {
     expect(freeMaterialLimitLine()).toContain(`taranmış PDF hakkı: ${PHOTO_PAGE_LIMITS.free} sayfa`);
     expect(freeMaterialLimitLine()).toContain("Metin katmanı olan PDF'ler bu kotaya girmez");
     expect(freeMaterialLimitLine()).toContain(`Plus'ta ${PHOTO_PAGE_LIMITS.plus} sayfa`);
+    expect(freeMaterialLimitLine({ isAdmin: true })).toBeNull();
   });
 });

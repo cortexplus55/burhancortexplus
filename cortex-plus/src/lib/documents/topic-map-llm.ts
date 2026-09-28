@@ -89,13 +89,21 @@ const SINGLE_PAGE_DIGEST_CHARS = 6000;
  * boş sayfa sanıp "konular çıkarılamadı" diyordu.
  */
 export function pagesForTopicMap(pages: PageAnalysis[]): PageAnalysis[] {
-  const rich = pages.filter(
+  // Empty / blank pages and failed OCR pages never feed the topic map.
+  // Short text-layer slides stay eligible for the pageUsableForLesson fallback
+  // even when analyzePage marks them unreadable (extractionOk=false, method none).
+  const eligible = pages.filter((page) => {
+    if (page.pageKind === "blank" || page.charCount <= 0) return false;
+    if (page.extractionOk === false && page.extractionMethod === "ocr") return false;
+    return true;
+  });
+  const rich = eligible.filter(
     (page) => page.pageKind === "content" || page.pageKind === "uncertain",
   );
   if (rich.length > 0) return rich;
 
   // Kısa slayt yolu — ders okuyucusuyla aynı pageUsableForLesson kuralı.
-  return pages.filter((page) => pageUsableForLesson(page));
+  return eligible.filter((page) => pageUsableForLesson(page));
 }
 
 /**
