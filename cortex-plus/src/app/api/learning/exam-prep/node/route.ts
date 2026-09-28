@@ -98,8 +98,12 @@ import { diagramIssues, needsDiagram } from "@/lib/learning/lesson-diagram";
 import { repairLessonSurface } from "@/lib/learning/learner-fluency";
 import { scoreLessonChecks } from "@/lib/learning/lesson-claims";
 import {
+  buildLessonRetryCheck,
   gradeSectionCheck,
+  resolveCheckForGrade,
   sealLessonForPlay,
+  sealSectionCheck,
+  type CheckGradeVariant,
   type LessonCheckAnswer,
 } from "@/lib/learning/lesson-play";
 import { runLessonQualityPipeline } from "@/lib/learning/lesson-quality-pipeline";
@@ -207,6 +211,8 @@ const bodySchema = z.object({
   answers: z.record(z.string(), z.unknown()).optional(),
   /** Tek kontrol notlandırma: bölüm indeksi + yanıt. */
   sectionIndex: z.number().int().min(0).optional(),
+  /** primary = bölüm sorusu; retry = sunucunun kurduğu tekrar varyantı. */
+  variant: z.enum(["primary", "retry"]).optional().default("primary"),
   checkAnswer: z
     .object({
       pick: z.number().int().min(0).optional(),
@@ -532,11 +538,13 @@ export async function POST(request: Request) {
   }
 
   // Ders kontrolü: cevap verilmeden önce istemcide cevap yok; not sunucuda.
+  // Design B: variant=retry iken aynı deterministik tekrar varyantı yeniden kurulur.
   if (action === "grade-check") {
     if (kind !== "lesson") return errorResponse(400, "invalid_input");
     const attemptId = parsed.data.attemptId;
     const sectionIndex = parsed.data.sectionIndex;
     const checkAnswer = parsed.data.checkAnswer as LessonCheckAnswer | undefined;
+    const variant = (parsed.data.variant ?? "primary") as CheckGradeVariant;
     if (!attemptId || sectionIndex == null || !checkAnswer) {
       return errorResponse(400, "invalid_input");
     }
@@ -550,9 +558,29 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (!attempt?.payload) return errorResponse(404, "not_found");
     const lesson = (attempt.payload as { lesson?: LessonV2 }).lesson;
-    const check = lesson?.sections?.[sectionIndex]?.check;
-    if (!check) return errorResponse(400, "invalid_input");
+    const section = lesson?.sections?.[sectionIndex];
+    const primary = section?.check;
+    if (!primary) return errorResponse(400, "invalid_input");
+    const check = resolveCheckForGrade(
+      primary,
+      variant,
+      prepLanguage(prep.learning_preferences),
+      section?.body ?? "",
+    );
     const result = gradeSectionCheck(check, checkAnswer);
+    // Primary notlandırmadan sonra sealed retry gönderilir (cevap zaten açık).
+    if (variant === "primary") {
+      const retry = buildLessonRetryCheck(
+        primary,
+        prepLanguage(prep.learning_preferences),
+        section?.body ?? "",
+      );
+      return NextResponse.json({
+        ok: true,
+        ...result,
+        retryCheck: sealSectionCheck(retry),
+      });
+    }
     return NextResponse.json({ ok: true, ...result });
   }
 
@@ -572,7 +600,7 @@ export async function POST(request: Request) {
         kind,
         title,
         topicLabel,
-        publicPayload: await publicPayloadForUser(service, userId, attempt.payload as Record<string, unknown>, lessonReviewCards, kind),
+        publicPayload: await publicPayloadForUser(service, userId, attempt.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
         resumed: true,
       }),
       ...(await readWalletBalance(service, userId)),
@@ -995,7 +1023,7 @@ export async function POST(request: Request) {
           kind,
           title,
           topicLabel,
-          publicPayload: await publicPayloadForUser(service, userId, existingForKey.payload as Record<string, unknown>, lessonReviewCards, kind),
+          publicPayload: await publicPayloadForUser(service, userId, existingForKey.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
           resumed: true,
         }),
         ...(await readWalletBalance(service, userId)),
@@ -1018,7 +1046,7 @@ export async function POST(request: Request) {
             kind,
             title,
             topicLabel,
-            publicPayload: await publicPayloadForUser(service, userId, existingForKey.payload as Record<string, unknown>, lessonReviewCards, kind),
+            publicPayload: await publicPayloadForUser(service, userId, existingForKey.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
             resumed: true,
           },
         ),
@@ -1043,7 +1071,7 @@ export async function POST(request: Request) {
           kind,
           title,
           topicLabel,
-          publicPayload: await publicPayloadForUser(service, userId, resumable.payload as Record<string, unknown>, lessonReviewCards, kind),
+          publicPayload: await publicPayloadForUser(service, userId, resumable.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
           resumed: true,
         }),
         ...(await readWalletBalance(service, userId)),
@@ -1110,7 +1138,7 @@ export async function POST(request: Request) {
         title,
         topicLabel,
         voiceMode: false,
-        payload: await publicPayloadForUser(service, userId, local.payload, lessonReviewCards, kind),
+        payload: await publicPayloadForUser(service, userId, local.payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
         ...(await readWalletBalance(service, userId)),
       });
     }
@@ -1446,7 +1474,7 @@ export async function POST(request: Request) {
               kind,
               title,
               topicLabel,
-              publicPayload: await publicPayloadForUser(service, userId, raced.payload as Record<string, unknown>, lessonReviewCards, kind),
+              publicPayload: await publicPayloadForUser(service, userId, raced.payload as Record<string, unknown>, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
               resumed: true,
             }),
           );
@@ -1731,7 +1759,7 @@ export async function POST(request: Request) {
         kind,
         title,
         topicLabel,
-        publicPayload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind),
+        publicPayload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
         resumed: false,
       }),
       ...(await readWalletBalance(service, userId)),
@@ -1796,7 +1824,7 @@ export async function POST(request: Request) {
     title,
     topicLabel,
     voiceMode,
-    payload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind),
+    payload: await publicPayloadForUser(service, userId, payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
     ...(await readWalletBalance(service, userId)),
   });
 }
@@ -2361,6 +2389,7 @@ async function generateNodePayload(input: {
         lesson,
         salvaged: false,
         failures: [] as { unit: string; problem: string }[],
+        checkCountLow: false,
       };
       if (!pastDeadline()) {
         const repairCall = (prompt: string, maxTokens: number) => {
@@ -2402,6 +2431,17 @@ async function generateNodePayload(input: {
           console.error("lesson_generation_salvaged", {
             failures: critical.slice(0, 8).map((failure) => `${failure.unit}:${failure.problem}`),
           });
+        }
+        if (taught.checkCountLow) {
+          await recordLessonGenerationFailure(input.service, {
+            userId: input.userId,
+            prepId: input.prepId ?? null,
+            topicLabel: input.topicLabel,
+            kind: "lesson",
+            stage: "check_count",
+            reason: "check_count_low",
+            reasons: ["Kontrol sayısı minimumun altında kaldı; ders yine de yayınlandı."],
+          }).catch(() => undefined);
         }
         if (repair.requested.length) {
           console.error("lesson_generation_repaired", {
@@ -2911,17 +2951,22 @@ async function publicPayloadForUser(
   payload: Record<string, unknown>,
   reviewCards: LessonReviewCard[] = [],
   nodeKind?: PlanNodeKind,
+  language: ReturnType<typeof prepLanguage> = "tr",
 ) {
   const isLesson = payload.type === "lesson";
   const isAdmin = isLesson ? await isAdminUser(service, userId) : false;
-  return publicNodePayload(payload, reviewCards, nodeKind, { isAdmin });
+  return publicNodePayload(payload, reviewCards, nodeKind, { isAdmin, language });
 }
 
 function publicNodePayload(
   payload: Record<string, unknown>,
   reviewCards: LessonReviewCard[] = [],
   nodeKind?: PlanNodeKind,
-  options: { isAdmin?: boolean; qualityReport?: { rule: string; excerpt: string }[] } = {},
+  options: {
+    isAdmin?: boolean;
+    qualityReport?: { rule: string; excerpt: string }[];
+    language?: ReturnType<typeof prepLanguage>;
+  } = {},
 ) {
   const decorated = withLessonReviewCards(payload, reviewCards);
   if (decorated.type === "oral") {
@@ -2935,7 +2980,9 @@ function publicNodePayload(
     return { ...decorated, questions };
   }
   if (decorated.type === "lesson" && decorated.lesson && typeof decorated.lesson === "object") {
-    const sealed = sealLessonForPlay(decorated.lesson as LessonV2);
+    const sealed = sealLessonForPlay(decorated.lesson as LessonV2, {
+      language: options.language ?? "tr",
+    });
     const report =
       options.qualityReport ??
       (Array.isArray(decorated.qualityReport)

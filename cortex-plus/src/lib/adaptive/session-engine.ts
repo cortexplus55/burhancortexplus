@@ -241,7 +241,24 @@ async function generateOrJoin(
   },
 ): Promise<GovernorAction | null> {
   const claim = await claimGeneration(service, input.sessionId, input.token);
-  if (!claim.claimed) return claim.action;
+  if (!claim.claimed) {
+    const joined = claim.action;
+    if (joined?.decisionTraceId) {
+      const answered = await hasAnswerForDecision(
+        service,
+        input.sessionId,
+        joined.decisionTraceId,
+      );
+      if (answered) {
+        // Bayat claim: cevaplanmış aksiyonu yeni pending yapma — taze üret.
+        const freshToken = `${input.token}:fresh:${joined.decisionTraceId}`;
+        return generateOrJoin(service, { ...input, token: freshToken });
+      }
+    }
+    // Join yolu da pending yazar; aksi halde pending_decision_trace_id null kalır.
+    if (joined) await persistPendingAction(service, input.sessionId, joined);
+    return joined;
+  }
   const action = await nextAction(
     service,
     input.userId,
@@ -257,28 +274,155 @@ async function generateOrJoin(
  * Shared by both places startSession resumes an already-existing active
  * session (the direct `existing` case, and the 23505-race fallback) so the
  * two can never drift out of sync with each other.
+ *
+ * Served + unanswered → her zaman sürdür (soru kaybolmasın; plan konusu
+ * farklı olsa bile). Yalnızca idle (hiç serve edilmemiş) pending, plan
+ * maddesi lehine temizlenir.
  */
 async function resumeExistingSession(
   service: SupabaseClient,
-  input: { userId: string; examPrepId: string },
+  input: {
+    userId: string;
+    examPrepId: string;
+    planItemId?: string | null;
+  },
   session: SessionState,
 ): Promise<{ session: SessionState; action: GovernorAction | null }> {
   const pending = await getPendingAction(service, session.id);
+  const planCtx = await resolvePlanContext(service, {
+    userId: input.userId,
+    examPrepId: input.examPrepId,
+    planItemId: input.planItemId,
+  });
+  const wantedKey = planCtx.planItem?.topicKey
+    ? normalizeTopicKey(planCtx.planItem.topicKey)
+    : null;
+  const pendingKey = pending?.topicKey ? normalizeTopicKey(pending.topicKey) : null;
+  const planDiffers = Boolean(pending && wantedKey && pendingKey !== wantedKey);
+
   if (pending) {
-    return { session, action: pending };
+    const answered = await hasAnswerForDecision(
+      service,
+      session.id,
+      pending.decisionTraceId,
+    );
+    const served = await hasServedForDecision(
+      service,
+      session.id,
+      pending.decisionTraceId,
+    );
+
+    if (!answered && served) {
+      // Serve edilmiş, cevaplanmamış — plan konusu farklı olsa bile kaybetme.
+      return { session, action: pending };
+    }
+    if (!answered && !served && !planDiffers) {
+      // Idle ve plan aynı/yok → sürdür.
+      return { session, action: pending };
+    }
+    // Cevaplanmış veya idle+plan farklı → temizle, plan maddesi için üret.
+    await persistPendingAction(service, session.id, null);
   }
-  // No pending action recorded yet (row predates this migration, or the
-  // very first generation for this session is still in flight from a
-  // concurrent request) — join that generation instead of starting a
-  // second, redundant one.
+
+  const previousTrace = pending?.decisionTraceId ?? "none";
   const action = await generateOrJoin(service, {
     userId: input.userId,
     examPrepId: input.examPrepId,
     sessionId: session.id,
-    token: "start",
-    ctx: { sessionMinutesRemaining: session.plannedDurationMinutes },
+    // Plan + önceki pending ile benzersiz; bayat answered claim'e yapışma.
+    token: `start:${planCtx.planItem?.id ?? "none"}:${previousTrace}`,
+    ctx: {
+      sessionMinutesRemaining: session.plannedDurationMinutes,
+      todayTarget: planCtx.objective ?? session.objective,
+      planTopicKeys: planCtx.planTopicKeys,
+      planItem: planCtx.planItem,
+    },
   });
+  if (planCtx.planItem?.id) {
+    await markPlanItemActive(service, planCtx.planItem.id);
+  }
   return { session, action };
+}
+
+/** Bu karar için answer_submitted var mı? */
+async function hasAnswerForDecision(
+  service: SupabaseClient,
+  sessionId: string,
+  decisionTraceId: string,
+): Promise<boolean> {
+  if (!decisionTraceId) return false;
+  try {
+    // İstemci anahtarı: `${sessionId}:${decisionTraceId}:${ts}` — doğrudan filtrele.
+    const { data: keyed } = await service
+      .from("adaptive_learning_events")
+      .select("idempotency_key, payload")
+      .eq("session_id", sessionId)
+      .eq("event_type", "answer_submitted")
+      .like("idempotency_key", `%${decisionTraceId}%`)
+      .limit(5);
+    if ((keyed ?? []).some((row) => eventMentionsDecision(row, decisionTraceId))) {
+      return true;
+    }
+    // Eski / farklı anahtar biçimleri: en yenilerden tara.
+    const { data } = await service
+      .from("adaptive_learning_events")
+      .select("idempotency_key, payload")
+      .eq("session_id", sessionId)
+      .eq("event_type", "answer_submitted")
+      .order("created_at", { ascending: false })
+      .limit(80);
+    return (data ?? []).some((row) => eventMentionsDecision(row, decisionTraceId));
+  } catch {
+    return false;
+  }
+}
+
+/** İçerik serve edildi mi? (intervention_started / content:session:trace). */
+async function hasServedForDecision(
+  service: SupabaseClient,
+  sessionId: string,
+  decisionTraceId: string,
+): Promise<boolean> {
+  if (!decisionTraceId) return false;
+  try {
+    const contentKey = `content:${sessionId}:${decisionTraceId}`;
+    const { data: exact } = await service
+      .from("adaptive_learning_events")
+      .select("id")
+      .eq("session_id", sessionId)
+      .eq("idempotency_key", contentKey)
+      .maybeSingle();
+    if (exact?.id) return true;
+
+    const { data } = await service
+      .from("adaptive_learning_events")
+      .select("idempotency_key, payload, event_type")
+      .eq("session_id", sessionId)
+      .eq("event_type", "intervention_started")
+      .order("created_at", { ascending: false })
+      .limit(40);
+    return (data ?? []).some((row) => eventMentionsDecision(row, decisionTraceId));
+  } catch {
+    return false;
+  }
+}
+
+function eventMentionsDecision(
+  row: { idempotency_key?: unknown; payload?: unknown },
+  decisionTraceId: string,
+): boolean {
+  const key = String(row.idempotency_key ?? "");
+  if (key.includes(decisionTraceId)) return true;
+  const payload = row.payload as
+    | {
+        evidence?: { idempotencyKey?: string; decisionTraceId?: string };
+        content?: { decisionTraceId?: string };
+      }
+    | null;
+  if (payload?.evidence?.idempotencyKey?.includes(decisionTraceId)) return true;
+  if (payload?.evidence?.decisionTraceId === decisionTraceId) return true;
+  if (payload?.content?.decisionTraceId === decisionTraceId) return true;
+  return false;
 }
 
 export async function startSession(
@@ -288,6 +432,7 @@ export async function startSession(
     examPrepId: string;
     plannedDurationMinutes?: number;
     objective?: string;
+    planItemId?: string | null;
   },
 ): Promise<{ session: SessionState; action: GovernorAction | null }> {
   const existing = await getActiveSession(
@@ -299,14 +444,22 @@ export async function startSession(
     return resumeExistingSession(service, input, existing);
   }
 
+  const planCtx = await resolvePlanContext(service, {
+    userId: input.userId,
+    examPrepId: input.examPrepId,
+    planItemId: input.planItemId,
+  });
+
   const planned = input.plannedDurationMinutes ?? 45;
+  const objective =
+    input.objective ?? planCtx.objective ?? "Bugünkü çalışma";
   const { data, error } = await service
     .from("adaptive_learning_sessions")
     .insert({
       user_id: input.userId,
       exam_prep_id: input.examPrepId,
       planned_duration_minutes: planned,
-      objective: input.objective ?? "Bugünkü çalışma",
+      objective,
       status: "active",
       policy_version: ADAPTIVE_POLICY_VERSION,
     })
@@ -316,14 +469,6 @@ export async function startSession(
     .single();
 
   if (error && String(error.code) === "23505") {
-    // Lost the race to a concurrent /session/start call that already
-    // inserted the active session for this user+prep (a normal read-then-
-    // insert race under READ COMMITTED: our own getActiveSession() above
-    // saw nothing a moment ago, but a concurrent request fully committed
-    // its insert in between). Read its row and resume it exactly like the
-    // `existing` branch above — same helper, so the winner may still be
-    // mid-generation and this request correctly joins that claim rather
-    // than starting a second one.
     const race = await getActiveSession(service, input.userId, input.examPrepId);
     if (race) {
       return resumeExistingSession(service, input, race);
@@ -351,18 +496,145 @@ export async function startSession(
     examPrepId: input.examPrepId,
     sessionId: session.id,
     eventType: "session_started",
-    payload: { plannedDurationMinutes: planned },
+    payload: {
+      plannedDurationMinutes: planned,
+      planItemId: planCtx.planItem?.id ?? null,
+    },
   });
 
   const action = await generateOrJoin(service, {
     userId: input.userId,
     examPrepId: input.examPrepId,
     sessionId: session.id,
-    token: "start",
-    ctx: { sessionMinutesRemaining: planned, todayTarget: session.objective },
+    token: `start:${planCtx.planItem?.id ?? "none"}:none`,
+    ctx: {
+      sessionMinutesRemaining: planned,
+      todayTarget: session.objective,
+      planTopicKeys: planCtx.planTopicKeys,
+      planItem: planCtx.planItem,
+    },
   });
 
+  if (planCtx.planItem?.id) {
+    await markPlanItemActive(service, planCtx.planItem.id);
+  }
+
   return { session, action };
+}
+
+/** Bugünkü plan maddeleri + isteğe bağlı seçili madde. Ağır ensureDailyPlan yok — oturum start'ı bloklamasın. */
+async function resolvePlanContext(
+  service: SupabaseClient,
+  input: { userId: string; examPrepId: string; planItemId?: string | null },
+): Promise<{
+  planTopicKeys: string[];
+  planItem: GovernorContext["planItem"];
+  objective: string | null;
+}> {
+  try {
+    const { data: plan } = await service
+      .from("adaptive_daily_plans")
+      .select("id, objective")
+      .eq("user_id", input.userId)
+      .eq("exam_prep_id", input.examPrepId)
+      .eq("status", "active")
+      .order("plan_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!plan?.id) {
+      return { planTopicKeys: [], planItem: null, objective: null };
+    }
+    const { data: itemRows } = await service
+      .from("adaptive_daily_plan_items")
+      .select("id, kind, title, topic_key, status")
+      .eq("daily_plan_id", plan.id)
+      .order("sort_order", { ascending: true });
+    const items = (itemRows ?? []).map((row) => ({
+      id: String(row.id),
+      kind: String(row.kind ?? ""),
+      title: String(row.title ?? ""),
+      topicKey: row.topic_key ? normalizeTopicKey(String(row.topic_key)) : null,
+      status: String(row.status ?? "pending"),
+    }));
+    const pending = items.filter(
+      (item) => item.status === "pending" || item.status === "active",
+    );
+    const ordered = pending.length ? pending : items;
+    const planTopicKeys = ordered
+      .map((item) => item.topicKey)
+      .filter((key): key is string => Boolean(key));
+    // Bayat ?planItemId= (done/skipped) yok say; ilk pending/active'e düş.
+    const requested = input.planItemId
+      ? items.find((item) => item.id === input.planItemId)
+      : null;
+    const requestedLive =
+      requested &&
+      (requested.status === "pending" || requested.status === "active")
+        ? requested
+        : null;
+    const selected = requestedLive ?? ordered[0] ?? null;
+    return {
+      planTopicKeys,
+      planItem: selected?.topicKey
+        ? {
+            id: selected.id,
+            topicKey: selected.topicKey,
+            kind: selected.kind,
+            title: selected.title,
+          }
+        : null,
+      objective: (plan.objective as string) || selected?.title || null,
+    };
+  } catch {
+    return { planTopicKeys: [], planItem: null, objective: null };
+  }
+}
+
+async function markPlanItemActive(service: SupabaseClient, planItemId: string) {
+  try {
+    await service
+      .from("adaptive_daily_plan_items")
+      .update({ status: "active", updated_at: new Date().toISOString() })
+      .eq("id", planItemId)
+      .eq("status", "pending");
+  } catch {
+    // best-effort
+  }
+}
+
+export async function markPlanItemDone(
+  service: SupabaseClient,
+  input: { userId: string; examPrepId: string; topicKey: string },
+) {
+  const key = normalizeTopicKey(input.topicKey);
+  try {
+    const { data: plan } = await service
+      .from("adaptive_daily_plans")
+      .select("id")
+      .eq("user_id", input.userId)
+      .eq("exam_prep_id", input.examPrepId)
+      .eq("status", "active")
+      .order("plan_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!plan?.id) return;
+    const { data: rows } = await service
+      .from("adaptive_daily_plan_items")
+      .select("id, topic_key, status")
+      .eq("daily_plan_id", plan.id);
+    const match = (rows ?? []).find((row) => {
+      const topic = row.topic_key ? normalizeTopicKey(String(row.topic_key)) : "";
+      const status = String(row.status ?? "");
+      return topic === key && (status === "pending" || status === "active");
+    });
+    if (!match) return;
+    await service
+      .from("adaptive_daily_plan_items")
+      .update({ status: "done", updated_at: new Date().toISOString() })
+      .eq("id", match.id);
+  } catch {
+    // best-effort
+  }
 }
 
 export async function submitEvidence(
@@ -557,6 +829,20 @@ export async function submitEvidence(
     })
     .eq("id", input.sessionId);
 
+  if (evidence.correct) {
+    await markPlanItemDone(service, {
+      userId: input.userId,
+      examPrepId: input.examPrepId,
+      topicKey: key,
+    });
+  }
+
+  const planCtx = await resolvePlanContext(service, {
+    userId: input.userId,
+    examPrepId: input.examPrepId,
+    planItemId: null,
+  });
+
   const action = await generateOrJoin(service, {
     userId: input.userId,
     examPrepId: input.examPrepId,
@@ -567,6 +853,9 @@ export async function submitEvidence(
       lastAnswerCorrect: evidence.correct,
       repeatedMisconception: updated.next.repeatedErrorCount >= 2,
       sessionMinutesRemaining: Number(sess?.planned_duration_minutes ?? 45),
+      planTopicKeys: planCtx.planTopicKeys,
+      planItem: planCtx.planItem,
+      todayTarget: planCtx.objective ?? input.ctx?.todayTarget,
     },
   });
 

@@ -202,17 +202,38 @@ export async function ensureDailyPlan(
     .eq("daily_plan_id", planId)
     .order("sort_order", { ascending: true });
 
-  const items: DailyPlanItem[] = (itemRows ?? []).map((row) => ({
-    id: row.id as string,
-    kind: String(row.kind),
-    title: String(row.title),
-    minutes: Number(row.minutes ?? 10),
-    topicId: (row.topic_id as string) ?? null,
-    topicKey: (row.topic_key as string) ?? null,
-    status: (row.status as DailyPlanItem["status"]) ?? "pending",
-    reasonCode: (row.reason_code as ReasonCode) ?? null,
-    href: (row.href as string) ?? null,
-  }));
+  const items: DailyPlanItem[] = [];
+  for (const row of itemRows ?? []) {
+    const id = row.id as string;
+    const storedHref = (row.href as string) ?? null;
+    const withItem =
+      storedHref && !storedHref.includes("planItemId=")
+        ? `${storedHref}${storedHref.includes("?") ? "&" : "?"}planItemId=${id}`
+        : storedHref ??
+          `/deneme-sinavlari/${input.examPrepId}/oturum?planItemId=${id}`;
+    // Eski satırlarda href'de planItemId yoksa DB'yi de güncelle (best-effort).
+    if (storedHref && !storedHref.includes("planItemId=")) {
+      try {
+        await service
+          .from("adaptive_daily_plan_items")
+          .update({ href: withItem })
+          .eq("id", id);
+      } catch {
+        // best-effort
+      }
+    }
+    items.push({
+      id,
+      kind: String(row.kind),
+      title: String(row.title),
+      minutes: Number(row.minutes ?? 10),
+      topicId: (row.topic_id as string) ?? null,
+      topicKey: (row.topic_key as string) ?? null,
+      status: (row.status as DailyPlanItem["status"]) ?? "pending",
+      reasonCode: (row.reason_code as ReasonCode) ?? null,
+      href: withItem,
+    });
+  }
 
   const noticeFromMeta =
     itemRows?.[0]?.meta &&

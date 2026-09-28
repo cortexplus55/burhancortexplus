@@ -33,7 +33,7 @@ const SUP_DIGIT: Record<string, string> = {
 };
 
 /** Latin harfin kendi alt simgesi. Eksik harf başka harfe dönmez; alt çizgi kalır. */
-const LETTER_TO_SUB: Record<string, string> = {
+export const LETTER_TO_SUB: Record<string, string> = {
   a: "ₐ",
   e: "ₑ",
   h: "ₕ",

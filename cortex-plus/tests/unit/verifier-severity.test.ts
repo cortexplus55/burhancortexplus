@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { recordValidationEvent } from "@/lib/learning/validation-metrics";
-import { parseModelJson, publishLessonDraft, lessonPublishIssues, normalizeMathNotation } from "@/lib/learning/teaching-standards";
+import { parseModelJson, publishLessonDraft, lessonPublishIssues, normalizeMathNotation, hasUndelimitedLatex } from "@/lib/learning/teaching-standards";
 import { keyTermsFromTeacherNote } from "@/lib/learning/teacher-brain";
 import {
   runIndependentValidation,
@@ -131,7 +131,9 @@ describe("lenient lesson JSON", () => {
     expect(parsed.overview).toContain("frac");
     const gate = runIndependentValidation({ draft: raw, parsed });
     expect(gate.issues.some((issue) => issue.code === "invalid_json")).toBe(false);
-    expect(normalizeMathNotation(parsed.overview)).not.toMatch(/\\frac|\\\(/);
+    expect(normalizeMathNotation(parsed.overview)).toMatch(/\\\(|\$/);
+    expect(normalizeMathNotation(String.raw`Basınç \frac{F}{A} ile`)).not.toMatch(/\\frac/);
+    expect(normalizeMathNotation(String.raw`Basınç \frac{F}{A} ile`)).toMatch(/\(F\)\/\(A\)/);
   });
 
   it("still reports invalid_json when the text is not JSON at all", () => {
@@ -163,7 +165,9 @@ describe("deterministic lesson fixes", () => {
     );
     expect(terms).toContain("mutlak basınç");
     const published = publishLessonDraft(raw, { keyTerms: terms });
-    expect(published?.sections[0].body).not.toMatch(/\\frac|\\\(/);
+    expect(published?.sections[0].body).toMatch(/\\\(|\$/);
+    // Sınırlı LaTeX ($…$ / \(…\)) yayınlanır; ham (sınırsız) LaTeX flatten edilir.
+    expect(hasUndelimitedLatex(published?.sections[0].body ?? "")).toBe(false);
     expect(published?.sections[2].body).toContain("**");
     expect(published?.sections[2].body.toLocaleLowerCase("tr")).toContain("mutlak basınç");
     expect(lessonPublishIssues(raw, { keyTerms: terms }).some((issue) => /adım adım|LaTeX|kontrol sorusu/.test(issue))).toBe(

@@ -27,11 +27,11 @@ export type StudentStateBundle = {
   behavior: LearningBehavior;
 };
 
+import { daysUntilDate } from "@/lib/learning/exam-countdown";
+
 function daysUntil(examDate: string | null): number | null {
   if (!examDate) return null;
-  const end = new Date(`${examDate}T23:59:59`);
-  const ms = end.getTime() - Date.now();
-  return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+  return Math.max(0, daysUntilDate(examDate));
 }
 
 export async function loadStudentState(

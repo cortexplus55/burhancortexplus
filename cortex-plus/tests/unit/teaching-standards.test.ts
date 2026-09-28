@@ -1126,9 +1126,20 @@ describe("blocking vs cosmetic lesson issues", () => {
     expect(blockingLessonIssues(sound)).toEqual([]);
   });
 
-  it("blocks raw LaTeX that reaches the student verbatim", () => {
-    // Canlıda ekranda böyle göründü.
+  it("blocks undelimited LaTeX; allows $…$ / \\(…\\) math", () => {
     const latex = {
+      ...sound,
+      sections: [
+        {
+          ...sound.sections[0],
+          body: String.raw`Dağılım eğrisi \frac{D_{60}}{D_{10}} içerir.`,
+        },
+        ...sound.sections.slice(1),
+      ],
+    };
+    expect(blockingLessonIssues(latex).some((i) => i.includes("LaTeX"))).toBe(true);
+
+    const delimited = {
       ...sound,
       sections: [
         {
@@ -1138,7 +1149,7 @@ describe("blocking vs cosmetic lesson issues", () => {
         ...sound.sections.slice(1),
       ],
     };
-    expect(blockingLessonIssues(latex).some((i) => i.includes("LaTeX"))).toBe(true);
+    expect(blockingLessonIssues(delimited).some((i) => i.includes("LaTeX"))).toBe(false);
   });
 
   it("blocks a filler option", () => {
