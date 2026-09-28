@@ -19,11 +19,12 @@ function page(partial: Partial<PageAnalysis> & Pick<PageAnalysis, "pageNumber">)
 }
 
 describe("pagesForTopicMap", () => {
-  it("extractionOk=false ve blank sayfaları dışlar", () => {
+  it("extractionOk=false OCR ve blank sayfaları dışlar", () => {
     const rich = page({ pageNumber: 1, pageKind: "content", charCount: 200 });
     const badOcr = page({
       pageNumber: 2,
       extractionOk: false,
+      extractionMethod: "ocr",
       pageKind: "unreadable",
       textContent: "Mol oranı",
       charCount: 9,
@@ -44,6 +45,7 @@ describe("pagesForTopicMap", () => {
       pageNumber: 2,
       pageKind: "unreadable",
       extractionOk: false,
+      extractionMethod: "none",
       textContent: "Kısa slayt",
       charCount: 10,
     });
