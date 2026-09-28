@@ -65,7 +65,13 @@ export default async function AdminOdemelerPage({
 
   for (const row of refundRows ?? []) {
     const reason = parseRefundReason(row.reason as string | null);
-    if (reason?.state === "failed" || reason?.state === "pending") continue;
+    if (
+      reason?.state === "failed" ||
+      reason?.state === "pending" ||
+      reason?.state === "applying"
+    ) {
+      continue;
+    }
     const paymentId = row.payment_id as string;
     const bucket = refundsByPayment.get(paymentId) ?? {
       totalKurus: 0,
@@ -187,6 +193,9 @@ export default async function AdminOdemelerPage({
                               : ""}
                             {r.reason?.source
                               ? ` · ${r.reason.source === "reconcile" ? "mutabakat" : "admin"}`
+                              : ""}
+                            {r.reason?.actor_id
+                              ? ` · ${String(r.reason.actor_id).slice(0, 8)}`
                               : ""}
                           </li>
                         ))}

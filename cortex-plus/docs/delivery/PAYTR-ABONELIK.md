@@ -186,3 +186,18 @@ durum `refunded` olur. Abonelikte tam iade, kullanıcının **aktif**
 aboneliğini hedefler (plan yükseltmesinden sonra eski Plus ödemesi iade
 edilse bile); önceki ödenmiş dönem hâlâ sürüyorsa süre kısaltılır, yoksa
 abonelik iptal edilir ve dönem hakkı sıfırlanır.
+
+### Mutabakat ve yarım kalan iade
+
+"PayTR'den kontrol et" PayTR'deki iade **toplamını** kayıtlı toplamla
+karşılaştırır; fark (delta) kadar tek satır yazar. `reference_no` olmasa
+bile aynı toplam iki kez işlenmez. Panelden "kaydet" sonrası kontrol de
+çift saymaz.
+
+İade kaydı önce `applying` olur; kredi/abonelik adımları bitince `applied`
+yapılır. Bir adım yarıda kalırsa satır `applying` kalır ve aynı referansla
+tekrar denendiğinde kaldığı yerden devam eder.
+
+Eski akışta `payments.status=refunded` yazılmış ama `refunds` satırı
+olmayan kayıtlarda aktif (yeni) aboneliğe dokunulmaz — yalnızca kredi
+defteri tamamlanır.

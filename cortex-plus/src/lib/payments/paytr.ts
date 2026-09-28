@@ -157,6 +157,17 @@ export function generateMerchantOid(): string {
   return `cp${crypto.randomBytes(14).toString("hex")}`;
 }
 
+const PAYTR_FETCH_TIMEOUT_MS = 20_000;
+
+function paytrFetchInit(body: URLSearchParams): RequestInit {
+  return {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+    signal: AbortSignal.timeout(PAYTR_FETCH_TIMEOUT_MS),
+  };
+}
+
 export type PaytrRefundInput = {
   merchantOid: string;
   /** Amount in TRY (not kuruş). Serialized with two decimals. */
@@ -211,11 +222,10 @@ export async function requestPaytrRefund(
 
   let raw: unknown = null;
   try {
-    const response = await fetch("https://www.paytr.com/odeme/iade", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    });
+    const response = await fetch(
+      "https://www.paytr.com/odeme/iade",
+      paytrFetchInit(body),
+    );
     const text = await response.text();
     try {
       raw = JSON.parse(text);
@@ -307,11 +317,21 @@ export type PaytrStatusResult = {
   raw: unknown;
 };
 
-/** TL string/number → kuruş. "10,8" / "10.80" / 10.8 kabul. */
+/**
+ * TL string/number → kuruş.
+ * "10,8" / "10.80" / 10.8 / "1.234,56" (TR binlik) kabul.
+ */
 export function parsePaytrTryToKurus(value: string | number | undefined): number {
   if (value == null) return 0;
-  const normalized = String(value).trim().replace(/\s/g, "").replace(",", ".");
-  const n = Number(normalized);
+  let s = String(value).trim().replace(/\s/g, "");
+  if (!s) return 0;
+  if (s.includes(",") && s.includes(".")) {
+    // 1.234,56 → 1234.56
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (s.includes(",")) {
+    s = s.replace(",", ".");
+  }
+  const n = Number(s);
   if (!Number.isFinite(n) || n < 0) return 0;
   return Math.round(n * 100);
 }
@@ -360,11 +380,10 @@ export async function queryPaytrStatus(
 
   let raw: unknown = null;
   try {
-    const response = await fetch("https://www.paytr.com/odeme/durum-sorgu", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    });
+    const response = await fetch(
+      "https://www.paytr.com/odeme/durum-sorgu",
+      paytrFetchInit(body),
+    );
     const text = await response.text();
     try {
       raw = JSON.parse(text);

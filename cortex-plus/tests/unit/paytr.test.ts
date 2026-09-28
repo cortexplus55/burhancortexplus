@@ -321,9 +321,25 @@ describe("queryPaytrStatus", () => {
     );
   });
 
-  it("parsePaytrTryToKurus virgüllü TL'yi kuruşa çevirir", () => {
+  it("parsePaytrTryToKurus virgüllü ve binlik ayraçlı TL'yi kuruşa çevirir", () => {
     expect(parsePaytrTryToKurus("10,8")).toBe(1080);
     expect(parsePaytrTryToKurus("10.80")).toBe(1080);
     expect(parsePaytrTryToKurus(1.5)).toBe(150);
+    expect(parsePaytrTryToKurus("1.234,56")).toBe(123456);
+  });
+
+  it("fetch AbortSignal.timeout ile çağrılır", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        expect(init?.signal).toBeDefined();
+        return new Response(JSON.stringify({ status: "success", returns: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
+    await queryPaytrStatus("cptimeout");
+    expect(vi.mocked(fetch)).toHaveBeenCalled();
   });
 });

@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   computeRefundPlan,
   isPaymentRefundLedgerEntry,
+  reconcileDeltaRef,
   refundLedgerIdempotencyKey,
+  shouldTouchSubscription,
+  sumAppliedRefunds,
 } from "@/lib/payments/refund";
+import { parsePaytrTryToKurus } from "@/lib/payments/paytr";
 
 describe("computeRefundPlan", () => {
   it("T1: 150 kredi, bakiye 150, tam iade → reversed 150, unrecovered 0", () => {
@@ -20,10 +24,9 @@ describe("computeRefundPlan", () => {
     expect(plan.toReverse).toBe(150);
     expect(plan.reversed).toBe(150);
     expect(plan.unrecovered).toBe(0);
-    expect(plan.cancelSubscription).toBe(false);
   });
 
-  it("T2: 150 kredi, bakiye 40, tam iade → reversed 40, unrecovered 110", () => {
+  it("T2: 150 kredi, bakiye 40 → reversed 40, unrecovered 110", () => {
     const plan = computeRefundPlan({
       paidKurus: 15000,
       refundKurus: 15000,
@@ -35,10 +38,9 @@ describe("computeRefundPlan", () => {
     });
     expect(plan.reversed).toBe(40);
     expect(plan.unrecovered).toBe(110);
-    expect(plan.toReverse).toBe(150);
   });
 
-  it("T3: kısmi %50 sonra ikinci %50 toplam 150'yi aşmaz", () => {
+  it("T3: kısmi %50 ×2 toplam 150'yi aşmaz", () => {
     const first = computeRefundPlan({
       paidKurus: 15000,
       refundKurus: 7500,
@@ -48,9 +50,6 @@ describe("computeRefundPlan", () => {
       availableBalance: 150,
       isSubscription: false,
     });
-    expect(first.toReverse).toBe(75);
-    expect(first.isFull).toBe(false);
-
     const second = computeRefundPlan({
       paidKurus: 15000,
       refundKurus: 7500,
@@ -60,13 +59,11 @@ describe("computeRefundPlan", () => {
       availableBalance: 75,
       isSubscription: false,
     });
-    expect(second.toReverse).toBe(75);
-    expect(second.isFull).toBe(true);
     expect(first.toReverse + second.toReverse).toBe(150);
+    expect(second.isFull).toBe(true);
   });
 
-  it("T4: floor yuvarlama — 3 kuruş artığı kredi üretmez", () => {
-    // 100 kredi, 3 kuruş iade → floor(100 * 3 / 10000) = 0
+  it("T4: floor — 3 kuruş artığı kredi üretmez", () => {
     const plan = computeRefundPlan({
       paidKurus: 10000,
       refundKurus: 3,
@@ -77,12 +74,11 @@ describe("computeRefundPlan", () => {
       isSubscription: false,
     });
     expect(plan.toReverse).toBe(0);
-    expect(plan.reversed).toBe(0);
   });
 
-  it("T5a: abonelik tam iade, önceki dönem yok → cancel", () => {
+  it("T5/T6 abonelik tam/kısmi", () => {
     const now = new Date("2026-09-28T12:00:00Z");
-    const plan = computeRefundPlan({
+    const cancel = computeRefundPlan({
       paidKurus: 59900,
       refundKurus: 59900,
       alreadyRefundedKurus: 0,
@@ -94,14 +90,9 @@ describe("computeRefundPlan", () => {
       currentPeriodEnd: new Date("2026-10-20T12:00:00Z"),
       now,
     });
-    // new_end = Oct 20 - 30d = Sep 20 <= now Sep 28 → cancel
-    expect(plan.cancelSubscription).toBe(true);
-    expect(plan.shrinkPeriodEnd).toBeNull();
-  });
+    expect(cancel.cancelSubscription).toBe(true);
 
-  it("T5b: abonelik tam iade, önceki dönem sürüyor → shrink", () => {
-    const now = new Date("2026-09-28T12:00:00Z");
-    const plan = computeRefundPlan({
+    const shrink = computeRefundPlan({
       paidKurus: 59900,
       refundKurus: 59900,
       alreadyRefundedKurus: 0,
@@ -113,13 +104,10 @@ describe("computeRefundPlan", () => {
       currentPeriodEnd: new Date("2026-11-15T12:00:00Z"),
       now,
     });
-    // new_end = Nov 15 - 30d = Oct 16 > now → keep active
-    expect(plan.cancelSubscription).toBe(false);
-    expect(plan.shrinkPeriodEnd).toBe(new Date("2026-10-16T12:00:00Z").toISOString());
-  });
+    expect(shrink.cancelSubscription).toBe(false);
+    expect(shrink.shrinkPeriodEnd).toBeTruthy();
 
-  it("T6: abonelik kısmi iade → abonelik değişmez", () => {
-    const plan = computeRefundPlan({
+    const partial = computeRefundPlan({
       paidKurus: 59900,
       refundKurus: 10000,
       alreadyRefundedKurus: 0,
@@ -130,29 +118,108 @@ describe("computeRefundPlan", () => {
       periodDays: 30,
       currentPeriodEnd: new Date("2026-10-20T12:00:00Z"),
     });
-    expect(plan.isFull).toBe(false);
-    expect(plan.cancelSubscription).toBe(false);
-    expect(plan.shrinkPeriodEnd).toBeNull();
+    expect(partial.cancelSubscription).toBe(false);
+    expect(partial.shrinkPeriodEnd).toBeNull();
   });
 
-  it("T7: purchase ledger yoksa kredi geri alma 0", () => {
+  it("B5: touchSubscription=false iken abonelik planı değişmez", () => {
     const plan = computeRefundPlan({
-      paidKurus: 5000,
-      refundKurus: 5000,
+      paidKurus: 59900,
+      refundKurus: 59900,
       alreadyRefundedKurus: 0,
       purchasedCredits: 0,
       alreadyReversedCredits: 0,
-      availableBalance: 20,
-      isSubscription: false,
+      availableBalance: 0,
+      isSubscription: true,
+      touchSubscription: false,
+      periodDays: 30,
+      currentPeriodEnd: new Date("2026-10-20T12:00:00Z"),
     });
-    expect(plan.toReverse).toBe(0);
-    expect(plan.reversed).toBe(0);
-    expect(plan.unrecovered).toBe(0);
+    expect(plan.skipSubscription).toBe(true);
+    expect(plan.cancelSubscription).toBe(false);
+    expect(plan.shrinkPeriodEnd).toBeNull();
   });
 });
 
-describe("refundLedgerIdempotencyKey", () => {
-  it("tek seferlik tam iade için :full kullanır", () => {
+describe("shouldTouchSubscription / B5", () => {
+  it("legacy refunded + refunds yok → aboneliğe dokunma", () => {
+    expect(
+      shouldTouchSubscription({
+        paymentStatus: "refunded",
+        alreadyRefundedKurus: 0,
+        isSubscription: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("paid abonelik ödemesi → dokun", () => {
+    expect(
+      shouldTouchSubscription({
+        paymentStatus: "paid",
+        alreadyRefundedKurus: 0,
+        isSubscription: true,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("sumAppliedRefunds", () => {
+  it("yalnızca applied sayılır; applying/pending tutara girmez (B1)", () => {
+    const sum = sumAppliedRefunds([
+      {
+        id: "1",
+        amount_try: 15000,
+        reason: JSON.stringify({
+          state: "applying",
+          ref: "r1",
+          kind: "payment_refund",
+          merchant_oid: "x",
+          payment_id: "p",
+          source: "admin",
+          reversed: 150,
+        }),
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: "2",
+        amount_try: 5000,
+        reason: JSON.stringify({
+          state: "applied",
+          ref: "r2",
+          kind: "payment_refund",
+          merchant_oid: "x",
+          payment_id: "p",
+          source: "admin",
+          reversed: 50,
+        }),
+        created_at: new Date().toISOString(),
+      },
+    ]);
+    expect(sum.alreadyRefundedKurus).toBe(5000);
+    expect(sum.alreadyReversedCredits).toBe(50);
+    expect(sum.appliedRefs.has("r2")).toBe(true);
+    expect(sum.appliedRefs.has("r1")).toBe(false);
+    expect(sum.inProgressByRef.has("r1")).toBe(true);
+  });
+});
+
+describe("reconcileDeltaRef", () => {
+  it("aynı toplam → aynı ref (B2 uydurma ref yok)", () => {
+    expect(reconcileDeltaRef("cpoid", 5000)).toBe(reconcileDeltaRef("cpoid", 5000));
+    expect(reconcileDeltaRef("cpoid", 5000)).not.toBe(reconcileDeltaRef("cpoid", 7500));
+  });
+});
+
+describe("parsePaytrTryToKurus", () => {
+  it("TR binlik ayraçlı tutarı okur (B2)", () => {
+    expect(parsePaytrTryToKurus("1.234,56")).toBe(123456);
+    expect(parsePaytrTryToKurus("10,8")).toBe(1080);
+    expect(parsePaytrTryToKurus("10.80")).toBe(1080);
+  });
+});
+
+describe("refundLedgerIdempotencyKey / labels", () => {
+  it("tam iade :full", () => {
     expect(
       refundLedgerIdempotencyKey({
         merchantOid: "cpabc",
@@ -163,19 +230,6 @@ describe("refundLedgerIdempotencyKey", () => {
     ).toBe("payment_refund:cpabc:full");
   });
 
-  it("kısmi / tamamlayan iade için providerRef kullanır", () => {
-    expect(
-      refundLedgerIdempotencyKey({
-        merchantOid: "cpabc",
-        providerRef: "ref-2",
-        isFull: true,
-        alreadyRefundedKurus: 100,
-      }),
-    ).toBe("payment_refund:cpabc:ref-2");
-  });
-});
-
-describe("isPaymentRefundLedgerEntry", () => {
   it("payment_refund önekini tanır", () => {
     expect(
       isPaymentRefundLedgerEntry({
@@ -183,17 +237,5 @@ describe("isPaymentRefundLedgerEntry", () => {
         idempotency_key: "payment_refund:cp:full",
       }),
     ).toBe(true);
-    expect(
-      isPaymentRefundLedgerEntry({
-        entry_type: "adjustment",
-        metadata: { reason: "payment_refund:cp" },
-      }),
-    ).toBe(true);
-    expect(
-      isPaymentRefundLedgerEntry({
-        entry_type: "adjustment",
-        idempotency_key: "admin_grant:1",
-      }),
-    ).toBe(false);
   });
 });

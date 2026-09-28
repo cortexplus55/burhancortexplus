@@ -1,12 +1,13 @@
 import "server-only";
 
+import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { auditLog } from "@/lib/audit";
 import { formatTry } from "@/lib/format";
 
 /** refunds.reason JSON — makine-okunur durum + defter özeti. */
-export type RefundReasonState = "pending" | "applied" | "failed";
+export type RefundReasonState = "pending" | "applying" | "applied" | "failed";
 
 export type RefundReasonPayload = {
   state: RefundReasonState;
@@ -23,6 +24,7 @@ export type RefundReasonPayload = {
   is_full?: boolean;
   cancel_subscription?: boolean;
   shrink_period_end?: string | null;
+  skip_subscription?: boolean;
   paytr_err?: string | null;
   error_step?: string | null;
 };
@@ -36,6 +38,8 @@ export type ComputeRefundPlanInput = {
   /** credit_adjust_balance'ın düşebildiği miktar = wallet.balance (reserved zaten düşülmüş). */
   availableBalance: number;
   isSubscription: boolean;
+  /** B5: legacy/refunded ödemede aboneliğe dokunma. */
+  touchSubscription?: boolean;
   currentPeriodEnd?: Date | string | null;
   periodDays?: number | null;
   now?: Date;
@@ -47,11 +51,14 @@ export type ComputeRefundPlanResult = {
   reversed: number;
   unrecovered: number;
   cancelSubscription: boolean;
-  /** Abonelik aktif kalırsa yeni current_period_end (ISO); aksi halde null. */
   shrinkPeriodEnd: string | null;
   isFull: boolean;
   remainingRefundableKurus: number;
+  skipSubscription: boolean;
 };
+
+/** Pending/applying satırları bu süreden eskiyse kilit sayılmaz (süresi dolmuş). */
+export const PENDING_LOCK_TTL_MS = 10 * 60 * 1000;
 
 export function parseRefundReason(raw: string | null | undefined): RefundReasonPayload | null {
   if (!raw) return null;
@@ -72,11 +79,23 @@ export function refundLedgerIdempotencyKey(opts: {
   isFull: boolean;
   alreadyRefundedKurus: number;
 }): string {
-  // Tek seferlik tam iade: sabit anahtar (çift tık). Kısmi / tamamlayan: ref bazlı.
   if (opts.isFull && opts.alreadyRefundedKurus === 0) {
     return `payment_refund:${opts.merchantOid}:full`;
   }
   return `payment_refund:${opts.merchantOid}:${opts.providerRef}`;
+}
+
+/**
+ * Mutabakat için deterministik ref: PayTR toplam iade kuruşuna bağlı.
+ * reference_no olmasa da aynı toplam → aynı ref → tekrar işlenmez.
+ */
+export function reconcileDeltaRef(merchantOid: string, paytrTotalKurus: number): string {
+  const digest = crypto
+    .createHash("sha256")
+    .update(`${merchantOid}|${paytrTotalKurus}`)
+    .digest("hex")
+    .slice(0, 40);
+  return `rec${digest}`.slice(0, 64);
 }
 
 export function computeRefundPlan(
@@ -95,7 +114,6 @@ export function computeRefundPlan(
   const alreadyReversed = Math.max(0, Math.floor(input.alreadyReversedCredits));
   const available = Math.max(0, Math.floor(input.availableBalance));
 
-  // Orantılı geri alma; kuruş artıkları kredi üretmez (floor).
   let toReverse =
     paid > 0 && refundKurus > 0
       ? Math.floor((purchased * refundKurus) / paid)
@@ -105,10 +123,11 @@ export function computeRefundPlan(
   const reversed = Math.min(toReverse, available);
   const unrecovered = toReverse - reversed;
 
+  const skipSubscription = input.touchSubscription === false;
   let cancelSubscription = false;
   let shrinkPeriodEnd: string | null = null;
 
-  if (input.isSubscription && isFull) {
+  if (input.isSubscription && isFull && !skipSubscription) {
     const now = input.now ?? new Date();
     const periodDays =
       input.periodDays && input.periodDays > 0 ? input.periodDays : 30;
@@ -134,6 +153,7 @@ export function computeRefundPlan(
     shrinkPeriodEnd,
     isFull,
     remainingRefundableKurus,
+    skipSubscription,
   };
 }
 
@@ -156,6 +176,12 @@ export type RefundPlanRow = {
   name: string | null;
 };
 
+export type InProgressRefund = {
+  id: string;
+  reason: RefundReasonPayload;
+  createdAt: string | null;
+};
+
 export type RefundContext = {
   payment: RefundPaymentRow;
   plan: RefundPlanRow | null;
@@ -168,13 +194,17 @@ export type RefundContext = {
   availableBalance: number;
   isSubscription: boolean;
   periodDays: number;
+  /** B5: ödemenin aktif dönemi finanse edip etmediği. */
+  touchSubscription: boolean;
+  legacyRefundedCleanup: boolean;
   activeSubscription: {
     id: string;
     plan_id: string | null;
     status: string;
     current_period_end: string | null;
   } | null;
-  pendingRefund: { id: string; reason: RefundReasonPayload } | null;
+  pendingRefund: InProgressRefund | null;
+  inProgressByRef: Map<string, InProgressRefund>;
   appliedRefs: Set<string>;
 };
 
@@ -182,29 +212,66 @@ function isMissingRpcError(error: { code?: string; message?: string } | null): b
   if (!error) return false;
   const code = String(error.code ?? "");
   const msg = String(error.message ?? "").toLowerCase();
-  return code === "42883" || msg.includes("does not exist") || msg.includes("could not find");
+  return (
+    code === "42883" ||
+    code === "PGRST202" ||
+    msg.includes("does not exist") ||
+    msg.includes("could not find")
+  );
 }
 
-function sumAppliedRefunds(
-  rows: { amount_try: number | null; reason: string | null }[],
-): { alreadyRefundedKurus: number; alreadyReversedCredits: number; appliedRefs: Set<string>; pending: { id: string; reason: RefundReasonPayload } | null } {
+export function sumAppliedRefunds(
+  rows: {
+    id?: string;
+    amount_try: number | null;
+    reason: string | null;
+    created_at?: string | null;
+  }[],
+  now = new Date(),
+): {
+  alreadyRefundedKurus: number;
+  alreadyReversedCredits: number;
+  appliedRefs: Set<string>;
+  pending: InProgressRefund | null;
+  inProgressByRef: Map<string, InProgressRefund>;
+  stalePendingIds: string[];
+} {
   let alreadyRefundedKurus = 0;
   let alreadyReversedCredits = 0;
   const appliedRefs = new Set<string>();
-  let pending: { id: string; reason: RefundReasonPayload } | null = null;
+  const inProgressByRef = new Map<string, InProgressRefund>();
+  let pending: InProgressRefund | null = null;
+  const stalePendingIds: string[] = [];
 
   for (const row of rows) {
     const reason = parseRefundReason(row.reason);
     if (!reason) {
-      // Eski düz metin satırları: tutarı say, ref yok.
       alreadyRefundedKurus += Math.max(0, row.amount_try ?? 0);
       continue;
     }
-    if (reason.state === "pending") {
-      pending = { id: (row as { id?: string }).id ?? "", reason };
+    if (reason.state === "failed") continue;
+
+    if (reason.state === "pending" || reason.state === "applying") {
+      const createdMs = row.created_at ? Date.parse(row.created_at) : NaN;
+      const ageMs = Number.isFinite(createdMs) ? now.getTime() - createdMs : 0;
+      if (ageMs > PENDING_LOCK_TTL_MS) {
+        if (row.id) stalePendingIds.push(row.id);
+        continue;
+      }
+      const entry: InProgressRefund = {
+        id: row.id ?? "",
+        reason,
+        createdAt: row.created_at ?? null,
+      };
+      if (reason.ref) inProgressByRef.set(reason.ref, entry);
+      if (!pending || (entry.createdAt && pending.createdAt && entry.createdAt < pending.createdAt)) {
+        pending = entry;
+      } else if (!pending) {
+        pending = entry;
+      }
       continue;
     }
-    if (reason.state === "failed") continue;
+
     if (reason.state === "applied") {
       alreadyRefundedKurus += Math.max(0, row.amount_try ?? 0);
       alreadyReversedCredits += Math.max(0, reason.reversed ?? 0);
@@ -212,7 +279,30 @@ function sumAppliedRefunds(
     }
   }
 
-  return { alreadyRefundedKurus, alreadyReversedCredits, appliedRefs, pending };
+  return {
+    alreadyRefundedKurus,
+    alreadyReversedCredits,
+    appliedRefs,
+    pending,
+    inProgressByRef,
+    stalePendingIds,
+  };
+}
+
+/**
+ * B5: Eski akışta payments.status=refunded yazılmış ama refunds satırı yoksa
+ * abonelik o zaman zaten iptal edilmişti. Yeni aboneliğe dokunma.
+ */
+export function shouldTouchSubscription(opts: {
+  paymentStatus: string;
+  alreadyRefundedKurus: number;
+  isSubscription: boolean;
+}): boolean {
+  if (!opts.isSubscription) return false;
+  if (opts.paymentStatus === "refunded" && opts.alreadyRefundedKurus === 0) {
+    return false;
+  }
+  return true;
 }
 
 export async function loadRefundContext(
@@ -259,7 +349,6 @@ export async function loadRefundContext(
       ["plus", "sigma"].includes(String(plan?.tier ?? "").toLowerCase()),
   );
 
-  // Satın alınan kredi: o ödemenin purchase ledger satırından (plan sonradan değişmiş olabilir).
   const { data: purchaseLedger } = await service
     .from("credit_ledger")
     .select("delta")
@@ -281,8 +370,27 @@ export async function loadRefundContext(
       id: r.id as string,
       amount_try: r.amount_try as number,
       reason: r.reason as string | null,
+      created_at: r.created_at as string | null,
     })),
   );
+
+  // Süresi dolmuş pending/applying satırlarını failed yap (kilidi aç).
+  for (const staleId of summed.stalePendingIds) {
+    const row = (refundRows ?? []).find((r) => r.id === staleId);
+    const prev = parseRefundReason(row?.reason as string | null);
+    if (!prev) continue;
+    await service
+      .from("refunds")
+      .update({
+        reason: JSON.stringify({
+          ...prev,
+          state: "failed",
+          paytr_err: prev.paytr_err ?? "pending_expired",
+          error_step: "pending_expired",
+        }),
+      })
+      .eq("id", staleId);
+  }
 
   const { data: wallet } = await service
     .from("credit_wallets")
@@ -290,7 +398,6 @@ export async function loadRefundContext(
     .eq("user_id", beneficiaryId)
     .maybeSingle();
 
-  // reserved zaten balance'dan düşülmüş; credit_adjust_balance yalnız balance'a bakar.
   const availableBalance = Math.max(0, Number(wallet?.balance ?? 0));
 
   const { data: activeSub } = await service
@@ -301,6 +408,12 @@ export async function loadRefundContext(
     .order("current_period_end", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
+
+  const touchSubscription = shouldTouchSubscription({
+    paymentStatus: payment.status as string,
+    alreadyRefundedKurus: summed.alreadyRefundedKurus,
+    isSubscription,
+  });
 
   return {
     ok: true,
@@ -316,6 +429,8 @@ export async function loadRefundContext(
       availableBalance,
       isSubscription,
       periodDays: plan?.period_days && plan.period_days > 0 ? plan.period_days : 30,
+      touchSubscription,
+      legacyRefundedCleanup: isSubscription && !touchSubscription,
       activeSubscription: activeSub
         ? {
             id: activeSub.id as string,
@@ -325,9 +440,8 @@ export async function loadRefundContext(
               (activeSub.current_period_end as string | null) ?? null,
           }
         : null,
-      pendingRefund: summed.pending?.id
-        ? { id: summed.pending.id, reason: summed.pending.reason }
-        : null,
+      pendingRefund: summed.pending?.id ? summed.pending : null,
+      inProgressByRef: summed.inProgressByRef,
       appliedRefs: summed.appliedRefs,
     },
   };
@@ -342,6 +456,7 @@ export type PreviewPaymentRefundResult = {
   isSubscription: boolean;
   paymentStatus: string;
   previewText: string;
+  touchSubscription: boolean;
 };
 
 export async function previewPaymentRefund(
@@ -360,6 +475,10 @@ export async function previewPaymentRefund(
   const amount =
     refundKurus == null ? ctx.paidKurus - ctx.alreadyRefundedKurus : refundKurus;
 
+  if (!(amount > 0) || !Number.isFinite(amount)) {
+    return { ok: false, error: "İade tutarı geçersiz." };
+  }
+
   const plan = computeRefundPlan({
     paidKurus: ctx.paidKurus,
     refundKurus: amount,
@@ -368,6 +487,7 @@ export async function previewPaymentRefund(
     alreadyReversedCredits: ctx.alreadyReversedCredits,
     availableBalance: ctx.availableBalance,
     isSubscription: ctx.isSubscription,
+    touchSubscription: ctx.touchSubscription,
     currentPeriodEnd: ctx.activeSubscription?.current_period_end ?? null,
     periodDays: ctx.periodDays,
   });
@@ -381,6 +501,11 @@ export async function previewPaymentRefund(
     parts.push(
       `Satın alınan ${ctx.purchasedCredits} kredi · şu an bakiye ${ctx.availableBalance} · geri alınacak ${plan.reversed} · geri alınamayan ${plan.unrecovered}${plan.unrecovered > 0 ? " (harcanmış)" : ""}`,
     );
+  }
+  if (ctx.legacyRefundedCleanup) {
+    parts.push(
+      "Bu ödeme daha önce iade edilmiş (eski kayıt). Yalnızca kredi defteri tamamlanır; aktif aboneliğe dokunulmaz.",
+    );
   } else if (ctx.isSubscription) {
     if (plan.cancelSubscription) {
       parts.push("Abonelik tam iade ile sonlandırılacak; dönem hakkı sıfırlanacak.");
@@ -388,10 +513,10 @@ export async function previewPaymentRefund(
       parts.push(
         "Abonelik aktif kalacak; bu ödemenin eklediği süre geri alınacak (önceki dönem sürüyor).",
       );
-    } else {
+    } else if (!plan.isFull) {
       parts.push("Kısmi iade: abonelik / plan değişmez.");
     }
-  } else {
+  } else if (ctx.purchasedCredits === 0) {
     parts.push("Bu ödemede geri alınacak satın alma kredisi yok.");
   }
 
@@ -404,6 +529,7 @@ export async function previewPaymentRefund(
     isSubscription: ctx.isSubscription,
     paymentStatus: ctx.payment.status,
     previewText: parts.join(" "),
+    touchSubscription: ctx.touchSubscription,
   };
 }
 
@@ -414,7 +540,6 @@ export type ApplyPaymentRefundInput = {
   providerRef: string;
   actorId?: string | null;
   note?: string | null;
-  /** Pending kilit satırı varsa onu tamamla. */
   pendingRefundId?: string | null;
 };
 
@@ -444,18 +569,11 @@ async function tryApplyPaymentRefundRpc(
 ): Promise<ApplyPaymentRefundResult | null> {
   const { data, error } = await service.rpc("apply_payment_refund", {
     p_payment_id: input.paymentId,
-    p_refund_kurus: input.plan.refundKurus,
+    p_refund_kurus: input.refundKurus,
     p_provider_ref: input.providerRef,
     p_source: input.source,
     p_actor_id: input.actorId ?? null,
     p_note: input.note ?? null,
-    p_to_reverse: input.plan.toReverse,
-    p_reversed: input.plan.reversed,
-    p_unrecovered: input.plan.unrecovered,
-    p_is_full: input.plan.isFull,
-    p_cancel_subscription: input.plan.cancelSubscription,
-    p_shrink_period_end: input.plan.shrinkPeriodEnd,
-    p_idempotency_key: input.idempotencyKey,
     p_pending_refund_id: input.pendingRefundId ?? null,
   });
 
@@ -512,16 +630,18 @@ async function notifyRefund(
     isSubscription: boolean;
     cancelSubscription: boolean;
     refundKurus: number;
+    planName?: string | null;
   },
 ) {
   const amountLabel = formatTry(opts.refundKurus);
+  const planLabel = opts.planName?.trim() || "Üyelik";
   let title = "Ödemen iade edildi";
   let body: string;
 
   if (opts.isSubscription) {
     if (opts.cancelSubscription) {
       title = "Üyeliğin iade nedeniyle sonlandı";
-      body = `Ödemen (${amountLabel}) iade edildi. Plus üyeliğin iade nedeniyle sonlandı.`;
+      body = `Ödemen (${amountLabel}) iade edildi. ${planLabel} üyeliğin iade nedeniyle sonlandı.`;
     } else if (!opts.isFull) {
       body = `Ödemenden ${amountLabel} kısmi iade edildi. Planın değişmedi.`;
     } else {
@@ -554,6 +674,22 @@ function revalidateAfterRefund() {
   revalidatePath("/", "layout");
 }
 
+async function writeRefundReason(
+  service: SupabaseClient,
+  refundId: string,
+  payload: RefundReasonPayload,
+  amountTry: number,
+): Promise<{ error: string | null }> {
+  const { error } = await service
+    .from("refunds")
+    .update({
+      amount_try: amountTry,
+      reason: JSON.stringify(payload),
+    })
+    .eq("id", refundId);
+  return { error: error?.message ?? null };
+}
+
 async function applyPaymentRefundTs(
   service: SupabaseClient,
   input: ApplyPaymentRefundInput,
@@ -578,16 +714,9 @@ async function applyPaymentRefundTs(
     alreadyRefundedKurus: ctx.alreadyRefundedKurus,
   });
 
-  // Ledger daha önce yazıldıysa (yarıda kalmış akış) tekrar düşme.
-  const { data: existingLedger } = await service
-    .from("credit_ledger")
-    .select("id, delta")
-    .eq("user_id", ctx.beneficiaryId)
-    .eq("idempotency_key", idempotencyKey)
-    .maybeSingle();
-
-  const reasonPayload: RefundReasonPayload = {
-    state: "applied",
+  // B1: önce applying yaz; applied en sonda.
+  const applyingPayload: RefundReasonPayload = {
+    state: "applying",
     ref: input.providerRef,
     source: input.source,
     kind: "payment_refund",
@@ -601,21 +730,25 @@ async function applyPaymentRefundTs(
     is_full: plan.isFull,
     cancel_subscription: plan.cancelSubscription,
     shrink_period_end: plan.shrinkPeriodEnd,
+    skip_subscription: plan.skipSubscription,
   };
 
-  let refundId = input.pendingRefundId ?? undefined;
+  let refundId =
+    input.pendingRefundId ??
+    ctx.inProgressByRef.get(input.providerRef)?.id ??
+    undefined;
+
   if (refundId) {
-    const { error } = await service
-      .from("refunds")
-      .update({
-        amount_try: plan.refundKurus,
-        reason: JSON.stringify(reasonPayload),
-      })
-      .eq("id", refundId);
+    const { error } = await writeRefundReason(
+      service,
+      refundId,
+      applyingPayload,
+      plan.refundKurus,
+    );
     if (error) {
       return {
         ok: false,
-        error: `İade kaydı güncellenemedi: ${error.message}`,
+        error: `İade kaydı güncellenemedi: ${error}`,
         errorStep: "refunds_update",
         partialFailure: true,
       };
@@ -626,12 +759,11 @@ async function applyPaymentRefundTs(
       .insert({
         payment_id: ctx.payment.id,
         amount_try: plan.refundKurus,
-        reason: JSON.stringify(reasonPayload),
+        reason: JSON.stringify(applyingPayload),
       })
       .select("id")
       .maybeSingle();
     if (error) {
-      // Aynı ref ile yarış: applied say.
       const again = await loadRefundContext(service, ctx.payment.id);
       if (again.ok && again.context.appliedRefs.has(input.providerRef)) {
         return {
@@ -640,16 +772,42 @@ async function applyPaymentRefundTs(
           message: "Bu iade zaten işlenmiş.",
         };
       }
-      return {
-        ok: false,
-        error: `İade kaydı yazılamadı: ${error.message}`,
-        errorStep: "refunds_insert",
-      };
+      const resume = again.ok
+        ? again.context.inProgressByRef.get(input.providerRef)
+        : null;
+      if (resume?.id) {
+        refundId = resume.id;
+      } else {
+        return {
+          ok: false,
+          error: `İade kaydı yazılamadı: ${error.message}`,
+          errorStep: "refunds_insert",
+        };
+      }
+    } else {
+      refundId = inserted?.id as string | undefined;
     }
-    refundId = inserted?.id as string | undefined;
   }
 
-  if (plan.reversed > 0 && !existingLedger) {
+  if (!refundId) {
+    return { ok: false, error: "İade satırı oluşturulamadı.", errorStep: "refunds_insert" };
+  }
+
+  // Ledger var mı? (yarıda kalmış retry)
+  const { data: existingLedger } = await service
+    .from("credit_ledger")
+    .select("id, delta")
+    .eq("user_id", ctx.beneficiaryId)
+    .eq("idempotency_key", idempotencyKey)
+    .maybeSingle();
+
+  let actualReversed = plan.reversed;
+  let actualUnrecovered = plan.unrecovered;
+
+  if (existingLedger) {
+    actualReversed = Math.abs(Number(existingLedger.delta ?? 0));
+    actualUnrecovered = Math.max(0, plan.toReverse - actualReversed);
+  } else if (plan.reversed > 0) {
     const { error: creditError } = await service.rpc("credit_adjust_balance", {
       p_user_id: ctx.beneficiaryId,
       p_delta: -plan.reversed,
@@ -659,6 +817,12 @@ async function applyPaymentRefundTs(
     });
     if (creditError) {
       const msg = String(creditError.message ?? "");
+      await writeRefundReason(
+        service,
+        refundId,
+        { ...applyingPayload, error_step: "credit_adjust_balance" },
+        plan.refundKurus,
+      );
       await auditLog(service, {
         actorId: input.actorId,
         action: "payment.refund.partial",
@@ -668,16 +832,15 @@ async function applyPaymentRefundTs(
           errorStep: "credit_adjust_balance",
           error: msg,
           providerRef: input.providerRef,
-          reason: reasonPayload,
         },
       });
       return {
         ok: false,
         error:
           msg.includes("wallet_not_found")
-            ? "Cüzdan bulunamadı; iade defteri kısmen yazıldı."
+            ? "Cüzdan bulunamadı; iade yarıda kaldı — tekrar deneyin."
             : msg.includes("insufficient_balance")
-              ? "Bakiye yetersiz; iade defteri kısmen yazıldı."
+              ? "Bakiye yetersiz; iade yarıda kaldı — tekrar deneyin."
               : `Kredi geri alınamadı: ${msg}`,
         errorStep: "credit_adjust_balance",
         partialFailure: true,
@@ -690,7 +853,13 @@ async function applyPaymentRefundTs(
     }
   }
 
-  if (ctx.isSubscription && plan.isFull && ctx.activeSubscription) {
+  // B5: legacy refunded cleanup → aboneliğe dokunma
+  if (
+    !plan.skipSubscription &&
+    ctx.isSubscription &&
+    plan.isFull &&
+    ctx.activeSubscription
+  ) {
     if (plan.cancelSubscription) {
       const { error: subError } = await service
         .from("subscriptions")
@@ -701,6 +870,12 @@ async function applyPaymentRefundTs(
         .eq("id", ctx.activeSubscription.id)
         .eq("status", "active");
       if (subError) {
+        await writeRefundReason(
+          service,
+          refundId,
+          { ...applyingPayload, error_step: "subscription_cancel", reversed: actualReversed, unrecovered: actualUnrecovered },
+          plan.refundKurus,
+        );
         await auditLog(service, {
           actorId: input.actorId,
           action: "payment.refund.partial",
@@ -718,8 +893,8 @@ async function applyPaymentRefundTs(
           errorStep: "subscription_cancel",
           partialFailure: true,
           refundId,
-          reversed: plan.reversed,
-          unrecovered: plan.unrecovered,
+          reversed: actualReversed,
+          unrecovered: actualUnrecovered,
           isFull: plan.isFull,
         };
       }
@@ -733,6 +908,12 @@ async function applyPaymentRefundTs(
         })
         .eq("user_id", ctx.beneficiaryId);
       if (walletError) {
+        await writeRefundReason(
+          service,
+          refundId,
+          { ...applyingPayload, error_step: "wallet_allowance_clear", reversed: actualReversed, unrecovered: actualUnrecovered },
+          plan.refundKurus,
+        );
         await auditLog(service, {
           actorId: input.actorId,
           action: "payment.refund.partial",
@@ -750,8 +931,8 @@ async function applyPaymentRefundTs(
           errorStep: "wallet_allowance_clear",
           partialFailure: true,
           refundId,
-          reversed: plan.reversed,
-          unrecovered: plan.unrecovered,
+          reversed: actualReversed,
+          unrecovered: actualUnrecovered,
           isFull: plan.isFull,
           cancelSubscription: true,
         };
@@ -766,6 +947,12 @@ async function applyPaymentRefundTs(
         .eq("id", ctx.activeSubscription.id)
         .eq("status", "active");
       if (shrinkError) {
+        await writeRefundReason(
+          service,
+          refundId,
+          { ...applyingPayload, error_step: "subscription_shrink", reversed: actualReversed, unrecovered: actualUnrecovered },
+          plan.refundKurus,
+        );
         await auditLog(service, {
           actorId: input.actorId,
           action: "payment.refund.partial",
@@ -783,8 +970,8 @@ async function applyPaymentRefundTs(
           errorStep: "subscription_shrink",
           partialFailure: true,
           refundId,
-          reversed: plan.reversed,
-          unrecovered: plan.unrecovered,
+          reversed: actualReversed,
+          unrecovered: actualUnrecovered,
           isFull: plan.isFull,
         };
       }
@@ -801,6 +988,12 @@ async function applyPaymentRefundTs(
       .eq("id", ctx.payment.id)
       .eq("status", "paid");
     if (statusError) {
+      await writeRefundReason(
+        service,
+        refundId,
+        { ...applyingPayload, error_step: "payment_status", reversed: actualReversed, unrecovered: actualUnrecovered },
+        plan.refundKurus,
+      );
       await auditLog(service, {
         actorId: input.actorId,
         action: "payment.refund.partial",
@@ -818,12 +1011,40 @@ async function applyPaymentRefundTs(
         errorStep: "payment_status",
         partialFailure: true,
         refundId,
-        reversed: plan.reversed,
-        unrecovered: plan.unrecovered,
+        reversed: actualReversed,
+        unrecovered: actualUnrecovered,
         isFull: plan.isFull,
         cancelSubscription: plan.cancelSubscription,
       };
     }
+  }
+
+  // B1: applied EN SONDA
+  const appliedPayload: RefundReasonPayload = {
+    ...applyingPayload,
+    state: "applied",
+    reversed: actualReversed,
+    unrecovered: actualUnrecovered,
+    error_step: null,
+  };
+  const { error: finalError } = await writeRefundReason(
+    service,
+    refundId,
+    appliedPayload,
+    plan.refundKurus,
+  );
+  if (finalError) {
+    return {
+      ok: false,
+      error: `İade tamamlandı ama kayıt kapatılamadı: ${finalError}`,
+      errorStep: "refunds_finalize",
+      partialFailure: true,
+      refundId,
+      reversed: actualReversed,
+      unrecovered: actualUnrecovered,
+      isFull: plan.isFull,
+      cancelSubscription: plan.cancelSubscription,
+    };
   }
 
   await auditLog(service, {
@@ -836,11 +1057,12 @@ async function applyPaymentRefundTs(
       providerRef: input.providerRef,
       refundKurus: plan.refundKurus,
       toReverse: plan.toReverse,
-      reversed: plan.reversed,
-      unrecovered: plan.unrecovered,
+      reversed: actualReversed,
+      unrecovered: actualUnrecovered,
       isFull: plan.isFull,
       cancelSubscription: plan.cancelSubscription,
       shrinkPeriodEnd: plan.shrinkPeriodEnd,
+      skipSubscription: plan.skipSubscription,
       beneficiaryId: ctx.beneficiaryId,
       merchantOid: ctx.merchantOid,
     },
@@ -848,30 +1070,39 @@ async function applyPaymentRefundTs(
 
   await notifyRefund(service, {
     userId: ctx.beneficiaryId,
-    reversed: plan.reversed,
-    unrecovered: plan.unrecovered,
+    reversed: actualReversed,
+    unrecovered: actualUnrecovered,
     isFull: plan.isFull,
     isSubscription: ctx.isSubscription,
     cancelSubscription: plan.cancelSubscription,
     refundKurus: plan.refundKurus,
+    planName: ctx.plan?.name,
   });
 
   revalidateAfterRefund();
 
   const bits: string[] = [];
-  if (plan.reversed > 0) bits.push(`${plan.reversed} kredi geri alındı`);
-  if (plan.unrecovered > 0) bits.push(`${plan.unrecovered} kredi geri alınamadı (harcanmış)`);
-  if (plan.cancelSubscription) bits.push("abonelik sonlandırıldı");
-  else if (plan.shrinkPeriodEnd) bits.push("abonelik süresi kısaltıldı");
-  else if (ctx.isSubscription && !plan.isFull) bits.push("abonelik korundu (kısmi iade)");
+  if (actualReversed > 0) bits.push(`${actualReversed} kredi geri alındı`);
+  if (actualUnrecovered > 0) {
+    bits.push(`${actualUnrecovered} kredi geri alınamadı (harcanmış)`);
+  }
+  if (plan.skipSubscription && ctx.isSubscription) {
+    bits.push("aktif aboneliğe dokunulmadı (eski iade kaydı)");
+  } else if (plan.cancelSubscription) {
+    bits.push("abonelik sonlandırıldı");
+  } else if (plan.shrinkPeriodEnd) {
+    bits.push("abonelik süresi kısaltıldı");
+  } else if (ctx.isSubscription && !plan.isFull) {
+    bits.push("abonelik korundu (kısmi iade)");
+  }
 
   return {
     ok: true,
     message: bits.length
       ? `İade işlendi: ${bits.join("; ")}.`
       : "İade deftere işlendi.",
-    reversed: plan.reversed,
-    unrecovered: plan.unrecovered,
+    reversed: actualReversed,
+    unrecovered: actualUnrecovered,
     toReverse: plan.toReverse,
     isFull: plan.isFull,
     cancelSubscription: plan.cancelSubscription,
@@ -884,6 +1115,14 @@ export async function applyPaymentRefund(
   service: SupabaseClient,
   input: ApplyPaymentRefundInput,
 ): Promise<ApplyPaymentRefundResult> {
+  if (
+    !Number.isFinite(input.refundKurus) ||
+    !Number.isInteger(input.refundKurus) ||
+    input.refundKurus <= 0
+  ) {
+    return { ok: false, error: "İade tutarı geçersiz." };
+  }
+
   const loaded = await loadRefundContext(service, input.paymentId);
   if (!loaded.ok) return loaded;
 
@@ -892,6 +1131,7 @@ export async function applyPaymentRefund(
     return { ok: false, error: "Yalnızca ödenmiş işlemler iade edilebilir." };
   }
 
+  // Applied → noop. Applying/pending → resume (noop değil).
   if (ctx.appliedRefs.has(input.providerRef)) {
     return {
       ok: true,
@@ -902,6 +1142,9 @@ export async function applyPaymentRefund(
     };
   }
 
+  const inProgress = ctx.inProgressByRef.get(input.providerRef);
+  const pendingRefundId = input.pendingRefundId ?? inProgress?.id ?? null;
+
   const plan = computeRefundPlan({
     paidKurus: ctx.paidKurus,
     refundKurus: input.refundKurus,
@@ -910,11 +1153,21 @@ export async function applyPaymentRefund(
     alreadyReversedCredits: ctx.alreadyReversedCredits,
     availableBalance: ctx.availableBalance,
     isSubscription: ctx.isSubscription,
+    touchSubscription: ctx.touchSubscription,
     currentPeriodEnd: ctx.activeSubscription?.current_period_end ?? null,
     periodDays: ctx.periodDays,
   });
 
   if (plan.refundKurus <= 0) {
+    // Resume durumunda applying satırı var ama tutar kalmadıysa (başka iade
+    // araya girdiyse) satırı failed yapıp çık.
+    if (pendingRefundId) {
+      await markPendingRefundFailed(
+        service,
+        pendingRefundId,
+        "remaining_zero_on_resume",
+      );
+    }
     return { ok: false, error: "İade edilecek kalan tutar yok." };
   }
 
@@ -927,6 +1180,7 @@ export async function applyPaymentRefund(
 
   const rpcResult = await tryApplyPaymentRefundRpc(service, {
     ...input,
+    pendingRefundId,
     plan,
     context: ctx,
     idempotencyKey,
@@ -938,7 +1192,12 @@ export async function applyPaymentRefund(
     return rpcResult;
   }
 
-  return applyPaymentRefundTs(service, input, ctx, plan);
+  return applyPaymentRefundTs(
+    service,
+    { ...input, pendingRefundId },
+    ctx,
+    plan,
+  );
 }
 
 export async function insertPendingRefundLock(
@@ -979,11 +1238,10 @@ export async function insertPendingRefundLock(
       amount_try: opts.refundKurus,
       reason: JSON.stringify(reason),
     })
-    .select("id")
+    .select("id, created_at, reason")
     .maybeSingle();
 
   if (error || !data?.id) {
-    // Dar yarış penceresi: iki istek aynı anda pending insert edebilir.
     const again = await loadRefundContext(service, opts.paymentId);
     if (again.ok && again.context.pendingRefund) {
       return {
@@ -996,6 +1254,24 @@ export async function insertPendingRefundLock(
       ok: false,
       error: error?.message ?? "İade kilidi alınamadı.",
     };
+  }
+
+  // Eşzamanlı insert yarışı: en eski pending kazansın; diğerleri failed + abort.
+  const after = await loadRefundContext(service, opts.paymentId);
+  if (after.ok && after.context.pendingRefund) {
+    const winner = after.context.pendingRefund;
+    if (winner.id !== data.id) {
+      await markPendingRefundFailed(
+        service,
+        data.id as string,
+        "lost_pending_race",
+      );
+      return {
+        ok: false,
+        error:
+          "Bu ödeme için devam eden bir iade var (eşzamanlı istek). Bitmesini bekleyin.",
+      };
+    }
   }
 
   return { ok: true, refundId: data.id as string };
@@ -1031,7 +1307,7 @@ export async function markPendingRefundFailed(
 }
 
 export function generateRefundProviderRef(prefix = "admin"): string {
-  const rand = Math.random().toString(36).slice(2, 10);
+  const rand = crypto.randomBytes(6).toString("hex");
   return `${prefix}${Date.now().toString(36)}${rand}`.slice(0, 64);
 }
 

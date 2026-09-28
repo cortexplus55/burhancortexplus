@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { auditLog } from "@/lib/audit";
 import { verifySmtpConnection } from "@/lib/email/smtp";
-import { requestPaytrRefund, queryPaytrStatus, parsePaytrTryToKurus } from "@/lib/payments/paytr";
+import { requestPaytrRefund, queryPaytrStatus } from "@/lib/payments/paytr";
 import {
   applyPaymentRefund,
   generateRefundProviderRef,
@@ -13,6 +13,7 @@ import {
   loadRefundContext,
   markPendingRefundFailed,
   previewPaymentRefund,
+  reconcileDeltaRef,
 } from "@/lib/payments/refund";
 import { formatTry } from "@/lib/format";
 
@@ -417,18 +418,23 @@ export async function markPaymentRefunded(
   const actorId = await requireAdminActor();
   if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
 
-  const parsed = z.string().uuid().safeParse(paymentId);
-  if (!parsed.success) return { ok: false, error: "Geçersiz kayıt." };
+  const parsed = z
+    .object({
+      paymentId: z.string().uuid(),
+      amountKurus: z.number().int().positive().max(10_000_000).optional(),
+    })
+    .safeParse({ paymentId, amountKurus });
+  if (!parsed.success) return { ok: false, error: "Geçersiz kayıt veya tutar." };
 
   const service = createServiceClient();
   const preview = await previewPaymentRefund(
     service,
-    parsed.data,
-    amountKurus,
+    parsed.data.paymentId,
+    parsed.data.amountKurus,
   );
   if (!preview.ok) return preview;
 
-  const loaded = await loadRefundContext(service, parsed.data);
+  const loaded = await loadRefundContext(service, parsed.data.paymentId);
   if (!loaded.ok) return loaded;
   const ctx = loaded.context;
 
@@ -437,12 +443,16 @@ export async function markPaymentRefunded(
   }
 
   const refundKurus = preview.plan.refundKurus;
+  if (!(refundKurus > 0) || refundKurus > ctx.paidKurus - ctx.alreadyRefundedKurus) {
+    return { ok: false, error: "İade tutarı kalan iade edilebilir tutarı aşıyor." };
+  }
+
   const providerRef = generateRefundProviderRef(
-    `adm${parsed.data.replace(/-/g, "").slice(0, 8)}`,
+    `adm${parsed.data.paymentId.replace(/-/g, "").slice(0, 8)}`,
   );
 
   const lock = await insertPendingRefundLock(service, {
-    paymentId: parsed.data,
+    paymentId: parsed.data.paymentId,
     refundKurus,
     providerRef,
     actorId,
@@ -471,7 +481,7 @@ export async function markPaymentRefunded(
   }
 
   const applied = await applyPaymentRefund(service, {
-    paymentId: parsed.data,
+    paymentId: parsed.data.paymentId,
     refundKurus,
     source: "admin",
     providerRef,
@@ -520,9 +530,39 @@ export async function recordExternalRefund(input: {
   if (!parsed.success) return { ok: false, error: "Geçersiz istek." };
 
   const service = createServiceClient();
+  const loaded = await loadRefundContext(service, parsed.data.paymentId);
+  if (!loaded.ok) return loaded;
+  const ctx = loaded.context;
+
+  // B5: tam iade edilmiş satırlarda yalnızca legacy kredi temizliği; UI gizler ama sunucu da korur.
+  if (ctx.payment.status === "refunded" && !ctx.legacyRefundedCleanup) {
+    return {
+      ok: false,
+      error: "Bu ödeme zaten iade edilmiş; yeni kayıt gerekmiyor.",
+    };
+  }
+
+  const remaining = ctx.paidKurus - ctx.alreadyRefundedKurus;
+  if (parsed.data.amountKurus > remaining && remaining > 0) {
+    return {
+      ok: false,
+      error: `İade tutarı kalanı (${formatTry(remaining)}) aşıyor.`,
+    };
+  }
+
   const providerRef =
     parsed.data.providerRef?.trim() ||
     generateRefundProviderRef("ext");
+
+  // Eşzamanlı "kaydet" çift yazımını pending kilit ile daralt.
+  const lock = await insertPendingRefundLock(service, {
+    paymentId: parsed.data.paymentId,
+    refundKurus: parsed.data.amountKurus,
+    providerRef,
+    actorId,
+    merchantOid: ctx.merchantOid,
+  });
+  if (!lock.ok) return lock;
 
   const applied = await applyPaymentRefund(service, {
     paymentId: parsed.data.paymentId,
@@ -530,10 +570,18 @@ export async function recordExternalRefund(input: {
     source: "admin",
     providerRef,
     actorId,
+    pendingRefundId: lock.refundId,
     note: parsed.data.note ?? "PayTR panelinden yapıldı, admin kaydetti",
   });
 
   if (!applied.ok) {
+    if (!applied.partialFailure) {
+      await markPendingRefundFailed(
+        service,
+        lock.refundId,
+        applied.error ?? "record_failed",
+      );
+    }
     return {
       ok: false,
       error: applied.error ?? "İade kaydedilemedi.",
@@ -553,7 +601,10 @@ export async function recordExternalRefund(input: {
   };
 }
 
-/** PayTR Durum Sorgu ile iadeleri çekip deftere işler. */
+/**
+ * PayTR Durum Sorgu ile iadeleri çekip deftere işler.
+ * B2/B3: satır satır uydurma ref YOK — PayTR toplamı − kayıtlı toplam = delta.
+ */
 export async function reconcilePaymentWithPaytr(paymentId: string) {
   const actorId = await requireAdminActor();
   if (!actorId) return { ok: false, error: "Yetkisiz işlem." };
@@ -566,6 +617,17 @@ export async function reconcilePaymentWithPaytr(paymentId: string) {
   if (!loaded.ok) return loaded;
   const ctx = loaded.context;
 
+  // B5: legacy refunded satırda mutabakat aboneliği bozmasın; kredi temizliği ayrı.
+  if (ctx.payment.status === "refunded" && !ctx.legacyRefundedCleanup) {
+    return {
+      ok: true,
+      message: "Ödeme zaten iade edilmiş; PayTR mutabakatı gerekmiyor.",
+      appliedCount: 0,
+      paytrTotalKurus: 0,
+      alreadyRefundedKurus: ctx.alreadyRefundedKurus,
+    };
+  }
+
   const status = await queryPaytrStatus(ctx.merchantOid);
   if (!status.ok) {
     return {
@@ -574,78 +636,64 @@ export async function reconcilePaymentWithPaytr(paymentId: string) {
     };
   }
 
-  if (!status.returns.length) {
+  const paytrTotalKurus = status.returns.reduce(
+    (sum, row) => sum + Math.round(row.returnAmountTry * 100),
+    0,
+  );
+
+  // Taze context (pending expiry sonrası)
+  const fresh = await loadRefundContext(service, parsed.data);
+  if (!fresh.ok) return fresh;
+  const already = fresh.context.alreadyRefundedKurus;
+  const delta = paytrTotalKurus - already;
+
+  if (delta <= 0) {
     return {
       ok: true,
-      message: "PayTR'de bu sipariş için iade kaydı yok.",
+      message:
+        paytrTotalKurus === 0
+          ? "PayTR'de bu sipariş için iade kaydı yok."
+          : `PayTR toplam iadesi (${formatTry(paytrTotalKurus)}) zaten kayıtlı (${formatTry(already)}).`,
       appliedCount: 0,
+      paytrTotalKurus,
+      alreadyRefundedKurus: already,
+      deltaKurus: 0,
     };
   }
 
-  const results: {
-    ref: string;
-    ok: boolean;
-    noop?: boolean;
-    error?: string;
-    message?: string;
-  }[] = [];
-  let appliedCount = 0;
+  const providerRef = reconcileDeltaRef(ctx.merchantOid, paytrTotalKurus);
+  const applied = await applyPaymentRefund(service, {
+    paymentId: parsed.data,
+    refundKurus: delta,
+    source: "reconcile",
+    providerRef,
+    actorId,
+    note: `PayTR mutabakatı: toplam ${paytrTotalKurus} kuruş, delta ${delta}`,
+  });
 
-  for (const row of status.returns) {
-    const refundKurus = Math.round(row.returnAmountTry * 100);
-    if (!(refundKurus > 0)) continue;
-    const providerRef =
-      row.referenceNo?.trim() ||
-      generateRefundProviderRef(
-        `rec${parsePaytrTryToKurus(row.returnAmountTry)}`,
-      );
-
-    if (ctx.appliedRefs.has(providerRef)) {
-      results.push({ ref: providerRef, ok: true, noop: true });
-      continue;
-    }
-
-    const applied = await applyPaymentRefund(service, {
-      paymentId: parsed.data,
-      refundKurus,
-      source: "reconcile",
-      providerRef,
-      actorId,
-      note: row.returnDate ? `PayTR return_date=${row.returnDate}` : null,
-    });
-
-    // Sonraki döngü için ref setini güncelle (aynı yanıttaki tekrarlar).
-    if (applied.ok) {
-      ctx.appliedRefs.add(providerRef);
-      if (!applied.noop) appliedCount += 1;
-    }
-
-    results.push({
-      ref: providerRef,
-      ok: applied.ok,
-      noop: applied.noop,
-      error: applied.error,
-      message: applied.message,
-    });
-  }
-
-  const failed = results.filter((r) => !r.ok);
-  if (failed.length && appliedCount === 0) {
+  if (!applied.ok) {
     return {
       ok: false,
-      error: failed[0]?.error ?? "İadeler işlenemedi.",
-      results,
+      error: applied.error ?? "Mutabakat iadesi işlenemedi.",
+      partialFailure: applied.partialFailure,
+      errorStep: applied.errorStep,
+      paytrTotalKurus,
+      alreadyRefundedKurus: already,
+      deltaKurus: delta,
     };
   }
 
   return {
     ok: true,
-    message:
-      appliedCount > 0
-        ? `PayTR'den ${appliedCount} iade deftere işlendi.`
-        : "PayTR iadeleri zaten kayıtlıydı; yeni işlem yok.",
-    appliedCount,
-    results,
+    message: applied.noop
+      ? "PayTR iadeleri zaten kayıtlıydı; yeni işlem yok."
+      : `PayTR'den ${formatTry(delta)} iade deftere işlendi (toplam ${formatTry(paytrTotalKurus)}).`,
+    appliedCount: applied.noop ? 0 : 1,
+    paytrTotalKurus,
+    alreadyRefundedKurus: already,
+    deltaKurus: delta,
+    reversed: applied.reversed,
+    unrecovered: applied.unrecovered,
   };
 }
 

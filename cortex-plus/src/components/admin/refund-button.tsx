@@ -37,6 +37,12 @@ export function RefundButton({
   const [pending, startTransition] = useTransition();
 
   const canRefund = status === "paid" && remaining > 0;
+  // B5: tam iade edilmiş satırlarda kaydet/kontrol gizlenir (yeni aboneliği bozmasın).
+  const canRecordOrReconcile = status === "paid";
+
+  if (!canRefund && !canRecordOrReconcile) {
+    return <span className="text-xs text-[var(--adm-muted)]">—</span>;
+  }
 
   function openRefund() {
     setMode("refund");
@@ -76,38 +82,42 @@ export function RefundButton({
             İade et
           </button>
         ) : null}
-        <button
-          type="button"
-          className="adm-btn"
-          disabled={pending}
-          onClick={() => {
-            setMode("external");
-            setExternalLira((remaining / 100).toFixed(2));
-            setExternalRef("");
-          }}
-        >
-          PayTR&apos;de yapıldı, kaydet
-        </button>
-        <button
-          type="button"
-          className="adm-btn"
-          disabled={pending}
-          onClick={() => {
-            setMode("reconcile");
-            startTransition(async () => {
-              const result = await reconcilePaymentWithPaytr(paymentId);
-              if (result.ok) {
-                toast.success(result.message ?? "Kontrol tamam.");
-                setMode("closed");
-              } else {
-                toast.error(result.error ?? "Kontrol başarısız.");
-                setMode("closed");
-              }
-            });
-          }}
-        >
-          PayTR&apos;den kontrol et
-        </button>
+        {canRecordOrReconcile ? (
+          <button
+            type="button"
+            className="adm-btn"
+            disabled={pending}
+            onClick={() => {
+              setMode("external");
+              setExternalLira((remaining / 100).toFixed(2));
+              setExternalRef("");
+            }}
+          >
+            PayTR&apos;de yapıldı, kaydet
+          </button>
+        ) : null}
+        {canRecordOrReconcile ? (
+          <button
+            type="button"
+            className="adm-btn"
+            disabled={pending}
+            onClick={() => {
+              setMode("reconcile");
+              startTransition(async () => {
+                const result = await reconcilePaymentWithPaytr(paymentId);
+                if (result.ok) {
+                  toast.success(result.message ?? "Kontrol tamam.");
+                  setMode("closed");
+                } else {
+                  toast.error(result.error ?? "Kontrol başarısız.");
+                  setMode("closed");
+                }
+              });
+            }}
+          >
+            PayTR&apos;den kontrol et
+          </button>
+        ) : null}
       </div>
     );
   }
@@ -123,6 +133,7 @@ export function RefundButton({
       <div className="flex min-w-[16rem] flex-col gap-2 rounded border border-[var(--adm-border)] p-2 text-xs">
         <p className="text-[var(--adm-muted)]">
           PayTR panelinden yapılmış iadeyi deftere yaz (PayTR tekrar çağrılmaz).
+          Mutabakat PayTR toplamıyla karşılaştırır; aynı tutar iki kez yazılmaz.
         </p>
         <label className="flex flex-col gap-1">
           Tutar (TL)
@@ -136,7 +147,7 @@ export function RefundButton({
           />
         </label>
         <label className="flex flex-col gap-1">
-          PayTR referans (opsiyonel)
+          PayTR referans (önerilir)
           <input
             className="adm-input"
             type="text"

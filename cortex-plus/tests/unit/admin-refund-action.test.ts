@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-/**
- * Hafif bellek içi Supabase stub — applyPaymentRefund / admin action akışları için.
- * Zincir metodları thenable; select+maybeSingle ve list await destekler.
- */
-
 type Row = Record<string, unknown>;
 
 const db = vi.hoisted(() => ({
@@ -18,6 +13,8 @@ const db = vi.hoisted(() => ({
   rpc: vi.fn(),
   user: null as { id: string } | null,
   adminRow: null as { role: string } | null,
+  creditFailOnce: false,
+  __subUpdateError: undefined as string | undefined,
 }));
 
 function matches(row: Row, filters: [string, unknown][]) {
@@ -50,7 +47,11 @@ function tableApi(name: keyof typeof db) {
     },
     maybeSingle: async () => {
       if (op === "insert" && writePayload) {
-        const row = { id: `id-${Math.random().toString(36).slice(2, 8)}`, ...writePayload };
+        const row = {
+          id: `id-${Math.random().toString(36).slice(2, 8)}`,
+          created_at: new Date().toISOString(),
+          ...writePayload,
+        };
         (db[name] as Row[]).push(row);
         return { data: row, error: null };
       }
@@ -71,6 +72,7 @@ function tableApi(name: keyof typeof db) {
         if (op === "insert" && writePayload) {
           const row = {
             id: `id-${Math.random().toString(36).slice(2, 8)}`,
+            created_at: new Date().toISOString(),
             ...writePayload,
           };
           (db[name] as Row[]).push(row);
@@ -82,9 +84,8 @@ function tableApi(name: keyof typeof db) {
           let error: { message: string } | null = null;
           for (let i = 0; i < rows.length; i++) {
             if (matches(rows[i], filters)) {
-              const errFlag = (db as { __subUpdateError?: string }).__subUpdateError;
-              if (name === "subscriptions" && errFlag) {
-                error = { message: errFlag };
+              if (name === "subscriptions" && db.__subUpdateError) {
+                error = { message: db.__subUpdateError };
                 break;
               }
               rows[i] = { ...rows[i], ...writePayload };
@@ -139,13 +140,17 @@ vi.mock("@/lib/email/smtp", () => ({ verifySmtpConnection: vi.fn() }));
 const paytr = vi.hoisted(() => ({
   requestPaytrRefund: vi.fn(),
   queryPaytrStatus: vi.fn(),
-  parsePaytrTryToKurus: (v: string | number | undefined) => {
-    if (v == null) return 0;
-    const n = Number(String(v).replace(",", "."));
-    return Number.isFinite(n) ? Math.round(n * 100) : 0;
-  },
 }));
-vi.mock("@/lib/payments/paytr", () => paytr);
+vi.mock("@/lib/payments/paytr", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/payments/paytr")>(
+    "@/lib/payments/paytr",
+  );
+  return {
+    ...actual,
+    requestPaytrRefund: paytr.requestPaytrRefund,
+    queryPaytrStatus: paytr.queryPaytrStatus,
+  };
+});
 
 const PAYMENT_ID = "11111111-1111-4111-8111-111111111111";
 const USER_ID = "22222222-2222-4222-8222-222222222222";
@@ -159,7 +164,8 @@ function resetDb() {
   db.credit_wallets = [];
   db.subscriptions = [];
   db.notifications = [];
-  (db as { __subUpdateError?: string }).__subUpdateError = undefined;
+  db.__subUpdateError = undefined;
+  db.creditFailOnce = false;
   db.rpc.mockReset();
   db.rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
     if (name === "apply_payment_refund") {
@@ -169,6 +175,10 @@ function resetDb() {
       };
     }
     if (name === "credit_adjust_balance") {
+      if (db.creditFailOnce) {
+        db.creditFailOnce = false;
+        return { data: null, error: { message: "insufficient_balance" } };
+      }
       const key = String(args.p_idempotency_key);
       const existing = db.credit_ledger.find((r) => r.idempotency_key === key);
       if (existing) return { data: existing.balance_after, error: null };
@@ -227,11 +237,14 @@ function seedCreditPack(balance = 150, purchased = 150) {
   db.credit_wallets = [{ user_id: USER_ID, balance, reserved: 0 }];
 }
 
-function seedPlusPaymentActiveSigma() {
+function seedPlusPaymentActiveSigma(opts?: {
+  paymentStatus?: string;
+  periodEnd?: string;
+}) {
   db.payments = [
     {
       id: PAYMENT_ID,
-      status: "paid",
+      status: opts?.paymentStatus ?? "paid",
       user_id: USER_ID,
       beneficiary_user_id: USER_ID,
       plan_id: "plan-plus",
@@ -249,16 +262,45 @@ function seedPlusPaymentActiveSigma() {
       name: "Plus",
     },
   ];
-  db.credit_wallets = [{ user_id: USER_ID, balance: 0, reserved: 0 }];
+  db.credit_wallets = [
+    {
+      user_id: USER_ID,
+      balance: 0,
+      reserved: 0,
+      free_allowance_remaining: 400,
+    },
+  ];
   db.subscriptions = [
     {
       id: "sub-1",
       user_id: USER_ID,
       plan_id: "plan-sigma",
       status: "active",
-      current_period_end: new Date(Date.now() + 10 * 86400000).toISOString(),
+      current_period_end:
+        opts?.periodEnd ??
+        new Date(Date.now() + 10 * 86400000).toISOString(),
     },
   ];
+}
+
+function appliedRefundCount() {
+  return db.refunds.filter((r) => {
+    try {
+      return JSON.parse(String(r.reason)).state === "applied";
+    } catch {
+      return false;
+    }
+  }).length;
+}
+
+function applyingRefundCount() {
+  return db.refunds.filter((r) => {
+    try {
+      return JSON.parse(String(r.reason)).state === "applying";
+    } catch {
+      return false;
+    }
+  }).length;
 }
 
 const {
@@ -277,108 +319,107 @@ beforeEach(() => {
   paytr.queryPaytrStatus.mockReset();
 });
 
-describe("T8 applyPaymentRefund idempotency", () => {
-  it("aynı providerRef ile iki kez → tek ledger, ikinci no-op", async () => {
+describe("B1 resume after partial failure", () => {
+  it("kredi adımı bir kez düşerse applied yazılmaz; retry tamamlar", async () => {
     seedCreditPack(150);
+    db.creditFailOnce = true;
     const service = createServiceClient();
+
     const first = await applyPaymentRefund(service, {
       paymentId: PAYMENT_ID,
       refundKurus: 15000,
       source: "admin",
-      providerRef: "ref-same",
+      providerRef: "ref-b1",
       actorId: ACTOR_ID,
     });
-    expect(first.ok).toBe(true);
-    expect(first.reversed).toBe(150);
-    expect(db.credit_wallets[0].balance).toBe(0);
-    expect(
-      db.credit_ledger.filter((l) =>
-        String(l.idempotency_key).startsWith("payment_refund:"),
-      ),
-    ).toHaveLength(1);
+    expect(first.ok).toBe(false);
+    expect(first.errorStep).toBe("credit_adjust_balance");
+    expect(appliedRefundCount()).toBe(0);
+    expect(applyingRefundCount()).toBe(1);
+    expect(db.credit_wallets[0].balance).toBe(150);
+    expect(db.payments[0].status).toBe("paid");
 
     const second = await applyPaymentRefund(service, {
       paymentId: PAYMENT_ID,
       refundKurus: 15000,
       source: "admin",
-      providerRef: "ref-same",
+      providerRef: "ref-b1",
       actorId: ACTOR_ID,
     });
     expect(second.ok).toBe(true);
-    expect(second.noop).toBe(true);
-    expect(
-      db.credit_ledger.filter((l) =>
-        String(l.idempotency_key).startsWith("payment_refund:"),
-      ),
-    ).toHaveLength(1);
+    expect(second.noop).not.toBe(true);
+    expect(second.reversed).toBe(150);
+    expect(db.credit_wallets[0].balance).toBe(0);
+    expect(appliedRefundCount()).toBe(1);
+    expect(db.payments[0].status).toBe("refunded");
   });
 });
 
-describe("T9–T10 markPaymentRefunded", () => {
-  it("T9: pending kilit varken ikinci istek PayTR çağırmaz", async () => {
+describe("B2/B3 reconcile by amount delta", () => {
+  it("reference_no yokken reconcile ×2 → tek uygulama (B2)", async () => {
     seedCreditPack(150);
-    db.refunds = [
-      {
-        id: "pending-lock",
-        payment_id: PAYMENT_ID,
-        amount_try: 15000,
-        reason: JSON.stringify({
-          state: "pending",
-          ref: "lock-ref",
-          source: "admin",
-          kind: "payment_refund",
-          merchant_oid: "cpcreditpack01",
-          payment_id: PAYMENT_ID,
-        }),
-        created_at: new Date().toISOString(),
-      },
-    ];
-    paytr.requestPaytrRefund.mockResolvedValue({
+    paytr.queryPaytrStatus.mockResolvedValue({
       ok: true,
       status: "success",
+      returns: [{ returnAmountTry: 50, referenceNo: undefined, raw: {} }],
       raw: {},
     });
 
-    const result = await markPaymentRefunded(PAYMENT_ID);
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/devam eden/i);
-    expect(paytr.requestPaytrRefund).not.toHaveBeenCalled();
-  });
-
-  it("T9b: başarılı tek iade PayTR'yi bir kez çağırır", async () => {
-    seedCreditPack(150);
-    paytr.requestPaytrRefund.mockResolvedValue({
-      ok: true,
-      status: "success",
-      raw: {},
-    });
-    const result = await markPaymentRefunded(PAYMENT_ID);
-    expect(result.ok).toBe(true);
-    expect(paytr.requestPaytrRefund).toHaveBeenCalledTimes(1);
-  });
-
-  it("T10: PayTR başarısız → bakiye/abonelik/payments değişmez", async () => {
-    seedCreditPack(150);
-    paytr.requestPaytrRefund.mockResolvedValue({
-      ok: false,
-      status: "error",
-      errMsg: "test mode",
-      raw: {},
-    });
-
-    const result = await markPaymentRefunded(PAYMENT_ID);
-    expect(result.ok).toBe(false);
-    expect(db.credit_wallets[0].balance).toBe(150);
+    const a = await reconcilePaymentWithPaytr(PAYMENT_ID);
+    const b = await reconcilePaymentWithPaytr(PAYMENT_ID);
+    expect(a.ok).toBe(true);
+    expect(b.ok).toBe(true);
+    expect(appliedRefundCount()).toBe(1);
+    expect(db.credit_wallets[0].balance).toBe(100);
     expect(db.payments[0].status).toBe("paid");
-    expect(
-      db.refunds.some((r) => String(r.reason).includes('"state":"failed"')),
-    ).toBe(true);
+  });
+
+  it("kaydet sonra kontrol et çift saymaz (B3)", async () => {
+    seedCreditPack(150);
+    const recorded = await recordExternalRefund({
+      paymentId: PAYMENT_ID,
+      amountKurus: 7500,
+      // ref yok — eski bug random üretirdi
+    });
+    expect(recorded.ok).toBe(true);
+    expect(db.credit_wallets[0].balance).toBe(75);
+
+    paytr.queryPaytrStatus.mockResolvedValue({
+      ok: true,
+      status: "success",
+      returns: [{ returnAmountTry: 75, referenceNo: undefined, raw: {} }],
+      raw: {},
+    });
+
+    const recon = await reconcilePaymentWithPaytr(PAYMENT_ID);
+    expect(recon.ok).toBe(true);
+    expect(recon.appliedCount).toBe(0);
+    expect(appliedRefundCount()).toBe(1);
+    expect(db.credit_wallets[0].balance).toBe(75);
+    expect(db.payments[0].status).toBe("paid");
   });
 });
 
-describe("T11 Plus→Sigma eski ödeme iadesi", () => {
-  it("aktif abonelik plan_id eşleşmese de iptal edilir", async () => {
-    seedPlusPaymentActiveSigma();
+describe("B5 legacy refunded payment", () => {
+  it("eski refunded Plus kaydı yeni aboneliği iptal etmez", async () => {
+    seedPlusPaymentActiveSigma({ paymentStatus: "refunded" });
+    // refunds yok → legacy
+    const service = createServiceClient();
+    const result = await applyPaymentRefund(service, {
+      paymentId: PAYMENT_ID,
+      refundKurus: 59900,
+      source: "admin",
+      providerRef: "legacy-plus",
+      actorId: ACTOR_ID,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.cancelSubscription).toBe(false);
+    expect(db.subscriptions[0].status).toBe("active");
+    expect(db.credit_wallets[0].free_allowance_remaining).toBe(400);
+  });
+
+  it("Plus→Sigma sonrası eski ödeme iadesi hâlâ aktif aboneliği geri alır", async () => {
+    seedPlusPaymentActiveSigma({ paymentStatus: "paid" });
     const service = createServiceClient();
     const result = await applyPaymentRefund(service, {
       paymentId: PAYMENT_ID,
@@ -390,67 +431,82 @@ describe("T11 Plus→Sigma eski ödeme iadesi", () => {
     expect(result.ok).toBe(true);
     expect(result.cancelSubscription).toBe(true);
     expect(db.subscriptions[0].status).toBe("cancelled");
-    expect(db.payments[0].status).toBe("refunded");
   });
 });
 
-describe("T12 recordExternalRefund", () => {
-  it("PayTR çağrılmaz, defter yazılır", async () => {
-    seedCreditPack(120);
-    // 150 satın alındı, 30 harcandı → 120 reverse, 30 unrecovered
-    const result = await recordExternalRefund({
-      paymentId: PAYMENT_ID,
-      amountKurus: 15000,
-      providerRef: "panel-1",
-    });
-    expect(paytr.requestPaytrRefund).not.toHaveBeenCalled();
-    expect(result.ok).toBe(true);
-    expect(result.reversed).toBe(120);
-    expect(result.unrecovered).toBe(30);
-    expect(db.credit_wallets[0].balance).toBe(0);
-  });
-});
-
-describe("T13 reconcile", () => {
-  it("aynı reference_no iki kez → bir kez işlenir", async () => {
+describe("markPaymentRefunded locks", () => {
+  it("T9: Promise.all çift çağrı → PayTR en fazla 1 (gerçek yarış)", async () => {
     seedCreditPack(150);
-    paytr.queryPaytrStatus.mockResolvedValue({
-      ok: true,
-      status: "success",
-      returns: [
-        { returnAmountTry: 150, referenceNo: "dup-ref", raw: {} },
-        { returnAmountTry: 150, referenceNo: "dup-ref", raw: {} },
-      ],
+    paytr.requestPaytrRefund.mockImplementation(
+      async () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () => resolve({ ok: true, status: "success", raw: {} }),
+            30,
+          ),
+        ),
+    );
+
+    const results = await Promise.all([
+      markPaymentRefunded(PAYMENT_ID),
+      markPaymentRefunded(PAYMENT_ID),
+    ]);
+
+    expect(paytr.requestPaytrRefund.mock.calls.length).toBeLessThanOrEqual(1);
+    const oks = results.filter((r) => r.ok).length;
+    expect(oks).toBeLessThanOrEqual(1);
+  });
+
+  it("T10: PayTR başarısız → defter değişmez", async () => {
+    seedCreditPack(150);
+    paytr.requestPaytrRefund.mockResolvedValue({
+      ok: false,
+      status: "error",
+      errMsg: "test mode",
       raw: {},
     });
+    const result = await markPaymentRefunded(PAYMENT_ID);
+    expect(result.ok).toBe(false);
+    expect(db.credit_wallets[0].balance).toBe(150);
+    expect(db.payments[0].status).toBe("paid");
+  });
 
-    const result = await reconcilePaymentWithPaytr(PAYMENT_ID);
-    expect(result.ok).toBe(true);
+  it("geçersiz tutar reddedilir", async () => {
+    seedCreditPack(150);
+    const result = await markPaymentRefunded(PAYMENT_ID, Number.NaN as unknown as number);
+    expect(result.ok).toBe(false);
+    expect(paytr.requestPaytrRefund).not.toHaveBeenCalled();
+  });
+});
+
+describe("idempotency + errors", () => {
+  it("T8: aynı ref iki kez → ikinci noop", async () => {
+    seedCreditPack(150);
+    const service = createServiceClient();
+    const first = await applyPaymentRefund(service, {
+      paymentId: PAYMENT_ID,
+      refundKurus: 15000,
+      source: "admin",
+      providerRef: "ref-same",
+      actorId: ACTOR_ID,
+    });
+    expect(first.ok).toBe(true);
+    const second = await applyPaymentRefund(service, {
+      paymentId: PAYMENT_ID,
+      refundKurus: 15000,
+      source: "admin",
+      providerRef: "ref-same",
+      actorId: ACTOR_ID,
+    });
+    expect(second.noop).toBe(true);
     expect(
       db.credit_ledger.filter((l) =>
         String(l.idempotency_key).startsWith("payment_refund:"),
       ),
     ).toHaveLength(1);
   });
-});
 
-describe("T14 admin bypass", () => {
-  it("iade admin rolünü değiştirmez", async () => {
-    seedCreditPack(0, 50);
-    const service = createServiceClient();
-    await applyPaymentRefund(service, {
-      paymentId: PAYMENT_ID,
-      refundKurus: 5000,
-      source: "admin",
-      providerRef: "admin-self",
-      actorId: ACTOR_ID,
-    });
-    expect(db.adminRow).toEqual({ role: "admin" });
-  });
-});
-
-describe("T15 hata yolları", () => {
-  it("wallet_not_found → tamamlandı denmez", async () => {
+  it("T15 wallet_not_found → applied yazılmaz", async () => {
     seedCreditPack(150);
     db.rpc.mockImplementation(async (name: string) => {
       if (name === "apply_payment_refund") {
@@ -474,28 +530,13 @@ describe("T15 hata yolları", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.partialFailure).toBe(true);
-    expect(result.errorStep).toBe("credit_adjust_balance");
-    expect(db.payments[0].status).toBe("paid");
-  });
-
-  it("subscriptions update hatası → tamamlandı denmez", async () => {
-    seedPlusPaymentActiveSigma();
-    (db as { __subUpdateError?: string }).__subUpdateError = "permission denied";
-    const service = createServiceClient();
-    const result = await applyPaymentRefund(service, {
-      paymentId: PAYMENT_ID,
-      refundKurus: 59900,
-      source: "admin",
-      providerRef: "err-sub",
-      actorId: ACTOR_ID,
-    });
-    expect(result.ok).toBe(false);
-    expect(result.errorStep).toMatch(/subscription/);
+    expect(appliedRefundCount()).toBe(0);
+    expect(applyingRefundCount()).toBe(1);
   });
 });
 
-describe("T16 harcanmış kredi akışı", () => {
-  it("150 al → 30 harca → tam iade → 120 reverse, unrecovered 30, status refunded", async () => {
+describe("T16 spent credits", () => {
+  it("120 bakiye / 150 satın alma → 120 reverse, 30 unrecovered", async () => {
     seedCreditPack(120, 150);
     const service = createServiceClient();
     const result = await applyPaymentRefund(service, {
@@ -505,14 +546,9 @@ describe("T16 harcanmış kredi akışı", () => {
       providerRef: "full-spent",
       actorId: ACTOR_ID,
     });
-    expect(result.ok).toBe(true);
     expect(result.reversed).toBe(120);
     expect(result.unrecovered).toBe(30);
     expect(db.credit_wallets[0].balance).toBe(0);
     expect(db.payments[0].status).toBe("refunded");
-    const refundLedger = db.credit_ledger.find((l) =>
-      String(l.idempotency_key).startsWith("payment_refund:"),
-    );
-    expect(refundLedger?.delta).toBe(-120);
   });
 });

@@ -60,7 +60,13 @@ export default async function OdemelerPage() {
       .in("payment_id", paymentIds);
     for (const row of refundRows ?? []) {
       const reason = parseRefundReason(row.reason as string | null);
-      if (reason?.state === "failed" || reason?.state === "pending") continue;
+      if (
+        reason?.state === "failed" ||
+        reason?.state === "pending" ||
+        reason?.state === "applying"
+      ) {
+        continue;
+      }
       const pid = row.payment_id as string;
       refundedByPayment.set(
         pid,
