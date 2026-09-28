@@ -6,11 +6,8 @@ import {
   needsForceSplit,
   validateOneShotOutline,
   selectOutlineModel,
-  normalizeOutlineTokens,
-  topicTextGrounded,
   pageTextMapFromFiles,
   pageKey,
-  stemOutlineToken,
   trimOneShotDraft,
   oneShotJsonSchema,
   oneShotOutlineSchema,
@@ -187,140 +184,6 @@ describe("selectOutlineModel", () => {
     });
     expect(choice.tier).toBe("strong");
     expect(choice.reason).toBe("corpus_size");
-  });
-});
-
-describe("token grounding", () => {
-  it("normalizes Turkish tokens without fixture subject words", () => {
-    const tokens = normalizeOutlineTokens("Hukukun Kaynakları ve Örf");
-    expect(tokens).toContain("hukuk");
-    expect(tokens).toContain("kaynak");
-    expect(tokens).not.toContain("ve");
-  });
-
-  it("stems Turkish inflections onto a shared stem", () => {
-    expect(stemOutlineToken("kaynaklari")).toBe(stemOutlineToken("kaynak"));
-    expect(stemOutlineToken("konular")).toBe(stemOutlineToken("konu"));
-    expect(stemOutlineToken("secimleri")).toBe(stemOutlineToken("secim"));
-    expect(stemOutlineToken("mahkemesi")).toBe(stemOutlineToken("mahkeme"));
-    // Short words are left alone — over-stemming invents matches.
-    expect(stemOutlineToken("mol")).toBe("mol");
-    expect(stemOutlineToken("atom")).toBe("atom");
-  });
-
-  it("accepts topics whose title overlaps cited page text", () => {
-    const pageTexts = pageTextMapFromFiles([
-      {
-        fileName: "x.pdf",
-        pages: GROUND_PAGES.map((p) => ({ pageNumber: p.pageNumber, text: p.textContent })),
-      },
-    ]);
-    expect(
-      topicTextGrounded({
-        title: "Hukukun Kaynakları",
-        whyLearn: "Kaynak türlerini ayırt edebileceksin.",
-        likelyAsked: ["Yazılı kaynaklar"],
-        pageStart: 1,
-        pageEnd: 2,
-        pageTexts,
-      }),
-    ).toBe(true);
-  });
-
-  it("rejects fabricated topics on unrelated pages", () => {
-    const pageTexts = pageTextMapFromFiles([
-      {
-        fileName: "x.pdf",
-        pages: [{ pageNumber: 1, text: "Mol kavramı ve Avogadro sayısı anlatılır." }],
-      },
-    ]);
-    expect(
-      topicTextGrounded({
-        title: "Anayasa Mahkemesi Kararları",
-        whyLearn: "Yargı denetimini öğreneceksin.",
-        likelyAsked: ["İptal davası"],
-        pageStart: 1,
-        pageEnd: 1,
-        pageTexts,
-      }),
-    ).toBe(false);
-  });
-
-  it("rejects at least 8 of 10 fabricated topics against a chemistry corpus", () => {
-    const pageTexts = pageTextMapFromFiles([
-      {
-        fileName: "kimya.pdf",
-        pages: [
-          {
-            pageNumber: 1,
-            text: "Mol kavramı ve Avogadro sayısı kimyasal hesaplamaların temelidir.",
-          },
-          {
-            pageNumber: 2,
-            text: "Mol kütlesi hesaplama yöntemleri ve bağıl atom kütlesi anlatılır.",
-          },
-          {
-            pageNumber: 3,
-            text: "Kimyasal tepkimelerde denklem denkleştirme ve tepkime türleri.",
-          },
-        ],
-      },
-    ]);
-    const fabricated = [
-      { title: "Anayasa Mahkemesi Kararları", whyLearn: "Yargı denetimini öğreneceksin.", likelyAsked: ["İptal davası"] },
-      { title: "Cumhuriyetin İlanı", whyLearn: "Tarihsel süreci öğreneceksin.", likelyAsked: ["Saltanatın kaldırılması"] },
-      { title: "Borçlar Hukukunda Sözleşme", whyLearn: "Sözleşme kurulmasını öğreneceksin.", likelyAsked: ["İrade beyanı"] },
-      { title: "Osmanlı Kuruluş Dönemi", whyLearn: "Beylikten devlete geçişi öğreneceksin.", likelyAsked: ["Söğüt"] },
-      { title: "Fransız İhtilali Sonuçları", whyLearn: "Milliyetçiliğin yayılmasını öğreneceksin.", likelyAsked: ["Milliyetçilik"] },
-      { title: "Pazarlama Karması Bileşenleri", whyLearn: "Dört bileşeni öğreneceksin.", likelyAsked: ["Tutundurma"] },
-      { title: "Elektrik Devre Analizi", whyLearn: "Devre çözümlemeyi öğreneceksin.", likelyAsked: ["Ohm yasası"] },
-      { title: "Türk Dili Ses Bilgisi", whyLearn: "Ünlü uyumlarını öğreneceksin.", likelyAsked: ["Büyük ünlü uyumu"] },
-      { title: "Mikroekonomide Arz Talep Dengesi", whyLearn: "Piyasa dengesini öğreneceksin.", likelyAsked: ["Talep eğrisi"] },
-      { title: "Coğrafi Konum ve İklim Tipleri", whyLearn: "İklim kuşaklarını öğreneceksin.", likelyAsked: ["Akdeniz iklimi"] },
-    ];
-    const rejected = fabricated.filter(
-      (topic) =>
-        !topicTextGrounded({ ...topic, pageStart: 1, pageEnd: 3, pageTexts }),
-    ).length;
-    expect(rejected).toBeGreaterThanOrEqual(8);
-  });
-
-  it("needs same-page evidence (or real density) on ranges wider than 8 pages", () => {
-    const filler = (n: number) => ({
-      pageNumber: n,
-      text: `Dolgu paragraf ${n} burada duruyor.`,
-    });
-    const topic = {
-      title: "Nukleotid Replikasyon Semasi",
-      whyLearn: "Kromozom telomer sentromer histon plazmit ribozom lizozom golgi",
-      likelyAsked: [] as string[],
-      pageStart: 1,
-      pageEnd: 12,
-    };
-
-    const spread = pageTextMapFromFiles([
-      {
-        fileName: "bio.pdf",
-        pages: Array.from({ length: 12 }, (_, i) => {
-          if (i === 1) return { pageNumber: 2, text: "Nukleotid zinciri burada anlatilir." };
-          if (i === 10) return { pageNumber: 11, text: "Replikasyon sureci burada anlatilir." };
-          return filler(i + 1);
-        }),
-      },
-    ]);
-    expect(topicTextGrounded({ ...topic, pageTexts: spread })).toBe(false);
-
-    const together = pageTextMapFromFiles([
-      {
-        fileName: "bio.pdf",
-        pages: Array.from({ length: 12 }, (_, i) =>
-          i === 1
-            ? { pageNumber: 2, text: "Nukleotid zinciri ve replikasyon sureci burada anlatilir." }
-            : filler(i + 1),
-        ),
-      },
-    ]);
-    expect(topicTextGrounded({ ...topic, pageTexts: together })).toBe(true);
   });
 });
 

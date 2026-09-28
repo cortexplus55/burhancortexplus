@@ -15,7 +15,8 @@ import { z } from "zod";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { env } from "@/lib/env";
 import type { OutlineUnitDraft } from "@/lib/documents/outline-clean";
-import { foldTr, type PageAnalysis } from "@/lib/documents/page-analysis";
+import type { PageAnalysis } from "@/lib/documents/page-analysis";
+import { buildGroundingFile, groundTopic, type GroundingFile } from "@/lib/documents/outline-grounding";
 
 /** Soft page threshold for the cheaper outline model. */
 export const OUTLINE_MINI_PAGE_LIMIT = 30;
@@ -239,19 +240,6 @@ export function pageKey(fileIndex: number, page: number): string {
 
 /** Number keys are the legacy single-file form and still resolve. */
 export type PageTextMap = Map<string, string> | Map<number, string>;
-
-function readPageText(
-  map: PageTextMap | undefined,
-  fileIndex: number,
-  page: number,
-): string {
-  if (!map) return "";
-  const lookup = map as Map<string | number, string>;
-  const byKey = lookup.get(pageKey(fileIndex, page));
-  if (byKey !== undefined) return byKey;
-  if (fileIndex === 0) return lookup.get(page) ?? "";
-  return "";
-}
 
 export function buildMaterialCorpus(files: MaterialFileCorpus[]): string {
   const parts: string[] = [];
@@ -484,182 +472,26 @@ export function splitFilesForOutline(
   return parts.length ? parts : [files];
 }
 
-const TR_STOP = new Set([
-  "ve",
-  "bir",
-  "icin",
-  "için",
-  "olan",
-  "ile",
-  "da",
-  "de",
-  "mi",
-  "mu",
-  "mı",
-  "bu",
-  "su",
-  "şu",
-  "olarak",
-  "gibi",
-  "kadar",
-  "ancak",
-  "veya",
-  "ise",
-  "ki",
-  "ne",
-  "degil",
-  "değil",
-  "the",
-  "and",
-  "of",
-  "to",
-  "in",
-  "for",
-  "with",
-  "is",
-  "are",
-  "a",
-  "an",
-]);
-
-/**
- * Light Turkish suffix list, applied after `foldTr` (so ı→i, ü→u already).
- * Not a real morphological analyser — just enough that "kaynaklarını" and
- * "kaynak" count as the same word when checking a topic against its pages.
- */
-const TR_SUFFIXES = [
-  "lerinden",
-  "larindan",
-  "lerinin",
-  "larinin",
-  "lerine",
-  "larina",
-  "lerini",
-  "larini",
-  "lerden",
-  "lardan",
-  "lerin",
-  "larin",
-  "lerde",
-  "larda",
-  "sinin",
-  "sunun",
-  "sini",
-  "sunu",
-  "leri",
-  "lari",
-  "ler",
-  "lar",
-  "nin",
-  "nun",
-  "den",
-  "dan",
-  "ten",
-  "tan",
-  "si",
-  "su",
-  "de",
-  "da",
-  "te",
-  "ta",
-  "in",
-  "un",
-  "im",
-  "um",
-  "ya",
-  "ye",
-  "yi",
-  "yu",
-  "i",
-  "u",
-  "e",
-  "a",
-].sort((a, b) => b.length - a.length);
-
-const MIN_STEM_CHARS = 4;
-
-/** Strip up to three Turkish inflection suffixes from an already folded token. */
-export function stemOutlineToken(token: string): string {
-  let out = token;
-  for (let round = 0; round < 3; round += 1) {
-    let changed = false;
-    for (const suffix of TR_SUFFIXES) {
-      if (out.length - suffix.length < MIN_STEM_CHARS) continue;
-      if (!out.endsWith(suffix)) continue;
-      out = out.slice(0, out.length - suffix.length);
-      changed = true;
-      break;
+/** One grounding index per file, built lazily and only once per validation. */
+function groundingIndex(texts: PageTextMap | undefined) {
+  const cache = new Map<number, GroundingFile | null>();
+  return (fileIndex: number): GroundingFile | null => {
+    if (!texts) return null;
+    if (cache.has(fileIndex)) return cache.get(fileIndex) ?? null;
+    const pages = new Map<number, string>();
+    const lookup = texts as Map<string | number, string>;
+    for (const [key, text] of lookup) {
+      if (typeof key === "number") {
+        if (fileIndex === 0) pages.set(key, text);
+        continue;
+      }
+      const [f, p] = key.split(":").map(Number);
+      if (f === fileIndex && Number.isFinite(p)) pages.set(p!, text);
     }
-    if (!changed) break;
-  }
-  return out;
-}
-
-/** Turkish-aware token set for grounding checks (no subject keyword lists). */
-export function normalizeOutlineTokens(text: string): string[] {
-  const folded = foldTr(text)
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!folded) return [];
-  const out: string[] = [];
-  for (const raw of folded.split(" ")) {
-    if (raw.length < 3) continue;
-    if (TR_STOP.has(raw)) continue;
-    if (/^\d+$/.test(raw)) continue;
-    out.push(stemOutlineToken(raw));
-  }
-  return [...new Set(out)];
-}
-
-/** Beyond this span a couple of scattered word hits prove nothing. */
-const WIDE_RANGE_PAGES = 8;
-/** Share of topic tokens that must appear across a wide citation. */
-const WIDE_RANGE_DENSITY = 0.25;
-const NARROW_RANGE_DENSITY = 0.34;
-
-export function topicTextGrounded(input: {
-  title: string;
-  whyLearn?: string | null;
-  likelyAsked?: string[];
-  fileIndex?: number;
-  pageStart: number;
-  pageEnd: number;
-  pageTexts: PageTextMap;
-}): boolean {
-  const fileIndex = Math.max(0, input.fileIndex ?? 0);
-  const start = Math.min(input.pageStart, input.pageEnd);
-  const end = Math.max(input.pageStart, input.pageEnd);
-
-  const perPage: Set<string>[] = [];
-  const union = new Set<string>();
-  for (let p = start; p <= end; p += 1) {
-    const tokens = new Set(normalizeOutlineTokens(readPageText(input.pageTexts, fileIndex, p)));
-    perPage.push(tokens);
-    for (const t of tokens) union.add(t);
-  }
-  if (!union.size) return false;
-
-  const topicBlob = [input.title, input.whyLearn ?? "", ...(input.likelyAsked ?? [])].join(" ");
-  const topicTokens = normalizeOutlineTokens(topicBlob);
-  if (!topicTokens.length) return false;
-
-  const hit = topicTokens.filter((t) => union.has(t)).length;
-  const need = Math.min(2, topicTokens.length);
-  const density = hit / topicTokens.length;
-
-  if (end - start + 1 > WIDE_RANGE_PAGES) {
-    // A 40-page citation that only echoes two words scattered a book apart is
-    // how fabricated topics slip through. Demand one page that really covers
-    // the topic, or real coverage across the whole citation.
-    const samePage = perPage.some(
-      (tokens) => topicTokens.filter((t) => tokens.has(t)).length >= need,
-    );
-    return samePage || density >= WIDE_RANGE_DENSITY;
-  }
-
-  if (hit >= need) return true;
-  return density >= NARROW_RANGE_DENSITY;
+    const file = pages.size ? buildGroundingFile(pages) : null;
+    cache.set(fileIndex, file);
+    return file;
+  };
 }
 
 export type OneShotValidationIssue =
@@ -732,7 +564,7 @@ export function validateOneShotOutline(
 ): OneShotValidationResult {
   const resolved = resolveValidationTarget(target, pageTexts);
   const filePageCounts = resolved.filePageCounts;
-  const texts = resolved.pageTexts;
+  const groundingFor = groundingIndex(resolved.pageTexts);
   const singleFile = filePageCounts.length === 1;
 
   const issues: OneShotValidationIssue[] = [];
@@ -819,18 +651,8 @@ export function validateOneShotOutline(
         ...new Set((topic.likelyAsked ?? []).map((s) => s.trim()).filter(Boolean)),
       ].slice(0, MAX_LIKELY_ASKED);
 
-      if (
-        texts &&
-        !topicTextGrounded({
-          title,
-          whyLearn: why,
-          likelyAsked,
-          fileIndex,
-          pageStart: start,
-          pageEnd: end,
-          pageTexts: texts,
-        })
-      ) {
+      const grounding = groundingFor(fileIndex);
+      if (grounding && !groundTopic(grounding, { title, pageStart: start, pageEnd: end }).grounded) {
         issues.push({
           code: "ungrounded_topic",
           title,
