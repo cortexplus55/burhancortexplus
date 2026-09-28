@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { toIsoDate } from "@/lib/learning/calendar";
+import { liveStreak } from "@/lib/streak/record-activity";
 
 /**
  * Profil panelinin verisi.
@@ -65,7 +66,7 @@ export async function loadProfileDashboard(
         .maybeSingle(),
       supabase
         .from("user_streaks")
-        .select("current_streak, longest_streak")
+        .select("current_streak, longest_streak, last_activity_date")
         .eq("user_id", userId)
         .maybeSingle(),
       supabase
@@ -95,7 +96,7 @@ export async function loadProfileDashboard(
     fullName: (profile?.full_name as string | null) ?? null,
     schoolName,
     gradeLevel: (profile?.grade_level as string | null) ?? null,
-    currentStreak: streak?.current_streak ?? 0,
+    currentStreak: liveStreak(streak, today),
     longestStreak: streak?.longest_streak ?? 0,
     week: days.map((d) => ({ ...d, active: activeDays.has(d.iso) })),
     upcomingEvents: count ?? 0,

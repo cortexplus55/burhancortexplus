@@ -13,7 +13,8 @@ const STORAGE_KEY = "cortex-gamification-v1";
   Eskiden ikinci bir ekran "İlk Roket açıldı! Sıradaki rozetler seni
   bekliyor" diyordu; oysa kodda rozet sistemi yok — açılan bir şey, sırada
   bekleyen bir rozet yok. Öğrenciye tutulmayacak bir söz veriliyordu; ekran
-  kaldırıldı. Rozet sistemi kurulursa o ekran gerçek bir rozetle geri gelir.
+  kaldırıldı. Rozetler artık gerçek (lib/gamification/badges.ts); yeni
+  açılan rozeti BadgeUnlockNotice duyuruyor, bu karşılama değil.
 
   Seri yalnızca soru sormakla değil, ders, test, sözlü, tekrar ve deneme
   tamamlamakla da ilerliyor (recordUserActivity çağıranları) — metin de
