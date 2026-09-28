@@ -241,11 +241,13 @@ export async function POST(request: Request) {
         pageCount: typeof doc.page_count === "number" ? doc.page_count : null,
         windowsDone: (mapped as { windowsDone?: number }).windowsDone ?? null,
         windowsTotal: (mapped as { windowsTotal?: number }).windowsTotal ?? null,
+        stage: (mapped as { stage?: string }).stage ?? null,
+        leaseBusy: (mapped as { leaseBusy?: boolean }).leaseBusy === true,
       }, { status: 202 });
     }
     if (!mapped.ok) {
       const code = mapped.error || "topic_map_failed";
-      if (isRetryableIngestionCode(code)) {
+      if (isRetryableIngestionCode(code) || mapped.retryable) {
         return NextResponse.json({
           code,
           retryable: true,

@@ -7,11 +7,15 @@
  */
 
 import { processProgressFingerprint } from "@/lib/documents/process-progress-label";
+import { MAP_LEASE_MS } from "@/lib/documents/pdf-learning-v2-lease";
 
 export const PROCESS_STEP_BUDGET_MS = 45_000;
 
 /** İlerleme yoksa bu süreden sonra istemci pes eder (~6 dk). */
 export const PROCESS_STALL_MS = 6 * 60 * 1000;
+
+/** leaseBusy responses keep the stall timer alive for lease + buffer. */
+export const LEASE_BUSY_ALIVE_MS = MAP_LEASE_MS + 30_000;
 
 /** Same nextPage + retryable 503 this many times → terminal for the client. */
 export const MAX_IDENTICAL_RETRYABLE_FAILURES = 3;
@@ -234,6 +238,10 @@ export async function requestDocumentProcessing(input: {
 
     if (response.status === 202) {
       noteProgress(response.body, progressState);
+      // A healthy job holding the lease is not stalled — refresh the timer.
+      if (response.body.leaseBusy === true) {
+        progressState.lastProgressAt = now();
+      }
       lastKnownNextPage =
         response.body.nextPage ??
         response.body.pagesDone ??

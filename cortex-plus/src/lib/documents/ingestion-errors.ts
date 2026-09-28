@@ -155,17 +155,18 @@ const DEFS: Record<string, IngestionErrorDef> = {
   },
   topic_map_failed: {
     code: "topic_map_failed",
-    retryable: false,
-    scope: "document",
+    // OCR already paid; map LLM blips must not burn the document.
+    retryable: true,
+    scope: "batch",
     userMessage: "Konu haritası çıkarılamadı.",
-    action: "'Yeniden dene' ile tekrar başlat.",
+    action: "Belgen kaydedildi; 'Devam et' ile kaldığı yerden sürdür.",
   },
   topic_map_unavailable: {
     code: "topic_map_unavailable",
-    retryable: false,
-    scope: "document",
+    retryable: true,
+    scope: "batch",
     userMessage: "Konu haritası bu belgeden çıkarılamadı.",
-    action: "Daha net bir tarama yükle veya 'Yeniden dene'.",
+    action: "Belgen kaydedildi; 'Devam et' ile kaldığı yerden sürdür.",
   },
   topic_map_no_readable_pages: {
     code: "topic_map_no_readable_pages",

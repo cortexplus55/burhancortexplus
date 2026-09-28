@@ -3,6 +3,12 @@
  * Pure functions — no AI, no I/O — so unit tests and smoke probes stay free.
  */
 
+import {
+  cleanOcrPageText,
+  isHeadingCandidate,
+  isPracticePage,
+} from "@/lib/documents/outline-clean";
+
 export type PageKind =
   | "content"
   | "cover"
@@ -79,10 +85,13 @@ function normalizeLines(text: string): string[] {
 }
 
 export function extractHeadings(text: string): string[] {
-  const lines = normalizeLines(text);
+  const practice = isPracticePage(text);
+  const lines = normalizeLines(cleanOcrPageText(text));
   const headings: string[] = [];
   for (const [index, line] of lines.slice(0, 24).entries()) {
     if (line.length < 4 || line.length > 90) continue;
+    // Practice pages contribute no headings (questions still usable elsewhere).
+    if (practice) continue;
     const numbered = /^(?:\d+(?:\.\d+){0,3}|[IVXLC]{1,6})[.)\s-]+.{2,80}$/.test(
       line,
     );
@@ -96,6 +105,7 @@ export function extractHeadings(text: string): string[] {
       !FORMULA_PATTERNS.some((pattern) => pattern.test(line));
     if (numbered || markdown || allCaps || leadTitle) {
       const cleaned = line.replace(/^#{1,3}\s+/, "").trim();
+      if (!isHeadingCandidate(cleaned, { practicePage: practice })) continue;
       if (!headings.includes(cleaned)) headings.push(cleaned);
     }
   }
@@ -163,8 +173,9 @@ export function pageUsableForLesson(page: {
 export function analyzePage(
   pageNumber: number,
   text: string,
+  storedMethod?: ExtractionMethod | string | null,
 ): PageAnalysis {
-  const textContent = text.replace(/\u0000/g, "");
+  const textContent = cleanOcrPageText(text.replace(/\u0000/g, ""));
   const charCount = textContent.trim().length;
   const pageKind = classifyPageKind(textContent, pageNumber);
   const headings = extractHeadings(textContent);
@@ -186,6 +197,15 @@ export function analyzePage(
     pageKind !== "unreadable" &&
     charCount >= 40;
 
+  const stored =
+    storedMethod === "ocr" ||
+    storedMethod === "visual" ||
+    storedMethod === "manual" ||
+    storedMethod === "text_layer" ||
+    storedMethod === "none"
+      ? storedMethod
+      : null;
+
   return {
     pageNumber,
     textContent,
@@ -196,7 +216,13 @@ export function analyzePage(
     tablesDetected,
     imagesDetected: 0,
     uncertainRegions,
-    extractionMethod: extractionOk ? "text_layer" : "none",
+    // Never overwrite a stored OCR/visual/manual method with text_layer heuristic.
+    extractionMethod:
+      stored && stored !== "none"
+        ? stored
+        : extractionOk
+          ? "text_layer"
+          : "none",
     charCount,
   };
 }

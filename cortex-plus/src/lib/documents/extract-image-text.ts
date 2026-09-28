@@ -2,6 +2,7 @@ import "server-only";
 import OpenAI from "openai";
 import { env } from "@/lib/env";
 import { moderate } from "@/lib/ai/moderation";
+import { cleanOcrPageText } from "@/lib/documents/outline-clean";
 
 /**
  * Fotoğraftan metin okuma.
@@ -85,6 +86,7 @@ const PROMPT = [
   "Satır ve paragraf düzenini koru. Şıkları ayrı satırlara yaz.",
   "Matematiksel ifadeleri LaTeX ile yaz.",
   "El yazısını da oku.",
+  "Markdown, kod bloğu veya ``` kullanma; düz metin yaz.",
   `Görselde okunacak hiçbir yazı yoksa yalnızca ${NO_TEXT} yaz.`,
 ].join(" ");
 
@@ -113,8 +115,10 @@ async function readWith(
     const tokensIn = completion.usage?.prompt_tokens ?? 0;
     const tokensOut = completion.usage?.completion_tokens ?? 0;
     const raw = completion.choices[0]?.message?.content?.trim() ?? "";
-    const usable = isUsableOcrText(raw);
-    return { text: usable ? raw : null, tokensIn, tokensOut };
+    // Strip model fences/markdown at write time; read path also cleans.
+    const cleaned = cleanOcrPageText(raw);
+    const usable = isUsableOcrText(cleaned);
+    return { text: usable ? cleaned : null, tokensIn, tokensOut };
   } catch {
     // Çağrı hiç olmadıysa faturası da yok.
     return { text: null, tokensIn: 0, tokensOut: 0 };

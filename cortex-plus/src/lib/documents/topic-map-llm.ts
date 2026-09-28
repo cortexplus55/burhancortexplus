@@ -10,6 +10,7 @@ import {
 } from "@/lib/documents/topic-map";
 import {
   isCalloutLabel,
+  isNumberedChapter,
   isProcedureStep,
   isRunningHeader,
   isSatelliteSection,
@@ -21,6 +22,7 @@ import {
   unrepresentedHeadings,
   topicTitleRule,
 } from "@/lib/documents/topic-title";
+import { isHeadingCandidate } from "@/lib/documents/outline-clean";
 import {
   polishModelTitle,
   topicMapFromExtractedText,
@@ -246,6 +248,7 @@ export async function buildTopicMapLLM(
   teacherBrief?: string | null,
   /** A long book's twelve-page window may legitimately contain one chapter. */
   allowSingleTopic = false,
+  options?: { deadlineAt?: number; maxDraftAttempts?: number },
 ): Promise<TopicMapBuildResult | null> {
   const contentPages = pagesForTopicMap(pages);
   // İki sayfa şartı Word'ü düşürüyordu: sayfa sonu yoksa belge tek sayfa
@@ -254,7 +257,10 @@ export async function buildTopicMapLLM(
 
   const contentNumbers = new Set(contentPages.map((page) => page.pageNumber));
 
-  const backbone = headingsToGuard(contentPages);
+  // Clean backbone: only headings that pass the outline candidate filter.
+  const backbone = headingsToGuard(contentPages).filter((heading) =>
+    isHeadingCandidate(heading),
+  );
   const sourcedTitles = new Set(backbone.map((heading) => fold(normalizeTopicTitle(heading))));
   const validTitle = (title: string) =>
     topicTitleIssues(title).length === 0 || sourcedTitles.has(fold(title));
@@ -285,6 +291,8 @@ export async function buildTopicMapLLM(
       actionCode: "STUDY_PLAN_GENERATE",
       isPremium: await isPremiumUser(service, userId),
       verificationMode: "schema",
+      deadlineAt: options?.deadlineAt,
+      maxDraftAttempts: options?.maxDraftAttempts ?? (backbone.length ? 1 : 2),
       // Taslak reddedildiğinde modele "geçmedi" demek yetmiyordu; hangi
       // bölümün kaybolduğunu söyleyince düzeltebiliyor.
       buildIndependent: (_c, parsed) => {
@@ -311,7 +319,7 @@ En fazla ${ceiling} konu yaz; bağımsız bölüm sayısı daha fazlaysa hepsini
 ${minimumTopicCount(contentPages) === 1 ? "Belge kısa: tek konu yeter. Başlık cümle olmasın; sonuna nokta ya da soru işareti koyma.\n" : ""}
 ${
   backbone.length
-    ? "HİÇBİR ÖĞRETİM BÖLÜMÜ LİSTEDEN KAYBOLMAZ. Sayıyı azaltmanın tek yolu gerçekten aynı kavramı anlatan bölümleri birleştirmektir; birleştirince her iki bölümün adı başlıkta görünür. Bölüm atmak yasak."
+    ? "Temizlenmiş omurgadaki HİÇBİR ÖĞRETİM BÖLÜMÜ LİSTEDEN KAYBOLMAZ. Sayıyı azaltmanın tek yolu gerçekten aynı kavramı anlatan bölümleri birleştirmektir; birleştirince her iki bölümün adı başlıkta görünür. Temiz omurgadan bölüm atmak yasak."
     : "Numaralı kısa bölümlerin her biri ayrı konu değildir. Komşu bölümleri, birlikte çalışılan bir konu olacak şekilde birleştir. Yeni konu ancak yeni bir kavram kümesi varsa açılır."
 }
 
@@ -320,6 +328,10 @@ Konu DEĞİLDİR, ait olduğu konunun sayfasına kat:
 - Çözümlü örneğin ya da tekrar listesinin numaralı adımları
 - Bölüm sonu tekrarı, mini vize ve formül haritası
 - Aynı kavramın bir kısa bir uzun başlıkla tekrarı
+- Test / soru bölümleri, numaralı soru kökleri ve şıklar (A) B) C)…)
+- "Test N" / "Deneme N" başlıkları
+- Her sayfada tekrar eden üst/alt bilgi ve seri adı
+- Yarım kalmış satırlar (sonda tire veya virgül)
 
 Kapak, içindekiler, önsöz ve "öğrenme hedefleri"/"kazanımlar" listesi de konu değildir. Bu sayfaları anlattıkları asıl konuya bağla ya da hiç kullanma.
 
@@ -391,25 +403,19 @@ ${pageDigest(contentPages)}` + topicMapTeacherNote(teacherBrief),
       ),
     );
 
-  // Modelin hâlâ atladığı bölümü kendimiz ekle.
-  //
-  // Bekçi bölümü doğru işaretliyordu ama uyarı modele hiç ulaşmıyordu:
-  // yeniden deneme promptu yalnızca hata KODLARINI taşıyor, metni değil.
-  // Zemin belgesinde "6. Yük Altında Gerilme Dağılımı" üst üste üç
-  // denemede de kayboldu — model ikna edilemedi.
-  //
-  // İkna etmeye gerek yok: bölümün başlığı da sayfaları da elimizde.
-  // Başlığı temizleyip kendi konumuzu kuruyoruz. Böylece "hiçbir öğretim
-  // bölümü listeden kaybolmaz" bir temenni değil, garanti oluyor.
+  // Re-add only cleaned backbone headings that are valid numbered chapters
+  // or span ≥2 pages — never question stems / furniture that slipped through.
   const shipped = topics.map((t) => t.title);
   for (const heading of unrepresentedHeadings(backbone, shipped)) {
-    const title = normalizeTopicTitle(heading);
-    if (!validTitle(title)) continue;
-    if (seen.has(title.toLocaleLowerCase("tr").trim())) continue;
+    if (!isHeadingCandidate(heading)) continue;
     const pageNumbers = contentPages
       .filter((page) => pageCarriesHeading(page, heading))
       .map((page) => page.pageNumber)
       .sort((a, b) => a - b);
+    if (!isNumberedChapter(heading) && pageNumbers.length < 2) continue;
+    const title = normalizeTopicTitle(heading);
+    if (!validTitle(title)) continue;
+    if (seen.has(title.toLocaleLowerCase("tr").trim())) continue;
     if (!pageNumbers.length) continue;
     seen.add(title.toLocaleLowerCase("tr").trim());
     topics.push(draftFromLlmTopic(title, null, pageNumbers, pages, topics.length));

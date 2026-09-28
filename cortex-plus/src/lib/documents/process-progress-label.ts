@@ -13,6 +13,13 @@ export function formatDocumentProcessProgress(
     }
   }
   if (phase === "map") {
+    const stage = typeof body.stage === "string" ? body.stage : null;
+    if (stage === "outline" || stage === "persist") {
+      return "Konular düzenleniyor…";
+    }
+    if (stage === "prepare") {
+      return "Konular hazırlanıyor…";
+    }
     const doneRaw = body.windowsDone ?? body.nextIndex;
     const totalRaw = body.windowCount ?? body.windowsTotal ?? body.mapWindows;
     const done = Number(doneRaw);
@@ -32,8 +39,14 @@ export function processProgressFingerprint(
     return `extract:${String(body.nextPage)}`;
   }
   if (body.phase === "map") {
+    if (body.leaseBusy === true) {
+      const w = body.windowsDone ?? body.nextIndex ?? "busy";
+      return `map-lease:${String(w)}`;
+    }
+    const stage = typeof body.stage === "string" ? body.stage : "windows";
     const w = body.windowsDone ?? body.nextIndex;
-    if (w != null) return `map:${String(w)}`;
+    if (w != null) return `map:${stage}:${String(w)}`;
+    return `map:${stage}`;
   }
   if (body.nextPage != null) return `page:${String(body.nextPage)}`;
   return null;
