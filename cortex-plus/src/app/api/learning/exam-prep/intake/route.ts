@@ -13,7 +13,10 @@ import {
   seriesLabelFromFileName,
 } from "@/lib/learning/study-outline";
 import { buildExamPlan, daysUntilExam } from "@/lib/learning/exam-prep-plan";
-import { refoldTopicMapIfNeeded } from "@/lib/documents/pdf-learning-v2";
+import {
+  refoldTopicMapIfNeeded,
+  regenerateUnusedFlatTopicMap,
+} from "@/lib/documents/pdf-learning-v2";
 import { documentTitle } from "@/lib/documents/topic-title";
 import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
 import { PREP_TOPIC_CAP, prepTopicCapacityError } from "@/lib/learning/prep-topic-list";
@@ -255,14 +258,24 @@ export async function POST(request: Request) {
       );
     }
   }
-  // Katlamak model çağırmaz. Hazır öğretmen analizi de yeniden üretilmez;
-  // konu listesi saklı haritadan okunur.
+  // Unused flat junk maps → oneshot regen. Used maps are never rewritten.
+  // Katlamak model çağırmaz; hiyerarşik hazır haritalar yalnızca katlanır.
   if (v2) {
     for (const documentId of documentIds) {
       try {
+        const regen = await regenerateUnusedFlatTopicMap(service, documentId);
+        if (regen.regenerating) {
+          return NextResponse.json(
+            {
+              error: "Belgenin konuları yeniden düzenleniyor. İşlem bitince tekrar dene.",
+              code: "topic_map_regenerating",
+            },
+            { status: 409 },
+          );
+        }
         await refoldTopicMapIfNeeded(service, documentId);
       } catch (error) {
-        console.error("intake_refold_skipped", {
+        console.error("intake_map_refresh_skipped", {
           documentId,
           errorType: error instanceof Error ? (error.constructor?.name ?? error.name) : "unknown",
         });

@@ -97,13 +97,14 @@ export function extractHeadings(text: string): string[] {
     );
     const markdown = /^#{1,3}\s+/.test(line);
     const allCaps = HEADING_LINE.test(line) && line === line.toLocaleUpperCase("tr");
-    // Only treat the first short line as a title candidate — avoids formula noise.
-    const leadTitle =
-      index === 0 &&
+    // Early lines: running headers sit on line 0; real section titles often on 1–2.
+    // Require no sentence terminator so body prose stays out.
+    const earlyTitle =
+      index <= 2 &&
       line.length <= 70 &&
       !/[.!?…=]$/.test(line) &&
       !FORMULA_PATTERNS.some((pattern) => pattern.test(line));
-    if (numbered || markdown || allCaps || leadTitle) {
+    if (numbered || markdown || allCaps || earlyTitle) {
       const cleaned = line.replace(/^#{1,3}\s+/, "").trim();
       if (!isHeadingCandidate(cleaned, { practicePage: practice })) continue;
       if (!headings.includes(cleaned)) headings.push(cleaned);

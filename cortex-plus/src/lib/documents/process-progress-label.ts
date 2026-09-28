@@ -14,7 +14,7 @@ export function formatDocumentProcessProgress(
   }
   if (phase === "map") {
     const stage = typeof body.stage === "string" ? body.stage : null;
-    if (stage === "outline" || stage === "persist") {
+    if (stage === "oneshot" || stage === "outline" || stage === "persist") {
       return "Konular düzenleniyor…";
     }
     if (stage === "prepare") {

@@ -1,10 +1,14 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { analyzePage, type PageAnalysis } from "@/lib/documents/page-analysis";
+import {
+  analyzePage,
+  type ExtractionMethod,
+  type PageAnalysis,
+  type PageKind,
+} from "@/lib/documents/page-analysis";
 import { buildCoverageReport, type CoverageReport } from "@/lib/documents/coverage";
 import { draftFromLlmTopic, type TopicDraft } from "@/lib/documents/topic-map";
-import { buildTopicMapLLM, completeTopicPageLinks, pagesForTopicMap } from "@/lib/documents/topic-map-llm";
-import { runTeacherAnalysis } from "@/lib/documents/teacher-analysis-run";
+import { completeTopicPageLinks, pagesForTopicMap } from "@/lib/documents/topic-map-llm";
 import {
   shouldRewriteStoredTopicMap,
   consolidateTopics,
@@ -14,16 +18,15 @@ import { replaceTopicNodes } from "@/lib/documents/topic-map-refold";
 import {
   cleanOcrPageText,
   detectPageFurniture,
-  cleanOutlineDeterministic,
-  deterministicUnitsAsDraft,
+  extractTocUnits,
   type FurnitureDetection,
   type OutlineUnitDraft,
 } from "@/lib/documents/outline-clean";
-import { buildOutlineLlm, outlineLeavesFromUnits } from "@/lib/documents/outline-llm";
-import { isNumberedChapter, chapterHeadings } from "@/lib/documents/topic-title";
+import { outlineLeavesFromUnits } from "@/lib/documents/outline-llm";
+import { buildOutlineOneShot } from "@/lib/documents/outline-oneshot";
 import { MAP_LEASE_MS } from "@/lib/documents/pdf-learning-v2-lease";
 
-export type MapStage = "prepare" | "windows" | "outline" | "persist";
+export type MapStage = "prepare" | "oneshot" | "persist" | "windows" | "outline";
 
 export type PdfLearningV2Result = {
   ok: boolean;
@@ -42,8 +45,7 @@ export type PdfLearningV2Result = {
 const MAP_WINDOW_PAGES = 12;
 const PAGE_READ_BATCH = 200;
 export { MAP_LEASE_MS };
-const ROUND_DEADLINE_MS = 50_000;
-const MAX_WINDOW_ATTEMPTS = 2;
+const ROUND_DEADLINE_MS = 90_000;
 
 type MapCheckpointTopic = {
   title: string;
@@ -55,6 +57,7 @@ type JobMeta = {
   __meta: true;
   phase: MapStage;
   furniture?: FurnitureDetection;
+  tocUnits?: { title: string; startPage: number }[];
   windowAttempts?: Record<string, number>;
   outline?: OutlineUnitDraft[];
   windowsTotal?: number;
@@ -216,29 +219,29 @@ async function loadPageTexts(
   return out;
 }
 
-/** Full rows for finalize / coverage (text included). */
-async function loadPageRows(service: SupabaseClient, documentId: string) {
-  const rows: {
-    id: string;
-    page_number: number;
-    text_content: string | null;
-    extraction_ok: boolean | null;
-    page_kind: string | null;
-    extraction_method: string | null;
-    headings: unknown;
-    char_count: number | null;
-  }[] = [];
-  for (let offset = 0; ; offset += PAGE_READ_BATCH) {
-    const { data, error } = await service.from("document_pages")
-      .select("id, page_number, text_content, extraction_ok, page_kind, extraction_method, headings, char_count")
-      .eq("document_id", documentId)
-      .order("page_number", { ascending: true })
-      .range(offset, offset + PAGE_READ_BATCH - 1);
-    if (error) throw new Error("page_load_failed");
-    rows.push(...((data ?? []) as typeof rows));
-    if ((data ?? []).length < PAGE_READ_BATCH) break;
-  }
-  return rows;
+/**
+ * Rebuild PageAnalysis from prepare-persisted metadata — no text_content.
+ * Windows/outline/persist rounds must not re-read full document text (S3).
+ */
+function analysesFromLight(rows: LightPageRow[]): PageAnalysis[] {
+  return rows.map((row) => {
+    const pageKind = (row.page_kind as PageKind | null) ?? "content";
+    const method = (row.extraction_method as ExtractionMethod | null) ?? "none";
+    const headings = Array.isArray(row.headings) ? (row.headings as string[]) : [];
+    return {
+      pageNumber: row.page_number,
+      textContent: "",
+      extractionOk: row.extraction_ok !== false,
+      pageKind,
+      headings,
+      formulas: [],
+      tablesDetected: 0,
+      imagesDetected: 0,
+      uncertainRegions: [],
+      extractionMethod: method,
+      charCount: typeof row.char_count === "number" ? row.char_count : 0,
+    };
+  });
 }
 
 async function persistPageMeta(
@@ -283,7 +286,8 @@ async function persistTopics(
   if (!topics.length) return topicIdByMergeKey;
 
   // Insert unit nodes first (parent_id null), then leaf topics.
-  const unitIdByTitle = new Map<string, string>();
+  // Match parents by unit index — duplicate titles must not collide.
+  const unitIdByIndex = new Map<number, string>();
   if (units?.length) {
     const { data: unitRows, error: unitError } = await service
       .from("document_topic_nodes")
@@ -305,8 +309,17 @@ async function persistTopics(
       .select("id, title, sort_order");
     if (unitError || !unitRows?.length) throw new Error("topic_insert_failed");
     for (const row of unitRows) {
-      unitIdByTitle.set(row.title as string, row.id as string);
+      unitIdByIndex.set(row.sort_order as number, row.id as string);
     }
+  }
+
+  const topicUnitIndex = new Map<number, number>();
+  if (units?.length) {
+    units.forEach((unit, unitIndex) => {
+      for (const topicIndex of unit.topicIndexes) {
+        if (!topicUnitIndex.has(topicIndex)) topicUnitIndex.set(topicIndex, unitIndex);
+      }
+    });
   }
 
   const unitOffset = units?.length ?? 0;
@@ -314,11 +327,9 @@ async function persistTopics(
     .from("document_topic_nodes")
     .insert(
       topics.map((topic, index) => {
-        const unitTitle = topic.unitTitle ?? null;
+        const unitIndex = topicUnitIndex.get(index);
         const parentId =
-          unitTitle && unitIdByTitle.has(unitTitle)
-            ? unitIdByTitle.get(unitTitle)!
-            : null;
+          unitIndex !== undefined ? (unitIdByIndex.get(unitIndex) ?? null) : null;
         return {
           document_id: documentId,
           parent_id: parentId,
@@ -385,27 +396,6 @@ async function persistCoverage(
     { onConflict: "document_id" },
   );
   if (error) throw new Error("coverage_upsert_failed");
-}
-
-function analysesFromRows(
-  rows: Awaited<ReturnType<typeof loadPageRows>>,
-): PageAnalysis[] {
-  return rows.map((row) => {
-    const text = cleanOcrPageText(row.text_content ?? "");
-    const analysis = analyzePage(row.page_number, text, row.extraction_method);
-    if (row.extraction_ok === false) {
-      analysis.extractionOk = false;
-      if (analysis.pageKind === "content" || analysis.pageKind === "uncertain") {
-        analysis.pageKind = "unreadable";
-      }
-    }
-    if (row.page_kind === "blank") analysis.pageKind = "blank";
-    // Prefer stored cleaned headings when present
-    if (Array.isArray(row.headings) && (row.headings as string[]).length) {
-      analysis.headings = row.headings as string[];
-    }
-    return analysis;
-  });
 }
 
 function isRetryableMapError(message: string): boolean {
@@ -478,7 +468,7 @@ export async function runPdfLearningV2(
     }
     const token = job.lease_token!;
     try {
-      let { meta, compact: compactTopics } = splitJobTopics(job.topics);
+      let { meta } = splitJobTopics(job.topics);
       const phase: MapStage = meta?.phase ?? "prepare";
 
       // ——— PREPARE: light columns + analyze + persist meta + furniture ———
@@ -516,15 +506,22 @@ export async function runPdfLearningV2(
             pageKind: a.pageKind,
           })),
         );
+        const tocUnits = extractTocUnits(
+          analyses.map((a) => ({
+            pageNumber: a.pageNumber,
+            text: a.textContent,
+            pageKind: a.pageKind,
+            headings: a.headings,
+          })),
+        );
         const mapPages = pagesForTopicMap(analyses);
         if (!mapPages.length) throw new Error("topic_map_no_readable_pages");
-        const windowsTotal = topicMapWindows(mapPages).length;
         meta = {
           __meta: true,
-          phase: "windows",
+          phase: "oneshot",
           furniture,
-          windowAttempts: {},
-          windowsTotal,
+          tocUnits: tocUnits.length ? tocUnits : undefined,
+          windowsTotal: 1,
         };
         const nowIso = new Date().toISOString();
         const { data: saved, error: checkpointError } = await service
@@ -542,7 +539,6 @@ export async function runPdfLearningV2(
           documentId,
           stage: "prepare",
           ms: Date.now() - roundStarted,
-          windowsTotal,
         });
         return {
           ok: true,
@@ -550,139 +546,69 @@ export async function runPdfLearningV2(
           topics: 0,
           coverage: null,
           windowsDone: 0,
-          windowsTotal,
+          windowsTotal: 1,
           stage: "prepare",
         };
       }
 
-      // Need analyses for windows / outline / persist
-      const rows = await loadPageRows(service, documentId);
-      const analyses = analysesFromRows(rows);
+      // ——— ONESHOT: load full text once + one (or split/merge) LLM outline ———
+      const light = await loadPageLight(service, documentId);
       const pageIdByNumber = new Map(
-        rows.map((row) => [row.page_number as number, row.id as string]),
+        light.map((row) => [row.page_number as number, row.id as string]),
       );
-      const mapPages = pagesForTopicMap(analyses);
-      const windows = topicMapWindows(mapPages);
-      if (!windows.length) throw new Error("topic_map_no_readable_pages");
-      const windowsTotal = meta?.windowsTotal ?? windows.length;
       if (!meta) {
-        meta = {
-          __meta: true,
-          phase: "windows",
-          windowAttempts: {},
-          windowsTotal,
-        };
+        meta = { __meta: true, phase: "oneshot", windowsTotal: 1 };
       }
 
-      // ——— WINDOWS: one LLM window per round ———
-      if ((meta.phase === "windows" || !meta.outline) && job.next_index < windows.length) {
-        let teacherBrief: string | null = null;
-        if (windows.length === 1) {
-          const brain = await runTeacherAnalysis(service, documentId, {
-            userId: docRow.user_id as string,
-            fileName: (docRow.file_name as string) ?? "belge",
-            mimeType: (docRow.mime_type as string | null) ?? null,
-          });
-          teacherBrief = brain.topicMapBrief;
-        }
+      // Legacy jobs that still say windows/outline jump to oneshot.
+      const needsOneshot =
+        meta.phase === "oneshot" ||
+        meta.phase === "windows" ||
+        meta.phase === "outline" ||
+        !meta.outline;
 
-        const attemptKey = String(job.next_index);
-        const attempts = { ...(meta.windowAttempts ?? {}) };
-        attempts[attemptKey] = (attempts[attemptKey] ?? 0) + 1;
-        meta.windowAttempts = attempts;
+      if (needsOneshot && !meta.outline) {
+        const texts = await loadPageTexts(
+          service,
+          documentId,
+          light.map((r) => r.page_number),
+        );
+        const analyses: PageAnalysis[] = light.map((row) => {
+          const base = analysesFromLight([row])[0]!;
+          return { ...base, textContent: texts.get(row.page_number) ?? "" };
+        });
+        const mapPages = pagesForTopicMap(analyses);
+        if (!mapPages.length) throw new Error("topic_map_no_readable_pages");
 
-        let windowTopics: MapCheckpointTopic[] = [];
-        try {
-          const windowMap = await buildTopicMapLLM(
-            service,
-            documentId,
-            docRow.user_id as string,
-            (docRow.file_name as string) ?? "belge",
-            windows[job.next_index],
-            teacherBrief,
-            windows.length > 1,
-            { deadlineAt, maxDraftAttempts: 1 },
-          );
-          windowTopics = (windowMap?.topics ?? []).map((topic) => ({
-            title: topic.title,
-            learningObjective: topic.learningObjective,
-            pageNumbers: topic.pageNumbers,
-          }));
-        } catch {
-          windowTopics = [];
-        }
+        const outlineResult = await buildOutlineOneShot({
+          service,
+          userId: docRow.user_id as string,
+          files: [
+            {
+              fileName: (docRow.file_name as string) ?? "belge",
+              pages: mapPages.map((p) => ({
+                pageNumber: p.pageNumber,
+                text: p.textContent,
+              })),
+            },
+          ],
+          pagesForFallback: mapPages,
+          deadlineAt,
+          allowModel: true,
+        });
 
-        if (!windowTopics.length && (attempts[attemptKey] ?? 0) >= MAX_WINDOW_ATTEMPTS) {
-          // Deterministic cleaned outline for this window
-          const windowPages = windows[job.next_index]!;
-          const titles = chapterHeadings(windowPages).map((heading, i) => ({
-            title: heading,
-            pageNumbers: windowPages
-              .filter((p) => (p.headings ?? []).includes(heading))
-              .map((p) => p.pageNumber)
-              .concat(
-                windowPages.length
-                  ? [windowPages[0]!.pageNumber + i]
-                  : [],
-              )
-              .filter((n, idx, arr) => arr.indexOf(n) === idx),
-          }));
-          const cleaned = cleanOutlineDeterministic({
-            titles: titles.length
-              ? titles
-              : windowPages.map((p) => ({
-                  title: p.headings[0] || `Sayfa ${p.pageNumber}`,
-                  pageNumbers: [p.pageNumber],
-                })),
-            seriesLabels: meta.furniture?.seriesLabels,
-            unitRuns: meta.furniture?.unitRuns,
-            contentPageCount: windowPages.length,
-          });
-          windowTopics = cleaned.kept.map((c) => ({
-            title: c.title,
-            learningObjective: null,
-            pageNumbers: c.pageNumbers,
-          }));
-        } else if (!windowTopics.length) {
-          // Checkpoint same window, attempt+1
-          const nowIso = new Date().toISOString();
-          await service.from("document_topic_map_jobs")
-            .update({
-              topics: packJobTopics(meta, compactTopics),
-              updated_at: nowIso,
-            })
-            .eq("document_id", documentId)
-            .eq("lease_token", token);
-          console.info("pdf-learning-v2 round", {
-            documentId,
-            stage: "windows",
-            window: job.next_index,
-            attempt: attempts[attemptKey],
-            ms: Date.now() - roundStarted,
-            retry: true,
-          });
-          return {
-            ok: true,
-            pending: true,
-            topics: compactTopics.length,
-            coverage: null,
-            windowsDone: job.next_index,
-            windowsTotal,
-            stage: "windows",
-          };
-        }
-
-        compactTopics = [...compactTopics, ...windowTopics];
-        const nextIndex = job.next_index + 1;
+        meta = {
+          ...meta,
+          phase: "persist",
+          outline: outlineResult.units,
+          windowsTotal: 1,
+        };
         const nowIso = new Date().toISOString();
-        if (nextIndex >= windows.length) {
-          meta = { ...meta, phase: "outline", windowsTotal };
-        }
         const { data: saved, error: checkpointError } = await service
           .from("document_topic_map_jobs")
           .update({
-            next_index: nextIndex,
-            topics: packJobTopics(meta, compactTopics),
+            next_index: 1,
+            topics: packJobTopics(meta, []),
             updated_at: nowIso,
           })
           .eq("document_id", documentId)
@@ -695,58 +621,9 @@ export async function runPdfLearningV2(
         }).eq("id", documentId);
         console.info("pdf-learning-v2 round", {
           documentId,
-          stage: "windows",
-          windowsDone: nextIndex,
-          windowsTotal,
-          ms: Date.now() - roundStarted,
-        });
-        return {
-          ok: true,
-          pending: true,
-          topics: compactTopics.length,
-          coverage: null,
-          windowsDone: nextIndex,
-          windowsTotal,
-          stage: nextIndex >= windows.length ? "outline" : "windows",
-        };
-      }
-
-      // ——— OUTLINE: one consolidation LLM call ———
-      if (meta.phase === "outline" || (job.next_index >= windows.length && !meta.outline)) {
-        const contentPages = mapPages.map((p) => p.pageNumber);
-        const outlineResult = await buildOutlineLlm({
-          service,
-          userId: docRow.user_id as string,
-          fileName: (docRow.file_name as string) ?? "belge",
-          candidates: compactTopics.map((t) => ({
-            title: t.title,
-            pageNumbers: t.pageNumbers,
-            sourceTitle: t.title,
-          })),
-          contentPages,
-          numberedChapters: chapterHeadings(mapPages).filter((h) => isNumberedChapter(h)),
-          seriesLabels: meta.furniture?.seriesLabels,
-          unitRuns: meta.furniture?.unitRuns,
-          deadlineAt,
-          allowModel: true,
-        });
-        meta = { ...meta, phase: "persist", outline: outlineResult.units, windowsTotal };
-        const nowIso = new Date().toISOString();
-        const { data: saved, error: checkpointError } = await service
-          .from("document_topic_map_jobs")
-          .update({
-            next_index: windows.length + 1,
-            topics: packJobTopics(meta, compactTopics),
-            updated_at: nowIso,
-          })
-          .eq("document_id", documentId)
-          .eq("lease_token", token)
-          .select("document_id");
-        if (checkpointError || !saved?.length) throw new Error("topic_map_claim_lost");
-        console.info("pdf-learning-v2 round", {
-          documentId,
-          stage: "outline",
+          stage: "oneshot",
           fromModel: outlineResult.fromModel,
+          path: outlineResult.path,
           ms: Date.now() - roundStarted,
         });
         return {
@@ -754,75 +631,57 @@ export async function runPdfLearningV2(
           pending: true,
           topics: outlineLeavesFromUnits(outlineResult.units).leafTopics.length,
           coverage: null,
-          windowsDone: windows.length,
-          windowsTotal,
-          stage: "outline",
+          windowsDone: 1,
+          windowsTotal: 1,
+          stage: "oneshot",
         };
       }
 
-      // ——— PERSIST: clear + insert hierarchy + coverage (no LLM) ———
-      const outline =
-        meta.outline ??
-        deterministicUnitsAsDraft(
-          cleanOutlineDeterministic({
-            titles: compactTopics.map((t) => ({
-              title: t.title,
-              pageNumbers: t.pageNumbers,
-            })),
-            seriesLabels: meta.furniture?.seriesLabels,
-            unitRuns: meta.furniture?.unitRuns,
-            contentPageCount: mapPages.length,
-          }),
-        );
+      // ——— PERSIST: hierarchy + coverage (metadata only; outline already decided) ———
+      const analyses = analysesFromLight(light);
+      const mapPages = pagesForTopicMap(analyses);
+      if (!mapPages.length) throw new Error("topic_map_no_readable_pages");
+      const outline = meta.outline;
+      if (!outline?.length) throw new Error("topic_map_unavailable");
       const { units, leafTopics } = outlineLeavesFromUnits(outline);
-      let coverage: CoverageReport;
-      let topicCount: number;
-      if (!leafTopics.length) {
-        if (!compactTopics.length) throw new Error("topic_map_unavailable");
-        const drafted = compactTopics.map((topic, index) =>
-          draftFromLlmTopic(topic.title, topic.learningObjective, topic.pageNumbers, analyses, index),
-        );
-        const consolidated = consolidateTopics(drafted, mapPages, mapPages.length);
-        const topics = completeTopicPageLinks(
-          consolidated.topics.map((topic, index) => ({
-            ...draftFromLlmTopic(topic.title, topic.learningObjective, topic.pageNumbers, analyses, index),
-            prerequisites: topic.prerequisites ?? [],
-          })),
-          analyses,
-        );
-        if (!topics.length) throw new Error("topic_map_unavailable");
-        await clearTopicMap(service, documentId);
-        await persistTopics(service, documentId, topics, pageIdByNumber);
-        coverage = buildCoverageReport(analyses, topics, consolidated.mergedTitles);
-        topicCount = topics.length;
-      } else {
-        const hierarchical: HierarchicalTopic[] = leafTopics.map((leaf, index) => ({
-          ...draftFromLlmTopic(leaf.title, null, leaf.pageNumbers, analyses, index),
-          unitTitle: leaf.unitTitle,
-        }));
-        const linked = completeTopicPageLinks(hierarchical, analyses);
-        const withUnits = linked.map((topic, index) => ({
-          ...topic,
-          unitTitle: hierarchical[index]?.unitTitle ?? null,
-        }));
-        await clearTopicMap(service, documentId);
-        await persistTopics(
-          service,
-          documentId,
-          withUnits,
-          pageIdByNumber,
-          units.map((u) => ({
-            title: u.title,
-            topicIndexes: u.topics.map((_, j) =>
-              leafTopics.findIndex(
-                (l) => l.unitTitle === u.title && l.title === u.topics[j]?.title,
-              ),
-            ),
-          })),
-        );
-        coverage = buildCoverageReport(analyses, withUnits, []);
-        topicCount = withUnits.length;
-      }
+      if (!leafTopics.length) throw new Error("topic_map_unavailable");
+
+      const hierarchical: HierarchicalTopic[] = leafTopics.map((leaf, index) => ({
+        ...draftFromLlmTopic(leaf.title, null, leaf.pageNumbers, analyses, index),
+        unitTitle: leaf.unitTitle,
+      }));
+      const linked = completeTopicPageLinks(hierarchical, analyses);
+      const withUnits: HierarchicalTopic[] = leafTopics.map((leaf, index) => {
+        const match =
+          linked.find(
+            (t) =>
+              t.title === leaf.title &&
+              t.pageNumbers[0] === leaf.pageNumbers[0],
+          ) ??
+          linked[index] ??
+          hierarchical[index]!;
+        return { ...match, unitTitle: leaf.unitTitle };
+      });
+      await clearTopicMap(service, documentId);
+      await persistTopics(
+        service,
+        documentId,
+        withUnits,
+        pageIdByNumber,
+        units.map((u, unitIndex) => ({
+          title: u.title,
+          topicIndexes: leafTopics
+            .map((leaf, leafIndex) =>
+              leaf.unitTitle === u.title ||
+              (units[unitIndex] && leaf.unitTitle === units[unitIndex]!.title)
+                ? leafIndex
+                : -1,
+            )
+            .filter((i) => i >= 0),
+        })),
+      );
+      const coverage = buildCoverageReport(analyses, withUnits, []);
+      const topicCount = withUnits.length;
       await persistCoverage(service, documentId, coverage);
 
       const { error: docError } = await service.from("documents")
@@ -921,6 +780,87 @@ export type TopicMapSnapshot = {
  * Lookup hatası → "kullanımda" (yeniden yazma). Yanlış JSON filtresi
  * yüzünden 500 dönmemeli; kullanılmayan belge de intake/sayfa kırılmamalı.
  */
+
+/**
+ * Unused flat maps (e.g. founder’s 111 junk topics) must be rebuilt with the
+ * one-shot outline. Hierarchical maps and maps already tied to an exam stay.
+ */
+export function flatMapNeedsOneshotRegen(input: {
+  status: string | null;
+  inUse: boolean;
+  nodes: { parent_id: string | null }[];
+}): boolean {
+  if (input.status !== "ready" && input.status !== "reviewed") return false;
+  if (input.inUse) return false;
+  if (!input.nodes.length) return true;
+  if (input.nodes.some((n) => n.parent_id != null)) return false;
+  // Short flat maps can be legitimate single-level outlines.
+  return input.nodes.length > 16;
+}
+
+export async function unusedFlatMapNeedsOneshot(
+  service: SupabaseClient,
+  documentId: string,
+): Promise<boolean> {
+  const { data: doc } = await service
+    .from("documents")
+    .select("topic_map_status")
+    .eq("id", documentId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  const status = (doc?.topic_map_status as string | null) ?? null;
+
+  const { data: nodes, error } = await service
+    .from("document_topic_nodes")
+    .select("id, parent_id")
+    .eq("document_id", documentId);
+  if (error) return false;
+  const rows = nodes ?? [];
+  const inUse = rows.length
+    ? await documentTopicMapIsInUse(
+        service,
+        documentId,
+        rows.map((r) => r.id as string),
+      ).catch(() => true)
+    : false;
+  return flatMapNeedsOneshotRegen({
+    status,
+    inUse,
+    nodes: rows.map((r) => ({ parent_id: (r.parent_id as string | null) ?? null })),
+  });
+}
+
+/**
+ * Clear an unused flat map and start oneshot regeneration.
+ * Returns whether the caller should wait (map pending).
+ */
+export async function regenerateUnusedFlatTopicMap(
+  service: SupabaseClient,
+  documentId: string,
+): Promise<{ regenerating: boolean }> {
+  const needs = await unusedFlatMapNeedsOneshot(service, documentId);
+  if (!needs) return { regenerating: false };
+
+  await clearTopicMap(service, documentId);
+  await service.from("document_topic_map_jobs").delete().eq("document_id", documentId);
+  const { error } = await service
+    .from("documents")
+    .update({
+      topic_map_status: "pending",
+      topic_map_error: null,
+      topic_map_updated_at: new Date().toISOString(),
+    })
+    .eq("id", documentId);
+  if (error) return { regenerating: false };
+
+  // Kick one map round so the wizard's follow-up process poll has a head start.
+  const result = await runPdfLearningV2(service, documentId);
+  if (result.ok && !result.pending && result.topics > 0) {
+    return { regenerating: false };
+  }
+  return { regenerating: true };
+}
+
 export async function documentTopicMapIsInUse(
   service: SupabaseClient,
   documentId: string,

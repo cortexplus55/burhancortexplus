@@ -12,11 +12,11 @@ import { logOpsEvent } from "@/lib/observability/ops-log";
 import { isRetryableIngestionCode } from "@/lib/documents/ingestion-errors";
 
 /** Default pages per step; shrinks when the deadline is near. */
-export const PDF_PAGES_PER_STEP = 6;
+export const PDF_PAGES_PER_STEP = 10;
 /** Soft wall-clock budget for one Vercel invocation (leave margin under 300s). */
 export const PDF_STEP_DEADLINE_MS = 200_000;
 /** Parallel OCR pages per wave — claim/retry/blocked stay per-page. */
-export const OCR_PAGE_CONCURRENCY = 4;
+export const OCR_PAGE_CONCURRENCY = 8;
 const EMBED_BATCH = 24;
 const LEASE_RENEW_MS = 240_000;
 

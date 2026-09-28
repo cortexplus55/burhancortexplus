@@ -233,13 +233,50 @@ function isTocPage(page: CleanPageInput): boolean {
   return TOC_PAGE_HEAD.test(head);
 }
 
+function tocLineDensity(text: string): number {
+  const lines = normalizeLines(text);
+  if (!lines.length) return 0;
+  let hits = 0;
+  for (const line of lines) {
+    if (TOC_UNIT_LINE.test(line) || TOC_NUMBERED_LINE.test(line)) hits += 1;
+  }
+  return hits / lines.length;
+}
+
+/**
+ * TOC head page plus contiguous continuation pages dense with unit/chapter lines.
+ */
+function collectTocPages(
+  pages: { pageNumber: number; text: string; pageKind?: string | null; headings?: string[] }[],
+): typeof pages {
+  const ordered = [...pages].sort((a, b) => a.pageNumber - b.pageNumber);
+  const heads = ordered.filter((p) => isTocPage(p));
+  if (!heads.length) return [];
+  const selected = new Map<number, (typeof pages)[number]>();
+  for (const head of heads) selected.set(head.pageNumber, head);
+  for (const head of heads) {
+    for (const page of ordered) {
+      if (page.pageNumber <= head.pageNumber) continue;
+      if (page.pageNumber > head.pageNumber + 3) break;
+      if (selected.has(page.pageNumber)) continue;
+      // Continuation: dense unit/chapter listing, little body prose.
+      if (tocLineDensity(page.text) >= 0.35 || page.pageKind === "toc") {
+        selected.set(page.pageNumber, page);
+        continue;
+      }
+      break;
+    }
+  }
+  return [...selected.values()].sort((a, b) => a.pageNumber - b.pageNumber);
+}
+
 /**
  * Parse table-of-contents pages into ordered unit titles with start pages.
  */
 export function extractTocUnits(
   pages: { pageNumber: number; text: string; pageKind?: string | null; headings?: string[] }[],
 ): { title: string; startPage: number }[] {
-  const tocPages = pages.filter(isTocPage).sort((a, b) => a.pageNumber - b.pageNumber);
+  const tocPages = collectTocPages(pages);
   if (!tocPages.length) return [];
 
   const raw: { title: string; startPage: number }[] = [];
@@ -322,6 +359,8 @@ export function isHeadingCandidate(
   if (CODE_FENCE.test(text) || text.includes("```")) return false;
   if (looksLikeQuestionStem(text)) return false;
   if (ANSWER_OPTION.test(text)) return false;
+  // Contents rows are not study topics.
+  if (TOC_UNIT_LINE.test(text) || TOC_PAGE_HEAD.test(foldOutlineKey(text))) return false;
   // Roman statement lists (I./II./III.) are never chapter titles in our books.
   if (ROMAN_STATEMENT.test(text)) return false;
   if (/[-–—,]\s*$/.test(text)) return false;
@@ -346,6 +385,18 @@ export function isHeadingCandidate(
   return true;
 }
 
+const TR_TITLE_MINOR = new Set([
+  "ve",
+  "ile",
+  "veya",
+  "ya",
+  "de",
+  "da",
+  "ki",
+  "icin",
+  "için",
+]);
+
 /** Title-case shouting OCR lines with Turkish locale. */
 export function turkishTitleCase(text: string): string {
   const letters = text.replace(/[^\p{L}]/gu, "");
@@ -354,8 +405,10 @@ export function turkishTitleCase(text: string): string {
   return text
     .split(/\s+/)
     .filter(Boolean)
-    .map((word) => {
+    .map((word, index) => {
       const body = shouting ? word.toLocaleLowerCase("tr") : word;
+      const lower = body.toLocaleLowerCase("tr");
+      if (index > 0 && TR_TITLE_MINOR.has(lower)) return lower;
       return body.charAt(0).toLocaleUpperCase("tr") + body.slice(1);
     })
     .join(" ")
@@ -424,26 +477,37 @@ export function detectPageFurniture(
     }
   }
 
-  const threshold = Math.max(3, Math.ceil(content.length * 0.2));
+  // Per-line furniture threshold. Unit-specific running headers each cover a
+  // fraction of the book, so keep this modest; series detection uses page leads.
+  const threshold = Math.max(3, Math.ceil(content.length * 0.08));
   const furnitureEntries = [...firstLastCounts.entries()].filter(
     ([, row]) => row.count >= threshold,
   );
   const furnitureLines = furnitureEntries.map(([, row]) => row.sample);
 
-  // Series label = common first token across furniture lines
-  const tokenCounts = new Map<string, number>();
-  for (const line of furnitureLines) {
-    const token = line.trim().split(/\s+/)[0] ?? "";
+  // Series label = short first token that leads many content pages (not only
+  // furniture lines that already passed the per-line threshold). Handles books
+  // where the series token is constant but the unit label after it changes.
+  const leadTokenPages = new Map<string, { count: number; sample: string }>();
+  for (const page of content) {
+    const lead = normalizeLines(page.text)[0] ?? "";
+    const token = lead.trim().split(/\s+/)[0] ?? "";
     if (token.length < 2 || token.length > 12) continue;
+    if (!/^[A-ZÇĞİÖŞÜ0-9]{2,12}$/u.test(token) && !/^[A-Za-zÇĞİÖŞÜçğıöşü0-9]{2,12}$/u.test(token)) {
+      continue;
+    }
+    // Prefer brand-like tokens (mostly letters, often shouting / short).
+    if (/\d{3,}/.test(token)) continue;
     const key = foldOutlineKey(token);
-    tokenCounts.set(key, (tokenCounts.get(key) ?? 0) + 1);
+    if (!key) continue;
+    const row = leadTokenPages.get(key) ?? { count: 0, sample: token };
+    row.count += 1;
+    leadTokenPages.set(key, row);
   }
   const seriesLabels: string[] = [];
-  for (const [key, count] of tokenCounts) {
-    if (count >= Math.max(2, Math.ceil(furnitureLines.length * 0.5))) {
-      const sample = furnitureLines.find((line) => foldOutlineKey(line.split(/\s+/)[0] ?? "") === key);
-      if (sample) seriesLabels.push(sample.trim().split(/\s+/)[0]!);
-    }
+  const seriesThreshold = Math.max(4, Math.ceil(content.length * 0.25));
+  for (const [, row] of leadTokenPages) {
+    if (row.count >= seriesThreshold) seriesLabels.push(row.sample);
   }
 
   // Unit runs: remainder after stripping series label, contiguous pages ≥60%
@@ -580,6 +644,58 @@ function needsModelReviewTitle(title: string): boolean {
 /**
  * Deterministic cleaner over a flat title list (+ page numbers).
  */
+function isShoutingTitle(text: string): boolean {
+  const letters = text.replace(/[^\p{L}]/gu, "");
+  if (letters.length < 4) return false;
+  const upper = letters.replace(/[^\p{Lu}]/gu, "").length;
+  return upper / letters.length > 0.7;
+}
+
+/**
+ * Infer unit runs from a flat title list when TOC / furniture is absent.
+ * Prefers series-prefixed short labels and shouting section headers.
+ */
+export function inferUnitRunsFromTitles(
+  titles: { title: string; pageNumbers: number[] }[],
+  seriesLabels: string[],
+): FurnitureDetection["unitRuns"] {
+  const runs = new Map<string, { label: string; pages: number[] }>();
+  for (const row of titles) {
+    const original = row.title.trim();
+    if (!original || looksLikeQuestionStem(original)) continue;
+    const hasSeries = seriesLabels.some((s) =>
+      new RegExp(`^${escapeRegExp(s)}\\s+\\S`, "i").test(original),
+    );
+    const stripped = stripSeriesLabel(original, seriesLabels).trim();
+    if (!stripped || looksLikeQuestionStem(stripped)) continue;
+    if (seriesLabels.some((s) => foldOutlineKey(s) === foldOutlineKey(stripped))) {
+      continue;
+    }
+    const tokens = stripped.split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) continue;
+    // Unit labels: short series-prefixed lines, or shouting headers ≤5 tokens.
+    const shouting = isShoutingTitle(stripped) || isShoutingTitle(original);
+    const maxTokens = hasSeries || shouting ? 5 : 3;
+    if (tokens.length > maxTokens) continue;
+    if (!hasSeries && !shouting) continue;
+    const key = foldOutlineKey(stripped);
+    if (!key || key.length < 3) continue;
+    const rowRun = runs.get(key) ?? {
+      label: titleCaseForLanguage(stripped, detectTextLanguage(stripped)),
+      pages: [],
+    };
+    rowRun.pages.push(...row.pageNumbers);
+    runs.set(key, rowRun);
+  }
+  return [...runs.values()]
+    .map((r) => ({
+      label: r.label,
+      pageNumbers: [...new Set(r.pages)].sort((a, b) => a - b),
+    }))
+    .filter((r) => r.pageNumbers.length >= 1)
+    .sort((a, b) => (a.pageNumbers[0] ?? 0) - (b.pageNumbers[0] ?? 0));
+}
+
 export function cleanOutlineDeterministic(input: {
   titles: { title: string; pageNumbers: number[] }[];
   seriesLabels?: string[];
@@ -589,7 +705,11 @@ export function cleanOutlineDeterministic(input: {
   language?: "tr" | "en" | "unknown";
 }): CleanOutlineResult {
   const seriesLabels = input.seriesLabels ?? [];
-  const unitRuns = input.unitRuns ?? [];
+  const inferred =
+    input.unitRuns?.length || input.tocUnits?.length
+      ? []
+      : inferUnitRunsFromTitles(input.titles, seriesLabels);
+  const unitRuns = input.unitRuns?.length ? input.unitRuns : inferred;
   const furniture = {
     seriesLabels,
     unitRuns,

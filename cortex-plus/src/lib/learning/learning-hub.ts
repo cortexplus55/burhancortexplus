@@ -340,42 +340,68 @@ export async function loadLearningHub(
     cookieStore.get(FOCUS_PREP_COOKIE)?.value ??
     null;
 
-  const [{ data: attemptActivity }, { data: masteryActivity }, { data: topicStatusRows }] =
-    prepIds.length
-      ? await Promise.all([
+  // Max activity per prep — avoid PostgREST 1000-row truncation on heavy users.
+  type AttemptRow = { exam_prep_id: string; updated_at: string };
+  type MasteryRow = { exam_prep_id: string; last_practiced_at: string | null };
+  type TopicStatusRow = { exam_prep_id: string; status: string | null };
+
+  let attemptActivity: AttemptRow[] = [];
+  let masteryActivity: MasteryRow[] = [];
+  let topicStatusRows: TopicStatusRow[] = [];
+  if (prepIds.length) {
+    const [attempts, mastery, topics] = await Promise.all([
+      Promise.all(
+        prepIds.map((prepId) =>
           supabase
             .from("exam_prep_node_attempts")
             .select("exam_prep_id, updated_at")
             .eq("user_id", userId)
-            .in("exam_prep_id", prepIds),
+            .eq("exam_prep_id", prepId)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+            .then((r) => r.data as AttemptRow | null),
+        ),
+      ),
+      Promise.all(
+        prepIds.map((prepId) =>
           supabase
             .from("exam_prep_topic_mastery")
             .select("exam_prep_id, last_practiced_at")
             .eq("user_id", userId)
-            .in("exam_prep_id", prepIds),
-          supabase
-            .from("exam_prep_topics")
-            .select("exam_prep_id, status")
-            .in("exam_prep_id", prepIds),
-        ])
-      : [{ data: [] }, { data: [] }, { data: [] }];
+            .eq("exam_prep_id", prepId)
+            .order("last_practiced_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+            .then((r) => r.data as MasteryRow | null),
+        ),
+      ),
+      supabase
+        .from("exam_prep_topics")
+        .select("exam_prep_id, status")
+        .in("exam_prep_id", prepIds),
+    ]);
+    attemptActivity = attempts.filter((r): r is AttemptRow => Boolean(r));
+    masteryActivity = mastery.filter((r): r is MasteryRow => Boolean(r));
+    topicStatusRows = (topics.data ?? []) as TopicStatusRow[];
+  }
 
   const attemptMax = maxIsoByPrep(
-    (attemptActivity ?? []).map((r) => ({
-      exam_prep_id: r.exam_prep_id as string,
-      ts: r.updated_at as string,
+    attemptActivity.map((r) => ({
+      exam_prep_id: r.exam_prep_id,
+      ts: r.updated_at,
     })),
   );
   const masteryMax = maxIsoByPrep(
-    (masteryActivity ?? []).map((r) => ({
-      exam_prep_id: r.exam_prep_id as string,
-      ts: r.last_practiced_at as string | null,
+    masteryActivity.map((r) => ({
+      exam_prep_id: r.exam_prep_id,
+      ts: r.last_practiced_at,
     })),
   );
   const unfinishedMap = unfinishedByPrep(
-    (topicStatusRows ?? []).map((r) => ({
-      exam_prep_id: r.exam_prep_id as string,
-      status: r.status as string | null,
+    topicStatusRows.map((r) => ({
+      exam_prep_id: r.exam_prep_id,
+      status: r.status,
     })),
   );
 

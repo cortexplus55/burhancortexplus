@@ -221,7 +221,7 @@ export async function extractImageText(
  * sığdıramıyordu (sayfa başına ~5 saniye). Dört, hem bütçeye sığıyor hem
  * sağlayıcının hız sınırına dayanmıyor.
  */
-const PAGE_CONCURRENCY = 4;
+const PAGE_CONCURRENCY = 8;
 
 export type ImagePagesResult = {
   /** Sayfa sırasına göre metin; okunamayan sayfa boş string. */

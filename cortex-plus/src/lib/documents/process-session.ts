@@ -165,13 +165,16 @@ export async function requestDocumentProcessing(input: {
   let identicalCursor: string | null = null;
   let identicalFailures = 0;
   let lastKnownNextPage: unknown = null;
+  let leaseBusyStreak = false;
   const progressState = {
     lastProgressAt: now(),
     lastFingerprint: null as string | null,
   };
 
   while (rounds < hardCap) {
-    if (now() - progressState.lastProgressAt > stallMs) {
+    // leaseBusy only extends the stall window by LEASE_BUSY_ALIVE_MS — not forever.
+    const idleLimit = leaseBusyStreak ? LEASE_BUSY_ALIVE_MS : stallMs;
+    if (now() - progressState.lastProgressAt > idleLimit) {
       return {
         ok: false,
         status: 504,
@@ -237,9 +240,12 @@ export async function requestDocumentProcessing(input: {
     }
 
     if (response.status === 202) {
+      const enteringLeaseBusy =
+        response.body.leaseBusy === true && !leaseBusyStreak;
+      leaseBusyStreak = response.body.leaseBusy === true;
       noteProgress(response.body, progressState);
-      // A healthy job holding the lease is not stalled — refresh the timer.
-      if (response.body.leaseBusy === true) {
+      // Arm the shorter alive window once when leaseBusy begins; do not refresh forever.
+      if (enteringLeaseBusy) {
         progressState.lastProgressAt = now();
       }
       lastKnownNextPage =

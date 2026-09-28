@@ -52,6 +52,7 @@ export async function buildOutlineLlm(input: {
   numberedChapters?: string[];
   seriesLabels?: string[];
   unitRuns?: { label: string; pageNumbers: number[] }[];
+  tocUnits?: { title: string; startPage: number }[];
   deadlineAt?: number;
   allowModel?: boolean;
 }): Promise<OutlineLlmResult> {
@@ -63,6 +64,7 @@ export async function buildOutlineLlm(input: {
     })),
     seriesLabels: input.seriesLabels,
     unitRuns: input.unitRuns,
+    tocUnits: input.tocUnits,
     contentPageCount,
   });
   const fallback = deterministicUnitsAsDraft(deterministic);
