@@ -525,7 +525,9 @@ export async function loadLearningHub(
           id: item.id,
           title: item.title,
           minutes: item.minutes,
-          href: item.href ?? `/deneme-sinavlari/${nearestPrep.id}/oturum`,
+          href:
+            item.href ??
+            `/deneme-sinavlari/${nearestPrep.id}/oturum?planItemId=${item.id}`,
           kind: "prep_node" as const,
         }));
         minutesOut = plan.estimatedMinutes || minutesOut;
@@ -536,9 +538,14 @@ export async function loadLearningHub(
           processing: processingBlocks,
         })
       ) {
+        const firstPending =
+          plan.items.find((item) => item.status === "pending" || item.status === "active") ??
+          plan.items[0];
         nextBestAction = {
           kind: "exam_prep_node",
-          href: `/deneme-sinavlari/${nearestPrep.id}/oturum`,
+          href:
+            firstPending?.href ??
+            `/deneme-sinavlari/${nearestPrep.id}/oturum`,
           label: "Çalışmaya Başla",
           reason:
             plan.rebalanceNotice ||

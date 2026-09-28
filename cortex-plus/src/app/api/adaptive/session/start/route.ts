@@ -13,6 +13,7 @@ const bodySchema = z.object({
   examPrepId: z.string().uuid(),
   plannedDurationMinutes: z.number().int().min(5).max(240).optional(),
   objective: z.string().max(300).optional(),
+  planItemId: z.string().uuid().optional(),
 });
 
 export async function POST(request: Request) {
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
       examPrepId: parsed.data.examPrepId,
       plannedDurationMinutes: parsed.data.plannedDurationMinutes,
       objective: parsed.data.objective,
+      planItemId: parsed.data.planItemId,
     });
     trackAdaptiveEventServer("study_session_started", {
       examPrepId: parsed.data.examPrepId,

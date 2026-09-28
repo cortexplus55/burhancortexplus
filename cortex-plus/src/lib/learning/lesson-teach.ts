@@ -14,7 +14,7 @@ import { foldTr } from "@/lib/documents/page-analysis";
 import { titleConcepts } from "@/lib/learning/lesson-claims";
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
 import { fluencyIssues, repairTurkishSurface, sentences } from "@/lib/learning/learner-fluency";
-import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
+import { announcedExampleGap, exampleIsComplete, ensureThreeChecks, minimumLessonChecks } from "@/lib/learning/lesson-repair";
 import { auditQuantitative, evaluateArithmetic, repairQuantitative } from "@/lib/learning/tutor-quant";
 import { groundProseCalculations, workedExampleIssues } from "@/lib/learning/worked-example";
 import { topicMatchKey } from "@/lib/learning/topic-merge";
@@ -34,7 +34,8 @@ export const LESSON_TEACH_RULE = [
   "Nicel konuda example tam çözülmüş örnektir. solution satırları: Verilen: … İstenen: … Bağıntı: … Yerine koyma: … Sonuç: … birimle. Çözümdeki her sayı verilenlerde ya da önceki adımda durur. Kaynakta örnek varsa onu kullan. Yoksa kaynaktaki sabitlerle bir örnek kur; ara sonucu kendin hesapla, uydurma sonuç yazma. Sözel konuda sayı uydurma; kaynağın olayını adım adım analiz et.",
   "Hesabı yazmadan önce veriyi söyle. Verisi söylenmemiş eşitlik yazma.",
   "sadece, asla, her zaman, tek bir, hiçbir, only, never, always gibi kesin hüküm ancak kaynak aynı sözü kuruyorsa yazılır.",
-  "Kontrol, konunun becerisini ölçer ve ders cümlesini tekrar etmez. Kaynak zenginse en az beş çeşitli kontrol yaz: mcq, doğru/yanlış, sayısal, öğrencinin kendisinin yazdığı. Nicel konuda en az bir mcq hesap sorar. Çeldirici gerçek işlem hatasıdır: çarpma yerine bölme, ters bölme, verilen sayıyı sonuç sanma. optionWhy her şıkka tek başına okunan bir cümledir. explanation gerekçeyi söyler, soru cümlesini ve 'kendi anlamına bağlıyor' kalıbını tekrarlamaz. Doğru/yanlış yalnızca iki taraf da anlamlıysa.",
+  "Kontrol, konunun becerisini ölçer ve ders cümlesini tekrar etmez. En az min(3, kavram bölümü) ve her iki slaytta bir kontrol yaz. Kaynak zenginse en az beş çeşitli kontrol yaz: mcq, doğru/yanlış, sayısal, öğrencinin kendisinin yazdığı. Nicel konuda en az bir mcq hesap sorar. Çeldirici gerçek işlem hatasıdır: çarpma yerine bölme, ters bölme, verilen sayıyı sonuç sanma. optionWhy her şıkka tek başına okunan bir cümledir. explanation gerekçeyi söyler, soru cümlesini ve 'kendi anlamına bağlıyor' kalıbını tekrarlamaz. Doğru/yanlış yalnızca iki taraf da anlamlıysa.",
+  "Formüllerde değişken adı olarak yazılım tanımlayıcısı (alt çizgili kelime: açı_radyan, v_final) KULLANMA. Tek harf/Yunan harfi + alt simge kullan (α, αᵣ gibi) ya da kelimeyle yaz (\"derece cinsinden açı\"). Satır içi formülü $…$ içinde LaTeX ile yazabilirsin: $\\alpha_{\\text{rad}}$.",
   "check.review aynı fikri başka açıdan sorar. Cümlenin sonuna 'yargısı doğru mudur?' eklemek tekrar değildir.",
   "summary üç maddedir: kural, sık hata, uygulama. Bölüm cümlesini kopyalama. 'Diğer' ya da zamirle başlayan bağlamsız madde yazma.",
   "Aynı konuyu işleyen her kaynak parçası kullanılır. Tek dosyaya sıkışma.",
@@ -957,6 +958,7 @@ function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): Le
   next = withSourceExample(next, source);
   next = withCalculationCheck(next, source);
   next = withInfoCheck(next, source);
+  next = ensureThreeChecks(next, source);
   next = weaveUnusedSources(next, source, topicLabel);
   next = softenSummary(next, topicLabel);
   if (next.example && topicIsQuantitative(source)) {
@@ -1265,7 +1267,8 @@ export function salvageTaughtLesson(
   if (!still.length) return { lesson: prepared, removed };
 
   const stripped = salvageStripRemaining(prepared, source, topic, removed);
-  const finalParsed = lessonV2Schema.safeParse(stripped).data ?? stripped;
+  const refilled = ensureThreeChecks(stripped, source);
+  const finalParsed = lessonV2Schema.safeParse(refilled).data ?? refilled;
   return { lesson: finalParsed, removed };
 }
 
@@ -1316,7 +1319,12 @@ export async function finishTaughtLesson(
   lesson: LessonV2,
   input: { source: string; topicLabel: string },
   repair?: (prompt: string) => Promise<unknown>,
-): Promise<{ lesson: LessonV2; failures: TeachingFailure[]; salvaged: boolean }> {
+): Promise<{
+  lesson: LessonV2;
+  failures: TeachingFailure[];
+  salvaged: boolean;
+  checkCountLow?: boolean;
+}> {
   let current = prepareTaught(lesson, input.source, input.topicLabel);
   let failures = teachingFailures(current, input.source, input.topicLabel);
   if (criticalTeachingFailures(failures).length && repair) {
@@ -1337,12 +1345,20 @@ export async function finishTaughtLesson(
     failures = teachingFailures(current, input.source, input.topicLabel);
   }
   if (!criticalTeachingFailures(failures).length) {
-    return { lesson: current, failures, salvaged: false };
+    const topped = ensureThreeChecks(current, input.source);
+    return {
+      lesson: topped,
+      failures: teachingFailures(topped, input.source, input.topicLabel),
+      salvaged: false,
+      checkCountLow: topped.sections.filter((s) => s.check).length < minimumLessonChecks(topped),
+    };
   }
   const salvaged = salvageTaughtLesson(current, input);
+  const topped = ensureThreeChecks(salvaged.lesson, input.source);
   return {
-    lesson: salvaged.lesson,
-    failures: teachingFailures(salvaged.lesson, input.source, input.topicLabel),
+    lesson: topped,
+    failures: teachingFailures(topped, input.source, input.topicLabel),
     salvaged: true,
+    checkCountLow: topped.sections.filter((s) => s.check).length < minimumLessonChecks(topped),
   };
 }

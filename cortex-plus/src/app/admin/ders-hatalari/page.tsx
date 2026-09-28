@@ -56,9 +56,8 @@ export default async function AdminDersHatalariPage({
 
       {tableMissing ? (
         <AdminNote tone="warn">
-          Kayıt tablosu henüz kurulmadı. Migration
-          `20260928010000_lesson_generation_failures` SQL Editor&apos;dan elle
-          uygulanmalı; uygulama tablosuz da çalışır.
+          Kayıt tablosu bu sürümde henüz etkin değil. Hatalar yine de sunucu
+          kayıtlarına yazılıyor.
         </AdminNote>
       ) : null}
 
@@ -159,8 +158,8 @@ export default async function AdminDersHatalariPage({
             })}
           </AdminTableFrame>
         ) : tableMissing ? (
-          <AdminEmpty title="Kayıt tablosu henüz kurulmadı">
-            Migration uygulanınca hatalar burada listelenir.
+          <AdminEmpty title="Kayıt tablosu bu sürümde henüz etkin değil">
+            Hatalar yine de sunucu kayıtlarına yazılıyor.
           </AdminEmpty>
         ) : queryError ? (
           <AdminEmpty title="Kayıtlar okunamadı">

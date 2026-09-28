@@ -1007,7 +1007,7 @@ export function ExamNodeSession({
             language={language}
             gradeCheck={
               attemptId
-                ? async (sectionIndex, answer) => {
+                ? async (sectionIndex, answer, variant = "primary") => {
                     const res = await fetch("/api/learning/exam-prep/node", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
@@ -1017,6 +1017,7 @@ export function ExamNodeSession({
                         attemptId,
                         action: "grade-check",
                         sectionIndex,
+                        variant,
                         checkAnswer: answer,
                       }),
                     });
@@ -1031,12 +1032,15 @@ export function ExamNodeSession({
                   }
                 : undefined
             }
-            onFinish={(missed, lessonAnswers) => {
+            onFinish={(missed, lessonAnswers, retryAnswers) => {
               const indexes = (missed ?? []).filter((index) => Number.isInteger(index));
               const payloadAnswers: Record<string, unknown> = {};
               if (indexes.length) payloadAnswers.lessonMisses = indexes;
               if (lessonAnswers && Object.keys(lessonAnswers).length) {
                 payloadAnswers.lessonAnswers = lessonAnswers as Record<string, LessonCheckAnswer>;
+              }
+              if (retryAnswers && Object.keys(retryAnswers).length) {
+                payloadAnswers.retryAnswers = retryAnswers as Record<string, LessonCheckAnswer>;
               }
               void finish(Object.keys(payloadAnswers).length ? payloadAnswers : undefined);
             }}

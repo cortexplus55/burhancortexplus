@@ -14,6 +14,7 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
+import { normalizeMathIdentifiers } from "@/lib/learning/math-identifiers";
 
 const COMMON_CAPITAL = new Set([
   "kutle",
@@ -449,7 +450,9 @@ export function scanFluencyIssues(text: string): { text: string; issues: string[
 
 /** Ders ağacındaki her metin alanını aynı onarımdan geçirir. */
 export function repairLessonSurface<T>(value: T): T {
-  if (typeof value === "string") return repairDativePossessive(value) as T;
+  if (typeof value === "string") {
+    return repairDativePossessive(normalizeMathIdentifiers(value)) as T;
+  }
   if (Array.isArray(value)) return value.map((item) => repairLessonSurface(item)) as T;
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};

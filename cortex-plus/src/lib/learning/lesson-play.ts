@@ -6,6 +6,8 @@
 
 import { z } from "zod";
 import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
+import { reviewGateQuestion } from "@/lib/learning/lesson-chrome";
+import type { MaterialLanguage } from "@/lib/learning/teacher-brain";
 
 export type LessonCheckAnswer = {
   /** mcq / trueFalse / findError seçilen şık. */
@@ -13,6 +15,8 @@ export type LessonCheckAnswer = {
   /** numerical / explain yazılı yanıt. */
   text?: string;
 };
+
+export type CheckGradeVariant = "primary" | "retry";
 
 export type PublicSectionCheck = Omit<
   SectionCheck,
@@ -28,6 +32,11 @@ export type PublicLessonV2 = Omit<LessonV2, "sections" | "findError" | "numerica
   sections: Array<
     Omit<LessonV2["sections"][number], "check"> & {
       check?: PublicSectionCheck;
+      /**
+       * Sunucunun kurduğu tekrar varyantının sızdırılmış yüzü.
+       * Cevap yok; istemci soruyu kendisi kurmaz (Design B).
+       */
+      retryCheck?: PublicSectionCheck;
     }
   >;
   findError?: { prompt: string; options: string[]; faultyText?: string };
@@ -66,6 +75,7 @@ export const publicLessonV2Schema = z.object({
         heading: z.string().min(1).max(160),
         body: z.string().min(1),
         check: publicSectionCheckSchema.optional(),
+        retryCheck: publicSectionCheckSchema.optional(),
         note: z
           .object({
             title: z.string(),
@@ -162,14 +172,37 @@ export function sealSectionCheck(check: SectionCheck): PublicSectionCheck {
   return sealed;
 }
 
-/** Tam ders → oynatma paketi. */
-export function sealLessonForPlay(lesson: LessonV2): PublicLessonV2 {
+/**
+ * Tam kontrolden tekrar varyantı. Deterministik (stableShift).
+ * grade-check ve sealLessonForPlay aynı yolu kullanır.
+ */
+export function buildLessonRetryCheck(
+  check: SectionCheck,
+  language: MaterialLanguage = "tr",
+  source = "",
+): SectionCheck {
+  return reviewGateQuestion(check, language, source);
+}
+
+/** Tam ders → oynatma paketi. Design B: her bölümün sealed retryCheck'i sunucuda kurulur. */
+export function sealLessonForPlay(
+  lesson: LessonV2,
+  options: { language?: MaterialLanguage } = {},
+): PublicLessonV2 {
+  const language = options.language ?? "tr";
   return {
     ...lesson,
-    sections: lesson.sections.map((section) => ({
-      ...section,
-      check: section.check ? sealSectionCheck(section.check) : undefined,
-    })),
+    sections: lesson.sections.map((section) => {
+      if (!section.check) {
+        return { ...section, check: undefined, retryCheck: undefined };
+      }
+      const retry = buildLessonRetryCheck(section.check, language, section.body);
+      return {
+        ...section,
+        check: sealSectionCheck(section.check),
+        retryCheck: sealSectionCheck(retry),
+      };
+    }),
     findError: lesson.findError
       ? {
           prompt: lesson.findError.prompt,
@@ -181,6 +214,29 @@ export function sealLessonForPlay(lesson: LessonV2): PublicLessonV2 {
       ? { prompt: lesson.numericalCheck.prompt }
       : undefined,
     infoCheck: lesson.infoCheck ? { prompt: lesson.infoCheck.prompt } : undefined,
+  };
+}
+
+/**
+ * Notlandırılacak kontrolü seçer. retry → aynı deterministik varyant.
+ * Açıklama alanı boşsa birincilden doldurulur (AÇIKLAMA kutusu boş kalmasın).
+ */
+export function resolveCheckForGrade(
+  primary: SectionCheck,
+  variant: CheckGradeVariant,
+  language: MaterialLanguage = "tr",
+  source = "",
+): SectionCheck {
+  if (variant !== "retry") return primary;
+  const retry = buildLessonRetryCheck(primary, language, source);
+  return {
+    ...retry,
+    explanation: retry.explanation?.trim() || primary.explanation,
+    optionWhy: retry.optionWhy?.length ? retry.optionWhy : primary.optionWhy,
+    whyRight: retry.whyRight?.trim() || primary.whyRight,
+    whyWrong: retry.whyWrong?.trim() || primary.whyWrong,
+    misconception: retry.misconception?.trim() || primary.misconception,
+    hint: retry.hint?.trim() || primary.hint,
   };
 }
 

@@ -9,6 +9,7 @@ import { LessonDiagramView } from "@/components/parity/lesson-diagram";
 import {
   calloutTone,
   checkPresentation,
+  isDistinctRetryVariant,
   reviewGateLead,
   reviewGateQuestion,
   trueFalseIndexes,
@@ -21,7 +22,9 @@ import {
   type BoardLine,
 } from "@/lib/learning/lesson-board";
 import { renderMath, splitMath } from "@/lib/learning/math-text";
+import { normalizeMathIdentifiers } from "@/lib/learning/math-identifiers";
 import type {
+  CheckGradeVariant,
   GradeCheckResult,
   LessonCheckAnswer,
   PublicSectionCheck,
@@ -86,9 +89,10 @@ function BoardBody({ text, className }: { text: string; className?: string }) {
 }
 
 function RichBody({ text }: { text: string }) {
+  const normalized = normalizeMathIdentifiers(text);
   return (
     <>
-      {splitMath(text).flatMap((segment, segIndex) => {
+      {splitMath(normalized).flatMap((segment, segIndex) => {
         if (segment.type === "math") {
           const Tag = segment.display ? "div" : "span";
           return (
@@ -143,11 +147,13 @@ type Step =
   | { kind: "recall"; heading: string; prompt: string; solution: string }
   | { kind: "mistake"; heading: string; claim: string; correction: string }
   | { kind: "summary"; heading: string; points: string[]; next: string[] }
-  | { kind: "review-gate"; count: number }
+  | { kind: "review-gate"; count: number; distinct: boolean }
   | {
       kind: "retry";
       heading: string;
       check: PlayCheck;
+      sectionIndex: number;
+      variant: "retry";
     };
 
 const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F"] as const;
@@ -312,6 +318,7 @@ export function ExamLessonSteps({
   onFinish?: (
     missedSectionIndexes?: number[],
     lessonAnswers?: Record<string, LessonCheckAnswer>,
+    retryAnswers?: Record<string, LessonCheckAnswer>,
   ) => void;
   onClose?: () => void;
   closeHref?: string;
@@ -319,6 +326,7 @@ export function ExamLessonSteps({
   gradeCheck?: (
     sectionIndex: number,
     answer: LessonCheckAnswer,
+    variant?: CheckGradeVariant,
   ) => Promise<GradeCheckResult>;
 }) {
   const base = useMemo(() => buildSteps(lesson), [lesson]);
@@ -333,28 +341,51 @@ export function ExamLessonSteps({
   /** Yanlış cevaplanan bölümlerin sırası — tekrar kuyruğunu bunlar doğurur. */
   const [missed, setMissed] = useState<number[]>([]);
   const [lessonAnswers, setLessonAnswers] = useState<Record<string, LessonCheckAnswer>>({});
+  const [retryAnswers, setRetryAnswers] = useState<Record<string, LessonCheckAnswer>>({});
+  const [ungradable, setUngradable] = useState(false);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const closeDialogRef = useRef<HTMLDivElement | null>(null);
 
   const steps = useMemo(() => {
     const retries = missed
       .map((sectionIndex) => {
-        const section = lesson.sections[sectionIndex];
-        return section?.check
-          ? ({
-              kind: "retry",
-              heading: section.heading,
-              check: reviewGateQuestion(
+        const section = lesson.sections[sectionIndex] as
+          | (PlayLesson["sections"][number] & { retryCheck?: PublicSectionCheck })
+          | undefined;
+        if (!section?.check) return null;
+        // Design B: sunucunun sealed retryCheck'i. Eski paketlerde answerIndex
+        // varsa istemci reviewGateQuestion ile yedek kurar.
+        const sealedRetry = section.retryCheck;
+        const legacy =
+          !sealedRetry &&
+          typeof (section.check as { answerIndex?: number }).answerIndex === "number"
+            ? reviewGateQuestion(
                 section.check as NonNullable<LessonV2["sections"][number]["check"]>,
                 language,
                 section.body,
-              ),
-            } as Step)
-          : null;
+              )
+            : null;
+        const retryCheck = sealedRetry ?? legacy ?? section.check;
+        return {
+          kind: "retry" as const,
+          heading: section.heading,
+          check: retryCheck,
+          sectionIndex,
+          variant: "retry" as const,
+        } satisfies Step;
       })
-      .filter((s): s is Step => s !== null);
+      .filter((s): s is Extract<Step, { kind: "retry" }> => s !== null);
     if (!retries.length) return base;
-    return [...base, { kind: "review-gate", count: retries.length } as Step, ...retries];
+    const distinct = retries.some((retry) => {
+      const primary = lesson.sections[retry.sectionIndex]?.check;
+      if (!primary) return false;
+      return isDistinctRetryVariant(primary, retry.check);
+    });
+    return [
+      ...base,
+      { kind: "review-gate", count: retries.length, distinct } as Step,
+      ...retries,
+    ];
   }, [base, missed, lesson, language]);
 
   const step = steps[Math.min(index, steps.length - 1)];
@@ -370,10 +401,12 @@ export function ExamLessonSteps({
   const correct = Boolean(
     check &&
       revealed &&
+      !ungradable &&
       (gradeResult
         ? gradeResult.correct || gradeResult.half
-        : picked != null && picked === answerIndex),
+        : picked != null && answerIndex != null && picked === answerIndex),
   );
+  const hasVerdict = Boolean(check && revealed && !ungradable && (gradeResult || answerIndex != null));
 
   function resetAnswer() {
     setPicked(null);
@@ -383,6 +416,7 @@ export function ExamLessonSteps({
     setRecallDraft("");
     setGradeResult(null);
     setGrading(false);
+    setUngradable(false);
   }
 
   function go(nextIndex: number) {
@@ -392,7 +426,7 @@ export function ExamLessonSteps({
 
   function next() {
     if (last) {
-      onFinish?.(missed, lessonAnswers);
+      onFinish?.(missed, lessonAnswers, retryAnswers);
       return;
     }
     go(index + 1);
@@ -447,31 +481,54 @@ export function ExamLessonSteps({
 
   async function submitCheck(answer: LessonCheckAnswer) {
     if (!check || revealed || grading) return;
-    const sectionIndex = step.kind === "section" ? step.sectionIndex : -1;
-    if (sectionIndex >= 0) {
+    const sectionIndex =
+      step.kind === "section"
+        ? step.sectionIndex
+        : step.kind === "retry"
+          ? step.sectionIndex
+          : -1;
+    const variant: CheckGradeVariant = step.kind === "retry" ? "retry" : "primary";
+    if (step.kind === "section" && sectionIndex >= 0) {
       setLessonAnswers((prev) => ({ ...prev, [String(sectionIndex)]: answer }));
     }
+    if (step.kind === "retry" && sectionIndex >= 0) {
+      setRetryAnswers((prev) => ({ ...prev, [String(sectionIndex)]: answer }));
+    }
 
-    const needsServer =
-      Boolean(gradeCheck) &&
-      (check.type === "numerical" ||
-        check.type === "explain" ||
-        typeof (check as { answerIndex?: number }).answerIndex !== "number");
+    const hasClientAnswer =
+      typeof (check as { answerIndex?: number }).answerIndex === "number" ||
+      typeof (check as { answer?: string }).answer === "string" ||
+      Boolean((check as { expectedPoints?: string[] }).expectedPoints?.length);
 
-    if (needsServer && gradeCheck && sectionIndex >= 0) {
+    // Sunucu yolu: hem bölüm hem tekrar. Sızdırılmış pakette answerIndex yok.
+    if (gradeCheck && sectionIndex >= 0) {
       setGrading(true);
       try {
-        const result = await gradeCheck(sectionIndex, answer);
+        const result = await gradeCheck(sectionIndex, answer, variant);
         setGradeResult(result);
         setRevealed(true);
         if (typeof answer.pick === "number") setPicked(answer.pick);
-        if (!result.correct && !result.half) markMissed(sectionIndex);
+        // İlk deneme yanlışsa kuyruğa al; doğru tekrar yeniden kuyruğa almaz.
+        if (step.kind === "section" && !result.correct && !result.half) {
+          markMissed(sectionIndex);
+        }
       } catch {
+        setUngradable(true);
         setGradeResult({ correct: false, message: "Notlandırılamadı. Yeniden dene." });
         setRevealed(true);
+        if (typeof answer.pick === "number") setPicked(answer.pick);
       } finally {
         setGrading(false);
       }
+      return;
+    }
+
+    // Sızdırılmış paket + gradeCheck yok: asla varsayılan Yanlış gösterme.
+    if (!hasClientAnswer) {
+      setUngradable(true);
+      setGradeResult({ correct: false, message: "Notlandırılamadı. Yeniden dene." });
+      setRevealed(true);
+      if (typeof answer.pick === "number") setPicked(answer.pick);
       return;
     }
 
@@ -602,7 +659,7 @@ export function ExamLessonSteps({
         <div className="als-slide">
           <p className="als-kicker">TEKRARLA</p>
           <h1 className="als-heading">Bitirmeden önce kısa tekrar</h1>
-          <p className="als-body">{reviewGateLead(step.count)}</p>
+          <p className="als-body">{reviewGateLead(step.count, { distinct: step.distinct })}</p>
         </div>
       ) : null}
 
@@ -629,7 +686,9 @@ export function ExamLessonSteps({
               {step.cards.map((card) => (
                 <article key={card.title} className="als-card">
                   <h2>{card.title}</h2>
-                  <p>{card.body}</p>
+                  <p>
+                    <RichBody text={card.body} />
+                  </p>
                 </article>
               ))}
             </div>
@@ -981,7 +1040,14 @@ export function ExamLessonSteps({
         </section>
       ) : null}
 
-      {revealed && check ? (
+      {revealed && check && ungradable ? (
+        <div className="als-feedback" role="status">
+          <span>{gradeResult?.message ?? "Notlandırılamadı. Yeniden dene."}</span>
+          <button type="button" className="als-cta als-cta--inline" onClick={next}>
+            Devam et <CornerDownLeft className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+      ) : revealed && check && hasVerdict ? (
         <div className={correct ? "als-feedback is-right" : "als-feedback is-wrong"} role="status">
           <span>{correct ? "🎉 Doğru" : "🤔 Yanlış"}</span>
           <button type="button" className="als-cta als-cta--inline" onClick={next}>
@@ -1038,14 +1104,27 @@ function Explanation({
   const hint = gradeResult?.hint ?? ("hint" in check ? check.hint : undefined);
   const structured = Boolean(whyRight || whyWrong || misconception || hint || optionWhy.length);
   const options = check.options ?? ("lines" in check ? check.lines : undefined) ?? [];
+  const wrongBody = (pickedWhy || whyWrong || explanation).trim();
+  const rightBody = (answerWhy || (structured && whyRight ? whyRight : explanation)).trim();
+  const body = wrong ? wrongBody : rightBody;
+  // Boş AÇIKLAMA kutusu gösterme (28 Eyl olayı).
+  if (!body && !misconception?.trim() && !hint?.trim() && !(wrong && optionWhy.length > 1)) {
+    return wrong && revisit ? (
+      <div className="als-explain" aria-live="polite">
+        <p className="als-revisit">Dersin sonunda buna geri döneceğiz.</p>
+      </div>
+    ) : null;
+  }
   return (
     <div className="als-explain" aria-live="polite">
       <p className="als-explain-kicker">AÇIKLAMA</p>
       {wrong ? (
         <>
-          <p>
-            <RichBody text={pickedWhy || whyWrong || explanation} />
-          </p>
+          {wrongBody ? (
+            <p>
+              <RichBody text={wrongBody} />
+            </p>
+          ) : null}
           {optionWhy.length > 1
             ? options.map((option, optionIndex) => {
                 if (optionIndex === answerIndex || optionIndex === picked) return null;
@@ -1072,11 +1151,11 @@ function Explanation({
             </p>
           ) : null}
         </>
-      ) : (
+      ) : rightBody ? (
         <p>
-          <RichBody text={answerWhy || (structured && whyRight ? whyRight : explanation)} />
+          <RichBody text={rightBody} />
         </p>
-      )}
+      ) : null}
       {wrong && revisit ? (
         <p className="als-revisit">Dersin sonunda buna geri döneceğiz.</p>
       ) : null}

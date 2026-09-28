@@ -32,6 +32,7 @@ import {
   publishLessonDraft,
   type LessonV2,
 } from "@/lib/learning/teaching-standards";
+import { minimumLessonChecks } from "@/lib/learning/lesson-repair";
 import {
   runIndependentValidation,
   type ValidationIssue,
@@ -320,6 +321,15 @@ export function runLessonQualityPipeline(
       stage: "publish",
       rule: "min_checks",
       message: "En az 1 kontrol sorusu kalmalı.",
+    });
+  }
+  const wanted = minimumLessonChecks(published);
+  if (checks >= 1 && checks < wanted) {
+    issues.push({
+      stage: "checks",
+      rule: "check_count_low",
+      message: `Kontrol sayısı düşük: ${checks}/${wanted}. Ders yayında; kurucu görür.`,
+      excerpt: `checks=${checks}/${wanted}`,
     });
   }
 

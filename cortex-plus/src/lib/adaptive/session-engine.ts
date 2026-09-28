@@ -260,23 +260,34 @@ async function generateOrJoin(
  */
 async function resumeExistingSession(
   service: SupabaseClient,
-  input: { userId: string; examPrepId: string },
+  input: {
+    userId: string;
+    examPrepId: string;
+    planItemId?: string | null;
+  },
   session: SessionState,
 ): Promise<{ session: SessionState; action: GovernorAction | null }> {
   const pending = await getPendingAction(service, session.id);
   if (pending) {
+    // Öğrenci adım ortasında (cevapsız soru) — plan maddesi farklı olsa da sürdür.
     return { session, action: pending };
   }
-  // No pending action recorded yet (row predates this migration, or the
-  // very first generation for this session is still in flight from a
-  // concurrent request) — join that generation instead of starting a
-  // second, redundant one.
+  const planCtx = await resolvePlanContext(service, {
+    userId: input.userId,
+    examPrepId: input.examPrepId,
+    planItemId: input.planItemId,
+  });
   const action = await generateOrJoin(service, {
     userId: input.userId,
     examPrepId: input.examPrepId,
     sessionId: session.id,
     token: "start",
-    ctx: { sessionMinutesRemaining: session.plannedDurationMinutes },
+    ctx: {
+      sessionMinutesRemaining: session.plannedDurationMinutes,
+      todayTarget: planCtx.objective ?? session.objective,
+      planTopicKeys: planCtx.planTopicKeys,
+      planItem: planCtx.planItem,
+    },
   });
   return { session, action };
 }
@@ -288,6 +299,7 @@ export async function startSession(
     examPrepId: string;
     plannedDurationMinutes?: number;
     objective?: string;
+    planItemId?: string | null;
   },
 ): Promise<{ session: SessionState; action: GovernorAction | null }> {
   const existing = await getActiveSession(
@@ -299,14 +311,22 @@ export async function startSession(
     return resumeExistingSession(service, input, existing);
   }
 
+  const planCtx = await resolvePlanContext(service, {
+    userId: input.userId,
+    examPrepId: input.examPrepId,
+    planItemId: input.planItemId,
+  });
+
   const planned = input.plannedDurationMinutes ?? 45;
+  const objective =
+    input.objective ?? planCtx.objective ?? "Bugünkü çalışma";
   const { data, error } = await service
     .from("adaptive_learning_sessions")
     .insert({
       user_id: input.userId,
       exam_prep_id: input.examPrepId,
       planned_duration_minutes: planned,
-      objective: input.objective ?? "Bugünkü çalışma",
+      objective,
       status: "active",
       policy_version: ADAPTIVE_POLICY_VERSION,
     })
@@ -316,14 +336,6 @@ export async function startSession(
     .single();
 
   if (error && String(error.code) === "23505") {
-    // Lost the race to a concurrent /session/start call that already
-    // inserted the active session for this user+prep (a normal read-then-
-    // insert race under READ COMMITTED: our own getActiveSession() above
-    // saw nothing a moment ago, but a concurrent request fully committed
-    // its insert in between). Read its row and resume it exactly like the
-    // `existing` branch above — same helper, so the winner may still be
-    // mid-generation and this request correctly joins that claim rather
-    // than starting a second one.
     const race = await getActiveSession(service, input.userId, input.examPrepId);
     if (race) {
       return resumeExistingSession(service, input, race);
@@ -351,7 +363,10 @@ export async function startSession(
     examPrepId: input.examPrepId,
     sessionId: session.id,
     eventType: "session_started",
-    payload: { plannedDurationMinutes: planned },
+    payload: {
+      plannedDurationMinutes: planned,
+      planItemId: planCtx.planItem?.id ?? null,
+    },
   });
 
   const action = await generateOrJoin(service, {
@@ -359,10 +374,100 @@ export async function startSession(
     examPrepId: input.examPrepId,
     sessionId: session.id,
     token: "start",
-    ctx: { sessionMinutesRemaining: planned, todayTarget: session.objective },
+    ctx: {
+      sessionMinutesRemaining: planned,
+      todayTarget: session.objective,
+      planTopicKeys: planCtx.planTopicKeys,
+      planItem: planCtx.planItem,
+    },
   });
 
+  if (planCtx.planItem?.id) {
+    await markPlanItemActive(service, planCtx.planItem.id);
+  }
+
   return { session, action };
+}
+
+/** Bugünkü plan maddeleri + isteğe bağlı seçili madde. */
+async function resolvePlanContext(
+  service: SupabaseClient,
+  input: { userId: string; examPrepId: string; planItemId?: string | null },
+): Promise<{
+  planTopicKeys: string[];
+  planItem: GovernorContext["planItem"];
+  objective: string | null;
+}> {
+  try {
+    const { ensureCurrentDailyPlan } = await import("@/lib/adaptive/daily-planner");
+    const plan = await ensureCurrentDailyPlan(service, {
+      userId: input.userId,
+      examPrepId: input.examPrepId,
+    });
+    const pending = plan.items.filter(
+      (item) => item.status === "pending" || item.status === "active",
+    );
+    const ordered = pending.length ? pending : plan.items;
+    const planTopicKeys = ordered
+      .map((item) => item.topicKey)
+      .filter((key): key is string => Boolean(key))
+      .map((key) => normalizeTopicKey(key));
+    const selected =
+      (input.planItemId
+        ? plan.items.find((item) => item.id === input.planItemId)
+        : null) ??
+      ordered[0] ??
+      null;
+    return {
+      planTopicKeys,
+      planItem: selected?.topicKey
+        ? {
+            id: selected.id,
+            topicKey: normalizeTopicKey(selected.topicKey),
+            kind: selected.kind,
+            title: selected.title,
+          }
+        : null,
+      objective: plan.objective || selected?.title || null,
+    };
+  } catch {
+    return { planTopicKeys: [], planItem: null, objective: null };
+  }
+}
+
+async function markPlanItemActive(service: SupabaseClient, planItemId: string) {
+  await service
+    .from("adaptive_daily_plan_items")
+    .update({ status: "active", updated_at: new Date().toISOString() })
+    .eq("id", planItemId)
+    .eq("status", "pending");
+}
+
+export async function markPlanItemDone(
+  service: SupabaseClient,
+  input: { userId: string; examPrepId: string; topicKey: string },
+) {
+  const key = normalizeTopicKey(input.topicKey);
+  const { ensureCurrentDailyPlan } = await import("@/lib/adaptive/daily-planner");
+  try {
+    const plan = await ensureCurrentDailyPlan(service, {
+      userId: input.userId,
+      examPrepId: input.examPrepId,
+    });
+    const match = plan.items.find(
+      (item) =>
+        item.topicKey &&
+        normalizeTopicKey(item.topicKey) === key &&
+        (item.status === "pending" || item.status === "active"),
+    );
+    if (!match) return;
+    await service
+      .from("adaptive_daily_plan_items")
+      .update({ status: "done", updated_at: new Date().toISOString() })
+      .eq("id", match.id);
+  } catch {
+    // best-effort
+  }
 }
 
 export async function submitEvidence(
@@ -557,6 +662,20 @@ export async function submitEvidence(
     })
     .eq("id", input.sessionId);
 
+  if (evidence.correct) {
+    await markPlanItemDone(service, {
+      userId: input.userId,
+      examPrepId: input.examPrepId,
+      topicKey: key,
+    });
+  }
+
+  const planCtx = await resolvePlanContext(service, {
+    userId: input.userId,
+    examPrepId: input.examPrepId,
+    planItemId: null,
+  });
+
   const action = await generateOrJoin(service, {
     userId: input.userId,
     examPrepId: input.examPrepId,
@@ -567,6 +686,9 @@ export async function submitEvidence(
       lastAnswerCorrect: evidence.correct,
       repeatedMisconception: updated.next.repeatedErrorCount >= 2,
       sessionMinutesRemaining: Number(sess?.planned_duration_minutes ?? 45),
+      planTopicKeys: planCtx.planTopicKeys,
+      planItem: planCtx.planItem,
+      todayTarget: planCtx.objective ?? input.ctx?.todayTarget,
     },
   });
 

@@ -43,6 +43,7 @@ import {
 import { groundLearnerLesson, normalizeSummaryText, summaryLineProblem } from "@/lib/learning/lesson-grounding";
 import type { LessonDiagram } from "@/lib/learning/lesson-diagram";
 import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
+import { isScaffoldHeading } from "@/lib/learning/teaching-standards";
 import { repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import { auditQuantitative, repairQuantitative } from "@/lib/learning/tutor-quant";
 
@@ -747,6 +748,18 @@ function alignBounds(text: string, source: string): string {
 
 function checkCount(lesson: LessonV2): number {
   return lesson.sections.filter((section) => section.check).length;
+}
+
+/**
+ * Minimum kontrol: min(3, öğretim bölümü) ve en az her 2 slaytta 1.
+ * Yayın engeli değil; refill hedefi.
+ */
+export function minimumLessonChecks(lesson: LessonV2): number {
+  const teaching = lesson.sections.filter((section) => !isScaffoldHeading(section.heading)).length;
+  const slides = Math.max(1, lesson.sections.length);
+  const byConcepts = Math.min(3, Math.max(1, teaching));
+  const bySlides = Math.max(1, Math.ceil(slides / 2));
+  return Math.max(byConcepts, bySlides);
 }
 
 function readableDiagram(lesson: LessonV2): boolean {
@@ -1746,12 +1759,14 @@ function equationCheck(
 /**
  * Model üçüncü soruyu yazmadıysa dersin kendi cümlelerinden kurulur.
  * Yeni bir model çağrısı yok. Çeldirici, dersteki başka bağıntı ya da aynı bağıntının değişimidir.
+ * Hedef: minimumLessonChecks (en az min(3, kavram) ve her 2 slaytta 1).
  */
 export function ensureThreeChecks(lesson: LessonV2, source = ""): LessonV2 {
   const next: LessonV2 = {
     ...lesson,
     sections: lesson.sections.map((section) => ({ ...section })),
   };
+  const target = () => minimumLessonChecks(next);
   const used = new Set(
     next.sections.map((section) => foldTr(section.check?.prompt ?? "")).filter(Boolean),
   );
@@ -1779,7 +1794,7 @@ export function ensureThreeChecks(lesson: LessonV2, source = ""): LessonV2 {
     }
   }
   const queue: SectionCheck[] = [];
-  const needed = () => checkCount(next) + queue.length < 3;
+  const needed = () => checkCount(next) + queue.length < target();
   for (const item of equations) {
     if (!needed()) break;
     const check = equationCheck(item, equations, source);
@@ -1806,7 +1821,7 @@ export function ensureThreeChecks(lesson: LessonV2, source = ""): LessonV2 {
     if (section.check) continue;
     section.check = queue.shift();
   }
-  while (queue.length && checkCount(next) < 3 && next.sections.length < 8) {
+  while (queue.length && checkCount(next) < target() && next.sections.length < 8) {
     const check = queue.shift();
     if (!check) break;
     const body = check.explanation.length >= 20 ? check.explanation : `${check.explanation} Bu bağıntı dersin anlatımındadır.`;

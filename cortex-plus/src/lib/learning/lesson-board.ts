@@ -4,6 +4,7 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
+import { normalizeMathIdentifiers } from "@/lib/learning/math-identifiers";
 
 export type BoardLine = { kind: "prose" | "formula"; text: string };
 
@@ -33,7 +34,7 @@ const SUP_DIGIT: Record<string, string> = {
 };
 
 /** Latin harfin kendi alt simgesi. Eksik harf başka harfe dönmez; alt çizgi kalır. */
-const LETTER_TO_SUB: Record<string, string> = {
+export const LETTER_TO_SUB: Record<string, string> = {
   a: "ₐ",
   e: "ₑ",
   h: "ₕ",
@@ -394,7 +395,7 @@ function splitBlock(block: string): string[] {
 }
 
 export function layoutBoard(text: string): BoardLine[] {
-  const normalized = restoreMathNotation(text)
+  const normalized = restoreMathNotation(normalizeMathIdentifiers(text))
     .replace(/şöyle\s+olarak\s+(hesaplan\w*)/gi, "şöyle $1")
     .replace(/\r\n/g, "\n")
     .replace(/\s+(?=Veri\s*:)/gi, "\n")
