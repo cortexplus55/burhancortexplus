@@ -24,7 +24,6 @@ export function ProfileForm({
   tutorStyle: TutorStyle;
 }) {
   const [pending, startTransition] = useTransition();
-  const [selectedLocale, setSelectedLocale] = useState(locale);
   const [selectedStyle, setSelectedStyle] = useState(tutorStyle);
 
   return (
@@ -81,24 +80,12 @@ export function ProfileForm({
         </div>
       </fieldset>
 
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">Arayüz dili</legend>
-        <div className="flex gap-4 text-sm">
-          {(["tr", "en"] as const).map((option) => (
-            <label key={option} className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="locale"
-                value={option}
-                checked={selectedLocale === option}
-                onChange={() => setSelectedLocale(option)}
-                className="accent-[hsl(var(--primary))]"
-              />
-              {option === "tr" ? "Türkçe" : "English"}
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      {/*
+        "Arayüz dili" seçimi kaldırıldı: English kaydediliyordu ama hiçbir
+        sayfa `locale`'i okumuyor, arayüz Türkçe kalıyordu. Kayıtlı değer
+        olduğu gibi geri gönderiliyor; çeviri gelene kadar seçenek yok.
+      */}
+      <input type="hidden" name="locale" value={locale} />
 
       <Button type="submit" disabled={pending}>
         {pending ? "Kaydediliyor…" : "Kaydet"}

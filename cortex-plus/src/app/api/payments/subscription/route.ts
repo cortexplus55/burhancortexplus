@@ -118,7 +118,8 @@ export async function POST(request: Request) {
     })
     .eq("id", sub.id);
 
-  if (error) return errorResponse(500, "generation_failed");
+  // "İçerik üretilemedi" değil: iptal eden öğrenci üretim yapmıyor.
+  if (error) return errorResponse(500, "save_failed");
 
   await auditLog(service, {
     actorId: userId,

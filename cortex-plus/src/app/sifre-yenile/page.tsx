@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { PremiumAuthShell } from "@/components/layout/premium-auth-shell";
 import { createClient } from "@/lib/supabase/client";
 import { passwordIssues } from "@/lib/auth/password";
+import { authErrorMessage } from "@/lib/auth/messages";
 
 export default function SifreYenilePage() {
   const router = useRouter();
@@ -32,8 +33,10 @@ export default function SifreYenilePage() {
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
 
+    // Sayfa artık /ayarlar'dan da açılıyor; oturumu açık öğrenciye her hatada
+    // "bağlantının süresi dolmuş" demek yanlış yönlendiriyordu.
     if (error) {
-      toast.error("Şifre güncellenemedi. Bağlantının süresi dolmuş olabilir.");
+      toast.error(authErrorMessage(error));
       return;
     }
 
@@ -83,8 +86,8 @@ export default function SifreYenilePage() {
         </button>
       </form>
       <p className="mt-4 text-center text-sm text-[var(--cx-muted)]">
-        <Link href="/giris" className="text-[var(--cx-gold-hover)] underline">
-          Girişe dön
+        <Link href="/ayarlar" className="text-[var(--cx-gold-hover)] underline">
+          Ayarlara dön
         </Link>
       </p>
     </PremiumAuthShell>
