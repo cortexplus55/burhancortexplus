@@ -61,7 +61,8 @@ Eski öğretmen/veli panelleri ve 34 simülasyonlu eski “Uygulamalar” alanı
 
 ## 9. Quick Wins
 
-- 28 Eylül canlı ek kontrol: 99 sayfalık sentetik PDF'nin “Birim Çember” bölümündeki 9 fiziksel sayfa aynı tek kısa bilgiyi tekrar ediyordu. Üç ayrı beceri için altı aday soru üretimi yaklaşık iki dakika sürdü ve kaynakta olmayan “Birlik ölçü” ifadesi bağımsız doğrulamada reddedildi. Kaynak sadakati kapısı doğru çalıştı; ilk ders deneyimi başarısızdı. Tekrarlanan kısa sayfaları üretimden önce tespit eden değişiklik, bu durumda kredi harcamadan “ölçülmemiş” açıklaması ve derse geçiş sunar. Canlı dağıtım sonrası yeniden doğrulanmalıdır.
+- 28 Eylül canlı ek kontrol: 99 sayfalık sentetik PDF'nin “Birim Çember” bölümündeki 9 fiziksel sayfa aynı tek kısa bilgiyi tekrar ediyordu. Üç ayrı beceri için altı aday soru üretimi yaklaşık iki dakika sürdü ve kaynakta olmayan “Birlik ölçü” ifadesi bağımsız doğrulamada reddedildi. Kaynak sadakati kapısı doğru çalıştı; ilk ders deneyimi başarısızdı. Tekrarlanan kısa sayfalar artık üretimden önce tespit ediliyor; kredi harcamadan “ölçülmemiş” açıklaması ve derse geçiş canlıda doğrulandı.
+- 28 Eylül canlı yeniden kontrol: Kaynak açıklaması hızlı açıldı; “Derse geç” Birim Çember'in s.10–18 düğümüne yönlendirdi ve ders üretildi. Ancak dersin hızlı sınavında PDF'de bulunmayan 135° ve √2/2 değerleriyle koordinat sorusu çıktı. Belge “Yalnızca bu belge” modundaydı. Bu nedenle ders üretimi hâlâ P0 kaynak sadakati bulgusu taşıyor; tekrarlı dar kaynakta sayısal kontrol şıkları yayın öncesi denetimden geçirilmeli. Aynı dersin eski kayıtlı örneği ayrıca temizlenmeden canlı test hesabında kalır.
 
 - Yapıldı: dashboard küresel tekrar listesi açıkça etiketlendi; `complete/ready` teknik durumları öğrenci diline çevrildi.
 - Yapıldı: ilk test için üç taslak denemesi, bağımsız seçenek gerekçesi denetimi, hatalı açı eşlemesi filtresi; bu tur ayrıca belirsiz radyan sorusuna ret eklendi.

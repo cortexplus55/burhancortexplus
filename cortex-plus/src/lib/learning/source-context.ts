@@ -34,6 +34,8 @@ export type SourceContext = {
   documentName: string | null;
   /** Sayfalardan çıkarılmış formüller; ders bunlara karşı denetleniyor. */
   formulas?: string[];
+  /** One short statement repeated across pages; not enough for numeric checks. */
+  repetitiveSparseEvidence?: boolean;
   /**
    * Başlık hizalamasında belge başına sayfalar — self-heal karışık belge
    * sayfalarını tek id altına yazmasın diye.
@@ -44,8 +46,6 @@ export type SourceContext = {
 export type PageSourceLoadResult = SourceContext & {
   skippedPages: number[];
   usableChars: number;
-  /** Repeated short page text cannot support three distinct diagnostic skills. */
-  repetitiveSparseEvidence?: boolean;
 };
 
 /** Kaynak bloğundaki `[s.N]` ve `· s.N` işaretleri. Atıf denetimi bunları kabul eder. */
@@ -422,6 +422,7 @@ export function mergeTopicSources(
   if (!extras.length) return pageBound;
   return {
     ...pageBound,
+    repetitiveSparseEvidence: false,
     matches: [...pageBound.matches, ...related.filter((match) => seen.has(`${match.documentId}:${match.chunkId}`))],
     block:
       pageBound.block +
@@ -539,6 +540,7 @@ export async function loadTopicSpanContext(
     }
     const parts: string[] = [];
     const formulas: string[] = [];
+    const sparseFlags: boolean[] = [];
     let documentName: string | null = null;
     for (const [documentId, pages] of pagesByDoc) {
       const { data: existing } = await service
@@ -559,6 +561,7 @@ export async function loadTopicSpanContext(
         if (!loaded.block.trim()) continue;
         if (!documentName) documentName = loaded.documentName;
         parts.push(loaded.block);
+        sparseFlags.push(Boolean(loaded.repetitiveSparseEvidence));
         formulas.push(...(loaded.formulas ?? []));
       } catch (error) {
         if (error instanceof SourceUnavailableError) continue;
@@ -570,6 +573,7 @@ export async function loadTopicSpanContext(
       matches: [],
       documentName,
       formulas,
+      repetitiveSparseEvidence: parts.length === 1 && sparseFlags[0] === true,
       block: parts.join("\n\n"),
       pagesByDocument: [...pagesByDoc.entries()].map(([documentId, pages]) => ({
         documentId,

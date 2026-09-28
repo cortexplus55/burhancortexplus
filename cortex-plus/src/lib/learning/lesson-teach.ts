@@ -314,6 +314,58 @@ function inventedNumbers(text: string, source: string): string[] {
 }
 
 /**
+ * A repeated one-fact page cannot support a fresh angle/value table. Ordinary
+ * lessons may use source formulas to derive practice numbers; this guard is
+ * applied only when the page loader has proved the source is sparse/repeated.
+ * Run it after check refill so a repaired lesson cannot reintroduce the item.
+ */
+export function dropSparseSourceNumericChecks(
+  lesson: LessonV2,
+  source: string,
+): { lesson: LessonV2; dropped: number } {
+  let dropped = 0;
+  // Retrieval labels and physical page numbers locate evidence; they are not
+  // mathematical facts that can justify a generated numerical exercise.
+  const teachingSource = source
+    .replace(/\[s\.\d+\][^:\n]*:/g, "")
+    .replace(/Bu bölümün \d+\. çalışma sayfası fiziksel sayfa \d+ üzerindedir\./gi, "");
+  const unsupported = (parts: Array<string | undefined>) =>
+    inventedNumbers(parts.filter(Boolean).join("\n"), teachingSource).length > 0;
+  const sections = lesson.sections.map((section) => {
+    const check = section.check;
+    if (!check || !unsupported([
+      check.prompt,
+      check.explanation,
+      check.answer,
+      check.faultyText,
+      ...(check.options ?? []),
+      ...(check.optionWhy ?? []),
+      check.review?.prompt,
+      ...(check.review?.options ?? []),
+    ])) return section;
+    dropped += 1;
+    const clean = { ...section };
+    delete clean.check;
+    return clean;
+  });
+  const clean: LessonV2 = { ...lesson, sections };
+  if (clean.infoCheck && unsupported([clean.infoCheck.prompt, clean.infoCheck.answer])) {
+    delete clean.infoCheck;
+    dropped += 1;
+  }
+  if (clean.findError && unsupported([
+    clean.findError.prompt,
+    clean.findError.faultyText,
+    clean.findError.explanation,
+    ...clean.findError.options,
+  ])) {
+    delete clean.findError;
+    dropped += 1;
+  }
+  return { lesson: clean, dropped };
+}
+
+/**
  * Tamamlanmış örnek, podcast ile aynı kapıdadır: verilen, yerine koyma,
  * birimli sonuç (`exampleIsComplete`) ve duyurulmuş örnek boşluğu
  * (`announcedExampleGap`). Sayı denetimi `auditQuantitative` içindeki

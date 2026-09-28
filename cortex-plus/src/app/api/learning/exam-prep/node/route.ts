@@ -115,6 +115,7 @@ import {
 import { repairLearnerLesson, scopeLessonToTopic, type LessonCheckCode } from "@/lib/learning/lesson-repair";
 import {
   criticalTeachingFailures,
+  dropSparseSourceNumericChecks,
   finishTaughtLesson,
   LESSON_TEACH_RULE,
 } from "@/lib/learning/lesson-teach";
@@ -1552,6 +1553,7 @@ export async function POST(request: Request) {
           familiarity,
           mood,
           sourceBlock: source.block,
+          repetitiveSparseEvidence: source.repetitiveSparseEvidence,
           sourceFormulas: source.formulas ?? [],
           teachingV2,
           sessionMeta: sessionMeta
@@ -1957,6 +1959,7 @@ async function generateNodePayload(input: {
   mood: Mood;
   /** Öğrencinin kendi kaynağından alıntılar; kaynak yoksa boş. */
   sourceBlock: string;
+  repetitiveSparseEvidence?: boolean;
   /**
    * Belge yokken konunun çiti. Sohbetteki "belgede yoksa cevap verme"
    * kuralının belgesiz karşılığı: model konu başlığının dışına çıkamaz.
@@ -2469,6 +2472,13 @@ async function generateNodePayload(input: {
           throw new NodeGenerationError(422, "content_verification_failed", [
             "Süre bütçesi sonrası öğreten bölüm kalmadı.",
           ]);
+        }
+      }
+      if (input.requireSourceSupport && input.repetitiveSparseEvidence) {
+        const sparse = dropSparseSourceNumericChecks(taughtLesson, input.sourceBlock);
+        taughtLesson = sparse.lesson;
+        if (sparse.dropped) {
+          console.error("lesson_sparse_source_checks_dropped", { count: sparse.dropped });
         }
       }
       publishedLesson = taughtLesson;
