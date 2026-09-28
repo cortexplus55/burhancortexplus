@@ -142,6 +142,10 @@ async function ocrOneBlankPage(input: {
   limit: number;
   deadlineMs: number;
   maxOcrPages?: number | null;
+  /** Fired as soon as claim_document_ocr_page returns true — before OCR. */
+  onClaimed?: (pageNumber: number) => void;
+  /** Fired after release_document_ocr_page so the pool does not double-release. */
+  onReleased?: (pageNumber: number) => void;
 }): Promise<{
   page: PagePersist;
   claimed: boolean;
@@ -152,7 +156,7 @@ async function ocrOneBlankPage(input: {
 }> {
   const {
     service, documentId, userId, pageNumber, png, inkRatio,
-    founder, limit, deadlineMs, maxOcrPages,
+    founder, limit, deadlineMs, maxOcrPages, onClaimed, onReleased,
   } = input;
 
   if (typeof maxOcrPages === "number" && maxOcrPages >= 0) {
@@ -185,7 +189,17 @@ async function ocrOneBlankPage(input: {
     if (error) throw new Error("photo_quota_unavailable");
     if (data !== true) throw new Error("photo_quota_exhausted");
     claimed = true;
+    onClaimed?.(pageNumber);
   }
+
+  const releaseClaim = async () => {
+    if (!claimed) return;
+    await service.rpc("release_document_ocr_page", {
+      p_document_id: documentId, p_user_id: userId, p_page_number: pageNumber,
+    });
+    claimed = false;
+    onReleased?.(pageNumber);
+  };
 
   let read = await extractImageText(png, "image/png", { deadlineMs });
   if (!read.ok && read.reason === "unreadable" && Date.now() + 20_000 < deadlineMs) {
@@ -193,11 +207,7 @@ async function ocrOneBlankPage(input: {
   }
 
   if (read.reason === "blocked") {
-    if (claimed) {
-      await service.rpc("release_document_ocr_page", {
-        p_document_id: documentId, p_user_id: userId, p_page_number: pageNumber,
-      });
-    }
+    await releaseClaim();
     return {
       page: {
         text: "",
@@ -226,11 +236,7 @@ async function ocrOneBlankPage(input: {
   }
 
   const blank = inkRatio < BLANK_INK_RATIO;
-  if (claimed) {
-    await service.rpc("release_document_ocr_page", {
-      p_document_id: documentId, p_user_id: userId, p_page_number: pageNumber,
-    });
-  }
+  await releaseClaim();
   return {
     page: {
       text: "",
@@ -292,7 +298,8 @@ export async function readPdfBatch(
     throw error;
   }
   const limit = founder ? 0 : photoPageLimit(await planTier(service, userId));
-  const claimed: number[] = [];
+  /** Pages with an open OCR claim; recorded immediately on successful claim. */
+  const claimed = new Set<number>();
 
   try {
     const rendered = await renderPdfPages(buffer, pages.length, firstPage);
@@ -330,6 +337,7 @@ export async function readPdfBatch(
     // Bounded pool: start up to OCR_PAGE_CONCURRENCY pages, honour deadline
     // before each start so a near-budget step returns a contiguous prefix.
     let cursor = 0;
+    let poolError: unknown = null;
     const inFlight = new Map<number, Promise<void>>();
     const startOne = (index: number) => {
       const meta = rendered.pages[index]!;
@@ -339,10 +347,11 @@ export async function readPdfBatch(
           service, documentId, userId, pageNumber: number,
           png: meta.png, inkRatio: meta.inkRatio,
           founder, limit, deadlineMs, maxOcrPages,
+          onClaimed: (pageNumber) => { claimed.add(pageNumber); },
+          onReleased: (pageNumber) => { claimed.delete(pageNumber); },
         });
         pages[index] = result.page;
         done[index] = true;
-        if (result.claimed) claimed.push(number);
         if (result.ocrSuccess) ocrPageNumbers.push(number);
         if (result.failed) failedPages.push(number);
         if (result.tokensIn || result.tokensOut) {
@@ -354,12 +363,21 @@ export async function readPdfBatch(
         }
       })();
       inFlight.set(index, work);
-      void work.finally(() => inFlight.delete(index));
+      // Record the first failure and swallow so siblings never surface as
+      // unhandledRejection; the loop stops starting and rethrows after settle.
+      work
+        .catch((error) => {
+          poolError = poolError ?? error;
+        })
+        .finally(() => {
+          inFlight.delete(index);
+        });
     };
 
     const concurrency = Math.max(1, Math.min(OCR_PAGE_CONCURRENCY, ocrConcurrency));
     while (cursor < needsOcr.length || inFlight.size) {
       while (
+        !poolError &&
         inFlight.size < concurrency &&
         cursor < needsOcr.length &&
         Date.now() < deadlineMs - 5_000
@@ -367,16 +385,24 @@ export async function readPdfBatch(
         startOne(needsOcr[cursor]!);
         cursor += 1;
       }
+      if (poolError) {
+        await Promise.allSettled([...inFlight.values()]);
+        break;
+      }
       if (!inFlight.size) break;
-      await Promise.race(inFlight.values());
+      // Race may reject when a worker fails; poolError catch already recorded it.
+      await Promise.race(inFlight.values()).catch(() => undefined);
     }
-    if (inFlight.size) await Promise.all(inFlight.values());
+    if (inFlight.size) await Promise.allSettled([...inFlight.values()]);
+    if (poolError) throw poolError;
   } catch (error) {
     if (!founder) {
-      for (const number of claimed) {
+      // Batch is abandoning — release every held claim (text was not saved).
+      for (const number of [...claimed]) {
         await service.rpc("release_document_ocr_page", {
           p_document_id: documentId, p_user_id: userId, p_page_number: number,
         });
+        claimed.delete(number);
       }
     }
     throw error;

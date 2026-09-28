@@ -59,6 +59,9 @@ export async function extractText(
 /**
  * Cheap preflight: page count + which pages lack a text layer.
  * No rendering, no model calls.
+ *
+ * `scannedPages` is an upper bound — truly blank pages are included here but
+ * ingestion classifies them as blank and does not charge photo quota.
  */
 export async function preflightPdfPages(buffer: Buffer): Promise<{
   pageCount: number;

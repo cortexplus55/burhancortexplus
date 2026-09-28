@@ -575,14 +575,18 @@ export function ExamCreateWizard({
             fits?: boolean;
             scannedPages?: number;
             textPages?: number;
+            scannedPagesNote?: string;
             quota?: { unlimited?: boolean; remaining?: number | null; tier?: string };
             error?: string;
           };
           if (preflightRes.ok && preflight.fits === false && !preflight.quota?.unlimited) {
             const remaining = preflight.quota?.remaining ?? 0;
             const scanned = preflight.scannedPages ?? 0;
+            const note =
+              preflight.scannedPagesNote ??
+              "Gerçekten boş sayfalar kota düşmez.";
             const message =
-              `Bu PDF'in ${scanned} sayfası taranmış görünüyor. Bu ay kalan taranmış sayfa hakkın: ${remaining}.`;
+              `Bu PDF'in ${scanned} sayfası taranmış görünüyor. Bu ay kalan taranmış sayfa hakkın: ${remaining}. ${note}`;
             setProcessAlert(message);
             toast.error(message);
             return false;

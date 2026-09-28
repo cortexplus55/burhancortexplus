@@ -73,8 +73,21 @@ export function readRetryAfterMs(body: Record<string, unknown>): number | null {
   return null;
 }
 
-export function stallCursorKey(body: Record<string, unknown>): string {
-  const next = body.nextPage ?? body.pagesDone ?? body.windowsDone ?? "";
+/**
+ * Cursor fingerprint for identical-503 detection. Retryable 503 bodies often
+ * carry `nextPage: null`; fall back to the last-known page from a prior 202
+ * so three unrelated 503s at different cursors are not collapsed together.
+ */
+export function stallCursorKey(
+  body: Record<string, unknown>,
+  lastKnownNextPage?: unknown,
+): string {
+  const next =
+    body.nextPage ??
+    body.pagesDone ??
+    body.windowsDone ??
+    lastKnownNextPage ??
+    "";
   const phase = body.phase ?? "";
   return `${phase}:${String(next)}`;
 }
@@ -147,6 +160,7 @@ export async function requestDocumentProcessing(input: {
   let transientAttempt = 0;
   let identicalCursor: string | null = null;
   let identicalFailures = 0;
+  let lastKnownNextPage: unknown = null;
   const progressState = {
     lastProgressAt: now(),
     lastFingerprint: null as string | null,
@@ -177,7 +191,7 @@ export async function requestDocumentProcessing(input: {
 
     if (response && isTransientProcessStatus(response.status)) {
       retried = true;
-      const cursor = stallCursorKey(response.body);
+      const cursor = stallCursorKey(response.body, lastKnownNextPage);
       if (response.status === 503 && cursor === identicalCursor) {
         identicalFailures += 1;
       } else {
@@ -220,6 +234,11 @@ export async function requestDocumentProcessing(input: {
 
     if (response.status === 202) {
       noteProgress(response.body, progressState);
+      lastKnownNextPage =
+        response.body.nextPage ??
+        response.body.pagesDone ??
+        response.body.windowsDone ??
+        lastKnownNextPage;
       input.onProgress?.(response.body);
       await sleep(rounds === 1 ? 800 : 2_000);
       continue;

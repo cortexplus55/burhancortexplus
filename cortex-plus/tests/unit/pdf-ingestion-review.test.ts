@@ -269,3 +269,100 @@ describe("readPdfBatch deadline prefix", () => {
     dateSpy.mockRestore();
   });
 });
+
+describe("readPdfBatch OCR claim release on quota failure (B5)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.isAdminUser.mockResolvedValue(false);
+    mocks.planTier.mockResolvedValue("free");
+    mocks.photoPageLimit.mockReturnValue(2);
+    mocks.recordUsage.mockResolvedValue(undefined);
+    mocks.extractText.mockResolvedValue({
+      ok: false,
+      total: 4,
+      pages: ["", "", "", ""],
+    });
+    mocks.renderPdfPages.mockResolvedValue({
+      total: 4,
+      pages: Array.from({ length: 4 }, (_, i) => ({
+        png: Buffer.from(`png-${i}`),
+        inkRatio: 0.05,
+        hasImageContent: true,
+        scanRenderFailed: false,
+        pageNumber: 1 + i,
+      })),
+    });
+  });
+
+  it("quota fail: claimed pages released once; no unhandledRejection", async () => {
+    const claimResults = [true, true, false, false];
+    let claimCalls = 0;
+    const releases: number[] = [];
+
+    mocks.extractImageText.mockImplementation(async () => {
+      // Stay in OCR long enough for sibling claim failures to surface.
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      return {
+        pages: ["OCR sayfa metni yeterince uzun içerik."],
+        ok: true,
+        model: "m",
+        tokensIn: 1,
+        tokensOut: 1,
+      };
+    });
+
+    const service = {
+      rpc: vi.fn(async (name: string, args: Record<string, unknown>) => {
+        if (name === "claim_document_ocr_page") {
+          const data = claimResults[claimCalls] ?? false;
+          claimCalls += 1;
+          return { data, error: null };
+        }
+        if (name === "release_document_ocr_page") {
+          releases.push(Number(args.p_page_number));
+          return { data: true, error: null };
+        }
+        return { data: null, error: null };
+      }),
+      from: vi.fn(() => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({ data: null, error: null }),
+          }),
+        }),
+      })),
+    };
+
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+
+    try {
+      await expect(
+        readPdfBatch(
+          service as never,
+          Buffer.from("pdf"),
+          "doc-1",
+          "user-1",
+          1,
+          4,
+          Date.now() + 60_000,
+          null,
+          4,
+        ),
+      ).rejects.toThrow("photo_quota_exhausted");
+
+      // Let sibling rejections and finally handlers flush.
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
+      expect(claimCalls).toBe(4);
+      expect(releases.sort((a, b) => a - b)).toEqual([1, 2]);
+      expect(releases).toHaveLength(2);
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+});

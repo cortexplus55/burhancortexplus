@@ -93,8 +93,12 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     pageCount: counts.pageCount,
+    // Upper bound: pages without a text layer. Truly blank pages are counted
+    // here but ingestion does not charge quota for them.
     scannedPages: counts.scannedPages,
     textPages: counts.textPages,
+    scannedPagesNote:
+      "Ön kontrol metin katmanı olmayan sayfaları tarama sayar; gerçekten boş sayfalar kota düşmez.",
     quota: {
       unlimited: limits.unlimited,
       limit: limits.scanPagesPerMonth,

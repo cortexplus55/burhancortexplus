@@ -6,6 +6,7 @@ import {
   pickProcessPhase,
   processProgressFingerprint,
   requestDocumentProcessing,
+  stallCursorKey,
   transientBackoffMs,
 } from "@/lib/documents/process-session";
 
@@ -126,6 +127,42 @@ describe("document processing phases", () => {
       },
     });
     expect(calls).toBe(3);
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(503);
+    expect(result.body.retryable).toBe(false);
+  });
+
+  it("503 nextPage:null uses last-known page from prior 202 for identical cursor", async () => {
+    expect(stallCursorKey({ phase: "extract", nextPage: null }, 55)).toBe(
+      "extract:55",
+    );
+
+    let calls = 0;
+    const result = await requestDocumentProcessing({
+      documentId: "doc-503-null",
+      sleep: async () => {},
+      post: async () => {
+        calls += 1;
+        if (calls === 1) {
+          return {
+            status: 202,
+            body: { phase: "extract", nextPage: 55, status: "processing" },
+          };
+        }
+        return {
+          status: 503,
+          body: {
+            retryable: true,
+            retryAfterMs: 50,
+            nextPage: null,
+            phase: "extract",
+            error: "Sunucu yoğun.",
+          },
+        };
+      },
+    });
+    // Three identical 503s after the 202 → terminal (4 posts total).
+    expect(calls).toBe(4);
     expect(result.ok).toBe(false);
     expect(result.status).toBe(503);
     expect(result.body.retryable).toBe(false);
