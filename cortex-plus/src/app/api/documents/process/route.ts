@@ -3,7 +3,12 @@ import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { processDocument } from "@/lib/rag/pipeline";
-import { runPdfLearningV2 } from "@/lib/documents/pdf-learning-v2";
+import {
+  COURSE_ROUND_BUDGET_MS,
+  firstUnextractedDocument,
+  planCourseMap,
+  runCourseMapRound,
+} from "@/lib/documents/pdf-learning-v2";
 import { clampExamLabel, pickProcessPhase } from "@/lib/documents/process-session";
 import {
   commitCredits,
@@ -34,6 +39,12 @@ const bodySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
+  /** Wizard: extract (and prepare) only — the course outline runs later, once. */
+  deferMap: z.boolean().optional(),
+  /** All files of the course, first = documentId: ONE outline over all of them. */
+  courseDocumentIds: z.array(z.string().uuid()).min(1).max(8).optional(),
+  /** Add-source: the prep the new file joins (its topic names guide the outline). */
+  prepId: z.string().uuid().optional(),
 });
 export const maxDuration = 300;
 
@@ -89,6 +100,7 @@ async function refundDocumentCredits(
 }
 
 export async function POST(request: Request) {
+  const routeStarted = Date.now();
   // Long documents poll often; raise daily ceiling so 211-page books never 429.
   const guard = await withUser(request, { scope: "doc-process", limit: 120, dailyLimit: 2_400 });
   if (!guard.ok) return guard.response;
@@ -97,10 +109,26 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
+  const course = parsed.data.courseDocumentIds
+    ? [...new Set(parsed.data.courseDocumentIds)]
+    : null;
+  if (course && course[0] !== parsed.data.documentId) return errorResponse(400, "invalid_input");
+  let deferMap = parsed.data.deferMap === true;
+  let targetId = parsed.data.documentId;
+  if (course) {
+    // Every file is extracted first; the outline waits for the whole course.
+    const next = await firstUnextractedDocument(service, userId, course);
+    if (next === "missing") return errorResponse(404, "not_found");
+    if (next) {
+      targetId = next;
+      deferMap = true;
+    }
+  }
+
   const { data: doc } = await service
     .from("documents")
     .select("id, user_id, status, mime_type, topic_map_status, page_count")
-    .eq("id", parsed.data.documentId)
+    .eq("id", targetId)
     .is("deleted_at", null)
     .maybeSingle();
 
@@ -258,12 +286,14 @@ export async function POST(request: Request) {
     }
   }
 
-  const phase = pickProcessPhase({
-    status: (doc.status as string | null) ?? null,
-    chunkCount: chunkCount ?? 0,
-    topicMapStatus: (doc.topic_map_status as string | null) ?? null,
-    learningV2,
-  });
+  const phase = course && !deferMap
+    ? "map"
+    : pickProcessPhase({
+        status: (doc.status as string | null) ?? null,
+        chunkCount: chunkCount ?? 0,
+        topicMapStatus: (doc.topic_map_status as string | null) ?? null,
+        learningV2,
+      });
   if (phase === "done") {
     return NextResponse.json({
       documentId: doc.id,
@@ -272,32 +302,68 @@ export async function POST(request: Request) {
     });
   }
 
+  if (phase === "map" && deferMap) {
+    // Extracted; the course outline runs once all files are in.
+    return course
+      ? NextResponse.json({
+          documentId: doc.id, status: "processing", phase: "extract",
+          pageCount: typeof doc.page_count === "number" ? doc.page_count : null,
+          nextPage: null,
+        }, { status: 202 })
+      : NextResponse.json({
+          documentId: doc.id,
+          status: "completed",
+          mapDeferred: true,
+          pageCount: typeof doc.page_count === "number" ? doc.page_count : null,
+        });
+  }
+
   if (phase === "map") {
+    const all = course ?? [doc.id];
+    const finish = async (topics: number | null) => {
+      for (const id of all) {
+        await commitDocumentCredits(service, userId, id);
+        await service.from("documents").update({ status: "completed", error_message: null }).eq("id", id);
+        await service.from("processing_jobs").update({ status: "completed", progress: 100 }).eq("document_id", id);
+      }
+      return NextResponse.json({
+        documentId: parsed.data.documentId,
+        status: "completed",
+        pageCount: typeof doc.page_count === "number" ? doc.page_count : null,
+        topicMap: topics == null ? null : { ok: true, topics },
+        notice: null,
+      });
+    };
+    // Files whose map is in use keep it; the rest share one outline.
+    const ids = course ? await planCourseMap(service, course) : all;
+    if (!ids.length) return finish(null);
     // Ensure failed status can re-enter map.
-    if (doc.status === "failed") {
-      await service.from("documents")
-        .update({ status: "processing", error_message: null })
-        .eq("id", doc.id)
-        .eq("user_id", userId);
-    }
-    const mapped = await runPdfLearningV2(service, doc.id, {
+    await service.from("documents")
+      .update({ status: "processing", error_message: null })
+      .in("id", ids)
+      .eq("user_id", userId)
+      .eq("status", "failed");
+    const mapped = await runCourseMapRound(service, {
+      documentIds: ids,
       examLabel: parsed.data.examType ?? null,
       examDate: parsed.data.examDate ?? null,
+      prepId: parsed.data.prepId ?? null,
+      deadlineAt: routeStarted + COURSE_ROUND_BUDGET_MS,
     });
-    if ((mapped as { pending?: boolean }).pending) {
+    if (mapped.pending) {
       return NextResponse.json({
-        documentId: doc.id,
+        documentId: parsed.data.documentId,
         status: "processing",
         phase: "map",
         pageCount: typeof doc.page_count === "number" ? doc.page_count : null,
-        windowsDone: (mapped as { windowsDone?: number }).windowsDone ?? null,
-        windowsTotal: (mapped as { windowsTotal?: number }).windowsTotal ?? null,
-        stage: (mapped as { stage?: string }).stage ?? null,
-        leaseBusy: (mapped as { leaseBusy?: boolean }).leaseBusy === true,
+        windowsDone: mapped.round ?? null,
+        stage: mapped.stage ?? null,
+        leaseBusy: mapped.leaseBusy === true,
       }, { status: 202 });
     }
     if (!mapped.ok) {
       const code = mapped.error || "topic_map_failed";
+      if (code === "insufficient_credits") return errorResponse(402, "insufficient_credits");
       if (isRetryableIngestionCode(code) || mapped.retryable) {
         return NextResponse.json({
           code,
@@ -307,8 +373,10 @@ export async function POST(request: Request) {
           phase: "map",
         }, { status: 503 });
       }
-      await markDocumentFailed(service, doc.id, userId, code);
-      await refundDocumentCredits(service, userId, doc.id);
+      for (const id of ids) {
+        await markDocumentFailed(service, id, userId, code);
+        await refundDocumentCredits(service, userId, id);
+      }
       return NextResponse.json({
         error: userFacingIngestionMessage(code),
         code,
@@ -316,22 +384,7 @@ export async function POST(request: Request) {
         action: getIngestionError(code).action,
       }, { status: 422 });
     }
-    await commitDocumentCredits(service, userId, doc.id);
-    await service
-      .from("documents")
-      .update({ status: "completed", error_message: null })
-      .eq("id", doc.id);
-    await service
-      .from("processing_jobs")
-      .update({ status: "completed", progress: 100 })
-      .eq("document_id", doc.id);
-    return NextResponse.json({
-      documentId: doc.id,
-      status: "completed",
-      pageCount: typeof doc.page_count === "number" ? doc.page_count : null,
-      topicMap: { ok: true, topics: mapped.topics, coverageStatus: mapped.coverage?.status },
-      notice: null,
-    });
+    return finish(mapped.topics);
   }
 
   /*

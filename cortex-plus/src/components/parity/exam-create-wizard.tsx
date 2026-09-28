@@ -550,19 +550,50 @@ export function ExamCreateWizard({
         1400,
       );
       let intakeFailed = false;
-      try {
-        const res = await fetch("/api/learning/exam-prep/intake", {
+      const examType = clampExamLabel(subject);
+      const examDay = examDate.trim() || undefined;
+      // ONE outline over every file of the course (silent retries, progress only).
+      const buildCourseMap = () =>
+        requestDocumentProcessing({
+          documentId: primary,
+          post: (body) =>
+            postDocumentProcess({ ...body, courseDocumentIds: ids, examType, examDate: examDay }),
+          onProgress: (progress) => {
+            const line = formatDocumentProcessProgress(progress);
+            if (line) setProcessDetail(line);
+          },
+        });
+      const probe = async () => {
+        const response = await fetch("/api/learning/exam-prep/intake", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             documentId: primary,
             documentIds: ids,
             probeOnly: true,
-            examType: clampExamLabel(subject),
-            examDate: examDate.trim() || undefined,
+            examType,
+            examDate: examDay,
           }),
         });
-        const payload = await res.json().catch(() => ({}));
+        return { res: response, payload: await response.json().catch(() => ({})) };
+      };
+      try {
+        let course = await buildCourseMap();
+        let { res, payload } = course.ok ? await probe() : { res: null, payload: {} };
+        if (res?.status === 409) {
+          // A map was pending (e.g. an old flat map) — outline once more, then read.
+          course = await buildCourseMap();
+          if (course.ok) ({ res, payload } = await probe());
+        }
+        setProcessDetail(null);
+        if (!res) {
+          intakeFailed = true;
+          const processed = course.body;
+          if (course.status === 402 && !isPhotoQuotaError(processed)) setPaywall(true);
+          else setIntakeAlert(messageFromProcessBody(processed));
+          setStep("material");
+          return;
+        }
         if (res.status === 409) {
           intakeFailed = true;
           setIntakeAlert(
@@ -714,7 +745,7 @@ export function ExamCreateWizard({
         }, 700);
       }
     },
-    [materials, subject],
+    [materials, subject, examDate],
   );
 
   function rememberMaterial(material: WizardMaterial) {
@@ -756,6 +787,8 @@ export function ExamCreateWizard({
           ...body,
           examType: processExamType,
           examDate: processExamDate,
+          // Extract now; the one course outline runs when topics are requested.
+          deferMap: true,
         }),
       onProgress: (progress) => {
         const line = formatDocumentProcessProgress(progress);
@@ -1465,7 +1498,7 @@ export function ExamCreateWizard({
       {step === "building" ? (
         <section className="apw-step apw-step--center">
           <h1>{WIZARD_COPY.analyzing}</h1>
-          <p className="apw-lead">Konular materyalinin kapsamından çıkarılıyor.</p>
+          <p className="apw-lead">{processDetail ?? "Konular materyalinin kapsamından çıkarılıyor."}</p>
           <ul className="apw-stages">
             {BUILD_STAGES.map((label, index) => (
               <li

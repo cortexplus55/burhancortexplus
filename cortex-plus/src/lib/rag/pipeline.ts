@@ -28,7 +28,7 @@ import {
   isFeatureEnabled,
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
-import { runPdfLearningV2 } from "@/lib/documents/pdf-learning-v2";
+import { runCourseMapRound } from "@/lib/documents/pdf-learning-v2";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { mapExtractFailure, userMessageForProcessError } from "@/lib/documents/process-user-message";
 
@@ -382,12 +382,8 @@ export async function processDocument(
     | { ok: boolean; topics: number; coverageStatus?: string }
     | undefined;
   if (await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG)) {
-    const v2 = await runPdfLearningV2(service, documentId);
-    topicMap = {
-      ok: v2.ok,
-      topics: v2.topics,
-      coverageStatus: v2.coverage?.status,
-    };
+    const v2 = await runCourseMapRound(service, { documentIds: [documentId] });
+    topicMap = { ok: v2.ok && !v2.pending, topics: v2.topics };
   } else {
     console.info(JSON.stringify({
       event: "teacher_analysis",

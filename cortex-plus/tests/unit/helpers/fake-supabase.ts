@@ -41,7 +41,7 @@ export function makeFakeDb(tables: Record<string, Row[]>, options?: { creditCost
     let headOnly = false;
     const filters: ((r: Row) => boolean)[] = [];
     const fdesc: string[] = [];
-    let order: { col: string; asc: boolean } | null = null;
+    const orders: { col: string; asc: boolean }[] = [];
     let range: [number, number] | null = null;
     let lim: number | null = null;
     let single: "maybe" | "one" | null = null;
@@ -87,7 +87,7 @@ export function makeFakeDb(tables: Record<string, Row[]>, options?: { creditCost
         filters.push((r) => r.lease_until == null || (iso ? r.lease_until < iso : false));
         return b;
       },
-      order(c: string, o?: any) { order = { col: c, asc: o?.ascending !== false }; return b; },
+      order(c: string, o?: any) { orders.push({ col: c, asc: o?.ascending !== false }); return b; },
       range(a: number, z: number) { range = [a, z]; return b; },
       limit(n: number) { lim = n; return b; },
       maybeSingle() { single = "maybe"; return exec(); },
@@ -138,9 +138,14 @@ export function makeFakeDb(tables: Record<string, Row[]>, options?: { creditCost
         }
       } else {
         let m = match();
-        if (order) {
-          const { col, asc } = order;
-          m = [...m].sort((a, z) => (a[col] > z[col] ? 1 : a[col] < z[col] ? -1 : 0) * (asc ? 1 : -1));
+        if (orders.length) {
+          m = [...m].sort((a, z) => {
+            for (const { col, asc } of orders) {
+              const d = a[col] > z[col] ? 1 : a[col] < z[col] ? -1 : 0;
+              if (d) return asc ? d : -d;
+            }
+            return 0;
+          });
         }
         const total = m.length;
         if (range) m = m.slice(range[0], range[1] + 1);
@@ -206,7 +211,7 @@ export function makeFakeDb(tables: Record<string, Row[]>, options?: { creditCost
     return { data: null, error: null };
   }
 
-  const client = { from: (name: string) => builder(name), rpc };
+  const client: any = { from: (name: string) => builder(name), rpc };
   return {
     db,
     client,

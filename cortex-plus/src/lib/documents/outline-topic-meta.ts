@@ -19,6 +19,22 @@ export type OutlineTopicPerspective = {
 };
 
 const WEIGHT_PREFIX = "exam_weight:";
+const COURSE_PREFIX = "course:";
+
+/** Unit nodes of one course outline share this tag across its documents. */
+export function packCourseRelation(courseId: string): string {
+  return `${COURSE_PREFIX}${courseId}`;
+}
+
+export function readCourseFromRelations(relations: unknown): string | null {
+  if (!Array.isArray(relations)) return null;
+  for (const item of relations) {
+    if (typeof item === "string" && item.startsWith(COURSE_PREFIX)) {
+      return item.slice(COURSE_PREFIX.length) || null;
+    }
+  }
+  return null;
+}
 
 export function normalizeExamWeight(value: unknown): ExamWeight {
   const raw = String(value ?? "")

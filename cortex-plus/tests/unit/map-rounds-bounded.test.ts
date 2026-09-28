@@ -3,7 +3,6 @@ import { formatDocumentProcessProgress, processProgressFingerprint } from "@/lib
 import { MAP_LEASE_MS } from "@/lib/documents/pdf-learning-v2-lease";
 import { LEASE_BUSY_ALIVE_MS, stallCursorKey } from "@/lib/documents/process-session";
 import { analyzePage } from "@/lib/documents/page-analysis";
-import { topicMapWindows } from "@/lib/documents/pdf-learning-v2";
 import { OCR_PAGE_CONCURRENCY, PDF_PAGES_PER_STEP } from "@/lib/documents/pdf-ingestion";
 import {
   OUTLINE_MINI_PAGE_LIMIT,
@@ -27,7 +26,7 @@ describe("bounded map round progress labels", () => {
         windowsDone: 7,
         windowsTotal: 17,
       }),
-    ).toBe("Konular çıkarılıyor: 7/17");
+    ).toBe("Çalışma yolu çıkarılıyor…");
     expect(
       formatDocumentProcessProgress({
         phase: "map",
@@ -61,14 +60,6 @@ describe("bounded map round progress labels", () => {
   it("preserves extraction_method ocr through analyzePage", () => {
     const analysis = analyzePage(1, "Başlık\nİçerik metni burada yeterince uzun olmalı.", "ocr");
     expect(analysis.extractionMethod).toBe("ocr");
-  });
-
-  it("windows a long page list into 12-page chunks", () => {
-    const pages = Array.from({ length: 200 }, (_, i) => ({ n: i + 1 }));
-    const windows = topicMapWindows(pages);
-    expect(windows.length).toBe(17);
-    expect(windows[0]).toHaveLength(12);
-    expect(windows[windows.length - 1]!.length).toBeLessThanOrEqual(12);
   });
 
   it("runs OCR in parallel waves (20–30) with larger page steps", () => {

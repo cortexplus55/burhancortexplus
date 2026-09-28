@@ -7,7 +7,7 @@ import {
 } from "@/lib/admin/feature-flags";
 import {
   loadTopicMapSnapshot,
-  runPdfLearningV2,
+  runCourseMapRound,
 } from "@/lib/documents/pdf-learning-v2";
 
 type RouteContext = { params: Promise<{ documentId: string }> };
@@ -180,7 +180,11 @@ export async function POST(request: Request, context: RouteContext) {
     return errorResponse(409, "document_not_ready");
   }
 
-  const result = await runPdfLearningV2(service, documentId);
+  const result = await runCourseMapRound(service, { documentIds: [documentId] });
+  if (result.pending) {
+    // Long material: the map keeps building in later rounds (process route).
+    return NextResponse.json({ ok: true, pending: true, stage: result.stage ?? null }, { status: 202 });
+  }
   if (!result.ok) {
     return NextResponse.json(
       { error: "Konu haritası yeniden oluşturulamadı.", detail: result.error },
@@ -192,7 +196,7 @@ export async function POST(request: Request, context: RouteContext) {
   return NextResponse.json({
     ok: true,
     topics: result.topics,
-    coverage: result.coverage,
+    coverage: snapshot?.coverage ?? null,
     snapshot,
   });
 }

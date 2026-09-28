@@ -119,12 +119,21 @@ export type ProcessPost = (body: {
   documentId: string;
   examType?: string | null;
   examDate?: string | null;
+  /** Extract only; the course outline runs once all files are in. */
+  deferMap?: boolean;
+  /** One outline over every file of the course (first = documentId). */
+  courseDocumentIds?: string[];
+  /** Add-source: the prep the file joins. */
+  prepId?: string | null;
 }) => Promise<{ status: number; body: Record<string, unknown> }>;
 
 export const postDocumentProcess: ProcessPost = async ({
   documentId,
   examType,
   examDate,
+  deferMap,
+  courseDocumentIds,
+  prepId,
 }) => {
   const response = await fetch("/api/documents/process", {
     method: "POST",
@@ -133,6 +142,9 @@ export const postDocumentProcess: ProcessPost = async ({
       documentId,
       ...(examType ? { examType } : {}),
       ...(examDate ? { examDate } : {}),
+      ...(deferMap ? { deferMap: true } : {}),
+      ...(courseDocumentIds?.length ? { courseDocumentIds } : {}),
+      ...(prepId ? { prepId } : {}),
     }),
   });
   const raw = await response.json().catch(() => ({}));

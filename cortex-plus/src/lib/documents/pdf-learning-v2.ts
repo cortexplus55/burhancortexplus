@@ -17,108 +17,81 @@ import {
 import { replaceTopicNodes } from "@/lib/documents/topic-map-refold";
 import {
   cleanOcrPageText,
-  detectPageFurniture,
-  extractTocUnits,
-  type FurnitureDetection,
+  flattenOutlineUnits,
   type OutlineUnitDraft,
 } from "@/lib/documents/outline-clean";
-import { outlineLeavesFromUnits } from "@/lib/documents/outline-llm";
-import { buildOutlineOneShot } from "@/lib/documents/outline-oneshot";
-import { packTopicPerspective } from "@/lib/documents/outline-topic-meta";
+import {
+  prepareOutlineMaterial,
+  runOutlineStep,
+  type MaterialFileCorpus,
+  type OutlineProgress,
+  type OutlineStage,
+} from "@/lib/documents/outline-oneshot";
+import {
+  packCourseRelation,
+  packTopicPerspective,
+  readCourseFromRelations,
+} from "@/lib/documents/outline-topic-meta";
+import { commitCredits, refundCredits } from "@/lib/credits/service";
 import { MAP_LEASE_MS } from "@/lib/documents/pdf-learning-v2-lease";
-import type { OutlineExamWeight } from "@/lib/documents/outline-clean";
 
-export type MapStage = "prepare" | "oneshot" | "persist" | "windows" | "outline";
+export type CourseMapStage = "prepare" | OutlineStage | "persist";
 
-export type PdfLearningV2Result = {
+export type CourseMapResult = {
   ok: boolean;
-  /** Further bounded map windows are pending; caller returns 202 and retries. */
+  /** More rounds needed; the caller returns 202 and the client polls again. */
   pending?: boolean;
-  topics: number;
-  coverage: CoverageReport | null;
-  error?: string;
-  windowsDone?: number;
-  windowsTotal?: number;
-  stage?: MapStage;
   leaseBusy?: boolean;
+  stage?: CourseMapStage;
+  /** Rounds run so far — moves the client's progress fingerprint. */
+  round?: number;
+  topics: number;
+  error?: string;
   retryable?: boolean;
 };
 
-const MAP_WINDOW_PAGES = 12;
 const PAGE_READ_BATCH = 200;
 export { MAP_LEASE_MS };
-/** Outline oneshot needs its own round budget (≥ call timeout). */
-const ROUND_DEADLINE_MS = 250_000;
+/** A round must finish well inside the 300 s function ceiling. */
+export const COURSE_ROUND_BUDGET_MS = 270_000;
+/** Time kept back after a model call for validation, checkpoint and persist. */
+const POST_CALL_RESERVE_MS = 12_000;
+const PERSIST_RESERVE_MS = 25_000;
+/** Failed outline attempts (provider errors, aborts) before giving up. */
+const MAX_OUTLINE_FAILURES = 4;
 
-type MapCheckpointTopic = {
-  title: string;
-  learningObjective: string | null;
-  pageNumbers: number[];
+type CourseOutline = {
+  units: OutlineUnitDraft[];
+  model: string;
+  path: string;
+  dropped: number;
+  reservationIds: string[];
 };
 
-type JobMeta = {
+type CourseMeta = {
   __meta: true;
-  phase: MapStage;
-  furniture?: FurnitureDetection;
-  tocUnits?: { title: string; startPage: number }[];
-  windowAttempts?: Record<string, number>;
-  outline?: OutlineUnitDraft[];
-  /** Raw LLM draft saved between oneshot call and validate/repair rounds. */
-  rawDraft?: unknown;
-  /** Completed split-part drafts — resume must not restart from zero. */
-  partDrafts?: unknown[];
-  windowsTotal?: number;
+  phase: "course";
+  courseDocumentIds: string[];
+  /** Part of every outline credit key; renewed whenever a call settles. */
+  attemptId: string;
+  stage: CourseMapStage;
+  rounds: number;
+  failures: number;
+  /** Keys of calls in flight — a killed round leaves them for the next one. */
+  inflight?: string[];
+  progress?: OutlineProgress;
+  outline?: CourseOutline;
+  previousStatus?: Record<string, string | null>;
   examLabel?: string | null;
   examDate?: string | null;
+  prepId?: string | null;
 };
 
-type MapJob = {
-  next_index: number;
-  topics: unknown[];
-  lease_token: string | null;
-};
+type MapJob = { topics: unknown[]; lease_token: string };
 
-function isJobMeta(value: unknown): value is JobMeta {
-  return Boolean(value) && typeof value === "object" && (value as JobMeta).__meta === true;
-}
-
-function splitJobTopics(raw: unknown[]): {
-  meta: JobMeta | null;
-  compact: MapCheckpointTopic[];
-} {
-  let meta: JobMeta | null = null;
-  const compact: MapCheckpointTopic[] = [];
-  for (const item of raw) {
-    if (isJobMeta(item)) {
-      meta = item;
-      continue;
-    }
-    if (
-      item &&
-      typeof item === "object" &&
-      typeof (item as MapCheckpointTopic).title === "string"
-    ) {
-      const row = item as MapCheckpointTopic;
-      compact.push({
-        title: row.title,
-        learningObjective: row.learningObjective ?? null,
-        pageNumbers: Array.isArray(row.pageNumbers) ? row.pageNumbers : [],
-      });
-    }
-  }
-  return { meta, compact };
-}
-
-function packJobTopics(meta: JobMeta, compact: MapCheckpointTopic[]): unknown[] {
-  return [meta, ...compact];
-}
-
-export function topicMapWindows<T>(pages: T[], windowSize = MAP_WINDOW_PAGES): T[][] {
-  const windows: T[][] = [];
-  for (let offset = 0; offset < pages.length; offset += windowSize) {
-    windows.push(pages.slice(offset, offset + windowSize));
-  }
-  return windows;
+function readCourseMeta(raw: unknown[]): CourseMeta | null {
+  const first = raw[0] as CourseMeta | undefined;
+  return first && first.__meta === true && first.phase === "course" ? first : null;
 }
 
 async function claimMapJob(service: SupabaseClient, documentId: string): Promise<MapJob | null> {
@@ -136,33 +109,12 @@ async function claimMapJob(service: SupabaseClient, documentId: string): Promise
     })
     .eq("document_id", documentId)
     .or(`lease_until.is.null,lease_until.lt.${now.toISOString()}`)
-    .select("next_index, topics, lease_token")
+    .select("topics, lease_token")
     .maybeSingle();
   if (error) throw new Error("topic_map_job_claim_failed");
-  return data ? {
-    next_index: data.next_index as number,
-    topics: Array.isArray(data.topics) ? data.topics as unknown[] : [],
-    lease_token: data.lease_token as string,
-  } : null;
-}
-
-async function readMapJobProgress(
-  service: SupabaseClient,
-  documentId: string,
-): Promise<{ windowsDone: number; windowsTotal: number; stage: MapStage } | null> {
-  const { data } = await service.from("document_topic_map_jobs")
-    .select("next_index, topics")
-    .eq("document_id", documentId)
-    .maybeSingle();
-  if (!data) return null;
-  const { meta, compact } = splitJobTopics(Array.isArray(data.topics) ? data.topics as unknown[] : []);
-  const windowsTotal = meta?.windowsTotal ?? 0;
-  const stage = meta?.phase ?? (data.next_index === 0 ? "prepare" : "windows");
-  return {
-    windowsDone: Number(data.next_index) || 0,
-    windowsTotal: windowsTotal || Math.max(compact.length ? 1 : 0, Number(data.next_index) || 0),
-    stage,
-  };
+  return data
+    ? { topics: Array.isArray(data.topics) ? (data.topics as unknown[]) : [], lease_token: data.lease_token as string }
+    : null;
 }
 
 async function releaseMapJob(service: SupabaseClient, documentId: string, token: string) {
@@ -173,11 +125,7 @@ async function releaseMapJob(service: SupabaseClient, documentId: string, token:
 }
 
 /** Keep the map lease alive while a long outline call runs. */
-async function renewMapLease(
-  service: SupabaseClient,
-  documentId: string,
-  token: string,
-): Promise<void> {
+async function renewMapLease(service: SupabaseClient, documentId: string, token: string) {
   const now = new Date();
   await service
     .from("document_topic_map_jobs")
@@ -202,7 +150,6 @@ type LightPageRow = {
   headings: unknown;
   extraction_ok: boolean | null;
   extraction_method: string | null;
-  text_content?: string | null;
 };
 
 async function loadPageLight(service: SupabaseClient, documentId: string): Promise<LightPageRow[]> {
@@ -226,7 +173,6 @@ async function loadPageTexts(
   pageNumbers: number[],
 ): Promise<Map<number, string>> {
   const out = new Map<number, string>();
-  if (!pageNumbers.length) return out;
   const unique = [...new Set(pageNumbers)];
   for (let offset = 0; offset < unique.length; offset += 40) {
     const chunk = unique.slice(offset, offset + 40);
@@ -236,51 +182,34 @@ async function loadPageTexts(
       .in("page_number", chunk);
     if (error) throw new Error("page_load_failed");
     for (const row of data ?? []) {
-      out.set(
-        row.page_number as number,
-        cleanOcrPageText((row.text_content as string | null) ?? ""),
-      );
+      out.set(row.page_number as number, cleanOcrPageText((row.text_content as string | null) ?? ""));
     }
   }
   return out;
 }
 
-/**
- * Rebuild PageAnalysis from prepare-persisted metadata — no text_content.
- * Windows/outline/persist rounds must not re-read full document text (S3).
- */
+/** PageAnalysis from persisted page metadata (no text). */
 function analysesFromLight(rows: LightPageRow[]): PageAnalysis[] {
-  return rows.map((row) => {
-    const pageKind = (row.page_kind as PageKind | null) ?? "content";
-    const method = (row.extraction_method as ExtractionMethod | null) ?? "none";
-    const headings = Array.isArray(row.headings) ? (row.headings as string[]) : [];
-    return {
-      pageNumber: row.page_number,
-      textContent: "",
-      extractionOk: row.extraction_ok !== false,
-      pageKind,
-      headings,
-      formulas: [],
-      tablesDetected: 0,
-      imagesDetected: 0,
-      uncertainRegions: [],
-      extractionMethod: method,
-      charCount: typeof row.char_count === "number" ? row.char_count : 0,
-    };
-  });
+  return rows.map((row) => ({
+    pageNumber: row.page_number,
+    textContent: "",
+    extractionOk: row.extraction_ok !== false,
+    pageKind: (row.page_kind as PageKind | null) ?? "content",
+    headings: Array.isArray(row.headings) ? (row.headings as string[]) : [],
+    formulas: [],
+    tablesDetected: 0,
+    imagesDetected: 0,
+    uncertainRegions: [],
+    extractionMethod: (row.extraction_method as ExtractionMethod | null) ?? "none",
+    charCount: typeof row.char_count === "number" ? row.char_count : 0,
+  }));
 }
 
-async function persistPageMeta(
-  service: SupabaseClient,
-  pageId: string,
-  analysis: PageAnalysis,
-  preserveMethod?: string | null,
-) {
+async function persistPageMeta(service: SupabaseClient, row: LightPageRow, analysis: PageAnalysis) {
+  const preserved = row.extraction_method;
   const method =
-    preserveMethod === "ocr" ||
-    preserveMethod === "visual" ||
-    preserveMethod === "manual"
-      ? preserveMethod
+    preserved === "ocr" || preserved === "visual" || preserved === "manual"
+      ? preserved
       : analysis.extractionMethod;
   const { error } = await service
     .from("document_pages")
@@ -295,139 +224,11 @@ async function persistPageMeta(
       extraction_method: method,
       char_count: analysis.charCount,
     })
-    .eq("id", pageId);
+    .eq("id", row.id);
   if (error) throw new Error("page_meta_update_failed");
 }
 
-export type HierarchicalTopic = TopicDraft & {
-  unitTitle?: string | null;
-  examWeight?: OutlineExamWeight | null;
-  unitExamWeight?: OutlineExamWeight | null;
-  likelyAsked?: string[];
-  whyLearn?: string | null;
-};
-
-async function persistTopics(
-  service: SupabaseClient,
-  documentId: string,
-  topics: HierarchicalTopic[],
-  pageIdByNumber: Map<number, string>,
-  units?: { title: string; topicIndexes: number[]; examWeight?: OutlineExamWeight }[],
-) {
-  const topicIdByMergeKey = new Map<string, string>();
-  if (!topics.length) return topicIdByMergeKey;
-
-  // Insert unit nodes first (parent_id null), then leaf topics.
-  // Match parents by unit index — duplicate titles must not collide.
-  const unitIdByIndex = new Map<number, string>();
-  if (units?.length) {
-    const { data: unitRows, error: unitError } = await service
-      .from("document_topic_nodes")
-      .insert(
-        units.map((unit, index) => {
-          const packed = packTopicPerspective({
-            examWeight: unit.examWeight ?? "medium",
-          });
-          return {
-            document_id: documentId,
-            parent_id: null,
-            sort_order: index,
-            title: unit.title,
-            learning_objective: packed.learning_objective,
-            prerequisites: packed.prerequisites,
-            key_definitions: packed.key_definitions,
-            key_relations: packed.key_relations,
-            worked_examples: [],
-            common_mistakes: [],
-            source_exercises: [],
-          };
-        }),
-      )
-      .select("id, title, sort_order");
-    if (unitError || !unitRows?.length) throw new Error("topic_insert_failed");
-    for (const row of unitRows) {
-      unitIdByIndex.set(row.sort_order as number, row.id as string);
-    }
-  }
-
-  const topicUnitIndex = new Map<number, number>();
-  if (units?.length) {
-    units.forEach((unit, unitIndex) => {
-      for (const topicIndex of unit.topicIndexes) {
-        if (!topicUnitIndex.has(topicIndex)) topicUnitIndex.set(topicIndex, unitIndex);
-      }
-    });
-  }
-
-  const unitOffset = units?.length ?? 0;
-  const { data: saved, error: topicError } = await service
-    .from("document_topic_nodes")
-    .insert(
-      topics.map((topic, index) => {
-        const unitIndex = topicUnitIndex.get(index);
-        const parentId =
-          unitIndex !== undefined ? (unitIdByIndex.get(unitIndex) ?? null) : null;
-        const packed = packTopicPerspective({
-          examWeight: topic.examWeight ?? topic.unitExamWeight ?? "medium",
-          likelyAsked: topic.likelyAsked?.length ? topic.likelyAsked : topic.keyDefinitions,
-          whyLearn: topic.whyLearn ?? topic.learningObjective,
-          prerequisiteTitles: topic.prerequisites,
-        });
-        return {
-          document_id: documentId,
-          parent_id: parentId,
-          sort_order: unitOffset + index,
-          title: topic.title,
-          learning_objective: packed.learning_objective ?? topic.learningObjective,
-          prerequisites: packed.prerequisites.length
-            ? packed.prerequisites
-            : topic.prerequisites,
-          key_definitions: packed.key_definitions.length
-            ? packed.key_definitions
-            : topic.keyDefinitions,
-          key_relations: packed.key_relations.length
-            ? packed.key_relations
-            : topic.keyRelations,
-          worked_examples: topic.workedExamples,
-          common_mistakes: topic.commonMistakes,
-          source_exercises: topic.sourceExercises,
-        };
-      }),
-    )
-    .select("id, sort_order");
-  if (topicError || !saved || saved.length !== topics.length) throw new Error("topic_insert_failed");
-  const idByOrder = new Map(saved.map((row) => [row.sort_order as number, row.id as string]));
-  const links: {
-    document_id: string; topic_id: string; page_id: string;
-    page_number: number; relevance: "primary";
-  }[] = [];
-  for (const [index, topic] of topics.entries()) {
-    const id = idByOrder.get(unitOffset + index);
-    if (!id) throw new Error("topic_insert_failed");
-    topicIdByMergeKey.set(topic.mergeKey, id);
-    for (const pageNumber of topic.pageNumbers) {
-      const pageId = pageIdByNumber.get(pageNumber);
-      if (!pageId) continue;
-      links.push({
-        document_id: documentId, topic_id: id, page_id: pageId,
-        page_number: pageNumber, relevance: "primary",
-      });
-    }
-  }
-  for (let offset = 0; offset < links.length; offset += 200) {
-    const { error: linkError } = await service.from("document_topic_page_links")
-      .insert(links.slice(offset, offset + 200));
-    if (linkError) throw new Error("topic_link_failed");
-  }
-
-  return topicIdByMergeKey;
-}
-
-async function persistCoverage(
-  service: SupabaseClient,
-  documentId: string,
-  coverage: CoverageReport,
-) {
+async function persistCoverage(service: SupabaseClient, documentId: string, coverage: CoverageReport) {
   const { error } = await service.from("document_coverage_reports").upsert(
     {
       document_id: documentId,
@@ -450,471 +251,527 @@ async function persistCoverage(
 function isRetryableMapError(message: string): boolean {
   if (message === "topic_map_no_readable_pages") return false;
   if (message === "topic_map_in_use") return false;
-  if (/timeout|ECONNRESET|429|5\d\d|rate.?limit|overloaded|fetch failed|deadline|claim/i.test(message)) {
-    return true;
+  if (message === "insufficient_credits" || message === "document_not_found") return false;
+  return true;
+}
+
+/** Analyze every page once, persist page metadata, return the page texts. */
+async function prepareDocument(
+  service: SupabaseClient,
+  documentId: string,
+  persistMeta: boolean,
+): Promise<{ analyses: PageAnalysis[]; light: LightPageRow[] }> {
+  const light = await loadPageLight(service, documentId);
+  const texts = await loadPageTexts(service, documentId, light.map((r) => r.page_number));
+  const analyses = light.map((row) => {
+    const analysis = analyzePage(row.page_number, texts.get(row.page_number) ?? "", row.extraction_method);
+    if (row.extraction_ok === false) {
+      analysis.extractionOk = false;
+      if (analysis.pageKind === "content" || analysis.pageKind === "uncertain") {
+        analysis.pageKind = "unreadable";
+      }
+    }
+    if (row.page_kind === "blank") analysis.pageKind = "blank";
+    return analysis;
+  });
+  if (persistMeta) {
+    for (let offset = 0; offset < analyses.length; offset += 8) {
+      await Promise.all(
+        analyses.slice(offset, offset + 8).map((analysis, i) => persistPageMeta(service, light[offset + i]!, analysis)),
+      );
+    }
   }
-  // LLM / transient map problems stay retryable after OCR succeeded.
-  return (
-    message === "topic_map_failed" ||
-    message === "topic_map_unavailable" ||
-    message === "topic_map_job_claim_failed" ||
-    message === "topic_map_job_insert_failed" ||
-    message === "page_load_failed" ||
-    message === "page_meta_update_failed"
-  );
+  return { analyses, light };
+}
+
+function corpusFile(fileName: string, analyses: PageAnalysis[]): MaterialFileCorpus {
+  return {
+    fileName,
+    pages: pagesForTopicMap(analyses).map((p) => ({
+      pageNumber: p.pageNumber,
+      text: p.pageKind === "toc" ? `İÇİNDEKİLER\n${p.textContent}` : p.textContent,
+    })),
+  };
+}
+
+function tocBlockFrom(files: { analyses: PageAnalysis[] }[]): string | null {
+  const text = files
+    .flatMap((file, index) =>
+      file.analyses
+        .filter((p) => p.pageKind === "toc")
+        .map((p) => `d${index + 1}: ${p.textContent.slice(0, 1200)}`),
+    )
+    .join("\n")
+    .slice(0, 4000);
+  return text || null;
+}
+
+/** Existing prep topics, for "new file → previous outline" (add-source). */
+async function previousOutlineForPrep(
+  service: SupabaseClient,
+  userId: string,
+  prepId: string,
+): Promise<OutlineUnitDraft[] | undefined> {
+  const { data: prep } = await service
+    .from("exam_preps")
+    .select("id")
+    .eq("id", prepId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!prep) return undefined;
+  const { data: rows } = await service
+    .from("exam_prep_topics")
+    .select("label, sort_order")
+    .eq("exam_prep_id", prepId)
+    .order("sort_order");
+  const titles = (rows ?? []).map((row) => String(row.label ?? "").trim()).filter(Boolean).slice(0, 60);
+  if (!titles.length) return undefined;
+  return [
+    {
+      title: "Mevcut konular",
+      topics: titles.map((title) => ({ title, sourceTitles: [title], pageNumbers: [] })),
+    },
+  ];
+}
+
+/** A killed round leaves its reservations pending: refund them, never charge. */
+async function refundStaleReservations(service: SupabaseClient, userId: string, keys: string[]) {
+  if (!keys.length) return;
+  const { data } = await service
+    .from("credit_reservations")
+    .select("id, status")
+    .eq("user_id", userId)
+    .in("idempotency_key", keys)
+    .eq("status", "pending");
+  for (const row of data ?? []) {
+    await refundCredits(service, String(row.id)).catch(() => {});
+  }
+}
+
+async function settleReservations(
+  service: SupabaseClient,
+  ids: string[],
+  action: "commit" | "refund",
+) {
+  for (const id of [...new Set(ids)]) {
+    try {
+      if (action === "commit") await commitCredits(service, id);
+      else await refundCredits(service, id);
+    } catch {
+      // A bookkeeping hiccup must never fail the student's map.
+      console.error("outline_credit_settle_failed", { action });
+    }
+  }
 }
 
 /**
- * After classic RAG page/chunk insert, enrich pages + build topic map + coverage.
- * Bounded rounds: prepare → windows → outline → persist (each POST ≤ ~60s).
+ * Write the course outline onto each document, keeping ONE course order:
+ * unit sort_order = its index in the whole course, leaf sort_order =
+ * units + its index in the whole course. Unit nodes carry a course tag so
+ * intake can merge the documents back into that single order.
  */
-export async function runPdfLearningV2(
+async function persistCourseOutline(
   service: SupabaseClient,
-  documentId: string,
-  options?: { examLabel?: string | null; examDate?: string | null },
-): Promise<PdfLearningV2Result> {
-  let previousMapStatus: string | null = null;
-  const roundStarted = Date.now();
-  const deadlineAt = roundStarted + ROUND_DEADLINE_MS;
-  try {
-    const { data: docRow, error: docLoadError } = await service
-      .from("documents")
-      .select("user_id, file_name, mime_type, topic_map_status")
-      .eq("id", documentId)
-      .is("deleted_at", null)
-      .maybeSingle();
-    if (docLoadError || !docRow?.user_id) throw new Error("document_not_found");
-    previousMapStatus = docRow.topic_map_status as string | null;
+  courseId: string,
+  documentIds: string[],
+  outline: OutlineUnitDraft[],
+): Promise<number> {
+  const { units } = flattenOutlineUnits(outline);
+  const unitsTotal = units.length;
+  let saved = 0;
+  for (const [fileIndex, documentId] of documentIds.entries()) {
+    const light = await loadPageLight(service, documentId);
+    const pageIdByNumber = new Map(light.map((row) => [row.page_number, row.id]));
+    const existingIds =
+      (await service.from("document_topic_nodes").select("id").eq("document_id", documentId)).data?.map(
+        (r) => r.id as string,
+      ) ?? [];
+    // Re-check in-use before the swap — a prep may have linked it mid-round.
+    if (existingIds.length && (await documentTopicMapIsInUse(service, documentId, existingIds).catch(() => true))) {
+      throw new Error("topic_map_in_use");
+    }
+    await clearTopicMap(service, documentId);
 
-    if (previousMapStatus === "ready" || previousMapStatus === "reviewed") {
-      const inUse = await documentTopicMapIsInUse(service, documentId, []).catch(() => true);
-      if (inUse) {
-        return { ok: false, topics: 0, coverage: null, error: "topic_map_in_use" };
+    const mine = units
+      .map((unit, unitIndex) => ({ unit, unitIndex }))
+      .filter(({ unit }) => unit.topics.some((t) => (t.fileIndex ?? 0) === fileIndex));
+    const unitIds = new Map<number, string>();
+    if (mine.length) {
+      const { data: unitRows, error } = await service
+        .from("document_topic_nodes")
+        .insert(
+          mine.map(({ unit, unitIndex }) => {
+            const packed = packTopicPerspective({ examWeight: unit.examWeight ?? "medium" });
+            return {
+              document_id: documentId,
+              parent_id: null,
+              sort_order: unitIndex,
+              title: unit.title,
+              learning_objective: packed.learning_objective,
+              prerequisites: packed.prerequisites,
+              key_definitions: packed.key_definitions,
+              key_relations: [...packed.key_relations, packCourseRelation(courseId)],
+              worked_examples: [],
+              common_mistakes: [],
+              source_exercises: [],
+            };
+          }),
+        )
+        .select("id, sort_order");
+      if (error || unitRows?.length !== mine.length) throw new Error("topic_insert_failed");
+      for (const row of unitRows) unitIds.set(row.sort_order as number, row.id as string);
+    }
+
+    const leaves: { topic: OutlineUnitDraft["topics"][number]; unitIndex: number; order: number }[] = [];
+    let leafIndex = 0;
+    units.forEach((unit, unitIndex) => {
+      for (const topic of unit.topics) {
+        if ((topic.fileIndex ?? 0) === fileIndex) {
+          leaves.push({ topic, unitIndex, order: unitsTotal + leafIndex });
+        }
+        leafIndex += 1;
       }
-    }
-
-    const { error: pendingError } = await service.from("documents")
-      .update({
-        topic_map_status: "pending",
-        topic_map_error: null,
-        topic_map_updated_at: new Date().toISOString(),
-      })
-      .eq("id", documentId);
-    if (pendingError) throw new Error("topic_map_status_update_failed");
-
-    const job = await claimMapJob(service, documentId);
-    if (!job) {
-      const progress = await readMapJobProgress(service, documentId);
-      return {
-        ok: true,
-        pending: true,
-        topics: 0,
-        coverage: null,
-        leaseBusy: true,
-        windowsDone: progress?.windowsDone ?? 0,
-        windowsTotal: progress?.windowsTotal ?? 0,
-        stage: progress?.stage ?? "windows",
-      };
-    }
-    const token = job.lease_token!;
-    try {
-      let { meta } = splitJobTopics(job.topics);
-      const phase: MapStage = meta?.phase ?? "prepare";
-
-      // ——— PREPARE: light columns + analyze + persist meta + furniture ———
-      if (phase === "prepare") {
-        const light = await loadPageLight(service, documentId);
-        if (!light.length) throw new Error("topic_map_no_readable_pages");
-        const texts = await loadPageTexts(
-          service,
-          documentId,
-          light.map((r) => r.page_number),
-        );
-        const analyses: PageAnalysis[] = [];
-        for (const row of light) {
-          const text = texts.get(row.page_number) ?? "";
-          const analysis = analyzePage(row.page_number, text, row.extraction_method);
-          if (row.extraction_ok === false) {
-            analysis.extractionOk = false;
-            if (analysis.pageKind === "content" || analysis.pageKind === "uncertain") {
-              analysis.pageKind = "unreadable";
-            }
+    });
+    const drafts: TopicDraft[] = [];
+    if (leaves.length) {
+      const { data: leafRows, error } = await service
+        .from("document_topic_nodes")
+        .insert(
+          leaves.map(({ topic, unitIndex, order }) => {
+            const packed = packTopicPerspective({
+              examWeight: topic.examWeight ?? units[unitIndex]?.examWeight ?? "medium",
+              likelyAsked: topic.likelyAsked,
+              whyLearn: topic.whyLearn ?? topic.description,
+              prerequisiteTitles: topic.prerequisiteTitles,
+            });
+            return {
+              document_id: documentId,
+              parent_id: unitIds.get(unitIndex) ?? null,
+              sort_order: order,
+              title: topic.title,
+              ...packed,
+              worked_examples: [],
+              common_mistakes: [],
+              source_exercises: [],
+            };
+          }),
+        )
+        .select("id, sort_order");
+      if (error || leafRows?.length !== leaves.length) throw new Error("topic_insert_failed");
+      const idByOrder = new Map(leafRows.map((row) => [row.sort_order as number, row.id as string]));
+      const links: Record<string, unknown>[] = [];
+      for (const { topic, order } of leaves) {
+        const topicId = idByOrder.get(order);
+        if (!topicId) throw new Error("topic_insert_failed");
+        // Only the pages the outline cited — never pages it did not name.
+        for (const pageNumber of topic.pageNumbers) {
+          const pageId = pageIdByNumber.get(pageNumber);
+          if (pageId) {
+            links.push({ document_id: documentId, topic_id: topicId, page_id: pageId, page_number: pageNumber, relevance: "primary" });
           }
-          if (row.page_kind === "blank") analysis.pageKind = "blank";
-          analyses.push(analysis);
         }
-        for (let offset = 0; offset < analyses.length; offset += 8) {
-          await Promise.all(analyses.slice(offset, offset + 8).map(async (analysis) => {
-            const row = light.find((r) => r.page_number === analysis.pageNumber);
-            if (row) await persistPageMeta(service, row.id, analysis, row.extraction_method);
-          }));
-        }
-        const furniture = detectPageFurniture(
-          analyses.map((a) => ({
-            pageNumber: a.pageNumber,
-            text: a.textContent,
-            pageKind: a.pageKind,
-          })),
-        );
-        const tocUnits = extractTocUnits(
-          analyses.map((a) => ({
-            pageNumber: a.pageNumber,
-            text: a.textContent,
-            pageKind: a.pageKind,
-            headings: a.headings,
-          })),
-        );
-        const mapPages = pagesForTopicMap(analyses);
-        if (!mapPages.length) throw new Error("topic_map_no_readable_pages");
-        meta = {
-          __meta: true,
-          phase: "oneshot",
-          furniture,
-          tocUnits: tocUnits.length ? tocUnits : undefined,
-          windowsTotal: 1,
-          examLabel: options?.examLabel ?? null,
-          examDate: options?.examDate ?? null,
-        };
-        const nowIso = new Date().toISOString();
-        const { data: saved, error: checkpointError } = await service
-          .from("document_topic_map_jobs")
-          .update({
-            next_index: 0,
-            topics: packJobTopics(meta, []),
-            updated_at: nowIso,
-          })
-          .eq("document_id", documentId)
-          .eq("lease_token", token)
-          .select("document_id");
-        if (checkpointError || !saved?.length) throw new Error("topic_map_claim_lost");
-        console.info("pdf-learning-v2 round", {
-          documentId,
-          stage: "prepare",
-          ms: Date.now() - roundStarted,
+        drafts.push({
+          title: topic.title,
+          learningObjective: topic.whyLearn ?? null,
+          prerequisites: [],
+          keyDefinitions: [],
+          keyRelations: [],
+          workedExamples: [],
+          commonMistakes: [],
+          sourceExercises: [],
+          pageNumbers: topic.pageNumbers,
+          mergeKey: topicId,
         });
-        return {
-          ok: true,
-          pending: true,
-          topics: 0,
-          coverage: null,
-          windowsDone: 0,
-          windowsTotal: 1,
-          stage: "prepare",
-        };
       }
-
-      // ——— ONESHOT: load full text once + one (or split/merge) LLM outline ———
-      const light = await loadPageLight(service, documentId);
-      const pageIdByNumber = new Map(
-        light.map((row) => [row.page_number as number, row.id as string]),
-      );
-      if (!meta) {
-        meta = { __meta: true, phase: "oneshot", windowsTotal: 1 };
+      for (let offset = 0; offset < links.length; offset += 200) {
+        const { error: linkError } = await service
+          .from("document_topic_page_links")
+          .insert(links.slice(offset, offset + 200));
+        if (linkError) throw new Error("topic_link_failed");
       }
-
-      // Legacy jobs that still say windows/outline jump to oneshot.
-      const needsOneshot =
-        meta.phase === "oneshot" ||
-        meta.phase === "windows" ||
-        meta.phase === "outline" ||
-        !meta.outline;
-
-      if (needsOneshot && !meta.outline) {
-        const texts = await loadPageTexts(
-          service,
-          documentId,
-          light.map((r) => r.page_number),
-        );
-        const analyses: PageAnalysis[] = light.map((row) => {
-          const base = analysesFromLight([row])[0]!;
-          return { ...base, textContent: texts.get(row.page_number) ?? "" };
-        });
-        const mapPages = pagesForTopicMap(analyses);
-        if (!mapPages.length) throw new Error("topic_map_no_readable_pages");
-
-        const tocFromMeta = meta.tocUnits?.length
-          ? meta.tocUnits.map((u) => `- ${u.title} (s.${u.startPage})`).join("\n")
-          : "";
-        const tocFromPages = analyses
-          .filter((p) => p.pageKind === "toc")
-          .map((p) => p.textContent.slice(0, 1200))
-          .filter(Boolean)
-          .join("\n")
-          .slice(0, 4000);
-        const tocBlock = tocFromMeta || tocFromPages || null;
-
-        const corpusPages = mapPages.map((p) => ({
-          pageNumber: p.pageNumber,
-          text:
-            p.pageKind === "toc"
-              ? `İÇİNDEKİLER\n${p.textContent}`
-              : p.textContent,
-        }));
-
-        const heartbeat = setInterval(() => {
-          void renewMapLease(service, documentId, token);
-        }, Math.max(30_000, Math.floor(MAP_LEASE_MS / 3)));
-
-        let checkpointWrite: Promise<void> = Promise.resolve();
-        let lastCheckpointAt = 0;
-        const persistCheckpoint = (state: {
-          rawDraft?: unknown;
-          partDrafts?: unknown[];
-        }) => {
-          const nowMs = Date.now();
-          // Throttle DB writes while the stream is hot; always keep latest.
-          if (nowMs - lastCheckpointAt < 4_000) return;
-          lastCheckpointAt = nowMs;
-          meta = {
-            ...meta!,
-            phase: "oneshot",
-            rawDraft: state.rawDraft ?? meta?.rawDraft,
-            partDrafts: state.partDrafts ?? meta?.partDrafts,
-          };
-          checkpointWrite = (async () => {
-            await service
-              .from("document_topic_map_jobs")
-              .update({
-                topics: packJobTopics(meta!, []),
-                updated_at: new Date().toISOString(),
-              })
-              .eq("document_id", documentId)
-              .eq("lease_token", token);
-          })();
-        };
-
-        const outlineStarted = Date.now();
-        let outlineResult;
-        try {
-          outlineResult = await buildOutlineOneShot({
-            service,
-            userId: docRow.user_id as string,
-            files: [
-              {
-                fileName: (docRow.file_name as string) ?? "belge",
-                pages: corpusPages,
-              },
-            ],
-            pagesForFallback: mapPages,
-            examLabel: options?.examLabel ?? meta.examLabel ?? null,
-            examDate: options?.examDate ?? meta.examDate ?? null,
-            deadlineAt,
-            allowModel: true,
-            tocBlock: tocBlock ?? undefined,
-            resumeDraft: meta.rawDraft,
-            resumePartDrafts: Array.isArray(meta.partDrafts)
-              ? (meta.partDrafts as never[])
-              : undefined,
-            onCheckpoint: persistCheckpoint,
-          });
-          await checkpointWrite;
-        } finally {
-          clearInterval(heartbeat);
-        }
-        console.info("pipeline_timing", {
-          documentId,
-          stage: "outline",
-          ms: Date.now() - outlineStarted,
-          pages: mapPages.length,
-          model: outlineResult.model ?? null,
-          path: outlineResult.path,
-          units: outlineResult.units.length,
-          topics: outlineResult.units.reduce((n, u) => n + u.topics.length, 0),
-          retryable: outlineResult.retryable,
-        });
-        // Keep partial progress even on failure — next round resumes, never zero.
-        if (outlineResult.rawDraft != null || outlineResult.partDrafts?.length) {
-          meta = {
-            ...meta,
-            phase: "oneshot",
-            rawDraft: outlineResult.rawDraft ?? meta.rawDraft,
-            partDrafts: outlineResult.partDrafts ?? meta.partDrafts,
-          };
-          await service
-            .from("document_topic_map_jobs")
-            .update({
-              topics: packJobTopics(meta, []),
-              updated_at: new Date().toISOString(),
-            })
-            .eq("document_id", documentId)
-            .eq("lease_token", token);
-        }
-
-        // No fabricated heading soup — student gets a clear retry state.
-        if (!outlineResult.fromModel || !outlineResult.units.length) {
-          throw new Error("topic_map_unavailable");
-        }
-
-        meta = {
-          ...meta,
-          phase: "persist",
-          outline: outlineResult.units,
-          rawDraft: undefined,
-          partDrafts: undefined,
-          windowsTotal: 1,
-        };
-        const nowIso = new Date().toISOString();
-        const { data: saved, error: checkpointError } = await service
-          .from("document_topic_map_jobs")
-          .update({
-            next_index: 1,
-            topics: packJobTopics(meta, []),
-            updated_at: nowIso,
-          })
-          .eq("document_id", documentId)
-          .eq("lease_token", token)
-          .select("document_id");
-        if (checkpointError || !saved?.length) throw new Error("topic_map_claim_lost");
-        await service.from("documents").update({
-          updated_at: nowIso,
-          topic_map_updated_at: nowIso,
-        }).eq("id", documentId);
-        console.info("pdf-learning-v2 round", {
-          documentId,
-          stage: "oneshot",
-          fromModel: outlineResult.fromModel,
-          path: outlineResult.path,
-          ms: Date.now() - roundStarted,
-        });
-        return {
-          ok: true,
-          pending: true,
-          topics: outlineLeavesFromUnits(outlineResult.units).leafTopics.length,
-          coverage: null,
-          windowsDone: 1,
-          windowsTotal: 1,
-          stage: "oneshot",
-        };
-      }
-
-      // ——— PERSIST: hierarchy + coverage (metadata only; outline already decided) ———
-      const analyses = analysesFromLight(light);
-      const mapPages = pagesForTopicMap(analyses);
-      if (!mapPages.length) throw new Error("topic_map_no_readable_pages");
-      const outline = meta.outline;
-      if (!outline?.length) throw new Error("topic_map_unavailable");
-      const { units, leafTopics } = outlineLeavesFromUnits(outline);
-      if (!leafTopics.length) throw new Error("topic_map_unavailable");
-
-      const hierarchical: HierarchicalTopic[] = leafTopics.map((leaf, index) => {
-        const why = leaf.whyLearn ?? leaf.description ?? null;
-        const draft = draftFromLlmTopic(leaf.title, why, leaf.pageNumbers, analyses, index);
-        return {
-          ...draft,
-          learningObjective: why,
-          prerequisites: leaf.prerequisiteTitles ?? [],
-          keyDefinitions: leaf.likelyAsked ?? draft.keyDefinitions,
-          unitTitle: leaf.unitTitle,
-          examWeight: leaf.examWeight ?? null,
-          unitExamWeight: leaf.unitExamWeight ?? null,
-          likelyAsked: leaf.likelyAsked ?? [],
-          whyLearn: why,
-        };
-      });
-      const linked = completeTopicPageLinks(hierarchical, analyses);
-      const withUnits: HierarchicalTopic[] = leafTopics.map((leaf, index) => {
-        const match =
-          linked.find(
-            (t) =>
-              t.title === leaf.title &&
-              t.pageNumbers[0] === leaf.pageNumbers[0],
-          ) ??
-          linked[index] ??
-          hierarchical[index]!;
-        const prior = match as HierarchicalTopic;
-        return {
-          ...prior,
-          unitTitle: leaf.unitTitle,
-          examWeight: leaf.examWeight ?? prior.examWeight,
-          unitExamWeight: leaf.unitExamWeight ?? prior.unitExamWeight,
-          likelyAsked: leaf.likelyAsked ?? prior.likelyAsked,
-          whyLearn: leaf.whyLearn ?? leaf.description ?? prior.whyLearn,
-          prerequisites: leaf.prerequisiteTitles?.length
-            ? leaf.prerequisiteTitles
-            : prior.prerequisites,
-        };
-      });
-      // Re-check in-use before wipe — race if a prep linked the map mid-round.
-      const existingIds = (
-        await service
-          .from("document_topic_nodes")
-          .select("id")
-          .eq("document_id", documentId)
-      ).data?.map((r) => r.id as string) ?? [];
-      if (
-        existingIds.length &&
-        (await documentTopicMapIsInUse(service, documentId, existingIds).catch(() => true))
-      ) {
-        throw new Error("topic_map_in_use");
-      }
-      await clearTopicMap(service, documentId);
-      // Index-based unit wiring — walk leaves in outline order; never match by
-      // title alone (duplicate unit titles would collide).
-      let leafCursor = 0;
-      const unitsByIndex = units.map((u) => {
-        const count = u.topics.length;
-        const topicIndexes = Array.from({ length: count }, (_, i) => leafCursor + i);
-        leafCursor += count;
-        return {
-          title: u.title,
-          examWeight: u.examWeight,
-          topicIndexes: topicIndexes.filter((i) => i < leafTopics.length),
-        };
-      });
-      await persistTopics(
-        service,
-        documentId,
-        withUnits,
-        pageIdByNumber,
-        unitsByIndex,
-      );
-      const coverage = buildCoverageReport(analyses, withUnits, []);
-      const topicCount = withUnits.length;
-      await persistCoverage(service, documentId, coverage);
-
-      const { error: docError } = await service.from("documents")
-        .update({
-          topic_map_status: "ready",
-          topic_map_error: null,
-          topic_map_updated_at: new Date().toISOString(),
-        })
-        .eq("id", documentId);
-      if (docError) throw new Error("document_status_update_failed");
-
-      await service.from("document_topic_map_jobs")
-        .delete().eq("document_id", documentId).eq("lease_token", token);
-      console.info("pdf-learning-v2 round", {
-        documentId,
-        stage: "persist",
-        topics: topicCount,
-        ms: Date.now() - roundStarted,
-      });
-      return { ok: true, topics: topicCount, coverage, stage: "persist" };
-    } finally {
-      await releaseMapJob(service, documentId, token);
     }
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "topic_map_failed";
-    console.error("pdf learning v2 failed", { name: message });
-    if (message === "topic_map_claim_lost") {
-      return { ok: true, pending: true, topics: 0, coverage: null };
-    }
+    await persistCoverage(service, documentId, buildCoverageReport(analysesFromLight(light), drafts, []));
+    saved += leaves.length;
+  }
+  return saved;
+}
+
+function newAttemptId(): string {
+  return crypto.randomUUID().slice(0, 8);
+}
+
+/**
+ * ONE course-level topic map pipeline, run in bounded rounds by the process
+ * route (lease + heartbeat + checkpoint in document_topic_map_jobs of the
+ * course's first document). A single upload is a course of one file.
+ *
+ *   prepare  → analyze every page of every file (cheap, no model)
+ *   outline  → one stage per round (see runOutlineStep): one call over the
+ *              whole course, escalate / repair / fallback only when needed
+ *   persist  → write every document in one course order, then settle credits
+ *
+ * Credits: every outline call reserves under
+ * `outline:{courseId}:{contentHash}:{attemptId}:{stage}[:partN]` with
+ * deferCommit. Only the calls that produced the saved map are committed —
+ * after persist succeeds. Discarded drafts are refunded at once; calls a
+ * killed round left pending are refunded by the next round.
+ */
+export async function runCourseMapRound(
+  service: SupabaseClient,
+  input: {
+    documentIds: string[];
+    examLabel?: string | null;
+    examDate?: string | null;
+    /** Add-source: reuse this prep's topic names for the new file. */
+    prepId?: string | null;
+    /** Absolute deadline for this round (defaults to now + budget). */
+    deadlineAt?: number;
+    now?: () => number;
+  },
+): Promise<CourseMapResult> {
+  const now = input.now ?? Date.now;
+  const roundStarted = now();
+  const deadlineAt = input.deadlineAt ?? roundStarted + COURSE_ROUND_BUDGET_MS;
+  const documentIds = [...new Set(input.documentIds)];
+  const courseId = documentIds[0];
+  if (!courseId) return { ok: false, topics: 0, error: "document_not_found", retryable: false };
+  let meta: CourseMeta | null = null;
+
+  const fail = async (message: string): Promise<CourseMapResult> => {
     const retryable = isRetryableMapError(message);
+    console.error("course_map_failed", { courseId, error: message, stage: meta?.stage ?? null });
     if (!retryable) {
+      for (const documentId of documentIds) {
+        const previous = meta?.previousStatus?.[documentId] ?? null;
+        await service
+          .from("documents")
+          .update({
+            topic_map_status: previous === "ready" || previous === "reviewed" ? previous : "failed",
+            topic_map_error: message,
+            topic_map_updated_at: new Date().toISOString(),
+          })
+          .eq("id", documentId);
+      }
+    }
+    return { ok: false, topics: 0, error: message, retryable, stage: meta?.stage };
+  };
+
+  let docs: { id: string; user_id: string; file_name: string | null; topic_map_status: string | null }[];
+  try {
+    const { data, error } = await service
+      .from("documents")
+      .select("id, user_id, file_name, topic_map_status")
+      .in("id", documentIds)
+      .is("deleted_at", null);
+    if (error) throw new Error("document_load_failed");
+    const byId = new Map((data ?? []).map((row) => [row.id as string, row]));
+    docs = documentIds.map((id) => byId.get(id)).filter(Boolean) as typeof docs;
+  } catch {
+    return fail("document_load_failed");
+  }
+  const userId = docs[0]?.user_id;
+  if (docs.length !== documentIds.length || !userId || docs.some((d) => d.user_id !== userId)) {
+    return fail("document_not_found");
+  }
+
+  const job = await claimMapJob(service, courseId).catch(() => null);
+  if (!job) {
+    const { data } = await service.from("document_topic_map_jobs").select("topics").eq("document_id", courseId).maybeSingle();
+    const busy = readCourseMeta(Array.isArray(data?.topics) ? (data.topics as unknown[]) : []);
+    return { ok: true, pending: true, leaseBusy: true, topics: 0, stage: busy?.stage ?? "prepare", round: busy?.rounds ?? 0 };
+  }
+  const token = job.lease_token;
+  const heartbeat = setInterval(() => void renewMapLease(service, courseId, token), Math.max(30_000, Math.floor(MAP_LEASE_MS / 3)));
+  const checkpoint = async () => {
+    const { data, error } = await service
+      .from("document_topic_map_jobs")
+      .update({ topics: [meta], updated_at: new Date().toISOString() })
+      .eq("document_id", courseId)
+      .eq("lease_token", token)
+      .select("document_id");
+    if (error || !data?.length) throw new Error("topic_map_claim_lost");
+  };
+  const pending = (): CourseMapResult => ({ ok: true, pending: true, topics: 0, stage: meta!.stage, round: meta!.rounds });
+  const timing = (stage: string, extra: Record<string, unknown>) =>
+    console.info("pipeline_timing", { documentId: courseId, files: documentIds.length, stage, ...extra });
+
+  try {
+    meta = readCourseMeta(job.topics);
+    if (meta && meta.courseDocumentIds.join(",") !== documentIds.join(",")) {
+      // Another file set now: its calls and held drafts are never charged.
+      await refundStaleReservations(service, userId, meta.inflight ?? []);
+      await settleReservations(service, [
+        ...(meta.progress ? reservationsHeld(meta.progress) : []),
+        ...(meta.outline?.reservationIds ?? []),
+      ], "refund");
+      meta = null;
+    }
+    if (!meta) {
+      for (const doc of docs) {
+        if (doc.topic_map_status !== "ready" && doc.topic_map_status !== "reviewed") continue;
+        if (await documentTopicMapIsInUse(service, doc.id, []).catch(() => true)) throw new Error("topic_map_in_use");
+      }
+      meta = {
+        __meta: true,
+        phase: "course",
+        courseDocumentIds: documentIds,
+        attemptId: newAttemptId(),
+        stage: "prepare",
+        rounds: 0,
+        failures: 0,
+        previousStatus: Object.fromEntries(docs.map((d) => [d.id, d.topic_map_status])),
+        examLabel: input.examLabel ?? null,
+        examDate: input.examDate ?? null,
+        prepId: input.prepId ?? null,
+      };
       await service
         .from("documents")
-        .update({
-          topic_map_status: previousMapStatus === "ready" || previousMapStatus === "reviewed"
-            ? previousMapStatus
-            : "failed",
-          topic_map_error: message,
-          topic_map_updated_at: new Date().toISOString(),
-        })
-        .eq("id", documentId);
+        .update({ topic_map_status: "pending", topic_map_error: null, topic_map_updated_at: new Date().toISOString() })
+        .in("id", documentIds);
     }
-    return { ok: false, topics: 0, coverage: null, error: message, retryable };
+    meta.rounds += 1;
+    if (meta.inflight?.length) {
+      await refundStaleReservations(service, userId, meta.inflight);
+      meta.inflight = [];
+      meta.attemptId = newAttemptId();
+    }
+
+    // ——— prepare + outline stages: need the page text of every file ———
+    if (meta.stage !== "persist") {
+      const prepareStarted = now();
+      const prepared = await Promise.all(
+        docs.map(async (doc) => ({
+          doc,
+          ...(await prepareDocument(service, doc.id, meta!.stage === "prepare")),
+        })),
+      );
+      const files = prepared.map(({ doc, analyses }) => corpusFile(doc.file_name ?? "belge", analyses));
+      if (!files.some((file) => file.pages.length)) throw new Error("topic_map_no_readable_pages");
+      if (meta.stage === "prepare") {
+        timing("map_prepare", { ms: now() - prepareStarted, pages: files.reduce((n, f) => n + f.pages.length, 0) });
+        meta.stage = "first";
+        meta.progress = { stage: "first" };
+        await checkpoint();
+      }
+
+      const material = prepareOutlineMaterial(files);
+      const progress: OutlineProgress = meta.progress ?? { stage: meta.stage as OutlineStage };
+      const previousOutline = meta.prepId ? await previousOutlineForPrep(service, userId, meta.prepId) : undefined;
+      const stageStarted = now();
+      const step = await runOutlineStep({
+        service,
+        userId,
+        material,
+        progress,
+        examLabel: input.examLabel ?? meta.examLabel ?? null,
+        examDate: input.examDate ?? meta.examDate ?? null,
+        tocBlock: tocBlockFrom(prepared),
+        previousOutline,
+        deadlineAt: deadlineAt - POST_CALL_RESERVE_MS,
+        now,
+        keyFor: (stage, part) =>
+          `outline:${courseId}:${material.contentHash}:${meta!.attemptId}:${stage}${part ? `:part${part}` : ""}`,
+        onCallStart: async (keys) => {
+          meta!.inflight = keys;
+          await checkpoint();
+        },
+      });
+      if (step.kind !== "wait") {
+        // The call settled: its key is spent, the next call gets a new one.
+        meta.inflight = [];
+        meta.attemptId = newAttemptId();
+      }
+      if ("release" in step) await settleReservations(service, step.release, "refund");
+      timing("outline_stage", {
+        outlineStage: progress.stage,
+        result: step.kind,
+        ms: now() - stageStarted,
+        pages: material.pageCount,
+        corpusChars: material.corpus.length,
+        routedModel: material.routed.model,
+        parts: material.parts?.length ?? 1,
+        ...(step.kind === "done"
+          ? { model: step.map.model, path: step.path, units: step.map.units.length, topics: step.map.kept, droppedTopics: step.map.dropped }
+          : {}),
+      });
+
+      if (step.kind === "wait") {
+        await checkpoint();
+        return pending();
+      }
+      if (step.kind === "blocked") throw new Error(step.error);
+      if (step.kind === "continue") {
+        meta.progress = step.progress;
+        meta.stage = step.progress.stage;
+        if (step.failed) meta.failures += 1;
+        if (meta.failures < MAX_OUTLINE_FAILURES) {
+          await checkpoint();
+          return pending();
+        }
+        await settleReservations(service, reservationsHeld(step.progress), "refund");
+      }
+      if (step.kind === "exhausted" || step.kind === "continue") {
+        if (step.kind === "exhausted") meta.failures += 1;
+        if (meta.failures < MAX_OUTLINE_FAILURES) {
+          meta.progress = { stage: "first" };
+          meta.stage = "first";
+          await checkpoint();
+          return pending();
+        }
+        // No fabricated list: a clear retry state; the next try starts fresh.
+        await service.from("document_topic_map_jobs").delete().eq("document_id", courseId).eq("lease_token", token);
+        return await fail("topic_map_unavailable");
+      }
+      meta.outline = {
+        units: step.map.units,
+        model: step.map.model,
+        path: step.path,
+        dropped: step.map.dropped,
+        reservationIds: step.map.reservationIds,
+      };
+      meta.progress = undefined;
+      meta.stage = "persist";
+      await checkpoint();
+      if (deadlineAt - now() < PERSIST_RESERVE_MS) return pending();
+    }
+
+    // ——— persist: one course order across documents, then settle credits ———
+    const outline = meta.outline;
+    if (!outline?.units.length) {
+      meta.stage = "first";
+      meta.progress = { stage: "first" };
+      await checkpoint();
+      return pending();
+    }
+    const persistStarted = now();
+    const topics = await persistCourseOutline(service, courseId, documentIds, outline.units);
+    const nowIso = new Date().toISOString();
+    const { error: docError } = await service
+      .from("documents")
+      .update({ topic_map_status: "ready", topic_map_error: null, topic_map_updated_at: nowIso })
+      .in("id", documentIds);
+    if (docError) throw new Error("document_status_update_failed");
+    await settleReservations(service, outline.reservationIds, "commit");
+    await service.from("document_topic_map_jobs").delete().eq("document_id", courseId).eq("lease_token", token);
+    timing("persist", { ms: now() - persistStarted, topics, units: outline.units.length, model: outline.model, path: outline.path, droppedTopics: outline.dropped, roundMs: now() - roundStarted });
+    return { ok: true, topics, stage: "persist", round: meta.rounds };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "topic_map_failed";
+    if (message === "topic_map_claim_lost") {
+      return { ok: true, pending: true, topics: 0, stage: meta?.stage, round: meta?.rounds };
+    }
+    return fail(message);
+  } finally {
+    clearInterval(heartbeat);
+    await releaseMapJob(service, courseId, token);
   }
+}
+
+function reservationsHeld(progress: OutlineProgress): string[] {
+  return [
+    ...(progress.best?.reservationIds ?? []),
+    ...(progress.parts ?? []).flatMap((p) => (p?.reservationId ? [p.reservationId] : [])),
+  ];
 }
 
 export type TopicMapSnapshot = {
@@ -973,6 +830,87 @@ export type TopicMapSnapshot = {
  * Unused flat maps (e.g. founder’s 111 junk topics) must be rebuilt with the
  * one-shot outline. Hierarchical maps and maps already tied to an exam stay.
  */
+/**
+ * Course mode: the first file (in order) that still needs extraction.
+ * "missing" when any id is absent or belongs to someone else.
+ */
+export async function firstUnextractedDocument(
+  service: SupabaseClient,
+  userId: string,
+  documentIds: string[],
+): Promise<string | null | "missing"> {
+  const { data: docs } = await service
+    .from("documents")
+    .select("id, user_id, status, mime_type")
+    .in("id", documentIds)
+    .is("deleted_at", null);
+  const byId = new Map((docs ?? []).map((d) => [d.id as string, d]));
+  for (const id of documentIds) {
+    const doc = byId.get(id);
+    if (!doc || doc.user_id !== userId) return "missing";
+  }
+  for (const id of documentIds) {
+    const doc = byId.get(id)!;
+    const { count } = await service
+      .from("document_chunks")
+      .select("id", { count: "exact", head: true })
+      .eq("document_id", id);
+    if (!count) return id;
+    if (doc.mime_type !== "application/pdf" || doc.status === "completed") continue;
+    const { data: state } = await service
+      .from("document_ingestion_state")
+      .select("status")
+      .eq("document_id", id)
+      .maybeSingle();
+    if (state?.status !== "ready") return id;
+  }
+  return null;
+}
+
+/**
+ * Which files of a course still need the course outline. A ready map that is
+ * in use is never rewritten, so it stays out; the rest share one outline,
+ * tagged with the first remaining file. Empty = nothing to do.
+ */
+export async function planCourseMap(
+  service: SupabaseClient,
+  documentIds: string[],
+): Promise<string[]> {
+  const { data: docs } = await service
+    .from("documents")
+    .select("id, topic_map_status")
+    .in("id", documentIds);
+  const ready = new Set(
+    (docs ?? [])
+      .filter((d) => d.topic_map_status === "ready" || d.topic_map_status === "reviewed")
+      .map((d) => d.id as string),
+  );
+  const nodesOf = new Map<string, { id: string; parent_id: string | null; key_relations: unknown }[]>();
+  const candidates: string[] = [];
+  for (const id of documentIds) {
+    if (!ready.has(id)) {
+      candidates.push(id);
+      continue;
+    }
+    const { data: nodes } = await service
+      .from("document_topic_nodes")
+      .select("id, parent_id, key_relations")
+      .eq("document_id", id);
+    const rows = (nodes ?? []) as { id: string; parent_id: string | null; key_relations: unknown }[];
+    nodesOf.set(id, rows);
+    const inUse = await documentTopicMapIsInUse(service, id, rows.map((r) => r.id)).catch(() => true);
+    if (!inUse) candidates.push(id);
+  }
+  if (candidates.length <= 1) return candidates.filter((id) => !ready.has(id));
+  const courseId = candidates[0]!;
+  const done = candidates.every((id) => {
+    const rows = nodesOf.get(id);
+    if (!rows) return false;
+    return !rows.length || rows.some((n) => n.parent_id == null && readCourseFromRelations(n.key_relations) === courseId);
+  });
+  return done ? [] : candidates;
+}
+
 export function flatMapNeedsOneshotRegen(input: {
   status: string | null;
   inUse: boolean;
@@ -1029,13 +967,13 @@ export async function unusedFlatMapNeedsOneshot(
 export async function regenerateUnusedFlatTopicMap(
   service: SupabaseClient,
   documentId: string,
-  options?: { examLabel?: string | null; examDate?: string | null },
 ): Promise<{ regenerating: boolean }> {
   const needs = await unusedFlatMapNeedsOneshot(service, documentId);
   if (!needs) return { regenerating: false };
 
   // Keep the old map until the new one is ready — mark pending without wipe.
-  // Persist round clears+swaps only after a successful oneshot.
+  // The course round (process route) swaps only after a successful outline;
+  // intake itself never runs a long model call.
   await service.from("document_topic_map_jobs").delete().eq("document_id", documentId);
   const { error } = await service
     .from("documents")
@@ -1045,205 +983,7 @@ export async function regenerateUnusedFlatTopicMap(
       topic_map_updated_at: new Date().toISOString(),
     })
     .eq("id", documentId);
-  if (error) return { regenerating: false };
-
-  // Kick one map round so the wizard's follow-up process poll has a head start.
-  const result = await runPdfLearningV2(service, documentId, options);
-  if (result.ok && !result.pending && result.topics > 0) {
-    return { regenerating: false };
-  }
-  return { regenerating: true };
-}
-
-/**
- * One oneshot call over ALL course documents. Persists topics per fileIndex
- * onto each document. Used by multi-file intake so consolidate never runs.
- */
-export async function runCourseOutlineOneShot(
-  service: SupabaseClient,
-  userId: string,
-  documentIds: string[],
-  options?: { examLabel?: string | null; examDate?: string | null },
-): Promise<{ ok: boolean; units: number; topics: number; model?: string }> {
-  if (documentIds.length < 2) {
-    return { ok: false, units: 0, topics: 0 };
-  }
-  const files: { documentId: string; fileName: string; pages: { pageNumber: number; text: string }[] }[] = [];
-  const previousParts: OutlineUnitDraft[] = [];
-
-  for (const documentId of documentIds) {
-    const inUseIds = (
-      await service.from("document_topic_nodes").select("id").eq("document_id", documentId)
-    ).data?.map((r) => r.id as string) ?? [];
-    if (
-      inUseIds.length &&
-      (await documentTopicMapIsInUse(service, documentId, inUseIds).catch(() => true))
-    ) {
-      return { ok: false, units: 0, topics: 0 };
-    }
-    const { data: doc } = await service
-      .from("documents")
-      .select("file_name, status")
-      .eq("id", documentId)
-      .maybeSingle();
-    if (!doc || doc.status !== "completed") {
-      return { ok: false, units: 0, topics: 0 };
-    }
-    const light = await loadPageLight(service, documentId);
-    const texts = await loadPageTexts(
-      service,
-      documentId,
-      light.map((r) => r.page_number),
-    );
-    const analyses: PageAnalysis[] = light.map((row) => {
-      const base = analysesFromLight([row])[0]!;
-      return { ...base, textContent: texts.get(row.page_number) ?? "" };
-    });
-    const mapPages = pagesForTopicMap(analyses);
-    if (!mapPages.length) return { ok: false, units: 0, topics: 0 };
-    files.push({
-      documentId,
-      fileName: (doc.file_name as string) ?? "belge",
-      pages: mapPages.map((p) => ({
-        pageNumber: p.pageNumber,
-        text: p.pageKind === "toc" ? `İÇİNDEKİLER\n${p.textContent}` : p.textContent,
-      })),
-    });
-
-    // Prior hierarchical outline for extend/merge prompt.
-    const { data: priorNodes } = await service
-      .from("document_topic_nodes")
-      .select("id, title, parent_id, sort_order, learning_objective, key_definitions, key_relations, prerequisites")
-      .eq("document_id", documentId)
-      .order("sort_order");
-    if (priorNodes?.some((n) => n.parent_id != null)) {
-      const parents = priorNodes.filter((n) =>
-        priorNodes.some((c) => c.parent_id === n.id),
-      );
-      for (const parent of parents) {
-        const children = priorNodes.filter((c) => c.parent_id === parent.id);
-        previousParts.push({
-          title: String(parent.title ?? ""),
-          topics: children.map((c) => ({
-            title: String(c.title ?? ""),
-            sourceTitles: [String(c.title ?? "")],
-            pageNumbers: [],
-            whyLearn: (c.learning_objective as string | null) ?? undefined,
-          })),
-        });
-      }
-    }
-  }
-
-  const started = Date.now();
-  const result = await buildOutlineOneShot({
-    service,
-    userId,
-    files: files.map((f) => ({ fileName: f.fileName, pages: f.pages })),
-    examLabel: options?.examLabel ?? null,
-    examDate: options?.examDate ?? null,
-    allowModel: true,
-    previousOutline: previousParts.length ? previousParts : undefined,
-  });
-  console.info("pipeline_timing", {
-    documentId: documentIds.join(","),
-    stage: "outline_course",
-    ms: Date.now() - started,
-    pages: files.reduce((n, f) => n + f.pages.length, 0),
-    model: result.model ?? null,
-    path: result.path,
-    units: result.units.length,
-  });
-  if (!result.fromModel || !result.units.length) {
-    return { ok: false, units: 0, topics: 0, model: result.model };
-  }
-
-  // Persist each file's topics onto its document (fileIndex → documentIds).
-  for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
-    const file = files[fileIndex]!;
-    const fileUnits = result.units
-      .map((unit) => ({
-        ...unit,
-        topics: unit.topics.filter((t) => (t.fileIndex ?? 0) === fileIndex),
-      }))
-      .filter((u) => u.topics.length > 0);
-    if (!fileUnits.length) continue;
-
-    const light = await loadPageLight(service, file.documentId);
-    const pageIdByNumber = new Map(
-      light.map((row) => [row.page_number as number, row.id as string]),
-    );
-    const analyses = analysesFromLight(light);
-    const { units, leafTopics } = outlineLeavesFromUnits(fileUnits);
-    if (!leafTopics.length) continue;
-
-    const hierarchical: HierarchicalTopic[] = leafTopics.map((leaf, index) => {
-      const why = leaf.whyLearn ?? leaf.description ?? null;
-      const draft = draftFromLlmTopic(leaf.title, why, leaf.pageNumbers, analyses, index);
-      return {
-        ...draft,
-        learningObjective: why,
-        prerequisites: leaf.prerequisiteTitles ?? [],
-        keyDefinitions: leaf.likelyAsked ?? draft.keyDefinitions,
-        unitTitle: leaf.unitTitle,
-        examWeight: leaf.examWeight ?? null,
-        unitExamWeight: leaf.unitExamWeight ?? null,
-        likelyAsked: leaf.likelyAsked ?? [],
-        whyLearn: why,
-      };
-    });
-    const linked = completeTopicPageLinks(hierarchical, analyses);
-    const withUnits: HierarchicalTopic[] = leafTopics.map((leaf, index) => {
-      const match =
-        linked.find(
-          (t) => t.title === leaf.title && t.pageNumbers[0] === leaf.pageNumbers[0],
-        ) ??
-        linked[index] ??
-        hierarchical[index]!;
-      const prior = match as HierarchicalTopic;
-      return {
-        ...prior,
-        unitTitle: leaf.unitTitle,
-        examWeight: leaf.examWeight ?? prior.examWeight,
-        unitExamWeight: leaf.unitExamWeight ?? prior.unitExamWeight,
-        likelyAsked: leaf.likelyAsked ?? prior.likelyAsked,
-        whyLearn: leaf.whyLearn ?? leaf.description ?? prior.whyLearn,
-        prerequisites: leaf.prerequisiteTitles?.length
-          ? leaf.prerequisiteTitles
-          : prior.prerequisites,
-      };
-    });
-
-    await clearTopicMap(service, file.documentId);
-    let leafCursor = 0;
-    const unitsByIndex = units.map((u) => {
-      const count = u.topics.length;
-      const topicIndexes = Array.from({ length: count }, (_, i) => leafCursor + i);
-      leafCursor += count;
-      return {
-        title: u.title,
-        examWeight: u.examWeight,
-        topicIndexes: topicIndexes.filter((i) => i < leafTopics.length),
-      };
-    });
-    await persistTopics(service, file.documentId, withUnits, pageIdByNumber, unitsByIndex);
-    await service
-      .from("documents")
-      .update({
-        topic_map_status: "ready",
-        topic_map_error: null,
-        topic_map_updated_at: new Date().toISOString(),
-        status: "completed",
-      })
-      .eq("id", file.documentId);
-  }
-
-  return {
-    ok: true,
-    units: result.units.length,
-    topics: result.units.reduce((n, u) => n + u.topics.length, 0),
-    model: result.model,
-  };
+  return { regenerating: !error };
 }
 
 export async function documentTopicMapIsInUse(
@@ -1344,7 +1084,7 @@ export async function refoldTopicMapIfNeeded(
     await Promise.all([
       service
         .from("document_topic_nodes")
-        .select("id, title, learning_objective, prerequisites, is_student_edited, sort_order")
+        .select("id, title, learning_objective, prerequisites, is_student_edited, sort_order, parent_id")
         .eq("document_id", documentId)
         .order("sort_order", { ascending: true }),
       service
@@ -1360,6 +1100,8 @@ export async function refoldTopicMapIfNeeded(
   if (pageError) return false;
 
   const topicRows = nodes ?? [];
+  // Outline maps (units → topics) are already validated; folding is for old flat maps.
+  if (topicRows.some((row) => row.parent_id != null)) return false;
   const pages = pageRows ?? [];
   const pagesByTopic = new Map<string, number[]>();
   for (const link of linkRows ?? []) {

@@ -16,12 +16,8 @@ export function resolveProcessProgressStage(
   const phase = body.phase;
   if (phase === "extract") return "extract";
   if (phase === "map") {
-    const stage = typeof body.stage === "string" ? body.stage : null;
-    if (stage === "prepare") return "prepare";
-    if (stage === "oneshot" || stage === "outline" || stage === "windows") {
-      return "oneshot";
-    }
-    if (stage === "persist") return "persist";
+    if (body.stage === "prepare") return "prepare";
+    if (body.stage === "persist") return "persist";
     return "oneshot";
   }
   return null;
@@ -57,24 +53,9 @@ export function formatDocumentProcessProgress(
     return "Belgen okunuyor…";
   }
   if (phase === "map") {
-    const stage = typeof body.stage === "string" ? body.stage : null;
-    if (stage === "oneshot" || stage === "outline") {
-      return "Çalışma yolu çıkarılıyor…";
-    }
-    if (stage === "persist") {
-      return "Konular kaydediliyor…";
-    }
-    if (stage === "prepare") {
-      return "Konular hazırlanıyor…";
-    }
-    const doneRaw = body.windowsDone ?? body.nextIndex;
-    const totalRaw = body.windowCount ?? body.windowsTotal ?? body.mapWindows;
-    const done = Number(doneRaw);
-    const total = Number(totalRaw);
-    if (Number.isFinite(done) && Number.isFinite(total) && total > 0) {
-      return `Konular çıkarılıyor: ${Math.min(done, total)}/${total}`;
-    }
-    return "Konular çıkarılıyor…";
+    if (body.stage === "persist") return "Konular kaydediliyor…";
+    if (body.stage === "prepare") return "Konular hazırlanıyor…";
+    return "Çalışma yolu çıkarılıyor…";
   }
   return null;
 }

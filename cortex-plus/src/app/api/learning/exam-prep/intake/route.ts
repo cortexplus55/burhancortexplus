@@ -15,8 +15,8 @@ import {
 import { buildExamPlan, daysUntilExam } from "@/lib/learning/exam-prep-plan";
 import {
   refoldTopicMapIfNeeded,
+  planCourseMap,
   regenerateUnusedFlatTopicMap,
-  runCourseOutlineOneShot,
 } from "@/lib/documents/pdf-learning-v2";
 import { documentTitle } from "@/lib/documents/topic-title";
 import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
@@ -33,11 +33,7 @@ import type { ConsolidatedTopic } from "@/lib/learning/cross-material-topics";
 import { resolveAmbiguousMerges } from "@/lib/learning/topic-merge-model";
 import { consolidatePrepDocuments } from "@/lib/learning/consolidate-documents";
 import { formatContradictions } from "@/lib/learning/source-contradictions";
-import {
-  examWeightToEmphasis,
-  isHighExamWeight,
-  unpackTopicPerspective,
-} from "@/lib/documents/outline-topic-meta";
+import { loadOneshotIntakeTopics, type IntakeStudyUnit } from "@/lib/learning/intake-outline";
 
 const bodySchema = z.object({
   messages: z
@@ -84,134 +80,6 @@ const draftSchema = z.object({
   needDate: z.boolean(),
   ready: z.boolean(),
 });
-
-export type IntakeStudyUnit = { title: string; topicIndexes: number[] };
-
-/**
- * Load hierarchical oneshot maps without consolidate/reorder.
- * Returns null when any document is still flat/legacy so the caller can fall back.
- */
-async function loadOneshotIntakeTopics(
-  service: SupabaseClient,
-  userId: string,
-  documentIds: string[],
-): Promise<{ topics: ConsolidatedTopic[]; units: IntakeStudyUnit[] } | null> {
-  if (!documentIds.length) return null;
-  const topics: ConsolidatedTopic[] = [];
-  const units: IntakeStudyUnit[] = [];
-
-  for (const documentId of documentIds) {
-    const { data: doc } = await service
-      .from("documents")
-      .select("id, file_name, topic_map_status")
-      .eq("id", documentId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (!doc || (doc.topic_map_status !== "ready" && doc.topic_map_status !== "reviewed")) {
-      return null;
-    }
-    const nodeRows = await loadPagedDocumentRows(
-      service,
-      "document_topic_nodes",
-      "id, title, parent_id, sort_order, prerequisites, learning_objective, key_definitions, key_relations, document_id",
-      [documentId],
-      ["sort_order", "id"],
-    );
-    if (!nodeRows.length) return null;
-    const hasHierarchy = nodeRows.some((n) => n.parent_id != null);
-    if (!hasHierarchy) return null;
-
-    const parents = nodeRows
-      .filter((n) => nodeRows.some((c) => c.parent_id === n.id))
-      .sort(
-        (a, b) =>
-          (typeof a.sort_order === "number" ? a.sort_order : 0) -
-          (typeof b.sort_order === "number" ? b.sort_order : 0),
-      );
-    const leaves = nodeRows
-      .filter((n) => !nodeRows.some((c) => c.parent_id === n.id))
-      .sort(
-        (a, b) =>
-          (typeof a.sort_order === "number" ? a.sort_order : 0) -
-          (typeof b.sort_order === "number" ? b.sort_order : 0),
-      );
-    if (!leaves.length || leaves.length > 40) return null;
-
-    const links = await loadPagedDocumentRows(
-      service,
-      "document_topic_page_links",
-      "topic_id, page_number, document_id",
-      [documentId],
-      ["topic_id", "page_number"],
-    );
-    const pagesByTopic = new Map<string, number[]>();
-    for (const link of links) {
-      const list = pagesByTopic.get(link.topic_id as string) ?? [];
-      list.push(link.page_number as number);
-      pagesByTopic.set(link.topic_id as string, list);
-    }
-    const fileName = (doc.file_name as string | null) ?? "";
-    const baseIndex = topics.length;
-
-    for (const leaf of leaves) {
-      const perspective = unpackTopicPerspective({
-        learning_objective: leaf.learning_objective as string | null,
-        prerequisites: leaf.prerequisites,
-        key_definitions: leaf.key_definitions,
-        key_relations: leaf.key_relations,
-      });
-      const pages = [...new Set(pagesByTopic.get(leaf.id as string) ?? [])].sort(
-        (a, b) => a - b,
-      );
-      const why = perspective.whyLearn ?? "";
-      topics.push({
-        title: String(leaf.title ?? ""),
-        summary: why.slice(0, 400),
-        sections: [],
-        pages,
-        sources: [
-          {
-            documentId,
-            fileName,
-            pages,
-            nodeId: leaf.id as string,
-          },
-        ],
-        sourceCount: 1,
-        prerequisites: perspective.prerequisiteTitles,
-        weightPercent: null,
-        examHeavy: isHighExamWeight(perspective.examWeight),
-        importance:
-          examWeightToEmphasis(perspective.examWeight) === "core"
-            ? "important"
-            : examWeightToEmphasis(perspective.examWeight) === "skim"
-              ? "less"
-              : "medium",
-        scopeNote: null,
-        commonMistakes: [],
-        practiceItems: [],
-        nodeIds: [leaf.id as string],
-        syllabusIndex: null,
-      });
-    }
-
-    for (const parent of parents) {
-      const childIndexes = leaves
-        .map((leaf, i) => (leaf.parent_id === parent.id ? baseIndex + i : -1))
-        .filter((i) => i >= 0)
-        .map((absolute) => absolute); // will remap below
-      if (!childIndexes.length) continue;
-      units.push({
-        title: String(parent.title ?? ""),
-        topicIndexes: childIndexes,
-      });
-    }
-  }
-
-  // Remap unit topicIndexes to the flat merged topic list (already absolute).
-  if (!topics.length) return null;
-  return { topics, units };
-}
 
 async function resolveTopicSuggestions(
   service: SupabaseClient,
@@ -398,10 +266,7 @@ export async function POST(request: Request) {
   if (v2) {
     for (const documentId of documentIds) {
       try {
-        const regen = await regenerateUnusedFlatTopicMap(service, documentId, {
-          examLabel: parsed.data.examType ?? null,
-          examDate: parsed.data.examDate ?? null,
-        });
+        const regen = await regenerateUnusedFlatTopicMap(service, documentId);
         if (regen.regenerating) {
           return NextResponse.json(
             {
@@ -430,22 +295,17 @@ export async function POST(request: Request) {
   // Oneshot hierarchical maps: use LLM units/topics/order as-is.
   // Never consolidate or re-sort — that was the round-2 B1 failure mode.
   if (v2 && documentIds.length) {
-    let oneshot = await loadOneshotIntakeTopics(service, userId, documentIds);
-    // Multi-file course without a hierarchical oneshot yet → one call over all files.
-    if (!oneshot && documentIds.length > 1) {
-      try {
-        const course = await runCourseOutlineOneShot(service, userId, documentIds, {
-          examLabel: parsed.data.examType ?? null,
-          examDate: parsed.data.examDate ?? null,
-        });
-        if (course.ok) {
-          oneshot = await loadOneshotIntakeTopics(service, userId, documentIds);
-        }
-      } catch (error) {
-        console.error("intake_course_outline_skipped", {
-          errorType: error instanceof Error ? (error.constructor?.name ?? error.name) : "unknown",
-        });
-      }
+    const oneshot = await loadOneshotIntakeTopics(service, userId, documentIds);
+    // Several files not outlined together yet → the client runs the one course
+    // outline (process route) and comes back. Maps in use are never rewritten.
+    if (!oneshot && documentIds.length > 1 && (await planCourseMap(service, documentIds)).length) {
+      return NextResponse.json(
+        {
+          error: "Belgenin konuları yeniden düzenleniyor. İşlem bitince tekrar dene.",
+          code: "topic_map_regenerating",
+        },
+        { status: 409 },
+      );
     }
     if (oneshot) {
       mergedTopics = oneshot.topics;

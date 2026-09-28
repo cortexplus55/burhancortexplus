@@ -109,7 +109,8 @@ export function PrepMaterialAdder({
     setProcessDetail("Belge işleniyor…");
     const result = await requestDocumentProcessing({
       documentId: input.documentId,
-      post: postDocumentProcess,
+      // The prep's topic names guide the new file's outline (reuse, don't duplicate).
+      post: (body) => postDocumentProcess({ ...body, prepId }),
       onProgress: (progress) => {
         const line = formatDocumentProcessProgress(progress);
         if (line) setProcessDetail(line);

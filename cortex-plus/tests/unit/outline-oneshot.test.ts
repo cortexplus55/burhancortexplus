@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildMaterialCorpus,
-  splitCorpusForContext,
+  prepareOutlineMaterial,
+  runOutlineStep,
   splitFilesForOutline,
   needsForceSplit,
   validateOneShotOutline,
@@ -17,6 +18,8 @@ import {
   OUTLINE_MINI_PAGE_LIMIT,
   OUTLINE_CALL_TIMEOUT_MS,
   type OneShotOutlineDraft,
+  type OutlineProgress,
+  type OutlineStepResult,
 } from "@/lib/documents/outline-oneshot";
 
 vi.mock("@/lib/ai/generate", () => ({
@@ -34,7 +37,6 @@ vi.mock("@/lib/env", () => ({
 }));
 
 import { generateJson } from "@/lib/ai/generate";
-import { buildOutlineOneShot } from "@/lib/documents/outline-oneshot";
 import type { PageAnalysis } from "@/lib/documents/page-analysis";
 
 const mockedGenerate = vi.mocked(generateJson);
@@ -86,7 +88,7 @@ const GROUND_PAGES = [
   page(2, "Hak ehliyeti ve kaynak türleri devam eder.", ["Hak Ehliyeti"]),
 ];
 
-describe("buildMaterialCorpus / splitCorpusForContext", () => {
+describe("buildMaterialCorpus", () => {
   it("prefixes files and keeps file-qualified page markers", () => {
     const corpus = buildMaterialCorpus([
       {
@@ -100,16 +102,6 @@ describe("buildMaterialCorpus / splitCorpusForContext", () => {
     expect(corpus).toContain("=== Dosya d1: kitap.pdf ===");
     expect(corpus).toContain("[d1 s.1] Kapak");
     expect(corpus).toContain("[d1 s.2]");
-  });
-
-  it("splits long corpus into at most 3 parts on line boundaries", () => {
-    const lines = Array.from({ length: 5000 }, (_, i) => `[s.${i + 1}] ${"x".repeat(80)}`);
-    const corpus = lines.join("\n");
-    expect(corpus.length).toBeGreaterThan(ONESHOT_MAX_INPUT_CHARS);
-    const parts = splitCorpusForContext(corpus, 50_000);
-    expect(parts.length).toBeGreaterThan(1);
-    expect(parts.length).toBeLessThanOrEqual(3);
-    expect(parts.join("\n").includes("[s.1]")).toBe(true);
   });
 
   it("builds multi-file corpus with per-file markers", () => {
@@ -447,52 +439,65 @@ describe("validateOneShotOutline", () => {
   });
 });
 
-/** Runs one outline over N files of the given page counts; returns models used. */
+
+type Files = { fileName: string; pages: { pageNumber: number; text: string }[] }[];
+
+/** Drive the stage machine the way the course round does: one step per round. */
+async function runToEnd(
+  files: Files,
+  extra: Partial<Parameters<typeof runOutlineStep>[0]> = {},
+): Promise<{ result: OutlineStepResult; steps: number }> {
+  const material = prepareOutlineMaterial(files);
+  let progress: OutlineProgress = { stage: "first" };
+  for (let steps = 1; steps <= 8; steps += 1) {
+    const result = await runOutlineStep({
+      service: {} as never,
+      userId: "u1",
+      material,
+      progress,
+      keyFor: (stage, part) => `outline:c1:${material.contentHash}:a${steps}:${stage}${part ? `:part${part}` : ""}`,
+      deadlineAt: Date.now() + 300_000,
+      ...extra,
+    });
+    if (result.kind !== "continue") return { result, steps };
+    progress = result.progress;
+  }
+  throw new Error("outline did not settle");
+}
+
+function ok(data: unknown) {
+  return { ok: true as const, data, usage: { tokensIn: 1, tokensOut: 1 } } as never;
+}
+
+const DEMO: Files = [
+  { fileName: "demo.pdf", pages: GROUND_PAGES.map((p) => ({ pageNumber: p.pageNumber, text: p.textContent })) },
+];
+
+const JUNK = {
+  units: [{ title: "Diğer Konular", topics: [{ title: "Junk", pageStart: 1, pageEnd: 1 }] }],
+};
+
+function lawPages(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    pageNumber: i + 1,
+    text: `Hukuk kaynakları yasama yürütme yargı idare anlatılır sayfa ${i + 1}.`,
+  }));
+}
+
 async function runSummedRouting(pageCounts: number[]): Promise<string[]> {
   const models: string[] = [];
   mockedGenerate.mockImplementation(async (params) => {
     models.push(String(params.modelOverride));
-    const data = params.parse({
-      units: [
-        {
-          title: "Hukuk",
-          examWeight: "high",
-          topics: [
-            {
-              id: "t1",
-              title: "Hukuk Kaynakları",
-              whyLearn: "Kaynakları öğreneceksin.",
-              fileIndex: 0,
-              pageStart: 1,
-              pageEnd: 3,
-              examWeight: "high",
-              likelyAsked: ["Hukuk kaynakları"],
-              prerequisiteIds: [],
-            },
-          ],
-        },
-      ],
-    });
-    return { ok: true as const, data, usage: { tokensIn: 1, tokensOut: 1 } } as never;
+    return ok(params.parse(groundedDraft({ title: "Hukuk Kaynakları", pageEnd: 3 })));
   });
-
-  const result = await buildOutlineOneShot({
-    service: {} as never,
-    userId: "u1",
-    files: pageCounts.map((count, fileIndex) => ({
-      fileName: `d${fileIndex + 1}.pdf`,
-      pages: Array.from({ length: count }, (_, i) => ({
-        pageNumber: i + 1,
-        text: `Hukuk kaynakları yasama yürütme yargı idare sayfa ${i + 1}.`,
-      })),
-    })),
-    allowModel: true,
-  });
-  expect(result.fromModel).toBe(true);
+  const { result } = await runToEnd(
+    pageCounts.map((count, i) => ({ fileName: `d${i + 1}.pdf`, pages: lawPages(count) })),
+  );
+  expect(result.kind).toBe("done");
   return models;
 }
 
-describe("buildOutlineOneShot", () => {
+describe("runOutlineStep (one course outline)", () => {
   beforeEach(() => {
     mockedGenerate.mockReset();
   });
@@ -502,226 +507,98 @@ describe("buildOutlineOneShot", () => {
       expect(params.modelOverride).toBe("gpt-4o-mini");
       expect(params.callTimeoutMs).toBe(OUTLINE_CALL_TIMEOUT_MS);
       expect(params.stream).toBe(true);
-      expect(params.maxTransientAttempts).toBeGreaterThanOrEqual(3);
-      expect(params.idempotencyKey).toMatch(/^outline:u1:[a-z0-9]+:first$/);
+      expect(params.deferCommit).toBe(true);
+      expect(params.idempotencyKey).toMatch(/^outline:c1:[a-z0-9]+:a1:first$/);
       expect(params.responseFormat?.type).toBe("json_schema");
-      expect(String(params.userPrompt)).toMatch(/ÖĞRETMEN|öğretmen|examWeight|likelyAsked/i);
-      expect(String(params.userPrompt)).toMatch(/UYDURMA|uydurma/i);
+      expect(String(params.userPrompt)).toMatch(/ÖĞRETMEN|examWeight|likelyAsked/i);
+      expect(String(params.userPrompt)).toMatch(/UYDURMA/i);
       expect(String(params.userPrompt)).toContain("d1 = demo.pdf");
-      const data = params.parse({
-        units: [
-          {
-            title: "Temel Kavramlar",
-            examWeight: "high",
-            topics: [
-              {
-                id: "t1",
-                title: "Hukukun Kaynakları",
-                whyLearn: "Kaynak türlerini ayırt edebileceksin.",
-                description: "Kaynaklar",
-                pageStart: 1,
-                pageEnd: 2,
-                examWeight: "high",
-                likelyAsked: ["Yazılı kaynaklar", "Örf ve âdet"],
-                prerequisiteIds: [],
-              },
-              {
-                id: "t2",
-                title: "Hak Ehliyeti",
-                whyLearn: "Hak ehliyeti ile fiil ehliyetini ayıracaksın.",
-                pageStart: 2,
-                pageEnd: 2,
-                examWeight: "medium",
-                likelyAsked: ["Hak ehliyeti"],
-                prerequisiteIds: ["t1"],
-              },
-            ],
-          },
-        ],
-      });
-      return { ok: true as const, data, usage: { tokensIn: 1, tokensOut: 1 } } as never;
+      const draft = groundedDraft();
+      draft.units[0]!.topics.push({
+        id: "t2",
+        title: "Hak Ehliyeti",
+        whyLearn: "Hak ehliyeti ile fiil ehliyetini ayıracaksın.",
+        pageStart: 2,
+        pageEnd: 2,
+        examWeight: "medium",
+        likelyAsked: ["Hak ehliyeti"],
+        prerequisiteIds: ["t1"],
+        fileIndex: 0,
+      } as never);
+      return { ok: true, data: params.parse(draft), reservationId: "r-first" } as never;
     });
-
-    const result = await buildOutlineOneShot({
-      service: {} as never,
-      userId: "u1",
-      files: [
-        {
-          fileName: "demo.pdf",
-          pages: GROUND_PAGES.map((p) => ({ pageNumber: p.pageNumber, text: p.textContent })),
-        },
-      ],
-      pagesForFallback: GROUND_PAGES,
-      examLabel: "KPSS",
-      allowModel: true,
-    });
-    expect(result.fromModel).toBe(true);
-    expect(result.path).toBe("single");
-    expect(result.retryable).toBe(false);
-    expect(result.model).toBe("gpt-4o-mini");
-    expect(result.units).toHaveLength(1);
-    expect(result.units[0]!.examWeight).toBe("high");
-    const topics = result.units[0]!.topics;
-    expect(topics[0]!.examWeight).toBe("high");
+    const { result, steps } = await runToEnd(DEMO, { examLabel: "KPSS" });
+    expect(steps).toBe(1);
+    expect(result.kind).toBe("done");
+    if (result.kind !== "done") return;
+    expect(result.path).toBe("first");
+    expect(result.map.model).toBe("gpt-4o-mini");
+    expect(result.map.reservationIds).toEqual(["r-first"]);
+    const topics = result.map.units[0]!.topics;
+    expect(result.map.units[0]!.examWeight).toBe("high");
     expect(topics[0]!.likelyAsked).toEqual(["Yazılı kaynaklar", "Örf ve âdet"]);
-    expect(topics[0]!.whyLearn).toMatch(/Kaynak/);
     expect(topics[1]!.prerequisiteTitles).toContain("Hukukun Kaynakları");
     expect(mockedGenerate).toHaveBeenCalledTimes(1);
   });
 
   it("routes >30 page material to gpt-4.1 in one call (no split)", async () => {
-    const pages = Array.from({ length: 40 }, (_, i) =>
-      page(
-        i + 1,
-        `Ünite içerik sayfa ${i + 1}: hukuk kaynakları yasama yürütme yargı idare anlatılır.`,
-        [`Konu ${i + 1}`],
-      ),
-    );
-    mockedGenerate.mockImplementation(async (params) => {
-      expect(params.modelOverride).toBe("gpt-4.1");
-      const data = params.parse({
-        units: [
-          {
-            title: "Hukuk",
-            examWeight: "high",
-            topics: [
-              {
-                id: "t1",
-                title: "Hukuk kaynakları",
-                whyLearn: "Kaynakları öğreneceksin.",
-                pageStart: 1,
-                pageEnd: 3,
-                examWeight: "high",
-                likelyAsked: ["Hukuk kaynakları"],
-                prerequisiteIds: [],
-              },
-            ],
-          },
-        ],
-      });
-      return { ok: true as const, data, usage: { tokensIn: 1, tokensOut: 1 } } as never;
-    });
-
-    const result = await buildOutlineOneShot({
-      service: {} as never,
-      userId: "u1",
-      files: [
-        {
-          fileName: "big.pdf",
-          pages: pages.map((p) => ({ pageNumber: p.pageNumber, text: p.textContent })),
-        },
-      ],
-      allowModel: true,
-    });
-    expect(result.path).toBe("single");
-    expect(result.model).toBe("gpt-4.1");
-    expect(mockedGenerate).toHaveBeenCalledTimes(1);
+    const models = await runSummedRouting([40]);
+    expect(models).toEqual(["gpt-4.1"]);
   });
 
   it("routes on summed pages across files: 12 + 16 = 28 stays on mini", async () => {
-    const models = await runSummedRouting([12, 16]);
-    expect(models[0]).toBe("gpt-4o-mini");
-    expect(models).toHaveLength(1);
+    expect(await runSummedRouting([12, 16])).toEqual(["gpt-4o-mini"]);
   });
 
-  it("routes on summed pages across files: 12 + 25 = 37 goes strong", async () => {
-    const models = await runSummedRouting([12, 25]);
-    expect(models[0]).toBe("gpt-4.1");
-    expect(models).toHaveLength(1);
+  it("routes on summed pages across files: 16 + 16 = 32 goes strong", async () => {
+    expect(await runSummedRouting([16, 16])).toEqual(["gpt-4.1"]);
   });
 
-  it("escalates to gpt-4.1 when mini draft fails validation", async () => {
-    let calls = 0;
+  it("escalates to gpt-4.1 when the mini draft is rejected, releasing the mini draft", async () => {
+    const models: string[] = [];
+    let release: string[] = [];
     mockedGenerate.mockImplementation(async (params) => {
-      calls += 1;
-      if (calls === 1) {
-        expect(params.modelOverride).toBe("gpt-4o-mini");
-        return {
-          ok: true as const,
-          data: params.parse({
-            units: [
-              {
-                title: "Diğer Konular",
-                topics: [{ title: "Junk", pageStart: 1, pageEnd: 1 }],
-              },
-            ],
-          }),
-          usage: { tokensIn: 1, tokensOut: 1 },
-        } as never;
+      models.push(String(params.modelOverride));
+      if (models.length === 1) return { ok: true, data: params.parse(JUNK), reservationId: "r-mini" } as never;
+      return { ok: true, data: params.parse(groundedDraft()), reservationId: "r-strong" } as never;
+    });
+    const material = prepareOutlineMaterial(DEMO);
+    const keyFor = (stage: string) => `k:${stage}`;
+    const first = await runOutlineStep({
+      service: {} as never, userId: "u1", material, progress: { stage: "first" }, keyFor, deadlineAt: Date.now() + 300_000,
+    });
+    expect(first.kind).toBe("continue");
+    if (first.kind === "continue") {
+      release = first.release;
+      expect(first.progress.stage).toBe("escalate");
+      const second = await runOutlineStep({
+        service: {} as never, userId: "u1", material, progress: first.progress, keyFor, deadlineAt: Date.now() + 300_000,
+      });
+      expect(second.kind).toBe("done");
+      if (second.kind === "done") {
+        expect(second.path).toBe("escalate");
+        expect(second.map.reservationIds).toEqual(["r-strong"]);
       }
-      expect(params.modelOverride).toBe("gpt-4.1");
-      return {
-        ok: true as const,
-        data: params.parse(groundedDraft()),
-        usage: { tokensIn: 1, tokensOut: 1 },
-      } as never;
-    });
-
-    const result = await buildOutlineOneShot({
-      service: {} as never,
-      userId: "u1",
-      files: [
-        {
-          fileName: "demo.pdf",
-          pages: GROUND_PAGES.map((p) => ({ pageNumber: p.pageNumber, text: p.textContent })),
-        },
-      ],
-      allowModel: true,
-    });
-    expect(result.path).toBe("escalation");
-    expect(result.fromModel).toBe(true);
-    expect(result.model).toBe("gpt-4.1");
-    expect(result.units[0]!.title).toBe("Temel Kavramlar");
-    expect(mockedGenerate.mock.calls.length).toBeGreaterThanOrEqual(2);
+    }
+    expect(release).toEqual(["r-mini"]);
+    expect(models).toEqual(["gpt-4o-mini", "gpt-4.1"]);
   });
 
   it("runs one repair on the strong model after escalation still fails", async () => {
-    let calls = 0;
+    const models: string[] = [];
     mockedGenerate.mockImplementation(async (params) => {
-      calls += 1;
-      const prompt = String(params.userPrompt ?? "");
-      if (prompt.includes("geçersizdi") || prompt.includes("Düzeltmen")) {
-        expect(params.modelOverride).toBe("gpt-4.1");
-        return {
-          ok: true as const,
-          data: params.parse(groundedDraft()),
-          usage: { tokensIn: 1, tokensOut: 1 },
-        } as never;
-      }
-      // First (mini) and escalation drafts both invent Diğer Konular.
-      return {
-        ok: true as const,
-        data: params.parse({
-          units: [
-            {
-              title: "Diğer Konular",
-              topics: [{ title: "Junk", pageStart: 1, pageEnd: 1 }],
-            },
-          ],
-        }),
-        usage: { tokensIn: 1, tokensOut: 1 },
-      } as never;
+      models.push(String(params.modelOverride));
+      if (String(params.userPrompt).includes("geçersizdi")) return ok(params.parse(groundedDraft()));
+      return ok(params.parse(JUNK));
     });
-
-    const result = await buildOutlineOneShot({
-      service: {} as never,
-      userId: "u1",
-      files: [
-        {
-          fileName: "demo.pdf",
-          pages: GROUND_PAGES.map((p) => ({ pageNumber: p.pageNumber, text: p.textContent })),
-        },
-      ],
-      allowModel: true,
-    });
-    expect(result.path).toBe("repair");
-    expect(result.fromModel).toBe(true);
-    expect(result.units[0]!.title).toBe("Temel Kavramlar");
-    expect(calls).toBeGreaterThanOrEqual(3);
+    const { result } = await runToEnd(DEMO);
+    expect(result.kind).toBe("done");
+    if (result.kind === "done") expect(result.path).toBe("repair");
+    expect(models).toEqual(["gpt-4o-mini", "gpt-4.1", "gpt-4.1"]);
   });
 
   it("repairs against the cited pages only, with the invalid draft attached", async () => {
-    const pages = Array.from({ length: 20 }, (_, i) => ({
+    const pages = Array.from({ length: 40 }, (_, i) => ({
       pageNumber: i + 1,
       text: `Sayfa ${i + 1} benzersiz icerik isareti p${i + 1}q anlatilir.`,
     }));
@@ -730,29 +607,12 @@ describe("buildOutlineOneShot", () => {
       const prompt = String(params.userPrompt ?? "");
       if (prompt.includes("geçersizdi")) {
         repairPrompt = prompt;
-        return { ok: true as const, data: null, usage: { tokensIn: 1, tokensOut: 1 } } as never;
+        return ok(null);
       }
-      return {
-        ok: true as const,
-        data: params.parse({
-          units: [
-            {
-              title: "Diğer Konular",
-              topics: [{ title: "Junk", pageStart: 3, pageEnd: 4 }],
-            },
-          ],
-        }),
-        usage: { tokensIn: 1, tokensOut: 1 },
-      } as never;
+      return ok(params.parse({ units: [{ title: "Diğer Konular", topics: [{ title: "Junk", pageStart: 3, pageEnd: 4 }] }] }));
     });
-
-    await buildOutlineOneShot({
-      service: {} as never,
-      userId: "u1",
-      files: [{ fileName: "kitap.pdf", pages }],
-      allowModel: true,
-    });
-
+    const { result } = await runToEnd([{ fileName: "kitap.pdf", pages }]);
+    expect(result.kind).toBe("exhausted");
     expect(repairPrompt).toContain("[d1 s.3]");
     expect(repairPrompt).toContain("[d1 s.4]");
     expect(repairPrompt).not.toContain("[d1 s.9]");
@@ -760,238 +620,127 @@ describe("buildOutlineOneShot", () => {
     expect(repairPrompt).toContain("diger_bucket");
   });
 
-  it("asks the model to extend a previous outline and follow the book's own structure", async () => {
+  it("add-source: one call that carries the previous outline and the book's structure", async () => {
     let prompt = "";
     mockedGenerate.mockImplementation(async (params) => {
       prompt = String(params.userPrompt ?? "");
-      return {
-        ok: true as const,
-        data: params.parse(groundedDraft()),
-        usage: { tokensIn: 1, tokensOut: 1 },
-      } as never;
+      return ok(params.parse(groundedDraft()));
     });
-
-    await buildOutlineOneShot({
-      service: {} as never,
-      userId: "u1",
-      files: [
-        {
-          fileName: "demo.pdf",
-          pages: GROUND_PAGES.map((p) => ({ pageNumber: p.pageNumber, text: p.textContent })),
-        },
-      ],
+    const { steps } = await runToEnd(DEMO, {
       previousOutline: [
-        {
-          title: "Var Olan Ünite",
-          topics: [{ title: "Var Olan Konu", sourceTitles: ["Var Olan Konu"], pageNumbers: [1] }],
-        },
+        { title: "Var Olan Ünite", topics: [{ title: "Var Olan Konu", sourceTitles: ["Var Olan Konu"], pageNumbers: [1] }] },
       ],
       tocBlock: "ÜNİTE 1: Hukukun Kaynakları\nÜNİTE 2: Hak Ehliyeti",
-      allowModel: true,
     });
-
-    expect(prompt).toContain("ÖNCEKİ ÇALIŞMA YOLU");
+    expect(steps).toBe(1);
+    expect(mockedGenerate).toHaveBeenCalledTimes(1);
     expect(prompt).toContain("Var Olan Konu");
     expect(prompt).toContain("Kitabın kendi yapısı");
     expect(prompt).toContain("ÜNİTE 2: Hak Ehliyeti");
   });
 
-  it("returns empty retryable result when the model fails completely (no fake list)", async () => {
+  it("ends exhausted (no fake list) when every model fails", async () => {
     mockedGenerate.mockRejectedValue(new Error("network"));
-    const pages = [
-      page(1, "Bölüm 1 Mol Kavramı\nAçıklama.", ["Bölüm 1 Mol Kavramı"]),
-      page(2, "Bölüm 2 Mol Kütlesi\nAçıklama.", ["Bölüm 2 Mol Kütlesi"]),
-    ];
-    const result = await buildOutlineOneShot({
-      service: {} as never,
-      userId: "u1",
-      files: [
-        {
-          fileName: "kimya.pdf",
-          pages: pages.map((p) => ({ pageNumber: p.pageNumber, text: p.textContent })),
-        },
-      ],
-      pagesForFallback: pages,
-      allowModel: true,
-    });
-    expect(result.fromModel).toBe(false);
-    expect(result.path).toBe("failed");
-    expect(result.retryable).toBe(true);
-    expect(result.units).toEqual([]);
-  });
-
-  it("never invents a Diğer Konular bucket when model is disallowed", async () => {
-    const pages = Array.from({ length: 20 }, (_, i) =>
-      page(i + 1, `Konu ${i + 1} metni burada yeterince uzun.`, [`Konu Başlığı ${i + 1}`]),
-    );
-    const result = await buildOutlineOneShot({
-      service: {} as never,
-      userId: "u1",
-      files: [
-        {
-          fileName: "x.pdf",
-          pages: pages.map((p) => ({ pageNumber: p.pageNumber, text: p.textContent })),
-        },
-      ],
-      pagesForFallback: pages,
-      allowModel: false,
-    });
-    expect(result.units).toEqual([]);
-    expect(result.retryable).toBe(true);
-    expect(mockedGenerate).not.toHaveBeenCalled();
+    const { result } = await runToEnd(DEMO);
+    expect(result.kind).toBe("exhausted");
   });
 
   it("rejects fabricated page numbers without inventing a fallback map", async () => {
-    mockedGenerate.mockImplementation(async (params) => ({
-      ok: true as const,
-      data: params.parse({
-        units: [
-          {
-            title: "Unit",
-            topics: [
-              {
-                title: "Invented",
-                whyLearn: "yok",
-                pageStart: 1,
-                pageEnd: 999,
-              },
-            ],
-          },
-        ],
-      }),
-      usage: { tokensIn: 1, tokensOut: 1 },
-    }) as never);
-
-    const result = await buildOutlineOneShot({
-      service: {} as never,
-      userId: "u1",
-      files: [
-        {
-          fileName: "demo.pdf",
-          pages: [{ pageNumber: 1, text: "Kısa metin hukuk kaynakları." }],
-        },
-      ],
-      allowModel: true,
-    });
-    // Escalation + repair also fail the same fabricated draft → empty retry.
-    expect(result.fromModel).toBe(false);
-    expect(result.retryable).toBe(true);
-    expect(result.units).toEqual([]);
+    mockedGenerate.mockImplementation(async (params) =>
+      ok(params.parse({ units: [{ title: "Unit", topics: [{ title: "Invented", whyLearn: "yok", pageStart: 1, pageEnd: 999 }] }] })),
+    );
+    const { result } = await runToEnd([{ fileName: "demo.pdf", pages: [{ pageNumber: 1, text: "Kısa metin hukuk kaynakları." }] }]);
+    expect(result.kind).toBe("exhausted");
   });
 
-  it("force-splits a ~1000-page corpus, runs parts in parallel, merges drafts only", async () => {
-    const pageCount = ONESHOT_FORCE_SPLIT_PAGES + 1;
-    const pages = Array.from({ length: pageCount }, (_, i) => ({
-      pageNumber: i + 1,
-      text: `Hukuk kaynakları yasama yürütme yargı idare anlatılır sayfa ${i + 1}.`,
-    }));
+  it("stops before a call that cannot finish in the round (wait, no call)", async () => {
+    const material = prepareOutlineMaterial(DEMO);
+    const result = await runOutlineStep({
+      service: {} as never, userId: "u1", material, progress: { stage: "first" },
+      keyFor: () => "k", deadlineAt: Date.now() + 5_000,
+    });
+    expect(result.kind).toBe("wait");
+    expect(mockedGenerate).not.toHaveBeenCalled();
+  });
+
+  it("keeps the stage on our own deadline abort (no model switch)", async () => {
+    mockedGenerate.mockResolvedValue({ ok: false, status: 504, error: "deadline" } as never);
+    const material = prepareOutlineMaterial(DEMO);
+    const result = await runOutlineStep({
+      service: {} as never, userId: "u1", material, progress: { stage: "first" },
+      keyFor: () => "k", deadlineAt: Date.now() + 300_000,
+    });
+    expect(result.kind).toBe("continue");
+    if (result.kind === "continue") {
+      expect(result.progress.stage).toBe("first");
+      expect(result.failed).toBe(true);
+    }
+  });
+
+  it("force-splits a huge course with global file labels and merges part drafts only", async () => {
+    const files: Files = [
+      { fileName: "a.pdf", pages: lawPages(600) },
+      { fileName: "b.pdf", pages: lawPages(600) },
+    ];
     const keys: string[] = [];
-    const mergePrompts: string[] = [];
+    const partPrompts: string[] = [];
+    let mergePrompt = "";
     mockedGenerate.mockImplementation(async (params) => {
       keys.push(String(params.idempotencyKey ?? ""));
       const prompt = String(params.userPrompt ?? "");
       if (prompt.includes("Kısmi taslak")) {
-        mergePrompts.push(prompt);
-        expect(prompt).not.toContain("--- Parça");
-        expect(prompt).not.toMatch(/\[d1 s\.500\]/);
+        mergePrompt = prompt;
+        return ok(params.parse(groundedDraft({ title: "Hukuk Kaynakları", fileIndex: 1, pageStart: 10, pageEnd: 12 })));
       }
-      expect(params.stream).toBe(true);
-      const data = params.parse(groundedDraft());
-      return { ok: true as const, data, usage: { tokensIn: 1, tokensOut: 1 } } as never;
+      partPrompts.push(prompt);
+      return ok(params.parse(groundedDraft({ title: "Hukuk Kaynakları", pageEnd: 3 })));
     });
-
-    const result = await buildOutlineOneShot({
-      service: {} as never,
-      userId: "u1",
-      files: [{ fileName: "kpss-1000.pdf", pages }],
-      allowModel: true,
-    });
-
-    expect(result.fromModel).toBe(true);
-    expect(result.path).toBe("split_merge");
-    expect(result.model).toBe("gpt-4.1");
+    const { result } = await runToEnd(files);
+    expect(result.kind).toBe("done");
+    if (result.kind !== "done") return;
+    expect(result.path).toBe("merge");
     expect(keys.some((k) => k.includes(":part"))).toBe(true);
-    expect(keys.some((k) => k.endsWith(":merge") || k.includes(":merge"))).toBe(true);
-    expect(mergePrompts.length).toBeGreaterThanOrEqual(1);
-    expect(mockedGenerate.mock.calls.length).toBeGreaterThan(2);
+    expect(keys.some((k) => k.endsWith(":merge"))).toBe(true);
+    // A part holding only the second file still labels its pages d2.
+    expect(partPrompts.some((p) => /\[d2 s\.\d+\] Hukuk/.test(p) && !/\[d1 s\.\d+\] Hukuk/.test(p))).toBe(true);
+    expect(mergePrompt).not.toMatch(/\[d1 s\.500\]/);
+    expect(result.map.units[0]!.topics[0]!.fileIndex).toBe(1);
   });
 
   it("resumes split parts from saved drafts without re-calling completed parts", async () => {
-    const pageCount = ONESHOT_FORCE_SPLIT_PAGES + 1;
-    const pages = Array.from({ length: pageCount }, (_, i) => ({
-      pageNumber: i + 1,
-      text: `Hukuk kaynakları yasama yürütme yargı idare anlatılır sayfa ${i + 1}.`,
-    }));
-    // Probe how many parts the splitter produces.
-    const probeParts = splitFilesForOutline([{ fileName: "kpss-1000.pdf", pages }]);
-    expect(probeParts.length).toBeGreaterThan(1);
-
-    const savedParts = probeParts.map(() => groundedDraft());
-    // Leave the last part empty so only it (+ merge) run.
-    const resumePartDrafts = savedParts.map((d, i) =>
-      i === savedParts.length - 1 ? null : d,
+    const files: Files = [{ fileName: "kpss-1000.pdf", pages: lawPages(ONESHOT_FORCE_SPLIT_PAGES + 1) }];
+    const material = prepareOutlineMaterial(files);
+    expect(material.parts?.length ?? 0).toBeGreaterThan(1);
+    const parts = material.parts!.map((_, i, all) =>
+      i === all.length - 1 ? null : { draft: groundedDraft() as OneShotOutlineDraft },
     );
-
     const keys: string[] = [];
     mockedGenerate.mockImplementation(async (params) => {
       keys.push(String(params.idempotencyKey ?? ""));
-      return {
-        ok: true as const,
-        data: params.parse(groundedDraft()),
-        usage: { tokensIn: 1, tokensOut: 1 },
-      } as never;
+      return ok(params.parse(groundedDraft()));
     });
-
-    const result = await buildOutlineOneShot({
-      service: {} as never,
-      userId: "u1",
-      files: [{ fileName: "kpss-1000.pdf", pages }],
-      allowModel: true,
-      resumePartDrafts,
+    const result = await runOutlineStep({
+      service: {} as never, userId: "u1", material, progress: { stage: "first", parts },
+      keyFor: (stage, part) => `${stage}${part ? `:part${part}` : ""}`, deadlineAt: Date.now() + 300_000,
     });
-
-    expect(result.fromModel).toBe(true);
-    expect(result.path).toBe("split_merge");
-    // Only the missing last part + merge — not every part again.
-    const partKeys = keys.filter((k) => k.includes(":part"));
-    expect(partKeys.length).toBe(1);
-    expect(keys.some((k) => k.includes(":merge"))).toBe(true);
+    expect(result.kind).toBe("continue");
+    if (result.kind === "continue") expect(result.progress.stage).toBe("merge");
+    expect(keys).toEqual([`first:part${parts.length}`]);
   });
 
-  it("falls back to OPENAI_OUTLINE_FALLBACK_MODEL when gpt-4.1 keeps failing", async () => {
+  it("falls back to OPENAI_OUTLINE_FALLBACK_MODEL when gpt-4.1 fails at provider level", async () => {
     const models: string[] = [];
     mockedGenerate.mockImplementation(async (params) => {
       models.push(String(params.modelOverride));
-      if (params.modelOverride === "gpt-4.1-mini") {
-        return {
-          ok: true as const,
-          data: params.parse(groundedDraft()),
-          usage: { tokensIn: 1, tokensOut: 1 },
-        } as never;
-      }
+      if (params.modelOverride === "gpt-4.1-mini") return ok(params.parse(groundedDraft({ title: "Hukuk Kaynakları", pageEnd: 3 })));
       return { ok: false as const, status: 502, error: "generation_failed" } as never;
     });
-
-    const pages = Array.from({ length: 40 }, (_, i) => ({
-      pageNumber: i + 1,
-      text: `Hukuk kaynakları yasama yürütme yargı idare anlatılır sayfa ${i + 1}.`,
-    }));
-    const result = await buildOutlineOneShot({
-      service: {} as never,
-      userId: "u1",
-      files: [{ fileName: "big.pdf", pages }],
-      allowModel: true,
-    });
-
-    expect(result.fromModel).toBe(true);
-    expect(result.path).toBe("fallback");
-    expect(result.model).toBe("gpt-4.1-mini");
-    expect(models).toContain("gpt-4.1");
-    expect(models).toContain("gpt-4.1-mini");
-    expect(
-      mockedGenerate.mock.calls.some(
-        (call) => String(call[0]?.idempotencyKey ?? "").includes(":fallback"),
-      ),
-    ).toBe(true);
+    const { result } = await runToEnd([{ fileName: "big.pdf", pages: lawPages(40) }]);
+    expect(result.kind).toBe("done");
+    if (result.kind === "done") {
+      expect(result.path).toBe("fallback");
+      expect(result.map.model).toBe("gpt-4.1-mini");
+    }
+    expect(models).toEqual(["gpt-4.1", "gpt-4.1-mini"]);
   });
 });
