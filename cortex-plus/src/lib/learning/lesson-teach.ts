@@ -40,6 +40,9 @@ export const LESSON_TEACH_RULE = [
   "summary üç maddedir: kural, sık hata, uygulama. Bölüm cümlesini kopyalama. 'Diğer' ya da zamirle başlayan bağlamsız madde yazma.",
   "Aynı konuyu işleyen her kaynak parçası kullanılır. Tek dosyaya sıkışma.",
   "Kaynak [s.N] dosya biçimindeyse bölümün sonuna Kaynak: dosya, s.N yaz.",
+  "Hesaplanabilir bağıntı formula alanına (title, expression, note), sıralı işlem procedure alanına " +
+    "(2-6 numaralı adım, her adımda kaynaktaki somut sayı) yazılır — gövdeye ikinci kez yazılmaz. " +
+    "Kaynakta karşılık/eşik tablosu varsa table alanına yazılır. Bu üç alan gövdenin tekrarı değildir.",
   "Cümle yüklemle biter. Cümle ortasında sıradan ad büyük harfle başlamaz.",
   "Anlatım yaklaşık 5 dakikalık okuma olsun. Aynı cümleyi tekrarlayarak uzatma.",
   "Öğrenci gövdeyi okumadan tahmin edebileceği bir check varsa checkFirst: true yaz — ekranda " +
@@ -995,6 +998,62 @@ function withoutExample(lesson: LessonV2): LessonV2 {
   return next;
 }
 
+function formulaText(formula: NonNullable<LessonV2["sections"][number]["formula"]>): string {
+  return [formula.title, formula.expression, formula.note ?? ""].join(" ");
+}
+
+function procedureText(procedure: NonNullable<LessonV2["sections"][number]["procedure"]>): string {
+  return [procedure.title ?? "", ...procedure.steps.flatMap((step) => [step.label, step.detail])].join(" ");
+}
+
+function tableText(table: NonNullable<LessonV2["sections"][number]["table"]>): string {
+  return [table.caption ?? "", ...table.rows.flatMap((row) => row)].join(" ");
+}
+
+/**
+ * formula/procedure/table gövdeden ayrı, model tarafından uydurulan bir
+ * sayı taşıyabilir (attachCitations/scrubInventedNumbers gibi düz metin
+ * onarım araçları bunları görmez, çünkü body değiller). Kaynakta olmayan
+ * bir sayı bulunursa alan onarılmaya çalışılmaz — cards/diagram'da olduğu
+ * gibi tümüyle düşürülür; body zaten kendi başına ayakta kalıyor.
+ * Ayrıca formula.note/procedure gövdenin birebir tekrarıysa (öğrenci aynı
+ * cümleyi iki kez görmesin diye) aynı şekilde düşürülür.
+ */
+function scrubStructuredBlockFabrication(lesson: LessonV2, source: string): LessonV2 {
+  if (!source.trim()) return lesson;
+  let changed = false;
+  const sections = lesson.sections.map((section) => {
+    const next = { ...section };
+    if (next.formula) {
+      const text = formulaText(next.formula);
+      const fabricated = inventedNumbers(text, source).length > 0;
+      const echoesBody = next.formula.note ? nearCopy(foldTr(next.formula.note), foldTr(next.body)) : false;
+      if (fabricated || echoesBody) {
+        delete next.formula;
+        changed = true;
+      }
+    }
+    if (next.procedure) {
+      const text = procedureText(next.procedure);
+      const fabricated = inventedNumbers(text, source).length > 0;
+      const echoesBody = nearCopy(foldTr(text), foldTr(next.body));
+      if (fabricated || echoesBody) {
+        delete next.procedure;
+        changed = true;
+      }
+    }
+    if (next.table) {
+      const text = tableText(next.table);
+      if (inventedNumbers(text, source).length > 0) {
+        delete next.table;
+        changed = true;
+      }
+    }
+    return next;
+  });
+  return changed ? { ...lesson, sections } : lesson;
+}
+
 function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): LessonV2 {
   const checksBefore = lesson.sections.filter((section) => section.check).length;
   const sentencesBefore = sentences(lessonProse(lesson)).length;
@@ -1022,6 +1081,7 @@ function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): Le
     if (!exampleReady(blob, source)) next = withoutExample(next);
   }
   next = scrubInventedNumbers(next, source);
+  next = scrubStructuredBlockFabrication(next, source);
   if (next.sections.filter((section) => section.check).length < minimumLessonChecks(next)) {
     next = ensureThreeChecks(next, source);
   }
