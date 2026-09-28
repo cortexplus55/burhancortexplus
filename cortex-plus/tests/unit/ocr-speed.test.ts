@@ -17,7 +17,7 @@ vi.mock("@/lib/rag/pipeline", () => ({ chunkText: vi.fn(), embedTexts: vi.fn() }
 vi.mock("@/lib/env", () => ({ env: { OPENAI_STANDARD_MODEL: "gpt-test" } }));
 vi.mock("@/lib/observability/ops-log", () => ({ logOpsEvent: vi.fn() }));
 
-const { readPdfBatch, OCR_START_CONCURRENCY, OCR_MIN_CONCURRENCY } = await import("@/lib/documents/pdf-ingestion");
+const { readPdfBatch, rememberedOcrLimit, OCR_START_CONCURRENCY, OCR_MIN_CONCURRENCY, OCR_PAGE_CONCURRENCY } = await import("@/lib/documents/pdf-ingestion");
 
 const scanned = (n: number) => ({ png: Buffer.from(`p${n}`), inkRatio: 0.05, hasImageContent: true, scanRenderFailed: false, pageNumber: n });
 const ok = (rateLimited = false) => ({ pages: ["Taranmış sayfanın okunan metni yeterince uzun bir paragraf."], ok: true, model: "m", tokensIn: 0, tokensOut: 0, rateLimited });
@@ -47,7 +47,7 @@ describe("scanned PDF step", () => {
       events.push("ocr");
       return ok();
     });
-    const read = await readPdfBatch(service as never, Buffer.from("pdf"), "d", "u", 1, pages, Date.now() + 60_000);
+    const read = await readPdfBatch(service as never, Buffer.from("pdf"), "d-render", "u", 1, pages, Date.now() + 60_000);
     expect(read.pages).toHaveLength(pages);
     expect(events.indexOf("ocr")).toBeLessThan(events.indexOf(`render ${pages}`));
   });
@@ -67,12 +67,40 @@ describe("scanned PDF step", () => {
       inFlight -= 1;
       return ok(call <= 12); // the first wave hits the rate limit
     });
-    const read = await readPdfBatch(service as never, Buffer.from("pdf"), "d", "u", 1, pages, Date.now() + 60_000);
+    const read = await readPdfBatch(service as never, Buffer.from("pdf"), "d-429", "u", 1, pages, Date.now() + 60_000);
     expect(read.pages).toHaveLength(pages);
     expect(Math.max(...seen.slice(0, 12))).toBe(OCR_START_CONCURRENCY);
     // After the 429 wave the pool sat at the floor, then climbed again.
     expect(seen.slice(12, 16).every((v) => v <= OCR_MIN_CONCURRENCY)).toBe(true);
     expect(Math.max(...seen.slice(-8))).toBeGreaterThan(OCR_MIN_CONCURRENCY);
+  });
+
+  it("keeps the grown pool for the next 40-page step instead of dropping back to 12", async () => {
+    const pages = 40;
+    mocks.extractText.mockResolvedValue({ ok: false, total: 80, pages: Array(pages).fill("") });
+    mocks.renderPdfPages.mockImplementation(async (_b: Buffer, count: number, first: number) => ({
+      pages: Array.from({ length: count }, (_, i) => scanned(first + i)), total: 80,
+    }));
+    let inFlight = 0;
+    let seen: number[] = [];
+    mocks.extractImageText.mockImplementation(async () => {
+      inFlight += 1;
+      seen.push(inFlight);
+      await new Promise((r) => setTimeout(r, 3));
+      inFlight -= 1;
+      return ok();
+    });
+    await readPdfBatch(service as never, Buffer.from("pdf"), "d-steps", "u", 1, pages, Date.now() + 60_000);
+    const grown = rememberedOcrLimit("d-steps")!;
+    expect(grown).toBeGreaterThan(OCR_START_CONCURRENCY);
+    expect(grown).toBeLessThanOrEqual(OCR_PAGE_CONCURRENCY);
+
+    seen = [];
+    await readPdfBatch(service as never, Buffer.from("pdf"), "d-steps", "u", 41, pages, Date.now() + 60_000);
+    // Step 2 opens at the grown size — the first wave is wider than 12.
+    expect(Math.max(...seen.slice(0, grown))).toBe(grown);
+    // Another document still starts at the start value.
+    expect(rememberedOcrLimit("d-other")).toBeNull();
   });
 });
 

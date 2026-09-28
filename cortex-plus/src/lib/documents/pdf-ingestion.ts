@@ -27,6 +27,34 @@ export const PDF_STEP_DEADLINE_MS = 250_000;
 export const OCR_PAGE_CONCURRENCY = 24;
 export const OCR_START_CONCURRENCY = 12;
 export const OCR_MIN_CONCURRENCY = 4;
+/**
+ * The pool keeps its size across 40-page steps of the same document (the
+ * route chains steps in one process), so each step does not fall back to
+ * OCR_START_CONCURRENCY. A cold instance starts over at the start value.
+ */
+const OCR_POOL_MEMORY_MS = 15 * 60_000;
+const ocrPoolMemory = new Map<string, { limit: number; at: number }>();
+
+export function rememberedOcrLimit(documentId: string, now = Date.now()): number | null {
+  const hit = ocrPoolMemory.get(documentId);
+  if (!hit) return null;
+  if (now - hit.at > OCR_POOL_MEMORY_MS) {
+    ocrPoolMemory.delete(documentId);
+    return null;
+  }
+  return hit.limit;
+}
+
+function rememberOcrLimit(documentId: string, limit: number) {
+  ocrPoolMemory.delete(documentId);
+  ocrPoolMemory.set(documentId, { limit, at: Date.now() });
+  while (ocrPoolMemory.size > 500) {
+    const oldest = ocrPoolMemory.keys().next().value;
+    if (oldest === undefined) break;
+    ocrPoolMemory.delete(oldest);
+  }
+}
+
 /** How long one process/route invocation may chain extract steps. */
 export const PDF_CHAIN_BUDGET_MS = 250_000;
 const EMBED_BATCH = 24;
@@ -362,8 +390,12 @@ export async function readPdfBatch(
       });
 
     const ocrStarted = Date.now();
-    let limitNow = Math.max(1, Math.min(OCR_START_CONCURRENCY, ocrConcurrency));
     const maxLimit = Math.max(1, Math.min(OCR_PAGE_CONCURRENCY, ocrConcurrency));
+    let limitNow = Math.max(1, Math.min(
+      rememberedOcrLimit(documentId) ?? OCR_START_CONCURRENCY,
+      maxLimit,
+    ));
+    const limitStart = limitNow;
     let rateLimitedPages = 0;
     let poolError: unknown = null;
     const inFlight = new Map<number, Promise<void>>();
@@ -423,13 +455,14 @@ export async function readPdfBatch(
       });
     }
     if (inFlight.size) await Promise.allSettled([...inFlight.values()]);
+    if (ocrPages > 0) rememberOcrLimit(documentId, limitNow);
     await rendering;
     console.info("pipeline_timing", {
       documentId, stage: "render", ms: renderMs, pages: pages.length, firstPage,
     });
     console.info("pipeline_timing", {
       documentId, stage: "ocr", ms: Date.now() - ocrStarted, pages: ocrPages,
-      concurrencyEnd: limitNow, rateLimitedPages,
+      concurrencyStart: limitStart, concurrencyEnd: limitNow, rateLimitedPages,
     });
     if (poolError) throw poolError;
     if (renderError) throw renderError;
