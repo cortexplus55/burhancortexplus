@@ -37,6 +37,31 @@ describe("normalizeMathIdentifiers", () => {
     expect(normalizeMathIdentifiers("kodda `hız_son` kalır")).toContain("`hız_son`");
   });
 
+  it("Türkçe programlama başlıkları ASCII \\b kırılmaz; SQL/algoritma dahil", () => {
+    for (const title of [
+      "Programlamaya Giriş",
+      "Kodlama Temelleri",
+      "Veritabanı ve SQL",
+      "Algoritmalar",
+    ]) {
+      expect(isProgrammingContext("created_at ve max_value", title)).toBe(true);
+      expect(normalizeMathIdentifiers("created_at", { topicHint: title })).toBe("created_at");
+      expect(normalizeMathIdentifiers("max_value", { topicHint: title })).toBe("max_value");
+    }
+  });
+
+  it("≥2 ASCII snake_case kod kimliğini tutar; fizikte hız_son / v_son normalleşir", () => {
+    const codey = "created_at ve item_list";
+    expect(normalizeMathIdentifiers(codey)).toContain("created_at");
+    expect(normalizeMathIdentifiers(codey)).toContain("item_list");
+    expect(normalizeMathIdentifiers("max_value ve created_at")).toContain("max_value");
+
+    const physics = "Hız ve ivme";
+    expect(isProgrammingContext("hız_son = v_son + a·t", physics)).toBe(false);
+    expect(normalizeMathIdentifiers("hız_son", { topicHint: physics })).toBe("hız (son)");
+    expect(normalizeMathIdentifiers("v_son", { topicHint: physics })).toBe("$v_{\\text{son}}$");
+  });
+
   it("Türkçe gövde ortasında kırılmaz (Unicode sınır)", () => {
     // Eski ASCII \\w lookbehind: "hız_son" → "hı$z_…", "sıcaklık_son" → "sıcaklı$k_…"
     expect(normalizeMathIdentifiers("hız_son")).toBe("hız (son)");

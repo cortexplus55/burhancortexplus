@@ -241,7 +241,24 @@ async function generateOrJoin(
   },
 ): Promise<GovernorAction | null> {
   const claim = await claimGeneration(service, input.sessionId, input.token);
-  if (!claim.claimed) return claim.action;
+  if (!claim.claimed) {
+    const joined = claim.action;
+    if (joined?.decisionTraceId) {
+      const answered = await hasAnswerForDecision(
+        service,
+        input.sessionId,
+        joined.decisionTraceId,
+      );
+      if (answered) {
+        // Bayat claim: cevaplanmış aksiyonu yeni pending yapma — taze üret.
+        const freshToken = `${input.token}:fresh:${joined.decisionTraceId}`;
+        return generateOrJoin(service, { ...input, token: freshToken });
+      }
+    }
+    // Join yolu da pending yazar; aksi halde pending_decision_trace_id null kalır.
+    if (joined) await persistPendingAction(service, input.sessionId, joined);
+    return joined;
+  }
   const action = await nextAction(
     service,
     input.userId,
@@ -258,9 +275,9 @@ async function generateOrJoin(
  * session (the direct `existing` case, and the 23505-race fallback) so the
  * two can never drift out of sync with each other.
  *
- * Resume only mid-step (served, unanswered). Idle pending whose topic
- * differs from the plan item is cleared so "Çalışmaya Başla" / planItemId
- * open the planned topic — not a leftover Birim Çember.
+ * Served + unanswered → her zaman sürdür (soru kaybolmasın; plan konusu
+ * farklı olsa bile). Yalnızca idle (hiç serve edilmemiş) pending, plan
+ * maddesi lehine temizlenir.
  */
 async function resumeExistingSession(
   service: SupabaseClient,
@@ -281,11 +298,7 @@ async function resumeExistingSession(
     ? normalizeTopicKey(planCtx.planItem.topicKey)
     : null;
   const pendingKey = pending?.topicKey ? normalizeTopicKey(pending.topicKey) : null;
-  const planDiffers = Boolean(
-    pending &&
-      wantedKey &&
-      pendingKey !== wantedKey,
-  );
+  const planDiffers = Boolean(pending && wantedKey && pendingKey !== wantedKey);
 
   if (pending) {
     const answered = await hasAnswerForDecision(
@@ -293,20 +306,31 @@ async function resumeExistingSession(
       session.id,
       pending.decisionTraceId,
     );
-    // Mid-step (cevapsız) ve plan aynı/yok → sürdür.
-    if (!answered && !planDiffers) {
+    const served = await hasServedForDecision(
+      service,
+      session.id,
+      pending.decisionTraceId,
+    );
+
+    if (!answered && served) {
+      // Serve edilmiş, cevaplanmamış — plan konusu farklı olsa bile kaybetme.
       return { session, action: pending };
     }
-    // Idle / cevaplanmış / plan farklı → temizle, plan maddesi için üret.
+    if (!answered && !served && !planDiffers) {
+      // Idle ve plan aynı/yok → sürdür.
+      return { session, action: pending };
+    }
+    // Cevaplanmış veya idle+plan farklı → temizle, plan maddesi için üret.
     await persistPendingAction(service, session.id, null);
   }
 
+  const previousTrace = pending?.decisionTraceId ?? "none";
   const action = await generateOrJoin(service, {
     userId: input.userId,
     examPrepId: input.examPrepId,
     sessionId: session.id,
-    // Plan maddesi değişince yeni karar; aksi halde "start" idempotent kalır.
-    token: planCtx.planItem?.id ? `start:${planCtx.planItem.id}` : "start",
+    // Plan + önceki pending ile benzersiz; bayat answered claim'e yapışma.
+    token: `start:${planCtx.planItem?.id ?? "none"}:${previousTrace}`,
     ctx: {
       sessionMinutesRemaining: session.plannedDurationMinutes,
       todayTarget: planCtx.objective ?? session.objective,
@@ -320,7 +344,7 @@ async function resumeExistingSession(
   return { session, action };
 }
 
-/** Bu karar için answer_submitted var mı? (idempotencyKey içinde decisionTraceId). */
+/** Bu karar için answer_submitted var mı? */
 async function hasAnswerForDecision(
   service: SupabaseClient,
   sessionId: string,
@@ -328,23 +352,77 @@ async function hasAnswerForDecision(
 ): Promise<boolean> {
   if (!decisionTraceId) return false;
   try {
+    // İstemci anahtarı: `${sessionId}:${decisionTraceId}:${ts}` — doğrudan filtrele.
+    const { data: keyed } = await service
+      .from("adaptive_learning_events")
+      .select("idempotency_key, payload")
+      .eq("session_id", sessionId)
+      .eq("event_type", "answer_submitted")
+      .like("idempotency_key", `%${decisionTraceId}%`)
+      .limit(5);
+    if ((keyed ?? []).some((row) => eventMentionsDecision(row, decisionTraceId))) {
+      return true;
+    }
+    // Eski / farklı anahtar biçimleri: en yenilerden tara.
     const { data } = await service
       .from("adaptive_learning_events")
       .select("idempotency_key, payload")
       .eq("session_id", sessionId)
       .eq("event_type", "answer_submitted")
-      .limit(40);
-    const needle = decisionTraceId;
-    return (data ?? []).some((row) => {
-      const key = String(row.idempotency_key ?? "");
-      if (key.includes(needle)) return true;
-      const evidence = (row.payload as { evidence?: { idempotencyKey?: string } } | null)
-        ?.evidence;
-      return Boolean(evidence?.idempotencyKey?.includes(needle));
-    });
+      .order("created_at", { ascending: false })
+      .limit(80);
+    return (data ?? []).some((row) => eventMentionsDecision(row, decisionTraceId));
   } catch {
     return false;
   }
+}
+
+/** İçerik serve edildi mi? (intervention_started / content:session:trace). */
+async function hasServedForDecision(
+  service: SupabaseClient,
+  sessionId: string,
+  decisionTraceId: string,
+): Promise<boolean> {
+  if (!decisionTraceId) return false;
+  try {
+    const contentKey = `content:${sessionId}:${decisionTraceId}`;
+    const { data: exact } = await service
+      .from("adaptive_learning_events")
+      .select("id")
+      .eq("session_id", sessionId)
+      .eq("idempotency_key", contentKey)
+      .maybeSingle();
+    if (exact?.id) return true;
+
+    const { data } = await service
+      .from("adaptive_learning_events")
+      .select("idempotency_key, payload, event_type")
+      .eq("session_id", sessionId)
+      .eq("event_type", "intervention_started")
+      .order("created_at", { ascending: false })
+      .limit(40);
+    return (data ?? []).some((row) => eventMentionsDecision(row, decisionTraceId));
+  } catch {
+    return false;
+  }
+}
+
+function eventMentionsDecision(
+  row: { idempotency_key?: unknown; payload?: unknown },
+  decisionTraceId: string,
+): boolean {
+  const key = String(row.idempotency_key ?? "");
+  if (key.includes(decisionTraceId)) return true;
+  const payload = row.payload as
+    | {
+        evidence?: { idempotencyKey?: string; decisionTraceId?: string };
+        content?: { decisionTraceId?: string };
+      }
+    | null;
+  if (payload?.evidence?.idempotencyKey?.includes(decisionTraceId)) return true;
+  if (payload?.evidence?.decisionTraceId === decisionTraceId) return true;
+  if (payload?.content?.decisionTraceId === decisionTraceId) return true;
+  return false;
 }
 
 export async function startSession(
@@ -428,7 +506,7 @@ export async function startSession(
     userId: input.userId,
     examPrepId: input.examPrepId,
     sessionId: session.id,
-    token: planCtx.planItem?.id ? `start:${planCtx.planItem.id}` : "start",
+    token: `start:${planCtx.planItem?.id ?? "none"}:none`,
     ctx: {
       sessionMinutesRemaining: planned,
       todayTarget: session.objective,
@@ -485,12 +563,16 @@ async function resolvePlanContext(
     const planTopicKeys = ordered
       .map((item) => item.topicKey)
       .filter((key): key is string => Boolean(key));
-    const selected =
-      (input.planItemId
-        ? items.find((item) => item.id === input.planItemId)
-        : null) ??
-      ordered[0] ??
-      null;
+    // Bayat ?planItemId= (done/skipped) yok say; ilk pending/active'e düş.
+    const requested = input.planItemId
+      ? items.find((item) => item.id === input.planItemId)
+      : null;
+    const requestedLive =
+      requested &&
+      (requested.status === "pending" || requested.status === "active")
+        ? requested
+        : null;
+    const selected = requestedLive ?? ordered[0] ?? null;
     return {
       planTopicKeys,
       planItem: selected?.topicKey

@@ -27,16 +27,33 @@ const LETTER_TO_SUB: Record<string, string> = {
 const GREEK =
   "alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega";
 
+/** Başlık gövdesi: Türkçe sonek kırılmaz (Programlamaya, Kodlama, …). */
+const PROGRAMMING_STEM =
+  /(?<![\p{L}\p{N}])(kod|program|yazılım|yazilim|algoritma|veritaban|sql|python|javascript|java|c\+\+|typescript)/u;
+
 /** Programlama dersi / kod bloğu: tanımlayıcılar konu; dokunma. */
 export function isProgrammingContext(text: string, topicHint = ""): boolean {
   const hint = topicHint.toLocaleLowerCase("tr");
   if (/```/.test(text)) return true;
   if (/\b(function|const |let |var |class |def |import |return )\b/.test(text)) return true;
   if (/(^|\n)\s*#include\b/.test(text)) return true;
-  if (/\b(kod|fonksiyon|programlama|javascript|python|java|c\+\+|yazılım|yazilim)\b/.test(hint)) {
-    return true;
-  }
+  if (PROGRAMMING_STEM.test(hint)) return true;
   return false;
+}
+
+/** Tüm-ASCII küçük snake_case (created_at); Türkçe harf yok. */
+const ASCII_SNAKE =
+  /(?<![\p{L}\p{N}_./@])([a-z]+)_([a-z]+)(?![\p{L}\p{N}_./@])/gu;
+
+function countAsciiSnakeTokens(text: string): number {
+  return [...text.matchAll(ASCII_SNAKE)].length;
+}
+
+/** Tek harf / Yunan taban matematik; çok harfli ASCII snake kod kimliği. */
+function isMathBase(base: string): boolean {
+  if (base.length === 1) return true;
+  if (/^[α-ωΑ-Ω]$/.test(base)) return true;
+  return new RegExp(`^(?:${GREEK})$`, "i").test(base);
 }
 
 function unicodeSubWord(word: string): string | null {
@@ -62,7 +79,7 @@ function toKatexBase(base: string): string {
 const EDGE = String.raw`(?<![\p{L}\p{N}_./@])`;
 const EDGE_END = String.raw`(?![\p{L}\p{N}_./@])`;
 
-function transformChunk(chunk: string): string {
+function transformChunk(chunk: string, keepAsciiSnake = false): string {
   let out = chunk;
   // Önce kısa taban (1-3 Latin/Yunan harf) + alt simge: α_r, P_mutlak, y_f, a_1
   out = out.replace(
@@ -86,6 +103,15 @@ function transformChunk(chunk: string): string {
   out = out.replace(
     new RegExp(`${EDGE}([A-Za-zα-ωΑ-Ω]{1,3})_([A-Za-z\\p{L}]{1,24})${EDGE_END}`, "gu"),
     (_m, base: string, word: string) => {
+      // ≥2 ASCII snake varken çok harfli Latin tabanı kod kimliği say (max_value).
+      if (
+        keepAsciiSnake &&
+        !isMathBase(base) &&
+        /^[a-z]+$/.test(base) &&
+        /^[a-z]+$/.test(word)
+      ) {
+        return `${base}_${word}`;
+      }
       // Yalnızca tek harf Unicode alt simgeye gider (αᵣ). Çok harfli sözcük KaTeX.
       if (word.length === 1) {
         const uni = unicodeSubWord(word);
@@ -103,6 +129,14 @@ function transformChunk(chunk: string): string {
       if (
         /^[a-z]+$/i.test(left) &&
         /^(id|name|key|url|path|type|index|count|uuid)$/i.test(right)
+      ) {
+        return `${left}_${right}`;
+      }
+      if (
+        keepAsciiSnake &&
+        !isMathBase(left) &&
+        /^[a-z]+$/.test(left) &&
+        /^[a-z]+$/.test(right)
       ) {
         return `${left}_${right}`;
       }
@@ -128,6 +162,8 @@ export function normalizeMathIdentifiers(
   if (options.programming || isProgrammingContext(text, options.topicHint ?? "")) {
     return text;
   }
+
+  const keepAsciiSnake = countAsciiSnakeTokens(text) >= 2;
 
   const blockers: { start: number; end: number }[] = [];
   const add = (re: RegExp) => {
@@ -158,11 +194,13 @@ export function normalizeMathIdentifiers(
   let out = "";
   let cursor = 0;
   for (const b of merged) {
-    if (b.start > cursor) out += transformChunk(text.slice(cursor, b.start));
+    if (b.start > cursor) {
+      out += transformChunk(text.slice(cursor, b.start), keepAsciiSnake);
+    }
     out += text.slice(b.start, b.end);
     cursor = b.end;
   }
-  if (cursor < text.length) out += transformChunk(text.slice(cursor));
+  if (cursor < text.length) out += transformChunk(text.slice(cursor), keepAsciiSnake);
   return out;
 }
 
@@ -184,11 +222,20 @@ export function mathIdentifierIssues(text: string, topicHint = ""): string[] {
     .replace(/\\ce\{[^{}]*\}/g, "")
     .replace(/\bhttps?:\/\/[^\s]+/g, "")
     .replace(/\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b/g, "");
+  const keepAsciiSnake = countAsciiSnakeTokens(sample) >= 2;
   const multi = new RegExp(`${EDGE}([\\p{L}]{2,})_([\\p{L}]{2,})${EDGE_END}`, "gu");
   for (const match of sample.matchAll(multi)) {
     const left = match[1] ?? "";
     const right = match[2] ?? "";
     if (isKeptSoftwareId(left, right)) continue;
+    if (
+      keepAsciiSnake &&
+      !isMathBase(left) &&
+      /^[a-z]+$/.test(left) &&
+      /^[a-z]+$/.test(right)
+    ) {
+      continue;
+    }
     return ["Kod gibi değişken adı var (açı_radyan); normal matematik gösterimi kullan."];
   }
   if (new RegExp(`${EDGE}[A-Za-zα-ωΑ-Ω]{1,3}_[A-Za-z](?![A-Za-z0-9])`, "u").test(sample)) {
