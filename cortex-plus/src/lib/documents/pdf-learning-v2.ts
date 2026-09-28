@@ -24,7 +24,9 @@ import {
 } from "@/lib/documents/outline-clean";
 import { outlineLeavesFromUnits } from "@/lib/documents/outline-llm";
 import { buildOutlineOneShot } from "@/lib/documents/outline-oneshot";
+import { packTopicPerspective } from "@/lib/documents/outline-topic-meta";
 import { MAP_LEASE_MS } from "@/lib/documents/pdf-learning-v2-lease";
+import type { OutlineExamWeight } from "@/lib/documents/outline-clean";
 
 export type MapStage = "prepare" | "oneshot" | "persist" | "windows" | "outline";
 
@@ -61,6 +63,8 @@ type JobMeta = {
   windowAttempts?: Record<string, number>;
   outline?: OutlineUnitDraft[];
   windowsTotal?: number;
+  examLabel?: string | null;
+  examDate?: string | null;
 };
 
 type MapJob = {
@@ -273,14 +277,20 @@ async function persistPageMeta(
   if (error) throw new Error("page_meta_update_failed");
 }
 
-export type HierarchicalTopic = TopicDraft & { unitTitle?: string | null };
+export type HierarchicalTopic = TopicDraft & {
+  unitTitle?: string | null;
+  examWeight?: OutlineExamWeight | null;
+  unitExamWeight?: OutlineExamWeight | null;
+  likelyAsked?: string[];
+  whyLearn?: string | null;
+};
 
 async function persistTopics(
   service: SupabaseClient,
   documentId: string,
   topics: HierarchicalTopic[],
   pageIdByNumber: Map<number, string>,
-  units?: { title: string; topicIndexes: number[] }[],
+  units?: { title: string; topicIndexes: number[]; examWeight?: OutlineExamWeight }[],
 ) {
   const topicIdByMergeKey = new Map<string, string>();
   if (!topics.length) return topicIdByMergeKey;
@@ -292,19 +302,24 @@ async function persistTopics(
     const { data: unitRows, error: unitError } = await service
       .from("document_topic_nodes")
       .insert(
-        units.map((unit, index) => ({
-          document_id: documentId,
-          parent_id: null,
-          sort_order: index,
-          title: unit.title,
-          learning_objective: null,
-          prerequisites: [],
-          key_definitions: [],
-          key_relations: [],
-          worked_examples: [],
-          common_mistakes: [],
-          source_exercises: [],
-        })),
+        units.map((unit, index) => {
+          const packed = packTopicPerspective({
+            examWeight: unit.examWeight ?? "medium",
+          });
+          return {
+            document_id: documentId,
+            parent_id: null,
+            sort_order: index,
+            title: unit.title,
+            learning_objective: packed.learning_objective,
+            prerequisites: packed.prerequisites,
+            key_definitions: packed.key_definitions,
+            key_relations: packed.key_relations,
+            worked_examples: [],
+            common_mistakes: [],
+            source_exercises: [],
+          };
+        }),
       )
       .select("id, title, sort_order");
     if (unitError || !unitRows?.length) throw new Error("topic_insert_failed");
@@ -330,15 +345,27 @@ async function persistTopics(
         const unitIndex = topicUnitIndex.get(index);
         const parentId =
           unitIndex !== undefined ? (unitIdByIndex.get(unitIndex) ?? null) : null;
+        const packed = packTopicPerspective({
+          examWeight: topic.examWeight ?? topic.unitExamWeight ?? "medium",
+          likelyAsked: topic.likelyAsked?.length ? topic.likelyAsked : topic.keyDefinitions,
+          whyLearn: topic.whyLearn ?? topic.learningObjective,
+          prerequisiteTitles: topic.prerequisites,
+        });
         return {
           document_id: documentId,
           parent_id: parentId,
           sort_order: unitOffset + index,
           title: topic.title,
-          learning_objective: topic.learningObjective,
-          prerequisites: topic.prerequisites,
-          key_definitions: topic.keyDefinitions,
-          key_relations: topic.keyRelations,
+          learning_objective: packed.learning_objective ?? topic.learningObjective,
+          prerequisites: packed.prerequisites.length
+            ? packed.prerequisites
+            : topic.prerequisites,
+          key_definitions: packed.key_definitions.length
+            ? packed.key_definitions
+            : topic.keyDefinitions,
+          key_relations: packed.key_relations.length
+            ? packed.key_relations
+            : topic.keyRelations,
           worked_examples: topic.workedExamples,
           common_mistakes: topic.commonMistakes,
           source_exercises: topic.sourceExercises,
@@ -422,6 +449,7 @@ function isRetryableMapError(message: string): boolean {
 export async function runPdfLearningV2(
   service: SupabaseClient,
   documentId: string,
+  options?: { examLabel?: string | null; examDate?: string | null },
 ): Promise<PdfLearningV2Result> {
   let previousMapStatus: string | null = null;
   const roundStarted = Date.now();
@@ -522,6 +550,8 @@ export async function runPdfLearningV2(
           furniture,
           tocUnits: tocUnits.length ? tocUnits : undefined,
           windowsTotal: 1,
+          examLabel: options?.examLabel ?? null,
+          examDate: options?.examDate ?? null,
         };
         const nowIso = new Date().toISOString();
         const { data: saved, error: checkpointError } = await service
@@ -593,6 +623,8 @@ export async function runPdfLearningV2(
             },
           ],
           pagesForFallback: mapPages,
+          examLabel: options?.examLabel ?? meta.examLabel ?? null,
+          examDate: options?.examDate ?? meta.examDate ?? null,
           deadlineAt,
           allowModel: true,
         });
@@ -646,10 +678,21 @@ export async function runPdfLearningV2(
       const { units, leafTopics } = outlineLeavesFromUnits(outline);
       if (!leafTopics.length) throw new Error("topic_map_unavailable");
 
-      const hierarchical: HierarchicalTopic[] = leafTopics.map((leaf, index) => ({
-        ...draftFromLlmTopic(leaf.title, null, leaf.pageNumbers, analyses, index),
-        unitTitle: leaf.unitTitle,
-      }));
+      const hierarchical: HierarchicalTopic[] = leafTopics.map((leaf, index) => {
+        const why = leaf.whyLearn ?? leaf.description ?? null;
+        const draft = draftFromLlmTopic(leaf.title, why, leaf.pageNumbers, analyses, index);
+        return {
+          ...draft,
+          learningObjective: why,
+          prerequisites: leaf.prerequisiteTitles ?? [],
+          keyDefinitions: leaf.likelyAsked ?? draft.keyDefinitions,
+          unitTitle: leaf.unitTitle,
+          examWeight: leaf.examWeight ?? null,
+          unitExamWeight: leaf.unitExamWeight ?? null,
+          likelyAsked: leaf.likelyAsked ?? [],
+          whyLearn: why,
+        };
+      });
       const linked = completeTopicPageLinks(hierarchical, analyses);
       const withUnits: HierarchicalTopic[] = leafTopics.map((leaf, index) => {
         const match =
@@ -660,7 +703,18 @@ export async function runPdfLearningV2(
           ) ??
           linked[index] ??
           hierarchical[index]!;
-        return { ...match, unitTitle: leaf.unitTitle };
+        const prior = match as HierarchicalTopic;
+        return {
+          ...prior,
+          unitTitle: leaf.unitTitle,
+          examWeight: leaf.examWeight ?? prior.examWeight,
+          unitExamWeight: leaf.unitExamWeight ?? prior.unitExamWeight,
+          likelyAsked: leaf.likelyAsked ?? prior.likelyAsked,
+          whyLearn: leaf.whyLearn ?? leaf.description ?? prior.whyLearn,
+          prerequisites: leaf.prerequisiteTitles?.length
+            ? leaf.prerequisiteTitles
+            : prior.prerequisites,
+        };
       });
       await clearTopicMap(service, documentId);
       await persistTopics(
@@ -670,6 +724,7 @@ export async function runPdfLearningV2(
         pageIdByNumber,
         units.map((u, unitIndex) => ({
           title: u.title,
+          examWeight: u.examWeight,
           topicIndexes: leafTopics
             .map((leaf, leafIndex) =>
               leaf.unitTitle === u.title ||
@@ -837,6 +892,7 @@ export async function unusedFlatMapNeedsOneshot(
 export async function regenerateUnusedFlatTopicMap(
   service: SupabaseClient,
   documentId: string,
+  options?: { examLabel?: string | null; examDate?: string | null },
 ): Promise<{ regenerating: boolean }> {
   const needs = await unusedFlatMapNeedsOneshot(service, documentId);
   if (!needs) return { regenerating: false };
@@ -854,7 +910,7 @@ export async function regenerateUnusedFlatTopicMap(
   if (error) return { regenerating: false };
 
   // Kick one map round so the wizard's follow-up process poll has a head start.
-  const result = await runPdfLearningV2(service, documentId);
+  const result = await runPdfLearningV2(service, documentId, options);
   if (result.ok && !result.pending && result.topics > 0) {
     return { regenerating: false };
   }

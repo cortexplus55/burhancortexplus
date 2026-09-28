@@ -7,6 +7,11 @@ import {
   extractTocUnits,
 } from "@/lib/documents/outline-clean";
 import {
+  examWeightToEmphasis,
+  isHighExamWeight,
+  unpackTopicPerspective,
+} from "@/lib/documents/outline-topic-meta";
+import {
   buildStudyOutlineFromNodes,
   remapStudyUnitsToConsolidated,
   seriesLabelFromFileName,
@@ -70,7 +75,7 @@ export async function consolidatePrepDocuments(
     loadPagedDocumentRows(
       service,
       "document_topic_nodes",
-      "id, document_id, title, parent_id, sort_order, prerequisites, learning_objective, key_definitions, common_mistakes, source_exercises",
+      "id, document_id, title, parent_id, sort_order, prerequisites, learning_objective, key_definitions, key_relations, common_mistakes, source_exercises",
       documentIds,
       ["sort_order", "id"],
     ),
@@ -211,17 +216,35 @@ export async function consolidatePrepDocuments(
       const analysis = analysisByDoc.get(documentId);
       const matched =
         analysis && node ? findAnalysisTopic(analysis, String(node.title ?? "")) : null;
+      const perspective = node
+        ? unpackTopicPerspective({
+            learning_objective: node.learning_objective as string | null,
+            prerequisites: node.prerequisites,
+            key_definitions: node.key_definitions,
+            key_relations: (node as { key_relations?: unknown }).key_relations,
+          })
+        : null;
+      const emphasis =
+        matched?.emphasis ??
+        (perspective ? examWeightToEmphasis(perspective.examWeight) : null);
       candidates.push({
         id: topic.id,
         title: topic.title,
-        summary: [objective, ...definitions].filter(Boolean).join(" ").slice(0, 400),
+        summary: (perspective?.whyLearn || objective || "").slice(0, 400),
+        description: perspective?.whyLearn || objective || null,
         pages: topic.pages,
         documentId,
         fileName: name,
-        prerequisites: node ? asStrings(node.prerequisites) : [],
+        prerequisites: perspective?.prerequisiteTitles.length
+          ? perspective.prerequisiteTitles
+          : node
+            ? asStrings(node.prerequisites)
+            : [],
+        keyTerms: definitions,
         commonMistakes: mistakes,
         practiceItems: practice,
-        emphasis: matched?.emphasis ?? null,
+        emphasis,
+        examHeavy: perspective ? isHighExamWeight(perspective.examWeight) : false,
       });
     }
   }

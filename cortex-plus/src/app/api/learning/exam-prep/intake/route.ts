@@ -47,6 +47,8 @@ const bodySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
+  /** Exam type/level for oneshot teacher perspective (optional on probe). */
+  examType: z.string().min(2).max(40).optional(),
   documentId: z.string().uuid().optional(),
   documentIds: z.array(z.string().uuid()).max(8).optional(),
   /** Flag+topic-map check only — no AI / no credits. */
@@ -263,7 +265,10 @@ export async function POST(request: Request) {
   if (v2) {
     for (const documentId of documentIds) {
       try {
-        const regen = await regenerateUnusedFlatTopicMap(service, documentId);
+        const regen = await regenerateUnusedFlatTopicMap(service, documentId, {
+          examLabel: parsed.data.examType ?? null,
+          examDate: parsed.data.examDate ?? null,
+        });
         if (regen.regenerating) {
           return NextResponse.json(
             {
@@ -343,6 +348,12 @@ export async function POST(request: Request) {
     topicScopeNotes: mergedTopics.map((topic) =>
       "scopeNote" in topic ? topic.scopeNote : null,
     ),
+    topicDescriptions: mergedTopics.map((topic) => {
+      if ("summary" in topic && typeof topic.summary === "string" && topic.summary.trim()) {
+        return topic.summary.trim().slice(0, 240);
+      }
+      return null;
+    }),
   };
   const contradictionDocs = await readContradictionDocuments(service, documentIds).catch(() => []);
   const contradictionMap = await contradictionsByTopicTitleResolved(
@@ -357,6 +368,7 @@ export async function POST(request: Request) {
     })),
     contradictionDocs,
   );
+  // Warnings stay contradictions/narrow-scope only — short descriptions are separate.
   const topicWarnings = mergedTopics.map((topic, index) => {
     const scope = merged.topicScopeNotes[index];
     const contradiction = formatContradictions(contradictionMap.get(topic.title) ?? []);
@@ -392,6 +404,7 @@ export async function POST(request: Request) {
             topicImportant: merged.topicImportant,
             topicWeights: merged.topicWeights,
             topicSections: merged.topicSections,
+            topicDescriptions: merged.topicDescriptions,
             excluded: consolidated?.excluded ?? [],
             missingTopics: consolidated?.missingFromMaterials ?? [],
             suggestedExamDate: consolidated?.suggestedExamDate ?? null,

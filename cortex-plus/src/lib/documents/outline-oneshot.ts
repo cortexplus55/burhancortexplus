@@ -22,15 +22,23 @@ export const ONESHOT_MAX_INPUT_CHARS = 280_000;
 /** Split into at most this many parallel parts. */
 export const ONESHOT_MAX_PARTS = 3;
 
+const examWeightSchema = z.enum(["high", "medium", "low"]);
+
 const topicSchema = z.object({
+  id: z.string().trim().min(1).max(40).optional(),
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(400).optional().default(""),
+  whyLearn: z.string().trim().max(400).optional().default(""),
   pageStart: z.number().int().positive(),
   pageEnd: z.number().int().positive(),
+  examWeight: examWeightSchema.optional().default("medium"),
+  likelyAsked: z.array(z.string().trim().min(1).max(160)).max(4).optional().default([]),
+  prerequisiteIds: z.array(z.string().trim().min(1).max(40)).max(8).optional().default([]),
 });
 
 const unitSchema = z.object({
   title: z.string().trim().min(1).max(120),
+  examWeight: examWeightSchema.optional().default("medium"),
   topics: z.array(topicSchema).min(1).max(40),
 });
 
@@ -122,6 +130,18 @@ export function validateOneShotOutline(
   }
 
   const seen = new Set<string>();
+  const idToTitle = new Map<string, string>();
+  // First pass: assign stable local ids and collect titles.
+  let autoId = 0;
+  for (const unit of draft.units) {
+    for (const topic of unit.topics) {
+      const title = topic.title.trim();
+      if (!title) continue;
+      const id = (topic.id?.trim() || `t${++autoId}`).slice(0, 40);
+      if (!idToTitle.has(id)) idToTitle.set(id, title);
+    }
+  }
+
   const normalized: OutlineUnitDraft[] = [];
 
   for (const unit of draft.units) {
@@ -166,13 +186,35 @@ export function validateOneShotOutline(
       seen.add(key);
       const pageNumbers: number[] = [];
       for (let p = start; p <= end; p += 1) pageNumbers.push(p);
+      const why =
+        (topic.whyLearn || topic.description || "").trim().slice(0, 400) || undefined;
+      const likelyAsked = [...new Set((topic.likelyAsked ?? []).map((s) => s.trim()).filter(Boolean))]
+        .slice(0, 4);
+      const prerequisiteTitles = [...new Set(
+        (topic.prerequisiteIds ?? [])
+          .map((id) => idToTitle.get(id.trim()) ?? "")
+          .filter((t) => t && t.toLocaleLowerCase("tr") !== key),
+      )].slice(0, 8);
       topics.push({
+        id: topic.id?.trim() || undefined,
         title,
         sourceTitles: [title],
         pageNumbers,
+        description: why,
+        whyLearn: why,
+        examWeight: topic.examWeight ?? "medium",
+        likelyAsked,
+        prerequisiteIds: topic.prerequisiteIds ?? [],
+        prerequisiteTitles,
       });
     }
-    if (topics.length) normalized.push({ title: unitTitle, topics });
+    if (topics.length) {
+      normalized.push({
+        title: unitTitle,
+        examWeight: unit.examWeight ?? "medium",
+        topics,
+      });
+    }
   }
 
   if (!normalized.length) {
@@ -201,24 +243,34 @@ function studentOutlinePrompt(input: {
   const repair = input.repairErrors
     ? `\n\nÖnceki çıktı geçersizdi. Düzeltmen gerekenler:\n${input.repairErrors}\nYeniden üret.`
     : "";
-  return `Bu materyalle ${exam} sen girecek olsaydın, çalışmak için bu içeriği kaç üniteye ve hangi konulara bölerdin?
+  return `Bu materyalle ${exam} hazırlanıyorsun. Tek JSON çıktıda İKİ bakış açısını birlikte kodla.
 
-Kurallar:
-- Kitabın/dosyaların kendi yapısını (içindekiler, bölüm başlıkları) dikkate al.
-- Logolar, seri adları, sayfa üstbilgileri, soru numaraları, şıklar, OCR bozukluklarını konu yapma.
-- Her konu için kısa bir açıklama (description) ve kapsadığı sayfa aralığı (pageStart/pageEnd) ver. Sayfa işaretleri metinde [s.N] biçimindedir.
-- "Diğer Konular" kovası EKLEME. Ünite sayısı 1–20, toplam konu ≤40.
-- Gerçek sayfa aralığı 1–${input.maxPage} dışında numara uydurma.
+1) ÖĞRETMEN bakışı (sınav türü/seviyesi: ${input.examLabel?.trim() || "genel"}):
+- Bu sınavda ne sorulması olası?
+- Her ünite ve konu için examWeight: "high" | "medium" | "low".
+- Her konu için likelyAsked: 2–4 kısa madde (sinavda_sorulabilecekler).
 
-JSON şeması: {"units":[{"title":string,"topics":[{"title":string,"description":string,"pageStart":number,"pageEnd":number}]}]}
+2) ÖĞRENCİ bakışı:
+- Bu içeriği en iyi nasıl anlarım, hangi sırayla çalışırım?
+- Ünite/konu sırasını öğrenme sırasına koy (önkoşullar önce; kitap sırasından farklı olabilir).
+- Konuları öğrencinin çalışacağı gibi grupla.
+- Her konu için whyLearn: tek cümle (ne öğreneceğim / neden önemli).
+- Her konuya kısa id ver (ör. "t1") ve prerequisiteIds ile önceki konu id'lerini bağla.
+
+Ortak kurallar:
+- Kitabın/dosyaların kendi yapısını (içindekiler, bölüm başlıkları) dikkate al ama logolar, seri adları, sayfa üstbilgileri, soru numaraları, şıklar, OCR bozukluklarını konu yapma.
+- pageStart/pageEnd gerçek [s.N] işaretlerinden; 1–${input.maxPage} dışında numara uydurma.
+- "Diğer Konular" kovası EKLEME. Ünite 1–20, toplam konu ≤40.
+
+JSON: {"units":[{"title":string,"examWeight":"high|medium|low","topics":[{"id":string,"title":string,"whyLearn":string,"description":string,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[],"prerequisiteIds":string[]}]}]}
 
 Materyal:
 ${input.corpus}${repair}`;
 }
 
 const SCHEMA_HINT =
-  'JSON: {"units":[{"title":string,"topics":[{"title":string,"description":string,"pageStart":number,"pageEnd":number}]}]}. ' +
-  "1–20 ünite, toplam en fazla 40 konu. Diğer Konular yok. Sayfa aralıkları gerçek [s.N] işaretlerinden.";
+  'JSON: {"units":[{"title":string,"examWeight":"high|medium|low","topics":[{"id":string,"title":string,"whyLearn":string,"description":string,"pageStart":number,"pageEnd":number,"examWeight":"high|medium|low","likelyAsked":string[2-4],"prerequisiteIds":string[]}]}]}. ' +
+  "Öğretmen+öğrenci bakışı birlikte. 1–20 ünite, ≤40 konu. Diğer Konular yok. Öğrenme sırası (önkoşul önce).";
 
 async function callOutlineModel(input: {
   service: SupabaseClient;

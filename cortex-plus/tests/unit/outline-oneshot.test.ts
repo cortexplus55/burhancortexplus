@@ -63,7 +63,7 @@ describe("buildMaterialCorpus / splitCorpusForContext", () => {
 
 describe("validateOneShotOutline", () => {
   it("accepts a clean outline and expands page ranges", () => {
-    const draft: OneShotOutlineDraft = {
+    const draft = {
       units: [
         {
           title: "Yasama",
@@ -77,7 +77,7 @@ describe("validateOneShotOutline", () => {
           ],
         },
       ],
-    };
+    } as OneShotOutlineDraft;
     const result = validateOneShotOutline(draft, 100);
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -86,7 +86,7 @@ describe("validateOneShotOutline", () => {
   });
 
   it("rejects Diğer Konular, bad pages, and >40 topics", () => {
-    const draft: OneShotOutlineDraft = {
+    const draft = {
       units: [
         {
           title: "Diğer Konular",
@@ -102,13 +102,13 @@ describe("validateOneShotOutline", () => {
           })),
         },
       ],
-    };
+    } as OneShotOutlineDraft;
     const result = validateOneShotOutline(draft, 10);
     expect(result.ok).toBe(false);
   });
 
   it("rejects page ranges outside the book", () => {
-    const draft: OneShotOutlineDraft = {
+    const draft = {
       units: [
         {
           title: "Unit",
@@ -117,7 +117,7 @@ describe("validateOneShotOutline", () => {
           ],
         },
       ],
-    };
+    } as OneShotOutlineDraft;
     const result = validateOneShotOutline(draft, 20);
     expect(result.ok).toBe(false);
   });
@@ -128,18 +128,35 @@ describe("buildOutlineOneShot", () => {
     mockedGenerate.mockReset();
   });
 
-  it("uses a single model call for short material", async () => {
+  it("uses a single model call for short material with teacher+student fields", async () => {
     mockedGenerate.mockImplementation(async (params) => {
+      expect(String(params.userPrompt)).toMatch(/ÖĞRETMEN|öğretmen|examWeight|likelyAsked/i);
       const data = params.parse({
         units: [
           {
             title: "Temel Kavramlar",
+            examWeight: "high",
             topics: [
               {
+                id: "t1",
                 title: "Hukukun Kaynakları",
+                whyLearn: "Kaynak türlerini ayırt edebileceksin.",
                 description: "Kaynaklar",
                 pageStart: 1,
                 pageEnd: 2,
+                examWeight: "high",
+                likelyAsked: ["Yazılı kaynaklar", "Örf ve âdet"],
+                prerequisiteIds: [],
+              },
+              {
+                id: "t2",
+                title: "Hak Ehliyeti",
+                whyLearn: "Hak ehliyeti ile fiil ehliyetini ayıracaksın.",
+                pageStart: 2,
+                pageEnd: 2,
+                examWeight: "medium",
+                likelyAsked: ["Tam ehliyet", "Sınırlı ehliyet"],
+                prerequisiteIds: ["t1"],
               },
             ],
           },
@@ -150,7 +167,7 @@ describe("buildOutlineOneShot", () => {
 
     const pages = [
       page(1, "Hukukun kaynakları anlatılır.", ["Hukukun Kaynakları"]),
-      page(2, "Devam.", ["Hukukun Kaynakları"]),
+      page(2, "Hak ehliyeti anlatılır.", ["Hak Ehliyeti"]),
     ];
     const result = await buildOutlineOneShot({
       service: {} as never,
@@ -162,12 +179,18 @@ describe("buildOutlineOneShot", () => {
         },
       ],
       pagesForFallback: pages,
+      examLabel: "KPSS",
       allowModel: true,
     });
     expect(result.fromModel).toBe(true);
     expect(result.path).toBe("single");
     expect(result.units).toHaveLength(1);
-    expect(result.units[0]!.title).toBe("Temel Kavramlar");
+    expect(result.units[0]!.examWeight).toBe("high");
+    const topics = result.units[0]!.topics;
+    expect(topics[0]!.examWeight).toBe("high");
+    expect(topics[0]!.likelyAsked).toEqual(["Yazılı kaynaklar", "Örf ve âdet"]);
+    expect(topics[0]!.whyLearn).toMatch(/Kaynak/);
+    expect(topics[1]!.prerequisiteTitles).toContain("Hukukun Kaynakları");
     expect(mockedGenerate).toHaveBeenCalledTimes(1);
   });
 

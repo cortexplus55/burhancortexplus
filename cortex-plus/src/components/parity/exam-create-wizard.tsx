@@ -92,6 +92,8 @@ type TopicMeta = {
   examHeavy: boolean;
   important: boolean;
   sections: string[];
+  /** Short student-facing why/what line from oneshot outline. */
+  description?: string | null;
   unitTitle?: string | null;
 };
 
@@ -130,7 +132,13 @@ function dropUnitIndex(units: TopicUnit[], removed: number): TopicUnit[] {
 type ExcludedNote = { title: string; reason: string };
 type MissingTopic = { title: string; weightPercent: number | null; examHeavy: boolean };
 
-const EMPTY_META: TopicMeta = { sourceCount: 0, examHeavy: false, important: false, sections: [] };
+const EMPTY_META: TopicMeta = {
+  sourceCount: 0,
+  examHeavy: false,
+  important: false,
+  sections: [],
+  description: null,
+};
 
 function formatSyllabusDate(iso: string): string {
   const [year, month, day] = iso.split("-");
@@ -627,6 +635,9 @@ export function ExamCreateWizard({
         const sections: unknown[] = Array.isArray(payload?.draft?.topicSections)
           ? payload.draft.topicSections
           : [];
+        const descriptions: unknown[] = Array.isArray(payload?.draft?.topicDescriptions)
+          ? payload.draft.topicDescriptions
+          : [];
         setTopicMeta(
           found.map((_, index) => ({
             sourceCount: typeof counts[index] === "number" ? counts[index] : 0,
@@ -635,6 +646,10 @@ export function ExamCreateWizard({
             sections: Array.isArray(sections[index])
               ? sections[index].filter((item: unknown) => typeof item === "string")
               : [],
+            description:
+              typeof descriptions[index] === "string" && descriptions[index].trim()
+                ? String(descriptions[index]).trim()
+                : null,
             unitTitle: unitTitleForIndex(units, index),
           })),
         );
@@ -1915,7 +1930,9 @@ function TopicEditor({
           {meta.important && !meta.examHeavy ? (
             <em className="apw-topic-important">{WIZARD_COPY.important}</em>
           ) : null}
-          {meta.sections.length ? <em>{meta.sections.join(" · ")}</em> : null}
+          {meta.description ? (
+            <em className="apw-topic-desc">{meta.description}</em>
+          ) : null}
           {topicWarnings[index] ? (
             <em className="apw-topic-warning">{topicWarnings[index]}</em>
           ) : null}

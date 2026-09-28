@@ -34,12 +34,27 @@ export type CleanOutlineResult = {
   furniture: FurnitureDetection;
 };
 
+export type OutlineExamWeight = "high" | "medium" | "low";
+
 export type OutlineUnitDraft = {
   title: string;
+  examWeight?: OutlineExamWeight;
   topics: {
+    /** Local id within the outline (for prerequisite refs). */
+    id?: string;
     title: string;
     sourceTitles: string[];
     pageNumbers: number[];
+    /** Short student-facing description / why-learn. */
+    description?: string;
+    whyLearn?: string;
+    examWeight?: OutlineExamWeight;
+    /** Teacher: 2–4 likely exam points. */
+    likelyAsked?: string[];
+    /** Local topic ids that should be studied first. */
+    prerequisiteIds?: string[];
+    /** Resolved prerequisite titles (after validation). */
+    prerequisiteTitles?: string[];
   }[];
 };
 
@@ -1078,13 +1093,25 @@ export function validateOutlineLlmResult(input: {
   return issues.length ? { ok: false, issues } : { ok: true };
 }
 
+export type OutlineLeafTopic = {
+  title: string;
+  pageNumbers: number[];
+  unitTitle: string;
+  description?: string;
+  whyLearn?: string;
+  examWeight?: OutlineExamWeight;
+  unitExamWeight?: OutlineExamWeight;
+  likelyAsked?: string[];
+  prerequisiteTitles?: string[];
+};
+
 /** Build hierarchical units from a validated outline draft. */
 export function flattenOutlineUnits(
   draft: OutlineUnitDraft[],
   language?: "tr" | "en" | "unknown",
 ): {
-  units: { title: string; topics: { title: string; pageNumbers: number[]; sourceTitles: string[] }[] }[];
-  leafTopics: { title: string; pageNumbers: number[]; unitTitle: string }[];
+  units: OutlineUnitDraft[];
+  leafTopics: OutlineLeafTopic[];
 } {
   const lang =
     language ??
@@ -1092,8 +1119,10 @@ export function flattenOutlineUnits(
       draft.flatMap((u) => [u.title, ...u.topics.map((t) => t.title)]).join("\n"),
     );
   const units = draft.map((unit) => ({
+    ...unit,
     title: titleCaseForLanguage(unit.title, lang),
     topics: unit.topics.map((topic) => ({
+      ...topic,
       title: titleCaseForLanguage(topic.title, lang),
       pageNumbers: [...new Set(topic.pageNumbers)].sort((a, b) => a - b),
       sourceTitles: topic.sourceTitles,
@@ -1104,6 +1133,12 @@ export function flattenOutlineUnits(
       title: topic.title,
       pageNumbers: topic.pageNumbers,
       unitTitle: unit.title,
+      description: topic.description,
+      whyLearn: topic.whyLearn ?? topic.description,
+      examWeight: topic.examWeight,
+      unitExamWeight: unit.examWeight,
+      likelyAsked: topic.likelyAsked,
+      prerequisiteTitles: topic.prerequisiteTitles,
     })),
   );
   return { units, leafTopics };
