@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { z } from "zod";
 
 export type PaytrTokenInput = {
   merchantOid: string;
@@ -250,6 +251,182 @@ export async function requestPaytrRefund(
     ok: false,
     status: status || "error",
     errMsg: errMsg || "PayTR iade reddedildi.",
+    raw,
+  };
+}
+
+/**
+ * Durum Sorgu yanıtındaki iade satırı (dev.paytr.com/durum-sorgu örnekleri).
+ * Alan adları dokümanda tutarsız: mağaza örneğinde return_amount/return_date,
+ * pazaryeri tablosunda reference_no ayrı listeleniyor. Emin olunamayanlar opsiyonel.
+ */
+const paytrReturnItemSchema = z
+  .object({
+    return_amount: z.union([z.string(), z.number()]).optional(),
+    amount: z.union([z.string(), z.number()]).optional(),
+    return_date: z.union([z.string(), z.number()]).optional(),
+    date: z.union([z.string(), z.number()]).optional(),
+    return_type: z.union([z.string(), z.number()]).optional(),
+    type: z.union([z.string(), z.number()]).optional(),
+    date_completed: z.union([z.string(), z.number()]).optional(),
+    return_auth_code: z.union([z.string(), z.number()]).optional(),
+    return_ref_num: z.union([z.string(), z.number()]).optional(),
+    reference_no: z.union([z.string(), z.number()]).optional(),
+    return_source: z.union([z.string(), z.number()]).optional(),
+  })
+  .passthrough();
+
+const paytrStatusSchema = z
+  .object({
+    status: z.string(),
+    payment_amount: z.union([z.string(), z.number()]).optional(),
+    payment_total: z.union([z.string(), z.number()]).optional(),
+    payment_date: z.union([z.string(), z.number()]).optional(),
+    currency: z.string().optional(),
+    returns: z.array(paytrReturnItemSchema).optional().nullable(),
+    err_no: z.union([z.string(), z.number()]).optional(),
+    err_msg: z.string().optional(),
+  })
+  .passthrough();
+
+export type PaytrStatusReturn = {
+  returnAmountTry: number;
+  returnDate?: string;
+  referenceNo?: string;
+  raw: Record<string, unknown>;
+};
+
+export type PaytrStatusResult = {
+  ok: boolean;
+  status: string;
+  errMsg?: string;
+  paymentAmount?: string;
+  paymentTotal?: string;
+  currency?: string;
+  returns: PaytrStatusReturn[];
+  raw: unknown;
+};
+
+/** TL string/number → kuruş. "10,8" / "10.80" / 10.8 kabul. */
+export function parsePaytrTryToKurus(value: string | number | undefined): number {
+  if (value == null) return 0;
+  const normalized = String(value).trim().replace(/\s/g, "").replace(",", ".");
+  const n = Number(normalized);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.round(n * 100);
+}
+
+export function buildPaytrStatusToken(merchantOid: string): string {
+  const config = paytrConfig();
+  return Buffer.from(
+    crypto
+      .createHmac("sha256", config.merchantKey)
+      .update(config.merchantId + merchantOid + config.merchantSalt)
+      .digest(),
+  ).toString("base64");
+}
+
+/**
+ * PayTR Durum Sorgu.
+ *
+ * Token: Base64(HMAC-SHA256(merchant_id + merchant_oid + merchant_salt, merchant_key)).
+ * POST https://www.paytr.com/odeme/durum-sorgu
+ *
+ * returns[] alan adları: dokümandaki PHP örneği return_amount / return_date /
+ * reference_no kullanıyor. C# örneği Amount/Date/RefNum diyor — parse sırasında
+ * her iki biçim de opsiyonel okunuyor; doğrulanamayan alan uydurulmuyor.
+ */
+export async function queryPaytrStatus(
+  merchantOid: string,
+): Promise<PaytrStatusResult> {
+  if (!isPaytrConfigured()) {
+    return {
+      ok: false,
+      status: "error",
+      errMsg: "PayTR yapılandırılmamış (merchant kimlik bilgileri eksik).",
+      returns: [],
+      raw: null,
+    };
+  }
+
+  const config = paytrConfig();
+  const paytrToken = buildPaytrStatusToken(merchantOid);
+
+  const body = new URLSearchParams({
+    merchant_id: config.merchantId,
+    merchant_oid: merchantOid,
+    paytr_token: paytrToken,
+  });
+
+  let raw: unknown = null;
+  try {
+    const response = await fetch("https://www.paytr.com/odeme/durum-sorgu", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    const text = await response.text();
+    try {
+      raw = JSON.parse(text);
+    } catch {
+      raw = { nonJson: text, httpStatus: response.status };
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      status: "error",
+      errMsg:
+        error instanceof Error
+          ? `PayTR durum sorgu başarısız: ${error.message}`
+          : "PayTR durum sorgu başarısız.",
+      returns: [],
+      raw: null,
+    };
+  }
+
+  const parsed = paytrStatusSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      status: "error",
+      errMsg: "PayTR durum sorgu yanıtı çözümlenemedi.",
+      returns: [],
+      raw,
+    };
+  }
+
+  const data = parsed.data;
+  if (data.status !== "success") {
+    return {
+      ok: false,
+      status: data.status || "error",
+      errMsg: data.err_msg || "PayTR durum sorgu reddedildi.",
+      returns: [],
+      raw,
+    };
+  }
+
+  const returns: PaytrStatusReturn[] = (data.returns ?? []).map((item) => {
+    const amountRaw = item.return_amount ?? item.amount;
+    const dateRaw = item.return_date ?? item.date;
+    const refRaw = item.reference_no ?? item.return_ref_num;
+    return {
+      returnAmountTry: parsePaytrTryToKurus(amountRaw) / 100,
+      returnDate: dateRaw != null ? String(dateRaw) : undefined,
+      referenceNo: refRaw != null && String(refRaw).trim() ? String(refRaw) : undefined,
+      raw: item as Record<string, unknown>,
+    };
+  });
+
+  return {
+    ok: true,
+    status: "success",
+    paymentAmount:
+      data.payment_amount != null ? String(data.payment_amount) : undefined,
+    paymentTotal:
+      data.payment_total != null ? String(data.payment_total) : undefined,
+    currency: data.currency,
+    returns,
     raw,
   };
 }

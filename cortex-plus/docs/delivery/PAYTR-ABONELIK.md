@@ -158,3 +158,31 @@ Kademeyi ayıran şey kota: `plans.monthly_allowance` (Plus 400, Sigma 1600).
 `credit_reserve()` dönem yenilerken bu değeri okur. Önceden her premium
 kullanıcı 400 alıyordu, yani Sigma kartındaki "daha yüksek aylık kullanım
 hakkı" kodda karşılığı olmayan bir sözdü.
+
+## İade
+
+PayTR iade için ayrı bir callback göndermez. İade üç yoldan deftere işlenir:
+
+1. **Admin → Ödemeler → İade et** — uygulamadan PayTR iade API'sine istek
+   atar, başarılıysa krediyi / aboneliği geri alır.
+2. **PayTR'de yapıldı, kaydet** — iade PayTR panelinden zaten yapılmışsa,
+   uygulamayı tekrar PayTR'ye göndermeden deftere yazar (test modunda iade
+   API'si çalışmıyorsa bu yol kullanılır).
+3. **PayTR'den kontrol et** — Durum Sorgu ile PayTR'deki `returns[]`
+   listesini çeker; her `reference_no` bir kez işlenir.
+
+### Harcanmış kredi
+
+Kredi paketi iade edilince geri alınacak tutar, satın alma anındaki
+ledger satırından (`pay_<sipariş>`) okunur. Bakiye **asla eksiye düşmez**:
+kullanıcı kredinin bir kısmını harcadıysa yalnızca kalanı alınır; harcanmış
+kısım admin önizlemesinde "geri alınamayan" olarak görünür.
+
+### Kısmi iade
+
+Kısmi iade orantılı kredi geri alır; Plus/Sigma planını **kapatmaz**.
+Ödeme satırı `paid` kalır, ekranda "Kısmi iade: X TL" yazılır. Tam iadede
+durum `refunded` olur. Abonelikte tam iade, kullanıcının **aktif**
+aboneliğini hedefler (plan yükseltmesinden sonra eski Plus ödemesi iade
+edilse bile); önceki ödenmiş dönem hâlâ sürüyorsa süre kısaltılır, yoksa
+abonelik iptal edilir ve dönem hakkı sıfırlanır.
