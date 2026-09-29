@@ -200,6 +200,27 @@ göremez — hepsi yeşildi.
 
 Bekçi test: `tests/unit/uat-gate-guards.test.ts` → "vercel.json cron kotası".
 
+## Ders kalitesi: model yazıyor, zincir siliyor olabilir — önce ölç
+
+**29 Eylül 2026'da belgesiz dersler hep "kurtarma" moduna düşüyordu**:
+1–3 bölüm, ders cümlesinin kopyası "hep doğru" sorular, çözümlü örnek yok.
+Model örneği, sayısal soruyu, formül kartını, şık gerekçesini **yazıyordu**;
+yayına giden zincir (normalize → kapı → onarım → öğretim denetimi) yolda
+siliyordu. Ayrıntı: #163, #165, #166, #167, #168.
+
+| Yapmayın | Yapın |
+|---|---|
+| Ders kötü diye istemi değiştirmek | Canlı `lesson_shape` kaydına bakın: `draft` ile `published` karşılaştırması neyin nerede düştüğünü söyler |
+| Kapıyı gevşetip bırakmak | Gevşeyen her kapıdan sonra cevap anahtarını **ekrandan çözerek** doğrulayın — #166 sonrası "(3⁴)² = 3¹²" anahtarı öğrenciye gitti, `exponent-key.ts` o yüzden var |
+| Dolgu soru üretip sonra onu "kopya" diye cezalandırmak | Doldurma (`ensureThreeChecks`) ile kapı (`teachingFailures`) aynı kuralı paylaşmalı |
+
+Taslak `gpt-4.1-mini`'den geliyor ve şemadan tutarlı biçimde sapıyor: örneği
+bölümün içine yazıyor, çözümü `steps`'e koyuyor, "… Özet" / "Bilgi Kontrolü: …"
+bölümleri açıyor, üssün üssünü `3²×³` diye yazıyor. Bunlar artık
+`normalizeLessonShape` ve `coerceLessonCosmetics` içinde karşılanıyor; yeni
+bir sapma görürseniz orada karşılayın, dersi düşürmeyin. Bekçi testler:
+`lesson-draft-drift.test.ts`, `lesson-rich-fields.test.ts`, `exponent-key.test.ts`.
+
 ## Fonksiyon bölgesi Frankfurt (`fra1`) — veritabanının yanı
 
 **29 Eylül 2026'ya kadar fonksiyonlar `iad1`'de (Washington) çalışıyordu;
