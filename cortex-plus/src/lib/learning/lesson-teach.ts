@@ -217,6 +217,26 @@ function stems(text: string): Set<string> {
   return out;
 }
 
+/**
+ * Başlık ile gövde aynı kökü paylaşıyor mu — Türkçe ek farkını tolere ederek.
+ * stems() ilk altı harfi alıyor: "İşlem Kuralları" ↔ "işlemleri" ("islem" /
+ * "isleml"), "Çarpma" ↔ "çarpılırken" ("carpma" / "carpil") eşleşmiyordu ve
+ * başlığına sadık bölüm "off_title" sayılıp dersi kurtarmaya sokuyordu.
+ * Dört harflik ortak baş yeter; yalnızca başlık denetiminde kullanılır.
+ */
+function affineStemCount(left: Set<string>, right: Set<string>): number {
+  let count = 0;
+  for (const a of left) {
+    for (const b of right) {
+      if (a.slice(0, 4) === b.slice(0, 4)) {
+        count += 1;
+        break;
+      }
+    }
+  }
+  return count;
+}
+
 function overlapCount(left: Set<string>, right: Set<string>): number {
   let count = 0;
   for (const item of left) if (right.has(item)) count += 1;
@@ -277,7 +297,7 @@ export function sectionMissesTitle(heading: string, body: string, topic: string,
     return true;
   }
   if (topic && topicTitlesAlign(heading, topic)) return false;
-  const shared = overlapCount(stems(heading), stems(body));
+  const shared = affineStemCount(stems(heading), stems(body));
   if (body.trim().length >= 40 && shared < 1 && !bodyGroundedInSource(body, source)) return true;
   return false;
 }
@@ -1448,15 +1468,18 @@ function sourceBackedBody(heading: string, topic: string, source: string): strin
 }
 
 /**
- * Ders cümlesinin kopyası olan soru öğretim kapısından ÖNCE çıkar.
- *
- * Kopya soru çoğunlukla dolgudan geliyor: repairLearnerLesson üç soruya
- * tamamlarken ders cümlesinden doğru/yanlış kuruyor (conceptCheck), kapı
- * da onu kritik `echo_check` sayıp bütün dersi kurtarmaya sokuyordu.
- * Kurtarma örneği, sık hatayı ve bölümleri de götürüyordu. Soruyu atmak
- * yeter; bölüm kalır. Geriye gerçek soru kalmayacaksa dokunulmaz —
- * onarım ya da kurtarma o durumu ele alır, ders sorusuz açılmaz.
+ * Onarım modeli şemadaki boş alanı "null" diye metne yazabiliyor: canlı
+ * zincirde gövdeye "Sonuç = 3³ + 3² = null." eklendi. Böyle cümle yanlıştır.
  */
+function leakedPlaceholder(text: string): boolean {
+  return /(?:^|[\s=:(])(?:null|undefined|NaN)(?=$|[\s.,;:)])/.test(text);
+}
+
+/** Yanlış hesap ya da sızmış boş değer taşıyan metin. */
+function wrongProse(text: string): boolean {
+  return exponentProseWrong(text) || leakedPlaceholder(text);
+}
+
 /**
  * Cevap anahtarı hesapla çelişen soru yayından önce son kez çıkar.
  * Kapıdan sonra da soru ekleniyor (öğretim onarımının yaması, dolgu);
@@ -1465,17 +1488,18 @@ function sourceBackedBody(heading: string, topic: string, source: string): strin
 function withoutWrongKeys(lesson: LessonV2): LessonV2 {
   const wrongCheck = (check: NonNullable<LessonV2["sections"][number]["check"]>) =>
     exponentKeyWrong(check) === true ||
-    exponentProseWrong(check.explanation) ||
+    wrongProse(check.explanation) ||
+    leakedPlaceholder(check.prompt) ||
     (check.optionWhy ?? []).some((line, index) => index === check.answerIndex && exponentProseWrong(line));
   const sections = lesson.sections.flatMap((section) => {
     let next = section;
     if (next.check && wrongCheck(next.check)) next = withoutCheck(next);
-    if (next.note && exponentProseWrong(next.note.body)) next = withoutNote(next);
-    if (exponentProseWrong(next.body)) {
+    if (next.note && wrongProse(next.note.body)) next = withoutNote(next);
+    if (wrongProse(next.body)) {
       // Yanlış eşitliği taşıyan cümle çıkar; bölüm boşalırsa bölüm gider.
       const body = next.body
         .split(/(?<=[.!?])\s+/)
-        .filter((sentence) => !exponentProseWrong(sentence))
+        .filter((sentence) => !wrongProse(sentence))
         .join(" ")
         .trim();
       if (body.length < 20) return [];
@@ -1486,19 +1510,36 @@ function withoutWrongKeys(lesson: LessonV2): LessonV2 {
   const next: LessonV2 = { ...lesson, sections: sections.length ? sections : lesson.sections };
   // Sık hata kartının "doğrusu" satırı yanlış hesap öğretiyorsa kart gider:
   // canlıda "(3²)⁴ = 3²ˣ⁴ = 3¹²" diye çıktı.
-  if (next.commonMistake && exponentProseWrong(next.commonMistake.correction)) delete next.commonMistake;
-  if (next.example && exponentProseWrong(`${next.example.prompt}\n${next.example.solution}`)) delete next.example;
+  if (next.commonMistake && wrongProse(next.commonMistake.correction)) delete next.commonMistake;
+  if (next.example && wrongProse(`${next.example.prompt}\n${next.example.solution}`)) delete next.example;
+  if (next.overview && leakedPlaceholder(next.overview)) delete next.overview;
   if (next.summary?.length) {
-    const summary = next.summary.filter((line) => !exponentProseWrong(line));
+    const summary = next.summary.filter((line) => !wrongProse(line));
     if (summary.length) next.summary = summary;
     else delete next.summary;
   }
   return next;
 }
 
+/**
+ * Ders cümlesinin kopyası ya da akıcılığı bozuk soru öğretim kapısından
+ * ÖNCE çıkar.
+ *
+ * Kopya soru çoğunlukla dolgudan geliyor: repairLearnerLesson üç soruya
+ * tamamlarken ders cümlesinden doğru/yanlış kuruyor (conceptCheck), kapı
+ * da onu kritik `echo_check` sayıp bütün dersi kurtarmaya sokuyordu.
+ * Akıcılığı bozuk soru (ör. kapanmamış parantez) da bölümü `fluency` ile
+ * kritik yapıyordu. Kurtarma örneği, sık hatayı ve bölümleri de
+ * götürüyordu. Soruyu atmak yeter; bölüm kalır. Geriye gerçek soru
+ * kalmayacaksa dokunulmaz — onarım ya da kurtarma o durumu ele alır.
+ */
 function withoutEchoingChecks(lesson: LessonV2): LessonV2 {
   const echoing = lesson.sections.map((section) =>
-    Boolean(section.check && checkEchoes(section.check, lesson, section.body)),
+    Boolean(
+      section.check &&
+        (checkEchoes(section.check, lesson, section.body) ||
+          fluencyIssues(`${section.check.prompt} ${section.check.explanation}`).length),
+    ),
   );
   const survivors = lesson.sections.filter((section, index) => section.check && !echoing[index]).length;
   if (!echoing.some(Boolean) || survivors === 0) return lesson;

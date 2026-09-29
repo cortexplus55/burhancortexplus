@@ -88,6 +88,9 @@ function midSentenceCapital(text: string): boolean {
 }
 
 function hasPredicate(sentence: string): boolean {
+  // "… sonuç 1 olur (0⁰ hariç)." — sondaki parantez yüklemin yerini almaz.
+  const unwrapped = sentence.replace(/\s*\([^()]*\)\s*([.!?…]*)\s*$/, "$1");
+  if (unwrapped !== sentence && unwrapped.trim()) return hasPredicate(unwrapped);
   if (sentence.split(/\s+/).length < 6) return true;
   if (/kaynak\s*:/i.test(sentence) || /=/.test(sentence)) return true;
   const last = foldTr(sentence)
@@ -356,6 +359,10 @@ export function dativeStem(word: string): string | null {
     if (candidate.length >= 4 && VOWELS.includes(candidate.at(-1) ?? "")) stem = candidate;
   } else if (/(a|e)$/.test(w)) {
     const candidate = w.slice(0, -1);
+    // Araç eki: "kendisiyle", "formülle", "denklemle" — "l" ünsüzden ya da
+    // "y"den sonra gelir. Yönelme ("masala", "formüle") böyle bitmez. Burası
+    // "bir sayının kendisiyle" ifadesini "kendisiyli" yapıyordu (29 Eylül).
+    if (/[^aeıioöuü]l$/.test(candidate)) return null;
     if (candidate.length >= 4 && !VOWELS.includes(candidate.at(-1) ?? "")) stem = candidate;
   }
   return stem;
