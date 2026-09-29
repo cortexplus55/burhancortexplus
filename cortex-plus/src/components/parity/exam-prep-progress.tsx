@@ -34,38 +34,38 @@ export function ExamPrepProgress({
   const maxWeek = Math.max(1, ...view.tempo.weeks.map((week) => week.activities));
 
   return (
-    <section className="cp-pp" aria-label="İlerleme">
-      <div className="cp-pp-card">
-        <div className="cp-pp-head">
+    <section className="cp-prog" aria-label="İlerleme">
+      <div className="cp-prog-card">
+        <div className="cp-prog-head">
           <div>
-            <p className="cp-pp-kicker">Hazırlık puanı</p>
-            <p className="cp-pp-score">
+            <p className="cp-prog-kicker">Hazırlık puanı</p>
+            <p className="cp-prog-score">
               <strong>{view.scorePct}</strong>
               <span>%</span>
             </p>
           </div>
-          <div className="cp-pp-chips">
-            <span className="cp-pp-chip">
+          <div className="cp-prog-chips">
+            <span className="cp-prog-chip">
               {view.weekActivities > 0
                 ? `bu hafta ${view.weekActivities} etkinlik`
                 : "bu hafta değişiklik yok"}
             </span>
-            <span className="cp-pp-chip cp-pp-chip--muted">hedef %{view.targetPct}</span>
-            {daysLabel ? <span className="cp-pp-chip cp-pp-chip--muted">{daysLabel}</span> : null}
+            <span className="cp-prog-chip cp-prog-chip--muted">hedef %{view.targetPct}</span>
+            {daysLabel ? <span className="cp-prog-chip cp-prog-chip--muted">{daysLabel}</span> : null}
           </div>
         </div>
         <div
-          className="cp-pp-ticks"
+          className="cp-prog-ticks"
           role="img"
           aria-label={`Hazırlık puanı yüzde ${view.scorePct}, hedef yüzde ${view.targetPct}`}
         >
           {Array.from({ length: TICKS }, (_, index) => (
             <span key={index} className={cn(index < lit && "is-on")} />
           ))}
-          <span className="cp-pp-target" style={{ left: `${view.targetPct}%` }} aria-hidden />
+          <span className="cp-prog-target" style={{ left: `${view.targetPct}%` }} aria-hidden />
         </div>
-        <p className="cp-pp-basis">{view.scoreBasis}</p>
-        <div className="cp-pp-stats">
+        <p className="cp-prog-basis">{view.scoreBasis}</p>
+        <div className="cp-prog-stats">
           <div>
             <strong>
               {view.topicsAtTarget} / {view.topicCount}
@@ -102,8 +102,8 @@ export function ExamPrepProgress({
 
       {pane === "duzey" ? (
         <>
-          <div className="cp-pp-block">
-            <p className="cp-pp-kicker">Sınav günü için tahmin</p>
+          <div className="cp-prog-block">
+            <p className="cp-prog-kicker">Sınav günü için tahmin</p>
             {view.forecast.kind === "ready" ? (
               <>
                 <h3>%{view.forecast.pct}</h3>
@@ -117,12 +117,12 @@ export function ExamPrepProgress({
             )}
           </div>
 
-          <div className="cp-pp-block">
-            <p className="cp-pp-kicker">Bilgi eksikleri</p>
+          <div className="cp-prog-block">
+            <p className="cp-prog-kicker">Bilgi eksikleri</p>
             {view.gaps.length ? (
               <>
                 <h3>{view.gaps.length} eksik belirlendi</h3>
-                <ul className="cp-pp-gaps">
+                <ul className="cp-prog-gaps">
                   {view.gaps.map((gap, index) => (
                     <li key={`${gap.claim}-${index}`}>
                       {gap.topicLabel ? <span>{gap.topicLabel}</span> : null}
@@ -144,24 +144,24 @@ export function ExamPrepProgress({
             )}
           </div>
 
-          <div className="cp-pp-block">
-            <p className="cp-pp-kicker">Konular ve dersler</p>
+          <div className="cp-prog-block">
+            <p className="cp-prog-kicker">Konular ve dersler</p>
             <h3>
               {view.topicCount} konudan {view.topicsAtTarget} tanesi hedefte
             </h3>
             {view.topics.length ? (
-              <ul className="cp-pp-topics" aria-label={PREP_HOME_COPY.skillTree}>
+              <ul className="cp-prog-topics" aria-label={PREP_HOME_COPY.skillTree}>
                 {view.topics.map((topic) => (
                   <li key={topic.label}>
-                    <div className="cp-pp-topic-row">
+                    <div className="cp-prog-topic-row">
                       <strong>{topic.label}</strong>
                       <span>%{topic.pct}</span>
                     </div>
-                    <div className="cp-pp-topic-bar" aria-hidden>
+                    <div className="cp-prog-topic-bar" aria-hidden>
                       <span style={{ width: `${topic.pct}%` }} />
                       <i style={{ left: `${view.targetPct}%` }} />
                     </div>
-                    <p className="cp-pp-topic-meta">
+                    <p className="cp-prog-topic-meta">
                       {topic.lessons > 0
                         ? `${topic.solved} çözüldü · ${topic.lessons} ders`
                         : "henüz ders yok"}
@@ -171,7 +171,7 @@ export function ExamPrepProgress({
                     ) : null}
                     <button
                       type="button"
-                      className="cp-pp-topic-create"
+                      className="cp-prog-topic-create"
                       onClick={() => onCreate(topic.label)}
                     >
                       {topic.label} için ders oluştur
@@ -185,12 +185,12 @@ export function ExamPrepProgress({
           </div>
 
           {view.weeks.rows.length ? (
-            <div className="cp-pp-block">
-              <p className="cp-pp-kicker">Haftalara göre konular</p>
+            <div className="cp-prog-block">
+              <p className="cp-prog-kicker">Haftalara göre konular</p>
               <h3>Hangi konulara tekrar tekrar döndüğünü gör</h3>
               <p>Son 5 haftada konu başına biten etkinlik</p>
-              <div className="cp-pp-table-wrap">
-                <table className="cp-pp-table">
+              <div className="cp-prog-table-wrap">
+                <table className="cp-prog-table">
                   <thead>
                     <tr>
                       <th scope="col">Konu</th>
@@ -223,10 +223,10 @@ export function ExamPrepProgress({
       ) : null}
 
       {pane === "denemeler" ? (
-        <div className="cp-pp-block">
-          <p className="cp-pp-kicker">Denemeler</p>
+        <div className="cp-prog-block">
+          <p className="cp-prog-kicker">Denemeler</p>
           {view.mocks.length ? (
-            <ul className="cp-pp-mocks">
+            <ul className="cp-prog-mocks">
               {view.mocks.map((mock) => (
                 <li key={`${mock.title}-${mock.date}`}>
                   <span>
@@ -258,8 +258,8 @@ export function ExamPrepProgress({
       ) : null}
 
       {pane === "tempo" ? (
-        <div className="cp-pp-block">
-          <p className="cp-pp-kicker">Tempo</p>
+        <div className="cp-prog-block">
+          <p className="cp-prog-kicker">Tempo</p>
           <h3>
             {view.tempo.thisWeekMinutes > 0
               ? `Bu hafta yaklaşık ${view.tempo.thisWeekMinutes} dk`
@@ -270,10 +270,10 @@ export function ExamPrepProgress({
               ? `Günlük hedefin ${view.tempo.dailyGoalMinutes} dk.`
               : "Günlük hedefini hazırlık ayarlarından belirleyebilirsin."}
           </p>
-          <ul className="cp-pp-tempo" aria-label="Son 5 haftada biten etkinlik">
+          <ul className="cp-prog-tempo" aria-label="Son 5 haftada biten etkinlik">
             {view.tempo.weeks.map((week) => (
               <li key={week.label}>
-                <span className="cp-pp-tempo-bar" aria-hidden>
+                <span className="cp-prog-tempo-bar" aria-hidden>
                   <span style={{ height: `${Math.round((week.activities / maxWeek) * 100)}%` }} />
                 </span>
                 <strong>{week.activities}</strong>
