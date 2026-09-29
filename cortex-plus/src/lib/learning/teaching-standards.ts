@@ -1139,18 +1139,101 @@ function normalizeCheckType(value: unknown, options: string[]): "mcq" | "trueFal
   return "mcq";
 }
 
+/**
+ * Kontrolün öğreten alanları: şık gerekçesi, ipucu, yanılgı adı.
+ *
+ * 25 Eylül'den (#88) 29 Eylül'e kadar bu fonksiyon yalnızca type, prompt,
+ * options, answerIndex ve explanation'ı taşıyordu. Model bu alanları
+ * yazıyor, ekran da gösteriyordu; ikisinin arasında siliniyorlardı.
+ * Öğrenci yanlış şıkkı seçtiğinde "neden yanlış" yerine yalnızca genel
+ * açıklamayı görüyordu. Şema alanları tek tek `.catch` ile düşürür; burada
+ * yalnızca uzunluk kırpılır ki tek bir taşkın alan bütün kontrolü götürmesin.
+ */
+function checkTeachingFields(
+  named: Record<string, unknown>,
+  optionCount: number,
+  optionsIntact: boolean,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const whyRight = clipText(named.whyRight, 300);
+  const whyWrong = clipText(named.whyWrong, 300);
+  const misconception = clipText(named.misconception, 140);
+  const hint = clipText(named.hint, 200);
+  if (whyRight) out.whyRight = whyRight;
+  if (whyWrong) out.whyWrong = whyWrong;
+  if (misconception) out.misconception = misconception;
+  if (hint) out.hint = hint;
+  // Gerekçe şıkla sırayla eşleşir. Boş şık elendiyse sıra kaymıştır;
+  // yanlış şıkka yanlış gerekçe göstermektense hiç gösterme.
+  if (
+    optionsIntact &&
+    Array.isArray(named.optionWhy) &&
+    named.optionWhy.length === optionCount &&
+    named.optionWhy.every((reason) => typeof reason === "string")
+  ) {
+    out.optionWhy = (named.optionWhy as string[]).map((reason) => reason.trim().slice(0, 200));
+  }
+  return out;
+}
+
+/** Şıksız kontrol türleri: sayısal cevap ve "kendi cümlelerinle". */
+function normalizeOpenCheck(
+  named: Record<string, unknown>,
+  prompt: string,
+): Record<string, unknown> | undefined {
+  const kind = foldTr(String(named.type ?? "")).replace(/[^a-z]/g, "");
+  const explanation = clipText(named.explanation, 600) ?? "";
+  if (kind === "numerical") {
+    const answer = clipText(named.answer, 80);
+    // 80 karakteri aşan "sayısal cevap" bir sayı değil, bir açıklamadır.
+    if (!answer || String(named.answer).trim().length > 80) return undefined;
+    return { type: "numerical", prompt, answer, explanation, ...checkTeachingFields(named, 0, false) };
+  }
+  if (kind === "explain") {
+    const points = Array.isArray(named.expectedPoints)
+      ? named.expectedPoints
+          .map((point) => (typeof point === "string" ? point.trim().slice(0, 200) : ""))
+          .filter((point) => point.length >= 2)
+          .slice(0, 4)
+      : [];
+    if (!points.length) return undefined;
+    return {
+      type: "explain",
+      prompt,
+      expectedPoints: points,
+      explanation,
+      ...checkTeachingFields(named, 0, false),
+    };
+  }
+  return undefined;
+}
+
 function normalizeCheck(value: unknown): Record<string, unknown> | undefined {
   const row = asLessonRecord(value);
   if (!row) return undefined;
   const named = renameFields(row, PAIR_KEY_ALIASES);
   const prompt = clipText(named.prompt ?? named.text, 400);
   if (!prompt || prompt.length < 8) return undefined;
-  let options = Array.isArray(named.options)
-    ? named.options
-        .map((option) => (typeof option === "string" ? option.trim().slice(0, 200) : ""))
-        .filter((option) => option.length >= 1)
-    : [];
-  let answerIndex = typeof named.answerIndex === "number" ? named.answerIndex : undefined;
+  const rawOptions = Array.isArray(named.options) ? named.options : [];
+  if (rawOptions.length < 2) {
+    const open = normalizeOpenCheck(named, prompt);
+    if (open) return open;
+  }
+  const cleaned = rawOptions.map((option) =>
+    typeof option === "string" ? option.trim().slice(0, 200) : "",
+  );
+  let options = cleaned.filter((option) => option.length >= 1);
+  const optionsIntact = options.length === rawOptions.length;
+  // Boş şık elenince answerIndex eski diziyi gösterir: ["6", "", "9", "8"]
+  // içinde 2 "9"du, elemeden sonra "8" olurdu — yanlış cevap anahtarı.
+  // Sırayı elenmiş diziye taşı; boş şıkkı gösteriyorsa kontrol düşer.
+  let answerIndex: number | undefined;
+  if (typeof named.answerIndex === "number") {
+    const picked = cleaned[named.answerIndex];
+    answerIndex = picked
+      ? cleaned.slice(0, named.answerIndex).filter((option) => option.length >= 1).length
+      : -1;
+  }
   const answer = named.answer;
   if (typeof answer === "string" && answer.trim()) {
     const folded = foldTr(answer);
@@ -1175,13 +1258,20 @@ function normalizeCheck(value: unknown): Record<string, unknown> | undefined {
     return undefined;
   }
   const explanation = clipText(named.explanation, 600) ?? "";
+  const faultyText = clipText(named.faultyText, 400);
+  const findError =
+    foldTr(String(named.type ?? "")).replace(/[^a-z]/g, "") === "finderror" &&
+    Boolean(faultyText && faultyText.length >= 8);
+  const kept = options.slice(0, 6);
   const check: Record<string, unknown> = {
-    type: normalizeCheckType(named.type, options),
+    type: findError ? "findError" : normalizeCheckType(named.type, options),
     prompt,
-    options: options.slice(0, 6),
+    options: kept,
     answerIndex,
     explanation,
+    ...checkTeachingFields(named, kept.length, optionsIntact && kept.length === options.length),
   };
+  if (findError) check.faultyText = faultyText;
   if (named.review != null) check.review = named.review;
   return check;
 }
@@ -1241,6 +1331,13 @@ function normalizeSection(value: unknown): Record<string, unknown> | undefined {
   if (named.note) section.note = named.note;
   if (named.cards) section.cards = named.cards;
   if (named.diagram) section.diagram = named.diagram;
+  // Formül kartı, adım listesi, tablo ve "önce dene" ders kuralında
+  // isteniyor (LESSON_TEACH_RULE) ve ekranda çiziliyor; bu satırlara kadar
+  // burada siliniyorlardı. Bozuk olanı şema tek başına düşürür.
+  // `source` bilerek taşınmıyor: künyeyi model değil attachCitations yazar.
+  for (const key of ["formula", "procedure", "table", "checkFirst"] as const) {
+    if (named[key] != null) section[key] = named[key];
+  }
   return section;
 }
 
@@ -1292,6 +1389,9 @@ export function normalizeLessonShape(raw: unknown): unknown {
     ...(overview ? { overview } : {}),
     sections,
   };
+  // Örneğin givens/steps yapısı bilerek taşınmıyor: ekran adımlar varken
+  // çözüm metnini gizliyor, sayı ve aritmetik denetimi ise yalnızca
+  // prompt/solution'a bakıyor. Denetlenmemiş adımı öğrenciye gösterme.
   if (example) lesson.example = example;
   if (commonMistake) lesson.commonMistake = commonMistake;
   if (infoCheck) lesson.infoCheck = infoCheck;

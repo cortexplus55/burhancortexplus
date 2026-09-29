@@ -196,14 +196,35 @@ function hasFinishedResult(text: string): boolean {
     if (/^\s*[/×*·+\-−]/.test(after)) continue;
     return true;
   }
+  // Matematikte sonuç çoğu zaman bir kesir ya da negatif sayıdır:
+  // `5⁻² = 1/25`, `(2/3)⁻² = 9/4`, `2 − 5 = −3`. Yukarıdaki kalıp `= 1`
+  // görüp ardından `/25` geldiği için onu yarım işlem sayıyordu.
+  for (const match of text.matchAll(/(?:=|≈)\s*[-−]?\d+(?:\s*\/\s*\d+)?(?![.,\d])/g)) {
+    const after = text.slice((match.index ?? 0) + match[0].length);
+    if (/^\s*[/×*·+\-−^]/.test(after)) continue;
+    return true;
+  }
   return false;
+}
+
+/**
+ * Birimsiz matematik: üs, kök, π, trigonometri, logaritma ya da kesir var
+ * ve hiçbir sayının yanında ölçü birimi yok. "Verilen" şartı fizik
+ * örnekleri için yazıldı (verilen = birimli nicelik). Üslü sayılar ya da
+ * trigonometri örneğinde birim olmaz; şart yüzünden bu konuların çözümlü
+ * örneği hiç yayına çıkmıyordu.
+ */
+function unitlessMathWork(text: string): boolean {
+  if (new RegExp(`\\d+(?:[.,]\\d+)?\\s*${MEASURE}(?![A-Za-zÇĞİÖŞÜçğıöşü])`).test(text)) return false;
+  return /[\^⁰¹²³⁴⁵⁶⁷⁸⁹⁻√π]|\b(?:sin|cos|tan|cot|log|ln)\b|\d\s*\/\s*\d/.test(text);
 }
 
 /** Verilen, yerine koyma ve sayısal sonuç yoksa hesap yarım kalmıştır. */
 export function exampleIsComplete(text: string): boolean {
   if (!text.trim() || placeholderWork(text)) return false;
   if (workedExampleNeedsFormula(text)) return false;
-  const given = new RegExp(`\\d+(?:[.,]\\d+)?\\s*${MEASURE}`, "i").test(text);
+  const given =
+    new RegExp(`\\d+(?:[.,]\\d+)?\\s*${MEASURE}`, "i").test(text) || unitlessMathWork(text);
   const substituted =
     /\d+(?:[.,]\d+)?(?:\s*[A-Za-z°µ/%³²·]+)?\s*[/×*·+\-−]\s*\d/.test(text) ||
     /\(\d+(?:[.,]\d+)?\s*[^)]+\)\s*\(/.test(text);
@@ -2479,10 +2500,23 @@ function promoteSectionExample(lesson: LessonV2, source: string): LessonV2 {
   return lesson;
 }
 
+/**
+ * Örneğin sorusu bir soru ya da bir görev olmalı. "q = 5 kJ bulunur."
+ * gibi sonucu söyleyen cümle soru kartında durmaz. Ama "7⁵ / 7³ işlemini
+ * yap." ya da "5⁻² ifadesinin değerini bulalım." bir görevdir — 29 Eylül'e
+ * kadar yalnızca soru işareti kabul ediliyordu ve belgesiz derslerin
+ * çözümlü örneği bu yüzden hiç yayına çıkmıyordu. Görev fiili emir ya da
+ * "-(y)alım/-(y)elim" ekiyle biter; "yapılır/bulunur" edilgen olduğu için
+ * eşleşmez.
+ */
+const TASK_VERB =
+  /(?:^|[^a-z])(?:bul|hesapla|yap|sadelestir|goster|yaz|coz|belirle|karsilastir|donustur|cevir|tamamla|incele|ifade et)(?:|in|iniz|un|unuz|alim|elim|yalim|yelim|yin|yiniz)\s*[.!]?\s*$/;
+
 function usablePrompt(prompt: string): string {
   const tidy = tidyJoins(prompt);
-  if (!/[?？]\s*$/.test(tidy)) return "";
-  return tidy;
+  if (/[?？]\s*$/.test(tidy)) return tidy;
+  if (TASK_VERB.test(foldTr(tidy))) return tidy;
+  return "";
 }
 
 function withCalculatedExample(lesson: LessonV2, source: string): LessonV2 {
@@ -2511,7 +2545,7 @@ function withCalculatedExample(lesson: LessonV2, source: string): LessonV2 {
   const asked = askedLhs(solution);
   const prompt =
     exampleQuestion(solution, context) || (asked ? `${asked} kaçtır?` : "") || usablePrompt(promptText);
-  if (!prompt || !prompt.endsWith("?")) {
+  if (!prompt || !usablePrompt(prompt)) {
     const next = { ...lesson };
     delete next.example;
     return next;

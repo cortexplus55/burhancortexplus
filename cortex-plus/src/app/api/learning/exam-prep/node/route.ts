@@ -1909,6 +1909,18 @@ function softenLearnerField(
   return { text: next.trim(), reasons };
 }
 
+/** Kayıt için dersin öğreten parçalarının sayımı; metin yok. */
+function lessonShapeLog(lesson: LessonV2) {
+  return {
+    sections: lesson.sections.length,
+    checks: lesson.sections.map((section) => section.check?.type ?? "-").join(","),
+    optionWhy: lesson.sections.filter((section) => section.check?.optionWhy?.length).length,
+    extras: lesson.sections.filter((section) => section.formula || section.procedure || section.table).length,
+    example: Boolean(lesson.example),
+    mistake: Boolean(lesson.commonMistake),
+  };
+}
+
 function stripLessonVerificationChrome(lesson: LessonV2): LessonV2 {
   const sections = lesson.sections.map((section) => {
     const next = {
@@ -2451,6 +2463,13 @@ async function generateNodePayload(input: {
           reviewMs,
           repairMs: Math.max(0, repairWallMs - verifyMs),
           verifyMs,
+        });
+        // Taslakta yazılan öğreten parçalar yayına kadar kalıyor mu? 29 Eylül'e
+        // kadar sayısal soru, örnek ve formül kartı yolda sessizce siliniyordu;
+        // bu satır bir daha olursa ilk bakışta görünsün diye duruyor.
+        console.error("lesson_shape", {
+          draft: lessonShapeLog(lesson),
+          published: lessonShapeLog(taughtLesson),
         });
         if (taught.salvaged || critical.length) {
           console.error("lesson_generation_salvaged", {
