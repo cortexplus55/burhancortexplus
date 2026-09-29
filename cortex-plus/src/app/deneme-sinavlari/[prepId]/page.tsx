@@ -348,7 +348,7 @@ export default async function ExamPrepDetailPage({
     : null;
 
   return (
-    <ParitySorShell {...shell}>
+    <ParitySorShell {...shell} chrome="focus" backHref="/deneme-sinavlari">
       <ExamPrepHome
         prepId={prep.id}
         title={prep.title ?? prep.exam_type}

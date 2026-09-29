@@ -91,7 +91,7 @@ export function fileProgressLine(
 export const PREP_HOME_COPY = {
   path: "Çalışma yolu",
   topics: "Konular",
-  materials: "Materyaller",
+  materials: "Kaynaklar",
   progress: "İlerleme",
   skillTree: "Beceri ağacı",
   allQuestions: "Tüm sorular",
