@@ -12,11 +12,19 @@ import { ExamCreateWizard } from "@/components/parity/exam-create-wizard";
 export function ExamCreateEntry({
   initialDocumentId = null,
   recentSubjects = [],
+  initialSubject = null,
+  initialPrompt = null,
 }: {
   initialDocumentId?: string | null;
   recentSubjects?: string[];
+  /** Katalog kartından gelen ders (Müfredatım / Resmî sınavlar). */
+  initialSubject?: string | null;
+  /** Katalog kartından gelen ilk mesaj; sohbetle kurulum açılır. */
+  initialPrompt?: string | null;
 }) {
-  const [mode, setMode] = useState<"wizard" | "chat">("wizard");
+  const [mode, setMode] = useState<"wizard" | "chat">(
+    initialPrompt && !initialDocumentId ? "chat" : "wizard",
+  );
 
   if (mode === "chat") {
     return (
@@ -31,6 +39,8 @@ export function ExamCreateEntry({
         <ExamCreateChat
           initialDocumentId={initialDocumentId}
           recentSubjects={recentSubjects}
+          initialSubject={initialSubject}
+          initialPrompt={initialPrompt}
         />
       </>
     );
