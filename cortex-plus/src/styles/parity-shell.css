@@ -8203,11 +8203,18 @@
 
 /* SHELL_THEME_CINEMATIC_PACK */
 
+/*
+  Açık tema: bu paket kabuğu koyu sabitlerle çiziyordu (üst çubuk
+  rgba(5,5,5,.72), kenarlık beyaz). Açık temada yazı koyuya dönünce üst
+  çubuktaki "Ana Sayfa / Çalış / Belgeler / Profil" koyu zeminde koyu yazı
+  olup okunmaz hâle geliyordu (29 Eylül 2026'da görüldü). Değerler tema
+  değişkenlerine bağlandı; koyu temada sonuç birebir aynı.
+*/
 .cp-sor-root {
   --cp-bg: var(--c-bg);
   --cp-surface: var(--c-surface-1);
   --cp-surface-2: var(--c-surface-2);
-  --cp-border: rgba(255, 255, 255, 0.08);
+  --cp-border: var(--c-border);
   --cp-gold: var(--c-brand);
   --cs-primary: var(--c-brand);
   --cs-primary-hover: var(--c-brand-hover);
@@ -8220,8 +8227,8 @@
 .cp-sor-top {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  background: rgba(5, 5, 5, 0.72);
-  border-bottom-color: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--c-bg) 72%, transparent);
+  border-bottom-color: var(--c-border);
 }
 
 .cp-sor-topnav-link--active,
@@ -8234,7 +8241,7 @@
 .cp-sor-panel,
 .cp-card-premium {
   border-color: rgba(232, 168, 56, 0.16);
-  background: rgba(18, 18, 20, 0.72);
+  background: color-mix(in srgb, var(--c-surface-1) 72%, transparent);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.03),
     0 18px 48px rgba(0, 0, 0, 0.35);
