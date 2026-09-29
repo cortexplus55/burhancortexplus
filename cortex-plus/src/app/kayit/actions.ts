@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { homePathForRole, isOptionalPhoneValid } from "@/lib/parity/signup";
 import { resolveFullName } from "@/lib/auth/resolve-full-name";
+import { consentMoment, recordSignupConsent, requestIp } from "@/lib/legal/record-consent";
 import { getParentLinkStatus } from "@/lib/parent/link-status";
 import {
   sendParentInviteEmail,
@@ -35,6 +36,7 @@ const payloadSchema = z.object({
   teacherBranch: z.string().max(80).optional(),
   teacherClassName: z.string().max(80).optional(),
   referralCode: z.string().max(16).optional(),
+  consentAcceptedAt: z.string().max(40).optional(),
 });
 
 export type CompleteSignupResult =
@@ -104,6 +106,23 @@ async function completeSignupInner(
 
   await syncPrimaryUserRole(user.id, "student");
 
+  // Sihirbaz kutu işaretlenmeden kaydı başlatmıyor; onay anı ya yükte ya
+  // (bağlantı başka tarayıcıda açıldıysa) hesap verisinde. İkisi de yoksa
+  // eski bir yük — onay uydurulmuyor, kaydedilmiyor. Yazılamazsa kayıt
+  // yine tamamlanır ama sebep loga düşer (recordSignupConsent).
+  const claimedConsent =
+    payload.consentAcceptedAt ??
+    (typeof user.user_metadata?.legal_consent_at === "string"
+      ? (user.user_metadata.legal_consent_at as string)
+      : undefined);
+  if (claimedConsent) {
+    await recordSignupConsent(createServiceClient(), {
+      userId: user.id,
+      acceptedAt: consentMoment(claimedConsent),
+      ip: await requestIp(),
+    });
+  }
+
   if (payload.learningGoal) {
     const { data: existingGoals } = await supabase
       .from("learning_goals")
@@ -143,6 +162,28 @@ async function completeSignupInner(
 }
 
 
+
+/**
+ * Doğrulama bağlantısı başka cihazda açılınca tamamlama sayfası sihirbaz
+ * yükünü bulamıyor ve öğrenciyi /onboarding'e gönderiyor; o sayfa profili
+ * tarayıcıdan yazıyor. Onay anı kayıtta hesap verisine de yazıldığı için
+ * (legal_consent_at) buradan kaydedilebiliyor. Onay yoksa uydurulmuyor.
+ */
+export async function recordConsentFromAccount(): Promise<{ ok: boolean }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false };
+  const claimed = user.user_metadata?.legal_consent_at;
+  if (typeof claimed !== "string") return { ok: false };
+  const result = await recordSignupConsent(createServiceClient(), {
+    userId: user.id,
+    acceptedAt: consentMoment(claimed),
+    ip: await requestIp(),
+  });
+  return { ok: result.ok };
+}
 
 async function createCodeLink(
   parentId: string,

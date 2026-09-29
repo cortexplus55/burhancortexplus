@@ -159,7 +159,7 @@ export function SignupWizard() {
       return;
     }
 
-    const payload = buildPayload();
+    const payload = { ...buildPayload(), consentAcceptedAt: new Date().toISOString() };
     setLoading(true);
     stashPayload(payload);
     if (entryPrompt) {
@@ -187,6 +187,9 @@ export function SignupWizard() {
           onboarding_done: "false",
           parent_relation: payload.parentRelation ?? "",
           phone: payload.parentPhone ?? "",
+          // Doğrulama bağlantısı başka tarayıcıda açılırsa localStorage'daki
+          // yük kaybolur; onay anı hesapta da dursun ki sunucu kaydedebilsin.
+          legal_consent_at: payload.consentAcceptedAt,
         },
       },
     });
@@ -227,7 +230,7 @@ export function SignupWizard() {
       toast.error("Devam etmek için sözleşmeleri onaylaman gerekiyor.");
       return;
     }
-    stashPayload(buildPayload());
+    stashPayload({ ...buildPayload(), consentAcceptedAt: new Date().toISOString() });
     const supabase = createClient();
     const { error } = await signInWithGoogle(
       supabase,

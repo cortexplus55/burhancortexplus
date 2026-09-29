@@ -85,6 +85,13 @@ export default function EmailDogrulaPage() {
           yeniden gönder. Gönderen genelde{" "}
           <span className="text-[var(--mk-text)]">cortexplus@cortexplus.app</span>.
         </p>
+        {/* Oturum PKCE ile açılıyor: anahtar kayıt olunan tarayıcıda. Başka
+            cihazda açılan bağlantı e-postayı yine doğrular ama oturum orada
+            açılmaz (bkz. lib/auth/link-failure.ts). */}
+        <p className="text-sm text-[var(--mk-muted)]">
+          Bağlantıyı kayıt olduğun cihazda ve tarayıcıda açarsan oturumun kendiliğinden açılır. Başka bir
+          cihazda açarsan e-postan yine doğrulanır; o cihazda bir kez giriş yapman yeterli.
+        </p>
 
         {isHotmailLike(email) ? (
           <div

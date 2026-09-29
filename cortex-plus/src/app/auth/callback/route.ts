@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { safeNextPath } from "@/lib/auth/safe-next-path";
+import { exchangeFailurePath, providerFailurePath } from "@/lib/auth/link-failure";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const next = safeNextPath(searchParams.get("next"));
 
-  // Sağlayıcı (Google) hata döndürdüyse kod hiç gelmiyor. Bu durum eskiden
-  // "doğrulama bağlantısının süresi doldu" sayfasına düşüyordu — Google
-  // onayını iptal eden öğrenci hiç almadığı bir e-postayı arıyordu.
-  if (searchParams.get("error")) {
-    return NextResponse.redirect(`${origin}/auth/auth-code-error?neden=saglayici`);
+  // Hata parametresi geldiyse kod yok. Süresi dolmuş e-posta bağlantısı ile
+  // Google hatası ayrı sayfalara gidiyor (bkz. lib/auth/link-failure.ts).
+  const providerFailure = providerFailurePath(searchParams);
+  if (providerFailure) {
+    return NextResponse.redirect(`${origin}${providerFailure}`);
   }
 
   if (code) {
@@ -20,6 +21,7 @@ export async function GET(request: Request) {
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`);
     }
+    return NextResponse.redirect(`${origin}${exchangeFailurePath(error, next)}`);
   }
 
   return NextResponse.redirect(`${origin}/auth/auth-code-error`);
