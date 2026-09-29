@@ -3,6 +3,8 @@
 .cp-plan-page {
   --cp-plan-gold: #f4ae0b;
   --cp-plan-gold-soft: rgba(244, 174, 11, 0.2);
+  /* Açık zeminde açık altın okunmuyor; koyu temada eski ton. */
+  --cp-plan-gold-text: #8f5710;
   --cp-plan-display: "DM Serif Display", Georgia, serif;
   position: relative;
   isolation: isolate;
@@ -124,7 +126,7 @@
   -webkit-backdrop-filter: blur(18px);
   padding: 1.05rem 1.15rem;
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 0 0 1px var(--c-border),
     0 20px 48px rgba(0, 0, 0, 0.35);
 }
 
@@ -173,7 +175,7 @@
 
 .cp-plan-stat {
   border-radius: 1.05rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--c-border);
   background: rgba(18, 18, 20, 0.55);
   padding: 0.8rem 0.85rem;
 }
@@ -211,7 +213,7 @@
   justify-content: center;
   gap: 0.2rem;
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--c-border);
   background: rgba(18, 18, 20, 0.5);
   color: var(--cp-muted, #a3a3a3);
 }
@@ -226,7 +228,7 @@
 .cp-plan-weekday strong {
   font-size: 0.95rem;
   font-weight: 800;
-  color: #fafafa;
+  color: var(--c-text);
 }
 
 .cp-plan-weekday.is-today {
@@ -263,7 +265,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.22rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--c-border);
   border-radius: 1rem;
   background: rgba(18, 18, 20, 0.45);
   color: var(--cp-muted, #a3a3a3);
@@ -272,14 +274,14 @@
 }
 
 .cp-plan-tab:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  color: #fafafa;
+  border-color: var(--c-border-strong);
+  color: var(--c-text);
 }
 
 .cp-plan-tab--on {
   border-color: rgba(244, 174, 11, 0.42);
   background: rgba(244, 174, 11, 0.1);
-  color: #fde68a;
+  color: var(--cp-plan-gold-text);
   box-shadow: 0 0 22px rgba(244, 174, 11, 0.1);
 }
 
@@ -301,7 +303,7 @@
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 0 0 1px var(--c-border),
     0 22px 56px rgba(0, 0, 0, 0.38);
 }
 
@@ -348,9 +350,9 @@
   height: 2.85rem;
   width: 100%;
   border-radius: 0.9rem;
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--c-border);
   background: rgba(8, 8, 10, 0.55);
-  color: #fafafa;
+  color: var(--c-text);
 }
 
 .cp-plan-compose input:focus,
@@ -435,7 +437,7 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #fde68a;
+  color: var(--cp-plan-gold-text);
 }
 
 .cp-plan-progress {
@@ -443,7 +445,7 @@
   margin-top: 0.9rem;
   overflow: hidden;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--c-text) 8%, transparent);
 }
 
 .cp-plan-progress > i {
@@ -479,7 +481,7 @@
 }
 
 .cp-plan-task:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--c-text) 4%, transparent);
 }
 
 .cp-plan-task.is-done {
@@ -491,7 +493,7 @@
   margin-top: 0.15rem;
   width: 1.15rem;
   height: 1.15rem;
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: var(--c-border-strong);
 }
 
 .cp-plan-task [data-slot="checkbox"][data-checked],
@@ -534,7 +536,7 @@
   top: 1.4rem;
   bottom: 1.4rem;
   width: 1px;
-  background: linear-gradient(180deg, rgba(244, 174, 11, 0.45), rgba(255, 255, 255, 0.08));
+  background: linear-gradient(180deg, rgba(244, 174, 11, 0.45), color-mix(in srgb, var(--c-text) 8%, transparent));
 }
 
 .cp-plan-node {
@@ -554,8 +556,8 @@
   height: 2.2rem;
   place-items: center;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #161616;
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface-2);
   font-size: 0.72rem;
   font-weight: 800;
   font-style: normal;
@@ -577,7 +579,7 @@
   display: inline-flex;
   margin-top: 0.28rem;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--c-text) 6%, transparent);
   padding: 0.12rem 0.5rem;
   font-size: 0.68rem;
   font-style: normal;
@@ -588,7 +590,7 @@
 
 .cp-plan-node.is-done em {
   background: rgba(244, 174, 11, 0.14);
-  color: #fde68a;
+  color: var(--cp-plan-gold-text);
 }
 
 .cp-plan-goal-stage {
@@ -631,7 +633,7 @@
   width: 100%;
   height: 3rem;
   border-radius: 0.95rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--c-border);
   background: rgba(8, 8, 10, 0.55);
   padding: 0 0.9rem;
   color: inherit;
@@ -661,8 +663,8 @@
 .cp-plan-filter {
   min-height: 2.4rem;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--c-border);
+  background: color-mix(in srgb, var(--c-text) 4%, transparent);
   color: inherit;
   cursor: pointer;
 }
@@ -686,8 +688,8 @@
 
 .cp-plan-filter.is-on {
   border-color: transparent;
-  background: #fff;
-  color: #111;
+  background: var(--c-text);
+  color: var(--c-bg);
 }
 
 .cp-plan-cal-week,
@@ -710,7 +712,7 @@
 .cp-plan-cal-cell {
   min-height: 2.7rem;
   border-radius: 0.7rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in srgb, var(--c-text) 3%, transparent);
   padding: 0.4rem 0.2rem;
   font-size: 0.78rem;
   text-align: center;
@@ -745,8 +747,8 @@
   justify-content: space-between;
   gap: 0.75rem;
   border-radius: 0.9rem;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-2);
   padding: 0.7rem 0.85rem;
   font-size: 0.84rem;
 }
@@ -763,12 +765,12 @@
 
 .cp-plan-page--loading {
   min-height: 100dvh;
-  background: #0f0f0f;
+  background: var(--c-surface-2);
 }
 
 .cp-plan-skel {
   border-radius: 1.2rem;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c-text) 4%, transparent), color-mix(in srgb, var(--c-text) 8%, transparent), color-mix(in srgb, var(--c-text) 4%, transparent));
   background-size: 200% 100%;
   animation: cp-plan-shimmer 1.4s ease-in-out infinite;
 }
@@ -796,6 +798,10 @@
   .cp-plan-weekday {
     min-height: 3.8rem;
   }
+}
+
+.dark .cp-plan-page {
+  --cp-plan-gold-text: #fde68a;
 }
 
 /* MOBILE_AUDIT_POLISH */
