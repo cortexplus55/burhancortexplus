@@ -162,6 +162,22 @@ describe("rotalar kaynak kararını tek yerden alıyor", () => {
       expect(src).not.toContain('sourceBoundaryMode ?? "documents_only"');
     });
   }
+
+  /*
+    29 Eylül 2026: "Belgem yok, konudan çalışayım" ile kurulan hazırlıkta
+    giriş dersi hiç üretilmiyordu. Düğüm rotası dersi koşulsuz birleşik
+    çözücüye gönderiyordu; çözücü belge listesi boşken her zaman
+    "no_prep_documents" dönüyor. Belgesiz ders çözücüden ÖNCE ayrılmalı.
+  */
+  it("düğüm dersi belgesizken kaynak çözücüye gitmeden konu çitine geçiyor", () => {
+    const src = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const gate = src.indexOf("if (topicOnlyLesson)");
+    const resolver = src.indexOf("await resolveLessonSource(");
+    expect(gate).toBeGreaterThan(-1);
+    expect(resolver).toBeGreaterThan(gate);
+    expect(src).toMatch(/if \(topicOnlyLesson\) \{\s*source = EMPTY_SOURCE_CONTEXT;/);
+    expect(src).toMatch(/sourceMode === "topic_only"\s*\n?\s*\? topicFence\(/);
+  });
 });
 
 describe("hazırlık belgeleri", () => {
