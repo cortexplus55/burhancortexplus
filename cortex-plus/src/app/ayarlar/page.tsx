@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { SectionCard } from "@/components/ui-kit/empty-state";
 import { DataDeletionButton } from "@/components/profile/data-deletion-button";
+import { EmailChangeCard } from "@/components/profile/email-change-card";
 import { StudyReminderToggle } from "@/components/profile/study-reminder-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { requireUser } from "@/lib/auth/session";
@@ -117,12 +118,17 @@ export default async function AyarlarPage() {
         </SectionCard>
 
         <SectionCard
-          title="Güvenlik"
-          description="Google ile kayıt olduysan buradan bir şifre de belirleyebilirsin."
+          title="E-posta ve şifre"
+          description="Giriş yaptığın adres ve şifren."
         >
-          <Link href="/sifre-yenile" className="text-sm font-medium underline">
-            Şifreni değiştir
-          </Link>
+          <EmailChangeCard
+            email={user.email ?? null}
+            pendingEmail={(user as { new_email?: string | null }).new_email ?? null}
+            hasPasswordLogin={
+              (user.identities ?? []).some((identity) => identity.provider === "email") ||
+              user.app_metadata?.provider === "email"
+            }
+          />
         </SectionCard>
 
         {/*

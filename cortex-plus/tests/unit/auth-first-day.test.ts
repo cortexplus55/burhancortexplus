@@ -43,6 +43,21 @@ describe("auth callback", () => {
     expect(await callback("?code=abc")).toBe("https://cortexplus.app/auth/auth-code-error");
   });
 
+  it("sends an expired email link to the link page, not the Google page", async () => {
+    expect(
+      await callback("?error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired"),
+    ).toBe("https://cortexplus.app/auth/auth-code-error");
+  });
+
+  it("says 'opened in another browser' when the PKCE verifier is missing, keeping next", async () => {
+    exchange.mockResolvedValueOnce({
+      error: { name: "AuthPKCECodeVerifierMissingError", code: "pkce_code_verifier_not_found", message: "PKCE code verifier not found in storage." },
+    });
+    expect(await callback("?code=abc&next=/kayit/tamamla")).toBe(
+      "https://cortexplus.app/auth/auth-code-error?neden=baska-tarayici&next=%2Fkayit%2Ftamamla",
+    );
+  });
+
   it("redirects a successful exchange to a safe next path only", async () => {
     exchange.mockResolvedValue({ error: null });
     expect(await callback("?code=abc&next=/pay")).toBe("https://cortexplus.app/pay");

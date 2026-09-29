@@ -11,6 +11,7 @@ import {
 } from "@/components/layout/onboarding-shell";
 import { ParityMarketingPage } from "@/components/parity/marketing";
 import { createClient } from "@/lib/supabase/client";
+import { recordConsentFromAccount } from "@/app/kayit/actions";
 import {
   GOAL_OPTIONS,
   GRADE_OPTIONS,
@@ -145,6 +146,10 @@ export default function OnboardingPage() {
         });
         return;
       }
+
+      // Başka cihazda doğrulanan kayıtta sihirbaz yükü yok; kayıt onayını
+      // hesap verisinden yaz. Başarısızlık onboarding'i durdurmaz, loga düşer.
+      void recordConsentFromAccount().catch(() => undefined);
 
       if (goal) {
         const { data: goals } = await supabase
