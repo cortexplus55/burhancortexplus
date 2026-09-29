@@ -4,7 +4,7 @@ import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { mapPrepTopics, topicProgress, type PrepTopic } from "@/lib/learning/exam-prep-progress";
 import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
-import { daysUntilExam, nodeProgress } from "@/lib/learning/exam-prep-plan";
+import { examRelativeLabel, nodeProgress } from "@/lib/learning/exam-prep-plan";
 import type { ExamPrepCard } from "@/components/parity/exam-prep";
 import { toFeedRows, toSummary } from "@/lib/parity/school-feed";
 
@@ -38,7 +38,7 @@ function toCard(
     examType: prep.exam_type,
     progressPct: progress.pct,
     daysLabel: prep.exam_date
-      ? `${daysUntilExam(prep.exam_date)} gün kaldı`
+      ? examRelativeLabel(prep.exam_date)
       : next
         ? "Devam et"
         : "Yola başla",
@@ -62,7 +62,7 @@ export default async function DenemeSinavlariPage() {
       .limit(8),
     supabase
       .from("profiles")
-      .select("school_name")
+      .select("school_name, grade_level")
       .eq("id", user.id)
       .maybeSingle(),
   ]);
@@ -141,6 +141,7 @@ export default async function DenemeSinavlariPage() {
         initialSchoolName={profile?.school_name ?? ""}
         schoolSummary={schoolSummary}
         schoolRows={schoolRows}
+        gradeLevel={(profile?.grade_level as string | null) ?? null}
       />
     </ParitySorShell>
   );

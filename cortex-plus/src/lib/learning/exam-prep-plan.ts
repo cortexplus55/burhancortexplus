@@ -144,7 +144,7 @@ export const CORE_ORDER: PlanNodeKind[] = [
   "readiness",
 ];
 
-export function daysUntilExam(examDate: string, from = new Date()): number {
+function examDayDiff(examDate: string, from: Date): number {
   // Use the same Turkish calendar date on the UTC server and in the browser.
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit",
@@ -152,8 +152,24 @@ export function daysUntilExam(examDate: string, from = new Date()): number {
   const part = (type: string) => parts.find((item) => item.type === type)!.value;
   const start = Date.parse(`${part("year")}-${part("month")}-${part("day")}T00:00:00Z`);
   const exam = Date.parse(`${examDate}T00:00:00Z`);
-  const diff = Math.ceil((exam - start) / 86_400_000);
-  return Math.max(1, diff);
+  return Math.ceil((exam - start) / 86_400_000);
+}
+
+export function daysUntilExam(examDate: string, from = new Date()): number {
+  return Math.max(1, examDayDiff(examDate, from));
+}
+
+/**
+ * Astra'nın hazırlık kartındaki tarih: "21 gün sonra", "bugün", "12 gün önce".
+ * daysUntilExam 1'de kesiyor (plan kurmak için); kart geçmişi de söylemeli.
+ */
+export function examRelativeLabel(examDate: string, from = new Date()): string {
+  const diff = examDayDiff(examDate, from);
+  if (!Number.isFinite(diff)) return "";
+  if (diff === 0) return "bugün";
+  if (diff === 1) return "yarın";
+  if (diff === -1) return "dün";
+  return diff > 0 ? `${diff} gün sonra` : `${-diff} gün önce`;
 }
 
 export function buildExamPlan(days: number): PlanNodeDraft[] {
