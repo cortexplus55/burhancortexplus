@@ -9,9 +9,9 @@ export const metadata = {
 
 const faqs = [
   {
-    question: "Kredi nasıl çalışıyor?",
+    question: "Kullanım hakkı nasıl çalışıyor?",
     answer:
-      "Her AI işleminin sabit bir kredi bedeli vardır ve işlem öncesinde ekranda gösterilir. İşlem başarısız olursa kredin otomatik iade edilir.",
+      "Her AI işlemi kullanım hakkından düşer; ne kadarını kullandığını Profil → Kullanım'da yüzde olarak görürsün. İşlem başarısız olursa hakkın otomatik iade edilir.",
   },
   {
     question: "Ücretsiz olarak ne yapabilirim?",
