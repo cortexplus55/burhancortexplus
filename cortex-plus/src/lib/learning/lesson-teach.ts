@@ -16,6 +16,7 @@ import { titleConcepts } from "@/lib/learning/lesson-claims";
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
 import { fluencyIssues, repairTurkishSurface, sentences } from "@/lib/learning/learner-fluency";
 import { exponentKeyWrong, exponentProseWrong } from "@/lib/learning/exponent-key";
+import { mathKeyWrong, mathProseWrong } from "@/lib/learning/math-key";
 import { announcedExampleGap, exampleIsComplete, ensureThreeChecks, minimumLessonChecks } from "@/lib/learning/lesson-repair";
 import { auditQuantitative, evaluateArithmetic, repairQuantitative } from "@/lib/learning/tutor-quant";
 import { groundProseCalculations, workedExampleIssues } from "@/lib/learning/worked-example";
@@ -1477,7 +1478,7 @@ function leakedPlaceholder(text: string): boolean {
 
 /** Yanlış hesap ya da sızmış boş değer taşıyan metin. */
 function wrongProse(text: string): boolean {
-  return exponentProseWrong(text) || leakedPlaceholder(text);
+  return exponentProseWrong(text) || mathProseWrong(text) || leakedPlaceholder(text);
 }
 
 /**
@@ -1488,9 +1489,12 @@ function wrongProse(text: string): boolean {
 function withoutWrongKeys(lesson: LessonV2): LessonV2 {
   const wrongCheck = (check: NonNullable<LessonV2["sections"][number]["check"]>) =>
     exponentKeyWrong(check) === true ||
+    mathKeyWrong(check) === true ||
     wrongProse(check.explanation) ||
     leakedPlaceholder(check.prompt) ||
-    (check.optionWhy ?? []).some((line, index) => index === check.answerIndex && exponentProseWrong(line));
+    (check.optionWhy ?? []).some(
+      (line, index) => index === check.answerIndex && (exponentProseWrong(line) || mathProseWrong(line)),
+    );
   const sections = lesson.sections.flatMap((section) => {
     let next = section;
     if (next.check && wrongCheck(next.check)) next = withoutCheck(next);
