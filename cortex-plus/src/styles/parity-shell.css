@@ -10365,3 +10365,50 @@
   font-size: 0.7rem;
   color: var(--cp-muted);
 }
+
+/* Profil menüsü: Görünüm satırı (Astra'da profil menüsünde). */
+.cp-pp-appearance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.7rem 1.1rem;
+  background: var(--cp-surface);
+  font-size: 0.875rem;
+}
+
+.cp-pp-appearance-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cp-pp-appearance-options {
+  display: inline-flex;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface-2);
+}
+
+.cp-pp-appearance-options button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.65rem;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--cp-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.cp-pp-appearance-options button.is-on {
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}

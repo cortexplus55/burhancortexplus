@@ -26,6 +26,7 @@ export default async function ProfilPage() {
         data={dashboard}
         email={user.email ?? null}
         isPremium={Boolean(shell.account?.isPremium)}
+        isAdmin={Boolean(shell.account?.isAdmin)}
         subscriptionBadge={shell.account?.subscriptionBadge ?? null}
         periodEndLabel={
           shell.account?.subscriptionPeriodEnd
