@@ -7,6 +7,7 @@
 import { z } from "zod";
 import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
 import { reviewGateQuestion } from "@/lib/learning/lesson-chrome";
+import { powerValue } from "@/lib/learning/exponent-key";
 import type { MaterialLanguage } from "@/lib/learning/teacher-brain";
 
 export type LessonCheckAnswer = {
@@ -271,6 +272,22 @@ export function gradeNumericalAnswer(
   const want = fold(expected);
   const got = fold(given);
   if (!got) return { correct: false, message: `Doğrusu ${expected}` };
+
+  // Üslü cevap: beklenen "8³" iken değeri hesaplayıp "512" yazan öğrenci
+  // yanlış sayılıyordu (29 Eylül, canlı ders). İki taraf da hesaplanabiliyorsa
+  // değer karşılaştırılır; ikisi de doğru yazımdır.
+  if (/[⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(`${expected}${given}`)) {
+    const wantValue = powerValue(expected);
+    const gotValue = powerValue(given.trim());
+    if (wantValue != null && gotValue != null) {
+      const shown =
+        /[⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(expected) && Number.isInteger(wantValue) && Math.abs(wantValue) < 1e12
+          ? `${expected} = ${wantValue}`
+          : expected;
+      const ok = Math.abs(wantValue - gotValue) <= 1e-9 * Math.max(1, Math.abs(wantValue));
+      return { correct: ok, message: ok ? `Doğru — ${shown}` : `Doğrusu ${shown}` };
+    }
+  }
 
   const wantNum = want.match(/-?\d+(?:[.,]\d+)?/);
   const gotNum = got.match(/-?\d+(?:[.,]\d+)?/);

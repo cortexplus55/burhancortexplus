@@ -198,6 +198,9 @@ export function normalizeSummaryText(text: string): string {
     .replace(/\b([mhuvsypxt])\s+(fg|sat|f|g)\b/gi, "$1_$2")
     .replace(/\bc\s*_?\s*([vp])\b/gi, "c_$1")
     .replace(/\b([mhuvsypxt](?:_(?:fg|sat|f|g))?)\s*\/\s*([mhuvsypxt])\b/gi, "$1/$2")
+    // "*üs*" vurgudur, çarpı değil: çarpıya dönünce özet "Bir ·üs·" diye
+    // okunuyordu. Tek yıldızlı vurgu koyu vurguya çevrilir.
+    .replace(/(?<![*\w])\*([A-Za-zÇĞİÖŞÜçğıöşü][^*\n]{0,40}?)\*(?![*\w])/g, "**$1**")
     .replace(/(?<!\*)\*(?!\*)/g, "·")
     .replace(/[;]+\s*$/g, "")
     .trim();
