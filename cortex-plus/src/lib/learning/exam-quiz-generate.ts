@@ -14,6 +14,7 @@ import {
 import { quizClaimIssues } from "@/lib/learning/tutor-quant";
 import { absoluteClaimIssues } from "@/lib/learning/absolute-claims";
 import { exponentKeyWrong } from "@/lib/learning/exponent-key";
+import { mathKeyWrong } from "@/lib/learning/math-key";
 
 const QUIZ_GATE = {
   requireObjective: false,
@@ -113,18 +114,18 @@ export async function generateExamQuiz(input: {
           }
         : {}),
     }));
-    // Cevap anahtarı üslü hesapla çelişen tek cevaplı soru düşer ("(3⁴)²"
-    // için 3¹² gibi). Bkz. exponent-key.ts.
-    const keyed = surfaced.filter(
-      (question) =>
-        question.multi ||
-        exponentKeyWrong({
-          type: "mcq",
-          prompt: question.text,
-          options: question.options,
-          answerIndex: question.options.indexOf(question.correct[0] ?? ""),
-        }) !== true,
-    );
+    // Cevap anahtarı hesapla çelişen tek cevaplı soru düşer ("(3⁴)²" için
+    // 3¹², "sin 30°" için √3/2 gibi). Bkz. exponent-key.ts, math-key.ts.
+    const keyed = surfaced.filter((question) => {
+      if (question.multi) return true;
+      const keyedCheck = {
+        type: "mcq",
+        prompt: question.text,
+        options: question.options,
+        answerIndex: question.options.indexOf(question.correct[0] ?? ""),
+      };
+      return exponentKeyWrong(keyedCheck) !== true && mathKeyWrong(keyedCheck) !== true;
+    });
     const repaired = input.teachingV2 ? repairQuizPedagogy(keyed) : keyed;
     // A six-question draft has spare candidates. Reject an unsupported
     // question on its own instead of discarding the entire valid batch.

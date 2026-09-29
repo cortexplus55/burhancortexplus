@@ -9,6 +9,7 @@ import { diagramIssues, lessonDiagramSchema } from "@/lib/learning/lesson-diagra
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { foldTr } from "@/lib/documents/page-analysis";
 import { exponentKeyWrong } from "@/lib/learning/exponent-key";
+import { mathKeyWrong } from "@/lib/learning/math-key";
 import { preserveSubscriptLetters } from "@/lib/learning/lesson-board";
 import { mathIdentifierIssues, normalizeMathIdentifiers } from "@/lib/learning/math-identifiers";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
@@ -2152,7 +2153,8 @@ export function publishLessonDraft(
   if (!prepared) return null;
   // Cevap anahtarı hesapla çelişen soru hiçbir yoldan geri gelmez:
   // "(3⁴)²" için 3¹²'yi doğru sayan soru canlıda öğrenciye gitti.
-  const wrongKey = (check: SectionCheck) => exponentKeyWrong(check) === true;
+  const wrongKey = (check: SectionCheck) =>
+    exponentKeyWrong(check) === true || mathKeyWrong(check) === true;
   const sections = prepared.sections.map((section) => {
     if (!section.check || (sectionCheckPublishable(section.check) && !wrongKey(section.check))) return section;
     const rest = { ...section };
