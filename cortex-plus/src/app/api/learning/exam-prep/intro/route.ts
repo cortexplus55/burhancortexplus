@@ -466,11 +466,18 @@ export async function POST(request: Request) {
     çalışıyor ve şık gerekçesi yazmıyor, gözden geçirici her taslağı
     reddetti: tanışma testi canlıda iki denemede de açılmadı. Kaldırıldı —
     bu yolda gözden geçirme ancak şık gerekçeleriyle birlikte gelebilir.
+
+    İkinci taslak hakkı ise kalmalı. Varsayılan tek taslak: bağımsız
+    doğrulayıcı beş sorudan üçünü tutmazsa test hiç açılmıyor. Geri alma
+    bu satırı da götürdü ve tanışma testi yine düştü ("structural /
+    invalid_ai_response", 29 Eylül 08:40). İkinci taslak aynı kredi
+    rezervasyonunda, ilk taslağın ret nedeniyle gidiyor.
   */
   const outcome = await generateExamQuiz({
     service,
     userId,
     isPremium,
+    maxDraftAttempts: 2,
     difficulty: "hard",
     sourceExcerpt: source.block,
     requireSourceSupport: sourceMode !== "topic_only",
