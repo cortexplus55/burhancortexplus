@@ -106,6 +106,18 @@ function plainForSpeech(content: string) {
     .trim();
 }
 
+/** Sesli sohbet düğmesinin etiketi: ne olduğunu ve nasıl kapatılacağını söyler. */
+export function voiceModeLabel(
+  active: boolean,
+  state: { talking: boolean; listening: boolean; loading: boolean; idle: string },
+): string {
+  if (!active) return state.idle;
+  if (state.talking) return "Konuşuyor · Bitir";
+  if (state.listening) return "Dinliyor · Bitir";
+  if (state.loading) return "Düşünüyor · Bitir";
+  return "Bitir";
+}
+
 function DrawSquiggle({ className }: { className?: string }) {
   return (
     <svg
@@ -291,6 +303,14 @@ function ChatPanelSession({
   const [mathOpen, setMathOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [talking, setTalking] = useState(false);
+  /**
+   * Sesli sohbet ("Konuş") — Astra'daki gibi: dinle → gönder → cevabı sesli
+   * oku → yeniden dinle. Kapalıyken mikrofon yalnızca kutuya yazıyor.
+   */
+  const [voiceMode, setVoiceMode] = useState(false);
+  const voiceModeRef = useRef(false);
+  /** Sesli okunmuş son cevabın sırası; eski cevaplar yeniden okunmasın. */
+  const spokenIndexRef = useRef(-1);
   const [composerAssistOpen, setComposerAssistOpen] = useState(false);
   const [composerAssist, setComposerAssist] = useState<
     (typeof COMPOSER_MODES)[number]["id"] | null
@@ -823,29 +843,40 @@ function ChatPanelSession({
     void send(lastUser.content);
   }
 
-  function talkLastAnswer() {
-    if (talking) {
-      stopSpeech();
-      setTalking(false);
-      return;
-    }
-    const last = [...messages]
-      .reverse()
-      .find((item) => item.role === "assistant" && !item.isError && item.content.trim());
-    const plain = last ? plainForSpeech(last.content) : "";
+  // Sesli sohbette yeni cevap bitince sesli okunur, sonra yeniden dinlenir.
+  useEffect(() => {
+    if (!voiceMode || loading) return;
+    const index = messages.length - 1;
+    const last = messages[index];
+    if (!last || last.role !== "assistant" || last.isError || !last.content.trim()) return;
+    if (spokenIndexRef.current >= index) return;
+    spokenIndexRef.current = index;
+    const plain = plainForSpeech(last.content);
     if (!plain) return;
     setTalking(true);
     speakTurkish(plain, {
-      onEnd: () => setTalking(false),
+      onEnd: () => {
+        setTalking(false);
+        if (voiceModeRef.current) startVoiceInput();
+      },
       onError: () => setTalking(false),
     });
-  }
+    // startVoiceInput her çizimde yeniden kuruluyor; tetikleyici yalnızca yeni cevap.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceMode, loading, messages]);
+
+  // Sayfadan çıkınca mikrofon ve ses kapanır.
+  useEffect(
+    () => () => {
+      voiceModeRef.current = false;
+      stopSpeech();
+    },
+    [],
+  );
 
   const hasComposerPayload = Boolean(input.trim() || pendingFile || pendingRemote);
-  const canTalk = messages.some(
-    (item) => item.role === "assistant" && !item.isError && item.content.trim().length > 0,
-  );
-  const showExamTalk = examChrome && messages.length > 0 && !hasComposerPayload;
+  // Astra'da "Konuş" yazma kutusunda hep duruyor; ilk cevabı beklemiyor.
+  const showExamTalk = examChrome && (!hasComposerPayload || voiceMode);
   const showExamSend = examChrome && (hasComposerPayload || loading);
 
   const showMinimalEmpty = isMinimalSor && messages.length === 0 && !loading;
@@ -879,6 +910,40 @@ function ChatPanelSession({
     setInput((prev) => mergeTranscript(prev, text));
   }
 
+  /** Sesli sohbette söylenen doğrudan gönderilir; değilse kutuya yazılır. */
+  function handleTranscript(text: string) {
+    if (!text.trim()) return;
+    if (voiceModeRef.current) void send(text);
+    else appendTranscript(text);
+  }
+
+  function stopVoiceMode() {
+    voiceModeRef.current = false;
+    setVoiceMode(false);
+    stopSpeech();
+    setTalking(false);
+    recognizerRef.current?.stop();
+    const recorder = recorderRef.current;
+    if (recorder) {
+      recorderRef.current = null;
+      setListening(false);
+      void recorder.stop();
+    }
+  }
+
+  function toggleVoiceMode() {
+    if (voiceModeRef.current) {
+      stopVoiceMode();
+      return;
+    }
+    stopSpeech();
+    voiceModeRef.current = true;
+    setVoiceMode(true);
+    // Açılmadan önceki cevaplar sesli okunmaz; mod yeni soruyla başlar.
+    spokenIndexRef.current = messages.length - 1;
+    startVoiceInput();
+  }
+
   /**
    * Kaydı bitirir ve sunucuda çözümletir. Sessizlikle kendiliğinden de,
    * mikrofona ikinci kez dokunularak da buraya geliniyor.
@@ -893,7 +958,7 @@ function ChatPanelSession({
       const blob = await recorder.stop();
       if (!blob) return;
       const text = await transcribe(blob);
-      if (text) appendTranscript(text);
+      if (text) handleTranscript(text);
       else {
         toast.error("Sesi çözümleyemedim", {
           description: "Bir kez daha dener misin?",
@@ -932,7 +997,7 @@ function ChatPanelSession({
       recognizerRef.current = recognizer;
       setListening(true);
       recognizer.onresult = (event) => {
-        appendTranscript(event.results[0]?.[0]?.transcript ?? "");
+        handleTranscript(event.results[0]?.[0]?.transcript ?? "");
       };
       recognizer.onerror = () => {
         recognizerRef.current = null;
@@ -1538,11 +1603,12 @@ function ChatPanelSession({
                   {showExamTalk ? (
                     <button
                       type="button"
-                      className="cp-exam-talk"
-                      disabled={(loading || transcribing || !canTalk) && !talking}
-                      onClick={talkLastAnswer}
+                      className={cn("cp-exam-talk", voiceMode && "is-live")}
+                      aria-pressed={voiceMode}
+                      disabled={!voiceMode && (loading || transcribing)}
+                      onClick={toggleVoiceMode}
                     >
-                      {talking ? "Durdur" : "Konuş"}
+                      {voiceModeLabel(voiceMode, { talking, listening, loading, idle: "Konuş" })}
                       <AudioLines className="h-3.5 w-3.5" aria-hidden />
                     </button>
                   ) : null}
@@ -1580,14 +1646,20 @@ function ChatPanelSession({
                       <Send className="h-4 w-4" aria-hidden />
                     </button>
                   ) : null}
-                  {!examChrome && !loading && !(input.trim() || pendingFile || pendingRemote) ? (
+                  {!examChrome &&
+                  (voiceMode || (!loading && !(input.trim() || pendingFile || pendingRemote))) ? (
                     <button
                       type="button"
-                      className="cp-sor-voice-chip"
-                      disabled={loading}
-                      onClick={startVoiceInput}
+                      className={cn("cp-sor-voice-chip", voiceMode && "is-live")}
+                      aria-pressed={voiceMode}
+                      onClick={toggleVoiceMode}
                     >
-                      Cortex Plus ile konuş
+                      {voiceModeLabel(voiceMode, {
+                        talking,
+                        listening,
+                        loading,
+                        idle: "Cortex Plus ile konuş",
+                      })}
                       <AudioLines className="h-3.5 w-3.5 opacity-80" aria-hidden />
                     </button>
                   ) : null}
