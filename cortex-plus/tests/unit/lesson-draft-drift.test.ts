@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isScaffoldHeading, publishLessonDraft, type LessonV2 } from "@/lib/learning/teaching-standards";
+import {
+  isScaffoldHeading,
+  joinSplitSuperscripts,
+  lessonPublishIssues,
+  publishLessonDraft,
+  type LessonV2,
+} from "@/lib/learning/teaching-standards";
 import { exampleIsComplete, repairLearnerLesson, scopeLessonToTopic } from "@/lib/learning/lesson-repair";
 import { criticalTeachingFailures, finishTaughtLesson } from "@/lib/learning/lesson-teach";
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
@@ -156,6 +162,42 @@ describe("gpt-4.1-mini taslak sapmaları", () => {
     }
     // Özet kalıp cümle değil, sorulardaki kural cümlesi.
     expect(taught.lesson.summary?.join(" ") ?? "").not.toContain("tanımına ve şartına bağlıdır");
+  });
+});
+
+/*
+  #166 yayına çıkınca canlıda belgesiz ders iki taslakta da "Üs bölünmüş"
+  diye reddedildi; öğrenci ders alamadı. Model üssün üssünü "(3²)³ = 3²×³"
+  diye yazıyor. Örnek eskiden bölümün içinde kalıp atıldığı için bu satır
+  kapıya hiç gelmiyordu; üste taşınınca bütün dersi düşürdü.
+*/
+describe("bölünmüş üs dersi düşürmez", () => {
+  it("iki üst simge arasındaki işleç üst simgeye döner", () => {
+    expect(joinSplitSuperscripts("(3²)³ = 3²×³ = 3⁶")).toBe("(3²)³ = 3²ˣ³ = 3⁶");
+    expect(joinSplitSuperscripts("2³+⁴ = 2⁷")).toBe("2³⁺⁴ = 2⁷");
+    expect(joinSplitSuperscripts("(aᵐ)ⁿ = aᵐ×ⁿ")).toBe("(aᵐ)ⁿ = aᵐˣⁿ");
+    // Üst simgeden sonra normal satır gelirse dokunulmaz.
+    expect(joinSplitSuperscripts("a² + b² = c²")).toBe("a² + b² = c²");
+    expect(joinSplitSuperscripts("3² × 3³ = 3⁵")).toBe("3² × 3³ = 3⁵");
+  });
+
+  it("örnekte üssün üssü olan taslak kapıdan geçer", () => {
+    const published = publishLessonDraft({
+      ...base,
+      sections: [
+        ...base.sections.slice(0, 2),
+        {
+          heading: "Üssün Üssü Problem Çözümü",
+          body: "Üssün üssü alınırken üsler çarpılır.",
+          example: {
+            prompt: "(3²)³ ifadesinin değeri kaçtır?",
+            solution: "(3²)³ = 3²×³ = 3⁶ = 729 bulunur.",
+          },
+        },
+      ],
+    })!;
+    expect(published.example?.solution).toContain("3²ˣ³");
+    expect(lessonPublishIssues(published).some((issue) => /Üs bölünmüş/.test(issue))).toBe(false);
   });
 });
 
