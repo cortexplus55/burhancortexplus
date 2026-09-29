@@ -80,12 +80,12 @@ export function ExamQuestionReviewClient({
   return (
     <div className="cp-exam-suite-container max-w-4xl mx-auto px-4 py-6 space-y-6">
       {/* Top Navigation Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-white/5">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-[var(--cp-border)]">
         <Link
           href={`/deneme-sinavlari/${prepId}/sonuc?examId=${examId}${
             score != null ? `&score=${score}` : ""
           }`}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface-2 hover:bg-surface-3 border border-white/10 text-xs font-medium text-[var(--c-text-muted)] hover:text-white transition-all shadow-sm"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface-2 hover:bg-surface-3 border border-[var(--cp-border)] text-xs font-medium text-[var(--c-text-muted)] hover:text-[var(--cp-text)] transition-all shadow-sm"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Sonuca dön</span>
@@ -103,7 +103,7 @@ export function ExamQuestionReviewClient({
       </div>
 
       {/* Header Summary Hero */}
-      <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-[#161722]/90 to-[#101118]/90 backdrop-blur-xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+      <div className="rounded-3xl border border-[var(--cp-border)] bg-[var(--cp-surface)] backdrop-blur-xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-action-soft rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
@@ -112,18 +112,18 @@ export function ExamQuestionReviewClient({
               <Sparkles className="w-3.5 h-3.5" />
               <span>Soru Soru Çözüm Analizi</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--cp-text)] tracking-tight">
               {examTitle}
             </h1>
-            <p className="text-sm text-zinc-400 mt-1">
+            <p className="text-sm text-[var(--cp-muted)] mt-1">
               Soruların doğru cevaplarını ve Cortex Plus çözüm açıklamalarını incele.
             </p>
           </div>
 
           {/* Score Badge */}
           {score != null ? (
-            <div className="flex-shrink-0 flex sm:flex-col items-center justify-center px-6 py-4 rounded-2xl bg-surface-2 border border-white/10 text-center gap-2 sm:gap-0">
-              <span className="text-xs uppercase tracking-wider text-zinc-400 font-semibold">
+            <div className="flex-shrink-0 flex sm:flex-col items-center justify-center px-6 py-4 rounded-2xl bg-surface-2 border border-[var(--cp-border)] text-center gap-2 sm:gap-0">
+              <span className="text-xs uppercase tracking-wider text-[var(--cp-muted)] font-semibold">
                 Sınav Puanı
               </span>
               <span className="text-3xl sm:text-4xl font-black text-violet-400">
@@ -134,8 +134,8 @@ export function ExamQuestionReviewClient({
         </div>
 
         {/* Filter Tabs & Quick Stats */}
-        <div className="mt-8 pt-6 border-t border-white/5 flex flex-wrap items-center justify-between gap-4">
-          <div className="inline-flex p-1 rounded-xl bg-surface-2 border border-white/10">
+        <div className="mt-8 pt-6 border-t border-[var(--cp-border)] flex flex-wrap items-center justify-between gap-4">
+          <div className="inline-flex p-1 rounded-xl bg-surface-2 border border-[var(--cp-border)]">
             <button
               type="button"
               onClick={() => setFilter("all")}
@@ -143,7 +143,7 @@ export function ExamQuestionReviewClient({
                 "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
                 filter === "all"
                   ? "bg-action text-white shadow-md shadow-glow-action"
-                  : "text-zinc-400 hover:text-white",
+                  : "text-[var(--cp-muted)] hover:text-[var(--cp-text)]",
               )}
             >
               Tüm Sorular ({stats.total})
@@ -155,7 +155,7 @@ export function ExamQuestionReviewClient({
                 "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
                 filter === "correct"
                   ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
-                  : "text-zinc-400 hover:text-emerald-400",
+                  : "text-[var(--cp-muted)] hover:text-emerald-400",
               )}
             >
               Doğrular ({stats.correct})
@@ -167,14 +167,14 @@ export function ExamQuestionReviewClient({
                 "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
                 filter === "wrong"
                   ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
-                  : "text-zinc-400 hover:text-rose-400",
+                  : "text-[var(--cp-muted)] hover:text-rose-400",
               )}
             >
               Yanlışlar ({stats.wrong})
             </button>
           </div>
 
-          <div className="flex items-center gap-4 text-xs font-medium text-zinc-400">
+          <div className="flex items-center gap-4 text-xs font-medium text-[var(--cp-muted)]">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
               {stats.correct} Doğru
@@ -204,11 +204,11 @@ export function ExamQuestionReviewClient({
           return (
             <div
               key={question.id}
-              className="rounded-3xl border border-white/10 bg-surface-1 backdrop-blur-xl p-6 sm:p-7 shadow-xl space-y-5 relative overflow-hidden"
+              className="rounded-3xl border border-[var(--cp-border)] bg-surface-1 backdrop-blur-xl p-6 sm:p-7 shadow-xl space-y-5 relative overflow-hidden"
             >
               {/* Card Header: Question Number & Result Verdict */}
               <div className="flex items-center justify-between gap-3">
-                <span className="px-3 py-1 rounded-lg bg-zinc-800 text-xs font-bold text-[var(--c-text-muted)]">
+                <span className="px-3 py-1 rounded-lg bg-[var(--cp-surface-2)] text-xs font-bold text-[var(--c-text-muted)]">
                   Soru {displayNum}
                 </span>
 
@@ -235,7 +235,7 @@ export function ExamQuestionReviewClient({
               </div>
 
               {/* Question Text */}
-              <h3 className="text-base sm:text-lg font-medium text-zinc-100 leading-relaxed">
+              <h3 className="text-base sm:text-lg font-medium text-[var(--cp-text)] leading-relaxed">
                 {question.question_text}
               </h3>
 
@@ -255,7 +255,7 @@ export function ExamQuestionReviewClient({
                           ? "bg-emerald-950/30 border-emerald-500/60 text-emerald-200 shadow-sm shadow-emerald-900/20"
                           : isOptionUserAnswer && !isOptionCorrect
                             ? "bg-rose-950/30 border-rose-500/60 text-rose-200 shadow-sm shadow-rose-900/20"
-                            : "bg-zinc-800/40 border-white/5 text-zinc-400",
+                            : "bg-[var(--cp-surface-2)] border-[var(--cp-border)] text-[var(--cp-muted)]",
                       )}
                     >
                       {/* Letter badge */}
@@ -266,7 +266,7 @@ export function ExamQuestionReviewClient({
                             ? "bg-emerald-500 text-black font-extrabold"
                             : isOptionUserAnswer && !isOptionCorrect
                               ? "bg-rose-500 text-white font-extrabold"
-                              : "bg-zinc-800 text-zinc-400",
+                              : "bg-[var(--cp-surface-2)] text-[var(--cp-muted)]",
                         )}
                       >
                         {letter}
@@ -294,7 +294,7 @@ export function ExamQuestionReviewClient({
               </div>
 
               {/* AI Explanation & Tutor Insight Card */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-zinc-950/80 border border-white/10 space-y-3">
+              <div className="p-4 sm:p-5 rounded-2xl bg-[var(--cp-surface)] border border-[var(--cp-border)] space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-action-soft border border-action/30 flex items-center justify-center text-action">
