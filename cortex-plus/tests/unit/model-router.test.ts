@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { selectModel } from "@/lib/ai/model-router";
+import { env } from "@/lib/env";
+import { lessonModel, selectModel } from "@/lib/ai/model-router";
 
-const STANDARD = "gpt-4o-mini";
-const ADVANCED = "gpt-4o";
+const STANDARD = env.OPENAI_STANDARD_MODEL;
+const ADVANCED = env.OPENAI_ADVANCED_MODEL;
+
+describe("ders modeli", () => {
+  it("abone büyük modeli, ücretsiz hesap küçüğünü alır", () => {
+    expect(lessonModel(true)).toBe(env.OPENAI_LESSON_MODEL);
+    expect(lessonModel(false)).toBe(env.OPENAI_LESSON_FREE_MODEL);
+    expect(lessonModel(true)).not.toBe(lessonModel(false));
+  });
+});
 
 describe("model router", () => {
   it("always routes image work to the advanced model", () => {

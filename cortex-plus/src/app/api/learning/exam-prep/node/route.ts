@@ -6,7 +6,7 @@ import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flag
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 import { commitCredits, refundCredits, refundStalePendingReservations } from "@/lib/credits/service";
-import { env } from "@/lib/env";
+import { lessonModel } from "@/lib/ai/model-router";
 import { completeLessonPartRepair } from "@/lib/ai/lesson-part-repair";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import {
@@ -2170,7 +2170,7 @@ async function generateNodePayload(input: {
       actionCode: actionForKind(input.kind),
       isPremium: input.isPremium,
       difficulty: depth.difficulty,
-      modelOverride: env.OPENAI_LESSON_MODEL,
+      modelOverride: lessonModel(input.isPremium),
       ...v2Common,
       // depth.maxDraftAttempts (≥2): geri bildirim ikinci taslağa gider.
       maxDraftAttempts: attempts,

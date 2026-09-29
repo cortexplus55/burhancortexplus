@@ -30,6 +30,11 @@ export type ModelRoute = {
   upgrade: "difficulty" | null;
 };
 
+/** Ders ve podcast taslağının modeli: abone büyük modeli, ücretsiz hesap küçüğünü alır. */
+export function lessonModel(isPremium: boolean): string {
+  return isPremium ? env.OPENAI_LESSON_MODEL : env.OPENAI_LESSON_FREE_MODEL;
+}
+
 const ADVANCED_ACTIONS: ActionCode[] = [
   "AI_CHAT_ADVANCED",
   "IMAGE_SOLUTION",

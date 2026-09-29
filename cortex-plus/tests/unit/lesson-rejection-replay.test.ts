@@ -233,6 +233,7 @@ vi.mock("@/lib/env", () => ({
     OPENAI_API_KEY: "test-key",
     OPENAI_STANDARD_MODEL: "std",
     OPENAI_LESSON_MODEL: "gpt-4.1-mini",
+    OPENAI_LESSON_FREE_MODEL: "gpt-4.1-mini",
     OPENAI_ADVANCED_MODEL: "adv",
   },
 }));
