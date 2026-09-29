@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { evaluatePowerChain, exponentKeyWrong, exponentProseWrong } from "@/lib/learning/exponent-key";
 import { finishTaughtLesson } from "@/lib/learning/lesson-teach";
+import { gradeNumericalAnswer } from "@/lib/learning/lesson-play";
+import { normalizeSummaryText } from "@/lib/learning/lesson-grounding";
 import { publishLessonDraft, type LessonV2 } from "@/lib/learning/teaching-standards";
 
 /*
@@ -170,5 +172,31 @@ describe("ders çıktısında yanlış hesap taşıyan parça atılır", () => {
       { source: "", topicLabel: "Üslü Sayılar" },
     );
     expect(right.lesson.commonMistake?.correction).toContain("3⁸");
+  });
+});
+
+/*
+  Canlı derste sayısal sorunun beklenen cevabı "8³" idi; değeri hesaplayıp
+  "512" yazan öğrenci yanlış sayıldı.
+*/
+describe("üslü sayısal cevap notlandırması", () => {
+  it("üslü yazım ile değer aynı cevaptır", () => {
+    expect(gradeNumericalAnswer("512", "8³")).toMatchObject({ correct: true, message: "Doğru — 8³ = 512" });
+    expect(gradeNumericalAnswer("8³", "8³").correct).toBe(true);
+    expect(gradeNumericalAnswer("64", "2⁶").correct).toBe(true);
+    expect(gradeNumericalAnswer("8³", "512").correct).toBe(true);
+  });
+
+  it("yanlış değer yanlıştır; birimli fizik cevabı eskisi gibi notlanır", () => {
+    expect(gradeNumericalAnswer("511", "8³")).toMatchObject({ correct: false, message: "Doğrusu 8³ = 512" });
+    expect(gradeNumericalAnswer("13,6", "13,6 g")).toMatchObject({ half: true });
+    expect(gradeNumericalAnswer("13,6 g", "13,6 g").correct).toBe(true);
+  });
+});
+
+describe("özette tek yıldızlı vurgu", () => {
+  it("'*üs*' çarpıya dönmez, koyu vurgu olur; gerçek çarpı yine noktaya döner", () => {
+    expect(normalizeSummaryText("Bir *üs*, çarpım sayısını gösterir.")).toBe("Bir **üs**, çarpım sayısını gösterir.");
+    expect(normalizeSummaryText("Alan = a * b olur.")).toBe("Alan = a · b olur.");
   });
 });

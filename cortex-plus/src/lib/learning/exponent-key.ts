@@ -179,6 +179,15 @@ export function exponentProseWrong(text: string): boolean {
   return false;
 }
 
+/** "8³" → 512, "2⁻²" → 0.25, "512" → 512; okunamazsa null. */
+export function powerValue(text: string): number | null {
+  const side = evaluateSide(text.replace(/[.\s]+$/g, "").trim());
+  if (side == null) return null;
+  if (typeof side === "number") return side;
+  const value = side.base ** side.exp;
+  return Number.isFinite(value) ? value : null;
+}
+
 function numericValue(power: Power): number | null {
   if (power.exp < 0 || power.base > 1000 || power.exp > 30) return null;
   const value = power.base ** power.exp;
