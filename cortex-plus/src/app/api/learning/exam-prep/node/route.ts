@@ -2587,6 +2587,9 @@ async function generateNodePayload(input: {
       isPremium: input.isPremium,
       teachingV2: input.teachingV2,
       difficulty: input.teachingV2 ? "hard" : undefined,
+      // Belgesizken karşılaştırılacak kaynak yok; kavramsal çift doğruyu
+      // ikinci göz yakalıyor (bkz. intro/route.ts).
+      verifyOptionReasoning: Boolean(input.topicFenceBlock),
       sourceExcerpt: input.sourceBlock,
       requireSourceSupport: input.requireSourceSupport,
       sourcePages: input.sessionMeta?.sourcePages,
@@ -2830,6 +2833,7 @@ async function generateNodePayload(input: {
     isPremium: input.isPremium,
     teachingV2: input.teachingV2,
     difficulty: input.teachingV2 ? "hard" : undefined,
+    verifyOptionReasoning: Boolean(input.topicFenceBlock),
     sourceExcerpt: input.sourceBlock,
     requireSourceSupport: input.requireSourceSupport,
     sourcePages: input.sessionMeta?.sourcePages,

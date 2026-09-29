@@ -169,6 +169,23 @@ describe("rotalar kaynak kararını tek yerden alıyor", () => {
     çözücüye gönderiyordu; çözücü belge listesi boşken her zaman
     "no_prep_documents" dönüyor. Belgesiz ders çözücüden ÖNCE ayrılmalı.
   */
+  /*
+    Belgesiz üretimde soruyu karşılaştıracak kaynak yok; kesin doğrulayıcı
+    kavramsal çift doğruyu (ör. "çarpmada üsler toplanır" + "bölmede üsler
+    çıkarılır" aynı soruda) göremiyor. Kaynağa dayanmayan quiz yolları
+    "tek ve kesin doğru cevap" gözden geçirmesinden geçmeli.
+  */
+  it("kaynağa dayanmayan quiz yolları tek-doğru gözden geçirmesini açıyor", () => {
+    expect(readFileSync("src/app/api/learning/exam-prep/intro/route.ts", "utf8")).toContain(
+      "verifyOptionReasoning: true",
+    );
+    const node = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    expect(node.match(/verifyOptionReasoning: Boolean\(input\.topicFenceBlock\)/g)).toHaveLength(2);
+    expect(readFileSync("src/app/api/learning/quiz/generate/route.ts", "utf8")).toContain(
+      "verifyOptionReasoning: !docContext",
+    );
+  });
+
   it("düğüm dersi belgesizken kaynak çözücüye gitmeden konu çitine geçiyor", () => {
     const src = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
     const gate = src.indexOf("if (topicOnlyLesson)");
