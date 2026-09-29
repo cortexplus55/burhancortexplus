@@ -14,7 +14,7 @@ import {
 import { quizClaimIssues } from "@/lib/learning/tutor-quant";
 import { absoluteClaimIssues } from "@/lib/learning/absolute-claims";
 import { exponentKeyWrong } from "@/lib/learning/exponent-key";
-import { mathKeyWrong } from "@/lib/learning/math-key";
+import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
 
 const QUIZ_GATE = {
   requireObjective: false,
@@ -124,7 +124,11 @@ export async function generateExamQuiz(input: {
         options: question.options,
         answerIndex: question.options.indexOf(question.correct[0] ?? ""),
       };
-      return exponentKeyWrong(keyedCheck) !== true && mathKeyWrong(keyedCheck) !== true;
+      return (
+        exponentKeyWrong(keyedCheck) !== true &&
+        mathKeyWrong(keyedCheck) !== true &&
+        !mathOptionsAmbiguous(keyedCheck)
+      );
     });
     const repaired = input.teachingV2 ? repairQuizPedagogy(keyed) : keyed;
     // A six-question draft has spare candidates. Reject an unsupported

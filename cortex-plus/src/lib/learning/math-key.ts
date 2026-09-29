@@ -322,6 +322,25 @@ export function mathKeyWrong(check: KeyedCheck): boolean | null {
 }
 
 /**
+ * İki şık aynı değere mi çıkıyor? "3/5" ile "6/10" ya da "3⁶" ile "729"
+ * aynı sorunun iki doğru cevabıdır: öğrenci hangisini seçerse seçsin biri
+ * yanlış sayılır. Model yarışında hakem yakaladı (29 Eylül). Okunamayan
+ * şıklar karşılaştırmaya girmez.
+ */
+export function mathOptionsAmbiguous(check: KeyedCheck): boolean {
+  if (!check.options || check.options.length < 2) return false;
+  const readings = check.options.map((option) => read(option));
+  for (let i = 0; i < readings.length; i += 1) {
+    for (let j = i + 1; j < readings.length; j += 1) {
+      const a = readings[i];
+      const b = readings[j];
+      if (a && b && agree(a, b)) return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Metindeki eşitlik zinciri kendi içinde çelişiyor mu? "sin 30° = √3/2"
  * → true. Yanlışı anan cümleye hüküm verilmez.
  */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateMath, mathKeyWrong, mathProseWrong } from "@/lib/learning/math-key";
+import { evaluateMath, mathKeyWrong, mathOptionsAmbiguous, mathProseWrong } from "@/lib/learning/math-key";
 
 /*
   exponent-key.ts yalnızca aynı tabanlı üslü işleme bakıyor. Trigonometri,
@@ -148,5 +148,14 @@ describe("taramada görülen yanlış alarmlar", () => {
       }),
     ).toBe(true);
     expect(mathKeyWrong({ type: "numerical", prompt: "3² × 3⁵ ÷ 3³ işleminin sonucu kaçtır?", answer: "27" })).toBe(true);
+  });
+});
+
+describe("aynı değerde iki şık", () => {
+  it("iki doğru cevaplı soru belirsizdir", () => {
+    expect(mathOptionsAmbiguous({ type: "mcq", prompt: "sin A kaçtır?", options: ["3/5", "4/5", "6/10", "3/4"] })).toBe(true);
+    expect(mathOptionsAmbiguous({ type: "mcq", prompt: "3⁶ kaçtır?", options: ["3⁶", "729", "18"] })).toBe(true);
+    expect(mathOptionsAmbiguous({ type: "mcq", prompt: "3⁴ × 3² kaçtır?", options: ["3⁶", "3⁸", "9⁶"] })).toBe(false);
+    expect(mathOptionsAmbiguous({ type: "mcq", prompt: "Hangisi?", options: ["taban", "üs"] })).toBe(false);
   });
 });

@@ -16,7 +16,7 @@ import { titleConcepts } from "@/lib/learning/lesson-claims";
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
 import { fluencyIssues, repairTurkishSurface, sentences } from "@/lib/learning/learner-fluency";
 import { exponentKeyWrong, exponentProseWrong } from "@/lib/learning/exponent-key";
-import { mathKeyWrong, mathProseWrong } from "@/lib/learning/math-key";
+import { mathKeyWrong, mathOptionsAmbiguous, mathProseWrong } from "@/lib/learning/math-key";
 import { announcedExampleGap, exampleIsComplete, ensureThreeChecks, minimumLessonChecks } from "@/lib/learning/lesson-repair";
 import { auditQuantitative, evaluateArithmetic, repairQuantitative } from "@/lib/learning/tutor-quant";
 import { groundProseCalculations, workedExampleIssues } from "@/lib/learning/worked-example";
@@ -862,14 +862,33 @@ function readableSummary(lesson: LessonV2, topic: string): string[] {
         !prose.some((sentence) => nearCopy(foldTr(line), sentence)),
     )
     .slice(0, 2);
-  const lines = formula
+  /*
+    Formül satırı yalnızca formül gerçekten sembolikse: "Fₙₑₜ = m ×
+    bağıntısına…", "s = karşı kenar ÷ hipotenüs; kosinüs = komşu kenar
+    bağıntısına…" gibi yarım yakalanmış formüller özeti bozuyordu (model
+    yarışında hakem yakaladı). İçinde kelime olan formül kullanılmaz.
+  */
+  // Küçük harfli dört+ harflik kelime Türkçe sözcüktür ("kenar", "sabit",
+  // "bağıntısı"); "nRT", "PV" gibi semboller geçer.
+  // Yakalanan formüle cümle artığı yapışabiliyor: "x = m_buhar / m_toplam
+  // bağıntısıyla yazılır". Sondaki sözcükler kırpılır; "m_buhar" gibi alt
+  // çizgili sembol sözcük sayılmaz.
+  const trimmed = formula ? formula.replace(/(\s+[a-zçğıöşü]{4,}[^=]*)$/i, "").trim() : "";
+  const symbolic =
+    trimmed && /=/.test(trimmed) && !/(?<![A-Za-z_])[a-zçğıöşü]{4,}/.test(trimmed.replace(/\b(?:sin|cos|tan|cot|log|ln)\b/gi, ""))
+      ? trimmed
+      : "";
+  const formulaLines = symbolic
     ? [
-        `${name} konusunda sonuç, ${formula} bağıntısına konulan veriden çıkar.`,
+        `${name} konusunda sonuç, ${symbolic} bağıntısına konulan veriden çıkar.`,
         "Uygulama, verileni bağıntıda yerine koyup birimiyle okumaktır.",
-        trap,
       ]
-    : rules.length
-      ? [...rules, trap]
+    : [];
+  // Özet üç maddeyi hedefler: önce kural cümleleri, eksik kalırsa formül.
+  const lines = rules.length
+    ? [...rules, ...formulaLines.slice(0, Math.max(0, 2 - rules.length)), trap]
+    : symbolic
+      ? [...formulaLines, trap]
       : [
         // "kaynaktaki" denmiyor: belgesiz derste (topic_only) ortada kaynak
         // yok ve konu çiti belgeye atıfı yasaklıyor.
@@ -892,10 +911,13 @@ function softenSummary(lesson: LessonV2, topic: string): LessonV2 {
     kopya olması içeriksiz olmasından iyidir, summary_echo kritik değil.
     Yalnızca göstereni olmayan ("Bu …") maddeler atılır.
   */
-  if (summary.some((line) => /tanımına ve şartına bağlıdır/.test(line))) {
-    const own = (lesson.summary ?? []).filter((line) => !DANGLING_ANAPHOR.test(line.trim()));
-    if (own.length >= 2) return { ...lesson, summary: own };
+  const own = (lesson.summary ?? []).filter((line) => !DANGLING_ANAPHOR.test(line.trim()));
+  if (summary.some((line) => /tanımına ve şartına bağlıdır/.test(line)) && own.length >= 2) {
+    return { ...lesson, summary: own };
   }
+  // Yerine konan özet üç maddeye ulaşmıyorsa dersin kendi (üç+ maddelik)
+  // özeti daha çok şey söyler; kopya olması kritik değil.
+  if (summary.length < 3 && own.length >= 3) return { ...lesson, summary: own };
   return { ...lesson, summary };
 }
 
@@ -1016,12 +1038,14 @@ function readableCheck(check: SectionCheck, source: string): SectionCheck {
   return {
     ...check,
     prompt: prompt && !fluencyIssues(prompt).length ? prompt : check.prompt,
-    explanation: plainLine(check.explanation, source, "Bu yargı kaynağın kurduğu tanımla çelişir."),
+    // Yedekler hüküm vermez: "çelişir" her soruya uymuyordu, doğru cevaplı
+    // soruda öğrenciye yanlış hüküm gösteriyordu.
+    explanation: plainLine(check.explanation, source, "Gerekçe için bu bölümdeki tanıma yeniden bak."),
     ...(check.whyRight
-      ? { whyRight: plainLine(check.whyRight, source, "Bu yargı kaynağın kurduğu tanımla uyumludur.") }
+      ? { whyRight: plainLine(check.whyRight, source, "Doğru: bu bölümdeki tanımla uyumlu.") }
       : {}),
     ...(check.whyWrong
-      ? { whyWrong: plainLine(check.whyWrong, source, "Bu yargı kaynağın kurduğu tanımla çelişir.") }
+      ? { whyWrong: plainLine(check.whyWrong, source, "Doğru cevabın gerekçesi bu bölümdeki tanımda.") }
       : {}),
     ...(check.optionWhy
       ? {
@@ -1490,6 +1514,7 @@ function withoutWrongKeys(lesson: LessonV2): LessonV2 {
   const wrongCheck = (check: NonNullable<LessonV2["sections"][number]["check"]>) =>
     exponentKeyWrong(check) === true ||
     mathKeyWrong(check) === true ||
+    mathOptionsAmbiguous(check) ||
     wrongProse(check.explanation) ||
     leakedPlaceholder(check.prompt) ||
     (check.optionWhy ?? []).some(
