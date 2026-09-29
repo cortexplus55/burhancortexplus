@@ -25,11 +25,21 @@ describe("chat belge eki doğru kolonu okuyor", () => {
 
 describe("quiz üretimi kredi sözleşmesi", () => {
   const route = read("src/app/api/learning/quiz/generate/route.ts");
-  it("reserveCredits + claim kullanıyor, ham RPC ve Date.now anahtarı yok", () => {
-    expect(route).toContain("reserveCredits(");
+  // Studio quizi sınav hazırlığıyla aynı doğrulanmış hattan geçiyor; kredi
+  // ayırma o hattın içinde (generateJson → reserveCredits). Rota işlem
+  // kimliğinden türeyen tek anahtarı veriyor.
+  it("işlem kimliğinden anahtar veriyor, ham RPC ve Date.now anahtarı yok", () => {
+    expect(route).toContain("generateExamQuiz(");
+    expect(route).toMatch(/idempotencyKey = `quiz:\$\{operationId\}`/);
     expect(route).not.toContain('rpc("credit_reserve"');
     expect(route).not.toMatch(/Date\.now\(\)/);
     expect(route).toContain("operation_in_progress");
+    expect(read("src/lib/ai/generate.ts")).toContain("reserveCredits(");
+  });
+
+  it("Studio quizi kesin doğrulayıcıdan geçiyor (tek yapay zekâ gözden geçirmesi değil)", () => {
+    expect(route).not.toContain("verifyEducationalContent");
+    expect(read("src/lib/learning/exam-quiz-generate.ts")).toContain("verifyChoiceSet(");
   });
 });
 
