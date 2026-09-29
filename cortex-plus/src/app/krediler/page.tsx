@@ -2,9 +2,15 @@ import Link from "next/link";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { SectionCard } from "@/components/ui-kit/empty-state";
 import { requireStudentArea } from "@/lib/auth/session";
-import { formatDate, formatNumber } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
-import { formatResetAt, periodLabel, periodWord, quotaView } from "@/lib/credits/period";
+import {
+  allowanceShare,
+  formatResetAt,
+  periodLabel,
+  periodWord,
+  quotaView,
+} from "@/lib/credits/period";
 import { loadReferralSummary } from "@/lib/credits/referral";
 import { loadInviteLink } from "@/lib/credits/invite-code";
 import { ReferralRewardCard } from "@/components/parity/referral-reward-card";
@@ -13,31 +19,8 @@ import { planTier } from "@/lib/documents/photo-quota";
 import { loadUsageLimits } from "@/lib/student/usage-limits";
 import { FounderCreditsView } from "@/components/student/founder-credits-view";
 import { summarizeFounderUsage, turkeyMonthStart } from "@/lib/credits/founder-usage";
-import { isPaymentRefundLedgerEntry } from "@/lib/payments/refund";
 
 export const metadata = { title: "Limitler" };
-
-const entryLabels: Record<string, string> = {
-  grant: "Hediye",
-  reserve: "Rezerve",
-  commit: "Kullanıldı",
-  refund: "İade",
-  purchase: "Satın alma",
-  adjustment: "Düzeltme",
-};
-
-function ledgerEntryLabel(entry: {
-  entry_type: string;
-  action_code?: string | null;
-  idempotency_key?: string | null;
-  metadata?: { reason?: unknown } | null;
-}): string {
-  if (isPaymentRefundLedgerEntry(entry)) {
-    return "İade — kredi geri alındı";
-  }
-  const base = entryLabels[entry.entry_type] ?? entry.entry_type;
-  return entry.action_code ? `${base} · ${entry.action_code}` : base;
-}
 
 function LimitBar({
   label,
@@ -107,37 +90,18 @@ export default async function KredilerPage() {
   const tier = await planTier(service, user.id);
   const usageLimits = await loadUsageLimits(service, user.id, tier);
 
-  const [
-    { data: wallet },
-    { data: ledger },
-    { data: rules },
-    referral,
-    invite,
-  ] = await Promise.all([
+  const [{ data: wallet }, referral, invite] = await Promise.all([
     supabase
       .from("credit_wallets")
       .select(
-        "balance, reserved, free_allowance_remaining, period_allowance, period_ends_at, period_kind",
+        "balance, free_allowance_remaining, period_allowance, period_ends_at, period_kind",
       )
       .eq("user_id", user.id)
       .maybeSingle(),
-    supabase
-      .from("credit_ledger")
-      .select("id, delta, entry_type, action_code, created_at, idempotency_key, metadata")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(25),
-    supabase
-      .from("credit_rules")
-      .select("action_code, credit_cost, description")
-      .eq("active", true)
-      .order("credit_cost"),
     loadReferralSummary(supabase),
     loadInviteLink(supabase, user.id),
   ]);
 
-  const balance = wallet?.balance ?? 0;
-  const reserved = wallet?.reserved ?? 0;
   const isPremium = Boolean(shell.account?.isPremium);
   const quota = quotaView(
     wallet,
@@ -145,6 +109,7 @@ export default async function KredilerPage() {
     new Date(),
     shell.account?.subscriptionAllowance ?? undefined,
   );
+  const extraPercent = allowanceShare(wallet?.balance ?? 0, quota.allowance);
 
   return (
     <ParitySorShell {...shell}>
@@ -182,13 +147,15 @@ export default async function KredilerPage() {
           </div>
           <p className="cp-quota-reset">
             {formatResetAt(quota.resetsAt)} tarihinde sıfırlanır
-            {quota.pendingRefill ? " · bütçen yenilendi" : ""}
+            {quota.pendingRefill ? " · hakkın yenilendi" : ""}
           </p>
-          <p className="cp-quota-detail">
-            <strong>{formatNumber(quota.remaining)}</strong> / {formatNumber(quota.allowance)} hak kaldı
-            {balance > 0 ? ` · ayrıca ${formatNumber(balance)} satın alınmış kredin var` : ""}
-            {reserved > 0 ? ` · ${formatNumber(reserved)} rezerve` : ""}
-          </p>
+          {/* Astra gibi sayı yok, yalnızca yüzde (29 Eylül 2026 kararı).
+              Ek paket de dönem hakkına oranla gösteriliyor. */}
+          {extraPercent ? (
+            <p className="cp-quota-detail">
+              Ek paketin: aylık hakkına <strong>+%{extraPercent}</strong>
+            </p>
+          ) : null}
         </div>
 
         {!isPremium ? (
@@ -207,13 +174,13 @@ export default async function KredilerPage() {
           </div>
         )}
 
-        {/* Krediyle ölçülmeyen sınırlar. Kredi kartının hemen altında
+        {/* Ana hakla ölçülmeyen sınırlar. Kullanım kartının hemen altında
             duruyorlar çünkü öğrenci "hakkım kalmadı" cümlesini duyduğunda
-            önce krediye, sonra buraya bakıyor. */}
+            önce ana hakka, sonra buraya bakıyor. */}
         <SectionCard
           variant="parity"
-          title="Krediden ayrı sınırlar"
-          description="Bu işler krediyle ölçülmüyor; kendi sayaçları var."
+          title="Ayrı sayacı olan işler"
+          description="Bu işler ana kullanım hakkından düşmüyor; kendi sayaçları var."
         >
           <div className="cp-limit-card">
             {usageLimits.map((limit) => (
@@ -237,56 +204,6 @@ export default async function KredilerPage() {
           />
         </div>
 
-        <SectionCard
-          variant="parity"
-          title="İşlem başına kredi"
-          description="Fiyatlar sunucu tarafında tutulur; işlem öncesinde her zaman gösterilir."
-        >
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {(rules ?? []).map((rule) => (
-              <li key={rule.action_code} className="cortex-premium-inset-row">
-                <span>{rule.description ?? rule.action_code}</span>
-                <span className="font-medium text-[var(--cs-primary)]">
-                  {rule.credit_cost}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </SectionCard>
-
-        <SectionCard variant="parity" title="Hareketler">
-          {ledger?.length ? (
-            <ul className="cortex-premium-inset-list divide-y">
-              {ledger.map((entry) => (
-                <li
-                  key={entry.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
-                >
-                  <span className="text-[var(--cs-text)]">
-                    {ledgerEntryLabel(entry)}
-                  </span>
-                  <span className="flex items-center gap-3">
-                    <span
-                      className={
-                        entry.delta > 0
-                          ? "font-medium text-[var(--cs-primary)]"
-                          : "text-[var(--cs-muted)]"
-                      }
-                    >
-                      {entry.delta > 0 ? "+" : ""}
-                      {entry.delta}
-                    </span>
-                    <span className="text-xs text-[var(--cs-muted)]">
-                      {formatDate(entry.created_at)}
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-[var(--cs-muted)]">Henüz hareket yok.</p>
-          )}
-        </SectionCard>
       </div>
     </ParitySorShell>
   );

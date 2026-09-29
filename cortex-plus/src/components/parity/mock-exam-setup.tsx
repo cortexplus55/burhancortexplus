@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 
 type Topic = {
   id: string;
@@ -38,8 +37,8 @@ export function MockExamSetup({
   const [progress, setProgress] = useState<string[]>([]);
 
   const creditNote = isAdmin
-    ? "Kurucu hesabı: bu deneme kredinden düşmez."
-    : `Bu deneme ${CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits} kredi kullanır. Değerlendirme dahildir.`;
+    ? "Kurucu hesabı: bu deneme hakkından düşmez."
+    : "Değerlendirme dahildir.";
 
   const preview = useMemo(() => {
     if (scope === "all") return allocationPreview;

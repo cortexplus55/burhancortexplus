@@ -196,7 +196,6 @@ function ChatPanelSession({
   showSubjectPicker = true,
   showAttachments = true,
   returnPath = "/ogretmen",
-  chatCreditCost,
   isPremium,
   tutorStyleLabel,
   quotaHint,
@@ -721,7 +720,6 @@ function ChatPanelSession({
       // Sohbet kaydedilmemişse başlık boş geliyor; o durumda oy düğmesi de
       // çıkmıyor.
       const messageId = res.headers.get("X-Message-Id") || undefined;
-      const credits = res.headers.get("X-Credits-Used");
       const sourceCount = Number(res.headers.get("X-Sources") ?? "0");
       // Hangi nottan geldiği "3 kaynak"tan anlamlı. Kaynak bulunamadığında
       // cevabın genel bilgi olduğunu yazıyoruz: eskiden bu sessizce geçiyordu.
@@ -736,16 +734,16 @@ function ChatPanelSession({
         sourceDoc && sourcePage
           ? `${sourceDoc} · s.${sourcePage}`
           : sourceDoc || (sourceCount ? `${sourceCount} kaynak` : "");
+      // Model adı ve harcanan kredi öğrenciye yazılmıyor (29 Eylül 2026, Astra
+      // gibi yalnızca yüzde); kaynak bilgisi kalıyor.
       const sourceLabel = sourceCount
-        ? ` · Kaynak: ${citation}`
+        ? `Kaynak: ${citation}`
         : useDocuments
           ? documentsOnly
-            ? " · belgede yok"
-            : " · genel bilgi"
+            ? "belgede yok"
+            : "genel bilgi"
           : "";
-      setStatus(
-        `${res.headers.get("X-Model") ?? ""} · ${credits ?? "0"} kredi${sourceLabel}`,
-      );
+      setStatus(sourceLabel);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -1548,20 +1546,11 @@ function ChatPanelSession({
                       <AudioLines className="h-3.5 w-3.5" aria-hidden />
                     </button>
                   ) : null}
-                  {showExamSend && !founder && chatCreditCost != null && chatCreditCost > 0 ? (
-                    <span className="cp-exam-credit">{chatCreditCost} kr</span>
-                  ) : null}
                   {showExamSend ? (
                     <button
                       type="submit"
                       className="cp-send"
-                      aria-label={
-                        loading
-                          ? "Yanıt hazırlanıyor"
-                          : !founder && chatCreditCost != null && chatCreditCost > 0
-                            ? `Gönder, ${chatCreditCost} kr`
-                            : "Gönder"
-                      }
+                      aria-label={loading ? "Yanıt hazırlanıyor" : "Gönder"}
                       disabled={loading || !hasComposerPayload}
                     >
                       {loading ? (
@@ -1657,7 +1646,7 @@ function ChatPanelSession({
         <CreditGate
           open={paywall}
           onOpenChange={setPaywall}
-          message="Bu işlem için yeterli kredin veya ücretsiz hakkın kalmadı. Çalışman kayıtlı kalır."
+          message="Kullanım hakkın doldu. Çalışman kayıtlı kalır."
           returnPath={returnPath}
           isPremium={isPremium}
         />
@@ -2031,11 +2020,14 @@ function ChatPanelSession({
               <p className="text-center text-[11px] text-[var(--cs-muted)]">
                 {quotaHint}
               </p>
-            ) : chatCreditCost != null ? (
+            ) : allowAdvanced || tutorStyleLabel ? (
               <p className="text-center text-[11px] text-[var(--cs-muted)]">
-                Her mesaj yaklaşık {chatCreditCost} kredi harcar.
-                {allowAdvanced ? " Sigma ile gelişmiş model kullanılır." : ""}
-                {tutorStyleLabel ? ` · Stil: ${tutorStyleLabel}` : ""}
+                {[
+                  allowAdvanced ? "Sigma ile gelişmiş model kullanılır." : null,
+                  tutorStyleLabel ? `Stil: ${tutorStyleLabel}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
             ) : null}
             <div
@@ -2215,7 +2207,7 @@ function ChatPanelSession({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Bu işlem için yeterli kredin veya ücretsiz hakkın kalmadı. Çalışman kayıtlı kalır."
+        message="Kullanım hakkın doldu. Çalışman kayıtlı kalır."
         returnPath={returnPath}
         isPremium={isPremium}
       />

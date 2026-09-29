@@ -55,7 +55,7 @@ export default async function AyarlarPage() {
             title="Plan"
             description={
               account.isPremium
-                ? "Plus aboneliğin aktif. Kota ve ödemeleri krediler sayfasından takip edebilirsin."
+                ? "Plus aboneliğin aktif. Kullanımını ve ödemelerini Kullanım sayfasından takip edebilirsin."
                 : "Ücretsiz plandasın. Plus ile gelişmiş model ve daha yüksek limit açılır."
             }
           >

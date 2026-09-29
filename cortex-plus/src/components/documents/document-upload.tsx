@@ -36,18 +36,15 @@ const MAX_BYTES = 15 * 1024 * 1024;
 const PDF_MAX_BYTES = 50 * 1024 * 1024;
 
 export function DocumentUpload({
-  creditCost,
   variant = "default",
   learningV2 = false,
 }: {
-  creditCost: number | null;
   variant?: "default" | "parity";
   /** Stage 9 — explain topic-map pipeline when pdf_learning_v2 is on. */
   learningV2?: boolean;
 }) {
   const router = useRouter();
-  const { isAdmin, freePdfCap } = useDocumentLimits();
-  const founder = isAdmin;
+  const { freePdfCap } = useDocumentLimits();
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<"idle" | "uploading" | "processing">("idle");
   const [statusDetail, setStatusDetail] = useState<string | null>(null);
@@ -181,7 +178,6 @@ export function DocumentUpload({
             )}
           >
             {DOCUMENT_UPLOAD_HINT}
-            {creditCost !== null && !founder ? ` · işleme ${creditCost} kredi` : ""}
             {freePdfCap !== null ? ` · aylık taranmış sayfa hakkı: ${freePdfCap}` : ""}
             {learningV2
               ? " · işlem sonrası konu haritası çıkarılır"
@@ -249,7 +245,7 @@ export function DocumentUpload({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Doküman işleme için yeterli kredin kalmadı. Dosyan hesabında duruyor."
+        message="Kullanım hakkın doldu. Dosyan hesabında duruyor."
         returnPath="/dokumanlar"
       />
     </>

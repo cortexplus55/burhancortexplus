@@ -1,7 +1,7 @@
 export function PremiumPlanHero({
   eyebrow = "Plus",
   title = "Daha fazla çalış, sınırda kalma",
-  description = "Tüm özellikler açık; AI işlemleri kredi ve ücretsiz hak harcar. Plus aboneliği gelişmiş model ve yüksek kredi paketi sunar.",
+  description = "Tüm özellikler açık; sınır yalnızca ne kadar üretebildiğinde. Plus aboneliği gelişmiş model ve çok daha yüksek kullanım hakkı sunar.",
   align = "center",
   headingLevel = "h2",
 }: {

@@ -1354,7 +1354,7 @@ export function ExamCreateWizard({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Materyali işlemek için kredin kalmadı."
+        message="Materyali işlemek için kullanım hakkın doldu."
         returnPath="/deneme-sinavlari/olustur"
       />
     </div>

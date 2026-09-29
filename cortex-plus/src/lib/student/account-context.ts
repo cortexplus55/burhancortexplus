@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getUserEntitlements, type Audience } from "@/lib/billing/entitlements";
-import { formatResetAt, quotaView, type PeriodKind } from "@/lib/credits/period";
+import { allowanceShare, formatResetAt, quotaView, type PeriodKind } from "@/lib/credits/period";
 import { type SubscriptionBadge } from "@/lib/student/subscription-badge";
 import { isAdminUser } from "@/lib/auth/roles";
 
@@ -29,6 +29,10 @@ export type StudentAccountContext = {
    */
   resetsAtLabel: string;
   periodKind: PeriodKind;
+  /** Dönem hakkının kullanılan yüzdesi — öğrenciye gösterilen tek sayı. */
+  usedPercent: number;
+  /** Satın alınmış ek paketin dönem hakkına oranı (%); yoksa null. */
+  extraPercent: number | null;
 };
 
 export async function getStudentAccountContext(
@@ -71,5 +75,7 @@ export async function getStudentAccountContext(
     isAdmin,
     resetsAtLabel: formatResetAt(quota.resetsAt),
     periodKind: quota.kind,
+    usedPercent: quota.usedPercent,
+    extraPercent: allowanceShare(balance, quota.allowance),
   };
 }

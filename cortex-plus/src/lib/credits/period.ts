@@ -120,6 +120,18 @@ export function quotaView(
 }
 
 /**
+ * Bir miktarın dönem hakkına oranı, yüzde olarak.
+ *
+ * Öğrenci kredi sayısı görmüyor (29 Eylül 2026, Astra gibi): kullanım ekranı
+ * yalnızca yüzde gösteriyor, ek paket de "aylık hakkına +%13" diye satılıyor.
+ * Sayının kendisi sunucuda kalıyor.
+ */
+export function allowanceShare(amount: number, allowance: number | null | undefined): number | null {
+  if (!allowance || allowance <= 0 || amount <= 0) return null;
+  return Math.max(1, Math.round((amount / allowance) * 100));
+}
+
+/**
  * "4 Eylül 2026 03:00" — ÖĞRENCİNİN saatinde, sunucununkinde değil.
  *
  * Saat dilimi sabitlenmemişti ve etiket sunucuda üretiliyor. Vercel UTC'de

@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Markdown } from "@/components/markdown";
 import { CreditGate } from "@/components/paywall/credit-gate";
-import { useIsFounder } from "@/lib/student/student-shell-context";
 
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
@@ -30,8 +29,7 @@ const ERROR_LABELS: Record<string, string> = {
   moderation: "Bu görsel işlenemedi. Farklı bir soru fotoğrafı dene.",
 };
 
-export function ImageSolver({ creditCost }: { creditCost: number | null }) {
-  const founder = useIsFounder();
+export function ImageSolver() {
   const [file, setFile] = useState<File | null>(null);
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
@@ -173,7 +171,6 @@ export function ImageSolver({ creditCost }: { creditCost: number | null }) {
           className="min-h-[48px] w-full rounded-xl bg-action font-bold text-action-foreground hover:bg-action-hover"
         >
           {loading ? "Çözülüyor…" : "Çöz"}
-          {creditCost != null && !founder ? ` · ${creditCost} kredi` : ""}
         </Button>
       </form>
 
@@ -216,7 +213,7 @@ export function ImageSolver({ creditCost }: { creditCost: number | null }) {
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Fotoğraftan çözüm için kredin veya ücretsiz hakkın bitti."
+        message="Fotoğraftan çözüm için kullanım hakkın doldu."
         returnPath="/soru-coz"
       />
     </>

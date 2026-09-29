@@ -20,7 +20,7 @@ export function StudentAccountStrip({
         className={`cs-pay-card cortex-premium-account-strip mb-4 rounded-2xl border px-4 py-3 text-sm ${className ?? ""}`}
       >
         <FounderChip />
-        <p className="cp-founder-note">Kurucu hesabı: işlemler kredinden düşmez.</p>
+        <p className="cp-founder-note">Kurucu hesabı: işlemler hakkından düşmez.</p>
       </div>
     );
   }
@@ -46,7 +46,8 @@ export function StudentAccountStrip({
             href="/krediler"
             className="font-medium underline-offset-2 hover:underline"
           >
-            {account.balance} kredi · {account.freeAllowanceRemaining} ücretsiz hak
+            %{account.usedPercent} kullanıldı
+            {account.extraPercent ? ` · ek paket +%${account.extraPercent}` : ""}
           </Link>
         </div>
         {!account.canSpend ? (
@@ -70,16 +71,16 @@ export function StudentAccountStrip({
       ) : null}
       {!account.canSpend ? (
         <p className="mt-1.5 text-xs text-amber-200/90">
-          Yeni AI işlemi için kredi veya ücretsiz hak gerekir. Mevcut içeriklerin
+          Kullanım hakkın doldu. Mevcut içeriklerin
           korunur.
         </p>
       ) : account.audience === "sigma" ? (
         <p className="mt-1.5 text-xs text-[var(--cs-muted)]">
-          Sigma ile gelişmiş model kullanılır; işlemler yine kredi harcar.
+          Sigma ile gelişmiş model kullanılır.
         </p>
       ) : account.isPremium ? (
         <p className="mt-1.5 text-xs text-[var(--cs-muted)]">
-          {periodWord(account.periodKind)} kotan açık; işlemler kredi harcar.
+          {periodWord(account.periodKind)} hakkın açık.
         </p>
       ) : null}
     </div>

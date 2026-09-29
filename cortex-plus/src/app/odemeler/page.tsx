@@ -138,7 +138,7 @@ export default async function OdemelerPage() {
       ) : (
         <EmptyState
           title="Henüz ödemen yok"
-          description="Plus veya kredi paketi satın aldığında makbuzlar burada görünür."
+          description="Plus veya ek paket satın aldığında makbuzlar burada görünür."
           actionHref="/pay"
           actionLabel="Plus planları"
         />

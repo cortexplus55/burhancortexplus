@@ -22,7 +22,6 @@ import {
   type LessonCheckAnswer,
 } from "@/lib/learning/lesson-play";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
-import { AUDIO_CHARS_PER_CREDIT_PRICE, CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 import { RichBody } from "@/components/parity/lesson-rich-text";
 import { ExamReadinessScreen } from "@/components/parity/exam-readiness-screen";
@@ -953,12 +952,6 @@ export function ExamNodeSession({
               />
             </label>
           ) : null}
-          {kind === "podcast" ? (
-            <p className="text-sm text-[var(--cp-muted)]">
-              Senaryo {CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits} kr. Ses, önbellekte olmayan her{" "}
-              {AUDIO_CHARS_PER_CREDIT_PRICE} karakter için {CREDIT_PRICE_TABLE.AUDIO_SYNTHESIZE.credits} kr.
-            </p>
-          ) : null}
           {generationFailure && !generationFailure.canRetryNow ? null : (
             <button
               type="button"
@@ -1070,8 +1063,8 @@ export function ExamNodeSession({
           scriptNote={
             typeof payload.scriptCredits === "number"
               ? payload.scriptCredits === 0
-                ? "Senaryo önbellekten geldi; bu açılışta senaryo için kredi düşülmedi."
-                : `Senaryo için ${payload.scriptCredits} kr düşüldü.`
+                ? "Senaryo önbellekten geldi; bu açılışta senaryo için hakkından düşülmedi."
+                : undefined
               : undefined
           }
           onCreditsSpent={(spent) => {
@@ -1586,7 +1579,7 @@ export function ExamNodeSession({
         message={
           paywallReason === "premium"
             ? "Sesli tekrar için hakkın yetmedi."
-            : "Bu ders için kredin kalmadı."
+            : "Bu ders için kullanım hakkın doldu."
         }
         returnPath={`/deneme-sinavlari/${prepId}`}
       />

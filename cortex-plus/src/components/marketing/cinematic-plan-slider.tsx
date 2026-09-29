@@ -14,7 +14,7 @@ const PLANS = [
     bullets: [
       "Günlük ücretsiz AI hakları",
       "Temel soru çözümü ve sohbet",
-      "Deneme sınavı (kredi ile)",
+      "Deneme sınavı",
     ],
     cta: { href: "/kayit", label: "Ücretsiz başla" },
   },

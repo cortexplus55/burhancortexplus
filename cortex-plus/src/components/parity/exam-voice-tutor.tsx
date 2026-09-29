@@ -390,7 +390,7 @@ export function ExamVoiceTutor({
         <CreditGate
           open={paywall}
           onOpenChange={setPaywall}
-          message="Sesli ders için kredin kalmadı."
+          message="Sesli ders için kullanım hakkın doldu."
           returnPath={returnPath}
         />
       </section>
@@ -455,7 +455,7 @@ export function ExamVoiceTutor({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Sesli ders için kredin kalmadı."
+        message="Sesli ders için kullanım hakkın doldu."
         returnPath={returnPath}
       />
     </section>

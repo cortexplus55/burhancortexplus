@@ -7,7 +7,6 @@ import { DocumentDeleteButton } from "@/components/documents/document-delete-but
 import { DocumentStatusPoller } from "@/components/documents/document-status-poller";
 import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
 import { requireUser } from "@/lib/auth/session";
-import { getCreditCost } from "@/lib/credits/rules";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -59,7 +58,6 @@ function mapReady(status: string | null | undefined) {
 
 export default async function DokumanlarPage() {
   const { supabase, user } = await requireUser();
-  const cost = await getCreditCost("DOCUMENT_PAGE_PROCESS");
   const service = createServiceClient();
   const pdfLearningV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
 
@@ -82,7 +80,6 @@ export default async function DokumanlarPage() {
   return (
     <AppShell
       title="Belgeler"
-      creditHint={`Belge işleme: belge başına ${cost} kredi.`}
     >
       <DocumentStatusPoller documentIds={activeDocumentIds} />
       <div className="space-y-6">
@@ -92,7 +89,6 @@ export default async function DokumanlarPage() {
           description="Yüklediğin kaynaklar yalnızca senin hesabına bağlıdır."
         >
           <DocumentUpload
-            creditCost={cost}
             variant="parity"
             learningV2={pdfLearningV2}
           />
