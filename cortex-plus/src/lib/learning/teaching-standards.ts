@@ -8,6 +8,7 @@ import { z } from "zod";
 import { diagramIssues, lessonDiagramSchema } from "@/lib/learning/lesson-diagram";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { foldTr } from "@/lib/documents/page-analysis";
+import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { preserveSubscriptLetters } from "@/lib/learning/lesson-board";
 import { mathIdentifierIssues, normalizeMathIdentifiers } from "@/lib/learning/math-identifiers";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
@@ -2146,8 +2147,11 @@ export function publishLessonDraft(
 ): LessonV2 | null {
   const prepared = prepareLessonDraft(raw, options.keyTerms ?? []);
   if (!prepared) return null;
+  // Cevap anahtarı hesapla çelişen soru hiçbir yoldan geri gelmez:
+  // "(3⁴)²" için 3¹²'yi doğru sayan soru canlıda öğrenciye gitti.
+  const wrongKey = (check: SectionCheck) => exponentKeyWrong(check) === true;
   const sections = prepared.sections.map((section) => {
-    if (!section.check || sectionCheckPublishable(section.check)) return section;
+    if (!section.check || (sectionCheckPublishable(section.check) && !wrongKey(section.check))) return section;
     const rest = { ...section };
     delete rest.check;
     return rest;
@@ -2165,13 +2169,13 @@ export function publishLessonDraft(
   let count = restored.filter((section) => section.check).length;
   prepared.sections.forEach((section, index) => {
     if (count >= target || restored[index]?.check || !section.check) return;
-    if (!structurallySoundChoice(section.check)) return;
+    if (!structurallySoundChoice(section.check) || wrongKey(section.check)) return;
     restored[index] = section;
     count += 1;
   });
   // Hepsi düştüyse birini geri koy: sıfır kontrol dersi boşaltır.
   if (!count) {
-    const fallback = prepared.sections.findIndex((section) => section.check);
+    const fallback = prepared.sections.findIndex((section) => section.check && !wrongKey(section.check));
     if (fallback >= 0) restored[fallback] = prepared.sections[fallback];
   }
   return { ...prepared, sections: restored };

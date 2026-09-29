@@ -15,6 +15,7 @@ import { isNearDuplicateText, stripInlineSourceLine } from "@/lib/learning/lesso
 import { titleConcepts } from "@/lib/learning/lesson-claims";
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
 import { fluencyIssues, repairTurkishSurface, sentences } from "@/lib/learning/learner-fluency";
+import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { announcedExampleGap, exampleIsComplete, ensureThreeChecks, minimumLessonChecks } from "@/lib/learning/lesson-repair";
 import { auditQuantitative, evaluateArithmetic, repairQuantitative } from "@/lib/learning/tutor-quant";
 import { groundProseCalculations, workedExampleIssues } from "@/lib/learning/worked-example";
@@ -1456,6 +1457,23 @@ function sourceBackedBody(heading: string, topic: string, source: string): strin
  * yeter; bölüm kalır. Geriye gerçek soru kalmayacaksa dokunulmaz —
  * onarım ya da kurtarma o durumu ele alır, ders sorusuz açılmaz.
  */
+/**
+ * Cevap anahtarı hesapla çelişen soru yayından önce son kez çıkar.
+ * Kapıdan sonra da soru ekleniyor (öğretim onarımının yaması, dolgu);
+ * yanlış anahtar hiçbir yoldan öğrenciye gitmemeli. Bkz. exponent-key.ts.
+ */
+function withoutWrongKeys(lesson: LessonV2): LessonV2 {
+  if (!lesson.sections.some((section) => section.check && exponentKeyWrong(section.check) === true)) {
+    return lesson;
+  }
+  return {
+    ...lesson,
+    sections: lesson.sections.map((section) =>
+      section.check && exponentKeyWrong(section.check) === true ? withoutCheck(section) : section,
+    ),
+  };
+}
+
 function withoutEchoingChecks(lesson: LessonV2): LessonV2 {
   const echoing = lesson.sections.map((section) =>
     Boolean(section.check && checkEchoes(section.check, lesson, section.body)),
@@ -1666,10 +1684,11 @@ export async function finishTaughtLesson(
     failures = teachingFailures(current, input.source, input.topicLabel);
   }
   if (!criticalTeachingFailures(failures).length) {
-    const topped =
+    const topped = withoutWrongKeys(
       current.sections.filter((s) => s.check).length < minimumLessonChecks(current)
         ? ensureThreeChecks(current, input.source, { statementChecks: false })
-        : current;
+        : current,
+    );
     return {
       lesson: topped,
       failures: teachingFailures(topped, input.source, input.topicLabel),
@@ -1678,10 +1697,11 @@ export async function finishTaughtLesson(
     };
   }
   const salvaged = salvageTaughtLesson(current, input);
-  const topped =
+  const topped = withoutWrongKeys(
     salvaged.lesson.sections.filter((s) => s.check).length < minimumLessonChecks(salvaged.lesson)
       ? ensureThreeChecks(salvaged.lesson, input.source)
-      : salvaged.lesson;
+      : salvaged.lesson,
+  );
   return {
     lesson: topped,
     failures: teachingFailures(topped, input.source, input.topicLabel),
