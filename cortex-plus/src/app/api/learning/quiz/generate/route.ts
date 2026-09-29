@@ -86,9 +86,6 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     teachingV2: true,
     difficulty: difficulty === "easy" || difficulty === "hard" ? difficulty : "medium",
-    // Konudan üretimde karşılaştırılacak belge yok; iki doğru şıklı
-    // kavramsal soruyu ikinci göz yakalıyor (bkz. exam-prep/intro/route.ts).
-    verifyOptionReasoning: !docContext,
     idempotencyKey,
     sourceExcerpt: docContext?.excerpt,
     requireSourceSupport: Boolean(docContext),

@@ -457,21 +457,21 @@ export async function POST(request: Request) {
 
   const isPremium = await isPremiumUser(service, userId);
   /*
-    Tanışma testi öğrenciyi PUANLIYOR; iki doğru şıklı bir soru onu yanlış
-    ölçer. 29 Eylül 2026'da belgesiz "Üslü sayılar" hazırlığında ilk soru
-    "hangisi üslü sayıların özelliğidir" diye sordu ve hem "çarpmada üsler
-    toplanır" hem "bölmede üsler çıkarılır" şıkları doğruydu; anahtar
-    yalnızca birini tutuyordu. Kesin doğrulayıcı sayıyı ve denklemi
-    denetliyor, kavramsal çift doğruyu göremiyor. Tanı üretimindeki gibi
-    ikinci göz "her sorunun tek ve kesin doğru cevabı var mı" diye bakıyor.
+    29 Eylül 2026'da belgesiz "Üslü sayılar" hazırlığında ilk tanışma
+    sorusunda iki şık birden doğruydu. Önlem ortak istemde (exam-quiz-
+    generate: "iki doğru kuralı yan yana şık yapma, koşulu yaz").
+
+    Buraya tanı üretimindeki "tek doğru cevap" gözden geçirmesi
+    (verifyOptionReasoning) de eklenmişti; bu yol eski (v2 olmayan) şemayla
+    çalışıyor ve şık gerekçesi yazmıyor, gözden geçirici her taslağı
+    reddetti: tanışma testi canlıda iki denemede de açılmadı. Kaldırıldı —
+    bu yolda gözden geçirme ancak şık gerekçeleriyle birlikte gelebilir.
   */
   const outcome = await generateExamQuiz({
     service,
     userId,
     isPremium,
     difficulty: "hard",
-    verifyOptionReasoning: true,
-    maxDraftAttempts: 2,
     sourceExcerpt: source.block,
     requireSourceSupport: sourceMode !== "topic_only",
     userPrompt: `Sınav: ${prep.title ?? prep.exam_type}. Konu: ${topic.label}.${source.block}${topicBlock}
