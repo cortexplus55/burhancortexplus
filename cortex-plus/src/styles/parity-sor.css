@@ -550,7 +550,7 @@
 }
 
 .cs-sor-screen .cs-nav-active {
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--c-text) 8%, transparent);
   box-shadow: inset 0 0 0 1px rgba(244, 174, 11, 0.22);
 }
 

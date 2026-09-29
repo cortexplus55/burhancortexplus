@@ -3030,25 +3030,6 @@
   background: #34d399;
 }
 
-.cp-exam-runner-progress {
-  height: 3px;
-  background: rgba(124, 108, 247, 0.2);
-  border-radius: 9999px;
-  margin-bottom: 1rem;
-  overflow: hidden;
-}
-
-.cp-exam-runner-progress div {
-  height: 100%;
-  background: var(--c-ai);
-}
-
-.cp-exam-runner-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  margin: 0.75rem 0;
-}
-
 .cp-exam-multi-hint {
   display: inline-block;
   margin-bottom: 0.75rem;
@@ -3057,12 +3038,6 @@
   background: rgba(124, 108, 247, 0.15);
   color: #c4b5fd;
   font-size: 0.75rem;
-}
-
-.cp-exam-runner-q {
-  font-size: 1.05rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
 }
 
 .cp-exam-options {

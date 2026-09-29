@@ -388,7 +388,7 @@ export function SubscriptionCards({
               aria-selected={yearly}
               className={cn(
                 "flex-1 min-h-[44px] rounded-full px-3 py-2.5 font-medium transition-colors",
-                yearly ? "cs-nav-active text-white" : "text-[var(--cs-muted)]",
+                yearly ? "cs-nav-active text-[var(--cs-text)]" : "text-[var(--cs-muted)]",
               )}
               onClick={() => setYearly(true)}
             >
@@ -401,7 +401,7 @@ export function SubscriptionCards({
               aria-selected={!yearly}
               className={cn(
                 "flex-1 min-h-[44px] rounded-full px-3 py-2.5 font-medium transition-colors",
-                !yearly ? "cs-nav-active text-white" : "text-[var(--cs-muted)]",
+                !yearly ? "cs-nav-active text-[var(--cs-text)]" : "text-[var(--cs-muted)]",
               )}
               onClick={() => setYearly(false)}
             >
