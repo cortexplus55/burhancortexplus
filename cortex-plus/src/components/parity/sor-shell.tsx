@@ -17,8 +17,7 @@ import { PromoBanner, type PromoCampaign } from "@/components/paywall/promo-bann
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
 import { studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
-import { ACCOUNT_REFRESH_EVENT, spendableCredits } from "@/lib/credits/spendable";
-import { creditChipLabel } from "@/lib/credits/chip-label";
+import { ACCOUNT_REFRESH_EVENT } from "@/lib/credits/spendable";
 import { FounderChip } from "@/components/student/founder-chip";
 import { profilePlanView } from "@/lib/billing/tier-presentation";
 import { ExamChatMenu } from "@/components/parity/exam-chat-menu";
@@ -68,7 +67,7 @@ export function ParitySorShell({
    * Sınav sohbeti: logo ve sekme çubuğu yerine geri, seri, menü ve avatar.
    * Diğer sayfalar `app` kabuğunda kalır.
    */
-  chrome?: "app" | "exam";
+  chrome?: "app" | "exam" | "focus";
   backHref?: string;
   /**
    * Geçmiş satırı bu adresin `?sohbet=` parametresiyle açılır.
@@ -92,45 +91,6 @@ export function ParitySorShell({
     setStreakCount(journey.streak.current);
   }, []);
   const [limitDismissed, setLimitDismissed] = useState(false);
-  const [balance, setBalance] = useState(account?.balance ?? 0);
-  useEffect(() => {
-    if (typeof account?.balance !== "number") return;
-    try {
-      const raw = sessionStorage.getItem("cortex-balance-announced");
-      if (raw) {
-        const saved = JSON.parse(raw) as { value?: number; at?: number };
-        if (
-          typeof saved.value === "number" &&
-          typeof saved.at === "number" &&
-          Date.now() - saved.at < 20_000 &&
-          saved.value < account.balance
-        ) {
-          setBalance(saved.value);
-          return;
-        }
-      }
-    } catch {
-      /* eski duyuru okunamazsa sunucu bakiyesi geçer */
-    }
-    setBalance(account.balance);
-  }, [account?.balance]);
-  useEffect(() => {
-    const onBalance = (event: Event) => {
-      const value = (event as CustomEvent<number>).detail;
-      if (typeof value !== "number") return;
-      setBalance(value);
-      try {
-        sessionStorage.setItem(
-          "cortex-balance-announced",
-          JSON.stringify({ value, at: Date.now() }),
-        );
-      } catch {
-        /* depolama kapalıysa çip yine bu oturumda güncellenir */
-      }
-    };
-    window.addEventListener("cortex-balance", onBalance);
-    return () => window.removeEventListener("cortex-balance", onBalance);
-  }, []);
   const isAdmin = Boolean(account?.isAdmin);
   const isPremium = Boolean(account?.isPremium);
   const showBuy = !isAdmin && account?.showsUpgradeChrome === true;
@@ -143,7 +103,10 @@ export function ParitySorShell({
    */
   const planView = account && !isAdmin ? profilePlanView(account) : null;
   const isStudio = pathname.startsWith("/studio");
-  const examChrome = chrome === "exam";
+  // "focus": sınav kabuğunun başlığı (Geri, seri, menü, avatar) ama temaya
+  // uyan renk ve normal sayfa kaydırması. Hazırlık sayfası bunu kullanıyor —
+  // Astra'da hazırlığın içinde üst sekme çubuğu yok.
+  const examChrome = chrome === "exam" || chrome === "focus";
   const openConversation = (id: string) =>
     conversationBaseHref
       ? `${conversationBaseHref}?sohbet=${encodeURIComponent(id)}`
@@ -208,7 +171,7 @@ export function ParitySorShell({
 
   return (
     <StudentShellProvider account={account}>
-      <div className={cn("cp-sor-root", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio", examChrome && "cp-sor-root--exam")}>
+      <div className={cn("cp-sor-root", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio", chrome === "exam" && "cp-sor-root--exam", chrome === "focus" && "cp-sor-root--focus")}>
       <header className="cp-sor-top">
         {examChrome ? (
           <Link href={backHref} className="cp-exam-back">
@@ -250,22 +213,10 @@ export function ParitySorShell({
             <Link href="/pay" className="cp-sor-buy">
               Satın al +
             </Link>
-          ) : account ? (
-            <Link
-              href="/krediler"
-              className="cp-sor-credit-chip"
-              title={`Satın alınan: ${account.balance} · Bu dönem kalan hak: ${account.freeAllowanceRemaining}`}
-              aria-label={`Satın alınan: ${account.balance} · Bu dönem kalan hak: ${account.freeAllowanceRemaining}`}
-            >
-              {creditChipLabel({
-                planLabel,
-                balance: spendableCredits({
-                  balance,
-                  freeAllowanceRemaining: account.freeAllowanceRemaining,
-                }),
-              })}
-            </Link>
           ) : null}
+          {/* Abonede kredi çipi yok (29 Eylül 2026): Astra'da Plus'ın üst
+              çubuğunda yalnızca seri, "Daha fazla" ve avatar duruyor; kullanım
+              profil → Kullanım'da yüzde olarak görülüyor. */}
           <button
             type="button"
             className="cp-sor-streak"

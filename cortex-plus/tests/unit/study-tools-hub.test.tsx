@@ -87,6 +87,7 @@ describe("study tools hub regression", () => {
       expect(button.getAttribute("aria-label")).not.toMatch(/kilitli/);
     }
 
+    fireEvent.click(screen.getByRole("button", { name: "Hazırlık seçenekleri" }));
     fireEvent.click(screen.getByRole("button", { name: "Ders oluştur" }));
     expect(screen.getByRole("dialog", { name: "Ders oluştur" })).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Konu seç"), { target: { value: "Gazlar" } });
@@ -112,7 +113,7 @@ describe("study tools hub regression", () => {
       { id: "c", name: "medeni.pdf" },
       { id: "d", name: "anayasa.pdf" },
     ]);
-    fireEvent.click(screen.getByRole("tab", { name: "Konular" }));
+    fireEvent.click(screen.getByRole("tab", { name: /İlerleme/ }));
     fireEvent.click(screen.getByRole("button", { name: "Anayasa için ders oluştur" }));
     const oral = screen.getByRole("link", { name: "Sözlü deneme" });
     expect(oral.getAttribute("href")).toBe(studyToolHref("prep-1", "oral-ana"));
@@ -137,6 +138,7 @@ describe("study tools hub regression", () => {
       node("oral-may", "oral", "locked", "Mayoz", 1, "AI ile Sözlü Deneme"),
     ];
     renderPrep("Biyoloji", biology, ["Mitoz", "Mayoz"], [{ id: "e", name: "hucre.pdf" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Hazırlık seçenekleri" }));
     fireEvent.click(screen.getByRole("button", { name: "Ders oluştur" }));
     fireEvent.change(screen.getByLabelText("Konu seç"), { target: { value: "Mitoz" } });
     expect(screen.getByRole("link", { name: "Konu anlatımı" }).getAttribute("href")).toBe(

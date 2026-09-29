@@ -9742,3 +9742,292 @@
   color: var(--cp-muted);
   font-weight: 600;
 }
+
+/* --- Hazırlık sayfası: Astra düzeni (29 Eylül 2026) ---
+   Odak kabuğu: üst sekme çubuğu yok, yalnızca Geri / seri / menü / avatar.
+   Renkler temadan geliyor; sınav sohbetinin sabit koyu zemini burada yok. */
+.cp-sor-root--focus .cp-sor-top {
+  background: transparent;
+  border-bottom: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.cp-prep-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+}
+
+.cp-prep-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.cp-prep-icon.is-on {
+  border-color: var(--c-brand, #6366f1);
+  color: var(--c-brand, #6366f1);
+}
+
+.cp-exam-trail-head h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.cp-exam-tab-pct {
+  font-size: 0.75rem;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-prep-topics-count {
+  margin: 0.9rem 0 0.6rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--cp-muted);
+}
+
+/* Zikzak yol: düğümlerin yanında yazı yok, satır yüksekliği sabit; çizgi
+   SVG ile düğüm merkezlerinden geçiyor (bkz. StudyPath). Genişlik 280px:
+   320px'lik telefonda 16px kenar boşluğuyla sığıyor. */
+.cp-path {
+  position: relative;
+  width: 280px;
+  max-width: 100%;
+  margin: 1.5rem auto 0;
+}
+
+.cp-path-lines {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.cp-path-lines path {
+  fill: none;
+  stroke: var(--cp-border);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.cp-path-lines path.is-done {
+  stroke: rgba(16, 185, 129, 0.55);
+}
+
+.cp-path-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  inset: 0;
+}
+
+.cp-path-list .cp-exam-trail-item {
+  position: absolute;
+  display: block;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.cp-path-list .cp-exam-trail-node {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-2);
+  color: var(--cp-muted);
+  opacity: 1;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.cp-path-list .cp-exam-trail-node:hover {
+  transform: scale(1.05);
+}
+
+.cp-path-list .cp-path-node--square {
+  border-radius: 1rem;
+}
+
+.cp-path-list .cp-path-node--hex {
+  border-radius: 0;
+  border: 0;
+  clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
+}
+
+.cp-path-list .cp-exam-trail-node--locked {
+  opacity: 0.7;
+}
+
+.cp-path-list .cp-exam-trail-node--done {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.55);
+  color: #10b981;
+}
+
+.cp-path-list .cp-exam-trail-node--ready {
+  border-color: rgba(99, 102, 241, 0.55);
+  color: var(--cp-text);
+}
+
+.cp-path-list .cp-exam-trail-node.is-current {
+  width: 4.5rem;
+  height: 4.5rem;
+  background: #3f51e5;
+  border-color: #8ea0ff;
+  color: #fff;
+  box-shadow: 0 0 0 5px rgba(63, 81, 229, 0.22), 0 0 26px rgba(63, 81, 229, 0.45);
+}
+
+.cp-path-list .cp-path-node--hex.is-current {
+  box-shadow: none;
+}
+
+.cp-path-letters {
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.cp-path-next {
+  width: min(100%, 26rem);
+  margin: 1.5rem auto 0;
+  text-align: center;
+  background:
+    radial-gradient(120% 140% at 50% 130%, rgba(124, 108, 247, 0.18), transparent 60%),
+    var(--c-surface-2);
+}
+
+.cp-path-next .cp-path-next-kind {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.cp-path-next-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.cp-path-next-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cp-path-next-actions .cp-exam-continue {
+  flex: 1;
+}
+
+.cp-path-next-custom {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  cursor: pointer;
+}
+
+/* "⋮" hazırlık menüsü — Astra'daki alt sayfanın karşılığı. */
+.cp-prep-sheet {
+  max-height: 85dvh;
+  overflow-y: auto;
+}
+
+.cp-prep-sheet .cp-oral-bar h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.cp-prep-sheet-card {
+  margin: 0.5rem 0 1rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border);
+  background:
+    radial-gradient(120% 140% at 50% 130%, rgba(124, 108, 247, 0.16), transparent 60%),
+    var(--cp-surface);
+}
+
+.cp-prep-sheet-card p {
+  margin: 0;
+}
+
+.cp-prep-sheet-kicker {
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-prep-sheet-title {
+  margin: 0.25rem 0 !important;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.cp-prep-sheet-meta {
+  font-size: 0.8rem;
+  color: var(--cp-muted);
+}
+
+.cp-prep-sheet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--cp-border);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.cp-prep-sheet-list li + li {
+  border-top: 1px solid var(--cp-border);
+}
+
+.cp-prep-sheet-list a,
+.cp-prep-sheet-list button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cp-prep-sheet-list a:hover,
+.cp-prep-sheet-list button:hover {
+  background: var(--cp-surface);
+}
+
+.cp-prep-sheet-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}

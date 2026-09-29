@@ -80,11 +80,11 @@ describe("post-PDF wizard order", () => {
     expect(wizard).not.toContain("ExamSetupChat");
   });
 
-  it("keeps the existing prep shell on path and progress", () => {
+  it("keeps the prep shell on path and progress (Astra düzeni)", () => {
     expect(home).toContain("PREP_HOME_COPY");
     expect(PREP_HOME_COPY.path).toBe("Çalışma yolu");
     expect(PREP_HOME_COPY.topics).toBe("Konular");
-    expect(PREP_HOME_COPY.materials).toBe("Materyaller");
+    expect(PREP_HOME_COPY.materials).toBe("Kaynaklar");
     expect(PREP_HOME_COPY.progress).toBe("İlerleme");
     expect(PREP_HOME_COPY.startLearning).toBe("Hadi öğrenmeye başlayalım");
     expect(PREP_HOME_COPY.skillTree).toBe("Beceri ağacı");
@@ -94,9 +94,10 @@ describe("post-PDF wizard order", () => {
     expect(PREP_HOME_COPY.noPractice).toBe("Henüz alıştırma yapılmadı.");
     expect(PREP_HOME_COPY.createLesson).toBe("Ders oluştur");
     expect(home).toContain("/ ${topicCount} konu");
-    expect(home).toContain("PREP_HOME_COPY.startLearning");
     expect(home).toContain("PREP_HOME_COPY.materials");
-    expect(home).toContain('view === "konular"');
+    // Konular ve kaynaklar ayrı sekme değil: konular İlerleme'de, kaynaklar "⋮" menüsünde.
+    expect(home).not.toContain('view === "konular"');
+    expect(home).toContain('useState<"yol" | "ilerleme">');
     expect(home).toContain("groupNodesByPhase");
     expect(home).not.toContain("Konuyu değiştir");
     expect(home).not.toContain("Planın {topicCount}");

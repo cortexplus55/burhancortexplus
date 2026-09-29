@@ -226,7 +226,9 @@ describe("repeats page does not spend credits", () => {
     const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
     expect(session).toContain("cortex-balance");
     expect(session).toContain("oralReviewItemFromGrade");
+    // 29 Eylül 2026: üst çubukta kredi çipi yok (Astra gibi), bakiye olayını
+    // dinleyecek bir sayı da yok.
     const shell = readFileSync("src/components/parity/sor-shell.tsx", "utf8");
-    expect(shell).toContain("cortex-balance");
+    expect(shell).not.toContain("cp-sor-credit-chip");
   });
 });

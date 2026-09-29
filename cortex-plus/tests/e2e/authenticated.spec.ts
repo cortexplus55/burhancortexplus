@@ -42,12 +42,13 @@ test.describe("authenticated student hub", { tag: ["@auth"] }, () => {
       }),
     ).toBeVisible();
 
-    // Ücretsiz: Satın al; Plus/kurucu: kredi çipi veya Kurucu etiketi.
+    // Ücretsiz: Satın al; kurucu: Kurucu etiketi; abone: çip yok (Astra gibi),
+    // üst çubukta seri duruyor. Kredi sayısı hiçbir kademede yazılmıyor.
     const chromeCredit = page
-      .locator("a.cp-sor-credit-chip")
-      .or(page.getByRole("link", { name: /Satın al/ }))
+      .getByRole("link", { name: /Satın al/ })
       .or(page.getByRole("link", { name: /Kurucu/ }))
-      .or(page.getByText(/kr\b|Sınırsız/));
+      .or(page.locator("button.cp-sor-streak"));
     await expect(chromeCredit.first()).toBeVisible();
+    await expect(page.locator("a.cp-sor-credit-chip")).toHaveCount(0);
   });
 });
