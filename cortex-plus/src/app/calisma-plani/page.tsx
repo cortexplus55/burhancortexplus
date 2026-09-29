@@ -4,6 +4,8 @@ import { StudyWorkspace } from "@/components/learning/study-workspace";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { getCreditCost } from "@/lib/credits/rules";
+import { loadLearningHub } from "@/lib/learning/learning-hub";
+import { ProgramHub } from "@/components/dashboard/program-hub";
 
 export const metadata = { title: "Çalışma planı" };
 
@@ -20,8 +22,11 @@ export const dynamic = "force-dynamic";
 
 export default async function CalismaPlaniPage() {
   const { supabase, user } = await requireStudentArea();
-  const shell = await loadParityShellProps(supabase, user.id, user.email);
-  const cost = await getCreditCost("STUDY_PLAN_GENERATE");
+  const [shell, cost, hub] = await Promise.all([
+    loadParityShellProps(supabase, user.id, user.email),
+    getCreditCost("STUDY_PLAN_GENERATE"),
+    loadLearningHub(supabase, user.id, user.email),
+  ]);
 
   const [{ data: plans }, { data: examPrep }] = await Promise.all([
     supabase
@@ -41,6 +46,8 @@ export default async function CalismaPlaniPage() {
 
   return (
     <ParitySorShell {...shell}>
+      {/* Program panosu Ana Sayfa'dan buraya geldi (30 Eylül 2026). */}
+      <ProgramHub hub={hub} />
       <StudyWorkspace
         targetScore={examPrep?.target_score ?? null}
         generateSlot={<StudyPlanGeneratePanel creditCost={cost} />}
