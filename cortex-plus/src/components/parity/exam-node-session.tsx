@@ -70,6 +70,8 @@ import {
   type Mood,
 } from "@/lib/learning/session-signals";
 import { cn } from "@/lib/utils";
+import { resultMood } from "@/lib/learning/result-mood";
+import { LessonRatingCard } from "@/components/parity/lesson-rating-card";
 import { onGenerationSucceeded } from "@/lib/credits/spendable";
 import { NodeGenerationProgress } from "@/components/parity/node-generation-progress";
 import { LessonOpenChrome } from "@/components/parity/lesson-open-chrome";
@@ -1397,37 +1399,42 @@ export function ExamNodeSession({
       ) : null}
 
       {stage === "result" && !isOral && !isTimedExam && payload.type !== "readiness" && payload.type !== "practice_empty" ? (
-        <section className="cp-exam-node-result">
+        <section
+          className={cn(
+            "cp-exam-node-result",
+            `cp-exam-node-result--${resultMood(score.score, score.total).tone}`,
+          )}
+        >
           {payload.type === "lesson" ? (
             <h1 className="cp-exam-result-title">Dersin tamamı bu kadar</h1>
-          ) : (
-            <p className="cp-lesson-kicker">Doğru cevaplar</p>
-          )}
-          <div className="cp-exam-result-stats" aria-label="Oturum özeti">
-            <div className="cp-exam-result-stat">
-              <span className="cp-exam-result-stat-label">Doğru cevaplar</span>
-              <span className="cp-exam-result-stat-value">
-                {score.score}/{score.total}
-              </span>
+          ) : null}
+          {/* Astra düzeni (30 Eylül 2026): büyük skor, emoji ve tek cümle,
+              altında doğruluk ve süre satırları. */}
+          <p className="cp-lesson-kicker">Doğru cevaplar</p>
+          <p className="cp-result-hero" aria-label={`${score.total} sorudan ${score.score} doğru`}>
+            <strong>{score.score}</strong>
+            <span>/{score.total}</span>
+          </p>
+          <p className="cp-result-mood">
+            <span aria-hidden>{resultMood(score.score, score.total).emoji}</span>{" "}
+            {resultMood(score.score, score.total).text}
+          </p>
+          <dl className="cp-result-lines" aria-label="Oturum özeti">
+            <div>
+              <dt>Doğruluk</dt>
+              <dd>%{Math.round((score.score / Math.max(1, score.total)) * 100)}</dd>
             </div>
-            <div className="cp-exam-result-stat">
-              <span className="cp-exam-result-stat-label">Doğruluk</span>
-              <span className="cp-exam-result-stat-value">
-                %{Math.round((score.score / Math.max(1, score.total)) * 100)}
-              </span>
-            </div>
-            <div className="cp-exam-result-stat">
-              <span className="cp-exam-result-stat-label">Süre</span>
-              <span className="cp-exam-result-stat-value">
+            <div>
+              <dt>Harcanan zaman</dt>
+              <dd>
                 {Math.max(
                   1,
                   Math.round((Date.now() - (playStartedAt ?? Date.now())) / 60000),
                 )}{" "}
                 dk
-              </span>
+              </dd>
             </div>
-          </div>
-          <p>{score.total && score.score / score.total >= 0.7 ? "Güzel gidiyor" : "Biraz daha gelişebilirsin"}</p>
+          </dl>
           {score.retried > 0 ? (
             <p className="text-sm text-[var(--cp-muted)]">
               {score.retried === 1
@@ -1557,6 +1564,7 @@ export function ExamNodeSession({
               <p className="text-sm text-[var(--cp-muted)]">Sıradaki adım, hazırlığın bir sonraki çalışmasıdır.</p>
             )
           ) : null}
+          {attemptId ? <LessonRatingCard attemptId={attemptId} /> : null}
           <Link href={nextHref} className="cp-exam-continue cp-exam-continue--primary">
             {payload.type === "lesson" ? "Sıradaki adıma geç" : "Devam et"}
           </Link>
