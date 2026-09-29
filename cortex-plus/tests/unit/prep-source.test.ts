@@ -191,6 +191,16 @@ describe("rotalar kaynak kararını tek yerden alıyor", () => {
     }
   });
 
+  /*
+    Gözden geçirme geri alınırken ikinci taslak hakkı da gitti; tanışma
+    testi tek taslakla yine düştü. Geri almanın bunu bir daha götürmemesi için.
+  */
+  it("tanışma testi ikinci taslak hakkını koruyor", () => {
+    const src = readFileSync("src/app/api/learning/exam-prep/intro/route.ts", "utf8");
+    const call = src.slice(src.indexOf("await generateExamQuiz("));
+    expect(call.slice(0, call.indexOf("});"))).toContain("maxDraftAttempts: 2");
+  });
+
   it("düğüm dersi belgesizken kaynak çözücüye gitmeden konu çitine geçiyor", () => {
     const src = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
     const gate = src.indexOf("if (topicOnlyLesson)");

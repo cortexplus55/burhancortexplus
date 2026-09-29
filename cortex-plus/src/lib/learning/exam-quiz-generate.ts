@@ -120,7 +120,9 @@ export async function generateExamQuiz(input: {
       : repaired;
     const verified = verifyChoiceSet(asChoices(grounded), input.sourceExcerpt ?? "", 3);
     if (!verified) {
-      if (input.teachingV2 && !loggedCandidateFailure) {
+      // Eskiden yalnızca v2 yolunda yazılıyordu; tanışma testi (eski yol)
+      // "structural" diye düştüğünde hangi sorunun neden elendiği görünmüyordu.
+      if (!loggedCandidateFailure) {
         loggedCandidateFailure = true;
         const outcomes = asChoices(grounded).map((question) => verifyChoiceQuestion(question, input.sourceExcerpt ?? ""));
         console.warn("quiz_candidates_rejected", {
