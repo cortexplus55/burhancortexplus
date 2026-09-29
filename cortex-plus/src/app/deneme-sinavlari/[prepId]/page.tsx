@@ -36,6 +36,7 @@ import {
   formatContradictions,
   type TopicContradiction,
 } from "@/lib/learning/source-contradictions";
+import { buildPrepProgressView } from "@/lib/learning/prep-progress-view";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const metadata = { title: "Sınav hazırlığı" };
@@ -289,6 +290,43 @@ export default async function ExamPrepDetailPage({
     if (biased) ready = biased;
   }
 
+  // İlerleme sekmesi (Astra düzeni): haftalık tablo, tempo, denemeler ve
+  // bilgi eksikleri gerçek kayıtlardan. Tahmin uydurulmuyor; kayıt yoksa
+  // bölüm "ilk derslerinden sonra görünür" diyor.
+  const [{ data: attemptRows }, { data: gapRows }] = await Promise.all([
+    supabase
+      .from("exam_prep_node_attempts")
+      .select("node_id, score, total, created_at")
+      .eq("exam_prep_id", prepId)
+      .eq("status", "completed")
+      .order("created_at", { ascending: false })
+      .limit(500),
+    supabase
+      .from("exam_prep_misconceptions")
+      .select("claim, topic_label")
+      .eq("exam_prep_id", prepId)
+      .order("created_at", { ascending: false })
+      .limit(5),
+  ]);
+  const progressView = buildPrepProgressView({
+    nodes,
+    attempts: (attemptRows ?? []).map((row) => ({
+      nodeId: row.node_id as string,
+      score: typeof row.score === "number" ? row.score : null,
+      total: typeof row.total === "number" ? row.total : null,
+      createdAt: row.created_at as string,
+    })),
+    topicLabels: prepTopics.map((topic) => topic.label),
+    gaps: (gapRows ?? []).map((row) => ({
+      claim: String(row.claim ?? ""),
+      topicLabel: (row.topic_label as string | null) ?? null,
+    })),
+    examDate: (prep.exam_date as string | null) ?? null,
+    targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
+    dailyMinutes: typeof prep.daily_minutes === "number" ? prep.daily_minutes : null,
+    measuredReadinessPct: learningTrackingView?.examReadinessPct ?? null,
+  });
+
   const startHref = !hasTopic
     ? examPrepTopicHref(prepId)
     : needsIntro
@@ -380,6 +418,7 @@ export default async function ExamPrepDetailPage({
         materials={materials}
         readinessClaim={learningTrackingView?.claimFullyReady ?? null}
         topicWarnings={await loadTopicWarnings(supabase, prepId)}
+        progressView={progressView}
       />
     </ParitySorShell>
   );

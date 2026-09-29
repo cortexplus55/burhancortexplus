@@ -29,9 +29,6 @@ import {
 import { toast } from "sonner";
 import {
   PLAN_NODE_META,
-  daysUntilExam,
-  readinessLabel,
-  readinessScore,
   type NodeStatus,
   type PlanNodeKind,
 } from "@/lib/learning/exam-prep-plan";
@@ -46,6 +43,11 @@ import {
 } from "@/lib/learning/exam-prep-ui-path";
 import { STUDY_PATH_HINT, studyNodeAria } from "@/lib/learning/study-tools";
 import { StudyToolsHub } from "@/components/parity/study-tools-hub";
+import { ExamPrepProgress } from "@/components/parity/exam-prep-progress";
+import {
+  buildPrepProgressView,
+  type PrepProgressView,
+} from "@/lib/learning/prep-progress-view";
 import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
 import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
@@ -129,6 +131,10 @@ function nodeShape(kind: PlanNodeKind): "hex" | "square" | "round" {
   return "round";
 }
 
+function labelsFor(topicLabels: string[], rows: { title: string }[]): string[] {
+  return topicLabels.length ? topicLabels : rows.map((row) => row.title);
+}
+
 /** "Birim Çember · Ders · notlar s.10–18" → "Birim Çember". */
 function nodeHeading(node: HomeNode): string {
   const raw = node.title || PLAN_NODE_META[node.kind].title;
@@ -183,6 +189,7 @@ export function ExamPrepHome({
   materials = [],
   readinessClaim = null,
   topicWarnings = {},
+  progressView = null,
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -223,6 +230,8 @@ export function ExamPrepHome({
   readinessClaim?: boolean | null;
   /** Konu başlığı → kaynaklar çelişiyorsa Türkçe uyarı. */
   topicWarnings?: Record<string, string>;
+  /** İlerleme sekmesi; sayfa kayıtlardan kurar. Yoksa düğümlerden hesaplanır. */
+  progressView?: PrepProgressView | null;
 }) {
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
@@ -235,22 +244,33 @@ export function ExamPrepHome({
   const primaryHref = hasProgress ? startHref : beginHref;
   /** Alt karttaki etkinlik: sıradaki, yoksa bitmemiş ilk düğüm. */
   const nextNode = ready ?? nodes.find((node) => node.status !== "done") ?? null;
-  const daysLeft = examDate ? daysUntilExam(examDate) : null;
-  const readiness = readinessScore(nodes);
-  const readinessState = readinessLabel(readiness);
   const pathPct =
     topicCount > 0 ? Math.round((topicsDone / topicCount) * 100) : progressPct;
   const [shared, setShared] = useState(initialShared);
   const [sharing, setSharing] = useState(false);
   const [view, setView] = useState<"yol" | "ilerleme">("yol");
-  const [progressPane, setProgressPane] = useState<"agac" | "sorular">("agac");
   /** "⋮" — Astra'nın hazırlık menüsü: paylaş, ders oluştur, kaynaklar, ayarlar. */
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [optionsPane, setOptionsPane] = useState<"menu" | "kaynaklar" | "ayarlar">("menu");
   const [hubTopic, setHubTopic] = useState<string | null | undefined>(undefined);
   const topicRows = useMemo(() => topicProgressFromNodes(nodes), [nodes]);
-  const showTracking = Boolean(learningTracking);
-  const labels = topicLabels.length ? topicLabels : topicRows.map((row) => row.title);
+  const mockNode = nodes.find((node) => node.kind === "written_exam") ?? null;
+  const progress = useMemo(
+    () =>
+      progressView ??
+      buildPrepProgressView({
+        nodes,
+        attempts: [],
+        topicLabels: labelsFor(topicLabels, topicRows),
+        gaps: [],
+        examDate,
+        targetScore: null,
+        dailyMinutes: null,
+        measuredReadinessPct: learningTracking?.examReadinessPct ?? null,
+      }),
+    [progressView, nodes, topicLabels, topicRows, examDate, learningTracking],
+  );
+  const labels = labelsFor(topicLabels, topicRows);
 
   useEffect(() => {
     if (!optionsOpen) return;
@@ -373,117 +393,14 @@ export function ExamPrepHome({
       </header>
 
       {view === "ilerleme" ? (
-        <>
-          <p className="cp-prep-topics-count">
-            {topicCount > 0 ? `${topicsDone} / ${topicCount} konu` : `%${progressPct}`}
-            {daysLabel ? ` · ${daysLabel}` : ""}
-          </p>
-          {daysLeft !== null || showTracking ? (
-            <section
-              className={cn(
-                "cp-countdown",
-                daysLeft !== null && daysLeft <= 3 && "cp-countdown--urgent",
-              )}
-            >
-              {daysLeft !== null ? (
-                <>
-                  <p className="cp-countdown-kicker">Sınava kadar</p>
-                  <p className="cp-countdown-days">
-                    <strong>{daysLeft}</strong>
-                    <span>gün</span>
-                  </p>
-                </>
-              ) : (
-                <p className="cp-countdown-kicker">Öğrenme takibi</p>
-              )}
-
-              {showTracking && learningTracking ? (
-                /* Sınava hazırlık tahmini öne çıkıyor; konu hâkimiyeti altında
-                   küçülüyor ama kalıyor — hangi sayının neyi ölçtüğü
-                   uyarısıyla birlikte. */
-                <div className="cp-countdown-readiness">
-                  <TrackingMeter
-                    title="Sınava hazırlık tahmini"
-                    pct={learningTracking.examReadinessPct}
-                    label={learningTracking.examReadinessLabel}
-                    hint={
-                      learningTracking.claimFullyReady
-                        ? "Ölçülen başarı + kapsam + deneme sonuçlarına göre."
-                        : "Etkinlik bitirmek tek başına %100 hazırlık değildir."
-                    }
-                  />
-                  <div className="cp-tracking-secondary">
-                    <TrackingMeter
-                      title="Konu hâkimiyeti"
-                      pct={learningTracking.topicMasteryPct}
-                      label={learningTracking.topicMasteryLabel}
-                      hint={
-                        learningTracking.measuredTopicCount === 0
-                          ? "Ölçülmemiş konularda yüksek güven gösterilmez."
-                          : `${learningTracking.measuredTopicCount} ölçülen · ${learningTracking.unmeasuredTopicCount} ölçülmemiş`
-                      }
-                      emptyText="Henüz ölçülmedi"
-                    />
-                  </div>
-                </div>
-              ) : daysLeft !== null ? (
-                <div className="cp-countdown-readiness">
-                  <div className="cp-countdown-row">
-                    <span>Çalışma ilerlemen</span>
-                    <span className="cp-countdown-pct">%{readiness}</span>
-                  </div>
-                  <div className="cp-countdown-meter" aria-hidden>
-                    <span style={{ width: `${Math.max(readiness, readiness > 0 ? 3 : 0)}%` }} />
-                  </div>
-                  <p className="cp-countdown-state">
-                    <span aria-hidden>{readinessState.emoji}</span> {readinessState.text}
-                  </p>
-                  <p className="text-xs text-[var(--cp-muted)]">
-                    Bu oran etkinliklerin tamamlanmasını gösterir; konu hakimiyetini ölçmez.
-                  </p>
-                </div>
-              ) : null}
-            </section>
-          ) : null}
-
-          <section className="cp-progress-pane" aria-label="İlerleme">
-            <div className="cp-exam-tabs" role="tablist" aria-label="İlerleme görünümü">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={progressPane === "agac"}
-                className={cn("cp-exam-tab", progressPane === "agac" && "is-active")}
-                onClick={() => setProgressPane("agac")}
-              >
-                {PREP_HOME_COPY.skillTree}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={progressPane === "sorular"}
-                className={cn("cp-exam-tab", progressPane === "sorular" && "is-active")}
-                onClick={() => setProgressPane("sorular")}
-              >
-                {PREP_HOME_COPY.allQuestions}
-              </button>
-            </div>
-            {progressPane === "agac" ? (
-              <TopicList
-                prepId={prepId}
-                labels={labels}
-                rows={topicRows}
-                warnings={topicWarnings}
-                onCreate={(label) => setHubTopic(label)}
-              />
-            ) : (
-              <p className="text-sm text-[var(--cp-muted)]">
-                {topicsDone > 0 || hasProgress
-                  ? PREP_HOME_COPY.practicedElsewhere
-                  : PREP_HOME_COPY.noPractice}
-              </p>
-            )}
-          </section>
-        </>
+        <ExamPrepProgress
+          view={progress}
+          daysLabel={daysLabel}
+          warnings={topicWarnings}
+          reviewsHref={uiV2 ? examPrepReviewsHref(prepId) : null}
+          mockHref={mockNode ? examPrepNodeHref(prepId, mockNode.id) : null}
+          onCreate={(label) => setHubTopic(label)}
+        />
       ) : null}
 
       {view === "yol" && introPending ? (
@@ -815,61 +732,6 @@ function StudyPath({
   );
 }
 
-function TopicList({
-  prepId,
-  labels,
-  rows,
-  warnings,
-  onCreate,
-}: {
-  prepId: string;
-  labels: string[];
-  rows: { title: string; pct: number; done: number; total: number }[];
-  warnings: Record<string, string>;
-  onCreate?: (label: string) => void;
-}) {
-  if (!labels.length) {
-    return <p className="text-sm text-[var(--cp-muted)]">{PREP_HOME_COPY.noTopics}</p>;
-  }
-  return (
-    <section className="cp-topic-progress" aria-label={PREP_HOME_COPY.topics}>
-      <ul>
-        {labels.map((label) => {
-          const row = rows.find((item) => item.title === label);
-          const pct = row?.pct ?? 0;
-          return (
-            <li key={label}>
-              <Link href={`/deneme-sinavlari/${prepId}/konu`}>
-                <span className="cp-topic-progress-name">{label}</span>
-                <span className="cp-topic-progress-pct">
-                  {pct}
-                  {PREP_HOME_COPY.masterySuffix}
-                </span>
-                <span className="cp-topic-progress-bar" aria-hidden>
-                  <span style={{ width: `${pct}%` }} />
-                </span>
-                <span className="cp-topic-progress-count">
-                  {row && row.total > 0
-                    ? `${row.done} / ${row.total} etkinlik`
-                    : PREP_HOME_COPY.noPractice}
-                </span>
-                {warnings[label] ? (
-                  <span className="cp-topic-warning">{warnings[label]}</span>
-                ) : null}
-              </Link>
-              {onCreate ? (
-                <button type="button" className="cp-back-pill" onClick={() => onCreate(label)}>
-                  {label} için ders oluştur
-                </button>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
 function MaterialsList({ materials }: { materials: PrepMaterial[] }) {
   if (!materials.length) {
     return (
@@ -889,40 +751,5 @@ function MaterialsList({ materials }: { materials: PrepMaterial[] }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-function TrackingMeter({
-  title,
-  pct,
-  label,
-  hint,
-  emptyText = "—",
-}: {
-  title: string;
-  pct: number | null;
-  label: string;
-  hint: string;
-  emptyText?: string;
-}) {
-  const shown = pct == null ? null : Math.max(0, Math.min(100, pct));
-  return (
-    <div>
-      <div className="cp-countdown-row">
-        <span>{title}</span>
-        <span className="cp-countdown-pct">
-          {shown == null ? emptyText : `%${shown}`}
-        </span>
-      </div>
-      <div className="cp-countdown-meter" aria-hidden>
-        <span
-          style={{
-            width: `${shown == null ? 0 : Math.max(shown, shown > 0 ? 3 : 0)}%`,
-          }}
-        />
-      </div>
-      <p className="cp-countdown-state text-sm">{label}</p>
-      <p className="text-xs text-[var(--cp-muted)]">{hint}</p>
-    </div>
   );
 }
