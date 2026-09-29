@@ -188,7 +188,8 @@ function hasSymbolicRelation(text: string): boolean {
  */
 function hasFinishedResult(text: string): boolean {
   const result = new RegExp(
-    `(?:=|≈)\\s*\\d+(?:[.,]\\d+)?(?![.,\\d])(?:\\s*[×x·]\\s*10(?:\\^\\s*[+-]?\\d+|[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)?)?(?:\\s*(?:${MEASURE})(?![A-Za-zÇĞİÖŞÜçğıöşü]))?`,
+    // (?![.,]?\d): "= 7." cümle sonudur, sonuçtur; "= 0,2" + "5" değildir.
+    `(?:=|≈)\\s*\\d+(?:[.,]\\d+)?(?![.,]?\\d)(?:\\s*[×x·]\\s*10(?:\\^\\s*[+-]?\\d+|[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)?)?(?:\\s*(?:${MEASURE})(?![A-Za-zÇĞİÖŞÜçğıöşü]))?`,
     "gi",
   );
   for (const match of text.matchAll(result)) {
@@ -199,7 +200,7 @@ function hasFinishedResult(text: string): boolean {
   // Matematikte sonuç çoğu zaman bir kesir ya da negatif sayıdır:
   // `5⁻² = 1/25`, `(2/3)⁻² = 9/4`, `2 − 5 = −3`. Yukarıdaki kalıp `= 1`
   // görüp ardından `/25` geldiği için onu yarım işlem sayıyordu.
-  for (const match of text.matchAll(/(?:=|≈)\s*[-−]?\d+(?:\s*\/\s*\d+)?(?![.,\d])/g)) {
+  for (const match of text.matchAll(/(?:=|≈)\s*[-−]?\d+(?:\s*\/\s*\d+)?(?![.,]?\d)/g)) {
     const after = text.slice((match.index ?? 0) + match[0].length);
     if (/^\s*[/×*·+\-−^]/.test(after)) continue;
     return true;
@@ -227,7 +228,9 @@ export function exampleIsComplete(text: string): boolean {
     new RegExp(`\\d+(?:[.,]\\d+)?\\s*${MEASURE}`, "i").test(text) || unitlessMathWork(text);
   const substituted =
     /\d+(?:[.,]\d+)?(?:\s*[A-Za-z°µ/%³²·]+)?\s*[/×*·+\-−]\s*\d/.test(text) ||
-    /\(\d+(?:[.,]\d+)?\s*[^)]+\)\s*\(/.test(text);
+    /\(\d+(?:[.,]\d+)?\s*[^)]+\)\s*\(/.test(text) ||
+    // Üslü yazım: "3⁴ × 3⁻²", "2³ ÷ 2⁵" — sayı ile işleç arasında üst simge var.
+    /\d[⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+\s*[/×*·÷+\-−]\s*\d/.test(text);
   return given && substituted && hasFinishedResult(text);
 }
 
@@ -1795,7 +1798,18 @@ function equationCheck(
  * Yeni bir model çağrısı yok. Çeldirici, dersteki başka bağıntı ya da aynı bağıntının değişimidir.
  * Klasik hedef 3; daha geniş derste minimumLessonChecks üstüne çıkar.
  */
-export function ensureThreeChecks(lesson: LessonV2, source = ""): LessonV2 {
+/**
+ * `statementChecks: false`: ders cümlesinden doğru/yanlış kurma. O soru
+ * tanımı gereği ders cümlesinin kopyasıdır ve finishTaughtLesson onu
+ * kritik `echo_check` sayıp dersi kurtarmaya sokar. Öğretim kapısından
+ * sonra yalnızca denklemden kurulan sorularla doldurulur; üçe ulaşmazsa
+ * ders eksik soruyla açılır (checkCountLow kaydı düşer).
+ */
+export function ensureThreeChecks(
+  lesson: LessonV2,
+  source = "",
+  options: { statementChecks?: boolean } = {},
+): LessonV2 {
   const next: LessonV2 = {
     ...lesson,
     sections: lesson.sections.map((section) => ({ ...section })),
@@ -1836,7 +1850,7 @@ export function ensureThreeChecks(lesson: LessonV2, source = ""): LessonV2 {
     used.add(foldTr(check.prompt));
     queue.push(check);
   }
-  for (const sentence of statements) {
+  for (const sentence of options.statementChecks === false ? [] : statements) {
     if (!needed()) break;
     if (
       danglingOpener(sentence) ||
@@ -2509,13 +2523,17 @@ function promoteSectionExample(lesson: LessonV2, source: string): LessonV2 {
  * "-(y)alım/-(y)elim" ekiyle biter; "yapılır/bulunur" edilgen olduğu için
  * eşleşmez.
  */
-const TASK_VERB =
-  /(?:^|[^a-z])(?:bul|hesapla|yap|sadelestir|goster|yaz|coz|belirle|karsilastir|donustur|cevir|tamamla|incele|ifade et)(?:|in|iniz|un|unuz|alim|elim|yalim|yelim|yin|yiniz)\s*[.!]?\s*$/;
+const TASK_VERBS =
+  "(?:bul|hesapla|yap|sadelestir|goster|yaz|coz|cozumle|belirle|karsilastir|donustur|cevir|tamamla|incele|ifade et)(?:|in|iniz|un|unuz|alim|elim|yalim|yelim|yin|yiniz)";
+const TASK_VERB = new RegExp(`(?:^|[^a-z])${TASK_VERBS}\\s*[.!]?\\s*$`);
+/** "Çözümleyiniz: (3² × 3⁻³) ÷ 3⁻¹", "Hesaplayınız: …" — görev başta. */
+const TASK_LEAD = new RegExp(`^${TASK_VERBS}\\s*:`);
 
 function usablePrompt(prompt: string): string {
   const tidy = tidyJoins(prompt);
   if (/[?？]\s*$/.test(tidy)) return tidy;
-  if (TASK_VERB.test(foldTr(tidy))) return tidy;
+  const folded = foldTr(tidy);
+  if (TASK_VERB.test(folded) || TASK_LEAD.test(folded)) return tidy;
   return "";
 }
 

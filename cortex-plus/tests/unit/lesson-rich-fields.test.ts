@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { publishLessonDraft } from "@/lib/learning/teaching-standards";
 import { exampleIsComplete, repairLearnerLesson, scopeLessonToTopic } from "@/lib/learning/lesson-repair";
 import { criticalTeachingFailures, finishTaughtLesson } from "@/lib/learning/lesson-teach";
+// (taslak sapmaları için ayrı dosya: lesson-draft-drift.test.ts)
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
 import { fluencyIssues, repairLessonSurface } from "@/lib/learning/learner-fluency";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
@@ -239,17 +240,33 @@ describe("kopya soru önce onarılır", () => {
     ],
   };
 
-  it("onarım yoksa kopya soru dersi kurtarmaya düşürür", async () => {
+  /*
+    Kopya soru artık kapıdan önce yalnız başına çıkıyor: bölüm, örnek, sık
+    hata ve diğer sorular kalıyor. Kurtarma bunların hepsini götürüyordu.
+  */
+  it("kopya soru tek başına çıkar, ders kurtarmaya düşmez", async () => {
     const taught = await finishTaughtLesson(echoLesson(), { source: "", topicLabel: topic });
-    expect(taught.salvaged).toBe(true);
+    expect(taught.salvaged).toBe(false);
+    expect(criticalTeachingFailures(taught.failures)).toEqual([]);
+    expect(taught.lesson.sections[0].heading).toBe("Üslü Sayılarda Çarpma Kuralı");
+    expect(taught.lesson.sections[0].check?.type).not.toBe("trueFalse");
+    expect(taught.lesson.sections.some((section) => section.check?.type === "numerical")).toBe(true);
+    expect(taught.lesson.example).toBeTruthy();
+    expect(taught.lesson.commonMistake).toBeTruthy();
   });
 
-  it("onarım kopya soruyu çoktan seçmeliye çevirir, sayısal soru kalır", async () => {
-    const taught = await finishTaughtLesson(echoLesson(), { source: "", topicLabel: topic }, async () => patch);
+  it("bütün sorular kopyaysa onarım çağrılır ve kopya soruyu değiştirir", async () => {
+    const onlyEcho = echoLesson();
+    onlyEcho.sections = [onlyEcho.sections[0], { ...onlyEcho.sections[2], check: undefined }];
+    let asked = false;
+    const taught = await finishTaughtLesson(onlyEcho, { source: "", topicLabel: topic }, async () => {
+      asked = true;
+      return patch;
+    });
+    expect(asked).toBe(true);
     expect(taught.salvaged).toBe(false);
     expect(taught.lesson.sections[0].check?.type).toBe("mcq");
     expect(taught.lesson.sections[0].check?.optionWhy).toHaveLength(4);
-    expect(taught.lesson.sections.some((section) => section.check?.type === "numerical")).toBe(true);
   });
 
   it("düğüm rotası öğretim onarımını bağlıyor", () => {

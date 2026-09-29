@@ -37,7 +37,7 @@ export const LESSON_TEACH_RULE = [
   "Konunun kendi terimi için note tanım kutusudur: {title, body, tone:\"info\"}.",
   "Kaynakta eşitlik varsa formülü eksiksiz yaz. Parantez kapanır. Aritmetik tamdır: 12 + 2 × 16 = 44 g/mol gibi, yarım çarpım yazılmaz.",
   "commonMistake yanlış inancı ve gerekçeli düzeltmeyi taşır.",
-  "Nicel konuda example tam çözülmüş örnektir. solution satırları: Verilen: … İstenen: … Bağıntı: … Yerine koyma: … Sonuç: … birimle. Çözümdeki her sayı verilenlerde ya da önceki adımda durur. Kaynakta örnek varsa onu kullan. Yoksa kaynaktaki sabitlerle bir örnek kur; ara sonucu kendin hesapla, uydurma sonuç yazma. Sözel konuda sayı uydurma; kaynağın olayını adım adım analiz et.",
+  "Nicel konuda example tam çözülmüş örnektir. solution satırları: Verilen: … İstenen: … Bağıntı: … Yerine koyma: … Sonuç: … (nicelikse birimiyle; 'birimle' kelimesini yazma). Çözümdeki her sayı verilenlerde ya da önceki adımda durur. Kaynakta örnek varsa onu kullan. Yoksa kaynaktaki sabitlerle bir örnek kur; ara sonucu kendin hesapla, uydurma sonuç yazma. Sözel konuda sayı uydurma; kaynağın olayını adım adım analiz et.",
   "Hesabı yazmadan önce veriyi söyle. Verisi söylenmemiş eşitlik yazma.",
   "sadece, asla, her zaman, tek bir, hiçbir, only, never, always gibi kesin hüküm ancak kaynak aynı sözü kuruyorsa yazılır.",
   "Kontrol, konunun becerisini ölçer ve ders cümlesini tekrar etmez. En az min(3, kavram bölümü) ve her iki slaytta bir kontrol yaz. Kaynak zenginse en az beş çeşitli kontrol yaz: mcq, doğru/yanlış, sayısal, öğrencinin kendisinin yazdığı. Nicel konuda en az bir mcq hesap sorar. Çeldirici gerçek işlem hatasıdır: çarpma yerine bölme, ters bölme, verilen sayıyı sonuç sanma. optionWhy her şıkka tek başına okunan bir cümledir. explanation gerekçeyi söyler, soru cümlesini ve 'kendi anlamına bağlıyor' kalıbını tekrarlamaz. Doğru/yanlış yalnızca iki taraf da anlamlıysa. " +
@@ -809,15 +809,46 @@ function readableSummary(lesson: LessonV2, topic: string): string[] {
   const name = topic.trim() || lesson.title;
   const formula = symbolicFormula(lessonProse(lesson));
   const trap = lesson.commonMistake?.correction
-    ? `Sık hata, ${lesson.commonMistake.correction.replace(/\s+/g, " ").trim().slice(0, 140)}`
+    ? `Sık hataya dikkat: ${lesson.commonMistake.correction.replace(/\s+/g, " ").trim().slice(0, 140)}`
     : "Sık hata, tanımı başka bir olaya ya da büyüklüğe kaydırmaktır.";
+  /*
+    Kalıp cümle ("kural, tanımına ve şartına bağlıdır") her konuya uyar ve
+    öğrenciye hiçbir şey söylemez. Önce soruların açıklamalarındaki kural
+    cümlesine bakılır: "Üslü sayılarda taban aynı ise çarpma işleminde
+    üsler toplanır." Ders cümlesinin kopyası olmadığı için özet kuralına
+    uyar. Kalıp yalnızca aday yoksa kullanılır.
+  */
+  const prose = lessonSentences(lesson).map((sentence) => foldTr(sentence));
+  // Genel kural cümlesi: büyük harfle başlar, sayı taşımaz. "3 − 5 = −2"
+  // gibi o sorunun hesabı özette bağlamsız kalır.
+  const rules = lesson.sections
+    // İki noktada kesilmez: "Üslerin çarpılması gerekir: (3²)³ = 3⁶"
+    // parçası bağlamından kopunca yanlış bir kurala dönüşüyordu.
+    .map((section) => (section.check?.explanation ?? "").split(/;|\.\s/)[0]?.trim() ?? "")
+    .map((line) => (line && !/[.!?]$/.test(line) ? `${line}.` : line))
+    .filter(
+      (line, index, all) =>
+        line.length >= 24 &&
+        line.length <= 200 &&
+        /^[A-ZÇĞİÖŞÜ]/.test(line) &&
+        !/[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(line) &&
+        all.indexOf(line) === index &&
+        !/^bu (?:yargı|ifade)/i.test(line) &&
+        // "… bu nedenle yanlıştır": o sorunun hükmü, özette bağlamsız kalır.
+        !/(?:yanlıştır|doğrudur|doğru cevap|yanlış cevap|seçenek|şık)/i.test(line) &&
+        !fluencyIssues(line).length &&
+        !prose.some((sentence) => nearCopy(foldTr(line), sentence)),
+    )
+    .slice(0, 2);
   const lines = formula
     ? [
         `${name} konusunda sonuç, ${formula} bağıntısına konulan veriden çıkar.`,
         "Uygulama, verileni bağıntıda yerine koyup birimiyle okumaktır.",
         trap,
       ]
-    : [
+    : rules.length
+      ? [...rules, trap]
+      : [
         // "kaynaktaki" denmiyor: belgesiz derste (topic_only) ortada kaynak
         // yok ve konu çiti belgeye atıfı yasaklıyor.
         `${name} konusunda kural, tanımına ve şartına bağlıdır.`,
@@ -832,7 +863,17 @@ function readableSummary(lesson: LessonV2, topic: string): string[] {
 function softenSummary(lesson: LessonV2, topic: string): LessonV2 {
   if (!summaryEchoes(lesson)) return lesson;
   const summary = readableSummary(lesson, topic);
-  if (summary.length < 3) return lesson;
+  if (summary.length < 2) return lesson;
+  /*
+    Yerine konacak özet yalnızca kalıp cümlelerse ("kural, tanımına ve
+    şartına bağlıdır") dersin kendi cümlelerinden kurulmuş özet kalır:
+    kopya olması içeriksiz olmasından iyidir, summary_echo kritik değil.
+    Yalnızca göstereni olmayan ("Bu …") maddeler atılır.
+  */
+  if (summary.some((line) => /tanımına ve şartına bağlıdır/.test(line))) {
+    const own = (lesson.summary ?? []).filter((line) => !DANGLING_ANAPHOR.test(line.trim()));
+    if (own.length >= 2) return { ...lesson, summary: own };
+  }
   return { ...lesson, summary };
 }
 
@@ -1152,7 +1193,37 @@ function scrubStructuredBlockFabrication(lesson: LessonV2, source: string): Less
   return changed ? { ...lesson, sections } : lesson;
 }
 
-function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): LessonV2 {
+/**
+ * Bilinen yazım hatası (TYPO_RULES) önce düzeltilir. fluencyIssues "typo"
+ * sorununu "düzeltme metni değiştiriyor" diye buluyor ve akıcılık kritik
+ * hata; düzeltme hiç uygulanmadığı için modelin tek bir "kendisiyli"si
+ * bütün dersi kurtarma yoluna sokuyordu.
+ */
+function surfaceRepaired(lesson: LessonV2): LessonV2 {
+  const fix = (text: string) => repairTurkishSurface(text);
+  return {
+    ...lesson,
+    ...(lesson.overview ? { overview: fix(lesson.overview) } : {}),
+    sections: lesson.sections.map((section) => ({
+      ...section,
+      body: fix(section.body),
+      ...(section.note ? { note: { ...section.note, body: fix(section.note.body) } } : {}),
+      ...(section.check
+        ? { check: { ...section.check, prompt: fix(section.check.prompt), explanation: fix(section.check.explanation) } }
+        : {}),
+    })),
+    ...(lesson.example
+      ? { example: { ...lesson.example, prompt: fix(lesson.example.prompt), solution: fix(lesson.example.solution) } }
+      : {}),
+    ...(lesson.commonMistake
+      ? { commonMistake: { claim: fix(lesson.commonMistake.claim), correction: fix(lesson.commonMistake.correction) } }
+      : {}),
+    ...(lesson.summary ? { summary: lesson.summary.map(fix) } : {}),
+  };
+}
+
+function prepareTaught(input: LessonV2, source: string, topicLabel: string): LessonV2 {
+  const lesson = surfaceRepaired(input);
   const checksBefore = lesson.sections.filter((section) => section.check).length;
   const sentencesBefore = sentences(lessonProse(lesson)).length;
   const hadExample = Boolean(lesson.example);
@@ -1182,7 +1253,9 @@ function prepareTaught(lesson: LessonV2, source: string, topicLabel: string): Le
   next = scrubInventedNumbers(next, source);
   next = scrubStructuredBlockFabrication(next, source);
   if (next.sections.filter((section) => section.check).length < minimumLessonChecks(next)) {
-    next = ensureThreeChecks(next, source);
+    // Ders cümlesinden doğru/yanlış kurulmaz: o soru bir sonraki adımda
+    // echo_check olarak kritik sayılıp dersi kurtarmaya sokuyordu.
+    next = ensureThreeChecks(next, source, { statementChecks: false });
   }
   // ensureThreeChecks yeni bölüm ekleyebilir; künye ayıklama onun ardından,
   // en sonda çalışmalı ki eklenen bölümler de temiz çıksın.
@@ -1373,6 +1446,28 @@ function sourceBackedBody(heading: string, topic: string, source: string): strin
   return cited.slice(0, 2400);
 }
 
+/**
+ * Ders cümlesinin kopyası olan soru öğretim kapısından ÖNCE çıkar.
+ *
+ * Kopya soru çoğunlukla dolgudan geliyor: repairLearnerLesson üç soruya
+ * tamamlarken ders cümlesinden doğru/yanlış kuruyor (conceptCheck), kapı
+ * da onu kritik `echo_check` sayıp bütün dersi kurtarmaya sokuyordu.
+ * Kurtarma örneği, sık hatayı ve bölümleri de götürüyordu. Soruyu atmak
+ * yeter; bölüm kalır. Geriye gerçek soru kalmayacaksa dokunulmaz —
+ * onarım ya da kurtarma o durumu ele alır, ders sorusuz açılmaz.
+ */
+function withoutEchoingChecks(lesson: LessonV2): LessonV2 {
+  const echoing = lesson.sections.map((section) =>
+    Boolean(section.check && checkEchoes(section.check, lesson, section.body)),
+  );
+  const survivors = lesson.sections.filter((section, index) => section.check && !echoing[index]).length;
+  if (!echoing.some(Boolean) || survivors === 0) return lesson;
+  return {
+    ...lesson,
+    sections: lesson.sections.map((section, index) => (echoing[index] ? withoutCheck(section) : section)),
+  };
+}
+
 function withoutCheck(section: LessonV2["sections"][number]): LessonV2["sections"][number] {
   const next = { ...section };
   delete next.check;
@@ -1551,7 +1646,7 @@ export async function finishTaughtLesson(
   salvaged: boolean;
   checkCountLow: boolean;
 }> {
-  let current = prepareTaught(lesson, input.source, input.topicLabel);
+  let current = withoutEchoingChecks(prepareTaught(lesson, input.source, input.topicLabel));
   let failures = teachingFailures(current, input.source, input.topicLabel);
   if (criticalTeachingFailures(failures).length && repair) {
     try {
@@ -1573,7 +1668,7 @@ export async function finishTaughtLesson(
   if (!criticalTeachingFailures(failures).length) {
     const topped =
       current.sections.filter((s) => s.check).length < minimumLessonChecks(current)
-        ? ensureThreeChecks(current, input.source)
+        ? ensureThreeChecks(current, input.source, { statementChecks: false })
         : current;
     return {
       lesson: topped,

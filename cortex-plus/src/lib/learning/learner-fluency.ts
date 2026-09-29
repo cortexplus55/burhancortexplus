@@ -107,7 +107,16 @@ function hasPredicate(sentence: string): boolean {
     bir "… göreceğiz." girişi bütün dersi kurtarma yoluna sokabiliyordu.
     Ekler fiil çekimine bağlı: "sekiz", "hız" gibi -iz ile biten ad eşleşmez.
   */
-  return /(?:ecegiz|acagiz|iriz|eriz|ariz|uruz|yoruz|iyiz|dik|duk|tik|tuk|eceksin|acaksin|irsin|ersin|arsin|ursun|isin|siniz|sunuz|elim|alim|degil|yok)$/.test(last);
+  if (/(?:ecegiz|acagiz|iriz|eriz|ariz|uruz|yoruz|iyiz|dik|duk|tik|tuk|din|dun|tin|tun|eceksin|acaksin|irsin|ersin|arsin|ursun|isin|siniz|sunuz|elim|alim|degil|yok)$/.test(last)) {
+    return true;
+  }
+  // "… kullanılır; örneğin popülasyon artışı veya alan hesabı gibi." —
+  // noktalı virgülden sonraki örnek eki yüklem istemez; yüklem öndedir.
+  const clauses = sentence.split(";");
+  if (clauses.length > 1 && /^\s*(?:örneğin|mesela|ör\.)/i.test(clauses[clauses.length - 1] ?? "")) {
+    return hasPredicate(clauses.slice(0, -1).join(";"));
+  }
+  return false;
 }
 
 const TYPO_RULES: { pattern: RegExp; replacement: string }[] = [
@@ -118,6 +127,8 @@ const TYPO_RULES: { pattern: RegExp; replacement: string }[] = [
   { pattern: /\bbirşey\b/gi, replacement: "bir şey" },
   { pattern: /\bhiçbirşey\b/gi, replacement: "hiçbir şey" },
   { pattern: /\bdeğilmi\b/gi, replacement: "değil mi" },
+  // Canlı belgesiz derste iki üretimde de çıktı (29 Eylül).
+  { pattern: /kendisiyli(?![A-Za-zÇĞİÖŞÜçğıöşü])/g, replacement: "kendisiyle" },
   {
     pattern: /konu ağırlıklı(?!\s*(?:dır|dir|dur|dür|bir\b))(?![A-Za-zÇĞİÖŞÜçğıöşü])/gi,
     replacement: "konu ağırlıklıdır",
