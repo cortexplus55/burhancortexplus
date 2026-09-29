@@ -2449,10 +2449,19 @@ async function generateNodePayload(input: {
           (prompt) => repairCall(prompt, 1500),
           repairSource.trim() ? (prompt) => repairCall(prompt, 400) : undefined,
         );
-        taught = await finishTaughtLesson(repair.lesson, {
-          source: repairSource,
-          topicLabel: input.topicLabel,
-        });
+        /*
+          Kritik öğretim hatası (en sık: soru ders cümlesinin kopyası)
+          önce bir model onarımıyla düzeltilmeye çalışılır. 29 Eylül'e kadar
+          bu rota onarımı bağlamıyordu; tek bir kopya soru bütün dersi
+          kurtarma yoluna sokuyor, kurtarma da sayısal soruyu, örneği ve sık
+          hatayı atıp yerine yine ders cümlesi kopyası doğru/yanlış
+          koyuyordu. Eski ders rotası (exam-prep/lesson) onarımı hep bağlıyordu.
+        */
+        taught = await finishTaughtLesson(
+          repair.lesson,
+          { source: repairSource, topicLabel: input.topicLabel },
+          pastDeadline() ? undefined : (prompt) => repairCall(prompt, 1800),
+        );
         taughtLesson = stripLessonVerificationChrome(taught.lesson);
         const critical = criticalTeachingFailures(taught.failures);
         const repairWallMs = Date.now() - repairStarted;
