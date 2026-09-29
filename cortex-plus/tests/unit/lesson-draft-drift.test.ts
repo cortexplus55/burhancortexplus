@@ -7,9 +7,9 @@ import {
   type LessonV2,
 } from "@/lib/learning/teaching-standards";
 import { exampleIsComplete, repairLearnerLesson, scopeLessonToTopic } from "@/lib/learning/lesson-repair";
-import { criticalTeachingFailures, finishTaughtLesson } from "@/lib/learning/lesson-teach";
+import { criticalTeachingFailures, finishTaughtLesson, teachingFailures } from "@/lib/learning/lesson-teach";
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
-import { repairLessonSurface, repairTurkishSurface } from "@/lib/learning/learner-fluency";
+import { fluencyIssues, repairLessonSurface, repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import { layoutBoard } from "@/lib/learning/lesson-board";
 
 /*
@@ -260,5 +260,51 @@ describe("çözüm tahtası etiketleri", () => {
     expect(lines.join(" | ")).not.toContain("şöyle hesaplanır");
     expect(lines.some((line) => line.startsWith("İstenen:"))).toBe(true);
     expect(lines.some((line) => line.startsWith("Sonuç: 25"))).toBe(true);
+  });
+});
+
+/*
+  Kurtarma moduna hâlâ düşen 5/17 taslağın tetikleyicileri (29 Eylül,
+  yerel yeniden oynatma). Düzeltmeden sonra 1/17.
+*/
+describe("kurtarmayı tetikleyen yanlış alarmlar", () => {
+  it("araç eki yönelme sanılıp bozulmaz", () => {
+    expect(repairLessonSurface("Üslü sayı, bir sayının kendisiyle tekrar çarpılmasıdır.")).toBe(
+      "Üslü sayı, bir sayının kendisiyle tekrar çarpılmasıdır.",
+    );
+    expect(repairLessonSurface("Bu değer denklemin formülle çözülmesiyle bulunur.")).toContain("formülle");
+  });
+
+  it("sondaki parantez yüklemin yerini almaz", () => {
+    expect(fluencyIssues("Her sayı sıfır üssü aldığında sonuç 1 olur (0⁰ hariç).")).not.toContain("no_predicate");
+  });
+
+  it("'Sık Karşılaşılan Hata' şablon başlığıdır", () => {
+    expect(isScaffoldHeading("Üslü Sayılarda Sık Karşılaşılan Hata")).toBe(true);
+  });
+
+  it("başlık ile gövde ekleri farklı olsa da aynı kökte buluşur", () => {
+    const lesson = {
+      title: "Üslü Sayılar",
+      overview: "Üslü sayılarda işlem kurallarını bu derste öğreneceğiz ve örneklerle pekiştireceğiz.",
+      sections: [
+        {
+          heading: "Üslerle İşlemler: Çarpma ve Bölme",
+          body: "Aynı tabana sahip üslü sayılar çarpılırken üsler toplanır; bölünürken üsler çıkarılır. Örneğin 2³ × 2² = 2⁵ olur.",
+        },
+      ],
+    } as LessonV2;
+    const failures = criticalTeachingFailures(teachingFailures(lesson, "", topic));
+    expect(failures.map((failure) => failure.problem)).not.toContain("off_title");
+  });
+
+  it("onarım modelinin sızdırdığı 'null' cümlesi yayına çıkmaz", async () => {
+    const lesson = publishLessonDraft(base)!;
+    lesson.sections[1] = {
+      ...lesson.sections[1],
+      body: `${lesson.sections[1].body} Sonuç = 3³ + 3² = null.`,
+    };
+    const taught = await finishTaughtLesson(lesson, { source: "", topicLabel: topic });
+    expect(taught.lesson.sections.map((section) => section.body).join(" ")).not.toMatch(/null/);
   });
 });
