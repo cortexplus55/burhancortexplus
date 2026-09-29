@@ -119,12 +119,18 @@ describe("exam prep home path (Astra düzeni, 29 Eylül 2026)", () => {
     );
   });
 
-  it("lists topics and the topic count on the progress tab", () => {
+  it("shows the Astra progress view: score, target, sub-tabs and topics", () => {
     renderHome();
     fireEvent.click(screen.getByRole("tab", { name: /İlerleme/ }));
-    expect(screen.getByText("Sistemler")).toBeTruthy();
-    expect(screen.getByText("Enerji")).toBeTruthy();
-    expect(screen.getByText("0 / 2 konu")).toBeTruthy();
+    expect(screen.getByText("Hazırlık puanı")).toBeTruthy();
+    expect(screen.getByText("hedef %75")).toBeTruthy();
+    expect(screen.getByText("hedefe ulaşan konu")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Denemeler" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Tempo" })).toBeTruthy();
+    // Konu adı hem konu listesinde hem haftalık tabloda geçiyor.
+    expect(screen.getAllByText("Sistemler").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Enerji").length).toBeGreaterThan(0);
+    expect(screen.getByText("Tahmin, ilk derslerinden sonra görünür")).toBeTruthy();
   });
 
   it("shows a lock icon (not a step number) on a locked trail node", () => {
