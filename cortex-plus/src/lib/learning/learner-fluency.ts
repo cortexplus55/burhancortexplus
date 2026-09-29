@@ -96,7 +96,18 @@ function hasPredicate(sentence: string): boolean {
     .filter(Boolean)
     .pop();
   if (!last || last.length < 4) return true;
-  return /(?:d[iuü]r|dir|t[iuü]r|tir|yor|m[iuü]s|mis|ecek|acak|meli|mali|maz|mez|en|an|ar|er|ir|ur|di|du|ti|tu)$/.test(last);
+  if (/(?:d[iuü]r|dir|t[iuü]r|tir|yor|m[iuü]s|mis|ecek|acak|meli|mali|maz|mez|en|an|ar|er|ir|ur|di|du|ti|tu)$/.test(last)) {
+    return true;
+  }
+  /*
+    Kişi ekli yüklem: "Bu derste kuralları göreceğiz.", "Sonucu
+    bulursun.", "Şimdi bir örneğe bakalım.", "Bu bir kural değil."
+    Yalnızca üçüncü tekil ekleri tanındığı için bu cümleler "yüklemsiz"
+    sayılıyordu; akıcılık kritik hata olduğundan modelin sık yazdığı tek
+    bir "… göreceğiz." girişi bütün dersi kurtarma yoluna sokabiliyordu.
+    Ekler fiil çekimine bağlı: "sekiz", "hız" gibi -iz ile biten ad eşleşmez.
+  */
+  return /(?:ecegiz|acagiz|iriz|eriz|ariz|uruz|yoruz|iyiz|dik|duk|tik|tuk|eceksin|acaksin|irsin|ersin|arsin|ursun|isin|siniz|sunuz|elim|alim|degil|yok)$/.test(last);
 }
 
 const TYPO_RULES: { pattern: RegExp; replacement: string }[] = [

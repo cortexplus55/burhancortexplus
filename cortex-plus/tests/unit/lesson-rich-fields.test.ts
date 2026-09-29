@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { publishLessonDraft } from "@/lib/learning/teaching-standards";
 import { exampleIsComplete, repairLearnerLesson, scopeLessonToTopic } from "@/lib/learning/lesson-repair";
 import { criticalTeachingFailures, finishTaughtLesson } from "@/lib/learning/lesson-teach";
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
-import { repairLessonSurface } from "@/lib/learning/learner-fluency";
+import { fluencyIssues, repairLessonSurface } from "@/lib/learning/learner-fluency";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
 
 /*
@@ -188,5 +189,90 @@ describe("belgesiz ders baştan sona", () => {
     expect(taught.lesson.sections[0].formula).toBeTruthy();
     expect(taught.lesson.sections[0].check?.optionWhy).toHaveLength(4);
     expect(taught.lesson.sections[1].procedure).toBeTruthy();
+  });
+});
+
+/*
+  Canlıda ölçüldü (29 Eylül, lesson_shape): taslak 'trueFalse,-,numerical,
+  trueFalse,-' idi; iki doğru/yanlış ders cümlesinin kopyasıydı (echo_check).
+  Düğüm rotası öğretim onarımını bağlamıyordu, ders doğrudan kurtarmaya
+  düştü ve yayında üç kopya doğru/yanlış kaldı; sayısal soru da gitti.
+*/
+describe("kopya soru önce onarılır", () => {
+  const echoBody =
+    "Tabanlar **aynıysa** çarpmada üsler toplanır ve sonuç aynı tabanla yazılır. Tabanlar farklıysa bu kural doğrudan uygulanmaz.";
+  const echoLesson = (): LessonV2 => {
+    const lesson = publishLessonDraft(draft)!;
+    lesson.sections[0] = {
+      ...lesson.sections[0],
+      heading: "Üslü Sayılarda Çarpma Kuralı",
+      body: echoBody,
+      check: {
+        type: "trueFalse",
+        prompt: "Tabanlar aynıysa çarpmada üsler toplanır ve sonuç aynı tabanla yazılır. Doğru mu?",
+        options: ["Doğru", "Yanlış"],
+        answerIndex: 0,
+        explanation: "Tabanlar aynıysa çarpmada üsler toplanır ve sonuç aynı tabanla yazılır.",
+      },
+    };
+    return lesson;
+  };
+  const patch = {
+    sections: [
+      {
+        heading: "Üslü Sayılarda Çarpma Kuralı",
+        body: echoBody,
+        check: {
+          type: "mcq",
+          prompt: "2³ · 2⁴ işleminin sonucu hangisidir?",
+          options: ["2⁷", "2¹²", "4⁷", "2¹"],
+          answerIndex: 0,
+          explanation: "Tabanlar aynı olduğu için üsler toplanır: 3 + 4 = 7; 2¹² üsleri çarpma hatasıdır.",
+          optionWhy: [
+            "Doğru: üsler toplanır, 3 + 4 = 7.",
+            "Üsler çarpılmaz; 3 · 4 = 12 hatalı işlemdir.",
+            "Taban değişmez; 2 · 2 = 4 yazmak hatadır.",
+            "Üsler çıkarılmaz; 4 − 3 = 1 bölmenin kuralıdır.",
+          ],
+        },
+      },
+    ],
+  };
+
+  it("onarım yoksa kopya soru dersi kurtarmaya düşürür", async () => {
+    const taught = await finishTaughtLesson(echoLesson(), { source: "", topicLabel: topic });
+    expect(taught.salvaged).toBe(true);
+  });
+
+  it("onarım kopya soruyu çoktan seçmeliye çevirir, sayısal soru kalır", async () => {
+    const taught = await finishTaughtLesson(echoLesson(), { source: "", topicLabel: topic }, async () => patch);
+    expect(taught.salvaged).toBe(false);
+    expect(taught.lesson.sections[0].check?.type).toBe("mcq");
+    expect(taught.lesson.sections[0].check?.optionWhy).toHaveLength(4);
+    expect(taught.lesson.sections.some((section) => section.check?.type === "numerical")).toBe(true);
+  });
+
+  it("düğüm rotası öğretim onarımını bağlıyor", () => {
+    const src = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const call = src.slice(src.indexOf("taught = await finishTaughtLesson("));
+    expect(call.slice(0, call.indexOf(");"))).toMatch(/repairCall\(prompt, \d+\)/);
+  });
+});
+
+describe("kişi ekli yüklem akıcılık hatası sayılmaz", () => {
+  it("biz ve sen diliyle kurulan cümle yüklemlidir", () => {
+    for (const sentence of [
+      "Bu derste üslü sayıların anlamını ve kurallarını göreceğiz.",
+      "Tabanı kendisiyle kaç kez çarpacağını bu adımda bulursun.",
+      "Şimdi bu kuralı küçük bir örnek üzerinde birlikte inceleyelim.",
+      "Tabanlar farklıysa üsleri toplamak doğru bir yol değil.",
+    ]) {
+      expect(fluencyIssues(sentence)).not.toContain("no_predicate");
+    }
+  });
+
+  it("yüklemsiz kırık cümle hâlâ yakalanır", () => {
+    expect(fluencyIssues("Tabanlar aynıysa çarpmada üslerin toplanması ve sonucun aynı tabanla yazılma kuralı")).toContain("no_predicate");
+    expect(fluencyIssues("Bir haftadaki gün sayısı ile bir oktavdaki nota sayısı toplamı sekiz")).toContain("no_predicate");
   });
 });
