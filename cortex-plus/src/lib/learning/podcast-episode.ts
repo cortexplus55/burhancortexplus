@@ -18,6 +18,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { env } from "@/lib/env";
+import { lessonModel } from "@/lib/ai/model-router";
 import { generateJson } from "@/lib/ai/generate";
 import { foldTr } from "@/lib/documents/page-analysis";
 import { loadTeacherAnalysis } from "@/lib/documents/teacher-analysis-run";
@@ -496,7 +497,7 @@ export async function generatePodcastEpisode(input: {
     actionCode: "STUDY_PLAN_GENERATE",
     isPremium: input.isPremium,
     difficulty: "hard",
-    modelOverride: env.OPENAI_LESSON_MODEL,
+    modelOverride: lessonModel(input.isPremium),
     validationProfile: "v2",
     maxDraftAttempts: 2,
     allowIndependentAccept: true,

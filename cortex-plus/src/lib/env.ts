@@ -53,11 +53,19 @@ export const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_STANDARD_MODEL: z.string().default("gpt-4o-mini"),
   /**
-   * Ders taslağı. Doğrulama ve parça onarımı standart modelde kalır.
+   * Ders taslağı — abone. Doğrulama ve parça onarımı standart modelde kalır.
    * Kredi eylem kodu değişmez; yalnızca bu çağrının modeli değişir.
    */
-  OPENAI_LESSON_MODEL: z.string().default("gpt-4.1-mini"),
-  OPENAI_ADVANCED_MODEL: z.string().default("gpt-4o"),
+  OPENAI_LESSON_MODEL: z.string().default("gpt-4.1"),
+  /**
+   * Ders taslağı — ücretsiz hesap. Astra da ücretsizde küçük model kullanıyor
+   * (Plus'a "1,4 kat daha akıllı model" vaat ediyor). 29 Eylül 2026 hesabı:
+   * günde 6 krediyi tam kullanan ücretsiz hesap gpt-4.1 ile ayda ~88 TL,
+   * bu modelle ~52 TL.
+   */
+  OPENAI_LESSON_FREE_MODEL: z.string().default("gpt-4.1-mini"),
+  /** Yalnız aboneye açık işler (model-router). gpt-4o'dan ucuz: $2/$8 vs $2,5/$10. */
+  OPENAI_ADVANCED_MODEL: z.string().default("gpt-4.1"),
   OPENAI_TTS_MODEL: z.string().default("gpt-4o-mini-tts"),
   OPENAI_STT_MODEL: z.string().default("gpt-4o-mini-transcribe"),
   /** TypeSafe Jev decision engine (server-only; never expose to client). */
@@ -116,6 +124,7 @@ const parsed = envSchema.safeParse({
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_STANDARD_MODEL: process.env.OPENAI_STANDARD_MODEL,
   OPENAI_LESSON_MODEL: process.env.OPENAI_LESSON_MODEL,
+  OPENAI_LESSON_FREE_MODEL: process.env.OPENAI_LESSON_FREE_MODEL,
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,
   OPENAI_TTS_MODEL: process.env.OPENAI_TTS_MODEL,
   OPENAI_STT_MODEL: process.env.OPENAI_STT_MODEL,
