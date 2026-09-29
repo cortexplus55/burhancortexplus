@@ -1,9 +1,11 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { ExamTopicPick } from "@/components/parity/exam-topic-pick";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { loadOrBackfillTopics } from "@/lib/learning/exam-prep-topics";
+import { selectPrepTopic } from "@/lib/learning/select-prep-topic";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Konu seç" };
 
@@ -14,7 +16,6 @@ export default async function ExamTopicPickPage({
 }) {
   const { prepId } = await params;
   const { supabase, user } = await requireStudentArea();
-  const shell = await loadParityShellProps(supabase, user.id, user.email);
 
   const { data: prep } = await supabase
     .from("exam_preps")
@@ -26,6 +27,18 @@ export default async function ExamTopicPickPage({
 
   const topics = await loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id);
 
+  // Tek konu varsa seçim ekranı boş bir tıklamadır: konu seçilir ve öğrenci
+  // doğrudan sonraki adıma (tanışma ya da ders) gider.
+  if (topics.length === 1 && topics[0]) {
+    const selected = await selectPrepTopic(createServiceClient(), {
+      userId: user.id,
+      prepId: prep.id,
+      topicId: topics[0].id,
+    });
+    if (selected.ok) redirect(selected.nextHref);
+  }
+
+  const shell = await loadParityShellProps(supabase, user.id, user.email);
   return (
     <ParitySorShell {...shell}>
       <ExamTopicPick
