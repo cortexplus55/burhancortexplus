@@ -112,6 +112,20 @@ describe("vercel.json cron kotası (Hobby)", () => {
 });
 
 /*
+  29 Eylül 2026: fonksiyonlar iad1'de (Washington) çalışıyordu, Supabase ise
+  Frankfurt'ta (eu-central-1). Bir sayfa 5–15 sorguyu art arda yapıyor ve her
+  biri Atlantik'i gidip geliyordu: kayıtlı bir dersi yalnızca geri getiren
+  istek 1,8–6,6 sn, tek sorguluk /api/streak 2,7 sn sürüyordu. Hobby planı tek
+  bölgeye izin veriyor; o bölge veritabanının yanı olmalı.
+*/
+describe("vercel.json fonksiyon bölgesi", () => {
+  it("fonksiyonlar Supabase'in yanında, Frankfurt'ta çalışıyor", () => {
+    const cfg = JSON.parse(read("vercel.json")) as { regions?: string[] };
+    expect(cfg.regions).toEqual(["fra1"]);
+  });
+});
+
+/*
   Canlıda "PDF önizlemesi açılamadı": pdf.js worker adresi verilmemişti.
   Worker public/'e postinstall ile kopyalanır; component o yolu kullanır.
 */
