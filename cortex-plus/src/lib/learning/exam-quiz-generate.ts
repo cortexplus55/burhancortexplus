@@ -13,6 +13,7 @@ import {
 } from "@/lib/learning/question-verifier";
 import { quizClaimIssues } from "@/lib/learning/tutor-quant";
 import { absoluteClaimIssues } from "@/lib/learning/absolute-claims";
+import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 
 const QUIZ_GATE = {
   requireObjective: false,
@@ -112,7 +113,19 @@ export async function generateExamQuiz(input: {
           }
         : {}),
     }));
-    const repaired = input.teachingV2 ? repairQuizPedagogy(surfaced) : surfaced;
+    // Cevap anahtarı üslü hesapla çelişen tek cevaplı soru düşer ("(3⁴)²"
+    // için 3¹² gibi). Bkz. exponent-key.ts.
+    const keyed = surfaced.filter(
+      (question) =>
+        question.multi ||
+        exponentKeyWrong({
+          type: "mcq",
+          prompt: question.text,
+          options: question.options,
+          answerIndex: question.options.indexOf(question.correct[0] ?? ""),
+        }) !== true,
+    );
+    const repaired = input.teachingV2 ? repairQuizPedagogy(keyed) : keyed;
     // A six-question draft has spare candidates. Reject an unsupported
     // question on its own instead of discarding the entire valid batch.
     const grounded = input.requireSourceSupport && input.sourceExcerpt?.trim()

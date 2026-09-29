@@ -238,5 +238,9 @@ describe("çözümlü örnek yazımı", () => {
 
   it("'kendisiyli' yazım hatası düzeltilir", () => {
     expect(repairTurkishSurface("Taban kendisiyli çarpılır.")).toBe("Taban kendisiyle çarpılır.");
+    expect(repairTurkishSurface("Üslerin çarpılmasıylı bulunur.")).toBe("Üslerin çarpılmasıyla bulunur.");
+    // Hatanın kaynağı: izafet onarımı araç ekini yönelme sanıyordu.
+    expect(repairTurkishSurface("Üslerin çarpılmasıyla bulunur.")).toBe("Üslerin çarpılmasıyla bulunur.");
+    expect(repairTurkishSurface("Sonuç bu formülle hesaplanır.")).toBe("Sonuç bu formülle hesaplanır.");
   });
 });

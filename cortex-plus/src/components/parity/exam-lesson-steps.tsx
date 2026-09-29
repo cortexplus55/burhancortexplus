@@ -1004,7 +1004,8 @@ export function ExamLessonSteps({
                   disabled={revealed || grading}
                   inputMode="decimal"
                   aria-label="Sayısal yanıt"
-                  placeholder="ör. 13,6 g"
+                  // "ör. 13,6 g" matematik sorusunda birim istiyormuş gibi okunuyordu.
+                  placeholder="Sonucu yaz (birimi varsa ekle)"
                 />
                 <p className="als-hint">Virgül ya da nokta kullanabilirsin.</p>
               </>
@@ -1035,7 +1036,12 @@ export function ExamLessonSteps({
               {check.type === "numerical" ? (
                 <p>
                   <strong>{gradeResult?.message ?? (gradeResult?.correct ? "Doğru." : "Doğrusu şu:")}</strong>{" "}
-                  {gradeResult?.answer ?? (check as { answer?: string }).answer}{" "}
+                  {(() => {
+                    // Sunucu mesajı cevabı zaten taşıyor ("Doğru — 64"); ekran
+                    // "64 64" diye ikinci kez yazıyordu.
+                    const answer = gradeResult?.answer ?? (check as { answer?: string }).answer ?? "";
+                    return answer && !(gradeResult?.message ?? "").includes(answer) ? `${answer} ` : "";
+                  })()}
                   {gradeResult?.explanation ?? check.explanation}
                 </p>
               ) : (

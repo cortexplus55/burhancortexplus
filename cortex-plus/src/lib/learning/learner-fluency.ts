@@ -128,7 +128,10 @@ const TYPO_RULES: { pattern: RegExp; replacement: string }[] = [
   { pattern: /\bhiçbirşey\b/gi, replacement: "hiçbir şey" },
   { pattern: /\bdeğilmi\b/gi, replacement: "değil mi" },
   // Canlı belgesiz derste iki üretimde de çıktı (29 Eylül).
-  { pattern: /kendisiyli(?![A-Za-zÇĞİÖŞÜçğıöşü])/g, replacement: "kendisiyle" },
+  // "-(s)ıyla/-(s)iyle" eki "-ıylı/-iyli" yazılıyor: "kendisiyli",
+  // "çarpılmasıylı" (29 Eylül, canlı ders). Ünlü uyumuna göre düzelir.
+  { pattern: /(?<=s[ıu])ylı(?![A-Za-zÇĞİÖŞÜçğıöşü])/g, replacement: "yla" },
+  { pattern: /(?<=s[iü])yli(?![A-Za-zÇĞİÖŞÜçğıöşü])/g, replacement: "yle" },
   {
     pattern: /konu ağırlıklı(?!\s*(?:dır|dir|dur|dür|bir\b))(?![A-Za-zÇĞİÖŞÜçğıöşü])/gi,
     replacement: "konu ağırlıklıdır",
@@ -182,6 +185,11 @@ function repairNounPhrase(text: string): string {
       const foldedFollower = foldTr(follower);
       if (DATIVE_LICENSE.has(foldedFollower) || !BAD_FOLLOWER.has(foldedFollower)) return match;
       if (/[dt][ae]$/i.test(`${stem}${_vowel}`)) return match;
+      // Araç eki (-yla/-yle, -la/-le) yönelme eki değildir: "çarpılmasıyla
+      // bulunur", "formülle hesaplanır". Burası onları "çarpılmasıylı",
+      // "kendisiyli" diye bozuyordu (29 Eylül, canlı ders). Araç ekinde "l"
+      // ünsüz ya da "y" ardından gelir; yönelmede ("formüle") gelmez.
+      if (/[bcçdfgğhjklmnprsştvyz]l$/i.test(stem)) return match;
       const before = stem.slice(0, -1);
       if (before.length < 4) return match;
       if (foldTr(stem.slice(-1)) === "n" && /[aeıioöuü]$/i.test(before)) return match;
