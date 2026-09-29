@@ -530,7 +530,9 @@ export function teachingFailures(lesson: LessonV2, source: string, topicLabel: s
       push("example", "missing_example");
     }
     if (!hasCalcMcq(lesson)) push("check", "calc_check");
-  } else if (lesson.example && hasWorked(lesson.example.solution)) {
+  } else if (source.trim() && lesson.example && hasWorked(lesson.example.solution)) {
+    // Belgesiz derste (topic_only) karşılaştırılacak kaynak yok; örneğin
+    // aritmetiği exampleReady'de metnin kendisine karşı denetleniyor.
     push("example", "invented_number");
   }
   const prose = [
@@ -541,7 +543,16 @@ export function teachingFailures(lesson: LessonV2, source: string, topicLabel: s
   ].join("\n");
   const verified = lesson.example && exampleReady(lesson.example.solution, source) ? lesson.example.solution : "";
   const outside = prose.replace(verified, " ");
-  if (inventedNumbers(outside, source).length) push("lesson", "invented_number");
+  /*
+    "Kaynakta olmayan sayı" yalnızca bir kaynak varken anlamlı. Belgesiz
+    derste (topic_only, kaynak boş) her sayı "uydurma" sayılıyordu; bu kritik
+    hata dersi kurtarma yoluna sokuyor, kurtarma çözümlü örneği silip soruları
+    derste başka yerde geçen cümlelerin "hep doğru" kopyalarıyla dolduruyordu
+    (29 Eylül 2026, belgesiz "Üslü sayılar" dersi: 3 sorunun 3'ü yankı,
+    örnek ve sık hata boş). Kaynak varken kural aynen duruyor;
+    sentenceVerifiable ve scrubInventedNumbers da aynı koşulla çalışıyor.
+  */
+  if (source.trim() && inventedNumbers(outside, source).length) push("lesson", "invented_number");
   if (summaryEchoes(lesson)) push("summary", "summary_echo");
   if (richSource(source) && groundedCheckCount(lesson) < 5) push("check", "thin_checks");
   if (!lesson.sections.some((section) => section.note) && titleConcepts(topicLabel).length) {
@@ -806,9 +817,11 @@ function readableSummary(lesson: LessonV2, topic: string): string[] {
         trap,
       ]
     : [
-        `${name} konusunda kural, kaynaktaki tanıma ve şarta bağlıdır.`,
+        // "kaynaktaki" denmiyor: belgesiz derste (topic_only) ortada kaynak
+        // yok ve konu çiti belgeye atıfı yasaklıyor.
+        `${name} konusunda kural, tanımına ve şartına bağlıdır.`,
         trap,
-        "Uygulama, kaynaktaki olayı verilen şartla ayırt etmektir.",
+        "Uygulama, verilen durumu kuralın şartıyla ayırt etmektir.",
       ];
   return lines
     .filter((line) => line.length >= 12 && line.length <= 240 && !DANGLING_ANAPHOR.test(line.trim()))
