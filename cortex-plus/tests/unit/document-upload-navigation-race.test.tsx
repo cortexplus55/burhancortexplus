@@ -53,7 +53,7 @@ describe("document upload — post-success navigation", () => {
       }),
     );
 
-    const { container } = render(<DocumentUpload creditCost={1} variant="parity" learningV2 />);
+    const { container } = render(<DocumentUpload variant="parity" learningV2 />);
 
     const file = new File(["%PDF-1.4 test"], "notlarim.pdf", { type: "application/pdf" });
     const input = screen.getByLabelText("Dosya") as HTMLInputElement;
@@ -81,7 +81,7 @@ describe("document upload — post-success navigation", () => {
       }),
     );
 
-    const { container } = render(<DocumentUpload creditCost={1} variant="parity" learningV2={false} />);
+    const { container } = render(<DocumentUpload variant="parity" learningV2={false} />);
 
     const file = new File(["%PDF-1.4 test"], "notlarim.pdf", { type: "application/pdf" });
     const input = screen.getByLabelText("Dosya") as HTMLInputElement;

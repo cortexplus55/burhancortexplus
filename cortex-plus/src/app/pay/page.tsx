@@ -2,6 +2,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { SubscriptionCards } from "@/components/parity/subscription-cards";
 import { requireUser } from "@/lib/auth/session";
 import { getSubscriptionBadge } from "@/lib/student/subscription-badge";
+import { getUserEntitlements } from "@/lib/billing/entitlements";
 import { isPaytrConfigured } from "@/lib/payments/paytr";
 
 export const metadata = { title: "Abonelik" };
@@ -10,7 +11,7 @@ export const metadata = { title: "Abonelik" };
 export default async function PayPage() {
   const { supabase, user } = await requireUser();
 
-  const [extendedPlans, currentBadge] = await Promise.all([
+  const [extendedPlans, currentBadge, entitlements] = await Promise.all([
     supabase
       .from("plans")
       .select(
@@ -19,6 +20,7 @@ export default async function PayPage() {
       .eq("active", true)
       .order("sort_order"),
     getSubscriptionBadge(supabase, user.id),
+    getUserEntitlements(supabase, user.id),
   ]);
 
   let plans = extendedPlans.data;
@@ -43,6 +45,7 @@ export default async function PayPage() {
         embedded
         headingLevel="h1"
         currentBadge={currentBadge}
+        currentAllowance={entitlements.monthlyAllowance}
         checkoutEnabled={isPaytrConfigured()}
       />
     </AppShell>

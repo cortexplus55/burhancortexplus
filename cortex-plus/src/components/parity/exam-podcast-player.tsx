@@ -118,7 +118,6 @@ export function ExamPodcastPlayer({
   const [status, setStatus] = useState<
     "loading" | "ready" | "fallback" | "premium" | "credits"
   >("loading");
-  const [audioCredits, setAudioCredits] = useState<number | null>(null);
   const onCreditsSpentRef = useRef(onCreditsSpent);
   onCreditsSpentRef.current = onCreditsSpent;
   const [playing, setPlaying] = useState(false);
@@ -265,7 +264,6 @@ export function ExamPodcastPlayer({
             }
             if (event.type === "done" && event.lines) {
               if (typeof event.creditsSpent === "number") {
-                setAudioCredits(event.creditsSpent);
                 onCreditsSpentRef.current?.(event.creditsSpent);
               }
               const verified = validatePodcastAudio(normalized, event.lines);
@@ -623,12 +621,8 @@ export function ExamPodcastPlayer({
           <span aria-hidden />
         )}
       </header>
-      {scriptNote || (audioCredits != null && audioCredits > 0) ? (
-        <p className="text-sm text-[var(--cp-muted)]">
-          {scriptNote}
-          {scriptNote && audioCredits != null && audioCredits > 0 ? " " : null}
-          {audioCredits != null && audioCredits > 0 ? `Ses için ${audioCredits} kr düşüldü.` : null}
-        </p>
+      {scriptNote ? (
+        <p className="text-sm text-[var(--cp-muted)]">{scriptNote}</p>
       ) : null}
 
       <div className="cp-pod-body">
@@ -754,10 +748,10 @@ export function ExamPodcastPlayer({
           </p>
         ) : status === "credits" ? (
           <p className="cp-pod-state">
-            Bu ayki seslendirme kredin kalmadı. Bölümleri transkriptten
+            Bu ayki seslendirme hakkın doldu. Bölümleri transkriptten
             okuyabilirsin.{" "}
             <Link href="/paketler" className="cp-pod-upsell">
-              Kredi ekle
+              Ek paket al
             </Link>
           </p>
         ) : status === "fallback" ? (

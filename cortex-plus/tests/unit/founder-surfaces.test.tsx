@@ -42,6 +42,8 @@ function account(over: Partial<StudentAccountContext> = {}): StudentAccountConte
     isAdmin: false,
     resetsAtLabel: "26 Eylül 2026 03:00",
     periodKind: "daily",
+    usedPercent: 0,
+    extraPercent: null,
     ...over,
   };
 }
@@ -100,7 +102,7 @@ describe("hesap şeridi", () => {
     const { container } = render(<StudentAccountStrip account={founder} creditHint="Quiz üretimi: 2 kredi." />);
     const text = container.textContent ?? "";
     expect(text).toContain(FOUNDER_CREDIT_LABEL);
-    expect(text).toContain("Kurucu hesabı: işlemler kredinden düşmez.");
+    expect(text).toContain("Kurucu hesabı: işlemler hakkından düşmez.");
     expect(text).not.toMatch(/Ek paket|Kullanımını artır|kredi harcar|2 kredi|ücretsiz hak/);
     expect(container.querySelector("a[href='/paketler']")).toBeNull();
   });
@@ -108,7 +110,8 @@ describe("hesap şeridi", () => {
   it("normal kullanıcıda bakiye ve paket bağlantısı değişmedi", () => {
     const { container } = render(<StudentAccountStrip account={student} creditHint="Quiz üretimi: 2 kredi." />);
     const text = container.textContent ?? "";
-    expect(text).toContain("0 kredi · 0 ücretsiz hak");
+    expect(text).toContain("%0 kullanıldı");
+    expect(text).not.toMatch(/d+ kredi|ücretsiz hak/);
     expect(text).toContain("Quiz üretimi: 2 kredi.");
     expect(container.querySelector("a[href='/paketler']")).not.toBeNull();
   });
@@ -140,7 +143,7 @@ describe("sözlü kurulum notu", () => {
 
   it("kurucuda kredinin düşmediğini söyler", () => {
     const { container } = inShell(founder, customize());
-    expect(container.textContent).toContain("Kurucu hesabı: bu oturum kredinden düşmez.");
+    expect(container.textContent).toContain("Kurucu hesabı: bu oturum hakkından düşmez.");
     expect(container.textContent).not.toContain("çalışma hakkını kullanır");
   });
 
@@ -164,17 +167,19 @@ describe("maliyet etiketleri kurucuda görünmez", () => {
   );
 
   it("üretim formu", () => {
-    expect(inShell(founder, form()).container.textContent).not.toContain("kredi kullanır");
+    expect(inShell(founder, form()).container.textContent).not.toContain("hakkından düşülmez");
     cleanup();
-    expect(inShell(student, form()).container.textContent).toContain("Bu işlem 2 kredi kullanır.");
+    const text = inShell(student, form()).container.textContent ?? "";
+    expect(text).toContain("Başarısız olursa hakkından düşülmez.");
+    expect(text).not.toMatch(/d+ kredi/);
   });
 
   it("fotoğraftan çözüm düğmesi", () => {
-    const founderButton = inShell(founder, <ImageSolver creditCost={5} />).container.querySelector("button[type='submit']");
+    const founderButton = inShell(founder, <ImageSolver />).container.querySelector("button[type='submit']");
     expect(founderButton?.textContent).toBe("Çöz");
     cleanup();
-    const studentButton = inShell(student, <ImageSolver creditCost={5} />).container.querySelector("button[type='submit']");
-    expect(studentButton?.textContent).toBe("Çöz · 5 kredi");
+    const studentButton = inShell(student, <ImageSolver />).container.querySelector("button[type='submit']");
+    expect(studentButton?.textContent).toBe("Çöz");
   });
 });
 

@@ -456,7 +456,7 @@ export function ExamCreateChat({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Plan çıkarmak için kredin kalmadı."
+        message="Plan çıkarmak için kullanım hakkın doldu."
         returnPath="/deneme-sinavlari/olustur"
       />
     </div>

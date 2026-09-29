@@ -23,7 +23,7 @@ export default async function QuizlerPage() {
     .limit(10);
 
   return (
-    <AppShell title="Quizler" creditHint={`Quiz üretimi: ${cost} kredi.`}>
+    <AppShell title="Quizler">
       <div className="space-y-6">
         <SectionCard
           variant="parity"

@@ -145,7 +145,7 @@ const BOUNDARY_CASES: BoundaryCase[] = [
     id: "yok",
     kind: "yok",
     question: "Solunum denklemi nedir?",
-    badge: "Notunda yok — kredin düşmedi",
+    badge: "Notunda yok — hakkından düşmedi",
     answer:
       "Bu notta solunum geçmiyor, o yüzden cevap vermiyorum. Genel bilgiden anlatabilirdim ama sınavda bu nottan sorumluysan seni yanlış yere götürürdü.\n\nNotta gerçekten olanlar: fotosentez denklemi, klorofilin görevi, fotosentez hızını etkileyen etkenler. Hangisine bakalım?",
   },
@@ -608,7 +608,7 @@ function BoundaryStep() {
       })}
 
       <p className="dm-bound-note">
-        Üçü de aynı nottan. Sistemin cevap vermediği soruda kredin düşmüyor —
+        Üçü de aynı nottan. Sistemin cevap vermediği soruda hakkından düşmüyor —
         dürüst cevabın bedelini sen ödeme.
       </p>
     </div>

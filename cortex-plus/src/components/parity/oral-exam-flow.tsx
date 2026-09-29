@@ -231,7 +231,7 @@ export function OralTeacherCustomize({
         {founder ? (
           <p className="cp-oral-note">
             <Crown className="h-3 w-3" style={{ color: "var(--cp-gold)" }} aria-hidden />
-            Kurucu hesabı: bu oturum kredinden düşmez.
+            Kurucu hesabı: bu oturum hakkından düşmez.
           </p>
         ) : (
           <p className="cp-oral-note">

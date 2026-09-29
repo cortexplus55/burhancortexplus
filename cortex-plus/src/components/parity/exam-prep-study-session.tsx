@@ -288,7 +288,7 @@ export function ExamPrepStudySession({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Ders üretmek için kredin kalmadı."
+        message="Ders üretmek için kullanım hakkın doldu."
         returnPath={`/deneme-sinavlari/${prepId}/calis`}
       />
     </div>

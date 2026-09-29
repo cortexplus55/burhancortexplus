@@ -156,7 +156,7 @@ export function GeneratorForm({
               isParity ? "text-[var(--cs-muted)]" : "text-muted-foreground",
             )}
           >
-            Bu işlem {creditCost} kredi kullanır. Başarısız olursa kredin iade edilir.
+            Başarısız olursa hakkından düşülmez.
           </p>
         ) : null}
       </form>
@@ -164,7 +164,7 @@ export function GeneratorForm({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Bu işlem için yeterli kredin veya ücretsiz hakkın kalmadı."
+        message="Kullanım hakkın doldu."
         returnPath={returnPath}
       />
     </>

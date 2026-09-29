@@ -20,7 +20,7 @@ export default async function FlashcardlarPage() {
     .limit(20);
 
   return (
-    <AppShell title="Flashcard" creditHint={`Kart seti üretimi: ${cost} kredi.`}>
+    <AppShell title="Flashcard">
       <div className="space-y-6">
         <SectionCard
           variant="parity"

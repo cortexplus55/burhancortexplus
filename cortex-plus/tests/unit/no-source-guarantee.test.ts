@@ -83,7 +83,7 @@ describe("güvence öğrenciye görünüyor", () => {
     "1 kredi" der. Güvence bu yüzden yanıtın kendi gövdesinde.
   */
   it("not kredinin düşmediğini söylüyor", () => {
-    expect(NO_SOURCE_CREDIT_NOTE).toContain("kredin düşmedi");
+    expect(NO_SOURCE_CREDIT_NOTE).toContain("hakkından düşmedi");
   });
 
   it("rota notu cevaba ekliyor", () => {
@@ -99,7 +99,7 @@ describe("satış sayfası ile kod aynı şeyi söylüyor", () => {
 
   it("fiyat kartı ürün sözü veriyor", () => {
     expect(cards).toContain("uydurmaz");
-    expect(cards).toContain("kredin düşmez");
+    expect(cards).toContain("hakkından düşmez");
   });
 
   /*
@@ -151,6 +151,6 @@ describe("örnek akış iddiayı kanıtlıyor", () => {
   });
 
   it("reddedilen soruda kredinin düşmediği yazıyor", () => {
-    expect(demo).toContain("kredin düşmedi");
+    expect(demo).toContain("hakkından düşmedi");
   });
 });

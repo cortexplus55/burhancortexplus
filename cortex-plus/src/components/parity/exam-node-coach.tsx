@@ -91,7 +91,7 @@ export function ExamNodeCoach({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Eğitmen sohbeti için kredin kalmadı."
+        message="Eğitmen sohbeti için kullanım hakkın doldu."
         returnPath={returnPath}
       />
     </div>

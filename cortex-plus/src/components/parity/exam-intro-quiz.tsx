@@ -371,7 +371,7 @@ export function ExamIntroQuiz({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Tanışma testi için kredin kalmadı."
+        message="Tanışma testi için kullanım hakkın doldu."
         returnPath={home}
       />
     </div>

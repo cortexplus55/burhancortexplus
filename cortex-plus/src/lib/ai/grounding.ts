@@ -90,7 +90,7 @@ export function documentInstruction(params: {
  * bilemez ve "1 kredi" der.
  */
 export const NO_SOURCE_CREDIT_NOTE =
-  "\n\n_Bu soru notunda geçmediği için kredin düşmedi._";
+  "\n\n_Bu soru notunda geçmediği için hakkından düşmedi._";
 
 /** Model "belgede yok" dedi mi? */
 export function saidNoSource(answer: string): boolean {

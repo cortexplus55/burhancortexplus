@@ -138,11 +138,11 @@ export function PodcastStudio({
 
     if ("paywall" in audio) {
       openPaywall();
-      setAudioNote("Bu bölümün sesi için kredin yetmedi. Senaryoyu aşağıdan okuyabilirsin.");
+      setAudioNote("Bu bölümün sesi için kullanım hakkın yetmedi. Senaryoyu aşağıdan okuyabilirsin.");
       return;
     }
     if (!audio.ok || !audio.data.lines?.length) {
-      setAudioNote("Ses şu an üretilemedi; kredin düşmedi. Senaryoyu aşağıdan okuyabilirsin.");
+      setAudioNote("Ses şu an üretilemedi; hakkından düşülmedi. Senaryoyu aşağıdan okuyabilirsin.");
       return;
     }
     const verified = validatePodcastAudio(normalized, audio.data.lines);

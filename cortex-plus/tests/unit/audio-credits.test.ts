@@ -364,7 +364,7 @@ describe("oynatıcı iki ayrı 402'yi ayırıyor", () => {
       source.indexOf(') : status === "credits" ? ('),
       source.indexOf(') : status === "fallback" ? ('),
     );
-    expect(creditsBranch).toContain("Kredi ekle");
+    expect(creditsBranch).toContain("Ek paket al");
     expect(creditsBranch).not.toMatch(/Plus/);
   });
 });

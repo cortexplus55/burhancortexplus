@@ -88,15 +88,15 @@ describe("kredi fiyat tablosu", () => {
     const chat = readFileSync("src/app/api/ai/chat/route.ts", "utf8");
     expect(chat.match(/reserveCredits\(/g)).toHaveLength(1);
     const panel = readFileSync("src/components/chat/chat-panel.tsx", "utf8");
-    expect(panel).toContain("cp-exam-credit");
-    expect(panel).toContain("{chatCreditCost} kr");
+    // 29 Eylül 2026: öğrenci işlem başına kredi görmüyor (Astra gibi yalnızca yüzde).
+    expect(panel).not.toContain("cp-exam-credit");
+    expect(panel).not.toMatch(/{chatCreditCost} (kr|kredi)/);
     const audioRoute = readFileSync("src/app/api/learning/podcast/audio/route.ts", "utf8");
     expect(audioRoute).not.toMatch(/\bensureAudio\s*\(/);
     expect(audioRoute.match(/synthesizeCharged\(/g)?.length).toBeGreaterThan(0);
     expect(audioRoute).toContain('errorResponse(402, "insufficient_credits")');
     const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
-    expect(session).toContain("CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits");
-    expect(session).toContain("AUDIO_CHARS_PER_CREDIT_PRICE");
+    expect(session).not.toMatch(/d* ?kr düşüldü|CREDIT_PRICE_TABLE/);
     expect(session).toContain("router.refresh()");
     const player = readFileSync("src/components/parity/exam-podcast-player.tsx", "utf8");
     expect(player).toContain("creditsSpent");
