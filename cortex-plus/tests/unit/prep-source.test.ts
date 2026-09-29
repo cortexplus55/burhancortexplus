@@ -170,20 +170,25 @@ describe("rotalar kaynak kararını tek yerden alıyor", () => {
     "no_prep_documents" dönüyor. Belgesiz ders çözücüden ÖNCE ayrılmalı.
   */
   /*
-    Belgesiz üretimde soruyu karşılaştıracak kaynak yok; kesin doğrulayıcı
-    kavramsal çift doğruyu (ör. "çarpmada üsler toplanır" + "bölmede üsler
-    çıkarılır" aynı soruda) göremiyor. Kaynağa dayanmayan quiz yolları
-    "tek ve kesin doğru cevap" gözden geçirmesinden geçmeli.
+    Kavramsal çift doğruya (ör. "çarpmada üsler toplanır" + "bölmede üsler
+    çıkarılır" aynı soruda) karşı önlem ortak istemde. "Tek doğru cevap"
+    gözden geçirmesi (verifyOptionReasoning) tanışma, belgesiz quiz ve
+    Studio yollarına eklenince canlıda tanışma testi iki denemede de
+    açılmadı (29 Eylül 2026); geri alındı. Bu test onun geri sızmasını da
+    tutuyor: o yollarda şık gerekçesi olmadan gözden geçirme her taslağı
+    reddediyor.
   */
-  it("kaynağa dayanmayan quiz yolları tek-doğru gözden geçirmesini açıyor", () => {
-    expect(readFileSync("src/app/api/learning/exam-prep/intro/route.ts", "utf8")).toContain(
-      "verifyOptionReasoning: true",
+  it("iki doğru şıkkı istem önlüyor; gözden geçirme bu yollarda kapalı", () => {
+    expect(readFileSync("src/lib/learning/exam-quiz-generate.ts", "utf8")).toContain(
+      "iki doğru kuralı yan yana şık yapma",
     );
-    const node = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
-    expect(node.match(/verifyOptionReasoning: Boolean\(input\.topicFenceBlock\)/g)).toHaveLength(2);
-    expect(readFileSync("src/app/api/learning/quiz/generate/route.ts", "utf8")).toContain(
-      "verifyOptionReasoning: !docContext",
-    );
+    for (const route of [
+      "src/app/api/learning/exam-prep/intro/route.ts",
+      "src/app/api/learning/exam-prep/node/route.ts",
+      "src/app/api/learning/quiz/generate/route.ts",
+    ]) {
+      expect(readFileSync(route, "utf8")).not.toMatch(/verifyOptionReasoning:/);
+    }
   });
 
   it("düğüm dersi belgesizken kaynak çözücüye gitmeden konu çitine geçiyor", () => {
