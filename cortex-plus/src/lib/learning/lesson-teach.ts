@@ -15,7 +15,7 @@ import { isNearDuplicateText, stripInlineSourceLine } from "@/lib/learning/lesso
 import { titleConcepts } from "@/lib/learning/lesson-claims";
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
 import { fluencyIssues, repairTurkishSurface, sentences } from "@/lib/learning/learner-fluency";
-import { exponentKeyWrong } from "@/lib/learning/exponent-key";
+import { exponentKeyWrong, exponentProseWrong } from "@/lib/learning/exponent-key";
 import { announcedExampleGap, exampleIsComplete, ensureThreeChecks, minimumLessonChecks } from "@/lib/learning/lesson-repair";
 import { auditQuantitative, evaluateArithmetic, repairQuantitative } from "@/lib/learning/tutor-quant";
 import { groundProseCalculations, workedExampleIssues } from "@/lib/learning/worked-example";
@@ -1463,15 +1463,37 @@ function sourceBackedBody(heading: string, topic: string, source: string): strin
  * yanlış anahtar hiçbir yoldan öğrenciye gitmemeli. Bkz. exponent-key.ts.
  */
 function withoutWrongKeys(lesson: LessonV2): LessonV2 {
-  if (!lesson.sections.some((section) => section.check && exponentKeyWrong(section.check) === true)) {
-    return lesson;
+  const wrongCheck = (check: NonNullable<LessonV2["sections"][number]["check"]>) =>
+    exponentKeyWrong(check) === true ||
+    exponentProseWrong(check.explanation) ||
+    (check.optionWhy ?? []).some((line, index) => index === check.answerIndex && exponentProseWrong(line));
+  const sections = lesson.sections.flatMap((section) => {
+    let next = section;
+    if (next.check && wrongCheck(next.check)) next = withoutCheck(next);
+    if (next.note && exponentProseWrong(next.note.body)) next = withoutNote(next);
+    if (exponentProseWrong(next.body)) {
+      // Yanlış eşitliği taşıyan cümle çıkar; bölüm boşalırsa bölüm gider.
+      const body = next.body
+        .split(/(?<=[.!?])\s+/)
+        .filter((sentence) => !exponentProseWrong(sentence))
+        .join(" ")
+        .trim();
+      if (body.length < 20) return [];
+      next = { ...next, body };
+    }
+    return [next];
+  });
+  const next: LessonV2 = { ...lesson, sections: sections.length ? sections : lesson.sections };
+  // Sık hata kartının "doğrusu" satırı yanlış hesap öğretiyorsa kart gider:
+  // canlıda "(3²)⁴ = 3²ˣ⁴ = 3¹²" diye çıktı.
+  if (next.commonMistake && exponentProseWrong(next.commonMistake.correction)) delete next.commonMistake;
+  if (next.example && exponentProseWrong(`${next.example.prompt}\n${next.example.solution}`)) delete next.example;
+  if (next.summary?.length) {
+    const summary = next.summary.filter((line) => !exponentProseWrong(line));
+    if (summary.length) next.summary = summary;
+    else delete next.summary;
   }
-  return {
-    ...lesson,
-    sections: lesson.sections.map((section) =>
-      section.check && exponentKeyWrong(section.check) === true ? withoutCheck(section) : section,
-    ),
-  };
+  return next;
 }
 
 function withoutEchoingChecks(lesson: LessonV2): LessonV2 {

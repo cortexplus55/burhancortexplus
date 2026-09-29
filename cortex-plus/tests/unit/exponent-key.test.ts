@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { evaluatePowerChain, exponentKeyWrong } from "@/lib/learning/exponent-key";
-import { publishLessonDraft } from "@/lib/learning/teaching-standards";
+import { evaluatePowerChain, exponentKeyWrong, exponentProseWrong } from "@/lib/learning/exponent-key";
+import { finishTaughtLesson } from "@/lib/learning/lesson-teach";
+import { publishLessonDraft, type LessonV2 } from "@/lib/learning/teaching-standards";
 
 /*
   29 Eylül 2026, canlı belgesiz "Üslü Sayılar" dersi: çoktan seçmeli soru
@@ -94,5 +95,80 @@ describe("yayın kapısı yanlış anahtarlı soruyu geri koymaz", () => {
     })!;
     expect(lesson.sections[0].check).toBeUndefined();
     expect(lesson.sections[1].check?.type).toBe("trueFalse");
+  });
+});
+
+/*
+  Aynı canlı derste sık hata kartı "Doğrusu: (3²)⁴ = 3²ˣ⁴ = 3¹²" dedi —
+  doğrusu 3⁸. Kart düz metin olduğu için anahtar denetimi görmüyordu.
+*/
+describe("exponentProseWrong", () => {
+  it("canlıdaki yanlış eşitlik zincirini yakalar", () => {
+    expect(exponentProseWrong("Üssün üssü alınırken üsler çarpılır; (3²)⁴ = 3²ˣ⁴ = 3¹² olur.")).toBe(true);
+  });
+
+  it("doğru zincirleri geçirir; üs içindeki işlemi hesaplar", () => {
+    expect(exponentProseWrong("(3²)⁴ = 3²ˣ⁴ = 3⁸ olur.")).toBe(false);
+    expect(exponentProseWrong("3¹⁶ ÷ 3⁵ = 3¹⁶⁻⁵ = 3¹¹ bulunur.")).toBe(false);
+    expect(exponentProseWrong("3⁴ × 3⁻² = 3⁴⁺⁻² = 3² = 9 olur.")).toBe(false);
+    expect(exponentProseWrong("(3²)³ = 3²ˣ³ = 3⁶ = 729 eder.")).toBe(false);
+  });
+
+  it("yanlış sonuçlu sayıyı da yakalar", () => {
+    expect(exponentProseWrong("(3²)³ = 3⁶ = 728 eder.")).toBe(true);
+  });
+
+  it("yanlışı anan cümleye hüküm vermez", () => {
+    expect(exponentProseWrong("2³ × 2⁴ = 2¹² değildir; üsler toplanır.")).toBe(false);
+    expect(exponentProseWrong("Sık yapılan hata 2³ × 2⁴ = 2¹² yazmaktır.")).toBe(false);
+  });
+
+  it("harfli ve kesirli ifadelere karışmaz", () => {
+    expect(exponentProseWrong("aᵐ × aⁿ = aᵐ⁺ⁿ kuralı geçerlidir.")).toBe(false);
+    expect(exponentProseWrong("5⁻² = 1/25 olur.")).toBe(false);
+  });
+});
+
+describe("ders çıktısında yanlış hesap taşıyan parça atılır", () => {
+  it("sık hata kartının 'doğrusu' yanlışsa kart gider, doğruysa kalır", async () => {
+    const base: LessonV2 = {
+      title: "Üslü Sayılar",
+      overview: "Üslü sayılarda işlem kurallarını öğreneceğiz.",
+      sections: [
+        {
+          heading: "Üssün Üssü",
+          body: "**Üssün üssü** alınırken üsler çarpılır. Örneğin (2³)² = 2⁶ olur.",
+          check: {
+            type: "mcq",
+            prompt: "Hangisi (3⁴)² ifadesinin doğru sonucudur?",
+            options: ["3⁶", "3⁸", "3¹²", "3²⁴"],
+            answerIndex: 1,
+            explanation: "Üssün üssünde üsler çarpılır: 4 × 2 = 8, sonuç 3⁸ olur.",
+          },
+        },
+        {
+          heading: "Üslü Sayılarda Çarpma",
+          body: "Tabanlar **aynıysa** çarpma işleminde üsler toplanır: 2³ × 2⁴ = 2⁷ olur.",
+          check: {
+            type: "trueFalse",
+            prompt: "2³ × 2⁴ = 2⁷ eşitliği doğru mudur?",
+            options: ["Doğru", "Yanlış"],
+            answerIndex: 0,
+            explanation: "Çarpmada üsler toplanır: 3 + 4 = 7 olduğundan eşitlik doğrudur.",
+          },
+        },
+      ],
+      commonMistake: {
+        claim: "(3²)⁴ ifadesi 3¹²⁺⁴ olarak hesaplanır.",
+        correction: "Üssün üssü alınırken üsler çarpılır; (3²)⁴ = 3²ˣ⁴ = 3¹² olur.",
+      },
+    };
+    const wrong = await finishTaughtLesson(base, { source: "", topicLabel: "Üslü Sayılar" });
+    expect(wrong.lesson.commonMistake).toBeUndefined();
+    const right = await finishTaughtLesson(
+      { ...base, commonMistake: { ...base.commonMistake!, correction: "Üssün üssü alınırken üsler çarpılır; (3²)⁴ = 3²ˣ⁴ = 3⁸ olur." } },
+      { source: "", topicLabel: "Üslü Sayılar" },
+    );
+    expect(right.lesson.commonMistake?.correction).toContain("3⁸");
   });
 });
