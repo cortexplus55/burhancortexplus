@@ -43,6 +43,8 @@ export type VerifiedChoice = {
   optionWhy?: string[];
   /** Yanlış şık → o şıkka özgü hata gerekçesi. Doğrulama bunu değiştirmez, olduğu gibi taşır. */
   optionReasons?: Record<string, string>;
+  /** Çözüm adımları. Sayıları tutmazsa ya da doğru şıkka varmazsa atılır; soru kalır. */
+  steps?: string[];
   topic?: string;
   /** Deterministik kapı hükmü veremedi. Tek ikinci çağrı bunu çözer. */
   needsSolver?: boolean;
@@ -588,6 +590,30 @@ function settleOptionWhy(question: VerifiedChoice, source: string): VerifiedChoi
   return { ...question, optionWhy: audited as string[] };
 }
 
+/**
+ * Çözüm adımları açıklamayla aynı kapıdan geçer: her adımın aritmetiği
+ * tutmalı ve adımların vardığı son sonuç doğru şık olmalı. Tutmayan adım
+ * listesi onarılmaz, bütünüyle düşer — yanlış bir ara adım, adımsız bir
+ * açıklamadan daha kötü öğretir. Soru ve açıklama yerinde kalır.
+ */
+export function settleSteps(
+  steps: string[] | undefined,
+  correct: string[],
+  source = "",
+): string[] | undefined {
+  if (!steps?.length) return undefined;
+  const lines = steps
+    .map((line) => polishLearnerText(line).trim())
+    .filter((line) => line.length >= 4)
+    .slice(0, 5);
+  if (lines.length < 2) return undefined;
+  if (lines.some((line) => !auditQuantitative(line, source).ok)) return undefined;
+  const blob = lines.join("\n");
+  if (!auditQuantitative(blob, source).ok) return undefined;
+  if (!explanationMatchesCorrect(blob, correct)) return undefined;
+  return lines;
+}
+
 function explanationMatchesCorrect(explanation: string, correct: string[]): boolean {
   if (!correct.length) return true;
   const audit = auditQuantitative(explanation);
@@ -668,6 +694,12 @@ export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCh
     }
     next = { ...next, explanation: repairedExpl };
   }
+  // Kapılar cevap anahtarını değiştirdiyse (denkleştirme, sayısal hizalama,
+  // kaynaktan cevap) üreticinin adımları eski cevaba gidiyor olabilir.
+  const answerIndexes = (q: VerifiedChoice) =>
+    q.correct.map((item) => q.options.indexOf(item)).sort((a, b) => a - b).join(",");
+  const keyChanged = answerIndexes(raw) !== answerIndexes(next);
+  next = { ...next, steps: keyChanged ? undefined : settleSteps(next.steps, next.correct, source) };
   const quantitative = asksQuantity(next.text) || Boolean(parseEquation(blob)) || (isLimitingQuestion(next.text) && molesIn(blob).size >= 2);
   const settled = next.needsSolver === false
     || computedResult(blob) != null
@@ -725,8 +757,18 @@ export function applyChoiceSolver(questions: VerifiedChoice[], raw: string, sour
     if (!answer) continue;
     const reason = settleExplanation(verdict.reason || `Doğru seçenek: ${answer}.`, source);
     if (verdict.reason && !auditQuantitative(reason, source).ok) continue;
+    // Çözücü başka bir şık seçtiyse üreticinin adımları o eski cevaba
+    // götürüyordur; kavramsal sorularda sayı kontrolü bunu yakalayamaz.
+    const sameAnswer = question.correct.length === 1 && question.correct[0] === answer;
     const checked = verifyChoiceQuestion(
-      { ...question, correct: [answer], multi: false, explanation: reason, needsSolver: false },
+      {
+        ...question,
+        correct: [answer],
+        multi: false,
+        explanation: reason,
+        steps: sameAnswer ? question.steps : undefined,
+        needsSolver: false,
+      },
       source,
     );
     if (checked.status === "drop") continue;

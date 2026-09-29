@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { sameOptionSet, selectedOptions, type PublicQuizQuestion } from "@/lib/learning/exam-quiz";
+import { RichBody } from "@/components/parity/lesson-rich-text";
 
 export function ExamQuizPlay({
   questions,
@@ -93,7 +94,7 @@ export function ExamQuizPlay({
       </div>
 
       <h2 className="text-lg sm:text-xl font-semibold text-white leading-relaxed">
-        {question.text}
+        <RichBody text={question.text} />
       </h2>
 
       <div className="space-y-3" role={question.multi ? "group" : "radiogroup"}>
@@ -149,7 +150,7 @@ export function ExamQuizPlay({
               </div>
 
               <span className="flex-1 text-sm sm:text-base font-normal leading-snug">
-                {option}
+                <RichBody text={option} />
               </span>
             </button>
           );
@@ -176,7 +177,24 @@ export function ExamQuizPlay({
             )}
           </div>
           {question.explanation ? (
-            <p className="text-sm text-zinc-300 leading-relaxed">{question.explanation}</p>
+            <p className="text-sm text-zinc-300 leading-relaxed">
+              <RichBody text={question.explanation} />
+            </p>
+          ) : null}
+          {/* Dersteki işlem adımları kutusunun aynısı: çok adımlı hesap tek cümleye sıkışmasın. */}
+          {question.steps?.length ? (
+            <div className="als-procedure cp-quiz-steps">
+              <p className="als-procedure-title">Çözüm adımları</p>
+              <ol>
+                {question.steps.map((step, stepIndex) => (
+                  <li key={stepIndex}>
+                    <span className="als-procedure-detail">
+                      <RichBody text={step} />
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
           ) : null}
           {question.optionWhy?.length ? (
             <ul className="space-y-1.5 text-sm text-zinc-300">
@@ -188,9 +206,9 @@ export function ExamQuizPlay({
                 return (
                   <li key={option}>
                     <span className="text-zinc-100">
-                      {letter} · {option}:
+                      {letter} · <RichBody text={option} />:
                     </span>{" "}
-                    {why}
+                    <RichBody text={why} />
                   </li>
                 );
               })}
