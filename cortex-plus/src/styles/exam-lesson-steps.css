@@ -291,7 +291,7 @@
 }
 
 .als-check .als-kicker {
-  color: #d0d0d0;
+  color: color-mix(in srgb, var(--c-text) 84%, var(--c-bg));
 }
 
 .als-check-prompt {
@@ -493,7 +493,7 @@
   margin: 0.45rem 0 0;
   font-size: 0.875rem;
   line-height: 1.5;
-  color: #d0d0d0;
+  color: color-mix(in srgb, var(--c-text) 84%, var(--c-bg));
 }
 
 .als-card--peek {
@@ -665,7 +665,7 @@
   margin: 0.4rem 0 0;
   font-size: 0.8125rem;
   line-height: 1.5;
-  color: #b8b8b8;
+  color: color-mix(in srgb, var(--c-text) 72%, var(--c-bg));
 }
 
 /* Mekanizma: düz paragraf değil, numaralı uygulanabilir adım listesi. */
@@ -683,7 +683,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #b8b8b8;
+  color: color-mix(in srgb, var(--c-text) 72%, var(--c-bg));
 }
 
 .als-procedure ol {
@@ -727,7 +727,7 @@
 .als-procedure-detail {
   font-size: 0.875rem;
   line-height: 1.5;
-  color: #d0d0d0;
+  color: color-mix(in srgb, var(--c-text) 84%, var(--c-bg));
 }
 
 /* Küçük referans tablosu (persentil↔SD gibi karşılıklar). Dar ekranda
@@ -742,7 +742,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #b8b8b8;
+  color: color-mix(in srgb, var(--c-text) 72%, var(--c-bg));
 }
 
 .als-reference-table-scroll {
@@ -767,7 +767,7 @@
 .als-reference-table th {
   background: var(--c-surface-2);
   font-weight: 700;
-  color: #b8b8b8;
+  color: color-mix(in srgb, var(--c-text) 72%, var(--c-bg));
   font-size: 0.75rem;
   letter-spacing: 0.03em;
   text-transform: uppercase;

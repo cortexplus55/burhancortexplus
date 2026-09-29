@@ -93,7 +93,7 @@ export function ExamQuizPlay({
         />
       </div>
 
-      <h2 className="text-lg sm:text-xl font-semibold text-white leading-relaxed">
+      <h2 className="text-lg sm:text-xl font-semibold text-[var(--cp-text)] leading-relaxed">
         <RichBody text={question.text} />
       </h2>
 
@@ -115,14 +115,14 @@ export function ExamQuizPlay({
               className={cn(
                 "group w-full flex items-center gap-4 p-4 sm:p-5 rounded-2xl text-left transition-all duration-150 relative overflow-hidden border",
                 showGreen
-                  ? "bg-[rgba(34,197,94,.14)] border-[var(--pm-success,#22c55e)] text-emerald-100"
+                  ? "bg-[rgba(34,197,94,.14)] border-[var(--pm-success,#22c55e)] text-[var(--cp-text)]"
                   : showRed
-                    ? "bg-[rgba(239,68,68,.14)] border-[var(--pm-danger,#ef4444)] text-rose-100"
+                    ? "bg-[rgba(239,68,68,.14)] border-[var(--pm-danger,#ef4444)] text-[var(--cp-text)]"
                     : missedCorrect
-                      ? "bg-[rgba(245,158,11,.14)] border-[var(--c-warning,#f59e0b)] text-amber-100"
+                      ? "bg-[rgba(245,158,11,.14)] border-[var(--c-warning,#f59e0b)] text-[var(--cp-text)]"
                       : selectedThis
-                        ? "bg-[rgba(61,90,254,.16)] border-[var(--cp-action,#3d5afe)] text-white"
-                        : "bg-[var(--cp-surface)] hover:bg-[var(--cp-surface-2)] border-[var(--cp-border)] text-zinc-200",
+                        ? "bg-[rgba(61,90,254,.16)] border-[var(--cp-action,#3d5afe)] text-[var(--cp-text)]"
+                        : "bg-[var(--cp-surface)] hover:bg-[var(--cp-surface-2)] border-[var(--cp-border)] text-[var(--cp-text)]",
               )}
             >
               <div
@@ -137,7 +137,7 @@ export function ExamQuizPlay({
                         ? "bg-[var(--c-warning,#f59e0b)] text-black"
                         : selectedThis
                           ? "bg-[var(--cp-action,#3d5afe)] text-white"
-                          : "bg-zinc-800/90 text-zinc-400 border border-white/5",
+                          : "bg-[var(--cp-surface-2)] text-[var(--cp-muted)] border border-[var(--cp-border)]",
                 )}
               >
                 {showGreen || missedCorrect ? (
@@ -177,7 +177,7 @@ export function ExamQuizPlay({
             )}
           </div>
           {question.explanation ? (
-            <p className="text-sm text-zinc-300 leading-relaxed">
+            <p className="text-sm text-[var(--cp-text)] leading-relaxed">
               <RichBody text={question.explanation} />
             </p>
           ) : null}
@@ -197,7 +197,7 @@ export function ExamQuizPlay({
             </div>
           ) : null}
           {question.optionWhy?.length ? (
-            <ul className="space-y-1.5 text-sm text-zinc-300">
+            <ul className="space-y-1.5 text-sm text-[var(--cp-muted)]">
               {question.options.map((option, optionIndex) => {
                 if (question.correct?.includes(option)) return null;
                 const why = question.optionWhy?.[optionIndex];
@@ -205,7 +205,7 @@ export function ExamQuizPlay({
                 const letter = String.fromCharCode(65 + optionIndex);
                 return (
                   <li key={option}>
-                    <span className="text-zinc-100">
+                    <span className="text-[var(--cp-text)]">
                       {letter} · <RichBody text={option} />:
                     </span>{" "}
                     <RichBody text={why} />
