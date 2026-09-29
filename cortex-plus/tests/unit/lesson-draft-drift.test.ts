@@ -10,6 +10,7 @@ import { exampleIsComplete, repairLearnerLesson, scopeLessonToTopic } from "@/li
 import { criticalTeachingFailures, finishTaughtLesson } from "@/lib/learning/lesson-teach";
 import { groundLearnerLesson } from "@/lib/learning/lesson-grounding";
 import { repairLessonSurface, repairTurkishSurface } from "@/lib/learning/learner-fluency";
+import { layoutBoard } from "@/lib/learning/lesson-board";
 
 /*
   29 Eylül 2026. Yayındaki ders modeli (gpt-4.1-mini) ile yerelde yedi
@@ -242,5 +243,22 @@ describe("çözümlü örnek yazımı", () => {
     // Hatanın kaynağı: izafet onarımı araç ekini yönelme sanıyordu.
     expect(repairTurkishSurface("Üslerin çarpılmasıyla bulunur.")).toBe("Üslerin çarpılmasıyla bulunur.");
     expect(repairTurkishSurface("Sonuç bu formülle hesaplanır.")).toBe("Sonuç bu formülle hesaplanır.");
+  });
+});
+
+describe("çözüm tahtası etiketleri", () => {
+  /*
+    Canlıda tek satır gelen çözüm "Verilen: 5² / 3 şöyle hesaplanır: /
+    5⁴ İstenen: …" diye bölünüyordu: virgülden ayrılan "3" yüklemsiz
+    satır sanılıp önüne kalıp eklendi.
+  */
+  it("etiketlerden önce satır kırılır, kalıp eklenmez", () => {
+    const lines = layoutBoard(
+      "Verilen: 5², 3, 5⁴ İstenen: (5²)³ ÷ 5⁴ işleminin sonucu Bağıntı: (aᵐ)ⁿ = aᵐˣⁿ Yerine koyma: (5²)³ = 5⁶, sonra 5⁶ ÷ 5⁴ = 5² Sonuç: 25",
+    ).map((line) => line.text);
+    expect(lines[0]).toBe("Verilen: 5², 3, 5⁴");
+    expect(lines.join(" | ")).not.toContain("şöyle hesaplanır");
+    expect(lines.some((line) => line.startsWith("İstenen:"))).toBe(true);
+    expect(lines.some((line) => line.startsWith("Sonuç: 25"))).toBe(true);
   });
 });

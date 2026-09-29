@@ -307,9 +307,13 @@ function calmFormulaLead(lead: string): string {
 
 /** Formülden hemen önceki eksik cümle, iki nokta ve bir yüklemle biter. */
 function introduceFormula(lead: string): string {
+  // "İstenen: işlemin sonucu" kendi satırıdır; arkasındaki bağıntıyı tanıtmaz.
+  if (/^(?:Verilen|İstenen|Bağıntı|Yerine koyma|Sonuç|Adım\s*\d+)\s*:\s*\S/i.test(lead.trim())) return lead;
   const trimmed = calmFormulaLead(lead.replace(/[.:;\s]+$/g, ""));
   if (!trimmed) return lead;
   if (verbEnding(trimmed)) return `${trimmed}:`;
+  // Çözüm etiketi yüklem istemez: "Yerine koyma:" yeter.
+  if (/^(?:Verilen|İstenen|Bağıntı|Yerine koyma|Sonuç|Adım\s*\d+)$/i.test(trimmed)) return `${trimmed}:`;
   return `${trimmed} şöyle hesaplanır:`;
 }
 
@@ -399,6 +403,10 @@ export function layoutBoard(text: string): BoardLine[] {
     .replace(/\r\n/g, "\n")
     .replace(/\s+(?=Veri\s*:)/gi, "\n")
     .replace(/\s+(?=Adım\s*\d+\s*:)/gi, "\n")
+    // Ders kuralının istediği çözüm etiketleri. Tek satır gelen çözüm
+    // ("Verilen: 5², 3, 5⁴ İstenen: … Sonuç: 25") virgülden bölünüp
+    // "3 şöyle hesaplanır:" diye okunuyordu (29 Eylül, canlı ders).
+    .replace(/\s+(?=(?:Verilen|İstenen|Bağıntı|Yerine koyma|Sonuç)\s*:)/g, "\n")
     .trim();
   if (!normalized) return [];
   return rejoinLines(normalized.split(/\n+/))
