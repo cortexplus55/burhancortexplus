@@ -456,11 +456,22 @@ export async function POST(request: Request) {
       : "";
 
   const isPremium = await isPremiumUser(service, userId);
+  /*
+    Tanışma testi öğrenciyi PUANLIYOR; iki doğru şıklı bir soru onu yanlış
+    ölçer. 29 Eylül 2026'da belgesiz "Üslü sayılar" hazırlığında ilk soru
+    "hangisi üslü sayıların özelliğidir" diye sordu ve hem "çarpmada üsler
+    toplanır" hem "bölmede üsler çıkarılır" şıkları doğruydu; anahtar
+    yalnızca birini tutuyordu. Kesin doğrulayıcı sayıyı ve denklemi
+    denetliyor, kavramsal çift doğruyu göremiyor. Tanı üretimindeki gibi
+    ikinci göz "her sorunun tek ve kesin doğru cevabı var mı" diye bakıyor.
+  */
   const outcome = await generateExamQuiz({
     service,
     userId,
     isPremium,
     difficulty: "hard",
+    verifyOptionReasoning: true,
+    maxDraftAttempts: 2,
     sourceExcerpt: source.block,
     requireSourceSupport: sourceMode !== "topic_only",
     userPrompt: `Sınav: ${prep.title ?? prep.exam_type}. Konu: ${topic.label}.${source.block}${topicBlock}

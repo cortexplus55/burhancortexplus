@@ -25,6 +25,7 @@ import {
 } from "@/lib/learning/lesson-source-resolver";
 import { recordLessonGenerationFailure } from "@/lib/learning/lesson-generation-failures";
 import {
+  prepSourceDocumentIds,
   resolvePrepSourceMode,
   shouldSearchSources,
   topicFence,
@@ -1232,8 +1233,29 @@ export async function POST(request: Request) {
     ];
     const sourceQuery = `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim();
 
-    // Ders: birleşik çözücü. Sonraki adım önceki kaynağı silemez.
-    if (kind === "lesson" && teachingV2 && !voiceSession) {
+    /*
+      Belgesiz hazırlık ("Belgem yok, konudan çalışayım"). Çözücü belge
+      listesi boşken her zaman "no_prep_documents" dönüyor; ders bu yüzden
+      HİÇ üretilmiyordu (29 Eylül 2026, canlıda "Bu hazırlığa bağlı okunabilir
+      belge bulunamadı"). Oysa aşağıdaki üretim çağrısı bu hâli bekliyor:
+      kaynak şartı kapalı, yerine konu çiti (topicFence) veriliyor — tanışma
+      testi ve eski ders ucu da aynı yoldan çalışıyor. Belgesiz derste
+      kaynak aranmaz (prep-source.ts), boş bağlamla konu çitine geçilir.
+    */
+    const hasPrepDocuments =
+      Boolean(topicDocumentId) ||
+      prepDocs.length > 0 ||
+      prepSourceDocumentIds({
+        documentId: prepSource.document_id as string | null,
+        sourceDocumentIds: prepSource.source_document_ids as string[] | null,
+      }).length > 0;
+    const topicOnlyLesson =
+      kind === "lesson" && teachingV2 && !voiceSession && sourceMode === "topic_only" && !hasPrepDocuments;
+
+    if (topicOnlyLesson) {
+      source = EMPTY_SOURCE_CONTEXT;
+    } else if (kind === "lesson" && teachingV2 && !voiceSession) {
+      // Ders: birleşik çözücü. Sonraki adım önceki kaynağı silemez.
       const resolved = await resolveLessonSource(service, {
         userId,
         prepId,
@@ -2565,6 +2587,9 @@ async function generateNodePayload(input: {
       isPremium: input.isPremium,
       teachingV2: input.teachingV2,
       difficulty: input.teachingV2 ? "hard" : undefined,
+      // Belgesizken karşılaştırılacak kaynak yok; kavramsal çift doğruyu
+      // ikinci göz yakalıyor (bkz. intro/route.ts).
+      verifyOptionReasoning: Boolean(input.topicFenceBlock),
       sourceExcerpt: input.sourceBlock,
       requireSourceSupport: input.requireSourceSupport,
       sourcePages: input.sessionMeta?.sourcePages,
@@ -2808,6 +2833,7 @@ async function generateNodePayload(input: {
     isPremium: input.isPremium,
     teachingV2: input.teachingV2,
     difficulty: input.teachingV2 ? "hard" : undefined,
+    verifyOptionReasoning: Boolean(input.topicFenceBlock),
     sourceExcerpt: input.sourceBlock,
     requireSourceSupport: input.requireSourceSupport,
     sourcePages: input.sessionMeta?.sourcePages,

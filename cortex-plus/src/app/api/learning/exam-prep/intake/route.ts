@@ -354,9 +354,18 @@ export async function POST(request: Request) {
     userId,
     actionCode: "STUDY_PLAN_GENERATE",
     isPremium: await isPremiumUser(service, userId),
+    /*
+      Eskiden şemada "ready true yalnızca en az 3 konu netse" yazıyordu. Model
+      bu eşiğe ulaşmak için konu uyduruyordu: 29 Eylül 2026'da öğrenci yalnızca
+      "TYT matematik: Üslü sayılar" yazdı, asistan "sınavında sadece üslü
+      sayılar var" dedi, tarih girilince plana "Temel Matematik" ve
+      "Problemler" de eklendi. Hazır olma kararını zaten kod veriyor (tarih +
+      en az bir konu); konu listesi yalnızca öğrencinin söylediğinden çıkar.
+    */
     schemaHint:
-      'JSON: {"reply":string,"title":string,"examType":string,"topics":string[],"needDate":boolean,"ready":boolean}. examType: LGS, TYT, AYT, TUS, Okul veya Serbest. Konular kısa başlık. ready true yalnızca en az 3 konu netse. needDate true konu listesi hazır ama tarih yoksa.',
+      'JSON: {"reply":string,"title":string,"examType":string,"topics":string[],"needDate":boolean,"ready":boolean}. examType: LGS, TYT, AYT, TUS, Okul veya Serbest. Konular kısa başlık. topics YALNIZCA öğrencinin yazdığı ya da belge konu haritasındaki konular; öğrenci tek konu söylediyse topics tek elemanlı kalır, sınav türünün genel konularıyla tamamlama. ready true konu listesi netse. needDate true konu listesi hazır ama tarih yoksa.',
     userPrompt: `Sınav hazırlığı sohbeti. Öğrencinin yazdıklarından sınavı ve konuları çıkar.
+Öğrencinin söylemediği bir konuyu listeye ekleme; eklemek istiyorsan reply içinde öner, topics'e yazma.
 Tarih henüz yoksa konuları netleştirip tarihi iste.
 ${topicSuggestions.length ? `Belge konu haritası (öncelikli konu listesi): ${topicSuggestions.map((t) => t.title).join(", ")}. Mümkünse topics olarak bunları kullan.` : ""}
 ${transcript}`,
