@@ -694,6 +694,35 @@ export function brokenSuperscript(text: string): boolean {
   );
 }
 
+/**
+ * Bölünmüş üssü birleştirir: iki üst simge arasındaki düz işleç üst simge
+ * işlece döner. "2³+⁴" → "2³⁺⁴", "(3²)³ = 3²×³" → "3²ˣ³".
+ *
+ * 29 Eylül'de canlıda belgesiz ders iki taslakta da "Üs bölünmüş" diye
+ * reddedildi ve öğrenci ders alamadı. Model üssün üssünü "(aᵐ)ⁿ = aᵐ×ⁿ",
+ * "(3²)³ = 3²×³" diye yazıyor; bu satır genellikle çözümlü örnekte duruyor.
+ * Kapının istediği okuma da bu (üssün tamamı üst simge); dersi düşürmek
+ * yerine yazım düzeltilir.
+ */
+export function joinSplitSuperscripts(text: string): string {
+  const map: Record<string, string> = { "+": "⁺", "-": "⁻", "−": "⁻", "×": "ˣ", "*": "ˣ", "·": "ˣ" };
+  return text.replace(
+    new RegExp(`([${SUPERSCRIPTS}ᵐ])\\s*([+\\-−×*·])\\s*(?=[${SUPERSCRIPTS}ᵐ])`, "g"),
+    (_, left: string, op: string) => `${left}${map[op] ?? op}`,
+  );
+}
+
+function joinSplitSuperscriptsDeep(value: unknown): unknown {
+  if (typeof value === "string") return joinSplitSuperscripts(value);
+  if (Array.isArray(value)) return value.map(joinSplitSuperscriptsDeep);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, child]) => [key, joinSplitSuperscriptsDeep(child)]),
+    );
+  }
+  return value;
+}
+
 /** $…$ / \(…\) dışında kalan ham LaTeX komutları. */
 export function hasUndelimitedLatex(text: string): boolean {
   const stripped = text
@@ -1578,7 +1607,7 @@ export function describeLessonShapeGaps(raw: unknown): LessonShapeGap[] {
 }
 
 export function coerceLessonCosmetics(raw: unknown, keyTerms: string[] = []): unknown {
-  const shaped = normalizeLessonShape(raw);
+  const shaped = joinSplitSuperscriptsDeep(normalizeLessonShape(raw));
   if (!shaped || typeof shaped !== "object" || Array.isArray(shaped)) return shaped;
   const row = { ...(shaped as Record<string, unknown>) };
   for (const key of ["title", "objective", "overview"] as const) {
