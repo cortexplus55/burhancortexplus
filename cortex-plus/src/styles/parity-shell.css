@@ -9800,8 +9800,9 @@
 
 /* Zikzak yol: düğümlerin yanında yazı yok, satır yüksekliği sabit; çizgi
    SVG ile düğüm merkezlerinden geçiyor (bkz. StudyPath). Genişlik 280px:
-   320px'lik telefonda 16px kenar boşluğuyla sığıyor. */
-.cp-path {
+   320px'lik telefonda 16px kenar boşluğuyla sığıyor. Sınıf adı cp-zpath:
+   .cp-path sohbet kabuğunda başka bir kutu için zaten kullanılıyor. */
+.cp-zpath {
   position: relative;
   width: 280px;
   max-width: 100%;
@@ -9904,6 +9905,8 @@
 }
 
 .cp-path-next {
+  /* Düğümler (z-index 1) kartın altından geçsin. */
+  z-index: 5;
   width: min(100%, 26rem);
   margin: 1.5rem auto 0;
   text-align: center;

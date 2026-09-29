@@ -673,7 +673,7 @@ function StudyPath({
   const height = ordered.length * PATH_ROW;
 
   return (
-    <div className="cp-path" style={{ height }}>
+    <div className="cp-zpath" style={{ height }}>
       <p className="sr-only">{STUDY_PATH_HINT}</p>
       <svg
         className="cp-path-lines"
