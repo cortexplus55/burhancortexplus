@@ -200,6 +200,19 @@ göremez — hepsi yeşildi.
 
 Bekçi test: `tests/unit/uat-gate-guards.test.ts` → "vercel.json cron kotası".
 
+## Fonksiyon bölgesi Frankfurt (`fra1`) — veritabanının yanı
+
+**29 Eylül 2026'ya kadar fonksiyonlar `iad1`'de (Washington) çalışıyordu;
+Supabase Frankfurt'ta.** Bir sayfa 5–15 sorguyu art arda yapıyor ve her biri
+Atlantik'i gidip geliyordu. Kayıtlı bir dersi yalnızca geri getiren istek
+1,8–6,6 saniye, tek sorguluk `/api/streak` 2,7 saniye sürüyordu. Yanıt
+başlığındaki `x-vercel-id: fra1::iad1::…` bunu gösteriyordu: giriş Frankfurt,
+çalışma Washington.
+
+`vercel.json` → `"regions": ["fra1"]`. Hobby planı tek bölgeye izin veriyor;
+o bölge veritabanının yanı olmalı. Supabase bölgesi değişirse bu da değişir.
+Bekçi test: `uat-gate-guards.test.ts` → "vercel.json fonksiyon bölgesi".
+
 ## `npm install` "up to date" derken lockfile bozuk olabilir
 
 **17 Eylül 2026'da CI main'de kırmızıydı** ve üç işin hepsi aynı yerde
