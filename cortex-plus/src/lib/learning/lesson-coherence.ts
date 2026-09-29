@@ -275,8 +275,10 @@ export function conceptCheck(statement: string): SectionCheck | null {
   }
   const words = prompt.replace(/[?.!]/g, "").split(/\s+/).filter(Boolean);
   if (words.length < 4) return null;
-  const whyRight = "Bu yargı kaynağın kurduğu tanımla uyumludur.";
-  const whyWrong = "Bu yargı kaynağın kurduğu tanımla çelişir.";
+  // Cevap "Doğru": gerekçe uyumu söyler. Eskiden açıklama "çelişir" diye
+  // başlıyordu ve "Yanlış" seçene doğru yargıyı yanlış diye onaylıyordu.
+  const whyRight = "Doğru: bu yargı dersteki tanımla uyumludur.";
+  const whyWrong = "Bu yargı doğrudur; dersteki tanımla uyumludur.";
   const misconception = "Tanımı başka bir büyüklüğe bağlamak hatadır";
   const hint = "Özneyi ve yüklemi ayrı ayrı oku.";
   return {
@@ -284,7 +286,7 @@ export function conceptCheck(statement: string): SectionCheck | null {
     prompt,
     options: ["Doğru", "Yanlış"],
     answerIndex: 0,
-    explanation: `${whyWrong} Yanılgı: ${misconception}. İpucu: ${hint}`,
+    explanation: `Bu yargı dersteki tanımla uyumludur. Yanılgı: ${misconception}. İpucu: ${hint}`,
     whyRight,
     whyWrong,
     misconception,

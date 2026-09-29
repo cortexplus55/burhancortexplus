@@ -218,7 +218,7 @@ describe("yankı, geri bildirim ve tekrar", () => {
   it("geri bildirimi tam cümle yapar ve kırık şablonu kapıdan geçirmez", () => {
     const concept = conceptCheck("Kabahat, kanunun karşılığında idari yaptırım öngördüğü haksızlık olarak tanımlanır.");
     expect(concept?.explanation).not.toMatch(/ters çevrilirse cümle|kurulduğu anlama uyuyor/);
-    expect(concept?.explanation).toMatch(/kaynağın kurduğu tanımla/);
+    expect(concept?.explanation).toMatch(/dersteki tanımla uyumludur/);
     expect(fluencyIssues(concept?.explanation ?? "")).toEqual([]);
     const broken = "Kimyasal tepkimelerde hangi maddenin ters çevrilirse cümle, kaynağın kurduğu tanımdan kopar.";
     expect(surfaceIssues(broken)).toContain("spliced");

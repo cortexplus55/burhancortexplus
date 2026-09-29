@@ -410,6 +410,10 @@ function tokenize(text: string): Token[] {
  * (cümle sonunda) da doğru sonucu verir.
  */
 export function repairDativePossessive(text: string): string {
+  // Başlık ve not başlığı cümle değildir: "Üslü İfade" → "Üslü İfadı"
+  // oluyordu (29 Eylül, model yarışında hakem yakaladı). -e ile biten ad
+  // ("ifade", "kare") cümle sonu olmayan kısa ifadede yönelme sayılmaz.
+  if (!/[.!?…]\s*$/.test(text.trim()) && text.trim().split(/\s+/).length <= 6) return text;
   const tokens = tokenize(text);
   if (tokens.length < 2) return text;
 

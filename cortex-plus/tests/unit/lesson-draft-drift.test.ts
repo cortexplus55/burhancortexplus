@@ -159,7 +159,7 @@ describe("gpt-4.1-mini taslak sapmaları", () => {
     expect(types).toContain("trueFalse");
     // Ders cümlesinden kurulan "hep doğru" dolgu sorusu yok.
     for (const section of taught.lesson.sections) {
-      expect(section.check?.whyRight ?? "").not.toBe("Bu yargı kaynağın kurduğu tanımla uyumludur.");
+      expect(section.check?.whyRight ?? "").not.toBe("Doğru: bu yargı dersteki tanımla uyumludur.");
     }
     // Özet kalıp cümle değil, sorulardaki kural cümlesi.
     expect(taught.lesson.summary?.join(" ") ?? "").not.toContain("tanımına ve şartına bağlıdır");
@@ -306,5 +306,15 @@ describe("kurtarmayı tetikleyen yanlış alarmlar", () => {
     };
     const taught = await finishTaughtLesson(lesson, { source: "", topicLabel: topic });
     expect(taught.lesson.sections.map((section) => section.body).join(" ")).not.toMatch(/null/);
+  });
+});
+
+describe("model yarışında hakemin bulduğu zincir hataları", () => {
+  it("kısa başlık yönelme onarımıyla bozulmaz", () => {
+    expect(repairLessonSurface("Üslü İfade")).toBe("Üslü İfade");
+    expect(repairLessonSurface({ title: "Üslü ifade", body: "aⁿ ifadesinde a taban, n üstür." })).toEqual({
+      title: "Üslü ifade",
+      body: "aⁿ ifadesinde a taban, n üstür.",
+    });
   });
 });
