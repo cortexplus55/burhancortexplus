@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import OpenAI from "openai";
 import { loadActivePrompt, PROMPT_KEYS } from "@/lib/ai/prompts";
@@ -16,6 +16,7 @@ import { recordAbuse } from "@/lib/abuse/record";
 import { parseTutorStyle, tutorStylePrompt } from "@/lib/learning/tutor-style";
 import { env, type ActionCode } from "@/lib/env";
 import { recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
+import { titleConversation } from "@/lib/ai/conversation-title";
 import { searchDocumentChunks } from "@/lib/rag/pipeline";
 import { NO_SOURCE_CREDIT_NOTE, NO_SOURCE_MESSAGE, saidNoSource, stripNoSourceMarker } from "@/lib/ai/grounding";
 import { chatSourceBlock } from "@/lib/learning/chat-source-block";
@@ -457,6 +458,13 @@ export async function POST(request: Request) {
       }).catch(() => undefined);
     }
     await recordUserActivity(service, userId, "chat").catch(() => undefined);
+    // Yeni sohbet: Astra gibi kısa başlık + emoji, cevap gittikten sonra.
+    const savedConversationId = (saved as SavedChatResult).conversationId;
+    if (!rest.conversationId && savedConversationId) {
+      after(() =>
+        titleConversation(service, { userId, conversationId: savedConversationId, message, answer: content }),
+      );
+    }
     return rest.prepId
       ? streamedChatResultResponse(saved as SavedChatResult, strict)
       : chatResultResponse(saved as SavedChatResult, strict);
