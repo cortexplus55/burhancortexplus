@@ -4,6 +4,12 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import { DUEL_QUESTIONS, duelCode, toDuelQuestions } from "@/lib/learning/duel";
+import { EMPTY_SOURCE_CONTEXT, loadSourceContext } from "@/lib/learning/source-context";
+import {
+  resolvePrepSourceMode,
+  shouldSearchSources,
+  topicFence,
+} from "@/lib/learning/prep-source";
 
 const bodySchema = z.object({ prepId: z.string().uuid() });
 
@@ -46,16 +52,51 @@ export async function POST(request: Request) {
     topicLabel = (topic?.label as string | undefined)?.trim() || null;
   }
   const subject = (prep.title as string | null) ?? (prep.exam_type as string);
-  const scope = topicLabel ? `${subject} — konu: ${topicLabel}` : subject;
+  const topic = topicLabel ?? subject;
+
+  /*
+    Kaynak, tanışma testiyle aynı kuralla: belge varsa belgeden alıntı,
+    yoksa konu çiti. İlk sürüm kaynaksız ve tek taslakla çağırıyordu;
+    bağımsız doğrulayıcı soruları tutmadı ve canlıda düello hiç kurulmadı
+    ("content_verification_failed", 30 Eylül 2026).
+  */
+  const { data: prepSource } = await service
+    .from("exam_preps")
+    .select("document_id")
+    .eq("id", prepId)
+    .maybeSingle();
+  const documentId = (prepSource?.document_id as string | null | undefined) ?? null;
+  const sourceMode = resolvePrepSourceMode({ documentId });
+  let source = EMPTY_SOURCE_CONTEXT;
+  if (shouldSearchSources(sourceMode)) {
+    try {
+      source = await loadSourceContext(service, userId, `${subject} ${topic}`, {
+        documentId,
+        limit: 6,
+      });
+    } catch {
+      return errorResponse(503, "source_unavailable");
+    }
+  }
+  const topicBlock =
+    sourceMode === "topic_only"
+      ? topicFence({ topic, examTitle: prep.title as string | null, examType: prep.exam_type as string })
+      : "";
 
   const outcome = await generateExamQuiz({
     service,
     userId,
     isPremium: await isPremiumUser(service, userId),
-    difficulty: "medium",
-    verificationMode: "schema",
+    maxDraftAttempts: 2,
+    difficulty: "hard",
+    sourceExcerpt: source.block,
+    requireSourceSupport: sourceMode !== "topic_only",
     idempotencyKey: `duel:${prepId}:${Date.now()}`,
-    userPrompt: `${scope}. Düello için ${DUEL_QUESTIONS + 2} çoktan seçmeli soru. Her soruda tam 4 şık ve TEK doğru cevap (multi false). Soru kökü kısa olsun; 20 saniyede okunup cevaplanabilsin. Uzun hesap isteyen soru yazma.`,
+    userPrompt: `Sınav: ${subject}. Konu: ${topic}.${source.block}${topicBlock}
+Düello için ${DUEL_QUESTIONS + 1} çoktan seçmeli soru yaz. Her soruda 4 şık.
+Tüm sorularda multi false (tek doğru). correct her zaman options içinde olsun.
+Soru kökü kısa olsun; 20 saniyede okunup cevaplanabilsin. Uzun hesap isteyen soru yazma.
+Her soruyu göndermeden önce bilimsel ve matematiksel doğruluğunu kontrol et. Soru kökü ile doğru seçenek tam olarak uyuşsun.`,
   });
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
 
