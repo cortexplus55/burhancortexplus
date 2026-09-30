@@ -229,7 +229,43 @@ export async function generateJson<T>(
     });
   };
 
+  // Sayaçlar hata yolundan da görünsün diye burada (bkz. recordAndFail).
+  let completionUsage = { prompt_tokens: 0, completion_tokens: 0 };
+  let reviewTokensIn = 0;
+  let reviewTokensOut = 0;
+
   const recordAndFail = async (error: string, status: number) => {
+    /*
+      Başarısız üretim de OpenAI'ye ödeniyor. 30 Eylül 2026'ya kadar yalnızca
+      kabul edilen üretim ai_usage_events'e yazılıyordu: öğrencinin hakkı iade
+      ediliyor, harcanan jeton hiçbir yerde görünmüyordu ve /admin/maliyetler
+      gideri eksik gösteriyordu (canlıda 22 sn süren, reddedilen bir düello
+      üretimi hiç iz bırakmadı). Kayıt hatası iadeyi engellemesin.
+    */
+    try {
+      if (completionUsage.prompt_tokens || completionUsage.completion_tokens) {
+        await recordUsage(params.service, {
+          userId: params.userId,
+          actionCode,
+          model,
+          tokensIn: completionUsage.prompt_tokens,
+          tokensOut: completionUsage.completion_tokens,
+          reservationId: reservation.reservationId,
+        });
+      }
+      if (reviewTokensIn || reviewTokensOut) {
+        await recordUsage(params.service, {
+          userId: params.userId,
+          actionCode,
+          model: env.OPENAI_ADVANCED_MODEL,
+          tokensIn: reviewTokensIn,
+          tokensOut: reviewTokensOut,
+          reservationId: reservation.reservationId,
+        });
+      }
+    } catch {
+      /* gider kaydı düşmezse iade yine yapılır */
+    }
     await recordValidationEvent(params.service, {
       userId: params.userId,
       actionCode,
@@ -278,9 +314,6 @@ export async function generateJson<T>(
     ];
 
     let content = "";
-    let completionUsage = { prompt_tokens: 0, completion_tokens: 0 };
-    let reviewTokensIn = 0;
-    let reviewTokensOut = 0;
     let parsed: T | null = null;
 
     const schemaValidate = (candidate: string): string[] => {

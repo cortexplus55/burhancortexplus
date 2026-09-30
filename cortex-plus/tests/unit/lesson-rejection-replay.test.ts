@@ -399,6 +399,19 @@ describe("lesson generation pipeline", () => {
     expect(pipelineMocks.reserve).toHaveBeenCalledTimes(1);
     expect(pipelineMocks.commit).not.toHaveBeenCalled();
     expect(pipelineMocks.refund).toHaveBeenCalledTimes(1);
+    // Hak iade edilse de harcanan jeton gider kaydına düşer (30 Eylül 2026).
+    expect(pipelineMocks.usage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: "student-1",
+        actionCode: "STUDY_PLAN_GENERATE",
+        reservationId: "res-1",
+        tokensIn: expect.any(Number),
+      }),
+    );
+    const recorded = (pipelineMocks.usage.mock.calls as unknown as [unknown, { tokensIn: number }][])
+      .reduce((sum, [, row]) => sum + row.tokensIn, 0);
+    expect(recorded).toBeGreaterThan(0);
   });
 });
 
