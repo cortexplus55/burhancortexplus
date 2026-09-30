@@ -6,8 +6,8 @@ import { Copy, Swords, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  DUEL_RULES,
   DUEL_SECONDS,
+  duelRules,
   type DuelAnswer,
   type DuelPublicQuestion,
 } from "@/lib/learning/duel";
@@ -226,7 +226,7 @@ export function DuelPlay({
       <h1 className="cp-duel-title">{title}</h1>
       {topic ? <p className="cp-duel-muted">{topic}</p> : null}
       <ol className="cp-duel-rules">
-        {DUEL_RULES.map((rule, i) => (
+        {duelRules(questions.length).map((rule, i) => (
           <li key={rule}>
             <b>{i + 1}</b>
             {rule}

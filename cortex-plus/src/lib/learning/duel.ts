@@ -16,11 +16,16 @@ export type DuelQuestion = { text: string; options: string[]; answer: number };
 export type DuelPublicQuestion = { text: string; options: string[] };
 export type DuelAnswer = { choice: number | null; ms: number };
 
-export const DUEL_RULES = [
-  `Her biri için ${DUEL_SECONDS} saniyede ${DUEL_QUESTIONS} soru yanıtla.`,
-  `Her doğru cevap ${BASE_POINTS} puan, hızına göre en fazla ${MAX_SPEED_BONUS} ek puan. Son turda puanlar ikiye katlanır.`,
-  "Bağlantıyı bir arkadaşına gönder; oynamak için hesap gerekmiyor.",
-] as const;
+/** Kurallar gerçek soru sayısıyla yazılır; doğrulamadan 7'den az soru geçebilir. */
+export function duelRules(count: number = DUEL_QUESTIONS): string[] {
+  return [
+    `Her biri için ${DUEL_SECONDS} saniyede ${count} soru yanıtla.`,
+    `Her doğru cevap ${BASE_POINTS} puan, hızına göre en fazla ${MAX_SPEED_BONUS} ek puan. Son turda puanlar ikiye katlanır.`,
+    "Bağlantıyı bir arkadaşına gönder; oynamak için hesap gerekmiyor.",
+  ];
+}
+
+export const DUEL_RULES = duelRules();
 
 /** Tek doğrulu, dört şıklı sorulara çevirir; uymayanı atar. */
 export function toDuelQuestions(
