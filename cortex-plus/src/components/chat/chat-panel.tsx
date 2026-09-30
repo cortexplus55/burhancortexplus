@@ -213,7 +213,6 @@ function ChatPanelSession({
   quotaHint,
   starterPrompts,
   feedbackEnabled = false,
-  dailyDrillCount = 0,
   prepId,
   examChrome = false,
 }: {
@@ -250,8 +249,6 @@ function ChatPanelSession({
    * demek olurdu.
    */
   feedbackEnabled?: boolean;
-  /** Yanlış defterinde bekleyen soru sayısı. 0 ise günün turu kartı çıkmıyor. */
-  dailyDrillCount?: number;
   /**
    * Sınav hazırlığının sohbeti. Karşılama, çipler, oluşturucu ve hızlı
    * komutlar bu kabuğa göre çizilir. Kota kapısı durur; satış kartı girmez.
@@ -1149,9 +1146,6 @@ function ChatPanelSession({
               <h1 className="cp-sor-hero-title">
                 {greetingLine ?? "Merhaba!"}
               </h1>
-              {greetingSubline ? (
-                <p className="cp-sor-hero-sub">{greetingSubline}</p>
-              ) : null}
               <button
                 type="button"
                 className="cp-sor-start"
@@ -1167,35 +1161,9 @@ function ChatPanelSession({
                 {startPrompt ? startLabel : "+ " + startLabel}
               </button>
 
-              {/* Boş ekranda "ne sorabilirim" sorusunun cevabı. Öneriler
-                  kayıt cevaplarından üretiliyor; basınca doğrudan soruyor. */}
-              {starterPrompts?.length ? (
-                <div className="cp-sor-starters" role="group" aria-label="Başlangıç önerileri">
-                  {starterPrompts.map((item) => (
-                    <button
-                      key={item.label}
-                      type="button"
-                      className="cp-sor-starter"
-                      disabled={loading}
-                      onClick={() => void send(item.prompt)}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-
-              {/* Günün turu yalnızca defterde bekleyen soru varsa görünüyor.
-                  Boşken göstermek, basınca "soru yok" diyen bir düğme
-                  demekti. */}
-              {dailyDrillCount ? (
-                <Link href="/gunluk" className="cp-sor-daily">
-                  <span className="cp-sor-daily-title">Günün turu</span>
-                  <span className="cp-sor-daily-sub">
-                    Defterinden {dailyDrillCount} soru bekliyor · beş dakika
-                  </span>
-                </Link>
-              ) : null}
+              {/* Astra gibi yalnızca selam ve Başla (30 Eylül 2026 kararı).
+                  Kısayollar ilk cevabın altında, kaynak seçimi ilk mesajdan
+                  sonra; Günün turu Çalış ve yanlış defterinde. */}
             </div>
           ) : null}
 
@@ -1352,7 +1320,9 @@ function ChatPanelSession({
             style={keyboardInset ? { paddingBottom: keyboardInset } : undefined}
           >
             <div className="cp-sor-composer-main">
-            {renderSourceMode(true)}
+            {/* Ana sayfa ilk mesaja kadar sade; varsayılan genel sohbet.
+                Bir belgeden gelindiyse seçim baştan görünür. */}
+            {showParityEmpty && !examChrome && !initialDocumentId ? null : renderSourceMode(true)}
             {showSubjectPicker ? (
               <div className="cp-sor-subject-wrap">
                 <button
