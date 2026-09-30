@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { ProfileDashboard } from "@/lib/student/profile-dashboard";
 import type { SubscriptionBadge } from "@/lib/student/subscription-badge";
+import { AppearanceRow } from "@/components/parity/appearance-row";
 
 /**
  * Profil paneli.
@@ -40,6 +41,7 @@ export function ProfilePanel({
   isPremium,
   subscriptionBadge,
   periodEndLabel = null,
+  isAdmin = false,
   children,
 }: {
   data: ProfileDashboard;
@@ -48,6 +50,8 @@ export function ProfilePanel({
   subscriptionBadge: SubscriptionBadge;
   /** Plus/Sigma dönem bitişi, İstanbul saatiyle. */
   periodEndLabel?: string | null;
+  /** Kurucu: işlemler hakkından düşmüyor; "Ücretsiz plan" yazmak yanlıştı. */
+  isAdmin?: boolean;
   /** Davet kartı — sunucu tarafında hazırlanıp buraya veriliyor. */
   children?: React.ReactNode;
 }) {
@@ -81,20 +85,24 @@ export function ProfilePanel({
 
       <div className="cp-pp-plan">
         <div>
-          <strong>{subscriptionBadge ?? "Temel"}</strong>
+          <strong>{isAdmin ? "Kurucu" : (subscriptionBadge ?? "Temel")}</strong>
           <span>
-            {isPremium
-              ? `${subscriptionBadge ?? "Plus"} · ${periodEndLabel ? `${periodEndLabel} bitiyor` : "aylık kota"}`
-              : "Ücretsiz plan"}
+            {isAdmin
+              ? "Sınırsız · işlemler hakkından düşmez"
+              : isPremium
+                ? `${subscriptionBadge ?? "Plus"} · ${periodEndLabel ? `${periodEndLabel} bitiyor` : "aylık kota"}`
+                : "Ücretsiz plan"}
           </span>
         </div>
-        <Link
-          href="/paketler"
-          className="cp-pp-upgrade"
-        >
-          <Sparkles className="h-4 w-4" aria-hidden />
-          {isPremium ? "Ek paket" : "Daha hızlı öğren"}
-        </Link>
+        {isAdmin ? null : (
+          <Link
+            href="/paketler"
+            className="cp-pp-upgrade"
+          >
+            <Sparkles className="h-4 w-4" aria-hidden />
+            {isPremium ? "Ek paket" : "Daha hızlı öğren"}
+          </Link>
+        )}
       </div>
 
       {children}
@@ -143,16 +151,20 @@ export function ProfilePanel({
       </div>
 
       <nav className="cp-pp-menu" aria-label="Hesap">
-        {MENU.map((item) => {
+        {MENU.flatMap((item) => {
           const Icon = item.icon;
           const href =
             item.href === "/paketler" && isPremium ? "/odemeler" : item.href;
-          return (
+          const link = (
             <Link key={item.href} href={href}>
               <Icon className="h-4 w-4" aria-hidden />
               {item.label}
             </Link>
           );
+          // Astra'daki sıra: … Geçmiş konuşmalar, Görünüm, …
+          return item.href === "/sohbetler"
+            ? [link, <AppearanceRow key="gorunum" />]
+            : [link];
         })}
       </nav>
 

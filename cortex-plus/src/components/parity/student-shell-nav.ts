@@ -44,14 +44,24 @@ export const CANONICAL_FEATURES = {
   progress: "İlerleme Analizi",
 } as const;
 
-/** Ana Sayfa · Çalış · AI · Belgeler · Profil */
+/**
+ * Ana Sayfa · Çalış · Sınavlar · Belgeler · Profil
+ *
+ * 30 Eylül 2026: Ana Sayfa sohbet (Astra'da ilk sekme "Sor"). Ayrı "AI"
+ * sekmesi aynı yere gidiyordu; yerini Astra'nın ikinci sekmesi Sınavlar aldı.
+ */
 export const studentBottomTabs: StudentNavItem[] = [
   {
     id: "home",
-    href: "/dashboard",
+    href: "/ogretmen",
     label: "Ana Sayfa",
     icon: Home,
-    match: (p) => p === "/dashboard" || p === "/",
+    match: (p) =>
+      p === "/dashboard" ||
+      p === "/" ||
+      p === "/ogretmen" ||
+      p.startsWith("/ogretmen/") ||
+      p.startsWith("/sohbetler"),
   },
   {
     id: "study",
@@ -65,14 +75,11 @@ export const studentBottomTabs: StudentNavItem[] = [
       p.startsWith("/studio"),
   },
   {
-    id: "ai",
-    href: "/ogretmen",
-    label: "AI",
-    icon: MessageCircle,
-    match: (p) =>
-      p === "/ogretmen" ||
-      p.startsWith("/ogretmen/") ||
-      p.startsWith("/sohbetler"),
+    id: "exams",
+    href: "/deneme-sinavlari",
+    label: "Sınavlar",
+    icon: Target,
+    match: (p) => p.startsWith("/deneme-sinavlari"),
   },
   {
     id: "docs",
