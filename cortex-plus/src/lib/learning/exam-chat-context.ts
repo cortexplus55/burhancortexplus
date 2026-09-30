@@ -10,6 +10,7 @@ import {
   type MaterialLanguage,
 } from "@/lib/learning/teacher-brain";
 import type { ExamChatPrompt } from "@/lib/learning/exam-chat-chrome";
+import { daysUntilDate } from "@/lib/learning/exam-countdown";
 
 /**
  * Sohbetin hangi sınava çalıştığını bilmesi.
@@ -53,15 +54,16 @@ export type ExamChatContext = {
   personalizationPrompt: string;
 };
 
-function daysUntil(examDate: string | null): number | null {
+/**
+ * Sınava kalan gün, Türkiye takviminde.
+ *
+ * Eskiden "bugün" sunucunun yerel günüydü; sunucu UTC'de olduğu için gece
+ * 00:00–03:00 arası sınav günü açılan sohbet "yarın" diyordu.
+ */
+export function examDaysLeft(examDate: string | null, now = new Date()): number | null {
   if (!examDate) return null;
-  // Sınav tarihi gün hassasiyetinde; saat farkı bir gün kaydırmasın diye
-  // iki tarafı da yerel gün başına çekiyoruz.
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const target = new Date(`${examDate}T00:00:00`);
-  if (Number.isNaN(target.getTime())) return null;
-  return Math.round((target.getTime() - start.getTime()) / 86_400_000);
+  const days = daysUntilDate(examDate, now);
+  return Number.isNaN(days) ? null : days;
 }
 
 /** Karşılama satırı. Ayrı bir başlık yok; konu ve süre bu cümlede. */
@@ -235,7 +237,7 @@ export async function loadExamChatContext(
   if (!prep) return null;
 
   const prepTitle = (prep.title as string) ?? "Sınav hazırlığı";
-  const daysLeft = daysUntil((prep.exam_date as string | null) ?? null);
+  const daysLeft = examDaysLeft((prep.exam_date as string | null) ?? null);
   const language = prepLanguage(prep.learning_preferences);
   const history = await loadChatPersonalization(service, userId, prepId);
 

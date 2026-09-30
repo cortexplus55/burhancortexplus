@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { toIsoDate } from "@/lib/learning/calendar";
+import { addDays, istanbulDay, isoWeekday } from "@/lib/istanbul-day";
 import { liveStreak } from "@/lib/streak/record-activity";
 
 /**
@@ -31,20 +31,21 @@ export type ProfileDashboard = {
 
 const DAY_LABELS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
-/** Pazartesiden başlayan içinde bulunulan hafta. */
-function weekDays(today = new Date()): { iso: string; label: string; isToday: boolean }[] {
-  const base = new Date(today);
-  base.setHours(0, 0, 0, 0);
-  // getDay(): 0 = Pazar. Pazartesi başlangıcına çevir.
-  const offset = (base.getDay() + 6) % 7;
-  const monday = new Date(base);
-  monday.setDate(base.getDate() - offset);
-
-  return DAY_LABELS.map((label, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return { iso: toIsoDate(d), label, isToday: i === offset };
-  });
+/**
+ * Pazartesiden başlayan içinde bulunulan hafta, Türkiye takviminde.
+ *
+ * Sunucu UTC'de; yerel saatle hesaplandığında gece 00:00–03:00 arası "bugün"
+ * dün oluyordu ve pazartesi gecesi şerit bütünüyle geçen haftayı
+ * gösteriyordu. `user_activity_days` zaten Türkiye gününe yazılıyor.
+ */
+function weekDays(todayIso: string): { iso: string; label: string; isToday: boolean }[] {
+  const offset = isoWeekday(todayIso) - 1;
+  const monday = addDays(todayIso, -offset);
+  return DAY_LABELS.map((label, i) => ({
+    iso: addDays(monday, i),
+    label,
+    isToday: i === offset,
+  }));
 }
 
 export async function loadProfileDashboard(
@@ -52,10 +53,10 @@ export async function loadProfileDashboard(
   userId: string,
   today = new Date(),
 ): Promise<ProfileDashboard> {
-  const days = weekDays(today);
+  const todayIso = istanbulDay(today);
+  const days = weekDays(todayIso);
   const weekStart = days[0].iso;
   const weekEnd = days[days.length - 1].iso;
-  const todayIso = toIsoDate(today);
 
   const [{ data: profile }, { data: streak }, { data: activity }, { count }] =
     await Promise.all([
