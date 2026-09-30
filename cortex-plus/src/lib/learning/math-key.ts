@@ -286,14 +286,53 @@ function equationPairs(sentence: string): [Reading, Reading][] {
   Ters trigonometri: "kosinüs değeri 0 olan açı hangisi?" Şıklar açıysa her
   şıkkın fonksiyon değeri hesaplanır. Canlı düelloda 90° ile 270° aynı
   soruda şıktı; ikisi de doğruydu (30 Eylül 2026). Tek fonksiyon, tek hedef
-  değer ve kökte başka sayı yoksa hüküm verilir: "0° ile 180° arasında" gibi
-  bir aralık soruyu daraltır, o durumda susulur.
+  değer ister. Kökte aralık varsa ("0° ≤ x < 360°", "[0, 2π)", "0° ile 180°
+  arasında") yalnızca aralıktaki şıklar sayılır; "arasında" uçları belirsiz
+  bıraktığı için uçlar dahil sayılır — iki şık tutarsa soru zaten belirsizdir.
+  Canlıda "(0° ≤ x < 360°)" ile 240° ve 300° aynı soruda doğruydu. Aralık
+  okunamazsa ya da kökte başka sayı kalırsa hüküm yok.
 */
 const INVERSE_FN = /(?<!\p{L})(kotanjant|kosinüs|tanjant|sinüs|cot|cos|tan|sin)(?!\p{L})/giu;
 const INVERSE_TARGET = /(?:=|(?<!\p{L})değer(?:i|inin)?(?!\p{L}))\s*([-−]?[\d√π][\d√π/.,]*)/u;
 const INVERSE_CODE: Record<string, "S" | "C" | "T" | "K"> = {
   sin: "S", sinüs: "S", cos: "C", kosinüs: "C", tan: "T", tanjant: "T", cot: "K", kotanjant: "K",
 };
+
+const ANGLE = String.raw`[-−]?[\dπ][\dπ/.,]*°?`;
+const RANGE_PATTERNS: { re: RegExp; read: (m: RegExpMatchArray) => [string, boolean, string, boolean] }[] = [
+  {
+    // 0° ≤ x < 360°
+    re: new RegExp(String.raw`(${ANGLE})\s*(≤|<=|<)\s*\p{L}+\s*(≤|<=|<)\s*(${ANGLE})`, "u"),
+    read: (m) => [m[1], m[2] !== "<", m[4], m[3] !== "<"],
+  },
+  {
+    // [0, 2π)
+    re: new RegExp(String.raw`([[(])\s*(${ANGLE})\s*[,;]\s*(${ANGLE})\s*([\])])`, "u"),
+    read: (m) => [m[2], m[1] === "[", m[3], m[4] === "]"],
+  },
+  {
+    // 0° ile 180° arasında
+    re: new RegExp(String.raw`(${ANGLE})\s*(?:ile|-|–)\s*(${ANGLE})\s*(?:arasında|arasındaki|aralığında)`, "u"),
+    read: (m) => [m[1], true, m[2], true],
+  },
+];
+
+type AngleRange = { low: number; lowIn: boolean; high: number; highIn: boolean; start: number; end: number };
+
+/** undefined: aralık yok. null: aralık var ama okunamadı. */
+function rangeIn(prompt: string): AngleRange | null | undefined {
+  for (const pattern of RANGE_PATTERNS) {
+    const match = prompt.match(pattern.re);
+    if (!match || match.index == null) continue;
+    const [lowText, lowIn, highText, highIn] = pattern.read(match);
+    // Yalnız başına 0 her birimde sıfırdır: "[0, 2π)".
+    const low = /^0$/.test(lowText.trim()) ? 0 : angleRadians(lowText);
+    const high = angleRadians(highText);
+    if (low == null || high == null || low >= high) return null;
+    return { low, lowIn, high, highIn, start: match.index, end: match.index + match[0].length };
+  }
+  return undefined;
+}
 
 function angleRadians(option: string): number | null {
   const trimmed = option.trim().replace(/[.;:?!]+$/g, "").trim();
@@ -316,7 +355,12 @@ function inverseTrigMatches(check: KeyedCheck): number[] | null {
   const fn = [...names][0];
   const target = check.prompt.match(INVERSE_TARGET);
   if (!target || target.index == null) return null;
-  const rest = check.prompt.slice(0, target.index) + check.prompt.slice(target.index + target[0].length);
+  const range = rangeIn(check.prompt);
+  if (range === null) return null;
+  const cuts = [[target.index, target.index + target[0].length], ...(range ? [[range.start, range.end]] : [])];
+  const rest = [...check.prompt]
+    .map((char, at) => (cuts.some(([from, to]) => at >= from && at < to) ? " " : char))
+    .join("");
   if (/[\dπ]/.test(rest)) return null;
   const expected = read(target[1]);
   if (!expected) return null;
@@ -330,7 +374,15 @@ function inverseTrigMatches(check: KeyedCheck): number[] | null {
     if (fn === "T") return Math.abs(cos) < 1e-12 ? null : sin / cos;
     return Math.abs(sin) < 1e-12 ? null : cos / sin;
   };
+  const inRange = (angle: number) => {
+    if (!range) return true;
+    const eps = 1e-9;
+    const aboveLow = range.lowIn ? angle >= range.low - eps : angle > range.low + eps;
+    const belowHigh = range.highIn ? angle <= range.high + eps : angle < range.high - eps;
+    return aboveLow && belowHigh;
+  };
   return angles.flatMap((angle, index) => {
+    if (!inRange(angle as number)) return [];
     const value = valueAt(angle as number);
     if (value == null) return [];
     return expected.values.some((wanted) => Math.abs(value - wanted) <= 1e-9 * Math.max(1, Math.abs(wanted))) ? [index] : [];
