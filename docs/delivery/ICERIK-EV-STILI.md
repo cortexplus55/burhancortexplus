@@ -107,6 +107,23 @@ kontrol "hangisi bu tanıma uyar" diye sorar, çeldiriciler diğer
 kardeşlerdir. Açıklama doğru şıkkı onaylamakla kalmaz, **her çeldiricinin
 gerçekte ne olduğunu** söyler ve kaynağa yaslanır ("Metne göre…").
 
+Quizde bu kural kod: `restated-option-reason.ts`, `unit-circle.ts`,
+`math-key.ts` (`sameUnorderedSet`). 30 Eylül 2026'da canlı bir birim çember
+quizinde altı yanlış şık gerekçesinin beşi "Bu şık yanlıştır; koordinatlar
+(1, 1) olamaz." kalıbındaydı; biri de doğruyu reddediyordu ("(1, 0) ve
+(0, 1) 0° ile 90° arasında geçerli değildir"). İki şık aynı iki noktayı ters
+sırayla yazıyordu ve öğrencinin seçtiği gerçek cevap yanlış sayıldı.
+
+| Olan | Kural |
+|---|---|
+| Gerekçe şıkkı tekrar edip "olamaz" diyor | Birim çemberde tablodan doğru gerekçe yazılır ("(1, 0) noktası 0° açısına karşılık gelir"); başka yerde soru düşer |
+| Aynı küme, farklı sıra | Soru düşer; sıra soran kökte ("küçükten büyüğe") hüküm yok |
+| Gerekçe açıyla noktayı yanlış eşliyor | Soru düşer |
+
+Kural dar tutuldu: gerekçede şıkkın, kökteki sayının ve olumsuzlamanın
+dışında tek bir sözcük kalıyorsa ("yatay", "birim çember üzerinde",
+"tuzak: oran") tekrar sayılmaz.
+
 ---
 
 ### Öğrenme adımı ders, podcast değil

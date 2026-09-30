@@ -17,6 +17,8 @@ import {
 import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
 import { optionWhyUniqueIssues } from "@/lib/learning/lesson-play";
 import { angleOptionReasonIssues, angleQuestionIssues } from "@/lib/learning/angle-option-reason";
+import { optionReasonRestates } from "@/lib/learning/restated-option-reason";
+import { unitCircleClaimIssues, unitCircleOptionReason } from "@/lib/learning/unit-circle";
 import {
   isPromptEcho,
   oralPremiseGrounded,
@@ -41,7 +43,11 @@ export type VerifiedChoice = {
   learningObjective?: string;
   misconceptionTag?: string;
   optionWhy?: string[];
-  /** Yanlış şık → o şıkka özgü hata gerekçesi. Doğrulama bunu değiştirmez, olduğu gibi taşır. */
+  /**
+   * Yanlış şık → o şıkka özgü hata gerekçesi. Doğrulama bunu olduğu gibi
+   * taşır; yalnızca şıkkı tekrar eden bir satır varsa bütünüyle atar
+   * (optionWhy her şık için zaten zorunlu).
+   */
   optionReasons?: Record<string, string>;
   /** Çözüm adımları. Sayıları tutmazsa ya da doğru şıkka varmazsa atılır; soru kalır. */
   steps?: string[];
@@ -591,6 +597,28 @@ function settleOptionWhy(question: VerifiedChoice, source: string): VerifiedChoi
 }
 
 /**
+ * Yanlış şık gerekçesi şıkkı tekrar edip "olamaz / değildir" demekle
+ * kalıyorsa (bkz. restated-option-reason.ts) öğrenciye bir şey öğretmez.
+ * Birim çember sorusunda doğru gerekçe tablodan yazılır: o nokta hangi
+ * açınındır ya da neden çemberde değildir. Yazılamıyorsa soru düşer.
+ */
+function settleRestatedReasons(question: VerifiedChoice): VerifiedChoice | null {
+  const optionWhy = [...(question.optionWhy ?? [])];
+  for (let index = 0; index < question.options.length; index += 1) {
+    const option = question.options[index] ?? "";
+    if (question.correct.includes(option)) continue;
+    if (!optionReasonRestates(optionWhy[index] ?? "", option, question.text)) continue;
+    const written = unitCircleOptionReason(question, option);
+    if (!written) return null;
+    optionWhy[index] = written;
+  }
+  const restatedReason = Object.entries(question.optionReasons ?? {}).some(
+    ([option, reason]) => !question.correct.includes(option) && optionReasonRestates(reason, option, question.text),
+  );
+  return { ...question, optionWhy, optionReasons: restatedReason ? undefined : question.optionReasons };
+}
+
+/**
  * Çözüm adımları açıklamayla aynı kapıdan geçer: her adımın aritmetiği
  * tutmalı ve adımların vardığı son sonuç doğru şık olmalı. Tutmayan adım
  * listesi onarılmaz, bütünüyle düşer — yanlış bir ara adım, adımsız bir
@@ -685,6 +713,12 @@ export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCh
   next = withWhy;
   if (angleOptionReasonIssues(next).length) {
     return { status: "drop", question: next, reason: "option_why_angle" };
+  }
+  const reasoned = settleRestatedReasons(next);
+  if (!reasoned) return { status: "drop", question: next, reason: "option_why_restates" };
+  next = reasoned;
+  if (unitCircleClaimIssues(next).length) {
+    return { status: "drop", question: next, reason: "unit_circle_fact" };
   }
   const blob = `${next.text}\n${next.explanation ?? ""}\n${(next.optionWhy ?? []).join("\n")}`;
   if (!auditQuantitative(blob, source).ok) {

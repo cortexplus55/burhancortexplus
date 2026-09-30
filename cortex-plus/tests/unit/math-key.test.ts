@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { evaluateMath, mathKeyWrong, mathOptionsAmbiguous, mathProseWrong } from "@/lib/learning/math-key";
+import {
+  evaluateMath,
+  mathKeyWrong,
+  mathOptionsAmbiguous,
+  mathProseWrong,
+  sameUnorderedSet,
+} from "@/lib/learning/math-key";
 
 /*
   exponent-key.ts yalnızca aynı tabanlı üslü işleme bakıyor. Trigonometri,
@@ -157,5 +163,98 @@ describe("aynı değerde iki şık", () => {
     expect(mathOptionsAmbiguous({ type: "mcq", prompt: "3⁶ kaçtır?", options: ["3⁶", "729", "18"] })).toBe(true);
     expect(mathOptionsAmbiguous({ type: "mcq", prompt: "3⁴ × 3² kaçtır?", options: ["3⁶", "3⁸", "9⁶"] })).toBe(false);
     expect(mathOptionsAmbiguous({ type: "mcq", prompt: "Hangisi?", options: ["taban", "üs"] })).toBe(false);
+  });
+});
+
+/*
+  30 Eylül 2026 canlı quiz (birim çember, deneme 43dd3046): C ve D aynı iki
+  noktayı ters sırayla yazıyordu. Öğrenci C'yi seçti, yanlış sayıldı; oysa
+  0°–90° arasındaki noktalar gerçekten (1, 0) ile (0, 1) arasında değişir.
+*/
+describe("aynı noktalar, farklı sıra", () => {
+  const live = {
+    type: "mcq",
+    prompt: "Açıları 0° ile 90° arasında olan birim çember noktasının koordinatları hangi aralıklarla değişir?",
+    options: [
+      "(cos A, sin A) değerleri arasında",
+      "(sin A, cos A) değerleri arasında",
+      "(1, 0) ve (0, 1) arasında",
+      "(0, 1) ve (1, 0) arasında",
+    ],
+    answerIndex: 0,
+  };
+
+  it("canlı soruyu belirsiz sayar (anahtar ikisini de işaretlemese bile)", () => {
+    expect(sameUnorderedSet("(1, 0) ve (0, 1) arasında", "(0, 1) ve (1, 0) arasında")).toBe(true);
+    expect(mathOptionsAmbiguous(live)).toBe(true);
+  });
+
+  it("değer listeleri ve eşdeğer noktalar", () => {
+    expect(sameUnorderedSet("0 ile 1 arasında", "1 ile 0 arasında")).toBe(true);
+    expect(sameUnorderedSet("2, 3 ve 5", "5, 3 ve 2")).toBe(true);
+    expect(sameUnorderedSet("sin A ve cos A", "cos A ve sin A")).toBe(true);
+    expect(sameUnorderedSet("(√2/2, √2/2)", "(1/√2, 1/√2)")).toBe(true);
+  });
+
+  it("sıralı ikili, farklı eşleme ve tek sayı ayrı kalır", () => {
+    expect(sameUnorderedSet("(sin A, cos A) değerleri arasında", "(cos A, sin A) değerleri arasında")).toBe(false);
+    expect(sameUnorderedSet("(1, 0)", "(0, 1)")).toBe(false);
+    expect(sameUnorderedSet("x = 2, y = 3", "x = 3, y = 2")).toBe(false);
+    expect(sameUnorderedSet("(1, 0) ve (0, 1) arasında", "(1, 0) ve (0, -1) arasında")).toBe(false);
+    expect(sameUnorderedSet("A ile B'nin oranı", "B ile A'nın oranı")).toBe(false);
+    expect(sameUnorderedSet("3", "3")).toBe(false);
+  });
+
+  it("soru sıra soruyorsa liste sıralıdır", () => {
+    expect(
+      mathOptionsAmbiguous({
+        type: "mcq",
+        prompt: "Sayıların küçükten büyüğe sıralanışı hangisidir?",
+        options: ["2, 5, 7", "7, 5, 2", "5, 2, 7"],
+        answerIndex: 0,
+      }),
+    ).toBe(false);
+  });
+});
+
+/*
+  Canlı taramada (30 Eylül, 184 soru) tek değer kuralı üç iyi soruyu
+  düşürüyordu: aynı değere çıkan iki şık da yanlıştı, anahtar tekti.
+*/
+describe("aynı değerde iki yanlış şık belirsizlik değildir", () => {
+  it("anahtarla eşit olmayan eş değerli şıklar", () => {
+    expect(
+      mathOptionsAmbiguous({
+        type: "mcq",
+        prompt: "Aşağıdakilerden hangisi 5³'ün hesaplanmasında doğru bir adım değildir?",
+        options: ["5 × 5 × 5", "5 + 5 + 5", "5² × 5", "(5 × 5) × 5"],
+        answerIndex: 1,
+      }),
+    ).toBe(false);
+    expect(
+      mathOptionsAmbiguous({
+        type: "mcq",
+        prompt: "Aşağıdakilerden hangisi 8²'nin değerini bulmada kullanılan doğru bir yöntemdir?",
+        options: ["8 + 8", "2 × 8", "8 × 8", "8 ÷ 2"],
+        answerIndex: 2,
+      }),
+    ).toBe(false);
+    expect(
+      mathOptionsAmbiguous({
+        type: "mcq",
+        prompt: "Aşağıdaki işlemlerden hangisinin sonucu 4³ tür?",
+        options: ["4² × 4", "4³ ÷ 4", "4 × 4³", "4⁴ ÷ 4²"],
+        answerIndex: 0,
+      }),
+    ).toBe(false);
+  });
+
+  it("anahtarla eşit değerli ikinci şık hâlâ belirsizdir", () => {
+    expect(
+      mathOptionsAmbiguous({ type: "mcq", prompt: "10^0 işleminin sonucu nedir?", options: ["0", "1", "10", "10^0"], answerIndex: 1 }),
+    ).toBe(true);
+    expect(
+      mathOptionsAmbiguous({ type: "mcq", prompt: "sin A kaçtır?", options: ["3/5", "4/5", "6/10", "3/4"], answerIndex: 0 }),
+    ).toBe(true);
   });
 });
