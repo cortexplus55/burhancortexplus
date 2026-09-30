@@ -10366,6 +10366,142 @@
   color: var(--cp-muted);
 }
 
+/* --- Sonuç ekranı: Astra düzeni (30 Eylül 2026) ---
+   Büyük skor, emoji + tek cümle, başarıya göre renk geçişi, anket. */
+.cp-exam-node-result--great,
+.cp-exam-node-result--good {
+  background:
+    linear-gradient(180deg, rgba(16, 185, 129, 0.22), transparent 60%),
+    var(--c-surface-1);
+}
+
+.cp-exam-node-result--work {
+  background:
+    linear-gradient(180deg, rgba(244, 174, 11, 0.16), transparent 60%),
+    var(--c-surface-1);
+}
+
+.cp-result-hero {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-result-hero strong {
+  font-size: 4.5rem;
+  font-weight: 800;
+  color: #10b981;
+}
+
+.cp-exam-node-result--work .cp-result-hero strong {
+  color: #f4ae0b;
+}
+
+.cp-result-hero span {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #10b981;
+  opacity: 0.7;
+}
+
+.cp-exam-node-result--work .cp-result-hero span {
+  color: #f4ae0b;
+}
+
+.cp-result-mood {
+  margin: 0;
+  font-weight: 600;
+}
+
+.cp-result-lines {
+  width: min(100%, 16rem);
+  margin: 0.25rem 0 0;
+  border-top: 1px solid var(--cp-border);
+}
+
+.cp-result-lines > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--cp-border);
+  font-size: 0.875rem;
+}
+
+.cp-result-lines dt {
+  color: var(--cp-muted);
+}
+
+.cp-result-lines dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-rating-card {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  text-align: left;
+}
+
+.cp-rating-card p {
+  margin: 0;
+}
+
+.cp-rating-lead {
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-rating-question {
+  margin-top: 0.15rem !important;
+  font-weight: 700;
+}
+
+.cp-rating-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+}
+
+.cp-rating-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface-2);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.cp-rating-option:hover {
+  border-color: var(--c-brand, #6366f1);
+}
+
+.cp-rating-thanks {
+  margin-top: 0.6rem !important;
+  font-size: 0.85rem;
+  color: #10b981;
+}
+
+.cp-rating-error {
+  margin-top: 0.5rem !important;
+  font-size: 0.8rem;
+  color: #f0a08c;
+}
+
 /* Profil menüsü: Görünüm satırı (Astra'da profil menüsünde). */
 .cp-pp-appearance {
   display: flex;
