@@ -17,6 +17,7 @@ import {
   MessagesSquare,
   Mic,
   MoreVertical,
+  Swords,
   PenLine,
   Plus,
   RefreshCw,
@@ -336,6 +337,14 @@ export function ExamPrepHome({
           title="Bu sınav için sor"
         >
           <MessageCircle className="h-4 w-4" aria-hidden />
+        </Link>
+        <Link
+          href={`/deneme-sinavlari/${prepId}/duello`}
+          className="cp-prep-icon"
+          aria-label="Düellolar"
+          title="Düellolar"
+        >
+          <Swords className="h-4 w-4" aria-hidden />
         </Link>
         {canShare ? (
           <button
