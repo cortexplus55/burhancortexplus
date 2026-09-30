@@ -11,6 +11,9 @@ import {
   type FoldPage,
 } from "@/lib/documents/topic-fold";
 import { replaceTopicNodes } from "@/lib/documents/topic-map-refold";
+import { MAIN_TOPIC_MAX } from "@/lib/documents/topic-main-groups";
+import { groupIntoMainTopics } from "@/lib/documents/topic-main-groups-llm";
+import { isJunkTopicTitle } from "@/lib/documents/topic-title";
 
 export type PdfLearningV2Result = {
   ok: boolean;
@@ -364,11 +367,14 @@ export async function runPdfLearningV2(
       }
 
       if (!compactTopics.length) throw new Error("topic_map_unavailable");
-      const drafted = compactTopics.map((topic, index) =>
+      // Eski pencere kayıtlarında soru kökü kalmış olabilir; sayfaları
+      // aşağıda en yakın konuya bağlanır.
+      const sourced = compactTopics.filter((topic) => !isJunkTopicTitle(topic.title));
+      const drafted = (sourced.length ? sourced : compactTopics).map((topic, index) =>
         draftFromLlmTopic(topic.title, topic.learningObjective, topic.pageNumbers, analyses, index),
       );
       const consolidated = consolidateTopics(drafted, pagesForTopicMap(analyses), windows.flat().length);
-      const topics = completeTopicPageLinks(
+      let topics = completeTopicPageLinks(
         consolidated.topics.map((topic, index) => ({
           ...draftFromLlmTopic(topic.title, topic.learningObjective, topic.pageNumbers, analyses, index),
           prerequisites: topic.prerequisites ?? [],
@@ -376,6 +382,31 @@ export async function runPdfLearningV2(
         analyses,
       );
       if (!topics.length) throw new Error("topic_map_unavailable");
+
+      // Uzun belge: alt başlıklar 10–15 ana konuda toplanır (Astra gibi).
+      // Olmazsa gruplanmamış harita kaydedilir.
+      if (topics.length > MAIN_TOPIC_MAX) {
+        const grouped = await groupIntoMainTopics(service, {
+          userId: docRow.user_id as string,
+          fileName: (docRow.file_name as string) ?? "belge",
+          subs: topics.map((topic) => ({ title: topic.title, pageNumbers: topic.pageNumbers })),
+        });
+        if (grouped?.length) {
+          topics = completeTopicPageLinks(
+            grouped.map((topic, index) => ({
+              ...draftFromLlmTopic(topic.title, topic.learningObjective, topic.pageNumbers, analyses, index),
+              prerequisites: [],
+            })),
+            analyses,
+          );
+          consolidated.mergedTitles.push(
+            ...grouped.map((topic) => ({
+              kept: topic.title,
+              dropped: topic.members.filter((member) => member !== topic.title),
+            })).filter((merge) => merge.dropped.length),
+          );
+        }
+      }
 
       await clearTopicMap(service, documentId);
       await persistTopics(service, documentId, topics, pageIdByNumber);
