@@ -709,13 +709,13 @@ export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCh
   return { status: "keep", question: { ...next, needsSolver: false } };
 }
 
-export function verifyChoiceSet(questions: VerifiedChoice[], source = "", min = 3): VerifiedChoice[] | null {
+export function verifyChoiceSet(questions: VerifiedChoice[], source = "", min = 3, max = 8): VerifiedChoice[] | null {
   const kept = questions
     .map((question) => verifyChoiceQuestion(question, source))
     .filter((row) => row.status !== "drop")
     .map((row) => row.question);
   if (kept.length < min) return null;
-  return kept.slice(0, 8);
+  return kept.slice(0, max);
 }
 
 export function choiceSolverPrompt(
@@ -836,6 +836,7 @@ export async function refineVerifiedChoices(
   ask: (system: string, user: string) => Promise<string | null>,
   source = "",
   min = 1,
+  max = 8,
 ): Promise<VerifiedChoice[] | null> {
   const pending = questions.some((question) => question.needsSolver);
   if (!pending) return questions.length >= min ? questions : null;
@@ -850,7 +851,7 @@ export async function refineVerifiedChoices(
   const kept = (solved ?? questions.filter((question) => !question.needsSolver)).filter(
     (question) => !question.needsSolver,
   );
-  return kept.length >= min ? kept.slice(0, 8) : null;
+  return kept.length >= min ? kept.slice(0, max) : null;
 }
 
 export type PracticeQuestion = {

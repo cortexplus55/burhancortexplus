@@ -81,6 +81,8 @@ describe("düello (Astra kuralları, 30 Eylül 2026)", () => {
     );
     // Hak yalnızca düello kurulunca düşer; kurulamazsa iade edilir.
     expect(create).toContain("deferCommit: true");
+    // 8 adaydan 7 sağlam soru çıkmıyordu; düello 12 aday istiyor.
+    expect(create).toContain("maxQuestions: DUEL_CANDIDATES");
     expect(create.indexOf("commitCredits(service, reservationId)")).toBeGreaterThan(
       create.indexOf('from("prep_duels").insert('),
     );
@@ -90,5 +92,16 @@ describe("düello (Astra kuralları, 30 Eylül 2026)", () => {
     expect(run).toContain("scoreDuel(questions, parsed.data.answers)");
     const page = readFileSync("src/app/duello/[code]/page.tsx", "utf8");
     expect(page).toContain("questions={publicQuestions(questions)}");
+  });
+  it("ayrıştırıcı varsayılan 8 soru tutar, düello için 12 alabilir", async () => {
+    const { parseQuizQuestions } = await import("@/lib/learning/exam-quiz");
+    const questions = Array.from({ length: 12 }, (_, i) => ({
+      text: `Soru ${i + 1}: 2 + ${i} kaçtır?`,
+      options: [`${2 + i}`, `${3 + i}`, `${4 + i}`, `${5 + i}`],
+      correct: `${2 + i}`,
+      multi: false,
+    }));
+    expect(parseQuizQuestions({ questions })?.length).toBe(8);
+    expect(parseQuizQuestions({ questions }, 12)?.length).toBe(12);
   });
 });

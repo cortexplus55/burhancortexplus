@@ -22,6 +22,16 @@ const bodySchema = z.object({ prepId: z.string().uuid() });
 const MIN_QUESTIONS = 3;
 
 /**
+ * Model 12 aday yazıyor; doğrulayıcı bozuk olanları eliyor. 8 adayla
+ * canlıda 4 soru kaldı (30 Eylül 2026) — sınır 8 olunca 7'ye ulaşmak şansa
+ * kalıyordu.
+ */
+const DUEL_CANDIDATES = 12;
+
+// İki taslak ve bağımsız denetim tek istekte; ders ucuyla aynı pay.
+export const maxDuration = 300;
+
+/**
  * Yeni düello: hazırlığın çalışılan konusundan 7 tek doğrulu soru.
  * Quiz üretimiyle aynı ücret (QUIZ_GENERATE); soruları aynı doğrulayıcılar
  * süzüyor (üs/matematik anahtarı, belirsiz şık).
@@ -94,12 +104,13 @@ export async function POST(request: Request) {
     isPremium: await isPremiumUser(service, userId),
     maxDraftAttempts: 2,
     deferCommit: true,
+    maxQuestions: DUEL_CANDIDATES,
     difficulty: "hard",
     sourceExcerpt: source.block,
     requireSourceSupport: sourceMode !== "topic_only",
     idempotencyKey: `duel:${prepId}:${Date.now()}`,
     userPrompt: `Sınav: ${subject}. Konu: ${topic}.${source.block}${topicBlock}
-Düello için ${DUEL_QUESTIONS + 3} çoktan seçmeli soru yaz. Her soruda 4 şık.
+Düello için ${DUEL_CANDIDATES} çoktan seçmeli soru yaz. Her soruda 4 şık.
 Tüm sorularda multi false (tek doğru). correct her zaman options içinde olsun.
 Soru kökü kısa olsun; 20 saniyede okunup cevaplanabilsin. Uzun hesap isteyen soru yazma.
 Her soruyu göndermeden önce bilimsel ve matematiksel doğruluğunu kontrol et. Soru kökü ile doğru seçenek tam olarak uyuşsun.`,

@@ -49,6 +49,12 @@ export async function generateExamQuiz(input: {
    * kullanılamazsa iade). true iken dönen reservationId pending'dir.
    */
   deferCommit?: boolean;
+  /**
+   * Ayrıştırıcı ve doğrulayıcı en fazla bu kadar soru tutar (varsayılan 8).
+   * Düello 7 soru gösteriyor; 8 adaydan 7'sinin doğrulamayı geçmesi
+   * beklenemiyor, o yüzden 12 istiyor.
+   */
+  maxQuestions?: number;
 }): Promise<
   | { ok: true; questions: QuizQuestion[]; reservationId?: string }
   | { ok: false; status: number; error: string }
@@ -96,7 +102,8 @@ export async function generateExamQuiz(input: {
   let lastIssues: string[] = [];
   let loggedCandidateFailure = false;
   const questionsFrom = (raw: unknown): QuizQuestion[] | null => {
-    const parsed = parseQuizQuestions(raw) ?? coerceQuizQuestions(raw);
+    const max = input.maxQuestions ?? 8;
+    const parsed = parseQuizQuestions(raw, max) ?? coerceQuizQuestions(raw, max);
     if (!parsed) return null;
     const surfaced = parsed.map((question) => ({
       ...question,
@@ -144,7 +151,7 @@ export async function generateExamQuiz(input: {
     const grounded = input.requireSourceSupport && input.sourceExcerpt?.trim()
       ? repaired.filter((question) => absoluteClaimIssues({ questions: [question] }, input.sourceExcerpt).length === 0)
       : repaired;
-    const verified = verifyChoiceSet(asChoices(grounded), input.sourceExcerpt ?? "", 3);
+    const verified = verifyChoiceSet(asChoices(grounded), input.sourceExcerpt ?? "", 3, max);
     if (!verified) {
       // Eskiden yalnızca v2 yolunda yazılıyordu; tanışma testi (eski yol)
       // "structural" diye düştüğünde hangi sorunun neden elendiği görünmüyordu.
@@ -249,6 +256,7 @@ export async function generateExamQuiz(input: {
         ask,
         input.sourceExcerpt ?? "",
         3,
+        input.maxQuestions ?? 8,
       );
       if (!refined) return null;
       const questions = input.teachingV2 ? repairQuizPedagogy(fromChoices(refined)) : fromChoices(refined);

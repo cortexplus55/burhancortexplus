@@ -201,17 +201,18 @@ export function scoreQuizAnswers(
   return { score, total: questions.length || 1 };
 }
 
-export function parseQuizQuestions(raw: unknown): QuizQuestion[] | null {
+/** `max`: düello 12 aday ister; başka her yer 8 ile kalır. */
+export function parseQuizQuestions(raw: unknown, max = 8): QuizQuestion[] | null {
   const parsed = quizPayloadSchema.safeParse(raw);
-  if (!parsed.success) return coerceQuizQuestions(raw);
+  if (!parsed.success) return coerceQuizQuestions(raw, max);
   const questions = parsed.data.questions
     .map(normalizeQuizQuestion)
     .filter((question): question is QuizQuestion => question !== null);
-  return questions.length >= 3 ? questions : coerceQuizQuestions(raw);
+  return questions.length >= 3 ? questions : coerceQuizQuestions(raw, max);
 }
 
 /** Tek bozuk soru seti düşürmez. En az üç sağlam soru kalırsa üretim sürer. */
-export function coerceQuizQuestions(raw: unknown): QuizQuestion[] | null {
+export function coerceQuizQuestions(raw: unknown, max = 8): QuizQuestion[] | null {
   const row = raw && typeof raw === "object" ? (raw as { questions?: unknown }) : null;
   const list = Array.isArray(row?.questions) ? row.questions : null;
   if (!list) return null;
@@ -246,5 +247,5 @@ export function coerceQuizQuestions(raw: unknown): QuizQuestion[] | null {
     });
     return normalized ? [normalized] : [];
   });
-  return questions.length >= 3 ? questions.slice(0, 8) : null;
+  return questions.length >= 3 ? questions.slice(0, max) : null;
 }
