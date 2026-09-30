@@ -75,12 +75,23 @@ describe("model router", () => {
   });
 
   it.each([
-    "QUIZ_GENERATE",
     "PRACTICE_EXAM_GENERATE",
     "PRACTICE_EXAM_GRADE",
   ] as const)("keeps %s on the standard model for a free account", (actionCode) => {
     const result = selectModel({ actionCode, isPremium: false, hasImage: false });
     expect(result.model).toBe(STANDARD);
+  });
+
+  /*
+    gpt-4o-mini trigonometri düellosunda 24 sorudan 3ünü doğrulayıcıdan
+    geçirebildi, gpt-4.1-mini 14ünü (30 Eylül 2026). Ücretsiz test taslağı
+    ücretsiz dersinkiyle aynı küçük model — ama gelişmiş model değil.
+  */
+  it("gives a free account the free lesson model for quizzes, never the advanced one", () => {
+    const result = selectModel({ actionCode: "QUIZ_GENERATE", isPremium: false, hasImage: false, difficulty: "hard" });
+    expect(result.model).toBe(env.OPENAI_LESSON_FREE_MODEL);
+    expect(result.model).not.toBe(ADVANCED);
+    expect(result.actionCode).toBe("QUIZ_GENERATE");
   });
 
   /*
