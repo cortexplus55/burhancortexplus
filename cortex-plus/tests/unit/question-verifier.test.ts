@@ -232,3 +232,39 @@ describe("repeats page does not spend credits", () => {
     expect(shell).not.toContain("cp-sor-credit-chip");
   });
 });
+
+/*
+  Düello yalnızca kökü, şıkları ve doğru cevabı gösterir. Canlıda "sin 180°
+  kaçtır? → 0" gibi doğru sorular gösterilmeyen şık gerekçeleri yüzünden
+  düşüyordu (30 Eylül 2026).
+*/
+describe("gerekçe gizliyken (düello)", () => {
+  const question = {
+    text: "Birim çemberde 180° açısının sinüs değeri kaçtır?",
+    options: ["0", "1", "-1", "√2/2"],
+    correct: ["0"],
+    multi: false,
+    explanation: "180° birim çemberde (-1, 0) noktasıdır; y koordinatı 0 olduğu için sin 180° = 0.",
+    optionWhy: ["Doğru.", "Yanlış.", "Yanlış.", "Yanlış."],
+  };
+
+  it("kısa şık gerekçesi normalde soruyu düşürür", () => {
+    expect(verifyChoiceQuestion(question).status).toBe("drop");
+  });
+
+  it("gerekçe gösterilmiyorsa soru kalır ve gerekçe taşınmaz", () => {
+    const checked = verifyChoiceQuestion(question, "", { hiddenRationale: true });
+    expect(checked.status).not.toBe("drop");
+    expect(checked.question.optionWhy).toBeUndefined();
+  });
+
+  it("yanlış anahtar gizli modda da çözücüsüz kabul edilmez", () => {
+    const checked = verifyChoiceQuestion(
+      { ...question, explanation: "sin 180° = 1 olduğu için cevap 1'dir.", correct: ["1"] },
+      "",
+      { hiddenRationale: true },
+    );
+    // Hesap isteyen soru bağımsız çözücüye gider; "keep" olmaz.
+    expect(checked.status).not.toBe("keep");
+  });
+});

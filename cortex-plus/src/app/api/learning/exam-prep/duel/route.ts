@@ -105,6 +105,7 @@ export async function POST(request: Request) {
     maxDraftAttempts: 2,
     deferCommit: true,
     maxQuestions: DUEL_CANDIDATES,
+    hiddenRationale: true,
     difficulty: "hard",
     sourceExcerpt: source.block,
     requireSourceSupport: sourceMode !== "topic_only",
@@ -113,6 +114,8 @@ export async function POST(request: Request) {
 Düello için ${DUEL_CANDIDATES} çoktan seçmeli soru yaz. Her soruda 4 şık.
 Tüm sorularda multi false (tek doğru). correct her zaman options içinde olsun.
 Soru kökü kısa olsun; 20 saniyede okunup cevaplanabilsin. Uzun hesap isteyen soru yazma.
+Soruların hepsi "${topic}" konusundan olsun; alıntıda başka konu geçiyorsa onu sorma.
+"Amacı nedir", "hangi özellik dikkate alınır" gibi yoruma açık soru yazma. Her sorunun tek, kesin ve tartışmasız bir doğrusu olsun: bir değer, bir formül, bir tanım ya da kısa bir hesap. Yanlış şıkların hiçbiri savunulabilir biçimde doğru olmasın.
 Her soruyu göndermeden önce bilimsel ve matematiksel doğruluğunu kontrol et. Soru kökü ile doğru seçenek tam olarak uyuşsun.`,
   });
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);

@@ -282,6 +282,61 @@ function equationPairs(sentence: string): [Reading, Reading][] {
   return pairs;
 }
 
+/*
+  Ters trigonometri: "kosinüs değeri 0 olan açı hangisi?" Şıklar açıysa her
+  şıkkın fonksiyon değeri hesaplanır. Canlı düelloda 90° ile 270° aynı
+  soruda şıktı; ikisi de doğruydu (30 Eylül 2026). Tek fonksiyon, tek hedef
+  değer ve kökte başka sayı yoksa hüküm verilir: "0° ile 180° arasında" gibi
+  bir aralık soruyu daraltır, o durumda susulur.
+*/
+const INVERSE_FN = /(?<!\p{L})(kotanjant|kosinüs|tanjant|sinüs|cot|cos|tan|sin)(?!\p{L})/giu;
+const INVERSE_TARGET = /(?:=|(?<!\p{L})değer(?:i|inin)?(?!\p{L}))\s*([-−]?[\d√π][\d√π/.,]*)/u;
+const INVERSE_CODE: Record<string, "S" | "C" | "T" | "K"> = {
+  sin: "S", sinüs: "S", cos: "C", kosinüs: "C", tan: "T", tanjant: "T", cot: "K", kotanjant: "K",
+};
+
+function angleRadians(option: string): number | null {
+  const trimmed = option.trim().replace(/[.;:?!]+$/g, "").trim();
+  if (!trimmed || /\p{L}/u.test(trimmed.replace(/π/g, ""))) return null;
+  let parsed: Value | null = null;
+  try {
+    parsed = new Parser(normalize(trimmed)).parse();
+  } catch {
+    return null;
+  }
+  if (!parsed || (!parsed.degrees && !parsed.hasPi)) return null;
+  return parsed.degrees ? (parsed.value * Math.PI) / 180 : parsed.value;
+}
+
+/** Hedef değeri veren şıkların sırası; hüküm yoksa null. */
+function inverseTrigMatches(check: KeyedCheck): number[] | null {
+  if (!check.options || check.options.length < 2) return null;
+  const names = new Set([...check.prompt.matchAll(INVERSE_FN)].map((match) => INVERSE_CODE[match[1].toLowerCase()]));
+  if (names.size !== 1) return null;
+  const fn = [...names][0];
+  const target = check.prompt.match(INVERSE_TARGET);
+  if (!target || target.index == null) return null;
+  const rest = check.prompt.slice(0, target.index) + check.prompt.slice(target.index + target[0].length);
+  if (/[\dπ]/.test(rest)) return null;
+  const expected = read(target[1]);
+  if (!expected) return null;
+  const angles = check.options.map(angleRadians);
+  if (angles.some((angle) => angle == null)) return null;
+  const valueAt = (radians: number): number | null => {
+    const sin = Math.sin(radians);
+    const cos = Math.cos(radians);
+    if (fn === "S") return sin;
+    if (fn === "C") return cos;
+    if (fn === "T") return Math.abs(cos) < 1e-12 ? null : sin / cos;
+    return Math.abs(sin) < 1e-12 ? null : cos / sin;
+  };
+  return angles.flatMap((angle, index) => {
+    const value = valueAt(angle as number);
+    if (value == null) return [];
+    return expected.values.some((wanted) => Math.abs(value - wanted) <= 1e-9 * Math.max(1, Math.abs(wanted))) ? [index] : [];
+  });
+}
+
 /**
  * true: anahtar hesapla çelişiyor. false: uyuşuyor. null: hüküm yok.
  * Soruda tek hesap parçası olmalı ve o parçanın dışında sayı olmamalı
@@ -298,6 +353,9 @@ export function mathKeyWrong(check: KeyedCheck): boolean | null {
     if (trueIndex < 0) return null;
     return (check.answerIndex === trueIndex) !== holds;
   }
+  // İki şık tutuyorsa anahtar değil soru bozuk: mathOptionsAmbiguous yakalar.
+  const inverse = inverseTrigMatches(check);
+  if (inverse?.length === 1 && check.answerIndex != null) return inverse[0] !== check.answerIndex;
   const spans = spansOf(check.prompt);
   if (!spans) return null;
   const computations = spans.filter((span) => isComputation(span.text));
@@ -329,6 +387,7 @@ export function mathKeyWrong(check: KeyedCheck): boolean | null {
  */
 export function mathOptionsAmbiguous(check: KeyedCheck): boolean {
   if (!check.options || check.options.length < 2) return false;
+  if ((inverseTrigMatches(check)?.length ?? 0) >= 2) return true;
   const readings = check.options.map((option) => read(option));
   for (let i = 0; i < readings.length; i += 1) {
     for (let j = i + 1; j < readings.length; j += 1) {

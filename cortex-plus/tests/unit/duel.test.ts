@@ -83,6 +83,10 @@ describe("düello (Astra kuralları, 30 Eylül 2026)", () => {
     expect(create).toContain("deferCommit: true");
     // 8 adaydan 7 sağlam soru çıkmıyordu; düello 12 aday istiyor.
     expect(create).toContain("maxQuestions: DUEL_CANDIDATES");
+    // Düello gerekçeyi göstermiyor; gerekçe kapısı soruyu düşürmesin.
+    expect(create).toContain("hiddenRationale: true");
+    // "Kosinüs teoreminin amacı nedir?" gibi iki doğrulu soru canlıya çıktı.
+    expect(create).toMatch(/yoruma açık soru yazma/);
     expect(create.indexOf("commitCredits(service, reservationId)")).toBeGreaterThan(
       create.indexOf('from("prep_duels").insert('),
     );

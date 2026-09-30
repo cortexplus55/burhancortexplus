@@ -55,6 +55,11 @@ export async function generateExamQuiz(input: {
    * beklenemiyor, o yüzden 12 istiyor.
    */
   maxQuestions?: number;
+  /**
+   * Açıklama ve şık gerekçeleri öğrenciye gösterilmiyor (düello). Gerekçe
+   * kapıları yalnızca gösterilen alanlara bakar; bkz. ChoiceVerifyOptions.
+   */
+  hiddenRationale?: boolean;
 }): Promise<
   | { ok: true; questions: QuizQuestion[]; reservationId?: string }
   | { ok: false; status: number; error: string }
@@ -99,6 +104,10 @@ export async function generateExamQuiz(input: {
       needsSolver: question.needsSolver,
     }));
 
+  const verifyOptions = { hiddenRationale: input.hiddenRationale === true };
+  // Gerekçe gizliyse gösterilen tek iddia doğru şıktır.
+  const claimFields = (question: QuizQuestion) =>
+    verifyOptions.hiddenRationale ? { correct: question.correct } : question;
   let lastIssues: string[] = [];
   let loggedCandidateFailure = false;
   const questionsFrom = (raw: unknown): QuizQuestion[] | null => {
@@ -149,22 +158,25 @@ export async function generateExamQuiz(input: {
     // A six-question draft has spare candidates. Reject an unsupported
     // question on its own instead of discarding the entire valid batch.
     const grounded = input.requireSourceSupport && input.sourceExcerpt?.trim()
-      ? repaired.filter((question) => absoluteClaimIssues({ questions: [question] }, input.sourceExcerpt).length === 0)
+      ? repaired.filter((question) => absoluteClaimIssues({ questions: [claimFields(question)] }, input.sourceExcerpt).length === 0)
       : repaired;
-    const verified = verifyChoiceSet(asChoices(grounded), input.sourceExcerpt ?? "", 3, max);
+    const verified = verifyChoiceSet(asChoices(grounded), input.sourceExcerpt ?? "", 3, max, verifyOptions);
     if (!verified) {
       // Eskiden yalnızca v2 yolunda yazılıyordu; tanışma testi (eski yol)
       // "structural" diye düştüğünde hangi sorunun neden elendiği görünmüyordu.
       if (!loggedCandidateFailure) {
         loggedCandidateFailure = true;
-        const outcomes = asChoices(grounded).map((question) => verifyChoiceQuestion(question, input.sourceExcerpt ?? ""));
+        const outcomes = asChoices(grounded).map((question) =>
+          verifyChoiceQuestion(question, input.sourceExcerpt ?? "", verifyOptions),
+        );
         console.warn("quiz_candidates_rejected", {
           parsed: parsed.length,
           grounded: grounded.length,
           kept: outcomes.filter((row) => row.status === "keep").length,
           unresolved: outcomes.filter((row) => row.status === "unresolved").length,
           dropped: outcomes.filter((row) => row.status === "drop").length,
-          reasons: [...new Set(outcomes.map((row) => row.reason).filter(Boolean))],
+          // Dizi değil metin: Vercel iç içe diziyi "[…]" diye kısaltıyor.
+          reasons: [...new Set(outcomes.map((row) => row.reason).filter(Boolean))].join(", "),
         });
       }
       lastIssues = ["Bağımsız doğrulama soruyu tutmadı. Tek doğru cevabı olan yeni soru yaz."];
@@ -257,6 +269,7 @@ export async function generateExamQuiz(input: {
         input.sourceExcerpt ?? "",
         3,
         input.maxQuestions ?? 8,
+        verifyOptions,
       );
       if (!refined) return null;
       const questions = input.teachingV2 ? repairQuizPedagogy(fromChoices(refined)) : fromChoices(refined);
