@@ -159,3 +159,39 @@ describe("aynı değerde iki şık", () => {
     expect(mathOptionsAmbiguous({ type: "mcq", prompt: "Hangisi?", options: ["taban", "üs"] })).toBe(false);
   });
 });
+
+/*
+  Canlı düelloda "kosinüs değeri 0 olan açı" sorusunda 90° ve 270° birlikte
+  şıktı (30 Eylül 2026). Şıklar açıysa her şıkkın değeri hesaplanır.
+*/
+describe("ters trigonometri: değeri verilen açı", () => {
+  const mcq = (prompt: string, options: string[], answerIndex: number) => ({ type: "mcq", prompt, options, answerIndex });
+
+  it("iki şık koşulu sağlıyorsa soru belirsizdir", () => {
+    expect(mathOptionsAmbiguous(mcq("Birim çemberde kosinüs değeri 0 olan açı kaç derecedir?", ["90°", "0°", "180°", "270°"], 0))).toBe(true);
+    expect(mathOptionsAmbiguous(mcq("sin x = 1/2 olan açı hangisidir?", ["30°", "150°", "60°", "90°"], 0))).toBe(true);
+    expect(mathOptionsAmbiguous(mcq("Birim çemberde kosinüs değeri -1 olan açı kaç derecedir?", ["180°", "0°", "90°", "270°"], 0))).toBe(false);
+  });
+
+  it("tek şık tutuyorsa anahtar ona göre denetlenir", () => {
+    expect(mathKeyWrong(mcq("Birim çemberde kosinüs değeri -1 olan açı kaç derecedir?", ["180°", "0°", "90°", "270°"], 0))).toBe(false);
+    expect(mathKeyWrong(mcq("Birim çemberde kosinüs değeri -1 olan açı kaç derecedir?", ["180°", "0°", "90°", "270°"], 1))).toBe(true);
+    expect(mathKeyWrong(mcq("sin x = -1 olan açı hangisidir?", ["3π/2", "π/2", "π", "0°"], 0))).toBe(false);
+    expect(mathKeyWrong(mcq("sin x = √3/2 olan açı hangisidir?", ["60°", "30°", "90°", "180°"], 1))).toBe(true);
+  });
+
+  it("aralık, çok fonksiyon ya da açı olmayan şıkta hüküm yok", () => {
+    // Aralık soruyu daraltıyor: 270° zaten dışarıda.
+    expect(mathOptionsAmbiguous(mcq("0° ile 180° arasında kosinüs değeri 0 olan açı hangisidir?", ["90°", "0°", "180°", "270°"], 0))).toBe(false);
+    expect(mathKeyWrong(mcq("0° ile 180° arasında kosinüs değeri 0 olan açı hangisidir?", ["90°", "0°", "180°", "270°"], 0))).toBe(null);
+    expect(mathOptionsAmbiguous(mcq("sin x = cos x olan açı hangisidir?", ["45°", "225°", "90°", "0°"], 0))).toBe(false);
+    expect(mathOptionsAmbiguous(mcq("cos(θ) = 0 eşitliği hangi açılar için doğrudur?", ["π/2 ve 3π/2", "0 ve π", "π ve 2π", "0 ve 2π"], 0))).toBe(false);
+    // Derece mi radyan mı yazılmamış açıya hüküm yok.
+    expect(mathOptionsAmbiguous(mcq("Kosinüs değeri 0 olan açı hangisidir?", ["90", "0", "180", "270"], 0))).toBe(false);
+  });
+
+  it("değer soran düz soru etkilenmez", () => {
+    expect(mathKeyWrong(mcq("Birim çemberde 90° açısının kosinüs değeri kaçtır?", ["0", "1", "-1", "√2/2"], 0))).not.toBe(true);
+    expect(mathOptionsAmbiguous(mcq("Birim çemberde 90° açısının kosinüs değeri kaçtır?", ["0", "1", "-1", "√2/2"], 0))).toBe(false);
+  });
+});
