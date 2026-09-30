@@ -4,6 +4,7 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 import { DUEL_QUESTIONS, duelCode, toDuelQuestions } from "@/lib/learning/duel";
+import { commitCredits, refundCredits } from "@/lib/credits/service";
 import { EMPTY_SOURCE_CONTEXT, loadSourceContext } from "@/lib/learning/source-context";
 import {
   resolvePrepSourceMode,
@@ -13,8 +14,12 @@ import {
 
 const bodySchema = z.object({ prepId: z.string().uuid() });
 
-/** En az bu kadar sağlam soru çıkmazsa düello kurulmaz (kredi iade edilir). */
-const MIN_QUESTIONS = 5;
+/**
+ * En az bu kadar sağlam soru çıkmazsa düello kurulmaz ve hak iade edilir.
+ * Bağımsız doğrulayıcı üç sorunun altına zaten izin vermiyor; canlıda kabul
+ * edilen bir üretimden 5'ten az soru kaldı ve düello kurulmadı (30 Eylül 2026).
+ */
+const MIN_QUESTIONS = 3;
 
 /**
  * Yeni düello: hazırlığın çalışılan konusundan 7 tek doğrulu soru.
@@ -88,20 +93,32 @@ export async function POST(request: Request) {
     userId,
     isPremium: await isPremiumUser(service, userId),
     maxDraftAttempts: 2,
+    deferCommit: true,
     difficulty: "hard",
     sourceExcerpt: source.block,
     requireSourceSupport: sourceMode !== "topic_only",
     idempotencyKey: `duel:${prepId}:${Date.now()}`,
     userPrompt: `Sınav: ${subject}. Konu: ${topic}.${source.block}${topicBlock}
-Düello için ${DUEL_QUESTIONS + 1} çoktan seçmeli soru yaz. Her soruda 4 şık.
+Düello için ${DUEL_QUESTIONS + 3} çoktan seçmeli soru yaz. Her soruda 4 şık.
 Tüm sorularda multi false (tek doğru). correct her zaman options içinde olsun.
 Soru kökü kısa olsun; 20 saniyede okunup cevaplanabilsin. Uzun hesap isteyen soru yazma.
 Her soruyu göndermeden önce bilimsel ve matematiksel doğruluğunu kontrol et. Soru kökü ile doğru seçenek tam olarak uyuşsun.`,
   });
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
 
+  const reservationId = outcome.reservationId ?? null;
   const questions = toDuelQuestions(outcome.questions);
-  if (questions.length < MIN_QUESTIONS) return errorResponse(502, "generation_failed");
+  if (questions.length < DUEL_QUESTIONS) {
+    console.warn("duel_questions_short", {
+      generated: outcome.questions.length,
+      multi: outcome.questions.filter((q) => q.multi).length,
+      usable: questions.length,
+    });
+  }
+  if (questions.length < MIN_QUESTIONS) {
+    if (reservationId) await refundCredits(service, reservationId);
+    return errorResponse(502, "generation_failed");
+  }
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const code = duelCode();
@@ -113,9 +130,14 @@ Her soruyu göndermeden önce bilimsel ve matematiksel doğruluğunu kontrol et.
       questions,
       share_code: code,
     });
-    if (!error) return NextResponse.json({ code });
+    if (!error) {
+      // Hak yalnızca düello gerçekten kurulunca düşer.
+      if (reservationId) await commitCredits(service, reservationId);
+      return NextResponse.json({ code });
+    }
     // Benzersiz kod çakışması dışındaki hatada tekrar denemenin anlamı yok.
-    if (error.code !== "23505") return errorResponse(500, "save_failed");
+    if (error.code !== "23505") break;
   }
+  if (reservationId) await refundCredits(service, reservationId);
   return errorResponse(500, "save_failed");
 }

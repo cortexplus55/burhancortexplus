@@ -44,7 +44,15 @@ export async function generateExamQuiz(input: {
   idempotencyKey?: string;
   /** Yazılı deneme motoru PRACTICE_EXAM_GENERATE ile tek ücret keser. */
   actionCode?: ActionCode;
-}): Promise<{ ok: true; questions: QuizQuestion[] } | { ok: false; status: number; error: string }> {
+  /**
+   * Ücret çağıran taraf işi bitirince kesilsin (düello: soru kümesi
+   * kullanılamazsa iade). true iken dönen reservationId pending'dir.
+   */
+  deferCommit?: boolean;
+}): Promise<
+  | { ok: true; questions: QuizQuestion[]; reservationId?: string }
+  | { ok: false; status: number; error: string }
+> {
   const pedagogyHint = input.teachingV2
     ? " Her soruda learningObjective, explanation, misconceptionTag ve optionWhy zorunlu. optionWhy, options ile aynı uzunlukta; her şık için bir cümle (doğru şıkta gerekçe, diğerlerinde o şıkkın neden uymadığı). misconceptionTag, tuzakta adı geçen yanlış anlamın adı. multi yalnızca birden fazla bağımsız doğru varken. Yazamıyorsan optionReasons[şıkMetni] alanında O ŞIKKA özgü hata nedenini de ekleyebilirsin (hangi yanlış hesap o sayıyı verir); aynı cümleyi tekrarlama."
     : "";
@@ -184,6 +192,7 @@ export async function generateExamQuiz(input: {
     service: input.service,
     userId: input.userId,
     actionCode: input.actionCode ?? "QUIZ_GENERATE",
+    deferCommit: input.deferCommit,
     isPremium: input.isPremium,
     difficulty: input.difficulty ?? (input.teachingV2 ? "hard" : undefined),
     verificationMode: input.verificationMode,
@@ -264,5 +273,5 @@ export async function generateExamQuiz(input: {
   });
 
   if (!outcome.ok) return outcome;
-  return { ok: true, questions: outcome.data.questions };
+  return { ok: true, questions: outcome.data.questions, reservationId: outcome.reservationId };
 }
