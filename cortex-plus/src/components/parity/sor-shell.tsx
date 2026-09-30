@@ -39,7 +39,7 @@ function relativeTr(iso: string) {
 const MORE_LINKS = [
   { href: "/siniflar", label: "Sınıflar", icon: Users },
   { href: "/ilerleme", label: "Aktivitelerim", icon: LineChart },
-  { href: "/calisma-plani?tab=takvim", label: "Takvimim", icon: CalendarDays },
+  { href: "/takvimim", label: "Takvimim", icon: CalendarDays },
   { href: "/krediler", label: "Limitler", icon: Gauge },
   { href: "/davet", label: "Davet et", icon: Gift },
 ] as const;
