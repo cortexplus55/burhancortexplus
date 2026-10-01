@@ -38,4 +38,6 @@ $BODY$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 ALTER FUNCTION public.school_feed_search(integer) SET search_path = public, pg_temp;
 REVOKE ALL ON FUNCTION public.school_feed_search(integer) FROM PUBLIC;
+-- Supabase yeni fonksiyona anon için ayrıca izin veriyor; PUBLIC iptali onu kaldırmıyor.
+REVOKE EXECUTE ON FUNCTION public.school_feed_search(integer) FROM anon;
 GRANT EXECUTE ON FUNCTION public.school_feed_search(integer) TO authenticated;
