@@ -187,3 +187,86 @@ describe("exam chat chrome", () => {
     expect(screen.getByRole("button", { name: "Sınav konusuna dön (Stokiyometri)" })).toBeTruthy();
   });
 });
+
+/*
+  Astra'nın yazı kutusu (1 Ekim 2026): ayar düğmesi bugünkü ruh halini
+  sorar, periyodik tablo sohbetten çıkmadan açılır; balonda ders etiketi yok.
+*/
+describe("sohbet: ruh hali, periyodik tablo, ders etiketi", () => {
+  it("ayar düğmesi ruh hali menüsü açar; seçilen ruh hali isteğe gider ve güne bağlı saklanır", async () => {
+    window.localStorage.clear();
+    const bodies: { mood?: string; message?: string }[] = [];
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/ai/chat")) {
+        bodies.push(JSON.parse(String(init?.body ?? "{}")));
+        return new Response(new ReadableStream({ start: (c) => { c.enqueue(new TextEncoder().encode("Tamam")); c.close(); } }), {
+          status: 200,
+          headers: { "X-Conversation-Id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc", "X-Message-Id": "m-2" },
+        });
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    }) as typeof fetch;
+    try {
+      renderExam();
+      fireEvent.click(screen.getByRole("button", { name: "Ayarlar" }));
+      const menu = screen.getByRole("menu", { name: "Bugünkü ruh hali" });
+      expect(menu.textContent).toContain("Nötr");
+      expect(screen.getByRole("menuitemradio", { name: /Nötr/ }).getAttribute("aria-checked")).toBe("true");
+      expect(screen.getByRole("menuitem", { name: "Tüm ayarlar" })).toBeTruthy();
+      fireEvent.click(screen.getByRole("menuitemradio", { name: /Stresli/ }));
+      expect(screen.queryByRole("menu", { name: "Bugünkü ruh hali" })).toBeNull();
+      expect(JSON.parse(window.localStorage.getItem("cortex-chat-mood") ?? "{}").mood).toBe("stressed");
+
+      fireEvent.change(screen.getByPlaceholderText("Sor, konuş veya dosya gönder"), {
+        target: { value: "Entalpi nedir?" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Gönder" }));
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      expect(bodies[0]?.mood).toBe("stressed");
+    } finally {
+      global.fetch = originalFetch;
+      window.localStorage.clear();
+    }
+  });
+
+  it("nötrken ruh hali gönderilmez", async () => {
+    window.localStorage.clear();
+    const bodies: { mood?: string }[] = [];
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/ai/chat")) bodies.push(JSON.parse(String(init?.body ?? "{}")));
+      return new Response(JSON.stringify({}), { status: 500 });
+    }) as typeof fetch;
+    try {
+      renderExam();
+      fireEvent.change(screen.getByPlaceholderText("Sor, konuş veya dosya gönder"), {
+        target: { value: "Entalpi nedir?" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Gönder" }));
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      expect(bodies[0]).not.toHaveProperty("mood");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it("periyodik tablo sohbetin üstünde açılır, Araçlar'a geri bağlantısı yok", () => {
+    renderExam();
+    fireEvent.click(screen.getByRole("button", { name: "Periyodik tablo" }));
+    const dialog = screen.getByRole("dialog", { name: "Periyodik tablo" });
+    expect(dialog.textContent).toContain("118 element");
+    expect(screen.queryByRole("link", { name: /Araçlar/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Kapat" }));
+    expect(screen.queryByRole("dialog", { name: "Periyodik tablo" })).toBeNull();
+  });
+
+  it("öğrenci balonunda [Matematik] etiketi görünmez", () => {
+    renderExam([
+      { role: "user", content: "[Matematik] Pisagor teoremi nedir?" },
+      { role: "assistant", content: "Dik üçgende..." },
+    ]);
+    expect(screen.getByText("Pisagor teoremi nedir?")).toBeTruthy();
+    expect(document.body.textContent).not.toContain("[Matematik]");
+  });
+});

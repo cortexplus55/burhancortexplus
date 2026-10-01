@@ -14,6 +14,7 @@ import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements"
 import { moderate } from "@/lib/ai/moderation";
 import { recordAbuse } from "@/lib/abuse/record";
 import { parseTutorStyle, tutorStylePrompt } from "@/lib/learning/tutor-style";
+import { moodPrompt, parseMood } from "@/lib/learning/session-signals";
 import { env, type ActionCode } from "@/lib/env";
 import { recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
 import { titleConversation } from "@/lib/ai/conversation-title";
@@ -67,6 +68,8 @@ const bodySchema = z.object({
   audience: z.enum(["student"]).default("student"),
   imageDocumentId: z.string().uuid().optional(),
   prepId: z.string().uuid().optional(),
+  /** "Bugünkü ruh hali" (Astra gibi yazı kutusunun ayar düğmesinden). */
+  mood: z.string().max(20).optional(),
 });
 
 export async function POST(request: Request) {
@@ -257,8 +260,11 @@ export async function POST(request: Request) {
             personalization: examContext?.personalizationPrompt,
           })
         : "";
+      // Nötr varsayılan: istem uzamasın diye ayrıca yazılmaz.
+      const chatMood = parseMood(rest.mood);
+      const moodLine = chatMood === "neutral" ? "" : ` ${moodPrompt(chatMood)}`;
       const requestMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${tutorStylePrompt(parseTutorStyle(profile?.tutor_style))}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}` },
+        { role: "system", content: `${SYSTEM_GUARDRAIL} ${studentInstruction} ${teacherTurn} ${tutorStylePrompt(parseTutorStyle(profile?.tutor_style))}${moodLine}${examContext?.block ?? ""}${attachedBrief ? `\n${SOURCE_PAGE_FORMULA_RULE}\n${attachedBrief}` : ""}${contextBlock}${tutorAddendum ? `\n\n${tutorAddendum}` : ""}` },
         ...history,
         { role: "user", content: imageUrl ? [{ type: "text", text: message }, { type: "image_url", image_url: { url: imageUrl } }] : message },
       ];
