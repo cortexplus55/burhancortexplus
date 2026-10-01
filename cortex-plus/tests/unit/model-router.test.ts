@@ -1,159 +1,85 @@
 import { describe, expect, it } from "vitest";
 import { env } from "@/lib/env";
-import { lessonModel, selectModel } from "@/lib/ai/model-router";
+import { contentModel, lessonModel, selectModel } from "@/lib/ai/model-router";
+import { isReasoningModel, samplingParams } from "@/lib/ai/model-params";
 
-const STANDARD = env.OPENAI_STANDARD_MODEL;
-const ADVANCED = env.OPENAI_ADVANCED_MODEL;
+/*
+  2 Ekim 2026, ürün sahibinin kararı: içerik ve öğretmen işleri herkes için
+  tek asıl modelde (gpt-6-luna). Eski kademe ayrımı (abone gpt-4.1, ücretsiz
+  gpt-4.1-mini, sohbet gpt-4o-mini, zor soruda yükseltme) kaldırıldı.
+*/
+const CONTENT = env.OPENAI_CONTENT_MODEL;
 
-describe("ders modeli", () => {
-  it("abone büyük modeli, ücretsiz hesap küçüğünü alır", () => {
-    expect(lessonModel(true)).toBe(env.OPENAI_LESSON_MODEL);
-    expect(lessonModel(false)).toBe(env.OPENAI_LESSON_FREE_MODEL);
-    expect(lessonModel(true)).not.toBe(lessonModel(false));
-  });
-});
-
-describe("model router", () => {
-  it("always routes image work to the advanced model", () => {
-    const result = selectModel({
-      actionCode: "AI_CHAT_STANDARD",
-      isPremium: false,
-      hasImage: true,
-    });
-    expect(result.model).toBe(ADVANCED);
-    expect(result.actionCode).toBe("IMAGE_SOLUTION");
-  });
-
-  it("keeps free chat on the standard model", () => {
-    const result = selectModel({
-      actionCode: "AI_CHAT_STANDARD",
-      isPremium: false,
-      hasImage: false,
-    });
-    expect(result.model).toBe(STANDARD);
-    expect(result.actionCode).toBe("AI_CHAT_STANDARD");
-  });
-
-  it("honours an explicit advanced request from a premium user", () => {
-    const result = selectModel({
-      actionCode: "AI_CHAT_ADVANCED",
-      isPremium: true,
-      hasImage: false,
-      userSelectedAdvanced: true,
-    });
-    expect(result.model).toBe(ADVANCED);
-    expect(result.actionCode).toBe("AI_CHAT_ADVANCED");
-  });
-
-  /*
-    Bu testin adı hep "downgrades" idi ama `toBe(ADVANCED)` diyordu — yani
-    adının tam tersini doğruluyordu. Sızıntıyı tutan değil, yazan testti:
-    ücretsiz bir hesap sohbet ucuna AI_CHAT_ADVANCED gönderip gpt-4o alıyordu.
-    İddia adına uyduruldu; kredi kodunun da düşmesi ayrıca tutuluyor, çünkü
-    standart model alan kullanıcıya gelişmiş fiyat yazılmamalı.
-  */
-  it("downgrades an advanced request from a non-premium user", () => {
-    const result = selectModel({
-      actionCode: "AI_CHAT_ADVANCED",
-      isPremium: false,
-      hasImage: false,
-      userSelectedAdvanced: true,
-    });
-    expect(result.model).toBe(STANDARD);
-    expect(result.actionCode).toBe("AI_CHAT_STANDARD");
-  });
-
-  it("keeps the advanced model for a premium user who asks for it", () => {
-    const result = selectModel({
-      actionCode: "AI_CHAT_ADVANCED",
-      isPremium: true,
-      hasImage: false,
-      userSelectedAdvanced: true,
-    });
-    expect(result.model).toBe(ADVANCED);
-    expect(result.actionCode).toBe("AI_CHAT_ADVANCED");
+describe("asıl model", () => {
+  it("varsayılan gpt-6-luna; ders ve podcast kademeden bağımsız", () => {
+    expect(env.OPENAI_CONTENT_MODEL).toBe(process.env.OPENAI_CONTENT_MODEL ?? "gpt-6-luna");
+    expect(contentModel()).toBe(CONTENT);
+    expect(lessonModel(true)).toBe(CONTENT);
+    expect(lessonModel(false)).toBe(CONTENT);
   });
 
   it.each([
+    "AI_CHAT_STANDARD",
+    "AI_CHAT_ADVANCED",
+    "QUIZ_GENERATE",
+    "FLASHCARD_GENERATE",
     "PRACTICE_EXAM_GENERATE",
     "PRACTICE_EXAM_GRADE",
-  ] as const)("keeps %s on the standard model for a free account", (actionCode) => {
-    const result = selectModel({ actionCode, isPremium: false, hasImage: false });
-    expect(result.model).toBe(STANDARD);
+    "STUDY_PLAN_GENERATE",
+  ] as const)("%s hem abonede hem ücretsizde asıl modelde", (actionCode) => {
+    for (const isPremium of [true, false]) {
+      expect(selectModel({ actionCode, isPremium, hasImage: false, difficulty: "hard" }).model).toBe(CONTENT);
+    }
+  });
+
+  it("fotoğraflı soru da asıl modelde (görsel girdiyi kabul ediyor)", () => {
+    const result = selectModel({ actionCode: "AI_CHAT_STANDARD", isPremium: false, hasImage: true });
+    expect(result.model).toBe(CONTENT);
+    expect(result.actionCode).toBe("IMAGE_SOLUTION");
+  });
+
+  it("yükseltme dalı yok: model bizim seçimimiz, kredi değişmez", () => {
+    const route = selectModel({ actionCode: "AI_CHAT_STANDARD", isPremium: true, hasImage: false, difficulty: "hard" });
+    expect(route.upgrade).toBeNull();
+    expect(route.actionCode).toBe("AI_CHAT_STANDARD");
   });
 
   /*
-    gpt-4o-mini trigonometri düellosunda 24 sorudan 3ünü doğrulayıcıdan
-    geçirebildi, gpt-4.1-mini 14ünü (30 Eylül 2026). Ücretsiz test taslağı
-    ücretsiz dersinkiyle aynı küçük model — ama gelişmiş model değil.
+    Kredi kuralı aynı: ücretsiz hesap AI_CHAT_ADVANCED gönderse de standart
+    sohbet kredisi öder; gelişmiş fiyat yalnız aboneye yazılır.
   */
-  it("gives a free account the free lesson model for quizzes, never the advanced one", () => {
-    const result = selectModel({ actionCode: "QUIZ_GENERATE", isPremium: false, hasImage: false, difficulty: "hard" });
-    expect(result.model).toBe(env.OPENAI_LESSON_FREE_MODEL);
-    expect(result.model).not.toBe(ADVANCED);
-    expect(result.actionCode).toBe("QUIZ_GENERATE");
+  it("gelişmiş sohbet kredisi yalnız aboneye yazılır", () => {
+    expect(selectModel({ actionCode: "AI_CHAT_ADVANCED", isPremium: false, hasImage: false }).actionCode).toBe(
+      "AI_CHAT_STANDARD",
+    );
+    expect(selectModel({ actionCode: "AI_CHAT_ADVANCED", isPremium: true, hasImage: false }).actionCode).toBe(
+      "AI_CHAT_ADVANCED",
+    );
   });
 
-  /*
-    "hard" degeri istemciden geliyor, yani ucretsiz hesap kendi isine ileri
-    diyip pahali modeli alabiliyordu. Yukseltme artik abonelik istiyor.
-  */
-  it("escalates hard exam grading only for a premium account", () => {
-    const free = selectModel({
-      actionCode: "PRACTICE_EXAM_GRADE",
-      isPremium: false,
-      hasImage: false,
-      difficulty: "hard",
-    });
-    expect(free.model).toBe(STANDARD);
+  it("belge işleme öğretmiyor: standart, uzun belgede abone gelişmiş", () => {
+    expect(selectModel({ actionCode: "DOCUMENT_PAGE_PROCESS", isPremium: false, hasImage: false, documentPages: 40 }).model).toBe(
+      env.OPENAI_STANDARD_MODEL,
+    );
+    expect(selectModel({ actionCode: "DOCUMENT_PAGE_PROCESS", isPremium: true, hasImage: false, documentPages: 40 }).model).toBe(
+      env.OPENAI_ADVANCED_MODEL,
+    );
+  });
+});
 
-    const paid = selectModel({
-      actionCode: "PRACTICE_EXAM_GRADE",
-      isPremium: true,
-      hasImage: false,
-      difficulty: "hard",
-    });
-    expect(paid.model).toBe(ADVANCED);
+describe("akıl yürüten modelde örnekleme parametreleri", () => {
+  it("gpt-5/gpt-6/o-serisi akıl yürüten sayılır", () => {
+    expect(isReasoningModel("gpt-6-luna")).toBe(true);
+    expect(isReasoningModel("gpt-5.4-mini")).toBe(true);
+    expect(isReasoningModel("o4-mini")).toBe(true);
+    expect(isReasoningModel("gpt-4.1")).toBe(false);
+    expect(isReasoningModel("gpt-4o-mini")).toBe(false);
   });
 
-  /*
-    Uzun belge yukseltmesi en sessiz ve en pahali yoldu: 40 sayfalik bir PDF'i
-    gelismis modelle islemek 2 kredilik eylemin karsiladigindan cok fazla.
-  */
-  it("escalates large document jobs only for a premium account", () => {
-    const free = selectModel({
-      actionCode: "DOCUMENT_PAGE_PROCESS",
-      isPremium: false,
-      hasImage: false,
-      documentPages: 40,
-    });
-    expect(free.model).toBe(STANDARD);
-
-    const paid = selectModel({
-      actionCode: "DOCUMENT_PAGE_PROCESS",
-      isPremium: true,
-      hasImage: false,
-      documentPages: 40,
-    });
-    expect(paid.model).toBe(ADVANCED);
-  });
-
-  it("uses the advanced model for premium quiz generation", () => {
-    expect(
-      selectModel({
-        actionCode: "QUIZ_GENERATE",
-        isPremium: true,
-        hasImage: false,
-      }).model,
-    ).toBe(ADVANCED);
-  });
-
-  it("keeps flashcards cheap", () => {
-    const result = selectModel({
-      actionCode: "FLASHCARD_GENERATE",
-      isPremium: true,
-      hasImage: false,
-    });
-    expect(result.model).toBe(STANDARD);
+  it("akıl yürüten modele temperature ve max_tokens gitmez; bütçe akıl yürütmeye yer bırakır", () => {
+    expect(samplingParams("gpt-6-luna", { temperature: 0.3, maxTokens: 40 })).toEqual({ max_completion_tokens: 2000 });
+    expect(samplingParams("gpt-6-luna", { temperature: 0.4 })).toEqual({});
+    expect(samplingParams("gpt-6-luna", { maxTokens: 3000 })).toEqual({ max_completion_tokens: 24000 });
+    expect(samplingParams("gpt-4o-mini", { temperature: 0, maxTokens: 180 })).toEqual({ temperature: 0, max_tokens: 180 });
   });
 });

@@ -1,4 +1,5 @@
 import { after, NextResponse } from "next/server";
+import { samplingParams } from "@/lib/ai/model-params";
 import { z } from "zod";
 import OpenAI from "openai";
 import { loadActivePrompt, PROMPT_KEYS } from "@/lib/ai/prompts";
@@ -305,8 +306,7 @@ export async function POST(request: Request) {
               const prompt = quantSelfCheckPrompt(next);
               const review = await client.chat.completions.create({
                 model: env.OPENAI_STANDARD_MODEL,
-                temperature: 0,
-                max_tokens: 180,
+                ...samplingParams(env.OPENAI_STANDARD_MODEL, { temperature: 0, maxTokens: 180 }),
                 response_format: { type: "json_object" },
                 messages: [
                   { role: "system", content: prompt.system },
@@ -347,12 +347,15 @@ export async function POST(request: Request) {
       let accepted = false;
       const attemptLimit = paidChatAttempts(offDocument);
       for (let attempt = 0; attempt < attemptLimit; attempt++) {
-        const generationModel = attempt && isPremium ? env.OPENAI_ADVANCED_MODEL : model;
+        // İkinci deneme de asıl modelde: eskiden aboneye gpt-4.1'e çıkıyordu.
+        const generationModel = model;
         const response = await client.chat.completions.create({
           model: generationModel,
           messages: requestMessages,
-          ...(prepJsonMode ? { response_format: { type: "json_object" as const }, temperature: 0.4 } : {}),
-        }, { signal: request.signal, timeout: 60_000, maxRetries: 0 });
+          ...(prepJsonMode
+            ? { response_format: { type: "json_object" as const }, ...samplingParams(generationModel, { temperature: 0.4 }) }
+            : {}),
+        }, { signal: request.signal, timeout: 90_000, maxRetries: 0 });
         tokensIn += response.usage?.prompt_tokens ?? 0;
         tokensOut += response.usage?.completion_tokens ?? 0;
         await recordUsage(service, { userId, actionCode, model: generationModel, tokensIn: response.usage?.prompt_tokens ?? 0, tokensOut: response.usage?.completion_tokens ?? 0, reservationId });

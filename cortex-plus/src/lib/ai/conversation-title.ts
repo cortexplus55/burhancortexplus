@@ -1,4 +1,5 @@
 import "server-only";
+import { samplingParams } from "@/lib/ai/model-params";
 import OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordUsage } from "@/lib/credits/service";
@@ -31,8 +32,7 @@ export async function titleConversation(
     const question = input.message.replace(/^\[[^\]]{1,40}\]\s*/, "").slice(0, 500);
     const response = await openai.chat.completions.create({
       model,
-      temperature: 0.3,
-      max_tokens: 40,
+      ...samplingParams(model, { temperature: 0.3, maxTokens: 40 }),
       messages: [
         { role: "system", content: SYSTEM },
         { role: "user", content: `Öğrenci: ${question}\n\nCevap: ${input.answer.slice(0, 700)}` },

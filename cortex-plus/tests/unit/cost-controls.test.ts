@@ -31,39 +31,28 @@ const base = {
   difficulty: "hard" as const,
 };
 
-describe("yönlendirici yükseltmeyi görünür kılıyor", () => {
-  it("premium zor soruda yükseltme işaretleniyor", () => {
+/*
+  2 Ekim 2026: içerik ve öğretmen işleri herkes için tek asıl modelde
+  (gpt-6-luna). Zor soruda daha güçlü modele çıkma dalı kalmadı; yükseltme
+  işareti hiçbir yolda yazılmıyor, tavan da işletilecek bir şey bulmuyor.
+*/
+describe("yönlendirici yükseltme yazmıyor", () => {
+  it("premium zor soruda bile yükseltme yok, kredi standart", () => {
     const route = selectModel({ ...base, isPremium: true });
-    expect(route.upgrade).toBe("difficulty");
-    // Kredi yükselmiyor; ödenen şey değişmedi.
+    expect(route.upgrade).toBeNull();
     expect(route.actionCode).toBe("AI_CHAT_STANDARD");
   });
 
-  it("tavan dolduğunda standart modele düşüyor", () => {
-    const route = selectModel({
-      ...base,
-      isPremium: true,
-      hardUpgradeAllowed: false,
-    });
-    expect(route.upgrade).toBeNull();
-    expect(route.actionCode).toBe("AI_CHAT_STANDARD");
-    expect(route.model).not.toBe(
+  it("tavan kapalıyken de aynı model", () => {
+    expect(selectModel({ ...base, isPremium: true, hardUpgradeAllowed: false }).model).toBe(
       selectModel({ ...base, isPremium: true }).model,
     );
   });
 
-  /* Tavan yalnızca bedelini bizim ödediğimiz dalda işlemeli; ödenmiş
-     yükseltmeleri kısmak, öğrencinin satın aldığı şeyi geri almak olurdu. */
-  it("ödenmiş yollar tavandan etkilenmiyor", () => {
-    const image = selectModel({
-      ...base,
-      isPremium: true,
-      hasImage: true,
-      hardUpgradeAllowed: false,
-    });
+  it("görsel ve ödenmiş gelişmiş sohbet kendi kodunu korur", () => {
+    const image = selectModel({ ...base, isPremium: true, hasImage: true, hardUpgradeAllowed: false });
     expect(image.actionCode).toBe("IMAGE_SOLUTION");
     expect(image.upgrade).toBeNull();
-
     const paidAdvanced = selectModel({
       actionCode: "AI_CHAT_ADVANCED",
       isPremium: true,
@@ -75,7 +64,7 @@ describe("yönlendirici yükseltmeyi görünür kılıyor", () => {
     expect(paidAdvanced.upgrade).toBeNull();
   });
 
-  it("ücretsiz hesapta zaten yükseltme yok", () => {
+  it("ücretsiz hesapta da yükseltme yok", () => {
     expect(selectModel({ ...base, isPremium: false }).upgrade).toBeNull();
   });
 });

@@ -1,4 +1,5 @@
 import "server-only";
+import { samplingParams } from "@/lib/ai/model-params";
 import OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordUsage } from "@/lib/credits/service";
@@ -28,8 +29,7 @@ export async function groupIntoMainTopics(
     const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 60_000, maxRetries: 0 });
     const response = await openai.chat.completions.create({
       model,
-      temperature: 0.2,
-      max_tokens: 3000,
+      ...samplingParams(model, { temperature: 0.2, maxTokens: 3000 }),
       response_format: { type: "json_object" },
       messages: [
         {

@@ -234,6 +234,8 @@ vi.mock("@/lib/env", () => ({
     OPENAI_STANDARD_MODEL: "std",
     OPENAI_LESSON_MODEL: "gpt-4.1-mini",
     OPENAI_LESSON_FREE_MODEL: "gpt-4.1-mini",
+    // Asıl model (2 Ekim 2026): ders taslağı bu modelden gelir.
+    OPENAI_CONTENT_MODEL: "gpt-4.1-mini",
     OPENAI_ADVANCED_MODEL: "adv",
   },
 }));
