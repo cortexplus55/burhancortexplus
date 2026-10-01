@@ -51,6 +51,7 @@ import {
 } from "@/lib/learning/prep-progress-view";
 import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
+import { formatDayLong } from "@/lib/format";
 import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
@@ -524,7 +525,7 @@ export function ExamPrepHome({
                   <p className="cp-prep-sheet-title">{title}</p>
                   <p className="cp-prep-sheet-meta">
                     {topicCount > 0 ? `${topicsDone} / ${topicCount} konu` : `%${progressPct}`}
-                    {examDate ? ` · sınav ${examDate}` : ""}
+                    {examDate ? ` · sınav ${formatDayLong(examDate)}` : ""}
                     {daysLabel ? ` · ${daysLabel}` : ""}
                   </p>
                   {!uiV2 && scheduleSummary ? (

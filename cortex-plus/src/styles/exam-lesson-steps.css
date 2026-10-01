@@ -9,6 +9,12 @@
   flex-direction: column;
 }
 
+.als-toolbar {
+  display: flex;
+  justify-content: center;
+  margin: calc(-1 * var(--sp-2, 0.5rem)) 0 var(--sp-3, 0.75rem);
+}
+
 .als-top {
   position: sticky;
   top: 0;

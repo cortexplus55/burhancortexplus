@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronLeft, CornerDownLeft, Info, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
@@ -410,8 +410,11 @@ export function ExamLessonSteps({
   onClose,
   closeHref,
   gradeCheck,
+  toolbar,
 }: {
   lesson: PlayLesson;
+  /** İlerleme çubuğunun altında duran küçük denetimler ("N kaynak"). */
+  toolbar?: ReactNode;
   /** Hazırlığın dili. Tekrar sorusu bu dilde yeniden kurulur. */
   language?: MaterialLanguage;
   /** Kaçırılan bölüm indeksleri. Metin sunucuda dersin kendisinden kurulur. */
@@ -738,6 +741,7 @@ export function ExamLessonSteps({
         </p>
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
       </header>
+      {toolbar ? <div className="als-toolbar">{toolbar}</div> : null}
 
       {closeConfirmOpen ? (
         <div
