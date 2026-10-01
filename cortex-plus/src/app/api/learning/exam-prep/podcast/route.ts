@@ -11,6 +11,7 @@ import {
   loadPodcastCorpus,
   mergePodcastSource,
   parsePodcastLength,
+  PODCAST_LENGTHS,
   podcastScopeBrief,
   readPodcastCache,
   writePodcastCache,
@@ -32,7 +33,7 @@ export const maxDuration = 300;
 const bodySchema = z.object({
   prepId: z.string().uuid(),
   topicId: z.string().uuid(),
-  length: z.enum(["ozet", "standart", "derin"]).optional(),
+  length: z.enum(PODCAST_LENGTHS).optional(),
   clientRequestId: z.string().uuid().optional(),
 });
 

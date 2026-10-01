@@ -35,6 +35,13 @@ import {
 } from "@/lib/learning/teacher-brain";
 import { podcastNumbersOutsideLesson } from "@/lib/learning/podcast-from-lesson";
 import {
+  DUO_NARRATOR_SCHEMA,
+  parsePodcastLength,
+  podcastDuoBrief,
+  podcastLengthSpec,
+  type PodcastLength,
+} from "@/lib/learning/podcast-formats";
+import {
   splitSentences,
   type PodcastBeat,
   type PodcastChapter,
@@ -51,8 +58,13 @@ import {
   repairQuantitative,
 } from "@/lib/learning/tutor-quant";
 
-export const PODCAST_LENGTHS = ["ozet", "standart", "derin"] as const;
-export type PodcastLength = (typeof PODCAST_LENGTHS)[number];
+export {
+  DEFAULT_PODCAST_LENGTH,
+  PODCAST_LENGTHS,
+  parsePodcastLength,
+  podcastLengthSpec,
+  type PodcastLength,
+} from "@/lib/learning/podcast-formats";
 
 export type PodcastEpisode = {
   title: string;
@@ -60,46 +72,8 @@ export type PodcastEpisode = {
   length: PodcastLength;
 };
 
-export function parsePodcastLength(value: unknown): PodcastLength {
-  return value === "ozet" || value === "derin" || value === "standart" ? value : "standart";
-}
-
 export function podcastTopicKey(label: string): string {
-  return label.trim().toLocaleLowerCase("tr-TR").replace(/\s+/g, " ");
-}
-
-export function podcastLengthSpec(length: PodcastLength): {
-  label: string;
-  minutes: number;
-  minChapters: number;
-  maxChapters: number;
-  brief: string;
-} {
-  if (length === "ozet") {
-    return {
-      label: "Özet",
-      minutes: 1,
-      minChapters: 3,
-      maxChapters: 4,
-      brief: "Yaklaşık 1 dakika, 3 kısa bölüm, toplam 120-180 kelime. Sınav öncesi tekrar.",
-    };
-  }
-  if (length === "derin") {
-    return {
-      label: "Derinlemesine",
-      minutes: 10,
-      minChapters: 6,
-      maxChapters: 8,
-      brief: "Yaklaşık 10 dakika, 6-8 bölüm, toplam 1100-1400 kelime. Örnek ve bağlamla tam konu.",
-    };
-  }
-  return {
-    label: "Standart",
-    minutes: 5,
-    minChapters: 4,
-    maxChapters: 6,
-    brief: "Yaklaşık 5 dakika, 4-6 bölüm, toplam 550-750 kelime.",
-  };
+  return label.trim().toLocaleLowerCase("tr-TR").replace(/s+/g, " ");
 }
 
 /**
@@ -171,10 +145,13 @@ export function coercePodcastDraft(
       for (const sentence of splitSentences(marked.text)) {
         const shown = notationLine(sentence);
         if (shown.text.length < 4) continue;
-        const line: PodcastLine = { speaker: "ada", text: shown.text };
-        if (shown.spoken !== shown.text) line.spoken = shown.spoken;
-        if (marked.beat) line.beat = marked.beat;
-        lines.push(line);
+        // İki sunuculu türde konuşmacı taslaktan gelir; tek öğretmende hep Ada.
+        const speaker =
+          spec.speakers === "duo" && String(line.speaker ?? "").trim().toLowerCase() === "kerem" ? "kerem" : "ada";
+        const out: PodcastLine = { speaker, text: shown.text };
+        if (shown.spoken !== shown.text) out.spoken = shown.spoken;
+        if (marked.beat) out.beat = marked.beat;
+        lines.push(out);
       }
     }
     if (!lines.length) continue;
@@ -198,7 +175,7 @@ export function coercePodcastDraft(
   }
   const ready = merged.filter((chapter) => chapter.lines.length >= 2);
   if (ready.length < spec.minChapters) return null;
-  if (podcastDialogueIssues(ready).length) return null;
+  if (spec.speakers === "single" && podcastDialogueIssues(ready).length) return null;
   return { title: toDisplay(title).slice(0, 120), chapters: ready, length: input.length };
 }
 
@@ -487,6 +464,7 @@ export async function generatePodcastEpisode(input: {
   | { ok: false; status: number; error: string; reasons: string[] }
 > {
   const spec = podcastLengthSpec(input.length);
+  const duo = spec.speakers === "duo";
   const source = [input.lessonBrief, input.sourceBlock, input.teacherBrief].filter(Boolean).join("\n");
   const reasons: string[] = [];
   let parses = 0;
@@ -505,10 +483,12 @@ export async function generatePodcastEpisode(input: {
     activityKind: "podcast",
     idempotencyKey: input.idempotencyKey,
     schemaHint:
-      'JSON: {"title":string,"chapters":[{"title":string,"lines":[{"speaker":"ada","text":string}]}]}. ' +
+      (duo
+        ? 'JSON: {"title":string,"chapters":[{"title":string,"lines":[{"speaker":"ada"|"kerem","text":string}]}]}. '
+        : 'JSON: {"title":string,"chapters":[{"title":string,"lines":[{"speaker":"ada","text":string}]}]}. ') +
       `${spec.minChapters}-${spec.maxChapters} bölüm. ` +
       "Başlık o bölümde konuşulan kavramın adı olsun. Tanım, Neden, Örnek, Özet, Yaygın hata başlık olmasın. " +
-      SINGLE_NARRATOR_SCHEMA +
+      (duo ? DUO_NARRATOR_SCHEMA : SINGLE_NARRATOR_SCHEMA) +
       ' Bir veya iki satırın başına "Dur ve düşün:" koy; hemen sonraki satır "Cevap:" ile başlasın. ' +
       "Son bölüm üç kısa tekrar maddesi olsun. Ondalık virgül kullan. Formülü ve üssü simgeyle yaz: H₂O, CO₂, 10²³, n = m/M. Konuşma diline çevirme. " +
       "İki ayrı büyüklüğü aynıdır diye yazma (mol kütlesi ile atomik kütle, kütle ile ağırlık, ısı ile sıcaklık). Sayıları eşit olabilir; birimleri farklıdır. " +
@@ -518,14 +498,17 @@ export async function generatePodcastEpisode(input: {
       "Sınırlayıcı her zaman tek madde değildir: stokiyometrik oranda reaktifler birlikte tükenir. " +
       "tepkimede ve belirleriz yaz. Yarım cümle bırakma.",
     userPrompt: [
-      podcastNarrationBrief(),
+      duo ? podcastDuoBrief() : podcastNarrationBrief(),
       spec.brief,
+      spec.style,
       `Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}.`,
       input.grounding ?? "",
       input.teacherBrief ? `Öğretmen notu:\n${input.teacherBrief}` : "",
       input.lessonBrief ? `Ders özeti (sayıları bunun dışına çıkarma):\n${input.lessonBrief}` : "",
       input.sourceBlock ? `Kaynak:\n${input.sourceBlock}` : "",
-      "Tek öğretmen anlatır. Benzetme açıklamanın yerine geçmez. Yaygın hatayı somut söyle.",
+      duo
+        ? "Ada ve Kerem sırayla konuşur. Benzetme açıklamanın yerine geçmez. Yaygın hatayı somut söyle."
+        : "Tek öğretmen anlatır. Benzetme açıklamanın yerine geçmez. Yaygın hatayı somut söyle.",
       "Kaynakta olmayan sayı, formül ve kapsam cümlesi yazma.",
     ]
       .filter(Boolean)

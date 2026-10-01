@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import type { PodcastLength } from "@/lib/learning/podcast-formats";
 import { useEffect, useState } from "react";
 import { ExamPodcastPlayer } from "@/components/parity/exam-podcast-player";
 import {
@@ -18,7 +19,7 @@ export function PrepPodcastSession({
   prepId: string;
   topicId: string;
   topicLabel: string;
-  length: "ozet" | "standart" | "derin";
+  length: PodcastLength;
 }) {
   const router = useRouter();
   const isAdmin = useIsFounder();

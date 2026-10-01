@@ -85,6 +85,8 @@ import { useLearningTimer } from "@/components/learning/use-learning-timer";
 import type { LearningSurface } from "@/lib/learning/learning-time";
 import { knownCardCount, missedCards, repeatedCardsLine } from "@/lib/learning/flashcard-round";
 import { NodeSources, type NodeSource } from "@/components/parity/node-sources";
+import { PodcastFormatPicker } from "@/components/parity/podcast-format-picker";
+import { DEFAULT_PODCAST_LENGTH, type PodcastLength } from "@/lib/learning/podcast-formats";
 
 /** Aktif süre hangi başlıkta sayılır: ders, test ya da sınav. */
 function learningSurface(kind: PlanNodeKind): LearningSurface {
@@ -209,7 +211,7 @@ export function ExamNodeSession({
     stage === "play" || stage === "oral-review",
   );
   const [difficulty, setDifficulty] = useState<Difficulty>("orta");
-  const [podcastLength, setPodcastLength] = useState<"ozet" | "standart" | "derin">("standart");
+  const [podcastLength, setPodcastLength] = useState<PodcastLength>(DEFAULT_PODCAST_LENGTH);
   const [voiceMode, setVoiceMode] = useState(meta.voice);
   const [oralSelected, setOralSelected] = useState<string[]>(() => {
     if (!requestedTopic) return [];
@@ -1008,26 +1010,7 @@ export function ExamNodeSession({
             />
           </label>
           {kind === "podcast" ? (
-            <fieldset className="cp-pod-lengths">
-              <legend>Süre</legend>
-              {(
-                [
-                  ["ozet", "Özet · ~1 dk"],
-                  ["standart", "Standart · ~5 dk"],
-                  ["derin", "Derinlemesine · ~10 dk"],
-                ] as const
-              ).map(([value, label]) => (
-                <label key={value}>
-                  <input
-                    type="radio"
-                    name="podcast-length"
-                    checked={podcastLength === value}
-                    onChange={() => setPodcastLength(value)}
-                  />
-                  {label}
-                </label>
-              ))}
-            </fieldset>
+            <PodcastFormatPicker value={podcastLength} onChange={setPodcastLength} />
           ) : null}
           {meta.voice ? (
             <label className="cp-exam-voice-row">
