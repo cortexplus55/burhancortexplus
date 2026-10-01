@@ -835,11 +835,10 @@ export function ExamLessonSteps({
           ) : null}
           <h1 className="als-heading">{step.heading}</h1>
 
-          {step.kind === "overview" ? <LessonPlan lesson={lesson} /> : null}
-
           {step.kind === "overview" || step.kind === "section" ? (
             <>
               {step.body ? <BoardBody text={step.body}  topicHint={mathTopicHint} /> : null}
+              {step.kind === "overview" ? <LessonPlan lesson={lesson} /> : null}
               {bodyHasRemovalNote(step.body) ? (
                 <p className="als-removed" role="status" title="Materyalinle doğrulanamayan kısımları göstermedik.">
                   <Info className="h-3.5 w-3.5" aria-hidden />

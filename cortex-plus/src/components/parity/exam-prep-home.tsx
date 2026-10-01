@@ -52,6 +52,7 @@ import {
 import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
 import { formatDayLong } from "@/lib/format";
+import { PrepBasicsPanel } from "@/components/parity/prep-basics-panel";
 import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
@@ -192,6 +193,10 @@ export function ExamPrepHome({
   readinessClaim = null,
   topicWarnings = {},
   progressView = null,
+  targetScore = null,
+  creatorLabel = "Sen",
+  schoolName = null,
+  joinCount = 0,
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -234,6 +239,13 @@ export function ExamPrepHome({
   topicWarnings?: Record<string, string>;
   /** İlerleme sekmesi; sayfa kayıtlardan kurar. Yoksa düğümlerden hesaplanır. */
   progressView?: PrepProgressView | null;
+  /** Ayarlar'da düzenlenir (Astra, 1 Ekim 2026). */
+  targetScore?: number | null;
+  /** Menü kartında "Oluşturan": "Sen" ya da okuldan katılınan hazırlığın sahibi. */
+  creatorLabel?: string;
+  schoolName?: string | null;
+  /** Okulda paylaşıldıysa katılım sayısı. */
+  joinCount?: number;
 }) {
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
@@ -521,6 +533,11 @@ export function ExamPrepHome({
             {optionsPane === "menu" ? (
               <>
                 <div className="cp-prep-sheet-card">
+                  <p className="cp-prep-sheet-owner">
+                    Oluşturan: <strong>{creatorLabel}</strong>
+                    {schoolName ? <span> · 🏛️ {schoolName}</span> : null}
+                    {shared && joinCount > 0 ? <span> · {joinCount} katılım</span> : null}
+                  </p>
                   <p className="cp-prep-sheet-kicker">{examType}</p>
                   <p className="cp-prep-sheet-title">{title}</p>
                   <p className="cp-prep-sheet-meta">
@@ -590,14 +607,12 @@ export function ExamPrepHome({
                       </Link>
                     </li>
                   ) : null}
-                  {settings ? (
-                    <li>
-                      <button type="button" onClick={() => setOptionsPane("ayarlar")}>
-                        <Settings className="h-4 w-4" aria-hidden />
-                        Ayarlar
-                      </button>
-                    </li>
-                  ) : null}
+                  <li>
+                    <button type="button" onClick={() => setOptionsPane("ayarlar")}>
+                      <Settings className="h-4 w-4" aria-hidden />
+                      Ayarlar
+                    </button>
+                  </li>
                 </ul>
               </>
             ) : null}
@@ -623,9 +638,10 @@ export function ExamPrepHome({
               </div>
             ) : null}
 
-            {optionsPane === "ayarlar" && settings ? (
+            {optionsPane === "ayarlar" ? (
               <div className="cp-prep-sheet-pane">
-                <ExamPrepSettingsPanel prepId={prepId} initial={settings} />
+                <PrepBasicsPanel prepId={prepId} title={title} targetScore={targetScore} />
+                {settings ? <ExamPrepSettingsPanel prepId={prepId} initial={settings} /> : null}
               </div>
             ) : null}
           </div>
