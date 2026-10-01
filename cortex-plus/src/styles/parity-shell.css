@@ -2786,6 +2786,107 @@
   z-index: 20;
 }
 
+/* Yazı kutusundaki ayar düğmesi: bugünkü ruh hali (Astra, 1 Ekim 2026). */
+.cp-mood-menu {
+  width: min(19rem, 90vw);
+  padding: 0.6rem;
+}
+
+.cp-mood-menu-title {
+  margin: 0.15rem 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.cp-mood-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.cp-mood-chip {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.75rem;
+  background: transparent;
+  color: var(--cp-text);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-mood-chip:hover {
+  background: var(--c-surface-1);
+}
+
+.cp-mood-chip.is-on {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 14%, transparent);
+}
+
+.cp-mood-menu-more {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-top: 1px solid var(--cp-border);
+  background: transparent;
+  color: var(--cp-muted);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-mood-menu-more:hover {
+  color: var(--cp-text);
+}
+
+/* Sohbetten açılan periyodik tablo. */
+.cp-ptable-back {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.cp-ptable-modal {
+  position: relative;
+  width: min(100%, 60rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  border: 1px solid var(--cp-border);
+  border-radius: 1.1rem;
+  background: var(--c-bg);
+}
+
+.cp-ptable-close {
+  position: sticky;
+  top: 0.6rem;
+  z-index: 2;
+  float: right;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: 0.6rem 0.6rem 0 0;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  background: var(--c-surface-2);
+  color: var(--cp-text);
+  cursor: pointer;
+}
+
+.tool--embedded {
+  padding: 1rem 1rem 1.5rem;
+}
+
 .cp-composer-mode-item {
   display: flex;
   gap: 0.65rem;
@@ -11092,4 +11193,18 @@ html[data-readable="1"] main {
 html[data-readable="1"] main p,
 html[data-readable="1"] main li {
   line-height: 1.85;
+}
+
+/*
+  Kaynak kilidi ve ders seçici sabit bestecinin üstüne iki satır ekliyor.
+  1 Ekim 2026'da 1568px genişlikte çipler son cevabın son satırlarının
+  üstüne biniyordu: mesaj listesi 12rem yer açıyordu, besteci bölgesi ~15rem.
+  Çip satırı da artık opak; altından yazı görünmüyor.
+*/
+.cp-sor-view:has(.cp-sor-source-mode) .cp-sor-messages {
+  padding-bottom: calc(17.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+.cp-sor-composer-zone .cp-sor-source-mode {
+  background: var(--c-surface-2);
 }

@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 
 const CATEGORIES = Object.keys(CATEGORY_LABEL) as ElementCategory[];
 
-export function PeriyodikTablo() {
+export function PeriyodikTablo({ embedded = false }: { embedded?: boolean } = {}) {
   const [selected, setSelected] = useState<ChemElement>(
     ELEMENTS.find((e) => e.z === 6)!,
   );
@@ -60,6 +60,7 @@ export function PeriyodikTablo() {
 
   return (
     <ToolShell
+      embedded={embedded}
       title="Periyodik tablo"
       subject="Kimya"
       summary="118 element. Konum tesadüf değil — aynı gruptakiler alt alta."

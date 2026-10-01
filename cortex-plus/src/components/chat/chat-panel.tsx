@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, type ComponentProps } from "react";
+import { createPortal } from "react-dom";
 import { useLearningTimer } from "@/components/learning/use-learning-timer";
 import { isProblemQuestion, solvedLabel } from "@/lib/learning/solved-card";
 import {
@@ -42,7 +43,12 @@ import {
   SlidersHorizontal,
   Brush,
   Square,
+  Atom,
+  X,
 } from "lucide-react";
+import { PeriyodikTablo } from "@/components/lab/tools/periyodik-tablo";
+import { CHAT_MOOD_KEY, displayUserText, istanbulDay, todayMoodFrom } from "@/lib/chat/chat-display";
+import { DEFAULT_MOOD, MOOD_OPTIONS, type Mood } from "@/lib/learning/session-signals";
 import { cn } from "@/lib/utils";
 import { createRecognizer, speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
 import { EXAM_QUICK_COMMANDS } from "@/lib/learning/exam-chat-chrome";
@@ -309,6 +315,35 @@ function ChatPanelSession({
     fileName: string;
   } | null>(null);
   const [mathOpen, setMathOpen] = useState(false);
+  /** Periyodik tablo — Astra gibi sohbetten çıkmadan açılır (1 Ekim 2026). */
+  const [tableOpen, setTableOpen] = useState(false);
+  /** Yazı kutusundaki ayar düğmesi: bugünkü ruh hali menüsü. */
+  const [moodOpen, setMoodOpen] = useState(false);
+  const [chatMood, setChatMood] = useState<Mood>(DEFAULT_MOOD);
+  useEffect(() => {
+    try {
+      setChatMood(todayMoodFrom(window.localStorage.getItem(CHAT_MOOD_KEY), istanbulDay()));
+    } catch {
+      // Depolama kapalıysa Nötr kalır.
+    }
+  }, []);
+  useEffect(() => {
+    if (!tableOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setTableOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tableOpen]);
+  function chooseMood(mood: Mood) {
+    setChatMood(mood);
+    setMoodOpen(false);
+    try {
+      window.localStorage.setItem(CHAT_MOOD_KEY, JSON.stringify({ day: istanbulDay(), mood }));
+    } catch {
+      // Yalnızca bu oturum için geçerli olur.
+    }
+  }
   const [quickOpen, setQuickOpen] = useState(false);
   const [talking, setTalking] = useState(false);
   /**
@@ -734,6 +769,7 @@ function ChatPanelSession({
           audience,
           imageDocumentId: activeDocumentId.current,
           prepId,
+          mood: chatMood === DEFAULT_MOOD ? undefined : chatMood,
         }),
       });
 
@@ -1259,7 +1295,7 @@ function ChatPanelSession({
                   if (message.role === "user") {
                     return (
                       <div key={index} className="cp-exam-user">
-                        <div className="cp-exam-user-bubble">{message.content}</div>
+                        <div className="cp-exam-user-bubble">{displayUserText(message.content)}</div>
                       </div>
                     );
                   }
@@ -1284,7 +1320,7 @@ function ChatPanelSession({
                   }
                 >
                   {message.role === "user" ? (
-                    message.content
+                    displayUserText(message.content)
                   ) : (
                     assistantBody
                   )}
@@ -1505,12 +1541,27 @@ function ChatPanelSession({
                     disabled={loading}
                     onClick={() => {
                       setComposerAssistOpen(false);
+                      setMoodOpen(false);
                       setMathOpen((open) => !open);
                     }}
                   >
                     <PenLine className="h-4 w-4" aria-hidden />
                   </button>
                   )}
+                  <button
+                    type="button"
+                    className={cn("cp-sor-tool", tableOpen && "text-[var(--cp-subject)]")}
+                    aria-label="Periyodik tablo"
+                    aria-haspopup="dialog"
+                    onClick={() => {
+                      setComposerAssistOpen(false);
+                      setMoodOpen(false);
+                      setMathOpen(false);
+                      setTableOpen(true);
+                    }}
+                  >
+                    <Atom className="h-4 w-4" aria-hidden />
+                  </button>
                   <button
                     type="button"
                     className={cn(
@@ -1522,6 +1573,7 @@ function ChatPanelSession({
                     disabled={loading}
                     onClick={() => {
                       setMathOpen(false);
+                      setMoodOpen(false);
                       setComposerAssistOpen((open) => !open);
                     }}
                   >
@@ -1572,24 +1624,83 @@ function ChatPanelSession({
                       ) : null}
                     </div>
                   ) : null}
-                  {examChrome ? (
-                    <button
-                      type="button"
-                      className="cp-sor-tool"
-                      aria-label="Ayarlar"
-                      onClick={() => openComposerDialog("profile")}
-                    >
-                      <SlidersHorizontal className="h-4 w-4" aria-hidden />
-                    </button>
-                  ) : (
-                  <Link
-                    href="/ogretmen?dialog=profile"
-                    className="cp-sor-tool"
+                  {/* Astra gibi: ayar düğmesi önce bugünkü ruh halini sorar;
+                      tüm ayarlar menünün sonunda (1 Ekim 2026). */}
+                  <button
+                    type="button"
+                    className={cn("cp-sor-tool", moodOpen && "text-[var(--cp-subject)]")}
                     aria-label="Ayarlar"
+                    aria-expanded={moodOpen}
+                    onClick={() => {
+                      setMathOpen(false);
+                      setComposerAssistOpen(false);
+                      setMoodOpen((open) => !open);
+                    }}
                   >
                     <SlidersHorizontal className="h-4 w-4" aria-hidden />
-                  </Link>
-                  )}
+                  </button>
+                  {moodOpen ? (
+                    <div className="cp-composer-mode-menu cp-mood-menu" role="menu" aria-label="Bugünkü ruh hali">
+                      <p className="cp-mood-menu-title">Bugünkü ruh hali</p>
+                      <div className="cp-mood-menu-grid">
+                        {MOOD_OPTIONS.map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            role="menuitemradio"
+                            aria-checked={chatMood === option.id}
+                            className={cn("cp-mood-chip", chatMood === option.id && "is-on")}
+                            onClick={() => chooseMood(option.id)}
+                          >
+                            <span aria-hidden>{option.emoji}</span> {option.title}
+                          </button>
+                        ))}
+                      </div>
+                      {examChrome ? (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="cp-mood-menu-more"
+                          onClick={() => {
+                            setMoodOpen(false);
+                            openComposerDialog("profile");
+                          }}
+                        >
+                          Tüm ayarlar
+                        </button>
+                      ) : (
+                        <Link href="/ogretmen?dialog=profile" role="menuitem" className="cp-mood-menu-more">
+                          Tüm ayarlar
+                        </Link>
+                      )}
+                    </div>
+                  ) : null}
+                  {/* Besteci bölgesi transform'lu; sabit pencere ancak body'de
+                      tam ekranı kaplar. */}
+                  {tableOpen && typeof document !== "undefined"
+                    ? createPortal(
+                        <div className="cp-ptable-back" role="presentation" onClick={() => setTableOpen(false)}>
+                          <div
+                            className="cp-ptable-modal"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label="Periyodik tablo"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              className="cp-ptable-close"
+                              aria-label="Kapat"
+                              onClick={() => setTableOpen(false)}
+                            >
+                              <X className="h-4 w-4" aria-hidden />
+                            </button>
+                            <PeriyodikTablo embedded />
+                          </div>
+                        </div>,
+                        document.body,
+                      )
+                    : null}
                 </div>
                 <div className="cp-sor-composer-voice">
                   <button
@@ -1905,7 +2016,7 @@ function ChatPanelSession({
                     role={message.isError ? "alert" : undefined}
                   >
                     {message.role === "user" ? (
-                      message.content
+                      displayUserText(message.content)
                     ) : message.content ? (
                       <TutorReplyView
                         content={message.content}
@@ -1955,7 +2066,7 @@ function ChatPanelSession({
           {messages.map((message, index) => (
             <div key={index} className={bubbleClass(message)}>
               {message.role === "user" ? (
-                message.content
+                displayUserText(message.content)
               ) : (
                 <TutorReplyView
                   content={message.content}
