@@ -11642,3 +11642,31 @@ a.cp-exam-search {
 .cp-my-preps-new {
   justify-self: center;
 }
+
+/* Hazırlıklarım sekmeleri. Ders seçicinin sekme stili oral-exam-chrome.css'te ve
+   bu sayfada yüklenmiyordu; sekmeler düz yazı gibi görünüyordu (2 Ekim 2026). */
+.cp-my-preps-tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--c-surface-2);
+}
+
+.cp-my-preps-tabs button {
+  padding: 0.4rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.cp-my-preps-tabs button.is-on {
+  background: var(--cp-text);
+  color: var(--c-bg);
+}

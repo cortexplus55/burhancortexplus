@@ -28,7 +28,7 @@ export function MyPrepsView({ cards, userInitial }: { cards: ExamPrepCard[]; use
         </p>
       </header>
 
-      <div className="cp-study-hub-tabs cp-my-preps-tabs" role="tablist" aria-label="Hazırlıklar">
+      <div className="cp-my-preps-tabs" role="tablist" aria-label="Hazırlıklar">
         <button
           type="button"
           role="tab"
