@@ -10,6 +10,7 @@ import {
   type BadgeState,
 } from "@/lib/gamification/badges";
 import { BadgeArt } from "@/components/parity/badge-art";
+import { dailyGoalLabel, streakRecordLine } from "@/lib/student/learning-prefs";
 import "@/styles/parity-shell.css";
 
 export type JourneyTab = "streak" | "badges";
@@ -159,7 +160,6 @@ function StreakTab({
   onShowBadges: () => void;
 }) {
   const { streak, nextStreak, next, unlockedCount, badges } = journey;
-  const isRecord = streak.current > 0 && streak.current >= streak.longest;
   return (
     <section className="cp-jr-streak" aria-label="Seri">
       <div className="cp-jr-hero">
@@ -177,7 +177,7 @@ function StreakTab({
         <div className="cp-jr-stat">
           <span>En uzun seri</span>
           <strong>
-            {streak.longest} gün <em>{isRecord ? "Şu anki serin" : "Rekorun"}</em>
+            {streak.longest} gün <em>{streakRecordLine(streak.current, streak.longest)}</em>
           </strong>
         </div>
         {nextStreak ? (
@@ -213,6 +213,14 @@ function StreakTab({
             </span>
           </span>
         </button>
+      ) : null}
+
+      {journey.dailyGoal ? (
+        <Link href="/profil?dialog=profile" className="cp-jr-goal">
+          <span>Günlük çalışma hedefi</span>
+          <strong>{dailyGoalLabel(journey.dailyGoal.todayMinutes, journey.dailyGoal.goalMinutes)}</strong>
+          <em>Düzenle</em>
+        </Link>
       ) : null}
 
       <div className="cp-jr-week">

@@ -1,6 +1,7 @@
 "use client";
 
 import { CortexMark } from "@/components/brand/cortex-mark";
+import { syncLearningPrefsOnce } from "@/lib/client/learning-prefs-store";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
@@ -82,6 +83,10 @@ export function ParitySorShell({
     window.addEventListener(ACCOUNT_REFRESH_EVENT, refresh);
     return () => window.removeEventListener(ACCOUNT_REFRESH_EVENT, refresh);
   }, [router]);
+  // Disleksi dostu okuma, ses ve öneri tercihi: oturumda bir kez profilden.
+  useEffect(() => {
+    syncLearningPrefsOnce();
+  }, []);
   const [menuOpen, setMenuOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
   const [journeyOpen, setJourneyOpen] = useState(false);

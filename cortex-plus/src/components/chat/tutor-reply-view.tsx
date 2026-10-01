@@ -64,7 +64,10 @@ export function TutorReplyView({
   onPrompt,
   error,
   onRetry,
+  hideChips = false,
 }: {
+  /** Ayarlar > Önerilen sorular kapalıysa devam çipleri çizilmez. */
+  hideChips?: boolean;
   content: string;
   variant?: "default" | "parity";
   disabled?: boolean;
@@ -188,7 +191,7 @@ export function TutorReplyView({
           {view.scope.label}
         </button>
       ) : null}
-      {view.chips.length ? (
+      {view.chips.length && !hideChips ? (
         <div className="cp-tutor-chips" role="group" aria-label="Devam önerileri">
           {view.chips.map((chip) => (
             <button

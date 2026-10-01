@@ -9,7 +9,14 @@ import { AVATAR_OPTIONS } from "@/lib/parity/signup";
  * Profil kartındaki "Avatarı değiştir" (Astra'da var; 1 Ekim 2026).
  * Kayıttaki emoji listesinden seçilir ya da baş harfe dönülür.
  */
-export function AvatarPicker({ current }: { current: string | null }) {
+export function AvatarPicker({
+  current,
+  onChange,
+}: {
+  current: string | null;
+  /** Ayarlar penceresi kendi önizlemesini günceller. */
+  onChange?: (value: string | null) => void;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -23,6 +30,7 @@ export function AvatarPicker({ current }: { current: string | null }) {
         body: JSON.stringify({ avatar_url: value }),
       });
       if (!res.ok) throw new Error("save_failed");
+      onChange?.(value);
       setOpen(false);
       router.refresh();
     } catch {

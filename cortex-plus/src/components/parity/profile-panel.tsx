@@ -10,7 +10,6 @@ import {
   Settings,
   Sparkles,
   TrendingUp,
-  UserPen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ProfileDashboard } from "@/lib/student/profile-dashboard";
@@ -27,8 +26,7 @@ import { AvatarPicker } from "@/components/parity/avatar-picker";
  */
 
 const MENU = [
-  { href: "/ayarlar", label: "Ayarlar", icon: Settings },
-  { href: "/profil/duzenle", label: "Bilgilerim", icon: UserPen },
+  { href: "/profil?dialog=profile", label: "Ayarlar", icon: Settings },
   { href: "/krediler", label: "Kullanım", icon: TrendingUp },
   { href: "/paketler", label: "Abonelikler", icon: CreditCard },
   { href: "/sohbetler", label: "Geçmiş konuşmalar", icon: History },
@@ -80,7 +78,7 @@ export function ProfilePanel({
         </h1>
         {identity ? <p className="cp-pp-identity">{identity}</p> : null}
         <AvatarPicker current={data.avatarEmoji} />
-        <Link href="/ayarlar" className="cp-pp-settings">
+        <Link href="/profil?dialog=profile" className="cp-pp-settings">
           <Settings className="h-4 w-4" aria-hidden /> Ayarlar
         </Link>
       </header>
