@@ -11583,3 +11583,62 @@ a.cp-exam-search {
   display: flex;
   gap: 0.5rem;
 }
+
+/* "Sınav hazırlıklarım" sayfası (Astra, 1 Ekim 2026). */
+.cp-prep-row-title a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.cp-prep-row-title a:hover {
+  color: var(--c-action);
+}
+
+.cp-my-preps {
+  display: grid;
+  gap: 1.25rem;
+  justify-items: center;
+}
+
+.cp-my-preps-head {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.cp-my-preps-head h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.cp-my-preps-head p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
+.cp-my-preps-avatar {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  background: var(--c-surface-2);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.cp-my-preps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.cp-my-preps-new {
+  justify-self: center;
+}
