@@ -652,6 +652,7 @@ export function ExamPrepHome({
         <StudyToolsHub
           prepId={prepId}
           nodes={nodes}
+          openMisconceptions={openMisconceptions}
           topics={labels}
           topicOptions={topicOptions}
           topicLabel={hubTopic}

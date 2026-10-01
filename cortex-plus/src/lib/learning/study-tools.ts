@@ -81,6 +81,30 @@ export function studyToolById(id: StudyToolId): StudyTool {
   return STUDY_TOOLS.find((tool) => tool.id === id) ?? STUDY_TOOLS[0];
 }
 
+/**
+ * Astra gibi kilitli araçlar (1 Ekim 2026): Bilgi boşlukları nerede
+ * zorlandığın ortaya çıkınca, Tekrar ilk çalışma bitince açılır. Kilitliyken
+ * üretim yapılmaz; sunucu da aynı kuralla "kilitli" cevabı döner.
+ */
+export const STUDY_TOOL_LOCK_COPY = {
+  gaps: "Bir testte ya da derste yanlış yaptığında açılır; nerede zorlandığını burada toplar.",
+  spaced: "İlk dersini ya da testini bitirince açılır; öğrendiklerini pekiştirir.",
+} as const;
+
+export function studyToolLock(
+  id: StudyToolId,
+  input: { nodes: { kind: string; status: string }[]; openMisconceptions: number },
+): string | null {
+  if (id === "gaps") {
+    const done = input.nodes.some((node) => node.kind === "gaps" && node.status === "done");
+    return done || input.openMisconceptions > 0 ? null : STUDY_TOOL_LOCK_COPY.gaps;
+  }
+  if (id === "spaced") {
+    return input.nodes.some((node) => node.status === "done") ? null : STUDY_TOOL_LOCK_COPY.spaced;
+  }
+  return null;
+}
+
 /** Türün düğümleri; yoksa yedek türünkiler. Sıraya göre. */
 function toolPool<T extends { kind: string; sortOrder: number }>(nodes: T[], id: StudyToolId): T[] {
   const tool = studyToolById(id);

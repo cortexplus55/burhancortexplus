@@ -51,7 +51,13 @@ const lawNodes: HomeNode[] = [
   node("oral-ana", "oral", "locked", "Anayasa", 4, "AI ile Sözlü Deneme"),
 ];
 
-function renderPrep(title: string, nodes: HomeNode[], topics: string[], files: { id: string; name: string }[]) {
+function renderPrep(
+  title: string,
+  nodes: HomeNode[],
+  topics: string[],
+  files: { id: string; name: string }[],
+  openMisconceptions = 0,
+) {
   return render(
     <ExamPrepHome
       prepId="prep-1"
@@ -67,6 +73,7 @@ function renderPrep(title: string, nodes: HomeNode[], topics: string[], files: {
       topicCount={topics.length}
       topicsDone={0}
       topicLabels={topics}
+      openMisconceptions={openMisconceptions}
       materials={files.map((file) => ({
         id: file.id,
         name: file.name,
@@ -183,9 +190,23 @@ describe("ders oluştur: Astra gibi üç sekme ve önerilen", () => {
     expect(screen.getByRole("tab", { name: "Öğren" }).getAttribute("aria-selected")).toBe("true");
     const cards = screen.getByRole("link", { name: "Kartlar" });
     expect(cards.textContent).toContain("Önerilen");
+    // Astra gibi: yanlış yokken Bilgi boşlukları kilitli (1 Ekim 2026).
+    expect(screen.queryByRole("link", { name: "Bilgi boşlukları" })).toBeNull();
+    expect(screen.getByText("🔒 Bilgi boşlukları")).toBeTruthy();
+  });
+
+  it("açık yanılgı varsa Bilgi boşlukları açılır; hiçbir şey bitmemişse Tekrar kilitli", () => {
+    const fresh = nodes.map((item) => ({ ...item, status: item.status === "done" ? ("ready" as const) : item.status }));
+    renderPrep("Trigonometri", fresh, ["Birim Çember"], [{ id: "t", name: "trig.pdf" }], 2);
+    fireEvent.click(screen.getByRole("button", { name: "Hazırlık seçenekleri" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ders oluştur" }));
+    tab("Öğren");
     expect(screen.getByRole("link", { name: "Bilgi boşlukları" }).getAttribute("href")).toBe(
       studyToolHref("prep-1", "gaps-1"),
     );
+    tab("Pratik yap");
+    expect(screen.queryByRole("link", { name: "Tekrar" })).toBeNull();
+    expect(screen.getByText(/İlk dersini ya da testini bitirince açılır/)).toBeTruthy();
   });
 
   it("pratik sekmesinde alıştırma ve tekrar kendi düğümünü, doğru/yanlış konu testini açar", () => {

@@ -168,7 +168,7 @@ import {
   mergeAnswersForScoring,
   shouldReuseExistingStart,
 } from "@/lib/learning/attempt-lifecycle";
-import { buildLocalSessionPayload } from "@/lib/learning/exam-local-session";
+import { buildLocalSessionPayload, spacedReviewGate } from "@/lib/learning/exam-local-session";
 import {
   acceptFilledExplanations,
   buildWrittenExamReview,
@@ -1084,19 +1084,29 @@ export async function POST(request: Request) {
   }
 
   let practiceTopics: string[] | undefined;
-  if (kind === "focused" || kind === "final_check" || kind === "readiness") {
+  // Bilgi boşlukları ve Tekrar kilitliyse (Astra, 1 Ekim 2026) ücretsiz
+  // "kilitli" cevabı döner. Bitmiş düğüm yeniden açılırken kilit sorulmaz.
+  const lockable = (kind === "gaps" || kind === "spaced") && node.status !== "done";
+  if (kind === "focused" || kind === "final_check" || kind === "readiness" || lockable) {
     let local: Awaited<ReturnType<typeof buildLocalSessionPayload>>;
     try {
-      local = await buildLocalSessionPayload(service, {
-        userId,
-        prepId,
-        kind,
-        prepTitle: prep.title ?? "Hazırlık",
-        targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
-        learningPreferences: prep.learning_preferences,
-      });
+      local =
+        kind === "spaced"
+          ? await spacedReviewGate(service, prepId)
+          : await buildLocalSessionPayload(service, {
+              userId,
+              prepId,
+              kind: kind as "focused" | "final_check" | "readiness" | "gaps",
+              prepTitle: prep.title ?? "Hazırlık",
+              targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
+              learningPreferences: prep.learning_preferences,
+            });
     } catch {
       return errorResponse(503, "generation_failed");
+    }
+    if (local.action === "serve" && local.payload.locked === true) {
+      // Kayıt açılmaz: kilit kalkınca düğüm temiz başlasın.
+      return NextResponse.json({ ok: true, kind, title, topicLabel, voiceMode: false, payload: local.payload });
     }
     if (local.action === "serve") {
       const questions = (local.payload.questions as unknown[] | undefined) ?? [];

@@ -1,4 +1,5 @@
 import "server-only";
+import { STUDY_TOOL_LOCK_COPY } from "@/lib/learning/study-tools";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import { normalizeQuizQuestion } from "@/lib/learning/exam-quiz";
@@ -18,6 +19,34 @@ import { prepLanguage, type StoredReview } from "@/lib/learning/teacher-brain";
 export type LocalSessionPlan =
   | { action: "serve"; payload: Record<string, unknown> }
   | { action: "generate"; topics: string[] };
+
+/** Kilitli araç: kayıt açılmaz, kredi düşmez; ekran nedenini söyler. */
+export function lockedToolPayload(kind: "gaps" | "spaced"): LocalSessionPlan {
+  return {
+    action: "serve",
+    payload: {
+      type: "practice_empty",
+      practice: kind,
+      reason: "locked",
+      locked: true,
+      message: STUDY_TOOL_LOCK_COPY[kind],
+      topics: [],
+    },
+  };
+}
+
+/** Tekrar: hazırlıkta bitmiş bir adım yoksa kilitli. */
+export async function spacedReviewGate(service: SupabaseClient, prepId: string): Promise<LocalSessionPlan> {
+  const { count, error } = await service
+    .from("exam_prep_nodes")
+    .select("id", { count: "exact", head: true })
+    .eq("exam_prep_id", prepId)
+    .eq("status", "done");
+  // Sayım okunamazsa kilitlemeyiz: öğrenciyi yanlışlıkla dışarıda bırakmak
+  // boşa bir üretimden daha kötü.
+  if (error || (count ?? 0) > 0) return { action: "generate", topics: [] };
+  return lockedToolPayload("spaced");
+}
 
 function asReview(value: unknown): StoredReview | null {
   if (!value || typeof value !== "object") return null;
@@ -82,7 +111,7 @@ export async function buildLocalSessionPayload(
   input: {
     userId: string;
     prepId: string;
-    kind: "focused" | "final_check" | "readiness";
+    kind: "focused" | "final_check" | "readiness" | "gaps";
     prepTitle: string;
     targetScore: number | null;
     learningPreferences: unknown;
@@ -222,6 +251,13 @@ export async function buildLocalSessionPayload(
     missedTopics,
     plannedTopics: topicLabels,
   });
+  // Bilgi boşlukları zayıf nokta yoksa kilitli; varsa yeni sorular yalnız
+  // o konulardan üretilir (Astra, 1 Ekim 2026).
+  if (input.kind === "gaps") {
+    return weakTopics.length
+      ? { action: "generate", topics: weakTopics.slice(0, 6) }
+      : lockedToolPayload("gaps");
+  }
   const limit = input.kind === "final_check" ? 3 : 5;
   if (!weakTopics.length) {
     return {

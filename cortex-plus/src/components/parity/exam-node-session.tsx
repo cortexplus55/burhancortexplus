@@ -125,6 +125,8 @@ type Payload = {
   cards?: { front: string; back: string }[];
   practice?: string;
   reused?: boolean;
+  /** Kilitli araç (Bilgi boşlukları, Tekrar): tamamla düğmesi yok. */
+  locked?: boolean;
   /** Senaryo üretiminde düşen kredi. Önbellek 0, yeni senaryo fiyat tablosundaki değer. */
   scriptCredits?: number;
   uncoveredTopics?: string[];
@@ -1198,14 +1200,16 @@ export function ExamNodeSession({
       {stage === "play" && payload.type === "practice_empty" ? (
         <section className="cp-practice-empty">
           <p className="cp-lesson-kicker">{meta.setupLabel}</p>
-          <h1>Kayıtlı soru yok</h1>
+          <h1>{payload.locked ? "🔒 Henüz kilitli" : "Kayıtlı soru yok"}</h1>
           <p>{payload.message}</p>
           <button type="button" className="cp-exam-continue" onClick={() => router.push(`/deneme-sinavlari/${prepId}`)}>
             Çalışma yoluna dön
           </button>
-          <button type="button" className="cp-exam-continue cp-exam-continue--primary" disabled={loading} onClick={() => void finish()}>
-            Bu adımı tamamla
-          </button>
+          {payload.locked ? null : (
+            <button type="button" className="cp-exam-continue cp-exam-continue--primary" disabled={loading} onClick={() => void finish()}>
+              Bu adımı tamamla
+            </button>
+          )}
         </section>
       ) : null}
 
