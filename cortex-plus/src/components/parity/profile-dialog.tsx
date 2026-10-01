@@ -4,6 +4,17 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { AppearanceRow } from "@/components/parity/appearance-row";
+import { AvatarPicker } from "@/components/parity/avatar-picker";
+import { TUTOR_STYLE_OPTIONS, type TutorStyle } from "@/lib/learning/tutor-style";
+import {
+  DAILY_GOAL_OPTIONS,
+  DEFAULT_DAILY_GOAL,
+  TUTOR_VOICES,
+  dailyGoalLabel,
+  type TutorVoice,
+} from "@/lib/student/learning-prefs";
+import { prefsFromProfile, writeLearningPrefs } from "@/lib/client/learning-prefs-store";
 import "@/styles/parity-shell.css";
 
 type TabId = "account" | "school" | "learning";
@@ -39,7 +50,15 @@ export function ProfileDialog({
   const [schoolQuery, setSchoolQuery] = useState("");
   const [schoolOptions, setSchoolOptions] = useState<SchoolOption[]>([]);
   const [schoolName, setSchoolName] = useState("");
-  const [dailyGoal, setDailyGoal] = useState("3");
+  const [dailyGoal, setDailyGoal] = useState<number>(DEFAULT_DAILY_GOAL);
+  const [todayMinutes, setTodayMinutes] = useState(0);
+  const [fullName, setFullName] = useState("");
+  const [gradeLevel, setGradeLevel] = useState("");
+  const [avatarEmoji, setAvatarEmoji] = useState<string | null>(null);
+  const [tutorStyle, setTutorStyle] = useState<TutorStyle>("step_by_step");
+  const [suggestions, setSuggestions] = useState(true);
+  const [readable, setReadable] = useState(false);
+  const [voice, setVoice] = useState<TutorVoice>("female");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -51,10 +70,17 @@ export function ProfileDialog({
           setSchoolName(data.school_name);
           setSchoolQuery(data.school_name);
         }
-        if (data.daily_goal_minutes) {
-          setDailyGoal(String(data.daily_goal_minutes));
-        }
+        if (data.daily_goal_minutes) setDailyGoal(Number(data.daily_goal_minutes));
         if (data.learning_role) setRole(data.learning_role);
+        setTodayMinutes(Number(data.today_minutes) || 0);
+        setFullName(data.full_name ?? "");
+        setGradeLevel(data.grade_level ?? "");
+        setAvatarEmoji(data.avatar_emoji ?? null);
+        if (data.tutor_style) setTutorStyle(data.tutor_style);
+        setSuggestions(data.show_suggestions !== false);
+        setReadable(data.readable_font === true);
+        setVoice(data.tutor_voice === "male" ? "male" : "female");
+        writeLearningPrefs(prefsFromProfile(data));
       })
       .catch(() => undefined);
   }, [open]);
@@ -99,16 +125,32 @@ export function ProfileDialog({
     }
   }
 
-  async function saveLearning() {
+  /** Tek alanı hemen kaydeder; olmazsa eski değere döner. */
+  async function saveField(
+    body: Record<string, unknown>,
+    apply: () => void,
+    revert: () => void,
+    done?: () => void,
+  ) {
+    apply();
+    const ok = await patchProfile(body);
+    if (!ok) {
+      revert();
+      toast.error("Kaydedilemedi.");
+      return;
+    }
+    done?.();
+  }
+
+  async function saveText(body: Record<string, unknown>, message: string) {
     setLoading(true);
-    const ok = await patchProfile({ daily_goal_minutes: Number(dailyGoal) || 3 });
+    const ok = await patchProfile(body);
     setLoading(false);
     if (!ok) {
       toast.error("Kaydedilemedi.");
       return;
     }
-    toast.success("Öğrenme hedefin güncellendi.");
-    onClose();
+    toast.success(message);
   }
 
   /*
@@ -196,7 +238,7 @@ export function ProfileDialog({
             [
               ["account", "Hesabım"],
               ["school", "Okulum"],
-              ["learning", "Öğrenme"],
+              ["learning", "Öğrenme tercihleri"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -226,7 +268,25 @@ export function ProfileDialog({
 
         {tab === "account" ? (
           <div className="cp-profile-body">
-            <h2 className="cp-profile-heading">Rolüm</h2>
+            <div className="cp-settings-avatar">
+              <span className="cp-pp-avatar" aria-hidden>
+                {avatarEmoji ?? (fullName.trim().slice(0, 1).toLocaleUpperCase("tr-TR") || "?")}
+              </span>
+              <AvatarPicker current={avatarEmoji} onChange={setAvatarEmoji} />
+            </div>
+            <label className="cp-field">
+              <span>İsim</span>
+              <input value={fullName} maxLength={80} onChange={(e) => setFullName(e.target.value)} />
+            </label>
+            <button
+              type="button"
+              className="cp-exam-continue mt-2 w-full"
+              disabled={loading || !fullName.trim()}
+              onClick={() => void saveText({ full_name: fullName.trim() }, "İsmin güncellendi.")}
+            >
+              İsmi kaydet
+            </button>
+            <h2 className="cp-profile-heading mt-6">Rolüm</h2>
             <ul className="cp-profile-role-list">
               {ROLES.map((item) => (
                 <li key={item.id}>
@@ -245,6 +305,12 @@ export function ProfileDialog({
                 </li>
               ))}
             </ul>
+            <div className="mt-6">
+              <AppearanceRow />
+            </div>
+            <a className="cp-settings-link" href="/ayarlar">
+              E-posta, şifre, hatırlatma ve hesap silme →
+            </a>
           </div>
         ) : null}
 
@@ -274,33 +340,146 @@ export function ProfileDialog({
             {schoolName ? (
               <p className="mt-3 text-sm text-[var(--cp-muted)]">Seçili: {schoolName}</p>
             ) : null}
+            <label className="cp-field mt-6">
+              <span>Sınıf / seviye</span>
+              <input
+                value={gradeLevel}
+                maxLength={40}
+                placeholder="Örn. 11. sınıf, üniversite 2. sınıf"
+                onChange={(e) => setGradeLevel(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="cp-exam-continue mt-2 w-full"
+              disabled={loading}
+              onClick={() => void saveText({ grade_level: gradeLevel.trim() }, "Seviyen güncellendi.")}
+            >
+              Seviyeyi kaydet
+            </button>
           </div>
         ) : null}
 
         {tab === "learning" ? (
           <div className="cp-profile-body">
-            <h2 className="cp-profile-heading">Günlük hedef</h2>
-            <p className="cp-profile-lead">
-              Her gün kaç soru veya görev tamamlamak istediğini seç.
-            </p>
-            <label className="cp-field">
-              <span>Günlük soru / görev sayısı</span>
+            <p className="cp-profile-lead">Bu ayarlar öğrenme deneyimini kişiselleştirir.</p>
+
+            <h2 className="cp-profile-heading">Öğretmen stili</h2>
+            <ul className="cp-profile-role-list">
+              {TUTOR_STYLE_OPTIONS.map((option) => (
+                <li key={option.id}>
+                  <button
+                    type="button"
+                    className={cn("cp-profile-role", tutorStyle === option.id && "cp-profile-role--active")}
+                    aria-pressed={tutorStyle === option.id}
+                    onClick={() => {
+                      const previous = tutorStyle;
+                      void saveField(
+                        { tutor_style: option.id },
+                        () => setTutorStyle(option.id),
+                        () => setTutorStyle(previous),
+                      );
+                    }}
+                  >
+                    <strong>
+                      {option.emoji} {option.title}
+                    </strong>
+                    <span>{option.body}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <h2 className="cp-profile-heading mt-6">Günlük çalışma hedefi</h2>
+            <p className="cp-profile-lead">Bugün {dailyGoalLabel(todayMinutes, dailyGoal)}</p>
+            <div className="cp-settings-chips" role="radiogroup" aria-label="Günlük çalışma hedefi">
+              {DAILY_GOAL_OPTIONS.map((minutes) => (
+                <button
+                  key={minutes}
+                  type="button"
+                  role="radio"
+                  aria-checked={dailyGoal === minutes}
+                  className={cn("cp-settings-chip", dailyGoal === minutes && "is-on")}
+                  onClick={() => {
+                    const previous = dailyGoal;
+                    void saveField(
+                      { daily_goal_minutes: minutes },
+                      () => setDailyGoal(minutes),
+                      () => setDailyGoal(previous),
+                    );
+                  }}
+                >
+                  {minutes} dk
+                </button>
+              ))}
+            </div>
+
+            <label className="cp-settings-toggle">
+              <span>
+                <strong>Önerilen sorular</strong>
+                <em>Cevaptan sonra devam önerilerini göster</em>
+              </span>
               <input
-                type="number"
-                min={1}
-                max={20}
-                value={dailyGoal}
-                onChange={(e) => setDailyGoal(e.target.value)}
+                type="checkbox"
+                role="switch"
+                checked={suggestions}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  void saveField(
+                    { show_suggestions: next },
+                    () => setSuggestions(next),
+                    () => setSuggestions(!next),
+                    () => writeLearningPrefs({ suggestions: next }),
+                  );
+                }}
               />
             </label>
-            <button
-              type="button"
-              className="cp-exam-continue cp-exam-continue--primary mt-4 w-full"
-              disabled={loading}
-              onClick={() => void saveLearning()}
-            >
-              Kaydet
-            </button>
+
+            <label className="cp-settings-toggle">
+              <span>
+                <strong>Disleksi dostu okuma</strong>
+                <em>Derslerde ve cevaplarda daha geniş harf ve satır aralığı</em>
+              </span>
+              <input
+                type="checkbox"
+                role="switch"
+                checked={readable}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  void saveField(
+                    { readable_font: next },
+                    () => setReadable(next),
+                    () => setReadable(!next),
+                    () => writeLearningPrefs({ readable: next }),
+                  );
+                }}
+              />
+            </label>
+
+            <h2 className="cp-profile-heading mt-6">Öğretmen sesi</h2>
+            <div className="cp-settings-chips" role="radiogroup" aria-label="Öğretmen sesi">
+              {TUTOR_VOICES.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={voice === option.id}
+                  className={cn("cp-settings-chip", voice === option.id && "is-on")}
+                  onClick={() => {
+                    const previous = voice;
+                    void saveField(
+                      { tutor_voice: option.id },
+                      () => setVoice(option.id),
+                      () => setVoice(previous),
+                      () => writeLearningPrefs({ voice: option.id }),
+                    );
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <p className="cp-profile-lead mt-2">Sesli dinle ve Konuş modu cihazındaki Türkçe sesi kullanır.</p>
           </div>
         ) : null}
       </div>

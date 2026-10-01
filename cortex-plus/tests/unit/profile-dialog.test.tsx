@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+vi.mock("next-themes", () => ({ useTheme: () => ({ theme: "dark", setTheme: vi.fn() }) }));
 
 import { ProfileDialog } from "@/components/parity/profile-dialog";
 
@@ -25,7 +27,9 @@ beforeEach(() => {
         );
       }
       if (url === "/api/profile/me" && method === "GET") {
-        return new Response(JSON.stringify({ learning_role: "student" }));
+        return new Response(
+          JSON.stringify({ learning_role: "student", daily_goal_minutes: 30, today_minutes: 12, full_name: "Ada" }),
+        );
       }
       return new Response("{}");
     }),
@@ -66,10 +70,42 @@ describe("profil penceresi", () => {
     );
   });
 
-  it("sends only the daily goal from the learning tab", async () => {
+  /*
+    1 Ekim 2026: Astra'nın "Öğrenme tercihleri" sekmesi. Günlük hedef artık
+    dakika ("Bugün 12 / 30 dk"); her ayar seçildiği anda kaydediliyor.
+  */
+  it("günlük çalışma hedefini dakika olarak kaydeder ve bugünü gösterir", async () => {
     render(<ProfileDialog open onClose={() => undefined} />);
-    fireEvent.click(screen.getByRole("button", { name: "Öğrenme" }));
-    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
-    await waitFor(() => expect(patches()).toContainEqual({ daily_goal_minutes: 3 }));
+    fireEvent.click(screen.getByRole("button", { name: "Öğrenme tercihleri" }));
+    await screen.findByText("Bugün 12 / 30 dk");
+    fireEvent.click(screen.getByRole("radio", { name: "45 dk" }));
+    await waitFor(() => expect(patches()).toContainEqual({ daily_goal_minutes: 45 }));
+  });
+
+  it("önerilen sorular, disleksi dostu okuma ve öğretmen sesi kaydedilir ve hemen uygulanır", async () => {
+    render(<ProfileDialog open onClose={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "Öğrenme tercihleri" }));
+    await screen.findByText("Bugün 12 / 30 dk");
+    fireEvent.click(screen.getByRole("switch", { name: /Önerilen sorular/ }));
+    await waitFor(() => expect(patches()).toContainEqual({ show_suggestions: false }));
+    fireEvent.click(screen.getByRole("switch", { name: /Disleksi dostu okuma/ }));
+    await waitFor(() => expect(patches()).toContainEqual({ readable_font: true }));
+    await waitFor(() => expect(document.documentElement.dataset.readable).toBe("1"));
+    fireEvent.click(screen.getByRole("radio", { name: "Erkek sesi" }));
+    await waitFor(() => expect(patches()).toContainEqual({ tutor_voice: "male" }));
+    const stored = JSON.parse(window.localStorage.getItem("cortex-learning-prefs") ?? "{}");
+    expect(stored).toMatchObject({ suggestions: false, readable: true, voice: "male" });
+  });
+
+  it("Hesabım ismi, Okulum seviyeyi kaydeder", async () => {
+    render(<ProfileDialog open onClose={() => undefined} />);
+    const name = await screen.findByDisplayValue("Ada");
+    fireEvent.change(name, { target: { value: "Ada Lovelace" } });
+    fireEvent.click(screen.getByRole("button", { name: "İsmi kaydet" }));
+    await waitFor(() => expect(patches()).toContainEqual({ full_name: "Ada Lovelace" }));
+    fireEvent.click(screen.getByRole("button", { name: "Okulum" }));
+    fireEvent.change(screen.getByPlaceholderText(/11\. sınıf/), { target: { value: "12. sınıf" } });
+    fireEvent.click(screen.getByRole("button", { name: "Seviyeyi kaydet" }));
+    await waitFor(() => expect(patches()).toContainEqual({ grade_level: "12. sınıf" }));
   });
 });

@@ -3,6 +3,13 @@
 import { useRef, useState, useEffect, type ComponentProps } from "react";
 import { useLearningTimer } from "@/components/learning/use-learning-timer";
 import { isProblemQuestion, solvedLabel } from "@/lib/learning/solved-card";
+import {
+  PREFS_EVENT,
+  prefsFromProfile,
+  readLearningPrefs,
+  writeLearningPrefs,
+} from "@/lib/client/learning-prefs-store";
+import { DEFAULT_DAILY_GOAL } from "@/lib/student/learning-prefs";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -321,7 +328,18 @@ function ChatPanelSession({
   const composerZoneRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
-  const [dailyGoalMinutes, setDailyGoalMinutes] = useState(3);
+  const [dailyGoalMinutes, setDailyGoalMinutes] = useState<number>(DEFAULT_DAILY_GOAL);
+  // Ayarlar > Önerilen sorular. Ayar değişince pencere olayıyla güncellenir.
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  useEffect(() => {
+    setShowSuggestions(readLearningPrefs().suggestions);
+    const onPrefs = (event: Event) => {
+      const detail = (event as CustomEvent<{ suggestions?: boolean }>).detail;
+      if (typeof detail?.suggestions === "boolean") setShowSuggestions(detail.suggestions);
+    };
+    window.addEventListener(PREFS_EVENT, onPrefs);
+    return () => window.removeEventListener(PREFS_EVENT, onPrefs);
+  }, []);
 
   useEffect(() => {
     if (variant !== "parity") return;
@@ -332,8 +350,9 @@ function ChatPanelSession({
         return res.json();
       })
       .then((data) => {
-        if (cancelled || !data?.daily_goal_minutes) return;
-        setDailyGoalMinutes(Number(data.daily_goal_minutes) || 3);
+        if (cancelled || !data) return;
+        writeLearningPrefs(prefsFromProfile(data));
+        if (data.daily_goal_minutes) setDailyGoalMinutes(Number(data.daily_goal_minutes) || DEFAULT_DAILY_GOAL);
       })
       .catch(() => {});
     return () => {
@@ -657,10 +676,8 @@ function ChatPanelSession({
         const mode = COMPOSER_MODES.find((m) => m.id === composerAssist);
         if (!mode || !text) return text;
         if (mode.id === "today") {
-          // Ayarlarda bu değer "günlük soru / görev sayısı" olarak soruluyor
-          // (sütunun adı daily_goal_minutes olsa da). Modele "dakika" demek
-          // 3 görevlik hedefi 3 dakikalık bir hedefe çeviriyordu.
-          return `${mode.prefix}(Günlük hedefim: ${dailyGoalMinutes} soru ya da görev.) ${text}`;
+          // 1 Ekim 2026'dan beri hedef dakika (Ayarlar > Günlük çalışma hedefi).
+          return `${mode.prefix}(Günlük çalışma hedefim: ${dailyGoalMinutes} dakika.) ${text}`;
         }
         return `${mode.prefix}${text}`;
       })(),
@@ -1218,6 +1235,7 @@ function ChatPanelSession({
                           variant="parity"
                           disabled={loading}
                           onPrompt={(prompt) => void send(prompt)}
+                          hideChips={!showSuggestions}
                         />
                         <MessageActions
                           content={message.content}
@@ -1278,7 +1296,7 @@ function ChatPanelSession({
               {/* Yanıt bittikten sonra devam önerileri. Öğrenci "peki şimdi ne
                   sorayım" diye kalmasın; bunlar gerçekten çalışan komutlar,
                   süs değil. Sınav sohbetinde aynı işi hızlı komutlar görür. */}
-              {!examChrome && !loading && lastIsAnswer ? (
+              {!examChrome && !loading && lastIsAnswer && showSuggestions ? (
                 <div className="cp-followups" role="group" aria-label="Devam önerileri">
                   {FOLLOW_UPS.map((item) => (
                     <button

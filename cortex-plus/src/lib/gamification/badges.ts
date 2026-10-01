@@ -83,6 +83,8 @@ export type BadgeJourney = {
   next: BadgeState | null;
   /** Sıradaki seri rozeti. */
   nextStreak: BadgeState | null;
+  /** Seri penceresinin altındaki "Bugün 12 / 30 dk" (Astra gibi). */
+  dailyGoal?: { goalMinutes: number; todayMinutes: number } | null;
 };
 
 const STREAK_TARGETS: Partial<Record<BadgeId, number>> = { ay: 3, saturn: 7, neptun: 30 };

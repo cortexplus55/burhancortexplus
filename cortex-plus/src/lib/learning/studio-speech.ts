@@ -1,3 +1,6 @@
+import { readLearningPrefs } from "@/lib/client/learning-prefs-store";
+import type { TutorVoice } from "@/lib/student/learning-prefs";
+
 type StudioSpeechRec = {
   lang: string;
   interimResults: boolean;
@@ -9,14 +12,30 @@ type StudioSpeechRec = {
   onend: (() => void) | null;
 };
 
+const MALE_HINT = /tolga|kerem|ahmet|cem|erkek|\bmale\b|\bman\b/i;
+const FEMALE_HINT = /seda|emel|yelda|filiz|zeynep|elif|kad[ıi]n|female|woman|google t[üu]rk/i;
+
+/**
+ * Türkçe seslerden öğrencinin seçtiği cinsiyete uyanı (Ayarlar > Öğretmen
+ * sesi, 1 Ekim 2026). Cihaz ses adından anlaşılıyor; uyan yoksa ilk Türkçe ses.
+ */
+export function pickVoiceFor(
+  voices: Pick<SpeechSynthesisVoice, "lang" | "name">[],
+  gender: TutorVoice,
+): number {
+  const turkish = voices
+    .map((voice, index) => ({ voice, index }))
+    .filter(({ voice }) => voice.lang.toLowerCase().startsWith("tr") || voice.lang.toLowerCase().includes("tr"));
+  if (!turkish.length) return -1;
+  const hint = gender === "male" ? MALE_HINT : FEMALE_HINT;
+  return (turkish.find(({ voice }) => hint.test(voice.name)) ?? turkish[0]).index;
+}
+
 export function pickTurkishVoice(): SpeechSynthesisVoice | null {
   if (typeof window === "undefined" || !window.speechSynthesis) return null;
   const voices = window.speechSynthesis.getVoices();
-  return (
-    voices.find((v) => v.lang.toLowerCase().startsWith("tr")) ??
-    voices.find((v) => v.lang.toLowerCase().includes("tr")) ??
-    null
-  );
+  const index = pickVoiceFor(voices, readLearningPrefs().voice);
+  return index >= 0 ? voices[index] : null;
 }
 
 /**
