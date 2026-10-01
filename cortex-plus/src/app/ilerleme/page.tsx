@@ -12,7 +12,7 @@ import { LearningTimeCard } from "@/components/student/learning-time-card";
 import { todayKey } from "@/lib/learning/daily-drill";
 import type { LearningTimeRow } from "@/lib/learning/learning-time";
 
-export const metadata = { title: "İlerleme" };
+export const metadata = { title: "Aktivitelerim" };
 
 export default async function IlerlemePage() {
   const { supabase, user } = await requireStudentArea();
@@ -114,7 +114,7 @@ export default async function IlerlemePage() {
       {/* Sayfanın h1'i yoktu: ekran okuyucu "burası neresi" sorusunu
           yanıtlayamıyordu, sekme başlığı dışında hiçbir işaret yoktu. */}
       <div className="cp-page-head">
-        <h1 className="cp-page-title">İlerleme</h1>
+        <h1 className="cp-page-title">Aktivitelerim</h1>
       </div>
       <div className="space-y-6">
         {!hasAnyActivity ? (
