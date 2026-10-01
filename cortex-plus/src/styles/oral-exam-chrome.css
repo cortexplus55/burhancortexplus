@@ -1127,3 +1127,55 @@
   color: var(--pm-success, var(--c-success));
 }
 
+
+/* "Ders oluştur": Astra gibi Öğren / Pratik yap / Sınav sekmeleri (1 Ekim 2026). */
+.cp-study-hub-tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin: 0.25rem 0 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--c-surface-2);
+}
+
+.cp-study-hub-tabs button {
+  padding: 0.4rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.cp-study-hub-tabs button.is-on {
+  background: var(--c-text);
+  color: var(--c-bg);
+}
+
+.cp-study-hub-tile {
+  position: relative;
+}
+
+.cp-study-hub-badge {
+  position: absolute;
+  top: -0.55rem;
+  right: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--c-action);
+  border-radius: 999px;
+  background: var(--c-surface-1);
+  color: var(--c-action);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cp-study-hub-icon--gaps { background: var(--c-warning-soft); color: var(--c-warning); }
+.cp-study-hub-icon--focused { background: var(--c-danger-soft, var(--c-warning-soft)); color: var(--c-danger, var(--c-warning)); }
+.cp-study-hub-icon--true_false { background: var(--c-success-soft); color: var(--c-success); }
+.cp-study-hub-icon--spaced { background: var(--c-info-soft); color: var(--c-info); }

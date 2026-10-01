@@ -1,13 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Headphones, Mic, FileQuestion, ListChecks, Layers, Sparkles, X } from "lucide-react";
+import { useState } from "react";
+import {
+  BookOpen,
+  CheckCheck,
+  Crosshair,
+  FileQuestion,
+  Headphones,
+  Layers,
+  ListChecks,
+  Mic,
+  Puzzle,
+  Repeat,
+  Sparkles,
+  X,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import "@/styles/oral-exam-chrome.css";
 import {
   STUDY_PATH_HINT,
   STUDY_TOOLS,
+  STUDY_TOOL_GROUPS,
   openStudyActivity,
+  recommendedStudyTool,
+  type StudyToolGroup,
   studyActivityHref,
   studyPodcastHref,
   type StudyNodeRef,
@@ -22,6 +39,10 @@ const TOOL_ICONS: Record<StudyToolId, LucideIcon> = {
   quiz: ListChecks,
   flashcards: Layers,
   qa: Sparkles,
+  gaps: Puzzle,
+  focused: Crosshair,
+  true_false: CheckCheck,
+  spaced: Repeat,
 };
 
 /**
@@ -47,6 +68,9 @@ export function StudyToolsHub({
   onTopic: (label: string | null) => void;
   onClose: () => void;
 }) {
+  // Astra gibi üç sekme; pencere önerilen etkinliğin sekmesinde açılır.
+  const recommended = recommendedStudyTool(nodes);
+  const [group, setGroup] = useState<StudyToolGroup>(recommended?.group ?? "learn");
   return (
     <div className="cp-oral-modal-back" onClick={onClose}>
       <div
@@ -83,8 +107,22 @@ export function StudyToolsHub({
         ) : (
           <p className="cp-oral-empty">Bu hazırlıkta konu yok. Etkinlik yine de plandaki düğümden açılır.</p>
         )}
+        <div className="cp-study-hub-tabs" role="tablist" aria-label="Etkinlik türü">
+          {STUDY_TOOL_GROUPS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={group === item.id}
+              className={group === item.id ? "is-on" : undefined}
+              onClick={() => setGroup(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
         <ul className="cp-study-hub-grid">
-          {STUDY_TOOLS.map((tool) => {
+          {STUDY_TOOLS.filter((tool) => tool.group === group).map((tool) => {
             const Icon = TOOL_ICONS[tool.id];
             const href =
               tool.id === "podcast"
@@ -100,6 +138,7 @@ export function StudyToolsHub({
                 <span className={`cp-study-hub-icon cp-study-hub-icon--${tool.id}`} aria-hidden>
                   <Icon className="h-5 w-5" />
                 </span>
+                {recommended?.id === tool.id ? <span className="cp-study-hub-badge">Önerilen</span> : null}
                 <strong>{tool.title}</strong>
                 <em>{href ? tool.blurb : "Bu konuda yok"}</em>
               </>
