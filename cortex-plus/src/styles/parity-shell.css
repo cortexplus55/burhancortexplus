@@ -5862,26 +5862,88 @@
   padding: 0;
 }
 
-.cp-pod-lengths {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.85rem;
+/* Podcast türü — Astra'daki beş tür (1 Ekim 2026). */
+.cp-pod-formats {
+  display: grid;
+  gap: 0.45rem;
   margin: 0.75rem 0;
   border: 0;
   padding: 0;
 }
 
-.cp-pod-lengths legend {
-  width: 100%;
-  margin-bottom: 0.25rem;
+.cp-pod-formats legend {
+  margin-bottom: 0.35rem;
   font-size: 0.85rem;
+  font-weight: 600;
 }
 
-.cp-pod-lengths label {
-  display: inline-flex;
+.cp-pod-format {
+  position: relative;
+  display: flex;
   align-items: center;
-  gap: 0.35rem;
-  font-size: 0.85rem;
+  gap: 0.7rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.85rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.cp-pod-format:hover {
+  background: var(--c-surface-2);
+}
+
+.cp-pod-format.is-on {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 10%, transparent);
+}
+
+.cp-pod-format input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cp-pod-format:has(input:focus-visible) {
+  outline: 2px solid var(--c-action);
+  outline-offset: 2px;
+}
+
+.cp-pod-format-emoji {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.cp-pod-format-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.8rem;
+  color: var(--cp-muted);
+}
+
+.cp-pod-format-text strong {
+  font-size: 0.9rem;
+  color: var(--cp-text);
+}
+
+.cp-pod-format-text em {
+  margin-left: 0.25rem;
+  font-style: normal;
+  font-weight: 500;
+  color: var(--cp-muted);
+}
+
+.cp-pod-format-badge {
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--c-action);
+  border-radius: 999px;
+  color: var(--c-action);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .cp-studio {

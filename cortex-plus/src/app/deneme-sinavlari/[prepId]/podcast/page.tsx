@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { parsePodcastLength } from "@/lib/learning/podcast-formats";
 import { ParitySorShell } from "@/components/parity/sor-shell";
 import { PrepPodcastSession } from "@/components/parity/prep-podcast-session";
 import { PrepPodcastPicker } from "@/components/parity/prep-studio-entry";
@@ -8,9 +9,6 @@ import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 export const metadata = { title: "Podcast" };
 export const dynamic = "force-dynamic";
 
-function podcastLength(value: string | undefined): "ozet" | "standart" | "derin" {
-  return value === "ozet" || value === "derin" ? value : "standart";
-}
 
 export default async function PrepPodcastPage({
   params,
@@ -63,7 +61,7 @@ export default async function PrepPodcastPage({
         prepId={prepId}
         topicId={topic.id}
         topicLabel={topic.label}
-        length={podcastLength(query.length)}
+        length={parsePodcastLength(query.length)}
       />
     </ParitySorShell>
   );

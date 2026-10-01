@@ -131,6 +131,8 @@ import {
   loadPodcastCorpus,
   mergePodcastSource,
   parsePodcastLength,
+  PODCAST_LENGTHS,
+  DEFAULT_PODCAST_LENGTH,
   podcastScopeBrief,
   readPodcastCache,
   writePodcastCache,
@@ -233,7 +235,7 @@ const bodySchema = z.object({
   oralScope: z.enum(["topic", "all"]).optional(),
   /** Ders oluşturma merkezi, düğümün konusu dışında bir konu seçtiyse. */
   activityTopicLabel: z.string().max(400).optional(),
-  podcastLength: z.enum(["ozet", "standart", "derin"]).optional(),
+  podcastLength: z.enum(PODCAST_LENGTHS).optional(),
 });
 
 const tfSchema = z.object({
@@ -2628,7 +2630,7 @@ async function generateNodePayload(input: {
   }
 
   if (input.kind === "podcast") {
-    const length = input.podcastLength ?? "standart";
+    const length = input.podcastLength ?? DEFAULT_PODCAST_LENGTH;
     if (input.prepId) {
       const cached = await readPodcastCache(input.service, input.prepId, input.topicLabel, length);
       if (cached) {
