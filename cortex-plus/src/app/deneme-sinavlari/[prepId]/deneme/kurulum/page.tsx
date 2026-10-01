@@ -10,7 +10,7 @@ import {
   type MockTopicSlot,
 } from "@/lib/learning/mock-exam";
 
-export const metadata = { title: "Yazılı deneme · Cortex Plus" };
+export const metadata = { title: "Yazılı deneme" };
 export const dynamic = "force-dynamic";
 
 export default async function MockExamSetupPage({
@@ -48,6 +48,7 @@ export default async function MockExamSetupPage({
 
   // Biçim özeti: ilk sayfa metinlerinden (hafif)
   let formatSummary: string | null = null;
+  let realMinutes: number | null = null;
   try {
     const { data: docs } = await supabase
       .from("exam_prep_source_documents")
@@ -62,7 +63,9 @@ export default async function MockExamSetupPage({
         .in("document_id", ids)
         .limit(8);
       const text = (pages ?? []).map((p) => String(p.text_content ?? "")).join("\n");
-      formatSummary = parseExamFormatFromText(text)?.summary ?? null;
+      const parsedFormat = parseExamFormatFromText(text);
+      formatSummary = parsedFormat?.summary ?? null;
+      realMinutes = parsedFormat?.durationMinutes ?? null;
     }
   } catch {
     formatSummary = null;
@@ -83,6 +86,7 @@ export default async function MockExamSetupPage({
           label: t.label as string,
         }))}
         formatSummary={formatSummary}
+        realMinutes={realMinutes}
         isAdmin={admin}
         allocationPreview={allocation}
       />

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { mockDurationLabel } from "@/lib/learning/mock-exam/time-limit";
 import { notFound } from "next/navigation";
 import { ArrowRight, BookOpen, ListChecks, RotateCcw } from "lucide-react";
 import { ParitySorShell } from "@/components/parity/sor-shell";
@@ -11,7 +12,7 @@ import {
   type MockTopicReportRow,
 } from "@/lib/learning/mock-exam";
 
-export const metadata = { title: "Deneme sonucu · Cortex Plus" };
+export const metadata = { title: "Deneme sonucu" };
 
 export default async function ExamPrepSonucPage({
   params,
@@ -212,7 +213,7 @@ export default async function ExamPrepSonucPage({
             ["Boş", blank],
             [
               "Süre",
-              examRow?.duration_minutes != null ? `${examRow.duration_minutes} dk` : "—",
+              mockDurationLabel(examRow?.duration_minutes as number | null | undefined),
             ],
           ].map(([label, value]) => (
             <div

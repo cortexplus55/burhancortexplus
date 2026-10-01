@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isUntimed } from "@/lib/learning/mock-exam/time-limit";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import {
@@ -89,8 +90,16 @@ export async function POST(request: Request) {
 
   let startedAt = exam.started_at as string | null;
   let deadlineAt = exam.deadline_at as string | null;
+  // Süresiz deneme: bitiş zamanı yazılmaz, süre dolunca gönderim olmaz.
+  const untimed = isUntimed(exam.duration_minutes);
 
-  if (!startedAt || !deadlineAt) {
+  if (untimed) {
+    if (!startedAt) {
+      startedAt = new Date().toISOString();
+      await service.from("practice_exams").update({ started_at: startedAt }).eq("id", exam.id);
+    }
+    deadlineAt = null;
+  } else if (!startedAt || !deadlineAt) {
     const times = examDeadlineFromDuration(Number(exam.duration_minutes ?? 40));
     startedAt = times.started_at;
     deadlineAt = times.deadline_at;
@@ -114,7 +123,8 @@ export async function POST(request: Request) {
     ok: true,
     startedAt,
     deadlineAt,
-    timeLeftSec: remainingExamSeconds(deadlineAt),
+    untimed,
+    timeLeftSec: untimed ? null : remainingExamSeconds(deadlineAt),
     answers: (draft?.answers as Record<string, unknown>) ?? {},
     flaggedIds: (draft?.flagged_ids as string[]) ?? [],
   });
