@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { AVATAR_OPTIONS } from "@/lib/parity/signup";
 import { z } from "zod";
 import { withUser } from "@/lib/api/guards";
 
@@ -30,6 +31,13 @@ const patchSchema = z.object({
   school_id: z.string().uuid().nullable().optional(),
   daily_goal_minutes: z.number().int().min(1).max(30).optional(),
   learning_role: z.enum(["student", "graduate", "parent"]).optional(),
+  // Yalnızca kayıttaki emoji listesi ya da baş harfe dönüş (null). Serbest
+  // metin kabul edilmez: avatar_url başka yerde görsel adresi olarak okunuyor.
+  avatar_url: z
+    .string()
+    .refine((value) => AVATAR_OPTIONS.includes(value), "invalid_avatar")
+    .nullable()
+    .optional(),
 });
 
 export async function PATCH(request: Request) {
