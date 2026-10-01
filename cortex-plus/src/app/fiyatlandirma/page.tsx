@@ -68,7 +68,7 @@ export default async function FiyatlandirmaPage() {
           </p>
         ) : null}
         {plans.length === 0 ? (
-          <div className="mx-auto max-w-lg rounded-3xl border border-dashed border-[var(--mk-border)] bg-[var(--mk-surface)]/60 px-6 py-12 text-center">
+          <div className="mx-auto max-w-lg rounded-3xl border border-dashed border-[var(--mk-border)] bg-[color:color-mix(in_srgb,var(--mk-surface)_60%,transparent)] px-6 py-12 text-center">
             <p className="text-base font-medium text-[var(--mk-text)]">
               Paketler şu an listelenemiyor
             </p>

@@ -17,7 +17,9 @@ describe("öğrenme süresi", () => {
   it("tasarruf saati 500 ₺ ile hesaplanır", () => {
     expect(TUTOR_TL_PER_HOUR).toBe(500);
     expect(savingsTl(3600)).toBe(500);
-    expect(savingsTl(10_020)).toBe(1392);
+    expect(savingsTl(10_020)).toBe(1391);
+    // 5 saniye 0 dakikadır; "1 ₺" yazmaz.
+    expect(savingsTl(5)).toBe(0);
     expect(savingsTl(-5)).toBe(0);
   });
 
