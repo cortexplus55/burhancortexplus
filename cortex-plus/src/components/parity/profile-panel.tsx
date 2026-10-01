@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import type { ProfileDashboard } from "@/lib/student/profile-dashboard";
 import type { SubscriptionBadge } from "@/lib/student/subscription-badge";
 import { AppearanceRow } from "@/components/parity/appearance-row";
+import { AvatarPicker } from "@/components/parity/avatar-picker";
 
 /**
  * Profil paneli.
@@ -66,7 +67,7 @@ export function ProfilePanel({
     <div className="cp-pp">
       <header className="cp-pp-head">
         <span className="cp-pp-avatar" aria-hidden>
-          {initial}
+          {data.avatarEmoji ?? initial}
         </span>
         {/* Sayfanın tek başlığı bu; `p` olduğu için sayfanın h1'i yoktu. */}
         <h1 className="cp-pp-name">
@@ -78,6 +79,7 @@ export function ProfilePanel({
           ) : null}
         </h1>
         {identity ? <p className="cp-pp-identity">{identity}</p> : null}
+        <AvatarPicker current={data.avatarEmoji} />
         <Link href="/ayarlar" className="cp-pp-settings">
           <Settings className="h-4 w-4" aria-hidden /> Ayarlar
         </Link>

@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, type ComponentProps } from "react";
 import { useLearningTimer } from "@/components/learning/use-learning-timer";
+import { isProblemQuestion, solvedLabel } from "@/lib/learning/solved-card";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -64,6 +65,8 @@ type Message = {
   /** Kaydedilmiş yanıtın satır kimliği; oylama bunsuz yapılamıyor. */
   id?: string;
   rating?: Rating;
+  /** Bu oturumda gelen hesap cevabının süresi; "Problem N saniyede çözüldü". */
+  solvedMs?: number;
 };
 
 function SorTypingDots({ label }: { label?: string }) {
@@ -698,6 +701,7 @@ function ChatPanelSession({
       chatOperationIds.current.set(opKey, operationId);
     }
 
+    const startedAt = Date.now();
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
@@ -784,6 +788,16 @@ function ChatPanelSession({
             content: assistant,
             id: messageId,
           };
+          return copy;
+        });
+      }
+      // Astra gibi: hesap sorusunda cevabın üstünde çözüm süresi.
+      if (assistant.trim() && isProblemQuestion(text)) {
+        const solvedMs = Date.now() - startedAt;
+        setMessages((prev) => {
+          const copy = [...prev];
+          const last = copy[copy.length - 1];
+          if (last?.role === "assistant") copy[copy.length - 1] = { ...last, solvedMs };
           return copy;
         });
       }
@@ -1193,6 +1207,12 @@ function ChatPanelSession({
                       </div>
                     ) : (
                       <>
+                        {message.solvedMs ? (
+                          <p className="cp-solved-card" role="status">
+                            <span className="cp-solved-dot" aria-hidden />
+                            {solvedLabel(message.solvedMs)}
+                          </p>
+                        ) : null}
                         <TutorReplyView
                           content={message.content}
                           variant="parity"

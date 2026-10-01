@@ -10709,3 +10709,76 @@
   font-weight: 700;
   color: var(--c-brand, #6366f1);
 }
+
+/* Sohbet: "Problem N saniyede çözüldü" (Astra gibi, 1 Ekim 2026). */
+.cp-solved-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--cs-muted, #a1a1aa);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cp-solved-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+
+/* Profil: avatarı değiştir (Astra gibi, 1 Ekim 2026). */
+.cp-avatar-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.35rem;
+}
+
+.cp-avatar-pick-toggle {
+  border: 0;
+  background: none;
+  color: var(--cs-muted, #a1a1aa);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.cp-avatar-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 2.5rem));
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.cp-avatar-pick-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.cp-avatar-pick-option[aria-pressed="true"] {
+  border-color: var(--cs-primary, #f4ae0b);
+}
+
+.cp-avatar-pick-initial {
+  grid-column: span 2;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--cs-text, #fafafa);
+}
