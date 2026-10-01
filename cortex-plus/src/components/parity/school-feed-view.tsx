@@ -13,6 +13,7 @@ import {
   type SchoolFeedRow,
   type SchoolSummary,
 } from "@/lib/parity/school-feed";
+import { joinSchoolPrep } from "@/lib/parity/school-join";
 
 export function SchoolFeedView({
   summary,
@@ -49,17 +50,11 @@ export function SchoolFeedView({
   async function join(prepId: string) {
     setJoining(prepId);
     try {
-      const res = await fetch("/api/school", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prepId }),
-      });
-      const data = (await res.json()) as { id?: string; alreadyJoined?: boolean };
-      if (!res.ok || !data.id) throw new Error();
-      if (data.alreadyJoined) {
+      const joined = await joinSchoolPrep(prepId);
+      if (joined.alreadyJoined) {
         toast.info("Bu hazırlığa zaten katılmıştın.");
       }
-      router.push(`/deneme-sinavlari/${data.id}`);
+      router.push(`/deneme-sinavlari/${joined.id}`);
     } catch {
       toast.error("Katılamadın. Lütfen tekrar dene.");
     } finally {
