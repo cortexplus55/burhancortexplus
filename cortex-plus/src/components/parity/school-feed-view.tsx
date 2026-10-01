@@ -84,11 +84,11 @@ export function SchoolFeedView({
       </article>
 
       {subjects.length > 1 ? (
-        <div className="cp-lab-filters">
+        <div className="cp-filter-chips">
           <button
             type="button"
             onClick={() => setSubject(null)}
-            className={cn("cp-lab-chip", subject === null && "cp-lab-chip--on")}
+            className={cn("cp-filter-chip", subject === null && "cp-filter-chip--on")}
           >
             Tüm dersler
           </button>
@@ -97,7 +97,7 @@ export function SchoolFeedView({
               key={s}
               type="button"
               onClick={() => setSubject(s)}
-              className={cn("cp-lab-chip", subject === s && "cp-lab-chip--on")}
+              className={cn("cp-filter-chip", subject === s && "cp-filter-chip--on")}
             >
               {s}
             </button>

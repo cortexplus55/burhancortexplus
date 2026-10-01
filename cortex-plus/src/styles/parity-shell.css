@@ -11338,3 +11338,109 @@ a.cp-exam-search {
   border-color: var(--c-action);
   background: color-mix(in srgb, var(--c-action) 10%, transparent);
 }
+
+/*
+  Ders filtre çipleri (okul akışı, hazırlık araması). Eskiden "Uygulamalar"
+  bölümünün cp-lab-chip stilini kullanıyorlardı; bölüm silinince stil de
+  gitti ve 1 Ekim 2026'da çipler yan yana düz yazı gibi görünüyordu.
+*/
+.cp-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.cp-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-filter-chip:hover {
+  background: var(--c-surface-2);
+}
+
+.cp-filter-chip--on {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 14%, transparent);
+}
+
+/* Podcast oluşturma sayfasının konu seçicisi. */
+.cp-studio .cp-field select {
+  min-height: 44px;
+  border-radius: 0.75rem;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-1);
+  color: var(--cp-text);
+  padding: 0 0.75rem;
+}
+
+/* Yazılı denemede serbest süre (Astra, 1 Ekim 2026). */
+.cp-mock-time {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-top: 0.75rem;
+}
+
+.cp-mock-time-value {
+  min-width: 7rem;
+  margin: 0;
+  text-align: center;
+  font-size: 1rem;
+  color: var(--cp-muted);
+}
+
+.cp-mock-time-value strong {
+  font-size: 2.25rem;
+  color: var(--cp-text);
+}
+
+.cp-mock-time.is-off .cp-mock-time-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--cp-text);
+}
+
+.cp-mock-time-step {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-text);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.cp-mock-time-step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.cp-mock-time-range {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  accent-color: var(--c-action);
+}
+
+.cp-mock-time-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}

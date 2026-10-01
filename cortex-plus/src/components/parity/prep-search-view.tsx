@@ -116,20 +116,20 @@ export function PrepSearchView({ rows, hasSchool }: { rows: PrepSearchRow[]; has
           <h2 id="psearch-subjects" className="cp-psearch-title">
             Derse göre
           </h2>
-          <div className="cp-lab-filters">
+          <div className="cp-filter-chips">
             {shownSubjects.map((item) => (
               <button
                 key={item}
                 type="button"
                 aria-pressed={subject === item}
-                className={cn("cp-lab-chip", subject === item && "cp-lab-chip--on")}
+                className={cn("cp-filter-chip", subject === item && "cp-filter-chip--on")}
                 onClick={() => setSubject(subject === item ? null : item)}
               >
                 {item}
               </button>
             ))}
             {subjects.length > SUBJECTS_SHOWN ? (
-              <button type="button" className="cp-lab-chip" onClick={() => setAllSubjects((value) => !value)}>
+              <button type="button" className="cp-filter-chip" onClick={() => setAllSubjects((value) => !value)}>
                 {allSubjects ? "Daha az" : "Daha fazla"}
                 <ChevronDown className={cn("ml-1 inline h-3 w-3", allSubjects && "rotate-180")} aria-hidden />
               </button>

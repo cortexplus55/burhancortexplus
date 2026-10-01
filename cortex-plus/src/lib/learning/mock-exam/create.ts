@@ -29,6 +29,8 @@ export type CreateMockExamInput = {
   /** Stüdyo / tek konu. */
   topicLabel?: string;
   questionCount?: number;
+  /** Öğrencinin seçtiği süre; 0 süresiz. Yoksa uzunluk seçeneğinin süresi. */
+  durationMinutes?: number;
 };
 
 export type CreateMockExamResult =
@@ -137,6 +139,7 @@ export async function createMockExam(input: CreateMockExamInput): Promise<Create
     blueprint.questionCount = input.questionCount;
     blueprint.allocation = allocateQuestions(slots, input.questionCount);
   }
+  if (input.durationMinutes != null) blueprint.durationMinutes = input.durationMinutes;
 
   const drafts: MockExamQuestionDraft[] = [];
   const allocation = blueprint.allocation.filter((a) => a.count > 0);

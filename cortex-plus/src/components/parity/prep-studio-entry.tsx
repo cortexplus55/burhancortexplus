@@ -32,7 +32,7 @@ export function PrepPodcastPicker({
   }
 
   return (
-    <section className="cp-studio" aria-label="Podcast oluştur">
+    <section className="cp-exam-page cp-studio" aria-label="Podcast oluştur">
       <h1>Podcast oluştur</h1>
       <div className="cp-studio-panel">
         <label className="cp-field">

@@ -6,7 +6,7 @@ import { ExamQuestionReviewClient } from "@/components/parity/exam-question-revi
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 
-export const metadata = { title: "Soru İnceleme · Cortex Plus" };
+export const metadata = { title: "Soru inceleme" };
 
 export default async function ExamQuestionReviewPage({
   params,

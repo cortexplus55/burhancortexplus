@@ -36,7 +36,7 @@ export default async function PrepPodcastPage({
       .eq("exam_prep_id", prepId)
       .order("sort_order");
     return (
-      <ParitySorShell {...shell}>
+      <ParitySorShell {...shell} chrome="focus" backHref={`/deneme-sinavlari/${prepId}`}>
         <PrepPodcastPicker
           prepId={prepId}
           topics={(topics ?? [])
