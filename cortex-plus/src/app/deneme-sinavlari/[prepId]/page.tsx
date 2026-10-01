@@ -152,9 +152,20 @@ export default async function ExamPrepDetailPage({
 
   // Paylaşım kolonları migration ile geliyor; yoksa düğme gizli kalır.
   const [{ data: profile }, { data: shareRow }] = await Promise.all([
-    supabase.from("profiles").select("school_id").eq("id", user.id).maybeSingle(),
-    supabase.from("exam_preps").select("visibility").eq("id", prepId).maybeSingle(),
+    supabase.from("profiles").select("school_id, school_name").eq("id", user.id).maybeSingle(),
+    supabase.from("exam_preps").select("visibility, view_count, forked_from").eq("id", prepId).maybeSingle(),
   ]);
+  // Okuldan katılınan hazırlıkta "Oluşturan" asıl sahibin ilk adı. Başkasının
+  // profili RLS'e takıldığı için servis anahtarıyla, yalnız ad okunur.
+  let creatorLabel = "Sen";
+  const forkedFrom = (shareRow as { forked_from?: string | null } | null)?.forked_from ?? null;
+  if (forkedFrom) {
+    const { data: source } = await service.from("exam_preps").select("user_id").eq("id", forkedFrom).maybeSingle();
+    const { data: owner } = source?.user_id
+      ? await service.from("profiles").select("full_name").eq("id", source.user_id as string).maybeSingle()
+      : { data: null };
+    creatorLabel = String(owner?.full_name ?? "").trim().split(/\s+/)[0] || "Okul arkadaşın";
+  }
 
   const prepTopics = await loadOrBackfillTopics(supabase, prep.id, prep.study_plan_id);
   const topicsMeter = topicProgress(prepTopics);
@@ -419,6 +430,10 @@ export default async function ExamPrepDetailPage({
         readinessClaim={learningTrackingView?.claimFullyReady ?? null}
         topicWarnings={await loadTopicWarnings(supabase, prepId)}
         progressView={progressView}
+        targetScore={typeof prep.target_score === "number" ? prep.target_score : null}
+        creatorLabel={creatorLabel}
+        schoolName={(profile as { school_name?: string | null } | null)?.school_name ?? null}
+        joinCount={Number((shareRow as { view_count?: number } | null)?.view_count ?? 0)}
       />
     </ParitySorShell>
   );

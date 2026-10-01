@@ -11461,3 +11461,125 @@ a.cp-exam-search {
   color: var(--cp-text);
   padding: 0 0.75rem;
 }
+
+/* Hazırlık menüsü: oluşturan / okul / katılım; Ayarlar'da ad, hedef, sil (1 Ekim 2026). */
+.cp-prep-sheet-owner {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-prep-sheet-owner strong {
+  color: var(--cp-text);
+}
+
+.cp-prep-basics {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.cp-prep-basics-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.85rem;
+}
+
+.cp-prep-basics-label {
+  flex: 0 0 100%;
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-prep-basics-row > strong {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cp-prep-basics-link {
+  border: 0;
+  background: transparent;
+  color: var(--c-action);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-prep-basics-edit {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.cp-prep-basics-edit input {
+  flex: 1 1 10rem;
+  min-height: 40px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.65rem;
+  background: var(--c-surface-1);
+  color: var(--cp-text);
+}
+
+.cp-prep-basics button:not(.cp-prep-basics-link):not(.cp-prep-basics-delete) {
+  min-height: 40px;
+  padding: 0 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--c-action);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-prep-basics button.is-ghost {
+  border: 1px solid var(--cp-border);
+  background: transparent;
+  color: var(--cp-text);
+}
+
+.cp-prep-basics button.is-danger {
+  background: var(--c-danger, #dc2626);
+}
+
+.cp-prep-basics button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cp-prep-basics-danger {
+  margin-top: 0.4rem;
+}
+
+.cp-prep-basics-delete {
+  border: 0;
+  background: transparent;
+  color: var(--c-danger, #ef4444);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-prep-basics-confirm {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--c-danger, #ef4444) 45%, transparent);
+  border-radius: 0.85rem;
+}
+
+.cp-prep-basics-confirm p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.cp-prep-basics-confirm div {
+  display: flex;
+  gap: 0.5rem;
+}
