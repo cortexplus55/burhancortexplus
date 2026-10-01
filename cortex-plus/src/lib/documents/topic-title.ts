@@ -103,6 +103,41 @@ export function topicTitleIssues(title: string): string[] {
   return issues;
 }
 
+const JUNK_SINGLE_WORDS = new Set([
+  "durum", "not", "notlar", "örnek", "özet", "soru", "sorular", "cevap", "cevaplar",
+  "çözüm", "çözümler", "test", "uyarı", "dikkat", "kpss", "yks", "tyt", "ayt", "lgs", "ales", "dgs",
+]);
+
+/**
+ * Belgeden gelse de konu olamayacak başlık.
+ *
+ * `topicTitleIssues` belgenin kendi başlığına uygulanmıyordu; 28 Eylül'de
+ * 211 sayfalık KPSS belgesinden 111 konu çıktı ve aralarında test soruları
+ * vardı: "Aşağıdakilerden hangisi ceza hukukunda "suçta", "Anayasası'nın
+ * değiştirilemeyecek hüküm-", "```plaintext", "maddeye göre", "KPSS",
+ * "KPSS Test 1", "Durum". Bunlar belgenin başlığı değil, sayfadaki soru ya da
+ * satır kırığıdır; sayfaları en yakın konuya bağlanır.
+ */
+export function isJunkTopicTitle(title: string): boolean {
+  const clean = title.trim();
+  if (!clean) return true;
+  if (/`|^#/.test(clean)) return true;
+  const lower = clean.toLocaleLowerCase("tr");
+  // Test sorusunun kökü.
+  if (/aşağıdaki|hangisi|hangi ikisi/.test(lower)) return true;
+  // Satır sonunda bölünmüş kelime ya da yarım kalmış cümle.
+  if (/\p{L}-$/u.test(clean) || /[,;:(]$/.test(clean)) return true;
+  // Açılıp kapanmayan tırnak: satırın ortasından kopmuş alıntı.
+  if ((clean.match(/["“”]/g) ?? []).length % 2 === 1) return true;
+  const words = clean.split(/\s+/).filter(Boolean);
+  // Küçük harfle başlayan kısa parça ("maddeye göre"). "pH", "mRNA" hariç.
+  if (/^\p{Ll}(?!\p{Lu})/u.test(clean) && words.length <= 3) return true;
+  // Yalnızca sınav etiketi ya da test numarası.
+  if (/^(?:(?:kpss|yks|tyt|ayt|lgs|ales|dgs)\s*)?test\s*\d+$/i.test(clean)) return true;
+  if (words.length === 1 && JUNK_SINGLE_WORDS.has(lower)) return true;
+  return false;
+}
+
 /** Üst düzey bölüm numarası: "3." evet, "2.3." ve "1)" adımı hayır. */
 const SUB_NUMBER = /^\s*\d+\.\d/;
 const NUMBERED_CHAPTER = /^\s*\d+\.\s+\S/;

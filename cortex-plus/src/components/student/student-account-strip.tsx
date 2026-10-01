@@ -36,7 +36,7 @@ export function StudentAccountStrip({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           {account.isPremium ? (
-            <span className="rounded-full bg-[var(--cs-primary)]/20 px-2.5 py-0.5 text-xs font-semibold text-[var(--cs-primary)]">
+            <span className="rounded-full bg-[color:color-mix(in_srgb,var(--cs-primary)_20%,transparent)] px-2.5 py-0.5 text-xs font-semibold text-[var(--cs-primary)]">
               {account.subscriptionBadge ?? "Plus"}
             </span>
           ) : (

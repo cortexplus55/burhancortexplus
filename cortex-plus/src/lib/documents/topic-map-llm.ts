@@ -10,6 +10,7 @@ import {
 } from "@/lib/documents/topic-map";
 import {
   isCalloutLabel,
+  isJunkTopicTitle,
   isProcedureStep,
   isRunningHeader,
   isSatelliteSection,
@@ -254,10 +255,15 @@ export async function buildTopicMapLLM(
 
   const contentNumbers = new Set(contentPages.map((page) => page.pageNumber));
 
-  const backbone = headingsToGuard(contentPages);
+  // Soru kökü ve satır kırığı belgenin başlığı değildir; omurgaya girerse
+  // bekçi o "bölümü" arar ve konu olarak geri ekler (KPSS, 28 Eylül 2026).
+  const backbone = headingsToGuard(contentPages).filter(
+    (heading) => !isJunkTopicTitle(normalizeTopicTitle(heading)),
+  );
   const sourcedTitles = new Set(backbone.map((heading) => fold(normalizeTopicTitle(heading))));
   const validTitle = (title: string) =>
-    topicTitleIssues(title).length === 0 || sourcedTitles.has(fold(title));
+    !isJunkTopicTitle(title) &&
+    (topicTitleIssues(title).length === 0 || sourcedTitles.has(fold(title)));
   // Tek sayfalık bağımsız bölümler de haritada kalır. Katlama katmanı aynı
   // sınırı uygular; modelin daha baştan bölüm atmasını istemeyiz.
   const ceiling = Math.max(topicCeiling(contentPages.length), backbone.length);

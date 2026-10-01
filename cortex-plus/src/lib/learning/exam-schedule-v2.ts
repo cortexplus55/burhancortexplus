@@ -60,7 +60,39 @@ export type ScheduleSession = {
   practiceVariant: number | null;
   /** Tek dosyada "pdf-12 s.1–3". Birden fazla dosyada boş. */
   sourceLabel: string | null;
+  /** Büyük konunun kaçıncı dersi (1'den). Tek dersli konuda yok. */
+  lessonPart?: number;
+  lessonParts?: number;
 };
+
+/**
+ * Bir dersin okuduğu sayfa sayısı.
+ *
+ * Ders kaynaktan en fazla 6.000 karakter okuyor, sayfa başına 2.200
+ * (`source-context.ts`). Ana konu 18 sayfaya çıkınca tek ders her sayfanın
+ * 300 karakterini görürdü. Ana konular 10–15'e toplandığından beri
+ * (30 Eylül 2026) büyük konu ardışık derslere bölünür: Astra'da da bir
+ * konunun birden fazla dersi var.
+ */
+export const LESSON_PAGE_SPAN = 3;
+
+/** Konunun sayfaları ders ders. 4 sayfaya kadar tek ders; tek sayfalık artık öncekine katılır. */
+export function lessonPageChunks(pageNumbers: number[]): number[][] {
+  const pages = [...new Set(pageNumbers)].sort((a, b) => a - b);
+  if (pages.length <= LESSON_PAGE_SPAN + 1) return [pages];
+  const chunks: number[][] = [];
+  for (let i = 0; i < pages.length; i += LESSON_PAGE_SPAN) {
+    chunks.push(pages.slice(i, i + LESSON_PAGE_SPAN));
+  }
+  const last = chunks[chunks.length - 1];
+  if (chunks.length > 1 && last.length === 1) {
+    chunks.pop();
+    chunks[chunks.length - 1].push(...last);
+  }
+  return chunks;
+}
+
+type LessonChunk = { pages: number[]; part: number; parts: number };
 
 export type ScheduleFitOption =
   | "increase_daily_time"
@@ -148,7 +180,9 @@ export function listStudyDayDates(
 
 export function estimateTopicMinutes(topic: ScheduleTopicInput): number {
   const pages = topic.pageNumbers?.length ?? 2;
-  const base = 25 + Math.min(40, pages * 4);
+  // Her ek ders için süre; tek dersli konuda formül değişmez.
+  const extraLessons = lessonPageChunks(topic.pageNumbers ?? []).length - 1;
+  const base = 25 + Math.min(40, pages * 4) + extraLessons * 15;
   const level = topic.measuredLevel ?? "unknown";
   const hardBoost = topic.selfHard ? 1.2 : 1;
   const weightBoost =
@@ -322,8 +356,13 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
   const dayBudget = studyDayDates.map(() => daily);
   const lastIdx = studyDayDates.length - 1;
 
-  const cite = (topic: ScheduleTopicInput) =>
-    sourceCitation(topic.sourceRefs, topic.pageNumbers ?? []);
+  const cite = (topic: ScheduleTopicInput, pages: number[] = topic.pageNumbers ?? []) =>
+    sourceCitation(topic.sourceRefs, pages);
+
+  const partFields = (chunk: LessonChunk | null) =>
+    chunk && chunk.parts > 1 ? { lessonPart: chunk.part, lessonParts: chunk.parts } : {};
+  const partObjective = (objective: string, chunk: LessonChunk | null) =>
+    chunk && chunk.parts > 1 ? `${objective} (${chunk.part}/${chunk.parts})` : objective;
 
   const place = (
     dayIndex: number,
@@ -331,26 +370,29 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
     role: ScheduleSessionRole,
     minutes: number,
     practiceVariant: number | null = null,
+    chunk: LessonChunk | null = null,
   ) => {
     const duration = Math.max(10, Math.min(dayBudget[dayIndex], minutes));
     if (duration < 10 || dayBudget[dayIndex] < 10) return false;
     dayBudget[dayIndex] -= duration;
-    const cited = cite(topic);
+    const pages = chunk ? chunk.pages : (topic.pageNumbers ?? []);
+    const cited = cite(topic, pages);
     const reason = practiceVariant == null ? null : practiceActivity(practiceVariant).reason;
-    const objective = objectiveFor(topic, role);
+    const objective = partObjective(objectiveFor(topic, role), chunk);
     sessions.push({
       dayIndex: dayIndex + 1,
       calendarDate: studyDayDates[dayIndex],
       topicId: topic.id,
       topicTitle: topic.title,
       objective: reason ? `${objective} ${reason}` : objective,
-      sourcePages: cited.omitBarePages ? [] : [...(topic.pageNumbers ?? [])],
+      sourcePages: cited.omitBarePages ? [] : [...pages],
       durationMinutes: duration,
       role,
       kind: ROLE_KIND[role],
       sortOrder: sortOrder++,
       practiceVariant,
       sourceLabel: cited.label,
+      ...partFields(chunk),
     });
     return true;
   };
@@ -381,52 +423,66 @@ export function buildExamScheduleV2(input: ScheduleBuildInput): ScheduleBuildRes
       Math.floor(topicIndex * spreadStep),
     );
 
+    // Büyük konu ardışık derslere bölünür; her ders bir öncekinden önceki
+    // bir güne konmaz. Tek dersli konuda bu döngü bir kez döner.
+    const chunks = lessonPageChunks(topic.pageNumbers ?? []);
+    const parts = chunks.length;
+    const lessonM = parts > 1 ? Math.max(MIN_TOPIC_MINUTES, Math.round(learnM / parts)) : learnM;
     let learnDay = -1;
-    const learnOrder: number[] = [];
-    const searchFrom = Math.max(preferredDay, earliestLearnDay);
-    for (let d = searchFrom; d < Math.max(0, lastIdx); d += 1) learnOrder.push(d);
+    let chunkFrom = Math.max(preferredDay, earliestLearnDay);
+    for (const [chunkIndex, chunkPages] of chunks.entries()) {
+      const chunk: LessonChunk | null =
+        parts > 1 ? { pages: chunkPages, part: chunkIndex + 1, parts } : null;
+      let chunkDay = -1;
+      const learnOrder: number[] = [];
+      for (let d = chunkFrom; d < Math.max(0, lastIdx); d += 1) learnOrder.push(d);
 
-    for (const d of learnOrder) {
-      if (dayBudget[d] >= learnM) {
-        if (place(d, topic, "learn", learnM)) {
-          learnDay = d;
-          break;
-        }
-      }
-    }
-    if (learnDay < 0) {
       for (const d of learnOrder) {
-        if (place(d, topic, "learn", Math.min(learnM, dayBudget[d]))) {
-          learnDay = d;
-          break;
+        if (dayBudget[d] >= lessonM) {
+          if (place(d, topic, "learn", lessonM, null, chunk)) {
+            chunkDay = d;
+            break;
+          }
         }
       }
-    }
-    if (learnDay < 0) {
-      // Günlük bütçeler tükendi. Konuyu plandan düşürmek yerine, önceki
-      // dersin gününden itibaren en boş güne taşıyoruz. O gün hedeflenen
-      // süreyi aşabilir; konu sınavda çıkacağı için planda görünür.
-      let target = Math.min(earliestLearnDay, Math.max(0, lastIdx - 1));
-      for (let d = target + 1; d < Math.max(1, lastIdx); d += 1) {
-        if (dayBudget[d] > dayBudget[target]) target = d;
+      if (chunkDay < 0) {
+        for (const d of learnOrder) {
+          if (place(d, topic, "learn", Math.min(lessonM, dayBudget[d]), null, chunk)) {
+            chunkDay = d;
+            break;
+          }
+        }
       }
-      const cited = cite(topic);
-      dayBudget[target] -= MIN_TOPIC_MINUTES;
-      sessions.push({
-        dayIndex: target + 1,
-        calendarDate: studyDayDates[target],
-        topicId: topic.id,
-        topicTitle: topic.title,
-        objective: objectiveFor(topic, "learn"),
-        sourcePages: cited.omitBarePages ? [] : [...(topic.pageNumbers ?? [])],
-        durationMinutes: MIN_TOPIC_MINUTES,
-        role: "learn",
-        kind: ROLE_KIND.learn,
-        sortOrder: sortOrder++,
-        practiceVariant: null,
-        sourceLabel: cited.label,
-      });
-      learnDay = target;
+      if (chunkDay < 0) {
+        // Günlük bütçeler tükendi. Konuyu plandan düşürmek yerine, önceki
+        // dersin gününden itibaren en boş güne taşıyoruz. O gün hedeflenen
+        // süreyi aşabilir; konu sınavda çıkacağı için planda görünür.
+        let target = Math.min(chunkFrom, Math.max(0, lastIdx - 1));
+        for (let d = target + 1; d < Math.max(1, lastIdx); d += 1) {
+          if (dayBudget[d] > dayBudget[target]) target = d;
+        }
+        const pages = chunk ? chunk.pages : (topic.pageNumbers ?? []);
+        const cited = cite(topic, pages);
+        dayBudget[target] -= MIN_TOPIC_MINUTES;
+        sessions.push({
+          dayIndex: target + 1,
+          calendarDate: studyDayDates[target],
+          topicId: topic.id,
+          topicTitle: topic.title,
+          objective: partObjective(objectiveFor(topic, "learn"), chunk),
+          sourcePages: cited.omitBarePages ? [] : [...pages],
+          durationMinutes: MIN_TOPIC_MINUTES,
+          role: "learn",
+          kind: ROLE_KIND.learn,
+          sortOrder: sortOrder++,
+          practiceVariant: null,
+          sourceLabel: cited.label,
+          ...partFields(chunk),
+        });
+        chunkDay = target;
+      }
+      learnDay = chunkDay;
+      chunkFrom = chunkDay;
     }
     earliestLearnDay = learnDay;
 
@@ -558,13 +614,14 @@ export function redistributeRemainingSchedule(input: {
    * Ölçü konu değil, KONU + ROL: bitirilen ders geri gelmez, o konunun
    * yapılmamış alıştırması ve tekrarı planda kalır.
    */
-  const doneTopicRoles = new Set(
-    keptCompleted.map((s) => `${s.topicId}:${s.role}`),
-  );
+  // Büyük konunun her dersi ayrı iş: birinci dersi bitiren öğrencinin
+  // ikinci dersi plandan düşmesin.
+  const doneKey = (s: ScheduleSession) => `${s.topicId}:${s.role}:${s.lessonPart ?? 0}`;
+  const doneTopicRoles = new Set(keptCompleted.map(doneKey));
   const merged = [
     ...keptCompleted,
     ...rebuilt.sessions
-      .filter((s) => !doneTopicRoles.has(`${s.topicId}:${s.role}`))
+      .filter((s) => !doneTopicRoles.has(doneKey(s)))
       .map((s, i) => ({
         ...s,
         sortOrder: completedMaxSort + 1 + i,
@@ -583,7 +640,9 @@ export function scheduleSessionsToNodeDrafts(sessions: ScheduleSession[]) {
     const practice = s.role === "practice" ? practiceActivity(s.practiceVariant ?? 0) : null;
     const label =
       s.role === "learn"
-        ? "Ders"
+        ? s.lessonPart && s.lessonParts && s.lessonParts > 1
+          ? `Ders ${s.lessonPart}/${s.lessonParts}`
+          : "Ders"
         : s.role === "practice"
           ? practice!.label
           : s.role === "review"
@@ -606,6 +665,7 @@ export function scheduleSessionsToNodeDrafts(sessions: ScheduleSession[]) {
         durationMinutes: s.durationMinutes,
         role: s.role,
         calendarDate: s.calendarDate,
+        ...(s.lessonPart && s.lessonParts ? { lessonPart: s.lessonPart, lessonParts: s.lessonParts } : {}),
       },
     };
   });

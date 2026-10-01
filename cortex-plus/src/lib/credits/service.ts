@@ -271,7 +271,11 @@ export type UsageCode =
   | "ADAPTIVE_DECISION_ESCALATION"
   | "ADAPTIVE_DECISION_FALLBACK"
   | "ADAPTIVE_ACTION_CONTENT"
-  | "ADAPTIVE_ANSWER_EVAL";
+  | "ADAPTIVE_ANSWER_EVAL"
+  /** Yeni sohbetin başlığı (0 kredi; küçük model, sohbet başına bir kez). */
+  | "CHAT_TITLE"
+  /** Uzun belgenin alt başlıklarını ana konulara toplama (0 kredi, belge başına bir kez). */
+  | "TOPIC_MAP_GROUP";
 
 export async function recordUsage(
   service: SupabaseClient,
