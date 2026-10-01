@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, type ComponentProps } from "react";
+import { useLearningTimer } from "@/components/learning/use-learning-timer";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -374,6 +375,8 @@ function ChatPanelSession({
   const isParity = variant === "parity";
   const isMinimalSor = isParity && composerMode === "minimal";
   const isParitySor = isParity && composerMode === "parity";
+  // Aktif sohbet süresi Aktivitelerim'e yazılır; ders seçici yoksa ders adı boş.
+  useLearningTimer("chat", showSubjectPicker ? subject : null, messages.length > 0);
 
   const sorChatActive = isMinimalSor && (messages.length > 0 || loading);
 

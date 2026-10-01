@@ -35,7 +35,7 @@ export default async function ExamNodePage({
   const [{ data: prep }, { data: node }] = await Promise.all([
     supabase
       .from("exam_preps")
-      .select("id, title, active_topic_id, intro_completed_at, intro_deferred_at, document_id, learning_preferences")
+      .select("id, title, exam_type, active_topic_id, intro_completed_at, intro_deferred_at, document_id, learning_preferences")
       .eq("id", prepId)
       .eq("user_id", user.id)
       .maybeSingle(),
@@ -128,6 +128,7 @@ export default async function ExamNodePage({
         sourceName={sourceName}
         oralTopics={oralTopics}
         language={prepLanguage(prep.learning_preferences)}
+        subject={(prep.exam_type as string | null) ?? null}
       />
     </ParitySorShell>
   );

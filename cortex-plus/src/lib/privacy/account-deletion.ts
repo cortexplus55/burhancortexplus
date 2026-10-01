@@ -10,7 +10,7 @@ const USER_CONTENT_TABLES = [
   "flashcard_reviews", "flashcard_sets", "messages", "conversations",
   "study_plans", "learning_goals", "mistake_entries", "daily_drills",
   "calendar_events", "notifications", "user_progress", "mastery_scores",
-  "weak_topics", "study_session_moods", "user_streaks", "user_activity_days",
+  "weak_topics", "study_session_moods", "user_streaks", "user_activity_days", "learning_time",
   "classroom_posts", "user_apps", "lab_app_plays", "lab_app_ratings", "lab_puzzle_runs",
   "teacher_applications", "teacher_verifications", "teacher_usage",
   "support_requests", "email_events", "ai_usage_events", "ai_validation_events",
