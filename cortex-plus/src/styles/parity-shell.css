@@ -11208,3 +11208,71 @@ html[data-readable="1"] main li {
 .cp-sor-composer-zone .cp-sor-source-mode {
   background: var(--c-surface-2);
 }
+
+/* "Sınav hazırlıklarında ara" — Astra'daki arama sayfası (1 Ekim 2026). */
+a.cp-exam-search {
+  text-decoration: none;
+}
+
+.cp-psearch {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.cp-psearch-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.cp-psearch-head h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.cp-psearch-input {
+  flex: none;
+}
+
+.cp-psearch-title {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.cp-psearch-owners {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0 0 0.25rem;
+  overflow-x: auto;
+  list-style: none;
+}
+
+.cp-psearch-owner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 4rem;
+  padding: 0.35rem;
+  border: 1px solid transparent;
+  border-radius: 0.85rem;
+  background: transparent;
+  color: var(--cp-text);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.cp-psearch-owner .cp-school-avatar {
+  width: 2.75rem;
+  height: 2.75rem;
+  font-size: 1.05rem;
+}
+
+.cp-psearch-owner.is-on {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 10%, transparent);
+}
