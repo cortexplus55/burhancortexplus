@@ -25,14 +25,14 @@ export function PrepPodcastPicker({
 
   if (!topics.length) {
     return (
-      <section className="cp-studio" aria-label="Podcast oluştur">
+      <section className="cp-exam-page cp-studio-page" aria-label="Podcast oluştur">
         <p>Podcast için önce bir konu gerekli.</p>
       </section>
     );
   }
 
   return (
-    <section className="cp-exam-page cp-studio" aria-label="Podcast oluştur">
+    <section className="cp-exam-page cp-studio-page" aria-label="Podcast oluştur">
       <h1>Podcast oluştur</h1>
       <div className="cp-studio-panel">
         <label className="cp-field">

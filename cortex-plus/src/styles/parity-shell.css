@@ -11444,3 +11444,20 @@ a.cp-exam-search {
   font-size: 0.875rem;
   color: var(--cp-muted);
 }
+
+/*
+  Podcast oluşturma sayfası: ortalı ve dar. .cp-studio kendi kenar boşluğunu
+  yazdığı için .cp-exam-page ile aynı öğede ortalama eziliyordu (1 Ekim 2026).
+*/
+.cp-studio-page {
+  max-width: min(40rem, 100%);
+}
+
+.cp-studio-page .cp-field select {
+  min-height: 44px;
+  border-radius: 0.75rem;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-1);
+  color: var(--cp-text);
+  padding: 0 0.75rem;
+}
