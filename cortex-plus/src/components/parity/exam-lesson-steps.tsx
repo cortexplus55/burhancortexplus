@@ -256,8 +256,12 @@ function buildSteps(lesson: PlayLesson): Step[] {
   const steps: Step[] = [];
   const overview = (lesson.overview ?? "").trim();
   const firstBody = lesson.sections[0]?.body ?? "";
-  if (overview && !overviewDuplicatesSection(overview, firstBody)) {
-    steps.push({ kind: "overview", heading: lesson.title, body: overview });
+  // Astra gibi giriş kartı (1 Ekim 2026): ders her zaman bir planla açılır —
+  // okuma süresi, adım sayısı, bölüm başlıkları. Özet ilk bölümü tekrar
+  // ediyorsa kanca cümlesi boş kalır, kart yine gösterilir.
+  const hook = overview && !overviewDuplicatesSection(overview, firstBody) ? overview : "";
+  if (hook || planHeadings(lesson).length >= 2) {
+    steps.push({ kind: "overview", heading: lesson.title, body: hook });
   }
   steps.push(
     ...lesson.sections.map((s, sectionIndex): Step => {
@@ -388,6 +392,39 @@ function buildSteps(lesson: PlayLesson): Step[] {
     steps.push({ kind: "overview", heading: lesson.title, body: lesson.sections[0]?.body ?? "" });
   }
   return steps;
+}
+
+/** Bölüm başlıkları, tekrar etmeden. Ekrana yayılan kavram aynı başlığı taşır. */
+function planHeadings(lesson: PlayLesson): string[] {
+  return lesson.sections
+    .map((section) => section.heading.trim())
+    .filter((heading, index, all) => heading && all.indexOf(heading) === index);
+}
+
+/** Giriş kartındaki "Bu derste neler var" listesi. */
+function LessonPlan({ lesson }: { lesson: PlayLesson }) {
+  const headings = planHeadings(lesson);
+  if (headings.length < 2) return null;
+  const checks = lesson.sections.filter((section) => section.check).length;
+  return (
+    <section className="als-intro-plan" aria-label="Bu derste neler var">
+      <h2>Bu derste neler var</h2>
+      <ol>
+        {headings.map((heading, index) => (
+          <li key={heading}>
+            <span aria-hidden>{index + 1}</span>
+            {heading}
+          </li>
+        ))}
+      </ol>
+      {checks ? (
+        <p className="als-intro-end">
+          {checks === 1 ? "Arada 1 kısa soru" : `Arada ${checks} kısa soru`}
+          {lesson.summary?.length ? ", sonunda özet" : ""}
+        </p>
+      ) : null}
+    </section>
+  );
 }
 
 function progressLabel(
@@ -790,11 +827,19 @@ export function ExamLessonSteps({
 
       {step.kind !== "review-gate" ? (
         <div className={step.kind === "overview" || step.kind === "section" ? "als-slide" : undefined}>
+          {step.kind === "overview" ? (
+            <p className="als-intro-meta">
+              <span className="als-intro-tag">Ders</span>
+              yaklaşık {honestReadingMinutes(lesson as LessonV2)} dk okuma · {base.length} adım
+            </p>
+          ) : null}
           <h1 className="als-heading">{step.heading}</h1>
+
+          {step.kind === "overview" ? <LessonPlan lesson={lesson} /> : null}
 
           {step.kind === "overview" || step.kind === "section" ? (
             <>
-              <BoardBody text={step.body}  topicHint={mathTopicHint} />
+              {step.body ? <BoardBody text={step.body}  topicHint={mathTopicHint} /> : null}
               {bodyHasRemovalNote(step.body) ? (
                 <p className="als-removed" role="status" title="Materyalinle doğrulanamayan kısımları göstermedik.">
                   <Info className="h-3.5 w-3.5" aria-hidden />
