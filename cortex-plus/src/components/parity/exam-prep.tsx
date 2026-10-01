@@ -28,6 +28,10 @@ export type ExamPrepCard = {
   topicsTotal: number;
   targetScore: number | null;
   continueHref: string;
+  /** Sınav günü geçti ("Geçmiş" sekmesi). */
+  past?: boolean;
+  /** Okulda paylaşıldıysa katılım sayısı. */
+  joinCount?: number;
 };
 
 /** Astra'daki üç sekme: Okulum / Müfredatım / Resmî sınavlar. */
@@ -152,7 +156,10 @@ export function ParityExamPrep({
       {cards.length ? (
         <section className="cp-prep-row-section" aria-labelledby="my-preps-title">
           <h1 id="my-preps-title" className="cp-prep-row-title">
-            Sınav hazırlıklarım <ChevronRight className="h-4 w-4" aria-hidden />
+            {/* Astra gibi: başlık bütün hazırlıkların sayfasını açar. */}
+            <Link href="/deneme-sinavlari/hazirliklarim">
+              Sınav hazırlıklarım <ChevronRight className="h-4 w-4" aria-hidden />
+            </Link>
           </h1>
           <div className="cp-prep-row">
             {cards.map((card, index) => (
@@ -340,7 +347,7 @@ export function ParityExamPrep({
 }
 
 /** Astra'nın hazırlık kartı: başlık, hedef işaretli çubuk, yüzde, tarih, konu, Devam et. */
-function PrepCard({ card, showTargetLabel }: { card: ExamPrepCard; showTargetLabel: boolean }) {
+export function PrepCard({ card, showTargetLabel }: { card: ExamPrepCard; showTargetLabel: boolean }) {
   const target =
     card.targetScore != null && card.targetScore > 0 && card.targetScore <= 100
       ? Math.min(100, Math.max(8, card.targetScore))
