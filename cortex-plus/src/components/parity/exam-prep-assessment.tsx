@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatDayLong } from "@/lib/format";
 import type { LearningTrackingView } from "@/components/parity/exam-prep-home";
 
 export type TopicMasteryRow = {
@@ -59,7 +60,7 @@ export function ExamPrepAssessment({
         <h1>Sınav öncesi genel değerlendirme</h1>
         <p className="text-sm text-[var(--cp-muted)]">
           {title}
-          {examDate ? ` · sınav ${examDate}` : ""}
+          {examDate ? ` · sınav ${formatDayLong(examDate)}` : ""}
           {daysLeft != null ? ` · ${daysLeft} gün` : ""}
         </p>
       </header>

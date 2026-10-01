@@ -55,6 +55,22 @@ export function formatDateShort(value: string | Date | null | undefined) {
   }).format(date);
 }
 
+/**
+ * Gün tarihi: "2026-10-12" → "12 Ekim 2026". Saatsiz tarih öğlen UTC'ye
+ * oturtulur: hangi saat diliminde okunursa okunsun aynı gün çıksın.
+ */
+export function formatDayLong(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00Z` : value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("tr-TR", {
+    timeZone: "Europe/Istanbul",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
 export function formatNumber(value: number) {
   return new Intl.NumberFormat("tr-TR").format(value);
 }
