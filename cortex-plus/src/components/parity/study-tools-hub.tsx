@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { useState } from "react";
 import {
   BookOpen,
@@ -24,6 +25,7 @@ import {
   STUDY_TOOL_GROUPS,
   openStudyActivity,
   recommendedStudyTool,
+  studyToolLock,
   type StudyToolGroup,
   studyActivityHref,
   studyPodcastHref,
@@ -58,9 +60,12 @@ export function StudyToolsHub({
   topicLabel,
   onTopic,
   onClose,
+  openMisconceptions = 0,
 }: {
   prepId: string;
   nodes: StudyNodeRef[];
+  /** Açık yanılgı sayısı: Bilgi boşlukları kilidini açar. */
+  openMisconceptions?: number;
   topics: string[];
   /** exam_prep_topics kimliği. Yoksa podcast seçicisi kendi listesini açar. */
   topicOptions?: { id: string; label: string }[];
@@ -124,8 +129,10 @@ export function StudyToolsHub({
         <ul className="cp-study-hub-grid">
           {STUDY_TOOLS.filter((tool) => tool.group === group).map((tool) => {
             const Icon = TOOL_ICONS[tool.id];
-            const href =
-              tool.id === "podcast"
+            const lock = studyToolLock(tool.id, { nodes, openMisconceptions });
+            const href = lock
+              ? null
+              : tool.id === "podcast"
                 ? studyPodcastHref(prepId, topicLabel, topicOptions)
                 : (() => {
                     const target = openStudyActivity(nodes, tool.id, { label: topicLabel });
@@ -139,8 +146,8 @@ export function StudyToolsHub({
                   <Icon className="h-5 w-5" />
                 </span>
                 {recommended?.id === tool.id ? <span className="cp-study-hub-badge">Önerilen</span> : null}
-                <strong>{tool.title}</strong>
-                <em>{href ? tool.blurb : "Bu konuda yok"}</em>
+                <strong>{lock ? `🔒 ${tool.title}` : tool.title}</strong>
+                <em>{lock ?? (href ? tool.blurb : "Bu konuda yok")}</em>
               </>
             );
             return (
@@ -150,7 +157,7 @@ export function StudyToolsHub({
                     {body}
                   </Link>
                 ) : (
-                  <span className="cp-study-hub-tile is-off" aria-disabled="true">
+                  <span className={cn("cp-study-hub-tile is-off", lock && "is-locked")} aria-disabled="true">
                     {body}
                   </span>
                 )}
