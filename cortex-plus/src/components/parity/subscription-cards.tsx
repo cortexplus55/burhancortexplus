@@ -290,7 +290,7 @@ export function SubscriptionCards({
         <div className="relative overflow-hidden rounded-2xl border border-[var(--cs-border)] bg-[var(--cs-surface)] shadow-[0_20px_60px_-40px_rgba(0,0,0,0.45)]">
           {!iframeReady ? (
             <div
-              className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--cs-surface)]/95"
+              className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[color:color-mix(in_srgb,var(--cs-surface)_95%,transparent)]"
               aria-busy="true"
               aria-live="polite"
             >
@@ -601,7 +601,7 @@ export function SubscriptionCards({
         {sigmaUnderFold && !otherPlansOpen ? (
           <button
             type="button"
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--cs-border)] bg-[var(--cs-surface)] py-3.5 text-sm font-medium text-[var(--cs-muted)] transition-colors hover:border-[var(--cs-primary)]/40 hover:text-[var(--cs-text)]"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--cs-border)] bg-[var(--cs-surface)] py-3.5 text-sm font-medium text-[var(--cs-muted)] transition-colors hover:border-[color:color-mix(in_srgb,var(--cs-primary)_40%,transparent)] hover:text-[var(--cs-text)]"
             onClick={() => setOtherPlansOpen(true)}
           >
             Diğer planlar · Sigma

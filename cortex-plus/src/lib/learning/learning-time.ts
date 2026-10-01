@@ -14,8 +14,9 @@ export const TUTOR_TL_PER_HOUR = 500;
 
 export type LearningTimeRow = { activity_date: string; subject: string; seconds: number };
 
+/** Aşağı yuvarlanır: 0 dakikaya "1 ₺" yazmasın. */
 export function savingsTl(seconds: number): number {
-  return Math.round((Math.max(0, seconds) / 3600) * TUTOR_TL_PER_HOUR);
+  return Math.floor((Math.max(0, seconds) / 3600) * TUTOR_TL_PER_HOUR);
 }
 
 /** "2 sa 47 dk", "35 dk", "0 dk". */

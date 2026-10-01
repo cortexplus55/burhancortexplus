@@ -44,9 +44,14 @@ export function LearningTimeCard({ rows, today }: { rows: LearningTimeRow[]; tod
               return (
                 <div key={day.date} role="listitem" className="flex min-w-0 flex-1 flex-col items-center gap-1">
                   <span className="text-[10px] text-[var(--cs-muted)]">{day.minutes ? `${day.minutes} dk` : ""}</span>
+                  {/* Renk satır içi: "bg-[var(--cs-primary)]/80" sınıfı üretilmedi,
+                      çubuklar canlıda şeffaftı (1 Ekim 2026). */}
                   <div
-                    className="w-full rounded-md bg-[var(--cs-primary)]/80"
-                    style={{ height: `${Math.max(day.minutes ? 6 : 2, Math.round((day.minutes / peak) * 96))}px` }}
+                    className="w-full rounded-md"
+                    style={{
+                      height: `${Math.max(day.minutes ? 6 : 2, Math.round((day.minutes / peak) * 96))}px`,
+                      backgroundColor: day.minutes ? "var(--cs-primary)" : "rgba(255, 255, 255, 0.08)",
+                    }}
                     aria-hidden
                   />
                   <span className="text-[10px] text-[var(--cs-muted)]">

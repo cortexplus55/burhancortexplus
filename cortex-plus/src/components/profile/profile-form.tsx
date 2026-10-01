@@ -57,7 +57,7 @@ export function ProfileForm({
               className={cn(
                 "flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm",
                 selectedStyle === option.id
-                  ? "border-[var(--cs-primary)] bg-[var(--cs-primary)]/10"
+                  ? "border-[var(--cs-primary)] bg-[color:color-mix(in_srgb,var(--cs-primary)_10%,transparent)]"
                   : "border-[var(--cs-border)]",
               )}
             >
