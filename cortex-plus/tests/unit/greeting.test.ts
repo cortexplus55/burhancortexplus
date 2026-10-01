@@ -32,3 +32,13 @@ describe("timeGreeting", () => {
     expect(timeGreeting(at(23))).toBe("İyi geceler");
   });
 });
+
+describe("parityTimeGreeting (ana sayfa, sunucuda)", () => {
+  it("sunucu UTC'de çalışsa da Türkiye saatine göre selamlar", async () => {
+    const { parityTimeGreeting } = await import("@/components/parity/app-utils");
+    // 04:40 UTC = 07:40 TRT — canlıda "iyi geceler" yazıyordu.
+    expect(parityTimeGreeting(new Date("2026-09-30T04:40:00Z"))).toBe("Günaydın");
+    expect(parityTimeGreeting(new Date("2026-09-30T20:30:00Z"))).toBe("İyi geceler");
+    expect(parityTimeGreeting(new Date("2026-09-30T12:00:00Z"))).toBe("İyi günler");
+  });
+});

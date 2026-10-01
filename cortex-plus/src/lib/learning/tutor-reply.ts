@@ -128,14 +128,31 @@ export function stripOutsideLabel(text: string): string {
     .trim();
 }
 
+const ANSWER_LABEL = /^Sadece cevap:\s*/i;
+
+/**
+ * İlk cümle, en fazla 80 harf, kelime ortasından kesilmeden. Canlıda model
+ * cevabı kalın yazmayınca ilk satır "Sadece cevap: …" ile başlıyordu ve
+ * 80. harfte kesiliyordu: "Sadece cevap: Sadece cevap: … yer almıyo."
+ * (30 Eylül 2026).
+ */
+function firstSentence(line: string): string {
+  const sentence = line.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? line;
+  if (sentence.length <= 80) return sentence;
+  const cut = sentence.slice(0, 80);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > 40 ? cut.slice(0, space) : cut).replace(/[,;:\s]+$/, "")}…`;
+}
+
 function shortAnswer(text: string): string | null {
   const mol = text.match(/(\d+(?:[.,]\d+)?)\s*mol\b/i);
   if (mol) return `${mol[1].replace(".", ",")} mol`;
   const bold = text.match(/\*\*([^*]{1,80})\*\*/);
-  if (bold && bold[1].length < 60) return bold[1].replace(/^Sadece cevap:\s*/i, "").trim();
+  if (bold && bold[1].length < 60) return bold[1].replace(ANSWER_LABEL, "").trim();
   const line = text.split(/\n/).map((item) => item.trim()).find(Boolean);
   if (!line) return null;
-  return line.replace(/^[*#\s]+|[*#\s]+$/g, "").slice(0, 80);
+  const plain = line.replace(/^[*#\s]+|[*#\s]+$/g, "").replace(ANSWER_LABEL, "").trim();
+  return plain ? firstSentence(plain) : null;
 }
 
 const DEFAULT_QUICK_FOLLOW = "İstersen aynı tipte bir soru da çözelim mi?";
@@ -146,9 +163,10 @@ export function shapeAnswerOnly(text: string, followUp?: string): string {
   const answer = shortAnswer(cleaned) ?? "—";
   const steps = cleaned
     .replace(/\*\*Sadece cevap:[^*]*\*\*/i, "")
+    .replace(/^\s*Sadece cevap:[^\n]*\n?/i, "")
     .replace(/\[\[takip:[^\]]+\]\]/g, "")
     .trim();
-  const body = `**Sadece cevap: ${answer}.**`;
+  const body = `**Sadece cevap: ${answer}${/[.!?…]$/.test(answer) ? "" : "."}**`;
   const follow = followUp?.trim() || DEFAULT_QUICK_FOLLOW;
   const followMarker = `[[takip:${follow.replace(/[\]|]/g, " ")}]]`;
   if (!steps || steps.length < 12 || foldSame(steps, answer)) {

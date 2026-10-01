@@ -150,6 +150,19 @@ export function selectModel(input: ModelRouterInput): ModelRoute {
     };
   }
 
+  /*
+    Ücretsiz hesabın test taslağı, ücretsiz dersinki gibi gpt-4.1-mini.
+
+    gpt-4o-mini aynı trigonometri istemiyle 24 sorudan 3'ünü doğrulayıcıdan
+    geçirebildi; gpt-4.1-mini 14'ünü (30 Eylül 2026, düello). Elenenler
+    çözülemeyen ("c=10, A=30° ise sin B?") ya da aynı şıkkı iki kez yazan
+    sorulardı: doğrulayıcı haklıydı, taslak zayıftı. Tanışma testi ve düğüm
+    testleri de bu yoldan geçiyor. Kredi değişmiyor — modeli biz seçiyoruz.
+  */
+  if (input.actionCode === "QUIZ_GENERATE") {
+    return { model: env.OPENAI_LESSON_FREE_MODEL, actionCode: input.actionCode, upgrade: null };
+  }
+
   const standardMap: Partial<Record<ActionCode, ActionCode>> = {
     AI_CHAT_ADVANCED: "AI_CHAT_STANDARD",
   };

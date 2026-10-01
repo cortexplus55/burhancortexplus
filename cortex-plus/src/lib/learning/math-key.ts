@@ -282,6 +282,113 @@ function equationPairs(sentence: string): [Reading, Reading][] {
   return pairs;
 }
 
+/*
+  Ters trigonometri: "kosinüs değeri 0 olan açı hangisi?" Şıklar açıysa her
+  şıkkın fonksiyon değeri hesaplanır. Canlı düelloda 90° ile 270° aynı
+  soruda şıktı; ikisi de doğruydu (30 Eylül 2026). Tek fonksiyon, tek hedef
+  değer ister. Kökte aralık varsa ("0° ≤ x < 360°", "[0, 2π)", "0° ile 180°
+  arasında") yalnızca aralıktaki şıklar sayılır; "arasında" uçları belirsiz
+  bıraktığı için uçlar dahil sayılır — iki şık tutarsa soru zaten belirsizdir.
+  Canlıda "(0° ≤ x < 360°)" ile 240° ve 300° aynı soruda doğruydu. Aralık
+  okunamazsa ya da kökte başka sayı kalırsa hüküm yok.
+*/
+const INVERSE_FN = /(?<!\p{L})(kotanjant|kosinüs|tanjant|sinüs|cot|cos|tan|sin)(?!\p{L})/giu;
+const INVERSE_TARGET = /(?:=|(?<!\p{L})değer(?:i|inin)?(?!\p{L}))\s*([-−]?[\d√π][\d√π/.,]*)/u;
+const INVERSE_CODE: Record<string, "S" | "C" | "T" | "K"> = {
+  sin: "S", sinüs: "S", cos: "C", kosinüs: "C", tan: "T", tanjant: "T", cot: "K", kotanjant: "K",
+};
+
+const ANGLE = String.raw`[-−]?[\dπ][\dπ/.,]*°?`;
+const RANGE_PATTERNS: { re: RegExp; read: (m: RegExpMatchArray) => [string, boolean, string, boolean] }[] = [
+  {
+    // 0° ≤ x < 360°
+    re: new RegExp(String.raw`(${ANGLE})\s*(≤|<=|<)\s*\p{L}+\s*(≤|<=|<)\s*(${ANGLE})`, "u"),
+    read: (m) => [m[1], m[2] !== "<", m[4], m[3] !== "<"],
+  },
+  {
+    // [0, 2π)
+    re: new RegExp(String.raw`([[(])\s*(${ANGLE})\s*[,;]\s*(${ANGLE})\s*([\])])`, "u"),
+    read: (m) => [m[2], m[1] === "[", m[3], m[4] === "]"],
+  },
+  {
+    // 0° ile 180° arasında
+    re: new RegExp(String.raw`(${ANGLE})\s*(?:ile|-|–)\s*(${ANGLE})\s*(?:arasında|arasındaki|aralığında)`, "u"),
+    read: (m) => [m[1], true, m[2], true],
+  },
+];
+
+type AngleRange = { low: number; lowIn: boolean; high: number; highIn: boolean; start: number; end: number };
+
+/** undefined: aralık yok. null: aralık var ama okunamadı. */
+function rangeIn(prompt: string): AngleRange | null | undefined {
+  for (const pattern of RANGE_PATTERNS) {
+    const match = prompt.match(pattern.re);
+    if (!match || match.index == null) continue;
+    const [lowText, lowIn, highText, highIn] = pattern.read(match);
+    // Yalnız başına 0 her birimde sıfırdır: "[0, 2π)".
+    const low = /^0$/.test(lowText.trim()) ? 0 : angleRadians(lowText);
+    const high = angleRadians(highText);
+    if (low == null || high == null || low >= high) return null;
+    return { low, lowIn, high, highIn, start: match.index, end: match.index + match[0].length };
+  }
+  return undefined;
+}
+
+function angleRadians(option: string): number | null {
+  const trimmed = option.trim().replace(/[.;:?!]+$/g, "").trim();
+  if (!trimmed || /\p{L}/u.test(trimmed.replace(/π/g, ""))) return null;
+  let parsed: Value | null = null;
+  try {
+    parsed = new Parser(normalize(trimmed)).parse();
+  } catch {
+    return null;
+  }
+  if (!parsed || (!parsed.degrees && !parsed.hasPi)) return null;
+  return parsed.degrees ? (parsed.value * Math.PI) / 180 : parsed.value;
+}
+
+/** Hedef değeri veren şıkların sırası; hüküm yoksa null. */
+function inverseTrigMatches(check: KeyedCheck): number[] | null {
+  if (!check.options || check.options.length < 2) return null;
+  const names = new Set([...check.prompt.matchAll(INVERSE_FN)].map((match) => INVERSE_CODE[match[1].toLowerCase()]));
+  if (names.size !== 1) return null;
+  const fn = [...names][0];
+  const target = check.prompt.match(INVERSE_TARGET);
+  if (!target || target.index == null) return null;
+  const range = rangeIn(check.prompt);
+  if (range === null) return null;
+  const cuts = [[target.index, target.index + target[0].length], ...(range ? [[range.start, range.end]] : [])];
+  const rest = [...check.prompt]
+    .map((char, at) => (cuts.some(([from, to]) => at >= from && at < to) ? " " : char))
+    .join("");
+  if (/[\dπ]/.test(rest)) return null;
+  const expected = read(target[1]);
+  if (!expected) return null;
+  const angles = check.options.map(angleRadians);
+  if (angles.some((angle) => angle == null)) return null;
+  const valueAt = (radians: number): number | null => {
+    const sin = Math.sin(radians);
+    const cos = Math.cos(radians);
+    if (fn === "S") return sin;
+    if (fn === "C") return cos;
+    if (fn === "T") return Math.abs(cos) < 1e-12 ? null : sin / cos;
+    return Math.abs(sin) < 1e-12 ? null : cos / sin;
+  };
+  const inRange = (angle: number) => {
+    if (!range) return true;
+    const eps = 1e-9;
+    const aboveLow = range.lowIn ? angle >= range.low - eps : angle > range.low + eps;
+    const belowHigh = range.highIn ? angle <= range.high + eps : angle < range.high - eps;
+    return aboveLow && belowHigh;
+  };
+  return angles.flatMap((angle, index) => {
+    if (!inRange(angle as number)) return [];
+    const value = valueAt(angle as number);
+    if (value == null) return [];
+    return expected.values.some((wanted) => Math.abs(value - wanted) <= 1e-9 * Math.max(1, Math.abs(wanted))) ? [index] : [];
+  });
+}
+
 /**
  * true: anahtar hesapla çelişiyor. false: uyuşuyor. null: hüküm yok.
  * Soruda tek hesap parçası olmalı ve o parçanın dışında sayı olmamalı
@@ -298,6 +405,9 @@ export function mathKeyWrong(check: KeyedCheck): boolean | null {
     if (trueIndex < 0) return null;
     return (check.answerIndex === trueIndex) !== holds;
   }
+  // İki şık tutuyorsa anahtar değil soru bozuk: mathOptionsAmbiguous yakalar.
+  const inverse = inverseTrigMatches(check);
+  if (inverse?.length === 1 && check.answerIndex != null) return inverse[0] !== check.answerIndex;
   const spans = spansOf(check.prompt);
   if (!spans) return null;
   const computations = spans.filter((span) => isComputation(span.text));
@@ -335,6 +445,7 @@ export function mathKeyWrong(check: KeyedCheck): boolean | null {
  */
 export function mathOptionsAmbiguous(check: KeyedCheck): boolean {
   if (!check.options || check.options.length < 2) return false;
+  if ((inverseTrigMatches(check)?.length ?? 0) >= 2) return true;
   const readings = check.options.map((option) => read(option));
   const ordered = ORDER_CUE.test(check.prompt);
   const key = check.answerIndex != null && check.answerIndex >= 0 && check.answerIndex < check.options.length

@@ -4,6 +4,7 @@ import {
   DUEL_QUESTIONS,
   DUEL_RULES,
   cleanDisplayName,
+  duelRules,
   duelCode,
   publicQuestions,
   questionPoints,
@@ -19,6 +20,8 @@ describe("düello (Astra kuralları, 30 Eylül 2026)", () => {
     expect(DUEL_RULES[0]).toBe("Her biri için 20 saniyede 7 soru yanıtla.");
     expect(DUEL_RULES[1]).toMatch(/10 puan.*en fazla 5 ek puan.*ikiye katlanır/);
     expect(DUEL_RULES[2]).toMatch(/hesap gerekmiyor/);
+    // Doğrulamadan 7'den az soru geçerse kural gerçek sayıyı söyler.
+    expect(duelRules(5)[0]).toBe("Her biri için 20 saniyede 5 soru yanıtla.");
   });
 
   it("puan: doğru 10 + hız bonusu (0–5), süre dolunca 0, son soru ×2", () => {
@@ -76,10 +79,33 @@ describe("düello (Astra kuralları, 30 Eylül 2026)", () => {
     expect(create.indexOf('from("prep_duels").select("id").limit(1)')).toBeLessThan(
       create.indexOf("generateExamQuiz({"),
     );
+    // Hak yalnızca düello kurulunca düşer; kurulamazsa iade edilir.
+    expect(create).toContain("deferCommit: true");
+    // 8 adaydan 7 sağlam soru çıkmıyordu; düello 12 aday istiyor.
+    expect(create).toContain("maxQuestions: DUEL_CANDIDATES");
+    // Düello gerekçeyi göstermiyor; gerekçe kapısı soruyu düşürmesin.
+    expect(create).toContain("hiddenRationale: true");
+    // "Kosinüs teoreminin amacı nedir?" gibi iki doğrulu soru canlıya çıktı.
+    expect(create).toMatch(/yoruma açık soru yazma/);
+    expect(create.indexOf("commitCredits(service, reservationId)")).toBeGreaterThan(
+      create.indexOf('from("prep_duels").insert('),
+    );
+    expect(create.split("refundCredits(service, reservationId)").length - 1).toBe(2);
     const run = readFileSync("src/app/api/duels/[code]/run/route.ts", "utf8");
     expect(run).toContain('guestLimit(request, { scope: "duel-run"');
     expect(run).toContain("scoreDuel(questions, parsed.data.answers)");
     const page = readFileSync("src/app/duello/[code]/page.tsx", "utf8");
     expect(page).toContain("questions={publicQuestions(questions)}");
+  });
+  it("ayrıştırıcı varsayılan 8 soru tutar, düello için 12 alabilir", async () => {
+    const { parseQuizQuestions } = await import("@/lib/learning/exam-quiz");
+    const questions = Array.from({ length: 12 }, (_, i) => ({
+      text: `Soru ${i + 1}: 2 + ${i} kaçtır?`,
+      options: [`${2 + i}`, `${3 + i}`, `${4 + i}`, `${5 + i}`],
+      correct: `${2 + i}`,
+      multi: false,
+    }));
+    expect(parseQuizQuestions({ questions })?.length).toBe(8);
+    expect(parseQuizQuestions({ questions }, 12)?.length).toBe(12);
   });
 });

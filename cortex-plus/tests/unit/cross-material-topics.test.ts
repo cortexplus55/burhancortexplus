@@ -14,7 +14,7 @@ import {
   type MaterialCandidate,
   type MaterialDocument,
 } from "@/lib/learning/cross-material-topics";
-import { buildExamScheduleV2 } from "@/lib/learning/exam-schedule-v2";
+import { buildExamScheduleV2, lessonPageChunks } from "@/lib/learning/exam-schedule-v2";
 
 /**
  * Kimya seti, yüklenen dosyaların cevap anahtarından türetilmiş aday listesi.
@@ -307,7 +307,11 @@ describe("chemistry consolidation", () => {
     for (const session of plan.sessions.filter((item) => item.role === "learn")) {
       learnCounts.set(session.topicTitle, (learnCounts.get(session.topicTitle) ?? 0) + 1);
     }
-    expect([...learnCounts.values()].every((count) => count === 1)).toBe(true);
+    // Kopya ders yok: her konu, sayfalarının ders parçası kadar ders alır
+    // (4 sayfaya kadar tek ders; büyük konu ~3 sayfalık derslere bölünür).
+    for (const topic of schedule) {
+      expect(learnCounts.get(topic.title)).toBe(lessonPageChunks(topic.pageNumbers ?? []).length);
+    }
     expect(extraPracticeForTopic({ weightPercent: 25, examHeavy: true }, 23)).toBe(2);
     expect(extraPracticeForTopic({ weightPercent: 5 }, 23)).toBe(0);
     expect(extraPracticeForTopic({ weightPercent: 25, examHeavy: true }, 5)).toBe(0);

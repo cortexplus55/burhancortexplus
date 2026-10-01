@@ -5,8 +5,14 @@ export function parityGreetingName(fullName: string | null | undefined): string 
   return fullName.trim().split(/\s+/)[0] ?? "Merhaba";
 }
 
-export function parityTimeGreeting(): string {
-  const hour = new Date().getHours();
+/**
+ * Sunucuda çalışır; Vercel saati UTC. Türkiye saatine sabitlenmezse sabah
+ * 07:40'ta "iyi geceler" yazıyordu (30 Eylül 2026).
+ */
+export function parityTimeGreeting(now: Date = new Date()): string {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Istanbul", hour: "2-digit", hourCycle: "h23" }).format(now),
+  );
   if (hour >= 5 && hour < 12) return "Günaydın";
   if (hour >= 12 && hour < 18) return "İyi günler";
   if (hour >= 18 && hour < 23) return "İyi akşamlar";

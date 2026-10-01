@@ -80,6 +80,15 @@ import {
   stepAfterMood,
 } from "@/lib/learning/lesson-open";
 import "@/styles/node-generation-progress.css";
+import { useLearningTimer } from "@/components/learning/use-learning-timer";
+import type { LearningSurface } from "@/lib/learning/learning-time";
+
+/** Aktif süre hangi başlıkta sayılır: ders, test ya da sınav. */
+function learningSurface(kind: PlanNodeKind): LearningSurface {
+  if (kind === "lesson" || kind === "podcast" || kind === "flashcards") return "lesson";
+  if (kind === "written_exam" || kind === "oral" || kind === "readiness") return "exam";
+  return "quiz";
+}
 
 type Difficulty = "kolay" | "orta" | "ileri";
 
@@ -132,6 +141,7 @@ export function ExamNodeSession({
   resetsAtLabel = null,
   oralTopics = [],
   language = "tr",
+  subject = null,
 }: {
   prepId: string;
   nodeId: string;
@@ -159,6 +169,8 @@ export function ExamNodeSession({
   oralTopics?: OralTopicRow[];
   /** Hazırlık dili — ders sonu tekrarı bu dilde kurulur. */
   language?: "tr" | "en";
+  /** Hazırlığın dersi ("Matematik"); Aktivitelerim'deki en sevilen dersler. */
+  subject?: string | null;
 }) {
   const router = useRouter();
   const isAdmin = useIsFounder();
@@ -184,6 +196,12 @@ export function ExamNodeSession({
     initialFamiliarity ?? DEFAULT_FAMILIARITY,
   );
   const [mood, setMood] = useState<Mood>(DEFAULT_MOOD);
+  // Yalnızca çalışırken sayılır; kurulum ve sonuç ekranı değil.
+  useLearningTimer(
+    learningSurface(kind),
+    subject,
+    stage === "play" || stage === "oral-review",
+  );
   const [difficulty, setDifficulty] = useState<Difficulty>("orta");
   const [podcastLength, setPodcastLength] = useState<"ozet" | "standart" | "derin">("standart");
   const [voiceMode, setVoiceMode] = useState(meta.voice);

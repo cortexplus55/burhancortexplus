@@ -675,7 +675,22 @@ function balanceQuestion(question: VerifiedChoice): VerifiedChoice | null {
   return { ...question, options: [...new Set(options)], correct, explanation };
 }
 
-export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCheck {
+export type ChoiceVerifyOptions = {
+  /**
+   * Gerekçe öğrenciye gösterilmiyor: düello yalnızca kökü, şıkları ve doğru
+   * cevabı gösterir. Şık gerekçesi kapısı atlanır; cevap anahtarını koruyan
+   * kapılar (denkleştirme, sayısal hizalama, açıklama–cevap uyumu, çözücü)
+   * yerinde kalır. Canlıda "sin 180° kaçtır? → 0" gibi doğru sorular yalnızca
+   * gösterilmeyen gerekçe satırları yüzünden düşüyordu (30 Eylül 2026).
+   */
+  hiddenRationale?: boolean;
+};
+
+export function verifyChoiceQuestion(
+  raw: VerifiedChoice,
+  source = "",
+  options: ChoiceVerifyOptions = {},
+): ChoiceCheck {
   const polished: VerifiedChoice = {
     ...raw,
     text: polishLearnerText(raw.text).trim(),
@@ -708,15 +723,19 @@ export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCh
     explanation,
     misconceptionTag: next.misconceptionTag?.trim() || "yanlış eşleme",
   };
-  const withWhy = settleOptionWhy(next, source);
-  if (!withWhy) return { status: "drop", question: next, reason: "option_why" };
-  next = withWhy;
-  if (angleOptionReasonIssues(next).length) {
-    return { status: "drop", question: next, reason: "option_why_angle" };
+  if (options.hiddenRationale) {
+    next = { ...next, optionWhy: undefined, optionReasons: undefined };
+  } else {
+    const withWhy = settleOptionWhy(next, source);
+    if (!withWhy) return { status: "drop", question: next, reason: "option_why" };
+    next = withWhy;
+    if (angleOptionReasonIssues(next).length) {
+      return { status: "drop", question: next, reason: "option_why_angle" };
+    }
+    const reasoned = settleRestatedReasons(next);
+    if (!reasoned) return { status: "drop", question: next, reason: "option_why_restates" };
+    next = reasoned;
   }
-  const reasoned = settleRestatedReasons(next);
-  if (!reasoned) return { status: "drop", question: next, reason: "option_why_restates" };
-  next = reasoned;
   if (unitCircleClaimIssues(next).length) {
     return { status: "drop", question: next, reason: "unit_circle_fact" };
   }
@@ -743,13 +762,19 @@ export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCh
   return { status: "keep", question: { ...next, needsSolver: false } };
 }
 
-export function verifyChoiceSet(questions: VerifiedChoice[], source = "", min = 3): VerifiedChoice[] | null {
+export function verifyChoiceSet(
+  questions: VerifiedChoice[],
+  source = "",
+  min = 3,
+  max = 8,
+  options: ChoiceVerifyOptions = {},
+): VerifiedChoice[] | null {
   const kept = questions
-    .map((question) => verifyChoiceQuestion(question, source))
+    .map((question) => verifyChoiceQuestion(question, source, options))
     .filter((row) => row.status !== "drop")
     .map((row) => row.question);
   if (kept.length < min) return null;
-  return kept.slice(0, 8);
+  return kept.slice(0, max);
 }
 
 export function choiceSolverPrompt(
@@ -767,7 +792,12 @@ export function choiceSolverPrompt(
   };
 }
 
-export function applyChoiceSolver(questions: VerifiedChoice[], raw: string, source = ""): VerifiedChoice[] | null {
+export function applyChoiceSolver(
+  questions: VerifiedChoice[],
+  raw: string,
+  source = "",
+  options: ChoiceVerifyOptions = {},
+): VerifiedChoice[] | null {
   let parsed: { items?: { index?: number; answer?: string | null; unanswerable?: boolean; reason?: string }[] };
   try {
     parsed = JSON.parse(raw) as typeof parsed;
@@ -804,6 +834,7 @@ export function applyChoiceSolver(questions: VerifiedChoice[], raw: string, sour
         needsSolver: false,
       },
       source,
+      options,
     );
     if (checked.status === "drop") continue;
     next.push({ ...checked.question, needsSolver: false });
@@ -870,6 +901,8 @@ export async function refineVerifiedChoices(
   ask: (system: string, user: string) => Promise<string | null>,
   source = "",
   min = 1,
+  max = 8,
+  options: ChoiceVerifyOptions = {},
 ): Promise<VerifiedChoice[] | null> {
   const pending = questions.some((question) => question.needsSolver);
   if (!pending) return questions.length >= min ? questions : null;
@@ -880,11 +913,11 @@ export async function refineVerifiedChoices(
     source,
   );
   const raw = await ask(prompt.system, prompt.user);
-  const solved = raw ? applyChoiceSolver(questions, raw, source) : null;
+  const solved = raw ? applyChoiceSolver(questions, raw, source, options) : null;
   const kept = (solved ?? questions.filter((question) => !question.needsSolver)).filter(
     (question) => !question.needsSolver,
   );
-  return kept.length >= min ? kept.slice(0, 8) : null;
+  return kept.length >= min ? kept.slice(0, max) : null;
 }
 
 export type PracticeQuestion = {
