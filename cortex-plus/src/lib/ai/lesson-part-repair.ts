@@ -1,4 +1,5 @@
 import "server-only";
+import { samplingParams } from "@/lib/ai/model-params";
 import OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordUsage } from "@/lib/credits/service";
@@ -26,8 +27,7 @@ export async function completeLessonPartRepair(input: {
     });
     const response = await openai.chat.completions.create({
       model: env.OPENAI_STANDARD_MODEL,
-      temperature: 0.2,
-      max_tokens: input.maxTokens ?? 1500,
+      ...samplingParams(env.OPENAI_STANDARD_MODEL, { temperature: 0.2, maxTokens: input.maxTokens ?? 1500 }),
       response_format: { type: "json_object" },
       messages: [
         {

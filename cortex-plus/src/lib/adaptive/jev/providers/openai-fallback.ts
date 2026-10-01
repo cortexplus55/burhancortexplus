@@ -4,6 +4,7 @@
  */
 
 import "server-only";
+import { samplingParams } from "@/lib/ai/model-params";
 import OpenAI from "openai";
 import { z } from "zod";
 import { estimateTokenCostUsd } from "@/lib/adaptive/analytics";
@@ -136,7 +137,7 @@ export class OpenAIDecisionProvider implements DecisionProvider {
       ];
       const result = await openai.chat.completions.create({
         model,
-        temperature: 0.2,
+        ...samplingParams(model, { temperature: 0.2 }),
         response_format: { type: "json_object" },
         messages,
       });

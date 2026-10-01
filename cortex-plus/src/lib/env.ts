@@ -53,6 +53,13 @@ export const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_STANDARD_MODEL: z.string().default("gpt-4o-mini"),
   /**
+   * Asıl model (2 Ekim 2026, ürün sahibinin kararı): ders, podcast, test,
+   * deneme, notlama ve AI öğretmen sohbeti — abone de ücretsiz de. Arka
+   * plandaki kontrol ve onarım çağrıları OPENAI_STANDARD_MODEL'de kalır,
+   * görsel çözüm OPENAI_ADVANCED_MODEL'de.
+   */
+  OPENAI_CONTENT_MODEL: z.string().default("gpt-6-luna"),
+  /**
    * Ders taslağı — abone. Doğrulama ve parça onarımı standart modelde kalır.
    * Kredi eylem kodu değişmez; yalnızca bu çağrının modeli değişir.
    */
@@ -123,6 +130,7 @@ const parsed = envSchema.safeParse({
   APP_SECRET: process.env.APP_SECRET,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_STANDARD_MODEL: process.env.OPENAI_STANDARD_MODEL,
+  OPENAI_CONTENT_MODEL: process.env.OPENAI_CONTENT_MODEL,
   OPENAI_LESSON_MODEL: process.env.OPENAI_LESSON_MODEL,
   OPENAI_LESSON_FREE_MODEL: process.env.OPENAI_LESSON_FREE_MODEL,
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,

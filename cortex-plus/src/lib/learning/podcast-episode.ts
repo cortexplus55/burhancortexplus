@@ -16,6 +16,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { samplingParams } from "@/lib/ai/model-params";
 import OpenAI from "openai";
 import { env } from "@/lib/env";
 import { lessonModel } from "@/lib/ai/model-router";
@@ -424,8 +425,7 @@ export async function rederivePodcastClaims(script: string, rederive?: Rederive)
     const client = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 20_000, maxRetries: 0 });
     const review = await client.chat.completions.create({
       model: env.OPENAI_STANDARD_MODEL,
-      temperature: 0,
-      max_tokens: 180,
+      ...samplingParams(env.OPENAI_STANDARD_MODEL, { temperature: 0, maxTokens: 180 }),
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: prompt.system },
