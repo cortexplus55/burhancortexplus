@@ -234,6 +234,95 @@ describe("repeats page does not spend credits", () => {
 });
 
 /*
+  30 Eylül 2026 canlı quiz (birim çember, deneme 43dd3046, #177'den önce).
+  Üç soru da bugünkü kapıdan "keep" diye geçiyordu. Metinler birebir.
+*/
+describe("birim çember quizi: tekrar eden gerekçe ve yanlış iddia", () => {
+  it("tekrar eden nokta gerekçesini tablodan doğru gerekçeyle değiştirir", () => {
+    const checked = verifyChoiceQuestion({
+      text: "Birim çemberde 90° açısına karşılık gelen noktaların koordinatları nedir?",
+      options: ["(0, 1)", "(1, 0)", "(√2/2, √2/2)", "(1, 1)"],
+      correct: ["(0, 1)"],
+      multi: false,
+      explanation:
+        "Birim çemberde 90° açısının yatay koordinatı 0, düşey koordinatı ise 1'dir. Bu nedenle doğru cevap (0, 1) koordinatıdır.",
+      misconceptionTag: "Sin 90°'in tanımsız olduğu düşünülüyor.",
+      optionWhy: [
+        "Bu doğru; 90° açısının koordinatları kesin olarak (0, 1)dir.",
+        "Bu şık yanlıştır; 90° açısının yatay koordinatı 0'dır, 1 değildir.",
+        "Bu şık yanlıştır, çünkü 90° açısının noktaları (√2/2, √2/2) olamaz.",
+        "Bu şık yanlıştır; koordinatlar (1, 1) olamaz.",
+      ],
+      optionReasons: { "(1, 1)": "Bu şık yanlıştır; koordinatlar (1, 1) olamaz." },
+    });
+    expect(checked.status).toBe("keep");
+    expect(checked.question.optionWhy).toEqual([
+      "Bu doğru; 90° açısının koordinatları kesin olarak (0, 1)dir.",
+      "Bu şık yanlıştır; 90° açısının yatay koordinatı 0'dır, 1 değildir.",
+      "(√2/2, √2/2) noktası 45° açısına karşılık gelir; 90° açısının noktası (0, 1) olur.",
+      "(1, 1) birim çemberin üzerinde değildir: 1² + 1² = 2 olur, birim çemberde bu toplam 1'dir.",
+    ]);
+    expect(checked.question.optionReasons).toBeUndefined();
+  });
+
+  it("aynı noktaları reddeden ve 0°–90° dışında sayan soruyu düşürür", () => {
+    const question = {
+      text: "Açıları 0° ile 90° arasında olan birim çember noktasının koordinatları hangi aralıklarla değişir?",
+      options: [
+        "(cos A, sin A) değerleri arasında",
+        "(sin A, cos A) değerleri arasında",
+        "(1, 0) ve (0, 1) arasında",
+        "(0, 1) ve (1, 0) arasında",
+      ],
+      correct: ["(cos A, sin A) değerleri arasında"],
+      multi: false,
+      explanation:
+        "Birim çemberde açılara karşılık gelen noktaların koordinatları hep (kosinüs, sinüs) şeklindedir; bu nedenle (cos A, sin A) aralığı doğrudur.",
+      misconceptionTag: "Koordinatların sırası yanlış anlaşılıyor.",
+      optionWhy: [
+        "Bu doğru; birim çemberde koordinatlar (cos A, sin A) ile belirlenir.",
+        "Bu şık yanlış; noktalar (sin A, cos A) olarak değil, (cos A, sin A) şeklinde tanımlanır.",
+        "Bu şık yanlıştır; bu noktalar 0° ile 90° arasında geçerli değildir.",
+        "Bu şık yanlıştır; (0, 1) ve (1, 0) noktaları bu açılar arasında değil.",
+      ],
+    };
+    const checked = verifyChoiceQuestion(question);
+    expect(checked.status).toBe("drop");
+    expect(checked.reason).toBe("option_why_restates");
+    // Gerekçeler bir şey söyleseydi bile iddia tabloyla çelişiyor.
+    const reasoned = verifyChoiceQuestion({
+      ...question,
+      optionWhy: [
+        question.optionWhy[0]!,
+        question.optionWhy[1]!,
+        "Bu şık yanlıştır; bu noktalar 0° ile 90° arasında geçerli değildir, çünkü eksen üzerindedirler.",
+        "Bu şık yanlıştır; (0, 1) ve (1, 0) noktaları bu açılar arasında değil, eksen üzerindedir.",
+      ],
+    });
+    expect(reasoned.status).toBe("drop");
+    expect(reasoned.reason).toBe("unit_circle_fact");
+  });
+
+  it("onarılamayan tekrar gerekçesi soruyu düşürür", () => {
+    const checked = verifyChoiceQuestion({
+      text: "Aşağıdakilerden hangisi 3⁴ × 3² işleminin sonucudur?",
+      options: ["3⁶", "3⁸", "9⁶"],
+      correct: ["3⁶"],
+      multi: false,
+      explanation: "Aynı tabanlı çarpmada üsler toplanır: 4 + 2 = 6, sonuç 3⁶ olur. «3⁸» üslerin çarpılmasıyla bulunur.",
+      misconceptionTag: "üsleri çarpmak",
+      optionWhy: [
+        "Doğru; aynı tabanlı çarpmada üsler toplanır.",
+        "Bu şık yanlıştır; sonuç 3⁸ olamaz.",
+        "Bu şık yanlıştır; tabanlar çarpılmaz, taban 3 olarak kalır.",
+      ],
+    });
+    expect(checked.status).toBe("drop");
+    expect(checked.reason).toBe("option_why_restates");
+  });
+});
+
+/*
   Düello yalnızca kökü, şıkları ve doğru cevabı gösterir. Canlıda "sin 180°
   kaçtır? → 0" gibi doğru sorular gösterilmeyen şık gerekçeleri yüzünden
   düşüyordu (30 Eylül 2026).

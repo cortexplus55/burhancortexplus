@@ -15,12 +15,26 @@ import { quizClaimIssues } from "@/lib/learning/tutor-quant";
 import { absoluteClaimIssues } from "@/lib/learning/absolute-claims";
 import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
+import { unitCircleKeyWrong } from "@/lib/learning/unit-circle";
 
 const QUIZ_GATE = {
   requireObjective: false,
   requireMisconceptionTag: true,
   requireDistractorRefutation: true,
 } as const;
+
+/*
+  Deterministik kapının düşürdüğü soru için yeniden yazma notu. Eskiden
+  ikinci taslak yalnızca "doğrulama tutmadı" duyuyordu; aynı kalıbı
+  (ör. "Bu şık yanlıştır; (1, 1) olamaz.") yeniden yazıyordu.
+*/
+const DROP_GUIDANCE: Record<string, string> = {
+  answer_key: "Cevap anahtarını hesapla yeniden doğrula.",
+  equivalent_options: "İki şık aynı değeri ya da aynı noktaları farklı sırayla yazmasın.",
+  option_why_restates:
+    "Yanlış şık gerekçesi şıkkı tekrar edip 'olamaz' ya da 'değildir' demekle kalmasın; o şıkkın gerçekte ne olduğunu ya da hangi hatadan geldiğini yaz.",
+  unit_circle_fact: "Birim çember noktalarını kontrol et (0° → (1, 0), 90° → (0, 1)); gerekçe doğru noktayı reddetmesin.",
+};
 
 export async function generateExamQuiz(input: {
   service: SupabaseClient;
@@ -68,7 +82,7 @@ export async function generateExamQuiz(input: {
     ? " Her soruda learningObjective, explanation, misconceptionTag ve optionWhy zorunlu. optionWhy, options ile aynı uzunlukta; her şık için bir cümle (doğru şıkta gerekçe, diğerlerinde o şıkkın neden uymadığı). misconceptionTag, tuzakta adı geçen yanlış anlamın adı. multi yalnızca birden fazla bağımsız doğru varken. Yazamıyorsan optionReasons[şıkMetni] alanında O ŞIKKA özgü hata nedenini de ekleyebilirsin (hangi yanlış hesap o sayıyı verir); aynı cümleyi tekrarlama."
     : "";
   const schemaHint =
-    'JSON: {"questions":[{"text":string,"options":string[],"correct":string|string[],"multi":boolean,"explanation":string,"learningObjective":string,"misconceptionTag":string,"optionWhy":string[],"steps":string[],"optionReasons":{"yanlışŞık":"neden"}}]}. correct, options içinden olmalı. steps yalnızca hesap ya da birden fazla ara sonuç isteyen soruda: 2-5 kısa adım, sırayla; her adım tek bir işlem ve kendi içinde doğru; son adım doğru şıkkın değerine varır. Tek adımda cevaplanan bilgi sorusunda steps yazma. optionWhy her şık için tek cümle, options ile aynı sırada. Çoklu doğru şıklarda multi true, correct dizi ve en az iki bağımsız doğru seçenek olmalı; tek doğru varsa multi false olmalı. "Hepsi doğrudur", "hiçbiri" veya başka seçenekleri özetleyen seçenekler kullanma. Çeldirici, sorunun kavramına ait makul bir yanlış anlama olsun; soruda geçmeyen ve doğru şıkla aynı türden olmayan seçenek yazma. Doğru seçenek kümesi açıklamayla birebir uyuşmalı. Tek doğru cevabı olmayan ya da kendi içinde çözülemeyen soru yazma. "Hangisi doğrudur / hangisi özelliğidir" diye soruyorsan diğer şıkların her biri kesin yanlış olsun: iki doğru kuralı yan yana şık yapma; kural bir koşula bağlıysa (aynı taban, aynı üs gibi) koşulu şıkta ya da kökte yaz. Açı ya da sayı aralığı veriyorsan uç noktaların dahil olup olmadığını açıkça yaz (0° ≤ x < 360° gibi); "0° ile 360° arasında" uçları belirsiz bırakır ve iki cevabı doğru yapar. Her soruyu matematiksel ve bilimsel doğruluk açısından ikinci kez kontrol et. explanation: 1-2 cümlelik net Türkçe çözüm gerekçesi.' +
+    'JSON: {"questions":[{"text":string,"options":string[],"correct":string|string[],"multi":boolean,"explanation":string,"learningObjective":string,"misconceptionTag":string,"optionWhy":string[],"steps":string[],"optionReasons":{"yanlışŞık":"neden"}}]}. correct, options içinden olmalı. steps yalnızca hesap ya da birden fazla ara sonuç isteyen soruda: 2-5 kısa adım, sırayla; her adım tek bir işlem ve kendi içinde doğru; son adım doğru şıkkın değerine varır. Tek adımda cevaplanan bilgi sorusunda steps yazma. optionWhy her şık için tek cümle, options ile aynı sırada. Yanlış şıkkın optionWhy satırı şıkkı tekrar edip "olamaz" ya da "değildir" demekle kalmasın; o şıkkın gerçekte ne olduğunu söylesin (ör. "(1, 0) 0°\'nin noktasıdır"). İki şık aynı değerleri ya da noktaları farklı sırayla yazmasın. Çoklu doğru şıklarda multi true, correct dizi ve en az iki bağımsız doğru seçenek olmalı; tek doğru varsa multi false olmalı. "Hepsi doğrudur", "hiçbiri" veya başka seçenekleri özetleyen seçenekler kullanma. Çeldirici, sorunun kavramına ait makul bir yanlış anlama olsun; soruda geçmeyen ve doğru şıkla aynı türden olmayan seçenek yazma. Doğru seçenek kümesi açıklamayla birebir uyuşmalı. Tek doğru cevabı olmayan ya da kendi içinde çözülemeyen soru yazma. "Hangisi doğrudur / hangisi özelliğidir" diye soruyorsan diğer şıkların her biri kesin yanlış olsun: iki doğru kuralı yan yana şık yapma; kural bir koşula bağlıysa (aynı taban, aynı üs gibi) koşulu şıkta ya da kökte yaz. Açı ya da sayı aralığı veriyorsan uç noktaların dahil olup olmadığını açıkça yaz (0° ≤ x < 360° gibi); "0° ile 360° arasında" uçları belirsiz bırakır ve iki cevabı doğru yapar. Her soruyu matematiksel ve bilimsel doğruluk açısından ikinci kez kontrol et. explanation: 1-2 cümlelik net Türkçe çözüm gerekçesi.' +
     pedagogyHint +
     (input.schemaHintExtra ? ` ${input.schemaHintExtra}` : "");
 
@@ -139,7 +153,9 @@ export async function generateExamQuiz(input: {
         : {}),
     }));
     // Cevap anahtarı hesapla çelişen tek cevaplı soru düşer ("(3⁴)²" için
-    // 3¹², "sin 30°" için √3/2 gibi). Bkz. exponent-key.ts, math-key.ts.
+    // 3¹², "sin 30°" için √3/2, "90°" için (1, 0) gibi). Bkz.
+    // exponent-key.ts, math-key.ts, unit-circle.ts.
+    const keyDrops: string[] = [];
     const keyed = surfaced.filter((question) => {
       if (question.multi) return true;
       const keyedCheck = {
@@ -148,11 +164,16 @@ export async function generateExamQuiz(input: {
         options: question.options,
         answerIndex: question.options.indexOf(question.correct[0] ?? ""),
       };
-      return (
-        exponentKeyWrong(keyedCheck) !== true &&
-        mathKeyWrong(keyedCheck) !== true &&
-        !mathOptionsAmbiguous(keyedCheck)
-      );
+      const reason =
+        exponentKeyWrong(keyedCheck) === true ||
+        mathKeyWrong(keyedCheck) === true ||
+        unitCircleKeyWrong(keyedCheck) === true
+          ? "answer_key"
+          : mathOptionsAmbiguous(keyedCheck)
+            ? "equivalent_options"
+            : null;
+      if (reason) keyDrops.push(reason);
+      return !reason;
     });
     const repaired = input.teachingV2 ? repairQuizPedagogy(keyed) : keyed;
     // A six-question draft has spare candidates. Reject an unsupported
@@ -162,24 +183,31 @@ export async function generateExamQuiz(input: {
       : repaired;
     const verified = verifyChoiceSet(asChoices(grounded), input.sourceExcerpt ?? "", 3, max, verifyOptions);
     if (!verified) {
+      const outcomes = asChoices(grounded).map((question) =>
+        verifyChoiceQuestion(question, input.sourceExcerpt ?? "", verifyOptions),
+      );
+      const reasons = [
+        ...new Set([...keyDrops, ...outcomes.map((row) => row.reason).filter((reason): reason is string => Boolean(reason))]),
+      ];
       // Eskiden yalnızca v2 yolunda yazılıyordu; tanışma testi (eski yol)
       // "structural" diye düştüğünde hangi sorunun neden elendiği görünmüyordu.
       if (!loggedCandidateFailure) {
         loggedCandidateFailure = true;
-        const outcomes = asChoices(grounded).map((question) =>
-          verifyChoiceQuestion(question, input.sourceExcerpt ?? "", verifyOptions),
-        );
         console.warn("quiz_candidates_rejected", {
           parsed: parsed.length,
+          keyDropped: keyDrops.length,
           grounded: grounded.length,
           kept: outcomes.filter((row) => row.status === "keep").length,
           unresolved: outcomes.filter((row) => row.status === "unresolved").length,
           dropped: outcomes.filter((row) => row.status === "drop").length,
           // Dizi değil metin: Vercel iç içe diziyi "[…]" diye kısaltıyor.
-          reasons: [...new Set(outcomes.map((row) => row.reason).filter(Boolean))].join(", "),
+          reasons: reasons.join(", "),
         });
       }
-      lastIssues = ["Bağımsız doğrulama soruyu tutmadı. Tek doğru cevabı olan yeni soru yaz."];
+      lastIssues = [
+        "Bağımsız doğrulama soruyu tutmadı. Tek doğru cevabı olan yeni soru yaz.",
+        ...reasons.flatMap((reason) => (DROP_GUIDANCE[reason] ? [DROP_GUIDANCE[reason]] : [])),
+      ];
       return null;
     }
     const settled = input.teachingV2 ? repairQuizPedagogy(fromChoices(verified)) : fromChoices(verified);

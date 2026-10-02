@@ -436,16 +436,141 @@ export function mathKeyWrong(check: KeyedCheck): boolean | null {
  * aynı sorunun iki doğru cevabıdır: öğrenci hangisini seçerse seçsin biri
  * yanlış sayılır. Model yarışında hakem yakaladı (29 Eylül). Okunamayan
  * şıklar karşılaştırmaya girmez.
+ *
+ * Anahtar biliniyorsa yalnızca anahtarla eşit değerli şık belirsizliktir.
+ * İki YANLIŞ şıkkın aynı değere çıkması çoğu zaman bilerek yapılmıştır:
+ * "Hangisi 5³'ün hesaplanmasında doğru bir adım değildir?" sorusunda
+ * "5 × 5 × 5", "5² × 5" ve "(5 × 5) × 5" üçü de 125'tir. Canlı taramada
+ * (30 Eylül, 184 soru) bu kural böyle üç iyi soruyu düşürüyordu.
  */
 export function mathOptionsAmbiguous(check: KeyedCheck): boolean {
   if (!check.options || check.options.length < 2) return false;
   if ((inverseTrigMatches(check)?.length ?? 0) >= 2) return true;
   const readings = check.options.map((option) => read(option));
+  const ordered = ORDER_CUE.test(check.prompt);
+  const key = check.answerIndex != null && check.answerIndex >= 0 && check.answerIndex < check.options.length
+    ? check.answerIndex
+    : null;
   for (let i = 0; i < readings.length; i += 1) {
     for (let j = i + 1; j < readings.length; j += 1) {
       const a = readings[i];
       const b = readings[j];
-      if (a && b && agree(a, b)) return true;
+      if (a && b && agree(a, b) && (key == null || key === i || key === j)) return true;
+      if (!ordered && sameUnorderedSet(check.options[i] ?? "", check.options[j] ?? "")) return true;
+    }
+  }
+  return false;
+}
+
+/*
+  Aynı noktalar, farklı sıra. 30 Eylül canlı quiz: "(1, 0) ve (0, 1)
+  arasında" ile "(0, 1) ve (1, 0) arasında" iki ayrı şıktı; öğrenci
+  hangisini seçerse seçsin diğeri aynı cevaptı. Parantez içi sıralı ikilidir
+  ("(1, 0)" ≠ "(0, 1)"); "ve / ile / veya / virgül" ile ayrılan liste
+  sırasızdır. Soru sıra soruyorsa ("küçükten büyüğe", "dizinin terimleri")
+  liste sıralıdır, hüküm yok.
+
+  Bu kural anahtara bakmaz. Tek değerli şıklar çoğu zaman bir YÖNTEMDİR
+  ("8 + 8", "2 × 8") ve aynı değere çıkmaları bilerek olabilir; nokta ya da
+  değer listesi ise cevabın kendisidir. Canlı soruda aynı iki şık gerçek
+  cevaptı ve anahtar ikisini de yanlış sayıyordu.
+*/
+const ORDER_CUE =
+  /sıra|dizi|dizil|terim|önce|sonra|ardışık|küçükten|büyükten|artan|azalan|kronoloj|aşama|adım|basamak/i;
+
+const LIST_TOKEN = /\([^()]*\)|\d+,\d+|,|[^\s(),]+/g;
+
+function foldWord(text: string): string {
+  return text.toLocaleLowerCase("tr-TR").replace(/[.;:!?]+$/g, "");
+}
+
+function listTokens(option: string): string[] {
+  return option.match(LIST_TOKEN) ?? [];
+}
+
+function isConnector(tokens: string[], index: number): number {
+  const word = foldWord(tokens[index] ?? "");
+  if (word === "," || word === "ve" || word === "ile" || word === "veya" || word === "&") return 1;
+  if (word === "ya" && foldWord(tokens[index + 1] ?? "") === "da") return 2;
+  return 0;
+}
+
+/** Tek bir değerin anahtarı: hesaplanabiliyorsa sayı, değilse küçük harfli metin. */
+function valueKey(text: string): string {
+  const value = evaluateMath(text);
+  if (value != null) return `#${Math.round(value * 1e9) / 1e9}`;
+  return text.toLocaleLowerCase("tr-TR").replace(/\s+/g, " ").trim();
+}
+
+function itemKey(tokens: string[]): string {
+  const text = tokens.join(" ").trim();
+  const tuple = text.match(/^\(\s*(.+?)\s*\)$/);
+  if (!tuple) return valueKey(text);
+  const inner = tuple[1] ?? "";
+  const parts = inner.includes(";") ? inner.split(";") : inner.split(/,\s+/);
+  return `(${parts.map((part) => valueKey(part)).join(";")})`;
+}
+
+type ListShape = { items: string[]; connectors: string[] };
+
+function listItems(tokens: string[]): ListShape | null {
+  const items: string[] = [];
+  const connectors: string[] = [];
+  let current: string[] = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const skip = isConnector(tokens, index);
+    if (!skip) {
+      current.push(tokens[index] ?? "");
+      continue;
+    }
+    if (!current.length) return null;
+    items.push(itemKey(current));
+    connectors.push(tokens.slice(index, index + skip).map(foldWord).join(" "));
+    current = [];
+    index += skip - 1;
+  }
+  if (!current.length) return null;
+  items.push(itemKey(current));
+  return { items, connectors };
+}
+
+function sameShape(a: string[], b: string[]): boolean {
+  if (!a.length || !b.length) return false;
+  const left = listItems(a);
+  const right = listItems(b);
+  if (!left || !right || left.items.length !== right.items.length) return false;
+  // "ve" ile "veya" aynı küme değildir.
+  if ([...left.connectors].sort().join("|") !== [...right.connectors].sort().join("|")) return false;
+  if (left.items.length === 1) {
+    return (left.items[0] ?? "").startsWith("(") && left.items[0] === right.items[0];
+  }
+  return [...left.items].sort().join("|") === [...right.items].sort().join("|");
+}
+
+/**
+ * İki şık, ortak bir baş ve son arasında aynı öğelerin farklı sırası mı?
+ * Ortak baş/son her kesimde denenir: "sin A ve cos A" ile "cos A ve sin A"
+ * sonundaki "A" çerçeve değil, öğenin parçasıdır. Tek öğede yalnızca iki
+ * eşdeğer nokta sayılır: "(√2/2, √2/2)" ile "(1/√2, 1/√2)". Tek sayılar
+ * zaten `read` ile karşılaştırılıyor.
+ */
+export function sameUnorderedSet(left: string, right: string): boolean {
+  const a = listTokens(left);
+  const b = listTokens(right);
+  let prefix = 0;
+  while (prefix < Math.min(a.length, b.length) && foldWord(a[prefix] ?? "") === foldWord(b[prefix] ?? "")) {
+    prefix += 1;
+  }
+  let suffix = 0;
+  while (
+    suffix < Math.min(a.length, b.length) - prefix &&
+    foldWord(a[a.length - 1 - suffix] ?? "") === foldWord(b[b.length - 1 - suffix] ?? "")
+  ) {
+    suffix += 1;
+  }
+  for (let p = 0; p <= prefix; p += 1) {
+    for (let s = 0; s <= suffix; s += 1) {
+      if (sameShape(a.slice(p, a.length - s), b.slice(p, b.length - s))) return true;
     }
   }
   return false;
