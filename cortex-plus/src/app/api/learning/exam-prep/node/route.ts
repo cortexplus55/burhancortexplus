@@ -6,6 +6,7 @@ import { runTeacherLesson } from "@/lib/learning/teacher-lesson-run";
 import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import { teacherCardsLoop } from "@/lib/learning/teacher-cards";
+import { teacherOralLoop, teacherTrueFalseLoop } from "@/lib/learning/teacher-practice";
 import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -263,7 +264,7 @@ const TEACHER_QUIZ_KINDS = new Set<PlanNodeKind>(["quiz", "gaps"]);
 /** Öğretmen motorlarının konunun çekirdek sayfalarını okuduğu düğümler. */
 /** Öğretmen kart motorunun yazdığı düğümler (2 Ekim 2026). */
 const TEACHER_CARD_KINDS = new Set<PlanNodeKind>(["flashcards", "spaced"]);
-const TEACHER_PAGE_KINDS = new Set<PlanNodeKind>([...TEACHER_QUIZ_KINDS, ...TEACHER_CARD_KINDS, "podcast"]);
+const TEACHER_PAGE_KINDS = new Set<PlanNodeKind>([...TEACHER_QUIZ_KINDS, ...TEACHER_CARD_KINDS, "podcast", "true_false"]);
 
 function actionForKind(kind: PlanNodeKind) {
   if (kind === "flashcards" || kind === "spaced") return "FLASHCARD_GENERATE" as const;
@@ -2804,6 +2805,17 @@ async function generateNodePayload(input: {
     };
   }
 
+  // Sözlü deneme öğretmen motorundan (2 Ekim 2026). Kapsam birden çok konu
+  // olabildiği için rotanın hazırladığı kaynak bloğu okunur.
+  if (
+    input.kind === "oral" &&
+    input.teachingV2 &&
+    env.PRACTICE_ENGINE === "teacher" &&
+    (input.sourceBlock.trim() || input.lessonTopicOnly)
+  ) {
+    return teacherOralPayload(input, activity, input.oralQuestionCount ?? Math.min(8, Math.max(3, quizCount)));
+  }
+
   if (input.kind === "oral") {
     const asked = input.oralQuestionCount ?? Math.min(8, Math.max(3, quizCount));
     const weight = input.syllabusLine?.trim()
@@ -2944,6 +2956,16 @@ async function generateNodePayload(input: {
       teachingStandard: activity,
       masteryClaim: false,
     };
+  }
+
+  // Doğru/yanlış öğretmen motorundan (2 Ekim 2026).
+  if (
+    input.kind === "true_false" &&
+    input.teachingV2 &&
+    env.PRACTICE_ENGINE === "teacher" &&
+    (input.lessonCore || input.lessonTopicOnly)
+  ) {
+    return teacherTrueFalsePayload(input, activity, input.lessonCore ?? null);
   }
 
   if (input.kind === "true_false") {
@@ -3178,6 +3200,90 @@ async function teacherCardsPayload(
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
   return { type: "cards", cards: outcome.result, teachingStandard: activity, masteryClaim: false, engine: "teacher" };
+}
+
+/** Öğretmen doğru/yanlış motoru (2 Ekim 2026): her önerme belgeyle eşlenir. */
+async function teacherTrueFalsePayload(
+  input: Parameters<typeof generateNodePayload>[0],
+  activity: ReturnType<typeof teachingActivityForKind>,
+  core: { documentId: string; pages: number[] } | null,
+) {
+  const startedAt = Date.now();
+  const source = await teacherPages(input, core);
+  const outcome = await runWithTeacherModel(input.service, {
+    userId: input.userId,
+    actionCode: actionForKind(input.kind),
+    idempotencyKey: input.idempotencyKey ?? `tf:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    startedAt,
+    label: "teacher_true_false",
+    topic: input.topicLabel,
+    work: async (ask, started) => {
+      const loop = await teacherTrueFalseLoop(
+        ask,
+        {
+          topicLabel: input.topicLabel,
+          prepTitle: input.prepTitle,
+          pages: source.pages,
+          mode: core ? "document" : "topic",
+          learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+          count: 8,
+        },
+        started,
+      );
+      const log = { kept: loop.items.length, rejected: loop.rejected.length, rounds: loop.rounds, mixed: loop.mixed };
+      return loop.items.length >= 5 && loop.mixed
+        ? { ok: true as const, result: loop.items, log }
+        : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun"), log };
+    },
+  });
+  if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  return { type: "true_false", items: outcome.result, teachingStandard: activity, engine: "teacher" };
+}
+
+/** Öğretmen sözlü deneme motoru (2 Ekim 2026): her soru, nokta ve örnek cevap belgeyle eşlenir. */
+async function teacherOralPayload(
+  input: Parameters<typeof generateNodePayload>[0],
+  activity: ReturnType<typeof teachingActivityForKind>,
+  asked: number,
+) {
+  const startedAt = Date.now();
+  const block = input.sourceBlock.trim();
+  const outcome = await runWithTeacherModel(input.service, {
+    userId: input.userId,
+    actionCode: actionForKind(input.kind),
+    idempotencyKey: input.idempotencyKey ?? `oral:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    startedAt,
+    label: "teacher_oral",
+    topic: input.topicLabel,
+    work: async (ask, started) => {
+      const loop = await teacherOralLoop(
+        ask,
+        {
+          topicLabel: input.topicLabel,
+          prepTitle: input.prepTitle,
+          pages: [],
+          sourceBlock: block || undefined,
+          mode: block ? "document" : "topic",
+          brief: input.syllabusLine?.trim() || undefined,
+          learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+          count: asked,
+        },
+        started,
+      );
+      const log = { kept: loop.items.length, rejected: loop.rejected.length, rounds: loop.rounds };
+      return loop.items.length >= Math.min(asked, 3)
+        ? { ok: true as const, result: loop.items, log }
+        : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun"), log };
+    },
+  });
+  if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  return {
+    type: "oral",
+    testedTopic: input.topicLabel,
+    questions: stampOralQuestions(outcome.result, input.oralCitation),
+    teachingStandard: activity,
+    engine: "teacher",
+  };
 }
 
 async function teacherQuizPayload(
