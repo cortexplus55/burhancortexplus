@@ -5,6 +5,8 @@ import { corePageRun } from "@/lib/learning/core-pages";
 import { runTeacherLesson } from "@/lib/learning/teacher-lesson-run";
 import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
 import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
+import { teacherCardsLoop } from "@/lib/learning/teacher-cards";
+import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
@@ -259,7 +261,9 @@ const oralSchema = z.object({
 /** Öğretmen test motorunun yazdığı düğümler (2 Ekim 2026). */
 const TEACHER_QUIZ_KINDS = new Set<PlanNodeKind>(["quiz", "gaps"]);
 /** Öğretmen motorlarının konunun çekirdek sayfalarını okuduğu düğümler. */
-const TEACHER_PAGE_KINDS = new Set<PlanNodeKind>([...TEACHER_QUIZ_KINDS, "podcast"]);
+/** Öğretmen kart motorunun yazdığı düğümler (2 Ekim 2026). */
+const TEACHER_CARD_KINDS = new Set<PlanNodeKind>(["flashcards", "spaced"]);
+const TEACHER_PAGE_KINDS = new Set<PlanNodeKind>([...TEACHER_QUIZ_KINDS, ...TEACHER_CARD_KINDS, "podcast"]);
 
 function actionForKind(kind: PlanNodeKind) {
   if (kind === "flashcards" || kind === "spaced") return "FLASHCARD_GENERATE" as const;
@@ -2878,6 +2882,16 @@ async function generateNodePayload(input: {
     };
   }
 
+  // Kartlar ve aralıklı tekrar da öğretmen motorundan (2 Ekim 2026).
+  if (
+    TEACHER_CARD_KINDS.has(input.kind) &&
+    input.teachingV2 &&
+    env.CARDS_ENGINE === "teacher" &&
+    (input.lessonCore || input.lessonTopicOnly)
+  ) {
+    return teacherCardsPayload(input, activity, input.lessonCore ?? null);
+  }
+
   if (input.kind === "flashcards" || input.kind === "spaced") {
     const schema = input.teachingV2 ? flashcardV2Schema : cardsSchema;
     const outcome = await generateJson({
@@ -3100,6 +3114,64 @@ async function teacherPodcastEpisode(
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
   return outcome.episode;
+}
+
+/** Temiz çekirdek sayfalar ya da belgesiz; öğretmen motorlarının ortak kaynağı. */
+async function teacherPages(
+  input: Parameters<typeof generateNodePayload>[0],
+  core: { documentId: string; pages: number[] } | null,
+) {
+  const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
+  const clean = core
+    ? await ensureCleanPages(input.service, {
+        userId: input.userId,
+        documentId: core.documentId,
+        pages: corePageRun(core.pages),
+        edges,
+      })
+    : [];
+  return { edges, pages: clean.map((item) => ({ page: item.page, text: item.text })) };
+}
+
+/**
+ * Öğretmen kart motoru (2 Ekim 2026): hatırlatan ön yüz, kısa kesin arka yüz;
+ * her kart belgeyle eşlenir, sorunlu kart düzeltilir ya da elenir. Kod kart
+ * metnine dokunmaz.
+ */
+async function teacherCardsPayload(
+  input: Parameters<typeof generateNodePayload>[0],
+  activity: ReturnType<typeof teachingActivityForKind>,
+  core: { documentId: string; pages: number[] } | null,
+) {
+  const startedAt = Date.now();
+  const source = await teacherPages(input, core);
+  const cardsInput = {
+    topicLabel: input.topicLabel,
+    prepTitle: input.prepTitle,
+    pages: source.pages,
+    mode: core ? ("document" as const) : ("topic" as const),
+    count: 8,
+    focus: input.kind === "spaced" ? ("spaced" as const) : ("cards" as const),
+    learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    runningHeaders: source.edges,
+  };
+  const outcome = await runWithTeacherModel(input.service, {
+    userId: input.userId,
+    actionCode: actionForKind(input.kind),
+    idempotencyKey: input.idempotencyKey ?? `cards:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    startedAt,
+    label: "teacher_cards",
+    topic: input.topicLabel,
+    work: async (ask, started) => {
+      const loop = await teacherCardsLoop(ask, cardsInput, started);
+      const log = { kept: loop.cards.length, rejected: loop.rejected.length, rounds: loop.rounds };
+      return loop.cards.length >= 6
+        ? { ok: true as const, result: loop.cards, log }
+        : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun"), log };
+    },
+  });
+  if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  return { type: "cards", cards: outcome.result, teachingStandard: activity, masteryClaim: false, engine: "teacher" };
 }
 
 async function teacherQuizPayload(
