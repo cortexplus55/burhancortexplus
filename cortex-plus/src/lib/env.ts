@@ -81,6 +81,8 @@ export const envSchema = z.object({
   PODCAST_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
   /** Kartlar ve aralıklı tekrar (2 Ekim 2026): "teacher" öğe öğe denetlenen kartlar; "legacy" eski zincir. */
   CARDS_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
+  /** Doğru/yanlış ve sözlü deneme (2 Ekim 2026): "teacher" öğe öğe denetlenen motor; "legacy" eski zincir. */
+  PRACTICE_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
   /**
    * Ders taslağı — abone. Doğrulama ve parça onarımı standart modelde kalır.
    * Kredi eylem kodu değişmez; yalnızca bu çağrının modeli değişir.
@@ -158,6 +160,7 @@ const parsed = envSchema.safeParse({
   QUIZ_ENGINE: process.env.QUIZ_ENGINE,
   PODCAST_ENGINE: process.env.PODCAST_ENGINE,
   CARDS_ENGINE: process.env.CARDS_ENGINE,
+  PRACTICE_ENGINE: process.env.PRACTICE_ENGINE,
   OPENAI_LESSON_MODEL: process.env.OPENAI_LESSON_MODEL,
   OPENAI_LESSON_FREE_MODEL: process.env.OPENAI_LESSON_FREE_MODEL,
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,
