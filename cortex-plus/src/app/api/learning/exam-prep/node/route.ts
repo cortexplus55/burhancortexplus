@@ -2719,6 +2719,9 @@ async function generateNodePayload(input: {
       requireSourceSupport: input.requireSourceSupport,
       sourcePages: input.sessionMeta?.sourcePages,
       idempotencyKey: input.idempotencyKey,
+      count: Math.max(4, quizCount),
+      topicLabel: input.topicLabel,
+      prepTitle: input.prepTitle,
       userPrompt: input.teachingV2
         ? `${QA_TEACHER_PROMPT} ${ctx} ${quizCount} alıştırma sorusu. Tek kavramdan başla; en az 1 soruda explanation ilk adımı ipucu olarak versin. multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
         : `${ctx} ${quizCount} çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,
@@ -2994,6 +2997,9 @@ async function generateNodePayload(input: {
     requireSourceSupport: input.requireSourceSupport,
     sourcePages: input.sessionMeta?.sourcePages,
     idempotencyKey: input.idempotencyKey,
+    count: input.kind === "final_check" ? 4 : input.kind === "focused" ? 5 : Math.max(5, quizCount),
+    topicLabel: input.topicLabel,
+    prepTitle: input.prepTitle,
     schemaHintExtra:
       input.kind === "written_exam"
         ? 'İsteğe bağlı "topic" yalnızca hazırlığın konu adıdır. explanation zorunlu. İpucu yazma.'

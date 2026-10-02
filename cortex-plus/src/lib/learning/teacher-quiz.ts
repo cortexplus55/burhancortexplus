@@ -28,6 +28,13 @@ export type TeacherQuizInput = {
   focus?: "practice" | "gaps";
   /** Aşinalık ve ruh hali satırı. */
   learnerLine?: string;
+  /**
+   * Sayfa listesi yerine hazır kaynak bloğu (deneme sınavı, düello, tanışma
+   * testi gibi eski çağıranların kaynağı). Varsa KAYNAK budur.
+   */
+  sourceBlock?: string;
+  /** Çağıranın isteği: soru türü planı, konu kodları, kapsam. */
+  brief?: string;
   runningHeaders?: string[];
 };
 
@@ -98,16 +105,22 @@ export function quizSystem(mode: TeacherLessonMode = "document", focus: TeacherQ
   return system(mode, focus);
 }
 
+function quizSource(input: TeacherQuizInput): string {
+  if (input.mode === "topic") return "KAYNAK: (yok — belgesiz; konunun yerleşik bilgisiyle yaz)";
+  return `KAYNAK:\n${input.sourceBlock?.trim() || sourceText(input.pages)}`;
+}
+
 export function quizUserPrompt(input: TeacherQuizInput, ask = input.count): string {
   return [
-    `SINAV: ${input.prepTitle}`,
-    `KONU: ${input.topicLabel}`,
+    input.prepTitle ? `SINAV: ${input.prepTitle}` : "",
+    input.topicLabel ? `KONU: ${input.topicLabel}` : "",
     `SORU SAYISI: ${ask}`,
+    input.brief ? `İSTEK (kurallarla çelişirse kurallar geçerli):\n${input.brief}` : "",
     input.learnerLine ? `ÖĞRENCİ: ${input.learnerLine}` : "",
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu değildir: ${input.runningHeaders.join(" | ")}`
       : "",
-    input.mode === "topic" ? "KAYNAK: (yok — belgesiz; konunun yerleşik bilgisiyle yaz)" : `KAYNAK:\n${sourceText(input.pages)}`,
+    quizSource(input),
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -147,8 +160,8 @@ export function quizVerifySystem(mode: TeacherLessonMode = "document"): string {
 export function quizVerifyUserPrompt(questions: QuizQuestion[], input: TeacherQuizInput): string {
   const head =
     input.mode === "topic"
-      ? `SINAV: ${input.prepTitle}\nKONU: ${input.topicLabel}\n(Belgesiz test.)`
-      : `KAYNAK:\n${sourceText(input.pages)}`;
+      ? `SINAV: ${input.prepTitle}\nKONU: ${input.topicLabel}\n${input.brief ? `İSTEK: ${input.brief.slice(0, 600)}\n` : ""}(Belgesiz test.)`
+      : quizSource(input);
   return `${head}\n\nTEST (JSON):\n${JSON.stringify({ questions: questions.map(publicShape) })}`;
 }
 
@@ -187,6 +200,7 @@ function publicShape(question: QuizQuestion) {
     misconceptionTag: question.misconceptionTag,
     learningObjective: question.learningObjective,
     ...(question.steps?.length ? { steps: question.steps } : {}),
+    ...(question.topic ? { topic: question.topic } : {}),
   };
 }
 
@@ -208,10 +222,49 @@ export function parseTeacherQuiz(raw: unknown): QuizQuestion[] | null {
       misconceptionTag: typeof row.misconceptionTag === "string" ? row.misconceptionTag : undefined,
       optionWhy: Array.isArray(row.optionWhy) ? row.optionWhy.map((line) => String(line)) : undefined,
       steps: Array.isArray(row.steps) ? row.steps.map((line) => String(line)) : undefined,
+      // Tanı testi soruya konu kodu (definition/concept/application) yazdırıyor.
+      topic: typeof row.topic === "string" ? row.topic : undefined,
     });
     return normalized ? [normalized] : [];
   });
   return questions.length ? questions : null;
+}
+
+function textSeed(text: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+/**
+ * Şıkları gerekçeleriyle birlikte, soru metnine bağlı sabit bir sırayla
+ * karıştırır (metin değişmez, yalnız sıra). 2 Ekim 2026 altın denemelerinde
+ * model doğru cevabı neredeyse hep ilk şıkka yazıyordu (KPSS 5/5, deneme
+ * sınavı 4/4); öğrenci "cevap hep A" diye öğrenirdi.
+ */
+export function shuffleOptions(question: QuizQuestion): QuizQuestion {
+  if (question.options.length < 2) return question;
+  let state = textSeed(question.text) || 1;
+  const random = () => {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return (state >>> 0) / 4294967296;
+  };
+  const order = question.options.map((_, index) => index);
+  for (let index = order.length - 1; index > 0; index -= 1) {
+    const pick = Math.floor(random() * (index + 1));
+    [order[index], order[pick]] = [order[pick], order[index]];
+  }
+  const whyAligned = question.optionWhy?.length === question.options.length;
+  return {
+    ...question,
+    options: order.map((index) => question.options[index]),
+    ...(whyAligned ? { optionWhy: order.map((index) => question.optionWhy![index]) } : {}),
+  };
 }
 
 export type QuizIssue = { question: number; severity: "high" | "low"; problem: string; fix?: string };

@@ -15,6 +15,9 @@ import { quizClaimIssues } from "@/lib/learning/tutor-quant";
 import { absoluteClaimIssues } from "@/lib/learning/absolute-claims";
 import { exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
+import { randomUUID } from "node:crypto";
+import { env } from "@/lib/env";
+import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
 
 const QUIZ_GATE = {
   requireObjective: false,
@@ -60,10 +63,46 @@ export async function generateExamQuiz(input: {
    * kapıları yalnızca gösterilen alanlara bakar; bkz. ChoiceVerifyOptions.
    */
   hiddenRationale?: boolean;
+  /** Öğrenciye gidecek soru sayısı (öğretmen motoru). Yoksa maxQuestions ya da 5. */
+  count?: number;
+  /** Öğretmen motorunun istemi için; yoksa çağıranın userPrompt'u bağlamı taşır. */
+  topicLabel?: string;
+  prepTitle?: string;
+  /** "legacy": eski zinciri zorla (çok doğrulu soru isteyen eski profil). */
+  engine?: "teacher" | "legacy";
 }): Promise<
   | { ok: true; questions: QuizQuestion[]; reservationId?: string }
   | { ok: false; status: number; error: string }
 > {
+  /*
+    Öğretmen test motoru (2 Ekim 2026, ürün sahibinin kararı: tüm içerik yeni
+    motora). Düello, tanışma testi, tanı testi, deneme sınavı, test aracı ve
+    düğümün kalan türleri (yazılı deneme, son kontrol, odaklı pratik,
+    soru-cevap) buradan geçer: çağıranın kaynak bloğu KAYNAK, isteği İSTEK
+    olur; soruları bağımsız çözen denetim, sorunlu sorunun düzeltilmesi.
+    `teachingV2: false` eski profil çok doğrulu soru istiyor; o eski yolda.
+  */
+  if (env.QUIZ_ENGINE === "teacher" && input.engine !== "legacy" && input.teachingV2 !== false) {
+    const source = input.sourceExcerpt?.trim() ?? "";
+    const count = input.count ?? Math.min(input.maxQuestions ?? 5, 12);
+    const outcome = await runTeacherQuiz(input.service, {
+      userId: input.userId,
+      actionCode: input.actionCode ?? "QUIZ_GENERATE",
+      idempotencyKey: input.idempotencyKey ?? `quiz:${randomUUID()}`,
+      topicLabel: input.topicLabel ?? "",
+      prepTitle: input.prepTitle ?? "",
+      pages: [],
+      sourceBlock: source || undefined,
+      mode: source ? "document" : "topic",
+      count,
+      minimum: Math.min(3, count),
+      brief: [input.userPrompt, input.schemaHintExtra].filter(Boolean).join("\n"),
+      deferCommit: input.deferCommit,
+    });
+    if (!outcome.ok) return { ok: false, status: outcome.status, error: outcome.error };
+    return { ok: true, questions: outcome.questions, reservationId: outcome.reservationId };
+  }
+
   const pedagogyHint = input.teachingV2
     ? " Her soruda learningObjective, explanation, misconceptionTag ve optionWhy zorunlu. optionWhy, options ile aynı uzunlukta; her şık için bir cümle (doğru şıkta gerekçe, diğerlerinde o şıkkın neden uymadığı). misconceptionTag, tuzakta adı geçen yanlış anlamın adı. multi yalnızca birden fazla bağımsız doğru varken. Yazamıyorsan optionReasons[şıkMetni] alanında O ŞIKKA özgü hata nedenini de ekleyebilirsin (hangi yanlış hesap o sayıyı verir); aynı cümleyi tekrarlama."
     : "";

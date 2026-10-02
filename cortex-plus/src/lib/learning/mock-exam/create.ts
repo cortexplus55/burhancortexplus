@@ -299,6 +299,9 @@ async function generateForTopic(input: {
     requireSourceSupport: true,
     actionCode: "PRACTICE_EXAM_GENERATE",
     idempotencyKey: input.chargeKey,
+    count: input.slots.length,
+    topicLabel: input.topic.topicLabel,
+    prepTitle: input.prepTitle,
     userPrompt: [
       `Sınav: ${input.prepTitle}.`,
       `Konu: ${input.topic.topicLabel}.`,
