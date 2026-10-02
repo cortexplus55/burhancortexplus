@@ -1,7 +1,7 @@
 import type OpenAI from "openai";
 import { parseModelJson } from "@/lib/learning/teaching-standards";
 import {
-  TUTOR_VERIFY_SYSTEM,
+  tutorVerifySystem,
   hasTemplateLabels,
   parseTutorIssues,
   tutorRetryNote,
@@ -59,7 +59,7 @@ export async function runTeacherTutor(input: {
           model: input.model,
           response_format: { type: "json_object" },
           messages: [
-            { role: "system", content: TUTOR_VERIFY_SYSTEM },
+            { role: "system", content: tutorVerifySystem(input.context.mode) },
             {
               role: "user",
               content: tutorVerifyUserPrompt({ passages: input.context.passages, question: input.message, answer }),

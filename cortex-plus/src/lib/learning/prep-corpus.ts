@@ -62,6 +62,61 @@ function numbersIn(text: string): string[] {
 }
 
 /**
+ * Kelime araması için sorudaki kökler (ilk 5 harf), uzun kelimeler önce.
+ * `raw` veritabanında ilike için (Türkçe harfler korunur), `folded` puanlama için.
+ */
+export function searchStems(question: string, max = 4): { raw: string; folded: string }[] {
+  const seen = new Set<string>();
+  const stems: { raw: string; folded: string }[] = [];
+  const words = question
+    .toLocaleLowerCase("tr")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((word) => word.length >= 5 && !/^\d+$/.test(word) && !STOP.has(foldTr(word)))
+    .sort((a, b) => b.length - a.length);
+  for (const word of words) {
+    const raw = word.slice(0, 5);
+    const folded = foldTr(raw);
+    if (seen.has(folded)) continue;
+    seen.add(folded);
+    stems.push({ raw, folded });
+    if (stems.length >= max) break;
+  }
+  return stems;
+}
+
+/**
+ * Kelime aramasıyla gelen sayfayı puanlar ve köklerin en yoğun geçtiği
+ * ~700 karakterlik pencereyi döndürür. Anlam araması "Fransa'da sendika kaç
+ * kişiyle kurulur?" sorusunda "En az 7 işçi… kurulan" diyen s.40'ı
+ * getirmedi; öğretmen belgede olan bilgi için "verilmemiş" dedi.
+ */
+export function lexicalPageHit(
+  question: string,
+  text: string,
+): { score: number; excerpt: string } | null {
+  const stems = searchStems(question);
+  if (!stems.length) return null;
+  const hay = foldTr(text);
+  const numbers = [...new Set(numbersIn(question).filter((n) => n.length >= 2))];
+  const hayNumbers = new Set(numbersIn(text));
+  const matched = stems.filter((stem) => hay.includes(stem.folded));
+  const score = matched.length + 2 * numbers.filter((n) => hayNumbers.has(n)).length;
+  if (!matched.length) return null;
+  // Köklerin en çok bir arada geçtiği yeri bul.
+  let best = { at: hay.indexOf(matched[0].folded), count: 0 };
+  for (const stem of matched) {
+    for (let at = hay.indexOf(stem.folded); at >= 0; at = hay.indexOf(stem.folded, at + 1)) {
+      const window = hay.slice(Math.max(0, at - 350), at + 350);
+      const count = matched.filter((other) => window.includes(other.folded)).length;
+      if (count > best.count) best = { at, count };
+    }
+  }
+  const start = Math.max(0, best.at - 350);
+  return { score, excerpt: text.slice(start, start + 700).trim() };
+}
+
+/**
  * Anlam benzerliğine sorudaki kelime köklerinin ve sayıların pasajda
  * geçmesini ekler. 2 Ekim 2026 altın denemesi: "200 kPa sabit basınçta 0.1
  * m³'ten 0.3 m³'e genleşen gazın işi" sorusunda aynı örneği taşıyan s.14

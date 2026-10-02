@@ -285,7 +285,9 @@ function ChatPanelSession({
   // `?belge=` ile gelen öğrenci belgesinden çalışmak istiyor: belge modu
   // açık başlar ve kilit görünür. Aksi hâlde konuşma sessizce genel bilgiye
   // düşerdi ve "belgemi okumadı" şikâyeti gelirdi.
-  const [useDocuments, setUseDocuments] = useState(Boolean(initialDocumentId));
+  // Hazırlık sohbeti "Yalnızca belgem" ile açılır (2 Ekim 2026, ürün sahibinin
+  // kararı); öğrenci modu kendisi değiştirebilir.
+  const [useDocuments, setUseDocuments] = useState(Boolean(initialDocumentId) || Boolean(prepId));
   /** true = Yalnızca Belgem (varsayılan); false = Belgem + Genel Bilgi */
   const [documentsOnly, setDocumentsOnly] = useState(true);
   const [status, setStatus] = useState<string | null>(null);

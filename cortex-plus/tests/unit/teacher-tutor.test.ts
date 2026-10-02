@@ -9,10 +9,11 @@ import {
   tutorHistoryLine,
   tutorHistoryText,
   tutorRetryNote,
+  tutorVerifySystem,
   tutorSystemPrompt,
   tutorVerifyUserPrompt,
 } from "@/lib/ai/teacher-tutor";
-import { rerankByOverlap } from "@/lib/learning/prep-corpus";
+import { lexicalPageHit, rerankByOverlap, searchStems } from "@/lib/learning/prep-corpus";
 
 /*
   Öğretmen sohbeti (2 Ekim 2026). Astra'nın aynı KPSS belgesiyle gözlenen
@@ -45,6 +46,22 @@ describe("öğretmen sohbeti istemi", () => {
     expect(prompt).toContain("Öğrenci stresli");
     expect(prompt).toContain("beklenen cevabı: Nispi butlan");
     expect(prompt).toContain("[KPSS.pdf s.9]");
+  });
+
+  it("öğretmen öğrencinin seçtiği moda göre davranır", () => {
+    const documentOnly = tutorSystemPrompt({ passages, mode: "document" });
+    const mixed = tutorSystemPrompt({ passages, mode: "mixed" });
+    const general = tutorSystemPrompt({ passages: [], mode: "general" });
+    expect(documentOnly).toContain("KAYNAK KURALI (kesin)");
+    expect(mixed).toContain("'Genel bilgiden:'");
+    expect(mixed).not.toContain("KAYNAK KURALI (kesin)");
+    expect(general).toContain("genel bilgini kullanabilirsin");
+    expect(general).not.toContain("BELGE PASAJLARI: (bu soruyla");
+    // Öğretmen tavrı her modda aynı.
+    for (const prompt of [documentOnly, mixed, general]) expect(prompt).toContain("TEK bir soruyla bitir");
+    expect(tutorVerifySystem("mixed")).toContain("'Genel bilgiden:' paragrafı dışında");
+    expect(tutorVerifySystem("general")).toContain("Yanlış olgu");
+    expect(tutorVerifySystem()).toBe(TUTOR_VERIFY_SYSTEM);
   });
 
   it("pasaj yoksa uydurmaması söylenir", () => {
@@ -105,6 +122,19 @@ describe("sohbet pasajları kelime ve sayı örtüşmesiyle yeniden sıralanır"
     expect(rerankByOverlap("?", matches).map((m) => m.page)).toEqual([12, 6, 14]);
   });
 
+  it("kelime araması belgedeki kesin cümleyi bulur ve çevresini keser", () => {
+    // Uzun kelime önce; "kaç" kısa, atlanır.
+    expect(searchStems("Fransa'da sendika kaç kişiyle kurulur?").map((stem) => stem.raw)).toEqual(["sendi", "kişiy", "kurul", "frans"]);
+    const page40 = `${"Lokavt tanımı. ".repeat(40)}● Sendikalar: En az 7 işçi veya işverenin hizmet akdine dayanarak yürüttükleri iş faaliyetlerinde ekonomik ve sosyal çıkarlarını korumak için izin alınmadan kurulan tüzel kişiye denir.${" Fikri haklar.".repeat(40)}`;
+    const hit = lexicalPageHit("Fransa'da sendika kaç kişiyle kurulur?", page40);
+    expect(hit?.score).toBe(3);
+    expect(hit?.excerpt).toContain("En az 7 işçi");
+    expect(hit!.excerpt.length).toBeLessThanOrEqual(700);
+    expect(lexicalPageHit("Fransa'da sendika kaç kişiyle kurulur?", "Hukukun kaynakları.")).toBeNull();
+    const source = readFileSync("src/lib/learning/prep-chat-grounding.ts", "utf8");
+    expect(source).toContain('.ilike("text_content", `%${stem.raw}%`)');
+  });
+
   it("sohbet, konu kimliği olmadan açılan düğüm dersini de son ders sayar", () => {
     const source = readFileSync("src/lib/learning/exam-chat-context.ts", "utf8");
     expect(source).toContain('.from("exam_prep_node_attempts")');
@@ -129,5 +159,15 @@ describe("sohbet uç noktası öğretmen yolunu kullanır", () => {
     expect(teacherBlock).not.toContain("tutorStylePrompt");
     expect(teacherBlock).not.toContain("polishPrep");
     expect(teacherBlock).toContain("teacherStyleLine");
+    expect(teacherBlock).toContain("mode: tutorMode");
+    // Kaynak satırı boş kalmasın: öğretmen yolu da citations doldurur.
+    expect(teacherBlock).toContain("citations = grounding.passages.slice(0, 2)");
+    // Hazırlık sohbetinde tüm belgelerde arama ve erken "kaynak yok" dönüşü yok.
+    expect(route).toContain("if (strict && !evidence.length && !imageUrl && !teacherPrepChat)");
+  });
+
+  it("hazırlık sohbeti 'Yalnızca belgem' ile açılır", () => {
+    const panel = readFileSync("src/components/chat/chat-panel.tsx", "utf8");
+    expect(panel).toContain("useState(Boolean(initialDocumentId) || Boolean(prepId))");
   });
 });

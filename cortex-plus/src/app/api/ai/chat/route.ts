@@ -180,7 +180,10 @@ export async function POST(request: Request) {
     reservationId = reserved.reservationId;
     if (!env.OPENAI_API_KEY) { await undoSpend(); return errorResponse(503, "ai_not_configured"); }
 
-    if (useDocuments && !documentAttached && !imageUrl) {
+    // Öğretmen sohbeti hazırlığın kendi belgelerine bakar (prepGrounding); tüm
+    // belgelerde arama ve erken "kaynak yok" dönüşü bu yolda gereksiz.
+    const teacherPrepChat = env.TUTOR_ENGINE === "teacher" && Boolean(rest.prepId) && !imageUrl;
+    if (useDocuments && !documentAttached && !imageUrl && !teacherPrepChat) {
       const matches = await searchDocumentChunks(service, userId, message, 6, {
         minSimilarity: documentsOnly ? 0.32 : undefined,
       });
@@ -208,7 +211,7 @@ export async function POST(request: Request) {
     let tokensOut = 0;
     let gradedForStore: GradedClaim | null = null;
     let prepGrounding: Awaited<ReturnType<typeof loadPrepChatGrounding>> | null = null;
-    if (strict && !evidence.length && !imageUrl) {
+    if (strict && !evidence.length && !imageUrl && !teacherPrepChat) {
       content = NO_SOURCE_MESSAGE + NO_SOURCE_CREDIT_NOTE;
       charge = false;
     } else {
@@ -359,7 +362,9 @@ export async function POST(request: Request) {
       let accepted = false;
       // Öğretmen sohbeti (2 Ekim 2026): serbest metin + belgeye karşı denetim.
       // JSON şablon, yeniden yazan denetçiler ve polishPrep bu yolda yok.
-      const teacherTutor = env.TUTOR_ENGINE === "teacher" && Boolean(rest.prepId) && Boolean(prepGrounding) && !imageUrl;
+      const teacherTutor = teacherPrepChat && Boolean(prepGrounding);
+      // Öğrencinin seçtiği mod: Yalnızca belgem / Belgem + genel bilgi / Genel sohbet.
+      const tutorMode = !grounded ? "general" : strict ? "document" : "mixed";
       if (teacherTutor && prepGrounding) {
         const grounding = prepGrounding;
         const lastLesson = examContext?.lastLesson ?? null;
@@ -384,6 +389,7 @@ export async function POST(request: Request) {
               ...(lastLesson ? [{ label: `Öğrencinin son okuduğu ders: ${lastLesson.title}`, text: lastLesson.text }] : []),
             ],
             pendingAnswer: pendingExpected?.answer ?? null,
+            mode: tutorMode,
           },
           history: history.map((item) =>
             item.role === "assistant" && typeof item.content === "string"
@@ -406,6 +412,17 @@ export async function POST(request: Request) {
           });
           content = `${outcome.content}\n\n${chips.map(chipMarker).join("\n")}`.trim();
           gradedForStore = studentGrade && studentGrade.verdict !== "dogru" ? studentGrade : null;
+          // Kaynak satırı ("Kaynak: KPSS.pdf · s.8") ve kaynak işaretleri bu
+          // listeden gelir; boş kalırsa ekran belge modunda "belgede yok" yazıyordu.
+          if (tutorMode !== "general" && grounding.decision === "in") {
+            citations = grounding.passages.slice(0, 2).map((item, index) => ({
+              reference: index + 1,
+              documentId: item.documentId,
+              documentName: item.documentName,
+              pageNumber: item.pageNumber,
+              chunkId: null,
+            }));
+          }
           accepted = true;
         } else {
           logOpsEvent("document_answer_rejected", { operationId, strict, stage: "teacher_tutor", reasons: outcome.reasons.slice(0, 3) });
