@@ -43,6 +43,22 @@ describe("markdown sanitization", () => {
     expect(html).toContain("<li>ilk adım</li>");
   });
 
+  it("öğretmenin karşılaştırma tablosunu çizer; hücreler escape edilir", () => {
+    const answer =
+      "Karışması anlaşılır.\n| | Kast | Taksir |\n|---|---|---|\n| Temel ölçüt | **Bilerek** ve istenerek | Öngörülmeden <script>x</script> |\n\nHangisine yönelirsin?";
+    const html = renderMarkdownToHtml(answer);
+    expect(html).toContain('<table class="cp-md-table">');
+    expect(html).toContain("<th>Kast</th>");
+    expect(html).toContain("<td><strong>Bilerek</strong> ve istenerek</td>");
+    expect(html).toContain("&lt;script&gt;");
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("<p>Karışması anlaşılır.</p>");
+    expect(html).toContain("<p>Hangisine yönelirsin?</p>");
+    expect(html).not.toContain("|---|");
+    // Ayırıcı satırı olmayan çizgili metin tablo sayılmaz.
+    expect(renderMarkdownToHtml("| tek satır |")).not.toContain("<table");
+  });
+
   it("ayrışmış numaralı adımları yapışık metinden listeye çevirir", () => {
     const html = renderMarkdownToHtml(
       "Belirlenmesi için:1. Mol sayısını hesaplayın.2. Katsayıya bölün.3. Küçük oranı seçin. Sonra sor.",

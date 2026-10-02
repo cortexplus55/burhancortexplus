@@ -73,3 +73,28 @@
     animation: none !important;
   }
 }
+
+/* Sohbet ve öğretmen cevaplarındaki Markdown tablosu (src/lib/markdown.ts). */
+.cp-md-table-wrap {
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+.cp-md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.cp-md-table th,
+.cp-md-table td {
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+  border: 1px solid var(--cp-border, hsl(var(--border)));
+}
+
+.cp-md-table thead th {
+  font-weight: 600;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
