@@ -4,8 +4,13 @@ import { acceptCleanPage, isRunningHeader, repeatedEdgeLines } from "@/lib/docum
 import { corePageRun } from "@/lib/learning/core-pages";
 import {
   TEACHER_SYSTEM,
+  TOPIC_TEACHER_SYSTEM,
   VERIFY_SYSTEM,
   calmHeading,
+  fixSystem,
+  teacherSystem,
+  verifySystem,
+  verifyUserPrompt,
   lessonStructureIssues,
   parseIssues,
   parseTeacherLesson,
@@ -159,6 +164,24 @@ describe("yapı denetimi", () => {
     expect(lessonStructureIssues(parsed!, {}).some((issue) => /BÜYÜK HARF/.test(issue.problem))).toBe(false);
   });
 
+  it("belgesiz ders: aynı akış, kaynak kuralı yerine doğruluk kuralı", () => {
+    expect(TOPIC_TEACHER_SYSTEM).toContain("BİLGİ KURALI (belgesiz ders, kesin)");
+    expect(TOPIC_TEACHER_SYSTEM).not.toContain("KAYNAK KURALI (kesin)");
+    expect(TOPIC_TEACHER_SYSTEM).not.toContain("example yalnız kaynakta");
+    expect(TOPIC_TEACHER_SYSTEM).toContain("kendin kurduğun basit, adım adım doğrulanabilir");
+    // Akış ve anlatım belgeli dersle aynı kaynaktan.
+    for (const rule of ["GÜNDELİK ÖRNEK (zorunlu)", "checkFirst=true", "kardeş terimler", "optionWhy", "'Kaynak:'"]) {
+      expect(TOPIC_TEACHER_SYSTEM).toContain(rule);
+    }
+    expect(teacherSystem("topic")).toBe(TOPIC_TEACHER_SYSTEM);
+    expect(teacherSystem()).toBe(TEACHER_SYSTEM);
+    expect(verifySystem("topic")).toContain("Belgesi olmayan");
+    expect(fixSystem("topic")).toContain("BİLGİ KURALI");
+    const prompt = teacherUserPrompt({ topicLabel: "Üslü sayılar", prepTitle: "TYT Matematik", pages: [], upcomingTopics: [], mode: "topic" });
+    expect(prompt).toContain("KAYNAK: (yok — belgesiz ders");
+    expect(verifyUserPrompt(good, { pages: [], mode: "topic", topicLabel: "Üslü sayılar", prepTitle: "TYT Matematik" })).toContain("KONU: Üslü sayılar");
+  });
+
   it("gündelik örnek kutusu olmayan ders düzeltmeye gider", () => {
     const noExample: LessonV2 = {
       ...good,
@@ -216,8 +239,11 @@ describe("öğretmen istemi", () => {
 
   it("rota belgeli dersi öğretmen motoruna yollar; eski motor anahtarla geri açılır", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
-    expect(route).toContain('input.lessonCore && env.LESSON_ENGINE === "teacher"');
-    expect(route).toContain("return teacherLessonPayload(input, activity, input.lessonCore);");
+    expect(route).toContain('input.kind === "lesson" && input.teachingV2 && env.LESSON_ENGINE === "teacher"');
+    expect(route).toContain("if (input.lessonCore) return teacherLessonPayload(input, activity, input.lessonCore);");
+    // Belgesiz hazırlık dersi de öğretmen motorundan (2 Ekim 2026).
+    expect(route).toContain("if (input.lessonTopicOnly) return teacherLessonPayload(input, activity, null);");
+    expect(route).toContain('mode: core ? "document" : "topic"');
     expect(readFileSync("src/lib/env.ts", "utf8")).toContain('LESSON_ENGINE: z.enum(["teacher", "legacy"]).default("teacher")');
   });
 

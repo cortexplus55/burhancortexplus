@@ -1243,6 +1243,8 @@ export async function POST(request: Request) {
   // Öğretmen motoru: dersin belgesi ve konunun kendi sayfaları.
   let lessonCoreDocumentId: string | null = null;
   let lessonCorePages: number[] = [];
+  // Belgesiz hazırlık dersi: öğretmen motoru doğruluk kuralıyla yazar.
+  let lessonTopicOnly = false;
   try {
     const mappedPages = topicWiden ? undefined : sessionMeta?.sourcePages;
     const pageDocumentIds = [
@@ -1272,6 +1274,7 @@ export async function POST(request: Request) {
       kind === "lesson" && teachingV2 && !voiceSession && sourceMode === "topic_only" && !hasPrepDocuments;
 
     if (topicOnlyLesson) {
+      lessonTopicOnly = true;
       source = EMPTY_SOURCE_CONTEXT;
     } else if (kind === "lesson" && teachingV2 && !voiceSession) {
       lessonCoreDocumentId = topicDocumentId ?? (prepSource.document_id as string | null) ?? prepDocs[0] ?? null;
@@ -1606,6 +1609,7 @@ export async function POST(request: Request) {
             kind === "lesson" && lessonCoreDocumentId && lessonCorePages.length
               ? { documentId: lessonCoreDocumentId, pages: lessonCorePages }
               : null,
+          lessonTopicOnly,
           repetitiveSparseEvidence: source.repetitiveSparseEvidence,
           sourceFormulas: source.formulas ?? [],
           teachingV2,
@@ -2026,6 +2030,8 @@ async function generateNodePayload(input: {
   sourceBlock: string;
   /** Öğretmen motorunun okuyacağı belge ve konunun kendi sayfaları. */
   lessonCore?: { documentId: string; pages: number[] } | null;
+  /** Belgesiz hazırlık dersi (topic_only, hazırlıkta belge yok). */
+  lessonTopicOnly?: boolean;
   repetitiveSparseEvidence?: boolean;
   /**
    * Belge yokken konunun çiti. Sohbetteki "belgede yoksa cevap verme"
@@ -2123,8 +2129,10 @@ async function generateNodePayload(input: {
   // Planın öğrenme adımı. Podcast'ten devraldı: metin geri dönüp
   // okunabiliyor ve doğrulayıcısı (validateLessonPedagogy) bölüm
   // başlığından çözümlü örneğin her adımına kadar kontrol ediyor.
-  if (input.kind === "lesson" && input.teachingV2 && input.lessonCore && env.LESSON_ENGINE === "teacher") {
-    return teacherLessonPayload(input, activity, input.lessonCore);
+  if (input.kind === "lesson" && input.teachingV2 && env.LESSON_ENGINE === "teacher") {
+    if (input.lessonCore) return teacherLessonPayload(input, activity, input.lessonCore);
+    // Belgesiz ders de aynı öğretmenden (2 Ekim 2026, ürün sahibinin kararı).
+    if (input.lessonTopicOnly) return teacherLessonPayload(input, activity, null);
   }
 
   if (input.kind === "lesson") {
@@ -2925,18 +2933,21 @@ async function generateNodePayload(input: {
 async function teacherLessonPayload(
   input: Parameters<typeof generateNodePayload>[0],
   activity: ReturnType<typeof teachingActivityForKind>,
-  core: { documentId: string; pages: number[] },
+  /** null: belgesiz hazırlık; ders doğruluk kuralıyla yazılır. */
+  core: { documentId: string; pages: number[] } | null,
 ) {
   const startedAt = Date.now();
-  const pages = corePageRun(core.pages);
-  const edges = await documentRunningHeaders(input.service, core.documentId);
-  const clean = await ensureCleanPages(input.service, {
-    userId: input.userId,
-    documentId: core.documentId,
-    pages,
-    edges,
-  });
+  const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
+  const clean = core
+    ? await ensureCleanPages(input.service, {
+        userId: input.userId,
+        documentId: core.documentId,
+        pages: corePageRun(core.pages),
+        edges,
+      })
+    : [];
   const outcome = await runTeacherLesson(input.service, {
+    mode: core ? "document" : "topic",
     userId: input.userId,
     actionCode: actionForKind(input.kind),
     idempotencyKey: input.idempotencyKey ?? `lesson:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
