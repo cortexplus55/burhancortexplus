@@ -116,6 +116,9 @@ describe("rota podcast'i öğretmen motoruna yollar", () => {
     expect(route).toContain('const TEACHER_PAGE_KINDS = new Set<PlanNodeKind>([...TEACHER_QUIZ_KINDS, "podcast"]);');
     expect(route).toContain('input.teachingV2 && env.PODCAST_ENGINE === "teacher" && (input.lessonCore || input.lessonTopicOnly)');
     expect(route).toContain("const episode = await teacherPodcastEpisode(input, input.lessonCore ?? null, length);");
+    // Sayfa listesi boş düğümde test ve podcast dersin çözücüsünden aynı sayfaları alır.
+    const block = route.slice(route.indexOf("if (TEACHER_PAGE_KINDS.has(kind) && teachingV2"), route.indexOf("// Podcast, sayfa kaynağı duruyorsa"));
+    expect(block).toContain("await resolveLessonSource(service, {");
     expect(readFileSync("src/lib/env.ts", "utf8")).toContain('PODCAST_ENGINE: z.enum(["teacher", "legacy"]).default("teacher")');
   });
 });

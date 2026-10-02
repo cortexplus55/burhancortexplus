@@ -1427,8 +1427,29 @@ export async function POST(request: Request) {
     const documentId = topicDocumentId ?? (prepSource.document_id as string | null) ?? prepDocs[0] ?? null;
     if (documentId) {
       lessonCoreDocumentId = documentId;
-      lessonCorePages =
-        !topicWiden && sessionMeta?.sourcePages?.length ? sessionMeta.sourcePages : pagesMarkedInSource(source.block);
+      if (!topicWiden && sessionMeta?.sourcePages?.length) {
+        lessonCorePages = sessionMeta.sourcePages;
+      } else {
+        // Sayfa listesi yoksa dersin çözücüsü: test ve podcast dersle aynı
+        // sayfalardan yazılsın (KPSS test düğümlerinde sourcePages boştu).
+        const resolved = await resolveLessonSource(service, {
+          userId,
+          prepId,
+          topicId: topic?.id ?? null,
+          topicLabel,
+          sessionMeta,
+          prepDocs,
+          primaryDocumentId: (prepSource.document_id as string | null) ?? null,
+          topicDocumentId,
+          topicNodeId,
+          sourceRefs: topicSourceRefs,
+          sourceDocumentIds: prepSource.source_document_ids,
+          sourceBoundaryMode,
+          query: `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim(),
+        }).catch(() => null);
+        const lessonPages = pagesMarkedInSource(resolved?.context?.block ?? "");
+        lessonCorePages = lessonPages.length ? lessonPages : pagesMarkedInSource(source.block);
+      }
     } else if (sourceMode === "topic_only") {
       lessonTopicOnly = true;
     }
