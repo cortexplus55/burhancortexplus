@@ -83,14 +83,19 @@ export const TEACHER_SYSTEM =
   "Kaynak bir karşılaştırma ya da tablo veriyorsa 'table' kullan; kardeş kavramları (aynı ailedeki 2-6 terim) 'cards' " +
   "ile tek cümlelik tanımlar olarak ver; sıralı bir işlem varsa 'procedure'; hesaplanabilir bağıntı varsa 'formula'. " +
   "Öğrencinin sık karıştırdığı iki kavram varsa bölümün içine 'note' (tone: warn) koy: 'X ile Y farkı'. " +
-  "Gündelik örneği 'note' (tone: info) içinde ver; başlığı örneği anlatsın.\n\n" +
+  "GÜNDELİK ÖRNEK (zorunlu): Derste EN AZ BİR bölümde, uyarı notu olmayan bir bölüme, 'note' (tone: info) ile " +
+  "gündelik hayattan kısa bir örnek kutusu koy. Başlık 'Günlük hayattan: …' diye başlasın ve örneği anlatsın. " +
+  "Somut bir sahne kur: biri bir şey yapıyor ve bir şey oluyor; soyut tanımı tekrar etme. Örnek biçimi: 'Kırmızı ışıkta " +
+  "geçip bir arabaya çarptığında devlete ödediğin para ceza, karşı tarafın hasarını ödemen tazminattır.' Bu cümleyi " +
+  "kopyalama; kendi konunun kavramları için benzer bir sahne kur. Örnek, kavramı ya da karıştırılan iki kavramı " +
+  "ayırt ettirir; yeni bilgi (sayı, kural, yasa, tarih, sonuç) taşımaz ve kaynaktaki tanımla çelişmez.\n\n" +
   "AKIŞ:\n" +
   "1) overview: dersin kancası — konuya girmeden önce öğrenciyi düşündüren 1-2 cümle.\n" +
   "2) Bölümler: 3-4 bölüm (kaynak darsa 2). Her bölüm tek kavram; başlık kavramın adı. " +
   "Kaynakta başlık büyük harfle yazılmış olsa bile sen normal yazımla yaz ('MADDİ YAPTIRIMLAR' değil 'Maddi Yaptırımlar'). " +
   "Bölüm numarası, 'Giriş/Özet/Örnek/Yaygın hata/Bilgi kontrolü' gibi şablon başlık yok.\n" +
   "3) İlk bölümde checkFirst=true: konu anlatılmadan önce öğrencinin ön bilgisini yoklayan, yaygın yanılgıyı ölçen bir " +
-  "doğru/yanlış sorusu (trueFalse, options ['Doğru','Yanlış']).\n" +
+  "soru; tercihen doğru/yanlış (trueFalse, options ['Doğru','Yanlış']).\n" +
   "4) Her bölüm bir kontrolle biter. Çoktan seçmeli soruda 4 şık; çeldiriciler aynı ailedeki kardeş terimler ya da " +
   "öğrencinin gerçekten karıştırdığı ifadeler. Tek doğru şık. Soru cevabı vermesin; sayma sorusu ('kaç tür vardır') yok. " +
   "explanation doğru cevabın nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
@@ -257,8 +262,10 @@ export function lessonStructureIssues(lesson: LessonV2, input: Pick<TeacherLesso
   if (!lesson.overview?.trim()) add("overview", "Kanca (overview) yok.");
   if (lesson.sections.length < 2) add("sections", "En az iki bölüm olmalı.");
   if (lesson.sections.length > 5) add("sections", "En fazla dört bölüm; konuyu daralt.");
-  if (!lesson.sections[0]?.checkFirst || lesson.sections[0]?.check?.type !== "trueFalse") {
-    add("sections[0]", "İlk bölüm 'önce dene' ile açılmalı: checkFirst=true ve trueFalse kontrolü.");
+  // Tür serbest: Termodinamik altın denemesinde "önce dene" çoktan seçmeli
+  // yazıldı, iki düzeltme turu da değiştirmedi ve iyi bir ders reddedildi.
+  if (!lesson.sections[0]?.checkFirst || !lesson.sections[0]?.check) {
+    add("sections[0]", "İlk bölüm 'önce dene' ile açılmalı: checkFirst=true ve bir kontrol (tercihen doğru/yanlış).");
   }
 
   lesson.sections.forEach((section, index) => {
@@ -306,6 +313,15 @@ export function lessonStructureIssues(lesson: LessonV2, input: Pick<TeacherLesso
     }
   });
 
+  // Astra her derste bir gündelik örnek kutusu koyuyor; bizim ilk dört dersimizde
+  // hiç çıkmadı (2 Ekim 2026, ürün sahibinin kararı: her derste en az bir).
+  if (!lesson.sections.some((section) => section.note?.tone === "info")) {
+    add(
+      "sections",
+      "Gündelik örnek kutusu yok: uyarı notu olmayan bir bölüme 'note' (tone: info, başlık 'Günlük hayattan: …') ile " +
+        "kavramı tanıdık bir durumla ayırt ettiren kısa bir örnek ekle; yeni bilgi taşımasın.",
+    );
+  }
   const summary = lesson.summary ?? [];
   if (summary.length < 3 || summary.length > 5) add("summary", "Özet 3-5 madde olmalı.");
   return issues;

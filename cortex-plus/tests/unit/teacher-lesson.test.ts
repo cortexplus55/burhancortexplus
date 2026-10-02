@@ -79,6 +79,11 @@ const good: LessonV2 = {
         { title: "Ceza", body: "Suç sayılan fiile uygulanan yaptırım." },
         { title: "Tazminat", body: "Hukuka aykırı davranışla verilen zararın giderilmesi." },
       ],
+      note: {
+        title: "Günlük hayattan: Ceza ve tazminat",
+        body: "Kırmızı ışıkta geçip bir arabaya çarptığında devlete ödediğin para ceza, karşı tarafın hasarını ödemen tazminattır.",
+        tone: "info",
+      },
       check: {
         type: "trueFalse",
         prompt: "Hukuk kurallarını diğer kurallardan ayıran şey yalnızca hapis cezasıdır.",
@@ -154,6 +159,15 @@ describe("yapı denetimi", () => {
     expect(lessonStructureIssues(parsed!, {}).some((issue) => /BÜYÜK HARF/.test(issue.problem))).toBe(false);
   });
 
+  it("gündelik örnek kutusu olmayan ders düzeltmeye gider", () => {
+    const noExample: LessonV2 = {
+      ...good,
+      sections: [{ ...good.sections[0], note: undefined }, good.sections[1]],
+    };
+    expect(lessonStructureIssues(noExample, {}).some((issue) => /Gündelik örnek kutusu yok/.test(issue.problem))).toBe(true);
+    expect(TEACHER_SYSTEM).toContain("GÜNDELİK ÖRNEK (zorunlu)");
+  });
+
   it("kaynağın hatasından söz eden iç not yakalanır", () => {
     const noted: LessonV2 = {
       ...good,
@@ -205,5 +219,12 @@ describe("öğretmen istemi", () => {
     expect(route).toContain('input.lessonCore && env.LESSON_ENGINE === "teacher"');
     expect(route).toContain("return teacherLessonPayload(input, activity, input.lessonCore);");
     expect(readFileSync("src/lib/env.ts", "utf8")).toContain('LESSON_ENGINE: z.enum(["teacher", "legacy"]).default("teacher")');
+  });
+
+  it("yeni hazırlık eski belgenin sayfa başlığını ve test sorusu kökünü konu yapmaz", () => {
+    const route = readFileSync("src/app/api/learning/exam-prep/create/route.ts", "utf8");
+    expect(route).toContain("documentRunningHeaders(service, id)");
+    // Öğrencinin elle yazdığı konu (nodeId yok) "bozuk başlık" diye silinmez.
+    expect(route).toContain("!isRunningHeader(title, edges) && !(topicNodeIds[index] && isJunkTopicTitle(title))");
   });
 });
