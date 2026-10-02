@@ -386,7 +386,7 @@ export async function POST(request: Request) {
                 label: `${item.documentName}${item.pageNumber != null ? ` ${item.slide ? "slayt" : "s."}${item.pageNumber}` : ""}`,
                 text: item.content,
               })),
-              ...(lastLesson ? [{ label: `Öğrencinin son okuduğu ders: ${lastLesson.title}`, text: lastLesson.text }] : []),
+              ...(lastLesson ? [{ label: `Öğrencinin belgesinden hazırlanan ders: ${lastLesson.title}`, text: lastLesson.text }] : []),
             ],
             pendingAnswer: pendingExpected?.answer ?? null,
             mode: tutorMode,

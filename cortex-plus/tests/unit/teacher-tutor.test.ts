@@ -64,6 +64,14 @@ describe("öğretmen sohbeti istemi", () => {
     expect(tutorVerifySystem()).toBe(TUTOR_VERIFY_SYSTEM);
   });
 
+  it("belgeden hazırlanan ders kaynak sayılır; öğrenciye 'pasaj' denmez", () => {
+    expect(TUTOR_RULES).toContain("'Pasaj' kelimesini kullanma");
+    expect(tutorSystemPrompt({ passages, mode: "document" })).toContain("belgesinden hazırlanan ders de pasajlar arasındadır");
+    expect(tutorVerifySystem("document")).toContain("etiketli pasaj da kaynaktır");
+    expect(tutorVerifySystem("mixed")).toContain("etiketli pasaj da kaynaktır");
+    expect(readFileSync("src/app/api/ai/chat/route.ts", "utf8")).toContain("Öğrencinin belgesinden hazırlanan ders: ${lastLesson.title}");
+  });
+
   it("pasaj yoksa uydurmaması söylenir", () => {
     expect(tutorSystemPrompt({ passages: [] })).toContain("bu soruyla ilgili pasaj bulunamadı");
   });
@@ -125,6 +133,8 @@ describe("sohbet pasajları kelime ve sayı örtüşmesiyle yeniden sıralanır"
   it("kelime araması belgedeki kesin cümleyi bulur ve çevresini keser", () => {
     // Uzun kelime önce; "kaç" kısa, atlanır.
     expect(searchStems("Fransa'da sendika kaç kişiyle kurulur?").map((stem) => stem.raw)).toEqual(["sendi", "kişiy", "kurul", "frans"]);
+    // Canlı (2 Ekim): 4 harfli terim aranır, sohbet kelimesi ("karıştırıyorum", "farkı") aranmaz.
+    expect(searchStems("Kast ile taksiri karıştırıyorum, farkı ne?").map((stem) => stem.raw)).toEqual(["taksi", "kast"]);
     const page40 = `${"Lokavt tanımı. ".repeat(40)}● Sendikalar: En az 7 işçi veya işverenin hizmet akdine dayanarak yürüttükleri iş faaliyetlerinde ekonomik ve sosyal çıkarlarını korumak için izin alınmadan kurulan tüzel kişiye denir.${" Fikri haklar.".repeat(40)}`;
     const hit = lexicalPageHit("Fransa'da sendika kaç kişiyle kurulur?", page40);
     expect(hit?.score).toBe(3);
