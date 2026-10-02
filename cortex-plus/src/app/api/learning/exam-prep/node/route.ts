@@ -3066,7 +3066,8 @@ async function teacherLessonPayload(
     userId: input.userId,
     actionCode: actionForKind(input.kind),
     idempotencyKey: input.idempotencyKey ?? `lesson:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
-    topicLabel: input.topicLabel,
+    // Kavram birimli konuda ders birimi anlatır: "Hukukun Temel Kavramları: Hükümsüzlüğün dereceleri".
+    topicLabel: input.sessionMeta?.unitTitle ? `${input.topicLabel}: ${input.sessionMeta.unitTitle}` : input.topicLabel,
     prepTitle: input.prepTitle,
     pages: clean.map((item) => ({ page: item.page, text: item.text })),
     upcomingTopics: Array.isArray(input.upcomingTopics) ? input.upcomingTopics : [],
