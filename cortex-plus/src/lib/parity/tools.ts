@@ -85,14 +85,6 @@ export const TOOLS: Tool[] = [
     href: "/quizler",
   },
   {
-    id: "calisma-plani",
-    title: "Çalışma Planı",
-    blurb: "Sınav tarihine göre günlük plan çıkar.",
-    subject: "Genel",
-    kind: "kisayol",
-    href: "/calisma-plani",
-  },
-  {
     id: "deneme",
     title: "Deneme Sınavı",
     blurb: "Gerçek sınav düzeninde dene, sonucunu analiz et.",

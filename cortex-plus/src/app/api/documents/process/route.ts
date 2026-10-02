@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
@@ -23,12 +23,41 @@ import {
   userFacingIngestionMessage,
 } from "@/lib/documents/ingestion-errors";
 import { isAdminUser } from "@/lib/auth/roles";
+import { cleanWholeDocument } from "@/lib/documents/clean-pages";
+import { env } from "@/lib/env";
 
 const bodySchema = z.object({
   documentId: z.string().uuid(),
   maxOcrPages: z.number().int().positive().optional(),
 });
 export const maxDuration = 300;
+/** Arka plan temizliği yeni parti başlatmayı bu süreden sonra bırakır (son parti en fazla ~90 sn). */
+const UPLOAD_CLEAN_BUDGET_MS = 200_000;
+
+/**
+ * Belge hazır olunca bütün sayfalar arka planda temizlenir (2 Ekim 2026
+ * kararı: "her belgeye"). Yetişmeyen sayfa ilk derste temizlenir.
+ */
+function cleanAfterResponse(
+  service: Parameters<typeof cleanWholeDocument>[0],
+  input: { userId: string; documentId: string; startedAt: number },
+) {
+  if (env.LESSON_ENGINE !== "teacher") return;
+  after(() =>
+    cleanWholeDocument(service, {
+      userId: input.userId,
+      documentId: input.documentId,
+      deadlineAt: input.startedAt + UPLOAD_CLEAN_BUDGET_MS,
+    })
+      .then((result) => console.info("document_upload_clean", { documentId: input.documentId, ...result }))
+      .catch((error) =>
+        console.error("document_upload_clean_failed", {
+          documentId: input.documentId,
+          cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
+        }),
+      ),
+  );
+}
 
 async function markDocumentFailed(
   service: Parameters<typeof processPdfDocumentStep>[0],
@@ -82,6 +111,7 @@ async function refundDocumentCredits(
 }
 
 export async function POST(request: Request) {
+  const startedAt = Date.now();
   // Long documents poll often; raise daily ceiling so 211-page books never 429.
   const guard = await withUser(request, { scope: "doc-process", limit: 120, dailyLimit: 2_400 });
   if (!guard.ok) return guard.response;
@@ -272,6 +302,7 @@ export async function POST(request: Request) {
       .from("processing_jobs")
       .update({ status: "completed", progress: 100 })
       .eq("document_id", doc.id);
+    cleanAfterResponse(service, { userId, documentId: doc.id, startedAt });
     return NextResponse.json({
       documentId: doc.id,
       status: "completed",
@@ -363,6 +394,7 @@ export async function POST(request: Request) {
   }
 
   await commitCredits(service, reservation.reservationId);
+  cleanAfterResponse(service, { userId, documentId: doc.id, startedAt });
 
   return NextResponse.json({
     documentId: doc.id,

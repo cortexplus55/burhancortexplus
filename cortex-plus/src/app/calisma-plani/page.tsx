@@ -1,71 +1,15 @@
-import { ParitySorShell } from "@/components/parity/sor-shell";
-import { StudyPlanGeneratePanel } from "@/components/learning/learning-generate-panels";
-import { StudyWorkspace } from "@/components/learning/study-workspace";
-import { requireStudentArea } from "@/lib/auth/session";
-import { loadParityShellProps } from "@/lib/student/parity-shell-props";
-import { getCreditCost } from "@/lib/credits/rules";
-import { loadLearningHub } from "@/lib/learning/learning-hub";
-import { ProgramHub } from "@/components/dashboard/program-hub";
+import { permanentRedirect } from "next/navigation";
 
-export const metadata = { title: "Çalışma planı" };
-
-/*
-  Sayfa tümüyle dinamik çiziliyor.
-
-  `StudyWorkspace` bir istemci bileşeni ve `useSearchParams()` kullanıyor;
-  Next.js bunu durağan çizimde Suspense sınırı içine almanı istiyor. O sınır
-  burada işe yaramıyordu: sayfa yayında hiç görünmüyordu, ekranda yalnızca
-  menü kalıyordu. Sayfa zaten oturum gerektiriyor, yani durağan çizilmesinin
-  bir anlamı yok — dinamik çizince sınır da gerekmiyor.
-*/
-export const dynamic = "force-dynamic";
-
-export default async function CalismaPlaniPage() {
-  const { supabase, user } = await requireStudentArea();
-  const [shell, cost, hub] = await Promise.all([
-    loadParityShellProps(supabase, user.id, user.email),
-    getCreditCost("STUDY_PLAN_GENERATE"),
-    loadLearningHub(supabase, user.id, user.email),
-  ]);
-
-  const [{ data: plans }, { data: examPrep }] = await Promise.all([
-    supabase
-      .from("study_plans")
-      .select("id, title, status, study_plan_tasks(id, title, due_date, completed, sort_order)")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(5),
-    supabase
-      .from("exam_preps")
-      .select("target_score")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ]);
-
-  return (
-    <ParitySorShell {...shell}>
-      {/* Program panosu Ana Sayfa'dan buraya geldi (30 Eylül 2026). */}
-      <ProgramHub hub={hub} />
-      <StudyWorkspace
-        targetScore={examPrep?.target_score ?? null}
-        generateSlot={<StudyPlanGeneratePanel creditCost={cost} />}
-        plans={(plans ?? []).map((plan) => ({
-          id: plan.id,
-          title: plan.title,
-          status: plan.status,
-          tasks: (plan.study_plan_tasks ?? [])
-            .slice()
-            .sort((a, b) => a.sort_order - b.sort_order)
-            .map((task) => ({
-              id: task.id,
-              title: task.title,
-              dueDate: task.due_date,
-              completed: task.completed,
-            })),
-        }))}
-      />
-    </ParitySorShell>
-  );
+/**
+ * "Çalış" ekranı kaldırıldı (3 Ekim 2026).
+ *
+ * Bütün hazırlıkları ve belgeleri tek programda karıştırıyordu: en yakın
+ * sınavın programı, altında başka derslerin tekrar konuları, son belgeler.
+ * Astra'da her sınavın yolu yalnız kendi kartında; öğrenci Sınavlar'dan
+ * hazırlığını seçip o yolu yürür.
+ *
+ * Rota yer imleri ve eski bağlantılar için duruyor.
+ */
+export default function CalismaPlaniRedirect(): never {
+  permanentRedirect("/deneme-sinavlari");
 }
