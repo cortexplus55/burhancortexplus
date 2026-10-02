@@ -76,6 +76,18 @@
   line-height: 1.5;
 }
 
+/* Materyal adımı: bu hazırlık yalnız seçilen dersin materyalinden kurulur. */
+.apw-scope {
+  display: inline-block;
+  margin: 0.5rem 0 0;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--cp-border);
+  color: var(--cp-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
 .apw-group {
   margin: 1.5rem 0 0.6rem;
   font-size: 0.75rem;

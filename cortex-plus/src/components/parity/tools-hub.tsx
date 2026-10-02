@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import {
   ArrowUpRight,
   BookOpen,
-  CalendarRange,
   Camera,
   FileText,
   FlaskConical,
@@ -42,7 +41,6 @@ const ICONS: Record<string, LucideIcon> = {
   "soru-coz": Camera,
   flashcard: Layers,
   quiz: BookOpen,
-  "calisma-plani": CalendarRange,
   deneme: FileText,
   dokuman: FileText,
   ilerleme: LineChart,

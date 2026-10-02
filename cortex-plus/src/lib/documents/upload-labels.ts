@@ -17,9 +17,6 @@ export const DOCUMENT_TYPE_REJECTED =
 export const DOCUMENT_PICK_REJECTED =
   "PDF, Word (.docx), PowerPoint (.pptx), JPG, PNG, HEIC veya TXT yükleyebilirsin.";
 
-export const DOCUMENT_MATERIAL_HINT =
-  "PDF, Word, slayt ya da fotoğraf (JPG, PNG, HEIC) yükle; her şey senin belgenden üretilsin.";
-
 export const DOCUMENT_EMPTY_DESCRIPTION =
   "Ders notunu yükle — PDF, Word veya PowerPoint. Konular çıkınca çalışma planın oluşsun.";
 

@@ -71,6 +71,23 @@ export default async function DokumanlarPage() {
     .order("created_at", { ascending: false })
     .limit(30);
 
+  // Her belgenin kendi yolu (3 Ekim 2026). Düğme eskiden her basışta yeni
+  // hazırlık kuruyordu; aynı trigonometri belgesinin üç ayrı yolu olmuştu.
+  const documentIds = (documents ?? []).map((d) => d.id);
+  const { data: prepRows } = documentIds.length
+    ? await service
+        .from("exam_preps")
+        .select("id, document_id, created_at")
+        .eq("user_id", user.id)
+        .in("document_id", documentIds)
+        .order("created_at", { ascending: false })
+    : { data: [] };
+  const prepByDocument = new Map<string, string>();
+  for (const row of prepRows ?? []) {
+    const documentId = row.document_id as string | null;
+    if (documentId && !prepByDocument.has(documentId)) prepByDocument.set(documentId, row.id as string);
+  }
+
   const activeDocumentIds = (documents ?? []).filter(
     (d) =>
       (d.status === "processing" && d.topic_map_status !== "failed") ||
@@ -151,10 +168,14 @@ export default async function DokumanlarPage() {
                   {ready ? (
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                       <Link
-                        href={`/deneme-sinavlari/olustur?documentId=${document.id}`}
+                        href={
+                          prepByDocument.has(document.id)
+                            ? `/deneme-sinavlari/${prepByDocument.get(document.id)}`
+                            : `/deneme-sinavlari/olustur?documentId=${document.id}`
+                        }
                         className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-action px-4 py-2 text-sm font-bold text-action-foreground hover:bg-action-hover"
                       >
-                        Çalışma planımı oluştur
+                        {prepByDocument.has(document.id) ? "Yoluna devam et" : "Çalışma planımı oluştur"}
                       </Link>
                       <Link
                         href={`/dokumanlar/${document.id}`}

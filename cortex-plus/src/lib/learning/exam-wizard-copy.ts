@@ -5,7 +5,6 @@ import type { StudyModality } from "@/lib/learning/exam-prep-ui-path";
  * Bileşenler bu sabitleri kullanır; metin ikinci bir yerde yazılmaz.
  */
 export const WIZARD_STEP_ORDER = [
-  "start",
   "subject",
   "date",
   "target",
