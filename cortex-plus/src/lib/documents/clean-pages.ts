@@ -130,3 +130,40 @@ export async function ensureCleanPages(
     return hit ? [hit] : [];
   });
 }
+
+/** Arka plan temizliğinde aynı anda kaç sayfa (6 paralel parti). */
+const UPLOAD_STEP = BATCH * 6;
+
+/**
+ * Yüklemede bütün belge (2 Ekim 2026 kararı: "her belgeye"). Belge işlenip
+ * "hazır" dendikten sonra arka planda baştan sona temizlenir; öğrenci
+ * kurulumu bitirip ilk dersi açtığında sayfalar çoğunlukla hazır olur.
+ * Süre biterse kalan sayfalar eskisi gibi ilk ihtiyaçta temizlenir.
+ */
+export async function cleanWholeDocument(
+  service: SupabaseClient,
+  input: { userId: string; documentId: string; deadlineAt: number },
+): Promise<{ cleaned: number; left: number }> {
+  const { data } = await service
+    .from("document_pages")
+    .select("page_number")
+    .eq("document_id", input.documentId)
+    .is("clean_text", null)
+    .order("page_number");
+  const pages = ((data ?? []) as { page_number: number }[]).map((row) => row.page_number);
+  if (!pages.length) return { cleaned: 0, left: 0 };
+  const edges = await documentRunningHeaders(service, input.documentId);
+  let at = 0;
+  let cleaned = 0;
+  while (at < pages.length && Date.now() < input.deadlineAt) {
+    const done = await ensureCleanPages(service, {
+      userId: input.userId,
+      documentId: input.documentId,
+      pages: pages.slice(at, at + UPLOAD_STEP),
+      edges,
+    });
+    cleaned += done.filter((page) => page.cleaned).length;
+    at += UPLOAD_STEP;
+  }
+  return { cleaned, left: Math.max(0, pages.length - at) };
+}
