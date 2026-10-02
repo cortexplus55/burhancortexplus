@@ -27,7 +27,15 @@ export type TeacherLessonInput = {
   learnerLine?: string;
   /** Sayfa kenarında tekrar eden satırlar: başlık olamaz. */
   runningHeaders?: string[];
+  /**
+   * "document": belgeli ders, kaynak kuralı. "topic": belgesiz hazırlık
+   * (2 Ekim 2026, ürün sahibinin kararı) — aynı öğretmen akışı, kaynak kuralı
+   * yerine doğruluk kuralı; denetçi doğruluğa bakar.
+   */
+  mode?: TeacherLessonMode;
 };
+
+export type TeacherLessonMode = "document" | "topic";
 
 export function sourceText(pages: TeacherLessonInput["pages"]): string {
   return pages.map((item) => `[s.${item.page}]\n${item.text.trim()}`).join("\n\n");
@@ -64,10 +72,32 @@ const SCHEMA = `{
   "nextFocus": ["SIRADAKİ KONULAR listesinden aynen"]
 }`;
 
+const INTRO_DOCUMENT =
+  "Sen Cortex Plus'ın usta öğretmenisin. Öğrencin sınava hazırlanıyor ve sana yalnızca kendi ders belgesini verdi. " +
+  "Bu belgeyi, iyi bir öğretmenin tahtada anlatacağı gibi, kendi cümlelerinle, kısa ve net bir derse dönüştürüyorsun.\n\n";
+
+const INTRO_TOPIC =
+  "Sen Cortex Plus'ın usta öğretmenisin. Öğrencin sınava hazırlanıyor ama belge yüklemedi; konuyu ondan duydun. " +
+  "Bu konuyu, iyi bir öğretmenin tahtada anlatacağı gibi, kendi cümlelerinle, kısa ve net bir derse dönüştürüyorsun.\n\n";
+
+const RULE_TOPIC =
+  "BİLGİ KURALI (belgesiz ders, kesin): Konuyu sınav müfredatındaki yerleşik, ders kitaplarında tartışmasız bilgiyle " +
+  "anlat. Emin olmadığın sayı, tarih, madde numarası, eşik ya da kuralı yazma; güncel olarak değişebilecek bilgiyi " +
+  "(son düzenleme, güncel rakam, yürürlükteki oran) verme. Tartışmalı bir konuda tek görüşü kesin doğru gibi sunma. " +
+  "Aşağıda 'kaynak' denen her yer bu derste konunun yerleşik bilgisi anlamına gelir.\n\n";
+
+const EXAMPLE_DOCUMENT =
+  "5) example yalnız kaynakta çözümlü bir örnek ya da hesap varsa; verilen, istenen, adımlar ve birimli sonuç kaynaktan.\n" +
+  "6) commonMistake: kaynağa göre öğrencinin yapacağı somut hata ve düzeltmesi (öğüt değil, hata).\n";
+
+const EXAMPLE_TOPIC =
+  "5) example: konu hesap ya da uygulama içeriyorsa kendin kurduğun basit, adım adım doğrulanabilir bir çözümlü örnek " +
+  "(verilen, istenen, adımlar, birimli sonuç); değilse yazma.\n" +
+  "6) commonMistake: öğrencilerin bu konuda gerçekten yaptığı somut hata ve düzeltmesi (öğüt değil, hata).\n";
+
 /** Öğretmen istemi — Astra'nın aynı belgeyle gözlenen ders akışı. */
 export const TEACHER_SYSTEM =
-  "Sen Cortex Plus'ın usta öğretmenisin. Öğrencin sınava hazırlanıyor ve sana yalnızca kendi ders belgesini verdi. " +
-  "Bu belgeyi, iyi bir öğretmenin tahtada anlatacağı gibi, kendi cümlelerinle, kısa ve net bir derse dönüştürüyorsun.\n\n" +
+  INTRO_DOCUMENT +
   "KAYNAK KURALI (kesin): Her olgu, tanım, sayı, tarih, madde numarası, kural, sınıflandırma ve olay örneği yalnızca " +
   "KAYNAK metninden gelir. Kaynakta yoksa yazma; tahmin etme, genel kültürden ekleme. " +
   "Kavramı ayırt ettirmek için gündelik hayattan kısa bir örnek ya da benzetme kullanabilirsin, ama o örnek yeni bir " +
@@ -101,14 +131,30 @@ export const TEACHER_SYSTEM =
   "explanation doğru cevabın nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
   "cümle (şık sayısı kadar). review: aynı kavramı farklı yönden soran soru — tanımdan terim soruldaysa bu kez " +
   "bir durumdan (olaydan) terim sorulur; şıklar aynı kalır.\n" +
-  "5) example yalnız kaynakta çözümlü bir örnek ya da hesap varsa; verilen, istenen, adımlar ve birimli sonuç kaynaktan.\n" +
-  "6) commonMistake: kaynağa göre öğrencinin yapacağı somut hata ve düzeltmesi (öğüt değil, hata).\n" +
+  EXAMPLE_DOCUMENT +
   "7) summary: 3-5 madde; sınavda soruyu çözdürecek kesin bilgiler, anahtar kelimeleriyle.\n" +
   "8) nextFocus yalnız verilen SIRADAKİ KONULAR listesinden, aynen; liste boşsa boş dizi.\n\n" +
   "YAZMA: 'Kaynak:', sayfa numarası, 's.12', 'PDF', 'bu derste ... öğreneceğiz' gibi boş cümle, kendini tekrar, " +
   "iç not. Gövdede başlığı tekrar etme.\n\n" +
   `${CONTENT_STYLE}\n\n` +
   `Yalnızca bu şemada JSON döndür (kullanmadığın isteğe bağlı alanları yazma):\n${SCHEMA}`;
+
+/**
+ * Belgesiz ders istemi: aynı akış ve anlatım; giriş, kaynak kuralı ve çözümlü
+ * örnek kuralı değişir. Tek kaynaktan türetilir ki iki istem ayrışmasın.
+ */
+const RULE_DOCUMENT_END = "gibi bir nottan hiç söz etme.\n\n";
+export const TOPIC_TEACHER_SYSTEM =
+  INTRO_TOPIC +
+  RULE_TOPIC +
+  TEACHER_SYSTEM.slice(TEACHER_SYSTEM.indexOf(RULE_DOCUMENT_END) + RULE_DOCUMENT_END.length).replace(
+    EXAMPLE_DOCUMENT,
+    EXAMPLE_TOPIC,
+  );
+
+export function teacherSystem(mode: TeacherLessonMode = "document"): string {
+  return mode === "topic" ? TOPIC_TEACHER_SYSTEM : TEACHER_SYSTEM;
+}
 
 export function teacherUserPrompt(input: TeacherLessonInput): string {
   return [
@@ -120,7 +166,9 @@ export function teacherUserPrompt(input: TeacherLessonInput): string {
     input.runningHeaders?.length
       ? `Şu satırlar sayfa kenarında tekrar eden başlıklardır, konu ya da bölüm adı değildir: ${input.runningHeaders.join(" | ")}`
       : "",
-    `KAYNAK:\n${sourceText(input.pages)}`,
+    input.mode === "topic"
+      ? "KAYNAK: (yok — belgesiz ders; konunun yerleşik bilgisiyle yaz)"
+      : `KAYNAK:\n${sourceText(input.pages)}`,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -143,16 +191,46 @@ export const VERIFY_SYSTEM =
   'JSON döndür: {"issues":[{"where":"sections[1].check","severity":"high","problem":"…","fix":"…"}]}. ' +
   "Sorun yoksa issues boş dizi.";
 
-export function verifyUserPrompt(lesson: LessonV2, pages: TeacherLessonInput["pages"]): string {
-  return `KAYNAK:\n${sourceText(pages)}\n\nDERS (JSON):\n${JSON.stringify(lesson)}`;
+/** Belgesiz ders denetimi: kaynak yok, doğruluk ve öğretim kalitesi. */
+export const TOPIC_VERIFY_SYSTEM =
+  "Sen titiz bir ders denetçisisin. Belgesi olmayan bir sınav dersini doğruluk açısından denetliyorsun. Şunları bul:\n" +
+  "A) Yanlış olgu, tanım, sayı, tarih, kural ya da sınıflandırma.\n" +
+  "B) Emin olunamayacak kadar ayrıntılı ya da güncel olarak değişebilecek bilgi (yürürlükteki oran, son düzenleme), " +
+  "tartışmalı bir görüşün kesin doğru gibi sunulması.\n" +
+  "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru.\n" +
+  "D) explanation ya da optionWhy'da yanlış bilgi; çözümlü örnekte hesap hatası.\n" +
+  "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
+  "F) Ders içinde tutarsızlık.\n" +
+  "A-F 'high'. Şunlar 'low': öğretici olmayan soru, gereksiz uzunluk, zayıf kanca.\n" +
+  'JSON döndür: {"issues":[{"where":"sections[1].check","severity":"high","problem":"…","fix":"…"}]}. ' +
+  "Sorun yoksa issues boş dizi.";
+
+export function verifySystem(mode: TeacherLessonMode = "document"): string {
+  return mode === "topic" ? TOPIC_VERIFY_SYSTEM : VERIFY_SYSTEM;
 }
 
-export const FIX_SYSTEM =
+export function verifyUserPrompt(
+  lesson: LessonV2,
+  input: Pick<TeacherLessonInput, "pages" | "mode" | "topicLabel" | "prepTitle">,
+): string {
+  const head =
+    input.mode === "topic"
+      ? `SINAV: ${input.prepTitle}\nKONU: ${input.topicLabel}\n(Belgesiz ders.)`
+      : `KAYNAK:\n${sourceText(input.pages)}`;
+  return `${head}\n\nDERS (JSON):\n${JSON.stringify(lesson)}`;
+}
+
+const FIX_PREFIX =
   "Sen aynı dersi yazan öğretmensin. Denetçinin bulduğu sorunları düzelt. Kaynakta dayanağı olmayan bilgiyi çıkar ya da " +
   "kaynaktaki doğrusuyla değiştir; yanlış anahtarı düzelt; bozuk cümleyi doğru Türkçeyle yeniden yaz. " +
   "Listedeki her alanı mutlaka değiştir; önerilen düzeltme ('→' sonrası) varsa onu uygula. Dersi aynen geri döndürme. " +
-  "Sorunsuz kısımları değiştirme. Kurallar ve şema aynı:\n\n" +
-  TEACHER_SYSTEM;
+  "Sorunsuz kısımları değiştirme. Kurallar ve şema aynı:\n\n";
+
+export const FIX_SYSTEM = FIX_PREFIX + TEACHER_SYSTEM;
+
+export function fixSystem(mode: TeacherLessonMode = "document"): string {
+  return FIX_PREFIX + teacherSystem(mode);
+}
 
 export function fixUserPrompt(
   lesson: LessonV2,

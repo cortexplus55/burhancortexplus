@@ -215,8 +215,13 @@ Gerekçe ve altın deneme sonuçları: `docs/delivery/ICERIK-KALITE-YOL-HARITASI
 | Kaynaktaki bozuk cümleyi kopyalatmak | Yazar kaynağın kendi örnekleriyle tutarlı anlamı sessizce yazar; denetçi bunu sorun saymaz |
 | Yazar ve denetçiye farklı kural vermek | Bir kural eklenince ikisine de eklenir — çelişirse düzeltme turu hiçbir şey değiştirmez |
 
-Aşağıdaki bölüm **eski** (`legacy`) yol içindir; o yol yalnız `LESSON_ENGINE=legacy`,
-belgesiz dersler ve çekirdek sayfası bulunamayan derslerde çalışır.
+Belgesiz hazırlık dersleri de aynı motordan (`mode: "topic"`): aynı akış, kaynak
+kuralı yerine doğruluk kuralı, denetçi doğruluğa bakar. Hazırlık sohbeti de öğretmen
+yolunda (`TUTOR_ENGINE=teacher`, `teacher-tutor.ts`), öğrencinin seçtiği moda göre.
+
+Aşağıdaki bölüm **eski** (`legacy`) yol içindir; o yol yalnız `LESSON_ENGINE=legacy`
+ve çekirdek sayfası bulunamayan belgeli derslerde çalışır. **Eski onarım katmanı
+9 Ekim 2026'da silinecek** (ürün sahibinin kararı: bir haftalık canlı veriden sonra).
 
 ## Ders kalitesi: model yazıyor, zincir siliyor olabilir — önce ölç
 

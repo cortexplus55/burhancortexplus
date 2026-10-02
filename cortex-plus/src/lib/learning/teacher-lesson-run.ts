@@ -6,9 +6,9 @@ import { contentModel } from "@/lib/ai/model-router";
 import { commitCredits, recordUsage, refundCredits, reserveCredits } from "@/lib/credits/service";
 import { parseModelJson, type LessonV2 } from "@/lib/learning/teaching-standards";
 import {
-  FIX_SYSTEM,
-  TEACHER_SYSTEM,
-  VERIFY_SYSTEM,
+  fixSystem,
+  teacherSystem,
+  verifySystem,
   fixUserPrompt,
   lessonStructureIssues,
   parseIssues,
@@ -46,7 +46,9 @@ export async function runTeacherLesson(
   },
 ): Promise<TeacherLessonOutcome> {
   if (!env.OPENAI_API_KEY) return { ok: false, status: 503, error: "generation_failed", reasons: ["no_api_key"] };
-  if (!input.pages.length) return { ok: false, status: 503, error: "source_unavailable", reasons: ["no_pages"] };
+  if (!input.pages.length && input.mode !== "topic") {
+    return { ok: false, status: 503, error: "source_unavailable", reasons: ["no_pages"] };
+  }
 
   const reservation = await reserveCredits(service, input.userId, input.actionCode, input.idempotencyKey);
   if (!reservation.ok) {
@@ -138,7 +140,7 @@ export async function teacherLessonLoop(
     const structural = lessonStructureIssues(lesson, input);
     let factual: TeacherIssue[] = [];
     try {
-      factual = parseIssues(await ask(VERIFY_SYSTEM, verifyUserPrompt(lesson, input.pages)));
+      factual = parseIssues(await ask(verifySystem(input.mode), verifyUserPrompt(lesson, input)));
     } catch (error) {
       // Denetçi düşerse dersi körlemesine yayınlamayız: yüksek bir sorun say.
       factual = [{ where: "ders", severity: "high", problem: `Denetim yapılamadı: ${error instanceof Error ? error.message.slice(0, 80) : "bilinmiyor"}` }];
@@ -146,16 +148,16 @@ export async function teacherLessonLoop(
     return [...structural, ...factual];
   };
 
-  let lesson = parseTeacherLesson(await ask(TEACHER_SYSTEM, teacherUserPrompt(input)), input.upcomingTopics);
+  let lesson = parseTeacherLesson(await ask(teacherSystem(input.mode), teacherUserPrompt(input)), input.upcomingTopics);
   // Şema tutmadı: bir kez yeniden yazdır.
-  if (!lesson) lesson = parseTeacherLesson(await ask(TEACHER_SYSTEM, teacherUserPrompt(input)), input.upcomingTopics);
+  if (!lesson) lesson = parseTeacherLesson(await ask(teacherSystem(input.mode), teacherUserPrompt(input)), input.upcomingTopics);
   if (!lesson) return { lesson: null, issues: [], drafts };
   drafts.push(lesson);
 
   let issues = await review(lesson);
   for (let round = 0; round < MAX_FIX_ROUNDS && issues.some((issue) => issue.severity === "high"); round += 1) {
     if (Date.now() - started > FIX_DEADLINE_MS) break;
-    const fixed = parseTeacherLesson(await ask(FIX_SYSTEM, fixUserPrompt(lesson, issues, input)), input.upcomingTopics);
+    const fixed = parseTeacherLesson(await ask(fixSystem(input.mode), fixUserPrompt(lesson, issues, input)), input.upcomingTopics);
     if (!fixed) break;
     // Model dersi aynen geri verdiyse yeniden denetlemek boşa çağrı.
     if (JSON.stringify(fixed) === JSON.stringify(lesson)) break;
