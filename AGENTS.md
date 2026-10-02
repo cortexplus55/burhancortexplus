@@ -77,6 +77,24 @@ Bekçi test: `tests/unit/loading-fallbacks.test.ts`.
 
 ---
 
+## Her hazırlığın kendi yolu — belgeler tek programda birleşmez
+
+**3 Ekim 2026, ürün sahibi çok net:** "öğrenciye bütün yüklediği belgeleri tek
+bir yolda birleştirmiş … her yüklediği dökümanın yolu farklı". Astra'da her
+sınav bir derse ve kendi materyaline bağlı, yolu yalnız kendi kartında.
+
+| Yapmayın | Yapın |
+|---|---|
+| Birden çok hazırlığı/belgeyi tek ekranda "bugünkü program" diye toplamak (eski "Çalış" sekmesi, `ProgramHub`) | Öğrenci Sınavlar'dan hazırlığını seçer, o yolu yürür |
+| Kurulumun materyal adımında öğrencinin bütün eski belgelerini seçtirmek | Ders → tarih → hedef → yalnız o dersin materyali (Astra sırası) |
+| Aynı belge için ikinci hazırlık açtıran düğme | Belgenin yolu varsa "Yoluna devam et" |
+
+Menü Astra sırasında: Ana Sayfa · Sınavlar · Araçlar · Belgeler · Profil.
+`/calisma-plani` kalıcı olarak Sınavlar'a yönleniyor. #232.
+Bekçi test: `tests/unit/separate-paths.test.ts`.
+
+---
+
 ## Ürün öğrenci-only — veli ve öğretmen paneli yok
 
 **`3e666f6` (29 Ağustos 2026)** veli ve öğretmen arayüzünü tümüyle emekli
