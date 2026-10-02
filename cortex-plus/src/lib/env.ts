@@ -79,6 +79,8 @@ export const envSchema = z.object({
    * "legacy" podcast-episode.ts (metni onaran / satır silen zincir).
    */
   PODCAST_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
+  /** Kartlar ve aralıklı tekrar (2 Ekim 2026): "teacher" öğe öğe denetlenen kartlar; "legacy" eski zincir. */
+  CARDS_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
   /**
    * Ders taslağı — abone. Doğrulama ve parça onarımı standart modelde kalır.
    * Kredi eylem kodu değişmez; yalnızca bu çağrının modeli değişir.
@@ -155,6 +157,7 @@ const parsed = envSchema.safeParse({
   TUTOR_ENGINE: process.env.TUTOR_ENGINE,
   QUIZ_ENGINE: process.env.QUIZ_ENGINE,
   PODCAST_ENGINE: process.env.PODCAST_ENGINE,
+  CARDS_ENGINE: process.env.CARDS_ENGINE,
   OPENAI_LESSON_MODEL: process.env.OPENAI_LESSON_MODEL,
   OPENAI_LESSON_FREE_MODEL: process.env.OPENAI_LESSON_FREE_MODEL,
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,
