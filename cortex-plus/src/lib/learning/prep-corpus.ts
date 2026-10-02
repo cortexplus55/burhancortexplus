@@ -61,6 +61,13 @@ function numbersIn(text: string): string[] {
   return (text.match(/\d+(?:[.,]\d+)?/g) ?? []).map(plainNumber);
 }
 
+/** Sohbet kelimeleri: soruyu anlatır, konuyu değil ("karıştırıyorum", "farkı ne"). */
+const CHAT_NOISE_STEMS = new Set([
+  "karis", "anlam", "fark", "farki", "farkl", "acikl", "anlat", "ogren", "lutfe", "yardi", "soru", "sorus",
+  "nedir", "neden", "nasil", "hangi", "daha", "peki", "neyi", "niye", "bana", "beni", "bunu", "sunu", "olan",
+  "olur", "ol", "icin", "gibi", "kadar", "sadec", "cevap", "kisac", "basit", "ornek", "tekra", "biraz", "acaba",
+]);
+
 /**
  * Kelime araması için sorudaki kökler (ilk 5 harf), uzun kelimeler önce.
  * `raw` veritabanında ilike için (Türkçe harfler korunur), `folded` puanlama için.
@@ -72,12 +79,14 @@ export function searchStems(question: string, max = 4): { raw: string; folded: s
     .toLocaleLowerCase("tr")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .split(/\s+/)
-    .filter((word) => word.length >= 5 && !/^\d+$/.test(word) && !STOP.has(foldTr(word)))
+    // 4 harf: "kast", "grev" gibi terimler. Canlıda "Kast ile taksiri
+    // karıştırıyorum" sorusunda "kast" atlanıp "karış" aranmıştı.
+    .filter((word) => word.length >= 4 && !/^\d+$/.test(word) && !STOP.has(foldTr(word)))
     .sort((a, b) => b.length - a.length);
   for (const word of words) {
     const raw = word.slice(0, 5);
     const folded = foldTr(raw);
-    if (seen.has(folded)) continue;
+    if (seen.has(folded) || CHAT_NOISE_STEMS.has(folded) || STOP.has(folded)) continue;
     seen.add(folded);
     stems.push({ raw, folded });
     if (stems.length >= max) break;
