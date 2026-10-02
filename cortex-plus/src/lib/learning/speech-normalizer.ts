@@ -301,7 +301,9 @@ function prettifyAscii(text: string): string {
   next = next.replace(/10\s*\^\s*\{?\s*([+-]?\d+)\s*\}?/g, (_all, exp: string) => `10${supOf(exp)}`);
   next = next.replace(/([A-Za-z])\s*\^\s*\{?\s*([+-]?\d+|[A-Za-zn])\s*\}?/g, (_all, base: string, exp: string) => `${base}${supOf(exp)}`);
   next = next.replace(/√\s*([A-Za-z0-9]+)/g, "√$1");
-  next = next.replace(/(?<![A-Za-z])([A-Z][A-Za-z0-9]*[+\-]?)/g, (token) => prettifyFormulaToken(token) ?? token);
+  // İyon yükü ("Cl-") ancak ardından harf/rakam gelmiyorsa: "P-v diyagramı",
+  // "T-v" tireli ad. 2 Ekim 2026 podcast denemesinde "P-v" → "P⁻v" oluyordu.
+  next = next.replace(/(?<![A-Za-z])([A-Z][A-Za-z0-9]*(?:[+\-](?![A-Za-z0-9]))?)/g, (token) => prettifyFormulaToken(token) ?? token);
   return next;
 }
 

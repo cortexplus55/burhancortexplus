@@ -4,6 +4,7 @@ import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-
 import { corePageRun } from "@/lib/learning/core-pages";
 import { runTeacherLesson } from "@/lib/learning/teacher-lesson-run";
 import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
+import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
@@ -257,6 +258,8 @@ const oralSchema = z.object({
 
 /** Öğretmen test motorunun yazdığı düğümler (2 Ekim 2026). */
 const TEACHER_QUIZ_KINDS = new Set<PlanNodeKind>(["quiz", "gaps"]);
+/** Öğretmen motorlarının konunun çekirdek sayfalarını okuduğu düğümler. */
+const TEACHER_PAGE_KINDS = new Set<PlanNodeKind>([...TEACHER_QUIZ_KINDS, "podcast"]);
 
 function actionForKind(kind: PlanNodeKind) {
   if (kind === "flashcards" || kind === "spaced") return "FLASHCARD_GENERATE" as const;
@@ -1420,12 +1423,33 @@ export async function POST(request: Request) {
 
   // Öğretmen test motoru: konu testi de konunun kendi sayfalarından yazılır;
   // belgesiz hazırlıkta konunun yerleşik bilgisinden.
-  if (TEACHER_QUIZ_KINDS.has(kind) && teachingV2 && !voiceSession && !lessonCoreDocumentId) {
+  if (TEACHER_PAGE_KINDS.has(kind) && teachingV2 && !voiceSession && !lessonCoreDocumentId) {
     const documentId = topicDocumentId ?? (prepSource.document_id as string | null) ?? prepDocs[0] ?? null;
     if (documentId) {
       lessonCoreDocumentId = documentId;
-      lessonCorePages =
-        !topicWiden && sessionMeta?.sourcePages?.length ? sessionMeta.sourcePages : pagesMarkedInSource(source.block);
+      if (!topicWiden && sessionMeta?.sourcePages?.length) {
+        lessonCorePages = sessionMeta.sourcePages;
+      } else {
+        // Sayfa listesi yoksa dersin çözücüsü: test ve podcast dersle aynı
+        // sayfalardan yazılsın (KPSS test düğümlerinde sourcePages boştu).
+        const resolved = await resolveLessonSource(service, {
+          userId,
+          prepId,
+          topicId: topic?.id ?? null,
+          topicLabel,
+          sessionMeta,
+          prepDocs,
+          primaryDocumentId: (prepSource.document_id as string | null) ?? null,
+          topicDocumentId,
+          topicNodeId,
+          sourceRefs: topicSourceRefs,
+          sourceDocumentIds: prepSource.source_document_ids,
+          sourceBoundaryMode,
+          query: `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim(),
+        }).catch(() => null);
+        const lessonPages = pagesMarkedInSource(resolved?.context?.block ?? "");
+        lessonCorePages = lessonPages.length ? lessonPages : pagesMarkedInSource(source.block);
+      }
     } else if (sourceMode === "topic_only") {
       lessonTopicOnly = true;
     }
@@ -1623,7 +1647,7 @@ export async function POST(request: Request) {
           mood,
           sourceBlock: source.block,
           lessonCore:
-            (kind === "lesson" || TEACHER_QUIZ_KINDS.has(kind)) && lessonCoreDocumentId && lessonCorePages.length
+            (kind === "lesson" || TEACHER_PAGE_KINDS.has(kind)) && lessonCoreDocumentId && lessonCorePages.length
               ? { documentId: lessonCoreDocumentId, pages: lessonCorePages }
               : null,
           lessonTopicOnly,
@@ -2715,6 +2739,28 @@ async function generateNodePayload(input: {
         };
       }
     }
+    // Öğretmen podcast motoru (2 Ekim 2026): aynı konunun dersi ve çekirdek
+    // sayfalar; kod metne bir şey eklemez, cümle silmez.
+    if (input.teachingV2 && env.PODCAST_ENGINE === "teacher" && (input.lessonCore || input.lessonTopicOnly)) {
+      const episode = await teacherPodcastEpisode(input, input.lessonCore ?? null, length);
+      if (input.prepId && input.userId) {
+        await writePodcastCache(input.service, {
+          prepId: input.prepId,
+          userId: input.userId,
+          topicLabel: input.topicLabel,
+          episode,
+        });
+      }
+      return {
+        type: "podcast",
+        title: episode.title,
+        chapters: episode.chapters,
+        length,
+        scriptCredits: CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits,
+        teachingStandard: activity,
+        engine: "teacher",
+      };
+    }
     const lesson = input.teachingV2 ? input.lessonContent ?? null : null;
     const outcome = await generatePodcastEpisode({
       service: input.service,
@@ -3017,6 +3063,45 @@ async function teacherLessonPayload(
  * düzeltilmesi. Kod soru metnine bir şey eklemez; yeterli soru çıkmazsa
  * kredi iade, test gösterilmez.
  */
+/**
+ * Öğretmen podcast motoru (2 Ekim 2026): aynı konunun denetlenmiş dersi +
+ * temiz çekirdek sayfalar → tek öğretmen istemi → belgeyle eşleme → modelin
+ * düzeltmesi. Sorun kalırsa podcast gösterilmez, kredi iade.
+ */
+async function teacherPodcastEpisode(
+  input: Parameters<typeof generateNodePayload>[0],
+  core: { documentId: string; pages: number[] } | null,
+  length: PodcastLength,
+) {
+  const startedAt = Date.now();
+  const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
+  const clean = core
+    ? await ensureCleanPages(input.service, {
+        userId: input.userId,
+        documentId: core.documentId,
+        pages: corePageRun(core.pages),
+        edges,
+      })
+    : [];
+  const outcome = await runTeacherPodcast(input.service, {
+    mode: core ? "document" : "topic",
+    length,
+    userId: input.userId,
+    actionCode: actionForKind(input.kind),
+    idempotencyKey: input.idempotencyKey ?? `podcast:${input.prepId ?? "x"}:${input.topicLabel}:${length}:${Date.now()}`,
+    topicLabel: input.topicLabel,
+    prepTitle: input.prepTitle,
+    pages: clean.map((item) => ({ page: item.page, text: item.text })),
+    lessonText: input.lessonContent ? lessonPodcastBrief(input.lessonContent) : undefined,
+    syllabusLine: input.grounding?.trim() || undefined,
+    learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    runningHeaders: edges,
+    startedAt,
+  });
+  if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  return outcome.episode;
+}
+
 async function teacherQuizPayload(
   input: Parameters<typeof generateNodePayload>[0],
   activity: ReturnType<typeof teachingActivityForKind>,
