@@ -14,6 +14,7 @@ import { replaceTopicNodes } from "@/lib/documents/topic-map-refold";
 import { MAIN_TOPIC_MAX } from "@/lib/documents/topic-main-groups";
 import { groupIntoMainTopics } from "@/lib/documents/topic-main-groups-llm";
 import { isJunkTopicTitle } from "@/lib/documents/topic-title";
+import { isRunningHeader, repeatedEdgeLines } from "@/lib/documents/clean-text";
 
 export type PdfLearningV2Result = {
   ok: boolean;
@@ -369,7 +370,12 @@ export async function runPdfLearningV2(
       if (!compactTopics.length) throw new Error("topic_map_unavailable");
       // Eski pencere kayıtlarında soru kökü kalmış olabilir; sayfaları
       // aşağıda en yakın konuya bağlanır.
-      const sourced = compactTopics.filter((topic) => !isJunkTopicTitle(topic.title));
+      // Sayfa kenarında tekrar eden kitap başlığı konu değildir (2 Ekim 2026:
+      // "KPSS HUKUKUN TEMEL KAVRAMLARI" konu adı olup s.5–28'i topluyordu).
+      const edges = repeatedEdgeLines(analyses.map((analysis) => analysis.textContent ?? ""));
+      const sourced = compactTopics.filter(
+        (topic) => !isJunkTopicTitle(topic.title) && !isRunningHeader(topic.title, edges),
+      );
       const drafted = (sourced.length ? sourced : compactTopics).map((topic, index) =>
         draftFromLlmTopic(topic.title, topic.learningObjective, topic.pageNumbers, analyses, index),
       );

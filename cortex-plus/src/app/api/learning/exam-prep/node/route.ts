@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import { env } from "@/lib/env";
+import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
+import { corePageRun } from "@/lib/learning/core-pages";
+import { runTeacherLesson } from "@/lib/learning/teacher-lesson-run";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
@@ -1236,6 +1240,9 @@ export async function POST(request: Request) {
 
   let source;
   let sourceTrace: SourceTrace | null = null;
+  // Öğretmen motoru: dersin belgesi ve konunun kendi sayfaları.
+  let lessonCoreDocumentId: string | null = null;
+  let lessonCorePages: number[] = [];
   try {
     const mappedPages = topicWiden ? undefined : sessionMeta?.sourcePages;
     const pageDocumentIds = [
@@ -1267,6 +1274,7 @@ export async function POST(request: Request) {
     if (topicOnlyLesson) {
       source = EMPTY_SOURCE_CONTEXT;
     } else if (kind === "lesson" && teachingV2 && !voiceSession) {
+      lessonCoreDocumentId = topicDocumentId ?? (prepSource.document_id as string | null) ?? prepDocs[0] ?? null;
       // Ders: birleşik çözücü. Sonraki adım önceki kaynağı silemez.
       const resolved = await resolveLessonSource(service, {
         userId,
@@ -1284,6 +1292,13 @@ export async function POST(request: Request) {
         query: sourceQuery,
       });
       sourceTrace = resolved.trace;
+      // Öğretmen motoru dersi yalnız konunun kendi sayfalarından yazar;
+      // aşağıdaki zenginleştirmenin belgenin başka yerlerinden eklediği
+      // parçalar (KPSS dersi s.5'ten s.28'e dağılmıştı) motora gitmez.
+      lessonCorePages =
+        !topicWiden && sessionMeta?.sourcePages?.length
+          ? sessionMeta.sourcePages
+          : pagesMarkedInSource(resolved.context?.block ?? "");
       if (resolved.unavailable) {
         console.error("node_source_unavailable", {
           kind,
@@ -1587,6 +1602,10 @@ export async function POST(request: Request) {
           familiarity,
           mood,
           sourceBlock: source.block,
+          lessonCore:
+            kind === "lesson" && lessonCoreDocumentId && lessonCorePages.length
+              ? { documentId: lessonCoreDocumentId, pages: lessonCorePages }
+              : null,
           repetitiveSparseEvidence: source.repetitiveSparseEvidence,
           sourceFormulas: source.formulas ?? [],
           teachingV2,
@@ -2005,6 +2024,8 @@ async function generateNodePayload(input: {
   mood: Mood;
   /** Öğrencinin kendi kaynağından alıntılar; kaynak yoksa boş. */
   sourceBlock: string;
+  /** Öğretmen motorunun okuyacağı belge ve konunun kendi sayfaları. */
+  lessonCore?: { documentId: string; pages: number[] } | null;
   repetitiveSparseEvidence?: boolean;
   /**
    * Belge yokken konunun çiti. Sohbetteki "belgede yoksa cevap verme"
@@ -2102,6 +2123,10 @@ async function generateNodePayload(input: {
   // Planın öğrenme adımı. Podcast'ten devraldı: metin geri dönüp
   // okunabiliyor ve doğrulayıcısı (validateLessonPedagogy) bölüm
   // başlığından çözümlü örneğin her adımına kadar kontrol ediyor.
+  if (input.kind === "lesson" && input.teachingV2 && input.lessonCore && env.LESSON_ENGINE === "teacher") {
+    return teacherLessonPayload(input, activity, input.lessonCore);
+  }
+
   if (input.kind === "lesson") {
     // Önceki hard-kill'den kalan pending rezervasyonları (aynı kullanıcı).
     // Allowlist + kullanıcı cooldown service içinde; DOCUMENT_PAGE_PROCESS dokunulmaz.
@@ -2890,6 +2915,62 @@ async function generateNodePayload(input: {
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
   return { type: "quiz", questions: outcome.questions, teachingStandard: activity };
+}
+
+/**
+ * Öğretmen motoru (2 Ekim 2026): temiz sayfalar → tek öğretmen istemi →
+ * belgeyle eşleme → modelin düzeltmesi. Kod ders metnine bir şey eklemez.
+ * Kredi motorun içinde ayrılır ve sonuçlanır.
+ */
+async function teacherLessonPayload(
+  input: Parameters<typeof generateNodePayload>[0],
+  activity: ReturnType<typeof teachingActivityForKind>,
+  core: { documentId: string; pages: number[] },
+) {
+  const startedAt = Date.now();
+  const pages = corePageRun(core.pages);
+  const edges = await documentRunningHeaders(input.service, core.documentId);
+  const clean = await ensureCleanPages(input.service, {
+    userId: input.userId,
+    documentId: core.documentId,
+    pages,
+    edges,
+  });
+  const outcome = await runTeacherLesson(input.service, {
+    userId: input.userId,
+    actionCode: actionForKind(input.kind),
+    idempotencyKey: input.idempotencyKey ?? `lesson:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    topicLabel: input.topicLabel,
+    prepTitle: input.prepTitle,
+    pages: clean.map((item) => ({ page: item.page, text: item.text })),
+    upcomingTopics: Array.isArray(input.upcomingTopics) ? input.upcomingTopics : [],
+    learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    runningHeaders: edges,
+    startedAt,
+  });
+  if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  const lesson = outcome.lesson;
+  if (input.prepId && input.topicId) {
+    await input.service
+      .from("exam_prep_lessons")
+      .insert({
+        exam_prep_id: input.prepId,
+        topic_id: input.topicId,
+        title: lesson.title,
+        content_md: lesson.overview ?? lesson.sections[0]?.body ?? lesson.title,
+        content_json: lesson,
+      })
+      .then(undefined, () => undefined);
+  }
+  return {
+    type: "lesson",
+    lesson,
+    title: lesson.title,
+    teachingStandard: activity,
+    qualityReport: null,
+    refunded: false,
+    engine: "teacher",
+  };
 }
 
 async function loadLessonReviewCards(
