@@ -194,3 +194,31 @@ Yolda çıkan ve kurala bağlanan dersler:
   sayılar kayıp sayılıyordu → kenar satır sayıları affediliyor (yalnız ≥8
   satırlık sayfada).
 - Düzeltme turu dersi aynen geri verirse döngü durur (boşa denetim yok).
+
+---
+
+## 7. Bütün içerik öğretmen motorlarında (2 Ekim 2026, akşam)
+
+Ürün sahibinin kararları (soru turları): sohbet moda göre davranır ve
+"Yalnızca belgem" ile açılır; her derste gündelik örnek; eski bozuk konular
+silindi; **bütün içerik** yeni motora; belgesiz dersler genel bilgiyle aynı
+motordan; yeni yüklemelerde "ana konu + içinde kavram birimi dersleri"; eski
+onarım katmanı 9 Ekim'de silinecek.
+
+| İçerik | PR | Altın deneme |
+|---|---|---|
+| Öğretmen sohbeti, modlar, kelime araması, ders kaynak sayılır, tablolar | #220 #222 #223 | 12 soru, < $0.02 |
+| Gündelik örnek zorunlu, bozuk konu süzgeci | #221 | KPSS, Termodinamik 0 sorun |
+| Belgesiz ders | #224 | Üslü sayılar, Mitoz-mayoz 0 sorun |
+| Konu testi + tuzak | #225 | KPSS 5/5, Termo 5/7, belgesiz 5/6 |
+| Podcast (5 tür) | #226 | KPSS Basit, Termo Diyalog 0 sorun |
+| Kartlar | #227 | KPSS 8/8 |
+| Bütün çoktan seçmeli testler + şık karıştırma | #228 | deneme sınavı biçimi 4/4 |
+| Doğru/yanlış + sözlü | #229 | 8/8 + 3/3 |
+| Ders sorularında şık karıştırma | #230 | — |
+| Kavram birimleri | #231 | KPSS s.5–28 → 8 birim, s.60–78 → 6 birim |
+
+Canlıda bulunup düzeltilenler: sohbetin "kast/taksir" sorusunda öğrencinin
+dersini kaynak saymaması (#222), sohbet tablolarının çizilmemesi (#223),
+gösterim çeviricinin "P-v"yi "P⁻v" yapması (#226), test ve podcastin dersten
+farklı sayfalardan yazılması (#226), doğru cevabın hep ilk şık olması (#228, #230).
