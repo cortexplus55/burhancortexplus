@@ -51,6 +51,8 @@ export type ExamChatContext = {
   starters: ExamChatPrompt[];
   /** Modele en fazla bir kez değinmesi için kişisel bağlam satırı. */
   personalizationPrompt: string;
+  /** En son okunan ders (belgeden üretilip denetlendi); öğretmen sohbeti pasaj olarak kullanır. */
+  lastLesson?: { title: string; text: string } | null;
 };
 
 function daysUntil(examDate: string | null): number | null {
@@ -444,6 +446,7 @@ export async function loadExamChatContext(
     history,
     starters,
     personalizationPrompt,
+    lastLesson: lesson ? { title: lesson.title, text: lessonFacts.slice(0, 6000) } : null,
     block: `\n\n<sinav-hazirligi>\n${lines.join("\n")}\n</sinav-hazirligi>`,
   };
 }

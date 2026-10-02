@@ -65,6 +65,11 @@ export const envSchema = z.object({
    */
   LESSON_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
   /**
+   * Hazırlık sohbeti (2 Ekim 2026): "teacher" serbest metin öğretmen cevabı +
+   * belgeye karşı model denetimi; "legacy" JSON şablon + eski denetçiler.
+   */
+  TUTOR_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
+  /**
    * Ders taslağı — abone. Doğrulama ve parça onarımı standart modelde kalır.
    * Kredi eylem kodu değişmez; yalnızca bu çağrının modeli değişir.
    */
@@ -137,6 +142,7 @@ const parsed = envSchema.safeParse({
   OPENAI_STANDARD_MODEL: process.env.OPENAI_STANDARD_MODEL,
   OPENAI_CONTENT_MODEL: process.env.OPENAI_CONTENT_MODEL,
   LESSON_ENGINE: process.env.LESSON_ENGINE,
+  TUTOR_ENGINE: process.env.TUTOR_ENGINE,
   OPENAI_LESSON_MODEL: process.env.OPENAI_LESSON_MODEL,
   OPENAI_LESSON_FREE_MODEL: process.env.OPENAI_LESSON_FREE_MODEL,
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,

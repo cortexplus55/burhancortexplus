@@ -242,7 +242,7 @@ export function followUpChips(input: {
   ].slice(0, 3);
 }
 
-function chipMarker(chip: ReplyChip): string {
+export function chipMarker(chip: ReplyChip): string {
   return `[[chip:${chip.label}|${chip.prompt.replace(/[\]|]/g, " ")}]]`;
 }
 

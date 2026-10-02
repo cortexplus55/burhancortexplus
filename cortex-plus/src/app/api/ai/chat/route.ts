@@ -44,7 +44,19 @@ import {
   settleQuantReply,
   type GradedClaim,
 } from "@/lib/learning/tutor-quant";
-import { citationMarker, examTutorAddendum, finalizeTutorReply, parseTutorStructured, serializeStructuredReply } from "@/lib/learning/tutor-reply";
+import {
+  chipMarker,
+  citationMarker,
+  examTutorAddendum,
+  finalizeTutorReply,
+  followUpChips,
+  parseTutorStructured,
+  requestsAnswerOnly,
+  serializeStructuredReply,
+} from "@/lib/learning/tutor-reply";
+import { topWeightedTopic } from "@/lib/learning/prep-corpus";
+import { runTeacherTutor } from "@/lib/ai/teacher-tutor-run";
+import { teacherStyleLine, tutorHistoryLine, tutorHistoryText } from "@/lib/ai/teacher-tutor";
 import { parseCheckExpected, gradeAgainstExpected } from "@/lib/learning/check-question";
 import { citationHref, type ChatCitation, type ChatEvidence } from "@/lib/ai/chat-citations";
 import {
@@ -345,7 +357,61 @@ export async function POST(request: Request) {
         return finalized.content;
       }
       let accepted = false;
-      const attemptLimit = paidChatAttempts(offDocument);
+      // Öğretmen sohbeti (2 Ekim 2026): serbest metin + belgeye karşı denetim.
+      // JSON şablon, yeniden yazan denetçiler ve polishPrep bu yolda yok.
+      const teacherTutor = env.TUTOR_ENGINE === "teacher" && Boolean(rest.prepId) && Boolean(prepGrounding) && !imageUrl;
+      if (teacherTutor && prepGrounding) {
+        const grounding = prepGrounding;
+        const lastLesson = examContext?.lastLesson ?? null;
+        const outcome = await runTeacherTutor({
+          client,
+          model,
+          signal: request.signal,
+          context: {
+            examTitle: examContext?.prepTitle ?? null,
+            daysLeft: examContext?.daysLeft ?? null,
+            topic: lastLesson?.title ?? null,
+            learnerLines: [
+              teacherStyleLine(parseTutorStyle(profile?.tutor_style)),
+              moodLine.trim(),
+              tutorHistoryLine(examContext?.history ?? []),
+            ],
+            passages: [
+              ...grounding.passages.map((item) => ({
+                label: `${item.documentName}${item.pageNumber != null ? ` ${item.slide ? "slayt" : "s."}${item.pageNumber}` : ""}`,
+                text: item.content,
+              })),
+              ...(lastLesson ? [{ label: `Öğrencinin son okuduğu ders: ${lastLesson.title}`, text: lastLesson.text }] : []),
+            ],
+            pendingAnswer: pendingExpected?.answer ?? null,
+          },
+          history: history.map((item) =>
+            item.role === "assistant" && typeof item.content === "string"
+              ? { ...item, content: tutorHistoryText(item.content) }
+              : item,
+          ),
+          message,
+          onUsage: async (usedIn, usedOut) => {
+            tokensIn += usedIn;
+            tokensOut += usedOut;
+            await recordUsage(service, { userId, actionCode, model, tokensIn: usedIn, tokensOut: usedOut, reservationId });
+          },
+        });
+        if (outcome.ok) {
+          const chips = followUpChips({
+            answerOnly: requestsAnswerOnly(message),
+            graded: Boolean(studentGrade),
+            scopeTopic: null,
+            weightedTopic: topWeightedTopic(grounding.scope)?.topic ?? null,
+          });
+          content = `${outcome.content}\n\n${chips.map(chipMarker).join("\n")}`.trim();
+          gradedForStore = studentGrade && studentGrade.verdict !== "dogru" ? studentGrade : null;
+          accepted = true;
+        } else {
+          logOpsEvent("document_answer_rejected", { operationId, strict, stage: "teacher_tutor", reasons: outcome.reasons.slice(0, 3) });
+        }
+      }
+      const attemptLimit = teacherTutor ? 0 : paidChatAttempts(offDocument);
       for (let attempt = 0; attempt < attemptLimit; attempt++) {
         // İkinci deneme de asıl modelde: eskiden aboneye gpt-4.1'e çıkıyordu.
         const generationModel = model;

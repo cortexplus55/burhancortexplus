@@ -9,6 +9,7 @@ import {
   flattenTeacherAnalysis,
   contentTokens,
   readSyllabusScope,
+  rerankByOverlap,
   type CorpusDoc,
   type CoverageDecision,
   type SyllabusScope,
@@ -114,10 +115,13 @@ export async function loadPrepChatGrounding(
 
   let matches: DocumentMatch[] = [];
   try {
-    matches = await searchDocumentChunksAcross(service, userId, message, documentIds, {
-      limit: 6,
-      perDocument: 2,
+    // Geniş getir, kelime/sayı örtüşmesiyle yeniden sırala, en iyi 4'ü ver.
+    // Eskiden tek belgeli hazırlıkta yalnız 2 pasaj geliyordu.
+    const wide = await searchDocumentChunksAcross(service, userId, message, documentIds, {
+      limit: 12,
+      perDocument: Math.max(3, Math.ceil(12 / documentIds.length)),
     });
+    matches = rerankByOverlap(message, wide).slice(0, 4);
   } catch {
     matches = [];
   }

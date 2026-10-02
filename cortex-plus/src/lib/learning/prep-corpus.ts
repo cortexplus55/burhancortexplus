@@ -52,6 +52,37 @@ export function contentTokens(text: string): string[] {
     .filter((word) => word.length >= 5 && !STOP.has(word) && !/^\d+$/.test(word));
 }
 
+function plainNumber(value: string): string {
+  const dotted = value.replace(",", ".");
+  return dotted.includes(".") ? dotted.replace(/0+$/, "").replace(/\.$/, "") : dotted;
+}
+
+function numbersIn(text: string): string[] {
+  return (text.match(/\d+(?:[.,]\d+)?/g) ?? []).map(plainNumber);
+}
+
+/**
+ * Anlam benzerliğine sorudaki kelime köklerinin ve sayıların pasajda
+ * geçmesini ekler. 2 Ekim 2026 altın denemesi: "200 kPa sabit basınçta 0.1
+ * m³'ten 0.3 m³'e genleşen gazın işi" sorusunda aynı örneği taşıyan s.14
+ * anlam aramasında 7. sıradaydı; öğretmen "belgende geçmiyor" dedi.
+ */
+export function rerankByOverlap<T extends { content: string; similarity: number }>(question: string, matches: T[]): T[] {
+  const stems = [...new Set(contentTokens(question).map((word) => word.slice(0, 5)))];
+  const numbers = [...new Set(numbersIn(question).filter((n) => n.length >= 2))];
+  const total = stems.length + 2 * numbers.length;
+  if (!total) return matches;
+  return matches
+    .map((match, index) => {
+      const hay = foldTr(match.content);
+      const hayNumbers = new Set(numbersIn(match.content));
+      const hits = stems.filter((stem) => hay.includes(stem)).length + 2 * numbers.filter((n) => hayNumbers.has(n)).length;
+      return { match, index, score: match.similarity + 0.4 * (hits / total) };
+    })
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((item) => item.match);
+}
+
 /**
  * Alıntı veya analiz metni soruya değiyorsa materyal içidir.
  * Hiç belge yoksa "unknown": "Materyal dışı" yapıştırılmaz.

@@ -1,4 +1,5 @@
 import { CONTENT_STYLE } from "@/lib/ai/content-style";
+import type { TutorStyle } from "@/lib/learning/tutor-style";
 
 /**
  * Öğretmen sohbeti (2 Ekim 2026, ürün sahibinin kararı). Astra'nın aynı
@@ -82,6 +83,54 @@ export function tutorVerifyUserPrompt(input: { passages: TutorContext["passages"
     `ÖĞRENCİ: ${input.question}`,
     `ÖĞRETMENİN CEVABI:\n${input.answer}`,
   ].join("\n\n");
+}
+
+/** Denetçi cevabından yüksek sorunlar; ciddiyet yoksa yüksek sayılır. */
+export function parseTutorIssues(raw: unknown): string[] {
+  const list = (raw as { issues?: unknown } | null)?.issues;
+  if (!Array.isArray(list)) return [];
+  return list.flatMap((item) => {
+    const row = (item ?? {}) as Record<string, unknown>;
+    const problem = typeof row.problem === "string" ? row.problem.trim() : "";
+    if (!problem || row.severity === "low") return [];
+    const fix = typeof row.fix === "string" && row.fix.trim() ? ` → ${row.fix.trim()}` : "";
+    return [`${problem}${fix}`.slice(0, 400)];
+  });
+}
+
+/**
+ * Geçmişteki öğretmen mesajı modele düz metin gider: kaynak ve öneri
+ * işaretleri atılır ki model "[[kaynak:…]]" ya da sayfa numarası taklit etmesin.
+ */
+export function tutorHistoryText(content: string): string {
+  return content
+    .replace(/\[\[cek:[\s\S]*?\}\]\]/g, "")
+    .replace(/\[\[(?:kaynak|chip|kapsam|gecmis|dogrulaniyor)[^\]]*\]\]/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
+ * Öğrencinin profilde seçtiği anlatım tarzı. Eski `tutorStylePrompt` her
+ * cevaba "(1) nerede takıldığı (2) tek ipucu (3) kontrol sorusu" sırasını
+ * dayatıyordu — öğrencinin gördüğü kalıbın kaynağı; bu yolda kullanılmaz.
+ */
+export function teacherStyleLine(style: TutorStyle): string {
+  switch (style) {
+    case "hints_first":
+      return "Öğrenci ipucu öncelikli anlatımı seçti: çözüm isteyen soruda önce ipucu ver, cevabı onun bulmasına fırsat bırak.";
+    case "direct_solve":
+      return "Öğrenci doğrudan çözümü seçti: çözüm isteyen soruda kısa ve gerekçeli tam çözümü ver; sonra anladığını tek soruyla yokla.";
+    default:
+      return "Öğrenci adım adım anlatımı seçti: adımları gerekçesiyle sırayla göster, hepsini tek seferde dökme.";
+  }
+}
+
+/** Öğrencinin gerçek geçmiş kayıtları (deneme yanlışı, zayıf konu); yoksa boş. */
+export function tutorHistoryLine(items: { label: string; summary: string }[]): string {
+  if (!items.length) return "";
+  const lines = items.slice(0, 5).map((item) => `- ${item.label}: ${item.summary}`);
+  return `Öğrencinin gerçek geçmişi (yalnız bunlar; uygunsa en fazla bir kez değin, uydurma):\n${lines.join("\n")}`;
 }
 
 /** Denetçi sorun bulduysa ikinci yazım için sisteme eklenen not. */
