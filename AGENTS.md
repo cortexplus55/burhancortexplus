@@ -200,6 +200,24 @@ göremez — hepsi yeşildi.
 
 Bekçi test: `tests/unit/uat-gate-guards.test.ts` → "vercel.json cron kotası".
 
+## Öğretmen ders motoru (2 Ekim 2026) — eski onarım zinciri devre dışı
+
+Belgeli sınav hazırlığı dersleri artık `LESSON_ENGINE=teacher` (varsayılan)
+yolundan geliyor: temiz sayfa metni (`document_pages.clean_text`) → tek öğretmen
+istemi (`teacher-lesson.ts`) → model denetimi → en fazla 2 düzeltme turu.
+**Kod ders metnine hiçbir şey eklemez** — "Kaynak:" satırı, kalıp özet, dolgu
+soru yok. Denetimde yüksek sorun kalırsa ders öğrenciye gitmez, kredi iade.
+Gerekçe ve altın deneme sonuçları: `docs/delivery/ICERIK-KALITE-YOL-HARITASI.md`.
+
+| Yapmayın | Yapın |
+|---|---|
+| Kötü bir dersi kodla "onarmak" | İstemi ya da denetimi düzeltin, sonra altın denemeyi (`tests/unit/_tmp/golden-lesson.test.ts`, yerel) yeniden koşun |
+| Kaynaktaki bozuk cümleyi kopyalatmak | Yazar kaynağın kendi örnekleriyle tutarlı anlamı sessizce yazar; denetçi bunu sorun saymaz |
+| Yazar ve denetçiye farklı kural vermek | Bir kural eklenince ikisine de eklenir — çelişirse düzeltme turu hiçbir şey değiştirmez |
+
+Aşağıdaki bölüm **eski** (`legacy`) yol içindir; o yol yalnız `LESSON_ENGINE=legacy`,
+belgesiz dersler ve çekirdek sayfası bulunamayan derslerde çalışır.
+
 ## Ders kalitesi: model yazıyor, zincir siliyor olabilir — önce ölç
 
 **29 Eylül 2026'da belgesiz dersler hep "kurtarma" moduna düşüyordu**:
