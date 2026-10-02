@@ -80,13 +80,58 @@ function splitTrailingList(block: string): string[] {
   return [lines.slice(0, start).join("\n"), lines.slice(start).join("\n")];
 }
 
+const TABLE_ROW = /^\s*\|.*\|\s*$/;
+const TABLE_SEPARATOR = /^\s*\|?\s*:?-{2,}:?\s*(?:\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+
+/*
+  Öğretmen sohbeti iki kavramı tabloyla karşılaştırıyor ("| | Kast | Taksir |").
+  2 Ekim 2026'da canlıda tablo çizilmiyor, öğrenci ham çizgileri görüyordu.
+  Tablodan önce ya da sonra boş satırsız gelen paragraf ayrı bloğa alınır.
+*/
+function splitTableBlock(block: string): string[] {
+  const lines = block.split("\n");
+  const start = lines.findIndex(
+    (line, index) => TABLE_ROW.test(line) && TABLE_SEPARATOR.test(lines[index + 1] ?? ""),
+  );
+  if (start < 0) return [block];
+  let end = start + 2;
+  while (end < lines.length && TABLE_ROW.test(lines[end])) end += 1;
+  return [lines.slice(0, start).join("\n"), lines.slice(start, end).join("\n"), lines.slice(end).join("\n")].filter(
+    (part) => part.trim(),
+  );
+}
+
+function tableCells(line: string): string[] {
+  return line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
+}
+
+function renderTable(block: string): string {
+  const [head, , ...rows] = block.trim().split("\n");
+  const header = tableCells(head);
+  const headHtml = header.some(Boolean)
+    ? `<thead><tr>${header.map((cell) => `<th>${renderInline(cell)}</th>`).join("")}</tr></thead>`
+    : "";
+  const bodyHtml = rows
+    .map((row) => {
+      const cells = tableCells(row);
+      return `<tr>${header.map((_, index) => `<td>${renderInline(cells[index] ?? "")}</td>`).join("")}</tr>`;
+    })
+    .join("");
+  return `<div class="cp-md-table-wrap"><table class="cp-md-table">${headHtml}<tbody>${bodyHtml}</tbody></table></div>`;
+}
+
 export function renderMarkdownToHtml(content: string): string {
   return expandGluedLists(content)
     .split(/\n{2,}/)
+    .flatMap(splitTableBlock)
     .flatMap(splitTrailingList)
     .map((block) => {
       const trimmed = block.trim();
       if (!trimmed) return "";
+
+      if (TABLE_ROW.test(trimmed.split("\n")[0]) && TABLE_SEPARATOR.test(trimmed.split("\n")[1] ?? "")) {
+        return renderTable(trimmed);
+      }
 
       if (trimmed.startsWith("```")) {
         const code = trimmed.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "");
