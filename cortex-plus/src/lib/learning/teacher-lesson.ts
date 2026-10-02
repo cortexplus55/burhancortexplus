@@ -295,6 +295,55 @@ const MINOR_WORDS = new Set(["ve", "ile", "veya", "ya", "da", "de", "ki", "için
  * "KESİN HÜKÜMSÜZLÜK VE İPTAL" → "Kesin Hükümsüzlük ve İptal". Yalnız
  * bağıran başlığa dokunur; ünlüsüz kısaltmalar (KPSS, TBMM) olduğu gibi kalır.
  */
+function seedOf(text: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0 || 1;
+}
+
+/**
+ * Çoktan seçmeli kontrollerin şıklarını gerekçeleriyle birlikte, soru metnine
+ * bağlı sabit bir sırayla karıştırır; answerIndex yeni yere taşınır. Metin
+ * değişmez. Altın denemede Pediatri dersinin üç sorusunda da doğru cevap
+ * ilk şıktı. Doğru/yanlış kontrollerine dokunulmaz.
+ */
+export function shuffleLessonChecks(lesson: LessonV2): LessonV2 {
+  return {
+    ...lesson,
+    sections: lesson.sections.map((section) => {
+      const check = section.check;
+      if (!check || check.type !== "mcq" || !check.options || check.options.length < 3 || typeof check.answerIndex !== "number") {
+        return section;
+      }
+      let state = seedOf(check.prompt);
+      const random = () => {
+        state ^= state << 13;
+        state ^= state >>> 17;
+        state ^= state << 5;
+        return (state >>> 0) / 4294967296;
+      };
+      const order = check.options.map((_, index) => index);
+      for (let index = order.length - 1; index > 0; index -= 1) {
+        const pick = Math.floor(random() * (index + 1));
+        [order[index], order[pick]] = [order[pick], order[index]];
+      }
+      const whyAligned = check.optionWhy?.length === check.options.length;
+      return {
+        ...section,
+        check: {
+          ...check,
+          options: order.map((index) => check.options![index]),
+          answerIndex: order.indexOf(check.answerIndex),
+          ...(whyAligned ? { optionWhy: order.map((index) => check.optionWhy![index]) } : {}),
+        },
+      };
+    }),
+  };
+}
+
 export function calmHeading(text: string): string {
   if (!shouting(text)) return text.trim();
   return text
