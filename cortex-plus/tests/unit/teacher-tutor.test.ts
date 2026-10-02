@@ -105,6 +105,12 @@ describe("sohbet pasajları kelime ve sayı örtüşmesiyle yeniden sıralanır"
     expect(rerankByOverlap("?", matches).map((m) => m.page)).toEqual([12, 6, 14]);
   });
 
+  it("sohbet, konu kimliği olmadan açılan düğüm dersini de son ders sayar", () => {
+    const source = readFileSync("src/lib/learning/exam-chat-context.ts", "utf8");
+    expect(source).toContain('.from("exam_prep_node_attempts")');
+    expect(source).toContain('.eq("payload->>type", "lesson")');
+  });
+
   it("hazırlık sohbeti geniş getirip yeniden sıralar", () => {
     const source = readFileSync("src/lib/learning/prep-chat-grounding.ts", "utf8");
     expect(source).toContain("rerankByOverlap(message, wide).slice(0, 4)");
