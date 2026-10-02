@@ -3,6 +3,7 @@ import { env } from "@/lib/env";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
 import { corePageRun } from "@/lib/learning/core-pages";
 import { runTeacherLesson } from "@/lib/learning/teacher-lesson-run";
+import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
@@ -253,6 +254,9 @@ const cardsSchema = z.object({
 const oralSchema = z.object({
   questions: z.array(z.object({ prompt: z.string().min(8), hint: z.string().optional() })).min(3).max(8),
 });
+
+/** Öğretmen test motorunun yazdığı düğümler (2 Ekim 2026). */
+const TEACHER_QUIZ_KINDS = new Set<PlanNodeKind>(["quiz", "gaps"]);
 
 function actionForKind(kind: PlanNodeKind) {
   if (kind === "flashcards" || kind === "spaced") return "FLASHCARD_GENERATE" as const;
@@ -1414,6 +1418,19 @@ export async function POST(request: Request) {
     });
   }
 
+  // Öğretmen test motoru: konu testi de konunun kendi sayfalarından yazılır;
+  // belgesiz hazırlıkta konunun yerleşik bilgisinden.
+  if (TEACHER_QUIZ_KINDS.has(kind) && teachingV2 && !voiceSession && !lessonCoreDocumentId) {
+    const documentId = topicDocumentId ?? (prepSource.document_id as string | null) ?? prepDocs[0] ?? null;
+    if (documentId) {
+      lessonCoreDocumentId = documentId;
+      lessonCorePages =
+        !topicWiden && sessionMeta?.sourcePages?.length ? sessionMeta.sourcePages : pagesMarkedInSource(source.block);
+    } else if (sourceMode === "topic_only") {
+      lessonTopicOnly = true;
+    }
+  }
+
   // Podcast, sayfa kaynağı duruyorsa hazırlıktaki diğer belgelere de bakar.
   // Sayfa listesi okunamadıysa buraya gelinmez; o durumda arama yedeği yok.
   let podcastSyllabus = "";
@@ -1606,7 +1623,7 @@ export async function POST(request: Request) {
           mood,
           sourceBlock: source.block,
           lessonCore:
-            kind === "lesson" && lessonCoreDocumentId && lessonCorePages.length
+            (kind === "lesson" || TEACHER_QUIZ_KINDS.has(kind)) && lessonCoreDocumentId && lessonCorePages.length
               ? { documentId: lessonCoreDocumentId, pages: lessonCorePages }
               : null,
           lessonTopicOnly,
@@ -2133,6 +2150,16 @@ async function generateNodePayload(input: {
     if (input.lessonCore) return teacherLessonPayload(input, activity, input.lessonCore);
     // Belgesiz ders de aynı öğretmenden (2 Ekim 2026, ürün sahibinin kararı).
     if (input.lessonTopicOnly) return teacherLessonPayload(input, activity, null);
+  }
+
+  // Konu testi ve tuzak soruları da öğretmen motorundan (2 Ekim 2026).
+  if (
+    TEACHER_QUIZ_KINDS.has(input.kind) &&
+    input.teachingV2 &&
+    env.QUIZ_ENGINE === "teacher" &&
+    (input.lessonCore || input.lessonTopicOnly)
+  ) {
+    return teacherQuizPayload(input, activity, input.lessonCore ?? null, Math.max(5, quizCount));
   }
 
   if (input.kind === "lesson") {
@@ -2982,6 +3009,47 @@ async function teacherLessonPayload(
     refunded: false,
     engine: "teacher",
   };
+}
+
+/**
+ * Öğretmen test motoru (2 Ekim 2026): temiz çekirdek sayfalar → tek öğretmen
+ * istemi → soruları bağımsız çözen denetim → sorunlu sorunun modelce
+ * düzeltilmesi. Kod soru metnine bir şey eklemez; yeterli soru çıkmazsa
+ * kredi iade, test gösterilmez.
+ */
+async function teacherQuizPayload(
+  input: Parameters<typeof generateNodePayload>[0],
+  activity: ReturnType<typeof teachingActivityForKind>,
+  /** null: belgesiz hazırlık; sorular konunun yerleşik bilgisinden. */
+  core: { documentId: string; pages: number[] } | null,
+  count: number,
+) {
+  const startedAt = Date.now();
+  const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
+  const clean = core
+    ? await ensureCleanPages(input.service, {
+        userId: input.userId,
+        documentId: core.documentId,
+        pages: corePageRun(core.pages),
+        edges,
+      })
+    : [];
+  const outcome = await runTeacherQuiz(input.service, {
+    mode: core ? "document" : "topic",
+    focus: input.kind === "gaps" ? "gaps" : "practice",
+    userId: input.userId,
+    actionCode: actionForKind(input.kind),
+    idempotencyKey: input.idempotencyKey ?? `quiz:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    topicLabel: input.topicLabel,
+    prepTitle: input.prepTitle,
+    pages: clean.map((item) => ({ page: item.page, text: item.text })),
+    count,
+    learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    runningHeaders: edges,
+    startedAt,
+  });
+  if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  return { type: "quiz", questions: outcome.questions, teachingStandard: activity, engine: "teacher" };
 }
 
 async function loadLessonReviewCards(

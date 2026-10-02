@@ -70,6 +70,11 @@ export const envSchema = z.object({
    */
   TUTOR_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
   /**
+   * Konu testi ve tuzak soruları (2 Ekim 2026): "teacher" tek öğretmen istemi +
+   * soruları bağımsız çözen model denetimi; "legacy" exam-quiz-generate.ts.
+   */
+  QUIZ_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
+  /**
    * Ders taslağı — abone. Doğrulama ve parça onarımı standart modelde kalır.
    * Kredi eylem kodu değişmez; yalnızca bu çağrının modeli değişir.
    */
@@ -143,6 +148,7 @@ const parsed = envSchema.safeParse({
   OPENAI_CONTENT_MODEL: process.env.OPENAI_CONTENT_MODEL,
   LESSON_ENGINE: process.env.LESSON_ENGINE,
   TUTOR_ENGINE: process.env.TUTOR_ENGINE,
+  QUIZ_ENGINE: process.env.QUIZ_ENGINE,
   OPENAI_LESSON_MODEL: process.env.OPENAI_LESSON_MODEL,
   OPENAI_LESSON_FREE_MODEL: process.env.OPENAI_LESSON_FREE_MODEL,
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,
