@@ -9,6 +9,9 @@ import {
   flattenTeacherAnalysis,
   contentTokens,
   readSyllabusScope,
+  lexicalPageHit,
+  rerankByOverlap,
+  searchStems,
   type CorpusDoc,
   type CoverageDecision,
   type SyllabusScope,
@@ -114,10 +117,13 @@ export async function loadPrepChatGrounding(
 
   let matches: DocumentMatch[] = [];
   try {
-    matches = await searchDocumentChunksAcross(service, userId, message, documentIds, {
-      limit: 6,
-      perDocument: 2,
+    // Geniş getir, kelime/sayı örtüşmesiyle yeniden sırala, en iyi 4'ü ver.
+    // Eskiden tek belgeli hazırlıkta yalnız 2 pasaj geliyordu.
+    const wide = await searchDocumentChunksAcross(service, userId, message, documentIds, {
+      limit: 12,
+      perDocument: Math.max(3, Math.ceil(12 / documentIds.length)),
     });
+    matches = rerankByOverlap(message, wide).slice(0, 4);
   } catch {
     matches = [];
   }
@@ -140,6 +146,55 @@ export async function loadPrepChatGrounding(
       }),
     };
   });
+
+  // Kelime araması: anlam araması kaçırdığında belgedeki kesin cümleyi bul.
+  const stems = searchStems(message);
+  if (stems.length) {
+    try {
+      // Kök başına ayrı sorgu: sık geçen kök ("kurul") sınırı doldurup nadir
+      // kökün ("sendi") sayfasını dışarıda bırakmasın.
+      const batches = await Promise.all(
+        stems.map((stem) =>
+          service
+            .from("document_pages")
+            .select("document_id, page_number, text_content, clean_text")
+            .in("document_id", documentIds)
+            .ilike("text_content", `%${stem.raw}%`)
+            .limit(40),
+        ),
+      );
+      const unique = new Map<string, Record<string, unknown>>();
+      for (const batch of batches) {
+        for (const row of batch.data ?? []) unique.set(`${row.document_id}:${row.page_number}`, row);
+      }
+      const hits = [...unique.values()];
+      const taken = new Set(passages.map((item) => `${item.documentId}:${item.pageNumber}`));
+      const scored = hits
+        .map((row) => {
+          const text = ((row.clean_text as string | null) || (row.text_content as string | null) || "").trim();
+          return { row, hit: text ? lexicalPageHit(message, text) : null };
+        })
+        .filter((item) => item.hit && item.hit.score >= Math.min(2, stems.length))
+        .sort((a, b) => b.hit!.score - a.hit!.score)
+        .filter((item) => !taken.has(`${item.row.document_id}:${item.row.page_number}`))
+        .slice(0, 2);
+      for (const { row, hit } of scored) {
+        const documentId = row.document_id as string;
+        const doc = meta.get(documentId);
+        const name = (doc?.file_name as string | undefined) ?? "Belge";
+        passages.push({
+          documentId,
+          documentName: name,
+          pageNumber: row.page_number as number,
+          slide: slideMime(doc?.mime_type as string | null),
+          content: hit!.excerpt,
+          href: citationHref({ reference: 0, documentId, documentName: name, pageNumber: row.page_number as number, chunkId: null }),
+        });
+      }
+    } catch {
+      // Kelime araması düşerse anlam araması yeter.
+    }
+  }
 
   for (const passage of passages) {
     corpusDocs.push({

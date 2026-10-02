@@ -44,7 +44,19 @@ import {
   settleQuantReply,
   type GradedClaim,
 } from "@/lib/learning/tutor-quant";
-import { citationMarker, examTutorAddendum, finalizeTutorReply, parseTutorStructured, serializeStructuredReply } from "@/lib/learning/tutor-reply";
+import {
+  chipMarker,
+  citationMarker,
+  examTutorAddendum,
+  finalizeTutorReply,
+  followUpChips,
+  parseTutorStructured,
+  requestsAnswerOnly,
+  serializeStructuredReply,
+} from "@/lib/learning/tutor-reply";
+import { topWeightedTopic } from "@/lib/learning/prep-corpus";
+import { runTeacherTutor } from "@/lib/ai/teacher-tutor-run";
+import { teacherStyleLine, tutorHistoryLine, tutorHistoryText } from "@/lib/ai/teacher-tutor";
 import { parseCheckExpected, gradeAgainstExpected } from "@/lib/learning/check-question";
 import { citationHref, type ChatCitation, type ChatEvidence } from "@/lib/ai/chat-citations";
 import {
@@ -168,7 +180,10 @@ export async function POST(request: Request) {
     reservationId = reserved.reservationId;
     if (!env.OPENAI_API_KEY) { await undoSpend(); return errorResponse(503, "ai_not_configured"); }
 
-    if (useDocuments && !documentAttached && !imageUrl) {
+    // Öğretmen sohbeti hazırlığın kendi belgelerine bakar (prepGrounding); tüm
+    // belgelerde arama ve erken "kaynak yok" dönüşü bu yolda gereksiz.
+    const teacherPrepChat = env.TUTOR_ENGINE === "teacher" && Boolean(rest.prepId) && !imageUrl;
+    if (useDocuments && !documentAttached && !imageUrl && !teacherPrepChat) {
       const matches = await searchDocumentChunks(service, userId, message, 6, {
         minSimilarity: documentsOnly ? 0.32 : undefined,
       });
@@ -196,7 +211,7 @@ export async function POST(request: Request) {
     let tokensOut = 0;
     let gradedForStore: GradedClaim | null = null;
     let prepGrounding: Awaited<ReturnType<typeof loadPrepChatGrounding>> | null = null;
-    if (strict && !evidence.length && !imageUrl) {
+    if (strict && !evidence.length && !imageUrl && !teacherPrepChat) {
       content = NO_SOURCE_MESSAGE + NO_SOURCE_CREDIT_NOTE;
       charge = false;
     } else {
@@ -345,7 +360,75 @@ export async function POST(request: Request) {
         return finalized.content;
       }
       let accepted = false;
-      const attemptLimit = paidChatAttempts(offDocument);
+      // Öğretmen sohbeti (2 Ekim 2026): serbest metin + belgeye karşı denetim.
+      // JSON şablon, yeniden yazan denetçiler ve polishPrep bu yolda yok.
+      const teacherTutor = teacherPrepChat && Boolean(prepGrounding);
+      // Öğrencinin seçtiği mod: Yalnızca belgem / Belgem + genel bilgi / Genel sohbet.
+      const tutorMode = !grounded ? "general" : strict ? "document" : "mixed";
+      if (teacherTutor && prepGrounding) {
+        const grounding = prepGrounding;
+        const lastLesson = examContext?.lastLesson ?? null;
+        const outcome = await runTeacherTutor({
+          client,
+          model,
+          signal: request.signal,
+          context: {
+            examTitle: examContext?.prepTitle ?? null,
+            daysLeft: examContext?.daysLeft ?? null,
+            topic: lastLesson?.title ?? null,
+            learnerLines: [
+              teacherStyleLine(parseTutorStyle(profile?.tutor_style)),
+              moodLine.trim(),
+              tutorHistoryLine(examContext?.history ?? []),
+            ],
+            passages: [
+              ...grounding.passages.map((item) => ({
+                label: `${item.documentName}${item.pageNumber != null ? ` ${item.slide ? "slayt" : "s."}${item.pageNumber}` : ""}`,
+                text: item.content,
+              })),
+              ...(lastLesson ? [{ label: `Öğrencinin son okuduğu ders: ${lastLesson.title}`, text: lastLesson.text }] : []),
+            ],
+            pendingAnswer: pendingExpected?.answer ?? null,
+            mode: tutorMode,
+          },
+          history: history.map((item) =>
+            item.role === "assistant" && typeof item.content === "string"
+              ? { ...item, content: tutorHistoryText(item.content) }
+              : item,
+          ),
+          message,
+          onUsage: async (usedIn, usedOut) => {
+            tokensIn += usedIn;
+            tokensOut += usedOut;
+            await recordUsage(service, { userId, actionCode, model, tokensIn: usedIn, tokensOut: usedOut, reservationId });
+          },
+        });
+        if (outcome.ok) {
+          const chips = followUpChips({
+            answerOnly: requestsAnswerOnly(message),
+            graded: Boolean(studentGrade),
+            scopeTopic: null,
+            weightedTopic: topWeightedTopic(grounding.scope)?.topic ?? null,
+          });
+          content = `${outcome.content}\n\n${chips.map(chipMarker).join("\n")}`.trim();
+          gradedForStore = studentGrade && studentGrade.verdict !== "dogru" ? studentGrade : null;
+          // Kaynak satırı ("Kaynak: KPSS.pdf · s.8") ve kaynak işaretleri bu
+          // listeden gelir; boş kalırsa ekran belge modunda "belgede yok" yazıyordu.
+          if (tutorMode !== "general" && grounding.decision === "in") {
+            citations = grounding.passages.slice(0, 2).map((item, index) => ({
+              reference: index + 1,
+              documentId: item.documentId,
+              documentName: item.documentName,
+              pageNumber: item.pageNumber,
+              chunkId: null,
+            }));
+          }
+          accepted = true;
+        } else {
+          logOpsEvent("document_answer_rejected", { operationId, strict, stage: "teacher_tutor", reasons: outcome.reasons.slice(0, 3) });
+        }
+      }
+      const attemptLimit = teacherTutor ? 0 : paidChatAttempts(offDocument);
       for (let attempt = 0; attempt < attemptLimit; attempt++) {
         // İkinci deneme de asıl modelde: eskiden aboneye gpt-4.1'e çıkıyordu.
         const generationModel = model;
