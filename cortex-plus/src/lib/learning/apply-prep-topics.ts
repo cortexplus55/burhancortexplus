@@ -23,6 +23,8 @@ export type LoadedPrepTopic = {
   examHeavy?: boolean;
   importance?: "important" | "medium" | "less" | null;
   sourceRefs?: TopicSourceRef[];
+  /** Kavram birimleri; yeniden adlandırmada da konuya bağlı kalır. */
+  units?: { title: string; pages: number[] }[];
 };
 
 export type LoadedPrepTopics = {

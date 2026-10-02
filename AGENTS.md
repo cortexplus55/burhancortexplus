@@ -219,6 +219,26 @@ Belgesiz hazırlık dersleri de aynı motordan (`mode: "topic"`): aynı akış, 
 kuralı yerine doğruluk kuralı, denetçi doğruluğa bakar. Hazırlık sohbeti de öğretmen
 yolunda (`TUTOR_ENGINE=teacher`, `teacher-tutor.ts`), öğrencinin seçtiği moda göre.
 
+**2 Ekim 2026: bütün içerik öğretmen motorlarında** (ürün sahibinin kararı). Hepsi
+aynı kalıp: temiz çekirdek sayfalar (dersle aynı sayfalar) → tek öğretmen istemi →
+öğeyi **önce kendisi çözen/cevaplayan** model denetimi → sorunlu öğenin düzeltilmesi
+ya da elenmesi → yetmezse içerik gösterilmez, kredi iade. Kod metne dokunmaz; yalnız
+biçim (başlık yazımı, gösterim/seslendirme) ve sıra (şık karıştırma, zor kart önce).
+
+| İçerik | Bayrak | Dosya |
+|---|---|---|
+| Ders (belgeli + belgesiz) | `LESSON_ENGINE` | `teacher-lesson*.ts` |
+| Hazırlık sohbeti | `TUTOR_ENGINE` | `teacher-tutor*.ts` |
+| Konu testi, tuzak, yazılı deneme, son kontrol, odaklı pratik, soru-cevap, deneme sınavı, düello, tanışma, tanı, test aracı | `QUIZ_ENGINE` | `teacher-quiz*.ts`, `exam-quiz-generate.ts` başı |
+| Podcast (5 tür) | `PODCAST_ENGINE` | `teacher-podcast*.ts` |
+| Kartlar, aralıklı tekrar | `CARDS_ENGINE` | `teacher-cards.ts` |
+| Doğru/yanlış, sözlü deneme | `PRACTICE_ENGINE` | `teacher-practice.ts` |
+| Kavram birimi (büyük konu → 2–6 sayfalık dersler) | `TOPIC_UNITS_ENGINE` | `concept-units*.ts` |
+
+Ortak parçalar: `teacher-item-loop.ts` (yedekli taslak, öğe öğe denetim, düzeltme),
+`teacher-engine-run.ts` (kredi kabuğu). Çoktan seçmeli şıklar soru metnine bağlı
+sabit sırayla karışır — model doğru cevabı neredeyse hep ilk şıkka yazıyordu.
+
 Aşağıdaki bölüm **eski** (`legacy`) yol içindir; o yol yalnız `LESSON_ENGINE=legacy`
 ve çekirdek sayfası bulunamayan belgeli derslerde çalışır. **Eski onarım katmanı
 9 Ekim 2026'da silinecek** (ürün sahibinin kararı: bir haftalık canlı veriden sonra).

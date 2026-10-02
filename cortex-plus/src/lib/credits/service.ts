@@ -277,7 +277,9 @@ export type UsageCode =
   /** Uzun belgenin alt başlıklarını ana konulara toplama (0 kredi, belge başına bir kez). */
   | "TOPIC_MAP_GROUP"
   /** Sayfa temizliği: PDF metin katmanının yazım/tanıma hataları (0 kredi, sayfa başına bir kez). */
-  | "DOCUMENT_CLEAN";
+  | "DOCUMENT_CLEAN"
+  /** Büyük ana konuyu kavram birimlerine bölme (0 kredi, belge başına bir kez). */
+  | "TOPIC_UNITS";
 
 export async function recordUsage(
   service: SupabaseClient,

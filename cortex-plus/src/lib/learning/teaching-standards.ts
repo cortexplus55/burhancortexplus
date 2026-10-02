@@ -51,6 +51,8 @@ export type SessionTeachingMeta = {
   durationMinutes?: number;
   role?: "learn" | "practice" | "review" | "mock";
   calendarDate?: string;
+  /** Kavram biriminin adı: ders bu birimi anlatır (2 Ekim 2026). */
+  unitTitle?: string;
 };
 
 export type MisconceptionDraft = {
@@ -102,6 +104,7 @@ export function parseSessionMeta(raw: unknown): SessionTeachingMeta | null {
       typeof row.durationMinutes === "number" ? row.durationMinutes : undefined,
     role,
     calendarDate: typeof row.calendarDate === "string" ? row.calendarDate : undefined,
+    unitTitle: typeof row.unitTitle === "string" && row.unitTitle.trim() ? row.unitTitle.trim() : undefined,
   };
 }
 

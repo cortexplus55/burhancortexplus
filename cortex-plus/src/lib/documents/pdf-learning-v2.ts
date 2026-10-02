@@ -15,6 +15,9 @@ import { MAIN_TOPIC_MAX } from "@/lib/documents/topic-main-groups";
 import { groupIntoMainTopics } from "@/lib/documents/topic-main-groups-llm";
 import { isJunkTopicTitle } from "@/lib/documents/topic-title";
 import { isRunningHeader, repeatedEdgeLines } from "@/lib/documents/clean-text";
+import type { ConceptUnit } from "@/lib/documents/concept-units";
+import { buildConceptUnits } from "@/lib/documents/concept-units-run";
+import { env } from "@/lib/env";
 
 export type PdfLearningV2Result = {
   ok: boolean;
@@ -137,6 +140,8 @@ async function persistTopics(
   documentId: string,
   topics: TopicDraft[],
   pageIdByNumber: Map<number, string>,
+  /** Konu sırasına göre kavram birimleri; boş dizi: plan mekanik bölmeye döner. */
+  units: ConceptUnit[][] = [],
 ) {
   const topicIdByMergeKey = new Map<string, string>();
   if (!topics.length) return topicIdByMergeKey;
@@ -146,6 +151,7 @@ async function persistTopics(
         document_id: documentId,
         parent_id: null,
         sort_order: index,
+        units: units[index] ?? [],
         title: topic.title,
         learning_objective: topic.learningObjective,
         prerequisites: topic.prerequisites,
@@ -414,8 +420,21 @@ export async function runPdfLearningV2(
         }
       }
 
+      // Büyük ana konular kavram birimlerine bölünür (2 Ekim 2026: "ana konu +
+      // içinde dersler"); her birim çalışma planında ayrı ders olur.
+      const units =
+        env.TOPIC_UNITS_ENGINE === "teacher"
+          ? await buildConceptUnits(service, {
+              userId: docRow.user_id as string,
+              documentId,
+              topics: topics.map((topic) => ({ title: topic.title, pageNumbers: topic.pageNumbers })),
+              analyses,
+              edges,
+            })
+          : [];
+
       await clearTopicMap(service, documentId);
-      await persistTopics(service, documentId, topics, pageIdByNumber);
+      await persistTopics(service, documentId, topics, pageIdByNumber, units);
       const coverage = buildCoverageReport(analyses, topics, consolidated.mergedTitles);
       await persistCoverage(service, documentId, coverage);
 
