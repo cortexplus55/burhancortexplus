@@ -14,6 +14,7 @@ import {
   lessonStructureIssues,
   parseIssues,
   parseTeacherLesson,
+  shuffleLessonChecks,
   teacherUserPrompt,
 } from "@/lib/learning/teacher-lesson";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
@@ -180,6 +181,29 @@ describe("yapı denetimi", () => {
     const prompt = teacherUserPrompt({ topicLabel: "Üslü sayılar", prepTitle: "TYT Matematik", pages: [], upcomingTopics: [], mode: "topic" });
     expect(prompt).toContain("KAYNAK: (yok — belgesiz ders");
     expect(verifyUserPrompt(good, { pages: [], mode: "topic", topicLabel: "Üslü sayılar", prepTitle: "TYT Matematik" })).toContain("KONU: Üslü sayılar");
+  });
+
+  it("çoktan seçmeli kontroller gerekçeleriyle karışır; doğru cevap yer değiştirse de doğru kalır", () => {
+    const options = ["Yokluk", "Mutlak butlan", "Nispi butlan", "Tek taraflı bağlamazlık"];
+    const why = options.map((option) => `${option} gerekçesi burada.`);
+    const lessons = Array.from({ length: 10 }, (_, i): LessonV2 => ({
+      ...good,
+      sections: [
+        good.sections[0],
+        { ...good.sections[1], check: { type: "mcq", prompt: `Soru ${i}: kurucu unsur eksikse?`, options, answerIndex: 0, optionWhy: why, explanation: "Yokluk." } },
+      ],
+    }));
+    const positions = new Set<number>();
+    for (const lesson of lessons) {
+      const check = shuffleLessonChecks(lesson).sections[1].check!;
+      expect(check.options![check.answerIndex!]).toBe("Yokluk");
+      check.options!.forEach((option, index) => expect(check.optionWhy![index]).toBe(`${option} gerekçesi burada.`));
+      expect(shuffleLessonChecks(lesson).sections[1].check!.options).toEqual(check.options);
+      positions.add(check.answerIndex!);
+    }
+    expect(positions.size).toBeGreaterThanOrEqual(3);
+    // Doğru/yanlış kontrolüne dokunulmaz.
+    expect(shuffleLessonChecks(good).sections[0].check).toEqual(good.sections[0].check);
   });
 
   it("gündelik örnek kutusu olmayan ders düzeltmeye gider", () => {

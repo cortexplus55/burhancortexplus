@@ -13,6 +13,7 @@ import {
   lessonStructureIssues,
   parseIssues,
   parseTeacherLesson,
+  shuffleLessonChecks,
   teacherUserPrompt,
   verifyUserPrompt,
   type TeacherIssue,
@@ -165,5 +166,5 @@ export async function teacherLessonLoop(
     drafts.push(lesson);
     issues = await review(lesson);
   }
-  return { lesson, issues, drafts };
+  return { lesson: lesson ? shuffleLessonChecks(lesson) : lesson, issues, drafts };
 }
