@@ -16,6 +16,7 @@ import {
   quizUserPrompt,
   quizVerifySystem,
   quizVerifyUserPrompt,
+  shuffleOptions,
   type TeacherQuizInput,
 } from "@/lib/learning/teacher-quiz";
 
@@ -83,11 +84,11 @@ export async function teacherQuizLoop(
     good.push(...again.filter((item) => !item.problems.length).map((item) => item.question));
     bad = again.filter((item) => item.problems.length);
   }
-  return { questions: good.slice(0, input.count), rejected: bad, rounds };
+  return { questions: good.slice(0, input.count).map(shuffleOptions), rejected: bad, rounds };
 }
 
 export type TeacherQuizOutcome =
-  | { ok: true; questions: QuizQuestion[]; calls: number; ms: number }
+  | { ok: true; questions: QuizQuestion[]; calls: number; ms: number; reservationId?: string }
   | { ok: false; status: number; error: string; reasons: string[] };
 
 /** Kredi bir kez ayrılır; yeterli soru çıkarsa kesinleşir, çıkmazsa iade. */
@@ -98,10 +99,17 @@ export async function runTeacherQuiz(
     actionCode: ActionCode;
     idempotencyKey: string;
     startedAt?: number;
+    /**
+     * Ücreti çağıran kessin (düello: soru kümesi kullanılamazsa iade).
+     * true iken dönen reservationId bekleyen durumdadır.
+     */
+    deferCommit?: boolean;
+    /** Asgari soru sayısı; yoksa count − 2 (en az 3). */
+    minimum?: number;
   },
 ): Promise<TeacherQuizOutcome> {
   if (!env.OPENAI_API_KEY) return { ok: false, status: 503, error: "generation_failed", reasons: ["no_api_key"] };
-  if (!input.pages.length && input.mode !== "topic") {
+  if (!input.pages.length && !input.sourceBlock?.trim() && input.mode !== "topic") {
     return { ok: false, status: 503, error: "source_unavailable", reasons: ["no_pages"] };
   }
   const reservation = await reserveCredits(service, input.userId, input.actionCode, input.idempotencyKey);
@@ -149,7 +157,7 @@ export async function runTeacherQuiz(
       calls,
       ms: Date.now() - started,
     });
-    if (loop.questions.length < minimumQuestions(input.count)) {
+    if (loop.questions.length < (input.minimum ?? minimumQuestions(input.count))) {
       await refundCredits(service, reservation.reservationId).catch(() => undefined);
       return {
         ok: false,
@@ -158,8 +166,11 @@ export async function runTeacherQuiz(
         reasons: loop.rejected.slice(0, 4).map((item) => item.problems[0]?.slice(0, 200) ?? "sorun"),
       };
     }
+    if (input.deferCommit) {
+      return { ok: true, questions: loop.questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId };
+    }
     await commitCredits(service, reservation.reservationId);
-    return { ok: true, questions: loop.questions, calls, ms: Date.now() - started };
+    return { ok: true, questions: loop.questions, calls, ms: Date.now() - started, reservationId: reservation.reservationId };
   } catch (error) {
     await refundCredits(service, reservation.reservationId).catch(() => undefined);
     console.error("teacher_quiz_failed", {

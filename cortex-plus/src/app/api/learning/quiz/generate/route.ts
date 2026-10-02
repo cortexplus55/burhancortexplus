@@ -89,6 +89,8 @@ export async function POST(request: Request) {
     idempotencyKey,
     sourceExcerpt: docContext?.excerpt,
     requireSourceSupport: Boolean(docContext),
+    count: questionCount,
+    topicLabel: topic,
     // Studio oynatıcısı tek doğru şıkla çalışıyor (`correct_answer` tek metin).
     schemaHintExtra: "Bu quizde her soru tek doğru cevaplıdır: multi false, correct tek şık.",
     userPrompt: docContext

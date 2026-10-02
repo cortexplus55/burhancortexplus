@@ -105,6 +105,10 @@ export async function POST(request: Request) {
     maxDraftAttempts: 2,
     deferCommit: true,
     maxQuestions: DUEL_CANDIDATES,
+    // Öğretmen motoru soruları kendisi çözerek eler; 2 yedekle 7 yeter.
+    count: DUEL_QUESTIONS + 2,
+    topicLabel: topic,
+    prepTitle: subject,
     hiddenRationale: true,
     difficulty: "hard",
     sourceExcerpt: source.block,

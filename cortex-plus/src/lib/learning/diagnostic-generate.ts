@@ -206,6 +206,7 @@ Kurallar:
       schemaHintExtra: "Bu tanıda questions dizisi 6 soru içerir. Her sorunun topic alanı definition, concept veya application kodudur.",
       sourceExcerpt: source.block,
       requireSourceSupport: true,
+      count: batch.length,
       userPrompt,
     });
     // Stage 7: retries + independent-only accept live inside generateExamQuiz / generateJson

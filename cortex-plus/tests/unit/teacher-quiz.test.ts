@@ -6,7 +6,9 @@ import {
   parseTeacherQuiz,
   quizStructureIssues,
   quizSystem,
+  quizUserPrompt,
   quizVerifySystem,
+  shuffleOptions,
 } from "@/lib/learning/teacher-quiz";
 import { minimumQuestions, teacherQuizLoop } from "@/lib/learning/teacher-quiz-run";
 
@@ -116,6 +118,47 @@ describe("öğretmen test motoru: döngü", () => {
   it("asgari soru sayısı", () => {
     expect(minimumQuestions(5)).toBe(3);
     expect(minimumQuestions(8)).toBe(6);
+  });
+});
+
+describe("şık karıştırma ve eski çağıranlar", () => {
+  it("şıklar gerekçeleriyle birlikte sabit sırayla karışır; doğru cevap farklı konumlara düşer", () => {
+    const questions = Array.from({ length: 12 }, (_, i) => parseTeacherQuiz({ questions: [raw(`Soru ${i}: nikâh memuru olmadan yapılan evlilik hangi durumdadır?`)] })![0]);
+    const shuffled = questions.map(shuffleOptions);
+    for (const [index, question] of shuffled.entries()) {
+      // Her şık kendi gerekçesiyle kalır.
+      for (const option of question.options) {
+        const original = questions[index].options.indexOf(option);
+        expect(question.optionWhy![question.options.indexOf(option)]).toBe(questions[index].optionWhy![original]);
+      }
+      expect(question.correct).toEqual(["Yokluk"]);
+      // Aynı soru her seferinde aynı sırada.
+      expect(shuffleOptions(questions[index]).options).toEqual(question.options);
+    }
+    const positions = new Set(shuffled.map((question) => question.options.indexOf("Yokluk")));
+    expect(positions.size).toBeGreaterThanOrEqual(3);
+  });
+
+  it("hazır kaynak bloğu ve çağıranın isteği istemde", () => {
+    const prompt = quizUserPrompt({ topicLabel: "", prepTitle: "", pages: [], sourceBlock: "[s.8] Yokluk…", brief: "Tam 4 soru; tür planı: mcq", count: 4 });
+    expect(prompt).toContain("KAYNAK:\n[s.8] Yokluk…");
+    expect(prompt).toContain("İSTEK (kurallarla çelişirse kurallar geçerli):\nTam 4 soru");
+    expect(prompt).not.toContain("SINAV:");
+  });
+
+  it("eski test üreticisi öğretmen motoruna gider; çok doğrulu eski profil eski yolda", () => {
+    const source = readFileSync("src/lib/learning/exam-quiz-generate.ts", "utf8");
+    expect(source).toContain('if (env.QUIZ_ENGINE === "teacher" && input.engine !== "legacy" && input.teachingV2 !== false) {');
+    expect(source).toContain("deferCommit: input.deferCommit,");
+    for (const caller of [
+      "src/app/api/learning/exam-prep/duel/route.ts",
+      "src/app/api/learning/exam-prep/intro/route.ts",
+      "src/lib/learning/mock-exam/create.ts",
+      "src/lib/learning/diagnostic-generate.ts",
+      "src/app/api/learning/quiz/generate/route.ts",
+    ]) {
+      expect(readFileSync(caller, "utf8")).toMatch(/count: /);
+    }
   });
 });
 
