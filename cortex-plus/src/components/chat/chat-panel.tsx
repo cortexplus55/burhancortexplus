@@ -44,6 +44,7 @@ import {
   Brush,
   Square,
   Atom,
+  Sparkles,
   X,
 } from "lucide-react";
 import { PeriyodikTablo } from "@/components/lab/tools/periyodik-tablo";
@@ -1218,9 +1219,11 @@ function ChatPanelSession({
               <h1 className="cp-sor-hero-title">
                 {greetingLine ?? "Merhaba!"}
               </h1>
+              {/* Astra: büyük yuvarlak ışıltı düğmesi, altında küçük "BAŞLA". */}
               <button
                 type="button"
                 className="cp-sor-start"
+                aria-label={startLabel}
                 disabled={loading}
                 onClick={() => {
                   if (startPrompt) {
@@ -1230,7 +1233,12 @@ function ChatPanelSession({
                   setStartHubOpen(true);
                 }}
               >
-                {startPrompt ? startLabel : "+ " + startLabel}
+                <span className="cp-sor-start-orb" aria-hidden>
+                  <Sparkles className="h-6 w-6" />
+                </span>
+                <span className="cp-sor-start-label" aria-hidden>
+                  {startLabel}
+                </span>
               </button>
 
               {/* Astra gibi yalnızca selam ve Başla (30 Eylül 2026 kararı).

@@ -837,11 +837,8 @@ export function ExamNodeSession({
           onClick={() => { void persistAnswers(answersRef.current, index).catch(() => undefined); }}>Kaydı yeniden dene</button>
       </div> : null}
       {cinematicLesson || cinematicLoading || cinematicPodcast || oralOwnsChrome ? null : (
+      // Astra'da oturumda tek çıkış sağ üstteki × (3 Ekim 2026); üst çubuk da yok.
       <div className="cp-exam-study-bar">
-        <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill"
-          onClick={(event) => { if (pendingSaves || saveError) { event.preventDefault(); toast.error("Çıkmadan önce cevapların kaydedilmesini bekle."); } }}>
-          ← Geri
-        </Link>
         {stage === "play" && isTimedExam ? (
           <span className={cn("cp-exam-timer", timeLeft < 120 && "cp-exam-timer--urgent")}>
             ⏱ {formatTimer(timeLeft)}

@@ -16,7 +16,7 @@ import { TOOLS } from "@/lib/parity/tools";
 */
 describe("her hazırlığın kendi yolu", () => {
   it("menüde birleşik 'Çalış' ekranı yok; Astra sırası", () => {
-    expect(studentBottomTabs.map((tab) => tab.label)).toEqual(["Ana Sayfa", "Sınavlar", "Araçlar", "Belgeler", "Profil"]);
+    expect(studentBottomTabs.map((tab) => tab.label)).toEqual(["Ana Sayfa", "Sınavlar", "Araçlar", "Profil"]);
     expect(studentBottomTabs.some((tab) => tab.href === "/calisma-plani")).toBe(false);
     expect(TOOLS.some((tool) => tool.href === "/calisma-plani")).toBe(false);
     expect(readFileSync("src/app/calisma-plani/page.tsx", "utf8")).toContain('permanentRedirect("/deneme-sinavlari")');
@@ -33,7 +33,7 @@ describe("her hazırlığın kendi yolu", () => {
 
   it("Belgeler: yolu olan belge kendi yoluna gider, ikinci kopya açılmaz", () => {
     const page = readFileSync("src/app/dokumanlar/page.tsx", "utf8");
-    expect(page).toContain("prepByDocument.has(document.id)");
+    expect(page).toContain("prepByDocument.get(document.id)");
     expect(page).toContain('"Yoluna devam et"');
   });
 });

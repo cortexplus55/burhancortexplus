@@ -359,25 +359,49 @@
   color: var(--cp-text);
 }
 
+/* Astra'nın Başla'sı: yuvarlak ışıltı, altında aralıklı küçük yazı. */
 .cp-sor-start {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.35rem;
-  margin-top: 1.25rem;
-  padding: 0.55rem 1.15rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  gap: 0.85rem;
+  margin-top: 1.5rem;
+  padding: 0;
+  border: 0;
   background: transparent;
   color: var(--cp-text);
-  font-size: 0.9375rem;
-  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.cp-sor-start:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.35);
+.cp-sor-start-orb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--cp-text) 8%, var(--cp-bg));
+  border: 1px solid color-mix(in srgb, var(--cp-text) 12%, transparent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.cp-sor-start-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.cp-sor-start:hover:not(:disabled) .cp-sor-start-orb {
+  transform: scale(1.04);
+  background: color-mix(in srgb, var(--cp-text) 12%, var(--cp-bg));
+}
+
+.cp-sor-start:focus-visible .cp-sor-start-orb {
+  outline: 2px solid var(--c-ai, #7c6cf7);
+  outline-offset: 3px;
 }
 
 /*
@@ -2993,6 +3017,16 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.5rem 0 1rem;
+}
+
+/* Tek çıkış ×: süre yokken de sağda dursun. */
+.cp-exam-study-bar > :last-child {
+  margin-left: auto;
+}
+
+/* Oturum kabuğu: üst çubuk yok, içerik ekranın başından başlar. */
+.cp-sor-root--session .cp-sor-main {
+  padding-top: 0.75rem;
 }
 
 .cp-topic-path {
@@ -10120,6 +10154,22 @@
   margin: 0 0 0.6rem;
 }
 
+/* Üst çubuğa taşınınca (Astra): serinin solunda, ayrı satır yok. */
+.cp-sor-top-slot {
+  display: contents;
+}
+
+.cp-sor-top-slot .cp-prep-actions {
+  margin: 0 0.5rem 0 0;
+}
+
+@media (max-width: 480px) {
+  .cp-sor-top-slot .cp-prep-actions {
+    gap: 0.3rem;
+    margin-right: 0.25rem;
+  }
+}
+
 .cp-prep-icon {
   display: inline-flex;
   align-items: center;
@@ -11669,4 +11719,157 @@ a.cp-exam-search {
 .cp-my-preps-tabs button.is-on {
   background: var(--cp-text);
   color: var(--c-bg);
+}
+
+/* Belgelerim (3 Ekim 2026): sınav sayfalarıyla aynı kart dili. */
+.cp-docs {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.cp-docs-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--cp-muted);
+  font-size: 0.9375rem;
+}
+
+.cp-docs-intro p {
+  margin: 0;
+}
+
+.cp-docs-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cp-docs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-docs-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem;
+  border-radius: 1.1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+}
+
+.cp-docs-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.cp-docs-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--cp-text) 6%, transparent);
+  color: var(--cp-muted);
+}
+
+.cp-docs-name {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--cp-text);
+}
+
+.cp-docs-meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--cp-muted);
+}
+
+.cp-docs-status {
+  flex-shrink: 0;
+  padding: 0.15rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--cp-text) 6%, transparent);
+  color: var(--cp-muted);
+}
+
+.cp-docs-status--completed {
+  background: color-mix(in srgb, #22c55e 16%, transparent);
+  color: #86efac;
+}
+
+.cp-docs-status--failed {
+  background: color-mix(in srgb, #ef4444 16%, transparent);
+  color: #fca5a5;
+}
+
+.cp-docs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+}
+
+.cp-docs-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0 1.1rem;
+  border-radius: 9999px;
+  background: #3b5bdb;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.cp-docs-link {
+  font-size: 0.8125rem;
+  color: var(--cp-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.cp-docs-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+@media (max-width: 480px) {
+  .cp-docs-primary {
+    width: 100%;
+  }
+  .cp-docs-tools {
+    margin-left: 0;
+  }
 }
