@@ -135,7 +135,8 @@ export const TEACHER_SYSTEM =
   "7) summary: 3-5 madde; sınavda soruyu çözdürecek kesin bilgiler, anahtar kelimeleriyle.\n" +
   "8) nextFocus yalnız verilen SIRADAKİ KONULAR listesinden, aynen; liste boşsa boş dizi.\n\n" +
   "YAZMA: 'Kaynak:', sayfa numarası, 's.12', 'PDF', 'bu derste ... öğreneceğiz' gibi boş cümle, kendini tekrar, " +
-  "iç not. Gövdede başlığı tekrar etme.\n\n" +
+  "iç not. Gövdede başlığı tekrar etme. Bilgiyi kaynağa atfetme ('kaynakta … diye açıklanır', 'metne göre', " +
+  "'belgede belirtildiği gibi' yok): öğretmen gibi doğrudan söyle.\n\n" +
   `${CONTENT_STYLE}\n\n` +
   `Yalnızca bu şemada JSON döndür (kullanmadığın isteğe bağlı alanları yazma):\n${SCHEMA}`;
 
@@ -183,7 +184,8 @@ export const VERIFY_SYSTEM =
   "D) explanation ya da optionWhy'da yanlış bilgi.\n" +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle; kaynağın bozuk kelimesinin ya da bozuk cümlesinin kopyası.\n" +
   "F) Ders içinde tutarsızlık (bir yerde üç tür deyip başka yerde farklı saymak gibi).\n" +
-  "G) Derste kaynağın kendisinden söz eden iç not ('kaynakta yanlış yazılmış', 'kaynaktaki ifade hatalıdır' gibi).\n" +
+  "G) Derste kaynağın kendisinden söz eden iç not ('kaynakta yanlış yazılmış', 'kaynaktaki ifade hatalıdır' gibi) " +
+  "ya da bilgiyi kaynağa atfeden cümle ('kaynakta … diye açıklanır', 'metne göre', 'belgede belirtildiği gibi').\n" +
   "Kaynakta açıkça bozuk bir cümlenin (olumsuzluk eki düşmüş, kelime kaymış, kendi açıklaması ve örnekleriyle " +
   "çelişen) derste kaynağın kendi açıklama ve örnekleriyle tutarlı anlamıyla yazılması SORUN DEĞİLDİR; bunu A ya da B " +
   "sayma.\n" +
