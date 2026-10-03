@@ -16,8 +16,6 @@ import {
   examPrepIntroHref,
   examPrepNodeHref,
   examPrepTopicHref,
-  examIntroPending,
-  needsExamIntro,
 } from "@/lib/learning/exam-prep-hrefs";
 import {
   isFeatureEnabled,
@@ -201,8 +199,16 @@ export default async function ExamPrepDetailPage({
 
   const progress = nodeProgress(nodes);
   let ready = nodes.find((node) => node.status === "ready");
-  const hasTopic = Boolean(prep.active_topic_id);
-  const needsIntro = hasTopic && needsExamIntro(prep.intro_completed_at, nodes, prep.intro_deferred_at);
+  // Astra: yeni hazırlıkta "Devam et" ilk dersi doğrudan açar (3 Ekim 2026).
+  // Eskiden önce "Konu seç", sonra zorunlu 8 soruluk tanı geliyordu. Etkin
+  // konu yoksa ilk konu etkin olur; tanı yolun başında isteğe bağlı düğümdür.
+  let activeTopicId = (prep.active_topic_id as string | null) ?? null;
+  if (!activeTopicId && prepTopics.length) {
+    activeTopicId = prepTopics[0].id;
+    await supabase.from("exam_preps").update({ active_topic_id: activeTopicId }).eq("id", prep.id);
+  }
+  const hasTopic = Boolean(activeTopicId);
+  const needsIntro = false;
 
   let learningTrackingView = null as null | {
     programProgressPct: number;
@@ -347,11 +353,11 @@ export default async function ExamPrepDetailPage({
         : examPrepHomeHref(prepId);
 
   let topicLabel: string | null = null;
-  if (prep.active_topic_id) {
+  if (activeTopicId) {
     const { data: topic } = await supabase
       .from("exam_prep_topics")
       .select("label")
-      .eq("id", prep.active_topic_id)
+      .eq("id", activeTopicId)
       .maybeSingle();
     topicLabel = topic?.label ?? null;
   }
@@ -409,7 +415,7 @@ export default async function ExamPrepDetailPage({
         hasTopic={hasTopic}
         activeTopicLabel={topicLabel}
         needsIntro={needsIntro}
-        introPending={examIntroPending(prep.intro_completed_at, prep.intro_deferred_at)}
+        introPending={!prep.intro_completed_at}
         startHref={startHref}
         canShare={Boolean(profile?.school_id)}
         initialShared={shareRow?.visibility === "school"}

@@ -4,7 +4,7 @@ import { ExamNodeSession } from "@/components/parity/exam-node-session";
 import { requireStudentArea } from "@/lib/auth/session";
 import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
-import { examPrepIntroHref, needsExamIntro } from "@/lib/learning/exam-prep-hrefs";
+import { needsExamIntro } from "@/lib/learning/exam-prep-hrefs";
 import type { Familiarity } from "@/lib/learning/session-signals";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -59,8 +59,14 @@ export default async function ExamNodePage({
     .from("exam_prep_nodes")
     .select("status")
     .eq("exam_prep_id", prepId);
+  // Tanı zorunlu kapı değil (3 Ekim 2026, Astra): öğrenci bir etkinliği
+  // açtıysa ölçüm ertelenir; seviye tespiti yolun başında düğüm olarak kalır.
   if (needsExamIntro(prep.intro_completed_at, nodeRows ?? [], prep.intro_deferred_at)) {
-    redirect(examPrepIntroHref(prepId));
+    await createServiceClient()
+      .from("exam_preps")
+      .update({ intro_deferred_at: new Date().toISOString() })
+      .eq("id", prepId)
+      .eq("user_id", user.id);
   }
 
   // Etiket, düğümün kendi konusundan gelir.
