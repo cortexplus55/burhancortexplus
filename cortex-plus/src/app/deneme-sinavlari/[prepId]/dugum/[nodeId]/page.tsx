@@ -153,6 +153,7 @@ export default async function ExamNodePage({
         oralTopics={oralTopics}
         language={prepLanguage(prep.learning_preferences)}
         subject={(prep.exam_type as string | null) ?? null}
+        unitTitle={sessionMeta?.unitTitle ?? null}
       />
     </ParitySorShell>
   );

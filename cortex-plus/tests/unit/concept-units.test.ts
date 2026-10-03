@@ -94,5 +94,8 @@ describe("çalışma planı birimleri ders yapar", () => {
     expect(readFileSync("src/lib/documents/pdf-learning-v2.ts", "utf8")).toContain("await persistTopics(service, documentId, topics, pageIdByNumber, units);");
     expect(readFileSync("src/lib/learning/prep-schedule-topics.ts", "utf8")).toContain("units: unitsFor(topic),");
     expect(readFileSync("supabase/migrations/20261002180000_topic_concept_units.sql", "utf8")).toContain("ADD COLUMN IF NOT EXISTS units jsonb");
+    // Ders kurulum ekranları da dersin kendi adını gösterir (3 Ekim 2026).
+    expect(readFileSync("src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx", "utf8")).toContain("unitTitle={sessionMeta?.unitTitle ?? null}");
+    expect(readFileSync("src/components/parity/exam-node-session.tsx", "utf8")).toContain("topicLabel={unitTitle ?? topicLabel}");
   });
 });
