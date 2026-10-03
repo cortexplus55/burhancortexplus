@@ -13,6 +13,7 @@ const lesson: LessonV2 = {
   sections: [
     {
       heading: "Birim çember nedir",
+      lead: "Bütün tanımların çıktığı çember",
       body: "Merkezi orijinde, yarıçapı bir birim olan çemberdir.",
       check: { type: "trueFalse", prompt: "Yarıçap bir birimdir.", options: ["Doğru", "Yanlış"], answerIndex: 0, explanation: "Tanım gereği." },
     },
@@ -30,9 +31,10 @@ describe("ders giriş kartı", () => {
     expect(screen.getByText("Trigonometrinin bütün tanımları tek bir çemberden çıkar.")).toBeTruthy();
     const plan = screen.getByRole("region", { name: "Bu derste neler var" });
     expect([...plan.querySelectorAll("li")].map((item) => item.textContent)).toEqual([
-      "1Birim çember nedir",
-      "2Kosinüs ve sinüs",
-      "3Bölgeler ve işaretler",
+      // Altındaki satır: modelin lead'i, yoksa bölümün kısa ilk cümlesi.
+      "1Birim çember nedirBütün tanımların çıktığı çember",
+      "2Kosinüs ve sinüsÇember üzerindeki noktanın x koordinatı kosinüs, y koordinatı sinüstür.",
+      "3Bölgeler ve işaretlerBirinci bölgede iki koordinat da pozitiftir.",
     ]);
     expect(plan.textContent).toContain("Arada 1 kısa soru, sonunda özet");
 

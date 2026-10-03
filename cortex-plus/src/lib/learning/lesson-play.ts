@@ -71,6 +71,7 @@ export const publicLessonV2Schema = z.object({
     .array(
       z.object({
         heading: z.string().min(1).max(160),
+        lead: z.string().optional(),
         body: z.string().min(1),
         source: z
           .object({ file: z.string(), page: z.number().optional() })
@@ -204,6 +205,18 @@ export function buildLessonRetryCheck(
   source = "",
 ): SectionCheck {
   return reviewGateQuestion(check, language, source);
+}
+
+/**
+ * "Bu derste neler var" listesinde başlığın altındaki tek satır (Astra'daki
+ * gibi). Model `lead` yazdıysa o; yazmadıysa (eski ders) bölümün kısa ilk
+ * cümlesi. Uzun cümle kesilmez — satır boş kalır.
+ */
+export function planLine(section: { lead?: string; body: string }): string {
+  const lead = section.lead?.replace(/\*\*/g, "").trim();
+  if (lead) return lead;
+  const first = section.body.replace(/\*\*/g, "").trim().match(/^[^\n]*?[.!?](?=\s|$)/)?.[0] ?? "";
+  return first.length >= 12 && first.length <= 140 ? first : "";
 }
 
 /** Tam ders → oynatma paketi. Cevap ve tekrar varyantı yok (cevap sızdırmaz). */

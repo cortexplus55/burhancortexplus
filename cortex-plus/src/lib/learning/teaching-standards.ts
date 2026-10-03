@@ -380,6 +380,9 @@ export const lessonV2Schema = z.object({
     .array(
       z.object({
         heading: z.string().min(2).max(160),
+        // Giriş kartındaki "Bu derste neler var" listesinde başlığın altında
+        // duran tek cümle (3 Ekim 2026, Astra). Eski derslerde yok.
+        lead: z.string().max(200).optional().catch(undefined),
         // Anahtar terimler **iki yıldız** arasında gelir; ekranda koyu
         // görünür. Sınava iki gün kala dersi yeniden okuyan öğrenci neye
         // bakacağını düz paragraftan çıkaramıyordu.
