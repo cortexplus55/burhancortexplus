@@ -12,7 +12,6 @@ import {
   gradeStudentClaim,
   parseReactions,
   repairQuantitative,
-  type GradedClaim,
 } from "@/lib/learning/tutor-quant";
 import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/example-completeness";
 import { optionWhyUniqueIssues } from "@/lib/learning/lesson-play";
@@ -728,86 +727,6 @@ export function verifyChoiceQuestion(
   return { status: "keep", question: { ...next, needsSolver: false } };
 }
 
-export function verifyChoiceSet(
-  questions: VerifiedChoice[],
-  source = "",
-  min = 3,
-  max = 8,
-  options: ChoiceVerifyOptions = {},
-): VerifiedChoice[] | null {
-  const kept = questions
-    .map((question) => verifyChoiceQuestion(question, source, options))
-    .filter((row) => row.status !== "drop")
-    .map((row) => row.question);
-  if (kept.length < min) return null;
-  return kept.slice(0, max);
-}
-
-export function choiceSolverPrompt(
-  items: { index: number; text: string; options: string[] }[],
-  source: string,
-): { system: string; user: string } {
-  return {
-    system:
-      "Bağımsız çözücüsün. Her soruyu yalnızca verilen soru ve kaynakla çöz. " +
-      "Kaynakta olmayan olgu uydurma. Hesap varsa yeniden türet. " +
-      "Tek doğru yoksa veya soru kendi içinde çözülemiyorsa unanswerable true. " +
-      'JSON: {"items":[{"index":number,"answer":string|null,"unanswerable":boolean,"reason":string}]}. ' +
-      "answer, seçenek metninin birebir kopyası olsun.",
-    user: `KAYNAK:\n${source.slice(0, 3500)}\n\nSORULAR:\n${JSON.stringify(items).slice(0, 6000)}`,
-  };
-}
-
-export function applyChoiceSolver(
-  questions: VerifiedChoice[],
-  raw: string,
-  source = "",
-  options: ChoiceVerifyOptions = {},
-): VerifiedChoice[] | null {
-  let parsed: { items?: { index?: number; answer?: string | null; unanswerable?: boolean; reason?: string }[] };
-  try {
-    parsed = JSON.parse(raw) as typeof parsed;
-  } catch {
-    return null;
-  }
-  const verdicts = new Map<number, { answer?: string | null; unanswerable?: boolean; reason?: string }>();
-  for (const item of parsed.items ?? []) {
-    if (typeof item.index === "number") verdicts.set(item.index, item);
-  }
-  const next: VerifiedChoice[] = [];
-  for (let index = 0; index < questions.length; index += 1) {
-    const question = questions[index];
-    if (!question.needsSolver) {
-      next.push(question);
-      continue;
-    }
-    const verdict = verdicts.get(index);
-    if (!verdict || verdict.unanswerable || !verdict.answer) continue;
-    const answer = question.options.find((option) => option === verdict.answer || fold(option) === fold(verdict.answer ?? ""));
-    if (!answer) continue;
-    const reason = settleExplanation(verdict.reason || `Doğru seçenek: ${answer}.`, source);
-    if (verdict.reason && !auditQuantitative(reason, source).ok) continue;
-    // Çözücü başka bir şık seçtiyse üreticinin adımları o eski cevaba
-    // götürüyordur; kavramsal sorularda sayı kontrolü bunu yakalayamaz.
-    const sameAnswer = question.correct.length === 1 && question.correct[0] === answer;
-    const checked = verifyChoiceQuestion(
-      {
-        ...question,
-        correct: [answer],
-        multi: false,
-        explanation: reason,
-        steps: sameAnswer ? question.steps : undefined,
-        needsSolver: false,
-      },
-      source,
-      options,
-    );
-    if (checked.status === "drop") continue;
-    next.push({ ...checked.question, needsSolver: false });
-  }
-  return next.length ? next : null;
-}
-
 export function verifyOralPrompt(
   prompt: string,
   expectedPoints: string[],
@@ -861,81 +780,6 @@ export function verifyOralPrompt(
   return { prompt: probe.question.text || text, expectedPoints: nextPoints.slice(0, 6) };
 }
 
-/** Deterministik kapı yetmezse tek çözüm çağrısı. Çağrı bu dosyada açılmaz. */
-export async function refineVerifiedChoices(
-  questions: VerifiedChoice[],
-  ask: (system: string, user: string) => Promise<string | null>,
-  source = "",
-  min = 1,
-  max = 8,
-  options: ChoiceVerifyOptions = {},
-): Promise<VerifiedChoice[] | null> {
-  const pending = questions.some((question) => question.needsSolver);
-  if (!pending) return questions.length >= min ? questions : null;
-  const prompt = choiceSolverPrompt(
-    questions
-      .map((question, index) => ({ index, text: question.text, options: question.options }))
-      .filter((_, index) => questions[index]?.needsSolver),
-    source,
-  );
-  const raw = await ask(prompt.system, prompt.user);
-  const solved = raw ? applyChoiceSolver(questions, raw, source, options) : null;
-  const kept = (solved ?? questions.filter((question) => !question.needsSolver)).filter(
-    (question) => !question.needsSolver,
-  );
-  return kept.length >= min ? kept.slice(0, max) : null;
-}
-
-export type PracticeQuestion = {
-  question: string;
-  options: string[];
-  correct: string;
-  points?: number;
-  multi?: boolean;
-  explanation?: string;
-  needsSolver?: boolean;
-};
-
-export function verifyPracticeQuestions(
-  items: PracticeQuestion[],
-  source = "",
-  min = 1,
-): PracticeQuestion[] | null {
-  const checks = items.map((item) =>
-    verifyChoiceQuestion(
-      {
-        text: item.question,
-        options: item.options,
-        correct: [item.correct],
-        multi: Boolean(item.multi),
-        explanation: item.explanation,
-      },
-      source,
-    ),
-  );
-  const kept = checks.filter((row) => row.status !== "drop");
-  if (kept.length < min) return null;
-  return kept.map((row) => {
-    const prior = items.find((item) => item.question === row.question.text);
-    return {
-      question: row.question.text,
-      options: row.question.options,
-      correct: row.question.correct[0] ?? row.question.options[0] ?? "",
-      multi: row.question.multi,
-      points: prior?.points,
-      explanation: row.question.explanation,
-      needsSolver: row.status === "unresolved" || row.question.needsSolver === true,
-    };
-  });
-}
-
-export function verifyFlashcard(front: string, back: string, source = ""): { front: string; back: string } | null {
-  const face = polishLearnerText(front).trim();
-  const settled = settleExplanation(back, source);
-  if (face.length < 4 || !shownExplanationOk(settled, source)) return null;
-  return { front: face, back: settled };
-}
-
 export function isScoreLabel(text: string): boolean {
   const folded = fold(text).replace(/[:\-]/g, " ").replace(/\s+/g, " ").trim();
   if (!folded || folded.length > 24) return false;
@@ -944,8 +788,4 @@ export function isScoreLabel(text: string): boolean {
   if (/^\d{1,2}\s+puan$/.test(folded)) return true;
   if (/^tam puan$/.test(folded)) return true;
   return false;
-}
-
-export function limitingGrade(student: string, context: string): GradedClaim | null {
-  return gradeStudentClaim({ student, context });
 }

@@ -6,7 +6,7 @@ import {
   lessonPublishIssues,
   publishLessonDraft,
 } from "@/lib/learning/teaching-standards";
-import { fluencyIssues, repairLessonSurface, repairTurkishSurface } from "@/lib/learning/learner-fluency";
+import { fluencyIssues, repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import { layoutBoard } from "@/lib/learning/lesson-board";
 
 const base = {
@@ -213,12 +213,6 @@ describe("çözüm tahtası etiketleri", () => {
   yerel yeniden oynatma). Düzeltmeden sonra 1/17.
 */
 describe("kurtarmayı tetikleyen yanlış alarmlar", () => {
-  it("araç eki yönelme sanılıp bozulmaz", () => {
-    expect(repairLessonSurface("Üslü sayı, bir sayının kendisiyle tekrar çarpılmasıdır.")).toBe(
-      "Üslü sayı, bir sayının kendisiyle tekrar çarpılmasıdır.",
-    );
-    expect(repairLessonSurface("Bu değer denklemin formülle çözülmesiyle bulunur.")).toContain("formülle");
-  });
 
   it("sondaki parantez yüklemin yerini almaz", () => {
     expect(fluencyIssues("Her sayı sıfır üssü aldığında sonuç 1 olur (0⁰ hariç).")).not.toContain("no_predicate");
@@ -226,15 +220,5 @@ describe("kurtarmayı tetikleyen yanlış alarmlar", () => {
 
   it("'Sık Karşılaşılan Hata' şablon başlığıdır", () => {
     expect(isScaffoldHeading("Üslü Sayılarda Sık Karşılaşılan Hata")).toBe(true);
-  });
-});
-
-describe("model yarışında hakemin bulduğu zincir hataları", () => {
-  it("kısa başlık yönelme onarımıyla bozulmaz", () => {
-    expect(repairLessonSurface("Üslü İfade")).toBe("Üslü İfade");
-    expect(repairLessonSurface({ title: "Üslü ifade", body: "aⁿ ifadesinde a taban, n üstür." })).toEqual({
-      title: "Üslü ifade",
-      body: "aⁿ ifadesinde a taban, n üstür.",
-    });
   });
 });

@@ -59,11 +59,3 @@ export function needsExamIntro(
   if (introDeferredAt) return false;
   return !nodes.some((node) => node.status === "done");
 }
-
-/** Ölçüm hâlâ eksik — hazırlık sayfasında hatırlatılır. */
-export function examIntroPending(
-  introCompletedAt: string | null | undefined,
-  introDeferredAt?: string | null,
-) {
-  return !introCompletedAt && Boolean(introDeferredAt);
-}

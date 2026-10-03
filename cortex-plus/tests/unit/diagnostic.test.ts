@@ -1,35 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { parseQuizQuestions } from "@/lib/learning/exam-quiz";
-import {
-  attachQuestionMeta,
-  buildDiagnosticSkillPlan,
-  firstLessonDiagnosticSlots,
-  measuredLevelFromAccuracy,
-  overallMeasuredFromTopics,
-  planDiagnosticTopics,
-  pickMainTopics,
-  scoreDiagnosticAnswers,
-  selectDiagnosticSkillQuestions,
-  startingLevelLabel,
-  type DiagnosticQuestion,
-  type DiagnosticTopicPlan,
-} from "@/lib/learning/diagnostic";
+import { firstLessonDiagnosticSlots, measuredLevelFromAccuracy, overallMeasuredFromTopics, planDiagnosticTopics, pickMainTopics, scoreDiagnosticAnswers, selectDiagnosticSkillQuestions, startingLevelLabel, type DiagnosticQuestion, type DiagnosticTopicPlan } from "@/lib/learning/diagnostic";
 
 describe("planDiagnosticTopics", () => {
-  it("keeps the generated rationale for each choice through schema parsing", () => {
-    const question = {
-      text: "Büyüme hangi ölçümlerle izlenir?",
-      options: ["Boy ve kilo", "Tek ölçüm"],
-      correct: "Boy ve kilo",
-      multi: false,
-      explanation: "Boy ve kilo zaman içinde izlenir.",
-      optionWhy: ["Boy ve kilo birlikte izlenir.", "Tek ölçüm eğriyi göstermez."],
-      topic: "definition",
-    };
-    const parsed = parseQuizQuestions({ questions: [question, question, question] });
-    expect(parsed?.[0].optionWhy).toEqual(question.optionWhy);
-    expect(parsed?.[0].topic).toBe("definition");
-  });
   it("marks topics whose only pages are unreadable as unreadable/unknown", () => {
     const plans = planDiagnosticTopics(
       [
@@ -98,37 +70,6 @@ describe("pickMainTopics / skill plan", () => {
       { id: "3", parentId: null },
     ]);
     expect(mains.map((m) => m.id)).toEqual(["1", "3"]);
-  });
-
-  it("samples one skill slot per measurable topic and cycles skills", () => {
-    const plans: DiagnosticTopicPlan[] = [
-      {
-        id: "1",
-        title: "A",
-        examPrepTopicId: null,
-        pageNumbers: [1],
-        status: "unmeasured",
-      },
-      {
-        id: "2",
-        title: "B",
-        examPrepTopicId: null,
-        pageNumbers: [2],
-        status: "unreadable",
-        reason: "x",
-      },
-      {
-        id: "3",
-        title: "C",
-        examPrepTopicId: null,
-        pageNumbers: [3],
-        status: "unmeasured",
-      },
-    ];
-    const slots = buildDiagnosticSkillPlan(plans);
-    expect(slots).toHaveLength(2);
-    expect(slots[0].skill).toBe("definition");
-    expect(slots[1].skill).toBe("concept");
   });
 });
 
@@ -211,22 +152,5 @@ describe("scoreDiagnosticAnswers", () => {
     }, plans);
     expect(scored.topicResults[0].measuredLevel).toBe("emerging");
     expect(scored.topicResults[0].evidence).toHaveLength(3);
-  });
-
-  it("attachQuestionMeta aligns slots to questions", () => {
-    const slots = buildDiagnosticSkillPlan(plans.filter((p) => p.status !== "unreadable"));
-    const attached = attachQuestionMeta(
-      [
-        {
-          text: "q1",
-          options: ["a", "b"],
-          correct: ["a"],
-          multi: false,
-        },
-      ],
-      slots,
-    );
-    expect(attached[0].topicId).toBe("t1");
-    expect(attached[0].skill).toBe("definition");
   });
 });

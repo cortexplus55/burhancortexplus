@@ -14,7 +14,6 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
-import { normalizeMathIdentifiers } from "@/lib/learning/math-identifiers";
 
 const COMMON_CAPITAL = new Set([
   "kutle",
@@ -477,32 +476,6 @@ export function turkishSurfaceIssues(text: string): string[] {
     issues.push("Cümle yarım veya şablon artığı.");
   }
   return issues;
-}
-
-/** Onarılabileni onarır; kalan bozukluk issue olarak döner. */
-export function scanFluencyIssues(text: string): { text: string; issues: string[] } {
-  const repaired = repairDativePossessive(text);
-  const issues: string[] = [];
-  if (!isWellFormedTurkishSentence(repaired)) {
-    issues.push("Cümle yarım veya şablon artığı.");
-  }
-  return { text: repaired, issues };
-}
-
-/** Ders ağacındaki her metin alanını aynı onarımdan geçirir. */
-export function repairLessonSurface<T>(value: T): T {
-  if (typeof value === "string") {
-    return repairDativePossessive(normalizeMathIdentifiers(value)) as T;
-  }
-  if (Array.isArray(value)) return value.map((item) => repairLessonSurface(item)) as T;
-  if (value && typeof value === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-      out[key] = repairLessonSurface(child);
-    }
-    return out as T;
-  }
-  return value;
 }
 
 const STOP_STEMS = new Set([

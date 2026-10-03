@@ -1,4 +1,3 @@
-import { mergeTopicGroups, type TopicSourceRef } from "@/lib/learning/topic-merge";
 
 /** Bir hazırlığa bağlanan belge sayısı. Depolama ve sayfa kotası ayrıca durur. */
 export const PREP_SOURCE_DOCUMENT_CAP = 8;
@@ -14,34 +13,5 @@ export function prepTopicCapacityError(count: number): string | null {
   return count > PREP_TOPIC_CAP
     ? `Belgelerinde ${count} ayrı konu bulundu. Bir hazırlıkta en fazla ${PREP_TOPIC_CAP} konu olabilir; belgeleri ayrı hazırlıklara böl.`
     : null;
-}
-
-export type TopicDraft = {
-  id: string;
-  title: string;
-  pages: number[];
-  documentId?: string;
-  fileName?: string;
-  prerequisites?: string[];
-};
-
-/**
- * Aynı başlık birden fazla dosyadaysa TEK konu olur ve bütün kaynaklar onda kalır.
- * Yazımı tutmayan başlık düşmez. Çocuk düğümler burada elenmez — çağıran ana
- * konuları verir. Gri bölge (modele sorulacak çift) bu saf birleştirmede ayrı kalır.
- */
-export function mergeTopicDrafts(groups: TopicDraft[][]): {
-  topics: string[];
-  topicPages: number[][];
-  sources: TopicSourceRef[][];
-  prerequisites: string[][];
-} {
-  const { topics: merged } = mergeTopicGroups(groups);
-  return {
-    topics: merged.map((topic) => topic.title),
-    topicPages: merged.map((topic) => topic.pages),
-    sources: merged.map((topic) => topic.sources),
-    prerequisites: merged.map((topic) => topic.prerequisites),
-  };
 }
 

@@ -16,19 +16,10 @@
  * gövdeden besleniyor, bölüm başlıkları birebir örtüşüyor.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { generateJson } from "@/lib/ai/generate";
 import {
   isScaffoldHeading,
-  podcastV2Schema,
-  validatePodcastPedagogy,
   type LessonV2,
 } from "@/lib/learning/teaching-standards";
-import {
-  podcastDialogueIssues,
-  podcastNarrationBrief,
-  SINGLE_NARRATOR_SCHEMA,
-} from "@/lib/learning/teacher-brain";
 import { lessonSectionDetails } from "@/lib/learning/lesson-section-text";
 
 /**
@@ -112,116 +103,4 @@ function numericTokens(text: string): string[] {
     out.push(raw);
   }
   return out;
-}
-
-/**
- * Dersin sesli hâlini üretir.
- *
- * Podcast artık planın öğrenme adımı değil; öğrenci konuyu okuyup
- * bitirdikten sonra "şimdi dinle" derse geliyor. O yüzden kaynağı ham PDF
- * değil, az önce okuduğu ders: aynı bölümler, aynı örnek, aynı yanılgı.
- * Öğrencinin duyduğu şey okuduğunun tekrarı olur ve olgu ikinci kez
- * çıkarılmadığı için kaynağı ters çevirme ihtimali kalmaz.
- */
-export async function generatePodcastFromLesson(input: {
-  service: SupabaseClient;
-  userId: string;
-  isPremium: boolean;
-  prepTitle: string;
-  topicLabel: string;
-  lesson: LessonV2;
-  idempotencyKey?: string;
-  /**
-   * Reddedilen taslakların gerekçesi. Podcast üretimi canlıda hiç
-   * tamamlanmıyordu ve hangi kontrolün elediğini sunucu logu olmadan
-   * anlamak mümkün değildi; çağıran taraf bunu okuyup yüzeye çıkarabilir.
-   */
-  onReject?: (issues: string[]) => void;
-}) {
-  const brief = lessonPodcastBrief(input.lesson);
-  return generateJson({
-    service: input.service,
-    userId: input.userId,
-    actionCode: "STUDY_PLAN_GENERATE",
-    isPremium: input.isPremium,
-    difficulty: "hard",
-    validationProfile: "v2",
-    maxDraftAttempts: 2,
-    allowIndependentAccept: false,
-    activityKind: "podcast",
-    idempotencyKey: input.idempotencyKey,
-    buildIndependent: (_c, parsed) => {
-      const data = podcastV2Schema.safeParse(parsed).data;
-      // Red çoğu zaman burada oluyor, `parse`'ta değil: bağımsız
-      // doğrulama taslağı daha erken eliyor. Gerekçeyi burada da
-      // toplamazsak dışarıdan "doğrulamadan geçmedi"den başka bir şey
-      // görünmüyor.
-      const issues = data
-        ? [...validatePodcastPedagogy(data), ...podcastDialogueIssues(data.chapters)]
-        : [`Podcast şeması geçersiz. ${describeDraft(parsed)}`];
-      if (issues.length) input.onReject?.(issues);
-      return { pedagogyIssues: issues, minItems: 4, sourceExcerpt: brief, requireSourceSupport: true };
-    },
-    schemaHint:
-      'JSON: {"title":string,"objective":string,"sourcePoints":string[],"chapters":[{"title":string,"lines":[{"speaker":"ada","text":string}]}]}. ' +
-      "4-8 bölüm; dersin bölümlerini izle. Her bölümün title'ı O BÖLÜMDE KONUŞULAN KAVRAMIN ADI olsun; " +
-      '"Tanım", "Neden", "Örnek", "Yaygın hata", "Özet" gibi aşama adları başlık olarak YASAK. ' +
-      SINGLE_NARRATOR_SCHEMA,
-    userPrompt: `${podcastNarrationBrief()} Sınav: ${input.prepTitle}. Konu: ${input.topicLabel}.
-
-${brief}
-
-Bu podcast yukarıdaki DERSİN sesli hâlidir. Öğrenci dersi az önce okudu; şimdi aynı şeyi kulakla tekrar ediyor. Olguyu yeniden çıkarma, aktar: bölümler dersin bölümlerini izlesin, örnek dersin çözümlü örneği olsun, yaygın hata dersinki olsun. Bir bölümde sırayla yapılan işlem varsa adımları aynı sırayla anlat; karşılık tablosunu satır satır okuma, öğrencinin aklında kalması gereken karşılıkları söyle. Derste geçmeyen bir sayı kullanma. BÖLÜM ADLARINI DERSTEN KOPYALAMA ZORUNDA DEĞİLSİN: her başlık o bölümde konuşulan kavramı adlandırsın.`,
-    parse: (raw) => {
-      const data = podcastV2Schema.safeParse(raw).data ?? null;
-      if (!data) {
-        input.onReject?.(["Podcast şeması geçersiz."]);
-        return null;
-      }
-      const issues = [...validatePodcastPedagogy(data), ...podcastDialogueIssues(data.chapters)];
-      const strayNumbers = podcastNumbersOutsideLesson(
-        JSON.stringify(data.chapters),
-        brief,
-      );
-      if (strayNumbers.length) {
-        issues.push(`Derste geçmeyen sayı: ${strayNumbers.join(", ")}`);
-      }
-      if (issues.length) {
-        input.onReject?.(issues);
-        return null;
-      }
-      return data;
-    },
-  });
-}
-
-/**
- * Reddedilen taslağın şekli — metnini değil.
- *
- * "Podcast şeması geçersiz" yirmi denemenin yirmisinde çıktı ve hangi
- * alanın tutmadığını söylemiyordu. Bölüm sayısı, satır sayıları ve en
- * uzun satırın uzunluğu şemanın üç sınırına (4-5 bölüm, 2-14 satır,
- * ≤180 karakter) doğrudan karşılık geliyor.
- */
-function describeDraft(parsed: unknown): string {
-  if (parsed == null) return "(taslak JSON olarak okunamadı)";
-  if (typeof parsed !== "object") return `(tip: ${typeof parsed})`;
-  const row = parsed as Record<string, unknown>;
-  const keys = Object.keys(row).join(",");
-  const chapters = Array.isArray(row.chapters) ? row.chapters : null;
-  if (!chapters) return `alanlar: ${keys}; chapters yok`;
-  const lineCounts = chapters.map((c) => {
-    const lines = (c as Record<string, unknown>)?.lines;
-    return Array.isArray(lines) ? lines.length : -1;
-  });
-  let longest = 0;
-  for (const c of chapters) {
-    const lines = (c as Record<string, unknown>)?.lines;
-    if (!Array.isArray(lines)) continue;
-    for (const l of lines) {
-      const t = (l as Record<string, unknown>)?.text;
-      if (typeof t === "string") longest = Math.max(longest, t.length);
-    }
-  }
-  return `alanlar: ${keys}; bölüm: ${chapters.length}; satırlar: ${lineCounts.join("/")}; en uzun satır: ${longest}`;
 }

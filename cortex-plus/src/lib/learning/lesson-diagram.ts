@@ -79,56 +79,6 @@ export const lessonDiagramSchema = z.object({
 
 export type LessonDiagram = z.infer<typeof lessonDiagramSchema>;
 
-/**
- * Şekille anlaşılan konular.
- *
- * Çizim yolu yazıldıktan sonra canlıda bir kez bile çalışmadı: "isteğe
- * bağlı" diyen bir talimatı model hep atlıyor. Konunun adı ya da
- * kaynaktan gelen bölüm başlıkları buradaki kelimelerden birini taşıyorsa
- * çizim isteğe bağlı olmaktan çıkıyor.
- *
- * Liste KONU adı değil, ŞEKİL kelimesi taşır. İlk hâlinde "mohr",
- * "birim çember", "akış ağı" gibi konular yazılıydı — yani ürün yalnızca
- * mühendislik ve matematik belgelerinde çizim üretirdi; kimya öğrencisinin
- * "Lewis Yapısı" ya da biyolojinin "Krebs Döngüsü" hiç tetiklemezdi.
- * Buradaki kelimeler hangi derste geçerse geçsin aynı şeyi söylüyor:
- * bu başlığın arkasında bir resim var.
- *
- * Liste yine de dar: her konuya çizim istemek çizimi değersizleştirir ve
- * modeli kelimeyle anlaşılan bir şeyi kutularla anlatmaya zorlar.
- */
-const DIAGRAM_WORDS = [
-  "diyagram",
-  "sema",
-  "cember",
-  "daire",
-  "eksen",
-  "kesit",
-  "harita",
-  "dongu",
-  "vektor",
-  "zarf",
-  "model",
-  "serbest cisim",
-];
-
-function foldTr(text: string): string {
-  return text
-    .toLocaleLowerCase("tr")
-    .replace(/ı/g, "i")
-    .replace(/ş/g, "s")
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c");
-}
-
-/** Bu ders çizim istiyor mu? Konu adı ve bölüm başlıklarına bakılır. */
-export function needsDiagram(...texts: (string | null | undefined)[]): boolean {
-  const blob = foldTr(texts.filter(Boolean).join(" | "));
-  return DIAGRAM_WORDS.some((word) => blob.includes(word));
-}
-
 /** Etiket yazı tipi boyu; çizen bileşenle aynı olmak zorunda. */
 const LABEL_SIZE = { sm: 9, md: 11 } as const;
 /** Ortalama karakter genişliği / punto. Ölçmüyoruz, sığdırıyoruz. */

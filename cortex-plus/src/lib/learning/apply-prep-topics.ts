@@ -1,5 +1,4 @@
 import { foldTr } from "@/lib/documents/page-analysis";
-import type { GroundMatch } from "@/lib/learning/topic-grounding";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
 
 /**
@@ -129,16 +128,4 @@ export function applyStudentTopicList(input: {
   }
 
   return { titles, nodeIds, scheduleTopics };
-}
-
-export function requestedFromGround(
-  title: string,
-  match: GroundMatch,
-): RequestedPrepTopic {
-  return {
-    title: title.trim(),
-    linkedTitle: match.linkedTitle,
-    pageNumbers: match.pageNumbers,
-    sourceRefs: match.sourceRefs,
-  };
 }

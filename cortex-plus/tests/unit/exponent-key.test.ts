@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluatePowerChain, exponentKeyWrong, exponentProseWrong } from "@/lib/learning/exponent-key";
+import { evaluatePowerChain, exponentKeyWrong } from "@/lib/learning/exponent-key";
 import { gradeNumericalAnswer } from "@/lib/learning/lesson-play";
 import { publishLessonDraft } from "@/lib/learning/teaching-standards";
 
@@ -95,37 +95,6 @@ describe("yayın kapısı yanlış anahtarlı soruyu geri koymaz", () => {
     })!;
     expect(lesson.sections[0].check).toBeUndefined();
     expect(lesson.sections[1].check?.type).toBe("trueFalse");
-  });
-});
-
-/*
-  Aynı canlı derste sık hata kartı "Doğrusu: (3²)⁴ = 3²ˣ⁴ = 3¹²" dedi —
-  doğrusu 3⁸. Kart düz metin olduğu için anahtar denetimi görmüyordu.
-*/
-describe("exponentProseWrong", () => {
-  it("canlıdaki yanlış eşitlik zincirini yakalar", () => {
-    expect(exponentProseWrong("Üssün üssü alınırken üsler çarpılır; (3²)⁴ = 3²ˣ⁴ = 3¹² olur.")).toBe(true);
-  });
-
-  it("doğru zincirleri geçirir; üs içindeki işlemi hesaplar", () => {
-    expect(exponentProseWrong("(3²)⁴ = 3²ˣ⁴ = 3⁸ olur.")).toBe(false);
-    expect(exponentProseWrong("3¹⁶ ÷ 3⁵ = 3¹⁶⁻⁵ = 3¹¹ bulunur.")).toBe(false);
-    expect(exponentProseWrong("3⁴ × 3⁻² = 3⁴⁺⁻² = 3² = 9 olur.")).toBe(false);
-    expect(exponentProseWrong("(3²)³ = 3²ˣ³ = 3⁶ = 729 eder.")).toBe(false);
-  });
-
-  it("yanlış sonuçlu sayıyı da yakalar", () => {
-    expect(exponentProseWrong("(3²)³ = 3⁶ = 728 eder.")).toBe(true);
-  });
-
-  it("yanlışı anan cümleye hüküm vermez", () => {
-    expect(exponentProseWrong("2³ × 2⁴ = 2¹² değildir; üsler toplanır.")).toBe(false);
-    expect(exponentProseWrong("Sık yapılan hata 2³ × 2⁴ = 2¹² yazmaktır.")).toBe(false);
-  });
-
-  it("harfli ve kesirli ifadelere karışmaz", () => {
-    expect(exponentProseWrong("aᵐ × aⁿ = aᵐ⁺ⁿ kuralı geçerlidir.")).toBe(false);
-    expect(exponentProseWrong("5⁻² = 1/25 olur.")).toBe(false);
   });
 });
 

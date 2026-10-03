@@ -23,10 +23,6 @@ export function topicProgress(topics: PrepTopic[]) {
   };
 }
 
-export function nextOpenTopic(topics: PrepTopic[]) {
-  return topics.find((topic) => topic.status !== "done") ?? null;
-}
-
 export function continueHref(prepId: string, topics: PrepTopic[]) {
   // Eski /calis akışı kalktı (3 Ekim 2026); devam hazırlığın yolundan.
   void topics;

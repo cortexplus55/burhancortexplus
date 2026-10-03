@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { verifyChoiceQuestion, verifyFlashcard, verifyOralPrompt } from "@/lib/learning/question-verifier";
+import { verifyChoiceQuestion, verifyOralPrompt } from "@/lib/learning/question-verifier";
 import { settleExplanation } from "@/lib/learning/question-verifier";
 
 const subjects = {
@@ -180,37 +180,6 @@ describe("question verifier is subject-agnostic", () => {
     expect(checked.question.optionWhy).toHaveLength(3);
     expect(checked.question.optionWhy?.join(" ")).not.toMatch(/bu sorunun cevabı değil/i);
     expect(checked.question.misconceptionTag).toBeTruthy();
-  });
-
-  it("repairs a flashcard whose arithmetic is wrong and keeps a biology fact", () => {
-    const repaired = verifyFlashcard("İki kere iki", "2 + 2 = 5", subjects.physics);
-    expect(repaired?.back).toContain("2 + 2 = 4");
-    expect(repaired?.back).not.toContain("= 5");
-    const kept = verifyFlashcard("Mitoz nedir?", "Mitoz aynı iki yavru hücre oluşturur.", subjects.biology);
-    expect(kept?.back).toMatch(/aynı/);
-  });
-
-  it("drops a hollow announced example and a broken sentence, and keeps a short fact", () => {
-    const hollow =
-      "Uygulamalı Örnek: H₂SO₄ Hesaplaması. 0,25 mol H₂SO₄'nin gram cinsinden kütlesini bulmak için m = n × M formülünü kullanırız.";
-    expect(settleExplanation(hollow)).not.toMatch(/Örnek yarım|formülünü kullanırız/);
-    expect(
-      verifyOralPrompt(hollow, ["0,25 mol için kütle hesaplanır."], subjects.chemistry),
-    ).toBeNull();
-    const kept = verifyOralPrompt(
-      "Sınırlayıcı bileşen nedir?",
-      ["mol sayısı stokiyometrik katsayıya bölünür"],
-      subjects.chemistry,
-    );
-    expect(kept?.expectedPoints.join(" ")).toMatch(/katsayıya/);
-    expect(verifyFlashcard("Kütle", hollow, subjects.chemistry)).toBeNull();
-    expect(
-      verifyFlashcard(
-        "Bağlantı",
-        "Mol hesabında kullanılan kütle ve verilen miktar arasındaki bağlantı yalnızca sayı.",
-        subjects.chemistry,
-      ),
-    ).toBeNull();
   });
 });
 

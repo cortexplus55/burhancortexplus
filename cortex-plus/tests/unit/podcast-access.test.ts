@@ -26,14 +26,15 @@ describe("üretim ucu oturum ve özellik bayrağı", () => {
 
   it("kayıtlı hesapta podcast özelliği üretime izin verir", () => {
     expect(source).toContain('requireFeature(entitlements, "podcast")');
-    expect(source).toContain("generateJson({");
+    // Öğretmen podcast motoru (3 Ekim 2026).
+    expect(source).toContain("runTeacherPodcast(service, {");
     expect(source).not.toContain("isPremiumUser(");
   });
 
   /* Kapı üretimden sonra olsaydı reddedilen istek modeli de yakardı. */
   it("kapı üretimden önce", () => {
     expect(source.indexOf('requireFeature(entitlements, "podcast")')).toBeLessThan(
-      source.indexOf("generateJson({"),
+      source.indexOf("runTeacherPodcast(service, {"),
     );
   });
 });

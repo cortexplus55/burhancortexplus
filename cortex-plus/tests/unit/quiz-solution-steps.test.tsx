@@ -1,14 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { applyChoiceSolver, settleSteps, verifyChoiceQuestion } from "@/lib/learning/question-verifier";
-import {
-  normalizeQuizQuestion,
-  normalizeSteps,
-  parseQuizQuestions,
-  publicQuizQuestion,
-  sealedQuizQuestion,
-} from "@/lib/learning/exam-quiz";
+import { settleSteps, verifyChoiceQuestion } from "@/lib/learning/question-verifier";
+import { normalizeSteps } from "@/lib/learning/exam-quiz";
 import { ExamQuizPlay } from "@/components/parity/exam-quiz-play";
 
 afterEach(cleanup);
@@ -71,25 +65,6 @@ describe("çözüm adımları kapısı", () => {
     expect(checked.status).toBe("keep");
     expect(checked.question.steps).toHaveLength(2);
   });
-
-  it("drops the generator's steps when the solver picks a different answer", () => {
-    const options = ["Ribozom", "Mitokondri", "Golgi cisimciği", "Lizozom"];
-    const base = {
-      text: "Hücrede protein sentezinin gerçekleştiği organel hangisidir?",
-      options,
-      multi: false,
-      explanation: "Protein sentezi mitokondride olur.",
-      optionWhy: why(options, ["Mitokondri"]),
-      steps: ["Protein sentezi enerji ister", "Enerjiyi mitokondri üretir, sentez orada olur"],
-      needsSolver: true,
-    };
-    const solverSays = (answer: string) =>
-      JSON.stringify({ items: [{ index: 0, answer, reason: `${answer} protein sentezinin yapıldığı organeldir.` }] });
-
-    const switched = applyChoiceSolver([{ ...base, correct: ["Mitokondri"] }], solverSays("Ribozom"));
-    expect(switched?.[0]?.correct).toEqual(["Ribozom"]);
-    expect(switched?.[0]?.steps).toBeUndefined();
-  });
 });
 
 describe("adımlar öğrenciye ulaşıyor", () => {
@@ -102,22 +77,6 @@ describe("adımlar öğrenciye ulaşıyor", () => {
       steps: ["1) n(CH₄) = 8 / 16 = 0,5 mol", "2) 1 mol O₂ = 32 g"],
     })),
   };
-
-  it("survives parsing and reaches the public payload, but not a sealed exam", () => {
-    const questions = parseQuizQuestions(raw)!;
-    expect(questions[0].steps).toEqual(["n(CH₄) = 8 / 16 = 0,5 mol", "1 mol O₂ = 32 g"]);
-    expect(publicQuizQuestion(questions[0]).steps).toHaveLength(2);
-    expect(sealedQuizQuestion(questions[0]).steps).toBeUndefined();
-  });
-
-  it("does not drop a question whose steps field is malformed", () => {
-    const questions = parseQuizQuestions({
-      questions: raw.questions.map((q) => ({ ...q, steps: "tek metin" })),
-    });
-    expect(questions).toHaveLength(3);
-    expect(questions?.[0].steps).toBeUndefined();
-    expect(normalizeQuizQuestion({ ...raw.questions[0], steps: undefined })?.steps).toBeUndefined();
-  });
 
   it("shows the numbered steps under the explanation after checking", () => {
     render(

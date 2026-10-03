@@ -96,10 +96,6 @@ const VERDICT_LABEL: Record<ClaimVerdict, string> = {
   yanlis: "Tekrar bakalım",
 };
 
-export function verdictChipLabel(verdict: ClaimVerdict): string {
-  return VERDICT_LABEL[verdict];
-}
-
 export function requestsAnswerOnly(message: string): boolean {
   return ANSWER_ONLY.test(message);
 }

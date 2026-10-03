@@ -14,7 +14,7 @@ import { preserveSubscriptLetters } from "@/lib/learning/lesson-board";
 import { mathIdentifierIssues, normalizeMathIdentifiers } from "@/lib/learning/math-identifiers";
 import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 import type { PodcastChapter } from "@/lib/learning/podcast-script";
-import { isUnsupportedComparativeAbsolute, unsupportedAbsoluteClaims } from "@/lib/learning/absolute-claims";
+import { unsupportedAbsoluteClaims } from "@/lib/learning/absolute-claims";
 import {
   contentStems,
   isContextlessFragment,
@@ -24,7 +24,7 @@ import {
   turkishSurfaceIssues,
 } from "@/lib/learning/learner-fluency";
 import { optionWhyUniqueIssues } from "@/lib/learning/lesson-play";
-import { isPromptEcho, verifyOralPrompt } from "@/lib/learning/oral-review";
+import { isPromptEcho } from "@/lib/learning/oral-review";
 import { auditQuantitative, isQuantitativeContext } from "@/lib/learning/quantitative-audit";
 import {
   acceptReviewVariant,
@@ -63,12 +63,6 @@ export type MisconceptionDraft = {
   topicLabel: string | null;
   questionPreview: string | null;
 };
-
-const META_OPTIONS =
-  /^(hepsi|hiçbiri|all of the above|none of the above|yukarıdakilerin hepsi|yukarıdakilerin hiçbiri)/i;
-
-const VAGUE_TF =
-  /\b(her zaman|asla|hiçbir zaman|kesinlikle|mutlaka|genelde|çoğu zaman|bazen|her şey|herkes)\b/i;
 
 /** Map exam-prep node kinds onto teaching activities. */
 export function teachingActivityForKind(kind: PlanNodeKind): TeachingActivity {
@@ -372,8 +366,6 @@ export const sectionNoteSchema = z.object({
   tone: z.enum(["warn", "info", "unit"]).optional().catch(undefined),
 });
 
-export type SectionNote = z.infer<typeof sectionNoteSchema>;
-
 const looseText = (max: number) =>
   z.preprocess(
     (value) => (typeof value === "string" && value.trim() ? value.trim().slice(0, max) : undefined),
@@ -536,34 +528,6 @@ export const lessonV2Schema = z.object({
 
 export type LessonV2 = z.infer<typeof lessonV2Schema>;
 
-export const flashcardV2Schema = z.object({
-  cards: z
-    .array(
-      z.object({
-        front: z.string().min(4).max(200),
-        back: z.string().min(2).max(400),
-        difficulty: z.enum(["easy", "medium", "hard"]).optional(),
-      }),
-    )
-    .min(4)
-    .max(12),
-});
-
-export const oralV2Schema = z.object({
-  questions: z
-    .array(
-      z.object({
-        prompt: z.string().min(8),
-        hint: z.string().optional(),
-        learningObjective: z.string().min(8).max(200).optional().catch(undefined),
-        rubricCriteria: z.array(z.string().min(2)).min(1).max(5).optional().catch(undefined),
-        expectedPoints: z.array(z.string().min(2)).min(1).max(6).optional().catch(undefined),
-      }),
-    )
-    .min(3)
-    .max(8),
-});
-
 export const podcastV2Schema = z.object({
   title: z.string().min(1),
   objective: z.string().min(8).optional(),
@@ -590,14 +554,6 @@ export const podcastV2Schema = z.object({
     // podcast 7 bölüm üretti ve 32 denemenin 32'sinde bu sınıra takıldı.
     .max(8),
 });
-
-function normalizeOption(text: string) {
-  return text
-    .toLocaleLowerCase("tr-TR")
-    .replace(/^[a-d][).:\-]\s*/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 function wallOfText(body: string) {
   return body.trim().length > 700 || body.split(/\n+/).length > 8;
@@ -2264,77 +2220,6 @@ export function lessonPublishIssues(
   return issues.filter(publishIssueBlocks);
 }
 
-/** Bozuk tekrar doğrulayıcıya gitmez. Kaynakla uyumlu farklı tekrar kalır. */
-export function lessonDraftForVerifier(draft: string, keyTerms: string[] = []): string {
-  try {
-    const parsed = parseModelJson(draft);
-    if (!parsed || typeof parsed !== "object") return draft;
-    const coerced = coerceLessonCosmetics(parsed, keyTerms) as { sections?: unknown };
-    if (!coerced || typeof coerced !== "object" || !Array.isArray(coerced.sections)) return draft;
-    for (const section of coerced.sections) {
-      if (!section || typeof section !== "object") continue;
-      const check = (section as { check?: { review?: unknown; prompt?: string } }).check;
-      if (!check || typeof check !== "object" || !("review" in check)) continue;
-      // Bozuk veya kopya tekrar doğrulayıcıya ve kayda gitmez.
-      // Gerçekten farklı, kaynakla uyumlu tekrar aynı çağrıda kalır.
-      if (!acceptReviewVariant(check as never)) delete check.review;
-    }
-    return JSON.stringify(coerced);
-  } catch {
-    return draft;
-  }
-}
-
-/**
- * Kısa tekrar, ders üretiminin içinde yazılır. Kapıda soru başına
- * ayrı bir model çağrısı yok.
- *
- * Yalnızca kısa bir kök cümle. Bu cümle doğrulayıcının formatına
- * girmez: #81'de `"review"?:` şema metnine konunca denetçi eksik ya da
- * farklı tekrar yüzünden dersin tamamını reddetti. Kural yalnız üretim
- * isteminde durur; denetçiye giden taslaktan alan silinir.
- *
- * Şıkları ikinci kez yazdırmak çıktıyı şişiriyordu. Sıra bizde karışır.
- * Yazılamazsa alan boş kalır, ders yine tamamlanır.
- */
-export const REVIEW_VARIANT_RULE =
-  "check.review isteğe bağlıdır ve yalnızca kısa bir prompt'tur (en fazla 140 karakter). " +
-  "Aynı kavramı başka bir açıdan sor. Doğru/yanlışta yanlış iddiayı olduğu gibi sorma: " +
-  "kaynağın doğru cümlesini yeni bir doğru/yanlış sorusu yap. " +
-  "Kaynakta duran başka bir sayı (örneğin 0 °C = 273.15 K), yönün tersi veya kısa bir uygulama da olur. " +
-  "Orijinal cümleyi kopyalama. 'başka sözcüklerle' yazma. Kaynakta olmayan sayı uydurma. " +
-  "Şıkları review içine kopyalama. Yazamazsan review alanını boş bırak; bu dersi geçersiz yapmaz.";
-
-/** İki rotanın ders şeması aynı metin. Diyagram eki rota ekler. */
-export const LESSON_V2_SCHEMA_HINT =
-  'JSON: {"title":string,"objective":string,"overview":string,' +
-  '"sections":[{"heading":string,"body":string,"check":{"type":"mcq"|"trueFalse"|"numerical"|"explain"|"findError","prompt":string,"options":string[],"answerIndex":number,"explanation":string,"answer":string,"expectedPoints":string[],"faultyText":string},"note":{"title":string,"body":string},"cards":[{"title":string,"body":string}]}],' +
-  '"example":{"prompt":string,"solution":string,"givens":string[],"unknown":string,"steps":string[],"result":string},"commonMistake":{"claim":string,"correction":string},' +
-  '"infoCheck":{"prompt":string,"answer":string},"findError":{"prompt":string,"faultyText":string,"options":string[],"answerIndex":number,"explanation":string},' +
-  '"numericalCheck":{"prompt":string,"answer":string,"explanation":string},"summary":string[],"nextFocus":string[]}. ' +
-  "check.type numerical ise answer zorunlu; explain ise expectedPoints zorunlu; findError ise faultyText, options ve answerIndex zorunlu. " +
-  "example.givens/unknown/steps/result isteğe bağlı: çözümlü örnekte adım adım ilerlemek istiyorsan doldur, yazamıyorsan atla. " +
-  "Kaynak kaç kavram veriyorsa o kadar bölüm; en az bir kavram bölümü. " +
-  "Kaynak en az üç kavram veriyorsa en az 5 çeşitli yanıtlı check yaz: çoktan seçmeli, doğru/yanlış, sayısal ve öğrencinin kendisinin yazdığı. Beşi geçme. Dar kaynakta en az bir yanıtlı check yeter. Yeni bölüm uydurma. " +
-  "Tanım, neden önemli olduğu, adım adım yöntem, tam çözümlü örnek, öğrencinin çözeceği benzer örnek ve kaynaktaki sık hata aynı dersin içinde durur. " +
-  "Aynı konuyu işleyen her kaynak parçası kullanılır. " +
-  "Kesin hüküm (sadece, asla, her zaman, tek, hiçbir, only, never, always) kaynakta yoksa yazılmaz. " +
-  "Çözümlü örnekte her sayı verilenlerde ya da önceki adımda durur. Sarkan eşitlik yazılmaz. " +
-  "Kontrol, ders cümlesini tekrar etmez. Özet kopya değildir: kural, tuzak ve uygulama. " +
-  "Özet tam bağıntıyı ve niteleyiciyi korusun. nextFocus yalnızca verilen sonraki konular; yoksa yazma. " +
-  "Anahtarlar İngilizce: objective, sections, example, commonMistake, infoCheck. Türkçe anahtar kullanma. " +
-  "example, commonMistake, objective veya infoCheck yoksa alanı yazma; uydurma. " +
-  "trueFalse ekranda DOĞRU MU YANLIŞ, mcq ekranda HIZLI SINAV. " +
-  "Doğru/yanlış yargısını cümlenin sonuna 'Bu ifade doğru mudur?' ekleyerek kurma. " +
-  "Göstereni olmayan 'Bu sayı', 'Böylece', 'Örnek 2' bırakma. Örnek, adımı ve sonucuyla tam olsun. " +
-  "explanation yanlış seçeneğin neden çürük olduğunu yazsın. " +
-  "mcq için optionWhy, her şıkka bir cümle; yazamazsan alanı boş bırak. " +
-  "Kaynak [s.N] dosya biçimindeyse bölüm sonuna Kaynak: dosya, s.N yaz. " +
-  "cards isteğe bağlı: kardeş kavram kümesi varsa 2-6 kart; yoksa cards yazma, uydurma kart ekleme. " +
-  "overview giriş metnidir; ayrı bir Giriş bölümü açma. " +
-  "Kaynak sayfada yazmayan formül veya teorem yazma. " +
-  "Formüllerde değişken adı olarak yazılım tanımlayıcısı (alt çizgili kelime: açı_radyan, v_final) KULLANMA. Tek harf/Yunan harfi + alt simge kullan (α, αᵣ gibi) ya da kelimeyle yaz. Satır içi formülü $…$ içinde LaTeX ile yazabilirsin.";
-
 /**
  * Yayına asla çıkmaması gereken kusurlar.
  *
@@ -2405,398 +2290,6 @@ export function blockingLessonIssues(raw: unknown): string[] {
 }
 
 /**
- * Açıklama yanlış şıkkı çürütüyor mu?
- *
- * Üretilmiş beş quiz sorusuna bakınca beşinin de açıklaması yalnızca
- * doğruyu tekrarlıyordu: "Sinus(y)=-1 sağlayan açı 270°'dir." Öğrenci
- * neden 90° değil öğrenmiyor. Referans ürünün açıklaması her çeldiricinin
- * gerçekte ne olduğunu söylüyor: "V_w suyun, V_a havanın hacmidir."
- *
- * Kural aynı zamanda bir doğruluk ağı: aynı beşlide "90° ve 270°'de
- * tanımsız olan fonksiyon" sorusunun şıkları Tan/Sin/Cos/Sec idi ve
- * cos = 0 olduğu için Sec de tanımsız — soru iki doğrulu ama tek
- * cevaplı işaretlenmişti. "Sec neden yanlış?" yazmak zorunda olan bir
- * açıklama bunu yazamazdı.
- */
-function distractorTokens(q: QuizQuestion): string[][] {
-  const correctTokens = new Set(
-    q.correct.flatMap((c) => foldTr(c).split(/[^a-z0-9]+/).filter(Boolean)),
-  );
-  const groups: string[][] = [];
-  for (const option of q.options) {
-    if (q.correct.includes(option)) continue;
-    groups.push(
-      foldTr(option)
-        .split(/[^a-z0-9]+/)
-        .filter((t) => t.length >= 2 && !correctTokens.has(t)),
-    );
-  }
-  return groups;
-}
-
-function explanationRefutesADistractor(q: QuizQuestion): boolean {
-  const explanation = foldTr(q.explanation ?? "");
-  if (!explanation.trim()) return false;
-  const groups = distractorTokens(q);
-  const distinctive = groups.filter((tokens) => tokens.length > 0);
-  // Ayırt eden kelimesi olmayan şık (doğru cevabın alt kümesi) adlandırılamaz.
-  if (!distinctive.length) return true;
-  return distinctive.some((tokens) => tokens.some((token) => explanation.includes(token)));
-}
-
-/**
- * Şeması tutan quiz, eksik hedef ya da çeldirici cümlesi yüzünden
- * "biçim uymadı" diye düşmesin. Yeni olgu eklenmez: hedef soru cümlesidir,
- * etiket yanlış şıktır, çürütme o şıkkın adını taşır.
- */
-export function repairQuizPedagogy(questions: QuizQuestion[]): QuizQuestion[] {
-  return questions.map((question) => {
-    const next: QuizQuestion = { ...question };
-    const stem = next.text.trim();
-    if ((next.learningObjective?.trim().length ?? 0) < 8) {
-      const objective = stem.length >= 8 ? stem : `${stem} konusunu ayırt etmek`;
-      next.learningObjective = objective.slice(0, 200);
-    }
-    const wrong = next.options.find((option) => !next.correct.includes(option));
-    if ((next.misconceptionTag?.trim().length ?? 0) < 2) {
-      const tag = wrong && wrong.trim().length >= 2 ? wrong.trim() : "celdirici";
-      next.misconceptionTag = tag.slice(0, 80);
-    }
-    if (!next.explanation || next.explanation.trim().length < 8) {
-      const right = next.correct[0]?.trim() || "işaretli seçenek";
-      next.explanation = `Doğru seçenek: ${right}.`.slice(0, 500);
-    }
-    if (wrong && !explanationRefutesADistractor(next)) {
-      next.explanation = `${next.explanation.trim()} «${wrong.trim()}» farklı bir olay veya hatalı hesaptır.`.slice(
-        0,
-        500,
-      );
-    }
-    return next;
-  });
-}
-
-/** "48 g", "1,5 mol", "24g" gibi sayı+birim parçaları. */
-function quantityMentions(text: string): { value: number; unit: string }[] {
-  const out: { value: number; unit: string }[] = [];
-  const re =
-    /(?<![\d.,])(\d+(?:[.,]\d+)?)\s*(g|kg|mg|mol|mmol|L|mL|m|cm|km|N|J|W|V|A|Ω|ohm|°C|Pa|kPa)\b/gi;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(text)) !== null) {
-    const value = Number(match[1].replace(",", "."));
-    if (!Number.isFinite(value)) continue;
-    out.push({ value, unit: match[2].toLowerCase() });
-  }
-  return out;
-}
-
-/**
- * Açıklamadaki sonuç niceliği doğru şıktakiyle çelişiyor mu?
- * "1,5 mol = 24 g" yazıp doğru şık 48 g ise düşer.
- */
-export function explanationConflictsWithCorrect(q: QuizQuestion): string | null {
-  // «98 g» bu sorunun cevabı değildir. gibi çürütme tümceleri yanlış şıkkın
-  // niceliğini adı için alıntılar — bu bir iddia değil reddir, çelişki saymaz.
-  const explanation = (q.explanation ?? "").replace(
-    /«[^»]*»\s*bu sorunun cevabı değildir\.?/gi,
-    " ",
-  );
-  if (!explanation.trim()) return null;
-  const correctBlob = q.correct.join(" ");
-  const correctQty = quantityMentions(correctBlob);
-  if (!correctQty.length) return null;
-  const explained = quantityMentions(explanation);
-  for (const c of correctQty) {
-    const sameUnit = explained.filter((e) => e.unit === c.unit);
-    if (!sameUnit.length) continue;
-    // Açıklama aynı birimde farklı bir sonuç iddia ediyorsa (doğru şıktaki
-    // değer hiç geçmiyorsa) tutarsızdır.
-    const mentionsCorrect = sameUnit.some((e) => Math.abs(e.value - c.value) < 1e-6);
-    const mentionsOther = sameUnit.some((e) => Math.abs(e.value - c.value) > 1e-6);
-    if (mentionsOther && !mentionsCorrect) {
-      return `Açıklama ${sameUnit[0].value} ${c.unit} diyor; doğru şık ${c.value} ${c.unit}.`;
-    }
-  }
-  return null;
-}
-
-/**
- * Her yanlış şıkkın gerekçesi o şıkka özgü olmalı; şablon tekrar düşer.
- * optionReasons yoksa (eski taslak) bu kural sessizce geçer — üretim
- * şeması reasons ister; gelince tekrar ve eksik denetlenir.
- */
-export function optionReasonIssues(q: QuizQuestion): string[] {
-  const issues: string[] = [];
-  const reasons = q.optionReasons;
-  if (!reasons || !Object.keys(reasons).length) return issues;
-  const wrong = q.options.filter((option) => !q.correct.includes(option));
-  if (wrong.length < 2) return issues;
-  const resolved: string[] = [];
-  for (const option of wrong) {
-    const reason =
-      reasons[option] ??
-      Object.entries(reasons).find(([key]) => normalizeOption(key) === normalizeOption(option))?.[1];
-    if (!reason?.trim()) {
-      issues.push(`Yanlış şık gerekçesi yok: ${option.slice(0, 40)}`);
-      continue;
-    }
-    const foldedReason = foldTr(reason);
-    const foldedOption = foldTr(option);
-    const distinctive = foldedOption
-      .split(/[^a-z0-9]+/)
-      .filter((t) => t.length >= 1);
-    const mentionsOption = distinctive.some((t) => foldedReason.includes(t));
-    if (!mentionsOption && !/\d/.test(option)) {
-      issues.push(`Gerekçe şıkka özgü değil: ${option.slice(0, 40)}`);
-    }
-    let body = foldedReason;
-    for (const token of distinctive) {
-      body = body.split(token).join(" ");
-    }
-    body = body.replace(/\s+/g, " ").trim();
-    resolved.push(body);
-  }
-  const uniqueBodies = new Set(resolved.filter((b) => b.length >= 12));
-  if (resolved.length >= 2 && uniqueBodies.size < Math.ceil(resolved.length * 0.5)) {
-    issues.push("Yanlış şık gerekçeleri aynı şablonu tekrarlıyor.");
-  }
-  return issues;
-}
-
-/** Quiz pedagogy beyond basic schema parse. */
-export function validateQuizPedagogy(
-  questions: QuizQuestion[],
-  options?: {
-    requireObjective?: boolean;
-    sourceExcerpt?: string;
-    requireOptionReasons?: boolean;
-    requireMisconceptionTag?: boolean;
-    requireDistractorRefutation?: boolean;
-  },
-): string[] {
-  const issues: string[] = [];
-  if (!questions.length) return ["Quiz sorusu yok."];
-
-  for (let i = 0; i < questions.length; i += 1) {
-    const q = questions[i];
-    const label = `Soru ${i + 1}`;
-    if (q.text.trim().length < 8) {
-      issues.push(`${label}: soru metni çok kısa / belirsiz.`);
-    }
-    if (!q.explanation || q.explanation.trim().length < 8) {
-      issues.push(`${label}: explanation zorunlu ve net olmalı.`);
-    } else {
-      for (const message of turkishSurfaceIssues(q.explanation)) {
-        issues.push(`${label}: ${message}`);
-      }
-      for (const message of auditQuantitative(q.explanation)) {
-        issues.push(`${label}: ${message}`);
-      }
-      const conflict = explanationConflictsWithCorrect(q);
-      if (conflict) issues.push(`${label}: ${conflict}`);
-    }
-    if (options?.requireOptionReasons) {
-      const wrong = q.options.filter((option) => !q.correct.includes(option));
-      if (wrong.length >= 2 && (!q.optionReasons || !Object.keys(q.optionReasons).length)) {
-        issues.push(`${label}: her yanlış şık için optionReasons zorunlu.`);
-      }
-    }
-    for (const message of optionReasonIssues(q)) {
-      issues.push(`${label}: ${message}`);
-    }
-    if (options?.sourceExcerpt) {
-      for (const message of unsupportedAbsoluteClaims(
-        [q.explanation ?? "", ...q.correct].join(" "),
-        options.sourceExcerpt,
-      )) {
-        issues.push(`${label}: ${message}`);
-      }
-    } else {
-      // Kaynak yokken de karşılaştırmalı mutlak doğru cevap olmasın.
-      for (const text of [q.explanation ?? "", ...q.correct]) {
-        if (isUnsupportedComparativeAbsolute(text)) {
-          issues.push(`${label}: kaynaksız mutlak iddia doğru cevap olamaz.`);
-        }
-      }
-    }
-    if (q.multi && q.correct.length < 2) {
-      issues.push(`${label}: multi=true iken en az iki bağımsız doğru gerekli.`);
-    }
-    if (!q.multi && q.correct.length !== 1) {
-      issues.push(`${label}: tek doğru soruda tam bir correct olmalı.`);
-    }
-    const normalized = q.options.map(normalizeOption);
-    if (new Set(normalized).size !== normalized.length) {
-      issues.push(`${label}: eşdeğer / tekrar şıklar var.`);
-    }
-    for (const option of q.options) {
-      if (META_OPTIONS.test(option.trim())) {
-        issues.push(`${label}: hepsi/hiçbiri tarzı şık yasak.`);
-      }
-    }
-    for (const correct of q.correct) {
-      if (!q.options.includes(correct)) {
-        issues.push(`${label}: correct options içinde değil.`);
-      }
-    }
-    if (
-      options?.requireMisconceptionTag &&
-      (q.misconceptionTag?.trim().length ?? 0) < 2
-    ) {
-      issues.push(`${label}: misconceptionTag zorunlu.`);
-    }
-    if (options?.requireDistractorRefutation && !explanationRefutesADistractor(q)) {
-      issues.push(`${label}: açıklama bir çeldiriciyi çürütmüyor.`);
-    }
-    const obj = (q as QuizQuestion & { learningObjective?: string }).learningObjective;
-    // Prefer objectives, but don't fail the whole set if one item omits it —
-    // prompt + quality gate still push for them.
-    if (options?.requireObjective && questions.length && i === 0 && (!obj || obj.trim().length < 4)) {
-      const missingAll = questions.every(
-        (item) => !(item as QuizQuestion & { learningObjective?: string }).learningObjective?.trim(),
-      );
-      if (missingAll) {
-        issues.push("En az bir soruda learningObjective zorunlu.");
-      }
-    }
-  }
-
-  // Soru bazında değil, set bazında: tek bir sorunun açıklaması kısa
-  // kalabilir, ama BEŞİNİN BEŞİ de yalnızca doğruyu tekrarlıyorsa
-  // öğrenci hiçbir yanlışının nedenini öğrenmiyor. Set kuralı olması
-  // ayrıca üretimi tıkamıyor — bugün bunu üç kez pahalıya öğrendik.
-  const multiOption = questions.filter((q) => q.options.length >= 3);
-  if (!options?.requireDistractorRefutation && multiOption.length >= 2) {
-    const refuting = multiOption.filter(explanationRefutesADistractor).length;
-    if (refuting * 2 < multiOption.length) {
-      issues.push(
-        "Açıklamalar yalnızca doğruyu tekrarlıyor; en az yarısı bir yanlış şıkkın gerçekte ne olduğunu söylemeli.",
-      );
-    }
-  }
-  return issues;
-}
-
-const ABSOLUTE_CLAIM =
-  /\b(hiçbir zaman|her zaman|yalnızca|sadece|kesinlikle|mutlaka|asla)\b/i;
-
-function trueFalseExplanationRefutes(item: {
-  text: string;
-  correct: boolean;
-  explanation: string;
-  correctedStatement?: string;
-}): boolean {
-  const explanation = foldTr(item.explanation);
-  const claim = foldTr(item.text);
-  if (!explanation || explanation === claim) return false;
-  if (item.correct) return explanation.length >= 12;
-  const claimTokens = new Set(
-    claim.split(/[^a-z0-9]+/).filter((token) => token.length >= 3),
-  );
-  const distinctive = foldTr(item.correctedStatement ?? "")
-    .split(/[^a-z0-9]+/)
-    .filter((token) => token.length >= 4 && !claimTokens.has(token));
-  if (distinctive.some((token) => explanation.includes(token))) return true;
-  return explanation.length >= 24 && explanation !== claim;
-}
-
-export function validateTrueFalsePedagogy(
-  items: {
-    text: string;
-    correct: boolean;
-    explanation: string;
-    correctedStatement?: string;
-    misconceptionTag?: string;
-  }[],
-  options?: {
-    sourceExcerpt?: string;
-    priorTexts?: string[];
-    requireMisconceptionTag?: boolean;
-  },
-): string[] {
-  const issues: string[] = [];
-  for (let i = 0; i < items.length; i += 1) {
-    const item = items[i];
-    const label = `Madde ${i + 1}`;
-    if (VAGUE_TF.test(item.text) && item.text.split(/\s+/).length < 8) {
-      issues.push(`${label}: belirsiz genelleme; somut iddia yaz.`);
-    }
-    if (item.correct && ABSOLUTE_CLAIM.test(item.text)) {
-      const unsupported = options?.sourceExcerpt
-        ? unsupportedAbsoluteClaims(item.text, options.sourceExcerpt)
-        : ["kaynak yok"];
-      if (unsupported.length) {
-        issues.push(`${label}: kesin iddia kaynağa bağlı değil.`);
-      }
-    }
-    if (options?.priorTexts && isEchoOfPriorText(item.text, options.priorTexts)) {
-      issues.push(`${label}: önceki cümlenin kopyası.`);
-    }
-    for (const message of turkishSurfaceIssues(item.explanation)) {
-      issues.push(`${label}: ${message}`);
-    }
-    if (!item.correct) {
-      if (!item.correctedStatement?.trim()) {
-        issues.push(`${label}: yanlış iddianın doğru hali eksik.`);
-      } else if (item.correctedStatement.trim() === item.text.trim()) {
-        issues.push(`${label}: correctedStatement iddiayla aynı.`);
-      }
-    }
-    if (item.explanation.trim().length < 12) {
-      issues.push(`${label}: explanation yetersiz.`);
-    }
-    if (options?.requireMisconceptionTag) {
-      if ((item.misconceptionTag?.trim().length ?? 0) < 2) {
-        issues.push(`${label}: misconceptionTag zorunlu.`);
-      }
-      if (!trueFalseExplanationRefutes(item)) {
-        issues.push(`${label}: explanation iddiayı çürütmüyor.`);
-      }
-    }
-  }
-  return issues;
-}
-
-export function validateFlashcardPedagogy(
-  cards: { front: string; back: string; difficulty?: string }[],
-): string[] {
-  const issues: string[] = [];
-  if (cards.length < 4) return ["En az 4 kart gerekli."];
-
-  let hardFirstOk = true;
-  let sawNonHard = false;
-  for (let i = 0; i < cards.length; i += 1) {
-    const card = cards[i];
-    const label = `Kart ${i + 1}`;
-    const front = card.front.trim();
-    const back = card.back.trim();
-    if (!front || !back) {
-      issues.push(`${label}: ön/arka boş olamaz.`);
-      continue;
-    }
-    if (front.toLocaleLowerCase("tr-TR").includes(back.toLocaleLowerCase("tr-TR")) && back.length > 3) {
-      issues.push(`${label}: ön yüz cevabı sızdırıyor.`);
-    }
-    if (front === back) {
-      issues.push(`${label}: ön ve arka aynı.`);
-    }
-    if (/[=:]\s*\S+/.test(front) && back.length < 40) {
-      // "sin 30° = ?" is ok; "sin 30° = 1/2" on front leaks.
-      const afterEq = front.split(/=/)[1]?.trim();
-      if (afterEq && afterEq === back) {
-        issues.push(`${label}: ön yüzde cevap var.`);
-      }
-    }
-    if (card.difficulty === "hard" && sawNonHard) hardFirstOk = false;
-    if (card.difficulty && card.difficulty !== "hard") sawNonHard = true;
-  }
-  if (!hardFirstOk) {
-    issues.push("Zor kartlar (hard) listenin başına gelmeli.");
-  }
-  return issues;
-}
-
-/**
  * Podcast bölüm adı, dinleyicinin duyduğu tek gezinme işareti.
  *
  * Buradaki kontrol eskiden evre adlarını ARIYORDU; model de en kolay yolu
@@ -2852,40 +2345,6 @@ export function validatePodcastPedagogy(
   return issues;
 }
 
-type PodcastChapterLike = {
-  title?: string;
-  lines?: { text?: string; speaker?: "ada" | "kerem" }[];
-};
-
-/**
- * Şablon adlı bölüm ve öğüt satırı podcast'in tamamını düşürmesin.
- * Dört kavram bölümü kalıyorsa onlar yayınlanır. Kalmıyorsa taslak
- * olduğu gibi döner ve doğrulayıcı reddeder.
- */
-export function publishablePodcast<T extends { chapters?: PodcastChapterLike[] }>(podcast: T): T {
-  const chapters = (podcast.chapters ?? [])
-    .map((chapter) => ({
-      ...chapter,
-      lines: (chapter.lines ?? []).filter((line) => !emptyMistake(line.text ?? "")),
-    }))
-    .filter(
-      (chapter) => (chapter.lines?.length ?? 0) > 0 && !isScaffoldHeading(chapter.title ?? ""),
-    );
-  if (chapters.length < 4) return podcast;
-  return { ...podcast, chapters };
-}
-
-/** Denetçiye giden podcast taslağı, tek bir şablon bölüm yüzünden düşmesin. */
-export function podcastDraftForVerifier(draft: string): string {
-  try {
-    const parsed = JSON.parse(draft) as { chapters?: PodcastChapterLike[] };
-    if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.chapters)) return draft;
-    return JSON.stringify(publishablePodcast(parsed));
-  } catch {
-    return draft;
-  }
-}
-
 /**
  * "Yaygın hata" diye sunulan ama hata olmayan cümle.
  *
@@ -2904,49 +2363,6 @@ export function emptyMistake(text: string): boolean {
   // Somut bir dayanak (sayı ya da sembol) varsa öğüt değil, gerçek hatadır.
   const concrete = /[0-9]|[=<>±×÷√]/.test(text);
   return advice && verdict && !concrete;
-}
-
-export function validateOralPedagogy(
-  questions: {
-    prompt: string;
-    learningObjective?: string;
-    rubricCriteria?: string[];
-    expectedPoints?: string[];
-    modelAnswer?: string;
-  }[],
-): string[] {
-  const issues: string[] = [];
-  for (let i = 0; i < questions.length; i += 1) {
-    const q = questions[i];
-    const label = `Sözlü ${i + 1}`;
-    if (q.prompt.trim().length < 8) issues.push(`${label}: soru kısa.`);
-    for (const message of verifyOralPrompt(q.prompt)) {
-      issues.push(`${label}: ${message}`);
-    }
-    for (const message of turkishSurfaceIssues(q.prompt)) {
-      issues.push(`${label}: ${message}`);
-    }
-    for (const point of q.expectedPoints ?? []) {
-      for (const message of turkishSurfaceIssues(point)) {
-        issues.push(`${label}: ${message}`);
-      }
-      if (isPromptEcho(point, q.prompt)) {
-        issues.push(`${label}: expectedPoints soru metninin kopyası.`);
-      }
-    }
-    if (!q.rubricCriteria?.length) {
-      issues.push(`${label}: rubricCriteria zorunlu.`);
-    }
-    if (!q.expectedPoints?.length) {
-      issues.push(`${label}: expectedPoints zorunlu.`);
-    }
-    if (!q.modelAnswer?.trim() || q.modelAnswer.trim().length < 8) {
-      issues.push(`${label}: modelAnswer zorunlu.`);
-    } else if (isPromptEcho(q.modelAnswer, q.prompt)) {
-      issues.push(`${label}: modelAnswer soru metninin kopyası.`);
-    }
-  }
-  return issues;
 }
 
 /**

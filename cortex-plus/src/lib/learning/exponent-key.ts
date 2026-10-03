@@ -141,44 +141,6 @@ function evaluateSide(side: string): Power | number | null {
   return result;
 }
 
-function sidesDiffer(left: Power | number, right: Power | number): boolean | null {
-  const value = (side: Power | number) => (typeof side === "number" ? side : numericValue(side));
-  if (typeof left !== "number" && typeof right !== "number" && left.base === right.base) {
-    return left.exp !== right.exp;
-  }
-  const a = value(left);
-  const b = value(right);
-  return a == null || b == null ? null : a !== b;
-}
-
-const EXPR_TERM = `(?:\\(\\s*\\d+${SUP_EXPR}\\s*\\)${SUP_EXPR}|\\d+${SUP_EXPR})`;
-const EXPR_SIDE = `${EXPR_TERM}(?:\\s*[×·÷/]\\s*${EXPR_TERM})*`;
-const EQUATION = new RegExp(
-  `${EXPR_SIDE}(?:\\s*=\\s*(?:${EXPR_SIDE}|\\d+(?![\\d/.,⁰¹²³⁴⁵⁶⁷⁸⁹])))+`,
-  "g",
-);
-
-/**
- * Metindeki aynı tabanlı üslü eşitlik zinciri kendi içinde çelişiyor mu?
- * "(3²)⁴ = 3²ˣ⁴ = 3¹²" → true. Yanlışı anan cümleye ("… değil",
- * "yanlış", "hata") hüküm verilmez: orada yanlış eşitlik kasıtlıdır.
- */
-export function exponentProseWrong(text: string): boolean {
-  for (const sentence of text.split(/(?<=[.!?])\s+|\n+/)) {
-    if (/değil|yanlış|hata|sanmak|sanılır|sanır/i.test(sentence)) continue;
-    for (const match of sentence.matchAll(EQUATION)) {
-      const sides = match[0].split(/\s*=\s*/).map(evaluateSide);
-      for (let index = 1; index < sides.length; index += 1) {
-        const left = sides[index - 1];
-        const right = sides[index];
-        if (left == null || right == null) continue;
-        if (sidesDiffer(left, right) === true) return true;
-      }
-    }
-  }
-  return false;
-}
-
 /** "8³" → 512, "2⁻²" → 0.25, "512" → 512; okunamazsa null. */
 export function powerValue(text: string): number | null {
   const side = evaluateSide(text.replace(/[.\s]+$/g, "").trim());

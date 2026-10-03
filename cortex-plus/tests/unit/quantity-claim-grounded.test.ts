@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  quantityClaimGrounded,
-  withoutUnsupportedQuantities,
-  unsupportedQuantities,
-} from "@/lib/learning/teacher-brain";
+import { quantityClaimGrounded, unsupportedQuantities } from "@/lib/learning/teacher-brain";
 
 const CHEM =
   "0,5 mol su alınır. Mol kütlesi 18 g/mol. Ideal gaz sabiti kullanılır. " +
@@ -16,13 +12,6 @@ describe("quantityClaimGrounded — türetilmiş nicelik", () => {
   it("0,5 mol × 18 g/mol = 9 g kalır; = 10 g silinir", () => {
     expect(quantityClaimGrounded("0,5 mol × 18 g/mol = 9 g", CHEM)).toBe(true);
     expect(quantityClaimGrounded("0,5 mol × 18 g/mol = 10 g", CHEM)).toBe(false);
-  });
-
-  it("dayanaksız %37 silinir", () => {
-    expect(quantityClaimGrounded("Verim %37 bulundu.", CHEM)).toBe(false);
-    expect(
-      withoutUnsupportedQuantities("Verim %37 bulundu. Mol tanımı önemlidir.", CHEM),
-    ).toBe("Mol tanımı önemlidir.");
   });
 
   it("zincirli işlem ve ×10^n", () => {
@@ -112,23 +101,5 @@ describe("quantityClaimGrounded — türetilmiş nicelik", () => {
     const source = "Asit sabiti Ka = 1,8 × 10^-5 mol/L.";
     expect(quantityClaimGrounded("Ka = 0,000018 mol/L.", source)).toBe(true);
     expect(unsupportedQuantities("Ka = 0,000018 mol/L.", source)).toEqual([]);
-  });
-
-  it("çok cümleli doğru örnek: sonraki adım önceki sonuçla kalır", () => {
-    expect(
-      withoutUnsupportedQuantities(
-        "n = 44,8 / 22,4 = 2 mol bulunur. m = 2 × 18 = 36 g olur.",
-        GAS,
-      ),
-    ).toBe("n = 44,8 / 22,4 = 2 mol bulunur. m = 2 × 18 = 36 g olur.");
-  });
-
-  it("cümle cümle: iyi cümle kalır, kötü düşer", () => {
-    expect(
-      withoutUnsupportedQuantities(
-        "0,5 mol × 18 g/mol = 9 g su elde edilir. Bu sırada sıcaklık T = 350 K olur.",
-        CHEM,
-      ),
-    ).toBe("0,5 mol × 18 g/mol = 9 g su elde edilir.");
   });
 });

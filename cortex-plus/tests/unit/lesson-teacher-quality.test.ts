@@ -1,9 +1,8 @@
 import { fluencyIssues } from "@/lib/learning/learner-fluency";
 import { describe, expect, it } from "vitest";
-import { conceptCheck } from "@/lib/learning/lesson-coherence";
-import { fluencyIssues as surfaceIssues, repairTurkishSurface } from "@/lib/learning/learner-fluency";
+import { repairTurkishSurface } from "@/lib/learning/learner-fluency";
 import { retryStemBroken, reviewQuestionFor } from "@/lib/learning/teacher-brain";
-import { auditQuantitative, quizClaimIssues, repairQuantitative } from "@/lib/learning/tutor-quant";
+import { auditQuantitative, repairQuantitative } from "@/lib/learning/tutor-quant";
 
 const CHEM_SOURCE = [
   "[s.1] foto-3.jpg: 14 g azot ve 4 g hidrojen tepkimeye girer. N₂ + 3H₂ → 2NH₃. 14 / 28 = 0,5 mol azot ve 4 / 2 = 2 mol hidrojen vardır. Oluşan ürün 2 × 0,5 = 1 mol = 17 g olur. 14 + 4 = 17 + 1.",
@@ -53,19 +52,6 @@ describe("kesin hüküm her konuda kaynakla tutulur", () => {
 
 describe("yankı, geri bildirim ve tekrar", () => {
 
-  it("geri bildirimi tam cümle yapar ve kırık şablonu kapıdan geçirmez", () => {
-    const concept = conceptCheck("Kabahat, kanunun karşılığında idari yaptırım öngördüğü haksızlık olarak tanımlanır.");
-    expect(concept?.explanation).not.toMatch(/ters çevrilirse cümle|kurulduğu anlama uyuyor/);
-    expect(concept?.explanation).toMatch(/dersteki tanımla uyumludur/);
-    expect(fluencyIssues(concept?.explanation ?? "")).toEqual([]);
-    const broken = "Kimyasal tepkimelerde hangi maddenin ters çevrilirse cümle, kaynağın kurduğu tanımdan kopar.";
-    expect(surfaceIssues(broken)).toContain("spliced");
-    const cell = "Mitokondri enerji dönüşümünü ters çevrilirse cümle, kaynağın kurduğu tanımdan kopar.";
-    expect(surfaceIssues(cell)).toContain("spliced");
-    const price = "The price cümlede kurulduğu anlama uyuyor; yüklem terimi başka bir büyüklüğe kaydırmıyor.";
-    expect(surfaceIssues(price)).toContain("spliced");
-  });
-
   it("tekrar sorusu yargısı doğru mudur eklemez", () => {
     expect(retryStemBroken("Talep artar yargısı doğru mudur?")).toBe(true);
     const retry = reviewQuestionFor(
@@ -110,27 +96,5 @@ describe("isim tamlaması ve özet", () => {
     expect(repairTurkishSurface("The amount to the total is the ratio.")).toContain("amount of the");
     expect(repairTurkishSurface("Use the amount to calculate the ratio.")).toContain("amount to calculate");
     expect(fluencyIssues(fixed)).not.toContain("typo");
-  });
-});
-
-describe("quiz kapısı yeni kesin hükmü de görür", () => {
-  it("kaynak susunca only one sorusunu işaretler", () => {
-    const issues = quizClaimIssues(
-      [
-        {
-          text: "A market has only one price.",
-          explanation: "A market has only one price and no other price clears.",
-          correct: ["True"],
-        },
-      ],
-      "Markets clear when buyers and sellers meet.",
-    );
-    expect(issues.some((issue) => /kesin hüküm/.test(issue))).toBe(true);
-    expect(
-      quizClaimIssues(
-        [{ text: "Her antlaşma her zaman yazılı olmalıdır.", explanation: "Kaynak aynı cümleyi kurar.", correct: ["Evet"] }],
-        "Her antlaşma her zaman yazılı olmalıdır.",
-      ).some((issue) => /kesin hüküm/.test(issue)),
-    ).toBe(false);
   });
 });

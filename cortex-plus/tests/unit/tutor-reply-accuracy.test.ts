@@ -6,17 +6,7 @@ import {
   matchExcludedTopic,
   readSyllabusScope,
 } from "@/lib/learning/prep-corpus";
-import {
-  auditQuantitative,
-  dropUnverifiedExample,
-  evaluateArithmetic,
-  gradeStudentClaim,
-  needsQuantModelCheck,
-  parseQuantSelfCheck,
-  repairQuantitative,
-  quizClaimIssues,
-  settleQuantReply,
-} from "@/lib/learning/tutor-quant";
+import { auditQuantitative, dropUnverifiedExample, evaluateArithmetic, gradeStudentClaim, needsQuantModelCheck, parseQuantSelfCheck, repairQuantitative, settleQuantReply } from "@/lib/learning/tutor-quant";
 import { chatMisconceptionRow, finalizeTutorReply, fixTurkishQuestionOrder, requestsAnswerOnly, splitTutorChrome } from "@/lib/learning/tutor-reply";
 import { repairTurkishSurface } from "@/lib/learning/learner-fluency";
 
@@ -405,28 +395,6 @@ describe("canlı yol — hüküm taslağı ezer", () => {
     expect(repairTurkishSurface("bu konu sınavda ağırlıklı")).toBe("bu konu sınavda ağırlıklı");
     expect(repairTurkishSurface("ağırlıklı konu")).toBe("ağırlıklı konu");
     expect(repairTurkishSurface("Herşey birşey değildir.")).toBe("Her şey bir şey değildir.");
-  });
-
-  it("quiz sınırlayıcı tekliğini kaynaksız da yakalar, her zamanı ancak kaynakla yakalar", () => {
-    const uniqueness = quizClaimIssues([
-      {
-        text: "Sınırlayıcı bileşen tepkimede tamamen tükenen tek bir maddedir.",
-        correct: ["Yalnızca biri tükenir"],
-        explanation: "Sınırlayıcı bileşen tepkimede tamamen tükenen tek bir maddedir. Birlikte tükenirler seçeneği yanlıştır.",
-      },
-    ]);
-    expect(uniqueness.some((issue) => /tek madde/.test(issue))).toBe(true);
-    const mutation = {
-      text: "Her mutasyon her zaman zararlıdır yargısı doğru mudur?",
-      explanation: "Kaynak böyle bir kesinlik kurmaz ve evet seçeneği bu yüzden yanlıştır.",
-      correct: ["Hayır"],
-    };
-    expect(quizClaimIssues([mutation]).some((issue) => /kesin hüküm/.test(issue))).toBe(false);
-    expect(
-      quizClaimIssues([mutation], "Mutasyonlar DNA dizisindeki değişimlerdir.").some((issue) =>
-        /kesin hüküm/.test(issue),
-      ),
-    ).toBe(true);
   });
 });
 

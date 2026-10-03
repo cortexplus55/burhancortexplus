@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  DIAGRAM_HEIGHT,
-  DIAGRAM_WIDTH,
-  diagramIssues,
-  diagramViewBox,
-  placeLabel,
-  lessonDiagramSchema,
-  needsDiagram,
-} from "@/lib/learning/lesson-diagram";
+import { DIAGRAM_HEIGHT, DIAGRAM_WIDTH, diagramIssues, diagramViewBox, placeLabel, lessonDiagramSchema } from "@/lib/learning/lesson-diagram";
 
 /** Üç fazlı zemin modeli — üst üste üç kutu, yanlarında sembolleri. */
 const phaseDiagram = {
@@ -255,32 +247,5 @@ describe("a broken diagram must not take the lesson down", () => {
     expect(parsed.success).toBe(true);
     expect(parsed.data?.sections[0].diagram).toBeUndefined();
     expect(parsed.data?.sections[0].body).toContain("Katı faz");
-  });
-});
-
-describe("needsDiagram", () => {
-  it("fires on a heading that carries a shape word, whatever the subject", () => {
-    // İlk hâlinde liste konu adlarından ("mohr", "birim çember", "akış
-    // ağı") kuruluydu; ürün yalnızca mühendislik belgelerinde çizim
-    // üretirdi. Artık ölçü, başlığın bir resmi işaret edip etmediği.
-    expect(needsDiagram("Kayma Mukavemeti", "Mohr Dairesi ve Kırılma Zarfı")).toBe(true);
-    expect(needsDiagram("Trigonometri", "Birim Çember")).toBe(true);
-    expect(needsDiagram("Zemin Fiziği", "Faz Diyagramı")).toBe(true);
-    expect(needsDiagram("Hücre Biyolojisi", "Krebs Döngüsü")).toBe(true);
-    expect(needsDiagram("Anatomi", "Kalbin Kesiti")).toBe(true);
-    expect(needsDiagram("Coğrafya", "İklim Haritası")).toBe(true);
-    expect(needsDiagram("Fizik", "Serbest Cisim Diyagramı")).toBe(true);
-  });
-
-  it("stays quiet on topics that words explain", () => {
-    // Her konuya çizim istemek çizimi değersizleştirir.
-    expect(needsDiagram("Atterberg (Kıvam) Limitleri")).toBe(false);
-    expect(needsDiagram("Darcy Yasası", "Laboratuvar Deneyleri")).toBe(false);
-    expect(needsDiagram("Sağlam Çocuk İzlemi", "Aşı Takvimi")).toBe(false);
-    expect(needsDiagram("Osmanlı'da Toprak Sistemi")).toBe(false);
-  });
-
-  it("ignores empty inputs", () => {
-    expect(needsDiagram(null, undefined, "")).toBe(false);
   });
 });

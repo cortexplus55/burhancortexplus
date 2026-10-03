@@ -90,13 +90,3 @@ export function escapeHtml(text: string): string {
 export function hasMath(input: string): boolean {
   return /\$[^$\n]/.test(input) || /\\\[|\\\(/.test(input) || /\\ce\{/.test(input);
 }
-
-/** LaTeX'i okunur düz metne çevirir (kopyala / TTS). */
-export function mathToPlain(tex: string): string {
-  return tex
-    .replace(/\\ce\{([^}]+)\}/g, "$1")
-    .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "($1)/($2)")
-    .replace(/\\[a-zA-Z]+/g, "")
-    .replace(/[{}]/g, "")
-    .trim();
-}

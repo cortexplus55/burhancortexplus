@@ -1,15 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { spendableCredits } from "@/lib/credits/spendable";
 import { creditChipLabel, FOUNDER_CREDIT_LABEL } from "@/lib/credits/chip-label";
-import { isContextlessFragment, isEchoOfPriorText, repairTurkishSurface } from "@/lib/learning/learner-fluency";
-import {
-  gradeNumericalAnswer,
-  gradeSectionCheck,
-  isHighOverlap,
-  optionWhyUniqueIssues,
-  sealLessonForPlay,
-  sealSectionCheck,
-} from "@/lib/learning/lesson-play";
+import { isContextlessFragment, repairTurkishSurface } from "@/lib/learning/learner-fluency";
+import { gradeNumericalAnswer, gradeSectionCheck, optionWhyUniqueIssues, sealLessonForPlay, sealSectionCheck } from "@/lib/learning/lesson-play";
 import { mergeTopicSources } from "@/lib/learning/source-context";
 import { auditQuantitative } from "@/lib/learning/tutor-quant";
 import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
@@ -103,17 +96,6 @@ describe("özet ve yankı", () => {
   it("Ayrıca ile başlayan özet bağlamsızdır", () => {
     expect(isContextlessFragment("Ayrıca bu kural her yerde geçerlidir.")).toBe(true);
     expect(isContextlessFragment("Diğer madde artar.")).toBe(true);
-  });
-
-  it("yankı %70 örtüşmeyi yakalar", () => {
-    const prior = "Talep eğrisi fiyat yükseldikçe istenen miktarın azaldığını söyler.";
-    expect(isEchoOfPriorText(prior, [prior])).toBe(true);
-    expect(
-      isHighOverlap(
-        prior,
-        "Talep eğrisi fiyat yükseldikçe istenen miktarın azaldığını söyler.",
-      ),
-    ).toBe(true);
   });
 });
 

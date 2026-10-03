@@ -16,8 +16,6 @@ export const WIZARD_STEP_ORDER = [
   "plan",
 ] as const;
 
-export type WizardProgressStep = (typeof WIZARD_STEP_ORDER)[number];
-
 export const DOCUMENT_ANALYSIS_STAGES = [
   "Ekler okunuyor",
   "Kullanılabilirlik kontrol ediliyor",
