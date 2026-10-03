@@ -160,8 +160,9 @@ describe("sohbet pasajları kelime ve sayı örtüşmesiyle yeniden sıralanır"
 describe("sohbet uç noktası öğretmen yolunu kullanır", () => {
   const route = readFileSync("src/app/api/ai/chat/route.ts", "utf8");
 
-  it("bayrakla, hazırlık sohbetinde; eski denetçiler bu yolda çalışmaz", () => {
-    expect(route).toContain('env.TUTOR_ENGINE === "teacher"');
+  it("her hazırlık sohbetinde (bayrak yok); eski denetçiler bu yolda çalışmaz", () => {
+    expect(route).toContain("const teacherPrepChat = Boolean(rest.prepId) && !imageUrl;");
+    expect(route).not.toContain("TUTOR_ENGINE");
     expect(route).toContain("runTeacherTutor(");
     expect(route).toContain("const attemptLimit = teacherTutor ? 0 : paidChatAttempts(offDocument);");
     // Eski kalıbın kaynağı olan tarz istemi öğretmen yoluna girmez.
