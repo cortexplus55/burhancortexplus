@@ -182,7 +182,7 @@ export async function POST(request: Request) {
 
     // Öğretmen sohbeti hazırlığın kendi belgelerine bakar (prepGrounding); tüm
     // belgelerde arama ve erken "kaynak yok" dönüşü bu yolda gereksiz.
-    const teacherPrepChat = env.TUTOR_ENGINE === "teacher" && Boolean(rest.prepId) && !imageUrl;
+    const teacherPrepChat = Boolean(rest.prepId) && !imageUrl;
     if (useDocuments && !documentAttached && !imageUrl && !teacherPrepChat) {
       const matches = await searchDocumentChunks(service, userId, message, 6, {
         minSimilarity: documentsOnly ? 0.32 : undefined,
