@@ -51,7 +51,7 @@ export default async function ExamPrepCalisPage({
   const lessonsByTopic = mapLessonsByTopic(lessonRows ?? [], topics);
 
   return (
-    <ParitySorShell {...shell} chrome="exam">
+    <ParitySorShell {...shell} chrome="session">
       <ExamPrepStudySession
         prepId={prep.id}
         prepTitle={prep.title ?? "Sınav hazırlığı"}

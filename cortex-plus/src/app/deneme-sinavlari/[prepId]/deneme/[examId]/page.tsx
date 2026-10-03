@@ -40,7 +40,7 @@ export default async function ExamPrepDenemePage({
   }));
 
   return (
-    <ParitySorShell {...shell} chrome="exam">
+    <ParitySorShell {...shell} chrome="session">
       {questions.length ? (
         <ParityExamRunner
           examId={examId}

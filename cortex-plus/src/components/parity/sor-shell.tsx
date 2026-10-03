@@ -5,7 +5,7 @@ import { syncLearningPrefsOnce } from "@/lib/client/learning-prefs-store";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, Flame, Gift, Gauge, LayoutGrid, LineChart, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/gamification";
 import { GamificationGate } from "@/components/parity/gamification";
@@ -38,6 +38,7 @@ function relativeTr(iso: string) {
 }
 
 const MORE_LINKS = [
+  { href: "/dokumanlar", label: "Belgelerim", icon: FileText },
   { href: "/siniflar", label: "Sınıflar", icon: Users },
   { href: "/ilerleme", label: "Aktivitelerim", icon: LineChart },
   { href: "/takvimim", label: "Takvimim", icon: CalendarDays },
@@ -68,7 +69,7 @@ export function ParitySorShell({
    * Sınav sohbeti: logo ve sekme çubuğu yerine geri, seri, menü ve avatar.
    * Diğer sayfalar `app` kabuğunda kalır.
    */
-  chrome?: "app" | "exam" | "focus";
+  chrome?: "app" | "exam" | "focus" | "session";
   backHref?: string;
   /**
    * Geçmiş satırı bu adresin `?sohbet=` parametresiyle açılır.
@@ -111,7 +112,9 @@ export function ParitySorShell({
   // "focus": sınav kabuğunun başlığı (Geri, seri, menü, avatar) ama temaya
   // uyan renk ve normal sayfa kaydırması. Hazırlık sayfası bunu kullanıyor —
   // Astra'da hazırlığın içinde üst sekme çubuğu yok.
-  const examChrome = chrome === "exam" || chrome === "focus";
+  // "session": ders, test, podcast oturumu. Astra'da üst çubuk yok; yalnız
+  // ilerleme ve × (oturumun kendi çubuğu). 3 Ekim 2026.
+  const examChrome = chrome === "exam" || chrome === "focus" || chrome === "session";
   const openConversation = (id: string) =>
     conversationBaseHref
       ? `${conversationBaseHref}?sohbet=${encodeURIComponent(id)}`
@@ -176,8 +179,8 @@ export function ParitySorShell({
 
   return (
     <StudentShellProvider account={account}>
-      <div className={cn("cp-sor-root", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio", chrome === "exam" && "cp-sor-root--exam", chrome === "focus" && "cp-sor-root--focus")}>
-      <header className="cp-sor-top">
+      <div className={cn("cp-sor-root", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio", chrome === "exam" && "cp-sor-root--exam", chrome === "focus" && "cp-sor-root--focus", chrome === "session" && "cp-sor-root--session")}>
+      {chrome === "session" ? null : <header className="cp-sor-top">
         {examChrome ? (
           <Link href={backHref} className="cp-exam-back">
             <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -212,6 +215,8 @@ export function ParitySorShell({
         )}
 
         <div className="cp-sor-top-actions">
+          {/* Hazırlık sayfasının simgeleri buraya taşınır (PREP_TOP_SLOT_ID). */}
+          {chrome === "focus" ? <div id="cp-sor-top-slot" className="cp-sor-top-slot" /> : null}
           {isAdmin && account ? (
             <FounderChip />
           ) : examChrome ? null : showBuy ? (
@@ -262,7 +267,7 @@ export function ParitySorShell({
             Ayarlar
           </Link>
         </div>
-      </header>
+      </header>}
 
       {showPlusLimit ? (
         <PlusLimitBanner onDismiss={() => setLimitDismissed(true)} />
