@@ -146,7 +146,12 @@ function labelsFor(topicLabels: string[], rows: { title: string }[]): string[] {
 /** "Birim Çember · Ders · notlar s.10–18" → "Birim Çember". */
 function nodeHeading(node: HomeNode): string {
   const raw = node.title || PLAN_NODE_META[node.kind].title;
-  return raw.split(" · ")[0]?.trim() || raw;
+  const parts = raw.split(" · ").map((part) => part.trim());
+  // Kavram birimli ders: "Konu · Ders 2/9: Hukukun kaynakları · dosya s.…" → dersin
+  // kendi adı. Astra kartta ana konuyu değil dersin adını yazar (3 Ekim 2026).
+  const unit = parts.find((part) => /^Ders \d+\/\d+: /.test(part));
+  if (unit) return unit.replace(/^Ders \d+\/\d+: /, "");
+  return parts[0] || raw;
 }
 
 export type PrepMaterial = {

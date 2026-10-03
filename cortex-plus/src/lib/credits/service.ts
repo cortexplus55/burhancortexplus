@@ -279,7 +279,9 @@ export type UsageCode =
   /** Sayfa temizliği: PDF metin katmanının yazım/tanıma hataları (0 kredi, sayfa başına bir kez). */
   | "DOCUMENT_CLEAN"
   /** Büyük ana konuyu kavram birimlerine bölme (0 kredi, belge başına bir kez). */
-  | "TOPIC_UNITS";
+  | "TOPIC_UNITS"
+  /** Hazırlığın içerikten adı (0 kredi, kurulum başına bir kez). */
+  | "PREP_TITLE";
 
 export async function recordUsage(
   service: SupabaseClient,

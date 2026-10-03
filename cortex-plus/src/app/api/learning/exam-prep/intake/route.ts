@@ -21,6 +21,7 @@ import type { ConsolidatedTopic } from "@/lib/learning/cross-material-topics";
 import { resolveAmbiguousMerges } from "@/lib/learning/topic-merge-model";
 import { consolidatePrepDocuments } from "@/lib/learning/consolidate-documents";
 import { formatContradictions } from "@/lib/learning/source-contradictions";
+import { namePrepFromTopics } from "@/lib/learning/prep-title-run";
 
 const bodySchema = z.object({
   messages: z
@@ -140,8 +141,9 @@ async function resolveTopicSuggestions(
 }
 
 /**
- * Belgenin adı — kapak başlığı, konu başlıklarının ortak kısmı ya da
- * dosya adı. Model çağrısı yok; bu uç kredi harcamıyor.
+ * Hazırlığın adı. Önce ana konulardan model yazar (Astra gibi içerikten:
+ * "Vatandaşlık ve Hukukun Temel Kavramları"); geçmezse kapak başlığı, konu
+ * başlıklarının ortak kısmı ya da dosya adı. Öğrenciden kredi düşmez.
  */
 async function probeDocumentTitle(
   service: SupabaseClient,
@@ -150,6 +152,8 @@ async function probeDocumentTitle(
   topicTitles: string[],
 ): Promise<string> {
   if (!documentId) return "";
+  const named = await namePrepFromTopics(service, { userId, topics: topicTitles });
+  if (named) return named;
   const [{ data: doc }, { data: pages }] = await Promise.all([
     service
       .from("documents")
