@@ -89,9 +89,23 @@ sınav bir derse ve kendi materyaline bağlı, yolu yalnız kendi kartında.
 | Kurulumun materyal adımında öğrencinin bütün eski belgelerini seçtirmek | Ders → tarih → hedef → yalnız o dersin materyali (Astra sırası) |
 | Aynı belge için ikinci hazırlık açtıran düğme | Belgenin yolu varsa "Yoluna devam et" |
 
-Menü Astra sırasında: Ana Sayfa · Sınavlar · Araçlar · Belgeler · Profil.
-`/calisma-plani` kalıcı olarak Sınavlar'a yönleniyor. #232.
+Menü Astra sırasında: Ana Sayfa · Sınavlar · Araçlar · Profil; Belgelerim "Daha
+fazla" menüsünde (#234). `/calisma-plani` kalıcı olarak Sınavlar'a yönleniyor. #232.
 Bekçi test: `tests/unit/separate-paths.test.ts`.
+
+**3 Ekim 2026 son Astra turu (#234–#240), aynı ekranlar yan yana bakılarak:**
+
+| Ekran | Kural |
+|---|---|
+| Ders / test / podcast oturumu | Üst çubuk yok, tek çıkış × (`chrome="session"`) |
+| Hazırlık sayfası | Simgeler üst çubukta; tanı bandı yok — "Seviye tespiti" yolun ilk düğümü |
+| "Devam et" | Dersi doğrudan açar: etkin konu yoksa ilk konu, tanı zorunlu değil (açılınca ertelenir) |
+| Hazırlık adı | Ana konulardan model yazar (`PREP_TITLE`); dosya adı yalnız yedek |
+| Yol kartı, ders kurulumu | Kavram birimli derste dersin kendi adı |
+
+Kullanıcı kararıyla **eklenmeyenler** (yine soruldu, "hiçbiri"): Yıldızlar / haftalık
+sıralama, yazılı denemede "Kağıtta çöz", video ders. Bekçi: `astra-final-ui.test.ts`,
+`continue-opens-lesson.test.ts`, `prep-title.test.ts`.
 
 ---
 
