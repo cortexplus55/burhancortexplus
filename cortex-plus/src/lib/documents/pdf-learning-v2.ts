@@ -17,6 +17,7 @@ import { isJunkTopicTitle } from "@/lib/documents/topic-title";
 import { isRunningHeader, repeatedEdgeLines } from "@/lib/documents/clean-text";
 import type { ConceptUnit } from "@/lib/documents/concept-units";
 import { buildConceptUnits } from "@/lib/documents/concept-units-run";
+import { exclusivePageRanges } from "@/lib/documents/topic-page-ranges";
 
 export type PdfLearningV2Result = {
   ok: boolean;
@@ -418,6 +419,16 @@ export async function runPdfLearningV2(
           );
         }
       }
+
+      // Her sayfa tek ana konuda, konular belge sırasıyla ardışık bloklar:
+      // çakışan sayfa aynı bilgiyi iki derste anlattırıyordu (3 Ekim 2026).
+      const ranged = exclusivePageRanges(topics);
+      topics = ranged.topics.map((topic, index) => ({
+        ...draftFromLlmTopic(topic.title, topic.learningObjective, topic.pageNumbers, analyses, index),
+        prerequisites: topic.prerequisites,
+        mergeKey: topic.mergeKey,
+      }));
+      consolidated.mergedTitles.push(...ranged.merged);
 
       // Büyük ana konular kavram birimlerine bölünür (2 Ekim 2026: "ana konu +
       // içinde dersler"); her birim çalışma planında ayrı ders olur.
