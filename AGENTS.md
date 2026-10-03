@@ -114,8 +114,9 @@ sıralama, yazılı denemede "Kağıtta çöz", video ders. Bekçi: `astra-final
 **`3e666f6` (29 Ağustos 2026)** veli ve öğretmen arayüzünü tümüyle emekli
 etti: `/ogretmen-paneli/*`, `/odevlerim/*`, `/onboarding/veli`,
 `/onboarding/ogretmen` silindi, kayıt sihirbazından veli/öğretmen adımları
-çıkarıldı, `/ogretmenler-ve-profesorler-icin` `/kayit`'e yönlendirmeye
-dönüştü. "Veli tarafını düzeltelim" denince önce bu satır okunmalı.
+çıkarıldı, `/ogretmenler-ve-profesorler-icin` emekli rota oldu (middleware
+`/ogretmen`'e gönderiyor; oturumsuz ziyaretçi `/giris`'e düşer — e2e
+`auth.spec.ts`). "Veli tarafını düzeltelim" denince önce bu satır okunmalı.
 
 Bugün geriye kalanlar (4 Eylül 2026 itibarıyla doğrulandı):
 
