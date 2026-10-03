@@ -37,15 +37,16 @@ describe("quiz üretimi kredi sözleşmesi", () => {
     expect(read("src/lib/ai/generate.ts")).toContain("reserveCredits(");
   });
 
-  it("Studio quizi kesin doğrulayıcıdan geçiyor (tek yapay zekâ gözden geçirmesi değil)", () => {
+  it("Studio quizi öğretmen test motorundan geçiyor (soruları önce kendi çözen denetim)", () => {
     expect(route).not.toContain("verifyEducationalContent");
-    expect(read("src/lib/learning/exam-quiz-generate.ts")).toContain("verifyChoiceSet(");
+    expect(read("src/lib/learning/exam-quiz-generate.ts")).toContain("runTeacherQuiz(");
+    expect(read("src/lib/learning/teacher-quiz.ts")).toContain("HER SORUYU ÖNCE KENDİN");
   });
 
   // Canlı düello: "0° ile 360° arasında sin α = 0 olan kaç açı?" — uçlar
   // dahilse 3, değilse 1 ya da 2; anahtar 2 diyordu (30 Eylül 2026).
   it("test istemi aralık uçlarını açık yazdırıyor", () => {
-    expect(read("src/lib/learning/exam-quiz-generate.ts")).toContain("uç noktaların dahil olup olmadığını açıkça yaz");
+    expect(read("src/lib/learning/teacher-quiz.ts")).toContain("uç noktaların dahil olup olmadığını açıkça yaz");
   });
 });
 

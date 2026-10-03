@@ -10,15 +10,9 @@ import {
   sealLessonForPlay,
   sealSectionCheck,
 } from "@/lib/learning/lesson-play";
-import { runLessonQualityPipeline } from "@/lib/learning/lesson-quality-pipeline";
 import { mergeTopicSources } from "@/lib/learning/source-context";
 import { auditQuantitative } from "@/lib/learning/tutor-quant";
 import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
-
-const CHEM_SOURCE = [
-  "[foto-3.jpg · s.1]: 14 g N₂ ve 4 g H₂ tepkimeye girer. N₂ + 3H₂ → 2NH₃.",
-  "[pdf-16-sayfa.pdf · s.6]: Yüzde verim gerçek ürünün kuramsal ürüne oranıdır.",
-].join("\n");
 
 function check(partial: Partial<SectionCheck> & Pick<SectionCheck, "prompt" | "type">): SectionCheck {
   return {
@@ -39,50 +33,6 @@ describe("hâl eki onarımı genel kalıba çalışır", () => {
 });
 
 describe("kesin hüküm ve tam denk", () => {
-  it("biyolojide kaynağın 'çoğunlukla' dediği yerde yalnızca demez", () => {
-    const source = "Fotosentez çoğunlukla yapraklarda olur.";
-    const pipeline = runLessonQualityPipeline(
-      {
-        title: "Fotosentez",
-        overview: "Fotosentez ışık enerjisini kimyasal enerjiye çevirir ve organeller işi böler.",
-        sections: [
-          {
-            heading: "Yaprak",
-            body: "Fotosentez yalnızca yapraklarda olur. Kloroplast ışığı yakalar.",
-            check: check({
-              type: "trueFalse",
-              prompt: "Fotosentez yalnızca yapraklarda olur.",
-              options: ["Doğru", "Yanlış"],
-              answerIndex: 0,
-            }),
-          },
-          {
-            heading: "Işık",
-            body: "Işık enerjisi kimyasal enerjiye dönüşür. Bu dönüşüm organelde yürür.",
-            check: check({
-              type: "mcq",
-              prompt: "Işık enerjisi nereye dönüşür?",
-              options: ["Kimyasal enerji", "Isıya", "Sesa", "Basınca"],
-              answerIndex: 0,
-              optionWhy: [
-                "Kaynak kimyasal enerjiyi söyler.",
-                "Isı bu cümlede sonuç değildir.",
-                "Ses dönüşüm değildir.",
-                "Basınç burada yoktur.",
-              ],
-            }),
-          },
-        ],
-        summary: [
-          "Fotosentez ışığı kimyasal enerjiye çevirir.",
-          "Dönüşüm organelde yürür.",
-          "Yaprak çoğu durumda ana yerdir.",
-        ],
-      },
-      { sourceExcerpt: source },
-    );
-    expect(pipeline.issues.some((issue) => issue.rule === "unsupported_absolute")).toBe(true);
-  });
 
   it("oranlar eşitse sınırlayıcı yok sayılır", () => {
     const text =
@@ -246,38 +196,5 @@ describe("kaynak birleştirme ve çip", () => {
     expect(blob).not.toMatch(/"answerIndex"/);
     expect(blob).not.toMatch(/"expectedPoints"/);
     expect(blob).not.toMatch(/"optionWhy"/);
-  });
-});
-
-describe("kalite hattı sırası", () => {
-  it("pipeline issues üretir ve raporlar", () => {
-    const result = runLessonQualityPipeline(
-      {
-        title: "Talep",
-        overview: "Talep eğrisi fiyat yükseldikçe istenen miktarın azaldığını söyler.",
-        sections: [
-          {
-            heading: "Eğri",
-            body: "Fiyat ve miktar birlikte okunur. Eğri sağa yatıktır.",
-            check: check({
-              type: "trueFalse",
-              prompt: "Talep eğrisi fiyat yükseldikçe istenen miktarın azaldığını söyler.",
-              options: ["Doğru", "Yanlış"],
-              answerIndex: 0,
-            }),
-          },
-        ],
-        summary: [
-          "Diğer madde veya maddeler ise artar.",
-          "Ayrıca fiyat yükselir.",
-          "Bunun yanında miktar düşer.",
-        ],
-      },
-      { sourceExcerpt: CHEM_SOURCE },
-    );
-    expect(result.report.length).toBeGreaterThan(0);
-    expect(result.issues.some((issue) => issue.stage === "checks" || issue.stage === "summary")).toBe(
-      true,
-    );
   });
 });

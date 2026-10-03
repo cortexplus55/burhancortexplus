@@ -97,16 +97,15 @@ describe("teacher note versus node pages", () => {
 
   it("uses the same grounding on lesson, podcast, chat, and voice prompts", () => {
     const node = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
-    const lesson = readFileSync("src/app/api/learning/exam-prep/lesson/route.ts", "utf8");
     const chat = readFileSync("src/lib/learning/exam-chat-context.ts", "utf8");
     const chatRoute = readFileSync("src/app/api/ai/chat/route.ts", "utf8");
     const voice = readFileSync("src/app/api/learning/exam-prep/voice/route.ts", "utf8");
-    for (const source of [node, lesson, chat, chatRoute, voice]) {
+    for (const source of [node, chat, chatRoute, voice]) {
       expect(source).toContain("teacherNoteGroundedInSource");
       expect(source).toContain("SOURCE_PAGE_FORMULA_RULE");
     }
     const podcast = node.slice(node.indexOf('input.kind === "podcast"'));
-    expect(podcast).toContain("generatePodcastEpisode");
+    expect(podcast).toContain("teacherPodcastEpisode");
     expect(readFileSync("src/lib/learning/podcast-episode.ts", "utf8")).toContain("auditQuantitative");
     expect(node.indexOf("teacherNoteGroundedInSource")).toBeLessThan(
       node.indexOf('input.kind === "podcast"'),

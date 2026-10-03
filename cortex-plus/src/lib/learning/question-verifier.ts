@@ -14,7 +14,7 @@ import {
   repairQuantitative,
   type GradedClaim,
 } from "@/lib/learning/tutor-quant";
-import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
+import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/example-completeness";
 import { optionWhyUniqueIssues } from "@/lib/learning/lesson-play";
 import { angleOptionReasonIssues, angleQuestionIssues } from "@/lib/learning/angle-option-reason";
 import {

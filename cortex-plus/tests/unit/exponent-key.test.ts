@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { evaluatePowerChain, exponentKeyWrong, exponentProseWrong } from "@/lib/learning/exponent-key";
-import { finishTaughtLesson } from "@/lib/learning/lesson-teach";
 import { gradeNumericalAnswer } from "@/lib/learning/lesson-play";
-import { normalizeSummaryText } from "@/lib/learning/lesson-grounding";
-import { publishLessonDraft, type LessonV2 } from "@/lib/learning/teaching-standards";
+import { publishLessonDraft } from "@/lib/learning/teaching-standards";
 
 /*
   29 Eylül 2026, canlı belgesiz "Üslü Sayılar" dersi: çoktan seçmeli soru
@@ -131,50 +129,6 @@ describe("exponentProseWrong", () => {
   });
 });
 
-describe("ders çıktısında yanlış hesap taşıyan parça atılır", () => {
-  it("sık hata kartının 'doğrusu' yanlışsa kart gider, doğruysa kalır", async () => {
-    const base: LessonV2 = {
-      title: "Üslü Sayılar",
-      overview: "Üslü sayılarda işlem kurallarını öğreneceğiz.",
-      sections: [
-        {
-          heading: "Üssün Üssü",
-          body: "**Üssün üssü** alınırken üsler çarpılır. Örneğin (2³)² = 2⁶ olur.",
-          check: {
-            type: "mcq",
-            prompt: "Hangisi (3⁴)² ifadesinin doğru sonucudur?",
-            options: ["3⁶", "3⁸", "3¹²", "3²⁴"],
-            answerIndex: 1,
-            explanation: "Üssün üssünde üsler çarpılır: 4 × 2 = 8, sonuç 3⁸ olur.",
-          },
-        },
-        {
-          heading: "Üslü Sayılarda Çarpma",
-          body: "Tabanlar **aynıysa** çarpma işleminde üsler toplanır: 2³ × 2⁴ = 2⁷ olur.",
-          check: {
-            type: "trueFalse",
-            prompt: "2³ × 2⁴ = 2⁷ eşitliği doğru mudur?",
-            options: ["Doğru", "Yanlış"],
-            answerIndex: 0,
-            explanation: "Çarpmada üsler toplanır: 3 + 4 = 7 olduğundan eşitlik doğrudur.",
-          },
-        },
-      ],
-      commonMistake: {
-        claim: "(3²)⁴ ifadesi 3¹²⁺⁴ olarak hesaplanır.",
-        correction: "Üssün üssü alınırken üsler çarpılır; (3²)⁴ = 3²ˣ⁴ = 3¹² olur.",
-      },
-    };
-    const wrong = await finishTaughtLesson(base, { source: "", topicLabel: "Üslü Sayılar" });
-    expect(wrong.lesson.commonMistake).toBeUndefined();
-    const right = await finishTaughtLesson(
-      { ...base, commonMistake: { ...base.commonMistake!, correction: "Üssün üssü alınırken üsler çarpılır; (3²)⁴ = 3²ˣ⁴ = 3⁸ olur." } },
-      { source: "", topicLabel: "Üslü Sayılar" },
-    );
-    expect(right.lesson.commonMistake?.correction).toContain("3⁸");
-  });
-});
-
 /*
   Canlı derste sayısal sorunun beklenen cevabı "8³" idi; değeri hesaplayıp
   "512" yazan öğrenci yanlış sayıldı.
@@ -191,12 +145,5 @@ describe("üslü sayısal cevap notlandırması", () => {
     expect(gradeNumericalAnswer("511", "8³")).toMatchObject({ correct: false, message: "Doğrusu 8³ = 512" });
     expect(gradeNumericalAnswer("13,6", "13,6 g")).toMatchObject({ half: true });
     expect(gradeNumericalAnswer("13,6 g", "13,6 g").correct).toBe(true);
-  });
-});
-
-describe("özette tek yıldızlı vurgu", () => {
-  it("'*üs*' çarpıya dönmez, koyu vurgu olur; gerçek çarpı yine noktaya döner", () => {
-    expect(normalizeSummaryText("Bir *üs*, çarpım sayısını gösterir.")).toBe("Bir **üs**, çarpım sayısını gösterir.");
-    expect(normalizeSummaryText("Alan = a * b olur.")).toBe("Alan = a · b olur.");
   });
 });

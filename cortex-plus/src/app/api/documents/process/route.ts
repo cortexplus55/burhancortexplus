@@ -24,7 +24,6 @@ import {
 } from "@/lib/documents/ingestion-errors";
 import { isAdminUser } from "@/lib/auth/roles";
 import { cleanWholeDocument } from "@/lib/documents/clean-pages";
-import { env } from "@/lib/env";
 
 const bodySchema = z.object({
   documentId: z.string().uuid(),
@@ -42,7 +41,6 @@ function cleanAfterResponse(
   service: Parameters<typeof cleanWholeDocument>[0],
   input: { userId: string; documentId: string; startedAt: number },
 ) {
-  if (env.LESSON_ENGINE !== "teacher") return;
   after(() =>
     cleanWholeDocument(service, {
       userId: input.userId,

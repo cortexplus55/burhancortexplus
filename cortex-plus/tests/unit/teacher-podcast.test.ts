@@ -111,14 +111,15 @@ describe("öğretmen podcast motoru: döngü", () => {
 });
 
 describe("rota podcast'i öğretmen motoruna yollar", () => {
-  it("bayrakla, çekirdek sayfa ya da belgesiz; önbellek korunur", () => {
+  it("yalnız öğretmen motoru, çekirdek sayfa ya da belgesiz; önbellek korunur", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
     expect(route).toContain('const TEACHER_PAGE_KINDS = new Set<PlanNodeKind>([...TEACHER_QUIZ_KINDS, ...TEACHER_CARD_KINDS, "podcast", "true_false"]);');
-    expect(route).toContain('input.teachingV2 && env.PODCAST_ENGINE === "teacher" && (input.lessonCore || input.lessonTopicOnly)');
-    expect(route).toContain("const episode = await teacherPodcastEpisode(input, input.lessonCore ?? null, length);");
+    expect(route).toContain("const episode = await teacherPodcastEpisode(input, core, length);");
     // Sayfa listesi boş düğümde test ve podcast dersin çözücüsünden aynı sayfaları alır.
     const block = route.slice(route.indexOf("if (TEACHER_PAGE_KINDS.has(kind) && teachingV2"), route.indexOf("// Podcast, sayfa kaynağı duruyorsa"));
     expect(block).toContain("await resolveLessonSource(service, {");
-    expect(readFileSync("src/lib/env.ts", "utf8")).toContain('PODCAST_ENGINE: z.enum(["teacher", "legacy"]).default("teacher")');
+    // Eski zincir ve motor anahtarları 3 Ekim 2026'da silindi.
+    expect(readFileSync("src/lib/env.ts", "utf8")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
+    expect(route).toContain('const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);');
   });
 });
