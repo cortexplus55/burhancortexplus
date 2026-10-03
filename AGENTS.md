@@ -188,8 +188,10 @@ liste soruyor (para hareketi yok) ve cevabı `/admin/sistem`'e yazıyor.
 
 **Karar park edildi (17 Eylül 2026):** "Direkt API'ye geçip PCI'ı kabul
 edelim mi" sorusu ürün sahibine soruldu; cevap **önce PayTR'ye soralım**
-oldu. Gönderilecek talep hazır: `cortex-plus/docs/delivery/PAYTR-DESTEK-TALEBI.md`
-— dört soru ve her cevabın ne değiştireceği yazılı. Yazılı cevap gelmeden
+oldu. Talep **3 Ekim 2026'da gönderildi** (Mağaza Paneli → Destek, Teknik Destek /
+Entegrasyon, mağaza 747272): `cortex-plus/docs/delivery/PAYTR-DESTEK-TALEBI.md`
+— dört soru ve her cevabın ne değiştireceği yazılı. Cevap panelde "Destek
+Talepleriniz" altında ve hesabın e-postasına gelir. Yazılı cevap gelmeden
 Direkt API'ye geçilmiyor ve sözleşme metnine dokunulmuyor.
 
 ## Satıcı bilgileri: iki alan bilerek yayınlanmıyor
