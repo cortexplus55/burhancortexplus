@@ -25,7 +25,7 @@ import { foldTr } from "@/lib/documents/page-analysis";
 import { loadTeacherAnalysis } from "@/lib/documents/teacher-analysis-run";
 import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
 import { contentTokens, type SyllabusScope } from "@/lib/learning/prep-corpus";
-import { announcedExampleGap, isIncompleteExample } from "@/lib/learning/lesson-repair";
+import { announcedExampleGap, isIncompleteExample } from "@/lib/learning/example-completeness";
 import { emptyMistake, isScaffoldHeading } from "@/lib/learning/teaching-standards";
 import {
   findAnalysisTopic,

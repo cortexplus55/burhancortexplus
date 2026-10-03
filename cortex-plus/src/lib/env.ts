@@ -60,29 +60,16 @@ export const envSchema = z.object({
    */
   OPENAI_CONTENT_MODEL: z.string().default("gpt-6-luna"),
   /**
-   * Ders motoru (2 Ekim 2026): "teacher" tek öğretmen istemi + model
-   * doğrulaması; "legacy" eski taslak + onarım katmanı (geri dönüş anahtarı).
-   */
-  LESSON_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
-  /**
    * Hazırlık sohbeti (2 Ekim 2026): "teacher" serbest metin öğretmen cevabı +
    * belgeye karşı model denetimi; "legacy" JSON şablon + eski denetçiler.
    */
   TUTOR_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
-  /**
-   * Konu testi ve tuzak soruları (2 Ekim 2026): "teacher" tek öğretmen istemi +
-   * soruları bağımsız çözen model denetimi; "legacy" exam-quiz-generate.ts.
-   */
-  QUIZ_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
-  /**
-   * Podcast (2 Ekim 2026): "teacher" tek öğretmen istemi + belgeyle eşleme;
-   * "legacy" podcast-episode.ts (metni onaran / satır silen zincir).
-   */
-  PODCAST_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
-  /** Kartlar ve aralıklı tekrar (2 Ekim 2026): "teacher" öğe öğe denetlenen kartlar; "legacy" eski zincir. */
-  CARDS_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
-  /** Doğru/yanlış ve sözlü deneme (2 Ekim 2026): "teacher" öğe öğe denetlenen motor; "legacy" eski zincir. */
-  PRACTICE_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
+  /*
+    Ders, test, podcast, kart, doğru/yanlış ve sözlü içerik yalnız öğretmen
+    motorlarından gelir. Eski taslak + onarım zinciri ve onu seçen
+    LESSON/QUIZ/PODCAST/CARDS/PRACTICE_ENGINE anahtarları 3 Ekim 2026'da
+    silindi (ürün sahibinin kararı).
+  */
   /** Kavram birimleri (2 Ekim 2026): "teacher" büyük ana konuyu luna ile 2-6 sayfalık derslere böler; "legacy" 3 sayfalık mekanik bölme. */
   TOPIC_UNITS_ENGINE: z.enum(["teacher", "legacy"]).default("teacher"),
   /**
@@ -157,12 +144,7 @@ const parsed = envSchema.safeParse({
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_STANDARD_MODEL: process.env.OPENAI_STANDARD_MODEL,
   OPENAI_CONTENT_MODEL: process.env.OPENAI_CONTENT_MODEL,
-  LESSON_ENGINE: process.env.LESSON_ENGINE,
   TUTOR_ENGINE: process.env.TUTOR_ENGINE,
-  QUIZ_ENGINE: process.env.QUIZ_ENGINE,
-  PODCAST_ENGINE: process.env.PODCAST_ENGINE,
-  CARDS_ENGINE: process.env.CARDS_ENGINE,
-  PRACTICE_ENGINE: process.env.PRACTICE_ENGINE,
   TOPIC_UNITS_ENGINE: process.env.TOPIC_UNITS_ENGINE,
   OPENAI_LESSON_MODEL: process.env.OPENAI_LESSON_MODEL,
   OPENAI_LESSON_FREE_MODEL: process.env.OPENAI_LESSON_FREE_MODEL,

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { env } from "@/lib/env";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
 import { corePageRun } from "@/lib/learning/core-pages";
 import { runTeacherLesson } from "@/lib/learning/teacher-lesson-run";
@@ -14,9 +13,6 @@ import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
-import { commitCredits, refundCredits, refundStalePendingReservations } from "@/lib/credits/service";
-import { lessonModel } from "@/lib/ai/model-router";
-import { completeLessonPartRepair } from "@/lib/ai/lesson-part-repair";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import {
   EMPTY_SOURCE_CONTEXT,
@@ -43,10 +39,8 @@ import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
 import { pickPracticeNodeId, practiceHref, studyNodeOpenable, topicLabelsMatch } from "@/lib/learning/study-tools";
 import {
-  fitOralCount,
   gradeOralExam,
   isOralLength,
-  publishOralQuestions,
   stampOralQuestions,
   syllabusWeightLineFromChecklist,
   type OralExamReport,
@@ -56,8 +50,6 @@ import {
 } from "@/lib/learning/oral-exam";
 import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
-import { verifyFlashcard } from "@/lib/learning/question-verifier";
-import { trueFalseItemsSchema, TRUE_FALSE_FORMAT } from "@/lib/learning/true-false";
 import {
   contentDifficultyLine,
   parseFamiliarity,
@@ -80,32 +72,19 @@ import {
   appendLessonReviewCards,
   cardsFromLessonReviews,
   extractMisconceptions,
-  flashcardV2Schema,
   parseSessionMeta,
   scoreFlashcardsV2,
   teachingActivityForKind,
   teachingSessionContext,
   teachingStandardConstraints,
-  validateFlashcardPedagogy,
-  validateOralPedagogy,
-  validateTrueFalsePedagogy,
-  publishLessonDraft,
-  lessonPublishIssues,
-  lessonDraftForVerifier,
-  lessonHasTeachingCore,
   lessonV2Schema,
-  LESSON_V2_SCHEMA_HINT,
-  REVIEW_VARIANT_RULE,
   type LessonReviewCard,
   type LessonV2,
   type SessionTeachingMeta,
 } from "@/lib/learning/teaching-standards";
 import {
   sectionHeadings,
-  unrepresentedHeadings,
 } from "@/lib/documents/topic-title";
-import { diagramIssues, needsDiagram } from "@/lib/learning/lesson-diagram";
-import { repairLessonSurface } from "@/lib/learning/learner-fluency";
 import { scoreLessonChecks } from "@/lib/learning/lesson-claims";
 import {
   buildLessonRetryCheck,
@@ -116,27 +95,13 @@ import {
   type CheckGradeVariant,
   type LessonCheckAnswer,
 } from "@/lib/learning/lesson-play";
-import { runLessonQualityPipeline } from "@/lib/learning/lesson-quality-pipeline";
 import { isAdminUser } from "@/lib/auth/roles";
 import {
   honestReadingMinutes,
   shouldReplacePlannedMinutes,
 } from "@/lib/learning/lesson-coherence";
-import { repairLearnerLesson, scopeLessonToTopic, type LessonCheckCode } from "@/lib/learning/lesson-repair";
-import {
-  criticalTeachingFailures,
-  dropSparseSourceNumericChecks,
-  finishTaughtLesson,
-  LESSON_TEACH_RULE,
-} from "@/lib/learning/lesson-teach";
-import {
-  isLearnerVerificationNote,
-  stripLearnerVerificationChrome,
-} from "@/lib/learning/learner-verification-chrome";
-import { formulaMismatches, withoutMismatchedFormulas } from "@/lib/learning/formula-fidelity";
 import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
 import {
-  generatePodcastEpisode,
   loadPodcastCorpus,
   mergePodcastSource,
   parsePodcastLength,
@@ -149,21 +114,15 @@ import {
 } from "@/lib/learning/podcast-episode";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 import {
-  keyTermsFromTeacherNote,
   lessonDepth,
   prepLanguage,
   SOURCE_PAGE_FORMULA_RULE,
   studentLanguageLine,
   teacherNoteGroundedInSource,
-  quantityClaimGrounded,
-  unsupportedQuantities,
-  withoutUnsupportedQuantities,
   type TeachingPriority,
 } from "@/lib/learning/teacher-brain";
 import {
-  groundLearnerLesson,
   upcomingTopicsAfter,
-  groundLessonDraft,
 } from "@/lib/learning/lesson-grounding";
 import {
   recordLearningTrackingAfterComplete,
@@ -245,18 +204,6 @@ const bodySchema = z.object({
   /** Ders oluşturma merkezi, düğümün konusu dışında bir konu seçtiyse. */
   activityTopicLabel: z.string().max(400).optional(),
   podcastLength: z.enum(PODCAST_LENGTHS).optional(),
-});
-
-const tfSchema = z.object({
-  items: trueFalseItemsSchema,
-});
-
-const cardsSchema = z.object({
-  cards: z.array(z.object({ front: z.string().min(1), back: z.string().min(1) })).min(4).max(12),
-});
-
-const oralSchema = z.object({
-  questions: z.array(z.object({ prompt: z.string().min(8), hint: z.string().optional() })).min(3).max(8),
 });
 
 /** Öğretmen test motorunun yazdığı düğümler (2 Ekim 2026). */
@@ -1966,62 +1913,6 @@ class NodeGenerationError extends Error {
 }
 
 /**
- * Formül uyuşmazlığı ve kaynakta olmayan sayı dersi düşürmez.
- * Cümle çıkarılır; bölümün metni kalmazsa bölüm de çıkar.
- */
-function softenLearnerField(
-  text: string,
-  formulas: string[],
-  source: string,
-  checkQuantities: boolean,
-): { text: string; reasons: string[] } {
-  const reasons: string[] = [];
-  const hadFormula = formulaMismatches([text], formulas).length > 0;
-  let next = hadFormula ? withoutMismatchedFormulas(text, formulas) : text;
-  if (hadFormula && formulaMismatches([next], formulas).length) next = "";
-  if (hadFormula && next.trim() !== text.trim()) reasons.push("formula_mismatch_dropped");
-  if (checkQuantities && next.trim()) {
-    const before = next;
-    // Her zaman cümle cümle: alan düzeyinde tek doğru eşitlik tüm metni kurtarmaz.
-    const cleaned = withoutUnsupportedQuantities(before, source);
-    next = cleaned.trim() && quantityClaimGrounded(cleaned, source) ? cleaned : "";
-    if (next.trim() !== before.trim()) reasons.push("quantity_dropped");
-  }
-  return { text: next.trim(), reasons };
-}
-
-/** Kayıt için dersin öğreten parçalarının sayımı; metin yok. */
-function lessonShapeLog(lesson: LessonV2) {
-  return {
-    sections: lesson.sections.length,
-    checks: lesson.sections.map((section) => section.check?.type ?? "-").join(","),
-    optionWhy: lesson.sections.filter((section) => section.check?.optionWhy?.length).length,
-    extras: lesson.sections.filter((section) => section.formula || section.procedure || section.table).length,
-    example: Boolean(lesson.example),
-    mistake: Boolean(lesson.commonMistake),
-  };
-}
-
-function stripLessonVerificationChrome(lesson: LessonV2): LessonV2 {
-  const sections = lesson.sections.map((section) => {
-    const next = {
-      ...section,
-      body: stripLearnerVerificationChrome(section.body),
-      heading: section.heading,
-    };
-    if (next.note && isLearnerVerificationNote(next.note)) delete next.note;
-    return next;
-  });
-  const overview = lesson.overview
-    ? stripLearnerVerificationChrome(lesson.overview)
-    : undefined;
-  const cleaned: LessonV2 = { ...lesson, sections };
-  if (overview) cleaned.overview = overview;
-  else delete cleaned.overview;
-  return cleaned;
-}
-
-/**
  * Dersin bölüm omurgası: kaynağın o sayfalardaki kendi alt başlıkları.
  *
  * Okunamazsa boş dönüyor ve bölümleri model seçmeye devam ediyor —
@@ -2141,572 +2032,24 @@ async function generateNodePayload(input: {
     )} ${sessionCtx} ${standards}${prefsHint}${note ? `\n${note}` : ""}\n${SOURCE_PAGE_FORMULA_RULE}${input.sourceBlock}${input.topicFenceBlock ?? ""}`;
   const ctx = contextFor(teacherNote);
 
-  const v2Common = input.teachingV2
-    ? {
-        validationProfile: "v2" as const,
-        /**
-         * İKİ DENEME. Üçe çıkarıldı ve GERİ ALINDI.
-         *
-         * Geri bildirim anlamlı hâle gelince üçüncü denemenin de değerli
-         * olacağını düşündüm; ölçmeden yaptığım tek değişiklik buydu ve
-         * canlıda karşılığı kötü oldu. Üçüncü tur toplam üretim süresini
-         * 107 saniyeye çıkardı ve arka arkaya iki üretim, daha önce
-         * sağlayıcı zaman aşımı olduğu teşhis edilmiş olan
-         * `safe_outcome/generation_failed` ile düştü — yani öğrenci ders
-         * alamadı.
-         *
-         * Kazanç fazladan denemede değil, denemeye ne yanlış olduğunun
-         * söylenmesindeydi. Süre bütçesi gerçek bir sınır: iki tur güvenli
-         * kalıyor.
-         */
-        maxDraftAttempts: depth.maxDraftAttempts,
-        allowIndependentAccept: true,
-        activityKind: activity,
-        idempotencyKey: input.idempotencyKey,
-      }
-    : { idempotencyKey: input.idempotencyKey };
-
-  const sourceIndependent = {
-    sourceExcerpt: input.sourceBlock,
-    requireSourceSupport: Boolean(input.requireSourceSupport),
-    sourcePages: input.sessionMeta?.sourcePages,
-  };
-
-  // Planın öğrenme adımı. Podcast'ten devraldı: metin geri dönüp
-  // okunabiliyor ve doğrulayıcısı (validateLessonPedagogy) bölüm
-  // başlığından çözümlü örneğin her adımına kadar kontrol ediyor.
-  if (input.kind === "lesson" && input.teachingV2 && env.LESSON_ENGINE === "teacher") {
-    if (input.lessonCore) return teacherLessonPayload(input, activity, input.lessonCore);
-    // Belgesiz ders de aynı öğretmenden (2 Ekim 2026, ürün sahibinin kararı).
-    if (input.lessonTopicOnly) return teacherLessonPayload(input, activity, null);
-  }
-
-  // Konu testi ve tuzak soruları da öğretmen motorundan (2 Ekim 2026).
-  if (
-    TEACHER_QUIZ_KINDS.has(input.kind) &&
-    input.teachingV2 &&
-    env.QUIZ_ENGINE === "teacher" &&
-    (input.lessonCore || input.lessonTopicOnly)
-  ) {
-    return teacherQuizPayload(input, activity, input.lessonCore ?? null, Math.max(5, quizCount));
-  }
+  /*
+    Bütün içerik öğretmen motorlarından (2 Ekim 2026). Eski taslak + onarım
+    zinciri 3 Ekim 2026'da silindi: çekirdek sayfası bulunamayan belgeli
+    içerik yazılmaz — öğrenci belgesinin dışına çıkan bir ders görmez ve
+    kredi düşmez (öğretmen motoru krediyi kendi ayırır).
+  */
+  const core = input.lessonCore ?? null;
+  const pagesReady = Boolean(core || input.lessonTopicOnly);
+  const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);
 
   if (input.kind === "lesson") {
-    // Önceki hard-kill'den kalan pending rezervasyonları (aynı kullanıcı).
-    // Allowlist + kullanıcı cooldown service içinde; DOCUMENT_PAGE_PROCESS dokunulmaz.
-    await refundStalePendingReservations(input.service, {
-      userId: input.userId,
-      olderThanMs: 10 * 60_000,
-      limit: 8,
-    }).catch(() => 0);
-    // Pedagoji kontrolleri hiçbir taslağı geçirmezse ders hiç üretilmiyor
-    // ve öğrencinin o konuda okuyacak bir şeyi kalmıyor — bugün iki kez
-    // olan buydu. Şeması geçerli son taslak saklanıyor: kusurlu bir ders,
-    // dersin hiç olmamasından iyi.
-    //
-    // Yedek "son" taslağı değil "en iyi" taslağı tutuyor. Konu haritasında
-    // aynı hatayı yapmıştık: son taslak çoğu zaman en kötüsüydü, çünkü
-    // model her turda biraz daha kısaltıyordu. Ölçü: kaynaktan gelen
-    // bölümlerden kaçının karşılıksız kaldığı.
-    let lastValidLesson: LessonV2 | null = null;
-    let lastValidMissing = Number.POSITIVE_INFINITY;
-    let lastParseIssues: string[] = [];
-    let degradeReasons: string[] = [];
-    const backbone = input.sectionBackbone ?? [];
-    // Omurga tek başlıksa dayatmıyoruz: tek bölümlük ders, dersin kendisi
-    // olmaz. İki ve üzeri gerçek bir iskelettir.
-    const useBackbone = backbone.length >= 2;
-    // Kaynak kaç alt başlık veriyorsa o kadar bölüm. Dar konuda iki yeter;
-    // sayıyı doldurmak için üçüncü kavram uydurulmaz.
-    const minSections = useBackbone ? Math.max(2, backbone.length) : 2;
-    const backbonePrompt = !useBackbone
-      ? ""
-      : backbone.length >= 3
-        ? ` BÖLÜMLER KAYNAĞIN KENDİ ALT BAŞLIKLARI: sırayla ${backbone
-            .map((heading, i) => `${i + 1}) ${heading}`)
-            .join(" ")}. Bu başlıkları kullan; birini atlama, kendinden yeni bölüm ekleme.`
-        : ` Kaynağın alt başlıkları: ${backbone.join(", ")}. Bu başlıkları kullan; kaynakta olmayan yeni kavram bölümü ekleme.`;
-    // Çizim "isteğe bağlı" kaldığı sürece model hiç çizmiyor.
-    const keyTerms = [...keyTermsFromTeacherNote(teacherNote), ...backbone];
-    const wantsDiagram = needsDiagram(input.topicLabel, ...backbone);
-    // Soyut bir "çizim koy" talimatını model atlıyordu; somut bir örnek
-    // atlanmıyor. Ama örnek de aynen kopyalanıyor: canlıda zemin dersine
-    // örnekteki kutu "Kili temsil eder" etiketiyle olduğu gibi girdi. O
-    // yüzden örnek artık BİÇİMİ gösteriyor, çizimin kendisini değil, ve
-    // istenen şey tek cümlede duruyor: parçaların ADI yazılacak.
-    const diagramPrompt = wantsDiagram
-      ? " BU KONU ŞEKİLLE ANLAŞILIYOR: bir bölüme diagram KOY, atlama. " +
-        "Çizimin işi parçaları ADLANDIRMAK: eksenin, bölgenin, katmanın " +
-        "kendi adı yazılsın — en az iki etiket, en az iki şekil. " +
-        "Etiket başlığı tekrarlamasın (çemberin yanına 'Daire' yazmak " +
-        "çizim değildir; 'σ' ve 'τ' yazmak çizimdir). " +
-        'Biçim: {"caption":"...","shapes":[{"kind":"line","x1":20,"y1":170,' +
-        '"x2":300,"y2":170,"arrow":true},{"kind":"text","x":300,"y":182,' +
-        '"text":"...","anchor":"end"}]} — koordinatları kendi çizimine göre seç.'
-      : "";
-    const upcomingPrompt = !Array.isArray(input.upcomingTopics)
-      ? ""
-      : input.upcomingTopics.length
-        ? ` SIRADA NE VAR yalnızca şu sonraki konu başlıkları: ${input.upcomingTopics.join(" | ")}. Başka konu uydurma.`
-        : " Bu konudan sonra listede konu yok; nextFocus yazma.";
-    /**
-     * Canlıda 110 saniye taslak, ileri denetim ve iddia turunun art arda
-     * gitmesinden geliyordu. Temiz taslak ileri denetimi açmaz. Her ders
-     * için ucuz modelde kaynağa karşı bir iddia denetimi yine çalışır.
-     * Onarım yalnız o denetim ya da kapı bir bozukluk işaretlerse açılır.
-     * `lesson_model_calls` draftMs, reviewMs, repairMs ve verifyMs yazar.
-     */
-    let lessonModelCalls = 0;
-    let draftMs = 0;
-    let reviewMs = 0;
-    const draftBudgetStarted = Date.now();
-    /** 300 sn fonksiyon tavanı — yeni deneme/onarım ~200 sn sonra başlatılmaz. */
-    const DRAFT_DEADLINE_MS = 200_000;
-    const pastDeadline = () => Date.now() - draftBudgetStarted >= DRAFT_DEADLINE_MS;
-    const lessonDraftAttempts = Math.max(2, depth.maxDraftAttempts);
-    const requestLesson = (note: string, retried: boolean, attempts: number) =>
-      generateJson({
-      service: input.service,
-      userId: input.userId,
-      actionCode: actionForKind(input.kind),
-      isPremium: input.isPremium,
-      difficulty: depth.difficulty,
-      modelOverride: lessonModel(input.isPremium),
-      ...v2Common,
-      // depth.maxDraftAttempts (≥2): geri bildirim ikinci taslağa gider.
-      maxDraftAttempts: attempts,
-      deadlineAt: draftBudgetStarted + DRAFT_DEADLINE_MS,
-      verificationMode: "schema",
-      deferCommit: true,
-      idempotencyKey:
-        retried && input.idempotencyKey
-          ? `${input.idempotencyKey}:no-brief`
-          : input.idempotencyKey,
-      allowIndependentAccept: false,
-      trustIndependent: true,
-      reviewDraft: (draft) => {
-        const published = publishLessonDraft(draft, { keyTerms });
-        const scoped = published
-          ? JSON.stringify(scopeLessonToTopic(published, input.sourceBlock, input.topicLabel))
-          : draft;
-        return lessonDraftForVerifier(groundLessonDraft(scoped, input.sourceBlock), keyTerms);
-      },
-      buildIndependent: (_c, parsed) => ({
-        pedagogyIssues: lessonPublishIssues(parsed, { minSections, keyTerms }),
-        ...sourceIndependent,
-      }),
-      schemaHint:
-        LESSON_V2_SCHEMA_HINT +
-        " note isteğe bağlı. " +
-        (wantsDiagram
-          ? "diagram ZORUNLU: en az bir bölüme koy. "
-          : "diagram isteğe bağlı ve YALNIZCA şekille anlaşılan konular için: " +
-            "konum, yön, oran ya da parça-bütün ilişkisi çizilmeden anlaşılmıyorsa. ") +
-        "Çizim alanı 320x200. Şekiller: {kind:\"rect\",x,y,w,h}, " +
-        "{kind:\"circle\",cx,cy,r}, {kind:\"line\",x1,y1,x2,y2,arrow?,dashed?}, " +
-        "{kind:\"text\",x,y,text,anchor?}. Renk seçme; tone/fill/stroke yalnızca " +
-        "ink, muted, accent, surface, line olabilir. Her çizimde en az bir etiket " +
-        "ve bir caption olsun. Metinle anlaşılan konuya çizim koyma.",
-      verificationContext: `${contextFor(note)}${backbonePrompt}${diagramPrompt}${upcomingPrompt} ${LESSON_TEACH_RULE} Bu konunun dersini yaz.`,
-      userPrompt: `${contextFor(note)}${backbonePrompt}${diagramPrompt}${upcomingPrompt} ${LESSON_TEACH_RULE} Bu konunun dersini yaz. ${REVIEW_VARIANT_RULE}`,
-      // Bu tur neden reddedildi — modele aynen iletiliyor. Rota kendi
-      // kurallarıyla da reddediyor; sebebini söylemezse yeniden üretim
-      // "JSON şeman bozuk" gibi yanlış bir yönlendirmeyle gidiyordu.
-      describeParseFailure: () => lastParseIssues,
-      parse: (raw) => {
-        lastParseIssues = [];
-        degradeReasons = [];
-        const published = publishLessonDraft(raw, { keyTerms });
-        if (!published) return null;
-        const scoped = scopeLessonToTopic(published, input.sourceBlock, input.topicLabel);
-        const grounded = groundLearnerLesson(
-          scoped,
-          input.sourceBlock,
-          Array.isArray(input.upcomingTopics) ? { upcomingTopics: input.upcomingTopics } : {},
-        );
-        if (grounded.removed.length) {
-          console.error("removed_for_source", { removed: grounded.removed });
-        }
-        const raw2 = grounded.lesson as LessonV2;
-        if (!lessonHasTeachingCore(raw2)) {
-          lastParseIssues = ["Kaynakla bağlanamayan parçalar çıktıktan sonra öğreten bölüm kalmadı."];
-          return null;
-        }
-        /**
-         * ÖNCE TEMİZLE, SONRA DOĞRULA.
-         *
-         * Şablon başlıklarını ayıklamak taslağı çoğu zaman kusursuz hâle
-         * getiriyor — ama ayıklama doğrulamadan SONRA yapıldığı için kimse
-         * temizlenmiş hâle bakmıyordu. Canlıda olan tam buydu: "Zeminde Su
-         * Akışı" dersi reddedildi diye kaydedildi, oysa öğrenciye giden
-         * temizlenmiş hâli bütün kuralları geçiyordu. Ders iyiydi, kayıt
-         * yanlıştı.
-         *
-         * Sıra düzelince "yedek" de anlamını değiştiriyor: artık kusurlu
-         * bir taslağı saklamıyor, TAMAMEN GEÇEN en iyi taslağı saklıyor.
-         * Hiçbiri geçmezse ders yayına çıkmaz.
-         */
-        const parsed = repairLessonSurface(raw2);
-        const pedagoji = lessonPublishIssues(parsed, { minSections, keyTerms });
-        if (pedagoji.length) {
-          lastParseIssues = pedagoji;
-          return null;
-        }
-        /**
-         * Formül uyuşmazlığı ve kaynakta olmayan sayı dersi düşürmez.
-         * Cümle silinir. Öğreten bölüm kalırsa ders yayına çıkar.
-         * Boussinesq gibi yapısal katsayı hâlâ silinir; sayısal örnekle
-         * sembolik bağıntı (`v = v_f + x v_fg`) uyuşmaz sayılmaz.
-         */
-        const reasons: string[] = [];
-        const formulas = input.sourceFormulas ?? [];
-        const checkQuantities = Boolean(
-          input.sourceBlock && !input.sourceBlock.includes("kısaltıldı"),
-        );
-        const take = (text: string) => {
-          const softened = softenLearnerField(text, formulas, input.sourceBlock, checkQuantities);
-          for (const reason of softened.reasons) {
-            if (!reasons.includes(reason)) reasons.push(reason);
-          }
-          return softened.text;
-        };
-        const overview = take(parsed.overview ?? "");
-        const sections = parsed.sections.flatMap((section) => {
-          const body = take(section.body);
-          if (body.length < 20) return [];
-          // Öğrenciye doğrulama/kaynak meta notu gösterme.
-          const cleaned = { ...section, body };
-          if (cleaned.note && isLearnerVerificationNote(cleaned.note)) {
-            delete cleaned.note;
-          }
-          return [cleaned];
-        });
-        const lesson: LessonV2 = { ...parsed, sections };
-        if (overview) lesson.overview = stripLearnerVerificationChrome(overview);
-        else delete lesson.overview;
-        if (parsed.example) {
-          const solution = take(parsed.example.solution);
-          if (solution.length >= 8) lesson.example = { ...parsed.example, solution };
-          else delete lesson.example;
-        }
-        if (!lessonHasTeachingCore(lesson)) {
-          // İnce ders yayınlanmaz / ücretlendirilmez — iade ile düş.
-          const onlyQuantity = reasons.includes("quantity_dropped") && reasons.every(
-            (reason) => reason === "quantity_dropped",
-          );
-          lastParseIssues = [
-            onlyQuantity
-              ? "Kaynakta olmayan nicelik çıktıktan sonra öğreten bölüm kalmadı. Hesap adımlarını kaynak sayılarından doğru türet."
-              : "Kaynakla bağlanamayan parçalar çıktıktan sonra öğreten bölüm kalmadı.",
-          ];
-          console.error("lesson_quantity_too_thin", {
-            reasons: reasons.slice(0, 8),
-            onlyQuantity,
-          });
-          return null;
-        }
-        const missingList = useBackbone
-          ? unrepresentedHeadings(
-              backbone,
-              lesson.sections.map((section) => section.heading),
-            )
-          : [];
-        const missing = missingList.length;
-        // Kaynakta duran bir bölümü atlayan ders eksik bir derstir:
-        // canlıda üretilen zemin dersi "Birleştirilmiş Zemin
-        // Sınıflandırması"nı hiç anlatmadı ve öğrenci bunu bilemedi.
-        // Kaynağın bütün başlıkları düşmüşse yeniden iste. Bir başlık
-        // cerrahi kesimden sonra duruyorsa çekirdek ders yayına çıkar.
-        if (useBackbone && missingList.length === backbone.length) {
-          lastParseIssues = [
-            `Kaynağın şu alt başlıkları derste yok: ${missingList.join(", ")}. Her birine bir bölüm yaz.`,
-          ];
-          return null;
-        }
-        /**
-         * Çizim isteniyor ama yoksa ya da okunamıyorsa ders durmaz.
-         * Şema da bunu söylüyor: bozuk çizim düşer, ders kalır.
-         * İstem çizimi istemeye devam eder; kapı artık dersi kesmez.
-         */
-        if (wantsDiagram) {
-          let readable = false;
-          let unreadable = false;
-          lesson.sections = lesson.sections.map((section) => {
-            if (!section.diagram) return section;
-            if (!diagramIssues(section.diagram).length) {
-              readable = true;
-              return section;
-            }
-            unreadable = true;
-            const rest = { ...section };
-            delete rest.diagram;
-            return rest;
-          });
-          if (!readable) reasons.push(unreadable ? "diagram_unreadable" : "diagram_missing");
-        }
-        degradeReasons = reasons;
-        if (missing < lastValidMissing) {
-          lastValidMissing = missing;
-          lastValidLesson = lesson;
-        }
-        return lesson;
-      },
-    });
-    /**
-     * Model çağrısı düşerse ders yoktur ve rezervasyon iade edilir.
-     * depth.maxDraftAttempts (≥2) içinde describeParseFailure geri bildirimi
-     * ikinci taslağa gider. Öğretmen notundaki sayı kaynakta yoksa notsuz
-     * bir deneme daha (ayrı idempotency anahtarı).
-     */
-    let outcome = await requestLesson(teacherNote, false, lessonDraftAttempts);
-    if (outcome.ok) {
-      lessonModelCalls += outcome.modelCalls;
-      draftMs += outcome.draftMs;
-      reviewMs += outcome.reviewMs;
-    }
-    const noteHasUnsupported =
-      Boolean(teacherNote.trim()) &&
-      unsupportedQuantities(teacherNote, input.sourceBlock).length > 0 &&
-      !quantityClaimGrounded(teacherNote, input.sourceBlock);
-    if (
-      !outcome.ok &&
-      !lastValidLesson &&
-      noteHasUnsupported &&
-      !pastDeadline() &&
-      lastParseIssues.some((issue) => /nicelik|sayı|hesap/i.test(issue))
-    ) {
-      const retry = await requestLesson("", true, lessonDraftAttempts);
-      if (retry.ok) {
-        lessonModelCalls += retry.modelCalls;
-        draftMs += retry.draftMs;
-        reviewMs += retry.reviewMs;
-        outcome = retry;
-      }
-    }
-    console.error("lesson_draft_budget", {
-      ms: Date.now() - draftBudgetStarted,
-      calls: lessonModelCalls,
-      maxDraftAttempts: lessonDraftAttempts,
-      pastDeadline: pastDeadline(),
-    });
-    const lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;
-    if (!lesson) {
-      console.error("lesson_model_calls", {
-        calls: lessonModelCalls,
-        draftMs,
-        reviewMs,
-        repairMs: 0,
-        verifyMs: 0,
-      });
-      throw new NodeGenerationError(
-        outcome.ok ? 500 : outcome.status,
-        outcome.ok ? "lesson_missing" : outcome.error,
-        lastParseIssues.slice(0, 6),
-      );
-    }
-    /**
-     * Bilinen yapı bozuklukları (işaret, yarım formül, eksik kontrol)
-     * önce yerinde onarılır. Kapı ardından bakar. Tek onarım yetmezse
-     * doğrulanamayan cümle çıkarılır ve kalan ders açılır. Üçten az
-     * kontrol de dersi düşürmez. Modelin kendisi düşmediyse boş ekran yok.
-     */
-    const heldReservationId = outcome.ok ? outcome.reservationId : undefined;
-    let settled = false;
-    let publishedLesson: LessonV2 = lesson;
-    try {
-      const repairSource = [input.sourceBlock, teacherNote].filter((part) => part.trim()).join("\n");
-      let taughtLesson = lesson;
-      let repair = {
-        lesson,
-        requested: [] as string[],
-        succeeded: [] as string[],
-        dropped: [] as string[],
-        verifyMs: 0,
-      };
-      let taught = {
-        lesson,
-        salvaged: false,
-        failures: [] as { unit: string; problem: string }[],
-        checkCountLow: false,
-      };
-      if (!pastDeadline()) {
-        const repairCall = (prompt: string, maxTokens: number) => {
-          lessonModelCalls += 1;
-          return completeLessonPartRepair({
-            service: input.service,
-            userId: input.userId,
-            prompt,
-            maxTokens,
-          });
-        };
-        const repairStarted = Date.now();
-        repair = await repairLearnerLesson(
-          lesson,
-          {
-            source: repairSource,
-            topicLabel: input.topicLabel,
-            targetMinutes: input.sessionMeta?.durationMinutes,
-          },
-          (prompt) => repairCall(prompt, 1500),
-          repairSource.trim() ? (prompt) => repairCall(prompt, 400) : undefined,
-        );
-        /*
-          Kritik öğretim hatası (en sık: soru ders cümlesinin kopyası)
-          önce bir model onarımıyla düzeltilmeye çalışılır. 29 Eylül'e kadar
-          bu rota onarımı bağlamıyordu; tek bir kopya soru bütün dersi
-          kurtarma yoluna sokuyor, kurtarma da sayısal soruyu, örneği ve sık
-          hatayı atıp yerine yine ders cümlesi kopyası doğru/yanlış
-          koyuyordu. Eski ders rotası (exam-prep/lesson) onarımı hep bağlıyordu.
-        */
-        taught = await finishTaughtLesson(
-          repair.lesson,
-          { source: repairSource, topicLabel: input.topicLabel },
-          pastDeadline() ? undefined : (prompt) => repairCall(prompt, 1800),
-        );
-        taughtLesson = stripLessonVerificationChrome(taught.lesson);
-        const critical = criticalTeachingFailures(taught.failures);
-        const repairWallMs = Date.now() - repairStarted;
-        const verifyMs = repair.verifyMs;
-        console.error("lesson_model_calls", {
-          calls: lessonModelCalls,
-          draftMs,
-          reviewMs,
-          repairMs: Math.max(0, repairWallMs - verifyMs),
-          verifyMs,
-        });
-        // Taslakta yazılan öğreten parçalar yayına kadar kalıyor mu? 29 Eylül'e
-        // kadar sayısal soru, örnek ve formül kartı yolda sessizce siliniyordu;
-        // bu satır bir daha olursa ilk bakışta görünsün diye duruyor.
-        console.error("lesson_shape", {
-          draft: lessonShapeLog(lesson),
-          published: lessonShapeLog(taughtLesson),
-        });
-        if (taught.salvaged || critical.length) {
-          console.error("lesson_generation_salvaged", {
-            failures: critical.slice(0, 8).map((failure) => `${failure.unit}:${failure.problem}`),
-          });
-        }
-        if (taught.checkCountLow) {
-          await recordLessonGenerationFailure(input.service, {
-            userId: input.userId,
-            prepId: input.prepId ?? null,
-            topicLabel: input.topicLabel,
-            kind: "lesson",
-            stage: "check_count",
-            reason: "check_count_low",
-            reasons: ["Kontrol sayısı minimumun altında kaldı; ders yine de yayınlandı."],
-          }).catch(() => undefined);
-        }
-        if (repair.requested.length) {
-          console.error("lesson_generation_repaired", {
-            checks: repair.requested,
-            succeeded: repair.succeeded,
-          });
-        }
-        // İnce / öğretemeyen kurtarma yayınlanmaz.
-        if (!lessonHasTeachingCore(taughtLesson)) {
-          throw new NodeGenerationError(422, "content_verification_failed", [
-            "Doğrulama sonrası öğreten bölüm kalmadı.",
-          ]);
-        }
-      } else {
-        taughtLesson = stripLessonVerificationChrome(lesson);
-        console.error("lesson_model_calls", {
-          calls: lessonModelCalls,
-          draftMs,
-          reviewMs,
-          repairMs: 0,
-          verifyMs: 0,
-          skippedRepair: "deadline",
-        });
-        if (!lessonHasTeachingCore(taughtLesson)) {
-          throw new NodeGenerationError(422, "content_verification_failed", [
-            "Süre bütçesi sonrası öğreten bölüm kalmadı.",
-          ]);
-        }
-      }
-      if (input.requireSourceSupport && input.repetitiveSparseEvidence) {
-        const sparse = dropSparseSourceNumericChecks(taughtLesson, input.sourceBlock);
-        taughtLesson = sparse.lesson;
-        if (sparse.dropped) {
-          console.error("lesson_sparse_source_checks_dropped", { count: sparse.dropped });
-        }
-      }
-      publishedLesson = taughtLesson;
-      const diagramReady = taughtLesson.sections.some(
-        (section) => section.diagram && diagramIssues(section.diagram).length === 0,
-      );
-      const reasons = [
-        ...degradeReasons.filter((reason) => {
-          if (diagramReady && (reason === "diagram_missing" || reason === "diagram_unreadable")) return false;
-          return !repair.succeeded.includes(reason as LessonCheckCode);
-        }),
-        ...repair.dropped,
-      ].filter((reason, index, all) => all.indexOf(reason) === index);
-      if (reasons.length) {
-        console.error("lesson_generation_degraded", { reasons: reasons.slice(0, 8) });
-      }
-      // Dersi konuya da yaz: öğrenci sonra geri dönüp okuyabilsin ve ders
-      // bitince önerilen podcast bu içerikten türeyebilsin. Yazamamak dersi
-      // bozmaz — öğrenci ekranda zaten okuyor.
-      if (input.prepId && input.topicId) {
-        await input.service
-          .from("exam_prep_lessons")
-          .insert({
-            exam_prep_id: input.prepId,
-            topic_id: input.topicId,
-            title: taughtLesson.title,
-            content_md: taughtLesson.overview ?? taughtLesson.sections[0]?.body ?? taughtLesson.title,
-            content_json: taughtLesson,
-          })
-          .then(undefined, () => undefined);
-      }
-      if (heldReservationId) {
-        await commitCredits(input.service, heldReservationId);
-        settled = true;
-      }
-      // commitCredits sonrası kalite hattı dersi düşürmez / iade demez.
-      let qualityReport = null;
-      try {
-        const quality = runLessonQualityPipeline(taughtLesson, {
-          sourceExcerpt: repairSource,
-        });
-        qualityReport = quality.report;
-      } catch (error) {
-        console.error("lesson_quality_pipeline_failed", {
-          errorType: error instanceof Error ? (error.constructor?.name ?? error.name) : "unknown",
-        });
-        qualityReport = null;
-      }
-      return {
-        type: "lesson",
-        lesson: taughtLesson,
-        title: taughtLesson.title,
-        teachingStandard: activity,
-        qualityReport,
-        refunded: false,
-      };
-    } catch (error) {
-      if (heldReservationId && !settled) {
-        await refundCredits(input.service, heldReservationId).catch(() => undefined);
-        throw error;
-      }
-      // Kredi kesinleştikten sonra gelen hata: dersi düşürme, iade yok.
-      if (settled) {
-        console.error("lesson_post_commit_error", {
-          errorType: error instanceof Error ? (error.constructor?.name ?? error.name) : "unknown",
-        });
-        return {
-          type: "lesson",
-          lesson: publishedLesson,
-          title: publishedLesson.title,
-          teachingStandard: activity,
-          qualityReport: null,
-          refunded: false,
-        };
-      }
-      throw error;
-    }
+    if (!pagesReady) throw noPages();
+    return teacherLessonPayload(input, activity, core);
+  }
+
+  if (TEACHER_QUIZ_KINDS.has(input.kind)) {
+    if (!pagesReady) throw noPages();
+    return teacherQuizPayload(input, activity, core, Math.max(5, quizCount));
   }
 
   if (input.kind === "qa") {
@@ -2749,264 +2092,44 @@ async function generateNodePayload(input: {
     }
     // Öğretmen podcast motoru (2 Ekim 2026): aynı konunun dersi ve çekirdek
     // sayfalar; kod metne bir şey eklemez, cümle silmez.
-    if (input.teachingV2 && env.PODCAST_ENGINE === "teacher" && (input.lessonCore || input.lessonTopicOnly)) {
-      const episode = await teacherPodcastEpisode(input, input.lessonCore ?? null, length);
-      if (input.prepId && input.userId) {
-        await writePodcastCache(input.service, {
-          prepId: input.prepId,
-          userId: input.userId,
-          topicLabel: input.topicLabel,
-          episode,
-        });
-      }
-      return {
-        type: "podcast",
-        title: episode.title,
-        chapters: episode.chapters,
-        length,
-        scriptCredits: CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits,
-        teachingStandard: activity,
-        engine: "teacher",
-      };
-    }
-    const lesson = input.teachingV2 ? input.lessonContent ?? null : null;
-    const outcome = await generatePodcastEpisode({
-      service: input.service,
-      userId: input.userId,
-      isPremium: input.isPremium,
-      prepTitle: input.prepTitle,
-      topicLabel: input.topicLabel,
-      sourceBlock: input.sourceBlock,
-      teacherBrief: input.teacherBrief,
-      lessonBrief: lesson ? lessonPodcastBrief(lesson) : "",
-      length,
-      grounding: input.grounding,
-      idempotencyKey: input.idempotencyKey,
-      requestId: input.requestId,
-    });
-    if (!outcome.ok) {
-      throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
-    }
+    if (!pagesReady) throw noPages();
+    const episode = await teacherPodcastEpisode(input, core, length);
     if (input.prepId && input.userId) {
       await writePodcastCache(input.service, {
         prepId: input.prepId,
         userId: input.userId,
         topicLabel: input.topicLabel,
-        episode: outcome.data,
+        episode,
       });
     }
     return {
       type: "podcast",
-      title: outcome.data.title,
-      chapters: outcome.data.chapters,
+      title: episode.title,
+      chapters: episode.chapters,
       length,
       scriptCredits: CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits,
       teachingStandard: activity,
+      engine: "teacher",
     };
   }
 
   // Sözlü deneme öğretmen motorundan (2 Ekim 2026). Kapsam birden çok konu
   // olabildiği için rotanın hazırladığı kaynak bloğu okunur.
-  if (
-    input.kind === "oral" &&
-    input.teachingV2 &&
-    env.PRACTICE_ENGINE === "teacher" &&
-    (input.sourceBlock.trim() || input.lessonTopicOnly)
-  ) {
+  if (input.kind === "oral") {
+    if (!input.sourceBlock.trim() && !input.lessonTopicOnly) throw noPages();
     return teacherOralPayload(input, activity, input.oralQuestionCount ?? Math.min(8, Math.max(3, quizCount)));
   }
 
-  if (input.kind === "oral") {
-    const asked = input.oralQuestionCount ?? Math.min(8, Math.max(3, quizCount));
-    const weight = input.syllabusLine?.trim()
-      ? input.syllabusLine
-      : "Yalnızca verilen kaynak sayfalarındaki olguları sor. Kaynakta olmayan konu yazma.";
-    let lastOralIssues: string[] = [];
-    let oralAllowPartial = false;
-    const oralFrom = (raw: unknown) =>
-      publishOralQuestions(raw, asked, input.sourceBlock, oralAllowPartial);
-    const outcome = await generateJson({
-      service: input.service,
-      userId: input.userId,
-      actionCode: actionForKind(input.kind),
-      isPremium: input.isPremium,
-      ...v2Common,
-      trustIndependent: input.teachingV2 ? true : undefined,
-      reviewDraft: input.teachingV2
-        ? (draft) => {
-            try {
-              const published = oralFrom(JSON.parse(draft));
-              return published ? JSON.stringify({ questions: published }) : draft;
-            } catch {
-              return draft;
-            }
-          }
-        : undefined,
-      describeParseFailure: () => lastOralIssues,
-      buildIndependent: input.teachingV2
-        ? (_c, parsed) => {
-            const fitted = parsed ? oralFrom(parsed) : null;
-            return {
-              pedagogyIssues: fitted
-                ? validateOralPedagogy(fitted)
-                : ["Sözlü şema geçersiz."],
-              minItems: oralAllowPartial ? 1 : asked,
-              ...sourceIndependent,
-            };
-          }
-        : undefined,
-      schemaHint: input.teachingV2
-        ? 'JSON: {"questions":[{"prompt":string,"hint":string,"learningObjective":string,"rubricCriteria":string[],"expectedPoints":string[],"modelAnswer":string}]}'
-        : 'JSON: {"questions":[{"prompt":string,"hint":string}]}',
-      userPrompt: input.teachingV2
-        ? `${ctx} Tam ${asked} sözlü soru; her birinde rubrik, beklenen noktalar ve 2–5 cümlelik örnek çözüm (modelAnswer). ${weight} Beklenen noktalar öğrencinin kuracağı olgu ya da işlem sonucudur; puan etiketi (Tam 2, 2 puan) yazma. Sayı ve birim uydurma. Doğru işlemin sonucu kaynakta ayrıca yazmıyorsa da yaz. Tek doğru cevabı olmayan soru yazma. Sınav kipinde yardım sınırlı — hint kısa tut veya boş bırak. Sorunun varsaydığı ilişki kaynakta kurulmalı.`
-        : `${ctx} Tam ${asked} sözlü soru. ${weight}`,
-      parse: (raw) => {
-        if (!input.teachingV2) {
-          const data = oralSchema.safeParse(raw).data ?? null;
-          if (!data) return null;
-          const fitted = fitOralCount(data.questions, asked, oralAllowPartial);
-          if (!fitted) {
-            oralAllowPartial = true;
-            return null;
-          }
-          return { questions: fitted };
-        }
-        const fitted = oralFrom(raw);
-        if (!fitted) {
-          lastOralIssues = ["Sözlü sorular kurulamadı."];
-          oralAllowPartial = true;
-          return null;
-        }
-        const issues = validateOralPedagogy(fitted);
-        if (issues.length) {
-          lastOralIssues = issues;
-          oralAllowPartial = true;
-          return null;
-        }
-        lastOralIssues = [];
-        return { questions: fitted };
-      },
-    });
-    if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
-    return {
-      type: "oral",
-      testedTopic: input.topicLabel,
-      questions: stampOralQuestions(outcome.data.questions, input.oralCitation),
-      teachingStandard: activity,
-    };
-  }
-
   // Kartlar ve aralıklı tekrar da öğretmen motorundan (2 Ekim 2026).
-  if (
-    TEACHER_CARD_KINDS.has(input.kind) &&
-    input.teachingV2 &&
-    env.CARDS_ENGINE === "teacher" &&
-    (input.lessonCore || input.lessonTopicOnly)
-  ) {
-    return teacherCardsPayload(input, activity, input.lessonCore ?? null);
-  }
-
-  if (input.kind === "flashcards" || input.kind === "spaced") {
-    const schema = input.teachingV2 ? flashcardV2Schema : cardsSchema;
-    const outcome = await generateJson({
-      service: input.service,
-      userId: input.userId,
-      actionCode: actionForKind(input.kind),
-      isPremium: input.isPremium,
-      ...v2Common,
-      buildIndependent: input.teachingV2
-        ? (_c, parsed) => {
-            const data = schema.safeParse(parsed).data;
-            return {
-              pedagogyIssues: data
-                ? validateFlashcardPedagogy(data.cards)
-                : ["Flashcard şeması geçersiz."],
-              minItems: 4,
-              ...sourceIndependent,
-            };
-          }
-        : undefined,
-      schemaHint: input.teachingV2
-        ? 'JSON: {"cards":[{"front":string,"back":string,"difficulty":"easy"|"medium"|"hard"}]}. Zor kartlar önce. Ön yüz cevabı sızdırmasın. Tek olgu/kart.'
-        : 'JSON: {"cards":[{"front":string,"back":string}]}',
-      userPrompt: input.teachingV2
-        ? `${ctx} 8 flashcard. difficulty=hard olanlar listenin başında. "Biliyorum" ustalığı iddiası değildir.${input.kind === "spaced" ? " Aralıklı tekrar: öğretmen notundaki çekirdek tanım ve formül önce gelsin." : ""}`
-        : `${ctx} 8 flashcard.`,
-      parse: (raw) => {
-        const data = schema.safeParse(raw).data ?? null;
-        if (!data) return null;
-        const cards = data.cards.flatMap((card) => {
-          const checked = verifyFlashcard(card.front, card.back, input.sourceBlock);
-          if (!checked) return [];
-          return [{ ...card, front: checked.front, back: checked.back }];
-        });
-        if (cards.length < 4) return null;
-        if (input.teachingV2) {
-          const issues = validateFlashcardPedagogy(cards);
-          if (issues.length) return null;
-        }
-        return { ...data, cards };
-      },
-    });
-    if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
-    return {
-      type: "cards",
-      cards: outcome.data.cards,
-      teachingStandard: activity,
-      masteryClaim: false,
-    };
+  if (TEACHER_CARD_KINDS.has(input.kind)) {
+    if (!pagesReady) throw noPages();
+    return teacherCardsPayload(input, activity, core);
   }
 
   // Doğru/yanlış öğretmen motorundan (2 Ekim 2026).
-  if (
-    input.kind === "true_false" &&
-    input.teachingV2 &&
-    env.PRACTICE_ENGINE === "teacher" &&
-    (input.lessonCore || input.lessonTopicOnly)
-  ) {
-    return teacherTrueFalsePayload(input, activity, input.lessonCore ?? null);
-  }
-
   if (input.kind === "true_false") {
-    const outcome = await generateJson({
-      service: input.service,
-      userId: input.userId,
-      actionCode: actionForKind(input.kind),
-      isPremium: input.isPremium,
-      ...v2Common,
-      buildIndependent: input.teachingV2
-        ? (_c, parsed) => {
-            const data = tfSchema.safeParse(parsed).data;
-            return {
-              pedagogyIssues: data
-                ? validateTrueFalsePedagogy(data.items, {
-                    requireMisconceptionTag: input.teachingV2,
-                  })
-                : ["Doğru/yanlış şeması geçersiz."],
-              minItems: 5,
-              ...sourceIndependent,
-            };
-          }
-        : undefined,
-      schemaHint:
-        'JSON: {"items":[{"text":string,"correct":boolean,"explanation":string,"correctedStatement":string,"misconceptionTag":string}]} ' +
-        TRUE_FALSE_FORMAT,
-      userPrompt: `${ctx} 8 doğru/yanlış önermesi. Her önerme bir kavramı veya yaygın yanılgıyı ölçsün. ${TRUE_FALSE_FORMAT}`,
-      parse: (raw) => {
-        const data = tfSchema.safeParse(raw).data ?? null;
-        if (!data) return null;
-        if (input.teachingV2) {
-          const issues = validateTrueFalsePedagogy(data.items, {
-            requireMisconceptionTag: input.teachingV2,
-          });
-          if (issues.length) return null;
-        }
-        return data;
-      },
-    });
-    if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
-    return { type: "true_false", items: outcome.data.items, teachingStandard: activity };
+    if (!pagesReady) throw noPages();
+    return teacherTrueFalsePayload(input, activity, core);
   }
 
   const outcome = await generateExamQuiz({

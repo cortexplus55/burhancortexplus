@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { finishTaughtLesson } from "@/lib/learning/lesson-teach";
 import { stripInlineSourceLine } from "@/lib/learning/lesson-source";
-import type { LessonV2 } from "@/lib/learning/teaching-standards";
 
 describe("stripInlineSourceLine", () => {
   it("extracts a trailing citation and cleans the body", () => {
@@ -41,83 +39,7 @@ describe("stripInlineSourceLine", () => {
   });
 });
 
-const MOL_SOURCE = [
-  "[s.3] pdf-12-sayfa.pdf: Mol kütlesi, bir mol maddenin gram cinsinden kütlesidir. Karbon 12 g/mol, oksijen 16 g/mol olduğunda karbondioksit 12 + 2 × 16 = 44 g/mol olur.",
-  "[s.4] pdf-12-sayfa.pdf: Kütle ile mol arasındaki bağıntı n = m / M şeklindedir. Örnek: 88 g karbondioksit için n = 88 / 44 = 2 mol. Tanecik sayısı N = n × N_A bağıntısıyla bulunur.",
-].join("\n");
-
-function baseLesson(): LessonV2 {
-  return {
-    title: "Mol kütlesi",
-    overview:
-      "Atomlar tek tek tartılamayacak kadar küçüktür. Kimyacılar bu tanecikleri mol denen paketlerle sayar.",
-    sections: [
-      {
-        heading: "Mol kütlesi",
-        body: "Mol kütlesi, bir mol maddenin gram cinsinden kütlesidir. Karbondioksitte karbon 12 g/mol ve iki oksijen 2 × 16 g/mol toplanır. Toplam 12 + 2 × 16 = 44 g/mol olur.",
-        check: {
-          type: "mcq",
-          prompt: "88 g karbondioksit kaç mol eder?",
-          options: ["2 mol", "3872 mol", "0,5 mol", "88 mol"],
-          answerIndex: 0,
-          explanation: "Bölme, kütleyi mol kütlesine böler; çarpım başka bir büyüklüktür.",
-          optionWhy: [
-            "88 / 44 = 2 mol eder.",
-            "Bölme yerine çarpma yapılmış.",
-            "Bölme ters çevrilmiş.",
-            "Verilen kütle sonuç sanılmış.",
-          ],
-        },
-      },
-    ],
-  };
-}
-
 describe("citation metadata stays out of the lesson body end-to-end", () => {
-  it("finishTaughtLesson never leaves 'Kaynak:' text in a published section body", async () => {
-    const finished = await finishTaughtLesson(baseLesson(), {
-      source: MOL_SOURCE,
-      topicLabel: "Mol kütlesi",
-    });
-    for (const section of finished.lesson.sections) {
-      expect(section.body).not.toMatch(/kaynak\s*:/i);
-    }
-  });
-
-  it("attaches the citation as structured section.source instead", async () => {
-    const finished = await finishTaughtLesson(baseLesson(), {
-      source: MOL_SOURCE,
-      topicLabel: "Mol kütlesi",
-    });
-    const withSource = finished.lesson.sections.find((section) => section.source);
-    expect(withSource?.source?.file).toBe("pdf-12-sayfa.pdf");
-    expect(typeof withSource?.source?.page).toBe("number");
-  });
-
-  it("a section note that just repeats its own body is dropped, not shown as a duplicate takeaway box", async () => {
-    const lesson = baseLesson();
-    lesson.sections[0]!.note = {
-      title: "Mol kütlesi",
-      // Near-verbatim copy of section.body above (same clause order and
-      // most words) — this is exactly the "vurgu kutusu tekrarı" pattern
-      // reported live.
-      body: "Mol kütlesi, bir mol maddenin gram cinsinden kütlesidir. Karbondioksitte karbon 12 g/mol ve iki oksijen 2 × 16 g/mol toplanır.",
-      tone: "info",
-    };
-    const finished = await finishTaughtLesson(lesson, { source: MOL_SOURCE, topicLabel: "Mol kütlesi" });
-    expect(finished.lesson.sections[0]?.note).toBeUndefined();
-  });
-
-  it("a genuinely distinct definition note survives (dedup is not overly aggressive)", async () => {
-    const lesson = baseLesson();
-    lesson.sections[0]!.note = {
-      title: "Avogadro sayısı",
-      body: "Bir molde 6,02 × 10^23 tanecik bulunur; bu sabite Avogadro sayısı denir.",
-      tone: "info",
-    };
-    const finished = await finishTaughtLesson(lesson, { source: MOL_SOURCE, topicLabel: "Mol kütlesi" });
-    expect(finished.lesson.sections[0]?.note?.title).toBe("Avogadro sayısı");
-  });
 
   it("legacy content saved before this fix (citation baked into body, no source field) still renders without crashing and can still be extracted", () => {
     // Simulates a lesson persisted before this change: no `source` field at

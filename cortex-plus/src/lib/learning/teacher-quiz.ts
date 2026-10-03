@@ -77,6 +77,10 @@ const DESIGN =
   "('hangisi değildir') en fazla bir soruda ve olumsuz ek **koyu** yazılır.\n" +
   "- explanation doğrunun nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
   "cümle, options ile aynı sırada. Hesap sorusunda steps: her adım tek işlem, kendi içinde doğru.\n" +
+  "- 'Hangisi doğrudur / hangisi özelliğidir' diye soruyorsan iki doğru kuralı yan yana şık yapma; kural bir koşula " +
+  "bağlıysa (aynı taban, aynı üs gibi) koşulu kökte ya da şıkta yaz.\n" +
+  "- Açı ya da sayı aralığı veriyorsan uç noktaların dahil olup olmadığını açıkça yaz (0° ≤ x < 360° gibi); " +
+  "'0° ile 360° arasında' uçları belirsiz bırakır ve iki cevabı doğru yapar.\n" +
   "- Yazmadan önce her soruyu kendin çöz: tek doğru cevap var mı, anahtar doğru mu, diğer şıkların her biri kesin " +
   "yanlış mı?\n\n" +
   "YAZMA: 'Kaynak:', sayfa numarası, 'metne göre', 'belgede', 'PDF'.\n\n";
@@ -130,7 +134,8 @@ const VERIFY_DOCUMENT =
   "Sen titiz bir sınav sorusu denetçisisin. Testi yazıldığı KAYNAK ile karşılaştırıyorsun. HER SORUYU ÖNCE KENDİN " +
   "ÇÖZ (anahtara bakmadan), sonra anahtarla karşılaştır. Şunları bul:\n" +
   "A) Anahtar yanlış: senin çözümün farklı bir şık.\n" +
-  "B) Birden fazla savunulabilir doğru şık ya da hiç doğru şık yok; kök belirsiz.\n" +
+  "B) Birden fazla savunulabilir doğru şık ya da hiç doğru şık yok; kök belirsiz. İki doğru kural yan yana şık " +
+  "olmuş; aralığın uç noktaları yazılmamış ve bu yüzden cevap değişiyor.\n" +
   "C) Kaynakta dayanağı olmayan ya da kaynakla çelişen bilgi (kök, şık ya da gerekçede).\n" +
   "D) explanation, optionWhy ya da steps'te yanlış bilgi; optionWhy satırının yanlış şıkka ait olması.\n" +
   "E) Kökün cevabı vermesi.\n" +
@@ -142,7 +147,8 @@ const VERIFY_TOPIC =
   "Sen titiz bir sınav sorusu denetçisisin. Belgesi olmayan bir testi doğruluk açısından denetliyorsun. HER SORUYU ÖNCE " +
   "KENDİN ÇÖZ (anahtara bakmadan), sonra anahtarla karşılaştır. Şunları bul:\n" +
   "A) Anahtar yanlış: senin çözümün farklı bir şık.\n" +
-  "B) Birden fazla savunulabilir doğru şık ya da hiç doğru şık yok; kök belirsiz.\n" +
+  "B) Birden fazla savunulabilir doğru şık ya da hiç doğru şık yok; kök belirsiz. İki doğru kural yan yana şık " +
+  "olmuş; aralığın uç noktaları yazılmamış ve bu yüzden cevap değişiyor.\n" +
   "C) Yanlış ya da tartışmalı bilgi; emin olunamayacak kadar ayrıntılı ya da güncel değişebilecek bilgi.\n" +
   "D) explanation, optionWhy ya da steps'te yanlış bilgi ya da hesap hatası; optionWhy satırının yanlış şıkka ait olması.\n" +
   "E) Kökün cevabı vermesi.\n" +

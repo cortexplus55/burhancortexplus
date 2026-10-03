@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { pageUsableForLesson } from "@/lib/documents/page-analysis";
 import { sliceNumberedSection } from "@/lib/documents/topic-title";
 import { conceptInText, conceptsWorthWidening } from "@/lib/learning/lesson-claims";
-import { topicTitlesAlign } from "@/lib/learning/lesson-teach";
+import { topicTitlesAlign } from "@/lib/learning/topic-align";
 import { hasRepetitiveSparseEvidence } from "@/lib/learning/diagnostic-evidence";
 import { MIN_CHUNK_SIMILARITY, searchDocumentChunks, type DocumentMatch } from "@/lib/rag/pipeline";
 

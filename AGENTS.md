@@ -218,10 +218,9 @@ göremez — hepsi yeşildi.
 
 Bekçi test: `tests/unit/uat-gate-guards.test.ts` → "vercel.json cron kotası".
 
-## Öğretmen ders motoru (2 Ekim 2026) — eski onarım zinciri devre dışı
+## Öğretmen ders motoru (2 Ekim 2026) — eski onarım zinciri silindi (3 Ekim 2026)
 
-Belgeli sınav hazırlığı dersleri artık `LESSON_ENGINE=teacher` (varsayılan)
-yolundan geliyor: temiz sayfa metni (`document_pages.clean_text`) → tek öğretmen
+Belgeli sınav hazırlığı dersleri öğretmen motorundan geliyor: temiz sayfa metni (`document_pages.clean_text`) → tek öğretmen
 istemi (`teacher-lesson.ts`) → model denetimi → en fazla 2 düzeltme turu.
 **Kod ders metnine hiçbir şey eklemez** — "Kaynak:" satırı, kalıp özet, dolgu
 soru yok. Denetimde yüksek sorun kalırsa ders öğrenciye gitmez, kredi iade.
@@ -235,7 +234,7 @@ Gerekçe ve altın deneme sonuçları: `docs/delivery/ICERIK-KALITE-YOL-HARITASI
 
 Belgesiz hazırlık dersleri de aynı motordan (`mode: "topic"`): aynı akış, kaynak
 kuralı yerine doğruluk kuralı, denetçi doğruluğa bakar. Hazırlık sohbeti de öğretmen
-yolunda (`TUTOR_ENGINE=teacher`, `teacher-tutor.ts`), öğrencinin seçtiği moda göre.
+yolunda (`teacher-tutor.ts`), öğrencinin seçtiği moda göre.
 
 **2 Ekim 2026: bütün içerik öğretmen motorlarında** (ürün sahibinin kararı). Hepsi
 aynı kalıp: temiz çekirdek sayfalar (dersle aynı sayfalar) → tek öğretmen istemi →
@@ -243,44 +242,28 @@ aynı kalıp: temiz çekirdek sayfalar (dersle aynı sayfalar) → tek öğretme
 ya da elenmesi → yetmezse içerik gösterilmez, kredi iade. Kod metne dokunmaz; yalnız
 biçim (başlık yazımı, gösterim/seslendirme) ve sıra (şık karıştırma, zor kart önce).
 
-| İçerik | Bayrak | Dosya |
-|---|---|---|
-| Ders (belgeli + belgesiz) | `LESSON_ENGINE` | `teacher-lesson*.ts` |
-| Hazırlık sohbeti | `TUTOR_ENGINE` | `teacher-tutor*.ts` |
-| Konu testi, tuzak, yazılı deneme, son kontrol, odaklı pratik, soru-cevap, deneme sınavı, düello, tanışma, tanı, test aracı | `QUIZ_ENGINE` | `teacher-quiz*.ts`, `exam-quiz-generate.ts` başı |
-| Podcast (5 tür) | `PODCAST_ENGINE` | `teacher-podcast*.ts` |
-| Kartlar, aralıklı tekrar | `CARDS_ENGINE` | `teacher-cards.ts` |
-| Doğru/yanlış, sözlü deneme | `PRACTICE_ENGINE` | `teacher-practice.ts` |
-| Kavram birimi (büyük konu → 2–6 sayfalık dersler) | `TOPIC_UNITS_ENGINE` | `concept-units*.ts` |
+| İçerik | Dosya |
+|---|---|
+| Ders (belgeli + belgesiz) | `teacher-lesson*.ts` |
+| Hazırlık sohbeti (`TUTOR_ENGINE`) | `teacher-tutor*.ts` |
+| Konu testi, tuzak, yazılı deneme, son kontrol, odaklı pratik, soru-cevap, deneme sınavı, düello, tanışma, tanı, test aracı | `teacher-quiz*.ts`, `exam-quiz-generate.ts` |
+| Podcast (5 tür) | `teacher-podcast*.ts` |
+| Kartlar, aralıklı tekrar | `teacher-cards.ts` |
+| Doğru/yanlış, sözlü deneme | `teacher-practice.ts` |
+| Kavram birimi (`TOPIC_UNITS_ENGINE`) | `concept-units*.ts` |
 
 Ortak parçalar: `teacher-item-loop.ts` (yedekli taslak, öğe öğe denetim, düzeltme),
 `teacher-engine-run.ts` (kredi kabuğu). Çoktan seçmeli şıklar soru metnine bağlı
 sabit sırayla karışır — model doğru cevabı neredeyse hep ilk şıkka yazıyordu.
 
-Aşağıdaki bölüm **eski** (`legacy`) yol içindir; o yol yalnız `LESSON_ENGINE=legacy`
-ve çekirdek sayfası bulunamayan belgeli derslerde çalışır. **Eski onarım katmanı
-9 Ekim 2026'da silinecek** (ürün sahibinin kararı: bir haftalık canlı veriden sonra).
-
-## Ders kalitesi: model yazıyor, zincir siliyor olabilir — önce ölç
-
-**29 Eylül 2026'da belgesiz dersler hep "kurtarma" moduna düşüyordu**:
-1–3 bölüm, ders cümlesinin kopyası "hep doğru" sorular, çözümlü örnek yok.
-Model örneği, sayısal soruyu, formül kartını, şık gerekçesini **yazıyordu**;
-yayına giden zincir (normalize → kapı → onarım → öğretim denetimi) yolda
-siliyordu. Ayrıntı: #163, #165, #166, #167, #168.
-
-| Yapmayın | Yapın |
-|---|---|
-| Ders kötü diye istemi değiştirmek | Canlı `lesson_shape` kaydına bakın: `draft` ile `published` karşılaştırması neyin nerede düştüğünü söyler |
-| Kapıyı gevşetip bırakmak | Gevşeyen her kapıdan sonra cevap anahtarını **ekrandan çözerek** doğrulayın — #166 sonrası "(3⁴)² = 3¹²" anahtarı öğrenciye gitti, `exponent-key.ts` o yüzden var |
-| Dolgu soru üretip sonra onu "kopya" diye cezalandırmak | Doldurma (`ensureThreeChecks`) ile kapı (`teachingFailures`) aynı kuralı paylaşmalı |
-
-Taslak `gpt-4.1-mini`'den geliyor ve şemadan tutarlı biçimde sapıyor: örneği
-bölümün içine yazıyor, çözümü `steps`'e koyuyor, "… Özet" / "Bilgi Kontrolü: …"
-bölümleri açıyor, üssün üssünü `3²×³` diye yazıyor. Bunlar artık
-`normalizeLessonShape` ve `coerceLessonCosmetics` içinde karşılanıyor; yeni
-bir sapma görürseniz orada karşılayın, dersi düşürmeyin. Bekçi testler:
-`lesson-draft-drift.test.ts`, `lesson-rich-fields.test.ts`, `exponent-key.test.ts`.
+**Eski taslak + onarım zinciri 3 Ekim 2026'da silindi** (ürün sahibinin kararı;
+~8.200 satır: `lesson-repair`, `lesson-teach`, `lesson-quality-pipeline`, eski
+test zinciri, `/calis` oturumu, `LESSON/QUIZ/PODCAST/CARDS/PRACTICE_ENGINE`
+anahtarları). Çekirdek sayfası bulunamayan belgeli içerik yazılmaz:
+`source_unavailable`, kredi düşmez. Eski zincirin canlı hatalardan çıkmış
+kuralları (aralık uçları, iki doğru kural yan yana şık) `teacher-quiz.ts`'in yazar
+ve denetçi istemine taşındı. Kötü içerik için kod onarımı geri getirilmez — istem
+ya da denetim düzeltilir.
 
 ## Fonksiyon bölgesi Frankfurt (`fra1`) — veritabanının yanı
 

@@ -17,7 +17,6 @@ describe("son Astra turu", () => {
       "src/app/deneme-sinavlari/[prepId]/dugum/[nodeId]/page.tsx",
       "src/app/deneme-sinavlari/[prepId]/ders/[lessonId]/page.tsx",
       "src/app/deneme-sinavlari/[prepId]/deneme/[examId]/page.tsx",
-      "src/app/deneme-sinavlari/[prepId]/calis/page.tsx",
     ]) {
       expect(readFileSync(page, "utf8")).toContain('chrome="session"');
     }

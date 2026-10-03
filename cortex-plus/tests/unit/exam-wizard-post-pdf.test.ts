@@ -7,12 +7,9 @@ import {
   fileProgressLine,
 } from "@/lib/learning/exam-wizard-copy";
 import { TUTOR_ANSWER_DISCIPLINE, tutorStylePrompt } from "@/lib/learning/tutor-style";
-import { LESSON_V2_SCHEMA_HINT, REVIEW_VARIANT_RULE } from "@/lib/learning/teaching-standards";
 
 const wizard = readFileSync("src/components/parity/exam-create-wizard.tsx", "utf8");
 const home = readFileSync("src/components/parity/exam-prep-home.tsx", "utf8");
-const lessonRoute = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
-const lessonApi = readFileSync("src/app/api/learning/exam-prep/lesson/route.ts", "utf8");
 const coach = readFileSync("src/app/api/learning/exam-prep/coach/route.ts", "utf8");
 
 describe("post-PDF wizard order", () => {
@@ -103,21 +100,6 @@ describe("post-PDF wizard order", () => {
     expect(home).not.toContain("Planın {topicCount}");
   });
 
-  it("does not skip the lesson quality gate", () => {
-    const start = lessonRoute.indexOf('if (input.kind === "lesson")');
-    const lessonBlock = lessonRoute.slice(
-      start,
-      lessonRoute.indexOf('if (input.kind === "qa")', start),
-    );
-    expect(lessonBlock).toContain("lessonPublishIssues");
-    expect(lessonBlock).toContain("lessonDraftForVerifier");
-    expect(lessonBlock).toContain("verificationContext");
-    expect(lessonBlock).toContain("allowIndependentAccept: false");
-    expect(lessonApi).toContain("lessonPublishIssues");
-    expect(lessonApi).toContain("lessonDraftForVerifier");
-    expect(lessonApi).toContain("allowIndependentAccept: false");
-  });
-
   it("keeps the tutor on hint-first discipline", () => {
     for (const style of ["step_by_step", "hints_first", "direct_solve"] as const) {
       const prompt = tutorStylePrompt(style);
@@ -128,32 +110,5 @@ describe("post-PDF wizard order", () => {
       expect(prompt).toContain("Tam isabet");
     }
     expect(coach).toContain("TUTOR_ANSWER_DISCIPLINE");
-  });
-
-  it("asks the lesson prompt for optional cards and does not require them", () => {
-    expect(lessonRoute).toContain("LESSON_V2_SCHEMA_HINT");
-    expect(LESSON_V2_SCHEMA_HINT).toContain("cards isteğe bağlı");
-    expect(LESSON_V2_SCHEMA_HINT).toContain("uydurma kart ekleme");
-    expect(LESSON_V2_SCHEMA_HINT).toContain("HIZLI SINAV");
-    expect(LESSON_V2_SCHEMA_HINT).toContain("DOĞRU MU YANLIŞ");
-    expect(LESSON_V2_SCHEMA_HINT).not.toContain("check.review");
-    expect(LESSON_V2_SCHEMA_HINT).not.toContain('"review"?:');
-    expect(LESSON_V2_SCHEMA_HINT).not.toContain('"review":{"prompt":string,"options"');
-    expect(REVIEW_VARIANT_RULE).toContain("140 karakter");
-    expect(REVIEW_VARIANT_RULE).not.toContain("review.options");
-    expect(lessonRoute).toContain("REVIEW_VARIANT_RULE");
-    expect(lessonRoute).toContain("export const maxDuration = 300");
-    expect(lessonApi).toContain("REVIEW_VARIANT_RULE");
-    expect(lessonApi).toContain("export const maxDuration = 300");
-    const podcastStart = lessonRoute.indexOf('if (input.kind === "podcast")');
-    const podcastBlock = lessonRoute.slice(
-      podcastStart,
-      lessonRoute.indexOf('if (input.kind === "oral")', podcastStart),
-    );
-    expect(podcastBlock).not.toContain("REVIEW_VARIANT_RULE");
-    expect(podcastBlock).toContain("generatePodcastEpisode");
-    const episode = readFileSync("src/lib/learning/podcast-episode.ts", "utf8");
-    expect(episode).toContain("auditQuantitative");
-    expect(episode).toContain("podcastNumbersOutsideLesson");
   });
 });

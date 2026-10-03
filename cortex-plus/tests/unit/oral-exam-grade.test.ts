@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { fluencyIssues } from "@/lib/learning/lesson-teach";
+import { fluencyIssues } from "@/lib/learning/learner-fluency";
 import { extractMisconceptions } from "@/lib/learning/teaching-standards";
 import {
   dontKnowNote,

@@ -79,12 +79,13 @@ describe("öğretmen kart motoru", () => {
 });
 
 describe("rota kartları öğretmen motoruna yollar", () => {
-  it("kartlar ve aralıklı tekrar, bayrakla; çekirdek sayfa ya da belgesiz", () => {
+  it("kartlar ve aralıklı tekrar yalnız öğretmen motorundan; çekirdek sayfa ya da belgesiz", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
     expect(route).toContain('const TEACHER_CARD_KINDS = new Set<PlanNodeKind>(["flashcards", "spaced"]);');
-    expect(route).toContain('env.CARDS_ENGINE === "teacher"');
-    expect(route).toContain("return teacherCardsPayload(input, activity, input.lessonCore ?? null);");
-    expect(readFileSync("src/lib/env.ts", "utf8")).toContain('CARDS_ENGINE: z.enum(["teacher", "legacy"]).default("teacher")');
+    expect(route).toContain("return teacherCardsPayload(input, activity, core);");
+    // Eski zincir ve motor anahtarları 3 Ekim 2026'da silindi.
+    expect(readFileSync("src/lib/env.ts", "utf8")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
+    expect(route).toContain('const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);');
   });
 });
 
