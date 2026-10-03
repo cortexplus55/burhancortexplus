@@ -261,14 +261,15 @@ describe("öğretmen istemi", () => {
     expect(prompt).toContain(`konu ya da bölüm adı değildir: ${KPSS_HEADER}`);
   });
 
-  it("rota belgeli dersi öğretmen motoruna yollar; eski motor anahtarla geri açılır", () => {
+  it("rota dersi yalnız öğretmen motoruna yollar; sayfa yoksa ders yazılmaz", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
-    expect(route).toContain('input.kind === "lesson" && input.teachingV2 && env.LESSON_ENGINE === "teacher"');
-    expect(route).toContain("if (input.lessonCore) return teacherLessonPayload(input, activity, input.lessonCore);");
-    // Belgesiz hazırlık dersi de öğretmen motorundan (2 Ekim 2026).
-    expect(route).toContain("if (input.lessonTopicOnly) return teacherLessonPayload(input, activity, null);");
+    expect(route).toContain("return teacherLessonPayload(input, activity, core);");
+    // Belgesiz hazırlık dersi de öğretmen motorundan (2 Ekim 2026): pagesReady topic_only'yi sayar.
+    expect(route).toContain("const pagesReady = Boolean(core || input.lessonTopicOnly);");
     expect(route).toContain('mode: core ? "document" : "topic"');
-    expect(readFileSync("src/lib/env.ts", "utf8")).toContain('LESSON_ENGINE: z.enum(["teacher", "legacy"]).default("teacher")');
+    // Eski zincir ve motor anahtarları 3 Ekim 2026'da silindi.
+    expect(readFileSync("src/lib/env.ts", "utf8")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
+    expect(route).toContain('const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);');
   });
 
   it("yeni hazırlık eski belgenin sayfa başlığını ve test sorusu kökünü konu yapmaz", () => {

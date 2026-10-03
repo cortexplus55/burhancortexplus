@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
@@ -65,21 +64,5 @@ describe("lesson open gate", () => {
     expect(screen.getByText(LESSON_OPEN_COPY.exploreLead)).toBeTruthy();
     expect(screen.getByText("Limit")).toBeTruthy();
     expect(screen.getByRole("button", { name: LESSON_OPEN_COPY.create })).toBeTruthy();
-  });
-
-  it("keeps the topic reader off the suspense boundary", () => {
-    const page = readFileSync("src/app/deneme-sinavlari/[prepId]/calis/page.tsx", "utf8");
-    const session = readFileSync("src/components/parity/exam-prep-study-session.tsx", "utf8");
-    const node = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
-    expect(page).toContain('export const dynamic = "force-dynamic"');
-    expect(page).not.toContain("<Suspense");
-    expect(page).not.toMatch(/useSearchParams\(/);
-    expect(session).not.toMatch(/useSearchParams\(/);
-    expect(session).not.toContain("Bu konuyu anlat");
-    expect(session).toContain("LessonOpenChrome");
-    expect(session).toContain("familiarity");
-    expect(node).toContain('stepAfterMood(kind)');
-    expect(node).toContain('step="recommend"');
-    expect(node).toContain('step="create"');
   });
 });

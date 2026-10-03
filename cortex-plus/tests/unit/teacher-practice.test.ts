@@ -80,11 +80,13 @@ describe("sözlü deneme", () => {
 });
 
 describe("rota doğru/yanlış ve sözlüyü öğretmen motoruna yollar", () => {
-  it("bayrakla; doğru/yanlış çekirdek sayfadan, sözlü kaynak bloğundan", () => {
+  it("yalnız öğretmen motoru; doğru/yanlış çekirdek sayfadan, sözlü kaynak bloğundan", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
     expect(route).toContain('"podcast", "true_false"]);');
-    expect(route).toContain("return teacherTrueFalsePayload(input, activity, input.lessonCore ?? null);");
+    expect(route).toContain("return teacherTrueFalsePayload(input, activity, core);");
     expect(route).toContain("return teacherOralPayload(input, activity, input.oralQuestionCount ?? Math.min(8, Math.max(3, quizCount)));");
-    expect(readFileSync("src/lib/env.ts", "utf8")).toContain('PRACTICE_ENGINE: z.enum(["teacher", "legacy"]).default("teacher")');
+    // Eski zincir ve motor anahtarları 3 Ekim 2026'da silindi.
+    expect(readFileSync("src/lib/env.ts", "utf8")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
+    expect(route).toContain('const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);');
   });
 });

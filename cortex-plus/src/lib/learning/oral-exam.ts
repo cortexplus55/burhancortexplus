@@ -17,7 +17,7 @@ import {
   gradeStudentClaim,
   repairQuantitative,
 } from "@/lib/learning/tutor-quant";
-import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
+import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/example-completeness";
 import {
   isScoreLabel,
   polishLearnerText,

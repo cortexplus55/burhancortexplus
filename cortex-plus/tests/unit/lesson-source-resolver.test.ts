@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { analyzePage, pageUsableForLesson } from "@/lib/documents/page-analysis";
-import { topicTitlesAlign } from "@/lib/learning/lesson-teach";
+import { topicTitlesAlign } from "@/lib/learning/topic-align";
 import { parseTopicSourceRefs } from "@/lib/learning/topic-source-refs";
 import { MIN_USABLE_LESSON_CHARS } from "@/lib/learning/source-context";
 

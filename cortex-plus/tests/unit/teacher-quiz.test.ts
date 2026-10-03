@@ -146,9 +146,10 @@ describe("şık karıştırma ve eski çağıranlar", () => {
     expect(prompt).not.toContain("SINAV:");
   });
 
-  it("eski test üreticisi öğretmen motoruna gider; çok doğrulu eski profil eski yolda", () => {
+  it("test üreticisi yalnız öğretmen motoru; eski zincir yok", () => {
     const source = readFileSync("src/lib/learning/exam-quiz-generate.ts", "utf8");
-    expect(source).toContain('if (env.QUIZ_ENGINE === "teacher" && input.engine !== "legacy" && input.teachingV2 !== false) {');
+    expect(source).toContain("const outcome = await runTeacherQuiz(input.service, {");
+    expect(source).not.toContain("generateJson");
     expect(source).toContain("deferCommit: input.deferCommit,");
     for (const caller of [
       "src/app/api/learning/exam-prep/duel/route.ts",
@@ -163,11 +164,12 @@ describe("şık karıştırma ve eski çağıranlar", () => {
 });
 
 describe("rota test düğümünü öğretmen motoruna yollar", () => {
-  it("konu testi ve tuzak soruları, bayrakla; çekirdek sayfa ya da belgesiz", () => {
+  it("konu testi ve tuzak soruları yalnız öğretmen motorundan; çekirdek sayfa ya da belgesiz", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
     expect(route).toContain('const TEACHER_QUIZ_KINDS = new Set<PlanNodeKind>(["quiz", "gaps"]);');
-    expect(route).toContain('env.QUIZ_ENGINE === "teacher"');
-    expect(route).toContain("return teacherQuizPayload(input, activity, input.lessonCore ?? null, Math.max(5, quizCount));");
-    expect(readFileSync("src/lib/env.ts", "utf8")).toContain('QUIZ_ENGINE: z.enum(["teacher", "legacy"]).default("teacher")');
+    expect(route).toContain("return teacherQuizPayload(input, activity, core, Math.max(5, quizCount));");
+    // Eski zincir ve motor anahtarları 3 Ekim 2026'da silindi.
+    expect(readFileSync("src/lib/env.ts", "utf8")).not.toMatch(/(LESSON|QUIZ|PODCAST|CARDS|PRACTICE)_ENGINE: z/);
+    expect(route).toContain('const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);');
   });
 });

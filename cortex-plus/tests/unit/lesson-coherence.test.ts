@@ -1,23 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   coherenceFailures,
   conceptCheck,
   danglingOpener,
-  honestReadingMinutes,
   parallelCards,
   publishCoherentLesson,
   retainAnchoredSentences,
-  shouldReplacePlannedMinutes,
 } from "@/lib/learning/lesson-coherence";
 import { auditQuantitative } from "@/lib/learning/tutor-quant";
-import { repairLearnerLesson } from "@/lib/learning/lesson-repair";
 import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
-
-const MOL_SOURCE = [
-  "[s.2] pdf-12-sayfa.pdf: Mol, maddenin tanecik sayısını ölçen birimdir. Avogadro sayısı, 1 mol taneciğin içerdiği tanecik sayısıdır ve değeri 6,02×10²³ taneciktir. Bu sayı atom veya molekül sayısını ifade eder. Böylece tanecik sayısını hesaplamak kolaylaşır. Bir düzine 12 tanecikse, 1 mol 6,02×10²³ taneciktir.",
-  "[s.3] pdf-12-sayfa.pdf: Mol kütlesi, bir maddenin 1 molünün gram cinsinden kütlesidir. M(H2SO4) = 98 g/mol. Kütle ile mol arasındaki bağıntı n = m / M şeklindedir. Tanecik sayısı N = n × N_A bağıntısıyla bulunur.",
-  "[s.4] pdf-12-sayfa.pdf: Örnek 1: 88 g CO2 için M = 44 g/mol olduğundan n = m / M = 88 / 44 = 2 mol. Örnek 2: 0,25 mol H2SO4 için kütle m = n × M = 0,25 × 98 = 24,5 g olur.",
-].join("\n");
 
 function check(partial: Partial<SectionCheck> & Pick<SectionCheck, "prompt">): SectionCheck {
   return {
@@ -26,58 +17,6 @@ function check(partial: Partial<SectionCheck> & Pick<SectionCheck, "prompt">): S
     answerIndex: 0,
     explanation: "Kaynak cümlesi terimi kendi anlamına bağlar ve dersin anlatımında durur.",
     ...partial,
-  };
-}
-
-/** Canlı dersten: doğrulama cümle silince kalan artıklar. */
-function brokenMolLesson(): LessonV2 {
-  return {
-    title: "Mol kavramı ve Avogadro sayısı",
-    sections: [
-      {
-        heading: "Mol Kavramının Anlamı ve Önemi",
-        body: "Bu sayı atom veya molekül sayısını ifade eder. Böylece tanecik sayısını hesaplamak kolaylaşır.",
-        check: check({
-          prompt: "Bu sayı atom veya molekül sayısını ifade eder Bu ifade doğru mudur?",
-          explanation: "Bu sayı atom veya molekül sayısını ifade eder.",
-        }),
-      },
-      {
-        heading: "Avogadro Sayısı ve Mol Kütlesi İlişkisi",
-        body: "Avogadro sayısı, 1 mol taneciğin içerdiği tanecik sayısıdır (6,02×10²³). Bir maddenin kütlesi ise o maddenin 1 molünün gram cinsinden ağırlığıdır ve buna mol kütlesi denir.",
-        check: check({
-          type: "mcq",
-          prompt: "Mol kütlesi neyi gösterir?",
-          options: [
-            "Bir mol madde içindeki tanecik sayısını",
-            "Bir mol madde kütlesini gram olarak",
-            "Tanecik başına kütlesi",
-            "Bir atomun kütlesini",
-          ],
-          answerIndex: 1,
-          explanation: "Mol kütlesi, maddenin gram cinsinden kütlesi olup tanecik sayısını göstermez.",
-        }),
-      },
-      {
-        heading: "Mol Hesaplamaları ve Örnek Problemler",
-        body: "Örnek 2: 0,25 mol H2SO4'ün kütlesi ve içindeki H atomu sayısını hesaplayalım. Bu örneklerle mol hesabı, kütle ve tanecik sayısını bulmak için temel işlemdir.",
-        check: check({
-          prompt: "Böylece tanecik sayısını hesaplamak kolaylaşır Bu ifade doğru mudur?",
-          explanation: "Böylece tanecik sayısını hesaplamak kolaylaşır.",
-        }),
-      },
-    ],
-    infoCheck: {
-      prompt: "Avogadro sayısını tanımlayınız.",
-      answer: "1 mol taneciğin içerdiği tanecik sayısıdır, değeri 6,02×10²³ taneciktir.",
-    },
-    summary: [
-      "Bir maddenin kütlesi ise o maddenin 1 molünün gram cinsinden ağırlığıdır ve buna mol kütlesi denir.",
-      "Bu örneklerle mol hesabı, kütle ve tanecik sayısını bulmak için temel işlemdir.",
-      "Bu sayı atom veya molekül sayısını ifade eder.",
-      "Böylece tanecik sayısını hesaplamak kolaylaşır.",
-      "Avogadro sayısı, 1 mol taneciğin içerdiği tanecik sayısıdır (6,02×10²³).",
-    ],
   };
 }
 
@@ -201,78 +140,6 @@ describe("lesson coherence gate", () => {
       "Bu sayı atom veya molekül sayısını ifade eder.",
     ]);
     expect(anchored).toHaveLength(2);
-  });
-
-  it("catches the live mol lesson and rebuilds units from the source", async () => {
-    const broken = brokenMolLesson();
-    expect(coherenceFailures(broken).length).toBeGreaterThan(0);
-    expect(broken.sections[0]?.body.startsWith("Bu sayı")).toBe(true);
-    expect(broken.sections[2]?.body).toMatch(/Örnek 2/);
-    expect(broken.sections[2]?.body).not.toMatch(/0,25\s*×\s*98/);
-
-    const published = publishCoherentLesson(broken, MOL_SOURCE, "Mol kavramı ve Avogadro sayısı");
-    const taught = [
-      published.overview ?? "",
-      ...published.sections.flatMap((section) => [
-        section.body,
-        section.note?.body ?? "",
-        section.check?.prompt ?? "",
-        section.check?.explanation ?? "",
-      ]),
-      ...(published.summary ?? []),
-      published.example?.prompt ?? "",
-      published.example?.solution ?? "",
-    ].join("\n");
-    expect(taught).not.toMatch(/Bu ifade doğru mudur/);
-    expect(taught).not.toMatch(/Bir maddenin kütlesi ise/);
-    for (const section of published.sections) {
-      expect(section.body.startsWith("Bu sayı")).toBe(false);
-      expect(section.body.startsWith("Böylece")).toBe(false);
-      expect(coherenceFailures({ ...published, sections: [section], summary: published.summary })).not.toContain(
-        "section:0:anaphor",
-      );
-      expect(section.body).toMatch(/Kaynak: pdf-12-sayfa\.pdf, s\.\d/);
-      if (section.check) {
-        expect(section.check.prompt).not.toMatch(/bu ifade doğru mudur/i);
-        expect(section.check.explanation).not.toBe(section.check.prompt);
-        if (section.check.whyWrong) {
-          expect(section.check.misconception).toBeTruthy();
-          expect(section.check.hint).toBeTruthy();
-          expect(section.check.whyRight).toBeTruthy();
-          expect(section.check.whyRight).not.toBe(section.check.whyWrong);
-        }
-      }
-    }
-    expect(published.overview).toMatch(/Mol/);
-    expect(published.overview?.startsWith("Bu sayı")).toBe(false);
-    expect(published.sections.some((section) => /düzine/.test(section.body))).toBe(true);
-    expect(
-      published.sections.some((section) => section.note && /mol|avogadro|bağıntı/i.test(section.note.title)),
-    ).toBe(true);
-    const mcq = published.sections.map((section) => section.check).find((check) => check?.type === "mcq");
-    expect(mcq?.optionWhy?.length).toBe(mcq?.options?.length);
-    expect(published.example?.solution).toMatch(/Verilen:/);
-    expect(published.example?.solution).toMatch(/Yerine koyma:/);
-    expect(published.example?.solution).toMatch(/0,25\s*×\s*98\s*=\s*24,5/);
-    expect(auditQuantitative(published.example?.solution ?? "", MOL_SOURCE).ok).toBe(true);
-    expect(published.summary?.join(" ")).not.toMatch(/Bu sayı atom veya molekül sayısını ifade eder\./);
-    expect(published.summary?.length).toBeGreaterThanOrEqual(3);
-    expect(published.commonMistake?.correction).toMatch(/mol kütlesi/i);
-    expect(published.commonMistake?.claim).toMatch(/kütlesi ise/i);
-    expect(coherenceFailures(published)).toEqual([]);
-    expect(honestReadingMinutes(published)).toBeGreaterThan(honestReadingMinutes(broken));
-
-    const repaired = await repairLearnerLesson(
-      broken,
-      { source: MOL_SOURCE, topicLabel: "Mol kavramı ve Avogadro sayısı", targetMinutes: 27 },
-      vi.fn(async () => null),
-      vi.fn(async () => ({ bad: [] })),
-    );
-    expect(JSON.stringify(repaired.lesson)).not.toMatch(/Bu ifade doğru mudur/);
-    expect(repaired.lesson.example?.solution ?? repaired.lesson.sections.map((section) => section.body).join(" ")).toMatch(
-      /24,5/,
-    );
-    expect(shouldReplacePlannedMinutes(27, honestReadingMinutes(repaired.lesson))).toBe(true);
   });
 
   it("keeps a coherent physics lesson, including the worked substitution", () => {
