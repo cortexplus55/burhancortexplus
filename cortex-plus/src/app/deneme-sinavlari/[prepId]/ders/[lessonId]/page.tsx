@@ -50,7 +50,7 @@ export default async function ExamPrepLessonPage({
     : null;
 
   return (
-    <ParitySorShell {...shell} chrome="exam">
+    <ParitySorShell {...shell} chrome="session">
       <article className="cp-exam-page cp-lesson-page">
         <Link href={`/deneme-sinavlari/${prepId}`} className="cp-back-pill">
           ← Geri

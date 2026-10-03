@@ -45,7 +45,7 @@ export const CANONICAL_FEATURES = {
 } as const;
 
 /**
- * Ana Sayfa · Sınavlar · Araçlar · Belgeler · Profil
+ * Ana Sayfa · Sınavlar · Araçlar · Profil
  *
  * 30 Eylül 2026: Ana Sayfa sohbet (Astra'da ilk sekme "Sor"). Ayrı "AI"
  * sekmesi aynı yere gidiyordu; yerini Astra'nın ikinci sekmesi Sınavlar aldı.
@@ -53,7 +53,8 @@ export const CANONICAL_FEATURES = {
  * 3 Ekim 2026: "Çalış" sekmesi kalktı. O ekran bütün hazırlıkları ve
  * belgeleri tek programda karıştırıyordu (trigonometri programının altında
  * zemin mekaniği ve pediatri tekrarları). Astra'da her sınavın yolu yalnız
- * kendi kartında; üçüncü sekme Uygulamalar — bizde Araçlar.
+ * kendi kartında; üçüncü sekme Uygulamalar — bizde Araçlar. Belgeler
+ * sekmesi de kalktı (Astra'da yok): "Daha fazla" menüsünde.
  */
 export const studentBottomTabs: StudentNavItem[] = [
   {
@@ -88,13 +89,6 @@ export const studentBottomTabs: StudentNavItem[] = [
       p.startsWith("/soru-coz") ||
       p.startsWith("/yanlislarim") ||
       p.startsWith("/gunluk"),
-  },
-  {
-    id: "docs",
-    href: "/dokumanlar",
-    label: "Belgeler",
-    icon: FileText,
-    match: (p) => p.startsWith("/dokumanlar"),
   },
   {
     id: "profile",
