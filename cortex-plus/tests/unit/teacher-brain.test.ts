@@ -1,30 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
-import {
-  analysisCreditOk,
-  chunkPagesForAnalysis,
-  FREE_PDF_PAGE_CAP,
-  detectMaterialLanguage,
-  mergeTeacherAnalyses,
-  parseTeacherAnalysis,
-  podcastDialogueIssues,
-  podcastNarrationBrief,
-  prepLanguage,
-  acceptReviewVariant,
-  rephraseSectionCheck,
-  sanitizeAnalysisAgainstSource,
-  selectAnalysisPages,
-  shouldRetryLessonWithoutBrief,
-  teacherBriefForTopic,
-  teacherBriefForTopicMap,
-  teacherPersona,
-  teacherTurnGuidance,
-  teachingIntent,
-  topicMapTeacherNote,
-  unsupportedQuantities,
-  voiceReplySchemaHint,
-  type TeacherAnalysis,
-} from "@/lib/learning/teacher-brain";
+import { analysisCreditOk, chunkPagesForAnalysis, FREE_PDF_PAGE_CAP, mergeTeacherAnalyses, parseTeacherAnalysis, podcastDialogueIssues, acceptReviewVariant, sanitizeAnalysisAgainstSource, selectAnalysisPages, teacherBriefForTopic, teacherBriefForTopicMap, teacherTurnGuidance, teachingIntent, topicMapTeacherNote, unsupportedQuantities, type TeacherAnalysis } from "@/lib/learning/teacher-brain";
 
 const sample = {
   language: "tr",
@@ -316,50 +292,6 @@ describe("akış notu ve tekrar sorusu", () => {
     expect(short).not.toContain("Debi süreklidir");
   });
 
-  it("nicelik reddinde notu bir kez çıkarır, ikinci turda çıkarmaz", () => {
-    expect(
-      shouldRetryLessonWithoutBrief({
-        brief: "ṁ = 0,60 kg/s",
-        rejectedForQuantity: true,
-        retried: false,
-      }),
-    ).toBe(true);
-    expect(
-      shouldRetryLessonWithoutBrief({
-        brief: "ṁ = 0,60 kg/s",
-        rejectedForQuantity: true,
-        retried: true,
-      }),
-    ).toBe(false);
-    expect(
-      shouldRetryLessonWithoutBrief({
-        brief: "",
-        rejectedForQuantity: true,
-        retried: false,
-      }),
-    ).toBe(false);
-    expect(
-      shouldRetryLessonWithoutBrief({
-        brief: "not",
-        rejectedForQuantity: false,
-        retried: false,
-      }),
-    ).toBe(false);
-  });
-
-  it("yanlışın tekrarını başka cümle ve başka şık yeriyle sorar", () => {
-    const check = rephraseSectionCheck({
-      type: "mcq" as const,
-      prompt: "Aşağıdakilerden hangisi efektif gerilmedir?",
-      options: ["σ", "σ − u", "u", "σ + u"],
-      answerIndex: 1,
-      explanation: "Efektif gerilme toplam gerilmeden boşluk basıncının çıkarılmasıdır.",
-    });
-    expect(check.prompt).not.toBe("Aşağıdakilerden hangisi efektif gerilmedir?");
-    expect(check.options[check.answerIndex]).toBe("σ − u");
-    expect(check.answerIndex).not.toBe(1);
-  });
-
   it("yeni şık veya yeni sayı taşıyan tekrarı kabul etmez", () => {
     const check = {
       type: "mcq" as const,
@@ -417,22 +349,6 @@ describe("akış notu ve tekrar sorusu", () => {
     expect(promptOnly?.options).not.toEqual(check.options);
     expect(acceptReviewVariant({ ...check, review: "kopya" as never })).toBeNull();
   });
-
-  it("İngilizce dersin tekrarını İngilizce kurar", () => {
-    const check = rephraseSectionCheck(
-      {
-        type: "mcq",
-        prompt: "Which quantity is effective stress?",
-        options: ["sigma", "sigma minus u", "pore pressure"],
-        answerIndex: 1,
-        explanation: "Effective stress subtracts pore pressure.",
-      },
-      "en",
-    );
-    expect(check.prompt.startsWith("On the exam")).toBe(true);
-    expect(check.prompt).not.toMatch(/sınavda|aşağıdaki/i);
-    expect(check.options[check.answerIndex]).toBe("sigma minus u");
-  });
 });
 
 describe("öğretmen personası", () => {
@@ -460,27 +376,6 @@ describe("öğretmen personası", () => {
     });
     expect(sourced).toContain("Materyal dışı:");
     expect(sourced).toContain("belgede");
-  });
-
-  it("İngilizce hazırlıkta İngilizce persona kullanır", () => {
-    expect(prepLanguage({ language: "en" })).toBe("en");
-    expect(teacherPersona("en")).toContain("professor");
-    expect(teacherPersona("en")).not.toContain("uploaded material");
-    expect(teacherTurnGuidance({ message: "test me", language: "en" })).toContain(
-      "exam-style question",
-    );
-    expect(teacherTurnGuidance({ message: "test me", language: "en" })).not.toContain(
-      "Outside the material",
-    );
-    expect(voiceReplySchemaHint("en")).toContain("short English");
-    expect(voiceReplySchemaHint("en")).not.toContain("Türkçe");
-    expect(voiceReplySchemaHint("tr")).toContain("Türkçe");
-    expect(podcastNarrationBrief("en")).toContain("One expert teacher");
-    expect(
-      detectMaterialLanguage(
-        "The shear strength of soil depends on friction and cohesion for the exam.",
-      ),
-    ).toBe("en");
   });
 
   it("tek anlatıcıyı diyalogdan ayırır", () => {

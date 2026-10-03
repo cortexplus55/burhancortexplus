@@ -3,7 +3,6 @@
  * Saklanan metin değişmez; öğrenci okurken cümle yığını açılır.
  */
 
-import { foldTr } from "@/lib/documents/page-analysis";
 
 export type BoardLine = { kind: "prose" | "formula"; text: string };
 
@@ -53,12 +52,6 @@ export const LETTER_TO_SUB: Record<string, string> = {
   x: "ₓ",
 };
 
-const SUB_TO_LETTER: Record<string, string> = Object.fromEntries(
-  Object.entries(LETTER_TO_SUB).map(([letter, sub]) => [sub, letter]),
-);
-
-const SUB_CHARS = Object.values(LETTER_TO_SUB).join("");
-
 function subOf(letter: string): string {
   if (letter !== letter.toLocaleLowerCase("tr")) return `_${letter}`;
   return LETTER_TO_SUB[letter] ?? `_${letter}`;
@@ -69,48 +62,6 @@ export function preserveSubscriptLetters(text: string): string {
   return text
     .replace(/_\{([A-Za-z])\}/g, (_match, letter: string) => subOf(letter))
     .replace(/_([A-Za-z])(?![A-Za-z0-9])/g, (_match, letter: string) => subOf(letter));
-}
-
-function subscriptPairs(text: string): Map<string, Set<string>> {
-  const found = new Map<string, Set<string>>();
-  const add = (base: string, letter: string) => {
-    const key = base.toLowerCase();
-    const set = found.get(key) ?? new Set<string>();
-    set.add(letter);
-    found.set(key, set);
-  };
-  for (const match of text.matchAll(/([A-Za-zΔδ])_\{?([A-Za-z])\}?(?![A-Za-z0-9])/g)) {
-    add(match[1], match[2]);
-  }
-  const sub = new RegExp(`([A-Za-zΔδ])([${SUB_CHARS}])`, "g");
-  for (const match of text.matchAll(sub)) {
-    const letter = SUB_TO_LETTER[match[2]];
-    if (letter) add(match[1], letter);
-  }
-  return found;
-}
-
-/**
- * Dersteki alt simge, kaynağın aynı tabanındaki harften farklıysa
- * kaynağın harfine döner. Kaynakta tek alt simge yoksa metin durur.
- */
-export function alignSymbolSubscripts(text: string, source: string): string {
-  const allowed = subscriptPairs(source);
-  const swap = (base: string, letter: string, original: string) => {
-    const set = allowed.get(base.toLowerCase());
-    if (!set || set.size !== 1) return original;
-    const wanted = [...set][0];
-    if (!wanted || wanted === letter) return original;
-    return `${base}${subOf(wanted)}`;
-  };
-  return preserveSubscriptLetters(text)
-    .replace(/([A-Za-zΔδ])_\{?([A-Za-z])\}?(?![A-Za-z0-9])/g, (full, base: string, letter: string) =>
-      swap(base, letter, full),
-    )
-    .replace(new RegExp(`([A-Za-zΔδ])([${SUB_CHARS}])`, "g"), (full, base: string, sub: string) => {
-      const letter = SUB_TO_LETTER[sub];
-      return letter ? swap(base, letter, full) : full;
-    });
 }
 
 /** Koyu işaret öğrenci metninde ya kalın ya da düz yazıdır; yıldız görünmez. */
@@ -126,12 +77,6 @@ export function studentTextParts(text: string): { bold: boolean; text: string }[
     .filter((part) => part.text.length > 0);
 }
 
-export function studentVisibleText(text: string): string {
-  return studentTextParts(text)
-    .map((part) => part.text)
-    .join("");
-}
-
 /** "P r" ve "∫ 1 2" alt simge ile integral sınırına döner. */
 export function restoreMathNotation(text: string): string {
   return preserveSubscriptLetters(text)
@@ -144,34 +89,6 @@ export function restoreMathNotation(text: string): string {
     .replace(/\b([PT])\s+cr\b/g, "$1_cr")
     .replace(/\b([PT])cr\b/g, "$1_cr")
     .replace(/\b([PT])\s+r\b/g, "$1ᵣ");
-}
-
-/** Formül cümleden ayrılınca "ise ile bulunur" boşluğu kalmışsa cümle bozuktur. */
-export function gappedFormulaFrame(text: string): boolean {
-  return /\bise\s+ile\s+(bulunur|hesaplanir|ifade edilir)/.test(foldTr(text));
-}
-
-/** Çerçeve düşer; formül duruyorsa cümlede kalır. */
-export function repairGappedFrame(sentence: string): string | null {
-  if (!gappedFormulaFrame(sentence)) return sentence;
-  const kept = sentence
-    .replace(/toplam\s+iş\s+ise\s+ile\s+bulunur\s*:?/gi, "")
-    .replace(/\bise\s+ile\s+(?:bulunur|hesaplanır|hesaplanir|ifade\s+edilir)\s*:?/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (kept.length < 8 || gappedFormulaFrame(kept)) return null;
-  return kept;
-}
-
-/**
- * İki bağıntı araya nokta konmadan yapışırsa cümle bölünür.
- * "W = ∫₁² P dV Sabit basınçta W = …" okunur hâle gelir.
- */
-export function separateRunOnFormulas(text: string): string {
-  return text.replace(
-    /(=)\s*((?:[^,.;=\n])+?)\s+(?=[A-ZÇĞİÖŞÜ][A-Za-zÇĞİÖŞÜçğıöşü]{3,}\s)/g,
-    (_match, eq: string, right: string) => `${eq} ${right.trim()}. `,
-  );
 }
 
 function plain(text: string): string {

@@ -1,13 +1,4 @@
-/**
- * Stage 8 — attempt / generation lifecycle helpers (pure).
- * Runtime writes only when pdf_learning_v2 is ON.
- */
 
-export type AttemptLifecycleStatus =
-  | "creating"
-  | "active"
-  | "failed"
-  | "completed";
 
 /** Product vocabulary: ready ≡ active (DB legacy name). */
 export type PublicAttemptState = "creating" | "ready" | "failed" | "completed";
@@ -42,37 +33,6 @@ export function mergeAnswersForScoring(
     merged[key] = value;
   }
   return merged;
-}
-
-export function stripMetaFromAnswers(
-  answers: Record<string, unknown>,
-): Record<string, unknown> {
-  const rest = { ...answers };
-  delete rest.__meta;
-  return rest;
-}
-
-/** Reject overwrites when generation or version does not match the live attempt. */
-export function isStaleWrite(input: {
-  attemptGenerationId: string | null | undefined;
-  requestGenerationId: string | null | undefined;
-  attemptVersion: number;
-  expectedVersion: number | null | undefined;
-}): boolean {
-  if (
-    input.requestGenerationId &&
-    input.attemptGenerationId &&
-    input.requestGenerationId !== input.attemptGenerationId
-  ) {
-    return true;
-  }
-  if (
-    typeof input.expectedVersion === "number" &&
-    input.expectedVersion !== input.attemptVersion
-  ) {
-    return true;
-  }
-  return false;
 }
 
 export function shouldReuseExistingStart(input: {

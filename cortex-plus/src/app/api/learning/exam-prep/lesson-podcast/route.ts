@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
-import { generatePodcastFromLesson } from "@/lib/learning/podcast-from-lesson";
+import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
+import { DEFAULT_PODCAST_LENGTH } from "@/lib/learning/podcast-formats";
+import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 import { lessonV2Schema } from "@/lib/learning/teaching-standards";
 
 /**
@@ -42,7 +44,6 @@ export async function POST(request: Request) {
   if (!requireFeature(entitlements, "podcast")) {
     return errorResponse(402, "premium_required");
   }
-  const premium = entitlements.isPremium;
 
   const { data: topic } = await service
     .from("exam_prep_topics")
@@ -66,32 +67,26 @@ export async function POST(request: Request) {
     : null;
   if (!lesson) return errorResponse(409, "lesson_required");
 
-  // Reddedilen taslakların gerekçesi. Podcast üretimi bir kez susarak
-  // tıkandı ve altı tur tahminle uğraşıldı; ölçüm sebebi tek turda
-  // buldu. Gerekçe logda kalıyor, yanıta girmiyor: doğrulayıcının iç
-  // mesajı öğrencinin göreceği bir şey değil.
-  const rejections: string[][] = [];
-
-  const outcome = await generatePodcastFromLesson({
-    service,
+  // Öğretmen podcast motoru (3 Ekim 2026): dersin kendisi kaynak; belgeyle
+  // eşleme ve modelin düzeltmesi. Eski tek-taslak zinciri kalktı.
+  const outcome = await runTeacherPodcast(service, {
+    mode: "document",
+    length: DEFAULT_PODCAST_LENGTH,
     userId,
-    isPremium: premium,
-    prepTitle: prep.title ?? "Hazırlık",
+    actionCode: "STUDY_PLAN_GENERATE",
+    idempotencyKey: `lesson-podcast:${userId}:${topicId}:${crypto.randomUUID()}`,
     topicLabel: topic.label ?? "Konu",
-    lesson,
-    onReject: (issues) => rejections.push(issues),
+    prepTitle: prep.title ?? "Hazırlık",
+    pages: [],
+    lessonText: lessonPodcastBrief(lesson),
   });
   if (!outcome.ok) {
-    console.error("lesson podcast rejected", {
-      topicId,
-      attempts: rejections.length,
-      rejections,
-    });
+    console.error("lesson podcast rejected", { topicId, reasons: outcome.reasons });
     return errorResponse(outcome.status, outcome.error);
   }
 
   return NextResponse.json({
-    title: outcome.data.title,
-    chapters: outcome.data.chapters,
+    title: outcome.episode.title,
+    chapters: outcome.episode.chapters,
   });
 }

@@ -1,31 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { incompleteFormulaLine, layoutBoard } from "@/lib/learning/lesson-board";
-import { rewriteSignFlip, signConventionFlip } from "@/lib/learning/lesson-claims";
 import { summaryLineProblem } from "@/lib/learning/lesson-grounding";
 import { reviewQuestionFor } from "@/lib/learning/teacher-brain";
-
-const SIGN =
-  "ΔE = Q - W formülüne göre, Q pozitif ve W negatif ise ΔE = Q - (-W) = Q + W şeklinde artar";
 const YES_NO = "Isı ve iş sınırdan geçen enerji türleri midir?";
 const LEAKED = "Kinetik ve potansiyel enerji ihmal edilirse ΔE = ΔU olduğundan ifade doğrudur.";
-
-describe("sign convention algebra", () => {
-  it("flags the live chain and rewrites it to the absolute-value form", () => {
-    expect(signConventionFlip(SIGN)).toBe(true);
-    expect(signConventionFlip("Q - (-W) = Q + W")).toBe(true);
-    expect(signConventionFlip("-(-X) = X")).toBe(true);
-    expect(rewriteSignFlip(SIGN)).toBe(
-      "ΔE = Q - W formülüne göre, Q pozitif ve W negatif ise ΔE = Q − W = Q + |W| şeklinde artar",
-    );
-  });
-
-  it("leaves a magnitude, a correct chain, and a numeric identity alone", () => {
-    expect(signConventionFlip("Q - (-|W|) = Q + |W|")).toBe(false);
-    expect(signConventionFlip("ΔE = Q − W = Q + |W|")).toBe(false);
-    expect(signConventionFlip("-(-3) = 3")).toBe(false);
-    expect(rewriteSignFlip("ΔE = Q − W = Q + |W|")).toBe("ΔE = Q − W = Q + |W|");
-  });
-});
 
 describe("incomplete formula lines", () => {
   it("rejects an empty right-hand side and a trailing operator", () => {

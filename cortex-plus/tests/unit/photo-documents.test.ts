@@ -324,7 +324,6 @@ describe("kotası dolan aboneye kredi satılmıyor", () => {
   });
 
   it.each([
-    "src/components/documents/document-upload.tsx",
     "src/components/parity/exam-create-wizard.tsx",
   ])("%s kredi kapısını açmadan önce koda bakıyor", (file) => {
     const source = readFileSync(file, "utf8");

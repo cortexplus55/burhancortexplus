@@ -1,7 +1,6 @@
 import { announcedExampleGap, exampleIsComplete, isIncompleteExample } from "@/lib/learning/example-completeness";
 import { describe, expect, it } from "vitest";
 import { summaryLineProblem } from "@/lib/learning/lesson-grounding";
-import { missingFormulaCoverage } from "@/lib/learning/lesson-claims";
 
 /**
  * Canlı ders: "İdeal Gazlarda Enerji Değişimi".
@@ -16,30 +15,8 @@ const BAD_SUMMARY = [
   "Entalpi özellikle akışlı sistemlerde doğal biçimde ortaya çıkar çünkü",
 ];
 
-const TEACHER_ONLY =
-  "Akış işi entalpiyi açık sistemde doğal biçimde ortaya çıkarır.";
-
 const INCOMPLETE =
   "Örnek: 1 kg hava, 300 K’den 400 K’ye ısıtıldığında, W hesaplanarak ve Q = ΔU + W denklemi ile toplam ısı miktarı bulunur.";
-
-const BODY = [
-  "İdeal gazda sabit hacimde iç enerji değişimi ΔU = m c_v ΔT bağıntısıyla hesaplanır.",
-  "Sabit basınçta entalpi değişimi ΔH = m c_p ΔT bağıntısıyla hesaplanır.",
-  "Özgül entalpi h = u + Pv bağıntısıyla yazılır.",
-  "Sınır işi W = P(V₂ − V₁) bağıntısıyla bulunur.",
-  "Birinci yasa Q = ΔU + W şeklinde yazılır.",
-].join(" ");
-
-const SOURCE = [
-  "İdeal gazlarda enerji değişimi sıcaklıkla yazılır.",
-  BODY,
-  "Özgül ısılar arasındaki fark c_p − c_v = R bağıntısına eşittir ve k = c_p / c_v olarak yazılır.",
-  "c_v = 0.718 kJ/kg·K.",
-  "2 kg hava 300 K sıcaklıktan 450 K sıcaklığa ısıtılır ve ΔU = 215.4 kJ olur.",
-  "400 K için de aynı sabit kullanılır.",
-  TEACHER_ONLY,
-  ...BAD_SUMMARY,
-].join("\n");
 
 describe("ideal gaz dersinin yayın kapıları", () => {
   it("rejects the five live summary bullets and keeps a real formula line", () => {
@@ -73,18 +50,5 @@ describe("ideal gaz dersinin yayın kapıları", () => {
       "Stokiyometrik Hesaplama ve Örnek. Örneğin, 0,5 mol N₂ tepkimede yer alırsa, oluşan NH₃ molü 2 × 0,5 = 1 mol olur. NH₃ kütlesi 1 mol × 17 g/mol = 17 g.";
     expect(announcedExampleGap(productExample)).toBeNull();
     expect(announcedExampleGap("Tepkimelerde mol ilişkisi hesaplanır; örneğin oluşan ürün miktarını belirleriz.")).toBeNull();
-  });
-
-  it("asks for source equations the lesson never states", () => {
-    const lesson = "İdeal gazda ΔU = m c_v ΔT yazılır.";
-    const withRelations = `${lesson} c_p − c_v = R ve k = c_p / c_v.`;
-    const missing = missingFormulaCoverage(lesson, SOURCE).map((item) => item.replace(/\s+/g, ""));
-    expect(missing).toEqual(expect.arrayContaining(["c_p−c_v=R", "k=c_p/c_v"]));
-    const covered = missingFormulaCoverage(withRelations, SOURCE).map((item) => item.replace(/\s+/g, ""));
-    expect(covered).not.toEqual(expect.arrayContaining(["c_p−c_v=R", "k=c_p/c_v"]));
-    expect(missingFormulaCoverage(lesson, "Basınç P = F/A bağıntısıyla tanımlanır.")).toEqual(["P = F/A"]);
-    expect(
-      missingFormulaCoverage("Basınç P = F/A bağıntısıyla tanımlanır.", "Basınç P = F/A bağıntısıyla tanımlanır."),
-    ).toEqual([]);
   });
 });

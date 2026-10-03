@@ -479,28 +479,3 @@ export function optionWhyUniqueIssues(check: SectionCheck): string[] {
   }
   return issues;
 }
-
-/** Kelime 3-gram Jaccard örtüşmesi. */
-export function trigramJaccard(left: string, right: string): number {
-  const grams = (text: string) => {
-    const words = fold(text).split(/\s+/).filter(Boolean);
-    const out = new Set<string>();
-    for (let i = 0; i <= words.length - 3; i += 1) {
-      out.add(words.slice(i, i + 3).join(" "));
-    }
-    return out;
-  };
-  const a = grams(left);
-  const b = grams(right);
-  if (!a.size || !b.size) return 0;
-  let shared = 0;
-  for (const gram of a) if (b.has(gram)) shared += 1;
-  return shared / (a.size + b.size - shared);
-}
-
-export function isHighOverlap(left: string, right: string, threshold = 0.7): boolean {
-  if (fold(left).includes(fold(right)) || fold(right).includes(fold(left))) {
-    if (Math.min(left.length, right.length) >= 24) return true;
-  }
-  return trigramJaccard(left, right) >= threshold;
-}

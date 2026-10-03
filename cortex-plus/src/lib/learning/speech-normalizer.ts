@@ -813,20 +813,6 @@ export function speakVerified(text: string): string {
   return digitSpoken;
 }
 
-export function speechRoundTrip(text: string): {
-  display: string;
-  spoken: string;
-  ok: boolean;
-  expected: QuantityKey[];
-  heard: QuantityKey[];
-} {
-  const display = toDisplay(text);
-  const spoken = speakVerified(text);
-  const expected = quantityKeys(display, false);
-  const heard = keysFromSpoken(spoken);
-  return { display, spoken, ok: sameKeys(expected, heard), expected, heard };
-}
-
 /**
  * Kayıtlı satır. `spoken` varsa sese o gider (eski ses dosyası boşa düşmesin).
  * Yoksa ve metin zaten konuşma diline çevrilmişse ekran simgeye çekilir,

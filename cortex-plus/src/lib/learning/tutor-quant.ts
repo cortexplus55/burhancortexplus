@@ -891,25 +891,6 @@ export function auditQuantitative(
   return { ok: issues.length === 0, checked, issues };
 }
 
-const QUANT_KINDS = new Set<QuantIssue["kind"]>(["arithmetic", "absolute", "identity", "limiting"]);
-
-/** Quiz kökü, doğru şık ve açıklama aynı sayı ve kesinlik kapısından geçer. */
-export function quizClaimIssues(
-  questions: { text?: string; explanation?: string; correct?: string[] }[],
-  source = "",
-): string[] {
-  const issues: string[] = [];
-  questions.forEach((question, index) => {
-    const text = [question.text, question.explanation, ...(question.correct ?? [])].filter(Boolean).join("\n");
-    const audit = auditQuantitative(text, source, { generalAbsolutes: Boolean(source.trim()) });
-    for (const issue of audit.issues) {
-      if (!QUANT_KINDS.has(issue.kind)) continue;
-      issues.push(`Soru ${index + 1}: ${issue.detail}`);
-    }
-  });
-  return issues;
-}
-
 function arithmeticPatternSeen(text: string): boolean {
   const expanded = expandNumericParens(text);
   return arithRegex().test(expanded) || arithRegex().test(text);

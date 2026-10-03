@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  creditIdempotencyKeyForStart,
-  cursorIndexFromMeta,
-  isCreatingStale,
-  isStaleWrite,
-  mergeAnswersForScoring,
-  shouldReuseExistingStart,
-  toPublicAttemptState,
-} from "@/lib/learning/attempt-lifecycle";
+import { creditIdempotencyKeyForStart, cursorIndexFromMeta, isCreatingStale, mergeAnswersForScoring, shouldReuseExistingStart, toPublicAttemptState } from "@/lib/learning/attempt-lifecycle";
 import { scoreQuizAnswers, type QuizQuestion } from "@/lib/learning/exam-quiz";
 
 describe("attempt lifecycle helpers", () => {
@@ -56,33 +48,6 @@ describe("attempt lifecycle helpers", () => {
     // Client reconnects with empty local state; saved answers still score.
     const merged = mergeAnswersForScoring({ "0": "A", "1": "B" }, {});
     expect(scoreQuizAnswers(questions, merged)).toEqual({ score: 2, total: 2 });
-  });
-
-  it("rejects stale generation or version writes", () => {
-    expect(
-      isStaleWrite({
-        attemptGenerationId: "g-new",
-        requestGenerationId: "g-old",
-        attemptVersion: 3,
-        expectedVersion: 3,
-      }),
-    ).toBe(true);
-    expect(
-      isStaleWrite({
-        attemptGenerationId: "g1",
-        requestGenerationId: "g1",
-        attemptVersion: 4,
-        expectedVersion: 3,
-      }),
-    ).toBe(true);
-    expect(
-      isStaleWrite({
-        attemptGenerationId: "g1",
-        requestGenerationId: "g1",
-        attemptVersion: 3,
-        expectedVersion: 3,
-      }),
-    ).toBe(false);
   });
 
   it("reuses ready attempts and retries stale creating", () => {

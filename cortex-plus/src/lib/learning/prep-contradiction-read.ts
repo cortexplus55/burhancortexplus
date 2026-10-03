@@ -48,13 +48,6 @@ export async function readContradictionDocuments(
   return out;
 }
 
-export function contradictionsByTopicTitle(
-  topics: { title: string; sources: { documentId: string; pages: number[] }[] }[],
-  documents: ContradictionDocument[],
-): Map<string, TopicContradiction[]> {
-  return assignContradictions(topics, documents).byTitle;
-}
-
 /**
  * Kesin çelişkiler durur. Adaylar yalnızca model "bağdaşmıyor" derse yazılır.
  * Model yoksa veya emin değilse aday gösterilmez.

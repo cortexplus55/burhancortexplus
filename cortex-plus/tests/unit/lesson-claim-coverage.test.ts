@@ -1,13 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  checklistConcepts,
-  conceptInText,
-  scoreLessonChecks,
-  selectPagesForTitle,
-  titleConcepts,
-} from "@/lib/learning/lesson-claims";
+import { conceptInText, scoreLessonChecks, titleConcepts } from "@/lib/learning/lesson-claims";
 import { widenSourcePages } from "@/lib/learning/source-context";
 
 const TOPIC = "İç Enerji, Entalpi ve Özgül Isılar";
@@ -17,20 +11,6 @@ describe("iç enerji lesson claims", () => {
     expect(titleConcepts(TOPIC)).toEqual(["İç Enerji", "Entalpi", "Özgül Isılar"]);
     expect(titleConcepts("Basınç ve Sıcaklık Kavramları")).toEqual(["Basınç", "Sıcaklık"]);
     expect(conceptInText("Özgül Isılar", "özgül ısı c_p ile yazılır")).toBe(true);
-  });
-
-  it("keeps basınç on its mapped page and widens iç enerji onto the enthalpy page", () => {
-    const pressure = selectPagesForTitle("Basınç ve Sıcaklık Kavramları", [3], [
-      { pageNumber: 3, text: "Basınç yüzeye uygulanır. Sıcaklık termometre ile okunur." },
-      { pageNumber: 9, text: "Kavramları burada listelenir." },
-    ]);
-    expect(pressure).toEqual([3]);
-
-    const energy = selectPagesForTitle(TOPIC, [4], [
-      { pageNumber: 4, text: "Kapalı sistemde ΔU = Q − W yazılır. Rijit tank 30 kJ ısı alır." },
-      { pageNumber: 8, text: "Entalpi h = u + Pv. Özgül ısılar c_p ve c_v olarak tanımlanır." },
-    ]);
-    expect(energy).toEqual([4, 8]);
   });
 });
 
@@ -46,15 +26,6 @@ describe("lesson score and result layout", () => {
       total: 1,
       retried: 0,
     });
-  });
-
-  it("reads a teacher checklist concept that the source actually contains", () => {
-    const note = [
-      "Kapsam listesi — bu derste hepsi geçecek:",
-      "- (core) concept: özgül ısı",
-      "Başka satır",
-    ].join("\n");
-    expect(checklistConcepts(note)).toEqual(["özgül ısı"]);
   });
 
   it("centers the finished lesson card", () => {

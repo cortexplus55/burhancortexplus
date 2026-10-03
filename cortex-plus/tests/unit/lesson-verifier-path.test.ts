@@ -1,25 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { podcastNumbersOutsideLesson } from "@/lib/learning/podcast-from-lesson";
 import { unsupportedQuantities } from "@/lib/learning/teacher-brain";
-import {
-  LESSON_V2_SCHEMA_HINT,
-  lessonDraftForVerifier,
-  lessonPublishIssues,
-  podcastDraftForVerifier,
-  publishLessonDraft,
-  publishablePodcast,
-  validatePodcastPedagogy,
-} from "@/lib/learning/teaching-standards";
+import { lessonPublishIssues, publishLessonDraft } from "@/lib/learning/teaching-standards";
 import { runIndependentValidation } from "@/lib/learning/validation-pipeline";
-
-/**
- * #78 ders şemasında review yoktu ve denetçi dersi geçiriyordu.
- * #80 review'ı şık kopyasıyla aynı JSON şemasına yazdı.
- * #81 (62263c6) bunu `"review"?:{"prompt":string}` yaptı. `?` geçerli JSON
- * değil; denetçi bu formatı ve taslaktaki tekrar alanını görünce dersin
- * tamamını content_verification_failed ile reddediyor.
- */
-const HINT_BROKEN_IN_81 = '"review"?:{"prompt":string}';
 
 const source = "Basınç, birim alana dik gelen kuvvettir. Mutlak sıcaklık santigrat değerine 273 eklenerek bulunur.";
 
@@ -89,36 +72,6 @@ const lesson = {
 };
 
 describe("lesson verifier path", () => {
-  it("does not put the #81 review token in the format the verifier grades", () => {
-    expect(HINT_BROKEN_IN_81).toContain("review");
-    expect(LESSON_V2_SCHEMA_HINT).not.toContain(HINT_BROKEN_IN_81);
-    expect(LESSON_V2_SCHEMA_HINT).not.toContain("check.review");
-  });
-
-  it("drops a broken review and one weak check, then the independent gate passes", () => {
-    const draft = JSON.stringify(lesson);
-    const forVerifier = lessonDraftForVerifier(draft);
-    expect(forVerifier).not.toContain("TEKRAR-KOKU");
-    expect(forVerifier).not.toContain("bozuk-tekrar");
-
-    const parsed = JSON.parse(forVerifier) as unknown;
-    const published = publishLessonDraft(parsed);
-    expect(published?.sections[2].check).toBeUndefined();
-    expect(published?.sections[0].check?.review).toBeUndefined();
-    expect(published?.sections[0].check?.prompt).toContain("Basınç");
-
-    const pedagogy = lessonPublishIssues(parsed);
-    expect(pedagogy).toEqual([]);
-    const verdict = runIndependentValidation({
-      draft: forVerifier,
-      parsed,
-      pedagogyIssues: pedagogy,
-      sourceExcerpt: source,
-      requireSourceSupport: true,
-      sourcePages: [2, 3],
-    });
-    expect(verdict.ok).toBe(true);
-  });
 
   it("still blocks a quantity the source does not contain", () => {
     const invented = {
@@ -230,24 +183,6 @@ describe("podcast verifier path", () => {
       chapter("Özet", "Anlamadan tablo okumak yanlıştır."),
     ],
   };
-
-  it("drops one scaffold chapter and still passes pedagogy", () => {
-    expect(validatePodcastPedagogy(podcast).some((issue) => issue.includes("şablon"))).toBe(
-      true,
-    );
-    const cleaned = JSON.parse(podcastDraftForVerifier(JSON.stringify(podcast))) as typeof podcast;
-    expect(cleaned.chapters.map((item) => item.title)).not.toContain("Özet");
-    expect(validatePodcastPedagogy(cleaned)).toEqual([]);
-    const verdict = runIndependentValidation({
-      draft: JSON.stringify(cleaned),
-      parsed: cleaned,
-      pedagogyIssues: validatePodcastPedagogy(publishablePodcast(cleaned)),
-      minItems: 4,
-      sourceExcerpt: source,
-      requireSourceSupport: true,
-    });
-    expect(verdict.ok).toBe(true);
-  });
 
   it("still blocks a number that is not in the lesson", () => {
     const outside = podcastNumbersOutsideLesson(

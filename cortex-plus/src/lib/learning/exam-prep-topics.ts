@@ -1,60 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapPrepTopics, type PrepTopic } from "@/lib/learning/exam-prep-progress";
 
-export type TopicLesson = {
-  id: string;
-  title: string;
-  contentMd: string;
-  /** Varsa adım adım gösterim için yapılandırılmış ders (lessonV2Schema). */
-  contentJson?: unknown;
-};
-
 const NOTE_PREFIX = "Sınav notu:";
 
 function isStudyNote(title: string) {
   return title.startsWith(NOTE_PREFIX);
-}
-
-export function mapLessonsByTopic(
-  rows: {
-    id: string;
-    title: string;
-    content_md: string | null;
-    content_json?: unknown;
-    topic_id?: string | null;
-  }[],
-  topics: PrepTopic[],
-): Record<string, TopicLesson> {
-  const byTopic: Record<string, TopicLesson> = {};
-  const byId = new Map(
-    rows.map((row) => [
-      row.id,
-      {
-        id: row.id,
-        title: row.title,
-        contentMd: row.content_md ?? "",
-        contentJson: row.content_json ?? null,
-      } satisfies TopicLesson,
-    ]),
-  );
-
-  for (const row of rows) {
-    if (!row.topic_id) continue;
-    byTopic[row.topic_id] = {
-      id: row.id,
-      title: row.title,
-      contentMd: row.content_md ?? "",
-      contentJson: row.content_json ?? null,
-    };
-  }
-
-  for (const topic of topics) {
-    if (byTopic[topic.id] || !topic.lessonId) continue;
-    const lesson = byId.get(topic.lessonId);
-    if (lesson) byTopic[topic.id] = lesson;
-  }
-
-  return byTopic;
 }
 
 export async function loadOrBackfillTopics(

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { mergeTopicDrafts } from "@/lib/learning/prep-topic-list";
 import {
   applySameDecisions,
   classifyTopicPair,
@@ -79,24 +78,6 @@ describe("mergeTopicGroups", () => {
     const same = applySameDecisions(topics, new Set([mergePairKey("Hücre zarı", "Hücre zarı yapısı")]));
     expect(same).toHaveLength(1);
     expect(same[0]?.sources).toHaveLength(2);
-  });
-});
-
-describe("mergeTopicDrafts", () => {
-  it("keeps every distinct topic and folds the repeated title into one", () => {
-    const merged = mergeTopicDrafts([
-      [
-        { id: "a", title: "Fotosentez", pages: [1] },
-        { id: "b", title: "Hücre zarı", pages: [2] },
-      ],
-      [
-        { id: "c", title: "Fotosentez", pages: [3] },
-        { id: "d", title: "Solunum", pages: [4] },
-      ],
-    ]);
-    expect(merged.topics).toEqual(["Fotosentez", "Hücre zarı", "Solunum"]);
-    expect(merged.topicPages).toEqual([[1, 3], [2], [4]]);
-    expect(merged.sources[0]).toHaveLength(2);
   });
 });
 

@@ -1,39 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateMath, mathKeyWrong, mathOptionsAmbiguous, mathProseWrong } from "@/lib/learning/math-key";
-
-/*
-  exponent-key.ts yalnızca aynı tabanlı üslü işleme bakıyor. Trigonometri,
-  kesir ve düz aritmetikte aynı tür yanlış anahtar ("sin 30° = √3/2")
-  denetimsizdi. Test belgesi trigonometri (uat_99_sayfa_trigonometri.pdf).
-*/
-
-describe("evaluateMath", () => {
-  it("dört işlem, parantez, üs, kök, π", () => {
-    expect(evaluateMath("2 × (3 + 4)")).toBe(14);
-    expect(evaluateMath("3² × 3³")).toBe(243);
-    expect(evaluateMath("(3²)⁴")).toBe(6561);
-    expect(evaluateMath("3²ˣ⁴")).toBe(6561);
-    expect(evaluateMath("0,25 × 8")).toBe(2);
-    expect(evaluateMath("√16 ÷ 2")).toBe(2);
-    expect(evaluateMath("12 − 5")).toBe(7);
-  });
-
-  it("özel açılar: derece ya da π ile", () => {
-    expect(evaluateMath("sin 30°")).toBeCloseTo(0.5);
-    expect(evaluateMath("cos 60°")).toBeCloseTo(0.5);
-    expect(evaluateMath("tan 45°")).toBeCloseTo(1);
-    expect(evaluateMath("sin(π/6)")).toBeCloseTo(0.5);
-    expect(evaluateMath("√3/2")).toBeCloseTo(Math.sqrt(3) / 2);
-  });
-
-  it("belirsiz ya da harfli ifadeye hüküm yok", () => {
-    expect(evaluateMath("sin 30")).toBeNull();
-    expect(evaluateMath("tan 90°")).toBeNull();
-    expect(evaluateMath("aᵐ × aⁿ")).toBeNull();
-    expect(evaluateMath("2 kg")).toBeNull();
-    expect(evaluateMath("25 °C")).toBeNull();
-  });
-});
+import { mathKeyWrong, mathOptionsAmbiguous } from "@/lib/learning/math-key";
 
 describe("mathKeyWrong", () => {
   it("trigonometri anahtarını yakalar", () => {
@@ -72,36 +38,9 @@ describe("mathKeyWrong", () => {
   });
 });
 
-describe("mathProseWrong", () => {
-  it("yanlış trigonometri ve aritmetik eşitliği yakalar", () => {
-    expect(mathProseWrong("Özel açılarda sin 30° = √3/2 olur.")).toBe(true);
-    expect(mathProseWrong("Toplam 9 + 27 = 35 eder.")).toBe(true);
-  });
-
-  it("doğru eşitlikleri ve dönüşümleri geçirir", () => {
-    expect(mathProseWrong("Özel açılarda sin 30° = 1/2 ve cos 60° = 1/2 olur.")).toBe(false);
-    expect(mathProseWrong("180° = π radyandır; 90° = π/2 olur.")).toBe(false);
-    expect(mathProseWrong("3² + 3³ = 9 + 27 = 36 eder.")).toBe(false);
-  });
-
-  it("birimli nicelik ve bitişik olmayan sayıya hüküm vermez", () => {
-    expect(mathProseWrong("1 kg = 1000 g eder.")).toBe(false);
-    expect(mathProseWrong("m = 2 kg; Q = 2 × 0,25 × 10 = 5 kJ bulunur.")).toBe(false);
-    expect(mathProseWrong("%50 = 0,5 demektir.")).toBe(false);
-  });
-
-  it("yanlışı anan cümleye hüküm vermez", () => {
-    expect(mathProseWrong("sin 30° = √3/2 yazmak sık yapılan bir hatadır.")).toBe(false);
-  });
-});
-
 describe("kırık parçaya hüküm yok", () => {
   it("şapkalı yazımda ortadaki parça ayrı hesap sanılmaz", () => {
     expect(mathKeyWrong({ type: "numerical", prompt: "2^3 · 2^2 ifadesinin değeri kaçtır?", answer: "32" })).toBe(false);
-  });
-  it("kelime içindeki 'sin' fonksiyon sayılmaz, harfe bitişik sayı eşitliği okunmaz", () => {
-    expect(mathProseWrong("Bu sonuç kesin 3 × 2 = 6 olur.")).toBe(false);
-    expect(mathProseWrong("x2 = 5 yazılırsa")).toBe(false);
   });
 });
 
@@ -110,15 +49,6 @@ describe("kırık parçaya hüküm yok", () => {
   alarmları gösterdi; her biri burada bekçi.
 */
 describe("taramada görülen yanlış alarmlar", () => {
-  it("bitişik kesir işlemden önce hesaplanır", () => {
-    expect(mathKeyWrong({ type: "numerical", prompt: "3/4 ÷ 2/5 işleminin sonucu nedir?", answer: "15/8" })).toBe(false);
-    expect(mathProseWrong("Bölme, ikinci kesrin tersini çarpmak demektir; 1/2 × 4/3 = 4/6 = 2/3.")).toBe(false);
-  });
-
-  it("'2π' tek sayıdır, derece yazımı iki türlü okunur, ondalık yuvarlanır", () => {
-    expect(mathProseWrong("π × 360 ÷ 2π = 180° eder.")).toBe(false);
-    expect(mathProseWrong("1 × 180 / π = 57.2958° olarak hesaplanır.")).toBe(false);
-  });
 
   it("sözel problemde ipucu ya da tek başına kesir sorulan değer sayılmaz", () => {
     expect(

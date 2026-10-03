@@ -83,17 +83,6 @@ export type DiagnosticScoreResult = {
   topicResults: TopicDiagnosticResult[];
 };
 
-const SKILL_CYCLE: DiagnosticSkill[] = [
-  "definition",
-  "concept",
-  "application",
-  "misconception",
-  "multi_step",
-];
-
-/** Cap so a short quiz cannot claim full mastery. */
-export const DIAGNOSTIC_MAX_QUESTIONS = 10;
-
 /**
  * Main topics = top-level nodes (no parent). Falls back to all nodes if none.
  * Unreadable pages that are a topic's only pages → topic not measured.
@@ -145,25 +134,6 @@ export function pickMainTopics<T extends { id: string; parentId?: string | null 
 ): T[] {
   const mains = nodes.filter((n) => !n.parentId);
   return mains.length ? mains : nodes;
-}
-
-/**
- * One light probe per measurable topic, cycling skill types.
- * Unreadable topics get no questions (stay unknown).
- */
-export function buildDiagnosticSkillPlan(
-  plans: DiagnosticTopicPlan[],
-  maxQuestions = DIAGNOSTIC_MAX_QUESTIONS,
-): Array<{ topic: DiagnosticTopicPlan; skill: DiagnosticSkill }> {
-  const measurable = plans.filter((p) => p.status !== "unreadable" && p.pageNumbers.length > 0);
-  const slots: Array<{ topic: DiagnosticTopicPlan; skill: DiagnosticSkill }> = [];
-  for (let i = 0; i < measurable.length && slots.length < maxQuestions; i += 1) {
-    slots.push({
-      topic: measurable[i],
-      skill: SKILL_CYCLE[i % SKILL_CYCLE.length],
-    });
-  }
-  return slots;
 }
 
 /** First lesson probes only its own sourced chapter. Other chapters remain unknown. */

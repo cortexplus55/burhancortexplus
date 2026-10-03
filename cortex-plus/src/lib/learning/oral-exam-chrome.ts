@@ -73,8 +73,6 @@ export function oralPreflightCopy(questions = ORAL_EXPECTED_QUESTIONS, minutes =
   } as const;
 }
 
-export const ORAL_PREFLIGHT = oralPreflightCopy();
-
 export type OralMessage = { role: "user" | "assistant"; content: string };
 
 export type OralReviewItem = {
@@ -134,15 +132,6 @@ export function oralTeacherStyleLine(id: OralTeacherMoodId): string {
     default:
       return "Yardımcı öğretmen gibi sor: takıldığında kısa ipucu ver, cevabı doğrudan söyleme.";
   }
-}
-
-/** @deprecated Harf notu gösterilmez; yüzde ve sözel sonuç kullanılır. */
-export function letterGrade(pct: number): "A" | "B" | "C" | "D" | "F" {
-  if (pct >= 85) return "A";
-  if (pct >= 70) return "B";
-  if (pct >= 55) return "C";
-  if (pct >= 40) return "D";
-  return "F";
 }
 
 export function oralHeadline(pct: number): string {

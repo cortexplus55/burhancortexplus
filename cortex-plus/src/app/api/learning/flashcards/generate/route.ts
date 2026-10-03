@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
-import { generateJson, isPremiumUser } from "@/lib/ai/generate";
-import { loadDocumentGenerationContext } from "@/lib/documents/generation-context";
-import { verifyFlashcard } from "@/lib/learning/question-verifier";
+import { getCreditCost } from "@/lib/credits/rules";
+import { teacherCardsLoop } from "@/lib/learning/teacher-cards";
+import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
+import { studioTeacherSource } from "@/lib/learning/studio-teacher-source";
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
@@ -12,13 +13,12 @@ const bodySchema = z.object({
   documentId: z.string().uuid().optional(),
 });
 
-const resultSchema = z.object({
-  title: z.string().min(1),
-  cards: z
-    .array(z.object({ front: z.string().min(1), back: z.string().min(1) }))
-    .min(1),
-});
-
+/**
+ * Araçlar > Kartlar (3 Ekim 2026): sınav hazırlığındaki öğretmen kart
+ * motoru — konunun temiz çekirdek sayfaları (belge seçildiyse), her kartı
+ * kendisi cevaplayan denetim, sorunlu kartın düzeltilmesi ya da elenmesi.
+ * Eski taslak + doğrulayıcı zinciri kalktı.
+ */
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "flashcards", limit: 10 });
   if (!guard.ok) return guard.response;
@@ -29,44 +29,43 @@ export async function POST(request: Request) {
   const { topic, count, documentId } = parsedBody.data;
 
   // Kredi ayrılmadan önce: belge hazır değilse net sebep, kayıp yok.
-  const docContext = documentId
-    ? await loadDocumentGenerationContext(service, userId, documentId, topic, {
-        maxChars: 9_000,
-      })
-    : null;
-  if (documentId && !docContext) return errorResponse(409, "document_not_ready");
+  const source = await studioTeacherSource(service, { userId, topic, documentId });
+  if (!source) return errorResponse(409, "document_not_ready");
 
-  const outcome = await generateJson({
-    service,
+  const minimum = Math.min(4, count);
+  const outcome = await runWithTeacherModel(service, {
     userId,
     actionCode: "FLASHCARD_GENERATE",
-    isPremium: await isPremiumUser(service, userId),
-    schemaHint:
-      'Yalnızca şu JSON şemasını döndür: {"title": string, "cards": [{"front": string, "back": string}]}' +
-      (docContext
-        ? " Kartları YALNIZCA verilen belge alıntısındaki bilgiden üret."
-        : ""),
-    userPrompt: docContext
-      ? `Belge: ${docContext.fileName}. Konu: ${topic}. ${count} adet çift yönlü kart üret. Ön yüz kısa soru/kavram, arka yüz net açıklama olsun.\n\nBelge alıntısı:\n${docContext.excerpt}`
-      : `Konu: ${topic}. ${count} adet çift yönlü kart üret. Ön yüz kısa soru/kavram, arka yüz net açıklama olsun.`,
-    parse: (raw) => {
-      const result = resultSchema.safeParse(raw);
-      if (!result.success) return null;
-      const cards = result.data.cards.flatMap((card) => {
-        const checked = verifyFlashcard(card.front, card.back);
-        return checked ? [checked] : [];
-      });
-      return cards.length >= 4 ? { ...result.data, cards } : null;
+    idempotencyKey: `studio-cards:${userId}:${crypto.randomUUID()}`,
+    label: "studio_cards",
+    topic,
+    work: async (ask, started) => {
+      const loop = await teacherCardsLoop(
+        ask,
+        {
+          topicLabel: topic,
+          prepTitle: source.fileName ?? topic,
+          pages: source.pages,
+          mode: source.mode,
+          count,
+          runningHeaders: source.edges,
+        },
+        started,
+      );
+      const log = { kept: loop.cards.length, rejected: loop.rejected.length, rounds: loop.rounds };
+      return loop.cards.length >= minimum
+        ? { ok: true as const, result: loop.cards, log }
+        : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun"), log };
     },
   });
-
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
 
+  const title = topic.trim();
   const { data: set, error } = await service
     .from("flashcard_sets")
     .insert({
       user_id: userId,
-      title: outcome.data.title,
+      title,
       ...(documentId ? { document_id: documentId } : {}),
     })
     .select("id")
@@ -75,7 +74,7 @@ export async function POST(request: Request) {
   if (error || !set) return errorResponse(500, "generation_failed");
 
   await service.from("flashcards").insert(
-    outcome.data.cards.map((card, index) => ({
+    outcome.result.map((card, index) => ({
       set_id: set.id,
       front_text: card.front,
       back_text: card.back,
@@ -91,12 +90,12 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     setId: set.id,
-    title: outcome.data.title,
-    source: docContext
-      ? { kind: "document", documentId, fileName: docContext.fileName }
+    title,
+    source: documentId
+      ? { kind: "document", documentId, fileName: source.fileName }
       : { kind: "topic" },
-    count: outcome.data.cards.length,
-    creditsUsed: outcome.cost,
+    count: outcome.result.length,
+    creditsUsed: await getCreditCost("FLASHCARD_GENERATE"),
     cards: (rows ?? []).map((card) => ({
       id: card.id,
       front: card.front_text,

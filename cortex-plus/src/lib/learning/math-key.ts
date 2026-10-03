@@ -190,11 +190,6 @@ function read(text: string): Reading | null {
   return { values, decimals };
 }
 
-/** Tam bir matematik ifadesinin değeri (yalnız açı radyana çevrilir); okunamazsa null. */
-export function evaluateMath(text: string): number | null {
-  return read(text)?.values[0] ?? null;
-}
-
 function agree(left: Reading, right: Reading): boolean {
   const decimals = Math.max(left.decimals, right.decimals);
   const rounding = decimals ? 0.51 * 10 ** -decimals : 0;
@@ -447,19 +442,6 @@ export function mathOptionsAmbiguous(check: KeyedCheck): boolean {
       const b = readings[j];
       if (a && b && agree(a, b)) return true;
     }
-  }
-  return false;
-}
-
-/**
- * Metindeki eşitlik zinciri kendi içinde çelişiyor mu? "sin 30° = √3/2"
- * → true. Yanlışı anan cümleye hüküm verilmez.
- */
-export function mathProseWrong(text: string): boolean {
-  for (const sentence of text.split(/(?<=[.!?])\s+|\n+/)) {
-    if (/değil|yanlış|hata|sanmak|sanılır|sanır|≠/i.test(sentence)) continue;
-    if (!sentence.includes("=")) continue;
-    if (equationPairs(sentence).some(([left, right]) => !agree(left, right))) return true;
   }
   return false;
 }

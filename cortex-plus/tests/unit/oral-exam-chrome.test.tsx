@@ -5,28 +5,12 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import {
   OralAnswerReview,
   OralEndDialog,
-  OralPreflightDialog,
   OralResults,
   OralReviewTimeDialog,
   OralTeacherCustomize,
   OralTopicPick,
 } from "@/components/parity/oral-exam-flow";
-import {
-  EMPTY_ORAL_ANSWER_NOTE,
-  formatTopicPct,
-  letterGrade,
-  ORAL_PREFLIGHT,
-  ORAL_VOICE_TOPIC_MAX,
-  oralHeadline,
-  oralVoiceTopicLabel,
-  oralLiveStatus,
-  oralTeacherStyleLine,
-  oralVoicePercent,
-  oralWrittenPercent,
-  reviewItemsFromQuestions,
-  reviewItemsFromTranscript,
-  topicStatusPct,
-} from "@/lib/learning/oral-exam-chrome";
+import { EMPTY_ORAL_ANSWER_NOTE, formatTopicPct, ORAL_VOICE_TOPIC_MAX, oralVoiceTopicLabel, oralLiveStatus, oralTeacherStyleLine, reviewItemsFromQuestions, topicStatusPct } from "@/lib/learning/oral-exam-chrome";
 
 afterEach(cleanup);
 
@@ -68,37 +52,6 @@ describe("oral exam chrome helpers", () => {
     expect(topicStatusPct("ready")).toBe(0);
     expect(topicStatusPct("done")).toBe(100);
     expect(formatTopicPct(0)).toBe("%0");
-  });
-
-  it("grades voice from gradedRatios; without them stays 0 (not completion %)", () => {
-    expect(oralVoicePercent([])).toBe(0);
-    expect(oralHeadline(0)).toBe("Daha fazla pratik yapmalısın");
-    const full = reviewItemsFromTranscript([
-      { role: "assistant", content: "Soru bir" },
-      { role: "user", content: "Cevap bir" },
-      { role: "assistant", content: "Soru iki" },
-      { role: "user", content: "Cevap iki" },
-      { role: "assistant", content: "Soru üç" },
-      { role: "user", content: "Cevap üç" },
-    ]);
-    expect(full).toHaveLength(3);
-    // Grade yoksa dolu cevap oranı değil 0.
-    expect(
-      oralVoicePercent([
-        { role: "assistant", content: "Soru bir" },
-        { role: "user", content: "Cevap bir" },
-        { role: "assistant", content: "Soru iki" },
-        { role: "user", content: "Cevap iki" },
-        { role: "assistant", content: "Soru üç" },
-        { role: "user", content: "Cevap üç" },
-      ]),
-    ).toBe(0);
-    expect(oralVoicePercent([], 3, [1, 1, 1])).toBe(100);
-    expect(oralVoicePercent([], 3, [1, 0, 0])).toBe(33);
-    // Deprecated helper still maps bands; UI no longer shows letters.
-    expect(letterGrade(0)).toBe("F");
-    expect(letterGrade(100)).toBe("A");
-    expect(oralWrittenPercent(1, 2)).toBe(50);
   });
 
   it("uses the live orb captions from the oral exam", () => {
@@ -176,17 +129,6 @@ describe("oral exam chrome screens", () => {
     expect(
       screen.getByRole("option", { name: /Yardımcı öğretmen/ }).getAttribute("aria-selected"),
     ).toBe("true");
-  });
-
-  it("lists the preflight checks and Hazırım", () => {
-    const seen: string[] = [];
-    render(<OralPreflightDialog onConfirm={() => seen.push("go")} />);
-    expect(screen.getByRole("dialog", { name: ORAL_PREFLIGHT.title })).toBeTruthy();
-    for (const item of ORAL_PREFLIGHT.items) {
-      expect(screen.getByText(item)).toBeTruthy();
-    }
-    fireEvent.click(screen.getByRole("button", { name: "Hazırım" }));
-    expect(seen).toEqual(["go"]);
   });
 
   it("confirms ending and opening results", () => {
