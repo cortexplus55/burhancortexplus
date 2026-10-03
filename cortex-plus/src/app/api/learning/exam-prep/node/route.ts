@@ -1,4 +1,17 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { commitCredits, refundCredits, reserveCredits } from "@/lib/credits/service";
+import {
+  claimPrefetchSlot,
+  dropPrefetch,
+  nodeHasAttempts,
+  peekPrefetchedLesson,
+  PREFETCH_HEADER,
+  requestNextLessonPrefetch,
+  storePrefetchedLesson,
+  takePrefetchedLesson,
+  verifyPrefetchToken,
+} from "@/lib/learning/lesson-prefetch";
 import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
 import { corePageRun } from "@/lib/learning/core-pages";
 import { runTeacherLesson } from "@/lib/learning/teacher-lesson-run";
@@ -204,6 +217,8 @@ const bodySchema = z.object({
   /** Ders oluşturma merkezi, düğümün konusu dışında bir konu seçtiyse. */
   activityTopicLabel: z.string().max(400).optional(),
   podcastLength: z.enum(PODCAST_LENGTHS).optional(),
+  /** Sunucunun kendi isteği: sıradaki dersi kredi düşmeden önceden yaz. */
+  prefetch: z.boolean().optional(),
 });
 
 /** Öğretmen test motorunun yazdığı düğümler (2 Ekim 2026). */
@@ -384,14 +399,55 @@ async function writtenReviewForPayload(
 }
 
 export async function POST(request: Request) {
+  const origin = new URL(request.url).origin;
+  // Sıradaki dersin önceden yazımı: imzalı iç istek. Hemen kabul edilir,
+  // ders yanıttan sonra yazılır — çağıran beklemez, bağlantısı kopsa da
+  // yazım sürer.
+  const prefetchHeader = request.headers.get(PREFETCH_HEADER);
+  if (prefetchHeader !== null) {
+    const caller = verifyPrefetchToken(prefetchHeader);
+    if (!caller) return errorResponse(401, "AUTH_REQUIRED");
+    const body = await request.json().catch(() => null);
+    after(async () => {
+      const result = await handleNodeRequest(
+        { userId: caller.userId, service: createServiceClient() },
+        body,
+        { origin, prefetchNodeId: caller.nodeId },
+      ).catch((error: unknown) => {
+        console.error("lesson_prefetch_failed", {
+          cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
+        });
+        return null;
+      });
+      if (result && result.status >= 400) {
+        console.error("lesson_prefetch_failed", { status: result.status });
+      }
+    });
+    return NextResponse.json({ ok: true, accepted: true }, { status: 202 });
+  }
+
   const guard = await withUser(request, { scope: "exam-prep-node", limit: 16 });
   if (!guard.ok) return guard.response;
-  const { userId, service } = guard.ctx;
+  return handleNodeRequest(guard.ctx, await request.json(), { origin, prefetchNodeId: null });
+}
 
-  const parsed = bodySchema.safeParse(await request.json());
+async function handleNodeRequest(
+  ctx: { userId: string; service: SupabaseClient },
+  rawBody: unknown,
+  options: { origin: string; prefetchNodeId: string | null },
+): Promise<NextResponse> {
+  const { userId, service } = ctx;
+
+  const parsed = bodySchema.safeParse(rawBody);
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
   const { prepId, nodeId, action } = parsed.data;
+  // Önceden yazım yalnız imzalı iç istekten, imzadaki düğüm için.
+  const prefetch = options.prefetchNodeId !== null;
+  if (prefetch && (parsed.data.prefetch !== true || options.prefetchNodeId !== nodeId || action !== "start")) {
+    return errorResponse(400, "invalid_input");
+  }
+  if (!prefetch && parsed.data.prefetch) return errorResponse(400, "invalid_input");
   const teachingV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
 
   const { data: prep } = await service
@@ -472,6 +528,16 @@ export async function POST(request: Request) {
   const title = PLAN_NODE_META[kind]?.setupLabel ?? node.title;
   const lessonReviewCards =
     kind === "spaced" ? await loadLessonReviewCards(service, userId, prepId) : [];
+
+  // Önceden yazım yalnız açılmamış ders düğümü için; öğrenci açtıysa gerek yok.
+  if (prefetch) {
+    if (kind !== "lesson" || !teachingV2 || node.status === "done") {
+      return errorResponse(400, "invalid_input");
+    }
+    if (await nodeHasAttempts(service, nodeId)) {
+      return NextResponse.json({ ok: true, skipped: "opened" });
+    }
+  }
 
   if (action === "review") {
     if (kind !== "written_exam") return errorResponse(400, "invalid_input");
@@ -1131,6 +1197,121 @@ export async function POST(request: Request) {
   }
   const voiceSession = voiceMode && (kind === "qa" || kind === "oral");
 
+  if (prefetch) {
+    // Kredisi yetmeyen öğrenciye açamayacağı dersi yazmıyoruz.
+    const { data: rule } = await service
+      .from("credit_rules")
+      .select("credit_cost")
+      .eq("action_code", actionForKind(kind))
+      .eq("active", true)
+      .maybeSingle();
+    const wallet = await readWalletBalance(service, userId);
+    if (typeof rule?.credit_cost === "number" && (wallet.balance ?? 0) < rule.credit_cost) {
+      return NextResponse.json({ ok: true, skipped: "credits" });
+    }
+  }
+
+  // Önceden yazılmış ders: beklemeden gelir, kredi şimdi düşer.
+  if (
+    kind === "lesson" &&
+    teachingV2 &&
+    !voiceSession &&
+    !prefetch &&
+    (await peekPrefetchedLesson(service, { userId, nodeId, familiarity }))
+  ) {
+    const requestId = clientRequestId ?? crypto.randomUUID();
+    const reservation = await reserveCredits(
+      service,
+      userId,
+      actionForKind(kind),
+      `${creditIdempotencyKeyForStart({ userId, nodeId, clientRequestId: requestId })}_prefetched`,
+    );
+    if (!reservation.ok) {
+      return reservation.reason === "insufficient_credits"
+        ? errorResponse(402, "insufficient_credits")
+        : errorResponse(409, "generation_in_progress");
+    }
+    const taken = await takePrefetchedLesson(service, { userId, nodeId });
+    if (!taken) {
+      // Aynı anda başka bir açılış aldı; bu istek dersi kendisi yazar.
+      await refundCredits(service, reservation.reservationId).catch(() => undefined);
+    } else {
+      const { data: readyAttempt, error: readyErr } = await service
+        .from("exam_prep_node_attempts")
+        .insert({
+          node_id: nodeId,
+          exam_prep_id: prepId,
+          user_id: userId,
+          topic_id: topic?.id ?? taken.topicId,
+          difficulty,
+          voice_mode: false,
+          payload: taken.payload,
+          total: countTotal(kind, taken.payload),
+          status: "active",
+          generation_id: crypto.randomUUID(),
+          client_request_id: requestId,
+          familiarity,
+          mood,
+          content_version: 1,
+          updated_at: new Date().toISOString(),
+        })
+        .select(
+          "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at",
+        )
+        .single();
+      if (readyErr || !readyAttempt) {
+        await refundCredits(service, reservation.reservationId).catch(() => undefined);
+        return errorResponse(500, "generation_failed", { refunded: true });
+      }
+      await commitCredits(service, reservation.reservationId).catch(() => undefined);
+      await upsertGenerationJob(service, {
+        userId,
+        prepId,
+        nodeId,
+        attemptId: readyAttempt.id as string,
+        clientRequestId: requestId,
+        generationId: readyAttempt.generation_id as string,
+        status: "ready",
+      });
+      const topicId = topic?.id ?? taken.topicId;
+      if (topicId) {
+        await saveTopicLesson(service, { prepId, topicId, payload: taken.payload });
+        await service.from("exam_prep_topics").update({ familiarity }).eq("id", topicId);
+      }
+      await service.from("study_session_moods").insert({
+        user_id: userId,
+        exam_prep_id: prepId,
+        node_id: nodeId,
+        mood,
+      });
+      if (node.status !== "done") {
+        await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
+      }
+      console.info("lesson_prefetch_served", { nodeId });
+      after(() =>
+        requestNextLessonPrefetch(service, {
+          origin: options.origin,
+          userId,
+          prepId,
+          sortOrder: node.sort_order as number,
+          topicId: sessionMeta?.topicId ?? null,
+          familiarity,
+          mood,
+        }),
+      );
+      return NextResponse.json({
+        ...attemptStartResponse(readyAttempt, {
+          kind,
+          title,
+          topicLabel,
+          publicPayload: await publicPayloadForUser(service, userId, taken.payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
+          resumed: false,
+        }),
+        ...(await readWalletBalance(service, userId)),
+      });
+    }
+  }
+
   // Ders öğrencinin kendi kaynağından üretilsin. Hazırlığa bağlı bir belge
   // varsa yalnızca onun içinde, yoksa kullanıcının tüm belgelerinde aranıyor.
   //
@@ -1453,7 +1634,19 @@ export async function POST(request: Request) {
   let creatingAttemptId: string | undefined;
   let creditKey: string | undefined;
 
-  if (teachingV2) {
+  // Önceden yazım öğrenci kaydı açmaz ve kredi ayırmaz; düğümü sahiplenir.
+  if (prefetch) {
+    const claimed = await claimPrefetchSlot(service, {
+      nodeId,
+      prepId,
+      userId,
+      topicId: topic?.id ?? null,
+      familiarity,
+    });
+    if (!claimed) return NextResponse.json({ ok: true, skipped: "busy" });
+  }
+
+  if (teachingV2 && !prefetch) {
     if (!clientRequestId) {
       clientRequestId = crypto.randomUUID();
     }
@@ -1627,6 +1820,7 @@ export async function POST(request: Request) {
                 })
               : "",
           idempotencyKey: creditKey,
+          charge: !prefetch,
           // Dersin bölümleri kaynağın kendi alt başlıkları olsun.
           sectionBackbone:
             kind === "lesson" && teachingV2
@@ -1728,6 +1922,7 @@ export async function POST(request: Request) {
         errorCode: code,
       });
     }
+    if (prefetch) await dropPrefetch(service, nodeId);
     if (error instanceof NodeGenerationError) {
       const admin = await isAdminUser(service, userId).catch(() => false);
       return errorResponse(error.status, error.code, {
@@ -1754,6 +1949,12 @@ export async function POST(request: Request) {
         .eq("id", nodeId)
         .then(undefined, () => undefined);
     }
+  }
+
+  if (prefetch) {
+    const stored = await storePrefetchedLesson(service, nodeId, payload);
+    console.info("lesson_prefetch_ready", { nodeId, stored });
+    return NextResponse.json({ ok: true, prefetched: stored });
   }
 
   if (teachingV2 && creatingAttemptId && generationId && clientRequestId) {
@@ -1804,6 +2005,21 @@ export async function POST(request: Request) {
 
     if (node.status !== "done") {
       await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
+    }
+
+    if (kind === "lesson" && !voiceSession) {
+      // Öğrenci bu dersi okurken sıradaki ders yazılsın.
+      after(() =>
+        requestNextLessonPrefetch(service, {
+          origin: options.origin,
+          userId,
+          prepId,
+          sortOrder: node.sort_order as number,
+          topicId: sessionMeta?.topicId ?? null,
+          familiarity,
+          mood,
+        }),
+      );
     }
 
     return NextResponse.json({
@@ -1982,6 +2198,8 @@ async function generateNodePayload(input: {
   requireSourceSupport?: boolean;
   /** Stage 8: stable key so double-click / retry does not double-charge. */
   idempotencyKey?: string;
+  /** false: önceden yazılan ders; kredi öğrenci açınca düşer. */
+  charge?: boolean;
   learningPreferences?: unknown;
   /**
    * Aynı konunun doğrulanmış dersi — varsa podcast bunun sesli hâli olur.
@@ -2197,22 +2415,11 @@ async function teacherLessonPayload(
     learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
     runningHeaders: edges,
     startedAt,
+    charge: input.charge,
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
   const lesson = outcome.lesson;
-  if (input.prepId && input.topicId) {
-    await input.service
-      .from("exam_prep_lessons")
-      .insert({
-        exam_prep_id: input.prepId,
-        topic_id: input.topicId,
-        title: lesson.title,
-        content_md: lesson.overview ?? lesson.sections[0]?.body ?? lesson.title,
-        content_json: lesson,
-      })
-      .then(undefined, () => undefined);
-  }
-  return {
+  const payload = {
     type: "lesson",
     lesson,
     title: lesson.title,
@@ -2221,6 +2428,30 @@ async function teacherLessonPayload(
     refunded: false,
     engine: "teacher",
   };
+  // Önceden yazılan ders konuya öğrenci açınca yazılır.
+  if (input.prepId && input.topicId && input.charge !== false) {
+    await saveTopicLesson(input.service, { prepId: input.prepId, topicId: input.topicId, payload });
+  }
+  return payload;
+}
+
+/** Konunun son dersi: podcast ve tekrar kartları bunu okur. */
+async function saveTopicLesson(
+  service: SupabaseClient,
+  input: { prepId: string; topicId: string; payload: Record<string, unknown> },
+) {
+  const lesson = input.payload.lesson as LessonV2 | undefined;
+  if (!lesson || typeof lesson !== "object" || !lesson.title) return;
+  await service
+    .from("exam_prep_lessons")
+    .insert({
+      exam_prep_id: input.prepId,
+      topic_id: input.topicId,
+      title: lesson.title,
+      content_md: lesson.overview ?? lesson.sections?.[0]?.body ?? lesson.title,
+      content_json: lesson,
+    })
+    .then(undefined, () => undefined);
 }
 
 /**

@@ -281,7 +281,9 @@ export type UsageCode =
   /** Büyük ana konuyu kavram birimlerine bölme (0 kredi, belge başına bir kez). */
   | "TOPIC_UNITS"
   /** Hazırlığın içerikten adı (0 kredi, kurulum başına bir kez). */
-  | "PREP_TITLE";
+  | "PREP_TITLE"
+  /** Sıradaki dersin önceden yazımı (kredi öğrenci dersi açınca ayrıca düşer). */
+  | "LESSON_PREFETCH";
 
 export async function recordUsage(
   service: SupabaseClient,

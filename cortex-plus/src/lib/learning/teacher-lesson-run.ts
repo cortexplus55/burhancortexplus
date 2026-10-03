@@ -44,6 +44,11 @@ export async function runTeacherLesson(
     idempotencyKey: string;
     /** İsteğin başladığı an (temizlik dahil); süre sınırı buna göre. */
     startedAt?: number;
+    /**
+     * false: sıradaki dersin önceden yazımı. Kredi ayrılmaz; öğrenci dersi
+     * açınca düşer. Model kullanımı ayrı kodla (LESSON_PREFETCH) yazılır.
+     */
+    charge?: boolean;
   },
 ): Promise<TeacherLessonOutcome> {
   if (!env.OPENAI_API_KEY) return { ok: false, status: 503, error: "generation_failed", reasons: ["no_api_key"] };
@@ -51,15 +56,23 @@ export async function runTeacherLesson(
     return { ok: false, status: 503, error: "source_unavailable", reasons: ["no_pages"] };
   }
 
-  const reservation = await reserveCredits(service, input.userId, input.actionCode, input.idempotencyKey);
-  if (!reservation.ok) {
-    return {
-      ok: false,
-      status: reservation.reason === "insufficient_credits" ? 402 : 409,
-      error: reservation.reason,
-      reasons: [],
-    };
+  const charge = input.charge !== false;
+  let reservationId: string | null = null;
+  if (charge) {
+    const reservation = await reserveCredits(service, input.userId, input.actionCode, input.idempotencyKey);
+    if (!reservation.ok) {
+      return {
+        ok: false,
+        status: reservation.reason === "insufficient_credits" ? 402 : 409,
+        error: reservation.reason,
+        reasons: [],
+      };
+    }
+    reservationId = reservation.reservationId;
   }
+  const refund = async () => {
+    if (reservationId) await refundCredits(service, reservationId).catch(() => undefined);
+  };
 
   const started = input.startedAt ?? Date.now();
   const model = contentModel();
@@ -77,11 +90,11 @@ export async function runTeacherLesson(
     });
     await recordUsage(service, {
       userId: input.userId,
-      actionCode: input.actionCode,
+      actionCode: charge ? input.actionCode : "LESSON_PREFETCH",
       model,
       tokensIn: response.usage?.prompt_tokens ?? 0,
       tokensOut: response.usage?.completion_tokens ?? 0,
-      reservationId: reservation.reservationId,
+      reservationId,
     }).catch(() => undefined);
     return parseModelJson(response.choices[0]?.message?.content ?? "");
   };
@@ -89,7 +102,7 @@ export async function runTeacherLesson(
   try {
     const loop = await teacherLessonLoop(ask, input, started);
     if (!loop.lesson) {
-      await refundCredits(service, reservation.reservationId).catch(() => undefined);
+      await refund();
       return { ok: false, status: 503, error: "generation_failed", reasons: ["schema"] };
     }
     const high = loop.issues.filter((issue) => issue.severity === "high");
@@ -103,7 +116,7 @@ export async function runTeacherLesson(
     });
     if (high.length) {
       // Belgeyle tutmayan ders öğrenciye gitmez; kredi iade.
-      await refundCredits(service, reservation.reservationId).catch(() => undefined);
+      await refund();
       return {
         ok: false,
         status: 503,
@@ -112,10 +125,10 @@ export async function runTeacherLesson(
       };
     }
     const lesson = loop.lesson;
-    await commitCredits(service, reservation.reservationId);
+    if (reservationId) await commitCredits(service, reservationId);
     return { ok: true, lesson, calls, ms: Date.now() - started, remainingLow: loop.issues };
   } catch (error) {
-    await refundCredits(service, reservation.reservationId).catch(() => undefined);
+    await refund();
     console.error("teacher_lesson_failed", {
       topic: input.topicLabel.slice(0, 80),
       calls,
