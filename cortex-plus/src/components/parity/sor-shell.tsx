@@ -248,7 +248,7 @@ export function ParitySorShell({
             onClick={() => setMenuOpen(true)}
           >
             <LayoutGrid className="h-4 w-4" aria-hidden />
-            <span>Daha fazla</span>
+            <span className="cp-sor-more-label">Daha fazla</span>
           </button>
           <Link href="/profil" className="cp-sor-avatar" aria-label="Profil">
             {avatarEmoji ? (

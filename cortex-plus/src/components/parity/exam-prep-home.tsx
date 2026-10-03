@@ -269,8 +269,12 @@ export function ExamPrepHome({
   const [sharing, setSharing] = useState(false);
   const [view, setView] = useState<"yol" | "ilerleme">("yol");
   const [topSlot, setTopSlot] = useState<HTMLElement | null>(null);
+  // Sunucu çiziminde simgeler gizli: yoksa açılışta bir an ayrı satırda
+  // görünüp üst çubuğa zıplıyorlardı.
+  const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setTopSlot(document.getElementById(PREP_TOP_SLOT_ID));
+    setMounted(true);
   }, []);
   /**
    * Seviye tespiti yolun ilk düğümü (3 Ekim 2026). Eskiden yolun üstünde
@@ -366,7 +370,11 @@ export function ExamPrepHome({
   // serinin solunda (3 Ekim 2026). Kabuk "focus" başlığında yer açıyor;
   // yer yoksa (test ortamı) simgeler sayfanın başında kalır.
   const toolbar = (
-      <div className="cp-prep-actions" role="toolbar" aria-label="Hazırlık işlemleri">
+      <div
+        className={cn("cp-prep-actions", !mounted && "cp-prep-actions--pending")}
+        role="toolbar"
+        aria-label="Hazırlık işlemleri"
+      >
         <Link
           href={`/deneme-sinavlari/${prepId}/sohbet`}
           className="cp-prep-icon"

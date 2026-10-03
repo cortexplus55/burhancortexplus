@@ -10163,10 +10163,28 @@
   margin: 0 0.5rem 0 0;
 }
 
+.cp-sor-root--focus .cp-prep-actions--pending {
+  display: none;
+}
+
+/* Telefonda Astra gibi tek satır: Geri, simgeler, seri, menü, avatar. */
 @media (max-width: 480px) {
   .cp-sor-top-slot .cp-prep-actions {
     gap: 0.3rem;
     margin-right: 0.25rem;
+  }
+
+  .cp-sor-top-slot .cp-prep-icon {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .cp-sor-root--focus .cp-sor-top {
+    flex-wrap: nowrap;
+  }
+
+  .cp-sor-root--focus .cp-sor-more-label {
+    display: none;
   }
 }
 
