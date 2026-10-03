@@ -48,6 +48,7 @@ const SCHEMA = `{
   "sections": [
     {
       "heading": "kavramın adı",
+      "lead": "içerik listesinde başlığın altında durur: bu bölümde ne var; tek cümle, en çok 12 kelime",
       "body": "60-140 kelime; anahtar terimler **koyu**",
       "checkFirst": true,
       "cards": [{"title": "kardeş kavram", "body": "tek cümle tanım"}],
@@ -123,7 +124,9 @@ export const TEACHER_SYSTEM =
   "1) overview: dersin kancası — konuya girmeden önce öğrenciyi düşündüren 1-2 cümle.\n" +
   "2) Bölümler: 3-4 bölüm (kaynak darsa 2). Her bölüm tek kavram; başlık kavramın adı. " +
   "Kaynakta başlık büyük harfle yazılmış olsa bile sen normal yazımla yaz ('MADDİ YAPTIRIMLAR' değil 'Maddi Yaptırımlar'). " +
-  "Bölüm numarası, 'Giriş/Özet/Örnek/Yaygın hata/Bilgi kontrolü' gibi şablon başlık yok.\n" +
+  "Bölüm numarası, 'Giriş/Özet/Örnek/Yaygın hata/Bilgi kontrolü' gibi şablon başlık yok. " +
+  "Her bölümün 'lead' satırı dersin başındaki içerik listesinde başlığın altında durur: bölümün neyi ayırt " +
+  "ettirdiğini söyleyen tek kısa cümle; yeni bilgi taşımaz, başlığı tekrar etmez.\n" +
   "3) İlk bölümde checkFirst=true: konu anlatılmadan önce öğrencinin ön bilgisini yoklayan, yaygın yanılgıyı ölçen bir " +
   "soru; tercihen doğru/yanlış (trueFalse, options ['Doğru','Yanlış']).\n" +
   "4) Her bölüm bir kontrolle biter. Çoktan seçmeli soruda 4 şık; çeldiriciler aynı ailedeki kardeş terimler ya da " +

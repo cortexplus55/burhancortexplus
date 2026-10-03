@@ -279,6 +279,25 @@ kuralları (aralık uçları, iki doğru kural yan yana şık) `teacher-quiz.ts`
 ve denetçi istemine taşındı. Kötü içerik için kod onarımı geri getirilmez — istem
 ya da denetim düzeltilir.
 
+**Araçlar da öğretmen motorunda (3 Ekim 2026, #242):** `/araclar` kartları, podcast,
+sözlü deneme, sesli ders/sesli sözlü ve ders podcast'i aynı motorlardan;
+kaynak `studio-teacher-source.ts` (belge seçiliyse konunun sayfaları, değilse konu
+modu). Eski `generateJson` taslak yolu bu uçlardan kalktı.
+
+**Sıradaki ders önceden yazılıyor (3 Ekim 2026, #243):** öğrenci bir dersi açınca
+aynı konunun yolundaki sonraki ders arka planda yazılır, `exam_prep_prefetch`'te
+bekler. **Kredi yalnız öğrenci açınca düşer**; açılmayan dersin model maliyeti
+bizde (kullanım `LESSON_PREFETCH` koduyla). Arka plan isteği öğrencinin çerezini
+taşımaz — Supabase yenileme anahtarını iki istekte kullanmak oturumu düşürebilir;
+sunucu imzalı kısa ömürlü başlık (`lesson-prefetch.ts`) taşır. Öğrencinin aşinalık
+cevabı başka kuşaktaysa (yeni/duymuştum · temel · iyi/güvenli) hazır ders atılır,
+yeniden yazılır. Bekçi test: `lesson-prefetch.test.ts`.
+
+**Tüm test paketini `npx vitest run --exclude "tests/unit/_tmp/**"` ile koşun.**
+`tests/unit/_tmp/` yerel altın denemeleri `.env.local` anahtarıyla canlı model
+çağırıyor ve kapıları yok; düz `npx vitest run` onları da çalıştırır (3 Ekim'de
+onaysız ~0,04 $).
+
 ## Fonksiyon bölgesi Frankfurt (`fra1`) — veritabanının yanı
 
 **29 Eylül 2026'ya kadar fonksiyonlar `iad1`'de (Washington) çalışıyordu;

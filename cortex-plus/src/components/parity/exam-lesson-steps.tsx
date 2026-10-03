@@ -27,7 +27,7 @@ import type {
   LessonCheckAnswer,
   PublicSectionCheck,
 } from "@/lib/learning/lesson-play";
-import { publicLessonV2Schema } from "@/lib/learning/lesson-play";
+import { planLine, publicLessonV2Schema } from "@/lib/learning/lesson-play";
 import { isNearDuplicateText, stripInlineSourceLine } from "@/lib/learning/lesson-source";
 import type { z } from "zod";
 import "@/styles/exam-lesson-steps.css";
@@ -410,12 +410,19 @@ function LessonPlan({ lesson }: { lesson: PlayLesson }) {
     <section className="als-intro-plan" aria-label="Bu derste neler var">
       <h2>Bu derste neler var</h2>
       <ol>
-        {headings.map((heading, index) => (
-          <li key={heading}>
-            <span aria-hidden>{index + 1}</span>
-            {heading}
-          </li>
-        ))}
+        {headings.map((heading, index) => {
+          const section = lesson.sections.find((item) => item.heading.trim() === heading);
+          const line = section ? planLine(section) : "";
+          return (
+            <li key={heading}>
+              <span aria-hidden>{index + 1}</span>
+              <div>
+                {heading}
+                {line ? <small>{line}</small> : null}
+              </div>
+            </li>
+          );
+        })}
       </ol>
       {checks ? (
         <p className="als-intro-end">
