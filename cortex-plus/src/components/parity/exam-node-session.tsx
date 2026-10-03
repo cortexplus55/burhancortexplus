@@ -150,7 +150,10 @@ export function ExamNodeSession({
   language = "tr",
   subject = null,
   sources = [],
+  unitTitle = null,
 }: {
+  /** Kavram birimli derste dersin kendi adı; kurulum ekranları bunu gösterir. */
+  unitTitle?: string | null;
   prepId: string;
   nodeId: string;
   kind: PlanNodeKind;
@@ -870,7 +873,7 @@ export function ExamNodeSession({
           familiarity={familiarity}
           mood={mood}
           recommendedTitle={meta.setupLabel}
-          topicLabel={topicLabel}
+          topicLabel={unitTitle ?? topicLabel}
           onFamiliarity={(level) => {
             setFamiliarity(level);
             setDifficulty(difficultyFromFamiliarity(level));
@@ -890,7 +893,7 @@ export function ExamNodeSession({
           step="recommend"
           recommendedTitle={meta.setupLabel}
           blurb={meta.blurb}
-          topicLabel={topicLabel}
+          topicLabel={unitTitle ?? topicLabel}
           onFamiliarity={() => undefined}
           onMood={() => undefined}
           onContinue={() => setStage("setup")}
@@ -975,7 +978,7 @@ export function ExamNodeSession({
         <LessonOpenChrome
           step="create"
           recommendedTitle={meta.setupLabel}
-          topicLabel={topicLabel}
+          topicLabel={unitTitle ?? topicLabel}
           busy={loading}
           canCreate={!generationFailure || generationFailure.canRetryNow}
           error={generationError}
