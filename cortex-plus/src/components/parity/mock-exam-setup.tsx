@@ -5,7 +5,15 @@ import { useRouter } from "next/navigation";
 import { Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
+import {
+  MOCK_MINUTES_MAX,
+  MOCK_MINUTES_MIN,
+  MOCK_MINUTES_STEP,
+  UNTIMED_MINUTES,
+} from "@/lib/learning/mock-exam/time-limit";
+
+/** Uzunluk seçeneğinin önerdiği süre; öğrenci değiştirebilir. */
+const PRESET_MINUTES = { short: 20, standard: 40 } as const;
 
 type Topic = {
   id: string;
@@ -19,12 +27,15 @@ export function MockExamSetup({
   prepId,
   topics,
   formatSummary,
+  realMinutes = null,
   isAdmin,
   allocationPreview,
 }: {
   prepId: string;
   topics: Topic[];
   formatSummary: string | null;
+  /** Belgedeki sınav biçiminin süresi ("Gerçek sınav biçimi"). */
+  realMinutes?: number | null;
   isAdmin: boolean;
   allocationPreview: Array<{ topicLabel: string; count: number; examHeavy: boolean }>;
 }) {
@@ -36,10 +47,15 @@ export function MockExamSetup({
   );
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<string[]>([]);
+  const presetMinutes = (value: "short" | "standard" | "real") =>
+    value === "real" ? (realMinutes ?? PRESET_MINUTES.standard) : PRESET_MINUTES[value];
+  // Astra gibi serbest süre (1 Ekim 2026). Uzunluk değişince önerilen süreye döner.
+  const [minutes, setMinutes] = useState(() => presetMinutes(formatSummary ? "real" : "standard"));
+  const [untimed, setUntimed] = useState(false);
 
   const creditNote = isAdmin
-    ? "Kurucu hesabı: bu deneme kredinden düşmez."
-    : `Bu deneme ${CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits} kredi kullanır. Değerlendirme dahildir.`;
+    ? "Kurucu hesabı: bu deneme hakkından düşmez."
+    : "Değerlendirme dahildir.";
 
   const preview = useMemo(() => {
     if (scope === "all") return allocationPreview;
@@ -61,6 +77,7 @@ export function MockExamSetup({
           preset,
           scope,
           topicIds: scope === "topics" ? [...selected] : undefined,
+          durationMinutes: untimed ? UNTIMED_MINUTES : minutes,
         }),
       });
       const payload = await res.json().catch(() => ({}));
@@ -206,7 +223,10 @@ export function MockExamSetup({
                     ? "border-[#3d5afe] bg-[color:color-mix(in_srgb,#3d5afe_12%,transparent)]"
                     : "border-[color:var(--cp-border)] bg-[color:var(--cp-surface)]",
                 )}
-                onClick={() => setPreset(value)}
+                onClick={() => {
+                  setPreset(value);
+                  setMinutes(presetMinutes(value));
+                }}
               >
                 {badge ? (
                   <span className="absolute right-2 top-2 rounded-full bg-[color:var(--cp-gold)] px-2 py-0.5 text-[10px] font-bold text-[#050505]">
@@ -217,6 +237,56 @@ export function MockExamSetup({
               </button>
             ))}
         </div>
+      </section>
+
+      <section className="mt-8" aria-labelledby="mock-time-title">
+        <h2 id="mock-time-title" className="text-sm font-semibold">
+          Süre
+        </h2>
+        <div className={cn("cp-mock-time", untimed && "is-off")}>
+          <button
+            type="button"
+            className="cp-mock-time-step"
+            aria-label={`${MOCK_MINUTES_STEP} dakika azalt`}
+            disabled={untimed || minutes <= MOCK_MINUTES_MIN}
+            onClick={() => setMinutes((value) => Math.max(MOCK_MINUTES_MIN, value - MOCK_MINUTES_STEP))}
+          >
+            −
+          </button>
+          <p className="cp-mock-time-value" aria-live="polite">
+            {untimed ? (
+              "Süresiz"
+            ) : (
+              <>
+                <strong>{minutes}</strong> dk
+              </>
+            )}
+          </p>
+          <button
+            type="button"
+            className="cp-mock-time-step"
+            aria-label={`${MOCK_MINUTES_STEP} dakika artır`}
+            disabled={untimed || minutes >= MOCK_MINUTES_MAX}
+            onClick={() => setMinutes((value) => Math.min(MOCK_MINUTES_MAX, value + MOCK_MINUTES_STEP))}
+          >
+            +
+          </button>
+        </div>
+        <input
+          type="range"
+          className="cp-mock-time-range"
+          min={MOCK_MINUTES_MIN}
+          max={MOCK_MINUTES_MAX}
+          step={MOCK_MINUTES_STEP}
+          value={minutes}
+          disabled={untimed}
+          aria-label="Süre (dakika)"
+          onChange={(event) => setMinutes(Number(event.target.value))}
+        />
+        <label className="cp-mock-time-toggle">
+          <input type="checkbox" checked={untimed} onChange={(event) => setUntimed(event.target.checked)} />
+          Süre sınırı yok
+        </label>
       </section>
 
       {preview.length ? (
@@ -253,7 +323,11 @@ export function MockExamSetup({
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
         <ul className="list-disc space-y-1 pl-4">
           <li>Sınav sırasında ipucu ve sohbet kapalı.</li>
-          <li>Süre bitince cevapların otomatik gönderilir.</li>
+          <li>
+            {untimed
+              ? "Süre sınırı yok; bitirdiğinde cevaplarını sen gönderirsin."
+              : "Süre bitince cevapların otomatik gönderilir."}
+          </li>
           <li>Sayfayı kapatırsan kaldığın yerden devam edebilirsin.</li>
         </ul>
       </div>

@@ -10,6 +10,7 @@ import { AskParentPaymentButton } from "@/components/paywall/ask-parent-payment"
 import { PremiumPlanHero } from "@/components/marketing/premium-plan-hero";
 import { billingPeriodOf } from "@/lib/payments/subscription";
 import { formatTry, formatTryWhole } from "@/lib/format";
+import { allowanceShare } from "@/lib/credits/period";
 import "@/styles/parity-app.css";
 import "@/styles/cortex-premium.css";
 import { TrustStrip } from "@/components/parity/trust-strip";
@@ -83,6 +84,7 @@ export function SubscriptionCards({
   beneficiaryStudentId,
   childName,
   currentBadge = null,
+  currentAllowance = null,
   checkoutEnabled = true,
 }: {
   plans: Plan[];
@@ -98,6 +100,8 @@ export function SubscriptionCards({
   beneficiaryStudentId?: string | null;
   childName?: string | null;
   currentBadge?: "Plus" | "Sigma" | null;
+  /** Abonenin dönem hakkı; ek paket buna oranla (+%X) gösteriliyor. */
+  currentAllowance?: number | null;
   checkoutEnabled?: boolean;
 }) {
   const router = useRouter();
@@ -286,7 +290,7 @@ export function SubscriptionCards({
         <div className="relative overflow-hidden rounded-2xl border border-[var(--cs-border)] bg-[var(--cs-surface)] shadow-[0_20px_60px_-40px_rgba(0,0,0,0.45)]">
           {!iframeReady ? (
             <div
-              className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--cs-surface)]/95"
+              className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[color:color-mix(in_srgb,var(--cs-surface)_95%,transparent)]"
               aria-busy="true"
               aria-live="polite"
             >
@@ -388,7 +392,7 @@ export function SubscriptionCards({
               aria-selected={yearly}
               className={cn(
                 "flex-1 min-h-[44px] rounded-full px-3 py-2.5 font-medium transition-colors",
-                yearly ? "cs-nav-active text-white" : "text-[var(--cs-muted)]",
+                yearly ? "cs-nav-active text-[var(--cs-text)]" : "text-[var(--cs-muted)]",
               )}
               onClick={() => setYearly(true)}
             >
@@ -401,7 +405,7 @@ export function SubscriptionCards({
               aria-selected={!yearly}
               className={cn(
                 "flex-1 min-h-[44px] rounded-full px-3 py-2.5 font-medium transition-colors",
-                !yearly ? "cs-nav-active text-white" : "text-[var(--cs-muted)]",
+                !yearly ? "cs-nav-active text-[var(--cs-text)]" : "text-[var(--cs-muted)]",
               )}
               onClick={() => setYearly(false)}
             >
@@ -597,7 +601,7 @@ export function SubscriptionCards({
         {sigmaUnderFold && !otherPlansOpen ? (
           <button
             type="button"
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--cs-border)] bg-[var(--cs-surface)] py-3.5 text-sm font-medium text-[var(--cs-muted)] transition-colors hover:border-[var(--cs-primary)]/40 hover:text-[var(--cs-text)]"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--cs-border)] bg-[var(--cs-surface)] py-3.5 text-sm font-medium text-[var(--cs-muted)] transition-colors hover:border-[color:color-mix(in_srgb,var(--cs-primary)_40%,transparent)] hover:text-[var(--cs-text)]"
             onClick={() => setOtherPlansOpen(true)}
           >
             Diğer planlar · Sigma
@@ -704,9 +708,14 @@ export function SubscriptionCards({
                 className="cs-pay-card flex items-center justify-between p-4"
               >
                 <div>
-                  <h3 className="font-medium">{plan.name}</h3>
+                  {/* Astra gibi sayı değil oran: paket, abonenin kendi aylık
+                      hakkına göre ne kadar ek kullanım getirdiğini söylüyor. */}
+                  <h3 className="font-medium">Ek paket</h3>
                   <p className="text-sm text-[var(--cs-muted)]">
-                    {formatTryWhole(plan.price_try)} · {plan.credit_amount} kredi
+                    {formatTryWhole(plan.price_try)}
+                    {allowanceShare(plan.credit_amount, currentAllowance)
+                      ? ` · aylık hakkına +%${allowanceShare(plan.credit_amount, currentAllowance)}`
+                      : ""}
                   </p>
                 </div>
                 <button
@@ -761,7 +770,7 @@ export function SubscriptionCards({
                 <TrustStrip />
 
         <p className="text-center text-xs text-[var(--cs-muted)]">
-          Notunda olmayanı uydurmaz. Cevaplayamadığı soruda kredin düşmez.
+          Notunda olmayanı uydurmaz. Cevaplayamadığı soruda hakkından düşmez.
         </p>
 
         {embedded && !guestMode && !isParent && !plusOwned ? (

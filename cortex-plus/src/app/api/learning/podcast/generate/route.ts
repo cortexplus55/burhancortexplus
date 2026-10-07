@@ -2,13 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
-import { generateJson } from "@/lib/ai/generate";
-import { loadDocumentGenerationContext } from "@/lib/documents/generation-context";
-import {
-  podcastDialogueIssues,
-  podcastNarrationBrief,
-  SINGLE_NARRATOR_SCHEMA,
-} from "@/lib/learning/teacher-brain";
+import { DEFAULT_PODCAST_LENGTH } from "@/lib/learning/podcast-formats";
+import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
+import { studioTeacherSource } from "@/lib/learning/studio-teacher-source";
 
 const bodySchema = z.object({
   topic: z.string().min(3).max(300),
@@ -16,29 +12,11 @@ const bodySchema = z.object({
   documentId: z.string().uuid().optional(),
 });
 
-// Satır bazlı biçim; ayrıntı için lib/learning/podcast-script.ts.
-const resultSchema = z.object({
-  title: z.string().min(1),
-  tagline: z.string().min(1),
-  chapters: z
-    .array(
-      z.object({
-        title: z.string().min(1),
-        lines: z
-          .array(
-            z.object({
-              speaker: z.enum(["ada", "kerem"]),
-              text: z.string().min(4),
-            }),
-          )
-          .min(2)
-          .max(14),
-      }),
-    )
-    .min(3)
-    .max(6),
-});
-
+/*
+  Araçlar > Podcast (3 Ekim 2026): sınav hazırlığındaki öğretmen podcast
+  motoru — temiz çekirdek sayfalar (belge seçildiyse), belgeyle eşleme,
+  modelin düzeltmesi. Eski tek-anlatıcı şablonu ve kalıp denetimi kalktı.
+*/
 export async function POST(request: Request) {
   const guard = await withUser(request, { scope: "podcast", limit: 6, trackSharing: true });
   if (!guard.ok) return guard.response;
@@ -46,7 +24,7 @@ export async function POST(request: Request) {
 
   /*
     Podcast kayıtlı ücretsizde açık (24 Eylül 2026). Kapı özellik değil kota:
-    senaryo `generateJson` içinde kredi yer, ses ayrı uçta karakter başına
+    senaryo öğretmen motorunda kredi yer, ses ayrı uçta karakter başına
     ücretlenir. Misafir `withUser` ile 401 AUTH_REQUIRED alır ve modele
     ulaşmaz. `/ornek` hazır bölümü hâlâ girişsiz ve maliyetsiz duruyor.
   */
@@ -54,43 +32,32 @@ export async function POST(request: Request) {
   if (!requireFeature(entitlements, "podcast")) {
     return errorResponse(402, "premium_required");
   }
-  const isPremium = entitlements.isPremium;
 
   const parsedBody = bodySchema.safeParse(await request.json());
   if (!parsedBody.success) return errorResponse(400, "invalid_input");
   const { topic, documentId } = parsedBody.data;
 
   // Kredi ayrılmadan önce: belge hazır değilse net sebep, kayıp yok.
-  const docContext = documentId
-    ? await loadDocumentGenerationContext(service, userId, documentId, topic, {
-        maxChars: 9_000,
-      })
-    : null;
-  if (documentId && !docContext) return errorResponse(409, "document_not_ready");
+  const source = await studioTeacherSource(service, { userId, topic, documentId });
+  if (!source) return errorResponse(409, "document_not_ready");
 
-  const outcome = await generateJson({
-    service,
+  const outcome = await runTeacherPodcast(service, {
     userId,
     actionCode: "AI_CHAT_STANDARD",
-    isPremium,
-    schemaHint:
-      'Yalnızca şu JSON: {"title":string,"tagline":string,"chapters":[{"title":string,"lines":[{"speaker":"ada","text":string}]}]}. ' +
-      `4-5 bölüm. ${SINGLE_NARRATOR_SCHEMA} Konuşma dilinde Türkçe.` +
-      (docContext
-        ? " İçeriği YALNIZCA verilen belge alıntısındaki bilgiden kur; alıntıda olmayan iddia ekleme."
-        : ""),
-    userPrompt: docContext
-      ? `${podcastNarrationBrief()} Belge: ${docContext.fileName}. Konu: ${topic}. Tek öğretmenin anlattığı 5 dakikalık ders senaryosu yaz.\n\nBelge alıntısı:\n${docContext.excerpt}`
-      : `${podcastNarrationBrief()} Konu: ${topic}. Tek öğretmenin anlattığı 5 dakikalık ders senaryosu yaz.`,
-    parse: (raw) => {
-      const result = resultSchema.safeParse(raw);
-      if (!result.success) return null;
-      if (podcastDialogueIssues(result.data.chapters).length) return null;
-      return result.data;
-    },
+    idempotencyKey: `studio-podcast:${userId}:${crypto.randomUUID()}`,
+    topicLabel: topic,
+    prepTitle: source.fileName ?? topic,
+    pages: source.pages,
+    mode: source.mode,
+    length: DEFAULT_PODCAST_LENGTH,
+    runningHeaders: source.edges,
   });
-
   if (!outcome.ok) return errorResponse(outcome.status, outcome.error);
+  const episode = {
+    title: outcome.episode.title,
+    tagline: outcome.episode.chapters[0]?.title ?? topic,
+    chapters: outcome.episode.chapters,
+  };
 
   // Senaryo kütüphaneye yazılıyor: ses satırları içerik adresli önbellekte
   // durduğu için aynı bölümü yeniden dinlemek bedava; saklanan tek şey metin.
@@ -103,9 +70,9 @@ export async function POST(request: Request) {
         user_id: userId,
         document_id: documentId ?? null,
         topic,
-        title: outcome.data.title,
-        tagline: outcome.data.tagline,
-        chapters: outcome.data.chapters,
+        title: episode.title,
+        tagline: episode.tagline,
+        chapters: episode.chapters,
       })
       .select("id")
       .single();
@@ -115,10 +82,10 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({
-    ...outcome.data,
+    ...episode,
     podcastId,
-    source: docContext
-      ? { kind: "document", documentId, fileName: docContext.fileName }
+    source: documentId
+      ? { kind: "document", documentId, fileName: source.fileName }
       : { kind: "topic" },
   });
 }

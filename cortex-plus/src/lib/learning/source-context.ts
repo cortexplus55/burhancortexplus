@@ -3,7 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { pageUsableForLesson } from "@/lib/documents/page-analysis";
 import { sliceNumberedSection } from "@/lib/documents/topic-title";
 import { conceptInText, conceptsWorthWidening } from "@/lib/learning/lesson-claims";
-import { topicTitlesAlign } from "@/lib/learning/lesson-teach";
+import { topicTitlesAlign } from "@/lib/learning/topic-align";
+import { hasRepetitiveSparseEvidence } from "@/lib/learning/diagnostic-evidence";
 import { MIN_CHUNK_SIMILARITY, searchDocumentChunks, type DocumentMatch } from "@/lib/rag/pipeline";
 
 /**
@@ -33,6 +34,8 @@ export type SourceContext = {
   documentName: string | null;
   /** Sayfalardan çıkarılmış formüller; ders bunlara karşı denetleniyor. */
   formulas?: string[];
+  /** One short statement repeated across pages; not enough for numeric checks. */
+  repetitiveSparseEvidence?: boolean;
   /**
    * Başlık hizalamasında belge başına sayfalar — self-heal karışık belge
    * sayfalarını tek id altına yazmasın diye.
@@ -325,6 +328,7 @@ export async function loadPageSourceContext(
     formulas,
     skippedPages,
     usableChars,
+    repetitiveSparseEvidence: hasRepetitiveSparseEvidence(topicPages.map((page) => page.text)),
     block: pageSourceBlock(
       documentName,
       topicPages,
@@ -418,6 +422,7 @@ export function mergeTopicSources(
   if (!extras.length) return pageBound;
   return {
     ...pageBound,
+    repetitiveSparseEvidence: false,
     matches: [...pageBound.matches, ...related.filter((match) => seen.has(`${match.documentId}:${match.chunkId}`))],
     block:
       pageBound.block +
@@ -535,6 +540,7 @@ export async function loadTopicSpanContext(
     }
     const parts: string[] = [];
     const formulas: string[] = [];
+    const sparseFlags: boolean[] = [];
     let documentName: string | null = null;
     for (const [documentId, pages] of pagesByDoc) {
       const { data: existing } = await service
@@ -555,6 +561,7 @@ export async function loadTopicSpanContext(
         if (!loaded.block.trim()) continue;
         if (!documentName) documentName = loaded.documentName;
         parts.push(loaded.block);
+        sparseFlags.push(Boolean(loaded.repetitiveSparseEvidence));
         formulas.push(...(loaded.formulas ?? []));
       } catch (error) {
         if (error instanceof SourceUnavailableError) continue;
@@ -566,6 +573,7 @@ export async function loadTopicSpanContext(
       matches: [],
       documentName,
       formulas,
+      repetitiveSparseEvidence: parts.length === 1 && sparseFlags[0] === true,
       block: parts.join("\n\n"),
       pagesByDocument: [...pagesByDoc.entries()].map(([documentId, pages]) => ({
         documentId,

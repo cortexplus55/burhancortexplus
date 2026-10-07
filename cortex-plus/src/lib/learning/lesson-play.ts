@@ -7,6 +7,7 @@
 import { z } from "zod";
 import type { LessonV2, SectionCheck } from "@/lib/learning/teaching-standards";
 import { reviewGateQuestion } from "@/lib/learning/lesson-chrome";
+import { powerValue } from "@/lib/learning/exponent-key";
 import type { MaterialLanguage } from "@/lib/learning/teacher-brain";
 
 export type LessonCheckAnswer = {
@@ -70,8 +71,13 @@ export const publicLessonV2Schema = z.object({
     .array(
       z.object({
         heading: z.string().min(1).max(160),
+        lead: z.string().optional(),
         body: z.string().min(1),
+        source: z
+          .object({ file: z.string(), page: z.number().optional() })
+          .optional(),
         check: publicSectionCheckSchema.optional(),
+        checkFirst: z.boolean().optional(),
         retryCheck: publicSectionCheckSchema.optional(),
         note: z
           .object({
@@ -84,6 +90,26 @@ export const publicLessonV2Schema = z.object({
           .array(z.object({ title: z.string(), body: z.string() }))
           .optional(),
         diagram: z.unknown().optional(),
+        formula: z
+          .object({
+            title: z.string(),
+            expression: z.string(),
+            note: z.string().optional(),
+          })
+          .optional(),
+        procedure: z
+          .object({
+            title: z.string().optional(),
+            steps: z.array(z.object({ label: z.string(), detail: z.string() })),
+          })
+          .optional(),
+        table: z
+          .object({
+            caption: z.string().optional(),
+            columns: z.array(z.string()),
+            rows: z.array(z.array(z.string())),
+          })
+          .optional(),
       }),
     )
     .min(1),
@@ -181,6 +207,18 @@ export function buildLessonRetryCheck(
   return reviewGateQuestion(check, language, source);
 }
 
+/**
+ * "Bu derste neler var" listesinde başlığın altındaki tek satır (Astra'daki
+ * gibi). Model `lead` yazdıysa o; yazmadıysa (eski ders) bölümün kısa ilk
+ * cümlesi. Uzun cümle kesilmez — satır boş kalır.
+ */
+export function planLine(section: { lead?: string; body: string }): string {
+  const lead = section.lead?.replace(/\*\*/g, "").trim();
+  if (lead) return lead;
+  const first = section.body.replace(/\*\*/g, "").trim().match(/^[^\n]*?[.!?](?=\s|$)/)?.[0] ?? "";
+  return first.length >= 12 && first.length <= 140 ? first : "";
+}
+
 /** Tam ders → oynatma paketi. Cevap ve tekrar varyantı yok (cevap sızdırmaz). */
 export function sealLessonForPlay(
   lesson: LessonV2,
@@ -247,6 +285,22 @@ export function gradeNumericalAnswer(
   const want = fold(expected);
   const got = fold(given);
   if (!got) return { correct: false, message: `Doğrusu ${expected}` };
+
+  // Üslü cevap: beklenen "8³" iken değeri hesaplayıp "512" yazan öğrenci
+  // yanlış sayılıyordu (29 Eylül, canlı ders). İki taraf da hesaplanabiliyorsa
+  // değer karşılaştırılır; ikisi de doğru yazımdır.
+  if (/[⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(`${expected}${given}`)) {
+    const wantValue = powerValue(expected);
+    const gotValue = powerValue(given.trim());
+    if (wantValue != null && gotValue != null) {
+      const shown =
+        /[⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(expected) && Number.isInteger(wantValue) && Math.abs(wantValue) < 1e12
+          ? `${expected} = ${wantValue}`
+          : expected;
+      const ok = Math.abs(wantValue - gotValue) <= 1e-9 * Math.max(1, Math.abs(wantValue));
+      return { correct: ok, message: ok ? `Doğru — ${shown}` : `Doğrusu ${shown}` };
+    }
+  }
 
   const wantNum = want.match(/-?\d+(?:[.,]\d+)?/);
   const gotNum = got.match(/-?\d+(?:[.,]\d+)?/);
@@ -437,29 +491,4 @@ export function optionWhyUniqueIssues(check: SectionCheck): string[] {
     }
   }
   return issues;
-}
-
-/** Kelime 3-gram Jaccard örtüşmesi. */
-export function trigramJaccard(left: string, right: string): number {
-  const grams = (text: string) => {
-    const words = fold(text).split(/\s+/).filter(Boolean);
-    const out = new Set<string>();
-    for (let i = 0; i <= words.length - 3; i += 1) {
-      out.add(words.slice(i, i + 3).join(" "));
-    }
-    return out;
-  };
-  const a = grams(left);
-  const b = grams(right);
-  if (!a.size || !b.size) return 0;
-  let shared = 0;
-  for (const gram of a) if (b.has(gram)) shared += 1;
-  return shared / (a.size + b.size - shared);
-}
-
-export function isHighOverlap(left: string, right: string, threshold = 0.7): boolean {
-  if (fold(left).includes(fold(right)) || fold(right).includes(fold(left))) {
-    if (Math.min(left.length, right.length) >= 24) return true;
-  }
-  return trigramJaccard(left, right) >= threshold;
 }

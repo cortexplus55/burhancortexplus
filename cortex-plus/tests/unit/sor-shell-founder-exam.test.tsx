@@ -52,6 +52,8 @@ function account(over: Partial<StudentAccountContext> = {}): StudentAccountConte
     isAdmin: false,
     resetsAtLabel: "26 Eylül 2026 03:00",
     periodKind: "monthly",
+    usedPercent: 0,
+    extraPercent: null,
     ...over,
   };
 }

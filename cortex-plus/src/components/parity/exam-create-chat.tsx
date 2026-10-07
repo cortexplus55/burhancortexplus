@@ -29,11 +29,17 @@ function tomorrowIso() {
 export function ExamCreateChat({
   initialDocumentId = null,
   recentSubjects = [],
+  initialSubject = null,
+  initialPrompt = null,
 }: {
   /** Stage 9 — deep link from topic map / docs list. */
   initialDocumentId?: string | null;
   /** Öğrencinin daha önce çalıştığı dersler — öneri çiplerinin ilk sırası. */
   recentSubjects?: string[];
+  /** Katalog kartından gelen ders; hazırlığın exam_type'ı olur. */
+  initialSubject?: string | null;
+  /** Katalog kartından gelen ilk mesaj; kutuya yazılı gelir, öğrenci gönderir. */
+  initialPrompt?: string | null;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMsg[]>([
@@ -43,8 +49,12 @@ export function ExamCreateChat({
         "Sınavında neler var, söyle. Konuları birlikte netleştirelim; sonra tarihi seçip yolunu çıkaracağım.",
     },
   ]);
-  const [draft, setDraft] = useState<Draft>({ title: "", examType: "Serbest", topics: [] });
-  const [input, setInput] = useState("");
+  const [draft, setDraft] = useState<Draft>({
+    title: "",
+    examType: initialSubject ?? "Serbest",
+    topics: [],
+  });
+  const [input, setInput] = useState(initialPrompt ?? "");
   const [examDate, setExamDate] = useState("");
   const [needDate, setNeedDate] = useState(false);
   const [preview, setPreview] = useState<PlanNodeDraft[]>([]);
@@ -456,7 +466,7 @@ export function ExamCreateChat({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Plan çıkarmak için kredin kalmadı."
+        message="Plan çıkarmak için kullanım hakkın doldu."
         returnPath="/deneme-sinavlari/olustur"
       />
     </div>

@@ -14,8 +14,8 @@ const ITEMS = [
   },
   {
     icon: Sparkles,
-    title: "Şeffaf kredi",
-    body: "Her AI işleminin maliyeti önceden görünür; sürpriz fatura yok.",
+    title: "Şeffaf kullanım",
+    body: "Kullanımın tek bir çubukta görünür; sürpriz fatura yok.",
   },
 ];
 

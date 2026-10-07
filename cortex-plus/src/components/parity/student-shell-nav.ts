@@ -1,6 +1,5 @@
 import {
   Bell,
-  BookOpen,
   Camera,
   CreditCard,
   FileText,
@@ -19,6 +18,7 @@ import {
   Target,
   User,
   Users,
+  Wrench,
 } from "lucide-react";
 
 export type StudentNavItem = {
@@ -44,42 +44,51 @@ export const CANONICAL_FEATURES = {
   progress: "İlerleme Analizi",
 } as const;
 
-/** Ana Sayfa · Çalış · AI · Belgeler · Profil */
+/**
+ * Ana Sayfa · Sınavlar · Araçlar · Profil
+ *
+ * 30 Eylül 2026: Ana Sayfa sohbet (Astra'da ilk sekme "Sor"). Ayrı "AI"
+ * sekmesi aynı yere gidiyordu; yerini Astra'nın ikinci sekmesi Sınavlar aldı.
+ *
+ * 3 Ekim 2026: "Çalış" sekmesi kalktı. O ekran bütün hazırlıkları ve
+ * belgeleri tek programda karıştırıyordu (trigonometri programının altında
+ * zemin mekaniği ve pediatri tekrarları). Astra'da her sınavın yolu yalnız
+ * kendi kartında; üçüncü sekme Uygulamalar — bizde Araçlar. Belgeler
+ * sekmesi de kalktı (Astra'da yok): "Daha fazla" menüsünde.
+ */
 export const studentBottomTabs: StudentNavItem[] = [
   {
     id: "home",
-    href: "/dashboard",
+    href: "/ogretmen",
     label: "Ana Sayfa",
     icon: Home,
-    match: (p) => p === "/dashboard" || p === "/",
-  },
-  {
-    id: "study",
-    href: "/calisma-plani",
-    label: "Çalış",
-    icon: BookOpen,
     match: (p) =>
-      p.startsWith("/calisma-plani") ||
-      p.startsWith("/gunluk") ||
-      p.startsWith("/yanlislarim") ||
-      p.startsWith("/studio"),
-  },
-  {
-    id: "ai",
-    href: "/ogretmen",
-    label: "AI",
-    icon: MessageCircle,
-    match: (p) =>
+      p === "/dashboard" ||
+      p === "/" ||
       p === "/ogretmen" ||
       p.startsWith("/ogretmen/") ||
       p.startsWith("/sohbetler"),
   },
   {
-    id: "docs",
-    href: "/dokumanlar",
-    label: "Belgeler",
-    icon: FileText,
-    match: (p) => p.startsWith("/dokumanlar"),
+    id: "exams",
+    href: "/deneme-sinavlari",
+    label: "Sınavlar",
+    icon: Target,
+    match: (p) => p.startsWith("/deneme-sinavlari"),
+  },
+  {
+    id: "tools",
+    href: "/araclar",
+    label: "Araçlar",
+    icon: Wrench,
+    match: (p) =>
+      p.startsWith("/araclar") ||
+      p.startsWith("/studio") ||
+      p.startsWith("/quizler") ||
+      p.startsWith("/flashcardlar") ||
+      p.startsWith("/soru-coz") ||
+      p.startsWith("/yanlislarim") ||
+      p.startsWith("/gunluk"),
   },
   {
     id: "profile",
@@ -112,7 +121,6 @@ export const studentMenuGroups: {
       { href: "/studio/podcast", label: CANONICAL_FEATURES.podcast, icon: Podcast },
       { href: "/studio/sozlu", label: CANONICAL_FEATURES.oral, icon: Mic },
       { href: "/yanlislarim", label: CANONICAL_FEATURES.mistakeNotebook, icon: NotebookPen },
-      { href: "/calisma-plani", label: CANONICAL_FEATURES.studyPlan, icon: BookOpen },
       { href: "/ilerleme", label: CANONICAL_FEATURES.progress, icon: Sparkles },
       { href: "/siniflar", label: "Sınıflar", icon: Users },
       { href: "/davet", label: "Davet et", icon: Sparkles },

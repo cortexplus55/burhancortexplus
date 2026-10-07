@@ -1,4 +1,5 @@
 import "server-only";
+import { samplingParams } from "@/lib/ai/model-params";
 import OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
@@ -38,7 +39,7 @@ export async function judgeEquivalence(
     const client = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 12_000, maxRetries: 0 });
     const response = await client.chat.completions.create({
       model: env.OPENAI_STANDARD_MODEL,
-      temperature: 0,
+      ...samplingParams(env.OPENAI_STANDARD_MODEL, { temperature: 0 }),
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: `${RUBRIC} JSON: {"verdicts":["same"|"conflict"|"unsure"]} sırayı koru.` },

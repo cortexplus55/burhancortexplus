@@ -14,7 +14,6 @@
  */
 
 import { foldTr } from "@/lib/documents/page-analysis";
-import { normalizeMathIdentifiers } from "@/lib/learning/math-identifiers";
 
 const COMMON_CAPITAL = new Set([
   "kutle",
@@ -88,6 +87,9 @@ function midSentenceCapital(text: string): boolean {
 }
 
 function hasPredicate(sentence: string): boolean {
+  // "… sonuç 1 olur (0⁰ hariç)." — sondaki parantez yüklemin yerini almaz.
+  const unwrapped = sentence.replace(/\s*\([^()]*\)\s*([.!?…]*)\s*$/, "$1");
+  if (unwrapped !== sentence && unwrapped.trim()) return hasPredicate(unwrapped);
   if (sentence.split(/\s+/).length < 6) return true;
   if (/kaynak\s*:/i.test(sentence) || /=/.test(sentence)) return true;
   const last = foldTr(sentence)
@@ -96,7 +98,27 @@ function hasPredicate(sentence: string): boolean {
     .filter(Boolean)
     .pop();
   if (!last || last.length < 4) return true;
-  return /(?:d[iuü]r|dir|t[iuü]r|tir|yor|m[iuü]s|mis|ecek|acak|meli|mali|maz|mez|en|an|ar|er|ir|ur|di|du|ti|tu)$/.test(last);
+  if (/(?:d[iuü]r|dir|t[iuü]r|tir|yor|m[iuü]s|mis|ecek|acak|meli|mali|maz|mez|en|an|ar|er|ir|ur|di|du|ti|tu)$/.test(last)) {
+    return true;
+  }
+  /*
+    Kişi ekli yüklem: "Bu derste kuralları göreceğiz.", "Sonucu
+    bulursun.", "Şimdi bir örneğe bakalım.", "Bu bir kural değil."
+    Yalnızca üçüncü tekil ekleri tanındığı için bu cümleler "yüklemsiz"
+    sayılıyordu; akıcılık kritik hata olduğundan modelin sık yazdığı tek
+    bir "… göreceğiz." girişi bütün dersi kurtarma yoluna sokabiliyordu.
+    Ekler fiil çekimine bağlı: "sekiz", "hız" gibi -iz ile biten ad eşleşmez.
+  */
+  if (/(?:ecegiz|acagiz|iriz|eriz|ariz|uruz|yoruz|iyiz|dik|duk|tik|tuk|din|dun|tin|tun|eceksin|acaksin|irsin|ersin|arsin|ursun|isin|siniz|sunuz|elim|alim|degil|yok)$/.test(last)) {
+    return true;
+  }
+  // "… kullanılır; örneğin popülasyon artışı veya alan hesabı gibi." —
+  // noktalı virgülden sonraki örnek eki yüklem istemez; yüklem öndedir.
+  const clauses = sentence.split(";");
+  if (clauses.length > 1 && /^\s*(?:örneğin|mesela|ör\.)/i.test(clauses[clauses.length - 1] ?? "")) {
+    return hasPredicate(clauses.slice(0, -1).join(";"));
+  }
+  return false;
 }
 
 const TYPO_RULES: { pattern: RegExp; replacement: string }[] = [
@@ -107,6 +129,11 @@ const TYPO_RULES: { pattern: RegExp; replacement: string }[] = [
   { pattern: /\bbirşey\b/gi, replacement: "bir şey" },
   { pattern: /\bhiçbirşey\b/gi, replacement: "hiçbir şey" },
   { pattern: /\bdeğilmi\b/gi, replacement: "değil mi" },
+  // Canlı belgesiz derste iki üretimde de çıktı (29 Eylül).
+  // "-(s)ıyla/-(s)iyle" eki "-ıylı/-iyli" yazılıyor: "kendisiyli",
+  // "çarpılmasıylı" (29 Eylül, canlı ders). Ünlü uyumuna göre düzelir.
+  { pattern: /(?<=s[ıu])ylı(?![A-Za-zÇĞİÖŞÜçğıöşü])/g, replacement: "yla" },
+  { pattern: /(?<=s[iü])yli(?![A-Za-zÇĞİÖŞÜçğıöşü])/g, replacement: "yle" },
   {
     pattern: /konu ağırlıklı(?!\s*(?:dır|dir|dur|dür|bir\b))(?![A-Za-zÇĞİÖŞÜçğıöşü])/gi,
     replacement: "konu ağırlıklıdır",
@@ -160,6 +187,11 @@ function repairNounPhrase(text: string): string {
       const foldedFollower = foldTr(follower);
       if (DATIVE_LICENSE.has(foldedFollower) || !BAD_FOLLOWER.has(foldedFollower)) return match;
       if (/[dt][ae]$/i.test(`${stem}${_vowel}`)) return match;
+      // Araç eki (-yla/-yle, -la/-le) yönelme eki değildir: "çarpılmasıyla
+      // bulunur", "formülle hesaplanır". Burası onları "çarpılmasıylı",
+      // "kendisiyli" diye bozuyordu (29 Eylül, canlı ders). Araç ekinde "l"
+      // ünsüz ya da "y" ardından gelir; yönelmede ("formüle") gelmez.
+      if (/[bcçdfgğhjklmnprsştvyz]l$/i.test(stem)) return match;
       const before = stem.slice(0, -1);
       if (before.length < 4) return match;
       if (foldTr(stem.slice(-1)) === "n" && /[aeıioöuü]$/i.test(before)) return match;
@@ -326,6 +358,10 @@ export function dativeStem(word: string): string | null {
     if (candidate.length >= 4 && VOWELS.includes(candidate.at(-1) ?? "")) stem = candidate;
   } else if (/(a|e)$/.test(w)) {
     const candidate = w.slice(0, -1);
+    // Araç eki: "kendisiyle", "formülle", "denklemle" — "l" ünsüzden ya da
+    // "y"den sonra gelir. Yönelme ("masala", "formüle") böyle bitmez. Burası
+    // "bir sayının kendisiyle" ifadesini "kendisiyli" yapıyordu (29 Eylül).
+    if (/[^aeıioöuü]l$/.test(candidate)) return null;
     if (candidate.length >= 4 && !VOWELS.includes(candidate.at(-1) ?? "")) stem = candidate;
   }
   return stem;
@@ -373,6 +409,10 @@ function tokenize(text: string): Token[] {
  * (cümle sonunda) da doğru sonucu verir.
  */
 export function repairDativePossessive(text: string): string {
+  // Başlık ve not başlığı cümle değildir: "Üslü İfade" → "Üslü İfadı"
+  // oluyordu (29 Eylül, model yarışında hakem yakaladı). -e ile biten ad
+  // ("ifade", "kare") cümle sonu olmayan kısa ifadede yönelme sayılmaz.
+  if (!/[.!?…]\s*$/.test(text.trim()) && text.trim().split(/\s+/).length <= 6) return text;
   const tokens = tokenize(text);
   if (tokens.length < 2) return text;
 
@@ -436,32 +476,6 @@ export function turkishSurfaceIssues(text: string): string[] {
     issues.push("Cümle yarım veya şablon artığı.");
   }
   return issues;
-}
-
-/** Onarılabileni onarır; kalan bozukluk issue olarak döner. */
-export function scanFluencyIssues(text: string): { text: string; issues: string[] } {
-  const repaired = repairDativePossessive(text);
-  const issues: string[] = [];
-  if (!isWellFormedTurkishSentence(repaired)) {
-    issues.push("Cümle yarım veya şablon artığı.");
-  }
-  return { text: repaired, issues };
-}
-
-/** Ders ağacındaki her metin alanını aynı onarımdan geçirir. */
-export function repairLessonSurface<T>(value: T): T {
-  if (typeof value === "string") {
-    return repairDativePossessive(normalizeMathIdentifiers(value)) as T;
-  }
-  if (Array.isArray(value)) return value.map((item) => repairLessonSurface(item)) as T;
-  if (value && typeof value === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-      out[key] = repairLessonSurface(child);
-    }
-    return out as T;
-  }
-  return value;
 }
 
 const STOP_STEMS = new Set([

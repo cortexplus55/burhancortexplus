@@ -11,6 +11,9 @@ const calls = model.calls;
 
 vi.mock("@/lib/ai/generate", async () => (await import("./helpers/outline-model-mock")).generateModule());
 vi.mock("@/lib/env", async () => (await import("./helpers/outline-model-mock")).outlineEnv);
+vi.mock("next/server", async (importOriginal) =>
+  (await import("./helpers/outline-model-mock")).nextServerModule(importOriginal),
+);
 
 const route = vi.hoisted(() => ({ service: null as unknown }));
 vi.mock("@/lib/api/guards", async (importOriginal) => {
@@ -222,6 +225,32 @@ describe("course map round (fake DB, real credit semantics)", () => {
       { title: "Birinci Ünite", topicIndexes: [0, 1] },
       { title: "İkinci Ünite", topicIndexes: [2, 3, 4] },
     ]);
+  });
+
+  it("#247 on the course map: overlapping pages go to one topic; the course order stays", async () => {
+    const { db, client } = mkDb([{ id: "dA", name: "a.pdf", pages: 12, file: 0 }]);
+    const span = (id: string, page: number, start: number, end: number) => ({
+      id, title: heading(0, page), whyLearn: "Bu konuyu öğreneceksin.", description: "",
+      fileIndex: 0, pageStart: start, pageEnd: end, examWeight: "high", likelyAsked: [], prerequisiteIds: [],
+    });
+    model.impl = () => ({
+      units: [{ title: "Ünite", examWeight: "medium", topics: [span("t1", 2, 2, 6), span("t2", 5, 5, 9), span("t3", 10, 10, 11)] }],
+    });
+    const rounds = await runRounds(client, ["dA"]);
+    expect(rounds.at(-1)).toMatchObject({ ok: true });
+    const leaves = (db.tables.document_topic_nodes as any[])
+      .filter((n) => n.parent_id)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    expect(leaves.map((n) => n.title)).toEqual([heading(0, 2), heading(0, 5), heading(0, 10)]);
+    const links = db.tables.document_topic_page_links as any[];
+    const pagesOf = (id: string) => links.filter((l) => l.topic_id === id).map((l) => l.page_number).sort((a, b) => a - b);
+    const all = leaves.flatMap((n) => pagesOf(n.id));
+    expect(new Set(all).size).toBe(all.length);
+    for (const leaf of leaves) {
+      const own = pagesOf(leaf.id);
+      expect(own.length).toBeGreaterThan(0);
+      expect(own.at(-1)! - own[0]! + 1).toBe(own.length);
+    }
   });
 
   it("add-source: one call that carries the prep's existing topics", async () => {

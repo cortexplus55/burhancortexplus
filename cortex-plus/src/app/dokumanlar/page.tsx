@@ -1,13 +1,11 @@
-import { FileText } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
-import { DocumentUpload } from "@/components/documents/document-upload";
 import { DocumentRetryButton } from "@/components/documents/document-retry-button";
 import { DocumentDeleteButton } from "@/components/documents/document-delete-button";
 import { DocumentStatusPoller } from "@/components/documents/document-status-poller";
-import { EmptyState, SectionCard } from "@/components/ui-kit/empty-state";
+import { EmptyState } from "@/components/ui-kit/empty-state";
 import { requireUser } from "@/lib/auth/session";
-import { getCreditCost } from "@/lib/credits/rules";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -22,7 +20,7 @@ import {
 import { DOCUMENT_EMPTY_DESCRIPTION } from "@/lib/documents/upload-labels";
 import { isProcessingStale } from "@/lib/documents/processing-stale";
 
-export const metadata = { title: "Belgeler" };
+export const metadata = { title: "Belgelerim" };
 
 const statusLabels: Record<string, string> = {
   pending: "Bekliyor",
@@ -46,20 +44,12 @@ const topicMapLabels: Record<string, string> = {
   failed: "Harita hazır değil",
 };
 
-function statusClass(status: string) {
-  if (status === "completed") return "bg-action/20 text-amber-200";
-  if (status === "failed") return "bg-red-500/15 text-red-300";
-  if (status === "processing") return "bg-white/10 text-[var(--cs-text)]";
-  return "bg-white/5 text-[var(--cs-muted)]";
-}
-
 function mapReady(status: string | null | undefined) {
   return status === "ready" || status === "reviewed";
 }
 
 export default async function DokumanlarPage() {
   const { supabase, user } = await requireUser();
-  const cost = await getCreditCost("DOCUMENT_PAGE_PROCESS");
   const service = createServiceClient();
   const pdfLearningV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
 
@@ -73,6 +63,23 @@ export default async function DokumanlarPage() {
     .order("created_at", { ascending: false })
     .limit(30);
 
+  // Her belgenin kendi yolu (3 Ekim 2026). Düğme eskiden her basışta yeni
+  // hazırlık kuruyordu; aynı trigonometri belgesinin üç ayrı yolu olmuştu.
+  const documentIds = (documents ?? []).map((d) => d.id);
+  const { data: prepRows } = documentIds.length
+    ? await service
+        .from("exam_preps")
+        .select("id, document_id, created_at")
+        .eq("user_id", user.id)
+        .in("document_id", documentIds)
+        .order("created_at", { ascending: false })
+    : { data: [] };
+  const prepByDocument = new Map<string, string>();
+  for (const row of prepRows ?? []) {
+    const documentId = row.document_id as string | null;
+    if (documentId && !prepByDocument.has(documentId)) prepByDocument.set(documentId, row.id as string);
+  }
+
   const activeDocumentIds = (documents ?? []).filter(
     (d) =>
       (d.status === "processing" && d.topic_map_status !== "failed") ||
@@ -80,26 +87,22 @@ export default async function DokumanlarPage() {
   ).map((d) => d.id);
 
   return (
-    <AppShell
-      title="Belgeler"
-      creditHint={`Belge işleme: belge başına ${cost} kredi.`}
-    >
+    <AppShell title="Belgelerim">
       <DocumentStatusPoller documentIds={activeDocumentIds} />
-      <div className="space-y-6">
-        <SectionCard
-          variant="parity"
-          title="Belge yükle"
-          description="Yüklediğin kaynaklar yalnızca senin hesabına bağlıdır."
-        >
-          <DocumentUpload
-            creditCost={cost}
-            variant="parity"
-            learningV2={pdfLearningV2}
-          />
-        </SectionCard>
+      {/* 3 Ekim 2026: Belgeler artık "Daha fazla" menüsünde ve sınav sayfalarıyla
+          aynı tasarımda. Yeni belge sınav hazırlığı kurulurken o derse
+          yüklenir (Astra); burada ayrı yükleme formu yok. */}
+      <div className="cp-docs">
+        <div className="cp-docs-intro">
+          <p>Her belge kendi sınav yoluna bağlı. Yeni belgeyi sınav hazırlığı kurarken yükle.</p>
+          <Link href="/deneme-sinavlari/olustur" className="cp-docs-new">
+            <Plus className="h-4 w-4" aria-hidden />
+            Yeni sınav hazırlığı
+          </Link>
+        </div>
 
         {documents?.length ? (
-          <ul className="space-y-4">
+          <ul className="cp-docs-list">
             {documents.map((document) => {
               const ready =
                 document.status === "completed" &&
@@ -110,37 +113,60 @@ export default async function DokumanlarPage() {
                 pdfLearningV2 &&
                 (document.status === "processing" || document.status === "completed") &&
                 document.topic_map_status === "failed";
+              const prepId = prepByDocument.get(document.id);
+              const meta = [
+                document.page_count
+                  ? `${document.page_count} sayfa`
+                  : `${Math.round((document.size_bytes ?? 0) / 1024)} KB`,
+                formatDate(document.created_at),
+                mapStopped
+                  ? "Belgen kaydedildi"
+                  : document.status !== "completed"
+                  ? processingHints[document.status] ?? statusLabels[document.status]
+                  : null,
+                processErrorLabel(document.error_message),
+                pdfLearningV2 && document.topic_map_status && document.topic_map_status !== "ready"
+                  ? topicMapLabels[document.topic_map_status] ?? document.topic_map_status
+                  : null,
+                // Only a stopped map carries a hint, and it has its button.
+                mapStopped && document.topic_map_error ? topicMapErrorLabel(document.topic_map_error) : null,
+              ].filter(Boolean);
 
               return (
-                <li key={document.id} className="cs-pay-card space-y-3 px-4 py-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-[var(--cs-text)]">
-                        {document.file_name}
-                      </p>
-                      <p className="text-xs text-[var(--cs-muted)]">
-                        {document.page_count
-                          ? `${document.page_count} sayfa · `
-                          : `${Math.round((document.size_bytes ?? 0) / 1024)} KB · `}
-                        {formatDate(document.created_at)}
-                        {mapStopped
-                          ? " · Belgen kaydedildi"
-                          : document.status !== "completed"
-                            ? ` · ${processingHints[document.status] ?? statusLabels[document.status]}`
-                            : " · Belgen hazır"}
-                        {processErrorLabel(document.error_message)
-                          ? ` · ${processErrorLabel(document.error_message)}`
-                          : ""}
-                        {pdfLearningV2 && document.topic_map_status
-                          ? ` · ${topicMapLabels[document.topic_map_status] ?? document.topic_map_status}`
-                          : ""}
-                        {/* Only a stopped map carries a hint, and it has its button. */}
-                        {mapStopped && document.topic_map_error
-                          ? ` · ${topicMapErrorLabel(document.topic_map_error)}`
-                          : ""}
-                      </p>
+                <li key={document.id} className="cp-docs-card">
+                  <div className="cp-docs-head">
+                    <span className="cp-docs-icon" aria-hidden>
+                      <FileText className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="cp-docs-name">{document.file_name}</p>
+                      <p className="cp-docs-meta">{meta.join(" · ")}</p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <span className={cn("cp-docs-status", `cp-docs-status--${document.status}`)}>
+                      {mapStopped ? "Bekliyor" : (statusLabels[document.status] ?? document.status)}
+                    </span>
+                  </div>
+
+                  <div className="cp-docs-actions">
+                    {ready ? (
+                      <Link
+                        href={prepId ? `/deneme-sinavlari/${prepId}` : `/deneme-sinavlari/olustur?documentId=${document.id}`}
+                        className="cp-docs-primary"
+                      >
+                        {prepId ? "Yoluna devam et" : "Sınav hazırlığı kur"}
+                      </Link>
+                    ) : null}
+                    {completed ? (
+                      <>
+                        <Link href={`/ogretmen?belge=${document.id}`} className="cp-docs-link">
+                          Belgeye soru sor
+                        </Link>
+                        <Link href={`/dokumanlar/${document.id}`} className="cp-docs-link">
+                          {ready ? "Belge detayı" : "Konu haritasını aç"}
+                        </Link>
+                      </>
+                    ) : null}
+                    <span className="cp-docs-tools">
                       {document.status === "failed" ||
                       mapStopped ||
                       (document.status === "processing" &&
@@ -148,75 +174,8 @@ export default async function DokumanlarPage() {
                         <DocumentRetryButton documentId={document.id} />
                       ) : null}
                       <DocumentDeleteButton documentId={document.id} />
-                      <span
-                        className={cn(
-                          "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
-                          statusClass(document.status),
-                        )}
-                      >
-                        {mapStopped ? "Bekliyor" : (statusLabels[document.status] ?? document.status)}
-                      </span>
-                    </div>
+                    </span>
                   </div>
-
-                  {ready ? (
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                      <Link
-                        href={`/deneme-sinavlari/olustur?documentId=${document.id}`}
-                        className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-action px-4 py-2 text-sm font-bold text-action-foreground hover:bg-action-hover"
-                      >
-                        Çalışma planımı oluştur
-                      </Link>
-                      <Link
-                        href={`/dokumanlar/${document.id}`}
-                        className="text-xs font-medium text-[var(--cs-muted)] underline underline-offset-2"
-                      >
-                        Belge detayı
-                      </Link>
-                      <Link
-                        href={`/ogretmen?belge=${document.id}`}
-                        className="text-xs text-[var(--cs-muted)] underline underline-offset-2"
-                      >
-                        Belgeye soru sor
-                      </Link>
-                      <Link
-                        href={`/studio/podcast?documentId=${document.id}`}
-                        className="text-xs text-[var(--cs-muted)] underline underline-offset-2"
-                      >
-                        Podcast oluştur
-                      </Link>
-                      <Link
-                        href={`/studio/flashcard?documentId=${document.id}`}
-                        className="text-xs text-[var(--cs-muted)] underline underline-offset-2"
-                      >
-                        Flashcard oluştur
-                      </Link>
-                      <Link
-                        href={`/studio/quiz?documentId=${document.id}`}
-                        className="text-xs text-[var(--cs-muted)] underline underline-offset-2"
-                      >
-                        Quiz oluştur
-                      </Link>
-                    </div>
-                  ) : completed ? (
-                    <div className="flex flex-wrap gap-3">
-                      <Link
-                        href={`/dokumanlar/${document.id}`}
-                        className="text-xs font-medium underline"
-                      >
-                        Konu haritasını aç
-                      </Link>
-                      <Link
-                        href={`/ogretmen?belge=${document.id}`}
-                        className="text-xs underline text-[var(--cs-muted)]"
-                      >
-                        Belgeye soru sor
-                      </Link>
-                      <span className="text-xs text-[var(--cs-muted)]">
-                        Quiz / podcast / plan için konu haritası hazır olmalı
-                      </span>
-                    </div>
-                  ) : null}
                 </li>
               );
             })}
@@ -227,8 +186,8 @@ export default async function DokumanlarPage() {
             icon={FileText}
             title="Henüz bir belgen yok."
             description={DOCUMENT_EMPTY_DESCRIPTION}
-            actionHref="/dokumanlar"
-            actionLabel="Belge yükle"
+            actionHref="/deneme-sinavlari/olustur"
+            actionLabel="Sınav hazırlığı kur"
           />
         )}
       </div>

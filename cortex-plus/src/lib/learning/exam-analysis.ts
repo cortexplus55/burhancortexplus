@@ -22,9 +22,3 @@ export function parseExamAnalysis(raw: string | null | undefined): ExamAnalysisP
   }
   return { summary: raw, weakTopics: [], nextSteps: [] };
 }
-
-export function formatExamAnalysisText(payload: ExamAnalysisPayload): string {
-  const weak = payload.weakTopics.length ? payload.weakTopics.join(", ") : "—";
-  const next = payload.nextSteps.length ? payload.nextSteps.join(", ") : "—";
-  return `${payload.summary}\n\nEksik konular: ${weak}\n\nSonraki adımlar: ${next}`;
-}

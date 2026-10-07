@@ -151,6 +151,12 @@ export async function generateTopicMapDiagnostic(input: {
     throw err;
   }
 
+  // This is a content limitation, not an AI outage. No credit is reserved and
+  // no invented questions are shown for a workbook that repeats one fact.
+  if (source.repetitiveSparseEvidence) {
+    return { ok: false, status: 422, error: "insufficient_source_variety" };
+  }
+
   const boundaryNote =
     input.sourceBoundaryMode === "allow_supporting"
       ? "destekleyici genel bilgi sınırlı kullanılabilir"
@@ -200,6 +206,7 @@ Kurallar:
       schemaHintExtra: "Bu tanıda questions dizisi 6 soru içerir. Her sorunun topic alanı definition, concept veya application kodudur.",
       sourceExcerpt: source.block,
       requireSourceSupport: true,
+      count: batch.length,
       userPrompt,
     });
     // Stage 7: retries + independent-only accept live inside generateExamQuiz / generateJson

@@ -3,6 +3,7 @@ import { pageUsableForLesson, type PageAnalysis } from "@/lib/documents/page-ana
 import { draftFromLlmTopic, type TopicDraft } from "@/lib/documents/topic-map";
 import {
   isCalloutLabel,
+  isJunkTopicTitle,
   isProcedureStep,
   isRunningHeader,
   isSatelliteSection,

@@ -15,7 +15,7 @@ import {
   MIN_USABLE_LESSON_CHARS,
   type SourceContext,
 } from "@/lib/learning/source-context";
-import { topicTitlesAlign } from "@/lib/learning/lesson-teach";
+import { topicTitlesAlign } from "@/lib/learning/topic-align";
 import {
   allowedPrepDocumentIds,
   parseTopicSourceRefs,
@@ -93,6 +93,7 @@ async function loadRefsPages(
   const formulas: string[] = [];
   const skipped: number[] = [];
   let usableChars = 0;
+  const sparseFlags: boolean[] = [];
   let documentName: string | null = null;
   for (const ref of refs) {
     if (!ref.pages.length) continue;
@@ -108,6 +109,7 @@ async function loadRefsPages(
       if (!loaded.block.trim()) continue;
       if (!documentName) documentName = loaded.documentName;
       parts.push(loaded.block);
+      sparseFlags.push(Boolean(loaded.repetitiveSparseEvidence));
       formulas.push(...(loaded.formulas ?? []));
       usableChars += loaded.usableChars;
     } catch {
@@ -120,6 +122,7 @@ async function loadRefsPages(
       matches: [],
       documentName,
       formulas,
+      repetitiveSparseEvidence: parts.length === 1 && sparseFlags[0] === true,
       block: parts.join("\n\n"),
     },
     skipped,

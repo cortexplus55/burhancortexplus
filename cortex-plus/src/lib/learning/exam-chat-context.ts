@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { lessonV2Schema } from "@/lib/learning/teaching-standards";
+import { lessonSectionDetails } from "@/lib/learning/lesson-section-text";
 import { loadPrepDocumentIds, loadTopicTeaching, taughtCoverageLine } from "@/lib/documents/teacher-analysis-run";
 import {
   prepLanguage,
@@ -50,6 +51,8 @@ export type ExamChatContext = {
   starters: ExamChatPrompt[];
   /** Modele en fazla bir kez değinmesi için kişisel bağlam satırı. */
   personalizationPrompt: string;
+  /** En son okunan ders (belgeden üretilip denetlendi); öğretmen sohbeti pasaj olarak kullanır. */
+  lastLesson?: { title: string; text: string } | null;
 };
 
 function daysUntil(examDate: string | null): number | null {
@@ -344,24 +347,47 @@ export async function loadExamChatContext(
   // sohbetin neye baktığı belli olsun.
   const { data: lessonRow } = await service
     .from("exam_prep_lessons")
-    .select("title, content_json")
+    .select("title, content_json, created_at")
     .eq("exam_prep_id", prepId)
     .not("content_json", "is", null)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  // Düğüm dersi (konu kimliği olmadan açılan "Ders oluştur") exam_prep_lessons'a
+  // yazılmıyor; 2 Ekim 2026 canlı denemesinde sohbet o dersi görmüyordu.
+  const { data: nodeLessonRow } = await service
+    .from("exam_prep_node_attempts")
+    .select("payload, created_at")
+    .eq("exam_prep_id", prepId)
+    .eq("user_id", userId)
+    .eq("payload->>type", "lesson")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nodeLessonNewer =
+    nodeLessonRow?.created_at && (!lessonRow?.created_at || String(nodeLessonRow.created_at) > String(lessonRow.created_at));
+  const lessonJson = nodeLessonNewer
+    ? (nodeLessonRow?.payload as { lesson?: unknown } | null)?.lesson
+    : lessonRow?.content_json;
 
-  const lesson = lessonRow?.content_json
-    ? lessonV2Schema.safeParse(lessonRow.content_json).data ?? null
-    : null;
+  const lesson = lessonJson ? lessonV2Schema.safeParse(lessonJson).data ?? null : null;
 
   if (lesson) {
     // Yalnızca başlıklar verilince sohbet tanımları kendi bilgisinden
     // türetip dersle çelişti: ders "C_u, D60'ın D10'a oranıdır" derken
     // sohbet "C_u (konsolidasyon dayanımı)" dedi. Bölüm gövdeleri de
     // gelmeli — öğrenci aynı konuda iki farklı tanım duymamalı.
+    // Formül kartı / sıralı işlem / tablo gövdenin dışında duruyor (üretim
+    // promptu formülü gövdeye ikinci kez yazdırmıyor). Yalnızca gövde
+    // verilirse sohbet dersin formülünü göremez ve sorana kendi formülünü
+    // kurabilir — yukarıdaki tanım çelişkisiyle aynı tür risk.
     const sections = lesson.sections
-      .map((s) => `- ${s.heading}: ${s.body.slice(0, MAX_SECTION_CHARS)}`)
+      .map((s) => {
+        const details = lessonSectionDetails(s)
+          .map((line) => `\n  ${line.slice(0, MAX_SECTION_CHARS)}`)
+          .join("");
+        return `- ${s.heading}: ${s.body.slice(0, MAX_SECTION_CHARS)}${details}`;
+      })
       .join("\n");
     lines.push(
       ...[
@@ -434,6 +460,7 @@ export async function loadExamChatContext(
     history,
     starters,
     personalizationPrompt,
+    lastLesson: lesson ? { title: lesson.title, text: lessonFacts.slice(0, 6000) } : null,
     block: `\n\n<sinav-hazirligi>\n${lines.join("\n")}\n</sinav-hazirligi>`,
   };
 }

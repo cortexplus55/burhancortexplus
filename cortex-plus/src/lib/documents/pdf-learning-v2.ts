@@ -35,6 +35,10 @@ import {
 } from "@/lib/documents/outline-topic-meta";
 import { commitCredits, refundCredits } from "@/lib/credits/service";
 import { MAP_LEASE_MS } from "@/lib/documents/pdf-learning-v2-lease";
+import { exclusivePageRanges } from "@/lib/documents/topic-page-ranges";
+import { needsUnits, type ConceptUnit } from "@/lib/documents/concept-units";
+import { buildConceptUnits } from "@/lib/documents/concept-units-run";
+import { repeatedEdgeLines } from "@/lib/documents/clean-text";
 
 export type CourseMapStage = "prepare" | OutlineStage | "persist";
 
@@ -498,6 +502,59 @@ async function restoreAfterInUse(
 }
 
 /**
+ * #247 on the course map: inside one file every page belongs to one topic and
+ * topics are contiguous blocks in document order (overlapping pages taught the
+ * same thing in two lessons). A topic fully covered by others merges into the
+ * one that took most of its pages. The ONE course order (sort_order, unit)
+ * stays the outline's: only the page sets change.
+ */
+function exclusiveLeafPages<L extends { topic: { title: string; pageNumbers: number[] }; order: number }>(
+  leaves: L[],
+): L[] {
+  if (leaves.length < 2) return leaves;
+  const ranged = exclusivePageRanges(
+    leaves.map((leaf) => ({ title: leaf.topic.title, pageNumbers: leaf.topic.pageNumbers, leaf })),
+  ).topics;
+  const pagesOf = new Map(ranged.map((row) => [row.leaf, row.pageNumbers]));
+  return leaves.flatMap((leaf) => {
+    const pageNumbers = pagesOf.get(leaf);
+    return pageNumbers?.length ? [{ ...leaf, topic: { ...leaf.topic, pageNumbers } }] : [];
+  });
+}
+
+/**
+ * Main's concept units (bb30f36) on the course map: a big topic is split into
+ * one-lesson units by ONE uncharged call per file (TOPIC_UNITS usage only;
+ * no call when no topic is big). Any failure → [] and the plan splits pages.
+ */
+async function leafConceptUnits(
+  service: SupabaseClient,
+  userId: string,
+  documentId: string,
+  light: LightPageRow[],
+  leaves: { topic: { title: string; pageNumbers: number[] } }[],
+): Promise<ConceptUnit[][]> {
+  const empty = leaves.map((): ConceptUnit[] => []);
+  if (!leaves.some((leaf) => needsUnits(leaf.topic.pageNumbers))) return empty;
+  try {
+    const texts = await loadPageTexts(service, documentId, light.map((row) => row.page_number));
+    const analyses = analysesFromLight(light).map((analysis) => ({
+      ...analysis,
+      textContent: texts.get(analysis.pageNumber) ?? "",
+    }));
+    return await buildConceptUnits(service, {
+      userId,
+      documentId,
+      topics: leaves.map((leaf) => ({ title: leaf.topic.title, pageNumbers: leaf.topic.pageNumbers })),
+      analyses,
+      edges: repeatedEdgeLines(analyses.map((analysis) => analysis.textContent)),
+    });
+  } catch {
+    return empty;
+  }
+}
+
+/**
  * Write the course outline onto each document, keeping ONE course order:
  * unit sort_order = its index in the whole course, leaf sort_order =
  * units + its index in the whole course. Unit nodes carry a course tag so
@@ -505,6 +562,7 @@ async function restoreAfterInUse(
  */
 async function persistCourseOutline(
   service: SupabaseClient,
+  userId: string,
   courseId: string,
   documentIds: string[],
   outline: OutlineUnitDraft[],
@@ -515,8 +573,27 @@ async function persistCourseOutline(
   // Re-check in-use for every file before the first swap — a prep may have
   // linked one mid-round, and no file should be half-rewritten then.
   if ((await docsWithMapInUse(service, documentIds)).length) throw new Error("topic_map_in_use");
+
+  // Everything that can be slow (page reads, the one concept-unit call per
+  // file) happens before the first file is swapped.
+  const plans = [];
   for (const [fileIndex, documentId] of documentIds.entries()) {
     const light = await loadPageLight(service, documentId);
+    const cited: { topic: OutlineUnitDraft["topics"][number]; unitIndex: number; order: number }[] = [];
+    let leafIndex = 0;
+    units.forEach((unit, unitIndex) => {
+      for (const topic of unit.topics) {
+        if ((topic.fileIndex ?? 0) === fileIndex) {
+          cited.push({ topic, unitIndex, order: unitsTotal + leafIndex });
+        }
+        leafIndex += 1;
+      }
+    });
+    const leaves = exclusiveLeafPages(cited);
+    plans.push({ fileIndex, documentId, light, leaves, lessons: await leafConceptUnits(service, userId, documentId, light, leaves) });
+  }
+
+  for (const { fileIndex, documentId, light, leaves, lessons } of plans) {
     const pageIdByNumber = new Map(light.map((row) => [row.page_number, row.id]));
     await clearTopicMap(service, documentId);
 
@@ -550,22 +627,12 @@ async function persistCourseOutline(
       for (const row of unitRows) unitIds.set(row.sort_order as number, row.id as string);
     }
 
-    const leaves: { topic: OutlineUnitDraft["topics"][number]; unitIndex: number; order: number }[] = [];
-    let leafIndex = 0;
-    units.forEach((unit, unitIndex) => {
-      for (const topic of unit.topics) {
-        if ((topic.fileIndex ?? 0) === fileIndex) {
-          leaves.push({ topic, unitIndex, order: unitsTotal + leafIndex });
-        }
-        leafIndex += 1;
-      }
-    });
     const drafts: TopicDraft[] = [];
     if (leaves.length) {
       const { data: leafRows, error } = await service
         .from("document_topic_nodes")
         .insert(
-          leaves.map(({ topic, unitIndex, order }) => {
+          leaves.map(({ topic, unitIndex, order }, index) => {
             const packed = packTopicPerspective({
               examWeight: topic.examWeight ?? units[unitIndex]?.examWeight ?? "medium",
               likelyAsked: topic.likelyAsked,
@@ -576,6 +643,7 @@ async function persistCourseOutline(
               document_id: documentId,
               parent_id: unitIds.get(unitIndex) ?? null,
               sort_order: order,
+              units: lessons[index] ?? [],
               title: topic.title,
               ...packed,
               worked_examples: [],
@@ -923,7 +991,7 @@ export async function runCourseMapRound(
       return pending();
     }
     const persistStarted = now();
-    const topics = await persistCourseOutline(service, courseId, documentIds, outline.units);
+    const topics = await persistCourseOutline(service, userId as string, courseId, documentIds, outline.units);
     const nowIso = new Date().toISOString();
     const { error: docError } = await service
       .from("documents")

@@ -25,11 +25,28 @@ describe("chat belge eki doğru kolonu okuyor", () => {
 
 describe("quiz üretimi kredi sözleşmesi", () => {
   const route = read("src/app/api/learning/quiz/generate/route.ts");
-  it("reserveCredits + claim kullanıyor, ham RPC ve Date.now anahtarı yok", () => {
-    expect(route).toContain("reserveCredits(");
+  // Studio quizi sınav hazırlığıyla aynı doğrulanmış hattan geçiyor; kredi
+  // ayırma o hattın içinde (generateJson → reserveCredits). Rota işlem
+  // kimliğinden türeyen tek anahtarı veriyor.
+  it("işlem kimliğinden anahtar veriyor, ham RPC ve Date.now anahtarı yok", () => {
+    expect(route).toContain("generateExamQuiz(");
+    expect(route).toMatch(/idempotencyKey = `quiz:\$\{operationId\}`/);
     expect(route).not.toContain('rpc("credit_reserve"');
     expect(route).not.toMatch(/Date\.now\(\)/);
     expect(route).toContain("operation_in_progress");
+    expect(read("src/lib/ai/generate.ts")).toContain("reserveCredits(");
+  });
+
+  it("Studio quizi öğretmen test motorundan geçiyor (soruları önce kendi çözen denetim)", () => {
+    expect(route).not.toContain("verifyEducationalContent");
+    expect(read("src/lib/learning/exam-quiz-generate.ts")).toContain("runTeacherQuiz(");
+    expect(read("src/lib/learning/teacher-quiz.ts")).toContain("HER SORUYU ÖNCE KENDİN");
+  });
+
+  // Canlı düello: "0° ile 360° arasında sin α = 0 olan kaç açı?" — uçlar
+  // dahilse 3, değilse 1 ya da 2; anahtar 2 diyordu (30 Eylül 2026).
+  it("test istemi aralık uçlarını açık yazdırıyor", () => {
+    expect(read("src/lib/learning/teacher-quiz.ts")).toContain("uç noktaların dahil olup olmadığını açıkça yaz");
   });
 });
 
@@ -98,6 +115,20 @@ describe("vercel.json cron kotası (Hobby)", () => {
     const src = read("src/app/api/cron/subscription-renewal/route.ts");
     expect(src).toContain("processPendingDocumentDeletions(service)");
     expect(src).toContain("processPendingDeletionRequests(service)");
+  });
+});
+
+/*
+  29 Eylül 2026: fonksiyonlar iad1'de (Washington) çalışıyordu, Supabase ise
+  Frankfurt'ta (eu-central-1). Bir sayfa 5–15 sorguyu art arda yapıyor ve her
+  biri Atlantik'i gidip geliyordu: kayıtlı bir dersi yalnızca geri getiren
+  istek 1,8–6,6 sn, tek sorguluk /api/streak 2,7 sn sürüyordu. Hobby planı tek
+  bölgeye izin veriyor; o bölge veritabanının yanı olmalı.
+*/
+describe("vercel.json fonksiyon bölgesi", () => {
+  it("fonksiyonlar Supabase'in yanında, Frankfurt'ta çalışıyor", () => {
+    const cfg = JSON.parse(read("vercel.json")) as { regions?: string[] };
+    expect(cfg.regions).toEqual(["fra1"]);
   });
 });
 

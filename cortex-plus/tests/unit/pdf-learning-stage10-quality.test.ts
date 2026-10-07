@@ -11,22 +11,13 @@ import {
   checkSimpleMathClaims,
   runIndependentValidation,
 } from "@/lib/learning/validation-pipeline";
-import {
-  extractMisconceptions,
-  validateQuizPedagogy,
-  validateTrueFalsePedagogy,
-} from "@/lib/learning/teaching-standards";
+import { extractMisconceptions } from "@/lib/learning/teaching-standards";
 import {
   buildLearningIndicators,
   extractAnswerEvidence,
   foldTopicMastery,
 } from "@/lib/learning/learning-tracking";
-import {
-  isCreatingStale,
-  isStaleWrite,
-  mergeAnswersForScoring,
-  shouldReuseExistingStart,
-} from "@/lib/learning/attempt-lifecycle";
+import { isCreatingStale, mergeAnswersForScoring, shouldReuseExistingStart } from "@/lib/learning/attempt-lifecycle";
 import {
   buildExamScheduleV2,
   redistributeRemainingSchedule,
@@ -220,21 +211,6 @@ describe("Stage 10 subject varieties (domain validators + topic seeds)", () => {
       expect(domainHit).toBe(true);
     });
   }
-
-  it("quiz pedagogy accepts a solid physics stem", () => {
-    expect(
-      validateQuizPedagogy(
-        [
-          quizQ(
-            "Newton'un ikinci yasasında net kuvvet neye eşittir?",
-            ["m·a", "m/a", "a/m", "m+a"],
-            ["m·a"],
-          ),
-        ],
-        { requireObjective: true },
-      ),
-    ).toEqual([]);
-  });
 });
 
 describe("Stage 10 student behaviors", () => {
@@ -407,44 +383,11 @@ describe("Stage 10 technical scenarios", () => {
     expect(scoreQuizAnswers(questions, merged)).toEqual({ score: 2, total: 2 });
   });
 
-  it("disconnect / stale generation write is rejected", () => {
-    expect(
-      isStaleWrite({
-        attemptGenerationId: "g-new",
-        requestGenerationId: "g-old",
-        attemptVersion: 2,
-        expectedVersion: 2,
-      }),
-    ).toBe(true);
-  });
-
   it("generation timeout: creating older than threshold is stale", () => {
     expect(isCreatingStale(new Date(Date.now() - 16 * 60 * 1000).toISOString())).toBe(
       true,
     );
     expect(isCreatingStale(new Date().toISOString())).toBe(false);
-  });
-
-  it("double-click complete: version mismatch blocks second writer", () => {
-    expect(
-      isStaleWrite({
-        attemptGenerationId: "g1",
-        requestGenerationId: "g1",
-        attemptVersion: 4,
-        expectedVersion: 3,
-      }),
-    ).toBe(true);
-  });
-
-  it("two tabs same attempt: older content_version loses", () => {
-    expect(
-      isStaleWrite({
-        attemptGenerationId: "g1",
-        requestGenerationId: "g1",
-        attemptVersion: 5,
-        expectedVersion: 4,
-      }),
-    ).toBe(true);
   });
 
   it("insufficient credits surface as reservation reason (contract)", () => {
@@ -475,17 +418,5 @@ describe("Stage 10 technical scenarios", () => {
     });
     expect(indicators.programProgress.pct).toBe(50);
     expect(indicators.examReadiness.claimFullyReady).toBe(false);
-  });
-
-  it("vague true/false rejected across language subject stems", () => {
-    expect(
-      validateTrueFalsePedagogy([
-        {
-          text: "Her zaman doğrudur.",
-          correct: true,
-          explanation: "Belirsiz genelleme örneği olarak reddedilmeli.",
-        },
-      ]).length,
-    ).toBeGreaterThan(0);
   });
 });

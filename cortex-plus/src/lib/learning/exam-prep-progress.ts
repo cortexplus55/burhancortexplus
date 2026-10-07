@@ -23,13 +23,9 @@ export function topicProgress(topics: PrepTopic[]) {
   };
 }
 
-export function nextOpenTopic(topics: PrepTopic[]) {
-  return topics.find((topic) => topic.status !== "done") ?? null;
-}
-
 export function continueHref(prepId: string, topics: PrepTopic[]) {
-  const next = nextOpenTopic(topics);
-  if (next) return `/deneme-sinavlari/${prepId}/calis?topic=${next.id}`;
+  // Eski /calis akışı kalktı (3 Ekim 2026); devam hazırlığın yolundan.
+  void topics;
   return `/deneme-sinavlari/${prepId}`;
 }
 

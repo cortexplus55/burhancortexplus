@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { analyzePage, pageUsableForLesson } from "@/lib/documents/page-analysis";
-import { topicTitlesAlign } from "@/lib/learning/lesson-teach";
+import { topicTitlesAlign } from "@/lib/learning/topic-align";
 import { parseTopicSourceRefs } from "@/lib/learning/topic-source-refs";
 import { MIN_USABLE_LESSON_CHARS } from "@/lib/learning/source-context";
 
@@ -155,6 +155,29 @@ describe("resolveLessonSource", () => {
     loadPageSourceContext.mockReset();
     loadTopicSpanContext.mockReset();
     searchDocumentChunksAcross.mockReset();
+  });
+
+  it("keeps a single document's sparse-page signal through source_refs", async () => {
+    loadPageSourceContext.mockResolvedValue({
+      ...pageBlock("trigonometri.pdf", [10, 11, 12], "Yatay koordinat kosinüs, düşey koordinat sinüstür."),
+      repetitiveSparseEvidence: true,
+    });
+    const result = await resolveLessonSource(mockService(), {
+      userId: "student",
+      prepId: "prep",
+      topicId: "topic",
+      topicLabel: "Birim Çember",
+      sessionMeta: { sourcePages: [10, 11, 12] },
+      prepDocs: ["document"],
+      primaryDocumentId: "document",
+      topicDocumentId: "document",
+      topicNodeId: "node",
+      sourceRefs: [{ documentId: "document", pages: [10, 11, 12], nodeId: "node" }],
+      sourceDocumentIds: ["document"],
+      sourceBoundaryMode: "documents_only",
+    });
+    expect(result.unavailable).toBeUndefined();
+    expect(result.context?.repetitiveSparseEvidence).toBe(true);
   });
 
   it("1) çok dosyalı source_refs: her belge kendi sayfasını okur", async () => {

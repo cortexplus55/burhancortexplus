@@ -91,7 +91,6 @@ export function StudioEntry({
   title,
   placeholder,
   submitLabel,
-  creditCost,
   initialTopic = "",
   onSubmit,
 }: {
@@ -172,9 +171,6 @@ export function StudioEntry({
         </button>
       </form>
 
-      {creditCost != null ? (
-        <p className="ls-credit">{creditCost} kredi</p>
-      ) : null}
     </div>
   );
 }
@@ -292,7 +288,7 @@ export function StudioPaywall({
     <CreditGate
       open={open}
       onOpenChange={onOpenChange}
-      message="Bu stüdyo için kredin yetmiyor."
+      message="Bu stüdyo için kullanım hakkın yetmiyor."
       returnPath={returnPath}
     />
   );

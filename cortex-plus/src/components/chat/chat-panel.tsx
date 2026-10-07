@@ -1,6 +1,16 @@
 "use client";
 
 import { useRef, useState, useEffect, type ComponentProps } from "react";
+import { createPortal } from "react-dom";
+import { useLearningTimer } from "@/components/learning/use-learning-timer";
+import { isProblemQuestion, solvedLabel } from "@/lib/learning/solved-card";
+import {
+  PREFS_EVENT,
+  prefsFromProfile,
+  readLearningPrefs,
+  writeLearningPrefs,
+} from "@/lib/client/learning-prefs-store";
+import { DEFAULT_DAILY_GOAL } from "@/lib/student/learning-prefs";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -33,7 +43,13 @@ import {
   SlidersHorizontal,
   Brush,
   Square,
+  Atom,
+  Sparkles,
+  X,
 } from "lucide-react";
+import { PeriyodikTablo } from "@/components/lab/tools/periyodik-tablo";
+import { CHAT_MOOD_KEY, displayUserText, istanbulDay, todayMoodFrom } from "@/lib/chat/chat-display";
+import { DEFAULT_MOOD, MOOD_OPTIONS, type Mood } from "@/lib/learning/session-signals";
 import { cn } from "@/lib/utils";
 import { createRecognizer, speakTurkish, stopSpeech } from "@/lib/learning/studio-speech";
 import { EXAM_QUICK_COMMANDS } from "@/lib/learning/exam-chat-chrome";
@@ -63,6 +79,8 @@ type Message = {
   /** Kaydedilmiş yanıtın satır kimliği; oylama bunsuz yapılamıyor. */
   id?: string;
   rating?: Rating;
+  /** Bu oturumda gelen hesap cevabının süresi; "Problem N saniyede çözüldü". */
+  solvedMs?: number;
 };
 
 function SorTypingDots({ label }: { label?: string }) {
@@ -104,6 +122,18 @@ function plainForSpeech(content: string) {
     .replace(/[*_`#>|[\]()]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** Sesli sohbet düğmesinin etiketi: ne olduğunu ve nasıl kapatılacağını söyler. */
+export function voiceModeLabel(
+  active: boolean,
+  state: { talking: boolean; listening: boolean; loading: boolean; idle: string },
+): string {
+  if (!active) return state.idle;
+  if (state.talking) return "Konuşuyor · Bitir";
+  if (state.listening) return "Dinliyor · Bitir";
+  if (state.loading) return "Düşünüyor · Bitir";
+  return "Bitir";
 }
 
 function DrawSquiggle({ className }: { className?: string }) {
@@ -196,13 +226,11 @@ function ChatPanelSession({
   showSubjectPicker = true,
   showAttachments = true,
   returnPath = "/ogretmen",
-  chatCreditCost,
   isPremium,
   tutorStyleLabel,
   quotaHint,
   starterPrompts,
   feedbackEnabled = false,
-  dailyDrillCount = 0,
   prepId,
   examChrome = false,
 }: {
@@ -239,8 +267,6 @@ function ChatPanelSession({
    * demek olurdu.
    */
   feedbackEnabled?: boolean;
-  /** Yanlış defterinde bekleyen soru sayısı. 0 ise günün turu kartı çıkmıyor. */
-  dailyDrillCount?: number;
   /**
    * Sınav hazırlığının sohbeti. Karşılama, çipler, oluşturucu ve hızlı
    * komutlar bu kabuğa göre çizilir. Kota kapısı durur; satış kartı girmez.
@@ -260,7 +286,9 @@ function ChatPanelSession({
   // `?belge=` ile gelen öğrenci belgesinden çalışmak istiyor: belge modu
   // açık başlar ve kilit görünür. Aksi hâlde konuşma sessizce genel bilgiye
   // düşerdi ve "belgemi okumadı" şikâyeti gelirdi.
-  const [useDocuments, setUseDocuments] = useState(Boolean(initialDocumentId));
+  // Hazırlık sohbeti "Yalnızca belgem" ile açılır (2 Ekim 2026, ürün sahibinin
+  // kararı); öğrenci modu kendisi değiştirebilir.
+  const [useDocuments, setUseDocuments] = useState(Boolean(initialDocumentId) || Boolean(prepId));
   /** true = Yalnızca Belgem (varsayılan); false = Belgem + Genel Bilgi */
   const [documentsOnly, setDocumentsOnly] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
@@ -290,16 +318,66 @@ function ChatPanelSession({
     fileName: string;
   } | null>(null);
   const [mathOpen, setMathOpen] = useState(false);
+  /** Periyodik tablo — Astra gibi sohbetten çıkmadan açılır (1 Ekim 2026). */
+  const [tableOpen, setTableOpen] = useState(false);
+  /** Yazı kutusundaki ayar düğmesi: bugünkü ruh hali menüsü. */
+  const [moodOpen, setMoodOpen] = useState(false);
+  const [chatMood, setChatMood] = useState<Mood>(DEFAULT_MOOD);
+  useEffect(() => {
+    try {
+      setChatMood(todayMoodFrom(window.localStorage.getItem(CHAT_MOOD_KEY), istanbulDay()));
+    } catch {
+      // Depolama kapalıysa Nötr kalır.
+    }
+  }, []);
+  useEffect(() => {
+    if (!tableOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setTableOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tableOpen]);
+  function chooseMood(mood: Mood) {
+    setChatMood(mood);
+    setMoodOpen(false);
+    try {
+      window.localStorage.setItem(CHAT_MOOD_KEY, JSON.stringify({ day: istanbulDay(), mood }));
+    } catch {
+      // Yalnızca bu oturum için geçerli olur.
+    }
+  }
   const [quickOpen, setQuickOpen] = useState(false);
   const [talking, setTalking] = useState(false);
+  /**
+   * Sesli sohbet ("Konuş") — Astra'daki gibi: dinle → gönder → cevabı sesli
+   * oku → yeniden dinle. Kapalıyken mikrofon yalnızca kutuya yazıyor.
+   */
+  const [voiceMode, setVoiceMode] = useState(false);
+  const voiceModeRef = useRef(false);
+  /** Sesli okunmuş son cevabın sırası; eski cevaplar yeniden okunmasın. */
+  const spokenIndexRef = useRef(-1);
   const [composerAssistOpen, setComposerAssistOpen] = useState(false);
   const [composerAssist, setComposerAssist] = useState<
     (typeof COMPOSER_MODES)[number]["id"] | null
   >(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const viewRef = useRef<HTMLDivElement>(null);
+  const composerZoneRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
-  const [dailyGoalMinutes, setDailyGoalMinutes] = useState(3);
+  const [dailyGoalMinutes, setDailyGoalMinutes] = useState<number>(DEFAULT_DAILY_GOAL);
+  // Ayarlar > Önerilen sorular. Ayar değişince pencere olayıyla güncellenir.
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  useEffect(() => {
+    setShowSuggestions(readLearningPrefs().suggestions);
+    const onPrefs = (event: Event) => {
+      const detail = (event as CustomEvent<{ suggestions?: boolean }>).detail;
+      if (typeof detail?.suggestions === "boolean") setShowSuggestions(detail.suggestions);
+    };
+    window.addEventListener(PREFS_EVENT, onPrefs);
+    return () => window.removeEventListener(PREFS_EVENT, onPrefs);
+  }, []);
 
   useEffect(() => {
     if (variant !== "parity") return;
@@ -310,8 +388,9 @@ function ChatPanelSession({
         return res.json();
       })
       .then((data) => {
-        if (cancelled || !data?.daily_goal_minutes) return;
-        setDailyGoalMinutes(Number(data.daily_goal_minutes) || 3);
+        if (cancelled || !data) return;
+        writeLearningPrefs(prefsFromProfile(data));
+        if (data.daily_goal_minutes) setDailyGoalMinutes(Number(data.daily_goal_minutes) || DEFAULT_DAILY_GOAL);
       })
       .catch(() => {});
     return () => {
@@ -356,6 +435,8 @@ function ChatPanelSession({
   const isParity = variant === "parity";
   const isMinimalSor = isParity && composerMode === "minimal";
   const isParitySor = isParity && composerMode === "parity";
+  // Aktif sohbet süresi Aktivitelerim'e yazılır; ders seçici yoksa ders adı boş.
+  useLearningTimer("chat", showSubjectPicker ? subject : null, messages.length > 0);
 
   const sorChatActive = isMinimalSor && (messages.length > 0 || loading);
 
@@ -489,6 +570,40 @@ function ChatPanelSession({
     };
   }, []);
 
+  /*
+    Sabit besteci (composer) içeriğin üstünde duruyor; altındaki içerik
+    onun kapladığı kadar boşluk bırakmalı. Bu boşluk CSS'te beş ayrı sabit
+    sayıyla tutuluyordu (12rem, 13.5rem, 16.5rem, 17.75rem, 22.5rem) — her
+    biri bir durum ve bir genişlik için ayarlanmış, birbirini hesaba
+    katmamış. 28 Eylül 2026'da 375px'te "Günün turu" kartı kaynak seçicinin
+    ("Yalnızca belgem") üstüne biniyordu: 23 Eylül'de besteci alt menünün
+    üstüne 4.6rem kaldırılmış, ama 24 Eylül'deki hero boşluğu bu kaldırmayı
+    içermiyordu. Artık gerçek yükseklik ölçülüyor.
+  */
+  useEffect(() => {
+    const view = viewRef.current;
+    const zone = composerZoneRef.current;
+    if (!view || !zone) return;
+    const sync = () => {
+      if (window.getComputedStyle(zone).position !== "fixed") {
+        view.style.removeProperty("--cp-sor-composer-clearance");
+        delete view.dataset.composerMeasured;
+        return;
+      }
+      const clearance = Math.max(0, Math.ceil(window.innerHeight - zone.getBoundingClientRect().top));
+      view.style.setProperty("--cp-sor-composer-clearance", `${clearance}px`);
+      view.dataset.composerMeasured = "1";
+    };
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(sync);
+    observer?.observe(zone);
+    window.addEventListener("resize", sync);
+    sync();
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", sync);
+    };
+  }, [isParitySor]);
+
   function clearPending() {
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPendingFile(null);
@@ -599,7 +714,8 @@ function ChatPanelSession({
         const mode = COMPOSER_MODES.find((m) => m.id === composerAssist);
         if (!mode || !text) return text;
         if (mode.id === "today") {
-          return `${mode.prefix}(Günlük hedefim: ${dailyGoalMinutes} dakika.) ${text}`;
+          // 1 Ekim 2026'dan beri hedef dakika (Ayarlar > Günlük çalışma hedefi).
+          return `${mode.prefix}(Günlük çalışma hedefim: ${dailyGoalMinutes} dakika.) ${text}`;
         }
         return `${mode.prefix}${text}`;
       })(),
@@ -640,6 +756,7 @@ function ChatPanelSession({
       chatOperationIds.current.set(opKey, operationId);
     }
 
+    const startedAt = Date.now();
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
@@ -655,6 +772,7 @@ function ChatPanelSession({
           audience,
           imageDocumentId: activeDocumentId.current,
           prepId,
+          mood: chatMood === DEFAULT_MOOD ? undefined : chatMood,
         }),
       });
 
@@ -682,7 +800,6 @@ function ChatPanelSession({
       // Sohbet kaydedilmemişse başlık boş geliyor; o durumda oy düğmesi de
       // çıkmıyor.
       const messageId = res.headers.get("X-Message-Id") || undefined;
-      const credits = res.headers.get("X-Credits-Used");
       const sourceCount = Number(res.headers.get("X-Sources") ?? "0");
       // Hangi nottan geldiği "3 kaynak"tan anlamlı. Kaynak bulunamadığında
       // cevabın genel bilgi olduğunu yazıyoruz: eskiden bu sessizce geçiyordu.
@@ -697,16 +814,16 @@ function ChatPanelSession({
         sourceDoc && sourcePage
           ? `${sourceDoc} · s.${sourcePage}`
           : sourceDoc || (sourceCount ? `${sourceCount} kaynak` : "");
+      // Model adı ve harcanan kredi öğrenciye yazılmıyor (29 Eylül 2026, Astra
+      // gibi yalnızca yüzde); kaynak bilgisi kalıyor.
       const sourceLabel = sourceCount
-        ? ` · Kaynak: ${citation}`
+        ? `Kaynak: ${citation}`
         : useDocuments
           ? documentsOnly
-            ? " · belgede yok"
-            : " · genel bilgi"
+            ? "belgede yok"
+            : "genel bilgi"
           : "";
-      setStatus(
-        `${res.headers.get("X-Model") ?? ""} · ${credits ?? "0"} kredi${sourceLabel}`,
-      );
+      setStatus(sourceLabel);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -727,6 +844,16 @@ function ChatPanelSession({
             content: assistant,
             id: messageId,
           };
+          return copy;
+        });
+      }
+      // Astra gibi: hesap sorusunda cevabın üstünde çözüm süresi.
+      if (assistant.trim() && isProblemQuestion(text)) {
+        const solvedMs = Date.now() - startedAt;
+        setMessages((prev) => {
+          const copy = [...prev];
+          const last = copy[copy.length - 1];
+          if (last?.role === "assistant") copy[copy.length - 1] = { ...last, solvedMs };
           return copy;
         });
       }
@@ -786,29 +913,40 @@ function ChatPanelSession({
     void send(lastUser.content);
   }
 
-  function talkLastAnswer() {
-    if (talking) {
-      stopSpeech();
-      setTalking(false);
-      return;
-    }
-    const last = [...messages]
-      .reverse()
-      .find((item) => item.role === "assistant" && !item.isError && item.content.trim());
-    const plain = last ? plainForSpeech(last.content) : "";
+  // Sesli sohbette yeni cevap bitince sesli okunur, sonra yeniden dinlenir.
+  useEffect(() => {
+    if (!voiceMode || loading) return;
+    const index = messages.length - 1;
+    const last = messages[index];
+    if (!last || last.role !== "assistant" || last.isError || !last.content.trim()) return;
+    if (spokenIndexRef.current >= index) return;
+    spokenIndexRef.current = index;
+    const plain = plainForSpeech(last.content);
     if (!plain) return;
     setTalking(true);
     speakTurkish(plain, {
-      onEnd: () => setTalking(false),
+      onEnd: () => {
+        setTalking(false);
+        if (voiceModeRef.current) startVoiceInput();
+      },
       onError: () => setTalking(false),
     });
-  }
+    // startVoiceInput her çizimde yeniden kuruluyor; tetikleyici yalnızca yeni cevap.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceMode, loading, messages]);
+
+  // Sayfadan çıkınca mikrofon ve ses kapanır.
+  useEffect(
+    () => () => {
+      voiceModeRef.current = false;
+      stopSpeech();
+    },
+    [],
+  );
 
   const hasComposerPayload = Boolean(input.trim() || pendingFile || pendingRemote);
-  const canTalk = messages.some(
-    (item) => item.role === "assistant" && !item.isError && item.content.trim().length > 0,
-  );
-  const showExamTalk = examChrome && messages.length > 0 && !hasComposerPayload;
+  // Astra'da "Konuş" yazma kutusunda hep duruyor; ilk cevabı beklemiyor.
+  const showExamTalk = examChrome && (!hasComposerPayload || voiceMode);
   const showExamSend = examChrome && (hasComposerPayload || loading);
 
   const showMinimalEmpty = isMinimalSor && messages.length === 0 && !loading;
@@ -842,6 +980,40 @@ function ChatPanelSession({
     setInput((prev) => mergeTranscript(prev, text));
   }
 
+  /** Sesli sohbette söylenen doğrudan gönderilir; değilse kutuya yazılır. */
+  function handleTranscript(text: string) {
+    if (!text.trim()) return;
+    if (voiceModeRef.current) void send(text);
+    else appendTranscript(text);
+  }
+
+  function stopVoiceMode() {
+    voiceModeRef.current = false;
+    setVoiceMode(false);
+    stopSpeech();
+    setTalking(false);
+    recognizerRef.current?.stop();
+    const recorder = recorderRef.current;
+    if (recorder) {
+      recorderRef.current = null;
+      setListening(false);
+      void recorder.stop();
+    }
+  }
+
+  function toggleVoiceMode() {
+    if (voiceModeRef.current) {
+      stopVoiceMode();
+      return;
+    }
+    stopSpeech();
+    voiceModeRef.current = true;
+    setVoiceMode(true);
+    // Açılmadan önceki cevaplar sesli okunmaz; mod yeni soruyla başlar.
+    spokenIndexRef.current = messages.length - 1;
+    startVoiceInput();
+  }
+
   /**
    * Kaydı bitirir ve sunucuda çözümletir. Sessizlikle kendiliğinden de,
    * mikrofona ikinci kez dokunularak da buraya geliniyor.
@@ -856,7 +1028,7 @@ function ChatPanelSession({
       const blob = await recorder.stop();
       if (!blob) return;
       const text = await transcribe(blob);
-      if (text) appendTranscript(text);
+      if (text) handleTranscript(text);
       else {
         toast.error("Sesi çözümleyemedim", {
           description: "Bir kez daha dener misin?",
@@ -895,7 +1067,7 @@ function ChatPanelSession({
       recognizerRef.current = recognizer;
       setListening(true);
       recognizer.onresult = (event) => {
-        appendTranscript(event.results[0]?.[0]?.transcript ?? "");
+        handleTranscript(event.results[0]?.[0]?.transcript ?? "");
       };
       recognizer.onerror = () => {
         recognizerRef.current = null;
@@ -1004,7 +1176,7 @@ function ChatPanelSession({
   if (isParitySor) {
     return (
       <>
-        <div className={cn("cp-sor-view", examChrome && "cp-exam-chat")}>
+        <div ref={viewRef} className={cn("cp-sor-view", examChrome && "cp-exam-chat")}>
           {showParityThread && !examChrome ? (
             <div className="cp-thread-bar">
               <button type="button" onClick={resetParityThread}>
@@ -1047,12 +1219,11 @@ function ChatPanelSession({
               <h1 className="cp-sor-hero-title">
                 {greetingLine ?? "Merhaba!"}
               </h1>
-              {greetingSubline ? (
-                <p className="cp-sor-hero-sub">{greetingSubline}</p>
-              ) : null}
+              {/* Astra: büyük yuvarlak ışıltı düğmesi, altında küçük "BAŞLA". */}
               <button
                 type="button"
                 className="cp-sor-start"
+                aria-label={startLabel}
                 disabled={loading}
                 onClick={() => {
                   if (startPrompt) {
@@ -1062,38 +1233,17 @@ function ChatPanelSession({
                   setStartHubOpen(true);
                 }}
               >
-                {startPrompt ? startLabel : "+ " + startLabel}
+                <span className="cp-sor-start-orb" aria-hidden>
+                  <Sparkles className="h-6 w-6" />
+                </span>
+                <span className="cp-sor-start-label" aria-hidden>
+                  {startLabel}
+                </span>
               </button>
 
-              {/* Boş ekranda "ne sorabilirim" sorusunun cevabı. Öneriler
-                  kayıt cevaplarından üretiliyor; basınca doğrudan soruyor. */}
-              {starterPrompts?.length ? (
-                <div className="cp-sor-starters" role="group" aria-label="Başlangıç önerileri">
-                  {starterPrompts.map((item) => (
-                    <button
-                      key={item.label}
-                      type="button"
-                      className="cp-sor-starter"
-                      disabled={loading}
-                      onClick={() => void send(item.prompt)}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-
-              {/* Günün turu yalnızca defterde bekleyen soru varsa görünüyor.
-                  Boşken göstermek, basınca "soru yok" diyen bir düğme
-                  demekti. */}
-              {dailyDrillCount ? (
-                <Link href="/gunluk" className="cp-sor-daily">
-                  <span className="cp-sor-daily-title">Günün turu</span>
-                  <span className="cp-sor-daily-sub">
-                    Defterinden {dailyDrillCount} soru bekliyor · beş dakika
-                  </span>
-                </Link>
-              ) : null}
+              {/* Astra gibi yalnızca selam ve Başla (30 Eylül 2026 kararı).
+                  Kısayollar ilk cevabın altında, kaynak seçimi ilk mesajdan
+                  sonra; Günün turu Çalış ve yanlış defterinde. */}
             </div>
           ) : null}
 
@@ -1120,11 +1270,18 @@ function ChatPanelSession({
                       </div>
                     ) : (
                       <>
+                        {message.solvedMs ? (
+                          <p className="cp-solved-card" role="status">
+                            <span className="cp-solved-dot" aria-hidden />
+                            {solvedLabel(message.solvedMs)}
+                          </p>
+                        ) : null}
                         <TutorReplyView
                           content={message.content}
                           variant="parity"
                           disabled={loading}
                           onPrompt={(prompt) => void send(prompt)}
+                          hideChips={!showSuggestions}
                         />
                         <MessageActions
                           content={message.content}
@@ -1148,7 +1305,7 @@ function ChatPanelSession({
                   if (message.role === "user") {
                     return (
                       <div key={index} className="cp-exam-user">
-                        <div className="cp-exam-user-bubble">{message.content}</div>
+                        <div className="cp-exam-user-bubble">{displayUserText(message.content)}</div>
                       </div>
                     );
                   }
@@ -1173,7 +1330,7 @@ function ChatPanelSession({
                   }
                 >
                   {message.role === "user" ? (
-                    message.content
+                    displayUserText(message.content)
                   ) : (
                     assistantBody
                   )}
@@ -1185,7 +1342,7 @@ function ChatPanelSession({
               {/* Yanıt bittikten sonra devam önerileri. Öğrenci "peki şimdi ne
                   sorayım" diye kalmasın; bunlar gerçekten çalışan komutlar,
                   süs değil. Sınav sohbetinde aynı işi hızlı komutlar görür. */}
-              {!examChrome && !loading && lastIsAnswer ? (
+              {!examChrome && !loading && lastIsAnswer && showSuggestions ? (
                 <div className="cp-followups" role="group" aria-label="Devam önerileri">
                   {FOLLOW_UPS.map((item) => (
                     <button
@@ -1242,6 +1399,7 @@ function ChatPanelSession({
               daraltmadan her açılışta görünüyor. Sınav sohbetinde satış
               kartı yok; kota dolunca mevcut kredi kapısı açılır. */}
           <div
+            ref={composerZoneRef}
             className={cn(
               "cp-sor-composer-zone",
               showUpgrade && "cp-sor-composer-zone--aside",
@@ -1249,7 +1407,9 @@ function ChatPanelSession({
             style={keyboardInset ? { paddingBottom: keyboardInset } : undefined}
           >
             <div className="cp-sor-composer-main">
-            {renderSourceMode(true)}
+            {/* Ana sayfa ilk mesaja kadar sade; varsayılan genel sohbet.
+                Bir belgeden gelindiyse seçim baştan görünür. */}
+            {showParityEmpty && !examChrome && !initialDocumentId ? null : renderSourceMode(true)}
             {showSubjectPicker ? (
               <div className="cp-sor-subject-wrap">
                 <button
@@ -1391,12 +1551,27 @@ function ChatPanelSession({
                     disabled={loading}
                     onClick={() => {
                       setComposerAssistOpen(false);
+                      setMoodOpen(false);
                       setMathOpen((open) => !open);
                     }}
                   >
                     <PenLine className="h-4 w-4" aria-hidden />
                   </button>
                   )}
+                  <button
+                    type="button"
+                    className={cn("cp-sor-tool", tableOpen && "text-[var(--cp-subject)]")}
+                    aria-label="Periyodik tablo"
+                    aria-haspopup="dialog"
+                    onClick={() => {
+                      setComposerAssistOpen(false);
+                      setMoodOpen(false);
+                      setMathOpen(false);
+                      setTableOpen(true);
+                    }}
+                  >
+                    <Atom className="h-4 w-4" aria-hidden />
+                  </button>
                   <button
                     type="button"
                     className={cn(
@@ -1408,6 +1583,7 @@ function ChatPanelSession({
                     disabled={loading}
                     onClick={() => {
                       setMathOpen(false);
+                      setMoodOpen(false);
                       setComposerAssistOpen((open) => !open);
                     }}
                   >
@@ -1458,24 +1634,83 @@ function ChatPanelSession({
                       ) : null}
                     </div>
                   ) : null}
-                  {examChrome ? (
-                    <button
-                      type="button"
-                      className="cp-sor-tool"
-                      aria-label="Ayarlar"
-                      onClick={() => openComposerDialog("profile")}
-                    >
-                      <SlidersHorizontal className="h-4 w-4" aria-hidden />
-                    </button>
-                  ) : (
-                  <Link
-                    href="/ogretmen?dialog=profile"
-                    className="cp-sor-tool"
+                  {/* Astra gibi: ayar düğmesi önce bugünkü ruh halini sorar;
+                      tüm ayarlar menünün sonunda (1 Ekim 2026). */}
+                  <button
+                    type="button"
+                    className={cn("cp-sor-tool", moodOpen && "text-[var(--cp-subject)]")}
                     aria-label="Ayarlar"
+                    aria-expanded={moodOpen}
+                    onClick={() => {
+                      setMathOpen(false);
+                      setComposerAssistOpen(false);
+                      setMoodOpen((open) => !open);
+                    }}
                   >
                     <SlidersHorizontal className="h-4 w-4" aria-hidden />
-                  </Link>
-                  )}
+                  </button>
+                  {moodOpen ? (
+                    <div className="cp-composer-mode-menu cp-mood-menu" role="menu" aria-label="Bugünkü ruh hali">
+                      <p className="cp-mood-menu-title">Bugünkü ruh hali</p>
+                      <div className="cp-mood-menu-grid">
+                        {MOOD_OPTIONS.map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            role="menuitemradio"
+                            aria-checked={chatMood === option.id}
+                            className={cn("cp-mood-chip", chatMood === option.id && "is-on")}
+                            onClick={() => chooseMood(option.id)}
+                          >
+                            <span aria-hidden>{option.emoji}</span> {option.title}
+                          </button>
+                        ))}
+                      </div>
+                      {examChrome ? (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="cp-mood-menu-more"
+                          onClick={() => {
+                            setMoodOpen(false);
+                            openComposerDialog("profile");
+                          }}
+                        >
+                          Tüm ayarlar
+                        </button>
+                      ) : (
+                        <Link href="/ogretmen?dialog=profile" role="menuitem" className="cp-mood-menu-more">
+                          Tüm ayarlar
+                        </Link>
+                      )}
+                    </div>
+                  ) : null}
+                  {/* Besteci bölgesi transform'lu; sabit pencere ancak body'de
+                      tam ekranı kaplar. */}
+                  {tableOpen && typeof document !== "undefined"
+                    ? createPortal(
+                        <div className="cp-ptable-back" role="presentation" onClick={() => setTableOpen(false)}>
+                          <div
+                            className="cp-ptable-modal"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label="Periyodik tablo"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              className="cp-ptable-close"
+                              aria-label="Kapat"
+                              onClick={() => setTableOpen(false)}
+                            >
+                              <X className="h-4 w-4" aria-hidden />
+                            </button>
+                            <PeriyodikTablo embedded />
+                          </div>
+                        </div>,
+                        document.body,
+                      )
+                    : null}
                 </div>
                 <div className="cp-sor-composer-voice">
                   <button
@@ -1500,28 +1735,20 @@ function ChatPanelSession({
                   {showExamTalk ? (
                     <button
                       type="button"
-                      className="cp-exam-talk"
-                      disabled={(loading || transcribing || !canTalk) && !talking}
-                      onClick={talkLastAnswer}
+                      className={cn("cp-exam-talk", voiceMode && "is-live")}
+                      aria-pressed={voiceMode}
+                      disabled={!voiceMode && (loading || transcribing)}
+                      onClick={toggleVoiceMode}
                     >
-                      {talking ? "Durdur" : "Konuş"}
+                      {voiceModeLabel(voiceMode, { talking, listening, loading, idle: "Konuş" })}
                       <AudioLines className="h-3.5 w-3.5" aria-hidden />
                     </button>
-                  ) : null}
-                  {showExamSend && !founder && chatCreditCost != null && chatCreditCost > 0 ? (
-                    <span className="cp-exam-credit">{chatCreditCost} kr</span>
                   ) : null}
                   {showExamSend ? (
                     <button
                       type="submit"
                       className="cp-send"
-                      aria-label={
-                        loading
-                          ? "Yanıt hazırlanıyor"
-                          : !founder && chatCreditCost != null && chatCreditCost > 0
-                            ? `Gönder, ${chatCreditCost} kr`
-                            : "Gönder"
-                      }
+                      aria-label={loading ? "Yanıt hazırlanıyor" : "Gönder"}
                       disabled={loading || !hasComposerPayload}
                     >
                       {loading ? (
@@ -1551,14 +1778,20 @@ function ChatPanelSession({
                       <Send className="h-4 w-4" aria-hidden />
                     </button>
                   ) : null}
-                  {!examChrome && !loading && !(input.trim() || pendingFile || pendingRemote) ? (
+                  {!examChrome &&
+                  (voiceMode || (!loading && !(input.trim() || pendingFile || pendingRemote))) ? (
                     <button
                       type="button"
-                      className="cp-sor-voice-chip"
-                      disabled={loading}
-                      onClick={startVoiceInput}
+                      className={cn("cp-sor-voice-chip", voiceMode && "is-live")}
+                      aria-pressed={voiceMode}
+                      onClick={toggleVoiceMode}
                     >
-                      Cortex Plus ile konuş
+                      {voiceModeLabel(voiceMode, {
+                        talking,
+                        listening,
+                        loading,
+                        idle: "Cortex Plus ile konuş",
+                      })}
                       <AudioLines className="h-3.5 w-3.5 opacity-80" aria-hidden />
                     </button>
                   ) : null}
@@ -1617,7 +1850,7 @@ function ChatPanelSession({
         <CreditGate
           open={paywall}
           onOpenChange={setPaywall}
-          message="Bu işlem için yeterli kredin veya ücretsiz hakkın kalmadı. Çalışman kayıtlı kalır."
+          message="Kullanım hakkın doldu. Çalışman kayıtlı kalır."
           returnPath={returnPath}
           isPremium={isPremium}
         />
@@ -1793,7 +2026,7 @@ function ChatPanelSession({
                     role={message.isError ? "alert" : undefined}
                   >
                     {message.role === "user" ? (
-                      message.content
+                      displayUserText(message.content)
                     ) : message.content ? (
                       <TutorReplyView
                         content={message.content}
@@ -1843,7 +2076,7 @@ function ChatPanelSession({
           {messages.map((message, index) => (
             <div key={index} className={bubbleClass(message)}>
               {message.role === "user" ? (
-                message.content
+                displayUserText(message.content)
               ) : (
                 <TutorReplyView
                   content={message.content}
@@ -1991,11 +2224,14 @@ function ChatPanelSession({
               <p className="text-center text-[11px] text-[var(--cs-muted)]">
                 {quotaHint}
               </p>
-            ) : chatCreditCost != null ? (
+            ) : allowAdvanced || tutorStyleLabel ? (
               <p className="text-center text-[11px] text-[var(--cs-muted)]">
-                Her mesaj yaklaşık {chatCreditCost} kredi harcar.
-                {allowAdvanced ? " Sigma ile gelişmiş model kullanılır." : ""}
-                {tutorStyleLabel ? ` · Stil: ${tutorStyleLabel}` : ""}
+                {[
+                  allowAdvanced ? "Sigma ile gelişmiş model kullanılır." : null,
+                  tutorStyleLabel ? `Stil: ${tutorStyleLabel}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
             ) : null}
             <div
@@ -2175,7 +2411,7 @@ function ChatPanelSession({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Bu işlem için yeterli kredin veya ücretsiz hakkın kalmadı. Çalışman kayıtlı kalır."
+        message="Kullanım hakkın doldu. Çalışman kayıtlı kalır."
         returnPath={returnPath}
         isPremium={isPremium}
       />

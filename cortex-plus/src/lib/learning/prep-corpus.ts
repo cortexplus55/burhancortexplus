@@ -52,6 +52,101 @@ export function contentTokens(text: string): string[] {
     .filter((word) => word.length >= 5 && !STOP.has(word) && !/^\d+$/.test(word));
 }
 
+function plainNumber(value: string): string {
+  const dotted = value.replace(",", ".");
+  return dotted.includes(".") ? dotted.replace(/0+$/, "").replace(/\.$/, "") : dotted;
+}
+
+function numbersIn(text: string): string[] {
+  return (text.match(/\d+(?:[.,]\d+)?/g) ?? []).map(plainNumber);
+}
+
+/** Sohbet kelimeleri: soruyu anlatır, konuyu değil ("karıştırıyorum", "farkı ne"). */
+const CHAT_NOISE_STEMS = new Set([
+  "karis", "anlam", "fark", "farki", "farkl", "acikl", "anlat", "ogren", "lutfe", "yardi", "soru", "sorus",
+  "nedir", "neden", "nasil", "hangi", "daha", "peki", "neyi", "niye", "bana", "beni", "bunu", "sunu", "olan",
+  "olur", "ol", "icin", "gibi", "kadar", "sadec", "cevap", "kisac", "basit", "ornek", "tekra", "biraz", "acaba",
+]);
+
+/**
+ * Kelime araması için sorudaki kökler (ilk 5 harf), uzun kelimeler önce.
+ * `raw` veritabanında ilike için (Türkçe harfler korunur), `folded` puanlama için.
+ */
+export function searchStems(question: string, max = 4): { raw: string; folded: string }[] {
+  const seen = new Set<string>();
+  const stems: { raw: string; folded: string }[] = [];
+  const words = question
+    .toLocaleLowerCase("tr")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    // 4 harf: "kast", "grev" gibi terimler. Canlıda "Kast ile taksiri
+    // karıştırıyorum" sorusunda "kast" atlanıp "karış" aranmıştı.
+    .filter((word) => word.length >= 4 && !/^\d+$/.test(word) && !STOP.has(foldTr(word)))
+    .sort((a, b) => b.length - a.length);
+  for (const word of words) {
+    const raw = word.slice(0, 5);
+    const folded = foldTr(raw);
+    if (seen.has(folded) || CHAT_NOISE_STEMS.has(folded) || STOP.has(folded)) continue;
+    seen.add(folded);
+    stems.push({ raw, folded });
+    if (stems.length >= max) break;
+  }
+  return stems;
+}
+
+/**
+ * Kelime aramasıyla gelen sayfayı puanlar ve köklerin en yoğun geçtiği
+ * ~700 karakterlik pencereyi döndürür. Anlam araması "Fransa'da sendika kaç
+ * kişiyle kurulur?" sorusunda "En az 7 işçi… kurulan" diyen s.40'ı
+ * getirmedi; öğretmen belgede olan bilgi için "verilmemiş" dedi.
+ */
+export function lexicalPageHit(
+  question: string,
+  text: string,
+): { score: number; excerpt: string } | null {
+  const stems = searchStems(question);
+  if (!stems.length) return null;
+  const hay = foldTr(text);
+  const numbers = [...new Set(numbersIn(question).filter((n) => n.length >= 2))];
+  const hayNumbers = new Set(numbersIn(text));
+  const matched = stems.filter((stem) => hay.includes(stem.folded));
+  const score = matched.length + 2 * numbers.filter((n) => hayNumbers.has(n)).length;
+  if (!matched.length) return null;
+  // Köklerin en çok bir arada geçtiği yeri bul.
+  let best = { at: hay.indexOf(matched[0].folded), count: 0 };
+  for (const stem of matched) {
+    for (let at = hay.indexOf(stem.folded); at >= 0; at = hay.indexOf(stem.folded, at + 1)) {
+      const window = hay.slice(Math.max(0, at - 350), at + 350);
+      const count = matched.filter((other) => window.includes(other.folded)).length;
+      if (count > best.count) best = { at, count };
+    }
+  }
+  const start = Math.max(0, best.at - 350);
+  return { score, excerpt: text.slice(start, start + 700).trim() };
+}
+
+/**
+ * Anlam benzerliğine sorudaki kelime köklerinin ve sayıların pasajda
+ * geçmesini ekler. 2 Ekim 2026 altın denemesi: "200 kPa sabit basınçta 0.1
+ * m³'ten 0.3 m³'e genleşen gazın işi" sorusunda aynı örneği taşıyan s.14
+ * anlam aramasında 7. sıradaydı; öğretmen "belgende geçmiyor" dedi.
+ */
+export function rerankByOverlap<T extends { content: string; similarity: number }>(question: string, matches: T[]): T[] {
+  const stems = [...new Set(contentTokens(question).map((word) => word.slice(0, 5)))];
+  const numbers = [...new Set(numbersIn(question).filter((n) => n.length >= 2))];
+  const total = stems.length + 2 * numbers.length;
+  if (!total) return matches;
+  return matches
+    .map((match, index) => {
+      const hay = foldTr(match.content);
+      const hayNumbers = new Set(numbersIn(match.content));
+      const hits = stems.filter((stem) => hay.includes(stem)).length + 2 * numbers.filter((n) => hayNumbers.has(n)).length;
+      return { match, index, score: match.similarity + 0.4 * (hits / total) };
+    })
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((item) => item.match);
+}
+
 /**
  * Alıntı veya analiz metni soruya değiyorsa materyal içidir.
  * Hiç belge yoksa "unknown": "Materyal dışı" yapıştırılmaz.

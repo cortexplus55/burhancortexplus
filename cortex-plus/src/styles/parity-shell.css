@@ -359,25 +359,49 @@
   color: var(--cp-text);
 }
 
+/* Astra'nın Başla'sı: yuvarlak ışıltı, altında aralıklı küçük yazı. */
 .cp-sor-start {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.35rem;
-  margin-top: 1.25rem;
-  padding: 0.55rem 1.15rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  gap: 0.85rem;
+  margin-top: 1.5rem;
+  padding: 0;
+  border: 0;
   background: transparent;
   color: var(--cp-text);
-  font-size: 0.9375rem;
-  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.cp-sor-start:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.35);
+.cp-sor-start-orb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--cp-text) 8%, var(--cp-bg));
+  border: 1px solid color-mix(in srgb, var(--cp-text) 12%, transparent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.cp-sor-start-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.cp-sor-start:hover:not(:disabled) .cp-sor-start-orb {
+  transform: scale(1.04);
+  background: color-mix(in srgb, var(--cp-text) 12%, var(--cp-bg));
+}
+
+.cp-sor-start:focus-visible .cp-sor-start-orb {
+  outline: 2px solid var(--c-ai, #7c6cf7);
+  outline-offset: 3px;
 }
 
 /*
@@ -2786,6 +2810,107 @@
   z-index: 20;
 }
 
+/* Yazı kutusundaki ayar düğmesi: bugünkü ruh hali (Astra, 1 Ekim 2026). */
+.cp-mood-menu {
+  width: min(19rem, 90vw);
+  padding: 0.6rem;
+}
+
+.cp-mood-menu-title {
+  margin: 0.15rem 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.cp-mood-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.cp-mood-chip {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.75rem;
+  background: transparent;
+  color: var(--cp-text);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-mood-chip:hover {
+  background: var(--c-surface-1);
+}
+
+.cp-mood-chip.is-on {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 14%, transparent);
+}
+
+.cp-mood-menu-more {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-top: 1px solid var(--cp-border);
+  background: transparent;
+  color: var(--cp-muted);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-mood-menu-more:hover {
+  color: var(--cp-text);
+}
+
+/* Sohbetten açılan periyodik tablo. */
+.cp-ptable-back {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.cp-ptable-modal {
+  position: relative;
+  width: min(100%, 60rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  border: 1px solid var(--cp-border);
+  border-radius: 1.1rem;
+  background: var(--c-bg);
+}
+
+.cp-ptable-close {
+  position: sticky;
+  top: 0.6rem;
+  z-index: 2;
+  float: right;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: 0.6rem 0.6rem 0 0;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  background: var(--c-surface-2);
+  color: var(--cp-text);
+  cursor: pointer;
+}
+
+.tool--embedded {
+  padding: 1rem 1rem 1.5rem;
+}
+
 .cp-composer-mode-item {
   display: flex;
   gap: 0.65rem;
@@ -2892,6 +3017,16 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.5rem 0 1rem;
+}
+
+/* Tek çıkış ×: süre yokken de sağda dursun. */
+.cp-exam-study-bar > :last-child {
+  margin-left: auto;
+}
+
+/* Oturum kabuğu: üst çubuk yok, içerik ekranın başından başlar. */
+.cp-sor-root--session .cp-sor-main {
+  padding-top: 0.75rem;
 }
 
 .cp-topic-path {
@@ -3030,25 +3165,6 @@
   background: #34d399;
 }
 
-.cp-exam-runner-progress {
-  height: 3px;
-  background: rgba(124, 108, 247, 0.2);
-  border-radius: 9999px;
-  margin-bottom: 1rem;
-  overflow: hidden;
-}
-
-.cp-exam-runner-progress div {
-  height: 100%;
-  background: var(--c-ai);
-}
-
-.cp-exam-runner-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  margin: 0.75rem 0;
-}
-
 .cp-exam-multi-hint {
   display: inline-block;
   margin-bottom: 0.75rem;
@@ -3057,12 +3173,6 @@
   background: rgba(124, 108, 247, 0.15);
   color: #c4b5fd;
   font-size: 0.75rem;
-}
-
-.cp-exam-runner-q {
-  font-size: 1.05rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
 }
 
 .cp-exam-options {
@@ -3736,6 +3846,22 @@
   flex-direction: column;
   gap: 1.35rem;
   box-sizing: border-box;
+  /* Düğümleri birbirine bağlayan tek dikey çizgi — ilk düğümün merkezinden
+     son düğümün merkezine kadar, düğümlerin ARKASINDA (bkz. z-index).
+     Astra kıyasında "düz liste" ile "bağlı bir yol" hissi arasındaki fark
+     büyük ölçüde bu tek çizgiden geliyordu. */
+  position: relative;
+}
+
+.cp-exam-trail::before {
+  content: "";
+  position: absolute;
+  top: 1.8rem;
+  bottom: 1.8rem;
+  left: 1.8rem;
+  width: 2px;
+  background: var(--cp-border);
+  z-index: 0;
 }
 
 .cp-exam-trail-item {
@@ -3744,10 +3870,8 @@
   gap: 0.85rem;
   min-width: 0;
   max-width: 100%;
-}
-
-.cp-exam-trail-item--right {
-  flex-direction: row-reverse;
+  position: relative;
+  z-index: 1;
 }
 
 .cp-exam-trail-node {
@@ -3756,17 +3880,16 @@
   justify-content: center;
   width: 3.6rem;
   height: 3.6rem;
-  border-radius: 1rem;
+  flex: none;
+  border-radius: 50%;
   border: 1px solid var(--cp-border);
   background: var(--c-surface-2);
   color: inherit;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
-}
-
-.cp-exam-trail-node--podcast {
-  border-radius: 9999px;
+  position: relative;
+  z-index: 1;
 }
 
 .cp-exam-trail-node--podcast.cp-exam-trail-node--ready {
@@ -5773,26 +5896,88 @@
   padding: 0;
 }
 
-.cp-pod-lengths {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.85rem;
+/* Podcast türü — Astra'daki beş tür (1 Ekim 2026). */
+.cp-pod-formats {
+  display: grid;
+  gap: 0.45rem;
   margin: 0.75rem 0;
   border: 0;
   padding: 0;
 }
 
-.cp-pod-lengths legend {
-  width: 100%;
-  margin-bottom: 0.25rem;
+.cp-pod-formats legend {
+  margin-bottom: 0.35rem;
   font-size: 0.85rem;
+  font-weight: 600;
 }
 
-.cp-pod-lengths label {
-  display: inline-flex;
+.cp-pod-format {
+  position: relative;
+  display: flex;
   align-items: center;
-  gap: 0.35rem;
-  font-size: 0.85rem;
+  gap: 0.7rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.85rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.cp-pod-format:hover {
+  background: var(--c-surface-2);
+}
+
+.cp-pod-format.is-on {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 10%, transparent);
+}
+
+.cp-pod-format input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cp-pod-format:has(input:focus-visible) {
+  outline: 2px solid var(--c-action);
+  outline-offset: 2px;
+}
+
+.cp-pod-format-emoji {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.cp-pod-format-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.8rem;
+  color: var(--cp-muted);
+}
+
+.cp-pod-format-text strong {
+  font-size: 0.9rem;
+  color: var(--cp-text);
+}
+
+.cp-pod-format-text em {
+  margin-left: 0.25rem;
+  font-style: normal;
+  font-weight: 500;
+  color: var(--cp-muted);
+}
+
+.cp-pod-format-badge {
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--c-action);
+  border-radius: 999px;
+  color: var(--c-action);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .cp-studio {
@@ -8190,11 +8375,18 @@
 
 /* SHELL_THEME_CINEMATIC_PACK */
 
+/*
+  Açık tema: bu paket kabuğu koyu sabitlerle çiziyordu (üst çubuk
+  rgba(5,5,5,.72), kenarlık beyaz). Açık temada yazı koyuya dönünce üst
+  çubuktaki "Ana Sayfa / Çalış / Belgeler / Profil" koyu zeminde koyu yazı
+  olup okunmaz hâle geliyordu (29 Eylül 2026'da görüldü). Değerler tema
+  değişkenlerine bağlandı; koyu temada sonuç birebir aynı.
+*/
 .cp-sor-root {
   --cp-bg: var(--c-bg);
   --cp-surface: var(--c-surface-1);
   --cp-surface-2: var(--c-surface-2);
-  --cp-border: rgba(255, 255, 255, 0.08);
+  --cp-border: var(--c-border);
   --cp-gold: var(--c-brand);
   --cs-primary: var(--c-brand);
   --cs-primary-hover: var(--c-brand-hover);
@@ -8207,8 +8399,8 @@
 .cp-sor-top {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  background: rgba(5, 5, 5, 0.72);
-  border-bottom-color: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--c-bg) 72%, transparent);
+  border-bottom-color: var(--c-border);
 }
 
 .cp-sor-topnav-link--active,
@@ -8221,7 +8413,7 @@
 .cp-sor-panel,
 .cp-card-premium {
   border-color: rgba(232, 168, 56, 0.16);
-  background: rgba(18, 18, 20, 0.72);
+  background: color-mix(in srgb, var(--c-surface-1) 72%, transparent);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.03),
     0 18px 48px rgba(0, 0, 0, 0.35);
@@ -9003,3 +9195,2699 @@
   }
 }
 
+
+/*
+  Sabit besteci için ölçülmüş boşluk (bkz. chat-panel.tsx, composerZoneRef).
+  Yukarıdaki sabit padding-bottom değerleri (12rem … 22.5rem) yalnızca ilk
+  boyamada, ölçüm gelmeden önce geçerli. Ölçüm gelince içerik, bestecinin
+  gerçekten kapladığı yükseklik + 1rem kadar boşluk bırakıyor — genişlik,
+  kaynak seçici satırı, Plus kartı ya da klavye ne olursa olsun.
+*/
+.cp-sor-root .cp-sor-view[data-composer-measured] .cp-sor-hero,
+.cp-sor-root .cp-sor-view[data-composer-measured] .cp-sor-messages {
+  padding-bottom: calc(var(--cp-sor-composer-clearance) + 1rem);
+}
+
+@media (max-width: 767px) {
+  /*
+    Boş ekranda besteci saydamdı: "Günün turu" kartı kaydırılınca ya da dar
+    ekranda kaynak seçicinin ("Yalnızca belgem") arkasından görünüyor, iki
+    metin üst üste biniyordu (28 Eylül 2026, 375px). Plus kartlı hâl bunu
+    zaten opak zeminle çözmüştü; normal hâl de aynı zemini alıyor.
+  */
+  .cp-sor-root .cp-sor-view[data-composer-measured] .cp-sor-composer-zone {
+    background: var(--cp-bg);
+    box-shadow: 0 -0.75rem 0.75rem -0.25rem var(--cp-bg);
+  }
+}
+
+@media (max-width: 640px) {
+  /*
+    Üç öneri çipi alt alta üç satır (153px) kaplıyordu; 375×812'de bu,
+    "Günün turu" kartını bestecinin altına itiyordu. İkişerli sıra bir satır
+    kazandırıyor, dokunma hedefi 44px kalıyor.
+  */
+  .cp-sor-root .cp-sor-starters {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .cp-sor-root .cp-sor-starter {
+    flex: 1 1 calc(50% - 0.5rem);
+    width: auto;
+  }
+}
+
+/*
+  Sınav hazırlığındaki hafıza kartı. Bölümün kendi stili yoktu: kart ortada,
+  ipucu ve Evet/Hayır sırası solda duruyordu. Kart artık hangi yüzün
+  göründüğünü söylüyor; değerlendirme cevap görüldükten sonra açılıyor.
+*/
+.cp-exam-card-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.cp-exam-card-stage .cp-exam-flash {
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.cp-exam-flash--back {
+  border-color: color-mix(in srgb, var(--cp-gold) 55%, transparent);
+  background: color-mix(in srgb, var(--cp-gold) 6%, var(--c-surface-2));
+}
+
+.cp-exam-flash-side {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.cp-exam-flash--back .cp-exam-flash-side {
+  color: var(--cp-gold);
+}
+
+.cp-exam-card-hint {
+  margin: 0;
+  max-width: 22rem;
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
+.cp-exam-card-rate {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+/* Kart ilerlemesi, tekrar turu teklifi ve "N kaynak" (Astra, 1 Ekim 2026). */
+.cp-exam-card-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: min(100%, 32rem);
+}
+
+.cp-exam-card-progress > span {
+  position: relative;
+  flex: 1;
+  height: 0.3rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--cp-border);
+}
+
+.cp-exam-card-progress i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--c-action);
+  transition: width 0.25s ease;
+}
+
+.cp-exam-card-progress em {
+  font-size: 0.8rem;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--cp-muted);
+  white-space: nowrap;
+}
+
+.cp-exam-card-offer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 3rem auto 0;
+  max-width: 26rem;
+  text-align: center;
+}
+
+.cp-exam-card-offer h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.cp-exam-card-offer p {
+  margin: 0;
+  color: var(--cp-muted);
+}
+
+.cp-exam-card-offer-emoji {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.cp-node-sources {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  align-self: center;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.cp-node-sources:hover {
+  color: var(--cp-text);
+  background: var(--c-surface-2);
+}
+
+.cp-node-sources-back {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.cp-node-sources-modal {
+  width: min(100%, 26rem);
+  padding: 1.1rem 1.15rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 1rem;
+  background: var(--c-surface-1, var(--cp-surface));
+  color: var(--cp-text);
+  text-align: left;
+}
+
+.cp-node-sources-modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cp-node-sources-modal h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.cp-node-sources-modal header button {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-muted);
+  cursor: pointer;
+}
+
+.cp-node-sources-modal > p {
+  margin: 0.35rem 0 0.9rem;
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
+.cp-node-sources-modal ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-node-sources-modal li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.75rem;
+}
+
+.cp-node-sources-modal li span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-node-sources-modal li a {
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: var(--c-surface-2);
+  color: var(--cp-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Sonuç ekranında "Arkadaşına meydan oku". */
+.cp-exam-challenge {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 1rem;
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  text-align: left;
+}
+
+.cp-exam-challenge:hover {
+  border-color: var(--c-action);
+}
+
+.cp-exam-challenge svg {
+  color: var(--c-action);
+}
+
+.cp-exam-challenge span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cp-exam-challenge em {
+  font-size: 0.85rem;
+  font-style: normal;
+  color: var(--cp-muted);
+}
+
+/* --- Seri ve rozetler penceresi ---------------------------------------------
+   Üst çubuktaki alev düğmesi açıyor. Yerleşim referans üründen: tam ekran,
+   ortada Seri / Rozetler sekmesi, sağ üstte bilgi ve Kapat; rozetler üç
+   sütun (telefonda iki). Renkler tema değişkenlerinden, açık temada da
+   okunuyor. */
+.cp-sor-streak {
+  cursor: pointer;
+  border-radius: 9999px;
+  padding: 0.3rem 0.55rem;
+}
+
+.cp-sor-streak:hover {
+  background: var(--c-surface-2);
+  color: var(--cp-text);
+}
+
+.cp-jr {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  overflow-y: auto;
+  background: var(--cp-bg);
+  color: var(--cp-text);
+  animation: cp-jr-in 0.18s ease-out;
+}
+
+@keyframes cp-jr-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.cp-jr-top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  pointer-events: none;
+}
+
+.cp-jr-top > * {
+  pointer-events: auto;
+}
+
+.cp-jr-icon-btn,
+.cp-jr-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 2.5rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 9999px;
+  background: var(--c-surface-1);
+  color: var(--cp-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.cp-jr-icon-btn {
+  width: 2.5rem;
+}
+
+.cp-jr-close {
+  padding: 0 0.9rem;
+}
+
+.cp-jr-body {
+  width: min(100% - 2rem, 46rem);
+  margin: -2.5rem auto 0;
+  padding-bottom: 3rem;
+}
+
+.cp-jr-tabs {
+  display: flex;
+  width: max-content;
+  margin: 0 auto 1.75rem;
+  padding: 0.25rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 9999px;
+  background: var(--c-surface-1);
+}
+
+.cp-jr-tab {
+  min-height: 2.5rem;
+  padding: 0 1.1rem;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--cp-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cp-jr-tab--active {
+  background: var(--cp-text);
+  color: var(--cp-bg);
+}
+
+.cp-jr-status {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 3rem 0;
+  color: var(--cp-muted);
+  text-align: center;
+}
+
+.cp-jr-retry {
+  border: 1px solid var(--cp-border);
+  border-radius: 9999px;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  color: var(--cp-text);
+  font-weight: 600;
+}
+
+/* Seri sekmesi */
+.cp-jr-hero {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.2rem;
+  padding: 2.5rem 0 1.75rem;
+  text-align: center;
+}
+
+.cp-jr-glow {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 14rem;
+  height: 10rem;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 138, 31, 0.08), transparent);
+  pointer-events: none;
+}
+
+.cp-jr-glow.is-on {
+  background: radial-gradient(closest-side, rgba(255, 138, 31, 0.3), transparent);
+}
+
+.cp-jr-count {
+  position: relative;
+  font-size: 4rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.cp-jr-count-label {
+  position: relative;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.cp-jr-count-hint {
+  position: relative;
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
+.cp-jr-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--cp-border);
+  border-radius: 1.1rem;
+  background: var(--c-surface-1);
+  overflow: hidden;
+}
+
+.cp-jr-stat {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1.1rem 1.25rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.cp-jr-stat + .cp-jr-stat {
+  border-left: 1px solid var(--cp-border);
+}
+
+.cp-jr-stat > span {
+  font-size: 0.8125rem;
+  color: var(--cp-muted);
+}
+
+.cp-jr-stat strong {
+  font-size: 1.05rem;
+}
+
+.cp-jr-stat em {
+  margin-left: 0.35rem;
+  font-size: 0.8125rem;
+  font-style: normal;
+  font-weight: 500;
+  color: var(--cp-muted);
+}
+
+.cp-jr-stat--link:hover {
+  background: var(--c-surface-2);
+}
+
+.cp-jr-next-row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 1.1rem;
+  background:
+    linear-gradient(180deg, rgba(255, 138, 31, 0.08), transparent 55%),
+    var(--c-surface-1);
+  color: inherit;
+  text-align: left;
+}
+
+.cp-jr-next-row-art {
+  flex-shrink: 0;
+  width: 3rem;
+  height: 3rem;
+  color: var(--cp-muted);
+}
+
+.cp-jr-next-row-text {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.cp-jr-next-row-text strong {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cp-jr-next-row-text > span {
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
+.cp-jr-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 9999px;
+  background: var(--c-surface-3, var(--c-surface-2));
+  color: var(--cp-text);
+  font-size: 0.6875rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.cp-jr-week {
+  margin-top: 1rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 1.1rem;
+  background: var(--c-surface-1);
+}
+
+.cp-jr-week-title {
+  font-weight: 600;
+}
+
+.cp-jr-week ol {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.3rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-jr-week li {
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+}
+
+.cp-jr-week-day {
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-jr-week li.is-today .cp-jr-week-day {
+  color: var(--cp-text);
+  font-weight: 700;
+}
+
+.cp-jr-week-flame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--c-surface-2);
+  color: var(--cp-muted);
+  opacity: 0.6;
+}
+
+.cp-jr-week-flame.is-on {
+  background: rgba(255, 138, 31, 0.18);
+  color: #ff8a1f;
+  opacity: 1;
+}
+
+.cp-jr-week li.is-today .cp-jr-week-flame {
+  box-shadow: 0 0 0 2px #ff8a1f;
+}
+
+/* Rozetler sekmesi */
+.cp-jr-badges-head {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.cp-jr-badges-head h2 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.cp-jr-badges-head p {
+  margin: 0;
+  color: var(--cp-muted);
+}
+
+.cp-jr-next {
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem 1.25rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 1.25rem;
+  background: var(--c-surface-1);
+}
+
+.cp-jr-next--done {
+  justify-items: center;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.cp-jr-next--done p {
+  margin: 0;
+  color: var(--cp-muted);
+}
+
+.cp-jr-next-head {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.cp-jr-next-head strong {
+  display: block;
+  font-size: 1.1rem;
+}
+
+.cp-jr-next-head p {
+  margin: 0.2rem 0 0;
+  opacity: 0.85;
+}
+
+.cp-jr-next-art {
+  flex-shrink: 0;
+  display: flex;
+  width: 4rem;
+  height: 4rem;
+  padding: 0.35rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 1rem;
+  background: var(--c-surface-2);
+  color: var(--cp-muted);
+}
+
+.cp-jr-kicker {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.cp-jr-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cp-jr-progress-bar {
+  flex: 1;
+  height: 0.4rem;
+  border-radius: 9999px;
+  background: var(--c-surface-3, var(--c-surface-2));
+  overflow: hidden;
+}
+
+.cp-jr-progress-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #22c98b;
+}
+
+.cp-jr-progress em {
+  font-size: 0.8125rem;
+  font-style: normal;
+  color: var(--cp-muted);
+  white-space: nowrap;
+}
+
+.cp-jr-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.9rem;
+  border: none;
+  border-radius: 9999px;
+  background: var(--cp-action, #3b55e0);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.cp-jr-cta:hover {
+  background: var(--cp-action-hover, var(--cp-action, #3b55e0));
+}
+
+.cp-jr-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.75rem 1.25rem;
+  margin: 2rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-jr-tile {
+  display: grid;
+  justify-items: center;
+  gap: 0.2rem;
+  text-align: center;
+}
+
+.cp-jr-tile-art {
+  display: flex;
+  width: 100%;
+  aspect-ratio: 1 / 1.05;
+  margin-bottom: 0.6rem;
+  padding: 12%;
+  border: 1px solid var(--cp-border);
+  border-radius: 28% 28% 36% 36% / 24% 24% 40% 40%;
+  background: var(--c-surface-1);
+  color: var(--cp-muted);
+}
+
+.cp-jr-tile-art svg,
+.cp-jr-next-art svg,
+.cp-jr-unlock-art svg {
+  width: 100%;
+  height: 100%;
+}
+
+.cp-jr-tile.is-locked .cp-jr-tile-art {
+  opacity: 0.8;
+}
+
+.cp-jr-tile.is-unlocked .cp-jr-tile-art {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 40%, rgba(255, 255, 255, 0.08) 60%, transparent) padding-box,
+    linear-gradient(var(--c-surface-2), var(--c-surface-2)) padding-box,
+    linear-gradient(160deg, #22c98b, rgba(34, 201, 139, 0.05) 55%, rgba(34, 201, 139, 0.4)) border-box;
+  box-shadow: 0 12px 28px -18px rgba(34, 201, 139, 0.55);
+}
+
+.cp-jr-tile.is-unlocked .cp-jr-tile-art svg {
+  filter: drop-shadow(0 10px 10px rgba(0, 0, 0, 0.35));
+}
+
+.cp-jr-tile strong {
+  font-size: 1rem;
+}
+
+.cp-jr-tile-task {
+  font-size: 0.875rem;
+}
+
+.cp-jr-tile-meta {
+  font-size: 0.8125rem;
+  color: var(--cp-muted);
+}
+
+@media (max-width: 640px) {
+  /* Dar ekranda sekmeler sağ üstteki düğmelerle aynı satıra sığmıyor. */
+  .cp-jr-body {
+    margin-top: 0;
+  }
+
+  .cp-jr-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem 0.9rem;
+  }
+
+  .cp-jr-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .cp-jr-stat + .cp-jr-stat {
+    border-left: none;
+    border-top: 1px solid var(--cp-border);
+  }
+
+  .cp-jr-count {
+    font-size: 3.25rem;
+  }
+}
+
+/* Bilgi penceresi ve yeni rozet duyurusu */
+.cp-jr-info-backdrop,
+.cp-jr-unlock-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+}
+
+.cp-jr-info {
+  position: relative;
+  width: min(100%, 30rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  padding: 1.5rem 1.5rem 1.25rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 1.25rem;
+  background: var(--c-surface-1);
+  color: var(--cp-text);
+}
+
+.cp-jr-info h3 {
+  margin: 0 2rem 0.5rem 0;
+  font-size: 1.2rem;
+}
+
+.cp-jr-info p {
+  margin: 0 0 1rem;
+  color: var(--cp-muted);
+  line-height: 1.5;
+}
+
+.cp-jr-info ul {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding-left: 1.1rem;
+  line-height: 1.5;
+}
+
+.cp-jr-info-note {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.9rem;
+  background: var(--c-surface-2);
+  font-size: 0.875rem;
+}
+
+.cp-jr-info-close {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  border-radius: 9999px;
+  background: var(--c-surface-2);
+  color: var(--cp-text);
+}
+
+.cp-jr-unlock {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  width: min(100%, 22rem);
+  padding: 1.75rem 1.5rem 1.5rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 1.5rem;
+  background: var(--c-surface-1);
+  color: var(--cp-text);
+  text-align: center;
+  animation: cp-jr-in 0.2s ease-out;
+}
+
+.cp-jr-unlock h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.cp-jr-unlock p {
+  margin: 0 0 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-jr-unlock-art {
+  display: flex;
+  width: 8.5rem;
+  height: 8.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.cp-jr-unlock-actions {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.cp-jr-unlock-dismiss {
+  min-height: 2.6rem;
+  border: none;
+  background: transparent;
+  color: var(--cp-muted);
+  font-weight: 600;
+}
+
+/* --- Hazırlık sayfası: Astra düzeni (29 Eylül 2026) ---
+   Odak kabuğu: üst sekme çubuğu yok, yalnızca Geri / seri / menü / avatar.
+   Renkler temadan geliyor; sınav sohbetinin sabit koyu zemini burada yok. */
+.cp-sor-root--focus .cp-sor-top {
+  background: transparent;
+  border-bottom: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.cp-prep-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+}
+
+/* Üst çubuğa taşınınca (Astra): serinin solunda, ayrı satır yok. */
+.cp-sor-top-slot {
+  display: contents;
+}
+
+.cp-sor-top-slot .cp-prep-actions {
+  margin: 0 0.5rem 0 0;
+}
+
+.cp-sor-root--focus .cp-prep-actions--pending {
+  display: none;
+}
+
+/* Telefonda Astra gibi tek satır: Geri, simgeler, seri, menü, avatar. */
+@media (max-width: 480px) {
+  .cp-sor-top-slot .cp-prep-actions {
+    gap: 0.3rem;
+    margin-right: 0.25rem;
+  }
+
+  .cp-sor-top-slot .cp-prep-icon {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .cp-sor-root--focus .cp-sor-top {
+    flex-wrap: nowrap;
+  }
+
+  .cp-sor-root--focus .cp-sor-more-label {
+    display: none;
+  }
+}
+
+.cp-prep-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.cp-prep-icon.is-on {
+  border-color: var(--c-brand, #6366f1);
+  color: var(--c-brand, #6366f1);
+}
+
+.cp-exam-trail-head h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.cp-exam-tab-pct {
+  font-size: 0.75rem;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-prep-topics-count {
+  margin: 0.9rem 0 0.6rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--cp-muted);
+}
+
+/* Zikzak yol: düğümlerin yanında yazı yok, satır yüksekliği sabit; çizgi
+   SVG ile düğüm merkezlerinden geçiyor (bkz. StudyPath). Genişlik 280px:
+   320px'lik telefonda 16px kenar boşluğuyla sığıyor. Sınıf adı cp-zpath:
+   .cp-path sohbet kabuğunda başka bir kutu için zaten kullanılıyor. */
+.cp-zpath {
+  position: relative;
+  width: 280px;
+  max-width: 100%;
+  margin: 1.5rem auto 0;
+}
+
+.cp-path-lines {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.cp-path-lines path {
+  fill: none;
+  stroke: var(--cp-border);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.cp-path-lines path.is-done {
+  stroke: rgba(16, 185, 129, 0.55);
+}
+
+.cp-path-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  inset: 0;
+}
+
+.cp-path-list .cp-exam-trail-item {
+  position: absolute;
+  display: block;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.cp-path-list .cp-exam-trail-node {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-2);
+  color: var(--cp-muted);
+  opacity: 1;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.cp-path-list .cp-exam-trail-node:hover {
+  transform: scale(1.05);
+}
+
+.cp-path-list .cp-path-node--square {
+  border-radius: 1rem;
+}
+
+.cp-path-list .cp-path-node--hex {
+  border-radius: 0;
+  border: 0;
+  clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
+}
+
+.cp-path-list .cp-exam-trail-node--locked {
+  opacity: 0.7;
+}
+
+.cp-path-list .cp-exam-trail-node--done {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.55);
+  color: #10b981;
+}
+
+.cp-path-list .cp-exam-trail-node--ready {
+  border-color: rgba(99, 102, 241, 0.55);
+  color: var(--cp-text);
+}
+
+.cp-path-list .cp-exam-trail-node.is-current {
+  width: 4.5rem;
+  height: 4.5rem;
+  background: #3f51e5;
+  border-color: #8ea0ff;
+  color: #fff;
+  box-shadow: 0 0 0 5px rgba(63, 81, 229, 0.22), 0 0 26px rgba(63, 81, 229, 0.45);
+}
+
+.cp-path-list .cp-path-node--hex.is-current {
+  box-shadow: none;
+}
+
+.cp-path-letters {
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.cp-path-next {
+  /* Düğümler (z-index 1) kartın altından geçsin. */
+  z-index: 5;
+  width: min(100%, 26rem);
+  margin: 1.5rem auto 0;
+  text-align: center;
+  background:
+    radial-gradient(120% 140% at 50% 130%, rgba(124, 108, 247, 0.18), transparent 60%),
+    var(--c-surface-2);
+}
+
+.cp-path-next .cp-path-next-kind {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.cp-path-next-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.cp-path-next-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cp-path-next-actions .cp-exam-continue {
+  flex: 1;
+}
+
+.cp-path-next-custom {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  cursor: pointer;
+}
+
+/* "⋮" hazırlık menüsü — Astra'daki alt sayfanın karşılığı. */
+.cp-prep-sheet {
+  max-height: 85dvh;
+  overflow-y: auto;
+}
+
+.cp-prep-sheet .cp-oral-bar h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.cp-prep-sheet-card {
+  margin: 0.5rem 0 1rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border);
+  background:
+    radial-gradient(120% 140% at 50% 130%, rgba(124, 108, 247, 0.16), transparent 60%),
+    var(--cp-surface);
+}
+
+.cp-prep-sheet-card p {
+  margin: 0;
+}
+
+.cp-prep-sheet-kicker {
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-prep-sheet-title {
+  margin: 0.25rem 0 !important;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.cp-prep-sheet-meta {
+  font-size: 0.8rem;
+  color: var(--cp-muted);
+}
+
+.cp-prep-sheet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--cp-border);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.cp-prep-sheet-list li + li {
+  border-top: 1px solid var(--cp-border);
+}
+
+.cp-prep-sheet-list a,
+.cp-prep-sheet-list button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cp-prep-sheet-list a:hover,
+.cp-prep-sheet-list button:hover {
+  background: var(--cp-surface);
+}
+
+.cp-prep-sheet-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* --- Hazırlık İlerleme sekmesi: Astra düzeni (29 Eylül 2026) ---
+   Sınıflar cp-prog-*: cp-pp-* profil sayfasının, çakışınca profil bozuldu. */
+.cp-prog {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.cp-prog-card,
+.cp-prog-block {
+  border-radius: 1.1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  padding: 1rem 1.1rem;
+}
+
+.cp-prog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.cp-prog .cp-prog-kicker {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.cp-prog-score {
+  margin: 0.2rem 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.15rem;
+}
+
+.cp-prog-score strong {
+  font-size: 2.6rem;
+  line-height: 1;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-prog-score span {
+  font-size: 1.1rem;
+  color: var(--cp-muted);
+}
+
+.cp-prog-chips {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.cp-prog-chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  background: rgba(99, 102, 241, 0.16);
+  color: var(--cp-text);
+  white-space: nowrap;
+}
+
+.cp-prog-chip--muted {
+  background: var(--cp-surface-2);
+  color: var(--cp-muted);
+}
+
+.cp-prog-ticks {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 1.4rem;
+  margin: 0.9rem 0 0.35rem;
+}
+
+.cp-prog-ticks > span:not(.cp-prog-target) {
+  width: 2px;
+  height: 0.8rem;
+  border-radius: 2px;
+  background: var(--cp-border);
+}
+
+.cp-prog-ticks > span.is-on {
+  background: #6366f1;
+  height: 1rem;
+}
+
+.cp-prog-target {
+  position: absolute;
+  top: -0.1rem;
+  bottom: -0.1rem;
+  width: 2px;
+  background: #f4ae0b;
+  box-shadow: 0 0 8px rgba(244, 174, 11, 0.6);
+}
+
+.cp-prog-basis {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-prog-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 0.85rem;
+  border-top: 1px solid var(--cp-border);
+  padding-top: 0.75rem;
+  text-align: center;
+}
+
+.cp-prog-stats > div + div {
+  border-left: 1px solid var(--cp-border);
+}
+
+.cp-prog-stats strong {
+  display: block;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-prog-stats span {
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-prog-block h3 {
+  margin: 0.3rem 0 0.25rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.cp-prog-block > p:not(.cp-prog-kicker) {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--cp-muted);
+}
+
+.cp-prog-gaps {
+  list-style: none;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.cp-prog-gaps li {
+  font-size: 0.875rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.7rem;
+  background: var(--cp-surface-2);
+}
+
+.cp-prog-gaps li span {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--cp-muted);
+  margin-bottom: 0.15rem;
+}
+
+.cp-prog-topics {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.cp-prog-topic-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.cp-prog-topic-row span {
+  color: var(--cp-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-prog-topic-bar {
+  position: relative;
+  height: 0.35rem;
+  border-radius: 9999px;
+  background: var(--cp-surface-2);
+  margin: 0.35rem 0 0.3rem;
+}
+
+.cp-prog-topic-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #10b981;
+}
+
+.cp-prog-topic-bar i {
+  position: absolute;
+  top: -0.2rem;
+  bottom: -0.2rem;
+  width: 2px;
+  background: #f4ae0b;
+}
+
+.cp-prog .cp-prog-topic-meta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-prog-topic-create {
+  margin-top: 0.35rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--c-brand, #6366f1);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-prog-table-wrap {
+  overflow-x: auto;
+}
+
+.cp-prog-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-prog-table th,
+.cp-prog-table td {
+  padding: 0.35rem 0.4rem;
+  text-align: center;
+  border-bottom: 1px solid var(--cp-border);
+}
+
+.cp-prog-table th[scope="row"],
+.cp-prog-table thead th:first-child {
+  text-align: left;
+  font-weight: 600;
+  max-width: 11rem;
+}
+
+.cp-prog-table td.is-on {
+  background: rgba(99, 102, 241, 0.14);
+}
+
+.cp-prog-table td.is-hot {
+  background: rgba(99, 102, 241, 0.32);
+}
+
+.cp-prog-mocks {
+  list-style: none;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.cp-prog-mocks li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--cp-surface-2);
+}
+
+.cp-prog-mocks span {
+  display: flex;
+  flex-direction: column;
+}
+
+.cp-prog-mocks em {
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--cp-muted);
+}
+
+.cp-prog-tempo {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.cp-prog-tempo-bar {
+  display: flex;
+  align-items: flex-end;
+  height: 5rem;
+  border-radius: 0.5rem;
+  background: var(--cp-surface-2);
+  overflow: hidden;
+}
+
+.cp-prog-tempo-bar span {
+  display: block;
+  width: 100%;
+  background: #6366f1;
+}
+
+.cp-prog-tempo strong {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.cp-prog-tempo em {
+  font-style: normal;
+  font-size: 0.7rem;
+  color: var(--cp-muted);
+}
+
+/* --- Sonuç ekranı: Astra düzeni (30 Eylül 2026) ---
+   Büyük skor, emoji + tek cümle, başarıya göre renk geçişi, anket. */
+.cp-exam-node-result--great,
+.cp-exam-node-result--good {
+  background:
+    linear-gradient(180deg, rgba(16, 185, 129, 0.22), transparent 60%),
+    var(--c-surface-1);
+}
+
+.cp-exam-node-result--work {
+  background:
+    linear-gradient(180deg, rgba(244, 174, 11, 0.16), transparent 60%),
+    var(--c-surface-1);
+}
+
+.cp-result-hero {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-result-hero strong {
+  font-size: 4.5rem;
+  font-weight: 800;
+  color: #10b981;
+}
+
+.cp-exam-node-result--work .cp-result-hero strong {
+  color: #f4ae0b;
+}
+
+.cp-result-hero span {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #10b981;
+  opacity: 0.7;
+}
+
+.cp-exam-node-result--work .cp-result-hero span {
+  color: #f4ae0b;
+}
+
+.cp-result-mood {
+  margin: 0;
+  font-weight: 600;
+}
+
+.cp-result-lines {
+  width: min(100%, 16rem);
+  margin: 0.25rem 0 0;
+  border-top: 1px solid var(--cp-border);
+}
+
+.cp-result-lines > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--cp-border);
+  font-size: 0.875rem;
+}
+
+.cp-result-lines dt {
+  color: var(--cp-muted);
+}
+
+.cp-result-lines dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cp-rating-card {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  text-align: left;
+}
+
+.cp-rating-card p {
+  margin: 0;
+}
+
+.cp-rating-lead {
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-rating-question {
+  margin-top: 0.15rem !important;
+  font-weight: 700;
+}
+
+.cp-rating-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+}
+
+.cp-rating-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface-2);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.cp-rating-option:hover {
+  border-color: var(--c-brand, #6366f1);
+}
+
+.cp-rating-thanks {
+  margin-top: 0.6rem !important;
+  font-size: 0.85rem;
+  color: #10b981;
+}
+
+.cp-rating-error {
+  margin-top: 0.5rem !important;
+  font-size: 0.8rem;
+  color: #f0a08c;
+}
+
+/* Profil menüsü: Görünüm satırı (Astra'da profil menüsünde). */
+.cp-pp-appearance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.7rem 1.1rem;
+  background: var(--cp-surface);
+  font-size: 0.875rem;
+}
+
+.cp-pp-appearance-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cp-pp-appearance-options {
+  display: inline-flex;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface-2);
+}
+
+.cp-pp-appearance-options button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.65rem;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--cp-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.cp-pp-appearance-options button.is-on {
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Sesli sohbet açıkken "Konuş" düğmesi canlı görünür (Astra'daki gibi). */
+.cp-exam-talk.is-live,
+.cp-sor-voice-chip.is-live {
+  border-color: rgba(239, 68, 68, 0.6);
+  background: rgba(239, 68, 68, 0.14);
+  color: inherit;
+}
+
+.cp-exam-talk.is-live::before,
+.cp-sor-voice-chip.is-live::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: cp-voice-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes cp-voice-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-exam-talk.is-live::before,
+  .cp-sor-voice-chip.is-live::before {
+    animation: none;
+  }
+}
+
+/* --- Sınav listesi: Astra düzeni (29 Eylül 2026) --- */
+.cp-prep-row-section {
+  margin: 0 0 1.5rem;
+}
+
+.cp-prep-row-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+/* Bütün hazırlıklar yan yana; sığmayan yana kayar. */
+.cp-prep-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(16rem, calc(50% - 0.4rem));
+  gap: 0.8rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 0.35rem;
+}
+
+@media (max-width: 640px) {
+  .cp-prep-row {
+    grid-auto-columns: 86%;
+  }
+}
+
+.cp-prep-card {
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+  border-radius: 1.25rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  padding: 1.1rem 1.2rem 1rem;
+}
+
+.cp-prep-card-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-catalog {
+  margin-top: 1rem;
+}
+
+.cp-catalog-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--cp-muted);
+}
+
+.cp-catalog-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.cp-catalog-lead {
+  margin: 0.25rem 0 0.9rem;
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
+.cp-catalog-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.7rem;
+}
+
+.cp-catalog-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  height: 100%;
+  padding: 0.95rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+.cp-catalog-card:hover {
+  border-color: var(--c-brand, #6366f1);
+}
+
+.cp-catalog-card strong {
+  font-size: 0.95rem;
+}
+
+.cp-catalog-card span {
+  font-size: 0.78rem;
+  color: var(--cp-muted);
+}
+
+.cp-catalog-card em {
+  margin-top: auto;
+  padding-top: 0.35rem;
+  font-style: normal;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--c-brand, #6366f1);
+}
+
+/* Sohbet: "Problem N saniyede çözüldü" (Astra gibi, 1 Ekim 2026). */
+.cp-solved-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--cs-muted, #a1a1aa);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cp-solved-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+
+/* Profil: avatarı değiştir (Astra gibi, 1 Ekim 2026). */
+.cp-avatar-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.35rem;
+}
+
+.cp-avatar-pick-toggle {
+  border: 0;
+  background: none;
+  color: var(--cs-muted, #a1a1aa);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.cp-avatar-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 2.5rem));
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.cp-avatar-pick-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.cp-avatar-pick-option[aria-pressed="true"] {
+  border-color: var(--cs-primary, #f4ae0b);
+}
+
+.cp-avatar-pick-initial {
+  grid-column: span 2;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--cs-text, #fafafa);
+}
+
+/* Ayarlar penceresi (Astra gibi sekmeli, 1 Ekim 2026). */
+.cp-settings-avatar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.cp-settings-link {
+  display: block;
+  margin-top: 1.25rem;
+  color: var(--cs-muted, #a1a1aa);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cp-settings-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.cp-settings-chip {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--cs-text, #fafafa);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-settings-chip.is-on {
+  border-color: var(--cs-primary, #f4ae0b);
+  background: color-mix(in srgb, var(--cs-primary, #f4ae0b) 14%, transparent);
+}
+
+.cp-settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.9rem;
+  cursor: pointer;
+}
+
+.cp-settings-toggle strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.cp-settings-toggle em {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--cs-muted, #a1a1aa);
+  font-size: 0.75rem;
+  font-style: normal;
+}
+
+.cp-settings-toggle input {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  accent-color: var(--cs-primary, #f4ae0b);
+}
+
+/* Seri penceresi: günlük çalışma hedefi satırı. */
+.cp-jr-goal {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.cp-jr-goal span {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.cp-jr-goal strong {
+  font-size: 0.9rem;
+}
+
+.cp-jr-goal em {
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--cs-muted, #a1a1aa);
+  text-decoration: underline;
+}
+
+/* Disleksi dostu okuma (Ayarlar > Öğrenme tercihleri). */
+html[data-readable="1"] main {
+  letter-spacing: 0.035em;
+  word-spacing: 0.12em;
+}
+
+html[data-readable="1"] main p,
+html[data-readable="1"] main li {
+  line-height: 1.85;
+}
+
+/*
+  Kaynak kilidi ve ders seçici sabit bestecinin üstüne iki satır ekliyor.
+  1 Ekim 2026'da 1568px genişlikte çipler son cevabın son satırlarının
+  üstüne biniyordu: mesaj listesi 12rem yer açıyordu, besteci bölgesi ~15rem.
+  Çip satırı da artık opak; altından yazı görünmüyor.
+*/
+.cp-sor-view:has(.cp-sor-source-mode) .cp-sor-messages {
+  padding-bottom: calc(17.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+.cp-sor-composer-zone .cp-sor-source-mode {
+  background: var(--c-surface-2);
+}
+
+/* "Sınav hazırlıklarında ara" — Astra'daki arama sayfası (1 Ekim 2026). */
+a.cp-exam-search {
+  text-decoration: none;
+}
+
+.cp-psearch {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.cp-psearch-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.cp-psearch-head h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.cp-psearch-input {
+  flex: none;
+}
+
+.cp-psearch-title {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.cp-psearch-owners {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0 0 0.25rem;
+  overflow-x: auto;
+  list-style: none;
+}
+
+.cp-psearch-owner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 4rem;
+  padding: 0.35rem;
+  border: 1px solid transparent;
+  border-radius: 0.85rem;
+  background: transparent;
+  color: var(--cp-text);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.cp-psearch-owner .cp-school-avatar {
+  width: 2.75rem;
+  height: 2.75rem;
+  font-size: 1.05rem;
+}
+
+.cp-psearch-owner.is-on {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 10%, transparent);
+}
+
+/*
+  Ders filtre çipleri (okul akışı, hazırlık araması). Eskiden "Uygulamalar"
+  bölümünün cp-lab-chip stilini kullanıyorlardı; bölüm silinince stil de
+  gitti ve 1 Ekim 2026'da çipler yan yana düz yazı gibi görünüyordu.
+*/
+.cp-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.cp-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-filter-chip:hover {
+  background: var(--c-surface-2);
+}
+
+.cp-filter-chip--on {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 14%, transparent);
+}
+
+/* Podcast oluşturma sayfasının konu seçicisi. */
+.cp-studio .cp-field select {
+  min-height: 44px;
+  border-radius: 0.75rem;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-1);
+  color: var(--cp-text);
+  padding: 0 0.75rem;
+}
+
+/* Yazılı denemede serbest süre (Astra, 1 Ekim 2026). */
+.cp-mock-time {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-top: 0.75rem;
+}
+
+.cp-mock-time-value {
+  min-width: 7rem;
+  margin: 0;
+  text-align: center;
+  font-size: 1rem;
+  color: var(--cp-muted);
+}
+
+.cp-mock-time-value strong {
+  font-size: 2.25rem;
+  color: var(--cp-text);
+}
+
+.cp-mock-time.is-off .cp-mock-time-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--cp-text);
+}
+
+.cp-mock-time-step {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-text);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.cp-mock-time-step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.cp-mock-time-range {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  accent-color: var(--c-action);
+}
+
+.cp-mock-time-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
+/*
+  Podcast oluşturma sayfası: ortalı ve dar. .cp-studio kendi kenar boşluğunu
+  yazdığı için .cp-exam-page ile aynı öğede ortalama eziliyordu (1 Ekim 2026).
+*/
+.cp-studio-page {
+  max-width: min(40rem, 100%);
+}
+
+.cp-studio-page .cp-field select {
+  min-height: 44px;
+  border-radius: 0.75rem;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-1);
+  color: var(--cp-text);
+  padding: 0 0.75rem;
+}
+
+/* Hazırlık menüsü: oluşturan / okul / katılım; Ayarlar'da ad, hedef, sil (1 Ekim 2026). */
+.cp-prep-sheet-owner {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-prep-sheet-owner strong {
+  color: var(--cp-text);
+}
+
+.cp-prep-basics {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.cp-prep-basics-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.85rem;
+}
+
+.cp-prep-basics-label {
+  flex: 0 0 100%;
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+.cp-prep-basics-row > strong {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cp-prep-basics-link {
+  border: 0;
+  background: transparent;
+  color: var(--c-action);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-prep-basics-edit {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.cp-prep-basics-edit input {
+  flex: 1 1 10rem;
+  min-height: 40px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--cp-border);
+  border-radius: 0.65rem;
+  background: var(--c-surface-1);
+  color: var(--cp-text);
+}
+
+.cp-prep-basics button:not(.cp-prep-basics-link):not(.cp-prep-basics-delete) {
+  min-height: 40px;
+  padding: 0 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--c-action);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-prep-basics button.is-ghost {
+  border: 1px solid var(--cp-border);
+  background: transparent;
+  color: var(--cp-text);
+}
+
+.cp-prep-basics button.is-danger {
+  background: var(--c-danger, #dc2626);
+}
+
+.cp-prep-basics button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cp-prep-basics-danger {
+  margin-top: 0.4rem;
+}
+
+.cp-prep-basics-delete {
+  border: 0;
+  background: transparent;
+  color: var(--c-danger, #ef4444);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-prep-basics-confirm {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--c-danger, #ef4444) 45%, transparent);
+  border-radius: 0.85rem;
+}
+
+.cp-prep-basics-confirm p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.cp-prep-basics-confirm div {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* "Sınav hazırlıklarım" sayfası (Astra, 1 Ekim 2026). */
+.cp-prep-row-title a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.cp-prep-row-title a:hover {
+  color: var(--c-action);
+}
+
+.cp-my-preps {
+  display: grid;
+  gap: 1.25rem;
+  justify-items: center;
+}
+
+.cp-my-preps-head {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.cp-my-preps-head h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.cp-my-preps-head p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--cp-muted);
+}
+
+.cp-my-preps-avatar {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  background: var(--c-surface-2);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.cp-my-preps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.cp-my-preps-new {
+  justify-self: center;
+}
+
+/* Hazırlıklarım sekmeleri. Ders seçicinin sekme stili oral-exam-chrome.css'te ve
+   bu sayfada yüklenmiyordu; sekmeler düz yazı gibi görünüyordu (2 Ekim 2026). */
+.cp-my-preps-tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--c-surface-2);
+}
+
+.cp-my-preps-tabs button {
+  padding: 0.4rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cp-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.cp-my-preps-tabs button.is-on {
+  background: var(--cp-text);
+  color: var(--c-bg);
+}
+
+/* Belgelerim (3 Ekim 2026): sınav sayfalarıyla aynı kart dili. */
+.cp-docs {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.cp-docs-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--cp-muted);
+  font-size: 0.9375rem;
+}
+
+.cp-docs-intro p {
+  margin: 0;
+}
+
+.cp-docs-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1rem;
+  border-radius: 9999px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cp-docs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cp-docs-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem;
+  border-radius: 1.1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+}
+
+.cp-docs-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.cp-docs-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--cp-text) 6%, transparent);
+  color: var(--cp-muted);
+}
+
+.cp-docs-name {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--cp-text);
+}
+
+.cp-docs-meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--cp-muted);
+}
+
+.cp-docs-status {
+  flex-shrink: 0;
+  padding: 0.15rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--cp-text) 6%, transparent);
+  color: var(--cp-muted);
+}
+
+.cp-docs-status--completed {
+  background: color-mix(in srgb, #22c55e 16%, transparent);
+  color: #86efac;
+}
+
+.cp-docs-status--failed {
+  background: color-mix(in srgb, #ef4444 16%, transparent);
+  color: #fca5a5;
+}
+
+.cp-docs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+}
+
+.cp-docs-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0 1.1rem;
+  border-radius: 9999px;
+  background: #3b5bdb;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.cp-docs-link {
+  font-size: 0.8125rem;
+  color: var(--cp-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.cp-docs-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+@media (max-width: 480px) {
+  .cp-docs-primary {
+    width: 100%;
+  }
+  .cp-docs-tools {
+    margin-left: 0;
+  }
+}

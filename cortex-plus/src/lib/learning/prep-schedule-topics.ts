@@ -54,6 +54,36 @@ export async function loadScheduleTopics(
   const ordered = orderTopicsForPath(weighted, { manualOrder: false });
   const titles = ordered.map((topic) => topic.title);
   const nodeIds = ordered.map((topic) => topic.nodeIds[0] ?? null);
+
+  // Kavram birimleri (2 Ekim 2026): tek düğümlü konuda haritanın birimleri
+  // ders ders plana gider. Birleşmiş (çok belgeli) konuda sayfa kümesi
+  // değiştiği için mekanik bölmede kalınır.
+  const singleNodeIds = ordered.filter((topic) => topic.nodeIds.length === 1).map((topic) => topic.nodeIds[0]);
+  const unitsByNode = new Map<string, { title: string; pages: number[] }[]>();
+  if (singleNodeIds.length) {
+    const { data: unitRows, error: unitError } = await service
+      .from("document_topic_nodes")
+      .select("id, units")
+      .in("id", singleNodeIds);
+    if (!unitError) {
+      for (const row of unitRows ?? []) {
+        const units = Array.isArray(row.units) ? (row.units as { title?: unknown; pages?: unknown }[]) : [];
+        const clean = units.flatMap((unit) =>
+          typeof unit.title === "string" && Array.isArray(unit.pages)
+            ? [{ title: unit.title, pages: unit.pages.filter((page): page is number => Number.isInteger(page)) }]
+            : [],
+        );
+        if (clean.length > 1) unitsByNode.set(row.id as string, clean);
+      }
+    }
+  }
+  const unitsFor = (topic: (typeof ordered)[number]) => {
+    if (topic.nodeIds.length !== 1) return undefined;
+    const units = unitsByNode.get(topic.nodeIds[0]);
+    if (!units) return undefined;
+    const pages = new Set(topic.pages);
+    return units.every((unit) => unit.pages.every((page) => pages.has(page))) ? units : undefined;
+  };
   const scheduleTopics: ScheduleTopicInput[] = ordered.map((topic) => ({
     id: topic.nodeIds[0] ?? topic.title,
     title: topic.title,
@@ -71,6 +101,7 @@ export async function loadScheduleTopics(
     examHeavy: topic.examHeavy,
     importance: topic.importance,
     sourceRefs: topic.sources,
+    units: unitsFor(topic),
   }));
 
   return { titles, nodeIds, scheduleTopics };

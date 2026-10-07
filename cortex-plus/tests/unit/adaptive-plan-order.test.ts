@@ -3,8 +3,6 @@ import { prioritizeTopics } from "@/lib/adaptive/priority";
 import type { ExamGraph } from "@/lib/adaptive/exam-graph";
 import type { TopicMasteryState } from "@/lib/adaptive/types";
 import { buildDailyPlanItems } from "@/lib/adaptive/daily-planner";
-import { minimumLessonChecks, ensureThreeChecks } from "@/lib/learning/lesson-repair";
-import type { LessonV2 } from "@/lib/learning/teaching-standards";
 import { hasUndelimitedLatex } from "@/lib/learning/teaching-standards";
 
 function graph(topics: { key: string; title: string; importance?: "important" | "medium" | "less" }[]): ExamGraph {
@@ -480,45 +478,6 @@ describe("startSession plan maddesi sırası (B3)", () => {
     expect(result.action?.decisionTraceId).toBe("d-item1-served");
     expect(result.action?.topicKey).toBe("aci-olcusu");
     expect(sessions[0]!.pending_decision_trace_id).toBe("d-item1-served");
-  });
-});
-
-describe("check count refill", () => {
-  it("4 bölüm 1 kontrollü taslak ensureThreeChecks sonrası ≥3 kontrol olur", () => {
-    const draft: LessonV2 = {
-      title: "Trigonometri",
-      overview: "Açı ölçüsü radyan ve derece ile yazılır. Dönüşüm π/180 çarpanını kullanır.",
-      sections: [
-        {
-          heading: "Radyan",
-          body: "Bir radyan, yarıçap uzunluğundaki yayının merkeze göre gördüğü açıdır. 2π radyan tam turdur.",
-        },
-        {
-          heading: "Derece",
-          body: "Tam tur 360 derecedir. 180 derece π radyana eşittir. Dönüşüm α_r = α_d × π ÷ 180 bağıntısıyla yapılır.",
-        },
-        {
-          heading: "Dönüşüm",
-          body: "Dereceden radyana geçerken açı π ile çarpılıp 180'e bölünür. Tersi için 180/π kullanılır.",
-          check: {
-            type: "mcq",
-            prompt: "360 derece kaç radyandır?",
-            options: ["2π", "π", "π/2", "4π"],
-            answerIndex: 0,
-            explanation: "Tam tur 2π radyandır.",
-          },
-        },
-        {
-          heading: "Birim çember",
-          body: "Birim çember yarıçapı 1 olan çemberdir. Koordinatlar (cos θ, sin θ) olarak okunur.",
-        },
-      ],
-      summary: ["2π = 360°", "π = 180°", "Dönüşüm çarpanı"],
-    };
-    expect(minimumLessonChecks(draft)).toBeGreaterThanOrEqual(3);
-    const filled = ensureThreeChecks(draft, draft.sections.map((s) => s.body).join("\n"));
-    const checks = filled.sections.filter((s) => s.check).length;
-    expect(checks).toBeGreaterThanOrEqual(3);
   });
 });
 

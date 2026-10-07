@@ -290,8 +290,10 @@ export function errorResponse(
     podcast_script_rejected:
       "Podcast metni doğrulanamadı. Tutmayan sayı yayınlanmadı; yeniden deneyebilirsin.",
     generation_failed: "İçerik üretilemedi. Lütfen tekrar deneyin.",
+    save_failed: "Değişiklik kaydedilemedi. Lütfen tekrar dene.",
     invalid_input: "Gönderilen bilgiler geçersiz.",
     not_found: "Kayıt bulunamadı.",
+    duel_unavailable: "Düellolar henüz açılmadı. Kısa süre sonra yeniden dene; hakkından düşülmedi.",
     forbidden: "Bu içeriğe erişim yetkin yok.",
     no_topics: "Önce en az bir konu ekle.",
     storage_full:

@@ -1,72 +1,6 @@
 import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 
 /**
- * Çalışma yolunun görünen iskeleti. Aktivite türleri belgenin
- * uzunluğundan bağımsızdır; konu sayısı ayrıdır (`Planın N`).
- * Türü olmayan satırlar (tanı, hazır) mevcut ekranlara bağlanır,
- * yeni bir düğüm türü açmaz.
- */
-export type PathSkeletonItem = {
-  label: string;
-  hint?: string;
-  kind?: PlanNodeKind;
-};
-
-export type PathSkeletonPhase = {
-  title: string;
-  items: PathSkeletonItem[];
-};
-
-export const STUDY_PATH_SKELETON: PathSkeletonPhase[] = [
-  {
-    title: "Bugün başla",
-    items: [
-      { label: "Yapay zeka ile Çalışma Yolu" },
-      { label: "Giriş Dersi", hint: "5 dk", kind: "lesson" },
-      { label: "Tanı Testi" },
-    ],
-  },
-  {
-    title: "Öğren ve Pratik Yap",
-    items: [
-      { label: "Podcast Dinle", kind: "podcast" },
-      { label: "AI öğretmenle Soru-Cevap", kind: "qa" },
-      { label: "Testler ve Doğru/Yanlış", kind: "quiz" },
-      { label: "AI ile Sözlü Deneme", kind: "oral" },
-    ],
-  },
-  {
-    title: "Aralıklı Tekrar",
-    items: [{ label: "Öğrendiklerini tekrar et", kind: "spaced" }],
-  },
-  {
-    title: "Bilgi boşluklarını kapat",
-    items: [
-      { label: "Zayıf nokta", kind: "gaps" },
-      { label: "Odaklı pratik", kind: "focused" },
-    ],
-  },
-  {
-    title: "Yazılı Deneme",
-    items: [
-      {
-        label: "Yazılı deneme",
-        hint: "Yapay zeka yardımı yok",
-        kind: "written_exam",
-      },
-    ],
-  },
-  {
-    title: "Sınav günü",
-    items: [
-      { label: "Kartlarla son tekrar", kind: "flashcards" },
-      { label: "Son kontrol", kind: "final_check" },
-      { label: "Hazırsın", kind: "readiness" },
-    ],
-  },
-];
-
-/**
  * Çalışma yolunu öğrencinin okuyabileceği aşamalara böler.
  *
  * Düz bir "Gün 1, Gün 2…" listesi planın neden bu sırada olduğunu anlatmıyor.
@@ -161,21 +95,4 @@ export function groupNodesByPhase<T extends { kind: PlanNodeKind }>(
     phase,
     nodes: buckets.get(phase.id) ?? [],
   })).filter((group) => group.nodes.length > 0);
-}
-
-/**
- * Sınava kadar beklenen hazırlık puanı. Bugünkü puandan hedefe doğrusal
- * ilerlemez — planın ilk yarısı öğrenme, ikinci yarısı pekiştirme olduğu için
- * eğri sona doğru yataylaşır. Tahmindir; söz değil.
- */
-export function projectedReadiness(
-  todayScore: number,
-  targetScore: number,
-  daysLeft: number,
-): number {
-  if (daysLeft <= 0) return todayScore;
-  const room = Math.max(0, targetScore - todayScore);
-  // 7 günde ~%75'i, 20 günde ~%95'i kapanır.
-  const reach = 1 - Math.exp(-daysLeft / 5);
-  return Math.round(Math.min(targetScore, todayScore + room * reach));
 }

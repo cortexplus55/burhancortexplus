@@ -4,7 +4,6 @@ import {
   isUnsupportedComparativeAbsolute,
   unsupportedAbsoluteClaims,
 } from "@/lib/learning/absolute-claims";
-import { validateTrueFalsePedagogy } from "@/lib/learning/teaching-standards";
 
 const ohmSource = "Ohm yasası gerilim, akım ve direnç arasındaki bağıntıyı V = I R olarak kurar.";
 const historySource = "1830'larda Avrupa'nın birkaç kentinde ayaklanmalar oldu.";

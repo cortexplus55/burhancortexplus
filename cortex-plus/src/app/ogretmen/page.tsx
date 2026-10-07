@@ -10,13 +10,8 @@ import { getCreditCost } from "@/lib/credits/rules";
 import { isPremiumUser } from "@/lib/ai/generate";
 import { parseTutorStyle, tutorStyleLabel } from "@/lib/learning/tutor-style";
 import { messageFeedbackEnabled } from "@/lib/learning/message-feedback";
-import { countMistakes } from "@/lib/learning/mistake-notebook";
 import { turkishLower } from "@/lib/text/turkish";
-import {
-  defaultStartPrompt,
-  firstPrompts,
-  greetingSubline as buildGreetingSubline,
-} from "@/lib/student/first-prompts";
+import { defaultStartPrompt } from "@/lib/student/first-prompts";
 import { getStudentAccountContext } from "@/lib/student/account-context";
 import { getUserStreak } from "@/lib/streak/record-activity";
 
@@ -39,7 +34,6 @@ export default async function OgretmenPage({
     streak,
     { data: goal },
     { data: conversations },
-    mistakes,
   ] =
     await Promise.all([
       supabase
@@ -73,7 +67,6 @@ export default async function OgretmenPage({
         .is("deleted_at", null)
         .order("updated_at", { ascending: false })
         .limit(5),
-      countMistakes(supabase, user.id),
     ]);
 
   // Kimlik ve oy da geliyor: eski bir sohbeti açtığında daha önce bastığın
@@ -129,11 +122,6 @@ export default async function OgretmenPage({
   // ekranda "i̇yi günler" diye çift noktalı görünüyordu.
   const greetingLine = `${firstName}, ${turkishLower(timeGreeting)}!${moon}`;
   const goalText = goal?.goal_text ?? null;
-  const subline = buildGreetingSubline({
-    grade: profile?.grade_level,
-    subject: profile?.focus_subject,
-    goal: goalText,
-  });
   const bootPrompt = defaultStartPrompt({
     grade: profile?.grade_level,
     subject: profile?.focus_subject,
@@ -159,7 +147,6 @@ export default async function OgretmenPage({
         composerMode="parity"
         feedbackEnabled={feedbackOn}
         greetingLine={greetingLine}
-        greetingSubline={subline}
         startPrompt={bootPrompt}
         showEmptyStarter
         startLabel="Başla"
@@ -172,12 +159,6 @@ export default async function OgretmenPage({
         chatCreditCost={chatCost ?? undefined}
         isPremium={isPremium}
         tutorStyleLabel={tutorStyleLabel(style)}
-        starterPrompts={firstPrompts({
-          grade: profile?.grade_level,
-          subject: profile?.focus_subject,
-          goal: goal?.goal_text,
-        })}
-        dailyDrillCount={mistakes.open}
       />
     </ParitySorShell>
   );

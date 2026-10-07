@@ -176,7 +176,8 @@ describe.skipIf(!runLive)("Jev live contract", () => {
   });
 });
 
-describe("Jev client without credential", () => {
+// Dinamik import tüm paket koşarken 5 sn varsayılanını aşıyordu.
+describe("Jev client without credential", { timeout: 30_000 }, () => {
   it("returns missing_credential when no key", async () => {
     if (hasCredential) {
       expect(true).toBe(true);

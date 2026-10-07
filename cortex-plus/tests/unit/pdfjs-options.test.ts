@@ -6,7 +6,7 @@ import {
 } from "@/lib/documents/pdfjs-options";
 
 function endsWithDirSeparator(url: string): boolean {
-  return url.endsWith("/") || url.endsWith(path.sep);
+  return url.endsWith("/");
 }
 
 describe("pdfjs asset URLs", () => {
@@ -30,7 +30,7 @@ describe("pdfjs asset URLs", () => {
   it("override edilen wasm yolu da ayırıcı ile biter", () => {
     const custom = path.join("/tmp", "wasm") + path.sep;
     const opts = pdfjsDocumentOptions(new Uint8Array(0), { wasmUrl: custom });
-    expect(opts.wasmUrl).toBe(custom);
+    expect(opts.wasmUrl).toBe(custom.replace(/\\/g, "/"));
     expect(endsWithDirSeparator(opts.wasmUrl)).toBe(true);
   });
 });

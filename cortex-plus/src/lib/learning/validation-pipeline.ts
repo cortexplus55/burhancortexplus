@@ -543,11 +543,6 @@ function isSpecificWrongClaim(folded: string, original: string): boolean {
   return hasSpecificArtifact(original);
 }
 
-/** Üslup listesi dersi düşürmez. Bir olgu hatası düşürür. */
-export function verifierIssuesRejectLesson(issues: string[], draft = ""): boolean {
-  return issues.some((issue) => classifyVerifierIssue(issue, draft) === "blocking");
-}
-
 export function partitionVerifierIssues(issues: string[], draft = ""): IssueSeverityReport {
   const blocking: string[] = [];
   const nonBlocking: string[] = [];
@@ -767,11 +762,6 @@ export function validationIssueBlocks(item: ValidationIssue, draft = ""): boolea
     return true;
   }
   return classifyVerifierIssue(item.message, draft) === "blocking";
-}
-
-/** Koyu terim, LaTeX ve başlık sözcüğü kodda tamamlanır; dersi düşürmez. */
-export function isCosmeticReviewerNit(issue: string): boolean {
-  return classifyVerifierIssue(issue) === "non_blocking";
 }
 
 function uniqueOptionsIssues(parsed: unknown): string[] {
@@ -1060,22 +1050,6 @@ export function runIndependentValidation(
 /** Flatten issues for quality-gate `validate` callbacks. */
 export function issueMessages(result: IndependentValidationResult): string[] {
   return result.issues.map((i) => `[${i.stage}] ${i.message}`);
-}
-
-export function emptyMetrics(
-  partial?: Partial<ValidationMetrics>,
-): ValidationMetrics {
-  return {
-    generationMs: 0,
-    validationMs: 0,
-    stagesMs: {},
-    failedStage: null,
-    failureCodes: [],
-    repairAttempted: false,
-    recheckPassed: null,
-    outcome: "rejected",
-    ...partial,
-  };
 }
 
 /**

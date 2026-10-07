@@ -45,16 +45,33 @@ export async function recordUserActivity(
   return { currentStreak: current };
 }
 
+/*
+  `current_streak` yalnızca çalışılan gün yazılıyor; öğrenci üç gün gelmezse
+  satır eski sayıyla kalıyor ve üst çubuk kırılmış bir seriyi canlı
+  gösteriyordu. Son çalışma günü dünden eskiyse seri 0'dır.
+*/
 export async function getUserStreak(
   service: SupabaseClient,
   userId: string,
+  now = new Date(),
 ): Promise<number> {
   const { data } = await service
     .from("user_streaks")
-    .select("current_streak")
+    .select("current_streak, last_activity_date")
     .eq("user_id", userId)
     .maybeSingle();
-  return data?.current_streak ?? 0;
+  return liveStreak(data, now);
+}
+
+export function liveStreak(
+  row: { current_streak?: number | null; last_activity_date?: string | null } | null,
+  now = new Date(),
+): number {
+  if (!row?.last_activity_date) return row?.current_streak ?? 0;
+  const today = istanbulDateString(now);
+  const yesterday = istanbulDateString(addDays(now, -1));
+  const last = String(row.last_activity_date).slice(0, 10);
+  return last === today || last === yesterday ? (row.current_streak ?? 0) : 0;
 }
 
 function istanbulDateString(d: Date): string {

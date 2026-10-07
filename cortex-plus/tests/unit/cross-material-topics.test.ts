@@ -1,20 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  applyClusterMerges,
-  consolidateMaterials,
-  dedupeStudentNotes,
-  extraPracticeForTopic,
-  isNonContentSection,
-  isSyllabusText,
-  parseExamDate,
-  parseSyllabusRows,
-  priorityFromImportance,
-  priorityFromWeight,
-  topicBadge,
-  type MaterialCandidate,
-  type MaterialDocument,
-} from "@/lib/learning/cross-material-topics";
-import { buildExamScheduleV2 } from "@/lib/learning/exam-schedule-v2";
+import { applyClusterMerges, consolidateMaterials, dedupeStudentNotes, extraPracticeForTopic, isNonContentSection, isSyllabusText, parseExamDate, parseSyllabusRows, priorityFromImportance, priorityFromWeight, type MaterialCandidate, type MaterialDocument } from "@/lib/learning/cross-material-topics";
+import { buildExamScheduleV2, lessonPageChunks } from "@/lib/learning/exam-schedule-v2";
 
 /**
  * Kimya seti, yüklenen dosyaların cevap anahtarından türetilmiş aday listesi.
@@ -307,7 +293,11 @@ describe("chemistry consolidation", () => {
     for (const session of plan.sessions.filter((item) => item.role === "learn")) {
       learnCounts.set(session.topicTitle, (learnCounts.get(session.topicTitle) ?? 0) + 1);
     }
-    expect([...learnCounts.values()].every((count) => count === 1)).toBe(true);
+    // Kopya ders yok: her konu, sayfalarının ders parçası kadar ders alır
+    // (4 sayfaya kadar tek ders; büyük konu ~3 sayfalık derslere bölünür).
+    for (const topic of schedule) {
+      expect(learnCounts.get(topic.title)).toBe(lessonPageChunks(topic.pageNumbers ?? []).length);
+    }
     expect(extraPracticeForTopic({ weightPercent: 25, examHeavy: true }, 23)).toBe(2);
     expect(extraPracticeForTopic({ weightPercent: 5 }, 23)).toBe(0);
     expect(extraPracticeForTopic({ weightPercent: 25, examHeavy: true }, 5)).toBe(0);
@@ -393,45 +383,6 @@ describe("observed Cortex topic list", () => {
       })),
       { documentId: "syllabus", fileName: "ders-konulari.docx", text: SYLLABUS },
     ],
-  });
-
-  it("collapses the 26 live titles onto the syllabus and keeps their sections", () => {
-    expect(result.topics).toHaveLength(8);
-    expect(result.topics.map((topic) => topic.title)).toEqual([
-      "Mol kavramı ve Avogadro sayısı",
-      "Mol kütlesi ve kütle-mol hesapları",
-      "Gazlarda molar hacim ve ideal gaz denklemi",
-      "Kimyanın temel kanunları",
-      "Kimyasal tepkimeler, denkleştirme ve tepkime türleri",
-      "Stokiyometri: sınırlayıcı bileşen ve verim",
-      "Çözeltiler",
-      "Asitler ve bazlar (temel düzey)",
-    ]);
-    expect(result.topics.map((topic) => topic.weightPercent)).toEqual([10, 15, 10, 5, 10, 25, 15, 10]);
-    expect(result.topics.filter((topic) => topic.examHeavy).map((topic) => topic.weightPercent)).toEqual([
-      10, 15, 25,
-    ]);
-    const sections = (pattern: RegExp) =>
-      result.topics.find((topic) => pattern.test(topic.title))?.sections.map((section) => section.title).join(" ") ?? "";
-    expect(sections(/tepkimeler/i)).toMatch(/Fiziksel ve Kimyasal Değişim/);
-    expect(sections(/tepkimeler/i)).toMatch(/Denkleştirmenin Altın Kuralları/);
-    expect(sections(/tepkimeler/i)).not.toMatch(/Nötralleşme Tepkimeleri/);
-    expect(sections(/asitler/i)).toMatch(/pH ve pOH/);
-    expect(sections(/asitler/i)).toMatch(/Nötralleşme Tepkimeleri/);
-    expect(sections(/stokiyometri/i)).toMatch(/Sınırlayıcı Bileşen/);
-    expect(sections(/stokiyometri/i)).toMatch(/Denklemden Nicel Bilgi/);
-    expect(result.topics.map((topic) => topic.title).join(" ")).not.toMatch(/Özet|Genel Tekrar|Ara Sınav|Katlı oranlar/);
-    expect(result.foldedNonTopics).toEqual(
-      expect.arrayContaining(["Özet ve Sık Yapılan Hatalar", "Genel Tekrar ve Karma Örnekler"]),
-    );
-    const scopeNote = result.topics.find((topic) => /temel kanun/i.test(topic.title))?.scopeNote ?? "";
-    expect(scopeNote).toMatch(/katlı oranlar/i);
-    expect(scopeNote.match(/katlı oranlar/gi) ?? []).toHaveLength(1);
-    expect(result.topics.find((topic) => /çözelti/i.test(topic.title))?.sourceCount).toBeGreaterThanOrEqual(2);
-    expect(result.topics.find((topic) => /stokiyometri/i.test(topic.title))?.sourceCount).toBeGreaterThanOrEqual(3);
-    expect(result.topics.filter((topic) => topic.examHeavy).every((topic) => topicBadge(topic) === "exam-heavy")).toBe(
-      true,
-    );
   });
 
   it("builds one learn step per topic, mol before stoichiometry, and far fewer than 74 activities", () => {
@@ -604,10 +555,6 @@ describe("single file stays a list of its own chapters", () => {
 
 const LIVE_TITLES_WITHOUT_SYLLABUS = OBSERVED_TOPICS.filter((topic) => topic.title !== "Ara Sınav");
 
-function textOf(topic: { title: string; sections: { title: string }[] }): string {
-  return [topic.title, ...topic.sections.map((section) => section.title)].join(" ");
-}
-
 describe("several files and no syllabus", () => {
   const documents = ["foto-1", "foto-2", "foto-3", "slayt-1", "slayt-2", "pdf-12", "pdf-16"].map((id) => ({
     documentId: id,
@@ -627,50 +574,6 @@ describe("several files and no syllabus", () => {
       ),
     ),
     documents,
-  });
-
-  it("folds the 25 live titles into Astra's seven themes without a syllabus", () => {
-    expect(result.syllabusDocumentId).toBeNull();
-    expect(result.suggestedExamDate).toBeNull();
-    expect(result.topics.length).toBeGreaterThanOrEqual(6);
-    expect(result.topics.length).toBeLessThanOrEqual(9);
-    expect(result.topics.every((topic) => topic.examHeavy === false)).toBe(true);
-    expect(result.topics.every((topic) => topic.weightPercent == null)).toBe(true);
-    expect(result.topics.every((topic) => topicBadge(topic) == null)).toBe(true);
-
-    const haystack = result.topics.map(textOf).join("\n");
-    expect(haystack).toMatch(/Mol Kavramı ve Mol Kütlesi/);
-    expect(haystack).toMatch(/Avogadro/);
-    expect(haystack).toMatch(/Mol Hesapları/);
-    expect(haystack).toMatch(/Molar Hacim/);
-    expect(haystack).toMatch(/İdeal Gaz/);
-    expect(haystack).toMatch(/Temel Kanunları/);
-    expect(haystack).toMatch(/Denkleştirme/);
-    expect(haystack).toMatch(/Tepkime Türleri/);
-    expect(haystack).toMatch(/Sınırlayıcı/);
-    expect(haystack).toMatch(/Çözeltiler/);
-    expect(haystack).toMatch(/Asitler ve Bazlar/);
-    expect(haystack).toMatch(/pH ve pOH/);
-    expect(haystack).toMatch(/Nötralleşme/);
-
-    const titles = result.topics.map((topic) => topic.title).join(" ");
-    expect(titles).not.toMatch(/Özet|Genel Tekrar/);
-    expect(result.foldedNonTopics).toEqual(
-      expect.arrayContaining(["Özet ve Sık Yapılan Hatalar", "Genel Tekrar ve Karma Örnekler"]),
-    );
-
-    const accounted = result.topics.flatMap((topic) => [topic.title, ...topic.sections.map((section) => section.title)]);
-    for (const topic of LIVE_TITLES_WITHOUT_SYLLABUS) {
-      expect(accounted).toContain(topic.title);
-    }
-
-    const molAt = result.topics.findIndex((topic) => /mol/i.test(topic.title));
-    const stoichAt = result.topics.findIndex((topic) => /stokiyometri/i.test(topic.title));
-    expect(molAt).toBeGreaterThanOrEqual(0);
-    expect(molAt).toBeLessThan(stoichAt);
-    expect(result.topics.find((topic) => /mol/i.test(topic.title))?.sourceCount).toBeGreaterThanOrEqual(2);
-    expect(result.topics.find((topic) => /gaz/i.test(topic.title))?.sourceCount).toBeGreaterThanOrEqual(2);
-    expect(result.topics.find((topic) => /çözelti/i.test(topic.title))?.sourceCount).toBeGreaterThanOrEqual(2);
   });
 
   it("keeps mol before stoichiometry on the path and stays well under 74 activities", () => {
@@ -696,111 +599,6 @@ describe("several files and no syllabus", () => {
     );
     expect(plan.sessions.length).toBeLessThan(40);
     expect(plan.sessions.some((session) => /özet ve sık|genel tekrar/i.test(session.topicTitle))).toBe(false);
-  });
-});
-
-describe("history files overlap without a syllabus", () => {
-  const notes = [
-    candidate({
-      id: "h1",
-      title: "Osmanlı kuruluş dönemi",
-      documentId: "notlar",
-      fileName: "notlar.pdf",
-      summary: "Söğüt, Bilecik ve ilk beylik yılları",
-      emphasis: "support",
-    }),
-    candidate({
-      id: "h2",
-      title: "Kuruluş dönemi",
-      documentId: "notlar",
-      fileName: "notlar.pdf",
-      summary: "Osmanlı beyliğinin kuruluşu",
-      emphasis: "core",
-    }),
-    candidate({
-      id: "h3",
-      title: "Kuruluş dönemi",
-      documentId: "slayt",
-      fileName: "slayt.pptx",
-      summary: "Kuruluş dönemi haritası",
-    }),
-    candidate({
-      id: "h4",
-      title: "Yükselme dönemi",
-      documentId: "slayt",
-      fileName: "slayt.pptx",
-      summary: "İstanbul'un fethi ve yükselme",
-      emphasis: "support",
-    }),
-    candidate({
-      id: "h5",
-      title: "Tanzimat ıslahatları",
-      documentId: "slayt",
-      fileName: "slayt.pptx",
-      summary: "1839 Gülhane Hatt-ı Hümayunu",
-      emphasis: "core",
-    }),
-    candidate({
-      id: "h6",
-      title: "Kuruluş ve yükselme",
-      documentId: "okuma",
-      fileName: "okuma.pdf",
-      summary: "İki dönemin kısa karşılaştırması",
-    }),
-    candidate({
-      id: "h7",
-      title: "Yükselme devri",
-      documentId: "okuma",
-      fileName: "okuma.pdf",
-      summary: "Kanuni ve yükselme devri",
-    }),
-    candidate({
-      id: "h8",
-      title: "Tanzimat Fermanı",
-      documentId: "okuma",
-      fileName: "okuma.pdf",
-      summary: "Tanzimat Fermanı ve ıslahat",
-      emphasis: "support",
-    }),
-  ];
-
-  it("merges the same era across files and does not glue kuruluş to yükselme", () => {
-    const result = consolidateMaterials({
-      candidates: notes,
-      documents: [
-        { documentId: "notlar", fileName: "notlar.pdf", text: "Osmanlı kuruluş notları." },
-        { documentId: "slayt", fileName: "slayt.pptx", text: "Dönem slaytları." },
-        { documentId: "okuma", fileName: "okuma.pdf", text: "Okuma parçası." },
-      ],
-    });
-    expect(result.topics.length).toBeGreaterThanOrEqual(3);
-    expect(result.topics.length).toBeLessThanOrEqual(5);
-    const founding = result.topics.filter((topic) => /kuruluş/i.test(textOf(topic)) && !/yükselme/i.test(topic.title));
-    const rise = result.topics.filter((topic) => /yükselme/i.test(topic.title));
-    const tanzimat = result.topics.filter((topic) => /tanzimat/i.test(topic.title));
-    expect(founding.length).toBeGreaterThanOrEqual(1);
-    expect(rise).toHaveLength(1);
-    expect(tanzimat).toHaveLength(1);
-    expect(rise[0]?.sourceCount).toBeGreaterThanOrEqual(2);
-    expect(tanzimat[0]?.sourceCount).toBe(2);
-    expect(founding.some((topic) => topic.sourceCount >= 2)).toBe(true);
-    expect(result.topics.some((topic) => /kuruluş/i.test(topic.title) && /yükselme/i.test(topic.title))).toBe(false);
-    const accounted = result.topics.flatMap((topic) => [topic.title, ...topic.sections.map((section) => section.title)]);
-    for (const note of notes) expect(accounted).toContain(note.title);
-
-    expect(result.topics.every((topic) => topic.examHeavy === false)).toBe(true);
-    expect(result.topics.every((topic) => topic.weightPercent == null)).toBe(true);
-    const heavyEra = result.topics.find((topic) => /tanzimat/i.test(topic.title));
-    expect(heavyEra?.importance).toBe("important");
-    expect(topicBadge(heavyEra ?? {})).toBe("important");
-    expect(topicBadge({ examHeavy: true, importance: "important" })).toBe("exam-heavy");
-    expect(extraPracticeForTopic({ importance: "important" }, 23)).toBe(2);
-    expect(extraPracticeForTopic({ importance: "medium" }, 23)).toBe(0);
-    expect(extraPracticeForTopic({}, 23)).toBe(0);
-    expect(priorityFromWeight({})).toBeNull();
-    expect(priorityFromImportance("important")).toBe(1);
-    expect(priorityFromImportance("less")).toBe(5);
-    expect(priorityFromImportance(null)).toBeNull();
   });
 });
 

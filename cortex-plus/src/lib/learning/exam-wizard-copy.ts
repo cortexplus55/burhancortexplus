@@ -5,7 +5,6 @@ import type { StudyModality } from "@/lib/learning/exam-prep-ui-path";
  * Bileşenler bu sabitleri kullanır; metin ikinci bir yerde yazılmaz.
  */
 export const WIZARD_STEP_ORDER = [
-  "start",
   "subject",
   "date",
   "target",
@@ -16,8 +15,6 @@ export const WIZARD_STEP_ORDER = [
   "focus",
   "plan",
 ] as const;
-
-export type WizardProgressStep = (typeof WIZARD_STEP_ORDER)[number];
 
 export const DOCUMENT_ANALYSIS_STAGES = [
   "Ekler okunuyor",
@@ -91,7 +88,7 @@ export function fileProgressLine(
 export const PREP_HOME_COPY = {
   path: "Çalışma yolu",
   topics: "Konular",
-  materials: "Materyaller",
+  materials: "Kaynaklar",
   progress: "İlerleme",
   skillTree: "Beceri ağacı",
   allQuestions: "Tüm sorular",

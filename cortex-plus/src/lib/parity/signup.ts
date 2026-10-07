@@ -27,9 +27,13 @@ export type SignupPayload = {
   teacherBranch?: string;
   teacherClassName?: string;
   referralCode?: string;
+  /** KVKK ve kullanım koşulları kutusunun işaretlendiği an (ISO). Sunucu consent_records'a yazar. */
+  consentAcceptedAt?: string;
 };
 
 export const SIGNUP_STORAGE_KEY = "cortex-signup-payload";
+/** Kayıt bitince dönülecek yol (ör. /pay). safeNextPath ile okunur. */
+export const SIGNUP_NEXT_KEY = "cortex-signup-next";
 
 export const ROLE_OPTIONS: {
   id: SignupRole;

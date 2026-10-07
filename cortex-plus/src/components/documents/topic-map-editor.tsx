@@ -343,7 +343,7 @@ export function TopicMapEditor({
       ) : null}
 
       {stale ? (
-        <p className="rounded-xl border border-[var(--cs-primary)]/30 bg-[var(--cs-primary)]/5 px-4 py-3 text-sm text-[var(--cs-text)]">
+        <p className="rounded-xl border border-[color:color-mix(in_srgb,var(--cs-primary)_30%,transparent)] bg-[color:color-mix(in_srgb,var(--cs-primary)_5%,transparent)] px-4 py-3 text-sm text-[var(--cs-text)]">
           <strong>Bu harita eski kurallarla çıkarıldı.</strong>{" "}
           Yenilersen konu başlıkları belgenin konusunu taşır ve ders
           bölümleri belgenin kendi alt başlıklarından kurulur. Kendi
@@ -382,7 +382,7 @@ export function TopicMapEditor({
         {hidePlanLink ? null : mapReady ? (
           <a
             href={`/deneme-sinavlari/olustur?documentId=${documentId}`}
-            className="rounded-full border border-[var(--cs-primary)]/40 px-4 py-2 text-sm font-medium text-[var(--cs-primary)]"
+            className="rounded-full border border-[color:color-mix(in_srgb,var(--cs-primary)_40%,transparent)] px-4 py-2 text-sm font-medium text-[var(--cs-primary)]"
           >
             Çalışma planımı oluştur →
           </a>

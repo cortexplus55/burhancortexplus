@@ -1,21 +1,24 @@
 "use client";
 
 import { CortexMark } from "@/components/brand/cortex-mark";
+import { syncLearningPrefsOnce } from "@/lib/client/learning-prefs-store";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, Flame, Gift, Gauge, LayoutGrid, LineChart, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, FileText, Flame, Gift, Gauge, LayoutGrid, LineChart, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readStreakFromStorage } from "@/components/parity/gamification";
 import { GamificationGate } from "@/components/parity/gamification";
+import { JourneyDialog, type JourneyTab } from "@/components/parity/journey-dialog";
+import { BadgeUnlockNotice } from "@/components/parity/badge-unlock-notice";
+import type { BadgeJourney } from "@/lib/gamification/badges";
 import { ParityDialogHost, MenuDialogUrlSync } from "@/components/parity/parity-dialog-host";
 import { PlusLimitBanner } from "@/components/paywall/plus-limit-banner";
 import { PromoBanner, type PromoCampaign } from "@/components/paywall/promo-banner";
 import type { StudentAccountContext } from "@/lib/student/account-context";
 import { StudentShellProvider } from "@/lib/student/student-shell-context";
 import { studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
-import { ACCOUNT_REFRESH_EVENT, spendableCredits } from "@/lib/credits/spendable";
-import { creditChipLabel } from "@/lib/credits/chip-label";
+import { ACCOUNT_REFRESH_EVENT } from "@/lib/credits/spendable";
 import { FounderChip } from "@/components/student/founder-chip";
 import { profilePlanView } from "@/lib/billing/tier-presentation";
 import { ExamChatMenu } from "@/components/parity/exam-chat-menu";
@@ -35,9 +38,10 @@ function relativeTr(iso: string) {
 }
 
 const MORE_LINKS = [
+  { href: "/dokumanlar", label: "Belgelerim", icon: FileText },
   { href: "/siniflar", label: "Sınıflar", icon: Users },
   { href: "/ilerleme", label: "Aktivitelerim", icon: LineChart },
-  { href: "/calisma-plani?tab=takvim", label: "Takvimim", icon: CalendarDays },
+  { href: "/takvimim", label: "Takvimim", icon: CalendarDays },
   { href: "/krediler", label: "Limitler", icon: Gauge },
   { href: "/davet", label: "Davet et", icon: Gift },
 ] as const;
@@ -65,7 +69,7 @@ export function ParitySorShell({
    * Sınav sohbeti: logo ve sekme çubuğu yerine geri, seri, menü ve avatar.
    * Diğer sayfalar `app` kabuğunda kalır.
    */
-  chrome?: "app" | "exam";
+  chrome?: "app" | "exam" | "focus" | "session";
   backHref?: string;
   /**
    * Geçmiş satırı bu adresin `?sohbet=` parametresiyle açılır.
@@ -80,48 +84,19 @@ export function ParitySorShell({
     window.addEventListener(ACCOUNT_REFRESH_EVENT, refresh);
     return () => window.removeEventListener(ACCOUNT_REFRESH_EVENT, refresh);
   }, [router]);
+  // Disleksi dostu okuma, ses ve öneri tercihi: oturumda bir kez profilden.
+  useEffect(() => {
+    syncLearningPrefsOnce();
+  }, []);
   const [menuOpen, setMenuOpen] = useState(false);
   const [streakCount, setStreakCount] = useState(streak);
-  const [limitDismissed, setLimitDismissed] = useState(false);
-  const [balance, setBalance] = useState(account?.balance ?? 0);
-  useEffect(() => {
-    if (typeof account?.balance !== "number") return;
-    try {
-      const raw = sessionStorage.getItem("cortex-balance-announced");
-      if (raw) {
-        const saved = JSON.parse(raw) as { value?: number; at?: number };
-        if (
-          typeof saved.value === "number" &&
-          typeof saved.at === "number" &&
-          Date.now() - saved.at < 20_000 &&
-          saved.value < account.balance
-        ) {
-          setBalance(saved.value);
-          return;
-        }
-      }
-    } catch {
-      /* eski duyuru okunamazsa sunucu bakiyesi geçer */
-    }
-    setBalance(account.balance);
-  }, [account?.balance]);
-  useEffect(() => {
-    const onBalance = (event: Event) => {
-      const value = (event as CustomEvent<number>).detail;
-      if (typeof value !== "number") return;
-      setBalance(value);
-      try {
-        sessionStorage.setItem(
-          "cortex-balance-announced",
-          JSON.stringify({ value, at: Date.now() }),
-        );
-      } catch {
-        /* depolama kapalıysa çip yine bu oturumda güncellenir */
-      }
-    };
-    window.addEventListener("cortex-balance", onBalance);
-    return () => window.removeEventListener("cortex-balance", onBalance);
+  const [journeyOpen, setJourneyOpen] = useState(false);
+  const [journeyTab, setJourneyTab] = useState<JourneyTab>("streak");
+  // Pencere seriyi günlük kayıttan yeniden hesaplıyor; düğmedeki sayı da ona uysun.
+  const syncStreak = useCallback((journey: BadgeJourney) => {
+    setStreakCount(journey.streak.current);
   }, []);
+  const [limitDismissed, setLimitDismissed] = useState(false);
   const isAdmin = Boolean(account?.isAdmin);
   const isPremium = Boolean(account?.isPremium);
   const showBuy = !isAdmin && account?.showsUpgradeChrome === true;
@@ -134,7 +109,12 @@ export function ParitySorShell({
    */
   const planView = account && !isAdmin ? profilePlanView(account) : null;
   const isStudio = pathname.startsWith("/studio");
-  const examChrome = chrome === "exam";
+  // "focus": sınav kabuğunun başlığı (Geri, seri, menü, avatar) ama temaya
+  // uyan renk ve normal sayfa kaydırması. Hazırlık sayfası bunu kullanıyor —
+  // Astra'da hazırlığın içinde üst sekme çubuğu yok.
+  // "session": ders, test, podcast oturumu. Astra'da üst çubuk yok; yalnız
+  // ilerleme ve × (oturumun kendi çubuğu). 3 Ekim 2026.
+  const examChrome = chrome === "exam" || chrome === "focus" || chrome === "session";
   const openConversation = (id: string) =>
     conversationBaseHref
       ? `${conversationBaseHref}?sohbet=${encodeURIComponent(id)}`
@@ -199,8 +179,8 @@ export function ParitySorShell({
 
   return (
     <StudentShellProvider account={account}>
-      <div className={cn("cp-sor-root", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio", examChrome && "cp-sor-root--exam")}>
-      <header className="cp-sor-top">
+      <div className={cn("cp-sor-root", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio", chrome === "exam" && "cp-sor-root--exam", chrome === "focus" && "cp-sor-root--focus", chrome === "session" && "cp-sor-root--session")}>
+      {chrome === "session" ? null : <header className="cp-sor-top">
         {examChrome ? (
           <Link href={backHref} className="cp-exam-back">
             <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -235,32 +215,27 @@ export function ParitySorShell({
         )}
 
         <div className="cp-sor-top-actions">
+          {/* Hazırlık sayfasının simgeleri buraya taşınır (PREP_TOP_SLOT_ID). */}
+          {chrome === "focus" ? <div id="cp-sor-top-slot" className="cp-sor-top-slot" /> : null}
           {isAdmin && account ? (
             <FounderChip />
           ) : examChrome ? null : showBuy ? (
             <Link href="/pay" className="cp-sor-buy">
               Satın al +
             </Link>
-          ) : account ? (
-            <Link
-              href="/krediler"
-              className="cp-sor-credit-chip"
-              title={`Satın alınan: ${account.balance} · Bu dönem kalan hak: ${account.freeAllowanceRemaining}`}
-              aria-label={`Satın alınan: ${account.balance} · Bu dönem kalan hak: ${account.freeAllowanceRemaining}`}
-            >
-              {creditChipLabel({
-                planLabel,
-                balance: spendableCredits({
-                  balance,
-                  freeAllowanceRemaining: account.freeAllowanceRemaining,
-                }),
-              })}
-            </Link>
           ) : null}
+          {/* Abonede kredi çipi yok (29 Eylül 2026): Astra'da Plus'ın üst
+              çubuğunda yalnızca seri, "Daha fazla" ve avatar duruyor; kullanım
+              profil → Kullanım'da yüzde olarak görülüyor. */}
           <button
             type="button"
             className="cp-sor-streak"
-            aria-label={`Seri: ${streakCount} gün`}
+            aria-label={`Seri: ${streakCount} gün. Seri ve rozetleri aç`}
+            aria-haspopup="dialog"
+            onClick={() => {
+              setJourneyTab("streak");
+              setJourneyOpen(true);
+            }}
           >
             <Flame className="h-4 w-4 text-orange-500" aria-hidden />
             <span>{streakCount}</span>
@@ -273,7 +248,7 @@ export function ParitySorShell({
             onClick={() => setMenuOpen(true)}
           >
             <LayoutGrid className="h-4 w-4" aria-hidden />
-            <span>Daha fazla</span>
+            <span className="cp-sor-more-label">Daha fazla</span>
           </button>
           <Link href="/profil" className="cp-sor-avatar" aria-label="Profil">
             {avatarEmoji ? (
@@ -292,7 +267,7 @@ export function ParitySorShell({
             Ayarlar
           </Link>
         </div>
-      </header>
+      </header>}
 
       {showPlusLimit ? (
         <PlusLimitBanner onDismiss={() => setLimitDismissed(true)} />
@@ -394,6 +369,19 @@ export function ParitySorShell({
         <MenuDialogUrlSync onOpen={openMenuFromUrl} />
       </Suspense>
       {isPremium ? <GamificationGate /> : null}
+      <JourneyDialog
+        open={journeyOpen}
+        tab={journeyTab}
+        onClose={() => setJourneyOpen(false)}
+        onLoaded={syncStreak}
+      />
+      <BadgeUnlockNotice
+        onJourney={syncStreak}
+        onOpenBadges={() => {
+          setJourneyTab("badges");
+          setJourneyOpen(true);
+        }}
+      />
     </div>
     </StudentShellProvider>
   );

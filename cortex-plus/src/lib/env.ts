@@ -53,11 +53,32 @@ export const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_STANDARD_MODEL: z.string().default("gpt-4o-mini"),
   /**
-   * Ders taslağı. Doğrulama ve parça onarımı standart modelde kalır.
+   * Asıl model (2 Ekim 2026, ürün sahibinin kararı): ders, podcast, test,
+   * deneme, notlama ve AI öğretmen sohbeti — abone de ücretsiz de. Arka
+   * plandaki kontrol ve onarım çağrıları OPENAI_STANDARD_MODEL'de kalır,
+   * görsel çözüm OPENAI_ADVANCED_MODEL'de.
+   */
+  OPENAI_CONTENT_MODEL: z.string().default("gpt-6-luna"),
+  /*
+    Ders, test, podcast, kart, doğru/yanlış, sözlü içerik, hazırlık sohbeti ve
+    kavram birimleri yalnız öğretmen motorlarından gelir. Eski yolları seçen
+    LESSON/QUIZ/PODCAST/CARDS/PRACTICE_ENGINE, TUTOR_ENGINE ve
+    TOPIC_UNITS_ENGINE anahtarları 3 Ekim 2026'da silindi (ürün sahibinin kararı).
+  */
+  /**
+   * Ders taslağı — abone. Doğrulama ve parça onarımı standart modelde kalır.
    * Kredi eylem kodu değişmez; yalnızca bu çağrının modeli değişir.
    */
-  OPENAI_LESSON_MODEL: z.string().default("gpt-4.1-mini"),
-  OPENAI_ADVANCED_MODEL: z.string().default("gpt-4o"),
+  OPENAI_LESSON_MODEL: z.string().default("gpt-4.1"),
+  /**
+   * Ders taslağı — ücretsiz hesap. Astra da ücretsizde küçük model kullanıyor
+   * (Plus'a "1,4 kat daha akıllı model" vaat ediyor). 29 Eylül 2026 hesabı:
+   * günde 6 krediyi tam kullanan ücretsiz hesap gpt-4.1 ile ayda ~88 TL,
+   * bu modelle ~52 TL.
+   */
+  OPENAI_LESSON_FREE_MODEL: z.string().default("gpt-4.1-mini"),
+  /** Yalnız aboneye açık işler (model-router). gpt-4o'dan ucuz: $2/$8 vs $2,5/$10. */
+  OPENAI_ADVANCED_MODEL: z.string().default("gpt-4.1"),
   /**
    * One-shot konu haritası (≤30 sayfa). Boşsa OPENAI_STANDARD_MODEL.
    * Öğrenci model seçimini görmez; yalnızca sunucu yönlendirir.
@@ -130,7 +151,9 @@ const parsed = envSchema.safeParse({
   APP_SECRET: process.env.APP_SECRET,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_STANDARD_MODEL: process.env.OPENAI_STANDARD_MODEL,
+  OPENAI_CONTENT_MODEL: process.env.OPENAI_CONTENT_MODEL,
   OPENAI_LESSON_MODEL: process.env.OPENAI_LESSON_MODEL,
+  OPENAI_LESSON_FREE_MODEL: process.env.OPENAI_LESSON_FREE_MODEL,
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,
   OPENAI_OUTLINE_STANDARD_MODEL: process.env.OPENAI_OUTLINE_STANDARD_MODEL,
   OPENAI_OUTLINE_STRONG_MODEL: process.env.OPENAI_OUTLINE_STRONG_MODEL,

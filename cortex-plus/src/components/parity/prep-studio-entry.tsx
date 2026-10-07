@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { examPrepPodcastHref } from "@/lib/learning/exam-prep-hrefs";
+import { PodcastFormatPicker } from "@/components/parity/podcast-format-picker";
+import { DEFAULT_PODCAST_LENGTH, type PodcastLength } from "@/lib/learning/podcast-formats";
 
 export type PrepTopicOption = { id: string; label: string };
 
@@ -19,18 +21,18 @@ export function PrepPodcastPicker({
 }) {
   const router = useRouter();
   const [topicId, setTopicId] = useState(topics[0]?.id ?? "");
-  const [length, setLength] = useState<"ozet" | "standart" | "derin">("standart");
+  const [length, setLength] = useState<PodcastLength>(DEFAULT_PODCAST_LENGTH);
 
   if (!topics.length) {
     return (
-      <section className="cp-studio" aria-label="Podcast oluştur">
+      <section className="cp-exam-page cp-studio-page" aria-label="Podcast oluştur">
         <p>Podcast için önce bir konu gerekli.</p>
       </section>
     );
   }
 
   return (
-    <section className="cp-studio" aria-label="Podcast oluştur">
+    <section className="cp-exam-page cp-studio-page" aria-label="Podcast oluştur">
       <h1>Podcast oluştur</h1>
       <div className="cp-studio-panel">
         <label className="cp-field">
@@ -43,26 +45,7 @@ export function PrepPodcastPicker({
             ))}
           </select>
         </label>
-        <fieldset className="cp-pod-lengths">
-          <legend>Süre</legend>
-          {(
-            [
-              ["ozet", "Özet · ~1 dk"],
-              ["standart", "Standart · ~5 dk"],
-              ["derin", "Derinlemesine · ~10 dk"],
-            ] as const
-          ).map(([value, label]) => (
-            <label key={value}>
-              <input
-                type="radio"
-                name="podcast-length"
-                checked={length === value}
-                onChange={() => setLength(value)}
-              />
-              {label}
-            </label>
-          ))}
-        </fieldset>
+        <PodcastFormatPicker value={length} onChange={setLength} />
         <button
           type="button"
           className="cp-exam-continue cp-exam-continue--primary"

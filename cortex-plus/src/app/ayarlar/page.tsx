@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { SectionCard } from "@/components/ui-kit/empty-state";
 import { DataDeletionButton } from "@/components/profile/data-deletion-button";
+import { EmailChangeCard } from "@/components/profile/email-change-card";
 import { StudyReminderToggle } from "@/components/profile/study-reminder-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { requireUser } from "@/lib/auth/session";
@@ -54,7 +55,7 @@ export default async function AyarlarPage() {
             title="Plan"
             description={
               account.isPremium
-                ? "Plus aboneliğin aktif. Kota ve ödemeleri krediler sayfasından takip edebilirsin."
+                ? "Plus aboneliğin aktif. Kullanımını ve ödemelerini Kullanım sayfasından takip edebilirsin."
                 : "Ücretsiz plandasın. Plus ile gelişmiş model ve daha yüksek limit açılır."
             }
           >
@@ -69,10 +70,10 @@ export default async function AyarlarPage() {
 
         <SectionCard
           title="Öğrenme tercihleri"
-          description="AI öğretmen stilini ve sınıf bilgini profilden güncelleyebilirsin."
+          description="Öğretmen stili, günlük çalışma hedefi, önerilen sorular, okuma ve ses ayarları."
         >
-          <Link href="/profil" className="text-sm font-medium underline">
-            Profile git
+          <Link href="/profil?dialog=profile" className="text-sm font-medium underline">
+            Ayarları aç
           </Link>
         </SectionCard>
 
@@ -117,13 +118,35 @@ export default async function AyarlarPage() {
         </SectionCard>
 
         <SectionCard
+          title="E-posta ve şifre"
+          description="Giriş yaptığın adres ve şifren."
+        >
+          <EmailChangeCard
+            email={user.email ?? null}
+            pendingEmail={(user as { new_email?: string | null }).new_email ?? null}
+            hasPasswordLogin={
+              (user.identities ?? []).some((identity) => identity.provider === "email") ||
+              user.app_metadata?.provider === "email"
+            }
+          />
+        </SectionCard>
+
+        {/*
+          Silme bir ekip işi değil: talep anında işleniyor, yarım kalırsa
+          günlük cron yeniden deniyor (processPendingDeletionRequests). Eski
+          metin "ekibimiz KVKK süresi içinde" diyor, durumu ham "pending"
+          olarak gösteriyordu.
+        */}
+        <SectionCard
           title="Hesap verisi"
-          description="Silme talebi oluşturduğunda ekibimiz KVKK süresi içinde işlemi tamamlar."
+          description="Silme talebi hemen işlenir; tamamlandığında hesabın kapanır."
         >
           {deletionRequest ? (
             <p className="text-sm">
-              Talep durumu: <strong>{deletionRequest.status}</strong> ·{" "}
-              {formatDate(deletionRequest.requested_at)}
+              {deletionRequest.status === "completed"
+                ? "Silme talebin tamamlandı"
+                : "Silme talebin işleniyor; yarım kalan adımlar her gün otomatik olarak yeniden deneniyor"}{" "}
+              · {formatDate(deletionRequest.requested_at)}
             </p>
           ) : (
             <DataDeletionButton />

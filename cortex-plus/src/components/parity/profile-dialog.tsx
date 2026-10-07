@@ -4,15 +4,29 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { AppearanceRow } from "@/components/parity/appearance-row";
+import { AvatarPicker } from "@/components/parity/avatar-picker";
+import { TUTOR_STYLE_OPTIONS, type TutorStyle } from "@/lib/learning/tutor-style";
+import {
+  DAILY_GOAL_OPTIONS,
+  DEFAULT_DAILY_GOAL,
+  TUTOR_VOICES,
+  dailyGoalLabel,
+  type TutorVoice,
+} from "@/lib/student/learning-prefs";
+import { prefsFromProfile, writeLearningPrefs } from "@/lib/client/learning-prefs-store";
 import "@/styles/parity-shell.css";
 
 type TabId = "account" | "school" | "learning";
 
+// "Veli" seçeneği kaldırıldı: ürün yalnızca öğrenciye (AGENTS.md, 29 Ağustos
+// 2026 kararı); veliyi seçen öğrenciyi bekleyen bir veli arayüzü yok.
 const ROLES = [
   { id: "student", label: "Öğrenci", hint: "Sınav ve ders odaklı AI" },
   { id: "graduate", label: "Mezun", hint: "KPSS, TUS ve yetişkin hedefler" },
-  { id: "parent", label: "Veli", hint: "Çocuğunun ilerlemesini takip et" },
 ] as const;
+
+type SchoolOption = { id: string; name: string; city: string | null };
 
 export type ProfilePlanView = {
   /** Ücretsizde paketin adı ('Temel'), abonede rozet ('Plus' / 'Sigma'). */
@@ -34,9 +48,17 @@ export function ProfileDialog({
   const [tab, setTab] = useState<TabId>("account");
   const [role, setRole] = useState("student");
   const [schoolQuery, setSchoolQuery] = useState("");
-  const [schoolOptions, setSchoolOptions] = useState<string[]>([]);
+  const [schoolOptions, setSchoolOptions] = useState<SchoolOption[]>([]);
   const [schoolName, setSchoolName] = useState("");
-  const [dailyGoal, setDailyGoal] = useState("3");
+  const [dailyGoal, setDailyGoal] = useState<number>(DEFAULT_DAILY_GOAL);
+  const [todayMinutes, setTodayMinutes] = useState(0);
+  const [fullName, setFullName] = useState("");
+  const [gradeLevel, setGradeLevel] = useState("");
+  const [avatarEmoji, setAvatarEmoji] = useState<string | null>(null);
+  const [tutorStyle, setTutorStyle] = useState<TutorStyle>("step_by_step");
+  const [suggestions, setSuggestions] = useState(true);
+  const [readable, setReadable] = useState(false);
+  const [voice, setVoice] = useState<TutorVoice>("female");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -48,10 +70,17 @@ export function ProfileDialog({
           setSchoolName(data.school_name);
           setSchoolQuery(data.school_name);
         }
-        if (data.daily_goal_minutes) {
-          setDailyGoal(String(data.daily_goal_minutes));
-        }
+        if (data.daily_goal_minutes) setDailyGoal(Number(data.daily_goal_minutes));
         if (data.learning_role) setRole(data.learning_role);
+        setTodayMinutes(Number(data.today_minutes) || 0);
+        setFullName(data.full_name ?? "");
+        setGradeLevel(data.grade_level ?? "");
+        setAvatarEmoji(data.avatar_emoji ?? null);
+        if (data.tutor_style) setTutorStyle(data.tutor_style);
+        setSuggestions(data.show_suggestions !== false);
+        setReadable(data.readable_font === true);
+        setVoice(data.tutor_voice === "male" ? "male" : "female");
+        writeLearningPrefs(prefsFromProfile(data));
       })
       .catch(() => undefined);
   }, [open]);
@@ -66,7 +95,7 @@ export function ProfileDialog({
     const t = window.setTimeout(() => {
       void fetch(`/api/schools/search?q=${encodeURIComponent(q)}`)
         .then((r) => r.json())
-        .then((data) => setSchoolOptions(data.schools ?? []))
+        .then((data) => setSchoolOptions(Array.isArray(data.results) ? data.results : []))
         .catch(() => setSchoolOptions([]));
     }, 200);
     return () => window.clearTimeout(t);
@@ -83,49 +112,82 @@ export function ProfileDialog({
 
   if (!open) return null;
 
-  async function saveLearning() {
-    setLoading(true);
+  async function patchProfile(body: Record<string, unknown>): Promise<boolean> {
     try {
       const res = await fetch("/api/profile/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          daily_goal_minutes: Number(dailyGoal) || 3,
-          learning_role: role,
-        }),
+        body: JSON.stringify(body),
       });
-      if (!res.ok) {
-        toast.error("Kaydedilemedi.");
-        return;
-      }
-      toast.success("Öğrenme hedefin güncellendi.");
-      onClose();
+      return res.ok;
     } catch {
-      toast.error("Bağlantı hatası.");
-    } finally {
-      setLoading(false);
+      return false;
     }
   }
 
-  async function saveSchool(name: string) {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/profile/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ school_name: name }),
-      });
-      if (!res.ok) {
-        toast.error("Okul kaydedilemedi.");
-        return;
-      }
-      setSchoolName(name);
-      toast.success("Okul güncellendi.");
-    } catch {
-      toast.error("Bağlantı hatası.");
-    } finally {
-      setLoading(false);
+  /** Tek alanı hemen kaydeder; olmazsa eski değere döner. */
+  async function saveField(
+    body: Record<string, unknown>,
+    apply: () => void,
+    revert: () => void,
+    done?: () => void,
+  ) {
+    apply();
+    const ok = await patchProfile(body);
+    if (!ok) {
+      revert();
+      toast.error("Kaydedilemedi.");
+      return;
     }
+    done?.();
+  }
+
+  async function saveText(body: Record<string, unknown>, message: string) {
+    setLoading(true);
+    const ok = await patchProfile(body);
+    setLoading(false);
+    if (!ok) {
+      toast.error("Kaydedilemedi.");
+      return;
+    }
+    toast.success(message);
+  }
+
+  /*
+    Rol "Hesabım" sekmesinde seçiliyordu ama o sekmede kaydet yoktu; seçim
+    ancak "Öğrenme" sekmesindeki Kaydet'e basılırsa gidiyordu. Artık
+    seçildiği anda kaydediliyor.
+  */
+  async function saveRole(next: string) {
+    const previous = role;
+    setRole(next);
+    const ok = await patchProfile({ learning_role: next });
+    if (!ok) {
+      setRole(previous);
+      toast.error("Rol kaydedilemedi.");
+      return;
+    }
+    toast.success("Rolün güncellendi.");
+  }
+
+  /*
+    Okul adı eskiden serbest metin olarak yazılıyordu; profil paneli ve okul
+    paylaşımı ise school_id'ye bakıyor. "Okul güncellendi" deniyor, hiçbir
+    şey değişmiyordu (okul paylaşımı school_required dönüyordu). Arama artık
+    kimlikli sonuçları kullanıyor, sınav hazırlığındaki okul seçici gibi.
+  */
+  async function saveSchool(school: SchoolOption) {
+    setLoading(true);
+    const ok = await patchProfile({ school_name: school.name, school_id: school.id });
+    setLoading(false);
+    if (!ok) {
+      toast.error("Okul kaydedilemedi.");
+      return;
+    }
+    setSchoolName(school.name);
+    setSchoolQuery(school.name);
+    setSchoolOptions([]);
+    toast.success("Okul güncellendi.");
   }
 
   return (
@@ -176,7 +238,7 @@ export function ProfileDialog({
             [
               ["account", "Hesabım"],
               ["school", "Okulum"],
-              ["learning", "Öğrenme"],
+              ["learning", "Öğrenme tercihleri"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -206,7 +268,25 @@ export function ProfileDialog({
 
         {tab === "account" ? (
           <div className="cp-profile-body">
-            <h2 className="cp-profile-heading">Rolüm</h2>
+            <div className="cp-settings-avatar">
+              <span className="cp-pp-avatar" aria-hidden>
+                {avatarEmoji ?? (fullName.trim().slice(0, 1).toLocaleUpperCase("tr-TR") || "?")}
+              </span>
+              <AvatarPicker current={avatarEmoji} onChange={setAvatarEmoji} />
+            </div>
+            <label className="cp-field">
+              <span>İsim</span>
+              <input value={fullName} maxLength={80} onChange={(e) => setFullName(e.target.value)} />
+            </label>
+            <button
+              type="button"
+              className="cp-exam-continue mt-2 w-full"
+              disabled={loading || !fullName.trim()}
+              onClick={() => void saveText({ full_name: fullName.trim() }, "İsmin güncellendi.")}
+            >
+              İsmi kaydet
+            </button>
+            <h2 className="cp-profile-heading mt-6">Rolüm</h2>
             <ul className="cp-profile-role-list">
               {ROLES.map((item) => (
                 <li key={item.id}>
@@ -216,7 +296,8 @@ export function ProfileDialog({
                       "cp-profile-role",
                       role === item.id && "cp-profile-role--active",
                     )}
-                    onClick={() => setRole(item.id)}
+                    aria-pressed={role === item.id}
+                    onClick={() => void saveRole(item.id)}
                   >
                     <strong>{item.label}</strong>
                     <span>{item.hint}</span>
@@ -224,6 +305,12 @@ export function ProfileDialog({
                 </li>
               ))}
             </ul>
+            <div className="mt-6">
+              <AppearanceRow />
+            </div>
+            <a className="cp-settings-link" href="/ayarlar">
+              E-posta, şifre, hatırlatma ve hesap silme →
+            </a>
           </div>
         ) : null}
 
@@ -241,10 +328,10 @@ export function ProfileDialog({
             </label>
             {schoolOptions.length ? (
               <ul className="cp-school-suggest">
-                {schoolOptions.map((name) => (
-                  <li key={name}>
-                    <button type="button" onClick={() => void saveSchool(name.split(" (")[0] ?? name)}>
-                      + {name}
+                {schoolOptions.map((school) => (
+                  <li key={school.id}>
+                    <button type="button" disabled={loading} onClick={() => void saveSchool(school)}>
+                      + {school.city ? `${school.name} (${school.city})` : school.name}
                     </button>
                   </li>
                 ))}
@@ -253,33 +340,146 @@ export function ProfileDialog({
             {schoolName ? (
               <p className="mt-3 text-sm text-[var(--cp-muted)]">Seçili: {schoolName}</p>
             ) : null}
+            <label className="cp-field mt-6">
+              <span>Sınıf / seviye</span>
+              <input
+                value={gradeLevel}
+                maxLength={40}
+                placeholder="Örn. 11. sınıf, üniversite 2. sınıf"
+                onChange={(e) => setGradeLevel(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="cp-exam-continue mt-2 w-full"
+              disabled={loading}
+              onClick={() => void saveText({ grade_level: gradeLevel.trim() }, "Seviyen güncellendi.")}
+            >
+              Seviyeyi kaydet
+            </button>
           </div>
         ) : null}
 
         {tab === "learning" ? (
           <div className="cp-profile-body">
-            <h2 className="cp-profile-heading">Günlük hedef</h2>
-            <p className="cp-profile-lead">
-              Her gün kaç soru veya görev tamamlamak istediğini seç.
-            </p>
-            <label className="cp-field">
-              <span>Günlük görev sayısı</span>
+            <p className="cp-profile-lead">Bu ayarlar öğrenme deneyimini kişiselleştirir.</p>
+
+            <h2 className="cp-profile-heading">Öğretmen stili</h2>
+            <ul className="cp-profile-role-list">
+              {TUTOR_STYLE_OPTIONS.map((option) => (
+                <li key={option.id}>
+                  <button
+                    type="button"
+                    className={cn("cp-profile-role", tutorStyle === option.id && "cp-profile-role--active")}
+                    aria-pressed={tutorStyle === option.id}
+                    onClick={() => {
+                      const previous = tutorStyle;
+                      void saveField(
+                        { tutor_style: option.id },
+                        () => setTutorStyle(option.id),
+                        () => setTutorStyle(previous),
+                      );
+                    }}
+                  >
+                    <strong>
+                      {option.emoji} {option.title}
+                    </strong>
+                    <span>{option.body}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <h2 className="cp-profile-heading mt-6">Günlük çalışma hedefi</h2>
+            <p className="cp-profile-lead">Bugün {dailyGoalLabel(todayMinutes, dailyGoal)}</p>
+            <div className="cp-settings-chips" role="radiogroup" aria-label="Günlük çalışma hedefi">
+              {DAILY_GOAL_OPTIONS.map((minutes) => (
+                <button
+                  key={minutes}
+                  type="button"
+                  role="radio"
+                  aria-checked={dailyGoal === minutes}
+                  className={cn("cp-settings-chip", dailyGoal === minutes && "is-on")}
+                  onClick={() => {
+                    const previous = dailyGoal;
+                    void saveField(
+                      { daily_goal_minutes: minutes },
+                      () => setDailyGoal(minutes),
+                      () => setDailyGoal(previous),
+                    );
+                  }}
+                >
+                  {minutes} dk
+                </button>
+              ))}
+            </div>
+
+            <label className="cp-settings-toggle">
+              <span>
+                <strong>Önerilen sorular</strong>
+                <em>Cevaptan sonra devam önerilerini göster</em>
+              </span>
               <input
-                type="number"
-                min={1}
-                max={20}
-                value={dailyGoal}
-                onChange={(e) => setDailyGoal(e.target.value)}
+                type="checkbox"
+                role="switch"
+                checked={suggestions}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  void saveField(
+                    { show_suggestions: next },
+                    () => setSuggestions(next),
+                    () => setSuggestions(!next),
+                    () => writeLearningPrefs({ suggestions: next }),
+                  );
+                }}
               />
             </label>
-            <button
-              type="button"
-              className="cp-exam-continue cp-exam-continue--primary mt-4 w-full"
-              disabled={loading}
-              onClick={() => void saveLearning()}
-            >
-              Kaydet
-            </button>
+
+            <label className="cp-settings-toggle">
+              <span>
+                <strong>Disleksi dostu okuma</strong>
+                <em>Derslerde ve cevaplarda daha geniş harf ve satır aralığı</em>
+              </span>
+              <input
+                type="checkbox"
+                role="switch"
+                checked={readable}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  void saveField(
+                    { readable_font: next },
+                    () => setReadable(next),
+                    () => setReadable(!next),
+                    () => writeLearningPrefs({ readable: next }),
+                  );
+                }}
+              />
+            </label>
+
+            <h2 className="cp-profile-heading mt-6">Öğretmen sesi</h2>
+            <div className="cp-settings-chips" role="radiogroup" aria-label="Öğretmen sesi">
+              {TUTOR_VOICES.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={voice === option.id}
+                  className={cn("cp-settings-chip", voice === option.id && "is-on")}
+                  onClick={() => {
+                    const previous = voice;
+                    void saveField(
+                      { tutor_voice: option.id },
+                      () => setVoice(option.id),
+                      () => setVoice(previous),
+                      () => writeLearningPrefs({ voice: option.id }),
+                    );
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <p className="cp-profile-lead mt-2">Sesli dinle ve Konuş modu cihazındaki Türkçe sesi kullanır.</p>
           </div>
         ) : null}
       </div>

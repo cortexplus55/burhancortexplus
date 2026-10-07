@@ -298,7 +298,9 @@ describe("offline Jev comparison and session cost", () => {
   });
 });
 
-describe("OpenAI primary decision service", () => {
+// Her test modülleri sıfırdan yüklüyor (resetModules + dinamik import); tüm
+// paket koşarken bu 5 sn varsayılanını aşıyordu.
+describe("OpenAI primary decision service", { timeout: 30_000 }, () => {
   beforeEach(() => {
     jevCircuitReset();
     vi.resetModules();

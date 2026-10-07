@@ -10,11 +10,12 @@ import {
   Settings,
   Sparkles,
   TrendingUp,
-  UserPen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ProfileDashboard } from "@/lib/student/profile-dashboard";
 import type { SubscriptionBadge } from "@/lib/student/subscription-badge";
+import { AppearanceRow } from "@/components/parity/appearance-row";
+import { AvatarPicker } from "@/components/parity/avatar-picker";
 
 /**
  * Profil paneli.
@@ -25,8 +26,7 @@ import type { SubscriptionBadge } from "@/lib/student/subscription-badge";
  */
 
 const MENU = [
-  { href: "/ayarlar", label: "Ayarlar", icon: Settings },
-  { href: "/profil/duzenle", label: "Bilgilerim", icon: UserPen },
+  { href: "/profil?dialog=profile", label: "Ayarlar", icon: Settings },
   { href: "/krediler", label: "Kullanım", icon: TrendingUp },
   { href: "/paketler", label: "Abonelikler", icon: CreditCard },
   { href: "/sohbetler", label: "Geçmiş konuşmalar", icon: History },
@@ -40,6 +40,7 @@ export function ProfilePanel({
   isPremium,
   subscriptionBadge,
   periodEndLabel = null,
+  isAdmin = false,
   children,
 }: {
   data: ProfileDashboard;
@@ -48,6 +49,8 @@ export function ProfilePanel({
   subscriptionBadge: SubscriptionBadge;
   /** Plus/Sigma dönem bitişi, İstanbul saatiyle. */
   periodEndLabel?: string | null;
+  /** Kurucu: işlemler hakkından düşmüyor; "Ücretsiz plan" yazmak yanlıştı. */
+  isAdmin?: boolean;
   /** Davet kartı — sunucu tarafında hazırlanıp buraya veriliyor. */
   children?: React.ReactNode;
 }) {
@@ -62,7 +65,7 @@ export function ProfilePanel({
     <div className="cp-pp">
       <header className="cp-pp-head">
         <span className="cp-pp-avatar" aria-hidden>
-          {initial}
+          {data.avatarEmoji ?? initial}
         </span>
         {/* Sayfanın tek başlığı bu; `p` olduğu için sayfanın h1'i yoktu. */}
         <h1 className="cp-pp-name">
@@ -74,27 +77,32 @@ export function ProfilePanel({
           ) : null}
         </h1>
         {identity ? <p className="cp-pp-identity">{identity}</p> : null}
-        <Link href="/ayarlar" className="cp-pp-settings">
+        <AvatarPicker current={data.avatarEmoji} />
+        <Link href="/profil?dialog=profile" className="cp-pp-settings">
           <Settings className="h-4 w-4" aria-hidden /> Ayarlar
         </Link>
       </header>
 
       <div className="cp-pp-plan">
         <div>
-          <strong>{subscriptionBadge ?? "Temel"}</strong>
+          <strong>{isAdmin ? "Kurucu" : (subscriptionBadge ?? "Temel")}</strong>
           <span>
-            {isPremium
-              ? `${subscriptionBadge ?? "Plus"} · ${periodEndLabel ? `${periodEndLabel} bitiyor` : "aylık kota"}`
-              : "Ücretsiz plan"}
+            {isAdmin
+              ? "Sınırsız · işlemler hakkından düşmez"
+              : isPremium
+                ? `${subscriptionBadge ?? "Plus"} · ${periodEndLabel ? `${periodEndLabel} bitiyor` : "aylık kota"}`
+                : "Ücretsiz plan"}
           </span>
         </div>
-        <Link
-          href="/paketler"
-          className="cp-pp-upgrade"
-        >
-          <Sparkles className="h-4 w-4" aria-hidden />
-          {isPremium ? "Ek paket" : "Daha hızlı öğren"}
-        </Link>
+        {isAdmin ? null : (
+          <Link
+            href="/paketler"
+            className="cp-pp-upgrade"
+          >
+            <Sparkles className="h-4 w-4" aria-hidden />
+            {isPremium ? "Ek paket" : "Daha hızlı öğren"}
+          </Link>
+        )}
       </div>
 
       {children}
@@ -143,16 +151,20 @@ export function ProfilePanel({
       </div>
 
       <nav className="cp-pp-menu" aria-label="Hesap">
-        {MENU.map((item) => {
+        {MENU.flatMap((item) => {
           const Icon = item.icon;
           const href =
             item.href === "/paketler" && isPremium ? "/odemeler" : item.href;
-          return (
+          const link = (
             <Link key={item.href} href={href}>
               <Icon className="h-4 w-4" aria-hidden />
               {item.label}
             </Link>
           );
+          // Astra'daki sıra: … Geçmiş konuşmalar, Görünüm, …
+          return item.href === "/sohbetler"
+            ? [link, <AppearanceRow key="gorunum" />]
+            : [link];
         })}
       </nav>
 

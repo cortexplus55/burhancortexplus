@@ -41,14 +41,6 @@ export function generationFailureCode(body: { code?: unknown; error?: unknown })
   return body.error;
 }
 
-export type SourceUnavailableReasonCode =
-  | "no_prep_documents"
-  | "documents_processing"
-  | "no_topic_mapping"
-  | "pages_unusable"
-  | "search_no_match"
-  | "search_error";
-
 function sourceUnavailableMessage(reason: unknown): {
   message: string;
   action?: { href: string; label: string };

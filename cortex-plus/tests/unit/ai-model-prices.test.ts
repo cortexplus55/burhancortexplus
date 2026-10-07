@@ -20,7 +20,7 @@ import { EMBEDDING_MODEL } from "@/lib/rag/pipeline";
 const MIGRATIONS = [
   "20260914120000_seed_ai_model_prices.sql",
   "20260925120000_seed_gpt41_mini_price.sql",
-  "20260928130000_seed_gpt41_outline_price.sql",
+  "20260929200000_gpt41_price_yearly_allowance.sql",
 ].map((file) => path.resolve(__dirname, "../../supabase/migrations", file));
 
 function pricedModels(): Map<string, { input: number; output: number }> {
@@ -44,6 +44,7 @@ describe("ai_model_prices tohumu", () => {
   it.each([
     ["standart metin", env.OPENAI_STANDARD_MODEL],
     ["ders taslağı", env.OPENAI_LESSON_MODEL],
+    ["ücretsiz ders taslağı", env.OPENAI_LESSON_FREE_MODEL],
     ["gelişmiş metin", env.OPENAI_ADVANCED_MODEL],
     ["outline standart", env.OPENAI_OUTLINE_STANDARD_MODEL],
     ["outline güçlü", env.OPENAI_OUTLINE_STRONG_MODEL],
@@ -76,13 +77,22 @@ describe("ai_model_prices tohumu", () => {
     expect(sql).toMatch(/TAHMIN/);
   });
 
-  it("ders taslağı standarttan pahalı, gelişmişten ucuz", () => {
+  it("ders taslağı standarttan pahalı, gelişmişten pahalı değil", () => {
     const std = priced.get(env.OPENAI_STANDARD_MODEL)!;
     const lesson = priced.get(env.OPENAI_LESSON_MODEL)!;
     const adv = priced.get(env.OPENAI_ADVANCED_MODEL)!;
     expect(lesson.input).toBeGreaterThan(std.input);
-    expect(lesson.input).toBeLessThan(adv.input);
+    expect(lesson.input).toBeLessThanOrEqual(adv.input);
     expect(lesson.output).toBeGreaterThan(std.output);
-    expect(lesson.output).toBeLessThan(adv.output);
+    expect(lesson.output).toBeLessThanOrEqual(adv.output);
+  });
+
+  it("ücretsiz ders modeli abonenin ders modelinden ucuz", () => {
+    // Astra gibi: abone daha akıllı modeli alır. İkisi eşitlenirse ücretsiz
+    // hesabın maliyeti ~52 TL'den ~88 TL'ye çıkar (29 Eylül 2026 hesabı).
+    const free = priced.get(env.OPENAI_LESSON_FREE_MODEL)!;
+    const paid = priced.get(env.OPENAI_LESSON_MODEL)!;
+    expect(free.input).toBeLessThan(paid.input);
+    expect(free.output).toBeLessThan(paid.output);
   });
 });

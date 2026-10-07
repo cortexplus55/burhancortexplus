@@ -9,7 +9,7 @@ import {
   type QuizQuestion,
 } from "@/lib/learning/exam-quiz";
 import type { PlanNodeKind, NodeStatus } from "@/lib/learning/exam-prep-plan";
-import { nodeProgress, readinessScore } from "@/lib/learning/exam-prep-plan";
+import { nodeProgress } from "@/lib/learning/exam-prep-plan";
 
 export type AnswerEvidenceDraft = {
   topicKey: string;
@@ -660,11 +660,4 @@ export function weakOrStaleTopicKeys(
       return age >= STALE_MS;
     })
     .map((t) => t.topicKey);
-}
-
-/** Legacy weighted activity % — kept for flag-OFF UI; not exam readiness. */
-export function legacyActivityProgressPct(
-  nodes: { kind: PlanNodeKind; status: NodeStatus }[],
-): number {
-  return readinessScore(nodes);
 }

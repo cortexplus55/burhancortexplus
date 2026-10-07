@@ -8,15 +8,8 @@ import {
   sanitizeGap,
   verifyOralPrompt,
 } from "@/lib/learning/oral-review";
-import {
-  explanationConflictsWithCorrect,
-  optionReasonIssues,
-  validateOralPedagogy,
-  validateQuizPedagogy,
-  extractMisconceptions,
-} from "@/lib/learning/teaching-standards";
+import { extractMisconceptions } from "@/lib/learning/teaching-standards";
 import { isUnsupportedComparativeAbsolute } from "@/lib/learning/absolute-claims";
-import type { QuizQuestion } from "@/lib/learning/exam-quiz";
 
 describe("verifyOralPrompt", () => {
   it("rejects single-substance limiting-reagent prompts (chemistry)", () => {
@@ -165,82 +158,5 @@ describe("oral misconceptions omit prompt-as-claim", () => {
       },
     });
     expect(drafts).toEqual([]);
-  });
-});
-
-describe("quiz explanation arithmetic vs correct option", () => {
-  const q = (
-    text: string,
-    options: string[],
-    correct: string[],
-    explanation: string,
-    optionReasons?: Record<string, string>,
-  ): QuizQuestion => ({
-    text,
-    options,
-    correct,
-    multi: false,
-    explanation,
-    optionReasons,
-  });
-
-  it("rejects explanation that claims 24 g when correct is 48 g (chemistry)", () => {
-    const question = q(
-      "1 mol KClO₃ kaç gram O₂ üretir?",
-      ["32 g", "48 g", "16 g", "64 g"],
-      ["48 g"],
-      "1,5 mol = 24g oksijen çıkar.",
-    );
-    expect(explanationConflictsWithCorrect(question)).toMatch(/24/);
-    expect(
-      validateQuizPedagogy([question, question]).some((i) => i.includes("24") || i.includes("Açıklama")),
-    ).toBe(true);
-  });
-
-  it("accepts consistent physics explanation", () => {
-    const question = q(
-      "I = 2 A, R = 4 Ω iken güç?",
-      ["4 W", "8 W", "16 W", "2 W"],
-      ["16 W"],
-      "P = I² R = 4 × 4 = 16 W. 8 W, I×R ile karıştırmaktır.",
-      {
-        "4 W": "Yalnızca I² almak 4 verir.",
-        "8 W": "I×R = 8 W yanlış formüldür.",
-        "2 W": "Yalnızca akımı yazmak 2 verir.",
-      },
-    );
-    expect(explanationConflictsWithCorrect(question)).toBeNull();
-    expect(optionReasonIssues(question)).toEqual([]);
-  });
-
-  it("rejects duplicated distractor reason templates (history)", () => {
-    const question = q(
-      "Tanzimat fermanı hangi yılda ilan edildi?",
-      ["1839", "1923", "1453", "1908"],
-      ["1839"],
-      "Ferman 1839'da okundu; 1923 Cumhuriyetin ilanıdır.",
-      {
-        "1923": "1923 bu sorunun cevabı değil; tuzak: yıl karıştırmak.",
-        "1453": "1453 bu sorunun cevabı değil; tuzak: yıl karıştırmak.",
-        "1908": "1908 bu sorunun cevabı değil; tuzak: yıl karıştırmak.",
-      },
-    );
-    expect(
-      optionReasonIssues(question).some((i) => i.includes("şablon") || i.includes("tekrar")),
-    ).toBe(true);
-  });
-});
-
-describe("validateOralPedagogy uses verifyOralPrompt", () => {
-  it("flags comparative single-substance prompts", () => {
-    expect(
-      validateOralPedagogy([
-        {
-          prompt: "CO₂ tepkimesinde sınırlayıcı bileşeni nasıl belirlersiniz?",
-          rubricCriteria: ["Yöntem"],
-          expectedPoints: ["mol / katsayı"],
-        },
-      ]).some((i) => i.includes("iki taraf") || i.includes("denklem")),
-    ).toBe(true);
   });
 });

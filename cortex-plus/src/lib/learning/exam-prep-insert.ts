@@ -143,12 +143,3 @@ export async function ensurePathSkeletonNodes(service: SupabaseClient, prepId: s
     );
   }
 }
-
-export type PrepNodeRow = {
-  id: string;
-  kind: PlanNodeKind;
-  title: string;
-  day_index: number;
-  sort_order: number;
-  status: "locked" | "ready" | "done";
-};

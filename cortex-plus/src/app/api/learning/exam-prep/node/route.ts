@@ -1,13 +1,31 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { commitCredits, refundCredits, reserveCredits } from "@/lib/credits/service";
+import {
+  claimPrefetchSlot,
+  dropPrefetch,
+  nodeHasAttempts,
+  peekPrefetchedLesson,
+  PREFETCH_HEADER,
+  requestNextLessonPrefetch,
+  storePrefetchedLesson,
+  takePrefetchedLesson,
+  verifyPrefetchToken,
+} from "@/lib/learning/lesson-prefetch";
+import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
+import { corePageRun } from "@/lib/learning/core-pages";
+import { runTeacherLesson } from "@/lib/learning/teacher-lesson-run";
+import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
+import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
+import { teacherCardsLoop } from "@/lib/learning/teacher-cards";
+import { teacherOralLoop, teacherTrueFalseLoop } from "@/lib/learning/teacher-practice";
+import { runWithTeacherModel } from "@/lib/learning/teacher-engine-run";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
-import { commitCredits, refundCredits, refundStalePendingReservations } from "@/lib/credits/service";
-import { env } from "@/lib/env";
-import { completeLessonPartRepair } from "@/lib/ai/lesson-part-repair";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import {
   EMPTY_SOURCE_CONTEXT,
@@ -25,6 +43,7 @@ import {
 } from "@/lib/learning/lesson-source-resolver";
 import { recordLessonGenerationFailure } from "@/lib/learning/lesson-generation-failures";
 import {
+  prepSourceDocumentIds,
   resolvePrepSourceMode,
   shouldSearchSources,
   topicFence,
@@ -33,10 +52,8 @@ import type { PlanNodeKind } from "@/lib/learning/exam-prep-plan";
 import { PLAN_NODE_META } from "@/lib/learning/exam-prep-plan";
 import { pickPracticeNodeId, practiceHref, studyNodeOpenable, topicLabelsMatch } from "@/lib/learning/study-tools";
 import {
-  fitOralCount,
   gradeOralExam,
   isOralLength,
-  publishOralQuestions,
   stampOralQuestions,
   syllabusWeightLineFromChecklist,
   type OralExamReport,
@@ -46,8 +63,6 @@ import {
 } from "@/lib/learning/oral-exam";
 import { loadPrepChatGrounding } from "@/lib/learning/prep-chat-grounding";
 import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
-import { verifyFlashcard } from "@/lib/learning/question-verifier";
-import { trueFalseItemsSchema, TRUE_FALSE_FORMAT } from "@/lib/learning/true-false";
 import {
   contentDifficultyLine,
   parseFamiliarity,
@@ -70,32 +85,19 @@ import {
   appendLessonReviewCards,
   cardsFromLessonReviews,
   extractMisconceptions,
-  flashcardV2Schema,
   parseSessionMeta,
   scoreFlashcardsV2,
   teachingActivityForKind,
   teachingSessionContext,
   teachingStandardConstraints,
-  validateFlashcardPedagogy,
-  validateOralPedagogy,
-  validateTrueFalsePedagogy,
-  publishLessonDraft,
-  lessonPublishIssues,
-  lessonDraftForVerifier,
-  lessonHasTeachingCore,
   lessonV2Schema,
-  LESSON_V2_SCHEMA_HINT,
-  REVIEW_VARIANT_RULE,
   type LessonReviewCard,
   type LessonV2,
   type SessionTeachingMeta,
 } from "@/lib/learning/teaching-standards";
 import {
   sectionHeadings,
-  unrepresentedHeadings,
 } from "@/lib/documents/topic-title";
-import { diagramIssues, needsDiagram } from "@/lib/learning/lesson-diagram";
-import { repairLessonSurface } from "@/lib/learning/learner-fluency";
 import { scoreLessonChecks } from "@/lib/learning/lesson-claims";
 import {
   buildLessonRetryCheck,
@@ -106,29 +108,18 @@ import {
   type CheckGradeVariant,
   type LessonCheckAnswer,
 } from "@/lib/learning/lesson-play";
-import { runLessonQualityPipeline } from "@/lib/learning/lesson-quality-pipeline";
 import { isAdminUser } from "@/lib/auth/roles";
 import {
   honestReadingMinutes,
   shouldReplacePlannedMinutes,
 } from "@/lib/learning/lesson-coherence";
-import { repairLearnerLesson, scopeLessonToTopic, type LessonCheckCode } from "@/lib/learning/lesson-repair";
-import {
-  criticalTeachingFailures,
-  finishTaughtLesson,
-  LESSON_TEACH_RULE,
-} from "@/lib/learning/lesson-teach";
-import {
-  isLearnerVerificationNote,
-  stripLearnerVerificationChrome,
-} from "@/lib/learning/learner-verification-chrome";
-import { formulaMismatches, withoutMismatchedFormulas } from "@/lib/learning/formula-fidelity";
 import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
 import {
-  generatePodcastEpisode,
   loadPodcastCorpus,
   mergePodcastSource,
   parsePodcastLength,
+  PODCAST_LENGTHS,
+  DEFAULT_PODCAST_LENGTH,
   podcastScopeBrief,
   readPodcastCache,
   writePodcastCache,
@@ -136,21 +127,15 @@ import {
 } from "@/lib/learning/podcast-episode";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 import {
-  keyTermsFromTeacherNote,
   lessonDepth,
   prepLanguage,
   SOURCE_PAGE_FORMULA_RULE,
   studentLanguageLine,
   teacherNoteGroundedInSource,
-  quantityClaimGrounded,
-  unsupportedQuantities,
-  withoutUnsupportedQuantities,
   type TeachingPriority,
 } from "@/lib/learning/teacher-brain";
 import {
-  groundLearnerLesson,
   upcomingTopicsAfter,
-  groundLessonDraft,
 } from "@/lib/learning/lesson-grounding";
 import {
   recordLearningTrackingAfterComplete,
@@ -164,7 +149,7 @@ import {
   mergeAnswersForScoring,
   shouldReuseExistingStart,
 } from "@/lib/learning/attempt-lifecycle";
-import { buildLocalSessionPayload } from "@/lib/learning/exam-local-session";
+import { buildLocalSessionPayload, spacedReviewGate } from "@/lib/learning/exam-local-session";
 import {
   acceptFilledExplanations,
   buildWrittenExamReview,
@@ -231,20 +216,17 @@ const bodySchema = z.object({
   oralScope: z.enum(["topic", "all"]).optional(),
   /** Ders oluşturma merkezi, düğümün konusu dışında bir konu seçtiyse. */
   activityTopicLabel: z.string().max(400).optional(),
-  podcastLength: z.enum(["ozet", "standart", "derin"]).optional(),
+  podcastLength: z.enum(PODCAST_LENGTHS).optional(),
+  /** Sunucunun kendi isteği: sıradaki dersi kredi düşmeden önceden yaz. */
+  prefetch: z.boolean().optional(),
 });
 
-const tfSchema = z.object({
-  items: trueFalseItemsSchema,
-});
-
-const cardsSchema = z.object({
-  cards: z.array(z.object({ front: z.string().min(1), back: z.string().min(1) })).min(4).max(12),
-});
-
-const oralSchema = z.object({
-  questions: z.array(z.object({ prompt: z.string().min(8), hint: z.string().optional() })).min(3).max(8),
-});
+/** Öğretmen test motorunun yazdığı düğümler (2 Ekim 2026). */
+const TEACHER_QUIZ_KINDS = new Set<PlanNodeKind>(["quiz", "gaps"]);
+/** Öğretmen motorlarının konunun çekirdek sayfalarını okuduğu düğümler. */
+/** Öğretmen kart motorunun yazdığı düğümler (2 Ekim 2026). */
+const TEACHER_CARD_KINDS = new Set<PlanNodeKind>(["flashcards", "spaced"]);
+const TEACHER_PAGE_KINDS = new Set<PlanNodeKind>([...TEACHER_QUIZ_KINDS, ...TEACHER_CARD_KINDS, "podcast", "true_false"]);
 
 function actionForKind(kind: PlanNodeKind) {
   if (kind === "flashcards" || kind === "spaced") return "FLASHCARD_GENERATE" as const;
@@ -417,14 +399,55 @@ async function writtenReviewForPayload(
 }
 
 export async function POST(request: Request) {
+  const origin = new URL(request.url).origin;
+  // Sıradaki dersin önceden yazımı: imzalı iç istek. Hemen kabul edilir,
+  // ders yanıttan sonra yazılır — çağıran beklemez, bağlantısı kopsa da
+  // yazım sürer.
+  const prefetchHeader = request.headers.get(PREFETCH_HEADER);
+  if (prefetchHeader !== null) {
+    const caller = verifyPrefetchToken(prefetchHeader);
+    if (!caller) return errorResponse(401, "AUTH_REQUIRED");
+    const body = await request.json().catch(() => null);
+    after(async () => {
+      const result = await handleNodeRequest(
+        { userId: caller.userId, service: createServiceClient() },
+        body,
+        { origin, prefetchNodeId: caller.nodeId },
+      ).catch((error: unknown) => {
+        console.error("lesson_prefetch_failed", {
+          cause: error instanceof Error ? error.message.slice(0, 160) : "unknown",
+        });
+        return null;
+      });
+      if (result && result.status >= 400) {
+        console.error("lesson_prefetch_failed", { status: result.status });
+      }
+    });
+    return NextResponse.json({ ok: true, accepted: true }, { status: 202 });
+  }
+
   const guard = await withUser(request, { scope: "exam-prep-node", limit: 16 });
   if (!guard.ok) return guard.response;
-  const { userId, service } = guard.ctx;
+  return handleNodeRequest(guard.ctx, await request.json(), { origin, prefetchNodeId: null });
+}
 
-  const parsed = bodySchema.safeParse(await request.json());
+async function handleNodeRequest(
+  ctx: { userId: string; service: SupabaseClient },
+  rawBody: unknown,
+  options: { origin: string; prefetchNodeId: string | null },
+): Promise<NextResponse> {
+  const { userId, service } = ctx;
+
+  const parsed = bodySchema.safeParse(rawBody);
   if (!parsed.success) return errorResponse(400, "invalid_input");
 
   const { prepId, nodeId, action } = parsed.data;
+  // Önceden yazım yalnız imzalı iç istekten, imzadaki düğüm için.
+  const prefetch = options.prefetchNodeId !== null;
+  if (prefetch && (parsed.data.prefetch !== true || options.prefetchNodeId !== nodeId || action !== "start")) {
+    return errorResponse(400, "invalid_input");
+  }
+  if (!prefetch && parsed.data.prefetch) return errorResponse(400, "invalid_input");
   const teachingV2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
 
   const { data: prep } = await service
@@ -505,6 +528,16 @@ export async function POST(request: Request) {
   const title = PLAN_NODE_META[kind]?.setupLabel ?? node.title;
   const lessonReviewCards =
     kind === "spaced" ? await loadLessonReviewCards(service, userId, prepId) : [];
+
+  // Önceden yazım yalnız açılmamış ders düğümü için; öğrenci açtıysa gerek yok.
+  if (prefetch) {
+    if (kind !== "lesson" || !teachingV2 || node.status === "done") {
+      return errorResponse(400, "invalid_input");
+    }
+    if (await nodeHasAttempts(service, nodeId)) {
+      return NextResponse.json({ ok: true, skipped: "opened" });
+    }
+  }
 
   if (action === "review") {
     if (kind !== "written_exam") return errorResponse(400, "invalid_input");
@@ -1080,19 +1113,29 @@ export async function POST(request: Request) {
   }
 
   let practiceTopics: string[] | undefined;
-  if (kind === "focused" || kind === "final_check" || kind === "readiness") {
+  // Bilgi boşlukları ve Tekrar kilitliyse (Astra, 1 Ekim 2026) ücretsiz
+  // "kilitli" cevabı döner. Bitmiş düğüm yeniden açılırken kilit sorulmaz.
+  const lockable = (kind === "gaps" || kind === "spaced") && node.status !== "done";
+  if (kind === "focused" || kind === "final_check" || kind === "readiness" || lockable) {
     let local: Awaited<ReturnType<typeof buildLocalSessionPayload>>;
     try {
-      local = await buildLocalSessionPayload(service, {
-        userId,
-        prepId,
-        kind,
-        prepTitle: prep.title ?? "Hazırlık",
-        targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
-        learningPreferences: prep.learning_preferences,
-      });
+      local =
+        kind === "spaced"
+          ? await spacedReviewGate(service, prepId)
+          : await buildLocalSessionPayload(service, {
+              userId,
+              prepId,
+              kind: kind as "focused" | "final_check" | "readiness" | "gaps",
+              prepTitle: prep.title ?? "Hazırlık",
+              targetScore: typeof prep.target_score === "number" ? prep.target_score : null,
+              learningPreferences: prep.learning_preferences,
+            });
     } catch {
       return errorResponse(503, "generation_failed");
+    }
+    if (local.action === "serve" && local.payload.locked === true) {
+      // Kayıt açılmaz: kilit kalkınca düğüm temiz başlasın.
+      return NextResponse.json({ ok: true, kind, title, topicLabel, voiceMode: false, payload: local.payload });
     }
     if (local.action === "serve") {
       const questions = (local.payload.questions as unknown[] | undefined) ?? [];
@@ -1153,6 +1196,121 @@ export async function POST(request: Request) {
     return errorResponse(402, "premium_required");
   }
   const voiceSession = voiceMode && (kind === "qa" || kind === "oral");
+
+  if (prefetch) {
+    // Kredisi yetmeyen öğrenciye açamayacağı dersi yazmıyoruz.
+    const { data: rule } = await service
+      .from("credit_rules")
+      .select("credit_cost")
+      .eq("action_code", actionForKind(kind))
+      .eq("active", true)
+      .maybeSingle();
+    const wallet = await readWalletBalance(service, userId);
+    if (typeof rule?.credit_cost === "number" && (wallet.balance ?? 0) < rule.credit_cost) {
+      return NextResponse.json({ ok: true, skipped: "credits" });
+    }
+  }
+
+  // Önceden yazılmış ders: beklemeden gelir, kredi şimdi düşer.
+  if (
+    kind === "lesson" &&
+    teachingV2 &&
+    !voiceSession &&
+    !prefetch &&
+    (await peekPrefetchedLesson(service, { userId, nodeId, familiarity }))
+  ) {
+    const requestId = clientRequestId ?? crypto.randomUUID();
+    const reservation = await reserveCredits(
+      service,
+      userId,
+      actionForKind(kind),
+      `${creditIdempotencyKeyForStart({ userId, nodeId, clientRequestId: requestId })}_prefetched`,
+    );
+    if (!reservation.ok) {
+      return reservation.reason === "insufficient_credits"
+        ? errorResponse(402, "insufficient_credits")
+        : errorResponse(409, "generation_in_progress");
+    }
+    const taken = await takePrefetchedLesson(service, { userId, nodeId });
+    if (!taken) {
+      // Aynı anda başka bir açılış aldı; bu istek dersi kendisi yazar.
+      await refundCredits(service, reservation.reservationId).catch(() => undefined);
+    } else {
+      const { data: readyAttempt, error: readyErr } = await service
+        .from("exam_prep_node_attempts")
+        .insert({
+          node_id: nodeId,
+          exam_prep_id: prepId,
+          user_id: userId,
+          topic_id: topic?.id ?? taken.topicId,
+          difficulty,
+          voice_mode: false,
+          payload: taken.payload,
+          total: countTotal(kind, taken.payload),
+          status: "active",
+          generation_id: crypto.randomUUID(),
+          client_request_id: requestId,
+          familiarity,
+          mood,
+          content_version: 1,
+          updated_at: new Date().toISOString(),
+        })
+        .select(
+          "id, status, payload, answers, answer_meta, score, total, generation_id, client_request_id, complete_request_id, content_version, updated_at, difficulty, voice_mode, started_at, expires_at",
+        )
+        .single();
+      if (readyErr || !readyAttempt) {
+        await refundCredits(service, reservation.reservationId).catch(() => undefined);
+        return errorResponse(500, "generation_failed", { refunded: true });
+      }
+      await commitCredits(service, reservation.reservationId).catch(() => undefined);
+      await upsertGenerationJob(service, {
+        userId,
+        prepId,
+        nodeId,
+        attemptId: readyAttempt.id as string,
+        clientRequestId: requestId,
+        generationId: readyAttempt.generation_id as string,
+        status: "ready",
+      });
+      const topicId = topic?.id ?? taken.topicId;
+      if (topicId) {
+        await saveTopicLesson(service, { prepId, topicId, payload: taken.payload });
+        await service.from("exam_prep_topics").update({ familiarity }).eq("id", topicId);
+      }
+      await service.from("study_session_moods").insert({
+        user_id: userId,
+        exam_prep_id: prepId,
+        node_id: nodeId,
+        mood,
+      });
+      if (node.status !== "done") {
+        await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
+      }
+      console.info("lesson_prefetch_served", { nodeId });
+      after(() =>
+        requestNextLessonPrefetch(service, {
+          origin: options.origin,
+          userId,
+          prepId,
+          sortOrder: node.sort_order as number,
+          topicId: sessionMeta?.topicId ?? null,
+          familiarity,
+          mood,
+        }),
+      );
+      return NextResponse.json({
+        ...attemptStartResponse(readyAttempt, {
+          kind,
+          title,
+          topicLabel,
+          publicPayload: await publicPayloadForUser(service, userId, taken.payload, lessonReviewCards, kind, prepLanguage(prep.learning_preferences)),
+          resumed: false,
+        }),
+        ...(await readWalletBalance(service, userId)),
+      });
+    }
+  }
 
   // Ders öğrencinin kendi kaynağından üretilsin. Hazırlığa bağlı bir belge
   // varsa yalnızca onun içinde, yoksa kullanıcının tüm belgelerinde aranıyor.
@@ -1222,6 +1380,11 @@ export async function POST(request: Request) {
 
   let source;
   let sourceTrace: SourceTrace | null = null;
+  // Öğretmen motoru: dersin belgesi ve konunun kendi sayfaları.
+  let lessonCoreDocumentId: string | null = null;
+  let lessonCorePages: number[] = [];
+  // Belgesiz hazırlık dersi: öğretmen motoru doğruluk kuralıyla yazar.
+  let lessonTopicOnly = false;
   try {
     const mappedPages = topicWiden ? undefined : sessionMeta?.sourcePages;
     const pageDocumentIds = [
@@ -1231,8 +1394,31 @@ export async function POST(request: Request) {
     ];
     const sourceQuery = `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim();
 
-    // Ders: birleşik çözücü. Sonraki adım önceki kaynağı silemez.
-    if (kind === "lesson" && teachingV2 && !voiceSession) {
+    /*
+      Belgesiz hazırlık ("Belgem yok, konudan çalışayım"). Çözücü belge
+      listesi boşken her zaman "no_prep_documents" dönüyor; ders bu yüzden
+      HİÇ üretilmiyordu (29 Eylül 2026, canlıda "Bu hazırlığa bağlı okunabilir
+      belge bulunamadı"). Oysa aşağıdaki üretim çağrısı bu hâli bekliyor:
+      kaynak şartı kapalı, yerine konu çiti (topicFence) veriliyor — tanışma
+      testi ve eski ders ucu da aynı yoldan çalışıyor. Belgesiz derste
+      kaynak aranmaz (prep-source.ts), boş bağlamla konu çitine geçilir.
+    */
+    const hasPrepDocuments =
+      Boolean(topicDocumentId) ||
+      prepDocs.length > 0 ||
+      prepSourceDocumentIds({
+        documentId: prepSource.document_id as string | null,
+        sourceDocumentIds: prepSource.source_document_ids as string[] | null,
+      }).length > 0;
+    const topicOnlyLesson =
+      kind === "lesson" && teachingV2 && !voiceSession && sourceMode === "topic_only" && !hasPrepDocuments;
+
+    if (topicOnlyLesson) {
+      lessonTopicOnly = true;
+      source = EMPTY_SOURCE_CONTEXT;
+    } else if (kind === "lesson" && teachingV2 && !voiceSession) {
+      lessonCoreDocumentId = topicDocumentId ?? (prepSource.document_id as string | null) ?? prepDocs[0] ?? null;
+      // Ders: birleşik çözücü. Sonraki adım önceki kaynağı silemez.
       const resolved = await resolveLessonSource(service, {
         userId,
         prepId,
@@ -1249,6 +1435,13 @@ export async function POST(request: Request) {
         query: sourceQuery,
       });
       sourceTrace = resolved.trace;
+      // Öğretmen motoru dersi yalnız konunun kendi sayfalarından yazar;
+      // aşağıdaki zenginleştirmenin belgenin başka yerlerinden eklediği
+      // parçalar (KPSS dersi s.5'ten s.28'e dağılmıştı) motora gitmez.
+      lessonCorePages =
+        !topicWiden && sessionMeta?.sourcePages?.length
+          ? sessionMeta.sourcePages
+          : pagesMarkedInSource(resolved.context?.block ?? "");
       if (resolved.unavailable) {
         console.error("node_source_unavailable", {
           kind,
@@ -1361,6 +1554,40 @@ export async function POST(request: Request) {
     });
   }
 
+  // Öğretmen test motoru: konu testi de konunun kendi sayfalarından yazılır;
+  // belgesiz hazırlıkta konunun yerleşik bilgisinden.
+  if (TEACHER_PAGE_KINDS.has(kind) && teachingV2 && !voiceSession && !lessonCoreDocumentId) {
+    const documentId = topicDocumentId ?? (prepSource.document_id as string | null) ?? prepDocs[0] ?? null;
+    if (documentId) {
+      lessonCoreDocumentId = documentId;
+      if (!topicWiden && sessionMeta?.sourcePages?.length) {
+        lessonCorePages = sessionMeta.sourcePages;
+      } else {
+        // Sayfa listesi yoksa dersin çözücüsü: test ve podcast dersle aynı
+        // sayfalardan yazılsın (KPSS test düğümlerinde sourcePages boştu).
+        const resolved = await resolveLessonSource(service, {
+          userId,
+          prepId,
+          topicId: topic?.id ?? null,
+          topicLabel,
+          sessionMeta,
+          prepDocs,
+          primaryDocumentId: (prepSource.document_id as string | null) ?? null,
+          topicDocumentId,
+          topicNodeId,
+          sourceRefs: topicSourceRefs,
+          sourceDocumentIds: prepSource.source_document_ids,
+          sourceBoundaryMode,
+          query: `${prep.title ?? ""} ${topicLabel} ${sessionMeta?.objective ?? ""}`.trim(),
+        }).catch(() => null);
+        const lessonPages = pagesMarkedInSource(resolved?.context?.block ?? "");
+        lessonCorePages = lessonPages.length ? lessonPages : pagesMarkedInSource(source.block);
+      }
+    } else if (sourceMode === "topic_only") {
+      lessonTopicOnly = true;
+    }
+  }
+
   // Podcast, sayfa kaynağı duruyorsa hazırlıktaki diğer belgelere de bakar.
   // Sayfa listesi okunamadıysa buraya gelinmez; o durumda arama yedeği yok.
   let podcastSyllabus = "";
@@ -1407,7 +1634,19 @@ export async function POST(request: Request) {
   let creatingAttemptId: string | undefined;
   let creditKey: string | undefined;
 
-  if (teachingV2) {
+  // Önceden yazım öğrenci kaydı açmaz ve kredi ayırmaz; düğümü sahiplenir.
+  if (prefetch) {
+    const claimed = await claimPrefetchSlot(service, {
+      nodeId,
+      prepId,
+      userId,
+      topicId: topic?.id ?? null,
+      familiarity,
+    });
+    if (!claimed) return NextResponse.json({ ok: true, skipped: "busy" });
+  }
+
+  if (teachingV2 && !prefetch) {
     if (!clientRequestId) {
       clientRequestId = crypto.randomUUID();
     }
@@ -1552,6 +1791,12 @@ export async function POST(request: Request) {
           familiarity,
           mood,
           sourceBlock: source.block,
+          lessonCore:
+            (kind === "lesson" || TEACHER_PAGE_KINDS.has(kind)) && lessonCoreDocumentId && lessonCorePages.length
+              ? { documentId: lessonCoreDocumentId, pages: lessonCorePages }
+              : null,
+          lessonTopicOnly,
+          repetitiveSparseEvidence: source.repetitiveSparseEvidence,
           sourceFormulas: source.formulas ?? [],
           teachingV2,
           sessionMeta: sessionMeta
@@ -1575,6 +1820,7 @@ export async function POST(request: Request) {
                 })
               : "",
           idempotencyKey: creditKey,
+          charge: !prefetch,
           // Dersin bölümleri kaynağın kendi alt başlıkları olsun.
           sectionBackbone:
             kind === "lesson" && teachingV2
@@ -1676,6 +1922,7 @@ export async function POST(request: Request) {
         errorCode: code,
       });
     }
+    if (prefetch) await dropPrefetch(service, nodeId);
     if (error instanceof NodeGenerationError) {
       const admin = await isAdminUser(service, userId).catch(() => false);
       return errorResponse(error.status, error.code, {
@@ -1702,6 +1949,12 @@ export async function POST(request: Request) {
         .eq("id", nodeId)
         .then(undefined, () => undefined);
     }
+  }
+
+  if (prefetch) {
+    const stored = await storePrefetchedLesson(service, nodeId, payload);
+    console.info("lesson_prefetch_ready", { nodeId, stored });
+    return NextResponse.json({ ok: true, prefetched: stored });
   }
 
   if (teachingV2 && creatingAttemptId && generationId && clientRequestId) {
@@ -1752,6 +2005,21 @@ export async function POST(request: Request) {
 
     if (node.status !== "done") {
       await service.from("exam_prep_nodes").update({ status: "ready" }).eq("id", nodeId);
+    }
+
+    if (kind === "lesson" && !voiceSession) {
+      // Öğrenci bu dersi okurken sıradaki ders yazılsın.
+      after(() =>
+        requestNextLessonPrefetch(service, {
+          origin: options.origin,
+          userId,
+          prepId,
+          sortOrder: node.sort_order as number,
+          topicId: sessionMeta?.topicId ?? null,
+          familiarity,
+          mood,
+        }),
+      );
     }
 
     return NextResponse.json({
@@ -1861,50 +2129,6 @@ class NodeGenerationError extends Error {
 }
 
 /**
- * Formül uyuşmazlığı ve kaynakta olmayan sayı dersi düşürmez.
- * Cümle çıkarılır; bölümün metni kalmazsa bölüm de çıkar.
- */
-function softenLearnerField(
-  text: string,
-  formulas: string[],
-  source: string,
-  checkQuantities: boolean,
-): { text: string; reasons: string[] } {
-  const reasons: string[] = [];
-  const hadFormula = formulaMismatches([text], formulas).length > 0;
-  let next = hadFormula ? withoutMismatchedFormulas(text, formulas) : text;
-  if (hadFormula && formulaMismatches([next], formulas).length) next = "";
-  if (hadFormula && next.trim() !== text.trim()) reasons.push("formula_mismatch_dropped");
-  if (checkQuantities && next.trim()) {
-    const before = next;
-    // Her zaman cümle cümle: alan düzeyinde tek doğru eşitlik tüm metni kurtarmaz.
-    const cleaned = withoutUnsupportedQuantities(before, source);
-    next = cleaned.trim() && quantityClaimGrounded(cleaned, source) ? cleaned : "";
-    if (next.trim() !== before.trim()) reasons.push("quantity_dropped");
-  }
-  return { text: next.trim(), reasons };
-}
-
-function stripLessonVerificationChrome(lesson: LessonV2): LessonV2 {
-  const sections = lesson.sections.map((section) => {
-    const next = {
-      ...section,
-      body: stripLearnerVerificationChrome(section.body),
-      heading: section.heading,
-    };
-    if (next.note && isLearnerVerificationNote(next.note)) delete next.note;
-    return next;
-  });
-  const overview = lesson.overview
-    ? stripLearnerVerificationChrome(lesson.overview)
-    : undefined;
-  const cleaned: LessonV2 = { ...lesson, sections };
-  if (overview) cleaned.overview = overview;
-  else delete cleaned.overview;
-  return cleaned;
-}
-
-/**
  * Dersin bölüm omurgası: kaynağın o sayfalardaki kendi alt başlıkları.
  *
  * Okunamazsa boş dönüyor ve bölümleri model seçmeye devam ediyor —
@@ -1957,6 +2181,11 @@ async function generateNodePayload(input: {
   mood: Mood;
   /** Öğrencinin kendi kaynağından alıntılar; kaynak yoksa boş. */
   sourceBlock: string;
+  /** Öğretmen motorunun okuyacağı belge ve konunun kendi sayfaları. */
+  lessonCore?: { documentId: string; pages: number[] } | null;
+  /** Belgesiz hazırlık dersi (topic_only, hazırlıkta belge yok). */
+  lessonTopicOnly?: boolean;
+  repetitiveSparseEvidence?: boolean;
   /**
    * Belge yokken konunun çiti. Sohbetteki "belgede yoksa cevap verme"
    * kuralının belgesiz karşılığı: model konu başlığının dışına çıkamaz.
@@ -1969,6 +2198,8 @@ async function generateNodePayload(input: {
   requireSourceSupport?: boolean;
   /** Stage 8: stable key so double-click / retry does not double-charge. */
   idempotencyKey?: string;
+  /** false: önceden yazılan ders; kredi öğrenci açınca düşer. */
+  charge?: boolean;
   learningPreferences?: unknown;
   /**
    * Aynı konunun doğrulanmış dersi — varsa podcast bunun sesli hâli olur.
@@ -2019,533 +2250,24 @@ async function generateNodePayload(input: {
     )} ${sessionCtx} ${standards}${prefsHint}${note ? `\n${note}` : ""}\n${SOURCE_PAGE_FORMULA_RULE}${input.sourceBlock}${input.topicFenceBlock ?? ""}`;
   const ctx = contextFor(teacherNote);
 
-  const v2Common = input.teachingV2
-    ? {
-        validationProfile: "v2" as const,
-        /**
-         * İKİ DENEME. Üçe çıkarıldı ve GERİ ALINDI.
-         *
-         * Geri bildirim anlamlı hâle gelince üçüncü denemenin de değerli
-         * olacağını düşündüm; ölçmeden yaptığım tek değişiklik buydu ve
-         * canlıda karşılığı kötü oldu. Üçüncü tur toplam üretim süresini
-         * 107 saniyeye çıkardı ve arka arkaya iki üretim, daha önce
-         * sağlayıcı zaman aşımı olduğu teşhis edilmiş olan
-         * `safe_outcome/generation_failed` ile düştü — yani öğrenci ders
-         * alamadı.
-         *
-         * Kazanç fazladan denemede değil, denemeye ne yanlış olduğunun
-         * söylenmesindeydi. Süre bütçesi gerçek bir sınır: iki tur güvenli
-         * kalıyor.
-         */
-        maxDraftAttempts: depth.maxDraftAttempts,
-        allowIndependentAccept: true,
-        activityKind: activity,
-        idempotencyKey: input.idempotencyKey,
-      }
-    : { idempotencyKey: input.idempotencyKey };
+  /*
+    Bütün içerik öğretmen motorlarından (2 Ekim 2026). Eski taslak + onarım
+    zinciri 3 Ekim 2026'da silindi: çekirdek sayfası bulunamayan belgeli
+    içerik yazılmaz — öğrenci belgesinin dışına çıkan bir ders görmez ve
+    kredi düşmez (öğretmen motoru krediyi kendi ayırır).
+  */
+  const core = input.lessonCore ?? null;
+  const pagesReady = Boolean(core || input.lessonTopicOnly);
+  const noPages = () => new NodeGenerationError(503, "source_unavailable", ["lesson_core_missing"]);
 
-  const sourceIndependent = {
-    sourceExcerpt: input.sourceBlock,
-    requireSourceSupport: Boolean(input.requireSourceSupport),
-    sourcePages: input.sessionMeta?.sourcePages,
-  };
-
-  // Planın öğrenme adımı. Podcast'ten devraldı: metin geri dönüp
-  // okunabiliyor ve doğrulayıcısı (validateLessonPedagogy) bölüm
-  // başlığından çözümlü örneğin her adımına kadar kontrol ediyor.
   if (input.kind === "lesson") {
-    // Önceki hard-kill'den kalan pending rezervasyonları (aynı kullanıcı).
-    // Allowlist + kullanıcı cooldown service içinde; DOCUMENT_PAGE_PROCESS dokunulmaz.
-    await refundStalePendingReservations(input.service, {
-      userId: input.userId,
-      olderThanMs: 10 * 60_000,
-      limit: 8,
-    }).catch(() => 0);
-    // Pedagoji kontrolleri hiçbir taslağı geçirmezse ders hiç üretilmiyor
-    // ve öğrencinin o konuda okuyacak bir şeyi kalmıyor — bugün iki kez
-    // olan buydu. Şeması geçerli son taslak saklanıyor: kusurlu bir ders,
-    // dersin hiç olmamasından iyi.
-    //
-    // Yedek "son" taslağı değil "en iyi" taslağı tutuyor. Konu haritasında
-    // aynı hatayı yapmıştık: son taslak çoğu zaman en kötüsüydü, çünkü
-    // model her turda biraz daha kısaltıyordu. Ölçü: kaynaktan gelen
-    // bölümlerden kaçının karşılıksız kaldığı.
-    let lastValidLesson: LessonV2 | null = null;
-    let lastValidMissing = Number.POSITIVE_INFINITY;
-    let lastParseIssues: string[] = [];
-    let degradeReasons: string[] = [];
-    const backbone = input.sectionBackbone ?? [];
-    // Omurga tek başlıksa dayatmıyoruz: tek bölümlük ders, dersin kendisi
-    // olmaz. İki ve üzeri gerçek bir iskelettir.
-    const useBackbone = backbone.length >= 2;
-    // Kaynak kaç alt başlık veriyorsa o kadar bölüm. Dar konuda iki yeter;
-    // sayıyı doldurmak için üçüncü kavram uydurulmaz.
-    const minSections = useBackbone ? Math.max(2, backbone.length) : 2;
-    const backbonePrompt = !useBackbone
-      ? ""
-      : backbone.length >= 3
-        ? ` BÖLÜMLER KAYNAĞIN KENDİ ALT BAŞLIKLARI: sırayla ${backbone
-            .map((heading, i) => `${i + 1}) ${heading}`)
-            .join(" ")}. Bu başlıkları kullan; birini atlama, kendinden yeni bölüm ekleme.`
-        : ` Kaynağın alt başlıkları: ${backbone.join(", ")}. Bu başlıkları kullan; kaynakta olmayan yeni kavram bölümü ekleme.`;
-    // Çizim "isteğe bağlı" kaldığı sürece model hiç çizmiyor.
-    const keyTerms = [...keyTermsFromTeacherNote(teacherNote), ...backbone];
-    const wantsDiagram = needsDiagram(input.topicLabel, ...backbone);
-    // Soyut bir "çizim koy" talimatını model atlıyordu; somut bir örnek
-    // atlanmıyor. Ama örnek de aynen kopyalanıyor: canlıda zemin dersine
-    // örnekteki kutu "Kili temsil eder" etiketiyle olduğu gibi girdi. O
-    // yüzden örnek artık BİÇİMİ gösteriyor, çizimin kendisini değil, ve
-    // istenen şey tek cümlede duruyor: parçaların ADI yazılacak.
-    const diagramPrompt = wantsDiagram
-      ? " BU KONU ŞEKİLLE ANLAŞILIYOR: bir bölüme diagram KOY, atlama. " +
-        "Çizimin işi parçaları ADLANDIRMAK: eksenin, bölgenin, katmanın " +
-        "kendi adı yazılsın — en az iki etiket, en az iki şekil. " +
-        "Etiket başlığı tekrarlamasın (çemberin yanına 'Daire' yazmak " +
-        "çizim değildir; 'σ' ve 'τ' yazmak çizimdir). " +
-        'Biçim: {"caption":"...","shapes":[{"kind":"line","x1":20,"y1":170,' +
-        '"x2":300,"y2":170,"arrow":true},{"kind":"text","x":300,"y":182,' +
-        '"text":"...","anchor":"end"}]} — koordinatları kendi çizimine göre seç.'
-      : "";
-    const upcomingPrompt = !Array.isArray(input.upcomingTopics)
-      ? ""
-      : input.upcomingTopics.length
-        ? ` SIRADA NE VAR yalnızca şu sonraki konu başlıkları: ${input.upcomingTopics.join(" | ")}. Başka konu uydurma.`
-        : " Bu konudan sonra listede konu yok; nextFocus yazma.";
-    /**
-     * Canlıda 110 saniye taslak, ileri denetim ve iddia turunun art arda
-     * gitmesinden geliyordu. Temiz taslak ileri denetimi açmaz. Her ders
-     * için ucuz modelde kaynağa karşı bir iddia denetimi yine çalışır.
-     * Onarım yalnız o denetim ya da kapı bir bozukluk işaretlerse açılır.
-     * `lesson_model_calls` draftMs, reviewMs, repairMs ve verifyMs yazar.
-     */
-    let lessonModelCalls = 0;
-    let draftMs = 0;
-    let reviewMs = 0;
-    const draftBudgetStarted = Date.now();
-    /** 300 sn fonksiyon tavanı — yeni deneme/onarım ~200 sn sonra başlatılmaz. */
-    const DRAFT_DEADLINE_MS = 200_000;
-    const pastDeadline = () => Date.now() - draftBudgetStarted >= DRAFT_DEADLINE_MS;
-    const lessonDraftAttempts = Math.max(2, depth.maxDraftAttempts);
-    const requestLesson = (note: string, retried: boolean, attempts: number) =>
-      generateJson({
-      service: input.service,
-      userId: input.userId,
-      actionCode: actionForKind(input.kind),
-      isPremium: input.isPremium,
-      difficulty: depth.difficulty,
-      modelOverride: env.OPENAI_LESSON_MODEL,
-      ...v2Common,
-      // depth.maxDraftAttempts (≥2): geri bildirim ikinci taslağa gider.
-      maxDraftAttempts: attempts,
-      deadlineAt: draftBudgetStarted + DRAFT_DEADLINE_MS,
-      verificationMode: "schema",
-      deferCommit: true,
-      idempotencyKey:
-        retried && input.idempotencyKey
-          ? `${input.idempotencyKey}:no-brief`
-          : input.idempotencyKey,
-      allowIndependentAccept: false,
-      trustIndependent: true,
-      reviewDraft: (draft) => {
-        const published = publishLessonDraft(draft, { keyTerms });
-        const scoped = published
-          ? JSON.stringify(scopeLessonToTopic(published, input.sourceBlock, input.topicLabel))
-          : draft;
-        return lessonDraftForVerifier(groundLessonDraft(scoped, input.sourceBlock), keyTerms);
-      },
-      buildIndependent: (_c, parsed) => ({
-        pedagogyIssues: lessonPublishIssues(parsed, { minSections, keyTerms }),
-        ...sourceIndependent,
-      }),
-      schemaHint:
-        LESSON_V2_SCHEMA_HINT +
-        " note isteğe bağlı. " +
-        (wantsDiagram
-          ? "diagram ZORUNLU: en az bir bölüme koy. "
-          : "diagram isteğe bağlı ve YALNIZCA şekille anlaşılan konular için: " +
-            "konum, yön, oran ya da parça-bütün ilişkisi çizilmeden anlaşılmıyorsa. ") +
-        "Çizim alanı 320x200. Şekiller: {kind:\"rect\",x,y,w,h}, " +
-        "{kind:\"circle\",cx,cy,r}, {kind:\"line\",x1,y1,x2,y2,arrow?,dashed?}, " +
-        "{kind:\"text\",x,y,text,anchor?}. Renk seçme; tone/fill/stroke yalnızca " +
-        "ink, muted, accent, surface, line olabilir. Her çizimde en az bir etiket " +
-        "ve bir caption olsun. Metinle anlaşılan konuya çizim koyma.",
-      verificationContext: `${contextFor(note)}${backbonePrompt}${diagramPrompt}${upcomingPrompt} ${LESSON_TEACH_RULE} Bu konunun dersini yaz.`,
-      userPrompt: `${contextFor(note)}${backbonePrompt}${diagramPrompt}${upcomingPrompt} ${LESSON_TEACH_RULE} Bu konunun dersini yaz. ${REVIEW_VARIANT_RULE}`,
-      // Bu tur neden reddedildi — modele aynen iletiliyor. Rota kendi
-      // kurallarıyla da reddediyor; sebebini söylemezse yeniden üretim
-      // "JSON şeman bozuk" gibi yanlış bir yönlendirmeyle gidiyordu.
-      describeParseFailure: () => lastParseIssues,
-      parse: (raw) => {
-        lastParseIssues = [];
-        degradeReasons = [];
-        const published = publishLessonDraft(raw, { keyTerms });
-        if (!published) return null;
-        const scoped = scopeLessonToTopic(published, input.sourceBlock, input.topicLabel);
-        const grounded = groundLearnerLesson(
-          scoped,
-          input.sourceBlock,
-          Array.isArray(input.upcomingTopics) ? { upcomingTopics: input.upcomingTopics } : {},
-        );
-        if (grounded.removed.length) {
-          console.error("removed_for_source", { removed: grounded.removed });
-        }
-        const raw2 = grounded.lesson as LessonV2;
-        if (!lessonHasTeachingCore(raw2)) {
-          lastParseIssues = ["Kaynakla bağlanamayan parçalar çıktıktan sonra öğreten bölüm kalmadı."];
-          return null;
-        }
-        /**
-         * ÖNCE TEMİZLE, SONRA DOĞRULA.
-         *
-         * Şablon başlıklarını ayıklamak taslağı çoğu zaman kusursuz hâle
-         * getiriyor — ama ayıklama doğrulamadan SONRA yapıldığı için kimse
-         * temizlenmiş hâle bakmıyordu. Canlıda olan tam buydu: "Zeminde Su
-         * Akışı" dersi reddedildi diye kaydedildi, oysa öğrenciye giden
-         * temizlenmiş hâli bütün kuralları geçiyordu. Ders iyiydi, kayıt
-         * yanlıştı.
-         *
-         * Sıra düzelince "yedek" de anlamını değiştiriyor: artık kusurlu
-         * bir taslağı saklamıyor, TAMAMEN GEÇEN en iyi taslağı saklıyor.
-         * Hiçbiri geçmezse ders yayına çıkmaz.
-         */
-        const parsed = repairLessonSurface(raw2);
-        const pedagoji = lessonPublishIssues(parsed, { minSections, keyTerms });
-        if (pedagoji.length) {
-          lastParseIssues = pedagoji;
-          return null;
-        }
-        /**
-         * Formül uyuşmazlığı ve kaynakta olmayan sayı dersi düşürmez.
-         * Cümle silinir. Öğreten bölüm kalırsa ders yayına çıkar.
-         * Boussinesq gibi yapısal katsayı hâlâ silinir; sayısal örnekle
-         * sembolik bağıntı (`v = v_f + x v_fg`) uyuşmaz sayılmaz.
-         */
-        const reasons: string[] = [];
-        const formulas = input.sourceFormulas ?? [];
-        const checkQuantities = Boolean(
-          input.sourceBlock && !input.sourceBlock.includes("kısaltıldı"),
-        );
-        const take = (text: string) => {
-          const softened = softenLearnerField(text, formulas, input.sourceBlock, checkQuantities);
-          for (const reason of softened.reasons) {
-            if (!reasons.includes(reason)) reasons.push(reason);
-          }
-          return softened.text;
-        };
-        const overview = take(parsed.overview ?? "");
-        const sections = parsed.sections.flatMap((section) => {
-          const body = take(section.body);
-          if (body.length < 20) return [];
-          // Öğrenciye doğrulama/kaynak meta notu gösterme.
-          const cleaned = { ...section, body };
-          if (cleaned.note && isLearnerVerificationNote(cleaned.note)) {
-            delete cleaned.note;
-          }
-          return [cleaned];
-        });
-        const lesson: LessonV2 = { ...parsed, sections };
-        if (overview) lesson.overview = stripLearnerVerificationChrome(overview);
-        else delete lesson.overview;
-        if (parsed.example) {
-          const solution = take(parsed.example.solution);
-          if (solution.length >= 8) lesson.example = { ...parsed.example, solution };
-          else delete lesson.example;
-        }
-        if (!lessonHasTeachingCore(lesson)) {
-          // İnce ders yayınlanmaz / ücretlendirilmez — iade ile düş.
-          const onlyQuantity = reasons.includes("quantity_dropped") && reasons.every(
-            (reason) => reason === "quantity_dropped",
-          );
-          lastParseIssues = [
-            onlyQuantity
-              ? "Kaynakta olmayan nicelik çıktıktan sonra öğreten bölüm kalmadı. Hesap adımlarını kaynak sayılarından doğru türet."
-              : "Kaynakla bağlanamayan parçalar çıktıktan sonra öğreten bölüm kalmadı.",
-          ];
-          console.error("lesson_quantity_too_thin", {
-            reasons: reasons.slice(0, 8),
-            onlyQuantity,
-          });
-          return null;
-        }
-        const missingList = useBackbone
-          ? unrepresentedHeadings(
-              backbone,
-              lesson.sections.map((section) => section.heading),
-            )
-          : [];
-        const missing = missingList.length;
-        // Kaynakta duran bir bölümü atlayan ders eksik bir derstir:
-        // canlıda üretilen zemin dersi "Birleştirilmiş Zemin
-        // Sınıflandırması"nı hiç anlatmadı ve öğrenci bunu bilemedi.
-        // Kaynağın bütün başlıkları düşmüşse yeniden iste. Bir başlık
-        // cerrahi kesimden sonra duruyorsa çekirdek ders yayına çıkar.
-        if (useBackbone && missingList.length === backbone.length) {
-          lastParseIssues = [
-            `Kaynağın şu alt başlıkları derste yok: ${missingList.join(", ")}. Her birine bir bölüm yaz.`,
-          ];
-          return null;
-        }
-        /**
-         * Çizim isteniyor ama yoksa ya da okunamıyorsa ders durmaz.
-         * Şema da bunu söylüyor: bozuk çizim düşer, ders kalır.
-         * İstem çizimi istemeye devam eder; kapı artık dersi kesmez.
-         */
-        if (wantsDiagram) {
-          let readable = false;
-          let unreadable = false;
-          lesson.sections = lesson.sections.map((section) => {
-            if (!section.diagram) return section;
-            if (!diagramIssues(section.diagram).length) {
-              readable = true;
-              return section;
-            }
-            unreadable = true;
-            const rest = { ...section };
-            delete rest.diagram;
-            return rest;
-          });
-          if (!readable) reasons.push(unreadable ? "diagram_unreadable" : "diagram_missing");
-        }
-        degradeReasons = reasons;
-        if (missing < lastValidMissing) {
-          lastValidMissing = missing;
-          lastValidLesson = lesson;
-        }
-        return lesson;
-      },
-    });
-    /**
-     * Model çağrısı düşerse ders yoktur ve rezervasyon iade edilir.
-     * depth.maxDraftAttempts (≥2) içinde describeParseFailure geri bildirimi
-     * ikinci taslağa gider. Öğretmen notundaki sayı kaynakta yoksa notsuz
-     * bir deneme daha (ayrı idempotency anahtarı).
-     */
-    let outcome = await requestLesson(teacherNote, false, lessonDraftAttempts);
-    if (outcome.ok) {
-      lessonModelCalls += outcome.modelCalls;
-      draftMs += outcome.draftMs;
-      reviewMs += outcome.reviewMs;
-    }
-    const noteHasUnsupported =
-      Boolean(teacherNote.trim()) &&
-      unsupportedQuantities(teacherNote, input.sourceBlock).length > 0 &&
-      !quantityClaimGrounded(teacherNote, input.sourceBlock);
-    if (
-      !outcome.ok &&
-      !lastValidLesson &&
-      noteHasUnsupported &&
-      !pastDeadline() &&
-      lastParseIssues.some((issue) => /nicelik|sayı|hesap/i.test(issue))
-    ) {
-      const retry = await requestLesson("", true, lessonDraftAttempts);
-      if (retry.ok) {
-        lessonModelCalls += retry.modelCalls;
-        draftMs += retry.draftMs;
-        reviewMs += retry.reviewMs;
-        outcome = retry;
-      }
-    }
-    console.error("lesson_draft_budget", {
-      ms: Date.now() - draftBudgetStarted,
-      calls: lessonModelCalls,
-      maxDraftAttempts: lessonDraftAttempts,
-      pastDeadline: pastDeadline(),
-    });
-    const lesson: LessonV2 | null = outcome.ok ? outcome.data : lastValidLesson;
-    if (!lesson) {
-      console.error("lesson_model_calls", {
-        calls: lessonModelCalls,
-        draftMs,
-        reviewMs,
-        repairMs: 0,
-        verifyMs: 0,
-      });
-      throw new NodeGenerationError(
-        outcome.ok ? 500 : outcome.status,
-        outcome.ok ? "lesson_missing" : outcome.error,
-        lastParseIssues.slice(0, 6),
-      );
-    }
-    /**
-     * Bilinen yapı bozuklukları (işaret, yarım formül, eksik kontrol)
-     * önce yerinde onarılır. Kapı ardından bakar. Tek onarım yetmezse
-     * doğrulanamayan cümle çıkarılır ve kalan ders açılır. Üçten az
-     * kontrol de dersi düşürmez. Modelin kendisi düşmediyse boş ekran yok.
-     */
-    const heldReservationId = outcome.ok ? outcome.reservationId : undefined;
-    let settled = false;
-    let publishedLesson: LessonV2 = lesson;
-    try {
-      const repairSource = [input.sourceBlock, teacherNote].filter((part) => part.trim()).join("\n");
-      let taughtLesson = lesson;
-      let repair = {
-        lesson,
-        requested: [] as string[],
-        succeeded: [] as string[],
-        dropped: [] as string[],
-        verifyMs: 0,
-      };
-      let taught = {
-        lesson,
-        salvaged: false,
-        failures: [] as { unit: string; problem: string }[],
-        checkCountLow: false,
-      };
-      if (!pastDeadline()) {
-        const repairCall = (prompt: string, maxTokens: number) => {
-          lessonModelCalls += 1;
-          return completeLessonPartRepair({
-            service: input.service,
-            userId: input.userId,
-            prompt,
-            maxTokens,
-          });
-        };
-        const repairStarted = Date.now();
-        repair = await repairLearnerLesson(
-          lesson,
-          {
-            source: repairSource,
-            topicLabel: input.topicLabel,
-            targetMinutes: input.sessionMeta?.durationMinutes,
-          },
-          (prompt) => repairCall(prompt, 1500),
-          repairSource.trim() ? (prompt) => repairCall(prompt, 400) : undefined,
-        );
-        taught = await finishTaughtLesson(repair.lesson, {
-          source: repairSource,
-          topicLabel: input.topicLabel,
-        });
-        taughtLesson = stripLessonVerificationChrome(taught.lesson);
-        const critical = criticalTeachingFailures(taught.failures);
-        const repairWallMs = Date.now() - repairStarted;
-        const verifyMs = repair.verifyMs;
-        console.error("lesson_model_calls", {
-          calls: lessonModelCalls,
-          draftMs,
-          reviewMs,
-          repairMs: Math.max(0, repairWallMs - verifyMs),
-          verifyMs,
-        });
-        if (taught.salvaged || critical.length) {
-          console.error("lesson_generation_salvaged", {
-            failures: critical.slice(0, 8).map((failure) => `${failure.unit}:${failure.problem}`),
-          });
-        }
-        if (taught.checkCountLow) {
-          await recordLessonGenerationFailure(input.service, {
-            userId: input.userId,
-            prepId: input.prepId ?? null,
-            topicLabel: input.topicLabel,
-            kind: "lesson",
-            stage: "check_count",
-            reason: "check_count_low",
-            reasons: ["Kontrol sayısı minimumun altında kaldı; ders yine de yayınlandı."],
-          }).catch(() => undefined);
-        }
-        if (repair.requested.length) {
-          console.error("lesson_generation_repaired", {
-            checks: repair.requested,
-            succeeded: repair.succeeded,
-          });
-        }
-        // İnce / öğretemeyen kurtarma yayınlanmaz.
-        if (!lessonHasTeachingCore(taughtLesson)) {
-          throw new NodeGenerationError(422, "content_verification_failed", [
-            "Doğrulama sonrası öğreten bölüm kalmadı.",
-          ]);
-        }
-      } else {
-        taughtLesson = stripLessonVerificationChrome(lesson);
-        console.error("lesson_model_calls", {
-          calls: lessonModelCalls,
-          draftMs,
-          reviewMs,
-          repairMs: 0,
-          verifyMs: 0,
-          skippedRepair: "deadline",
-        });
-        if (!lessonHasTeachingCore(taughtLesson)) {
-          throw new NodeGenerationError(422, "content_verification_failed", [
-            "Süre bütçesi sonrası öğreten bölüm kalmadı.",
-          ]);
-        }
-      }
-      publishedLesson = taughtLesson;
-      const diagramReady = taughtLesson.sections.some(
-        (section) => section.diagram && diagramIssues(section.diagram).length === 0,
-      );
-      const reasons = [
-        ...degradeReasons.filter((reason) => {
-          if (diagramReady && (reason === "diagram_missing" || reason === "diagram_unreadable")) return false;
-          return !repair.succeeded.includes(reason as LessonCheckCode);
-        }),
-        ...repair.dropped,
-      ].filter((reason, index, all) => all.indexOf(reason) === index);
-      if (reasons.length) {
-        console.error("lesson_generation_degraded", { reasons: reasons.slice(0, 8) });
-      }
-      // Dersi konuya da yaz: öğrenci sonra geri dönüp okuyabilsin ve ders
-      // bitince önerilen podcast bu içerikten türeyebilsin. Yazamamak dersi
-      // bozmaz — öğrenci ekranda zaten okuyor.
-      if (input.prepId && input.topicId) {
-        await input.service
-          .from("exam_prep_lessons")
-          .insert({
-            exam_prep_id: input.prepId,
-            topic_id: input.topicId,
-            title: taughtLesson.title,
-            content_md: taughtLesson.overview ?? taughtLesson.sections[0]?.body ?? taughtLesson.title,
-            content_json: taughtLesson,
-          })
-          .then(undefined, () => undefined);
-      }
-      if (heldReservationId) {
-        await commitCredits(input.service, heldReservationId);
-        settled = true;
-      }
-      // commitCredits sonrası kalite hattı dersi düşürmez / iade demez.
-      let qualityReport = null;
-      try {
-        const quality = runLessonQualityPipeline(taughtLesson, {
-          sourceExcerpt: repairSource,
-        });
-        qualityReport = quality.report;
-      } catch (error) {
-        console.error("lesson_quality_pipeline_failed", {
-          errorType: error instanceof Error ? (error.constructor?.name ?? error.name) : "unknown",
-        });
-        qualityReport = null;
-      }
-      return {
-        type: "lesson",
-        lesson: taughtLesson,
-        title: taughtLesson.title,
-        teachingStandard: activity,
-        qualityReport,
-        refunded: false,
-      };
-    } catch (error) {
-      if (heldReservationId && !settled) {
-        await refundCredits(input.service, heldReservationId).catch(() => undefined);
-        throw error;
-      }
-      // Kredi kesinleştikten sonra gelen hata: dersi düşürme, iade yok.
-      if (settled) {
-        console.error("lesson_post_commit_error", {
-          errorType: error instanceof Error ? (error.constructor?.name ?? error.name) : "unknown",
-        });
-        return {
-          type: "lesson",
-          lesson: publishedLesson,
-          title: publishedLesson.title,
-          teachingStandard: activity,
-          qualityReport: null,
-          refunded: false,
-        };
-      }
-      throw error;
-    }
+    if (!pagesReady) throw noPages();
+    return teacherLessonPayload(input, activity, core);
+  }
+
+  if (TEACHER_QUIZ_KINDS.has(input.kind)) {
+    if (!pagesReady) throw noPages();
+    return teacherQuizPayload(input, activity, core, Math.max(5, quizCount));
   }
 
   if (input.kind === "qa") {
@@ -2559,6 +2281,9 @@ async function generateNodePayload(input: {
       requireSourceSupport: input.requireSourceSupport,
       sourcePages: input.sessionMeta?.sourcePages,
       idempotencyKey: input.idempotencyKey,
+      count: Math.max(4, quizCount),
+      topicLabel: input.topicLabel,
+      prepTitle: input.prepTitle,
       userPrompt: input.teachingV2
         ? `${QA_TEACHER_PROMPT} ${ctx} ${quizCount} alıştırma sorusu. Tek kavramdan başla; en az 1 soruda explanation ilk adımı ipucu olarak versin. multi=true yalnızca gerçekten birden fazla bağımsız doğru varken.`
         : `${ctx} ${quizCount} çoktan seçmeli alıştırma sorusu. Şıklar A/B/C/D gibi net olsun. En az 1 soruda birden fazla doğru şık olsun (multi true, correct dizi).`,
@@ -2568,7 +2293,7 @@ async function generateNodePayload(input: {
   }
 
   if (input.kind === "podcast") {
-    const length = input.podcastLength ?? "standart";
+    const length = input.podcastLength ?? DEFAULT_PODCAST_LENGTH;
     if (input.prepId) {
       const cached = await readPodcastCache(input.service, input.prepId, input.topicLabel, length);
       if (cached) {
@@ -2583,213 +2308,46 @@ async function generateNodePayload(input: {
         };
       }
     }
-    const lesson = input.teachingV2 ? input.lessonContent ?? null : null;
-    const outcome = await generatePodcastEpisode({
-      service: input.service,
-      userId: input.userId,
-      isPremium: input.isPremium,
-      prepTitle: input.prepTitle,
-      topicLabel: input.topicLabel,
-      sourceBlock: input.sourceBlock,
-      teacherBrief: input.teacherBrief,
-      lessonBrief: lesson ? lessonPodcastBrief(lesson) : "",
-      length,
-      grounding: input.grounding,
-      idempotencyKey: input.idempotencyKey,
-      requestId: input.requestId,
-    });
-    if (!outcome.ok) {
-      throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
-    }
+    // Öğretmen podcast motoru (2 Ekim 2026): aynı konunun dersi ve çekirdek
+    // sayfalar; kod metne bir şey eklemez, cümle silmez.
+    if (!pagesReady) throw noPages();
+    const episode = await teacherPodcastEpisode(input, core, length);
     if (input.prepId && input.userId) {
       await writePodcastCache(input.service, {
         prepId: input.prepId,
         userId: input.userId,
         topicLabel: input.topicLabel,
-        episode: outcome.data,
+        episode,
       });
     }
     return {
       type: "podcast",
-      title: outcome.data.title,
-      chapters: outcome.data.chapters,
+      title: episode.title,
+      chapters: episode.chapters,
       length,
       scriptCredits: CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits,
       teachingStandard: activity,
+      engine: "teacher",
     };
   }
 
+  // Sözlü deneme öğretmen motorundan (2 Ekim 2026). Kapsam birden çok konu
+  // olabildiği için rotanın hazırladığı kaynak bloğu okunur.
   if (input.kind === "oral") {
-    const asked = input.oralQuestionCount ?? Math.min(8, Math.max(3, quizCount));
-    const weight = input.syllabusLine?.trim()
-      ? input.syllabusLine
-      : "Yalnızca verilen kaynak sayfalarındaki olguları sor. Kaynakta olmayan konu yazma.";
-    let lastOralIssues: string[] = [];
-    let oralAllowPartial = false;
-    const oralFrom = (raw: unknown) =>
-      publishOralQuestions(raw, asked, input.sourceBlock, oralAllowPartial);
-    const outcome = await generateJson({
-      service: input.service,
-      userId: input.userId,
-      actionCode: actionForKind(input.kind),
-      isPremium: input.isPremium,
-      ...v2Common,
-      trustIndependent: input.teachingV2 ? true : undefined,
-      reviewDraft: input.teachingV2
-        ? (draft) => {
-            try {
-              const published = oralFrom(JSON.parse(draft));
-              return published ? JSON.stringify({ questions: published }) : draft;
-            } catch {
-              return draft;
-            }
-          }
-        : undefined,
-      describeParseFailure: () => lastOralIssues,
-      buildIndependent: input.teachingV2
-        ? (_c, parsed) => {
-            const fitted = parsed ? oralFrom(parsed) : null;
-            return {
-              pedagogyIssues: fitted
-                ? validateOralPedagogy(fitted)
-                : ["Sözlü şema geçersiz."],
-              minItems: oralAllowPartial ? 1 : asked,
-              ...sourceIndependent,
-            };
-          }
-        : undefined,
-      schemaHint: input.teachingV2
-        ? 'JSON: {"questions":[{"prompt":string,"hint":string,"learningObjective":string,"rubricCriteria":string[],"expectedPoints":string[],"modelAnswer":string}]}'
-        : 'JSON: {"questions":[{"prompt":string,"hint":string}]}',
-      userPrompt: input.teachingV2
-        ? `${ctx} Tam ${asked} sözlü soru; her birinde rubrik, beklenen noktalar ve 2–5 cümlelik örnek çözüm (modelAnswer). ${weight} Beklenen noktalar öğrencinin kuracağı olgu ya da işlem sonucudur; puan etiketi (Tam 2, 2 puan) yazma. Sayı ve birim uydurma. Doğru işlemin sonucu kaynakta ayrıca yazmıyorsa da yaz. Tek doğru cevabı olmayan soru yazma. Sınav kipinde yardım sınırlı — hint kısa tut veya boş bırak. Sorunun varsaydığı ilişki kaynakta kurulmalı.`
-        : `${ctx} Tam ${asked} sözlü soru. ${weight}`,
-      parse: (raw) => {
-        if (!input.teachingV2) {
-          const data = oralSchema.safeParse(raw).data ?? null;
-          if (!data) return null;
-          const fitted = fitOralCount(data.questions, asked, oralAllowPartial);
-          if (!fitted) {
-            oralAllowPartial = true;
-            return null;
-          }
-          return { questions: fitted };
-        }
-        const fitted = oralFrom(raw);
-        if (!fitted) {
-          lastOralIssues = ["Sözlü sorular kurulamadı."];
-          oralAllowPartial = true;
-          return null;
-        }
-        const issues = validateOralPedagogy(fitted);
-        if (issues.length) {
-          lastOralIssues = issues;
-          oralAllowPartial = true;
-          return null;
-        }
-        lastOralIssues = [];
-        return { questions: fitted };
-      },
-    });
-    if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
-    return {
-      type: "oral",
-      testedTopic: input.topicLabel,
-      questions: stampOralQuestions(outcome.data.questions, input.oralCitation),
-      teachingStandard: activity,
-    };
+    if (!input.sourceBlock.trim() && !input.lessonTopicOnly) throw noPages();
+    return teacherOralPayload(input, activity, input.oralQuestionCount ?? Math.min(8, Math.max(3, quizCount)));
   }
 
-  if (input.kind === "flashcards" || input.kind === "spaced") {
-    const schema = input.teachingV2 ? flashcardV2Schema : cardsSchema;
-    const outcome = await generateJson({
-      service: input.service,
-      userId: input.userId,
-      actionCode: actionForKind(input.kind),
-      isPremium: input.isPremium,
-      ...v2Common,
-      buildIndependent: input.teachingV2
-        ? (_c, parsed) => {
-            const data = schema.safeParse(parsed).data;
-            return {
-              pedagogyIssues: data
-                ? validateFlashcardPedagogy(data.cards)
-                : ["Flashcard şeması geçersiz."],
-              minItems: 4,
-              ...sourceIndependent,
-            };
-          }
-        : undefined,
-      schemaHint: input.teachingV2
-        ? 'JSON: {"cards":[{"front":string,"back":string,"difficulty":"easy"|"medium"|"hard"}]}. Zor kartlar önce. Ön yüz cevabı sızdırmasın. Tek olgu/kart.'
-        : 'JSON: {"cards":[{"front":string,"back":string}]}',
-      userPrompt: input.teachingV2
-        ? `${ctx} 8 flashcard. difficulty=hard olanlar listenin başında. "Biliyorum" ustalığı iddiası değildir.${input.kind === "spaced" ? " Aralıklı tekrar: öğretmen notundaki çekirdek tanım ve formül önce gelsin." : ""}`
-        : `${ctx} 8 flashcard.`,
-      parse: (raw) => {
-        const data = schema.safeParse(raw).data ?? null;
-        if (!data) return null;
-        const cards = data.cards.flatMap((card) => {
-          const checked = verifyFlashcard(card.front, card.back, input.sourceBlock);
-          if (!checked) return [];
-          return [{ ...card, front: checked.front, back: checked.back }];
-        });
-        if (cards.length < 4) return null;
-        if (input.teachingV2) {
-          const issues = validateFlashcardPedagogy(cards);
-          if (issues.length) return null;
-        }
-        return { ...data, cards };
-      },
-    });
-    if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
-    return {
-      type: "cards",
-      cards: outcome.data.cards,
-      teachingStandard: activity,
-      masteryClaim: false,
-    };
+  // Kartlar ve aralıklı tekrar da öğretmen motorundan (2 Ekim 2026).
+  if (TEACHER_CARD_KINDS.has(input.kind)) {
+    if (!pagesReady) throw noPages();
+    return teacherCardsPayload(input, activity, core);
   }
 
+  // Doğru/yanlış öğretmen motorundan (2 Ekim 2026).
   if (input.kind === "true_false") {
-    const outcome = await generateJson({
-      service: input.service,
-      userId: input.userId,
-      actionCode: actionForKind(input.kind),
-      isPremium: input.isPremium,
-      ...v2Common,
-      buildIndependent: input.teachingV2
-        ? (_c, parsed) => {
-            const data = tfSchema.safeParse(parsed).data;
-            return {
-              pedagogyIssues: data
-                ? validateTrueFalsePedagogy(data.items, {
-                    requireMisconceptionTag: input.teachingV2,
-                  })
-                : ["Doğru/yanlış şeması geçersiz."],
-              minItems: 5,
-              ...sourceIndependent,
-            };
-          }
-        : undefined,
-      schemaHint:
-        'JSON: {"items":[{"text":string,"correct":boolean,"explanation":string,"correctedStatement":string,"misconceptionTag":string}]} ' +
-        TRUE_FALSE_FORMAT,
-      userPrompt: `${ctx} 8 doğru/yanlış önermesi. Her önerme bir kavramı veya yaygın yanılgıyı ölçsün. ${TRUE_FALSE_FORMAT}`,
-      parse: (raw) => {
-        const data = tfSchema.safeParse(raw).data ?? null;
-        if (!data) return null;
-        if (input.teachingV2) {
-          const issues = validateTrueFalsePedagogy(data.items, {
-            requireMisconceptionTag: input.teachingV2,
-          });
-          if (issues.length) return null;
-        }
-        return data;
-      },
-    });
-    if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
-    return { type: "true_false", items: outcome.data.items, teachingStandard: activity };
+    if (!pagesReady) throw noPages();
+    return teacherTrueFalsePayload(input, activity, core);
   }
 
   const outcome = await generateExamQuiz({
@@ -2802,6 +2360,9 @@ async function generateNodePayload(input: {
     requireSourceSupport: input.requireSourceSupport,
     sourcePages: input.sessionMeta?.sourcePages,
     idempotencyKey: input.idempotencyKey,
+    count: input.kind === "final_check" ? 4 : input.kind === "focused" ? 5 : Math.max(5, quizCount),
+    topicLabel: input.topicLabel,
+    prepTitle: input.prepTitle,
     schemaHintExtra:
       input.kind === "written_exam"
         ? 'İsteğe bağlı "topic" yalnızca hazırlığın konu adıdır. explanation zorunlu. İpucu yazma.'
@@ -2818,6 +2379,301 @@ async function generateNodePayload(input: {
   });
   if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error);
   return { type: "quiz", questions: outcome.questions, teachingStandard: activity };
+}
+
+/**
+ * Öğretmen motoru (2 Ekim 2026): temiz sayfalar → tek öğretmen istemi →
+ * belgeyle eşleme → modelin düzeltmesi. Kod ders metnine bir şey eklemez.
+ * Kredi motorun içinde ayrılır ve sonuçlanır.
+ */
+async function teacherLessonPayload(
+  input: Parameters<typeof generateNodePayload>[0],
+  activity: ReturnType<typeof teachingActivityForKind>,
+  /** null: belgesiz hazırlık; ders doğruluk kuralıyla yazılır. */
+  core: { documentId: string; pages: number[] } | null,
+) {
+  const startedAt = Date.now();
+  const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
+  const clean = core
+    ? await ensureCleanPages(input.service, {
+        userId: input.userId,
+        documentId: core.documentId,
+        pages: corePageRun(core.pages),
+        edges,
+      })
+    : [];
+  const outcome = await runTeacherLesson(input.service, {
+    mode: core ? "document" : "topic",
+    userId: input.userId,
+    actionCode: actionForKind(input.kind),
+    idempotencyKey: input.idempotencyKey ?? `lesson:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    // Kavram birimli konuda ders birimi anlatır: "Hukukun Temel Kavramları: Hükümsüzlüğün dereceleri".
+    topicLabel: input.sessionMeta?.unitTitle ? `${input.topicLabel}: ${input.sessionMeta.unitTitle}` : input.topicLabel,
+    prepTitle: input.prepTitle,
+    pages: clean.map((item) => ({ page: item.page, text: item.text })),
+    upcomingTopics: Array.isArray(input.upcomingTopics) ? input.upcomingTopics : [],
+    learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    runningHeaders: edges,
+    startedAt,
+    charge: input.charge,
+  });
+  if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  const lesson = outcome.lesson;
+  const payload = {
+    type: "lesson",
+    lesson,
+    title: lesson.title,
+    teachingStandard: activity,
+    qualityReport: null,
+    refunded: false,
+    engine: "teacher",
+  };
+  // Önceden yazılan ders konuya öğrenci açınca yazılır.
+  if (input.prepId && input.topicId && input.charge !== false) {
+    await saveTopicLesson(input.service, { prepId: input.prepId, topicId: input.topicId, payload });
+  }
+  return payload;
+}
+
+/** Konunun son dersi: podcast ve tekrar kartları bunu okur. */
+async function saveTopicLesson(
+  service: SupabaseClient,
+  input: { prepId: string; topicId: string; payload: Record<string, unknown> },
+) {
+  const lesson = input.payload.lesson as LessonV2 | undefined;
+  if (!lesson || typeof lesson !== "object" || !lesson.title) return;
+  await service
+    .from("exam_prep_lessons")
+    .insert({
+      exam_prep_id: input.prepId,
+      topic_id: input.topicId,
+      title: lesson.title,
+      content_md: lesson.overview ?? lesson.sections?.[0]?.body ?? lesson.title,
+      content_json: lesson,
+    })
+    .then(undefined, () => undefined);
+}
+
+/**
+ * Öğretmen test motoru (2 Ekim 2026): temiz çekirdek sayfalar → tek öğretmen
+ * istemi → soruları bağımsız çözen denetim → sorunlu sorunun modelce
+ * düzeltilmesi. Kod soru metnine bir şey eklemez; yeterli soru çıkmazsa
+ * kredi iade, test gösterilmez.
+ */
+/**
+ * Öğretmen podcast motoru (2 Ekim 2026): aynı konunun denetlenmiş dersi +
+ * temiz çekirdek sayfalar → tek öğretmen istemi → belgeyle eşleme → modelin
+ * düzeltmesi. Sorun kalırsa podcast gösterilmez, kredi iade.
+ */
+async function teacherPodcastEpisode(
+  input: Parameters<typeof generateNodePayload>[0],
+  core: { documentId: string; pages: number[] } | null,
+  length: PodcastLength,
+) {
+  const startedAt = Date.now();
+  const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
+  const clean = core
+    ? await ensureCleanPages(input.service, {
+        userId: input.userId,
+        documentId: core.documentId,
+        pages: corePageRun(core.pages),
+        edges,
+      })
+    : [];
+  const outcome = await runTeacherPodcast(input.service, {
+    mode: core ? "document" : "topic",
+    length,
+    userId: input.userId,
+    actionCode: actionForKind(input.kind),
+    idempotencyKey: input.idempotencyKey ?? `podcast:${input.prepId ?? "x"}:${input.topicLabel}:${length}:${Date.now()}`,
+    topicLabel: input.topicLabel,
+    prepTitle: input.prepTitle,
+    pages: clean.map((item) => ({ page: item.page, text: item.text })),
+    lessonText: input.lessonContent ? lessonPodcastBrief(input.lessonContent) : undefined,
+    syllabusLine: input.grounding?.trim() || undefined,
+    learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    runningHeaders: edges,
+    startedAt,
+  });
+  if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  return outcome.episode;
+}
+
+/** Temiz çekirdek sayfalar ya da belgesiz; öğretmen motorlarının ortak kaynağı. */
+async function teacherPages(
+  input: Parameters<typeof generateNodePayload>[0],
+  core: { documentId: string; pages: number[] } | null,
+) {
+  const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
+  const clean = core
+    ? await ensureCleanPages(input.service, {
+        userId: input.userId,
+        documentId: core.documentId,
+        pages: corePageRun(core.pages),
+        edges,
+      })
+    : [];
+  return { edges, pages: clean.map((item) => ({ page: item.page, text: item.text })) };
+}
+
+/**
+ * Öğretmen kart motoru (2 Ekim 2026): hatırlatan ön yüz, kısa kesin arka yüz;
+ * her kart belgeyle eşlenir, sorunlu kart düzeltilir ya da elenir. Kod kart
+ * metnine dokunmaz.
+ */
+async function teacherCardsPayload(
+  input: Parameters<typeof generateNodePayload>[0],
+  activity: ReturnType<typeof teachingActivityForKind>,
+  core: { documentId: string; pages: number[] } | null,
+) {
+  const startedAt = Date.now();
+  const source = await teacherPages(input, core);
+  const cardsInput = {
+    topicLabel: input.topicLabel,
+    prepTitle: input.prepTitle,
+    pages: source.pages,
+    mode: core ? ("document" as const) : ("topic" as const),
+    count: 8,
+    focus: input.kind === "spaced" ? ("spaced" as const) : ("cards" as const),
+    learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    runningHeaders: source.edges,
+  };
+  const outcome = await runWithTeacherModel(input.service, {
+    userId: input.userId,
+    actionCode: actionForKind(input.kind),
+    idempotencyKey: input.idempotencyKey ?? `cards:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    startedAt,
+    label: "teacher_cards",
+    topic: input.topicLabel,
+    work: async (ask, started) => {
+      const loop = await teacherCardsLoop(ask, cardsInput, started);
+      const log = { kept: loop.cards.length, rejected: loop.rejected.length, rounds: loop.rounds };
+      return loop.cards.length >= 6
+        ? { ok: true as const, result: loop.cards, log }
+        : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun"), log };
+    },
+  });
+  if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  return { type: "cards", cards: outcome.result, teachingStandard: activity, masteryClaim: false, engine: "teacher" };
+}
+
+/** Öğretmen doğru/yanlış motoru (2 Ekim 2026): her önerme belgeyle eşlenir. */
+async function teacherTrueFalsePayload(
+  input: Parameters<typeof generateNodePayload>[0],
+  activity: ReturnType<typeof teachingActivityForKind>,
+  core: { documentId: string; pages: number[] } | null,
+) {
+  const startedAt = Date.now();
+  const source = await teacherPages(input, core);
+  const outcome = await runWithTeacherModel(input.service, {
+    userId: input.userId,
+    actionCode: actionForKind(input.kind),
+    idempotencyKey: input.idempotencyKey ?? `tf:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    startedAt,
+    label: "teacher_true_false",
+    topic: input.topicLabel,
+    work: async (ask, started) => {
+      const loop = await teacherTrueFalseLoop(
+        ask,
+        {
+          topicLabel: input.topicLabel,
+          prepTitle: input.prepTitle,
+          pages: source.pages,
+          mode: core ? "document" : "topic",
+          learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+          count: 8,
+        },
+        started,
+      );
+      const log = { kept: loop.items.length, rejected: loop.rejected.length, rounds: loop.rounds, mixed: loop.mixed };
+      return loop.items.length >= 5 && loop.mixed
+        ? { ok: true as const, result: loop.items, log }
+        : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun"), log };
+    },
+  });
+  if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  return { type: "true_false", items: outcome.result, teachingStandard: activity, engine: "teacher" };
+}
+
+/** Öğretmen sözlü deneme motoru (2 Ekim 2026): her soru, nokta ve örnek cevap belgeyle eşlenir. */
+async function teacherOralPayload(
+  input: Parameters<typeof generateNodePayload>[0],
+  activity: ReturnType<typeof teachingActivityForKind>,
+  asked: number,
+) {
+  const startedAt = Date.now();
+  const block = input.sourceBlock.trim();
+  const outcome = await runWithTeacherModel(input.service, {
+    userId: input.userId,
+    actionCode: actionForKind(input.kind),
+    idempotencyKey: input.idempotencyKey ?? `oral:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    startedAt,
+    label: "teacher_oral",
+    topic: input.topicLabel,
+    work: async (ask, started) => {
+      const loop = await teacherOralLoop(
+        ask,
+        {
+          topicLabel: input.topicLabel,
+          prepTitle: input.prepTitle,
+          pages: [],
+          sourceBlock: block || undefined,
+          mode: block ? "document" : "topic",
+          brief: input.syllabusLine?.trim() || undefined,
+          learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+          count: asked,
+        },
+        started,
+      );
+      const log = { kept: loop.items.length, rejected: loop.rejected.length, rounds: loop.rounds };
+      return loop.items.length >= Math.min(asked, 3)
+        ? { ok: true as const, result: loop.items, log }
+        : { ok: false as const, reasons: loop.rejected.slice(0, 4).map((row) => row.problems[0] ?? "sorun"), log };
+    },
+  });
+  if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  return {
+    type: "oral",
+    testedTopic: input.topicLabel,
+    questions: stampOralQuestions(outcome.result, input.oralCitation),
+    teachingStandard: activity,
+    engine: "teacher",
+  };
+}
+
+async function teacherQuizPayload(
+  input: Parameters<typeof generateNodePayload>[0],
+  activity: ReturnType<typeof teachingActivityForKind>,
+  /** null: belgesiz hazırlık; sorular konunun yerleşik bilgisinden. */
+  core: { documentId: string; pages: number[] } | null,
+  count: number,
+) {
+  const startedAt = Date.now();
+  const edges = core ? await documentRunningHeaders(input.service, core.documentId) : [];
+  const clean = core
+    ? await ensureCleanPages(input.service, {
+        userId: input.userId,
+        documentId: core.documentId,
+        pages: corePageRun(core.pages),
+        edges,
+      })
+    : [];
+  const outcome = await runTeacherQuiz(input.service, {
+    mode: core ? "document" : "topic",
+    focus: input.kind === "gaps" ? "gaps" : "practice",
+    userId: input.userId,
+    actionCode: actionForKind(input.kind),
+    idempotencyKey: input.idempotencyKey ?? `quiz:${input.prepId ?? "x"}:${input.topicLabel}:${Date.now()}`,
+    topicLabel: input.topicLabel,
+    prepTitle: input.prepTitle,
+    pages: clean.map((item) => ({ page: item.page, text: item.text })),
+    count,
+    learnerLine: sessionSignalsPrompt(input.familiarity, input.mood),
+    runningHeaders: edges,
+    startedAt,
+  });
+  if (!outcome.ok) throw new NodeGenerationError(outcome.status, outcome.error, outcome.reasons);
+  return { type: "quiz", questions: outcome.questions, teachingStandard: activity, engine: "teacher" };
 }
 
 async function loadLessonReviewCards(

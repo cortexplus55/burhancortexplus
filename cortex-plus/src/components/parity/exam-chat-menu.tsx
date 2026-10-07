@@ -103,7 +103,7 @@ export function ExamChatMenu({
                 <LineChart className="h-6 w-6" aria-hidden />
                 Aktivitelerim
               </Link>
-              <Link href="/calisma-plani?tab=takvim" className="cp-exam-tile" onClick={onClose}>
+              <Link href="/takvimim" className="cp-exam-tile" onClick={onClose}>
                 <CalendarDays className="h-6 w-6" aria-hidden />
                 Takvimim
               </Link>

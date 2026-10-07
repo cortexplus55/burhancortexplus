@@ -9,6 +9,12 @@
   flex-direction: column;
 }
 
+.als-toolbar {
+  display: flex;
+  justify-content: center;
+  margin: calc(-1 * var(--sp-2, 0.5rem)) 0 var(--sp-3, 0.75rem);
+}
+
 .als-top {
   position: sticky;
   top: 0;
@@ -17,7 +23,7 @@
   grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: 0.75rem;
-  margin: 0 -0.25rem 1.25rem;
+  margin: 0 -0.25rem var(--sp-4, 1rem);
   padding: 0.65rem 0.25rem;
   background: color-mix(in srgb, var(--cp-bg, var(--c-bg)) 92%, transparent);
   backdrop-filter: blur(8px);
@@ -75,7 +81,25 @@
   background:
     radial-gradient(120% 80% at 50% 0%, rgba(76, 111, 255, 0.16), transparent 55%),
     var(--c-surface-1);
-  padding: 1.35rem 1.25rem 1.2rem;
+  padding: var(--sp-5, 1.25rem);
+}
+
+/* checkFirst: soru anlatımdan önce sorulur ("önce dene" / geri getirme) —
+   gerçek DOM sırası değişir (bkz. exam-lesson-steps.tsx), ekran okuyucu da
+   soruyu önce duysun diye. .als-check normalde .als-slide'dan SONRA gelip
+   margin-top ile boşluk açar; checkFirst'te sıra tersine dönünce boşluğu
+   artık ikinci sıradaki eleman taşımalı — bu yüzden yapısal seçiciler. */
+.als-step-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.als-step-content > .als-check:first-child {
+  margin-top: 0;
+}
+
+.als-step-content > .als-slide:not(:first-child) {
+  margin-top: 1.5rem;
 }
 
 .als-kicker {
@@ -106,12 +130,12 @@
 
 .als-body,
 .als-solution-body {
-  margin-top: 0.75rem;
+  margin-top: var(--sp-3, 0.75rem);
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: var(--sp-2, 0.5rem);
   font-size: 1rem;
-  line-height: 1.65;
+  line-height: 1.6;
   color: #dcdcdc;
 }
 
@@ -265,15 +289,15 @@
 /* --- Bölüm kontrolü --- */
 
 .als-check {
-  margin-top: 1.5rem;
+  margin-top: var(--sp-4, 1rem);
   border-radius: 1rem;
   border: 1px solid var(--cp-border);
   background: var(--cp-surface);
-  padding: 1rem;
+  padding: var(--sp-5, 1.25rem);
 }
 
 .als-check .als-kicker {
-  color: #d0d0d0;
+  color: color-mix(in srgb, var(--c-text) 84%, var(--c-bg));
 }
 
 .als-check-prompt {
@@ -475,7 +499,7 @@
   margin: 0.45rem 0 0;
   font-size: 0.875rem;
   line-height: 1.5;
-  color: #d0d0d0;
+  color: color-mix(in srgb, var(--c-text) 84%, var(--c-bg));
 }
 
 .als-card--peek {
@@ -579,6 +603,184 @@
   margin: 0.25rem 0 0;
   font-size: 0.9375rem;
   line-height: 1.55;
+}
+
+/* Kaynak künyesi: ana okuma akışının dışında, aç/kapa rozet. Floating
+   overlay değil — satır içi, bu yüzden mobilde viewport dışına taşmaz. */
+.als-source {
+  margin-top: var(--sp-2, 0.5rem);
+}
+
+.als-source-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--cp-border);
+  background: transparent;
+  border-radius: 9999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cp-muted);
+  cursor: pointer;
+}
+
+.als-source-trigger:hover {
+  border-color: var(--als-action);
+  color: inherit;
+}
+
+.als-source-trigger:focus-visible {
+  outline: 2px solid var(--als-action);
+  outline-offset: 2px;
+}
+
+.als-source-detail {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--cp-muted);
+}
+
+/* Bağıntı kartı: gövdeden ayrı, altın çerçeveli — özet değil, formül. */
+.als-formula-card {
+  margin-top: 0.9rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-gold, var(--c-brand));
+  background: rgba(226, 179, 64, 0.08);
+}
+
+.als-formula-card-title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cp-gold, var(--c-brand));
+}
+
+.als-formula-card-expr {
+  margin: 0.4rem 0 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.als-formula-card-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--c-text) 72%, var(--c-bg));
+}
+
+/* Mekanizma: düz paragraf değil, numaralı uygulanabilir adım listesi. */
+.als-procedure {
+  margin-top: 0.9rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--cp-border);
+  background: var(--c-surface-2);
+}
+
+.als-procedure-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c-text) 72%, var(--c-bg));
+}
+
+.als-procedure ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: als-procedure-step;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.als-procedure li {
+  counter-increment: als-procedure-step;
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+}
+
+.als-procedure li::before {
+  content: counter(als-procedure-step);
+  flex: none;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  background: var(--cp-gold, var(--c-brand));
+  color: #1a1a1a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.als-procedure-label {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  margin-right: 0.35rem;
+}
+
+.als-procedure-detail {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--c-text) 84%, var(--c-bg));
+}
+
+/* Küçük referans tablosu (persentil↔SD gibi karşılıklar). Dar ekranda
+   yatay kaydırma kendi kutusunda kalır, sayfa yana taşmaz. */
+.als-reference-table {
+  margin-top: 0.9rem;
+}
+
+.als-reference-table-caption {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c-text) 72%, var(--c-bg));
+}
+
+.als-reference-table-scroll {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  border: 1px solid var(--cp-border);
+}
+
+.als-reference-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.als-reference-table th,
+.als-reference-table td {
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.als-reference-table th {
+  background: var(--c-surface-2);
+  font-weight: 700;
+  color: color-mix(in srgb, var(--c-text) 72%, var(--c-bg));
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.als-reference-table td {
+  border-top: 1px solid var(--cp-border);
 }
 
 /* Ders şeması: bölüm metniyle kontrol arasında, kendi kutusunda.
@@ -728,4 +930,86 @@
   .als-minutes {
     display: none;
   }
+}
+
+/* Ders giriş kartı — Astra gibi plan (1 Ekim 2026). */
+.als-intro-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.35rem;
+  font-size: 0.8125rem;
+  color: var(--cp-muted, var(--c-text-muted));
+}
+
+.als-intro-tag {
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.15rem 0.55rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cp-text, var(--c-text));
+}
+
+.als-intro-plan {
+  margin: 1rem 0 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+}
+
+.als-intro-plan h2 {
+  margin: 0 0 0.6rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.als-intro-plan ol {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.als-intro-plan li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.als-intro-plan li > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.75rem;
+}
+
+.als-intro-plan li > div {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  padding-top: 0.1rem;
+}
+
+.als-intro-plan li small {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.4;
+  opacity: 0.68;
+}
+
+.als-intro-end {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--cp-muted, var(--c-text-muted));
 }

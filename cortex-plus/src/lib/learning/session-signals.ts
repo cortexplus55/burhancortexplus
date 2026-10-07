@@ -118,11 +118,3 @@ export function sessionSignalsPrompt(
 ): string {
   return `${familiarityPrompt(familiarity)} ${moodPrompt(mood)}`;
 }
-
-export function familiarityLabel(level: Familiarity): string {
-  return FAMILIARITY_OPTIONS.find((o) => o.id === level)?.title ?? "";
-}
-
-export function moodLabel(mood: Mood): string {
-  return MOOD_OPTIONS.find((o) => o.id === mood)?.title ?? "";
-}

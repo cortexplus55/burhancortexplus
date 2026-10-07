@@ -1,24 +1,9 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { generateJson } from "@/lib/ai/generate";
 import type { ActionCode } from "@/lib/env";
-import { coerceQuizQuestions, parseQuizQuestions, type QuizQuestion } from "@/lib/learning/exam-quiz";
-import { repairQuizPedagogy, validateQuizPedagogy } from "@/lib/learning/teaching-standards";
-import { repairTurkishSurface } from "@/lib/learning/learner-fluency";
-import {
-  refineVerifiedChoices,
-  verifyChoiceQuestion,
-  verifyChoiceSet,
-  type VerifiedChoice,
-} from "@/lib/learning/question-verifier";
-import { quizClaimIssues } from "@/lib/learning/tutor-quant";
-import { absoluteClaimIssues } from "@/lib/learning/absolute-claims";
-
-const QUIZ_GATE = {
-  requireObjective: false,
-  requireMisconceptionTag: true,
-  requireDistractorRefutation: true,
-} as const;
+import type { QuizQuestion } from "@/lib/learning/exam-quiz";
+import { randomUUID } from "node:crypto";
+import { runTeacherQuiz } from "@/lib/learning/teacher-quiz-run";
 
 export async function generateExamQuiz(input: {
   service: SupabaseClient;
@@ -42,204 +27,55 @@ export async function generateExamQuiz(input: {
   idempotencyKey?: string;
   /** Yazılı deneme motoru PRACTICE_EXAM_GENERATE ile tek ücret keser. */
   actionCode?: ActionCode;
-}): Promise<{ ok: true; questions: QuizQuestion[] } | { ok: false; status: number; error: string }> {
-  const pedagogyHint = input.teachingV2
-    ? " Her soruda learningObjective, explanation, misconceptionTag ve optionWhy zorunlu. optionWhy, options ile aynı uzunlukta; her şık için bir cümle (doğru şıkta gerekçe, diğerlerinde o şıkkın neden uymadığı). misconceptionTag, tuzakta adı geçen yanlış anlamın adı. multi yalnızca birden fazla bağımsız doğru varken. Yazamıyorsan optionReasons[şıkMetni] alanında O ŞIKKA özgü hata nedenini de ekleyebilirsin (hangi yanlış hesap o sayıyı verir); aynı cümleyi tekrarlama."
-    : "";
-  const schemaHint =
-    'JSON: {"questions":[{"text":string,"options":string[],"correct":string|string[],"multi":boolean,"explanation":string,"learningObjective":string,"misconceptionTag":string,"optionWhy":string[],"optionReasons":{"yanlışŞık":"neden"}}]}. correct, options içinden olmalı. optionWhy her şık için tek cümle, options ile aynı sırada. Çoklu doğru şıklarda multi true, correct dizi ve en az iki bağımsız doğru seçenek olmalı; tek doğru varsa multi false olmalı. "Hepsi doğrudur", "hiçbiri" veya başka seçenekleri özetleyen seçenekler kullanma. Çeldirici, sorunun kavramına ait makul bir yanlış anlama olsun; soruda geçmeyen ve doğru şıkla aynı türden olmayan seçenek yazma. Doğru seçenek kümesi açıklamayla birebir uyuşmalı. Tek doğru cevabı olmayan ya da kendi içinde çözülemeyen soru yazma. Her soruyu matematiksel ve bilimsel doğruluk açısından ikinci kez kontrol et. explanation: 1-2 cümlelik net Türkçe çözüm gerekçesi.' +
-    pedagogyHint +
-    (input.schemaHintExtra ? ` ${input.schemaHintExtra}` : "");
-
-  const asChoices = (questions: QuizQuestion[]): VerifiedChoice[] =>
-    questions.map((question) => ({
-      text: question.text,
-      options: question.options,
-      correct: question.correct,
-      multi: question.multi,
-      explanation: question.explanation,
-      learningObjective: question.learningObjective,
-      misconceptionTag: question.misconceptionTag,
-      optionReasons: question.optionReasons,
-      optionWhy: question.optionWhy,
-      topic: question.topic,
-      needsSolver: question.needsSolver,
-    }));
-
-  const fromChoices = (questions: VerifiedChoice[]): QuizQuestion[] =>
-    questions.map((question) => ({
-      text: question.text,
-      options: question.options,
-      correct: question.correct,
-      multi: question.multi,
-      explanation: question.explanation,
-      learningObjective: question.learningObjective,
-      misconceptionTag: question.misconceptionTag,
-      optionReasons: question.optionReasons,
-      optionWhy: question.optionWhy,
-      topic: question.topic,
-      needsSolver: question.needsSolver,
-    }));
-
-  let lastIssues: string[] = [];
-  let loggedCandidateFailure = false;
-  const questionsFrom = (raw: unknown): QuizQuestion[] | null => {
-    const parsed = parseQuizQuestions(raw) ?? coerceQuizQuestions(raw);
-    if (!parsed) return null;
-    const surfaced = parsed.map((question) => ({
-      ...question,
-      text: repairTurkishSurface(question.text),
-      ...(question.explanation ? { explanation: repairTurkishSurface(question.explanation) } : {}),
-      options: question.options.map((option) => repairTurkishSurface(option)),
-      correct: question.correct.map((option) => repairTurkishSurface(option)),
-      ...(question.learningObjective
-        ? { learningObjective: repairTurkishSurface(question.learningObjective) }
-        : {}),
-      ...(question.optionWhy
-        ? { optionWhy: question.optionWhy.map((line) => repairTurkishSurface(line)) }
-        : {}),
-      ...(question.optionReasons
-        ? {
-            optionReasons: Object.fromEntries(
-              Object.entries(question.optionReasons).map(([key, value]) => [
-                key,
-                repairTurkishSurface(value),
-              ]),
-            ),
-          }
-        : {}),
-    }));
-    const repaired = input.teachingV2 ? repairQuizPedagogy(surfaced) : surfaced;
-    // A six-question draft has spare candidates. Reject an unsupported
-    // question on its own instead of discarding the entire valid batch.
-    const grounded = input.requireSourceSupport && input.sourceExcerpt?.trim()
-      ? repaired.filter((question) => absoluteClaimIssues({ questions: [question] }, input.sourceExcerpt).length === 0)
-      : repaired;
-    const verified = verifyChoiceSet(asChoices(grounded), input.sourceExcerpt ?? "", 3);
-    if (!verified) {
-      if (input.teachingV2 && !loggedCandidateFailure) {
-        loggedCandidateFailure = true;
-        const outcomes = asChoices(grounded).map((question) => verifyChoiceQuestion(question, input.sourceExcerpt ?? ""));
-        console.warn("quiz_candidates_rejected", {
-          parsed: parsed.length,
-          grounded: grounded.length,
-          kept: outcomes.filter((row) => row.status === "keep").length,
-          unresolved: outcomes.filter((row) => row.status === "unresolved").length,
-          dropped: outcomes.filter((row) => row.status === "drop").length,
-          reasons: [...new Set(outcomes.map((row) => row.reason).filter(Boolean))],
-        });
-      }
-      lastIssues = ["Bağımsız doğrulama soruyu tutmadı. Tek doğru cevabı olan yeni soru yaz."];
-      return null;
-    }
-    const settled = input.teachingV2 ? repairQuizPedagogy(fromChoices(verified)) : fromChoices(verified);
-    return settled;
-  };
-
-  const parse = (raw: unknown) => {
-    const questions = questionsFrom(raw);
-    if (!questions) {
-      if (!lastIssues.length) lastIssues = ["Quiz şeması geçersiz."];
-      return null;
-    }
-    if (input.teachingV2) {
-      const issues = [
-        ...validateQuizPedagogy(questions, QUIZ_GATE),
-        ...quizClaimIssues(questions, input.sourceExcerpt ?? ""),
-      ];
-      if (issues.length) {
-        lastIssues = issues;
-        return null;
-      }
-    }
-    lastIssues = [];
-    return { questions };
-  };
-
-  // Single reservation: draft retries + optional independent-only accept stay inside generateJson.
-  const outcome = await generateJson({
-    service: input.service,
+  /**
+   * Ücret çağıran taraf işi bitirince kesilsin (düello: soru kümesi
+   * kullanılamazsa iade). true iken dönen reservationId pending'dir.
+   */
+  deferCommit?: boolean;
+  /**
+   * Ayrıştırıcı ve doğrulayıcı en fazla bu kadar soru tutar (varsayılan 8).
+   * Düello 7 soru gösteriyor; 8 adaydan 7'sinin doğrulamayı geçmesi
+   * beklenemiyor, o yüzden 12 istiyor.
+   */
+  maxQuestions?: number;
+  /**
+   * Açıklama ve şık gerekçeleri öğrenciye gösterilmiyor (düello). Gerekçe
+   * kapıları yalnızca gösterilen alanlara bakar; bkz. ChoiceVerifyOptions.
+   */
+  hiddenRationale?: boolean;
+  /** Öğrenciye gidecek soru sayısı (öğretmen motoru). Yoksa maxQuestions ya da 5. */
+  count?: number;
+  /** Öğretmen motorunun istemi için; yoksa çağıranın userPrompt'u bağlamı taşır. */
+  topicLabel?: string;
+  prepTitle?: string;
+}): Promise<
+  | { ok: true; questions: QuizQuestion[]; reservationId?: string }
+  | { ok: false; status: number; error: string }
+> {
+  /*
+    Öğretmen test motoru (2 Ekim 2026, ürün sahibinin kararı: tüm içerik yeni
+    motora). Düello, tanışma testi, tanı testi, deneme sınavı, test aracı ve
+    düğümün kalan türleri (yazılı deneme, son kontrol, odaklı pratik,
+    soru-cevap) buradan geçer: çağıranın kaynak bloğu KAYNAK, isteği İSTEK
+    olur; soruları bağımsız çözen denetim, sorunlu sorunun düzeltilmesi.
+    Eski taslak + onarım zinciri 3 Ekim 2026'da silindi.
+  */
+  const source = input.sourceExcerpt?.trim() ?? "";
+  const count = input.count ?? Math.min(input.maxQuestions ?? 5, 12);
+  const outcome = await runTeacherQuiz(input.service, {
     userId: input.userId,
     actionCode: input.actionCode ?? "QUIZ_GENERATE",
-    isPremium: input.isPremium,
-    difficulty: input.difficulty ?? (input.teachingV2 ? "hard" : undefined),
-    verificationMode: input.verificationMode,
-    validationProfile: input.teachingV2 ? "v2" : "legacy",
-    idempotencyKey: input.idempotencyKey,
-    maxDraftAttempts: input.maxDraftAttempts ?? (input.teachingV2 ? 2 : 1),
-    allowIndependentAccept: false,
-    activityKind: "quiz",
-    /**
-     * Bağımsız kapı temizse ileri denetçi açılmaz. Denetçi, doğru stokiyometri
-     * sonucunu kaynakta yazmıyor diye reddedip taslağı ders şekline çeviriyordu;
-     * ayrıştırıcı da bunu biçim hatası diye öğrenciye yazıyordu.
-     */
-    trustIndependent: input.teachingV2 && !input.verifyOptionReasoning ? true : undefined,
-    reviewerAddendum: input.verifyOptionReasoning
-      ? "Her sorunun kökünün belirli ve tek doğru yanıtı olup olmadığını, cevabın ve HER optionWhy satırının aynı sıradaki şıkla ve kaynakla doğruluğunu ayrı ayrı kontrol et. Bir ölçü birimini tek bir sabit değer sanan, bağlam vermeden 'hangi değer kullanılır' diyen veya birden fazla doğru yorumu olan soruyu reddet. Yanlış şık gerekçesindeki eşitlik, sayı, birim veya kavram hatasını onaylama. Yalnızca gerçek bilgi/ölçme hatasında approved false; üslup önerileri için approved true döndür. Hata varsa hangi soru/şıkta neyin yanlış olduğunu issues içinde açıkça yaz."
-      : undefined,
-    requireReviewerApproval: input.verifyOptionReasoning,
-    reviewDraft: input.teachingV2
-      ? (draft) => {
-          try {
-            const questions = questionsFrom(JSON.parse(draft));
-            return questions ? JSON.stringify({ questions }) : draft;
-          } catch {
-            return draft;
-          }
-        }
-      : undefined,
-    describeParseFailure: () => lastIssues,
-    buildIndependent: input.teachingV2
-      ? (_content, parsed) => {
-          const questions = parsed ? questionsFrom(parsed) : null;
-          return {
-            pedagogyIssues: questions
-              ? [
-                  ...validateQuizPedagogy(questions, QUIZ_GATE),
-                  ...quizClaimIssues(questions, input.sourceExcerpt ?? ""),
-                ]
-              : ["Quiz şeması geçersiz."],
-            minItems: 3,
-            sourceExcerpt: input.sourceExcerpt,
-            requireSourceSupport: input.requireSourceSupport,
-            sourcePages: input.sourcePages,
-            subjectHint: "quiz",
-          };
-        }
-      : undefined,
-    schemaHint,
-    userPrompt: input.userPrompt,
-    parse,
-    refineParsed: async (value, ask) => {
-      const refined = await refineVerifiedChoices(
-        asChoices(value.questions),
-        ask,
-        input.sourceExcerpt ?? "",
-        3,
-      );
-      if (!refined) return null;
-      const questions = input.teachingV2 ? repairQuizPedagogy(fromChoices(refined)) : fromChoices(refined);
-      const ready = questions.filter((question) => !question.needsSolver).map((question) => {
-        const { needsSolver: _drop, ...rest } = question;
-        void _drop;
-        return rest;
-      });
-      if (ready.length < 3) return null;
-      if (input.teachingV2) {
-        const issues = [
-          ...validateQuizPedagogy(ready, QUIZ_GATE),
-          ...quizClaimIssues(ready, input.sourceExcerpt ?? ""),
-        ];
-        if (issues.length) {
-          lastIssues = issues;
-          return null;
-        }
-      }
-      return { questions: ready };
-    },
+    idempotencyKey: input.idempotencyKey ?? `quiz:${randomUUID()}`,
+    topicLabel: input.topicLabel ?? "",
+    prepTitle: input.prepTitle ?? "",
+    pages: [],
+    sourceBlock: source || undefined,
+    mode: source ? "document" : "topic",
+    count,
+    minimum: Math.min(3, count),
+    brief: [input.userPrompt, input.schemaHintExtra].filter(Boolean).join("\n"),
+    deferCommit: input.deferCommit,
   });
-
-  if (!outcome.ok) return outcome;
-  return { ok: true, questions: outcome.data.questions };
+  if (!outcome.ok) return { ok: false, status: outcome.status, error: outcome.error };
+  return { ok: true, questions: outcome.questions, reservationId: outcome.reservationId };
 }

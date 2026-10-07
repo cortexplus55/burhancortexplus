@@ -1,3 +1,4 @@
+import { DEFAULT_PODCAST_LENGTH, type PodcastLength } from "@/lib/learning/podcast-formats";
 export function examPrepHomeHref(prepId: string) {
   return `/deneme-sinavlari/${prepId}`;
 }
@@ -29,11 +30,11 @@ export function examPrepAssessmentHref(prepId: string) {
 export function examPrepPodcastHref(
   prepId: string,
   topicId?: string,
-  length?: "ozet" | "standart" | "derin",
+  length?: PodcastLength,
 ) {
   const params = new URLSearchParams();
   if (topicId) params.set("topicId", topicId);
-  if (length && length !== "standart") params.set("length", length);
+  if (length && length !== DEFAULT_PODCAST_LENGTH) params.set("length", length);
   const query = params.toString();
   return `/deneme-sinavlari/${prepId}/podcast${query ? `?${query}` : ""}`;
 }
@@ -57,12 +58,4 @@ export function needsExamIntro(
   if (introCompletedAt) return false;
   if (introDeferredAt) return false;
   return !nodes.some((node) => node.status === "done");
-}
-
-/** Ölçüm hâlâ eksik — hazırlık sayfasında hatırlatılır. */
-export function examIntroPending(
-  introCompletedAt: string | null | undefined,
-  introDeferredAt?: string | null,
-) {
-  return !introCompletedAt && Boolean(introDeferredAt);
 }

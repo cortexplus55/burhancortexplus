@@ -13,7 +13,6 @@ import {
   Check,
   ChevronLeft,
   FileText,
-  MessageSquare,
   Plus,
   Smartphone,
   Upload,
@@ -57,7 +56,6 @@ import {
 import { CreditGate } from "@/components/paywall/credit-gate";
 import { COMMON_SUBJECTS } from "@/lib/learning/subjects";
 import {
-  DOCUMENT_MATERIAL_HINT,
   DOCUMENT_PICK_REJECTED,
   DOCUMENT_UPLOAD_HINT,
 } from "@/lib/documents/upload-labels";
@@ -66,7 +64,6 @@ import { uploadDocumentFile } from "@/lib/documents/upload-client";
 import "@/styles/exam-create-wizard.css";
 
 type Step =
-  | "start"
   | "subject"
   | "date"
   | "target"
@@ -235,13 +232,11 @@ export function ExamCreateWizard({
         ? account.audience
         : "free",
   });
-  // İlk soru "materyalin var mı?" — elinde dosya olmayan öğrenci eskiden üç
-  // adım yürüyüp materyal adımının altındaki ince yazıyı bulmak zorundaydı.
-  // Belgeyle gelen öğrenci (deep link) o adımı atlar.
-  //
-  // Ders adımı hâlâ ikinci: ders atlanırsa hazırlık "Serbest" olarak
-  // kaydediliyor ve listede ayırt edilemiyordu.
-  const [step, setStep] = useState<Step>(initialDocumentId ? "subject" : "start");
+  // 3 Ekim 2026, Astra sırası: ders → tarih → hedef → o dersin materyali.
+  // Her hazırlık bir derse ve kendi materyaline bağlı; başka derslerin
+  // belgeleri bu yola karışmaz. Materyali olmayan öğrenci sohbete geçer
+  // (materyal adımının altındaki düğme).
+  const [step, setStep] = useState<Step>("subject");
 
   const [subject, setSubject] = useState("");
   const [subjectQuery, setSubjectQuery] = useState("");
@@ -266,7 +261,6 @@ export function ExamCreateWizard({
     materialsRef.current = resolved;
     setMaterialsState(resolved);
   }
-  const [docs, setDocs] = useState<WizardMaterial[]>([]);
   const [uploading, setUploading] = useState(false);
   const [processDetail, setProcessDetail] = useState<string | null>(null);
   const [processPercent, setProcessPercent] = useState<number | null>(null);
@@ -303,7 +297,6 @@ export function ExamCreateWizard({
   /** The course map ran out of attempts: offer a calm "Tekrar dene". */
   const [mapRetry, setMapRetry] = useState(false);
   const [draftResumeBanner, setDraftResumeBanner] = useState(false);
-  const [processingDocs, setProcessingDocs] = useState<WizardMaterial[]>([]);
   const draftHydrated = useRef(false);
   const draftWriteTimer = useRef<number | null>(null);
 
@@ -317,7 +310,7 @@ export function ExamCreateWizard({
   const resetWizard = useCallback(() => {
     clearExamWizardDraft();
     clearPendingDocProcess();
-    setStep(initialDocumentId ? "subject" : "start");
+    setStep("subject");
     setSubject("");
     setSubjectQuery("");
     setExamDate("");
@@ -459,40 +452,23 @@ export function ExamCreateWizard({
     processDetail,
   ]);
 
+  // Belgeler sayfasından gelen belgenin adı. Öğrencinin bütün belgeleri
+  // eskiden burada seçilebilir listeydi; başka dersin belgesi bu yola
+  // karışıyordu (3 Ekim 2026) — Astra'da da yok.
   useEffect(() => {
-    void fetch("/api/documents?status=processing")
-      .then((res) => (res.ok ? res.json() : { documents: [] }))
-      .then((data: { documents?: WizardMaterial[] }) => {
-        setProcessingDocs(
-          (data.documents ?? []).map((doc) => ({
-            id: doc.id,
-            fileName: doc.fileName,
-            sizeBytes: doc.sizeBytes ?? null,
-            pageCount: doc.pageCount ?? null,
-          })),
-        );
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
+    if (!initialDocumentId) return;
     void fetch("/api/documents")
       .then((res) => (res.ok ? res.json() : { documents: [] }))
       .then((data: { documents?: WizardMaterial[] }) => {
-        const listed = (data.documents ?? []).map((doc) => ({
-          id: doc.id,
-          fileName: doc.fileName,
-          sizeBytes: doc.sizeBytes ?? null,
-          pageCount: doc.pageCount ?? null,
-        }));
-        setDocs(listed);
-        if (initialDocumentId) {
-          const hit = listed.find((doc) => doc.id === initialDocumentId);
-          if (hit) {
-            setMaterials((current) =>
-              current.map((item) => (item.id === hit.id ? { ...item, ...hit } : item)),
-            );
-          }
+        const hit = (data.documents ?? []).find((doc) => doc.id === initialDocumentId);
+        if (hit) {
+          setMaterials((current) =>
+            current.map((item) =>
+              item.id === hit.id
+                ? { ...item, fileName: hit.fileName, sizeBytes: hit.sizeBytes ?? null, pageCount: hit.pageCount ?? null }
+                : item,
+            ),
+          );
         }
       })
       .catch(() => {});
@@ -1055,15 +1031,6 @@ export function ExamCreateWizard({
     return pool.filter((s) => s.toLocaleLowerCase("tr").includes(q));
   }, [subjectQuery, recentSubjects]);
 
-  const resumeProcessingDoc = (doc: WizardMaterial) => {
-    setUploading(true);
-    void processAndRemember({
-      documentId: doc.id,
-      fileName: doc.fileName,
-      sizeBytes: doc.sizeBytes,
-    }).finally(() => setUploading(false));
-  };
-
   const removeFailedMaterial = useCallback((failed: { documentId: string }) => {
     void fetch(`/api/documents/${failed.documentId}`, { method: "DELETE" })
       .then(async (res) => {
@@ -1130,59 +1097,10 @@ export function ExamCreateWizard({
         />
       ) : null}
 
-      {processingDocs.length ? (
-        <ul className="apw-processing-docs">
-          {processingDocs.map((doc) => (
-            <li key={doc.id}>
-              <span>İşlenmekte olan belgen: {doc.fileName}</span>
-              <button type="button" className="apw-drop-pick" onClick={() => resumeProcessingDoc(doc)}>
-                Devam et
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
       {stepIndex > 0 && step !== "building" && step !== "shaping" ? (
         <button type="button" className="apw-back" onClick={goBack}>
           <ChevronLeft className="h-4 w-4" aria-hidden /> Geri
         </button>
-      ) : null}
-
-      {step === "start" ? (
-        <section className="apw-step">
-          <h1>Nasıl çalışalım?</h1>
-          <p className="apw-lead">
-            Ders notun varsa konular, sorular ve podcast senin materyalinden
-            çıkar. Yoksa da olur — sınavında ne olduğunu anlat, yeter.
-          </p>
-
-          <div className="apw-picks">
-            <button
-              type="button"
-              className="apw-pick"
-              onClick={() => setStep("subject")}
-            >
-              <FileText className="h-6 w-6" aria-hidden />
-              <span className="apw-pick-title">Ders notum var</span>
-              <span className="apw-pick-hint">
-                {DOCUMENT_MATERIAL_HINT}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              className="apw-pick"
-              onClick={onUseChat}
-            >
-              <MessageSquare className="h-6 w-6" aria-hidden />
-              <span className="apw-pick-title">Belgem yok, konudan çalışayım</span>
-              <span className="apw-pick-hint">
-                Sınavında ne var söyle; konuları birlikte çıkarıp planı kuralım.
-              </span>
-            </button>
-          </div>
-        </section>
       ) : null}
 
       {step === "subject" ? (
@@ -1292,7 +1210,8 @@ export function ExamCreateWizard({
 
       {step === "material" ? (
         <section className="apw-step">
-          <h1>Neyden çalışacaksın?</h1>
+          <h1>Çalışma materyalini ekle</h1>
+          {subject ? <p className="apw-scope">Yalnızca {subject} materyali</p> : null}
           <p className="apw-lead">
             PDF, Word, slayt ya da fotoğraf yükle. El yazısı not, basılı sayfa
             ve slayt fotoğrafı (JPG, PNG, HEIC) de olur. Konular senin
@@ -1410,49 +1329,6 @@ export function ExamCreateWizard({
             />
           ) : null}
 
-          {docs.length ? (
-            <>
-              <h2 className="apw-group">Daha önce yüklediklerin</h2>
-              <div className="apw-doc-list">
-                {docs.map((doc) => {
-                  const selected = documentIds.includes(doc.id);
-                  return (
-                    <button
-                      key={doc.id}
-                      type="button"
-                      className={selected ? "apw-doc-row apw-doc-row--on" : "apw-doc-row"}
-                      onClick={() => {
-                        if (selected) {
-                          setMaterials((current) => current.filter((item) => item.id !== doc.id));
-                          return;
-                        }
-                        const { accepted } = filesAcceptedFromSelection({
-                          committedCount: materialsRef.current.length,
-                          selectedCount: 1,
-                          cap: PREP_SOURCE_DOCUMENT_CAP,
-                        });
-                        if (accepted < 1) {
-                          toast.error(WIZARD_COPY.fileCap);
-                          return;
-                        }
-                        rememberMaterial({
-                          id: doc.id,
-                          fileName: doc.fileName,
-                          sizeBytes: doc.sizeBytes,
-                          pageCount: doc.pageCount,
-                        });
-                      }}
-                    >
-                      <FileText className="h-4 w-4 shrink-0" aria-hidden />
-                      <span className="truncate">{doc.fileName}</span>
-                      {selected ? <Check className="h-4 w-4 shrink-0" aria-hidden /> : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          ) : null}
-
           <button
             type="button"
             className="apw-cta"
@@ -1462,7 +1338,7 @@ export function ExamCreateWizard({
             {WIZARD_COPY.continue}
           </button>
           <button type="button" className="apw-ghost" onClick={onUseChat}>
-            Materyalim yok — konuşarak kuralım
+            Belgem yok, konudan çalışayım
           </button>
         </section>
       ) : null}
@@ -1741,7 +1617,7 @@ export function ExamCreateWizard({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Materyali işlemek için kredin kalmadı."
+        message="Materyali işlemek için kullanım hakkın doldu."
         returnPath="/deneme-sinavlari/olustur"
       />
     </div>

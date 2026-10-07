@@ -3,11 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BookOpen, HelpCircle, Search, X } from "lucide-react";
+import { ChevronRight, GraduationCap, HelpCircle, Landmark, Search, X } from "lucide-react";
 import { toast } from "sonner";
-import { turkishFold } from "@/lib/text/turkish";
 import { cn } from "@/lib/utils";
 import { SchoolFeedView } from "@/components/parity/school-feed-view";
+import {
+  OFFICIAL_EXAMS,
+  catalogCreateHref,
+  curriculumFor,
+  type CatalogItem,
+} from "@/lib/learning/exam-catalog";
 import type {
   SchoolFeedRow,
   SchoolSummary,
@@ -23,17 +28,34 @@ export type ExamPrepCard = {
   topicsTotal: number;
   targetScore: number | null;
   continueHref: string;
+  /** Sınav günü geçti ("Geçmiş" sekmesi). */
+  past?: boolean;
+  /** Okulda paylaşıldıysa katılım sayısı. */
+  joinCount?: number;
 };
 
-type TabId = "school" | "cortex";
+/** Astra'daki üç sekme: Okulum / Müfredatım / Resmî sınavlar. */
+type TabId = "school" | "curriculum" | "official";
+
+const TAB_PARAM: Record<TabId, string | null> = {
+  school: null,
+  curriculum: "mufredat",
+  official: "resmi",
+};
+
+function tabFromParam(value: string | null): TabId {
+  if (value === "mufredat") return "curriculum";
+  if (value === "resmi") return "official";
+  return "school";
+}
 
 export function ParityExamPrep({
   activePrep,
   otherPreps = [],
-  userInitial,
   initialSchoolName = "",
   schoolSummary = null,
   schoolRows = [],
+  gradeLevel = null,
 }: {
   activePrep: ExamPrepCard | null;
   otherPreps?: ExamPrepCard[];
@@ -41,11 +63,12 @@ export function ParityExamPrep({
   initialSchoolName?: string;
   schoolSummary?: SchoolSummary | null;
   schoolRows?: SchoolFeedRow[];
+  /** Profildeki sınıf; Müfredatım sekmesi buna göre ders gösterir. */
+  gradeLevel?: string | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tab: TabId =
-    searchParams.get("tab") === "school" ? "school" : "cortex";
+  const tab = tabFromParam(searchParams.get("tab"));
   const [schoolName, setSchoolName] = useState(initialSchoolName);
   const [schoolQuery, setSchoolQuery] = useState("");
   const [schoolOptions, setSchoolOptions] = useState<
@@ -53,7 +76,6 @@ export function ParityExamPrep({
   >([]);
   const [pickingSchool, setPickingSchool] = useState(!initialSchoolName);
   const [savingSchool, setSavingSchool] = useState(false);
-  const [query, setQuery] = useState("");
   const [howOpen, setHowOpen] = useState(false);
 
   useEffect(() => {
@@ -100,104 +122,55 @@ export function ParityExamPrep({
 
   function setTab(next: TabId) {
     const params = new URLSearchParams(searchParams.toString());
-    if (next === "cortex") {
-      params.delete("tab");
-    } else {
-      params.set("tab", "school");
-    }
+    const value = TAB_PARAM[next];
+    if (value) params.set("tab", value);
+    else params.delete("tab");
     const q = params.toString();
     router.replace(q ? `?${q}` : "/deneme-sinavlari", { scroll: false });
   }
 
-  const prep = activePrep;
-  // Katlama olmadan "ingilizce" yazan "İngilizce"yi bulamıyordu.
-  const needle = turkishFold(query.trim());
-  function matches(card: ExamPrepCard) {
-    if (!needle) return true;
-    return turkishFold(
-      `${card.title} ${card.examType ?? ""} ${card.daysLabel}`,
-    ).includes(needle);
-  }
-  const visibleActive = prep && matches(prep) ? prep : null;
-  const visibleOthers = otherPreps.filter(matches);
-  const targetMarker =
-    visibleActive?.targetScore != null && visibleActive.targetScore > 0
-      ? Math.min(100, Math.max(8, visibleActive.targetScore))
-      : 72;
+  // Astra'da "Sınav hazırlıklarım" bütün hazırlıkları yan yana kart olarak
+  // gösteriyor; tek öne çıkan kart + "Aç" satırları yok.
+  const cards = [activePrep, ...otherPreps].filter(
+    (card): card is ExamPrepCard => Boolean(card),
+  );
+  const curriculum = curriculumFor(gradeLevel);
 
   return (
     <div className="cp-exam-page">
-      <div className="cp-exam-section-head">
-        {/* Sayfanın h1'i yoktu; görsel başlık zaten buydu. */}
-        <h1 className="cp-exam-section-title">
-          Sınav
-        </h1>
-        <Link href="/deneme-sinavlari/olustur" className="cp-exam-create">
-          + Oluştur
-        </Link>
-      </div>
-
       <div className="cp-exam-hub-tools">
-        <label className="cp-exam-search">
+        {/* Astra gibi: "Ara" okulda paylaşılanlarla birlikte arayan sayfayı açar. */}
+        <Link href="/deneme-sinavlari/ara" className="cp-exam-search">
           <Search className="h-4 w-4" aria-hidden />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Ara"
-            aria-label="Hazırlık ara"
-          />
-        </label>
+          Ara
+        </Link>
         <button type="button" className="cp-exam-how" onClick={() => setHowOpen(true)}>
           <HelpCircle className="h-4 w-4" aria-hidden />
           Nasıl çalışır
         </button>
+        <Link href="/deneme-sinavlari/olustur" className="cp-exam-create">
+          + Yeni hazırlık
+        </Link>
       </div>
 
-      {visibleActive ? (
-        <article className="cp-exam-active-card">
-          <h2 className="cp-exam-active-title">{visibleActive.title}</h2>
-          <div className="cp-exam-progress-wrap">
-            <span
-              className="cp-exam-target-label"
-              style={{ left: `${targetMarker}%` }}
-            >
-              hedef puan
-            </span>
-            <div className="cp-exam-progress-track">
-              <div
-                className="cp-exam-progress-fill"
-                style={{ width: `${visibleActive.progressPct}%` }}
-              />
-              <span
-                className="cp-exam-target-marker"
-                style={{ left: `${targetMarker}%` }}
-                aria-hidden
-              />
-            </div>
-            <p className="cp-exam-progress-pct">{visibleActive.progressPct}%</p>
-          </div>
-          <div className="cp-exam-active-footer">
-            <div className="cp-exam-active-meta">
-              <span>{visibleActive.daysLabel}</span>
-              <span>
-                {visibleActive.topicsDone} / {visibleActive.topicsTotal} konu
-              </span>
-            </div>
-            <Link href={visibleActive.continueHref} className="cp-exam-continue">
-              {visibleActive.topicsDone === visibleActive.topicsTotal && visibleActive.topicsTotal > 0
-                ? "Deneme çöz"
-                : "Devam et"}
+      {cards.length ? (
+        <section className="cp-prep-row-section" aria-labelledby="my-preps-title">
+          <h1 id="my-preps-title" className="cp-prep-row-title">
+            {/* Astra gibi: başlık bütün hazırlıkların sayfasını açar. */}
+            <Link href="/deneme-sinavlari/hazirliklarim">
+              Sınav hazırlıklarım <ChevronRight className="h-4 w-4" aria-hidden />
             </Link>
+          </h1>
+          <div className="cp-prep-row">
+            {cards.map((card, index) => (
+              <PrepCard key={card.id} card={card} showTargetLabel={index === 0} />
+            ))}
           </div>
-        </article>
-      ) : needle ? (
-        visibleOthers.length === 0 && tab === "cortex" ? (
-          <p className="cp-exam-search-empty">Bu aramaya uyan hazırlık yok.</p>
-        ) : null
-      ) : !prep ? (
+        </section>
+      ) : (
         <article className="cp-exam-active-card cp-exam-discover">
           <p className="cp-exam-discover-kicker">Henüz hazırlık yok</p>
-          <h2 className="cp-exam-active-title">İlk sınav yolunu kur</h2>
+          <h1 className="cp-exam-active-title">İlk sınav yolunu kur</h1>
           <p className="mt-2 text-sm text-[var(--cp-muted)]">
             Hedef sınavını söyle, konuları topla, kısa tanı testiyle seviyeni ölç — günlük yol otomatik açılır.
           </p>
@@ -215,33 +188,27 @@ export function ParityExamPrep({
             </Link>
           </div>
         </article>
-      ) : null}
+      )}
 
       <div className="cp-exam-segment" role="tablist" aria-label="Kaynak">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "school"}
-          className={cn(
-            "cp-exam-segment-btn",
-            tab === "school" && "cp-exam-segment-btn--active",
-          )}
-          onClick={() => setTab("school")}
-        >
-          Okulum
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "cortex"}
-          className={cn(
-            "cp-exam-segment-btn",
-            tab === "cortex" && "cp-exam-segment-btn--active",
-          )}
-          onClick={() => setTab("cortex")}
-        >
-          Cortex&apos;ten
-        </button>
+        {(
+          [
+            ["school", "Okulum"],
+            ["curriculum", "Müfredatım"],
+            ["official", "Resmî sınavlar"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={cn("cp-exam-segment-btn", tab === id && "cp-exam-segment-btn--active")}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {tab === "school" ? (
@@ -254,7 +221,6 @@ export function ParityExamPrep({
                 onChange={(e) => setSchoolQuery(e.target.value)}
                 placeholder="Okul adı ara"
                 autoComplete="off"
-                autoFocus
               />
             </label>
             {schoolOptions.length ? (
@@ -307,38 +273,31 @@ export function ParityExamPrep({
             </Link>
           </div>
         )
-      ) : (
-        <div className="cp-exam-discover-grid">
-          {visibleOthers.map((item) => (
-            <article key={item.id} className="cp-exam-discover-card cp-exam-discover-card--curriculum">
-              <div className="cp-exam-discover-icon cp-exam-discover-icon--user">
-                <BookOpen className="h-4 w-4 text-sky-400" aria-hidden />
-              </div>
-              <h3 className="cp-exam-discover-title">{item.title}</h3>
-              <p className="cp-exam-discover-desc">
-                {item.topicsDone} / {item.topicsTotal} konu · {item.daysLabel}
-              </p>
-              <Link href={`/deneme-sinavlari/${item.id}`} className="cp-exam-discover-cta">
-                Aç
-              </Link>
-            </article>
-          ))}
-          {!needle ? (
-            <article className="cp-exam-discover-card cp-exam-discover-card--brand">
-              <div className="cp-exam-discover-icon cp-exam-discover-icon--brand">
-                {userInitial?.slice(0, 1) ?? "✦"}
-              </div>
-              <h3 className="cp-exam-discover-title">Yeni hazırlık</h3>
-              <p className="cp-exam-discover-desc">
-                TYT, AYT, LGS veya okul yazılısı — konuları seç, ders ders ilerle.
-              </p>
-              <Link href="/deneme-sinavlari/olustur" className="cp-exam-discover-cta">
-                Oluştur
-              </Link>
-            </article>
-          ) : null}
-        </div>
-      )}
+      ) : null}
+
+      {tab === "curriculum" ? (
+        <section className="cp-catalog" aria-label="Müfredatım">
+          <p className="cp-catalog-level">
+            <GraduationCap className="h-4 w-4" aria-hidden />
+            Eğitim seviyen · {curriculum.levelLabel}
+          </p>
+          <h2 className="cp-catalog-title">Müfredatım</h2>
+          <p className="cp-catalog-lead">
+            Dersini seç; konular kurulumda müfredatına göre çıkarılır, yol ona göre açılır.
+          </p>
+          <CatalogGrid items={curriculum.items} />
+        </section>
+      ) : null}
+
+      {tab === "official" ? (
+        <section className="cp-catalog" aria-label="Resmî sınavlar">
+          <h2 className="cp-catalog-title">Resmî sınavlar</h2>
+          <p className="cp-catalog-lead">
+            Hazırlandığın sınavı seç; konuları birlikte netleştirip yolunu kuralım.
+          </p>
+          <CatalogGrid items={OFFICIAL_EXAMS} icon />
+        </section>
+      ) : null}
 
       {howOpen ? (
         <div
@@ -384,5 +343,59 @@ export function ParityExamPrep({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Astra'nın hazırlık kartı: başlık, hedef işaretli çubuk, yüzde, tarih, konu, Devam et. */
+export function PrepCard({ card, showTargetLabel }: { card: ExamPrepCard; showTargetLabel: boolean }) {
+  const target =
+    card.targetScore != null && card.targetScore > 0 && card.targetScore <= 100
+      ? Math.min(100, Math.max(8, card.targetScore))
+      : 75;
+  const finished = card.topicsTotal > 0 && card.topicsDone === card.topicsTotal;
+  return (
+    <article className="cp-prep-card">
+      <h2 className="cp-prep-card-title">{card.title}</h2>
+      <div className="cp-exam-progress-wrap">
+        {showTargetLabel ? (
+          <span className="cp-exam-target-label" style={{ left: `${target}%` }}>
+            hedef puan
+          </span>
+        ) : null}
+        <div className="cp-exam-progress-track">
+          <div className="cp-exam-progress-fill" style={{ width: `${card.progressPct}%` }} />
+          <span className="cp-exam-target-marker" style={{ left: `${target}%` }} aria-hidden />
+        </div>
+        <p className="cp-exam-progress-pct">{card.progressPct}%</p>
+      </div>
+      <div className="cp-exam-active-footer">
+        <div className="cp-exam-active-meta">
+          <span>{card.daysLabel}</span>
+          <span>
+            {card.topicsDone} / {card.topicsTotal} konu
+          </span>
+        </div>
+        <Link href={card.continueHref} className="cp-exam-continue">
+          {finished ? "Deneme çöz" : "Devam et"}
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+function CatalogGrid({ items, icon = false }: { items: CatalogItem[]; icon?: boolean }) {
+  return (
+    <ul className="cp-catalog-grid">
+      {items.map((item) => (
+        <li key={item.id}>
+          <Link href={catalogCreateHref(item)} className="cp-catalog-card">
+            {icon ? <Landmark className="h-5 w-5" aria-hidden /> : null}
+            <strong>{item.title}</strong>
+            <span>{item.detail}</span>
+            <em>Başla</em>
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }

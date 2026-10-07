@@ -2,26 +2,26 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { isFeatureEnabled, PDF_LEARNING_V2_FLAG } from "@/lib/admin/feature-flags";
-import { isPremiumUser } from "@/lib/ai/generate";
 import { getUserEntitlements, requireFeature } from "@/lib/billing/entitlements";
 import { loadPrepDocumentIds, loadTopicTeaching } from "@/lib/documents/teacher-analysis-run";
 import { lessonPodcastBrief } from "@/lib/learning/podcast-from-lesson";
 import {
-  generatePodcastEpisode,
   loadPodcastCorpus,
-  mergePodcastSource,
   parsePodcastLength,
+  PODCAST_LENGTHS,
   podcastScopeBrief,
   readPodcastCache,
   writePodcastCache,
 } from "@/lib/learning/podcast-episode";
 import {
-  EMPTY_SOURCE_CONTEXT,
-  loadPageSourceAcrossDocuments,
   loadSourceContext,
   SourceUnavailableError,
 } from "@/lib/learning/source-context";
 import { lessonV2Schema } from "@/lib/learning/teaching-standards";
+import { documentRunningHeaders, ensureCleanPages } from "@/lib/documents/clean-pages";
+import { corePageRun } from "@/lib/learning/core-pages";
+import { pagesMarkedInSource } from "@/lib/learning/source-context";
+import { runTeacherPodcast } from "@/lib/learning/teacher-podcast-run";
 
 /**
  * Yoldan bağımsız podcast. Düğüm durumuna dokunmaz; kilitli adım kilitli kalır.
@@ -32,7 +32,7 @@ export const maxDuration = 300;
 const bodySchema = z.object({
   prepId: z.string().uuid(),
   topicId: z.string().uuid(),
-  length: z.enum(["ozet", "standart", "derin"]).optional(),
+  length: z.enum(PODCAST_LENGTHS).optional(),
   clientRequestId: z.string().uuid().optional(),
 });
 
@@ -112,39 +112,39 @@ export async function POST(request: Request) {
     }
   }
 
-  let source = EMPTY_SOURCE_CONTEXT;
-  try {
-    if (pageNumbers.length) {
-      source = await loadPageSourceAcrossDocuments(
-        service,
-        userId,
-        [topicDocumentId, prep.document_id as string | null, ...prepDocs],
-        pageNumbers,
-        { topicLabel: topic.label },
-      );
-    }
-    if (!source.block.trim() && topicDocumentId) {
-      source = await loadSourceContext(service, userId, `${prep.title ?? ""} ${topic.label}`, {
+  /*
+    Öğretmen podcast motoru (3 Ekim 2026): konunun bitişik çekirdek sayfaları
+    temiz metinle + aynı konunun dersi; belgeyle eşleme, modelin düzeltmesi.
+    Eski taslak + satır silen zincir kalktı. Belge yoksa belgesiz kip.
+  */
+  if (!pageNumbers.length && topicDocumentId) {
+    try {
+      const found = await loadSourceContext(service, userId, `${prep.title ?? ""} ${topic.label}`, {
         documentId: topicDocumentId,
         sourceBoundaryMode: "documents_only",
       });
+      pageNumbers = pagesMarkedInSource(found.block);
+    } catch (error) {
+      console.error("podcast_source_unavailable", {
+        requestId,
+        topic: topic.label,
+        code: error instanceof SourceUnavailableError ? "source_unavailable" : "source_failed",
+      });
     }
-  } catch (error) {
-    console.error("podcast_source_unavailable", {
-      requestId,
-      topic: topic.label,
-      code: error instanceof SourceUnavailableError ? "source_unavailable" : "source_failed",
-    });
-    source = EMPTY_SOURCE_CONTEXT;
   }
-
-  const corpus = await loadPodcastCorpus(service, userId, prepId, topic.label);
-  source = { ...source, block: mergePodcastSource(source.block, corpus.excerpts) };
-
-  if ((topicDocumentId || prepDocs.length) && !source.block.trim()) {
+  if (topicDocumentId && !pageNumbers.length) {
     console.error("podcast_source_unavailable", { requestId, topic: topic.label, code: "empty" });
     return errorResponse(503, "source_unavailable");
   }
+  const edges = topicDocumentId ? await documentRunningHeaders(service, topicDocumentId) : [];
+  const clean = topicDocumentId
+    ? await ensureCleanPages(service, {
+        userId,
+        documentId: topicDocumentId,
+        pages: corePageRun(pageNumbers),
+        edges,
+      })
+    : [];
 
   const teaching = teachingV2
     ? await loadTopicTeaching(
@@ -153,6 +153,7 @@ export async function POST(request: Request) {
         topic.label,
       )
     : null;
+  const corpus = await loadPodcastCorpus(service, userId, prepId, topic.label);
 
   let lessonBrief = "";
   if (topic.lesson_id) {
@@ -165,26 +166,26 @@ export async function POST(request: Request) {
     if (structured.success) lessonBrief = lessonPodcastBrief(structured.data);
   }
 
-  const outcome = await generatePodcastEpisode({
-    service,
-    userId,
-    isPremium: await isPremiumUser(service, userId),
-    prepTitle: prep.title ?? "Hazırlık",
-    topicLabel: topic.label,
-    sourceBlock: source.block,
-    teacherBrief: teaching?.brief ?? "",
-    lessonBrief,
+  const outcome = await runTeacherPodcast(service, {
+    mode: topicDocumentId ? "document" : "topic",
     length,
-    grounding: [
-      teachingV2
-        ? await podcastScopeBrief(service, prepDocs, topic.label, teaching?.priority ?? null)
-        : "",
-      corpus.syllabus,
-    ]
-      .filter(Boolean)
-      .join("\n"),
+    userId,
+    actionCode: "STUDY_PLAN_GENERATE",
     idempotencyKey: `podcast:${userId}:${prepId}:${topicId}:${length}:${requestId ?? crypto.randomUUID()}`,
-    requestId,
+    topicLabel: topic.label,
+    prepTitle: prep.title ?? "Hazırlık",
+    pages: clean.map((item) => ({ page: item.page, text: item.text })),
+    lessonText: lessonBrief || undefined,
+    syllabusLine:
+      [
+        teachingV2
+          ? await podcastScopeBrief(service, prepDocs, topic.label, teaching?.priority ?? null)
+          : "",
+        corpus.syllabus,
+      ]
+        .filter(Boolean)
+        .join("\n") || undefined,
+    runningHeaders: edges,
   });
 
   if (!outcome.ok) {
@@ -193,7 +194,6 @@ export async function POST(request: Request) {
       code: outcome.error,
       reasons: outcome.reasons,
     });
-    // generateJson başarısızlığında rezervasyon iade edilir.
     return errorResponse(outcome.status, outcome.error, { refunded: true });
   }
 
@@ -201,13 +201,13 @@ export async function POST(request: Request) {
     prepId,
     userId,
     topicLabel: topic.label,
-    episode: outcome.data,
+    episode: outcome.episode,
   });
 
   return NextResponse.json({
     ok: true,
-    title: outcome.data.title,
-    chapters: outcome.data.chapters,
+    title: outcome.episode.title,
+    chapters: outcome.episode.chapters,
     length,
     reused: false,
   });

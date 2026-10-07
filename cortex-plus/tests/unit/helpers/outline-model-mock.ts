@@ -93,3 +93,18 @@ export const processRequest = (body: unknown) =>
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+
+/**
+ * `after()` outside a Next request throws. Route tests record each scheduled
+ * background job (main's page clean once a map is saved) instead of running it.
+ */
+export const afterCalls = { n: 0 };
+export async function nextServerModule(importOriginal: () => Promise<unknown>) {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    after: () => {
+      afterCalls.n += 1;
+    },
+  };
+}

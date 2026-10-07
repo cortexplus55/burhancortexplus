@@ -9,10 +9,13 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeFakeDb } from "./helpers/fake-supabase";
-import { model, processRequest, routeTables, titledOutline } from "./helpers/outline-model-mock";
+import { afterCalls, model, processRequest, routeTables, titledOutline } from "./helpers/outline-model-mock";
 
 vi.mock("@/lib/ai/generate", async () => (await import("./helpers/outline-model-mock")).generateModule());
 vi.mock("@/lib/env", async () => (await import("./helpers/outline-model-mock")).outlineEnv);
+vi.mock("next/server", async (importOriginal) =>
+  (await import("./helpers/outline-model-mock")).nextServerModule(importOriginal),
+);
 const route = vi.hoisted(() => ({ service: null as unknown }));
 vi.mock("@/lib/api/guards", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api/guards")>();
@@ -92,8 +95,11 @@ describe("M3: wizard-deferred files wait for the ONE course outline", () => {
     }
     expect(model.calls).toHaveLength(1);
 
+    const cleansBefore = afterCalls.n;
     const done = await until({ documentId: A, courseDocumentIds: [A, B], examType: "KPSS" });
     expect(done.status).toBe(200);
+    // Main's background page clean: once per file, only by the round that saved the map.
+    expect(afterCalls.n - cleansBefore).toBe(2);
     expect(model.calls.map((c) => c.model)).toEqual(["gpt-4o-mini", "gpt-4.1"]);
     expect(model.calls[1]!.prompt).toContain("kimya16.pdf");
     expect(outlineCharges(fake)).toBe(1);
@@ -104,8 +110,12 @@ describe("M3: wizard-deferred files wait for the ONE course outline", () => {
     ]);
     // Wait markers are gone; later polls are no-ops.
     expect(fake.db.tables.document_topic_map_jobs).toHaveLength(0);
+    const cleansDone = afterCalls.n;
     expect((await post({ documentId: B })).status).toBe(200);
+    expect((await post({ documentId: A, courseDocumentIds: [A, B], examType: "KPSS" })).status).toBe(200);
     expect(model.calls).toHaveLength(2);
+    // Polls on a finished course start no background clean either.
+    expect(afterCalls.n).toBe(cleansDone);
   });
 
   it("a wizard abandoned for more than 30 minutes still gets a map from the poller, charged once", async () => {

@@ -80,4 +80,15 @@ describe("required physical page source", () => {
     expect(source.block).toContain("[s.3]");
     expect(source.block).not.toContain("[s.4]");
   });
+
+  it("marks repeated short physical pages as inadequate for a three-skill diagnosis", async () => {
+    const rows = [10, 11, 12].map((page) => ({
+      page_number: page,
+      text_content: `Birim çemberde yatay koordinat kosinüs, düşey koordinat sinüstür. Fiziksel sayfa ${page}.`,
+      formulas: [],
+    }));
+    const { service } = sourceService(rows);
+    const source = await loadPageSourceContext(service, "user", "document", [10, 11, 12]);
+    expect(source.repetitiveSparseEvidence).toBe(true);
+  });
 });

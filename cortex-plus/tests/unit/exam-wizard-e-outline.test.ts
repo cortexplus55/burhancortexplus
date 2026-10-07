@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 
 const wizard = readFileSync("src/components/parity/exam-create-wizard.tsx", "utf8");
 const panel = readFileSync("src/components/parity/wizard-processing-panel.tsx", "utf8");
-const hub = readFileSync("src/lib/learning/learning-hub.ts", "utf8");
 const draft = readFileSync("src/lib/learning/exam-wizard-draft.ts", "utf8");
 
 describe("E: wizard draft + B6 + focus prep wiring", () => {
@@ -41,11 +40,7 @@ describe("E: wizard draft + B6 + focus prep wiring", () => {
     expect(wizard).not.toMatch(/Kaynak: s\./);
   });
 
-  it("sets focus cookie after plan create and hub uses selectFocusPrep", () => {
+  it("sets focus cookie after plan create (the hub was removed on main)", () => {
     expect(wizard).toContain("setFocusPrepCookieClient");
-    expect(hub).toContain("selectFocusPrep");
-    expect(hub).toContain("focusPrepId");
-    expect(hub).toContain("urgentChip");
-    expect(hub).toContain("switchPreps");
   });
 });

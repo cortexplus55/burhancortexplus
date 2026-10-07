@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function ExamCreatePage({
   searchParams,
 }: {
-  searchParams: Promise<{ documentId?: string }>;
+  searchParams: Promise<{ documentId?: string; ders?: string; istem?: string }>;
 }) {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
@@ -19,6 +19,12 @@ export default async function ExamCreatePage({
     /^[0-9a-f-]{36}$/i.test(params.documentId)
       ? params.documentId
       : null;
+
+  // Müfredatım / Resmî sınavlar kartları kurulumu ders ve ilk mesaj dolu açar.
+  const clip = (value: unknown, max: number) =>
+    typeof value === "string" && value.trim() ? value.trim().slice(0, max) : null;
+  const initialSubject = clip(params.ders, 60);
+  const initialPrompt = clip(params.istem, 300);
 
   // Ders seçiminde en üste öğrencinin hâlihazırda çalıştığı dersler gelsin.
   const { data: recentRows } = await supabase
@@ -44,6 +50,8 @@ export default async function ExamCreatePage({
       <ExamCreateEntry
         initialDocumentId={documentId}
         recentSubjects={recentSubjects}
+        initialSubject={initialSubject}
+        initialPrompt={initialPrompt}
       />
     </ParitySorShell>
   );

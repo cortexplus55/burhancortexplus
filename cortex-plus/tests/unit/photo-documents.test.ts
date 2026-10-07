@@ -93,10 +93,10 @@ describe("kademeli okuma", () => {
 
     const result = await extractImageText(photo(), "image/jpeg");
     expect(result.ok).toBe(true);
-    expect(result.model).toBe("gpt-4o");
+    expect(result.model).toBe("gpt-4.1");
     expect(mocks.create).toHaveBeenCalledTimes(2);
     expect(mocks.create.mock.calls[0][0].model).toBe("gpt-4o-mini");
-    expect(mocks.create.mock.calls[1][0].model).toBe("gpt-4o");
+    expect(mocks.create.mock.calls[1][0].model).toBe("gpt-4.1");
   });
 
   /* Tek kelimelik bir cevap ya da modelin özrü, gömülüp aranabilir hâle
@@ -324,7 +324,6 @@ describe("kotası dolan aboneye kredi satılmıyor", () => {
   });
 
   it.each([
-    "src/components/documents/document-upload.tsx",
     "src/components/parity/exam-create-wizard.tsx",
   ])("%s kredi kapısını açmadan önce koda bakıyor", (file) => {
     const source = readFileSync(file, "utf8");

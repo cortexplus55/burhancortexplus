@@ -10,6 +10,9 @@ vi.mock("next/navigation", () => ({
 
 afterEach(cleanup);
 
+/** "Ders oluştur" Astra gibi sekmeli (1 Ekim 2026). */
+const tab = (name: string) => fireEvent.click(screen.getByRole("tab", { name }));
+
 function node(
   id: string,
   kind: HomeNode["kind"],
@@ -48,7 +51,13 @@ const lawNodes: HomeNode[] = [
   node("oral-ana", "oral", "locked", "Anayasa", 4, "AI ile Sözlü Deneme"),
 ];
 
-function renderPrep(title: string, nodes: HomeNode[], topics: string[], files: { id: string; name: string }[]) {
+function renderPrep(
+  title: string,
+  nodes: HomeNode[],
+  topics: string[],
+  files: { id: string; name: string }[],
+  openMisconceptions = 0,
+) {
   return render(
     <ExamPrepHome
       prepId="prep-1"
@@ -64,6 +73,7 @@ function renderPrep(title: string, nodes: HomeNode[], topics: string[], files: {
       topicCount={topics.length}
       topicsDone={0}
       topicLabels={topics}
+      openMisconceptions={openMisconceptions}
       materials={files.map((file) => ({
         id: file.id,
         name: file.name,
@@ -87,14 +97,18 @@ describe("study tools hub regression", () => {
       expect(button.getAttribute("aria-label")).not.toMatch(/kilitli/);
     }
 
+    fireEvent.click(screen.getByRole("button", { name: "Hazırlık seçenekleri" }));
     fireEvent.click(screen.getByRole("button", { name: "Ders oluştur" }));
     expect(screen.getByRole("dialog", { name: "Ders oluştur" })).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Konu seç"), { target: { value: "Gazlar" } });
+    tab("Sınav");
     const oral = screen.getByRole("link", { name: "Sözlü deneme" });
     expect(oral.getAttribute("href")).toBe("/deneme-sinavlari/prep-1/dugum/oral-gaz");
     expect(screen.getByRole("link", { name: "Yazılı deneme" }).getAttribute("href")).toBe(
       studyActivityHref("prep-1", "write-sto", "Gazlar"),
     );
+    expect(screen.queryByText("Bu konuda yok")).toBeNull();
+    tab("Öğren");
     expect(screen.getByRole("link", { name: "Kartlar" }).getAttribute("href")).toBe(
       studyActivityHref("prep-1", "card-sto", "Gazlar"),
     );
@@ -104,7 +118,6 @@ describe("study tools hub regression", () => {
     expect(screen.getByRole("link", { name: "Podcast" }).getAttribute("href")).toBe(
       "/deneme-sinavlari/prep-1/podcast",
     );
-    expect(screen.queryByText("Bu konuda yok")).toBeNull();
   });
 
   it("starts the oral exam for a non-science prep from the same hub", () => {
@@ -112,20 +125,22 @@ describe("study tools hub regression", () => {
       { id: "c", name: "medeni.pdf" },
       { id: "d", name: "anayasa.pdf" },
     ]);
-    fireEvent.click(screen.getByRole("tab", { name: "Konular" }));
+    fireEvent.click(screen.getByRole("tab", { name: /İlerleme/ }));
     fireEvent.click(screen.getByRole("button", { name: "Anayasa için ders oluştur" }));
-    const oral = screen.getByRole("link", { name: "Sözlü deneme" });
-    expect(oral.getAttribute("href")).toBe(studyToolHref("prep-1", "oral-ana"));
     expect(screen.getByRole("link", { name: "Konu anlatımı" }).getAttribute("href")).toBe(
       studyActivityHref("prep-1", "les-law", "Anayasa"),
-    );
-    expect(screen.getByRole("link", { name: "Konu testi" }).getAttribute("href")).toBe(
-      studyActivityHref("prep-1", "quiz-law", "Anayasa"),
     );
     expect(resolveStudyToolNode(lawNodes, "podcast", { label: "Anayasa" })).toBeNull();
     expect(screen.getByRole("link", { name: "Podcast" }).getAttribute("href")).toBe(
       "/deneme-sinavlari/prep-1/podcast",
     );
+    tab("Pratik yap");
+    expect(screen.getByRole("link", { name: "Konu testi" }).getAttribute("href")).toBe(
+      studyActivityHref("prep-1", "quiz-law", "Anayasa"),
+    );
+    tab("Sınav");
+    const oral = screen.getByRole("link", { name: "Sözlü deneme" });
+    expect(oral.getAttribute("href")).toBe(studyToolHref("prep-1", "oral-ana"));
     expect(screen.getAllByText("Bu konuda yok").map((node) => node.parentElement?.textContent)).toEqual(
       expect.arrayContaining([expect.stringContaining("Yazılı deneme")]),
     );
@@ -137,11 +152,13 @@ describe("study tools hub regression", () => {
       node("oral-may", "oral", "locked", "Mayoz", 1, "AI ile Sözlü Deneme"),
     ];
     renderPrep("Biyoloji", biology, ["Mitoz", "Mayoz"], [{ id: "e", name: "hucre.pdf" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Hazırlık seçenekleri" }));
     fireEvent.click(screen.getByRole("button", { name: "Ders oluştur" }));
     fireEvent.change(screen.getByLabelText("Konu seç"), { target: { value: "Mitoz" } });
     expect(screen.getByRole("link", { name: "Konu anlatımı" }).getAttribute("href")).toBe(
       "/deneme-sinavlari/prep-1/dugum/les-mit",
     );
+    tab("Sınav");
     expect(screen.getByRole("link", { name: "Sözlü deneme" }).getAttribute("href")).toBe(
       studyActivityHref("prep-1", "oral-may", "Mitoz"),
     );
@@ -153,5 +170,55 @@ describe("study tools hub regression", () => {
       )?.id,
     ).toBe("oral-sto");
     expect(openStudyActivity(biology, "oral", { label: "Mitoz" })?.topicQuery).toBe("Mitoz");
+  });
+});
+
+describe("ders oluştur: Astra gibi üç sekme ve önerilen", () => {
+  const nodes: HomeNode[] = [
+    node("les-1", "lesson", "done", "Birim Çember", 0),
+    node("card-1", "flashcards", "ready", "Birim Çember", 1),
+    node("quiz-1", "quiz", "locked", "Birim Çember", 2),
+    node("gaps-1", "gaps", "locked", "Birim Çember", 3),
+    node("foc-1", "focused", "locked", "Birim Çember", 4),
+    node("rev-1", "spaced", "locked", "Birim Çember", 5),
+  ];
+
+  it("sıradaki etkinliğin sekmesinde açılır ve onu Önerilen diye işaretler", () => {
+    renderPrep("Trigonometri", nodes, ["Birim Çember"], [{ id: "t", name: "trig.pdf" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Hazırlık seçenekleri" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ders oluştur" }));
+    expect(screen.getByRole("tab", { name: "Öğren" }).getAttribute("aria-selected")).toBe("true");
+    const cards = screen.getByRole("link", { name: "Kartlar" });
+    expect(cards.textContent).toContain("Önerilen");
+    // Astra gibi: yanlış yokken Bilgi boşlukları kilitli (1 Ekim 2026).
+    expect(screen.queryByRole("link", { name: "Bilgi boşlukları" })).toBeNull();
+    expect(screen.getByText("🔒 Bilgi boşlukları")).toBeTruthy();
+  });
+
+  it("açık yanılgı varsa Bilgi boşlukları açılır; hiçbir şey bitmemişse Tekrar kilitli", () => {
+    const fresh = nodes.map((item) => ({ ...item, status: item.status === "done" ? ("ready" as const) : item.status }));
+    renderPrep("Trigonometri", fresh, ["Birim Çember"], [{ id: "t", name: "trig.pdf" }], 2);
+    fireEvent.click(screen.getByRole("button", { name: "Hazırlık seçenekleri" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ders oluştur" }));
+    tab("Öğren");
+    expect(screen.getByRole("link", { name: "Bilgi boşlukları" }).getAttribute("href")).toBe(
+      studyToolHref("prep-1", "gaps-1"),
+    );
+    tab("Pratik yap");
+    expect(screen.queryByRole("link", { name: "Tekrar" })).toBeNull();
+    expect(screen.getByText(/İlk dersini ya da testini bitirince açılır/)).toBeTruthy();
+  });
+
+  it("pratik sekmesinde alıştırma ve tekrar kendi düğümünü, doğru/yanlış konu testini açar", () => {
+    renderPrep("Trigonometri", nodes, ["Birim Çember"], [{ id: "t", name: "trig.pdf" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Hazırlık seçenekleri" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ders oluştur" }));
+    tab("Pratik yap");
+    expect(screen.getByRole("link", { name: "Alıştırma" }).getAttribute("href")).toBe(studyToolHref("prep-1", "foc-1"));
+    expect(screen.getByRole("link", { name: "Tekrar" }).getAttribute("href")).toBe(studyToolHref("prep-1", "rev-1"));
+    // Ayrı doğru/yanlış düğümü yok: test zaten doğru/yanlış içeriyor.
+    expect(screen.getByRole("link", { name: "Doğru / Yanlış" }).getAttribute("href")).toBe(
+      studyToolHref("prep-1", "quiz-1"),
+    );
   });
 });

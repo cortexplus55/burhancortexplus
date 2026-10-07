@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { verifyChoiceQuestion, verifyFlashcard, verifyOralPrompt } from "@/lib/learning/question-verifier";
+import { verifyChoiceQuestion, verifyOralPrompt } from "@/lib/learning/question-verifier";
 import { settleExplanation } from "@/lib/learning/question-verifier";
 
 const subjects = {
@@ -181,37 +181,6 @@ describe("question verifier is subject-agnostic", () => {
     expect(checked.question.optionWhy?.join(" ")).not.toMatch(/bu sorunun cevabı değil/i);
     expect(checked.question.misconceptionTag).toBeTruthy();
   });
-
-  it("repairs a flashcard whose arithmetic is wrong and keeps a biology fact", () => {
-    const repaired = verifyFlashcard("İki kere iki", "2 + 2 = 5", subjects.physics);
-    expect(repaired?.back).toContain("2 + 2 = 4");
-    expect(repaired?.back).not.toContain("= 5");
-    const kept = verifyFlashcard("Mitoz nedir?", "Mitoz aynı iki yavru hücre oluşturur.", subjects.biology);
-    expect(kept?.back).toMatch(/aynı/);
-  });
-
-  it("drops a hollow announced example and a broken sentence, and keeps a short fact", () => {
-    const hollow =
-      "Uygulamalı Örnek: H₂SO₄ Hesaplaması. 0,25 mol H₂SO₄'nin gram cinsinden kütlesini bulmak için m = n × M formülünü kullanırız.";
-    expect(settleExplanation(hollow)).not.toMatch(/Örnek yarım|formülünü kullanırız/);
-    expect(
-      verifyOralPrompt(hollow, ["0,25 mol için kütle hesaplanır."], subjects.chemistry),
-    ).toBeNull();
-    const kept = verifyOralPrompt(
-      "Sınırlayıcı bileşen nedir?",
-      ["mol sayısı stokiyometrik katsayıya bölünür"],
-      subjects.chemistry,
-    );
-    expect(kept?.expectedPoints.join(" ")).toMatch(/katsayıya/);
-    expect(verifyFlashcard("Kütle", hollow, subjects.chemistry)).toBeNull();
-    expect(
-      verifyFlashcard(
-        "Bağlantı",
-        "Mol hesabında kullanılan kütle ve verilen miktar arasındaki bağlantı yalnızca sayı.",
-        subjects.chemistry,
-      ),
-    ).toBeNull();
-  });
 });
 
 describe("repeats page does not spend credits", () => {
@@ -226,7 +195,45 @@ describe("repeats page does not spend credits", () => {
     const session = readFileSync("src/components/parity/exam-node-session.tsx", "utf8");
     expect(session).toContain("cortex-balance");
     expect(session).toContain("oralReviewItemFromGrade");
+    // 29 Eylül 2026: üst çubukta kredi çipi yok (Astra gibi), bakiye olayını
+    // dinleyecek bir sayı da yok.
     const shell = readFileSync("src/components/parity/sor-shell.tsx", "utf8");
-    expect(shell).toContain("cortex-balance");
+    expect(shell).not.toContain("cp-sor-credit-chip");
+  });
+});
+
+/*
+  Düello yalnızca kökü, şıkları ve doğru cevabı gösterir. Canlıda "sin 180°
+  kaçtır? → 0" gibi doğru sorular gösterilmeyen şık gerekçeleri yüzünden
+  düşüyordu (30 Eylül 2026).
+*/
+describe("gerekçe gizliyken (düello)", () => {
+  const question = {
+    text: "Birim çemberde 180° açısının sinüs değeri kaçtır?",
+    options: ["0", "1", "-1", "√2/2"],
+    correct: ["0"],
+    multi: false,
+    explanation: "180° birim çemberde (-1, 0) noktasıdır; y koordinatı 0 olduğu için sin 180° = 0.",
+    optionWhy: ["Doğru.", "Yanlış.", "Yanlış.", "Yanlış."],
+  };
+
+  it("kısa şık gerekçesi normalde soruyu düşürür", () => {
+    expect(verifyChoiceQuestion(question).status).toBe("drop");
+  });
+
+  it("gerekçe gösterilmiyorsa soru kalır ve gerekçe taşınmaz", () => {
+    const checked = verifyChoiceQuestion(question, "", { hiddenRationale: true });
+    expect(checked.status).not.toBe("drop");
+    expect(checked.question.optionWhy).toBeUndefined();
+  });
+
+  it("yanlış anahtar gizli modda da çözücüsüz kabul edilmez", () => {
+    const checked = verifyChoiceQuestion(
+      { ...question, explanation: "sin 180° = 1 olduğu için cevap 1'dir.", correct: ["1"] },
+      "",
+      { hiddenRationale: true },
+    );
+    // Hesap isteyen soru bağımsız çözücüye gider; "keep" olmaz.
+    expect(checked.status).not.toBe("keep");
   });
 });

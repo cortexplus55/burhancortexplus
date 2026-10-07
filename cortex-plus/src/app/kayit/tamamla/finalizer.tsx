@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { SIGNUP_STORAGE_KEY, type SignupPayload } from "@/lib/parity/signup";
+import { SIGNUP_NEXT_KEY, SIGNUP_STORAGE_KEY, type SignupPayload } from "@/lib/parity/signup";
+import { safeNextPath } from "@/lib/auth/safe-next-path";
 import { completeSignup } from "../actions";
 import "@/styles/parity-marketing.css";
 import "@/styles/cinematic-home.css";
@@ -49,13 +50,16 @@ export function SignupFinalizer() {
 
         const result = await completeSignup(payload);
         if (result.ok) {
+          let target = result.redirectTo;
           try {
+            target = safeNextPath(localStorage.getItem(SIGNUP_NEXT_KEY), result.redirectTo);
             localStorage.removeItem(SIGNUP_STORAGE_KEY);
+            localStorage.removeItem(SIGNUP_NEXT_KEY);
           } catch {
             /* ignore */
           }
           if (result.linkWarning) toast.warning(result.linkWarning);
-          router.replace(result.redirectTo);
+          router.replace(target);
           router.refresh();
           return;
         }

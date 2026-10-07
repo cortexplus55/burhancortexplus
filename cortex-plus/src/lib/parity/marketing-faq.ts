@@ -60,7 +60,7 @@ export const MARKETING_FAQ: FaqItem[] = [
   },
   {
     q: "Aboneliğimi iptal edersem ne oluyor?",
-    a: "İptal, o dönemin sonunda yenilemeyi durduruyor. Ödediğin dönem bitene kadar her şey açık kalıyor; sonrasında hesabın ücretsiz katmana dönüyor ve çalışmaların duruyor.",
+    a: "Abonelik zaten otomatik yenilenmiyor; dönem sonunda hesabından kendiliğinden para çekilmez. Ödediğin dönem bitene kadar her şey açık kalıyor; sonrasında hesabın ücretsiz katmana dönüyor ve çalışmaların yerinde duruyor.",
   },
   {
     q: "Yüklediğim notlar ne oluyor?",

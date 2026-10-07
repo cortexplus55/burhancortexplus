@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  isContextlessFragment,
-  isEchoOfPriorText,
-  isWellFormedTurkishSentence,
-  repairDativePossessive,
-  scanFluencyIssues,
-  turkishSurfaceIssues,
-} from "@/lib/learning/learner-fluency";
+import { isContextlessFragment, isEchoOfPriorText, isWellFormedTurkishSentence, repairDativePossessive } from "@/lib/learning/learner-fluency";
 
 describe("repairDativePossessive", () => {
   it("fizikte izafet yönelmesini iyelik ekine çevirir", () => {
@@ -54,15 +47,6 @@ describe("cümle bütünlüğü", () => {
     expect(
       isWellFormedTurkishSentence("Tanzimat fermanı 1839'da ilan edildi."),
     ).toBe(true);
-  });
-
-  it("onarılmayan şablon issue olarak kalır", () => {
-    const scanned = scanFluencyIssues(
-      "Hangi dizenin ters çevrilirse cümle, kaynağın kurduğu tanımdan kopar.",
-    );
-    expect(scanned.issues.length).toBeGreaterThan(0);
-    expect(turkishSurfaceIssues("Devrede akım şiddete.").length).toBeGreaterThan(0);
-    expect(turkishSurfaceIssues(repairDativePossessive("Devrede akım şiddete.")).length).toBe(0);
   });
 });
 

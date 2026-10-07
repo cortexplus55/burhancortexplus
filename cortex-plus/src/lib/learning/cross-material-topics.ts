@@ -1332,18 +1332,6 @@ export function extraPracticeForTopic(
   return 1;
 }
 
-/**
- * Rozet kaynağı. Müfredat "sınavda ağırlıklı" demediyse o yazılmaz.
- * Öğretmen analizi core dediyse "Önemli". Kaynak yoksa rozet yok.
- */
-export function topicBadge(
-  topic: { examHeavy?: boolean; importance?: TopicImportance | null },
-): "exam-heavy" | "important" | null {
-  if (topic.examHeavy) return "exam-heavy";
-  if (topic.importance === "important") return "important";
-  return null;
-}
-
 /** 1 en yüksek. Öğretmen analizi yoksa null. */
 export function priorityFromImportance(
   importance: TopicImportance | null | undefined,

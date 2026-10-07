@@ -12,9 +12,8 @@ import {
   gradeStudentClaim,
   parseReactions,
   repairQuantitative,
-  type GradedClaim,
 } from "@/lib/learning/tutor-quant";
-import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/lesson-repair";
+import { announcedExampleGap, exampleIsComplete } from "@/lib/learning/example-completeness";
 import { optionWhyUniqueIssues } from "@/lib/learning/lesson-play";
 import { angleOptionReasonIssues, angleQuestionIssues } from "@/lib/learning/angle-option-reason";
 import {
@@ -43,6 +42,8 @@ export type VerifiedChoice = {
   optionWhy?: string[];
   /** Yanlış şık → o şıkka özgü hata gerekçesi. Doğrulama bunu değiştirmez, olduğu gibi taşır. */
   optionReasons?: Record<string, string>;
+  /** Çözüm adımları. Sayıları tutmazsa ya da doğru şıkka varmazsa atılır; soru kalır. */
+  steps?: string[];
   topic?: string;
   /** Deterministik kapı hükmü veremedi. Tek ikinci çağrı bunu çözer. */
   needsSolver?: boolean;
@@ -588,6 +589,30 @@ function settleOptionWhy(question: VerifiedChoice, source: string): VerifiedChoi
   return { ...question, optionWhy: audited as string[] };
 }
 
+/**
+ * Çözüm adımları açıklamayla aynı kapıdan geçer: her adımın aritmetiği
+ * tutmalı ve adımların vardığı son sonuç doğru şık olmalı. Tutmayan adım
+ * listesi onarılmaz, bütünüyle düşer — yanlış bir ara adım, adımsız bir
+ * açıklamadan daha kötü öğretir. Soru ve açıklama yerinde kalır.
+ */
+export function settleSteps(
+  steps: string[] | undefined,
+  correct: string[],
+  source = "",
+): string[] | undefined {
+  if (!steps?.length) return undefined;
+  const lines = steps
+    .map((line) => polishLearnerText(line).trim())
+    .filter((line) => line.length >= 4)
+    .slice(0, 5);
+  if (lines.length < 2) return undefined;
+  if (lines.some((line) => !auditQuantitative(line, source).ok)) return undefined;
+  const blob = lines.join("\n");
+  if (!auditQuantitative(blob, source).ok) return undefined;
+  if (!explanationMatchesCorrect(blob, correct)) return undefined;
+  return lines;
+}
+
 function explanationMatchesCorrect(explanation: string, correct: string[]): boolean {
   if (!correct.length) return true;
   const audit = auditQuantitative(explanation);
@@ -621,7 +646,22 @@ function balanceQuestion(question: VerifiedChoice): VerifiedChoice | null {
   return { ...question, options: [...new Set(options)], correct, explanation };
 }
 
-export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCheck {
+export type ChoiceVerifyOptions = {
+  /**
+   * Gerekçe öğrenciye gösterilmiyor: düello yalnızca kökü, şıkları ve doğru
+   * cevabı gösterir. Şık gerekçesi kapısı atlanır; cevap anahtarını koruyan
+   * kapılar (denkleştirme, sayısal hizalama, açıklama–cevap uyumu, çözücü)
+   * yerinde kalır. Canlıda "sin 180° kaçtır? → 0" gibi doğru sorular yalnızca
+   * gösterilmeyen gerekçe satırları yüzünden düşüyordu (30 Eylül 2026).
+   */
+  hiddenRationale?: boolean;
+};
+
+export function verifyChoiceQuestion(
+  raw: VerifiedChoice,
+  source = "",
+  options: ChoiceVerifyOptions = {},
+): ChoiceCheck {
   const polished: VerifiedChoice = {
     ...raw,
     text: polishLearnerText(raw.text).trim(),
@@ -654,11 +694,15 @@ export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCh
     explanation,
     misconceptionTag: next.misconceptionTag?.trim() || "yanlış eşleme",
   };
-  const withWhy = settleOptionWhy(next, source);
-  if (!withWhy) return { status: "drop", question: next, reason: "option_why" };
-  next = withWhy;
-  if (angleOptionReasonIssues(next).length) {
-    return { status: "drop", question: next, reason: "option_why_angle" };
+  if (options.hiddenRationale) {
+    next = { ...next, optionWhy: undefined, optionReasons: undefined };
+  } else {
+    const withWhy = settleOptionWhy(next, source);
+    if (!withWhy) return { status: "drop", question: next, reason: "option_why" };
+    next = withWhy;
+    if (angleOptionReasonIssues(next).length) {
+      return { status: "drop", question: next, reason: "option_why_angle" };
+    }
   }
   const blob = `${next.text}\n${next.explanation ?? ""}\n${(next.optionWhy ?? []).join("\n")}`;
   if (!auditQuantitative(blob, source).ok) {
@@ -668,6 +712,12 @@ export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCh
     }
     next = { ...next, explanation: repairedExpl };
   }
+  // Kapılar cevap anahtarını değiştirdiyse (denkleştirme, sayısal hizalama,
+  // kaynaktan cevap) üreticinin adımları eski cevaba gidiyor olabilir.
+  const answerIndexes = (q: VerifiedChoice) =>
+    q.correct.map((item) => q.options.indexOf(item)).sort((a, b) => a - b).join(",");
+  const keyChanged = answerIndexes(raw) !== answerIndexes(next);
+  next = { ...next, steps: keyChanged ? undefined : settleSteps(next.steps, next.correct, source) };
   const quantitative = asksQuantity(next.text) || Boolean(parseEquation(blob)) || (isLimitingQuestion(next.text) && molesIn(blob).size >= 2);
   const settled = next.needsSolver === false
     || computedResult(blob) != null
@@ -675,64 +725,6 @@ export function verifyChoiceQuestion(raw: VerifiedChoice, source = ""): ChoiceCh
     || (isLimitingQuestion(next.text) && molesIn(blob).size < 2);
   if (quantitative && !settled) return { status: "unresolved", question: { ...next, needsSolver: true } };
   return { status: "keep", question: { ...next, needsSolver: false } };
-}
-
-export function verifyChoiceSet(questions: VerifiedChoice[], source = "", min = 3): VerifiedChoice[] | null {
-  const kept = questions
-    .map((question) => verifyChoiceQuestion(question, source))
-    .filter((row) => row.status !== "drop")
-    .map((row) => row.question);
-  if (kept.length < min) return null;
-  return kept.slice(0, 8);
-}
-
-export function choiceSolverPrompt(
-  items: { index: number; text: string; options: string[] }[],
-  source: string,
-): { system: string; user: string } {
-  return {
-    system:
-      "Bağımsız çözücüsün. Her soruyu yalnızca verilen soru ve kaynakla çöz. " +
-      "Kaynakta olmayan olgu uydurma. Hesap varsa yeniden türet. " +
-      "Tek doğru yoksa veya soru kendi içinde çözülemiyorsa unanswerable true. " +
-      'JSON: {"items":[{"index":number,"answer":string|null,"unanswerable":boolean,"reason":string}]}. ' +
-      "answer, seçenek metninin birebir kopyası olsun.",
-    user: `KAYNAK:\n${source.slice(0, 3500)}\n\nSORULAR:\n${JSON.stringify(items).slice(0, 6000)}`,
-  };
-}
-
-export function applyChoiceSolver(questions: VerifiedChoice[], raw: string, source = ""): VerifiedChoice[] | null {
-  let parsed: { items?: { index?: number; answer?: string | null; unanswerable?: boolean; reason?: string }[] };
-  try {
-    parsed = JSON.parse(raw) as typeof parsed;
-  } catch {
-    return null;
-  }
-  const verdicts = new Map<number, { answer?: string | null; unanswerable?: boolean; reason?: string }>();
-  for (const item of parsed.items ?? []) {
-    if (typeof item.index === "number") verdicts.set(item.index, item);
-  }
-  const next: VerifiedChoice[] = [];
-  for (let index = 0; index < questions.length; index += 1) {
-    const question = questions[index];
-    if (!question.needsSolver) {
-      next.push(question);
-      continue;
-    }
-    const verdict = verdicts.get(index);
-    if (!verdict || verdict.unanswerable || !verdict.answer) continue;
-    const answer = question.options.find((option) => option === verdict.answer || fold(option) === fold(verdict.answer ?? ""));
-    if (!answer) continue;
-    const reason = settleExplanation(verdict.reason || `Doğru seçenek: ${answer}.`, source);
-    if (verdict.reason && !auditQuantitative(reason, source).ok) continue;
-    const checked = verifyChoiceQuestion(
-      { ...question, correct: [answer], multi: false, explanation: reason, needsSolver: false },
-      source,
-    );
-    if (checked.status === "drop") continue;
-    next.push({ ...checked.question, needsSolver: false });
-  }
-  return next.length ? next : null;
 }
 
 export function verifyOralPrompt(
@@ -788,79 +780,6 @@ export function verifyOralPrompt(
   return { prompt: probe.question.text || text, expectedPoints: nextPoints.slice(0, 6) };
 }
 
-/** Deterministik kapı yetmezse tek çözüm çağrısı. Çağrı bu dosyada açılmaz. */
-export async function refineVerifiedChoices(
-  questions: VerifiedChoice[],
-  ask: (system: string, user: string) => Promise<string | null>,
-  source = "",
-  min = 1,
-): Promise<VerifiedChoice[] | null> {
-  const pending = questions.some((question) => question.needsSolver);
-  if (!pending) return questions.length >= min ? questions : null;
-  const prompt = choiceSolverPrompt(
-    questions
-      .map((question, index) => ({ index, text: question.text, options: question.options }))
-      .filter((_, index) => questions[index]?.needsSolver),
-    source,
-  );
-  const raw = await ask(prompt.system, prompt.user);
-  const solved = raw ? applyChoiceSolver(questions, raw, source) : null;
-  const kept = (solved ?? questions.filter((question) => !question.needsSolver)).filter(
-    (question) => !question.needsSolver,
-  );
-  return kept.length >= min ? kept.slice(0, 8) : null;
-}
-
-export type PracticeQuestion = {
-  question: string;
-  options: string[];
-  correct: string;
-  points?: number;
-  multi?: boolean;
-  explanation?: string;
-  needsSolver?: boolean;
-};
-
-export function verifyPracticeQuestions(
-  items: PracticeQuestion[],
-  source = "",
-  min = 1,
-): PracticeQuestion[] | null {
-  const checks = items.map((item) =>
-    verifyChoiceQuestion(
-      {
-        text: item.question,
-        options: item.options,
-        correct: [item.correct],
-        multi: Boolean(item.multi),
-        explanation: item.explanation,
-      },
-      source,
-    ),
-  );
-  const kept = checks.filter((row) => row.status !== "drop");
-  if (kept.length < min) return null;
-  return kept.map((row) => {
-    const prior = items.find((item) => item.question === row.question.text);
-    return {
-      question: row.question.text,
-      options: row.question.options,
-      correct: row.question.correct[0] ?? row.question.options[0] ?? "",
-      multi: row.question.multi,
-      points: prior?.points,
-      explanation: row.question.explanation,
-      needsSolver: row.status === "unresolved" || row.question.needsSolver === true,
-    };
-  });
-}
-
-export function verifyFlashcard(front: string, back: string, source = ""): { front: string; back: string } | null {
-  const face = polishLearnerText(front).trim();
-  const settled = settleExplanation(back, source);
-  if (face.length < 4 || !shownExplanationOk(settled, source)) return null;
-  return { front: face, back: settled };
-}
-
 export function isScoreLabel(text: string): boolean {
   const folded = fold(text).replace(/[:\-]/g, " ").replace(/\s+/g, " ").trim();
   if (!folded || folded.length > 24) return false;
@@ -869,8 +788,4 @@ export function isScoreLabel(text: string): boolean {
   if (/^\d{1,2}\s+puan$/.test(folded)) return true;
   if (/^tam puan$/.test(folded)) return true;
   return false;
-}
-
-export function limitingGrade(student: string, context: string): GradedClaim | null {
-  return gradeStudentClaim({ student, context });
 }

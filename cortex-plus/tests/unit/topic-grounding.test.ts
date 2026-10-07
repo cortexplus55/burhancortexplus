@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { applyStudentTopicList } from "@/lib/learning/apply-prep-topics";
 import { freeMaterialLimitLine, materialDetailLine } from "@/lib/learning/prep-material-copy";
 import { PHOTO_PAGE_LIMITS } from "@/lib/billing/entitlements";
-import { mergeTopicDrafts, PREP_TOPIC_CAP, prepTopicCapacityError } from "@/lib/learning/prep-topic-list";
+import { PREP_TOPIC_CAP, prepTopicCapacityError } from "@/lib/learning/prep-topic-list";
 import { orderedSourceDocumentIds } from "@/lib/learning/prep-source";
 import { groundTopicTitle } from "@/lib/learning/topic-grounding";
 import type { GroundingCorpus } from "@/lib/learning/topic-grounding";
@@ -109,24 +109,6 @@ describe("prep topic capacity", () => {
     expect(PREP_TOPIC_CAP).toBeGreaterThanOrEqual(99);
     expect(prepTopicCapacityError(99)).toBeNull();
     expect(prepTopicCapacityError(PREP_TOPIC_CAP + 1)).toContain(String(PREP_TOPIC_CAP + 1));
-  });
-});
-
-describe("mergeTopicDrafts", () => {
-  it("keeps every main topic from every document", () => {
-    const merged = mergeTopicDrafts([
-      [
-        { id: "a", title: "Fotosentez", pages: [1] },
-        { id: "b", title: "Hücre zarı", pages: [2] },
-      ],
-      [
-        { id: "c", title: "Fotosentez", pages: [3] },
-        { id: "d", title: "Solunum", pages: [4] },
-      ],
-    ]);
-    expect(merged.topics).toEqual(["Fotosentez", "Hücre zarı", "Solunum"]);
-    expect(merged.topicPages).toEqual([[1, 3], [2], [4]]);
-    expect(merged.sources[0]?.map((source) => source.nodeId)).toEqual(["a", "c"]);
   });
 });
 

@@ -12,6 +12,9 @@ import { model, processRequest, routeTables, titledOutline } from "./helpers/out
 
 vi.mock("@/lib/ai/generate", async () => (await import("./helpers/outline-model-mock")).generateModule());
 vi.mock("@/lib/env", async () => (await import("./helpers/outline-model-mock")).outlineEnv);
+vi.mock("next/server", async (importOriginal) =>
+  (await import("./helpers/outline-model-mock")).nextServerModule(importOriginal),
+);
 const route = vi.hoisted(() => ({ service: null as unknown }));
 vi.mock("@/lib/api/guards", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api/guards")>();

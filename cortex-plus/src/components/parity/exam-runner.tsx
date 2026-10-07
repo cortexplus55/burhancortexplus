@@ -50,6 +50,7 @@ export function ParityExamRunner({
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [flagged, setFlagged] = useState<Set<string>>(new Set());
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [untimed, setUntimed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
@@ -85,6 +86,7 @@ export function ParityExamRunner({
     });
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) return;
+    setUntimed(payload.untimed === true);
     setTimeLeft(typeof payload.timeLeftSec === "number" ? payload.timeLeftSec : null);
     if (payload.answers && typeof payload.answers === "object") {
       setAnswers(payload.answers as Record<string, string | string[]>);
@@ -277,10 +279,10 @@ export function ParityExamRunner({
             timerWarn && "text-[color:#f59e0b]",
             !timerWarn && !timerUrgent && "text-[color:var(--cp-text)]",
           )}
-          aria-label={timeLeft != null ? `Kalan süre ${formatClock(timeLeft)}` : "Süre"}
+          aria-label={untimed ? "Süresiz" : timeLeft != null ? `Kalan süre ${formatClock(timeLeft)}` : "Süre"}
         >
           <Timer className="h-4 w-4" />
-          {timeLeft == null ? "…" : formatClock(timeLeft)}
+          {untimed ? "Süresiz" : timeLeft == null ? "…" : formatClock(timeLeft)}
         </div>
 
         <button

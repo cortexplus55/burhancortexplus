@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { STUDY_PATH_SKELETON, groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
+import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import {
   CORE_ORDER,
   buildExamPlan,
@@ -23,33 +23,6 @@ describe("study path skeleton", () => {
     expect(kinds(3)).toEqual(kinds(40));
     expect(kinds(3)).toEqual(CORE_ORDER);
     expect(new Set(kinds(3)).size).toBe(CORE_ORDER.length);
-  });
-
-  it("names the phases the student sees on the plan", () => {
-    expect(STUDY_PATH_SKELETON.map((phase) => phase.title)).toEqual([
-      "Bugün başla",
-      "Öğren ve Pratik Yap",
-      "Aralıklı Tekrar",
-      "Bilgi boşluklarını kapat",
-      "Yazılı Deneme",
-      "Sınav günü",
-    ]);
-    const labels = STUDY_PATH_SKELETON.flatMap((phase) =>
-      phase.items.map((item) => item.label),
-    );
-    expect(labels).toEqual(
-      expect.arrayContaining([
-        "Giriş Dersi",
-        "Tanı Testi",
-        "Podcast Dinle",
-        "AI öğretmenle Soru-Cevap",
-        "Testler ve Doğru/Yanlış",
-        "AI ile Sözlü Deneme",
-        "Zayıf nokta",
-        "Yazılı deneme",
-        "Kartlarla son tekrar",
-      ]),
-    );
   });
 
   it("groups the first lesson under Bugün başla and keeps later lessons in learn", () => {

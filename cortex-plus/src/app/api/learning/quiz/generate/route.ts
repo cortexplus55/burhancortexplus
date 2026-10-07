@@ -1,20 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import OpenAI from "openai";
-import { verifyEducationalContent } from "@/lib/ai/quality-gate";
-import {
-  commitCredits,
-  recordUsage,
-  refundCredits,
-  reserveCredits,
-} from "@/lib/credits/service";
 import { errorResponse, withUser } from "@/lib/api/guards";
-import { env } from "@/lib/env";
 import { getTeacherEntitlements, incrementTeacherUsage } from "@/lib/teacher/entitlements";
-import { CONTENT_STYLE, SYSTEM_GUARDRAIL } from "@/lib/ai/generate";
+import { isPremiumUser } from "@/lib/ai/generate";
 import { loadDocumentGenerationContext } from "@/lib/documents/generation-context";
-import { validateQuizPedagogy } from "@/lib/learning/teaching-standards";
-import type { QuizQuestion } from "@/lib/learning/exam-quiz";
+import { generateExamQuiz } from "@/lib/learning/exam-quiz-generate";
 
 const schema = z.object({
   topic: z.string().min(3).max(500),
@@ -80,142 +70,72 @@ export async function POST(request: Request) {
 
   const operationId = parsedBody.data.operationId ?? crypto.randomUUID();
   const idempotencyKey = `quiz:${operationId}`;
-  const reserve = await reserveCredits(service, user.id, "QUIZ_GENERATE", idempotencyKey);
-  if (!reserve.ok) {
-    if (reserve.reason === "insufficient_credits") {
-      return NextResponse.json({ error: "insufficient_credits" }, { status: 402 });
-    }
-    if (reserve.reason === "operation_in_progress") {
-      return errorResponse(409, "operation_in_progress");
-    }
-    if (reserve.reason === "operation_completed") {
-      return errorResponse(409, "operation_completed");
-    }
-    return NextResponse.json({ error: "reserve_failed" }, { status: 503 });
+
+  /*
+    Studio quizi eskiden kendi hattından üretiliyordu: tek bir yapay zekâ
+    gözden geçirmesi, ardından pedagoji kontrolü. Sınav hazırlığındaki
+    quizlerin geçtiği kesin kapı — aritmetik, denkleştirme, "tek doğru
+    şık", açıklamanın cevap anahtarına varması, ikinci çözücü — burada
+    hiç çalışmıyordu. Aynı konudan bir soru hazırlıkta elenip Studio'da
+    yanlış anahtarla öğrenciye gidebilirdi. Artık iki yer aynı hattan
+    geçiyor. Kredi ayırma, iade ve kullanım kaydı bu hattın içinde.
+  */
+  const outcome = await generateExamQuiz({
+    service,
+    userId,
+    isPremium: await isPremiumUser(service, userId),
+    teachingV2: true,
+    difficulty: difficulty === "easy" || difficulty === "hard" ? difficulty : "medium",
+    idempotencyKey,
+    sourceExcerpt: docContext?.excerpt,
+    requireSourceSupport: Boolean(docContext),
+    count: questionCount,
+    topicLabel: topic,
+    // Studio oynatıcısı tek doğru şıkla çalışıyor (`correct_answer` tek metin).
+    schemaHintExtra: "Bu quizde her soru tek doğru cevaplıdır: multi false, correct tek şık.",
+    userPrompt: docContext
+      ? `Belge: ${docContext.fileName}. Konu: ${topic}. ${questionCount} çoktan seçmeli soru yaz. ${difficultyHint} Çeldiriciler gerçek bir yanılgıdan gelsin. Soruları YALNIZCA belge alıntısındaki bilgiden üret.\n\nBelge alıntısı:\n${docContext.excerpt}`
+      : `Konu: ${topic}. ${questionCount} çoktan seçmeli soru yaz. ${difficultyHint} Çeldiriciler gerçek bir yanılgıdan gelsin. Konuda olmayan formül yazma.`,
+  });
+
+  if (!outcome.ok) {
+    console.error("[quiz/generate] failed", {
+      userId,
+      documentId: documentId ?? null,
+      status: outcome.status,
+      error: outcome.error,
+    });
+    if (outcome.status === 402) return errorResponse(402, "insufficient_credits");
+    if (outcome.error === "operation_in_progress") return errorResponse(409, "operation_in_progress");
+    if (outcome.error === "operation_completed") return errorResponse(409, "operation_completed");
+    return NextResponse.json({ error: "generate_failed" }, { status: 500 });
   }
-  const resId = reserve.reservationId;
 
   try {
-    if (!env.OPENAI_API_KEY) throw new Error("no_openai");
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
-    const systemContent =
-      `${SYSTEM_GUARDRAIL}\n${CONTENT_STYLE}\n` +
-      "JSON döndür: { title, questions: [{ question, options: string[4], correct, explanation, optionReasons }] }. " +
-      "Şıklar birbirinden ayırt edilebilir olsun; 'hepsi' ya da 'hiçbiri' yazma. " +
-      "correct alanı, options dizisindeki metnin birebir aynısı olmalı. " +
-      "explanation: doğru şıkkın neden doğru olduğunu 1-2 cümlede anlatan Türkçe açıklama; aritmetik doğru şıkla tutarlı olsun. " +
-      "optionReasons: her yanlış şık metnini anahtar yap; değerde O ŞIKKA özgü hata nedeni yaz (aynı cümleyi tekrarlama)." +
-      (docContext
-        ? " Soruları YALNIZCA verilen belge alıntısındaki bilgiden üret; alıntıda olmayan bilgiyi sorma."
-        : "");
-    const userContent = docContext
-      ? `Belge: ${docContext.fileName}. Konu: ${topic}. ${questionCount} soruluk quiz üret. ${difficultyHint} Çeldiriciler gerçek bir yanılgıdan gelsin. Konuda olmayan formül yazma.\n\nBelge alıntısı:\n${docContext.excerpt}`
-      : `Konu: ${topic}. ${questionCount} soruluk quiz üret. ${difficultyHint} Çeldiriciler gerçek bir yanılgıdan gelsin. Konuda olmayan formül yazma.`;
-
-    const questionSchema = z.object({
-      question: z.string().min(1),
-      options: z.array(z.string()).length(4),
-      correct: z.string(),
-      explanation: z.string().max(600).optional(),
-      optionReasons: z.record(z.string(), z.string()).optional(),
-    }).refine((q) => q.options.includes(q.correct));
-
-    async function draftOnce(repairNote?: string) {
-      const completion = await openai.chat.completions.create({
-        model: env.OPENAI_STANDARD_MODEL,
-        messages: [
-          { role: "system", content: systemContent },
-          {
-            role: "user",
-            content: repairNote ? `${userContent}\n\nDüzeltme: ${repairNote}` : userContent,
-          },
-        ],
-        response_format: { type: "json_object" },
-      });
-      const raw = completion.choices[0]?.message?.content ?? "{}";
-      const verified = await verifyEducationalContent({
-        client: openai,
-        context: `Konu: ${topic}. ${questionCount} soruluk quiz üret.`,
-        draft: raw,
-        format:
-          'JSON: {title:string,questions:[{question:string,options:string[],correct:string,explanation?:string,optionReasons?:object}]}. correct bir seçenek metni olmalı.',
-      });
-      await recordUsage(service, {
-        userId,
-        actionCode: "QUIZ_GENERATE",
-        model: env.OPENAI_ADVANCED_MODEL,
-        tokensIn: verified.tokensIn,
-        tokensOut: verified.tokensOut,
-        reservationId: resId,
-      });
-      return z
-        .object({
-          title: z.string().min(1),
-          questions: z
-            .array(questionSchema)
-            .min(Math.max(1, Math.ceil(questionCount / 2))),
-        })
-        .parse(JSON.parse(verified.content));
-    }
-
-    let parsedRaw = await draftOnce();
-    let mapped = parsedRaw.questions.map(
-      (q): QuizQuestion => ({
-        text: q.question,
+    const picked = outcome.questions
+      .filter((q) => !q.multi && q.correct.length === 1)
+      .slice(0, questionCount);
+    const parsed = {
+      title: topic.trim().slice(0, 120),
+      questions: picked.map((q) => ({
+        question: q.text,
         options: q.options,
-        correct: [q.correct],
-        multi: false,
+        correct: q.correct[0],
         explanation: q.explanation,
-        optionReasons: q.optionReasons,
-      }),
-    );
-    let pedagogy = validateQuizPedagogy(mapped, {
-      sourceExcerpt: docContext?.excerpt,
-      requireOptionReasons: true,
-    });
-    if (pedagogy.length) {
-      // Tek yeniden deneme — ikinci çağrı yalnızca ilk taslak tutmazsa.
-      parsedRaw = await draftOnce(pedagogy[0]);
-      mapped = parsedRaw.questions.map(
-        (q): QuizQuestion => ({
-          text: q.question,
-          options: q.options,
-          correct: [q.correct],
-          multi: false,
-          explanation: q.explanation,
-          optionReasons: q.optionReasons,
-        }),
-      );
-      pedagogy = validateQuizPedagogy(mapped, {
-        sourceExcerpt: docContext?.excerpt,
-        requireOptionReasons: true,
-      });
-      if (pedagogy.length) {
-        throw new Error(`pedagogy_rejected: ${pedagogy[0]}`);
-      }
-    }
-    const parsed: {
-      title?: string;
-      questions?: {
-        question: string;
-        options: string[];
-        correct: string;
-        explanation?: string;
-        optionReasons?: Record<string, string>;
-      }[];
-    } = { title: parsedRaw.title, questions: parsedRaw.questions.slice(0, questionCount) };
+      })),
+    };
 
     const { data: quiz } = await service
       .from("quizzes")
       .insert({
         user_id: user.id,
-        title: parsed.title ?? topic,
+        title: parsed.title,
         ...(documentId ? { document_id: documentId } : {}),
       })
       .select("id")
       .single();
 
-    if (quiz && parsed.questions) {
+    if (quiz && parsed.questions.length) {
       await service.from("quiz_questions").insert(
         parsed.questions.map((q, i) => ({
           quiz_id: quiz.id,
@@ -236,8 +156,6 @@ export async function POST(request: Request) {
           .order("sort_order")
       : { data: null };
 
-    await commitCredits(service, resId);
-
     if (isTeacher) {
       const entitlements = await getTeacherEntitlements(service, user.id, roles);
       if (entitlements?.tier === "pending") {
@@ -255,30 +173,40 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       quizId: quiz?.id,
-      title: parsed.title ?? topic,
+      title: parsed.title,
       source: docContext
         ? { kind: "document", documentId, fileName: docContext.fileName }
         : { kind: "topic" },
-      questions:
-        questions.length > 0
-          ? questions
-          : (parsed.questions ?? []).map((q, i) => ({
-              id: `q-${i}`,
-              text: q.question,
-              options: q.options,
-              correct: q.correct,
-              explanation: q.explanation ?? null,
-            })),
+      questions: questions.length > 0 ? questions : fallbackQuestions(parsed.questions),
     });
   } catch (error) {
-    // Sessiz 500 teşhis edilemiyordu: sebep sunucu günlüğüne düşsün,
-    // öğrenciye yine tek dost mesaj gitsin.
-    console.error("[quiz/generate] failed", {
+    // Kredi üretim başarılı olunca kesinleşti; kayıt düşse bile öğrenci
+    // ödediği soruları alsın. Kayıtsız quiz sunucuda puanlanmaz (quizId yok).
+    console.error("[quiz/generate] save_failed", {
       userId,
       documentId: documentId ?? null,
       message: error instanceof Error ? error.message.slice(0, 500) : String(error),
     });
-    await refundCredits(service, resId);
-    return NextResponse.json({ error: "generate_failed" }, { status: 500 });
+    const picked = outcome.questions.filter((q) => !q.multi && q.correct.length === 1).slice(0, questionCount);
+    return NextResponse.json({
+      quizId: null,
+      title: topic.trim().slice(0, 120),
+      source: docContext ? { kind: "document", documentId, fileName: docContext.fileName } : { kind: "topic" },
+      questions: fallbackQuestions(
+        picked.map((q) => ({ question: q.text, options: q.options, correct: q.correct[0], explanation: q.explanation })),
+      ),
+    });
   }
+}
+
+function fallbackQuestions(
+  items: { question: string; options: string[]; correct: string; explanation?: string }[],
+) {
+  return items.map((q, i) => ({
+    id: `q-${i}`,
+    text: q.question,
+    options: q.options,
+    correct: q.correct,
+    explanation: q.explanation ?? null,
+  }));
 }

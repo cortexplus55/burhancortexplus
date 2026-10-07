@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronLeft, CornerDownLeft, Info, X } from "lucide-react";
 import { honestReadingMinutes } from "@/lib/learning/lesson-coherence";
 import type { LessonV2 } from "@/lib/learning/teaching-standards";
@@ -18,18 +18,17 @@ import type { MaterialLanguage } from "@/lib/learning/teacher-brain";
 import {
   layoutBoard,
   overviewDuplicatesSection,
-  studentTextParts,
   type BoardLine,
 } from "@/lib/learning/lesson-board";
-import { renderMath, splitMath } from "@/lib/learning/math-text";
-import { normalizeMathIdentifiers, isProgrammingContext } from "@/lib/learning/math-identifiers";
+import { RichBody } from "@/components/parity/lesson-rich-text";
 import type {
   CheckGradeVariant,
   GradeCheckResult,
   LessonCheckAnswer,
   PublicSectionCheck,
 } from "@/lib/learning/lesson-play";
-import { publicLessonV2Schema } from "@/lib/learning/lesson-play";
+import { planLine, publicLessonV2Schema } from "@/lib/learning/lesson-play";
+import { isNearDuplicateText, stripInlineSourceLine } from "@/lib/learning/lesson-source";
 import type { z } from "zod";
 import "@/styles/exam-lesson-steps.css";
 
@@ -96,37 +95,103 @@ function BoardBody({
   );
 }
 
-function RichBody({ text, topicHint = "" }: { text: string; topicHint?: string }) {
-  const normalized = normalizeMathIdentifiers(text, {
-    topicHint,
-    programming: isProgrammingContext("", topicHint),
-  });
+/**
+ * Kaynak künyesi (dosya + sayfa) artık gövde metninin bir parçası değil —
+ * öğrencinin ana okuma akışında yer kaplamayan küçük, tıklanabilir bir
+ * rozet. Floating popover yerine satır içi aç/kapa: bir dış katman/portal
+ * olmadığı için mobilde ekran dışına taşma riski yok.
+ */
+function SourceBadge({ source }: { source: { file: string; page?: number } }) {
+  const [open, setOpen] = useState(false);
+  const detailId = useId();
+  const label = source.page ? `${source.file}, s.${source.page}` : source.file;
   return (
-    <>
-      {splitMath(normalized).flatMap((segment, segIndex) => {
-        if (segment.type === "math") {
-          const Tag = segment.display ? "div" : "span";
-          return (
-            <Tag
-              key={`m-${segIndex}`}
-              className={segment.display ? "als-formula cp-lesson-math" : undefined}
-              dangerouslySetInnerHTML={{
-                __html: renderMath(segment.value, segment.display),
-              }}
-            />
-          );
-        }
-        return studentTextParts(segment.value).map((part, index) =>
-          part.bold ? (
-            <strong key={`${segIndex}-${index}`} className="als-term">
-              {part.text}
-            </strong>
-          ) : (
-            <span key={`${segIndex}-${index}`}>{part.text}</span>
-          ),
-        );
-      })}
-    </>
+    <div className="als-source">
+      <button
+        type="button"
+        className="als-source-trigger"
+        aria-expanded={open}
+        aria-controls={detailId}
+        aria-label={open ? `Kaynağı gizle: ${label}` : `Kaynağı göster: ${label}`}
+        onClick={() => setOpen((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setOpen(false);
+        }}
+      >
+        <Info className="h-3 w-3" aria-hidden />
+        Kaynak
+      </button>
+      {open ? (
+        <span id={detailId} role="note" className="als-source-detail">
+          {label}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Bağıntı gövdeye gömülmez, ayrı bir kart olarak durur — Astra
+ * karşılaştırmasında gövdeye sıkışan formüllerin gövdeyi hem uzatıp hem
+ * okunaksızlaştırdığı görüldü. `.als-formula` adı `RichBody`'nin satır içi
+ * matematik bloğu tarafından zaten kullanılıyor; çakışmasın diye bu kart
+ * `.als-formula-card`.
+ */
+function FormulaCard({ formula }: { formula: NonNullable<LessonV2["sections"][number]["formula"]> }) {
+  return (
+    <div className="als-formula-card">
+      <p className="als-formula-card-title">{formula.title}</p>
+      <p className="als-formula-card-expr">
+        <RichBody text={formula.expression} />
+      </p>
+      {formula.note ? <p className="als-formula-card-note">{formula.note}</p> : null}
+    </div>
+  );
+}
+
+/** Mekanizma düz paragraf değil, numaralı ve uygulanabilir adım listesi. */
+function ProcedureList({ procedure }: { procedure: NonNullable<LessonV2["sections"][number]["procedure"]> }) {
+  return (
+    <div className="als-procedure">
+      {procedure.title ? <p className="als-procedure-title">{procedure.title}</p> : null}
+      <ol>
+        {procedure.steps.map((step, index) => (
+          <li key={index}>
+            <span className="als-procedure-label">{step.label}</span>
+            <span className="als-procedure-detail">{step.detail}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/** Küçük referans tablosu (persentil↔SD gibi karşılıklar). */
+function ReferenceTable({ table }: { table: NonNullable<LessonV2["sections"][number]["table"]> }) {
+  return (
+    <div className="als-reference-table">
+      {table.caption ? <p className="als-reference-table-caption">{table.caption}</p> : null}
+      <div className="als-reference-table-scroll">
+        <table>
+          <thead>
+            <tr>
+              {table.columns.map((column, index) => (
+                <th key={index}>{column}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                {table.columns.map((_column, colIndex) => (
+                  <td key={colIndex}>{row[colIndex] ?? ""}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
@@ -140,9 +205,15 @@ type Step =
       heading: string;
       body: string;
       check?: PlayCheck;
+      /** true: check ekranda gövdeden önce gösterilir (geri getirme / "önce dene"). */
+      checkFirst?: boolean;
       note?: LessonV2["sections"][number]["note"];
       diagram?: LessonV2["sections"][number]["diagram"];
       cards?: LessonV2["sections"][number]["cards"];
+      source?: { file: string; page?: number };
+      formula?: LessonV2["sections"][number]["formula"];
+      procedure?: LessonV2["sections"][number]["procedure"];
+      table?: LessonV2["sections"][number]["table"];
       sectionIndex: number;
     }
   | {
@@ -185,22 +256,44 @@ function buildSteps(lesson: PlayLesson): Step[] {
   const steps: Step[] = [];
   const overview = (lesson.overview ?? "").trim();
   const firstBody = lesson.sections[0]?.body ?? "";
-  if (overview && !overviewDuplicatesSection(overview, firstBody)) {
-    steps.push({ kind: "overview", heading: lesson.title, body: overview });
+  // Astra gibi giriş kartı (1 Ekim 2026): ders her zaman bir planla açılır —
+  // okuma süresi, adım sayısı, bölüm başlıkları. Özet ilk bölümü tekrar
+  // ediyorsa kanca cümlesi boş kalır, kart yine gösterilir.
+  const hook = overview && !overviewDuplicatesSection(overview, firstBody) ? overview : "";
+  if (hook || planHeadings(lesson).length >= 2) {
+    steps.push({ kind: "overview", heading: lesson.title, body: hook });
   }
   steps.push(
-    ...lesson.sections.map(
-      (s, sectionIndex): Step => ({
+    ...lesson.sections.map((s, sectionIndex): Step => {
+      // `source` alanı doldurulmuş üretimlerde zaten ayrı gelir; bu
+      // değişiklikten önce kaydedilmiş derslerde künye hâlâ gövdenin
+      // sonunda gömülü olabilir — ekranda göstermeden önce ayıklanır.
+      const existingSource = "source" in s ? (s.source as { file: string; page?: number } | undefined) : undefined;
+      const stripped = existingSource ? null : stripInlineSourceLine(s.body);
+      const note = s.note as LessonV2["sections"][number]["note"] | undefined;
+      // dropDuplicateNotes (lesson-teach.ts) yalnızca yeni üretimde çalışır;
+      // bu değişiklikten önce kaydedilmiş derslerde gövdesini tekrarlayan
+      // note hâlâ veritabanında durabilir — aynı kontrol burada da yapılır.
+      const dedupedNote =
+        note && isNearDuplicateText(note.body, s.body) ? undefined : note;
+      return {
         kind: "section",
         heading: s.heading,
-        body: s.body,
+        body: stripped ? stripped.body : s.body,
         check: s.check as PlayCheck | undefined,
-        note: s.note as LessonV2["sections"][number]["note"] | undefined,
+        checkFirst: ("checkFirst" in s ? s.checkFirst : undefined) as boolean | undefined,
+        note: dedupedNote,
         diagram: ("diagram" in s ? s.diagram : undefined) as LessonV2["sections"][number]["diagram"] | undefined,
         cards: s.cards as LessonV2["sections"][number]["cards"] | undefined,
+        source: existingSource ?? stripped?.source ?? undefined,
+        formula: ("formula" in s ? s.formula : undefined) as LessonV2["sections"][number]["formula"] | undefined,
+        procedure: ("procedure" in s ? s.procedure : undefined) as
+          | LessonV2["sections"][number]["procedure"]
+          | undefined,
+        table: ("table" in s ? s.table : undefined) as LessonV2["sections"][number]["table"] | undefined,
         sectionIndex,
-      }),
-    ),
+      };
+    }),
   );
   if (lesson.example?.prompt.trim()) {
     steps.push({
@@ -301,6 +394,46 @@ function buildSteps(lesson: PlayLesson): Step[] {
   return steps;
 }
 
+/** Bölüm başlıkları, tekrar etmeden. Ekrana yayılan kavram aynı başlığı taşır. */
+function planHeadings(lesson: PlayLesson): string[] {
+  return lesson.sections
+    .map((section) => section.heading.trim())
+    .filter((heading, index, all) => heading && all.indexOf(heading) === index);
+}
+
+/** Giriş kartındaki "Bu derste neler var" listesi. */
+function LessonPlan({ lesson }: { lesson: PlayLesson }) {
+  const headings = planHeadings(lesson);
+  if (headings.length < 2) return null;
+  const checks = lesson.sections.filter((section) => section.check).length;
+  return (
+    <section className="als-intro-plan" aria-label="Bu derste neler var">
+      <h2>Bu derste neler var</h2>
+      <ol>
+        {headings.map((heading, index) => {
+          const section = lesson.sections.find((item) => item.heading.trim() === heading);
+          const line = section ? planLine(section) : "";
+          return (
+            <li key={heading}>
+              <span aria-hidden>{index + 1}</span>
+              <div>
+                {heading}
+                {line ? <small>{line}</small> : null}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      {checks ? (
+        <p className="als-intro-end">
+          {checks === 1 ? "Arada 1 kısa soru" : `Arada ${checks} kısa soru`}
+          {lesson.summary?.length ? ", sonunda özet" : ""}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 function progressLabel(
   index: number,
   lessonCount: number,
@@ -321,8 +454,11 @@ export function ExamLessonSteps({
   onClose,
   closeHref,
   gradeCheck,
+  toolbar,
 }: {
   lesson: PlayLesson;
+  /** İlerleme çubuğunun altında duran küçük denetimler ("N kaynak"). */
+  toolbar?: ReactNode;
   /** Hazırlığın dili. Tekrar sorusu bu dilde yeniden kurulur. */
   language?: MaterialLanguage;
   /** Kaçırılan bölüm indeksleri. Metin sunucuda dersin kendisinden kurulur. */
@@ -649,6 +785,7 @@ export function ExamLessonSteps({
         </p>
         {closeControl ?? <span className="als-icon als-icon--ghost" aria-hidden />}
       </header>
+      {toolbar ? <div className="als-toolbar">{toolbar}</div> : null}
 
       {closeConfirmOpen ? (
         <div
@@ -678,6 +815,13 @@ export function ExamLessonSteps({
         </div>
       ) : null}
 
+      {(() => {
+        // checkFirst: soru gövdeden önce gösterilir (geri getirme / "önce
+        // dene"). Görsel bir CSS ters çevirme (column-reverse) yerine gerçek
+        // DOM sırası değişiyor — ekran okuyucu da soruyu önce duysun diye.
+        const checkFirst = step.kind === "section" && Boolean(step.checkFirst);
+        const slideRegion = (
+          <>
       {step.kind === "review-gate" ? (
         <div className="als-slide">
           <p className="als-kicker">TEKRARLA</p>
@@ -690,17 +834,25 @@ export function ExamLessonSteps({
 
       {step.kind !== "review-gate" ? (
         <div className={step.kind === "overview" || step.kind === "section" ? "als-slide" : undefined}>
+          {step.kind === "overview" ? (
+            <p className="als-intro-meta">
+              <span className="als-intro-tag">Ders</span>
+              yaklaşık {honestReadingMinutes(lesson as LessonV2)} dk okuma · {base.length} adım
+            </p>
+          ) : null}
           <h1 className="als-heading">{step.heading}</h1>
 
           {step.kind === "overview" || step.kind === "section" ? (
             <>
-              <BoardBody text={step.body}  topicHint={mathTopicHint} />
+              {step.body ? <BoardBody text={step.body}  topicHint={mathTopicHint} /> : null}
+              {step.kind === "overview" ? <LessonPlan lesson={lesson} /> : null}
               {bodyHasRemovalNote(step.body) ? (
                 <p className="als-removed" role="status" title="Materyalinle doğrulanamayan kısımları göstermedik.">
                   <Info className="h-3.5 w-3.5" aria-hidden />
                   Doğrulanamayan cümleler çıkarıldı.
                 </p>
               ) : null}
+              {step.kind === "section" && step.source ? <SourceBadge source={step.source} /> : null}
             </>
           ) : null}
 
@@ -716,6 +868,12 @@ export function ExamLessonSteps({
               ))}
             </div>
           ) : null}
+
+          {step.kind === "section" && step.formula ? <FormulaCard formula={step.formula} /> : null}
+
+          {step.kind === "section" && step.procedure ? <ProcedureList procedure={step.procedure} /> : null}
+
+          {step.kind === "section" && step.table ? <ReferenceTable table={step.table} /> : null}
 
           {step.kind === "section" && step.diagram ? (
             <LessonDiagramView diagram={step.diagram} id={`als-d-${index}`} />
@@ -876,7 +1034,10 @@ export function ExamLessonSteps({
           ) : null}
         </div>
       ) : null}
-
+          </>
+        );
+        const checkRegion = (
+          <>
       {check && (check.type === "numerical" || check.type === "explain") ? (
         <section className="als-check" aria-label="Bölüm kontrolü">
           <p className="als-kicker">{checkKicker(check.type)}</p>
@@ -898,7 +1059,8 @@ export function ExamLessonSteps({
                   disabled={revealed || grading}
                   inputMode="decimal"
                   aria-label="Sayısal yanıt"
-                  placeholder="ör. 13,6 g"
+                  // "ör. 13,6 g" matematik sorusunda birim istiyormuş gibi okunuyordu.
+                  placeholder="Sonucu yaz (birimi varsa ekle)"
                 />
                 <p className="als-hint">Virgül ya da nokta kullanabilirsin.</p>
               </>
@@ -929,7 +1091,12 @@ export function ExamLessonSteps({
               {check.type === "numerical" ? (
                 <p>
                   <strong>{gradeResult?.message ?? (gradeResult?.correct ? "Doğru." : "Doğrusu şu:")}</strong>{" "}
-                  {gradeResult?.answer ?? (check as { answer?: string }).answer}{" "}
+                  {(() => {
+                    // Sunucu mesajı cevabı zaten taşıyor ("Doğru — 64"); ekran
+                    // "64 64" diye ikinci kez yazıyordu.
+                    const answer = gradeResult?.answer ?? (check as { answer?: string }).answer ?? "";
+                    return answer && !(gradeResult?.message ?? "").includes(answer) ? `${answer} ` : "";
+                  })()}
                   {gradeResult?.explanation ?? check.explanation}
                 </p>
               ) : (
@@ -1064,6 +1231,15 @@ export function ExamLessonSteps({
           ) : null}
         </section>
       ) : null}
+          </>
+        );
+        return (
+          <div className="als-step-content">
+            {checkFirst ? checkRegion : slideRegion}
+            {checkFirst ? slideRegion : checkRegion}
+          </div>
+        );
+      })()}
 
       {revealed && check && ungradable ? (
         <div className="als-feedback" role="status">

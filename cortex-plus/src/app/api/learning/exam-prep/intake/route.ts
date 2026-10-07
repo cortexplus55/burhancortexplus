@@ -34,6 +34,7 @@ import { resolveAmbiguousMerges } from "@/lib/learning/topic-merge-model";
 import { consolidatePrepDocuments } from "@/lib/learning/consolidate-documents";
 import { formatContradictions } from "@/lib/learning/source-contradictions";
 import { loadOneshotIntakeTopics, type IntakeStudyUnit } from "@/lib/learning/intake-outline";
+import { namePrepFromTopics } from "@/lib/learning/prep-title-run";
 
 const bodySchema = z.object({
   messages: z
@@ -185,8 +186,9 @@ async function resolveTopicSuggestions(
 }
 
 /**
- * Belgenin adı — kapak başlığı, konu başlıklarının ortak kısmı ya da
- * dosya adı. Model çağrısı yok; bu uç kredi harcamıyor.
+ * Hazırlığın adı. Önce ana konulardan model yazar (Astra gibi içerikten:
+ * "Vatandaşlık ve Hukukun Temel Kavramları"); geçmezse kapak başlığı, konu
+ * başlıklarının ortak kısmı ya da dosya adı. Öğrenciden kredi düşmez.
  */
 async function probeDocumentTitle(
   service: SupabaseClient,
@@ -195,6 +197,8 @@ async function probeDocumentTitle(
   topicTitles: string[],
 ): Promise<string> {
   if (!documentId) return "";
+  const named = await namePrepFromTopics(service, { userId, topics: topicTitles });
+  if (named) return named;
   const [{ data: doc }, { data: pages }] = await Promise.all([
     service
       .from("documents")
@@ -455,9 +459,18 @@ export async function POST(request: Request) {
     userId,
     actionCode: "STUDY_PLAN_GENERATE",
     isPremium: await isPremiumUser(service, userId),
+    /*
+      Eskiden şemada "ready true yalnızca en az 3 konu netse" yazıyordu. Model
+      bu eşiğe ulaşmak için konu uyduruyordu: 29 Eylül 2026'da öğrenci yalnızca
+      "TYT matematik: Üslü sayılar" yazdı, asistan "sınavında sadece üslü
+      sayılar var" dedi, tarih girilince plana "Temel Matematik" ve
+      "Problemler" de eklendi. Hazır olma kararını zaten kod veriyor (tarih +
+      en az bir konu); konu listesi yalnızca öğrencinin söylediğinden çıkar.
+    */
     schemaHint:
-      'JSON: {"reply":string,"title":string,"examType":string,"topics":string[],"needDate":boolean,"ready":boolean}. examType: LGS, TYT, AYT, TUS, Okul veya Serbest. Konular kısa başlık. ready true yalnızca en az 3 konu netse. needDate true konu listesi hazır ama tarih yoksa.',
+      'JSON: {"reply":string,"title":string,"examType":string,"topics":string[],"needDate":boolean,"ready":boolean}. examType: LGS, TYT, AYT, TUS, Okul veya Serbest. Konular kısa başlık. topics YALNIZCA öğrencinin yazdığı ya da belge konu haritasındaki konular; öğrenci tek konu söylediyse topics tek elemanlı kalır, sınav türünün genel konularıyla tamamlama. ready true konu listesi netse. needDate true konu listesi hazır ama tarih yoksa.',
     userPrompt: `Sınav hazırlığı sohbeti. Öğrencinin yazdıklarından sınavı ve konuları çıkar.
+Öğrencinin söylemediği bir konuyu listeye ekleme; eklemek istiyorsan reply içinde öner, topics'e yazma.
 Tarih henüz yoksa konuları netleştirip tarihi iste.
 ${topicSuggestions.length ? `Belge konu haritası (öncelikli konu listesi): ${topicSuggestions.map((t) => t.title).join(", ")}. Mümkünse topics olarak bunları kullan.` : ""}
 ${transcript}`,

@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { toIsoDate } from "@/lib/learning/calendar";
+import { liveStreak } from "@/lib/streak/record-activity";
 
 /**
  * Profil panelinin verisi.
@@ -26,6 +27,8 @@ export type ProfileDashboard = {
   week: ProfileDay[];
   /** Yaklaşan etkinlik sayısı — Takvimim kartındaki rozet. */
   upcomingEvents: number;
+  /** Kayıtta ya da profilde seçilen emoji; yoksa baş harf gösterilir. */
+  avatarEmoji: string | null;
 };
 
 const DAY_LABELS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
@@ -56,16 +59,16 @@ export async function loadProfileDashboard(
   const weekEnd = days[days.length - 1].iso;
   const todayIso = toIsoDate(today);
 
-  const [{ data: profile }, { data: streak }, { data: activity }, { count }] =
+  const [{ data: profile }, { data: streak }, { data: activity }, { count }, { count: examCount }] =
     await Promise.all([
       supabase
         .from("profiles")
-        .select("full_name, grade_level, school_id, schools(name)")
+        .select("full_name, grade_level, school_id, avatar_url, schools(name)")
         .eq("id", userId)
         .maybeSingle(),
       supabase
         .from("user_streaks")
-        .select("current_streak, longest_streak")
+        .select("current_streak, longest_streak, last_activity_date")
         .eq("user_id", userId)
         .maybeSingle(),
       supabase
@@ -79,6 +82,13 @@ export async function loadProfileDashboard(
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
         .gte("event_date", todayIso),
+      // Takvim sayfası sınav tarihlerini de "Yaklaşan"da gösteriyor; rozet
+      // yalnızca kişisel etkinliği sayınca 7 sınav varken boş kalıyordu.
+      supabase
+        .from("exam_preps")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .gte("exam_date", todayIso),
     ]);
 
   const activeDays = new Set(
@@ -95,9 +105,13 @@ export async function loadProfileDashboard(
     fullName: (profile?.full_name as string | null) ?? null,
     schoolName,
     gradeLevel: (profile?.grade_level as string | null) ?? null,
-    currentStreak: streak?.current_streak ?? 0,
+    currentStreak: liveStreak(streak, today),
     longestStreak: streak?.longest_streak ?? 0,
     week: days.map((d) => ({ ...d, active: activeDays.has(d.iso) })),
-    upcomingEvents: count ?? 0,
+    upcomingEvents: (count ?? 0) + (examCount ?? 0),
+    avatarEmoji: (() => {
+      const avatar = (profile as { avatar_url?: string | null } | null)?.avatar_url ?? null;
+      return avatar && !avatar.startsWith("http") ? avatar : null;
+    })(),
   };
 }

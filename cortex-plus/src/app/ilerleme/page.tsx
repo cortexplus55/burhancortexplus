@@ -8,14 +8,17 @@ import { loadParityShellProps } from "@/lib/student/parity-shell-props";
 import { formatNumber } from "@/lib/format";
 import { countMistakes } from "@/lib/learning/mistake-notebook";
 import { ActivityHistory } from "@/components/student/activity-history";
+import { LearningTimeCard } from "@/components/student/learning-time-card";
+import { todayKey } from "@/lib/learning/daily-drill";
+import type { LearningTimeRow } from "@/lib/learning/learning-time";
 
-export const metadata = { title: "İlerleme" };
+export const metadata = { title: "Aktivitelerim" };
 
 export default async function IlerlemePage() {
   const { supabase, user } = await requireStudentArea();
   const shell = await loadParityShellProps(supabase, user.id, user.email);
 
-  const [conversations, quizzes, flashcards, attempts, weak, mistakes, activity] =
+  const [conversations, quizzes, flashcards, attempts, weak, mistakes, activity, learningTime] =
     await Promise.all([
     supabase
       .from("conversations")
@@ -55,7 +58,15 @@ export default async function IlerlemePage() {
       )
       .order("updated_at", { ascending: false })
       .limit(2000),
+    // Aktif öğrenme süresi (ders, test, sohbet). Gün × ekran × ders satırı.
+    supabase
+      .from("learning_time")
+      .select("activity_date, subject, seconds")
+      .eq("user_id", user.id)
+      .order("activity_date", { ascending: false })
+      .limit(5000),
   ]);
+  const learningRows = (learningTime.data ?? []) as LearningTimeRow[];
 
   const activityStamps = (activity.data ?? [])
     .map((row) => row.updated_at as string)
@@ -90,6 +101,7 @@ export default async function IlerlemePage() {
   }));
 
   const hasAnyActivity =
+    learningRows.length > 0 ||
     activityStamps.length > 0 ||
     (conversations.count ?? 0) > 0 ||
     (quizzes.count ?? 0) > 0 ||
@@ -102,7 +114,7 @@ export default async function IlerlemePage() {
       {/* Sayfanın h1'i yoktu: ekran okuyucu "burası neresi" sorusunu
           yanıtlayamıyordu, sekme başlığı dışında hiçbir işaret yoktu. */}
       <div className="cp-page-head">
-        <h1 className="cp-page-title">İlerleme</h1>
+        <h1 className="cp-page-title">Aktivitelerim</h1>
       </div>
       <div className="space-y-6">
         {!hasAnyActivity ? (
@@ -116,10 +128,11 @@ export default async function IlerlemePage() {
           />
         ) : (
           <>
+          <LearningTimeCard rows={learningRows} today={todayKey()} />
           {activityStamps.length ? (
             <SectionCard
               title="Çalışma geçmişin"
-              description="Bitirdiğin etkinlikler. Ekranda geçirdiğin süreyi ölçmüyoruz; bu grafik etkinlik sayar."
+              description="Bitirdiğin dersler, testler ve denemeler."
             >
               <ActivityHistory timestamps={activityStamps} />
             </SectionCard>

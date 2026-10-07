@@ -2,14 +2,35 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { Check, Mic, Share2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import {
+  AudioLines,
+  ClipboardCheck,
+  Crosshair,
+  FileText,
+  Flag,
+  Flame,
+  FolderOpen,
+  Layers,
+  Lock,
+  MessageCircle,
+  MessagesSquare,
+  Mic,
+  MoreVertical,
+  Swords,
+  PenLine,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Settings,
+  Share2,
+  Target,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   PLAN_NODE_META,
-  daysUntilExam,
-  readinessLabel,
-  readinessScore,
   type NodeStatus,
   type PlanNodeKind,
 } from "@/lib/learning/exam-prep-plan";
@@ -24,8 +45,15 @@ import {
 } from "@/lib/learning/exam-prep-ui-path";
 import { STUDY_PATH_HINT, studyNodeAria } from "@/lib/learning/study-tools";
 import { StudyToolsHub } from "@/components/parity/study-tools-hub";
+import { ExamPrepProgress } from "@/components/parity/exam-prep-progress";
+import {
+  buildPrepProgressView,
+  type PrepProgressView,
+} from "@/lib/learning/prep-progress-view";
 import { groupNodesByPhase } from "@/lib/learning/exam-plan-phases";
 import { cn } from "@/lib/utils";
+import { formatDayLong } from "@/lib/format";
+import { PrepBasicsPanel } from "@/components/parity/prep-basics-panel";
 import { TOPIC_ONLY_NOTICE } from "@/lib/learning/prep-source";
 import { PREP_HOME_COPY } from "@/lib/learning/exam-wizard-copy";
 import { PrepMaterialAdder } from "@/components/parity/prep-add-material";
@@ -33,6 +61,10 @@ import {
   ExamPrepSettingsPanel,
   type PrepSettingsInitial,
 } from "@/components/parity/exam-prep-settings-panel";
+
+/** Kabuğun "focus" başlığındaki simge yeri (sor-shell). */
+export const PREP_TOP_SLOT_ID = "cp-sor-top-slot";
+const INTRO_NODE_ID = "__intro";
 
 export type HomeNode = {
   id: string;
@@ -52,10 +84,74 @@ export type HomeNode = {
   } | null;
 };
 
-function trailGlyph(node: HomeNode, index: number) {
-  if (node.status === "done") return "✓";
-  if (node.kind === "podcast") return <Mic className="h-5 w-5" aria-hidden />;
-  return index + 1;
+/**
+ * Düğümün simgesi — Astra'daki gibi etkinlik türünü söylüyor, sıra numarasını
+ * değil. Kilitli düğümde tür yerine kilit: "bu daha açılmadı" tek bakışta
+ * okunuyor. Test düğümleri harfle (AB / ABCD), podcast altıgenle ayrılıyor.
+ */
+function NodeGlyph({ node }: { node: HomeNode }) {
+  if (node.status === "locked") return <Lock className="h-5 w-5" aria-hidden />;
+  const icon = "h-6 w-6";
+  switch (node.kind) {
+    case "quiz":
+      return (
+        <span className="cp-path-letters" aria-hidden>
+          AB
+          <br />
+          CD
+        </span>
+      );
+    case "true_false":
+      return (
+        <span className="cp-path-letters" aria-hidden>
+          AB
+        </span>
+      );
+    case "podcast":
+      return <AudioLines className={icon} aria-hidden />;
+    case "qa":
+      return <MessagesSquare className={icon} aria-hidden />;
+    case "oral":
+      return <Mic className={icon} aria-hidden />;
+    case "flashcards":
+      return <Layers className={icon} aria-hidden />;
+    case "spaced":
+      return <RotateCcw className={icon} aria-hidden />;
+    case "gaps":
+      return <Crosshair className={icon} aria-hidden />;
+    case "focused":
+      return <Target className={icon} aria-hidden />;
+    case "written_exam":
+      return <PenLine className={icon} aria-hidden />;
+    case "final_check":
+      return <ClipboardCheck className={icon} aria-hidden />;
+    case "readiness":
+      return <Flag className={icon} aria-hidden />;
+    default:
+      return <FileText className={icon} aria-hidden />;
+  }
+}
+
+/** Düğüm biçimi: podcast altıgen, test kare, geri kalanı daire. */
+function nodeShape(kind: PlanNodeKind): "hex" | "square" | "round" {
+  if (kind === "podcast") return "hex";
+  if (kind === "quiz" || kind === "true_false") return "square";
+  return "round";
+}
+
+function labelsFor(topicLabels: string[], rows: { title: string }[]): string[] {
+  return topicLabels.length ? topicLabels : rows.map((row) => row.title);
+}
+
+/** "Birim Çember · Ders · notlar s.10–18" → "Birim Çember". */
+function nodeHeading(node: HomeNode): string {
+  const raw = node.title || PLAN_NODE_META[node.kind].title;
+  const parts = raw.split(" · ").map((part) => part.trim());
+  // Kavram birimli ders: "Konu · Ders 2/9: Hukukun kaynakları · dosya s.…" → dersin
+  // kendi adı. Astra kartta ana konuyu değil dersin adını yazar (3 Ekim 2026).
+  const unit = parts.find((part) => /^Ders \d+\/\d+: /.test(part));
+  if (unit) return unit.replace(/^Ders \d+\/\d+: /, "");
+  return parts[0] || raw;
 }
 
 export type PrepMaterial = {
@@ -106,6 +202,11 @@ export function ExamPrepHome({
   materials = [],
   readinessClaim = null,
   topicWarnings = {},
+  progressView = null,
+  targetScore = null,
+  creatorLabel = "Sen",
+  schoolName = null,
+  joinCount = 0,
 }: {
   prepId: string;
   /** Hazırlığın kurulduğu belge; konu haritası oradan yenilenir. */
@@ -140,41 +241,100 @@ export function ExamPrepHome({
   topicLabels?: string[];
   /** Podcast rotasının konu kimliği. Etiket listesinden ayrıdır. */
   topicOptions?: { id: string; label: string }[];
-  /** Materyaller sekmesi. Birden fazla belge varsa hepsi; yoksa eski tek belge. */
+  /** Kaynaklar. Birden fazla belge varsa hepsi; yoksa eski tek belge. */
   materials?: PrepMaterial[];
   /** Ölçülen veri hazır diyorsa true. Bilinmiyorsa null; uydurma yok. */
   readinessClaim?: boolean | null;
   /** Konu başlığı → kaynaklar çelişiyorsa Türkçe uyarı. */
   topicWarnings?: Record<string, string>;
+  /** İlerleme sekmesi; sayfa kayıtlardan kurar. Yoksa düğümlerden hesaplanır. */
+  progressView?: PrepProgressView | null;
+  /** Ayarlar'da düzenlenir (Astra, 1 Ekim 2026). */
+  targetScore?: number | null;
+  /** Menü kartında "Oluşturan": "Sen" ya da okuldan katılınan hazırlığın sahibi. */
+  creatorLabel?: string;
+  schoolName?: string | null;
+  /** Okulda paylaşıldıysa katılım sayısı. */
+  joinCount?: number;
 }) {
   const router = useRouter();
   const ready = nodes.find((node) => node.status === "ready");
-  const started = hasTopic && !needsIntro;
   const hasProgress = nodes.some((node) => node.status === "done");
-  const recommendPodcast = hasProgress && started && ready?.kind === "podcast";
   const firstPlayable = nodes.find((node) => node.status !== "locked");
   const beginHref =
     hasTopic && !needsIntro && firstPlayable
       ? examPrepNodeHref(prepId, firstPlayable.id)
       : startHref;
   const primaryHref = hasProgress ? startHref : beginHref;
-  const primaryLabel = hasProgress ? PREP_HOME_COPY.continue : PREP_HOME_COPY.startLearning;
-  const daysLeft = examDate ? daysUntilExam(examDate) : null;
-  const readiness = readinessScore(nodes);
-  const readinessState = readinessLabel(readiness);
+  /** Alt karttaki etkinlik: sıradaki, yoksa bitmemiş ilk düğüm. */
+  const nextNode = ready ?? nodes.find((node) => node.status !== "done") ?? null;
+  const pathPct =
+    topicCount > 0 ? Math.round((topicsDone / topicCount) * 100) : progressPct;
   const [shared, setShared] = useState(initialShared);
   const [sharing, setSharing] = useState(false);
-  const [view, setView] = useState<"yol" | "konular" | "materyaller" | "ilerleme">("yol");
-  const [progressPane, setProgressPane] = useState<"agac" | "sorular">("agac");
-  const [openSkill, setOpenSkill] = useState<string | null>(null);
-  /** Bakım bağlantıları çalışmanın önüne geçmesin diye kapalı başlıyor. */
-  const [toolsOpen, setToolsOpen] = useState(false);
+  const [view, setView] = useState<"yol" | "ilerleme">("yol");
+  const [topSlot, setTopSlot] = useState<HTMLElement | null>(null);
+  // Sunucu çiziminde simgeler gizli: yoksa açılışta bir an ayrı satırda
+  // görünüp üst çubuğa zıplıyorlardı.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setTopSlot(document.getElementById(PREP_TOP_SLOT_ID));
+    setMounted(true);
+  }, []);
+  /**
+   * Seviye tespiti yolun ilk düğümü (3 Ekim 2026). Eskiden yolun üstünde
+   * "Seviyeni henüz ölçmedik" bandıydı; Astra'nın yolunda bant yok.
+   */
+  const introNode: HomeNode = {
+    id: INTRO_NODE_ID,
+    kind: "quiz",
+    title: "Seviye tespiti",
+    dayIndex: 0,
+    sortOrder: -1,
+    status: "ready",
+  };
+  /** "⋮" — Astra'nın hazırlık menüsü: paylaş, ders oluştur, kaynaklar, ayarlar. */
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [optionsPane, setOptionsPane] = useState<"menu" | "kaynaklar" | "ayarlar">("menu");
   const [hubTopic, setHubTopic] = useState<string | null | undefined>(undefined);
   const topicRows = useMemo(() => topicProgressFromNodes(nodes), [nodes]);
-  const showTracking = Boolean(learningTracking);
+  const mockNode = nodes.find((node) => node.kind === "written_exam") ?? null;
+  const progress = useMemo(
+    () =>
+      progressView ??
+      buildPrepProgressView({
+        nodes,
+        attempts: [],
+        topicLabels: labelsFor(topicLabels, topicRows),
+        gaps: [],
+        examDate,
+        targetScore: null,
+        dailyMinutes: null,
+        measuredReadinessPct: learningTracking?.examReadinessPct ?? null,
+      }),
+    [progressView, nodes, topicLabels, topicRows, examDate, learningTracking],
+  );
+  const labels = labelsFor(topicLabels, topicRows);
 
+  useEffect(() => {
+    if (!optionsOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOptionsOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [optionsOpen]);
+
+  function openOptions(pane: "menu" | "kaynaklar" | "ayarlar" = "menu") {
+    setOptionsPane(pane);
+    setOptionsOpen(true);
+  }
 
   function openNode(node: HomeNode) {
+    if (node.id === INTRO_NODE_ID) {
+      router.push(examPrepIntroHref(prepId));
+      return;
+    }
     if (!hasTopic) {
       router.push(`/deneme-sinavlari/${prepId}/konu`);
       return;
@@ -211,31 +371,63 @@ export function ExamPrepHome({
     }
   }
 
+  // Astra'da hazırlığın simgeleri (sohbet, düello, paylaş, "⋮") üst çubukta,
+  // serinin solunda (3 Ekim 2026). Kabuk "focus" başlığında yer açıyor;
+  // yer yoksa (test ortamı) simgeler sayfanın başında kalır.
+  const toolbar = (
+      <div
+        className={cn("cp-prep-actions", !mounted && "cp-prep-actions--pending")}
+        role="toolbar"
+        aria-label="Hazırlık işlemleri"
+      >
+        <Link
+          href={`/deneme-sinavlari/${prepId}/sohbet`}
+          className="cp-prep-icon"
+          aria-label="Bu sınav için sor"
+          title="Bu sınav için sor"
+        >
+          <MessageCircle className="h-4 w-4" aria-hidden />
+        </Link>
+        <Link
+          href={`/deneme-sinavlari/${prepId}/duello`}
+          className="cp-prep-icon"
+          aria-label="Düellolar"
+          title="Düellolar"
+        >
+          <Swords className="h-4 w-4" aria-hidden />
+        </Link>
+        {canShare ? (
+          <button
+            type="button"
+            className={cn("cp-prep-icon", shared && "is-on")}
+            aria-label={shared ? "Okulunla paylaşıldı" : "Okulunla paylaş"}
+            aria-pressed={shared}
+            title={shared ? "Okulunla paylaşıldı" : "Okulunla paylaş"}
+            disabled={sharing}
+            onClick={() => void toggleShare()}
+          >
+            <Share2 className="h-4 w-4" aria-hidden />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="cp-prep-icon"
+          aria-label="Hazırlık seçenekleri"
+          aria-haspopup="dialog"
+          title="Hazırlık seçenekleri"
+          onClick={() => openOptions("menu")}
+        >
+          <MoreVertical className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+  );
+
   return (
     <div className="cp-exam-page cp-exam-trail-page">
-      <Link href="/deneme-sinavlari" className="cp-back-pill">
-        ← Geri
-      </Link>
-      {/* Tek kart: ders, sınav ve iki görünüm bir arada. Önceden başlık
-          düz metindi ve konular ayrı bir sayfadaydı; öğrenci nerede
-          kaldığını görmek için sayfadan çıkmak zorundaydı. */}
+      {topSlot ? createPortal(toolbar, topSlot) : toolbar}
+
       <header className="cp-exam-trail-head cp-exam-hero">
-        <div className="cp-exam-trail-meter" aria-hidden>
-          <span
-            style={{
-              width: `${topicCount > 0 ? Math.round((topicsDone / topicCount) * 100) : progressPct}%`,
-            }}
-          />
-        </div>
-        <p>
-          {topicCount > 0 ? `${topicsDone} / ${topicCount} konu` : `${progressPct}%`}
-        </p>
         <h1>{title}</h1>
-        <p className="text-sm text-[var(--cp-muted)]">
-          {examType}
-          {examDate ? ` · sınav ${examDate}` : ""}
-          {daysLabel ? ` · ${daysLabel}` : ""}
-        </p>
         {/* Belgesiz hazırlıkta içerik konunun genel bilgisinden geliyor.
             Öğrenci bunu bilmezse "notumda bu varmış" diye okur. */}
         {documentId ? null : (
@@ -254,287 +446,25 @@ export function ExamPrepHome({
           <button
             type="button"
             role="tab"
-            aria-selected={view === "konular"}
-            className={cn("cp-exam-tab", view === "konular" && "is-active")}
-            onClick={() => setView("konular")}
-          >
-            {PREP_HOME_COPY.topics}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === "materyaller"}
-            className={cn("cp-exam-tab", view === "materyaller" && "is-active")}
-            onClick={() => setView("materyaller")}
-          >
-            {PREP_HOME_COPY.materials}
-          </button>
-          <button
-            type="button"
-            role="tab"
             aria-selected={view === "ilerleme"}
             className={cn("cp-exam-tab", view === "ilerleme" && "is-active")}
             onClick={() => setView("ilerleme")}
           >
             {PREP_HOME_COPY.progress}
+            <span className="cp-exam-tab-pct">%{pathPct}</span>
           </button>
         </div>
-        {activeTopicLabel ? (
-          <div>
-            <Link
-              href={`/deneme-sinavlari/${prepId}/konu`}
-              className="cp-exam-topic-badge"
-              title="Çalışılan konuyu değiştir"
-            >
-              <strong>{activeTopicLabel}</strong>
-              <span>Değiştir ↻</span>
-            </Link>
-          </div>
-        ) : null}
-        <button type="button" className="cp-back-pill cp-back-pill--accent" onClick={() => setHubTopic(null)}>
-          Ders oluştur
-        </button>
-        {canShare ? (
-          <button
-            type="button"
-            className={cn("cp-share-toggle", shared && "cp-share-toggle--on")}
-            disabled={sharing}
-            onClick={() => void toggleShare()}
-          >
-            {shared ? (
-              <>
-                <Check className="h-3.5 w-3.5" aria-hidden /> Okulunla paylaşıldı
-              </>
-            ) : (
-              <>
-                <Share2 className="h-3.5 w-3.5" aria-hidden /> Okulunla paylaş
-              </>
-            )}
-          </button>
-        ) : null}
       </header>
 
-      {/* Plan özeti "5 çalışma gününde 225 dk var" diyordu: takvim
-          kalktıktan sonra öğrencinin karşılığını göremediği bir cümle. */}
-      {!uiV2 && scheduleSummary ? (
-        <p className="text-sm text-[var(--cp-muted)]" style={{ margin: "0.75rem 0" }}>
-          Plan: {scheduleSummary}
-        </p>
-      ) : null}
-
-      {uiV2 ? (
-        <nav className="cp-exam-v2-links" aria-label="Öğrenme ekranları">
-          {/* Sohbet hazırlığın içinde duruyor: takılan öğrenci sınavdan
-              çıkıp konuyu baştan anlatmak zorunda kalmasın. Bakımla
-              birlikte gizlenmiyor, çünkü çalışmanın parçası. */}
-          <Link
-            href={`/deneme-sinavlari/${prepId}/sohbet`}
-            className="cp-back-pill cp-back-pill--accent"
-          >
-            Bu sınav için sor
-          </Link>
-          <Link href={`/deneme-sinavlari/${prepId}/zor-sorular`} className="cp-back-pill">
-            {PREP_HOME_COPY.challenge}
-          </Link>
-          <Link href={examPrepReviewsHref(prepId)} className="cp-back-pill">
-            Yanlışlar
-            {openMisconceptions > 0 ? ` (${openMisconceptions})` : ""}
-          </Link>
-          {/* Tarih değiştirme, gün dağıtma ve değerlendirme bakım işleri;
-              ilk ekranda çalışmanın önüne geçiyorlardı. */}
-          <button
-            type="button"
-            className="cp-back-pill"
-            aria-expanded={toolsOpen}
-            onClick={() => setToolsOpen((open) => !open)}
-          >
-            Daha fazla {toolsOpen ? "▴" : "▾"}
-          </button>
-        </nav>
-      ) : null}
-
-      {uiV2 && toolsOpen ? (
-        <div className="cp-exam-tools">
-          <button type="button" className="cp-back-pill" onClick={() => setHubTopic(null)}>
-            Ders oluştur
-          </button>
-          <Link href={examPrepAssessmentHref(prepId)} className="cp-back-pill">
-            Sınav öncesi değerlendirme
-          </Link>
-          {/* Konu haritası belgenin kendisine ait; yenilemek için oraya
-              gidiliyor. Buradan yenilenemiyor çünkü bu hazırlığın konuları
-              kurulurken kopyalandı — belgeyi yenilemek bu planı değil,
-              bundan sonra kurulacak hazırlıkları etkiler. */}
-          {documentId ? (
-            <Link href={`/dokumanlar/${documentId}`} className="cp-back-pill">
-              Kaynağı aç{documentName ? ` · ${documentName}` : ""}
-            </Link>
-          ) : (
-            // İçeriğin öğrencinin belgesinden gelmediğini gizlemek, "notumda
-            // bu varmış" yanılgısının ta kendisi olurdu.
-            <Link href="/dokumanlar" className="cp-back-pill">
-              Belge ekle
-            </Link>
-          )}
-          {settings ? (
-            <ExamPrepSettingsPanel prepId={prepId} initial={settings} />
-          ) : null}
-        </div>
-      ) : null}
-
-      {!uiV2 && settings ? (
-        <ExamPrepSettingsPanel prepId={prepId} initial={settings} />
-      ) : null}
-
       {view === "ilerleme" ? (
-        <section className="cp-progress-pane" aria-label="İlerleme">
-          <div className="cp-exam-tabs" role="tablist" aria-label="İlerleme görünümü">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={progressPane === "agac"}
-              className={cn("cp-exam-tab", progressPane === "agac" && "is-active")}
-              onClick={() => setProgressPane("agac")}
-            >
-              {PREP_HOME_COPY.skillTree}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={progressPane === "sorular"}
-              className={cn("cp-exam-tab", progressPane === "sorular" && "is-active")}
-              onClick={() => setProgressPane("sorular")}
-            >
-              {PREP_HOME_COPY.allQuestions}
-            </button>
-          </div>
-          {progressPane === "agac" ? (
-            <SkillTree
-              labels={
-                topicLabels.length
-                  ? topicLabels
-                  : topicRows.map((row) => row.title)
-              }
-              rows={topicRows}
-              openSkill={openSkill}
-              onToggle={setOpenSkill}
-              startHref={startHref}
-            />
-          ) : (
-            <p className="text-sm text-[var(--cp-muted)]">
-              {topicsDone > 0 || nodes.some((node) => node.status === "done")
-                ? PREP_HOME_COPY.practicedElsewhere
-                : PREP_HOME_COPY.noPractice}
-            </p>
-          )}
-        </section>
-      ) : null}
-
-      {(view === "yol" || view === "ilerleme") && (daysLeft !== null || showTracking) ? (
-        <section
-          className={cn(
-            "cp-countdown",
-            daysLeft !== null && daysLeft <= 3 && "cp-countdown--urgent",
-          )}
-        >
-          {daysLeft !== null ? (
-            <>
-              <p className="cp-countdown-kicker">Sınava kadar</p>
-              <p className="cp-countdown-days">
-                <strong>{daysLeft}</strong>
-                <span>gün</span>
-              </p>
-            </>
-          ) : (
-            <p className="cp-countdown-kicker">Öğrenme takibi</p>
-          )}
-
-          {showTracking && learningTracking ? (
-            /* Sınava hazırlık tahmini öne çıkıyor; konu hâkimiyeti altında
-               küçülüyor ama kalıyor — hangi sayının neyi ölçtüğü
-               uyarısıyla birlikte. */
-            <div className="cp-countdown-readiness">
-              <TrackingMeter
-                title="Sınava hazırlık tahmini"
-                pct={learningTracking.examReadinessPct}
-                label={learningTracking.examReadinessLabel}
-                hint={
-                  learningTracking.claimFullyReady
-                    ? "Ölçülen başarı + kapsam + deneme sonuçlarına göre."
-                    : "Etkinlik bitirmek tek başına %100 hazırlık değildir."
-                }
-              />
-              <div className="cp-tracking-secondary">
-                {/* "Program ilerlemesi" takvime bağlıydı: planın kaçıncı
-                    gününde olduğunu ölçüyordu. Takvim kalkınca ölçtüğü şey
-                    kalmadı; yerini yolun ne kadarının bittiği aldı ve o da
-                    üstteki çubukta zaten duruyor. */}
-                <TrackingMeter
-                  title="Konu hâkimiyeti"
-                  pct={learningTracking.topicMasteryPct}
-                  label={learningTracking.topicMasteryLabel}
-                  hint={
-                    learningTracking.measuredTopicCount === 0
-                      ? "Ölçülmemiş konularda yüksek güven gösterilmez."
-                      : `${learningTracking.measuredTopicCount} ölçülen · ${learningTracking.unmeasuredTopicCount} ölçülmemiş`
-                  }
-                  emptyText="Henüz ölçülmedi"
-                />
-              </div>
-            </div>
-          ) : daysLeft !== null ? (
-            <div className="cp-countdown-readiness">
-              <div className="cp-countdown-row">
-                <span>Çalışma ilerlemen</span>
-                <span className="cp-countdown-pct">%{readiness}</span>
-              </div>
-              <div className="cp-countdown-meter" aria-hidden>
-                <span style={{ width: `${Math.max(readiness, readiness > 0 ? 3 : 0)}%` }} />
-              </div>
-              <p className="cp-countdown-state">
-                <span aria-hidden>{readinessState.emoji}</span> {readinessState.text}
-              </p>
-              <p className="text-xs text-[var(--cp-muted)]">
-                Bu oran etkinliklerin tamamlanmasını gösterir; konu hakimiyetini ölçmez.
-              </p>
-            </div>
-          ) : null}
-        </section>
-      ) : null}
-
-      {introPending ? (
-        <Link href={examPrepIntroHref(prepId)} className="cp-intro-nudge">
-          <strong>Seviyeni henüz ölçmedik.</strong>
-          <span>
-            8 soruluk tanı, planı hangi konuya daha çok zaman ayıracağına göre
-            ayarlar. Birkaç dakika sürer.
-          </span>
-        </Link>
-      ) : null}
-
-      {view === "konular" ? (
-        <TopicList
-          prepId={prepId}
-          labels={topicLabels.length ? topicLabels : topicRows.map((row) => row.title)}
-          rows={topicRows}
+        <ExamPrepProgress
+          view={progress}
+          daysLabel={daysLabel}
           warnings={topicWarnings}
+          reviewsHref={uiV2 ? examPrepReviewsHref(prepId) : null}
+          mockHref={mockNode ? examPrepNodeHref(prepId, mockNode.id) : null}
           onCreate={(label) => setHubTopic(label)}
         />
-      ) : null}
-
-      {view === "materyaller" ? (
-        <>
-          <MaterialsList materials={materials} />
-          <PrepMaterialAdder prepId={prepId} count={materials.length} />
-        </>
-      ) : null}
-
-      {view === "yol" && !uiV2 ? (
-        <p>
-          <Link href={`/deneme-sinavlari/${prepId}/zor-sorular`} className="cp-back-pill">
-            {PREP_HOME_COPY.challenge}
-          </Link>
-        </p>
       ) : null}
 
       {view === "yol" && !nodes.length ? (
@@ -547,7 +477,7 @@ export function ExamPrepHome({
           </p>
           <div className="cp-exam-empty-actions">
             <Link href={primaryHref} className="cp-exam-continue cp-exam-continue--primary">
-              {primaryLabel}
+              {PREP_HOME_COPY.continue}
             </Link>
             {introPending ? (
               <Link href={examPrepIntroHref(prepId)} className="cp-exam-continue">
@@ -557,37 +487,206 @@ export function ExamPrepHome({
           </div>
         </div>
       ) : view === "yol" ? (
-        <>
-          <p className="cp-study-hub-hint">{STUDY_PATH_HINT}</p>
-          <StudyPath nodes={nodes} onOpen={openNode} readinessClaim={readinessClaim} />
-        </>
+        <StudyPath
+          nodes={nodes}
+          lead={introPending ? introNode : null}
+          currentId={nextNode?.id ?? null}
+          onOpen={openNode}
+          readinessClaim={readinessClaim}
+        />
       ) : null}
 
-      {view === "yol" ? (
-        <div className={cn("cp-exam-start-card", recommendPodcast && "cp-exam-reco")}>
-          {recommendPodcast ? (
-            <>
-              <p className="cp-exam-reco-kicker">ÖNERİLEN DERS</p>
-              <h2>Podcast</h2>
-              <Link href={startHref} className="cp-exam-reco-go">
-                {PREP_HOME_COPY.continue}
-              </Link>
-            </>
-          ) : (
-            <>
-              <p>{hasProgress ? "Sıradaki derse geç" : "Başlamaya hazır mısın?"}</p>
-              <Link href={primaryHref} className="cp-exam-continue cp-exam-continue--primary">
-                {primaryLabel}
-              </Link>
-            </>
-          )}
+      {/* Astra'nın alt kartı: etkinlik türü, başlık, "Dersi özelleştir" ve
+          "Devam et". Yol düğümlerinin yanında yazı yok; ne olduğunu bu kart
+          söylüyor. */}
+      {view === "yol" && nodes.length ? (
+        <div className="cp-exam-start-card cp-path-next">
+          {nextNode ? (
+            <p className="cp-path-next-kind">{PLAN_NODE_META[nextNode.kind].title}</p>
+          ) : null}
+          <h2 className="cp-path-next-title">
+            {nextNode ? nodeHeading(nextNode) : "Tüm etkinlikler bitti"}
+          </h2>
+          <div className="cp-path-next-actions">
+            <button
+              type="button"
+              className="cp-path-next-custom"
+              aria-label="Dersi özelleştir"
+              title="Dersi özelleştir"
+              onClick={() => setHubTopic(nextNode?.sessionMeta?.topicTitle ?? null)}
+            >
+              <RefreshCw className="h-4 w-4" aria-hidden />
+            </button>
+            <Link href={primaryHref} className="cp-exam-continue cp-exam-continue--primary">
+              {PREP_HOME_COPY.continue}
+            </Link>
+          </div>
         </div>
       ) : null}
+
+      {optionsOpen ? (
+        <div className="cp-oral-modal-back" onClick={() => setOptionsOpen(false)}>
+          <div
+            className="cp-oral-modal cp-prep-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="prep-sheet-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="cp-oral-bar">
+              {optionsPane === "menu" ? (
+                <span />
+              ) : (
+                <button
+                  type="button"
+                  className="cp-oral-icon"
+                  aria-label="Geri"
+                  onClick={() => setOptionsPane("menu")}
+                >
+                  ←
+                </button>
+              )}
+              <h2 id="prep-sheet-title">
+                {optionsPane === "kaynaklar"
+                  ? PREP_HOME_COPY.materials
+                  : optionsPane === "ayarlar"
+                    ? "Ayarlar"
+                    : "Hazırlık"}
+              </h2>
+              <button
+                type="button"
+                className="cp-oral-icon"
+                aria-label="Kapat"
+                onClick={() => setOptionsOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </header>
+
+            {optionsPane === "menu" ? (
+              <>
+                <div className="cp-prep-sheet-card">
+                  <p className="cp-prep-sheet-owner">
+                    Oluşturan: <strong>{creatorLabel}</strong>
+                    {schoolName ? <span> · 🏛️ {schoolName}</span> : null}
+                    {shared && joinCount > 0 ? <span> · {joinCount} katılım</span> : null}
+                  </p>
+                  <p className="cp-prep-sheet-kicker">{examType}</p>
+                  <p className="cp-prep-sheet-title">{title}</p>
+                  <p className="cp-prep-sheet-meta">
+                    {topicCount > 0 ? `${topicsDone} / ${topicCount} konu` : `%${progressPct}`}
+                    {examDate ? ` · sınav ${formatDayLong(examDate)}` : ""}
+                    {daysLabel ? ` · ${daysLabel}` : ""}
+                  </p>
+                  {!uiV2 && scheduleSummary ? (
+                    <p className="cp-prep-sheet-meta">Plan: {scheduleSummary}</p>
+                  ) : null}
+                </div>
+                <ul className="cp-prep-sheet-list">
+                  {canShare ? (
+                    <li>
+                      <button type="button" disabled={sharing} onClick={() => void toggleShare()}>
+                        <Share2 className="h-4 w-4" aria-hidden />
+                        {shared ? "Okul paylaşımını kaldır" : "Sınıf arkadaşlarınla paylaş"}
+                      </button>
+                    </li>
+                  ) : null}
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOptionsOpen(false);
+                        setHubTopic(null);
+                      }}
+                    >
+                      <Plus className="h-4 w-4" aria-hidden />
+                      {PREP_HOME_COPY.createLesson}
+                    </button>
+                  </li>
+                  <li>
+                    <button type="button" onClick={() => setOptionsPane("kaynaklar")}>
+                      <FolderOpen className="h-4 w-4" aria-hidden />
+                      {PREP_HOME_COPY.materials}
+                    </button>
+                  </li>
+                  {activeTopicLabel ? (
+                    <li>
+                      <Link href={`/deneme-sinavlari/${prepId}/konu`}>
+                        <RefreshCw className="h-4 w-4" aria-hidden />
+                        Çalışılan konu: {activeTopicLabel}
+                      </Link>
+                    </li>
+                  ) : null}
+                  <li>
+                    <Link href={`/deneme-sinavlari/${prepId}/zor-sorular`}>
+                      <Flame className="h-4 w-4" aria-hidden />
+                      {PREP_HOME_COPY.challenge}
+                    </Link>
+                  </li>
+                  {uiV2 ? (
+                    <li>
+                      <Link href={examPrepReviewsHref(prepId)}>
+                        <RotateCcw className="h-4 w-4" aria-hidden />
+                        Yanlışlar
+                        {openMisconceptions > 0 ? ` (${openMisconceptions})` : ""}
+                      </Link>
+                    </li>
+                  ) : null}
+                  {uiV2 ? (
+                    <li>
+                      <Link href={examPrepAssessmentHref(prepId)}>
+                        <ClipboardCheck className="h-4 w-4" aria-hidden />
+                        Sınav öncesi değerlendirme
+                      </Link>
+                    </li>
+                  ) : null}
+                  <li>
+                    <button type="button" onClick={() => setOptionsPane("ayarlar")}>
+                      <Settings className="h-4 w-4" aria-hidden />
+                      Ayarlar
+                    </button>
+                  </li>
+                </ul>
+              </>
+            ) : null}
+
+            {optionsPane === "kaynaklar" ? (
+              <div className="cp-prep-sheet-pane">
+                <MaterialsList materials={materials} />
+                <PrepMaterialAdder prepId={prepId} count={materials.length} />
+                {/* Konu haritası belgenin kendisine ait; yenilemek için oraya
+                    gidiliyor. Buradan yenilenemiyor çünkü bu hazırlığın
+                    konuları kurulurken kopyalandı. */}
+                {documentId ? (
+                  <Link href={`/dokumanlar/${documentId}`} className="cp-back-pill">
+                    Kaynağı aç{documentName ? ` · ${documentName}` : ""}
+                  </Link>
+                ) : (
+                  // İçeriğin öğrencinin belgesinden gelmediğini gizlemek, "notumda
+                  // bu varmış" yanılgısının ta kendisi olurdu.
+                  <Link href="/dokumanlar" className="cp-back-pill">
+                    Belge ekle
+                  </Link>
+                )}
+              </div>
+            ) : null}
+
+            {optionsPane === "ayarlar" ? (
+              <div className="cp-prep-sheet-pane">
+                <PrepBasicsPanel prepId={prepId} title={title} targetScore={targetScore} />
+                {settings ? <ExamPrepSettingsPanel prepId={prepId} initial={settings} /> : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {hubTopic !== undefined ? (
         <StudyToolsHub
           prepId={prepId}
           nodes={nodes}
-          topics={topicLabels.length ? topicLabels : topicRows.map((row) => row.title)}
+          openMisconceptions={openMisconceptions}
+          topics={labels}
           topicOptions={topicOptions}
           topicLabel={hubTopic}
           onTopic={setHubTopic}
@@ -598,137 +697,101 @@ export function ExamPrepHome({
   );
 }
 
+/**
+ * Zikzak yol. Astra'daki gibi düğümlerin yanında yazı yok; bu yüzden satır
+ * yüksekliği sabit ve çizgi SVG ile düğüm merkezlerinden geçiyor. Eski
+ * denemede (d2954d2) yazı satırı değişken yükseklikteydi ve çizgi CSS ile
+ * güvenilir bükülemiyordu — sebep ortadan kalktı.
+ */
+const PATH_ROW = 96;
+const PATH_STEP = 56;
+const PATH_WIDTH = 280;
+const PATH_PATTERN = [0, 1, 0, -1] as const;
+
 function StudyPath({
   nodes,
+  lead = null,
+  currentId,
   onOpen,
   readinessClaim,
 }: {
   nodes: HomeNode[];
+  /** Yolun başındaki seviye tespiti (tanı bitmemişse). */
+  lead?: HomeNode | null;
+  currentId: string | null;
   onOpen: (node: HomeNode) => void;
   readinessClaim: boolean | null;
 }) {
-  const groups = useMemo(() => {
-    let cursor = 0;
-    return groupNodesByPhase(nodes).map((group) => ({
-      phase: group.phase,
-      items: group.nodes.map((node) => {
-        const index = cursor;
-        cursor += 1;
-        return { node, index };
-      }),
-    }));
-  }, [nodes]);
-
-  return (
-    <div className="cp-exam-phases">
-      {groups.map((group) => (
-        <section
-          key={group.phase.id}
-          className="cp-exam-phase"
-          aria-labelledby={`phase-${group.phase.id}`}
-        >
-          <header className="cp-exam-phase-head">
-            <h2 id={`phase-${group.phase.id}`}>{group.phase.title}</h2>
-            <p>{group.phase.blurb}</p>
-          </header>
-          <ol className="cp-exam-trail" aria-label={group.phase.title}>
-            {group.items.map(({ node, index }) => (
-              <li
-                key={node.id}
-                className={`cp-exam-trail-item cp-exam-trail-item--${index % 2 === 0 ? "left" : "right"}`}
-              >
-                <button
-                  type="button"
-                  className={`cp-exam-trail-node cp-exam-trail-node--${node.status}${
-                    node.kind === "podcast" ? " cp-exam-trail-node--podcast" : ""
-                  }`}
-                  aria-label={`${node.title || PLAN_NODE_META[node.kind].title}, ${studyNodeAria(node.status)}`}
-                  onClick={() => onOpen(node)}
-                >
-                  {trailGlyph(node, index)}
-                </button>
-                <span>
-                  <strong>{node.title || PLAN_NODE_META[node.kind].title}</strong>
-                  <em>
-                    {PLAN_NODE_META[node.kind].title}
-                    {node.kind === "lesson" && !node.sessionMeta?.durationMinutes ? " · 5 dk" : ""}
-                    {node.sessionMeta?.durationMinutes
-                      ? ` · ${node.sessionMeta.durationMinutes} dk`
-                      : ""}
-                    {node.sessionMeta?.sourcePages?.length
-                      ? ` · s.${node.sessionMeta.sourcePages.slice(0, 4).join(",")}`
-                      : ""}
-                    {node.status === "locked" ? " · önerilen sırada" : ""}
-                    {node.kind === "written_exam" ? " · yardım yok" : ""}
-                    {node.kind === "readiness" && readinessClaim === true
-                      ? " · ölçülen verilere göre hazırsın"
-                      : ""}
-                    {node.kind === "readiness" && readinessClaim === false
-                      ? " · eksikler bu ekranda"
-                      : ""}
-                  </em>
-                </span>
-              </li>
-            ))}
-          </ol>
-        </section>
-      ))}
-    </div>
+  // Önerilen sıra aşamalardan geliyor (tanı → öğren → pekiştir); yol aynı
+  // sırayı tek bir zikzak olarak çiziyor, aşama başlıkları Astra'daki gibi yok.
+  const ordered = useMemo(
+    () => [...(lead ? [lead] : []), ...groupNodesByPhase(nodes).flatMap((group) => group.nodes)],
+    [nodes, lead],
   );
-}
+  const points = ordered.map((node, index) => ({
+    node,
+    x: PATH_WIDTH / 2 + PATH_PATTERN[index % PATH_PATTERN.length] * PATH_STEP,
+    y: PATH_ROW / 2 + index * PATH_ROW,
+  }));
+  const height = ordered.length * PATH_ROW;
 
-function TopicList({
-  prepId,
-  labels,
-  rows,
-  warnings,
-  onCreate,
-}: {
-  prepId: string;
-  labels: string[];
-  rows: { title: string; pct: number; done: number; total: number }[];
-  warnings: Record<string, string>;
-  onCreate?: (label: string) => void;
-}) {
-  if (!labels.length) {
-    return <p className="text-sm text-[var(--cp-muted)]">{PREP_HOME_COPY.noTopics}</p>;
-  }
   return (
-    <section className="cp-topic-progress" aria-label={PREP_HOME_COPY.topics}>
-      <ul>
-        {labels.map((label) => {
-          const row = rows.find((item) => item.title === label);
-          const pct = row?.pct ?? 0;
+    <div className="cp-zpath" style={{ height }}>
+      <p className="sr-only">{STUDY_PATH_HINT}</p>
+      <svg
+        className="cp-path-lines"
+        width={PATH_WIDTH}
+        height={height}
+        viewBox={`0 0 ${PATH_WIDTH} ${height}`}
+        aria-hidden
+      >
+        {points.slice(1).map((point, index) => {
+          const from = points[index];
+          const midY = (from.y + point.y) / 2;
           return (
-            <li key={label}>
-              <Link href={`/deneme-sinavlari/${prepId}/konu`}>
-                <span className="cp-topic-progress-name">{label}</span>
-                <span className="cp-topic-progress-pct">
-                  {pct}
-                  {PREP_HOME_COPY.masterySuffix}
-                </span>
-                <span className="cp-topic-progress-bar" aria-hidden>
-                  <span style={{ width: `${pct}%` }} />
-                </span>
-                <span className="cp-topic-progress-count">
-                  {row && row.total > 0
-                    ? `${row.done} / ${row.total} etkinlik`
-                    : PREP_HOME_COPY.noPractice}
-                </span>
-                {warnings[label] ? (
-                  <span className="cp-topic-warning">{warnings[label]}</span>
-                ) : null}
-              </Link>
-              {onCreate ? (
-                <button type="button" className="cp-back-pill" onClick={() => onCreate(label)}>
-                  {label} için ders oluştur
-                </button>
-              ) : null}
+            <path
+              key={point.node.id}
+              d={`M${from.x} ${from.y} C${from.x} ${midY} ${point.x} ${midY} ${point.x} ${point.y}`}
+              className={from.node.status === "done" ? "is-done" : undefined}
+            />
+          );
+        })}
+      </svg>
+      <ol className="cp-path-list" aria-label={PREP_HOME_COPY.path}>
+        {points.map(({ node, x, y }) => {
+          const meta = PLAN_NODE_META[node.kind];
+          const readinessNote =
+            node.kind === "readiness" && readinessClaim === true
+              ? ", ölçülen verilere göre hazırsın"
+              : node.kind === "readiness" && readinessClaim === false
+                ? ", eksikler bu ekranda"
+                : "";
+          return (
+            <li
+              key={node.id}
+              className="cp-exam-trail-item"
+              style={{ left: x, top: y }}
+            >
+              <button
+                type="button"
+                className={cn(
+                  "cp-exam-trail-node",
+                  `cp-exam-trail-node--${node.status}`,
+                  `cp-path-node--${nodeShape(node.kind)}`,
+                  node.kind === "podcast" && "cp-exam-trail-node--podcast",
+                  node.id === currentId && "is-current",
+                )}
+                aria-label={`${nodeHeading(node)} · ${meta.title}, ${studyNodeAria(node.status)}${readinessNote}`}
+                title={`${nodeHeading(node)} · ${meta.title}`}
+                onClick={() => onOpen(node)}
+              >
+                <NodeGlyph node={node} />
+              </button>
             </li>
           );
         })}
-      </ul>
-    </section>
+      </ol>
+    </div>
   );
 }
 
@@ -751,95 +814,5 @@ function MaterialsList({ materials }: { materials: PrepMaterial[] }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-function SkillTree({
-  labels,
-  rows,
-  openSkill,
-  onToggle,
-  startHref,
-}: {
-  labels: string[];
-  rows: { title: string; pct: number }[];
-  openSkill: string | null;
-  onToggle: (label: string | null) => void;
-  startHref: string;
-}) {
-  if (!labels.length) {
-    return (
-      <p className="text-sm text-[var(--cp-muted)]">
-        {PREP_HOME_COPY.emptyTree}
-      </p>
-    );
-  }
-  return (
-    <ul className="cp-skill-tree">
-      {labels.map((label) => {
-        const pct = rows.find((row) => row.title === label)?.pct ?? 0;
-        const open = openSkill === label;
-        return (
-          <li key={label}>
-            <button
-              type="button"
-              aria-expanded={open}
-              onClick={() => onToggle(open ? null : label)}
-            >
-              <strong>{label}</strong>
-              <span>
-                {pct}
-                {PREP_HOME_COPY.masterySuffix}
-              </span>
-            </button>
-            {open ? (
-              <div className="cp-skill-detail">
-                <p>
-                  {pct > 0 ? PREP_HOME_COPY.skillPractice : PREP_HOME_COPY.noPractice}
-                </p>
-                {pct === 0 ? (
-                  <Link href={startHref}>{PREP_HOME_COPY.createLesson}</Link>
-                ) : null}
-              </div>
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function TrackingMeter({
-  title,
-  pct,
-  label,
-  hint,
-  emptyText = "—",
-}: {
-  title: string;
-  pct: number | null;
-  label: string;
-  hint: string;
-  emptyText?: string;
-}) {
-  const shown = pct == null ? null : Math.max(0, Math.min(100, pct));
-  return (
-    <div>
-      <div className="cp-countdown-row">
-        <span>{title}</span>
-        <span className="cp-countdown-pct">
-          {shown == null ? emptyText : `%${shown}`}
-        </span>
-      </div>
-      <div className="cp-countdown-meter" aria-hidden>
-        <span
-          style={{
-            width: `${shown == null ? 0 : Math.max(shown, shown > 0 ? 3 : 0)}%`,
-          }}
-        />
-      </div>
-      <p className="cp-countdown-state text-sm">{label}</p>
-      <p className="text-xs text-[var(--cp-muted)]">{hint}</p>
-    </div>
   );
 }

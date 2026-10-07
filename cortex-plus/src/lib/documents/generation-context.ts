@@ -11,6 +11,8 @@ export type DocumentGenerationContext = {
   documentId: string;
   fileName: string;
   excerpt: string;
+  /** Konunun okunabilir sayfaları (öğretmen motorları bunlardan bitişik çekirdek seçer). */
+  topicPages: number[];
 };
 
 type PageIndexRow = {
@@ -161,5 +163,5 @@ export async function loadDocumentGenerationContext(
       excerpt = pageSourceBlock(fileName, usable, true);
     }
   }
-  return excerpt.trim() ? { documentId, fileName, excerpt } : null;
+  return excerpt.trim() ? { documentId, fileName, excerpt, topicPages: selected } : null;
 }

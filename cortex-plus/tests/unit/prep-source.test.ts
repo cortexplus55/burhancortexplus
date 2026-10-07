@@ -145,7 +145,6 @@ describe("subjectSuggestions", () => {
 */
 describe("rotalar kaynak kararını tek yerden alıyor", () => {
   const routes = [
-    "src/app/api/learning/exam-prep/lesson/route.ts",
     "src/app/api/learning/exam-prep/node/route.ts",
     "src/app/api/learning/exam-prep/intro/route.ts",
   ];
@@ -162,6 +161,56 @@ describe("rotalar kaynak kararını tek yerden alıyor", () => {
       expect(src).not.toContain('sourceBoundaryMode ?? "documents_only"');
     });
   }
+
+  /*
+    29 Eylül 2026: "Belgem yok, konudan çalışayım" ile kurulan hazırlıkta
+    giriş dersi hiç üretilmiyordu. Düğüm rotası dersi koşulsuz birleşik
+    çözücüye gönderiyordu; çözücü belge listesi boşken her zaman
+    "no_prep_documents" dönüyor. Belgesiz ders çözücüden ÖNCE ayrılmalı.
+  */
+  /*
+    Kavramsal çift doğruya (ör. "çarpmada üsler toplanır" + "bölmede üsler
+    çıkarılır" aynı soruda) karşı önlem ortak istemde. "Tek doğru cevap"
+    gözden geçirmesi (verifyOptionReasoning) tanışma, belgesiz quiz ve
+    Studio yollarına eklenince canlıda tanışma testi iki denemede de
+    açılmadı (29 Eylül 2026); geri alındı. Bu test onun geri sızmasını da
+    tutuyor: o yollarda şık gerekçesi olmadan gözden geçirme her taslağı
+    reddediyor.
+  */
+  it("iki doğru şıkkı istem önlüyor; gözden geçirme bu yollarda kapalı", () => {
+    // Eski zincir silindi (3 Ekim 2026); kural öğretmen test motorunun yazar ve denetçi isteminde.
+    expect(readFileSync("src/lib/learning/teacher-quiz.ts", "utf8")).toContain(
+      "iki doğru kuralı yan yana şık yapma",
+    );
+    for (const route of [
+      "src/app/api/learning/exam-prep/intro/route.ts",
+      "src/app/api/learning/exam-prep/node/route.ts",
+      "src/app/api/learning/quiz/generate/route.ts",
+    ]) {
+      expect(readFileSync(route, "utf8")).not.toMatch(/verifyOptionReasoning:/);
+    }
+  });
+
+  /*
+    Gözden geçirme geri alınırken ikinci taslak hakkı da gitti; tanışma
+    testi tek taslakla yine düştü. Geri almanın bunu bir daha götürmemesi için.
+  */
+  it("tanışma testi ikinci taslak hakkını koruyor", () => {
+    const src = readFileSync("src/app/api/learning/exam-prep/intro/route.ts", "utf8");
+    const call = src.slice(src.indexOf("await generateExamQuiz("));
+    expect(call.slice(0, call.indexOf("});"))).toContain("maxDraftAttempts: 2");
+  });
+
+  it("düğüm dersi belgesizken kaynak çözücüye gitmeden konu çitine geçiyor", () => {
+    const src = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
+    const gate = src.indexOf("if (topicOnlyLesson)");
+    const resolver = src.indexOf("await resolveLessonSource(");
+    expect(gate).toBeGreaterThan(-1);
+    expect(resolver).toBeGreaterThan(gate);
+    // Belgesiz ders öğretmen motoruna da işaretlenir (2 Ekim 2026), kaynak yine boş.
+    expect(src).toMatch(/if \(topicOnlyLesson\) \{\s*lessonTopicOnly = true;\s*source = EMPTY_SOURCE_CONTEXT;/);
+    expect(src).toMatch(/sourceMode === "topic_only"\s*\n?\s*\? topicFence\(/);
+  });
 });
 
 describe("hazırlık belgeleri", () => {

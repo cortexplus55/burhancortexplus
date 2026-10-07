@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
 /** `premium` = oturum açık öğrenci kabuğu (misafir/auth ile aynı cam + altın). `plain` = admin / klasik shadcn. */
