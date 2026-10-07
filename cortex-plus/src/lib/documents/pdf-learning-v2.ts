@@ -533,6 +533,8 @@ async function leafConceptUnits(
   documentId: string,
   light: LightPageRow[],
   leaves: { topic: { title: string; pageNumbers: number[] } }[],
+  deadlineAt: number,
+  now: () => number,
 ): Promise<ConceptUnit[][]> {
   const empty = leaves.map((): ConceptUnit[] => []);
   if (!leaves.some((leaf) => needsUnits(leaf.topic.pageNumbers))) return empty;
@@ -548,6 +550,8 @@ async function leafConceptUnits(
       topics: leaves.map((leaf) => ({ title: leaf.topic.title, pageNumbers: leaf.topic.pageNumbers })),
       analyses,
       edges: repeatedEdgeLines(analyses.map((analysis) => analysis.textContent)),
+      deadlineAt,
+      now,
     });
   } catch {
     return empty;
@@ -566,6 +570,9 @@ async function persistCourseOutline(
   courseId: string,
   documentIds: string[],
   outline: OutlineUnitDraft[],
+  /** Hard deadline for everything slow in persist (concept units). */
+  deadlineAt: number,
+  now: () => number = Date.now,
 ): Promise<number> {
   const { units } = flattenOutlineUnits(outline);
   const unitsTotal = units.length;
@@ -590,10 +597,17 @@ async function persistCourseOutline(
       }
     });
     const leaves = exclusiveLeafPages(cited);
-    plans.push({ fileIndex, documentId, light, leaves, lessons: await leafConceptUnits(service, userId, documentId, light, leaves) });
+    plans.push({ fileIndex, documentId, light, leaves });
   }
+  // One concept-unit call per file, all in parallel and bounded by the round
+  // deadline (skipped when too little time is left). Any miss → [] and the
+  // plan splits pages mechanically; the map is saved either way.
+  const lessonsByFile = await Promise.all(
+    plans.map((plan) => leafConceptUnits(service, userId, plan.documentId, plan.light, plan.leaves, deadlineAt, now)),
+  );
 
-  for (const { fileIndex, documentId, light, leaves, lessons } of plans) {
+  for (const [planIndex, { fileIndex, documentId, light, leaves }] of plans.entries()) {
+    const lessons = lessonsByFile[planIndex] ?? [];
     const pageIdByNumber = new Map(light.map((row) => [row.page_number, row.id]));
     await clearTopicMap(service, documentId);
 
@@ -991,7 +1005,9 @@ export async function runCourseMapRound(
       return pending();
     }
     const persistStarted = now();
-    const topics = await persistCourseOutline(service, userId as string, courseId, documentIds, outline.units);
+    const topics = await persistCourseOutline(
+      service, userId as string, courseId, documentIds, outline.units, deadlineAt - POST_CALL_RESERVE_MS, now,
+    );
     const nowIso = new Date().toISOString();
     const { error: docError } = await service
       .from("documents")
