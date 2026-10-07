@@ -46,6 +46,8 @@ describe("ai_model_prices tohumu", () => {
     ["ders taslağı", env.OPENAI_LESSON_MODEL],
     ["ücretsiz ders taslağı", env.OPENAI_LESSON_FREE_MODEL],
     ["gelişmiş metin", env.OPENAI_ADVANCED_MODEL],
+    ["outline standart", env.OPENAI_OUTLINE_STANDARD_MODEL],
+    ["outline güçlü", env.OPENAI_OUTLINE_STRONG_MODEL],
     ["seslendirme", env.OPENAI_TTS_MODEL],
     ["çözümleme", env.OPENAI_STT_MODEL],
     ["gömme", EMBEDDING_MODEL],

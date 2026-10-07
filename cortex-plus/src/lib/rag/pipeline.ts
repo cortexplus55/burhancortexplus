@@ -28,7 +28,6 @@ import {
   isFeatureEnabled,
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
-import { runPdfLearningV2 } from "@/lib/documents/pdf-learning-v2";
 import { logOpsEvent } from "@/lib/observability/ops-log";
 import { mapExtractFailure, userMessageForProcessError } from "@/lib/documents/process-user-message";
 
@@ -377,18 +376,7 @@ export async function processDocument(
     .update({ status: "completed", progress: 100 })
     .eq("document_id", documentId);
 
-  // Stage 2 path is opt-in. Flag off → classic RAG complete, no topic map.
-  let topicMap:
-    | { ok: boolean; topics: number; coverageStatus?: string }
-    | undefined;
-  if (await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG)) {
-    const v2 = await runPdfLearningV2(service, documentId);
-    topicMap = {
-      ok: v2.ok,
-      topics: v2.topics,
-      coverageStatus: v2.coverage?.status,
-    };
-  } else {
+  if (!(await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG))) {
     console.info(JSON.stringify({
       event: "teacher_analysis",
       documentId,
@@ -396,8 +384,9 @@ export async function processDocument(
       error: "pdf_learning_v2_off",
     }));
   }
+  // With v2 on, the topic map is built by the course pipeline (process route).
 
-  return { ok: true, chunks: allChunks.length, notice, topicMap, pageCount: pages.length };
+  return { ok: true, chunks: allChunks.length, notice, pageCount: pages.length };
   } catch (error) {
     console.error("document processing failed", {
       name: error instanceof Error ? error.name : "UnknownError",

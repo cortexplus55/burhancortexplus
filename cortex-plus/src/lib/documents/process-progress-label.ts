@@ -1,5 +1,44 @@
 /** İstemci ilerleme metni ve duraksama algısı için parmak izi. */
 
+/** Ordered stages shown on the progress bar (student-facing, no errors). */
+export const PROCESS_PROGRESS_STAGES = [
+  "extract",
+  "prepare",
+  "oneshot",
+  "persist",
+] as const;
+
+export type ProcessProgressStage = (typeof PROCESS_PROGRESS_STAGES)[number];
+
+export function resolveProcessProgressStage(
+  body: Record<string, unknown>,
+): ProcessProgressStage | null {
+  const phase = body.phase;
+  if (phase === "extract") return "extract";
+  if (phase === "map") {
+    if (body.stage === "prepare") return "prepare";
+    if (body.stage === "persist") return "persist";
+    return "oneshot";
+  }
+  return null;
+}
+
+export function processProgressRatio(body: Record<string, unknown>): number | null {
+  const stage = resolveProcessProgressStage(body);
+  if (!stage) return null;
+  const stageIndex = PROCESS_PROGRESS_STAGES.indexOf(stage);
+  if (stage === "extract") {
+    const nextPage = Number(body.nextPage);
+    const total = Number(body.pageCount);
+    if (Number.isFinite(nextPage) && Number.isFinite(total) && total > 0) {
+      const done = Math.min(Math.max(0, nextPage - 1), total);
+      const extractShare = 1 / PROCESS_PROGRESS_STAGES.length;
+      return Math.min(0.99, (stageIndex + done / total) * extractShare);
+    }
+  }
+  return Math.min(0.99, (stageIndex + 1) / PROCESS_PROGRESS_STAGES.length);
+}
+
 export function formatDocumentProcessProgress(
   body: Record<string, unknown>,
 ): string | null {
@@ -11,16 +50,12 @@ export function formatDocumentProcessProgress(
       const done = Math.min(Math.max(0, nextPage - 1), total);
       return `Belgen okunuyor: ${done}/${total} sayfa`;
     }
+    return "Belgen okunuyor…";
   }
   if (phase === "map") {
-    const doneRaw = body.windowsDone ?? body.nextIndex;
-    const totalRaw = body.windowCount ?? body.windowsTotal ?? body.mapWindows;
-    const done = Number(doneRaw);
-    const total = Number(totalRaw);
-    if (Number.isFinite(done) && Number.isFinite(total) && total > 0) {
-      return `Konular çıkarılıyor: ${Math.min(done, total)}/${total}`;
-    }
-    return "Konular çıkarılıyor…";
+    if (body.stage === "persist") return "Konular kaydediliyor…";
+    if (body.stage === "prepare") return "Konular hazırlanıyor…";
+    return "Çalışma yolu çıkarılıyor…";
   }
   return null;
 }
@@ -32,8 +67,14 @@ export function processProgressFingerprint(
     return `extract:${String(body.nextPage)}`;
   }
   if (body.phase === "map") {
+    if (body.leaseBusy === true) {
+      const w = body.windowsDone ?? body.nextIndex ?? "busy";
+      return `map-lease:${String(w)}`;
+    }
+    const stage = typeof body.stage === "string" ? body.stage : "windows";
     const w = body.windowsDone ?? body.nextIndex;
-    if (w != null) return `map:${String(w)}`;
+    if (w != null) return `map:${stage}:${String(w)}`;
+    return `map:${stage}`;
   }
   if (body.nextPage != null) return `page:${String(body.nextPage)}`;
   return null;

@@ -91,7 +91,10 @@ describe("çalışma planı birimleri ders yapar", () => {
   it("ders motoru birimi anlatır; harita birimleri kaydeder; plan birimleri haritadan okur", () => {
     const route = readFileSync("src/app/api/learning/exam-prep/node/route.ts", "utf8");
     expect(route).toContain("topicLabel: input.sessionMeta?.unitTitle ? `${input.topicLabel}: ${input.sessionMeta.unitTitle}` : input.topicLabel,");
-    expect(readFileSync("src/lib/documents/pdf-learning-v2.ts", "utf8")).toContain("await persistTopics(service, documentId, topics, pageIdByNumber, units);");
+    // The course map stores each topic's units (PR #146: one outline path).
+    const v2 = readFileSync("src/lib/documents/pdf-learning-v2.ts", "utf8");
+    expect(v2).toContain("plans.map((plan) => leafConceptUnits(service, userId, plan.documentId, plan.light, plan.leaves, deadlineAt, now))");
+    expect(v2).toContain("units: lessons[index] ?? [],");
     expect(readFileSync("src/lib/learning/prep-schedule-topics.ts", "utf8")).toContain("units: unitsFor(topic),");
     expect(readFileSync("supabase/migrations/20261002180000_topic_concept_units.sql", "utf8")).toContain("ADD COLUMN IF NOT EXISTS units jsonb");
     // Ders kurulum ekranları da dersin kendi adını gösterir (3 Ekim 2026).

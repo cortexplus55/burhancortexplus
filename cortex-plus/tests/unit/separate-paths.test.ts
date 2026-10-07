@@ -41,7 +41,9 @@ describe("her hazırlığın kendi yolu", () => {
 describe("yüklemede sayfa temizliği", () => {
   it("belge hazır olunca iki tamamlanma yolunda da arka plan temizliği başlar", () => {
     const route = readFileSync("src/app/api/documents/process/route.ts", "utf8");
-    expect(route.match(/cleanAfterResponse\(service, \{ userId, documentId: doc\.id, startedAt \}\);/g)?.length).toBe(2);
+    // Text-only completion, and the course map path (each file once it is saved).
+    expect(route.match(/cleanAfterResponse\(service, \{ userId, documentId: doc\.id, startedAt \}\);/g)?.length).toBe(1);
+    expect(route).toContain("if (topics) cleanAfterResponse(service, { userId, documentId: id, startedAt });");
     expect(route).toContain("after(() =>");
   });
 });

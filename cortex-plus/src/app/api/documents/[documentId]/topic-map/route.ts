@@ -6,9 +6,12 @@ import {
   PDF_LEARNING_V2_FLAG,
 } from "@/lib/admin/feature-flags";
 import {
+  COURSE_ROUND_BUDGET_MS,
   loadTopicMapSnapshot,
-  runPdfLearningV2,
+  runCourseMapRound,
 } from "@/lib/documents/pdf-learning-v2";
+
+export const maxDuration = 300;
 
 type RouteContext = { params: Promise<{ documentId: string }> };
 
@@ -180,7 +183,26 @@ export async function POST(request: Request, context: RouteContext) {
     return errorResponse(409, "document_not_ready");
   }
 
-  const result = await runPdfLearningV2(service, documentId);
+  const result = await runCourseMapRound(service, {
+    documentIds: [documentId],
+    rebuild: true,
+    deadlineAt: Date.now() + COURSE_ROUND_BUDGET_MS,
+  });
+  if (result.pending || result.deferred) {
+    // The client continues the rounds through the process route.
+    return NextResponse.json({ ok: true, pending: true, stage: result.stage ?? null }, { status: 202 });
+  }
+  if (!result.ok && result.error === "topic_map_in_use") {
+    // As on main: refused, nothing changed, no model call.
+    return NextResponse.json(
+      {
+        error: "Bu harita bir çalışma planında kullanılıyor; plan bozulmasın diye yeniden oluşturulmaz.",
+        code: "topic_map_in_use",
+        inUse: true,
+      },
+      { status: 422 },
+    );
+  }
   if (!result.ok) {
     return NextResponse.json(
       { error: "Konu haritası yeniden oluşturulamadı.", detail: result.error },
@@ -192,7 +214,7 @@ export async function POST(request: Request, context: RouteContext) {
   return NextResponse.json({
     ok: true,
     topics: result.topics,
-    coverage: result.coverage,
+    coverage: snapshot?.coverage ?? null,
     snapshot,
   });
 }

@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { postDocumentProcess, requestDocumentProcessing } from "@/lib/documents/process-session";
 
 type TopicRow = {
   id: string;
@@ -39,6 +40,8 @@ type Props = {
    * göstermek iki birinci düğme demek. Sayfa bunu true geçiyor.
    */
   hidePlanLink?: boolean;
+  /** A study plan uses this map: it is never rebuilt, so no rebuild nudge. */
+  mapInUse?: boolean;
 };
 
 /**
@@ -71,6 +74,7 @@ export function TopicMapEditor({
   mapUpdatedAt = null,
   mapReady = false,
   hidePlanLink = false,
+  mapInUse = false,
 }: Props) {
   const router = useRouter();
   const [topics, setTopics] = useState(initialTopics);
@@ -78,7 +82,7 @@ export function TopicMapEditor({
   const [pending, startTransition] = useTransition();
 
   const stale =
-    !mapUpdatedAt || Date.parse(mapUpdatedAt) < RULES_CHANGED_AT;
+    !mapInUse && (!mapUpdatedAt || Date.parse(mapUpdatedAt) < RULES_CHANGED_AT);
 
   const dirty = useMemo(() => {
     if (boundary !== initialBoundary) return true;
@@ -164,8 +168,23 @@ export function TopicMapEditor({
       );
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
+        if (result.code === "topic_map_in_use") {
+          toast(result.error);
+          return;
+        }
         toast.error(result.error ?? "Yeniden oluşturulamadı.");
         return;
+      }
+      if (response.status === 202) {
+        // Still building: keep the rounds going and say so until it is done.
+        const progress = toast.loading("Konu haritası yenileniyor…");
+        const done = await requestDocumentProcessing({ documentId, post: postDocumentProcess });
+        toast.dismiss(progress);
+        if (!done.ok) {
+          toast("Harita şimdilik yenilenemedi; mevcut haritan duruyor.");
+          router.refresh();
+          return;
+        }
       }
       toast.success("Konu haritası yenilendi.");
       router.refresh();
@@ -316,6 +335,13 @@ export function TopicMapEditor({
         ))}
       </section>
 
+      {mapInUse ? (
+        <p className="text-xs text-[var(--cs-muted)]">
+          Bu harita çalışma planında kullanılıyor; planın bozulmasın diye
+          yeniden oluşturulmaz.
+        </p>
+      ) : null}
+
       {stale ? (
         <p className="rounded-xl border border-[color:color-mix(in_srgb,var(--cs-primary)_30%,transparent)] bg-[color:color-mix(in_srgb,var(--cs-primary)_5%,transparent)] px-4 py-3 text-sm text-[var(--cs-text)]">
           <strong>Bu harita eski kurallarla çıkarıldı.</strong>{" "}
@@ -342,15 +368,17 @@ export function TopicMapEditor({
         >
           Gözden geçirdim
         </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={rebuild}
-          title={stale ? "Bu harita eski kurallarla çıkarıldı." : undefined}
-          className="rounded-full border border-white/15 px-4 py-2 text-sm text-[var(--cs-text)] disabled:opacity-50"
-        >
-          Haritayı yeniden oluştur
-        </button>
+        {mapInUse ? null : (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={rebuild}
+            title={stale ? "Bu harita eski kurallarla çıkarıldı." : undefined}
+            className="rounded-full border border-white/15 px-4 py-2 text-sm text-[var(--cs-text)] disabled:opacity-50"
+          >
+            Haritayı yeniden oluştur
+          </button>
+        )}
         {hidePlanLink ? null : mapReady ? (
           <a
             href={`/deneme-sinavlari/olustur?documentId=${documentId}`}

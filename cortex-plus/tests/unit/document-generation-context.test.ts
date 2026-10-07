@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadDocumentGenerationContext, representativePages } from "@/lib/documents/generation-context";
-import { topicMapWindows } from "@/lib/documents/pdf-learning-v2";
 
 describe("long document coverage", () => {
   it("retrieves the selected topic from physical page 99", async () => {
@@ -58,12 +57,5 @@ describe("long document coverage", () => {
     expect(pages[0]).toBe(1);
     expect(pages.at(-1)).toBe(99);
     expect(pages.some((page) => page > 40)).toBe(true);
-  });
-
-  it("maps each page of a 99-page book in bounded windows", () => {
-    const windows = topicMapWindows(Array.from({ length: 99 }, (_, index) => index + 1));
-    expect(windows).toHaveLength(9);
-    expect(windows.every((window) => window.length <= 12)).toBe(true);
-    expect(windows.flat()).toEqual(Array.from({ length: 99 }, (_, index) => index + 1));
   });
 });

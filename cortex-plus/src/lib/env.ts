@@ -79,6 +79,21 @@ export const envSchema = z.object({
   OPENAI_LESSON_FREE_MODEL: z.string().default("gpt-4.1-mini"),
   /** Yalnız aboneye açık işler (model-router). gpt-4o'dan ucuz: $2/$8 vs $2,5/$10. */
   OPENAI_ADVANCED_MODEL: z.string().default("gpt-4.1"),
+  /**
+   * One-shot konu haritası (≤30 sayfa). Boşsa OPENAI_STANDARD_MODEL.
+   * Öğrenci model seçimini görmez; yalnızca sunucu yönlendirir.
+   */
+  OPENAI_OUTLINE_STANDARD_MODEL: z.string().default("gpt-4o-mini"),
+  /**
+   * One-shot konu haritası (>30 sayfa veya doğrulama yükseltmesi).
+   * gpt-4.1 — 1M bağlam; bütün materyal tek çağrıda.
+   */
+  OPENAI_OUTLINE_STRONG_MODEL: z.string().default("gpt-4.1"),
+  /**
+   * gpt-4.1 art arda düşerse sessiz yedek model (öğrenci görmez).
+   * Boşsa gpt-4.1-mini.
+   */
+  OPENAI_OUTLINE_FALLBACK_MODEL: z.string().default("gpt-4.1-mini"),
   OPENAI_TTS_MODEL: z.string().default("gpt-4o-mini-tts"),
   OPENAI_STT_MODEL: z.string().default("gpt-4o-mini-transcribe"),
   /** TypeSafe Jev decision engine (server-only; never expose to client). */
@@ -140,6 +155,9 @@ const parsed = envSchema.safeParse({
   OPENAI_LESSON_MODEL: process.env.OPENAI_LESSON_MODEL,
   OPENAI_LESSON_FREE_MODEL: process.env.OPENAI_LESSON_FREE_MODEL,
   OPENAI_ADVANCED_MODEL: process.env.OPENAI_ADVANCED_MODEL,
+  OPENAI_OUTLINE_STANDARD_MODEL: process.env.OPENAI_OUTLINE_STANDARD_MODEL,
+  OPENAI_OUTLINE_STRONG_MODEL: process.env.OPENAI_OUTLINE_STRONG_MODEL,
+  OPENAI_OUTLINE_FALLBACK_MODEL: process.env.OPENAI_OUTLINE_FALLBACK_MODEL,
   OPENAI_TTS_MODEL: process.env.OPENAI_TTS_MODEL,
   OPENAI_STT_MODEL: process.env.OPENAI_STT_MODEL,
   TYPESAFE_API_KEY: process.env.TYPESAFE_API_KEY,

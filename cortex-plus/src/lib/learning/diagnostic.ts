@@ -136,6 +136,19 @@ export function pickMainTopics<T extends { id: string; parentId?: string | null 
   return mains.length ? mains : nodes;
 }
 
+/** Study list: chapter leaves when hierarchy exists; otherwise main topics. */
+export function pickStudyTopics<T extends { id: string; parentId?: string | null }>(
+  nodes: T[],
+): T[] {
+  const hasHierarchy = nodes.some((n) => n.parentId);
+  if (!hasHierarchy) return pickMainTopics(nodes);
+  const parentNodeIds = new Set(
+    nodes.filter((n) => nodes.some((child) => child.parentId === n.id)).map((n) => n.id),
+  );
+  const leaves = nodes.filter((n) => !parentNodeIds.has(n.id));
+  return leaves.length ? leaves : pickMainTopics(nodes);
+}
+
 /** First lesson probes only its own sourced chapter. Other chapters remain unknown. */
 export function firstLessonDiagnosticSlots(
   plans: DiagnosticTopicPlan[],

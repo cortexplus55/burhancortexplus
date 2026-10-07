@@ -16,6 +16,11 @@ import {
   type UnitTopicInput,
 } from "@/lib/documents/concept-units";
 
+/** Below this much time left the units step is skipped (mechanical split). */
+export const CONCEPT_UNITS_MIN_MS = 45_000;
+/** Time kept free after the units call for the map writes. */
+export const CONCEPT_UNITS_RESERVE_MS = 25_000;
+
 /**
  * Konu haritasının büyük konularını tek luna çağrısıyla kavram birimlerine
  * böler. Konu sırasına göre birim dizisi döner; bölünmeyen ya da geçersiz
@@ -30,10 +35,25 @@ export async function buildConceptUnits(
     topics: { title: string; pageNumbers: number[] }[];
     analyses: PageAnalysis[];
     edges: string[];
+    /**
+     * The caller's hard deadline (epoch ms). With less than
+     * CONCEPT_UNITS_MIN_MS left the step is skipped; otherwise the call is
+     * capped to the time left minus CONCEPT_UNITS_RESERVE_MS, without retry.
+     */
+    deadlineAt?: number;
+    now?: () => number;
   },
 ): Promise<ConceptUnit[][]> {
   const empty = input.topics.map((): ConceptUnit[] => []);
   if (!env.OPENAI_API_KEY) return empty;
+  let timeout = 120_000;
+  let maxRetries = 1;
+  if (input.deadlineAt !== undefined) {
+    const left = input.deadlineAt - (input.now ?? Date.now)();
+    if (left < CONCEPT_UNITS_MIN_MS) return empty;
+    timeout = Math.min(120_000, left - CONCEPT_UNITS_RESERVE_MS);
+    maxRetries = 0;
+  }
   const byPage = new Map(input.analyses.map((analysis) => [analysis.pageNumber, analysis]));
   const candidates: (UnitTopicInput & { pageNumbers: number[] })[] = input.topics.flatMap((topic, index) => {
     const pageNumbers = [...new Set(topic.pageNumbers)].sort((a, b) => a - b);
@@ -58,7 +78,7 @@ export async function buildConceptUnits(
 
   try {
     const model = contentModel();
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 120_000, maxRetries: 1 });
+    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout, maxRetries });
     const response = await openai.chat.completions.create({
       model,
       response_format: { type: "json_object" },

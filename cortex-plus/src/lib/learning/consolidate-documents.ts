@@ -2,7 +2,22 @@ import "server-only";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
-import { pickMainTopics } from "@/lib/learning/diagnostic";
+import {
+  detectPageFurniture,
+  extractTocUnits,
+} from "@/lib/documents/outline-clean";
+import {
+  examWeightToEmphasis,
+  isHighExamWeight,
+  unpackTopicPerspective,
+} from "@/lib/documents/outline-topic-meta";
+import {
+  buildStudyOutlineFromNodes,
+  remapStudyUnitsToConsolidated,
+  seriesLabelFromFileName,
+  type StudyOutlineTopic,
+  type StudyOutlineUnit,
+} from "@/lib/learning/study-outline";
 import {
   applyClusterMerges,
   consolidateMaterials,
@@ -60,14 +75,14 @@ export async function consolidatePrepDocuments(
     loadPagedDocumentRows(
       service,
       "document_topic_nodes",
-      "id, document_id, title, parent_id, sort_order, prerequisites, learning_objective, key_definitions, common_mistakes, source_exercises",
+      "id, document_id, title, parent_id, sort_order, prerequisites, learning_objective, key_definitions, key_relations, common_mistakes, source_exercises",
       documentIds,
       ["sort_order", "id"],
     ),
     loadPagedDocumentRows(
       service,
       "document_pages",
-      "document_id, page_number, text_content",
+      "document_id, page_number, text_content, page_kind, headings",
       documentIds,
       ["page_number"],
     ),
@@ -122,52 +137,141 @@ export async function consolidatePrepDocuments(
     }
   }
 
+  const pagesByDoc = new Map<
+    string,
+    { page_number: number; text_content: string | null; page_kind: string | null; headings: unknown }[]
+  >();
+  for (const page of pages) {
+    const id = page.document_id as string;
+    const list = pagesByDoc.get(id) ?? [];
+    list.push({
+      page_number: page.page_number as number,
+      text_content: page.text_content as string | null,
+      page_kind: (page.page_kind as string | null) ?? null,
+      headings: page.headings,
+    });
+    pagesByDoc.set(id, list);
+  }
+
   const candidates: MaterialCandidate[] = [];
+  let firstOutlineUnits: StudyOutlineUnit[] | null = null;
+  let firstOutlineTopics: StudyOutlineTopic[] | null = null;
+
   for (const documentId of documentIds) {
     const rows = nodes.filter((node) => node.document_id === documentId);
-    const mains = pickMainTopics(
-      rows.map((node) => ({
-        id: node.id as string,
-        title: node.title as string,
-        parentId: (node.parent_id as string | null) ?? null,
-      })),
-    );
-    const mainIds = new Set(mains.map((topic) => topic.id));
+    const docPages = pagesByDoc.get(documentId) ?? [];
+    const pagesByTopic = new Map<string, number[]>();
     const links = linksByDoc.get(documentId) ?? [];
-    for (const node of rows) {
-      if (!mainIds.has(node.id as string)) continue;
-      const id = node.id as string;
-      const objective = ((node.learning_objective as string | null) ?? "").trim();
-      const definitions = asStrings(node.key_definitions).slice(0, 4);
-      const mistakes = asStrings(node.common_mistakes).slice(0, 6);
-      const practice = asStrings(node.source_exercises).slice(0, 6);
-      const analysis = analysisByDoc.get(documentId);
-      const matched = analysis ? findAnalysisTopic(analysis, String(node.title ?? "")) : null;
-      candidates.push({
-        id,
+    for (const link of links) {
+      const list = pagesByTopic.get(link.topic_id) ?? [];
+      list.push(link.page_number);
+      pagesByTopic.set(link.topic_id, list);
+    }
+
+    const lightPages = docPages.map((page) => ({
+      pageNumber: page.page_number,
+      text: ((page.text_content as string | null) ?? "").slice(0, 4000),
+      pageKind: page.page_kind,
+      headings: Array.isArray(page.headings) ? (page.headings as string[]) : undefined,
+    }));
+    const furniture = detectPageFurniture(lightPages);
+    const tocUnits = extractTocUnits(lightPages);
+    const name = fileName.get(documentId) ?? "";
+    const seriesLabels = [
+      ...new Set([...furniture.seriesLabels, ...seriesLabelFromFileName(name)]),
+    ];
+    const contentPageCount = docPages.filter(
+      (p) => !p.page_kind || p.page_kind === "content" || p.page_kind === "uncertain",
+    ).length;
+
+    const outline = buildStudyOutlineFromNodes({
+      nodes: rows.map((node) => ({
+        id: node.id as string,
         title: String(node.title ?? ""),
-        summary: [objective, ...definitions].filter(Boolean).join(" ").slice(0, 400),
-        pages: [...new Set(links.filter((link) => link.topic_id === id).map((link) => link.page_number))].sort(
-          (a, b) => a - b,
-        ),
+        parentId: (node.parent_id as string | null) ?? null,
+        sortOrder: typeof node.sort_order === "number" ? node.sort_order : 0,
+      })),
+      pagesByTopic,
+      seriesLabels,
+      unitRuns: furniture.unitRuns,
+      tocUnits,
+      contentPageCount: contentPageCount || docPages.length,
+    });
+
+    if (!firstOutlineUnits && outline.units.length) {
+      firstOutlineUnits = outline.units;
+      firstOutlineTopics = outline.topics;
+    }
+
+    const rowById = new Map(rows.map((node) => [node.id as string, node]));
+    for (const topic of outline.topics) {
+      const node =
+        rowById.get(topic.id) ??
+        rowById.get(topic.sourceNodeIds[0] ?? "") ??
+        null;
+      const objective = node ? ((node.learning_objective as string | null) ?? "").trim() : "";
+      const definitions = node ? asStrings(node.key_definitions).slice(0, 4) : [];
+      const mistakes = node ? asStrings(node.common_mistakes).slice(0, 6) : [];
+      const practice = node ? asStrings(node.source_exercises).slice(0, 6) : [];
+      const analysis = analysisByDoc.get(documentId);
+      const matched =
+        analysis && node ? findAnalysisTopic(analysis, String(node.title ?? "")) : null;
+      const perspective = node
+        ? unpackTopicPerspective({
+            learning_objective: node.learning_objective as string | null,
+            prerequisites: node.prerequisites,
+            key_definitions: node.key_definitions,
+            key_relations: (node as { key_relations?: unknown }).key_relations,
+          })
+        : null;
+      const emphasis =
+        matched?.emphasis ??
+        (perspective ? examWeightToEmphasis(perspective.examWeight) : null);
+      candidates.push({
+        id: topic.id,
+        title: topic.title,
+        summary: (perspective?.whyLearn || objective || "").slice(0, 400),
+        description: perspective?.whyLearn || objective || null,
+        pages: topic.pages,
         documentId,
-        fileName: fileName.get(documentId) ?? "",
-        prerequisites: asStrings(node.prerequisites),
+        fileName: name,
+        prerequisites: perspective?.prerequisiteTitles.length
+          ? perspective.prerequisiteTitles
+          : node
+            ? asStrings(node.prerequisites)
+            : [],
+        keyTerms: definitions,
         commonMistakes: mistakes,
         practiceItems: practice,
-        emphasis: matched?.emphasis ?? null,
+        emphasis,
+        examHeavy: perspective ? isHighExamWeight(perspective.examWeight) : false,
       });
     }
   }
 
   const consolidated = consolidateMaterials({ candidates, documents });
-  if (!options?.allowModel || !userId || !consolidated.ambiguous.length) return consolidated;
+  const units =
+    firstOutlineUnits && firstOutlineTopics
+      ? remapStudyUnitsToConsolidated(firstOutlineUnits, firstOutlineTopics, consolidated.topics)
+      : undefined;
+  const withUnits: ConsolidationResult = units?.length ? { ...consolidated, units } : consolidated;
+
+  if (!options?.allowModel || !userId || !withUnits.ambiguous.length) return withUnits;
 
   try {
-    const merged = await resolveAmbiguousClusters(service, userId, consolidated);
-    return { ...consolidated, topics: merged, ambiguous: [] };
+    const merged = await resolveAmbiguousClusters(service, userId, withUnits);
+    const remappedUnits =
+      firstOutlineUnits && firstOutlineTopics
+        ? remapStudyUnitsToConsolidated(firstOutlineUnits, firstOutlineTopics, merged)
+        : withUnits.units;
+    return {
+      ...withUnits,
+      topics: merged,
+      ambiguous: [],
+      units: remappedUnits?.length ? remappedUnits : withUnits.units,
+    };
   } catch {
-    return consolidated;
+    return withUnits;
   }
 }
 

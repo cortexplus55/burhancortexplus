@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstLessonDiagnosticSlots, measuredLevelFromAccuracy, overallMeasuredFromTopics, planDiagnosticTopics, pickMainTopics, scoreDiagnosticAnswers, selectDiagnosticSkillQuestions, startingLevelLabel, type DiagnosticQuestion, type DiagnosticTopicPlan } from "@/lib/learning/diagnostic";
+import { firstLessonDiagnosticSlots, measuredLevelFromAccuracy, overallMeasuredFromTopics, planDiagnosticTopics, pickMainTopics, pickStudyTopics, scoreDiagnosticAnswers, selectDiagnosticSkillQuestions, startingLevelLabel, type DiagnosticQuestion, type DiagnosticTopicPlan } from "@/lib/learning/diagnostic";
 
 describe("planDiagnosticTopics", () => {
   it("marks topics whose only pages are unreadable as unreadable/unknown", () => {
@@ -71,6 +71,16 @@ describe("pickMainTopics / skill plan", () => {
     ]);
     expect(mains.map((m) => m.id)).toEqual(["1", "3"]);
   });
+
+  it("pickStudyTopics uses leaves when hierarchy exists", () => {
+    const study = pickStudyTopics([
+      { id: "unit", parentId: null },
+      { id: "a", parentId: "unit" },
+      { id: "b", parentId: "unit" },
+    ]);
+    expect(study.map((n) => n.id)).toEqual(["a", "b"]);
+  });
+
 });
 
 describe("scoreDiagnosticAnswers", () => {
