@@ -75,6 +75,29 @@ describe("exam-schedule-v2", () => {
     })).toBe(true);
   });
 
+  it("starts on the Turkish day when the server's UTC day is still yesterday", () => {
+    // 1 Ekim 2026 (perşembe) 01:30 Türkiye = 30 Eylül (çarşamba) 22:30 UTC.
+    // Sunucunun yerel günüyle ilk oturum dünün tarihini alıp doğar doğmaz
+    // kaçırılmış sayılıyordu; gün filtresi de çarşambaya bakıyordu.
+    const now = new Date("2026-09-30T22:30:00Z");
+    expect(listStudyDayDates(3, [1, 2, 3, 4, 5, 6, 7], now)).toEqual([
+      "2026-10-01",
+      "2026-10-02",
+      "2026-10-03",
+    ]);
+    // Çarşamba + perşembe: 30 Eylül çarşambası geçti, ilk gün perşembe.
+    expect(listStudyDayDates(7, [3, 4], now)).toEqual(["2026-10-01", "2026-10-07"]);
+
+    const plan = buildExamScheduleV2({
+      daysToExam: 3,
+      dailyMinutes: 45,
+      studyDays: [1, 2, 3, 4, 5, 6, 7],
+      topics: topics(2),
+      fromDate: now,
+    });
+    expect(plan.sessions[0].calendarDate).toBe("2026-10-01");
+  });
+
   it("builds sessions with topic, objective, pages, duration", () => {
     const plan = buildExamScheduleV2({
       daysToExam: 14,

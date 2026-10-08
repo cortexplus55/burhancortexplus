@@ -16,14 +16,14 @@ import {
  *
  * Aynı sebeple burada DAKİKA değil ETKİNLİK sayılıyor.
  */
-const today = new Date(2026, 8, 11, 12, 0, 0); // 11 Eylül 2026, Cuma
+// Saatler Türkiye saatiyle yazılı; test makinesinin saat diliminden bağımsız.
+const today = new Date("2026-09-11T12:00:00+03:00"); // 11 Eylül 2026, Cuma
 
-const stamp = (daysAgo: number, hour = 10) => {
-  const d = new Date(today);
-  d.setDate(d.getDate() - daysAgo);
-  d.setHours(hour, 0, 0, 0);
-  return d.toISOString();
-};
+const DAY_MS = 86_400_000;
+const stamp = (daysAgo: number, hour = 10) =>
+  new Date(
+    Date.parse(`2026-09-11T${String(hour).padStart(2, "0")}:00:00+03:00`) - daysAgo * DAY_MS,
+  ).toISOString();
 
 describe("countByDay", () => {
   it("groups timestamps into days", () => {
@@ -85,5 +85,38 @@ describe("activityWeeks", () => {
     expect(thisWeek[4]?.date).toBe("2026-09-11");
     expect(thisWeek[5]).toBeNull();
     expect(thisWeek[6]).toBeNull();
+  });
+});
+
+describe("after midnight in Turkey, while the server's UTC day is still yesterday", () => {
+  // 1 Ekim 2026 01:30 Türkiye = 30 Eylül 22:30 UTC. Sunucu UTC'de; yerel
+  // günle hesaplandığında grafik 30 Eylül'de bitiyor, bu gece bitirilen
+  // etkinlik dünün sütununa yazılıyordu.
+  const now = new Date("2026-09-30T22:30:00Z");
+  const tonight = "2026-09-30T22:10:00Z"; // 1 Ekim 01:10
+  const yesterday = "2026-09-30T09:00:00Z"; // 30 Eylül 12:00
+
+  it("counts tonight's activity on 1 October", () => {
+    const counts = countByDay([tonight, yesterday]);
+    expect(counts.get("2026-10-01")).toBe(1);
+    expect(counts.get("2026-09-30")).toBe(1);
+  });
+
+  it("ends the last seven days on 1 October", () => {
+    const week = lastDays([tonight], 7, now);
+    expect(week[6]).toEqual({ date: "2026-10-01", count: 1 });
+    expect(week[0].date).toBe("2026-09-25");
+  });
+
+  it("puts Thursday 1 October last in the year map", () => {
+    const weeks = activityWeeks([tonight], now);
+    const thisWeek = weeks[weeks.length - 1];
+    expect(thisWeek[0]?.date).toBe("2026-09-28");
+    expect(thisWeek[3]).toEqual({ date: "2026-10-01", count: 1 });
+    expect(thisWeek[4]).toBeNull();
+  });
+
+  it("keeps the streak going across midnight", () => {
+    expect(currentStreak([tonight, yesterday], now)).toBe(2);
   });
 });

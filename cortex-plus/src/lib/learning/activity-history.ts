@@ -15,14 +15,15 @@
  * etkinlik. Grafik de onu söylüyor.
  */
 
+import { addDays, istanbulDay, isoWeekday } from "@/lib/istanbul-day";
+
 export type ActivityDay = { date: string; count: number };
 
-function isoDay(date: Date): string {
-  const y = date.getFullYear();
-  const m = `${date.getMonth() + 1}`.padStart(2, "0");
-  const d = `${date.getDate()}`.padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
+/*
+  Günler Türkiye takviminde. Bu dosya sunucuda çalışıyor (`/ilerleme`) ve
+  sunucu UTC'de: yerel saatle sayıldığında gece 01:30'da bitirilen etkinlik
+  bir önceki güne yazılıyor, son yedi gün dünde bitiyordu.
+*/
 
 /** Zaman damgalarını gün gün sayıya çevirir. */
 export function countByDay(timestamps: string[]): Map<string, number> {
@@ -30,7 +31,7 @@ export function countByDay(timestamps: string[]): Map<string, number> {
   for (const stamp of timestamps) {
     const time = Date.parse(stamp);
     if (Number.isNaN(time)) continue;
-    const day = isoDay(new Date(time));
+    const day = istanbulDay(new Date(time));
     counts.set(day, (counts.get(day) ?? 0) + 1);
   }
   return counts;
@@ -43,12 +44,10 @@ export function lastDays(
   today = new Date(),
 ): ActivityDay[] {
   const counts = countByDay(timestamps);
+  const end = istanbulDay(today);
   const out: ActivityDay[] = [];
   for (let i = days - 1; i >= 0; i -= 1) {
-    const date = new Date(today);
-    date.setHours(12, 0, 0, 0);
-    date.setDate(date.getDate() - i);
-    const key = isoDay(date);
+    const key = addDays(end, -i);
     out.push({ date: key, count: counts.get(key) ?? 0 });
   }
   return out;
@@ -66,25 +65,20 @@ export function activityWeeks(
   today = new Date(),
 ): (ActivityDay | null)[][] {
   const counts = countByDay(timestamps);
-  const end = new Date(today);
-  end.setHours(12, 0, 0, 0);
+  const end = istanbulDay(today);
   // Bugünün haftasının pazartesisine git.
-  const monday = new Date(end);
-  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const monday = addDays(end, 1 - isoWeekday(end));
 
   const weeks: (ActivityDay | null)[][] = [];
   for (let w = 51; w >= 0; w -= 1) {
-    const weekStart = new Date(monday);
-    weekStart.setDate(weekStart.getDate() - w * 7);
+    const weekStart = addDays(monday, -w * 7);
     const week: (ActivityDay | null)[] = [];
     for (let d = 0; d < 7; d += 1) {
-      const day = new Date(weekStart);
-      day.setDate(day.getDate() + d);
-      if (day > end) {
+      const key = addDays(weekStart, d);
+      if (key > end) {
         week.push(null);
         continue;
       }
-      const key = isoDay(day);
       week.push({ date: key, count: counts.get(key) ?? 0 });
     }
     weeks.push(week);
@@ -95,14 +89,13 @@ export function activityWeeks(
 /** Bugüne kadar kesintisiz kaç gün çalışıldı. */
 export function currentStreak(timestamps: string[], today = new Date()): number {
   const counts = countByDay(timestamps);
-  const cursor = new Date(today);
-  cursor.setHours(12, 0, 0, 0);
+  let cursor = istanbulDay(today);
   // Bugün henüz çalışılmadıysa seri dünden sayılır; gün bitmedi.
-  if (!counts.get(isoDay(cursor))) cursor.setDate(cursor.getDate() - 1);
+  if (!counts.get(cursor)) cursor = addDays(cursor, -1);
   let streak = 0;
-  while (counts.get(isoDay(cursor))) {
+  while (counts.get(cursor)) {
     streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
+    cursor = addDays(cursor, -1);
   }
   return streak;
 }

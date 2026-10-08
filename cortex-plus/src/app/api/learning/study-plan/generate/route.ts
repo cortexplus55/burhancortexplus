@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
+import { addDays, istanbulDay } from "@/lib/istanbul-day";
 
 const bodySchema = z.object({
   goal: z.string().min(3).max(300),
@@ -60,18 +61,16 @@ export async function POST(request: Request) {
 
   if (error || !plan) return errorResponse(500, "generation_failed");
 
-  const today = new Date();
+  // "Bugün" Türkiye günü. Sunucu UTC'de; gece 00:00–03:00 arası kurulan
+  // planın ilk görevi dünün tarihini alıp doğar doğmaz gecikmiş oluyordu.
+  const today = istanbulDay();
   await service.from("study_plan_tasks").insert(
-    outcome.data.tasks.map((task, index) => {
-      const due = new Date(today);
-      due.setDate(due.getDate() + task.dayOffset);
-      return {
-        plan_id: plan.id,
-        title: task.title,
-        due_date: due.toISOString().slice(0, 10),
-        sort_order: index,
-      };
-    }),
+    outcome.data.tasks.map((task, index) => ({
+      plan_id: plan.id,
+      title: task.title,
+      due_date: addDays(today, task.dayOffset),
+      sort_order: index,
+    })),
   );
 
   return NextResponse.json({

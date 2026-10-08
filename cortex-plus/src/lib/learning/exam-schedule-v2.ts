@@ -8,6 +8,7 @@ import type { MeasuredLevel } from "@/lib/learning/diagnostic";
 import { extraPracticeForTopic } from "@/lib/learning/cross-material-topics";
 import { sourceCitation } from "@/lib/learning/path-source-label";
 import type { TopicSourceRef } from "@/lib/learning/topic-merge";
+import { addDays, istanbulDay, isoWeekday } from "@/lib/istanbul-day";
 
 export type ScheduleSessionRole = "learn" | "practice" | "review" | "mock";
 
@@ -45,7 +46,7 @@ export type ScheduleBuildInput = {
   studyDays: number[];
   topics: ScheduleTopicInput[];
   targetScore?: number | null;
-  /** Calendar start (local date); defaults to today. */
+  /** Calendar start (its Europe/Istanbul day); defaults to now. */
   fromDate?: Date;
 };
 
@@ -159,25 +160,14 @@ const LEVEL_LOAD: Record<MeasuredLevel, number> = {
   solid: 0.75,
 };
 
-function isoDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-/** Monday=1 .. Sunday=7 */
-export function weekdayMon1(d: Date): number {
-  const js = d.getDay();
-  return js === 0 ? 7 : js;
-}
-
+/**
+ * Sınava kadarki çalışma günleri, `from` anının Türkiye gününden başlayarak.
+ *
+ * Takvim eskiden sunucunun yerel gününden kuruluyordu. Sunucu UTC'de; gece
+ * 00:00–03:00 arası kurulan planın ilk oturumu dünün tarihini alıyor ve
+ * doğar doğmaz "kaçırılmış" sayılıyordu, gün filtresi de dünün haftanın
+ * gününe bakıyordu.
+ */
 export function listStudyDayDates(
   daysToExam: number,
   studyDays: number[],
@@ -189,16 +179,15 @@ export function listStudyDayDates(
       (d) => d >= 1 && d <= 7,
     ),
   );
-  const start = startOfDay(from);
+  const start = istanbulDay(from);
   const dates: string[] = [];
   for (let offset = 0; offset < span; offset += 1) {
-    const day = new Date(start);
-    day.setDate(start.getDate() + offset);
-    if (allowed.has(weekdayMon1(day))) dates.push(isoDate(day));
+    const day = addDays(start, offset);
+    if (allowed.has(isoWeekday(day))) dates.push(day);
   }
   // Always keep at least one study slot if exam is tomorrow and filter emptied the list.
   if (!dates.length) {
-    dates.push(isoDate(start));
+    dates.push(start);
   }
   return dates;
 }
