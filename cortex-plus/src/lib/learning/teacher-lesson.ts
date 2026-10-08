@@ -133,7 +133,9 @@ export const TEACHER_SYSTEM =
   "öğrencinin gerçekten karıştırdığı ifadeler. Tek doğru şık. Soru cevabı vermesin; sayma sorusu ('kaç tür vardır') yok. " +
   "explanation doğru cevabın nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
   "cümle (şık sayısı kadar). review: aynı kavramı farklı yönden soran soru — tanımdan terim soruldaysa bu kez " +
-  "bir durumdan (olaydan) terim sorulur; şıklar aynı kalır.\n" +
+  "bir durumdan (olaydan) terim sorulur; şıklar aynı kalır. Durum sorusundaki olay tek kavrama okunmalı: iki kavramla " +
+  "da açıklanabilen muğlak örnek kurma ('herkesten eşit oranda vergi' — oran mı, miktar mı?); ayırt ettiren ayrıntıyı " +
+  "olayın içine yaz.\n" +
   EXAMPLE_DOCUMENT +
   "7) summary: 3-5 madde; sınavda soruyu çözdürecek kesin bilgiler, anahtar kelimeleriyle.\n" +
   "8) nextFocus yalnız verilen SIRADAKİ KONULAR listesinden, aynen; liste boşsa boş dizi.\n\n" +
@@ -183,7 +185,8 @@ export const VERIFY_SYSTEM =
   "A) Kaynakta dayanağı olmayan olgu, tanım, sayı, tarih, kural ya da sınıflandırma. (Yeni bilgi taşımayan gündelik " +
   "örnek ya da benzetme sorun değildir.)\n" +
   "B) Kaynakla çelişen ya da kaynağın anlamını değiştiren ifade.\n" +
-  "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru.\n" +
+  "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru; durum sorusundaki olayın " +
+  "iki kavrama da okunabilmesi (ayırt ettiren ayrıntı eksik).\n" +
   "D) explanation ya da optionWhy'da yanlış bilgi.\n" +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle; kaynağın bozuk kelimesinin ya da bozuk cümlesinin kopyası.\n" +
   "F) Ders içinde tutarsızlık (bir yerde üç tür deyip başka yerde farklı saymak gibi).\n" +
@@ -202,7 +205,8 @@ export const TOPIC_VERIFY_SYSTEM =
   "A) Yanlış olgu, tanım, sayı, tarih, kural ya da sınıflandırma.\n" +
   "B) Emin olunamayacak kadar ayrıntılı ya da güncel olarak değişebilecek bilgi (yürürlükteki oran, son düzenleme), " +
   "tartışmalı bir görüşün kesin doğru gibi sunulması.\n" +
-  "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru.\n" +
+  "C) Yanlış cevap anahtarı, birden fazla doğru şık, cevabı soru metninde veren soru; durum sorusundaki olayın " +
+  "iki kavrama da okunabilmesi (ayırt ettiren ayrıntı eksik).\n" +
   "D) explanation ya da optionWhy'da yanlış bilgi; çözümlü örnekte hesap hatası.\n" +
   "E) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "F) Ders içinde tutarsızlık.\n" +

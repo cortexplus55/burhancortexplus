@@ -165,6 +165,17 @@ describe("yapı denetimi", () => {
     expect(lessonStructureIssues(parsed!, {}).some((issue) => /BÜYÜK HARF/.test(issue.problem))).toBe(false);
   });
 
+  // Faz 5 (9 Ekim 2026): KPSS dersinde "Devlet herkesten eşit oranda vergi
+  // alıyor → denkleştirici adalet" sorusu iki adalet türüne de okunabiliyordu.
+  it("durum sorusu tek kavrama okunmalı: yazar ve denetçi aynı kuralı biliyor", () => {
+    for (const system of [TEACHER_SYSTEM, TOPIC_TEACHER_SYSTEM]) {
+      expect(system).toContain("Durum sorusundaki olay tek kavrama okunmalı");
+    }
+    for (const system of [verifySystem("document"), verifySystem("topic")]) {
+      expect(system).toContain("durum sorusundaki olayın iki kavrama da okunabilmesi");
+    }
+  });
+
   it("belgesiz ders: aynı akış, kaynak kuralı yerine doğruluk kuralı", () => {
     expect(TOPIC_TEACHER_SYSTEM).toContain("BİLGİ KURALI (belgesiz ders, kesin)");
     expect(TOPIC_TEACHER_SYSTEM).not.toContain("KAYNAK KURALI (kesin)");
