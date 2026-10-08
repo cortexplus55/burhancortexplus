@@ -63,6 +63,28 @@ describe("öğretmen test motoru: biçim ve yapı", () => {
     expect(quizStructureIssues(exponent).join(" ")).toMatch(/hesapla çelişiyor/);
   });
 
+  // 29 Eylül canlı quiz (#189): C ve D aynı iki nokta; öğrenci gerçek cevabı
+  // seçti, yanlış sayıldı. Gerekçeler şıkkı tekrar edip "olamaz" diyordu.
+  it("aynı noktalar farklı sırayla iki şık olunca soru düzeltmeye gider; istemler kuralı söylüyor", () => {
+    const sameSet = parseTeacherQuiz({
+      questions: [
+        {
+          ...raw("Birim çemberde 0° ile 90° arasındaki açıların noktaları hangi iki nokta arasındadır?", "(1, 0) ve (0, 1) arasında"),
+          options: ["(cos A, sin A) değerleri arasında", "(1, 0) ve (-1, 0) arasında", "(1, 0) ve (0, 1) arasında", "(0, 1) ve (1, 0) arasında"],
+        },
+      ],
+    })![0];
+    expect(quizStructureIssues(sameSet).join(" ")).toMatch(/İki şık aynı cevap/);
+    for (const prompt of [quizSystem("document"), quizSystem("topic")]) {
+      expect(prompt).toContain("İki şık aynı şeyi söylemez");
+      expect(prompt).toContain("yalnız 'olamaz / değildir' demek gerekçe değildir");
+    }
+    for (const prompt of [quizVerifySystem("document"), quizVerifySystem("topic")]) {
+      expect(prompt).toContain("iki şık aynı şeyi farklı sırayla");
+      expect(prompt).toContain("şıkkı tekrar edip yalnız 'olamaz / değildir' demesi");
+    }
+  });
+
   it("denetçi sorunları soru sırasıyla okunur; ciddiyet yoksa yüksek", () => {
     expect(parseQuizIssues({ issues: [{ question: 2, problem: "İki doğru şık" }, { question: "x", problem: "y" }, { question: 1, severity: "low", problem: "kolay" }] })).toEqual([
       { question: 2, severity: "high", problem: "İki doğru şık", fix: undefined },

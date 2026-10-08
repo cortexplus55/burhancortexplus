@@ -77,6 +77,10 @@ const DESIGN =
   "('hangisi değildir') en fazla bir soruda ve olumsuz ek **koyu** yazılır.\n" +
   "- explanation doğrunun nedenini söyler VE her çeldiricinin gerçekte ne olduğunu söyler. optionWhy her şık için bir " +
   "cümle, options ile aynı sırada. Hesap sorusunda steps: her adım tek işlem, kendi içinde doğru.\n" +
+  "- Yanlış şıkkın optionWhy'ı o şıkkın gerçekte neye karşılık geldiğini söyler ('(√2/2, √2/2) 45°'nin noktasıdır; " +
+  "90°'nin noktası (0, 1)'dir'). Şıkkı tekrar edip yalnız 'olamaz / değildir' demek gerekçe değildir.\n" +
+  "- İki şık aynı şeyi söylemez: aynı noktaları ya da öğeleri farklı sırayla ('(1, 0) ve (0, 1)' ile '(0, 1) ve " +
+  "(1, 0)'), aynı değeri farklı yazımla ('1/2' ile '0,5').\n" +
   "- 'Hangisi doğrudur / hangisi özelliğidir' diye soruyorsan iki doğru kuralı yan yana şık yapma; kural bir koşula " +
   "bağlıysa (aynı taban, aynı üs gibi) koşulu kökte ya da şıkta yaz.\n" +
   "- Açı ya da sayı aralığı veriyorsan uç noktaların dahil olup olmadığını açıkça yaz (0° ≤ x < 360° gibi); " +
@@ -135,9 +139,11 @@ const VERIFY_DOCUMENT =
   "ÇÖZ (anahtara bakmadan), sonra anahtarla karşılaştır. Şunları bul:\n" +
   "A) Anahtar yanlış: senin çözümün farklı bir şık.\n" +
   "B) Birden fazla savunulabilir doğru şık ya da hiç doğru şık yok; kök belirsiz. İki doğru kural yan yana şık " +
-  "olmuş; aralığın uç noktaları yazılmamış ve bu yüzden cevap değişiyor.\n" +
+  "olmuş; aralığın uç noktaları yazılmamış ve bu yüzden cevap değişiyor; iki şık aynı şeyi farklı sırayla ya da " +
+  "farklı yazımla söylüyor.\n" +
   "C) Kaynakta dayanağı olmayan ya da kaynakla çelişen bilgi (kök, şık ya da gerekçede).\n" +
-  "D) explanation, optionWhy ya da steps'te yanlış bilgi; optionWhy satırının yanlış şıkka ait olması.\n" +
+  "D) explanation, optionWhy ya da steps'te yanlış bilgi; optionWhy satırının yanlış şıkka ait olması; yanlış şıkkın " +
+  "optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi.\n" +
   "E) Kökün cevabı vermesi.\n" +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "Kaynakta açıkça bozuk bir cümlenin kaynağın kendi örnekleriyle tutarlı anlamıyla kullanılması sorun değildir.\n" +
@@ -148,9 +154,11 @@ const VERIFY_TOPIC =
   "KENDİN ÇÖZ (anahtara bakmadan), sonra anahtarla karşılaştır. Şunları bul:\n" +
   "A) Anahtar yanlış: senin çözümün farklı bir şık.\n" +
   "B) Birden fazla savunulabilir doğru şık ya da hiç doğru şık yok; kök belirsiz. İki doğru kural yan yana şık " +
-  "olmuş; aralığın uç noktaları yazılmamış ve bu yüzden cevap değişiyor.\n" +
+  "olmuş; aralığın uç noktaları yazılmamış ve bu yüzden cevap değişiyor; iki şık aynı şeyi farklı sırayla ya da " +
+  "farklı yazımla söylüyor.\n" +
   "C) Yanlış ya da tartışmalı bilgi; emin olunamayacak kadar ayrıntılı ya da güncel değişebilecek bilgi.\n" +
-  "D) explanation, optionWhy ya da steps'te yanlış bilgi ya da hesap hatası; optionWhy satırının yanlış şıkka ait olması.\n" +
+  "D) explanation, optionWhy ya da steps'te yanlış bilgi ya da hesap hatası; optionWhy satırının yanlış şıkka ait " +
+  "olması; yanlış şıkkın optionWhy'ının şıkkı tekrar edip yalnız 'olamaz / değildir' demesi.\n" +
   "E) Kökün cevabı vermesi.\n" +
   "F) Bozuk, anlamsız ya da yarım Türkçe cümle.\n" +
   "A-F 'high'. Şunlar 'low': kolay soru, uzun gerekçe.\n";
@@ -331,7 +339,7 @@ export function quizStructureIssues(question: QuizQuestion): string[] {
   if (exponentKeyWrong(keyed) === true || mathKeyWrong(keyed) === true) {
     issues.push("Cevap anahtarı hesapla çelişiyor.");
   } else if (mathOptionsAmbiguous(keyed)) {
-    issues.push("Birden fazla şık aynı değere çıkıyor.");
+    issues.push("İki şık aynı cevap: aynı değer ya da aynı öğeler farklı sırayla.");
   }
   return issues;
 }
