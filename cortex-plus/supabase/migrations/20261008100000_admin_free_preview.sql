@@ -6,7 +6,8 @@
 --     (ücretsiz katmanla aynı sayı: 20261003120000_free_tier_one_lesson);
 --   - belge ve hazırlık sınırı yalnız önizleme başladıktan sonra eklenenleri
 --     sayar (uygulama tarafı, `started_at`) — yeni bir ücretsiz hesap gibi.
--- Satır yalnız yöneticiye açılır (/api/admin/free-preview); kapatınca silinir.
+-- Satırı yalnız yönetici açar (/admin → "Ücretsiz gibi gör",
+-- free-preview-actions.ts); kapatınca silinir.
 
 CREATE TABLE IF NOT EXISTS public.admin_free_preview (
   user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
