@@ -20,8 +20,13 @@ function service(options: { rpcError?: { message: string }; rows?: Rows } = {}) 
     rpc: vi.fn().mockResolvedValue({ error: options.rpcError ?? null }),
     from: (table: string) => ({
       select: () => ({
-        eq: () => ({
-          maybeSingle: () => Promise.resolve({ data: rows[table] ?? null }),
+        // credit_rules eylem koduna göre de verilebilir: { credit_rules: { AI_CHAT_STANDARD: {...} } }
+        eq: (_column: string, value: string) => ({
+          maybeSingle: () => {
+            const row = rows[table] as Rows | undefined;
+            const byCode = row && value in row ? (row[value] as Rows) : undefined;
+            return Promise.resolve({ data: byCode ?? row ?? null });
+          },
         }),
         limit: () =>
           Promise.resolve(
@@ -33,14 +38,25 @@ function service(options: { rpcError?: { message: string }; rows?: Rows } = {}) 
   } as any;
 }
 
+// Kredi sistemi v2 (8 Ekim 2026): fiyatlar price-table'dan.
+const v2Rules = {
+  AUDIO_SYNTHESIZE: { credit_cost: 2 },
+  PRACTICE_EXAM_GENERATE: { credit_cost: 15 },
+  AI_CHAT_STANDARD: { credit_cost: 3 },
+  PODCAST_GENERATE: { credit_cost: 12 },
+};
+
 const healthy = () =>
   service({
     rows: {
-      credit_rules: { credit_cost: 5 },
+      credit_rules: v2Rules,
       model_upgrade_grants: {},
       document_page_grants: {},
       referral_tiers: { multiplier: 10 },
       document_teacher_analyses: {},
+      lesson_generation_failures: {},
+      admin_free_preview: {},
+      exam_prep_prefetch: {},
     },
   });
 
@@ -91,8 +107,23 @@ describe("diğer göç dosyaları", () => {
   it("hepsi yerindeyse hiçbir satır kırmızı değil", async () => {
     const checks = await probeSchema(healthy());
     expect(checks.every((check) => check.ok)).toBe(true);
-    expect(checks).toHaveLength(7);
+    expect(checks).toHaveLength(11);
     expect(find(checks, "Öğretmen analizi").ok).toBe(true);
+    expect(find(checks, "Kredi sistemi v2").detail).toBe("Mesaj 3, ders 6, podcast 12 kredi");
+  });
+
+  /* 8 Ekim 2026 denetimi: 102 göçten ikisi canlıda hiç uygulanmamıştı ve
+     sistem sayfası ikisini de sormuyordu. */
+  it("kredi sistemi v2 eksikse kritik; ders hatası tablosu ve iade fonksiyonu soruluyor", async () => {
+    const checks = await probeSchema(
+      service({
+        rpcError: { message: "Could not find the function public.apply_payment_refund" },
+        rows: { credit_rules: { AI_CHAT_STANDARD: { credit_cost: 1 } } },
+      }),
+    );
+    expect(find(checks, "Kredi sistemi v2")).toMatchObject({ ok: false, critical: true });
+    expect(find(checks, "Ders hatası kaydı").ok).toBe(false);
+    expect(find(checks, "İade fonksiyonu").ok).toBe(false);
   });
 
   it("eksik tabloyu ve eski çarpanı yakalıyor", async () => {
