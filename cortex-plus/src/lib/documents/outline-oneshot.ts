@@ -866,6 +866,12 @@ async function callOutlineModel(input: OutlinePromptInput & {
       service: input.service,
       userId: input.userId,
       actionCode: "STUDY_PLAN_GENERATE",
+      // Konu haritası öğrencinin değil sistemin işi (3 Ekim 2026, ürün
+      // sahibinin kararı): belge başına sabit DOCUMENT_PAGE_PROCESS ücreti
+      // var. Ücretsiz hesabın günlük hakkı bir ders; harita onu yerse belge
+      // yükleyen öğrenci hazırlığını kuramıyordu.
+      chargeCredits: false,
+      usageCode: "TOPIC_MAP_OUTLINE",
       isPremium: await isPremiumUser(input.service, input.userId),
       verificationMode: "schema",
       deadlineAt: input.deadlineAt,

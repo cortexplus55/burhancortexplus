@@ -283,7 +283,11 @@ export type UsageCode =
   /** Hazırlığın içerikten adı (0 kredi, kurulum başına bir kez). */
   | "PREP_TITLE"
   /** Sıradaki dersin önceden yazımı (kredi öğrenci dersi açınca ayrıca düşer). */
-  | "LESSON_PREFETCH";
+  | "LESSON_PREFETCH"
+  /** Konu haritası (tek seferlik özet; 0 kredi, belge başına sabit işleme ücreti var). */
+  | "TOPIC_MAP_OUTLINE"
+  /** Hazırlık kurulum sohbeti (0 kredi; ücretsizde hazırlık sayısı sınırlı). */
+  | "PREP_INTAKE";
 
 export async function recordUsage(
   service: SupabaseClient,

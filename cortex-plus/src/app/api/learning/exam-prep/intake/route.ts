@@ -458,6 +458,10 @@ export async function POST(request: Request) {
     service,
     userId,
     actionCode: "STUDY_PLAN_GENERATE",
+    // Kurulum sohbeti öğrenme hakkından yemez (3 Ekim 2026): ücretsiz hesabın
+    // günlük tek dersi kurulumda bitiyordu. Hazırlık sayısı ayrıca sınırlı.
+    chargeCredits: false,
+    usageCode: "PREP_INTAKE",
     isPremium: await isPremiumUser(service, userId),
     /*
       Eskiden şemada "ready true yalnızca en az 3 konu netse" yazıyordu. Model

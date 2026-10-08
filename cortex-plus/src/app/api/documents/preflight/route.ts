@@ -5,6 +5,8 @@ import { preflightPdfPages } from "@/lib/documents/extract-text";
 import { getDocumentLimits } from "@/lib/documents/document-limits";
 import { AdminCheckError } from "@/lib/auth/roles";
 import { userFacingIngestionMessage } from "@/lib/documents/ingestion-errors";
+import { FREE_PAGE_TOTAL, freePagesRemaining } from "@/lib/documents/free-pages";
+import { FREE_PAGE_LIMIT_CODE } from "@/lib/documents/process-errors";
 
 const bodySchema = z.object({ documentId: z.string().uuid() });
 
@@ -43,8 +45,20 @@ export async function POST(request: Request) {
     throw error;
   }
 
+  // Ücretsiz plan: hesap başına toplam 5 sayfa (3 Ekim 2026). Hak hiç
+  // kalmadıysa uzun işleme beklemeden yükseltme kapısı açılsın.
+  const freeRemaining = await freePagesRemaining(service, userId, doc.id);
+  if (freeRemaining === 0) {
+    return NextResponse.json(
+      { error: userFacingIngestionMessage(FREE_PAGE_LIMIT_CODE), code: FREE_PAGE_LIMIT_CODE },
+      { status: 402 },
+    );
+  }
+  const freePages = freeRemaining == null ? null : { total: FREE_PAGE_TOTAL, remaining: freeRemaining };
+
   if (doc.mime_type !== "application/pdf") {
     return NextResponse.json({
+      freePages,
       pageCount: 1,
       scannedPages: 0,
       textPages: 1,
@@ -92,6 +106,7 @@ export async function POST(request: Request) {
   );
 
   return NextResponse.json({
+    freePages,
     pageCount: counts.pageCount,
     // Upper bound: pages without a text layer. Truly blank pages are counted
     // here but ingestion does not charge quota for them.

@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  FREE_PREP_LIMIT_CODE,
+  FREE_PREP_LIMIT_MESSAGE,
+  freePrepLimitReached,
+} from "@/lib/billing/free-prep-limit";
 import { z } from "zod";
 import { errorResponse, withUser } from "@/lib/api/guards";
 
@@ -91,6 +96,15 @@ export async function POST(request: Request) {
     .eq("forked_from", source.id)
     .maybeSingle();
   if (existing) return NextResponse.json({ id: existing.id, alreadyJoined: true });
+
+  // Ücretsiz hesap bir hazırlık kurabilir (3 Ekim 2026; Astra'da ücretsiz
+  // hesap yeni hazırlık kuramıyor).
+  if (await freePrepLimitReached(service, userId)) {
+    return NextResponse.json(
+      { error: FREE_PREP_LIMIT_MESSAGE, code: FREE_PREP_LIMIT_CODE },
+      { status: 402 },
+    );
+  }
 
   const { data: copy, error: copyError } = await service
     .from("exam_preps")

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Sparkles, Unlock, Users, X } from "lucide-react";
 import { useIsFounder } from "@/lib/student/student-shell-context";
 import "@/styles/parity-app.css";
@@ -26,14 +26,18 @@ export function UpgradeSheet({
   returnPath,
   /** "Hakkın yarın 03:00'te yenilenir" gibi bir satır. */
   resetHint,
+  /** Yenilenme anı (ISO). Varsa canlı geri sayım çizilir (Astra gibi). */
+  resetsAt,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   message: string;
   returnPath?: string;
   resetHint?: string;
+  resetsAt?: string;
 }) {
   const founder = useIsFounder();
+  const [whyOpen, setWhyOpen] = useState(false);
   // Escape ile kapanmalı: tam ekran bir kapı, çıkışı kolay olmalı.
   useEffect(() => {
     if (!open) return;
@@ -113,12 +117,62 @@ export function UpgradeSheet({
 
         {/* Hakkı yenilenecek olan öğrenciye "beklersen de olur" demek dürüst
             olan. Abone olmadan da çözümü var ve bunu saklamıyoruz. */}
-        {resetHint ? <p className="ug-reset">{resetHint}</p> : null}
+        {resetsAt ? (
+          <ResetCountdown resetsAt={resetsAt} />
+        ) : resetHint ? (
+          <p className="ug-reset">{resetHint}</p>
+        ) : null}
 
-        <Link href="/yardim" className="ug-why" onClick={() => onOpenChange(false)}>
+        {/* Astra'da bu bağlantı aynı kapının içinde kısa bir açıklama açıyor;
+            öğrenciyi yardım sayfasına göndermek kapıyı kapatıyordu. */}
+        <button type="button" className="ug-why" onClick={() => setWhyOpen((value) => !value)}>
           Cortex Plus neden tamamen ücretsiz değil?
-        </Link>
+        </button>
+        {whyOpen ? (
+          <ol className="ug-why-list">
+            <li>
+              <strong>Amacımız</strong>
+              <span>Her öğrencinin kendi notundan çalışan bir yapay zekâ öğretmeni olsun.</span>
+            </li>
+            <li>
+              <strong>Gerçek maliyet</strong>
+              <span>Her ders, test ve cevap model hesabı kullanıyor; bunun bir maliyeti var.</span>
+            </li>
+            <li>
+              <strong>Ücretsiz hak</strong>
+              <span>Ücretsiz hesap her gün bir derslik hak alıyor; davet ettiğin arkadaşınla ikinizin hakkı katlanıyor.</span>
+            </li>
+          </ol>
+        ) : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * "Tekrar dene: 04 saat 21 dk 00 sn" — Astra'nın sohbet duvarındaki gibi.
+ * Saniyede bir güncellenir; süre dolunca "Hakkın yenilendi" der.
+ */
+function ResetCountdown({ resetsAt }: { resetsAt: string }) {
+  const target = new Date(resetsAt).getTime();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  if (!Number.isFinite(target)) return null;
+  const left = Math.max(0, Math.floor((target - now) / 1000));
+  if (left === 0) return <p className="ug-reset">Hakkın yenilendi; yeniden deneyebilirsin.</p>;
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const hours = Math.floor(left / 3600);
+  const minutes = Math.floor((left % 3600) / 60);
+  const seconds = left % 60;
+  return (
+    <div className="ug-countdown" aria-live="off">
+      <span className="ug-countdown-label">Hakkın yenilenene kadar:</span>
+      <span className="ug-countdown-clock">
+        <b>{pad(hours)}</b> saat <b>{pad(minutes)}</b> dk <b>{pad(seconds)}</b> sn
+      </span>
     </div>
   );
 }

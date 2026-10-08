@@ -14,6 +14,7 @@ export function ExamCreateEntry({
   recentSubjects = [],
   initialSubject = null,
   initialPrompt = null,
+  prepLimitReached = false,
 }: {
   initialDocumentId?: string | null;
   recentSubjects?: string[];
@@ -21,6 +22,8 @@ export function ExamCreateEntry({
   initialSubject?: string | null;
   /** Katalog kartından gelen ilk mesaj; sohbetle kurulum açılır. */
   initialPrompt?: string | null;
+  /** Ücretsiz hesabın tek hazırlık hakkı dolu (3 Ekim 2026). */
+  prepLimitReached?: boolean;
 }) {
   const [mode, setMode] = useState<"wizard" | "chat">(
     initialPrompt && !initialDocumentId ? "chat" : "wizard",
@@ -41,6 +44,7 @@ export function ExamCreateEntry({
           recentSubjects={recentSubjects}
           initialSubject={initialSubject}
           initialPrompt={initialPrompt}
+          prepLimitReached={prepLimitReached}
         />
       </>
     );
@@ -51,6 +55,7 @@ export function ExamCreateEntry({
       initialDocumentId={initialDocumentId}
       recentSubjects={recentSubjects}
       onUseChat={() => setMode("chat")}
+      prepLimitReached={prepLimitReached}
     />
   );
 }

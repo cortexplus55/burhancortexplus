@@ -41,7 +41,8 @@ describe("quotaView", () => {
       NOW,
     );
     expect(view.pendingRefill).toBe(true);
-    expect(view.remaining).toBe(6);
+    // Yeni gün güncel ücretsiz hakla açılır (3 Ekim 2026: 2 kredi = bir ders).
+    expect(view.remaining).toBe(2);
     expect(view.usedPercent).toBe(0);
     expect(view.resetsAt.toISOString()).toBe("2026-09-04T00:00:00.000Z");
   });
@@ -62,7 +63,7 @@ describe("quotaView", () => {
   });
 
   it("cüzdan yoksa katmana göre varsayılan verir", () => {
-    expect(quotaView(null, false, NOW).allowance).toBe(6);
+    expect(quotaView(null, false, NOW).allowance).toBe(2);
     expect(quotaView(null, true, NOW).allowance).toBe(400);
   });
 
@@ -89,7 +90,7 @@ describe("quotaView", () => {
   it("bozuk tarihte çökmez, yenilemeye düşer", () => {
     const view = quotaView(wallet({ period_ends_at: "gecersiz" }), false, NOW);
     expect(view.pendingRefill).toBe(true);
-    expect(view.remaining).toBe(6);
+    expect(view.remaining).toBe(2);
   });
 
   it("kalan bütçeyi tavanla sınırlar", () => {

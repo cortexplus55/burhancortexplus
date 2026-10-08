@@ -9,6 +9,7 @@ import { env, type ActionCode } from "@/lib/env";
 import { selectModel } from "@/lib/ai/model-router";
 import {
   commitCredits,
+  type UsageCode,
   newIdempotencyKey,
   recordUsage,
   refundCredits,
@@ -113,6 +114,13 @@ type GenerateJsonParams<T> = {
    * Rota dersi döndürünce `commitCredits`, dönmeden hata olursa `refundCredits`.
    */
   deferCommit?: boolean;
+  /**
+   * false: kredi ayrılmaz — öğrencinin değil sistemin işi (konu haritası
+   * turu, 3 Ekim 2026: KPSS 211 sayfa öğrenciden 36 kredi alıyordu, ücretsiz
+   * hesabın haritası yarıda kalıyordu). Kullanım `usageCode` ile yazılır.
+   */
+  chargeCredits?: boolean;
+  usageCode?: UsageCode;
   /** Extra draft regenerations under the same reservation (v2 default 2). */
   maxDraftAttempts?: number;
   /**
@@ -241,12 +249,12 @@ export async function generateJson<T>(
   const idempotencyKey =
     params.idempotencyKey ?? newIdempotencyKey(actionCode.toLowerCase());
 
-  const reservation = await reserveCredits(
-    params.service,
-    params.userId,
-    params.actionCode,
-    idempotencyKey,
-  );
+  const charge = params.chargeCredits !== false;
+  const reservation = charge
+    ? await reserveCredits(params.service, params.userId, params.actionCode, idempotencyKey)
+    : ({ ok: true, reservationId: "", cost: 0 } as const);
+  const reservationRef = charge && reservation.ok ? reservation.reservationId : null;
+  const usageCode: UsageCode = charge ? actionCode : (params.usageCode ?? actionCode);
 
   if (!reservation.ok) {
     const status = reservation.reason === "insufficient_credits" ? 402 : 400;
@@ -254,7 +262,7 @@ export async function generateJson<T>(
   }
 
   if (!env.OPENAI_API_KEY) {
-    await refundCredits(params.service, reservation.reservationId);
+    if (charge) await refundCredits(params.service, reservation.reservationId);
     return { ok: false, status: 503, error: "ai_not_configured" };
   }
 
@@ -303,21 +311,21 @@ export async function generateJson<T>(
       if (completionUsage.prompt_tokens || completionUsage.completion_tokens) {
         await recordUsage(params.service, {
           userId: params.userId,
-          actionCode,
+          actionCode: usageCode,
           model,
           tokensIn: completionUsage.prompt_tokens,
           tokensOut: completionUsage.completion_tokens,
-          reservationId: reservation.reservationId,
+          reservationId: reservationRef,
         });
       }
       if (reviewTokensIn || reviewTokensOut) {
         await recordUsage(params.service, {
           userId: params.userId,
-          actionCode,
+          actionCode: usageCode,
           model: env.OPENAI_ADVANCED_MODEL,
           tokensIn: reviewTokensIn,
           tokensOut: reviewTokensOut,
-          reservationId: reservation.reservationId,
+          reservationId: reservationRef,
         });
       }
     } catch {
@@ -327,7 +335,7 @@ export async function generateJson<T>(
       userId: params.userId,
       actionCode,
       activityKind: params.activityKind,
-      reservationId: reservation.reservationId,
+      reservationId: reservationRef,
       issueSeverity: lastSeverity,
       metrics: metricsFromFailure({
         generationMs: Date.now() - generationStarted - validationMs,
@@ -340,7 +348,7 @@ export async function generateJson<T>(
         outcome: lastOutcome,
       }),
     });
-    await refundCredits(params.service, reservation.reservationId);
+    if (charge) await refundCredits(params.service, reservation.reservationId);
     return { ok: false as const, status, error };
   };
 
@@ -768,25 +776,25 @@ export async function generateJson<T>(
     }
 
     if (!params.deferCommit) {
-      await commitCredits(params.service, reservation.reservationId);
+      if (charge) await commitCredits(params.service, reservation.reservationId);
     }
     await recordUsage(params.service, {
       userId: params.userId,
-      actionCode,
+      actionCode: usageCode,
       model,
       tokensIn: completionUsage.prompt_tokens,
       tokensOut: completionUsage.completion_tokens,
-      reservationId: reservation.reservationId,
+      reservationId: reservationRef,
     });
 
     if (reviewTokensIn || reviewTokensOut) {
       await recordUsage(params.service, {
         userId: params.userId,
-        actionCode,
+        actionCode: usageCode,
         model: env.OPENAI_ADVANCED_MODEL,
         tokensIn: reviewTokensIn,
         tokensOut: reviewTokensOut,
-        reservationId: reservation.reservationId,
+        reservationId: reservationRef,
       });
     }
 
@@ -794,7 +802,7 @@ export async function generateJson<T>(
       userId: params.userId,
       actionCode,
       activityKind: params.activityKind,
-      reservationId: reservation.reservationId,
+      reservationId: reservationRef,
       issueSeverity: lastSeverity,
       metrics: metricsFromFailure({
         generationMs: Date.now() - generationStarted - validationMs,
@@ -816,7 +824,7 @@ export async function generateJson<T>(
       modelCalls,
       draftMs,
       reviewMs,
-      reservationId: params.deferCommit ? reservation.reservationId : undefined,
+      reservationId: params.deferCommit && charge ? reservation.reservationId : undefined,
     };
   } catch (error) {
     if (error instanceof CallAbortedError) {

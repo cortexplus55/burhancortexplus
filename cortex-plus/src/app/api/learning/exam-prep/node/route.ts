@@ -2,6 +2,7 @@ import { after, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { commitCredits, refundCredits, reserveCredits } from "@/lib/credits/service";
 import {
+  canAffordLesson,
   claimPrefetchSlot,
   dropPrefetch,
   nodeHasAttempts,
@@ -1205,8 +1206,10 @@ async function handleNodeRequest(
       .eq("action_code", actionForKind(kind))
       .eq("active", true)
       .maybeSingle();
-    const wallet = await readWalletBalance(service, userId);
-    if (typeof rule?.credit_cost === "number" && (wallet.balance ?? 0) < rule.credit_cost) {
+    if (
+      typeof rule?.credit_cost === "number" &&
+      !(await canAffordLesson(service, userId, rule.credit_cost))
+    ) {
       return NextResponse.json({ ok: true, skipped: "credits" });
     }
   }

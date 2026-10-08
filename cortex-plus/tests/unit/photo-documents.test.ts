@@ -328,8 +328,11 @@ describe("kotası dolan aboneye kredi satılmıyor", () => {
   ])("%s kredi kapısını açmadan önce koda bakıyor", (file) => {
     const source = readFileSync(file, "utf8");
     expect(source).toContain("isPhotoQuotaError(processed)");
-    expect(source.indexOf("isPhotoQuotaError(processed)")).toBeLessThan(
-      source.indexOf("setPaywall(true)"),
+    // İşleme cevabındaki 402 dalı: fotoğraf kotası, kredi kapısından önce.
+    const branch = source.slice(source.indexOf("if (result.status === 402) {"));
+    expect(branch.indexOf("isPhotoQuotaError(processed)")).toBeGreaterThan(0);
+    expect(branch.indexOf("isPhotoQuotaError(processed)")).toBeLessThan(
+      branch.indexOf('openPaywall("Materyali işlemek için kullanım hakkın doldu.")'),
     );
   });
 });
