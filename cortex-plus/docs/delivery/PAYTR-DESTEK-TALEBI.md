@@ -79,3 +79,39 @@ olmaz.
 
 Bağlam ve engel listesi: `PAYTR-ABONELIK.md` → "Yenileme neden otomatik
 değil". Kodda tek kaynak: `src/lib/payments/paytr-capability.ts`.
+
+---
+
+## PayTR'nin cevabı (5 Ekim 2026, panelde "Destek Talepleriniz")
+
+Özet, kendi sözlerimizle:
+
+| Soru | Cevap |
+|---|---|
+| 1. iFrame ile kart saklama | Yok. Abonelik yapısı **Direkt API + Non3D yetkisiyle** sunuluyor. |
+| 2. Direkt API tek yol mu | Evet. Ayrıca hazır "her ay otomatik çek" sistemi **yok**: biz istek gönderdiğimizde kayıtlı karttan çekim yapılır, zamanlayıcıyı biz yazarız. Ödeme sayfası, taksit oranları ve iFrame'in verdiği her şey de bizim tarafta yazılır. |
+| 3. PCI beklentisi | Cevaplanmadı. |
+| 4. Tanımlı yetkiler | Açıkça söylenmedi; Direkt API + Non3D'ye geçiş ilgili birimlerin **onayına** bağlı, talep incelenip olumlu ya da olumsuz dönülüyor. |
+
+Ek uyarı: 3D'siz işlemde kartın izinsiz kullanıldığı itirazında **ispat yükü
+bizde**; riskler firmaya ait. Bağlantılar: `dev.paytr.com/direkt-api/kart-saklama-api/kayitli-karttan-odeme`,
+`.../kayitli-kart-tekrarlayan-odeme`.
+
+## Ürün sahibinin kararı ve ikinci talep (8 Ekim 2026)
+
+Karar: **Direkt API'ye başvuruluyor.** Talep aynı gün gönderildi (Teknik Destek
+/ Yazılım Hataları → **Direkt API Talebi**). İçeriği:
+
+- Mağaza 747272 için Direkt API + Non3D yetkisi isteniyor.
+- Plan: **ilk ödeme 3D Secure ile** alınıp kart o sırada saklanır; yalnız
+  dönem sonu yenilemeleri "Kayıtlı Kart Tekrarlayan Ödeme" ile yapılır.
+  Yenileme isteğini bizim zamanlayıcımız gönderir.
+- 3D'siz işlemin riskleri (itirazda ispat yükü) yazılı olarak kabul edildi.
+- İki soru yeniden soruldu: hangi PCI-DSS belgesi / SAQ seviyesi isteniyor;
+  ilk ödeme 3D, yenilemeler Non3D olabilir mi.
+
+**Onay gelmeden hiçbir şey değişmiyor:** iFrame ödemesi, hatırlatmalı elle
+yenileme, sözleşmedeki "otomatik olarak yenilenmez" ve `AUTO_RENEW_SUPPORTED =
+false` aynen kalıyor. Onay gelirse sıra: PCI belgesi → Direkt API ödeme sayfası
+ve kart saklama → yenileme zamanlayıcısı (Hobby cron kotasına dikkat: mevcut
+günlük cron'un içine) → en son sözleşme metni ve `AUTO_RENEW_SUPPORTED`.

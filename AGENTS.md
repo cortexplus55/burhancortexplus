@@ -192,8 +192,15 @@ edelim mi" sorusu ürün sahibine soruldu; cevap **önce PayTR'ye soralım**
 oldu. Talep **3 Ekim 2026'da gönderildi** (Mağaza Paneli → Destek, Teknik Destek /
 Entegrasyon, mağaza 747272): `cortex-plus/docs/delivery/PAYTR-DESTEK-TALEBI.md`
 — dört soru ve her cevabın ne değiştireceği yazılı. Cevap panelde "Destek
-Talepleriniz" altında ve hesabın e-postasına gelir. Yazılı cevap gelmeden
-Direkt API'ye geçilmiyor ve sözleşme metnine dokunulmuyor.
+Talepleriniz" altında ve hesabın e-postasına gelir.
+
+**PayTR cevap verdi (5 Ekim 2026):** abonelik yalnız **Direkt API + Non3D** ile;
+hazır aylık çekim yok (zamanlayıcı bizde), ödeme sayfası ve taksitler de bizde;
+geçiş PayTR onayına bağlı; 3D'siz itirazda ispat yükü bizde. **Ürün sahibi 8 Ekim'de
+başvurmaya karar verdi**, talep gönderildi (Direkt API Talebi; ilk ödeme 3D, yalnız
+yenilemeler Non3D; PCI seviyesi soruldu). **Onay gelene kadar hiçbir şey
+değişmiyor:** iFrame, hatırlatmalı elle yenileme, "otomatik olarak yenilenmez",
+`AUTO_RENEW_SUPPORTED = false`. Ayrıntı ve onay sonrası sıra aynı belgede.
 
 ## Ücretsiz katman (3 Ekim 2026) — günde bir ders, bir hazırlık, toplam 5 sayfa
 
