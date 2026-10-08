@@ -35,6 +35,7 @@ import { consolidatePrepDocuments } from "@/lib/learning/consolidate-documents";
 import { formatContradictions } from "@/lib/learning/source-contradictions";
 import { loadOneshotIntakeTopics, type IntakeStudyUnit } from "@/lib/learning/intake-outline";
 import { namePrepFromTopics } from "@/lib/learning/prep-title-run";
+import { prepTitleFromModel } from "@/lib/learning/prep-title";
 
 const bodySchema = z.object({
   messages: z
@@ -197,6 +198,11 @@ async function probeDocumentTitle(
   topicTitles: string[],
 ): Promise<string> {
   if (!documentId) return "";
+  // Tek ana konu: ad o konudur. Ücretsizde 5 sayfa çoğu zaman tek konu
+  // çıkarıyor ve model iki konudan azına ad yazmıyor; dosya adına
+  // düşülüyordu ("Uat 99 Sayfa Trigonometri", 8 Ekim 2026).
+  const single = topicTitles.length === 1 ? prepTitleFromModel({ title: topicTitles[0] }) : null;
+  if (single) return single;
   const named = await namePrepFromTopics(service, { userId, topics: topicTitles });
   if (named) return named;
   const [{ data: doc }, { data: pages }] = await Promise.all([
