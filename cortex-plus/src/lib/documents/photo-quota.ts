@@ -5,7 +5,7 @@ import {
   planTier as resolvePlanTier,
   type PlanTier,
 } from "@/lib/billing/entitlements";
-import { isAdminUser } from "@/lib/auth/roles";
+import { billingExempt } from "@/lib/billing/free-preview";
 
 export { PHOTO_PAGE_LIMITS, type PlanTier };
 
@@ -48,7 +48,7 @@ export async function claimPhotoPages(
   tier: PlanTier,
 ): Promise<boolean> {
   // Yöneticide sayaç hiç artmıyor; aşağıdaki iade de aynı sebeple dokunmuyor.
-  if (await isAdminUser(service, userId)) return true;
+  if (await billingExempt(service, userId)) return true;
   const { data, error } = await service.rpc("claim_document_pages", {
     p_user_id: userId,
     p_pages: pages,
@@ -64,7 +64,7 @@ export async function releasePhotoPages(
   userId: string,
   pages: number,
 ): Promise<void> {
-  if (await isAdminUser(service, userId)) return;
+  if (await billingExempt(service, userId)) return;
   await service.rpc("release_document_pages", {
     p_user_id: userId,
     p_pages: pages,

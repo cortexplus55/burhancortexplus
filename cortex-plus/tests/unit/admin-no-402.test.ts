@@ -94,11 +94,14 @@ describe("sunucudaki her 402 sınıflanmış", () => {
     expect(kinds).toEqual(new Set(["credits", "premium", "photo", "free"]));
   });
 
-  it("ücretsiz sınırı yöneticiye hiç uygulanmaz", () => {
+  // Yalnız kendi açtığı "ücretsiz gibi gör" önizlemesinde uygulanır (free-preview.ts).
+  it("ücretsiz sınırı yöneticiye uygulanmaz (önizleme hariç)", () => {
     for (const file of ["src/lib/documents/free-pages.ts", "src/lib/billing/free-prep-limit.ts"]) {
       const source = readFileSync(path.join(ROOT, file), "utf8");
-      expect(source).toMatch(/if \(await isAdminUser\(service, userId\)\.catch\(\(\) => false\)\) return (null|false);/);
+      expect(source).toMatch(/if \(await billingExempt\(service, userId\)\.catch\(\(\) => false\)\) return (null|false);/);
     }
+    const exempt = readFileSync(path.join(ROOT, "src/lib/billing/free-preview.ts"), "utf8");
+    expect(exempt).toMatch(/if \(!\(await isAdminUser\(service, userId\)\)\) return false;\s*return !\(await freePreview\(service, userId\)\);/);
   });
 });
 

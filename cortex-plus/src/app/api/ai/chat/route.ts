@@ -1,3 +1,4 @@
+import { billingExempt } from "@/lib/billing/free-preview";
 import { after, NextResponse } from "next/server";
 import { samplingParams } from "@/lib/ai/model-params";
 import { z } from "zod";
@@ -155,7 +156,7 @@ export async function POST(request: Request) {
     });
     const entitlements = await getUserEntitlements(service, userId);
     const isPremium = entitlements.isPremium;
-    if (imageUrl && !(await freeImageAllowed(userId, isPremium, isAdmin))) return errorResponse(429, "free_image_limit");
+    if (imageUrl && !(await freeImageAllowed(userId, isPremium, isAdmin && (await billingExempt(service, userId))))) return errorResponse(429, "free_image_limit");
 
     let priorUserTurns = 0;
     if (rest.conversationId) {

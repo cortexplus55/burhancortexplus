@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
 import { AdminBadge, AdminCard, AdminEmpty, AdminTableFrame } from "@/components/admin/admin-ui";
 import { requireAdmin } from "@/lib/auth/session";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -13,11 +14,11 @@ export const metadata = { title: "Yönetim · Özet" };
 const WINDOW_DAYS = 30;
 
 export default async function AdminPage() {
-  await requireAdmin();
+  const { user } = await requireAdmin();
   const service = createServiceClient();
   const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000).toISOString();
 
-  const [users, newUsers, pending, paidAll, paidWindow, usage, recentPayments] =
+  const [users, newUsers, pending, paidAll, paidWindow, usage, recentPayments, preview] =
     await Promise.all([
       service.from("profiles").select("id", { count: "exact", head: true }),
       service
@@ -40,6 +41,7 @@ export default async function AdminPage() {
         .select("id, amount_try, status, created_at, profiles!payments_user_id_fkey(full_name)")
         .order("created_at", { ascending: false })
         .limit(5),
+      service.from("admin_free_preview").select("user_id").eq("user_id", user.id).maybeSingle(),
     ]);
 
   const sum = (rows: { amount_try: number | null }[] | null) =>
@@ -90,6 +92,18 @@ export default async function AdminPage() {
           </div>
         ))}
       </div>
+
+      <AdminCard
+        title="Ücretsiz gibi gör"
+        desc="Kendi hesabında ücretsiz öğrencinin sınırlarını dene."
+        actions={<FreePreviewToggle on={Boolean(preview.data)} className="adm-btn adm-btn--primary" />}
+      >
+        <p className="text-sm text-[var(--adm-muted)]">
+          Açıkken günde 1 derslik hak, 1 sınav hazırlığı ve toplam 5 sayfa belge geçerli; yükseltme
+          kapıları ücretsiz hesaptaki gibi çıkar. Kredin düşmez, eski belge ve hazırlıkların sayılmaz.
+          Kapatmak için öğrenci ekranlarının üstündeki şeridi kullan.
+        </p>
+      </AdminCard>
 
       {/* Bekleyen iş varsa panele girer girmez görünmeli; menüdeki sayıyı
           görmek için menüye bakmak gerekiyor, bu kart göze çarpıyor. */}

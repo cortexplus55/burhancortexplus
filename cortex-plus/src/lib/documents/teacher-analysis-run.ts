@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
 import { getActionCost } from "@/lib/credits/service";
 import { planTier } from "@/lib/billing/entitlements";
-import { isAdminUser } from "@/lib/auth/roles";
+import { billingExempt, freePreview } from "@/lib/billing/free-preview";
 import {
   coverageStatusLine,
   mergeCoverage,
@@ -166,13 +166,14 @@ export async function runTeacherAnalysis(
       .select("balance, reserved")
       .eq("user_id", input.userId)
       .maybeSingle();
-    const available = Math.max(
-      0,
-      Number(wallet?.balance ?? 0) - Number(wallet?.reserved ?? 0),
-    );
+    // Ücretsiz önizlemedeki yöneticinin satın alınmış kredisi yok sayılır.
+    const previewing = (await freePreview(service, input.userId).catch(() => null)) !== null;
+    const available = previewing
+      ? 0
+      : Math.max(0, Number(wallet?.balance ?? 0) - Number(wallet?.reserved ?? 0));
     // Yöneticinin bakiyesi hiç düşmediği için ön kontrol ona bakmıyor; aksi
     // hâlde boş cüzdanlı kurucu hesabında analiz sessizce atlanırdı.
-    const exempt = await isAdminUser(service, input.userId);
+    const exempt = await billingExempt(service, input.userId);
     if (!exempt && !analysisCreditOk(available, cost ?? 0, chunks.length)) {
       await save(service, documentId, { status: "skipped", error: "credit_budget" });
       reportAnalysis(documentId, "skipped", "credit_budget");

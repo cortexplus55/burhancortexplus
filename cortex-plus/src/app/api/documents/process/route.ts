@@ -30,7 +30,7 @@ import {
   isRetryableIngestionCode,
   userFacingIngestionMessage,
 } from "@/lib/documents/ingestion-errors";
-import { isAdminUser } from "@/lib/auth/roles";
+import { billingExempt } from "@/lib/billing/free-preview";
 import { cleanWholeDocument } from "@/lib/documents/clean-pages";
 
 const bodySchema = z.object({
@@ -265,7 +265,7 @@ export async function POST(request: Request) {
           }, { status: 402 });
         }
         if (indexed.code === PHOTO_QUOTA_CODE) {
-          const admin = await isAdminUser(service, userId);
+          const admin = await billingExempt(service, userId);
           if (admin) {
             return NextResponse.json({
               code: "admin_check_failed",

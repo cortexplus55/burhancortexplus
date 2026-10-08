@@ -214,6 +214,13 @@ bile ücretsiz hesap yeni hazırlık kuramıyordu.
 Sayılar tek yerde: `src/lib/billing/free-tier-copy.ts`. Kampanya bandı kurulmadı
 (karar: şimdilik değil; `/admin/promosyonlar` hazır). Bekçi: `free-tier.test.ts`.
 
+**Ücretsiz akışı denemek için test hesabı açmayın:** `/admin` → "Ücretsiz gibi gör"
+(8 Ekim 2026). Kurucu hesabı o an ücretsiz öğrenci gibi sınırlanır: günde 2 kredi
+ayrı bir tabloda düşer (cüzdana dokunmaz), belge ve hazırlık sınırı yalnız önizleme
+başladıktan sonra eklenenleri sayar. Kapatma düğmesi öğrenci ekranlarının üstündeki
+şeritte. Yeni bir yönetici muafiyeti eklerken `isAdminUser` değil `billingExempt`
+kullanın, yoksa önizleme o noktada sınırı atlar. Bekçi: `free-preview.test.ts`.
+
 ## Satıcı bilgileri: iki alan bilerek yayınlanmıyor
 
 Vergi levhasından girildi (`src/lib/legal/seller.ts`): **Mukadder Önder**,
