@@ -37,7 +37,8 @@ export type QuotaView = {
  */
 export type PeriodKind = "daily" | "weekly" | "monthly";
 
-const FREE_DAILY_ALLOWANCE = 6;
+/** Ücretsiz günlük hak: bir ders (3 Ekim 2026). SQL: 20261003120000. */
+const FREE_DAILY_ALLOWANCE = 2;
 const PREMIUM_MONTHLY_ALLOWANCE = 400;
 
 /**

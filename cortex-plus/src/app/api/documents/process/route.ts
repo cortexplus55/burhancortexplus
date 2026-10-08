@@ -16,7 +16,8 @@ import {
   refundCredits,
   reserveCredits,
 } from "@/lib/credits/service";
-import { PHOTO_QUOTA_CODE } from "@/lib/documents/process-errors";
+import { freePagesRemaining } from "@/lib/documents/free-pages";
+import { FREE_PAGE_LIMIT_CODE, PHOTO_QUOTA_CODE } from "@/lib/documents/process-errors";
 import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
 import {
   processPdfDocumentStep,
@@ -257,6 +258,12 @@ export async function POST(request: Request) {
             nextPage: null,
           }, { status: 503 });
         }
+        if (indexed.code === FREE_PAGE_LIMIT_CODE) {
+          return NextResponse.json({
+            error: userFacingIngestionMessage(FREE_PAGE_LIMIT_CODE),
+            code: FREE_PAGE_LIMIT_CODE,
+          }, { status: 402 });
+        }
         if (indexed.code === PHOTO_QUOTA_CODE) {
           const admin = await isAdminUser(service, userId);
           if (admin) {
@@ -457,12 +464,17 @@ export async function POST(request: Request) {
     }, { status: 422 });
   }
 
-  const reservation = await reserveCredits(
-    service,
-    userId,
-    "DOCUMENT_PAGE_PROCESS",
-    `document_process_${doc.id}`,
-  );
+  // Ücretsiz hesapta belge işleme günlük ders hakkından yemez; sınırı
+  // toplam 5 sayfa koyar (3 Ekim 2026). Abonede belge başına sabit ücret.
+  const freeTier = (await freePagesRemaining(service, userId, doc.id)) !== null;
+  const reservation = freeTier
+    ? ({ ok: true, reservationId: "", cost: 0 } as const)
+    : await reserveCredits(
+        service,
+        userId,
+        "DOCUMENT_PAGE_PROCESS",
+        `document_process_${doc.id}`,
+      );
   if (!reservation.ok) {
     if (reservation.reason === "operation_in_progress" || reservation.reason === "operation_completed") {
       return NextResponse.json({ documentId: doc.id, status: "processing", phase: "extract" }, { status: 202 });
@@ -481,7 +493,7 @@ export async function POST(request: Request) {
   });
 
   if (!result.ok) {
-    await refundCredits(service, reservation.reservationId);
+    if (!freeTier) await refundCredits(service, reservation.reservationId);
 
     if (result.error === "photo_quota_exhausted") {
       const tier = await planTier(service, userId);
@@ -490,6 +502,14 @@ export async function POST(request: Request) {
           error: `Bu ayki fotoğraf hakkın doldu (${photoPageLimit(tier)}). Metin katmanı olan PDF ve metin belgeleri etkilenmiyor.`,
           code: PHOTO_QUOTA_CODE,
         },
+        { status: 402 },
+      );
+    }
+
+    if (result.error === FREE_PAGE_LIMIT_CODE) {
+      await markDocumentFailed(service, doc.id, userId, FREE_PAGE_LIMIT_CODE);
+      return NextResponse.json(
+        { error: userFacingIngestionMessage(FREE_PAGE_LIMIT_CODE), code: FREE_PAGE_LIMIT_CODE },
         { status: 402 },
       );
     }
@@ -529,7 +549,7 @@ export async function POST(request: Request) {
     );
   }
 
-  await commitCredits(service, reservation.reservationId);
+  if (!freeTier) await commitCredits(service, reservation.reservationId);
   cleanAfterResponse(service, { userId, documentId: doc.id, startedAt });
 
   return NextResponse.json({

@@ -11828,6 +11828,19 @@ a.cp-exam-search {
   color: var(--cp-muted);
 }
 
+/* Ücretsiz planda kısmen işlenen belge (3 Ekim 2026). */
+.cp-docs-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--cp-text);
+}
+
+.cp-docs-note a {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .cp-docs-status {
   flex-shrink: 0;
   padding: 0.15rem 0.6rem;

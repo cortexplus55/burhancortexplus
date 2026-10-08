@@ -195,6 +195,25 @@ Entegrasyon, mağaza 747272): `cortex-plus/docs/delivery/PAYTR-DESTEK-TALEBI.md`
 Talepleriniz" altında ve hesabın e-postasına gelir. Yazılı cevap gelmeden
 Direkt API'ye geçilmiyor ve sözleşme metnine dokunulmuyor.
 
+## Ücretsiz katman (3 Ekim 2026) — günde bir ders, bir hazırlık, toplam 5 sayfa
+
+Ürün sahibinin kararı, aynı gün Astra'nın ücretsiz hesabı ölçülerek: Astra'da
+**tek sohbet mesajı günlük hakkın %64'ünü** yedi; ikinci mesajla hak doldu,
+üçüncüsünde cevap bulanık + geri sayımlı yükseltme kapısı çıktı. Sayaç %0'dayken
+bile ücretsiz hesap yeni hazırlık kuramıyordu.
+
+| Kural | Nerede |
+|---|---|
+| Günlük hak **2 kredi** = bir ders (ya da bir test, bir podcast, iki sohbet mesajı); her şey aynı haktan | `credit_reserve` (göç `20261003120000`), `period.ts` |
+| **Bir** sınav hazırlığı ("Hedef puan" kaydı sayılmaz); ders seçilince kapı | `free-prep-limit.ts`, sihirbaz + sohbet + okul kopyası |
+| Hesap başına **toplam 5 sayfa** belge işleme (silinenler dahil); fazlası işlenmez, "ilk N sayfa işlendi" yazar | `free-pages.ts`, `pdf-ingestion.ts`, `pipeline.ts`, `documents.source_page_count` |
+| Resim sayfası hakkı dolunca belge **reddedilmez**; o sayfalar atlanır | `scan_pages_skipped` |
+| Konu haritası, kurulum sohbeti ve ücretsizde belge işleme **ders hakkından yemez** | `generateJson({ chargeCredits: false })` |
+| Kapıda geri sayım + "neden ücretsiz değil" | `upgrade-sheet.tsx` |
+
+Sayılar tek yerde: `src/lib/billing/free-tier-copy.ts`. Kampanya bandı kurulmadı
+(karar: şimdilik değil; `/admin/promosyonlar` hazır). Bekçi: `free-tier.test.ts`.
+
 ## Satıcı bilgileri: iki alan bilerek yayınlanmıyor
 
 Vergi levhasından girildi (`src/lib/legal/seller.ts`): **Mukadder Önder**,

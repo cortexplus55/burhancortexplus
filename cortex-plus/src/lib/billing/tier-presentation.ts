@@ -2,6 +2,8 @@ import { PHOTO_PAGE_LIMITS, type Audience } from "@/lib/billing/entitlements";
 import { periodLabel, type PeriodKind } from "@/lib/credits/period";
 import { formatDate } from "@/lib/format";
 
+import { FREE_PAGE_TOTAL, FREE_PREP_LIMIT } from "@/lib/billing/free-tier-copy";
+
 /**
  * Fiyat, profil ve kabuk aynı cümleleri buradan okur.
  * Ücretsizde açık olan bir stüdyo Plus'a özel diye yazılmaz.
@@ -12,6 +14,7 @@ export const BENEFITS_LEAD = "Ücretsiz plandaki her şey ve:";
 export function plusBenefitLines(): string[] {
   return [
     "Günlük hak yerine yüksek aylık kota",
+    "Sınırsız sınav hazırlığı ve belgenin tamamı işlenir",
     `Daha yüksek fotoğraf ve PDF limiti (${PHOTO_PAGE_LIMITS.plus} sayfa)`,
     "Hakkın bitince ek paket alabilme",
   ];
@@ -66,9 +69,24 @@ export function tierComparisonRows(): TierComparisonRow[] {
     {
       label: "AI kullanımı",
       guest: "Yok",
-      free: "Günlük kota",
+      // 3 Ekim 2026: günde 2 kredi — bir ders ya da bir test ya da bir podcast.
+      free: "Günde 1 ders",
       plus: "Yüksek aylık kota",
       sigma: "Daha yüksek aylık kota",
+    },
+    {
+      label: "Sınav hazırlığı",
+      guest: "—",
+      free: String(FREE_PREP_LIMIT),
+      plus: "Sınırsız",
+      sigma: "Sınırsız",
+    },
+    {
+      label: "Belge işleme",
+      guest: "—",
+      free: `Toplam ${FREE_PAGE_TOTAL} sayfa`,
+      plus: "Belgenin tamamı",
+      sigma: "Belgenin tamamı",
     },
     {
       label: "Foto / PDF sayfa",

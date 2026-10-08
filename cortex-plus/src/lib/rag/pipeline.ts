@@ -17,6 +17,7 @@ import {
   releasePhotoPages,
 } from "@/lib/documents/photo-quota";
 import { recordUsage } from "@/lib/credits/service";
+import { freePagesRemaining } from "@/lib/documents/free-pages";
 import { recordAbuse } from "@/lib/abuse/record";
 import { chunkText } from "@/lib/rag/chunk";
 export { chunkText } from "@/lib/rag/chunk";
@@ -257,9 +258,19 @@ export async function processDocument(
     }
   }
 
+  // Ücretsiz katman: hesap başına toplam 5 sayfa (3 Ekim 2026). Fazlası
+  // işlenmez; ekranda "ilk N sayfa işlendi, tamamı için Plus" yazar.
+  const sourcePages = pages.length;
+  const freeRemaining = await freePagesRemaining(service, userId, documentId);
+  if (freeRemaining === 0) return failAndRelease("free_page_limit");
+  if (freeRemaining != null && pages.length > freeRemaining) {
+    pages = pages.slice(0, freeRemaining);
+    notice = `Ücretsiz planda ${sourcePages} sayfalık belgenin ilk ${pages.length} sayfası işlendi. Tamamı için Plus'a geç.`;
+  }
+
   await service
     .from("documents")
-    .update({ status: "processing", page_count: pages.length })
+    .update({ status: "processing", page_count: pages.length, source_page_count: sourcePages })
     .eq("id", documentId);
 
   // A request can be interrupted after writing only part of the derived data.

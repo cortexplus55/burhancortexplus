@@ -63,6 +63,32 @@ export function familiarityBand(level: Familiarity): "weak" | "mid" | "strong" {
   return "mid";
 }
 
+/**
+ * Öğrenci sıradaki dersi açabilecek mi? `credit_reserve` ile aynı hesap:
+ * satın alınan kredi (`balance`) + dönem hakkı (`free_allowance_remaining` —
+ * abonenin aylık, ücretsizin günlük hakkı da burada). Dönemi bitmiş hak ilk
+ * işlemde yenileneceği için tam sayılır. Yalnız `balance`'a bakmak (#243)
+ * gerçek abonede önceden hazırlamayı hiç çalıştırmıyordu.
+ */
+export async function canAffordLesson(
+  service: SupabaseClient,
+  userId: string,
+  cost: number,
+  now = Date.now(),
+): Promise<boolean> {
+  const { data: admin } = await service.rpc("is_admin", { uid: userId });
+  if (admin === true) return true;
+  const { data } = await service
+    .from("credit_wallets")
+    .select("balance, free_allowance_remaining, period_allowance, period_ends_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!data) return false;
+  const ended = data.period_ends_at ? new Date(data.period_ends_at as string).getTime() <= now : false;
+  const allowance = Number((ended ? data.period_allowance : data.free_allowance_remaining) ?? 0);
+  return Number(data.balance ?? 0) + allowance >= cost;
+}
+
 export async function nodeHasAttempts(service: SupabaseClient, nodeId: string) {
   const { data } = await service
     .from("exam_prep_node_attempts")

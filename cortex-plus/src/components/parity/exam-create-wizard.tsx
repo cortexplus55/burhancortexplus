@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { isPhotoQuotaError } from "@/lib/documents/process-errors";
+import { isFreePageLimitError, isPhotoQuotaError } from "@/lib/documents/process-errors";
+import { FREE_PREP_LIMIT_CODE, FREE_PREP_LIMIT_MESSAGE, freePageCapLine } from "@/lib/billing/free-tier-copy";
 import {
   clampExamLabel,
   postDocumentProcess,
@@ -215,8 +216,14 @@ export function ExamCreateWizard({
   initialDocumentId = null,
   recentSubjects = [],
   onUseChat,
+  prepLimitReached = false,
 }: {
   initialDocumentId?: string | null;
+  /**
+   * Ücretsiz hesabın tek hazırlık hakkı dolu (3 Ekim 2026). Astra'daki gibi
+   * ders seçilince yükseltme kapısı açılır; sunucu da kurulumu reddeder.
+   */
+  prepLimitReached?: boolean;
   /** Öğrencinin daha önce çalıştığı dersler — en üstte önerilir. */
   recentSubjects?: string[];
   /** "Materyalim yok" yolu: sohbetle kurulum. */
@@ -303,6 +310,21 @@ export function ExamCreateWizard({
   const [starting, setStarting] = useState(false);
   const [planning, setPlanning] = useState(false);
   const [paywall, setPaywall] = useState(false);
+  const [paywallMessage, setPaywallMessage] = useState(
+    "Materyali işlemek için kullanım hakkın doldu.",
+  );
+  const openPaywall = (message?: string) => {
+    if (message) setPaywallMessage(message);
+    setPaywall(true);
+  };
+  const pickSubject = (value: string) => {
+    setSubject(value);
+    if (prepLimitReached) {
+      openPaywall(FREE_PREP_LIMIT_MESSAGE);
+      return;
+    }
+    setStep("date");
+  };
   const planTimer = useRef<number | null>(null);
   const shapeTimer = useRef<number | null>(null);
   const alive = useRef(true);
@@ -574,8 +596,13 @@ export function ExamCreateWizard({
             setStep("language");
             return;
           }
-          if (course.status === 402 && !isPhotoQuotaError(processed)) setPaywall(true);
-          else setIntakeAlert(messageFromProcessBody(processed));
+          if (course.status === 402 && isFreePageLimitError(processed)) {
+            openPaywall(typeof processed.error === "string" ? processed.error : undefined);
+          } else if (course.status === 402 && !isPhotoQuotaError(processed)) {
+            openPaywall("Materyali işlemek için kullanım hakkın doldu.");
+          } else {
+            setIntakeAlert(messageFromProcessBody(processed));
+          }
           setStep("material");
           return;
         }
@@ -788,6 +815,10 @@ export function ExamCreateWizard({
       clearPendingDocProcess();
       setProcessDetail(null);
       setProcessPercent(null);
+      if (isFreePageLimitError(processed)) {
+        openPaywall(typeof processed.error === "string" ? processed.error : undefined);
+        return false;
+      }
       if (isPhotoQuotaError(processed)) {
         const description = materialLimitLine ?? undefined;
         toast.error(
@@ -799,7 +830,7 @@ export function ExamCreateWizard({
         );
         return false;
       }
-      setPaywall(true);
+      openPaywall("Materyali işlemek için kullanım hakkın doldu.");
       return false;
     }
     if (!result.ok) {
@@ -907,6 +938,9 @@ export function ExamCreateWizard({
             body: JSON.stringify({ documentId: uploaded.documentId }),
           });
           const preflight = (await preflightRes.json().catch(() => ({}))) as {
+            code?: string;
+            pageCount?: number;
+            freePages?: { total: number; remaining: number } | null;
             fits?: boolean;
             scannedPages?: number;
             textPages?: number;
@@ -914,17 +948,22 @@ export function ExamCreateWizard({
             quota?: { unlimited?: boolean; remaining?: number | null; tier?: string };
             error?: string;
           };
+          if (preflightRes.status === 402 && isFreePageLimitError(preflight)) {
+            openPaywall(preflight.error);
+            return false;
+          }
+          const free = preflight.freePages;
+          if (free && typeof preflight.pageCount === "number" && preflight.pageCount > free.remaining) {
+            toast.message(freePageCapLine(preflight.pageCount, free.remaining));
+          }
+          // Taranmış sayfa hakkı yetmese de belge reddedilmiyor (3 Ekim 2026):
+          // metinli sayfalar işlenir, hakkı aşan resim sayfaları atlanır.
           if (preflightRes.ok && preflight.fits === false && !preflight.quota?.unlimited) {
             const remaining = preflight.quota?.remaining ?? 0;
             const scanned = preflight.scannedPages ?? 0;
-            const note =
-              preflight.scannedPagesNote ??
-              "Gerçekten boş sayfalar kota düşmez.";
-            const message =
-              `Bu PDF'in ${scanned} sayfası taranmış görünüyor. Bu ay kalan taranmış sayfa hakkın: ${remaining}. ${note}`;
-            setProcessAlert(message);
-            toast.error(message);
-            return false;
+            toast.message(
+              `Bu PDF'in ${scanned} sayfası resim. Bu ay kalan taranmış sayfa hakkın: ${remaining}; hakkı aşan resim sayfaları okunmayacak, metinli sayfalar işlenecek.`,
+            );
           }
         } catch {
           // Preflight is advisory — process path still enforces quota.
@@ -1003,7 +1042,8 @@ export function ExamCreateWizard({
         }),
       });
       if (res.status === 402) {
-        setPaywall(true);
+        const body = (await res.json().catch(() => ({}))) as { code?: string; error?: string };
+        openPaywall(body.code === FREE_PREP_LIMIT_CODE ? FREE_PREP_LIMIT_MESSAGE : body.error);
         return;
       }
       const payload = await res.json().catch(() => ({}));
@@ -1119,8 +1159,7 @@ export function ExamCreateWizard({
               type="button"
               className="apw-add-own"
               onClick={() => {
-                setSubject(subjectQuery.trim());
-                setStep("date");
+                pickSubject(subjectQuery.trim());
               }}
             >
               <Plus className="h-4 w-4" aria-hidden />
@@ -1139,8 +1178,7 @@ export function ExamCreateWizard({
                       type="button"
                       className="apw-tile"
                       onClick={() => {
-                        setSubject(item);
-                        setStep("date");
+                        pickSubject(item);
                       }}
                     >
                       {item}
@@ -1157,8 +1195,7 @@ export function ExamCreateWizard({
                 type="button"
                 className="apw-tile"
                 onClick={() => {
-                  setSubject(item);
-                  setStep("date");
+                  pickSubject(item);
                 }}
               >
                 {item}
@@ -1617,7 +1654,7 @@ export function ExamCreateWizard({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Materyali işlemek için kullanım hakkın doldu."
+        message={paywallMessage}
         returnPath="/deneme-sinavlari/olustur"
       />
     </div>

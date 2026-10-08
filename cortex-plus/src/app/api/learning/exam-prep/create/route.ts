@@ -8,6 +8,11 @@ import {
   sessionMetaBySortOrder,
 } from "@/lib/learning/exam-prep-plan";
 import { insertExamPrepGraph } from "@/lib/learning/exam-prep-insert";
+import {
+  FREE_PREP_LIMIT_CODE,
+  FREE_PREP_LIMIT_MESSAGE,
+  freePrepLimitReached,
+} from "@/lib/billing/free-prep-limit";
 import { alignNewSessionSortOrders } from "@/lib/learning/exam-prep-reschedule-apply";
 import {
   buildExamScheduleV2,
@@ -67,6 +72,15 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return errorResponse(400, "invalid_input");
+
+  // Ücretsiz hesap bir hazırlık kurabilir (3 Ekim 2026; Astra'da ücretsiz
+  // hesap yeni hazırlık kuramıyor).
+  if (await freePrepLimitReached(service, userId)) {
+    return NextResponse.json(
+      { error: FREE_PREP_LIMIT_MESSAGE, code: FREE_PREP_LIMIT_CODE },
+      { status: 402 },
+    );
+  }
 
   const v2 = await isFeatureEnabled(service, PDF_LEARNING_V2_FLAG);
   let topics = parsed.data.note?.trim()

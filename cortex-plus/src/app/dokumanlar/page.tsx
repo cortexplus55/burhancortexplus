@@ -56,7 +56,7 @@ export default async function DokumanlarPage() {
   const { data: documents } = await supabase
     .from("documents")
     .select(
-      "id, file_name, status, size_bytes, created_at, updated_at, error_message, topic_map_status, topic_map_error, page_count",
+      "id, file_name, status, size_bytes, created_at, updated_at, error_message, topic_map_status, topic_map_error, page_count, source_page_count, scan_pages_skipped",
     )
     .eq("user_id", user.id)
     .is("deleted_at", null)
@@ -141,6 +141,18 @@ export default async function DokumanlarPage() {
                     <div className="min-w-0 flex-1">
                       <p className="cp-docs-name">{document.file_name}</p>
                       <p className="cp-docs-meta">{meta.join(" · ")}</p>
+                      {/* Ücretsiz plan: toplam 5 sayfa; resim sayfası hakkı (3 Ekim 2026). */}
+                      {document.source_page_count && document.page_count && document.source_page_count > document.page_count ? (
+                        <p className="cp-docs-note">
+                          Ücretsiz planda {document.source_page_count} sayfanın ilk {document.page_count} sayfası işlendi.{" "}
+                          <Link href="/pay?returnTo=%2Fdokumanlar">Tamamı için Plus</Link>
+                        </p>
+                      ) : null}
+                      {document.scan_pages_skipped ? (
+                        <p className="cp-docs-note">
+                          {document.scan_pages_skipped} resim sayfası okunmadı; bu ayki taranmış sayfa hakkın doldu.
+                        </p>
+                      ) : null}
                     </div>
                     <span className={cn("cp-docs-status", `cp-docs-status--${document.status}`)}>
                       {mapStopped ? "Bekliyor" : (statusLabels[document.status] ?? document.status)}

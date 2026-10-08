@@ -6,7 +6,7 @@ import { Smartphone, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { PhoneUploadPanel } from "@/components/parity/phone-upload-panel";
 import { CreditGate } from "@/components/paywall/credit-gate";
-import { isPhotoQuotaError } from "@/lib/documents/process-errors";
+import { isFreePageLimitError, isPhotoQuotaError } from "@/lib/documents/process-errors";
 import { formatDocumentProcessProgress } from "@/lib/documents/process-progress-label";
 import { messageFromProcessBody } from "@/lib/documents/process-user-message";
 import {
@@ -60,6 +60,7 @@ export function PrepMaterialAdder({
   const [busy, setBusy] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [paywall, setPaywall] = useState(false);
+  const [paywallMessage, setPaywallMessage] = useState("Materyali işlemek için kullanım hakkın doldu.");
   const [processDetail, setProcessDetail] = useState<string | null>(null);
   const [processAlert, setProcessAlert] = useState<string | null>(null);
   const [failedUpload, setFailedUpload] = useState<{
@@ -123,6 +124,11 @@ export function PrepMaterialAdder({
     if (result.status === 402) {
       clearPendingDocProcess();
       setProcessDetail(null);
+      if (isFreePageLimitError(processed)) {
+        if (typeof processed.error === "string") setPaywallMessage(processed.error);
+        setPaywall(true);
+        return;
+      }
       if (isPhotoQuotaError(processed)) {
         const description = materialLimitLine ?? undefined;
         toast.error(typeof processed.error === "string" ? processed.error : "Bu ayki fotoğraf hakkın doldu.", {
@@ -332,7 +338,7 @@ export function PrepMaterialAdder({
       <CreditGate
         open={paywall}
         onOpenChange={setPaywall}
-        message="Materyali işlemek için kullanım hakkın doldu."
+        message={paywallMessage}
         returnPath={`/deneme-sinavlari/${prepId}`}
       />
     </div>
