@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/server";
+import { CREDIT_PRICE_TABLE } from "@/lib/credits/price-table";
 
 /**
  * Canlı şema koddaki beklentiyle uyuşuyor mu.
@@ -57,6 +58,20 @@ async function probeCreditReserve(service: SupabaseClient): Promise<SchemaCheck>
   };
 }
 
+/**
+ * İade fonksiyonu yerinde mi. Boş argümanla sorulur: fonksiyon ilk satırda
+ * `missing_args` döner, hiçbir satıra dokunmaz. Yoksa PostgREST bulamaz.
+ */
+async function probeRefundFunction(service: SupabaseClient): Promise<boolean> {
+  const { error } = await service.rpc("apply_payment_refund", {
+    p_payment_id: null,
+    p_refund_kurus: null,
+    p_provider_ref: null,
+    p_source: "schema_probe",
+  });
+  return !(error && /could not find the function|PGRST202/i.test(error.message));
+}
+
 async function hasTable(
   service: SupabaseClient,
   table: string,
@@ -72,7 +87,7 @@ export async function probeSchema(
     .from("document_teacher_analyses")
     .select("document_id")
     .limit(1);
-  const [reserve, audio, exam, upgrade, pages, referral, analysisTable] = await Promise.all([
+  const [reserve, audio, exam, upgrade, pages, referral, analysisTable, podcastRule, chatRule, failures, refundFn, preview, prefetch] = await Promise.all([
     probeCreditReserve(service),
     service
       .from("credit_rules")
@@ -92,7 +107,16 @@ export async function probeSchema(
       .eq("status", "subscribed")
       .maybeSingle(),
     teacherAnalysis,
+    service.from("credit_rules").select("credit_cost").eq("action_code", "PODCAST_GENERATE").maybeSingle(),
+    service.from("credit_rules").select("credit_cost").eq("action_code", "AI_CHAT_STANDARD").maybeSingle(),
+    hasTable(service, "lesson_generation_failures"),
+    probeRefundFunction(service),
+    hasTable(service, "admin_free_preview"),
+    hasTable(service, "exam_prep_prefetch"),
   ]);
+  const examPrice = CREDIT_PRICE_TABLE.PRACTICE_EXAM_GENERATE.credits;
+  const chatPrice = CREDIT_PRICE_TABLE.AI_CHAT_STANDARD.credits;
+  const v2 = Boolean(podcastRule.data) && chatRule.data?.credit_cost === chatPrice;
 
   const referralMultiplier = referral.data?.multiplier as number | undefined;
 
@@ -107,13 +131,47 @@ export async function probeSchema(
         : "AUDIO_SYNTHESIZE kuralı yok — ses ücretsiz üretiliyor (20260918090000).",
     },
     {
+      // 8 Ekim 2026: yeni işlem kodları yoksa podcast, sözlü ve sesli sohbet
+      // `invalid_action` ile düşer — kritik.
+      name: "Kredi sistemi v2",
+      ok: v2,
+      critical: true,
+      detail: v2
+        ? `Mesaj ${chatPrice}, ders ${CREDIT_PRICE_TABLE.STUDY_PLAN_GENERATE.credits}, podcast ${CREDIT_PRICE_TABLE.PODCAST_GENERATE.credits} kredi`
+        : "20261008120000 uygulanmamış — podcast, sözlü ve sesli sohbet düşer.",
+    },
+    {
       name: "Deneme üretimi fiyatı",
-      ok: exam.data?.credit_cost === 5,
+      ok: exam.data?.credit_cost === examPrice,
       critical: false,
       detail:
-        exam.data?.credit_cost === 5
-          ? "5 kredi"
-          : `${exam.data?.credit_cost ?? "?"} kredi — 20260918100000 uygulanmamış.`,
+        exam.data?.credit_cost === examPrice
+          ? `${examPrice} kredi`
+          : `${exam.data?.credit_cost ?? "?"} kredi — 20261008120000 uygulanmamış.`,
+    },
+    {
+      name: "Ders hatası kaydı",
+      ok: failures,
+      critical: false,
+      detail: failures
+        ? "lesson_generation_failures yerinde"
+        : "Tablo yok — Ders hataları sayfası boş kalır (20260928010000).",
+    },
+    {
+      name: "İade fonksiyonu",
+      ok: refundFn,
+      critical: false,
+      detail: refundFn
+        ? "apply_payment_refund yerinde (kilitli, tek işlemde iade)"
+        : "Yok — iade kod yolundan yürür, eşzamanlılık koruması zayıf (20260928030000).",
+    },
+    {
+      name: "Ücretsiz önizleme ve önceden hazırlama",
+      ok: preview && prefetch,
+      critical: false,
+      detail: preview && prefetch
+        ? "admin_free_preview ve exam_prep_prefetch yerinde"
+        : "Tablo eksik (20261008100000 / 20261003100000).",
     },
     {
       name: "Zor soru tavanı sayacı",
