@@ -1,3 +1,4 @@
+import { billingExempt } from "@/lib/billing/free-preview";
 import { NextResponse } from "next/server";
 import { errorResponse, withUser } from "@/lib/api/guards";
 import { generateJson, isPremiumUser } from "@/lib/ai/generate";
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
 
   // Sohbet ucundaki tavanın aynısı; iki giriş de aynı sayacı kullanıyor ki
   // biri kapanıp diğeri açık kalmasın. Gerekçe: `image-quota.ts`.
-  if (!(await freeImageAllowed(userId, isPremium, isAdmin))) {
+  if (!(await freeImageAllowed(userId, isPremium, isAdmin && (await billingExempt(service, userId))))) {
     return errorResponse(429, "free_image_limit");
   }
 

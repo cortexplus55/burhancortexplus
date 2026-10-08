@@ -233,7 +233,7 @@ describe("ücretsiz hesapta günlük fotoğraf tavanı", () => {
   ])("%s tavanı uyguluyor", (file) => {
     const source = readFileSync(file, "utf8");
     // Yönetici bayrağı istek gövdesinden değil, `withUser` bağlamından geliyor.
-    expect(source).toContain("freeImageAllowed(userId, isPremium, isAdmin)");
+    expect(source).toContain("freeImageAllowed(userId, isPremium, isAdmin && (await billingExempt(service, userId)))");
     expect(source).toMatch(/const \{[^}]*\bisAdmin\b[^}]*\} = guard\.ctx/);
     expect(source).toContain('errorResponse(429, "free_image_limit")');
   });
@@ -246,7 +246,7 @@ describe("ücretsiz hesapta günlük fotoğraf tavanı", () => {
     "src/app/api/ai/solve-image/route.ts",
   ])("%s tavanı denetimden sonra soruyor", (file) => {
     const source = readFileSync(file, "utf8");
-    const cap = source.indexOf("freeImageAllowed(userId, isPremium, isAdmin)");
+    const cap = source.indexOf("freeImageAllowed(userId, isPremium, isAdmin && (await billingExempt(service, userId)))");
     expect(cap).toBeGreaterThan(-1);
     expect(source.indexOf("await moderate(")).toBeLessThan(cap);
   });

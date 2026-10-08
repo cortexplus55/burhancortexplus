@@ -6,7 +6,8 @@ import { renderPdfPages, BLANK_INK_RATIO } from "@/lib/documents/render-pdf-page
 type RenderedPage = Awaited<ReturnType<typeof renderPdfPages>>["pages"][number];
 import { extractImageText } from "@/lib/documents/extract-image-text";
 import { photoPageLimit, planTier } from "@/lib/documents/photo-quota";
-import { isAdminUser, AdminCheckError } from "@/lib/auth/roles";
+import { AdminCheckError } from "@/lib/auth/roles";
+import { billingExempt } from "@/lib/billing/free-preview";
 import { reserveCredits, refundCredits, recordUsage } from "@/lib/credits/service";
 import { chunkText, embedTexts } from "@/lib/rag/pipeline";
 import { env } from "@/lib/env";
@@ -353,7 +354,7 @@ export async function readPdfBatch(
 
   let founder = false;
   try {
-    founder = await isAdminUser(service, userId);
+    founder = await billingExempt(service, userId);
   } catch (error) {
     if (error instanceof AdminCheckError) throw new Error("admin_check_failed");
     throw error;

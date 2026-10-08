@@ -20,6 +20,7 @@ import { StudentShellProvider } from "@/lib/student/student-shell-context";
 import { studentTopTabs, studentBottomTabs } from "@/components/parity/student-shell-nav";
 import { ACCOUNT_REFRESH_EVENT } from "@/lib/credits/spendable";
 import { FounderChip } from "@/components/student/founder-chip";
+import { FreePreviewToggle } from "@/components/admin/free-preview-toggle";
 import { profilePlanView } from "@/lib/billing/tier-presentation";
 import { ExamChatMenu } from "@/components/parity/exam-chat-menu";
 import type { RecentConversation } from "@/lib/student/conversation-time";
@@ -180,6 +181,12 @@ export function ParitySorShell({
   return (
     <StudentShellProvider account={account}>
       <div className={cn("cp-sor-root", isPremium && "cp-sor-root--plus", isStudio && "cp-sor-root--studio", chrome === "exam" && "cp-sor-root--exam", chrome === "focus" && "cp-sor-root--focus", chrome === "session" && "cp-sor-root--session")}>
+      {account?.freePreview && chrome !== "session" ? (
+        <div className="cp-free-preview-bar" role="status">
+          <span>Ücretsiz önizleme açık: ücretsiz bir öğrencinin gördüğünü görüyorsun.</span>
+          <FreePreviewToggle on className="cp-free-preview-off" label="Kapat" />
+        </div>
+      ) : null}
       {chrome === "session" ? null : <header className="cp-sor-top">
         {examChrome ? (
           <Link href={backHref} className="cp-exam-back">

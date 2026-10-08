@@ -6,6 +6,7 @@ import {
   type PlanTier,
 } from "@/lib/billing/entitlements";
 import { requireAdminCheck, AdminCheckError } from "@/lib/auth/roles";
+import { freePreview } from "@/lib/billing/free-preview";
 import { PDF_MAX_BYTES } from "@/lib/documents/store-upload";
 import { STORAGE_CAP_FREE, STORAGE_CAP_PREMIUM } from "@/lib/documents/storage-quota";
 import { PREP_SOURCE_DOCUMENT_CAP } from "@/lib/learning/prep-topic-list";
@@ -43,7 +44,15 @@ export async function getDocumentLimits(
     throw new AdminCheckError();
   }
 
-  const tier = unlimited ? ("sigma" as PlanTier) : await resolvePlanTier(service, userId);
+  // Yöneticinin ücretsiz önizlemesi ücretsiz hesabın sınırlarını görür.
+  const preview = unlimited ? await freePreview(service, userId).catch(() => null) : null;
+  if (preview) unlimited = false;
+
+  const tier = unlimited
+    ? ("sigma" as PlanTier)
+    : preview
+      ? ("free" as PlanTier)
+      : await resolvePlanTier(service, userId);
   const scanPagesPerMonth = unlimited ? null : PHOTO_PAGE_LIMITS[tier];
 
   let scanPagesUsed = 0;

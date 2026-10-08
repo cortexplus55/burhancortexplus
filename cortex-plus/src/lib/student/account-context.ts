@@ -1,9 +1,11 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getUserEntitlements, type Audience } from "@/lib/billing/entitlements";
+import { freePreview, previewAllowanceLeft, previewWallet } from "@/lib/billing/free-preview";
 import { allowanceShare, formatResetAt, quotaView, type PeriodKind } from "@/lib/credits/period";
 import { type SubscriptionBadge } from "@/lib/student/subscription-badge";
 import { isAdminUser } from "@/lib/auth/roles";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export type StudentAccountContext = {
   audience: Audience;
@@ -19,8 +21,11 @@ export type StudentAccountContext = {
   /**
    * `user_roles` içinde iptal edilmemiş `admin` satırı.
    * İstemciden gelmez; sunucu okur. Kredi engeli ve satın alma uyarıları buna bakar.
+   * Ücretsiz önizlemede `false`: yönetici ücretsiz hesabın gördüğünü görür.
    */
   isAdmin: boolean;
+  /** Yönetici "ücretsiz gibi gör" önizlemesinde (free-preview.ts). */
+  freePreview?: boolean;
   /**
    * "5 Eylül 2026 03:00" — hakkın ne zaman yenileneceği.
    *
@@ -52,6 +57,30 @@ export async function getStudentAccountContext(
     getUserEntitlements(supabase, userId),
     isAdminUser(supabase, userId),
   ]);
+
+  // Önizleme tablosu yalnız sunucu anahtarıyla okunur.
+  const preview = isAdmin ? await freePreview(createServiceClient(), userId).catch(() => null) : null;
+  if (preview) {
+    const quota = quotaView(previewWallet(preview), false);
+    return {
+      audience: "free",
+      balance: 0,
+      freeAllowanceRemaining: quota.remaining,
+      isPremium: false,
+      showsUpgradeChrome: true,
+      subscriptionBadge: null,
+      subscriptionAllowance: null,
+      subscriptionPeriodEnd: null,
+      canSpend: previewAllowanceLeft(preview) > 0,
+      isAdmin: false,
+      freePreview: true,
+      resetsAtLabel: formatResetAt(quota.resetsAt),
+      resetsAtIso: quota.resetsAt.toISOString(),
+      periodKind: quota.kind,
+      usedPercent: quota.usedPercent,
+      extraPercent: null,
+    };
+  }
 
   const subscriptionBadge = entitlements.badge;
   const isPremium = entitlements.isPremium;

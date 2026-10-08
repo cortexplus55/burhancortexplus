@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isAdminUser } from "@/lib/auth/roles";
 import { planTier } from "@/lib/billing/entitlements";
+import { billingExempt, freePreview } from "@/lib/billing/free-preview";
 import { FREE_PREP_LIMIT } from "@/lib/billing/free-tier-copy";
 
 export { FREE_PREP_LIMIT, FREE_PREP_LIMIT_CODE, FREE_PREP_LIMIT_MESSAGE } from "@/lib/billing/free-tier-copy";
@@ -14,19 +14,23 @@ export { FREE_PREP_LIMIT, FREE_PREP_LIMIT_CODE, FREE_PREP_LIMIT_MESSAGE } from "
  *
  * "Hedef puan" kaydı (`exam_type = 'hedef'`) hazırlık değil — hedef puan
  * ekranı onu yer tutucu olarak açıyor; sayılsaydı öğrencinin tek hakkını
- * yerdi.
+ * yerdi. Yöneticinin ücretsiz önizlemesinde yalnız önizleme başladıktan
+ * sonra kurulan hazırlıklar sayılır.
  */
 export async function freePrepLimitReached(
   service: SupabaseClient,
   userId: string,
 ): Promise<boolean> {
-  if (await isAdminUser(service, userId).catch(() => false)) return false;
-  if ((await planTier(service, userId)) !== "free") return false;
-  const { count, error } = await service
+  if (await billingExempt(service, userId).catch(() => false)) return false;
+  const preview = await freePreview(service, userId).catch(() => null);
+  if (!preview && (await planTier(service, userId)) !== "free") return false;
+  let query = service
     .from("exam_preps")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
     .neq("exam_type", "hedef");
+  if (preview) query = query.gte("created_at", preview.startedAt);
+  const { count, error } = await query;
   if (error) return false;
   return (count ?? 0) >= FREE_PREP_LIMIT;
 }

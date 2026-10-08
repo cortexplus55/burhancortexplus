@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { freePreview, previewAllowanceLeft } from "@/lib/billing/free-preview";
 import { env } from "@/lib/env";
 import type { Familiarity, Mood } from "@/lib/learning/session-signals";
 
@@ -77,7 +78,11 @@ export async function canAffordLesson(
   now = Date.now(),
 ): Promise<boolean> {
   const { data: admin } = await service.rpc("is_admin", { uid: userId });
-  if (admin === true) return true;
+  if (admin === true) {
+    // Ücretsiz önizlemede yöneticinin hakkı ayrı tabloda (free-preview.ts).
+    const preview = await freePreview(service, userId).catch(() => null);
+    return preview ? previewAllowanceLeft(preview, now) >= cost : true;
+  }
   const { data } = await service
     .from("credit_wallets")
     .select("balance, free_allowance_remaining, period_allowance, period_ends_at")

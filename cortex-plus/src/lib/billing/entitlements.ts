@@ -215,21 +215,40 @@ export function entitlementsFromSubscriptionRow(row: {
   };
 }
 
+/** Satır yalnız yöneticinin kendi açtığı önizlemede var; okuma düşerse yok sayılır. */
+async function previewing(service: SupabaseClient, userId: string): Promise<{ data: boolean }> {
+  try {
+    const { data } = await service
+      .from("admin_free_preview")
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return { data: (data as { user_id?: unknown } | null)?.user_id === userId };
+  } catch {
+    return { data: false };
+  }
+}
+
 export async function getUserEntitlements(
   service: SupabaseClient,
   userId: string,
 ): Promise<UserEntitlements> {
-  const { data } = await service
-    .from("subscriptions")
-    .select(
-      "status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)",
-    )
-    .eq("user_id", userId)
-    .eq("status", "active")
-    // Cron `inactive` yazmadan önce de süresi dolan abonelik SQL'de düşer;
-    // TS tarafındaki `periodStillValid` ikinci savunma hattı olarak kalır.
-    .or(`current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`)
-    .maybeSingle();
+  const [{ data }, { data: preview }] = await Promise.all([
+    service
+      .from("subscriptions")
+      .select(
+        "status, current_period_end, cancel_at_period_end, plans(is_premium, tier, name, slug, monthly_allowance)",
+      )
+      .eq("user_id", userId)
+      .eq("status", "active")
+      // Cron `inactive` yazmadan önce de süresi dolan abonelik SQL'de düşer;
+      // TS tarafındaki `periodStillValid` ikinci savunma hattı olarak kalır.
+      .or(`current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`)
+      .maybeSingle(),
+    // Yöneticinin "ücretsiz gibi gör" önizlemesi (free-preview.ts): plan ücretsiz.
+    previewing(service, userId),
+  ]);
+  if (preview) return entitlementsFromSubscriptionRow(null);
 
   return entitlementsFromSubscriptionRow(
     data as Parameters<typeof entitlementsFromSubscriptionRow>[0],
